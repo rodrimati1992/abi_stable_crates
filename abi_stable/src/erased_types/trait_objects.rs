@@ -1,13 +1,10 @@
-use std::ops::{Deref,DerefMut};
+use std::ops::{Deref, DerefMut};
 
 use core_extensions::prelude::*;
 
-use super::{
-    *,
-    c_functions::*,
-};
+use super::{c_functions::*, *};
 
-use crate::{pointer_trait::ErasedStableDeref, ErasedObject};
+use crate::ErasedObject;
 
 #[macro_export]
 macro_rules! declare_trait_object {
@@ -46,7 +43,7 @@ macro_rules! declare_trait_object {
                 };
                 x as *const Self as *const $struct_name
             };
-            
+
             $vis fn erased_vtable()->&'static $struct_name{
                 unsafe{ &*Self::ERASED }
             }
@@ -57,7 +54,7 @@ macro_rules! declare_trait_object {
         #[sabi(inside_abi_stable_crate)]
         pub struct $trait_object<P> {
             this: P,
-            vtable: CAbi<&'static HasherVtable<ErasedObject>>,
+            vtable: &'static HasherVtable<ErasedObject>,
         }
 
         impl $trait_object<()> {
@@ -70,7 +67,7 @@ macro_rules! declare_trait_object {
             {
                 $trait_object {
                     this: this.erased(<()>::T),
-                    vtable: HasherVtable::<T>::erased_vtable().into(),
+                    vtable: HasherVtable::<T>::erased_vtable(),
                 }
             }
         }
@@ -141,17 +138,16 @@ declare_trait_object! {
         pub(crate) struct HasherVtable[T]
         where [ T:Hasher, ]
         {
-            pub(crate) hash_slice: extern "C" fn(CAbi<&mut T>, RSlice<'_, u8>) = hash_slice_Hasher,
-            pub(crate) finish: extern "C" fn(CAbi<&T>) -> u64 = finish_Hasher,
+            pub(crate) hash_slice: extern "C" fn(&mut T, RSlice<'_, u8>) = hash_slice_Hasher,
+            pub(crate) finish: extern "C" fn(&T) -> u64 = finish_Hasher,
         }
     }
 
 }
 
-
-impl<P> Hasher for HasherTraitObject<P> 
-where 
-    P:DerefMut<Target=ErasedObject>
+impl<P> Hasher for HasherTraitObject<P>
+where
+    P: DerefMut<Target = ErasedObject>,
 {
     fn finish(&self) -> u64 {
         (self.vtable.finish)((&*self.this).into())
@@ -160,8 +156,5 @@ where
         (self.vtable.hash_slice)((&mut *self.this).into(), bytes.into())
     }
 }
-
-
-
 
 //////////////

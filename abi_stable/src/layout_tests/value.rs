@@ -1,171 +1,152 @@
 #![allow(dead_code)]
 
-use std::{
-    
-    ptr,
-    num,
-    sync::atomic,
-    marker::PhantomData,
-};
+use std::{marker::PhantomData, num, ptr, sync::atomic};
 
 #[allow(unused_imports)]
-use core_extensions::{prelude::*,matches};
+use core_extensions::{matches, prelude::*};
 
 use crate::{
-    *,
     abi_stability::{
-        abi_checking::{
-            AbiInstability,
-        },
-        AbiInfoWrapper,
-        check_abi_stability,
-        SharedStableAbi,
+        abi_checking::AbiInstability, check_abi_stability, AbiInfoWrapper, SharedStableAbi,
     },
+    *,
 };
 
-
-mod regular{
+mod regular {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
-        x:u32,
-        y:u32,
-        w:u16,
-        h:u32,
+        x: u32,
+        y: u32,
+        w: u16,
+        h: u32,
     }
 }
 
-mod prefixed{
+mod prefixed {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(unsafe_Prefix))]
     pub struct Rectangle {
-        x:u32,
-        y:u32,
-        w:u16,
-        h:u32,
+        x: u32,
+        y: u32,
+        w: u16,
+        h: u32,
     }
 }
 
-mod changed_name{
+mod changed_name {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Rectangleiiiiii {
-        x:u32,
-        y:u32,
-        w:u16,
-        h:u32,
+        x: u32,
+        y: u32,
+        w: u16,
+        h: u32,
     }
 }
 
-
-mod swapped_fields_first{
+mod swapped_fields_first {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
-        y:u32,
-        x:u32,
-        w:u16,
-        h:u32,
+        y: u32,
+        x: u32,
+        w: u16,
+        h: u32,
     }
 }
 
-
-mod swapped_fields_last{
+mod swapped_fields_last {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
-        x:u32,
-        y:u32,
-        h:u32,
-        w:u16,
+        x: u32,
+        y: u32,
+        h: u32,
+        w: u16,
     }
 }
 
-
-mod removed_field_first{
+mod removed_field_first {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
-        y:u32,
-        w:u16,
-        h:u32,
+        y: u32,
+        w: u16,
+        h: u32,
     }
 }
 
-
-mod removed_field_last{
+mod removed_field_last {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
-        x:u32,
-        y:u32,
-        w:u16,
+        x: u32,
+        y: u32,
+        w: u16,
     }
 }
 
-mod removed_all_fields{
+mod removed_all_fields {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
-        x:u32,
-        y:u32,
-        w:u16,
+        x: u32,
+        y: u32,
+        w: u16,
     }
 }
 
-
-mod changed_type_first{
+mod changed_type_first {
     use super::shadowed;
 
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
-        x:shadowed::u32,
-        y:u32,
-        w:u16,
-        h:u32,
+        x: shadowed::u32,
+        y: u32,
+        w: u16,
+        h: u32,
     }
 }
 
-
-mod changed_type_last{
+mod changed_type_last {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
-        x:u32,
-        y:u32,
-        w:u16,
-        h:u32,
+        x: u32,
+        y: u32,
+        w: u16,
+        h: u32,
     }
 }
 
-mod changed_alignment{
-    #[repr(C,align(16))]
+mod changed_alignment {
+    #[repr(C, align(16))]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
-        x:u32,
-        y:u32,
-        w:u16,
-        h:u32,
+        x: u32,
+        y: u32,
+        w: u16,
+        h: u32,
     }
 }
 
-
 /// For testing that adding #[repr(C)] makes the derive macro not panic.
-mod derive_validity_0{
-    and_stringify!{
+mod derive_validity_0 {
+    and_stringify! {
         const RECTANGLE_NON_REPRC;
 
         pub struct Rectangle {
@@ -177,15 +158,14 @@ mod derive_validity_0{
     }
 }
 
-
 mod built_in {
-    pub use u32 as std_u32;
     pub use i32 as std_i32;
+    pub use u32 as std_u32;
 }
 
 /// Types that have the same type-name and layout as built-in types.
 #[allow(non_camel_case_types)]
-mod shadowed{
+mod shadowed {
     use super::built_in::*;
 
     #[repr(transparent)]
@@ -204,35 +184,27 @@ mod shadowed{
 
 }
 
-
-
-
-fn assert_sane_abi_info(abi:&'static AbiInfoWrapper){
-    assert_equal_abi_info(abi,abi);
+fn assert_sane_abi_info(abi: &'static AbiInfoWrapper) {
+    assert_equal_abi_info(abi, abi);
 }
 
-fn assert_equal_abi_info(interface:&'static AbiInfoWrapper,impl_:&'static AbiInfoWrapper){
-    assert_eq!(
-        check_abi_stability(interface,impl_),
-        Ok(())
-    );
+fn assert_equal_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static AbiInfoWrapper) {
+    assert_eq!(check_abi_stability(interface, impl_), Ok(()));
 }
 
-fn assert_different_abi_info(interface:&'static AbiInfoWrapper,impl_:&'static AbiInfoWrapper){
+fn assert_different_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static AbiInfoWrapper) {
     assert_ne!(
-        check_abi_stability(interface,impl_),
+        check_abi_stability(interface, impl_),
         Ok(()),
         "\n\nInterface:{:#?}\n\nimplementation:{:#?}\n\n",
-        interface,impl_,
+        interface,
+        impl_,
     );
 }
 
-
-
 #[test]
-fn same_different_abi_stability(){
-
-    let must_be_equal=vec![
+fn same_different_abi_stability() {
+    let must_be_equal = vec![
         regular::Rectangle::ABI_INFO,
         swapped_fields_first::Rectangle::ABI_INFO,
         swapped_fields_last::Rectangle::ABI_INFO,
@@ -249,7 +221,7 @@ fn same_different_abi_stability(){
         assert_sane_abi_info(this);
     }
 
-    let list=vec![
+    let list = vec![
         <&mut ()>::ABI_INFO,
         <&mut i32>::ABI_INFO,
         <&()>::ABI_INFO,
@@ -263,11 +235,11 @@ fn same_different_abi_stability(){
         <*const i32>::ABI_INFO,
         <*mut ()>::ABI_INFO,
         <*mut i32>::ABI_INFO,
-        <[();0]>::ABI_INFO,
-        <[();1]>::ABI_INFO,
-        <[();2]>::ABI_INFO,
-        <[();3]>::ABI_INFO,
-        <[u32;3]>::ABI_INFO,
+        <[(); 0]>::ABI_INFO,
+        <[(); 1]>::ABI_INFO,
+        <[(); 2]>::ABI_INFO,
+        <[(); 3]>::ABI_INFO,
+        <[u32; 3]>::ABI_INFO,
         <i32>::ABI_INFO,
         <u32>::ABI_INFO,
         <bool>::ABI_INFO,
@@ -280,17 +252,17 @@ fn same_different_abi_stability(){
         <ptr::NonNull<i32>>::ABI_INFO,
         <RVec<()>>::ABI_INFO,
         <RVec<i32>>::ABI_INFO,
-        <RSlice<'_,()>>::ABI_INFO,
-        <RSlice<'_,i32>>::ABI_INFO,
-        <RSliceMut<'_,()>>::ABI_INFO,
-        <RSliceMut<'_,i32>>::ABI_INFO,
+        <RSlice<'_, ()>>::ABI_INFO,
+        <RSlice<'_, i32>>::ABI_INFO,
+        <RSliceMut<'_, ()>>::ABI_INFO,
+        <RSliceMut<'_, i32>>::ABI_INFO,
         <Option<&()>>::ABI_INFO,
         <Option<&u32>>::ABI_INFO,
-        <Option<extern fn()>>::ABI_INFO,
+        <Option<extern "C" fn()>>::ABI_INFO,
         <ROption<()>>::ABI_INFO,
         <ROption<u32>>::ABI_INFO,
-        <RCow<'_,str>>::ABI_INFO,
-        <RCow<'_,[u32]>>::ABI_INFO,
+        <RCow<'_, str>>::ABI_INFO,
+        <RCow<'_, [u32]>>::ABI_INFO,
         <RArc<()>>::ABI_INFO,
         <RArc<u32>>::ABI_INFO,
         <RBox<()>>::ABI_INFO,
@@ -305,383 +277,355 @@ fn same_different_abi_stability(){
         <RArc<prefix0::Prefix>>::ABI_INFO,
     ];
 
-    let (dur,())=core_extensions::measure_time::measure(||{
-        for (i,this) in list.iter().cloned().enumerate() {
-            for (j,other) in list.iter().cloned().enumerate() {
-                if i==j {
-                   assert_equal_abi_info(this,other);
-                }else{
-                   assert_different_abi_info(this,other);
+    let (dur, ()) = core_extensions::measure_time::measure(|| {
+        for (i, this) in list.iter().cloned().enumerate() {
+            for (j, other) in list.iter().cloned().enumerate() {
+                if i == j {
+                    assert_equal_abi_info(this, other);
+                } else {
+                    assert_different_abi_info(this, other);
                 }
             }
         }
 
-        for this in vec![
-            <PhantomData<()>>::ABI_INFO,
-            <PhantomData<String>>::ABI_INFO,
-        ]{
-            assert_equal_abi_info(
-                <PhantomData<()>>::ABI_INFO,
-                this,
-            )
+        for this in vec![<PhantomData<()>>::ABI_INFO, <PhantomData<String>>::ABI_INFO] {
+            assert_equal_abi_info(<PhantomData<()>>::ABI_INFO, this)
         }
     });
 
-    println!("taken {} to check all listed layouts",dur);
-
-}
-
-
-#[test]
-fn different_prefixity(){
-    let regular=<&'static regular::Rectangle>::ABI_INFO;
-    let other=<&'static prefixed::Rectangle>::ABI_INFO;
-    let errs=check_abi_stability(regular,other).unwrap_err().flatten_errors();
-    assert!(
-        errs.iter().any(|err| matches!(AbiInstability::IsPrefix{..}=err) ) 
-    );
+    println!("taken {} to check all listed layouts", dur);
 }
 
 #[test]
-fn different_zeroness(){
-    const ZEROABLE_ABI:&'static AbiInfoWrapper=&{
-        let mut abi=*<&()>::ABI_INFO.get();
-        abi.is_nonzero=false;
-        unsafe{ AbiInfoWrapper::new_unchecked(abi) }
+fn different_prefixity() {
+    let regular = <&'static regular::Rectangle>::ABI_INFO;
+    let other = <&'static prefixed::Rectangle>::ABI_INFO;
+    let errs = check_abi_stability(regular, other)
+        .unwrap_err()
+        .flatten_errors();
+    assert!(errs
+        .iter()
+        .any(|err| matches!(AbiInstability::IsPrefix{..}=err)));
+}
+
+#[test]
+fn different_zeroness() {
+    const ZEROABLE_ABI: &'static AbiInfoWrapper = &{
+        let mut abi = *<&()>::ABI_INFO.get();
+        abi.is_nonzero = false;
+        unsafe { AbiInfoWrapper::new_unchecked(abi) }
     };
 
-    let non_zero=<&()>::ABI_INFO;
+    let non_zero = <&()>::ABI_INFO;
 
     assert!(non_zero.get().is_nonzero);
     assert!(!ZEROABLE_ABI.get().is_nonzero);
 
-    let errs=check_abi_stability(non_zero,ZEROABLE_ABI).unwrap_err().flatten_errors();
-    assert!(
-        errs.iter().any(|err| matches!(AbiInstability::NonZeroness{..}=err) ) 
-    );
+    let errs = check_abi_stability(non_zero, ZEROABLE_ABI)
+        .unwrap_err()
+        .flatten_errors();
+    assert!(errs
+        .iter()
+        .any(|err| matches!(AbiInstability::NonZeroness{..}=err)));
 }
 
 #[test]
-fn different_name(){
-    let regular=regular::Rectangle::ABI_INFO;
-    let other=changed_name::Rectangleiiiiii::ABI_INFO;
-    let errs=check_abi_stability(regular,other).unwrap_err().flatten_errors();
-    assert!(
-        errs.iter().any(|err| matches!(AbiInstability::Name{..}=err) ) 
-    );
+fn different_name() {
+    let regular = regular::Rectangle::ABI_INFO;
+    let other = changed_name::Rectangleiiiiii::ABI_INFO;
+    let errs = check_abi_stability(regular, other)
+        .unwrap_err()
+        .flatten_errors();
+    assert!(errs
+        .iter()
+        .any(|err| matches!(AbiInstability::Name{..}=err)));
 }
 
-
 #[test]
-fn swapped_fields(){
-    let regular=regular::Rectangle::ABI_INFO;
-    let first=swapped_fields_first::Rectangle::ABI_INFO;
-    let last =swapped_fields_first::Rectangle::ABI_INFO;
+fn swapped_fields() {
+    let regular = regular::Rectangle::ABI_INFO;
+    let first = swapped_fields_first::Rectangle::ABI_INFO;
+    let last = swapped_fields_first::Rectangle::ABI_INFO;
 
-    for other in vec![first,last] {
-        let errs=check_abi_stability(regular,other).unwrap_err().flatten_errors();
-        assert!(
-            errs.iter()
-            .any(|x| matches!(AbiInstability::UnexpectedField{..}=x) )
-        )
+    for other in vec![first, last] {
+        let errs = check_abi_stability(regular, other)
+            .unwrap_err()
+            .flatten_errors();
+        assert!(errs
+            .iter()
+            .any(|x| matches!(AbiInstability::UnexpectedField{..}=x)))
     }
 }
 
 #[test]
-fn removed_fields(){
-    let regular=regular::Rectangle::ABI_INFO;
-    let list=vec![
+fn removed_fields() {
+    let regular = regular::Rectangle::ABI_INFO;
+    let list = vec![
         removed_field_first::Rectangle::ABI_INFO,
         removed_field_last::Rectangle::ABI_INFO,
         removed_all_fields::Rectangle::ABI_INFO,
     ];
 
     for other in list {
-        let errs=check_abi_stability(regular,other).unwrap_err().flatten_errors();
-        let mut found_field_count_mismatch=false;
-        let mut is_size_mismatch=false;
-        for err in  errs{
+        let errs = check_abi_stability(regular, other)
+            .unwrap_err()
+            .flatten_errors();
+        let mut found_field_count_mismatch = false;
+        let mut is_size_mismatch = false;
+        for err in errs {
             match err {
-                AbiInstability::FieldCountMismatch{..}=>{
-                    found_field_count_mismatch=true;
+                AbiInstability::FieldCountMismatch { .. } => {
+                    found_field_count_mismatch = true;
                 }
-                AbiInstability::Size{..}=>{
-                    is_size_mismatch=true;
+                AbiInstability::Size { .. } => {
+                    is_size_mismatch = true;
                 }
-                _=>{}
+                _ => {}
             }
         }
-        assert!( found_field_count_mismatch );
-        assert!( is_size_mismatch );
+        assert!(found_field_count_mismatch);
+        assert!(is_size_mismatch);
     }
 }
-
 
 #[test]
-fn different_alignment(){
-    let regular=regular::Rectangle::ABI_INFO;
-    let other=changed_alignment::Rectangle::ABI_INFO;
-    let errs=check_abi_stability(regular,other).unwrap_err().flatten_errors();
+fn different_alignment() {
+    let regular = regular::Rectangle::ABI_INFO;
+    let other = changed_alignment::Rectangle::ABI_INFO;
+    let errs = check_abi_stability(regular, other)
+        .unwrap_err()
+        .flatten_errors();
 
-    let mut found_alignment_mismatch=false;
-    for err in  errs{
+    let mut found_alignment_mismatch = false;
+    for err in errs {
         match err {
-            AbiInstability::Alignment{..}=>{
-                found_alignment_mismatch=true;
+            AbiInstability::Alignment { .. } => {
+                found_alignment_mismatch = true;
             }
-            _=>{}
+            _ => {}
         }
     }
-    assert!( found_alignment_mismatch );
+    assert!(found_alignment_mismatch);
 }
-
 
 //////////////////////////////////////////////////////////
 //// Generics
 //////////////////////////////////////////////////////////
 
-mod gen_basic{
+mod gen_basic {
     use super::PhantomData;
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    pub struct Generics<T:'static> {
-        x:&'static T,
-        y:&'static T,
-        _marker:PhantomData<(T)>,
-    }
-}
-    
-mod gen_more_lts{
-    use super::PhantomData;
-    #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
-    #[sabi(bound="T:'a")]
-    pub struct Generics<'a,T> {
-        x:&'a T,
-        y:&'a T,
-        _marker:PhantomData<(&'a T)>,
+    pub struct Generics<T: 'static> {
+        x: &'static T,
+        y: &'static T,
+        _marker: PhantomData<(T)>,
     }
 }
 
-
-mod gen_more_tys{
+mod gen_more_lts {
     use super::PhantomData;
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    pub struct Generics<T:'static,U> {
-        x:&'static T,
-        y:&'static T,
-        _marker:PhantomData<(T,U)>,
+    #[sabi(bound = "T:'a")]
+    pub struct Generics<'a, T> {
+        x: &'a T,
+        y: &'a T,
+        _marker: PhantomData<(&'a T)>,
+    }
+}
+
+mod gen_more_tys {
+    use super::PhantomData;
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Generics<T: 'static, U> {
+        x: &'static T,
+        y: &'static T,
+        _marker: PhantomData<(T, U)>,
     }
 }
 
 // mod gen_more_consts{
-    // For when const-generics are usable
-    // #[repr(C)]
-    // #[derive(StableAbi)]
-    // #[sabi(inside_abi_stable_crate)]
-    // pub struct ExtraConstParam<T,const LEN:usize> {
-    //     x:T,
-    //     y:T,
-    //     _marker:PhantomData<(T,[u8;LEN])>,
-    // }
+// For when const-generics are usable
+// #[repr(C)]
+// #[derive(StableAbi)]
+// #[sabi(inside_abi_stable_crate)]
+// pub struct ExtraConstParam<T,const LEN:usize> {
+//     x:T,
+//     y:T,
+//     _marker:PhantomData<(T,[u8;LEN])>,
+// }
 // }
 
-
-
-
-
-
 #[test]
-fn different_generics(){
-    let regular=gen_basic::Generics::<()>::ABI_INFO;
-    
+fn different_generics() {
+    let regular = gen_basic::Generics::<()>::ABI_INFO;
+
     {
-        let list=vec![
+        let list = vec![
             gen_more_lts::Generics::<()>::ABI_INFO,
-            gen_more_tys::Generics::<(),()>::ABI_INFO,
+            gen_more_tys::Generics::<(), ()>::ABI_INFO,
         ];
 
         for other in list {
-            let errs=check_abi_stability(regular,other).unwrap_err().flatten_errors();
-            assert!(
-                errs.iter().any(|err| matches!(AbiInstability::GenericParamCount{..}=err) ) 
-            );
+            let errs = check_abi_stability(regular, other)
+                .unwrap_err()
+                .flatten_errors();
+            assert!(errs
+                .iter()
+                .any(|err| matches!(AbiInstability::GenericParamCount{..}=err)));
         }
     }
 
     {
-        let list=vec![
-            gen_more_lts::Generics::<()>::ABI_INFO,
-        ];
+        let list = vec![gen_more_lts::Generics::<()>::ABI_INFO];
 
         for other in list {
-            let errs=check_abi_stability(regular,other).unwrap_err().flatten_errors();
-            assert!(
-                errs.iter().any(|err| matches!(AbiInstability::FieldLifetimeMismatch{..}=err) ) 
-            );
+            let errs = check_abi_stability(regular, other)
+                .unwrap_err()
+                .flatten_errors();
+            assert!(errs
+                .iter()
+                .any(|err| matches!(AbiInstability::FieldLifetimeMismatch{..}=err)));
         }
     }
-
-
 }
-
 
 //////////////////////////////////////////////////////////
 ////    Enums
 //////////////////////////////////////////////////////////
 
-
-
-mod basic_enum{
+mod basic_enum {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    pub enum Enum{
+    pub enum Enum {
         Variant0,
-        Variant1{
-            a:u32,
-        }
+        Variant1 { a: u32 },
     }
 }
 
-
-mod misnamed_variant{
+mod misnamed_variant {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    pub enum Enum{
+    pub enum Enum {
         Variant000000000,
-        Variant1{
-            a:u32,
-        }
+        Variant1 { a: u32 },
     }
 }
 
-
-mod extra_variant{
+mod extra_variant {
     use crate::RString;
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    pub enum Enum{
+    pub enum Enum {
         Variant0,
-        Variant1{
-            a:u32,
-        },
+        Variant1 { a: u32 },
         Variant3(RString),
     }
 }
 
-
-
 #[test]
-fn variant_mismatch(){
-    let regular=basic_enum::Enum::ABI_INFO;
+fn variant_mismatch() {
+    let regular = basic_enum::Enum::ABI_INFO;
 
     {
-        let other=misnamed_variant::Enum::ABI_INFO;
-        let errs=check_abi_stability(regular,other).unwrap_err().flatten_errors();
-        assert!(
-            errs.iter().any(|err| matches!(AbiInstability::UnexpectedVariant{..}=err) ) 
-        );
+        let other = misnamed_variant::Enum::ABI_INFO;
+        let errs = check_abi_stability(regular, other)
+            .unwrap_err()
+            .flatten_errors();
+        assert!(errs
+            .iter()
+            .any(|err| matches!(AbiInstability::UnexpectedVariant{..}=err)));
     }
 
     {
-        let other=extra_variant::Enum::ABI_INFO;
-        let errs=check_abi_stability(regular,other).unwrap_err().flatten_errors();
-        assert!(
-            errs.iter().any(|err| matches!(AbiInstability::TooManyVariants{..}=err) ) 
-        );
+        let other = extra_variant::Enum::ABI_INFO;
+        let errs = check_abi_stability(regular, other)
+            .unwrap_err()
+            .flatten_errors();
+        assert!(errs
+            .iter()
+            .any(|err| matches!(AbiInstability::TooManyVariants{..}=err)));
     }
-
 }
-
 
 //////////////////////////////////////////////////////////////////////////////
 ///  Prefix types
 
-
-mod prefix0{
+mod prefix0 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(unsafe_Prefix))]
-    pub struct Prefix{
-        field0:u8,
+    pub struct Prefix {
+        field0: u8,
     }
 }
 
-mod prefix1{
+mod prefix1 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(unsafe_Prefix))]
-    pub struct Prefix{
-        field0:u8,
-        field1:u8,
+    pub struct Prefix {
+        field0: u8,
+        field1: u8,
     }
 }
 
-mod prefix2{
+mod prefix2 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(unsafe_Prefix))]
-    pub struct Prefix{
-        field0:u8,
-        field1:u8,
-        field2:u8,
+    pub struct Prefix {
+        field0: u8,
+        field1: u8,
+        field2: u8,
     }
 }
-
 
 // Prefix types have to keep the same alignment when fields are added
-mod prefix2_misaligned{
+mod prefix2_misaligned {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(unsafe_Prefix))]
-    pub struct Prefix{
-        field0:u8,
-        field1:u8,
-        field2:u64,
+    pub struct Prefix {
+        field0: u8,
+        field1: u8,
+        field2: u64,
     }
 }
 
-
-
 #[test]
-fn prefixes_test(){
+fn prefixes_test() {
     // This has to be hidden behind a reference to be a StableAbi
-    let pref_0=<&prefix0::Prefix>::ABI_INFO;
-    let pref_1=<&prefix1::Prefix>::ABI_INFO;
-    let pref_2=<&prefix2::Prefix>::ABI_INFO;
-    let list=vec![
-        pref_0,
-        pref_1,
-        pref_2,
-    ];
-    for (i,this) in list.iter().cloned().enumerate() {
-        for (j,other) in list.iter().cloned().enumerate() {
-            let res=check_abi_stability(this,other);
+    let pref_0 = <&prefix0::Prefix>::ABI_INFO;
+    let pref_1 = <&prefix1::Prefix>::ABI_INFO;
+    let pref_2 = <&prefix2::Prefix>::ABI_INFO;
+    let list = vec![pref_0, pref_1, pref_2];
+    for (i, this) in list.iter().cloned().enumerate() {
+        for (j, other) in list.iter().cloned().enumerate() {
+            let res = check_abi_stability(this, other);
 
             if i <= j {
-                assert_eq!(
-                    Ok(()),
-                    res,
-                    "\n\ni:{} j:{}\n\n",
-                    i,j,
-                );
-            }else{
-                let errs=res.unwrap_err().flatten_errors();
+                assert_eq!(Ok(()), res, "\n\ni:{} j:{}\n\n", i, j,);
+            } else {
+                let errs = res.unwrap_err().flatten_errors();
                 assert!(
-                    errs.iter().any(|err| matches!(AbiInstability::FieldCountMismatch{..}=err) ),
+                    errs.iter()
+                        .any(|err| matches!(AbiInstability::FieldCountMismatch{..}=err)),
                     "\n\ni:{} j:{}\n\n",
-                    i,j,
+                    i,
+                    j,
                 );
             }
         }
@@ -689,12 +633,14 @@ fn prefixes_test(){
 
     // Adding fields is allowed but they can't change the alignment.
     {
-        let misaligned=<&prefix2_misaligned::Prefix>::ABI_INFO;
+        let misaligned = <&prefix2_misaligned::Prefix>::ABI_INFO;
 
-        let errs=check_abi_stability(pref_0,misaligned).unwrap_err().flatten_errors();
+        let errs = check_abi_stability(pref_0, misaligned)
+            .unwrap_err()
+            .flatten_errors();
 
-        assert!(
-            errs.iter().any(|err| matches!(AbiInstability::Alignment{..}=err) )
-        );
+        assert!(errs
+            .iter()
+            .any(|err| matches!(AbiInstability::Alignment{..}=err)));
     }
 }

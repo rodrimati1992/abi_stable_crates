@@ -1,9 +1,7 @@
 use super::*;
 
-
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
-
 
 static TEST_STR: &str =
     "hello_world.cáscara.ñ.🎊🍕👏😊😀😄😉😉😛😮🙁🙂💔👻😎.";

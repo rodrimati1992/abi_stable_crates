@@ -16,7 +16,7 @@ use crate::{
         FormattingMode,
     },
     marker_type::{SyncSend, UnsyncUnsend},
-    CAbi, ErasedObject, OpaqueType, RBox, RResult, RString,
+    ErasedObject, OpaqueType, RBox, RResult, RString,
 };
 
 #[repr(C)]
@@ -106,8 +106,8 @@ impl<M> Debug for RBoxError_<M> {
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 struct RErrorVTable<T> {
-    debug: extern "C" fn(CAbi<&T>, FormattingMode, &mut RString) -> RResult<(), ()>,
-    display: extern "C" fn(CAbi<&T>, FormattingMode, &mut RString) -> RResult<(), ()>,
+    debug: extern "C" fn(&T, FormattingMode, &mut RString) -> RResult<(), ()>,
+    display: extern "C" fn(&T, FormattingMode, &mut RString) -> RResult<(), ()>,
 }
 
 impl RErrorVTable<ErasedObject> {

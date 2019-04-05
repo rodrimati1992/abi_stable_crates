@@ -1,8 +1,7 @@
 use std::{
     any::TypeId,
-    
     hash::{Hash, Hasher},
-    mem, 
+    mem,
     sync::atomic::AtomicUsize,
 };
 

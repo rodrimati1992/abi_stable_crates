@@ -1,8 +1,4 @@
-use std::{
-    marker::PhantomData,
-    mem::{self, ManuallyDrop},
-    ops::DerefMut,
-};
+use std::{marker::PhantomData, mem::ManuallyDrop, ops::DerefMut};
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
@@ -10,7 +6,7 @@ use core_extensions::prelude::*;
 use crate::{
     pointer_trait::{CallReferentDrop, StableDeref, TransmuteElement},
     traits::FromElement,
-    CAbi, IntoReprRust,
+    IntoReprRust,
 };
 
 #[cfg(test)]
@@ -23,8 +19,8 @@ mod private {
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct RBox<T> {
-        data: CAbi<*mut T>,
-        vtable: CAbi<*const BoxVtable<T>>,
+        data: *mut T,
+        vtable: *const BoxVtable<T>,
         _marker: PhantomData<T>,
     }
 
@@ -34,23 +30,22 @@ mod private {
         }
         pub fn from_box(p: Box<T>) -> RBox<T> {
             RBox {
-                data: Box::into_raw(p).into(),
-                vtable: (VTableGetter::<T>::LIB_VTABLE as *const BoxVtable<T>).into() ,
+                data: Box::into_raw(p),
+                vtable: VTableGetter::<T>::LIB_VTABLE,
                 _marker: PhantomData,
             }
         }
 
         pub(super) fn data(&self) -> *mut T {
-            self.data.into_inner()
+            self.data
         }
         pub(super) fn vtable<'a>(&self) -> &'a BoxVtable<T> {
-            unsafe { &*self.vtable.into_inner() }
+            unsafe { &*self.vtable }
         }
 
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
-            self.vtable = 
-                (VTableGetter::<T>::LIB_VTABLE_FOR_TESTING as *const BoxVtable<T>).into();
+            self.vtable = VTableGetter::<T>::LIB_VTABLE_FOR_TESTING;
         }
     }
 }
@@ -68,12 +63,12 @@ impl<T> RBox<T> {
         let this = ManuallyDrop::new(this);
 
         unsafe {
-            if ::std::ptr::eq(this.vtable(),VTableGetter::<T>::LIB_VTABLE) {
+            if ::std::ptr::eq(this.vtable(), VTableGetter::<T>::LIB_VTABLE) {
                 Box::from_raw(this.data())
             } else {
                 let ret = Box::new(this.data().read());
                 // Just deallocating the Box<_>. without dropping the inner value
-                (this.vtable().destructor)(this.data().into(), CallReferentDrop::No);
+                (this.vtable().destructor)(this.data(), CallReferentDrop::No);
                 ret
             }
         }
@@ -82,18 +77,10 @@ impl<T> RBox<T> {
         let this = ManuallyDrop::new(this);
         unsafe {
             let value = this.data().read();
-            let data: CAbi<*mut T> = this.data().into();
+            let data: *mut T = this.data();
             (this.vtable().destructor)(data, CallReferentDrop::No);
             value
         }
-    }
-
-    pub fn as_abi(&self) -> CAbi<&T> {
-        CAbi::from(&**self)
-    }
-
-    pub fn as_abi_mut(&mut self) -> CAbi<&mut T> {
-        CAbi::from(&mut **self)
     }
 }
 
@@ -166,7 +153,7 @@ unsafe impl<T: Sync> Sync for RBox<T> {}
 impl<T> Drop for RBox<T> {
     fn drop(&mut self) {
         unsafe {
-            let data: CAbi<*mut T> = self.data().into();
+            let data = self.data();
             (RBox::vtable(self).destructor)(data, CallReferentDrop::Yes);
         }
     }
@@ -193,13 +180,12 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
 #[repr(C)]
 #[sabi(inside_abi_stable_crate)]
 pub struct BoxVtable<T> {
-    destructor: unsafe extern "C" fn(CAbi<*mut T>, CallReferentDrop),
+    destructor: unsafe extern "C" fn(*mut T, CallReferentDrop),
 }
 
-
-unsafe extern "C" fn destroy_box<T>(v: CAbi<*mut T>, call_drop: CallReferentDrop) {
-    extern_fn_panic_handling!{
-        let mut box_ = Box::from_raw(v.into_inner() as *mut ManuallyDrop<T>);
+unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {
+    extern_fn_panic_handling! {
+        let mut box_ = Box::from_raw(v as *mut ManuallyDrop<T>);
         if call_drop == CallReferentDrop::Yes {
             ManuallyDrop::drop(&mut *box_);
         }
@@ -208,7 +194,7 @@ unsafe extern "C" fn destroy_box<T>(v: CAbi<*mut T>, call_drop: CallReferentDrop
 }
 
 #[cfg(test)]
-unsafe extern "C" fn destroy_box_for_tests<T>(v: CAbi<*mut T>, call_drop: CallReferentDrop) {
+unsafe extern "C" fn destroy_box_for_tests<T>(v: *mut T, call_drop: CallReferentDrop) {
     destroy_box(v, call_drop);
 }
 

@@ -1,8 +1,4 @@
-use std::{
-    marker::PhantomData,
-    mem,
-    ops::Deref,
-};
+use std::{marker::PhantomData, mem, ops::Deref};
 
 use crate::RSlice;
 

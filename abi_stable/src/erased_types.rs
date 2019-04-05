@@ -12,7 +12,7 @@ use serde::{Serialize, Serializer};
 
 use crate::{
     traits::{ImplType, InterfaceType, SerializeImplType},
-    CAbi, IntoReprC, IntoReprRust, OpaqueType, RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,
+    IntoReprC, IntoReprRust, OpaqueType, RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,
     RResult, RSlice, RString,
 };
 

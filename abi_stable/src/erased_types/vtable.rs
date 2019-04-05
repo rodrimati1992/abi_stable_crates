@@ -1,5 +1,4 @@
 use std::{
-    ops::DerefMut,
     fmt::{self, Debug},
     marker::PhantomData,
 };
@@ -10,8 +9,7 @@ use super::*;
 use crate::{
     traits::{ImplType, InterfaceType, SerializeImplType},
     type_info::TypeInfo,
-    pointer_trait::ErasedStableDeref, 
-    ErasedObject
+    ErasedObject,
 };
 
 use core_extensions::{ResultLike, StringExt};
@@ -337,7 +335,7 @@ declare_meta_vtable! {
     pointer=P;
 
     [
-        clone_ptr:    extern fn(CAbi<&P>)->P;
+        clone_ptr:    extern fn(&P)->P;
         impl[] VtableFieldValue<Clone>
         where [P:Clone]
         {
@@ -353,7 +351,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        display:    extern fn(CAbi<&T>,FormattingMode,&mut RString)->RResult<(),()>;
+        display:    extern fn(&T,FormattingMode,&mut RString)->RResult<(),()>;
         impl[] VtableFieldValue<Display>
         where [T:Display]
         {
@@ -361,7 +359,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        debug:      extern fn(CAbi<&T>,FormattingMode,&mut RString)->RResult<(),()>;
+        debug:      extern fn(&T,FormattingMode,&mut RString)->RResult<(),()>;
         impl[] VtableFieldValue<Debug>
         where [T:Debug]
         {
@@ -369,7 +367,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        serialize:  extern fn(CAbi<&T>)->RResult<RCow<'_,str>,RBoxError>;
+        serialize:  extern fn(&T)->RResult<RCow<'_,str>,RBoxError>;
         impl[] VtableFieldValue<Serialize>
         where [
             T:ImplType+SerializeImplType,
@@ -379,7 +377,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        partial_eq: extern fn(CAbi<&T>,CAbi<&T>)->bool;
+        partial_eq: extern fn(&T,&T)->bool;
         impl[] VtableFieldValue<PartialEq>
         where [T:PartialEq,]
         {
@@ -387,7 +385,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        cmp:        extern fn(CAbi<&T>,CAbi<&T>)->RCmpOrdering;
+        cmp:        extern fn(&T,&T)->RCmpOrdering;
         impl[] VtableFieldValue<Ord>
         where [T:Ord,]
         {
@@ -395,7 +393,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        partial_cmp:extern fn(CAbi<&T>,CAbi<&T>)->ROption<RCmpOrdering>;
+        partial_cmp:extern fn(&T,&T)->ROption<RCmpOrdering>;
         impl[] VtableFieldValue<PartialOrd>
         where [T:PartialOrd,]
         {
@@ -403,7 +401,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        hash:extern "C" fn(CAbi<&T>,trait_objects::HasherTraitObject<&mut ErasedObject>);
+        hash:extern "C" fn(&T,trait_objects::HasherTraitObject<&mut ErasedObject>);
         impl[] VtableFieldValue<Hash>
         where [T:Hash]
         {
@@ -450,5 +448,3 @@ impl fmt::Display for TooFewImplsError {
 }
 
 //////////////
-
-

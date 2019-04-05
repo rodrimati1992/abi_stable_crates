@@ -1,10 +1,6 @@
 use super::*;
 
-use std::{
-    iter,
-    sync::Arc,
-    
-};
+use std::{iter, sync::Arc};
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
@@ -237,16 +233,19 @@ fn extend() {
 fn into_iter() {
     assert_eq!(RVec::<()>::new().into_iter().next(), None);
 
-    let arc=Arc::new(0);
+    let arc = Arc::new(0);
 
     let orig = vec![arc.clone(), arc.clone(), arc.clone(), arc.clone()];
     let mut list = orig.clone().into_c();
     assert_eq!(list.clone().into_iter().collect::<Vec<_>>(), orig);
 
-    assert_eq!(Arc::strong_count(&arc),9 );
+    assert_eq!(Arc::strong_count(&arc), 9);
 
     assert_eq!(
-        (&list).into_iter().map(|v:&Arc<i32>|v.clone()).collect::<Vec<_>>(),
+        (&list)
+            .into_iter()
+            .map(|v: &Arc<i32>| v.clone())
+            .collect::<Vec<_>>(),
         orig
     );
     assert_eq!(

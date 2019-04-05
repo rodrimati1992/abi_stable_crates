@@ -110,15 +110,11 @@ pub mod utils;
 pub mod utypeid;
 pub mod version;
 
-
 #[cfg(test)]
 #[macro_use]
 pub mod test_macros;
 #[cfg(test)]
 pub mod layout_tests;
-
-
-
 
 #[doc(hidden)]
 pub mod abi_stable {

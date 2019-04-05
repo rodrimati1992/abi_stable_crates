@@ -8,7 +8,7 @@ use crate::opaque_type::ErasedObject;
 
 pub(crate) fn adapt_std_fmt<T>(
     value: &T,
-    function: extern "C" fn(CAbi<&T>, FormattingMode, &mut RString) -> RResult<(), ()>,
+    function: extern "C" fn(&T, FormattingMode, &mut RString) -> RResult<(), ()>,
     formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     let mut buf = RString::new();
@@ -25,11 +25,11 @@ pub(crate) fn adapt_std_fmt<T>(
     fmt::Display::fmt(&*buf, formatter)
 }
 
-pub(crate) extern "C" fn clone_impl<T>(this: CAbi<&T>) -> T
+pub(crate) extern "C" fn clone_impl<T>(this: &T) -> T
 where
     T: Clone,
 {
-    extern_fn_panic_handling!{
+    extern_fn_panic_handling! {
         T::clone(&this)
     }
 }
@@ -38,25 +38,25 @@ pub(crate) extern "C" fn default_impl<T>() -> T
 where
     T: Default,
 {
-    extern_fn_panic_handling!{
+    extern_fn_panic_handling! {
         T::default()
     }
 }
 
 pub(crate) extern "C" fn display_impl<T>(
-    this: CAbi<&T>,
+    this: &T,
     mode: FormattingMode,
     buf: &mut RString,
 ) -> RResult<(), ()>
 where
     T: Display,
 {
-    extern_fn_panic_handling!{
+    extern_fn_panic_handling! {
         use std::fmt::Write;
 
         let res = match mode {
-            FormattingMode::Default_ => write!(buf, "{}", *this),
-            FormattingMode::Alternate => write!(buf, "{:#}", *this),
+            FormattingMode::Default_ => write!(buf, "{}", this),
+            FormattingMode::Alternate => write!(buf, "{:#}", this),
         };
         match res {
             Ok(_) => ROk(()),
@@ -66,19 +66,19 @@ where
 }
 
 pub(crate) extern "C" fn debug_impl<T>(
-    this: CAbi<&T>,
+    this: &T,
     mode: FormattingMode,
     buf: &mut RString,
 ) -> RResult<(), ()>
 where
     T: Debug,
 {
-    extern_fn_panic_handling!{
+    extern_fn_panic_handling! {
         use std::fmt::Write;
 
         let res = match mode {
-            FormattingMode::Default_ => write!(buf, "{:?}", *this),
-            FormattingMode::Alternate => write!(buf, "{:#?}", *this),
+            FormattingMode::Default_ => write!(buf, "{:?}", this),
+            FormattingMode::Alternate => write!(buf, "{:#?}", this),
         };
         match res {
             Ok(_) => ROk(()),
@@ -87,15 +87,13 @@ where
     }
 }
 
-pub(crate) extern "C" fn serialize_impl<'a, T>(
-    this: CAbi<&'a T>,
-) -> RResult<RCow<'a, str>, RBoxError>
+pub(crate) extern "C" fn serialize_impl<'a, T>(this: &'a T) -> RResult<RCow<'a, str>, RBoxError>
 where
     T: ImplType + SerializeImplType,
     T::Interface: InterfaceType<Serialize = True>,
 {
-    extern_fn_panic_handling!{
-        this.into_inner().serialize_impl().into()
+    extern_fn_panic_handling! {
+        this.serialize_impl().into()
     }
 }
 
@@ -123,33 +121,30 @@ where
 //     .into_c()
 // }
 
-pub(crate) extern "C" fn partial_eq_impl<T>(this: CAbi<&T>, other: CAbi<&T>) -> bool
+pub(crate) extern "C" fn partial_eq_impl<T>(this: &T, other: &T) -> bool
 where
     T: PartialEq,
 {
-    extern_fn_panic_handling!{
-        *this == *other
+    extern_fn_panic_handling! {
+        this == other
     }
 }
 
-pub(crate) extern "C" fn cmp_ord<T>(this: CAbi<&T>, other: CAbi<&T>) -> RCmpOrdering
+pub(crate) extern "C" fn cmp_ord<T>(this: &T, other: &T) -> RCmpOrdering
 where
     T: Ord,
 {
-    extern_fn_panic_handling!{
-        this.cmp(&*other).into_c()
+    extern_fn_panic_handling! {
+        this.cmp(other).into_c()
     }
 }
 
-pub(crate) extern "C" fn partial_cmp_ord<T>(
-    this: CAbi<&T>,
-    other: CAbi<&T>,
-) -> ROption<RCmpOrdering>
+pub(crate) extern "C" fn partial_cmp_ord<T>(this: &T, other: &T) -> ROption<RCmpOrdering>
 where
     T: PartialOrd,
 {
-    extern_fn_panic_handling!{
-        this.partial_cmp(&*other).map(IntoReprC::into_c).into_c()
+    extern_fn_panic_handling! {
+        this.partial_cmp(other).map(IntoReprC::into_c).into_c()
     }
 }
 
@@ -157,12 +152,12 @@ where
 // Hash
 
 pub(crate) extern "C" fn hash_Hash<H>(
-    this: CAbi<&H>,
+    this: &H,
     mut state: trait_objects::HasherTraitObject<&mut ErasedObject>,
 ) where
     H: Hash,
 {
-    extern_fn_panic_handling!{
+    extern_fn_panic_handling! {
         this.hash(&mut state);
     }
 }
@@ -170,20 +165,20 @@ pub(crate) extern "C" fn hash_Hash<H>(
 //////////////////
 // Hasher
 
-pub(crate) extern "C" fn hash_slice_Hasher<T>(this: CAbi<&mut T>, slic_: RSlice<'_, u8>)
+pub(crate) extern "C" fn hash_slice_Hasher<T>(this: &mut T, slic_: RSlice<'_, u8>)
 where
     T: Hasher,
 {
-    extern_fn_panic_handling!{
-        this.into_inner().write(slic_.into());
+    extern_fn_panic_handling! {
+        this.write(slic_.into());
     }
 }
-pub(crate) extern "C" fn finish_Hasher<T>(this: CAbi<&T>) -> u64
+pub(crate) extern "C" fn finish_Hasher<T>(this: &T) -> u64
 where
     T: Hasher,
 {
-    extern_fn_panic_handling!{
-        this.into_inner().finish()
+    extern_fn_panic_handling! {
+        this.finish()
     }
 }
 

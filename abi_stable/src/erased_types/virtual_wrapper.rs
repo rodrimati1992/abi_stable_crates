@@ -8,7 +8,6 @@ use core_extensions::{prelude::*, ResultLike};
 use crate::{
     pointer_trait::{ErasedStableDeref, StableDeref, TransmuteElement},
     traits::{DeserializeImplType, ImplType},
-    
     ErasedObject, RBox, RCow, RStr,
 };
 
@@ -27,7 +26,6 @@ that is safe to use across the ffi boundary.
 ``
 
 */
-
 
 #[cfg(test)]
 mod tests;
@@ -93,19 +91,19 @@ mod priv_ {
             self.vtable as *const _ as usize
         }
 
-        pub(super) fn as_abi(&self) -> CAbi<&ErasedObject>
+        pub(super) fn as_abi(&self) -> &ErasedObject
         where
             P: Deref,
         {
-            CAbi::from(self.object())
+            self.object()
         }
 
         #[allow(dead_code)]
-        pub(super) fn as_abi_mut(&mut self) -> CAbi<&mut ErasedObject>
+        pub(super) fn as_abi_mut(&mut self) -> &mut ErasedObject
         where
             P: DerefMut,
         {
-            CAbi::from(self.object_mut())
+            self.object_mut()
         }
 
         pub fn object_address(&self) -> usize
@@ -237,7 +235,7 @@ where
 {
     fn clone(&self) -> Self {
         let vtable = self.vtable();
-        let new = vtable.clone_ptr::<E>()(CAbi::from(&self.object));
+        let new = vtable.clone_ptr::<E>()(&self.object);
         self.from_new_ptr(new)
     }
 }
@@ -358,10 +356,7 @@ where
     where
         H: Hasher,
     {
-        self.vtable().hash::<E>()(
-            self.as_abi(),
-            HasherTraitObject::new(state),
-        )
+        self.vtable().hash::<E>()(self.as_abi(), HasherTraitObject::new(state))
     }
 }
 

@@ -95,7 +95,7 @@ impl<T> DoubleEndedIterator for IntoIter<T> {
 impl<T> Drop for IntoIter<T> {
     fn drop(&mut self) {
         self.by_ref().for_each(drop);
-        self._buf.length=0;
+        self._buf.length = 0;
         unsafe { ManuallyDrop::drop(&mut self._buf) }
     }
 }

@@ -7,18 +7,17 @@ use std::{
     collections::HashSet,
     fmt::{self, Debug, Display, Formatter},
     mem,
-
 };
 
 use crate::{
-    utils::empty_slice, version::VersionStrings, RNone, ROption, RSome,
-    RStr, StaticSlice, StaticStr,
+    utils::empty_slice, version::VersionStrings, RNone, ROption, RSome, RStr, StaticSlice,
+    StaticStr,
 };
 
 use super::{AbiInfo, GetAbiInfo};
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone,PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct TypeLayoutParams {
     pub name: &'static str,
     pub package: &'static str,
@@ -29,8 +28,7 @@ pub struct TypeLayoutParams {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone,PartialEq)]
-#[derive(StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct TypeLayout {
     pub name: StaticStr,
@@ -44,8 +42,7 @@ pub struct TypeLayout {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[derive(StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub enum LifetimeIndex {
     Static,
@@ -53,8 +50,7 @@ pub enum LifetimeIndex {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone,PartialEq)]
-#[derive(StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct GenericParams {
     pub lifetime: StaticSlice<StaticStr>,
@@ -63,8 +59,7 @@ pub struct GenericParams {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone,PartialEq)]
-#[derive(StableAbi)]
+#[derive(Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct TypePrinter {
     pub name: StaticStr,
@@ -73,8 +68,7 @@ pub struct TypePrinter {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone,PartialEq)]
-#[derive(StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub enum TLData {
     /// All the bytes for the type are valid (not necessarily all bit patterns).
@@ -93,8 +87,7 @@ pub enum TLData {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[derive(StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub enum TLDataDiscriminant {
     Primitive,
@@ -104,8 +97,7 @@ pub enum TLDataDiscriminant {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone,PartialEq)]
-#[derive(StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct TLEnumVariant {
     pub name: StaticStr,
@@ -113,8 +105,7 @@ pub struct TLEnumVariant {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
-#[derive(StableAbi)]
+#[derive(Copy, Clone, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct TLField {
     pub name: StaticStr,
@@ -127,16 +118,14 @@ pub struct TLField {
 }
 
 #[repr(transparent)]
-#[derive(Copy, Clone,PartialEq)]
-#[derive(StableAbi)]
+#[derive(Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct TLFieldAndType {
     inner: &'static TLField,
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[derive(StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub enum RustPrimitive {
     Reference,
@@ -162,10 +151,10 @@ impl TLField {
     }
 
     /// Used for calling recursive methods,
-    /// so as to avoid infinite recursion in types that reference themselves(even indirectly). 
-    fn recursive<F,U>(self,f:F)->U
-    where 
-        F:FnOnce(TLFieldShallow)->U
+    /// so as to avoid infinite recursion in types that reference themselves(even indirectly).
+    fn recursive<F, U>(self, f: F) -> U
+    where
+        F: FnOnce(TLFieldShallow) -> U,
     {
         let mut set_was_empty = false;
         let mut already_recursed = false;
@@ -173,10 +162,10 @@ impl TLField {
         ALREADY_RECURSED.with(|set| {
             let mut set = set.borrow_mut();
             set_was_empty = set.is_empty();
-            already_recursed= !set.insert(self.abi_info.get());
+            already_recursed = !set.insert(self.abi_info.get());
         });
 
-        let res=f(TLFieldShallow::new(self,already_recursed));
+        let res = f(TLFieldShallow::new(self, already_recursed));
 
         if set_was_empty {
             ALREADY_RECURSED.with(|set| {
@@ -188,26 +177,21 @@ impl TLField {
     }
 }
 
-
-impl PartialEq for TLField{
-    fn eq(&self,other:&Self)->bool{
-        self.recursive(|this|{
-            let r=TLFieldShallow::new(*other,this.abi_info.is_some());
-            this==r
+impl PartialEq for TLField {
+    fn eq(&self, other: &Self) -> bool {
+        self.recursive(|this| {
+            let r = TLFieldShallow::new(*other, this.abi_info.is_some());
+            this == r
         })
     }
 }
 
-
 /// Need to avoid recursion somewhere,so I decided to stop at the field level.
 impl Debug for TLField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.recursive(|x| fmt::Debug::fmt(&x,f) )
+        self.recursive(|x| fmt::Debug::fmt(&x, f))
     }
 }
-
-
-
 
 thread_local! {
     static ALREADY_RECURSED: RefCell<HashSet<*const AbiInfo>> = RefCell::new(HashSet::default());
@@ -486,7 +470,7 @@ impl Debug for TypePrinter {
 ////////////////////////////////////
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone,PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 struct TLFieldShallow {
     pub name: StaticStr,
     pub full_type: TypePrinter,
@@ -495,14 +479,17 @@ struct TLFieldShallow {
     pub abi_info: Option<&'static AbiInfo>,
 }
 
-
-impl TLFieldShallow{
-    fn new(field:TLField,include_abi_info:bool)->Self{
-        let abi_info=field.abi_info.get();
+impl TLFieldShallow {
+    fn new(field: TLField, include_abi_info: bool) -> Self {
+        let abi_info = field.abi_info.get();
         TLFieldShallow {
             name: field.name,
             lifetime_indices: field.lifetime_indices,
-            abi_info: if include_abi_info { Some(abi_info) }else{ None },
+            abi_info: if include_abi_info {
+                Some(abi_info)
+            } else {
+                None
+            },
             full_type: abi_info.layout.full_type,
         }
     }

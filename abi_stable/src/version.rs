@@ -113,7 +113,7 @@ macro_rules! package_version_string {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone,PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InvalidVersionString {
     version_strings: VersionStrings,
     which_field: &'static str,

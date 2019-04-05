@@ -13,7 +13,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use core_extensions::prelude::*;
 
-use crate::{RSlice, RSliceMut,CAbi};
+use crate::{RSlice, RSliceMut};
 
 #[cfg(test)]
 mod tests;
@@ -36,7 +36,7 @@ mod private {
     // #[sabi(debug_print)]
     pub struct RVec<T> {
         /// Look at the documentation for ErasedObject for why ErasedObject instead of T.
-        buffer: CAbi<*mut T>,
+        buffer: *mut T,
         pub(super) length: usize,
         capacity: usize,
         vtable: *const BufferVTable<T>,
@@ -61,7 +61,7 @@ mod private {
 
         #[inline(always)]
         pub(super) fn buffer(&self) -> *mut T {
-            self.buffer.into_inner()
+            self.buffer
         }
 
         pub fn capacity(&self) -> usize {
@@ -78,10 +78,10 @@ mod private {
             F: FnOnce(&mut Vec<T>) -> U,
         {
             unsafe {
-                let old=mem::replace(self,RVec::new()).piped(ManuallyDrop::new);
+                let old = mem::replace(self, RVec::new()).piped(ManuallyDrop::new);
                 let mut list = Vec::<T>::from_raw_parts(old.buffer(), old.len(), old.capacity());
                 let ret = f(&mut list);
-                ptr::write(self,list.into());
+                ptr::write(self, list.into());
                 ret
             }
         }
@@ -92,7 +92,7 @@ mod private {
                 let mut this=ManuallyDrop::new(this);
                 RVec {
                     vtable: VTableGetter::<T>::LIB_VTABLE,
-                    buffer: this.as_mut_ptr().into(),
+                    buffer: this.as_mut_ptr(),
                     length: this.len(),
                     capacity: this.capacity(),
                     _marker: Default::default(),
@@ -652,10 +652,8 @@ impl<T> Clone for BufferVTable<T> {
     }
 }
 
-
-
 extern "C" fn destructor_vec<T>(this: &mut RVec<T>) {
-    extern_fn_panic_handling!{
+    extern_fn_panic_handling! {
         unsafe {
             drop(Vec::from_raw_parts(
                 this.buffer(),
@@ -672,7 +670,7 @@ extern "C" fn destructor_vec_for_testing<T>(this: &mut RVec<T>) {
 }
 
 extern "C" fn grow_capacity_to_vec<T>(this: &mut RVec<T>, to: usize, exactness: Exactness) {
-    extern_fn_panic_handling!{
+    extern_fn_panic_handling! {
         unsafe{
             this.with_vec(|list| {
                 let additional = to.saturating_sub(list.len());
@@ -686,7 +684,7 @@ extern "C" fn grow_capacity_to_vec<T>(this: &mut RVec<T>, to: usize, exactness: 
 }
 
 extern "C" fn shrink_to_fit_vec<T>(this: &mut RVec<T>) {
-    extern_fn_panic_handling!{
+    extern_fn_panic_handling! {
         unsafe{
             this.with_vec(|list| {
                 list.shrink_to_fit();

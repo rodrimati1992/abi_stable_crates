@@ -1,7 +1,4 @@
-use core_extensions::{
-    type_level_bool::{Boolean, False, True},
-    
-};
+use core_extensions::type_level_bool::{Boolean, False, True};
 use std::{
     fmt,
     marker::PhantomData,
@@ -11,15 +8,9 @@ use std::{
     sync::atomic::{AtomicBool, AtomicIsize, AtomicPtr, AtomicUsize},
 };
 
-use crate::{
-    RNone, RSome, StaticSlice, StaticStr,
-};
+use crate::{RNone, RSome, StaticSlice, StaticStr};
 
-use super::{
-    LifetimeIndex, RustPrimitive, TLData,TLField, TypeLayout,
-    TypeLayoutParams,
-};
-
+use super::{LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayoutParams};
 
 /// Like StableAbi,has a stable layout but must be accessed through a shared reference.
 pub unsafe trait SharedStableAbi {
@@ -52,7 +43,7 @@ pub unsafe trait SharedStableAbi {
 ///
 /// This trait cannot be currently implemented for functions that take lifetime parameters,
 /// even if their parameters and return types implement StableAbi.
-/// To mitigate this `#[derive(StableAbi)]` specially supports `extern fn` types 
+/// To mitigate this `#[derive(StableAbi)]` specially supports `extern fn` types
 /// (except through type aliases).
 pub unsafe trait StableAbi {
     /// Whether this type has 0 as an invalid bit-pattern.
@@ -86,10 +77,9 @@ where
 
 ///////////////////////
 
-
-/// Wrapper type for AbiInfo that requires the 
+/// Wrapper type for AbiInfo that requires the
 /// correct construction of AbiInfo to construct it.
-#[derive(Debug, Copy, Clone,PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -111,13 +101,12 @@ impl AbiInfoWrapper {
     }
 }
 
-
 /// Describes the abi of some type.
-/// 
+///
 /// # Safety
-/// 
+///
 /// If this is manually constructed,you must ensure that it describes the actual abi of the type.
-#[derive(Debug, Copy, Clone,PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -155,15 +144,16 @@ impl GetAbiInfo {
 /// # Safety
 ///
 /// Implementors must make sure that the AbiInfo actually describes the layout of the type.
-pub unsafe trait MakeGetAbiInfo<B>{
-    const CONST:GetAbiInfo;
+pub unsafe trait MakeGetAbiInfo<B> {
+    const CONST: GetAbiInfo;
 }
 
 unsafe impl<T> MakeGetAbiInfo<StableAbi_Bound> for T
-where T: StableAbi,
+where
+    T: StableAbi,
 {
     const CONST: GetAbiInfo = GetAbiInfo {
-        abi_info: get_abi_info::<T>
+        abi_info: get_abi_info::<T>,
     };
 }
 
@@ -176,7 +166,7 @@ where
     };
 }
 
-unsafe impl<T> MakeGetAbiInfo<UnsafeOpaqueField_Bound> for T{
+unsafe impl<T> MakeGetAbiInfo<UnsafeOpaqueField_Bound> for T {
     const CONST: GetAbiInfo = GetAbiInfo {
         abi_info: get_abi_info::<UnsafeOpaqueField<T>>,
     };
@@ -188,9 +178,6 @@ pub struct StableAbi_Bound;
 pub struct SharedStableAbi_Bound;
 #[allow(non_camel_case_types)]
 pub struct UnsafeOpaqueField_Bound;
-
-
-
 
 /// Retrieves the AbiInfo of `T`,
 pub extern "C" fn get_abi_info<T>() -> &'static AbiInfo
@@ -212,7 +199,6 @@ where
 /////////////////////////////////////////////////////////////////////////////
 ////                Implementations
 /////////////////////////////////////////////////////////////////////////////
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -287,7 +273,11 @@ where
         RNone,
         TLData::Primitive,
         tl_genparams!(;T;),
-        &[TLField::new("0", &[], <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST)],
+        &[TLField::new(
+            "0",
+            &[],
+            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+        )],
     );
 }
 
@@ -302,7 +292,11 @@ where
         RNone,
         TLData::Primitive,
         tl_genparams!(;T;),
-        &[TLField::new("0", &[], <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST)],
+        &[TLField::new(
+            "0",
+            &[],
+            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+        )],
     );
 }
 
@@ -317,7 +311,11 @@ where
         RSome(RustPrimitive::ConstPtr),
         TLData::Primitive,
         tl_genparams!(;T;),
-        &[TLField::new("0", &[], <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST)],
+        &[TLField::new(
+            "0",
+            &[],
+            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+        )],
     );
 }
 
@@ -332,7 +330,11 @@ where
         RSome(RustPrimitive::MutPtr),
         TLData::Primitive,
         tl_genparams!(;T;),
-        &[TLField::new("0", &[], <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST)],
+        &[TLField::new(
+            "0",
+            &[],
+            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+        )],
     );
 }
 
@@ -380,7 +382,11 @@ where
         RNone,
         TLData::Primitive,
         tl_genparams!(;T;),
-        &[TLField::new("0", &[], <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST)],
+        &[TLField::new(
+            "0",
+            &[],
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
+        )],
     );
 }
 
@@ -491,9 +497,8 @@ unsafe impl StableAbi for unsafe extern "C" fn() {
     const LAYOUT: &'static TypeLayout = EMPTY_EXTERN_FN_LAYOUT;
 }
 
-
-const EMPTY_EXTERN_FN_LAYOUT: &'static TypeLayout = 
-    &TypeLayout::from_params::<extern fn()>(TypeLayoutParams {
+const EMPTY_EXTERN_FN_LAYOUT: &'static TypeLayout =
+    &TypeLayout::from_params::<extern "C" fn()>(TypeLayoutParams {
         name: "AFunctionPointer",
         package: env!("CARGO_PKG_NAME"),
         package_version: crate::version::VersionStrings {
@@ -502,13 +507,11 @@ const EMPTY_EXTERN_FN_LAYOUT: &'static TypeLayout =
             patch: StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
         },
         data: TLData::Struct {
-            fields: StaticSlice::new( &[] ),
+            fields: StaticSlice::new(&[]),
         },
         generics: tl_genparams!(;;),
         phantom_fields: &[],
     });
-
-
 
 /////////////
 

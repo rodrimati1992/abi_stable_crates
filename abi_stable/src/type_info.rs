@@ -3,11 +3,7 @@ use std::{
     fmt,
 };
 
-use crate::{
-    utypeid::UTypeId,
-    version::VersionStrings,
-    StaticStr,
-};
+use crate::{utypeid::UTypeId, version::VersionStrings, StaticStr};
 
 pub trait GetTypeInfo {
     const INFO: &'static TypeInfo;

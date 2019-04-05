@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    pointer_trait::{StableDeref,StableDerefMut},
-    reexports::*
+    pointer_trait::{StableDeref, StableDerefMut},
+    reexports::*,
 };
 
 /// Used to pass raw pointers and references to extern functions,
@@ -38,9 +38,7 @@ where
     type IsNonZeroType = False;
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
         "CAbi",
-        TLData::ReprTransparent(
-            T::ABI_INFO.get()
-        ),
+        TLData::ReprTransparent(T::ABI_INFO.get()),
         tl_genparams!(;T;),
     );
 }
@@ -75,8 +73,8 @@ where
     }
 }
 
-impl<T> CAbi<*const T>{
-    pub const fn from_raw(pointer:*const T)->Self{
+impl<T> CAbi<*const T> {
+    pub const fn from_raw(pointer: *const T) -> Self {
         CAbi {
             pointer: pointer as *const _,
             type_: PhantomData,
@@ -84,8 +82,8 @@ impl<T> CAbi<*const T>{
     }
 }
 
-impl<T> CAbi<*mut T>{
-    pub const fn from_raw_mut(pointer:*mut T)->Self{
+impl<T> CAbi<*mut T> {
+    pub const fn from_raw_mut(pointer: *mut T) -> Self {
         CAbi {
             pointer: pointer as *const T as *const _,
             type_: PhantomData,
@@ -124,9 +122,7 @@ where
 {
     type Target = T::Target;
     fn deref(&self) -> &T::Target {
-        unsafe { 
-            &*(self.pointer as *const T::Target)
-        }
+        unsafe { &*(self.pointer as *const T::Target) }
     }
 }
 
@@ -136,11 +132,7 @@ where
     T::Target: Sized,
 {
     fn deref_mut(&mut self) -> &mut T::Target {
-        unsafe { 
-            unsafe { 
-                &mut *(self.pointer as *const T::Target as *mut T::Target)
-            }
-        }
+        unsafe { unsafe { &mut *(self.pointer as *const T::Target as *mut T::Target) } }
     }
 }
 

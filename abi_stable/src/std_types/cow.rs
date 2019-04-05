@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-use crate::{reexports::StableAbi, traits::FromElement, CAbi, RSlice, RStr, RString, RVec};
+use crate::{reexports::StableAbi, traits::FromElement, RSlice, RStr, RString, RVec};
 
 ////////////////////////////////////////////////////////////////////
 
@@ -104,7 +104,7 @@ where
     T: Clone + StableAbi,
 {
     type ROwned = T;
-    type RBorrowed = CAbi<&'a T>;
+    type RBorrowed = &'a T;
 
     #[inline]
     fn r_borrow(this: &'a Self::ROwned) -> Self::RBorrowed {
@@ -124,7 +124,7 @@ where
     }
     #[inline]
     fn from_cow_borrow(this: &'a Self) -> Self::RBorrowed {
-        this.into()
+        this
     }
     #[inline]
     fn from_cow_owned(this: <Self as ToOwned>::Owned) -> Self::ROwned {
@@ -132,7 +132,7 @@ where
     }
     #[inline]
     fn into_cow_borrow(this: Self::RBorrowed) -> &'a Self {
-        this.into_inner()
+        this
     }
     #[inline]
     fn into_cow_owned(this: Self::ROwned) -> <Self as ToOwned>::Owned {
@@ -187,7 +187,7 @@ mod _stable_abi_impls_for_rcow {
                             &[__TLField::new(
                                 "field_0",
                                 &[__LIParam(0usize)],
-                                <Borrowed as __MakeGetAbiInfo<__StableAbi_Bound>>::CONST
+                                <Borrowed as __MakeGetAbiInfo<__StableAbi_Bound>>::CONST,
                             )],
                         ),
                         __TLEnumVariant::new(

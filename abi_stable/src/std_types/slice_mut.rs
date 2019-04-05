@@ -10,7 +10,7 @@ use serde::{Serialize, Serializer};
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-use crate::{RSlice, RVec,CAbi};
+use crate::{RSlice, RVec};
 
 mod privacy {
     use super::*;
@@ -19,7 +19,7 @@ mod privacy {
     #[sabi(inside_abi_stable_crate)]
     #[sabi(bound = "T:'a")]
     pub struct RSliceMut<'a, T> {
-        data: CAbi<*mut T>,
+        data: *mut T,
         length: usize,
         _marker: PhantomData<&'a mut T>,
     }
@@ -28,7 +28,7 @@ mod privacy {
         impl['a, T] From<&'a mut [T]> for RSliceMut<'a, T> {
             fn(this){
                 RSliceMut {
-                    data: CAbi::from_raw_mut(this.as_mut_ptr()),
+                    data: this.as_mut_ptr(),
                     length: this.len(),
                     _marker: Default::default(),
                 }
@@ -36,21 +36,10 @@ mod privacy {
         }
     }
 
-    // impl<'a, T: 'a> RSliceMut<'a, T> {
-    //     pub const EMPTY: Self = RSliceMut {
-    //         data: {
-    //             let v: &mut [T] = &mut [];
-    //             CAbi::from_raw_mut(v.as_mut_ptr())
-    //         },
-    //         length: 0,
-    //         _marker: PhantomData,
-    //     };
-    // }
-
     impl<'a, T> RSliceMut<'a, T> {
         #[inline(always)]
         pub(super) fn data(&self) -> *mut T {
-            self.data.into_inner()
+            self.data
         }
 
         #[inline(always)]

@@ -1,6 +1,5 @@
 use super::*;
 
-
 use std::{
     cmp::{Ord, Ordering, PartialEq, PartialOrd},
     collections::HashSet,
@@ -33,7 +32,7 @@ struct Foo<T> {
     name: T,
 }
 
-struct FooInterface ;
+struct FooInterface;
 
 impl_get_type_info! {
     impl[T:'static] GetTypeInfo for Foo[T]
@@ -116,7 +115,6 @@ mod helloa {
     }
 }
 
-
 #[allow(dead_code)]
 mod hellob {
     use super::*;
@@ -133,7 +131,7 @@ mod hellob {
 fn main() {
     for _ in 0..10 {
         use core_extensions::measure_time;
-        use std::{fmt::Write};
+        use std::fmt::Write;
 
         println!("{}", StaticStr::new("hello world."));
 
@@ -163,7 +161,6 @@ fn main() {
         // println!("{S}{}", check(ty_3, ty_3), S = separator);
         println!("{S}{}", check(ty_4, ty_4), S = separator);
         // println!("{S}{}", check(ty_2, ty_1), S = separator);
-        
     }
 }
 

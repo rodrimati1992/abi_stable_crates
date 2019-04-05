@@ -12,9 +12,12 @@ use libloading::Library as LibLoadingLibrary;
 pub use libloading::Result as LibLoadingResult;
 
 use crate::{
-    abi_stability::{SharedStableAbi,StableAbi,AbiInfoWrapper,abi_checking::{check_abi_stability,AbiInstabilityErrors}},
+    abi_stability::{
+        abi_checking::{check_abi_stability, AbiInstabilityErrors},
+        AbiInfoWrapper, SharedStableAbi, StableAbi,
+    },
     version::{InvalidVersionString, VersionNumber, VersionStrings},
-    StaticStr
+    StaticStr,
 };
 
 #[derive(Copy, Clone)]
@@ -127,7 +130,6 @@ impl ASLibrary {
 
 //////////////////////////////////////////////////////////////////////
 
-
 /// Which string to prefix/suffix to the names of each function of the library.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(C)]
@@ -154,8 +156,6 @@ impl NameSpace {
     }
 }
 
-
-
 //////////////////////////////////////////////////////////////////////
 
 pub trait LibraryTrait: Sized + SharedStableAbi {
@@ -179,21 +179,18 @@ pub trait LibraryTrait: Sized + SharedStableAbi {
             });
         }
 
-        let library_getter:extern fn()->WithLayout<&'static Self>=unsafe{
-            lib.get_fn(Self::LOADER_FN.as_bytes())?
-        };
+        let library_getter: extern "C" fn() -> WithLayout<&'static Self> =
+            unsafe { lib.get_fn(Self::LOADER_FN.as_bytes())? };
 
-        let items=library_getter();
+        let items = library_getter();
 
-        items.check_layout()?
-            .initialization()
+        items.check_layout()?.initialization()
     }
 
     /// Defines behavior that happens once the library is loaded.
-    fn initialization(self:&'static Self) -> Result<&'static Self, LibraryError> {
+    fn initialization(self: &'static Self) -> Result<&'static Self, LibraryError> {
         Ok(self)
     }
-
 
     const BASE_NAME: &'static str;
 
@@ -205,7 +202,7 @@ pub trait LibraryTrait: Sized + SharedStableAbi {
     /// The function signature must be:
     ///
     /// extern fn()->WithLayout<&'static Self>
-    const LOADER_FN:&'static str;
+    const LOADER_FN: &'static str;
 
     // /// Which string to prefix/suffix to the names of each function of the library.
     // const NAMESPACE:NameSpace;
@@ -220,39 +217,39 @@ pub trait LibraryTrait: Sized + SharedStableAbi {
 
 //////////////////////////////////////////////////////////////////////
 
-
-mod with_layout{
+mod with_layout {
     use super::*;
 
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct WithLayout<T> {
-        magic_number:usize,
+        magic_number: usize,
 
-        layout:&'static AbiInfoWrapper,
-        value:T,
+        layout: &'static AbiInfoWrapper,
+        value: T,
     }
 
-
-    impl<T> WithLayout<T>{
-        pub fn new(value:T)->Self
-        where T:StableAbi
+    impl<T> WithLayout<T> {
+        pub fn new(value: T) -> Self
+        where
+            T: StableAbi,
         {
-            Self{
-                magic_number:MAGIC_NUMBER,
-                layout:T::ABI_INFO,
+            Self {
+                magic_number: MAGIC_NUMBER,
+                layout: T::ABI_INFO,
                 value,
             }
         }
 
-        pub fn check_layout(self)->Result<T,LibraryError>
-        where T:StableAbi
+        pub fn check_layout(self) -> Result<T, LibraryError>
+        where
+            T: StableAbi,
         {
-            if self.magic_number!=MAGIC_NUMBER {
+            if self.magic_number != MAGIC_NUMBER {
                 return Err(LibraryError::InvalidMagicNumber(self.magic_number));
             }
-            check_abi_stability(T::ABI_INFO,self.layout)?;
+            check_abi_stability(T::ABI_INFO, self.layout)?;
             Ok(self.value)
         }
     }
@@ -262,8 +259,7 @@ mod with_layout{
 pub use self::with_layout::WithLayout;
 
 // ABI major version 0
-const MAGIC_NUMBER:usize=0xAB1_57A_00;
-
+const MAGIC_NUMBER: usize = 0xAB1_57A_00;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -275,7 +271,7 @@ pub struct VersionStringsFnIdent {
 #[macro_export]
 macro_rules! version_string_const {
     ( $function_name:ident ) => {{
-        use $crate::{StaticStr, library::VersionStringsFnIdent, version::VersionStrings};
+        use $crate::{library::VersionStringsFnIdent, version::VersionStrings, StaticStr};
         #[no_mangle]
         pub extern "C" fn $function_name() -> VersionStrings {
             VersionStrings {
@@ -319,7 +315,7 @@ impl From<InvalidVersionString> for LibraryError {
 }
 
 impl From<AbiInstabilityErrors> for LibraryError {
-    fn from(v:AbiInstabilityErrors)->Self{
+    fn from(v: AbiInstabilityErrors) -> Self {
         LibraryError::AbiInstability(v)
     }
 }
@@ -338,17 +334,12 @@ impl Display for LibraryError {
                 "\n'{}' library version mismatch:\nuser:{}\nlibrary:{}",
                 library_name, user_version, library_version,
             ),
-            LibraryError::AbiInstability(x)=>{
-                fmt::Display::fmt(x,f)
-            }
-            LibraryError::InvalidMagicNumber(found)=>{
-                write!(
-                    f,
-                    "magic number used to load a library was {},when this library expected {}",
-                    found,
-                    MAGIC_NUMBER,
-                )
-            }
+            LibraryError::AbiInstability(x) => fmt::Display::fmt(x, f),
+            LibraryError::InvalidMagicNumber(found) => write!(
+                f,
+                "magic number used to load a library was {},when this library expected {}",
+                found, MAGIC_NUMBER,
+            ),
         }
     }
 }

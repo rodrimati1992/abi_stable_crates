@@ -9,7 +9,7 @@ use core_extensions::prelude::*;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{RVec,CAbi};
+use crate::RVec;
 
 mod private {
     use super::*;
@@ -24,7 +24,7 @@ mod private {
     #[sabi(bound = "T:'a")]
     //#[sabi(debug_print)]
     pub struct RSlice<'a, T> {
-        data: CAbi<*const T>,
+        data: *const T,
         length: usize,
         _marker: PhantomData<&'a T>,
     }
@@ -33,7 +33,7 @@ mod private {
         impl['a, T] From<&'a [T]> for RSlice<'a, T> {
             fn(this){
                 RSlice {
-                    data: CAbi::from_raw(this.as_ptr()),
+                    data: this.as_ptr(),
                     length: this.len(),
                     _marker: Default::default(),
                 }
@@ -45,14 +45,14 @@ mod private {
         pub const EMPTY: Self = RSlice {
             data: {
                 let v: &[T] = &[];
-                CAbi::from_raw(v.as_ptr())
+                v.as_ptr()
             },
             length: 0,
             _marker: PhantomData,
         };
         pub const unsafe fn from_raw_parts(ptr_: *const T, len: usize) -> Self {
             Self {
-                data: CAbi::from_raw(ptr_),
+                data: ptr_,
                 length: len,
                 _marker: PhantomData,
             }
@@ -67,7 +67,7 @@ mod private {
 
     impl<'a, T> RSlice<'a, T> {
         pub fn as_slice(&self) -> &'a [T] {
-            unsafe { ::std::slice::from_raw_parts(self.data.into_inner(), self.length) }
+            unsafe { ::std::slice::from_raw_parts(self.data, self.length) }
         }
 
         pub fn len(&self) -> usize {

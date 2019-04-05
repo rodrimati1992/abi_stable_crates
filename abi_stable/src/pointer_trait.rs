@@ -1,12 +1,13 @@
-use std::{marker::PhantomData,ops::{Deref,DerefMut}, ptr::NonNull, sync::Arc};
-
-use crate::{
-    cabi_type::{CAbi, CAbiWrapped},
-    OpaqueType,
+use std::{
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+    sync::Arc,
 };
 
+use crate::{cabi_type::CAbi, OpaqueType};
+
 #[allow(unused_imports)]
-use core_extensions::{prelude::*,utils::transmute_ignore_size};
+use core_extensions::{prelude::*, utils::transmute_ignore_size};
 
 ///
 /// Determines whether the referent of a pointer is dropped when the
@@ -24,8 +25,7 @@ pub enum CallReferentDrop {
     No,
 }
 
-pub type DestructorType<T> = unsafe extern "C" fn(CAbi<*mut T>, CallReferentDrop);
-
+pub type DestructorType<T> = unsafe extern "C" fn(*mut T, CallReferentDrop);
 
 /**
 Trait for pointers that:
@@ -37,15 +37,11 @@ Trait for pointers that:
 - If it implements DerefMut,it always returns the same memory address.
 
 */
-pub unsafe trait StableDeref: Deref+Sized {}
+pub unsafe trait StableDeref: Deref + Sized {}
 
+pub trait StableDerefMut: StableDeref + DerefMut {}
 
-pub trait StableDerefMut:StableDeref+DerefMut {}
-
-impl<P> StableDerefMut for P
-where P:StableDeref+DerefMut
-{}
-
+impl<P> StableDerefMut for P where P: StableDeref + DerefMut {}
 
 ///////////
 
@@ -64,7 +60,7 @@ impl<P, O> ErasedStableDeref<O> for P where P: StableDeref + TransmuteElement<Op
 ///
 /// # Safety for implementor
 ///
-/// Implementors of this trait must ensure that the memory layout of this 
+/// Implementors of this trait must ensure that the memory layout of this
 /// type is the same regardless of the type of the referent .
 ///
 /// `T` is intentionally `Sized` so as to prevent transmuting pointers to DST .
@@ -80,12 +76,12 @@ pub unsafe trait TransmuteElement<T>: StableDeref {
     ///
     /// For example:
     ///     It is undefined behavior to create unaligned references ,
-    ///     therefore transmuting from `&u8` to `&u16` is UB 
+    ///     therefore transmuting from `&u8` to `&u16` is UB
     ///     if the caller does not ensure that the reference was a multiple of 2.
     ///
     ///
-    unsafe fn transmute_element(self, _: VariantPhantom<T>) -> Self::TransmutedPtr{
-        transmute_ignore_size::<Self,Self::TransmutedPtr>(self)
+    unsafe fn transmute_element(self, _: VariantPhantom<T>) -> Self::TransmutedPtr {
+        transmute_ignore_size::<Self, Self::TransmutedPtr>(self)
     }
 }
 
@@ -95,14 +91,15 @@ unsafe impl<P> StableDeref for CAbi<P>
 where
     P: StableDeref,
     P::Target: Sized,
-{}
+{
+}
 
 unsafe impl<P, T> TransmuteElement<T> for CAbi<P>
 where
     P: StableDeref + TransmuteElement<T>,
     P::TransmutedPtr: StableDerefMut,
-    <P as Deref>::Target:Sized,
-    <P::TransmutedPtr as Deref>::Target:Sized,
+    <P as Deref>::Target: Sized,
+    <P::TransmutedPtr as Deref>::Target: Sized,
 {
     type TransmutedPtr = CAbi<P::TransmutedPtr>;
 }
@@ -130,4 +127,3 @@ unsafe impl<'a, T: 'a> StableDeref for &'a mut T {}
 unsafe impl<'a, T: 'a, O: 'a> TransmuteElement<O> for &'a mut T {
     type TransmutedPtr = &'a mut O;
 }
-

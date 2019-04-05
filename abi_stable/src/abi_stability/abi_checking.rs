@@ -7,7 +7,7 @@ use std::collections::HashSet;
 // use hashbrown::HashSet;
 
 use super::{
-    AbiInfo,AbiInfoWrapper, StableAbi, TLData, TLDataDiscriminant, TLEnumVariant, TLField,
+    AbiInfo, AbiInfoWrapper, StableAbi, TLData, TLDataDiscriminant, TLEnumVariant, TLField,
     TLFieldAndType, TypePrinter,
 };
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
     RVec, StaticSlice, StaticStr,
 };
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 #[repr(C)]
 pub struct AbiInstabilityErrors {
     interface: &'static AbiInfo,
@@ -23,7 +23,7 @@ pub struct AbiInstabilityErrors {
     errors: RVec<AbiInstabilityError>,
 }
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 #[repr(C)]
 pub struct AbiInstabilityError {
     stack_trace: RVec<TLFieldAndType>,
@@ -31,7 +31,7 @@ pub struct AbiInstabilityError {
     index: usize,
 }
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 #[repr(C)]
 pub enum AbiInstability {
     IsPrefix(ExpectedFoundError<bool>),
@@ -53,15 +53,14 @@ pub enum AbiInstability {
 
 use self::AbiInstability as AI;
 
-
 impl AbiInstabilityErrors {
-    pub fn flatten_errors(self)->RVec<AbiInstability>{
-        self.errors.into_iter()
-            .flat_map(|x| x.errs )
+    pub fn flatten_errors(self) -> RVec<AbiInstability> {
+        self.errors
+            .into_iter()
+            .flat_map(|x| x.errs)
             .collect::<RVec<AbiInstability>>()
     }
 }
-
 
 impl fmt::Display for AbiInstabilityErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -114,7 +113,7 @@ impl fmt::Display for AbiInstabilityError {
                     "incompatible ammount of generic parameters",
                     v.display_str(),
                 ),
-                
+
                 AI::TLDataDiscriminant(v) => ("incompatible data ", v.debug_str()),
                 AI::FieldCountMismatch(v) => ("too many fields", v.display_str()),
                 AI::FieldLifetimeMismatch(v) => {
@@ -139,7 +138,7 @@ impl fmt::Display for AbiInstabilityError {
 
 //////
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 #[repr(C)]
 pub struct ExpectedFoundError<T> {
     expected: T,
@@ -343,12 +342,8 @@ impl AbiChecker {
             }
 
             match (t_lay.data, o_lay.data) {
-                (TLData::Primitive, TLData::Primitive) => {
-                    
-                }
-                (TLData::Primitive, _) => {
-                    
-                }
+                (TLData::Primitive, TLData::Primitive) => {}
+                (TLData::Primitive, _) => {}
                 (TLData::Struct { fields: t_fields }, TLData::Struct { fields: o_fields }) => {
                     self.check_fields(errs, this, other, t_fields, o_fields);
                 }
@@ -422,30 +417,27 @@ pub fn check_abi_stability(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
 ) -> Result<(), AbiInstabilityErrors> {
+    let mut errors: RVec<AbiInstabilityError>;
 
-    let mut errors:RVec<AbiInstabilityError>;
+    let interface = interface.get();
+    let implementation = implementation.get();
 
-    let interface=interface.get();
-    let implementation=implementation.get();
-
-    if interface.prefix_kind||implementation.prefix_kind {
-        errors=vec![
-            AbiInstabilityError{
-                stack_trace: vec![].into(),
-                errs: vec![
-                    AbiInstability::IsPrefix(
-                        ExpectedFoundError{expected:false,found:true}
-                    )
-                ].into(),
-                index: 0,
-            }
-        ].into();
-    }else{
+    if interface.prefix_kind || implementation.prefix_kind {
+        errors = vec![AbiInstabilityError {
+            stack_trace: vec![].into(),
+            errs: vec![AbiInstability::IsPrefix(ExpectedFoundError {
+                expected: false,
+                found: true,
+            })]
+            .into(),
+            index: 0,
+        }]
+        .into();
+    } else {
         let mut checker = AbiChecker::new();
         checker.check_inner(interface, implementation);
-        errors=checker.errors;
+        errors = checker.errors;
     }
-
 
     if errors.is_empty() {
         Ok(())
@@ -457,7 +449,6 @@ pub fn check_abi_stability(
             errors,
         })
     }
-
 }
 
 ///////////////////////////////////////////////

@@ -1,18 +1,12 @@
-use std::{
-    marker::PhantomData,
-    mem::{self, ManuallyDrop},
-    sync::Arc,
-};
+use std::{marker::PhantomData, mem::ManuallyDrop, sync::Arc};
 
 use core_extensions::prelude::*;
 
 use crate::{
-    pointer_trait::{
-        CallReferentDrop, StableDeref, TransmuteElement,
-    },
-    traits::FromElement,
-    CAbi, RResult,
     abi_stability::StableAbi,
+    pointer_trait::{CallReferentDrop, StableDeref, TransmuteElement},
+    traits::FromElement,
+    RResult,
 };
 
 #[cfg(test)]
@@ -26,11 +20,11 @@ mod private {
     #[sabi(inside_abi_stable_crate)]
     #[sabi(shared_stable_abi(T))]
     pub struct RArc<T> {
-        data: CAbi<*const T>,
+        data: *const T,
         // This is a pointer instead of a static reference only because
         // the compiler complains that T doesn't live for the static lifetime,
         // even though ArcVtable<T> doesn't contain any T.
-        vtable: CAbi<*const ArcVtable<T>>,
+        vtable: *const ArcVtable<T>,
         _marker: PhantomData<T>,
     }
 
@@ -38,8 +32,8 @@ mod private {
         impl[T] From<Arc<T>> for RArc<T> {
             fn(this){
                 let out = RArc {
-                    data: Arc::into_raw(this).into(),
-                    vtable: (VTableGetter::LIB_VTABLE as *const ArcVtable<T>).into(),
+                    data: Arc::into_raw(this),
+                    vtable: VTableGetter::LIB_VTABLE as *const ArcVtable<T>,
                     _marker: Default::default(),
                 };
                 out
@@ -56,23 +50,23 @@ mod private {
     impl<T> RArc<T> {
         #[inline(always)]
         pub(super) fn data(&self) -> *const T {
-            self.data.into_inner()
+            self.data
         }
 
         #[inline]
         pub(crate) fn into_raw(self) -> *const T {
             let this = ManuallyDrop::new(self);
-            this.data.into_inner()
+            this.data
         }
 
         #[inline(always)]
         pub fn vtable<'a>(&self) -> &'a ArcVtable<T> {
-            unsafe { &*self.vtable.into_inner() }
+            unsafe { &*self.vtable }
         }
 
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
-            self.vtable = (VTableGetter::LIB_VTABLE_FOR_TESTING as *const ArcVtable<T>).into();
+            self.vtable = VTableGetter::LIB_VTABLE_FOR_TESTING as *const ArcVtable<T>;
         }
     }
 }
@@ -88,7 +82,7 @@ impl<T> RArc<T> {
 impl<T> RArc<T> {
     pub fn into_arc(this: Self) -> Arc<T>
     where
-        T: Clone+StableAbi,
+        T: Clone + StableAbi,
     {
         if ::std::ptr::eq(this.vtable(), VTableGetter::LIB_VTABLE) {
             unsafe { Arc::from_raw(this.into_raw()) }
@@ -99,8 +93,9 @@ impl<T> RArc<T> {
         }
     }
 
-    pub fn try_unwrap(this: Self) -> Result<T, Self> 
-    where T:StableAbi
+    pub fn try_unwrap(this: Self) -> Result<T, Self>
+    where
+        T: StableAbi,
     {
         let vtable = this.vtable();
         vtable.try_unwrap.get()(this).into()
@@ -148,10 +143,7 @@ impl<T> Drop for RArc<T> {
         // actually support ?Sized types.
         unsafe {
             let vtable = self.vtable();
-            (vtable.destructor)(
-                (self.data() as *const T).into(),
-                CallReferentDrop::Yes,
-            );
+            (vtable.destructor)((self.data() as *const T).into(), CallReferentDrop::Yes);
         }
     }
 }
@@ -168,9 +160,7 @@ unsafe impl<T> Send for RArc<T> where T: Send + Sync {}
 
 /////////////////////////////////////////////////////////
 
-
-
-mod vtable_mod{
+mod vtable_mod {
     use super::*;
 
     pub(super) struct VTableGetter<'a, T>(&'a T);
@@ -180,7 +170,9 @@ mod vtable_mod{
         pub(super) const LIB_VTABLE: &'a ArcVtable<T> = &ArcVtable {
             destructor: destructor_arc::<T>,
             clone: clone_arc::<T>,
-            try_unwrap: TryUnwrap{func:try_unwrap_arc::<T>},
+            try_unwrap: TryUnwrap {
+                func: try_unwrap_arc::<T>,
+            },
         };
 
         #[cfg(test)]
@@ -195,9 +187,9 @@ mod vtable_mod{
     #[sabi(inside_abi_stable_crate)]
     #[sabi(shared_stable_abi(T))]
     pub struct ArcVtable<T> {
-        pub(super) destructor: unsafe extern "C" fn(CAbi<*const T>, CallReferentDrop),
+        pub(super) destructor: unsafe extern "C" fn(*const T, CallReferentDrop),
         pub(super) clone: extern "C" fn(&RArc<T>) -> RArc<T>,
-        // For this to be safe,we must ensure that 
+        // For this to be safe,we must ensure that
         // T:StableAbi whenever this is called.
         #[sabi(unsafe_opaque_field)]
         pub(super) try_unwrap: TryUnwrap<T>,
@@ -206,46 +198,39 @@ mod vtable_mod{
     #[derive(StableAbi)]
     #[repr(transparent)]
     #[sabi(inside_abi_stable_crate)]
-    pub(super)struct TryUnwrap<T>{
-        func: extern "C" fn(RArc<T>) -> RResult<T, RArc<T>>
+    pub(super) struct TryUnwrap<T> {
+        func: extern "C" fn(RArc<T>) -> RResult<T, RArc<T>>,
     }
 
     impl<T> TryUnwrap<T>
-    where T:StableAbi
+    where
+        T: StableAbi,
     {
-        pub(super) fn get(self)->extern "C" fn(RArc<T>) -> RResult<T, RArc<T>> {
+        pub(super) fn get(self) -> extern "C" fn(RArc<T>) -> RResult<T, RArc<T>> {
             self.func
         }
     }
-    impl<T> Copy for TryUnwrap<T>{}
-    impl<T> Clone for TryUnwrap<T>{
-        fn clone(&self)->Self{
+    impl<T> Copy for TryUnwrap<T> {}
+    impl<T> Clone for TryUnwrap<T> {
+        fn clone(&self) -> Self {
             *self
         }
     }
 }
-use self::vtable_mod::{VTableGetter,ArcVtable};
+use self::vtable_mod::{ArcVtable, VTableGetter};
 
-
-
-
-
-
-unsafe extern "C" fn destructor_arc<T>(this: CAbi<*const T>, call_drop: CallReferentDrop) {
-    extern_fn_panic_handling!{
+unsafe extern "C" fn destructor_arc<T>(this: *const T, call_drop: CallReferentDrop) {
+    extern_fn_panic_handling! {
         if call_drop == CallReferentDrop::Yes {
-            drop(Arc::from_raw(this.into_inner() as *const T));
+            drop(Arc::from_raw(this));
         } else {
-            drop(Arc::from_raw(this.into_inner() as *const ManuallyDrop<T>));
+            drop(Arc::from_raw(this as *const ManuallyDrop<T>));
         }
     }
 }
 
 #[cfg(test)]
-unsafe extern "C" fn destructor_arc_for_testing<T>(
-    this: CAbi<*const T>,
-    call_drop: CallReferentDrop,
-) {
+unsafe extern "C" fn destructor_arc_for_testing<T>(this: *const T, call_drop: CallReferentDrop) {
     destructor_arc(this, call_drop)
 }
 

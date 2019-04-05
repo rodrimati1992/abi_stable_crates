@@ -1,8 +1,8 @@
 pub use crate::{
     abi_stability::{
         stable_abi_trait::{
-            MakeGetAbiInfo, SharedStableAbi, StableAbi,
-            StableAbi_Bound,SharedStableAbi_Bound,UnsafeOpaqueField_Bound,
+            MakeGetAbiInfo, SharedStableAbi, SharedStableAbi_Bound, StableAbi, StableAbi_Bound,
+            UnsafeOpaqueField_Bound,
         },
         type_layout::{
             LifetimeIndex, TLData, TLEnumVariant, TLField, TypeLayout, TypeLayoutParams,
@@ -18,10 +18,9 @@ pub mod renamed {
     pub use super::{
         LifetimeIndex::Param as __LIParam, LifetimeIndex::Static as __LIStatic,
         MakeGetAbiInfo as __MakeGetAbiInfo, SharedStableAbi as __SharedStableAbi,
-        StableAbi as __StableAbi, TLData as __TLData, TLEnumVariant as __TLEnumVariant,
-        TLField as __TLField,TypeLayoutParams as __TypeLayoutParams,
-        StableAbi_Bound as __StableAbi_Bound,
-        SharedStableAbi_Bound as __SharedStableAbi_Bound,
+        SharedStableAbi_Bound as __SharedStableAbi_Bound, StableAbi as __StableAbi,
+        StableAbi_Bound as __StableAbi_Bound, TLData as __TLData, TLEnumVariant as __TLEnumVariant,
+        TLField as __TLField, TypeLayoutParams as __TypeLayoutParams,
         UnsafeOpaqueField_Bound as __UnsafeOpaqueField_Bound,
     };
 }
