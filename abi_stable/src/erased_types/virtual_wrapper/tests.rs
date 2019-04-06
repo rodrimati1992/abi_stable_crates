@@ -2,15 +2,16 @@ use super::*;
 
 use std::{
     cmp::{Ord, Ordering, PartialEq, PartialOrd},
-    collections::HashSet,
-    fmt::{self, Debug, Display},
-    marker::PhantomData,
+    
+    collections::hash_map::DefaultHasher,
+    fmt::{self, Display},
+    hash::{Hash},
+    
 };
 
-use serde_json;
+use serde::{Serialize};
 
-#[macro_use]
-extern crate serde_derive;
+use serde_json;
 
 #[allow(unused_imports)]
 use crate::{
@@ -21,6 +22,7 @@ use crate::{
     IntoReprC, OpaqueType, RArc, RBox, RBoxError, RCow, RStr, RString, StableAbi, StaticStr,
 };
 
+#[allow(unused_imports)]
 use core_extensions::prelude::*;
 
 /// It doesn't need to be `#[repr(C)]` because  VirtualWrapper puts it behind a pointer,
@@ -58,10 +60,13 @@ where
 
 impl<T> SerializeImplType for Foo<T>
 where
-    T: 'static + Send + Sync + Debug,
+    T: 'static + Send + Sync + Serialize,
 {
     fn serialize_impl(&self) -> Result<RCow<'_, str>, RBoxError> {
-        Ok(format!("{:#?}", self).into_c().piped(RCow::Owned))
+        match serde_json::to_string(self) {
+            Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
+            Err(e)=>Err(RBoxError::new(e)),
+        }
     }
 }
 
@@ -93,7 +98,7 @@ impl DeserializeImplType for FooInterface {
     type Deserialized = VirtualFoo;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
-        match ::serde_json::from_str::<Foo<RString>>(&*s) {
+        match ::serde_json::from_str::<Foo<String>>(&*s) {
             Ok(x) => Ok(VirtualWrapper::from_value(x)),
             Err(e) => Err(RBoxError::new(e)),
         }
@@ -104,141 +109,264 @@ type VirtualFoo = VirtualWrapper<RBox<OpaqueType<FooInterface>>>;
 
 /////////////////////////////////
 
-mod helloa {
-    use super::*;
-    #[derive(StableAbi)]
-    #[repr(C)]
-    #[sabi(kind(unsafe_Prefix))]
-    pub struct Hello<'a, 'b> {
-        _marker: PhantomData<(&'a (), &'b ())>,
-        what: &'a (),
+
+fn new_foo()->Foo<String>{
+    Foo{
+        l:1000,
+        r:100,
+        name:"hello_world".into(),
     }
 }
 
-#[allow(dead_code)]
-mod hellob {
-    use super::*;
-    #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(kind(unsafe_Prefix))]
-    pub struct Hello<'a, 'b> {
-        _marker: PhantomData<(&'a (), &'b ())>,
-        what: &'a (),
-        nope: u32,
-    }
+fn new_wrapped()->VirtualFoo{
+    VirtualWrapper::from_value(new_foo())
 }
 
-fn main() {
-    for _ in 0..10 {
-        use core_extensions::measure_time;
-        use std::fmt::Write;
 
-        println!("{}", StaticStr::new("hello world."));
+#[test]
+fn clone_test(){
+    let wrapped =new_wrapped();
+    let cloned=wrapped.clone();
 
-        // type Ty0<T> = Option<&'static mut [T; 12]>;
-        // type TyWhat<T> = Ty0<Ty0<Ty0<T>>>;
+    assert_eq!(wrapped,cloned);
 
-        // let ty_1 = <&helloa::Hello>::ABI_INFO;
-        // let ty_2 = <&hellob::Hello>::ABI_INFO;
-        // let ty_3 = <VirtualWrapper<RArc<OpaqueType<FooInterface>>>>::ABI_INFO;
-        let ty_4 = <hellob::Hello>::ABI_INFO;
-
-        let check = |l, r| {
-            let (dur, res) = measure_time::measure(|| check_abi_stability(l, r));
-            let mut buffer = String::new();
-            match res {
-                Ok(_) => writeln!(buffer, "no errors"),
-                Err(e) => writeln!(buffer, "{}", e),
-            }
-            .drop_();
-            writeln!(buffer, "time taken to compare:{}", dur).drop_();
-            buffer
-        };
-
-        let separator = "\n--------------------------------\n";
-
-        // println!("{S}{}", check(ty_1, ty_2), S = separator);
-        // println!("{S}{}", check(ty_3, ty_3), S = separator);
-        println!("{S}{}", check(ty_4, ty_4), S = separator);
-        // println!("{S}{}", check(ty_2, ty_1), S = separator);
-    }
+    assert_ne!(
+        wrapped,
+        Foo::<String>::default().piped(VirtualWrapper::from_value)
+    );
 }
 
-/////////////////////////////////
+#[test]
+fn default_test(){
+    let concrete=Foo::<String>::default();
+    let wrapped =new_wrapped().default();
+    let wrapped_2=Foo::<String>::default().piped(VirtualWrapper::from_value);
 
-fn _main() {
-    let str_ = serde_json::to_string(
-        r#"
+
+    assert_eq!(wrapped,wrapped_2);
+    assert_eq!(
+        wrapped.as_unerased::<Foo<String>>().unwrap(),
+        &concrete
+    );
+
+    assert_ne!(
+        wrapped,
+        new_wrapped(),
+    );
+}
+
+
+#[test]
+fn display_test(){
+
+    let concrete=new_foo();
+    let wrapped =new_wrapped();
+
+    assert_eq!(
+        format!("{}",concrete), 
+        format!("{}",wrapped),
+    );
+
+    assert_eq!(
+        format!("{:#}",concrete), 
+        format!("{:#}",wrapped),
+    );
+}
+
+#[test]
+fn debug_test(){
+
+    let concrete=new_foo();
+    let wrapped =new_wrapped();
+
+    assert_eq!(
+        format!("{:?}",concrete), 
+        format!("{:?}",wrapped),
+    );
+
+    assert_eq!(
+        format!("{:#?}",concrete), 
+        format!("{:#?}",wrapped),
+    );
+}
+
+#[test]
+fn deserialize_test() {
+
+    let json=r#"
         {   
             "l":1000,
             "r":10,
             "name":"what the hell"
         }
-    "#,
-    )
-    .unwrap();
+    "#;
+    let json_ss=serde_json::to_string(json).unwrap();
 
-    let concrete = str_
-        .piped_ref(|x| serde_json::from_str::<RString>(&x))
-        .unwrap()
-        .piped(|x| serde_json::from_str::<Foo<RString>>(&x))
-        .unwrap();
-    let n = serde_json::from_str::<VirtualFoo>(&str_).unwrap();
+    let concrete = serde_json::from_str::<Foo<String>>(json).unwrap();
 
+    let wrapped = VirtualFoo::deserialize_from_str(json).unwrap();
+    let wrapped2 = serde_json::from_str::<VirtualFoo>(&json_ss).unwrap();
+
+    assert_eq!(
+        serde_json::from_str::<VirtualFoo>(json).map_err(drop),
+        Err(()),
+    );
+    
+    assert_eq!(
+        wrapped.as_unerased::<Foo<String>>().unwrap(), 
+        &concrete,
+    );
+
+    assert_eq!(
+        wrapped2.as_unerased::<Foo<String>>().unwrap(), 
+        &concrete
+    );
+}
+
+
+#[test]
+fn serialize_test() {
+
+    let concrete = new_foo();
+    let wrapped = new_wrapped();
+
+    assert_eq!(
+        &*concrete.piped_ref(serde_json::to_string).unwrap(),
+        &*wrapped.serialized().unwrap()
+    );
+
+    assert_eq!(
+        concrete
+            .piped_ref(serde_json::to_string).unwrap()
+            .piped_ref(serde_json::to_string).unwrap(),
+        wrapped.piped_ref(serde_json::to_string).unwrap()
+    );
+
+    assert_eq!(
+        wrapped.serialized().unwrap()
+            .piped_ref(serde_json::to_string).unwrap(),
+        wrapped.piped_ref(serde_json::to_string).unwrap()
+    );
+}
+
+
+
+#[test]
+fn cmp_test(){
+
+    let wrapped_0=new_foo().mutated(|x| x.l-=100 ).piped(VirtualWrapper::from_value);
+    let wrapped_1=new_wrapped();
+    let wrapped_2=new_foo().mutated(|x| x.l+=100 ).piped(VirtualWrapper::from_value);
+
+    assert_eq!(wrapped_1 == wrapped_0, false);
+    assert_eq!(wrapped_1 <= wrapped_0, false);
+    assert_eq!(wrapped_1 >= wrapped_0, true );
+    assert_eq!(wrapped_1 < wrapped_0, false);
+    assert_eq!(wrapped_1 > wrapped_0, true);
+    assert_eq!(wrapped_1 != wrapped_0, true);
+    assert_eq!(wrapped_1.partial_cmp(&wrapped_0), Some(Ordering::Greater));
+    assert_eq!(wrapped_1.cmp(&wrapped_0), Ordering::Greater);
+    assert_eq!(wrapped_1.eq(&wrapped_0), false);
+    assert_eq!(wrapped_1.ne(&wrapped_0), true);
+
+    assert_eq!(wrapped_1 == wrapped_1, true);
+    assert_eq!(wrapped_1 <= wrapped_1, true);
+    assert_eq!(wrapped_1 >= wrapped_1, true);
+    assert_eq!(wrapped_1 < wrapped_1, false);
+    assert_eq!(wrapped_1 > wrapped_1, false);
+    assert_eq!(wrapped_1 != wrapped_1, false);
+    assert_eq!(wrapped_1.partial_cmp(&wrapped_1), Some(Ordering::Equal));
+    assert_eq!(wrapped_1.cmp(&wrapped_1), Ordering::Equal);
+    assert_eq!(wrapped_1.eq(&wrapped_1), true);
+    assert_eq!(wrapped_1.ne(&wrapped_1), false);
+
+
+    assert_eq!(wrapped_1 == wrapped_2, false);
+    assert_eq!(wrapped_1 <= wrapped_2, true);
+    assert_eq!(wrapped_1 >= wrapped_2, false );
+    assert_eq!(wrapped_1 < wrapped_2, true);
+    assert_eq!(wrapped_1 > wrapped_2, false);
+    assert_eq!(wrapped_1 != wrapped_2, true);
+    assert_eq!(wrapped_1.partial_cmp(&wrapped_2), Some(Ordering::Less));
+    assert_eq!(wrapped_1.cmp(&wrapped_2), Ordering::Less);
+    assert_eq!(wrapped_1.eq(&wrapped_2), false);
+    assert_eq!(wrapped_1.ne(&wrapped_2), true);
+
+}
+
+
+
+#[test]
+fn hash_test(){
+    fn hash_value<H:Hash>(v:&H)->u64{
+        let mut hasher=DefaultHasher::new();
+        v.hash(&mut hasher);
+        hasher.finish()
+    }
+    
     {
-        // Testing the Display impl.
-        assert_eq!(concrete.to_string(), n.to_string());
-        println!("{}", n);
+        let hash_concrete=hash_value(&new_foo());
+        let hash_wrapped=hash_value(&new_wrapped());
+        
+        assert_eq!(hash_concrete,hash_wrapped);
+    }
+    
+    {
+        let concrete=Foo::<String>::default();
+        let hash_concrete=hash_value(&concrete);
+        let hash_wrapped=hash_value(&VirtualWrapper::from_value(concrete.clone()));
+        
+        assert_eq!(hash_concrete,hash_wrapped);
     }
 
-    {
-        // Testing the Defaut impl
-        assert_eq!(
-            Foo::<RString>::default().piped(VirtualWrapper::from_value),
-            n.default()
-        );
+}
+
+
+#[test]
+fn from_any_test(){
+
+    assert_eq!(
+        VirtualWrapper::from_value(new_foo()),
+        VirtualWrapper::from_any_value(new_foo(),FooInterface),
+    );
+
+    assert_eq!(
+        VirtualWrapper::from_ptr(RArc::new(new_foo())),
+        VirtualWrapper::from_any_ptr(RArc::new(new_foo()),FooInterface),
+    );
+
+}
+
+
+
+#[test]
+fn to_any_test(){
+
+    let mut wrapped=VirtualWrapper::from_any_value(new_foo(),FooInterface);
+
+
+    macro_rules! to_unerased {
+        ( $wrapped:expr ; $method:ident ; $expected:expr ) => (
+            assert_eq!(
+                $wrapped.$method ::<Foo<RString>>().map_err(drop),
+                Err(())
+            );
+
+            assert_eq!(
+                $wrapped.$method ::<Foo<String>>().unwrap(),
+                $expected
+            );
+        )
     }
 
-    println!("{:#?}", n);
+    to_unerased!( wrapped.clone() ; into_unerased     ; RBox::new(new_foo()) );
+    to_unerased!( wrapped.clone() ; into_any_unerased ; RBox::new(new_foo()) );
+    
+    to_unerased!( wrapped ; as_unerased     ; &new_foo() );
+    to_unerased!( wrapped ; as_any_unerased ; &new_foo() );
+    
+    to_unerased!( wrapped ; as_unerased_mut ; &mut new_foo() );
+    to_unerased!( wrapped ; as_any_unerased_mut ; &mut new_foo() );
+    
 
-    assert_eq!(n == n, true);
-    assert_eq!(n <= n, true);
-    assert_eq!(n >= n, true);
-    assert_eq!(n < n, false);
-    assert_eq!(n > n, false);
-    assert_eq!(n != n, false);
-    assert_eq!(n.partial_cmp(&n), Some(Ordering::Equal));
-    assert_eq!(n.cmp(&n), Ordering::Equal);
-    assert_eq!(n.eq(&n), true);
-    assert_eq!(n.ne(&n), false);
-
-    let mut clone = n.clone();
-    {
-        // Testing the Clone impl
-        assert_ne!(n.object_address(), clone.object_address());
-        assert_eq!(n, clone);
-    }
-
-    {
-        // Testing that mutation of the concrete type affects the erased type.
-        let unerased = clone.as_unerased_mut::<Foo<RString>>().unwrap();
-        unerased.name.push_str("hello");
-        println!("{:#?}", clone);
-    }
-
-    {
-        // Testing as_unerased
-        let res = clone.as_unerased::<Foo<u32>>();
-        assert!(res.is_err(), "{:#?}", res);
-    }
-
-    {
-        //Testing the consistency of Hash
-        let mut map = HashSet::new();
-        map.insert(n.clone());
-        assert_eq!(map.len(), 1);
-        map.insert(n.clone());
-        assert_eq!(map.len(), 1);
-        assert!(map.contains(&n), "{:#?}", map);
-    }
 }

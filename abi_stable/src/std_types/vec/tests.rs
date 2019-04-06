@@ -24,10 +24,11 @@ fn vec_drain() {
         ($range:expr,$after_drain:expr) => {
             let range = $range;
             {
+                let after_drain:Vec<u8>=$after_drain;
                 let mut list = list.clone();
                 let list_2 = list.drain(range.clone()).collect::<Vec<_>>();
                 assert_eq!(&*list_2, &original[range.clone()], "");
-                assert_eq!(&*list, &*$after_drain,);
+                assert_eq!(&*list, &*after_drain,);
             }
             {
                 let length = 10;
@@ -105,7 +106,7 @@ fn swap_remove() {
 
 #[test]
 fn push_pop() {
-    let mut list = RVec::new();
+    let mut list = RVec::<u32>::new();
 
     assert_eq!(list.pop(), None);
 
@@ -125,7 +126,7 @@ fn push_pop() {
     assert_eq!(&*list, &[10]);
 
     assert_eq!(list.pop(), Some(10));
-    assert_eq!(&*list, &[]);
+    assert_eq!(&*list, <&[u32]>::default() );
 
     assert_eq!(list.pop(), None);
 }

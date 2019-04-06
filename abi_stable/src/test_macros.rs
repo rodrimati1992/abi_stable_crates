@@ -4,7 +4,7 @@ macro_rules! and_stringify {
         const $stringified_name:ident;
         $( $cosmos:tt )*
     ) => (
-        const $stringified_name:&'static str=stringify!($( $cosmos )*);
+        pub const $stringified_name:&'static str=stringify!($( $cosmos )*);
 
         $( $cosmos )*
     )

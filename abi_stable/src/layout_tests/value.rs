@@ -10,6 +10,7 @@ use crate::{
         abi_checking::AbiInstability, check_abi_stability, AbiInfoWrapper, SharedStableAbi,
     },
     *,
+    test_utils::must_panic,
 };
 
 mod regular {
@@ -147,7 +148,7 @@ mod changed_alignment {
 /// For testing that adding #[repr(C)] makes the derive macro not panic.
 mod derive_validity_0 {
     and_stringify! {
-        const RECTANGLE_NON_REPRC;
+        const RECTANGLE_DEF_REPR;
 
         pub struct Rectangle {
             x:u32,
@@ -181,7 +182,6 @@ mod shadowed {
     pub struct i32 {
         integer: std_i32,
     }
-
 }
 
 fn assert_sane_abi_info(abi: &'static AbiInfoWrapper) {
@@ -295,6 +295,36 @@ fn same_different_abi_stability() {
 
     println!("taken {} to check all listed layouts", dur);
 }
+
+
+
+// Checks that #[repr(Rust)] (the default representation) causes the derive macro
+// to panic,and that #[repr(C)] and #[repr(transparent)] do not.
+#[test]
+fn check_repr_attrs(){
+    use abi_stable_derive_lib::derive_stable_abi_from_str;
+    must_panic(file_span!(),||{
+        derive_stable_abi_from_str(derive_validity_0::RECTANGLE_DEF_REPR)
+    }).unwrap();
+    
+    must_panic(file_span!(),||{
+        let with_repr_rust=format!(
+            "#[repr(Rust)]\n{}",
+            derive_validity_0::RECTANGLE_DEF_REPR
+        );
+        derive_stable_abi_from_str(derive_validity_0::RECTANGLE_DEF_REPR)
+    }).unwrap();
+
+    let with_repr_c=format!("#[repr(C)]\n{}",derive_validity_0::RECTANGLE_DEF_REPR);
+    let with_repr_tranparent=format!(
+        "#[repr(transparent)]\n{}",
+        derive_validity_0::RECTANGLE_DEF_REPR
+    );
+
+    derive_stable_abi_from_str(&with_repr_c);
+    derive_stable_abi_from_str(&with_repr_tranparent);
+}
+
 
 #[test]
 fn different_prefixity() {

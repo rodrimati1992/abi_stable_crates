@@ -1,9 +1,16 @@
 use std::{
     cmp::{Eq, PartialEq},
     fmt,
+    mem,
+    marker::PhantomData,
 };
 
-use crate::{utypeid::UTypeId, version::VersionStrings, StaticStr};
+use crate::{
+    utypeid::{UTypeId,new_utypeid}, 
+    version::VersionStrings, 
+    StaticStr,
+    traits::{ImplType,InterfaceType},
+};
 
 pub trait GetTypeInfo {
     const INFO: &'static TypeInfo;
@@ -45,6 +52,50 @@ impl fmt::Display for TypeInfo {
         )
     }
 }
+
+
+//////////////////////////////////////////////////////////////////
+
+
+/// Helper struct for Wrapping any type in a VirtualWrapper<PointerType<T>>.
+pub struct InterfaceFor<T,Interface>(
+    PhantomData<fn()->(T,Interface)>
+);
+
+impl<T,Interface> GetTypeInfo for InterfaceFor<T,Interface> 
+where T:'static
+{
+    const INFO:&'static TypeInfo=&TypeInfo{
+        size:mem::size_of::<T>(),
+        alignment:mem::align_of::<T>(),
+        uid:ReturnValueEquality{
+            function:new_utypeid::<T>
+        },
+        name:StaticStr::new("<erased>"),
+        file:StaticStr::new("<unavailable>"),
+        package:StaticStr::new("<unavailable>"),
+        package_version:VersionStrings{
+            major:StaticStr::new("99"),
+            minor:StaticStr::new("99"),
+            patch:StaticStr::new("99"),
+        },
+        _private_field:(),
+    };
+}
+
+
+impl<T,Interface> ImplType for InterfaceFor<T,Interface>
+where 
+    Interface:InterfaceType,
+    T:'static,
+{
+    type Interface=Interface;
+}
+
+
+//////////////////////////////////////////////////////////////////
+
+
 
 ///
 #[macro_export]

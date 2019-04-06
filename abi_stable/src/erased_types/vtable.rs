@@ -17,25 +17,25 @@ use core_extensions::{ResultLike, StringExt};
 pub type VTableErased<O> = VTable<OpaqueType<O>, OpaqueType<O>>;
 
 /// Returns the vtable used by VirtualWrapper to do dynamic dispatch.
-pub trait GetVtable<Ptr>: ImplType {
-    const GET_VTABLE: *const VTable<Self, Ptr>;
+pub trait GetVtable<This,Ptr>: ImplType {
+    const GET_VTABLE: *const VTable<This, Ptr>;
 
     /// Retrieves the VTable of the type.
-    fn get_vtable<'a>() -> &'a VTable<Self, Ptr>
+    fn get_vtable<'a>() -> &'a VTable<This, Ptr>
     where
-        Self: 'a,
+        This: 'a,
     {
         // I am just getting a vtable
         unsafe { &*Self::GET_VTABLE }
     }
 
-    /// Gets an erased version of the VTable<Self>.
+    /// Gets an erased version of the VTable<This>.
     fn erased_vtable<O>() -> &'static VTableErased<O> {
-        // I am just getting a vtable,which doesn't actually contain an instance of Self.
+        // I am just getting a vtable,which doesn't actually contain an instance of This.
         // This is why it is safe to transmute it to a reference of static lifetime.
         unsafe {
             let x = &*Self::GET_VTABLE;
-            mem::transmute::<&VTable<Self, Ptr>, &'static VTableErased<O>>(x)
+            mem::transmute::<&VTable<This, Ptr>, &'static VTableErased<O>>(x)
         }
     }
 }
@@ -285,9 +285,9 @@ macro_rules! declare_meta_vtable {
         }
 
 
-        impl<$value,$pointer,E> GetVtable<$pointer> for $value
+        impl<This,$value,$pointer,E> GetVtable<$value,$pointer> for This
         where
-            $value:ImplType<Interface=E>,
+            This:ImplType<Interface=E>,
             E:InterfaceType+GetImplFlags,
             $(
                 trait_selector::$selector:VTableFieldValue<
@@ -301,11 +301,16 @@ macro_rules! declare_meta_vtable {
             const GET_VTABLE:*const VTable<$value,$pointer>={
                 &VTable{
                     impl_flags:E::FLAGS,
-                    type_info:T::INFO,
+                    type_info:This::INFO,
                     $(
                         $field:
                             <trait_selector::$selector as
-                                VTableFieldValue<VTableFieldType<trait_selector::$selector,$value,$pointer>,E::$selector,$value,$pointer>
+                                VTableFieldValue<
+                                    VTableFieldType<trait_selector::$selector,$value,$pointer>,
+                                    E::$selector,
+                                    $value,
+                                    $pointer
+                                >
                             >::FIELD,
                     )*
                     _marker:PhantomData,

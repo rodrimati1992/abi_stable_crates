@@ -1,62 +1,59 @@
 /*!
 
-# Extern function writing guidelines.
+This crate is for doing Rust-to-Rust ffi,
+with a focus on loading libraries to program startup.
 
-When writing extern "C" functions,take this things into consideration:
+Currently this library has these features:
 
-- The layout of stack allocated structs must not change in a minor version.
-    While a heap allocated struct,with private fields, can add fields in minor versions.
+- ffi-safe equivalent of trait objects for any combination of a selection of traits.
 
-- A stack allocated struct must represent generic raw pointers and references
-    using the CAbi datatype,so as to make casting function pointers valid.
+- Provides ffi-safe alternatives to standard library types..
 
-- A stack allocated struct ought not use the generic parameters declared in an extern function,
-    unless the layout can't change based on the generic arguments passed
-    (ie:they are used only on pointers internally).
-    This is to make type erasure possible.
+- Provides the `StableAbi` trait for asserting that types are ffi-safe.
+
+- Checking at load-time that the types in the dynamic library have the expected layout,
+    allowing for semver compatible changes while checking the layout of types.
+
+- Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
+    and to store the layout of the type in a constant.
+
+
+# Rust-to-Rust FFI guidelines.
+
+Types must implement StableAbi to be safely passed through the FFI boundary,
+which can be done using the StableAbi derive macro.
+
+These are the 3 kinds of types passed through FFI:
+
+- Value kind:
+    The layout of types passed by value must not change in a minor version.
+
+- Prefix kind: 
+    Types where `<Type as StableAbi>::ABI_INFO.is_prefix==true`,
+    passed by reference and can increase in size so long as they only add fields at the end,
+    as well as not change their alignment in newer versions.
+
+- Opaque kind:
+    Types wrapped in `VirtualWrapper<SomePointer<OpaqueType<Interface>>>`,
+    whose layout can change in any version of the library,
+    and can only be unwrapped back to the original type in the dynamic library/binary 
+    that created it.
 
 ### Declaring enums
 
 Adding variants or fields to a variant is disallowed in minor versions.
 
-To represent non-exhaustive enums it is recommended using structs and associated constants so that it is not UB to keep adding variants in minor versions.
-
-There is no currently recommended way to represent non-exhaustive enums with fields.
-
-### Casting function pointers
-
-According to the C standard casting function pointers with incompatible types
-is undefined behavior,even in the case of casting `*const T` parameters to `*const c_void`.
-
-To prevent this UB,all types which contain raw pointers/references to generic types
-must use the CAbi datatype,
-or store it as a pointer to ErasedObject and define a method
-to cast it back to the original type.
-
-
-### CAbi datatype
-
-This type wraps pointers for passing them through extern functions.
-
-These are the currently supported conversions:
-
-- CAbi<*const T> <-> *const T
-- CAbi<*mut T> <-> *mut T
-- CAbi<& T> <-> &T
-- CAbi<&mut T> <-> &mut T
-
-All pointer types declared in the abi_stable library don't need
-their element type to be wrapped in a CAbi
+To represent non-exhaustive enums without fields it is recommended using structs and associated constants so that it is not UB to keep adding field-less variants in minor versions.
 
 # Current limitatioss
 
-While this library can check that the layout of datatyoes passed through
+While this library can check that the layout of datatypes passed through
 ffi are compatible when the library is loaded,
 it cannot currently check that auto-traits continue to be implemented by
 the types in the dynamic library.
 
-Once specialization lands,this library will add checks that types that implement
-all built-in auto-traits continue to do so in future minor/patch versions of the same library,
+Once specialization is in beta,this library will add checks that types that implement
+all built-in auto-traits continue to do so in future minor/patch versions of the same library.
 
 
 
