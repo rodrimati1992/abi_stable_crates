@@ -13,7 +13,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use core_extensions::prelude::*;
 
-use crate::{RSlice, RSliceMut};
+use crate::std_types::{RSlice, RSliceMut};
 
 #[cfg(test)]
 mod tests;
@@ -39,7 +39,7 @@ mod private {
         buffer: *mut T,
         pub(super) length: usize,
         capacity: usize,
-        vtable: *const BufferVTable<T>,
+        vtable: *const VecVTable<T>,
         _marker: PhantomData<T>,
     }
 
@@ -52,7 +52,7 @@ mod private {
         }
 
         #[inline(always)]
-        pub(super) fn vtable<'a>(&self) -> &'a BufferVTable<T>
+        pub(super) fn vtable<'a>(&self) -> &'a VecVTable<T>
         where
             T: 'a,
         {
@@ -623,14 +623,14 @@ struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
     // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: &'a BufferVTable<T> = &BufferVTable {
+    const LIB_VTABLE: &'a VecVTable<T> = &VecVTable {
         destructor: destructor_vec,
         grow_capacity_to: grow_capacity_to_vec,
         shrink_to_fit: shrink_to_fit_vec,
     };
 
     // Used to test functions that change behavior based on the vtable being used
-    const LIB_VTABLE_FOR_TESTING: &'a BufferVTable<T> = &BufferVTable {
+    const LIB_VTABLE_FOR_TESTING: &'a VecVTable<T> = &VecVTable {
         destructor: destructor_vec_for_testing,
         ..*Self::LIB_VTABLE
     };
@@ -638,15 +638,15 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate, kind(unsafe_Prefix))]
-pub struct BufferVTable<T> {
+#[sabi(inside_abi_stable_crate)]
+pub struct VecVTable<T> {
     destructor: extern "C" fn(&mut RVec<T>),
     grow_capacity_to: extern "C" fn(&mut RVec<T>, usize, Exactness),
     shrink_to_fit: extern "C" fn(&mut RVec<T>),
 }
 
-impl<T> Copy for BufferVTable<T> {}
-impl<T> Clone for BufferVTable<T> {
+impl<T> Copy for VecVTable<T> {}
+impl<T> Clone for VecVTable<T> {
     fn clone(&self) -> Self {
         *self
     }

@@ -16,7 +16,8 @@ use crate::{
         FormattingMode,
     },
     marker_type::{SyncSend, UnsyncUnsend},
-    ErasedObject, OpaqueType, RBox, RResult, RString,
+    ErasedObject, OpaqueType, 
+    std_types::{RBox, RResult, RString},
 };
 
 #[repr(C)]

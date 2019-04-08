@@ -8,7 +8,7 @@ use std::{
 use crate::{
     utypeid::{UTypeId,new_utypeid}, 
     version::VersionStrings, 
-    StaticStr,
+    std_types::StaticStr,
     traits::{ImplType,InterfaceType},
 };
 
@@ -121,7 +121,7 @@ macro_rules! impl_get_type_info {
                     type_info::{TypeInfo,ReturnValueEquality},
                     version::{VersionStrings},
                     utypeid::new_utypeid,
-                    StaticStr,
+                    std_types::StaticStr,
                 };
 
                 &TypeInfo{

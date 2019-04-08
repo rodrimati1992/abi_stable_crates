@@ -164,7 +164,6 @@ where
 
 
 #[derive(StableAbi)]
-#[sabi(kind(unsafe_Prefix))]
 #[repr(transparent)]
 pub struct Name<'a,T>(&'a str,(),PhantomData<T>);
 

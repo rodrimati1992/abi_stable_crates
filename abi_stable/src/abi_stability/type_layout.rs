@@ -10,8 +10,8 @@ use std::{
 };
 
 use crate::{
-    utils::empty_slice, version::VersionStrings, RNone, ROption, RSome, RStr, StaticSlice,
-    StaticStr,
+    utils::empty_slice, version::VersionStrings, 
+    std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr},
 };
 
 use super::{AbiInfo, GetAbiInfo};
@@ -325,7 +325,7 @@ macro_rules! tl_genparams {
         #[allow(unused_imports)]
         use $crate::{
             abi_stability::{SharedStableAbi,type_layout::GenericParams},
-            StaticStr,
+            std_types::StaticStr,
             utils::as_slice,
         };
 

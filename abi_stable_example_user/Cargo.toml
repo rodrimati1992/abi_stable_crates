@@ -1,0 +1,10 @@
+[package]
+name = "abi_stable_example_user"
+version = "0.1.0"
+authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+abi_stable_example_interface={version="0.1",path="../abi_stable_example_interface"}
+abi_stable={version="0.1",path="../abi_stable"}
+once_cell="0.1"

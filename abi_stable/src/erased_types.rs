@@ -11,9 +11,9 @@ use core_extensions::type_level_bool::{Boolean, False, True};
 use serde::{Serialize, Serializer};
 
 use crate::{
-    traits::{ImplType, InterfaceType, SerializeImplType},
-    IntoReprC, IntoReprRust, OpaqueType, RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,
-    RResult, RSlice, RString,
+    traits::{ImplType, InterfaceType, SerializeImplType,IntoReprC, IntoReprRust},
+    OpaqueType, 
+    std_types::{RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,RResult, RSlice, RString},
 };
 
 pub mod c_functions;

@@ -1,0 +1,10 @@
+[workspace]
+members=[
+    "abi_stable",
+    "abi_stable_derive",
+    "abi_stable_derive_lib",
+    "abi_stable_example_impl",
+    "abi_stable_example_interface",
+    "abi_stable_example_user",
+]
+

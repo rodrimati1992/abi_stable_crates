@@ -6,7 +6,7 @@ use std::{
     num::ParseIntError,
 };
 
-use crate::StaticStr;
+use crate::std_types::StaticStr;
 
 /// The `\<major\>.\<minor\>.\<patch\>` version of this library,
 ///
@@ -101,13 +101,14 @@ impl fmt::Display for VersionStrings {
 
 #[macro_export]
 macro_rules! package_version_string {
-    () => {
+    () => {{
+        use $crate::std_types::StaticStr;
         $crate::version::VersionStrings {
-            major: $crate::StaticStr::new(env!("CARGO_PKG_VERSION_MAJOR")),
-            minor: $crate::StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
-            patch: $crate::StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
+            major: StaticStr::new(env!("CARGO_PKG_VERSION_MAJOR")),
+            minor: StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
+            patch: StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
         }
-    };
+    }};
 }
 
 ////////////////////////////////////////////////////////////////////////////////

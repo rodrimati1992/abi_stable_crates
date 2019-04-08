@@ -6,7 +6,7 @@ use crate::{
     abi_stability::StableAbi,
     pointer_trait::{CallReferentDrop, StableDeref, TransmuteElement},
     traits::FromElement,
-    RResult,
+    std_types::{RResult},
 };
 
 #[cfg(test)]

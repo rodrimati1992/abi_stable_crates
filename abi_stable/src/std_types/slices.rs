@@ -9,7 +9,7 @@ use core_extensions::prelude::*;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::RVec;
+use crate::std_types::{RVec};
 
 mod private {
     use super::*;
@@ -144,6 +144,18 @@ impl_into_rust_repr! {
         }
     }
 }
+
+////////////////////
+
+
+impl<'a,T:'a> AsRef<[T]> for RSlice<'a,T>{
+    fn as_ref(&self)->&[T]{
+        self
+    }
+}
+
+
+///////////////////
 
 impl<'de, T> Deserialize<'de> for RSlice<'de, T>
 where

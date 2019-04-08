@@ -5,8 +5,7 @@ use core_extensions::prelude::*;
 
 use crate::{
     pointer_trait::{CallReferentDrop, StableDeref, TransmuteElement},
-    traits::FromElement,
-    IntoReprRust,
+    traits::{FromElement,IntoReprRust},
 };
 
 #[cfg(test)]

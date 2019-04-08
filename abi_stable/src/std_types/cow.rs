@@ -5,7 +5,11 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-use crate::{reexports::StableAbi, traits::FromElement, RSlice, RStr, RString, RVec};
+use crate::{
+    reexports::StableAbi, 
+    traits::FromElement, 
+    std_types::{RSlice, RStr, RString, RVec},
+};
 
 ////////////////////////////////////////////////////////////////////
 
@@ -256,6 +260,7 @@ where
     B: BorrowOwned<'a> + ?Sized,
 {
     type Target = B;
+    
     #[inline]
     fn deref(&self) -> &Self::Target {
         match self {
@@ -264,6 +269,20 @@ where
         }
     }
 }
+
+////////////////////
+
+
+impl<'a,B> AsRef<B> for RCow<'a, B>
+where
+    B: BorrowOwned<'a> + ?Sized,
+{
+    fn as_ref(&self)->&B{
+        self
+    }
+}
+
+////////////////////////////
 
 shared_impls! {
     mod=slice_impls

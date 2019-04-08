@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, mem, ops::Deref};
 
-use crate::RSlice;
+use crate::std_types::{RSlice};
 
 pub use self::inner::StaticSlice;
 

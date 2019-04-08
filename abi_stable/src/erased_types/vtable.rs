@@ -116,7 +116,6 @@ macro_rules! declare_meta_vtable {
         #[repr(C)]
         #[derive(StableAbi)]
         #[sabi(inside_abi_stable_crate)]
-        #[sabi(kind(unsafe_Prefix))]
         //#[sabi(debug_print)]
         pub struct VTable<$value,$pointer>{
             /// Flags for quickly checking whether two VTables have the same impls.

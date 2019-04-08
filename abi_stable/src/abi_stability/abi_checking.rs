@@ -12,7 +12,7 @@ use super::{
 };
 use crate::{
     version::{InvalidVersionString, VersionStrings},
-    RVec, StaticSlice, StaticStr,
+    std_types::{RVec, StaticSlice, StaticStr},
 };
 
 #[derive(Debug, PartialEq)]

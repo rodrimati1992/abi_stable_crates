@@ -11,13 +11,15 @@ use libloading::Library as LibLoadingLibrary;
 
 pub use libloading::Result as LibLoadingResult;
 
+use abi_stable_derive_lib::mangle_library_getter_ident;
+
 use crate::{
     abi_stability::{
         abi_checking::{check_abi_stability, AbiInstabilityErrors},
         AbiInfoWrapper, SharedStableAbi, StableAbi,
     },
     version::{InvalidVersionString, VersionNumber, VersionStrings},
-    StaticStr,
+    std_types::{StaticStr},
 };
 
 #[derive(Copy, Clone)]
@@ -40,13 +42,13 @@ impl Library {
 
     /// Loads a dynamic library at `<parent_folder>/<base_name>`
     pub fn load(parent_folder: &Path, base_name: &str) -> libloading::Result<&'static Self> {
-        let extension = match (cfg!(windows), cfg!(mac)) {
-            (false, false) => "so.1",
-            (false, true) => "dylib",
-            (true, false) => "dll",
+        let (prefix,extension) = match (cfg!(windows), cfg!(mac)) {
+            (false, false) => ("lib","so"),
+            (false, true) => ("","dylib"),
+            (true, false) => ("","dll"),
             _ => unreachable!("system is both windows and mac"),
         };
-        let path_to_lib = parent_folder.join(format!("{}.{}", base_name, extension));
+        let path_to_lib = parent_folder.join(format!("{}{}.{}",prefix, base_name, extension));
 
         let lib = LibLoadingLibrary::new(&path_to_lib)?;
         lib.piped(Box::new)
@@ -158,17 +160,25 @@ impl NameSpace {
 
 //////////////////////////////////////////////////////////////////////
 
-pub trait LibraryTrait: Sized + SharedStableAbi {
+
+pub type LibraryGetterFn<T>=
+    extern "C" fn() -> WithLayout<T>;
+
+//////////////////////////////////////////////////////////////////////
+
+pub trait LibraryTrait: Sized + StableAbi {
     fn new(path: &Path) -> Result<&'static Self, LibraryError> {
-        let lib = Library::load_suffixed(path, Self::BASE_NAME).unwrap();
+        let lib = Library::load(path, Self::BASE_NAME)?;
 
-        let vn = Self::VERSION_NUMBER;
+        let mangled=mangle_library_getter_ident(Self::LOADER_FN);
 
-        let version_string_fn: extern "C" fn() -> VersionStrings =
-            unsafe { lib.get_fn(vn.ident.as_bytes())? };
+        let library_getter: extern "C" fn() -> WithLayout<Self> =
+            unsafe { lib.get_fn(mangled.as_bytes())? };
 
-        let user_version = (vn.version_string)().piped(VersionNumber::new)?;
-        let library_version = version_string_fn().piped(VersionNumber::new)?;
+        let items = library_getter();
+
+        let user_version = Self::VERSION_NUMBER.piped(VersionNumber::new)?;
+        let library_version = items.version_strings().piped(VersionNumber::new)?;
 
         if user_version.major != library_version.major || user_version.minor > library_version.minor
         {
@@ -178,11 +188,6 @@ pub trait LibraryTrait: Sized + SharedStableAbi {
                 library_version,
             });
         }
-
-        let library_getter: extern "C" fn() -> WithLayout<&'static Self> =
-            unsafe { lib.get_fn(Self::LOADER_FN.as_bytes())? };
-
-        let items = library_getter();
 
         items.check_layout()?.initialization()
     }
@@ -212,7 +217,7 @@ pub trait LibraryTrait: Sized + SharedStableAbi {
     ///
     /// The value for this constant must be
     /// `version_string_const!( some_function_name )` .
-    const VERSION_NUMBER: &'static VersionStringsFnIdent;
+    const VERSION_NUMBER: VersionStrings;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -223,28 +228,34 @@ mod with_layout {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    pub struct WithLayout<T> {
+    pub struct WithLayout<T:'static> {
         magic_number: usize,
 
+        version_strings:VersionStrings,
         layout: &'static AbiInfoWrapper,
-        value: T,
+        value: &'static T,
     }
 
     impl<T> WithLayout<T> {
-        pub fn new(value: T) -> Self
+        pub fn new(value:&'static T) -> Self
         where
-            T: StableAbi,
+            T: LibraryTrait,
         {
             Self {
                 magic_number: MAGIC_NUMBER,
+                version_strings:T::VERSION_NUMBER,
                 layout: T::ABI_INFO,
                 value,
             }
         }
 
-        pub fn check_layout(self) -> Result<T, LibraryError>
+        pub fn version_strings(&self)->VersionStrings{
+            self.version_strings
+        }
+
+        pub fn check_layout(self) -> Result<&'static T, LibraryError>
         where
-            T: StableAbi,
+            T: LibraryTrait,
         {
             if self.magic_number != MAGIC_NUMBER {
                 return Err(LibraryError::InvalidMagicNumber(self.magic_number));
@@ -263,26 +274,14 @@ const MAGIC_NUMBER: usize = 0xAB1_57A_00;
 
 //////////////////////////////////////////////////////////////////////
 
-pub struct VersionStringsFnIdent {
-    pub version_string: extern "C" fn() -> VersionStrings,
-    pub ident: StaticStr,
-}
-
 #[macro_export]
-macro_rules! version_string_const {
+macro_rules! version_number_const {
     ( $function_name:ident ) => {{
-        use $crate::{library::VersionStringsFnIdent, version::VersionStrings, StaticStr};
-        #[no_mangle]
-        pub extern "C" fn $function_name() -> VersionStrings {
-            VersionStrings {
-                major: StaticStr::new(env!("CARGO_PKG_VERSION_MAJOR")),
-                minor: StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
-                patch: StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
-            }
-        }
-        &VersionStringsFnIdent {
-            ident: StaticStr::new(stringify!($function_name)),
-            version_string: $function_name,
+        use $crate::{version::VersionStrings, std_types::StaticStr};
+        VersionStrings {
+            major: StaticStr::new(env!("CARGO_PKG_VERSION_MAJOR")),
+            minor: StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
+            patch: StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
         }
     }};
 }

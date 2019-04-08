@@ -10,7 +10,7 @@ use serde::{Serialize, Serializer};
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-use crate::{RSlice, RVec};
+use crate::std_types::{RSlice, RVec};
 
 mod privacy {
     use super::*;
@@ -142,6 +142,8 @@ impl<'a, T> DerefMut for RSliceMut<'a, T> {
     }
 }
 
+////////////////////////////
+
 impl_into_rust_repr! {
     impl['a, T] Into<&'a mut [T]> for RSliceMut<'a, T> {
         fn(this){
@@ -156,6 +158,24 @@ impl<'a, T> Into<&'a [T]> for RSliceMut<'a, T> {
     }
 }
 
+
+////////////////////
+
+
+impl<'a,T:'a> AsRef<[T]> for RSliceMut<'a,T>{
+    fn as_ref(&self)->&[T]{
+        self
+    }
+}
+
+impl<'a,T:'a> AsMut<[T]> for RSliceMut<'a,T>{
+    fn as_mut(&mut self)->&mut [T]{
+        self
+    }
+}
+
+
+////////////////////////////
 impl<'a, T> Serialize for RSliceMut<'a, T>
 where
     T: Serialize,

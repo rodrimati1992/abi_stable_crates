@@ -13,7 +13,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[allow(unused_imports)]
 use core_extensions::{prelude::*, SliceExt};
 
-use crate::{RStr, RVec};
+use crate::std_types::{RStr, RVec};
 
 mod iters;
 
@@ -33,6 +33,10 @@ pub struct RString {
 impl RString {
     pub fn new() -> Self {
         String::new().into()
+    }
+
+    pub fn with_capacity(cap:usize) -> Self {
+        String::with_capacity(cap).into()
     }
 
     #[inline]
@@ -126,6 +130,8 @@ impl Default for RString {
     }
 }
 
+////////////////////
+
 impl_into_rust_repr! {
     impl Into<String> for RString {
         fn(this){
@@ -162,9 +168,23 @@ impl<'a> From<Cow<'a, str>> for RString {
     }
 }
 
+////////////////////
+
+
+impl AsRef<str> for RString{
+    fn as_ref(&self)->&str{
+        self
+    }
+}
+
+
+////////////////////
+
+
 impl Deref for RString {
     type Target = str;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         unsafe { from_utf8_unchecked(self.inner.as_slice()) }
     }

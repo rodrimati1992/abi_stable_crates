@@ -7,7 +7,7 @@ use std::{
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-use crate::{IntoReprC, RBoxError};
+use crate::{traits::{IntoReprC}, std_types::{RBoxError}};
 
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 #[repr(C)]

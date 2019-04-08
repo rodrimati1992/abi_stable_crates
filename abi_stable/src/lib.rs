@@ -68,16 +68,11 @@ extern crate serde_derive;
 #[macro_use(StableAbi)]
 extern crate abi_stable_derive;
 
-pub use abi_stable_derive::StableAbi;
+pub use abi_stable_derive::{StableAbi,mangle_library_getter};
 
 #[macro_use]
 mod impls;
 
-#[macro_use]
-pub mod static_str;
-
-#[macro_use]
-pub mod static_slice;
 
 #[macro_use]
 mod macros;
@@ -122,35 +117,11 @@ pub mod abi_stable {
 use std::sync::atomic::AtomicUsize;
 static EXECUTABLE_IDENTITY: AtomicUsize = AtomicUsize::new(1);
 
-//pub use shared_traits::with_lifetime::WithLifetime;
-
 pub use crate::{
-    cabi_type::CAbi,
+    abi_stability::StableAbi,
     erased_types::VirtualWrapper,
-    // immovable_wrapper::Immov,
     library::Library,
     opaque_type::{ErasedObject, OpaqueType},
-    std_types::{
-        arc::RArc,
-        boxed::RBox,
-        cmp_ordering::RCmpOrdering,
-        cow::RCow,
-        option::{RNone, ROption, RSome},
-        result::{RErr, ROk, RResult},
-        slice_mut::RSliceMut,
-        slices::RSlice,
-        std_error::{RBoxError, UnsyncRBoxError},
-        std_io::{RIoError, RIoErrorKind},
-        str::RStr,
-        string::RString,
-        time::RDuration,
-        tuple::{Tuple2, Tuple3, Tuple4},
-        vec::RVec,
-    },
-    traits::{
-        DeserializeImplType, ImplType, InterfaceType, IntoReprC, IntoReprRust, SerializeImplType,
-    },
+    traits::{ImplType, InterfaceType},
 };
 
-#[doc(hidden)]
-pub use crate::{static_slice::StaticSlice, static_str::StaticStr};

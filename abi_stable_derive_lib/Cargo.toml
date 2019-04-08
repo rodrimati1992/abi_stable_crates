@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 quote = "0.6.11"
-core_extensions= {version="0.1",path="../../shared_extensions/core_extensions"}
+core_extensions= {version="0.1",path="../../crates/shared_extensions/core_extensions"}
 lazy_static = "1.3"
 typed-arena = "1.4"
 proc-macro2 = "0.4"

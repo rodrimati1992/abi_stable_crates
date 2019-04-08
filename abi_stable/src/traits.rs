@@ -4,7 +4,7 @@ use core_extensions::prelude::*;
 use crate::{
     erased_types::{GetImplFlags, VirtualWrapperTrait},
     type_info::GetTypeInfo,
-    RBoxError, RCow, RStr,
+    std_types::{RBoxError, RCow, RStr},
 };
 
 pub use core_extensions::type_level_bool::{False, True};
@@ -136,7 +136,7 @@ macro_rules! impl_from_rust_repr {
         }
 
         $(#[$meta])*
-        impl $(< $($impl_header)* >)?  $crate::IntoReprC for $from_ty
+        impl $(< $($impl_header)* >)?  $crate::traits::IntoReprC for $from_ty
         $(where $($where_clause)*)?
         {
             type ReprC=$into_ty;
@@ -172,7 +172,7 @@ macro_rules! impl_into_rust_repr {
         }
 
         $(#[$meta])*
-        impl $(< $($impl_header)* >)?  $crate::IntoReprRust for $from_ty
+        impl $(< $($impl_header)* >)?  $crate::traits::IntoReprRust for $from_ty
         $(where $($where_clause)*)?
         {
             type ReprRust=$into_ty;

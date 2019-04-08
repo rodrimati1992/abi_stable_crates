@@ -5,7 +5,7 @@ use std::{
     ops::Deref,
 };
 
-use crate::RStr;
+use crate::std_types::RStr;
 
 pub use self::inner::StaticStr;
 

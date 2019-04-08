@@ -9,7 +9,7 @@ use core_extensions::prelude::*;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{RSlice, RString};
+use crate::std_types::{RSlice, RString};
 
 /// Type used to represent a Vec<u8> in any language.
 ///
@@ -89,10 +89,13 @@ impl<'a> Default for RStr<'a> {
 impl<'a> Deref for RStr<'a> {
     type Target = str;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.as_str()
     }
 }
+
+////////////////////////////////
 
 impl<'a> Into<Cow<'a, str>> for RStr<'a> {
     fn into(self) -> Cow<'a, str> {
@@ -129,6 +132,16 @@ impl_from_rust_repr! {
         }
     }
 }
+
+////////////////////////////////
+
+impl<'a> AsRef<str> for RStr<'a>{
+    fn as_ref(&self)->&str{
+        self
+    }
+}
+
+////////////////////////////////
 
 impl Display for RStr<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

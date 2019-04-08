@@ -1,0 +1,14 @@
+[package]
+name = "abi_stable_example_impl"
+version = "0.1.0"
+authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+abi_stable_example_interface={version="0.1",path="../abi_stable_example_interface"}
+abi_stable={version="0.1",path="../abi_stable"}
+core_extensions="0.1"
+
+[lib]
+name = "text_operations"
+crate-type = ["cdylib",'rlib']

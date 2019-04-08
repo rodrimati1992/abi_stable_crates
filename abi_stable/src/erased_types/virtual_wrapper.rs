@@ -9,7 +9,8 @@ use crate::{
     pointer_trait::{ErasedStableDeref, StableDeref, TransmuteElement},
     traits::{DeserializeImplType, ImplType},
     type_info::InterfaceFor,
-    ErasedObject, RBox, RCow, RStr,
+    ErasedObject, 
+    std_types::{RBox, RCow, RStr},
 };
 
 use super::*;

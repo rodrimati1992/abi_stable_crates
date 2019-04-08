@@ -8,7 +8,7 @@ use std::{
     sync::atomic::{AtomicBool, AtomicIsize, AtomicPtr, AtomicUsize},
 };
 
-use crate::{RNone, RSome, StaticSlice, StaticStr};
+use crate::std_types::{RNone, RSome, StaticSlice, StaticStr};
 
 use super::{LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayoutParams};
 

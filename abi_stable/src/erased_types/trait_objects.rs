@@ -24,7 +24,6 @@ macro_rules! declare_trait_object {
         #[derive(StableAbi)]
         #[repr(C)]
         #[sabi(inside_abi_stable_crate)]
-        #[sabi(kind(unsafe_Prefix))]
         $vis struct $struct_name < $($ty_params= $crate::ErasedObject,)* > {
             $( $field_vis  $field_name:$field_ty, )*
         }
