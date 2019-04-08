@@ -1,4 +1,4 @@
-use std::ptr;
+
 
 use crate::*;
 
@@ -6,11 +6,9 @@ use crate::{
     attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions,Repr},
     datastructure::{DataStructure,DataVariant,Struct,Field},
     to_token_fn::ToTokenFnMut,
-    lifetimes::LifetimeTokenizer,
     fn_pointer_extractor::ParamOrReturn,
 };
 
-use hashbrown::HashSet;
 
 use syn::Ident;
 
@@ -18,7 +16,7 @@ use proc_macro2::{TokenStream as TokenStream2,Span};
 
 use core_extensions::{
     prelude::*,
-    iter_cloner,
+
 };
 
 use arrayvec::ArrayString;
@@ -40,7 +38,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
     let impld_trait = match config.kind {
         StabilityKind::Value => &ctokens.stable_abi,
-        StabilityKind::Prefix => &ctokens.shared_stable_abi,
     };
 
 
@@ -128,7 +125,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         if !is_transparent { return }
 
         let struct_=&ds.variants[0];
-        let repr_field=struct_.fields[0].ty;
 
         for field in &struct_.fields[1..] {
             to_stream!(ts;
@@ -156,7 +152,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
     let stable_abi_bounded =&config.stable_abi_bounded;
     let extra_bounds       =&config.extra_bounds;
-    let shared_sabi_bounded=&config.shared_sabi_bounded;
     
     let inside_abi_stable_crate=if config.inside_abi_stable_crate { 
         quote!(use crate as abi_stable;)
@@ -185,7 +180,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         where 
             #(#where_clause,)*
             #(#stable_abi_bounded:__StableAbi,)*
-            #(#shared_sabi_bounded:__SharedStableAbi,)*
             #(#extra_bounds,)*
         {
             type IsNonZeroType=_sabi_reexports::False;
@@ -220,7 +214,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 }
 
 /// Creates a value that outputs 
-/// `<#ty as __SharedStableAbi>::ABI_INFO.get()`
+/// `<#ty as __StableAbi>::ABI_INFO.get()`
 /// to a token stream
 fn get_abi_info_tokenizer<'a>(
     ty:&'a ::syn::Type,
@@ -228,7 +222,7 @@ fn get_abi_info_tokenizer<'a>(
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
         to_stream!{ts; 
-            ct.lt,ty,ct.as_,ct.shared_stable_abi,ct.gt,
+            ct.lt,ty,ct.as_,ct.stable_abi,ct.gt,
             ct.colon2,ct.abi_info,ct.dot,ct.get
         }
         ct.paren.surround(ts,|_|());
@@ -312,12 +306,12 @@ fn fields_tokenizer<'a>(
                 
                 to_stream!{ts; ct.comma };
 
-                let impls_sabi=config.shared_sabi_field.map_or(false,|f|ptr::eq(f,field));
+                let impls_sabi=true;
                 let field_ptr:*const Field<'_>=field;
                 let is_opaque_field=config.opaque_fields.contains(&field_ptr);
 
                 let flavor=match (is_opaque_field,impls_sabi) {
-                    (false,false)=>&ct.shared_stable_abi_bound,
+                    (false,false)=>&ct.stable_abi_bound,
                     (false,true )=>&ct.stable_abi_bound,
                     (true ,_    )=>&ct.unsafe_opaque_field_bound,
                 };

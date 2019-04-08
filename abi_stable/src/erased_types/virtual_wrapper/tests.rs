@@ -15,7 +15,7 @@ use serde_json;
 
 #[allow(unused_imports)]
 use crate::{
-    abi_stability::{check_abi_stability, SharedStableAbi},
+    abi_stability::{check_abi_stability},
     erased_types::VirtualWrapper,
     impl_get_type_info,
     traits::{DeserializeImplType, False, ImplType, InterfaceType, SerializeImplType, True},

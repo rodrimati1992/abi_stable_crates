@@ -1,11 +1,11 @@
 use syn::{
-    Attribute, Ident, Meta, MetaList, MetaNameValue, NestedMeta, Type,
+    Attribute, Ident, Meta, MetaList, MetaNameValue, NestedMeta, 
     Lit,WherePredicate,
 };
 
 use hashbrown::HashSet;
 
-use quote::{ToTokens, TokenStreamExt};
+use quote::ToTokens;
 
 use crate::datastructure::{DataStructure, DataVariant, Field};
 use crate::*;
@@ -19,10 +19,6 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) stable_abi_bounded:HashSet<&'a Ident>,
 
     pub(crate) unconstrained_type_params:HashSet<Ident>,
-    
-    pub(crate) shared_sabi_field:Option<&'a Field<'a>>,
-
-    pub(crate) shared_sabi_bounded:Vec<Ident>,
 
     pub(crate) extra_bounds:Vec<WherePredicate>,
 
@@ -33,7 +29,6 @@ pub(crate) struct StableAbiOptions<'a> {
 
 pub(crate) enum StabilityKind {
     Value,
-    Prefix,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
@@ -66,32 +61,18 @@ impl<'a> StableAbiOptions<'a> {
             }
         }
 
-        for type_param in &this.shared_sabi_bounded {
-            if !stable_abi_bounded.remove(type_param) {
-                panic!(
-                    "'{}' declared as a SharedStableAbi type parameter but is not a type parameter",
-                    type_param 
-                )
-            }
-        }
-
-        let mut shared_sabi_field=None;
-
         let kind = match this.kind {
             _ if repr == Repr::Transparent => {
                 let field=&ds.variants[0].fields[0];
                 
                 let field_bound=syn::parse_str::<WherePredicate>(
-                    &format!("({}):__SharedStableAbi",(&field.ty).into_token_stream())
+                    &format!("({}):__StableAbi",(&field.ty).into_token_stream())
                 ).expect(concat!(file!(),"-",line!()));
                 this.extra_bounds.push(field_bound);
-
-                shared_sabi_field=Some(field);
 
                 StabilityKind::Value
             }
             None | Some(UncheckedStabilityKind::Value) => StabilityKind::Value,
-            Some(UncheckedStabilityKind::Prefix) => StabilityKind::Prefix,
         };
 
         if repr == Repr::Transparent && ds.data_variant != DataVariant::Struct {
@@ -100,9 +81,8 @@ impl<'a> StableAbiOptions<'a> {
 
         StableAbiOptions {
             debug_print:this.debug_print,
-            shared_sabi_bounded:this.shared_sabi_bounded,
             inside_abi_stable_crate:this.inside_abi_stable_crate,
-            kind, repr , stable_abi_bounded , shared_sabi_field ,
+            kind, repr , stable_abi_bounded , 
             extra_bounds :this.extra_bounds,
             unconstrained_type_params:this.unconstrained_type_params.into_iter().collect(),
             opaque_fields:this.opaque_fields,
@@ -124,8 +104,6 @@ struct StableAbiAttrs<'a> {
     /// The type parameters that have no constraints
     unconstrained_type_params:Vec<Ident>,
 
-    shared_sabi_bounded:Vec<Ident>,
-
     pointer_field: Option<&'a Field<'a>>,
 
     // Using raw pointers to do an identity comparison.
@@ -135,7 +113,6 @@ struct StableAbiAttrs<'a> {
 #[derive(Copy, Clone)]
 enum UncheckedStabilityKind {
     Value,
-    Prefix,
 }
 
 #[derive(Copy, Clone)]
@@ -246,22 +223,8 @@ fn parse_sabi_attr<'a>(this: &mut StableAbiAttrs<'a>,pctx: ParseContext<'a>, att
                     Meta::Word(ref word) if word == "Value" => {
                         this.kind = Some(UncheckedStabilityKind::Value);
                     }
-                    Meta::Word(ref word) if word == "unsafe_Prefix" => {
-                        this.kind = Some(UncheckedStabilityKind::Prefix);
-                    }
                     x => panic!("invalid #[kind(..)] attribute:\n{:?}", x),
                 });
-            } else if list.ident == "shared_stable_abi" {
-                with_nested_meta("shared_stable_abi", list.nested, |attr| match attr {
-                    Meta::Word(type_param)=>{
-                        this.shared_sabi_bounded.push(type_param);
-                    }
-                    x => panic!(
-                        "invalid #[shared_stable_abi(..)] attribute\
-                         (it must be the identifier of a type parameter):\n{:?}\n", 
-                        x
-                    ),
-                })
             } else if list.ident == "phantom" {
                 with_nested_meta("phantom", list.nested, |attr| match attr {
                     Meta::Word(type_param)=>{

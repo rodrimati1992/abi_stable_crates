@@ -62,21 +62,21 @@ impl<T> Eq for Ignored<T> {}
 
 
 impl<T> PartialEq for Ignored<T> {
-    fn eq(&self, other: &Self) -> bool{
+    fn eq(&self, _other: &Self) -> bool{
         true
     }
 }
 
 
 impl<T> Ord for Ignored<T>{
-    fn cmp(&self, other: &Self) -> Ordering{
+    fn cmp(&self, _other: &Self) -> Ordering{
         Ordering::Equal
     }
 }
 
 
 impl<T> PartialOrd for Ignored<T>{
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering>{
+    fn partial_cmp(&self, _other: &Self) -> Option<Ordering>{
         Some(Ordering::Equal)
     }
 }

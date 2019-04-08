@@ -324,14 +324,14 @@ macro_rules! tl_genparams {
     ( $($lt:lifetime),* $(,)? ; $($ty:ty),* $(,)? ; $($const_p:expr),* $(,)? ) => ({
         #[allow(unused_imports)]
         use $crate::{
-            abi_stability::{SharedStableAbi,type_layout::GenericParams},
+            abi_stability::{StableAbi,type_layout::GenericParams},
             std_types::StaticStr,
             utils::as_slice,
         };
 
         GenericParams::new(
             &[$( StaticStr::new( stringify!($lt) ) ,)*],
-            &[$( <$ty as SharedStableAbi>::LAYOUT ,)*],
+            &[$( <$ty as StableAbi>::LAYOUT ,)*],
             &[$( StaticStr::new( stringify!($const_p) ) ,)*],
         )
     })

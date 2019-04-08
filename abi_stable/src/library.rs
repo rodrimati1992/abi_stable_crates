@@ -16,10 +16,9 @@ use abi_stable_derive_lib::mangle_library_getter_ident;
 use crate::{
     abi_stability::{
         abi_checking::{check_abi_stability, AbiInstabilityErrors},
-        AbiInfoWrapper, SharedStableAbi, StableAbi,
+        AbiInfoWrapper,  StableAbi,
     },
     version::{InvalidVersionString, VersionNumber, VersionStrings},
-    std_types::{StaticStr},
 };
 
 #[derive(Copy, Clone)]
@@ -114,53 +113,6 @@ impl Library {
 
 //////////////////////////////////////////////////////////////////////
 
-/// A wrapper for abi_stable::library::Library which makes sure that
-/// the library that is being loaded is compatible with the `interface crate`.
-///
-/// # Safety
-///
-/// Do note that these checks are not exhaustive,eg:abi compatible changes that break the api
-/// won't be rejected by these checks.
-#[must_use = "call `.into_inner()` to obtain the validated library."]
-pub struct ASLibrary(&'static Library);
-
-impl ASLibrary {
-    pub fn into_inner(self) -> &'static Library {
-        self.0
-    }
-}
-
-//////////////////////////////////////////////////////////////////////
-
-/// Which string to prefix/suffix to the names of each function of the library.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
-pub enum NameSpace {
-    /// Prefix this string to every library function name,
-    /// with the `<prefix>_<function_name>` format.
-    Prefix(&'static str),
-    /// Suffix this string to every library function name
-    /// with the `<function_name>_<suffix>` format.
-    Suffix(&'static str),
-}
-
-impl NameSpace {
-    pub fn apply(self, function_name: &str) -> String {
-        let s = match self {
-            NameSpace::Prefix(s) => s,
-            NameSpace::Suffix(s) => s,
-        };
-        assert!(!s.is_empty());
-        match self {
-            NameSpace::Prefix(s) => [s, "_", function_name].concat(),
-            NameSpace::Suffix(s) => [function_name, "_", s].concat(),
-        }
-    }
-}
-
-//////////////////////////////////////////////////////////////////////
-
-
 pub type LibraryGetterFn<T>=
     extern "C" fn() -> WithLayout<T>;
 
@@ -208,9 +160,6 @@ pub trait LibraryTrait: Sized + StableAbi {
     ///
     /// extern fn()->WithLayout<&'static Self>
     const LOADER_FN: &'static str;
-
-    // /// Which string to prefix/suffix to the names of each function of the library.
-    // const NAMESPACE:NameSpace;
 
     /// An `extern function` defined in the interface crate
     /// which just returns its version number.

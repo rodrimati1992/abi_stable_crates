@@ -12,25 +12,6 @@ use crate::std_types::{RNone, RSome, StaticSlice, StaticStr};
 
 use super::{LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayoutParams};
 
-/// Like StableAbi,has a stable layout but must be accessed through a shared reference.
-pub unsafe trait SharedStableAbi {
-    /// Whether this type has a single (always the same one) invalid bit-pattern.
-    ///
-    /// Possible values:True/False
-    type IsNonZeroType: Boolean;
-
-    const LAYOUT: &'static TypeLayout;
-    const ABI_INFO: &'static AbiInfoWrapper = {
-        let info = AbiInfo {
-            prefix_kind: true,
-            is_nonzero: <Self::IsNonZeroType as Boolean>::VALUE,
-            layout: Self::LAYOUT,
-        };
-
-        &AbiInfoWrapper::new(info)
-    };
-}
-
 ///////////////////////
 
 /// Represents a type whose layout is stable.
@@ -66,16 +47,6 @@ pub unsafe trait StableAbi {
 
 ///////////////////////
 
-unsafe impl<This> SharedStableAbi for This
-where
-    This: StableAbi,
-{
-    type IsNonZeroType = This::IsNonZeroType;
-    const LAYOUT: &'static TypeLayout = This::LAYOUT;
-    const ABI_INFO: &'static AbiInfoWrapper = This::ABI_INFO;
-}
-
-///////////////////////
 
 /// Wrapper type for AbiInfo that requires the
 /// correct construction of AbiInfo to construct it.
@@ -157,15 +128,6 @@ where
     };
 }
 
-unsafe impl<T> MakeGetAbiInfo<SharedStableAbi_Bound> for T
-where
-    T: SharedStableAbi,
-{
-    const CONST: GetAbiInfo = GetAbiInfo {
-        abi_info: get_shared_abi_info::<T>,
-    };
-}
-
 unsafe impl<T> MakeGetAbiInfo<UnsafeOpaqueField_Bound> for T {
     const CONST: GetAbiInfo = GetAbiInfo {
         abi_info: get_abi_info::<UnsafeOpaqueField<T>>,
@@ -174,8 +136,6 @@ unsafe impl<T> MakeGetAbiInfo<UnsafeOpaqueField_Bound> for T {
 
 #[allow(non_camel_case_types)]
 pub struct StableAbi_Bound;
-#[allow(non_camel_case_types)]
-pub struct SharedStableAbi_Bound;
 #[allow(non_camel_case_types)]
 pub struct UnsafeOpaqueField_Bound;
 
@@ -187,12 +147,6 @@ where
     T::ABI_INFO.get()
 }
 
-pub extern "C" fn get_shared_abi_info<T>() -> &'static AbiInfo
-where
-    T: SharedStableAbi,
-{
-    T::ABI_INFO.get()
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -226,7 +180,7 @@ unsafe impl StableAbi for () {
 // Does not allow ?Sized types because the DST fat pointer does not have a fixed layout.
 unsafe impl<'a, T> StableAbi for &'a T
 where
-    T: 'a + SharedStableAbi,
+    T: 'a + StableAbi,
 {
     type IsNonZeroType = True;
 
@@ -238,7 +192,7 @@ where
         &[TLField::new(
             "0",
             &[LifetimeIndex::Param(0)],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
@@ -257,7 +211,7 @@ where
         &[TLField::new(
             "0",
             &[LifetimeIndex::Param(0)],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
@@ -276,7 +230,7 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
@@ -295,14 +249,14 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
 
 unsafe impl<T> StableAbi for *const T
 where
-    T: SharedStableAbi,
+    T: StableAbi,
 {
     type IsNonZeroType = False;
 
@@ -314,7 +268,7 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
@@ -333,7 +287,7 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
@@ -353,7 +307,7 @@ macro_rules! impl_stable_abi_array {
                     RSome(RustPrimitive::Array),
                     TLData::Primitive,
                     tl_genparams!(;T;$size),
-                    &[TLField::new("0", &[], <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST)],
+                    &[TLField::new("0", &[], <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST)],
                 );
             }
         )*

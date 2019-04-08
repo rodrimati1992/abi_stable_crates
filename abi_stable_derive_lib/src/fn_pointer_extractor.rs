@@ -5,19 +5,19 @@ to some extent(for non-reference types at least),
 
 */
 
-use std::{collections::BTreeSet, mem};
+use std::mem;
 
 use syn::{
     punctuated::Punctuated,
     visit_mut::{self, VisitMut},
-    Abi, GenericParam, Generics, Ident, Lifetime, LitStr, Type, TypeBareFn, TypeReference,
+    Generics, Ident, Lifetime, Type, TypeBareFn, TypeReference,
 };
 
-use arrayvec::ArrayString;
 
-use proc_macro2::{Span,TokenStream};
 
-use quote::{ToTokens, TokenStreamExt};
+use proc_macro2::TokenStream;
+
+use quote::ToTokens;
 
 use core_extensions::prelude::*;
 
@@ -25,7 +25,6 @@ use hashbrown::HashSet;
 
 use crate::{
     lifetimes::LifetimeIndex,
-    to_token_fn::ToTokenFnMut,
     ignored_wrapper::Ignored,
 };
 use crate::*;
@@ -111,32 +110,6 @@ pub(crate) struct VisitFieldRet {
 /////////////
 
 
-impl<'a> Function<'a>{
-    /// Removes generic parameters in `ty` referencing this function.
-    pub fn remove_generics_from(&self,ty:&mut Type,ctokens:&'a CommonTokens<'a>){
-        GenericRemover{func:self,ctokens}
-            .visit_type_mut(ty);
-    }
-}
-
-
-struct GenericRemover<'a>{
-    func:&'a Function<'a>,
-    ctokens:&'a CommonTokens<'a>,
-}
-
-
-impl<'a> VisitMut for GenericRemover<'a>{
-    fn visit_lifetime_mut(&mut self, lt: &mut Lifetime) {
-        if self.func.named_bound_lt_set.contains(&lt.ident) {
-            lt.ident=self.ctokens.underscore.clone();
-        }
-    }
-}
-
-
-/////////////
-
 impl<'a> TypeVisitor<'a> {
     #[inline(never)]
     pub fn new(arenas: &'a Arenas, ctokens: &'a CommonTokens<'a>, generics: &'a Generics) -> Self {
@@ -184,6 +157,7 @@ pub(crate) struct TypeVisitor<'a> {
     vars: Vars<'a>,
 }
 
+#[allow(dead_code)]
 #[derive(Copy, Clone)]
 struct ImmutableRefs<'a> {
     arenas: &'a Arenas,
@@ -423,7 +397,7 @@ impl<'a, 'b> VisitMut for FnVisitor<'a, 'b> {
     }
 
     fn visit_type_reference_mut(&mut self, ref_: &mut TypeReference) {
-        let ctokens = self.refs.ctokens;
+        let _ctokens = self.refs.ctokens;
         let lt = ref_.lifetime.as_ref().map(|x| &x.ident);
         if let Some(ident) = self.setup_lifetime(lt).cloned() {
             if let Some(lt)=&mut ref_.lifetime {

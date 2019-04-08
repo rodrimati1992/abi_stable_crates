@@ -1,5 +1,5 @@
 use proc_macro2::Span;
-use proc_macro2::TokenStream;
+
 
 use crate::{
     *,
@@ -18,11 +18,6 @@ macro_rules! declare_common_tokens {
         lifetime[ $( $lifetime_ident:ident = $lifetime_str:expr , )* ]
         str_lits[ $( $strlit_ident:ident = $strlit_str:expr , )* ]
     ) => {
-        use syn::token::{
-            $($token_new,)*
-            $($token_token,)*
-        };
-
         #[derive(Debug)]
         pub(crate) struct CommonTokens<'a>{
             $( pub(crate) $field_new : $token_new , )*
@@ -116,7 +111,6 @@ declare_common_tokens! {
         get_abi_info="__GetAbiInfo",
         instantiate_field="instantiate_field",
         lifetime_indices="lifetime_indices",
-        shared_stable_abi="__SharedStableAbi",
         make_get_abi_info="__MakeGetAbiInfo",
         stable_abi="__StableAbi",
         type_identity="TypeIdentity",
@@ -125,7 +119,6 @@ declare_common_tokens! {
         abi_info="ABI_INFO",
         get="get",
         stable_abi_bound="__StableAbi_Bound",
-        shared_stable_abi_bound="__SharedStableAbi_Bound",
         unsafe_opaque_field_bound="__UnsafeOpaqueField_Bound",
         sabi_reexports="_sabi_reexports",
         lifetime_index="__LifetimeIndex",

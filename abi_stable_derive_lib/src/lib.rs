@@ -1,7 +1,7 @@
 #![recursion_limit="128"]
 //#![deny(unused_variables)]
 
-#[macro_use]
+
 extern crate core_extensions;
 
 extern crate proc_macro;
@@ -16,7 +16,7 @@ mod constants;
 mod ignored_wrapper;
 mod datastructure;
 mod fn_pointer_extractor;
-mod gen_param_in;
+
 mod lifetimes;
 mod stable_abi;
 mod to_token_fn;
@@ -28,8 +28,9 @@ use syn::{DeriveInput,ItemFn};
 
 use quote::{quote, ToTokens};
 
+#[allow(unused_imports)]
 use crate::{
-    arenas::{AllocMethods, Arenas, ArenasRef},
+    arenas::{AllocMethods, Arenas},
     common_tokens::CommonTokens,
 };
 
@@ -72,7 +73,7 @@ where S: ::std::fmt::Display
                 '}'=>"_a",
                 ' '=>"_b",
                 ','=>"_c",
-                ';'=>"_d",
+                ':'=>"_d",
                 ';'=>"_e",
                 '!'=>"_f",
                 '#'=>"_g",
@@ -115,10 +116,10 @@ pub fn derive_stable_abi_from_str(s: &str) -> TokenStream2 {
 }
 
 
-pub fn mangle_library_getter_attr(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
+pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     use std::mem;
     use syn::Ident;
-    use proc_macro2::Span;
+    
 
     measure!({
         let mut input = syn::parse::<ItemFn>(item).unwrap();

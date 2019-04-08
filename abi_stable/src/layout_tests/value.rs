@@ -7,7 +7,7 @@ use core_extensions::{matches, prelude::*};
 
 use crate::{
     abi_stability::{
-        abi_checking::AbiInstability, check_abi_stability, AbiInfoWrapper, SharedStableAbi,
+        abi_checking::AbiInstability, check_abi_stability, AbiInfoWrapper, 
     },
     *,
     test_utils::must_panic,
@@ -586,91 +586,93 @@ fn variant_mismatch() {
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-///  Prefix types
 
-mod prefix0 {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(unsafe_Prefix))]
-    pub struct Prefix {
-        field0: u8,
-    }
-}
 
-mod prefix1 {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(unsafe_Prefix))]
-    pub struct Prefix {
-        field0: u8,
-        field1: u8,
-    }
-}
+// //////////////////////////////////////////////////////////////////////////////
+// ///  Prefix types Uncomment this once I figure a good design for this.
 
-mod prefix2 {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(unsafe_Prefix))]
-    pub struct Prefix {
-        field0: u8,
-        field1: u8,
-        field2: u8,
-    }
-}
+// mod prefix0 {
+//     #[repr(C)]
+//     #[derive(StableAbi)]
+//     #[sabi(inside_abi_stable_crate)]
+//     #[sabi(kind(unsafe_Prefix))]
+//     pub struct Prefix {
+//         field0: u8,
+//     }
+// }
 
-// Prefix types have to keep the same alignment when fields are added
-mod prefix2_misaligned {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(unsafe_Prefix))]
-    pub struct Prefix {
-        field0: u8,
-        field1: u8,
-        field2: u64,
-    }
-}
+// mod prefix1 {
+//     #[repr(C)]
+//     #[derive(StableAbi)]
+//     #[sabi(inside_abi_stable_crate)]
+//     #[sabi(kind(unsafe_Prefix))]
+//     pub struct Prefix {
+//         field0: u8,
+//         field1: u8,
+//     }
+// }
 
-#[test]
-fn prefixes_test() {
-    // This has to be hidden behind a reference to be a StableAbi
-    let pref_0 = <&prefix0::Prefix>::ABI_INFO;
-    let pref_1 = <&prefix1::Prefix>::ABI_INFO;
-    let pref_2 = <&prefix2::Prefix>::ABI_INFO;
-    let list = vec![pref_0, pref_1, pref_2];
-    for (i, this) in list.iter().cloned().enumerate() {
-        for (j, other) in list.iter().cloned().enumerate() {
-            let res = check_abi_stability(this, other);
+// mod prefix2 {
+//     #[repr(C)]
+//     #[derive(StableAbi)]
+//     #[sabi(inside_abi_stable_crate)]
+//     #[sabi(kind(unsafe_Prefix))]
+//     pub struct Prefix {
+//         field0: u8,
+//         field1: u8,
+//         field2: u8,
+//     }
+// }
 
-            if i <= j {
-                assert_eq!(Ok(()), res, "\n\ni:{} j:{}\n\n", i, j,);
-            } else {
-                let errs = res.unwrap_err().flatten_errors();
-                assert!(
-                    errs.iter()
-                        .any(|err| matches!(AbiInstability::FieldCountMismatch{..}=err)),
-                    "\n\ni:{} j:{}\n\n",
-                    i,
-                    j,
-                );
-            }
-        }
-    }
+// // Prefix types have to keep the same alignment when fields are added
+// mod prefix2_misaligned {
+//     #[repr(C)]
+//     #[derive(StableAbi)]
+//     #[sabi(inside_abi_stable_crate)]
+//     #[sabi(kind(unsafe_Prefix))]
+//     pub struct Prefix {
+//         field0: u8,
+//         field1: u8,
+//         field2: u64,
+//     }
+// }
 
-    // Adding fields is allowed but they can't change the alignment.
-    {
-        let misaligned = <&prefix2_misaligned::Prefix>::ABI_INFO;
+// #[test]
+// fn prefixes_test() {
+//     // This has to be hidden behind a reference to be a StableAbi
+//     let pref_0 = <&prefix0::Prefix>::ABI_INFO;
+//     let pref_1 = <&prefix1::Prefix>::ABI_INFO;
+//     let pref_2 = <&prefix2::Prefix>::ABI_INFO;
+//     let list = vec![pref_0, pref_1, pref_2];
+//     for (i, this) in list.iter().cloned().enumerate() {
+//         for (j, other) in list.iter().cloned().enumerate() {
+//             let res = check_abi_stability(this, other);
 
-        let errs = check_abi_stability(pref_0, misaligned)
-            .unwrap_err()
-            .flatten_errors();
+//             if i <= j {
+//                 assert_eq!(Ok(()), res, "\n\ni:{} j:{}\n\n", i, j,);
+//             } else {
+//                 let errs = res.unwrap_err().flatten_errors();
+//                 assert!(
+//                     errs.iter()
+//                         .any(|err| matches!(AbiInstability::FieldCountMismatch{..}=err)),
+//                     "\n\ni:{} j:{}\n\n",
+//                     i,
+//                     j,
+//                 );
+//             }
+//         }
+//     }
 
-        assert!(errs
-            .iter()
-            .any(|err| matches!(AbiInstability::Alignment{..}=err)));
-    }
-}
+//     // Adding fields is allowed but they can't change the alignment.
+//     {
+//         let misaligned = <&prefix2_misaligned::Prefix>::ABI_INFO;
+
+//         let errs = check_abi_stability(pref_0, misaligned)
+//             .unwrap_err()
+//             .flatten_errors();
+
+//         assert!(errs
+//             .iter()
+//             .any(|err| matches!(AbiInstability::Alignment{..}=err)));
+//     }
+// }

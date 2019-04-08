@@ -188,13 +188,7 @@ impl<'a> Struct<'a> {
         }
     }
 
-    pub(crate) fn new_ident<S>(&self, token: S) -> Ident
-    where
-        S: AsRef<str>,
-    {
-        Ident::new(token.as_ref(), self.name.span())
     }
-}
 
 //////////////////////////////////////////////////////////////////////////////
 

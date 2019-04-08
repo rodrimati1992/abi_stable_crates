@@ -23,15 +23,10 @@ Currently this library has these features:
 Types must implement StableAbi to be safely passed through the FFI boundary,
 which can be done using the StableAbi derive macro.
 
-These are the 3 kinds of types passed through FFI:
+These are the 2 kinds of types passed through FFI:
 
 - Value kind:
     The layout of types passed by value must not change in a minor version.
-
-- Prefix kind: 
-    Types where `<Type as StableAbi>::ABI_INFO.is_prefix==true`,
-    passed by reference and can increase in size so long as they only add fields at the end,
-    as well as not change their alignment in newer versions.
 
 - Opaque kind:
     Types wrapped in `VirtualWrapper<SomePointer<OpaqueType<Interface>>>`,

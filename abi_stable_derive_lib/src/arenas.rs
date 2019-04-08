@@ -67,4 +67,3 @@ declare_arenas! {
     strings: String,
 }
 
-pub(crate) type ArenasRef<'alloc> = &'alloc Arenas;
