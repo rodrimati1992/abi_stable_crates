@@ -5,7 +5,6 @@ use core_extensions::prelude::*;
 use crate::{
     abi_stability::StableAbi,
     pointer_trait::{CallReferentDrop, StableDeref, TransmuteElement},
-    traits::FromElement,
     std_types::{RResult},
 };
 
@@ -15,6 +14,7 @@ mod test;
 mod private {
     use super::*;
 
+    /// Ffi-safe version of ::std::sync::Arc<_>
     #[derive(StableAbi)]
     #[repr(C)]
     #[sabi(inside_abi_stable_crate)]
@@ -125,15 +125,6 @@ impl_into_rust_repr! {
         fn(this){
             Self::into_arc(this)
         }
-    }
-}
-
-impl<T> FromElement for RArc<T> {
-    type Element = T;
-
-    #[inline]
-    fn from_elem(val: Self::Element) -> Self {
-        Self::new(val)
     }
 }
 

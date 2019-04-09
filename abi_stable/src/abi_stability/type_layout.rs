@@ -9,9 +9,11 @@ use std::{
     mem,
 };
 
+
 use crate::{
     utils::empty_slice, version::VersionStrings, 
     std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr},
+    ignored_wrapper::CmpIgnored,
 };
 
 use super::{AbiInfo, GetAbiInfo};
@@ -22,6 +24,8 @@ pub struct TypeLayoutParams {
     pub name: &'static str,
     pub package: &'static str,
     pub package_version: VersionStrings,
+    pub file:&'static str,
+    pub line:u32,
     pub data: TLData,
     pub generics: GenericParams,
     pub phantom_fields: &'static [TLField],
@@ -34,6 +38,8 @@ pub struct TypeLayout {
     pub name: StaticStr,
     pub package: StaticStr,
     pub package_version: VersionStrings,
+    pub file:CmpIgnored<StaticStr>, // This is for the Debug string
+    pub line:CmpIgnored<u32>, // This is for the Debug string
     pub size: usize,
     pub alignment: usize,
     pub data: TLData,
@@ -162,10 +168,10 @@ impl TLField {
         ALREADY_RECURSED.with(|set| {
             let mut set = set.borrow_mut();
             set_was_empty = set.is_empty();
-            already_recursed = !set.insert(self.abi_info.get());
+            already_recursed = set.replace(self.abi_info.get()).is_some();
         });
 
-        let res = f(TLFieldShallow::new(self, already_recursed));
+        let res = f(TLFieldShallow::new(self, !already_recursed));
 
         if set_was_empty {
             ALREADY_RECURSED.with(|set| {
@@ -268,6 +274,8 @@ impl TypeLayout {
                 minor: StaticStr::new("0"),
                 patch: StaticStr::new("0"),
             },
+            file:CmpIgnored::new(StaticStr::new("<standard_library>")),
+            line:CmpIgnored::new(0),
             size: mem::size_of::<T>(),
             alignment: mem::align_of::<T>(),
             data,
@@ -286,6 +294,8 @@ impl TypeLayout {
             name,
             package: StaticStr::new(p.package),
             package_version: p.package_version,
+            file:CmpIgnored::new(StaticStr::new(p.file)),
+            line:CmpIgnored::new(p.line),
             size: mem::size_of::<T>(),
             alignment: mem::align_of::<T>(),
             data: p.data,

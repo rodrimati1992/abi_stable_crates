@@ -121,6 +121,7 @@ declare_common_tokens! {
         stable_abi_bound="__StableAbi_Bound",
         unsafe_opaque_field_bound="__UnsafeOpaqueField_Bound",
         sabi_reexports="_sabi_reexports",
+        cmp_ignored="__CmpIgnored",
         lifetime_index="__LifetimeIndex",
         li_static="__LIStatic",
         li_index="__LIParam",

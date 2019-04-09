@@ -3,7 +3,7 @@ use syn::{
     Lit,WherePredicate,
 };
 
-use hashbrown::HashSet;
+use std::collections::HashSet;
 
 use quote::ToTokens;
 

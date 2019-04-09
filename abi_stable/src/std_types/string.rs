@@ -22,6 +22,7 @@ mod tests;
 
 pub use self::iters::{Drain, IntoIter};
 
+/// Ffi-safe equivalent of ::std::string::String
 #[derive(Clone)]
 #[repr(C)]
 #[derive(StableAbi)]

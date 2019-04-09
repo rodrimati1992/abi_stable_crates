@@ -33,9 +33,9 @@ fn default() {
 }
 
 #[test]
-fn from_elem() {
+fn new_test() {
     for elem in 0..100 {
-        assert_eq!(*RArc::from_elem(elem), elem);
+        assert_eq!(*RArc::new(elem), elem);
     }
 }
 

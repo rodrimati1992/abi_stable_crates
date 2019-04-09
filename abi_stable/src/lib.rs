@@ -3,6 +3,8 @@
 This crate is for doing Rust-to-Rust ffi,
 with a focus on loading libraries to program startup.
 
+# Features
+
 Currently this library has these features:
 
 - ffi-safe equivalent of trait objects for any combination of a selection of traits.
@@ -16,6 +18,40 @@ Currently this library has these features:
 
 - Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
     and to store the layout of the type in a constant.
+
+# Examples
+
+For **examples** of using `abi_stable` you can look at the abi_stable_example_* crates,
+which are in the repository for this crate.
+
+# Architecture
+
+
+Users of this library are expected to follow this architecture:
+
+`A` creates an `interface crate`,
+which declares all the functions and the datatypes passed to and returned by those functions,
+as well as the `interface types`(types which implement InterfaceType).
+
+`B`/`A` then creates an `implementation crate` that implements all those functions,
+creates a `library getter function`,
+and declares the `implementation types`(types which implement ImplType) for the `interface types`.
+
+`C` ,then creates the `user crate`,which declares the `interface crate` as a dependency,
+passes the directory/folder of the `implementation crate` dynamic library to 
+`<interface_crate::SomeLibType as  LibraryTrait>::new` to get the library functions,
+and then store them in a lazy_static or equivalent to access them afterwards.
+
+
+# Known limitations
+
+### Api evolution
+
+In `0.1` ,this library doesn't allow for any evolution of the api of the `implementation crate`
+relative to the `interface crate` in minor versions,this will be fixed once `0.2` is released.
+
+This should not be a problem if you don't need to add functions in minor versions,
+or until the `0.2` of this library is released (it should arrive late-may 2019 at most).
 
 
 # Rust-to-Rust FFI guidelines.
@@ -88,6 +124,7 @@ pub mod cabi_type;
 pub mod erased_types;
 // pub mod immovable_wrapper;
 pub mod library;
+pub mod ignored_wrapper;
 pub mod marker_type;
 pub mod opaque_type;
 pub mod pointer_trait;
@@ -95,6 +132,7 @@ pub mod reexports;
 pub mod std_types;
 pub mod utils;
 pub mod utypeid;
+pub mod lazy_static_ref;
 pub mod version;
 
 #[cfg(test)]
@@ -112,6 +150,7 @@ pub mod abi_stable {
 use std::sync::atomic::AtomicUsize;
 static EXECUTABLE_IDENTITY: AtomicUsize = AtomicUsize::new(1);
 
+#[doc(inline)]
 pub use crate::{
     abi_stability::StableAbi,
     erased_types::VirtualWrapper,

@@ -1,9 +1,11 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::mem;
 
-/// #[repr(C)] equivalent of the `Option<_>` type,
-/// use this any time you need a stable abi for optional values
-/// outside of optional references/function pointers.
+/// Ffi-safe equivalent of the `Option<_>` type.
+///
+/// `Option<_>` is also ffi-safe for NonNull/NonZero types,and references.
+///
+/// Use ROption<_> when `Option<_>` would not be viable.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[repr(C)]
 #[derive(StableAbi)]
@@ -165,7 +167,7 @@ impl<T> ROption<T> {
 
         match *self {
             RSome(ref mut v) => v,
-            RNone => unsafe { ::std::hint::unreachable_unchecked() },
+            RNone => unreachable!(),
         }
     }
 
@@ -181,7 +183,7 @@ impl<T> ROption<T> {
 
         match *self {
             RSome(ref mut v) => v,
-            RNone => unsafe { ::std::hint::unreachable_unchecked() },
+            RNone => unreachable!(),
         }
     }
 

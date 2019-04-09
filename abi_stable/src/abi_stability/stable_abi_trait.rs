@@ -460,6 +460,8 @@ const EMPTY_EXTERN_FN_LAYOUT: &'static TypeLayout =
             minor: StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
             patch: StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
         },
+        file:"<unavailable>",
+        line:0,
         data: TLData::Struct {
             fields: StaticSlice::new(&[]),
         },
@@ -483,6 +485,8 @@ unsafe impl<T> StableAbi for UnsafeOpaqueField<T> {
             minor: StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
             patch: StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
         },
+        file:"<unavailable>",
+        line:0,
         data: TLData::Primitive,
         generics: tl_genparams!(;;),
         phantom_fields: &[],

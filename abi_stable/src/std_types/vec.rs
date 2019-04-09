@@ -25,11 +25,9 @@ use self::iters::RawValIter;
 pub use self::iters::{Drain, IntoIter};
 
 mod private {
-    /// Type used to represent a Vec<u8> in any language.
-    ///
-    /// This allows sharing a Vec<u8> between different versions of Rust,
-    /// even ones with a different allocator
     use super::*;
+    
+    /// Ffi-safe equivalent of `std::vec::Vec`.
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]

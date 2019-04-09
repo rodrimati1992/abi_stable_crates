@@ -2,6 +2,8 @@ use std::ops::{Range, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive};
 
 ////////////////////////////////////////////////////////////////
 
+
+/// Ffi-safe equivalent of `::std::ops::Range`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]
@@ -44,6 +46,8 @@ impl_into_rust_repr! {
 
 ////////////////////////////////////////////////////////////////
 
+
+/// Ffi-safe equivalent of `::std::ops::RangeInclusive`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]
@@ -72,6 +76,7 @@ impl_into_rust_repr! {
 
 ////////////////////////////////////////////////////////////////
 
+/// Ffi-safe equivalent of `::std::ops::RangeFrom`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]
@@ -98,6 +103,8 @@ impl_into_rust_repr! {
 
 ////////////////////////////////////////////////////////////////
 
+
+/// Ffi-safe equivalent of `::std::ops::RangeTo`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]
@@ -124,6 +131,7 @@ impl_into_rust_repr! {
 
 ////////////////////////////////////////////////////////////////
 
+/// Ffi-safe equivalent of `::std::ops::RangeToInclusive`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]

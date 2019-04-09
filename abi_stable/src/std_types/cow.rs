@@ -7,7 +7,6 @@ use core_extensions::prelude::*;
 
 use crate::{
     reexports::StableAbi, 
-    traits::FromElement, 
     std_types::{RSlice, RStr, RString, RVec},
 };
 
@@ -146,6 +145,8 @@ where
 
 ////////////////////////////////////////////////////////////////////
 
+
+/// Ffi-safe equivalent of ::std::borrow::Cow.
 #[repr(C)]
 pub enum RCow<'a, B>
 where
@@ -185,6 +186,8 @@ mod _stable_abi_impls_for_rcow {
                     name: "RCow",
                     package: env!("CARGO_PKG_NAME"),
                     package_version: abi_stable::package_version_string!(),
+                    file:file!(),
+                    line:line!(),
                     data: __TLData::enum_(&[
                         __TLEnumVariant::new(
                             stringify!(Borrowed),
@@ -288,20 +291,6 @@ shared_impls! {
     mod=slice_impls
     new_type=RCow['a][B] where [ B:BorrowOwned<'a>+?Sized ],
     original_type=B,
-}
-
-/// Had to choose the element conversion method used.
-/// Chose to convert only from the owned variant.
-impl<'a, B> FromElement for RCow<'a, B>
-where
-    B: BorrowOwned<'a> + ?Sized,
-{
-    type Element = B::ROwned;
-
-    #[inline]
-    fn from_elem(val: Self::Element) -> Self {
-        RCow::Owned(val)
-    }
 }
 
 impl_into_rust_repr! {

@@ -142,6 +142,7 @@ mod priv_ {
     }
 
     impl VirtualWrapper<()> {
+        /// Constructors the `VirtualWrapper<_>` from an ImplType implementor.
         pub fn from_value<T>(object: T) -> VirtualWrapper<RBox<OpaqueType<T::Interface>>>
         where
             T: GetVtable<T,RBox<T>> + ImplType,
@@ -150,6 +151,7 @@ mod priv_ {
             VirtualWrapper::from_ptr(object)
         }
 
+        /// Constructors the `VirtualWrapper<_>` from a pointer to an ImplType implementor.
         pub fn from_ptr<P, T>(object: P) -> VirtualWrapper<P::TransmutedPtr>
         where
             P: StableDeref<Target = T>,
@@ -158,10 +160,11 @@ mod priv_ {
         {
             VirtualWrapper {
                 object: object.erased(T::Interface::T),
-                vtable: T::erased_vtable::<()>(),
+                vtable: T::erased_vtable(),
             }
         }
 
+        /// Constructors the `VirtualWrapper<_>` from a type which doesn't borrow anything.
         pub fn from_any_value<T,I>(object: T,interface:I) -> VirtualWrapper<RBox<OpaqueType<I>>>
         where
             I:InterfaceType,
@@ -171,6 +174,8 @@ mod priv_ {
             VirtualWrapper::from_any_ptr(object,interface)
         }
 
+        /// Constructors the `VirtualWrapper<_>` from a pointer to a 
+        /// type which doesn't borrow anything.
         pub fn from_any_ptr<P, T,I>(object: P,_interface:I) -> VirtualWrapper<P::TransmutedPtr>
         where
             I:InterfaceType,
@@ -180,21 +185,22 @@ mod priv_ {
         {
             VirtualWrapper {
                 object: object.erased(I::T),
-                vtable: <InterfaceFor<T,I>>::erased_vtable::<()>(),
+                vtable: <InterfaceFor<T,I>>::erased_vtable(),
             }
         }
     }
 
     impl<P> VirtualWrapper<P> {
+        /// Unwraps the VirtualWrapper into the erased pointer type.
         pub fn into_inner(self) -> P {
             self.object
         }
 
         // Allows us to call function pointers that take `P``as a parameter
-        pub(super) fn vtable<'a, E>(&self) -> &'a VTable<ErasedObject, P>
+        pub(super) fn vtable<'a, I>(&self) -> &'a VTable<ErasedObject, P>
         where
-            P: Deref<Target = OpaqueType<E>>,
-            E: GetImplFlags,
+            P: Deref<Target = OpaqueType<I>>,
+            I: GetImplFlags,
         {
             unsafe {
                 mem::transmute::<&'a VTable<ErasedObject, ErasedObject>, &'a VTable<ErasedObject, P>>(
@@ -203,7 +209,7 @@ mod priv_ {
             }
         }
 
-
+        /// Allows checking whether 2 `VirtualWrapper<_>`s have a value of the same type.
         pub fn is_same_type<Other>(&self,other:&VirtualWrapper<Other>)->bool{
             self.vtable_address()==other.vtable_address()||
             self.vtable.type_info.is_compatible(other.vtable.type_info)
@@ -228,6 +234,9 @@ mod priv_ {
             self.object_mut()
         }
 
+        /// Returns the address of the wrapped object.
+        ///
+        /// This will not change between calls for the same `VirtualWrapper<_>`.
         pub fn object_address(&self) -> usize
         where
             P: Deref,
@@ -270,28 +279,57 @@ mod priv_ {
             P: TransmuteElement<T>,
             A: GetVtable<T,P::TransmutedPtr>,
         {
-            let t_vtable = A::erased_vtable::<()>();
+            let t_vtable = A::erased_vtable();
             if self.vtable_address() == t_vtable as *const _ as usize
                 || self.vtable.type_info.is_compatible(t_vtable.type_info)
             {
                 Ok(())
             } else {
                 Err(UneraseError {
-                    original_vtable: t_vtable,
-                    opaque_vtable: self.vtable,
+                    expected_vtable: t_vtable,
+                    found_vtable: self.vtable,
                 })
             }
         }
 
+        /// Unwraps the `VirtualWrapper<_>` into a pointer of 
+        /// the concrete type that it was constructed with.
+        ///
+        /// T is required to implement ImplType.
+        ///
+        /// # Errors
+        ///
+        /// This will return an error in any of these conditions:
+        ///
+        /// - It is called in a dynamic library/binary outside
+        /// the one from which this `VirtualWrapper<_>` was constructed.
+        ///
+        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        ///
         pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError>
         where
             P: TransmuteElement<T>,
+            P::Target:Sized,
             T: GetVtable<T,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<T,T>()?;
             unsafe { Ok(self.object.transmute_element(T::T)) }
         }
 
+        /// Unwraps the `VirtualWrapper<_>` into a reference of 
+        /// the concrete type that it was constructed with.
+        ///
+        /// T is required to implement ImplType.
+        ///
+        /// # Errors
+        ///
+        /// This will return an error in any of these conditions:
+        ///
+        /// - It is called in a dynamic library/binary outside
+        /// the one from which this `VirtualWrapper<_>` was constructed.
+        ///
+        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        ///
         pub fn as_unerased<T>(&self) -> Result<&T, UneraseError>
         where
             P: Deref + TransmuteElement<T>,
@@ -301,6 +339,20 @@ mod priv_ {
             unsafe { Ok(self.object_as()) }
         }
 
+        /// Unwraps the `VirtualWrapper<_>` into a mutable reference of 
+        /// the concrete type that it was constructed with.
+        ///
+        /// T is required to implement ImplType.
+        ///
+        /// # Errors
+        ///
+        /// This will return an error in any of these conditions:
+        ///
+        /// - It is called in a dynamic library/binary outside
+        /// the one from which this `VirtualWrapper<_>` was constructed.
+        ///
+        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        ///
         pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError>
         where
             P: DerefMut + TransmuteElement<T>,
@@ -311,40 +363,85 @@ mod priv_ {
         }
 
 
-
+        /// Unwraps the `VirtualWrapper<_>` into a pointer of 
+        /// the concrete type that it was constructed with.
+        ///
+        /// T is required to not borrows anything.
+        ///
+        /// # Errors
+        ///
+        /// This will return an error in any of these conditions:
+        ///
+        /// - It is called in a dynamic library/binary outside
+        /// the one from which this `VirtualWrapper<_>` was constructed.
+        ///
+        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        ///
         pub fn into_any_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError>
         where
             P: TransmuteElement<T>,
+            P::Target:Sized,
             Self:VirtualWrapperTrait,
-            InterfaceFor<T,WrapperInterface<Self>>: GetVtable<T,P::TransmutedPtr>,
+            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P::TransmutedPtr>,
         {
-            self.check_same_destructor_opaque::<InterfaceFor<T,WrapperInterface<Self>>,T>()?;
+            self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
             unsafe { Ok(self.object.transmute_element(T::T)) }
         }
 
+        /// Unwraps the `VirtualWrapper<_>` into a reference of 
+        /// the concrete type that it was constructed with.
+        ///
+        /// T is required to not borrows anything.
+        ///
+        /// # Errors
+        ///
+        /// This will return an error in any of these conditions:
+        ///
+        /// - It is called in a dynamic library/binary outside
+        /// the one from which this `VirtualWrapper<_>` was constructed.
+        ///
+        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        ///
         pub fn as_any_unerased<T>(&self) -> Result<&T, UneraseError>
         where
             P: Deref + TransmuteElement<T>,
             Self:VirtualWrapperTrait,
-            InterfaceFor<T,WrapperInterface<Self>>: GetVtable<T,P::TransmutedPtr>,
+            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P::TransmutedPtr>,
         {
-            self.check_same_destructor_opaque::<InterfaceFor<T,WrapperInterface<Self>>,T>()?;
+            self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
             unsafe { Ok(self.object_as()) }
         }
 
+        /// Unwraps the `VirtualWrapper<_>` into a mutable reference of 
+        /// the concrete type that it was constructed with.
+        ///
+        /// T is required to not borrows anything.
+        ///
+        /// # Errors
+        ///
+        /// This will return an error in any of these conditions:
+        ///
+        /// - It is called in a dynamic library/binary outside
+        /// the one from which this `VirtualWrapper<_>` was constructed.
+        ///
+        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        ///
         pub fn as_any_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError>
         where
             P: DerefMut + TransmuteElement<T>,
             Self:VirtualWrapperTrait,
-            InterfaceFor<T,WrapperInterface<Self>>: GetVtable<T,P::TransmutedPtr>,
+            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P::TransmutedPtr>,
         {
-            self.check_same_destructor_opaque::<InterfaceFor<T,WrapperInterface<Self>>,T>()?;
+            self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
             unsafe { Ok(self.object_as_mut()) }
         }
 
     }
 
     impl<P> VirtualWrapper<P> {
+        /// Constructs a VirtualWrapper<P> wrapping a `P`,using the same vtable.
+        /// `P` must come from a function in the vtable,
+        /// to ensure that it is compatible with the functions in it.
         pub(super) fn from_new_ptr(&self, object: P) -> Self {
             Self {
                 object,
@@ -352,30 +449,34 @@ mod priv_ {
             }
         }
 
-        /// Constructs the default value for the pointer type this wraps.
-        pub fn default<E>(&self) -> Self
+        /// Constructs a `VirtualWrapper<P>` with the default value for `P`.
+        pub fn default<I>(&self) -> Self
         where
-            P: Deref<Target = OpaqueType<E>>,
-            E: InterfaceType<Default = True>,
+            P: Deref<Target = OpaqueType<I>>,
+            I: InterfaceType<Default = True>,
         {
-            let new = self.vtable().default_ptr::<E>()();
+            let new = self.vtable().default_ptr::<I>()();
             self.from_new_ptr(new)
         }
 
-        pub fn serialized<'a, E>(&'a self) -> Result<RCow<'a, str>, RBoxError>
+        /// It serializes a `VirtualWrapper<_>` into a string by using 
+        /// <ConcreteType as SerializeImplType>::serialize_impl .
+        pub fn serialized<'a, I>(&'a self) -> Result<RCow<'a, str>, RBoxError>
         where
-            P: Deref<Target = OpaqueType<E>>,
-            E: InterfaceType<Serialize = True>,
+            P: Deref<Target = OpaqueType<I>>,
+            I: InterfaceType<Serialize = True>,
         {
-            self.vtable().serialize::<E>()(self.as_abi()).into_result()
+            self.vtable().serialize::<I>()(self.as_abi()).into_result()
         }
 
-        pub fn deserialize_from_str<'a, E>(s: &'a str) -> Result<Self, RBoxError>
+        /// Deserializes a string into a `VirtualWrapper<_>`,by using 
+        /// `<I as DeserializeImplType>::deserialize_impl`.
+        pub fn deserialize_from_str<'a, I>(s: &'a str) -> Result<Self, RBoxError>
         where
-            P: Deref<Target = OpaqueType<E>>,
-            E: DeserializeImplType<Deserialize = True, Deserialized = Self>,
+            P: Deref<Target = OpaqueType<I>>,
+            I: DeserializeImplType<Deserialize = True, Deserialized = Self>,
         {
-            s.piped(RStr::from).piped(E::deserialize_impl)
+            s.piped(RStr::from).piped(I::deserialize_impl)
         }
     }
 
@@ -383,80 +484,89 @@ mod priv_ {
 
 pub use self::priv_::VirtualWrapper;
 
-impl<P, E> Clone for VirtualWrapper<P>
+impl<P, I> Clone for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<E>>,
-    E: InterfaceType<Clone = True>,
+    P: Deref<Target = OpaqueType<I>>,
+    I: InterfaceType<Clone = True>,
 {
     fn clone(&self) -> Self {
         let vtable = self.vtable();
-        let new = vtable.clone_ptr::<E>()(&self.object);
+        let new = vtable.clone_ptr::<I>()(&self.object);
         self.from_new_ptr(new)
     }
 }
 
-impl<P, E> Display for VirtualWrapper<P>
+impl<P, I> Display for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<E>>,
-    E: InterfaceType<Display = True>,
+    P: Deref<Target = OpaqueType<I>>,
+    I: InterfaceType<Display = True>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        adapt_std_fmt::<ErasedObject>(self.object(), self.vtable().display::<E>(), f)
+        adapt_std_fmt::<ErasedObject>(self.object(), self.vtable().display::<I>(), f)
     }
 }
 
-impl<P, E> Debug for VirtualWrapper<P>
+impl<P, I> Debug for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<E>>,
-    E: InterfaceType<Debug = True>,
+    P: Deref<Target = OpaqueType<I>>,
+    I: InterfaceType<Debug = True>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        adapt_std_fmt::<ErasedObject>(self.object(), self.vtable().debug::<E>(), f)
+        adapt_std_fmt::<ErasedObject>(self.object(), self.vtable().debug::<I>(), f)
     }
 }
 
-impl<P, E> Serialize for VirtualWrapper<P>
+/**
+First it serializes a `VirtualWrapper<_>` into a string by using 
+<ConcreteType as SerializeImplType>::serialize_impl,
+then it serializes the string.
+
+*/
+/// ,then it .
+impl<P, I> Serialize for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<E>>,
-    E: InterfaceType<Serialize = True>,
+    P: Deref<Target = OpaqueType<I>>,
+    I: InterfaceType<Serialize = True>,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        self.vtable().serialize::<E>()(self.as_abi())
+        self.vtable().serialize::<I>()(self.as_abi())
             .into_result()
             .map_err(ser::Error::custom)?
             .serialize(serializer)
     }
 }
 
-impl<'a, P, E> Deserialize<'a> for VirtualWrapper<P>
+/// First it Deserializes a string,then it deserializes into a 
+/// `VirtualWrapper<_>`,by using `<I as DeserializeImplType>::deserialize_impl`.
+impl<'a, P, I> Deserialize<'a> for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<E>>,
-    E: DeserializeImplType<Deserialize = True, Deserialized = Self>,
+    P: Deref<Target = OpaqueType<I>>,
+    I: DeserializeImplType<Deserialize = True, Deserialized = Self>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'a>,
     {
         let s = String::deserialize(deserializer)?;
-        E::deserialize_impl(RStr::from(&*s)).map_err(de::Error::custom)
+        I::deserialize_impl(RStr::from(&*s)).map_err(de::Error::custom)
     }
 }
 
-impl<P, E> Eq for VirtualWrapper<P>
+impl<P, I> Eq for VirtualWrapper<P>
 where
     Self: PartialEq,
-    P: Deref<Target = OpaqueType<E>>,
-    E: InterfaceType<Eq = True>,
+    P: Deref<Target = OpaqueType<I>>,
+    I: InterfaceType<Eq = True>,
 {
 }
 
-impl<P, E> PartialEq for VirtualWrapper<P>
+impl<P, I> PartialEq for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<E>>,
-    E: InterfaceType<PartialEq = True>,
+    P: Deref<Target = OpaqueType<I>>,
+    I: InterfaceType<PartialEq = True>,
 {
     fn eq(&self, other: &Self) -> bool {
         // unsafe: must check that the vtable is the same,otherwise return a sensible value.
@@ -464,14 +574,14 @@ where
             return false;
         }
 
-        self.vtable().partial_eq::<E>()(self.as_abi(), other.as_abi())
+        self.vtable().partial_eq::<I>()(self.as_abi(), other.as_abi())
     }
 }
 
-impl<P, E> Ord for VirtualWrapper<P>
+impl<P, I> Ord for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<E>>,
-    E: InterfaceType<Ord = True>,
+    P: Deref<Target = OpaqueType<I>>,
+    I: InterfaceType<Ord = True>,
     Self: PartialOrd + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -480,14 +590,14 @@ where
             return self.vtable_address().cmp(&other.vtable_address());
         }
 
-        self.vtable().cmp::<E>()(self.as_abi(), other.as_abi()).into()
+        self.vtable().cmp::<I>()(self.as_abi(), other.as_abi()).into()
     }
 }
 
-impl<P, E> PartialOrd for VirtualWrapper<P>
+impl<P, I> PartialOrd for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<E>>,
-    E: InterfaceType<PartialOrd = True>,
+    P: Deref<Target = OpaqueType<I>>,
+    I: InterfaceType<PartialOrd = True>,
     Self: PartialEq,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -496,22 +606,22 @@ where
             return Some(self.vtable_address().cmp(&other.vtable_address()));
         }
 
-        self.vtable().partial_cmp::<E>()(self.as_abi(), other.as_abi())
+        self.vtable().partial_cmp::<I>()(self.as_abi(), other.as_abi())
             .map(IntoReprRust::into_rust)
             .into()
     }
 }
 
-impl<P, E> Hash for VirtualWrapper<P>
+impl<P, I> Hash for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<E>>,
-    E: InterfaceType<Hash = True>,
+    P: Deref<Target = OpaqueType<I>>,
+    I: InterfaceType<Hash = True>,
 {
     fn hash<H>(&self, state: &mut H)
     where
         H: Hasher,
     {
-        self.vtable().hash::<E>()(self.as_abi(), HasherTraitObject::new(state))
+        self.vtable().hash::<I>()(self.as_abi(), HasherTraitObject::new(state))
     }
 }
 
@@ -524,44 +634,48 @@ mod sealed {
 }
 use self::sealed::Sealed;
 
+/// For accessing the Interface of a `VirtualWrapper<Pointer<OpaqueType< Interface >>>`.
 pub trait VirtualWrapperTrait: Sealed {
     type Interface: InterfaceType;
 }
 
-impl<P, E> VirtualWrapperTrait for VirtualWrapper<P>
+impl<P, I> VirtualWrapperTrait for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<E>>,
-    E: InterfaceType,
+    P: Deref<Target = OpaqueType<I>>,
+    I: InterfaceType,
 {
-    type Interface = E;
+    type Interface = I;
 }
 
 
-pub type WrapperInterface<This>=
+/// For accessing the Interface of a `VirtualWrapper<Pointer<OpaqueType< Interface >>>`.
+pub type GetVWInterface<This>=
     <This as VirtualWrapperTrait>::Interface;
 
 
 //////////////////////////////////////////////////////////////////
 
+/// Error that is creating when attempting to unwrap a `VirtualWrapper<_>` into the wrong type
+/// with one of the `*unerased*` methods.
 #[derive(Copy, Clone)]
 pub struct UneraseError {
-    pub original_vtable: &'static VTable<ErasedObject, ErasedObject>,
-    pub opaque_vtable: &'static VTable<ErasedObject, ErasedObject>,
+    pub expected_vtable: &'static VTable<ErasedObject, ErasedObject>,
+    pub found_vtable: &'static VTable<ErasedObject, ErasedObject>,
 }
 
 impl Debug for UneraseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("UneraseError")
             .field(
-                "original_vtable_address",
-                &(self.original_vtable as *const _ as usize),
+                "expected_vtable_address",
+                &(self.expected_vtable as *const _ as usize),
             )
-            .field("original_vtable", self.original_vtable)
+            .field("expected_vtable", self.expected_vtable)
             .field(
-                "opaque_vtable_address",
-                &(self.opaque_vtable as *const _ as usize),
+                "found_vtable_address",
+                &(self.found_vtable as *const _ as usize),
             )
-            .field("opaque_vtable", self.opaque_vtable)
+            .field("found_vtable", self.found_vtable)
             .finish()
     }
 }

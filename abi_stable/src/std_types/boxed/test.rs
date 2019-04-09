@@ -37,7 +37,7 @@ fn from_to_box() {
 fn from_elem_into_inner() {
     let arc_a = Arc::new(100);
 
-    let box_a = RBox::from_elem(arc_a.clone());
+    let box_a = RBox::new(arc_a.clone());
     assert_eq!(&**box_a, &*arc_a);
     assert_eq!(Arc::strong_count(&arc_a), 2);
 

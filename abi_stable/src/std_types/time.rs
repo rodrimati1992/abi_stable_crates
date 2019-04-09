@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+/// Ffi-safe equivalent of ::std::time::Duration .
 #[derive(
     Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize, StableAbi,
 )]

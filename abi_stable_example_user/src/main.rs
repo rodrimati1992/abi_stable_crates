@@ -2,7 +2,8 @@ use std::io::{self,BufRead,Write};
 
 use abi_stable::{
     std_types::{RString,RVec},
-    library::LibraryTrait,
+    library::ModuleTrait,
+    StableAbi,
 };
 
 use abi_stable_example_interface::{RemoveWords,TOLib};
@@ -12,14 +13,16 @@ use once_cell::{
     sync_lazy,
 };
 
-static TEXT_OPS_LIB:Lazy<&'static TOLib>=sync_lazy!{
-    TOLib::new("../target/release/".as_ref())
-        .or_else(|_| TOLib::new("../target/debug/".as_ref()) )
-        .unwrap()
-};
+fn text_ops_lib()->&'static TOLib{
+    TOLib::load_library("../target/debug/".as_ref())
+        .unwrap_or_else(|e| panic!("{}", e) )
+}
 
 
 fn main()-> io::Result<()> {
+
+    //println!("{:#?}",<TOLib as StableAbi>::ABI_INFO);
+
     let deleted_words=::std::env::args_os()
         .skip(1)
         .map(|s|->RString{ s.to_string_lossy().into_owned().into() })
@@ -43,7 +46,7 @@ Outputs:\"This best thing that has existed world.\"
         ::std::process::exit(1);
     }
 
-    let lib=&*TEXT_OPS_LIB;
+    let lib=text_ops_lib();
     let mut state=(lib.new)();
 
     let mut line_buffer=String::new();

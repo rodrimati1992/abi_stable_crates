@@ -7,7 +7,7 @@ use core_extensions::prelude::*;
 
 use crate::{
     test_utils::{must_panic, ShouldHavePanickedAt},
-    IntoReprC,
+    traits::IntoReprC,
 };
 
 fn typical_list(upto: u8) -> (Vec<u8>, RVec<u8>) {

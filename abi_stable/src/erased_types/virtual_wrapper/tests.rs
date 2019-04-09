@@ -18,8 +18,12 @@ use crate::{
     abi_stability::{check_abi_stability},
     erased_types::VirtualWrapper,
     impl_get_type_info,
-    traits::{DeserializeImplType, False, ImplType, InterfaceType, SerializeImplType, True},
-    IntoReprC, OpaqueType, RArc, RBox, RBoxError, RCow, RStr, RString, StableAbi, StaticStr,
+    traits::{DeserializeImplType, False, ImplType,IntoReprC, InterfaceType, SerializeImplType, True},
+    OpaqueType, 
+    StableAbi,
+    std_types::{
+        RArc, RBox, RBoxError, RCow, RStr, RString,  StaticStr,
+    },
 };
 
 #[allow(unused_imports)]

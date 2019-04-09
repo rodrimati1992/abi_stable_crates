@@ -38,3 +38,13 @@ pub fn ffi_panic_message(file: &'static str, line: u32) -> ! {
     eprintln!("Aborting to handle the panic...\n");
     ::std::process::abort();
 }
+
+
+//////////////////////////////////
+
+
+#[inline]
+pub fn leak_value<'a,T>(value:T)->&'a T{
+    let x=Box::new(value);
+    Box::leak(x)
+}

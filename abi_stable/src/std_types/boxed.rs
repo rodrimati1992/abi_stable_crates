@@ -5,7 +5,7 @@ use core_extensions::prelude::*;
 
 use crate::{
     pointer_trait::{CallReferentDrop, StableDeref, TransmuteElement},
-    traits::{FromElement,IntoReprRust},
+    traits::{IntoReprRust},
 };
 
 #[cfg(test)]
@@ -14,6 +14,7 @@ mod test;
 mod private {
     use super::*;
 
+    /// Ffi-safe equivalent of Box<_>.
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
@@ -96,15 +97,6 @@ impl_from_rust_repr! {
         fn(this){
             RBox::from_box(this)
         }
-    }
-}
-
-impl<T> FromElement for RBox<T> {
-    type Element = T;
-
-    #[inline]
-    fn from_elem(val: Self::Element) -> Self {
-        Self::new(val)
     }
 }
 

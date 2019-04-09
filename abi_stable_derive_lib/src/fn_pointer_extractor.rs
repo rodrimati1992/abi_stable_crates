@@ -21,7 +21,7 @@ use quote::ToTokens;
 
 use core_extensions::prelude::*;
 
-use hashbrown::HashSet;
+use std::collections::HashSet;
 
 use crate::{
     lifetimes::LifetimeIndex,

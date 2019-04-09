@@ -14,6 +14,8 @@ use crate::std_types::{RSlice, RVec};
 
 mod privacy {
     use super::*;
+
+    /// Ffi-safe equivalent of `&'a mut [T]`
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
@@ -80,20 +82,20 @@ impl<'a, T> RSliceMut<'a, T> {
         self.to_vec().into()
     }
 
-    unsafe fn as_slice_unbounded(&self) -> &'a [T] {
+    unsafe fn as_slice_unbounded_lifetime(&self) -> &'a [T] {
         ::std::slice::from_raw_parts(self.data(), self.len())
     }
 
-    unsafe fn as_slice_mut_unbounded(&mut self) -> &'a mut [T] {
+    unsafe fn as_slice_mut_unbounded_lifetime(&mut self) -> &'a mut [T] {
         ::std::slice::from_raw_parts_mut(self.data(), self.len())
     }
 
     pub fn as_slice(&self) -> &[T] {
-        unsafe { self.as_slice_unbounded() }
+        unsafe { self.as_slice_unbounded_lifetime() }
     }
 
     pub fn into_slice(self) -> &'a [T] {
-        unsafe { self.as_slice_unbounded() }
+        unsafe { self.as_slice_unbounded_lifetime() }
     }
 
     pub fn into_rslice(self) -> RSlice<'a, T> {
@@ -101,11 +103,11 @@ impl<'a, T> RSliceMut<'a, T> {
     }
 
     pub fn as_slice_mut(&mut self) -> &mut [T] {
-        unsafe { self.as_slice_mut_unbounded() }
+        unsafe { self.as_slice_mut_unbounded_lifetime() }
     }
 
     pub fn into_slice_mut(mut self) -> &'a mut [T] {
-        unsafe { self.as_slice_mut_unbounded() }
+        unsafe { self.as_slice_mut_unbounded_lifetime() }
     }
 }
 

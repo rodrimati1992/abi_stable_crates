@@ -29,6 +29,9 @@ use syn::{DeriveInput,ItemFn};
 use quote::{quote, ToTokens};
 
 #[allow(unused_imports)]
+use core_extensions::prelude::*;
+
+#[allow(unused_imports)]
 use crate::{
     arenas::{AllocMethods, Arenas},
     common_tokens::CommonTokens,
@@ -46,9 +49,9 @@ where S: ::std::fmt::Display
     let minor=env!("CARGO_PKG_VERSION_MINOR").parse::<u32>().unwrap();
 
     let unmangled=if major==0 {
-        format!("mod_loader.{}.version_number.minor.{}",s,minor)
+        format!("_as_mod.{}.vn.minor.{}",s,minor)
     }else{
-        format!("mod_loader.{}.version_number.major.{}",s,major)
+        format!("_as_mod.{}.vn.major.{}",s,major)
     };
 
     let mut mangled=String::with_capacity(unmangled.len()*3/2);
@@ -117,31 +120,33 @@ pub fn derive_stable_abi_from_str(s: &str) -> TokenStream2 {
 
 
 pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
-    use std::mem;
     use syn::Ident;
+
+    use proc_macro2::Span;
     
 
     measure!({
-        let mut input = syn::parse::<ItemFn>(item).unwrap();
+        let input = syn::parse::<ItemFn>(item).unwrap();
         
         let vis=&input.vis;
         let attrs=&input.attrs;
         let ret_ty=&input.decl.output;
-        let fn_name_span=input.ident.span();
-        let inner_fn_ident=
-            Ident::new("automatically_generated_library_getter_function",fn_name_span);
+        
+        let original_fn_ident=&input.ident;
 
-        let original_fn_ident=mem::replace(&mut input.ident,inner_fn_ident.clone());
-
-        let export_name=mangle_library_getter_ident(&original_fn_ident);
+        let export_name=Ident::new(
+            &mangle_library_getter_ident(&original_fn_ident),
+            Span::call_site(),
+        );
 
         quote!(
-            #[export_name=#export_name]
+            #input
+
+            #[no_mangle]
             #(#attrs)*
-            #vis extern "C" fn #original_fn_ident() #ret_ty {
-                #input
-                let _: abi_stable::library::LibraryGetterFn<_> = #inner_fn_ident;
-                #inner_fn_ident()
+            #vis extern "C" fn #export_name() #ret_ty {
+                let _: abi_stable::library::LibraryGetterFn<_> = #original_fn_ident;
+                #original_fn_ident()
             }
         ).into()
     })

@@ -1,3 +1,8 @@
+/*!
+
+Contains `VirtualWrapper<_>`'s vtable,and related types/traits.
+
+*/
 use std::{
     fmt::{self, Debug},
     marker::PhantomData,
@@ -14,8 +19,6 @@ use crate::{
 
 use core_extensions::{ResultLike, StringExt};
 
-pub type VTableErased<O> = VTable<OpaqueType<O>, OpaqueType<O>>;
-
 /// Returns the vtable used by VirtualWrapper to do dynamic dispatch.
 pub trait GetVtable<This,Ptr>: ImplType {
     const GET_VTABLE: *const VTable<This, Ptr>;
@@ -30,12 +33,15 @@ pub trait GetVtable<This,Ptr>: ImplType {
     }
 
     /// Gets an erased version of the VTable<This>.
-    fn erased_vtable<O>() -> &'static VTableErased<O> {
+    fn erased_vtable() -> &'static VTable<ErasedObject,ErasedObject> {
         // I am just getting a vtable,which doesn't actually contain an instance of This.
         // This is why it is safe to transmute it to a reference of static lifetime.
         unsafe {
             let x = &*Self::GET_VTABLE;
-            mem::transmute::<&VTable<This, Ptr>, &'static VTableErased<O>>(x)
+            mem::transmute::<
+                &VTable<This, Ptr>, 
+                &'static VTable<ErasedObject,ErasedObject>
+            >(x)
         }
     }
 }
@@ -108,10 +114,7 @@ macro_rules! declare_meta_vtable {
         ])*
     ) => (
 
-        /// This is the vtable for GenericWrapper<_>,
-        ///
-        /// All the impls required by the `InterfaceType` type parameter
-        /// are fields initialized with Some(_).
+        /// This is the vtable for VirtualWrapper<_>,
         ///
         #[repr(C)]
         #[derive(StableAbi)]

@@ -17,6 +17,7 @@ pub mod time;
 pub mod tuple;
 pub mod vec;
 
+#[doc(inline)]
 pub use self::{
     arc::RArc,
     boxed::RBox,

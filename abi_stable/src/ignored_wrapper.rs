@@ -5,28 +5,35 @@ use std::{
     hash::{Hash,Hasher},
 };
 
+/// Wrapper type used to ignore it's contents in comparisons.
+///
+/// It also:
+///
+/// - replaces the hash of T with the hash of `()`.
+///
 #[repr(transparent)]
-#[derive(Default,Copy,Clone)]
-pub struct Ignored<T>{
+#[derive(Default,Copy,Clone,StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub struct CmpIgnored<T>{
     pub value:T,
 }
 
 
-impl<T> Ignored<T>{
-    pub fn new(value:T)->Self{
+impl<T> CmpIgnored<T>{
+    pub const fn new(value:T)->Self{
         Self{value}
     }
 }
 
 
-impl<T> From<T> for Ignored<T>{
+impl<T> From<T> for CmpIgnored<T>{
     fn from(value:T)->Self{
         Self{value}
     }
 }
 
 
-impl<T> Deref for Ignored<T> {
+impl<T> Deref for CmpIgnored<T> {
     type Target=T;
 
     fn deref(&self)->&Self::Target{
@@ -34,13 +41,13 @@ impl<T> Deref for Ignored<T> {
     }
 }
 
-impl<T> DerefMut for Ignored<T> {
+impl<T> DerefMut for CmpIgnored<T> {
     fn deref_mut(&mut self)->&mut Self::Target{
         &mut self.value
     }
 }
 
-impl<T> Display for Ignored<T>
+impl<T> Display for CmpIgnored<T>
 where
     T:Display,
 {
@@ -50,7 +57,7 @@ where
 }
 
 
-impl<T> Debug for Ignored<T>
+impl<T> Debug for CmpIgnored<T>
 where
     T:Debug,
 {
@@ -59,31 +66,31 @@ where
     }
 }
 
-impl<T> Eq for Ignored<T> {}
+impl<T> Eq for CmpIgnored<T> {}
 
 
-impl<T> PartialEq for Ignored<T> {
+impl<T> PartialEq for CmpIgnored<T> {
     fn eq(&self, _other: &Self) -> bool{
         true
     }
 }
 
 
-impl<T> Ord for Ignored<T>{
+impl<T> Ord for CmpIgnored<T>{
     fn cmp(&self, _other: &Self) -> Ordering{
         Ordering::Equal
     }
 }
 
 
-impl<T> PartialOrd for Ignored<T>{
+impl<T> PartialOrd for CmpIgnored<T>{
     fn partial_cmp(&self, _other: &Self) -> Option<Ordering>{
         Some(Ordering::Equal)
     }
 }
 
 
-impl<T> Hash for Ignored<T>{
+impl<T> Hash for CmpIgnored<T>{
     fn hash<H>(&self, state: &mut H)
     where
         H: Hasher

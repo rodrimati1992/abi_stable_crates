@@ -39,6 +39,7 @@ Trait for pointers that:
 */
 pub unsafe trait StableDeref: Deref + Sized {}
 
+/// An alias for `StableDeref + DerefMut`.
 pub trait StableDerefMut: StableDeref + DerefMut {}
 
 impl<P> StableDerefMut for P where P: StableDeref + DerefMut {}
@@ -46,8 +47,16 @@ impl<P> StableDerefMut for P where P: StableDeref + DerefMut {}
 ///////////
 
 /// Erases a pointer,casting its referent to `OpaqueType<O>`.
+/// 
+/// This is safe to do because `OpaqueType<O> ` is a zero-sized type.
+///
+/// It would not be safe to do this in the other direction,
+/// going from `OpaqueType<O>` to any other type,
+/// 
 pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<OpaqueType<O>> {
-    fn erased(self, _: VariantPhantom<O>) -> Self::TransmutedPtr {
+    fn erased(self, _: VariantPhantom<O>) -> Self::TransmutedPtr 
+    where Self::Target:Sized
+    {
         unsafe { self.transmute_element(PhantomData) }
     }
 }
@@ -60,9 +69,13 @@ impl<P, O> ErasedStableDeref<O> for P where P: StableDeref + TransmuteElement<Op
 ///
 /// # Safety for implementor
 ///
-/// Implementors of this trait must ensure that the memory layout of this
-/// type is the same regardless of the type of the referent .
+/// Implementors of this trait must ensure that:
 ///
+/// - The memory layout of this
+/// type is the same regardless of the type of the referent .
+/// 
+/// - References to `T` are compatible with references to `Self::Target`.
+/// 
 /// `T` is intentionally `Sized` so as to prevent transmuting pointers to DST .
 pub unsafe trait TransmuteElement<T>: StableDeref {
     type TransmutedPtr: StableDeref<Target = T>;
@@ -80,7 +93,9 @@ pub unsafe trait TransmuteElement<T>: StableDeref {
     ///     if the caller does not ensure that the reference was a multiple of 2.
     ///
     ///
-    unsafe fn transmute_element(self, _: VariantPhantom<T>) -> Self::TransmutedPtr {
+    unsafe fn transmute_element(self, _: VariantPhantom<T>) -> Self::TransmutedPtr 
+    where Self::Target:Sized
+    {
         transmute_ignore_size::<Self, Self::TransmutedPtr>(self)
     }
 }

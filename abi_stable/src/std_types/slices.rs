@@ -14,10 +14,7 @@ use crate::std_types::{RVec};
 mod private {
     use super::*;
 
-    /// Type used to represent a Vec<u8> in any language.
-    ///
-    /// This allows sharing a Vec<u8> between different versions of Rust,
-    /// even ones with a different allocator
+    /// Ffi-safe equivalent of `&'a [T]`
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]

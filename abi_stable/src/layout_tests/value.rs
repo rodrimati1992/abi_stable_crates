@@ -9,6 +9,7 @@ use crate::{
     abi_stability::{
         abi_checking::AbiInstability, check_abi_stability, AbiInfoWrapper, 
     },
+    std_types::*,
     *,
     test_utils::must_panic,
 };
@@ -25,18 +26,18 @@ mod regular {
     }
 }
 
-mod prefixed {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(unsafe_Prefix))]
-    pub struct Rectangle {
-        x: u32,
-        y: u32,
-        w: u16,
-        h: u32,
-    }
-}
+// mod prefixed {
+//     #[repr(C)]
+//     #[derive(StableAbi)]
+//     #[sabi(inside_abi_stable_crate)]
+//     #[sabi(kind(unsafe_Prefix))]
+//     pub struct Rectangle {
+//         x: u32,
+//         y: u32,
+//         w: u16,
+//         h: u32,
+//     }
+// }
 
 mod changed_name {
     #[repr(C)]
@@ -148,7 +149,7 @@ mod changed_alignment {
 /// For testing that adding #[repr(C)] makes the derive macro not panic.
 mod derive_validity_0 {
     and_stringify! {
-        const RECTANGLE_DEF_REPR;
+        pub(super)const RECTANGLE_DEF_REPR;
 
         pub struct Rectangle {
             x:u32,
@@ -193,10 +194,11 @@ fn assert_equal_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static Abi
 }
 
 fn assert_different_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static AbiInfoWrapper) {
+    let res=check_abi_stability(interface, impl_);
     assert_ne!(
-        check_abi_stability(interface, impl_),
+        res,
         Ok(()),
-        "\n\nInterface:{:#?}\n\nimplementation:{:#?}\n\n",
+        "\n\nInterface:{:#?}\n\nimplementation:{:#?}",
         interface,
         impl_,
     );
@@ -269,12 +271,18 @@ fn same_different_abi_stability() {
         <RBox<u32>>::ABI_INFO,
         <RCmpOrdering>::ABI_INFO,
         <PhantomData<()>>::ABI_INFO,
-        <CAbi<*const i32>>::ABI_INFO,
-        <CAbi<*mut i32>>::ABI_INFO,
-        <CAbi<&i32>>::ABI_INFO,
-        <&prefix0::Prefix>::ABI_INFO,
-        <*const prefix0::Prefix>::ABI_INFO,
-        <RArc<prefix0::Prefix>>::ABI_INFO,
+        <mod_0::Mod>::ABI_INFO,
+        <mod_0b::Mod>::ABI_INFO,
+        <mod_1::Mod>::ABI_INFO,
+        <mod_2::Mod>::ABI_INFO,
+        <mod_3::Mod>::ABI_INFO,
+        <mod_4::Mod>::ABI_INFO,
+        <mod_5::Mod>::ABI_INFO,
+        <mod_6::Mod>::ABI_INFO,
+        <mod_7::Mod>::ABI_INFO,
+        // <&prefix0::Prefix>::ABI_INFO,
+        // <*const prefix0::Prefix>::ABI_INFO,
+        // <RArc<prefix0::Prefix>>::ABI_INFO,
     ];
 
     let (dur, ()) = core_extensions::measure_time::measure(|| {
@@ -325,18 +333,19 @@ fn check_repr_attrs(){
     derive_stable_abi_from_str(&with_repr_tranparent);
 }
 
-
-#[test]
-fn different_prefixity() {
-    let regular = <&'static regular::Rectangle>::ABI_INFO;
-    let other = <&'static prefixed::Rectangle>::ABI_INFO;
-    let errs = check_abi_stability(regular, other)
-        .unwrap_err()
-        .flatten_errors();
-    assert!(errs
-        .iter()
-        .any(|err| matches!(AbiInstability::IsPrefix{..}=err)));
-}
+// Uncomment this once I reimplement Prefix types.
+//
+// #[test]
+// fn different_prefixity() {
+//     let regular = <&'static regular::Rectangle>::ABI_INFO;
+//     let other = <&'static prefixed::Rectangle>::ABI_INFO;
+//     let errs = check_abi_stability(regular, other)
+//         .unwrap_err()
+//         .flatten_errors();
+//     assert!(errs
+//         .iter()
+//         .any(|err| matches!(AbiInstability::IsPrefix{..}=err)));
+// }
 
 #[test]
 fn different_zeroness() {
@@ -550,7 +559,7 @@ mod misnamed_variant {
 }
 
 mod extra_variant {
-    use crate::RString;
+    use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
@@ -583,6 +592,117 @@ fn variant_mismatch() {
         assert!(errs
             .iter()
             .any(|err| matches!(AbiInstability::TooManyVariants{..}=err)));
+    }
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+///  Modules,with function pointers
+
+mod mod_0 {
+    use crate::std_types::RString;
+
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Mod{
+        pub function_0: extern "C" fn(&mut u32,u64) -> RString,
+        pub function_1: extern "C" fn() -> RString,
+    }
+}
+
+mod mod_0b {
+    use crate::std_types::RString;
+
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Mod{
+        pub function_0: extern "C" fn(&mut u32,u64,()) -> RString,
+        pub function_1: extern "C" fn() -> RString,
+    }
+}
+
+
+mod mod_1 {
+    use crate::std_types::RString;
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Mod{
+        pub function_0: extern "C" fn(&mut u32,u64,RString),
+        pub function_1: extern "C" fn(RString),
+    }
+}
+
+
+mod mod_2 {
+    use crate::std_types::RString;
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Mod{
+        pub function_0: extern "C" fn(&mut u32,u64,RString)->RString,
+        pub function_1: extern "C" fn(),
+    }
+}
+
+
+mod mod_3 {
+    use crate::std_types::RString;
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Mod{
+        pub function_0: extern "C" fn(&mut u32,u64,RString),
+        pub function_1: extern "C" fn()->RString,
+    }
+}
+
+mod mod_4 {
+    use crate::std_types::RString;
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Mod{
+        pub function_0: extern "C" fn()->RString,
+        pub function_1: extern "C" fn(&mut u32,u64,RString),
+    }
+}
+
+
+mod mod_5 {
+    use crate::std_types::RString;
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Mod{
+        pub function_0: extern "C" fn()->RString,
+        pub function_1: extern "C" fn(&mut u32,u64,RString),
+        pub function_2: extern "C" fn(&mut u32,u64,RString),
+    }
+}
+
+mod mod_6 {
+    use crate::std_types::RString;
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Mod{
+        pub function_0: extern "C" fn()->RString,
+    }
+}
+
+mod mod_7 {
+    use crate::std_types::RString;
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Mod{
+        pub function_0: extern "C" fn()->RString,
+        pub function_1: extern "C" fn(&mut u32,u64,RString),
+        pub function_2: extern "C" fn((),(),()),
     }
 }
 

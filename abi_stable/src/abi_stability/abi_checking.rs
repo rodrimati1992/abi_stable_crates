@@ -4,7 +4,7 @@ use std::{cmp::Ordering, fmt};
 use core_extensions::prelude::*;
 
 use std::collections::HashSet;
-// use hashbrown::HashSet;
+// use std::collections::HashSet;
 
 use super::{
     AbiInfo, AbiInfoWrapper, StableAbi, TLData, TLDataDiscriminant, TLEnumVariant, TLField,
@@ -193,7 +193,7 @@ impl<T> ExpectedFoundError<T> {
 struct AbiChecker {
     stack_trace: RVec<TLFieldAndType>,
 
-    visited: HashSet<*const AbiInfo>,
+    visited: HashSet<(*const AbiInfo,*const AbiInfo)>,
     errors: RVec<AbiInstabilityError>,
 
     error_index: usize,
@@ -236,24 +236,35 @@ impl AbiChecker {
             (Ordering::Equal, _) | (Ordering::Less, true) => {}
         }
 
-        for (this_f, other_f) in t_fields.iter().zip(o_fields.iter()) {
+        let mut t_fields_iter=t_fields.iter().peekable();
+        let mut o_fields_iter=o_fields.iter().peekable();
+        while let (Some(&this_f),Some(&other_f))=(t_fields_iter.peek(),o_fields_iter.peek()) {
             if this_f.name != other_f.name {
                 push_err(errs, this_f, other_f, |x| x, AI::UnexpectedField);
+                // Skipping this field so that the error message does not 
+                // list all the other fields that they have in common.
+                if t_fields.len() < o_fields.len() {
+                    o_fields_iter.next();
+                }else{
+                    t_fields_iter.next();
+                }
                 continue;
             }
             if this_f.lifetime_indices != other_f.lifetime_indices {
                 push_err(errs, this_f, other_f, |x| x, AI::FieldLifetimeMismatch);
-                continue;
             }
 
             self.stack_trace.push(TLFieldAndType::new(this_f));
             self.check_inner(this_f.abi_info.get(), other_f.abi_info.get());
             self.stack_trace.pop();
+
+            t_fields_iter.next();
+            o_fields_iter.next();
         }
     }
 
     fn check_inner(&mut self, this: &'static AbiInfo, other: &'static AbiInfo) {
-        if !self.visited.insert(this) {
+        if !self.visited.insert((this as *const _,other as *const _)) {
             return;
         }
 

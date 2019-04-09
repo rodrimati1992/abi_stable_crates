@@ -20,6 +20,7 @@ use crate::{
     std_types::{RBox, RResult, RString},
 };
 
+
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -30,7 +31,10 @@ pub struct RBoxError_<M = SyncSend> {
     _marker: PhantomData<OpaqueType<M>>,
 }
 
+/// Ffi safe equivalent to Box<::std::error::Error>.
 pub type UnsyncRBoxError = RBoxError_<UnsyncUnsend>;
+
+/// Ffi safe equivalent to Box<::std::error::Error+Send+Sync>.
 pub type RBoxError = RBoxError_<SyncSend>;
 
 unsafe impl Send for RBoxError_<SyncSend> {}

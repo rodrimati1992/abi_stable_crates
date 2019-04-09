@@ -192,6 +192,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                             name: #stringified_name,
                             package: env!("CARGO_PKG_NAME"),
                             package_version: abi_stable::package_version_string!(),
+                            file:file!(),
+                            line:line!(),
                             data: #data_variant,
                             generics: abi_stable::tl_genparams!(
                                 #(#lifetimes),*;#(#type_params),*;#(#const_params),*

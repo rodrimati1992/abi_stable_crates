@@ -9,6 +9,7 @@ use core_extensions::prelude::*;
 
 use crate::{traits::{IntoReprC}, std_types::{RBoxError}};
 
+/// Ffi safe equivalent to ::std::io::ErrorKind.
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 #[repr(C)]
 #[derive(StableAbi)]
@@ -123,6 +124,7 @@ impl_into_rust_repr! {
 
 ///////////////////////////////////////////////////////////////////////////
 
+/// Ffi safe equivalent to ::std::io::Error.
 #[repr(C)]
 #[derive(Debug, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
