@@ -22,6 +22,7 @@ use crate::{
     lazy_static_ref::LazyStaticRef,
     version::{InvalidVersionString, VersionNumber, VersionStrings},
     utils::leak_value,
+    std_types::RVec,
 };
 
 #[derive(Copy, Clone)]
@@ -159,16 +160,13 @@ pub trait ModuleTrait: 'static+Sized+ StableAbi{
     /// extern "C" fn()->WithLayout<Self>
     const LOADER_FN: &'static str;
 
-    fn module_ref()->&'static LazyStaticRef<Self>;
-
     fn get_library_path(directory:&Path)-> PathBuf {
         let base_name=<Self::Library as LibraryTrait>::BASE_NAME;
         Library::get_library_path(directory, base_name,LibrarySuffix::Suffix)
     }
 
     /// Loads this module by first loading the dynamic library from the `directory`.
-    /// Only returns the module if it was already loaded.
-    fn load_library(directory: &Path) -> Result<&'static Self, LibraryError>{
+    fn load_from_library_in(directory: &Path) -> Result<&'static Self, LibraryError>{
         Self::Library::raw_library_ref()
             .try_init(||{
                 let path=Self::get_library_path(directory);
@@ -181,30 +179,28 @@ pub trait ModuleTrait: 'static+Sized+ StableAbi{
     /// Loads this module from the `raw_library`.
     /// Only returns the module if it was already loaded.
     fn load_with(raw_library:&'static Library)->Result<&'static Self,LibraryError>{
-        Self::module_ref().try_init(||{
-            let mangled=mangle_library_getter_ident(Self::LOADER_FN);
+        let mangled=mangle_library_getter_ident(Self::LOADER_FN);
 
-            let library_getter: &'static LibraryGetterFn<Self> =
-                unsafe { raw_library.get_static::<LibraryGetterFn<Self>>(mangled.as_bytes())? };
+        let library_getter: &'static LibraryGetterFn<Self> =
+            unsafe { raw_library.get_static::<LibraryGetterFn<Self>>(mangled.as_bytes())? };
 
-            let items = library_getter();
+        let items = library_getter();
 
-            let user_version = <Self::Library as LibraryTrait>::VERSION_STRINGS
-                .piped(VersionNumber::new)?;
-            let library_version = items.version_strings().piped(VersionNumber::new)?;
+        let user_version = <Self::Library as LibraryTrait>::VERSION_STRINGS
+            .piped(VersionNumber::new)?;
+        let library_version = items.version_strings().piped(VersionNumber::new)?;
 
-            if user_version.major != library_version.major || 
-                (user_version.major==0) && user_version.minor > library_version.minor
-            {
-                return Err(LibraryError::IncompatibleVersionNumber {
-                    library_name: Self::Library::NAME,
-                    user_version,
-                    library_version,
-                });
-            }
+        if user_version.major != library_version.major || 
+            (user_version.major==0) && user_version.minor > library_version.minor
+        {
+            return Err(LibraryError::IncompatibleVersionNumber {
+                library_name: Self::Library::NAME,
+                user_version,
+                library_version,
+            });
+        }
 
-            items.check_layout()?.initialization()
-        })
+        items.check_layout()?.initialization()
     }
 
     /// Defines behavior that happens once the library is loaded.
@@ -305,6 +301,7 @@ pub enum LibraryError {
         symbol:Vec<u8>,
         io:io::Error,
     },
+    
     InvalidVersionString(InvalidVersionString),
     IncompatibleVersionNumber {
         library_name: &'static str,
@@ -313,6 +310,7 @@ pub enum LibraryError {
     },
     AbiInstability(AbiInstabilityErrors),
     InvalidMagicNumber(usize),
+    Many(RVec<Self>),
 }
 
 impl From<InvalidVersionString> for LibraryError {
@@ -358,6 +356,12 @@ impl Display for LibraryError {
                 "magic number used to load a library was {},when this library expected {}",
                 found, MAGIC_NUMBER,
             ),
+            LibraryError::Many(list)=>{
+                for e in list {
+                    Display::fmt(e,f)?;
+                }
+                Ok(())
+            }
         }
     }
 }

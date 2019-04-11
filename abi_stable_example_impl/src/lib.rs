@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use abi_stable_example_interface::{
-    RemoveWords, TOLib,HelloWorldSubMod, TOState, TOStateBox,ThirdParam
+    RemoveWords, TextOpsMod,HelloWorldMod, TOState, TOStateBox,ThirdParam
 };
 
 use abi_stable::{
@@ -127,10 +127,10 @@ pub extern "C" fn get_processed_bytes(this: &TOStateBox) -> u64 {
 }
 
 #[mangle_library_getter]
-pub extern "C" fn get_library() -> WithLayout<TOLib> {
+pub extern "C" fn get_library() -> WithLayout<TextOpsMod> {
     extern_fn_panic_handling!{
         // println!("inside get_library_text_operations");
-        TOLib {
+        TextOpsMod {
             new,
             deserialize_state,
             reverse_lines,
@@ -156,9 +156,9 @@ pub extern "C" fn greeter(name:RStr<'_>){
 
 
 #[mangle_library_getter]
-pub extern "C" fn get_hello_world_mod() -> WithLayout<HelloWorldSubMod> {
+pub extern "C" fn get_hello_world_mod() -> WithLayout<HelloWorldMod> {
     extern_fn_panic_handling!{
-        HelloWorldSubMod{
+        HelloWorldMod{
             greeter,
         }.piped(WithLayout::new)
     }

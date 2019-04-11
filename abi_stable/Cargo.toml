@@ -4,11 +4,11 @@ version = "0.1.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition="2018"
 license = "MIT/Apache-2.0"
-description = "For doing Rust-to-Rust ffi,focused on loading dynamic libraries at startup."
+description = "For doing Rust-to-Rust ffi,writing libraries loaded at program startup."
 documentation = "https://docs.rs/abi_stable/"
 readme="../readme.md"
-keywords = ["typelevel", "no-std"]
-categories = ["no-std"]
+keywords = ["ffi","data-structures"]
+categories = ["data-structures","rust-patterns"]
 repository = "https://github.com/rodrimati1992/abi_stable_crates/"
 include = [
     "Cargo.toml", 
@@ -26,6 +26,8 @@ travis-ci = { repository =  "rodrimati1992/abi_stable_crates/" }
 [features]
 default = []
 
+rust_1_34=[]
+
 [dependencies]
 abi_stable_derive= {version="0.1",path="../abi_stable_derive"}
 abi_stable_derive_lib= {version="0.1",path="../abi_stable_derive_lib"}
@@ -39,3 +41,8 @@ lock_api       = "0.1"
 
 [dev-dependencies]
 serde_json     = "1.0"
+
+
+
+[build-dependencies]
+rustc_version = "0.2"

@@ -18,3 +18,4 @@ path="../../crates/shared_extensions/core_extensions"
 [dependencies.syn]
 version = "0.15"
 features=["full","extra-traits","visit","visit-mut"]
+

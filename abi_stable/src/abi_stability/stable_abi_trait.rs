@@ -27,9 +27,30 @@ use super::{LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayou
 /// To mitigate this `#[derive(StableAbi)]` specially supports `extern fn` types
 /// (except through type aliases).
 pub unsafe trait StableAbi {
-    /// Whether this type has 0 as an invalid bit-pattern.
-    ///
-    /// Possible values:True/False
+    /**
+    Whether this type has 0 as an invalid bit-pattern.
+    
+    Possible values:True/False
+
+    Some standard library types have a single value that is invalid for them eg:0,null.
+    these types are the only which can be stored in a `Option<_>` that implements AbiStable.
+
+    An alternative for types where `IsNonZeroType=False`,you can use `abi_stable::ROption`.
+
+    Non-exhaustive list of std types that are NonZero:
+
+    - &T (any T).
+
+    - &mut T (any T).
+
+    - extern fn() :
+        Any combination of StableAbi parameter/return types.
+
+    - std::ptr::NonNull
+
+    - std::num::NonZero* 
+
+    */
     type IsNonZeroType: Boolean;
 
     const LAYOUT: &'static TypeLayout;
@@ -400,6 +421,37 @@ impl_for_concrete! {
         num::NonZeroUsize,
     ]
 }
+/////////////
+
+
+#[cfg(any(rust_1_34,feature="rust_1_34"))]
+mod rust_1_34_impls{
+    use super::*;
+    // 1.34 doesn't re-export NonZeroI* std::num.
+    use core::{num as core_num};
+    use std::sync::atomic;
+
+    impl_for_concrete! {
+        zeroable=[
+            atomic::AtomicI16,
+            atomic::AtomicI32,
+            atomic::AtomicI64,
+            atomic::AtomicI8,
+            atomic::AtomicU16,
+            atomic::AtomicU32,
+            atomic::AtomicU64,
+            atomic::AtomicU8,
+        ]
+        nonzero=[
+            core_num::NonZeroI8,
+            core_num::NonZeroI16,
+            core_num::NonZeroI32,
+            core_num::NonZeroI64,
+            core_num::NonZeroI128,
+            core_num::NonZeroIsize,
+        ]
+    }
+}
 
 /////////////
 
@@ -473,7 +525,7 @@ const EMPTY_EXTERN_FN_LAYOUT: &'static TypeLayout =
 
 /// An unsafe type,which allows treating a field as though it were a primitive type.
 #[repr(transparent)]
-struct UnsafeOpaqueField<T>(T);
+pub struct UnsafeOpaqueField<T>(T);
 
 unsafe impl<T> StableAbi for UnsafeOpaqueField<T> {
     type IsNonZeroType = False;

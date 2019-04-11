@@ -176,7 +176,6 @@ mod vtable_mod {
     #[derive(StableAbi)]
     #[repr(C)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(shared_stable_abi(T))]
     pub struct ArcVtable<T> {
         pub(super) destructor: unsafe extern "C" fn(*const T, CallReferentDrop),
         pub(super) clone: extern "C" fn(&RArc<T>) -> RArc<T>,

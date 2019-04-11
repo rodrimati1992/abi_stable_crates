@@ -1,3 +1,9 @@
+/*!
+Contains many ffi-safe equivalents of standard library types.
+The vast majority of them can be converted to and from std equivalents.
+
+*/
+
 pub mod arc;
 pub mod boxed;
 pub mod cmp_ordering;

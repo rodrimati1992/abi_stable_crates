@@ -1,7 +1,10 @@
 /*!
 
-This crate is for doing Rust-to-Rust ffi,
-with a focus on loading libraries to program startup.
+A library is for doing Rust-to-Rust ffi,
+with a focus on creating libraries loadable at program startup.
+
+This library allows defining Rust libraries that can be loaded at runtime,
+even if they were built with a different Rust version than the crate that depends on it,
 
 # Features
 
@@ -17,42 +20,37 @@ Currently this library has these features:
     allowing for semver compatible changes while checking the layout of types.
 
 - Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
-    and to store the layout of the type in a constant.
+    and to get the layout of the type at runtime to check that it is still compatible.
+
+# Documentation
+
+The documentation is done entirely through modules,so that it can be read in `docs.rs/abi_stable`.
+
+[Documentation for the `#[derive(StableAbi)]` derive macro
+](./docs/stable_abi_trait/index.html)
+
+[Documentation for the `#[mangle_library_getter]` attribute
+](./docs/mangle_library_getter/index.html)
 
 # Examples
 
 For **examples** of using `abi_stable` you can look at the abi_stable_example_* crates,
-which are in the repository for this crate.
+in the repository for this crate.
 
-# Architecture
+# Glossary
 
+`interface crate`:the crate that declares the public functions and types that 
+are necessary to load the library at runtime.
 
-Users of this library are expected to follow this architecture:
+`ìmplementation crate`:A crate that implements all the functions in the interface crate.
 
-`A` creates an `interface crate`,
-which declares all the functions and the datatypes passed to and returned by those functions,
-as well as the `interface types`(types which implement InterfaceType).
+`user crate`:A crate that depends on an `interface crate` and 
+loads 1 or more `ìmplementation crate`s for it.
 
-`B`/`A` then creates an `implementation crate` that implements all those functions,
-creates a `library getter function`,
-and declares the `implementation types`(types which implement ImplType) for the `interface types`.
-
-`C` ,then creates the `user crate`,which declares the `interface crate` as a dependency,
-passes the directory/folder of the `implementation crate` dynamic library to 
-`<interface_crate::SomeLibType as  LibraryTrait>::new` to get the library functions,
-and then store them in a lazy_static or equivalent to access them afterwards.
-
-
-# Known limitations
-
-### Api evolution
-
-In `0.1` ,this library doesn't allow for any evolution of the api of the `implementation crate`
-relative to the `interface crate` in minor versions,this will be fixed once `0.2` is released.
-
-This should not be a problem if you don't need to add functions in minor versions,
-or until the `0.2` of this library is released (it should arrive late-may 2019 at most).
-
+`module`:refers to a struct of function pointers and other static values,
+and implement the ModuleTrait trait.
+These are declared in the `interface crate`,exported in the `implementation crate`,
+and loaded in the `user crate`.
 
 # Rust-to-Rust FFI guidelines.
 
@@ -63,6 +61,7 @@ These are the 2 kinds of types passed through FFI:
 
 - Value kind:
     The layout of types passed by value must not change in a minor version.
+    This is the default kind when deriving StableAbi.
 
 - Opaque kind:
     Types wrapped in `VirtualWrapper<SomePointer<OpaqueType<Interface>>>`,
@@ -75,17 +74,6 @@ These are the 2 kinds of types passed through FFI:
 Adding variants or fields to a variant is disallowed in minor versions.
 
 To represent non-exhaustive enums without fields it is recommended using structs and associated constants so that it is not UB to keep adding field-less variants in minor versions.
-
-# Current limitatioss
-
-While this library can check that the layout of datatypes passed through
-ffi are compatible when the library is loaded,
-it cannot currently check that auto-traits continue to be implemented by
-the types in the dynamic library.
-
-Once specialization is in beta,this library will add checks that types that implement
-all built-in auto-traits continue to do so in future minor/patch versions of the same library.
-
 
 
 */
@@ -134,6 +122,12 @@ pub mod utils;
 pub mod utypeid;
 pub mod lazy_static_ref;
 pub mod version;
+
+
+pub mod docs{
+    pub mod stable_abi_trait;
+    pub mod mangle_library_getter;
+}
 
 #[cfg(test)]
 #[macro_use]

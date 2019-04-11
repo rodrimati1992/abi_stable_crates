@@ -4,7 +4,7 @@ use std::{
     iter::{FromIterator, FusedIterator},
     mem,
     ops::{Deref, Index, Range},
-    str::{from_utf8, from_utf8_unchecked, Chars, Utf8Error},
+    str::{from_utf8, from_utf8_unchecked, Chars,FromStr, Utf8Error},
     string::FromUtf16Error,
 };
 
@@ -168,6 +168,18 @@ impl<'a> From<Cow<'a, str>> for RString {
         this.into_owned().into()
     }
 }
+
+////////////////////
+
+
+impl FromStr for RString {
+    type Err = <String as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse::<String>().map(RString::from)
+    }
+}
+
 
 ////////////////////
 

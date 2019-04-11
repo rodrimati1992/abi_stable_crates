@@ -104,8 +104,6 @@ struct StableAbiAttrs<'a> {
     /// The type parameters that have no constraints
     unconstrained_type_params:Vec<Ident>,
 
-    pointer_field: Option<&'a Field<'a>>,
-
     // Using raw pointers to do an identity comparison.
     opaque_fields:HashSet<*const Field<'a>>,
 }
@@ -184,9 +182,7 @@ fn parse_attr_list<'a>(this: &mut StableAbiAttrs<'a>,pctx: ParseContext<'a>, lis
 fn parse_sabi_attr<'a>(this: &mut StableAbiAttrs<'a>,pctx: ParseContext<'a>, attr: Meta, arenas: &'a Arenas) {
     match (pctx, attr) {
         (ParseContext::Field(field), Meta::Word(word)) => {
-            if word == "pointer" {
-                this.pointer_field = Some(field);
-            }else if word == "unsafe_opaque_field" {
+            if word == "unsafe_opaque_field" {
                 this.opaque_fields.insert(field);
             }else{
                 panic!("unrecognized field attribute `#[sabi({})]` ",word);
