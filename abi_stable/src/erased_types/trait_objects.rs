@@ -1,3 +1,7 @@
+/*!
+Ffi-safe trait objects for individual traits.
+*/
+
 use std::ops::{Deref, DerefMut};
 
 use core_extensions::prelude::*;
@@ -6,7 +10,6 @@ use super::{c_functions::*, *};
 
 use crate::ErasedObject;
 
-#[macro_export]
 macro_rules! declare_trait_object {
     (
         trait_object=$trait_object_vis:vis $trait_object:ident;

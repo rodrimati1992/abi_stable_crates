@@ -18,6 +18,7 @@ use crate::{
 
 use super::{AbiInfo, GetAbiInfo};
 
+/// The parameters for `TypeLayout::from_params`.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct TypeLayoutParams {
@@ -31,6 +32,9 @@ pub struct TypeLayoutParams {
     pub phantom_fields: &'static [TLField],
 }
 
+
+/// The layout of a type,
+/// also includes metadata about where the type was defined.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -43,10 +47,13 @@ pub struct TypeLayout {
     pub size: usize,
     pub alignment: usize,
     pub data: TLData,
-    pub full_type: TypePrinter,
+    pub full_type: FullType,
     pub phantom_fields: StaticSlice<TLField>,
 }
 
+
+/// Which lifetime is being referenced by a field.
+/// Allows lifetimes to be renamed,so long as the "same" lifetime is being referenced.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -55,6 +62,15 @@ pub enum LifetimeIndex {
     Param(usize),
 }
 
+/// Represents all the generic parameters of a type.
+/// 
+/// This is different for every different generic parameter,
+/// if any one of them changes it won't compare equal,
+/// `<Vec<u32>>::ABI_INFO.get().layout.full_type.generics`
+/// ẁon't compare equal to
+/// `<Vec<()>>::ABI_INFO.get().layout.full_type.generics`
+/// 
+///
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -64,15 +80,20 @@ pub struct GenericParams {
     pub const_: StaticSlice<StaticStr>,
 }
 
+/// The typename and generics of the type this layout is associated to,
+/// used for printing types.
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-pub struct TypePrinter {
+pub struct FullType {
     pub name: StaticStr,
     pub primitive: ROption<RustPrimitive>,
     pub generics: GenericParams,
 }
 
+/// What kind of type this is.struct/enum/etc.
+///
+/// Unions are currently treated as structs.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -92,6 +113,7 @@ pub enum TLData {
     ReprTransparent(&'static AbiInfo),
 }
 
+/// A discriminant-only version of TLData.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -102,6 +124,7 @@ pub enum TLDataDiscriminant {
     ReprTransparent,
 }
 
+/// The layout of an enum variant.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -110,19 +133,24 @@ pub struct TLEnumVariant {
     pub fields: StaticSlice<TLField>,
 }
 
+/// The layout of a field.
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct TLField {
+    /// The field's name.
     pub name: StaticStr,
     /// Which lifetimes in the struct are referenced in the field type.
     pub lifetime_indices: StaticSlice<LifetimeIndex>,
+    /// The layout of the field's type.
+    ///
     /// This is a function pointer to avoid infinite recursion,
     /// if you have a `&'static AbiInfo`s with the same address as one of its parent type,
     /// you've encountered a cycle.
     pub abi_info: GetAbiInfo,
 }
 
+/// Used to print a field as its field and its type.
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -130,6 +158,7 @@ pub struct TLFieldAndType {
     inner: &'static TLField,
 }
 
+/// What primitive type this is.Used mostly for printing the type.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -214,7 +243,7 @@ impl TLFieldAndType {
         self.inner.name.as_rstr()
     }
 
-    pub fn full_type(&self) -> TypePrinter {
+    pub fn full_type(&self) -> FullType {
         self.inner.abi_info.get().layout.full_type
     }
 }
@@ -223,7 +252,7 @@ impl Debug for TLFieldAndType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TLFieldAndType")
             .field("field_name:", &self.inner.name)
-            .field("type_name:", &self.inner.abi_info.get().layout.full_type())
+            .field("type:", &self.inner.abi_info.get().layout.full_type())
             .finish()
     }
 }
@@ -279,12 +308,12 @@ impl TypeLayout {
             size: mem::size_of::<T>(),
             alignment: mem::align_of::<T>(),
             data,
-            full_type: TypePrinter::new(type_name, prim, genparams),
+            full_type: FullType::new(type_name, prim, genparams),
             phantom_fields: StaticSlice::new(phantom),
         }
     }
 
-    pub(crate) const fn full_type(&self) -> TypePrinter {
+    pub(crate) const fn full_type(&self) -> FullType {
         self.full_type
     }
 
@@ -299,7 +328,7 @@ impl TypeLayout {
             size: mem::size_of::<T>(),
             alignment: mem::align_of::<T>(),
             data: p.data,
-            full_type: TypePrinter {
+            full_type: FullType {
                 name,
                 primitive: RNone,
                 generics: p.generics,
@@ -327,24 +356,6 @@ impl GenericParams {
     pub fn is_empty(&self) -> bool {
         self.lifetime.is_empty() && self.type_.is_empty() && self.const_.is_empty()
     }
-}
-
-#[macro_export]
-macro_rules! tl_genparams {
-    ( $($lt:lifetime),* $(,)? ; $($ty:ty),* $(,)? ; $($const_p:expr),* $(,)? ) => ({
-        #[allow(unused_imports)]
-        use $crate::{
-            abi_stability::{StableAbi,type_layout::GenericParams},
-            std_types::StaticStr,
-            utils::as_slice,
-        };
-
-        GenericParams::new(
-            &[$( StaticStr::new( stringify!($lt) ) ,)*],
-            &[$( <$ty as StableAbi>::LAYOUT ,)*],
-            &[$( StaticStr::new( stringify!($const_p) ) ,)*],
-        )
-    })
 }
 
 impl Display for GenericParams {
@@ -412,7 +423,7 @@ impl TLEnumVariant {
 
 ///////////////////////////
 
-impl TypePrinter {
+impl FullType {
     pub const fn new(
         name: &'static str,
         primitive: ROption<RustPrimitive>,
@@ -426,12 +437,12 @@ impl TypePrinter {
     }
 }
 
-impl Display for TypePrinter {
+impl Display for FullType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Debug::fmt(self, f)
     }
 }
-impl Debug for TypePrinter {
+impl Debug for FullType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (typename, start_gen, before_ty, ty_sep, end_gen) = match self.primitive {
             RSome(RustPrimitive::Reference) => ("&", "", " ", " ", " "),
@@ -483,7 +494,7 @@ impl Debug for TypePrinter {
 #[derive(Debug, Copy, Clone, PartialEq)]
 struct TLFieldShallow {
     pub name: StaticStr,
-    pub full_type: TypePrinter,
+    pub full_type: FullType,
     pub lifetime_indices: StaticSlice<LifetimeIndex>,
     /// This is None if it already printed that AbiInfo
     pub abi_info: Option<&'static AbiInfo>,

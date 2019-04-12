@@ -33,7 +33,6 @@ mod private {
     #[sabi(inside_abi_stable_crate)]
     // #[sabi(debug_print)]
     pub struct RVec<T> {
-        /// Look at the documentation for ErasedObject for why ErasedObject instead of T.
         buffer: *mut T,
         pub(super) length: usize,
         capacity: usize,
@@ -62,7 +61,7 @@ mod private {
             self.buffer
         }
 
-        pub fn capacity(&self) -> usize {
+        pub const fn capacity(&self) -> usize {
             self.capacity
         }
 
@@ -136,7 +135,7 @@ impl<T> RVec<T> {
         unsafe { ::std::slice::from_raw_parts(self.buffer(), self.len()) }
     }
 
-    pub fn as_slice_mut(&mut self) -> &mut [T] {
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
         unsafe { ::std::slice::from_raw_parts_mut(self.buffer(), self.len()) }
     }
 
@@ -144,11 +143,11 @@ impl<T> RVec<T> {
         self.as_slice().into()
     }
 
-    pub fn as_rslice_mut(&mut self) -> RSliceMut<'_, T> {
-        self.as_slice_mut().into()
+    pub fn as_mut_rslice(&mut self) -> RSliceMut<'_, T> {
+        self.as_mut_slice().into()
     }
 
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.length
     }
 
@@ -194,21 +193,6 @@ impl<T> RVec<T> {
         T: Clone,
     {
         self.as_slice().to_vec()
-    }
-
-    /// Appends another collection,clearing it in the process
-    pub fn append<C>(&mut self, other: &mut C)
-    where
-        C: Appendable<T>,
-    {
-        let slic_ = other.as_slice();
-        let additional = slic_.len();
-        let old_len = self.len();
-        self.reserve(additional);
-        unsafe {
-            ptr::copy_nonoverlapping(slic_.as_ptr(), self.get_unchecked_mut(old_len), additional)
-        }
-        self.length += additional;
     }
 
     pub fn insert(&mut self, index: usize, value: T) {
@@ -398,7 +382,7 @@ impl<T> Deref for RVec<T> {
 impl<T> DerefMut for RVec<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.as_slice_mut()
+        self.as_mut_slice()
     }
 }
 
@@ -579,30 +563,7 @@ impl io::Write for RVec<u8> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub unsafe trait Appendable<T> {
-    fn as_slice(&self) -> &[T];
-    unsafe fn clear_forget(&mut self);
-}
 
-unsafe impl<T> Appendable<T> for RVec<T> {
-    fn as_slice(&self) -> &[T] {
-        &**self
-    }
-    unsafe fn clear_forget(&mut self) {
-        self.set_len(0);
-    }
-}
-
-unsafe impl<T> Appendable<T> for Vec<T> {
-    fn as_slice(&self) -> &[T] {
-        &**self
-    }
-    unsafe fn clear_forget(&mut self) {
-        self.set_len(0);
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
@@ -637,7 +598,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-pub struct VecVTable<T> {
+struct VecVTable<T> {
     destructor: extern "C" fn(&mut RVec<T>),
     grow_capacity_to: extern "C" fn(&mut RVec<T>, usize, Exactness),
     shrink_to_fit: extern "C" fn(&mut RVec<T>),

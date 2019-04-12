@@ -8,7 +8,6 @@ pub use crate::{
             LifetimeIndex, TLData, TLEnumVariant, TLField, TypeLayout, TypeLayoutParams,
         },
     },
-    utils::as_slice,
     version::VersionStrings,
 };
 
@@ -24,17 +23,3 @@ pub mod renamed {
     };
 }
 
-#[macro_export]
-macro_rules! instantiate_field {
-    (
-        $name:expr,[ $($indices:tt)* ],$ty:ty as $trait:ident
-    )=> ({
-        use $crate::reexports::renamed::*;
-
-        __TLField::new(
-            $name,
-            &[$($indices)*],
-            <$ty as $trait>::ABI_INFO.get(),
-        )
-    })
-}

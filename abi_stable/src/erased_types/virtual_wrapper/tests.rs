@@ -16,9 +16,12 @@ use serde_json;
 #[allow(unused_imports)]
 use crate::{
     abi_stability::{check_abi_stability},
-    erased_types::VirtualWrapper,
+    erased_types::{
+        VirtualWrapper,ImplType, InterfaceType, SerializeImplType,DeserializeInterfaceType,
+    },
     impl_get_type_info,
-    traits::{DeserializeImplType, False, ImplType,IntoReprC, InterfaceType, SerializeImplType, True},
+    type_level_bool::{False,True},
+    traits::IntoReprC,
     OpaqueType, 
     StableAbi,
     std_types::{
@@ -40,11 +43,6 @@ struct Foo<T> {
 
 struct FooInterface;
 
-impl_get_type_info! {
-    impl[T:'static] GetTypeInfo for Foo[T]
-
-    version=0,1,0;
-}
 
 impl<S> Display for Foo<S>
 where
@@ -60,6 +58,7 @@ where
     T: 'static + Send + Sync,
 {
     type Interface = FooInterface;
+    const INFO:&'static crate::erased_types::TypeInfo=impl_get_type_info! { Foo[T] };
 }
 
 impl<T> SerializeImplType for Foo<T>
@@ -98,7 +97,7 @@ impl InterfaceType for FooInterface {
     type Hash = True;
 }
 
-impl DeserializeImplType for FooInterface {
+impl DeserializeInterfaceType for FooInterface {
     type Deserialized = VirtualFoo;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {

@@ -3,18 +3,28 @@
 Traits for types wrapped in `VirtualWrapper<_>`
 */
 
+use std::{mem,marker::PhantomData};
+
 use crate::{
     erased_types::{GetImplFlags, VirtualWrapperTrait},
-    type_info::GetTypeInfo,
-    std_types::{RBoxError, RCow, RStr},
+    std_types::{RBoxError, RCow, RStr,StaticStr,utypeid::new_utypeid},
+    version::VersionStrings,
+    return_value_equality::ReturnValueEquality,
 };
+
+use super::TypeInfo;
+
+#[allow(unused_imports)]
+use crate::type_level_bool::{False, True};
 
 /**
 An `implementation type`,
-with an associated `interface type` which describes the traits that must be implemented by Self.
+with an associated `interface type` which describes the traits that 
+must be implemented when constructing a `VirtualWrapper` from Self,
+using the `from_value` and `from_ptr` constructors,
+so as to pass an opaque type across ffi.
 
-This trait allows a type to be wrapped in a `VirtualWrapper<_,_>` 
-using the `from_value` and `from_ptr`,so as to pass an opaque type across ffi.
+To initialize `INFO` you can use the `impl_get_type_info` macro.
 
 # Uniqueness
 
@@ -25,8 +35,10 @@ the convert back and forth between `Self` and `Self::Interface`.
 
 
 */
-pub trait ImplType: Sized + 'static + GetTypeInfo + Send + Sync {
+pub trait ImplType: Sized + 'static + Send + Sync {
     type Interface: InterfaceType;
+
+    const INFO: &'static TypeInfo;
 }
 
 /**
@@ -71,6 +83,7 @@ pub trait InterfaceType: Sized + 'static + Send + Sync + GetImplFlags {
 }
 
 
+
 /**
 Describes how this `implementation type` is serialized.
 */
@@ -85,8 +98,77 @@ Generally this delegates to a library function,so that the implementation can be
 to the `implementation crate`.
 
 */
-pub trait DeserializeImplType: InterfaceType<Deserialize = True> {
+pub trait DeserializeInterfaceType: InterfaceType<Deserialize = True> {
     type Deserialized: VirtualWrapperTrait<Interface = Self>;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError>;
 }
+
+
+
+/////////////////////////////////////////////////////////////////////
+
+
+
+//////////////////////////////////////////////////////////////////
+
+
+/// Helper struct for Wrapping any type in a 
+/// `VirtualWrapper<Pointer< OpaqueTyoe< Interface > >>`.
+pub struct InterfaceFor<T,Interface>(
+    PhantomData<fn()->(T,Interface)>
+);
+
+impl<T,Interface> ImplType for InterfaceFor<T,Interface>
+where 
+    Interface:InterfaceType,
+    T:'static,
+{
+    type Interface=Interface;
+    
+    const INFO:&'static TypeInfo=&TypeInfo{
+        size:mem::size_of::<T>(),
+        alignment:mem::align_of::<T>(),
+        uid:ReturnValueEquality{
+            function:new_utypeid::<T>
+        },
+        name:StaticStr::new("<erased>"),
+        file:StaticStr::new("<unavailable>"),
+        package:StaticStr::new("<unavailable>"),
+        package_version:VersionStrings{
+            major:StaticStr::new("99"),
+            minor:StaticStr::new("99"),
+            patch:StaticStr::new("99"),
+        },
+        _private_field:(),
+    };
+}
+
+
+/////////////////////////////////////////////////////////////////////
+
+
+impl InterfaceType for () {
+    type Clone=False;
+
+    type Default=False;
+
+    type Display=False;
+
+    type Debug=False;
+
+    type Serialize=False;
+
+    type Eq=False;
+
+    type PartialEq=False;
+
+    type Ord=False;
+
+    type PartialOrd=False;
+
+    type Hash=False;
+
+    type Deserialize=False;
+}
+

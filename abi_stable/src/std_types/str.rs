@@ -1,21 +1,18 @@
 use std::{
     borrow::Cow,
     fmt::{self, Display},
-    ops::Deref,
+    ops::{Deref, Index},
     str,
 };
 
+#[allow(unused_imports)]
 use core_extensions::prelude::*;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::std_types::{RSlice, RString};
 
-/// Type used to represent a Vec<u8> in any language.
-///
-/// This allows sharing a Vec<u8> between different versions of Rust,
-/// even ones with a different allocator
-
+/// Ffi-safe equivalent of `&'a str`
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -37,16 +34,19 @@ impl RStr<'static> {
 }
 
 impl<'a> RStr<'a> {
+    #[inline]
     pub const fn empty() -> Self {
         Self::EMPTY
     }
 
+    #[inline]
     pub const unsafe fn from_raw_parts(ptr_: *const u8, len: usize) -> Self {
         Self {
             inner: RSlice::from_raw_parts(ptr_, len),
         }
     }
 
+    #[inline]
     pub fn from_str(s: &'a str) -> Self {
         unsafe {
             Self {
@@ -55,11 +55,15 @@ impl<'a> RStr<'a> {
         }
     }
 
-    pub fn map_slice<F>(self, f: F) -> RStr<'a>
+    /// For slicing `RStr`s.
+    ///
+    /// This is an inherent method instead of an implementation of the
+    /// ::std::ops::Index trait because it does not return a reference.
+    pub fn slice<I>(&self, i: I) -> RStr<'a>
     where
-        F: FnOnce(&'a str) -> &'a str,
+        str: Index<I, Output = str>,
     {
-        self.as_str().piped(f).into()
+        self.as_str().index(i).into()
     }
 
     #[inline]
@@ -67,12 +71,13 @@ impl<'a> RStr<'a> {
         self.inner
     }
 
+    #[inline]
     pub fn as_str(&self) -> &'a str {
         unsafe { str::from_utf8_unchecked(self.inner.as_slice()) }
     }
 
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.inner.len()
     }
 }

@@ -6,12 +6,15 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use core_extensions::prelude::*;
 
 use crate::{
-    reexports::StableAbi, 
+    StableAbi, 
     std_types::{RSlice, RStr, RString, RVec},
 };
 
 ////////////////////////////////////////////////////////////////////
 
+
+/// The ffi-safe borrowed and owned types this is associated with,
+/// as well as conversions to and from those types.
 pub trait BorrowOwned<'a>: 'a + ToOwned {
     type ROwned: StableAbi;
     type RBorrowed: 'a + Copy + StableAbi;
@@ -167,12 +170,12 @@ use self::RCow::{Borrowed, Owned};
 //  https://github.com/rust-lang/rust/issues/58944
 //  https://github.com/rust-lang/rust/issues/59324
 //
-// Try deriving this trait in 1.34 stable,which will receive a fix for this problem.
+// Will keep this until I drop support for Rust 1.33 .
 mod _stable_abi_impls_for_rcow {
     use super::*;
     use crate as abi_stable;
     #[allow(unused_imports)]
-    use crate::reexports::{self as _sabi_reexports, renamed::*};
+    use crate::derive_macro_reexports::{self as _sabi_reexports, renamed::*};
     unsafe impl<'a, B, Owned, Borrowed> __StableAbi for RCow<'a, B>
     where
         B: BorrowOwned<'a, RBorrowed = Borrowed, ROwned = Owned> + ?Sized,
@@ -185,7 +188,7 @@ mod _stable_abi_impls_for_rcow {
                 __TypeLayoutParams {
                     name: "RCow",
                     package: env!("CARGO_PKG_NAME"),
-                    package_version: abi_stable::package_version_string!(),
+                    package_version: abi_stable::package_version_strings!(),
                     file:file!(),
                     line:line!(),
                     data: __TLData::enum_(&[

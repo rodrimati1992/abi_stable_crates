@@ -170,7 +170,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(inside_abi_stable_crate)]
-pub struct BoxVtable<T> {
+pub(crate) struct BoxVtable<T> {
     destructor: unsafe extern "C" fn(*mut T, CallReferentDrop),
 }
 

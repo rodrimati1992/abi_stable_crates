@@ -1,3 +1,9 @@
+/*!
+An ffi-safe equivalent of ::std::any::TypeId.
+
+No types coming from different dynamic libraries compare equal.
+*/
+
 use std::{
     any::TypeId,
     hash::{Hash, Hasher},
@@ -18,6 +24,8 @@ where
 }
 
 /// A TypeId that can compare types across dynamic libraries.
+///
+/// No types coming from different dynamic libraries compare equal.
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Copy, Clone, Hash, StableAbi)]
 #[sabi(inside_abi_stable_crate)]

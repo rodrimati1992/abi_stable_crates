@@ -40,12 +40,12 @@ mod privacy {
 
     impl<'a, T> RSliceMut<'a, T> {
         #[inline(always)]
-        pub(super) fn data(&self) -> *mut T {
+        pub(super) const fn data(&self) -> *mut T {
             self.data
         }
 
         #[inline(always)]
-        pub fn len(&self) -> usize {
+        pub const fn len(&self) -> usize {
             self.length
         }
     }
@@ -68,6 +68,10 @@ impl<'a, T> RSliceMut<'a, T> {
         self.as_slice().index(i).into()
     }
 
+    /// For mutably slicing RSliceMut.
+    ///
+    /// This is an inherent method instead of an implementation of the
+    /// ::std::ops::IndexMut trait because it does not return a reference.
     pub fn slice_mut<'b, I>(&'b mut self, i: I) -> RSliceMut<'b, T>
     where
         [T]: IndexMut<I, Output = [T]>,

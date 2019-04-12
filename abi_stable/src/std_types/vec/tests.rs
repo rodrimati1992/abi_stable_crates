@@ -132,16 +132,6 @@ fn push_pop() {
 }
 
 #[test]
-fn append() {
-    let mut list = RVec::new();
-
-    list.append(&mut vec![10, 11, 12, 13]);
-    assert_eq!(&*list, &[10, 11, 12, 13]);
-    list.append(&mut vec![14, 15, 16, 17].into_c());
-    assert_eq!(&*list, &[10, 11, 12, 13, 14, 15, 16, 17]);
-}
-
-#[test]
 fn truncate() {
     {
         let orig = vec![0, 1, 2, 3, 4];
@@ -256,6 +246,20 @@ fn into_iter() {
             .collect::<Vec<_>>(),
         orig
     );
+}
+
+#[test]
+fn into_iter_as_str(){
+    let mut orig = vec![10, 11, 12, 13];
+    let mut iter = orig.clone().into_c().into_iter();
+    let mut i=0;
+
+    loop {
+        assert_eq!(&orig[i..],iter.as_slice());
+        assert_eq!(&mut orig[i..],iter.as_mut_slice());
+        i+=1;
+        if iter.next().is_none() {break;}
+    }
 }
 
 #[test]

@@ -1,3 +1,7 @@
+/**
+Ffi-safe versions of some `std::io` types.
+*/
+
 use std::{
     error::Error as ErrorTrait,
     fmt::{self, Debug, Display},
@@ -10,12 +14,13 @@ use core_extensions::prelude::*;
 use crate::{traits::{IntoReprC}, std_types::{RBoxError}};
 
 /// Ffi safe equivalent to ::std::io::ErrorKind.
+///
+/// Using a struct with associated constants is the 
+/// ffi-safe way of doing `#[non_exhaustive]` field-less enums.
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-// This is a struct instead of an enum because the std library equivalent is
-// `#[non_exhaustive]`
 pub struct RIoErrorKind {
     value: u8,
 }

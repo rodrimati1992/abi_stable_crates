@@ -21,6 +21,7 @@ pub mod str;
 pub mod string;
 pub mod time;
 pub mod tuple;
+pub mod utypeid;
 pub mod vec;
 
 #[doc(inline)]
@@ -40,6 +41,7 @@ pub use self::{
     time::RDuration,
     tuple::{Tuple2, Tuple3, Tuple4},
     vec::RVec,
+    utypeid::UTypeId,
     static_str::StaticStr,
     static_slice::StaticSlice,
 };

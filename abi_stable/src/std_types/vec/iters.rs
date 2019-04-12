@@ -23,6 +23,27 @@ impl<T> RawValIter<T> {
             },
         }
     }
+
+    fn calculate_length(&self)->usize{
+        let elem_size = mem::size_of::<T>();
+        let distance = self.end as usize - self.start as usize;
+        let stride_size = if elem_size == 0 { 1 } else { elem_size };
+        distance / stride_size
+    }
+
+    fn as_slice(&self)->&[T]{
+        let len=self.calculate_length();
+        unsafe{
+            unsafe { ::std::slice::from_raw_parts(self.start,len ) }
+        }
+    }
+
+    fn as_mut_slice(&mut self)->&mut [T]{
+        let len=self.calculate_length();
+        unsafe{
+            unsafe { ::std::slice::from_raw_parts_mut(self.start as *mut T,len ) }
+        }
+    }
 }
 
 impl<T> Iterator for RawValIter<T> {
@@ -44,10 +65,7 @@ impl<T> Iterator for RawValIter<T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let elem_size = mem::size_of::<T>();
-        let distance = self.end as usize - self.start as usize;
-        let stride_size = if elem_size == 0 { 1 } else { elem_size };
-        let len = distance / stride_size;
+        let len = self.calculate_length();
         (len, Some(len))
     }
 }
@@ -74,6 +92,17 @@ impl<T> DoubleEndedIterator for RawValIter<T> {
 pub struct IntoIter<T> {
     pub(super) _buf: ManuallyDrop<RVec<T>>,
     pub(super) iter: RawValIter<T>,
+}
+
+
+impl<T> IntoIter<T>{
+    pub fn as_slice(&self)->&[T]{
+        self.iter.as_slice()
+    }
+
+    pub fn as_mut_slice(&mut self)->&mut [T]{
+        self.iter.as_mut_slice()
+    }
 }
 
 impl<T> Iterator for IntoIter<T> {
@@ -109,6 +138,16 @@ pub struct Drain<'a, T> {
     pub(super) len: usize,
     pub(super) removed_start: *mut T,
     pub(super) slice_len: usize,
+}
+
+impl<'a,T> Drain<'a,T>{
+    pub fn as_slice(&self)->&[T]{
+        self.iter.as_slice()
+    }
+
+    pub fn as_mut_slice(&mut self)->&mut [T]{
+        self.iter.as_mut_slice()
+    }
 }
 
 impl<'a, T> Iterator for Drain<'a, T> {

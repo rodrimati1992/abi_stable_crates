@@ -1,3 +1,7 @@
+/*!
+A late-initialized static reference.
+*/
+
 use std::{
     sync::atomic::{AtomicPtr,Ordering},
     ptr,
@@ -7,7 +11,7 @@ use lock_api::RawMutex as RawMutexTrait;
 
 use parking_lot::RawMutex;
 
-/// A lazily initialized static reference.
+/// A late-initialized static reference.
 pub struct LazyStaticRef<T>{
     // Using a RawMutex because all I need is to prevent multiple threads 
     // from loading the static at the same time.

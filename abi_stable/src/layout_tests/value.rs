@@ -320,7 +320,7 @@ fn check_repr_attrs(){
             "#[repr(Rust)]\n{}",
             derive_validity_0::RECTANGLE_DEF_REPR
         );
-        derive_stable_abi_from_str(derive_validity_0::RECTANGLE_DEF_REPR)
+        derive_stable_abi_from_str(&with_repr_rust)
     }).unwrap();
 
     let with_repr_c=format!("#[repr(C)]\n{}",derive_validity_0::RECTANGLE_DEF_REPR);

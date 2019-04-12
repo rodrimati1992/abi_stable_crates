@@ -12,8 +12,6 @@ use super::c_functions::*;
 use super::*;
 
 use crate::{
-    traits::{ImplType, InterfaceType, SerializeImplType},
-    type_info::TypeInfo,
     ErasedObject,
 };
 

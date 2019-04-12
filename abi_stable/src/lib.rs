@@ -22,16 +22,6 @@ Currently this library has these features:
 - Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
     and to get the layout of the type at runtime to check that it is still compatible.
 
-# Documentation
-
-The documentation is done entirely through modules,so that it can be read in `docs.rs/abi_stable`.
-
-[Documentation for the `#[derive(StableAbi)]` derive macro
-](./docs/stable_abi_trait/index.html)
-
-[Documentation for the `#[mangle_library_getter]` attribute
-](./docs/mangle_library_getter/index.html)
-
 # Examples
 
 For **examples** of using `abi_stable` you can look at the abi_stable_example_* crates,
@@ -87,7 +77,12 @@ extern crate serde_derive;
 #[macro_use(StableAbi)]
 extern crate abi_stable_derive;
 
-pub use abi_stable_derive::{StableAbi,mangle_library_getter};
+
+#[doc(inline)]
+pub use abi_stable_derive::StableAbi;
+
+#[doc(inline)]
+pub use abi_stable_derive::mangle_library_getter;
 
 #[macro_use]
 mod impls;
@@ -101,55 +96,70 @@ mod macros;
 mod test_utils;
 
 #[macro_use]
-pub mod type_info;
-
-#[macro_use]
 pub mod traits;
 
 #[macro_use]
 pub mod abi_stability;
-pub mod cabi_type;
+// pub mod cabi_type;
 pub mod erased_types;
 // pub mod immovable_wrapper;
 pub mod library;
 pub mod ignored_wrapper;
 pub mod marker_type;
-pub mod opaque_type;
 pub mod pointer_trait;
-pub mod reexports;
+
+#[doc(hidden)]
+pub mod return_value_equality;
+
+#[doc(hidden)]
+pub mod derive_macro_reexports;
 pub mod std_types;
+
+
 pub mod utils;
-pub mod utypeid;
 pub mod lazy_static_ref;
 pub mod version;
 
-
-pub mod docs{
-    pub mod stable_abi_trait;
-    pub mod mangle_library_getter;
-}
-
 #[cfg(test)]
 #[macro_use]
-pub mod test_macros;
+mod test_macros;
 #[cfg(test)]
-pub mod layout_tests;
+mod layout_tests;
 
-#[doc(hidden)]
-pub mod abi_stable {
-    pub use crate::*;
+
+/**
+Type-level booleans.
+
+This is a re-export from `core_extensions::type_level_bool`,
+so as to allow glob imports (`abi_stable::type_level_bool::*`)
+without worrying about importing too many items.
+*/
+pub mod type_level_bool{
+    #[doc(inline)]
+    pub use core_extensions::type_level_bool::{True,False,Boolean};
 }
 
-// Using an AtomicUsize so that it doesn't get put in read-only memory.
+/// Miscelaneous items re-exported from core_extensions.
+pub mod reexports{
+    pub use core_extensions::SelfOps;
+}
+
+/*
+I am using this static as the `identity` of this dynamic library/executable,
+this assumes that private static variables don't get merged between 
+Rust dynamic libraries that have a different global allocator.
+
+If the address of this is the same among dynamic libraries that have *different* 
+allocators,please create an issue for this.
+*/
 use std::sync::atomic::AtomicUsize;
 static EXECUTABLE_IDENTITY: AtomicUsize = AtomicUsize::new(1);
 
 #[doc(inline)]
 pub use crate::{
     abi_stability::StableAbi,
-    erased_types::VirtualWrapper,
+    erased_types::{VirtualWrapper,ImplType, InterfaceType},
     library::Library,
-    opaque_type::{ErasedObject, OpaqueType},
-    traits::{ImplType, InterfaceType},
+    marker_type::{ErasedObject, OpaqueType},
 };
 

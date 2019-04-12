@@ -1,3 +1,7 @@
+/*!
+Types representing the version number of a library.
+*/
+
 use core_extensions::prelude::*;
 
 use std::{
@@ -99,8 +103,11 @@ impl fmt::Display for VersionStrings {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+
+/// Instantiates a `abi_stable::version::VersionStrings` with the 
+/// major.minor.patch version of the library where it is invoked.
 #[macro_export]
-macro_rules! package_version_string {
+macro_rules! package_version_strings {
     () => {{
         use $crate::std_types::StaticStr;
         $crate::version::VersionStrings {

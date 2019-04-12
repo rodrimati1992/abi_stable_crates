@@ -40,6 +40,10 @@ impl RString {
         String::with_capacity(cap).into()
     }
 
+    /// For slicing into `RStr`s.
+    ///
+    /// This is an inherent method instead of an implementation of the
+    /// ::std::ops::Index trait because it does not return a reference.
     #[inline]
     pub fn slice<'a, I>(&'a self, i: I) -> RStr<'a>
     where
@@ -59,12 +63,12 @@ impl RString {
     }
 
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.inner.len()
     }
 
     #[inline]
-    pub fn capacity(&self) -> usize {
+    pub const fn capacity(&self) -> usize {
         self.inner.capacity()
     }
 
@@ -305,10 +309,20 @@ impl<'a> FromIterator<&'a char> for RString {
 
 //////////////////////////////////////////////////////
 
+/// Error that happens when attempting to convert an `RVec<u8>` into an RString.
 #[derive(Debug)]
 pub struct FromUtf8Error {
     bytes: RVec<u8>,
     error: Utf8Error,
+}
+
+impl FromUtf8Error{
+    pub fn into_bytes(self)->RVec<u8>{
+        self.bytes
+    }
+    pub fn error(&self)->Utf8Error{
+        self.error
+    }
 }
 
 impl fmt::Display for FromUtf8Error {

@@ -1,11 +1,11 @@
 /*!
-Where most traits reside.
+Where miscellaneous traits reside.
 */
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-pub use core_extensions::type_level_bool::{False, True};
+
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -19,7 +19,7 @@ pub trait IntoReprC {
     fn into_c(self) -> Self::ReprC;
 }
 
-/// Converts a #[repr(Rust)] type into its #[repr(C)] equivalent.
+/// Converts a #[repr(C)] type into its #[repr(Rust)] equivalent.
 pub trait IntoReprRust {
     type ReprRust;
 

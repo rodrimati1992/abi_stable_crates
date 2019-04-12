@@ -1,14 +1,24 @@
+/*!
+This is an example `interface crate`,
+where all publically available modules(structs of function pointers) and types are declared,
+
+To load the library and the modules together,use the `load_library` function,
+which will load the dynamic library from a directory(folder),
+and then all the modules inside of the library.
+
+*/
 use std::path::Path;
 
 use abi_stable::{
     StableAbi,
-    version_strings_const,
+    package_version_strings,
     lazy_static_ref::LazyStaticRef,
     library::{Library,LibraryError, LibraryTrait, ModuleTrait},
     version::VersionStrings,
-    traits::{False, InterfaceType, True,DeserializeImplType},
+    type_level_bool::*,
+    erased_types::{InterfaceType,DeserializeInterfaceType},
     OpaqueType, VirtualWrapper,
-    std_types::{RBox, RStr, RString,RVec, RSlice,RCow,RArc,RBoxError,RResult},
+    std_types::{RBox, RStr, RString,RVec,RArc, RSlice,RCow,RBoxError,RResult},
 };
 
 
@@ -17,10 +27,10 @@ use abi_stable::{
 ///////////////////////////////////////////////
 
 
-/// An InterfaceType for the object we'll use to store the state of every text operation.
-///
+/// The `InterfaceType` describing which traits are implemented by TOStateBox.
 pub struct TOState;
 
+/// The state passed to most functions in the TextOpsMod module.
 pub type TOStateBox = VirtualWrapper<RBox<OpaqueType<TOState>>>;
 
 impl InterfaceType for TOState {
@@ -31,13 +41,13 @@ impl InterfaceType for TOState {
     type Serialize = True;
     type Deserialize = True;
     type Eq = False;
-    type PartialEq = False;
+    type PartialEq = True;
     type Ord = False;
     type PartialOrd = False;
     type Hash = False;
 }
 
-impl DeserializeImplType for TOState {
+impl DeserializeInterfaceType for TOState {
     type Deserialized = TOStateBox;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
@@ -48,14 +58,16 @@ impl DeserializeImplType for TOState {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-
+/// The parameters for every `TextOpsMod.remove_words_*` function.
 #[repr(C)]
 #[derive(StableAbi)] 
 pub struct RemoveWords<'a,S:'a>
 where 
     S: Clone + StableAbi,
 {
+    /// The string we're processing.
     pub string:RStr<'a>,
+    /// The words that will be removed from self.string.
     pub words:RSlice<'a,S>,
 }
 
@@ -71,26 +83,59 @@ pub type ThirdParam=();
 #[cfg(feature="different_abi")]
 pub type ThirdParam=usize;
 
-
+/// The root module of the `text_operations` dynamic library.
+/// With all the functions related to processing text.
+///
+/// To construct the entire tree of modules,including this one,
+/// call `load_library_in(some_directory_path)`.
+///
+/// To construct this module by itself,
+/// call <TextOpsMod as ModuleTrait>::load_from_library_in(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)] 
 pub struct TextOpsMod {
+    /// Constructs TOStateBox,state that is passed to other functions in this module.
     pub new: extern "C" fn() -> TOStateBox,
+    
+    /// The implementation for how TOStateBox is going to be deserialized.
     pub deserialize_state: extern "C" fn(RStr<'_>) -> RResult<TOStateBox, RBoxError>,
+    
+    /// Reverses the order of the lines.
     pub reverse_lines: extern "C" fn(&mut TOStateBox,RStr<'_>,ThirdParam) -> RString,
-    pub remove_words_cow: extern "C" fn(&mut TOStateBox,RemoveWords<RCow<str>>) -> RString,
-    pub remove_words_str: extern "C" fn(&mut TOStateBox,RemoveWords<RStr>) -> RString,
-    pub remove_words_string: extern "C" fn(&mut TOStateBox,RemoveWords<RString>) -> RString,
+    
+    /// Removes the `param.words` words from the `param.string` string.
+    pub remove_words_cow: extern "C" fn(&mut TOStateBox,param:RemoveWords<RCow<str>>) -> RString,
+    
+    /// Removes the `param.words` words from the `param.string` string.
+    pub remove_words_str: extern "C" fn(&mut TOStateBox,param:RemoveWords<RStr>) -> RString,
+    
+    /// Removes the `param.words` words from the `param.string` string.
+    pub remove_words_string: extern "C" fn(&mut TOStateBox,param:RemoveWords<RString>) -> RString,
+
+    /// Gets the ammount (in bytes) of text that was processed
     pub get_processed_bytes: extern "C" fn(&TOStateBox) -> u64,
 }
 
+
+/// An example sub-module in the text_operations dynamic library.
+///
+/// To construct the entire tree of modules,including this one,
+/// call `load_library_in(some_directory_path)`.
+///
+/// To construct this module by itself,
+/// call <HelloWorldMod as ModuleTrait>::load_from_library_in(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)] 
 pub struct HelloWorldMod {
     pub greeter:extern "C" fn(RStr<'_>),
+    pub get_arc:extern "C" fn()->RArc<RString>,
 }
 
 
+/// A reference to the global `Modules` instance,
+///
+/// Call `load_library_in` before calling `MODULES.get()` to get a `Some(_)` value back.
+///
 pub static MODULES:LazyStaticRef<Modules>=LazyStaticRef::new();
 
 impl LibraryTrait for TextOpsMod {
@@ -101,8 +146,7 @@ impl LibraryTrait for TextOpsMod {
 
     const BASE_NAME: &'static str = "text_operations";
     const NAME: &'static str = "text_operations";
-    const VERSION_STRINGS: VersionStrings =
-        version_strings_const!(version_number_text_operations);
+    const VERSION_STRINGS: VersionStrings = package_version_strings!();
 }
 
 impl ModuleTrait for TextOpsMod{
@@ -121,6 +165,9 @@ impl ModuleTrait for HelloWorldMod{
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/// All of the modules in the text_operations dynamic library.
+/// 
+/// To construct this,call `load_library_in(some_directory_path)`.
 pub struct Modules{
     pub text_operations:&'static TextOpsMod,
     pub hello_world:&'static HelloWorldMod,
@@ -148,7 +195,7 @@ macro_rules! try_load_mod {
 
 /// Loads all the modules of the library at the `directory`.
 /// If it loads them once,this will continue loading them.
-pub fn load_library(directory:&Path) -> Result<&'static Modules,LibraryError> {
+pub fn load_library_in(directory:&Path) -> Result<&'static Modules,LibraryError> {
     MODULES.try_init(||{
         let mut errors=RVec::new();
         

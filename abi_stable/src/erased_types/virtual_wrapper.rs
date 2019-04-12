@@ -1,3 +1,7 @@
+/*!
+Contains the `VirtualWrapper` type,and related traits/type aliases.
+*/
+
 use std::ops::DerefMut;
 
 use serde::{de, ser, Deserialize, Deserializer};
@@ -7,8 +11,6 @@ use core_extensions::{prelude::*, ResultLike};
 
 use crate::{
     pointer_trait::{ErasedStableDeref, StableDeref, TransmuteElement},
-    traits::{DeserializeImplType, ImplType},
-    type_info::InterfaceFor,
     ErasedObject, 
     std_types::{RBox, RCow, RStr},
 };
@@ -18,108 +20,9 @@ use super::{
     c_functions::adapt_std_fmt,
     trait_objects::*,
     vtable::{GetVtable, VTable},
+    traits::InterfaceFor,
 };
 
-/**
-
-VirtualWrapper implements trait objects,for a selection of traits,
-that is safe to use across the ffi boundary.
-
-
-
-# Passing opaque values around with `VirtualWrapper<_>`
-
-One can pass non-StableAbi types around by using type erasure,using this type.
-
-It generally looks like `VirtualWrapper<Pointer<OpaqueType<Interface>>>`,where:
-
-- Pointer is some `pointer_trait::StableDeref` pointer type.
-
-- OpaqueType is a zero-sized marker type.
-
-- Interface is an `InterfaceType`,which describes what traits are 
-    required when constructing the `VirtualWrapper<_>` and which ones it implements.
-
-`trait InterfaceType` allows describing which traits are required 
-when constructing a `VirtualWrapper<_>`,and which ones it implements.
-
-`VirtualWrapper<_>` can be used as a trait object for a selected ammount of traits:
-
-### Construction
-
-To construct a `VirtualWrapper<_>` one can use these associated functions:
-    
-- from_value:
-    Can be constructed from the value directly.
-    Requires a value that has an associated `InterfaceType`.
-    
-- from_ptr:
-    Can be constructed from a pointer of a value.
-    Requires a value that has an associated `InterfaceType`.
-    
-- from_any_value:
-    Can be constructed from the value directly.Requires a `'static` value.
-    
-- from_any_ptr
-    Can be constructed from a pointer of a value.Requires a `'static` value.
-
-### Trait object
-
-`VirtualWrapper<_>` can be used as a trait object for a selected ammount of traits:
-
-- Clone 
-
-- Display 
-
-- Debug 
-
-- Default: Can be called as an inherent method.
-
-- Eq 
-
-- PartialEq 
-
-- Ord 
-
-- PartialOrd 
-
-- Hash 
-
-- serde::Deserialize:
-    first deserializes from a string,and then calls the objects' Deserialize impl.
-
-- serde::Serialize:
-    first calls the objects' Deserialize impl,then serializes that as a string.
-
-### Deconstruction
-
-`VirtualWrapper<_>` can then be unwrapped into a concrete type using these 
-(fallible) conversion methods:
-
-- `into_unerased`:
-    Unwraps into a pointer to `T`.
-    Where the `VirtualWrapper<_>`'s interface must equal `<T as ImplType>::Interface`
-
-- `as_unerased`:
-    Unwraps into a `&T`.
-    Where the `VirtualWrapper<_>`'s interface must equal `<T as ImplType>::Interface`
-
-- `as_unerased_mut`:
-    Unwraps into a `&mut T`.
-    Where the `VirtualWrapper<_>`'s interface must equal `<T as ImplType>::Interface`
-
-- `into_mut_unerased`:Unwraps into a pointer to `T`.Requires `T:'static`.
-
-- `as_mut_unerased`:Unwraps into a `&T`.Requires `T:'static`.
-
-- `as_mut_unerased_mut`:Unwraps into a `&mut T`.Requires `T:'static`.
-
-
-
-
-``
-
-*/
 
 #[cfg(test)]
 mod tests;
@@ -127,12 +30,115 @@ mod tests;
 mod priv_ {
     use super::*;
 
-    /// Emulates trait objects for a selected number of traits,
-    /// look at `InterfaceType` for a list of them.
-    ///
-    /// To construct this with an unwrapped value use `VirtualWrapper::from_value`.
-    ///
-    /// To construct this with a pointer of a value use `VirtualWrapper::from_ptr`.
+
+    /**
+
+    VirtualWrapper implements ffi-safe trait objects,for a selection of traits.
+
+    # Passing opaque values around with `VirtualWrapper<_>`
+
+    One can pass non-StableAbi types around by using type erasure,using this type.
+
+    It generally looks like `VirtualWrapper<Pointer<OpaqueType<Interface>>>`,where:
+
+    - Pointer is some `pointer_trait::StableDeref` pointer type.
+
+    - OpaqueType is a zero-sized marker type.
+
+    - Interface is an `InterfaceType`,which describes what traits are 
+        required when constructing the `VirtualWrapper<_>` and which ones it implements.
+
+    `trait InterfaceType` allows describing which traits are required 
+    when constructing a `VirtualWrapper<_>`,and which ones it implements.
+
+    `VirtualWrapper<_>` can be used as a trait object for a selected ammount of traits:
+
+    ### Construction
+
+    To construct a `VirtualWrapper<_>` one can use these associated functions:
+        
+    - from_value:
+        Can be constructed from the value directly.
+        Requires a value that implements ImplType.
+        
+    - from_ptr:
+        Can be constructed from a pointer of a value.
+        Requires a value that implements ImplType.
+        
+    - from_any_value:
+        Can be constructed from the value directly.Requires a `'static` value.
+        
+    - from_any_ptr
+        Can be constructed from a pointer of a value.Requires a `'static` value.
+
+    ### Trait object
+
+    `VirtualWrapper<Pointer<OpaqueType< Interface >>>` 
+    can be used as a trait object for any combination of 
+    the traits listed bellow.
+
+    For Debug,this is the constraint for using it:
+        `Interface:InterfaceType< Debug = True >>`.
+    
+    These are the traits:
+
+    - Clone 
+
+    - Display 
+
+    - Debug 
+
+    - Default: Can be called as an inherent method.
+
+    - Eq 
+
+    - PartialEq 
+
+    - Ord 
+
+    - PartialOrd 
+
+    - Hash 
+
+    - serde::Deserialize:
+        first deserializes from a string,and then calls the objects' Deserialize impl.
+
+    - serde::Serialize:
+        first calls the objects' Deserialize impl,then serializes that as a string.
+
+    ### Deconstruction
+
+    `VirtualWrapper<_>` can then be unwrapped into a concrete type,
+    within the same dynamic library/executable that constructed it,
+    using these (fallible) conversion methods:
+
+    - `into_unerased`:
+        Unwraps into a pointer to `T`.
+        Where `VirtualWrapper<P<OpaqueType< Interface >>>`'s 
+            Interface must equal `<T as ImplType>::Interface`
+
+    - `as_unerased`:
+        Unwraps into a `&T`.
+        Where `VirtualWrapper<P<OpaqueType< Interface >>>`'s 
+            Interface must equal `<T as ImplType>::Interface`
+
+    - `as_unerased_mut`:
+        Unwraps into a `&mut T`.
+        Where `VirtualWrapper<P<OpaqueType< Interface >>>`'s 
+            Interface must equal `<T as ImplType>::Interface`
+
+    - `into_mut_unerased`:Unwraps into a pointer to `T`.Requires `T:'static`.
+
+    - `as_mut_unerased`:Unwraps into a `&T`.Requires `T:'static`.
+
+    - `as_mut_unerased_mut`:Unwraps into a `&mut T`.Requires `T:'static`.
+
+
+
+
+    ``
+
+    */
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
@@ -470,11 +476,11 @@ mod priv_ {
         }
 
         /// Deserializes a string into a `VirtualWrapper<_>`,by using 
-        /// `<I as DeserializeImplType>::deserialize_impl`.
+        /// `<I as DeserializeInterfaceType>::deserialize_impl`.
         pub fn deserialize_from_str<'a, I>(s: &'a str) -> Result<Self, RBoxError>
         where
             P: Deref<Target = OpaqueType<I>>,
-            I: DeserializeImplType<Deserialize = True, Deserialized = Self>,
+            I: DeserializeInterfaceType<Deserialize = True, Deserialized = Self>,
         {
             s.piped(RStr::from).piped(I::deserialize_impl)
         }
@@ -540,11 +546,11 @@ where
 }
 
 /// First it Deserializes a string,then it deserializes into a 
-/// `VirtualWrapper<_>`,by using `<I as DeserializeImplType>::deserialize_impl`.
+/// `VirtualWrapper<_>`,by using `<I as DeserializeInterfaceType>::deserialize_impl`.
 impl<'a, P, I> Deserialize<'a> for VirtualWrapper<P>
 where
     P: Deref<Target = OpaqueType<I>>,
-    I: DeserializeImplType<Deserialize = True, Deserialized = Self>,
+    I: DeserializeInterfaceType<Deserialize = True, Deserialized = Self>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -648,14 +654,14 @@ where
 }
 
 
-/// For accessing the Interface of a `VirtualWrapper<Pointer<OpaqueType< Interface >>>`.
+/// For accessing the `Interface` in a `VirtualWrapper<Pointer<OpaqueType< Interface >>>`.
 pub type GetVWInterface<This>=
     <This as VirtualWrapperTrait>::Interface;
 
 
 //////////////////////////////////////////////////////////////////
 
-/// Error that is creating when attempting to unwrap a `VirtualWrapper<_>` into the wrong type
+/// Error for `VirtualWrapper<_>` being unerased into the wrong type
 /// with one of the `*unerased*` methods.
 #[derive(Copy, Clone)]
 pub struct UneraseError {

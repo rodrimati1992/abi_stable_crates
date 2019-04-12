@@ -67,7 +67,7 @@ mod private {
             unsafe { ::std::slice::from_raw_parts(self.data, self.length) }
         }
 
-        pub fn len(&self) -> usize {
+        pub const fn len(&self) -> usize {
             self.length
         }
     }

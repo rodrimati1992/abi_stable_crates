@@ -171,7 +171,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         #inside_abi_stable_crate
 
         #[allow(unused_imports)]
-        use #import_group::reexports::{
+        use #import_group::derive_macro_reexports::{
             self as _sabi_reexports,
             renamed::*,
         };
@@ -191,7 +191,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                         __TypeLayoutParams {
                             name: #stringified_name,
                             package: env!("CARGO_PKG_NAME"),
-                            package_version: abi_stable::package_version_string!(),
+                            package_version: abi_stable::package_version_strings!(),
                             file:file!(),
                             line:line!(),
                             data: #data_variant,

@@ -1,13 +1,6 @@
-use std::mem;
-
-pub const fn coerce_static<'a, T: ?Sized>(r: &'static T) -> &'static T {
-    r
-}
-
-/// To coerce array references to slices.
-pub const fn as_slice<'a, T>(v: &'a [T]) -> &'a [T] {
-    v
-}
+/*!
+Utility functions.
+*/
 
 /// Creates an empty slice.
 pub const fn empty_slice<'a, T>() -> &'a [T]
@@ -26,10 +19,8 @@ where
     const EMPTY: &'a [T] = &[];
 }
 
-pub const fn assert_zero_sized<T>() -> usize {
-    0 - mem::size_of::<T>()
-}
-
+/// Prints an error message for attempting to panic across the 
+/// ffi boundary and aborts the process.
 #[inline(never)]
 #[cold]
 pub fn ffi_panic_message(file: &'static str, line: u32) -> ! {
@@ -42,9 +33,25 @@ pub fn ffi_panic_message(file: &'static str, line: u32) -> ! {
 
 //////////////////////////////////
 
-
+/// Leaks `value` into the heap,and returns a reference to it.
 #[inline]
-pub fn leak_value<'a,T>(value:T)->&'a T{
+pub fn leak_value<'a,T>(value:T)->&'a T
+where T:'a // T:'a is for the docs
+{
     let x=Box::new(value);
     Box::leak(x)
 }
+
+//////////////////////////////////
+
+
+pub(crate) extern fn executable_identity()->usize{
+    (&crate::EXECUTABLE_IDENTITY) as *const _ as usize
+}
+
+pub(crate) extern fn executable_identity_2()->usize{
+    (&EXECUTABLE_IDENTITY_2) as *const _ as usize
+}
+
+use std::sync::atomic::AtomicUsize;
+static EXECUTABLE_IDENTITY_2: AtomicUsize = AtomicUsize::new(1);

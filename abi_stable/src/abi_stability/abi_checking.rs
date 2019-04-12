@@ -1,3 +1,7 @@
+/*!
+Functions and types related to the layout checking.
+*/
+
 use std::{cmp::Ordering, fmt};
 
 #[allow(unused_imports)]
@@ -8,41 +12,49 @@ use std::collections::HashSet;
 
 use super::{
     AbiInfo, AbiInfoWrapper, StableAbi, TLData, TLDataDiscriminant, TLEnumVariant, TLField,
-    TLFieldAndType, TypePrinter,
+    TLFieldAndType, FullType,
 };
 use crate::{
     version::{InvalidVersionString, VersionStrings},
     std_types::{RVec, StaticSlice, StaticStr},
 };
 
+/// All the errors from checking the layout of every nested type in AbiInfo.
 #[derive(Debug, PartialEq)]
 #[repr(C)]
 pub struct AbiInstabilityErrors {
-    interface: &'static AbiInfo,
-    implementation: &'static AbiInfo,
-    errors: RVec<AbiInstabilityError>,
+    pub interface: &'static AbiInfo,
+    pub implementation: &'static AbiInfo,
+    pub errors: RVec<AbiInstabilityError>,
+    _priv:(),
 }
 
+/// All the shallow errors from checking an individual type.
+///
+/// Error that happen lower or higher on the stack are stored in separate
+///  `AbiInstabilityError`s.
 #[derive(Debug, PartialEq)]
 #[repr(C)]
 pub struct AbiInstabilityError {
-    stack_trace: RVec<TLFieldAndType>,
-    errs: RVec<AbiInstability>,
-    index: usize,
+    pub stack_trace: RVec<TLFieldAndType>,
+    pub errs: RVec<AbiInstability>,
+    pub index: usize,
+    _priv:(),
 }
 
+/// An individual error from checking the layout of some type.
 #[derive(Debug, PartialEq)]
 #[repr(C)]
 pub enum AbiInstability {
     IsPrefix(ExpectedFoundError<bool>),
     NonZeroness(ExpectedFoundError<bool>),
-    Name(ExpectedFoundError<TypePrinter>),
+    Name(ExpectedFoundError<FullType>),
     Package(ExpectedFoundError<StaticStr>),
     PackageVersionParseError(InvalidVersionString),
     PackageVersion(ExpectedFoundError<VersionStrings>),
     Size(ExpectedFoundError<usize>),
     Alignment(ExpectedFoundError<usize>),
-    GenericParamCount(ExpectedFoundError<TypePrinter>),
+    GenericParamCount(ExpectedFoundError<FullType>),
     TLDataDiscriminant(ExpectedFoundError<TLDataDiscriminant>),
     FieldCountMismatch(ExpectedFoundError<usize>),
     FieldLifetimeMismatch(ExpectedFoundError<&'static TLField>),
@@ -138,6 +150,7 @@ impl fmt::Display for AbiInstabilityError {
 
 //////
 
+/// Represents an error where a value was expected,but another value was found.
 #[derive(Debug, PartialEq)]
 #[repr(C)]
 pub struct ExpectedFoundError<T> {
@@ -388,6 +401,7 @@ impl AbiChecker {
                 stack_trace: self.stack_trace.clone(),
                 errs: errs_,
                 index: errs_index,
+                _priv:(),
             });
         }
     }
@@ -442,6 +456,7 @@ pub fn check_abi_stability(
             })]
             .into(),
             index: 0,
+            _priv:(),
         }]
         .into();
     } else {
@@ -458,6 +473,7 @@ pub fn check_abi_stability(
             interface: interface,
             implementation: implementation,
             errors,
+            _priv:()
         })
     }
 }

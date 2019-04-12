@@ -1,5 +1,7 @@
-//! Abi stable version of Box<::std::error::Error+Sync+Send+'static>
-
+/*! 
+Ffi-safe version of 
+`Box<::std::error::Error+Sync+Send+'static>` and `Box<::std::error::Error+'static>`
+*/
 use std::{
     error::Error as ErrorTrait,
     fmt::{self, Debug, Display},
@@ -21,6 +23,9 @@ use crate::{
 };
 
 
+/// Ffi-safe version of `Box<::std::error::Error>` 
+/// whose `Send+Sync`ness is determined by the `M` type parameter.
+///
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]

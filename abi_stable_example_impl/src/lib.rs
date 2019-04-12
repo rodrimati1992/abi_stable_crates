@@ -1,3 +1,13 @@
+/*!
+This is an `implementation crate`,
+It exports all the modules(structs of function pointers) required by the 
+`abi_stable_example_interface`(the `interface crate`) with these functions:
+
+- get_library: Exports the root module 
+- get_hello_world_mod :Exports an example module.
+
+*/
+
 use std::collections::HashSet;
 
 use abi_stable_example_interface::{
@@ -8,8 +18,9 @@ use abi_stable::{
     mangle_library_getter,
     extern_fn_panic_handling, impl_get_type_info,
     library::WithLayout,
-    traits::{ImplType, IntoReprC,SerializeImplType},
-    std_types::{RCow, RStr, RString,RResult,ROk,RErr,RBoxError}, 
+    erased_types::{ImplType,SerializeImplType,TypeInfo},
+    traits::{IntoReprC},
+    std_types::{RCow, RStr,RArc, RString,RResult,ROk,RErr,RBoxError}, 
     StableAbi, VirtualWrapper,
 };
 use core_extensions::{SelfOps,StringExt};
@@ -17,19 +28,25 @@ use core_extensions::{SelfOps,StringExt};
 use serde::{Serialize,Deserialize};
 use serde_json;
 
-#[derive(Debug,Serialize,Deserialize)]
+#[derive(Debug,Serialize,Deserialize,PartialEq)]
 struct TextOperationState {
     processed_bytes: u64,
 }
 
-impl_get_type_info! {
-    impl GetTypeInfo for TextOperationState
-    version=0,1,0;
-}
+/// Declares TOState as the `ìnterface type` of `TextOperationState`.
+///
+/// Also declares the INFO constant,with information about the type,
+/// used when erasing/unerasing the type with `VirtualWrapper<_>`.
+///
+/// TOState defines which traits are required when constructing VirtualWrapper<_>,
+/// and which ones it provides after constructing it.
 impl ImplType for TextOperationState {
     type Interface = TOState;
+
+    const INFO: &'static TypeInfo=impl_get_type_info! { TextOperationState };
 }
 
+/// Defines how the type is serialized in VirtualWrapper<_>.
 impl SerializeImplType for TextOperationState {
     fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError> {
         match serde_json::to_string(&self) {
@@ -39,6 +56,8 @@ impl SerializeImplType for TextOperationState {
     }
 }
 
+/// Constructs a TextOperationState and erases it by wrapping it into a 
+/// `VirtualWrapper<Box<OpaqueType<TOState>>>`.
 pub extern "C" fn new() -> TOStateBox {
     extern_fn_panic_handling! {
         let this=TextOperationState{
@@ -48,6 +67,8 @@ pub extern "C" fn new() -> TOStateBox {
     }
 }
 
+
+/// Defines how a TOStateBox is deserialized from json.
 pub extern "C" fn deserialize_state(s:RStr<'_>) -> RResult<TOStateBox, RBoxError>{
     extern_fn_panic_handling! {
         match serde_json::from_str::<TextOperationState>(s.into()) {
@@ -57,6 +78,7 @@ pub extern "C" fn deserialize_state(s:RStr<'_>) -> RResult<TOStateBox, RBoxError
     }
 }
 
+/// Reverses order of the lines in `text`.
 pub extern "C" fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>,_:ThirdParam)-> RString {
     extern_fn_panic_handling! {
         let this = this.as_unerased_mut::<TextOperationState>().unwrap();
@@ -74,6 +96,8 @@ pub extern "C" fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>,_:Thir
     }
 }
 
+/// Removes the words in `param.words` from `param.string`,
+/// as well as the whitespace that comes after it.
 // This is a separate function because ìnitializing `remove_words_str` with `remove_words`
 // does not work,due to some bound lifetime stuff,once it does this function will be obsolete.
 pub extern "C" fn remove_words_str(
@@ -83,6 +107,8 @@ pub extern "C" fn remove_words_str(
     remove_words(this, param)
 }
 
+/// Removes the words in `param.words` from `param.string`,
+/// as well as the whitespace that comes after it.
 // This is a separate function because ìnitializing `remove_words_cow` with `remove_words`
 // does not work,due to some bound lifetime stuff,once it does this function will be obsolete.
 pub extern "C" fn remove_words_cow(
@@ -92,6 +118,8 @@ pub extern "C" fn remove_words_cow(
     remove_words(this, param)
 }
 
+/// Removes the words in `param.words` from `param.string`,
+/// as well as the whitespace that comes after it.
 pub extern "C" fn remove_words<S>(this: &mut TOStateBox, param: RemoveWords<S>) -> RString
 where
     S: AsRef<str> + Clone + StableAbi,
@@ -119,6 +147,9 @@ where
         buffer.into()
     }
 }
+
+/// Returns the ammount of text (in bytes) 
+/// that was processed in functions taking `&mut TOStateBox`.
 pub extern "C" fn get_processed_bytes(this: &TOStateBox) -> u64 {
     extern_fn_panic_handling! {
         let this = this.as_unerased::<TextOperationState>().unwrap();
@@ -126,6 +157,11 @@ pub extern "C" fn get_processed_bytes(this: &TOStateBox) -> u64 {
     }
 }
 
+
+/// Exports the `TextOpsMod` module.
+///
+/// WithLayout is used to check that the layout of `TextOpsMod` in this dynamic library
+/// is compatible with the layout of it in the binary that loads this library.
 #[mangle_library_getter]
 pub extern "C" fn get_library() -> WithLayout<TextOpsMod> {
     extern_fn_panic_handling!{
@@ -153,13 +189,24 @@ pub extern "C" fn greeter(name:RStr<'_>){
     }
 }
 
+pub extern "C" fn get_arc()->RArc<RString>{
+    extern_fn_panic_handling!{
+        RArc::new(RString::from("hello"))
+    }
+}
 
 
+
+/// Exports the `HelloWorldMod` module.
+///
+/// WithLayout is used to check that the layout of `HelloWorldMod` in this dynamic library
+/// is compatible with the layout of it in the binary that loads this library.
 #[mangle_library_getter]
 pub extern "C" fn get_hello_world_mod() -> WithLayout<HelloWorldMod> {
     extern_fn_panic_handling!{
         HelloWorldMod{
             greeter,
+            get_arc,
         }.piped(WithLayout::new)
     }
 }
@@ -172,11 +219,23 @@ pub extern "C" fn get_hello_world_mod() -> WithLayout<HelloWorldMod> {
 mod tests{
     use super::*;
 
+    use abi_stable_example_interface::{MODULES,Modules};
+
+    fn setup(){
+        MODULES.init(||{
+            Modules{
+                text_operations:get_library().check_layout().unwrap(),
+                hello_world:get_hello_world_mod().check_layout().unwrap(),
+            }.piped(Box::new)
+             .piped(Box::leak)
+        });
+    }
+
     #[test]
     fn test_reverse_lines() {
         let mut state = new();
         assert_eq!(
-            &*reverse_lines(&mut state, "hello\nbig\nworld".into()),
+            &*reverse_lines(&mut state, "hello\nbig\nworld".into(),()),
             "world\nbig\nhello\n"
         );
     }
@@ -204,9 +263,11 @@ mod tests{
 
     #[test]
     fn deserializing(){
+        setup();
+        
         let json=r#"
             {
-                "processed_bytes":101,
+                "processed_bytes":101
             }
         "#;
 
@@ -216,26 +277,28 @@ mod tests{
 
         let value1=serde_json::from_str::<TOStateBox>(&json_string).unwrap();
 
-        assert_eq!(value0,value1 );
+        assert_eq!(value0,value1);
 
     }
 
 
     #[test]
     fn serializing(){
+        setup();
+
         let this=TextOperationState {
             processed_bytes: 1337,
         }.piped(VirtualWrapper::from_value);
 
-        let serialized_0= this.serialized().split_whitespace().collect::<String>();
+        let serialized_0= this.serialized().unwrap().split_whitespace().collect::<String>();
 
         let expected_0=r#"{"processed_bytes":1337}"#;
 
         assert_eq!(serialized_0,expected_0);
 
         assert_eq!(
-            serde_json::to_string(&this), 
-            serde_json::to_string(&expected_0),
+            serde_json::to_string(&this).unwrap(), 
+            serde_json::to_string(&expected_0).unwrap(),
         );
     }
 

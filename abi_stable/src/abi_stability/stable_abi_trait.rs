@@ -1,3 +1,7 @@
+/*!
+Where the StableAbi trait is declares,as well as related types/traits.
+*/
+
 use core_extensions::type_level_bool::{Boolean, False, True};
 use std::{
     fmt,
@@ -14,26 +18,30 @@ use super::{LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayou
 
 ///////////////////////
 
-/// Represents a type whose layout is stable.
-///
-/// # Safety
-///
-/// The layout of types implementing this trait must be stable across minor versions,
-///
-/// # Caveats
-///
-/// This trait cannot be currently implemented for functions that take lifetime parameters,
-/// even if their parameters and return types implement StableAbi.
-/// To mitigate this `#[derive(StableAbi)]` specially supports `extern fn` types
-/// (except through type aliases).
+/**
+Represents a type whose layout is stable.
+
+This trait can be derived using `#[derive(StableAbi)]`.
+
+# Safety
+
+The layout of types implementing this trait must be stable across minor versions,
+
+# Caveats
+
+This trait cannot be directly implemented for functions that take lifetime parameters,
+because of that,`#[derive(StableAbi)]` detects the presence of `extern fn` types 
+in type definitions.
+
+*/
 pub unsafe trait StableAbi {
     /**
-    Whether this type has 0 as an invalid bit-pattern.
+    Whether this type has a single invalid bit-pattern.
     
     Possible values:True/False
 
     Some standard library types have a single value that is invalid for them eg:0,null.
-    these types are the only which can be stored in a `Option<_>` that implements AbiStable.
+    these types are the only ones which can be stored in a `Option<_>` that implements AbiStable.
 
     An alternative for types where `IsNonZeroType=False`,you can use `abi_stable::ROption`.
 
@@ -53,8 +61,10 @@ pub unsafe trait StableAbi {
     */
     type IsNonZeroType: Boolean;
 
+    /// The layout of the type provided by implementors.
     const LAYOUT: &'static TypeLayout;
 
+    /// The layout of the type,derived from Self::LAYOUT and associated types.
     const ABI_INFO: &'static AbiInfoWrapper = {
         let info = AbiInfo {
             prefix_kind: false,
@@ -69,8 +79,7 @@ pub unsafe trait StableAbi {
 ///////////////////////
 
 
-/// Wrapper type for AbiInfo that requires the
-/// correct construction of AbiInfo to construct it.
+/// Wraps a correctly constructed AbiInfo.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(C)]
 #[derive(StableAbi)]
@@ -84,10 +93,16 @@ impl AbiInfoWrapper {
     const fn new(inner: AbiInfo) -> Self {
         Self { inner, _priv: () }
     }
+    /// Unsafely constructs AbiInfoWrapper from any AbiInfo.
     ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the layout is that of the datatype this AbiInfo represents,
+    /// and that it stays consistent with it across time.
     pub const unsafe fn new_unchecked(inner: AbiInfo) -> Self {
         Self::new(inner)
     }
+    /// Gets the wrapped AbiInfo.
     pub const fn get(&self) -> &AbiInfo {
         &self.inner
     }
@@ -97,20 +112,23 @@ impl AbiInfoWrapper {
 ///
 /// # Safety
 ///
-/// If this is manually constructed,you must ensure that it describes the actual abi of the type.
+/// You must ensure that it describes the actual abi of the type.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct AbiInfo {
+    /// Reserved for `0.2`,for modules and vtables.
     pub prefix_kind: bool,
+    /// Whether the type uses non-zero value optimization,
+    /// if true then an Option<Self> implements StableAbi.
     pub is_nonzero: bool,
     pub layout: &'static TypeLayout,
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Getter for the AbiInfo of some type.
+/// Gets for the AbiInfo of some type,wraps an `extern "C" fn() -> &'static AbiInfo`.
 #[derive(Copy, Clone)]
 #[repr(transparent)]
 #[derive(StableAbi)]
@@ -126,6 +144,7 @@ impl fmt::Debug for GetAbiInfo {
 }
 
 impl GetAbiInfo {
+    /// Gets the `&'static AbiInfo` of some type.
     pub fn get(self) -> &'static AbiInfo {
         (self.abi_info)()
     }
@@ -177,7 +196,6 @@ where
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// By default PhantomData has to reference an StableAbi type.
 unsafe impl<T> StableAbi for PhantomData<T> {
     type IsNonZeroType = False;
 
@@ -198,7 +216,7 @@ unsafe impl StableAbi for () {
 
 /////////////
 
-// Does not allow ?Sized types because the DST fat pointer does not have a fixed layout.
+// Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<'a, T> StableAbi for &'a T
 where
     T: 'a + StableAbi,
@@ -218,6 +236,7 @@ where
     );
 }
 
+// Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<'a, T> StableAbi for &'a mut T
 where
     T: 'a + StableAbi,
@@ -237,6 +256,7 @@ where
     );
 }
 
+// Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<T> StableAbi for NonNull<T>
 where
     T: StableAbi,
@@ -275,6 +295,7 @@ where
     );
 }
 
+// Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<T> StableAbi for *const T
 where
     T: StableAbi,
@@ -294,6 +315,7 @@ where
     );
 }
 
+// Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<T> StableAbi for *mut T
 where
     T: StableAbi,
@@ -404,7 +426,6 @@ impl_for_concrete! {
         u16,i16,
         u32,i32,
         u64,i64,
-        u128,i128,
         usize,isize,
         bool,
         AtomicBool,
@@ -417,7 +438,6 @@ impl_for_concrete! {
         num::NonZeroU16,
         num::NonZeroU32,
         num::NonZeroU64,
-        num::NonZeroU128,
         num::NonZeroUsize,
     ]
 }
@@ -427,9 +447,10 @@ impl_for_concrete! {
 #[cfg(any(rust_1_34,feature="rust_1_34"))]
 mod rust_1_34_impls{
     use super::*;
-    // 1.34 doesn't re-export NonZeroI* std::num.
-    use core::{num as core_num};
-    use std::sync::atomic;
+    use std::{
+        sync::atomic,
+        num,
+    };
 
     impl_for_concrete! {
         zeroable=[
@@ -443,12 +464,11 @@ mod rust_1_34_impls{
             atomic::AtomicU8,
         ]
         nonzero=[
-            core_num::NonZeroI8,
-            core_num::NonZeroI16,
-            core_num::NonZeroI32,
-            core_num::NonZeroI64,
-            core_num::NonZeroI128,
-            core_num::NonZeroIsize,
+            num::NonZeroI8,
+            num::NonZeroI16,
+            num::NonZeroI32,
+            num::NonZeroI64,
+            num::NonZeroIsize,
         ]
     }
 }
@@ -503,6 +523,7 @@ unsafe impl StableAbi for unsafe extern "C" fn() {
     const LAYOUT: &'static TypeLayout = EMPTY_EXTERN_FN_LAYOUT;
 }
 
+/// The layout of `extern fn()` and `unsafe extern fn()`
 const EMPTY_EXTERN_FN_LAYOUT: &'static TypeLayout =
     &TypeLayout::from_params::<extern "C" fn()>(TypeLayoutParams {
         name: "AFunctionPointer",
@@ -523,7 +544,14 @@ const EMPTY_EXTERN_FN_LAYOUT: &'static TypeLayout =
 
 /////////////
 
-/// An unsafe type,which allows treating a field as though it were a primitive type.
+/// Allows one to create the TypeLayout/AbiInfoWrapper for any type `T`,
+/// by pretending that it is a primitive type.
+/// 
+/// Used by the StableAbi derive macro by fields marker as `#[sabi(unsafe_opaque_field)]`.
+/// 
+/// # Safety
+/// 
+/// You must ensure that the layout of `T` is compatible through other means.
 #[repr(transparent)]
 pub struct UnsafeOpaqueField<T>(T);
 

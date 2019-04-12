@@ -4,7 +4,7 @@
 
 use super::*;
 
-use crate::opaque_type::ErasedObject;
+use crate::ErasedObject;
 
 pub(crate) fn adapt_std_fmt<T>(
     value: &T,

@@ -1,3 +1,8 @@
+/*!
+Traits and types related to loading an abi_stable dynamic library,
+as well as functions/modules within.
+*/
+
 use std::{
     fmt::{self, Display},
     io,
@@ -25,6 +30,8 @@ use crate::{
     std_types::RVec,
 };
 
+
+/// A handle to a loaded library.
 #[derive(Copy, Clone)]
 pub struct Library {
     path:&'static Path,
@@ -32,19 +39,21 @@ pub struct Library {
 }
 
 
+/// What naming convention to expect when loading a library from a directory.
 #[derive(Debug,Copy,Clone,PartialEq,Eq,Ord,PartialOrd,Hash)]
 pub enum LibrarySuffix{
-    /// Loads a dynamic library at `<parent_folder>/<base_name>.extension`
+    /// Loads a dynamic library at `<folder>/<base_name>.extension`
     NoSuffix,
     
-    /// Loads a dynamic library at `<parent_folder>/<base_name>-<pointer_size>.<extension>`
+    /// Loads a dynamic library at `<folder>/<base_name>-<pointer_size>.<extension>`
     Suffix,
 }
 
 
 impl Library {
+    /// Gets the full path a library would be loaded from,
     pub fn get_library_path(
-        parent_folder: &Path,
+        folder: &Path,
         base_name: &str,
         suffix:LibrarySuffix,
     )->PathBuf{
@@ -72,7 +81,7 @@ impl Library {
         };
 
         let name=format!("{}{}.{}",prefix, maybe_suffixed_name, extension);
-        parent_folder.join(name)
+        folder.join(name)
     }
 
     /// Loads the dynamic library at the `full_path` path.
@@ -88,12 +97,14 @@ impl Library {
     }
 
     /// Loads the dynamic library.
+    /// 
+    /// The full filename of the library is determined by `suffix`.
     pub fn load(
-        parent_folder: &Path,
+        folder: &Path,
         base_name: &str,
         suffix:LibrarySuffix,
     ) -> Result<&'static Self,LibraryError> {
-        let path=Self::get_library_path(parent_folder,base_name,suffix);
+        let path=Self::get_library_path(folder,base_name,suffix);
         Self::load_at(&path)
     }
 
@@ -116,7 +127,7 @@ impl Library {
             Err(io)=>{
                 let symbol=symbol_name.to_owned();
                 Err(LibraryError::GetSymbolError{ 
-                    path:self.path.clone(),
+                    library:self.path.clone(),
                     symbol, 
                     io 
                 })
@@ -127,12 +138,24 @@ impl Library {
 
 //////////////////////////////////////////////////////////////////////
 
+/// A type alias for a function that exports a module 
+/// (a struct of function pointers that implements ModuleTrait).
 pub type LibraryGetterFn<T>=
     extern "C" fn() -> WithLayout<T>;
 
 //////////////////////////////////////////////////////////////////////
 
-pub trait LibraryTrait: Sized + StableAbi {
+
+/// Represents a dynamic library,which contains modules 
+/// (structs loaded using functions exported in the `implemenetation crate`).
+///
+/// Generally it is the root module that implements this trait.
+///
+/// For an example of a type implementing this trait you can look 
+/// for crates names `abi_stable_example*_interface` in this crates' repository .
+pub trait LibraryTrait: Sized  {
+
+    /// The late-initialized reference to the Library handle.
     fn raw_library_ref()->&'static LazyStaticRef<Library>;
 
     /// The base name of the dynamic library,which is the same on all platforms.
@@ -144,28 +167,33 @@ pub trait LibraryTrait: Sized + StableAbi {
 
     /// The version number of this library.
     /// 
-    /// 
-    /// 
+    /// Initialize this with ` package_version_strings!() `
     const VERSION_STRINGS: VersionStrings;
 }
 
-
+/// Represents a module
+/// (struct of function pointers,loaded using functions exported in the `implemenetation crate`).
+///
+/// For an example of a type implementing this trait you can look 
+/// for crates names `abi_stable_example*_interface` in this crates' repository .
 pub trait ModuleTrait: 'static+Sized+ StableAbi{
     type Library:LibraryTrait;
     
     /// The name of the function which constructs this module.
     ///
-    /// The function signature is:
+    /// The function signature for the loader is:
     ///
-    /// extern "C" fn()->WithLayout<Self>
+    /// `extern "C" fn()->WithLayout<Self>`
     const LOADER_FN: &'static str;
 
+    /// Returns the path the library would be loaded from.
     fn get_library_path(directory:&Path)-> PathBuf {
         let base_name=<Self::Library as LibraryTrait>::BASE_NAME;
         Library::get_library_path(directory, base_name,LibrarySuffix::Suffix)
     }
 
-    /// Loads this module by first loading the dynamic library from the `directory`.
+    /// Loads this module,
+    /// first loading the dynamic library from the `directory` if it wasn't already loaded.
     fn load_from_library_in(directory: &Path) -> Result<&'static Self, LibraryError>{
         Self::Library::raw_library_ref()
             .try_init(||{
@@ -177,7 +205,6 @@ pub trait ModuleTrait: 'static+Sized+ StableAbi{
     }
 
     /// Loads this module from the `raw_library`.
-    /// Only returns the module if it was already loaded.
     fn load_with(raw_library:&'static Library)->Result<&'static Self,LibraryError>{
         let mangled=mangle_library_getter_ident(Self::LOADER_FN);
 
@@ -215,6 +242,8 @@ pub trait ModuleTrait: 'static+Sized+ StableAbi{
 mod with_layout {
     use super::*;
 
+    /// Used to check the layout of modules returned by module-loading functions
+    /// exported by dynamic libraries.
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
@@ -227,6 +256,7 @@ mod with_layout {
     }
 
     impl<T> WithLayout<T> {
+        /// Constructs a WithLayout.
         pub fn from_ref(ref_:&'static T)->Self
         where
             T: ModuleTrait,
@@ -238,6 +268,8 @@ mod with_layout {
                 value:ref_,
             }
         }
+
+        /// Constructs a WithLayout,leaking the value in the process.
         pub fn new(value:T) -> Self
         where
             T: ModuleTrait,
@@ -248,10 +280,13 @@ mod with_layout {
                 .piped(Self::from_ref)
         }
 
+        /// The version string of the library the module is being loaded from.
         pub fn version_strings(&self)->VersionStrings{
             self.version_strings
         }
 
+        /// Checks that the layout of the `T` from the dynamic library is 
+        /// compatible with the caller's .
         pub fn check_layout(self) -> Result<&'static T, LibraryError>
         where
             T: ModuleTrait,
@@ -276,40 +311,39 @@ const MAGIC_NUMBER: usize = 0xAB1_57A_00;
 
 //////////////////////////////////////////////////////////////////////
 
-#[macro_export]
-macro_rules! version_strings_const {
-    ( $function_name:ident ) => {{
-        use $crate::{version::VersionStrings, std_types::StaticStr};
-        VersionStrings {
-            major: StaticStr::new(env!("CARGO_PKG_VERSION_MAJOR")),
-            minor: StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
-            patch: StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
-        }
-    }};
-}
 
-//////////////////////////////////////////////////////////////////////
-
+/// All the possible errors that could happen when loading a library,
+/// or a module.
 #[derive(Debug)]
 pub enum LibraryError {
+    /// When a library can't be loaded, because it doesn't exist.
     OpenError{
         path:PathBuf,
         io:io::Error,
     },
+    /// When a function/static does not exist.
     GetSymbolError{
-        path:&'static Path,
+        library:&'static Path,
+        /// The name of the function/static.Does not have to be utf-8.
         symbol:Vec<u8>,
         io:io::Error,
     },
-    
+    /// The version string could not be parsed into a version number.
     InvalidVersionString(InvalidVersionString),
+    /// The version numbers of the library was incompatible.
     IncompatibleVersionNumber {
         library_name: &'static str,
         user_version: VersionNumber,
         library_version: VersionNumber,
     },
+    /// The abi is incompatible.
     AbiInstability(AbiInstabilityErrors),
+    /// The magic number used to check that this is a compatible abi_stable
+    /// is not the same.
     InvalidMagicNumber(usize),
+    /// There could have been 0 or more errors in the function.
+    ///
+    /// This is used in `abi_stable_example_interface` to collect all module loading errors.
     Many(RVec<Self>),
 }
 
@@ -333,11 +367,11 @@ impl Display for LibraryError {
                 "Could not open library at:\n\t{}\nbecause:\n\t{}",
                 path.display(),io
             ),
-            LibraryError::GetSymbolError{path,symbol,io} => writeln!(
+            LibraryError::GetSymbolError{library,symbol,io} => writeln!(
                 f,
                 "Could load symbol:\n\t{}\nin library:\n\t{}\nbecause:\n\t{}",
                 String::from_utf8_lossy(symbol),
-                path.display(),
+                library.display(),
                 io
             ),
             LibraryError::InvalidVersionString(x) => fmt::Display::fmt(x, f),

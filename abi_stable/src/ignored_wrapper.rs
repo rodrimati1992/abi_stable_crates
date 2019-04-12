@@ -1,3 +1,7 @@
+/*!
+Wrapper type(s) where their value is ignored in some trait impls .
+*/
+
 use std::{
     ops::{Deref,DerefMut},
     fmt::{self,Debug,Display},
@@ -5,7 +9,7 @@ use std::{
     hash::{Hash,Hasher},
 };
 
-/// Wrapper type used to ignore it's contents in comparisons.
+/// Wrapper type used to ignore its contents in comparisons.
 ///
 /// It also:
 ///

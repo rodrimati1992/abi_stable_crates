@@ -52,6 +52,12 @@ impl<'a> fmt::Debug for Drain<'a> {
 unsafe impl<'a> Sync for Drain<'a> {}
 unsafe impl<'a> Send for Drain<'a> {}
 
+impl<'a> Drain<'a> {
+    pub fn as_str(&self) -> &str {
+        self.iter.as_str()
+    }
+}
+
 impl<'a> Drop for Drain<'a> {
     fn drop(&mut self) {
         unsafe {

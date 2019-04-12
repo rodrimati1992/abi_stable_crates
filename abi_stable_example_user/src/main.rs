@@ -1,6 +1,7 @@
 use std::{
     path::{Path,PathBuf},
-    io::{self,BufRead,Write,Read}
+    io::{self,BufRead,Write,Read},
+    sync::Arc,
 };
 
 
@@ -9,13 +10,16 @@ use core_extensions::SelfOps;
 use structopt::StructOpt;
 
 use abi_stable::{
-    std_types::{RString,RVec},
+    std_types::{RString,RVec,RArc},
     library::{Library,ModuleTrait,LibraryTrait,LibraryError},
     StableAbi,
     traits::{IntoReprC},
 };
 
-use abi_stable_example_interface::{TextOpsMod,Modules,RemoveWords,load_library};
+use abi_stable_example_interface::{TextOpsMod,Modules,RemoveWords,load_library_in};
+
+#[global_allocator]
+static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 /// Returns the path the library will be loaded from.
 fn compute_library_path()->io::Result<PathBuf>{
@@ -65,6 +69,7 @@ where F:FnMut(&str)->RString
 }
 
 
+
 #[derive(StructOpt)]
 enum Command {
     #[structopt(name = "reverse-line-order")]
@@ -84,15 +89,15 @@ enum Command {
     },
 
     #[structopt(name = "run-tests")]
+    /// Runs some tests.
     RunTests
 }
 
 
 
-
 fn main()-> io::Result<()> {
     let library_path=compute_library_path().unwrap();
-    let mods=load_library(&library_path)
+    let mods=load_library_in(&library_path)
         .unwrap_or_else(|e| panic!("{}", e) );
     
     let opts = Command::from_args();
@@ -123,7 +128,16 @@ fn main()-> io::Result<()> {
         Command::RunTests=>{
             test_reverse_lines(mods);
             test_remove_words(mods);
+
+            let rarc=(mods.hello_world.get_arc)();
+            let rarc_clone=rarc.clone();
+            let strong_count=rarc
+                .piped(RArc::into_arc)
+                .piped_ref(Arc::strong_count);
+            assert_eq!(strong_count,1);
+            
             println!("tests succeeded!");
+
         }
     }
 

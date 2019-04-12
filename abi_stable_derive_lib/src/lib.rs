@@ -1,3 +1,7 @@
+/*!
+An implementation detail of abi_stable.
+*/
+
 #![recursion_limit="128"]
 //#![deny(unused_variables)]
 
@@ -40,6 +44,7 @@ use crate::{
 /// Mangles the name of the function that returns a library's functions/statics,
 /// so that one does not accidentally load
 /// dynamic libraries that use incompatible versions of abi_stable
+#[doc(hidden)]
 pub fn mangle_library_getter_ident<S>(s:S)->String
 where S: ::std::fmt::Display
 {
@@ -105,6 +110,7 @@ where S: ::std::fmt::Display
 }
 
 
+#[doc(hidden)]
 pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
     measure!({
         let input = syn::parse::<DeriveInput>(input).unwrap();
@@ -113,12 +119,14 @@ pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
     })
 }
 
+#[doc(hidden)]
 pub fn derive_stable_abi_from_str(s: &str) -> TokenStream2 {
     let input = syn::parse_str::<DeriveInput>(s).unwrap();
     stable_abi::derive(input)
 }
 
 
+#[doc(hidden)]
 pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     use syn::Ident;
 
