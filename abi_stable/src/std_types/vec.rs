@@ -13,7 +13,11 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use core_extensions::prelude::*;
 
-use crate::std_types::{RSlice, RSliceMut};
+use crate::{
+    std_types::{RSlice, RSliceMut},
+    std_types::utypeid::{UTypeId,new_utypeid},
+    return_value_equality::ReturnValueEquality,
+};
 
 #[cfg(test)]
 mod tests;
@@ -168,13 +172,17 @@ impl<T> RVec<T> {
     ///
     /// # Allocation
     ///
-    /// Moves all the elements into a newly allocated Vec<T>
-    /// if the destructor is not the one for Vec<T>.
+    /// If this is invoked outside of the dynamic library/binary that created it,
+    /// it will allocate a new `Vec<T>` and move the data into it.
     pub fn into_vec(self) -> Vec<T> {
         let mut this = ManuallyDrop::new(self);
 
         unsafe {
-            if this.vtable().destructor as usize == destructor_vec::<T> as usize {
+            let this_vtable =this.vtable();
+            let other_vtable=VTableGetter::LIB_VTABLE;
+            if ::std::ptr::eq(this_vtable,other_vtable)||
+                this_vtable.type_id==other_vtable.type_id
+            {
                 Vec::from_raw_parts(this.buffer(), this.len(), this.capacity())
             } else {
                 let len = this.length;
@@ -583,6 +591,9 @@ struct VTableGetter<'a, T>(&'a T);
 impl<'a, T: 'a> VTableGetter<'a, T> {
     // The VTABLE for this type in this executable/library
     const LIB_VTABLE: &'a VecVTable<T> = &VecVTable {
+        type_id:ReturnValueEquality{
+            function:new_utypeid::<RVec<()>>
+        },
         destructor: destructor_vec,
         grow_capacity_to: grow_capacity_to_vec,
         shrink_to_fit: shrink_to_fit_vec,
@@ -590,7 +601,9 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
 
     // Used to test functions that change behavior based on the vtable being used
     const LIB_VTABLE_FOR_TESTING: &'a VecVTable<T> = &VecVTable {
-        destructor: destructor_vec_for_testing,
+        type_id:ReturnValueEquality{
+            function:new_utypeid::<RVec<i32>>
+        },
         ..*Self::LIB_VTABLE
     };
 }
@@ -599,6 +612,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 struct VecVTable<T> {
+    type_id:ReturnValueEquality<UTypeId>,
     destructor: extern "C" fn(&mut RVec<T>),
     grow_capacity_to: extern "C" fn(&mut RVec<T>, usize, Exactness),
     shrink_to_fit: extern "C" fn(&mut RVec<T>),
@@ -621,11 +635,6 @@ extern "C" fn destructor_vec<T>(this: &mut RVec<T>) {
             ));
         }
     }
-}
-
-// Used to test functions that change behavior based on the vtable being used
-extern "C" fn destructor_vec_for_testing<T>(this: &mut RVec<T>) {
-    destructor_vec(this)
 }
 
 extern "C" fn grow_capacity_to_vec<T>(this: &mut RVec<T>, to: usize, exactness: Exactness) {

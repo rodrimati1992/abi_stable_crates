@@ -74,6 +74,26 @@ where
 
 ///////////////////////////////////////////////////////////////////////////////
 
+/// This type is used in tests between the interface and user crates.
+#[repr(C)]
+#[derive(StableAbi)] 
+pub struct ForTests{
+    pub arc:RArc<RString>,
+    pub arc_address:usize,
+
+    pub box_:RBox<u32>,
+    pub box_address:usize,
+    
+    pub vec_:RVec<RStr<'static>>,
+    pub vec_address:usize,
+    
+    pub string:RString,
+    pub string_address:usize,
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
 
 // Used for showing that abi checking works
 #[cfg(not(feature="different_abi"))]
@@ -128,11 +148,11 @@ pub struct TextOpsMod {
 #[derive(StableAbi)] 
 pub struct HelloWorldMod {
     pub greeter:extern "C" fn(RStr<'_>),
-    pub get_arc:extern "C" fn()->RArc<RString>,
+    pub for_tests:extern "C" fn()->ForTests,
 }
 
 
-/// A reference to the global `Modules` instance,
+/// A late-initialized reference to the global `Modules` instance,
 ///
 /// Call `load_library_in` before calling `MODULES.get()` to get a `Some(_)` value back.
 ///
@@ -194,7 +214,7 @@ macro_rules! try_load_mod {
 }
 
 /// Loads all the modules of the library at the `directory`.
-/// If it loads them once,this will continue loading them.
+/// If it loads them once,this will continue returning the same reference.
 pub fn load_library_in(directory:&Path) -> Result<&'static Modules,LibraryError> {
     MODULES.try_init(||{
         let mut errors=RVec::new();

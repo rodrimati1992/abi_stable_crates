@@ -10,7 +10,7 @@ use core_extensions::SelfOps;
 use structopt::StructOpt;
 
 use abi_stable::{
-    std_types::{RString,RVec,RArc},
+    std_types::{RString,RVec,RArc,RBox},
     library::{Library,ModuleTrait,LibraryTrait,LibraryError},
     StableAbi,
     traits::{IntoReprC},
@@ -126,22 +126,60 @@ fn main()-> io::Result<()> {
             (mods.hello_world.greeter)(name.as_str().into());
         }
         Command::RunTests=>{
-            test_reverse_lines(mods);
-            test_remove_words(mods);
-
-            let rarc=(mods.hello_world.get_arc)();
-            let rarc_clone=rarc.clone();
-            let strong_count=rarc
-                .piped(RArc::into_arc)
-                .piped_ref(Arc::strong_count);
-            assert_eq!(strong_count,1);
-            
-            println!("tests succeeded!");
-
+            run_dynamic_library_tests(mods);
         }
     }
 
     Ok(())
+}
+
+
+/// This tests that a type coming from a dynamic library 
+/// cannot be converted back to its std-library equivalent
+/// while reusing the heap allocation.
+///
+/// The reason why they can't reuse the heap allocation is because they might
+/// be using a different global allocator that this binary is using.
+///
+/// There is no way that I am aware to check at compile-time what allocator
+/// the type is using,so this is the best I can do while staying safe.
+fn run_dynamic_library_tests(mods:&'static Modules){
+    test_reverse_lines(mods);
+    test_remove_words(mods);
+
+    let val=(mods.hello_world.for_tests)();
+    {
+        let arc_std=val.arc.piped(RArc::into_arc);
+        assert_eq!(Arc::strong_count(&arc_std),1);
+        assert_ne!(
+            (&*arc_std) as *const _ as usize,
+            val.arc_address
+        );
+    }
+    {
+        let box_std=val.box_.piped(RBox::into_box);
+        assert_ne!(
+            (&*box_std) as *const _ as usize,
+            val.box_address
+        );
+    }
+    {
+        let vec_std=val.vec_.piped(RVec::into_vec);
+        assert_ne!(
+            vec_std.as_ptr() as usize,
+            val.vec_address
+        );
+    }
+    {
+        let string_std=val.string.piped(RString::into_string);
+        assert_ne!(
+            string_std.as_ptr() as usize,
+            val.string_address
+        );
+    }
+    
+    println!("tests succeeded!");
+
 }
 
 

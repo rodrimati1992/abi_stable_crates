@@ -100,13 +100,20 @@ impl RString {
     pub fn into_bytes(self) -> RVec<u8> {
         self.inner
     }
+
+    /// Converts this RString to a String.
+    ///
+    /// # Allocation
+    ///
+    /// If this is invoked outside of the dynamic library/binary that created it,
+    /// it will allocate a new `String` and move the data into it.
     pub fn into_string(self) -> String {
         unsafe { String::from_utf8_unchecked(self.inner.into_vec()) }
     }
+    /// Copies the `RString` into a `String`.
     pub fn to_string(&self) -> String {
-        unsafe { String::from_utf8_unchecked(self.inner.to_vec()) }
+        self.as_str().to_string()
     }
-
     pub fn reserve(&mut self, additional: usize) {
         self.inner.reserve(additional);
     }

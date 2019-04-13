@@ -85,10 +85,10 @@ you can add more modules instead of functions-within-the-same-module as a workar
 
 You can't add variants to enums with fields in the `interface crate` in minor versions.
 
-Adding a variant in a minor version is a breaking change,
+Adding a variant to an enum with fields in a minor version is a breaking change,
 since `implementation crates` have to be usable with  previous minor versions of 
-the `interface crate`,
-meaning that if it returns an enum in the interface it cannot add variants because 
+the `interface crate`.
+If the `implementation crate` returns an enum in the interface it cannot add variants because 
 it would break users of previous `interface crates` at runtime.
 
 Using unions to solve this does not currently work since they don't work with non-Copy types,
@@ -97,12 +97,15 @@ and I'd rather have a complete solution.
 Here is the relevant rfcs for unions with Drop types:
 https://github.com/rust-lang/rfcs/blob/master/text/2514-union-initialization-and-drop.md
 
+# Minumum Rust version
+
+This crate support Rust back to 1.33,
+using a build script to automatically enable features from newer versions.
+
 # Cargo Features
 
-This library uses a build script to support newer versions of Rust.
-
-If it becomes possible to disable build scripts you can enable them manually by 
-setting the appropriate features.
+If it becomes possible to disable build scripts,
+you can manually enable support for Rust past 1.33 features with the `rust_*_*` cargo features.
 
 # License
 

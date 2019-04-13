@@ -12,13 +12,21 @@ use std::{
 
 use crate::std_types::StaticStr;
 
-/// The `\<major\>.\<minor\>.\<patch\>` version of this library,
+/// The `<major>.<minor>.<patch>` version of a library,
+///
+/// # Post 1.0 major version
 ///
 /// Major versions are mutually incompatible for both users and implementors.
 ///
 /// Minor allow users to have a version less than or equal to that of the implementor,
 /// and disallows implementors from making changes that would break
 /// any previous minor release (with the same major number).
+///
+/// Patch cannot change the api/abi of the library at all,fixes only.
+///
+/// # Pre 1.0 version
+///
+/// Minor versions are mutually incompatible for both users and implementors.
 ///
 /// Patch cannot change the api/abi of the library at all,fixes only.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
@@ -30,6 +38,17 @@ pub struct VersionStrings {
     pub patch: StaticStr,
 }
 
+/// The parsed (`<major>.<minor>.<patch>`) version number of a library.
+///
+/// # Post 1.0 major version
+///
+/// Major versions are mutually incompatible for both users and implementors.
+///
+/// Minor allow users to have a version less than or equal to that of the implementor,
+/// and disallows implementors from making changes that would break
+/// any previous minor release (with the same major number).
+///
+/// Patch cannot change the api/abi of the library at all,fixes only.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[repr(C)]
 #[sabi(inside_abi_stable_crate)]
@@ -40,29 +59,29 @@ pub struct VersionNumber {
 }
 
 impl VersionStrings {
-    pub fn parsed(self) -> Result<VersionNumber, InvalidVersionString> {
+    pub fn parsed(self) -> Result<VersionNumber, ParseVersionError> {
         VersionNumber::new(self)
     }
 }
 
 impl VersionNumber {
-    pub fn new(vn: VersionStrings) -> Result<Self, InvalidVersionString> {
+    pub fn new(vn: VersionStrings) -> Result<Self, ParseVersionError> {
         VersionNumber {
             major: vn
                 .major
                 .parse()
-                .map_err(|x| InvalidVersionString::new(vn, "major", x))?,
+                .map_err(|x| ParseVersionError::new(vn, "major", x))?,
             minor: vn
                 .minor
                 .parse()
-                .map_err(|x| InvalidVersionString::new(vn, "minor", x))?,
+                .map_err(|x| ParseVersionError::new(vn, "minor", x))?,
             patch: vn
                 .patch
                 .split_while(|x| '0' <= x && x <= '9')
                 .find(|x| x.key)
                 .map_or("0", |x| x.str)
                 .parse()
-                .map_err(|x| InvalidVersionString::new(vn, "patch", x))?,
+                .map_err(|x| ParseVersionError::new(vn, "patch", x))?,
         }
         .piped(Ok)
     }
@@ -121,14 +140,15 @@ macro_rules! package_version_strings {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+/// When the `VersionStrings` could not be converted into a `VersionNumber`.
 #[derive(Debug, Clone, PartialEq)]
-pub struct InvalidVersionString {
+pub struct ParseVersionError {
     version_strings: VersionStrings,
     which_field: &'static str,
     parse_error: ParseIntError,
 }
 
-impl InvalidVersionString {
+impl ParseVersionError {
     fn new(
         version_strings: VersionStrings,
         which_field: &'static str,
@@ -146,7 +166,7 @@ impl InvalidVersionString {
     }
 }
 
-impl Display for InvalidVersionString {
+impl Display for ParseVersionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(
             f,
@@ -156,4 +176,4 @@ impl Display for InvalidVersionString {
     }
 }
 
-impl error::Error for InvalidVersionString {}
+impl error::Error for ParseVersionError {}

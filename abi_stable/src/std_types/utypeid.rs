@@ -15,7 +15,7 @@ use crate::EXECUTABLE_IDENTITY;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Constructs a new UTypeId.
+/// `extern "C" fn` version of UTypeId::new.
 pub extern "C" fn new_utypeid<T>() -> UTypeId
 where
     T: 'static,
@@ -54,7 +54,7 @@ impl UTypeId {
 
 type TypeIdArray = [u8; mem::size_of::<TypeId>()];
 
-pub const MAX_TYPE_ID_SIZE: usize = 16;
+const MAX_TYPE_ID_SIZE: usize = 16;
 
 #[inline(always)]
 fn get_typeid<T: 'static>() -> [u8; MAX_TYPE_ID_SIZE] {
@@ -113,7 +113,3 @@ impl Hasher for TypeIdHasher {
     }
 }
 
-#[inline(never)]
-pub fn read_copy<T>(value: &T) {
-    unsafe { ::std::ptr::read_volatile(&value) };
-}

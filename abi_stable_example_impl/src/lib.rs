@@ -11,7 +11,7 @@ It exports all the modules(structs of function pointers) required by the
 use std::collections::HashSet;
 
 use abi_stable_example_interface::{
-    RemoveWords, TextOpsMod,HelloWorldMod, TOState, TOStateBox,ThirdParam
+    RemoveWords, TextOpsMod,HelloWorldMod, TOState, TOStateBox,ThirdParam,ForTests
 };
 
 use abi_stable::{
@@ -20,7 +20,7 @@ use abi_stable::{
     library::WithLayout,
     erased_types::{ImplType,SerializeImplType,TypeInfo},
     traits::{IntoReprC},
-    std_types::{RCow, RStr,RArc, RString,RResult,ROk,RErr,RBoxError}, 
+    std_types::{RCow, RStr,RBox,RVec,RArc, RString,RResult,ROk,RErr,RBoxError}, 
     StableAbi, VirtualWrapper,
 };
 use core_extensions::{SelfOps,StringExt};
@@ -189,9 +189,25 @@ pub extern "C" fn greeter(name:RStr<'_>){
     }
 }
 
-pub extern "C" fn get_arc()->RArc<RString>{
+pub extern "C" fn for_tests()->ForTests{
     extern_fn_panic_handling!{
-        RArc::new(RString::from("hello"))
+        let arc=RArc::new(RString::from("hello"));
+        let box_=RBox::new(10);
+        let vec_=RVec::from(vec!["world".into_c()]);
+        let string=RString::from("what the foo.");
+        ForTests{
+            arc_address:(&*arc) as *const _ as usize,
+            arc,
+
+            box_address:(&*box_) as *const _ as usize,
+            box_,
+            
+            vec_address:vec_.as_ptr() as usize,
+            vec_,
+            
+            string_address:string.as_ptr() as usize,
+            string,
+        }
     }
 }
 
@@ -206,7 +222,7 @@ pub extern "C" fn get_hello_world_mod() -> WithLayout<HelloWorldMod> {
     extern_fn_panic_handling!{
         HelloWorldMod{
             greeter,
-            get_arc,
+            for_tests,
         }.piped(WithLayout::new)
     }
 }

@@ -25,13 +25,14 @@ use crate::{
         AbiInfoWrapper,  StableAbi,
     },
     lazy_static_ref::LazyStaticRef,
-    version::{InvalidVersionString, VersionNumber, VersionStrings},
+    version::{ParseVersionError, VersionNumber, VersionStrings},
     utils::leak_value,
     std_types::RVec,
 };
 
 
-/// A handle to a loaded library.
+/// A handle to any dynamically loaded library,
+/// not necessarily ones that export abi_stable compatible modules.
 #[derive(Copy, Clone)]
 pub struct Library {
     path:&'static Path,
@@ -99,7 +100,7 @@ impl Library {
     /// Loads the dynamic library.
     /// 
     /// The full filename of the library is determined by `suffix`.
-    pub fn load(
+    pub fn load_in(
         folder: &Path,
         base_name: &str,
         suffix:LibrarySuffix,
@@ -163,7 +164,7 @@ pub trait LibraryTrait: Sized  {
     const BASE_NAME: &'static str;
 
     /// The name of the library used in error messages.
-    const NAME: &'static str = Self::BASE_NAME;
+    const NAME: &'static str;
 
     /// The version number of this library.
     /// 
@@ -192,7 +193,7 @@ pub trait ModuleTrait: 'static+Sized+ StableAbi{
         Library::get_library_path(directory, base_name,LibrarySuffix::Suffix)
     }
 
-    /// Loads this module,
+    /// Loads this module from the library in the `directory` directory,
     /// first loading the dynamic library from the `directory` if it wasn't already loaded.
     fn load_from_library_in(directory: &Path) -> Result<&'static Self, LibraryError>{
         Self::Library::raw_library_ref()
@@ -201,6 +202,14 @@ pub trait ModuleTrait: 'static+Sized+ StableAbi{
                 // println!("loading library at:\n\t{}\n",path.display());
                 Library::load_at(&path) 
             })
+            .and_then(Self::load_with)
+    }
+    
+    /// Loads this module from the library at the `full_path` path,
+    /// first loading the dynamic library from the `directory` if it wasn't already loaded.
+    fn load_from_library_at(full_path: &Path) -> Result<&'static Self, LibraryError>{
+        Self::Library::raw_library_ref()
+            .try_init(|| Library::load_at(full_path)  )
             .and_then(Self::load_with)
     }
 
@@ -230,7 +239,7 @@ pub trait ModuleTrait: 'static+Sized+ StableAbi{
         items.check_layout()?.initialization()
     }
 
-    /// Defines behavior that happens once the library is loaded.
+    /// Defines behavior that happens once the module is loaded.
     fn initialization(self: &'static Self) -> Result<&'static Self, LibraryError> {
         Ok(self)
     }
@@ -329,7 +338,7 @@ pub enum LibraryError {
         io:io::Error,
     },
     /// The version string could not be parsed into a version number.
-    InvalidVersionString(InvalidVersionString),
+    ParseVersionError(ParseVersionError),
     /// The version numbers of the library was incompatible.
     IncompatibleVersionNumber {
         library_name: &'static str,
@@ -347,9 +356,9 @@ pub enum LibraryError {
     Many(RVec<Self>),
 }
 
-impl From<InvalidVersionString> for LibraryError {
-    fn from(v: InvalidVersionString) -> LibraryError {
-        LibraryError::InvalidVersionString(v)
+impl From<ParseVersionError> for LibraryError {
+    fn from(v: ParseVersionError) -> LibraryError {
+        LibraryError::ParseVersionError(v)
     }
 }
 
@@ -374,7 +383,7 @@ impl Display for LibraryError {
                 library.display(),
                 io
             ),
-            LibraryError::InvalidVersionString(x) => fmt::Display::fmt(x, f),
+            LibraryError::ParseVersionError(x) => fmt::Display::fmt(x, f),
             LibraryError::IncompatibleVersionNumber {
                 library_name,
                 user_version,

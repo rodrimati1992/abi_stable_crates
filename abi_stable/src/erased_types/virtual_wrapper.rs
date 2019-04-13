@@ -149,6 +149,9 @@ mod priv_ {
 
     impl VirtualWrapper<()> {
         /// Constructors the `VirtualWrapper<_>` from an ImplType implementor.
+        ///
+        /// Use this whenever possible instead of `from_any_value`,
+        /// because it produces better error messages when unerasing the `VirtualWrapper<_>`
         pub fn from_value<T>(object: T) -> VirtualWrapper<RBox<OpaqueType<T::Interface>>>
         where
             T: GetVtable<T,RBox<T>> + ImplType,
@@ -158,6 +161,9 @@ mod priv_ {
         }
 
         /// Constructors the `VirtualWrapper<_>` from a pointer to an ImplType implementor.
+        ///
+        /// Use this whenever possible instead of `from_any_ptr`,
+        /// because it produces better error messages when unerasing the `VirtualWrapper<_>`
         pub fn from_ptr<P, T>(object: P) -> VirtualWrapper<P::TransmutedPtr>
         where
             P: StableDeref<Target = T>,
@@ -173,6 +179,7 @@ mod priv_ {
         /// Constructors the `VirtualWrapper<_>` from a type which doesn't borrow anything.
         pub fn from_any_value<T,I>(object: T,interface:I) -> VirtualWrapper<RBox<OpaqueType<I>>>
         where
+            T:'static,
             I:InterfaceType,
             InterfaceFor<T,I> : GetVtable<T,RBox<T>>,
         {
@@ -186,6 +193,7 @@ mod priv_ {
         where
             I:InterfaceType,
             P: StableDeref<Target = T>,
+            T:'static,
             InterfaceFor<T,I>: GetVtable<T,P>,
             P: ErasedStableDeref<I>,
         {
@@ -197,11 +205,6 @@ mod priv_ {
     }
 
     impl<P> VirtualWrapper<P> {
-        /// Unwraps the VirtualWrapper into the erased pointer type.
-        pub fn into_inner(self) -> P {
-            self.object
-        }
-
         // Allows us to call function pointers that take `P``as a parameter
         pub(super) fn vtable<'a, I>(&self) -> &'a VTable<ErasedObject, P>
         where
@@ -216,6 +219,9 @@ mod priv_ {
         }
 
         /// Allows checking whether 2 `VirtualWrapper<_>`s have a value of the same type.
+        ///
+        /// Note that types from different dynamic libraries/executables are 
+        /// never considered equal.
         pub fn is_same_type<Other>(&self,other:&VirtualWrapper<Other>)->bool{
             self.vtable_address()==other.vtable_address()||
             self.vtable.type_info.is_compatible(other.vtable.type_info)
@@ -316,7 +322,7 @@ mod priv_ {
         where
             P: TransmuteElement<T>,
             P::Target:Sized,
-            T: GetVtable<T,P::TransmutedPtr>,
+            T: ImplType + GetVtable<T,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<T,T>()?;
             unsafe { Ok(self.object.transmute_element(T::T)) }
@@ -339,7 +345,7 @@ mod priv_ {
         pub fn as_unerased<T>(&self) -> Result<&T, UneraseError>
         where
             P: Deref + TransmuteElement<T>,
-            T: GetVtable<T,P::TransmutedPtr>,
+            T: ImplType + GetVtable<T,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<T,T>()?;
             unsafe { Ok(self.object_as()) }
@@ -362,7 +368,7 @@ mod priv_ {
         pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError>
         where
             P: DerefMut + TransmuteElement<T>,
-            T: GetVtable<T,P::TransmutedPtr>,
+            T: ImplType + GetVtable<T,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<T,T>()?;
             unsafe { Ok(self.object_as_mut()) }
@@ -466,7 +472,7 @@ mod priv_ {
         }
 
         /// It serializes a `VirtualWrapper<_>` into a string by using 
-        /// <ConcreteType as SerializeImplType>::serialize_impl .
+        /// `<ConcreteType as SerializeImplType>::serialize_impl`.
         pub fn serialized<'a, I>(&'a self) -> Result<RCow<'a, str>, RBoxError>
         where
             P: Deref<Target = OpaqueType<I>>,

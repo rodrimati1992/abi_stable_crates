@@ -15,7 +15,7 @@ use super::{
     TLFieldAndType, FullType,
 };
 use crate::{
-    version::{InvalidVersionString, VersionStrings},
+    version::{ParseVersionError, VersionStrings},
     std_types::{RVec, StaticSlice, StaticStr},
 };
 
@@ -50,7 +50,7 @@ pub enum AbiInstability {
     NonZeroness(ExpectedFoundError<bool>),
     Name(ExpectedFoundError<FullType>),
     Package(ExpectedFoundError<StaticStr>),
-    PackageVersionParseError(InvalidVersionString),
+    PackageVersionParseError(ParseVersionError),
     PackageVersion(ExpectedFoundError<VersionStrings>),
     Size(ExpectedFoundError<usize>),
     Alignment(ExpectedFoundError<usize>),

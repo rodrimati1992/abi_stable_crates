@@ -6,6 +6,8 @@ use core_extensions::prelude::*;
 use crate::{
     pointer_trait::{CallReferentDrop, StableDeref, TransmuteElement},
     traits::{IntoReprRust},
+    std_types::utypeid::{UTypeId,new_utypeid},
+    return_value_equality::ReturnValueEquality,
 };
 
 #[cfg(test)]
@@ -59,11 +61,21 @@ unsafe impl<T, O> TransmuteElement<O> for RBox<T> {
 }
 
 impl<T> RBox<T> {
+    /// Converts this `RBox<T>` into a `Box<T>`
+    ///
+    /// # Allocation
+    ///
+    /// If this is invoked outside of the dynamic library/binary that created it,
+    /// it will allocate a new `Box<T>` and move the data into it.
     pub fn into_box(this: Self) -> Box<T> {
         let this = ManuallyDrop::new(this);
 
         unsafe {
-            if ::std::ptr::eq(this.vtable(), VTableGetter::<T>::LIB_VTABLE) {
+            let this_vtable =this.vtable();
+            let other_vtable=VTableGetter::LIB_VTABLE;
+            if ::std::ptr::eq(this_vtable,other_vtable)||
+                this_vtable.type_id==other_vtable.type_id
+            {
                 Box::from_raw(this.data())
             } else {
                 let ret = Box::new(this.data().read());
@@ -152,26 +164,32 @@ impl<T> Drop for RBox<T> {
 
 ///////////////////////////////////////////////////////////////
 
+#[derive(StableAbi)]
+#[repr(C)]
+#[sabi(inside_abi_stable_crate)]
+pub(crate) struct BoxVtable<T> {
+    type_id:ReturnValueEquality<UTypeId>,
+    destructor: unsafe extern "C" fn(*mut T, CallReferentDrop),
+}
+
 struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
     // The VTABLE for this type in this executable/library
     const LIB_VTABLE: &'a BoxVtable<T> = &BoxVtable {
+        type_id:ReturnValueEquality{
+            function:new_utypeid::<RBox<()>>
+        },
         destructor: destroy_box::<T>,
     };
 
     #[cfg(test)]
     const LIB_VTABLE_FOR_TESTING: &'a BoxVtable<T> = &BoxVtable {
-        destructor: destroy_box_for_tests,
+        type_id:ReturnValueEquality{
+            function: new_utypeid::<RBox<i32>>
+        },
         ..*VTableGetter::LIB_VTABLE
     };
-}
-
-#[derive(StableAbi)]
-#[repr(C)]
-#[sabi(inside_abi_stable_crate)]
-pub(crate) struct BoxVtable<T> {
-    destructor: unsafe extern "C" fn(*mut T, CallReferentDrop),
 }
 
 unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {
@@ -182,11 +200,6 @@ unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {
         }
         drop(box_);
     }
-}
-
-#[cfg(test)]
-unsafe extern "C" fn destroy_box_for_tests<T>(v: *mut T, call_drop: CallReferentDrop) {
-    destroy_box(v, call_drop);
 }
 
 /////////////////////////////////////////////////////////////////

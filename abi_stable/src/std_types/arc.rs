@@ -120,15 +120,25 @@ impl<T> RArc<T> {
         (vtable.try_unwrap)(this).into()
     }
 
+    /// Attempts to create a mutable reference to `T`,
+    /// failing if `RArc<T>`s strong count is greater than 1.
     #[inline]
     pub fn get_mut(this: &mut Self) -> Option<&mut T>{
         let vtable = this.vtable();
         (vtable.get_mut)(this)
     }
 
-
+    /// Makes a mutable reference to `T`,
+    /// if there are other `RArc<T>`s pointing to the same value,
+    /// then `T` is cloned to ensure unique ownership of the value.
+    ///
+    /// # Postconditions
+    ///
+    /// After this call, the strong count of `this` will be 1,
+    /// because either it was 1 before the call,
+    /// or because a new `RArc<T>` was created to ensure unique ownership of `T`.
     #[inline]
-    pub fn make_mut(this: &mut Self) -> &mut T 
+    pub fn make_mut<'a>(this: &'a mut Self) -> &'a mut T 
     where T:Clone
     {
         // Workaround for non-lexical lifetimes not being smart enough 
@@ -207,7 +217,7 @@ mod vtable_mod {
         // The VTABLE for this type in this executable/library
         pub(super) const LIB_VTABLE: &'a ArcVtable<T> = &ArcVtable {
             type_id:ReturnValueEquality{
-                function:new_utypeid::<Arc<()>>
+                function:new_utypeid::<RArc<()>>
             },
             destructor: destructor_arc::<T>,
             clone: clone_arc::<T>,
@@ -218,7 +228,7 @@ mod vtable_mod {
         #[cfg(test)]
         pub(super) const LIB_VTABLE_FOR_TESTING: &'a ArcVtable<T> = &ArcVtable {
             type_id:ReturnValueEquality{
-                function:new_utypeid::<Arc<i32>>
+                function:new_utypeid::<RArc<i32>>
             },
             ..*Self::LIB_VTABLE
         };
