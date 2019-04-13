@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/rodrimati1992/abi_stable_crates.svg?branch=master)](https://travis-ci.org/rodrimati1992/abi_stable_crates)
+
 A library is for doing Rust-to-Rust ffi,
 with a focus on creating libraries loadable at program startup.
 
