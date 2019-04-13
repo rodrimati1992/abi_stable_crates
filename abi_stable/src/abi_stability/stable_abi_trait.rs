@@ -447,10 +447,8 @@ impl_for_concrete! {
 #[cfg(any(rust_1_34,feature="rust_1_34"))]
 mod rust_1_34_impls{
     use super::*;
-    use std::{
-        sync::atomic,
-        num,
-    };
+    use std::sync::atomic;
+    use core::num as core_num;
 
     impl_for_concrete! {
         zeroable=[
@@ -464,11 +462,11 @@ mod rust_1_34_impls{
             atomic::AtomicU8,
         ]
         nonzero=[
-            num::NonZeroI8,
-            num::NonZeroI16,
-            num::NonZeroI32,
-            num::NonZeroI64,
-            num::NonZeroIsize,
+            core_num::NonZeroI8,
+            core_num::NonZeroI16,
+            core_num::NonZeroI32,
+            core_num::NonZeroI64,
+            core_num::NonZeroIsize,
         ]
     }
 }
