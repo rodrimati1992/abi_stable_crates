@@ -1,5 +1,7 @@
 use super::*;
 
+use std::slice;
+
 use core_extensions::SliceExt;
 
 pub(super) struct RawValIter<T> {
@@ -89,6 +91,9 @@ impl<T> DoubleEndedIterator for RawValIter<T> {
 
 ///////////////////////////////////////////////////
 
+/// An Iterator created by `<RVec<T> as IntoIterator>::into_iter`,
+/// which yields all the elements from the `RVec<T>`,
+/// consuming it in the process.
 pub struct IntoIter<T> {
     pub(super) _buf: ManuallyDrop<RVec<T>>,
     pub(super) iter: RawValIter<T>,
@@ -131,6 +136,8 @@ impl<T> Drop for IntoIter<T> {
 
 ///////////////////////////////////////////////////
 
+/// An Iterator returned by `RVec::drain` ,
+/// which removes and yields all the elements in a range from the `RVec<T>`.
 #[repr(C)]
 pub struct Drain<'a, T> {
     pub(super) vec: &'a mut RVec<T>,
@@ -178,3 +185,62 @@ impl<'a, T> Drop for Drain<'a, T> {
         }
     }
 }
+
+
+///////////////////////////////////////////////////
+
+
+
+// copy-paste of the std library DrainFilter
+#[derive(Debug)]
+pub(crate) struct DrainFilter<'a, T, F>
+    where F: FnMut(&mut T) -> bool,
+{
+    pub(super) vec: &'a mut RVec<T>,
+    pub(super) idx: usize,
+    pub(super) del: usize,
+    pub(super) old_len: usize,
+    pub(super) pred: F,
+}
+
+impl<T, F> Iterator for DrainFilter<'_, T, F>
+    where F: FnMut(&mut T) -> bool,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        unsafe {
+            while self.idx != self.old_len {
+                let i = self.idx;
+                self.idx += 1;
+                let v = slice::from_raw_parts_mut(self.vec.as_mut_ptr(), self.old_len);
+                if (self.pred)(&mut v[i]) {
+                    self.del += 1;
+                    return Some(ptr::read(&v[i]));
+                } else if self.del > 0 {
+                    let del = self.del;
+                    let src: *const T = &v[i];
+                    let dst: *mut T = &mut v[i - del];
+                    ptr::copy_nonoverlapping(src, dst, 1);
+                }
+            }
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.old_len - self.idx))
+    }
+}
+
+impl<T, F> Drop for DrainFilter<'_, T, F>
+    where F: FnMut(&mut T) -> bool,
+{
+    fn drop(&mut self) {
+        self.for_each(drop);
+        unsafe {
+            self.vec.set_len(self.old_len - self.del);
+        }
+    }
+}
+

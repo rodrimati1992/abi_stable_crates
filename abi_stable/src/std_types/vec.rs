@@ -24,7 +24,7 @@ mod tests;
 
 mod iters;
 
-use self::iters::RawValIter;
+use self::iters::{RawValIter,DrainFilter};
 
 pub use self::iters::{Drain, IntoIter};
 
@@ -107,10 +107,16 @@ mod private {
 pub use self::private::RVec;
 
 impl<T> RVec<T> {
+    /// Creates a new,empty `RVec<T>`.
+    ///
+    /// This function does not allocate.
     pub fn new() -> Self {
         Vec::new().into()
     }
 
+    /// Creates a new,empty `RVec<T>`,with a capacity of `cap`.
+    ///
+    /// This function does not allocate if `cap`==0.
     pub fn with_capacity(cap: usize) -> Self {
         Vec::with_capacity(cap).into()
     }
@@ -119,14 +125,18 @@ impl<T> RVec<T> {
         ::std::slice::from_raw_parts_mut(self.buffer(), self.capacity())
     }
 
+    /// Creates an `RSlice<'a,T>` with access to the `range` range of
+    /// elements of the `RVec<T>`.
     #[inline]
-    pub fn slice<'a, I>(&'a self, i: I) -> RSlice<'a, T>
+    pub fn slice<'a, I>(&'a self, range: I) -> RSlice<'a, T>
     where
         [T]: Index<I, Output = [T]>,
     {
-        (&self[i]).into()
+        (&self[range]).into()
     }
 
+    /// Creates an `RSliceMut<'a,T>` with access to the `range` range of 
+    /// elements of the `RVec<T>`.
     #[inline]
     pub fn slice_mut<'a, I>(&'a mut self, i: I) -> RSliceMut<'a, T>
     where
@@ -135,40 +145,54 @@ impl<T> RVec<T> {
         (&mut self[i]).into()
     }
 
+    /// Creates a `&[T]` with access to all the elements of the `RVec<T>`.
     pub fn as_slice(&self) -> &[T] {
         unsafe { ::std::slice::from_raw_parts(self.buffer(), self.len()) }
     }
 
+    /// Creates a `&mut [T]` with access to all the elements of the `RVec<T>`.
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         unsafe { ::std::slice::from_raw_parts_mut(self.buffer(), self.len()) }
     }
 
+    /// Creates an `RSlice<'_,T>` with access to all the elements of the `RVec<T>`.
     pub fn as_rslice(&self) -> RSlice<'_, T> {
         self.as_slice().into()
     }
 
+    /// Creates an `RSliceMut<'_,T>` with access to all the elements of the `RVec<T>`.
     pub fn as_mut_rslice(&mut self) -> RSliceMut<'_, T> {
         self.as_mut_slice().into()
     }
 
+    /// Returns the ammount of elements of the `RVec<T>`.
     pub const fn len(&self) -> usize {
         self.length
     }
 
+    /// Sets the length field of `RVec<T>` to `new_len`.
+    ///
+    /// # Safety
+    ///
+    /// `new_len` must be less than or equal to `self.capacity()`.
+    ///
+    /// The elements at old_len..new_len must be initialized.
     pub unsafe fn set_len(&mut self, new_len: usize) {
         self.length = new_len;
     }
 
+    /// Shrinks the capacity of the RString to match its length.
     pub fn shrink_to_fit(&mut self) {
         let vtable = self.vtable();
         (vtable.shrink_to_fit)(self);
     }
 
+    /// Whether the length of the `RVec<T>` is 0.
     pub fn is_empty(&self) -> bool {
         self.length == 0
     }
 
-    /// Returns a Vec<T>,consuming `self`.
+    /// Returns a `Vec<T>`,consuming `self`.
     ///
     /// # Allocation
     ///
@@ -196,6 +220,7 @@ impl<T> RVec<T> {
         }
     }
 
+    /// Creates a `Vec<T>`,copying all the elements of this `RVec<T>`.
     pub fn to_vec(&self) -> Vec<T>
     where
         T: Clone,
@@ -203,6 +228,11 @@ impl<T> RVec<T> {
         self.as_slice().to_vec()
     }
 
+    /// Inserts the `value` value at `index` position. 
+    ///
+    /// # Panics
+    ///
+    /// Panics if self.len() < index.
     pub fn insert(&mut self, index: usize, value: T) {
         assert!(
             index <= self.length,
@@ -227,6 +257,8 @@ impl<T> RVec<T> {
         }
     }
 
+    /// Attemps to remove the element at `index` position,
+    /// returns None if self.len() <= index.
     pub fn try_remove(&mut self, index: usize) -> Option<T> {
         if self.length <= index {
             return None;
@@ -243,6 +275,11 @@ impl<T> RVec<T> {
         }
     }
 
+    /// Removes the element at `index` position,
+    ///
+    /// # Panic
+    ///
+    /// Panics if self.len() <= index.
     pub fn remove(&mut self, index: usize) -> T {
         match self.try_remove(index) {
             Some(x) => x,
@@ -250,6 +287,11 @@ impl<T> RVec<T> {
         }
     }
 
+    /// Swaps the element at `index` position with the last element,and then removes it.
+    ///
+    /// # Panic
+    ///
+    /// Panics if self.len() <= index.
     pub fn swap_remove(&mut self, index: usize) -> T {
         unsafe {
             let hole: *mut T = &mut self[index];
@@ -259,6 +301,7 @@ impl<T> RVec<T> {
         }
     }
 
+    /// Appends `new_val` at the end of the `RVec<T>`.
     pub fn push(&mut self, new_val: T) {
         if self.length == self.capacity() {
             self.grow_capacity_to_1();
@@ -269,6 +312,8 @@ impl<T> RVec<T> {
         self.length += 1;
     }
 
+    /// Attempts to remove the last element,
+    /// returns None if the `RVec<T>` is empty.
     pub fn pop(&mut self) -> Option<T> {
         if self.length == 0 {
             None
@@ -280,10 +325,43 @@ impl<T> RVec<T> {
         }
     }
 
+    /// Truncates the `RVec<T>` to `to` length.
+    /// Does nothing if self.len() <= to.
+    ///
+    /// Note:this has no effect on the capacity of the `RVec<T>`.
     pub fn truncate(&mut self, to: usize) {
         if to < self.len() {
             self.truncate_inner(to);
         }
+    }
+
+    /// Removes all the elements from collection.
+    ///
+    /// Note:this has no effect on the capacity of the `RVec<T>`.
+    pub fn clear(&mut self) {
+        self.truncate_inner(0);
+    }
+
+    
+
+    /// Retains only the elements that satisfy the `pred` predicate
+    ///
+    /// This means that a element will be removed if `pred(that_element)` 
+    /// returns false.
+    pub fn retain<F>(&mut self, mut pred: F)
+    where F: FnMut(&T) -> bool
+    {
+        let old_len = self.len();
+        unsafe { 
+            self.set_len(0); 
+        }
+        DrainFilter {
+            vec: self,
+            idx: 0,
+            del: 0,
+            old_len,
+            pred: |x| !pred(x),
+        };
     }
 
     fn truncate_inner(&mut self, to: usize) {
@@ -296,10 +374,15 @@ impl<T> RVec<T> {
         }
     }
 
+    /// Reserves `àdditional` additional capacity for extra elements.
+    /// This may reserve more than necessary for the additional capacity.
     pub fn reserve(&mut self, additional: usize) {
         self.resize_capacity(self.len() + additional, Exactness::Above)
     }
 
+    /// Reserves `àdditional` additional capacity for extra elements.
+    /// 
+    /// Prefer using `reserve` for most situations.
     pub fn reserve_exact(&mut self, additional: usize) {
         self.resize_capacity(self.len() + additional, Exactness::Exact)
     }
@@ -322,6 +405,10 @@ impl<T> RVec<T>
 where
     T: Clone,
 {
+    /// Resizes the `RVec<T>` to `new_len` length.
+    /// if new_len is larger than the current length,
+    /// the `RVec<T>` is extended with clones of `value`
+    /// to reach the new length.
     pub fn resize(&mut self, new_len: usize, value: T) {
         let old_len = self.len();
         match new_len.cmp(&old_len) {
@@ -340,6 +427,7 @@ where
         }
     }
 
+    /// Extends this `RVec<_>` with clones of the elements of the slice.
     pub fn extend_from_slice(&mut self, slic_: &[T]) {
         self.reserve(slic_.len());
         for elem in slic_ {
@@ -352,6 +440,7 @@ impl<T> RVec<T>
 where
     T: Copy,
 {
+    /// Extends this `RVec<_>` with copies of the elements of the slice.
     pub fn extend_from_copy_slice(&mut self, slic_: &[T]) {
         self.reserve(slic_.len());
         let old_len = self.len();
@@ -465,6 +554,18 @@ where
 /////////////////////////////////////////////////////////////////////////////////////
 
 impl<T> RVec<T> {
+    /// Creates a draining iterator that removes the specified range in 
+    /// the `RVec<T>` and yields the removed items.
+    /// 
+    /// # Panic
+    ///
+    /// Panics if the index is out of bounds or if the start of the range is 
+    /// greater than the end of the range.
+    ///
+    /// # Consumption
+    ///
+    /// The elements in the range will be removed even if the iterator 
+    /// was dropped before yielding them.
     pub fn drain<'a, I>(&'a mut self, index: I) -> Drain<'a, T>
     where
         [T]: IndexMut<I, Output = [T]>,

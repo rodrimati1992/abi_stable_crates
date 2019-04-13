@@ -1,6 +1,6 @@
 use super::*;
 
-use std::{iter, sync::Arc};
+use std::{iter,slice, sync::Arc};
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
@@ -158,6 +158,82 @@ fn truncate() {
             assert_eq!(Arc::strong_count(&pointer), 1 + i);
         }
         assert_eq!(Arc::strong_count(&pointer), 1);
+    }
+}
+
+#[test]
+fn retain(){
+    let orig = vec![2, 3, 4 , 5, 6,7,8];
+    let copy = orig.clone().into_(RVec::T);
+    {
+        let mut copy=copy.clone();
+        copy.retain(|&v| v%2==0 );
+        assert_eq!(
+            &*copy, 
+            &[2,4,6,8][..]
+        );
+    }
+    {
+        let mut copy=copy.clone();
+        copy.retain(|&v| v%2==1 );
+        assert_eq!(
+            &*copy, 
+            &[3,5,7][..]
+        );
+    }
+    {
+        let mut copy=copy.clone();
+        copy.retain(|_| true );
+        assert_eq!(
+            &*copy, 
+            &*orig
+        );
+    }
+    {
+        let mut copy=copy.clone();
+        copy.retain(|_| false );
+        assert_eq!(
+            &*copy,
+            <&[i32]>::default()
+        );
+    }
+    {
+        let mut copy=copy.clone();
+        let mut i=0;
+        copy.retain(|_|{
+            let cond=i%2==0;
+            i+=1;
+            cond
+        });
+        assert_eq!(
+            &*copy, 
+            &[2,4,6,8][..]
+        );
+    }
+    {
+        let mut copy=copy.clone();
+        let mut i=0;
+        copy.retain(|_|{
+            let cond=i%3==0;
+            i+=1;
+            cond
+        });
+        assert_eq!(
+            &*copy, 
+            &[2,5,8][..]
+        );
+    }
+    {
+        let mut copy=copy.clone();
+        let mut i=0;
+        must_panic(file_span!(), ||{
+            copy.retain(|_|{
+                i+=1;
+                if i==4 {panic!()}
+                true
+            });
+        }).unwrap();
+        assert_eq!(&copy[..], <&[i32]>::default());
     }
 }
 
