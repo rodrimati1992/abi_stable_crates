@@ -1,7 +1,6 @@
 [![Build Status](https://travis-ci.org/rodrimati1992/abi_stable_crates.svg?branch=master)](https://travis-ci.org/rodrimati1992/abi_stable_crates)
 
-A library is for doing Rust-to-Rust ffi,
-with a focus on creating libraries loadable at program startup.
+For Rust-to-Rust ffi,with a focus on creating libraries loaded at program startup.
 
 This library allows defining Rust libraries that can be loaded at runtime,
 even if they were built with a different Rust version than the crate that depends on it.
