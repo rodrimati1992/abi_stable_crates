@@ -1,7 +1,6 @@
 /*!
 
-A library is for doing Rust-to-Rust ffi,
-with a focus on creating libraries loadable at program startup.
+For Rust-to-Rust ffi,with a focus on creating libraries loaded at program startup.
 
 This library allows defining Rust libraries that can be loaded at runtime,
 even if they were built with a different Rust version than the crate that depends on it,
