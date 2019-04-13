@@ -25,7 +25,6 @@ arrayvec    = "0.4"
 [dependencies.core_extensions]
 default_features=false
 version="0.1"
-path="../../crates/shared_extensions/core_extensions"
 
 [dependencies.syn]
 version = "0.15"
