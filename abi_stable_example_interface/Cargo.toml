@@ -8,4 +8,4 @@ edition = "2018"
 different_abi=[]
 
 [dependencies]
-abi_stable={version="0.1"}
+abi_stable={version="0.1",path="../abi_stable"}
