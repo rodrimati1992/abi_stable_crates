@@ -15,6 +15,6 @@ script:
   
   - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_impl/"
   - cargo build
-  - ls -R ./target/debug
+  - ls -R ../target/debug
 #  - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_user/"
 #  - cargo run --release -- run-tests
