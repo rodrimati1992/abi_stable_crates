@@ -10,10 +10,11 @@ matrix:
     - rust: 1.33.0
 
 script:
-  - cd "${TRAVIS_BUILD_DIR}/abi_stable"
-  - cargo test --release
+#  - cd "${TRAVIS_BUILD_DIR}/abi_stable"
+#  - cargo test --release
   
   - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_impl/"
-  - cargo build --release
-  - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_user/"
-  - cargo run --release -- run-tests
+  - cargo build
+  - ls -R ./target/release
+#  - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_user/"
+#  - cargo run --release -- run-tests
