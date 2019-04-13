@@ -94,7 +94,7 @@ impl<T> RArc<T> {
     ///
     /// `T` is cloned if the current dynamic_library/executable is 
     /// not the one that created the `RArc<T>`,
-    /// or the strong count is greater than 1.
+    /// and the strong count is greater than 1.
     pub fn into_arc(this: Self) -> Arc<T>
     where
         T: Clone,
@@ -113,11 +113,11 @@ impl<T> RArc<T> {
     }
 
     /// Attempts to unwrap this `RArc<T>` into a `T`,
-    /// failing if `RArc<T>`s strong count is greater than 1.
+    /// returns Err(self) if the `RArc<T>`s strong count is greater than 1.
     #[inline]
     pub fn try_unwrap(this: Self) -> Result<T, Self>{
         let vtable = this.vtable();
-        (vtable.try_unwrap)(this).into()
+        (vtable.try_unwrap)(this).into_result()
     }
 
     /// Attempts to create a mutable reference to `T`,

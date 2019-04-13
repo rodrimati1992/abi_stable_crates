@@ -3,9 +3,11 @@ use std::{
     fmt::{self, Display, Formatter},
     iter::{FromIterator, FusedIterator},
     mem,
+    marker::PhantomData,
     ops::{Deref, Index, Range},
     str::{from_utf8, from_utf8_unchecked, Chars,FromStr, Utf8Error},
     string::FromUtf16Error,
+    ptr,
 };
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -28,14 +30,17 @@ pub use self::iters::{Drain, IntoIter};
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct RString {
-    inner: RVec<u8>,
+    vec: RVec<u8>,
 }
 
 impl RString {
+    /// Creates a new,empty RString.
     pub fn new() -> Self {
         String::new().into()
     }
 
+    /// Creates a new,
+    /// empty RString with the capacity to push strings that add up to `cap` bytes.
     pub fn with_capacity(cap:usize) -> Self {
         String::with_capacity(cap).into()
     }
@@ -52,24 +57,28 @@ impl RString {
         (&self[i]).into()
     }
 
+    /// Creates a `&str` with access to all the characters of the `RString`.
     #[inline]
     pub fn as_str(&self) -> &str {
         &*self
     }
 
+    /// Creates an `RStr<'_>` with access to all the characters of the `RString`.
     #[inline]
     pub fn as_rstr(&self) -> RStr<'_> {
         self.as_str().into()
     }
 
+    /// Returns the current length (in bytes) of the RString.
     #[inline]
     pub const fn len(&self) -> usize {
-        self.inner.len()
+        self.vec.len()
     }
 
+    /// Returns the current capacity (in bytes) of the RString.
     #[inline]
     pub const fn capacity(&self) -> usize {
-        self.inner.capacity()
+        self.vec.capacity()
     }
 
     #[inline]
@@ -77,16 +86,21 @@ impl RString {
     where
         V: Into<RVec<u8>>,
     {
-        RString { inner: vec.into() }
+        RString { vec: vec.into() }
     }
 
+    /// Converts the `vec` vector of bytes to an RString.
+    ///
+    /// # Errors
+    ///
+    /// This will return a `Err(FromUtf8Error{..})` if `vec` was not valid utf-8.
     pub fn from_utf8<V>(vec: V) -> Result<Self, FromUtf8Error>
     where
         V: Into<RVec<u8>>,
     {
         let vec = vec.into();
         match from_utf8(&*vec) {
-            Ok(..) => Ok(RString { inner: vec }),
+            Ok(..) => Ok(RString { vec: vec }),
             Err(e) => Err(FromUtf8Error {
                 bytes: vec,
                 error: e,
@@ -94,11 +108,19 @@ impl RString {
         }
     }
 
+
+    /// Decodes a utf-16 encoded `&[u16]` to an RString.
+    ///
+    /// # Errors
+    ///
+    /// This will return a `Err(::std::string::FromUtf16Error{..})` 
+    /// if `vec` was not valid utf-8.
     pub fn from_utf16(s: &[u16]) -> Result<Self, FromUtf16Error> {
         String::from_utf16(s).map(From::from)
     }
+    /// Cheap conversion of this `RString` to a `RVec<u8>` 
     pub fn into_bytes(self) -> RVec<u8> {
-        self.inner
+        self.vec
     }
 
     /// Converts this RString to a String.
@@ -108,34 +130,172 @@ impl RString {
     /// If this is invoked outside of the dynamic library/binary that created it,
     /// it will allocate a new `String` and move the data into it.
     pub fn into_string(self) -> String {
-        unsafe { String::from_utf8_unchecked(self.inner.into_vec()) }
+        unsafe { String::from_utf8_unchecked(self.vec.into_vec()) }
     }
     /// Copies the `RString` into a `String`.
     pub fn to_string(&self) -> String {
         self.as_str().to_string()
     }
+    /// Reserves `àdditional` additional capacity for any extra string data.
+    /// This may reserve more than necessary for the additional capacity.
     pub fn reserve(&mut self, additional: usize) {
-        self.inner.reserve(additional);
+        self.vec.reserve(additional);
+    }
+    /// Shrinks the capacity of the RString to match its 
+    pub fn shrink_to_fit(&mut self) {
+        self.vec.shrink_to_fit()
     }
 
+    /// Reserves `àdditional` additional capacity for any extra string data.
+    /// 
+    /// Prefer using `reserve` for most situations.
     pub fn reserve_exact(&mut self, additional: usize) {
-        self.inner.reserve_exact(additional);
+        self.vec.reserve_exact(additional);
     }
 
+    /// Appends the `ch` char at the end of this RString.
     pub fn push(&mut self, ch: char) {
         match ch.len_utf8() {
-            1 => self.inner.push(ch as u8),
-            _ => self
-                .inner
-                .extend_from_copy_slice(ch.encode_utf8(&mut [0; 4]).as_bytes()),
+            1 => self.vec.push(ch as u8),
+            _ => self.push_str(ch.encode_utf8(&mut [0; 4])),
         }
     }
 
+    /// Appends the `s` &str at the end of this RString.
     pub fn push_str(&mut self, s: &str) {
-        self.inner.extend_from_copy_slice(s.as_bytes());
+        self.vec.extend_from_copy_slice(s.as_bytes());
     }
+
+    /// Removes the last character,
+    /// returns Some(_) if this RString is not empty,
+    /// otherwise returns None.
+    pub fn pop(&mut self)->Option<char>{
+        // literal copy-paste of std,so if this is wrong std is wrong.
+
+        let ch = self.chars().rev().next()?;
+        let newlen = self.len() - ch.len_utf8();
+        unsafe {
+            self.vec.set_len(newlen);
+        }
+        Some(ch)
+    }
+
+    /// Removes and returns the character starting at the `idx` byte position,
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if the index is out of bounds or if it is not on a char boundary.
+    pub fn remove(&mut self,idx:usize)->char{
+        // literal copy-paste of std,so if this is wrong std is wrong.
+
+        let ch = match self[idx..].chars().next() {
+            Some(ch) => ch,
+            None => panic!("cannot remove a char beyond the end of a string"),
+        };
+
+        let next = idx + ch.len_utf8();
+        let len = self.len();
+        unsafe {
+            ptr::copy(
+                self.vec.as_ptr().add(next),
+                self.vec.as_mut_ptr().add(idx),
+                len - next
+            );
+            self.vec.set_len(len - (next - idx));
+        }
+        ch
+    }
+
+    /// Insert the `ch` character at the `ìnx` byte position.
+    ///
+    /// # Panics
+    /// 
+    /// Panics if the index is out of bounds or if it is not on a char boundary.
+    pub fn insert(&mut self, idx: usize, ch: char) {
+        let mut bits = [0; 4];
+        let str_ = ch.encode_utf8(&mut bits);
+
+        self.insert_str(idx, str_);
+    }
+
+    /// Insert the `s` string at the `ìnx` byte position.
+    ///
+    /// # Panics
+    /// 
+    /// Panics if the index is out of bounds or if it is not on a char boundary.
+    pub fn insert_str(&mut self, idx: usize, string: &str) {
+        // literal copy-paste of std,so if this is wrong std is wrong.
+        
+        assert!(self.is_char_boundary(idx));
+
+        unsafe {
+            self.insert_bytes(idx, string.as_bytes());
+        }
+    }
+
+    unsafe fn insert_bytes(&mut self, idx: usize, bytes: &[u8]) {
+        // literal copy-paste of std,so if this is wrong std is wrong.
+        
+        let len = self.len();
+        let amt = bytes.len();
+        self.vec.reserve(amt);
+
+        ptr::copy(
+            self.vec.as_ptr().add(idx),
+            self.vec.as_mut_ptr().add(idx + amt),
+            len - idx,
+        );
+        ptr::copy(
+            bytes.as_ptr(),
+            self.vec.as_mut_ptr().add(idx),
+            amt,
+        );
+        self.vec.set_len(len + amt);
+    }
+
+    /// Retains only the characters that satisfy the `pred` predicate
+    ///
+    /// This means that a character will be removed if `pred(that_character)` 
+    /// returns false.
+    #[inline]
+    pub fn retain<F>(&mut self, mut pred: F)
+    where F: FnMut(char) -> bool
+    {
+        // literal copy-paste of std,so if this is wrong std is wrong.
+        
+        let len = self.len();
+        let mut del_bytes = 0;
+        let mut idx = 0;
+
+        while idx < len {
+            let ch = unsafe {
+                self.get_unchecked(idx..len).chars().next().unwrap()
+            };
+            let ch_len = ch.len_utf8();
+
+            if !pred(ch) {
+                del_bytes += ch_len;
+            } else if del_bytes > 0 {
+                unsafe {
+                    ptr::copy(
+                        self.vec.as_ptr().add(idx),
+                        self.vec.as_mut_ptr().add(idx - del_bytes),
+                        ch_len
+                    );
+                }
+            }
+
+            idx += ch_len;
+        }
+
+        if del_bytes > 0 {
+            unsafe { self.vec.set_len(len - del_bytes); }
+        }
+    }
+
 }
 
+/// Returns an empty RString
 impl Default for RString {
     fn default() -> Self {
         String::new().into()
@@ -168,7 +328,7 @@ impl_from_rust_repr! {
     impl From<String> for RString {
         fn(this){
             RString {
-                inner: this.into_bytes().into(),
+                vec: this.into_bytes().into(),
             }
         }
     }
@@ -210,7 +370,7 @@ impl Deref for RString {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        unsafe { from_utf8_unchecked(self.inner.as_slice()) }
+        unsafe { from_utf8_unchecked(self.vec.as_slice()) }
     }
 }
 
@@ -273,6 +433,7 @@ impl RString {
             string,
             removed: start..end,
             iter: slic_.chars(),
+            variance:PhantomData,
         }
     }
 }

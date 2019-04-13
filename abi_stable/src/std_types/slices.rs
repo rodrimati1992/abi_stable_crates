@@ -39,6 +39,7 @@ mod private {
     }
 
     impl<'a, T: 'a> RSlice<'a, T> {
+        /// An empty slice.
         pub const EMPTY: Self = RSlice {
             data: {
                 let v: &[T] = &[];
@@ -47,6 +48,21 @@ mod private {
             length: 0,
             _marker: PhantomData,
         };
+
+        /// Constructs an `RSlice<'a,T>` from a pointer to the first element,
+        /// and a length.
+        ///
+        /// # Safety
+        ///
+        /// Callers must ensure that:
+        ///
+        /// - ptr_ points to valid memory,
+        ///
+        /// - `ptr_ .. ptr+len` range is àccessible memory.
+        ///
+        /// - ptr_ is aligned to `T`.
+        ///
+        /// - the data ptr_ points to must be valid for the lifetime of this `RSlice<'a,T>`
         pub const unsafe fn from_raw_parts(ptr_: *const T, len: usize) -> Self {
             Self {
                 data: ptr_,
@@ -55,20 +71,21 @@ mod private {
             }
         }
     }
-    impl<T: 'static> RSlice<'static, T> {
-        #[doc(hidden)]
-        pub const fn _private_from_raw_parts(ptr_: *const T, len: usize) -> Self {
-            unsafe { Self::from_raw_parts(ptr_, len) }
-        }
-    }
-
+    
     impl<'a, T> RSlice<'a, T> {
+        /// Creates an `&'a [T]` with access to all the elements of this slice.
         pub fn as_slice(&self) -> &'a [T] {
             unsafe { ::std::slice::from_raw_parts(self.data, self.length) }
         }
-
+        /// The length (in elements) of this slice.
+        #[inline]
         pub const fn len(&self) -> usize {
             self.length
+        }
+        /// Whether this slice is empty.
+        #[inline]
+        pub const fn is_empty(&self) -> bool {
+            self.length==0
         }
     }
 }
@@ -76,11 +93,21 @@ mod private {
 pub use self::private::RSlice;
 
 impl<'a, T> RSlice<'a, T> {
+    /// Creates an empty slice
     pub const fn empty() -> Self {
         Self::EMPTY
     }
 
-    /// For slicing RSlices.
+    /// Converts a reference to `T` to a single element `RSlice<'a,T>`.
+    ///
+    /// Note:this function does not copy anything.
+    pub fn from_ref(ref_:&'a T)->Self{
+        unsafe{
+            Self::from_raw_parts(ref_,1)
+        }
+    }    
+
+    /// Creates an `RSlice<'a,T>` with access to the `range` range of elements.
     ///
     /// This is an inherent method instead of an implementation of the
     /// ::std::ops::Index trait because it does not return a reference.
@@ -91,6 +118,7 @@ impl<'a, T> RSlice<'a, T> {
         self.as_slice().index(i).into()
     }
 
+    /// Creates a new `RVec<T>` and clones all the elements of this slice into it.
     pub fn to_rvec(&self) -> RVec<T>
     where
         T: Clone,

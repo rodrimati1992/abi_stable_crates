@@ -36,27 +36,26 @@ in type definitions.
 */
 pub unsafe trait StableAbi {
     /**
-    Whether this type has a single invalid bit-pattern.
-    
-    Possible values:True/False
+Whether this type has a single invalid bit-pattern.
 
-    Some standard library types have a single value that is invalid for them eg:0,null.
-    these types are the only ones which can be stored in a `Option<_>` that implements AbiStable.
+Possible values:True/False
 
-    An alternative for types where `IsNonZeroType=False`,you can use `abi_stable::ROption`.
+Some standard library types have a single value that is invalid for them eg:0,null.
+these types are the only ones which can be stored in a `Option<_>` that implements AbiStable.
 
-    Non-exhaustive list of std types that are NonZero:
+An alternative for types where `IsNonZeroType=False`,you can use `abi_stable::ROption`.
 
-    - &T (any T).
+Non-exhaustive list of std types that are NonZero:
 
-    - &mut T (any T).
+- &T (any T).
 
-    - extern fn() :
-        Any combination of StableAbi parameter/return types.
+- &mut T (any T).
 
-    - std::ptr::NonNull
+- extern fn() : Any combination of StableAbi parameter/return types.
 
-    - std::num::NonZero* 
+- std::ptr::NonNull
+
+- std::num::NonZero* 
 
     */
     type IsNonZeroType: Boolean;

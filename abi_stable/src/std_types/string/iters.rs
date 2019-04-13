@@ -2,6 +2,9 @@ use super::*;
 
 /////////////////////////////////////////////////////////////////////////////
 
+/// An Iterator created by `<RString as IntoIterator>::into_iter`,
+/// which yields all the characters from the RString,
+/// consuming it in the process.
 pub struct IntoIter {
     pub(super) _buf: RString,
     pub(super) iter: Chars<'static>,
@@ -37,10 +40,13 @@ impl FusedIterator for IntoIter {}
 
 /////////////////////////////////////////////////////////////////////////////
 
+/// An Iterator returned by `RString::drain` ,
+/// which removes and yields all the characters in a range from the RString.
 pub struct Drain<'a> {
     pub(super) string: *mut RString,
     pub(super) removed: Range<usize>,
     pub(super) iter: Chars<'a>,
+    pub(super) variance:PhantomData<&'a mut [char]>,
 }
 
 impl<'a> fmt::Debug for Drain<'a> {
@@ -61,7 +67,7 @@ impl<'a> Drain<'a> {
 impl<'a> Drop for Drain<'a> {
     fn drop(&mut self) {
         unsafe {
-            let self_vec = &mut (*self.string).inner;
+            let self_vec = &mut (*self.string).vec;
             if self.removed.start <= self.removed.end && self.removed.end <= self_vec.len() {
                 self_vec.drain(self.removed.start..self.removed.end);
             }
