@@ -1,14 +1,15 @@
 language: rust
 
+os: 
+  - osx
+  - linux
+
 matrix:
   include:
     - rust: stable
     - rust: beta
     - rust: nightly
     - rust: 1.33.0
-  os:
-    - linux
-    - osx
 
 script:
   - cd "${TRAVIS_BUILD_DIR}/abi_stable"
