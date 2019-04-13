@@ -1,6 +1,8 @@
 language: rust
 
-os: osx
+os: 
+  - osx
+  - linux
 
 matrix:
   include:
@@ -10,11 +12,10 @@ matrix:
     - rust: 1.33.0
 
 script:
-#  - cd "${TRAVIS_BUILD_DIR}/abi_stable"
-#  - cargo test --release
+  - cd "${TRAVIS_BUILD_DIR}/abi_stable"
+  - cargo test --release
   
   - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_impl/"
-  - cargo build
-  - ls -R ../target/debug
-#  - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_user/"
-#  - cargo run --release -- run-tests
+  - cargo build --release
+  - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_user/"
+  - cargo run --release -- run-tests
