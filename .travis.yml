@@ -1,40 +1,20 @@
 language: rust
 
-jobs:
-  -
-    matrix: 
-      os:
-        - linux
-        - osx
+matrix:
+  include:
+    - rust: stable
+    - rust: beta
+    - rust: nightly
+    - rust: 1.33.0
+  os:
+    - linux
+    - osx
 
-    script:
-      - rustup install stable
-      - rustup install nightly
-
-      - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_impl/"
-      - cargo +nightly build
-      - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_user/"
-      - cargo +stable run -- run-tests
-
-      - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_impl/"
-      - cargo +stable build
-      - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_user/"
-      - cargo +nightly run -- run-tests
-  -
-    matrix:
-      include:
-        - rust: stable
-        - rust: beta
-        - rust: nightly
-        - rust: 1.33.0
-      os:
-        - linux
-        - osx
-
-    script:
-      - cd "${TRAVIS_BUILD_DIR}/abi_stable"
-      - cargo test
-      - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_impl"
-      - cargo check
-      - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_user"
-      - cargo check
+script:
+  - cd "${TRAVIS_BUILD_DIR}/abi_stable"
+  - cargo test --release
+  
+  - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_impl/"
+  - cargo build --release
+  - cd "${TRAVIS_BUILD_DIR}/abi_stable_example_user/"
+  - cargo run --release -- run-tests
