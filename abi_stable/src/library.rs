@@ -60,7 +60,7 @@ impl Library {
     )->PathBuf{
         let formatted:String;
 
-        let (prefix,extension) = match (cfg!(windows), cfg!(mac)) {
+        let (prefix,extension) = match (cfg!(windows), cfg!(target_os="macos")) {
             (false, false) => ("lib","so"),
             (false, true) => ("","dylib"),
             (true, false) => ("","dll"),
