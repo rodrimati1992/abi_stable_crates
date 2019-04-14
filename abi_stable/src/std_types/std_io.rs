@@ -25,6 +25,7 @@ pub struct RIoErrorKind {
     value: u8,
 }
 
+/// Every (visible) variant of RIoErrorKind,equivalent to that of ::std::io::ErrorKind.
 #[allow(non_upper_case_globals)]
 impl RIoErrorKind {
     pub const Other: Self = RIoErrorKind { value: 0 };
@@ -130,6 +131,8 @@ impl_into_rust_repr! {
 ///////////////////////////////////////////////////////////////////////////
 
 /// Ffi safe equivalent to ::std::io::Error.
+///
+/// I can be created from an  io::Error,but it cannot be converted back.
 #[repr(C)]
 #[derive(Debug, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -150,6 +153,7 @@ impl_from_rust_repr! {
 }
 
 impl RIoError {
+    /// Constructs an RIoError from an error and a io::ErrorKind.
     pub fn new<E>(kind: ErrorKind, error: E) -> Self
     where
         E: ErrorTrait + Send + Sync + 'static,

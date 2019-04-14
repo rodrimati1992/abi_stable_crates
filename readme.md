@@ -54,20 +54,40 @@ If someone can make an argument that this is easy enough to add support for,it m
 
 Users of this library are expected to follow this architecture:
 
-Create an `interface crate`,
-which declares all the functions and the datatypes passed to and returned by those functions,
-as well as the `interface types`(types which implement InterfaceType,used by `VirtualWrapper<_>`).
+### Interface crate
 
-Create an `implementation crate` that implements all the functions in the `interface crate`,
-creates a `library getter function`,
-and declares the `implementation types`
-(types which implement ImplType,wrapped in `VirtualWrapper<_>` to use in ffi) 
-for the `interface types`.
+A crate which declares:
 
-Creates a `user crate`,which declares the `interface crate` as a dependency,
-passes the directory/folder of the `implementation crate` dynamic library to 
-`<interface_crate::SomeLibType as ModuleTrait>::load_library` to get the library functions,
-and then store them in a lazy_static or equivalent to access them afterwards.
+- All the modules (structs of function pointers) exported from the dynamic library.
+
+- All the public types passed to and returned by the functions.
+
+- Optionally:declares ìnterface types,types which implement InterfaceType,
+    used to specify the traits usable in the VirtualWrapper ffi-safe trait object .
+
+- Optionally:A function to load all the modules at the same time.
+
+
+### Implementation crate
+
+The crate compiled as a dynamic library that:
+
+- Implements all the functions declared in the `interface crate`.
+
+- Declares a function to export each module,
+    uses the `export_sabi_module` attribute to export the module.
+
+- Optionally:create types which implement `ImplType<Iterface= Interface >`,
+    where `Interface` is some interface type from the interface crate,
+    so as to be able to use wrap it in `VirtualWrapper`s of that interface.
+
+### User crate
+
+A crate that that declares the `ìnterface crate` as a dependency,
+and loads the pre-compiled `implementation crate` from some path.
+
+
+### Examples
 
 For **examples** of this architecture you can look at the abi_stable_example_* crates,
 in the repository for this crate.

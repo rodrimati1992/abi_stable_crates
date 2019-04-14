@@ -27,9 +27,11 @@ mod private {
     }
 
     impl<T> RBox<T> {
-        pub fn new(this: T) -> Self {
-            Box::new(this).piped(RBox::from_box)
+        /// Constucts an `RBox<T>` from a value.
+        pub fn new(value: T) -> Self {
+            Box::new(value).piped(RBox::from_box)
         }
+        /// Converts a `Box<T>` to an `RBox<T>`,reusing its heap allocation.
         pub fn from_box(p: Box<T>) -> RBox<T> {
             RBox {
                 data: Box::into_raw(p),
@@ -65,7 +67,7 @@ impl<T> RBox<T> {
     ///
     /// # Allocation
     ///
-    /// If this is invoked outside of the dynamic library/binary that created it,
+    /// If this is invoked outside of the dynamic library/binary that created the `RBox<T>`,
     /// it will allocate a new `Box<T>` and move the data into it.
     pub fn into_box(this: Self) -> Box<T> {
         let this = ManuallyDrop::new(this);
@@ -85,6 +87,7 @@ impl<T> RBox<T> {
             }
         }
     }
+    /// Unwraps this `Box<T>` into the value it owns on the heap.
     pub fn into_inner(this: Self) -> T {
         let this = ManuallyDrop::new(this);
         unsafe {

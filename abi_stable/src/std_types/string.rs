@@ -30,7 +30,7 @@ pub use self::iters::{Drain, IntoIter};
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct RString {
-    vec: RVec<u8>,
+    inner: RVec<u8>,
 }
 
 impl RString {
@@ -72,13 +72,13 @@ impl RString {
     /// Returns the current length (in bytes) of the RString.
     #[inline]
     pub const fn len(&self) -> usize {
-        self.vec.len()
+        self.inner.len()
     }
 
     /// Returns the current capacity (in bytes) of the RString.
     #[inline]
     pub const fn capacity(&self) -> usize {
-        self.vec.capacity()
+        self.inner.capacity()
     }
 
     #[inline]
@@ -86,7 +86,7 @@ impl RString {
     where
         V: Into<RVec<u8>>,
     {
-        RString { vec: vec.into() }
+        RString { inner: vec.into() }
     }
 
     /// Converts the `vec` vector of bytes to an RString.
@@ -100,7 +100,7 @@ impl RString {
     {
         let vec = vec.into();
         match from_utf8(&*vec) {
-            Ok(..) => Ok(RString { vec: vec }),
+            Ok(..) => Ok(RString { inner: vec }),
             Err(e) => Err(FromUtf8Error {
                 bytes: vec,
                 error: e,
@@ -120,7 +120,7 @@ impl RString {
     }
     /// Cheap conversion of this `RString` to a `RVec<u8>` 
     pub fn into_bytes(self) -> RVec<u8> {
-        self.vec
+        self.inner
     }
 
     /// Converts this RString to a String.
@@ -130,7 +130,7 @@ impl RString {
     /// If this is invoked outside of the dynamic library/binary that created it,
     /// it will allocate a new `String` and move the data into it.
     pub fn into_string(self) -> String {
-        unsafe { String::from_utf8_unchecked(self.vec.into_vec()) }
+        unsafe { String::from_utf8_unchecked(self.inner.into_vec()) }
     }
     /// Copies the `RString` into a `String`.
     pub fn to_string(&self) -> String {
@@ -139,31 +139,31 @@ impl RString {
     /// Reserves `àdditional` additional capacity for any extra string data.
     /// This may reserve more than necessary for the additional capacity.
     pub fn reserve(&mut self, additional: usize) {
-        self.vec.reserve(additional);
+        self.inner.reserve(additional);
     }
     /// Shrinks the capacity of the RString to match its 
     pub fn shrink_to_fit(&mut self) {
-        self.vec.shrink_to_fit()
+        self.inner.shrink_to_fit()
     }
 
     /// Reserves `àdditional` additional capacity for any extra string data.
     /// 
     /// Prefer using `reserve` for most situations.
     pub fn reserve_exact(&mut self, additional: usize) {
-        self.vec.reserve_exact(additional);
+        self.inner.reserve_exact(additional);
     }
 
     /// Appends the `ch` char at the end of this RString.
     pub fn push(&mut self, ch: char) {
         match ch.len_utf8() {
-            1 => self.vec.push(ch as u8),
+            1 => self.inner.push(ch as u8),
             _ => self.push_str(ch.encode_utf8(&mut [0; 4])),
         }
     }
 
     /// Appends the `s` &str at the end of this RString.
     pub fn push_str(&mut self, s: &str) {
-        self.vec.extend_from_copy_slice(s.as_bytes());
+        self.inner.extend_from_copy_slice(s.as_bytes());
     }
 
     /// Removes the last character,
@@ -175,7 +175,7 @@ impl RString {
         let ch = self.chars().rev().next()?;
         let newlen = self.len() - ch.len_utf8();
         unsafe {
-            self.vec.set_len(newlen);
+            self.inner.set_len(newlen);
         }
         Some(ch)
     }
@@ -197,11 +197,11 @@ impl RString {
         let len = self.len();
         unsafe {
             ptr::copy(
-                self.vec.as_ptr().add(next),
-                self.vec.as_mut_ptr().add(idx),
+                self.inner.as_ptr().add(next),
+                self.inner.as_mut_ptr().add(idx),
                 len - next
             );
-            self.vec.set_len(len - (next - idx));
+            self.inner.set_len(len - (next - idx));
         }
         ch
     }
@@ -238,19 +238,19 @@ impl RString {
         
         let len = self.len();
         let amt = bytes.len();
-        self.vec.reserve(amt);
+        self.inner.reserve(amt);
 
         ptr::copy(
-            self.vec.as_ptr().add(idx),
-            self.vec.as_mut_ptr().add(idx + amt),
+            self.inner.as_ptr().add(idx),
+            self.inner.as_mut_ptr().add(idx + amt),
             len - idx,
         );
         ptr::copy(
             bytes.as_ptr(),
-            self.vec.as_mut_ptr().add(idx),
+            self.inner.as_mut_ptr().add(idx),
             amt,
         );
-        self.vec.set_len(len + amt);
+        self.inner.set_len(len + amt);
     }
 
     /// Retains only the characters that satisfy the `pred` predicate
@@ -278,8 +278,8 @@ impl RString {
             } else if del_bytes > 0 {
                 unsafe {
                     ptr::copy(
-                        self.vec.as_ptr().add(idx),
-                        self.vec.as_mut_ptr().add(idx - del_bytes),
+                        self.inner.as_ptr().add(idx),
+                        self.inner.as_mut_ptr().add(idx - del_bytes),
                         ch_len
                     );
                 }
@@ -289,7 +289,7 @@ impl RString {
         }
 
         if del_bytes > 0 {
-            unsafe { self.vec.set_len(len - del_bytes); }
+            unsafe { self.inner.set_len(len - del_bytes); }
         }
     }
 
@@ -328,7 +328,7 @@ impl_from_rust_repr! {
     impl From<String> for RString {
         fn(this){
             RString {
-                vec: this.into_bytes().into(),
+                inner: this.into_bytes().into(),
             }
         }
     }
@@ -370,7 +370,7 @@ impl Deref for RString {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        unsafe { from_utf8_unchecked(self.vec.as_slice()) }
+        unsafe { from_utf8_unchecked(self.inner.as_slice()) }
     }
 }
 

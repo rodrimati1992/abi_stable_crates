@@ -67,7 +67,7 @@ impl<'a> Drain<'a> {
 impl<'a> Drop for Drain<'a> {
     fn drop(&mut self) {
         unsafe {
-            let self_vec = &mut (*self.string).vec;
+            let self_vec = &mut (*self.string).inner;
             if self.removed.start <= self.removed.end && self.removed.end <= self_vec.len() {
                 self_vec.drain(self.removed.start..self.removed.end);
             }

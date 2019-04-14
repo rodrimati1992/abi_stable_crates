@@ -73,6 +73,15 @@ pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
 
 
 
+/*
+Deprecated:use `export_sabi_module` instead of this to export abi_stable modules.
+*/
+#[deprecated]
+#[proc_macro_attribute]
+pub fn mangle_library_getter(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
+    abi_stable_derive_lib::mangle_library_getter_attr(attr,item)
+}
+
 /**
 
 This attribute is used for functions which export a module in an `implementation crate`.
@@ -84,7 +93,7 @@ This is applied to functions like this:
 
 ```ignore
 
-#[mangle_library_getter]
+#[export_sabi_module]
 pub extern "C" fn get_hello_world_mod() -> WithLayout<TextOperationsMod> {
     extern_fn_panic_handling!{
         let module=TextOperationsMod{
@@ -106,8 +115,8 @@ repository for this crate.
 
 
 */
-
 #[proc_macro_attribute]
-pub fn mangle_library_getter(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
+pub fn export_sabi_module(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     abi_stable_derive_lib::mangle_library_getter_attr(attr,item)
 }
+

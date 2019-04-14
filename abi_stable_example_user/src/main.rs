@@ -90,7 +90,7 @@ enum Command {
 
     #[structopt(name = "run-tests")]
     /// Runs some tests.
-    RunTests
+    RunTests,
 }
 
 

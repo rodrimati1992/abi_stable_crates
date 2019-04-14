@@ -2,7 +2,7 @@ use std::{
     cmp::{Eq, PartialEq},
 };
 
-/// Wrapper type which implements PartialEq and Eq based on the return value of `function`.
+/// Wrapper type for an `extern fn()->T` using the return value for comparisons.
 #[repr(transparent)]
 #[derive(Debug, StableAbi)]
 #[sabi(inside_abi_stable_crate)]

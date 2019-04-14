@@ -189,24 +189,30 @@ impl TLField {
     /// so as to avoid infinite recursion in types that reference themselves(even indirectly).
     fn recursive<F, U>(self, f: F) -> U
     where
-        F: FnOnce(TLFieldShallow) -> U,
+        F: FnOnce(usize,TLFieldShallow) -> U,
     {
-        let mut set_was_empty = false;
         let mut already_recursed = false;
+        let mut recursion_depth=!0;
+        let mut visited_nodes=!0;
 
-        ALREADY_RECURSED.with(|set| {
-            let mut set = set.borrow_mut();
-            set_was_empty = set.is_empty();
-            already_recursed = set.replace(self.abi_info.get()).is_some();
+        ALREADY_RECURSED.with(|state| {
+            let mut state = state.borrow_mut();
+            recursion_depth=state.recursion_depth;
+            visited_nodes=state.visited_nodes;
+            state.recursion_depth+=1;
+            state.visited_nodes+=1;
+            already_recursed = state.visited.replace(self.abi_info.get()).is_some();
         });
 
-        let res = f(TLFieldShallow::new(self, !already_recursed));
+        let _guard=if visited_nodes==0 { Some(ResetRecursion) }else{ None };
 
-        if set_was_empty {
-            ALREADY_RECURSED.with(|set| {
-                set.borrow_mut().clear();
-            });
-        }
+        let field=TLFieldShallow::new(self, !already_recursed );
+        let res = f( recursion_depth, field);
+
+        ALREADY_RECURSED.with(|state| {
+            let mut state = state.borrow_mut();
+            state.recursion_depth-=1;
+        });
 
         res
     }
@@ -214,7 +220,7 @@ impl TLField {
 
 impl PartialEq for TLField {
     fn eq(&self, other: &Self) -> bool {
-        self.recursive(|this| {
+        self.recursive(|_,this| {
             let r = TLFieldShallow::new(*other, this.abi_info.is_some());
             this == r
         })
@@ -224,12 +230,46 @@ impl PartialEq for TLField {
 /// Need to avoid recursion somewhere,so I decided to stop at the field level.
 impl Debug for TLField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.recursive(|x| fmt::Debug::fmt(&x, f))
+        self.recursive(|recursion_depth,x|{
+            if recursion_depth>=2 {
+                writeln!(f,"<printing recursion limit>")
+            }else{
+                fmt::Debug::fmt(&x, f)
+            }
+        })
     }
 }
 
+///////////////////////////
+
+
+struct ResetRecursion;
+
+impl Drop for ResetRecursion{
+    fn drop(&mut self){
+        ALREADY_RECURSED.with(|state|{
+            let mut state = state.borrow_mut();
+            state.recursion_depth=0;
+            state.visited_nodes=0;
+            state.visited.clear();
+        });
+    }
+}
+
+
+struct RecursionState{
+    recursion_depth:usize,
+    visited_nodes:u64,
+    visited:HashSet<*const AbiInfo>,
+}
+
+
 thread_local! {
-    static ALREADY_RECURSED: RefCell<HashSet<*const AbiInfo>> = RefCell::new(HashSet::default());
+    static ALREADY_RECURSED: RefCell<RecursionState> = RefCell::new(RecursionState{
+        recursion_depth:0,
+        visited_nodes:0,
+        visited: HashSet::default(),
+    });
 }
 
 ///////////////////////////
@@ -490,14 +530,13 @@ impl Debug for FullType {
 
 ////////////////////////////////////
 
-#[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 struct TLFieldShallow {
-    pub name: StaticStr,
-    pub full_type: FullType,
-    pub lifetime_indices: StaticSlice<LifetimeIndex>,
+    pub(crate) name: StaticStr,
+    pub(crate) full_type: FullType,
+    pub(crate) lifetime_indices: StaticSlice<LifetimeIndex>,
     /// This is None if it already printed that AbiInfo
-    pub abi_info: Option<&'static AbiInfo>,
+    pub(crate) abi_info: Option<&'static AbiInfo>,
 }
 
 impl TLFieldShallow {

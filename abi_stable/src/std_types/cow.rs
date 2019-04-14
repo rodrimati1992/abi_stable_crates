@@ -223,6 +223,8 @@ impl<'a, B> RCow<'a, B>
 where
     B: BorrowOwned<'a> + ?Sized,
 {
+    /// Get a mutable reference to the owner form of RCow,
+    /// converting to the owned form if it is currently the borrowed form.
     pub fn to_mut(&mut self) -> &mut B::ROwned {
         if let Borrowed(v) = *self {
             let owned = B::r_to_owned(v);
@@ -233,6 +235,8 @@ where
             Owned(v) => v,
         }
     }
+    /// Unwraps into the owned owner form of RCow,
+    /// converting to the owned form if it is currently the borrowed form.
     pub fn into_owned(self) -> B::ROwned {
         match self {
             Borrowed(x) => B::r_to_owned(x),
