@@ -19,22 +19,11 @@ use super::{LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayou
 ///////////////////////
 
 /**
-Represents a type whose layout is stable.
+A SharedStableAbi type whose layout does not change in minor versions.
 
-This trait can be derived using `#[derive(StableAbi)]`.
-
-# Safety
-
-The layout of types implementing this trait must be stable across minor versions,
-
-# Caveats
-
-This trait cannot be directly implemented for functions that take lifetime parameters,
-because of that,`#[derive(StableAbi)]` detects the presence of `extern fn` types 
-in type definitions.
-
+There is a blanket impl of this trait for all `SharedStableAbi<Kind=ValueKind>` types.
 */
-pub unsafe trait StableAbi {
+pub unsafe trait StableAbi:SharedStableAbi<Kind=ValueKind> {
     /**
 Whether this type has a single invalid bit-pattern.
 
@@ -60,13 +49,78 @@ Non-exhaustive list of std types that are NonZero:
     */
     type IsNonZeroType: Boolean;
 
+
+    /// The layout of the type provided by implementors.
+    const LAYOUT: &'static TypeLayout;
+
+    /// The layout of the type,derived from Self::LAYOUT and associated types.
+    const ABI_INFO: &'static AbiInfoWrapper;
+}
+
+
+/**
+Represents a type whose layout is stable.
+
+This trait can be derived using `#[derive(StableAbi)]`.
+
+# Safety
+
+The layout of types implementing this trait must be stable across minor versions,
+
+# Caveats
+
+This trait cannot be directly implemented for functions that take lifetime parameters,
+because of that,`#[derive(StableAbi)]` detects the presence of `extern fn` types 
+in type definitions.
+
+*/
+pub unsafe trait SharedStableAbi {
+    /**
+Whether this type has a single invalid bit-pattern.
+
+Possible values:True/False
+
+Some standard library types have a single value that is invalid for them eg:0,null.
+these types are the only ones which can be stored in a `Option<_>` that implements AbiStable.
+
+An alternative for types where `IsNonZeroType=False`,you can use `abi_stable::ROption`.
+
+Non-exhaustive list of std types that are NonZero:
+
+- &T (any T).
+
+- &mut T (any T).
+
+- extern fn() : Any combination of StableAbi parameter/return types.
+
+- std::ptr::NonNull
+
+- std::num::NonZero* 
+
+    */
+    type IsNonZeroType: Boolean;
+
+    /**
+The kind of abi stability of this type,there are 2:
+
+- ValueKind:The layout of this type does not change in minor versions.
+
+- PrefixKind:
+    A struct which can add fields in minor versions,
+    only usable behind a shared reference,
+    used to implement extensible vtables and modules.
+
+    */
+    type Kind:TypeKindTrait;
+
     /// The layout of the type provided by implementors.
     const LAYOUT: &'static TypeLayout;
 
     /// The layout of the type,derived from Self::LAYOUT and associated types.
     const ABI_INFO: &'static AbiInfoWrapper = {
         let info = AbiInfo {
-            prefix_kind: false,
+            kind:<Self::Kind as TypeKindTrait>::VALUE,
+            prefix_kind: <Self::Kind as TypeKindTrait>::IS_PREFIX,
             is_nonzero: <Self::IsNonZeroType as Boolean>::VALUE,
             layout: Self::LAYOUT,
         };
@@ -74,6 +128,16 @@ Non-exhaustive list of std types that are NonZero:
         &AbiInfoWrapper::new(info)
     };
 }
+
+
+impl<This> StableAbi for This
+where This:SharedStableAbi<Kind=ValueKind>
+{
+    type IsNonZeroType=<This as SharedStableAbi>::IsNonZeroType;
+    const LAYOUT: &'static TypeLayout=<This as SharedStableAbi>::LAYOUT;
+    const ABI_INFO: &'static AbiInfoWrapper=<This as SharedStableAbi>::ABI_INFO;
+}
+
 
 ///////////////////////
 
@@ -117,12 +181,48 @@ impl AbiInfoWrapper {
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct AbiInfo {
-    /// Reserved for `0.2`,for modules and vtables.
+    pub kind:PrefixKind,
     pub prefix_kind: bool,
     /// Whether the type uses non-zero value optimization,
     /// if true then an Option<Self> implements StableAbi.
     pub is_nonzero: bool,
     pub layout: &'static TypeLayout,
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+pub enum TypeKind{
+    /// A value whose layout must not change in minor versions
+    Value,
+    /// A struct whose fields can be extended in minor versions,
+    /// but only behind a shared reference,
+    /// used to implement vtables and modules.
+    Prefix,
+}
+pub trait TypeKindTrait:Sealed{
+    const VALUE:TypeKind;
+    const IS_PREFIX:bool;
+}
+pub struct ValueKind;
+pub struct PrefixKind;
+
+
+mod sealed{
+    pub trait Sealed{}
+}
+
+impl sealed::Sealed for ValueKind{}
+impl sealed::Sealed for PrefixKind{}
+
+impl TypeKindTrait for ValueKind {
+    const VALUE:TypeKind=TypeKind::Value;
+    const IS_PREFIX:bool=false;
+}
+
+impl TypeKindTrait for PrefixKind {
+    const VALUE:TypeKind=TypeKind::Prefix;
+    const IS_PREFIX:bool=true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -195,7 +295,8 @@ where
 
 ///////////////////////////////////////////////////////////////////////////////
 
-unsafe impl<T> StableAbi for PhantomData<T> {
+unsafe impl<T> SharedStableAbi for PhantomData<T> {
+    type Kind=ValueKind;
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
@@ -206,7 +307,8 @@ unsafe impl<T> StableAbi for PhantomData<T> {
         &[],
     );
 }
-unsafe impl StableAbi for () {
+unsafe impl SharedStableAbi for () {
+    type Kind=ValueKind;
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout =
@@ -216,10 +318,11 @@ unsafe impl StableAbi for () {
 /////////////
 
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
-unsafe impl<'a, T> StableAbi for &'a T
+unsafe impl<'a, T> SharedStableAbi for &'a T
 where
-    T: 'a + StableAbi,
+    T: 'a + SharedStableAbi,
 {
+    type Kind=ValueKind;
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
@@ -236,10 +339,11 @@ where
 }
 
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
-unsafe impl<'a, T> StableAbi for &'a mut T
+unsafe impl<'a, T> SharedStableAbi for &'a mut T
 where
     T: 'a + StableAbi,
 {
+    type Kind=ValueKind;
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
@@ -256,10 +360,11 @@ where
 }
 
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
-unsafe impl<T> StableAbi for NonNull<T>
+unsafe impl<T> SharedStableAbi for NonNull<T>
 where
     T: StableAbi,
 {
+    type Kind=ValueKind;
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
@@ -275,10 +380,11 @@ where
     );
 }
 
-unsafe impl<T> StableAbi for AtomicPtr<T>
+unsafe impl<T> SharedStableAbi for AtomicPtr<T>
 where
     T: StableAbi,
 {
+    type Kind=ValueKind;
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
@@ -295,10 +401,11 @@ where
 }
 
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
-unsafe impl<T> StableAbi for *const T
+unsafe impl<T> SharedStableAbi for *const T
 where
     T: StableAbi,
 {
+    type Kind=ValueKind;
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
@@ -315,10 +422,11 @@ where
 }
 
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
-unsafe impl<T> StableAbi for *mut T
+unsafe impl<T> SharedStableAbi for *mut T
 where
     T: StableAbi,
 {
+    type Kind=ValueKind;
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
@@ -339,9 +447,10 @@ where
 macro_rules! impl_stable_abi_array {
     ($($size:expr),*)=>{
         $(
-            unsafe impl<T> StableAbi for [T;$size]
+            unsafe impl<T> SharedStableAbi for [T;$size]
             where T:StableAbi
             {
+                type Kind=ValueKind;
                 type IsNonZeroType=False;
 
                 const LAYOUT:&'static TypeLayout=&TypeLayout::from_std_lib_phantom::<Self>(
@@ -367,10 +476,11 @@ impl_stable_abi_array! {
 
 /// Implementing abi stability for Option<T> is fine if
 /// T is a NonZero primitive type.
-unsafe impl<T> StableAbi for Option<T>
+unsafe impl<T> SharedStableAbi for Option<T>
 where
     T: StableAbi<IsNonZeroType = True>,
 {
+    type Kind=ValueKind;
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
@@ -394,7 +504,8 @@ macro_rules! impl_for_concrete {
         nonzero=[ $( $nonzero:ty ,)* ]
     ) => (
         $(
-            unsafe impl StableAbi for $zeroable {
+            unsafe impl SharedStableAbi for $zeroable {
+                type Kind=ValueKind;
                 type IsNonZeroType=False;
 
                 const LAYOUT:&'static TypeLayout=&TypeLayout::from_std_lib::<Self>(
@@ -406,7 +517,8 @@ macro_rules! impl_for_concrete {
         )*
 
         $(
-            unsafe impl StableAbi for $nonzero {
+            unsafe impl SharedStableAbi for $nonzero {
+                type Kind=ValueKind;
                 type IsNonZeroType=True;
 
                 const LAYOUT:&'static TypeLayout=&TypeLayout::from_std_lib::<Self>(
@@ -472,10 +584,11 @@ mod rust_1_34_impls{
 
 /////////////
 
-unsafe impl<N> StableAbi for num::Wrapping<N>
+unsafe impl<N> SharedStableAbi for num::Wrapping<N>
 where
     N: StableAbi,
 {
+    type Kind=ValueKind;
     type IsNonZeroType = N::IsNonZeroType;
 
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
@@ -487,10 +600,11 @@ where
 
 /////////////
 
-unsafe impl<P> StableAbi for Pin<P>
+unsafe impl<P> SharedStableAbi for Pin<P>
 where
     P: StableAbi,
 {
+    type Kind=ValueKind;
     type IsNonZeroType = P::IsNonZeroType;
 
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
@@ -505,7 +619,8 @@ where
 /// This is the only function type that implements StableAbi
 /// so as to make it more obvious that functions involving lifetimes
 /// cannot implement this trait directly (because of higher ranked trait bounds).
-unsafe impl StableAbi for extern "C" fn() {
+unsafe impl SharedStableAbi for extern "C" fn() {
+    type Kind=ValueKind;
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = EMPTY_EXTERN_FN_LAYOUT;
@@ -514,7 +629,8 @@ unsafe impl StableAbi for extern "C" fn() {
 /// This is the only function type that implements StableAbi
 /// so as to make it more obvious that functions involving lifetimes
 /// cannot implement this trait directly (because of higher ranked trait bounds).
-unsafe impl StableAbi for unsafe extern "C" fn() {
+unsafe impl SharedStableAbi for unsafe extern "C" fn() {
+    type Kind=ValueKind;
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = EMPTY_EXTERN_FN_LAYOUT;
@@ -552,7 +668,8 @@ const EMPTY_EXTERN_FN_LAYOUT: &'static TypeLayout =
 #[repr(transparent)]
 pub struct UnsafeOpaqueField<T>(T);
 
-unsafe impl<T> StableAbi for UnsafeOpaqueField<T> {
+unsafe impl<T> SharedStableAbi for UnsafeOpaqueField<T> {
+    type Kind=ValueKind;
     type IsNonZeroType = False;
     const LAYOUT: &'static TypeLayout = &TypeLayout::from_params::<Self>(TypeLayoutParams {
         name: "OpaqueField",
