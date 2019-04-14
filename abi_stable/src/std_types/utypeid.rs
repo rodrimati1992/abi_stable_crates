@@ -38,6 +38,7 @@ pub struct UTypeId {
 }
 
 impl UTypeId {
+    /// Constructs UTypeId from a type that satisfies the `'static` bound.
     #[inline(always)]
     pub fn new<T>() -> Self
     where

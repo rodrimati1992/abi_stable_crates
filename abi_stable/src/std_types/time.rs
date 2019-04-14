@@ -12,6 +12,7 @@ pub struct RDuration {
 }
 
 impl RDuration {
+    /// Constructs this RDuration from seconds and the nanoseconds inside a second .
     pub fn new(seconds: u64, subsec_nanos: u32) -> Self {
         Self {
             subsec_nanos,
@@ -19,10 +20,13 @@ impl RDuration {
         }
     }
 
+    /// The ammount of fractional nanoseconds (total_nanoseconds % 1_000_000_000) 
+    /// of this RDuration.
     pub fn subsec_nanos(&self) -> u32 {
         self.subsec_nanos
     }
 
+    /// The ammount of seconds pf this RDuration.
     pub fn seconds(&self) -> u64 {
         self.seconds
     }

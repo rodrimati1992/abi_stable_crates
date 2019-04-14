@@ -34,6 +34,7 @@ mod inner {
     }
 
     impl StaticStr {
+        /// Creates a StaticStr from a `&'static str`
         #[inline]
         pub const fn new(s: &'static str) -> Self {
             StaticStr {
@@ -42,10 +43,12 @@ mod inner {
                 _private_initializer: PhantomData,
             }
         }
+        /// Gets the `&'static str` back.
         #[inline]
         pub fn as_str(&self) -> &'static str {
             self.as_rstr().into()
         }
+        /// Converts the internal `&'static str` into a `RStr<'static>`.
         #[inline]
         pub fn as_rstr(&self) -> RStr<'static> {
             let s = (&self.s) as *const &'static str as *const [usize; 2];

@@ -26,6 +26,8 @@ use crate::{
 /// Ffi-safe version of `Box<::std::error::Error>` 
 /// whose `Send+Sync`ness is determined by the `M` type parameter.
 ///
+/// Currently it cannot be converted to `Box<::std::error::Error>`,
+/// this may change in a future version.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -46,8 +48,8 @@ unsafe impl Send for RBoxError_<SyncSend> {}
 unsafe impl Sync for RBoxError_<SyncSend> {}
 
 impl<M> RBoxError_<M> {
-    /// Constructs an error containing the Debug and Display messages without
-    /// storing the error value.
+    /// Constructs an RBoxError from an error,
+    /// storing the Debug and Display messages without storing the error value.
     pub fn from_fmt<T>(value: T) -> Self
     where
         T: Display + Debug,
@@ -79,6 +81,7 @@ impl<M> RBoxError_<M> {
 }
 
 impl RBoxError_<SyncSend> {
+    /// Constructs an RBoxError from an error.
     pub fn new<T>(value: T) -> Self
     where
         T: ErrorTrait + Send + Sync + 'static,
@@ -88,6 +91,7 @@ impl RBoxError_<SyncSend> {
 }
 
 impl RBoxError_<UnsyncUnsend> {
+    /// Constructs an RBoxError from an error.
     pub fn new<T>(value: T) -> Self
     where
         T: ErrorTrait + 'static,

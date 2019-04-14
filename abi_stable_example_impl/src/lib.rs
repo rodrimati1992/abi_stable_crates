@@ -15,7 +15,7 @@ use abi_stable_example_interface::{
 };
 
 use abi_stable::{
-    mangle_library_getter,
+    export_sabi_module,
     extern_fn_panic_handling, impl_get_type_info,
     library::WithLayout,
     erased_types::{ImplType,SerializeImplType,TypeInfo},
@@ -162,7 +162,7 @@ pub extern "C" fn get_processed_bytes(this: &TOStateBox) -> u64 {
 ///
 /// WithLayout is used to check that the layout of `TextOpsMod` in this dynamic library
 /// is compatible with the layout of it in the binary that loads this library.
-#[mangle_library_getter]
+#[export_sabi_module]
 pub extern "C" fn get_library() -> WithLayout<TextOpsMod> {
     extern_fn_panic_handling!{
         // println!("inside get_library_text_operations");
@@ -217,7 +217,7 @@ pub extern "C" fn for_tests()->ForTests{
 ///
 /// WithLayout is used to check that the layout of `HelloWorldMod` in this dynamic library
 /// is compatible with the layout of it in the binary that loads this library.
-#[mangle_library_getter]
+#[export_sabi_module]
 pub extern "C" fn get_hello_world_mod() -> WithLayout<HelloWorldMod> {
     extern_fn_panic_handling!{
         HelloWorldMod{

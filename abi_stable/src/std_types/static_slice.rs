@@ -39,6 +39,7 @@ mod inner {
     }
 
     impl<T: 'static> StaticSlice<T> {
+        /// Creates a `StaticSlice<T>` from a `&'static [T]`
         #[inline]
         pub const fn new(s: &'static [T]) -> Self {
             StaticSlice {
@@ -47,10 +48,12 @@ mod inner {
                 _private_initializer: PhantomData,
             }
         }
+        /// Gets the `&'static [Y]` back.
         #[inline]
         pub fn as_slice(&self) -> &'static [T] {
             self.as_rslice().into()
         }
+        /// Converts the internal `&'static [T]` into a `RSlice<'static,T>`.
         #[inline]
         pub fn as_rslice(&self) -> RSlice<'static, T> {
             unsafe {

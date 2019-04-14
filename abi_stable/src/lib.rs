@@ -81,7 +81,10 @@ extern crate abi_stable_derive;
 pub use abi_stable_derive::StableAbi;
 
 #[doc(inline)]
-pub use abi_stable_derive::mangle_library_getter;
+pub use abi_stable_derive::{
+    mangle_library_getter,
+    export_sabi_module,
+};
 
 #[macro_use]
 mod impls;

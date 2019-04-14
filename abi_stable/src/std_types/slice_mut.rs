@@ -49,6 +49,31 @@ mod privacy {
         pub const fn len(&self) -> usize {
             self.length
         }
+
+
+        /// Constructs an `RSliceMut<'a,T>` from a pointer to the first element,
+        /// and a length.
+        ///
+        /// # Safety
+        ///
+        /// Callers must ensure that:
+        ///
+        /// - ptr_ points to valid memory,
+        ///
+        /// - `ptr_ .. ptr+len` range is àccessible memory.
+        ///
+        /// - ptr_ is aligned to `T`.
+        ///
+        /// - the data ptr_ points to must be valid for the lifetime of this `RSlice<'a,T>`
+        pub unsafe fn from_raw_parts_mut(ptr_: *mut T, len: usize) -> Self {
+            Self {
+                data: ptr_,
+                length: len,
+                // WHAT!?
+                // error[E0723]: mutable references in const fn are unstable (see issue #57563)
+                _marker: PhantomData,
+            }
+        }
     }
 }
 pub use self::privacy::RSliceMut;
@@ -64,30 +89,6 @@ impl<'a, T> RSliceMut<'a, T> {
     pub fn from_mut(ref_:&'a mut T)->Self{
         unsafe{
             Self::from_raw_parts_mut(ref_,1)
-        }
-    }
-
-    /// Constructs an `RSliceMut<'a,T>` from a pointer to the first element,
-    /// and a length.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that:
-    ///
-    /// - ptr_ points to valid memory,
-    ///
-    /// - `ptr_ .. ptr+len` range is àccessible memory.
-    ///
-    /// - ptr_ is aligned to `T`.
-    ///
-    /// - the data ptr_ points to must be valid for the lifetime of this `RSlice<'a,T>`
-    pub unsafe fn from_raw_parts_mut(ptr_: *mut T, len: usize) -> Self {
-        Self {
-            data: ptr_,
-            length: len,
-            // WHAT!?
-            // error[E0723]: mutable references in const fn are unstable (see issue #57563)
-            _marker: PhantomData,
         }
     }
 

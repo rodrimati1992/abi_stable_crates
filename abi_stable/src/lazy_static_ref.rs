@@ -24,6 +24,8 @@ const LOCK:RawMutex=<RawMutex as RawMutexTrait>::INIT;
 
 
 impl<T> LazyStaticRef<T>{
+    /// Constructs the late initialized static reference,
+    /// in an uninitialized state.
     pub const fn new()->Self{
         Self{
             lock:LOCK,
@@ -31,15 +33,15 @@ impl<T> LazyStaticRef<T>{
         }
     }
 
-    /// Attempts to initialize the `&'static T` reference this contains,
-    /// if it is not already initialized.
+    /// Lazily initializes the reference with `initializer`,
+    /// returning the reference if either it was already initialized,or
+    /// if `initalizer` returned Ok(..).
     ///
     /// If `initializer` returns an `Err(...)` this returns the error and 
     /// allows the reference to be initializer later.
     ///
-    /// If `initializer` panics this does not get poisoned,it can just be called again.
-    ///
-    /// If this is already initialized,`initializer` won't be run.
+    /// If `initializer` panics,the panic is propagated,
+    /// and the reference can be initalized later.
     pub fn try_init<F,E>(&self,initializer:F)->Result<&'static T,E>
     where F:FnOnce()->Result<&'static T,E>
     {
@@ -61,12 +63,12 @@ impl<T> LazyStaticRef<T>{
     }
 
 
-    /// Attempts to initialize the `&'static T` reference this contains,
-    /// if it is not already initialized.
+    /// Lazily initializes the reference with `initializer`,
+    /// returning the reference if either it was already initialized,or
+    /// once `initalizer` returns the reference.
     ///
-    /// If `initializer` panics this does not get poisoned,it can just be called again.
-    ///
-    /// If this is already initialized,`initializer` won't be run.
+    /// If `initializer` panics,the panic is propagated,
+    /// and the reference can be initalized later.
     #[inline]
     pub fn init<F>(&self,initializer:F)->&'static T
     where F:FnOnce()->&'static T
@@ -78,7 +80,7 @@ impl<T> LazyStaticRef<T>{
             .expect("bug:LazyStaticRef::try_init should only return an Err if `initializer` does")
     }
 
-    /// Returns `Some(x:&'static T)` if it was initialized,otherwise returns None.
+    /// Returns `Some(x:&'static T)` if the reference was initialized,otherwise returns None.
     pub fn get(&self)->Option<&'static T>{
         unsafe{
             self.pointer
