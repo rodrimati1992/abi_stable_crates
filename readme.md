@@ -5,6 +5,7 @@ For Rust-to-Rust ffi,with a focus on creating libraries loaded at program startu
 This library allows defining Rust libraries that can be loaded at runtime,
 even if they were built with a different Rust version than the crate that depends on it.
 
+This library is intended more as a replacement for compiling Rust libraries statically(the default way of compiling Rust libraries),than it is intended to be for cross-language ffi.
 
 # Features
 
