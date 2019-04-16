@@ -61,10 +61,7 @@ impl DeserializeInterfaceType for TOState {
 /// The parameters for every `TextOpsMod.remove_words_*` function.
 #[repr(C)]
 #[derive(StableAbi)] 
-pub struct RemoveWords<'a,S:'a>
-where 
-    S: Clone + StableAbi,
-{
+pub struct RemoveWords<'a,S:'a>{
     /// The string we're processing.
     pub string:RStr<'a>,
     /// The words that will be removed from self.string.
@@ -124,7 +121,8 @@ pub struct TextOpsMod {
     pub reverse_lines: extern "C" fn(&mut TOStateBox,RStr<'_>,ThirdParam) -> RString,
     
     /// Removes the `param.words` words from the `param.string` string.
-    pub remove_words_cow: extern "C" fn(&mut TOStateBox,param:RemoveWords<RCow<str>>) -> RString,
+    pub remove_words_cow: 
+        for<'a>extern "C" fn(&mut TOStateBox,param:RemoveWords<'a,RCow<'a,RStr<'a>>>) -> RString,
     
     /// Removes the `param.words` words from the `param.string` string.
     pub remove_words_str: extern "C" fn(&mut TOStateBox,param:RemoveWords<RStr>) -> RString,

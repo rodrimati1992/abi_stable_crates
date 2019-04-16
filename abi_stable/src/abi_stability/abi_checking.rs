@@ -16,7 +16,7 @@ use super::{
 };
 use crate::{
     version::{ParseVersionError, VersionStrings},
-    std_types::{RVec, StaticSlice, StaticStr},
+    std_types::{RVec, StaticSlice, StaticStr,utypeid::UTypeId},
 };
 
 /// All the errors from checking the layout of every nested type in AbiInfo.
@@ -150,6 +150,29 @@ impl fmt::Display for AbiInstabilityError {
 
 //////
 
+
+#[derive(Debug, PartialEq,Eq,Ord,PartialOrd,Hash)]
+#[repr(C)]
+struct CheckingUTypeId{
+    type_id:UTypeId,
+    name:StaticStr,
+    package:StaticStr,
+}
+
+impl CheckingUTypeId{
+    fn new(this: &'static AbiInfo)->Self{
+        let layout=this.layout;
+        Self{
+            type_id:(this.type_id.function)(),
+            name:layout.name,
+            package:layout.package,
+        }
+    }
+}
+
+
+//////
+
 /// Represents an error where a value was expected,but another value was found.
 #[derive(Debug, PartialEq)]
 #[repr(C)]
@@ -206,7 +229,7 @@ impl<T> ExpectedFoundError<T> {
 struct AbiChecker {
     stack_trace: RVec<TLFieldAndType>,
 
-    visited: HashSet<(*const AbiInfo,*const AbiInfo)>,
+    visited: HashSet<(CheckingUTypeId,CheckingUTypeId)>,
     errors: RVec<AbiInstabilityError>,
 
     error_index: usize,
@@ -277,7 +300,9 @@ impl AbiChecker {
     }
 
     fn check_inner(&mut self, this: &'static AbiInfo, other: &'static AbiInfo) {
-        if !self.visited.insert((this as *const _,other as *const _)) {
+        let t_cuti=CheckingUTypeId::new(this );
+        let o_cuti=CheckingUTypeId::new(other);
+        if !self.visited.insert((t_cuti,o_cuti)) {
             return;
         }
 

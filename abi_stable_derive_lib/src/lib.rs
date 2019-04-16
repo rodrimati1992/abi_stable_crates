@@ -2,7 +2,7 @@
 An implementation detail of abi_stable.
 */
 
-#![recursion_limit="128"]
+#![recursion_limit="192"]
 //#![deny(unused_variables)]
 
 

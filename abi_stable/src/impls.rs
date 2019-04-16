@@ -81,6 +81,7 @@ macro_rules! shared_impls {
         mod=$mod_:ident
         new_type=$tconst:ident[$($lt:lifetime),*][$($ty:ident),*]
             $(extra[$($ex_ty:ident),* $(,)*])?
+            $(constrained[$($c_ty:ty),* $(,)*])?
             $(where [ $($where_:tt)* ])? ,
         original_type=$original:ident,
     ) => {
@@ -96,6 +97,7 @@ macro_rules! shared_impls {
                 for $tconst<$($lt,)* $($ty,)* $($($ex_ty,)*)?>
             where
                 $($ty:Debug,)*
+                $($($c_ty:Debug,)*)?
                 $($($where_)*)?
             {
                 fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
@@ -107,6 +109,7 @@ macro_rules! shared_impls {
                 for $tconst<$($lt,)* $($ty,)* $($($ex_ty,)*)?>
             where
                 $($ty:Eq,)*
+                $($($c_ty:Eq,)*)?
                 $($($where_)*)?
             {}
 
@@ -115,6 +118,7 @@ macro_rules! shared_impls {
                 for $tconst<$($lt,)* $($ty,)* $($($ex_ty,)*)?>
             where
                 $($ty:PartialEq,)*
+                $($($c_ty:PartialEq,)*)?
                 $($($where_)*)?
             {
                 fn eq(&self, other: &Self) -> bool{
@@ -128,6 +132,7 @@ macro_rules! shared_impls {
                 for $tconst<$($lt,)* $($ty,)* $($($ex_ty,)*)?>
             where
                 $($ty:Ord,)*
+                $($($c_ty:Ord,)*)?
                 $($($where_)*)?
             {
                 fn cmp(&self, other: &Self) -> Ordering{
@@ -143,6 +148,7 @@ macro_rules! shared_impls {
                 for $tconst<$($lt,)* $($ty,)* $($($ex_ty,)*)?>
             where
                 $($ty:PartialOrd,)*
+                $($($c_ty:PartialOrd,)*)?
                 $($($where_)*)?
             {
                 fn partial_cmp(&self, other: &Self) -> Option<Ordering>{
@@ -158,6 +164,7 @@ macro_rules! shared_impls {
                 for $tconst<$($lt,)* $($ty,)* $($($ex_ty,)*)?>
             where
                 $($ty:Hash,)*
+                $($($c_ty:Hash,)*)?
                 $($($where_)*)?
             {
                 fn hash<H>(&self, state: &mut H)

@@ -7,6 +7,7 @@ use core_extensions::prelude::*;
 
 use crate::{
     StableAbi, 
+    SharedStableAbi, 
     std_types::{RSlice, RStr, RString, RVec},
 };
 
@@ -15,135 +16,150 @@ use crate::{
 
 /// The ffi-safe borrowed and owned types this is associated with,
 /// as well as conversions to and from those types.
-pub trait BorrowOwned<'a>: 'a + ToOwned {
-    type ROwned: StableAbi;
-    type RBorrowed: 'a + Copy + StableAbi;
-    fn r_borrow(this: &'a Self::ROwned) -> Self::RBorrowed;
-    fn r_to_owned(this: Self::RBorrowed) -> Self::ROwned;
-    fn deref_borrowed(this: &Self::RBorrowed) -> &Self;
-    fn deref_owned(this: &Self::ROwned) -> &Self;
-    fn from_cow_borrow(this: &'a Self) -> Self::RBorrowed;
-    fn from_cow_owned(this: <Self as ToOwned>::Owned) -> Self::ROwned;
-    fn into_cow_borrow(this: Self::RBorrowed) -> &'a Self;
-    fn into_cow_owned(this: Self::ROwned) -> <Self as ToOwned>::Owned;
+///
+/// # Safety
+///
+/// The StaticEquivalent associated type must be implemented correctly.
+///
+pub unsafe trait BorrowOwned<'a>:'a+Copy {
+    type ROwned;
+    type Borrowed:'a+?Sized+ToOwned;
+
+    fn to_rowned(self)->Self::ROwned;
+    fn from_rowned(owned:&'a Self::ROwned)->Self;
+    
+    fn rowned_to_owned(owned:Self::ROwned)-><Self::Borrowed as ToOwned>::Owned;
+    fn owned_to_rowned(owned:<Self::Borrowed as ToOwned>::Owned)->Self::ROwned;
+
+    fn from_borrowed(this:&'a Self::Borrowed)->Self;
+    
+    fn deref_borrowed(self)->&'a Self::Borrowed;
+    fn deref_owned(owned:&Self::ROwned)->&Self::Borrowed;
 }
 
-impl<'a> BorrowOwned<'a> for str {
+unsafe impl<'a> BorrowOwned<'a> for RStr<'a> {
     type ROwned = RString;
-    type RBorrowed = RStr<'a>;
+    type Borrowed = str;
+    
+
     #[inline]
-    fn r_borrow(this: &'a Self::ROwned) -> Self::RBorrowed {
-        this.as_rstr()
+    fn to_rowned(self)->Self::ROwned{
+        self.into()
     }
+
     #[inline]
-    fn r_to_owned(this: Self::RBorrowed) -> Self::ROwned {
+    fn from_rowned(owned:&'a Self::ROwned)->Self{
+        owned.as_rstr()
+    }
+
+    #[inline]
+    fn rowned_to_owned(owned:Self::ROwned)->String{
+        owned.into()
+    }
+
+    
+    #[inline]
+    fn owned_to_rowned(owned:String)->Self::ROwned {
+        owned.into()
+    }
+
+    fn from_borrowed(this:&'a Self::Borrowed)->Self{
         this.into()
     }
+
     #[inline]
-    fn deref_borrowed(this: &Self::RBorrowed) -> &Self {
-        this
+    fn deref_borrowed(self)->&'a Self::Borrowed{
+        self.as_str()
     }
+
     #[inline]
-    fn deref_owned(this: &Self::ROwned) -> &Self {
-        this
-    }
-    #[inline]
-    fn from_cow_borrow(this: &'a Self) -> Self::RBorrowed {
-        this.into()
-    }
-    #[inline]
-    fn from_cow_owned(this: <Self as ToOwned>::Owned) -> Self::ROwned {
-        this.into()
-    }
-    #[inline]
-    fn into_cow_borrow(this: Self::RBorrowed) -> &'a Self {
-        this.into()
-    }
-    #[inline]
-    fn into_cow_owned(this: Self::ROwned) -> <Self as ToOwned>::Owned {
-        this.into()
+    fn deref_owned(owned:&Self::ROwned)->&Self::Borrowed{
+        owned
     }
 }
 
-impl<'a, T: 'a> BorrowOwned<'a> for [T]
+unsafe impl<'a, T: 'a> BorrowOwned<'a> for RSlice<'a, T>
 where
-    T: Clone + StableAbi,
+    T: StableAbi+Clone,
 {
+    type Borrowed = [T];
     type ROwned = RVec<T>;
-    type RBorrowed = RSlice<'a, T>;
+    
     #[inline]
-    fn r_borrow(this: &'a Self::ROwned) -> Self::RBorrowed {
-        this.as_rslice()
+    fn to_rowned(self)->Self::ROwned{
+        self.to_vec().into()
     }
+
     #[inline]
-    fn r_to_owned(this: Self::RBorrowed) -> Self::ROwned {
-        this.to_rvec()
+    fn from_rowned(owned:&'a Self::ROwned)->Self{
+        owned.as_rslice()
     }
+
     #[inline]
-    fn deref_borrowed(this: &Self::RBorrowed) -> &Self {
-        this
+    fn rowned_to_owned(owned:Self::ROwned)->Vec<T>{
+        owned.into()
     }
+    
     #[inline]
-    fn deref_owned(this: &Self::ROwned) -> &Self {
-        this
+    fn owned_to_rowned(owned:Vec<T>)->Self::ROwned {
+        owned.into()
     }
-    #[inline]
-    fn from_cow_borrow(this: &'a Self) -> Self::RBorrowed {
+
+    fn from_borrowed(this:&'a Self::Borrowed)->Self{
         this.into()
     }
+
     #[inline]
-    fn from_cow_owned(this: <Self as ToOwned>::Owned) -> Self::ROwned {
-        this.into()
+    fn deref_borrowed(self)->&'a Self::Borrowed{
+        self.as_slice()
     }
+
     #[inline]
-    fn into_cow_borrow(this: Self::RBorrowed) -> &'a Self {
-        this.into()
-    }
-    #[inline]
-    fn into_cow_owned(this: Self::ROwned) -> <Self as ToOwned>::Owned {
-        this.into()
-    }
+    fn deref_owned(owned:&Self::ROwned)->&Self::Borrowed{
+        owned
+    }   
 }
 
-impl<'a, T: 'a> BorrowOwned<'a> for T
+unsafe impl<'a, T: 'a> BorrowOwned<'a> for &'a T
 where
-    T: Clone + StableAbi,
+    T: StableAbi+Clone,
 {
+    type Borrowed = T;
     type ROwned = T;
-    type RBorrowed = &'a T;
+    
+    #[inline]
+    fn to_rowned(self)->Self::ROwned{
+        self.clone()
+    }
 
     #[inline]
-    fn r_borrow(this: &'a Self::ROwned) -> Self::RBorrowed {
-        this.into()
+    fn from_rowned(owned:&'a Self::ROwned)->Self{
+        owned
     }
+
     #[inline]
-    fn r_to_owned(this: Self::RBorrowed) -> Self::ROwned {
-        (*this).clone()
+    fn rowned_to_owned(owned:Self::ROwned)->T{
+        owned
     }
+
     #[inline]
-    fn deref_borrowed(this: &Self::RBorrowed) -> &Self {
+    fn owned_to_rowned(owned:T)->Self::ROwned {
+        owned
+    }
+
+    fn from_borrowed(this:&'a Self::Borrowed)->Self{
         this
     }
+
     #[inline]
-    fn deref_owned(this: &Self::ROwned) -> &Self {
-        this
+    fn deref_borrowed(self)->&'a Self::Borrowed{
+        self
     }
+
     #[inline]
-    fn from_cow_borrow(this: &'a Self) -> Self::RBorrowed {
-        this
-    }
-    #[inline]
-    fn from_cow_owned(this: <Self as ToOwned>::Owned) -> Self::ROwned {
-        this
-    }
-    #[inline]
-    fn into_cow_borrow(this: Self::RBorrowed) -> &'a Self {
-        this
-    }
-    #[inline]
-    fn into_cow_owned(this: Self::ROwned) -> <Self as ToOwned>::Owned {
-        this
-    }
+    fn deref_owned(owned:&Self::ROwned)->&Self::Borrowed{
+        owned
+    }   
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -151,131 +167,86 @@ where
 
 /// Ffi-safe equivalent of ::std::borrow::Cow.
 #[repr(C)]
-pub enum RCow<'a, B>
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+#[sabi(bound="<B as SharedStableAbi>::StaticEquivalent: BorrowOwned<'static>")]
+pub enum RCow<'a, B,O=<B as BorrowOwned<'a>>::ROwned>
 where
-    B: BorrowOwned<'a> + ?Sized,
+    B: BorrowOwned<'a>,
 {
-    Borrowed(<B as BorrowOwned<'a>>::RBorrowed),
-    Owned(<B as BorrowOwned<'a>>::ROwned),
+    Borrowed(B),
+    Owned(O),
+    __Impossible{
+        ref_:&'a(),
+        wtf:core_extensions::Void,
+    },
 }
 
 use self::RCow::{Borrowed, Owned};
 
 ///////////////////////////////////////////////////////////////////////////
 
-// Have to implement StableAbi manually for now,
-// because fields whose types are associated types cause
-// an (already reported by someone else) ICE.
-// ICE Reports:
-//  https://github.com/rust-lang/rust/issues/58944
-//  https://github.com/rust-lang/rust/issues/59324
-//
-// Will keep this until I drop support for Rust 1.33 .
-mod _stable_abi_impls_for_rcow {
-    use super::*;
-    use crate as abi_stable;
-    #[allow(unused_imports)]
-    use crate::derive_macro_reexports::{self as _sabi_reexports, renamed::*};
-    unsafe impl<'a, B, Owned, Borrowed> __StableAbi for RCow<'a, B>
-    where
-        B: BorrowOwned<'a, RBorrowed = Borrowed, ROwned = Owned> + ?Sized,
-        Owned: StableAbi,
-        Borrowed: StableAbi + Copy + 'a,
-    {
-        type IsNonZeroType = _sabi_reexports::False;
-        const LAYOUT: &'static _sabi_reexports::TypeLayout = {
-            &_sabi_reexports::TypeLayout::from_params::<Self>({
-                __TypeLayoutParams {
-                    name: "RCow",
-                    package: env!("CARGO_PKG_NAME"),
-                    package_version: abi_stable::package_version_strings!(),
-                    file:file!(),
-                    line:line!(),
-                    data: __TLData::enum_(&[
-                        __TLEnumVariant::new(
-                            stringify!(Borrowed),
-                            &[__TLField::new(
-                                "field_0",
-                                &[__LIParam(0usize)],
-                                <Borrowed as __MakeGetAbiInfo<__StableAbi_Bound>>::CONST,
-                            )],
-                        ),
-                        __TLEnumVariant::new(
-                            stringify!(Owned),
-                            &[__TLField::new(
-                                "field_0",
-                                &[__LIParam(0usize)],
-                                <Owned as __MakeGetAbiInfo<__StableAbi_Bound>>::CONST,
-                            )],
-                        ),
-                    ]),
-                    generics: abi_stable :: tl_genparams ! ( 'a ; ; ),
-                    phantom_fields: &[],
-                }
-            })
-        };
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////
-
 impl<'a, B> RCow<'a, B>
 where
-    B: BorrowOwned<'a> + ?Sized,
+    B: BorrowOwned<'a>,
 {
     /// Get a mutable reference to the owner form of RCow,
     /// converting to the owned form if it is currently the borrowed form.
     pub fn to_mut(&mut self) -> &mut B::ROwned {
         if let Borrowed(v) = *self {
-            let owned = B::r_to_owned(v);
+            let owned = B::to_rowned(v);
             *self = Owned(owned)
         }
         match self {
             Borrowed(_) => loop {},
             Owned(v) => v,
+            RCow::__Impossible{wtf,..}=>wtf.to(),
         }
     }
     /// Unwraps into the owned owner form of RCow,
     /// converting to the owned form if it is currently the borrowed form.
     pub fn into_owned(self) -> B::ROwned {
         match self {
-            Borrowed(x) => B::r_to_owned(x),
+            Borrowed(x) => B::to_rowned(x),
             Owned(x) => x,
+            RCow::__Impossible{wtf,..}=>wtf.to(),
         }
     }
 }
 
 impl<'a, B> Copy for RCow<'a, B>
 where
-    B: BorrowOwned<'a> + ?Sized,
+    B: BorrowOwned<'a>,
     B::ROwned: Copy,
 {
 }
 
 impl<'a, B> Clone for RCow<'a, B>
 where
-    B: BorrowOwned<'a> + ?Sized,
+    B: BorrowOwned<'a>,
     B::ROwned: Clone,
 {
     fn clone(&self) -> Self {
         match self {
             Borrowed(x) => Borrowed(x.clone()),
             Owned(x) => Owned((*x).clone()),
+            RCow::__Impossible{wtf,..}=>wtf.to(),
         }
     }
 }
 
 impl<'a, B> Deref for RCow<'a, B>
 where
-    B: BorrowOwned<'a> + ?Sized,
+    B: BorrowOwned<'a>,
 {
-    type Target = B;
+    type Target = B::Borrowed;
     
     #[inline]
     fn deref(&self) -> &Self::Target {
         match self {
-            Borrowed(x) => B::deref_borrowed(x),
+            Borrowed(x) => B::deref_borrowed(*x),
             Owned(x) => B::deref_owned(x),
+            RCow::__Impossible{wtf,..}=>wtf.to(),
         }
     }
 }
@@ -283,11 +254,11 @@ where
 ////////////////////
 
 
-impl<'a,B> AsRef<B> for RCow<'a, B>
+impl<'a,B> AsRef<B::Borrowed> for RCow<'a, B>
 where
-    B: BorrowOwned<'a> + ?Sized,
+    B: BorrowOwned<'a>,
 {
-    fn as_ref(&self)->&B{
+    fn as_ref(&self)->&B::Borrowed{
         self
     }
 }
@@ -296,41 +267,44 @@ where
 
 shared_impls! {
     mod=slice_impls
-    new_type=RCow['a][B] where [ B:BorrowOwned<'a>+?Sized ],
-    original_type=B,
+    new_type=RCow['a][] 
+    extra[B]
+    constrained[B::Borrowed]
+    where [ B:BorrowOwned<'a> ],
+    original_type=void,
 }
 
 impl_into_rust_repr! {
-    impl['a,B] Into<Cow<'a,B>> for RCow<'a,B>
+    impl['a,B] Into<Cow<'a,B::Borrowed>> for RCow<'a,B>
     where[
-        B: BorrowOwned<'a> + ?Sized,
+        B: BorrowOwned<'a>,
     ]{
         fn(this){
             match this{
-                RCow::Borrowed(x)=>x.piped(B::into_cow_borrow).piped(Cow::Borrowed),
-                RCow::Owned(x)=>x.piped(B::into_cow_owned).piped(Cow::Owned),
+                RCow::Borrowed(x)=>x.piped(B::deref_borrowed).piped(Cow::Borrowed),
+                RCow::Owned(x)=>x.piped(B::rowned_to_owned).piped(Cow::Owned),
+                RCow::__Impossible{wtf,..}=>wtf.to(),
             }
         }
     }
 }
 
-impl_from_rust_repr! {
-    impl['a,B] From<Cow<'a,B>> for RCow<'a,B>
-    where[
-        B: BorrowOwned<'a> + ?Sized,
-    ]{
-        fn(this){
-            match this{
-                Cow::Borrowed(x)=>x.piped(B::from_cow_borrow).piped(RCow::Borrowed),
-                Cow::Owned(x)=>x.piped(B::from_cow_owned).piped(RCow::Owned),
-            }
+impl<'a,B> From<Cow<'a,B::Borrowed>> for RCow<'a,B>
+where
+    B: BorrowOwned<'a>,
+{
+    fn from(this:Cow<'a,B::Borrowed>)->Self{
+        match this{
+            Cow::Borrowed(x)=>x.piped(B::from_borrowed).piped(RCow::Borrowed),
+            Cow::Owned(x)=>x.piped(B::owned_to_rowned).piped(RCow::Owned),
         }
     }
 }
 
 impl<'a, B> fmt::Display for RCow<'a, B>
 where
-    B: BorrowOwned<'a> + ?Sized + fmt::Display,
+    B: BorrowOwned<'a> ,
+    B::Borrowed: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
@@ -339,20 +313,22 @@ where
 
 impl<'de, 'a, B> Deserialize<'de> for RCow<'a, B>
 where
-    B: BorrowOwned<'a> + ?Sized,
-    Cow<'a, B>: Deserialize<'de>,
+    B: BorrowOwned<'a>,
+    Cow<'a, B::Borrowed>: Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        <Cow<'a, B> as Deserialize<'de>>::deserialize(deserializer).map(From::from)
+        <Cow<'a, B::Borrowed> as Deserialize<'de>>::deserialize(deserializer)
+            .map(From::from)
     }
 }
 
 impl<'a, B> Serialize for RCow<'a, B>
 where
-    B: BorrowOwned<'a> + ?Sized + Serialize,
+    B: BorrowOwned<'a>,
+    B::Borrowed: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

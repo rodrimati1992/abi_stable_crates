@@ -65,7 +65,7 @@ impl<T> SerializeImplType for Foo<T>
 where
     T: 'static + Send + Sync + Serialize,
 {
-    fn serialize_impl(&self) -> Result<RCow<'_, str>, RBoxError> {
+    fn serialize_impl(&self) -> Result<RCow<'_, RStr<'_>>, RBoxError> {
         match serde_json::to_string(self) {
             Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
             Err(e)=>Err(RBoxError::new(e)),

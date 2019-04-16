@@ -1,9 +1,11 @@
 use syn::{
     Attribute, Ident, Meta, MetaList, MetaNameValue, NestedMeta, 
-    Lit,WherePredicate,
+    Lit,WherePredicate,Type,
+    punctuated::Punctuated,
+    token::Comma,
 };
 
-use std::collections::HashSet;
+use std::collections::{HashSet,HashMap};
 
 use quote::ToTokens;
 
@@ -18,7 +20,7 @@ pub(crate) struct StableAbiOptions<'a> {
     /// The type parameters that have the __StableAbi constraint
     pub(crate) stable_abi_bounded:HashSet<&'a Ident>,
 
-    pub(crate) unconstrained_type_params:HashSet<Ident>,
+    pub(crate) unconstrained_type_params:HashMap<Ident,UnconstrainedTyParam<'a>>,
 
     pub(crate) extra_bounds:Vec<WherePredicate>,
 
@@ -26,6 +28,12 @@ pub(crate) struct StableAbiOptions<'a> {
     /// (there are still some minimal checks going on).
     pub(crate) opaque_fields:HashSet<*const Field<'a>>,
 }
+
+
+pub(crate) struct UnconstrainedTyParam<'a>{
+    pub(crate) static_equivalent:Option<&'a Type>
+}
+
 
 pub(crate) enum StabilityKind {
     Value,
@@ -52,7 +60,7 @@ impl<'a> StableAbiOptions<'a> {
             .map(|x| &x.ident )
             .collect::<HashSet<&'a Ident>>();
 
-        for type_param in &this.unconstrained_type_params {
+        for (type_param,_) in &this.unconstrained_type_params {
             if !stable_abi_bounded.remove(type_param) {
                 panic!(
                     "'{}' declared as a phantom type parameter but is not a type parameter",
@@ -102,7 +110,7 @@ struct StableAbiAttrs<'a> {
     extra_bounds:Vec<WherePredicate>,
 
     /// The type parameters that have no constraints
-    unconstrained_type_params:Vec<Ident>,
+    unconstrained_type_params:Vec<(Ident,UnconstrainedTyParam<'a>)>,
 
     // Using raw pointers to do an identity comparison.
     opaque_fields:HashSet<*const Field<'a>>,
@@ -179,7 +187,12 @@ fn parse_attr_list<'a>(this: &mut StableAbiAttrs<'a>,pctx: ParseContext<'a>, lis
     }
 }
 
-fn parse_sabi_attr<'a>(this: &mut StableAbiAttrs<'a>,pctx: ParseContext<'a>, attr: Meta, arenas: &'a Arenas) {
+fn parse_sabi_attr<'a>(
+    this: &mut StableAbiAttrs<'a>,
+    pctx: ParseContext<'a>, 
+    attr: Meta, 
+    arenas: &'a Arenas
+) {
     match (pctx, attr) {
         (ParseContext::Field(field), Meta::Word(word)) => {
             if word == "unsafe_opaque_field" {
@@ -221,23 +234,73 @@ fn parse_sabi_attr<'a>(this: &mut StableAbiAttrs<'a>,pctx: ParseContext<'a>, att
                     }
                     x => panic!("invalid #[kind(..)] attribute:\n{:?}", x),
                 });
-            } else if list.ident == "phantom" {
-                with_nested_meta("phantom", list.nested, |attr| match attr {
+            } else if list.ident == "unconstrained" {
+                with_nested_meta("unconstrained", list.nested, |attr| match attr {
                     Meta::Word(type_param)=>{
-                        this.unconstrained_type_params.push(type_param);
+                        let unconstrained=UnconstrainedTyParam{
+                            static_equivalent:None,
+                        };
+                        this.unconstrained_type_params.push((type_param,unconstrained));
+                    }
+                    Meta::List(type_param)=>{
+                        let ty=type_param.ident;
+                        let v=parse_unconstrained_ty_param(type_param.nested,arenas);
+                        this.unconstrained_type_params.push((ty,v));
                     }
                     x => panic!(
-                        "invalid #[phantom(..)] attribute\
+                        "invalid #[unconstrained(..)] attribute\
                          (it must be the identifier of a type parameter):\n{:?}\n", 
                         x
                     ),
                 })
-            } 
+            }else{
+                panic!("Unrecodnized #[sabi(..)] attribute:\n{}",list.into_token_stream());
+            }
 
         }
         (_,x) => panic!("not allowed inside the #[sabi(...)] attribute:\n{:?}", x),
     }
 }
+
+
+/// Parses the contents of #[sabi(unconstrained(Type( ... )))]
+fn parse_unconstrained_ty_param<'a>(
+    list: Punctuated<NestedMeta, Comma>, 
+    arenas: &'a Arenas
+)-> UnconstrainedTyParam<'a> {
+    match list.into_iter().next() {
+        Some(NestedMeta::Meta(Meta::NameValue(MetaNameValue{
+            ident:ref nv_ident,
+            lit:Lit::Str(ref type_str),
+            ..
+        })))
+        if nv_ident=="StaticEquivalent" =>{
+            let ty=match type_str.parse::<syn::Type>() {
+                Ok(ty)=>ty,
+                Err(e)=>panic!(
+                    "Could not parse as a type:\n\t{}\nError:\n\t{}", 
+                    type_str.value(),
+                    e
+                )
+            };
+
+            UnconstrainedTyParam{
+                static_equivalent:Some(arenas.alloc(ty)),
+            }
+        }
+        Some(x) => panic!(
+            "invalid #[sabi(unconstrained(  )] attribute\
+             (it must be StaticEquivalent=\"Type\" ):\n{:?}\n", 
+            x
+        ),
+        None=>{
+            UnconstrainedTyParam{
+                static_equivalent:None,
+            }
+        }
+    }
+}
+
 
 fn parse_sabi_override<'a>(_this: &mut StableAbiAttrs<'a>, _attr: Meta, _arenas: &'a Arenas) {}
 

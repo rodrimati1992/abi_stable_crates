@@ -21,7 +21,7 @@ The StableAbi derive macro allows one to implement the StableAbi trait to :
 
 These attributes are applied on the type declaration.
 
-### `#[sabi(phantom(TypeParameter))]`
+### `#[sabi(unconstrained(TypeParameter))]` 
 
 Removes the implicit `TypeParameter:StableAbi` constraint.
 

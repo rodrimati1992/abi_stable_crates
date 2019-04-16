@@ -372,7 +372,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        serialize:  extern fn(&T)->RResult<RCow<'_,str>,RBoxError>;
+        serialize:  extern fn(&T)->RResult<RCow<'_,RStr<'_>>,RBoxError>;
         impl[] VtableFieldValue<Serialize>
         where [
             T:ImplType+SerializeImplType,

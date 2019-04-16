@@ -20,7 +20,6 @@ mod private {
     #[derive(StableAbi)]
     #[repr(C)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(shared_stable_abi(T))]
     pub struct RArc<T> {
         data: *const T,
         // This is a pointer instead of a static reference only because

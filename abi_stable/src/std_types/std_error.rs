@@ -31,7 +31,7 @@ use crate::{
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-#[sabi(phantom(M))]
+#[sabi(unconstrained(M))]
 pub struct RBoxError_<M = SyncSend> {
     value: RBox<ErasedObject>,
     vtable: RErrorVTable<ErasedObject>,
