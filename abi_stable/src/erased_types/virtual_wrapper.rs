@@ -467,7 +467,7 @@ using these (fallible) conversion methods:
 
         /// It serializes a `VirtualWrapper<_>` into a string by using 
         /// `<ConcreteType as SerializeImplType>::serialize_impl`.
-        pub fn serialized<'a, I>(&'a self) -> Result<RCow<'a, str>, RBoxError>
+        pub fn serialized<'a, I>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError>
         where
             P: Deref<Target = OpaqueType<I>>,
             I: InterfaceType<Serialize = True>,

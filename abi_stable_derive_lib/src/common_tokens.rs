@@ -94,13 +94,15 @@ declare_common_tokens! {
     ]
 
     types[
-
+        empty_tuple="()",
     ]
 
     idents[
         cratename="abi_stable",
         tl_field="__TLField",
         tl_enum_variant="__TLEnumVariant",
+        value_kind ="__ValueKind",
+        prefix_kind="__PrefixKind",
         tl_data="__TLData",
         struct_under="struct_",
         enum_under="enum_",
@@ -113,6 +115,7 @@ declare_common_tokens! {
         lifetime_indices="lifetime_indices",
         make_get_abi_info="__MakeGetAbiInfo",
         stable_abi="__StableAbi",
+        shared_stable_abi="__SharedStableAbi",
         type_identity="TypeIdentity",
         marker_type="MarkerType",
         assert_zero_sized="__assert_zero_sized",
@@ -123,6 +126,7 @@ declare_common_tokens! {
         sabi_reexports="_sabi_reexports",
         cmp_ignored="__CmpIgnored",
         lifetime_index="__LifetimeIndex",
+        static_equivalent="__StaticEquivalent",
         li_static="__LIStatic",
         li_index="__LIParam",
         cap_static="Static",

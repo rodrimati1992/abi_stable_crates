@@ -48,7 +48,7 @@ impl ImplType for TextOperationState {
 
 /// Defines how the type is serialized in VirtualWrapper<_>.
 impl SerializeImplType for TextOperationState {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError> {
+    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
         match serde_json::to_string(&self) {
             Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
             Err(e)=>Err(RBoxError::new(e)),
@@ -111,9 +111,9 @@ pub extern "C" fn remove_words_str(
 /// as well as the whitespace that comes after it.
 // This is a separate function because ìnitializing `remove_words_cow` with `remove_words`
 // does not work,due to some bound lifetime stuff,once it does this function will be obsolete.
-pub extern "C" fn remove_words_cow(
+pub extern "C" fn remove_words_cow<'a>(
     this: &mut TOStateBox,
-    param: RemoveWords<'_, RCow<'_, str>>,
+    param: RemoveWords<'a, RCow<'a,RStr<'a>>>,
 ) -> RString {
     remove_words(this, param)
 }

@@ -88,7 +88,7 @@ pub trait InterfaceType: Sized + 'static + Send + Sync + GetImplFlags {
 Describes how this `implementation type` is serialized.
 */
 pub trait SerializeImplType: ImplType {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError>;
+    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError>;
 }
 
 /**

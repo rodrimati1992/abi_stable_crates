@@ -12,8 +12,9 @@ use std::{
 
 use crate::{
     utils::empty_slice, version::VersionStrings, 
-    std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr},
+    std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr,utypeid::UTypeId},
     ignored_wrapper::CmpIgnored,
+    return_value_equality::ReturnValueEquality,
 };
 
 use super::{AbiInfo, GetAbiInfo};

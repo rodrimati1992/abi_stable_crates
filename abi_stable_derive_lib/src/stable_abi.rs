@@ -40,6 +40,10 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         StabilityKind::Value => &ctokens.stable_abi,
     };
 
+    let associated_kind = match config.kind {
+        StabilityKind::Value => &ctokens.value_kind,
+    };
+
 
     let function_fields=ToTokenFnMut::new(|ts|{
         use std::fmt::Write;
@@ -139,11 +143,31 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let where_clause=&where_clause.unwrap().predicates;
 
-    let lifetimes=generics.lifetimes().map(|x|&x.lifetime);
-    let type_params=generics.type_params()
-        .map(|x|&x.ident)
-        .filter(|x| !config.unconstrained_type_params.contains(x) );
-    let const_params=generics.const_params().map(|x|&x.ident);
+    let lifetimes=&generics.lifetimes().map(|x|&x.lifetime).collect::<Vec<_>>();
+    let type_params=&generics.type_params().map(|x|&x.ident).collect::<Vec<_>>();
+    let const_params=&generics.const_params().map(|x|&x.ident).collect::<Vec<_>>();
+    
+    let type_params_for_generics=
+        type_params.iter().filter(|&x| !config.unconstrained_type_params.contains_key(x) );
+    
+
+    // For `type StaticEquivalent= ... ;`
+    let lifetimes_s=lifetimes.iter().map(|_| &ctokens.static_lt );
+    let type_params_s=ToTokenFnMut::new(|ts|{
+        let ct=ctokens;
+
+        for ty in type_params {
+            if let Some(unconstrained)=config.unconstrained_type_params.get(ty) {
+                unconstrained.static_equivalent
+                    .unwrap_or(&ct.empty_tuple)
+                    .to_tokens(ts);
+            }else{
+                to_stream!(ts; ct.static_equivalent, ct.lt, ty, ct.gt);
+            }
+            ct.comma.to_tokens(ts);
+        }
+    });
+    let const_params_s=&const_params;
 
 
     let stringified_name=name.to_string();
@@ -176,15 +200,21 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
             renamed::*,
         };
 
-        unsafe impl #impl_generics #impld_trait for #name #ty_generics 
+        unsafe impl #impl_generics __SharedStableAbi for #name #ty_generics 
         where 
             #(#where_clause,)*
             #(#stable_abi_bounded:__StableAbi,)*
             #(#extra_bounds,)*
         {
             type IsNonZeroType=_sabi_reexports::False;
+            type Kind=#associated_kind;
+            type StaticEquivalent=#name < 
+                #(#lifetimes_s,)* 
+                #type_params_s
+                #(#const_params_s),* 
+            >;
 
-            const LAYOUT: &'static _sabi_reexports::TypeLayout = {
+            const S_LAYOUT: &'static _sabi_reexports::TypeLayout = {
                 &_sabi_reexports::TypeLayout::from_params::<Self>(
                     {
                         #repr_transparent_assertions;
@@ -196,7 +226,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                             line:line!(),
                             data: #data_variant,
                             generics: abi_stable::tl_genparams!(
-                                #(#lifetimes),*;#(#type_params),*;#(#const_params),*
+                                #(#lifetimes),*;#(#type_params_for_generics),*;#(#const_params),*
                             ),
                             phantom_fields: &[
                                 #function_fields

@@ -42,9 +42,12 @@ pub struct OpaqueType<T> {
 ///
 pub type ErasedObject = OpaqueType<()>;
 
-unsafe impl<T> StableAbi for OpaqueType<T> {
+unsafe impl<T> SharedStableAbi for OpaqueType<T> {
     type IsNonZeroType = False;
-    const LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_primitive::<Self>(
+    type Kind=ValueKind;
+    type StaticEquivalent=();
+
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_primitive::<Self>(
         "OpaqueType",
         RNone,
         TLData::Primitive,

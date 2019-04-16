@@ -157,6 +157,8 @@ allocators,please create an issue for this.
 use std::sync::atomic::AtomicUsize;
 static EXECUTABLE_IDENTITY: AtomicUsize = AtomicUsize::new(1);
 
+use crate::abi_stability::stable_abi_trait::SharedStableAbi;
+
 #[doc(inline)]
 pub use crate::{
     abi_stability::StableAbi,
