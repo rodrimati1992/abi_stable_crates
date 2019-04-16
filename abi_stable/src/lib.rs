@@ -53,7 +53,7 @@ These are the 2 kinds of types passed through FFI:
     This is the default kind when deriving StableAbi.
 
 - Opaque kind:
-    Types wrapped in `VirtualWrapper<SomePointer<OpaqueType<Interface>>>`,
+    Types wrapped in `VirtualWrapper<SomePointer<ZeroSized<Interface>>>`,
     whose layout can change in any version of the library,
     and can only be unwrapped back to the original type in the dynamic library/binary 
     that created it.
@@ -82,8 +82,8 @@ pub use abi_stable_derive::StableAbi;
 
 #[doc(inline)]
 pub use abi_stable_derive::{
-    mangle_library_getter,
     export_sabi_module,
+    impl_InterfaceType,
 };
 
 #[macro_use]
@@ -120,6 +120,7 @@ pub mod std_types;
 
 pub mod utils;
 pub mod lazy_static_ref;
+pub mod type_level;
 pub mod version;
 
 #[cfg(test)]
@@ -128,18 +129,6 @@ mod test_macros;
 #[cfg(test)]
 mod layout_tests;
 
-
-/**
-Type-level booleans.
-
-This is a re-export from `core_extensions::type_level_bool`,
-so as to allow glob imports (`abi_stable::type_level_bool::*`)
-without worrying about importing too many items.
-*/
-pub mod type_level_bool{
-    #[doc(inline)]
-    pub use core_extensions::type_level_bool::{True,False,Boolean};
-}
 
 /// Miscelaneous items re-exported from core_extensions.
 pub mod reexports{
@@ -164,6 +153,6 @@ pub use crate::{
     abi_stability::StableAbi,
     erased_types::{VirtualWrapper,ImplType, InterfaceType},
     library::Library,
-    marker_type::{ErasedObject, OpaqueType},
+    marker_type::{ErasedObject, ZeroSized},
 };
 

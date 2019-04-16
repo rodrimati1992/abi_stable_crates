@@ -16,7 +16,7 @@ use serde::{Serialize, Serializer};
 
 use crate::{
     traits::{IntoReprC, IntoReprRust},
-    OpaqueType, 
+    ZeroSized, 
     std_types::{RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,RResult, RSlice, RString,RStr},
 };
 

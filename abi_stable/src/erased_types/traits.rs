@@ -6,6 +6,7 @@ Traits for types wrapped in `VirtualWrapper<_>`
 use std::{mem,marker::PhantomData};
 
 use crate::{
+    StableAbi,
     erased_types::{GetImplFlags, VirtualWrapperTrait},
     std_types::{RBoxError, RCow, RStr,StaticStr,utypeid::new_utypeid},
     version::VersionStrings,
@@ -15,7 +16,7 @@ use crate::{
 use super::TypeInfo;
 
 #[allow(unused_imports)]
-use crate::type_level_bool::{False, True};
+use crate::type_level::bools::{False, True};
 
 /**
 An `implementation type`,
@@ -43,17 +44,72 @@ pub trait ImplType: Sized + 'static + Send + Sync {
 
 /**
 Defines the usable/required traits when creating a 
-`VirtualWrapper<Pointer<OpaqueType< ThisType >>>`
+`VirtualWrapper<Pointer<ZeroSized< ThisType >>>`
 from a type that implements `ImplType<Interface= ThisType >` .
 
-The value of every one of these associated types is `True`/`False`.
+This trait can only be implemented within the `impl_InterfaceType` macro,
+giving a default value to each associated type,
+so that adding associated types is not a breaking change.
+
+The value of every associated type is `True`/`False`.
 
 On `True`,the trait would be required by and usable in `VirtualWrapper`.
 
 On `False`,the trait would not be required by and not usable in `VirtualWrapper`.
 
+# Example
+
+```
+
+use abi_stable::{
+    StableAbi,
+    impl_InterfaceType,
+    erased_types::InterfaceType,
+    type_level::bools::*,
+};
+
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct FooInterface;
+
+impl_InterfaceType!{
+    impl InterfaceType for FooInterface {
+        type Clone=True;
+
+        type Debug=True;
+
+        /////////////////////////////////////    
+        //// defaulted associated types
+        /////////////////////////////////////
+
+        // type Default=False;
+
+        // type Display=False;
+
+        // type Serialize=False;
+
+        // type Eq=False;
+
+        // type PartialEq=False;
+
+        // type Ord=False;
+
+        // type PartialOrd=False;
+
+        // type Hash=False;
+
+        // type Deserialize=False;
+    }
+}
+
+# fn main(){}
+
+
+```
+
+
 */
-pub trait InterfaceType: Sized + 'static + Send + Sync + GetImplFlags {
+pub trait InterfaceType: Sized + 'static + Send + Sync + GetImplFlags + StableAbi {
     type Clone;
 
     type Default;
@@ -75,6 +131,9 @@ pub trait InterfaceType: Sized + 'static + Send + Sync + GetImplFlags {
     type Hash;
 
     type Deserialize;
+
+    #[doc(hidden)]
+    type define_this_in_the_impl_InterfaceType_macro;
 
     // type FmtWrite;
     // type IoWrite;
@@ -147,28 +206,8 @@ where
 
 /////////////////////////////////////////////////////////////////////
 
-
-impl InterfaceType for () {
-    type Clone=False;
-
-    type Default=False;
-
-    type Display=False;
-
-    type Debug=False;
-
-    type Serialize=False;
-
-    type Eq=False;
-
-    type PartialEq=False;
-
-    type Ord=False;
-
-    type PartialOrd=False;
-
-    type Hash=False;
-
-    type Deserialize=False;
+crate::impl_InterfaceType!{
+    impl crate::erased_types::InterfaceType for () {
+        
+    }
 }
-

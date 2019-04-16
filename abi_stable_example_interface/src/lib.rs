@@ -11,13 +11,14 @@ use std::path::Path;
 
 use abi_stable::{
     StableAbi,
+    impl_InterfaceType,
     package_version_strings,
     lazy_static_ref::LazyStaticRef,
     library::{Library,LibraryError, LibraryTrait, ModuleTrait},
     version::VersionStrings,
-    type_level_bool::*,
+    type_level::bools::*,
     erased_types::{InterfaceType,DeserializeInterfaceType},
-    OpaqueType, VirtualWrapper,
+    ZeroSized, VirtualWrapper,
     std_types::{RBox, RStr, RString,RVec,RArc, RSlice,RCow,RBoxError,RResult},
 };
 
@@ -28,24 +29,25 @@ use abi_stable::{
 
 
 /// The `InterfaceType` describing which traits are implemented by TOStateBox.
+#[repr(C)]
+#[derive(StableAbi)]
 pub struct TOState;
 
 /// The state passed to most functions in the TextOpsMod module.
-pub type TOStateBox = VirtualWrapper<RBox<OpaqueType<TOState>>>;
+pub type TOStateBox = VirtualWrapper<RBox<ZeroSized<TOState>>>;
 
-impl InterfaceType for TOState {
-    type Clone = False;
-    type Default = False;
-    type Display = False;
-    type Debug = True;
-    type Serialize = True;
-    type Deserialize = True;
-    type Eq = False;
-    type PartialEq = True;
-    type Ord = False;
-    type PartialOrd = False;
-    type Hash = False;
+// This macro is used to emulate default associated types.
+// Look for the definition of InterfaceType to see 
+// which other associated types you can define.
+impl_InterfaceType!{
+    impl InterfaceType for TOState {
+        type Debug = True;
+        type Serialize = True;
+        type Deserialize = True;
+        type PartialEq = True;
+    }
 }
+
 
 impl DeserializeInterfaceType for TOState {
     type Deserialized = TOStateBox;

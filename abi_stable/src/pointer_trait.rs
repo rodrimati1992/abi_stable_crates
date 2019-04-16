@@ -7,7 +7,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{OpaqueType};
+use crate::{ZeroSized};
 // use crate::{cabi_type::CAbi};
 
 #[allow(unused_imports)]
@@ -60,14 +60,14 @@ impl<P> StableDerefMut for P where P: StableDeref + DerefMut {}
 
 ///////////
 
-/// Erases a pointer,casting its referent to `OpaqueType<O>`.
+/// Erases a pointer,casting its referent to `ZeroSized<O>`.
 /// 
-/// This is safe to do because `OpaqueType<O> ` is a zero-sized type.
+/// This is safe to do because `ZeroSized<O> ` is a zero-sized type.
 ///
 /// It would not be safe to do this in the other direction,
-/// going from `OpaqueType<O>` to any other type,
+/// going from `ZeroSized<O>` to any other type,
 /// 
-pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<OpaqueType<O>> {
+pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<ZeroSized<O>> {
     /// # Example
     ///
     /// ```
@@ -75,10 +75,10 @@ pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<OpaqueType<O>> {
     ///     pointer_trait::ErasedStableDeref,
     ///     std_types::RBox,
     ///     reexports::SelfOps,
-    ///     OpaqueType,
+    ///     ZeroSized,
     /// };
     ///
-    /// let signed:RBox<OpaqueType< Vec<()> >> =unsafe{
+    /// let signed:RBox<ZeroSized< Vec<()> >> =unsafe{
     ///     RBox::new(1_i32)
     ///         .erased(Vec::<()>::T)
     /// };
@@ -91,7 +91,7 @@ pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<OpaqueType<O>> {
     }
 }
 
-impl<P, O> ErasedStableDeref<O> for P where P: StableDeref + TransmuteElement<OpaqueType<O>> {}
+impl<P, O> ErasedStableDeref<O> for P where P: StableDeref + TransmuteElement<ZeroSized<O>> {}
 
 ///////////
 

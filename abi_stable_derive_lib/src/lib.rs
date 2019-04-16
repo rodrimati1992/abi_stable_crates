@@ -20,6 +20,7 @@ mod constants;
 mod ignored_wrapper;
 mod datastructure;
 mod fn_pointer_extractor;
+mod impl_interfacetype;
 
 mod lifetimes;
 mod stable_abi;
@@ -123,6 +124,14 @@ pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
 pub fn derive_stable_abi_from_str(s: &str) -> TokenStream2 {
     let input = syn::parse_str::<DeriveInput>(s).unwrap();
     stable_abi::derive(input)
+}
+
+
+#[allow(non_snake_case)]
+#[doc(hidden)]
+pub fn impl_InterfaceType(input: TokenStream1) -> TokenStream1{
+    let input = syn::parse::<syn::ItemImpl>(input).unwrap();
+    impl_interfacetype::the_macro(input).into()
 }
 
 

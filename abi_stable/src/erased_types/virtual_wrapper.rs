@@ -39,11 +39,11 @@ VirtualWrapper implements ffi-safe trait objects,for a selection of traits.
 
 One can pass non-StableAbi types around by using type erasure,using this type.
 
-It generally looks like `VirtualWrapper<Pointer<OpaqueType<Interface>>>`,where:
+It generally looks like `VirtualWrapper<Pointer<ZeroSized<Interface>>>`,where:
 
 - Pointer is some `pointer_trait::StableDeref` pointer type.
 
-- OpaqueType is a zero-sized marker type.
+- ZeroSized is a zero-sized marker type.
 
 - Interface is an `InterfaceType`,which describes what traits are 
     required when constructing the `VirtualWrapper<_>` and which ones it implements.
@@ -71,7 +71,7 @@ To construct a `VirtualWrapper<_>` one can use these associated functions:
 
 ### Trait object
 
-`VirtualWrapper<Pointer<OpaqueType< Interface >>>` 
+`VirtualWrapper<Pointer<ZeroSized< Interface >>>` 
 can be used as a trait object for any combination of 
 the traits listed bellow.
 
@@ -109,17 +109,17 @@ using these (fallible) conversion methods:
 
 - into_unerased:
     Unwraps into a pointer to `T`.
-    Where `VirtualWrapper<P<OpaqueType< Interface >>>`'s 
+    Where `VirtualWrapper<P<ZeroSized< Interface >>>`'s 
         Interface must equal `<T as ImplType>::Interface`
 
 - as_unerased:
     Unwraps into a `&T`.
-    Where `VirtualWrapper<P<OpaqueType< Interface >>>`'s 
+    Where `VirtualWrapper<P<ZeroSized< Interface >>>`'s 
         Interface must equal `<T as ImplType>::Interface`
 
 - as_unerased_mut:
     Unwraps into a `&mut T`.
-    Where `VirtualWrapper<P<OpaqueType< Interface >>>`'s 
+    Where `VirtualWrapper<P<ZeroSized< Interface >>>`'s 
         Interface must equal `<T as ImplType>::Interface`
 
 - into_mut_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
@@ -146,7 +146,7 @@ using these (fallible) conversion methods:
         ///
         /// Use this whenever possible instead of `from_any_value`,
         /// because it produces better error messages when unerasing the `VirtualWrapper<_>`
-        pub fn from_value<T>(object: T) -> VirtualWrapper<RBox<OpaqueType<T::Interface>>>
+        pub fn from_value<T>(object: T) -> VirtualWrapper<RBox<ZeroSized<T::Interface>>>
         where
             T: GetVtable<T,RBox<T>> + ImplType,
         {
@@ -171,7 +171,7 @@ using these (fallible) conversion methods:
         }
 
         /// Constructors the `VirtualWrapper<_>` from a type which doesn't borrow anything.
-        pub fn from_any_value<T,I>(object: T,interface:I) -> VirtualWrapper<RBox<OpaqueType<I>>>
+        pub fn from_any_value<T,I>(object: T,interface:I) -> VirtualWrapper<RBox<ZeroSized<I>>>
         where
             T:'static,
             I:InterfaceType,
@@ -202,7 +202,7 @@ using these (fallible) conversion methods:
         // Allows us to call function pointers that take `P``as a parameter
         pub(super) fn vtable<'a, I>(&self) -> &'a VTable<ErasedObject, P>
         where
-            P: Deref<Target = OpaqueType<I>>,
+            P: Deref<Target = ZeroSized<I>>,
             I: GetImplFlags,
         {
             unsafe {
@@ -458,7 +458,7 @@ using these (fallible) conversion methods:
         /// Constructs a `VirtualWrapper<P>` with the default value for `P`.
         pub fn default<I>(&self) -> Self
         where
-            P: Deref<Target = OpaqueType<I>>,
+            P: Deref<Target = ZeroSized<I>>,
             I: InterfaceType<Default = True>,
         {
             let new = self.vtable().default_ptr::<I>()();
@@ -469,7 +469,7 @@ using these (fallible) conversion methods:
         /// `<ConcreteType as SerializeImplType>::serialize_impl`.
         pub fn serialized<'a, I>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError>
         where
-            P: Deref<Target = OpaqueType<I>>,
+            P: Deref<Target = ZeroSized<I>>,
             I: InterfaceType<Serialize = True>,
         {
             self.vtable().serialize::<I>()(self.as_abi()).into_result()
@@ -479,7 +479,7 @@ using these (fallible) conversion methods:
         /// `<I as DeserializeInterfaceType>::deserialize_impl`.
         pub fn deserialize_from_str<'a, I>(s: &'a str) -> Result<Self, RBoxError>
         where
-            P: Deref<Target = OpaqueType<I>>,
+            P: Deref<Target = ZeroSized<I>>,
             I: DeserializeInterfaceType<Deserialize = True, Deserialized = Self>,
         {
             s.piped(RStr::from).piped(I::deserialize_impl)
@@ -492,7 +492,7 @@ pub use self::priv_::VirtualWrapper;
 
 impl<P, I> Clone for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<I>>,
+    P: Deref<Target = ZeroSized<I>>,
     I: InterfaceType<Clone = True>,
 {
     fn clone(&self) -> Self {
@@ -504,7 +504,7 @@ where
 
 impl<P, I> Display for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<I>>,
+    P: Deref<Target = ZeroSized<I>>,
     I: InterfaceType<Display = True>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -514,7 +514,7 @@ where
 
 impl<P, I> Debug for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<I>>,
+    P: Deref<Target = ZeroSized<I>>,
     I: InterfaceType<Debug = True>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -531,7 +531,7 @@ then it serializes the string.
 /// ,then it .
 impl<P, I> Serialize for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<I>>,
+    P: Deref<Target = ZeroSized<I>>,
     I: InterfaceType<Serialize = True>,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -549,7 +549,7 @@ where
 /// `VirtualWrapper<_>`,by using `<I as DeserializeInterfaceType>::deserialize_impl`.
 impl<'a, P, I> Deserialize<'a> for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<I>>,
+    P: Deref<Target = ZeroSized<I>>,
     I: DeserializeInterfaceType<Deserialize = True, Deserialized = Self>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -564,14 +564,14 @@ where
 impl<P, I> Eq for VirtualWrapper<P>
 where
     Self: PartialEq,
-    P: Deref<Target = OpaqueType<I>>,
+    P: Deref<Target = ZeroSized<I>>,
     I: InterfaceType<Eq = True>,
 {
 }
 
 impl<P, I> PartialEq for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<I>>,
+    P: Deref<Target = ZeroSized<I>>,
     I: InterfaceType<PartialEq = True>,
 {
     fn eq(&self, other: &Self) -> bool {
@@ -586,7 +586,7 @@ where
 
 impl<P, I> Ord for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<I>>,
+    P: Deref<Target = ZeroSized<I>>,
     I: InterfaceType<Ord = True>,
     Self: PartialOrd + Eq,
 {
@@ -602,7 +602,7 @@ where
 
 impl<P, I> PartialOrd for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<I>>,
+    P: Deref<Target = ZeroSized<I>>,
     I: InterfaceType<PartialOrd = True>,
     Self: PartialEq,
 {
@@ -620,7 +620,7 @@ where
 
 impl<P, I> Hash for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<I>>,
+    P: Deref<Target = ZeroSized<I>>,
     I: InterfaceType<Hash = True>,
 {
     fn hash<H>(&self, state: &mut H)
@@ -640,21 +640,21 @@ mod sealed {
 }
 use self::sealed::Sealed;
 
-/// For accessing the Interface of a `VirtualWrapper<Pointer<OpaqueType< Interface >>>`.
+/// For accessing the Interface of a `VirtualWrapper<Pointer<ZeroSized< Interface >>>`.
 pub trait VirtualWrapperTrait: Sealed {
     type Interface: InterfaceType;
 }
 
 impl<P, I> VirtualWrapperTrait for VirtualWrapper<P>
 where
-    P: Deref<Target = OpaqueType<I>>,
+    P: Deref<Target = ZeroSized<I>>,
     I: InterfaceType,
 {
     type Interface = I;
 }
 
 
-/// For accessing the `Interface` in a `VirtualWrapper<Pointer<OpaqueType< Interface >>>`.
+/// For accessing the `Interface` in a `VirtualWrapper<Pointer<ZeroSized< Interface >>>`.
 pub type GetVWInterface<This>=
     <This as VirtualWrapperTrait>::Interface;
 
