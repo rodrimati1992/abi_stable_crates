@@ -57,7 +57,7 @@ impl SerializeImplType for TextOperationState {
 }
 
 /// Constructs a TextOperationState and erases it by wrapping it into a 
-/// `VirtualWrapper<Box<OpaqueType<TOState>>>`.
+/// `VirtualWrapper<Box<ZeroSized<TOState>>>`.
 pub extern "C" fn new() -> TOStateBox {
     extern_fn_panic_handling! {
         let this=TextOperationState{

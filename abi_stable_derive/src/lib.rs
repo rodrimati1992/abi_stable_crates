@@ -45,6 +45,45 @@ and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
 This is unsafe because the layout of the type won't be verified when loading the library,
 which causes Undefined Behavior if the type has a different layout.
 
+
+### `#[sabi(kind(Prefix( .. )))]`
+Declares the struct as being a prefix-type.
+
+`#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`
+Uses "NameOfPrefixStruct" as the name of the prefix struct.
+
+`#[sabi(kind(Prefix(prefix_struct="default")))]`
+Generates the name of the prefix struct appending "\_Prefix" to the deriving struct's name.
+
+### `#[sabi(missing_field( .. ))]`
+
+This is only valid for Prefix types,after the `#[sabi(kind(Prefix(..)))]`.
+
+Determines what happens when a field is missing,
+the default is that the accessor function returns an `Option<FieldType>`,
+returning None if the field is absent,Some(field_value) if it's present.
+
+If the attribute is on the struct,it's applied to all suffix fields(this is overridable).
+
+If the attribute is on a field,it's applied to that field only.
+
+`#[sabi(missing_field(panic))]`
+This always panics if the field doesn't exist.
+
+`#[sabi(missing_field(panic_with="somefunction"))]`
+This panics,passing a metadata struct in so that it can have an informative error message.
+
+`#[sabi(missing_field(option))]`
+This returns None if the field doesn't exist.
+
+`#[sabi(missing_field(with="somefunction"))]`
+This calls the function `somefunction` if the field doesn't exist.
+
+`#[sabi(missing_field(default))]`
+This returns  if the field doesn't exist.
+
+
+
 # Supported repr attributes
 
 Because repr attributes can cause the type to change layout,
@@ -73,14 +112,24 @@ pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
 
 
 
-/*
-Deprecated:use `export_sabi_module` instead of this to export abi_stable modules.
+
+/**
+
+Allows implementing the InterfaceType trait,
+providing default values for associated types not specified in the impl block.
+
+For an example look at `abi_stable::erased_types::InterfaceType`.
+
 */
-#[deprecated]
-#[proc_macro_attribute]
-pub fn mangle_library_getter(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
-    abi_stable_derive_lib::mangle_library_getter_attr(attr,item)
+#[proc_macro]
+#[allow(non_snake_case)]
+pub fn impl_InterfaceType(input: TokenStream1) -> TokenStream1 {
+    abi_stable_derive_lib::impl_InterfaceType(input)
 }
+
+
+
+
 
 /**
 

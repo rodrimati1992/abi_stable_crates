@@ -9,6 +9,7 @@ use crate::{
     abi_stability::{
         abi_checking::AbiInstability, check_abi_stability, AbiInfoWrapper, 
     },
+    marker_type::UnsafeIgnoredType,
     std_types::*,
     *,
     test_utils::must_panic,
@@ -271,6 +272,7 @@ fn same_different_abi_stability() {
         <RBox<u32>>::ABI_INFO,
         <RCmpOrdering>::ABI_INFO,
         <PhantomData<()>>::ABI_INFO,
+        <PhantomData<RString>>::ABI_INFO,
         <mod_0::Mod>::ABI_INFO,
         <mod_0b::Mod>::ABI_INFO,
         <mod_1::Mod>::ABI_INFO,
@@ -296,8 +298,8 @@ fn same_different_abi_stability() {
             }
         }
 
-        for this in vec![<PhantomData<()>>::ABI_INFO, <PhantomData<String>>::ABI_INFO] {
-            assert_equal_abi_info(<PhantomData<()>>::ABI_INFO, this)
+        for this in vec![<UnsafeIgnoredType<()>>::ABI_INFO, <UnsafeIgnoredType<RString>>::ABI_INFO] {
+            assert_equal_abi_info(<UnsafeIgnoredType<()>>::ABI_INFO, this)
         }
     });
 
@@ -477,14 +479,14 @@ mod gen_more_lts {
 }
 
 mod gen_more_tys {
-    use super::PhantomData;
+    use super::{PhantomData,Tuple2};
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Generics<T: 'static, U> {
         x: &'static T,
         y: &'static T,
-        _marker: PhantomData<(T, U)>,
+        _marker: PhantomData<Tuple2<T, U>>,
     }
 }
 

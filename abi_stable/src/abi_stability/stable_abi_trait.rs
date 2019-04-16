@@ -313,17 +313,19 @@ where
 
 ///////////////////////////////////////////////////////////////////////////////
 
-unsafe impl<T> SharedStableAbi for PhantomData<T> {
+unsafe impl<T> SharedStableAbi for PhantomData<T> 
+where T:StableAbi
+{
     type Kind=ValueKind;
     type IsNonZeroType = False;
-    type StaticEquivalent=PhantomData<()>;
+    type StaticEquivalent=PhantomData<T::StaticEquivalent>;
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
         "PhantomData",
         RNone,
         TLData::Primitive,
         tl_genparams!(;;),
-        &[],
+        &[TLField::new("0",&[],<T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)],
     );
 }
 unsafe impl SharedStableAbi for () {
@@ -385,7 +387,7 @@ where
         &[TLField::new(
             "0",
             &[LifetimeIndex::Param(0)],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
@@ -407,7 +409,7 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
@@ -428,7 +430,7 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
@@ -450,7 +452,7 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
@@ -472,7 +474,7 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
@@ -528,7 +530,7 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
         )],
     );
 }
