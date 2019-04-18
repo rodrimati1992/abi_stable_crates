@@ -110,6 +110,12 @@ pub enum TLData {
     Enum {
         variants: StaticSlice<TLEnumVariant>,
     },
+    /// vtables and modules that can be extended in minor versions.
+    PrefixType{
+        /// The first field in the suffix
+        first_suffix_field:usize,
+        fields: StaticSlice<TLField>,
+    },
     /// For `#[repr(transparent)]` types.
     ReprTransparent(&'static AbiInfo),
 }
@@ -122,6 +128,7 @@ pub enum TLDataDiscriminant {
     Primitive,
     Struct,
     Enum,
+    PrefixType,
     ReprTransparent,
 }
 
@@ -149,6 +156,8 @@ pub struct TLField {
     /// if you have a `&'static AbiInfo`s with the same address as one of its parent type,
     /// you've encountered a cycle.
     pub abi_info: GetAbiInfo,
+    /// Stores all extracted type parameters and return types of embedded function pointer types.
+    pub subfields:StaticSlice<TLField>,
 }
 
 /// Used to print a field as its field and its type.
@@ -183,6 +192,21 @@ impl TLField {
             name: StaticStr::new(name),
             lifetime_indices: StaticSlice::new(lifetime_indices),
             abi_info,
+            subfields:StaticSlice::new(&[]),
+        }
+    }
+
+    pub const fn with_subfields(
+        name: &'static str,
+        lifetime_indices: &'static [LifetimeIndex],
+        abi_info: GetAbiInfo,
+        subfields:&'static [TLField],
+    ) -> Self {
+        Self {
+            name: StaticStr::new(name),
+            lifetime_indices: StaticSlice::new(lifetime_indices),
+            abi_info,
+            subfields: StaticSlice::new(subfields),
         }
     }
 
@@ -446,6 +470,7 @@ impl TLData {
             TLData::Primitive { .. } => TLDataDiscriminant::Primitive,
             TLData::Struct { .. } => TLDataDiscriminant::Struct,
             TLData::Enum { .. } => TLDataDiscriminant::Enum,
+            TLData::PrefixType { .. } => TLDataDiscriminant::PrefixType,
             TLData::ReprTransparent { .. } => TLDataDiscriminant::ReprTransparent,
         }
     }

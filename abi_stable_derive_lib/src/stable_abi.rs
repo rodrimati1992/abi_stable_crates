@@ -7,6 +7,7 @@ use crate::{
     datastructure::{DataStructure,DataVariant,Struct,Field},
     to_token_fn::ToTokenFnMut,
     fn_pointer_extractor::ParamOrReturn,
+    prefix_types::prefix_type_tokenizer,
 };
 
 
@@ -16,7 +17,7 @@ use proc_macro2::{TokenStream as TokenStream2,Span};
 
 use core_extensions::{
     prelude::*,
-
+    matches,
 };
 
 use arrayvec::ArrayString;
@@ -36,57 +37,30 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let generics=ds.generics;
     let name=ds.name;
 
-    let impld_trait = match config.kind {
-        StabilityKind::Value => &ctokens.stable_abi,
-    };
-
     let associated_kind = match config.kind {
         StabilityKind::Value => &ctokens.value_kind,
+        StabilityKind::Prefix{..}=>&ctokens.prefix_kind,
+    };
+
+    let impl_name= match &config.kind {
+        StabilityKind::Value => name,
+        StabilityKind::Prefix(prefix)=>&prefix.prefix_struct,
     };
 
 
-    let function_fields=ToTokenFnMut::new(|ts|{
-        use std::fmt::Write;
-        let ct=ctokens;
-
-        let mut buffer=ArrayString::<[u8;64]>::new();
-
-        for (fn_i,func) in ds.fn_info.functions.iter().enumerate() {
-            for (i,pr) in func.params.iter().chain(&func.returns).enumerate() {
-                buffer.clear();
-                match pr.param_or_ret {
-                    ParamOrReturn::Param=>write!(buffer,"fn_{}_p_{}",fn_i,i).drop_(),
-                    ParamOrReturn::Return=>write!(buffer,"fn_{}_returns",fn_i).drop_(),
-                };
-                let field_name=&*buffer;
-                let lifetime_refs=pr.lifetime_refs_tokenizer(ctokens);
-                // println!("{}={:?}",field_name,pr.ty);
-                
-                to_stream!{ts; ct.tl_field,ct.colon2,ct.new };
-                ct.paren.surround(ts,|ts|{
-                    to_stream!(ts; field_name,ct.comma );
-
-                    to_stream!(ts; ct.and_ );
-                    ct.bracket.surround(ts,|ts| lifetime_refs.to_tokens(ts) );
-                    
-                    to_stream!(ts; ct.comma );
-
-                    make_get_abi_info_tokenizer(pr.ty,&ct.stable_abi_bound,ct).to_tokens(ts);
-                });
-
-                ct.comma.to_tokens(ts);
-            }
-        }
-    });
-
+    
     let is_transparent=config.repr==Repr::Transparent ;
     let is_enum=ds.data_variant==DataVariant::Enum;
+    let prefix=match &config.kind {
+        StabilityKind::Prefix(prefix)=>Some(prefix),
+        _=>None,
+    };
 
     let data_variant=ToTokenFnMut::new(|ts|{
         let ct=ctokens;
 
-        match ( is_transparent, is_enum ) {
-            (false,false)=>{
+        match ( is_transparent, is_enum, prefix ) {
+            (false,false,None)=>{
                 let struct_=&ds.variants[0];
 
                 to_stream!(ts;
@@ -99,7 +73,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                     })
                 })
             }
-            (false,true)=>{
+            (false,true,None)=>{
                 let variants=variants_tokenizer(&ds,config,ct);
 
                 to_stream!(ts;
@@ -110,16 +84,36 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                     ct.bracket.surround(ts,|ts| variants.to_tokens(ts) );
                 });
             }
-            (true,false)=>{
-                let repr_field_ty=get_abi_info_tokenizer(ds.variants[0].fields[0].ty,ctokens);
+            (true,false,None)=>{
+                let repr_field_ty=
+                    get_abi_info_tokenizer(&ds.variants[0].fields[0].mutated_ty,ctokens);
                     
                 to_stream!(ts;
                     ct.tl_data,ct.colon2,ct.cap_repr_transparent
                 );
                 ct.paren.surround(ts,|ts| repr_field_ty.to_tokens(ts) );
             }
-            (true,true)=>{
+            (true,true,_)=>{
                 panic!("repr(transparent) enums are not yet supported");
+            }
+            (false,false,Some(prefix))=>{
+                let struct_=&ds.variants[0];
+                to_stream!(ts;
+                    ct.tl_data,ct.colon2,ct.cap_prefix_type
+                );
+                ct.brace.surround(ts,|ts|{
+                    let index=prefix.first_suffix_field;
+                    quote!(last_prefix_field:#index,).to_tokens(ts);
+                    to_stream!(ts; 
+                        ct.fields,ct.colon2,fields_tokenizer(struct_,config,ct),ct.comma 
+                    );
+                });
+            }
+            (_,true,Some(_))=>{
+                panic!("enum prefix types not supported");
+            }
+            (true,_,Some(_))=>{
+                panic!("repr(transparent) prefix types not supported");
             }
         };
     });
@@ -133,7 +127,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         for field in &struct_.fields[1..] {
             to_stream!(ts;
                 ct.assert_zero_sized,
-                ct.lt,field.ty,ct.gt
+                ct.lt,field.mutated_ty,ct.gt
             );
             ct.paren.surround(ts,|_|());
             ct.semicolon.to_tokens(ts);
@@ -189,56 +183,61 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         quote!(abi_stable)
     };
 
-    quote!(mod #module {
-        use super::*;
+    let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens);
 
-        #inside_abi_stable_crate
+    quote!(
+        #prefix_type_tokenizer_
 
-        #[allow(unused_imports)]
-        use #import_group::derive_macro_reexports::{
-            self as _sabi_reexports,
-            renamed::*,
-        };
+        mod #module {
+            use super::*;
 
-        unsafe impl #impl_generics __SharedStableAbi for #name #ty_generics 
-        where 
-            #(#where_clause,)*
-            #(#stable_abi_bounded:__StableAbi,)*
-            #(#extra_bounds,)*
-        {
-            type IsNonZeroType=_sabi_reexports::False;
-            type Kind=#associated_kind;
-            type StaticEquivalent=#name < 
-                #(#lifetimes_s,)* 
-                #type_params_s
-                #(#const_params_s),* 
-            >;
+            #inside_abi_stable_crate
 
-            const S_LAYOUT: &'static _sabi_reexports::TypeLayout = {
-                &_sabi_reexports::TypeLayout::from_params::<Self>(
-                    {
-                        #repr_transparent_assertions;
-                        __TypeLayoutParams {
-                            name: #stringified_name,
-                            package: env!("CARGO_PKG_NAME"),
-                            package_version: abi_stable::package_version_strings!(),
-                            file:file!(),
-                            line:line!(),
-                            data: #data_variant,
-                            generics: abi_stable::tl_genparams!(
-                                #(#lifetimes),*;#(#type_params_for_generics),*;#(#const_params),*
-                            ),
-                            phantom_fields: &[
-                                #function_fields
-                            ],
-                        }
-                    }
-                )
+            #[allow(unused_imports)]
+            pub(super) use #import_group::derive_macro_reexports::{
+                self as _sabi_reexports,
+                renamed::*,
             };
-        }
 
-    })
-    .observe(|tokens|{
+            unsafe impl #impl_generics __SharedStableAbi for #impl_name #ty_generics 
+            where 
+                #(#where_clause,)*
+                #(#stable_abi_bounded:__StableAbi,)*
+                #(#extra_bounds,)*
+            {
+                type IsNonZeroType=_sabi_reexports::False;
+                type Kind=#associated_kind;
+                type StaticEquivalent=#impl_name < 
+                    #(#lifetimes_s,)* 
+                    #type_params_s
+                    #(#const_params_s),* 
+                >;
+
+                const S_LAYOUT: &'static _sabi_reexports::TypeLayout = {
+                    &_sabi_reexports::TypeLayout::from_params::<Self>(
+                        {
+                            #repr_transparent_assertions;
+                            __TypeLayoutParams {
+                                name: #stringified_name,
+                                package: env!("CARGO_PKG_NAME"),
+                                package_version: abi_stable::package_version_strings!(),
+                                file:file!(),
+                                line:line!(),
+                                data: #data_variant,
+                                generics: abi_stable::tl_genparams!(
+                                    #(#lifetimes),*;
+                                    #(#type_params_for_generics),*;
+                                    #(#const_params),*
+                                ),
+                                phantom_fields: &[],
+                            }
+                        }
+                    )
+                };
+            }
+
+        }
+    ).observe(|tokens|{
         if config.debug_print {
             panic!("\n\n\n{}\n\n\n",tokens );
         }
@@ -320,15 +319,20 @@ where T:ToTokens
 fn fields_tokenizer<'a>(
     struct_:&'a Struct<'a>,
     config:&'a StableAbiOptions<'a>,
-    ctokens:&'a CommonTokens<'a>
+    ctokens:&'a CommonTokens<'a>,
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
         for field in &struct_.fields {
             let ct=ctokens;
 
-            to_stream!{ts; ct.tl_field,ct.colon2,ct.new };
+            to_stream!{ts; ct.tl_field,ct.colon2,ct.with_subfields };
             ct.paren.surround(ts,|ts|{
-                to_stream!(ts; field.ident().to_string() ,ct.comma );
+                let name=config.renamed_fields
+                    .get(&(field as *const _))
+                    .cloned()
+                    .unwrap_or(field.ident());
+
+                to_stream!(ts; name.to_string() ,ct.comma );
                 to_stream!(ts; ct.and_ );
                 ct.bracket.surround(ts,|ts|{
                     for li in &field.referenced_lifetimes {
@@ -353,14 +357,53 @@ fn fields_tokenizer<'a>(
                 //      opaque_fields:{:?}\n\
                 //     ",
                 //     field.ident(),
-                //     (&field.ty).into_token_stream(),
+                //     (&field.mutated_ty).into_token_stream(),
                 //     impls_sabi,
                 //     is_opaque_field,
                 //     field_ptr,
                 //     config.opaque_fields,
                 // );
 
-                make_get_abi_info_tokenizer(field.ty,flavor,ct).to_tokens(ts);
+                make_get_abi_info_tokenizer(&field.mutated_ty,flavor,ct).to_tokens(ts);
+
+                ct.bracket.surround(ts,|ts|{
+                    use std::fmt::Write;
+                    
+                    let mut buffer=ArrayString::<[u8;64]>::new();
+                    for (fn_i,func) in field.functions.iter().enumerate() {
+                        for (i,pr) in func.params.iter().chain(&func.returns).enumerate() {
+                            buffer.clear();
+                            write!(buffer,"fn_{}_",fn_i).drop_();
+                            
+                            match pr.param_or_ret {
+                                ParamOrReturn::Param=>write!(buffer,"p_{}",i),
+                                ParamOrReturn::Return=>write!(buffer,"returns"),
+                            }.drop_();
+                            let field_name=&*buffer;
+                            let lifetime_refs=pr.lifetime_refs_tokenizer(ctokens);
+                            // println!("{}={:?}",field_name,pr.mutated_ty);
+                            
+                            to_stream!{ts; ct.tl_field,ct.colon2,ct.new };
+                            ct.paren.surround(ts,|ts|{
+                                to_stream!(ts; field_name,ct.comma );
+
+                                to_stream!(ts; ct.and_ );
+                                ct.bracket.surround(ts,|ts| lifetime_refs.to_tokens(ts) );
+                                
+                                to_stream!(ts; ct.comma );
+
+                                make_get_abi_info_tokenizer(
+                                    pr.ty,
+                                    &ct.stable_abi_bound,
+                                    ct,
+                                ).to_tokens(ts);
+                            });
+
+                            ct.comma.to_tokens(ts);
+                        }
+                    }
+
+                });
             });
             to_stream!{ts; ct.comma }
         }
