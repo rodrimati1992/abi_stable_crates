@@ -37,7 +37,7 @@ pub struct TOState;
 pub type TOStateBox = VirtualWrapper<RBox<ZeroSized<TOState>>>;
 
 // This macro is used to emulate default associated types.
-// Look for the definition of InterfaceType to see 
+// Look for the docs of InterfaceType to see 
 // which other associated types you can define.
 impl_InterfaceType!{
     impl InterfaceType for TOState {

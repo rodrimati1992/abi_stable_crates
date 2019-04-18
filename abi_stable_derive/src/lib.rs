@@ -33,9 +33,20 @@ Adds a bound to the StableAbi impl.
 
 Prints the generated code,stopping compilation.
 
+### `#[sabi(kind(Prefix( .. )))]`
+Declares the struct as being a prefix-type.
+
+`#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`
+Uses "NameOfPrefixStruct" as the name of the prefix struct.
+
+
 # Field attributes
 
 These attributes are applied to fields.
+
+### `#[sabi(rename="ident")]`
+
+Renames the field in the generated layout information.
 
 ### `#[sabi(unsafe_opaque_field)]`
 
@@ -46,18 +57,18 @@ This is unsafe because the layout of the type won't be verified when loading the
 which causes Undefined Behavior if the type has a different layout.
 
 
-### `#[sabi(kind(Prefix( .. )))]`
-Declares the struct as being a prefix-type.
-
-`#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`
-Uses "NameOfPrefixStruct" as the name of the prefix struct.
-
 `#[sabi(kind(Prefix(prefix_struct="default")))]`
 Generates the name of the prefix struct appending "\_Prefix" to the deriving struct's name.
 
+### `#[sabi(last_prefix_field)]`
+
+This is only valid for Prefix types,after `#[sabi(kind(Prefix(..)))]`.
+
+# Field and/or Container attributes
+
 ### `#[sabi(missing_field( .. ))]`
 
-This is only valid for Prefix types,after the `#[sabi(kind(Prefix(..)))]`.
+This is only valid for Prefix types,after `#[sabi(kind(Prefix(..)))]`.
 
 Determines what happens when a field is missing,
 the default is that the accessor function returns an `Option<FieldType>`,
@@ -70,17 +81,20 @@ If the attribute is on a field,it's applied to that field only.
 `#[sabi(missing_field(panic))]`
 This always panics if the field doesn't exist.
 
-`#[sabi(missing_field(panic_with="somefunction"))]`
+`#[sabi(missing_field(panic="somefunction"))]`
 This panics,passing a metadata struct in so that it can have an informative error message.
 
 `#[sabi(missing_field(option))]`
 This returns None if the field doesn't exist.
+This is the default.
 
 `#[sabi(missing_field(with="somefunction"))]`
 This calls the function `somefunction` if the field doesn't exist.
+For panicking use `#[sabi(missing_field(panic="somefunction"))]` instead.
 
 `#[sabi(missing_field(default))]`
-This returns  if the field doesn't exist.
+This returns `Default::default` if the field doesn't exist.
+
 
 
 

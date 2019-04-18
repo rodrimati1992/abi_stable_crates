@@ -21,6 +21,7 @@ mod ignored_wrapper;
 mod datastructure;
 mod fn_pointer_extractor;
 mod impl_interfacetype;
+mod prefix_types;
 
 mod lifetimes;
 mod stable_abi;

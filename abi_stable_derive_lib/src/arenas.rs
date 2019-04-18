@@ -65,5 +65,6 @@ declare_arenas! {
     // visibilities: syn::Visibility,
     // tokenstream: TokenStream,
     strings: String,
+    paths: syn::Path,
 }
 
