@@ -84,6 +84,7 @@ declare_common_tokens! {
         brace=Brace,
         bracket=Bracket,
         paren=Paren,
+        pound=Pound,
         lt=Lt,
         gt=Gt,
         as_=As,

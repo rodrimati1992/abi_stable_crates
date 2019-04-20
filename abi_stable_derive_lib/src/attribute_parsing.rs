@@ -32,6 +32,7 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) opaque_fields:HashSet<*const Field<'a>>,
 
     pub(crate) renamed_fields:HashMap<*const Field<'a>,&'a Ident>,
+    pub(crate) repr_attrs:Vec<MetaList>,
 }
 
 
@@ -60,6 +61,7 @@ impl<'a> StableAbiOptions<'a> {
              the #[repr(..)] attribute must be one of the supported attributes:\n\
              \t- #[repr(C)]\n\
              \t- #[repr(transparent)]\n\
+             \t- #[repr(align(<some_integer>))]\n\
              ",
         );
 
@@ -114,6 +116,7 @@ impl<'a> StableAbiOptions<'a> {
             unconstrained_type_params:this.unconstrained_type_params.into_iter().collect(),
             opaque_fields:this.opaque_fields,
             renamed_fields:this.renamed_fields,
+            repr_attrs:this.repr_attrs,
         }
     }
 }
@@ -141,6 +144,7 @@ struct StableAbiAttrs<'a> {
     opaque_fields:HashSet<*const Field<'a>>,
     
     renamed_fields:HashMap<*const Field<'a>,&'a Ident>,
+    repr_attrs:Vec<MetaList>,
 }
 
 #[derive(Copy, Clone)]
@@ -217,15 +221,15 @@ fn parse_attr_list<'a>(
     arenas: &'a Arenas
 ) {
     if list.ident == "repr" {
-        for repr in list.nested {
-            match repr {
-                NestedMeta::Meta(Meta::Word(ref ident)) if ident == "C" => {
+        for repr in &list.nested {
+            match &repr {
+                NestedMeta::Meta(Meta::Word(ident)) if ident == "C" => {
                     this.repr = Some(Repr::C);
                 }
-                NestedMeta::Meta(Meta::Word(ref ident)) if ident == "transparent" => {
+                NestedMeta::Meta(Meta::Word(ident)) if ident == "transparent" => {
                     this.repr = Some(Repr::Transparent);
                 }
-                NestedMeta::Meta(Meta::List(ref list)) if list.ident == "align" => {
+                NestedMeta::Meta(Meta::List(list)) if list.ident == "align" => {
                     
                 }
                 x => panic!(
@@ -234,6 +238,7 @@ fn parse_attr_list<'a>(
                 ),
             }
         }
+        this.repr_attrs.push(list);
     } else if list.ident == "sabi" {
         with_nested_meta("sabi", list.nested, |attr| {
             parse_sabi_attr(this,pctx, attr, arenas)

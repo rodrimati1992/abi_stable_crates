@@ -198,6 +198,10 @@ fn initialize_globals()->&'static globals::Globals{
 }
 
 #[inline(never)]
-fn initialize_globals_with(globs:&'static globals::Globals)->&'static globals::Globals{
+pub fn initialize_globals_with(globs:&'static globals::Globals)->&'static globals::Globals{
     globals::GLOBALS.init(|| globs )
 }
+
+
+
+
