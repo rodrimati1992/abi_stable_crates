@@ -3,6 +3,12 @@ Types,traits,and functions used by prefix-types.
 
 */
 
+use crate::{
+    abi_stability::type_layout::{TypeLayout,TLField,TLData},
+    std_types::StaticSlice,
+};
+
+
 
 /// A trait implemented by all prefix-types,providing some metadata about them.
 pub trait PrefixTypeTrait{
@@ -13,6 +19,7 @@ pub trait PrefixTypeTrait{
 }
 
 
+#[derive(Debug,Copy,Clone)]
 pub struct PrefixTypeMetadata{
     /// This is the ammount of fields on the prefix of the struct,
     /// which is always the same for the same type,regardless of which library it comes from.
@@ -28,7 +35,7 @@ pub struct PrefixTypeMetadata{
 impl PrefixTypeMetadata{
     pub fn new(layout:&'static TypeLayout)->Self{
         let (first_suffix_field,fields)=match layout.data {
-            PrefixType{first_suffix_field,fields}=>
+            TLData::PrefixType{first_suffix_field,fields}=>
                 (first_suffix_field,fields),
             _=>panic!(
                 "Attempting to construct a PrefixTypeMetadata from a \
@@ -37,12 +44,25 @@ impl PrefixTypeMetadata{
                  layout.full_type,
                  layout.data.discriminant(),
                  layout.package,
-            );
-        }
+            ),
+        };
         Self{
             fields:fields,
             prefix_field_count:first_suffix_field,
             layout,
+        }
+    }
+
+    /// Returns the maximum prefix.Does not check that they are compatible.
+    /// 
+    /// # Preconditions
+    /// 
+    /// The prefixes must already have been checked for compatibility.
+    pub fn max(self,other:Self)->Self{
+        if self.fields.len() < other.fields.len() {
+            other
+        }else{
+            self
         }
     }
 }
@@ -71,7 +91,7 @@ pub fn panic_on_missing_field_val(
     let expected=PrefixTypeMetadata::new(expected);
     let actual=PrefixTypeMetadata::new(actual);
 
-    let field=expected.layout.fields[field_index];
+    let field=expected.fields[field_index];
 
     panic!("\n
 Attempting to access nonexistent field:
@@ -88,20 +108,20 @@ Expected:
     Field count:{expected_field_count}
 
 Found:
-    Version:{expected_package_version}
-    Field count:{expected_field_count}
+    Version:{actual_package_version}
+    Field count:{actual_field_count}
 
 \n",
         index=field_index,
         field_named=field.name.as_str(),
-        field_type=field.abi_info.get().full_type,
+        field_type=field.abi_info.get().layout.full_type,
         struct_type=expected.layout.full_type,
         package=expected.layout.package,
         
         expected_package_version =expected.layout.package_version ,
-        expected_field_count=expected.field_count,
+        expected_field_count=expected.fields.len(),
         
         actual_package_version =actual.layout.package_version ,
-        actual_field_count=actual.field_count,
+        actual_field_count=actual.fields.len(),
     );
 }

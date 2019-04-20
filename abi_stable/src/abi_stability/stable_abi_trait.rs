@@ -186,10 +186,17 @@ pub struct AbiInfo {
     pub layout: &'static TypeLayout,
 }
 
+
+impl AbiInfo{
+    pub fn get_utypeid(&self)->UTypeId{
+        (self.type_id.function)()
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq,StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq,Eq,Ord,PartialOrd,Hash,StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub enum TypeKind{
     /// A value whose layout must not change in minor versions
@@ -231,6 +238,7 @@ impl TypeKindTrait for PrefixKind {
 #[repr(transparent)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
+// #[sabi(debug_print)]
 pub struct GetAbiInfo {
     abi_info: extern "C" fn() -> &'static AbiInfo,
 }
@@ -635,7 +643,9 @@ where
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
         "num::Wrapping",
-        TLData::ReprTransparent(N::ABI_INFO.get()),
+        TLData::struct_(&[
+            TLField::new("0",&[],<N as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
+        ]),
         tl_genparams!(;N;),
     );
 }
@@ -652,7 +662,9 @@ where
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
         "Pin",
-        TLData::ReprTransparent(P::ABI_INFO.get()),
+        TLData::struct_(&[
+            TLField::new("0",&[],<P as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
+        ]),
         tl_genparams!(;P;),
     );
 }

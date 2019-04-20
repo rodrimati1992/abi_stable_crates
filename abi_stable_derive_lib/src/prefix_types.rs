@@ -101,7 +101,7 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         // The fields that store metadata of the prefix-type
         let metadata_fields=quote!{
             _prefix_type_field_count:usize,
-            _prefix_type_layout:#module::TypeLayout,
+            _prefix_type_layout:&'static #module::_sabi_reexports::TypeLayout,
         };
 
         // Generating the `*_Prefix` struct
@@ -261,6 +261,6 @@ fn field_tokenizer<'a>(
 )->impl ToTokens+'a{
     let ct=ctokens;
     ToTokenFnMut::new(move|ts|{
-        to_stream!(ts;field.vis,field.ident,ct.colon2,field.ty,ct.comma);
+        to_stream!(ts;field.vis,field.ident,ct.colon,field.ty,ct.comma);
     })
 }

@@ -82,7 +82,7 @@ impl<'a> StableAbiOptions<'a> {
                 let field=&ds.variants[0].fields[0];
                 
                 let field_bound=syn::parse_str::<WherePredicate>(
-                    &format!("({}):__StableAbi",(&field.ty).into_token_stream())
+                    &format!("({}):__StableAbi",(&field.mutated_ty).into_token_stream())
                 ).expect(concat!(file!(),"-",line!()));
                 this.extra_bounds.push(field_bound);
 

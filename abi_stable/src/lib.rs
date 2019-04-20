@@ -108,7 +108,9 @@ pub mod erased_types;
 pub mod library;
 pub mod ignored_wrapper;
 pub mod marker_type;
+pub mod multikey_map;
 pub mod pointer_trait;
+pub mod prefix_type;
 
 #[doc(hidden)]
 pub mod return_value_equality;
@@ -156,3 +158,46 @@ pub use crate::{
     marker_type::{ErasedObject, ZeroSized},
 };
 
+
+
+
+mod globals{
+    use crate::{
+        lazy_static_ref::LazyStaticRef,
+        abi_stability::{
+            abi_checking::{check_abi_stability_for_ffi},
+            stable_abi_trait::AbiInfoWrapper,
+        },
+        std_types::{RResult,RBoxError},
+        utils::leak_value,
+    };
+
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Globals{
+        pub layout_checking:
+            extern fn(&'static AbiInfoWrapper,&'static AbiInfoWrapper) -> RResult<(), RBoxError> ,
+    }
+
+    impl Globals{
+        pub fn new()->&'static Self{
+            leak_value(Globals{
+                layout_checking:check_abi_stability_for_ffi,
+            })
+        }
+    }
+
+    pub(crate)static GLOBALS:LazyStaticRef<Globals>=LazyStaticRef::new();
+
+}
+
+#[inline(never)]
+fn initialize_globals()->&'static globals::Globals{
+    globals::GLOBALS.init(|| globals::Globals::new() )
+}
+
+#[inline(never)]
+fn initialize_globals_with(globs:&'static globals::Globals)->&'static globals::Globals{
+    globals::GLOBALS.init(|| globs )
+}

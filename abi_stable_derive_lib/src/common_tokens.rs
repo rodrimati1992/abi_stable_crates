@@ -108,6 +108,7 @@ declare_common_tokens! {
         struct_under="struct_",
         enum_under="enum_",
         cap_repr_transparent="ReprTransparent",
+        prefix_type="prefix_type",
         cap_prefix_type="PrefixType",
         new="new",
         env="env",

@@ -1,13 +1,14 @@
 #![allow(dead_code)]
 
-use std::{marker::PhantomData, num, ptr, sync::atomic};
+use std::{marker::PhantomData, num, ptr, sync::atomic,mem};
 
 #[allow(unused_imports)]
 use core_extensions::{matches, prelude::*};
 
 use crate::{
     abi_stability::{
-        abi_checking::AbiInstability, check_abi_stability, AbiInfoWrapper, 
+        abi_checking::{AbiInstability,CheckingGlobals,check_abi_stability_with_globals},
+        check_abi_stability, AbiInfoWrapper, 
     },
     marker_type::UnsafeIgnoredType,
     std_types::*,
@@ -26,19 +27,6 @@ mod regular {
         h: u32,
     }
 }
-
-// mod prefixed {
-//     #[repr(C)]
-//     #[derive(StableAbi)]
-//     #[sabi(inside_abi_stable_crate)]
-//     #[sabi(kind(unsafe_Prefix))]
-//     pub struct Rectangle {
-//         x: u32,
-//         y: u32,
-//         w: u16,
-//         h: u32,
-//     }
-// }
 
 mod changed_name {
     #[repr(C)]
@@ -710,91 +698,118 @@ mod mod_7 {
 
 
 
-// //////////////////////////////////////////////////////////////////////////////
-// ///  Prefix types Uncomment this once I figure a good design for this.
+//////////////////////////////////////////////////////////////////////////////
+///  Prefix types Uncomment this once I figure a good design for this.
 
-// mod prefix0 {
-//     #[repr(C)]
-//     #[derive(StableAbi)]
-//     #[sabi(inside_abi_stable_crate)]
-//     #[sabi(kind(unsafe_Prefix))]
-//     pub struct Prefix {
-//         field0: u8,
-//     }
-// }
+mod prefix0 {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    // #[sabi(debug_print)]
+    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
+    pub struct Prefix {
+        #[sabi(last_prefix_field)]
+        field0: u8,
+    }
+}
 
-// mod prefix1 {
-//     #[repr(C)]
-//     #[derive(StableAbi)]
-//     #[sabi(inside_abi_stable_crate)]
-//     #[sabi(kind(unsafe_Prefix))]
-//     pub struct Prefix {
-//         field0: u8,
-//         field1: u8,
-//     }
-// }
+mod prefix1 {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
+    pub struct Prefix {
+        #[sabi(last_prefix_field)]
+        field0: u8,
+        field1: u8,
+    }
+}
 
-// mod prefix2 {
-//     #[repr(C)]
-//     #[derive(StableAbi)]
-//     #[sabi(inside_abi_stable_crate)]
-//     #[sabi(kind(unsafe_Prefix))]
-//     pub struct Prefix {
-//         field0: u8,
-//         field1: u8,
-//         field2: u8,
-//     }
-// }
+mod prefix2 {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
+    pub struct Prefix {
+        #[sabi(last_prefix_field)]
+        field0: u8,
+        field1: u8,
+        field2: u8,
+    }
+}
 
-// // Prefix types have to keep the same alignment when fields are added
-// mod prefix2_misaligned {
-//     #[repr(C)]
-//     #[derive(StableAbi)]
-//     #[sabi(inside_abi_stable_crate)]
-//     #[sabi(kind(unsafe_Prefix))]
-//     pub struct Prefix {
-//         field0: u8,
-//         field1: u8,
-//         field2: u64,
-//     }
-// }
+// Prefix types have to keep the same alignment when fields are added
+mod prefix2_misaligned {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    // #[sabi(debug_print)]
+    #[sabi(inside_abi_stable_crate)]
+    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
+    pub struct Prefix {
+        #[sabi(last_prefix_field)]
+        field0: u8,
+        field1: u8,
+        field2: u64,
+        _marker:AlignTo16,
+    }
 
-// #[test]
-// fn prefixes_test() {
-//     // This has to be hidden behind a reference to be a StableAbi
-//     let pref_0 = <&prefix0::Prefix>::ABI_INFO;
-//     let pref_1 = <&prefix1::Prefix>::ABI_INFO;
-//     let pref_2 = <&prefix2::Prefix>::ABI_INFO;
-//     let list = vec![pref_0, pref_1, pref_2];
-//     for (i, this) in list.iter().cloned().enumerate() {
-//         for (j, other) in list.iter().cloned().enumerate() {
-//             let res = check_abi_stability(this, other);
+    #[derive(StableAbi,Copy,Clone)]
+    #[sabi(inside_abi_stable_crate)]
+    #[repr(C,align(16))]
+    struct AlignTo16{
+        _inner:(),
+    }
 
-//             if i <= j {
-//                 assert_eq!(Ok(()), res, "\n\ni:{} j:{}\n\n", i, j,);
-//             } else {
-//                 let errs = res.unwrap_err().flatten_errors();
-//                 assert!(
-//                     errs.iter()
-//                         .any(|err| matches!(AbiInstability::FieldCountMismatch{..}=err)),
-//                     "\n\ni:{} j:{}\n\n",
-//                     i,
-//                     j,
-//                 );
-//             }
-//         }
-//     }
+}
 
-//     // Adding fields is allowed but they can't change the alignment.
-//     {
-//         let misaligned = <&prefix2_misaligned::Prefix>::ABI_INFO;
+#[test]
+fn prefixes_test() {
+    // This has to be hidden behind a reference to be a StableAbi
+    let pref_0 = <&prefix0::Prefix_Prefix>::ABI_INFO;
+    let pref_1 = <&prefix1::Prefix_Prefix>::ABI_INFO;
+    let pref_2 = <&prefix2::Prefix_Prefix>::ABI_INFO;
+    let list = vec![pref_0, pref_1, pref_2];
+    {
+        let globals=CheckingGlobals::new();
+        for (i, this) in list.iter().cloned().enumerate() {
+            for (j, other) in list.iter().cloned().enumerate() {
+                let res = check_abi_stability_with_globals(this, other,&globals);
 
-//         let errs = check_abi_stability(pref_0, misaligned)
-//             .unwrap_err()
-//             .flatten_errors();
+                if i <= j {
+                    assert_eq!(Ok(()), res, "\n\ni:{} j:{}\n\n", i, j,);
+                } else {
+                    let errs = res.unwrap_err().flatten_errors();
+                    assert!(
+                        errs.iter()
+                            .any(|err| matches!(AbiInstability::FieldCountMismatch{..}=err)),
+                        "\n\ni:{} j:{}\n\n",
+                        i,
+                        j,
+                    );
+                }
+            }
+        }
+    }
 
-//         assert!(errs
-//             .iter()
-//             .any(|err| matches!(AbiInstability::Alignment{..}=err)));
-//     }
-// }
+    // Adding fields is allowed but they can't change the alignment.
+    {
+        let globals=CheckingGlobals::new();
+        let misaligned = <&prefix2_misaligned::Prefix_Prefix>::ABI_INFO;
+
+        println!(
+            "alignment pref_0:{} prefix2_misaligned:{}", 
+            mem::align_of::<prefix0::Prefix_Metadata>(),
+            mem::align_of::<prefix2_misaligned::Prefix_Metadata>(),
+        );
+
+
+
+        let errs = check_abi_stability_with_globals(pref_0, misaligned,&globals)
+            .unwrap_err()
+            .flatten_errors();
+
+        assert!(errs
+            .iter()
+            .any(|err| matches!(AbiInstability::Alignment{..}=err)));
+    }
+}
