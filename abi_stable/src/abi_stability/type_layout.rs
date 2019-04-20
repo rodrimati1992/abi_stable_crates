@@ -38,6 +38,7 @@ pub struct TypeLayoutParams {
 /// also includes metadata about where the type was defined.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+// #[sabi(debug_print)]
 #[sabi(inside_abi_stable_crate)]
 pub struct TypeLayout {
     pub name: StaticStr,
@@ -116,8 +117,6 @@ pub enum TLData {
         first_suffix_field:usize,
         fields: StaticSlice<TLField>,
     },
-    /// For `#[repr(transparent)]` types.
-    ReprTransparent(&'static AbiInfo),
 }
 
 /// A discriminant-only version of TLData.
@@ -129,7 +128,6 @@ pub enum TLDataDiscriminant {
     Struct,
     Enum,
     PrefixType,
-    ReprTransparent,
 }
 
 /// The layout of an enum variant.
@@ -192,7 +190,7 @@ impl TLField {
             name: StaticStr::new(name),
             lifetime_indices: StaticSlice::new(lifetime_indices),
             abi_info,
-            subfields:StaticSlice::new(&[]),
+            subfields:StaticSlice::new(empty_slice()),
         }
     }
 
@@ -465,13 +463,22 @@ impl TLData {
         }
     }
 
+    pub const fn prefix_type(
+        first_suffix_field:usize,
+        fields: &'static [TLField],
+    )->Self{
+        TLData::PrefixType{
+            first_suffix_field,
+            fields:StaticSlice::new(fields),
+        }
+    }
+
     pub fn discriminant(&self) -> TLDataDiscriminant {
         match self {
             TLData::Primitive { .. } => TLDataDiscriminant::Primitive,
             TLData::Struct { .. } => TLDataDiscriminant::Struct,
             TLData::Enum { .. } => TLDataDiscriminant::Enum,
             TLData::PrefixType { .. } => TLDataDiscriminant::PrefixType,
-            TLData::ReprTransparent { .. } => TLDataDiscriminant::ReprTransparent,
         }
     }
 }

@@ -41,8 +41,8 @@ pub(crate) struct MapIndex{
 
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
 pub(crate) struct IndexValue<T>{
-    index:MapIndex,
-    value:T,
+    pub(crate) index:MapIndex,
+    pub(crate) value:T,
 }
 
 
@@ -299,6 +299,8 @@ impl<T> InsertionTime<T>{
 #[cfg(test)]
 mod tests{
     use super::*;
+
+    use crate::test_utils::must_panic;
     
     macro_rules! assert_matches {
         ( $(|)* $pat:pat $(| $prev_pat:pat)*  =$expr:expr)=>{
