@@ -1,10 +1,12 @@
 use std::{
     borrow::Borrow,
     collections::hash_map::{HashMap,Entry},
-    cmp::Eq,
+    cmp::{Eq,PartialEq},
+    fmt::{self,Debug},
     hash::Hash,
     mem,
     ops::{Index,IndexMut},
+    ptr,
 };
 
 use generational_arena::{
@@ -22,11 +24,13 @@ use core_extensions::{
 ///
 /// Every key maps to a value,which is stored at an index.
 /// Indices can be used as a proxy for the value.
+#[derive(Clone)]
 pub(crate) struct MultiKeyMap<K,T>{
     map:HashMap<K,MapIndex>,
     arena:Arena<MapValue<K,T>>,
 }
 
+#[derive(Debug,Clone,PartialEq,Eq)]
 struct MapValue<K,T>{
     keys:Vec<K>,
     value:T
@@ -102,6 +106,16 @@ where K:Hash+Eq
     pub(crate) fn replace_index(&mut self,replace:MapIndex,with:T)->Option<T>{
         self.get_mut_with_index(replace)
             .map(|x| mem::replace(x,with) )
+    }
+
+    /// The ammount of keys associated with values.
+    pub(crate) fn key_len(&self)->usize{
+        self.map.len()
+    }
+
+    /// The ammount of values.
+    pub(crate) fn value_len(&self)->usize{
+        self.arena.len()
     }
 
     /**
@@ -256,6 +270,68 @@ impl<'a,K, Q: ?Sized,T> IndexMut<&'a Q> for MultiKeyMap<K, T> where
 }
 
 
+impl<K,T> Debug for MultiKeyMap<K,T>
+where 
+    K:Eq+Hash+Debug,
+    T:Debug,
+{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        f.debug_struct("MultiKeyMap")
+         .field("map",&self.map)
+         .field("arena",&self.arena)
+         .finish()
+    }
+}
+
+
+impl<K,T> Eq for MultiKeyMap<K,T>
+where 
+    K:Eq+Hash,
+    T:Eq,
+{}
+
+
+impl<K,T> PartialEq for MultiKeyMap<K,T>
+where 
+    K:Eq+Hash,
+    T:PartialEq,
+{
+    fn eq(&self,other:&Self)->bool{
+        if self.arena.len()!=other.arena.len()||
+            self.map.len()!=other.map.len()
+        {
+            return false;
+        }
+        for (_,l_val) in self.arena.iter() {
+            let mut keys=l_val.keys.iter();
+
+            let r_val_index=match other.get_index(keys.next().unwrap()) {
+                Some(x)=>x,
+                None=>return false,
+            };
+
+            let r_val=&other.arena[r_val_index.index];
+
+            if l_val.value!=r_val.value {
+                return false;
+            }
+
+            let all_map_to_r_val=keys.all(|key|{
+                match other.get_index(key) {
+                    Some(r_ind)=>ptr::eq(r_val,&other.arena[r_ind.index]),
+                    None=>false,
+                }
+            });
+
+            if !all_map_to_r_val {
+                return false
+            }
+        }
+        true
+    }
+}
+
+
 impl MapIndex{
     #[inline]
     fn new(index:ArenaIndex)->Self{
@@ -313,6 +389,80 @@ mod tests{
                 value
             );
         };
+    }
+
+
+    #[test]
+    fn equality(){
+
+        fn insert(map:&mut MultiKeyMap<u32,u32>,key:u32,value:u32){
+            let index=map.get_or_insert(key,value).into_inner().index;
+            map.associate_key(key+1,index);
+            map.associate_key(key+2,index);
+        }
+
+        ///////////////////////////////////////////////////
+        ////                EQUAL
+        ///////////////////////////////////////////////////
+        {
+            let mut map_a=MultiKeyMap::<u32,u32>::new();
+
+            let mut map_b=MultiKeyMap::<u32,u32>::new();
+
+            assert_eq!(map_a, map_b);
+        }
+        {
+            let mut map_a=MultiKeyMap::<u32,u32>::new();
+            insert(&mut map_a,1000,200);
+
+            let mut map_b=MultiKeyMap::<u32,u32>::new();
+            insert(&mut map_b,1000,200);
+
+            assert_eq!(map_a, map_b);
+        }
+        {
+            let mut map_a=MultiKeyMap::<u32,u32>::new();
+            insert(&mut map_a,1000,200);
+            insert(&mut map_a,2000,400);
+
+            let mut map_b=MultiKeyMap::<u32,u32>::new();
+            insert(&mut map_b,1000,200);
+            insert(&mut map_b,2000,400);
+
+            assert_eq!(map_a, map_b);
+        }
+
+        ///////////////////////////////////////////////////
+        ////             NOT EQUAL
+        ///////////////////////////////////////////////////
+        {
+            let mut map_a=MultiKeyMap::<u32,u32>::new();
+            
+            let mut map_b=MultiKeyMap::<u32,u32>::new();
+            insert(&mut map_b,1000,200);
+
+            assert_ne!(map_a, map_b);
+        }
+        {
+            let mut map_a=MultiKeyMap::<u32,u32>::new();
+            insert(&mut map_a,1000,200);
+
+            let mut map_b=MultiKeyMap::<u32,u32>::new();
+
+            assert_ne!(map_a, map_b);
+        }
+        {
+            let mut map_a=MultiKeyMap::<u32,u32>::new();
+            insert(&mut map_a,1000,200);
+            insert(&mut map_a,2000,401);
+
+            let mut map_b=MultiKeyMap::<u32,u32>::new();
+            insert(&mut map_b,1000,200);
+            insert(&mut map_b,2000,400);
+
+            assert_ne!(map_a, map_b);
+        }
+
     }
 
 
@@ -396,10 +546,10 @@ mod tests{
         assert_eq!(map.associate_key_forced(200,index2),None);
         assert_eq!(map.associate_key_forced(30,index2),Some(2000));
 
-        must_panic(file_span!(),|| map.associate_key_forced(100,index0) );
-        must_panic(file_span!(),|| map.associate_key_forced(200,index0) );
-        must_panic(file_span!(),|| map.associate_key_forced(20,index0) );
-        must_panic(file_span!(),|| map.associate_key_forced(30,index0) );
+        must_panic(file_span!(),|| map.associate_key_forced(100,index0) ).unwrap();
+        must_panic(file_span!(),|| map.associate_key_forced(200,index0) ).unwrap();
+        must_panic(file_span!(),|| map.associate_key_forced(20,index0) ).unwrap();
+        must_panic(file_span!(),|| map.associate_key_forced(30,index0) ).unwrap();
     }
 
 

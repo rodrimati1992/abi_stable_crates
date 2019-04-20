@@ -8,10 +8,12 @@ use core_extensions::{matches, prelude::*};
 use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,CheckingGlobals,check_abi_stability_with_globals},
+        stable_abi_trait::AbiInfo,
         check_abi_stability, AbiInfoWrapper, 
     },
     marker_type::UnsafeIgnoredType,
     std_types::*,
+    prefix_type::PrefixTypeMetadata,
     *,
     test_utils::must_panic,
 };
@@ -291,7 +293,7 @@ fn same_different_abi_stability() {
         }
     });
 
-    println!("taken {} to check all listed layouts", dur);
+    // println!("taken {} to check all listed layouts", dur);
 }
 
 
@@ -696,120 +698,3 @@ mod mod_7 {
     }
 }
 
-
-
-//////////////////////////////////////////////////////////////////////////////
-///  Prefix types Uncomment this once I figure a good design for this.
-
-mod prefix0 {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
-    // #[sabi(debug_print)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
-    pub struct Prefix {
-        #[sabi(last_prefix_field)]
-        field0: u8,
-    }
-}
-
-mod prefix1 {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
-    pub struct Prefix {
-        #[sabi(last_prefix_field)]
-        field0: u8,
-        field1: u8,
-    }
-}
-
-mod prefix2 {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
-    pub struct Prefix {
-        #[sabi(last_prefix_field)]
-        field0: u8,
-        field1: u8,
-        field2: u8,
-    }
-}
-
-// Prefix types have to keep the same alignment when fields are added
-mod prefix2_misaligned {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    // #[sabi(debug_print)]
-    #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
-    pub struct Prefix {
-        #[sabi(last_prefix_field)]
-        field0: u8,
-        field1: u8,
-        field2: u64,
-        _marker:AlignTo16,
-    }
-
-    #[derive(StableAbi,Copy,Clone)]
-    #[sabi(inside_abi_stable_crate)]
-    #[repr(C,align(16))]
-    struct AlignTo16{
-        _inner:(),
-    }
-
-}
-
-#[test]
-fn prefixes_test() {
-    // This has to be hidden behind a reference to be a StableAbi
-    let pref_0 = <&prefix0::Prefix_Prefix>::ABI_INFO;
-    let pref_1 = <&prefix1::Prefix_Prefix>::ABI_INFO;
-    let pref_2 = <&prefix2::Prefix_Prefix>::ABI_INFO;
-    let list = vec![pref_0, pref_1, pref_2];
-    {
-        let globals=CheckingGlobals::new();
-        for (i, this) in list.iter().cloned().enumerate() {
-            for (j, other) in list.iter().cloned().enumerate() {
-                let res = check_abi_stability_with_globals(this, other,&globals);
-
-                if i <= j {
-                    assert_eq!(Ok(()), res, "\n\ni:{} j:{}\n\n", i, j,);
-                } else {
-                    let errs = res.unwrap_err().flatten_errors();
-                    assert!(
-                        errs.iter()
-                            .any(|err| matches!(AbiInstability::FieldCountMismatch{..}=err)),
-                        "\n\ni:{} j:{}\n\n",
-                        i,
-                        j,
-                    );
-                }
-            }
-        }
-    }
-
-    // Adding fields is allowed but they can't change the alignment.
-    {
-        let globals=CheckingGlobals::new();
-        let misaligned = <&prefix2_misaligned::Prefix_Prefix>::ABI_INFO;
-
-        println!(
-            "alignment pref_0:{} prefix2_misaligned:{}", 
-            mem::align_of::<prefix0::Prefix_Metadata>(),
-            mem::align_of::<prefix2_misaligned::Prefix_Metadata>(),
-        );
-
-
-
-        let errs = check_abi_stability_with_globals(pref_0, misaligned,&globals)
-            .unwrap_err()
-            .flatten_errors();
-
-        assert!(errs
-            .iter()
-            .any(|err| matches!(AbiInstability::Alignment{..}=err)));
-    }
-}

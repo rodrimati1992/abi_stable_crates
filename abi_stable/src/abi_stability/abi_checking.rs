@@ -532,11 +532,10 @@ impl AbiChecker {
             let t_index=prefix_type_map.get_index(&t_utid);
             let o_index=prefix_type_map.get_index(&o_utid);
 
-            let mut max_prefix=if t_fields.len() < o_fields.len() { 
-                pair.this_prefix
-            }else{
-                pair.other_prefix
-            };
+            let max_prefix=pair.this_prefix.max(pair.other_prefix);
+
+            // println!("t_index:{:?}o_index:{:?}",t_index,o_index);
+            // println!("t_utid:{:?}\no_utid:{:?}",t_utid,o_utid);
 
             match (t_index,o_index) {
                 (None,None)=>{
@@ -549,32 +548,42 @@ impl AbiChecker {
                 (Some(im_index),None)|(None,Some(im_index))=>{
                     let im_prefix=prefix_type_map.get_mut_with_index(im_index).unwrap();
                     
-                    self.check_prefix_types(errs,*im_prefix,max_prefix);
+                    let (l_pre,r_pre)=(*im_prefix).min_max(max_prefix);
+
+                    self.check_prefix_types(errs,l_pre,r_pre);
                     if !errs.is_empty() { break; }
                     
                     *im_prefix=im_prefix.max(max_prefix);
                     drop(im_prefix);
                     prefix_type_map.associate_key(t_utid,im_index);
                     prefix_type_map.associate_key(o_utid,im_index);
+
                 }
                 (Some(l_index),Some(r_index))=>{
                     let l_prefix=*prefix_type_map.get_with_index(l_index).unwrap();
                     let r_prefix=*prefix_type_map.get_with_index(r_index).unwrap();
-
-                    self.check_prefix_types(errs,l_prefix,r_prefix);
-                    if !errs.is_empty() { break; }
 
                     let (replace,with)=if l_prefix.fields.len() < r_prefix.fields.len() {
                         (l_index,r_index)
                     }else{
                         (r_index,l_index)
                     };
+
+                    let (l_pre,r_pre)=l_prefix.min_max(r_prefix);
+                    self.check_prefix_types(errs,l_pre,r_pre);
+                    if !errs.is_empty() { break; }
+
                     if l_prefix.fields.len() != r_prefix.fields.len() {
                         prefix_type_map.replace_with_index(replace,with);
                     }
                 }
             }
 
+            // println!(
+            //     "t_prefix:{:p}\no_prefix:{:p}",
+            //     &prefix_type_map[&t_utid],
+            //     &prefix_type_map[&o_utid],
+            // );
 
         }
 
@@ -715,8 +724,9 @@ use crate::{
     utils::leak_value,
 };
 
+#[derive(Debug)]
 pub struct CheckingGlobals{
-    prefix_type_map:Mutex<MultiKeyMap<UTypeId,PrefixTypeMetadata>>,
+    pub(crate) prefix_type_map:Mutex<MultiKeyMap<UTypeId,PrefixTypeMetadata>>,
 }
 
 impl CheckingGlobals{

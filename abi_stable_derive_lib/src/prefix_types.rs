@@ -103,9 +103,18 @@ pub(crate) fn prefix_type_tokenizer<'a>(
             _prefix_type_field_count:usize,
             _prefix_type_layout:&'static #module::_sabi_reexports::TypeLayout,
         };
+        
+        let repr_attrs=ToTokenFnMut::new(move|ts|{
+            for list in &config.repr_attrs {
+                ct.pound.to_tokens(ts);
+                ct.bracket.surround(ts,|ts|{
+                    list.to_tokens(ts);
+                });
+            }
+        });
 
         // Generating the `*_Prefix` struct
-        to_stream!(ts;ds.vis,ct.struct_,prefix.prefix_struct);
+        to_stream!(ts;repr_attrs,ds.vis,ct.struct_,prefix.prefix_struct);
         ds.generics.to_tokens(ts);
         ds.generics.where_clause.to_tokens(ts);
         ct.brace.surround(ts,|ts|{
@@ -114,11 +123,12 @@ pub(crate) fn prefix_type_tokenizer<'a>(
             for field in get_fields_tokenized(struct_,prefix.first_suffix_field,ct) {
                 field.to_tokens(ts);
             }
+            quote!(_prefix_type_move_only:(),).to_tokens(ts);
         });
 
         // Generating the `*_WithMetadata` struct.
         // Which contains all the fields of the deriving struct.
-        to_stream!(ts;ds.vis,ct.struct_,prefix.with_metadata);
+        to_stream!(ts;repr_attrs,ds.vis,ct.struct_,prefix.with_metadata);
         ds.generics.to_tokens(ts);
         ds.generics.where_clause.to_tokens(ts);
         ct.brace.surround(ts,|ts|{

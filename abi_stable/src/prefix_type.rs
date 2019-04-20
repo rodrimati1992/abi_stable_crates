@@ -65,6 +65,18 @@ impl PrefixTypeMetadata{
             self
         }
     }
+    /// Returns the minimum and maximum prefix.Does not check that they are compatible.
+    /// 
+    /// # Preconditions
+    /// 
+    /// The prefixes must already have been checked for compatibility.
+    pub fn min_max(self,other:Self)->(Self,Self){
+        if self.fields.len() < other.fields.len() {
+            (self,other)
+        }else{
+            (other,self)
+        }
+    }
 }
 
 
