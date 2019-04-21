@@ -27,10 +27,7 @@ pub(crate) struct PrefixKind<'a>{
     /// Which is the last field of the prefix,if None there is no prefix.
     pub(crate) last_prefix_field:Option<LastPrefixField<'a>>,
     pub(crate) first_suffix_field:usize,
-    /// The identifier of the struct with all the prefix fields as well as the Prefix-type metadata.
     pub(crate) prefix_struct:&'a Ident,
-    /// The identifier of the struct with all the fields as well as the Prefix-type metadata.
-    pub(crate) with_metadata:&'a Ident,
     pub(crate) default_on_missing_fields:OnMissingField<'a>,
     pub(crate) on_missing_fields:HashMap<*const Field<'a>,OnMissingField<'a>>,
     
@@ -77,8 +74,7 @@ impl<'a> Default for OnMissingField<'a>{
 
 
 /**
-Returns a value which if the type is a prefix-type ,outputs 
-`struct *_WithMetadata`,`struct *_Prefix`,and impl blocks of those types,
+Returns a value which for a prefix-type .
 */
 pub(crate) fn prefix_type_tokenizer<'a>(
     module:&'a Ident,
@@ -98,56 +94,38 @@ pub(crate) fn prefix_type_tokenizer<'a>(
             _=>return,
         };
 
-        // The fields that store metadata of the prefix-type
-        let metadata_fields=quote!{
-            _prefix_type_field_count:usize,
-            _prefix_type_layout:&'static #module::_sabi_reexports::TypeLayout,
-        };
-        
-        let repr_attrs=ToTokenFnMut::new(move|ts|{
-            for list in &config.repr_attrs {
-                ct.pound.to_tokens(ts);
-                ct.bracket.surround(ts,|ts|{
-                    list.to_tokens(ts);
-                });
-            }
-        });
+        // let repr_attrs=ToTokenFnMut::new(move|ts|{
+        //     for list in &config.repr_attrs {
+        //         ct.pound.to_tokens(ts);
+        //         ct.bracket.surround(ts,|ts|{
+        //             list.to_tokens(ts);
+        //         });
+        //     }
+        // });
 
-        // Generating the `*_Prefix` struct
-        to_stream!(ts;repr_attrs,ds.vis,ct.struct_,prefix.prefix_struct);
-        ds.generics.to_tokens(ts);
-        ds.generics.where_clause.to_tokens(ts);
-        ct.brace.surround(ts,|ts|{
-            metadata_fields.to_tokens(ts);
-
-            for field in get_fields_tokenized(struct_,prefix.first_suffix_field,ct) {
-                field.to_tokens(ts);
-            }
-            quote!(_prefix_type_move_only:(),).to_tokens(ts);
-        });
-
-        // Generating the `*_WithMetadata` struct.
-        // Which contains all the fields of the deriving struct.
-        to_stream!(ts;repr_attrs,ds.vis,ct.struct_,prefix.with_metadata);
-        ds.generics.to_tokens(ts);
-        ds.generics.where_clause.to_tokens(ts);
-        ct.brace.surround(ts,|ts|{
-            metadata_fields.to_tokens(ts);
-
-            for field in get_fields_tokenized(struct_,!0,ct) {
-                field.to_tokens(ts);
-            }
-        });
-
-        let mut buffer=String::new();
         let deriving_name=ds.name;
+        let (impl_generics, ty_generics, where_clause) = ds.generics.split_for_impl();
+        
+        // Generating the `*_Prefix` struct
+        {
+            let vis=ds.vis;
+            let prefix_struct=prefix.prefix_struct;
+            quote!(
+                #[repr(transparent)]
+                #vis struct #prefix_struct{
+                    inner:#module::__WithMetadata_<(),Self>,
+                }
+            ).to_tokens(ts);
+        }
+        
+        let mut buffer=String::new();
         let prefix_struct=prefix.prefix_struct;
-        let with_metadata=prefix.with_metadata;
 
         let accessors=struct_.fields.iter().enumerate()
             .map(move|(field_i,field)|{
                 use std::fmt::Write;
-                write!(buffer,"get_{}",field.ident()).drop_();
+                buffer.clear();
+                write!(buffer,"{}",field.ident()).drop_();
                 let vis=field.vis;
                 let getter_name=syn::parse_str::<Ident>(&*buffer).unwrap();
                 let field_name=field.ident();
@@ -163,14 +141,16 @@ pub(crate) fn prefix_type_tokenizer<'a>(
                 if field_i < prefix.first_suffix_field {
                     quote!{
                         #vis fn #getter_name(&self)->#ty{
-                            self.#field_name
+                            unsafe{ (*self.as_full_unchecked()).original.#field_name }
                         }
                     }
                 }else if is_optional{
                     quote!{
                         #vis fn #getter_name(&self)->Option< #ty >{
-                            if #field_i < self._prefix_type_field_count {
-                                unsafe{ Some(self.as_full_unchecked().#field_name) }
+                            if #field_i < self.inner._prefix_type_field_count {
+                                unsafe{ 
+                                    Some( (*self.as_full_unchecked()).original.#field_name ) 
+                                }
                             }else{
                                 None
                             }
@@ -181,19 +161,19 @@ pub(crate) fn prefix_type_tokenizer<'a>(
                         OnMissingField::ReturnOption=>unreachable!(),
                         OnMissingField::Panic=>quote!(
                             #module::_sabi_reexports::panic_on_missing_field_ty::<Self>(
-                                _expected_field_index,
-                                self._prefix_type_layout,
+                                #field_i,
+                                self.inner._prefix_type_layout,
                             )
                         ),
                         OnMissingField::PanicWith{function}=>quote!(
                             function(
-                                _expected_field_index,
+                                #field_i,
                                 <Self as #module::_sabi_reexports::PrefixTypeTrait>::layout(),
-                                self._prefix_type_layout,
+                                self.inner._prefix_type_layout,
                             )
                         ),
                         OnMissingField::With{function}=>quote!{
-                            function()
+                            #function()
                         },
                         OnMissingField::Default_=>quote!{
                             Default::default()
@@ -201,9 +181,9 @@ pub(crate) fn prefix_type_tokenizer<'a>(
                     };
                     quote!{
                         #vis fn #getter_name(&self)->#ty{
-                            if #field_i < self._prefix_type_field_count {
+                            if #field_i < self.inner._prefix_type_field_count {
                                 unsafe{
-                                    self.as_full_unchecked().#field_name
+                                    (*self.as_full_unchecked()).original.#field_name
                                 }
                             }else{
                                 #else_
@@ -218,32 +198,30 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         let field_name_0=struct_.fields.iter().map(|x| x.ident() );
         let field_name_1=struct_.fields.iter().map(|x| x.ident() );
 
-        let (impl_generics, ty_generics, where_clause) = ds.generics.split_for_impl();
-
         quote!(
+
+            unsafe impl #module::_sabi_reexports::PrefixTypeTrait 
+            for #deriving_name #ty_generics 
+            #where_clause 
+            {
+                const PREFIX_TYPE_COUNT:usize=#field_count;
+                type Prefix=#prefix_struct #ty_generics;
+            }
+
+
             impl #impl_generics #prefix_struct #ty_generics #where_clause {
                 #(
                     #accessors
                 )*
-
-                unsafe fn as_full_unchecked(&self)->& #with_metadata #ty_generics {
-                    &*(self as *const _ as *const #with_metadata #ty_generics)
-                }
-            }
-
-            impl #impl_generics #with_metadata #ty_generics #where_clause {
-                pub fn new(from:#deriving_name #ty_generics )->Self{
-                    Self{
-                        _prefix_type_field_count:#field_count,
-                        _prefix_type_layout:
-                            <
-                                #prefix_struct #ty_generics as 
-                                #module::_sabi_reexports::SharedStableAbi
-                            >::S_ABI_INFO.get().layout,
-                        #(
-                            #field_name_0:from.#field_name_1,
-                        )*
-                    }
+                // Returns a `*const _` instead of a `&_` because the compiler 
+                // might assume in the future that references point to fully 
+                // initialized values.
+                unsafe fn as_full_unchecked(
+                    &self
+                )->*const #module::__WithMetadata_<#deriving_name #ty_generics,Self>{
+                    self 
+                    as *const Self
+                    as *const #module::__WithMetadata_<#deriving_name #ty_generics,Self>
                 }
             }
 

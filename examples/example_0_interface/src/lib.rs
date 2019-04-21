@@ -14,7 +14,7 @@ use abi_stable::{
     impl_InterfaceType,
     package_version_strings,
     lazy_static_ref::LazyStaticRef,
-    library::{Library,LibraryError, LibraryTrait, ModuleTrait},
+    library::{Library,LibraryError, RootModule},
     version::VersionStrings,
     type_level::bools::*,
     erased_types::{InterfaceType,DeserializeInterfaceType},
@@ -28,7 +28,7 @@ use abi_stable::{
 ///////////////////////////////////////////////
 
 
-/// The `InterfaceType` describing which traits are implemented by TOStateBox.
+/// An `InterfaceType` describing which traits are implemented by TOStateBox.
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct TOState;
@@ -53,12 +53,76 @@ impl DeserializeInterfaceType for TOState {
     type Deserialized = TOStateBox;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
-        (MODULES.get().unwrap().text_operations.deserialize_state)(s).into_result()
+        MODULES.get().unwrap().deserializers().deserialize_state()(s).into_result()
     }
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////
+
+
+/// An `InterfaceType` describing which traits are implemented by TOCommandBox.
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct TOCommand;
+
+/// A de/serializable opaque command enum,used in the TextOpsMod::run_command function.
+pub type TOCommandBox = VirtualWrapper<RBox<ZeroSized<TOCommand>>>;
+
+
+impl_InterfaceType!{
+    impl InterfaceType for TOCommand {
+        type Debug = True;
+        type Serialize = True;
+        type Deserialize = True;
+        type PartialEq = True;
+    }
+}
+
+
+impl DeserializeInterfaceType for TOCommand {
+    type Deserialized = TOCommandBox;
+
+    fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
+        MODULES.get().unwrap().deserializers().deserialize_command()(s).into_result()
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+/// An `InterfaceType` describing which traits are implemented by TOReturnValueArc.
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct TOReturnValue;
+
+/// A de/serializable opaque command enum,returned by the TextOpsMod::run_command function.
+pub type TOReturnValueArc = VirtualWrapper<RArc<ZeroSized<TOReturnValue>>>;
+
+
+impl_InterfaceType!{
+    impl InterfaceType for TOReturnValue {
+        type Debug = True;
+        type Serialize = True;
+        type Deserialize = True;
+        type PartialEq = True;
+    }
+}
+
+
+impl DeserializeInterfaceType for TOReturnValue {
+    type Deserialized = TOReturnValueArc;
+
+    fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
+        MODULES.get().unwrap().deserializers().deserialize_return_value()(s).into_result()
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
 
 /// The parameters for every `TextOpsMod.remove_words_*` function.
 #[repr(C)]
@@ -94,33 +158,28 @@ pub struct ForTests{
 ///////////////////////////////////////////////////////////////////////////////
 
 
-// Used for showing that abi checking works
-#[cfg(not(feature="different_abi"))]
-pub type ThirdParam=();
-
-/// Used for showing that abi checking works
-#[cfg(feature="different_abi")]
-pub type ThirdParam=usize;
-
 /// The root module of the `text_operations` dynamic library.
-/// With all the functions related to processing text.
+/// With all the functions/modules related to processing text.
 ///
-/// To construct the entire tree of modules,including this one,
-/// call `load_library_in(some_directory_path)`.
-///
-/// To construct this module by itself,
-/// call <TextOpsMod as ModuleTrait>::load_from_library_in(some_directory_path)
+/// To construct this module,
+/// call <TextOpsMod_Prefix as ModuleTrait>::load_from_library_in(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)] 
+#[sabi(kind(Prefix(prefix_struct="TextOpsMod_Prefix")))]
+//#[sabi(debug_print)]
+#[sabi(missing_field(panic))]
 pub struct TextOpsMod {
     /// Constructs TOStateBox,state that is passed to other functions in this module.
     pub new: extern "C" fn() -> TOStateBox,
     
-    /// The implementation for how TOStateBox is going to be deserialized.
-    pub deserialize_state: extern "C" fn(RStr<'_>) -> RResult<TOStateBox, RBoxError>,
-    
+    /// An example module.
+    pub hello_world:&'static HelloWorldMod_Prefix,
+
+    #[sabi(last_prefix_field)]    
+    pub deserializers:&'static DeserializerMod_Prefix,
+
     /// Reverses the order of the lines.
-    pub reverse_lines: extern "C" fn(&mut TOStateBox,RStr<'_>,ThirdParam) -> RString,
+    pub reverse_lines: extern "C" fn(&mut TOStateBox,RStr<'_>) -> RString,
     
     /// Removes the `param.words` words from the `param.string` string.
     pub remove_words_cow: 
@@ -134,31 +193,42 @@ pub struct TextOpsMod {
 
     /// Gets the ammount (in bytes) of text that was processed
     pub get_processed_bytes: extern "C" fn(&TOStateBox) -> u64,
+ 
+    pub run_command: extern "C" fn(&mut TOStateBox,command:TOCommandBox)->TOReturnValueArc,
+
 }
 
 
 /// An example sub-module in the text_operations dynamic library.
-///
-/// To construct the entire tree of modules,including this one,
-/// call `load_library_in(some_directory_path)`.
-///
-/// To construct this module by itself,
-/// call <HelloWorldMod as ModuleTrait>::load_from_library_in(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)] 
+#[sabi(kind(Prefix(prefix_struct="HelloWorldMod_Prefix")))]
+#[sabi(missing_field(panic))]
 pub struct HelloWorldMod {
+    #[sabi(last_prefix_field)]
     pub greeter:extern "C" fn(RStr<'_>),
     pub for_tests:extern "C" fn()->ForTests,
 }
 
 
-/// A late-initialized reference to the global `Modules` instance,
-///
-/// Call `load_library_in` before calling `MODULES.get()` to get a `Some(_)` value back.
-///
-pub static MODULES:LazyStaticRef<Modules>=LazyStaticRef::new();
+/// A module for all deserialization functions.
+#[repr(C)]
+#[derive(StableAbi)] 
+#[sabi(kind(Prefix(prefix_struct="DeserializerMod_Prefix")))]
+#[sabi(missing_field(panic))]
+pub struct DeserializerMod {
+    #[sabi(last_prefix_field)]
+    /// The implementation for how TOStateBox is going to be deserialized.
+    pub deserialize_state: extern "C" fn(RStr<'_>) -> RResult<TOStateBox, RBoxError>,
 
-impl LibraryTrait for TextOpsMod {
+    /// The implementation for how TOCommandBox is going to be deserialized.
+    pub deserialize_command: extern "C" fn(RStr<'_>) -> RResult<TOCommandBox, RBoxError>,
+    
+    /// The implementation for how TOReturnValueArc is going to be deserialized.
+    pub deserialize_return_value: extern "C" fn(RStr<'_>) -> RResult<TOReturnValueArc, RBoxError>,
+}
+
+impl RootModule for TextOpsMod_Prefix {
     fn raw_library_ref()->&'static LazyStaticRef<Library>{
         static RAW_LIB:LazyStaticRef<Library>=LazyStaticRef::new();
         &RAW_LIB
@@ -167,71 +237,24 @@ impl LibraryTrait for TextOpsMod {
     const BASE_NAME: &'static str = "text_operations";
     const NAME: &'static str = "text_operations";
     const VERSION_STRINGS: VersionStrings = package_version_strings!();
-}
-
-impl ModuleTrait for TextOpsMod{
-    type Library=Self;
-
     const LOADER_FN: &'static str = "get_library";
-}
-
-impl ModuleTrait for HelloWorldMod{
-    type Library=TextOpsMod;
-
-    const LOADER_FN: &'static str = "get_hello_world_mod";
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////
 
 
-/// All of the modules in the text_operations dynamic library.
-/// 
-/// To construct this,call `load_library_in(some_directory_path)`.
-pub struct Modules{
-    pub text_operations:&'static TextOpsMod,
-    pub hello_world:&'static HelloWorldMod,
-}
+/// A late-initialized reference to the global `TextOpsMod_Prefix` instance,
+///
+/// Call `load_library_in` before calling `MODULES.get()` to get a `Some(_)` value back.
+///
+pub static MODULES:LazyStaticRef<TextOpsMod_Prefix>=LazyStaticRef::new();
 
-
-macro_rules! try_load_mod {
-    ( $load_lib_expr:expr , $errors:ident ) => ({
-        let res:Result<&'static _,abi_stable::library::LibraryError>=
-            $load_lib_expr;
-
-        let _: RVec<abi_stable::library::LibraryError>=
-            $errors ;
-
-        match res {
-            Ok(x)=>Some(x),
-            Err(e@LibraryError::OpenError{..})=>return Err(e),
-            Err(e)=>{
-                $errors.push(e);
-                None
-            },
-        }
-    })
-}
 
 /// Loads all the modules of the library at the `directory`.
 /// If it loads them once,this will continue returning the same reference.
-pub fn load_library_in(directory:&Path) -> Result<&'static Modules,LibraryError> {
+pub fn load_library_in(directory:&Path) -> Result<&'static TextOpsMod_Prefix,LibraryError> {
     MODULES.try_init(||{
-        let mut errors=RVec::new();
-        
-        let text_operations=
-            try_load_mod!( TextOpsMod::load_from_library_in(directory) , errors );
-        let hello_world=
-            try_load_mod!( HelloWorldMod::load_from_library_in(directory) , errors );
-
-        if errors.is_empty() {
-            let mods=Modules{
-                text_operations:text_operations.unwrap(),
-                hello_world:hello_world.unwrap(),
-            };
-            Ok(Box::leak(Box::new(mods)))
-        }else{
-            Err(LibraryError::Many(errors))
-        }
+        TextOpsMod_Prefix::load_from_library_in(directory)
     })
 }

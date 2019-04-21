@@ -1,7 +1,7 @@
 /*!
 This is an `implementation crate`,
 It exports all the modules(structs of function pointers) required by the 
-`abi_stable_example_interface`(the `interface crate`) with these functions:
+`example_0_interface`(the `interface crate`) with these functions:
 
 - get_library: Exports the root module 
 - get_hello_world_mod :Exports an example module.
@@ -10,8 +10,12 @@ It exports all the modules(structs of function pointers) required by the
 
 use std::collections::HashSet;
 
-use abi_stable_example_interface::{
-    RemoveWords, TextOpsMod,HelloWorldMod, TOState, TOStateBox,ThirdParam,ForTests
+use example_0_interface::{
+    RemoveWords, 
+    TextOpsMod,HelloWorldMod,TextOpsMod_Prefix,
+    DeserializerMod,
+    TOState, TOStateBox,TOCommand,TOReturnValue,TOCommandBox,TOReturnValueArc,
+    ForTests
 };
 
 use abi_stable::{
@@ -19,6 +23,7 @@ use abi_stable::{
     extern_fn_panic_handling, impl_get_type_info,
     library::WithLayout,
     erased_types::{ImplType,SerializeImplType,TypeInfo},
+    prefix_type::{PrefixTypeTrait,WithMetadata},
     traits::{IntoReprC},
     std_types::{RCow, RStr,RBox,RVec,RArc, RString,RResult,ROk,RErr,RBoxError}, 
     StableAbi, VirtualWrapper,
@@ -27,6 +32,54 @@ use core_extensions::{SelfOps,StringExt};
 
 use serde::{Serialize,Deserialize};
 use serde_json;
+
+
+///////////////////////////////////////////////////////////////////////////////////
+
+
+/// Exports the root module of this library.
+///
+/// WithLayout is used to check that the layout of `TextOpsMod` in this dynamic library
+/// is compatible with the layout of it in the binary that loads this library.
+#[export_sabi_module]
+pub extern "C" fn get_library() -> WithLayout<TextOpsMod_Prefix> {
+    extern_fn_panic_handling!{
+        instantiate_root_module()
+            .piped(WithLayout::from_prefix)
+    }
+}
+
+
+fn instantiate_root_module()->&'static TextOpsMod_Prefix{
+    TextOpsMod {
+        new,
+        hello_world:HelloWorldMod{
+            greeter,
+            for_tests,
+        }.leak_into_prefix(),
+        // Another way to instantiate a module.
+        deserializers:{
+            const MOD_:DeserializerMod=DeserializerMod{
+                deserialize_state,
+                deserialize_command,
+                deserialize_return_value,
+            };
+            static WITH_META:WithMetadata<DeserializerMod>=
+                WithMetadata::new(PrefixTypeTrait::METADATA,MOD_);
+            WITH_META.as_prefix()
+        },
+        reverse_lines,
+        remove_words_cow,
+        remove_words_str,
+        remove_words_string: remove_words,
+        get_processed_bytes,
+        run_command,
+    }.leak_into_prefix()
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////
+
 
 #[derive(Debug,Serialize,Deserialize,PartialEq)]
 struct TextOperationState {
@@ -49,12 +102,132 @@ impl ImplType for TextOperationState {
 /// Defines how the type is serialized in VirtualWrapper<_>.
 impl SerializeImplType for TextOperationState {
     fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
-        match serde_json::to_string(&self) {
-            Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
-            Err(e)=>Err(RBoxError::new(e)),
-        }
+        serialize_json(self)
     }
 }
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+
+#[derive(Debug,Serialize,Deserialize,PartialEq)]
+pub enum Command {
+    ReverseLines(RString),
+    RemoveWords{
+        string:RString,
+        words:RVec<RString>,
+    },
+    GetProcessedBytes,
+}
+
+/// Declares TOState as the `ìnterface type` of `TOCommand`.
+///
+/// Also declares the INFO constant,with information about the type,
+/// used when erasing/unerasing the type with `VirtualWrapper<_>`.
+///
+/// TOCommand defines which traits are required when constructing VirtualWrapper<_>,
+/// and which ones it provides after constructing it.
+impl ImplType for Command {
+    type Interface = TOCommand;
+
+    const INFO: &'static TypeInfo=impl_get_type_info! { Command };
+}
+
+/// Defines how the type is serialized in VirtualWrapper<_>.
+impl SerializeImplType for Command {
+    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
+        serialize_json(self)
+    }
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+
+#[derive(Debug,Serialize,Deserialize,PartialEq)]
+pub enum ReturnValue {
+    ReverseLines(RString),
+    RemoveWords(RString),
+    GetProcessedBytes(u64),
+}
+
+/// Declares TOState as the `ìnterface type` of `TOReturnValue`.
+///
+/// Also declares the INFO constant,with information about the type,
+/// used when erasing/unerasing the type with `VirtualWrapper<_>`.
+///
+/// TOReturnValue defines which traits are required when constructing VirtualWrapper<_>,
+/// and which ones it provides after constructing it.
+impl ImplType for ReturnValue {
+    type Interface = TOReturnValue;
+
+    const INFO: &'static TypeInfo=impl_get_type_info! { ReturnValue };
+}
+
+/// Defines how the type is serialized in VirtualWrapper<_>.
+impl SerializeImplType for ReturnValue {
+    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
+        serialize_json(self)
+    }
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+
+fn deserialize_json<'a, T>(s: RStr<'a>) -> RResult<T, RBoxError>
+where
+    T: serde::Deserialize<'a>,
+{
+    match serde_json::from_str::<T>(s.into()) {
+        Ok(x) => ROk(x),
+        Err(e) => RErr(RBoxError::new(e)),
+    }
+}
+
+fn serialize_json<'a, T>(value: &'a T) -> Result<RCow<'a, RStr<'a>>, RBoxError>
+where
+    T: serde::Serialize,
+{
+    match serde_json::to_string::<T>(&value) {
+        Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
+        Err(e)=>Err(RBoxError::new(e)),
+    }
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+/// Defines how a TOStateBox is deserialized from json.
+pub extern "C" fn deserialize_state(s:RStr<'_>) -> RResult<TOStateBox, RBoxError>{
+    extern_fn_panic_handling! {
+        deserialize_json::<TextOperationState>(s)
+            .map(VirtualWrapper::from_value)
+    }
+}
+
+/// Defines how a TOCommandBox is deserialized from json.
+pub extern "C" fn deserialize_command(s:RStr<'_>) -> RResult<TOCommandBox, RBoxError>{
+    extern_fn_panic_handling! {
+        deserialize_json::<Command>(s)
+            .map(RBox::new)
+            .map(VirtualWrapper::from_ptr)
+    }
+}
+
+/// Defines how a TOReturnValueArc is deserialized from json.
+pub extern "C" fn deserialize_return_value(s:RStr<'_>) -> RResult<TOReturnValueArc, RBoxError>{
+    extern_fn_panic_handling! {
+        deserialize_json::<ReturnValue>(s)
+            .map(RArc::new)
+            .map(VirtualWrapper::from_ptr)
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
 
 /// Constructs a TextOperationState and erases it by wrapping it into a 
 /// `VirtualWrapper<Box<ZeroSized<TOState>>>`.
@@ -68,18 +241,9 @@ pub extern "C" fn new() -> TOStateBox {
 }
 
 
-/// Defines how a TOStateBox is deserialized from json.
-pub extern "C" fn deserialize_state(s:RStr<'_>) -> RResult<TOStateBox, RBoxError>{
-    extern_fn_panic_handling! {
-        match serde_json::from_str::<TextOperationState>(s.into()) {
-            Ok(x) => ROk(VirtualWrapper::from_value(x)),
-            Err(e) => RErr(RBoxError::new(e)),
-        }
-    }
-}
 
 /// Reverses order of the lines in `text`.
-pub extern "C" fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>,_:ThirdParam)-> RString {
+pub extern "C" fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
     extern_fn_panic_handling! {
         let this = this.as_unerased_mut::<TextOperationState>().unwrap();
 
@@ -158,26 +322,30 @@ pub extern "C" fn get_processed_bytes(this: &TOStateBox) -> u64 {
 }
 
 
-/// Exports the `TextOpsMod` module.
-///
-/// WithLayout is used to check that the layout of `TextOpsMod` in this dynamic library
-/// is compatible with the layout of it in the binary that loads this library.
-#[export_sabi_module]
-pub extern "C" fn get_library() -> WithLayout<TextOpsMod> {
-    extern_fn_panic_handling!{
-        // println!("inside get_library_text_operations");
-        TextOpsMod {
-            new,
-            deserialize_state,
-            reverse_lines,
-            remove_words_cow,
-            remove_words_str,
-            remove_words_string: remove_words,
-            get_processed_bytes,
-        }.piped(WithLayout::new)
+/// An interpreter for text operation commands
+pub extern "C" fn run_command(this:&mut TOStateBox,command:TOCommandBox)->TOReturnValueArc{
+    extern_fn_panic_handling! {
+        let command = command.into_unerased::<Command>().unwrap().piped(RBox::into_inner);
+        match command {
+            Command::ReverseLines(s)=>{
+                reverse_lines(this,s.as_rstr())
+                    .piped(ReturnValue::ReverseLines)
+            }
+            Command::RemoveWords{string,words}=>{
+                remove_words(this,RemoveWords{
+                    string:string.as_rstr(),
+                    words:words.as_rslice(),
+                })
+                .piped(ReturnValue::RemoveWords)
+            }
+            Command::GetProcessedBytes=>{
+                get_processed_bytes(this)
+                    .piped(ReturnValue::GetProcessedBytes)
+            }
+        }.piped(RArc::new)
+         .piped(VirtualWrapper::from_ptr)
     }
 }
-
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -212,22 +380,6 @@ pub extern "C" fn for_tests()->ForTests{
 }
 
 
-
-/// Exports the `HelloWorldMod` module.
-///
-/// WithLayout is used to check that the layout of `HelloWorldMod` in this dynamic library
-/// is compatible with the layout of it in the binary that loads this library.
-#[export_sabi_module]
-pub extern "C" fn get_hello_world_mod() -> WithLayout<HelloWorldMod> {
-    extern_fn_panic_handling!{
-        HelloWorldMod{
-            greeter,
-            for_tests,
-        }.piped(WithLayout::new)
-    }
-}
-
-
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -235,16 +387,10 @@ pub extern "C" fn get_hello_world_mod() -> WithLayout<HelloWorldMod> {
 mod tests{
     use super::*;
 
-    use abi_stable_example_interface::{MODULES,Modules};
+    use example_0_interface::{MODULES,Modules};
 
     fn setup(){
-        MODULES.init(||{
-            Modules{
-                text_operations:get_library().check_layout().unwrap(),
-                hello_world:get_hello_world_mod().check_layout().unwrap(),
-            }.piped(Box::new)
-             .piped(Box::leak)
-        });
+        MODULES.init(instantiate_root_module);
     }
 
     #[test]

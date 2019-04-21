@@ -1,21 +1,21 @@
 [package]
-name = "abi_stable_example_impl"
+name = "example_0_impl"
 version = "0.1.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
 
 [features]
-different_abi=["abi_stable_example_interface/different_abi"]
+different_abi=["example_0_interface/different_abi"]
 
 [dependencies]
-abi_stable={version="0.1",path="../abi_stable"}
+abi_stable={version="0.2",path="../../abi_stable"}
 core_extensions="0.1"
 serde={version="1.0",features=["derive"]}
 serde_json="1.0"
 
-[dependencies.abi_stable_example_interface]
+[dependencies.example_0_interface]
 version="0.1"
-path="../abi_stable_example_interface"
+path="../example_0_interface"
 
 [lib]
 name = "text_operations"

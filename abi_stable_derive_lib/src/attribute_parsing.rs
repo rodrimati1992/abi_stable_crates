@@ -96,7 +96,6 @@ impl<'a> StableAbiOptions<'a> {
                     last_prefix_field:this.last_prefix_field,
                     first_suffix_field:this.last_prefix_field.map_or(0,|x|x.field_index+1),
                     prefix_struct:prefix.prefix_struct,
-                    with_metadata:prefix.with_metadata,
                     default_on_missing_fields:this.default_on_missing_fields,
                     on_missing_fields:this.on_missing_fields,
                 })
@@ -156,7 +155,6 @@ enum UncheckedStabilityKind<'a> {
 #[derive(Copy, Clone)]
 struct UncheckedPrefixKind<'a>{
     prefix_struct:&'a Ident,
-    with_metadata:&'a Ident,
 }
 
 
@@ -457,31 +455,8 @@ fn parse_prefix_type_list<'a>(
         )
     };
     
-    let with_metadata=match iter.next() {
-        Some(NestedMeta::Meta(Meta::NameValue(MetaNameValue{
-            ident:ref nv_ident,
-            lit:Lit::Str(ref type_str),
-            ..
-        })))
-        if nv_ident=="with_metadata" =>{
-            let type_str=type_str.value();
-            if type_str=="default" {
-                let ident=format!("{}_WithMetadata",type_str);
-                syn::parse_str::<Ident>(&ident).unwrap()
-            }else{
-                parse_str_as_ident(&type_str)
-            }.piped(|i| arenas.alloc(i) )
-        }
-        x => panic!(
-            "invalid #[sabi(kind(Prefix(  )))] attribute\
-             (it must be with_metadata=\"NameOfPrefixStruct|default\" ):\n{:?}\n", 
-            x
-        )
-    };
-    
     UncheckedPrefixKind{
         prefix_struct,
-        with_metadata,
     }
 }
 

@@ -7,9 +7,9 @@ use core_extensions::{matches, prelude::*};
 
 use crate::{
     abi_stability::{
-        abi_checking::{AbiInstability,CheckingGlobals,check_abi_stability_with_globals},
+        abi_checking::{AbiInstability,CheckingGlobals,check_abi_stability},
         stable_abi_trait::AbiInfo,
-        check_abi_stability, AbiInfoWrapper, 
+        AbiInfoWrapper, 
     },
     marker_type::UnsafeIgnoredType,
     std_types::*,

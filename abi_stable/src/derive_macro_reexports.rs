@@ -11,6 +11,7 @@ pub use crate::{
             LifetimeIndex, TLData, TLEnumVariant, TLField, TypeLayout, TypeLayoutParams,
         },
     },
+    prefix_type::{panic_on_missing_field_ty,PrefixTypeTrait,WithMetadata_},
     std_types::utypeid::new_utypeid,
     version::VersionStrings,
     return_value_equality::ReturnValueEquality
@@ -33,6 +34,7 @@ pub mod renamed {
         StaticEquivalent as __StaticEquivalent,
         ValueKind  as __ValueKind,
         PrefixKind as __PrefixKind,
+        WithMetadata_ as __WithMetadata_,
     };
 }
 

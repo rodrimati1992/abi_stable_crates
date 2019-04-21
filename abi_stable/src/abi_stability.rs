@@ -7,8 +7,10 @@ pub mod type_layout;
 pub mod abi_checking;
 pub mod stable_abi_trait;
 
+#[cfg(test)]
+mod layout_tests;
+
 pub use self::{
-    abi_checking::{check_abi_stability, check_abi_stability_for},
     stable_abi_trait::{
         AbiInfo, AbiInfoWrapper, StableAbi,
     },
