@@ -600,17 +600,7 @@ impl AbiChecker {
     }
 }
 
-/**
-Checks that the layout of `Interface` is compatible with `Impl`.
-
-# Warning
-
-This function is not symmetric,
-the first parameter must be the expected layout,
-and the second must be actual layout.
-
-*/
-pub fn check_abi_stability_for<Interface, Impl>() -> Result<(), AbiInstabilityErrors>
+pub(super) fn check_abi_stability_for<Interface, Impl>() -> Result<(), AbiInstabilityErrors>
 where
     Interface: StableAbi,
     Impl: StableAbi,
@@ -628,7 +618,7 @@ the first parameter must be the expected layout,
 and the second must be actual layout.
 
 */
-pub fn check_abi_stability(
+pub(super) fn check_abi_stability(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
 ) -> Result<(), AbiInstabilityErrors> {
@@ -640,21 +630,8 @@ pub fn check_abi_stability(
 }
 
 
-/**
-Checks that the layout of `interface` is compatible with `implementation`,
-passing in the globals updated every time this is called.
-
-# Warning
-
-This function is not symmetric,
-the first parameter must be the expected layout,
-and the second must be actual layout.
-
-*/
-// Never inline this function because it will be called very infrequently and
-// will take a long-ish time to run anyway.
 #[inline(never)]
-pub fn check_abi_stability_with_globals(
+pub(super) fn check_abi_stability_with_globals(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
     globals:&CheckingGlobals,
@@ -701,8 +678,17 @@ pub fn check_abi_stability_with_globals(
     }
 }
 
+/**
+Checks that the layout of `interface` is compatible with `implementation`,
 
-pub extern fn check_abi_stability_for_ffi(
+# Warning
+
+This function is not symmetric,
+the first parameter must be the expected layout,
+and the second must be actual layout.
+
+*/
+pub(crate) extern fn check_abi_stability_for_ffi(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
 ) -> RResult<(), RBoxError> {

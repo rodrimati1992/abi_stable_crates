@@ -52,8 +52,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
     let size_align_for=match &config.kind {
         StabilityKind::Prefix(prefix)=>{
-            let with_metadata=prefix.with_metadata;
-            quote!( #with_metadata #ty_generics )
+            let prefix_struct=prefix.prefix_struct;
+            quote!( __WithMetadata_<#name #ty_generics,#prefix_struct #ty_generics> )
         }
         StabilityKind::Value=>quote!(Self),
     };

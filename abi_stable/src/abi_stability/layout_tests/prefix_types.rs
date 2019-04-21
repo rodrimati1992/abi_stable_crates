@@ -14,14 +14,21 @@ use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,CheckingGlobals,check_abi_stability_with_globals},
         stable_abi_trait::AbiInfo,
-        check_abi_stability, AbiInfoWrapper, 
+        AbiInfoWrapper, 
     },
     marker_type::UnsafeIgnoredType,
     std_types::*,
-    prefix_type::PrefixTypeMetadata,
+    prefix_type::{PrefixTypeMetadata,PrefixTypeTrait},
     *,
     test_utils::must_panic,
 };
+
+
+fn custom_default<T>()->T
+where T:From<u8>
+{
+    101.into()
+}
 
 
 mod prefix0 {
@@ -29,22 +36,24 @@ mod prefix0 {
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     // #[sabi(debug_print)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
+    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
     pub struct Prefix {
         #[sabi(last_prefix_field)]
-        field0: u8,
+        pub field0: u8,
     }
 }
 
 mod prefix1 {
+    use super::custom_default;
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
+    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
+    #[sabi(missing_field(with="custom_default::<_>"))]
     pub struct Prefix {
         #[sabi(last_prefix_field)]
-        field0: u8,
-        field1: u16,
+        pub field0: u8,
+        pub field1: u16,
     }
 }
 
@@ -52,12 +61,13 @@ mod prefix2 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
+    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
+    #[sabi(missing_field(default))]
     pub struct Prefix {
         #[sabi(last_prefix_field)]
-        field0: u8,
-        field1: u16,
-        field2: u32,
+        pub field0: u8,
+        pub field1: u16,
+        pub field2: u32,
     }
 }
 
@@ -67,12 +77,12 @@ mod prefix2_misaligned {
     #[derive(StableAbi)]
     // #[sabi(debug_print)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
+    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
     pub struct Prefix {
         #[sabi(last_prefix_field)]
-        field0: u8,
-        field1: u16,
-        field2: u32,
+        pub field0: u8,
+        pub field1: u16,
+        pub field2: u32,
     }
 }
 
@@ -80,12 +90,12 @@ mod prefix2_different_prefix {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
+    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
     pub struct Prefix {
-        field0: u8,
+        pub field0: u8,
         #[sabi(last_prefix_field)]
-        field1: u16,
-        field2: u32,
+        pub field1: u16,
+        pub field2: u32,
     }
 }
 
@@ -93,13 +103,14 @@ mod prefix3 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix",with_metadata="Prefix_Metadata")))]
+    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
+    #[sabi(missing_field(panic))]
     pub struct Prefix {
         #[sabi(last_prefix_field)]
-        field0: u8,
-        field1: u16,
-        field2: u32,
-        field3: u64,
+        pub field0: u8,
+        pub field1: u16,
+        pub field2: u32,
+        pub field3: u64,
     }
 }
 
@@ -367,5 +378,38 @@ fn prefix_is_same_size(){
             .iter()
             .any(|err| matches!(AbiInstability::MismatchedPrefixSize{..}=err))
         );
+    }
+}
+
+
+unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
+    &*(ref_ as *const _ as *const U)
+}
+
+
+#[test]
+fn prefix_on_nonexistent_field() {
+    let prefix0=
+        prefix0::Prefix{
+            field0:1,
+        }.leak_into_prefix();
+
+    {
+        let value1:&prefix1::Prefix_Prefix=unsafe{ transmute_reference(prefix0) };
+        assert_eq!(value1.field0(),1);
+        assert_eq!(value1.field1(),custom_default::<u16>());
+    }
+    {
+        let value2:&prefix2::Prefix_Prefix=unsafe{ transmute_reference(prefix0) };
+        assert_eq!(value2.field0(),1);
+        assert_eq!(value2.field1(),0);
+        assert_eq!(value2.field2(),0);
+    }
+    {
+        let value3:&prefix3::Prefix_Prefix=unsafe{ transmute_reference(prefix0) };
+        assert_eq!(value3.field0(),1);
+        must_panic(file_span!(),||value3.field1());
+        must_panic(file_span!(),||value3.field2());
+        must_panic(file_span!(),||value3.field3());
     }
 }

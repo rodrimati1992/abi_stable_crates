@@ -1,5 +1,5 @@
 [package]
-name = "abi_stable_example_interface"
+name = "example_0_interface"
 version = "0.1.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
@@ -8,4 +8,4 @@ edition = "2018"
 different_abi=[]
 
 [dependencies]
-abi_stable={version="0.1",path="../abi_stable"}
+abi_stable={version="0.2",path="../../abi_stable"}

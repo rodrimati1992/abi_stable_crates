@@ -93,6 +93,11 @@ mod impls;
 #[macro_use]
 mod macros;
 
+
+#[cfg(test)]
+#[macro_use]
+mod test_macros;
+
 #[cfg(test)]
 #[macro_use]
 mod test_utils;
@@ -125,11 +130,7 @@ pub mod lazy_static_ref;
 pub mod type_level;
 pub mod version;
 
-#[cfg(test)]
-#[macro_use]
-mod test_macros;
-#[cfg(test)]
-mod layout_tests;
+
 
 
 /// Miscelaneous items re-exported from core_extensions.
@@ -161,7 +162,7 @@ pub use crate::{
 
 
 
-mod globals{
+pub mod globals{
     use crate::{
         lazy_static_ref::LazyStaticRef,
         abi_stability::{
@@ -192,14 +193,28 @@ mod globals{
 
 }
 
-#[inline(never)]
-fn initialize_globals()->&'static globals::Globals{
-    globals::GLOBALS.init(|| globals::Globals::new() )
+
+fn print_global_address(p:&'static globals::Globals)->&'static globals::Globals{
+    p
 }
 
 #[inline(never)]
-pub fn initialize_globals_with(globs:&'static globals::Globals)->&'static globals::Globals{
-    globals::GLOBALS.init(|| globs )
+fn initialized_globals()->&'static globals::Globals{
+    globals::GLOBALS.init(||{
+        print_global_address(globals::Globals::new())
+    })
+}
+
+
+pub type InitializeGlobalsWithFn=
+    extern "C" fn(&'static crate::globals::Globals);
+
+
+#[inline(never)]
+pub extern fn initialize_globals_with(globs:&'static globals::Globals){
+    let _:InitializeGlobalsWithFn=initialize_globals_with;
+
+    globals::GLOBALS.init(|| print_global_address(globs) );
 }
 
 
