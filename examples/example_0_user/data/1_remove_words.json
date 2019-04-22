@@ -1,0 +1,10 @@
+{
+    "RemoveWords":{
+        "string":"this is an example string.Some words may be deleted.",
+        "words":[
+            "is",
+            "an",
+            "words"
+        ],
+    }
+}

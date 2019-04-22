@@ -118,6 +118,7 @@ pub enum Command {
         words:RVec<RString>,
     },
     GetProcessedBytes,
+    Batch(RVec<Command>),
 }
 
 /// Declares TOState as the `ìnterface type` of `TOCommand`.
@@ -150,6 +151,7 @@ pub enum ReturnValue {
     ReverseLines(RString),
     RemoveWords(RString),
     GetProcessedBytes(u64),
+    Batch(RVec<ReturnValue>),
 }
 
 /// Declares TOState as the `ìnterface type` of `TOReturnValue`.
@@ -322,28 +324,41 @@ pub extern "C" fn get_processed_bytes(this: &TOStateBox) -> u64 {
 }
 
 
+
+fn run_command_inner(this:&mut TOStateBox,command:Command)->ReturnValue{
+    match command {
+        Command::ReverseLines(s)=>{
+            reverse_lines(this,s.as_rstr())
+                .piped(ReturnValue::ReverseLines)
+        }
+        Command::RemoveWords{string,words}=>{
+            remove_words(this,RemoveWords{
+                string:string.as_rstr(),
+                words:words.as_rslice(),
+            })
+            .piped(ReturnValue::RemoveWords)
+        }
+        Command::GetProcessedBytes=>{
+            get_processed_bytes(this)
+                .piped(ReturnValue::GetProcessedBytes)
+        }
+        Command::Batch(list)=>{
+            list.into_iter()
+                .map(|cmd| run_command_inner(this,cmd) )
+                .collect::<RVec<ReturnValue>>()
+                .piped(ReturnValue::Batch)
+        }
+    }
+}
+
+
 /// An interpreter for text operation commands
 pub extern "C" fn run_command(this:&mut TOStateBox,command:TOCommandBox)->TOReturnValueArc{
     extern_fn_panic_handling! {
         let command = command.into_unerased::<Command>().unwrap().piped(RBox::into_inner);
-        match command {
-            Command::ReverseLines(s)=>{
-                reverse_lines(this,s.as_rstr())
-                    .piped(ReturnValue::ReverseLines)
-            }
-            Command::RemoveWords{string,words}=>{
-                remove_words(this,RemoveWords{
-                    string:string.as_rstr(),
-                    words:words.as_rslice(),
-                })
-                .piped(ReturnValue::RemoveWords)
-            }
-            Command::GetProcessedBytes=>{
-                get_processed_bytes(this)
-                    .piped(ReturnValue::GetProcessedBytes)
-            }
-        }.piped(RArc::new)
-         .piped(VirtualWrapper::from_ptr)
+        run_command_inner(this,command)
+            .piped(RArc::new)
+            .piped(VirtualWrapper::from_ptr)
     }
 }
 

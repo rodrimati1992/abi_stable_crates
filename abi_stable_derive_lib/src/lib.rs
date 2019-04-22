@@ -189,13 +189,13 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
             #(#attrs)*
             #vis extern "C" fn #export_name() #ret_ty {
                 let _: abi_stable::library::LibraryGetterFn<_> = #original_fn_ident;
-                let _: abi_stable::InitializeGlobalsWithFn = #abi_stable_globals_init;
+                let _: abi_stable::globals::InitializeGlobalsWithFn = #abi_stable_globals_init;
 
                 #[no_mangle]
                 pub extern "C" fn #abi_stable_globals_init(
                     globals:&'static abi_stable::globals::Globals
                 ){
-                    abi_stable::initialize_globals_with(globals)
+                    abi_stable::globals::initialize_globals_with(globals)
                 }
 
                 

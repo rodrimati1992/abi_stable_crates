@@ -446,7 +446,7 @@ where
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<T> SharedStableAbi for *const T
 where
-    T: StableAbi,
+    T: SharedStableAbi,
 {
     type Kind=ValueKind;
     type IsNonZeroType = False;
@@ -460,7 +460,7 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
+            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
         )],
     );
 }
