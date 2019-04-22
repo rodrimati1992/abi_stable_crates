@@ -196,6 +196,21 @@ pub struct TextOpsMod {
  
     pub run_command: extern "C" fn(&mut TOStateBox,command:TOCommandBox)->TOReturnValueArc,
 
+    /// An module used in prefix-type tests.
+    pub prefix_types_tests:&'static PrefixTypeMod0_Prefix,
+}
+
+
+impl RootModule for TextOpsMod_Prefix {
+    fn raw_library_ref()->&'static LazyStaticRef<Library>{
+        static RAW_LIB:LazyStaticRef<Library>=LazyStaticRef::new();
+        &RAW_LIB
+    }
+
+    const BASE_NAME: &'static str = "text_operations";
+    const NAME: &'static str = "text_operations";
+    const VERSION_STRINGS: VersionStrings = package_version_strings!();
+    const LOADER_FN: &'static str = "get_library";
 }
 
 
@@ -208,8 +223,19 @@ pub struct HelloWorldMod {
     #[sabi(last_prefix_field)]
     pub greeter:extern "C" fn(RStr<'_>),
     pub for_tests:extern "C" fn()->ForTests,
+    
+    #[cfg(feature="enable_field_a")]
+    #[sabi(missing_field(option))]
+    pub field_a:u32,
+    
+    #[cfg(feature="enable_field_b")]
+    #[sabi(missing_field(option))]
+    pub field_b:u32,
+    
+    #[cfg(feature="enable_field_c")]
+    #[sabi(missing_field(option))]
+    pub field_c:u32,
 }
-
 
 /// A module for all deserialization functions.
 #[repr(C)]
@@ -228,16 +254,54 @@ pub struct DeserializerMod {
     pub deserialize_return_value: extern "C" fn(RStr<'_>) -> RResult<TOReturnValueArc, RBoxError>,
 }
 
-impl RootModule for TextOpsMod_Prefix {
-    fn raw_library_ref()->&'static LazyStaticRef<Library>{
-        static RAW_LIB:LazyStaticRef<Library>=LazyStaticRef::new();
-        &RAW_LIB
-    }
 
-    const BASE_NAME: &'static str = "text_operations";
-    const NAME: &'static str = "text_operations";
-    const VERSION_STRINGS: VersionStrings = package_version_strings!();
-    const LOADER_FN: &'static str = "get_library";
+
+// Macro used to make sure that PrefixTypeMod0 and PrefixTypeMod1 
+// are changed in lockstep.
+macro_rules! declare_PrefixTypeMod {
+    (
+        $(#[$attr:meta])*
+        struct $struct_ident:ident;
+        prefix_struct=$prefix:literal ;
+    
+        $(extra_fields=[ $($extra_fields:tt)* ])?
+    ) => (
+        $(#[$attr])*
+        #[repr(C)]
+        #[derive(StableAbi)] 
+        #[sabi(kind(Prefix(prefix_struct=$prefix)))]
+        #[sabi(missing_field(option))]
+        pub struct $struct_ident {
+            #[sabi(last_prefix_field)]
+            pub field_a:u32,
+            $($($extra_fields)*)?
+        }
+    )
+}
+
+
+declare_PrefixTypeMod!{
+    struct PrefixTypeMod0;
+    prefix_struct="PrefixTypeMod0_Prefix";
+}
+
+declare_PrefixTypeMod!{
+    /**
+    This is unsafely converted from PrefixTypeMod0 in tests to check that 
+    `prefix.field_a()==some_integer`,
+    `prefix.field_b()==None`,
+    `prefix.field_c()==None`.
+
+    This only works because I know that both structs have the same alignment,
+    if either struct alignment changed that conversion would be unsound.
+    */
+    struct PrefixTypeMod1;
+    prefix_struct="PrefixTypeMod1_Prefix";
+    
+    extra_fields=[
+        pub field_b:u32,
+        pub field_c:u32,
+    ]
 }
 
 

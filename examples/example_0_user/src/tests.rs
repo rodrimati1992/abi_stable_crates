@@ -2,6 +2,17 @@ use abi_stable::{
     traits::IntoReprC,
 };
 
+use example_0_interface::{
+    PrefixTypeMod0_Prefix,
+    PrefixTypeMod1_Prefix,
+};
+
+
+/// For transmuting a reference.
+unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
+    &*(ref_ as *const T as *const U)
+}
+
 
 use super::*;
 
@@ -17,6 +28,20 @@ use super::*;
 pub fn run_dynamic_library_tests(mods:&'static TextOpsMod_Prefix){
     test_reverse_lines(mods);
     test_remove_words(mods);
+
+    {
+        let hw=mods.prefix_types_tests();
+        let hw=unsafe{
+            // This only works because I know that both structs have the same alignment,
+            // if either struct alignment changed that conversion would be unsound.
+            transmute_reference::<PrefixTypeMod0_Prefix,PrefixTypeMod1_Prefix>(hw)
+        };
+
+
+        assert_eq!(hw.field_a(),123);
+        assert_eq!(hw.field_b(),None);
+        assert_eq!(hw.field_c(),None);
+    }
 
     let val=mods.hello_world().for_tests()();
     {
