@@ -11,111 +11,8 @@ use proc_macro::TokenStream as TokenStream1;
 
 /**
 
-The StableAbi derive macro allows one to implement the StableAbi trait to :
 
-- Assert that the type has a stable representation across Rust version/compiles.
-
-- Produce the layout of the type at runtime to check it against the loaded library.
-
-# Container Attributes
-
-These attributes are applied on the type declaration.
-
-### `#[sabi(unconstrained(TypeParameter))]` 
-
-Removes the implicit `TypeParameter:StableAbi` constraint.
-
-### `#[sabi(bound="Type:ATrait")]`
-
-Adds a bound to the StableAbi impl.
-
-### `#[sabi(debug_print)]`
-
-Prints the generated code,stopping compilation.
-
-### `#[sabi(kind(Prefix( .. )))]`
-Declares the struct as being a prefix-type.
-
-`#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`
-Uses "NameOfPrefixStruct" as the name of the prefix struct.
-
-
-# Field attributes
-
-These attributes are applied to fields.
-
-### `#[sabi(rename="ident")]`
-
-Renames the field in the generated layout information.
-
-### `#[sabi(unsafe_opaque_field)]`
-
-Does not require the field to implement StableAbi,
-and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
-
-This is unsafe because the layout of the type won't be verified when loading the library,
-which causes Undefined Behavior if the type has a different layout.
-
-
-`#[sabi(kind(Prefix(prefix_struct="default")))]`
-Generates the name of the prefix struct appending "\_Prefix" to the deriving struct's name.
-
-### `#[sabi(last_prefix_field)]`
-
-This is only valid for Prefix types,after `#[sabi(kind(Prefix(..)))]`.
-
-# Field and/or Container attributes
-
-### `#[sabi(missing_field( .. ))]`
-
-This is only valid for Prefix types,after `#[sabi(kind(Prefix(..)))]`.
-
-Determines what happens when a field is missing,
-the default is that the accessor function returns an `Option<FieldType>`,
-returning None if the field is absent,Some(field_value) if it's present.
-
-If the attribute is on the struct,it's applied to all suffix fields(this is overridable).
-
-If the attribute is on a field,it's applied to that field only.
-
-`#[sabi(missing_field(panic))]`
-This always panics if the field doesn't exist.
-
-`#[sabi(missing_field(panic="somefunction"))]`
-This panics,passing a metadata struct in so that it can have an informative error message.
-
-`#[sabi(missing_field(option))]`
-This returns None if the field doesn't exist.
-This is the default.
-
-`#[sabi(missing_field(with="somefunction"))]`
-This calls the function `somefunction` if the field doesn't exist.
-For panicking use `#[sabi(missing_field(panic="somefunction"))]` instead.
-
-`#[sabi(missing_field(default))]`
-This returns `Default::default` if the field doesn't exist.
-
-
-
-
-# Supported repr attributes
-
-Because repr attributes can cause the type to change layout,
-the StableAbi derive macro has to know about every repr attribute applied to the type,
-since it might invalidate layout stability.
-
-### `repr(C)`
-
-This is the representation that most StableAbi types will have.
-
-### `repr(transparent)`
-
-`repr(transparent)` types inherit the abi stability of their first field.
-
-### `repr(align(...))`
-
-`repr(align(...))` is supported,
-so long as it is used in combination with the other supported repr attributes.
+This macro is documented in abi_stable::docs
 
 */
 
@@ -172,7 +69,7 @@ pub extern "C" fn get_hello_world_mod() -> WithLayout<TextOperationsMod> {
 
 # More examples
 
-For a more detailed example look into the abi_stable_example*_impl crates in the 
+For a more detailed example look into the example/example_*_impl crates in the 
 repository for this crate.
 
 

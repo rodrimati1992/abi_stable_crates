@@ -31,7 +31,7 @@ use crate::{
         StableAbi,
         stable_abi_trait::SharedStableAbi,
     },
-    InitializeGlobalsWithFn,
+    globals::{self,InitializeGlobalsWithFn},
     lazy_static_ref::LazyStaticRef,
     prefix_type::PrefixTypeTrait,
     version::{ParseVersionError, VersionNumber, VersionStrings},
@@ -161,7 +161,7 @@ pub type LibraryGetterFn<T>=
 /// which may contain other modules,function pointers,and static references.
 ///
 /// For an example of a type implementing this trait you can look 
-/// for crates named `abi_stable_example*_interface` in this crates' repository .
+/// for crates *_inter_0face` in this crates' repository .
 pub trait RootModule: Sized+SharedStableAbi  {
 
     /// The late-initialized reference to the Library handle.
@@ -229,7 +229,7 @@ pub trait RootModule: Sized+SharedStableAbi  {
         };
         
 
-        let globals=crate::initialized_globals();
+        let globals=globals::initialized_globals();
         
 
         // This has to run before anything else.
@@ -336,7 +336,7 @@ mod with_layout {
             //
             // This might also reduce the code in the library,
             // because it doesn't have to compile the layout checker for every library.
-            (crate::initialized_globals().layout_checking)
+            (globals::initialized_globals().layout_checking)
                 (<&T>::ABI_INFO, self.layout)
                 .into_result()
                 .map_err(LibraryError::AbiInstability)?;
@@ -387,8 +387,6 @@ pub enum LibraryError {
     /// is not the same.
     InvalidMagicNumber(usize),
     /// There could have been 0 or more errors in the function.
-    ///
-    /// This is used in `abi_stable_example_interface` to collect all module loading errors.
     Many(RVec<Self>),
 }
 

@@ -99,8 +99,8 @@ enum Command {
     /**
 Runs some json encoded commands,outputting the json encoded return value to stdout.
 The command can come from either from stdin or from a file
-For some examples of json commands please look in the `data_examples/example_0/` directory.
-    */
+For some examples of json commands please look in the `data/` directory.
+    **/
     #[structopt(name = "json-command")]
     JsonCommand{
         /// The file to load the json command from.

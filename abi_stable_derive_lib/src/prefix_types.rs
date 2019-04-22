@@ -105,15 +105,19 @@ pub(crate) fn prefix_type_tokenizer<'a>(
 
         let deriving_name=ds.name;
         let (impl_generics, ty_generics, where_clause) = ds.generics.split_for_impl();
-        
+        let where_clause=where_clause.unwrap();
+        let where_clause_preds=&where_clause.predicates;
+
         // Generating the `*_Prefix` struct
         {
             let vis=ds.vis;
             let prefix_struct=prefix.prefix_struct;
+            let generics=ds.generics;
             quote!(
                 #[repr(transparent)]
-                #vis struct #prefix_struct{
+                #vis struct #prefix_struct #generics #where_clause {
                     inner:#module::__WithMetadata_<(),Self>,
+                    _priv: ::std::marker::PhantomData<fn()-> #deriving_name #ty_generics >,
                 }
             ).to_tokens(ts);
         }
@@ -141,7 +145,10 @@ pub(crate) fn prefix_type_tokenizer<'a>(
                 if field_i < prefix.first_suffix_field {
                     quote!{
                         #vis fn #getter_name(&self)->#ty{
-                            unsafe{ (*self.as_full_unchecked()).original.#field_name }
+                            unsafe{ 
+                                let ref_=&(*self.as_full_unchecked()).original.#field_name;
+                                *ref_ 
+                            }
                         }
                     }
                 }else if is_optional{
@@ -149,7 +156,8 @@ pub(crate) fn prefix_type_tokenizer<'a>(
                         #vis fn #getter_name(&self)->Option< #ty >{
                             if #field_i < self.inner._prefix_type_field_count {
                                 unsafe{ 
-                                    Some( (*self.as_full_unchecked()).original.#field_name ) 
+                                    let ref_=&(*self.as_full_unchecked()).original.#field_name;
+                                    Some( *ref_ ) 
                                 }
                             }else{
                                 None
@@ -183,7 +191,8 @@ pub(crate) fn prefix_type_tokenizer<'a>(
                         #vis fn #getter_name(&self)->#ty{
                             if #field_i < self.inner._prefix_type_field_count {
                                 unsafe{
-                                    (*self.as_full_unchecked()).original.#field_name
+                                    let ref_=&(*self.as_full_unchecked()).original.#field_name;
+                                    *ref_
                                 }
                             }else{
                                 #else_
@@ -200,9 +209,12 @@ pub(crate) fn prefix_type_tokenizer<'a>(
 
         quote!(
 
-            unsafe impl #module::_sabi_reexports::PrefixTypeTrait 
+            unsafe impl #impl_generics 
+                #module::_sabi_reexports::PrefixTypeTrait 
             for #deriving_name #ty_generics 
-            #where_clause 
+            where 
+                #( #where_clause_preds ,)*
+                #prefix_struct #ty_generics:#module::__SharedStableAbi,
             {
                 const PREFIX_TYPE_COUNT:usize=#field_count;
                 type Prefix=#prefix_struct #ty_generics;

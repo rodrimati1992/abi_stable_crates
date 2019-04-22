@@ -1,17 +1,27 @@
 /*!
 
-For Rust-to-Rust ffi,with a focus on creating libraries loaded at program startup.
+For Rust-to-Rust ffi,
+with a focus on creating libraries loaded at program startup,
+and with load-time type-checking.
 
 This library allows defining Rust libraries that can be loaded at runtime,
-even if they were built with a different Rust version than the crate that depends on it,
+even if they were built with a different Rust version than the crate that depends on it.
 
+These are some usecases for this library:
+    
+- Converting a Rust dependency tree from compiling statically into a single binary,
+    into one binary (and potentially) many dynamic libraries,
+    allowing separate re-compilation on changes.
+
+- Creating a plugin system (without support for unloading).
+    
 # Features
 
 Currently this library has these features:
 
 - ffi-safe equivalent of trait objects for any combination of a selection of traits.
 
-- Provides ffi-safe alternatives to standard library types..
+- Provides ffi-safe alternatives to many standard library types..
 
 - Provides the `StableAbi` trait for asserting that types are ffi-safe.
 
@@ -23,8 +33,11 @@ Currently this library has these features:
 
 # Examples
 
-For **examples** of using `abi_stable` you can look at the abi_stable_example_* crates,
+For **examples** of using `abi_stable` you can look at the crates in the examples directory ,
 in the repository for this crate.
+
+To run the examples generally you'll have to build the `*_impl` crate,
+then run the `*_user` crate (all `*_user` crates should have a help message and a readme.md).
 
 # Glossary
 
@@ -64,6 +77,21 @@ Adding variants or fields to a variant is disallowed in minor versions.
 
 To represent non-exhaustive enums without fields it is recommended using structs and associated constants so that it is not UB to keep adding field-less variants in minor versions.
 
+# Extra documentation
+
+- [Unsafe code guidelines](./docs/unsafe_code_guidelines/index.html):<br>
+    Describes how to write unsafe code ,relating to this library.
+
+# Macros
+
+- [StableAbi derive macro](./docs/stable_abi_derive/index.html):<br>
+    For asserting abi-stability of a type,
+    and obtaining the layout of the time at runtime.
+
+- [Prefix-types (using the StableAbi derive macro)
+  ](./docs/prefix_types/index.html):<br>
+    The method by which *vtables* and *modules* are implemented,
+    allowing extending them in minor versions of a library.
 
 */
 
@@ -113,7 +141,7 @@ pub mod erased_types;
 pub mod library;
 pub mod ignored_wrapper;
 pub mod marker_type;
-pub mod multikey_map;
+mod multikey_map;
 pub mod pointer_trait;
 pub mod prefix_type;
 
@@ -129,6 +157,8 @@ pub mod utils;
 pub mod lazy_static_ref;
 pub mod type_level;
 pub mod version;
+
+pub mod docs;
 
 
 
@@ -155,13 +185,12 @@ use crate::abi_stability::stable_abi_trait::SharedStableAbi;
 pub use crate::{
     abi_stability::StableAbi,
     erased_types::{VirtualWrapper,ImplType, InterfaceType},
-    library::Library,
     marker_type::{ErasedObject, ZeroSized},
 };
 
 
 
-
+#[doc(hidden)]
 pub mod globals{
     use crate::{
         lazy_static_ref::LazyStaticRef,
@@ -191,32 +220,23 @@ pub mod globals{
 
     pub(crate)static GLOBALS:LazyStaticRef<Globals>=LazyStaticRef::new();
 
+    #[inline(never)]
+    pub fn initialized_globals()->&'static Globals{
+        GLOBALS.init(|| Globals::new() )
+    }
+
+
+    pub type InitializeGlobalsWithFn=
+        extern "C" fn(&'static Globals);
+
+
+    #[inline(never)]
+    pub extern fn initialize_globals_with(globs:&'static Globals){
+        let _:InitializeGlobalsWithFn=initialize_globals_with;
+
+        GLOBALS.init(|| globs );
+    }
 }
-
-
-fn print_global_address(p:&'static globals::Globals)->&'static globals::Globals{
-    p
-}
-
-#[inline(never)]
-fn initialized_globals()->&'static globals::Globals{
-    globals::GLOBALS.init(||{
-        print_global_address(globals::Globals::new())
-    })
-}
-
-
-pub type InitializeGlobalsWithFn=
-    extern "C" fn(&'static crate::globals::Globals);
-
-
-#[inline(never)]
-pub extern fn initialize_globals_with(globs:&'static globals::Globals){
-    let _:InitializeGlobalsWithFn=initialize_globals_with;
-
-    globals::GLOBALS.init(|| print_global_address(globs) );
-}
-
 
 
 
