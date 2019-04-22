@@ -15,6 +15,7 @@ use example_0_interface::{
     TextOpsMod,HelloWorldMod,TextOpsMod_Prefix,
     DeserializerMod,
     TOState, TOStateBox,TOCommand,TOReturnValue,TOCommandBox,TOReturnValueArc,
+    PrefixTypeMod0,
     ForTests
 };
 
@@ -57,8 +58,8 @@ fn instantiate_root_module()->&'static TextOpsMod_Prefix{
             greeter,
             for_tests,
         }.leak_into_prefix(),
-        // Another way to instantiate a module.
         deserializers:{
+            // Another way to instantiate a module.
             const MOD_:DeserializerMod=DeserializerMod{
                 deserialize_state,
                 deserialize_command,
@@ -74,6 +75,9 @@ fn instantiate_root_module()->&'static TextOpsMod_Prefix{
         remove_words_string: remove_words,
         get_processed_bytes,
         run_command,
+        prefix_types_tests:PrefixTypeMod0{
+            field_a:123,
+        }.leak_into_prefix(),
     }.leak_into_prefix()
 }
 

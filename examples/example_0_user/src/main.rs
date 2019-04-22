@@ -17,7 +17,7 @@ use abi_stable::{
 
 use example_0_interface::{
     TextOpsMod_Prefix,RemoveWords,load_library_in,
-    TOCommandBox,TOReturnValueArc,TOStateBox,
+    TOCommandBox,TOStateBox,
 };
 
 
@@ -162,7 +162,7 @@ fn main()-> io::Result<()> {
                     println!("Could not load file at:\n\t{}\nBecause:\n\t{}",path.display(),e);
                 }
                 None=>{
-                    process_stdin(|line| run_command(mods,&mut state,line) );
+                    process_stdin(|line| run_command(mods,&mut state,line) )?;
                 }
             }
 

@@ -4,9 +4,6 @@ version = "0.1.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
 
-[features]
-different_abi=["example_0_interface/different_abi"]
-
 [dependencies]
 abi_stable={version="0.2",path="../../abi_stable"}
 core_extensions="0.1"
