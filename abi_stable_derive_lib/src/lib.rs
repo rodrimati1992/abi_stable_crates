@@ -47,7 +47,6 @@ use crate::{
 fn mangle_function_ident<S>(kind:&str,name:S)->String
 where S: ::std::fmt::Display
 {
-    use core_extensions::StringExt;
 
     let major=env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
     let minor=env!("CARGO_PKG_VERSION_MINOR").parse::<u32>().unwrap();

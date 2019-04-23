@@ -24,7 +24,7 @@ pub(crate)mod c_functions;
 pub mod trait_objects;
 pub mod type_info;
 pub mod virtual_wrapper;
-pub mod vtable;
+pub(crate) mod vtable;
 pub mod traits;
 
 pub use self::{

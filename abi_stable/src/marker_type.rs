@@ -38,10 +38,6 @@ pub struct NotCopyNotClone;
 /// If this did not wrap `T`,
 /// we could pretend to have a `T` even though we don't.
 ///
-/// Casting the pointer type to point to this type is safe,
-/// because the pointer is required to be castable to point to different types,
-/// so long as a reference to one is valid for the other.
-///
 /// This type intentionally does not implement any traits.
 #[repr(C)]
 #[derive(StableAbi)]

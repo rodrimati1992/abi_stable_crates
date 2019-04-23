@@ -148,7 +148,8 @@ using these (fallible) conversion methods:
         /// because it produces better error messages when unerasing the `VirtualWrapper<_>`
         pub fn from_value<T>(object: T) -> VirtualWrapper<RBox<ZeroSized<T::Interface>>>
         where
-            T: GetVtable<T,RBox<T>> + ImplType,
+            T: ImplType,
+            T: GetVtable<T,RBox<T>>,
         {
             let object = RBox::new(object);
             VirtualWrapper::from_ptr(object)
@@ -161,7 +162,8 @@ using these (fallible) conversion methods:
         pub fn from_ptr<P, T>(object: P) -> VirtualWrapper<P::TransmutedPtr>
         where
             P: StableDeref<Target = T>,
-            T: GetVtable<T,P> + ImplType,
+            T: ImplType,
+            T: GetVtable<T,P>,
             P: ErasedStableDeref<T::Interface>,
         {
             VirtualWrapper {

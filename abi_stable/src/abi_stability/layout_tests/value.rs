@@ -193,7 +193,7 @@ fn assert_different_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static
     );
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn same_different_abi_stability() {
     let must_be_equal = vec![
         regular::Rectangle::ABI_INFO,
@@ -298,7 +298,7 @@ fn same_different_abi_stability() {
 
 // Checks that #[repr(Rust)] (the default representation) causes the derive macro
 // to panic,and that #[repr(C)] and #[repr(transparent)] do not.
-#[test]
+#[cfg_attr(not(miri),test)]
 fn check_repr_attrs(){
     use abi_stable_derive_lib::derive_stable_abi_from_str;
     must_panic(file_span!(),||{
@@ -325,7 +325,7 @@ fn check_repr_attrs(){
 
 // Uncomment this once I reimplement Prefix types.
 //
-// #[test]
+// #[cfg_attr(not(miri),test)]
 // fn different_prefixity() {
 //     let regular = <&'static regular::Rectangle>::ABI_INFO;
 //     let other = <&'static prefixed::Rectangle>::ABI_INFO;
@@ -337,7 +337,7 @@ fn check_repr_attrs(){
 //         .any(|err| matches!(AbiInstability::IsPrefix{..}=err)));
 // }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn different_zeroness() {
     const ZEROABLE_ABI: &'static AbiInfoWrapper = &{
         let mut abi = *<&()>::ABI_INFO.get();
@@ -358,7 +358,7 @@ fn different_zeroness() {
         .any(|err| matches!(AbiInstability::NonZeroness{..}=err)));
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn different_name() {
     let regular = regular::Rectangle::ABI_INFO;
     let other = changed_name::Rectangleiiiiii::ABI_INFO;
@@ -370,7 +370,7 @@ fn different_name() {
         .any(|err| matches!(AbiInstability::Name{..}=err)));
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn swapped_fields() {
     let regular = regular::Rectangle::ABI_INFO;
     let first = swapped_fields_first::Rectangle::ABI_INFO;
@@ -386,7 +386,7 @@ fn swapped_fields() {
     }
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn removed_fields() {
     let regular = regular::Rectangle::ABI_INFO;
     let list = vec![
@@ -417,7 +417,7 @@ fn removed_fields() {
     }
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn different_alignment() {
     let regular = regular::Rectangle::ABI_INFO;
     let other = changed_alignment::Rectangle::ABI_INFO;
@@ -490,7 +490,7 @@ mod gen_more_tys {
 // }
 // }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn different_generics() {
     let regular = gen_basic::Generics::<()>::ABI_INFO;
 
@@ -560,7 +560,7 @@ mod extra_variant {
     }
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn variant_mismatch() {
     let regular = basic_enum::Enum::ABI_INFO;
 
