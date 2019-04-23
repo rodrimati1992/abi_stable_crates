@@ -75,33 +75,105 @@ where F:FnMut(&str)->RString
 
 
 #[derive(StructOpt)]
+#[structopt(author="_")]
 enum Command {
     #[structopt(name = "reverse-line-order")]
-    /// Reverse the order of all lines from stdin into stdout once stdin disconnects.
+    #[structopt(author="_")]
+/**
+
+Reverse the order of all lines from stdin into stdout once stdin disconnects.
+
+Example:
+
+Running this(on linux,don't know how it would work on windows or mac):
+```
+echo -e "A\nB\nC\nD" | cargo run -- reverse-line-order
+```
+
+Outputs this:
+```
+D
+C
+B
+A
+```
+
+*/
     ReverseLineOrder ,
 
+/**
+
+Copies the stdin into stdout,removing the words passed as command line arguments.
+
+Example:
+   
+Running this  
+```
+echo "This is an example phrase,try replacing this with some other sentence." | \
+cargo run -- remove-words is an try this with 
+```
+Outputs this:
+```
+This example phrase,replacing some other sentence.
+```
+
+*/
     #[structopt(name = "remove-words")]
-    /// Copies the stdin into stdout,removing the words passed as command line arguments.
+    #[structopt(author="_")]
     RemoveWords{
         words:Vec<RString>
     },
 
     #[structopt(name = "greet")]
-    /// Says `Hello, <name_here>!`
+    #[structopt(author="_")]
+/**
+
+Says hello to the single-word name passed in as an argument
+
+Example:
+
+Running this:
+```
+cargo run -- greet WORLD
+```
+
+Outputs this:
+```
+"Hello, WORLD!"
+```
+
+*/
     Greet{
         name:String
     },
 
     #[structopt(name = "run-tests")]
-    /// Runs some tests.
+    #[structopt(author="_")]
+    /**
+
+Runs some tests that require a dynamic library.
+This is how some integration tests are done,may be replaced with a 
+dedicated test suite eventually.
+    */
     RunTests,
 
     /**
+
 Runs some json encoded commands,outputting the json encoded return value to stdout.
 The command can come from either from stdin or from a file
 For some examples of json commands please look in the `data/` directory.
-    **/
+
+Examples:
+    
+    `cargo run -- json-command data/0_reverse_lines.json`
+    
+    `cargo run -- json-command data/1_remove_words.json`
+
+    `cargo run -- json-command data/2_get_processed_bytes.json`
+
+*/
     #[structopt(name = "json-command")]
+    #[structopt(author="_")]
     JsonCommand{
         /// The file to load the json command from.
         file:Option<PathBuf>
@@ -115,7 +187,9 @@ fn main()-> io::Result<()> {
     let mods=load_library_in(&library_path)
         .unwrap_or_else(|e| panic!("{}", e) );
     
-    let opts = Command::from_args();
+    let opts =  Command::clap()
+        .get_matches()
+        .piped_ref(Command::from_clap);
 
     let mut state=mods.new()();
 
