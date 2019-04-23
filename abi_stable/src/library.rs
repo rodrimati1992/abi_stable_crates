@@ -6,28 +6,35 @@ as well as functions/modules within.
 use std::{
     fmt::{self, Display},
     io,
-    mem,
     path::{Path,PathBuf},
     sync::atomic,
 };
 
 use core_extensions::prelude::*;
 
-use libloading::Library as LibLoadingLibrary;
+use libloading::{
+    Library as LibLoadingLibrary,
+    Symbol as LLSymbol,
+};
 
-use abi_stable_derive_lib::mangle_library_getter_ident;
+use abi_stable_derive_lib::{
+    mangle_library_getter_ident,
+    mangle_initialize_globals_with_ident,
+};
 
 
 
 use crate::{
     abi_stability::{
-        abi_checking::{check_abi_stability, AbiInstabilityErrors},
-        AbiInfoWrapper,  StableAbi,
+        AbiInfoWrapper,
+        stable_abi_trait::SharedStableAbi,
     },
+    globals::{self,InitializeGlobalsWithFn},
     lazy_static_ref::LazyStaticRef,
+    prefix_type::PrefixTypeTrait,
     version::{ParseVersionError, VersionNumber, VersionStrings},
     utils::leak_value,
-    std_types::RVec,
+    std_types::{RVec,RBoxError},
 };
 
 
@@ -97,7 +104,7 @@ impl Library {
             .piped(Ok)
     }
 
-    /// Loads the dynamic library.
+    /// Loads the dynamic library from the `folder`.
     /// 
     /// The full filename of the library is determined by `suffix`.
     pub fn load_in(
@@ -118,13 +125,14 @@ impl Library {
     ///
     ///
     ///
-    pub unsafe fn get_static<T>(&self, symbol_name: &[u8]) -> Result<&'static T,LibraryError> 
+    unsafe fn get_static<T>(
+        &self, 
+        symbol_name: &[u8]
+    ) -> Result<LLSymbol<'static,T>,LibraryError> 
     where T:'static
     {
         match self.library.get::<T>(symbol_name) {
-            Ok(symbol)=>Ok(unsafe { 
-                mem::transmute::<&T, &'static T>(&symbol)
-            }),
+            Ok(symbol)=>Ok(symbol),
             Err(io)=>{
                 let symbol=symbol_name.to_owned();
                 Err(LibraryError::GetSymbolError{ 
@@ -140,21 +148,19 @@ impl Library {
 //////////////////////////////////////////////////////////////////////
 
 /// A type alias for a function that exports a module 
-/// (a struct of function pointers that implements ModuleTrait).
+/// (a struct of function pointers that implements RootModule).
 pub type LibraryGetterFn<T>=
     extern "C" fn() -> WithLayout<T>;
 
 //////////////////////////////////////////////////////////////////////
 
 
-/// Represents a dynamic library,which contains modules 
-/// (structs loaded using functions exported in the `implemenetation crate`).
-///
-/// Generally it is the root module that implements this trait.
+/// The root module of a dynamic library,
+/// which may contain other modules,function pointers,and static references.
 ///
 /// For an example of a type implementing this trait you can look 
-/// for crates names `abi_stable_example*_interface` in this crates' repository .
-pub trait LibraryTrait: Sized  {
+/// for the `example/example_*_interface` crates  in this crates' repository .
+pub trait RootModule: Sized+SharedStableAbi  {
 
     /// The late-initialized reference to the Library handle.
     fn raw_library_ref()->&'static LazyStaticRef<Library>;
@@ -170,16 +176,7 @@ pub trait LibraryTrait: Sized  {
     /// 
     /// Initialize this with ` package_version_strings!() `
     const VERSION_STRINGS: VersionStrings;
-}
 
-/// Represents a module
-/// (struct of function pointers,loaded using functions exported in the `implemenetation crate`).
-///
-/// For an example of a type implementing this trait you can look 
-/// for crates names `abi_stable_example*_interface` in this crates' repository .
-pub trait ModuleTrait: 'static+Sized+ StableAbi{
-    type Library:LibraryTrait;
-    
     /// The name of the function which constructs this module.
     ///
     /// The function signature for the loader is:
@@ -189,14 +186,14 @@ pub trait ModuleTrait: 'static+Sized+ StableAbi{
 
     /// Returns the path the library would be loaded from.
     fn get_library_path(directory:&Path)-> PathBuf {
-        let base_name=<Self::Library as LibraryTrait>::BASE_NAME;
+        let base_name=Self::BASE_NAME;
         Library::get_library_path(directory, base_name,LibrarySuffix::Suffix)
     }
 
     /// Loads this module from the library in the `directory` directory,
     /// first loading the dynamic library from the `directory` if it wasn't already loaded.
     fn load_from_library_in(directory: &Path) -> Result<&'static Self, LibraryError>{
-        Self::Library::raw_library_ref()
+        Self::raw_library_ref()
             .try_init(||{
                 let path=Self::get_library_path(directory);
                 // println!("loading library at:\n\t{}\n",path.display());
@@ -208,35 +205,54 @@ pub trait ModuleTrait: 'static+Sized+ StableAbi{
     /// Loads this module from the library at the `full_path` path,
     /// first loading the dynamic library from the `directory` if it wasn't already loaded.
     fn load_from_library_at(full_path: &Path) -> Result<&'static Self, LibraryError>{
-        Self::Library::raw_library_ref()
+        Self::raw_library_ref()
             .try_init(|| Library::load_at(full_path)  )
             .and_then(Self::load_with)
     }
 
     /// Loads this module from the `raw_library`.
     fn load_with(raw_library:&'static Library)->Result<&'static Self,LibraryError>{
-        let mangled=mangle_library_getter_ident(Self::LOADER_FN);
 
-        let library_getter: &'static LibraryGetterFn<Self> =
-            unsafe { raw_library.get_static::<LibraryGetterFn<Self>>(mangled.as_bytes())? };
+        let library_getter: LLSymbol<'static,LibraryGetterFn<Self>> =unsafe{
+            let mut mangled=mangle_library_getter_ident(Self::LOADER_FN);
+            mangled.push('\0');
+            raw_library.get_static::<LibraryGetterFn<Self>>(mangled.as_bytes())?
+        };
+        
 
+        let initialize_globals_with: LLSymbol<'static,InitializeGlobalsWithFn>=unsafe{
+            let mut mangled=mangle_initialize_globals_with_ident(Self::LOADER_FN);
+            mangled.push('\0');
+            raw_library.get_static::<InitializeGlobalsWithFn>(mangled.as_bytes())?
+        };
+        
+
+        let globals=globals::initialized_globals();
+        
+
+        // This has to run before anything else.
+        initialize_globals_with(globals);
+        
+        
         let items = library_getter();
-
-        let user_version = <Self::Library as LibraryTrait>::VERSION_STRINGS
+        
+        
+        let expected_version = Self::VERSION_STRINGS
             .piped(VersionNumber::new)?;
-        let library_version = items.version_strings().piped(VersionNumber::new)?;
+        let actual_version = items.version_strings().piped(VersionNumber::new)?;
 
-        if user_version.major != library_version.major || 
-            (user_version.major==0) && user_version.minor > library_version.minor
+        if expected_version.major != actual_version.major || 
+            (expected_version.major==0) && expected_version.minor > actual_version.minor
         {
             return Err(LibraryError::IncompatibleVersionNumber {
-                library_name: Self::Library::NAME,
-                user_version,
-                library_version,
+                library_name: Self::NAME,
+                expected_version,
+                actual_version,
             });
         }
 
-        items.check_layout()?.initialization()
+        items.check_layout()?
+            .initialization()
     }
 
     /// Defines behavior that happens once the module is loaded.
@@ -265,28 +281,33 @@ mod with_layout {
     }
 
     impl<T> WithLayout<T> {
-        /// Constructs a WithLayout.
-        pub fn from_ref(ref_:&'static T)->Self
+        /// Constructs a WithLayout from the `Type_Prefix` struct of a type 
+        /// deriving `StableAbi` with 
+        /// `#[sabi(kind(Prefix(prefix_struct="Type_Prefix" )))]`.
+        pub fn from_prefix(ref_:&'static T)->Self
         where
-            T: ModuleTrait,
+            T: RootModule,
         {
             Self {
                 magic_number: MAGIC_NUMBER,
-                version_strings:T::Library::VERSION_STRINGS,
-                layout: T::ABI_INFO,
+                version_strings:T::VERSION_STRINGS,
+                layout: <&T>::S_ABI_INFO,
                 value:ref_,
             }
         }
 
-        /// Constructs a WithLayout,leaking the value in the process.
-        pub fn new(value:T) -> Self
+        /// Constructs a WithLayout from the 
+        /// type deriving `StableAbi` with `#[sabi(kind(Prefix(..)))]`,
+        /// leaking the value in the process.
+        pub fn new<M>(value:M) -> Self
         where
-            T: ModuleTrait,
+            M:PrefixTypeTrait<Prefix=T>+'static,
+            T: RootModule,
         {
             // println!("constructing a WithLayout");
                         
-            value.piped(leak_value)
-                .piped(Self::from_ref)
+            value.leak_into_prefix()
+                .piped(Self::from_prefix)
         }
 
         /// The version string of the library the module is being loaded from.
@@ -298,12 +319,25 @@ mod with_layout {
         /// compatible with the caller's .
         pub fn check_layout(self) -> Result<&'static T, LibraryError>
         where
-            T: ModuleTrait,
+            T: RootModule,
         {
             if self.magic_number != MAGIC_NUMBER {
                 return Err(LibraryError::InvalidMagicNumber(self.magic_number));
             }
-            check_abi_stability(T::ABI_INFO, self.layout)?;
+
+            // Using this instead of
+            // crate::abi_stability::abi_checking::check_abi_stability
+            // so that if this is called in a dynamic-library that loads 
+            // another dynamic-library,
+            // it uses the layout checker of the executable,
+            // ensuring a globally unique view of the layout of types.
+            //
+            // This might also reduce the code in the library,
+            // because it doesn't have to compile the layout checker for every library.
+            (globals::initialized_globals().layout_checking)
+                (<&T>::S_ABI_INFO, self.layout)
+                .into_result()
+                .map_err(LibraryError::AbiInstability)?;
             
             atomic::compiler_fence(atomic::Ordering::SeqCst);
             
@@ -315,8 +349,10 @@ mod with_layout {
 
 pub use self::with_layout::WithLayout;
 
-// ABI major version 0
-const MAGIC_NUMBER: usize = 0xAB1_57A_00;
+// ABI version 0.2
+// Format:
+// ABI_(A for pre-1.0 version number ,B for major version number)_(version number)
+const MAGIC_NUMBER: usize = 0xAB1_A_0002;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -342,17 +378,18 @@ pub enum LibraryError {
     /// The version numbers of the library was incompatible.
     IncompatibleVersionNumber {
         library_name: &'static str,
-        user_version: VersionNumber,
-        library_version: VersionNumber,
+        expected_version: VersionNumber,
+        actual_version: VersionNumber,
     },
     /// The abi is incompatible.
-    AbiInstability(AbiInstabilityErrors),
+    /// The error is opaque,since the error always comes from the main binary
+    /// (dynamic libraries can be loaded from other dynamic libraries),
+    /// and no approach for extensible enums is settled on yet.
+    AbiInstability(RBoxError),
     /// The magic number used to check that this is a compatible abi_stable
     /// is not the same.
     InvalidMagicNumber(usize),
     /// There could have been 0 or more errors in the function.
-    ///
-    /// This is used in `abi_stable_example_interface` to collect all module loading errors.
     Many(RVec<Self>),
 }
 
@@ -362,14 +399,9 @@ impl From<ParseVersionError> for LibraryError {
     }
 }
 
-impl From<AbiInstabilityErrors> for LibraryError {
-    fn from(v: AbiInstabilityErrors) -> Self {
-        LibraryError::AbiInstability(v)
-    }
-}
-
 impl Display for LibraryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("\n")?;
         match self {
             LibraryError::OpenError{path,io} => writeln!(
                 f,
@@ -386,12 +418,12 @@ impl Display for LibraryError {
             LibraryError::ParseVersionError(x) => fmt::Display::fmt(x, f),
             LibraryError::IncompatibleVersionNumber {
                 library_name,
-                user_version,
-                library_version,
+                expected_version,
+                actual_version,
             } => writeln!(
                 f,
                 "\n'{}' library version mismatch:\nuser:{}\nlibrary:{}",
-                library_name, user_version, library_version,
+                library_name, expected_version, actual_version,
             ),
             LibraryError::AbiInstability(x) => fmt::Display::fmt(x, f),
             LibraryError::InvalidMagicNumber(found) => write!(
@@ -405,7 +437,9 @@ impl Display for LibraryError {
                 }
                 Ok(())
             }
-        }
+        }?;
+        f.write_str("\n")?;
+        Ok(())
     }
 }
 

@@ -1,19 +1,28 @@
 [![Build Status](https://travis-ci.org/rodrimati1992/abi_stable_crates.svg?branch=master)](https://travis-ci.org/rodrimati1992/abi_stable_crates)
 
-For Rust-to-Rust ffi,with a focus on creating libraries loaded at program startup.
+For Rust-to-Rust ffi,
+with a focus on creating libraries loaded at program startup,
+type-checked at load-time.
 
 This library allows defining Rust libraries that can be loaded at runtime,
 even if they were built with a different Rust version than the crate that depends on it.
 
-This library is intended more as a replacement for compiling Rust libraries statically(the default way of compiling Rust libraries),than for cross-language ffi.
+These are some usecases for this library:
+    
+- Converting a Rust dependency tree from compiling statically into a single binary,
+    into a binary and dynamic libraries,
+    allowing separate re-compilation on changes.
 
+
+- Creating a plugin system (without support for unloading).
+    
 # Features
 
 Currently this library has these features:
 
 - ffi-safe equivalent of trait objects for any combination of a selection of traits.
 
-- Provides ffi-safe alternatives to standard library types..
+- Provides ffi-safe alternatives to many standard library types..
 
 - Provides the `StableAbi` trait for asserting that types are ffi-safe.
 
@@ -21,34 +30,44 @@ Currently this library has these features:
     allowing for semver compatible changes while checking the layout of types.
 
 - Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
-    and to get the layout of the type at runtime to check that it is still compatible.
+    and to get the layout of the type at load-time to check that it is still compatible.
 
 # Examples
 
-For **examples** of using `abi_stable` you can look at the abi_stable_example_* crates,
+For **examples** of using `abi_stable` you can look at the crates in the examples directory ,
 in the repository for this crate.
 
+To run the examples generally you'll have to build the `*_impl` crate,
+then run the `*_user` crate (all `*_user` crates should have a help message).
+
+
+# Safety
+
+This library ensures that the loaded libraries are safe to use through these mechanisms:
+
+- Types are recursively checked when the dynamic library is loaded,
+    before any function can be called.
+
+- The name of the function which exports the root module of the library is mangled
+    to prevent mixing of incompatible abi_stable versions.
+    Each `0.y.0` version and `x.0.0` version of abi_stable defines its own ABI 
+    which is incompatible with previous versions.
+
+Note that this library assumes that dynamic libraries come from a benign source,
+these checks are done purely to detect programming errors.
+
 # Planned features
-
-### 0.2
-
-Adding support for vtables/modules that can add fields at the end in minor versions,
-this will allow library evolution beyond adding more modules.
 
 ### Eventually
 
 WASM support,with the same features as native dynamic libraries,
 once WASM supports dynamic linking.
 
-
-
 # Not-currently-planned features
 
 Supporting library unloading,
 since this requires building the entire library with the assumption that anything 
 might get unloaded at any time.
-If someone can make an argument that this is easy enough to add support for,it might be added.
-
 
 # Architecture
 
@@ -59,14 +78,16 @@ Users of this library are expected to follow this architecture:
 
 A crate which declares:
 
-- All the modules (structs of function pointers) exported from the dynamic library.
+- The root module (a structs of function pointers/other modules),
+    which implements the `RootModule` trait,
+    exported from the dynamic library.
+
+- All the sub-modules of the root module.
 
 - All the public types passed to and returned by the functions.
 
 - Optionally:declares ìnterface types,types which implement InterfaceType,
     used to specify the traits usable in the VirtualWrapper ffi-safe trait object .
-
-- Optionally:A function to load all the modules at the same time.
 
 
 ### Implementation crate
@@ -75,8 +96,8 @@ The crate compiled as a dynamic library that:
 
 - Implements all the functions declared in the `interface crate`.
 
-- Declares a function to export each module,
-    uses the `export_sabi_module` attribute to export the module.
+- Declares a function to export the root module,
+    using the `export_sabi_module` attribute to export the module.
 
 - Optionally:create types which implement `ImplType<Iterface= Interface >`,
     where `Interface` is some interface type from the interface crate,
@@ -85,23 +106,10 @@ The crate compiled as a dynamic library that:
 ### User crate
 
 A crate that that declares the `ìnterface crate` as a dependency,
-and loads the pre-compiled `implementation crate` from some path.
+and loads the pre-compiled `implementation crate` dynamic library from some path.
 
-
-### Examples
-
-For **examples** of this architecture you can look at the abi_stable_example_* crates,
-in the repository for this crate.
 
 # Known limitations
-
-### Api evolution
-
-This library doesn't currently allow adding functions in modules of the `implementation crate`
-relative to the `interface crate` in minor versions,this will be fixed once `0.2` is released.
-
-Until the `0.2` is released (at most at the end of May-2019),
-you can add more modules instead of functions-within-the-same-module as a workaround.
 
 ### Enums with fields
 

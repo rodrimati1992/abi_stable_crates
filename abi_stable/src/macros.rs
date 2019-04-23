@@ -67,14 +67,16 @@ macro_rules! tl_genparams {
     ( $($lt:lifetime),*  ; $($ty:ty),*  ; $($const_p:expr),*  ) => ({
         #[allow(unused_imports)]
         use $crate::{
-            StableAbi,
-            abi_stability::type_layout::GenericParams,
+            abi_stability::{
+                stable_abi_trait::SharedStableAbi,
+                type_layout::GenericParams
+            },
             std_types::StaticStr,
         };
 
         GenericParams::new(
             &[$( StaticStr::new( stringify!($lt) ) ,)*],
-            &[$( <$ty as StableAbi>::LAYOUT ,)*],
+            &[$( <$ty as SharedStableAbi>::S_LAYOUT ,)*],
             &[$( StaticStr::new( stringify!($const_p) ) ,)*],
         )
     })
@@ -113,6 +115,20 @@ macro_rules! rtry_opt {
 
 
 ///////////////////////////////////////////////////////////////////////
+
+
+macro_rules! make_rve_utypeid {
+    ($ty:ty) => (
+        $crate::return_value_equality::ReturnValueEquality{
+            function:$crate::std_types::utypeid::new_utypeid::<$ty>
+        }
+    )
+}
+
+
+
+///////////////////////////////////////////////////////////////////////
+
 
 
 

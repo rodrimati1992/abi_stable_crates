@@ -16,15 +16,15 @@ use serde::{Serialize, Serializer};
 
 use crate::{
     traits::{IntoReprC, IntoReprRust},
-    OpaqueType, 
-    std_types::{RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,RResult, RSlice, RString},
+    ZeroSized, 
+    std_types::{RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,RResult, RSlice, RString,RStr},
 };
 
 pub(crate)mod c_functions;
 pub mod trait_objects;
 pub mod type_info;
 pub mod virtual_wrapper;
-pub mod vtable;
+pub(crate) mod vtable;
 pub mod traits;
 
 pub use self::{

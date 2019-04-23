@@ -7,8 +7,10 @@ use core_extensions::{matches, prelude::*};
 
 use crate::{
     abi_stability::{
-        abi_checking::AbiInstability, check_abi_stability, AbiInfoWrapper, 
+        abi_checking::{AbiInstability,check_abi_stability},
+        AbiInfoWrapper, 
     },
+    marker_type::UnsafeIgnoredType,
     std_types::*,
     *,
     test_utils::must_panic,
@@ -25,19 +27,6 @@ mod regular {
         h: u32,
     }
 }
-
-// mod prefixed {
-//     #[repr(C)]
-//     #[derive(StableAbi)]
-//     #[sabi(inside_abi_stable_crate)]
-//     #[sabi(kind(unsafe_Prefix))]
-//     pub struct Rectangle {
-//         x: u32,
-//         y: u32,
-//         w: u16,
-//         h: u32,
-//     }
-// }
 
 mod changed_name {
     #[repr(C)]
@@ -204,7 +193,7 @@ fn assert_different_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static
     );
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn same_different_abi_stability() {
     let must_be_equal = vec![
         regular::Rectangle::ABI_INFO,
@@ -263,14 +252,15 @@ fn same_different_abi_stability() {
         <Option<extern "C" fn()>>::ABI_INFO,
         <ROption<()>>::ABI_INFO,
         <ROption<u32>>::ABI_INFO,
-        <RCow<'_, str>>::ABI_INFO,
-        <RCow<'_, [u32]>>::ABI_INFO,
+        <RCow<'_, RStr<'_>>>::ABI_INFO,
+        <RCow<'_, RSlice<'_,u32>>>::ABI_INFO,
         <RArc<()>>::ABI_INFO,
         <RArc<u32>>::ABI_INFO,
         <RBox<()>>::ABI_INFO,
         <RBox<u32>>::ABI_INFO,
         <RCmpOrdering>::ABI_INFO,
         <PhantomData<()>>::ABI_INFO,
+        <PhantomData<RString>>::ABI_INFO,
         <mod_0::Mod>::ABI_INFO,
         <mod_0b::Mod>::ABI_INFO,
         <mod_1::Mod>::ABI_INFO,
@@ -285,7 +275,7 @@ fn same_different_abi_stability() {
         // <RArc<prefix0::Prefix>>::ABI_INFO,
     ];
 
-    let (dur, ()) = core_extensions::measure_time::measure(|| {
+    let (_dur, ()) = core_extensions::measure_time::measure(|| {
         for (i, this) in list.iter().cloned().enumerate() {
             for (j, other) in list.iter().cloned().enumerate() {
                 if i == j {
@@ -296,19 +286,19 @@ fn same_different_abi_stability() {
             }
         }
 
-        for this in vec![<PhantomData<()>>::ABI_INFO, <PhantomData<String>>::ABI_INFO] {
-            assert_equal_abi_info(<PhantomData<()>>::ABI_INFO, this)
+        for this in vec![<UnsafeIgnoredType<()>>::ABI_INFO, <UnsafeIgnoredType<RString>>::ABI_INFO] {
+            assert_equal_abi_info(<UnsafeIgnoredType<()>>::ABI_INFO, this)
         }
     });
 
-    println!("taken {} to check all listed layouts", dur);
+    // println!("taken {} to check all listed layouts", dur);
 }
 
 
 
 // Checks that #[repr(Rust)] (the default representation) causes the derive macro
 // to panic,and that #[repr(C)] and #[repr(transparent)] do not.
-#[test]
+#[cfg_attr(not(miri),test)]
 fn check_repr_attrs(){
     use abi_stable_derive_lib::derive_stable_abi_from_str;
     must_panic(file_span!(),||{
@@ -335,7 +325,7 @@ fn check_repr_attrs(){
 
 // Uncomment this once I reimplement Prefix types.
 //
-// #[test]
+// #[cfg_attr(not(miri),test)]
 // fn different_prefixity() {
 //     let regular = <&'static regular::Rectangle>::ABI_INFO;
 //     let other = <&'static prefixed::Rectangle>::ABI_INFO;
@@ -347,7 +337,7 @@ fn check_repr_attrs(){
 //         .any(|err| matches!(AbiInstability::IsPrefix{..}=err)));
 // }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn different_zeroness() {
     const ZEROABLE_ABI: &'static AbiInfoWrapper = &{
         let mut abi = *<&()>::ABI_INFO.get();
@@ -368,7 +358,7 @@ fn different_zeroness() {
         .any(|err| matches!(AbiInstability::NonZeroness{..}=err)));
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn different_name() {
     let regular = regular::Rectangle::ABI_INFO;
     let other = changed_name::Rectangleiiiiii::ABI_INFO;
@@ -380,7 +370,7 @@ fn different_name() {
         .any(|err| matches!(AbiInstability::Name{..}=err)));
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn swapped_fields() {
     let regular = regular::Rectangle::ABI_INFO;
     let first = swapped_fields_first::Rectangle::ABI_INFO;
@@ -396,7 +386,7 @@ fn swapped_fields() {
     }
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn removed_fields() {
     let regular = regular::Rectangle::ABI_INFO;
     let list = vec![
@@ -427,7 +417,7 @@ fn removed_fields() {
     }
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn different_alignment() {
     let regular = regular::Rectangle::ABI_INFO;
     let other = changed_alignment::Rectangle::ABI_INFO;
@@ -477,14 +467,14 @@ mod gen_more_lts {
 }
 
 mod gen_more_tys {
-    use super::PhantomData;
+    use super::{PhantomData,Tuple2};
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct Generics<T: 'static, U> {
         x: &'static T,
         y: &'static T,
-        _marker: PhantomData<(T, U)>,
+        _marker: PhantomData<Tuple2<T, U>>,
     }
 }
 
@@ -500,7 +490,7 @@ mod gen_more_tys {
 // }
 // }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn different_generics() {
     let regular = gen_basic::Generics::<()>::ABI_INFO;
 
@@ -570,7 +560,7 @@ mod extra_variant {
     }
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn variant_mismatch() {
     let regular = basic_enum::Enum::ABI_INFO;
 
@@ -706,93 +696,3 @@ mod mod_7 {
     }
 }
 
-
-
-// //////////////////////////////////////////////////////////////////////////////
-// ///  Prefix types Uncomment this once I figure a good design for this.
-
-// mod prefix0 {
-//     #[repr(C)]
-//     #[derive(StableAbi)]
-//     #[sabi(inside_abi_stable_crate)]
-//     #[sabi(kind(unsafe_Prefix))]
-//     pub struct Prefix {
-//         field0: u8,
-//     }
-// }
-
-// mod prefix1 {
-//     #[repr(C)]
-//     #[derive(StableAbi)]
-//     #[sabi(inside_abi_stable_crate)]
-//     #[sabi(kind(unsafe_Prefix))]
-//     pub struct Prefix {
-//         field0: u8,
-//         field1: u8,
-//     }
-// }
-
-// mod prefix2 {
-//     #[repr(C)]
-//     #[derive(StableAbi)]
-//     #[sabi(inside_abi_stable_crate)]
-//     #[sabi(kind(unsafe_Prefix))]
-//     pub struct Prefix {
-//         field0: u8,
-//         field1: u8,
-//         field2: u8,
-//     }
-// }
-
-// // Prefix types have to keep the same alignment when fields are added
-// mod prefix2_misaligned {
-//     #[repr(C)]
-//     #[derive(StableAbi)]
-//     #[sabi(inside_abi_stable_crate)]
-//     #[sabi(kind(unsafe_Prefix))]
-//     pub struct Prefix {
-//         field0: u8,
-//         field1: u8,
-//         field2: u64,
-//     }
-// }
-
-// #[test]
-// fn prefixes_test() {
-//     // This has to be hidden behind a reference to be a StableAbi
-//     let pref_0 = <&prefix0::Prefix>::ABI_INFO;
-//     let pref_1 = <&prefix1::Prefix>::ABI_INFO;
-//     let pref_2 = <&prefix2::Prefix>::ABI_INFO;
-//     let list = vec![pref_0, pref_1, pref_2];
-//     for (i, this) in list.iter().cloned().enumerate() {
-//         for (j, other) in list.iter().cloned().enumerate() {
-//             let res = check_abi_stability(this, other);
-
-//             if i <= j {
-//                 assert_eq!(Ok(()), res, "\n\ni:{} j:{}\n\n", i, j,);
-//             } else {
-//                 let errs = res.unwrap_err().flatten_errors();
-//                 assert!(
-//                     errs.iter()
-//                         .any(|err| matches!(AbiInstability::FieldCountMismatch{..}=err)),
-//                     "\n\ni:{} j:{}\n\n",
-//                     i,
-//                     j,
-//                 );
-//             }
-//         }
-//     }
-
-//     // Adding fields is allowed but they can't change the alignment.
-//     {
-//         let misaligned = <&prefix2_misaligned::Prefix>::ABI_INFO;
-
-//         let errs = check_abi_stability(pref_0, misaligned)
-//             .unwrap_err()
-//             .flatten_errors();
-
-//         assert!(errs
-//             .iter()
-//             .any(|err| matches!(AbiInstability::Alignment{..}=err)));
-//     }
-// }

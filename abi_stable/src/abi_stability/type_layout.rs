@@ -37,6 +37,7 @@ pub struct TypeLayoutParams {
 /// also includes metadata about where the type was defined.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+// #[sabi(debug_print)]
 #[sabi(inside_abi_stable_crate)]
 pub struct TypeLayout {
     pub name: StaticStr,
@@ -109,8 +110,12 @@ pub enum TLData {
     Enum {
         variants: StaticSlice<TLEnumVariant>,
     },
-    /// For `#[repr(transparent)]` types.
-    ReprTransparent(&'static AbiInfo),
+    /// vtables and modules that can be extended in minor versions.
+    PrefixType{
+        /// The first field in the suffix
+        first_suffix_field:usize,
+        fields: StaticSlice<TLField>,
+    },
 }
 
 /// A discriminant-only version of TLData.
@@ -121,7 +126,7 @@ pub enum TLDataDiscriminant {
     Primitive,
     Struct,
     Enum,
-    ReprTransparent,
+    PrefixType,
 }
 
 /// The layout of an enum variant.
@@ -148,6 +153,8 @@ pub struct TLField {
     /// if you have a `&'static AbiInfo`s with the same address as one of its parent type,
     /// you've encountered a cycle.
     pub abi_info: GetAbiInfo,
+    /// Stores all extracted type parameters and return types of embedded function pointer types.
+    pub subfields:StaticSlice<TLField>,
 }
 
 /// Used to print a field as its field and its type.
@@ -182,6 +189,21 @@ impl TLField {
             name: StaticStr::new(name),
             lifetime_indices: StaticSlice::new(lifetime_indices),
             abi_info,
+            subfields:StaticSlice::new(empty_slice()),
+        }
+    }
+
+    pub const fn with_subfields(
+        name: &'static str,
+        lifetime_indices: &'static [LifetimeIndex],
+        abi_info: GetAbiInfo,
+        subfields:&'static [TLField],
+    ) -> Self {
+        Self {
+            name: StaticStr::new(name),
+            lifetime_indices: StaticSlice::new(lifetime_indices),
+            abi_info,
+            subfields: StaticSlice::new(subfields),
         }
     }
 
@@ -311,14 +333,14 @@ impl Display for TLFieldAndType {
 ///////////////////////////
 
 impl TypeLayout {
-    pub(crate) const fn from_std_lib_primitive<T>(
-        type_name: &'static str,
-        prim: ROption<RustPrimitive>,
-        data: TLData,
-        generics: GenericParams,
-    ) -> Self {
-        Self::from_std_lib_phantom::<T>(type_name, prim, data, generics, empty_slice())
-    }
+    
+
+
+
+
+
+
+
 
     pub(crate) const fn from_std_lib<T>(
         type_name: &'static str,
@@ -440,12 +462,22 @@ impl TLData {
         }
     }
 
+    pub const fn prefix_type(
+        first_suffix_field:usize,
+        fields: &'static [TLField],
+    )->Self{
+        TLData::PrefixType{
+            first_suffix_field,
+            fields:StaticSlice::new(fields),
+        }
+    }
+
     pub fn discriminant(&self) -> TLDataDiscriminant {
         match self {
             TLData::Primitive { .. } => TLDataDiscriminant::Primitive,
             TLData::Struct { .. } => TLDataDiscriminant::Struct,
             TLData::Enum { .. } => TLDataDiscriminant::Enum,
-            TLData::ReprTransparent { .. } => TLDataDiscriminant::ReprTransparent,
+            TLData::PrefixType { .. } => TLDataDiscriminant::PrefixType,
         }
     }
 }

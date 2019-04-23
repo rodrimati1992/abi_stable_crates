@@ -18,7 +18,7 @@ use crate::{
         FormattingMode,
     },
     marker_type::{SyncSend, UnsyncUnsend},
-    ErasedObject, OpaqueType, 
+    ErasedObject,
     std_types::{RBox, RResult, RString},
 };
 
@@ -31,11 +31,10 @@ use crate::{
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-#[sabi(phantom(M))]
 pub struct RBoxError_<M = SyncSend> {
     value: RBox<ErasedObject>,
     vtable: RErrorVTable<ErasedObject>,
-    _marker: PhantomData<OpaqueType<M>>,
+    _marker: PhantomData<M>,
 }
 
 /// Ffi safe equivalent to Box<::std::error::Error>.

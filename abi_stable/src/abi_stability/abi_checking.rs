@@ -2,7 +2,7 @@
 Functions and types related to the layout checking.
 */
 
-use std::{cmp::Ordering, fmt};
+use std::{cmp::Ordering, fmt,mem};
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
@@ -11,12 +11,16 @@ use std::collections::HashSet;
 // use std::collections::HashSet;
 
 use super::{
-    AbiInfo, AbiInfoWrapper, StableAbi, TLData, TLDataDiscriminant, TLEnumVariant, TLField,
-    TLFieldAndType, FullType,
+    AbiInfo, AbiInfoWrapper,
+    type_layout::{
+        TypeLayout, TLData, TLDataDiscriminant, TLEnumVariant, TLField,TLFieldAndType, 
+        FullType,
+    },
 };
 use crate::{
     version::{ParseVersionError, VersionStrings},
-    std_types::{RVec, StaticSlice, StaticStr},
+    std_types::{RVec, StaticSlice, StaticStr,utypeid::UTypeId,RBoxError,RResult},
+    traits::IntoReprC,
 };
 
 /// All the errors from checking the layout of every nested type in AbiInfo.
@@ -52,6 +56,7 @@ pub enum AbiInstability {
     Package(ExpectedFoundError<StaticStr>),
     PackageVersionParseError(ParseVersionError),
     PackageVersion(ExpectedFoundError<VersionStrings>),
+    MismatchedPrefixSize(ExpectedFoundError<usize>),
     Size(ExpectedFoundError<usize>),
     Alignment(ExpectedFoundError<usize>),
     GenericParamCount(ExpectedFoundError<FullType>),
@@ -63,9 +68,12 @@ pub enum AbiInstability {
     UnexpectedVariant(ExpectedFoundError<TLEnumVariant>),
 }
 
+
+
 use self::AbiInstability as AI;
 
 impl AbiInstabilityErrors {
+    #[cfg(test)]
     pub fn flatten_errors(self) -> RVec<AbiInstability> {
         self.errors
             .into_iter()
@@ -119,6 +127,11 @@ impl fmt::Display for AbiInstabilityError {
                     )
                 }
                 AI::PackageVersion(v) => ("incompatible package versions", v.display_str()),
+                AI::MismatchedPrefixSize(v) => 
+                    (
+                        "prefix-types have a different prefix", 
+                        v.display_str()
+                    ),
                 AI::Size(v) => ("incompatible type size", v.display_str()),
                 AI::Alignment(v) => ("incompatible type alignment", v.display_str()),
                 AI::GenericParamCount(v) => (
@@ -147,6 +160,29 @@ impl fmt::Display for AbiInstabilityError {
         Ok(())
     }
 }
+
+//////
+
+
+#[derive(Debug, PartialEq,Eq,Ord,PartialOrd,Hash)]
+#[repr(C)]
+struct CheckingUTypeId{
+    type_id:UTypeId,
+    name:StaticStr,
+    package:StaticStr,
+}
+
+impl CheckingUTypeId{
+    fn new(this: &'static AbiInfo)->Self{
+        let layout=this.layout;
+        Self{
+            type_id:(this.type_id.function)(),
+            name:layout.name,
+            package:layout.package,
+        }
+    }
+}
+
 
 //////
 
@@ -203,10 +239,27 @@ impl<T> ExpectedFoundError<T> {
 
 ///////////////////////////////////////////////
 
+
+
+
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct CheckedPrefixTypes{
+    this:&'static AbiInfo,
+    this_prefix:PrefixTypeMetadata,
+    other:&'static AbiInfo,
+    other_prefix:PrefixTypeMetadata,
+}
+
+
+///////////////////////////////////////////////
+
 struct AbiChecker {
     stack_trace: RVec<TLFieldAndType>,
+    checked_prefix_types:RVec<CheckedPrefixTypes>,
 
-    visited: HashSet<(*const AbiInfo,*const AbiInfo)>,
+    visited: HashSet<(CheckingUTypeId,CheckingUTypeId)>,
     errors: RVec<AbiInstabilityError>,
 
     error_index: usize,
@@ -218,6 +271,7 @@ impl AbiChecker {
     fn new() -> Self {
         Self {
             stack_trace: RVec::new(),
+            checked_prefix_types:RVec::new(),
 
             visited: HashSet::default(),
             errors: RVec::new(),
@@ -229,14 +283,14 @@ impl AbiChecker {
     fn check_fields(
         &mut self,
         errs: &mut RVec<AbiInstability>,
-        this: &'static AbiInfo,
-        _: &'static AbiInfo,
+        t_lay: &'static TypeLayout,
         t_fields: StaticSlice<TLField>,
         o_fields: StaticSlice<TLField>,
     ) {
         let t_fields = t_fields.as_slice();
         let o_fields = o_fields.as_slice();
-        match (t_fields.len().cmp(&o_fields.len()), this.prefix_kind) {
+        let is_prefix= t_lay.data.discriminant() == TLDataDiscriminant::PrefixType;
+        match (t_fields.len().cmp(&o_fields.len()), is_prefix) {
             (Ordering::Greater, _) | (Ordering::Less, false) => {
                 push_err(
                     errs,
@@ -263,6 +317,14 @@ impl AbiChecker {
                 }
                 continue;
             }
+            
+            self.check_fields(
+                errs,
+                t_lay,
+                this_f.subfields,
+                other_f.subfields,
+            );
+
             if this_f.lifetime_indices != other_f.lifetime_indices {
                 push_err(errs, this_f, other_f, |x| x, AI::FieldLifetimeMismatch);
             }
@@ -277,7 +339,9 @@ impl AbiChecker {
     }
 
     fn check_inner(&mut self, this: &'static AbiInfo, other: &'static AbiInfo) {
-        if !self.visited.insert((this as *const _,other as *const _)) {
+        let t_cuti=CheckingUTypeId::new(this );
+        let o_cuti=CheckingUTypeId::new(other);
+        if !self.visited.insert((t_cuti,o_cuti)) {
             return;
         }
 
@@ -340,8 +404,7 @@ impl AbiChecker {
             }
             self.check_fields(
                 errs,
-                this,
-                other,
+                this.layout,
                 this.layout.phantom_fields,
                 other.layout.phantom_fields,
             );
@@ -369,7 +432,7 @@ impl AbiChecker {
                 (TLData::Primitive, TLData::Primitive) => {}
                 (TLData::Primitive, _) => {}
                 (TLData::Struct { fields: t_fields }, TLData::Struct { fields: o_fields }) => {
-                    self.check_fields(errs, this, other, t_fields, o_fields);
+                    self.check_fields(errs, this.layout, t_fields, o_fields);
                 }
                 (TLData::Struct { .. }, _) => {}
                 (TLData::Enum { variants: t_varis }, TLData::Enum { variants: o_varis }) => {
@@ -385,14 +448,24 @@ impl AbiChecker {
                             push_err(errs, *t_vari, *o_vari, |x| x, AI::UnexpectedVariant);
                             continue;
                         }
-                        self.check_fields(errs, this, other, t_vari.fields, o_vari.fields);
+                        self.check_fields(errs, this.layout, t_vari.fields, o_vari.fields);
                     }
                 }
                 (TLData::Enum { .. }, _) => {}
-                (TLData::ReprTransparent(t_nested), TLData::ReprTransparent(o_nested)) => {
-                    self.check_inner(t_nested, o_nested);
+                (
+                    TLData::PrefixType {..},
+                    TLData::PrefixType {..},
+                ) => {
+                    let this_prefix=PrefixTypeMetadata::new(t_lay);
+                    let other_prefix=PrefixTypeMetadata::new(o_lay);
+
+                    self.check_prefix_types(errs,this_prefix,other_prefix);
+
+                    self.checked_prefix_types.push(
+                        CheckedPrefixTypes{this,this_prefix,other,other_prefix}
+                    )
                 }
-                (TLData::ReprTransparent { .. }, _) => {}
+                ( TLData::PrefixType {..}, _ ) => {}
             }
         })();
 
@@ -405,25 +478,129 @@ impl AbiChecker {
             });
         }
     }
+
+
+    fn check_prefix_types(
+        &mut self,
+        errs: &mut RVec<AbiInstability>,
+        this: PrefixTypeMetadata,
+        other: PrefixTypeMetadata,
+    ){
+        if this.prefix_field_count != other.prefix_field_count {
+            push_err(
+                errs,
+                this ,
+                other,
+                |x| x.prefix_field_count ,
+                AI::MismatchedPrefixSize
+            );
+        }
+
+
+        self.check_fields(
+            errs,
+            this.layout,
+            this.fields,
+            other.fields
+        );
+    }
+
+
+    fn final_prefix_type_checks(
+        &mut self,
+        globals:&CheckingGlobals
+    )->Result<(),AbiInstabilityError>{
+        self.error_index += 1;
+        let mut errs_ = RVec::<AbiInstability>::new();
+        let errs =&mut errs_;
+
+        let mut prefix_type_map=globals.prefix_type_map.lock().unwrap();
+
+        for pair in mem::replace(&mut self.checked_prefix_types,Default::default()) {
+            // let t_lay=pair.this_prefix.layout;
+            let t_utid=pair.this .get_utypeid();
+            let o_utid=pair.other.get_utypeid();
+            // let t_fields=pair.this_prefix.fields;
+            // let o_fields=pair.other_prefix.fields;
+
+            let t_index=prefix_type_map.get_index(&t_utid);
+            let o_index=prefix_type_map.get_index(&o_utid);
+
+            let max_prefix=pair.this_prefix.max(pair.other_prefix);
+
+            // println!("t_index:{:?}o_index:{:?}",t_index,o_index);
+            // println!("t_utid:{:?}\no_utid:{:?}",t_utid,o_utid);
+
+            match (t_index,o_index) {
+                (None,None)=>{
+                    let i=prefix_type_map
+                        .get_or_insert(t_utid,max_prefix)
+                        .into_inner()
+                        .index;
+                    prefix_type_map.associate_key(o_utid,i);
+                }
+                (Some(im_index),None)|(None,Some(im_index))=>{
+                    let im_prefix=prefix_type_map.get_mut_with_index(im_index).unwrap();
+                    
+                    let (l_pre,r_pre)=(*im_prefix).min_max(max_prefix);
+
+                    self.check_prefix_types(errs,l_pre,r_pre);
+                    if !errs.is_empty() { break; }
+                    
+                    *im_prefix=im_prefix.max(max_prefix);
+                    drop(im_prefix);
+                    prefix_type_map.associate_key(t_utid,im_index);
+                    prefix_type_map.associate_key(o_utid,im_index);
+
+                }
+                (Some(l_index),Some(r_index))=>{
+                    let l_prefix=*prefix_type_map.get_with_index(l_index).unwrap();
+                    let r_prefix=*prefix_type_map.get_with_index(r_index).unwrap();
+
+                    let (replace,with)=if l_prefix.fields.len() < r_prefix.fields.len() {
+                        (l_index,r_index)
+                    }else{
+                        (r_index,l_index)
+                    };
+
+                    let (l_pre,r_pre)=l_prefix.min_max(r_prefix);
+                    self.check_prefix_types(errs,l_pre,r_pre);
+                    if !errs.is_empty() { break; }
+
+                    if l_prefix.fields.len() != r_prefix.fields.len() {
+                        prefix_type_map.replace_with_index(replace,with);
+                    }
+                }
+            }
+
+            // println!(
+            //     "t_prefix:{:p}\no_prefix:{:p}",
+            //     &prefix_type_map[&t_utid],
+            //     &prefix_type_map[&o_utid],
+            // );
+
+        }
+
+        if errs_.is_empty() {
+            Ok(())
+        }else{
+            Err(AbiInstabilityError {
+                stack_trace: self.stack_trace.clone(),
+                errs: errs_,
+                index: self.error_index,
+                _priv:(),
+            })
+        }
+    }
 }
 
-/**
-Checks that the layout of `Interface` is compatible with `Impl`.
-
-# Warning
-
-This function is not symmetric,
-the first parameter must be the expected layout,
-and the second must be actual layout.
-
-*/
-pub fn check_abi_stability_for<Interface, Impl>() -> Result<(), AbiInstabilityErrors>
-where
-    Interface: StableAbi,
-    Impl: StableAbi,
-{
-    check_abi_stability(Interface::ABI_INFO, Impl::ABI_INFO)
-}
+// pub(super) fn check_abi_stability_for<Interface, Impl>() -> Result<(), AbiInstabilityErrors>
+// where
+//     Interface: StableAbi,
+//     Impl: StableAbi,
+// {
+//     check_abi_stability(Interface::ABI_INFO, Impl::ABI_INFO)
+// }
 
 /**
 Checks that the layout of `interface` is compatible with `implementation`.
@@ -435,12 +612,23 @@ the first parameter must be the expected layout,
 and the second must be actual layout.
 
 */
-// Never inline this function because it will be called very infrequently and
-// will take a long-ish time to run anyway.
-#[inline(never)]
-pub fn check_abi_stability(
+pub(super) fn check_abi_stability(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
+) -> Result<(), AbiInstabilityErrors> {
+    check_abi_stability_with_globals(
+        interface,
+        implementation,
+        get_checking_globals(),
+    )
+}
+
+
+#[inline(never)]
+pub(super) fn check_abi_stability_with_globals(
+    interface: &'static AbiInfoWrapper,
+    implementation: &'static AbiInfoWrapper,
+    globals:&CheckingGlobals,
 ) -> Result<(), AbiInstabilityErrors> {
     let mut errors: RVec<AbiInstabilityError>;
 
@@ -462,8 +650,14 @@ pub fn check_abi_stability(
     } else {
         let mut checker = AbiChecker::new();
         checker.check_inner(interface, implementation);
+        if checker.errors.is_empty() {
+            if let Err(e)=checker.final_prefix_type_checks(globals) {
+                checker.errors.push(e);
+            }
+        }
         errors = checker.errors;
     }
+
 
     if errors.is_empty() {
         Ok(())
@@ -477,6 +671,60 @@ pub fn check_abi_stability(
         })
     }
 }
+
+/**
+Checks that the layout of `interface` is compatible with `implementation`,
+
+# Warning
+
+This function is not symmetric,
+the first parameter must be the expected layout,
+and the second must be actual layout.
+
+*/
+pub(crate) extern fn check_abi_stability_for_ffi(
+    interface: &'static AbiInfoWrapper,
+    implementation: &'static AbiInfoWrapper,
+) -> RResult<(), RBoxError> {
+    check_abi_stability(interface,implementation)
+        .map_err(RBoxError::from_fmt)
+        .into_c()
+}
+
+
+
+///////////////////////////////////////////////
+
+use std::sync::Mutex;
+
+use crate::{
+    lazy_static_ref::LazyStaticRef,
+    multikey_map::MultiKeyMap,
+    prefix_type::PrefixTypeMetadata,
+    utils::leak_value,
+};
+
+#[derive(Debug)]
+pub struct CheckingGlobals{
+    pub(crate) prefix_type_map:Mutex<MultiKeyMap<UTypeId,PrefixTypeMetadata>>,
+}
+
+impl CheckingGlobals{
+    pub fn new()->Self{
+        CheckingGlobals{
+            prefix_type_map:MultiKeyMap::new().piped(Mutex::new),
+        }
+    }
+}
+
+static CHECKING_GLOBALS:LazyStaticRef<CheckingGlobals>=LazyStaticRef::new();
+
+pub fn get_checking_globals()->&'static CheckingGlobals{
+    CHECKING_GLOBALS.init(||{
+        CheckingGlobals::new().piped(leak_value)
+    })
+}
+
 
 ///////////////////////////////////////////////
 
