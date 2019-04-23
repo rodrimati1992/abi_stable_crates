@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use syn::{
     ItemImpl,
-    Path as SynPath,
+
     Type as SynType,
     Ident,
     ImplItem,
@@ -13,7 +13,7 @@ use syn::{
 
 use proc_macro2::TokenStream as TokenStream2;
 
-use quote::{quote, ToTokens};
+use quote::{ToTokens};
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;

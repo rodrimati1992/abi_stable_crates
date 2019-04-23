@@ -23,8 +23,8 @@ use self::{
         GetAbiInfo,
     },
     type_layout::{
-        LifetimeIndex, TLData, TLDataDiscriminant, TLEnumVariant, TLField,
-        TLFieldAndType, TypeLayout, TypeLayoutParams, FullType,
+        LifetimeIndex, TLData, TLField,
+        TypeLayout, TypeLayoutParams,
     },
 };
 

@@ -32,6 +32,7 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) opaque_fields:HashSet<*const Field<'a>>,
 
     pub(crate) renamed_fields:HashMap<*const Field<'a>,&'a Ident>,
+    #[allow(dead_code)]
     pub(crate) repr_attrs:Vec<MetaList>,
 }
 
@@ -93,7 +94,6 @@ impl<'a> StableAbiOptions<'a> {
             UncheckedStabilityKind::Value => StabilityKind::Value,
             UncheckedStabilityKind::Prefix(prefix)=>{
                 StabilityKind::Prefix(PrefixKind{
-                    last_prefix_field:this.last_prefix_field,
                     first_suffix_field:this.last_prefix_field.map_or(0,|x|x.field_index+1),
                     prefix_struct:prefix.prefix_struct,
                     default_on_missing_fields:this.default_on_missing_fields,
@@ -261,7 +261,7 @@ fn parse_sabi_attr<'a>(
             }
         }
         (
-            ParseContext::Field{field,field_index}, 
+            ParseContext::Field{field,..}, 
             Meta::NameValue(MetaNameValue{lit:Lit::Str(ref value),ref ident,..})
         ) => {
             if ident=="rename" {
@@ -420,7 +420,7 @@ Valid Attributes:
 
 /// Parses the contents of #[sabi(kind(Prefix( ... )))]
 fn parse_prefix_type_list<'a>(
-    name:&'a Ident,
+    _name:&'a Ident,
     list: &Punctuated<NestedMeta, Comma>, 
     arenas: &'a Arenas
 )->UncheckedPrefixKind<'a>{

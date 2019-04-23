@@ -5,7 +5,6 @@ Zero-sized types .
 use std::{marker::PhantomData, rc::Rc};
 
 use crate::{
-    abi_stability::stable_abi_trait::{MakeGetAbiInfo,StableAbi_Bound},
     derive_macro_reexports::*, 
     std_types::RNone,
 };

@@ -47,6 +47,7 @@ fn push() {
     }
 }
 
+#[test]
 fn insert_str(){
     // '💔' is 4 bytes long
     let test_str="💔love💔is💔";
@@ -86,9 +87,10 @@ fn insert_str(){
     }
 }
 
+#[test]
 fn remove(){
     // '💔' is 4 bytes long
-    let test_str="💔love💔is💔";
+    let test_str="💔love💔is💔💔love💔is💔";
     let test_str_nohearts=test_str.chars().filter(|&c| c!='💔' ).collect::<String>();
     let mut rstr=test_str.into_(RString::T);
     
@@ -99,8 +101,14 @@ fn remove(){
     must_panic(file_span!(),|| rstr.remove(15) ).unwrap();
     must_panic(file_span!(),|| rstr.remove(16) ).unwrap();
     must_panic(file_span!(),|| rstr.remove(17) ).unwrap();
-    must_panic(file_span!(),|| rstr.remove(18) ).unwrap();
-
+    must_panic(file_span!(),|| rstr.remove(test_str.len()-3) ).unwrap();
+    must_panic(file_span!(),|| rstr.remove(test_str.len()-2) ).unwrap();
+    must_panic(file_span!(),|| rstr.remove(test_str.len()-1) ).unwrap();
+    must_panic(file_span!(),|| rstr.remove(test_str.len()) ).unwrap();
+    
+    assert_eq!(rstr.remove(32),'💔');
+    assert_eq!(rstr.remove(26),'💔');
+    assert_eq!(rstr.remove(18),'💔');
     assert_eq!(rstr.remove(14),'💔');
     assert_eq!(rstr.remove(8),'💔');
     assert_eq!(rstr.remove(0),'💔');
@@ -113,7 +121,7 @@ fn remove(){
         for i in (0..rstr.len()).rev() {
             assert_eq!(
                 rstr.remove(i),
-                test_str_nohearts[..i].chars().next().unwrap()
+                test_str_nohearts[i..].chars().next().unwrap()
             );
         }
     }
@@ -123,8 +131,8 @@ fn remove(){
 
         for i in 0..rstr.len() {
             assert_eq!(
-                rstr.remove(i),
-                test_str_nohearts[i+1..].chars().next().unwrap()
+                rstr.remove(0),
+                test_str_nohearts[i..].chars().next().unwrap()
             );
         }
     }
@@ -176,7 +184,7 @@ fn retain(){
     }
     {
         let mut i=0;
-        let closure=move|c|{
+        let closure=move|_|{
             let cond=i%2==0;
             i+=1;
             cond
@@ -196,13 +204,13 @@ fn retain(){
 
 #[test]
 fn into_iter() {
-    static test_str: &str =
+    static TEST_STR: &str =
         "hello_world.cáscara.ñ.🎊🍕👏😊😀😄😉😉😛😮🙁🙂💔👻😎.";
 
-    let rstr = test_str.into_(RString::T);
+    let rstr = TEST_STR.into_(RString::T);
 
-    assert_eq!(&*rstr, test_str);
-    assert_eq!(&*rstr.clone().into_iter().collect::<String>(), test_str);
+    assert_eq!(&*rstr, TEST_STR);
+    assert_eq!(&*rstr.clone().into_iter().collect::<String>(), TEST_STR);
 
     let mut iter=rstr.clone().into_iter();
 

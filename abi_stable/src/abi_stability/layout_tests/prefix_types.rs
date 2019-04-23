@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::{marker::PhantomData, num, ptr, sync::atomic,mem};
+
 
 #[allow(unused_imports)]
 use core_extensions::{matches, prelude::*};
@@ -16,8 +16,6 @@ use crate::{
         stable_abi_trait::AbiInfo,
         AbiInfoWrapper, 
     },
-    marker_type::UnsafeIgnoredType,
-    std_types::*,
     prefix_type::{PrefixTypeMetadata,PrefixTypeTrait},
     *,
     test_utils::must_panic,
@@ -250,7 +248,7 @@ fn prefixes_test() {
             .max_by_key(|prefix| prefix.fields.len() )
             .unwrap();
 
-        /// Asserting that the layout they all map to is the one with the most fields
+        // Asserting that the layout they all map to is the one with the most fields
         for this in list.iter().cloned() {
             let id=dereference_abi(this.get()).get_utypeid();
 
@@ -408,8 +406,8 @@ fn prefix_on_nonexistent_field() {
     {
         let value3:&prefix3::Prefix_Prefix=unsafe{ transmute_reference(prefix0) };
         assert_eq!(value3.field0(),1);
-        must_panic(file_span!(),||value3.field1());
-        must_panic(file_span!(),||value3.field2());
-        must_panic(file_span!(),||value3.field3());
+        must_panic(file_span!(),||value3.field1()).unwrap();
+        must_panic(file_span!(),||value3.field2()).unwrap();
+        must_panic(file_span!(),||value3.field3()).unwrap();
     }
 }

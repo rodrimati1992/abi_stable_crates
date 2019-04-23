@@ -17,7 +17,7 @@ use proc_macro2::{TokenStream as TokenStream2,Span};
 
 use core_extensions::{
     prelude::*,
-    matches,
+
 };
 
 use arrayvec::ArrayString;
@@ -222,22 +222,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         if config.debug_print {
             panic!("\n\n\n{}\n\n\n",tokens );
         }
-    })
-}
-
-/// Creates a value that outputs 
-/// `<#ty as __StableAbi>::ABI_INFO.get()`
-/// to a token stream
-fn get_abi_info_tokenizer<'a>(
-    ty:&'a ::syn::Type,
-    ct:&'a CommonTokens<'a>
-)->impl ToTokens+'a{
-    ToTokenFnMut::new(move|ts|{
-        to_stream!{ts; 
-            ct.lt,ty,ct.as_,ct.stable_abi,ct.gt,
-            ct.colon2,ct.abi_info,ct.dot,ct.get
-        }
-        ct.paren.surround(ts,|_|());
     })
 }
 

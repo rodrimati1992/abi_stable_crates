@@ -1,19 +1,17 @@
 #![allow(dead_code)]
 
-use std::{marker::PhantomData, num, ptr, sync::atomic,mem};
+use std::{marker::PhantomData, num, ptr, sync::atomic};
 
 #[allow(unused_imports)]
 use core_extensions::{matches, prelude::*};
 
 use crate::{
     abi_stability::{
-        abi_checking::{AbiInstability,CheckingGlobals,check_abi_stability},
-        stable_abi_trait::AbiInfo,
+        abi_checking::{AbiInstability,check_abi_stability},
         AbiInfoWrapper, 
     },
     marker_type::UnsafeIgnoredType,
     std_types::*,
-    prefix_type::PrefixTypeMetadata,
     *,
     test_utils::must_panic,
 };
@@ -277,7 +275,7 @@ fn same_different_abi_stability() {
         // <RArc<prefix0::Prefix>>::ABI_INFO,
     ];
 
-    let (dur, ()) = core_extensions::measure_time::measure(|| {
+    let (_dur, ()) = core_extensions::measure_time::measure(|| {
         for (i, this) in list.iter().cloned().enumerate() {
             for (j, other) in list.iter().cloned().enumerate() {
                 if i == j {

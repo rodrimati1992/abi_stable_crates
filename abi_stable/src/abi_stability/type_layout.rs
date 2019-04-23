@@ -12,9 +12,8 @@ use std::{
 
 use crate::{
     utils::empty_slice, version::VersionStrings, 
-    std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr,utypeid::UTypeId},
+    std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr},
     ignored_wrapper::CmpIgnored,
-    return_value_equality::ReturnValueEquality,
 };
 
 use super::{AbiInfo, GetAbiInfo};
@@ -334,14 +333,14 @@ impl Display for TLFieldAndType {
 ///////////////////////////
 
 impl TypeLayout {
-    pub(crate) const fn from_std_lib_primitive<T>(
-        type_name: &'static str,
-        prim: ROption<RustPrimitive>,
-        data: TLData,
-        generics: GenericParams,
-    ) -> Self {
-        Self::from_std_lib_phantom::<T>(type_name, prim, data, generics, empty_slice())
-    }
+    
+
+
+
+
+
+
+
 
     pub(crate) const fn from_std_lib<T>(
         type_name: &'static str,

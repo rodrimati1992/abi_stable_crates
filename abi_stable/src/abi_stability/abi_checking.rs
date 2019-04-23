@@ -11,8 +11,7 @@ use std::collections::HashSet;
 // use std::collections::HashSet;
 
 use super::{
-    AbiInfo, AbiInfoWrapper, StableAbi,
-    stable_abi_trait::TypeKind,
+    AbiInfo, AbiInfoWrapper,
     type_layout::{
         TypeLayout, TLData, TLDataDiscriminant, TLEnumVariant, TLField,TLFieldAndType, 
         FullType,
@@ -453,14 +452,8 @@ impl AbiChecker {
                 }
                 (TLData::Enum { .. }, _) => {}
                 (
-                    TLData::PrefixType {
-                        first_suffix_field:t_first_suffix_field,
-                        fields:t_fields,
-                    },
-                    TLData::PrefixType {
-                        first_suffix_field:o_first_suffix_field,
-                        fields:o_fields
-                    },
+                    TLData::PrefixType {..},
+                    TLData::PrefixType {..},
                 ) => {
                     let this_prefix=PrefixTypeMetadata::new(t_lay);
                     let other_prefix=PrefixTypeMetadata::new(o_lay);
@@ -523,11 +516,11 @@ impl AbiChecker {
         let mut prefix_type_map=globals.prefix_type_map.lock().unwrap();
 
         for pair in mem::replace(&mut self.checked_prefix_types,Default::default()) {
-            let t_lay=pair.this_prefix.layout;
+            // let t_lay=pair.this_prefix.layout;
             let t_utid=pair.this .get_utypeid();
             let o_utid=pair.other.get_utypeid();
-            let t_fields=pair.this_prefix.fields;
-            let o_fields=pair.other_prefix.fields;
+            // let t_fields=pair.this_prefix.fields;
+            // let o_fields=pair.other_prefix.fields;
 
             let t_index=prefix_type_map.get_index(&t_utid);
             let o_index=prefix_type_map.get_index(&o_utid);
@@ -600,13 +593,13 @@ impl AbiChecker {
     }
 }
 
-pub(super) fn check_abi_stability_for<Interface, Impl>() -> Result<(), AbiInstabilityErrors>
-where
-    Interface: StableAbi,
-    Impl: StableAbi,
-{
-    check_abi_stability(Interface::ABI_INFO, Impl::ABI_INFO)
-}
+// pub(super) fn check_abi_stability_for<Interface, Impl>() -> Result<(), AbiInstabilityErrors>
+// where
+//     Interface: StableAbi,
+//     Impl: StableAbi,
+// {
+//     check_abi_stability(Interface::ABI_INFO, Impl::ABI_INFO)
+// }
 
 /**
 Checks that the layout of `interface` is compatible with `implementation`.
