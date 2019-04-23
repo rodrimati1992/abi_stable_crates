@@ -361,20 +361,15 @@ fn parse_missing_field<'a>(
 Valid Attributes:
 
     `#[sabi(missing_field(panic))]`
-    This always panics if the field doesn't exist.
-
-    `#[sabi(missing_field(panic=\"somefunction\"))]`
-    This panics,passing a metadata struct in so that it can have an 
-    informative error message.
+    This panics if the field doesn't exist.
 
     `#[sabi(missing_field(option))]`
-    This returns None if the field doesn't exist.
+    This returns Some(field_value) if the field exists,None if the field doesn't exist.
     This is the default.
 
     `#[sabi(missing_field(with=\"somefunction\"))]`
-    This calls the function `somefunction` if the field doesn't exist.
-    For panicking use `#[sabi(missing_field(panic=\"somefunction\"))]` instead.
-
+    This returns `somefunction()` if the field doesn't exist.
+    
     `#[sabi(missing_field(default))]`
     This returns `Default::default` if the field doesn't exist.
 
@@ -391,9 +386,7 @@ Valid Attributes:
         })))=>{
             let function=type_str.parse::<syn::Path>().unwrap()
                 .piped(|i| arenas.alloc(i) );
-            if nv_ident=="panic"{
-                OnMissingField::PanicWith{function}
-            }else if nv_ident=="with" {
+            if nv_ident=="with" {
                 OnMissingField::With{function}
             }else{
                 panic!(

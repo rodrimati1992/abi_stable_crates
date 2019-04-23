@@ -49,10 +49,6 @@ pub enum OnMissingField<'a>{
     ReturnOption,
     /// Panics with a default message.
     Panic,
-    /// Calls `function` with context information for panicking.
-    PanicWith{
-        function:&'a syn::Path,
-    },
     /// Evaluates `function()`,and returns the return value of the function.
     With{
         function:&'a syn::Path,
@@ -106,37 +102,126 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         let deriving_name=ds.name;
         let (ref impl_generics,ref ty_generics,ref where_clause) = ds.generics.split_for_impl();
 
+        let stringified_deriving_name=deriving_name.to_string();
+
+        let stringified_generics=(&ty_generics).into_token_stream().to_string();
+
+        let prefix_struct_docs=format!("\
+This is the prefix of 
+[{deriving_name}{generics}](./struct.{deriving_name}.html),
+only usable as `&{name}{generics}`.
+
+**This is automatically generated documentation,by the StableAbi derive macro**.
+
+### Creating a runtime value
+
+Using `abi_stable::prefix_type::PrefixTypeTrait`.<br>
+Call the `PrefixTypeTrait::leak_into_prefix` method on the 
+`{deriving_name}{generics}` type,
+which converts it to `&{name}{generics}`,
+leaking it in the process.
+
+### Creating a compiletime-constant
+
+Using `abi_stable::prefix_type::{{PrefixTypeTrait,WithMetadata}}`.<br>
+Use WithMetadata if you need a compiletime constant.<br>
+First create a `&WithMetadata<{deriving_name}{generics}>` constant with (approximately):
+```ignore
+struct Dummy<'some>(PhantomData<&'some ()>);
+
+impl<'some> Dummy<'some>{{
+    const CONSTANT:&'some WithMetadata<{deriving_name}{generics}>=
+        &WithMetadata::new(
+            PrefixTypeTrait::METADATA, 
+            value /* value : {deriving_name}{generics} */
+        );
+}}
+
+```
+then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
+            ",
+            name=prefix.prefix_struct,
+            deriving_name=stringified_deriving_name,
+            generics=stringified_generics,
+        );
+
         // Generating the `*_Prefix` struct
         {
             let vis=ds.vis;
             let prefix_struct=prefix.prefix_struct;
             let generics=ds.generics;
             quote!(
+                #[doc=#prefix_struct_docs]
                 #[repr(transparent)]
                 #vis struct #prefix_struct #generics #where_clause {
                     inner:#module::__WithMetadata_<(),Self>,
-                    _priv: ::std::marker::PhantomData<fn()-> #deriving_name #ty_generics >,
+                    _priv: ::std::marker::PhantomData<#deriving_name #ty_generics >,
                 }
             ).to_tokens(ts);
         }
         
-        let mut buffer=String::new();
+        let mut accessor_buffer=String::new();
         let prefix_struct=prefix.prefix_struct;
+
+        let get_on_missing_field=|field:*const Field|->OnMissingField{
+            prefix.on_missing_fields
+                .get(&field)
+                .cloned()
+                .unwrap_or(prefix.default_on_missing_fields)
+        };
+
+        let accessor_docs=struct_.fields.iter().enumerate()
+            .map(move|(field_i,field)|{
+                use std::fmt::Write;
+                let mut acc_doc_buffer =String::new();
+                let _=write!(
+                    acc_doc_buffer,
+                    "Accessor method for the `{deriving_name}::{field_name}` field.",
+                    deriving_name=deriving_name,
+                    field_name=field.ident(),
+                );
+                let in_prefix=field_i < prefix.first_suffix_field;
+                let on_missing_fields=get_on_missing_field(field);
+                match (in_prefix,on_missing_fields) {
+                    (true,_)=>
+                        acc_doc_buffer.push_str(
+                            "This is for a field which always exists."
+                        ),
+                    (false,OnMissingField::ReturnOption)=>
+                        acc_doc_buffer.push_str(
+                            "Returns `Some(field_value)` if the field exists,\
+                             `None` if it does not.\
+                            "
+                        ),
+                    (false,OnMissingField::Panic)=>
+                        acc_doc_buffer.push_str(
+                            "\n\n# Panic\n\nPanics if the field does not exist."
+                        ),
+                    (false,OnMissingField::With{function})=>
+                        write!(
+                            acc_doc_buffer,
+                            "Returns `{function}()` if the field does not exist.",
+                            function=(&function).into_token_stream().to_string()
+                        ).drop_(),
+                    (false,OnMissingField::Default_)=>
+                        acc_doc_buffer.push_str(
+                            "Returns `Default::default()` if the field does not exist."
+                        ),
+                };
+                acc_doc_buffer
+            });
 
         let accessors=struct_.fields.iter().enumerate()
             .map(move|(field_i,field)|{
                 use std::fmt::Write;
-                buffer.clear();
-                write!(buffer,"{}",field.ident()).drop_();
+                accessor_buffer.clear();
+                write!(accessor_buffer,"{}",field.ident()).drop_();
                 let vis=field.vis;
-                let getter_name=syn::parse_str::<Ident>(&*buffer).unwrap();
+                let getter_name=syn::parse_str::<Ident>(&*accessor_buffer).unwrap();
                 let field_name=field.ident();
                 let ty=field.ty;
 
-                let on_missing_field=prefix.on_missing_fields
-                    .get(&(field as *const _))
-                    .cloned()
-                    .unwrap_or(prefix.default_on_missing_fields);
+                let on_missing_field=get_on_missing_field(field);
 
                 let is_optional=on_missing_field==OnMissingField::ReturnOption;
 
@@ -173,13 +258,6 @@ pub(crate) fn prefix_type_tokenizer<'a>(
                                 self.inner._prefix_type_layout,
                             )
                         ),
-                        OnMissingField::PanicWith{function}=>quote!(
-                            function(
-                                #field_i,
-                                <Self as #module::_sabi_reexports::PrefixTypeTrait>::layout(),
-                                self.inner._prefix_type_layout,
-                            )
-                        ),
                         OnMissingField::With{function}=>quote!{
                             #function()
                         },
@@ -205,10 +283,6 @@ pub(crate) fn prefix_type_tokenizer<'a>(
 
         let field_count=struct_.fields.len();
         
-        let stringified_deriving_name=deriving_name.to_string();
-
-        let stringified_generics=(&ty_generics).into_token_stream().to_string();
-
         let str_field_names=struct_.fields.iter().map(|x| x.ident().to_string() );
         
         let field_types=struct_.fields.iter().map(|x| x.ty );
@@ -250,9 +324,9 @@ pub(crate) fn prefix_type_tokenizer<'a>(
                 type Prefix=#prefix_struct #ty_generics;
             }
 
-
             impl #impl_generics #prefix_struct #ty_generics #where_clause {
                 #(
+                    #[doc=#accessor_docs]
                     #accessors
                 )*
                 // Returns a `*const _` instead of a `&_` because the compiler 

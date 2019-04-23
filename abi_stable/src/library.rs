@@ -161,7 +161,7 @@ pub type LibraryGetterFn<T>=
 /// which may contain other modules,function pointers,and static references.
 ///
 /// For an example of a type implementing this trait you can look 
-/// for crates *_inter_0face` in this crates' repository .
+/// for the `example/example_*_interface` crates  in this crates' repository .
 pub trait RootModule: Sized+SharedStableAbi  {
 
     /// The late-initialized reference to the Library handle.

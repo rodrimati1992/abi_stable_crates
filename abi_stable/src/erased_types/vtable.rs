@@ -13,13 +13,22 @@ use super::*;
 
 use crate::{
     ErasedObject,
+    prefix_type::{PrefixTypeTrait,WithMetadata},
 };
 
 use core_extensions::{ResultLike, StringExt};
 
 /// Returns the vtable used by VirtualWrapper to do dynamic dispatch.
 pub trait GetVtable<This,Ptr>: ImplType {
-    const GET_VTABLE: *const VTable<This, Ptr>;
+    
+    const TMP_VTABLE:VTableVal<This,Ptr>;
+
+    const GET_VTABLE:*const WithMetadata<VTableVal<This,Ptr>>=
+        &WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::TMP_VTABLE
+        );
+
 
     /// Retrieves the VTable of the type.
     fn get_vtable<'a>() -> &'a VTable<This, Ptr>
@@ -27,7 +36,7 @@ pub trait GetVtable<This,Ptr>: ImplType {
         This: 'a,
     {
         // I am just getting a vtable
-        unsafe { &*Self::GET_VTABLE }
+        unsafe { (*Self::GET_VTABLE).as_prefix() }
     }
 
     /// Gets an erased version of the VTable<This>.
@@ -35,7 +44,7 @@ pub trait GetVtable<This,Ptr>: ImplType {
         // I am just getting a vtable,which doesn't actually contain an instance of This.
         // This is why it is safe to transmute it to a reference of static lifetime.
         unsafe {
-            let x = &*Self::GET_VTABLE;
+            let x = (*Self::GET_VTABLE).as_prefix();
             mem::transmute::<
                 &VTable<This, Ptr>, 
                 &'static VTable<ErasedObject,ErasedObject>
@@ -46,6 +55,7 @@ pub trait GetVtable<This,Ptr>: ImplType {
 
 /// The set of impls this vtable stores.
 #[repr(C)]
+#[derive(Copy,Clone)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct ImplFlag(ImplFlagRepr);
@@ -105,7 +115,10 @@ macro_rules! declare_meta_vtable {
         pointer=$pointer:ident;
 
         $([
+            $( #[$field_attr:meta] )*
             $field:ident : $field_ty:ty ;
+            priv $priv_field:ident;
+
             impl[$($impl_params:tt)*] VtableFieldValue<$selector:ident>
             where [ $($where_clause:tt)* ]
             { $field_value:expr }
@@ -117,15 +130,17 @@ macro_rules! declare_meta_vtable {
         #[repr(C)]
         #[derive(StableAbi)]
         #[sabi(inside_abi_stable_crate)]
-        //#[sabi(debug_print)]
-        pub struct VTable<$value,$pointer>{
+        #[sabi(kind(Prefix(prefix_struct="VTable")))]
+        #[sabi(missing_field(default))]
+        pub struct VTableVal<$value,$pointer>{
             /// Flags for quickly checking whether two VTables have the same impls.
             pub impl_flags:ImplFlag,
             pub type_info:&'static TypeInfo,
-            $(
-                pub $field:Option<$field_ty>,
-            )*
             _marker:PhantomData<extern fn(&$value,&$pointer)>,
+            $(
+                $( #[$field_attr] )*
+                $priv_field:Option<$field_ty>,
+            )*
         }
 
 
@@ -140,7 +155,7 @@ macro_rules! declare_meta_vtable {
                     // This is safe to call since we've checked that the
                     // vtable contains an implementation for that trait in the assert method above.
                     unsafe{
-                        self.$field.unwrap_unchecked()
+                        self.$priv_field().unwrap_unchecked()
                     }
                 }
             )*
@@ -163,7 +178,7 @@ macro_rules! declare_meta_vtable {
             #[cold]
             fn abort_unimplemented(&self,unimplemented_impls:u64){
                 eprintln!("error:{}",
-                    TooFewImplsError::new(self.type_info,ImplFlag(unimplemented_impls))
+                    TooFewImplsError::new(self.type_info(),ImplFlag(unimplemented_impls))
                 );
                 ::std::process::abort();
             }
@@ -185,7 +200,7 @@ macro_rules! declare_meta_vtable {
                 E:GetImplFlags
             {
                 let required=E::FLAGS.0;
-                let provided=self.impl_flags.0;
+                let provided=self.impl_flags().0;
                 required&(!provided)& LOW_MASK
             }
 
@@ -199,7 +214,7 @@ macro_rules! declare_meta_vtable {
                 if unimplemented_impls==0 {
                     Ok(())
                 }else{
-                    Err( TooFewImplsError::new(self.type_info,ImplFlag(unimplemented_impls)) )
+                    Err( TooFewImplsError::new(self.type_info(),ImplFlag(unimplemented_impls)) )
                 }
             }
         }
@@ -298,34 +313,32 @@ macro_rules! declare_meta_vtable {
                 >,
             )*
         {
-            const GET_VTABLE:*const VTable<$value,$pointer>={
-                &VTable{
-                    impl_flags:E::FLAGS,
-                    type_info:This::INFO,
-                    $(
-                        $field:
-                            <trait_selector::$selector as
-                                VTableFieldValue<
-                                    VTableFieldType<trait_selector::$selector,$value,$pointer>,
-                                    E::$selector,
-                                    $value,
-                                    $pointer
-                                >
-                            >::FIELD,
-                    )*
-                    _marker:PhantomData,
-                }
+            const TMP_VTABLE:VTableVal<$value,$pointer>=VTableVal{
+                impl_flags:E::FLAGS,
+                type_info:This::INFO,
+                $(
+                    $priv_field:
+                        <trait_selector::$selector as
+                            VTableFieldValue<
+                                VTableFieldType<trait_selector::$selector,$value,$pointer>,
+                                E::$selector,
+                                $value,
+                                $pointer
+                            >
+                        >::FIELD,
+                )*
+                _marker:PhantomData,
             };
         }
 
         impl<$value,$pointer> Debug for VTable<$value,$pointer> {
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
                 f.debug_struct("VTable")
-                    .field("type_info",&self.type_info)
+                    .field("type_info",&self.type_info())
                     $(
                         .field(
                             stringify!($field),
-                            &format_args!("{:x}",self.$field.map_or(0,|x|x as usize))
+                            &format_args!("{:x}",self.$priv_field().map_or(0,|x|x as usize))
                         )
                     )*
                     .finish()
@@ -341,6 +354,7 @@ declare_meta_vtable! {
 
     [
         clone_ptr:    extern fn(&P)->P;
+        priv _clone_ptr;
         impl[] VtableFieldValue<Clone>
         where [P:Clone]
         {
@@ -349,6 +363,7 @@ declare_meta_vtable! {
     ]
     [
         default_ptr:    extern fn()->P;
+        priv _default_ptr;
         impl[] VtableFieldValue<Default>
         where [P:Default]
         {
@@ -357,6 +372,7 @@ declare_meta_vtable! {
     ]
     [
         display:    extern fn(&T,FormattingMode,&mut RString)->RResult<(),()>;
+        priv _display;
         impl[] VtableFieldValue<Display>
         where [T:Display]
         {
@@ -365,6 +381,7 @@ declare_meta_vtable! {
     ]
     [
         debug:      extern fn(&T,FormattingMode,&mut RString)->RResult<(),()>;
+        priv _debug;
         impl[] VtableFieldValue<Debug>
         where [T:Debug]
         {
@@ -373,6 +390,7 @@ declare_meta_vtable! {
     ]
     [
         serialize:  extern fn(&T)->RResult<RCow<'_,RStr<'_>>,RBoxError>;
+        priv _serialize;
         impl[] VtableFieldValue<Serialize>
         where [
             T:ImplType+SerializeImplType,
@@ -383,6 +401,7 @@ declare_meta_vtable! {
     ]
     [
         partial_eq: extern fn(&T,&T)->bool;
+        priv _partial_eq;
         impl[] VtableFieldValue<PartialEq>
         where [T:PartialEq,]
         {
@@ -391,6 +410,7 @@ declare_meta_vtable! {
     ]
     [
         cmp:        extern fn(&T,&T)->RCmpOrdering;
+        priv _cmp;
         impl[] VtableFieldValue<Ord>
         where [T:Ord,]
         {
@@ -399,6 +419,7 @@ declare_meta_vtable! {
     ]
     [
         partial_cmp:extern fn(&T,&T)->ROption<RCmpOrdering>;
+        priv _partial_cmp;
         impl[] VtableFieldValue<PartialOrd>
         where [T:PartialOrd,]
         {
@@ -406,7 +427,9 @@ declare_meta_vtable! {
         }
     ]
     [
+        #[sabi(last_prefix_field)]
         hash:extern "C" fn(&T,trait_objects::HasherTraitObject<&mut ErasedObject>);
+        priv _hash;
         impl[] VtableFieldValue<Hash>
         where [T:Hash]
         {
