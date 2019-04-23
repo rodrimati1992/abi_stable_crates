@@ -73,6 +73,7 @@ pub enum AbiInstability {
 use self::AbiInstability as AI;
 
 impl AbiInstabilityErrors {
+    #[cfg(test)]
     pub fn flatten_errors(self) -> RVec<AbiInstability> {
         self.errors
             .into_iter()

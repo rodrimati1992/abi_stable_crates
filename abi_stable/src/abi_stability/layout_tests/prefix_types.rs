@@ -131,7 +131,7 @@ fn new_list()->Vec<&'static AbiInfoWrapper>{
     vec![PREF_0, PREF_1, PREF_2, PREF_3]
 }
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn prefixes_test() {
     let list = new_list();
 
@@ -270,7 +270,7 @@ fn prefixes_test() {
 }
 
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn hierarchical_prefix_test(){
     let library_00=PREF_2;
     let library_01=PREF_1;
@@ -341,7 +341,7 @@ fn hierarchical_prefix_test(){
 }
 
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn prefix_is_same_alignment(){
     let globals=CheckingGlobals::new();
     let misaligned = <&prefix2_misaligned::Prefix_Prefix>::ABI_INFO;
@@ -360,7 +360,7 @@ fn prefix_is_same_alignment(){
 }
 
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn prefix_is_same_size(){
     let globals=CheckingGlobals::new();
     let list=new_list();
@@ -385,7 +385,7 @@ unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
 }
 
 
-#[test]
+#[cfg_attr(not(miri),test)]
 fn prefix_on_nonexistent_field() {
     let prefix0=
         prefix0::Prefix{

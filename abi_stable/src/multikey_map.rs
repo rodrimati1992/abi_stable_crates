@@ -102,16 +102,19 @@ where K:Hash+Eq
         self.arena.get_mut(i.index).map(|x| &mut x.value )
     }
 
+    #[allow(dead_code)]
     pub(crate) fn replace_index(&mut self,replace:MapIndex,with:T)->Option<T>{
         self.get_mut_with_index(replace)
             .map(|x| mem::replace(x,with) )
     }
 
+    #[allow(dead_code)]
     /// The ammount of keys associated with values.
     pub(crate) fn key_len(&self)->usize{
         self.map.len()
     }
 
+    #[allow(dead_code)]
     /// The ammount of values.
     pub(crate) fn value_len(&self)->usize{
         self.arena.len()
@@ -213,6 +216,7 @@ where K:Hash+Eq
     ///
     /// If `key` was associated with a value,and it was the only key for that value,
     /// the index for the value will be invalidated.
+    #[allow(dead_code)]
     pub(crate) fn associate_key_forced(&mut self,key:K,index:MapIndex)->Option<T>
     where K:Clone+::std::fmt::Debug
     {
@@ -346,10 +350,12 @@ impl<T> InsertionTime<T>{
             |InsertionTime::Now(v)=>v,
         }
     }
+    #[allow(dead_code)]
     pub(crate) fn split(self)->(T,InsertionTime<()>){
         let discr=self.discriminant();
         (self.into_inner(),discr)
     }
+    #[allow(dead_code)]
     pub(crate) fn map<F,U>(self,f:F)->InsertionTime<U>
     where F:FnOnce(T)->U
     {
@@ -358,6 +364,7 @@ impl<T> InsertionTime<T>{
             InsertionTime::Now(v)=>InsertionTime::Now(f(v)),
         }
     }
+    #[allow(dead_code)]
     pub(crate) fn discriminant(&self)->InsertionTime<()>{
         match self{
             InsertionTime::Before{..}=>InsertionTime::Before(()),
@@ -371,7 +378,7 @@ impl<T> InsertionTime<T>{
 
 
 
-#[cfg(test)]
+#[cfg(all(not(miri),test))]
 mod tests{
     use super::*;
 

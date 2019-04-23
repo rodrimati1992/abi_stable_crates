@@ -18,6 +18,7 @@ use crate::{
 
 use core_extensions::{ResultLike, StringExt};
 
+#[doc(hidden)]
 /// Returns the vtable used by VirtualWrapper to do dynamic dispatch.
 pub trait GetVtable<This,Ptr>: ImplType {
     
