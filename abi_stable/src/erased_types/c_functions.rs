@@ -87,7 +87,7 @@ where
     }
 }
 
-pub(crate) extern "C" fn serialize_impl<'a, T>(this: &'a T) -> RResult<RCow<'a, str>, RBoxError>
+pub(crate) extern "C" fn serialize_impl<'a, T>(this: &'a T) -> RResult<RCow<'a, RStr<'a>>, RBoxError>
 where
     T: ImplType + SerializeImplType,
     T::Interface: InterfaceType<Serialize = True>,

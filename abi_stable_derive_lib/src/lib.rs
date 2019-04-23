@@ -2,7 +2,7 @@
 An implementation detail of abi_stable.
 */
 
-#![recursion_limit="128"]
+#![recursion_limit="192"]
 //#![deny(unused_variables)]
 
 
@@ -20,6 +20,8 @@ mod constants;
 mod ignored_wrapper;
 mod datastructure;
 mod fn_pointer_extractor;
+mod impl_interfacetype;
+mod prefix_types;
 
 mod lifetimes;
 mod stable_abi;
@@ -41,23 +43,21 @@ use crate::{
     common_tokens::CommonTokens,
 };
 
-/// Mangles the name of the function that returns a library's functions/statics,
-/// so that one does not accidentally load
-/// dynamic libraries that use incompatible versions of abi_stable
-#[doc(hidden)]
-pub fn mangle_library_getter_ident<S>(s:S)->String
+
+fn mangle_function_ident<S>(kind:&str,name:S)->String
 where S: ::std::fmt::Display
 {
-    use core_extensions::StringExt;
 
     let major=env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
     let minor=env!("CARGO_PKG_VERSION_MINOR").parse::<u32>().unwrap();
 
-    let unmangled=if major==0 {
-        format!("_as_mod.{}.vn.minor.{}",s,minor)
+    let version_suffix=if major==0 {
+        format!("minor.{}",minor)
     }else{
-        format!("_as_mod.{}.vn.major.{}",s,major)
+        format!("major.{}",major)
     };
+
+    let unmangled=format!("_as.{}.{}.vn.{}",kind,name,version_suffix);
 
     let mut mangled=String::with_capacity(unmangled.len()*3/2);
 
@@ -110,6 +110,27 @@ where S: ::std::fmt::Display
 }
 
 
+/// Mangles the name of the function that returns a library's functions/statics,
+/// so that one does not accidentally load
+/// dynamic libraries that use incompatible versions of abi_stable
+#[doc(hidden)]
+pub fn mangle_library_getter_ident<S>(s:S)->String
+where S: ::std::fmt::Display
+{
+    mangle_function_ident("mod",s)
+}
+
+
+/// Mangles the name of the private function that initializes the 
+/// abi_stable globals.
+#[doc(hidden)]
+pub fn mangle_initialize_globals_with_ident<S>(s:S)->String
+where S: ::std::fmt::Display
+{
+    mangle_function_ident("init_globals",s)
+}
+
+
 #[doc(hidden)]
 pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
     measure!({
@@ -123,6 +144,14 @@ pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
 pub fn derive_stable_abi_from_str(s: &str) -> TokenStream2 {
     let input = syn::parse_str::<DeriveInput>(s).unwrap();
     stable_abi::derive(input)
+}
+
+
+#[allow(non_snake_case)]
+#[doc(hidden)]
+pub fn impl_InterfaceType(input: TokenStream1) -> TokenStream1{
+    let input = syn::parse::<syn::ItemImpl>(input).unwrap();
+    impl_interfacetype::the_macro(input).into()
 }
 
 
@@ -147,6 +176,11 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
             Span::call_site(),
         );
 
+        let abi_stable_globals_init=Ident::new(
+            &mangle_initialize_globals_with_ident(&original_fn_ident),
+            Span::call_site(),
+        );
+
         quote!(
             #input
 
@@ -154,6 +188,16 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
             #(#attrs)*
             #vis extern "C" fn #export_name() #ret_ty {
                 let _: abi_stable::library::LibraryGetterFn<_> = #original_fn_ident;
+                let _: abi_stable::globals::InitializeGlobalsWithFn = #abi_stable_globals_init;
+
+                #[no_mangle]
+                pub extern "C" fn #abi_stable_globals_init(
+                    globals:&'static abi_stable::globals::Globals
+                ){
+                    abi_stable::globals::initialize_globals_with(globals)
+                }
+
+                
                 #original_fn_ident()
             }
         ).into()

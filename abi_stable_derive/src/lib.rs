@@ -11,58 +11,8 @@ use proc_macro::TokenStream as TokenStream1;
 
 /**
 
-The StableAbi derive macro allows one to implement the StableAbi trait to :
 
-- Assert that the type has a stable representation across Rust version/compiles.
-
-- Produce the layout of the type at runtime to check it against the loaded library.
-
-# Container Attributes
-
-These attributes are applied on the type declaration.
-
-### `#[sabi(phantom(TypeParameter))]`
-
-Removes the implicit `TypeParameter:StableAbi` constraint.
-
-### `#[sabi(bound="Type:ATrait")]`
-
-Adds a bound to the StableAbi impl.
-
-### `#[sabi(debug_print)]`
-
-Prints the generated code,stopping compilation.
-
-# Field attributes
-
-These attributes are applied to fields.
-
-### `#[sabi(unsafe_opaque_field)]`
-
-Does not require the field to implement StableAbi,
-and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
-
-This is unsafe because the layout of the type won't be verified when loading the library,
-which causes Undefined Behavior if the type has a different layout.
-
-# Supported repr attributes
-
-Because repr attributes can cause the type to change layout,
-the StableAbi derive macro has to know about every repr attribute applied to the type,
-since it might invalidate layout stability.
-
-### `repr(C)`
-
-This is the representation that most StableAbi types will have.
-
-### `repr(transparent)`
-
-`repr(transparent)` types inherit the abi stability of their first field.
-
-### `repr(align(...))`
-
-`repr(align(...))` is supported,
-so long as it is used in combination with the other supported repr attributes.
+This macro is documented in abi_stable::docs
 
 */
 
@@ -73,14 +23,24 @@ pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
 
 
 
-/*
-Deprecated:use `export_sabi_module` instead of this to export abi_stable modules.
+
+/**
+
+Allows implementing the InterfaceType trait,
+providing default values for associated types not specified in the impl block.
+
+For an example look at `abi_stable::erased_types::InterfaceType`.
+
 */
-#[deprecated]
-#[proc_macro_attribute]
-pub fn mangle_library_getter(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
-    abi_stable_derive_lib::mangle_library_getter_attr(attr,item)
+#[proc_macro]
+#[allow(non_snake_case)]
+pub fn impl_InterfaceType(input: TokenStream1) -> TokenStream1 {
+    abi_stable_derive_lib::impl_InterfaceType(input)
 }
+
+
+
+
 
 /**
 
@@ -109,7 +69,7 @@ pub extern "C" fn get_hello_world_mod() -> WithLayout<TextOperationsMod> {
 
 # More examples
 
-For a more detailed example look into the abi_stable_example*_impl crates in the 
+For a more detailed example look into the example/example_*_impl crates in the 
 repository for this crate.
 
 

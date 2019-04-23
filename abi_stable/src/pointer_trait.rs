@@ -7,7 +7,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{OpaqueType};
+use crate::{ZeroSized};
 // use crate::{cabi_type::CAbi};
 
 #[allow(unused_imports)]
@@ -42,10 +42,13 @@ Trait for pointers that:
 
 - If it implements DerefMut,it always returns the same memory address.
 
+- The inline layout of the pointer cannot change depending on its (Sized) referent.
+
 
 Explicit non-guarantees:
 
-- If the pointer is converted by value to another pointer type,
+- If the pointer is converted by value to another pointer type
+    (ie:going from RBox<T> to Box<T>,RArc<T> to Arc<T>),
     the address cannot be relied on being the same,
     even if it implements StableDeref.
 
@@ -60,14 +63,27 @@ impl<P> StableDerefMut for P where P: StableDeref + DerefMut {}
 
 ///////////
 
-/// Erases a pointer,casting its referent to `OpaqueType<O>`.
+/**
+Erases a pointer,casting its referent to `ZeroSized<O>`.
+
+This is safe to do because:
+
+-`ZeroSized<O> ` is a zero-sized type,
+
+- StableDeref requires that the pointer always have the same layout 
+  regardless of its referent.
+
+- TransmuteElement requires that the pointer either be `!Drop`,
+    or that the pointer uses a vtable with a destructor that knows 
+    the original type of the referent
+
+It would not be safe to do this in the other direction,
+going from `ZeroSized<O>` to any other type,
+
+
+*/
 /// 
-/// This is safe to do because `OpaqueType<O> ` is a zero-sized type.
-///
-/// It would not be safe to do this in the other direction,
-/// going from `OpaqueType<O>` to any other type,
-/// 
-pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<OpaqueType<O>> {
+pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<ZeroSized<O>> {
     /// # Example
     ///
     /// ```
@@ -75,10 +91,10 @@ pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<OpaqueType<O>> {
     ///     pointer_trait::ErasedStableDeref,
     ///     std_types::RBox,
     ///     reexports::SelfOps,
-    ///     OpaqueType,
+    ///     ZeroSized,
     /// };
     ///
-    /// let signed:RBox<OpaqueType< Vec<()> >> =unsafe{
+    /// let signed:RBox<ZeroSized< Vec<()> >> =unsafe{
     ///     RBox::new(1_i32)
     ///         .erased(Vec::<()>::T)
     /// };
@@ -91,23 +107,30 @@ pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<OpaqueType<O>> {
     }
 }
 
-impl<P, O> ErasedStableDeref<O> for P where P: StableDeref + TransmuteElement<OpaqueType<O>> {}
+impl<P, O> ErasedStableDeref<O> for P where P: StableDeref + TransmuteElement<ZeroSized<O>> {}
 
 ///////////
 
-/// Transmutes the element type of this pointer..
-///
-/// # Safety for implementor
-///
-/// Implementors of this trait must ensure that:
-///
-/// - The memory layout of this
-/// type is the same regardless of the type of the referent .
-/// 
-/// - References to `T` are compatible with references to `Self::Target`.
-/// 
-/// `T` is intentionally `Sized` so as to prevent transmuting pointers to DST .
-///
+/**
+Transmutes the element type of this pointer..
+
+# Safety for implementor
+
+Implementors of this trait must ensure that:
+
+- The memory layout of this
+    type is the same regardless of the type of the referent .
+
+- The pointer type is either `!Drop`(no drop glue either),
+    or it uses a vtable to Drop the referent and deallocate the memory correctly.
+
+# Safety for callers
+
+Callers must ensure that:
+
+- References to `T` are compatible with references to `Self::Target`.
+
+*/
 pub unsafe trait TransmuteElement<T>: StableDeref {
     type TransmutedPtr: StableDeref<Target = T>;
 
@@ -119,9 +142,10 @@ pub unsafe trait TransmuteElement<T>: StableDeref {
     /// to a pointer to `T` .
     ///
     /// For example:
-    ///     It is undefined behavior to create unaligned references ,
-    ///     therefore transmuting from `&u8` to `&u16` is UB
-    ///     if the caller does not ensure that the reference was a multiple of 2.
+    ///
+    /// It is undefined behavior to create unaligned references ,
+    /// therefore transmuting from `&u8` to `&u16` is UB
+    /// if the caller does not ensure that the reference was a multiple of 2.
     ///
     /// 
     /// # Example

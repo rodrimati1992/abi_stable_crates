@@ -45,6 +45,10 @@ impl<T> LazyStaticRef<T>{
     pub fn try_init<F,E>(&self,initializer:F)->Result<&'static T,E>
     where F:FnOnce()->Result<&'static T,E>
     {
+        if let Some(pointer)=self.get() {
+            return Ok(pointer);
+        }
+        
         self.lock.lock();
         let unlocker=UnlockOnDrop(&self.lock);
 

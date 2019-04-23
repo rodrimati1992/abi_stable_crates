@@ -20,7 +20,6 @@ mod private {
     #[derive(StableAbi)]
     #[repr(C)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(shared_stable_abi(T))]
     pub struct RArc<T> {
         data: *const T,
         // This is a pointer instead of a static reference only because
@@ -35,7 +34,7 @@ mod private {
             fn(this){
                 let out = RArc {
                     data: Arc::into_raw(this),
-                    vtable: VTableGetter::LIB_VTABLE as *const ArcVtable<T>,
+                    vtable: VTableGetter::LIB_VTABLE.as_prefix_raw(),
                     _marker: Default::default(),
                 };
                 out
@@ -68,7 +67,7 @@ mod private {
 
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
-            self.vtable = VTableGetter::LIB_VTABLE_FOR_TESTING as *const ArcVtable<T>;
+            self.vtable = VTableGetter::LIB_VTABLE_FOR_TESTING.as_prefix_raw();
         }
     }
 }
@@ -100,9 +99,9 @@ impl<T> RArc<T> {
         T: Clone,
     {
         let this_vtable =this.vtable();
-        let other_vtable=VTableGetter::LIB_VTABLE;
+        let other_vtable=VTableGetter::LIB_VTABLE.as_prefix();
         if ::std::ptr::eq(this_vtable,other_vtable)||
-            this_vtable.type_id==other_vtable.type_id
+            this_vtable.type_id()==other_vtable.type_id()
         {
             unsafe { Arc::from_raw(this.into_raw()) }
         } else {
@@ -117,7 +116,7 @@ impl<T> RArc<T> {
     #[inline]
     pub fn try_unwrap(this: Self) -> Result<T, Self>{
         let vtable = this.vtable();
-        (vtable.try_unwrap)(this).into_result()
+        (vtable.try_unwrap())(this).into_result()
     }
 
     /// Attempts to create a mutable reference to `T`,
@@ -125,7 +124,7 @@ impl<T> RArc<T> {
     #[inline]
     pub fn get_mut(this: &mut Self) -> Option<&mut T>{
         let vtable = this.vtable();
-        (vtable.get_mut)(this)
+        (vtable.get_mut())(this)
     }
 
     /// Makes a mutable reference to `T`,
@@ -170,7 +169,7 @@ where
 
 impl<T> Clone for RArc<T> {
     fn clone(&self) -> Self {
-        (self.vtable().clone)(self)
+        (self.vtable().clone())(self)
     }
 }
 
@@ -191,7 +190,7 @@ impl<T> Drop for RArc<T> {
         // actually support ?Sized types.
         unsafe {
             let vtable = self.vtable();
-            (vtable.destructor)((self.data() as *const T).into(), CallReferentDrop::Yes);
+            (vtable.destructor())((self.data() as *const T).into(), CallReferentDrop::Yes);
         }
     }
 }
@@ -210,12 +209,12 @@ unsafe impl<T> Send for RArc<T> where T: Send + Sync {}
 
 mod vtable_mod {
     use super::*;
+    use crate::prefix_type::{PrefixTypeTrait,WithMetadata};
 
     pub(super) struct VTableGetter<'a, T>(&'a T);
 
     impl<'a, T: 'a> VTableGetter<'a, T> {
-        // The VTABLE for this type in this executable/library
-        pub(super) const LIB_VTABLE: &'a ArcVtable<T> = &ArcVtable {
+        const DEFAULT_VTABLE:ArcVtableVal<T>=ArcVtableVal {
             type_id:ReturnValueEquality{
                 function:new_utypeid::<RArc<()>>
             },
@@ -225,23 +224,36 @@ mod vtable_mod {
             try_unwrap: try_unwrap_arc::<T>,
         };
 
+        // The VTABLE for this type in this executable/library
+        pub(super) const LIB_VTABLE: &'a WithMetadata<ArcVtableVal<T>> = {
+            &WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE)
+        };
+
         #[cfg(test)]
-        pub(super) const LIB_VTABLE_FOR_TESTING: &'a ArcVtable<T> = &ArcVtable {
-            type_id:ReturnValueEquality{
-                function:new_utypeid::<RArc<i32>>
-            },
-            ..*Self::LIB_VTABLE
+        pub(super) const LIB_VTABLE_FOR_TESTING: &'a WithMetadata<ArcVtableVal<T>> = {
+            &WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                ArcVtableVal{
+                    type_id:ReturnValueEquality{
+                        function:new_utypeid::<RArc<i32>>
+                    },
+                    ..Self::DEFAULT_VTABLE
+                }
+            )
         };
     }
 
     #[derive(StableAbi)]
     #[repr(C)]
     #[sabi(inside_abi_stable_crate)]
-    pub struct ArcVtable<T> {
+    #[sabi(kind(Prefix(prefix_struct="ArcVtable")))]
+    #[sabi(missing_field(panic))]
+    pub struct ArcVtableVal<T> {
         pub(super) type_id:ReturnValueEquality<UTypeId>,
         pub(super) destructor: unsafe extern "C" fn(*const T, CallReferentDrop),
         pub(super) clone: extern "C" fn(&RArc<T>) -> RArc<T>,
         pub(super) get_mut: extern "C" fn(&mut RArc<T>) -> Option<&mut T>,
+        #[sabi(last_prefix_field)]
         pub(super) try_unwrap:extern "C" fn(RArc<T>) -> RResult<T, RArc<T>>,
     }
 

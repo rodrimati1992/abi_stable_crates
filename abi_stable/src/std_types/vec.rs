@@ -16,6 +16,7 @@ use core_extensions::prelude::*;
 use crate::{
     std_types::{RSlice, RSliceMut},
     std_types::utypeid::{UTypeId,new_utypeid},
+    prefix_type::{PrefixTypeTrait,WithMetadata},
     return_value_equality::ReturnValueEquality,
 };
 
@@ -48,7 +49,7 @@ mod private {
         #[allow(dead_code)]
         // Used to test functions that change behavior when the vtable changes
         pub(super) fn set_vtable_for_testing(mut self) -> Self {
-            self.vtable = VTableGetter::<T>::LIB_VTABLE_FOR_TESTING as *const _;
+            self.vtable = VTableGetter::<T>::LIB_VTABLE_FOR_TESTING.as_prefix_raw();
             self
         }
 
@@ -92,7 +93,7 @@ mod private {
             fn(this){
                 let mut this=ManuallyDrop::new(this);
                 RVec {
-                    vtable: VTableGetter::<T>::LIB_VTABLE,
+                    vtable: VTableGetter::<T>::LIB_VTABLE.as_prefix_raw(),
                     buffer: this.as_mut_ptr(),
                     length: this.len(),
                     capacity: this.capacity(),
@@ -184,7 +185,7 @@ impl<T> RVec<T> {
     /// Shrinks the capacity of the RString to match its length.
     pub fn shrink_to_fit(&mut self) {
         let vtable = self.vtable();
-        (vtable.shrink_to_fit)(self);
+        vtable.shrink_to_fit()(self);
     }
 
     /// Whether the length of the `RVec<T>` is 0.
@@ -203,9 +204,9 @@ impl<T> RVec<T> {
 
         unsafe {
             let this_vtable =this.vtable();
-            let other_vtable=VTableGetter::LIB_VTABLE;
+            let other_vtable=VTableGetter::LIB_VTABLE.as_prefix();
             if ::std::ptr::eq(this_vtable,other_vtable)||
-                this_vtable.type_id==other_vtable.type_id
+                this_vtable.type_id()==other_vtable.type_id()
             {
                 Vec::from_raw_parts(this.buffer(), this.len(), this.capacity())
             } else {
@@ -390,13 +391,13 @@ impl<T> RVec<T> {
     #[inline]
     fn grow_capacity_to_1(&mut self) {
         let vtable = self.vtable();
-        (vtable.grow_capacity_to)(self, self.capacity() + 1, Exactness::Above);
+        vtable.grow_capacity_to()(self, self.capacity() + 1, Exactness::Above);
     }
 
     fn resize_capacity(&mut self, to: usize, exactness: Exactness) {
         let vtable = self.vtable();
         if self.capacity() < to {
-            (vtable.grow_capacity_to)(self, to, exactness);
+            vtable.grow_capacity_to()(self, to, exactness);
         }
     }
 }
@@ -521,7 +522,7 @@ unsafe impl<T> Sync for RVec<T> where T: Sync {}
 impl<T> Drop for RVec<T> {
     fn drop(&mut self) {
         let vtable = self.vtable();
-        (vtable.destructor)(self)
+        vtable.destructor()(self)
     }
 }
 
@@ -690,8 +691,7 @@ enum Exactness {
 struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
-    // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: &'a VecVTable<T> = &VecVTable {
+    const DEFAULT_VTABLE:VecVTableVal<T>=VecVTableVal{
         type_id:ReturnValueEquality{
             function:new_utypeid::<RVec<()>>
         },
@@ -700,31 +700,37 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
         shrink_to_fit: shrink_to_fit_vec,
     };
 
+    // The VTABLE for this type in this executable/library
+    const LIB_VTABLE: &'a WithMetadata<VecVTableVal<T>> = 
+        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE);
+
     // Used to test functions that change behavior based on the vtable being used
-    const LIB_VTABLE_FOR_TESTING: &'a VecVTable<T> = &VecVTable {
-        type_id:ReturnValueEquality{
-            function:new_utypeid::<RVec<i32>>
-        },
-        ..*Self::LIB_VTABLE
-    };
+    const LIB_VTABLE_FOR_TESTING: &'a WithMetadata<VecVTableVal<T>> = 
+        &WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            VecVTableVal {
+                type_id:ReturnValueEquality{
+                    function:new_utypeid::<RVec<i32>>
+                },
+                ..Self::DEFAULT_VTABLE
+            }
+        );
+
 }
 
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-struct VecVTable<T> {
+#[sabi(kind(Prefix(prefix_struct="VecVTable")))]
+#[sabi(missing_field(panic))]
+struct VecVTableVal<T> {
     type_id:ReturnValueEquality<UTypeId>,
     destructor: extern "C" fn(&mut RVec<T>),
     grow_capacity_to: extern "C" fn(&mut RVec<T>, usize, Exactness),
+    #[sabi(last_prefix_field)]
     shrink_to_fit: extern "C" fn(&mut RVec<T>),
 }
 
-impl<T> Copy for VecVTable<T> {}
-impl<T> Clone for VecVTable<T> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
 
 extern "C" fn destructor_vec<T>(this: &mut RVec<T>) {
     extern_fn_panic_handling! {

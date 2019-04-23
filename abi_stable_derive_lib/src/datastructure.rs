@@ -1,6 +1,6 @@
 use crate::*;
 use crate::{
-    fn_pointer_extractor::{FnInfo, TypeVisitor},
+    fn_pointer_extractor::{FnInfo,Function, TypeVisitor},
     lifetimes::LifetimeIndex,
 };
 
@@ -97,7 +97,7 @@ impl<'a> DataStructure<'a> {
             }
 
             Data::Union(union_) => {
-                let fields = Some(&mut union_.fields.named);
+                let fields = Some(&union_.fields.named);
                 let sk = StructKind::Braced;
                 let vari = Struct::with_fields(&ast.attrs, name, sk, fields, &mut ty_visitor);
                 variants.push(vari);
@@ -152,7 +152,7 @@ impl<'a> Struct<'a> {
     pub(crate) fn new(
         attrs: &'a [Attribute],
         name: &'a Ident,
-        fields: &'a mut SynFields,
+        fields: &'a SynFields,
         tv: &mut TypeVisitor<'a>,
     ) -> Self {
         let kind = match *fields {
@@ -161,8 +161,8 @@ impl<'a> Struct<'a> {
             SynFields::Unit { .. } => StructKind::Braced,
         };
         let fields = match fields {
-            SynFields::Named(f) => Some(&mut f.named),
-            SynFields::Unnamed(f) => Some(&mut f.unnamed),
+            SynFields::Named(f) => Some(&f.named),
+            SynFields::Unnamed(f) => Some(&f.unnamed),
             SynFields::Unit => None,
         };
 
@@ -177,7 +177,7 @@ impl<'a> Struct<'a> {
         tv: &mut TypeVisitor<'a>,
     ) -> Self
     where
-        I: IntoIterator<Item = &'a mut SynField>,
+        I: IntoIterator<Item = &'a SynField>,
     {
         Self {
             attrs,
@@ -202,12 +202,18 @@ pub(crate) struct Field<'a> {
     /// identifier for the field,which is either an index(in a tuple struct) or a name.
     pub(crate) ident: FieldIdent<'a>,
     pub(crate) ty: &'a Type,
+    /// The type used to get the AbiInfo of the field.
+    /// This has all parameter and return types of function pointers removed.
+    /// Extracted into the `functions` field of this struct.
+    pub(crate) mutated_ty: Type,
+    /// The function pointers from this field.
+    pub(crate) functions:Vec<Function<'a>>,
 }
 
 impl<'a> Field<'a> {
     pub(crate) fn new(
         index: usize,
-        field: &'a mut SynField,
+        field: &'a SynField,
         span: Span,
         tv: &mut TypeVisitor<'a>,
     ) -> Self {
@@ -216,7 +222,9 @@ impl<'a> Field<'a> {
             None => FieldIdent::new_index(index, span),
         };
 
-        let visit_info = tv.visit_field(&mut field.ty);
+        let mut mutated_ty=field.ty.clone();
+
+        let visit_info = tv.visit_field(&mut mutated_ty);
 
         Self {
             attrs: &field.attrs,
@@ -224,6 +232,8 @@ impl<'a> Field<'a> {
             referenced_lifetimes: visit_info.referenced_lifetimes,
             ident,
             ty: &field.ty,
+            mutated_ty,
+            functions: visit_info.functions,
         }
     }
 
@@ -236,7 +246,7 @@ impl<'a> Field<'a> {
 
     pub(crate) fn from_iter<I>(name: &'a Ident, fields: I, tv: &mut TypeVisitor<'a>) -> Vec<Self>
     where
-        I: IntoIterator<Item = &'a mut SynField>,
+        I: IntoIterator<Item = &'a SynField>,
     {
         fields
             .into_iter()

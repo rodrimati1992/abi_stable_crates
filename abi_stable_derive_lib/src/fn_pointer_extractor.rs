@@ -102,8 +102,9 @@ impl<'a> ToTokens for FnParamRetLtRefTokens<'a> {
 }
 
 
-pub(crate) struct VisitFieldRet {
+pub(crate) struct VisitFieldRet<'a> {
     pub(crate) referenced_lifetimes: Vec<LifetimeIndex>,
+    pub(crate) functions:Vec<Function<'a>>,
 }
 
 
@@ -131,11 +132,12 @@ impl<'a> TypeVisitor<'a> {
         }
     }
 
-    pub fn visit_field(&mut self, ty: &mut Type) -> VisitFieldRet {
+    pub fn visit_field(&mut self,ty: &mut Type) -> VisitFieldRet<'a> {
         self.visit_type_mut(ty);
 
         VisitFieldRet {
             referenced_lifetimes: mem::replace(&mut self.vars.referenced_lifetimes, Vec::new()),
+            functions:mem::replace(&mut self.vars.fn_info.functions, Vec::new()),
         }
     }
 

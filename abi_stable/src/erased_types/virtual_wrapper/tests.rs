@@ -15,14 +15,13 @@ use serde_json;
 
 #[allow(unused_imports)]
 use crate::{
-    abi_stability::{check_abi_stability},
     erased_types::{
         VirtualWrapper,ImplType, InterfaceType, SerializeImplType,DeserializeInterfaceType,
     },
     impl_get_type_info,
-    type_level_bool::{False,True},
+    type_level::bools::{False,True},
     traits::IntoReprC,
-    OpaqueType, 
+    ZeroSized, 
     StableAbi,
     std_types::{
         RArc, RBox, RBoxError, RCow, RStr, RString,  StaticStr,
@@ -41,6 +40,10 @@ struct Foo<T> {
     name: T,
 }
 
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
 struct FooInterface;
 
 
@@ -65,7 +68,7 @@ impl<T> SerializeImplType for Foo<T>
 where
     T: 'static + Send + Sync + Serialize,
 {
-    fn serialize_impl(&self) -> Result<RCow<'_, str>, RBoxError> {
+    fn serialize_impl(&self) -> Result<RCow<'_, RStr<'_>>, RBoxError> {
         match serde_json::to_string(self) {
             Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
             Err(e)=>Err(RBoxError::new(e)),
@@ -73,29 +76,32 @@ where
     }
 }
 
-impl InterfaceType for FooInterface {
-    type Clone = True;
+crate::impl_InterfaceType!{
+    impl crate::InterfaceType for FooInterface {
+        type Clone = True;
 
-    type Default = True;
+        type Default = True;
 
-    type Display = True;
+        type Display = True;
 
-    type Debug = True;
+        type Debug = True;
 
-    type Serialize = True;
+        type Serialize = True;
 
-    type Deserialize = True;
+        type Deserialize = True;
 
-    type Eq = True;
+        type Eq = True;
 
-    type PartialEq = True;
+        type PartialEq = True;
 
-    type Ord = True;
+        type Ord = True;
 
-    type PartialOrd = True;
+        type PartialOrd = True;
 
-    type Hash = True;
+        type Hash = True;
+    }
 }
+
 
 impl DeserializeInterfaceType for FooInterface {
     type Deserialized = VirtualFoo;
@@ -108,7 +114,7 @@ impl DeserializeInterfaceType for FooInterface {
     }
 }
 
-type VirtualFoo = VirtualWrapper<RBox<OpaqueType<FooInterface>>>;
+type VirtualFoo = VirtualWrapper<RBox<ZeroSized<FooInterface>>>;
 
 /////////////////////////////////
 

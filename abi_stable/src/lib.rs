@@ -1,17 +1,27 @@
 /*!
 
-For Rust-to-Rust ffi,with a focus on creating libraries loaded at program startup.
+For Rust-to-Rust ffi,
+with a focus on creating libraries loaded at program startup,
+and with load-time type-checking.
 
 This library allows defining Rust libraries that can be loaded at runtime,
-even if they were built with a different Rust version than the crate that depends on it,
+even if they were built with a different Rust version than the crate that depends on it.
 
+These are some usecases for this library:
+    
+- Converting a Rust dependency tree from compiling statically into a single binary,
+    into one binary (and potentially) many dynamic libraries,
+    allowing separate re-compilation on changes.
+
+- Creating a plugin system (without support for unloading).
+    
 # Features
 
 Currently this library has these features:
 
 - ffi-safe equivalent of trait objects for any combination of a selection of traits.
 
-- Provides ffi-safe alternatives to standard library types..
+- Provides ffi-safe alternatives to many standard library types..
 
 - Provides the `StableAbi` trait for asserting that types are ffi-safe.
 
@@ -23,8 +33,11 @@ Currently this library has these features:
 
 # Examples
 
-For **examples** of using `abi_stable` you can look at the abi_stable_example_* crates,
+For **examples** of using `abi_stable` you can look at the crates in the examples directory ,
 in the repository for this crate.
+
+To run the examples generally you'll have to build the `*_impl` crate,
+then run the `*_user` crate (all `*_user` crates should have a help message and a readme.md).
 
 # Glossary
 
@@ -53,7 +66,7 @@ These are the 2 kinds of types passed through FFI:
     This is the default kind when deriving StableAbi.
 
 - Opaque kind:
-    Types wrapped in `VirtualWrapper<SomePointer<OpaqueType<Interface>>>`,
+    Types wrapped in `VirtualWrapper<SomePointer<ZeroSized<Interface>>>`,
     whose layout can change in any version of the library,
     and can only be unwrapped back to the original type in the dynamic library/binary 
     that created it.
@@ -64,6 +77,21 @@ Adding variants or fields to a variant is disallowed in minor versions.
 
 To represent non-exhaustive enums without fields it is recommended using structs and associated constants so that it is not UB to keep adding field-less variants in minor versions.
 
+# Extra documentation
+
+- [Unsafe code guidelines](./docs/unsafe_code_guidelines/index.html):<br>
+    Describes how to write unsafe code ,relating to this library.
+
+# Macros
+
+- [StableAbi derive macro](./docs/stable_abi_derive/index.html):<br>
+    For asserting abi-stability of a type,
+    and obtaining the layout of the time at runtime.
+
+- [Prefix-types (using the StableAbi derive macro)
+  ](./docs/prefix_types/index.html):<br>
+    The method by which *vtables* and *modules* are implemented,
+    allowing extending them in minor versions of a library.
 
 */
 
@@ -82,8 +110,8 @@ pub use abi_stable_derive::StableAbi;
 
 #[doc(inline)]
 pub use abi_stable_derive::{
-    mangle_library_getter,
     export_sabi_module,
+    impl_InterfaceType,
 };
 
 #[macro_use]
@@ -92,6 +120,11 @@ mod impls;
 
 #[macro_use]
 mod macros;
+
+
+#[cfg(test)]
+#[macro_use]
+mod test_macros;
 
 #[cfg(test)]
 #[macro_use]
@@ -108,7 +141,9 @@ pub mod erased_types;
 pub mod library;
 pub mod ignored_wrapper;
 pub mod marker_type;
+mod multikey_map;
 pub mod pointer_trait;
+pub mod prefix_type;
 
 #[doc(hidden)]
 pub mod return_value_equality;
@@ -120,26 +155,13 @@ pub mod std_types;
 
 pub mod utils;
 pub mod lazy_static_ref;
+pub mod type_level;
 pub mod version;
 
-#[cfg(test)]
-#[macro_use]
-mod test_macros;
-#[cfg(test)]
-mod layout_tests;
+pub mod docs;
 
 
-/**
-Type-level booleans.
 
-This is a re-export from `core_extensions::type_level_bool`,
-so as to allow glob imports (`abi_stable::type_level_bool::*`)
-without worrying about importing too many items.
-*/
-pub mod type_level_bool{
-    #[doc(inline)]
-    pub use core_extensions::type_level_bool::{True,False,Boolean};
-}
 
 /// Miscelaneous items re-exported from core_extensions.
 pub mod reexports{
@@ -157,11 +179,64 @@ allocators,please create an issue for this.
 use std::sync::atomic::AtomicUsize;
 static EXECUTABLE_IDENTITY: AtomicUsize = AtomicUsize::new(1);
 
+use crate::abi_stability::stable_abi_trait::SharedStableAbi;
+
 #[doc(inline)]
 pub use crate::{
     abi_stability::StableAbi,
     erased_types::{VirtualWrapper,ImplType, InterfaceType},
-    library::Library,
-    marker_type::{ErasedObject, OpaqueType},
+    marker_type::{ErasedObject, ZeroSized},
 };
+
+
+
+#[doc(hidden)]
+pub mod globals{
+    use crate::{
+        lazy_static_ref::LazyStaticRef,
+        abi_stability::{
+            abi_checking::{check_abi_stability_for_ffi},
+            stable_abi_trait::AbiInfoWrapper,
+        },
+        std_types::{RResult,RBoxError},
+        utils::leak_value,
+    };
+
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    pub struct Globals{
+        pub layout_checking:
+            extern fn(&'static AbiInfoWrapper,&'static AbiInfoWrapper) -> RResult<(), RBoxError> ,
+    }
+
+    impl Globals{
+        pub fn new()->&'static Self{
+            leak_value(Globals{
+                layout_checking:check_abi_stability_for_ffi,
+            })
+        }
+    }
+
+    pub(crate)static GLOBALS:LazyStaticRef<Globals>=LazyStaticRef::new();
+
+    #[inline(never)]
+    pub fn initialized_globals()->&'static Globals{
+        GLOBALS.init(|| Globals::new() )
+    }
+
+
+    pub type InitializeGlobalsWithFn=
+        extern "C" fn(&'static Globals);
+
+
+    #[inline(never)]
+    pub extern fn initialize_globals_with(globs:&'static Globals){
+        let _:InitializeGlobalsWithFn=initialize_globals_with;
+
+        GLOBALS.init(|| globs );
+    }
+}
+
+
 
