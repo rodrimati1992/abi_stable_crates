@@ -154,9 +154,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let extra_bounds       =&config.extra_bounds;
     
     let inside_abi_stable_crate=if config.inside_abi_stable_crate { 
-        quote!(use crate as abi_stable;)
+        quote!(pub(super) use crate as abi_stable;)
     }else{ 
-        quote!(use abi_stable;)
+        quote!(pub(super) use ::abi_stable;)
     };
 
     let import_group=if config.inside_abi_stable_crate { 

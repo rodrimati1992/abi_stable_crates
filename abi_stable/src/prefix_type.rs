@@ -3,15 +3,19 @@ Types,traits,and functions used by prefix-types.
 
 */
 
-use std::marker::PhantomData;
+use std::{
+    marker::PhantomData,
+    mem,
+};
 
 use crate::{
     abi_stability::{
         type_layout::{TypeLayout,TLField,TLData},
-        stable_abi_trait::SharedStableAbi,
     },
-    std_types::StaticSlice,
+    ignored_wrapper::CmpIgnored,
+    std_types::{StaticSlice,StaticStr},
     utils::leak_value,
+    version::VersionStrings,
 };
 
 
@@ -24,12 +28,16 @@ pub unsafe trait PrefixTypeTrait:Sized{
     /// Just the metadata of Self,for passing to `WithMetadata::new`,
     /// with `WithMetadata::new(PrefixTypeTrait::METADATA,value)`
     const METADATA:WithMetadataFor<Self,Self::Prefix>=WithMetadataFor{
-        _prefix_type_field_count:Self::PREFIX_TYPE_COUNT,
-        _prefix_type_layout:<Self::Prefix as SharedStableAbi>::S_ABI_INFO.get().layout,
+        _prefix_type_field_count:Self::PT_FIELD_COUNT,
+        _prefix_type_layout:Self::PT_LAYOUT,
         _marker:PhantomData,
     };
 
-    const PREFIX_TYPE_COUNT:usize;
+    /// Describes the layout of the struct,exclusively for use in error messages.
+    const PT_LAYOUT:&'static PTStructLayout;
+
+    /// The ammount of fields in the struct
+    const PT_FIELD_COUNT:usize;
 
     /**
 A type only accessible through a shared reference,
@@ -42,7 +50,7 @@ This is because multiple versions of the library may be loaded,
 where in some of them those fields don't exist.
 
 */
-    type Prefix:SharedStableAbi;
+    type Prefix;
 
     /// Converts `self` to a `WithMetadata<Self>`,.
     fn into_with_metadata(self)->WithMetadata<Self>{
@@ -79,7 +87,7 @@ pub struct WithMetadata_<T,P>{
     #[inline(doc)]
     pub _prefix_type_field_count:usize,
     #[inline(doc)]
-    pub _prefix_type_layout:&'static TypeLayout,
+    pub _prefix_type_layout:&'static PTStructLayout,
     pub original:T,
     _marker:PhantomData<P>,
 }
@@ -123,8 +131,85 @@ pub struct WithMetadataFor<T,P>{
     #[inline(doc)]
     _prefix_type_field_count:usize,
     #[inline(doc)]
-    _prefix_type_layout:&'static TypeLayout,
+    _prefix_type_layout:&'static PTStructLayout,
     _marker:PhantomData<fn()->(T,P)>,
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+/// Represents the layout of a prefix-type,for use in error messages.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub struct PTStructLayout {
+    pub name: StaticStr,
+    pub generics:CmpIgnored<StaticStr>,
+    pub package: StaticStr,
+    pub package_version: VersionStrings,
+    pub file:CmpIgnored<StaticStr>, // This is for the Debug string
+    pub line:CmpIgnored<u32>, // This is for the Debug string
+    pub size: usize,
+    pub alignment: usize,
+    pub fields:StaticSlice<PTField>,
+}
+
+
+/// Parameters to construct a PTStructLayout.
+pub struct PTStructLayoutParams{
+    pub name: &'static str,
+    pub generics:&'static str,
+    pub package: &'static str,
+    pub package_version: VersionStrings,
+    pub file:&'static str, // This is for the Debug string
+    pub line:u32, // This is for the Debug string
+    pub fields:&'static [PTField],
+}
+
+
+/// Represents a field of a prefix-type,for use in error messages.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub struct PTField {
+    pub name:StaticStr,
+    pub ty:CmpIgnored<StaticStr>,
+    pub size:usize,
+    pub alignment:usize,
+}
+
+
+
+//////////////////////////////////////////////////////////////
+
+
+impl PTStructLayout{
+    pub const fn new<T>(params:PTStructLayoutParams)->Self{
+        Self{
+            name:StaticStr::new(params.name),
+            generics:CmpIgnored::new(StaticStr::new(params.generics)),
+            package:StaticStr::new(params.package),
+            package_version:params.package_version,
+            file:CmpIgnored::new(StaticStr::new(params.file)),
+            line:CmpIgnored::new(params.line),
+            size:mem::size_of::<T>(),
+            alignment:mem::align_of::<T>(),
+            fields:StaticSlice::new(params.fields),
+        }
+    }
+}
+
+
+impl PTField{
+    pub const fn new<T>(name:&'static str ,ty:&'static str)->Self{
+        Self{
+            name:StaticStr::new(name),
+            ty:CmpIgnored::new(StaticStr::new(ty)),
+            size:mem::size_of::<T>(),
+            alignment:mem::align_of::<T>(),
+        }
+    }
 }
 
 
@@ -196,10 +281,10 @@ impl PrefixTypeMetadata{
 /// is expected to be on the `T` type when it's not.
 #[cold]
 #[inline(never)]
-pub fn panic_on_missing_field_ty<T>(field_index:usize,actual_layout:&'static TypeLayout)->!
-where T:SharedStableAbi
+pub fn panic_on_missing_field_ty<T>(field_index:usize,actual_layout:&'static PTStructLayout)->!
+where T:PrefixTypeTrait
 {
-    panic_on_missing_field_val(field_index,T::S_ABI_INFO.get().layout,actual_layout)
+    panic_on_missing_field_val(field_index,T::PT_LAYOUT,actual_layout)
 }
 
 
@@ -209,26 +294,23 @@ where T:SharedStableAbi
 #[inline(never)]
 pub fn panic_on_missing_field_val(
     field_index:usize,
-    expected:&'static TypeLayout,
-    actual:&'static TypeLayout,
+    expected:&'static PTStructLayout,
+    actual:&'static PTStructLayout,
 )->! {
-    let expected=PrefixTypeMetadata::new(expected);
-    let actual=PrefixTypeMetadata::new(actual);
-
     let field=expected.fields[field_index];
 
     panic!("\n
 Attempting to access nonexistent field:
     index:{index} 
     named:{field_named}
-    type:{field_type}
+    type(as declared):{field_type}
 
-Type:{struct_type}
+Inside of:{struct_name}{struct_generics}
 
 Package:'{package}' 
 
 Expected:
-    Version(expected compatible):{expected_package_version}
+    Version:{expected_package_version} (or compatible version number)
     Field count:{expected_field_count}
 
 Found:
@@ -238,14 +320,15 @@ Found:
 \n",
         index=field_index,
         field_named=field.name.as_str(),
-        field_type=field.abi_info.get().layout.full_type,
-        struct_type=expected.layout.full_type,
-        package=expected.layout.package,
+        field_type=field.ty.as_str(),
+        struct_name=expected.name.as_str(),
+        struct_generics=expected.generics.as_str(),
+        package=expected.package,
         
-        expected_package_version =expected.layout.package_version ,
+        expected_package_version =expected.package_version ,
         expected_field_count=expected.fields.len(),
         
-        actual_package_version =actual.layout.package_version ,
+        actual_package_version =actual.package_version ,
         actual_field_count=actual.fields.len(),
     );
 }

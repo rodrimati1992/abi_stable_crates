@@ -104,9 +104,7 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         // });
 
         let deriving_name=ds.name;
-        let (impl_generics, ty_generics, where_clause) = ds.generics.split_for_impl();
-        let where_clause=where_clause.unwrap();
-        let where_clause_preds=&where_clause.predicates;
+        let (ref impl_generics,ref ty_generics,ref where_clause) = ds.generics.split_for_impl();
 
         // Generating the `*_Prefix` struct
         {
@@ -168,7 +166,9 @@ pub(crate) fn prefix_type_tokenizer<'a>(
                     let else_=match on_missing_field {
                         OnMissingField::ReturnOption=>unreachable!(),
                         OnMissingField::Panic=>quote!(
-                            #module::_sabi_reexports::panic_on_missing_field_ty::<Self>(
+                            #module::_sabi_reexports::panic_on_missing_field_ty::<
+                                #deriving_name #ty_generics
+                            >(
                                 #field_i,
                                 self.inner._prefix_type_layout,
                             )
@@ -204,19 +204,49 @@ pub(crate) fn prefix_type_tokenizer<'a>(
             });
 
         let field_count=struct_.fields.len();
-        let field_name_0=struct_.fields.iter().map(|x| x.ident() );
-        let field_name_1=struct_.fields.iter().map(|x| x.ident() );
+        
+        let stringified_deriving_name=deriving_name.to_string();
 
+        let stringified_generics=(&ty_generics).into_token_stream().to_string();
+
+        let str_field_names=struct_.fields.iter().map(|x| x.ident().to_string() );
+        
+        let field_types=struct_.fields.iter().map(|x| x.ty );
+        let str_field_types=struct_.fields.iter()
+            .map(|x| x.ty.into_token_stream().to_string() );
+        
         quote!(
 
             unsafe impl #impl_generics 
                 #module::_sabi_reexports::PrefixTypeTrait 
             for #deriving_name #ty_generics 
-            where 
-                #( #where_clause_preds ,)*
-                #prefix_struct #ty_generics:#module::__SharedStableAbi,
+            #where_clause
             {
-                const PREFIX_TYPE_COUNT:usize=#field_count;
+                const PT_FIELD_COUNT:usize=#field_count;
+
+                const PT_LAYOUT:&'static #module::__PTStructLayout ={
+                    use #module::_sabi_reexports::renamed::{
+                        __PTStructLayout,__PTStructLayoutParams,__PTField
+                    };
+
+                    &__PTStructLayout::new::<Self>(__PTStructLayoutParams{
+                        name:#stringified_deriving_name,
+                        generics:#stringified_generics,
+                        package: env!("CARGO_PKG_NAME"),
+                        package_version: #module::abi_stable::package_version_strings!(),
+                        file:file!(),
+                        line:line!(),
+                        fields:&[
+                            #(
+                                __PTField::new::<#field_types>(
+                                    #str_field_names, 
+                                    #str_field_types,
+                                ),
+                            )*
+                        ]
+                    })
+                };
+
                 type Prefix=#prefix_struct #ty_generics;
             }
 
