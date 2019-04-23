@@ -5,27 +5,25 @@ use syn::Ident;
 
 use quote::ToTokens;
 
-use proc_macro2::{TokenStream as TokenStream2,Span};
+
 
 use core_extensions::{
     prelude::*,
-    matches,
+
 };
 
-use arrayvec::ArrayString;
+
 
 
 use crate::*;
 
 use crate::{
-    attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions,Repr},
-    datastructure::{DataStructure,Struct,Field},
+    attribute_parsing::{StabilityKind,StableAbiOptions},
+    datastructure::{DataStructure,Field},
     to_token_fn::ToTokenFnMut,
 };
 
 pub(crate) struct PrefixKind<'a>{
-    /// Which is the last field of the prefix,if None there is no prefix.
-    pub(crate) last_prefix_field:Option<LastPrefixField<'a>>,
     pub(crate) first_suffix_field:usize,
     pub(crate) prefix_struct:&'a Ident,
     pub(crate) default_on_missing_fields:OnMissingField<'a>,
@@ -76,9 +74,9 @@ pub(crate) fn prefix_type_tokenizer<'a>(
     module:&'a Ident,
     ds:&'a DataStructure<'a>,
     config:&'a StableAbiOptions<'a>,
-    ctokens:&'a CommonTokens<'a>,
+    _ctokens:&'a CommonTokens<'a>,
 )->impl ToTokens+'a {
-    let ct=ctokens;
+    // let ct=ctokens;
     ToTokenFnMut::new(move|ts|{
         let struct_=match ds.variants.get(0) {
             Some(x)=>x,
@@ -347,24 +345,3 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
     })
 }
 
-
-fn get_fields_tokenized<'a>(
-    struct_:&'a Struct<'a>,
-    taken_fields:usize,
-    ctokens:&'a CommonTokens<'a>,
-)->impl Iterator<Item= impl ToTokens+'a >+'a{
-    struct_.fields.iter()
-        .take(taken_fields)
-        .map(move|field| field_tokenizer(field,ctokens) )
-}
-
-
-fn field_tokenizer<'a>(
-    field:&'a Field<'a>,
-    ctokens:&'a CommonTokens<'a>,
-)->impl ToTokens+'a{
-    let ct=ctokens;
-    ToTokenFnMut::new(move|ts|{
-        to_stream!(ts;field.vis,field.ident,ct.colon,field.ty,ct.comma);
-    })
-}

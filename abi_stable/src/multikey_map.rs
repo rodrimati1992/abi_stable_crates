@@ -16,7 +16,6 @@ use generational_arena::{
 
 use core_extensions::{
     prelude::*,
-    matches,
 };
 
 
@@ -141,7 +140,7 @@ where K:Hash+Eq
         {
             return None;
         }
-        let mut with_=self.arena.remove(with.index)?;
+        let with_=self.arena.remove(with.index)?;
         let replaced=self.arena.get_mut(replace.index)?;
         for key in &with_.keys {
             *self.map.get_mut(key).unwrap()=replace;
@@ -192,7 +191,7 @@ where K:Hash+Eq
             None=>panic!("Invalid index:{:?}", index),
         };
         match self.map.entry(key.clone()) {
-            Entry::Occupied(entry)=>{}
+            Entry::Occupied(_)=>{}
             Entry::Vacant(entry)=>{
                 entry.insert(index);
                 value.keys.push(key);
@@ -236,7 +235,7 @@ where K:Hash+Eq
                     None
                 }
             }
-            Entry::Vacant(entry)=>{
+            Entry::Vacant(_)=>{
                 None
             }
         };
@@ -377,6 +376,10 @@ mod tests{
     use super::*;
 
     use crate::test_utils::must_panic;
+
+    use core_extensions::{
+        matches,
+    };
     
     macro_rules! assert_matches {
         ( $(|)* $pat:pat $(| $prev_pat:pat)*  =$expr:expr)=>{
@@ -405,9 +408,9 @@ mod tests{
         ////                EQUAL
         ///////////////////////////////////////////////////
         {
-            let mut map_a=MultiKeyMap::<u32,u32>::new();
+            let map_a=MultiKeyMap::<u32,u32>::new();
 
-            let mut map_b=MultiKeyMap::<u32,u32>::new();
+            let map_b=MultiKeyMap::<u32,u32>::new();
 
             assert_eq!(map_a, map_b);
         }
@@ -436,7 +439,7 @@ mod tests{
         ////             NOT EQUAL
         ///////////////////////////////////////////////////
         {
-            let mut map_a=MultiKeyMap::<u32,u32>::new();
+            let map_a=MultiKeyMap::<u32,u32>::new();
             
             let mut map_b=MultiKeyMap::<u32,u32>::new();
             insert(&mut map_b,1000,200);
@@ -447,7 +450,7 @@ mod tests{
             let mut map_a=MultiKeyMap::<u32,u32>::new();
             insert(&mut map_a,1000,200);
 
-            let mut map_b=MultiKeyMap::<u32,u32>::new();
+            let map_b=MultiKeyMap::<u32,u32>::new();
 
             assert_ne!(map_a, map_b);
         }

@@ -18,7 +18,7 @@ use crate::{
         FormattingMode,
     },
     marker_type::{SyncSend, UnsyncUnsend},
-    ErasedObject, ZeroSized, 
+    ErasedObject,
     std_types::{RBox, RResult, RString},
 };
 

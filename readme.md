@@ -29,7 +29,7 @@ Currently this library has these features:
     allowing for semver compatible changes while checking the layout of types.
 
 - Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
-    and to get the layout of the type at runtime to check that it is still compatible.
+    and to get the layout of the type at load-time to check that it is still compatible.
 
 # Examples
 

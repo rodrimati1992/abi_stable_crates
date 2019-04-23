@@ -41,17 +41,3 @@ where T:'a // T:'a is for the docs
     let x=Box::new(value);
     Box::leak(x)
 }
-
-//////////////////////////////////
-
-
-pub(crate) extern fn executable_identity()->usize{
-    (&crate::EXECUTABLE_IDENTITY) as *const _ as usize
-}
-
-pub(crate) extern fn executable_identity_2()->usize{
-    (&EXECUTABLE_IDENTITY_2) as *const _ as usize
-}
-
-use std::sync::atomic::AtomicUsize;
-static EXECUTABLE_IDENTITY_2: AtomicUsize = AtomicUsize::new(1);

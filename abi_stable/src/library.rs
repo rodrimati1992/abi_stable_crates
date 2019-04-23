@@ -6,7 +6,6 @@ as well as functions/modules within.
 use std::{
     fmt::{self, Display},
     io,
-    mem,
     path::{Path,PathBuf},
     sync::atomic,
 };
@@ -28,7 +27,6 @@ use abi_stable_derive_lib::{
 use crate::{
     abi_stability::{
         AbiInfoWrapper,
-        StableAbi,
         stable_abi_trait::SharedStableAbi,
     },
     globals::{self,InitializeGlobalsWithFn},
@@ -106,7 +104,7 @@ impl Library {
             .piped(Ok)
     }
 
-    /// Loads the dynamic library.
+    /// Loads the dynamic library from the `folder`.
     /// 
     /// The full filename of the library is determined by `suffix`.
     pub fn load_in(
@@ -239,17 +237,17 @@ pub trait RootModule: Sized+SharedStableAbi  {
         let items = library_getter();
         
         
-        let user_version = Self::VERSION_STRINGS
+        let expected_version = Self::VERSION_STRINGS
             .piped(VersionNumber::new)?;
-        let library_version = items.version_strings().piped(VersionNumber::new)?;
+        let actual_version = items.version_strings().piped(VersionNumber::new)?;
 
-        if user_version.major != library_version.major || 
-            (user_version.major==0) && user_version.minor > library_version.minor
+        if expected_version.major != actual_version.major || 
+            (expected_version.major==0) && expected_version.minor > actual_version.minor
         {
             return Err(LibraryError::IncompatibleVersionNumber {
                 library_name: Self::NAME,
-                user_version,
-                library_version,
+                expected_version,
+                actual_version,
             });
         }
 
@@ -285,7 +283,7 @@ mod with_layout {
     impl<T> WithLayout<T> {
         /// Constructs a WithLayout from the `Type_Prefix` struct of a type 
         /// deriving `StableAbi` with 
-        /// `#[sabi(kind(Prefix(prefix_struct="Type_Prefix" , .. )))]`.
+        /// `#[sabi(kind(Prefix(prefix_struct="Type_Prefix" )))]`.
         pub fn from_prefix(ref_:&'static T)->Self
         where
             T: RootModule,
@@ -293,7 +291,7 @@ mod with_layout {
             Self {
                 magic_number: MAGIC_NUMBER,
                 version_strings:T::VERSION_STRINGS,
-                layout: <&T>::ABI_INFO,
+                layout: <&T>::S_ABI_INFO,
                 value:ref_,
             }
         }
@@ -337,7 +335,7 @@ mod with_layout {
             // This might also reduce the code in the library,
             // because it doesn't have to compile the layout checker for every library.
             (globals::initialized_globals().layout_checking)
-                (<&T>::ABI_INFO, self.layout)
+                (<&T>::S_ABI_INFO, self.layout)
                 .into_result()
                 .map_err(LibraryError::AbiInstability)?;
             
@@ -351,8 +349,10 @@ mod with_layout {
 
 pub use self::with_layout::WithLayout;
 
-// ABI major version 0
-const MAGIC_NUMBER: usize = 0xAB1_57A_00;
+// ABI version 0.2
+// Format:
+// ABI_(A for pre-1.0 version number ,B for major version number)_(version number)
+const MAGIC_NUMBER: usize = 0xAB1_A_0002;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -378,10 +378,13 @@ pub enum LibraryError {
     /// The version numbers of the library was incompatible.
     IncompatibleVersionNumber {
         library_name: &'static str,
-        user_version: VersionNumber,
-        library_version: VersionNumber,
+        expected_version: VersionNumber,
+        actual_version: VersionNumber,
     },
     /// The abi is incompatible.
+    /// The error is opaque,since the error always comes from the main binary
+    /// (dynamic libraries can be loaded from other dynamic libraries),
+    /// and no approach for extensible enums is settled on yet.
     AbiInstability(RBoxError),
     /// The magic number used to check that this is a compatible abi_stable
     /// is not the same.
@@ -398,6 +401,7 @@ impl From<ParseVersionError> for LibraryError {
 
 impl Display for LibraryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("\n")?;
         match self {
             LibraryError::OpenError{path,io} => writeln!(
                 f,
@@ -414,12 +418,12 @@ impl Display for LibraryError {
             LibraryError::ParseVersionError(x) => fmt::Display::fmt(x, f),
             LibraryError::IncompatibleVersionNumber {
                 library_name,
-                user_version,
-                library_version,
+                expected_version,
+                actual_version,
             } => writeln!(
                 f,
                 "\n'{}' library version mismatch:\nuser:{}\nlibrary:{}",
-                library_name, user_version, library_version,
+                library_name, expected_version, actual_version,
             ),
             LibraryError::AbiInstability(x) => fmt::Display::fmt(x, f),
             LibraryError::InvalidMagicNumber(found) => write!(
@@ -433,7 +437,9 @@ impl Display for LibraryError {
                 }
                 Ok(())
             }
-        }
+        }?;
+        f.write_str("\n")?;
+        Ok(())
     }
 }
 
