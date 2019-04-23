@@ -13,6 +13,7 @@ use crate::{
         type_layout::{TypeLayout,TLField,TLData},
     },
     ignored_wrapper::CmpIgnored,
+    marker_type::NotCopyNotClone,
     std_types::{StaticSlice,StaticStr},
     utils::leak_value,
     version::VersionStrings,
@@ -81,7 +82,7 @@ pub type WithMetadata<T>=
 
 /// Wraps a prefix-type,with extra metadata about field count and layout.
 ///
-/// Can be converted to the `PrefixTypeTrait::Prefix` of T with the `as_prefix` methods.
+/// Can be converted to the `PrefixTypeTrait::Prefix` of T with the `as_prefix` method.
 #[repr(C)]
 pub struct WithMetadata_<T,P>{
     #[inline(doc)]
@@ -90,6 +91,10 @@ pub struct WithMetadata_<T,P>{
     pub _prefix_type_layout:&'static PTStructLayout,
     pub original:T,
     _marker:PhantomData<P>,
+    // WithMetadata will never implement Copy or Clone.
+    // This type does not implement those traits because it is a field of 
+    // all `*_Prefix` types,and it's UB prone for those types to implement Copy or Clone.
+    unbounds:NotCopyNotClone,
 }
 
 
@@ -101,6 +106,7 @@ impl<T,P> WithMetadata_<T,P> {
             _prefix_type_layout     :metadata._prefix_type_layout,
             original:value,
             _marker:PhantomData,
+            unbounds:NotCopyNotClone,
         }
     }
 
@@ -126,6 +132,9 @@ impl<T,P> WithMetadata_<T,P> {
 
 /// The prefix-type metadata for `T`.
 /// This is only constructed in PrefixTypeTrait::METADATA.
+///
+/// `P` is guaranteed to be <T as PrefixTypeTrait>::Prefix,
+/// it is a type parameter to get around limitations of `const fn` as of Rust 1.34.
 #[repr(C)]
 pub struct WithMetadataFor<T,P>{
     #[inline(doc)]

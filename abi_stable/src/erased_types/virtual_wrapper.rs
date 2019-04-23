@@ -206,7 +206,10 @@ using these (fallible) conversion methods:
             I: GetImplFlags,
         {
             unsafe {
-                mem::transmute::<&'a VTable<ErasedObject, ErasedObject>, &'a VTable<ErasedObject, P>>(
+                mem::transmute::<
+                    &'a VTable<ErasedObject, ErasedObject>,
+                    &'a VTable<ErasedObject, P>
+                >(
                     self.vtable,
                 )
             }
@@ -218,7 +221,7 @@ using these (fallible) conversion methods:
         /// never considered equal.
         pub fn is_same_type<Other>(&self,other:&VirtualWrapper<Other>)->bool{
             self.vtable_address()==other.vtable_address()||
-            self.vtable.type_info.is_compatible(other.vtable.type_info)
+            self.vtable.type_info().is_compatible(other.vtable.type_info())
         }
 
         pub(super)fn vtable_address(&self) -> usize {
@@ -287,7 +290,7 @@ using these (fallible) conversion methods:
         {
             let t_vtable = A::erased_vtable();
             if self.vtable_address() == t_vtable as *const _ as usize
-                || self.vtable.type_info.is_compatible(t_vtable.type_info)
+                || self.vtable.type_info().is_compatible(t_vtable.type_info())
             {
                 Ok(())
             } else {
