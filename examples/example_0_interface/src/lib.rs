@@ -301,6 +301,8 @@ declare_PrefixTypeMod!{
     extra_fields=[
         pub field_b:u32,
         pub field_c:u32,
+        #[sabi(missing_field(panic))]
+        pub field_d:u32,
     ]
 }
 

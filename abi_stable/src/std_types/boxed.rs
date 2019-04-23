@@ -8,6 +8,7 @@ use crate::{
     traits::{IntoReprRust},
     std_types::utypeid::{UTypeId,new_utypeid},
     return_value_equality::ReturnValueEquality,
+    prefix_type::{PrefixTypeTrait,WithMetadata},
 };
 
 #[cfg(test)]
@@ -35,7 +36,7 @@ mod private {
         pub fn from_box(p: Box<T>) -> RBox<T> {
             RBox {
                 data: Box::into_raw(p),
-                vtable: VTableGetter::<T>::LIB_VTABLE,
+                vtable: VTableGetter::<T>::LIB_VTABLE.as_prefix_raw(),
                 _marker: PhantomData,
             }
         }
@@ -49,7 +50,7 @@ mod private {
 
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
-            self.vtable = VTableGetter::<T>::LIB_VTABLE_FOR_TESTING;
+            self.vtable = VTableGetter::<T>::LIB_VTABLE_FOR_TESTING.as_prefix_raw();
         }
     }
 }
@@ -74,15 +75,15 @@ impl<T> RBox<T> {
 
         unsafe {
             let this_vtable =this.vtable();
-            let other_vtable=VTableGetter::LIB_VTABLE;
+            let other_vtable=VTableGetter::LIB_VTABLE.as_prefix();
             if ::std::ptr::eq(this_vtable,other_vtable)||
-                this_vtable.type_id==other_vtable.type_id
+                this_vtable.type_id()==other_vtable.type_id()
             {
                 Box::from_raw(this.data())
             } else {
                 let ret = Box::new(this.data().read());
                 // Just deallocating the Box<_>. without dropping the inner value
-                (this.vtable().destructor)(this.data(), CallReferentDrop::No);
+                (this.vtable().destructor())(this.data(), CallReferentDrop::No);
                 ret
             }
         }
@@ -93,7 +94,7 @@ impl<T> RBox<T> {
         unsafe {
             let value = this.data().read();
             let data: *mut T = this.data();
-            (this.vtable().destructor)(data, CallReferentDrop::No);
+            (this.vtable().destructor())(data, CallReferentDrop::No);
             value
         }
     }
@@ -160,7 +161,7 @@ impl<T> Drop for RBox<T> {
     fn drop(&mut self) {
         unsafe {
             let data = self.data();
-            (RBox::vtable(self).destructor)(data, CallReferentDrop::Yes);
+            (RBox::vtable(self).destructor())(data, CallReferentDrop::Yes);
         }
     }
 }
@@ -170,29 +171,39 @@ impl<T> Drop for RBox<T> {
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(inside_abi_stable_crate)]
-pub(crate) struct BoxVtable<T> {
+#[sabi(kind(Prefix(prefix_struct="BoxVtable")))]
+#[sabi(missing_field(panic))]
+pub(crate) struct BoxVtableVal<T> {
     type_id:ReturnValueEquality<UTypeId>,
+    #[sabi(last_prefix_field)]
     destructor: unsafe extern "C" fn(*mut T, CallReferentDrop),
 }
 
 struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
-    // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: &'a BoxVtable<T> = &BoxVtable {
+    const DEFAULT_VTABLE:BoxVtableVal<T>=BoxVtableVal{
         type_id:ReturnValueEquality{
             function:new_utypeid::<RBox<()>>
         },
         destructor: destroy_box::<T>,
     };
 
+    // The VTABLE for this type in this executable/library
+    const LIB_VTABLE: &'a WithMetadata<BoxVtableVal<T>> = 
+        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE);
+
     #[cfg(test)]
-    const LIB_VTABLE_FOR_TESTING: &'a BoxVtable<T> = &BoxVtable {
-        type_id:ReturnValueEquality{
-            function: new_utypeid::<RBox<i32>>
-        },
-        ..*VTableGetter::LIB_VTABLE
-    };
+    const LIB_VTABLE_FOR_TESTING: &'a WithMetadata<BoxVtableVal<T>> = 
+        &WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            BoxVtableVal {
+                type_id:ReturnValueEquality{
+                    function: new_utypeid::<RBox<i32>>
+                },
+                ..Self::DEFAULT_VTABLE
+            }
+        );
 }
 
 unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {

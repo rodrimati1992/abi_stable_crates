@@ -103,9 +103,7 @@ pub struct BoxLike<T> {
 
 
 impl<T> BoxLike<T>{
-    pub fn new(value:T)->Self
-    where T:StableAbi
-    {
+    pub fn new(value:T)->Self{
         let box_=Box::new(value);
         
         Self{
@@ -176,9 +174,7 @@ pub(crate) struct BoxVtableVal<T> {
 }
 
 
-impl<T> BoxVtableVal<T>
-where T:StableAbi
-{
+impl<T> BoxVtableVal<T>{
     const TMP0:Self=Self{
         destructor:destroy_box::<T>,
     };
