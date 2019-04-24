@@ -8,15 +8,19 @@ and loads example_0_impl at runtime as a dynamic library.
 
 To run this application:
 
-.1 compile example_0_impl with `cargo build`/`cargo build --release`,
+1.    compile example_0_impl with `cargo build`/`cargo build --release`,
 
-.2 run this crate with one of these:
+2.    run this crate with one of these:
+
     - `cargo run`,
+
     - `cargo run --release`,
+
     - `cargo build; ../../target/debug/example_0_user[.exe]`
+
     - `cargo build --release; ../../target/release/example_0_user[.exe]`
 
-.3 use one of the subcommands in the help message.
+3.    use one of the subcommands in the help message.
 
 To get help running a subcommand you can run 
 `path_to_executable/example_0_user subcommand -h`.
