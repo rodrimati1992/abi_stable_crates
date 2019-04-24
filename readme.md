@@ -25,6 +25,8 @@ Currently this library has these features:
 
 - Provides the `StableAbi` trait for asserting that types are ffi-safe.
 
+- Features for building extensible modules and vtables,without breaking ABI compatibility.
+
 - Checking at load-time that the types in the dynamic library have the expected layout,
     allowing for semver compatible changes while checking the layout of types.
 
@@ -128,7 +130,9 @@ https://github.com/rust-lang/rfcs/blob/master/text/2514-union-initialization-and
 
 # Minumum Rust version
 
-This crate support Rust back to 1.33,
+This crate support Rust back to 1.34
+(previously 1.33,but had to abandon it because of an impossible to 
+avoid internal compiler error related to associated types as types of associated constants),
 using a build script to automatically enable features from newer versions.
 
 # Cargo Features
