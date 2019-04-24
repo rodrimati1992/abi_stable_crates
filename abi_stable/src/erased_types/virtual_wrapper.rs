@@ -2,7 +2,11 @@
 Contains the `VirtualWrapper` type,and related traits/type aliases.
 */
 
-use std::ops::DerefMut;
+use std::{
+    ops::DerefMut,
+    mem::ManuallyDrop,
+    ptr,
+};
 
 use serde::{de, ser, Deserialize, Deserializer};
 
@@ -137,8 +141,8 @@ using these (fallible) conversion methods:
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     pub struct VirtualWrapper<P> {
-        pub(super) object: P,
-        vtable: &'static VTable<ErasedObject, ErasedObject>,
+        pub(super) object: ManuallyDrop<P>,
+        vtable: *const VTable<P>,
     }
 
     impl VirtualWrapper<()> {
@@ -149,7 +153,7 @@ using these (fallible) conversion methods:
         pub fn from_value<T>(object: T) -> VirtualWrapper<RBox<ZeroSized<T::Interface>>>
         where
             T: ImplType,
-            T: GetVtable<T,RBox<T>>,
+            T: GetVtable<T,RBox<ZeroSized<<T as ImplType>::Interface>>,RBox<T>>,
         {
             let object = RBox::new(object);
             VirtualWrapper::from_ptr(object)
@@ -163,12 +167,12 @@ using these (fallible) conversion methods:
         where
             P: StableDeref<Target = T>,
             T: ImplType,
-            T: GetVtable<T,P>,
-            P: ErasedStableDeref<T::Interface>,
+            T: GetVtable<T,P::TransmutedPtr,P>,
+            P: ErasedStableDeref<<T as ImplType>::Interface>,
         {
             VirtualWrapper {
-                object: object.erased(T::Interface::T),
-                vtable: T::erased_vtable(),
+                object: ManuallyDrop::new(object.erased(T::Interface::T)),
+                vtable: T::get_vtable(),
             }
         }
 
@@ -177,7 +181,7 @@ using these (fallible) conversion methods:
         where
             T:'static,
             I:InterfaceType,
-            InterfaceFor<T,I> : GetVtable<T,RBox<T>>,
+            InterfaceFor<T,I> : GetVtable<T,RBox<ZeroSized<I>>,RBox<T>>,
         {
             let object = RBox::new(object);
             VirtualWrapper::from_any_ptr(object,interface)
@@ -190,30 +194,20 @@ using these (fallible) conversion methods:
             I:InterfaceType,
             P: StableDeref<Target = T>,
             T:'static,
-            InterfaceFor<T,I>: GetVtable<T,P>,
+            InterfaceFor<T,I>: GetVtable<T,P::TransmutedPtr,P>,
             P: ErasedStableDeref<I>,
         {
             VirtualWrapper {
-                object: object.erased(I::T),
-                vtable: <InterfaceFor<T,I>>::erased_vtable(),
+                object: ManuallyDrop::new(object.erased(I::T)),
+                vtable: <InterfaceFor<T,I>>::get_vtable(),
             }
         }
     }
 
     impl<P> VirtualWrapper<P> {
-        // Allows us to call function pointers that take `P``as a parameter
-        pub(super) fn vtable<'a, I>(&self) -> &'a VTable<ErasedObject, P>
-        where
-            P: Deref<Target = ZeroSized<I>>,
-            I: GetImplFlags,
-        {
+        pub(super) fn vtable<'a>(&self) -> &'a VTable<P>{
             unsafe {
-                mem::transmute::<
-                    &'a VTable<ErasedObject, ErasedObject>,
-                    &'a VTable<ErasedObject, P>
-                >(
-                    self.vtable,
-                )
+                &*self.vtable
             }
         }
 
@@ -223,11 +217,11 @@ using these (fallible) conversion methods:
         /// never considered equal.
         pub fn is_same_type<Other>(&self,other:&VirtualWrapper<Other>)->bool{
             self.vtable_address()==other.vtable_address()||
-            self.vtable.type_info().is_compatible(other.vtable.type_info())
+            self.vtable().type_info().is_compatible(other.vtable().type_info())
         }
 
         pub(super)fn vtable_address(&self) -> usize {
-            self.vtable as *const _ as usize
+            self.vtable as usize
         }
 
         pub(super) fn as_abi(&self) -> &ErasedObject
@@ -272,13 +266,13 @@ using these (fallible) conversion methods:
         where
             P: Deref,
         {
-            &*((&*self.object) as *const P::Target as *const T)
+            &*((&**self.object) as *const P::Target as *const T)
         }
         unsafe fn object_as_mut<T>(&mut self) -> &mut T
         where
             P: DerefMut,
         {
-            &mut *((&mut *self.object) as *mut P::Target as *mut T)
+            &mut *((&mut **self.object) as *mut P::Target as *mut T)
         }
     }
 
@@ -288,17 +282,19 @@ using these (fallible) conversion methods:
         pub(super) fn check_same_destructor_opaque<A,T>(&self) -> Result<(), UneraseError>
         where
             P: TransmuteElement<T>,
-            A: GetVtable<T,P::TransmutedPtr>,
+            A: GetVtable<T,P,P::TransmutedPtr>,
         {
-            let t_vtable = A::erased_vtable();
+            let t_vtable:&VTable<P> = A::get_vtable();
             if self.vtable_address() == t_vtable as *const _ as usize
-                || self.vtable.type_info().is_compatible(t_vtable.type_info())
+                || self.vtable().type_info().is_compatible(t_vtable.type_info())
             {
                 Ok(())
             } else {
                 Err(UneraseError {
-                    expected_vtable: t_vtable,
-                    found_vtable: self.vtable,
+                    expected_vtable_address: t_vtable as *const _ as usize,
+                    expected_type_info:t_vtable.type_info(),
+                    found_vtable_address: self.vtable as usize,
+                    found_type_info:self.vtable().type_info(),
                 })
             }
         }
@@ -321,10 +317,13 @@ using these (fallible) conversion methods:
         where
             P: TransmuteElement<T>,
             P::Target:Sized,
-            T: ImplType + GetVtable<T,P::TransmutedPtr>,
+            T: ImplType + GetVtable<T,P,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<T,T>()?;
-            unsafe { Ok(self.object.transmute_element(T::T)) }
+            unsafe { 
+                let this=ManuallyDrop::new(self);
+                Ok(ptr::read(&*this.object).transmute_element(T::T)) 
+            }
         }
 
         /// Unwraps the `VirtualWrapper<_>` into a reference of 
@@ -344,7 +343,7 @@ using these (fallible) conversion methods:
         pub fn as_unerased<T>(&self) -> Result<&T, UneraseError>
         where
             P: Deref + TransmuteElement<T>,
-            T: ImplType + GetVtable<T,P::TransmutedPtr>,
+            T: ImplType + GetVtable<T,P,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<T,T>()?;
             unsafe { Ok(self.object_as()) }
@@ -367,7 +366,7 @@ using these (fallible) conversion methods:
         pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError>
         where
             P: DerefMut + TransmuteElement<T>,
-            T: ImplType + GetVtable<T,P::TransmutedPtr>,
+            T: ImplType + GetVtable<T,P,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<T,T>()?;
             unsafe { Ok(self.object_as_mut()) }
@@ -393,10 +392,15 @@ using these (fallible) conversion methods:
             P: TransmuteElement<T>,
             P::Target:Sized,
             Self:VirtualWrapperTrait,
-            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P::TransmutedPtr>,
+            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
-            unsafe { Ok(self.object.transmute_element(T::T)) }
+            unsafe {
+                unsafe { 
+                    let this=ManuallyDrop::new(self);
+                    Ok(ptr::read(&*this.object).transmute_element(T::T)) 
+                }
+            }
         }
 
         /// Unwraps the `VirtualWrapper<_>` into a reference of 
@@ -417,7 +421,7 @@ using these (fallible) conversion methods:
         where
             P: Deref + TransmuteElement<T>,
             Self:VirtualWrapperTrait,
-            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P::TransmutedPtr>,
+            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
             unsafe { Ok(self.object_as()) }
@@ -441,7 +445,7 @@ using these (fallible) conversion methods:
         where
             P: DerefMut + TransmuteElement<T>,
             Self:VirtualWrapperTrait,
-            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P::TransmutedPtr>,
+            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
             unsafe { Ok(self.object_as_mut()) }
@@ -455,7 +459,7 @@ using these (fallible) conversion methods:
         /// to ensure that it is compatible with the functions in it.
         pub(super) fn from_new_ptr(&self, object: P) -> Self {
             Self {
-                object,
+                object:ManuallyDrop::new(object),
                 vtable: self.vtable,
             }
         }
@@ -491,6 +495,15 @@ using these (fallible) conversion methods:
         }
     }
 
+    impl<P> Drop for VirtualWrapper<P>{
+        fn drop(&mut self){
+            let vtable=self.vtable();
+            unsafe{
+                vtable.drop_ptr()(&mut *self.object);
+            }
+        }
+    }
+
 }
 
 pub use self::priv_::VirtualWrapper;
@@ -502,7 +515,7 @@ where
 {
     fn clone(&self) -> Self {
         let vtable = self.vtable();
-        let new = vtable.clone_ptr::<I>()(&self.object);
+        let new = vtable.clone_ptr::<I>()(&*self.object);
         self.from_new_ptr(new)
     }
 }
@@ -668,28 +681,14 @@ pub type GetVWInterface<This>=
 
 /// Error for `VirtualWrapper<_>` being unerased into the wrong type
 /// with one of the `*unerased*` methods.
-#[derive(Copy, Clone)]
+#[derive(Debug,Copy, Clone)]
 pub struct UneraseError {
-    pub expected_vtable: &'static VTable<ErasedObject, ErasedObject>,
-    pub found_vtable: &'static VTable<ErasedObject, ErasedObject>,
+    expected_vtable_address: usize,
+    expected_type_info:&'static TypeInfo,
+    found_vtable_address: usize,
+    found_type_info:&'static TypeInfo,
 }
 
-impl Debug for UneraseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("UneraseError")
-            .field(
-                "expected_vtable_address",
-                &(self.expected_vtable as *const _ as usize),
-            )
-            .field("expected_vtable", self.expected_vtable)
-            .field(
-                "found_vtable_address",
-                &(self.found_vtable as *const _ as usize),
-            )
-            .field("found_vtable", self.found_vtable)
-            .finish()
-    }
-}
 
 impl fmt::Display for UneraseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

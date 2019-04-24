@@ -6,6 +6,7 @@ use core_extensions::type_level_bool::{Boolean, False, True};
 use std::{
     fmt,
     marker::PhantomData,
+    mem::ManuallyDrop,
     num,
     pin::Pin,
     ptr::NonNull,
@@ -666,6 +667,25 @@ where
             TLField::new("0",&[],<P as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
         ]),
         tl_genparams!(;P;),
+    );
+}
+
+/////////////
+
+unsafe impl<T> SharedStableAbi for ManuallyDrop<T>
+where
+    T: StableAbi,
+{
+    type Kind=ValueKind;
+    type IsNonZeroType = T::IsNonZeroType;
+    type StaticEquivalent=ManuallyDrop<T::StaticEquivalent>;
+
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
+        "ManuallyDrop",
+        TLData::struct_(&[
+            TLField::new("0",&[],<T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
+        ]),
+        tl_genparams!(;T;),
     );
 }
 

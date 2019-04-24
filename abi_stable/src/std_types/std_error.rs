@@ -33,7 +33,7 @@ use crate::{
 #[sabi(inside_abi_stable_crate)]
 pub struct RBoxError_<M = SyncSend> {
     value: RBox<ErasedObject>,
-    vtable: RErrorVTable<ErasedObject>,
+    vtable: RErrorVTable,
     _marker: PhantomData<M>,
 }
 
@@ -118,21 +118,20 @@ impl<M> Debug for RBoxError_<M> {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-struct RErrorVTable<T> {
-    debug: extern "C" fn(&T, FormattingMode, &mut RString) -> RResult<(), ()>,
-    display: extern "C" fn(&T, FormattingMode, &mut RString) -> RResult<(), ()>,
+struct RErrorVTable {
+    debug: extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
+    display: extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
 }
 
-impl RErrorVTable<ErasedObject> {
+impl RErrorVTable {
     unsafe fn new<T>() -> Self
     where
         T: ErrorTrait + 'static,
     {
-        let this = RErrorVTable {
+        RErrorVTable {
             debug: debug_impl::<T>,
             display: display_impl::<T>,
-        };
-        mem::transmute::<RErrorVTable<T>, RErrorVTable<ErasedObject>>(this)
+        }
     }
 }
 

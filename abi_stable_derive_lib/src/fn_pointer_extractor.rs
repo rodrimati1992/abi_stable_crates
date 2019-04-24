@@ -228,9 +228,17 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             .map(|x| x.name.as_ref().unwrap_or(&ctokens.c_abi_lit));
 
         if abi != Some(&ctokens.c_abi_lit) {
+            let func_str=format!("\ntype:{}",(&func).into_token_stream().to_string());
             match abi {
-                Some(abi) => panic!("abi not supported for function pointers:\n{:?}\n", abi),
-                None => panic!("the default abi is not supported for function pointers"),
+                Some(abi) => panic!(
+                    "abi not supported for function pointers:\n{:?}\n{}\n", 
+                    abi,
+                    func_str
+                ),
+                None => panic!(
+                    "the default abi is not supported for function pointers{}",
+                    func_str
+                ),
             }
         }
 
