@@ -20,11 +20,11 @@ use core_extensions::{ResultLike, StringExt};
 
 #[doc(hidden)]
 /// Returns the vtable used by VirtualWrapper to do dynamic dispatch.
-pub trait GetVtable<This,Ptr>: ImplType {
+pub trait GetVtable<This,ErasedPtr,OrigPtr>: ImplType {
     
-    const TMP_VTABLE:VTableVal<This,Ptr>;
+    const TMP_VTABLE:VTableVal<ErasedPtr>;
 
-    const GET_VTABLE:*const WithMetadata<VTableVal<This,Ptr>>=
+    const GET_VTABLE:*const WithMetadata<VTableVal<ErasedPtr>>=
         &WithMetadata::new(
             PrefixTypeTrait::METADATA,
             Self::TMP_VTABLE
@@ -32,25 +32,12 @@ pub trait GetVtable<This,Ptr>: ImplType {
 
 
     /// Retrieves the VTable of the type.
-    fn get_vtable<'a>() -> &'a VTable<This, Ptr>
+    fn get_vtable<'a>() -> &'a VTable<ErasedPtr>
     where
         This: 'a,
     {
         // I am just getting a vtable
         unsafe { (*Self::GET_VTABLE).as_prefix() }
-    }
-
-    /// Gets an erased version of the VTable<This>.
-    fn erased_vtable() -> &'static VTable<ErasedObject,ErasedObject> {
-        // I am just getting a vtable,which doesn't actually contain an instance of This.
-        // This is why it is safe to transmute it to a reference of static lifetime.
-        unsafe {
-            let x = (*Self::GET_VTABLE).as_prefix();
-            mem::transmute::<
-                &VTable<This, Ptr>, 
-                &'static VTable<ErasedObject,ErasedObject>
-            >(x)
-        }
     }
 }
 
@@ -113,7 +100,8 @@ macro_rules! declare_meta_vtable {
     ////////////////////////////////////////////////////////////////////////
     (
         value=$value:ident;
-        pointer=$pointer:ident;
+        erased_pointer=$erased_ptr:ident;
+        original_pointer=$orig_ptr:ident;
 
         $([
             $( #[$field_attr:meta] )*
@@ -133,21 +121,22 @@ macro_rules! declare_meta_vtable {
         #[sabi(inside_abi_stable_crate)]
         #[sabi(kind(Prefix(prefix_struct="VTable")))]
         #[sabi(missing_field(default))]
-        pub struct VTableVal<$value,$pointer>{
+        pub struct VTableVal<$erased_ptr>{
             /// Flags for quickly checking whether two VTables have the same impls.
             pub impl_flags:ImplFlag,
             pub type_info:&'static TypeInfo,
-            _marker:PhantomData<extern fn(&$value,&$pointer)>,
+            _marker:PhantomData<extern fn()->$erased_ptr>,
+            pub drop_ptr:unsafe extern "C" fn(&mut $erased_ptr),
             $(
                 $( #[$field_attr] )*
-                $priv_field:Option<$field_ty>,
+                $priv_field:Option<($field_ty)>,
             )*
         }
 
 
-        impl<T,P> VTable<T,P>{
+        impl<$erased_ptr> VTable<$erased_ptr>{
             $(
-                pub fn $field<E>(&self)->$field_ty
+                pub fn $field<E>(&self)->($field_ty)
                 where
                     E:InterfaceType<$selector=True>,
                 {
@@ -174,7 +163,7 @@ macro_rules! declare_meta_vtable {
             $(pub const $selector:Self=WhichImpl(trait_selector::$selector::WHICH_BIT); )*
         }
 
-        impl<A,B> VTable<A,B>{
+        impl<$erased_ptr> VTable<$erased_ptr>{
             #[inline(never)]
             #[cold]
             fn abort_unimplemented(&self,unimplemented_impls:u64){
@@ -221,39 +210,42 @@ macro_rules! declare_meta_vtable {
         }
 
         /// Returns the type of a vtable field.
-        pub type VTableFieldType<Selector,$value,$pointer>=
-            <Selector as VTableFieldType_<$value,$pointer>>::Field;
+        pub type VTableFieldType<Selector,$value,$erased_ptr,$orig_ptr>=
+            <Selector as VTableFieldType_<$value,$erased_ptr,$orig_ptr>>::Field;
 
         /// Returns the type of a vtable field.
-        pub trait VTableFieldType_<$value,$pointer>{
+        pub trait VTableFieldType_<$value,$erased_ptr,$orig_ptr>{
             type Field;
         }
 
         /// Returns the value of a vtable field in the current binary
         /// (this can be a different value in a dynamically_linked_library/executable).
-        pub trait VTableFieldValue<Ty,IsImpld,$value,$pointer>{
+        pub trait VTableFieldValue<Ty,IsImpld,$value,$erased_ptr,$orig_ptr>{
             const FIELD:Option<Ty>;
         }
 
 
         $(
-            impl<$value,$pointer> VTableFieldType_<$value,$pointer> for trait_selector::$selector {
-                type Field=$field_ty;
+            impl<$value,$erased_ptr,$orig_ptr> 
+                VTableFieldType_<$value,$erased_ptr,$orig_ptr> 
+            for trait_selector::$selector 
+            {
+                type Field=($field_ty);
             }
 
-            impl<$value,$pointer>
-                VTableFieldValue<$field_ty,False,$value,$pointer>
+            impl<$value,$erased_ptr,$orig_ptr>
+                VTableFieldValue<($field_ty),False,$value,$erased_ptr,$orig_ptr>
             for trait_selector::$selector
             {
-                const FIELD:Option<$field_ty>=None;
+                const FIELD:Option<($field_ty)>=None;
             }
 
-            impl<$value,$pointer,$($impl_params)*>
-                VTableFieldValue<$field_ty,True,$value,$pointer>
+            impl<$value,$erased_ptr,$orig_ptr,$($impl_params)*>
+                VTableFieldValue<($field_ty),True,$value,$erased_ptr,$orig_ptr>
             for trait_selector::$selector
             where $($where_clause)*
             {
-                const FIELD:Option<$field_ty>=Some($field_value);
+                const FIELD:Option<($field_ty)>=Some($field_value);
             }
         )*
 
@@ -301,30 +293,40 @@ macro_rules! declare_meta_vtable {
         }
 
 
-        impl<This,$value,$pointer,E> GetVtable<$value,$pointer> for This
+        impl<This,$value,$erased_ptr,$orig_ptr,E> 
+            GetVtable<$value,$erased_ptr,$orig_ptr> 
+        for This
         where
             This:ImplType<Interface=E>,
             E:InterfaceType+GetImplFlags,
             $(
                 trait_selector::$selector:VTableFieldValue<
-                    $field_ty,
+                    ($field_ty),
                     E::$selector,
                     $value,
-                    $pointer
+                    $erased_ptr,
+                    $orig_ptr,
                 >,
             )*
         {
-            const TMP_VTABLE:VTableVal<$value,$pointer>=VTableVal{
+            const TMP_VTABLE:VTableVal<$erased_ptr>=VTableVal{
                 impl_flags:E::FLAGS,
                 type_info:This::INFO,
+                drop_ptr:drop_pointer_impl::<$orig_ptr,$erased_ptr>,
                 $(
                     $priv_field:
                         <trait_selector::$selector as
                             VTableFieldValue<
-                                VTableFieldType<trait_selector::$selector,$value,$pointer>,
+                                VTableFieldType<
+                                    trait_selector::$selector,
+                                    $value,
+                                    $erased_ptr,
+                                    $orig_ptr,
+                                >,
                                 E::$selector,
                                 $value,
-                                $pointer
+                                $erased_ptr,
+                                $orig_ptr,
                             >
                         >::FIELD,
                 )*
@@ -332,7 +334,7 @@ macro_rules! declare_meta_vtable {
             };
         }
 
-        impl<$value,$pointer> Debug for VTable<$value,$pointer> {
+        impl<$erased_ptr> Debug for VTable<$erased_ptr> {
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
                 f.debug_struct("VTable")
                     .field("type_info",&self.type_info())
@@ -351,90 +353,92 @@ macro_rules! declare_meta_vtable {
 
 declare_meta_vtable! {
     value  =T;
-    pointer=P;
+    erased_pointer=ErasedPtr;
+    original_pointer=OrigP;
 
     [
-        clone_ptr:    extern fn(&P)->P;
+        clone_ptr:    extern "C" fn(&ErasedPtr)->ErasedPtr;
         priv _clone_ptr;
+        
         impl[] VtableFieldValue<Clone>
-        where [P:Clone]
+        where [OrigP:Clone]
         {
-            clone_impl
+            clone_pointer_impl::<OrigP,ErasedPtr>
         }
     ]
     [
-        default_ptr:    extern fn()->P;
+        default_ptr: extern "C" fn()->ErasedPtr ;
         priv _default_ptr;
         impl[] VtableFieldValue<Default>
-        where [P:Default]
+        where [OrigP:Default]
         {
-            default_impl
+            default_pointer_impl::<OrigP,ErasedPtr>
         }
     ]
     [
-        display:    extern fn(&T,FormattingMode,&mut RString)->RResult<(),()>;
+        display:    extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         priv _display;
         impl[] VtableFieldValue<Display>
         where [T:Display]
         {
-            display_impl
+            display_impl::<T>
         }
     ]
     [
-        debug:      extern fn(&T,FormattingMode,&mut RString)->RResult<(),()>;
+        debug:      extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         priv _debug;
         impl[] VtableFieldValue<Debug>
         where [T:Debug]
         {
-            debug_impl
+            debug_impl::<T>
         }
     ]
     [
-        serialize:  extern fn(&T)->RResult<RCow<'_,RStr<'_>>,RBoxError>;
+        serialize:  extern "C" fn(&ErasedObject)->RResult<RCow<'_,RStr<'_>>,RBoxError>;
         priv _serialize;
         impl[] VtableFieldValue<Serialize>
         where [
             T:ImplType+SerializeImplType,
             T::Interface:InterfaceType<Serialize=True>,
         ]{
-            serialize_impl
+            serialize_impl::<T>
         }
     ]
     [
-        partial_eq: extern fn(&T,&T)->bool;
+        partial_eq: extern "C" fn(&ErasedObject,&ErasedObject)->bool;
         priv _partial_eq;
         impl[] VtableFieldValue<PartialEq>
         where [T:PartialEq,]
         {
-            partial_eq_impl
+            partial_eq_impl::<T>
         }
     ]
     [
-        cmp:        extern fn(&T,&T)->RCmpOrdering;
+        cmp:        extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering;
         priv _cmp;
         impl[] VtableFieldValue<Ord>
         where [T:Ord,]
         {
-            cmp_ord
+            cmp_ord::<T>
         }
     ]
     [
-        partial_cmp:extern fn(&T,&T)->ROption<RCmpOrdering>;
+        partial_cmp:extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>;
         priv _partial_cmp;
         impl[] VtableFieldValue<PartialOrd>
         where [T:PartialOrd,]
         {
-            partial_cmp_ord
+            partial_cmp_ord::<T>
         }
     ]
     [
         #[sabi(last_prefix_field)]
-        hash:extern "C" fn(&T,trait_objects::HasherTraitObject<&mut ErasedObject>);
+        hash:extern "C" fn(&ErasedObject,trait_objects::HasherTraitObject<&mut ErasedObject>);
         priv _hash;
         impl[] VtableFieldValue<Hash>
         where [T:Hash]
         {
-            hash_Hash
+            hash_Hash::<T>
         }
     ]
 }

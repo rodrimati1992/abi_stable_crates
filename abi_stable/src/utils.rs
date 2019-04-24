@@ -41,3 +41,27 @@ where T:'a // T:'a is for the docs
     let x=Box::new(value);
     Box::leak(x)
 }
+
+
+/// Transmute a reference to another reference,
+/// changing the referent's type.
+/// 
+/// # Safety
+///
+/// This has the same safety concerns that `std::mem::transmute` has,including that
+/// `T` has to have an alignment and be compatible with `U`.
+pub unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
+    &*(ref_ as *const _ as *const U)
+}
+
+
+/// Transmute a mutable reference to another mutable reference,
+/// changing the referent's type.
+/// 
+/// # Safety
+///
+/// This has the same safety concerns that `std::mem::transmute` has,including that
+/// `T` has to have an alignment and be compatible with `U`.
+pub unsafe fn transmute_mut_reference<T,U>(ref_:&mut T)->&mut U{
+    &mut *(ref_ as *mut _ as *mut U)
+}

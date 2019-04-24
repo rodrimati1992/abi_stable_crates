@@ -379,9 +379,11 @@ fn into_vec() {
     }
     {
         let list = list.clone().set_vtable_for_testing();
-        let list_ptr = list.as_ptr();
+        let list_ptr = list.as_ptr() as usize;
         let list_1 = list.into_vec();
-        assert_ne!(list_ptr, list_1.as_ptr());
+        // No,MIR interpreter,
+        // I'm not dereferencing a pointer here,I am comparing their adresses.
+        assert_ne!(list_ptr, list_1.as_ptr() as usize);
         assert_eq!(orig, list_1);
     }
 }

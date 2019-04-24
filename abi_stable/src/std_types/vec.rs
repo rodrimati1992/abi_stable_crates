@@ -62,7 +62,11 @@ mod private {
         }
 
         #[inline(always)]
-        pub(super) fn buffer(&self) -> *mut T {
+        pub(super) fn buffer(&self) -> *const T {
+            self.buffer
+        }
+        
+        pub(super) fn buffer_mut(&mut self) -> *mut T {
             self.buffer
         }
 
@@ -80,8 +84,12 @@ mod private {
             F: FnOnce(&mut Vec<T>) -> U,
         {
             unsafe {
-                let old = mem::replace(self, RVec::new()).piped(ManuallyDrop::new);
-                let mut list = Vec::<T>::from_raw_parts(old.buffer(), old.len(), old.capacity());
+                let mut old = mem::replace(self, RVec::new()).piped(ManuallyDrop::new);
+                let mut list = Vec::<T>::from_raw_parts(
+                    old.buffer_mut(), 
+                    old.len(), 
+                    old.capacity()
+                );
                 let ret = f(&mut list);
                 ptr::write(self, list.into());
                 ret
@@ -123,7 +131,7 @@ impl<T> RVec<T> {
     }
 
     unsafe fn entire_buffer(&mut self) -> &mut [T] {
-        ::std::slice::from_raw_parts_mut(self.buffer(), self.capacity())
+        ::std::slice::from_raw_parts_mut(self.buffer_mut(), self.capacity())
     }
 
     /// Creates an `RSlice<'a,T>` with access to the `range` range of
@@ -153,7 +161,7 @@ impl<T> RVec<T> {
 
     /// Creates a `&mut [T]` with access to all the elements of the `RVec<T>`.
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        unsafe { ::std::slice::from_raw_parts_mut(self.buffer(), self.len()) }
+        unsafe { ::std::slice::from_raw_parts_mut(self.buffer_mut(), self.len()) }
     }
 
     /// Creates an `RSlice<'_,T>` with access to all the elements of the `RVec<T>`.
@@ -208,7 +216,7 @@ impl<T> RVec<T> {
             if ::std::ptr::eq(this_vtable,other_vtable)||
                 this_vtable.type_id()==other_vtable.type_id()
             {
-                Vec::from_raw_parts(this.buffer(), this.len(), this.capacity())
+                Vec::from_raw_parts(this.buffer_mut(), this.len(), this.capacity())
             } else {
                 let len = this.length;
                 let mut ret = Vec::with_capacity(len);
@@ -246,14 +254,15 @@ impl<T> RVec<T> {
         }
 
         unsafe {
+            let buffer=self.buffer_mut();
             if index < self.length {
                 ptr::copy(
-                    self.buffer().offset(index as isize),
-                    self.buffer().offset(index as isize + 1),
+                    buffer.offset(index as isize),
+                    buffer.offset(index as isize + 1),
                     self.length - index,
                 );
             }
-            ptr::write(self.buffer().offset(index as isize), value);
+            ptr::write(buffer.offset(index as isize), value);
             self.length += 1;
         }
     }
@@ -265,11 +274,12 @@ impl<T> RVec<T> {
             return None;
         }
         unsafe {
+            let buffer=self.buffer_mut();
             self.length -= 1;
-            let result = ptr::read(self.buffer().offset(index as isize));
+            let result = ptr::read(buffer.offset(index as isize));
             ptr::copy(
-                self.buffer().offset(index as isize + 1),
-                self.buffer().offset(index as isize),
+                buffer.offset(index as isize + 1),
+                buffer.offset(index as isize),
                 self.length - index,
             );
             Some(result)
@@ -296,7 +306,7 @@ impl<T> RVec<T> {
     pub fn swap_remove(&mut self, index: usize) -> T {
         unsafe {
             let hole: *mut T = &mut self[index];
-            let last = ptr::read(self.buffer().offset((self.length - 1) as isize));
+            let last = ptr::read(self.buffer_mut().offset((self.length - 1) as isize));
             self.length -= 1;
             ptr::replace(hole, last)
         }
@@ -308,7 +318,7 @@ impl<T> RVec<T> {
             self.grow_capacity_to_1();
         }
         unsafe {
-            ptr::write(self.buffer().offset(self.length as isize), new_val);
+            ptr::write(self.buffer_mut().offset(self.length as isize), new_val);
         }
         self.length += 1;
     }
@@ -321,7 +331,7 @@ impl<T> RVec<T> {
         } else {
             unsafe {
                 self.length -= 1;
-                Some(ptr::read(self.buffer().offset(self.length as isize)))
+                Some(ptr::read(self.buffer_mut().offset(self.length as isize)))
             }
         }
     }
@@ -446,7 +456,7 @@ where
         self.reserve(slic_.len());
         let old_len = self.len();
         unsafe {
-            let entire = self.get_unchecked_mut(old_len);
+            let entire:*mut T = self.buffer_mut().offset(old_len as isize);
             ptr::copy_nonoverlapping(slic_.as_ptr(), entire, slic_.len());
             self.length = old_len + slic_.len();
         }
@@ -736,7 +746,7 @@ extern "C" fn destructor_vec<T>(this: &mut RVec<T>) {
     extern_fn_panic_handling! {
         unsafe {
             drop(Vec::from_raw_parts(
-                this.buffer(),
+                this.buffer_mut(),
                 this.len(),
                 this.capacity(),
             ));

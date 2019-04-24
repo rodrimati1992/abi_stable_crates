@@ -19,6 +19,7 @@ use crate::{
     prefix_type::{PrefixTypeMetadata,PrefixTypeTrait},
     *,
     test_utils::must_panic,
+    utils::transmute_reference,
 };
 
 
@@ -380,9 +381,7 @@ fn prefix_is_same_size(){
 }
 
 
-unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
-    &*(ref_ as *const _ as *const U)
-}
+
 
 
 #[cfg_attr(not(miri),test)]

@@ -1,10 +1,15 @@
 #![allow(non_snake_case)]
 
-
+use std::ptr;
 
 use super::*;
 
-use crate::ErasedObject;
+use crate::{
+    ErasedObject,
+    utils::{transmute_reference,transmute_mut_reference},
+};
+
+use core_extensions::utils::transmute_ignore_size;
 
 pub(crate) fn adapt_std_fmt<T>(
     value: &T,
@@ -25,26 +30,38 @@ pub(crate) fn adapt_std_fmt<T>(
     fmt::Display::fmt(&*buf, formatter)
 }
 
-pub(crate) extern "C" fn clone_impl<T>(this: &T) -> T
-where
-    T: Clone,
-{
-    extern_fn_panic_handling! {
-        T::clone(&this)
-    }
+
+
+pub(crate) unsafe extern "C" fn drop_pointer_impl<OrigP,ErasedPtr>(this: &mut ErasedPtr){
+    extern_fn_panic_handling! {unsafe{
+        let this=transmute_mut_reference::<ErasedPtr,OrigP>(this);
+        ptr::drop_in_place(this);
+    }}
 }
 
-pub(crate) extern "C" fn default_impl<T>() -> T
+
+pub(crate) extern "C" fn clone_pointer_impl<OrigP,ErasedPtr>(this: &ErasedPtr) -> ErasedPtr
 where
-    T: Default,
+    OrigP: Clone,
 {
-    extern_fn_panic_handling! {
-        T::default()
-    }
+    extern_fn_panic_handling! {unsafe{
+        let this=transmute_reference::<ErasedPtr,OrigP>(this);
+        let clone=this.clone();
+        transmute_ignore_size(clone)
+    }}
+}
+
+pub(crate) extern "C" fn default_pointer_impl<OrigP,ErasedPtr>() -> ErasedPtr
+where
+    OrigP:Default,
+{
+    extern_fn_panic_handling! {unsafe{
+        transmute_ignore_size( OrigP::default() )
+    }}
 }
 
 pub(crate) extern "C" fn display_impl<T>(
-    this: &T,
+    this: &ErasedObject,
     mode: FormattingMode,
     buf: &mut RString,
 ) -> RResult<(), ()>
@@ -53,6 +70,7 @@ where
 {
     extern_fn_panic_handling! {
         use std::fmt::Write;
+        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
 
         let res = match mode {
             FormattingMode::Default_ => write!(buf, "{}", this),
@@ -66,7 +84,7 @@ where
 }
 
 pub(crate) extern "C" fn debug_impl<T>(
-    this: &T,
+    this: &ErasedObject,
     mode: FormattingMode,
     buf: &mut RString,
 ) -> RResult<(), ()>
@@ -75,6 +93,8 @@ where
 {
     extern_fn_panic_handling! {
         use std::fmt::Write;
+
+        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
 
         let res = match mode {
             FormattingMode::Default_ => write!(buf, "{:?}", this),
@@ -87,12 +107,15 @@ where
     }
 }
 
-pub(crate) extern "C" fn serialize_impl<'a, T>(this: &'a T) -> RResult<RCow<'a, RStr<'a>>, RBoxError>
+pub(crate) extern "C" fn serialize_impl<'a, T>(
+    this: &'a ErasedObject
+) -> RResult<RCow<'a, RStr<'a>>, RBoxError>
 where
     T: ImplType + SerializeImplType,
     T::Interface: InterfaceType<Serialize = True>,
 {
     extern_fn_panic_handling! {
+        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
         this.serialize_impl().into()
     }
 }
@@ -121,29 +144,39 @@ where
 //     .into_c()
 // }
 
-pub(crate) extern "C" fn partial_eq_impl<T>(this: &T, other: &T) -> bool
+pub(crate) extern "C" fn partial_eq_impl<T>(this: &ErasedObject, other: &ErasedObject) -> bool
 where
     T: PartialEq,
 {
     extern_fn_panic_handling! {
+        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
+        let other=unsafe{ transmute_reference::<ErasedObject,T>(other) };
         this == other
     }
 }
 
-pub(crate) extern "C" fn cmp_ord<T>(this: &T, other: &T) -> RCmpOrdering
+pub(crate) extern "C" fn cmp_ord<T>(this: &ErasedObject, other: &ErasedObject) -> RCmpOrdering
 where
     T: Ord,
 {
     extern_fn_panic_handling! {
+        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
+        let other=unsafe{ transmute_reference::<ErasedObject,T>(other) };
         this.cmp(other).into_c()
     }
 }
 
-pub(crate) extern "C" fn partial_cmp_ord<T>(this: &T, other: &T) -> ROption<RCmpOrdering>
+pub(crate) extern "C" fn partial_cmp_ord<T>(
+    this: &ErasedObject, 
+    other: &ErasedObject,
+) -> ROption<RCmpOrdering>
 where
     T: PartialOrd,
 {
     extern_fn_panic_handling! {
+        let this =unsafe{ transmute_reference::<ErasedObject,T>(this) };
+        let other=unsafe{ transmute_reference::<ErasedObject,T>(other) };
+
         this.partial_cmp(other).map(IntoReprC::into_c).into_c()
     }
 }
@@ -151,13 +184,15 @@ where
 //////////////////
 // Hash
 
-pub(crate) extern "C" fn hash_Hash<H>(
-    this: &H,
+pub(crate) extern "C" fn hash_Hash<T>(
+    this: &ErasedObject,
     mut state: trait_objects::HasherTraitObject<&mut ErasedObject>,
 ) where
-    H: Hash,
+    T: Hash,
 {
     extern_fn_panic_handling! {
+        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
+
         this.hash(&mut state);
     }
 }
@@ -165,19 +200,22 @@ pub(crate) extern "C" fn hash_Hash<H>(
 //////////////////
 // Hasher
 
-pub(crate) extern "C" fn hash_slice_Hasher<T>(this: &mut T, slic_: RSlice<'_, u8>)
+pub(crate) extern "C" fn hash_slice_Hasher<T>(this: &mut ErasedObject, slic_: RSlice<'_, u8>)
 where
     T: Hasher,
 {
     extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,T>(this) };
         this.write(slic_.into());
     }
 }
-pub(crate) extern "C" fn finish_Hasher<T>(this: &T) -> u64
+pub(crate) extern "C" fn finish_Hasher<T>(this: &ErasedObject) -> u64
 where
     T: Hasher,
 {
     extern_fn_panic_handling! {
+        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
+
         this.finish()
     }
 }
