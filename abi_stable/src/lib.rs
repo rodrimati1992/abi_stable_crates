@@ -25,6 +25,8 @@ Currently this library has these features:
 
 - Provides the `StableAbi` trait for asserting that types are ffi-safe.
 
+- Features for building extensible modules and vtables,without breaking ABI compatibility.
+
 - Checking at load-time that the types in the dynamic library have the expected layout,
     allowing for semver compatible changes while checking the layout of types.
 
@@ -59,7 +61,7 @@ and loaded in the `user crate`.
 Types must implement StableAbi to be safely passed through the FFI boundary,
 which can be done using the StableAbi derive macro.
 
-These are the 2 kinds of types passed through FFI:
+These are the kinds of types passed through FFI:
 
 - Value kind:
     The layout of types passed by value must not change in a minor version.
@@ -70,6 +72,12 @@ These are the 2 kinds of types passed through FFI:
     whose layout can change in any version of the library,
     and can only be unwrapped back to the original type in the dynamic library/binary 
     that created it.
+
+- [Prefix kind](./docs/prefix_types/index.html):
+    Types only accessible through shared references,
+    most commonly vtables and modules,
+    which can be extended in minor versions while staying ABI compatible.
+    by adding fields at the end.
 
 ### Declaring enums
 
