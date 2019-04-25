@@ -79,11 +79,11 @@ impl Library {
         let bits = if is_64_bits { "64" } else { "32" };
 
         let maybe_suffixed_name=match suffix {
-            LibrarySuffix::NoSuffix=>{
+            LibrarySuffix::Suffix=>{
                 formatted=format!("{}-{}", base_name, bits);
                 &*formatted
             }
-            LibrarySuffix::Suffix=>{
+            LibrarySuffix::NoSuffix=>{
                 base_name
             }
         };
@@ -187,7 +187,7 @@ pub trait RootModule: Sized+SharedStableAbi  {
     /// Returns the path the library would be loaded from.
     fn get_library_path(directory:&Path)-> PathBuf {
         let base_name=Self::BASE_NAME;
-        Library::get_library_path(directory, base_name,LibrarySuffix::Suffix)
+        Library::get_library_path(directory, base_name,LibrarySuffix::NoSuffix)
     }
 
     /// Loads this module from the library in the `directory` directory,

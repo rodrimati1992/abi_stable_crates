@@ -8,7 +8,9 @@ It exports all the modules(structs of function pointers) required by the
 
 */
 
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+};
 
 use example_0_interface::{
     RemoveWords, 

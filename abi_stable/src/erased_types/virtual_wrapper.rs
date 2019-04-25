@@ -68,10 +68,10 @@ To construct a `VirtualWrapper<_>` one can use these associated functions:
     Requires a value that implements ImplType.
     
 - from_any_value:
-    Can be constructed from the value directly.Requires a `'static` value.
+    Can be constructed from the value directly.Requires a `'static+Send+Sync` value.
     
 - from_any_ptr
-    Can be constructed from a pointer of a value.Requires a `'static` value.
+    Can be constructed from a pointer of a value.Requires a `'static+Send+Sync` value.
 
 ### Trait object
 
@@ -126,13 +126,15 @@ using these (fallible) conversion methods:
     Where `VirtualWrapper<P<ZeroSized< Interface >>>`'s 
         Interface must equal `<T as ImplType>::Interface`
 
-- into_mut_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
+- into_any_unerased:Unwraps into a pointer to `T`.Requires `T:'static+Send+Sync`.
 
-- as_mut_unerased:Unwraps into a `&T`.Requires `T:'static`.
+- as_any_unerased:Unwraps into a `&T`.Requires `T:'static+Send+Sync`.
 
-- as_mut_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
+- as_any_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static+Send+Sync`.
 
+# Example 
 
+The primary example using `VirtualWrapper<_>` is in the readme.
 
 
     
@@ -176,10 +178,10 @@ using these (fallible) conversion methods:
             }
         }
 
-        /// Constructors the `VirtualWrapper<_>` from a type which doesn't borrow anything.
+        /// Constructors the `VirtualWrapper<_>` from a type that doesn't implement `ImplType`.
         pub fn from_any_value<T,I>(object: T,interface:I) -> VirtualWrapper<RBox<ZeroSized<I>>>
         where
-            T:'static,
+            T:'static+Send+Sync,
             I:InterfaceType,
             InterfaceFor<T,I> : GetVtable<T,RBox<ZeroSized<I>>,RBox<T>>,
         {
@@ -188,12 +190,12 @@ using these (fallible) conversion methods:
         }
 
         /// Constructors the `VirtualWrapper<_>` from a pointer to a 
-        /// type which doesn't borrow anything.
+        /// type that doesn't implement `ImplType`.
         pub fn from_any_ptr<P, T,I>(object: P,_interface:I) -> VirtualWrapper<P::TransmutedPtr>
         where
             I:InterfaceType,
             P: StableDeref<Target = T>,
-            T:'static,
+            T:'static+Send+Sync,
             InterfaceFor<T,I>: GetVtable<T,P::TransmutedPtr,P>,
             P: ErasedStableDeref<I>,
         {
@@ -648,6 +650,22 @@ where
         self.vtable().hash::<I>()(self.as_abi(), HasherTraitObject::new(state))
     }
 }
+
+
+// TODO:Uncomment in 0.3
+// unsafe impl<P,I> Send for VirtualWrapper<P>
+// where
+//     P: Deref<Target = ZeroSized<I>>,
+//     I: InterfaceType<Send = True>,
+// {}
+
+
+// unsafe impl<P,I> Sync for VirtualWrapper<P>
+// where
+//     P: Deref<Target = ZeroSized<I>>,
+//     I: InterfaceType<Sync = True>,
+// {}
+
 
 //////////////////////////////////////////////////////////////////
 

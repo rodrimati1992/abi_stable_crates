@@ -1,3 +1,4 @@
+%
 [![Build Status](https://travis-ci.org/rodrimati1992/abi_stable_crates.svg?branch=master)](https://travis-ci.org/rodrimati1992/abi_stable_crates)
 
 For Rust-to-Rust ffi,
@@ -34,13 +35,317 @@ Currently this library has these features:
 - Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
     and to get the layout of the type at load-time to check that it is still compatible.
 
-# Examples
+# Example crates
 
-For **examples** of using `abi_stable` you can look at the crates in the examples directory ,
-in the repository for this crate.
+For **example crates** using `abi_stable` you can look at the 
+crates in the examples directory ,in the repository for this crate.
 
 To run the examples generally you'll have to build the `*_impl` crate,
 then run the `*_user` crate (all `*_user` crates should have a help message).
+
+# Example
+
+This is a full example,demonstrating:
+
+- `user crates`(defined in the Architecture section bellow).
+
+- `VirtualWrapper<_>`:the ffi-safe trait object(with downcasting).
+
+- `interface crates`(defined in the Architecture section bellow).
+
+- `ìmplementation crates`(defined in the Architecture section bellow).
+
+
+```
+
+/////////////////////////////////////////////////////////////////////////////////
+//
+//                        Application (user crate) 
+//
+////////////////////////////////////////////////////////////////////////////////
+
+
+use interface_crate::{ExampleLib,BoxedInterface,load_root_module_in};
+
+fn main(){
+    // The type annotation is for the reader
+    let library:&'static ExampleLib=
+        load_root_module_in("./target/debug".as_ref())
+            .unwrap_or_else(|e| panic!("{}",e) );
+
+    // The type annotation is for the reader
+    let mut unwrapped:BoxedInterface=
+        library.new_boxed_interface()();
+
+    library.append_string()(&mut unwrapped,"Hello".into());
+    library.append_string()(&mut unwrapped,", world!".into());
+
+    assert_eq!(
+        &*unwrapped.to_string(),
+        "Hello, world!",
+    );
+
+    println!("success");
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////
+//
+//                      Interface crate
+//
+//////////////////////////////////////////////////////////////////////////////////
+
+
+mod interface_crate{
+
+use std::path::Path;
+
+use abi_stable::{
+    InterfaceType,
+    StableAbi,
+    VirtualWrapper,
+    ZeroSized,
+    impl_InterfaceType,
+    lazy_static_ref::LazyStaticRef,
+    library::{Library,LibraryError,RootModule},
+    package_version_strings,
+    std_types::{RBox,RString},
+    type_level::bools::*,
+    version::VersionStrings,
+};
+
+
+
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct TheInterface;
+
+// The `impl_InterfaceType` macro emulates default associated types.
+impl_InterfaceType!{
+    /// Each associated type represents a trait,
+    /// will is required of types when ẁrapped in a 
+    /// `VirtualWrapper<Pointer<ZeroSized<TheInterface>>>`,
+    /// as well as be usable in that `VirtualWrapper<_>`.
+    ///
+    /// A trait is required (and becomes usable in the `VirtualWrapper`) 
+    /// when the associated type is `True`,not required when it is `False`.
+    ///
+    impl InterfaceType for TheInterface {
+        type Debug = True;
+
+        type Display = True;
+
+        //////////////////////////////////////////////////////////
+        //  some defaulted associated types (there may be more) //
+        //////////////////////////////////////////////////////////
+        
+        // type Clone=False;
+
+        // type Default=False;
+
+        // type Serialize=False;
+
+        // type Eq=False;
+
+        // type PartialEq=False;
+
+        // type Ord=False;
+
+        // type PartialOrd=False;
+
+        // type Hash=False;
+
+        // type Deserialize=False;
+    }
+}
+
+
+/// An alias for the trait object used in this example
+pub type BoxedInterface=VirtualWrapper<RBox<ZeroSized<TheInterface>>>;
+
+
+#[repr(C)]
+#[derive(StableAbi)] 
+#[sabi(kind(Prefix(prefix_struct="ExampleLib")))]
+#[sabi(missing_field(panic))]
+pub struct ExampleLibVal {
+    pub new_boxed_interface: extern "C" fn()->BoxedInterface,
+    
+    #[sabi(last_prefix_field)]
+    pub append_string:extern "C" fn(&mut BoxedInterface,RString),
+}
+
+
+/// The RootModule trait defines how to load the root module of a library.
+impl RootModule for ExampleLib {
+    fn raw_library_ref()->&'static LazyStaticRef<Library>{
+        static RAW_LIB:LazyStaticRef<Library>=LazyStaticRef::new();
+        &RAW_LIB
+    }
+
+    const BASE_NAME: &'static str = "example_library";
+    const NAME: &'static str = "example_library";
+    const VERSION_STRINGS: VersionStrings = package_version_strings!();
+    const LOADER_FN: &'static str = "get_library";
+}
+
+/// A global handle to the root module of the library.
+///
+/// To get the module call `ROOTMOD.get()`,
+/// which returns None if the module is not yet loaded.
+pub static ROOTMOD:LazyStaticRef<ExampleLib>=LazyStaticRef::new();
+
+/*
+
+/// This for the case where this example is copied into the 3 crates.
+/// 
+/// This loads the root from the library in the `directory` folder.
+/// 
+/// Failing (with an Err(_)) in these conditions:
+///
+/// - The library is not there.
+///
+/// - The module loader is not there,most likely because the abi is incompatible.
+///
+/// - The layout-checker detects a type error.
+///
+pub fn load_root_module_in(directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
+    ROOTMOD.try_init(||{
+        ExampleLib::load_from_library_in(directory)
+    })
+}
+*/
+
+/*
+
+/// This is for the case where this example is copied into a single crate
+pub fn load_root_module_in(_directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
+    ROOTMOD.try_init(||{
+        super::implementation::get_library()
+            .check_layout()
+    })
+}
+
+*/
+
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////
+//
+//                            Implementation crate
+//
+// This is generally done in a separate crate than the interface.
+//
+//////////////////////////////////////////////////////////////////////////////////
+//
+// If you copy paste this into its own crate use this setting in the 
+// Cargo.toml file.
+//
+// ```
+// [lib]
+// name = "example_library"
+// crate-type = ["cdylib",'rlib']
+// ```
+//
+//
+//////////////////////////////////////////////////////////////////////////////////
+
+mod implementation {
+
+// For the case where this is copied to a single crate.
+// use super::{interface_crate};
+
+use std::fmt::{self,Display};
+
+
+use interface_crate::{
+    BoxedInterface,
+    ExampleLib,
+    ExampleLibVal,
+    TheInterface,
+};
+
+use abi_stable::{
+    ImplType,
+    VirtualWrapper,
+    erased_types::TypeInfo,
+    export_sabi_module,
+    extern_fn_panic_handling,
+    impl_get_type_info,
+    library::{WithLayout},
+    std_types::RString,
+};
+
+
+/// The function which exports the root module of the library.
+#[export_sabi_module]
+pub extern "C" fn get_library() -> WithLayout<ExampleLib> {
+    WithLayout::new(ExampleLibVal{
+        new_boxed_interface,
+        append_string,
+    })
+}
+
+
+#[derive(Debug,Clone)]
+pub struct StringBuilder{
+    pub text:String,
+    pub appended:Vec<RString>,
+}
+
+///
+/// Defines this as an `implementation type`,
+/// this trait is mostly for improving error messages when unerasing the VirtualWrapper.
+///
+impl ImplType for StringBuilder {
+    type Interface = TheInterface;
+
+    const INFO: &'static TypeInfo=impl_get_type_info! { StringBuilder };
+}
+
+impl Display for StringBuilder{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fmt::Display::fmt(&self.text,f)
+    }
+}
+
+impl StringBuilder{
+    /// Appends the string at the end.
+    pub fn append_string(&mut self,string:RString){
+        self.text.push_str(&string);
+        self.appended.push(string);
+    }
+}
+
+
+// Constructs a BoxedInterface.
+extern fn new_boxed_interface()->BoxedInterface{
+    extern_fn_panic_handling!{
+        VirtualWrapper::from_value(StringBuilder{
+            text:"".into(),
+            appended:vec![],
+        })
+    }
+}
+
+
+/// Appends a string to the erased `StringBuilderType`.
+extern fn append_string(wrapped:&mut BoxedInterface,string:RString){
+    extern_fn_panic_handling!{
+        wrapped
+            .as_unerased_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
+            .unwrap() // Returns `&mut StringBuilder`
+            .append_string(string);
+    }
+}
+}
+
+
+
+```
+
 
 
 # Safety
