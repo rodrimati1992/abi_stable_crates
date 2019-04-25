@@ -1,4 +1,3 @@
-%
 [![Build Status](https://travis-ci.org/rodrimati1992/abi_stable_crates.svg?branch=master)](https://travis-ci.org/rodrimati1992/abi_stable_crates)
 
 For Rust-to-Rust ffi,
@@ -56,7 +55,7 @@ This is a full example,demonstrating:
 - `ìmplementation crates`(defined in the Architecture section bellow).
 
 
-```
+```rust
 
 /////////////////////////////////////////////////////////////////////////////////
 //
@@ -94,7 +93,6 @@ fn main(){
 //                      Interface crate
 //
 //////////////////////////////////////////////////////////////////////////////////
-
 
 mod interface_crate{
 
