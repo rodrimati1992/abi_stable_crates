@@ -249,6 +249,32 @@ macro_rules! declare_meta_vtable {
             }
         )*
 
+        ///////////////////////////////////////////////////////////
+        //      Uncomment in 0.3
+        ///////////////////////////////////////////////////////////
+        // pub trait SendIf<Cond>{}
+
+        // impl<This> SendIf<False> for This
+        // {}
+
+        // impl<This> SendIf<True> for This
+        // where This:Send
+        // {}
+
+        
+        // pub trait SyncIf<Cond>{}
+
+        // impl<This> SyncIf<False> for This
+        // {}
+
+        // impl<This> SyncIf<True> for This
+        // where This:Sync
+        // {}
+        ///////////////////////////////////////////////////////////
+
+
+
+
         /// Contains marker types representing traits of the same name.
         pub mod trait_selector{
             $(
@@ -308,6 +334,12 @@ macro_rules! declare_meta_vtable {
                     $orig_ptr,
                 >,
             )*
+            // Uncomment in 0.3
+            // $orig_ptr:SendIf<E::Send>,
+            // $orig_ptr:SyncIf<E::Sync>,
+            
+            // $erased_ptr:SendIf<E::Send>,
+            // $erased_ptr:SyncIf<E::Sync>,
         {
             const TMP_VTABLE:VTableVal<$erased_ptr>=VTableVal{
                 impl_flags:E::FLAGS,

@@ -23,11 +23,13 @@ use core_extensions::prelude::*;
 #[derive(Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
 enum DefaultVal{
     False,
+    True,
     Hidden,
 }
 
 pub struct DefaultValTypes{
     false_:SynType,
+    true_:SynType,
 }
 
 
@@ -46,6 +48,8 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
         ("PartialOrd",DefaultVal::False),
         ("Hash",DefaultVal::False),
         ("Deserialize",DefaultVal::False),
+        // ("Send",DefaultVal::True),
+        // ("Sync",DefaultVal::True),
         ("define_this_in_the_impl_InterfaceType_macro",DefaultVal::Hidden),
     ];
 
@@ -72,6 +76,7 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
         };
         DefaultValTypes{
             false_:parse_type("bools::False"),
+            true_:parse_type("bools::True"),
         }
     };
 
@@ -102,6 +107,7 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
 
         let ty=match default_ {
             DefaultVal::False=>&defval_paths.false_,
+            DefaultVal::True=>&defval_paths.true_,
             DefaultVal::Hidden=>{
                 attrs.extend(parse_syn_attributes("#[doc(hidden)]"));
                 &defval_paths.false_
