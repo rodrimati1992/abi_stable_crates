@@ -65,6 +65,19 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         _=>None,
     };
 
+    let tags_opt=&config.tags;
+    let tags=ToTokenFnMut::new(move|ts|{
+        match &tags_opt {
+            Some(tag)=>{
+                to_stream!(ts; tags_opt );
+            }
+            None=>{
+                quote!( _sabi_reexports::Tag::null() )
+                    .to_tokens(ts);
+            }
+        }
+    });
+
 
     let data_variant=ToTokenFnMut::new(|ts|{
         let ct=ctokens;
@@ -211,6 +224,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                                     #(#const_params),*
                                 ),
                                 phantom_fields: &[],
+                                tag:#tags,
                             }
                         }
                     )

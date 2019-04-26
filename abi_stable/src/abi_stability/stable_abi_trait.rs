@@ -18,7 +18,7 @@ use crate::{
     return_value_equality::ReturnValueEquality,
 };
 
-use super::{LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayoutParams};
+use super::{LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayoutParams,Tag};
 
 ///////////////////////
 
@@ -709,6 +709,7 @@ macro_rules! empty_extern_fn_layout{
             },
             generics: tl_genparams!(;;),
             phantom_fields: &[],
+            tag:Tag::null(),
         })
     )
 }
@@ -771,6 +772,7 @@ unsafe impl<T> SharedStableAbi for UnsafeOpaqueField<T> {
         data: TLData::Primitive,
         generics: tl_genparams!(;;),
         phantom_fields: &[],
+        tag:Tag::null(),
     });
 }
 

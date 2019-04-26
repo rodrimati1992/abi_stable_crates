@@ -254,3 +254,87 @@ macro_rules! impl_get_type_info {
         }
     )
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+/**
+Constructs a abi_stable::abi_stability::Tag,
+a dynamically typed value for users to check extra properties about their types 
+when doing runtime type checking.
+
+Note that this macro is not recursive,
+you need to invoke it every time you construct an array/map/set inside of the macro.
+
+# Example
+
+Using tags to store the traits the type requires,
+so that if this changes it can be reported as an error.
+
+This will cause an error if the binary and dynamic library disagree about the values inside
+the "required traits" map entry .
+
+In real code this should be written in a 
+way that keeps the tags and the type bounds in sync.
+
+
+```
+use abi_stable::{
+    tag,
+    abi_stability::Tag,
+    StableAbi,
+};
+
+const TAGS:Tag=tag!{{
+    "required traits"=>tag![[ "Copy" ]],
+}};
+
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(bound="T:Copy")]
+#[sabi(tag="TAGS")]
+struct Value<T>{
+    value:T,
+}
+
+
+```
+
+*/
+#[macro_export]
+macro_rules! tag {
+    ([ $( $elem:expr ),* $(,)? ])=>{{
+        use $crate::abi_stability::tagging::FromLiteral;
+        
+        Tag::arr(&[
+            $( FromLiteral($elem).to_tag(), )*
+        ])
+    }};
+    ({ $( $key:expr=>$value:expr ),* $(,)? })=>{{
+        use $crate::abi_stability::tagging::{FromLiteral,Tag};
+
+        Tag::map(&[
+            $(
+                Tag::kv(
+                    FromLiteral($key).to_tag(),
+                    FromLiteral($value).to_tag(),
+                ),
+            )*
+        ])
+    }};
+    ({ $( $key:expr ),* $(,)? })=>{{
+        use $crate::abi_stability::tagging::FromLiteral;
+
+        Tag::set(&[
+            $(
+                FromLiteral($key).to_tag(),
+            )*
+        ])
+    }};
+    ($expr:expr) => {{
+        $crate::abi_stability::tagging::FromLiteral($expr).to_tag()
+    }};
+}

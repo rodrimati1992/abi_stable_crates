@@ -29,7 +29,7 @@ pub mod traits;
 
 pub use self::{
     virtual_wrapper::{VirtualWrapper, VirtualWrapperTrait},
-    vtable::{ GetVtable },
+    vtable::{ GetVtable,TagFromPointer },
     traits::{ImplType, InterfaceType, SerializeImplType, DeserializeInterfaceType},
     type_info::TypeInfo,
 };

@@ -16,7 +16,11 @@ use crate::{
     ignored_wrapper::CmpIgnored,
 };
 
-use super::{AbiInfo, GetAbiInfo};
+use super::{
+    AbiInfo, 
+    GetAbiInfo,
+    tagging::Tag,
+};
 
 /// The parameters for `TypeLayout::from_params`.
 #[repr(C)]
@@ -30,6 +34,7 @@ pub struct TypeLayoutParams {
     pub data: TLData,
     pub generics: GenericParams,
     pub phantom_fields: &'static [TLField],
+    pub tag:Tag,
 }
 
 
@@ -50,6 +55,7 @@ pub struct TypeLayout {
     pub data: TLData,
     pub full_type: FullType,
     pub phantom_fields: StaticSlice<TLField>,
+    pub tag:Tag,
 }
 
 
@@ -372,6 +378,7 @@ impl TypeLayout {
             data,
             full_type: FullType::new(type_name, prim, genparams),
             phantom_fields: StaticSlice::new(phantom),
+            tag:Tag::null(),
         }
     }
 
@@ -396,6 +403,7 @@ impl TypeLayout {
                 generics: p.generics,
             },
             phantom_fields: StaticSlice::new(p.phantom_fields),
+            tag:p.tag,
         }
     }
 }

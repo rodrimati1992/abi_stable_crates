@@ -293,6 +293,11 @@ impl RString {
         }
     }
 
+    /// Turns this into an empty RString,keeping the same allocated buffer.
+    pub fn clear(&mut self){
+        self.inner.clear();
+    }
+
 }
 
 /// Returns an empty RString

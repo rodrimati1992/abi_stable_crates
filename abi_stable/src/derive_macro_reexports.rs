@@ -10,6 +10,7 @@ pub use crate::{
         type_layout::{
             LifetimeIndex, TLData, TLEnumVariant, TLField, TypeLayout, TypeLayoutParams,
         },
+        tagging::Tag,
     },
     prefix_type::{
         panic_on_missing_field_ty,

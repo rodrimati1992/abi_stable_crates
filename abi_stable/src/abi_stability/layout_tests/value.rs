@@ -9,6 +9,7 @@ use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,check_abi_stability},
         AbiInfoWrapper, 
+        Tag,
     },
     marker_type::UnsafeIgnoredType,
     std_types::*,
@@ -270,6 +271,12 @@ fn same_different_abi_stability() {
         <mod_5::Mod>::ABI_INFO,
         <mod_6::Mod>::ABI_INFO,
         <mod_7::Mod>::ABI_INFO,
+        <Tagged<TAG_DEFAULT_1>>::ABI_INFO,
+        <Tagged<TAG_DEFAULT_2>>::ABI_INFO,
+        <Tagged<TAG_DEFAULT_3>>::ABI_INFO,
+        <Tagged<TAG_DEFAULT_4>>::ABI_INFO,
+        <Tagged<TAG_DEFAULT_5>>::ABI_INFO,
+        <Tagged<TAG_DEFAULT_6>>::ABI_INFO,
         // <&prefix0::Prefix>::ABI_INFO,
         // <*const prefix0::Prefix>::ABI_INFO,
         // <RArc<prefix0::Prefix>>::ABI_INFO,
@@ -696,3 +703,165 @@ mod mod_7 {
     }
 }
 
+
+//////////////////////////////////////////////////////////////////////////////
+////            Tagged values
+//////////////////////////////////////////////////////////////////////////////
+
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(
+    inside_abi_stable_crate,
+    bound="M:ToTagConst",
+    tag="<M as ToTagConst>::TAG",
+    unconstrained(M),
+
+)]
+pub struct Tagged<M>(UnsafeIgnoredType<M>);
+
+
+pub trait ToTagConst{
+    const TAG:Tag;
+}
+
+macro_rules! declare_tags {
+    (
+        $(const $marker_ty:ident = $tag:expr;)*
+    ) => (
+        $(
+            pub struct $marker_ty;
+
+            impl ToTagConst for $marker_ty {
+                const TAG:Tag=$tag;
+            }
+        )*
+    )
+}
+
+
+declare_tags!{
+    const TAG_DEFAULT_0=Tag::null();
+    const TAG_DEFAULT_1=Tag::bool_(false);
+    const TAG_DEFAULT_2=Tag::int(0);
+    const TAG_DEFAULT_3=Tag::uint(0);
+    const TAG_DEFAULT_4=Tag::str("");
+    const TAG_DEFAULT_5=Tag::arr(&[]);
+    const TAG_DEFAULT_6=Tag::set(&[]);
+    
+    const TAG_EMPTY_SET=Tag::set(&[]);
+    
+    const TAG_SET_A0=Tag::set(&[
+        Tag::str("Sync"),
+    ]);
+    const TAG_SET_A1=Tag::set(&[
+        Tag::str("Send"),
+    ]);
+    const TAG_SET_A2=Tag::set(&[
+        Tag::str("Copy"),
+    ]);
+    const TAG_SET_A3=Tag::set(&[
+        Tag::str("Clone"),
+    ]);
+    const TAG_SET_B0=Tag::set(&[
+        Tag::str("Send"),
+        Tag::str("Sync"),
+    ]);
+    const TAG_SET_B1=Tag::set(&[
+        Tag::str("Copy"),
+        Tag::str("Clone"),
+    ]);
+
+    const TAG_SET_C0=Tag::set(&[
+        Tag::str("Send"),
+        Tag::str("Sync"),
+        Tag::str("Copy"),
+        Tag::str("Clone"),
+    ]);
+
+    const TAG_SET_C1=Tag::set(&[
+        Tag::str("Debug"),
+        Tag::str("Display"),
+    ]);
+}
+
+
+trait TaggedExt{
+    const GET_AI:&'static AbiInfoWrapper;
+}
+
+
+impl<T> TaggedExt for T
+where 
+    Tagged<T>:StableAbi,
+{
+    const GET_AI:&'static AbiInfoWrapper=
+        <Tagged<T> as StableAbi>::ABI_INFO;
+}
+
+
+
+#[test]
+fn test_tag_subsets(){
+    let valid_subsets=vec![
+        vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A0::GET_AI, TAG_SET_B0::GET_AI, TAG_SET_C0::GET_AI],
+        vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A1::GET_AI, TAG_SET_B0::GET_AI, TAG_SET_C0::GET_AI],
+        vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A2::GET_AI, TAG_SET_B1::GET_AI, TAG_SET_C0::GET_AI],
+        vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A3::GET_AI, TAG_SET_B1::GET_AI, TAG_SET_C0::GET_AI],
+    ];
+
+
+    for subset in &valid_subsets {
+        for (l_i,l_abi) in subset.iter().enumerate() {
+            for (r_i,r_abi) in subset.iter().enumerate() {
+
+                let res=check_abi_stability(l_abi,r_abi);
+
+                if l_i <= r_i {
+                    assert_eq!(res,Ok(()));
+                }else{
+                    let errs=res.unwrap_err().flatten_errors();
+                    assert!(
+                        errs
+                        .iter()
+                        .any(|err| matches!(AbiInstability::TagError{..}=err) )
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_tag_incompatible(){
+    let incompatible_sets=vec![
+        vec![
+            TAG_SET_A0::GET_AI,
+            TAG_SET_A1::GET_AI,
+            TAG_SET_A2::GET_AI,
+            TAG_SET_A3::GET_AI,
+            TAG_SET_C1::GET_AI,
+        ],
+        vec![TAG_SET_B0::GET_AI, TAG_SET_B1::GET_AI],
+        vec![TAG_SET_C0::GET_AI, TAG_SET_C1::GET_AI],
+    ];
+
+    for subset in &incompatible_sets {
+        for (l_i,l_abi) in subset.iter().enumerate() {
+            for (r_i,r_abi) in subset.iter().enumerate() {
+                let res=check_abi_stability(l_abi,r_abi);
+
+                if l_i == r_i {
+                    assert_eq!(res,Ok(()));
+                }else{
+                    let errs=res.unwrap_err().flatten_errors();
+                    assert!(
+                        errs
+                        .iter()
+                        .any(|err| matches!(AbiInstability::TagError{..}=err) )
+                    );
+                }
+            }
+        }
+    }
+}
