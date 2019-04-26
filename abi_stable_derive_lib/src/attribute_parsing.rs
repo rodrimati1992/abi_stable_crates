@@ -27,6 +27,8 @@ pub(crate) struct StableAbiOptions<'a> {
 
     pub(crate) extra_bounds:Vec<WherePredicate>,
 
+    pub(crate) tags:Option<syn::Expr>,
+
     /// A hashset of the fields whose contents are opaque 
     /// (there are still some minimal checks going on).
     pub(crate) opaque_fields:HashSet<*const Field<'a>>,
@@ -116,6 +118,7 @@ impl<'a> StableAbiOptions<'a> {
             opaque_fields:this.opaque_fields,
             renamed_fields:this.renamed_fields,
             repr_attrs:this.repr_attrs,
+            tags:this.tags,
         }
     }
 }
@@ -130,6 +133,8 @@ struct StableAbiAttrs<'a> {
     repr: Option<Repr>,
 
     extra_bounds:Vec<WherePredicate>,
+
+    tags:Option<syn::Expr>,
 
     /// The last field of the prefix of a Prefix-type.
     last_prefix_field:Option<LastPrefixField<'a>>,
@@ -298,6 +303,39 @@ fn parse_sabi_attr<'a>(
                 ),
             };
             this.extra_bounds.push(bound);
+        }
+        (
+            ParseContext::TypeAttr{..},
+            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_tag),ref ident,..})
+        )if ident=="tag" =>
+        {
+            if this.tags.is_some() {
+                panic!("\n\n\
+Cannot specify multiple tags,\
+you must choose whether you want array or set semantics \
+when adding more tags.
+For array semantics you can do:
+
+- `tag![[ tag0,tag1 ]]` or `Tag::arr(&[ tag0,tag1 ])` :
+    This will require that the tags match exactly between interface and implementation.
+
+- `tag!{{ tag0,tag1 }}` or `Tag::set(&[ tag0,tag1 ])` :
+    This will require that the tags in the interface are a subset of the implementation.
+
+Tag:\n\t{}\n",
+                    unparsed_tag.value(),
+                );
+            }
+
+            let bound=match unparsed_tag.parse::<syn::Expr>() {
+                Ok(v)=>v,
+                Err(e)=>panic!(
+                    "\n\nInvalid tag expression:\n\t{}\nError:\n\t{}\n\n",
+                    unparsed_tag.value(),
+                    e
+                ),
+            };
+            this.tags=Some(bound);
         }
         (ParseContext::TypeAttr{name},Meta::List(list)) => {
             if list.ident == "override" {

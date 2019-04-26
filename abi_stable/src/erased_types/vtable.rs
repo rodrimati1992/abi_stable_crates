@@ -12,11 +12,19 @@ use super::c_functions::*;
 use super::*;
 
 use crate::{
+    abi_stability::Tag,
     ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
 
 use core_extensions::{ResultLike, StringExt};
+
+
+
+pub trait TagFromPointer {
+    const TAG:Tag;
+}
+
 
 #[doc(hidden)]
 /// Returns the vtable used by VirtualWrapper to do dynamic dispatch.
@@ -102,6 +110,12 @@ macro_rules! declare_meta_vtable {
         value=$value:ident;
         erased_pointer=$erased_ptr:ident;
         original_pointer=$orig_ptr:ident;
+
+        marker_traits[
+            $([
+                impl $marker_trait:ident where [ $($phantom_where_clause:tt)* ]
+            ])*
+        ]
 
         $([
             $( #[$field_attr:meta] )*
@@ -224,6 +238,8 @@ macro_rules! declare_meta_vtable {
             const FIELD:Option<Ty>;
         }
 
+        pub trait MarkerTrait<IsImpld,$value,$erased_ptr,$orig_ptr>{}
+
 
         $(
             impl<$value,$erased_ptr,$orig_ptr> 
@@ -231,13 +247,6 @@ macro_rules! declare_meta_vtable {
             for trait_selector::$selector 
             {
                 type Field=($field_ty);
-            }
-
-            impl<$value,$erased_ptr,$orig_ptr>
-                VTableFieldValue<($field_ty),False,$value,$erased_ptr,$orig_ptr>
-            for trait_selector::$selector
-            {
-                const FIELD:Option<($field_ty)>=None;
             }
 
             impl<$value,$erased_ptr,$orig_ptr,$($impl_params)*>
@@ -248,35 +257,36 @@ macro_rules! declare_meta_vtable {
                 const FIELD:Option<($field_ty)>=Some($field_value);
             }
         )*
+        impl<AnyFieldTy,AnySelector,$value,$erased_ptr,$orig_ptr>
+            VTableFieldValue<AnyFieldTy,False,$value,$erased_ptr,$orig_ptr>
+        for AnySelector
+        {
+            const FIELD:Option<AnyFieldTy>=None;
+        }
+
+
+
+        impl<Anything,$value,$erased_ptr,$orig_ptr> 
+            MarkerTrait<False,$value,$erased_ptr,$orig_ptr> 
+        for Anything
+        {}
+
+        $(
+            impl<$value,$erased_ptr,$orig_ptr> 
+                MarkerTrait<True,$value,$erased_ptr,$orig_ptr> 
+            for trait_selector::$marker_trait
+            where $($phantom_where_clause)*
+            {}
+        )*
 
         ///////////////////////////////////////////////////////////
-        //      Uncomment in 0.3
-        ///////////////////////////////////////////////////////////
-        // pub trait SendIf<Cond>{}
-
-        // impl<This> SendIf<False> for This
-        // {}
-
-        // impl<This> SendIf<True> for This
-        // where This:Send
-        // {}
-
-        
-        // pub trait SyncIf<Cond>{}
-
-        // impl<This> SyncIf<False> for This
-        // {}
-
-        // impl<This> SyncIf<True> for This
-        // where This:Sync
-        // {}
-        ///////////////////////////////////////////////////////////
-
-
-
 
         /// Contains marker types representing traits of the same name.
         pub mod trait_selector{
+            $(
+                /// Marker type representing the trait of the same name.
+                pub struct $marker_trait;
+            )*
             $(
                 /// Marker type representing the trait of the same name.
                 pub struct $selector;
@@ -326,6 +336,11 @@ macro_rules! declare_meta_vtable {
             This:ImplType<Interface=E>,
             E:InterfaceType+GetImplFlags,
             $(
+                trait_selector::$marker_trait:
+                    MarkerTrait<E::$marker_trait,$value,$erased_ptr,$orig_ptr>,
+            )*
+            $(
+                E::$selector:Boolean,
                 trait_selector::$selector:VTableFieldValue<
                     ($field_ty),
                     E::$selector,
@@ -334,12 +349,6 @@ macro_rules! declare_meta_vtable {
                     $orig_ptr,
                 >,
             )*
-            // Uncomment in 0.3
-            // $orig_ptr:SendIf<E::Send>,
-            // $orig_ptr:SyncIf<E::Sync>,
-            
-            // $erased_ptr:SendIf<E::Send>,
-            // $erased_ptr:SyncIf<E::Sync>,
         {
             const TMP_VTABLE:VTableVal<$erased_ptr>=VTableVal{
                 impl_flags:E::FLAGS,
@@ -364,7 +373,43 @@ macro_rules! declare_meta_vtable {
                 )*
                 _marker:PhantomData,
             };
+
         }
+
+        impl<P,I> TagFromPointer for P
+        where 
+            P:Deref<Target=ZeroSized<I>>,
+            I:InterfaceType,
+            $( I::$marker_trait:Boolean, )*
+            $( I::$selector:Boolean, )*
+        {
+            const TAG:Tag={
+                const fn str_if(cond:bool,s:&'static str)->Tag{
+                    [ Tag::null(), Tag::str(s) ][cond as usize]
+                }
+
+                Tag::arr(&[
+                    Tag::arr(&[
+                        $(
+                            str_if(
+                                <I::$marker_trait as Boolean>::VALUE,
+                                stringify!($marker_trait)
+                            ),
+                        )*
+                    ]),
+                    Tag::set(&[
+                        $(
+                            str_if(
+                                <I::$selector as Boolean>::VALUE,
+                                stringify!($selector)
+                            ),
+                        )*
+                    ]),
+                ])
+            };
+
+        }
+
 
         impl<$erased_ptr> Debug for VTable<$erased_ptr> {
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
@@ -387,6 +432,15 @@ declare_meta_vtable! {
     value  =T;
     erased_pointer=ErasedPtr;
     original_pointer=OrigP;
+
+    marker_traits[
+        [
+            impl Send where [OrigP:Send]
+        ]
+        [
+            impl Sync where [OrigP:Sync]
+        ]
+    ]
 
     [
         clone_ptr:    extern "C" fn(&ErasedPtr)->ErasedPtr;

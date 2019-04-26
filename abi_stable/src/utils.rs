@@ -65,3 +65,73 @@ pub unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
 pub unsafe fn transmute_mut_reference<T,U>(ref_:&mut T)->&mut U{
     &mut *(ref_ as *mut _ as *mut U)
 }
+
+//////////////////////////////////////
+
+
+use std::fmt::{self,Debug,Display};
+
+use core_extensions::{
+    strings::LeftPadder,
+    prelude::*,
+};
+
+use crate::std_types::RString;
+
+
+pub(crate) trait FmtPadding{
+    fn display_pad<'a,T>(&'a mut self,padding:usize,v:&T)->Result<LeftPadder<'a> ,fmt::Error>
+    where T:Display;
+
+    fn debug_pad<'a,T>(&'a mut self,padding:usize,v:&T)->Result<LeftPadder<'a> ,fmt::Error>
+    where T:Debug;
+}
+
+
+macro_rules! impl_fmt_padding {
+    ($ty:ty) => (
+        impl FmtPadding for $ty{
+            fn display_pad<'a,T>(
+                &'a mut self,
+                padding:usize,
+                v:&T
+            )->Result<LeftPadder<'a> ,fmt::Error>
+            where T:Display
+            {
+                use std::fmt::Write;
+                let this=self.into_type_mut();
+
+                this.clear();
+
+                writeln!(this,"{}",v)?;
+
+                Ok(this.left_padder(padding))
+            }
+
+            fn debug_pad<'a,T>(
+                &'a mut self,
+                padding:usize,
+                v:&T
+            )->Result<LeftPadder<'a> ,fmt::Error>
+            where T:Debug
+            {
+                use std::fmt::Write;
+                let this=self.into_type_mut();
+
+                this.clear();
+
+                writeln!(this,"{:#?}",v)?;
+
+                Ok(this.left_padder(padding))
+            }           
+        }
+
+    )
+ }
+
+
+
+
+
+impl_fmt_padding!{ String }
+impl_fmt_padding!{ RString }

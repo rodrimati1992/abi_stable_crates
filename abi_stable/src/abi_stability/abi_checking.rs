@@ -16,6 +16,7 @@ use super::{
         TypeLayout, TLData, TLDataDiscriminant, TLEnumVariant, TLField,TLFieldAndType, 
         FullType,
     },
+    tagging::{CheckableTag,TagErrors},
 };
 use crate::{
     version::{ParseVersionError, VersionStrings},
@@ -66,6 +67,10 @@ pub enum AbiInstability {
     UnexpectedField(ExpectedFoundError<&'static TLField>),
     TooManyVariants(ExpectedFoundError<usize>),
     UnexpectedVariant(ExpectedFoundError<TLEnumVariant>),
+    TagError{
+        expected_found:ExpectedFoundError<CheckableTag>,
+        err:TagErrors,
+    },
 }
 
 
@@ -102,6 +107,8 @@ impl fmt::Display for AbiInstabilityErrors {
 }
 impl fmt::Display for AbiInstabilityError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut extra_err=None::<String>;
+
         writeln!(f, "{} error(s) at:", self.errs.len())?;
         write!(f, "<this>")?;
         for field in &self.stack_trace {
@@ -147,6 +154,11 @@ impl fmt::Display for AbiInstabilityError {
                 AI::UnexpectedField(v) => ("unexpected field", v.debug_str()),
                 AI::TooManyVariants(v) => ("too many variants", v.display_str()),
                 AI::UnexpectedVariant(v) => ("unexpected variant", v.debug_str()),
+                AI::TagError{expected_found,err} => {
+                    extra_err=Some(err.to_string());
+
+                    ("incompatible tag", expected_found.display_str())
+                },
             };
 
             writeln!(
@@ -154,8 +166,11 @@ impl fmt::Display for AbiInstabilityError {
                 "\nError:{}\nExpected:\n{}\nFound:\n{}",
                 error_msg,
                 expected_err.expected.left_padder(4),
-                expected_err.found.left_padder(4),
+                expected_err.found   .left_padder(4),
             )?;
+            if let Some(extra_err)=&extra_err {
+                writeln!(f,"\nExtra:\n{}\n",extra_err.left_padder(4))?;
+            }
         }
         Ok(())
     }
@@ -426,6 +441,18 @@ impl AbiChecker {
                     expected: t_discr,
                     found: o_discr,
                 }));
+            }
+
+            let t_tag=t_lay.tag.to_checkable();
+            let o_tag=o_lay.tag.to_checkable();
+            if let Err(tag_err)=t_tag.check_compatible(&o_tag) {
+                errs.push(AI::TagError{
+                    expected_found:ExpectedFoundError{
+                        expected:t_tag,
+                        found:o_tag,
+                    },
+                    err:tag_err,
+                });
             }
 
             match (t_lay.data, o_lay.data) {

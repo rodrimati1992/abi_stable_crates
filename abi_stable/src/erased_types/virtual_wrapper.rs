@@ -14,6 +14,7 @@ use serde::{de, ser, Deserialize, Deserializer};
 use core_extensions::{prelude::*, ResultLike};
 
 use crate::{
+    abi_stability::Tag,
     pointer_trait::{ErasedStableDeref, StableDeref, TransmuteElement},
     ErasedObject, 
     std_types::{RBox, RCow, RStr},
@@ -142,6 +143,8 @@ The primary example using `VirtualWrapper<_>` is in the readme.
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
+    #[sabi(bound="P:TagFromPointer")]
+    #[sabi(tag="<P as TagFromPointer>::TAG")]
     pub struct VirtualWrapper<P> {
         pub(super) object: ManuallyDrop<P>,
         vtable: *const VTable<P>,
@@ -652,19 +655,20 @@ where
 }
 
 
-// TODO:Uncomment in 0.3
-// unsafe impl<P,I> Send for VirtualWrapper<P>
-// where
-//     P: Deref<Target = ZeroSized<I>>,
-//     I: InterfaceType<Send = True>,
-// {}
+unsafe impl<P,I> Send for VirtualWrapper<P>
+where
+    P: Send,
+    P: Deref<Target = ZeroSized<I>>,
+    I: InterfaceType<Send = True>,
+{}
 
 
-// unsafe impl<P,I> Sync for VirtualWrapper<P>
-// where
-//     P: Deref<Target = ZeroSized<I>>,
-//     I: InterfaceType<Sync = True>,
-// {}
+unsafe impl<P,I> Sync for VirtualWrapper<P>
+where
+    P: Sync,
+    P: Deref<Target = ZeroSized<I>>,
+    I: InterfaceType<Sync = True>,
+{}
 
 
 //////////////////////////////////////////////////////////////////

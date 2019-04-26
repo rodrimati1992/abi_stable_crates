@@ -7,6 +7,7 @@ use std::{mem,marker::PhantomData};
 
 use crate::{
     StableAbi,
+    abi_stability::Tag,
     erased_types::{GetImplFlags, VirtualWrapperTrait},
     std_types::{RBoxError, RCow, RStr,StaticStr,utypeid::new_utypeid},
     version::VersionStrings,
@@ -36,7 +37,7 @@ the convert back and forth between `Self` and `Self::Interface`.
 
 
 */
-pub trait ImplType: Sized + 'static + Send + Sync {
+pub trait ImplType: Sized + 'static {
     type Interface: InterfaceType;
 
     const INFO: &'static TypeInfo;
@@ -109,7 +110,11 @@ impl_InterfaceType!{
 
 
 */
-pub trait InterfaceType: Sized + 'static + Send + Sync + GetImplFlags + StableAbi {
+pub trait InterfaceType: Sized + 'static + GetImplFlags + StableAbi {
+    type Send;
+
+    type Sync;
+
     type Clone;
 
     type Default;
@@ -166,6 +171,8 @@ pub trait DeserializeInterfaceType: InterfaceType<Deserialize = True> {
 
 
 /////////////////////////////////////////////////////////////////////
+
+
 
 
 

@@ -6,6 +6,7 @@ types and traits related to abi stability.
 pub mod type_layout;
 pub(crate) mod abi_checking;
 pub mod stable_abi_trait;
+pub mod tagging;
 
 #[cfg(test)]
 mod layout_tests;
@@ -15,6 +16,9 @@ pub use self::{
         AbiInfo, AbiInfoWrapper, StableAbi,
         SharedStableAbi,
     },
+    tagging::{
+        Tag,
+    }
 
 };
 
