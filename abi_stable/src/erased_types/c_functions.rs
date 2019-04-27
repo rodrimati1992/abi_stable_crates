@@ -186,7 +186,7 @@ where
 
 pub(crate) extern "C" fn hash_Hash<T>(
     this: &ErasedObject,
-    mut state: trait_objects::HasherTraitObject<&mut ErasedObject>,
+    mut state: trait_objects::HasherObject<'_>,
 ) where
     T: Hash,
 {

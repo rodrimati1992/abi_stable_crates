@@ -63,27 +63,14 @@ impl<P> StableDerefMut for P where P: StableDeref + DerefMut {}
 
 ///////////
 
-/**
-Erases a pointer,casting its referent to `ZeroSized<O>`.
-
-This is safe to do because:
-
--`ZeroSized<O> ` is a zero-sized type,
-
-- StableDeref requires that the pointer always have the same layout 
-  regardless of its referent.
-
-- TransmuteElement requires that the pointer either be `!Drop`,
-    or that the pointer uses a vtable with a destructor that knows 
-    the original type of the referent
-
-It would not be safe to do this in the other direction,
-going from `ZeroSized<O>` to any other type,
-
-
-*/
-/// 
 pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<ZeroSized<O>> {
+    /// Erases a pointer,casting its referent to `ZeroSized<O>`.
+    /// 
+    /// # Safety
+    /// 
+    /// This is unsafe to call,since the lifetime of the input is not tied to O,
+    /// you must ensure that the lifetimes are the same.
+    /// 
     /// # Example
     ///
     /// ```
@@ -100,10 +87,10 @@ pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<ZeroSized<O>> {
     /// };
     ///
     /// ```
-    fn erased(self, _: VariantPhantom<O>) -> Self::TransmutedPtr 
+    unsafe fn erased(self, _: VariantPhantom<O>) -> Self::TransmutedPtr 
     where Self::Target:Sized
     {
-        unsafe { self.transmute_element(PhantomData) }
+        self.transmute_element(PhantomData)
     }
 }
 

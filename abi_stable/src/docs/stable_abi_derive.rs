@@ -20,6 +20,17 @@ This is only necessary if you are passing `TypeParameter` to `UnsafeIgnoredType`
 
 Adds a bound to the StableAbi impl.
 
+### `#[sabi(tag=" some_expr ")]`
+
+Adds a "tag" associated with the type,
+a dynamically typed data structure used to encode extra properties about a type.
+
+This can only be done once,
+to add multiple properties you must decide whether you want 
+
+For more information about tags,[look here](../../abi_stability/tagging/index.html)
+
+
 ### `#[sabi(debug_print)]`
 
 Prints the generated code,stopping compilation.

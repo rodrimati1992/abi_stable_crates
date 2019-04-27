@@ -1,34 +1,5 @@
-use std::{
-    collections::BTreeMap,
-    fmt::{self,Debug,Display},
-    mem,
-};
-
-
-use core_extensions::{
-    matches,
-    strings::LeftPadder,
-    prelude::*,
-};
-
-use crate::{
-    StableAbi,
-    std_types::{
-        StaticStr,
-        StaticSlice,
-        RVec,
-        ROption,
-        RSome,
-        RNone,
-    },
-    traits::IntoReprC,
-    utils::FmtPadding,
-};
-
-
-
-/**
-A dynamically types data structure used to encode extra properties 
+/*!
+Tag is a dynamically typed data structure used to encode extra properties 
 about a type in its layout constant.
 
 Some usecases for this:
@@ -41,25 +12,98 @@ Some usecases for this:
 
 Tags don't use strict equality when doing layout checking ,
 here is an exhaustive list on what is considered compatible 
-for each variant **as an interface**:
+for each variant **in the interface**:
 
 - Null:
     A Tag which is compatible with any other one.
-    Note that Nulls are stripped from arrays,set,and maps.
+    Note that Nulls are stripped from arrays,set,and map keys.
 
 - Integers/bools/strings:
     They must be strictly equal.
 
 - Arrays:
-    They must have the same length,with each element defining its compatibility .
+    They must have the same length.
 
 - Sets/Maps:
     The set/map in the interface must be a subset of the implementation,
-    with each element defining its compatibility .
 
-# Example
+# Examples
 
-Declaring each variant.
+
+### Declaring a unit type with a tag.
+
+```
+
+use abi_stable::{tag,StableAbi};
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi( tag = r##" tag!("WAT") "## )]
+struct UnitType;
+
+
+# fn main(){}
+
+
+```
+
+### Emulating const generics for strings
+
+This emulates a `const NAME:&'static str` parameter,
+which is checked as being the same between the interface and implementation.
+
+```
+use abi_stable::{tag,StableAbi,marker_type::UnsafeIgnoredType};
+
+
+trait Name{
+    const NAME:&'static str;
+}
+
+///
+/// The layout of `StringParameterized<S>` is determined by `<S as Name>::NAME`,
+/// allowing the interface crate to have a different `S` 
+/// type parameter than the implementation crate,
+/// so long as they have the same associated `&'static str`.
+///
+/// StringParameterized<Foo> has the "same" layout as StringParameterized<Bar>.
+///
+/// StringParameterized<Foo> has a "different" layout to StringParameterized<Boor>.
+///
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi( 
+    unconstrained(S),
+    bound="S:Name",
+    tag = r##" tag!( S::NAME ) "## ,
+)]
+struct StringParameterized<S>{
+    _marker:UnsafeIgnoredType<S>
+}
+
+
+struct Foo;
+impl Name for Foo{
+    const NAME:&'static str="Hello, World!";
+}
+
+
+struct Bar;
+impl Name for Bar{
+    const NAME:&'static str="Hello, World!";
+}
+
+
+struct Boor;
+impl Name for Boor{
+    const NAME:&'static str="This is a different string!";
+}
+
+# fn main(){}
+
+```
+
+### Declaring each variant.
 
 ```rust
 use abi_stable::{
@@ -119,10 +163,11 @@ const MAP_0_FN:Tag=Tag::map(&[
     Tag::kv( Tag::int(3), Tag::int(100)),
 ]);
 
+# fn main(){}
 
 ```
 
-# Creating a complex data structure.
+### Creating a complex data structure.
 
 
 ```rust
@@ -143,21 +188,76 @@ const TAG:Tag=tag!{{
         "Debug",
         "Display",
     }},
+
+
+    "maps"=>tag!{{
+        0=>"Zero",
+        1=>"One",
+    }}
 }};
 
 
 ```
 */
+
+
+use std::{
+    collections::BTreeMap,
+    fmt::{self,Display},
+    mem,
+};
+
+
+use core_extensions::{
+    matches,
+    prelude::*,
+};
+
+use crate::{
+    StableAbi,
+    std_types::{
+        StaticStr,
+        StaticSlice,
+        RVec,
+        ROption,
+        RSome,
+        RNone,
+        RBox,
+    },
+    traits::IntoReprC,
+    utils::FmtPadding,
+};
+
+
+
+
+
+/// Tag is a dynamically typed data structure used to encode extra properties 
+/// about a type in its layout constant.
+///
+/// For more information [look at the module-level documentation](./index.html)
 #[repr(C)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-pub enum Tag{
+pub struct Tag{
+    variant:TagVariant,
+}
+
+
+/// All the Tag variants.
+#[repr(C)]
+#[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub enum TagVariant{
     Primitive(Primitive),
+    Ignored(&'static Tag),
     Array(StaticSlice<Tag>),
     Set(StaticSlice<Tag>),
     Map(StaticSlice<KeyValue<Tag>>),
 }
 
+
+/// The primitive types of a variant,which do not contain other nested tags.
 #[repr(C)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -169,51 +269,97 @@ pub enum Primitive{
     String_(StaticStr),
 }
 
+/// A tag that can be checked for compatibility with another tag.
 #[repr(C)]
-#[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash)]
-pub enum CheckableTag{
+#[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub struct CheckableTag{
+    variant:CTVariant,
+}
+
+/// The possible variants of CheckableTag.
+#[repr(C)]
+#[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub enum CTVariant{
     Primitive(Primitive),
-    Array(Vec<CheckableTag>),
-    Set(BTreeMap<CheckableTag,CheckableTag>),
-    Map(BTreeMap<CheckableTag,CheckableTag>),
+    Ignored(RBox<CheckableTag>),
+    Array(RVec<CheckableTag>),
+    Set(RVec<KeyValue<CheckableTag>>),
+    Map(RVec<KeyValue<CheckableTag>>),
 }
 
 
+
+/// A key-value pair,used when constructing a map.
 #[repr(C)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct KeyValue<T>{
-    key:T,
-    value:T,
+    pub key:T,
+    pub value:T,
+}
+
+#[doc(hidden)]
+pub trait TagTrait{
+    fn is_null(&self)->bool;
+}
+
+impl TagTrait for Tag{
+    fn is_null(&self)->bool{
+        self.variant==TagVariant::Primitive(Primitive::Null)
+    }
+}
+
+impl TagTrait for CheckableTag{
+    fn is_null(&self)->bool{
+        self.variant==CTVariant::Primitive(Primitive::Null)
+    }
+}
+
+impl<'a> TagTrait for &'a CheckableTag{
+    fn is_null(&self)->bool{
+        *self==&Tag::null().to_checkable()
+    }
 }
 
 
 impl Tag{
+    const fn new(variant:TagVariant)->Self{
+        Self{
+            variant,
+        }
+    }
+
     pub const fn null()->Self{
-        Tag::Primitive(Primitive::Null)
+        Self::new(TagVariant::Primitive(Primitive::Null))
     }
     pub const fn bool_(b:bool)->Self{
-        Tag::Primitive(Primitive::Bool(b))
+        Self::new(TagVariant::Primitive(Primitive::Bool(b)))
     }
 
     pub const fn int(n:i64)->Self{
-        Tag::Primitive(Primitive::Int(n))
+        Self::new(TagVariant::Primitive(Primitive::Int(n)))
     }
 
     pub const fn uint(n:u64)->Self{
-        Tag::Primitive(Primitive::UInt(n))
+        Self::new(TagVariant::Primitive(Primitive::UInt(n)))
     }
 
     pub const fn str(s:&'static str)->Self{
-        Tag::Primitive(Primitive::String_(StaticStr::new(s)))
+        Self::new(TagVariant::Primitive(Primitive::String_(StaticStr::new(s))))
+    }
+
+    pub const fn ignored(ignored:&'static Tag)->Self{
+        Self::new(TagVariant::Ignored(ignored))
     }
 
     pub const fn arr(s:&'static [Tag])->Self{
-        Tag::Array(StaticSlice::new(s))
+        Self::new(TagVariant::Array(StaticSlice::new(s)))
     }
 
     pub const fn set(s:&'static [Tag])->Self{
-        Tag::Set(StaticSlice::new(s))
+        Self::new(TagVariant::Set(StaticSlice::new(s)))
     }
 
     pub const fn kv(key:Tag,value:Tag)->KeyValue<Tag>{
@@ -221,42 +367,64 @@ impl Tag{
     }
 
     pub const fn map(s:&'static [KeyValue<Tag>])->Self{
-        Tag::Map(StaticSlice::new(s))
+        Self::new(TagVariant::Map(StaticSlice::new(s)))
     }
 }
 
 impl Tag{
     pub fn to_checkable(self)->CheckableTag{
-        match self {
-            Tag::Primitive(prim)=>CheckableTag::Primitive(prim),
-            Tag::Array(arr)=>{
+        let variant=match self.variant {
+            TagVariant::Primitive(prim)=>
+                CTVariant::Primitive(prim),
+            TagVariant::Ignored(ignored)=>{
+                (*ignored).to_checkable()
+                    .piped(RBox::new)
+                    .piped(CTVariant::Ignored)
+            }
+            TagVariant::Array(arr)=>{
                 arr.iter().cloned()
                     .filter(|x| *x!=Tag::null() )
                     .map(Self::to_checkable)
-                    .collect::<Vec<CheckableTag>>()
-                    .piped(CheckableTag::Array)
+                    .collect::<RVec<CheckableTag>>()
+                    .piped(CTVariant::Array)
             }
-            Tag::Set(arr)=>{
+            TagVariant::Set(arr)=>{
                 arr.iter().cloned()
-                    .filter(|x| *x!=Tag::null() )
+                    .filter(|x| !x.is_null() )
                     .map(|x| (x.to_checkable(),Tag::null().to_checkable()) )
-                    .collect::<BTreeMap<CheckableTag,CheckableTag>>()
-                    .piped(CheckableTag::Set)
+                    .piped(sorted_ct_vec_from_iter)
+                    .piped(CTVariant::Set)
             }
-            Tag::Map(arr)=>{
+            TagVariant::Map(arr)=>{
                 arr.iter().cloned()
-                    .filter(|kv| kv.key!=Tag::null() )
-                    .map(|kv| (kv.key.to_checkable(),kv.value.to_checkable())  )
-                    .collect::<BTreeMap<CheckableTag,CheckableTag>>()
-                    .piped(CheckableTag::Map)
+                    .filter(|kv| !kv.key.is_null() )
+                    .map(|x| x.map(|y|y.to_checkable()).into_pair() )
+                    .piped(sorted_ct_vec_from_iter)
+                    .piped(CTVariant::Map)
             }
+        };
+
+        CheckableTag{
+            variant,
         }
     }
 }
 
+
+fn sorted_ct_vec_from_iter<I>(iter:I)->RVec<KeyValue<CheckableTag>>
+where I:IntoIterator<Item= (CheckableTag,CheckableTag) >
+{
+    iter.into_iter()
+        .collect::<BTreeMap<CheckableTag,CheckableTag>>()
+        .into_iter()
+        .map(KeyValue::from_pair)
+        .collect::<RVec<KeyValue<CheckableTag>>>()
+}
+
+
 impl CheckableTag{
     pub fn check_compatible(&self,other:&Self)->Result<(),TagErrors>{
-        use self::CheckableTag as CT;
+        use self::CTVariant as CTV;
 
         let err_with_variant=|vari:TagErrorVariant|{
             TagErrors{
@@ -275,10 +443,10 @@ impl CheckableTag{
             }
         };
 
-        let same_variant=match (self,other) {
-            (CT::Primitive(Primitive::Null),_)=>
+        let same_variant=match (&self.variant,&other.variant) {
+            (CTV::Primitive(Primitive::Null),_)=>
                 return Ok(()),
-            (CT::Primitive(l),CT::Primitive(r))=>
+            (CTV::Primitive(l),CTV::Primitive(r))=>
                 mem::discriminant(l)==mem::discriminant(r),
             (l,r)=>
                 mem::discriminant(l)==mem::discriminant(r),
@@ -288,34 +456,36 @@ impl CheckableTag{
             return Err(err_with_variant(TagErrorVariant::MismatchedDiscriminant))
         }
 
-        let is_map=matches!(CT::Map{..}=self);
+        let is_map=matches!(CTV::Map{..}=self.variant);
         
-        match (self,other) {
-            (CT::Primitive(l),CT::Primitive(r))=>{
+        match (&self.variant,&other.variant) {
+            (CTV::Primitive(l),CTV::Primitive(r))=>{
                 match (l,r) {
                     (Primitive::Null,Primitive::Null)=>(),
                     (Primitive::Null,_)=>(),
 
                     (Primitive::Bool(l_cond),Primitive::Bool(r_cond))=>
                         mismatched_val_err(l_cond==r_cond)?,
-                    (Primitive::Bool(cond),_)=>{},
+                    (Primitive::Bool(_),_)=>{},
                     
                     (Primitive::Int(l_num),Primitive::Int(r_num))=>
                         mismatched_val_err(l_num==r_num)?,
-                    (Primitive::Int(num),_)=>{},
+                    (Primitive::Int(_),_)=>{},
 
                     (Primitive::UInt(l_num),Primitive::UInt(r_num))=>
                         mismatched_val_err(l_num==r_num)?,
-                    (Primitive::UInt(num),_)=>{},
+                    (Primitive::UInt(_),_)=>{},
                     
                     (Primitive::String_(l_str),Primitive::String_(r_str))=>
                         mismatched_val_err(l_str.as_str()==r_str.as_str())?,
-                    (Primitive::String_(s),_)=>{},
+                    (Primitive::String_(_),_)=>{},
                 }    
             },
-            (CT::Primitive(_),_)=>{}
+            (CTV::Primitive(_),_)=>{}
             
-            (CT::Array(l_arr),CT::Array(r_arr))=>{
+            (CTV::Ignored(_),_)=>{}
+            
+            (CTV::Array(l_arr),CTV::Array(r_arr))=>{
                 let l_arr=l_arr.as_slice();
                 let r_arr=r_arr.as_slice();
 
@@ -332,10 +502,10 @@ impl CheckableTag{
                         .map_err(|errs| errs.context(l_elem.clone()) )?;
                 }
             }
-            (CT::Array(arr),_)=>{},
+            (CTV::Array(_),_)=>{},
             
-             (CT::Set(l_map),CT::Set(r_map))
-            |(CT::Map(l_map),CT::Map(r_map))=>{
+             (CTV::Set(l_map),CTV::Set(r_map))
+            |(CTV::Map(l_map),CTV::Map(r_map))=>{
                 if l_map.len() > r_map.len() {
                     let e=TagErrorVariant::MismatchedAssocLength{
                         expected:l_map.len(),
@@ -344,9 +514,9 @@ impl CheckableTag{
                     return Err(err_with_variant(e));
                 }
 
-                let mut r_iter=r_map.iter();
+                let mut r_iter=r_map.iter().map(KeyValue::as_pair);
 
-                'outer:for (l_key,l_elem) in l_map {
+                'outer:for (l_key,l_elem) in l_map.iter().map(KeyValue::as_pair) {
                     let mut first_err=None::<KeyValue<&CheckableTag>>;
                     
                     'inner:loop {
@@ -379,8 +549,8 @@ impl CheckableTag{
                     return Err(err_with_variant(e));
                 }
             }
-            (CT::Set(set),_)=>{},
-            (CT::Map(set),_)=>{},
+            (CTV::Set(_),_)=>{},
+            (CTV::Map(_),_)=>{},
         }
         Ok(())
     }
@@ -402,13 +572,32 @@ impl<T> KeyValue<T>{
             value:f(self.value),
         }
     }
+
+    pub fn into_pair(self)->(T,T){
+        (self.key,self.value)
+    }
+
+    pub fn as_pair(&self)->(&T,&T){
+        (
+            &self.key,
+            &self.value,
+        )
+    }
+
+    pub fn from_pair((key,value):(T,T))->Self{
+        Self{ key,value }
+    }
 }
 
 impl<T> Display for KeyValue<T> 
-where T:Display
+where T:Display+TagTrait
 {
-    fn fmt(&self,f:&mut fmt::Formatter)->fmt::Result{
-        write!(f,"{}=>{}",self.key,self.value)
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        write!(f,"{}",self.key)?;
+        if !self.value.is_null() {
+            write!(f,"=>{}",self.value)?;
+        }
+        Ok(())
     }
 }
 
@@ -486,33 +675,29 @@ impl Display for Primitive {
 }
 
 
-macro_rules! impl_display {
-    ($ty:ident) => (
-        impl Display for $ty {
-            fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
-                match self {
-                    $ty::Primitive(prim)=>{
-                        Display::fmt(prim,f)?;
-                    },
-                    $ty::Array(arr)=>{
-                        writeln!(f,"[")?;
-                        display_iter(&*arr,f,4)?;
-                        write!(f,"]")?;
-                    },
-                    $ty::Set(map)|$ty::Map(map)=>{
-                        writeln!(f,"{{")?;
-                        let iter=map.iter().map(|(k,v)| KeyValue::new(k,v) );
-                        display_iter(iter,f,4)?;
-                        write!(f,"}}")?;
-                    },
-                }
-                Ok(())
+impl Display for CheckableTag {
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
+        match &self.variant {
+            CTVariant::Primitive(prim)=>{
+                Display::fmt(prim,f)?;
+            },
+            CTVariant::Ignored(ignored)=>{
+                Display::fmt(ignored,f)?;
             }
+            CTVariant::Array(arr)=>{
+                writeln!(f,"[")?;
+                display_iter(&*arr,f,4)?;
+                write!(f,"]")?;
+            },
+            CTVariant::Set(map)|CTVariant::Map(map)=>{
+                writeln!(f,"{{")?;
+                display_iter(map.iter(),f,4)?;
+                write!(f,"}}")?;
+            },
         }
-    )
+        Ok(())
+    }
 }
-
-impl_display!{CheckableTag}
 
 
 /////////////////////////////////////////////////////////////////
@@ -540,7 +725,7 @@ impl TagErrors{
 
 
 impl Display for TagErrors {
-    fn fmt(&self,f:&mut fmt::Formatter)->fmt::Result{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
         let mut buffer=String::new();
 
         writeln!(f,"Stacktrace:")?;
@@ -554,8 +739,8 @@ impl Display for TagErrors {
         writeln!(f,"Expected:\n{}",buffer.display_pad(4,&self.expected)? )?;
         writeln!(f,"Found:\n{}",buffer.display_pad(4,&self.found)? )?;
         writeln!(f,"Errors:\n")?;
-        for stack in self.backtrace.iter().rev() {
-            writeln!(f,"    Error:\n{},",buffer.display_pad(8,stack)? )?;
+        for err in self.errors.iter().rev() {
+            writeln!(f,"\n{},",buffer.display_pad(4,err)? )?;
         }
         Ok(())
     }
@@ -565,7 +750,9 @@ impl Display for TagErrors {
 /////////////////////////////////////////////////////////////////
 
 
-#[derive(Debug,Clone,PartialEq)]
+#[repr(C)]
+#[derive(Debug,Clone,PartialEq,StableAbi)]
+#[sabi(inside_abi_stable_crate)]
 pub enum TagErrorVariant{
     MismatchedDiscriminant,
     MismatchedValue,

@@ -41,6 +41,7 @@ pub type TOStateBox = VirtualWrapper<RBox<ZeroSized<TOState>>>;
 // which other associated types you can define.
 impl_InterfaceType!{
     impl InterfaceType for TOState {
+        type Send=False;
         type Debug = True;
         type Serialize = True;
         type Deserialize = True;
