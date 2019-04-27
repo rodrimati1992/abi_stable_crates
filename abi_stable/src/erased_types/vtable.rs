@@ -388,24 +388,24 @@ macro_rules! declare_meta_vtable {
                     [ Tag::null(), Tag::str(s) ][cond as usize]
                 }
 
-                Tag::arr(&[
-                    Tag::arr(&[
+                tag!{{
+                    "auto traits"=>tag![[
                         $(
                             str_if(
                                 <I::$marker_trait as Boolean>::VALUE,
                                 stringify!($marker_trait)
                             ),
                         )*
-                    ]),
-                    Tag::set(&[
+                    ]],
+                    "required traits"=>tag!{{
                         $(
                             str_if(
                                 <I::$selector as Boolean>::VALUE,
                                 stringify!($selector)
                             ),
                         )*
-                    ]),
-                ])
+                    }}
+                }}
             };
 
         }
@@ -519,7 +519,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(last_prefix_field)]
-        hash:extern "C" fn(&ErasedObject,trait_objects::HasherTraitObject<&mut ErasedObject>);
+        hash:extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>);
         priv _hash;
         impl[] VtableFieldValue<Hash>
         where [T:Hash]

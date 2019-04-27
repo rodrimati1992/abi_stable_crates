@@ -14,7 +14,6 @@ use serde::{de, ser, Deserialize, Deserializer};
 use core_extensions::{prelude::*, ResultLike};
 
 use crate::{
-    abi_stability::Tag,
     pointer_trait::{ErasedStableDeref, StableDeref, TransmuteElement},
     ErasedObject, 
     std_types::{RBox, RCow, RStr},
@@ -69,10 +68,10 @@ To construct a `VirtualWrapper<_>` one can use these associated functions:
     Requires a value that implements ImplType.
     
 - from_any_value:
-    Can be constructed from the value directly.Requires a `'static+Send+Sync` value.
+    Can be constructed from the value directly.Requires a `'static` value.
     
 - from_any_ptr
-    Can be constructed from a pointer of a value.Requires a `'static+Send+Sync` value.
+    Can be constructed from a pointer of a value.Requires a `'static` value.
 
 ### Trait object
 
@@ -127,11 +126,11 @@ using these (fallible) conversion methods:
     Where `VirtualWrapper<P<ZeroSized< Interface >>>`'s 
         Interface must equal `<T as ImplType>::Interface`
 
-- into_any_unerased:Unwraps into a pointer to `T`.Requires `T:'static+Send+Sync`.
+- into_any_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
 
-- as_any_unerased:Unwraps into a `&T`.Requires `T:'static+Send+Sync`.
+- as_any_unerased:Unwraps into a `&T`.Requires `T:'static`.
 
-- as_any_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static+Send+Sync`.
+- as_any_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
 
 # Example 
 
@@ -176,7 +175,10 @@ The primary example using `VirtualWrapper<_>` is in the readme.
             P: ErasedStableDeref<<T as ImplType>::Interface>,
         {
             VirtualWrapper {
-                object: ManuallyDrop::new(object.erased(T::Interface::T)),
+                object: unsafe{
+                    // The lifetime here is 'static,so it's fine to erase the type.
+                    ManuallyDrop::new(object.erased(T::Interface::T))
+                },
                 vtable: T::get_vtable(),
             }
         }
@@ -184,7 +186,7 @@ The primary example using `VirtualWrapper<_>` is in the readme.
         /// Constructors the `VirtualWrapper<_>` from a type that doesn't implement `ImplType`.
         pub fn from_any_value<T,I>(object: T,interface:I) -> VirtualWrapper<RBox<ZeroSized<I>>>
         where
-            T:'static+Send+Sync,
+            T:'static,
             I:InterfaceType,
             InterfaceFor<T,I> : GetVtable<T,RBox<ZeroSized<I>>,RBox<T>>,
         {
@@ -198,12 +200,15 @@ The primary example using `VirtualWrapper<_>` is in the readme.
         where
             I:InterfaceType,
             P: StableDeref<Target = T>,
-            T:'static+Send+Sync,
+            T:'static,
             InterfaceFor<T,I>: GetVtable<T,P::TransmutedPtr,P>,
             P: ErasedStableDeref<I>,
         {
             VirtualWrapper {
-                object: ManuallyDrop::new(object.erased(I::T)),
+                object: unsafe{
+                    // The lifetime here is 'static,so it's fine to erase the type.
+                    ManuallyDrop::new(object.erased(I::T))
+                },
                 vtable: <InterfaceFor<T,I>>::get_vtable(),
             }
         }
@@ -650,7 +655,7 @@ where
     where
         H: Hasher,
     {
-        self.vtable().hash::<I>()(self.as_abi(), HasherTraitObject::new(state))
+        self.vtable().hash::<I>()(self.as_abi(), HasherObject::new(state))
     }
 }
 

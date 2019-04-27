@@ -6,7 +6,6 @@ use std::{
     cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},
     fmt::{self, Debug, Display},
     hash::{Hash, Hasher},
-    mem,
     ops::Deref,
 };
 

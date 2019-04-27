@@ -193,7 +193,7 @@ use crate::abi_stability::stable_abi_trait::SharedStableAbi;
 pub use crate::{
     abi_stability::StableAbi,
     erased_types::{VirtualWrapper,ImplType, InterfaceType},
-    marker_type::{ErasedObject, ZeroSized},
+    marker_type::{ErasedObject, ZeroSized,ErasedRef},
 };
 
 

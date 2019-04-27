@@ -2,3 +2,4 @@
 **/*.rs.bk
 **/*.7z
 Cargo.lock
+__ignored__*

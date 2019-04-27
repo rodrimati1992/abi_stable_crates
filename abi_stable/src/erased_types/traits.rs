@@ -7,7 +7,6 @@ use std::{mem,marker::PhantomData};
 
 use crate::{
     StableAbi,
-    abi_stability::Tag,
     erased_types::{GetImplFlags, VirtualWrapperTrait},
     std_types::{RBoxError, RCow, RStr,StaticStr,utypeid::new_utypeid},
     version::VersionStrings,
@@ -215,6 +214,7 @@ where
 
 crate::impl_InterfaceType!{
     impl crate::erased_types::InterfaceType for () {
-        
+        type Send=True;
+        type Sync=True;
     }
 }
