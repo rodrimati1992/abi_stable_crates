@@ -11,7 +11,7 @@ use crate::{
 };
 
 
-/// Metadata stored in the vtable of `VirtualWrapper<_>`
+/// Metadata stored in the vtable of `DynTrait<_>`
 #[derive(Debug, Eq, PartialEq)]
 #[repr(C)]
 #[derive(StableAbi)]

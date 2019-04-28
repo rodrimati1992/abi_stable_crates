@@ -33,7 +33,7 @@ pub struct NotCopyNotClone;
 
 
 
-/// A Zero-sized type used by `VirtualWrapper<Pointer<ZeroSized<T>>>`.
+/// A Zero-sized type used by `DynTrait<Pointer<()>,T>`.
 ///
 /// If this did not wrap `T`,
 /// we could pretend to have a `T` even though we don't.
@@ -50,8 +50,8 @@ pub struct ZeroSized<T> {
 /// Used by vtables/pointers to signal that the type has been erased.
 ///
 /// Also,because `()` implements InterfaceType,
-/// `VirtualWrapper<Pointer<ErasedObject>>`
-/// can be created by calling `VirtualWrapper::from_any_ptr(ptr,())`.
+/// `DynTrait<Pointer<ErasedObject>>`
+/// can be created by calling `DynTrait::from_any_ptr(ptr,())`.
 ///
 /// Do note that `()` is an `InterfaceType<Send=True,Sync=True>`,
 /// which requires that `ptr` implements `Send+Sync`

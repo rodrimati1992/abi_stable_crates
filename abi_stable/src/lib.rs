@@ -68,7 +68,7 @@ These are the kinds of types passed through FFI:
     This is the default kind when deriving StableAbi.
 
 - Opaque kind:
-    Types wrapped in `VirtualWrapper<SomePointer<ZeroSized<Interface>>>`,
+    Types wrapped in `DynTrait<SomePointer<()>,Interface>`,
     whose layout can change in any version of the library,
     and can only be unwrapped back to the original type in the dynamic library/binary 
     that created it.
@@ -192,8 +192,8 @@ use crate::abi_stability::stable_abi_trait::SharedStableAbi;
 #[doc(inline)]
 pub use crate::{
     abi_stability::StableAbi,
-    erased_types::{VirtualWrapper,ImplType, InterfaceType},
-    marker_type::{ErasedObject, ZeroSized,ErasedRef},
+    erased_types::{DynTrait,ImplType, InterfaceType},
+    marker_type::{ErasedObject,ErasedRef},
 };
 
 

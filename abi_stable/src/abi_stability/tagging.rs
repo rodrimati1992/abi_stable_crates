@@ -4,7 +4,7 @@ about a type in its layout constant.
 
 Some usecases for this:
 
-- Encoding the traits that the interface in VirtualWrapper requires.
+- Encoding the traits that the interface in DynTrait requires.
 
 - Check the marker traits implemented by any type,using specialization.
 

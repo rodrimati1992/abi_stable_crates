@@ -16,12 +16,11 @@ use serde_json;
 #[allow(unused_imports)]
 use crate::{
     erased_types::{
-        VirtualWrapper,ImplType, InterfaceType, SerializeImplType,DeserializeInterfaceType,
+        DynTrait,ImplType, InterfaceType, SerializeImplType,DeserializeInterfaceType,
     },
     impl_get_type_info,
     type_level::bools::{False,True},
     traits::IntoReprC,
-    ZeroSized, 
     StableAbi,
     std_types::{
         RArc, RBox, RBoxError, RCow, RStr, RString,  StaticStr,
@@ -31,7 +30,7 @@ use crate::{
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-/// It doesn't need to be `#[repr(C)]` because  VirtualWrapper puts it behind a pointer,
+/// It doesn't need to be `#[repr(C)]` because  DynTrait puts it behind a pointer,
 /// and is only interacted with through regular Rust functions.
 #[derive(Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 struct Foo<T> {
@@ -108,13 +107,13 @@ impl DeserializeInterfaceType for FooInterface {
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
         match ::serde_json::from_str::<Foo<String>>(&*s) {
-            Ok(x) => Ok(VirtualWrapper::from_value(x)),
+            Ok(x) => Ok(DynTrait::from_value(x)),
             Err(e) => Err(RBoxError::new(e)),
         }
     }
 }
 
-type VirtualFoo = VirtualWrapper<RBox<ZeroSized<FooInterface>>>;
+type VirtualFoo = DynTrait<RBox<()>,FooInterface>;
 
 /////////////////////////////////
 
@@ -128,7 +127,7 @@ fn new_foo()->Foo<String>{
 }
 
 fn new_wrapped()->VirtualFoo{
-    VirtualWrapper::from_value(new_foo())
+    DynTrait::from_value(new_foo())
 }
 
 
@@ -141,7 +140,7 @@ fn clone_test(){
 
     assert_ne!(
         wrapped,
-        Foo::<String>::default().piped(VirtualWrapper::from_value)
+        Foo::<String>::default().piped(DynTrait::from_value)
     );
 }
 
@@ -149,7 +148,7 @@ fn clone_test(){
 fn default_test(){
     let concrete=Foo::<String>::default();
     let wrapped =new_wrapped().default();
-    let wrapped_2=Foo::<String>::default().piped(VirtualWrapper::from_value);
+    let wrapped_2=Foo::<String>::default().piped(DynTrait::from_value);
 
 
     assert_eq!(wrapped,wrapped_2);
@@ -263,9 +262,9 @@ fn serialize_test() {
 #[test]
 fn cmp_test(){
 
-    let wrapped_0=new_foo().mutated(|x| x.l-=100 ).piped(VirtualWrapper::from_value);
+    let wrapped_0=new_foo().mutated(|x| x.l-=100 ).piped(DynTrait::from_value);
     let wrapped_1=new_wrapped();
-    let wrapped_2=new_foo().mutated(|x| x.l+=100 ).piped(VirtualWrapper::from_value);
+    let wrapped_2=new_foo().mutated(|x| x.l+=100 ).piped(DynTrait::from_value);
 
     assert_eq!(wrapped_1 == wrapped_0, false);
     assert_eq!(wrapped_1 <= wrapped_0, false);
@@ -323,7 +322,7 @@ fn hash_test(){
     {
         let concrete=Foo::<String>::default();
         let hash_concrete=hash_value(&concrete);
-        let hash_wrapped=hash_value(&VirtualWrapper::from_value(concrete.clone()));
+        let hash_wrapped=hash_value(&DynTrait::from_value(concrete.clone()));
         
         assert_eq!(hash_concrete,hash_wrapped);
     }
@@ -335,13 +334,13 @@ fn hash_test(){
 fn from_any_test(){
 
     assert_eq!(
-        VirtualWrapper::from_value(new_foo()),
-        VirtualWrapper::from_any_value(new_foo(),FooInterface),
+        DynTrait::from_value(new_foo()),
+        DynTrait::from_any_value(new_foo(),FooInterface),
     );
 
     assert_eq!(
-        VirtualWrapper::from_ptr(RArc::new(new_foo())),
-        VirtualWrapper::from_any_ptr(RArc::new(new_foo()),FooInterface),
+        DynTrait::from_ptr(RArc::new(new_foo())),
+        DynTrait::from_any_ptr(RArc::new(new_foo()),FooInterface),
     );
 
 }
@@ -351,7 +350,7 @@ fn from_any_test(){
 #[test]
 fn to_any_test(){
 
-    let mut wrapped=VirtualWrapper::from_any_value(new_foo(),FooInterface);
+    let mut wrapped=DynTrait::from_any_value(new_foo(),FooInterface);
 
 
     macro_rules! to_unerased {

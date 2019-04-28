@@ -1,9 +1,10 @@
 /*!
-Contains the `VirtualWrapper` type,and related traits/type aliases.
+Contains the `DynTrait` type,and related traits/type aliases.
 */
 
 use std::{
     ops::DerefMut,
+    marker::PhantomData,
     mem::ManuallyDrop,
     ptr,
 };
@@ -14,7 +15,7 @@ use serde::{de, ser, Deserialize, Deserializer};
 use core_extensions::{prelude::*, ResultLike};
 
 use crate::{
-    pointer_trait::{ErasedStableDeref, StableDeref, TransmuteElement},
+    pointer_trait::{StableDeref, TransmuteElement},
     ErasedObject, 
     std_types::{RBox, RCow, RStr},
 };
@@ -37,27 +38,25 @@ mod priv_ {
 
     /**
 
-VirtualWrapper implements ffi-safe trait objects,for a selection of traits.
+DynTrait implements ffi-safe trait objects,for a selection of traits.
 
-# Passing opaque values around with `VirtualWrapper<_>`
+# Passing opaque values around with `DynTrait<_>`
 
 One can pass non-StableAbi types around by using type erasure,using this type.
 
-It generally looks like `VirtualWrapper<Pointer<ZeroSized<Interface>>>`,where:
+It generally looks like `DynTrait<Pointer<()>,Interface>`,where:
 
 - Pointer is some `pointer_trait::StableDeref` pointer type.
 
-- ZeroSized is a zero-sized marker type.
-
 - Interface is an `InterfaceType`,which describes what traits are 
-    required when constructing the `VirtualWrapper<_>` and which ones it implements.
+    required when constructing the `DynTrait<_>` and which ones it implements.
 
 `trait InterfaceType` allows describing which traits are required 
-when constructing a `VirtualWrapper<_>`,and which ones it implements.
+when constructing a `DynTrait<_>`,and which ones it implements.
 
 ### Construction
 
-To construct a `VirtualWrapper<_>` one can use these associated functions:
+To construct a `DynTrait<_>` one can use these associated functions:
     
 - from_value:
     Can be constructed from the value directly.
@@ -75,7 +74,7 @@ To construct a `VirtualWrapper<_>` one can use these associated functions:
 
 ### Trait object
 
-`VirtualWrapper<Pointer<ZeroSized< Interface >>>` 
+`DynTrait<Pointer<()>,Interface>` 
 can be used as a trait object for any combination of 
 the traits listed bellow.
 
@@ -107,23 +106,23 @@ These are the traits:
 
 ### Deconstruction
 
-`VirtualWrapper<_>` can then be unwrapped into a concrete type,
+`DynTrait<_>` can then be unwrapped into a concrete type,
 within the same dynamic library/executable that constructed it,
 using these (fallible) conversion methods:
 
 - into_unerased:
     Unwraps into a pointer to `T`.
-    Where `VirtualWrapper<P<ZeroSized< Interface >>>`'s 
+    Where `DynTrait<P<()>,Interface>`'s 
         Interface must equal `<T as ImplType>::Interface`
 
 - as_unerased:
     Unwraps into a `&T`.
-    Where `VirtualWrapper<P<ZeroSized< Interface >>>`'s 
+    Where `DynTrait<P<()>,Interface>`'s 
         Interface must equal `<T as ImplType>::Interface`
 
 - as_unerased_mut:
     Unwraps into a `&mut T`.
-    Where `VirtualWrapper<P<ZeroSized< Interface >>>`'s 
+    Where `DynTrait<P<()>,Interface>`'s 
         Interface must equal `<T as ImplType>::Interface`
 
 - into_any_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
@@ -134,7 +133,7 @@ using these (fallible) conversion methods:
 
 # Example 
 
-The primary example using `VirtualWrapper<_>` is in the readme.
+The primary example using `DynTrait<_>` is in the readme.
 
 
     
@@ -142,90 +141,91 @@ The primary example using `VirtualWrapper<_>` is in the readme.
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(bound="P:TagFromPointer")]
-    #[sabi(tag="<P as TagFromPointer>::TAG")]
-    pub struct VirtualWrapper<P> {
+    #[sabi(bound="I:TagFromInterface")]
+    #[sabi(tag="<I as TagFromInterface>::TAG")]
+    pub struct DynTrait<P,I> {
         pub(super) object: ManuallyDrop<P>,
         vtable: *const VTable<P>,
+        _marker:PhantomData<extern fn()->I>
     }
 
-    impl VirtualWrapper<()> {
-        /// Constructors the `VirtualWrapper<_>` from an ImplType implementor.
+    impl DynTrait<(),()> {
+        /// Constructors the `DynTrait<_>` from an ImplType implementor.
         ///
         /// Use this whenever possible instead of `from_any_value`,
-        /// because it produces better error messages when unerasing the `VirtualWrapper<_>`
-        pub fn from_value<T>(object: T) -> VirtualWrapper<RBox<ZeroSized<T::Interface>>>
+        /// because it produces better error messages when unerasing the `DynTrait<_>`
+        pub fn from_value<T>(object: T) -> DynTrait<RBox<()>,T::Interface>
         where
             T: ImplType,
-            T: GetVtable<T,RBox<ZeroSized<<T as ImplType>::Interface>>,RBox<T>>,
+            T: GetVtable<T,RBox<()>,RBox<T>>,
         {
             let object = RBox::new(object);
-            VirtualWrapper::from_ptr(object)
+            DynTrait::from_ptr(object)
         }
 
-        /// Constructors the `VirtualWrapper<_>` from a pointer to an ImplType implementor.
+        /// Constructors the `DynTrait<_>` from a pointer to an ImplType implementor.
         ///
         /// Use this whenever possible instead of `from_any_ptr`,
-        /// because it produces better error messages when unerasing the `VirtualWrapper<_>`
-        pub fn from_ptr<P, T>(object: P) -> VirtualWrapper<P::TransmutedPtr>
+        /// because it produces better error messages when unerasing the `DynTrait<_>`
+        pub fn from_ptr<P, T>(object: P) -> DynTrait<P::TransmutedPtr,T::Interface>
         where
-            P: StableDeref<Target = T>,
             T: ImplType,
             T: GetVtable<T,P::TransmutedPtr,P>,
-            P: ErasedStableDeref<<T as ImplType>::Interface>,
+            P: StableDeref<Target = T>+TransmuteElement<()>,
         {
-            VirtualWrapper {
+            DynTrait {
                 object: unsafe{
                     // The lifetime here is 'static,so it's fine to erase the type.
-                    ManuallyDrop::new(object.erased(T::Interface::T))
+                    ManuallyDrop::new(object.transmute_element(<()>::T))
                 },
                 vtable: T::get_vtable(),
+                _marker:PhantomData,
             }
         }
 
-        /// Constructors the `VirtualWrapper<_>` from a type that doesn't implement `ImplType`.
-        pub fn from_any_value<T,I>(object: T,interface:I) -> VirtualWrapper<RBox<ZeroSized<I>>>
+        /// Constructors the `DynTrait<_>` from a type that doesn't implement `ImplType`.
+        pub fn from_any_value<T,I>(object: T,interface:I) -> DynTrait<RBox<()>,I>
         where
             T:'static,
             I:InterfaceType,
-            InterfaceFor<T,I> : GetVtable<T,RBox<ZeroSized<I>>,RBox<T>>,
+            InterfaceFor<T,I> : GetVtable<T,RBox<()>,RBox<T>>,
         {
             let object = RBox::new(object);
-            VirtualWrapper::from_any_ptr(object,interface)
+            DynTrait::from_any_ptr(object,interface)
         }
 
-        /// Constructors the `VirtualWrapper<_>` from a pointer to a 
+        /// Constructors the `DynTrait<_>` from a pointer to a 
         /// type that doesn't implement `ImplType`.
-        pub fn from_any_ptr<P, T,I>(object: P,_interface:I) -> VirtualWrapper<P::TransmutedPtr>
+        pub fn from_any_ptr<P, T,I>(object: P,_interface:I) -> DynTrait<P::TransmutedPtr,I>
         where
             I:InterfaceType,
-            P: StableDeref<Target = T>,
             T:'static,
             InterfaceFor<T,I>: GetVtable<T,P::TransmutedPtr,P>,
-            P: ErasedStableDeref<I>,
+            P: StableDeref<Target = T>+TransmuteElement<()>,
         {
-            VirtualWrapper {
+            DynTrait {
                 object: unsafe{
                     // The lifetime here is 'static,so it's fine to erase the type.
-                    ManuallyDrop::new(object.erased(I::T))
+                    ManuallyDrop::new(object.transmute_element(<()>::T))
                 },
                 vtable: <InterfaceFor<T,I>>::get_vtable(),
+                _marker:PhantomData,
             }
         }
     }
 
-    impl<P> VirtualWrapper<P> {
+    impl<P,I> DynTrait<P,I> {
         pub(super) fn vtable<'a>(&self) -> &'a VTable<P>{
             unsafe {
                 &*self.vtable
             }
         }
 
-        /// Allows checking whether 2 `VirtualWrapper<_>`s have a value of the same type.
+        /// Allows checking whether 2 `DynTrait<_>`s have a value of the same type.
         ///
         /// Note that types from different dynamic libraries/executables are 
         /// never considered equal.
-        pub fn is_same_type<Other>(&self,other:&VirtualWrapper<Other>)->bool{
+        pub fn is_same_type<Other,I2>(&self,other:&DynTrait<Other,I2>)->bool{
             self.vtable_address()==other.vtable_address()||
             self.vtable().type_info().is_compatible(other.vtable().type_info())
         }
@@ -251,7 +251,7 @@ The primary example using `VirtualWrapper<_>` is in the readme.
 
         /// Returns the address of the wrapped object.
         ///
-        /// This will not change between calls for the same `VirtualWrapper<_>`.
+        /// This will not change between calls for the same `DynTrait<_>`.
         pub fn object_address(&self) -> usize
         where
             P: Deref,
@@ -286,7 +286,7 @@ The primary example using `VirtualWrapper<_>` is in the readme.
         }
     }
 
-    impl<P> VirtualWrapper<P> {
+    impl<P,I> DynTrait<P,I> {
         /// The uid in the vtable has to be the same as the one for T,
         /// otherwise it was not created from that T in the library that declared the opaque type.
         pub(super) fn check_same_destructor_opaque<A,T>(&self) -> Result<(), UneraseError>
@@ -309,7 +309,7 @@ The primary example using `VirtualWrapper<_>` is in the readme.
             }
         }
 
-        /// Unwraps the `VirtualWrapper<_>` into a pointer of 
+        /// Unwraps the `DynTrait<_>` into a pointer of 
         /// the concrete type that it was constructed with.
         ///
         /// T is required to implement ImplType.
@@ -319,9 +319,9 @@ The primary example using `VirtualWrapper<_>` is in the readme.
         /// This will return an error in any of these conditions:
         ///
         /// - It is called in a dynamic library/binary outside
-        /// the one from which this `VirtualWrapper<_>` was constructed.
+        /// the one from which this `DynTrait<_>` was constructed.
         ///
-        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
         pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError>
         where
@@ -336,7 +336,7 @@ The primary example using `VirtualWrapper<_>` is in the readme.
             }
         }
 
-        /// Unwraps the `VirtualWrapper<_>` into a reference of 
+        /// Unwraps the `DynTrait<_>` into a reference of 
         /// the concrete type that it was constructed with.
         ///
         /// T is required to implement ImplType.
@@ -346,9 +346,9 @@ The primary example using `VirtualWrapper<_>` is in the readme.
         /// This will return an error in any of these conditions:
         ///
         /// - It is called in a dynamic library/binary outside
-        /// the one from which this `VirtualWrapper<_>` was constructed.
+        /// the one from which this `DynTrait<_>` was constructed.
         ///
-        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
         pub fn as_unerased<T>(&self) -> Result<&T, UneraseError>
         where
@@ -359,7 +359,7 @@ The primary example using `VirtualWrapper<_>` is in the readme.
             unsafe { Ok(self.object_as()) }
         }
 
-        /// Unwraps the `VirtualWrapper<_>` into a mutable reference of 
+        /// Unwraps the `DynTrait<_>` into a mutable reference of 
         /// the concrete type that it was constructed with.
         ///
         /// T is required to implement ImplType.
@@ -369,9 +369,9 @@ The primary example using `VirtualWrapper<_>` is in the readme.
         /// This will return an error in any of these conditions:
         ///
         /// - It is called in a dynamic library/binary outside
-        /// the one from which this `VirtualWrapper<_>` was constructed.
+        /// the one from which this `DynTrait<_>` was constructed.
         ///
-        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
         pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError>
         where
@@ -383,7 +383,7 @@ The primary example using `VirtualWrapper<_>` is in the readme.
         }
 
 
-        /// Unwraps the `VirtualWrapper<_>` into a pointer of 
+        /// Unwraps the `DynTrait<_>` into a pointer of 
         /// the concrete type that it was constructed with.
         ///
         /// T is required to not borrows anything.
@@ -393,15 +393,15 @@ The primary example using `VirtualWrapper<_>` is in the readme.
         /// This will return an error in any of these conditions:
         ///
         /// - It is called in a dynamic library/binary outside
-        /// the one from which this `VirtualWrapper<_>` was constructed.
+        /// the one from which this `DynTrait<_>` was constructed.
         ///
-        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
         pub fn into_any_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError>
         where
             P: TransmuteElement<T>,
             P::Target:Sized,
-            Self:VirtualWrapperTrait,
+            Self:DynTraitBound,
             InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
@@ -413,7 +413,7 @@ The primary example using `VirtualWrapper<_>` is in the readme.
             }
         }
 
-        /// Unwraps the `VirtualWrapper<_>` into a reference of 
+        /// Unwraps the `DynTrait<_>` into a reference of 
         /// the concrete type that it was constructed with.
         ///
         /// T is required to not borrows anything.
@@ -423,21 +423,21 @@ The primary example using `VirtualWrapper<_>` is in the readme.
         /// This will return an error in any of these conditions:
         ///
         /// - It is called in a dynamic library/binary outside
-        /// the one from which this `VirtualWrapper<_>` was constructed.
+        /// the one from which this `DynTrait<_>` was constructed.
         ///
-        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
         pub fn as_any_unerased<T>(&self) -> Result<&T, UneraseError>
         where
             P: Deref + TransmuteElement<T>,
-            Self:VirtualWrapperTrait,
+            Self:DynTraitBound,
             InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
             unsafe { Ok(self.object_as()) }
         }
 
-        /// Unwraps the `VirtualWrapper<_>` into a mutable reference of 
+        /// Unwraps the `DynTrait<_>` into a mutable reference of 
         /// the concrete type that it was constructed with.
         ///
         /// T is required to not borrows anything.
@@ -447,14 +447,14 @@ The primary example using `VirtualWrapper<_>` is in the readme.
         /// This will return an error in any of these conditions:
         ///
         /// - It is called in a dynamic library/binary outside
-        /// the one from which this `VirtualWrapper<_>` was constructed.
+        /// the one from which this `DynTrait<_>` was constructed.
         ///
-        /// - `T` is not the concrete type this `VirtualWrapper<_>` was constructed with.
+        /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
         pub fn as_any_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError>
         where
             P: DerefMut + TransmuteElement<T>,
-            Self:VirtualWrapperTrait,
+            Self:DynTraitBound,
             InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P,P::TransmutedPtr>,
         {
             self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
@@ -463,49 +463,50 @@ The primary example using `VirtualWrapper<_>` is in the readme.
 
     }
 
-    impl<P> VirtualWrapper<P> {
-        /// Constructs a VirtualWrapper<P> wrapping a `P`,using the same vtable.
+    impl<P,I> DynTrait<P,I> {
+        /// Constructs a DynTrait<P,I> wrapping a `P`,using the same vtable.
         /// `P` must come from a function in the vtable,
         /// to ensure that it is compatible with the functions in it.
         pub(super) fn from_new_ptr(&self, object: P) -> Self {
             Self {
                 object:ManuallyDrop::new(object),
                 vtable: self.vtable,
+                _marker:PhantomData,
             }
         }
 
-        /// Constructs a `VirtualWrapper<P>` with the default value for `P`.
-        pub fn default<I>(&self) -> Self
+        /// Constructs a `DynTrait<P,I>` with the default value for `P`.
+        pub fn default(&self) -> Self
         where
-            P: Deref<Target = ZeroSized<I>>,
+            P: Deref,
             I: InterfaceType<Default = True>,
         {
             let new = self.vtable().default_ptr::<I>()();
             self.from_new_ptr(new)
         }
 
-        /// It serializes a `VirtualWrapper<_>` into a string by using 
+        /// It serializes a `DynTrait<_>` into a string by using 
         /// `<ConcreteType as SerializeImplType>::serialize_impl`.
-        pub fn serialized<'a, I>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError>
+        pub fn serialized<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError>
         where
-            P: Deref<Target = ZeroSized<I>>,
+            P: Deref,
             I: InterfaceType<Serialize = True>,
         {
             self.vtable().serialize::<I>()(self.as_abi()).into_result()
         }
 
-        /// Deserializes a string into a `VirtualWrapper<_>`,by using 
+        /// Deserializes a string into a `DynTrait<_>`,by using 
         /// `<I as DeserializeInterfaceType>::deserialize_impl`.
-        pub fn deserialize_from_str<'a, I>(s: &'a str) -> Result<Self, RBoxError>
+        pub fn deserialize_from_str<'a>(s: &'a str) -> Result<Self, RBoxError>
         where
-            P: Deref<Target = ZeroSized<I>>,
+            P: Deref,
             I: DeserializeInterfaceType<Deserialize = True, Deserialized = Self>,
         {
             s.piped(RStr::from).piped(I::deserialize_impl)
         }
     }
 
-    impl<P> Drop for VirtualWrapper<P>{
+    impl<P,I> Drop for DynTrait<P,I>{
         fn drop(&mut self){
             let vtable=self.vtable();
             unsafe{
@@ -516,11 +517,11 @@ The primary example using `VirtualWrapper<_>` is in the readme.
 
 }
 
-pub use self::priv_::VirtualWrapper;
+pub use self::priv_::DynTrait;
 
-impl<P, I> Clone for VirtualWrapper<P>
+impl<P, I> Clone for DynTrait<P,I>
 where
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType<Clone = True>,
 {
     fn clone(&self) -> Self {
@@ -530,9 +531,9 @@ where
     }
 }
 
-impl<P, I> Display for VirtualWrapper<P>
+impl<P, I> Display for DynTrait<P,I>
 where
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType<Display = True>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -540,9 +541,9 @@ where
     }
 }
 
-impl<P, I> Debug for VirtualWrapper<P>
+impl<P, I> Debug for DynTrait<P,I>
 where
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType<Debug = True>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -551,15 +552,15 @@ where
 }
 
 /**
-First it serializes a `VirtualWrapper<_>` into a string by using 
+First it serializes a `DynTrait<_>` into a string by using 
 <ConcreteType as SerializeImplType>::serialize_impl,
 then it serializes the string.
 
 */
 /// ,then it .
-impl<P, I> Serialize for VirtualWrapper<P>
+impl<P, I> Serialize for DynTrait<P,I>
 where
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType<Serialize = True>,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -574,10 +575,10 @@ where
 }
 
 /// First it Deserializes a string,then it deserializes into a 
-/// `VirtualWrapper<_>`,by using `<I as DeserializeInterfaceType>::deserialize_impl`.
-impl<'a, P, I> Deserialize<'a> for VirtualWrapper<P>
+/// `DynTrait<_>`,by using `<I as DeserializeInterfaceType>::deserialize_impl`.
+impl<'a, P, I> Deserialize<'a> for DynTrait<P,I>
 where
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: DeserializeInterfaceType<Deserialize = True, Deserialized = Self>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -589,17 +590,17 @@ where
     }
 }
 
-impl<P, I> Eq for VirtualWrapper<P>
+impl<P, I> Eq for DynTrait<P,I>
 where
     Self: PartialEq,
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType<Eq = True>,
 {
 }
 
-impl<P, I> PartialEq for VirtualWrapper<P>
+impl<P, I> PartialEq for DynTrait<P,I>
 where
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType<PartialEq = True>,
 {
     fn eq(&self, other: &Self) -> bool {
@@ -612,9 +613,9 @@ where
     }
 }
 
-impl<P, I> Ord for VirtualWrapper<P>
+impl<P, I> Ord for DynTrait<P,I>
 where
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType<Ord = True>,
     Self: PartialOrd + Eq,
 {
@@ -628,9 +629,9 @@ where
     }
 }
 
-impl<P, I> PartialOrd for VirtualWrapper<P>
+impl<P, I> PartialOrd for DynTrait<P,I>
 where
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType<PartialOrd = True>,
     Self: PartialEq,
 {
@@ -646,9 +647,9 @@ where
     }
 }
 
-impl<P, I> Hash for VirtualWrapper<P>
+impl<P, I> Hash for DynTrait<P,I>
 where
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType<Hash = True>,
 {
     fn hash<H>(&self, state: &mut H)
@@ -660,18 +661,18 @@ where
 }
 
 
-unsafe impl<P,I> Send for VirtualWrapper<P>
+unsafe impl<P,I> Send for DynTrait<P,I>
 where
     P: Send,
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType<Send = True>,
 {}
 
 
-unsafe impl<P,I> Sync for VirtualWrapper<P>
+unsafe impl<P,I> Sync for DynTrait<P,I>
 where
     P: Sync,
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType<Sync = True>,
 {}
 
@@ -681,32 +682,32 @@ where
 mod sealed {
     use super::*;
     pub trait Sealed {}
-    impl<P> Sealed for VirtualWrapper<P> {}
+    impl<P,I> Sealed for DynTrait<P,I> {}
 }
 use self::sealed::Sealed;
 
-/// For accessing the Interface of a `VirtualWrapper<Pointer<ZeroSized< Interface >>>`.
-pub trait VirtualWrapperTrait: Sealed {
+/// For accessing the Interface of a `DynTrait<Pointer<ZeroSized< Interface >>>`.
+pub trait DynTraitBound: Sealed {
     type Interface: InterfaceType;
 }
 
-impl<P, I> VirtualWrapperTrait for VirtualWrapper<P>
+impl<P, I> DynTraitBound for DynTrait<P,I>
 where
-    P: Deref<Target = ZeroSized<I>>,
+    P: Deref,
     I: InterfaceType,
 {
     type Interface = I;
 }
 
 
-/// For accessing the `Interface` in a `VirtualWrapper<Pointer<ZeroSized< Interface >>>`.
+/// For accessing the `Interface` in a `DynTrait<Pointer<ZeroSized< Interface >>>`.
 pub type GetVWInterface<This>=
-    <This as VirtualWrapperTrait>::Interface;
+    <This as DynTraitBound>::Interface;
 
 
 //////////////////////////////////////////////////////////////////
 
-/// Error for `VirtualWrapper<_>` being unerased into the wrong type
+/// Error for `DynTrait<_>` being unerased into the wrong type
 /// with one of the `*unerased*` methods.
 #[derive(Debug,Copy, Clone)]
 pub struct UneraseError {

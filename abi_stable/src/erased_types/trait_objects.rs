@@ -12,8 +12,8 @@ use super::{c_functions::*, *};
 
 use crate::{
     ErasedObject,
-    pointer_trait::ErasedStableDeref,
     std_types::RBox,
+    pointer_trait::TransmuteElement,
 };
 
 
@@ -38,7 +38,7 @@ impl<'a> HasherObject<'a> {
         HasherObject {
             this: unsafe{
                 // The lifetime is tied to the input.
-                this.erased(<()>::T)
+                this.transmute_element(<ErasedObject>::T)
             },
             hash_slice:hash_slice_Hasher::<T>,
             finish:finish_Hasher::<T>,
@@ -83,7 +83,7 @@ impl DebugDisplayObject{
         DebugDisplayObject{
             this:unsafe{
                 // The lifetime here is 'static,so it's fine to erase the type.
-                RBox::new(value).erased(<()>::T)
+                RBox::new(value).transmute_element(<ErasedObject>::T)
             },
             display:display_impl::<T>,
             debug  :debug_impl::<T>,
