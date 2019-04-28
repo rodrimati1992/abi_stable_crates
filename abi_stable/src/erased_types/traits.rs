@@ -1,13 +1,13 @@
 
 /*!
-Traits for types wrapped in `VirtualWrapper<_>`
+Traits for types wrapped in `DynTrait<_>`
 */
 
 use std::{mem,marker::PhantomData};
 
 use crate::{
     StableAbi,
-    erased_types::{GetImplFlags, VirtualWrapperTrait},
+    erased_types::{GetImplFlags, DynTraitBound},
     std_types::{RBoxError, RCow, RStr,StaticStr,utypeid::new_utypeid},
     version::VersionStrings,
     return_value_equality::ReturnValueEquality,
@@ -21,7 +21,7 @@ use crate::type_level::bools::{False, True};
 /**
 An `implementation type`,
 with an associated `interface type` which describes the traits that 
-must be implemented when constructing a `VirtualWrapper` from Self,
+must be implemented when constructing a `DynTrait` from Self,
 using the `from_value` and `from_ptr` constructors,
 so as to pass an opaque type across ffi.
 
@@ -31,7 +31,7 @@ To initialize `INFO` you can use the `impl_get_type_info` macro.
 
 Users of this trait can't enforce that they are the only ones with the same interface,
 therefore they should handle the `Err(..)`s returned
-from the `VirtualWrapper::*_unerased` functions whenever
+from the `DynTrait::*_unerased` functions whenever
 the convert back and forth between `Self` and `Self::Interface`.
 
 
@@ -44,7 +44,7 @@ pub trait ImplType: Sized + 'static {
 
 /**
 Defines the usable/required traits when creating a 
-`VirtualWrapper<Pointer<ZeroSized< ThisType >>>`
+`DynTrait<Pointer<ZeroSized< ThisType >>>`
 from a type that implements `ImplType<Interface= ThisType >` .
 
 This trait can only be implemented within the `impl_InterfaceType` macro,
@@ -53,9 +53,9 @@ so that adding associated types is not a breaking change.
 
 The value of every associated type is `True`/`False`.
 
-On `True`,the trait would be required by and usable in `VirtualWrapper`.
+On `True`,the trait would be required by and usable in `DynTrait`.
 
-On `False`,the trait would not be required by and not usable in `VirtualWrapper`.
+On `False`,the trait would not be required by and not usable in `DynTrait`.
 
 # Example
 
@@ -162,7 +162,7 @@ to the `implementation crate`.
 
 */
 pub trait DeserializeInterfaceType: InterfaceType<Deserialize = True> {
-    type Deserialized: VirtualWrapperTrait<Interface = Self>;
+    type Deserialized: DynTraitBound<Interface = Self>;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError>;
 }
@@ -179,7 +179,7 @@ pub trait DeserializeInterfaceType: InterfaceType<Deserialize = True> {
 
 
 /// Helper struct for Wrapping any type in a 
-/// `VirtualWrapper<Pointer< OpaqueTyoe< Interface > >>`.
+/// `DynTrait<Pointer< OpaqueTyoe< Interface > >>`.
 pub struct InterfaceFor<T,Interface>(
     PhantomData<fn()->(T,Interface)>
 );

@@ -48,7 +48,7 @@ This is a full example,demonstrating:
 
 - `user crates`(defined in the Architecture section bellow).
 
-- `VirtualWrapper<_>`:the ffi-safe trait object(with downcasting).
+- `DynTrait<_>`:the ffi-safe trait object(with downcasting).
 
 - `interface crates`(defined in the Architecture section bellow).
 
@@ -101,8 +101,7 @@ use std::path::Path;
 use abi_stable::{
     InterfaceType,
     StableAbi,
-    VirtualWrapper,
-    ZeroSized,
+    DynTrait,
     impl_InterfaceType,
     lazy_static_ref::LazyStaticRef,
     library::{Library,LibraryError,RootModule},
@@ -122,10 +121,10 @@ pub struct TheInterface;
 impl_InterfaceType!{
     /// Each associated type represents a trait,
     /// will is required of types when ẁrapped in a 
-    /// `VirtualWrapper<Pointer<ZeroSized<TheInterface>>>`,
-    /// as well as be usable in that `VirtualWrapper<_>`.
+    /// `DynTrait<Pointer<()>,TheInterface>`,
+    /// as well as be usable in that `DynTrait<_>`.
     ///
-    /// A trait is required (and becomes usable in the `VirtualWrapper`) 
+    /// A trait is required (and becomes usable in the `DynTrait`) 
     /// when the associated type is `True`,not required when it is `False`.
     ///
     impl InterfaceType for TheInterface {
@@ -159,7 +158,7 @@ impl_InterfaceType!{
 
 
 /// An alias for the trait object used in this example
-pub type BoxedInterface=VirtualWrapper<RBox<ZeroSized<TheInterface>>>;
+pub type BoxedInterface=DynTrait<RBox<()>,TheInterface>;
 
 
 #[repr(C)]
@@ -267,7 +266,7 @@ use interface_crate::{
 
 use abi_stable::{
     ImplType,
-    VirtualWrapper,
+    DynTrait,
     erased_types::TypeInfo,
     export_sabi_module,
     extern_fn_panic_handling,
@@ -295,7 +294,7 @@ pub struct StringBuilder{
 
 ///
 /// Defines this as an `implementation type`,
-/// this trait is mostly for improving error messages when unerasing the VirtualWrapper.
+/// this trait is mostly for improving error messages when unerasing the DynTrait.
 ///
 impl ImplType for StringBuilder {
     type Interface = TheInterface;
@@ -321,7 +320,7 @@ impl StringBuilder{
 // Constructs a BoxedInterface.
 extern fn new_boxed_interface()->BoxedInterface{
     extern_fn_panic_handling!{
-        VirtualWrapper::from_value(StringBuilder{
+        DynTrait::from_value(StringBuilder{
             text:"".into(),
             appended:vec![],
         })
@@ -392,7 +391,7 @@ A crate which declares:
 - All the public types passed to and returned by the functions.
 
 - Optionally:declares ìnterface types,types which implement InterfaceType,
-    used to specify the traits usable in the VirtualWrapper ffi-safe trait object .
+    used to specify the traits usable in the DynTrait ffi-safe trait object .
 
 
 ### Implementation crate
@@ -406,7 +405,7 @@ The crate compiled as a dynamic library that:
 
 - Optionally:create types which implement `ImplType<Iterface= Interface >`,
     where `Interface` is some interface type from the interface crate,
-    so as to be able to use wrap it in `VirtualWrapper`s of that interface.
+    so as to be able to use wrap it in `DynTrait`s of that interface.
 
 ### User crate
 

@@ -15,20 +15,19 @@ use serde::{Serialize, Serializer};
 
 use crate::{
     traits::{IntoReprC, IntoReprRust},
-    ZeroSized, 
     std_types::{RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,RResult, RSlice, RString,RStr},
 };
 
 pub(crate)mod c_functions;
 pub mod trait_objects;
 pub mod type_info;
-pub mod virtual_wrapper;
+pub mod dyn_trait;
 pub(crate) mod vtable;
 pub mod traits;
 
 pub use self::{
-    virtual_wrapper::{VirtualWrapper, VirtualWrapperTrait},
-    vtable::{ GetVtable,TagFromPointer },
+    dyn_trait::{DynTrait, DynTraitBound},
+    vtable::{ GetVtable,TagFromInterface },
     traits::{ImplType, InterfaceType, SerializeImplType, DeserializeInterfaceType},
     type_info::TypeInfo,
 };

@@ -29,7 +29,7 @@ use abi_stable::{
     prefix_type::{PrefixTypeTrait,WithMetadata},
     traits::{IntoReprC},
     std_types::{RCow, RStr,RBox,RVec,RArc, RString,RResult,ROk,RErr,RBoxError}, 
-    StableAbi, VirtualWrapper,
+    StableAbi, DynTrait,
 };
 use core_extensions::{SelfOps,StringExt};
 
@@ -95,9 +95,9 @@ struct TextOperationState {
 /// Declares TOState as the `ìnterface type` of `TextOperationState`.
 ///
 /// Also declares the INFO constant,with information about the type,
-/// used when erasing/unerasing the type with `VirtualWrapper<_>`.
+/// used when erasing/unerasing the type with `DynTrait<_>`.
 ///
-/// TOState defines which traits are required when constructing VirtualWrapper<_>,
+/// TOState defines which traits are required when constructing DynTrait<_>,
 /// and which ones it provides after constructing it.
 impl ImplType for TextOperationState {
     type Interface = TOState;
@@ -105,7 +105,7 @@ impl ImplType for TextOperationState {
     const INFO: &'static TypeInfo=impl_get_type_info! { TextOperationState };
 }
 
-/// Defines how the type is serialized in VirtualWrapper<_>.
+/// Defines how the type is serialized in DynTrait<_>.
 impl SerializeImplType for TextOperationState {
     fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
         serialize_json(self)
@@ -130,9 +130,9 @@ pub enum Command {
 /// Declares TOState as the `ìnterface type` of `TOCommand`.
 ///
 /// Also declares the INFO constant,with information about the type,
-/// used when erasing/unerasing the type with `VirtualWrapper<_>`.
+/// used when erasing/unerasing the type with `DynTrait<_>`.
 ///
-/// TOCommand defines which traits are required when constructing VirtualWrapper<_>,
+/// TOCommand defines which traits are required when constructing DynTrait<_>,
 /// and which ones it provides after constructing it.
 impl ImplType for Command {
     type Interface = TOCommand;
@@ -140,7 +140,7 @@ impl ImplType for Command {
     const INFO: &'static TypeInfo=impl_get_type_info! { Command };
 }
 
-/// Defines how the type is serialized in VirtualWrapper<_>.
+/// Defines how the type is serialized in DynTrait<_>.
 impl SerializeImplType for Command {
     fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
         serialize_json(self)
@@ -163,9 +163,9 @@ pub enum ReturnValue {
 /// Declares TOState as the `ìnterface type` of `TOReturnValue`.
 ///
 /// Also declares the INFO constant,with information about the type,
-/// used when erasing/unerasing the type with `VirtualWrapper<_>`.
+/// used when erasing/unerasing the type with `DynTrait<_>`.
 ///
-/// TOReturnValue defines which traits are required when constructing VirtualWrapper<_>,
+/// TOReturnValue defines which traits are required when constructing DynTrait<_>,
 /// and which ones it provides after constructing it.
 impl ImplType for ReturnValue {
     type Interface = TOReturnValue;
@@ -173,7 +173,7 @@ impl ImplType for ReturnValue {
     const INFO: &'static TypeInfo=impl_get_type_info! { ReturnValue };
 }
 
-/// Defines how the type is serialized in VirtualWrapper<_>.
+/// Defines how the type is serialized in DynTrait<_>.
 impl SerializeImplType for ReturnValue {
     fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
         serialize_json(self)
@@ -212,7 +212,7 @@ where
 pub extern "C" fn deserialize_state(s:RStr<'_>) -> RResult<TOStateBox, RBoxError>{
     extern_fn_panic_handling! {
         deserialize_json::<TextOperationState>(s)
-            .map(VirtualWrapper::from_value)
+            .map(DynTrait::from_value)
     }
 }
 
@@ -221,7 +221,7 @@ pub extern "C" fn deserialize_command(s:RStr<'_>) -> RResult<TOCommandBox, RBoxE
     extern_fn_panic_handling! {
         deserialize_json::<Command>(s)
             .map(RBox::new)
-            .map(VirtualWrapper::from_ptr)
+            .map(DynTrait::from_ptr)
     }
 }
 
@@ -230,7 +230,7 @@ pub extern "C" fn deserialize_return_value(s:RStr<'_>) -> RResult<TOReturnValueA
     extern_fn_panic_handling! {
         deserialize_json::<ReturnValue>(s)
             .map(RArc::new)
-            .map(VirtualWrapper::from_ptr)
+            .map(DynTrait::from_ptr)
     }
 }
 
@@ -238,13 +238,13 @@ pub extern "C" fn deserialize_return_value(s:RStr<'_>) -> RResult<TOReturnValueA
 
 
 /// Constructs a TextOperationState and erases it by wrapping it into a 
-/// `VirtualWrapper<Box<ZeroSized<TOState>>>`.
+/// `DynTrait<Box<()>,TOState>`.
 pub extern "C" fn new() -> TOStateBox {
     extern_fn_panic_handling! {
         let this=TextOperationState{
             processed_bytes:0,
         };
-        VirtualWrapper::from_value(this)
+        DynTrait::from_value(this)
     }
 }
 
@@ -364,7 +364,7 @@ pub extern "C" fn run_command(this:&mut TOStateBox,command:TOCommandBox)->TORetu
         let command = command.into_unerased::<Command>().unwrap().piped(RBox::into_inner);
         run_command_inner(this,command)
             .piped(RArc::new)
-            .piped(VirtualWrapper::from_ptr)
+            .piped(DynTrait::from_ptr)
     }
 }
 
@@ -471,7 +471,7 @@ mod tests{
 
         let this=TextOperationState {
             processed_bytes: 1337,
-        }.piped(VirtualWrapper::from_value);
+        }.piped(DynTrait::from_value);
 
         let serialized_0= this.serialized().unwrap().split_whitespace().collect::<String>();
 

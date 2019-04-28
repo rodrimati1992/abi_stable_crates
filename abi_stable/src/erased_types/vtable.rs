@@ -1,6 +1,6 @@
 /*!
 
-Contains `VirtualWrapper<_>`'s vtable,and related types/traits.
+Contains `DynTrait<_>`'s vtable,and related types/traits.
 
 */
 use std::{
@@ -21,13 +21,13 @@ use core_extensions::{ResultLike, StringExt};
 
 
 
-pub trait TagFromPointer {
+pub trait TagFromInterface {
     const TAG:Tag;
 }
 
 
 #[doc(hidden)]
-/// Returns the vtable used by VirtualWrapper to do dynamic dispatch.
+/// Returns the vtable used by DynTrait to do dynamic dispatch.
 pub trait GetVtable<This,ErasedPtr,OrigPtr>: ImplType {
     
     const TMP_VTABLE:VTableVal<ErasedPtr>;
@@ -128,7 +128,7 @@ macro_rules! declare_meta_vtable {
         ])*
     ) => (
 
-        /// This is the vtable for VirtualWrapper<_>,
+        /// This is the vtable for DynTrait<_>,
         ///
         #[repr(C)]
         #[derive(StableAbi)]
@@ -376,9 +376,8 @@ macro_rules! declare_meta_vtable {
 
         }
 
-        impl<P,I> TagFromPointer for P
+        impl<I> TagFromInterface for I
         where 
-            P:Deref<Target=ZeroSized<I>>,
             I:InterfaceType,
             $( I::$marker_trait:Boolean, )*
             $( I::$selector:Boolean, )*

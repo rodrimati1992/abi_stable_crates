@@ -7,7 +7,6 @@ use std::{
     sync::Arc,
 };
 
-use crate::{ZeroSized};
 // use crate::{cabi_type::CAbi};
 
 #[allow(unused_imports)]
@@ -60,41 +59,6 @@ pub unsafe trait StableDeref: Deref + Sized {}
 pub trait StableDerefMut: StableDeref + DerefMut {}
 
 impl<P> StableDerefMut for P where P: StableDeref + DerefMut {}
-
-///////////
-
-pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<ZeroSized<O>> {
-    /// Erases a pointer,casting its referent to `ZeroSized<O>`.
-    /// 
-    /// # Safety
-    /// 
-    /// This is unsafe to call,since the lifetime of the input is not tied to O,
-    /// you must ensure that the lifetimes are the same.
-    /// 
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::{
-    ///     pointer_trait::ErasedStableDeref,
-    ///     std_types::RBox,
-    ///     reexports::SelfOps,
-    ///     ZeroSized,
-    /// };
-    ///
-    /// let signed:RBox<ZeroSized< Vec<()> >> =unsafe{
-    ///     RBox::new(1_i32)
-    ///         .erased(Vec::<()>::T)
-    /// };
-    ///
-    /// ```
-    unsafe fn erased(self, _: VariantPhantom<O>) -> Self::TransmutedPtr 
-    where Self::Target:Sized
-    {
-        self.transmute_element(PhantomData)
-    }
-}
-
-impl<P, O> ErasedStableDeref<O> for P where P: StableDeref + TransmuteElement<ZeroSized<O>> {}
 
 ///////////
 

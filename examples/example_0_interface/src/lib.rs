@@ -18,7 +18,7 @@ use abi_stable::{
     version::VersionStrings,
     type_level::bools::*,
     erased_types::{InterfaceType,DeserializeInterfaceType},
-    ZeroSized, VirtualWrapper,
+    DynTrait,
     std_types::{RBox, RStr, RString,RVec,RArc, RSlice,RCow,RBoxError,RResult},
 };
 
@@ -34,7 +34,7 @@ use abi_stable::{
 pub struct TOState;
 
 /// The state passed to most functions in the TextOpsMod module.
-pub type TOStateBox = VirtualWrapper<RBox<ZeroSized<TOState>>>;
+pub type TOStateBox = DynTrait<RBox<()>,TOState>;
 
 // This macro is used to emulate default associated types.
 // Look for the docs of InterfaceType to see 
@@ -68,7 +68,7 @@ impl DeserializeInterfaceType for TOState {
 pub struct TOCommand;
 
 /// A de/serializable opaque command enum,used in the TextOpsMod::run_command function.
-pub type TOCommandBox = VirtualWrapper<RBox<ZeroSized<TOCommand>>>;
+pub type TOCommandBox = DynTrait<RBox<()>,TOCommand>;
 
 
 impl_InterfaceType!{
@@ -99,7 +99,7 @@ impl DeserializeInterfaceType for TOCommand {
 pub struct TOReturnValue;
 
 /// A de/serializable opaque command enum,returned by the TextOpsMod::run_command function.
-pub type TOReturnValueArc = VirtualWrapper<RArc<ZeroSized<TOReturnValue>>>;
+pub type TOReturnValueArc = DynTrait<RArc<()>,TOReturnValue>;
 
 
 impl_InterfaceType!{
