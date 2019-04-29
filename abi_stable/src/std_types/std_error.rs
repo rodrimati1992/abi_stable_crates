@@ -17,8 +17,7 @@ use crate::{
         c_functions::{adapt_std_fmt, debug_impl, display_impl},
         FormattingMode,
     },
-    marker_type::{SyncSend, UnsyncUnsend},
-    ErasedObject,
+    marker_type::{SyncSend, UnsyncUnsend,ErasedObject},
     std_types::{RBox, RResult, RString},
 };
 

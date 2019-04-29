@@ -5,7 +5,7 @@ use std::ptr;
 use super::*;
 
 use crate::{
-    ErasedObject,
+    marker_type::ErasedObject,
     utils::{transmute_reference,transmute_mut_reference},
 };
 

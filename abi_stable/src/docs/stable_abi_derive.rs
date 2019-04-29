@@ -28,6 +28,17 @@ a dynamically typed data structure used to encode extra properties about a type.
 This can only be done once,
 to add multiple properties you must decide whether you want 
 
+You can only rely on tags for safety if 
+the specific tags were present since the first compatible version of the library,
+otherwise this only guarantees compatibility between parent and child libraries,
+not sibling libraries.
+
+Parent means the library/binary that loaded a library,
+or the parents of that one.
+
+Sibling means libraries loaded at runtime by the same library/binary 
+(or a parent of that one).
+
 For more information about tags,[look here](../../abi_stability/tagging/index.html)
 
 

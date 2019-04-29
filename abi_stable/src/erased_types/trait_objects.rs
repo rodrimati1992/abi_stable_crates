@@ -11,7 +11,7 @@ use core_extensions::prelude::*;
 use super::{c_functions::*, *};
 
 use crate::{
-    ErasedObject,
+    marker_type::ErasedObject,
     std_types::RBox,
     pointer_trait::TransmuteElement,
 };

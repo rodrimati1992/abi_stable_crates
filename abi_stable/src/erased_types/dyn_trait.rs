@@ -16,7 +16,7 @@ use core_extensions::{prelude::*, ResultLike};
 
 use crate::{
     pointer_trait::{StableDeref, TransmuteElement},
-    ErasedObject, 
+    marker_type::ErasedObject, 
     std_types::{RBox, RCow, RStr},
 };
 
@@ -130,6 +130,35 @@ using these (fallible) conversion methods:
 - as_any_unerased:Unwraps into a `&T`.Requires `T:'static`.
 
 - as_any_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
+
+# Passing DynTrait between dynamic libraries
+
+Passing DynTrait between sibling dynamic libraries 
+(as in between the dynamic libraries directly loaded by the same binary/dynamic library)
+may cause the program to abort at runtime with an error message stating that 
+the trait is not implemented for the specific interface.
+
+This can only happen if you are passing DynTrait between sibling dynamic libraries though,
+passing DynTrait instantiated in parent/child dynamic library to the parent/child 
+should not cause an abort,it would be a bug.
+
+```text
+        binary
+  _________|___________
+lib0      lib1      lib2
+  |         |         |
+lib00    lib10      lib20
+```
+
+In this diagram passing a DynTrait constructed in lib00 to anything other than 
+the binary or lib0 will cause the abort to happen if:
+
+- The InterfaceType requires extra traits in the version of the Interface
+    that lib1 and lib2 know about (that the binary does not require).
+
+- lib1 or lib2 attempt to call methods that require the traits that were added 
+    to the InterfaceType.
+
 
 # Example 
 

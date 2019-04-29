@@ -2,7 +2,6 @@
 Traits for pointers.
 */
 use std::{
-    marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
