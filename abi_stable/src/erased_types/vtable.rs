@@ -13,7 +13,7 @@ use super::*;
 
 use crate::{
     abi_stability::Tag,
-    ErasedObject,
+    marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
 
