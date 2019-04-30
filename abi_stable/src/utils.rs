@@ -2,6 +2,14 @@
 Utility functions.
 */
 
+use std::{
+    cmp::Ord,
+};
+
+
+//////////////////////////////////////
+
+
 /// Creates an empty slice.
 pub const fn empty_slice<'a, T>() -> &'a [T]
 where
@@ -65,6 +73,48 @@ pub unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
 pub unsafe fn transmute_mut_reference<T,U>(ref_:&mut T)->&mut U{
     &mut *(ref_ as *mut _ as *mut U)
 }
+
+//////////////////////////////////////
+
+
+pub fn min_by<T,F,K>(l:T,r:T,mut f:F)->T
+where 
+    F:FnMut(&T)->K,
+    K:Ord,
+{
+    if f(&l) < f(&r) {
+        l
+    }else{
+        r
+    }
+}
+
+
+pub fn max_by<T,F,K>(l:T,r:T,mut f:F)->T
+where 
+    F:FnMut(&T)->K,
+    K:Ord,
+{
+    if f(&l) > f(&r) {
+        l
+    }else{
+        r
+    }
+}
+
+pub fn min_max_by<T,F,K>(l:T,r:T,mut f:F)->(T,T)
+where 
+    F:FnMut(&T)->K,
+    K:Ord,
+{
+    if f(&l) < f(&r) {
+        (l,r)
+    }else{
+        (r,l)
+    }
+}
+
+
 
 //////////////////////////////////////
 

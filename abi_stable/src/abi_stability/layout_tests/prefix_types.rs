@@ -46,9 +46,12 @@ mod prefix1 {
     use super::custom_default;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
-    #[sabi(missing_field(with="custom_default::<_>"))]
+    #[sabi(
+        inside_abi_stable_crate,
+        // debug_print,
+        kind(Prefix(prefix_struct="Prefix_Prefix")),
+        missing_field(with="custom_default::<_>"),
+    )]
     pub struct Prefix {
         #[sabi(last_prefix_field)]
         pub field0: u8,
@@ -214,7 +217,7 @@ fn prefixes_test() {
                 let t_map_prefix=t_map_prefix.unwrap();
                 let o_map_prefix=o_map_prefix.unwrap();
 
-                for pre in vec![o_prefix,*t_map_prefix,*o_map_prefix] {
+                for pre in vec![o_prefix.clone(),t_map_prefix.clone(),o_map_prefix.clone()] {
                     assert_eq!(
                         t_prefix.prefix_field_count,
                         pre.prefix_field_count, 
@@ -243,7 +246,7 @@ fn prefixes_test() {
         let prefix_type_map=globals.prefix_type_map.lock().unwrap();
 
         let max_prefix=t_list.iter().zip(o_list.iter())
-            .map(|((_,l_prefix),(_,r_prefix))| (*l_prefix,*r_prefix) )
+            .map(|((_,l_prefix),(_,r_prefix))| (l_prefix.clone(),r_prefix.clone()) )
             .filter(|(l,r)| l.fields.len() <= r.fields.len() )
             .map(|(l,r)| PrefixTypeMetadata::max(l,r) )
             .max_by_key(|prefix| prefix.fields.len() )
@@ -323,7 +326,7 @@ fn hierarchical_prefix_test(){
             let t_map_prefix=t_map_prefix.unwrap();
             let o_map_prefix=o_map_prefix.unwrap();
 
-            for pre in vec![o_prefix,*t_map_prefix,*o_map_prefix] {
+            for pre in vec![o_prefix.clone(),t_map_prefix.clone(),o_map_prefix.clone()] {
                 assert_eq!(
                     t_prefix.prefix_field_count,
                     pre.prefix_field_count, 

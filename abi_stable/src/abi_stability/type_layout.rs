@@ -14,6 +14,7 @@ use crate::{
     utils::empty_slice, version::VersionStrings, 
     std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr},
     ignored_wrapper::CmpIgnored,
+    prefix_type::FieldAccessibility,
 };
 
 use super::{
@@ -120,6 +121,7 @@ pub enum TLData {
     PrefixType{
         /// The first field in the suffix
         first_suffix_field:usize,
+        accessible_fields:FieldAccessibility,
         fields: StaticSlice<TLField>,
     },
 }
@@ -168,7 +170,7 @@ pub struct TLField {
 #[derive(Copy, Clone, PartialEq, StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct TLFieldAndType {
-    inner: &'static TLField,
+    inner: TLField,
 }
 
 /// What primitive type this is.Used mostly for printing the type.
@@ -303,7 +305,7 @@ thread_local! {
 ///////////////////////////
 
 impl TLFieldAndType {
-    pub fn new(inner: &'static TLField) -> Self {
+    pub fn new(inner: TLField) -> Self {
         Self { inner }
     }
 
@@ -472,10 +474,12 @@ impl TLData {
 
     pub const fn prefix_type(
         first_suffix_field:usize,
+        accessible_fields:FieldAccessibility,
         fields: &'static [TLField],
     )->Self{
         TLData::PrefixType{
             first_suffix_field,
+            accessible_fields,
             fields:StaticSlice::new(fields),
         }
     }

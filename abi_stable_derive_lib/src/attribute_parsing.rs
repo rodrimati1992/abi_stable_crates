@@ -100,6 +100,8 @@ impl<'a> StableAbiOptions<'a> {
                     prefix_struct:prefix.prefix_struct,
                     default_on_missing_fields:this.default_on_missing_fields,
                     on_missing_fields:this.on_missing_fields,
+                    prefix_bounds:this.prefix_bounds,
+                    accessible_if_fields:this.accessible_if_fields,
                 })
             }
 
@@ -136,10 +138,13 @@ struct StableAbiAttrs<'a> {
 
     tags:Option<syn::Expr>,
 
+
     /// The last field of the prefix of a Prefix-type.
     last_prefix_field:Option<LastPrefixField<'a>>,
     default_on_missing_fields:OnMissingField<'a>,
     on_missing_fields:HashMap<*const Field<'a>,OnMissingField<'a>>,
+    prefix_bounds:Vec<WherePredicate>,
+    accessible_if_fields:HashMap<*const Field<'a>,syn::Expr>,
 
     /// The type parameters that have no constraints
     unconstrained_type_params:Vec<(Ident,UnconstrainedTyParam<'a>)>,
@@ -273,6 +278,15 @@ fn parse_sabi_attr<'a>(
                 let renamed=parse_lit_as_ident(&value)
                     .piped(|x| arenas.alloc(x) );
                 this.renamed_fields.insert(field,renamed);
+            }else if ident=="accessible_if" {
+                let expr=parse_lit_as_expr(&value);
+                this.accessible_if_fields.insert(field,expr);
+            }else{
+                panic!(
+                    "unrecognized field attribute `#[sabi({}={})]` ",
+                    ident,
+                    value.value()
+                );
             }
         }
         (ParseContext::Field{field,..}, Meta::List(list)) => {
@@ -292,7 +306,7 @@ fn parse_sabi_attr<'a>(
         (
             ParseContext::TypeAttr{..},
             Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_bound),ref ident,..})
-        )if ident=="bound" =>
+        )if ident=="bound"||ident=="prefix_bound" =>
         {
             let bound=match unparsed_bound.parse::<WherePredicate>() {
                 Ok(v)=>v,
@@ -302,7 +316,11 @@ fn parse_sabi_attr<'a>(
                     e
                 ),
             };
-            this.extra_bounds.push(bound);
+            if ident=="bound"{
+                this.extra_bounds.push(bound);
+            }else if ident=="prefix_bound" {
+                this.prefix_bounds.push(bound);
+            }
         }
         (
             ParseContext::TypeAttr{..},
@@ -548,13 +566,20 @@ fn parse_str_as_ident(lit:&str)->syn::Ident{
 }
 
 fn parse_lit_as_ident(lit:&syn::LitStr)->syn::Ident{
-    match lit.parse::<syn::Ident>() {
-        Ok(ident)=>ident,
-        Err(e)=>panic!(
-            "Could not parse as an identifier:\n\t{}\nError:\n\t{}", 
-            lit.value(),
-            e
-        )
+    parse_str_lit_as(lit,"Could not parse as an identifier")
+}
+
+fn parse_lit_as_expr(lit:&syn::LitStr)->syn::Expr{
+    parse_str_lit_as(lit,"Could not parse as an expression")
+}
+
+
+fn parse_str_lit_as<P>(lit:&syn::LitStr,err_description:&str)->P
+where P:syn::parse::Parse
+{
+    match lit.parse::<P>() {
+        Ok(x)=>x,
+        Err(e)=>panic!("{}:\n\t{}\nError:\n\t{}", err_description,lit.value(),e)
     }
 }
 

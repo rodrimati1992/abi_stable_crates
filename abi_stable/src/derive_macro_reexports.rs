@@ -14,6 +14,7 @@ pub use crate::{
     },
     prefix_type::{
         panic_on_missing_field_ty,
+        FieldAccessibility,
         PrefixTypeTrait,
         WithMetadata_,
         PTStructLayout,

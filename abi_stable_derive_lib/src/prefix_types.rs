@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
 
-use syn::Ident;
+use syn::{
+    punctuated::Punctuated,
+    Ident,
+    WherePredicate,
+};
 
 use quote::ToTokens;
 
@@ -28,6 +32,8 @@ pub(crate) struct PrefixKind<'a>{
     pub(crate) prefix_struct:&'a Ident,
     pub(crate) default_on_missing_fields:OnMissingField<'a>,
     pub(crate) on_missing_fields:HashMap<*const Field<'a>,OnMissingField<'a>>,
+    pub(crate) prefix_bounds:Vec<WherePredicate>,
+    pub(crate) accessible_if_fields:HashMap<*const Field<'a>,syn::Expr>,
     
 }
 
@@ -87,6 +93,10 @@ pub(crate) fn prefix_type_tokenizer<'a>(
             StabilityKind::Prefix(prefix)=>prefix,
             _=>return,
         };
+        
+        if struct_.fields.len() > 64 {
+            panic!("\n\n`#[sabi(kind(Prefix(..)))]` structs cannot have more than 64 fields\n\n");
+        }
 
         // let repr_attrs=ToTokenFnMut::new(move|ts|{
         //     for list in &config.repr_attrs {
@@ -99,6 +109,9 @@ pub(crate) fn prefix_type_tokenizer<'a>(
 
         let deriving_name=ds.name;
         let (ref impl_generics,ref ty_generics,ref where_clause) = ds.generics.split_for_impl();
+
+        let empty_preds=Punctuated::new();
+        let where_preds=where_clause.as_ref().map_or(&empty_preds,|x|&x.predicates);
 
         let stringified_deriving_name=deriving_name.to_string();
 
@@ -223,7 +236,9 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
                 let is_optional=on_missing_field==OnMissingField::ReturnOption;
 
-                if field_i < prefix.first_suffix_field {
+                let is_cond_field=prefix.accessible_if_fields.contains_key(&(field as *const _));
+
+                if field_i < prefix.first_suffix_field && !is_cond_field {
                     quote!{
                         #vis fn #getter_name(&self)->#ty{
                             unsafe{ 
@@ -232,16 +247,17 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                             }
                         }
                     }
-                }else if is_optional{
+                }else if is_optional {
                     quote!{
                         #vis fn #getter_name(&self)->Option< #ty >{
-                            if #field_i < self.inner._prefix_type_field_count {
+                            const __FIELD_ACC_MASK:u64=1<<#field_i;
+                            if (__FIELD_ACC_MASK & self.inner._prefix_type_field_acc.bits())==0 {
+                                None
+                            }else{
                                 unsafe{ 
                                     let ref_=&(*self.as_full_unchecked()).original.#field_name;
                                     Some( *ref_ ) 
                                 }
-                            }else{
-                                None
                             }
                         }
                     }
@@ -265,13 +281,14 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                     };
                     quote!{
                         #vis fn #getter_name(&self)->#ty{
-                            if #field_i < self.inner._prefix_type_field_count {
+                            const __FIELD_ACC_MASK:u64=1<<#field_i;
+                            if (__FIELD_ACC_MASK & self.inner._prefix_type_field_acc.bits())==0 {
+                                #else_
+                            }else{
                                 unsafe{
                                     let ref_=&(*self.as_full_unchecked()).original.#field_name;
                                     *ref_
                                 }
-                            }else{
-                                #else_
                             }
                         }
                     }
@@ -279,8 +296,23 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
             });
 
+
+        let prefix_bounds=&prefix.prefix_bounds;
+
         let field_count=struct_.fields.len();
         
+        let conditional_fields=
+            struct_.fields.iter().enumerate()
+                .filter_map(|(i,field)|{
+                    let cond=prefix.accessible_if_fields.get(&(field as *const _))?;
+                    Some((i as u32,cond))
+                })
+                .collect::<Vec<(u32,&syn::Expr)>>();
+
+        let disabled_field_indices=conditional_fields.iter().map(|&(field_i,_)| field_i );
+
+        let enable_field_if=conditional_fields.iter().map(|&(_,cond)| cond );
+
         let str_field_names=struct_.fields.iter().map(|x| x.ident().to_string() );
         
         let field_types=struct_.fields.iter().map(|x| x.ty );
@@ -289,12 +321,19 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
         
         quote!(
 
-            unsafe impl #impl_generics 
+            unsafe impl #impl_generics
                 #module::_sabi_reexports::PrefixTypeTrait 
             for #deriving_name #ty_generics 
-            #where_clause
+            where
+                #(#where_preds,)*
+                #(#prefix_bounds,)*
             {
-                const PT_FIELD_COUNT:usize=#field_count;
+                const PT_FIELD_ACCESSIBILITY:#module::_sabi_reexports::FieldAccessibility={
+                    #module::_sabi_reexports::FieldAccessibility::with_field_count(#field_count)
+                    #(
+                        .set_accessibility(#disabled_field_indices,#enable_field_if)
+                    )*
+                };
 
                 const PT_LAYOUT:&'static #module::__PTStructLayout ={
                     use #module::_sabi_reexports::renamed::{
@@ -344,4 +383,3 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
     })
 }
-
