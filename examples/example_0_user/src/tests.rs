@@ -41,9 +41,10 @@ pub fn run_dynamic_library_tests(mods:&'static TextOpsMod_Prefix){
         assert_eq!(hw.field_a(),123);
         assert_eq!(hw.field_b(),None);
         assert_eq!(hw.field_c(),None);
-        let _=::std::panic::catch_unwind(||{
+        let res=::std::panic::catch_unwind(||{
             let _=hw.field_d();
         });
+        assert!(res.is_err(),"value:{:#?}",res);
     }
 
     let val=mods.hello_world().for_tests()();
@@ -77,7 +78,10 @@ pub fn run_dynamic_library_tests(mods:&'static TextOpsMod_Prefix){
         );
     }
     
-    println!("tests succeeded!");
+    println!();
+    println!(".-------------------------.");
+    println!("|     tests succeeded!    |");
+    println!("'-------------------------'");
 
 }
 

@@ -50,9 +50,16 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         StabilityKind::Prefix(prefix)=>&prefix.prefix_struct,
     };
 
+    let mut prefix_type_trait_bound=None;
+
     let size_align_for=match &config.kind {
         StabilityKind::Prefix(prefix)=>{
             let prefix_struct=prefix.prefix_struct;
+
+            prefix_type_trait_bound=Some(quote!(
+                #name #ty_generics:_sabi_reexports::PrefixTypeTrait,
+            ));
+
             quote!( __WithMetadata_<#name #ty_generics,#prefix_struct #ty_generics> )
         }
         StabilityKind::Value=>quote!(Self),
@@ -69,7 +76,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let tags=ToTokenFnMut::new(move|ts|{
         match &tags_opt {
             Some(tag)=>{
-                to_stream!(ts; tags_opt );
+                tag.to_tokens(ts);
             }
             None=>{
                 quote!( _sabi_reexports::Tag::null() )
@@ -113,17 +120,18 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 }
 
                 let struct_=&ds.variants[0];
-                to_stream!(ts;
-                    ct.tl_data,ct.colon2,ct.prefix_type
-                );
-                ct.paren.surround(ts,|ts|{
-                    to_stream!(ts; prefix.first_suffix_field, ct.comma );
-
-                    ct.and_.to_tokens(ts);
-                    ct.bracket.surround(ts,|ts|{
-                        fields_tokenizer(struct_,config,ct).to_tokens(ts);
-                    })
-                });
+                let first_suffix_field=prefix.first_suffix_field;
+                let fields=fields_tokenizer(struct_,config,ct);
+                
+                quote!(
+                    __TLData::prefix_type(
+                        #first_suffix_field,
+                        <#name #ty_generics as 
+                            _sabi_reexports::PrefixTypeTrait
+                        >::PT_FIELD_ACCESSIBILITY,
+                        &[#fields]
+                    )
+                ).to_tokens(ts);
             }
             (true,Some(_))=>{
                 panic!("enum prefix types not supported");
@@ -199,6 +207,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 #(#where_clause,)*
                 #(#stable_abi_bounded:__StableAbi,)*
                 #(#extra_bounds,)*
+                #prefix_type_trait_bound
             {
                 type IsNonZeroType=_sabi_reexports::False;
                 type Kind=#associated_kind;
