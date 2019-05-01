@@ -240,7 +240,9 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
                 if field_i < prefix.first_suffix_field && !is_cond_field {
                     quote!{
-                        #vis fn #getter_name(&self)->#ty{
+                        #vis fn #getter_name(&self)->#ty
+                        where #ty:Copy
+                        {
                             unsafe{ 
                                 let ref_=&(*self.as_full_unchecked()).original.#field_name;
                                 *ref_ 
@@ -249,7 +251,9 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                     }
                 }else if is_optional {
                     quote!{
-                        #vis fn #getter_name(&self)->Option< #ty >{
+                        #vis fn #getter_name(&self)->Option< #ty >
+                        where #ty:Copy
+                        {
                             const __FIELD_ACC_MASK:u64=1<<#field_i;
                             if (__FIELD_ACC_MASK & self.inner._prefix_type_field_acc.bits())==0 {
                                 None
@@ -280,7 +284,9 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                         },
                     };
                     quote!{
-                        #vis fn #getter_name(&self)->#ty{
+                        #vis fn #getter_name(&self)->#ty
+                        where #ty:Copy
+                        {
                             const __FIELD_ACC_MASK:u64=1<<#field_i;
                             if (__FIELD_ACC_MASK & self.inner._prefix_type_field_acc.bits())==0 {
                                 #else_
@@ -305,9 +311,9 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             struct_.fields.iter().enumerate()
                 .filter_map(|(i,field)|{
                     let cond=prefix.accessible_if_fields.get(&(field as *const _))?;
-                    Some((i as u32,cond))
+                    Some((i,cond))
                 })
-                .collect::<Vec<(u32,&syn::Expr)>>();
+                .collect::<Vec<(usize,&syn::Expr)>>();
 
         let disabled_field_indices=conditional_fields.iter().map(|&(field_i,_)| field_i );
 
@@ -319,6 +325,10 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
         let str_field_types=struct_.fields.iter()
             .map(|x| x.ty.into_token_stream().to_string() );
         
+        let is_prefix_field_conditional=struct_.fields.iter()
+            .take(prefix.first_suffix_field)
+            .map(|f| prefix.accessible_if_fields.contains_key(&(f as *const _)) );
+
         quote!(
 
             unsafe impl #impl_generics
@@ -329,10 +339,25 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 #(#prefix_bounds,)*
             {
                 const PT_FIELD_ACCESSIBILITY:#module::_sabi_reexports::FieldAccessibility={
-                    #module::_sabi_reexports::FieldAccessibility::with_field_count(#field_count)
+                    use self::#module::_sabi_reexports::{
+                        FieldAccessibility as __FieldAccessibility,
+                        IsAccessible as __IsAccessible,
+                    };
+                    __FieldAccessibility::with_field_count(#field_count)
                     #(
-                        .set_accessibility(#disabled_field_indices,#enable_field_if)
+                        .set_accessibility(
+                            #disabled_field_indices,
+                            __IsAccessible::new(#enable_field_if)
+                        )
                     )*
+                };
+                
+                const PT_COND_PREFIX_FIELDS:&'static [#module::_sabi_reexports::IsConditional]={
+                    use #module::_sabi_reexports::IsConditional as __IsConditional;
+
+                    &[
+                        #( __IsConditional::new( #is_prefix_field_conditional ) ,)*
+                    ]
                 };
 
                 const PT_LAYOUT:&'static #module::__PTStructLayout ={

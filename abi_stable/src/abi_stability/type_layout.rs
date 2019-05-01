@@ -14,7 +14,7 @@ use crate::{
     utils::empty_slice, version::VersionStrings, 
     std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr},
     ignored_wrapper::CmpIgnored,
-    prefix_type::FieldAccessibility,
+    prefix_type::{FieldAccessibility,IsConditional},
 };
 
 use super::{
@@ -118,13 +118,23 @@ pub enum TLData {
         variants: StaticSlice<TLEnumVariant>,
     },
     /// vtables and modules that can be extended in minor versions.
-    PrefixType{
-        /// The first field in the suffix
-        first_suffix_field:usize,
-        accessible_fields:FieldAccessibility,
-        fields: StaticSlice<TLField>,
-    },
+    PrefixType(TLPrefixType),
 }
+
+
+/// vtables and modules that can be extended in minor versions.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub struct TLPrefixType {
+    /// The first field in the suffix
+    pub first_suffix_field:usize,
+    pub accessible_fields:FieldAccessibility,
+    pub conditional_prefix_fields:StaticSlice<IsConditional>,
+    pub fields: StaticSlice<TLField>,
+}
+
+
 
 /// A discriminant-only version of TLData.
 #[repr(C)]
@@ -475,13 +485,15 @@ impl TLData {
     pub const fn prefix_type(
         first_suffix_field:usize,
         accessible_fields:FieldAccessibility,
+        conditional_prefix_fields:&'static [IsConditional],
         fields: &'static [TLField],
     )->Self{
-        TLData::PrefixType{
+        TLData::PrefixType(TLPrefixType{
             first_suffix_field,
             accessible_fields,
+            conditional_prefix_fields:StaticSlice::new(conditional_prefix_fields),
             fields:StaticSlice::new(fields),
-        }
+        })
     }
 
     pub fn discriminant(&self) -> TLDataDiscriminant {
@@ -544,27 +556,35 @@ impl Debug for FullType {
             fmt::Display::fmt(start_gen, f)?;
 
             let post_iter = |i: usize, len: usize, f: &mut Formatter<'_>| -> fmt::Result {
-                if i + 1 < len {
+                if i+1 < len {
                     fmt::Display::fmt(ty_sep, f)?;
                 }
                 Ok(())
             };
 
-            for (i, param) in generics.lifetime.iter().cloned().enumerate() {
+            let mut i=0;
+
+            let total_generics_len=
+                generics.lifetime.len()+generics.type_.len()+generics.const_.len();
+
+            for param in generics.lifetime.iter().cloned() {
                 fmt::Display::fmt(param.as_str(), &mut *f)?;
-                post_iter(i, generics.lifetime.len(), &mut *f)?;
+                post_iter(i,total_generics_len, &mut *f)?;
+                i+=1;
             }
-            for (i, param) in generics.type_.iter().cloned().enumerate() {
+            for param in generics.type_.iter().cloned() {
                 if is_before_ty {
                     fmt::Display::fmt(before_ty, &mut *f)?;
                     is_before_ty = false;
                 }
                 fmt::Debug::fmt(&param.full_type(), &mut *f)?;
-                post_iter(i, generics.type_.len(), &mut *f)?;
+                post_iter(i,total_generics_len, &mut *f)?;
+                i+=1;
             }
-            for (i, param) in generics.const_.iter().cloned().enumerate() {
+            for param in generics.const_.iter().cloned() {
                 fmt::Display::fmt(param.as_str(), &mut *f)?;
-                post_iter(i, generics.const_.len(), &mut *f)?;
+                post_iter(i,total_generics_len, &mut *f)?;
+                i+=1;
             }
             fmt::Display::fmt(end_gen, f)?;
         }

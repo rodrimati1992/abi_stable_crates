@@ -4,9 +4,14 @@ use std::{
 
 use crate::{
     abi_stability::{
-        type_layout::{TypeLayout,TLField,TLData,TLDataDiscriminant},
+        type_layout::{TypeLayout,TLField,TLData,TLPrefixType,TLDataDiscriminant},
         StableAbi,
     },
+};
+
+use super::{
+    accessible_fields::{FieldAccessibility,IsAccessible},
+    IsConditional,
 };
 
 
@@ -19,20 +24,22 @@ pub struct PrefixTypeMetadata{
     /// which is always the same for the same type,regardless of which library it comes from.
     pub prefix_field_count:usize,
 
-    pub fields:Cow<'static,[TLField]>,
-
     pub accessible_fields:FieldAccessibility,
+
+    pub conditional_prefix_fields:&'static [IsConditional],
+
+    pub fields:Cow<'static,[TLField]>,
 
     /// The layout of the struct,for error messages.
     pub layout:&'static TypeLayout,
 }
-
+    
 
 impl PrefixTypeMetadata{
     pub fn new(layout:&'static TypeLayout)->Self{
-        let (first_suffix_field,accessible_fields,fields)=match layout.data {
-            TLData::PrefixType{first_suffix_field,accessible_fields,fields}=>
-                (first_suffix_field,accessible_fields,fields),
+        match layout.data {
+            TLData::PrefixType(prefix)=>
+                Self::with_prefix_layout(prefix,layout),
             _=>panic!(
                 "Attempting to construct a PrefixTypeMetadata from a \
                  TypeLayout of a non-prefix-type.\n\
@@ -41,23 +48,16 @@ impl PrefixTypeMetadata{
                  layout.data.discriminant(),
                  layout.package,
             ),
-        };
-        Self{
-            fields:fields.as_slice().into(),
-            prefix_field_count:first_suffix_field,
-            accessible_fields,
-            layout,
         }
     }
 
-    pub fn invalid()->Self{
-        const LAYOUT:&'static TypeLayout=<() as StableAbi>::ABI_INFO.get().layout;
-
+    pub fn with_prefix_layout(prefix:TLPrefixType,layout:&'static TypeLayout)->Self{
         Self{
-            prefix_field_count:0,
-            fields:Cow::Borrowed(&[]),
-            accessible_fields:FieldAccessibility::with_field_count(0),
-            layout:LAYOUT,
+            fields:prefix.fields.as_slice().into(),
+            accessible_fields:prefix.accessible_fields,
+            conditional_prefix_fields:prefix.conditional_prefix_fields.as_slice(),
+            prefix_field_count:prefix.first_suffix_field,
+            layout,
         }
     }
 
@@ -89,5 +89,45 @@ impl PrefixTypeMetadata{
             (other,self)
         }
     }
+
+
+    /// Combines the fields from `other` into `self`,
+    /// replacing any innaccessible field with one from `other`.
+    ///
+    /// # Preconditions
+    ///
+    /// This must be called after both were checked for compatibility,
+    /// otherwise fields accessible in both `self` and `other` 
+    /// won't be checked for compatibility or copied.
+    pub fn combine_fields_from(&mut self,other:&Self){
+        let o_fields=&*other.fields;
+
+        let min_field_count=o_fields.len().min(self.fields.len());
+        
+        for (field_i,(t_acc,o_acc)) in 
+            self.accessible_fields.iter_field_count(min_field_count)
+                .zip(other.accessible_fields.iter_field_count(min_field_count))
+                .enumerate() 
+        {
+            if !t_acc.is_accessible() && o_acc.is_accessible() {
+                let t_fields=self.fields.to_mut();
+
+                t_fields[field_i]=o_fields[field_i];
+            }
+        }
+
+        if min_field_count==self.fields.len() {
+            let t_fields=self.fields.to_mut();
+            
+            for (i,o_field) in o_fields[min_field_count..].iter().cloned().enumerate() {
+                let field_i=i+min_field_count;
+
+                t_fields.push(o_field);
+                self.accessible_fields=
+                    self.accessible_fields.set_accessibility(field_i,IsAccessible::Yes);
+            }
+        }
+    }
 }
+
 

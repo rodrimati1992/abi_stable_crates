@@ -104,6 +104,7 @@ To represent non-exhaustive enums without fields it is recommended using structs
 */
 
 #![allow(unused_unsafe)]
+#![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
 
 #[macro_use]

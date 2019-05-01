@@ -129,6 +129,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                         <#name #ty_generics as 
                             _sabi_reexports::PrefixTypeTrait
                         >::PT_FIELD_ACCESSIBILITY,
+                        <#name #ty_generics as 
+                            _sabi_reexports::PrefixTypeTrait
+                        >::PT_COND_PREFIX_FIELDS,
                         &[#fields]
                     )
                 ).to_tokens(ts);
