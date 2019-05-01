@@ -504,7 +504,7 @@ fn different_generics() {
     {
         let list = vec![
             gen_more_lts::Generics::<()>::ABI_INFO,
-            gen_more_tys::Generics::<(), ()>::ABI_INFO,
+            // gen_more_tys::Generics::<(), ()>::ABI_INFO,
         ];
 
         for other in list {

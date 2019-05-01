@@ -86,6 +86,26 @@ where K:Hash+Eq
         self.get_mut_with_index(i)
     }
 
+    pub(crate) fn get2_mut<Q>(&mut self,key0:&Q,key1:&Q)->(Option<&mut T>,Option<&mut T>)
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq+?Sized, 
+    {
+        let i0=self.map.get(key0).cloned();
+        let i1=self.map.get(key1).cloned();
+
+        match (i0,i1) {
+            (None,None)=>
+                (None,None),
+            (Some(l),None)=>
+                (self.get_mut_with_index(l),None),
+            (None,Some(r))=>
+                (None,self.get_mut_with_index(r)),
+            (Some(l),Some(r))=>
+                self.get2_mut_with_index(l,r),
+        }
+    }
+
     pub(crate) fn get_index<Q>(&self,key:&Q)->Option<MapIndex>
     where
         K: Borrow<Q>,
@@ -100,6 +120,16 @@ where K:Hash+Eq
 
     pub(crate) fn get_mut_with_index(&mut self,i:MapIndex)->Option<&mut T>{
         self.arena.get_mut(i.index).map(|x| &mut x.value )
+    }
+    
+    pub(crate) fn get2_mut_with_index(
+        &mut self,
+        i0:MapIndex,
+        i1:MapIndex
+    )->(Option<&mut T>,Option<&mut T>) {
+        let (l,r)=self.arena.get2_mut(i0.index,i1.index);
+        fn mapper<K,T>(x:&mut MapValue<K,T>)->&mut T { &mut x.value }
+        (l.map(mapper),r.map(mapper))
     }
 
     #[allow(dead_code)]

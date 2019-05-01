@@ -24,7 +24,7 @@ mod layout;
 mod pt_metadata;
 
 pub use self::{
-    accessible_fields::FieldAccessibility,
+    accessible_fields::{FieldAccessibility,IsAccessible},
     layout::{PTStructLayout,PTStructLayoutParams,PTField},
     pt_metadata::PrefixTypeMetadata,
 };
@@ -57,6 +57,10 @@ pub unsafe trait PrefixTypeTrait:Sized{
     /// A `1` bit is an accessible field.
     ///
     const PT_FIELD_ACCESSIBILITY:FieldAccessibility;
+
+    #[doc(hidden)]
+    // Whether each individual fields in the prefix is conditional.
+    const PT_COND_PREFIX_FIELDS:&'static [IsConditional];
 
     /**
 A type only accessible through a shared reference,
@@ -159,6 +163,30 @@ pub struct WithMetadataFor<T,P>{
     inner:WithMetadata_<(),()>,
     _marker:PhantomData<(T,P)>
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq)]
+#[repr(C)]
+pub enum IsConditional{
+    No=0,
+    Yes=1,
+}
+
+impl IsConditional{
+    pub const fn new(is_accessible:bool)->Self{
+        [IsConditional::No,IsConditional::Yes][is_accessible as usize]
+    }
+    pub const fn is_conditional(self)->bool{
+        self as usize!=0
+    }
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////

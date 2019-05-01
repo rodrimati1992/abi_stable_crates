@@ -81,10 +81,33 @@ since the other side could choose any other type parameter.
 
 */
 #[repr(C)]
-pub struct UnsafeIgnoredType<T> {
+pub struct UnsafeIgnoredType<T:?Sized> {
     _priv: [u8; 0],
     _inner: PhantomData<T>,
 }
+
+impl<T:?Sized> UnsafeIgnoredType<T>{
+    pub const DEFAULT:Self=Self{
+        _priv:[],
+        _inner:PhantomData,
+    };
+}
+
+impl<T:?Sized> Copy for UnsafeIgnoredType<T>{}
+
+impl<T:?Sized> Default for UnsafeIgnoredType<T>{
+    fn default()->Self{
+        Self::DEFAULT
+    }
+}
+
+impl<T:?Sized> Clone for UnsafeIgnoredType<T>{
+    fn clone(&self)->Self{
+        *self
+    }
+}
+
+
 unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
     type IsNonZeroType = False;
     type Kind=ValueKind;

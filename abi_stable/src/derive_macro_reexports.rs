@@ -8,13 +8,17 @@ pub use crate::{
             PrefixKind,
         },
         type_layout::{
-            LifetimeIndex, TLData, TLEnumVariant, TLField, TypeLayout, TypeLayoutParams,
+            LifetimeIndex, 
+            TLData, TLPrefixType, TLEnumVariant, TLField, 
+            TypeLayout, TypeLayoutParams,
         },
         tagging::Tag,
     },
     prefix_type::{
         panic_on_missing_field_ty,
         FieldAccessibility,
+        IsAccessible,
+        IsConditional,
         PrefixTypeTrait,
         WithMetadata_,
         PTStructLayout,
