@@ -572,7 +572,7 @@ mod cond_fields_0 {
         unconstrained(C),
     )]
     pub struct Prefix<C> {
-        _marker:UnsafeIgnoredType<C>,
+        pub _marker:UnsafeIgnoredType<C>,
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         #[sabi(last_prefix_field)]
         pub field0: u8,
@@ -591,15 +591,15 @@ mod cond_fields_1 {
         prefix_bound="C:EnabledFields",
         unconstrained(C),
     )]
-    pub struct Prefix<C> {
-        _marker:UnsafeIgnoredType<C>,
+    pub struct Prefix<C,T=u8,U=u16> {
+        pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         #[sabi(last_prefix_field)]
-        pub field0: u8,
+        pub field0: T,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        pub field1: u16,
+        pub field1: U,
     }
 }
 
@@ -615,7 +615,7 @@ mod cond_fields_2 {
         unconstrained(C),
     )]
     pub struct Prefix<C,T=u8,U=u16,V=u32> {
-        _marker:UnsafeIgnoredType<C>,
+        pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         #[sabi(last_prefix_field)]
@@ -642,7 +642,7 @@ mod cond_fields_2_misaligned {
         unconstrained(C),
     )]
     pub struct Prefix<C> {
-        _marker:UnsafeIgnoredType<C>,
+        pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         #[sabi(last_prefix_field)]
@@ -668,7 +668,7 @@ mod cond_fields_2_different_prefix {
         unconstrained(C),
     )]
     pub struct Prefix<C,T=u8,U=u16,V=u32> {
-        _marker:UnsafeIgnoredType<C>,
+        pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         pub field0: T,
@@ -695,7 +695,7 @@ mod cond_fields_3 {
         unconstrained(C),
     )]
     pub struct Prefix<C,T=u8,U=u16,V=u32,W=u64> {
-        _marker:UnsafeIgnoredType<(C,T,U,V,W)>,
+        pub _marker:UnsafeIgnoredType<(C,T,U,V,W)>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         #[sabi(last_prefix_field)]
@@ -725,7 +725,7 @@ mod cond_fields_3_uncond_prefix {
         unconstrained(C),
     )]
     pub struct Prefix<C,T=u8,U=u16,V=u32,W=u64> {
-        _marker:UnsafeIgnoredType<(C,T,U,V,W)>,
+        pub _marker:UnsafeIgnoredType<(C,T,U,V,W)>,
         
         #[sabi(last_prefix_field)]
         pub field0: T,
@@ -932,6 +932,119 @@ fn hierarchical_prefix_cond_field_test(){
 
         for (this,other) in checks {
             check_interface_impl_pair(&globals,this,other);
+        }
+    }
+}
+
+
+#[test]
+fn prefix_on_conditional_fields() {
+
+    use crate::{
+        type_level::bools::{True as T,False as F},
+        marker_type::UnsafeIgnoredType,
+    };
+
+    
+    type Prefix1<AF>=cond_fields_1::Prefix_Prefix<AF,i8,i32>;
+    type Prefix2<AF>=cond_fields_2::Prefix_Prefix<AF,i8,i32,i32>;
+    type Prefix3<AF>=cond_fields_3::Prefix_Prefix<AF,i8,i32,i32,i32>;
+    type Prefix3UncondPrefix<AF>=
+        cond_fields_3_uncond_prefix::Prefix_Prefix<AF,i8,i32,i32,i32>;
+
+    {// Casting Prefix0 to Prefix1 with different field accessibilities
+        let prefix0=
+            cond_fields_0::Prefix{
+                _marker:UnsafeIgnoredType::<(T,T,T,T)>::DEFAULT,
+                field0:1,
+            }.leak_into_prefix();
+
+        {// The field cannot be accessed even though it was initialized.
+            let value:&Prefix1<(F,F,F,F)>=unsafe{ transmute_reference(prefix0) };
+
+            assert_eq!(value.field0(),None);
+            assert_eq!(value.field1(),None);
+        }
+        {// The first field can be accessed.
+            let value:&Prefix1<(T,F,F,F)>=unsafe{ transmute_reference(prefix0) };
+
+            assert_eq!(value.field0(),Some(1));
+            assert_eq!(value.field1(),None);
+        }
+    }
+
+
+
+    let prefix3=cond_fields_3::Prefix{
+            _marker:UnsafeIgnoredType::<((T,T,T,T),_,_,_,_)>::DEFAULT,
+            field0:1,
+            field1:3,
+            field2:7,
+            field3:12,
+    }.leak_into_prefix();
+
+    {// Casting Prefix3 to Prefix2 with different field accessibilities	
+        {
+            let value:&Prefix2<(F,F,F,F)>=unsafe{ transmute_reference(prefix3) };
+
+            assert_eq!(value.field0(),None);
+            assert_eq!(value.field1(),None);
+            assert_eq!(value.field2(),None);
+        }
+        {
+            let value:&Prefix2<(T,F,F,F)>=unsafe{ transmute_reference(prefix3) };
+
+            assert_eq!(value.field0(),Some(1));
+            assert_eq!(value.field1(),None);
+            assert_eq!(value.field2(),None);
+        }
+        {
+            let value:&Prefix2<(F,T,F,F)>=unsafe{ transmute_reference(prefix3) };
+
+            assert_eq!(value.field0(),None);
+            assert_eq!(value.field1(),Some(3));
+            assert_eq!(value.field2(),None);
+        }
+        {
+            let value:&Prefix2<(F,F,T,F)>=unsafe{ transmute_reference(prefix3) };
+
+            assert_eq!(value.field0(),None);
+            assert_eq!(value.field1(),None);
+            assert_eq!(value.field2(),Some(7));
+        }
+        {
+            let value:&Prefix2<(T,T,T,T)>=unsafe{ transmute_reference(prefix3) };
+
+            assert_eq!(value.field0(),Some(1));
+            assert_eq!(value.field1(),Some(3));
+            assert_eq!(value.field2(),Some(7));
+        }
+    }
+
+    {// Casting Prefix3 to Prefix3UncondPrefix with different field accessibilities 
+        {
+            let value:&Prefix3UncondPrefix<(F,F,F,F)>=unsafe{ transmute_reference(prefix3) };
+
+            assert_eq!(value.field0(),1);
+            assert_eq!(value.field1(),None);
+            assert_eq!(value.field2(),None);
+            assert_eq!(value.field2(),None);
+        }
+        {
+            let value:&Prefix3UncondPrefix<(F,F,T,F)>=unsafe{ transmute_reference(prefix3) };
+
+            assert_eq!(value.field0(),1);
+            assert_eq!(value.field1(),None);
+            assert_eq!(value.field2(),Some(7));
+            assert_eq!(value.field3(),None);
+        }
+        {
+            let value:&Prefix3UncondPrefix<(T,T,T,T)>=unsafe{ transmute_reference(prefix3) };
+
+            assert_eq!(value.field0(),1);
+            assert_eq!(value.field1(),Some(3));
+            assert_eq!(value.field2(),Some(7));
+            assert_eq!(value.field3(),Some(12));
         }
     }
 }

@@ -222,6 +222,17 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 acc_doc_buffer
             });
 
+        let field_count=struct_.fields.len();
+        
+        let ref field_mask_idents=(0..field_count)
+            .map(|i|{
+                let field_mask=format!("__AB_PTT_FIELD_{}_ACCESSIBILTIY_MASK",i);
+                syn::parse_str::<Ident>(&field_mask).unwrap()
+            })
+            .collect::<Vec<Ident>>();
+
+        
+
         let accessors=struct_.fields.iter().enumerate()
             .map(move|(field_i,field)|{
                 use std::fmt::Write;
@@ -249,25 +260,17 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                             }
                         }
                     }
-                }else if is_optional {
-                    quote!{
-                        #vis fn #getter_name(&self)->Option< #ty >
-                        where #ty:Copy
-                        {
-                            const __FIELD_ACC_MASK:u64=1<<#field_i;
-                            if (__FIELD_ACC_MASK & self.inner._prefix_type_field_acc.bits())==0 {
-                                None
-                            }else{
-                                unsafe{ 
-                                    let ref_=&(*self.as_full_unchecked()).original.#field_name;
-                                    Some( *ref_ ) 
-                                }
-                            }
-                        }
-                    }
-                }else{
+                }else {
+                    let return_ty=if is_optional {
+                        quote!( Option< #ty > )
+                    }else{
+                        quote!( #ty)
+                    };
+
                     let else_=match on_missing_field {
-                        OnMissingField::ReturnOption=>unreachable!(),
+                        OnMissingField::ReturnOption=>quote!{
+                            return None 
+                        },
                         OnMissingField::Panic=>quote!(
                             #module::_sabi_reexports::panic_on_missing_field_ty::<
                                 #deriving_name #ty_generics
@@ -283,19 +286,29 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                             Default::default()
                         },
                     };
+
+                    let with_val=if is_optional {
+                        quote!( Some(val) )
+                    }else{
+                        quote!( val )
+                    };
+
+                    let field_mask_ident=&field_mask_idents[field_i];
+
                     quote!{
-                        #vis fn #getter_name(&self)->#ty
+                        #vis fn #getter_name(&self)->#return_ty
                         where #ty:Copy
                         {
-                            const __FIELD_ACC_MASK:u64=1<<#field_i;
-                            if (__FIELD_ACC_MASK & self.inner._prefix_type_field_acc.bits())==0 {
+                            let acc_bits=self.inner._prefix_type_field_acc.bits();
+                            let val=if (Self::#field_mask_ident & acc_bits)==0 {
                                 #else_
                             }else{
                                 unsafe{
                                     let ref_=&(*self.as_full_unchecked()).original.#field_name;
                                     *ref_
                                 }
-                            }
+                            };
+                            #with_val
                         }
                     }
                 }
@@ -305,8 +318,6 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
         let prefix_bounds=&prefix.prefix_bounds;
 
-        let field_count=struct_.fields.len();
-        
         let conditional_fields=
             struct_.fields.iter().enumerate()
                 .filter_map(|(i,field)|{
@@ -328,6 +339,8 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
         let is_prefix_field_conditional=struct_.fields.iter()
             .take(prefix.first_suffix_field)
             .map(|f| prefix.accessible_if_fields.contains_key(&(f as *const _)) );
+
+        let field_i=0usize..;
 
         quote!(
 
@@ -386,11 +399,26 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 type Prefix=#prefix_struct #ty_generics;
             }
 
-            impl #impl_generics #prefix_struct #ty_generics #where_clause {
+            impl #impl_generics #prefix_struct #ty_generics 
+            where 
+                #(#where_preds,)*
+                #deriving_name #ty_generics: #module::_sabi_reexports::PrefixTypeTrait,
+            {
+                const __AB_PTT_FIELD_ACCESSIBILTIY_MASK:u64=
+                    <#deriving_name #ty_generics as 
+                        #module::_sabi_reexports::PrefixTypeTrait 
+                    >::PT_FIELD_ACCESSIBILITY.bits();
+
                 #(
+                    const #field_mask_idents:u64=
+                        (1<<#field_i) & Self::__AB_PTT_FIELD_ACCESSIBILTIY_MASK;
+
                     #[doc=#accessor_docs]
                     #accessors
                 )*
+
+
+
                 // Returns a `*const _` instead of a `&_` because the compiler 
                 // might assume in the future that references point to fully 
                 // initialized values.

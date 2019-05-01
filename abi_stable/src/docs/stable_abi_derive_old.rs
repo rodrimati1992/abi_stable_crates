@@ -18,13 +18,7 @@ This is only necessary if you are passing `TypeParameter` to `UnsafeIgnoredType`
 
 ### `#[sabi(bound="Type:ATrait")]`
 
-Adds a bound to the `StableAbi` impl.
-
-### `#[sabi(prefix_bound="Type:ATrait")]`
-
-This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
-
-Adds a bound to the `PrefixTypeTrait` impl.
+Adds a bound to the StableAbi impl.
 
 ### `#[sabi(tag=" some_expr ")]`
 
@@ -32,8 +26,7 @@ Adds a "tag" associated with the type,
 a dynamically typed data structure used to encode extra properties about a type.
 
 This can only be done once,
-to add multiple properties you must decide whether you want to use
-a map,an array,or a set.
+to add multiple properties you must decide whether you want 
 
 You can only rely on tags for safety if 
 the specific tags were present since the first compatible version of the library,
@@ -87,33 +80,13 @@ This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 Declares that the field it is applied to is the last field in the prefix,
 where every field up to it is guaranteed to exist.
 
-### `#[sabi(accessible_if=" expression ")]`
-
-This attribute turns any field conditional based on the const boolean expression 
-(which must be valid a bool constant).
-
-Whether this attribute is aplied to the prefix must not change in minor versions.
-
-If `expression` is false,the field won't be accessible,doing the action for missing fields
-and the type of the field can be anything so long as its size and alignment is compatible.
-
-If `expression` is true,the type of the field must be compatible with the same 
-(accessible)field when checking layout.
-
-If this attribute is apllied to prefix fields,
-it will only be compatible with other types if they agree on 
-which accessors are conditional for prefix fields.
-
-To do `#[sabi(accessible_if="<TypeParameter as Trait>::CONSTANT")]` you can use the 
-`#[sabi(prefix_bound="TypeParameter:Trait")]` attribute.
-
 # Field and/or Container attributes
 
 ### `#[sabi(missing_field( .. ))]`
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
-Determines what happens in the accessor method for a field,when the field is missing,
+Determines what happens in the getter method for a field,when the field is missing,
 the default is that it returns an `Option<FieldType>`,
 returning None if the field is absent,Some(field_value) if it's present.
 
@@ -135,6 +108,7 @@ Returns `somefunction()` if the field doesn't exist.
 
 `#[sabi(missing_field(default))]`<br>
 Returns `Default::default()` if the field doesn't exist.
+
 
 
 
