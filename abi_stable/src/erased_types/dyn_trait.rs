@@ -48,11 +48,13 @@ DynTrait implements ffi-safe trait objects,for a selection of traits.
 
 One can pass non-StableAbi types around by using type erasure,using this type.
 
-It generally looks like `DynTrait<Pointer<()>,Interface>`,where:
+It generally looks like `DynTrait<'borrow,Pointer<()>,Interface>`,where:
 
-- Pointer is some `pointer_trait::StableDeref` pointer type.
+- `'borrow` is the borrow that the type that was erased had.
 
-- Interface is an `InterfaceType`,which describes what traits are 
+- `Pointer` is some `pointer_trait::StableDeref` pointer type.
+
+- `Interface` is an `InterfaceType`,which describes what traits are 
     required when constructing the `DynTrait<_>` and which ones it implements.
 
 `trait InterfaceType` allows describing which traits are required 
@@ -76,6 +78,12 @@ To construct a `DynTrait<_>` one can use these associated functions:
 - from_any_ptr
     Can be constructed from a pointer of a value.Requires a `'static` value.
 
+- from_borrowing_value:
+    Can be constructed from the value directly.Cannot unerase the DynTrait afterwards.
+    
+- from_borrowing_ptr
+    Can be constructed from a pointer of a value.Cannot unerase the DynTrait afterwards.
+
 ### Trait object
 
 `DynTrait<Pointer<()>,Interface>` 
@@ -83,6 +91,10 @@ can be used as a trait object for any combination of
 the traits listed bellow.
 
 These are the traits:
+
+- Send
+
+- Sync
 
 - Clone 
 
@@ -253,6 +265,9 @@ The primary example using `DynTrait<_>` is in the readme.
             }
         }
         
+        /// Constructors the `DynTrait<_>` from a value.
+        ///
+        /// Cannot unerase the DynTrait afterwards.
         pub fn from_borrowing_value<'borr,T,I>(
             object: T,
             interface:I,
@@ -266,6 +281,9 @@ The primary example using `DynTrait<_>` is in the readme.
             DynTrait::from_borrowing_ptr(object,interface)
         }
 
+        /// Constructors the `DynTrait<_>` from a pointer to the erased type.
+        ///
+        /// Cannot unerase the DynTrait afterwards.
         pub fn from_borrowing_ptr<'borr,P, T,I>(
             object: P,
             _interface:I
@@ -288,21 +306,31 @@ The primary example using `DynTrait<_>` is in the readme.
     }
 
 
-    impl<P,I> DynTrait<'_,P,I> 
+    impl<P,I> DynTrait<'static,P,I> 
     where 
         I: InterfaceConstsBound
     {
         /// Allows checking whether 2 `DynTrait<_>`s have a value of the same type.
         ///
-        /// Note that types from different dynamic libraries/executables are 
+        /// Notes:
+        ///
+        /// - Types from different dynamic libraries/executables are 
         /// never considered equal.
-        pub fn is_same_type<Other,I2>(&self,other:&DynTrait<'_,Other,I2>)->bool
+        ///
+        /// - `DynTrait`s constructed using `DynTrait::from_borrowing_*`
+        /// are never considered to wrap the same type.
+        pub fn is_same_type<Other,I2>(&self,other:&DynTrait<'static,Other,I2>)->bool
         where I2:InterfaceConstsBound
         {
             self.vtable_address()==other.vtable_address()||
             self.vtable().type_info().is_compatible(other.vtable().type_info())
         }
+    }
 
+    impl<P,I> DynTrait<'_,P,I> 
+    where 
+        I: InterfaceConstsBound
+    {
         pub(super) fn vtable<'a>(&self) -> &'a VTable<P,I>{
             unsafe {
                 &*(self.vtable as *const VTable<P,I>)
@@ -403,6 +431,8 @@ The primary example using `DynTrait<_>` is in the readme.
         /// - It is called in a dynamic library/binary outside
         /// the one from which this `DynTrait<_>` was constructed.
         ///
+        /// - The DynTrait was constructed using a `from_borrowing_*` method
+        ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
         pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError>
@@ -430,6 +460,8 @@ The primary example using `DynTrait<_>` is in the readme.
         /// - It is called in a dynamic library/binary outside
         /// the one from which this `DynTrait<_>` was constructed.
         ///
+        /// - The DynTrait was constructed using a `from_borrowing_*` method
+        ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
         pub fn as_unerased<T>(&self) -> Result<&T, UneraseError>
@@ -452,6 +484,8 @@ The primary example using `DynTrait<_>` is in the readme.
         ///
         /// - It is called in a dynamic library/binary outside
         /// the one from which this `DynTrait<_>` was constructed.
+        ///
+        /// - The DynTrait was constructed using a `from_borrowing_*` method
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
@@ -476,6 +510,8 @@ The primary example using `DynTrait<_>` is in the readme.
         ///
         /// - It is called in a dynamic library/binary outside
         /// the one from which this `DynTrait<_>` was constructed.
+        ///
+        /// - The DynTrait was constructed using a `from_borrowing_*` method
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
@@ -508,6 +544,8 @@ The primary example using `DynTrait<_>` is in the readme.
         /// - It is called in a dynamic library/binary outside
         /// the one from which this `DynTrait<_>` was constructed.
         ///
+        /// - The DynTrait was constructed using a `from_borrowing_*` method
+        ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
         pub fn as_any_unerased<T>(&self) -> Result<&T, UneraseError>
@@ -532,6 +570,8 @@ The primary example using `DynTrait<_>` is in the readme.
         ///
         /// - It is called in a dynamic library/binary outside
         /// the one from which this `DynTrait<_>` was constructed.
+        ///
+        /// - The DynTrait was constructed using a `from_borrowing_*` method
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
@@ -592,8 +632,8 @@ The primary example using `DynTrait<_>` is in the readme.
             s.piped(RStr::from).piped(I::deserialize_impl)
         }
 
-        /// Deserializes a string into a `DynTrait<_>`,by using 
-        /// `<I as DeserializeBorrowedInterface>::deserialize_impl`.
+        /// Deserializes a `&'borr str` into a `DynTrait<'borr,_>`,by using 
+        /// `<I as DeserializeBorrowedInterface<'borr>>::deserialize_impl`.
         pub fn deserialize_borrowing_from_str(s: &'borr str) -> Result<Self, RBoxError>
         where
             P: 'borr+Deref,

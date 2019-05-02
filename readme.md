@@ -135,6 +135,12 @@ impl_InterfaceType!{
         //////////////////////////////////////////////////////////
         //  some defaulted associated types (there may be more) //
         //////////////////////////////////////////////////////////
+
+        // Changing this to require/unrequire in minor versions,is an abi breaking change.
+        // type Send=True;
+
+        // Changing this to require/unrequire in minor versions,is an abi breaking change.
+        // type Sync=True;
         
         // type Clone=False;
 
