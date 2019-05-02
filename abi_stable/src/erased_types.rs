@@ -27,14 +27,11 @@ pub mod traits;
 
 pub use self::{
     dyn_trait::{DynTrait, DynTraitBound},
-    vtable::{ GetVtable,TagFromInterface },
+    vtable::{ GetVtable,InterfaceBound,InterfaceConstsBound},
     traits::{ImplType, InterfaceType, SerializeImplType, DeserializeInterfaceType},
     type_info::TypeInfo,
 };
 
-use self::{
-    vtable::{GetImplFlags},
-};
 
 /// The formatting mode for all std::fmt formatters.
 ///

@@ -4,6 +4,7 @@ Types,traits,and functions used by prefix-types.
 */
 
 use std::{
+    borrow::Cow,
     marker::PhantomData,
 };
 
@@ -199,20 +200,66 @@ impl IsConditional{
 pub fn panic_on_missing_field_ty<T>(field_index:usize,actual_layout:&'static PTStructLayout)->!
 where T:PrefixTypeTrait
 {
-    panic_on_missing_field_val(field_index,T::PT_LAYOUT,actual_layout)
+    #[inline(never)]
+    pub fn inner(
+            field_index:usize,
+            expected_layout:&'static PTStructLayout,
+            actual_layout:&'static PTStructLayout
+    )->!{
+        let field=expected_layout.fields[field_index];
+        panic_on_missing_field_val(Some(field_index),field,expected_layout,actual_layout)
+    }
+
+
+    inner(field_index,T::PT_LAYOUT,actual_layout)
 }
 
 
 /// Used to panic with an error message informing the user that a field 
-/// is expected to be on `expected` when it's not.
+/// is expected to be on the `T` type when it's not.
 #[cold]
 #[inline(never)]
+pub fn panic_on_missing_fieldname<T,FieldTy>(
+    &fieldname:&&'static str,
+    actual_layout:&'static PTStructLayout
+)->!
+where T:PrefixTypeTrait
+{
+    #[inline(never)]
+    fn inner(
+        expected_layout:&'static PTStructLayout,
+        actual_layout:&'static PTStructLayout,
+        default_field:PTField,
+    )->! {
+        let fieldname=default_field.name.as_str();
+        let field_index=expected_layout.fields.iter().position(|f| f.name.as_str()==fieldname );
+        let field=match field_index {
+            Some(field_index)=>expected_layout.fields[field_index],
+            None=>default_field,
+        };
+        panic_on_missing_field_val(field_index,field,expected_layout,actual_layout)
+    }
+
+    inner(
+        T::PT_LAYOUT,
+        actual_layout,
+        PTField::new::<FieldTy>(fieldname,"<unavailable>"),
+    )
+    
+}
+
+
+
+/// Used to panic with an error message informing the user that a field 
+/// is expected to be on `expected` when it's not.
+#[inline(never)]
 pub fn panic_on_missing_field_val(
-    field_index:usize,
+    field_index:Option<usize>,
+    field:PTField,
     expected:&'static PTStructLayout,
     actual:&'static PTStructLayout,
 )->! {
-    let field=expected.fields[field_index];
+    
 
     panic!("\n
 Attempting to access nonexistent field:
@@ -233,7 +280,7 @@ Found:
     Field count:{actual_field_count}
 
 \n",
-        index=field_index,
+        index=field_index.map_or(Cow::Borrowed("<unavailable>"),|x| x.to_string().into() ),
         field_named=field.name.as_str(),
         field_type=field.ty.as_str(),
         struct_name=expected.name.as_str(),

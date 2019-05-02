@@ -7,7 +7,7 @@ use std::{mem,marker::PhantomData};
 
 use crate::{
     StableAbi,
-    erased_types::{GetImplFlags, DynTraitBound},
+    erased_types::{DynTraitBound},
     std_types::{RBoxError, RCow, RStr,StaticStr,utypeid::new_utypeid},
     version::VersionStrings,
     return_value_equality::ReturnValueEquality,
@@ -109,7 +109,7 @@ impl_InterfaceType!{
 
 
 */
-pub trait InterfaceType: Sized + 'static + GetImplFlags + StableAbi {
+pub trait InterfaceType: Sized + 'static + StableAbi {
     type Send;
 
     type Sync;

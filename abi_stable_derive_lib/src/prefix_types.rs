@@ -409,6 +409,12 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                         #module::_sabi_reexports::PrefixTypeTrait 
                     >::PT_FIELD_ACCESSIBILITY.bits();
 
+                /// Accessor to get the layout of the type.
+                #[inline(always)]
+                pub fn _prefix_type_layout(&self)-> &'static #module::__PTStructLayout {
+                    self.inner._prefix_type_layout
+                }
+
                 #(
                     const #field_mask_idents:u64=
                         (1<<#field_i) & Self::__AB_PTT_FIELD_ACCESSIBILTIY_MASK;
