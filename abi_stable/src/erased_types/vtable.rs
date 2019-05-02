@@ -26,7 +26,7 @@ use core_extensions::{ResultLike, StringExt};
 
 #[doc(hidden)]
 /// Returns the vtable used by DynTrait to do dynamic dispatch.
-pub trait GetVtable<This,ErasedPtr,OrigPtr,I:InterfaceConstsBound>: ImplType {
+pub trait GetVtable<This,ErasedPtr,OrigPtr,I:InterfaceConstsBound> {
     
     const TMP_VTABLE:VTableVal<ErasedPtr,I>;
 
@@ -393,10 +393,7 @@ declare_meta_vtable! {
         serialize:  extern "C" fn(&ErasedObject)->RResult<RCow<'_,RStr<'_>>,RBoxError>;
         priv _serialize;
         impl[] VtableFieldValue<Serialize>
-        where [
-            T:ImplType+SerializeImplType,
-            T::Interface:InterfaceType<Serialize=True>,
-        ]{
+        where [ T:SerializeImplType, ]{
             serialize_impl::<T>
         }
     ]

@@ -8,7 +8,12 @@ use std::{mem,marker::PhantomData};
 use crate::{
     StableAbi,
     erased_types::{DynTraitBound},
-    std_types::{RBoxError, RCow, RStr,StaticStr,utypeid::new_utypeid},
+    std_types::{
+        RBoxError, 
+        RCow, RStr,StaticStr,
+        utypeid::{UTypeId,none_utypeid,some_utypeid},
+        ROption,
+    },
     version::VersionStrings,
     return_value_equality::ReturnValueEquality,
 };
@@ -36,7 +41,7 @@ the convert back and forth between `Self` and `Self::Interface`.
 
 
 */
-pub trait ImplType: Sized + 'static {
+pub trait ImplType: Sized  {
     type Interface: InterfaceType;
 
     const INFO: &'static TypeInfo;
@@ -150,7 +155,7 @@ pub trait InterfaceType: Sized + 'static + StableAbi {
 /**
 Describes how this `implementation type` is serialized.
 */
-pub trait SerializeImplType: ImplType {
+pub trait SerializeImplType {
     fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError>;
 }
 
@@ -161,10 +166,17 @@ Generally this delegates to a library function,so that the implementation can be
 to the `implementation crate`.
 
 */
-pub trait DeserializeInterfaceType: InterfaceType<Deserialize = True> {
-    type Deserialized: DynTraitBound<Interface = Self>;
+pub trait DeserializeOwnedInterface<'borr>: InterfaceType<Deserialize = True> {
+    type Deserialized: DynTraitBound<'borr,Interface = Self>+'borr;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError>;
+}
+
+
+pub trait DeserializeBorrowedInterface<'borr>: InterfaceType<Deserialize = True> {
+    type Deserialized: DynTraitBound<'borr,Interface = Self>+'borr;
+
+    fn deserialize_impl(s: RStr<'borr>) -> Result<Self::Deserialized, RBoxError> ;
 }
 
 
@@ -180,23 +192,21 @@ pub trait DeserializeInterfaceType: InterfaceType<Deserialize = True> {
 
 /// Helper struct for Wrapping any type in a 
 /// `DynTrait<Pointer< OpaqueTyoe< Interface > >>`.
-pub struct InterfaceFor<T,Interface>(
-    PhantomData<fn()->(T,Interface)>
+pub struct InterfaceFor<T,Interface,IsStatic>(
+    PhantomData<fn()->(T,Interface,IsStatic)>
 );
 
-impl<T,Interface> ImplType for InterfaceFor<T,Interface>
+impl<T,Interface,IsStatic> ImplType for InterfaceFor<T,Interface,IsStatic>
 where 
     Interface:InterfaceType,
-    T:'static,
+    T:GetUTID<IsStatic>,
 {
     type Interface=Interface;
     
     const INFO:&'static TypeInfo=&TypeInfo{
         size:mem::size_of::<T>(),
         alignment:mem::align_of::<T>(),
-        uid:ReturnValueEquality{
-            function:new_utypeid::<T>
-        },
+        _uid:<T as GetUTID<IsStatic>>::UID,
         name:StaticStr::new("<erased>"),
         file:StaticStr::new("<unavailable>"),
         package:StaticStr::new("<unavailable>"),
@@ -208,6 +218,28 @@ where
         _private_field:(),
     };
 }
+
+
+#[doc(hidden)]
+pub trait GetUTID<IsStatic>{
+    const UID:ReturnValueEquality<ROption<UTypeId>>;
+}
+
+
+impl<T> GetUTID<True> for T
+where T:'static
+{
+    const UID:ReturnValueEquality<ROption<UTypeId>>=ReturnValueEquality{
+        function:some_utypeid::<T>
+    };
+}
+
+impl<T> GetUTID<False> for T{
+    const UID:ReturnValueEquality<ROption<UTypeId>>=ReturnValueEquality{
+        function:none_utypeid
+    };
+}
+
 
 
 /////////////////////////////////////////////////////////////////////

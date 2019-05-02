@@ -65,6 +65,7 @@ fn instantiate_root_module()->&'static TextOpsMod_Prefix{
             const MOD_:DeserializerMod=DeserializerMod{
                 deserialize_state,
                 deserialize_command,
+                deserialize_command_borrowing,
                 deserialize_return_value,
             };
             static WITH_META:WithMetadata<DeserializerMod>=
@@ -217,7 +218,20 @@ pub extern "C" fn deserialize_state(s:RStr<'_>) -> RResult<TOStateBox, RBoxError
 }
 
 /// Defines how a TOCommandBox is deserialized from json.
-pub extern "C" fn deserialize_command(s:RStr<'_>) -> RResult<TOCommandBox, RBoxError>{
+pub extern "C" fn deserialize_command<'borr>(
+    s:RStr<'_>
+) -> RResult<TOCommandBox<'borr>, RBoxError>{
+    extern_fn_panic_handling! {
+        deserialize_json::<Command>(s)
+            .map(RBox::new)
+            .map(DynTrait::from_ptr)
+    }
+}
+
+/// Defines how a TOCommandBox is deserialized from json.
+pub extern "C" fn deserialize_command_borrowing<'borr>(
+    s:RStr<'borr>
+) -> RResult<TOCommandBox<'borr>, RBoxError>{
     extern_fn_panic_handling! {
         deserialize_json::<Command>(s)
             .map(RBox::new)
