@@ -12,27 +12,25 @@ use super::c_functions::*;
 use super::*;
 
 use crate::{
-    abi_stability::Tag,
+    abi_stability::{Tag,SharedStableAbi},
     marker_type::ErasedObject,
-    prefix_type::{PrefixTypeTrait,WithMetadata},
+    prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
+    std_types::Tuple2,
 };
 
 use core_extensions::{ResultLike, StringExt};
 
 
 
-pub trait TagFromInterface {
-    const TAG:Tag;
-}
 
 
 #[doc(hidden)]
 /// Returns the vtable used by DynTrait to do dynamic dispatch.
-pub trait GetVtable<This,ErasedPtr,OrigPtr>: ImplType {
+pub trait GetVtable<This,ErasedPtr,OrigPtr,I:InterfaceConstsBound>: ImplType {
     
-    const TMP_VTABLE:VTableVal<ErasedPtr>;
+    const TMP_VTABLE:VTableVal<ErasedPtr,I>;
 
-    const GET_VTABLE:*const WithMetadata<VTableVal<ErasedPtr>>=
+    const GET_VTABLE:*const WithMetadata<VTableVal<ErasedPtr,I>>=
         &WithMetadata::new(
             PrefixTypeTrait::METADATA,
             Self::TMP_VTABLE
@@ -40,7 +38,7 @@ pub trait GetVtable<This,ErasedPtr,OrigPtr>: ImplType {
 
 
     /// Retrieves the VTable of the type.
-    fn get_vtable<'a>() -> &'a VTable<ErasedPtr>
+    fn get_vtable<'a>() -> &'a VTable<ErasedPtr,I>
     where
         This: 'a,
     {
@@ -49,64 +47,11 @@ pub trait GetVtable<This,ErasedPtr,OrigPtr>: ImplType {
     }
 }
 
-/// The set of impls this vtable stores.
-#[repr(C)]
-#[derive(Copy,Clone)]
-#[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
-pub struct ImplFlag(ImplFlagRepr);
 
-impl ImplFlag {
-    fn iter(&self) -> impl DoubleEndedIterator<Item = WhichImpl> + Clone {
-        let unimp = self.0;
-        (0..=MAX_BIT_INDEX)
-            .filter(move |i| (unimp & (1u64 << i)) != 0)
-            .map(WhichImpl)
-    }
-}
-
-impl Debug for ImplFlag {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(self.iter()).finish()
-    }
-}
-
-type ImplFlagRepr = u64;
-
-/// Returns the impls that this type represents,each impl is 1 bit in the flags.
-pub trait GetImplFlags {
-    const FLAGS: ImplFlag;
-}
 
 macro_rules! declare_meta_vtable {
-    (declare_impl_index;$value:expr;$which_impl0:ident,$which_impl1:ident $(,$rest:ident)* )=>{
-        #[allow(non_upper_case_globals)]
-        impl trait_selector::$which_impl0{
-            pub const WHICH_BIT:u16=$value;
-        }
-        #[allow(non_upper_case_globals)]
-        impl trait_selector::$which_impl1{
-            pub const WHICH_BIT:u16=$value + 1;
-        }
-
-        declare_meta_vtable!{
-            declare_impl_index;
-            ($value + 2);
-            $($rest),*
-        }
-    };
-    (declare_impl_index;$value:expr;$which_impl:ident)=>{
-        #[allow(non_upper_case_globals)]
-        impl trait_selector::$which_impl{
-            pub const WHICH_BIT:u16=$value;
-        }
-        pub const MAX_BIT_INDEX:u16=$value;
-    };
-    (declare_impl_index;$value:expr)=>{
-        pub const MAX_BIT_INDEX:u16=$value;
-    };
-    ////////////////////////////////////////////////////////////////////////
     (
+        interface=$interf:ident;
         value=$value:ident;
         erased_pointer=$erased_ptr:ident;
         original_pointer=$orig_ptr:ident;
@@ -121,7 +66,8 @@ macro_rules! declare_meta_vtable {
             $( #[$field_attr:meta] )*
             $field:ident : $field_ty:ty ;
             priv $priv_field:ident;
-
+            $(struct_bound=$struct_bound:expr;)*
+            
             impl[$($impl_params:tt)*] VtableFieldValue<$selector:ident>
             where [ $($where_clause:tt)* ]
             { $field_value:expr }
@@ -132,14 +78,19 @@ macro_rules! declare_meta_vtable {
         ///
         #[repr(C)]
         #[derive(StableAbi)]
-        #[sabi(inside_abi_stable_crate)]
-        #[sabi(kind(Prefix(prefix_struct="VTable")))]
-        #[sabi(missing_field(default))]
-        pub struct VTableVal<$erased_ptr>{
-            /// Flags for quickly checking whether two VTables have the same impls.
-            pub impl_flags:ImplFlag,
+        #[sabi(
+            inside_abi_stable_crate,
+            kind(Prefix(prefix_struct="VTable")),
+            missing_field(panic),
+            prefix_bound="I:InterfaceConstsBound",
+            bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound",
+            $($(bound=$struct_bound,)*)*
+        )]
+        pub struct VTableVal<$erased_ptr,$interf>
+        where $interf:InterfaceBound
+        {
             pub type_info:&'static TypeInfo,
-            _marker:PhantomData<extern fn()->$erased_ptr>,
+            _marker:PhantomData<extern fn()->Tuple2<$erased_ptr,$interf>>,
             pub drop_ptr:unsafe extern "C" fn(&mut $erased_ptr),
             $(
                 $( #[$field_attr] )*
@@ -148,79 +99,29 @@ macro_rules! declare_meta_vtable {
         }
 
 
-        impl<$erased_ptr> VTable<$erased_ptr>{
+        impl<$erased_ptr,$interf> VTable<$erased_ptr,$interf>
+        where   
+            $interf:InterfaceConstsBound,
+        {
             $(
-                pub fn $field<E>(&self)->($field_ty)
+                pub fn $field(&self)->($field_ty)
                 where
-                    E:InterfaceType<$selector=True>,
+                    $interf:InterfaceType<$selector=True>,
                 {
-                    self.assert_is_subset_of::<E>();
-                    // Safety:
-                    // This is safe to call since we've checked that the
-                    // vtable contains an implementation for that trait in the assert method above.
-                    unsafe{
-                        self.$priv_field().unwrap_unchecked()
+                    const NAME:&'static &'static str=&stringify!($field);
+
+                    match self.$priv_field() {
+                        Some(v)=>v,
+                        None=>panic_on_missing_fieldname::<
+                            VTableVal<$erased_ptr,$interf>,
+                            $field_ty
+                        >(
+                            NAME,
+                            self._prefix_type_layout(),
+                        )
                     }
                 }
             )*
-        }
-
-
-        /// A non-exhaustive enum that represents one implementations of
-        /// the traits mentioned in InterfaceType.
-        #[derive(Debug,Copy,Clone,Eq,PartialEq)]
-        #[repr(C)]
-        pub struct WhichImpl(u16);
-
-        #[allow(non_upper_case_globals)]
-        impl WhichImpl{
-            $(pub const $selector:Self=WhichImpl(trait_selector::$selector::WHICH_BIT); )*
-        }
-
-        impl<$erased_ptr> VTable<$erased_ptr>{
-            #[inline(never)]
-            #[cold]
-            fn abort_unimplemented(&self,unimplemented_impls:u64){
-                eprintln!("error:{}",
-                    TooFewImplsError::new(self.type_info(),ImplFlag(unimplemented_impls))
-                );
-                ::std::process::abort();
-            }
-
-            pub fn assert_is_subset_of<E>(&self)
-            where
-                E:GetImplFlags
-            {
-                let unimplemented_impls=self.get_unimplemented::<E>();
-                if unimplemented_impls!=0 {
-                    self.abort_unimplemented(unimplemented_impls);
-                }
-            }
-
-            #[inline]
-            /// Gets the impls from E that self does not implement.
-            pub fn get_unimplemented<E>(&self)->ImplFlagRepr
-            where
-                E:GetImplFlags
-            {
-                let required=E::FLAGS.0;
-                let provided=self.impl_flags().0;
-                required&(!provided)& LOW_MASK
-            }
-
-            /// Checks that `self` implements a subset of the impls that `other` does.
-            pub fn check_is_subset_of<E>(&self)->Result<(),TooFewImplsError>
-            where
-                E:GetImplFlags
-            {
-                let unimplemented_impls=self.get_unimplemented::<E>();
-
-                if unimplemented_impls==0 {
-                    Ok(())
-                }else{
-                    Err( TooFewImplsError::new(self.type_info(),ImplFlag(unimplemented_impls)) )
-                }
-            }
         }
 
         /// Returns the type of a vtable field.
@@ -294,64 +195,27 @@ macro_rules! declare_meta_vtable {
         }
 
 
-        declare_meta_vtable!{
-            declare_impl_index;
-            1;
-            $($selector),*
-        }
-
-        /// The largest value for the flags representing which impls are required/provided.
-        const MAX_BIT_VALUE:ImplFlagRepr= 1 << MAX_BIT_INDEX ;
-
-        // For keeping the bits that are relevant for checking that
-        // all the traits required in the InterfaceType are implemented.
-        const LOW_MASK:ImplFlagRepr=(MAX_BIT_VALUE-1)|MAX_BIT_VALUE;
-
-        $(
-            impl GetImplFlags for trait_selector::$selector{
-                const FLAGS:ImplFlag=ImplFlag(1 << Self::WHICH_BIT);
-            }
-        )*
-
-        impl<E> GetImplFlags for E
-        where
-            E:InterfaceType,
-            $(
-                E::$selector:Boolean,
-            )*
-        {
-            const FLAGS:ImplFlag=ImplFlag(
-                0 $(
-                    | [0,trait_selector::$selector::FLAGS.0]
-                      [ <E::$selector as Boolean>::VALUE as usize ]
-                )*
-            );
-        }
-
-
-        impl<This,$value,$erased_ptr,$orig_ptr,E> 
-            GetVtable<$value,$erased_ptr,$orig_ptr> 
+        impl<This,$value,$erased_ptr,$orig_ptr,$interf> 
+            GetVtable<$value,$erased_ptr,$orig_ptr,$interf>
         for This
         where
-            This:ImplType<Interface=E>,
-            E:InterfaceType+GetImplFlags,
+            This:ImplType<Interface=$interf>,
+            $interf:InterfaceConstsBound,
             $(
                 trait_selector::$marker_trait:
-                    MarkerTrait<E::$marker_trait,$value,$erased_ptr,$orig_ptr>,
+                    MarkerTrait<$interf::$marker_trait,$value,$erased_ptr,$orig_ptr>,
             )*
             $(
-                E::$selector:Boolean,
                 trait_selector::$selector:VTableFieldValue<
                     ($field_ty),
-                    E::$selector,
+                    $interf::$selector,
                     $value,
                     $erased_ptr,
                     $orig_ptr,
                 >,
             )*
         {
-            const TMP_VTABLE:VTableVal<$erased_ptr>=VTableVal{
-                impl_flags:E::FLAGS,
+            const TMP_VTABLE:VTableVal<$erased_ptr,$interf>=VTableVal{
                 type_info:This::INFO,
                 drop_ptr:drop_pointer_impl::<$orig_ptr,$erased_ptr>,
                 $(
@@ -364,7 +228,7 @@ macro_rules! declare_meta_vtable {
                                     $erased_ptr,
                                     $orig_ptr,
                                 >,
-                                E::$selector,
+                                $interf::$selector,
                                 $value,
                                 $erased_ptr,
                                 $orig_ptr,
@@ -376,9 +240,41 @@ macro_rules! declare_meta_vtable {
 
         }
 
-        impl<I> TagFromInterface for I
+
+        /// Trait used to capture all the bounds that an InterfaceType 
+        /// when used as a type parameter of a type.
+        #[allow(non_upper_case_globals)]
+        pub trait InterfaceBound:InterfaceType {
+            #[doc(hidden)]
+            const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>;
+        }   
+
+        /// Associated constants derived from an InterfaceType.
+        #[allow(non_upper_case_globals)]
+        pub trait InterfaceConstsBound:InterfaceBound {
+            const TAG:Tag;
+
+            $( const $selector:bool; )*
+
+            #[doc(hidden)]
+            const __InterfaceConstsBound_BLANKET_IMPL:PrivStruct<Self>;
+        }   
+
+
+        #[allow(non_upper_case_globals)]
+        impl<I> InterfaceBound for I
         where 
             I:InterfaceType,
+        {
+            const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>=
+                PrivStruct(PhantomData);
+        }
+
+
+        #[allow(non_upper_case_globals)]
+        impl<I> InterfaceConstsBound for I
+        where 
+            I:InterfaceBound,
             $( I::$marker_trait:Boolean, )*
             $( I::$selector:Boolean, )*
         {
@@ -407,10 +303,19 @@ macro_rules! declare_meta_vtable {
                 }}
             };
 
+            $( 
+                const $selector:bool=<I::$selector as Boolean>::VALUE;
+            )*
+            
+            const __InterfaceConstsBound_BLANKET_IMPL:PrivStruct<Self>=
+                PrivStruct(PhantomData);
         }
 
 
-        impl<$erased_ptr> Debug for VTable<$erased_ptr> {
+        impl<$erased_ptr,$interf> Debug for VTable<$erased_ptr,$interf> 
+        where
+            $interf:InterfaceConstsBound,
+        {
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
                 f.debug_struct("VTable")
                     .field("type_info",&self.type_info())
@@ -428,6 +333,7 @@ macro_rules! declare_meta_vtable {
 }
 
 declare_meta_vtable! {
+    interface=I;
     value  =T;
     erased_pointer=ErasedPtr;
     original_pointer=OrigP;
@@ -442,6 +348,7 @@ declare_meta_vtable! {
     ]
 
     [
+        #[sabi(accessible_if="<I as InterfaceConstsBound>::Clone")]
         clone_ptr:    extern "C" fn(&ErasedPtr)->ErasedPtr;
         priv _clone_ptr;
         
@@ -452,6 +359,7 @@ declare_meta_vtable! {
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceConstsBound>::Default")]
         default_ptr: extern "C" fn()->ErasedPtr ;
         priv _default_ptr;
         impl[] VtableFieldValue<Default>
@@ -461,6 +369,7 @@ declare_meta_vtable! {
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceConstsBound>::Display")]
         display:    extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         priv _display;
         impl[] VtableFieldValue<Display>
@@ -470,6 +379,7 @@ declare_meta_vtable! {
         }
     ]
     [
+    #[sabi(accessible_if="<I as InterfaceConstsBound>::Debug")]
         debug:      extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         priv _debug;
         impl[] VtableFieldValue<Debug>
@@ -479,6 +389,7 @@ declare_meta_vtable! {
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceConstsBound>::Serialize")]
         serialize:  extern "C" fn(&ErasedObject)->RResult<RCow<'_,RStr<'_>>,RBoxError>;
         priv _serialize;
         impl[] VtableFieldValue<Serialize>
@@ -490,6 +401,7 @@ declare_meta_vtable! {
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceConstsBound>::PartialEq")]
         partial_eq: extern "C" fn(&ErasedObject,&ErasedObject)->bool;
         priv _partial_eq;
         impl[] VtableFieldValue<PartialEq>
@@ -499,6 +411,7 @@ declare_meta_vtable! {
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceConstsBound>::Ord")]
         cmp:        extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering;
         priv _cmp;
         impl[] VtableFieldValue<Ord>
@@ -508,6 +421,7 @@ declare_meta_vtable! {
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceConstsBound>::PartialOrd")]
         partial_cmp:extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>;
         priv _partial_cmp;
         impl[] VtableFieldValue<PartialOrd>
@@ -517,6 +431,7 @@ declare_meta_vtable! {
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceConstsBound>::Hash")]
         #[sabi(last_prefix_field)]
         hash:extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>);
         priv _hash;
@@ -530,39 +445,9 @@ declare_meta_vtable! {
 
 //////////////
 
-/// Error for the case in which an ImplType does not
-/// implement the traits declared in its InterfaceType.
-#[derive(Debug)]
-#[repr(C)]
-pub struct TooFewImplsError {
-    type_info: &'static TypeInfo,
-    /// The required traits that the vtable does not implement
-    unimplemented_impls: ImplFlag,
-}
 
-impl TooFewImplsError {
-    fn new(type_info: &'static TypeInfo, unimplemented_impls: ImplFlag) -> Self {
-        Self {
-            type_info,
-            unimplemented_impls,
-        }
-    }
+/// Used to prevent InterfaceBound being implemented outside this module,
+/// since it is only constructed in the impl of InterfaceBound in this module.
+#[doc(hidden)]
+pub struct PrivStruct<T>(PhantomData<T>);
 
-    pub fn unimplemented_impls(&self) -> impl DoubleEndedIterator<Item = WhichImpl> + Clone {
-        self.unimplemented_impls.iter()
-    }
-}
-
-impl fmt::Display for TooFewImplsError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let info = self.type_info;
-        writeln!(f, "these traits are not implemented (and they should be):")?;
-        for elem in self.unimplemented_impls.iter() {
-            writeln!(f, "    {:?}", elem)?;
-        }
-        writeln!(f, "Type information:\n{}", info.to_string().left_pad(4))?;
-        Ok(())
-    }
-}
-
-//////////////
