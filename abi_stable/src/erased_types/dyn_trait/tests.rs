@@ -5,7 +5,7 @@ use std::{
     
     collections::hash_map::DefaultHasher,
     fmt::{self, Display},
-    hash::{Hash},
+    hash::{Hash,Hasher},
     
 };
 
@@ -121,6 +121,21 @@ type VirtualFoo<'a> = DynTrait<'a,RBox<()>,FooInterface>;
 /////////////////////////////////
 
 
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+struct DebugInterface;
+
+crate::impl_InterfaceType!{
+    impl crate::InterfaceType for DebugInterface {
+        type Debug = True;
+    }
+}
+
+
+/////////////////////////////////
+
+
 fn new_foo()->Foo<String>{
     Foo{
         l:1000,
@@ -201,16 +216,20 @@ fn debug_test(){
     );
 }
 
+
+pub const JSON_0:&'static str=r#"
+    {   
+        "l":1000,
+        "r":10,
+        "name":"what the hell"
+    }
+"#;
+
+
 #[test]
 fn deserialize_test() {
 
-    let json=r#"
-        {   
-            "l":1000,
-            "r":10,
-            "name":"what the hell"
-        }
-    "#;
+    let json=JSON_0;
     let json_ss=serde_json::to_string(json).unwrap();
 
     let concrete = serde_json::from_str::<Foo<String>>(json).unwrap();
@@ -403,6 +422,17 @@ mod submod{
     }
 
 
+    impl<'a> Foo<'a>{
+        pub fn new(name: &'a str)->Self{
+            Self{
+                l:0,
+                r:0,
+                name,
+            }
+        }
+    }
+
+
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
@@ -411,7 +441,10 @@ mod submod{
 
     impl<'a> Display for Foo<'a>{
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            writeln!(f, "l:{}  r:{}  name:'{}'", self.l, self.r, self.name,)
+            write!(f, "l:{}  r:{}  name:'", self.l, self.r)?;
+            Display::fmt(&self.name,f)?;
+            writeln!(f,"'")?;
+            Ok(())
         }
     }
 
@@ -431,8 +464,6 @@ mod submod{
 
     crate::impl_InterfaceType!{
         impl crate::InterfaceType for FooInterface {
-            type Send = False;
-
             type Clone = True;
 
             type Default = True;
@@ -444,14 +475,6 @@ mod submod{
             type Serialize = True;
 
             type Deserialize = True;
-
-            // type Eq = True;
-
-            // type PartialEq = True;
-
-            // type Ord = True;
-
-            // type PartialOrd = True;
 
             type Hash = True;
         }
@@ -472,8 +495,176 @@ mod submod{
 
     type VirtualFoo<'a> = DynTrait<'a,RBox<()>,FooInterface>;
 
-    fn borrowing_foo<'a>(foo:Foo<'a>){
-        let wrapped:VirtualFoo<'a>=
-            DynTrait::from_borrowing_value::<'a,Foo<'a>,FooInterface>(foo,FooInterface);
+
+    fn check_fmt<'a>(foo:&Foo<'a>,wrapped:&VirtualFoo<'a>){
+        assert_eq!(format!("{:?}",wrapped),format!("{:?}",foo));
+        assert_eq!(format!("{:#?}",wrapped),format!("{:#?}",foo));
+
+        assert_eq!(format!("{}",wrapped),format!("{}",foo));
+        assert_eq!(format!("{:#}",wrapped),format!("{:#}",foo));
     }
+
+    #[test]
+    fn cloning(){
+        let name="hello".to_string();
+        let foo:Foo<'_>=Foo::new(&name);
+        let wrapped=DynTrait::from_borrowing_value(foo.clone(),FooInterface);
+
+        let cloned=wrapped.clone();
+
+        check_fmt(&foo,&cloned);
+    }
+
+    #[test]
+    fn default(){
+        let name="hello".to_string();
+        let foo:Foo<'_>=Foo::new(&name);
+
+        let default_name="".to_string();
+        let default_foo=Foo::new(&default_name);
+        assert_eq!(default_foo,Default::default());
+        
+        let wrapped=DynTrait::from_borrowing_value(foo.clone(),FooInterface);
+
+        let default_wrapped=wrapped.default();
+
+        check_fmt(&default_foo,&default_wrapped);
+    }
+
+    #[test]
+    fn formatting(){
+        let name="hello".to_string();
+        let foo:Foo<'_>=Foo::new(&name);
+        let wrapped=DynTrait::from_borrowing_value(foo.clone(),FooInterface);
+
+        check_fmt(&foo,&wrapped);
+    }
+
+    #[test]
+    fn serialize(){
+        let name="hello".to_string();
+        let foo:Foo<'_>=Foo::new(&name);
+        let wrapped=DynTrait::from_borrowing_value(foo.clone(),FooInterface);
+
+        assert_eq!(
+            &*serde_json::to_string(&foo).unwrap(),
+            &*wrapped.serialized().unwrap(),
+        );
+    }
+
+    #[test]
+    fn deserialize(){
+        let list:Vec<String>=vec![
+            JSON_0.to_string(),
+        ];
+
+        for str_ in list.iter().map(|s| s.as_str() ) {
+            let foo:Foo<'_>=serde_json::from_str(str_).unwrap();
+            let wrapped=VirtualFoo::deserialize_borrowing_from_str(str_).unwrap();
+
+            check_fmt(&foo,&wrapped);
+        }
+    }
+
+    ////////////////
+    
+
+    #[test]
+    fn hash(){
+        let name="hello".to_string();
+        let foo:Foo<'_>=Foo::new(&name);
+        let wrapped=DynTrait::from_borrowing_value(foo.clone(),FooInterface);
+
+        assert_eq!(
+            HashedBytes::new(&foo), 
+            HashedBytes::new(&wrapped),
+        );
+    }
+
+    #[derive(Debug,Default,PartialEq)]
+    pub struct HashedBytes {
+        bytes: Vec<u8>,
+    }
+
+    impl HashedBytes {
+        pub fn new<T>(value:&T) -> Self 
+        where T:Hash
+        {
+            let mut this=Self{
+                bytes:Vec::new()
+            };
+
+            value.hash(&mut this);
+
+            this
+        }
+
+        pub fn bytes(&self)->&[u8]{
+            &self.bytes
+        }
+    }
+
+    impl Hasher for HashedBytes {
+        fn write(&mut self, bytes: &[u8]) {
+            self.bytes.extend_from_slice(bytes);
+        }
+
+        fn finish(&self) -> u64 {
+            // I'm not gonna call this
+            0
+        }
+    }
+
+    ////////////////
+
+
+    #[test]
+    fn is_same_type(){
+        let value:String="hello".to_string();
+
+        let wrapped    =DynTrait::from_borrowing_value(value.clone(),());
+
+        // Creating a DynTrait with a different interface so that it
+        // creates a different vtable.
+        let dbg_wrapped=DynTrait::from_borrowing_value(value.clone(),DebugInterface);
+
+        assert!(!wrapped.is_same_type(&dbg_wrapped));
+    }
+
+    #[test]
+    fn unerase_should_not_work(){
+
+        let value:String="hello".to_string();
+
+        macro_rules! to_unerased {
+            ( $wrapped:expr ; $( $method:ident ),* $(,)* ) => (
+                $(
+                    assert_eq!(
+                        $wrapped.$method ::<String>().map_err(drop),
+                        Err(())
+                    );
+                )*
+            )
+        }
+
+        to_unerased!( 
+            DynTrait::from_borrowing_value(value.clone(),());
+            into_any_unerased,
+        );
+        
+        to_unerased!( 
+            DynTrait::from_borrowing_value(value.clone(),());
+            as_any_unerased,
+            as_any_unerased_mut,
+        );
+        
+
+    }
+
+
+
+    ///////////////////////////////////////////////////////////////////////////////////
+
+
+
 }
