@@ -231,15 +231,15 @@ macro_rules! impl_get_type_info {
             use $crate::{
                 erased_types::type_info::TypeInfo,
                 version::{VersionStrings},
-                std_types::{StaticStr,utypeid::new_utypeid},
+                std_types::{StaticStr,utypeid::some_utypeid},
                 return_value_equality::ReturnValueEquality,
             };
 
             &TypeInfo{
                 size:mem::size_of::<Self>(),
                 alignment:mem::align_of::<Self>(),
-                uid:ReturnValueEquality{
-                    function:new_utypeid::<Self>
+                _uid:ReturnValueEquality{
+                    function:some_utypeid::<Self>
                 },
                 name:StaticStr::new(stringify!($type)),
                 file:StaticStr::new(file!()),

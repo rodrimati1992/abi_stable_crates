@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use std::ptr;
+use std::{ptr,mem};
 
 use super::*;
 
@@ -111,13 +111,14 @@ pub(crate) extern "C" fn serialize_impl<'a, T>(
     this: &'a ErasedObject
 ) -> RResult<RCow<'a, RStr<'a>>, RBoxError>
 where
-    T: ImplType + SerializeImplType,
-    T::Interface: InterfaceType<Serialize = True>,
+    T: SerializeImplType,
 {
-    extern_fn_panic_handling! {
-        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
-        this.serialize_impl().into()
-    }
+    extern_fn_panic_handling! {unsafe{
+        let this=transmute_reference::<ErasedObject,T>(this);
+        this.serialize_impl()
+            .map(|x| mem::transmute::<RCow<'_,RStr<'_>>,RCow<'a, RStr<'a>>>(x) )
+            .into()
+    }}
 }
 
 // #[inline(never)]

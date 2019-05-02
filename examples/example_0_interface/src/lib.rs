@@ -17,7 +17,7 @@ use abi_stable::{
     library::{Library,LibraryError, RootModule},
     version::VersionStrings,
     type_level::bools::*,
-    erased_types::{InterfaceType,DeserializeInterfaceType},
+    erased_types::{InterfaceType,DeserializeOwnedInterface,DeserializeBorrowedInterface},
     DynTrait,
     std_types::{RBox, RStr, RString,RVec,RArc, RSlice,RCow,RBoxError,RResult},
 };
@@ -34,7 +34,7 @@ use abi_stable::{
 pub struct TOState;
 
 /// The state passed to most functions in the TextOpsMod module.
-pub type TOStateBox = DynTrait<RBox<()>,TOState>;
+pub type TOStateBox = DynTrait<'static,RBox<()>,TOState>;
 
 // This macro is used to emulate default associated types.
 // Look for the docs of InterfaceType to see 
@@ -50,7 +50,7 @@ impl_InterfaceType!{
 }
 
 
-impl DeserializeInterfaceType for TOState {
+impl DeserializeOwnedInterface<'static> for TOState {
     type Deserialized = TOStateBox;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
@@ -68,7 +68,7 @@ impl DeserializeInterfaceType for TOState {
 pub struct TOCommand;
 
 /// A de/serializable opaque command enum,used in the TextOpsMod::run_command function.
-pub type TOCommandBox = DynTrait<RBox<()>,TOCommand>;
+pub type TOCommandBox<'borr> = DynTrait<'borr,RBox<()>,TOCommand>;
 
 
 impl_InterfaceType!{
@@ -81,11 +81,19 @@ impl_InterfaceType!{
 }
 
 
-impl DeserializeInterfaceType for TOCommand {
-    type Deserialized = TOCommandBox;
+impl<'borr> DeserializeOwnedInterface<'borr> for TOCommand {
+    type Deserialized = TOCommandBox<'borr>;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
         MODULES.get().unwrap().deserializers().deserialize_command()(s).into_result()
+    }
+}
+
+impl<'borr> DeserializeBorrowedInterface<'borr> for TOCommand {
+    type Deserialized = TOCommandBox<'borr>;
+
+    fn deserialize_impl(s: RStr<'borr>) -> Result<Self::Deserialized, RBoxError> {
+        MODULES.get().unwrap().deserializers().deserialize_command_borrowing()(s).into_result()
     }
 }
 
@@ -99,7 +107,7 @@ impl DeserializeInterfaceType for TOCommand {
 pub struct TOReturnValue;
 
 /// A de/serializable opaque command enum,returned by the TextOpsMod::run_command function.
-pub type TOReturnValueArc = DynTrait<RArc<()>,TOReturnValue>;
+pub type TOReturnValueArc = DynTrait<'static,RArc<()>,TOReturnValue>;
 
 
 impl_InterfaceType!{
@@ -112,7 +120,7 @@ impl_InterfaceType!{
 }
 
 
-impl DeserializeInterfaceType for TOReturnValue {
+impl DeserializeOwnedInterface<'static> for TOReturnValue {
     type Deserialized = TOReturnValueArc;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
@@ -195,7 +203,7 @@ pub struct TextOpsMod {
     /// Gets the ammount (in bytes) of text that was processed
     pub get_processed_bytes: extern "C" fn(&TOStateBox) -> u64,
  
-    pub run_command: extern "C" fn(&mut TOStateBox,command:TOCommandBox)->TOReturnValueArc,
+    pub run_command: extern "C" fn(&mut TOStateBox,command:TOCommandBox<'_>)->TOReturnValueArc,
 
     /// An module used in prefix-type tests.
     pub prefix_types_tests:&'static PrefixTypeMod0_Prefix,
@@ -249,7 +257,13 @@ pub struct DeserializerMod {
     pub deserialize_state: extern "C" fn(RStr<'_>) -> RResult<TOStateBox, RBoxError>,
 
     /// The implementation for how TOCommandBox is going to be deserialized.
-    pub deserialize_command: extern "C" fn(RStr<'_>) -> RResult<TOCommandBox, RBoxError>,
+    pub deserialize_command: 
+        for<'a> extern "C" fn(RStr<'a>) -> RResult<TOCommandBox<'static>, RBoxError>,
+    
+    /// The implementation for how TOCommandBox is going to be deserialized,
+    /// borrowing from the input string.
+    pub deserialize_command_borrowing: 
+        for<'borr> extern "C" fn(RStr<'borr>) -> RResult<TOCommandBox<'borr>, RBoxError>,
     
     /// The implementation for how TOReturnValueArc is going to be deserialized.
     pub deserialize_return_value: extern "C" fn(RStr<'_>) -> RResult<TOReturnValueArc, RBoxError>,

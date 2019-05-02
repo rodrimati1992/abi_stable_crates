@@ -158,7 +158,7 @@ impl_InterfaceType!{
 
 
 /// An alias for the trait object used in this example
-pub type BoxedInterface=DynTrait<RBox<()>,TheInterface>;
+pub type BoxedInterface<'borr>=DynTrait<'borr,RBox<()>,TheInterface>;
 
 
 #[repr(C)]
@@ -166,10 +166,10 @@ pub type BoxedInterface=DynTrait<RBox<()>,TheInterface>;
 #[sabi(kind(Prefix(prefix_struct="ExampleLib")))]
 #[sabi(missing_field(panic))]
 pub struct ExampleLibVal {
-    pub new_boxed_interface: extern "C" fn()->BoxedInterface,
+    pub new_boxed_interface: extern "C" fn()->BoxedInterface<'static>,
     
     #[sabi(last_prefix_field)]
-    pub append_string:extern "C" fn(&mut BoxedInterface,RString),
+    pub append_string:extern "C" fn(&mut BoxedInterface<'_>,RString),
 }
 
 
@@ -213,8 +213,6 @@ pub fn load_root_module_in(directory:&Path) -> Result<&'static ExampleLib,Librar
 }
 */
 
-/*
-
 /// This is for the case where this example is copied into a single crate
 pub fn load_root_module_in(_directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
     ROOTMOD.try_init(||{
@@ -222,8 +220,6 @@ pub fn load_root_module_in(_directory:&Path) -> Result<&'static ExampleLib,Libra
             .check_layout()
     })
 }
-
-*/
 
 }
 
@@ -251,11 +247,11 @@ pub fn load_root_module_in(_directory:&Path) -> Result<&'static ExampleLib,Libra
 
 mod implementation {
 
-// For the case where this is copied to a single crate.
-// use super::{interface_crate};
-
 use std::fmt::{self,Display};
 
+
+// Comment this out if this is on its own crate
+use super::{interface_crate};
 
 use interface_crate::{
     BoxedInterface,
@@ -318,7 +314,7 @@ impl StringBuilder{
 
 
 // Constructs a BoxedInterface.
-extern fn new_boxed_interface()->BoxedInterface{
+extern fn new_boxed_interface()->BoxedInterface<'static>{
     extern_fn_panic_handling!{
         DynTrait::from_value(StringBuilder{
             text:"".into(),
@@ -329,7 +325,7 @@ extern fn new_boxed_interface()->BoxedInterface{
 
 
 /// Appends a string to the erased `StringBuilderType`.
-extern fn append_string(wrapped:&mut BoxedInterface,string:RString){
+extern fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
     extern_fn_panic_handling!{
         wrapped
             .as_unerased_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`

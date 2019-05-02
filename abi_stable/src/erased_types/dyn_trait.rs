@@ -21,6 +21,9 @@ use crate::{
     std_types::{RBox, RCow, RStr},
 };
 
+#[allow(unused_imports)]
+use crate::std_types::Tuple2;
+
 use super::*;
 use super::{
     c_functions::adapt_std_fmt,
@@ -176,20 +179,20 @@ The primary example using `DynTrait<_>` is in the readme.
         bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceConstsBound",
         tag="<I as InterfaceConstsBound>::TAG",
     )]
-    pub struct DynTrait<P,I> 
+    pub struct DynTrait<'a,P,I> 
     where I:InterfaceConstsBound
     {
         pub(super) object: ManuallyDrop<P>,
         vtable: *const VTable<P,I>,
-        _marker:PhantomData<extern fn()->I>
+        _marker:PhantomData<extern fn()->Tuple2<I,RStr<'a>>>
     }
 
-    impl DynTrait<(),()> {
+    impl DynTrait<'static,&'static (),()> {
         /// Constructors the `DynTrait<_>` from an ImplType implementor.
         ///
         /// Use this whenever possible instead of `from_any_value`,
         /// because it produces better error messages when unerasing the `DynTrait<_>`
-        pub fn from_value<T>(object: T) -> DynTrait<RBox<()>,T::Interface>
+        pub fn from_value<T>(object: T) -> DynTrait<'static,RBox<()>,T::Interface>
         where
             T: ImplType,
             T::Interface:InterfaceConstsBound,
@@ -203,7 +206,7 @@ The primary example using `DynTrait<_>` is in the readme.
         ///
         /// Use this whenever possible instead of `from_any_ptr`,
         /// because it produces better error messages when unerasing the `DynTrait<_>`
-        pub fn from_ptr<P, T>(object: P) -> DynTrait<P::TransmutedPtr,T::Interface>
+        pub fn from_ptr<P, T>(object: P) -> DynTrait<'static,P::TransmutedPtr,T::Interface>
         where
             T: ImplType,
             T::Interface:InterfaceConstsBound,
@@ -221,11 +224,11 @@ The primary example using `DynTrait<_>` is in the readme.
         }
 
         /// Constructors the `DynTrait<_>` from a type that doesn't implement `ImplType`.
-        pub fn from_any_value<T,I>(object: T,interface:I) -> DynTrait<RBox<()>,I>
+        pub fn from_any_value<T,I>(object: T,interface:I) -> DynTrait<'static,RBox<()>,I>
         where
             T:'static,
             I:InterfaceConstsBound,
-            InterfaceFor<T,I> : GetVtable<T,RBox<()>,RBox<T>,I>,
+            InterfaceFor<T,I,True> : GetVtable<T,RBox<()>,RBox<T>,I>,
         {
             let object = RBox::new(object);
             DynTrait::from_any_ptr(object,interface)
@@ -233,11 +236,11 @@ The primary example using `DynTrait<_>` is in the readme.
 
         /// Constructors the `DynTrait<_>` from a pointer to a 
         /// type that doesn't implement `ImplType`.
-        pub fn from_any_ptr<P, T,I>(object: P,_interface:I) -> DynTrait<P::TransmutedPtr,I>
+        pub fn from_any_ptr<P, T,I>(object: P,_interface:I) -> DynTrait<'static,P::TransmutedPtr,I>
         where
             I:InterfaceConstsBound,
             T:'static,
-            InterfaceFor<T,I>: GetVtable<T,P::TransmutedPtr,P,I>,
+            InterfaceFor<T,I,True>: GetVtable<T,P::TransmutedPtr,P,I>,
             P: StableDeref<Target = T>+TransmuteElement<()>,
         {
             DynTrait {
@@ -245,31 +248,65 @@ The primary example using `DynTrait<_>` is in the readme.
                     // The lifetime here is 'static,so it's fine to erase the type.
                     ManuallyDrop::new(object.transmute_element(<()>::T))
                 },
-                vtable: <InterfaceFor<T,I>>::get_vtable(),
+                vtable: <InterfaceFor<T,I,True>>::get_vtable(),
+                _marker:PhantomData,
+            }
+        }
+        
+        pub fn from_borrowing_value<'borr,T,I>(
+            object: T,
+            interface:I,
+        ) -> DynTrait<'borr,RBox<()>,I>
+        where
+            T:'borr,
+            I:InterfaceConstsBound,
+            InterfaceFor<T,I,False> : GetVtable<T,RBox<()>,RBox<T>,I>,
+        {
+            let object = RBox::new(object);
+            DynTrait::from_borrowing_ptr(object,interface)
+        }
+
+        pub fn from_borrowing_ptr<'borr,P, T,I>(
+            object: P,
+            _interface:I
+        ) -> DynTrait<'borr,P::TransmutedPtr,I>
+        where
+            T:'borr,
+            I:InterfaceConstsBound,
+            InterfaceFor<T,I,False>: GetVtable<T,P::TransmutedPtr,P,I>,
+            P: StableDeref<Target = T>+TransmuteElement<()>,
+        {
+            DynTrait {
+                object: unsafe{
+                    // The lifetime here is 'static,so it's fine to erase the type.
+                    ManuallyDrop::new(object.transmute_element(<()>::T))
+                },
+                vtable: <InterfaceFor<T,I,False>>::get_vtable(),
                 _marker:PhantomData,
             }
         }
     }
 
-    impl<P,I> DynTrait<P,I> 
+
+    impl<P,I> DynTrait<'_,P,I> 
     where 
         I: InterfaceConstsBound
     {
-        pub(super) fn vtable<'a>(&self) -> &'a VTable<P,I>{
-            unsafe {
-                &*(self.vtable as *const VTable<P,I>)
-            }
-        }
-
         /// Allows checking whether 2 `DynTrait<_>`s have a value of the same type.
         ///
         /// Note that types from different dynamic libraries/executables are 
         /// never considered equal.
-        pub fn is_same_type<Other,I2>(&self,other:&DynTrait<Other,I2>)->bool
+        pub fn is_same_type<Other,I2>(&self,other:&DynTrait<'_,Other,I2>)->bool
         where I2:InterfaceConstsBound
         {
             self.vtable_address()==other.vtable_address()||
             self.vtable().type_info().is_compatible(other.vtable().type_info())
+        }
+
+        pub(super) fn vtable<'a>(&self) -> &'a VTable<P,I>{
+            unsafe {
+                &*(self.vtable as *const VTable<P,I>)
+            }
         }
 
         pub(super)fn vtable_address(&self) -> usize {
@@ -328,7 +365,7 @@ The primary example using `DynTrait<_>` is in the readme.
         }
     }
 
-    impl<P,I> DynTrait<P,I> 
+    impl<'borr,P,I> DynTrait<'borr,P,I> 
     where 
         I: InterfaceConstsBound
     {
@@ -444,12 +481,13 @@ The primary example using `DynTrait<_>` is in the readme.
         ///
         pub fn into_any_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError>
         where
+            T:'static,
             P: TransmuteElement<T>,
             P::Target:Sized,
-            Self:DynTraitBound,
-            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P,P::TransmutedPtr,I>,
+            Self:DynTraitBound<'borr>,
+            InterfaceFor<T,I,True>: GetVtable<T,P,P::TransmutedPtr,I>,
         {
-            self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
+            self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>()?;
             unsafe {
                 unsafe { 
                     let this=ManuallyDrop::new(self);
@@ -474,11 +512,12 @@ The primary example using `DynTrait<_>` is in the readme.
         ///
         pub fn as_any_unerased<T>(&self) -> Result<&T, UneraseError>
         where
+            T:'static,
             P: Deref + TransmuteElement<T>,
-            Self:DynTraitBound,
-            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P,P::TransmutedPtr,I>,
+            Self:DynTraitBound<'borr>,
+            InterfaceFor<T,I,True>: GetVtable<T,P,P::TransmutedPtr,I>,
         {
-            self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
+            self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>()?;
             unsafe { Ok(self.object_as()) }
         }
 
@@ -499,16 +538,16 @@ The primary example using `DynTrait<_>` is in the readme.
         pub fn as_any_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError>
         where
             P: DerefMut + TransmuteElement<T>,
-            Self:DynTraitBound,
-            InterfaceFor<T,GetVWInterface<Self>>: GetVtable<T,P,P::TransmutedPtr,I>,
+            Self:DynTraitBound<'borr>,
+            InterfaceFor<T,I,True>: GetVtable<T,P,P::TransmutedPtr,I>,
         {
-            self.check_same_destructor_opaque::<InterfaceFor<T,GetVWInterface<Self>>,T>()?;
+            self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>()?;
             unsafe { Ok(self.object_as_mut()) }
         }
 
     }
 
-    impl<P,I> DynTrait<P,I> 
+    impl<'borr,P,I> DynTrait<'borr,P,I> 
     where 
         I:InterfaceConstsBound
     {
@@ -544,17 +583,27 @@ The primary example using `DynTrait<_>` is in the readme.
         }
 
         /// Deserializes a string into a `DynTrait<_>`,by using 
-        /// `<I as DeserializeInterfaceType>::deserialize_impl`.
-        pub fn deserialize_from_str<'a>(s: &'a str) -> Result<Self, RBoxError>
+        /// `<I as DeserializeOwnedInterface>::deserialize_impl`.
+        pub fn deserialize_owned_from_str(s: &str) -> Result<Self, RBoxError>
         where
-            P: Deref,
-            I: DeserializeInterfaceType<Deserialize = True, Deserialized = Self>,
+            P: 'borr+Deref,
+            I: DeserializeOwnedInterface<'borr,Deserialize = True, Deserialized = Self>,
+        {
+            s.piped(RStr::from).piped(I::deserialize_impl)
+        }
+
+        /// Deserializes a string into a `DynTrait<_>`,by using 
+        /// `<I as DeserializeBorrowedInterface>::deserialize_impl`.
+        pub fn deserialize_borrowing_from_str(s: &'borr str) -> Result<Self, RBoxError>
+        where
+            P: 'borr+Deref,
+            I: DeserializeBorrowedInterface<'borr,Deserialize = True, Deserialized = Self>,
         {
             s.piped(RStr::from).piped(I::deserialize_impl)
         }
     }
 
-    impl<P,I> Drop for DynTrait<P,I>
+    impl<P,I> Drop for DynTrait<'_,P,I>
     where I:InterfaceConstsBound
     {
         fn drop(&mut self){
@@ -569,7 +618,7 @@ The primary example using `DynTrait<_>` is in the readme.
 
 pub use self::priv_::DynTrait;
 
-impl<P, I> Clone for DynTrait<P,I>
+impl<P, I> Clone for DynTrait<'_,P,I>
 where
     P: Deref,
     I: InterfaceConstsBound<Clone = True>,
@@ -581,7 +630,7 @@ where
     }
 }
 
-impl<P, I> Display for DynTrait<P,I>
+impl<P, I> Display for DynTrait<'_,P,I>
 where
     P: Deref,
     I: InterfaceConstsBound<Display = True>,
@@ -591,7 +640,7 @@ where
     }
 }
 
-impl<P, I> Debug for DynTrait<P,I>
+impl<P, I> Debug for DynTrait<'_,P,I>
 where
     P: Deref,
     I: InterfaceConstsBound<Debug = True>,
@@ -608,7 +657,7 @@ then it serializes the string.
 
 */
 /// ,then it .
-impl<P, I> Serialize for DynTrait<P,I>
+impl<P, I> Serialize for DynTrait<'_,P,I>
 where
     P: Deref,
     I: InterfaceConstsBound<Serialize = True>,
@@ -625,22 +674,23 @@ where
 }
 
 /// First it Deserializes a string,then it deserializes into a 
-/// `DynTrait<_>`,by using `<I as DeserializeInterfaceType>::deserialize_impl`.
-impl<'a, P, I> Deserialize<'a> for DynTrait<P,I>
+/// `DynTrait<_>`,by using `<I as DeserializeOwnedInterface>::deserialize_impl`.
+impl<'de,'borr:'de, P, I> Deserialize<'de> for DynTrait<'borr,P,I>
 where
-    P: Deref,
-    I: InterfaceConstsBound+DeserializeInterfaceType<Deserialize = True, Deserialized = Self>,
+    P: Deref+'borr,
+    I: InterfaceConstsBound,
+    I: DeserializeOwnedInterface<'borr,Deserialize = True, Deserialized = Self>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'a>,
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         I::deserialize_impl(RStr::from(&*s)).map_err(de::Error::custom)
     }
 }
 
-impl<P, I> Eq for DynTrait<P,I>
+impl<P, I> Eq for DynTrait<'static,P,I>
 where
     Self: PartialEq,
     P: Deref,
@@ -648,7 +698,7 @@ where
 {
 }
 
-impl<P, I> PartialEq for DynTrait<P,I>
+impl<P, I> PartialEq for DynTrait<'static,P,I>
 where
     P: Deref,
     I: InterfaceConstsBound<PartialEq = True>,
@@ -663,7 +713,7 @@ where
     }
 }
 
-impl<P, I> Ord for DynTrait<P,I>
+impl<P, I> Ord for DynTrait<'static,P,I>
 where
     P: Deref,
     I: InterfaceConstsBound<Ord = True>,
@@ -679,7 +729,7 @@ where
     }
 }
 
-impl<P, I> PartialOrd for DynTrait<P,I>
+impl<P, I> PartialOrd for DynTrait<'static,P,I>
 where
     P: Deref,
     I: InterfaceConstsBound<PartialOrd = True>,
@@ -697,7 +747,7 @@ where
     }
 }
 
-impl<P, I> Hash for DynTrait<P,I>
+impl<P, I> Hash for DynTrait<'_,P,I>
 where
     P: Deref,
     I: InterfaceConstsBound<Hash = True>,
@@ -711,7 +761,7 @@ where
 }
 
 
-unsafe impl<P,I> Send for DynTrait<P,I>
+unsafe impl<P,I> Send for DynTrait<'_,P,I>
 where
     P: Send,
     P: Deref,
@@ -719,7 +769,7 @@ where
 {}
 
 
-unsafe impl<P,I> Sync for DynTrait<P,I>
+unsafe impl<P,I> Sync for DynTrait<'_,P,I>
 where
     P: Sync,
     P: Deref,
@@ -732,18 +782,18 @@ where
 mod sealed {
     use super::*;
     pub trait Sealed {}
-    impl<P,I> Sealed for DynTrait<P,I> 
+    impl<P,I> Sealed for DynTrait<'_,P,I> 
     where I:InterfaceConstsBound
     {}
 }
 use self::sealed::Sealed;
 
 /// For accessing the Interface of a `DynTrait<Pointer<ZeroSized< Interface >>>`.
-pub trait DynTraitBound: Sealed {
+pub trait DynTraitBound<'borr>: Sealed {
     type Interface: InterfaceType;
 }
 
-impl<P, I> DynTraitBound for DynTrait<P,I>
+impl<'borr,P, I> DynTraitBound<'borr> for DynTrait<'borr,P,I>
 where
     P: Deref,
     I: InterfaceConstsBound,
@@ -753,8 +803,8 @@ where
 
 
 /// For accessing the `Interface` in a `DynTrait<Pointer<ZeroSized< Interface >>>`.
-pub type GetVWInterface<This>=
-    <This as DynTraitBound>::Interface;
+pub type GetVWInterface<'borr,This>=
+    <This as DynTraitBound<'borr>>::Interface;
 
 
 //////////////////////////////////////////////////////////////////

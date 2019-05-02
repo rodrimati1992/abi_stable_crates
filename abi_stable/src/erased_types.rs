@@ -28,7 +28,10 @@ pub mod traits;
 pub use self::{
     dyn_trait::{DynTrait, DynTraitBound},
     vtable::{ GetVtable,InterfaceBound,InterfaceConstsBound},
-    traits::{ImplType, InterfaceType, SerializeImplType, DeserializeInterfaceType},
+    traits::{
+        ImplType, InterfaceType, SerializeImplType, DeserializeOwnedInterface,
+        DeserializeBorrowedInterface,
+    },
     type_info::TypeInfo,
 };
 

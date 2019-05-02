@@ -16,7 +16,8 @@ use serde_json;
 #[allow(unused_imports)]
 use crate::{
     erased_types::{
-        DynTrait,ImplType, InterfaceType, SerializeImplType,DeserializeInterfaceType,
+        DynTrait,ImplType, InterfaceType, SerializeImplType,DeserializeOwnedInterface,
+        DeserializeBorrowedInterface,
     },
     impl_get_type_info,
     type_level::bools::{False,True},
@@ -57,7 +58,7 @@ where
 
 impl<T> ImplType for Foo<T>
 where
-    T: 'static + Send + Sync,
+    T: 'static,
 {
     type Interface = FooInterface;
     const INFO:&'static crate::erased_types::TypeInfo=impl_get_type_info! { Foo[T] };
@@ -65,7 +66,7 @@ where
 
 impl<T> SerializeImplType for Foo<T>
 where
-    T: 'static + Send + Sync + Serialize,
+    T: Serialize,
 {
     fn serialize_impl(&self) -> Result<RCow<'_, RStr<'_>>, RBoxError> {
         match serde_json::to_string(self) {
@@ -77,6 +78,8 @@ where
 
 crate::impl_InterfaceType!{
     impl crate::InterfaceType for FooInterface {
+        type Send = False;
+
         type Clone = True;
 
         type Default = True;
@@ -102,8 +105,8 @@ crate::impl_InterfaceType!{
 }
 
 
-impl DeserializeInterfaceType for FooInterface {
-    type Deserialized = VirtualFoo;
+impl<'borr> DeserializeOwnedInterface<'borr> for FooInterface {
+    type Deserialized = VirtualFoo<'borr>;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
         match ::serde_json::from_str::<Foo<String>>(&*s) {
@@ -113,7 +116,7 @@ impl DeserializeInterfaceType for FooInterface {
     }
 }
 
-type VirtualFoo = DynTrait<RBox<()>,FooInterface>;
+type VirtualFoo<'a> = DynTrait<'a,RBox<()>,FooInterface>;
 
 /////////////////////////////////
 
@@ -126,7 +129,7 @@ fn new_foo()->Foo<String>{
     }
 }
 
-fn new_wrapped()->VirtualFoo{
+fn new_wrapped<'a>()->VirtualFoo<'a>{
     DynTrait::from_value(new_foo())
 }
 
@@ -212,7 +215,7 @@ fn deserialize_test() {
 
     let concrete = serde_json::from_str::<Foo<String>>(json).unwrap();
 
-    let wrapped = VirtualFoo::deserialize_from_str(json).unwrap();
+    let wrapped = VirtualFoo::deserialize_owned_from_str(json).unwrap();
     let wrapped2 = serde_json::from_str::<VirtualFoo>(&json_ss).unwrap();
 
     assert_eq!(
@@ -377,4 +380,100 @@ fn to_any_test(){
     to_unerased!( wrapped ; as_any_unerased_mut ; &mut new_foo() );
     
 
+}
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////
+
+
+
+mod submod{
+    use super::*;
+
+    /// It doesn't need to be `#[repr(C)]` because  DynTrait puts it behind a pointer,
+    /// and is only interacted with through regular Rust functions.
+    #[derive(Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+    struct Foo<'a> {
+        l: u32,
+        r: u32,
+        name: &'a str,
+    }
+
+
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    struct FooInterface;
+
+
+    impl<'a> Display for Foo<'a>{
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            writeln!(f, "l:{}  r:{}  name:'{}'", self.l, self.r, self.name,)
+        }
+    }
+
+    impl ImplType for Foo<'static>{
+        type Interface = FooInterface;
+        const INFO:&'static crate::erased_types::TypeInfo=impl_get_type_info! { Foo[T] };
+    }
+
+    impl<'a> SerializeImplType for Foo<'a>{
+        fn serialize_impl(&self) -> Result<RCow<'_, RStr<'_>>, RBoxError> {
+            match serde_json::to_string(self) {
+                Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
+                Err(e)=>Err(RBoxError::new(e)),
+            }
+        }
+    }
+
+    crate::impl_InterfaceType!{
+        impl crate::InterfaceType for FooInterface {
+            type Send = False;
+
+            type Clone = True;
+
+            type Default = True;
+
+            type Display = True;
+
+            type Debug = True;
+
+            type Serialize = True;
+
+            type Deserialize = True;
+
+            // type Eq = True;
+
+            // type PartialEq = True;
+
+            // type Ord = True;
+
+            // type PartialOrd = True;
+
+            type Hash = True;
+        }
+    }
+
+
+    impl<'borr> DeserializeBorrowedInterface<'borr> for FooInterface {
+        type Deserialized = VirtualFoo<'borr>;
+
+        fn deserialize_impl(s: RStr<'borr>) -> Result<VirtualFoo<'borr>, RBoxError> {
+            match ::serde_json::from_str::<Foo<'borr>>(s.as_str()) {
+                Ok(x) => Ok(DynTrait::from_borrowing_value(x,FooInterface)),
+                Err(e) => Err(RBoxError::new(e)),
+            }
+        }
+    }
+
+
+    type VirtualFoo<'a> = DynTrait<'a,RBox<()>,FooInterface>;
+
+    fn borrowing_foo<'a>(foo:Foo<'a>){
+        let wrapped:VirtualFoo<'a>=
+            DynTrait::from_borrowing_value::<'a,Foo<'a>,FooInterface>(foo,FooInterface);
+    }
 }

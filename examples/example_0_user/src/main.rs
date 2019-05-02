@@ -219,7 +219,7 @@ fn main()-> io::Result<()> {
         }
         Command::JsonCommand{file}=>{
             fn run_command(mods:&TextOpsMod_Prefix,state:&mut TOStateBox,s:&str)->RString{
-                let command=TOCommandBox::deserialize_from_str(s)
+                let command=TOCommandBox::deserialize_borrowing_from_str(s)
                     .unwrap_or_else(|e| panic!("\n{}\n",e) );
                 
                 let ret=mods.run_command()(state,command);
