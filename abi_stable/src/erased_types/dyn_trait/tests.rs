@@ -17,7 +17,7 @@ use serde_json;
 use crate::{
     erased_types::{
         DynTrait,ImplType, InterfaceType, SerializeImplType,DeserializeOwnedInterface,
-        DeserializeBorrowedInterface,
+        DeserializeBorrowedInterface,IteratorItem,
     },
     impl_get_type_info,
     type_level::bools::{False,True},
@@ -25,6 +25,7 @@ use crate::{
     StableAbi,
     std_types::{
         RArc, RBox, RBoxError, RCow, RStr, RString,  StaticStr,
+        RNone,RSome,ROption,
     },
 };
 
@@ -105,8 +106,8 @@ crate::impl_InterfaceType!{
 }
 
 
-impl<'borr> DeserializeOwnedInterface<'borr> for FooInterface {
-    type Deserialized = VirtualFoo<'borr>;
+impl DeserializeOwnedInterface<'static> for FooInterface {
+    type Deserialized = VirtualFoo<'static>;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
         match ::serde_json::from_str::<Foo<String>>(&*s) {
@@ -144,7 +145,7 @@ fn new_foo()->Foo<String>{
     }
 }
 
-fn new_wrapped<'a>()->VirtualFoo<'a>{
+fn new_wrapped()->VirtualFoo<'static>{
     DynTrait::from_value(new_foo())
 }
 
@@ -614,6 +615,150 @@ mod submod{
             0
         }
     }
+
+    ////////////////
+
+
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    struct IterInterface;
+    
+
+    crate::impl_InterfaceType!{
+        impl crate::InterfaceType for IterInterface {
+            type Iterator=True;
+        }
+    }
+
+
+    impl<'a> IteratorItem<'a> for IterInterface{
+        type Item=&'a str;
+    }
+
+
+    fn iterator_from_lines<'borr>(s:&'borr str)->DynTrait<'borr,RBox<()>,IterInterface>{
+        let list=s.lines().collect::<Vec<&'borr str>>();
+        DynTrait::from_borrowing_value(list.into_iter(),IterInterface)
+    }
+
+    fn exact_size_hint(n:usize)->(usize,Option<usize>){
+        (n,Some(n))
+    }
+
+    #[test]
+    fn iterator_collect(){
+        let s="line0\nline1\nline2".to_string();
+        
+        let actual=iterator_from_lines(&s).collect::<Vec<&str>>();
+
+        let expected=vec!["line0","line1","line2"];
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn iterator_next(){
+        let s="line0\nline1\nline2".to_string();
+        let mut iter=iterator_from_lines(&s);
+
+        assert_eq!(iter.size_hint(),exact_size_hint(3));
+        assert_eq!(iter.next(),Some("line0"));
+
+        assert_eq!(iter.size_hint(),exact_size_hint(2));
+        assert_eq!(iter.next(),Some("line1"));
+        
+        
+        assert_eq!(iter.size_hint(),exact_size_hint(1));
+        assert_eq!(iter.next(),Some("line2"));
+        
+        
+        assert_eq!(iter.size_hint(),exact_size_hint(0));
+        assert_eq!(iter.next(),None);
+        assert_eq!(iter.size_hint(),exact_size_hint(0));
+        
+        
+    }
+
+    #[test]
+    fn iterator_nth(){
+        let s="line0\nline1\nline2".to_string();
+        
+        assert_eq!(iterator_from_lines(&s).nth(0),Some("line0"));
+        assert_eq!(iterator_from_lines(&s).nth(1),Some("line1"));
+        assert_eq!(iterator_from_lines(&s).nth(2),Some("line2"));
+        assert_eq!(iterator_from_lines(&s).nth(3),None);
+    }
+
+    #[test]
+    fn iterator_count(){
+        let s="line0\nline1\nline2".to_string();
+        
+        assert_eq!(iterator_from_lines(&s).count(),3);
+        assert_eq!(iterator_from_lines(&s).skip(0).count(),3);
+        assert_eq!(iterator_from_lines(&s).skip(1).count(),2);
+        assert_eq!(iterator_from_lines(&s).skip(2).count(),1);
+        assert_eq!(iterator_from_lines(&s).skip(3).count(),0);
+        assert_eq!(iterator_from_lines(&s).skip(4).count(),0);
+    }
+
+
+    #[test]
+    fn iterator_last(){
+        let s0="line0".to_string();
+        let s1="line0\nline1".to_string();
+        let s2="line0\nline1\nline2".to_string();
+        
+        assert_eq!(iterator_from_lines(&s0).last(),Some("line0"));
+        assert_eq!(iterator_from_lines(&s1).last(),Some("line1"));
+        assert_eq!(iterator_from_lines(&s2).last(),Some("line2"));
+    }
+
+    #[test]
+    fn iterator_skip_eager(){
+        let s="line0\nline1\nline2".to_string();
+
+        let skipping=|how_many:usize|{
+            let mut iter=iterator_from_lines(&s);
+            iter.skip_eager(how_many);
+            iter
+        };
+
+        assert_eq!(skipping(0).next(),Some("line0"));
+        assert_eq!(skipping(0).count(),3);
+        assert_eq!(skipping(1).next(),Some("line1"));
+        assert_eq!(skipping(1).count(),2);
+        assert_eq!(skipping(2).next(),Some("line2"));
+        assert_eq!(skipping(2).count(),1);
+        assert_eq!(skipping(3).next(),None);
+        assert_eq!(skipping(3).count(),0);
+    }
+
+
+    #[test]
+    fn iterator_extend_buffer(){
+        let s="line0\nline1\nline2".to_string();
+
+        let collected=|how_many:Option<usize>|{
+            s.lines()
+                .take(how_many.unwrap_or(!0))
+                .collect::<RVec<_>>()
+        };
+
+        let extending=|how_many:ROption<usize>|{
+            let mut iter=iterator_from_lines(&s);
+            let mut buffer=RVec::new();
+            iter.extend_buffer(&mut buffer,how_many);
+            buffer
+        };
+
+        assert_eq!(extending(RNone   ),collected(None));
+        assert_eq!(extending(RSome(0)),collected(Some(0)));
+        assert_eq!(extending(RSome(1)),collected(Some(1)));
+        assert_eq!(extending(RSome(2)),collected(Some(2)));
+        assert_eq!(extending(RSome(3)),collected(Some(3)));
+    }
+
 
     ////////////////
 

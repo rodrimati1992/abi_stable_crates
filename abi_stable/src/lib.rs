@@ -140,7 +140,11 @@ mod test_macros;
 mod test_utils;
 
 #[macro_use]
+pub mod utils;
+
+#[macro_use]
 pub mod traits;
+
 
 #[macro_use]
 pub mod abi_stability;
@@ -162,7 +166,6 @@ pub mod derive_macro_reexports;
 pub mod std_types;
 
 
-pub mod utils;
 pub mod lazy_static_ref;
 pub mod type_level;
 pub mod version;

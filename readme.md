@@ -141,6 +141,8 @@ impl_InterfaceType!{
 
         // Changing this to require/unrequire in minor versions,is an abi breaking change.
         // type Sync=True;
+
+        // type Iterator=False;
         
         // type Clone=False;
 

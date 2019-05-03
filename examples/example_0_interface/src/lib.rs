@@ -17,7 +17,9 @@ use abi_stable::{
     library::{Library,LibraryError, RootModule},
     version::VersionStrings,
     type_level::bools::*,
-    erased_types::{InterfaceType,DeserializeOwnedInterface,DeserializeBorrowedInterface},
+    erased_types::{
+        InterfaceType,DeserializeOwnedInterface,DeserializeBorrowedInterface,IteratorItem
+    },
     DynTrait,
     std_types::{RBox, RStr, RString,RVec,RArc, RSlice,RCow,RBoxError,RResult},
 };
@@ -50,6 +52,7 @@ impl_InterfaceType!{
 }
 
 
+
 impl DeserializeOwnedInterface<'static> for TOState {
     type Deserialized = TOStateBox;
 
@@ -77,12 +80,19 @@ impl_InterfaceType!{
         type Serialize = True;
         type Deserialize = True;
         type PartialEq = True;
+        type Iterator=True;
     }
 }
 
 
-impl<'borr> DeserializeOwnedInterface<'borr> for TOCommand {
-    type Deserialized = TOCommandBox<'borr>;
+impl<'a> IteratorItem<'a> for TOCommand{
+    type Item=&'a mut RString;
+}
+
+
+
+impl DeserializeOwnedInterface<'static> for TOCommand {
+    type Deserialized = TOCommandBox<'static>;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
         MODULES.get().unwrap().deserializers().deserialize_command()(s).into_result()
@@ -203,7 +213,8 @@ pub struct TextOpsMod {
     /// Gets the ammount (in bytes) of text that was processed
     pub get_processed_bytes: extern "C" fn(&TOStateBox) -> u64,
  
-    pub run_command: extern "C" fn(&mut TOStateBox,command:TOCommandBox<'_>)->TOReturnValueArc,
+    pub run_command: 
+        extern "C" fn(&mut TOStateBox,command:TOCommandBox<'static>)->TOReturnValueArc,
 
     /// An module used in prefix-type tests.
     pub prefix_types_tests:&'static PrefixTypeMod0_Prefix,
