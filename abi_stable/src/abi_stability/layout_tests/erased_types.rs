@@ -1,26 +1,18 @@
 #![allow(dead_code)]
 
-use std::marker::PhantomData;
+
 
 #[allow(unused_imports)]
 use core_extensions::{matches, prelude::*};
 
 use crate::{
     abi_stability::{
-        abi_checking::{AbiInstability,check_abi_stability},
-        AbiInfoWrapper, 
-        Tag,
+        abi_checking::{check_abi_stability},
     },
     StableAbi,
     DynTrait,
-    erased_types::{
-        InterfaceType,
-        IteratorItem,
-    },
-    marker_type::UnsafeIgnoredType,
+    erased_types::IteratorItem,
     std_types::*,
-    *,
-    test_utils::must_panic,
     type_level::bools::*,
 };
 
@@ -76,7 +68,7 @@ mod_iter_ty!{
 
 mod_iter_ty!{
     mod rstring_interface;
-    type Item<'a>=RStr<'a>;
+    type Item<'a>=RString;
 }
 
 mod_iter_ty!{
@@ -95,22 +87,31 @@ mod_iter_ty!{
 fn check_subsets(){
     type BoxTrait<'a,I>=DynTrait<'a,RBox<()>,I>;
 
-    let pref_zero=<DynTrait<RBox<()>,no_iterator_interface::Interface>>::ABI_INFO;
+    let pref_zero=<DynTrait<'_,RBox<()>,no_iterator_interface::Interface>>::ABI_INFO;
 
-    let pref_iter_0=<BoxTrait<rstring_interface::Interface>>::ABI_INFO;
-    let pref_iter_1=<BoxTrait<rstr_interface::Interface>>::ABI_INFO;
-    let pref_iter_2=<BoxTrait<u8_interface::Interface>>::ABI_INFO;
-    let pref_iter_3=<BoxTrait<unit_interface::Interface>>::ABI_INFO;
+    let pref_iter_0=<BoxTrait<'_,rstring_interface::Interface>>::ABI_INFO;
+    let pref_iter_1=<BoxTrait<'_,rstr_interface::Interface>>::ABI_INFO;
+    let pref_iter_2=<BoxTrait<'_,u8_interface::Interface>>::ABI_INFO;
+    let pref_iter_3=<BoxTrait<'_,unit_interface::Interface>>::ABI_INFO;
 
-    for impl_ in vec![pref_iter_0,pref_iter_1,pref_iter_2,pref_iter_3] {
-        
-        assert_eq!(check_abi_stability(pref_zero, pref_zero), Ok(()) );
-        
-        assert_eq!(check_abi_stability(impl_, impl_), Ok(()) );
+    let prefs=vec![pref_iter_0,pref_iter_1,pref_iter_2,pref_iter_3];
 
+    assert_eq!(check_abi_stability(pref_zero, pref_zero), Ok(()) );
+    
+    for impl_ in prefs.iter().cloned() {
+            
         assert_eq!(check_abi_stability(pref_zero, impl_), Ok(()) );
 
         assert_ne!(check_abi_stability(impl_, pref_zero), Ok(()) );
     }
 
+    for (interf_i,interf) in prefs.iter().cloned().enumerate() {
+        for (impl_i,impl_) in prefs.iter().cloned().enumerate() {
+            if interf_i==impl_i {
+                assert_eq!(check_abi_stability(interf, impl_), Ok(()) );
+            }else{
+                assert_ne!(check_abi_stability(interf, impl_), Ok(()) );
+            }
+        }
+    }
 }

@@ -11,11 +11,13 @@ use core_extensions::SelfOps;
 use structopt::StructOpt;
 
 use abi_stable::{
-    std_types::{RString,RVec,RArc,RBox},
+    std_types::{RString,RVec,RArc,RBox,RCow},
+    DynTrait,
     library::RootModule,
 };
 
 use example_0_interface::{
+    CowStrIter,
     TextOpsMod_Prefix,RemoveWords,load_library_in,
     TOCommandBox,TOStateBox,
 };
@@ -203,12 +205,13 @@ fn main()-> io::Result<()> {
         }
         Command::RemoveWords{words}=>{
             process_stdin(|line|{
+                let words=&mut words.iter().map(|s| RCow::Borrowed(s.as_rstr()) );
                 let params=RemoveWords{
                     string:line.into(),
-                    words:words[..].into(),
+                    words:DynTrait::from_borrowing_ptr(words,CowStrIter),
                 };
 
-                mods.remove_words_string()(&mut state,params)
+                mods.remove_words()(&mut state,params)
             })?;
         }
         Command::Greet{name}=>{

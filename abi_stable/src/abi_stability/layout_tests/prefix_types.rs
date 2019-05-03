@@ -582,7 +582,7 @@ mod cond_fields_0 {
 mod cond_fields_1 {
     use crate::marker_type::UnsafeIgnoredType;
     use super::EnabledFields;
-    use super::custom_default;
+    
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(

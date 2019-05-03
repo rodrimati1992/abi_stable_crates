@@ -98,6 +98,8 @@ These are the traits:
 
 - Iterator
 
+- DoubleEndedIterator
+
 - Clone 
 
 - Display 
@@ -418,7 +420,7 @@ Readme is in
             P: TransmuteElement<T>,
             A: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            let t_vtable:&VTable<P,I> = A::get_vtable();
+            let t_vtable:&VTable<'borr,P,I> = A::get_vtable();
             if self.vtable_address() == t_vtable as *const _ as usize
                 || self.vtable().type_info().is_compatible(t_vtable.type_info())
             {
@@ -849,6 +851,7 @@ where
     }
 }
 
+
 impl<'borr,P, I,Item> DynTrait<'borr,P,I>
 where
     P: DerefMut,
@@ -864,6 +867,39 @@ where
         (vtable.iter().extend_buffer)(self.as_abi_mut(),buffer,taking);
     }
 }
+
+
+impl<'borr,P, I,Item> DoubleEndedIterator for DynTrait<'borr,P,I>
+where
+    Self:Iterator<Item=Item>,
+    P: DerefMut,
+    I: InterfaceConstsBound<'borr,DoubleEndedIterator = True,IteratorItem=Item>,
+{
+
+    fn next_back(&mut self)->Option<Item>{
+        let vtable=self.vtable();
+        (vtable.back_iter().next_back)(self.as_abi_mut()).into_rust()
+    }
+}
+
+
+impl<'borr,P, I,Item> DynTrait<'borr,P,I>
+where
+    Self:Iterator<Item=Item>,
+    P: DerefMut,
+    I: InterfaceConstsBound<'borr,DoubleEndedIterator = True,IteratorItem=Item>,
+{
+    pub fn nth_back_(&mut self,nth:usize)->Option<Item>{
+        let vtable=self.vtable();
+        (vtable.back_iter().nth_back)(self.as_abi_mut(),nth).into_rust()
+    }
+
+    pub fn extend_buffer_back(&mut self,buffer:&mut RVec<Item>,taking:ROption<usize>){
+        let vtable=self.vtable();
+        (vtable.back_iter().extend_buffer_back)(self.as_abi_mut(),buffer,taking);
+    }
+}
+
 
 
 unsafe impl<'borr,P,I> Send for DynTrait<'borr,P,I>

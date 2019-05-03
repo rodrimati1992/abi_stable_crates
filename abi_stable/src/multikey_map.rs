@@ -86,6 +86,7 @@ where K:Hash+Eq
         self.get_mut_with_index(i)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get2_mut<Q>(&mut self,key0:&Q,key1:&Q)->(Option<&mut T>,Option<&mut T>)
     where
         K: Borrow<Q>,

@@ -5,7 +5,6 @@ use std::{
 use crate::{
     abi_stability::{
         type_layout::{TypeLayout,TLField,TLData,TLPrefixType,TLDataDiscriminant},
-        StableAbi,
     },
 };
 
@@ -15,6 +14,7 @@ use super::{
 };
 
 
+#[allow(unused_imports)]
 use core_extensions::SelfOps;
 
 

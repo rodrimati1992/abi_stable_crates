@@ -6,7 +6,6 @@ Traits for types wrapped in `DynTrait<_>`
 use std::{mem,marker::PhantomData};
 
 use crate::{
-    StableAbi,
     erased_types::{DynTraitBound},
     std_types::{
         RBoxError, 
@@ -95,6 +94,8 @@ impl_InterfaceType!{
 
         // type Iterator=False;
 
+        // type DoubleEndedIterator=False;
+
         // type Default=False;
 
         // type Display=False;
@@ -152,6 +153,8 @@ pub trait InterfaceType: Sized + 'static  {
     type Deserialize;
 
     type Iterator;
+    
+    type DoubleEndedIterator;
 
     #[doc(hidden)]
     type define_this_in_the_impl_InterfaceType_macro;
@@ -206,6 +209,9 @@ pub trait DeserializeBorrowedInterface<'borr>: InterfaceType<Deserialize = True>
 /////////////////////////////////////////////////////////////////////
 
 
+/// The way to specify the expected Iterator::Item type.
+///
+/// This is a separate trait to allow iterators that yield borrowed elements.
 pub trait IteratorItem<'a>:InterfaceType{
     type Item:'a;
 }

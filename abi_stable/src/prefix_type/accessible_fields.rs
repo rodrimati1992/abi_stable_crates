@@ -1,3 +1,7 @@
+use crate::const_utils::{
+    min_usize,
+};
+
 use std::iter::ExactSizeIterator;
 
 
@@ -28,19 +32,6 @@ impl IsAccessible{
     }
 }
 
-
-
-const fn min_u64(l:u64,r:u64)->u64{
-    [r,l][ (l < r)as usize ]
-}
-
-const fn min_usize(l:usize,r:usize)->usize{
-    [r,l][ (l < r)as usize ]
-}
-
-const fn max_u64(l:u64,r:u64)->u64{
-    [l,r][ (l < r)as usize ]
-}
 
 impl FieldAccessibility{
     /// Creates a FieldAccessibility where the first `field_count` fields are accessible.
