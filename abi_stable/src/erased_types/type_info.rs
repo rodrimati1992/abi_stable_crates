@@ -6,7 +6,7 @@ use std::fmt;
 
 use crate::{
     version::VersionStrings, 
-    std_types::{StaticStr,utypeid::UTypeId,ROption,RSome,RNone},
+    std_types::{StaticStr,utypeid::UTypeId,ROption,RSome},
     return_value_equality::ReturnValueEquality,
 };
 

@@ -236,10 +236,10 @@ fn deserialize_test() {
     let concrete = serde_json::from_str::<Foo<String>>(json).unwrap();
 
     let wrapped = VirtualFoo::deserialize_owned_from_str(json).unwrap();
-    let wrapped2 = serde_json::from_str::<VirtualFoo>(&json_ss).unwrap();
+    let wrapped2 = serde_json::from_str::<VirtualFoo<'static>>(&json_ss).unwrap();
 
     assert_eq!(
-        serde_json::from_str::<VirtualFoo>(json).map_err(drop),
+        serde_json::from_str::<VirtualFoo<'static>>(json).map_err(drop),
         Err(()),
     );
     
@@ -600,9 +600,9 @@ mod submod{
             this
         }
 
-        pub fn bytes(&self)->&[u8]{
-            &self.bytes
-        }
+        // pub fn bytes(&self)->&[u8]{
+        //     &self.bytes
+        // }
     }
 
     impl Hasher for HashedBytes {
@@ -628,6 +628,7 @@ mod submod{
     crate::impl_InterfaceType!{
         impl crate::InterfaceType for IterInterface {
             type Iterator=True;
+            type DoubleEndedIterator=True;
         }
     }
 
@@ -758,6 +759,67 @@ mod submod{
         assert_eq!(extending(RSome(2)),collected(Some(2)));
         assert_eq!(extending(RSome(3)),collected(Some(3)));
     }
+
+
+    ////////////////
+
+
+    #[test]
+    fn iterator_next_back(){
+        let s="line0\nline1\nline2".to_string();
+        let mut iter=iterator_from_lines(&s);
+
+        assert_eq!(iter.size_hint(),exact_size_hint(3));
+        assert_eq!(iter.next_back(),Some("line2"));
+
+        assert_eq!(iter.size_hint(),exact_size_hint(2));
+        assert_eq!(iter.next_back(),Some("line1"));
+        
+        
+        assert_eq!(iter.size_hint(),exact_size_hint(1));
+        assert_eq!(iter.next_back(),Some("line0"));
+        
+        
+        assert_eq!(iter.size_hint(),exact_size_hint(0));
+        assert_eq!(iter.next_back(),None);
+        assert_eq!(iter.size_hint(),exact_size_hint(0));
+        
+        
+    }
+
+    #[test]
+    fn iterator_nth_back(){
+        let s="line0\nline1\nline2".to_string();
+        
+        assert_eq!(iterator_from_lines(&s).nth_back_(0),Some("line2"));
+        assert_eq!(iterator_from_lines(&s).nth_back_(1),Some("line1"));
+        assert_eq!(iterator_from_lines(&s).nth_back_(2),Some("line0"));
+        assert_eq!(iterator_from_lines(&s).nth_back_(3),None);
+    }
+    #[test]
+    fn iterator_extend_buffer_back(){
+        let s="line0\nline1\nline2".to_string();
+
+        let collected=|how_many:Option<usize>|{
+            s.lines().rev()
+                .take(how_many.unwrap_or(!0))
+                .collect::<RVec<_>>()
+        };
+
+        let extending=|how_many:ROption<usize>|{
+            let mut iter=iterator_from_lines(&s);
+            let mut buffer=RVec::new();
+            iter.extend_buffer_back(&mut buffer,how_many);
+            buffer
+        };
+
+        assert_eq!(extending(RNone   ),collected(None));
+        assert_eq!(extending(RSome(0)),collected(Some(0)));
+        assert_eq!(extending(RSome(1)),collected(Some(1)));
+        assert_eq!(extending(RSome(2)),collected(Some(2)));
+        assert_eq!(extending(RSome(3)),collected(Some(3)));
+    }
+
 
 
     ////////////////

@@ -1,8 +1,13 @@
+use std::borrow::Cow;
+
 use abi_stable::{
     traits::IntoReprC,
+    std_types::{RCow,RStr},
+    DynTrait,
 };
 
 use example_0_interface::{
+    CowStrIter,
     PrefixTypeMod0_Prefix,
     PrefixTypeMod1_Prefix,
 };
@@ -95,24 +100,33 @@ fn test_reverse_lines(mods:&'static TextOpsMod_Prefix) {
         "world\nbig\nhello\n"
     );
 }
+
+
+fn str_to_rcow<'a>(s:&'a str)->RCow<'a,RStr<'a>,RString>{
+    s.into_(Cow::<'a,str>::T)
+     .into()
+}
+
+
 fn test_remove_words(mods:&'static TextOpsMod_Prefix) {
     let text_ops=mods;
 
     let mut state = text_ops.new()();
     {
-        let words = ["burrito".into_c(), "like".into(),"a".into()];
+        let words = &mut vec!["burrito", "like","a"].into_iter().map(str_to_rcow);
+        
         let param = RemoveWords {
             string: "Monads are like a burrito wrapper.".into(),
-            words: words[..].into_c(),
+            words: DynTrait::from_borrowing_ptr(words,CowStrIter),
         };
-        assert_eq!(&*text_ops.remove_words_str()(&mut state, param), "Monads are wrapper.");
+        assert_eq!(&*text_ops.remove_words()(&mut state, param), "Monads are wrapper.");
     }
     {
-        let words = ["largest".into_c(),"is".into()];
+        let words = &mut vec!["largest","is"].into_iter().map(str_to_rcow);
         let param = RemoveWords {
             string: "The   largest planet  is    jupiter.".into(),
-            words: words[..].into_c(),
+            words: DynTrait::from_borrowing_ptr(words,CowStrIter),
         };
-        assert_eq!(&*text_ops.remove_words_str()(&mut state, param), "The   planet  jupiter.");
+        assert_eq!(&*text_ops.remove_words()(&mut state, param), "The   planet  jupiter.");
     }
 }

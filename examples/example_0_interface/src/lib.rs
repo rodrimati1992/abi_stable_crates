@@ -142,15 +142,34 @@ impl DeserializeOwnedInterface<'static> for TOReturnValue {
 ///////////////////////////////////////////////////////////////////////////////
 
 
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct CowStrIter;
+
+impl_InterfaceType!{
+    impl InterfaceType for CowStrIter {
+        type Iterator = True;
+    }
+}
+
+impl<'a> IteratorItem<'a> for CowStrIter{
+    type Item=RCow<'a,RStr<'a>>;
+}
+
+
 
 /// The parameters for every `TextOpsMod.remove_words_*` function.
 #[repr(C)]
 #[derive(StableAbi)] 
-pub struct RemoveWords<'a,S:'a>{
+pub struct RemoveWords<'a>{
     /// The string we're processing.
     pub string:RStr<'a>,
     /// The words that will be removed from self.string.
-    pub words:RSlice<'a,S>,
+    ///
+    /// An iterator over `RCow<'a,RStr<'a>>`,
+    /// constructed from a `&'a mut impl Iterator<RCow<'a,RStr<'a>>>`
+    /// with `DynTrait::from_borrowing_ptr(iter,CowStrIter)`.
+    pub words:DynTrait<'a,&'a mut (),CowStrIter>,
 }
 
 
@@ -201,15 +220,9 @@ pub struct TextOpsMod {
     pub reverse_lines: extern "C" fn(&mut TOStateBox,RStr<'_>) -> RString,
     
     /// Removes the `param.words` words from the `param.string` string.
-    pub remove_words_cow: 
-        for<'a>extern "C" fn(&mut TOStateBox,param:RemoveWords<'a,RCow<'a,RStr<'a>>>) -> RString,
+    pub remove_words: 
+        extern "C" fn(&mut TOStateBox,param:RemoveWords<'_>) -> RString,
     
-    /// Removes the `param.words` words from the `param.string` string.
-    pub remove_words_str: extern "C" fn(&mut TOStateBox,param:RemoveWords<RStr>) -> RString,
-    
-    /// Removes the `param.words` words from the `param.string` string.
-    pub remove_words_string: extern "C" fn(&mut TOStateBox,param:RemoveWords<RString>) -> RString,
-
     /// Gets the ammount (in bytes) of text that was processed
     pub get_processed_bytes: extern "C" fn(&TOStateBox) -> u64,
  

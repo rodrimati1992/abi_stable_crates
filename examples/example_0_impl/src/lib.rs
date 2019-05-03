@@ -9,12 +9,13 @@ It exports all the modules(structs of function pointers) required by the
 */
 
 use std::{
+    borrow::Cow,
     collections::HashSet,
     marker::PhantomData,
 };
 
 use example_0_interface::{
-    RemoveWords, 
+    RemoveWords, CowStrIter,
     TextOpsMod,HelloWorldMod,TextOpsMod_Prefix,
     DeserializerMod,
     TOState, TOStateBox,TOCommand,TOReturnValue,TOCommandBox,TOReturnValueArc,
@@ -74,9 +75,7 @@ fn instantiate_root_module()->&'static TextOpsMod_Prefix{
             WITH_META.as_prefix()
         },
         reverse_lines,
-        remove_words_cow,
-        remove_words_str,
-        remove_words_string: remove_words,
+        remove_words,
         get_processed_bytes,
         run_command,
         prefix_types_tests:PrefixTypeMod0{
@@ -296,48 +295,25 @@ pub extern "C" fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RSt
     }
 }
 
-/// Removes the words in `param.words` from `param.string`,
-/// as well as the whitespace that comes after it.
-// This is a separate function because ìnitializing `remove_words_str` with `remove_words`
-// does not work,due to some bound lifetime stuff,once it does this function will be obsolete.
-pub extern "C" fn remove_words_str(
-    this: &mut TOStateBox,
-    param: RemoveWords<'_, RStr<'_>>,
-) -> RString {
-    remove_words(this, param)
-}
 
 /// Removes the words in `param.words` from `param.string`,
 /// as well as the whitespace that comes after it.
-// This is a separate function because ìnitializing `remove_words_cow` with `remove_words`
-// does not work,due to some bound lifetime stuff,once it does this function will be obsolete.
-pub extern "C" fn remove_words_cow<'a>(
-    this: &mut TOStateBox,
-    param: RemoveWords<'a, RCow<'a,RStr<'a>>>,
-) -> RString {
-    remove_words(this, param)
-}
-
-/// Removes the words in `param.words` from `param.string`,
-/// as well as the whitespace that comes after it.
-pub extern "C" fn remove_words<S>(this: &mut TOStateBox, param: RemoveWords<S>) -> RString
-where
-    S: AsRef<str> + Clone + StableAbi,
-{
+pub extern "C" fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w>) -> RString{
     extern_fn_panic_handling! {
         let this = this.as_unerased_mut::<TextOperationState>().unwrap();
 
         this.processed_bytes+=param.string.len() as u64;
 
-        let set=param.words.iter().map(|s| s.as_ref_::<str>() ).collect::<HashSet<&str>>();
+        let set=param.words.map(Into::<Cow<'w,str>>::into).collect::<HashSet<Cow<'w,str>>>();
         let mut buffer=String::new();
 
         let haystack=&*param.string;
         let mut prev_was_deleted=false;
         for kv in haystack.split_while(|c|c.is_alphabetic()) {
             let s=kv.str;
+            let cs=Cow::from(s);
             let is_a_word=kv.key;
-            let is_deleted= (!is_a_word&&prev_was_deleted) || (is_a_word && set.contains(&s));
+            let is_deleted= (!is_a_word&&prev_was_deleted) || (is_a_word && set.contains(&cs));
             if !is_deleted {
                 buffer.push_str(s);
             }
@@ -366,9 +342,11 @@ fn run_command_inner(this:&mut TOStateBox,command:Command)->ReturnValue{
                 .piped(ReturnValue::ReverseLines)
         }
         Command::RemoveWords{string,words,_marker:_}=>{
+            let iter=&mut words.iter().map(|s| RCow::Borrowed(s.as_rstr()) );
+
             remove_words(this,RemoveWords{
                 string:string.as_rstr(),
-                words:words.as_rslice(),
+                words:DynTrait::from_borrowing_ptr(iter,CowStrIter),
             })
             .piped(ReturnValue::RemoveWords)
         }

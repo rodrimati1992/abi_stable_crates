@@ -144,6 +144,8 @@ impl_InterfaceType!{
 
         // type Iterator=False;
         
+        // type DoubleEndedIterator=False;
+        
         // type Clone=False;
 
         // type Default=False;

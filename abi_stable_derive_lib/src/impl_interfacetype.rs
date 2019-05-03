@@ -51,6 +51,7 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
         ("Send",DefaultVal::True),
         ("Sync",DefaultVal::True),
         ("Iterator",DefaultVal::False),
+        ("DoubleEndedIterator",DefaultVal::False),
         ("define_this_in_the_impl_InterfaceType_macro",DefaultVal::Hidden),
     ];
 

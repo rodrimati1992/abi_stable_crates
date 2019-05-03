@@ -11,7 +11,10 @@ use std::{
 use super::{
     *,
     c_functions::*,
-    iterator::{IteratorFns,MakeIteratorFns},
+    iterator::{
+        IteratorFns,MakeIteratorFns,
+        DoubleEndedIteratorFns,MakeDoubleEndedIteratorFns,
+    },
     traits::{IteratorItemOrDefault},
 };
 
@@ -23,7 +26,7 @@ use crate::{
     std_types::{Tuple3,RSome,RNone},
 };
 
-use core_extensions::{ResultLike, StringExt,TypeIdentity};
+use core_extensions::TypeIdentity;
 
 
 
@@ -122,7 +125,7 @@ macro_rules! declare_meta_vtable {
                     match self.$priv_field().into() {
                         Some(v)=>v,
                         None=>panic_on_missing_fieldname::<
-                            VTableVal<$erased_ptr,$interf>,
+                            VTableVal<'borr,$erased_ptr,$interf>,
                             $field_ty
                         >(
                             NAME,
@@ -247,6 +250,7 @@ macro_rules! declare_meta_vtable {
                         <trait_selector::$selector as
                             VTableFieldValue<
                                 $option_ty<VTableFieldType<
+                                    'borr,
                                     trait_selector::$selector,
                                     $value,
                                     $erased_ptr,
@@ -469,7 +473,6 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceConstsBound<'borr>>::Hash")]
-        #[sabi(last_prefix_field)]
         hash:extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>);
         priv _hash;
         option=Option,Some,None;
@@ -481,7 +484,6 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceConstsBound<'borr>>::Iterator")]
-        #[sabi(last_prefix_field)]
         iter:IteratorFns< <I as InterfaceBound<'borr>>::IteratorItem >;
         priv _iter;
         option=ROption,RSome,RNone;
@@ -492,6 +494,21 @@ declare_meta_vtable! {
             I:InterfaceBound<'borr,IteratorItem=<T as Iterator>::Item>,
         ]{
             MakeIteratorFns::<T>::NEW
+        }
+    ]
+    [
+        #[sabi(last_prefix_field)]
+        #[sabi(accessible_if="<I as InterfaceConstsBound<'borr>>::DoubleEndedIterator")]
+        back_iter:DoubleEndedIteratorFns< <I as InterfaceBound<'borr>>::IteratorItem >;
+        priv _back_iter;
+        option=ROption,RSome,RNone;
+        impl[] VtableFieldValue<DoubleEndedIterator>
+        where [
+            T:DoubleEndedIterator,
+            T::Item:'borr,
+            I:InterfaceBound<'borr,IteratorItem=<T as Iterator>::Item>,
+        ]{
+            MakeDoubleEndedIteratorFns::<T>::NEW
         }
     ]
 }

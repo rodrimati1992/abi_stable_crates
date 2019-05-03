@@ -2,10 +2,10 @@ use std::{
     marker::PhantomData,
 };
 
-use super::*;
+
 
 use crate::{
-    std_types::{RVec,ROption,Tuple2},
+    std_types::{RVec,ROption,RSome,RNone,Tuple2},
     marker_type::ErasedObject,
     utils::{transmute_reference,transmute_mut_reference},
     traits::IntoReprC,
@@ -140,3 +140,94 @@ where I:Iterator
     }
 }
 
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub struct DoubleEndedIteratorFns<Item>{
+    pub(super) next_back       :extern fn(&mut ErasedObject)->ROption<Item>,
+    pub(super) extend_buffer_back:
+        extern fn(
+            &mut ErasedObject,
+            &mut RVec<Item>,
+            ROption<usize>
+        ),
+    pub(super) nth_back:extern fn(&mut ErasedObject,usize)->ROption<Item>,
+}
+
+
+impl<Item> Copy for DoubleEndedIteratorFns<Item>{}
+impl<Item> Clone for DoubleEndedIteratorFns<Item>{
+    fn clone(&self)->Self{
+        *self
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////
+
+
+pub struct MakeDoubleEndedIteratorFns<I>(PhantomData<extern fn()->I>);
+
+impl<I> MakeDoubleEndedIteratorFns<I>
+where I:DoubleEndedIterator
+{
+    pub(super) const NEW:DoubleEndedIteratorFns<I::Item>=DoubleEndedIteratorFns{
+        next_back:next_back::<I>,
+        extend_buffer_back:extend_buffer_back::<I>,
+        nth_back:nth_back::<I>,
+    };
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////
+
+
+pub(super) extern fn next_back<I>(this:&mut ErasedObject)->ROption<I::Item>
+where 
+    I:DoubleEndedIterator
+{
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,I>(this) };
+        this.next_back().into_c()
+    }
+}
+
+pub(super) extern fn extend_buffer_back<I>(
+    this:&mut ErasedObject,
+    vec:&mut RVec<I::Item>,
+    taking:ROption<usize>
+)where 
+    I:DoubleEndedIterator
+{
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,I>(this) };
+
+        vec.extend(
+            this.rev().take(taking.unwrap_or(!0))
+        );
+    }
+}
+
+pub(super) extern fn nth_back<I>(this:&mut ErasedObject,mut at:usize)->ROption<I::Item>
+where 
+    I:DoubleEndedIterator
+{
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,I>(this) };
+        for x in this.rev() {
+            if at == 0 { 
+                return RSome(x) 
+            }
+            at -= 1;
+        }
+        RNone
+    }
+}

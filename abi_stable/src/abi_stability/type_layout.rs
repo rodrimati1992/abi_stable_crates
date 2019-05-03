@@ -11,7 +11,7 @@ use std::{
 
 
 use crate::{
-    utils::empty_slice, version::VersionStrings, 
+    const_utils::empty_slice, version::VersionStrings, 
     std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr},
     ignored_wrapper::CmpIgnored,
     prefix_type::{FieldAccessibility,IsConditional},

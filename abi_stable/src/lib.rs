@@ -143,6 +143,9 @@ mod test_utils;
 pub mod utils;
 
 #[macro_use]
+pub mod const_utils;
+
+#[macro_use]
 pub mod traits;
 
 

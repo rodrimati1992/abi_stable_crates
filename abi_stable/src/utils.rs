@@ -5,7 +5,6 @@ Utility functions.
 use std::{
     cmp::Ord,
     fmt::{self,Debug,Display},
-    marker::PhantomData,
 };
 
 
@@ -20,23 +19,6 @@ use crate::std_types::RString;
 
 //////////////////////////////////////
 
-
-/// Creates an empty slice.
-pub const fn empty_slice<'a, T>() -> &'a [T]
-where
-    T: 'a,
-{
-    GetEmptySlice::<'a, T>::EMPTY
-}
-
-struct GetEmptySlice<'a, T>(&'a T);
-
-impl<'a, T> GetEmptySlice<'a, T>
-where
-    T: 'a,
-{
-    const EMPTY: &'a [T] = &[];
-}
 
 /// Prints an error message for attempting to panic across the 
 /// ffi boundary and aborts the process.
@@ -123,40 +105,6 @@ where
     }else{
         (r,l)
     }
-}
-
-
-
-//////////////////////////////////////
-
-/// Struct used to assert that its type parameters are the same type.
-pub struct AssertEq<L,R>
-where L:TypeIdentity<Type=R>
-{
-    _marker:PhantomData<(L,R)>
-}
-
-/// Allows transmuting between `From_` and `To`
-pub union Transmuter<From_:Copy,To:Copy>{
-    pub from:From_,
-    pub to:To,
-}
-
-/// Allows converting between generic types that are the same concrete type 
-/// (using AssertEq to prove that they are).
-///
-/// # Safety
-///
-/// This is safe to do,
-/// since both types are required to be the same concrete type inside the macro.
-#[macro_export]
-macro_rules! type_identity {
-    ($from:ty=>$to:ty; $expr:expr ) => {unsafe{
-        let _:$crate::utils::AssertEq<$from,$to>;
-
-        $crate::utils::Transmuter::<$from,$to>{ from:$expr }
-            .to
-    }}
 }
 
 

@@ -9,9 +9,6 @@ use std::{
 };
 
 use crate::{
-    abi_stability::{
-        type_layout::{TypeLayout,TLField,TLData,TLDataDiscriminant},
-    },
     marker_type::NotCopyNotClone,
     utils::leak_value,
 };
