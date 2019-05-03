@@ -4,7 +4,18 @@ Utility functions.
 
 use std::{
     cmp::Ord,
+    fmt::{self,Debug,Display},
+    marker::PhantomData,
 };
+
+
+use core_extensions::{
+    strings::LeftPadder,
+    prelude::*,
+};
+
+use crate::std_types::RString;
+
 
 
 //////////////////////////////////////
@@ -118,15 +129,41 @@ where
 
 //////////////////////////////////////
 
+/// Struct used to assert that its type parameters are the same type.
+pub struct AssertEq<L,R>
+where L:TypeIdentity<Type=R>
+{
+    _marker:PhantomData<(L,R)>
+}
 
-use std::fmt::{self,Debug,Display};
+/// Allows transmuting between `From_` and `To`
+pub union Transmuter<From_:Copy,To:Copy>{
+    pub from:From_,
+    pub to:To,
+}
 
-use core_extensions::{
-    strings::LeftPadder,
-    prelude::*,
-};
+/// Allows converting between generic types that are the same concrete type 
+/// (using AssertEq to prove that they are).
+///
+/// # Safety
+///
+/// This is safe to do,
+/// since both types are required to be the same concrete type inside the macro.
+#[macro_export]
+macro_rules! type_identity {
+    ($from:ty=>$to:ty; $expr:expr ) => {unsafe{
+        let _:$crate::utils::AssertEq<$from,$to>;
 
-use crate::std_types::RString;
+        $crate::utils::Transmuter::<$from,$to>{ from:$expr }
+            .to
+    }}
+}
+
+
+
+//////////////////////////////////////
+
+
 
 
 pub(crate) trait FmtPadding{

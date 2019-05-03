@@ -10,6 +10,7 @@ It exports all the modules(structs of function pointers) required by the
 
 use std::{
     collections::HashSet,
+    marker::PhantomData,
 };
 
 use example_0_interface::{
@@ -18,7 +19,7 @@ use example_0_interface::{
     DeserializerMod,
     TOState, TOStateBox,TOCommand,TOReturnValue,TOCommandBox,TOReturnValueArc,
     PrefixTypeMod0,
-    ForTests
+    ForTests,
 };
 
 use abi_stable::{
@@ -118,15 +119,28 @@ impl SerializeImplType for TextOperationState {
 
 
 #[derive(Debug,Serialize,Deserialize,PartialEq)]
-pub enum Command {
+pub enum Command<'a> {
     ReverseLines(RString),
     RemoveWords{
         string:RString,
         words:RVec<RString>,
+        #[serde(skip)]
+        _marker:PhantomData<&'a mut RString>,
     },
     GetProcessedBytes,
-    Batch(RVec<Command>),
+    Batch(RVec<Command<'a>>),
 }
+
+
+
+impl<'a> Iterator for Command<'a>{
+    type Item=&'a mut RString;
+
+    fn next(&mut self)->Option<Self::Item>{
+        None
+    }
+}
+
 
 /// Declares TOState as the `ìnterface type` of `TOCommand`.
 ///
@@ -135,14 +149,14 @@ pub enum Command {
 ///
 /// TOCommand defines which traits are required when constructing DynTrait<_>,
 /// and which ones it provides after constructing it.
-impl ImplType for Command {
+impl ImplType for Command<'static> {
     type Interface = TOCommand;
 
     const INFO: &'static TypeInfo=impl_get_type_info! { Command };
 }
 
 /// Defines how the type is serialized in DynTrait<_>.
-impl SerializeImplType for Command {
+impl<'borr> SerializeImplType for Command<'borr> {
     fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
         serialize_json(self)
     }
@@ -218,9 +232,9 @@ pub extern "C" fn deserialize_state(s:RStr<'_>) -> RResult<TOStateBox, RBoxError
 }
 
 /// Defines how a TOCommandBox is deserialized from json.
-pub extern "C" fn deserialize_command<'borr>(
+pub extern "C" fn deserialize_command(
     s:RStr<'_>
-) -> RResult<TOCommandBox<'borr>, RBoxError>{
+) -> RResult<TOCommandBox<'static>, RBoxError>{
     extern_fn_panic_handling! {
         deserialize_json::<Command>(s)
             .map(RBox::new)
@@ -235,7 +249,7 @@ pub extern "C" fn deserialize_command_borrowing<'borr>(
     extern_fn_panic_handling! {
         deserialize_json::<Command>(s)
             .map(RBox::new)
-            .map(DynTrait::from_ptr)
+            .map(|x|DynTrait::from_borrowing_ptr(x,TOCommand))
     }
 }
 
@@ -351,7 +365,7 @@ fn run_command_inner(this:&mut TOStateBox,command:Command)->ReturnValue{
             reverse_lines(this,s.as_rstr())
                 .piped(ReturnValue::ReverseLines)
         }
-        Command::RemoveWords{string,words}=>{
+        Command::RemoveWords{string,words,_marker:_}=>{
             remove_words(this,RemoveWords{
                 string:string.as_rstr(),
                 words:words.as_rslice(),
@@ -373,9 +387,12 @@ fn run_command_inner(this:&mut TOStateBox,command:Command)->ReturnValue{
 
 
 /// An interpreter for text operation commands
-pub extern "C" fn run_command(this:&mut TOStateBox,command:TOCommandBox)->TOReturnValueArc{
+pub extern "C" fn run_command(
+    this:&mut TOStateBox,
+    command:TOCommandBox<'static>
+)->TOReturnValueArc{
     extern_fn_panic_handling! {
-        let command = command.into_unerased::<Command>().unwrap().piped(RBox::into_inner);
+        let command = command.into_unerased::<Command<'static>>().unwrap().piped(RBox::into_inner);
         run_command_inner(this,command)
             .piped(RArc::new)
             .piped(DynTrait::from_ptr)

@@ -9,18 +9,22 @@ use std::{
     ops::Deref,
 };
 
-use core_extensions::type_level_bool::{Boolean, False, True};
 
 use serde::{Serialize, Serializer};
 
 use crate::{
     traits::{IntoReprC, IntoReprRust},
     std_types::{RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,RResult, RSlice, RString,RStr},
+    type_level::{
+        //option::{Some_,None_,SomeTrait}
+        bools::{Boolean, False, True},
+    },
 };
 
 pub(crate)mod c_functions;
 pub mod trait_objects;
 pub mod type_info;
+pub(crate) mod iterator;
 pub mod dyn_trait;
 pub(crate) mod vtable;
 pub mod traits;
@@ -30,7 +34,7 @@ pub use self::{
     vtable::{ GetVtable,InterfaceBound,InterfaceConstsBound},
     traits::{
         ImplType, InterfaceType, SerializeImplType, DeserializeOwnedInterface,
-        DeserializeBorrowedInterface,
+        DeserializeBorrowedInterface,IteratorItem,
     },
     type_info::TypeInfo,
 };

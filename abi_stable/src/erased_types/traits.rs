@@ -93,6 +93,8 @@ impl_InterfaceType!{
         // Changing this to require/unrequire in minor versions,is an abi breaking change.
         // type Sync=True;
 
+        // type Iterator=False;
+
         // type Default=False;
 
         // type Display=False;
@@ -120,7 +122,7 @@ impl_InterfaceType!{
 
 
 */
-pub trait InterfaceType: Sized + 'static + StableAbi {
+pub trait InterfaceType: Sized + 'static  {
     /// Changing this to require/unrequire in minor versions,is an abi breaking change.
     type Send;
 
@@ -148,6 +150,8 @@ pub trait InterfaceType: Sized + 'static + StableAbi {
     type Hash;
 
     type Deserialize;
+
+    type Iterator;
 
     #[doc(hidden)]
     type define_this_in_the_impl_InterfaceType_macro;
@@ -202,7 +206,32 @@ pub trait DeserializeBorrowedInterface<'borr>: InterfaceType<Deserialize = True>
 /////////////////////////////////////////////////////////////////////
 
 
+pub trait IteratorItem<'a>:InterfaceType{
+    type Item:'a;
+}
 
+
+
+/// Gets the Item type of an Iterator.
+pub trait IteratorItemOrDefault<'borr,ImplIsRequired>:InterfaceType{
+    type Item:'borr;
+}
+
+
+impl<'borr,I,Item> IteratorItemOrDefault<'borr,True> for I
+where
+    I:InterfaceType+IteratorItem<'borr,Item=Item>,
+    Item:'borr,
+{
+    type Item=Item;
+}
+
+
+impl<'borr,I> IteratorItemOrDefault<'borr,False> for I
+where I:InterfaceType
+{
+    type Item=();
+}
 
 
 //////////////////////////////////////////////////////////////////
