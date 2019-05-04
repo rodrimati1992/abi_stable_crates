@@ -162,8 +162,6 @@ impl_into_rust_repr! {
 ///////////////////////////////////////////////////////////////////////////
 
 /// Ffi safe equivalent to ::std::io::Error.
-///
-/// I can be created from an  io::Error,but it cannot be converted back.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -177,8 +175,38 @@ impl_from_rust_repr! {
         fn(this){
             RIoError{
                 kind:this.kind().into(),
-                error:this.piped(RBoxError::new).piped(RSome)
+                error:this.into_inner().map(RBoxError::from_box).into_c()
             }
+        }
+    }
+}
+
+impl_into_rust_repr! {
+    impl Into<ioError> for RIoError {
+        fn(this){
+            let kind=this.kind().into_(ErrorKind::T);
+            match this.into_inner() {
+                Some(e)=>ioError::new(kind,RBoxError::into_box(e)),
+                None=>ioError::from(kind),
+            }
+        }
+    }
+}
+
+impl From<RIoErrorKind> for RIoError{
+    fn from(kind:RIoErrorKind)->Self{
+        Self{ 
+            kind, 
+            error:RNone,
+        }
+    }
+}
+
+impl From<ErrorKind> for RIoError{
+    fn from(kind:ErrorKind)->Self{
+        Self{ 
+            kind:kind.into(),
+            error:RNone
         }
     }
 }
@@ -205,7 +233,7 @@ impl RIoError {
 
     /// Constructs an RIoError from a 
     /// `Box<dyn ErrorTrait+Send+Sync+'static>` and a `std::io::ErrorKind`.
-    pub fn with_boxerror(kind: ErrorKind, error: Box<dyn ErrorTrait+Send+Sync+'static>) -> Self{
+    pub fn with_box(kind: ErrorKind, error: Box<dyn ErrorTrait+Send+Sync+'static>) -> Self{
         RIoError {
             kind: kind.into_c(),
             error: RSome(RBoxError::from_box(error)),
@@ -329,7 +357,7 @@ mod io_error_tests{
         let err=Stringy::new("What\nis\ra\tline");
         let box_=err.clone().piped(Box::new);
         let addr=deref_address(&box_);
-        let ioerr=RIoError::with_boxerror(ErrorKind::Other,box_);
+        let ioerr=RIoError::with_box(ErrorKind::Other,box_);
 
         check_formatting_equivalence(&err,&ioerr);
 

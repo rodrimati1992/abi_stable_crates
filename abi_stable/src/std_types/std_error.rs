@@ -308,7 +308,7 @@ macro_rules! from_impls {
             /// otherwise the RBoxError_<_> will be converted into an `Box<dyn Error + ... >`
             /// using `Box::new`.
             pub fn into_box(self)->$boxdyn{
-                match dbg!(self.downcast::<$boxdyn>()) {
+                match self.downcast::<$boxdyn>() {
                     Ok(e)=>e.piped(RBox::into_inner),
                     Err(e)=>Box::new(e),
                 }

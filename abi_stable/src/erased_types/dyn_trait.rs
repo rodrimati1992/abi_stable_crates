@@ -3,6 +3,8 @@ Contains the `DynTrait` type,and related traits/type aliases.
 */
 
 use std::{
+    fmt::{self,Write as fmtWrite},
+    io,
     ops::DerefMut,
     marker::PhantomData,
     mem::ManuallyDrop,
@@ -18,7 +20,7 @@ use crate::{
     abi_stability::SharedStableAbi,
     pointer_trait::{StableDeref, TransmuteElement},
     marker_type::ErasedObject, 
-    std_types::{RBox, RCow, RStr,RVec},
+    std_types::{RBox, RCow, RStr,RVec,RIoError},
 };
 
 #[allow(unused_imports)]
@@ -34,6 +36,7 @@ use super::{
 
 
 #[cfg(test)]
+// #[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
 mod priv_ {
@@ -817,6 +820,9 @@ where
 }
 
 
+//////////////////////////////////////////////////////////////////
+
+
 impl<'borr,P, I,Item> Iterator for DynTrait<'borr,P,I>
 where
     P: DerefMut,
@@ -869,6 +875,9 @@ where
 }
 
 
+//////////////////////////////////////////////////////////////////
+
+
 impl<'borr,P, I,Item> DoubleEndedIterator for DynTrait<'borr,P,I>
 where
     Self:Iterator<Item=Item>,
@@ -901,6 +910,128 @@ where
 }
 
 
+//////////////////////////////////////////////////////////////////
+
+
+impl<'borr,P,I> fmtWrite for DynTrait<'borr,P,I>
+where
+    P: DerefMut,
+    I: InterfaceConstsBound<'borr,FmtWrite = True>,
+{
+    fn write_str(&mut self, s: &str) -> Result<(), fmt::Error>{
+        let vtable = self.vtable();
+        match vtable.fmt_write_str()(self.as_abi_mut(),s.into()) {
+            ROk(_)=>Ok(()),
+            RErr(_)=>Err(fmt::Error),
+        }
+    }
+}
+
+
+
+//////////////////////////////////////////////////////////////////
+
+
+#[inline]
+fn to_io_result<T,U>(res:RResult<T,RIoError>)->io::Result<U>
+where
+    T:Into<U>
+{
+    match res {
+        ROk(v)=>Ok(v.into()),
+        RErr(e)=>Err(e.into()),
+    }
+}
+
+
+/////////////
+
+
+impl<'borr,P,I> io::Write for DynTrait<'borr,P,I>
+where
+    P: DerefMut,
+    I: InterfaceConstsBound<'borr,IoWrite = True>,
+{
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize>{
+        let vtable = self.vtable().io_write();
+
+        to_io_result((vtable.write)(self.as_abi_mut(),buf.into()))
+    }
+    fn flush(&mut self) -> io::Result<()>{
+        let vtable = self.vtable().io_write();
+
+        to_io_result((vtable.flush)(self.as_abi_mut()))
+    }
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        let vtable = self.vtable().io_write();
+
+        to_io_result((vtable.write_all)(self.as_abi_mut(),buf.into()))
+    }
+}
+
+
+/////////////
+
+
+impl<'borr,P,I> io::Read for DynTrait<'borr,P,I>
+where
+    P: DerefMut,
+    I: InterfaceConstsBound<'borr,IoRead = True>,
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>{
+        let vtable = self.vtable().io_read();
+
+        to_io_result((vtable.read)(self.as_abi_mut(),buf.into()))
+    }
+
+    fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
+        let vtable = self.vtable().io_read();
+
+        to_io_result((vtable.read_exact)(self.as_abi_mut(),buf.into()))
+    }
+
+}
+
+
+/////////////
+
+
+impl<'borr,P,I> io::BufRead for DynTrait<'borr,P,I>
+where
+    P: DerefMut,
+    I: InterfaceConstsBound<'borr,IoRead = True,IoBufRead = True>,
+{
+    fn fill_buf(&mut self) -> io::Result<&[u8]>{
+        let vtable = self.vtable().io_bufread();
+
+        to_io_result((vtable.fill_buf)(self.as_abi_mut()))
+    }
+
+    fn consume(&mut self, ammount:usize ){
+        let vtable = self.vtable().io_bufread();
+
+        (vtable.consume)(self.as_abi_mut(),ammount)
+    }
+
+}
+
+/////////////
+
+
+impl<'borr,P,I> io::Seek for DynTrait<'borr,P,I>
+where
+    P: DerefMut,
+    I: InterfaceConstsBound<'borr,IoSeek = True>,
+{
+    fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64>{
+        let vtable = self.vtable();
+
+        to_io_result(vtable.io_seek()(self.as_abi_mut(),pos.into()))
+    }
+}
+
+
+//////////////////////////////////////////////////////////////////
 
 unsafe impl<'borr,P,I> Send for DynTrait<'borr,P,I>
 where

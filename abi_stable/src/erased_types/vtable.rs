@@ -4,7 +4,8 @@ Contains `DynTrait<_>`'s vtable,and related types/traits.
 
 */
 use std::{
-    fmt::{self, Debug},
+    fmt::{self, Debug,Write as FmtWrite},
+    io,
     marker::PhantomData,
 };
 
@@ -23,7 +24,7 @@ use crate::{
     abi_stability::{Tag,SharedStableAbi},
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
-    std_types::{Tuple3,RSome,RNone},
+    std_types::{Tuple3,RSome,RNone,RIoError,RSeekFrom},
 };
 
 use core_extensions::TypeIdentity;
@@ -497,7 +498,6 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(last_prefix_field)]
         #[sabi(accessible_if="<I as InterfaceConstsBound<'borr>>::DoubleEndedIterator")]
         back_iter:DoubleEndedIteratorFns< <I as InterfaceBound<'borr>>::IteratorItem >;
         priv _back_iter;
@@ -506,9 +506,67 @@ declare_meta_vtable! {
         where [
             T:DoubleEndedIterator,
             T::Item:'borr,
-            I:InterfaceBound<'borr,IteratorItem=<T as Iterator>::Item>,
+            I:InterfaceBound<'borr,Iterator=True,IteratorItem=<T as Iterator>::Item>,
         ]{
             MakeDoubleEndedIteratorFns::<T>::NEW
+        }
+    ]
+    [
+        #[sabi(accessible_if="<I as InterfaceConstsBound<'borr>>::FmtWrite")]
+        fmt_write_str:extern "C" fn(&mut ErasedObject,RStr<'_>)->RResult<(),()>;
+        priv _fmt_write_str;
+        option=Option,Some,None;
+        impl[] VtableFieldValue<FmtWrite>
+        where [ T:FmtWrite ]
+        {
+            write_str_fmt_write::<T>
+        }
+    ]
+    [
+        #[sabi(accessible_if="<I as InterfaceConstsBound<'borr>>::IoWrite")]
+        io_write:IoWriteFns;
+        priv _io_write;
+        option=ROption,RSome,RNone;
+        impl[] VtableFieldValue<IoWrite>
+        where [ T:io::Write ]
+        {
+            MakeIoWriteFns::<T>::NEW
+        }
+    ]
+    [
+        #[sabi(accessible_if="<I as InterfaceConstsBound<'borr>>::IoRead")]
+        io_read:IoReadFns;
+        priv _io_read;
+        option=ROption,RSome,RNone;
+        impl[] VtableFieldValue<IoRead>
+        where [ T:io::Read ]
+        {
+            MakeIoReadFns::<T>::NEW
+        }
+    ]
+    [
+        #[sabi(accessible_if="<I as InterfaceConstsBound<'borr>>::IoBufRead")]
+        io_bufread:IoBufReadFns;
+        priv _io_bufread;
+        option=ROption,RSome,RNone;
+        impl[] VtableFieldValue<IoBufRead>
+        where [ 
+            T:io::BufRead,
+            I:InterfaceType<IoRead=True>
+        ]{
+            MakeIoBufReadFns::<T>::NEW
+        }
+    ]
+    [
+        #[sabi(last_prefix_field)]
+        #[sabi(accessible_if="<I as InterfaceConstsBound<'borr>>::IoSeek")]
+        io_seek:extern "C" fn(&mut ErasedObject,RSeekFrom)->RResult<u64,RIoError>;
+        priv _io_seek;
+        option=Option,Some,None;
+        impl[] VtableFieldValue<IoSeek>
+        where [ T:io::Seek ]
+        {
+            io_Seek_seek::<T>
         }
     ]
 }

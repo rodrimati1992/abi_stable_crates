@@ -168,18 +168,20 @@ where
 */
 #[macro_export]
 macro_rules! extern_fn_panic_handling {
-    ( $($fn_contents:tt)* ) => ({
-        use std::panic::{self,AssertUnwindSafe};
-
-        let result=panic::catch_unwind(AssertUnwindSafe(move||{
+    ( $($fn_contents:tt)* ) => (
+        let mut aborter_guard={
+            use $crate::utils::{AbortBomb,PanicInfo};
+            const BOMB:AbortBomb=AbortBomb{
+                fuse:Some(&PanicInfo{file:file!(),line:line!()})
+            };
+            BOMB
+        };
+        let res=(move||{
             $($fn_contents)*
-        }));
-
-        match result {
-            Ok(x)=>x,
-            Err(_)=>$crate::utils::ffi_panic_message(file!(),line!()),
-        }
-    })
+        })();
+        aborter_guard.fuse=None;
+        res
+    )
 }
 
 

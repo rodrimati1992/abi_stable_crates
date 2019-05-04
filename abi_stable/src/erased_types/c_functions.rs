@@ -1,12 +1,21 @@
 #![allow(non_snake_case)]
 
-use std::{ptr,mem};
+use std::{
+    fmt,
+    io::{self,Write as IoWrite,Read,BufRead,Seek},
+    ptr,
+    mem,
+};
 
 use super::*;
 
 use crate::{
     marker_type::ErasedObject,
     utils::{transmute_reference,transmute_mut_reference},
+    std_types::{
+        RIoError,
+        RSeekFrom,
+    },
 };
 
 use core_extensions::utils::transmute_ignore_size;
@@ -221,64 +230,246 @@ where
     }
 }
 
-// //////////////////////////////////////////////////////////////////////////////////////
-// ////                        fmt/io
-// //////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+////                        fmt
+//////////////////////////////////////////////////////////////////////////////////////
 
-// pub extern fn write_str_fmt_write<T>(this:&mut T, data:RStr<'_>) -> RResult<(), ()>
-// where T:fmt::Write,
-// {
-//     fmt::Write::write_str(this,data).map_err(drop)
-// }
 
-// pub extern fn write_char_fmt_writer<T>(this:&mut T,c:char) -> RResult<(), ()>
-// where T:fmt::Write,
-// {
-//     fmt::Write::write_char(this,c).map_err(drop)
-// }
+pub(super) extern fn write_str_fmt_write<T>(
+    this:&mut ErasedObject, 
+    data:RStr<'_>
+) -> RResult<(), ()>
+where T:fmt::Write,
+{
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,T>(this) };
+        match fmt::Write::write_str(this,data.as_str()) {
+            Ok(())=>ROk(()),
+            Err(_)=>RErr(()),
+        }
+    }
+}
 
-// pub extern fn write_io_write<T>(this:&mut T, data:RSlice<'_,u8>) -> RResult<usize,RIoError>
-// where T:io::Write,
-// {
-//     io::Write::write(this,data).map_err(IntoReprC::into_c).into_c()
-// }
 
-// pub extern fn flush_io_write<T>(this:&mut T) -> RResult<(),RIoError>
-// where T:io::Write,
-// {
-//     io::Write::flush(this).map_err(IntoReprC::into_c).into_c()
-// }
+//////////////////////////////////////////////////////////////////////////////////////
+////                         io
+//////////////////////////////////////////////////////////////////////////////////////
 
-// pub extern fn write_all_io_write<T>(this:&mut T, buf: RSlice<'_,u8>) -> RResult<(),RIoError>
-// where T:io::Write,
-// {
-//     io::Write::write_all(this,buf).map_err(IntoReprC::into_c).into_c()
-// }
 
-// pub extern fn read_io_read<T>(this:&mut T, buf: RSliceMut<'_,u8>) -> RResult<usize,RIoError>
-// where T:io::Read,
-// {
-//     io::Read::read(this,buf).map_err(IntoReprC::into_c).into_c()
 
-// }
+#[inline]
+fn convert_io_result<T,U>(res:io::Result<T>)->RResult<U,RIoError>
+where
+    T:Into<U>
+{
+    match res {
+        Ok(v)=>ROk(v.into()),
+        Err(e)=>RErr(RIoError::from(e)),
+    }
+}
 
-// pub extern fn read_exact_io_read<T>(this:&mut T, buf: RSliceMut<'_,u8>) -> RResult<(),RIoError>
-// where T:io::Read,
-// {
-//     io::Read::read_exact(this,buf).map_err(IntoReprC::into_c).into_c()
-// }
 
-// pub extern fn fill_buf_io_bufread<T>(this:&mut T) -> RResult<RSlice<'_,u8>,RIoError>
-// where T:io::BufRead,
-// {
-//     match io::BufRead::fill_buf(this) {
-//         Ok(x) =>ROk(x.into_c()),
-//         Err(x)=>RErr(x.into_c()),
-//     }
-// }
+///////////////////////////
 
-// pub extern fn consume_io_bufread<T>(this:&mut T, amt: usize)
-// where T:io::BufRead,
-// {
-//     io::BufRead::consume(this,amt)
-// }
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+#[derive(Copy,Clone)]
+pub struct IoWriteFns{
+    pub(super) write:
+        extern "C" fn (
+            &mut ErasedObject,
+            buf: RSlice<'_,u8>
+        ) -> RResult<usize,RIoError>,
+
+    pub(super) write_all:
+        extern "C" fn (
+            &mut ErasedObject,
+            buf: RSlice<'_,u8>
+        ) -> RResult<(),RIoError>,
+
+    pub(super) flush:extern "C" fn (&mut ErasedObject) -> RResult<(),RIoError>,
+}
+
+
+pub(super) struct MakeIoWriteFns<W>(W);
+
+impl<W> MakeIoWriteFns<W>
+where
+    W:IoWrite
+{
+    pub(super) const NEW:IoWriteFns=IoWriteFns{
+        write:io_Write_write::<W>,
+        write_all:io_Write_write_all::<W>,
+        flush:io_Write_flush::<W>,
+    };
+}
+
+
+pub(super) extern "C" fn io_Write_write<W>(
+    this:&mut ErasedObject, 
+    buf: RSlice<'_,u8>
+) -> RResult<usize,RIoError>
+where W:IoWrite
+{
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,W>(this) };
+
+        convert_io_result(this.write(buf.into()))
+    }
+}
+
+pub(super) extern "C" fn io_Write_write_all<W>(
+    this:&mut ErasedObject, 
+    buf: RSlice<'_,u8>
+) -> RResult<(),RIoError>
+where W:IoWrite
+{
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,W>(this) };
+
+        convert_io_result(this.write_all(buf.into()))
+    }
+}
+
+pub(super) extern "C" fn io_Write_flush<W>( this:&mut ErasedObject ) -> RResult<(),RIoError>
+where W:IoWrite
+{
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,W>(this) };
+
+        convert_io_result(this.flush())
+    }
+}
+
+
+///////////////////////////
+
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+#[derive(Copy,Clone)]
+pub struct IoReadFns{
+    pub(super) read:
+        extern "C" fn(&mut ErasedObject,RSliceMut<'_,u8>) -> RResult<usize,RIoError>,
+
+    pub(super) read_exact:
+        extern "C" fn(&mut ErasedObject,RSliceMut<'_,u8>) -> RResult<(),RIoError>,
+}
+
+
+pub(super) struct MakeIoReadFns<W>(W);
+
+impl<W> MakeIoReadFns<W>
+where
+    W:io::Read
+{
+    pub(super) const NEW:IoReadFns=IoReadFns{
+        read:io_Read_read::<W>,
+        read_exact:io_Read_read_exact::<W>,
+    };
+}
+
+
+pub(super) extern "C" fn io_Read_read<R>(
+    this:&mut ErasedObject, 
+    buf: RSliceMut<'_,u8>
+) -> RResult<usize,RIoError>
+where R:Read
+{
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,R>(this) };
+
+        convert_io_result(this.read(buf.into()))
+    }
+}
+
+
+pub(super) extern "C" fn io_Read_read_exact<R>(
+    this:&mut ErasedObject, 
+    buf: RSliceMut<'_,u8>
+) -> RResult<(),RIoError>
+where R:Read
+{
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,R>(this) };
+
+        convert_io_result(this.read_exact(buf.into()))
+    }
+}
+
+///////////////////////////
+
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+#[derive(Copy,Clone)]
+pub struct IoBufReadFns{
+    pub(super) fill_buf:
+        extern "C" fn(&mut ErasedObject) -> RResult<RSlice<'_,u8>,RIoError>,
+
+    pub(super) consume:extern "C" fn(&mut ErasedObject,usize)
+}
+
+
+pub(super) struct MakeIoBufReadFns<W>(W);
+
+impl<W> MakeIoBufReadFns<W>
+where
+    W:io::BufRead
+{
+    pub(super) const NEW:IoBufReadFns=IoBufReadFns{
+        fill_buf:io_BufRead_fill_buf::<W>,
+        consume:io_BufRead_consume::<W>,
+    };
+}
+
+pub(super) extern "C" fn io_BufRead_fill_buf<'a,R>(
+    this:&mut ErasedObject,
+) -> RResult<RSlice<'_,u8>,RIoError>
+where R:BufRead
+{
+    extern_fn_panic_handling! {unsafe{
+        let this=transmute_mut_reference::<ErasedObject,R>(this);
+
+        mem::transmute::<
+            RResult<RSlice<'_,u8>,RIoError>,
+            RResult<RSlice<'_,u8>,RIoError>
+        >(convert_io_result(this.fill_buf()))
+    }}
+}
+
+
+pub(super) extern "C" fn io_BufRead_consume<R>(
+    this:&mut ErasedObject, 
+    ammount: usize
+)where 
+    R:BufRead
+{
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,R>(this) };
+
+        this.consume(ammount)
+    }
+}
+
+
+///////////////////////////
+
+
+pub(super) extern "C" fn io_Seek_seek<S>(
+    this:&mut ErasedObject,
+    seek_from:RSeekFrom,
+) -> RResult<u64,RIoError>
+where 
+    S:io::Seek
+{
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_mut_reference::<ErasedObject,S>(this) };
+
+        convert_io_result(this.seek(seek_from.into()))
+    }
+}
