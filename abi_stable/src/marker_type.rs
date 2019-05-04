@@ -2,7 +2,7 @@
 Zero-sized types .
 */
 
-use std::{marker::PhantomData, rc::Rc};
+use std::{cell::Cell,marker::PhantomData, rc::Rc};
 
 use crate::{
     derive_macro_reexports::*, 
@@ -23,6 +23,14 @@ pub struct SyncSend;
 #[sabi(inside_abi_stable_crate)]
 pub struct UnsyncUnsend {
     _marker: UnsafeIgnoredType<Rc<()>>,
+}
+
+/// Marker type used to mark a type as being Send+!Sync.
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub struct UnsyncSend {
+    _marker: UnsafeIgnoredType<Cell<()>>,
 }
 
 
