@@ -14,7 +14,10 @@ use serde::{Serialize, Serializer};
 
 use crate::{
     traits::{IntoReprC, IntoReprRust},
-    std_types::{RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,RResult, RSlice, RString,RStr},
+    std_types::{
+        RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,RResult, RString,RStr,
+        RSlice, RSliceMut
+    },
     type_level::{
         //option::{Some_,None_,SomeTrait}
         bools::{Boolean, False, True},

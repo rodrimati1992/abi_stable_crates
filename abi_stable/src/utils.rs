@@ -20,15 +20,39 @@ use crate::std_types::RString;
 //////////////////////////////////////
 
 
+#[derive(Debug,Copy,Clone)]
+pub struct PanicInfo{
+    pub file:&'static str,
+    pub line:u32,
+}
+
+
 /// Prints an error message for attempting to panic across the 
 /// ffi boundary and aborts the process.
 #[inline(never)]
 #[cold]
-pub fn ffi_panic_message(file: &'static str, line: u32) -> ! {
-    eprintln!("\nfile:{}\nline:{}", file, line);
+pub fn ffi_panic_message(info:&'static PanicInfo) -> ! {
+    eprintln!("\nfile:{}\nline:{}", info.file, info.line);
     eprintln!("Attempted to panic across the ffi boundary.");
     eprintln!("Aborting to handle the panic...\n");
-    ::std::process::abort();
+    std::process::exit(1);
+}
+
+
+//////////////////////////////////
+
+
+#[doc(hidden)]
+pub struct AbortBomb{
+    pub fuse:Option<&'static PanicInfo>,
+}
+
+impl Drop for AbortBomb{
+    fn drop(&mut self){
+        if let Some(fuse)=self.fuse {
+            ffi_panic_message(fuse);
+        }
+    }
 }
 
 

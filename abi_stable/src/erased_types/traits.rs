@@ -46,123 +46,163 @@ pub trait ImplType: Sized  {
     const INFO: &'static TypeInfo;
 }
 
-/**
-Defines the usable/required traits when creating a 
-`DynTrait<Pointer<ZeroSized< ThisType >>>`
-from a type that implements `ImplType<Interface= ThisType >` .
 
-This trait can only be implemented within the `impl_InterfaceType` macro,
-giving a default value to each associated type,
-so that adding associated types is not a breaking change.
+macro_rules! declare_InterfaceType {
+    (
 
-The value of every associated type is `True`/`False`.
+        $(#[$attrs:meta])*
 
-On `True`,the trait would be required by and usable in `DynTrait`.
-
-On `False`,the trait would not be required by and not usable in `DynTrait`.
-
-# Example
-
-```
-
-use abi_stable::{
-    StableAbi,
-    impl_InterfaceType,
-    erased_types::InterfaceType,
-    type_level::bools::*,
-};
-
-#[repr(C)]
-#[derive(StableAbi)]
-pub struct FooInterface;
-
-impl_InterfaceType!{
-    impl InterfaceType for FooInterface {
-        type Clone=True;
-
-        type Debug=True;
-
-        /////////////////////////////////////    
-        //// defaulted associated types
-        /////////////////////////////////////
-
-        // Changing this to require/unrequire in minor versions,is an abi breaking change.
-        // type Send=True;
-
-        // Changing this to require/unrequire in minor versions,is an abi breaking change.
-        // type Sync=True;
-
-        // type Iterator=False;
-
-        // type DoubleEndedIterator=False;
-
-        // type Default=False;
-
-        // type Display=False;
-
-        // type Serialize=False;
-
-        // type Eq=False;
-
-        // type PartialEq=False;
-
-        // type Ord=False;
-
-        // type PartialOrd=False;
-
-        // type Hash=False;
-
-        // type Deserialize=False;
-    }
+        assoc_types[ 
+            $( 
+                $(#[$assoc_attrs:meta])*
+                type $trait_:ident ;
+            )* 
+        ]
+    ) => (
+        $(#[$attrs])*
+        pub trait InterfaceType: Sized + 'static  {
+            $(
+                $(#[$assoc_attrs])*
+                type $trait_;
+            )*
+        }
+    )
 }
 
-# fn main(){}
+
+declare_InterfaceType!{
 
 
-```
+    /**
+    Defines the usable/required traits when creating a 
+    `DynTrait<Pointer<ZeroSized< ThisType >>>`
+    from a type that implements `ImplType<Interface= ThisType >` .
+
+    This trait can only be implemented within the `impl_InterfaceType` macro,
+    giving a default value to each associated type,
+    so that adding associated types is not a breaking change.
+
+    The value of every associated type is `True`/`False`.
+
+    On `True`,the trait would be required by and usable in `DynTrait`.
+
+    On `False`,the trait would not be required by and not usable in `DynTrait`.
+
+    # Example
+
+    ```
+
+    use abi_stable::{
+        StableAbi,
+        impl_InterfaceType,
+        erased_types::InterfaceType,
+        type_level::bools::*,
+    };
+
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub struct FooInterface;
+
+    impl_InterfaceType!{
+        impl InterfaceType for FooInterface {
+            type Clone=True;
+
+            type Debug=True;
+
+            /////////////////////////////////////    
+            //// defaulted associated types
+            /////////////////////////////////////
+
+            // Changing this to require/unrequire in minor versions,is an abi breaking change.
+            // type Send=True;
+
+            // Changing this to require/unrequire in minor versions,is an abi breaking change.
+            // type Sync=True;
+
+            // type Iterator=False;
+
+            // type DoubleEndedIterator=False;
+
+            // type Default=False;
+
+            // type Display=False;
+
+            // type Serialize=False;
+
+            // type Eq=False;
+
+            // type PartialEq=False;
+
+            // type Ord=False;
+
+            // type PartialOrd=False;
+
+            // type Hash=False;
+
+            // type Deserialize=False;
+        }
+    }
+
+    # fn main(){}
 
 
-*/
-pub trait InterfaceType: Sized + 'static  {
-    /// Changing this to require/unrequire in minor versions,is an abi breaking change.
-    type Send;
+    ```
 
-    /// Changing this to require/unrequire in minor versions,is an abi breaking change.
-    type Sync;
 
-    type Clone;
+    */
 
-    type Default;
 
-    type Display;
+    assoc_types[
+        /// Changing this to require/unrequire in minor versions,is an abi breaking change.
+        type Send;
 
-    type Debug;
+        /// Changing this to require/unrequire in minor versions,is an abi breaking change.
+        type Sync;
 
-    type Serialize;
+        type Clone;
 
-    type Eq;
+        type Default;
 
-    type PartialEq;
+        type Display;
 
-    type Ord;
+        type Debug;
 
-    type PartialOrd;
+        type Serialize;
 
-    type Hash;
+        type Eq;
 
-    type Deserialize;
+        type PartialEq;
 
-    type Iterator;
-    
-    type DoubleEndedIterator;
+        type Ord;
 
-    #[doc(hidden)]
-    type define_this_in_the_impl_InterfaceType_macro;
+        type PartialOrd;
 
-    // type FmtWrite;
-    // type IoWrite;
-    // type IoRead;
-    // type IoBufRead;
+        type Hash;
+
+        type Deserialize;
+
+        type Iterator;
+        
+        type DoubleEndedIterator;
+
+        type FmtWrite;
+        
+        type IoWrite;
+        
+        type IoSeek;
+        
+        type IoRead;
+
+        type IoBufRead;
+
+        #[doc(hidden)]
+        type __IsRef;
+
+        #[doc(hidden)]
+        type define_this_in_the_impl_InterfaceType_macro;
+    ]
+
+
 }
 
 

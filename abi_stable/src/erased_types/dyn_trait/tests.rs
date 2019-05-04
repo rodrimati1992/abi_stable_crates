@@ -872,6 +872,169 @@ mod submod{
 
     ///////////////////////////////////////////////////////////////////////////////////
 
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    struct FmtInterface;
+
+    crate::impl_InterfaceType!{
+        impl crate::InterfaceType for FmtInterface {
+            type FmtWrite = True;
+        }
+    }
+
+
+    #[test]
+    fn fmt_write(){
+        use std::fmt::Write;
+        let mut s=String::new();
+        {
+            let mut wrapped=DynTrait::from_any_ptr(&mut s,FmtInterface);
+            wrapped.write_char('¿').unwrap();
+            wrapped.write_str("Hello").unwrap();
+            wrapped.write_char('?').unwrap();
+        }
+        assert_eq!(&*s,"¿Hello?" );
+    }
+
+
+
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    struct IoInterface;
+
+    crate::impl_InterfaceType!{
+        impl crate::InterfaceType for IoInterface {
+            type IoWrite=True;
+    
+            type IoSeek=True;
+            
+            type IoRead=True;
+
+            type IoBufRead=True;
+        }
+    }
+
+    #[test]
+    fn io_write(){
+        use std::io::{Write,Cursor};
+
+        const FILLER:u8=255;
+
+        let mut buff=vec![FILLER;9];
+        let mut buff=buff[..].piped_mut(Cursor::new);
+        {
+            let mut wrapped=DynTrait::from_borrowing_ptr(&mut buff,IoInterface);
+            assert_eq!(wrapped.write(&[0,1]).map_err(drop), Ok(2));
+            
+            wrapped.write_all(&[2,3,4,5]).unwrap();
+            
+        }
+        assert_eq!(&**buff.get_ref(),&[0,1,2,3,4,5,FILLER,FILLER,FILLER][..]);
+        {
+            let mut wrapped=DynTrait::from_borrowing_ptr(&mut buff,IoInterface);
+
+            wrapped.write_all(&[2,3,4,5,6,7,8,9,10]).unwrap_err();
+            
+            wrapped.flush().unwrap();
+        }
+    }
+
+    #[test]
+    fn io_read(){
+        use std::io::{Read,Cursor};
+
+        let mut buff=vec![1,2,3,4,5,6,7,8,9,10].piped(Cursor::new);
+        let mut out=vec![0;400];
+
+        let mut wrapped=DynTrait::from_any_ptr(&mut buff,IoInterface);
+        assert_eq!(
+            wrapped.read(&mut out[..3]).map_err(drop),
+            Ok(3)
+        );
+        assert_eq!(&out[..3],&[1,2,3][..] );
+    
+
+        assert_eq!(
+            wrapped.read_exact(&mut out[4..8]).map_err(drop),
+            Ok(())
+        );
+        assert_eq!(&out[4..8],&[4,5,6,7][..] );
+
+        assert_eq!(
+            wrapped.read_exact(&mut out[8..]).map_err(drop),
+            Err(())
+        );
+    }
+    
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(inside_abi_stable_crate)]
+    struct IoBufReadInterface;
+
+    crate::impl_InterfaceType!{
+        impl crate::InterfaceType for IoBufReadInterface {
+            type IoRead=True;
+            type IoBufRead=True;
+        }
+    }
+
+    #[test]
+    fn io_bufread(){
+
+        use std::io::{BufRead,Cursor};
+
+        let s="line0\nline1\nline2".as_bytes().piped(Cursor::new);
+
+        let mut wrapped=DynTrait::from_borrowing_value(s,IoBufReadInterface);
+        
+        assert_eq!(
+            wrapped.lines().collect::<Result<Vec<String>,_>>().unwrap(), 
+            vec![
+                "line0".to_string(),
+                "line1".to_string(),
+                "line2".to_string(),
+            ]
+        );
+
+    }
+
+    #[test]
+    fn io_seek(){
+        use std::io::{Read,Seek,SeekFrom,Cursor};
+
+        let mut buff=vec![255,1,2,3,4,5,6,7,8,9,10].piped(Cursor::new);
+        let mut out=vec![0;400];
+
+        let mut wrapped=DynTrait::from_any_ptr(&mut buff,IoInterface);
+        
+        {
+            wrapped.seek(SeekFrom::Start(1)).unwrap();
+            assert_eq!(
+                wrapped.read_exact(&mut out[..4]).map_err(drop),
+                Ok(())
+            );
+            assert_eq!(&out[..4],&[1,2,3,4][..] );
+        }
+        {
+            wrapped.seek(SeekFrom::End(-3)).unwrap();
+            assert_eq!(
+                wrapped.read_exact(&mut out[4..7]).map_err(drop),
+                Ok(())
+            );
+            assert_eq!(&out[..7],&[1,2,3,4,8,9,10][..] );
+        }
+        {
+            wrapped.seek(SeekFrom::Current(-4)).unwrap();
+            assert_eq!(
+                wrapped.read_exact(&mut out[7..8]).map_err(drop),
+                Ok(())
+            );
+            assert_eq!(&out[..8],&[1,2,3,4,8,9,10,7][..] );
+        }
+    }
+
 
 
 }
