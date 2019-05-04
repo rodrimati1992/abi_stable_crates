@@ -5,19 +5,25 @@ Ffi-safe versions of some `std::io` types.
 use std::{
     error::Error as ErrorTrait,
     fmt::{self, Debug, Display},
-    io::{Error as ioError, ErrorKind},
+    io::{Error as ioError,SeekFrom, ErrorKind},
 };
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-use crate::{traits::{IntoReprC}, std_types::{RBoxError}};
+use crate::{
+    traits::{IntoReprC,IntoReprRust}, 
+    std_types::{RBoxError,RBox,ROption,RSome,RNone},
+};
 
-/// Ffi safe equivalent to ::std::io::ErrorKind.
+
+///////////////////////////////////////////////////////////////////////////
+
+/// Ffi safe equivalent to `std::io::ErrorKind`.
 ///
 /// Using a struct with associated constants is the 
 /// ffi-safe way of doing `#[non_exhaustive]` field-less enums.
-#[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -25,108 +31,133 @@ pub struct RIoErrorKind {
     value: u8,
 }
 
-/// Every (visible) variant of RIoErrorKind,equivalent to that of ::std::io::ErrorKind.
-#[allow(non_upper_case_globals)]
-impl RIoErrorKind {
-    pub const Other: Self = RIoErrorKind { value: 0 };
-    pub const NotFound: Self = RIoErrorKind { value: 1 };
-    pub const PermissionDenied: Self = RIoErrorKind { value: 2 };
-    pub const ConnectionRefused: Self = RIoErrorKind { value: 3 };
-    pub const ConnectionReset: Self = RIoErrorKind { value: 4 };
-    pub const ConnectionAborted: Self = RIoErrorKind { value: 5 };
-    pub const NotConnected: Self = RIoErrorKind { value: 6 };
-    pub const AddrInUse: Self = RIoErrorKind { value: 7 };
-    pub const AddrNotAvailable: Self = RIoErrorKind { value: 8 };
-    pub const BrokenPipe: Self = RIoErrorKind { value: 9 };
-    pub const AlreadyExists: Self = RIoErrorKind { value: 10 };
-    pub const WouldBlock: Self = RIoErrorKind { value: 11 };
-    pub const InvalidInput: Self = RIoErrorKind { value: 12 };
-    pub const InvalidData: Self = RIoErrorKind { value: 13 };
-    pub const TimedOut: Self = RIoErrorKind { value: 14 };
-    pub const WriteZero: Self = RIoErrorKind { value: 15 };
-    pub const Interrupted: Self = RIoErrorKind { value: 16 };
-    pub const UnexpectedEof: Self = RIoErrorKind { value: 17 };
+
+macro_rules! impl_error_kind {
+    (
+        $(
+            $variant:ident,discriminant=$value:expr , message=$as_str_msg:expr ; 
+        )* 
+    ) => (
+        /// Every (visible) variant of RIoErrorKind,equivalent to that of `std::io::ErrorKind`.
+        #[allow(non_upper_case_globals)]
+        impl RIoErrorKind {
+            $(
+                pub const $variant: Self = RIoErrorKind { value: $value };
+            )*
+            pub const Other: Self = RIoErrorKind { value: 0 };
+        }
+
+        impl Debug for RIoErrorKind {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let s = match *self {
+                    $(
+                        RIoErrorKind::$variant=> stringify!($variant),
+                    )*
+                    _ => "Other",
+                };
+                Display::fmt(s, f)
+            }
+        }
+
+        impl_from_rust_repr! {
+            impl From<ErrorKind> for RIoErrorKind {
+                fn(this){
+                    match this {
+                        $(
+                            ErrorKind::$variant=> RIoErrorKind::$variant,
+                        )*
+                        _=>RIoErrorKind::Other,
+                    }
+                }
+            }
+        }
+
+        impl_into_rust_repr! {
+            impl Into<ErrorKind> for RIoErrorKind {
+                fn(this){
+                    match this {
+                        $(
+                            RIoErrorKind::$variant=> ErrorKind::$variant,
+                        )*
+                        _=>ErrorKind::Other,
+                    }
+                }
+            }
+        }
+
+        impl RIoErrorKind {
+            pub(crate) fn error_message(&self) -> &'static str {
+                match *self {
+                    $(
+                        RIoErrorKind::$variant => $as_str_msg,
+                    )*
+                    _=> "other os error",
+                }
+            }
+        }
+    )
 }
 
-impl Debug for RIoErrorKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match *self {
-            RIoErrorKind::NotFound => "NotFound",
-            RIoErrorKind::PermissionDenied => "PermissionDenied",
-            RIoErrorKind::ConnectionRefused => "ConnectionRefused",
-            RIoErrorKind::ConnectionReset => "ConnectionReset",
-            RIoErrorKind::ConnectionAborted => "ConnectionAborted",
-            RIoErrorKind::NotConnected => "NotConnected",
-            RIoErrorKind::AddrInUse => "AddrInUse",
-            RIoErrorKind::AddrNotAvailable => "AddrNotAvailable",
-            RIoErrorKind::BrokenPipe => "BrokenPipe",
-            RIoErrorKind::AlreadyExists => "AlreadyExists",
-            RIoErrorKind::WouldBlock => "WouldBlock",
-            RIoErrorKind::InvalidInput => "InvalidInput",
-            RIoErrorKind::InvalidData => "InvalidData",
-            RIoErrorKind::TimedOut => "TimedOut",
-            RIoErrorKind::WriteZero => "WriteZero",
-            RIoErrorKind::Interrupted => "Interrupted",
-            RIoErrorKind::UnexpectedEof => "UnexpectedEof",
-            _ => "Other",
-        };
-        Display::fmt(s, f)
-    }
+impl_error_kind!{
+    NotFound, discriminant = 1 , message="entity not found" ;
+    PermissionDenied, discriminant = 2 , message="permission denied" ;
+    ConnectionRefused, discriminant = 3 , message="connection refused" ;
+    ConnectionReset, discriminant = 4 , message="connection reset" ;
+    ConnectionAborted, discriminant = 5 , message="connection aborted" ;
+    NotConnected, discriminant = 6 , message="not connected" ;
+    AddrInUse, discriminant = 7 , message="address in use" ;
+    AddrNotAvailable, discriminant = 8 , message="address not available" ;
+    BrokenPipe, discriminant = 9 , message="broken pipe" ;
+    AlreadyExists, discriminant = 10 , message="entity already exists" ;
+    WouldBlock, discriminant = 11 , message="operation would block" ;
+    InvalidInput, discriminant = 12 , message="invalid input parameter" ;
+    InvalidData, discriminant = 13 , message="invalid data" ;
+    TimedOut, discriminant = 14 , message="timed out" ;
+    WriteZero, discriminant = 15 , message="write zero" ;
+    Interrupted, discriminant = 16 , message="operation interrupted" ;
+    UnexpectedEof, discriminant = 17 , message="unexpected end of file" ;
+}
+
+
+///////////////////////////////////////////////////////////////////////////
+
+
+#[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub enum RSeekFrom {
+    Start(u64),
+    End(i64),
+    Current(i64),
 }
 
 impl_from_rust_repr! {
-    impl From<ErrorKind> for RIoErrorKind {
+    impl From<SeekFrom> for RSeekFrom {
         fn(this){
             match this {
-                ErrorKind::NotFound=>RIoErrorKind::NotFound,
-                ErrorKind::PermissionDenied=>RIoErrorKind::PermissionDenied,
-                ErrorKind::ConnectionRefused=>RIoErrorKind::ConnectionRefused,
-                ErrorKind::ConnectionReset=>RIoErrorKind::ConnectionReset,
-                ErrorKind::ConnectionAborted=>RIoErrorKind::ConnectionAborted,
-                ErrorKind::NotConnected=>RIoErrorKind::NotConnected,
-                ErrorKind::AddrInUse=>RIoErrorKind::AddrInUse,
-                ErrorKind::AddrNotAvailable=>RIoErrorKind::AddrNotAvailable,
-                ErrorKind::BrokenPipe=>RIoErrorKind::BrokenPipe,
-                ErrorKind::AlreadyExists=>RIoErrorKind::AlreadyExists,
-                ErrorKind::WouldBlock=>RIoErrorKind::WouldBlock,
-                ErrorKind::InvalidInput=>RIoErrorKind::InvalidInput,
-                ErrorKind::InvalidData=>RIoErrorKind::InvalidData,
-                ErrorKind::TimedOut=>RIoErrorKind::TimedOut,
-                ErrorKind::WriteZero=>RIoErrorKind::WriteZero,
-                ErrorKind::Interrupted=>RIoErrorKind::Interrupted,
-                ErrorKind::UnexpectedEof=>RIoErrorKind::UnexpectedEof,
-                _=>RIoErrorKind::Other,
+                SeekFrom::Start(x)  =>RSeekFrom::Start(x),
+                SeekFrom::End(x)    =>RSeekFrom::End(x),
+                SeekFrom::Current(x)=>RSeekFrom::Current(x),
             }
         }
     }
 }
 
+
 impl_into_rust_repr! {
-    impl Into<ErrorKind> for RIoErrorKind {
+    impl Into<SeekFrom> for RSeekFrom {
         fn(this){
             match this {
-                RIoErrorKind::NotFound=>ErrorKind::NotFound,
-                RIoErrorKind::PermissionDenied=>ErrorKind::PermissionDenied,
-                RIoErrorKind::ConnectionRefused=>ErrorKind::ConnectionRefused,
-                RIoErrorKind::ConnectionReset=>ErrorKind::ConnectionReset,
-                RIoErrorKind::ConnectionAborted=>ErrorKind::ConnectionAborted,
-                RIoErrorKind::NotConnected=>ErrorKind::NotConnected,
-                RIoErrorKind::AddrInUse=>ErrorKind::AddrInUse,
-                RIoErrorKind::AddrNotAvailable=>ErrorKind::AddrNotAvailable,
-                RIoErrorKind::BrokenPipe=>ErrorKind::BrokenPipe,
-                RIoErrorKind::AlreadyExists=>ErrorKind::AlreadyExists,
-                RIoErrorKind::WouldBlock=>ErrorKind::WouldBlock,
-                RIoErrorKind::InvalidInput=>ErrorKind::InvalidInput,
-                RIoErrorKind::InvalidData=>ErrorKind::InvalidData,
-                RIoErrorKind::TimedOut=>ErrorKind::TimedOut,
-                RIoErrorKind::WriteZero=>ErrorKind::WriteZero,
-                RIoErrorKind::Interrupted=>ErrorKind::Interrupted,
-                RIoErrorKind::UnexpectedEof=>ErrorKind::UnexpectedEof,
-                _=>ErrorKind::Other,
+                RSeekFrom::Start(x)  =>SeekFrom::Start(x),
+                RSeekFrom::End(x)    =>SeekFrom::End(x),
+                RSeekFrom::Current(x)=>SeekFrom::Current(x),
             }
         }
     }
 }
+
+
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -134,11 +165,11 @@ impl_into_rust_repr! {
 ///
 /// I can be created from an  io::Error,but it cannot be converted back.
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 pub struct RIoError {
     kind: RIoErrorKind,
-    error: RBoxError,
+    error: ROption<RBoxError>,
 }
 
 impl_from_rust_repr! {
@@ -146,29 +177,180 @@ impl_from_rust_repr! {
         fn(this){
             RIoError{
                 kind:this.kind().into(),
-                error:this.piped(RBoxError::new)
+                error:this.piped(RBoxError::new).piped(RSome)
             }
         }
     }
 }
 
 impl RIoError {
-    /// Constructs an RIoError from an error and a io::ErrorKind.
+    /// Constructs an RIoError from an error and a `std::io::ErrorKind`.
     pub fn new<E>(kind: ErrorKind, error: E) -> Self
     where
         E: ErrorTrait + Send + Sync + 'static,
     {
         RIoError {
             kind: kind.into_c(),
-            error: error.piped(RBoxError::new),
+            error: RSome(RBoxError::new(error)),
+        }
+    }
+
+    /// Constructs an RIoError from a `std::io::ErrorKind`.
+    pub fn from_kind(kind: ErrorKind)->Self{
+        Self{
+            kind:kind.into_c(),
+            error:RNone,
+        }
+    }
+
+    /// Constructs an RIoError from a 
+    /// `Box<dyn ErrorTrait+Send+Sync+'static>` and a `std::io::ErrorKind`.
+    pub fn with_boxerror(kind: ErrorKind, error: Box<dyn ErrorTrait+Send+Sync+'static>) -> Self{
+        RIoError {
+            kind: kind.into_c(),
+            error: RSome(RBoxError::from_box(error)),
+        }
+    }
+
+    /// Constructs an RIoError from an `RBoxError` and a `std::io::ErrorKind`.
+    pub fn with_rboxerror(kind: ErrorKind, error: RBoxError) -> Self{
+        RIoError {
+            kind: kind.into_c(),
+            error:RSome(error),
+        }
+    }
+
+    /// Retrieves the kind of io error.
+    pub fn kind(&self)->RIoErrorKind{
+        self.kind
+    }
+
+
+    /// Gets the internal error,
+    /// returning None if this was constructed with `RIoError::from_kind`.
+    pub fn get_ref(&self) -> Option<&RBoxError>{
+        self.error.as_ref().into_rust()
+    }
+    
+    /// Gets the internal error,
+    /// returning None if this was constructed with `RIoError::from_kind`.
+    pub fn get_mut(&mut self) -> Option<&mut RBoxError>{
+        self.error.as_mut().into_rust()
+    }
+
+    /// Converts this into the internal error,
+    /// returning None if this was constructed with `RIoError::from_kind`.
+    pub fn into_inner(self) -> Option<RBoxError>{
+        self.error.into_rust()
+    }
+
+}
+
+impl Debug for RIoError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.error.as_ref() {
+            RSome(c) => Debug::fmt(&c, f),
+            RNone => f.debug_tuple("Kind").field(&self.kind).finish(),
         }
     }
 }
 
+
 impl Display for RIoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
+        match self.error.as_ref() {
+            RSome(c) => Display::fmt(&c, f),
+            RNone => Display::fmt(self.kind.error_message(),f),
+        }
     }
 }
 
 impl ErrorTrait for RIoError {}
+
+
+///////////////////////////////////////////////////////////////////////////////////
+
+
+#[cfg(test)]
+mod error_kind_tests{
+    use super::*;
+
+    #[test]
+    fn conversions(){
+        for (from,to) in
+            vec![
+                (ErrorKind::NotConnected,RIoErrorKind::NotConnected),
+                (ErrorKind::AddrInUse,RIoErrorKind::AddrInUse),
+                (ErrorKind::Other,RIoErrorKind::Other),
+            ]
+        {
+            assert_eq!(RIoErrorKind::from(from) , to);
+            assert_eq!(to.into_(ErrorKind::T) , from);
+        }
+    }
+}
+
+#[cfg(test)]
+mod io_error_tests{
+    use super::*;
+
+    use crate::test_utils::{
+        check_formatting_equivalence,
+        deref_address,
+        Stringy,
+    };
+
+
+    #[test]
+    fn from_error_kind(){
+        for kind in 
+            vec![
+                ErrorKind::NotConnected,
+                ErrorKind::AddrInUse,
+                ErrorKind::Other,
+            ]
+        {
+            let err=kind.piped(RIoError::from_kind);
+
+            assert_eq!(err.kind(), kind.into_c());
+        }
+    }
+
+    #[test]
+    fn from_value(){
+        let err=Stringy::new("What\nis\ra\tline");
+        let e0=RIoError::new(ErrorKind::Other,err.clone());
+
+        check_formatting_equivalence(&err,&e0);
+    }
+
+    #[test]
+    fn from_boxerror(){
+        let err=Stringy::new("What\nis\ra\tline");
+        let box_=err.clone().piped(Box::new);
+        let addr=deref_address(&box_);
+        let ioerr=RIoError::with_boxerror(ErrorKind::Other,box_);
+
+        check_formatting_equivalence(&err,&ioerr);
+
+        assert_eq!(addr, ioerr.into_inner().unwrap().into_box().piped_ref(deref_address));
+    }
+
+    #[test]
+    fn from_rboxerror(){
+        let err=Stringy::new("What\nis\ra\tline");
+        let rbox=err.clone().piped(RBoxError::new);
+        let addr=rbox.heap_address();
+        let mut ioerr=RIoError::with_rboxerror(ErrorKind::Other,rbox);
+
+        check_formatting_equivalence(&err,&ioerr);
+
+        assert_eq!(addr, ioerr.get_ref().unwrap().heap_address());
+
+        assert_eq!(addr, ioerr.get_mut().unwrap().heap_address());
+
+        assert_eq!(addr, ioerr.into_inner().unwrap().heap_address());
+    }
+
+
+}
