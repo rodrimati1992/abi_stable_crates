@@ -69,7 +69,7 @@ impl<T> SerializeImplType for Foo<T>
 where
     T: Serialize,
 {
-    fn serialize_impl(&self) -> Result<RCow<'_, RStr<'_>>, RBoxError> {
+    fn serialize_impl(&self) -> Result<RCow<'_, str>, RBoxError> {
         match serde_json::to_string(self) {
             Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
             Err(e)=>Err(RBoxError::new(e)),
@@ -461,7 +461,7 @@ mod submod{
     }
 
     impl<'a> SerializeImplType for Foo<'a>{
-        fn serialize_impl(&self) -> Result<RCow<'_, RStr<'_>>, RBoxError> {
+        fn serialize_impl(&self) -> Result<RCow<'_, str>, RBoxError> {
             match serde_json::to_string(self) {
                 Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
                 Err(e)=>Err(RBoxError::new(e)),

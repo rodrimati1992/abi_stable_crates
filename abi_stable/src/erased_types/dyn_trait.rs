@@ -689,7 +689,7 @@ Readme is in
 
         /// It serializes a `DynTrait<_>` into a string by using 
         /// `<ConcreteType as SerializeImplType>::serialize_impl`.
-        pub fn serialized<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError>
+        pub fn serialized<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError>
         where
             P: Deref,
             I: InterfaceType<Serialize = True>,

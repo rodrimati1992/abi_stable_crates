@@ -419,7 +419,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound<'borr>>::Serialize")]
-        serialize:  extern "C" fn(&ErasedObject)->RResult<RCow<'_,RStr<'_>>,RBoxError>;
+        serialize:  extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>;
         priv _serialize;
         option=Option,Some,None;
         impl[] VtableFieldValue<Serialize>

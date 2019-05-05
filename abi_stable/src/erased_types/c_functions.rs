@@ -157,14 +157,14 @@ where
 
 pub(crate) extern "C" fn serialize_impl<'a, T>(
     this: &'a ErasedObject
-) -> RResult<RCow<'a, RStr<'a>>, RBoxError>
+) -> RResult<RCow<'a, str>, RBoxError>
 where
     T: SerializeImplType,
 {
     extern_fn_panic_handling! {unsafe{
         let this=transmute_reference::<ErasedObject,T>(this);
         this.serialize_impl()
-            .map(|x| mem::transmute::<RCow<'_,RStr<'_>>,RCow<'a, RStr<'a>>>(x) )
+            .map(|x| mem::transmute::<RCow<'_,str>,RCow<'a,str>>(x) )
             .into()
     }}
 }

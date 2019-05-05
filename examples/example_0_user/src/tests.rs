@@ -102,18 +102,12 @@ fn test_reverse_lines(mods:&'static TextOpsMod_Prefix) {
 }
 
 
-fn str_to_rcow<'a>(s:&'a str)->RCow<'a,RStr<'a>,RString>{
-    s.into_(Cow::<'a,str>::T)
-     .into()
-}
-
-
 fn test_remove_words(mods:&'static TextOpsMod_Prefix) {
     let text_ops=mods;
 
     let mut state = text_ops.new()();
     {
-        let words = &mut vec!["burrito", "like","a"].into_iter().map(str_to_rcow);
+        let words = &mut vec!["burrito", "like","a"].into_iter().map(RCow::from);
         
         let param = RemoveWords {
             string: "Monads are like a burrito wrapper.".into(),
@@ -122,7 +116,7 @@ fn test_remove_words(mods:&'static TextOpsMod_Prefix) {
         assert_eq!(&*text_ops.remove_words()(&mut state, param), "Monads are wrapper.");
     }
     {
-        let words = &mut vec!["largest","is"].into_iter().map(str_to_rcow);
+        let words = &mut vec!["largest","is"].into_iter().map(RCow::from);
         let param = RemoveWords {
             string: "The   largest planet  is    jupiter.".into(),
             words: DynTrait::from_borrowing_ptr(words,CowStrIter),
