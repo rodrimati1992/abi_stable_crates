@@ -65,7 +65,12 @@ macro_rules! declare_InterfaceType {
                 $(#[$assoc_attrs])*
                 type $trait_;
             )*
+
+            #[doc(hidden)]
+            type define_this_in_the_impl_InterfaceType_macro;
         }
+
+
     )
 }
 
@@ -194,12 +199,6 @@ declare_InterfaceType!{
         type IoRead;
 
         type IoBufRead;
-
-        #[doc(hidden)]
-        type __IsRef;
-
-        #[doc(hidden)]
-        type define_this_in_the_impl_InterfaceType_macro;
     ]
 
 

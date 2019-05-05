@@ -18,7 +18,10 @@ use core_extensions::{prelude::*, ResultLike};
 
 use crate::{
     abi_stability::SharedStableAbi,
-    pointer_trait::{StableDeref, TransmuteElement},
+    pointer_trait::{
+        StableDeref, TransmuteElement,
+        GetPointerKind,PK_SmartPointer,PK_Reference,PK_MutReference,
+    },
     marker_type::ErasedObject, 
     std_types::{RBox, RCow, RStr,RVec,RIoError},
 };
@@ -202,13 +205,13 @@ Readme is in
     #[derive(StableAbi)]
     #[sabi(
         inside_abi_stable_crate,
-        prefix_bound="I:InterfaceConstsBound<'borr>",
-        bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceConstsBound<'static>",
+        prefix_bound="I:InterfaceBound<'borr>",
+        bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound<'static>",
         bound="VTable<'borr,P,I>:SharedStableAbi",
-        tag="<I as InterfaceConstsBound<'borr>>::TAG",
+        tag="<I as InterfaceBound<'borr>>::TAG",
     )]
     pub struct DynTrait<'borr,P,I> 
-    where I:InterfaceConstsBound<'borr>
+    where I:InterfaceBound<'borr>
     {
         pub(super) object: ManuallyDrop<P>,
         vtable: *const VTable<'borr,P,I>,
@@ -223,7 +226,7 @@ Readme is in
         pub fn from_value<T>(object: T) -> DynTrait<'static,RBox<()>,T::Interface>
         where
             T: ImplType,
-            T::Interface:InterfaceConstsBound<'static>,
+            T::Interface:InterfaceBound<'static>,
             T: GetVtable<'static,T,RBox<()>,RBox<T>,<T as ImplType>::Interface>,
         {
             let object = RBox::new(object);
@@ -237,7 +240,7 @@ Readme is in
         pub fn from_ptr<P, T>(object: P) -> DynTrait<'static,P::TransmutedPtr,T::Interface>
         where
             T: ImplType,
-            T::Interface:InterfaceConstsBound<'static>,
+            T::Interface:InterfaceBound<'static>,
             T: GetVtable<'static,T,P::TransmutedPtr,P,<T as ImplType>::Interface>,
             P: StableDeref<Target = T>+TransmuteElement<()>,
         {
@@ -255,7 +258,7 @@ Readme is in
         pub fn from_any_value<T,I>(object: T,interface:I) -> DynTrait<'static,RBox<()>,I>
         where
             T:'static,
-            I:InterfaceConstsBound<'static>,
+            I:InterfaceBound<'static>,
             InterfaceFor<T,I,True> : GetVtable<'static,T,RBox<()>,RBox<T>,I>,
         {
             let object = RBox::new(object);
@@ -269,7 +272,7 @@ Readme is in
             _interface:I
         ) -> DynTrait<'static,P::TransmutedPtr,I>
         where
-            I:InterfaceConstsBound<'static>,
+            I:InterfaceBound<'static>,
             T:'static,
             InterfaceFor<T,I,True>: GetVtable<'static,T,P::TransmutedPtr,P,I>,
             P: StableDeref<Target = T>+TransmuteElement<()>,
@@ -293,7 +296,7 @@ Readme is in
         ) -> DynTrait<'borr,RBox<()>,I>
         where
             T:'borr,
-            I:InterfaceConstsBound<'borr>,
+            I:InterfaceBound<'borr>,
             InterfaceFor<T,I,False> : GetVtable<'borr,T,RBox<()>,RBox<T>,I>,
         {
             let object = RBox::new(object);
@@ -309,7 +312,7 @@ Readme is in
         ) -> DynTrait<'borr,P::TransmutedPtr,I>
         where
             T:'borr,
-            I:InterfaceConstsBound<'borr>,
+            I:InterfaceBound<'borr>,
             InterfaceFor<T,I,False>: GetVtable<'borr,T,P::TransmutedPtr,P,I>,
             P: StableDeref<Target = T>+TransmuteElement<()>,
         {
@@ -327,7 +330,7 @@ Readme is in
 
     impl<P,I> DynTrait<'static,P,I> 
     where 
-        I: InterfaceConstsBound<'static>
+        I: InterfaceBound<'static>
     {
         /// Allows checking whether 2 `DynTrait<_>`s have a value of the same type.
         ///
@@ -339,7 +342,7 @@ Readme is in
         /// - `DynTrait`s constructed using `DynTrait::from_borrowing_*`
         /// are never considered to wrap the same type.
         pub fn is_same_type<Other,I2>(&self,other:&DynTrait<'static,Other,I2>)->bool
-        where I2:InterfaceConstsBound<'static>
+        where I2:InterfaceBound<'static>
         {
             self.vtable_address()==other.vtable_address()||
             self.vtable().type_info().is_compatible(other.vtable().type_info())
@@ -348,16 +351,20 @@ Readme is in
 
     impl<'borr,P,I> DynTrait<'borr,P,I> 
     where 
-        I: InterfaceConstsBound<'borr>
+        I: InterfaceBound<'borr>
     {
         pub(super) fn vtable<'a>(&self) -> &'a VTable<'borr,P,I>{
             unsafe {
-                &*self.vtable
+                &*(((self.vtable as usize)&PTR_MASK) as *const VTable<'borr,P,I>)
             }
         }
 
         pub(super)fn vtable_address(&self) -> usize {
-            self.vtable as usize
+            (self.vtable as usize)&PTR_MASK
+        }
+
+        pub(super)fn vtable_ptr_flags(&self) -> usize {
+            (self.vtable as usize)&PTR_FLAGS
         }
 
         pub(super) fn as_abi(&self) -> &ErasedObject
@@ -414,7 +421,7 @@ Readme is in
 
     impl<'borr,P,I> DynTrait<'borr,P,I> 
     where 
-        I: InterfaceConstsBound<'borr>
+        I: InterfaceBound<'borr>
     {
         /// The uid in the vtable has to be the same as the one for T,
         /// otherwise it was not created from that T in the library that declared the opaque type.
@@ -606,12 +613,61 @@ Readme is in
 
     }
 
+
+    mod private_struct {
+        pub struct PrivStruct;
+    }
+    use self::private_struct::PrivStruct;
+
+    
+    /// This is used to make sure that reborrowing does not change 
+    /// the Send-ness or Sync-ness of the pointer.
+    pub trait ReborrowBounds<SendNess,SyncNess>{}
+
+    // If it's reborrowing,it must have either both Sync+Send or neither.
+    impl ReborrowBounds<False,False> for PrivStruct {}
+    impl ReborrowBounds<True ,True > for PrivStruct {}
+
+    
     impl<'borr,P,I> DynTrait<'borr,P,I> 
     where 
-        I:InterfaceConstsBound<'borr>
+        I:InterfaceBound<'borr>
+    {
+        pub fn reborrow<'re>(&'re self)->DynTrait<'borr,&'re (),I> 
+        where
+            P:Deref<Target=()>,
+            PrivStruct:ReborrowBounds<I::Send,I::Sync>,
+        {
+            // Reborrowing will break if I add extra functions that operate on `P`.
+            DynTrait {
+                object: ManuallyDrop::new(&**self.object),
+                vtable: ((self.vtable as usize) | PTR_FLAG_IS_BORROWED)as *const _,
+                _marker:PhantomData,
+            }
+        }
+
+        pub fn reborrow_mut<'re>(&'re mut self)->DynTrait<'borr,&'re mut (),I> 
+        where
+            P:DerefMut<Target=()>,
+            PrivStruct:ReborrowBounds<I::Send,I::Sync>,
+        {
+            // Reborrowing will break if I add extra functions that operate on `P`.
+            DynTrait {
+                object: ManuallyDrop::new(&mut **self.object),
+                vtable: ((self.vtable as usize) | PTR_FLAG_IS_BORROWED)as *const _,
+                _marker:PhantomData,
+            }
+        }
+    }
+
+
+    impl<'borr,P,I> DynTrait<'borr,P,I> 
+    where 
+        I:InterfaceBound<'borr>
     {
         /// Constructs a DynTrait<P,I> wrapping a `P`,using the same vtable.
         /// `P` must come from a function in the vtable,
+        /// or come from a copy of `P` if it's a `Copy+GetPointerKind<Kind=PK_Reference>`,
         /// to ensure that it is compatible with the functions in it.
         pub(super) fn from_new_ptr(&self, object: P) -> Self {
             Self {
@@ -624,7 +680,7 @@ Readme is in
         /// Constructs a `DynTrait<P,I>` with the default value for `P`.
         pub fn default(&self) -> Self
         where
-            P: Deref,
+            P: Deref + GetPointerKind<Kind=PK_SmartPointer>,
             I: InterfaceType<Default = True>,
         {
             let new = self.vtable().default_ptr()();
@@ -663,36 +719,88 @@ Readme is in
     }
 
     impl<'borr,P,I> Drop for DynTrait<'borr,P,I>
-    where I:InterfaceConstsBound<'borr>
+    where I:InterfaceBound<'borr>
     {
         fn drop(&mut self){
             unsafe{
-                let vtable=&*self.vtable;
-                vtable.drop_ptr()(&mut *self.object);
+                let vtable=self.vtable();
+
+                if (self.vtable_ptr_flags()&PTR_FLAG_IS_BORROWED)==PTR_FLAG_IS_BORROWED {
+                    // Do nothing
+                }else{
+                    vtable.drop_ptr()(&mut *self.object);
+                }
             }
         }
     }
 
 }
 
+
+const PTR_FLAGS:usize=0b1111;
+const PTR_MASK:usize=!PTR_FLAGS;
+const PTR_FLAG_IS_BORROWED:usize=0b_0001;
+
+
 pub use self::priv_::DynTrait;
 
-impl<'borr,P, I> Clone for DynTrait<'borr,P,I>
+//////////////////////
+
+
+
+mod clone_impl{
+    pub trait CloneImpl<PtrKind>{
+        fn clone_impl(&self) -> Self;
+    }
+}
+use self::clone_impl::CloneImpl;
+
+
+/// This impl is for smart pointers.
+impl<'borr,P, I> CloneImpl<PK_SmartPointer> for DynTrait<'borr,P,I>
 where
     P: Deref,
-    I: InterfaceConstsBound<'borr,Clone = True>,
+    I: InterfaceBound<'borr,Clone = True>,
 {
-    fn clone(&self) -> Self {
+    fn clone_impl(&self) -> Self {
         let vtable = self.vtable();
         let new = vtable.clone_ptr()(&*self.object);
         self.from_new_ptr(new)
     }
 }
 
+/// This impl is for references.
+impl<'borr,P, I> CloneImpl<PK_Reference> for DynTrait<'borr,P,I>
+where
+    P: Deref+Copy,
+    I: InterfaceBound<'borr,Clone = True>,
+{
+    fn clone_impl(&self) -> Self {
+        self.from_new_ptr(*self.object)
+    }
+}
+
+
+/// Clone is implemented for references and smart pointers,
+/// using `GetPointerKind` to decide whether `P` is a smart pointer or a reference.
+impl<'borr,P, I> Clone for DynTrait<'borr,P,I>
+where
+    P: Deref+GetPointerKind,
+    I: InterfaceBound<'borr>,
+    Self:CloneImpl<<P as GetPointerKind>::Kind>,
+{
+    fn clone(&self) -> Self {
+        self.clone_impl()
+    }
+}
+
+//////////////////////
+
+
 impl<'borr,P, I> Display for DynTrait<'borr,P,I>
 where
     P: Deref,
-    I: InterfaceConstsBound<'borr,Display = True>,
+    I: InterfaceBound<'borr,Display = True>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         adapt_std_fmt::<ErasedObject>(self.object(), self.vtable().display(), f)
@@ -702,7 +810,7 @@ where
 impl<'borr,P, I> Debug for DynTrait<'borr,P,I>
 where
     P: Deref,
-    I: InterfaceConstsBound<'borr,Debug = True>,
+    I: InterfaceBound<'borr,Debug = True>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         adapt_std_fmt::<ErasedObject>(self.object(), self.vtable().debug(), f)
@@ -719,7 +827,7 @@ then it serializes the string.
 impl<'borr,P, I> Serialize for DynTrait<'borr,P,I>
 where
     P: Deref,
-    I: InterfaceConstsBound<'borr,Serialize = True>,
+    I: InterfaceBound<'borr,Serialize = True>,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -737,7 +845,7 @@ where
 impl<'de,'borr:'de, P, I> Deserialize<'de> for DynTrait<'borr,P,I>
 where
     P: Deref+'borr,
-    I: InterfaceConstsBound<'borr>,
+    I: InterfaceBound<'borr>,
     I: DeserializeOwnedInterface<'borr,Deserialize = True, Deserialized = Self>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -753,14 +861,14 @@ impl<P, I> Eq for DynTrait<'static,P,I>
 where
     Self: PartialEq,
     P: Deref,
-    I: InterfaceConstsBound<'static,Eq = True>,
+    I: InterfaceBound<'static,Eq = True>,
 {
 }
 
 impl<P, I> PartialEq for DynTrait<'static,P,I>
 where
     P: Deref,
-    I: InterfaceConstsBound<'static,PartialEq = True>,
+    I: InterfaceBound<'static,PartialEq = True>,
 {
     fn eq(&self, other: &Self) -> bool {
         // unsafe: must check that the vtable is the same,otherwise return a sensible value.
@@ -775,7 +883,7 @@ where
 impl<P, I> Ord for DynTrait<'static,P,I>
 where
     P: Deref,
-    I: InterfaceConstsBound<'static,Ord = True>,
+    I: InterfaceBound<'static,Ord = True>,
     Self: PartialOrd + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -791,7 +899,7 @@ where
 impl<P, I> PartialOrd for DynTrait<'static,P,I>
 where
     P: Deref,
-    I: InterfaceConstsBound<'static,PartialOrd = True>,
+    I: InterfaceBound<'static,PartialOrd = True>,
     Self: PartialEq,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -809,7 +917,7 @@ where
 impl<'borr,P, I> Hash for DynTrait<'borr,P,I>
 where
     P: Deref,
-    I: InterfaceConstsBound<'borr,Hash = True>,
+    I: InterfaceBound<'borr,Hash = True>,
 {
     fn hash<H>(&self, state: &mut H)
     where
@@ -826,7 +934,7 @@ where
 impl<'borr,P, I,Item> Iterator for DynTrait<'borr,P,I>
 where
     P: DerefMut,
-    I: InterfaceConstsBound<'borr,Iterator = True,IteratorItem=Item>,
+    I: InterfaceBound<'borr,Iterator = True,IteratorItem=Item>,
 {
     type Item=Item;
 
@@ -861,7 +969,7 @@ where
 impl<'borr,P, I,Item> DynTrait<'borr,P,I>
 where
     P: DerefMut,
-    I: InterfaceConstsBound<'borr,Iterator = True,IteratorItem=Item>,
+    I: InterfaceBound<'borr,Iterator = True,IteratorItem=Item>,
 {
     pub fn skip_eager(&mut self, n: usize){
         let vtable=self.vtable();
@@ -882,7 +990,7 @@ impl<'borr,P, I,Item> DoubleEndedIterator for DynTrait<'borr,P,I>
 where
     Self:Iterator<Item=Item>,
     P: DerefMut,
-    I: InterfaceConstsBound<'borr,DoubleEndedIterator = True,IteratorItem=Item>,
+    I: InterfaceBound<'borr,DoubleEndedIterator = True,IteratorItem=Item>,
 {
 
     fn next_back(&mut self)->Option<Item>{
@@ -896,7 +1004,7 @@ impl<'borr,P, I,Item> DynTrait<'borr,P,I>
 where
     Self:Iterator<Item=Item>,
     P: DerefMut,
-    I: InterfaceConstsBound<'borr,DoubleEndedIterator = True,IteratorItem=Item>,
+    I: InterfaceBound<'borr,DoubleEndedIterator = True,IteratorItem=Item>,
 {
     pub fn nth_back_(&mut self,nth:usize)->Option<Item>{
         let vtable=self.vtable();
@@ -916,7 +1024,7 @@ where
 impl<'borr,P,I> fmtWrite for DynTrait<'borr,P,I>
 where
     P: DerefMut,
-    I: InterfaceConstsBound<'borr,FmtWrite = True>,
+    I: InterfaceBound<'borr,FmtWrite = True>,
 {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error>{
         let vtable = self.vtable();
@@ -950,7 +1058,7 @@ where
 impl<'borr,P,I> io::Write for DynTrait<'borr,P,I>
 where
     P: DerefMut,
-    I: InterfaceConstsBound<'borr,IoWrite = True>,
+    I: InterfaceBound<'borr,IoWrite = True>,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize>{
         let vtable = self.vtable().io_write();
@@ -976,7 +1084,7 @@ where
 impl<'borr,P,I> io::Read for DynTrait<'borr,P,I>
 where
     P: DerefMut,
-    I: InterfaceConstsBound<'borr,IoRead = True>,
+    I: InterfaceBound<'borr,IoRead = True>,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>{
         let vtable = self.vtable().io_read();
@@ -999,7 +1107,7 @@ where
 impl<'borr,P,I> io::BufRead for DynTrait<'borr,P,I>
 where
     P: DerefMut,
-    I: InterfaceConstsBound<'borr,IoRead = True,IoBufRead = True>,
+    I: InterfaceBound<'borr,IoRead = True,IoBufRead = True>,
 {
     fn fill_buf(&mut self) -> io::Result<&[u8]>{
         let vtable = self.vtable().io_bufread();
@@ -1021,7 +1129,7 @@ where
 impl<'borr,P,I> io::Seek for DynTrait<'borr,P,I>
 where
     P: DerefMut,
-    I: InterfaceConstsBound<'borr,IoSeek = True>,
+    I: InterfaceBound<'borr,IoSeek = True>,
 {
     fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64>{
         let vtable = self.vtable();
@@ -1037,7 +1145,7 @@ unsafe impl<'borr,P,I> Send for DynTrait<'borr,P,I>
 where
     P: Send,
     P: Deref,
-    I: InterfaceConstsBound<'borr,Send = True>,
+    I: InterfaceBound<'borr,Send = True>,
 {}
 
 
@@ -1045,7 +1153,7 @@ unsafe impl<'borr,P,I> Sync for DynTrait<'borr,P,I>
 where
     P: Sync,
     P: Deref,
-    I: InterfaceConstsBound<'borr,Sync = True>,
+    I: InterfaceBound<'borr,Sync = True>,
 {}
 
 
@@ -1055,7 +1163,7 @@ mod sealed {
     use super::*;
     pub trait Sealed {}
     impl<'borr,P,I> Sealed for DynTrait<'borr,P,I> 
-    where I:InterfaceConstsBound<'borr>
+    where I:InterfaceBound<'borr>
     {}
 }
 use self::sealed::Sealed;
@@ -1068,7 +1176,7 @@ pub trait DynTraitBound<'borr>: Sealed {
 impl<'borr,P, I> DynTraitBound<'borr> for DynTrait<'borr,P,I>
 where
     P: Deref,
-    I: InterfaceConstsBound<'borr>,
+    I: InterfaceBound<'borr>,
 {
     type Interface = I;
 }

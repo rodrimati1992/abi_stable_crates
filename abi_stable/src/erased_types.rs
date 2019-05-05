@@ -34,7 +34,7 @@ pub mod traits;
 
 pub use self::{
     dyn_trait::{DynTrait, DynTraitBound},
-    vtable::{ GetVtable,InterfaceBound,InterfaceConstsBound},
+    vtable::{ GetVtable,InterfaceBound},
     traits::{
         ImplType, InterfaceType, SerializeImplType, DeserializeOwnedInterface,
         DeserializeBorrowedInterface,IteratorItem,

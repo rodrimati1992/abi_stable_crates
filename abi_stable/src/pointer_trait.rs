@@ -61,6 +61,80 @@ impl<P> StableDerefMut for P where P: StableDeref + DerefMut {}
 
 ///////////
 
+
+/**
+What kind of pointer this is.
+
+The valid kinds are:
+
+- Reference:a `&T`,or a `Copy` wrapper struct containing a `&T`
+
+- MutReference:a `&mut T`,or a non-`Drop` wrapper struct containing a `&mut T`
+
+- SmartPointer: Any pointer type that's not a reference or a mutable reference.
+
+*/
+pub unsafe trait GetPointerKind{
+    type Kind:PointerKindVariant;
+
+    const KIND:PointerKind=<Self::Kind as PointerKindVariant>::VALUE;
+}
+
+/// A marker trait for PointerKind variants.
+pub trait PointerKindVariant:Sealed{
+    const VALUE:PointerKind;
+}
+
+use self::sealed::Sealed;
+mod sealed{
+    pub trait Sealed{}
+}
+
+
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash,StableAbi)]
+#[repr(C)]
+#[sabi(inside_abi_stable_crate)]
+pub enum PointerKind{
+    Reference,
+    MutReference,
+    SmartPointer
+}
+
+
+pub struct PK_Reference ;
+pub struct PK_MutReference ;
+pub struct PK_SmartPointer ;
+
+impl Sealed for PK_Reference{}
+impl Sealed for PK_MutReference{}
+impl Sealed for PK_SmartPointer{}
+
+impl PointerKindVariant for PK_Reference{
+    const VALUE:PointerKind=PointerKind::Reference;
+}
+
+impl PointerKindVariant for PK_MutReference{
+    const VALUE:PointerKind=PointerKind::MutReference;
+}
+
+impl PointerKindVariant for PK_SmartPointer{
+    const VALUE:PointerKind=PointerKind::SmartPointer;
+}
+
+
+unsafe impl<'a,T> GetPointerKind for &'a T{
+    type Kind=PK_Reference;
+}
+
+unsafe impl<'a,T> GetPointerKind for &'a mut T{
+    type Kind=PK_MutReference;
+}
+
+
+
+///////////
+
 /**
 Transmutes the element type of this pointer..
 
@@ -81,7 +155,7 @@ Callers must ensure that:
 - References to `T` are compatible with references to `Self::Target`.
 
 */
-pub unsafe trait TransmuteElement<T>: StableDeref {
+pub unsafe trait TransmuteElement<T>: StableDeref + GetPointerKind {
     type TransmutedPtr: StableDeref<Target = T>;
 
     /// Transmutes the element type of this pointer..

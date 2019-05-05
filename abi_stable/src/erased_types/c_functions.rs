@@ -13,9 +13,9 @@ use crate::{
     marker_type::ErasedObject,
     utils::{transmute_reference,transmute_mut_reference},
     std_types::{
-        RIoError,
-        RSeekFrom,
+        RIoError,RSeekFrom,
     },
+    pointer_trait::{GetPointerKind,PK_SmartPointer,PK_Reference,PK_MutReference},
 };
 
 use core_extensions::utils::transmute_ignore_size;
@@ -60,14 +60,53 @@ where
     }}
 }
 
+
+////////////////////////////////////////////////////
+
+/*
+I'm implementing DefaultImpl for all pointer kinds,
+only requiring `std::default::Default` for `PK_SmartPointer`
+because it is the only one for which `DynTrait::default` can be called.
+*/
+
+pub trait DefaultImpl<PtrKind>{
+    fn default_impl()->Self;    
+}
+
+impl<This> DefaultImpl<PK_SmartPointer> for This
+where 
+    Self:Default
+{
+    fn default_impl()->Self{
+        Default::default()
+    }
+}
+
+impl<This> DefaultImpl<PK_Reference> for This{
+    fn default_impl()->Self{
+        unreachable!("This should not be called in DynTrait::default")
+    }
+}
+
+impl<This> DefaultImpl<PK_MutReference> for This{
+    fn default_impl()->Self{
+        unreachable!("This should not be called in DynTrait::default")
+    }
+}
+
+
 pub(crate) extern "C" fn default_pointer_impl<OrigP,ErasedPtr>() -> ErasedPtr
 where
-    OrigP:Default,
+    OrigP:GetPointerKind,
+    OrigP:DefaultImpl<<OrigP as GetPointerKind>::Kind>,
 {
     extern_fn_panic_handling! {unsafe{
-        transmute_ignore_size( OrigP::default() )
+        transmute_ignore_size( OrigP::default_impl() )
     }}
 }
+
+
+/////////////
 
 pub(crate) extern "C" fn display_impl<T>(
     this: &ErasedObject,

@@ -161,7 +161,7 @@ impl<'a> IteratorItem<'a> for CowStrIter{
 /// The parameters for every `TextOpsMod.remove_words_*` function.
 #[repr(C)]
 #[derive(StableAbi)] 
-pub struct RemoveWords<'a>{
+pub struct RemoveWords<'a,'b>{
     /// The string we're processing.
     pub string:RStr<'a>,
     /// The words that will be removed from self.string.
@@ -169,7 +169,7 @@ pub struct RemoveWords<'a>{
     /// An iterator over `RCow<'a,RStr<'a>>`,
     /// constructed from a `&'a mut impl Iterator<RCow<'a,RStr<'a>>>`
     /// with `DynTrait::from_borrowing_ptr(iter,CowStrIter)`.
-    pub words:DynTrait<'a,&'a mut (),CowStrIter>,
+    pub words:DynTrait<'a,&'b mut (),CowStrIter>,
 }
 
 
@@ -221,7 +221,7 @@ pub struct TextOpsMod {
     
     /// Removes the `param.words` words from the `param.string` string.
     pub remove_words: 
-        extern "C" fn(&mut TOStateBox,param:RemoveWords<'_>) -> RString,
+        extern "C" fn(&mut TOStateBox,param:RemoveWords<'_,'_>) -> RString,
     
     /// Gets the ammount (in bytes) of text that was processed
     pub get_processed_bytes: extern "C" fn(&TOStateBox) -> u64,

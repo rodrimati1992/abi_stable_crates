@@ -100,6 +100,7 @@ fn downcast() {
 }
 
 
+#[test]
 fn casts_among_rboxerrors(){
     let err=Stringy::new("hello\n\rworld");
     
