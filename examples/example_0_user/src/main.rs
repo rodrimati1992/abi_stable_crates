@@ -205,10 +205,10 @@ fn main()-> io::Result<()> {
         }
         Command::RemoveWords{words}=>{
             process_stdin(|line|{
-                let words=&mut words.iter().map(|s| RCow::Borrowed(s.as_rstr()) );
+                let mut words=words.iter().map(|s| RCow::Borrowed(s.as_rstr()) );
                 let params=RemoveWords{
                     string:line.into(),
-                    words:DynTrait::from_borrowing_ptr(words,CowStrIter),
+                    words:DynTrait::from_borrowing_ptr(&mut words,CowStrIter),
                 };
 
                 mods.remove_words()(&mut state,params)

@@ -4,7 +4,10 @@ use std::{marker::PhantomData, mem::ManuallyDrop, ops::DerefMut};
 use core_extensions::prelude::*;
 
 use crate::{
-    pointer_trait::{CallReferentDrop, StableDeref, TransmuteElement},
+    pointer_trait::{
+        CallReferentDrop, StableDeref, TransmuteElement,
+        GetPointerKind,PK_SmartPointer,
+    },
     traits::{IntoReprRust},
     std_types::utypeid::{UTypeId,new_utypeid},
     return_value_equality::ReturnValueEquality,
@@ -58,6 +61,10 @@ mod private {
 pub use self::private::RBox;
 
 unsafe impl<T> StableDeref for RBox<T> {}
+
+unsafe impl<T> GetPointerKind for RBox<T>{
+    type Kind=PK_SmartPointer;
+}
 
 unsafe impl<T, O> TransmuteElement<O> for RBox<T> {
     type TransmutedPtr = RBox<O>;

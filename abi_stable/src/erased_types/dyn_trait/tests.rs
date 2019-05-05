@@ -79,6 +79,8 @@ where
 
 crate::impl_InterfaceType!{
     impl crate::InterfaceType for FooInterface {
+        type Sync = False;
+        
         type Send = False;
 
         type Clone = True;
@@ -188,6 +190,7 @@ fn display_test(){
 
     let concrete=new_foo();
     let wrapped =new_wrapped();
+    let wrapped=wrapped.reborrow();
 
     assert_eq!(
         format!("{}",concrete), 
@@ -205,6 +208,7 @@ fn debug_test(){
 
     let concrete=new_foo();
     let wrapped =new_wrapped();
+    let wrapped=wrapped.reborrow();
 
     assert_eq!(
         format!("{:?}",concrete), 
@@ -236,6 +240,7 @@ fn deserialize_test() {
     let concrete = serde_json::from_str::<Foo<String>>(json).unwrap();
 
     let wrapped = VirtualFoo::deserialize_owned_from_str(json).unwrap();
+    let wrapped= wrapped.reborrow();
     let wrapped2 = serde_json::from_str::<VirtualFoo<'static>>(&json_ss).unwrap();
 
     assert_eq!(
@@ -260,6 +265,7 @@ fn serialize_test() {
 
     let concrete = new_foo();
     let wrapped = new_wrapped();
+    let wrapped=wrapped.reborrow();
 
     assert_eq!(
         &*concrete.piped_ref(serde_json::to_string).unwrap(),
@@ -830,6 +836,7 @@ mod submod{
         let value:String="hello".to_string();
 
         let wrapped    =DynTrait::from_borrowing_value(value.clone(),());
+        let wrapped=wrapped.reborrow();
 
         // Creating a DynTrait with a different interface so that it
         // creates a different vtable.
@@ -890,6 +897,7 @@ mod submod{
         let mut s=String::new();
         {
             let mut wrapped=DynTrait::from_any_ptr(&mut s,FmtInterface);
+            let mut wrapped=wrapped.reborrow_mut();
             wrapped.write_char('¿').unwrap();
             wrapped.write_str("Hello").unwrap();
             wrapped.write_char('?').unwrap();

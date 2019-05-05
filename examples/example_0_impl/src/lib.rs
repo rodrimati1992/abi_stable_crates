@@ -298,7 +298,7 @@ pub extern "C" fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RSt
 
 /// Removes the words in `param.words` from `param.string`,
 /// as well as the whitespace that comes after it.
-pub extern "C" fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w>) -> RString{
+pub extern "C" fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,'_>) -> RString{
     extern_fn_panic_handling! {
         let this = this.as_unerased_mut::<TextOperationState>().unwrap();
 
