@@ -31,7 +31,7 @@ use abi_stable::{
     prefix_type::{PrefixTypeTrait,WithMetadata},
     traits::{IntoReprC},
     std_types::{RCow, RStr,RBox,RVec,RArc, RString,RResult,ROk,RErr,RBoxError}, 
-    StableAbi, DynTrait,
+    DynTrait,
 };
 use core_extensions::{SelfOps,StringExt};
 
@@ -108,7 +108,7 @@ impl ImplType for TextOperationState {
 
 /// Defines how the type is serialized in DynTrait<_>.
 impl SerializeImplType for TextOperationState {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
+    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError> {
         serialize_json(self)
     }
 }
@@ -156,7 +156,7 @@ impl ImplType for Command<'static> {
 
 /// Defines how the type is serialized in DynTrait<_>.
 impl<'borr> SerializeImplType for Command<'borr> {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
+    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError> {
         serialize_json(self)
     }
 }
@@ -189,7 +189,7 @@ impl ImplType for ReturnValue {
 
 /// Defines how the type is serialized in DynTrait<_>.
 impl SerializeImplType for ReturnValue {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
+    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError> {
         serialize_json(self)
     }
 }
@@ -209,7 +209,7 @@ where
     }
 }
 
-fn serialize_json<'a, T>(value: &'a T) -> Result<RCow<'a, RStr<'a>>, RBoxError>
+fn serialize_json<'a, T>(value: &'a T) -> Result<RCow<'a, str>, RBoxError>
 where
     T: serde::Serialize,
 {
@@ -304,7 +304,7 @@ pub extern "C" fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,
 
         this.processed_bytes+=param.string.len() as u64;
 
-        let set=param.words.map(Into::<Cow<'w,str>>::into).collect::<HashSet<Cow<'w,str>>>();
+        let set=param.words.map(RCow::into).collect::<HashSet<Cow<'_,str>>>();
         let mut buffer=String::new();
 
         let haystack=&*param.string;

@@ -210,7 +210,7 @@ declare_InterfaceType!{
 Describes how this `implementation type` is serialized.
 */
 pub trait SerializeImplType {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError>;
+    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError>;
 }
 
 /**

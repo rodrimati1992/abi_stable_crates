@@ -8,6 +8,7 @@ pub mod arc;
 pub mod boxed;
 pub mod cmp_ordering;
 pub mod cow;
+//pub mod old_cow;
 pub mod option;
 pub mod range;
 pub mod result;

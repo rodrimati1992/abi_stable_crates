@@ -205,7 +205,7 @@ fn main()-> io::Result<()> {
         }
         Command::RemoveWords{words}=>{
             process_stdin(|line|{
-                let mut words=words.iter().map(|s| RCow::Borrowed(s.as_rstr()) );
+                let mut words=words.iter().map(RCow::from);
                 let params=RemoveWords{
                     string:line.into(),
                     words:DynTrait::from_borrowing_ptr(&mut words,CowStrIter),

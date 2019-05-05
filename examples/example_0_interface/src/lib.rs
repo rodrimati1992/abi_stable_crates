@@ -153,7 +153,7 @@ impl_InterfaceType!{
 }
 
 impl<'a> IteratorItem<'a> for CowStrIter{
-    type Item=RCow<'a,RStr<'a>>;
+    type Item=RCow<'a,str>;
 }
 
 
@@ -166,8 +166,8 @@ pub struct RemoveWords<'a,'b>{
     pub string:RStr<'a>,
     /// The words that will be removed from self.string.
     ///
-    /// An iterator over `RCow<'a,RStr<'a>>`,
-    /// constructed from a `&'a mut impl Iterator<RCow<'a,RStr<'a>>>`
+    /// An iterator over `RCow<'a,str>`,
+    /// constructed from a `&'b mut impl Iterator<RCow<'a,str>>`
     /// with `DynTrait::from_borrowing_ptr(iter,CowStrIter)`.
     pub words:DynTrait<'a,&'b mut (),CowStrIter>,
 }
