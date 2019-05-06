@@ -275,17 +275,27 @@ macro_rules! declare_meta_vtable {
 
 
 
-        /// Trait used to capture all the bounds of DynTraits<_>.
+        /// Trait used to capture all the bounds of DynTrait<_>.
         #[allow(non_upper_case_globals)]
         pub trait InterfaceBound<'borr>:InterfaceType {
             #[doc(hidden)]
+            // Used to prevent users from implementing this trait.
             const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>;
 
+            /// The Item type being iterated over,
+            /// if `Iterator=False` this is `()`.
             type IteratorItem:'borr;
 
+            /// Describes which traits are implemented,
+            /// stored in the layout of the type in StableAbi,
+            /// using the `#[sabi(tag="<I as InterfaceBound<'borr>>::TAG")]` attribute
             const TAG:Tag;
 
-            $( const $selector:bool; )*
+            $( 
+                /// Used by the `StableAbi` derive macro to determine whether the field 
+                /// this is associated with is disabled.
+                const $selector:bool; 
+            )*
 
         }   
 
@@ -303,10 +313,15 @@ macro_rules! declare_meta_vtable {
 
             const TAG:Tag={
                 const fn str_if(cond:bool,s:&'static str)->Tag{
+                    // nulls are stripped in Tag collection variants.
+                    //
+                    // I'm using null here because using Vec<_> in constants isn't possible.
                     [ Tag::null(), Tag::str(s) ][cond as usize]
                 }
 
                 tag!{{
+                    // Auto traits have to be equivalent in every linked library,
+                    // this is why this is an array,it must match exactly.
                     "auto traits"=>tag![[
                         $(
                             str_if(
@@ -315,6 +330,8 @@ macro_rules! declare_meta_vtable {
                             ),
                         )*
                     ]],
+                    // These traits can be a superset of the interface in the loaded library,
+                    // that is why it uses a map.
                     "required traits"=>tag!{{
                         $(
                             str_if(

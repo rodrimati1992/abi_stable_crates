@@ -20,7 +20,7 @@ use crate::{
 #[sabi(inside_abi_stable_crate)]
 pub struct IteratorFns<Item>{
     pub(super) next       :extern fn(&mut ErasedObject)->ROption<Item>,
-    pub(super) extend_buffer:
+    pub(super) extending_rvec:
         extern fn(
             &mut ErasedObject,
             &mut RVec<Item>,
@@ -52,7 +52,7 @@ where I:Iterator
 {
     pub(super) const NEW:IteratorFns<I::Item>=IteratorFns{
         next:next::<I>,
-        extend_buffer:extend_buffer::<I>,
+        extending_rvec:extending_rvec::<I>,
         size_hint:size_hint::<I>,
         count:count::<I>,
         last:last::<I>,
@@ -74,7 +74,7 @@ where I:Iterator
     }
 }
 
-pub(super) extern fn extend_buffer<I>(
+pub(super) extern fn extending_rvec<I>(
     this:&mut ErasedObject,
     vec:&mut RVec<I::Item>,
     taking:ROption<usize>,
@@ -153,7 +153,7 @@ where I:Iterator
 #[sabi(inside_abi_stable_crate)]
 pub struct DoubleEndedIteratorFns<Item>{
     pub(super) next_back       :extern fn(&mut ErasedObject)->ROption<Item>,
-    pub(super) extend_buffer_back:
+    pub(super) extending_rvec_back:
         extern fn(
             &mut ErasedObject,
             &mut RVec<Item>,
@@ -181,7 +181,7 @@ where I:DoubleEndedIterator
 {
     pub(super) const NEW:DoubleEndedIteratorFns<I::Item>=DoubleEndedIteratorFns{
         next_back:next_back::<I>,
-        extend_buffer_back:extend_buffer_back::<I>,
+        extending_rvec_back:extending_rvec_back::<I>,
         nth_back:nth_back::<I>,
     };
 }
@@ -200,7 +200,7 @@ where
     }
 }
 
-pub(super) extern fn extend_buffer_back<I>(
+pub(super) extern fn extending_rvec_back<I>(
     this:&mut ErasedObject,
     vec:&mut RVec<I::Item>,
     taking:ROption<usize>

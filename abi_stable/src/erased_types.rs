@@ -25,12 +25,23 @@ use crate::{
 };
 
 pub(crate)mod c_functions;
+
+/// `impl InterfaceType`s used in examples.
+pub mod interfaces;
+
 pub mod trait_objects;
+
 pub mod type_info;
+
 pub(crate) mod iterator;
+
 pub mod dyn_trait;
+
 pub(crate) mod vtable;
+
 pub mod traits;
+
+
 
 pub use self::{
     dyn_trait::{DynTrait, DynTraitBound},
@@ -57,5 +68,3 @@ pub enum FormattingMode {
     Default_,
     Alternate,
 }
-
-//////////////////////////////////////////////////////////
