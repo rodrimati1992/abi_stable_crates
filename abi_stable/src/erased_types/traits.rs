@@ -60,7 +60,7 @@ macro_rules! declare_InterfaceType {
         ]
     ) => (
         $(#[$attrs])*
-        pub trait InterfaceType: Sized + 'static  {
+        pub trait InterfaceType: Sized {
             $(
                 $(#[$assoc_attrs])*
                 type $trait_;

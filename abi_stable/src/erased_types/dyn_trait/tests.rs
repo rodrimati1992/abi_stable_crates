@@ -154,71 +154,95 @@ fn new_wrapped()->VirtualFoo<'static>{
 
 #[test]
 fn clone_test(){
+    let wrapped_expected=Foo::<String>::default().piped(DynTrait::from_value);
     let wrapped =new_wrapped();
-    let cloned=wrapped.clone();
 
-    assert_eq!(wrapped,cloned);
+    {
+        let cloned=wrapped.clone();
 
-    assert_ne!(
-        wrapped,
-        Foo::<String>::default().piped(DynTrait::from_value)
-    );
+        assert_eq!(wrapped,cloned);
+        assert_ne!(wrapped,wrapped_expected);
+    }
+
+    {
+        let reborrow=wrapped.reborrow();
+        let cloned=reborrow.clone();
+        assert_eq!(reborrow,cloned);
+        assert_ne!(wrapped,wrapped_expected);
+    }
 }
 
 #[test]
 fn default_test(){
     let concrete=Foo::<String>::default();
     let wrapped =new_wrapped().default();
-    let wrapped_2=Foo::<String>::default().piped(DynTrait::from_value);
+    let wrapped_expected=Foo::<String>::default().piped(DynTrait::from_value);
+    
+    {
+        assert_eq!(wrapped,wrapped_expected);
+        assert_eq!(
+            wrapped.as_unerased::<Foo<String>>().unwrap(),
+            &concrete
+        );
+        assert_ne!(wrapped,new_wrapped());
+    }
 
+    {
+        let reborrow=wrapped.reborrow();
 
-    assert_eq!(wrapped,wrapped_2);
-    assert_eq!(
-        wrapped.as_unerased::<Foo<String>>().unwrap(),
-        &concrete
-    );
+        assert_eq!(reborrow,wrapped_expected);
+        
+        // This should not compile!!!!!
+        // assert_eq!(reborrow.default(),wrapped_expected.reborrow());
 
-    assert_ne!(
-        wrapped,
-        new_wrapped(),
-    );
+        assert_eq!(
+            reborrow.as_unerased::<Foo<String>>().unwrap(),
+            &concrete
+        );
+        assert_ne!(reborrow,new_wrapped());
+    }
 }
 
 
 #[test]
-fn display_test(){
+fn fmt_test(){
 
     let concrete=new_foo();
-    let wrapped =new_wrapped();
-    let wrapped=wrapped.reborrow();
+    let mut wrapped =new_wrapped();
 
-    assert_eq!(
-        format!("{}",concrete), 
-        format!("{}",wrapped),
-    );
+    macro_rules! debug_test {
+        ( $wrapped:ident ) => ({
+            assert_eq!(
+                format!("{:?}",concrete), 
+                format!("{:?}",$wrapped),
+            );
 
-    assert_eq!(
-        format!("{:#}",concrete), 
-        format!("{:#}",wrapped),
-    );
-}
+            assert_eq!(
+                format!("{:#?}",concrete), 
+                format!("{:#?}",$wrapped),
+            );
 
-#[test]
-fn debug_test(){
+            assert_eq!(
+                format!("{}",concrete), 
+                format!("{}",$wrapped),
+            );
 
-    let concrete=new_foo();
-    let wrapped =new_wrapped();
-    let wrapped=wrapped.reborrow();
+            assert_eq!(
+                format!("{:#}",concrete), 
+                format!("{:#}",$wrapped),
+            );
+        })
+    }
 
-    assert_eq!(
-        format!("{:?}",concrete), 
-        format!("{:?}",wrapped),
-    );
-
-    assert_eq!(
-        format!("{:#?}",concrete), 
-        format!("{:#?}",wrapped),
-    );
+    debug_test!(wrapped);
+    {
+        let reborrow=wrapped.reborrow();
+        debug_test!(reborrow);
+    }
+    {
+        let reborrow=wrapped.reborrow_mut();
+        debug_test!(reborrow);
+    }
 }
 
 
@@ -264,26 +288,41 @@ fn deserialize_test() {
 fn serialize_test() {
 
     let concrete = new_foo();
-    let wrapped = new_wrapped();
-    let wrapped=wrapped.reborrow();
+    let mut wrapped = new_wrapped();
 
-    assert_eq!(
-        &*concrete.piped_ref(serde_json::to_string).unwrap(),
-        &*wrapped.serialized().unwrap()
-    );
+    macro_rules! serialize_test {
+        ( $wrapped:ident ) => ({
+            assert_eq!(
+                &*concrete.piped_ref(serde_json::to_string).unwrap(),
+                &*$wrapped.serialized().unwrap()
+            );
 
-    assert_eq!(
-        concrete
-            .piped_ref(serde_json::to_string).unwrap()
-            .piped_ref(serde_json::to_string).unwrap(),
-        wrapped.piped_ref(serde_json::to_string).unwrap()
-    );
+            assert_eq!(
+                concrete
+                    .piped_ref(serde_json::to_string).unwrap()
+                    .piped_ref(serde_json::to_string).unwrap(),
+                $wrapped.piped_ref(serde_json::to_string).unwrap()
+            );
 
-    assert_eq!(
-        wrapped.serialized().unwrap()
-            .piped_ref(serde_json::to_string).unwrap(),
-        wrapped.piped_ref(serde_json::to_string).unwrap()
-    );
+            assert_eq!(
+                $wrapped.serialized().unwrap()
+                    .piped_ref(serde_json::to_string).unwrap(),
+                $wrapped.piped_ref(serde_json::to_string).unwrap()
+            );
+        })
+    }
+
+    serialize_test!( wrapped );
+
+    {
+        let reborrow=wrapped.reborrow();
+        serialize_test!( reborrow );
+    }
+    {
+        let mut reborrow=wrapped.reborrow();
+        serialize_test!( reborrow );
+    }
+
 }
 
 
@@ -291,43 +330,85 @@ fn serialize_test() {
 #[test]
 fn cmp_test(){
 
-    let wrapped_0=new_foo().mutated(|x| x.l-=100 ).piped(DynTrait::from_value);
-    let wrapped_1=new_wrapped();
-    let wrapped_2=new_foo().mutated(|x| x.l+=100 ).piped(DynTrait::from_value);
+    macro_rules! cmp_test {
+        (
+            wrapped_0=$wrapped_0:ident,
+            wrapped_1=$wrapped_1:ident,
+            wrapped_2=$wrapped_2:ident,
+        ) => ({
+            assert_eq!($wrapped_1 == $wrapped_0, false);
+            assert_eq!($wrapped_1 <= $wrapped_0, false);
+            assert_eq!($wrapped_1 >= $wrapped_0, true );
+            assert_eq!($wrapped_1 < $wrapped_0, false);
+            assert_eq!($wrapped_1 > $wrapped_0, true);
+            assert_eq!($wrapped_1 != $wrapped_0, true);
+            assert_eq!($wrapped_1.partial_cmp(&$wrapped_0), Some(Ordering::Greater));
+            assert_eq!($wrapped_1.cmp(&$wrapped_0), Ordering::Greater);
+            assert_eq!($wrapped_1.eq(&$wrapped_0), false);
+            assert_eq!($wrapped_1.ne(&$wrapped_0), true);
 
-    assert_eq!(wrapped_1 == wrapped_0, false);
-    assert_eq!(wrapped_1 <= wrapped_0, false);
-    assert_eq!(wrapped_1 >= wrapped_0, true );
-    assert_eq!(wrapped_1 < wrapped_0, false);
-    assert_eq!(wrapped_1 > wrapped_0, true);
-    assert_eq!(wrapped_1 != wrapped_0, true);
-    assert_eq!(wrapped_1.partial_cmp(&wrapped_0), Some(Ordering::Greater));
-    assert_eq!(wrapped_1.cmp(&wrapped_0), Ordering::Greater);
-    assert_eq!(wrapped_1.eq(&wrapped_0), false);
-    assert_eq!(wrapped_1.ne(&wrapped_0), true);
-
-    assert_eq!(wrapped_1 == wrapped_1, true);
-    assert_eq!(wrapped_1 <= wrapped_1, true);
-    assert_eq!(wrapped_1 >= wrapped_1, true);
-    assert_eq!(wrapped_1 < wrapped_1, false);
-    assert_eq!(wrapped_1 > wrapped_1, false);
-    assert_eq!(wrapped_1 != wrapped_1, false);
-    assert_eq!(wrapped_1.partial_cmp(&wrapped_1), Some(Ordering::Equal));
-    assert_eq!(wrapped_1.cmp(&wrapped_1), Ordering::Equal);
-    assert_eq!(wrapped_1.eq(&wrapped_1), true);
-    assert_eq!(wrapped_1.ne(&wrapped_1), false);
+            assert_eq!($wrapped_1 == $wrapped_1, true);
+            assert_eq!($wrapped_1 <= $wrapped_1, true);
+            assert_eq!($wrapped_1 >= $wrapped_1, true);
+            assert_eq!($wrapped_1 < $wrapped_1, false);
+            assert_eq!($wrapped_1 > $wrapped_1, false);
+            assert_eq!($wrapped_1 != $wrapped_1, false);
+            assert_eq!($wrapped_1.partial_cmp(&$wrapped_1), Some(Ordering::Equal));
+            assert_eq!($wrapped_1.cmp(&$wrapped_1), Ordering::Equal);
+            assert_eq!($wrapped_1.eq(&$wrapped_1), true);
+            assert_eq!($wrapped_1.ne(&$wrapped_1), false);
 
 
-    assert_eq!(wrapped_1 == wrapped_2, false);
-    assert_eq!(wrapped_1 <= wrapped_2, true);
-    assert_eq!(wrapped_1 >= wrapped_2, false );
-    assert_eq!(wrapped_1 < wrapped_2, true);
-    assert_eq!(wrapped_1 > wrapped_2, false);
-    assert_eq!(wrapped_1 != wrapped_2, true);
-    assert_eq!(wrapped_1.partial_cmp(&wrapped_2), Some(Ordering::Less));
-    assert_eq!(wrapped_1.cmp(&wrapped_2), Ordering::Less);
-    assert_eq!(wrapped_1.eq(&wrapped_2), false);
-    assert_eq!(wrapped_1.ne(&wrapped_2), true);
+            assert_eq!($wrapped_1 == $wrapped_2, false);
+            assert_eq!($wrapped_1 <= $wrapped_2, true);
+            assert_eq!($wrapped_1 >= $wrapped_2, false );
+            assert_eq!($wrapped_1 < $wrapped_2, true);
+            assert_eq!($wrapped_1 > $wrapped_2, false);
+            assert_eq!($wrapped_1 != $wrapped_2, true);
+            assert_eq!($wrapped_1.partial_cmp(&$wrapped_2), Some(Ordering::Less));
+            assert_eq!($wrapped_1.cmp(&$wrapped_2), Ordering::Less);
+            assert_eq!($wrapped_1.eq(&$wrapped_2), false);
+            assert_eq!($wrapped_1.ne(&$wrapped_2), true);
+
+        })
+    }
+
+
+
+    let mut wrapped_0=new_foo().mutated(|x| x.l-=100 ).piped(DynTrait::from_value);
+    let mut wrapped_1=new_wrapped();
+    let mut wrapped_2=new_foo().mutated(|x| x.l+=100 ).piped(DynTrait::from_value);
+
+
+    cmp_test!{
+        wrapped_0=wrapped_0,
+        wrapped_1=wrapped_1,
+        wrapped_2=wrapped_2,
+    }
+
+    {
+        let reborrow_0=wrapped_0.reborrow();
+        let reborrow_1=wrapped_1.reborrow();
+        let reborrow_2=wrapped_2.reborrow();
+        
+        cmp_test!{
+            wrapped_0=reborrow_0,
+            wrapped_1=reborrow_1,
+            wrapped_2=reborrow_2,
+        }
+    }
+    {
+        let reborrow_0=wrapped_0.reborrow_mut();
+        let reborrow_1=wrapped_1.reborrow_mut();
+        let reborrow_2=wrapped_2.reborrow_mut();
+        
+        cmp_test!{
+            wrapped_0=reborrow_0,
+            wrapped_1=reborrow_1,
+            wrapped_2=reborrow_2,
+        }
+    }
+
 
 }
 
@@ -341,11 +422,20 @@ fn hash_test(){
         hasher.finish()
     }
     
+    
     {
-        let hash_concrete=hash_value(&new_foo());
-        let hash_wrapped=hash_value(&new_wrapped());
-        
-        assert_eq!(hash_concrete,hash_wrapped);
+        let mut wrapped=new_wrapped();
+        assert_eq!(hash_value(&new_foo()),hash_value(&wrapped));
+    
+        {
+            let reborrow=wrapped.reborrow();
+            assert_eq!(hash_value(&new_foo()),hash_value(&reborrow));
+        }        
+        {
+            let reborrow_mut=wrapped.reborrow_mut();
+            assert_eq!(hash_value(&new_foo()),hash_value(&reborrow_mut));
+        }
+
     }
     
     {
@@ -416,7 +506,7 @@ fn to_any_test(){
 
 
 
-mod submod{
+mod borrowing{
     use super::*;
 
     /// It doesn't need to be `#[repr(C)]` because  DynTrait puts it behind a pointer,
@@ -743,7 +833,7 @@ mod submod{
 
 
     #[test]
-    fn iterator_extend_buffer(){
+    fn iterator_extending_rvec(){
         let s="line0\nline1\nline2".to_string();
 
         let collected=|how_many:Option<usize>|{
@@ -755,7 +845,7 @@ mod submod{
         let extending=|how_many:ROption<usize>|{
             let mut iter=iterator_from_lines(&s);
             let mut buffer=RVec::new();
-            iter.extend_buffer(&mut buffer,how_many);
+            iter.extending_rvec(&mut buffer,how_many);
             buffer
         };
 
@@ -803,7 +893,7 @@ mod submod{
         assert_eq!(iterator_from_lines(&s).nth_back_(3),None);
     }
     #[test]
-    fn iterator_extend_buffer_back(){
+    fn iterator_extending_rvec_back(){
         let s="line0\nline1\nline2".to_string();
 
         let collected=|how_many:Option<usize>|{
@@ -815,7 +905,7 @@ mod submod{
         let extending=|how_many:ROption<usize>|{
             let mut iter=iterator_from_lines(&s);
             let mut buffer=RVec::new();
-            iter.extend_buffer_back(&mut buffer,how_many);
+            iter.extending_rvec_back(&mut buffer,how_many);
             buffer
         };
 
@@ -1042,7 +1132,7 @@ mod submod{
             assert_eq!(&out[..8],&[1,2,3,4,8,9,10,7][..] );
         }
     }
-
-
-
 }
+
+
+

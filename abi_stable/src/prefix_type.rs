@@ -103,7 +103,7 @@ pub type WithMetadata<T>=
 /// Wraps a prefix-type,with extra metadata about field count and layout.
 ///
 /// Can be converted to the `PrefixTypeTrait::Prefix` of T with the `as_prefix` method.
-#[repr(C)]
+#[repr(C,align(4))]
 pub struct WithMetadata_<T,P>{
     /// A bit array,where the bit at field index represents whether a field is accessible.
     #[inline(doc)]

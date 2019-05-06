@@ -90,6 +90,9 @@ To construct a `DynTrait<_>` one can use these associated functions:
 - from_borrowing_ptr
     Can be constructed from a pointer of a value.Cannot unerase the DynTrait afterwards.
 
+DynTrait uses the impls of the value when it's a `&self` or `&mut self` method,
+which means that the pointer itself does not have to implement those traits,
+
 ### Trait object
 
 `DynTrait<'borrow,Pointer<()>,Interface>` 
@@ -190,7 +193,13 @@ the binary or lib0 will cause the abort to happen if:
     to the InterfaceType,in versions of that interface that only they know about.
 
 
-# Example 
+
+
+
+
+# Examples
+
+### In the Readme
 
 The primary example using `DynTrait<_>` is in the readme.
 
@@ -198,6 +207,131 @@ Readme is in
 [the repository for this crate](https://github.com/rodrimati1992/abi_stable_crates),
 [crates.io](https://crates.io/crates/abi_stable),
 [lib.rs](https://lib.rs/crates/abi_stable).
+
+# Making pointers compatible with DynTrait
+
+To make pointers compatible with DynTrait,they must imlement the 
+`abi_stable::pointer_trait::{GetPointerKind,StableDeref,TransmuteElement}` traits 
+as shown in the example.
+
+`GetPointerKind` should generally be implemented with `type Kind=PK_SmartPointer`.
+The exception is in the case that it is a `#[repr(transparent)]`
+wrapper around a `&` or a `&mut`,
+in which case it should implement `GetPointerKind<Kind=PK_Reference>` 
+or `GetPointerKind<Kind=PK_MutReference>` respectively.
+
+### Example
+
+This is an example of a newtype wrapping an `RBox<T>`.
+
+```rust 
+    
+use abi_stable::DynTrait;
+
+fn main(){
+    let lines="line0\nline1\nline2";
+    let mut iter=NewtypeBox::new(lines.lines());
+
+    // The type annotation here is just to show the type,it's not necessary.
+    let mut wrapper:DynTrait<'_,NewtypeBox<()>,IteratorInterface>=
+        DynTrait::from_borrowing_ptr(iter,IteratorInterface);
+
+    // You can clone the DynTrait! 
+    let clone=wrapper.clone();
+
+    assert_eq!( wrapper.next(), Some("line0") );
+    assert_eq!( wrapper.next(), Some("line1") );
+    assert_eq!( wrapper.next(), Some("line2") );
+    assert_eq!( wrapper.next(), None );
+
+    assert_eq!(
+        clone.rev().collect::<Vec<_>>(),
+        vec!["line2","line1","line0"],
+    )
+
+}
+
+
+/////////////////////////////////////////
+
+use std::ops::{Deref, DerefMut};
+
+use abi_stable::{
+    StableAbi,
+    InterfaceType,
+    impl_InterfaceType,
+    std_types::RBox,
+    erased_types::IteratorItem,
+    pointer_trait::{
+        PK_SmartPointer,GetPointerKind,StableDeref,TransmuteElement
+    },
+    type_level::bools::True,
+};
+
+#[repr(transparent)]
+#[derive(Default,Clone,StableAbi)]
+pub struct NewtypeBox<T>{
+    box_:RBox<T>,
+}
+
+impl<T> NewtypeBox<T>{
+    pub fn new(value:T)->Self{
+        Self{
+            box_:RBox::new(value)
+        }
+    }
+}
+
+impl<T> Deref for NewtypeBox<T>{
+    type Target=T;
+
+    fn deref(&self)->&T{
+        &*self.box_
+    }
+}
+
+impl<T> DerefMut for NewtypeBox<T>{
+    fn deref_mut(&mut self)->&mut T{
+        &mut *self.box_
+    }
+}
+
+unsafe impl<T> GetPointerKind for NewtypeBox<T>{
+    type Kind=PK_SmartPointer;
+}
+
+unsafe impl<T> StableDeref for NewtypeBox<T> {}
+
+unsafe impl<T,O> TransmuteElement<O> for NewtypeBox<T>
+where 
+    // Using this to ensure that the pointer is safe to wrap,
+    // while this is not necessary for `RBox<T>`,
+    // it might be for some other pointer type.
+    RBox<T>:TransmuteElement<O,Kind=Self::Kind>
+{
+    type TransmutedPtr = NewtypeBox<O>;
+}
+
+/////////////////////////////////////////
+
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct IteratorInterface;
+
+impl_InterfaceType!{
+    impl InterfaceType for IteratorInterface {
+        type Iterator = True;
+        type DoubleEndedIterator = True;
+        type Clone = True;
+        type Debug = True;
+    }
+}
+
+impl<'a> IteratorItem<'a> for IteratorInterface{
+    type Item=&'a str;
+}
+
+```
 
     
     */
@@ -219,7 +353,7 @@ Readme is in
     }
 
     impl DynTrait<'static,&'static (),()> {
-        /// Constructors the `DynTrait<_>` from an ImplType implementor.
+        /// Constructs the `DynTrait<_>` from a `T:ImplType`.
         ///
         /// Use this whenever possible instead of `from_any_value`,
         /// because it produces better error messages when unerasing the `DynTrait<_>`
@@ -233,7 +367,7 @@ Readme is in
             DynTrait::from_ptr(object)
         }
 
-        /// Constructors the `DynTrait<_>` from a pointer to an ImplType implementor.
+        /// Constructs the `DynTrait<_>` from a pointer to a `T:ImplType`.
         ///
         /// Use this whenever possible instead of `from_any_ptr`,
         /// because it produces better error messages when unerasing the `DynTrait<_>`
@@ -254,7 +388,7 @@ Readme is in
             }
         }
 
-        /// Constructors the `DynTrait<_>` from a type that doesn't implement `ImplType`.
+        /// Constructs the `DynTrait<_>` from a type that doesn't implement `ImplType`.
         pub fn from_any_value<T,I>(object: T,interface:I) -> DynTrait<'static,RBox<()>,I>
         where
             T:'static,
@@ -265,7 +399,7 @@ Readme is in
             DynTrait::from_any_ptr(object,interface)
         }
 
-        /// Constructors the `DynTrait<_>` from a pointer to a 
+        /// Constructs the `DynTrait<_>` from a pointer to a 
         /// type that doesn't implement `ImplType`.
         pub fn from_any_ptr<P, T,I>(
             object: P,
@@ -287,7 +421,7 @@ Readme is in
             }
         }
         
-        /// Constructors the `DynTrait<_>` from a value.
+        /// Constructs the `DynTrait<_>` from a value with a `'borr` borrow.
         ///
         /// Cannot unerase the DynTrait afterwards.
         pub fn from_borrowing_value<'borr,T,I>(
@@ -303,7 +437,8 @@ Readme is in
             DynTrait::from_borrowing_ptr(object,interface)
         }
 
-        /// Constructors the `DynTrait<_>` from a pointer to the erased type.
+        /// Constructs the `DynTrait<_>` from a pointer to the erased type
+        /// with a `'borr` borrow.
         ///
         /// Cannot unerase the DynTrait afterwards.
         pub fn from_borrowing_ptr<'borr,P, T,I>(
@@ -633,6 +768,12 @@ Readme is in
     where 
         I:InterfaceBound<'borr>
     {
+        /// Creates a shared reborrow of this DynTrait.
+        ///
+        /// The reborrowed DynTrait cannot use these methods:
+        /// 
+        /// - DynTrait::default
+        /// 
         pub fn reborrow<'re>(&'re self)->DynTrait<'borr,&'re (),I> 
         where
             P:Deref<Target=()>,
@@ -646,6 +787,14 @@ Readme is in
             }
         }
 
+        /// Creates a mutable reborrow of this DynTrait.
+        ///
+        /// The reborrowed DynTrait cannot use these methods:
+        /// 
+        /// - DynTrait::default
+        /// 
+        /// - DynTrait::clone
+        /// 
         pub fn reborrow_mut<'re>(&'re mut self)->DynTrait<'borr,&'re mut (),I> 
         where
             P:DerefMut<Target=()>,
@@ -663,11 +812,11 @@ Readme is in
 
     impl<'borr,P,I> DynTrait<'borr,P,I> 
     where 
-        I:InterfaceBound<'borr>
+        I:InterfaceBound<'borr>+'borr
     {
-        /// Constructs a DynTrait<P,I> wrapping a `P`,using the same vtable.
+        /// Constructs a DynTrait<P,I> with a `P`,using the same vtable.
         /// `P` must come from a function in the vtable,
-        /// or come from a copy of `P` if it's a `Copy+GetPointerKind<Kind=PK_Reference>`,
+        /// or come from a copy of `P:Copy+GetPointerKind<Kind=PK_Reference>`,
         /// to ensure that it is compatible with the functions in it.
         pub(super) fn from_new_ptr(&self, object: P) -> Self {
             Self {
@@ -677,7 +826,35 @@ Readme is in
             }
         }
 
-        /// Constructs a `DynTrait<P,I>` with the default value for `P`.
+/**
+Constructs a `DynTrait<P,I>` with the default value for `P`.
+
+# Reborrowing
+
+This cannot be called with a reborrowed DynTrait:
+
+```compile_fail
+# use abi_stable::{
+#     DynTrait,
+#     erased_types::interfaces::DefaultInterface,
+# };
+let object=DynTrait::from_any_value((),DefaultInterface);
+let borrow=object.reborrow();
+let _=borrow.default();
+
+```
+
+```compile_fail
+# use abi_stable::{
+#     DynTrait,
+#     erased_types::interfaces::DefaultInterface,
+# };
+let object=DynTrait::from_any_value((),DefaultInterface);
+let borrow=object.reborrow_mut();
+let _=borrow.default();
+
+```
+ */
         pub fn default(&self) -> Self
         where
             P: Deref + GetPointerKind<Kind=PK_SmartPointer>,
@@ -760,7 +937,7 @@ use self::clone_impl::CloneImpl;
 impl<'borr,P, I> CloneImpl<PK_SmartPointer> for DynTrait<'borr,P,I>
 where
     P: Deref,
-    I: InterfaceBound<'borr,Clone = True>,
+    I: InterfaceBound<'borr,Clone = True>+'borr,
 {
     fn clone_impl(&self) -> Self {
         let vtable = self.vtable();
@@ -773,7 +950,7 @@ where
 impl<'borr,P, I> CloneImpl<PK_Reference> for DynTrait<'borr,P,I>
 where
     P: Deref+Copy,
-    I: InterfaceBound<'borr,Clone = True>,
+    I: InterfaceBound<'borr,Clone = True>+'borr,
 {
     fn clone_impl(&self) -> Self {
         self.from_new_ptr(*self.object)
@@ -781,8 +958,25 @@ where
 }
 
 
-/// Clone is implemented for references and smart pointers,
-/// using `GetPointerKind` to decide whether `P` is a smart pointer or a reference.
+/**
+Clone is implemented for references and smart pointers,
+using `GetPointerKind` to decide whether `P` is a smart pointer or a reference.
+
+DynTrait does not implement Clone if P==`&mut ()` :
+
+```compile_fail
+# use abi_stable::{
+#     DynTrait,
+#     erased_types::interfaces::CloneInterface,
+# };
+
+let object=DynTrait::from_any_value((),());
+let borrow=object.reborrow_mut();
+let _=borrow.clone();
+
+```
+
+*/
 impl<'borr,P, I> Clone for DynTrait<'borr,P,I>
 where
     P: Deref+GetPointerKind,
@@ -845,7 +1039,7 @@ where
 impl<'de,'borr:'de, P, I> Deserialize<'de> for DynTrait<'borr,P,I>
 where
     P: Deref+'borr,
-    I: InterfaceBound<'borr>,
+    I: InterfaceBound<'borr>+'borr,
     I: DeserializeOwnedInterface<'borr,Deserialize = True, Deserialized = Self>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -865,12 +1059,13 @@ where
 {
 }
 
-impl<P, I> PartialEq for DynTrait<'static,P,I>
+impl<P, P2, I> PartialEq<DynTrait<'static,P2,I>> for DynTrait<'static,P,I>
 where
     P: Deref,
+    P2: Deref,
     I: InterfaceBound<'static,PartialEq = True>,
 {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, other: &DynTrait<'static,P2,I>) -> bool {
         // unsafe: must check that the vtable is the same,otherwise return a sensible value.
         if !self.is_same_type(other) {
             return false;
@@ -896,13 +1091,14 @@ where
     }
 }
 
-impl<P, I> PartialOrd for DynTrait<'static,P,I>
+impl<P, P2, I> PartialOrd<DynTrait<'static,P2,I>> for DynTrait<'static,P,I>
 where
     P: Deref,
+    P2: Deref,
     I: InterfaceBound<'static,PartialOrd = True>,
-    Self: PartialEq,
+    Self: PartialEq<DynTrait<'static,P2,I>>,
 {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &DynTrait<'static,P2,I>) -> Option<Ordering> {
         // unsafe: must check that the vtable is the same,otherwise return a sensible value.
         if !self.is_same_type(other) {
             return Some(self.vtable_address().cmp(&other.vtable_address()));
@@ -971,14 +1167,91 @@ where
     P: DerefMut,
     I: InterfaceBound<'borr,Iterator = True,IteratorItem=Item>,
 {
+/**
+Eagerly skips n elements from the iterator.
+
+This method is faster than using `Iterator::skip`.
+
+# Example
+
+```
+# use abi_stable::{
+#     DynTrait,
+#     erased_types::interfaces::IteratorInterface,
+#     std_types::RVec,
+#     traits::IntoReprC,
+# };
+
+let mut iter=0..20;
+let mut wrapped=DynTrait::from_any_ptr(&mut iter,IteratorInterface::NEW);
+
+assert_eq!(wrapped.next(),Some(0));
+
+wrapped.skip_eager(2);
+
+assert_eq!(wrapped.next(),Some(3));
+assert_eq!(wrapped.next(),Some(4));
+assert_eq!(wrapped.next(),Some(5));
+
+wrapped.skip_eager(2);
+
+assert_eq!(wrapped.next(),Some(8));
+assert_eq!(wrapped.next(),Some(9));
+
+wrapped.skip_eager(9);
+
+assert_eq!(wrapped.next(),Some(19));
+assert_eq!(wrapped.next(),None    );
+
+
+
+```
+
+
+*/
     pub fn skip_eager(&mut self, n: usize){
         let vtable=self.vtable();
         (vtable.iter().skip_eager)(self.as_abi_mut(),n);
     }
 
-    pub fn extend_buffer(&mut self,buffer:&mut RVec<Item>,taking:ROption<usize>){
+
+/**
+Extends the `RVec<Item>` with the `self` Iterator.
+
+Extends `buffer` with as many elements of the iterator as `taking` specifies:
+
+- RNone: Yields all elements.Use this with care,since Iterators can be infinite.
+
+- RSome(n): Yields n elements.
+
+### Example
+
+```
+# use abi_stable::{
+#     DynTrait,
+#     erased_types::interfaces::IteratorInterface,
+#     std_types::{RVec,RSome},
+#     traits::IntoReprC,
+# };
+
+let mut wrapped=DynTrait::from_any_value(0.. ,IteratorInterface::NEW);
+
+let mut buffer=vec![ 101,102,103 ].into_c();
+wrapped.extending_rvec(&mut buffer,RSome(5));
+assert_eq!(
+    &buffer[..],
+    &*vec![101,102,103,0,1,2,3,4]
+);
+
+assert_eq!( wrapped.next(),Some(5));
+assert_eq!( wrapped.next(),Some(6));
+assert_eq!( wrapped.next(),Some(7));
+
+```
+*/
+    pub fn extending_rvec(&mut self,buffer:&mut RVec<Item>,taking:ROption<usize>){
         let vtable=self.vtable();
-        (vtable.iter().extend_buffer)(self.as_abi_mut(),buffer,taking);
+        (vtable.iter().extending_rvec)(self.as_abi_mut(),buffer,taking);
     }
 }
 
@@ -1011,9 +1284,40 @@ where
         (vtable.back_iter().nth_back)(self.as_abi_mut(),nth).into_rust()
     }
 
-    pub fn extend_buffer_back(&mut self,buffer:&mut RVec<Item>,taking:ROption<usize>){
+/**
+Extends the `RVec<Item>` with the back of the `self` DoubleEndedIterator.
+
+Extends `buffer` with as many elements of the iterator as `taking` specifies:
+
+- RNone: Yields all elements.Use this with care,since Iterators can be infinite.
+
+- RSome(n): Yields n elements.
+
+### Example
+
+```
+# use abi_stable::{
+#     DynTrait,
+#     erased_types::interfaces::DEIteratorInterface,
+#     std_types::{RVec,RNone},
+#     traits::IntoReprC,
+# };
+
+let mut wrapped=DynTrait::from_any_value(0..=3 ,DEIteratorInterface::NEW);
+
+let mut buffer=vec![ 101,102,103 ].into_c();
+wrapped.extending_rvec_back(&mut buffer,RNone);
+assert_eq!(
+    &buffer[..],
+    &*vec![101,102,103,3,2,1,0]
+)
+
+```
+
+*/
+    pub fn extending_rvec_back(&mut self,buffer:&mut RVec<Item>,taking:ROption<usize>){
         let vtable=self.vtable();
-        (vtable.back_iter().extend_buffer_back)(self.as_abi_mut(),buffer,taking);
+        (vtable.back_iter().extending_rvec_back)(self.as_abi_mut(),buffer,taking);
     }
 }
 
@@ -1207,3 +1511,5 @@ impl fmt::Display for UneraseError {
 }
 
 impl ::std::error::Error for UneraseError {}
+
+//////////////////////////////////////////////////////////////////

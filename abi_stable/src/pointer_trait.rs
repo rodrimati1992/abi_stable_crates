@@ -102,9 +102,9 @@ pub enum PointerKind{
 }
 
 
-pub struct PK_Reference ;
-pub struct PK_MutReference ;
-pub struct PK_SmartPointer ;
+pub struct PK_Reference;
+pub struct PK_MutReference;
+pub struct PK_SmartPointer;
 
 impl Sealed for PK_Reference{}
 impl Sealed for PK_MutReference{}
@@ -121,7 +121,6 @@ impl PointerKindVariant for PK_MutReference{
 impl PointerKindVariant for PK_SmartPointer{
     const VALUE:PointerKind=PointerKind::SmartPointer;
 }
-
 
 unsafe impl<'a,T> GetPointerKind for &'a T{
     type Kind=PK_Reference;
