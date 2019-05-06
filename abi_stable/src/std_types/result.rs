@@ -1,4 +1,9 @@
+use std::fmt::Debug;
+
+use core_extensions::matches;
+
 use crate::std_types::{ROption,RSome,RNone};
+
 
 
 /// Ffi-safe equivalent of `Result<T,E>`.
@@ -16,6 +21,7 @@ pub enum RResult<T, E> {
 pub use self::RResult::*;
 
 impl<T, E> RResult<T, E> {
+    /// Converts from `RResult<T,E>` to `RResult<&T,&E>`.
     #[inline]
     pub fn as_ref(&self) -> RResult<&T, &E> {
         match self {
@@ -24,6 +30,7 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Converts from `RResult<T,E>` to `RResult<&mut T,&mut E>`.
     #[inline]
     pub fn as_mut(&mut self) -> RResult<&mut T, &mut E> {
         match self {
@@ -32,27 +39,27 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Returns whether `self` is an `ROk`
     #[inline]
-    pub fn as_result(&self) -> Result<&T, &E> {
-        match self {
-            ROk(v) => Ok(v),
-            RErr(v) => Err(v),
-        }
+    pub fn is_rok(&self)->bool{
+        matches!{ ROk{..}=self }
     }
 
+    /// Returns whether `self` is an `RErr`
     #[inline]
-    pub fn as_result_mut(&mut self) -> Result<&mut T, &mut E> {
-        match self {
-            ROk(v) => Ok(v),
-            RErr(v) => Err(v),
-        }
+    pub fn is_rerr(&self)->bool{
+        matches!{ RErr{..}=self }
     }
 
+
+    /// Converts from `RResult<T,E>` to `Result<T,E>`.
     #[inline]
     pub fn into_result(self) -> Result<T, E> {
         self.into()
     }
 
+    /// Converts the `RResult<T,E>` to a `RResult<U,E>` by transforming the value in ROk
+    /// using the `op` closure.
     #[inline]
     pub fn map<U, F>(self, op: F) -> RResult<U, E>
     where
@@ -64,6 +71,8 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Converts the `RResult<T,E>` to a `RResult<U,F>` by transforming the value in RErr
+    /// using the `op` closure.
     #[inline]
     pub fn map_err<F, O>(self, op: O) -> RResult<T, F>
     where
@@ -75,15 +84,20 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Converts the `RResult<T,E>` to a `U` by 
+    /// transforming the value in ROk using the `with_ok` closure,
+    /// otherwise transforming the value in RErr using the `with_err` closure,
     #[inline]
-    pub fn map_or_else<U, M, F>(self, fallback: F, map: M) -> U
+    pub fn map_or_else<U, M, F>(self, with_err: F, with_ok: M) -> U
     where
         M: FnOnce(T) -> U,
         F: FnOnce(E) -> U,
     {
-        self.map(map).unwrap_or_else(fallback)
+        self.map(with_ok).unwrap_or_else(with_err)
     }
 
+    /// Calls the `op` closure with the value of ROk,
+    /// otherwise returning the RErr unmodified.
     #[inline]
     pub fn and_then<U, F>(self, op: F) -> RResult<U, E>
     where
@@ -95,6 +109,8 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Calls the `op` closure with the value of RErr,
+    /// otherwise returning the ROk unmodified.
     #[inline]
     pub fn or_else<F, O>(self, op: O) -> RResult<T, F>
     where
@@ -106,6 +122,61 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Unwraps `self`, returning the value in Ok.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `self` is an `Err(_)` with an error message 
+    /// using `E`s Debug implementation.
+    pub fn unwrap(self) -> T 
+    where 
+        E:Debug
+    {
+        self.into_result().unwrap()
+    }
+
+    /// Unwraps `self`, returning the value in Ok.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `self` is an `Err(_)` with an error message 
+    /// using `E`s Debug implementation,
+    /// as well as `message`.
+    pub fn expect(self, message: &str) -> T
+    where 
+        E:Debug
+    {
+        self.into_result().expect(message)
+    }
+
+    /// Unwraps `self`, returning the value in Err.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `self` is an `Ok(_)` with an error message 
+    /// using `T`s Debug implementation.
+    pub fn unwrap_err(self) -> E
+    where 
+        T:Debug
+    {
+        self.into_result().unwrap_err()
+    }
+
+    /// Unwraps `self`, returning the value in Err.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `self` is an `Ok(_)` with an error message 
+    /// using `T`s Debug implementation,
+    /// as well as `message`.
+    pub fn expect_err(self, message: &str) -> E
+    where 
+        T:Debug
+    {
+        self.into_result().expect_err(message)
+    }
+
+    /// Returns the value in the `RResult<T,E>`,or `def` if `self` is `RErr`.
     #[inline]
     pub fn unwrap_or(self, optb: T) -> T {
         match self {
@@ -114,6 +185,8 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Returns the value in the `RResult<T,E>`,
+    /// or calls `def` with the error in `RErr`.
     #[inline]
     pub fn unwrap_or_else<F>(self, op: F) -> T
     where
@@ -125,6 +198,20 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Returns the value in the `RResult<T,E>`,
+    /// or returns `T::default()` it `self` is an `RErr`.
+    #[inline]
+    pub fn unwrap_or_default(self) -> T
+    where
+        T:Default
+    {
+        match self {
+            ROk(t) => t,
+            RErr(e) => Default::default(),
+        }
+    }
+
+    /// Converts from RResult<T, E> to ROption<T>,ROk maps to RSome,RErr maps to RNone.
     #[inline]
     pub fn ok(self)->ROption<T>{
         match self {
@@ -134,6 +221,7 @@ impl<T, E> RResult<T, E> {
     }
 
 
+    /// Converts from RResult<T, E> to ROption<T>,ROk maps to RNone,RErr maps to RSome.
     #[inline]
     pub fn err(self)->ROption<E>{
         match self {
