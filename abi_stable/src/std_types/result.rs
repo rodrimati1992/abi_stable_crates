@@ -1,3 +1,6 @@
+use crate::std_types::{ROption,RSome,RNone};
+
+
 /// Ffi-safe equivalent of `Result<T,E>`.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
@@ -119,6 +122,23 @@ impl<T, E> RResult<T, E> {
         match self {
             ROk(t) => t,
             RErr(e) => op(e),
+        }
+    }
+
+    #[inline]
+    pub fn ok(self)->ROption<T>{
+        match self {
+            ROk(t)  => RSome(t),
+            RErr(_) => RNone,
+        }
+    }
+
+
+    #[inline]
+    pub fn err(self)->ROption<E>{
+        match self {
+            ROk(_)  => RNone,
+            RErr(v) => RSome(v),
         }
     }
 }

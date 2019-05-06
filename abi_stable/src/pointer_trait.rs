@@ -38,9 +38,10 @@ Trait for pointers that:
 
 - Deref::deref always returns the same address (for the same pointer).
 
-- If it implements DerefMut,it always returns the same memory address.
+- If it implements DerefMut,it always returns the same memory address,
+    so long as no `&mut self``method other than `DerefMut::deref_mut` is called.
 
-- The inline layout of the pointer cannot change depending on its (Sized) referent.
+- The inline layout of the pointer cannot change depending on its referent.
 
 
 Explicit non-guarantees:
