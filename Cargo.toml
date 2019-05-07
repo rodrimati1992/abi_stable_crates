@@ -6,5 +6,8 @@ members=[
     "examples/example_0_impl",
     "examples/example_0_interface",
     "examples/example_0_user",
+    "testing/impl_0",
+    "testing/interface_0",
+    "testing/user",
 ]
 

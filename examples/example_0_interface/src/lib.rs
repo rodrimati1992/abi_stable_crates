@@ -21,7 +21,7 @@ use abi_stable::{
         InterfaceType,DeserializeOwnedInterface,DeserializeBorrowedInterface,IteratorItem
     },
     DynTrait,
-    std_types::{RBox, RStr, RString,RVec,RArc, RSlice,RCow,RBoxError,RResult},
+    std_types::{RBox, RStr, RString,RArc,RCow,RBoxError,RResult},
 };
 
 
@@ -175,46 +175,22 @@ pub struct RemoveWords<'a,'b>{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// This type is used in tests between the interface and user crates.
-#[repr(C)]
-#[derive(StableAbi)] 
-pub struct ForTests{
-    pub arc:RArc<RString>,
-    pub arc_address:usize,
-
-    pub box_:RBox<u32>,
-    pub box_address:usize,
-    
-    pub vec_:RVec<RStr<'static>>,
-    pub vec_address:usize,
-    
-    pub string:RString,
-    pub string_address:usize,
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-
-
 /// The root module of the `text_operations` dynamic library.
 /// With all the functions/modules related to processing text.
 ///
 /// To construct this module,
-/// call <TextOpsMod_Prefix as ModuleTrait>::load_from_library_in(some_directory_path)
+/// call <TextOpsMod as ModuleTrait>::load_from_library_in(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="TextOpsMod_Prefix")))]
+#[sabi(kind(Prefix(prefix_struct="TextOpsMod")))]
 //#[sabi(debug_print)]
 #[sabi(missing_field(panic))]
-pub struct TextOpsMod {
+pub struct TextOpsModVal {
     /// Constructs TOStateBox,state that is passed to other functions in this module.
     pub new: extern "C" fn() -> TOStateBox,
-    
-    /// An example module.
-    pub hello_world:&'static HelloWorldMod_Prefix,
 
     #[sabi(last_prefix_field)]    
-    pub deserializers:&'static DeserializerMod_Prefix,
+    pub deserializers:&'static DeserializerMod,
 
     /// Reverses the order of the lines.
     pub reverse_lines: extern "C" fn(&mut TOStateBox,RStr<'_>) -> RString,
@@ -228,13 +204,10 @@ pub struct TextOpsMod {
  
     pub run_command: 
         extern "C" fn(&mut TOStateBox,command:TOCommandBox<'static>)->TOReturnValueArc,
-
-    /// An module used in prefix-type tests.
-    pub prefix_types_tests:&'static PrefixTypeMod0_Prefix,
 }
 
 
-impl RootModule for TextOpsMod_Prefix {
+impl RootModule for TextOpsMod {
     fn raw_library_ref()->&'static LazyStaticRef<Library>{
         static RAW_LIB:LazyStaticRef<Library>=LazyStaticRef::new();
         &RAW_LIB
@@ -247,35 +220,12 @@ impl RootModule for TextOpsMod_Prefix {
 }
 
 
-/// An example sub-module in the text_operations dynamic library.
-#[repr(C)]
-#[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="HelloWorldMod_Prefix")))]
-#[sabi(missing_field(panic))]
-pub struct HelloWorldMod {
-    #[sabi(last_prefix_field)]
-    pub greeter:extern "C" fn(RStr<'_>),
-    pub for_tests:extern "C" fn()->ForTests,
-    
-    #[cfg(feature="enable_field_a")]
-    #[sabi(missing_field(option))]
-    pub field_a:u32,
-    
-    #[cfg(feature="enable_field_b")]
-    #[sabi(missing_field(option))]
-    pub field_b:u32,
-    
-    #[cfg(feature="enable_field_c")]
-    #[sabi(missing_field(option))]
-    pub field_c:u32,
-}
-
 /// A module for all deserialization functions.
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="DeserializerMod_Prefix")))]
+#[sabi(kind(Prefix(prefix_struct="DeserializerMod")))]
 #[sabi(missing_field(panic))]
-pub struct DeserializerMod {
+pub struct DeserializerModVal {
     #[sabi(last_prefix_field)]
     /// The implementation for how TOStateBox is going to be deserialized.
     pub deserialize_state: extern "C" fn(RStr<'_>) -> RResult<TOStateBox, RBoxError>,
@@ -295,71 +245,21 @@ pub struct DeserializerMod {
 
 
 
-// Macro used to make sure that PrefixTypeMod0 and PrefixTypeMod1 
-// are changed in lockstep.
-macro_rules! declare_PrefixTypeMod {
-    (
-        $(#[$attr:meta])*
-        struct $struct_ident:ident;
-        prefix_struct=$prefix:literal ;
-    
-        $(extra_fields=[ $($extra_fields:tt)* ])?
-    ) => (
-        $(#[$attr])*
-        #[repr(C)]
-        #[derive(StableAbi)] 
-        #[sabi(kind(Prefix(prefix_struct=$prefix)))]
-        #[sabi(missing_field(option))]
-        pub struct $struct_ident {
-            #[sabi(last_prefix_field)]
-            pub field_a:u32,
-            $($($extra_fields)*)?
-        }
-    )
-}
-
-
-declare_PrefixTypeMod!{
-    struct PrefixTypeMod0;
-    prefix_struct="PrefixTypeMod0_Prefix";
-}
-
-declare_PrefixTypeMod!{
-    /**
-    This is unsafely converted from PrefixTypeMod0 in tests to check that 
-    `prefix.field_a()==some_integer`,
-    `prefix.field_b()==None`,
-    `prefix.field_c()==None`.
-
-    This only works because I know that both structs have the same alignment,
-    if either struct alignment changed that conversion would be unsound.
-    */
-    struct PrefixTypeMod1;
-    prefix_struct="PrefixTypeMod1_Prefix";
-    
-    extra_fields=[
-        pub field_b:u32,
-        pub field_c:u32,
-        #[sabi(missing_field(panic))]
-        pub field_d:u32,
-    ]
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
 
-/// A late-initialized reference to the global `TextOpsMod_Prefix` instance,
+/// A late-initialized reference to the global `TextOpsMod` instance,
 ///
 /// Call `load_library_in` before calling `MODULES.get()` to get a `Some(_)` value back.
 ///
-pub static MODULES:LazyStaticRef<TextOpsMod_Prefix>=LazyStaticRef::new();
+pub static MODULES:LazyStaticRef<TextOpsMod>=LazyStaticRef::new();
 
 
 /// Loads all the modules of the library at the `directory`.
 /// If it loads them once,this will continue returning the same reference.
-pub fn load_library_in(directory:&Path) -> Result<&'static TextOpsMod_Prefix,LibraryError> {
+pub fn load_library_in(directory:&Path) -> Result<&'static TextOpsMod,LibraryError> {
     MODULES.try_init(||{
-        TextOpsMod_Prefix::load_from_library_in(directory)
+        TextOpsMod::load_from_library_in(directory)
     })
 }

@@ -114,7 +114,7 @@ pub struct WithMetadata_<T,P>{
     _marker:PhantomData<P>,
     // WithMetadata will never implement Copy or Clone.
     // This type does not implement those traits because it is a field of 
-    // all `*_Prefix` types,and it's UB prone for those types to implement Copy or Clone.
+    // all `<prefix_struct>` types,and it's UB prone for those types to implement Copy or Clone.
     unbounds:NotCopyNotClone,
 }
 
@@ -131,14 +131,14 @@ impl<T,P> WithMetadata_<T,P> {
         }
     }
 
-    /// Converts this WithMetadata<T,P> to a `*_Prefix` type.
+    /// Converts this WithMetadata<T,P> to a `<prefix_struct>` type.
     pub fn as_prefix(&self)->&P {
         unsafe{
             &*self.as_prefix_raw()
         }
     }
     
-    /// Converts this WithMetadata<T,P> to a `*_Prefix` type.
+    /// Converts this WithMetadata<T,P> to a `<prefix_struct>` type.
     /// Use this if you need to implement nested vtables at compile-time.
     pub const fn as_prefix_raw(&self)->*const P {
         unsafe{

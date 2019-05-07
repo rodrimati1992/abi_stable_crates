@@ -4,10 +4,11 @@ Where the StableAbi trait is declares,as well as related types/traits.
 
 use core_extensions::type_level_bool::{Boolean, False, True};
 use std::{
+    cell::{Cell,UnsafeCell},
     fmt,
-    marker::PhantomData,
+    marker::{PhantomData,PhantomPinned},
     mem::ManuallyDrop,
-    num,
+    num::{self,Wrapping as NumWrapping},
     pin::Pin,
     ptr::NonNull,
     sync::atomic::{AtomicBool, AtomicIsize, AtomicPtr, AtomicUsize},
@@ -634,60 +635,61 @@ mod rust_1_34_impls{
 
 /////////////
 
-unsafe impl<N> SharedStableAbi for num::Wrapping<N>
-where
-    N: StableAbi,
-{
-    type Kind=ValueKind;
-    type IsNonZeroType = N::IsNonZeroType;
-    type StaticEquivalent=num::Wrapping<N::StaticEquivalent>;
+macro_rules! impl_stableabi_for_repr_transparent {
+    (
+        $type_constr:ident
+        $(where[ $($where_clause:tt)* ])*
+    ) => (
+        unsafe impl<P> SharedStableAbi for $type_constr<P>
+        where
+            P: StableAbi,
+            $($($where_clause)*)*
+        {
+            type Kind=ValueKind;
+            type IsNonZeroType = P::IsNonZeroType;
+            type StaticEquivalent=$type_constr<P::StaticEquivalent>;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
-        "num::Wrapping",
-        TLData::struct_(&[
-            TLField::new("0",&[],<N as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
-        ]),
-        tl_genparams!(;N;),
-    );
+            const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
+                stringify!($type_constr),
+                TLData::struct_(&[
+                    TLField::new("0",&[],<P as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
+                ]),
+                tl_genparams!(;P;),
+            );
+        }
+    )
 }
+
+
+impl_stableabi_for_repr_transparent!{ NumWrapping }
+impl_stableabi_for_repr_transparent!{ Pin }
+impl_stableabi_for_repr_transparent!{ ManuallyDrop }
+impl_stableabi_for_repr_transparent!{ Cell }
+impl_stableabi_for_repr_transparent!{ UnsafeCell }
 
 /////////////
 
-unsafe impl<P> SharedStableAbi for Pin<P>
-where
-    P: StableAbi,
-{
-    type Kind=ValueKind;
-    type IsNonZeroType = P::IsNonZeroType;
-    type StaticEquivalent=Pin<P::StaticEquivalent>;
+macro_rules! impl_stableabi_for_unit_struct {
+    (
+        $type_constr:ident
+    ) => (
+        unsafe impl SharedStableAbi for $type_constr{
+            type Kind=ValueKind;
+            type IsNonZeroType = False;
+            type StaticEquivalent=$type_constr;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
-        "Pin",
-        TLData::struct_(&[
-            TLField::new("0",&[],<P as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
-        ]),
-        tl_genparams!(;P;),
-    );
+            const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
+                stringify!($type_constr),
+                TLData::struct_(&[]),
+                tl_genparams!(;;),
+            );
+        }
+    )
 }
 
-/////////////
 
-unsafe impl<T> SharedStableAbi for ManuallyDrop<T>
-where
-    T: StableAbi,
-{
-    type Kind=ValueKind;
-    type IsNonZeroType = T::IsNonZeroType;
-    type StaticEquivalent=ManuallyDrop<T::StaticEquivalent>;
+impl_stableabi_for_unit_struct!{ PhantomPinned }
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
-        "ManuallyDrop",
-        TLData::struct_(&[
-            TLField::new("0",&[],<T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
-        ]),
-        tl_genparams!(;T;),
-    );
-}
 
 /////////////
 
