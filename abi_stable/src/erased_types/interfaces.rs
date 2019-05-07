@@ -12,6 +12,10 @@ crate::impl_InterfaceType!{
     }
 }
 
+
+//////////////////////////////////////////////
+
+
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -23,6 +27,35 @@ crate::impl_InterfaceType!{
     }
 }
 
+//////////////////////////////////////////////
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub struct PartialEqInterface;
+
+crate::impl_InterfaceType!{
+    impl crate::erased_types::InterfaceType for PartialEqInterface {
+        type Debug=True;
+        type PartialEq=True;
+    }
+}
+
+//////////////////////////////////////////////
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub struct FmtWriteInterface;
+
+crate::impl_InterfaceType!{
+    impl crate::erased_types::InterfaceType for FmtWriteInterface {
+        type Debug=True;
+        type FmtWrite=True;
+    }
+}
+
+//////////////////////////////////////////////
 
 
 #[repr(C)]
@@ -43,6 +76,9 @@ crate::impl_InterfaceType!{
 impl<'a,T:'a> IteratorItem<'a> for IteratorInterface<T>{
     type Item=T;
 }
+
+
+//////////////////////////////////////////////
 
 
 
