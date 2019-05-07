@@ -59,9 +59,6 @@ Declares the struct as being a prefix-type.
 `#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`<br>
 Uses "NameOfPrefixStruct" as the name of the prefix struct.
 
-`#[sabi(kind(Prefix(prefix_struct="default")))]`<br>
-Generates the name of the prefix struct appending "\_Prefix" to the deriving struct's name.
-
 # Field attributes
 
 These attributes are applied to fields.

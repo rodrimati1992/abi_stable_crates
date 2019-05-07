@@ -281,9 +281,9 @@ mod with_layout {
     }
 
     impl<T> WithLayout<T> {
-        /// Constructs a WithLayout from the `Type_Prefix` struct of a type 
+        /// Constructs a WithLayout from the `PrefixStruct` of a type 
         /// deriving `StableAbi` with 
-        /// `#[sabi(kind(Prefix(prefix_struct="Type_Prefix" )))]`.
+        /// `#[sabi(kind(Prefix(prefix_struct="PrefixStruct" )))]`.
         pub fn from_prefix(ref_:&'static T)->Self
         where
             T: RootModule,

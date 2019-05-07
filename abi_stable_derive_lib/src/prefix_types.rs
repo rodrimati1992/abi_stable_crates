@@ -156,7 +156,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             generics=stringified_generics,
         );
 
-        // Generating the `*_Prefix` struct
+        // Generating the `<prefix_struct>` struct
         {
             let vis=ds.vis;
             let prefix_struct=prefix.prefix_struct;

@@ -16,11 +16,9 @@ use std::{
 
 use example_0_interface::{
     RemoveWords, CowStrIter,
-    TextOpsMod,HelloWorldMod,TextOpsMod_Prefix,
-    DeserializerMod,
+    TextOpsMod,TextOpsModVal,
+    DeserializerModVal,
     TOState, TOStateBox,TOCommand,TOReturnValue,TOCommandBox,TOReturnValueArc,
-    PrefixTypeMod0,
-    ForTests,
 };
 
 use abi_stable::{
@@ -47,7 +45,7 @@ use serde_json;
 /// WithLayout is used to check that the layout of `TextOpsMod` in this dynamic library
 /// is compatible with the layout of it in the binary that loads this library.
 #[export_sabi_module]
-pub extern "C" fn get_library() -> WithLayout<TextOpsMod_Prefix> {
+pub extern "C" fn get_library() -> WithLayout<TextOpsMod> {
     extern_fn_panic_handling!{
         instantiate_root_module()
             .piped(WithLayout::from_prefix)
@@ -55,22 +53,18 @@ pub extern "C" fn get_library() -> WithLayout<TextOpsMod_Prefix> {
 }
 
 
-fn instantiate_root_module()->&'static TextOpsMod_Prefix{
-    TextOpsMod {
+fn instantiate_root_module()->&'static TextOpsMod{
+    TextOpsModVal {
         new,
-        hello_world:HelloWorldMod{
-            greeter,
-            for_tests,
-        }.leak_into_prefix(),
         deserializers:{
             // Another way to instantiate a module.
-            const MOD_:DeserializerMod=DeserializerMod{
+            const MOD_:DeserializerModVal=DeserializerModVal{
                 deserialize_state,
                 deserialize_command,
                 deserialize_command_borrowing,
                 deserialize_return_value,
             };
-            static WITH_META:WithMetadata<DeserializerMod>=
+            static WITH_META:WithMetadata<DeserializerModVal>=
                 WithMetadata::new(PrefixTypeTrait::METADATA,MOD_);
             WITH_META.as_prefix()
         },
@@ -78,9 +72,6 @@ fn instantiate_root_module()->&'static TextOpsMod_Prefix{
         remove_words,
         get_processed_bytes,
         run_command,
-        prefix_types_tests:PrefixTypeMod0{
-            field_a:123,
-        }.leak_into_prefix(),
     }.leak_into_prefix()
 }
 
@@ -381,43 +372,11 @@ pub extern "C" fn run_command(
 /////////////////////////////////////////////////////////////////////////////
 
 
-pub extern "C" fn greeter(name:RStr<'_>){
-    extern_fn_panic_handling!{
-        println!("Hello, {}!", name);
-    }
-}
-
-pub extern "C" fn for_tests()->ForTests{
-    extern_fn_panic_handling!{
-        let arc=RArc::new(RString::from("hello"));
-        let box_=RBox::new(10);
-        let vec_=RVec::from(vec!["world".into_c()]);
-        let string=RString::from("what the foo.");
-        ForTests{
-            arc_address:(&*arc) as *const _ as usize,
-            arc,
-
-            box_address:(&*box_) as *const _ as usize,
-            box_,
-            
-            vec_address:vec_.as_ptr() as usize,
-            vec_,
-            
-            string_address:string.as_ptr() as usize,
-            string,
-        }
-    }
-}
-
-
-/////////////////////////////////////////////////////////////////////////////
-
-
 #[cfg(test)]
 mod tests{
     use super::*;
 
-    use example_0_interface::{MODULES,Modules};
+    use example_0_interface::MODULES;
 
     fn setup(){
         MODULES.init(instantiate_root_module);
@@ -427,7 +386,7 @@ mod tests{
     fn test_reverse_lines() {
         let mut state = new();
         assert_eq!(
-            &*reverse_lines(&mut state, "hello\nbig\nworld".into(),()),
+            &*reverse_lines(&mut state, "hello\nbig\nworld".into()),
             "world\nbig\nhello\n"
         );
     }
@@ -436,18 +395,20 @@ mod tests{
     fn test_remove_words() {
         let mut state = new();
         {
-            let words = ["burrito".into_c(), "like".into(),"a".into()];
+            let words = ["burrito", "like","a"];
+            let mut iter=words.iter().cloned().map(RCow::from);
             let param = RemoveWords {
                 string: "Monads are like a burrito wrapper.".into(),
-                words: words[..].into_c(),
+                words: DynTrait::from_borrowing_ptr(&mut iter,CowStrIter),
             };
             assert_eq!(&*remove_words(&mut state, param), "Monads are wrapper.");
         }
         {
-            let words = ["largest".into_c(),"is".into()];
+            let words = ["largest","is"];
+            let mut iter=words.iter().cloned().map(RCow::from);
             let param = RemoveWords {
                 string: "The   largest planet  is    jupiter.".into(),
-                words: words[..].into_c(),
+                words: DynTrait::from_borrowing_ptr(&mut iter,CowStrIter),
             };
             assert_eq!(&*remove_words(&mut state, param), "The   planet  jupiter.");
         }
@@ -465,7 +426,7 @@ mod tests{
 
         let json_string=serde_json::to_string(json).unwrap();
 
-        let value0=TOStateBox::deserialize_from_str(json).unwrap();
+        let value0=TOStateBox::deserialize_owned_from_str(json).unwrap();
 
         let value1=serde_json::from_str::<TOStateBox>(&json_string).unwrap();
 

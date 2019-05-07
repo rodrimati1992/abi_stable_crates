@@ -490,12 +490,8 @@ fn parse_prefix_type_list<'a>(
         })))
         if nv_ident=="prefix_struct" =>{
             let type_str=type_str.value();
-            if type_str=="default" {
-                let ident=format!("{}_Prefix",type_str);
-                syn::parse_str::<Ident>(&ident).unwrap()
-            }else{
-                parse_str_as_ident(&type_str)
-            }.piped(|i| arenas.alloc(i) )
+            parse_str_as_ident(&type_str)
+                .piped(|i| arenas.alloc(i) )
         }
         x => panic!(
             "invalid #[sabi(kind(Prefix(  )))] attribute\

@@ -17,5 +17,11 @@ script:
   
   - cd "${TRAVIS_BUILD_DIR}/examples/example_0_impl/"
   - cargo build --release
+  - cargo test --release
   - cd "${TRAVIS_BUILD_DIR}/examples/example_0_user/"
   - cargo run --release -- run-tests
+  
+  - cd "${TRAVIS_BUILD_DIR}/testing/impl_0/"
+  - cargo build --release
+  - cd "${TRAVIS_BUILD_DIR}/testing/user/"
+  - cargo run --release

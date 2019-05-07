@@ -36,8 +36,8 @@ mod prefix0 {
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
     // #[sabi(debug_print)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
-    pub struct Prefix {
+    #[sabi(kind(Prefix(prefix_struct="Prefix")))]
+    pub struct PrefixVal {
         #[sabi(last_prefix_field)]
         pub field0: u8,
     }
@@ -50,10 +50,10 @@ mod prefix1 {
     #[sabi(
         inside_abi_stable_crate,
         // debug_print,
-        kind(Prefix(prefix_struct="Prefix_Prefix")),
+        kind(Prefix(prefix_struct="Prefix")),
         missing_field(with="custom_default::<_>"),
     )]
-    pub struct Prefix {
+    pub struct PrefixVal {
         #[sabi(last_prefix_field)]
         pub field0: u8,
         pub field1: u16,
@@ -64,9 +64,9 @@ mod prefix2 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
+    #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     #[sabi(missing_field(default))]
-    pub struct Prefix {
+    pub struct PrefixVal {
         #[sabi(last_prefix_field)]
         pub field0: u8,
         pub field1: u16,
@@ -74,14 +74,14 @@ mod prefix2 {
     }
 }
 
-// Prefix types have to keep the same alignment when fields are added
+// PrefixVal types have to keep the same alignment when fields are added
 mod prefix2_misaligned {
     #[repr(C,align(16))]
     #[derive(StableAbi)]
     // #[sabi(debug_print)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
-    pub struct Prefix {
+    #[sabi(kind(Prefix(prefix_struct="Prefix")))]
+    pub struct PrefixVal {
         #[sabi(last_prefix_field)]
         pub field0: u8,
         pub field1: u16,
@@ -93,8 +93,8 @@ mod prefix2_different_prefix {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
-    pub struct Prefix {
+    #[sabi(kind(Prefix(prefix_struct="Prefix")))]
+    pub struct PrefixVal {
         pub field0: u8,
         #[sabi(last_prefix_field)]
         pub field1: u16,
@@ -106,9 +106,9 @@ mod prefix3 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(inside_abi_stable_crate)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix_Prefix")))]
+    #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     #[sabi(missing_field(panic))]
-    pub struct Prefix {
+    pub struct PrefixVal {
         #[sabi(last_prefix_field)]
         pub field0: u8,
         pub field1: u16,
@@ -126,10 +126,10 @@ fn dereference_abi(abi:&'static AbiInfo)->&'static AbiInfo{
 
 
 
-static PREF_0:&'static AbiInfoWrapper = <&prefix0::Prefix_Prefix>::ABI_INFO;
-static PREF_1:&'static AbiInfoWrapper = <&prefix1::Prefix_Prefix>::ABI_INFO;
-static PREF_2:&'static AbiInfoWrapper = <&prefix2::Prefix_Prefix>::ABI_INFO;
-static PREF_3:&'static AbiInfoWrapper = <&prefix3::Prefix_Prefix>::ABI_INFO;
+static PREF_0:&'static AbiInfoWrapper = <&prefix0::Prefix>::ABI_INFO;
+static PREF_1:&'static AbiInfoWrapper = <&prefix1::Prefix>::ABI_INFO;
+static PREF_2:&'static AbiInfoWrapper = <&prefix2::Prefix>::ABI_INFO;
+static PREF_3:&'static AbiInfoWrapper = <&prefix3::Prefix>::ABI_INFO;
 
 
 fn new_list()->Vec<&'static AbiInfoWrapper>{
@@ -355,7 +355,7 @@ fn hierarchical_prefix_test(){
 #[cfg_attr(not(miri),test)]
 fn prefix_is_same_alignment(){
     let globals=CheckingGlobals::new();
-    let misaligned = <&prefix2_misaligned::Prefix_Prefix>::ABI_INFO;
+    let misaligned = <&prefix2_misaligned::Prefix>::ABI_INFO;
 
     for pref in vec![ PREF_0,PREF_1 ] {
         let errs = check_abi_stability_with_globals(pref, misaligned,&globals)
@@ -377,7 +377,7 @@ fn prefix_is_same_size(){
     let list=new_list();
 
     for pref in list.iter().cloned() {
-        let mismatched_prefix=<&prefix2_different_prefix::Prefix_Prefix>::ABI_INFO;
+        let mismatched_prefix=<&prefix2_different_prefix::Prefix>::ABI_INFO;
         let errs = check_abi_stability_with_globals(pref,mismatched_prefix ,&globals)
             .unwrap_err()
             .flatten_errors();
@@ -395,23 +395,23 @@ fn prefix_is_same_size(){
 #[cfg_attr(not(miri),test)]
 fn prefix_on_nonexistent_field() {
     let prefix0=
-        prefix0::Prefix{
+        prefix0::PrefixVal{
             field0:1,
         }.leak_into_prefix();
 
     {
-        let value1:&prefix1::Prefix_Prefix=unsafe{ transmute_reference(prefix0) };
+        let value1:&prefix1::Prefix=unsafe{ transmute_reference(prefix0) };
         assert_eq!(value1.field0(),1);
         assert_eq!(value1.field1(),custom_default::<u16>());
     }
     {
-        let value2:&prefix2::Prefix_Prefix=unsafe{ transmute_reference(prefix0) };
+        let value2:&prefix2::Prefix=unsafe{ transmute_reference(prefix0) };
         assert_eq!(value2.field0(),1);
         assert_eq!(value2.field1(),0);
         assert_eq!(value2.field2(),0);
     }
     {
-        let value3:&prefix3::Prefix_Prefix=unsafe{ transmute_reference(prefix0) };
+        let value3:&prefix3::Prefix=unsafe{ transmute_reference(prefix0) };
         assert_eq!(value3.field0(),1);
         must_panic(file_span!(),||value3.field1()).unwrap();
         must_panic(file_span!(),||value3.field2()).unwrap();
@@ -509,50 +509,50 @@ declare_enabled_fields!{
 }
 
 static COND_FIELD_0_ALL:&'static AbiInfoWrapper = 
-    <&cond_fields_0::Prefix_Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
+    <&cond_fields_0::Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
 
 static COND_FIELD_1_ALL:&'static AbiInfoWrapper = 
-    <&cond_fields_1::Prefix_Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
+    <&cond_fields_1::Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
 
 static COND_FIELD_2_ALL:&'static AbiInfoWrapper = 
-    <&cond_fields_2::Prefix_Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
+    <&cond_fields_2::Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
 
 static COND_FIELD_3_ALL:&'static AbiInfoWrapper = 
-    <&cond_fields_3::Prefix_Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
+    <&cond_fields_3::Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
 
 
 static COND_FIELD_0_EXCEPT_0:&'static AbiInfoWrapper = 
-    <&cond_fields_0::Prefix_Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
+    <&cond_fields_0::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
 
 static COND_FIELD_1_EXCEPT_0:&'static AbiInfoWrapper = 
-    <&cond_fields_1::Prefix_Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
+    <&cond_fields_1::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
 
 static COND_FIELD_2_EXCEPT_0:&'static AbiInfoWrapper = 
-    <&cond_fields_2::Prefix_Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
+    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
 
 static COND_FIELD_3_EXCEPT_0:&'static AbiInfoWrapper = 
-    <&cond_fields_3::Prefix_Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
+    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
 
 
 static COND_FIELD_1_EXCEPT_1:&'static AbiInfoWrapper = 
-    <&cond_fields_1::Prefix_Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::ABI_INFO;
+    <&cond_fields_1::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::ABI_INFO;
 
 static COND_FIELD_2_EXCEPT_1:&'static AbiInfoWrapper = 
-    <&cond_fields_2::Prefix_Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::ABI_INFO;
+    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::ABI_INFO;
 
 static COND_FIELD_3_EXCEPT_1:&'static AbiInfoWrapper = 
-    <&cond_fields_3::Prefix_Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::ABI_INFO;
+    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::ABI_INFO;
 
 
 static COND_FIELD_2_EXCEPT_2:&'static AbiInfoWrapper = 
-    <&cond_fields_2::Prefix_Prefix<ACCESSIBLE_ALL_EXCEPT_2>>::ABI_INFO;
+    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_2>>::ABI_INFO;
 
 static COND_FIELD_3_EXCEPT_2:&'static AbiInfoWrapper = 
-    <&cond_fields_3::Prefix_Prefix<ACCESSIBLE_ALL_EXCEPT_2>>::ABI_INFO;
+    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_2>>::ABI_INFO;
 
 
 static COND_FIELD_3_EXCEPT_3:&'static AbiInfoWrapper = 
-    <&cond_fields_3::Prefix_Prefix<ACCESSIBLE_ALL_EXCEPT_3>>::ABI_INFO;
+    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_3>>::ABI_INFO;
 
 
 
@@ -567,11 +567,11 @@ mod cond_fields_0 {
     #[derive(StableAbi)]
     #[sabi(
         inside_abi_stable_crate,
-        kind(Prefix(prefix_struct="Prefix_Prefix")),
+        kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
     )]
-    pub struct Prefix<C> {
+    pub struct PrefixVal<C> {
         pub _marker:UnsafeIgnoredType<C>,
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         #[sabi(last_prefix_field)]
@@ -587,11 +587,11 @@ mod cond_fields_1 {
     #[derive(StableAbi)]
     #[sabi(
         inside_abi_stable_crate,
-        kind(Prefix(prefix_struct="Prefix_Prefix")),
+        kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
     )]
-    pub struct Prefix<C,T=u8,U=u16> {
+    pub struct PrefixVal<C,T=u8,U=u16> {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
@@ -610,11 +610,11 @@ mod cond_fields_2 {
     #[derive(StableAbi)]
     #[sabi(
         inside_abi_stable_crate,
-        kind(Prefix(prefix_struct="Prefix_Prefix")),
+        kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
     )]
-    pub struct Prefix<C,T=u8,U=u16,V=u32> {
+    pub struct PrefixVal<C,T=u8,U=u16,V=u32> {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
@@ -629,7 +629,7 @@ mod cond_fields_2 {
     }
 }
 
-// Prefix types have to keep the same alignment when fields are added
+// PrefixVal types have to keep the same alignment when fields are added
 mod cond_fields_2_misaligned {
     use crate::marker_type::UnsafeIgnoredType;
     use super::EnabledFields;
@@ -637,11 +637,11 @@ mod cond_fields_2_misaligned {
     #[derive(StableAbi)]
     #[sabi(
         inside_abi_stable_crate,
-        kind(Prefix(prefix_struct="Prefix_Prefix")),
+        kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
     )]
-    pub struct Prefix<C> {
+    pub struct PrefixVal<C> {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
@@ -663,11 +663,11 @@ mod cond_fields_2_different_prefix {
     #[derive(StableAbi)]
     #[sabi(
         inside_abi_stable_crate,
-        kind(Prefix(prefix_struct="Prefix_Prefix")),
+        kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
     )]
-    pub struct Prefix<C,T=u8,U=u16,V=u32> {
+    pub struct PrefixVal<C,T=u8,U=u16,V=u32> {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
@@ -690,11 +690,11 @@ mod cond_fields_3 {
     #[sabi(
         // debug_print,
         inside_abi_stable_crate,
-        kind(Prefix(prefix_struct="Prefix_Prefix")),
+        kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
     )]
-    pub struct Prefix<C,T=u8,U=u16,V=u32,W=u64> {
+    pub struct PrefixVal<C,T=u8,U=u16,V=u32,W=u64> {
         pub _marker:UnsafeIgnoredType<(C,T,U,V,W)>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
@@ -720,11 +720,11 @@ mod cond_fields_3_uncond_prefix {
     #[sabi(
         // debug_print,
         inside_abi_stable_crate,
-        kind(Prefix(prefix_struct="Prefix_Prefix")),
+        kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
     )]
-    pub struct Prefix<C,T=u8,U=u16,V=u32,W=u64> {
+    pub struct PrefixVal<C,T=u8,U=u16,V=u32,W=u64> {
         pub _marker:UnsafeIgnoredType<(C,T,U,V,W)>,
         
         #[sabi(last_prefix_field)]
@@ -749,9 +749,9 @@ fn prefix_cond_field_test(){
 
     use crate::type_level::bools::{True as T,False as F};
 
-    use self::cond_fields_2::Prefix_Prefix as Prefix2;
-    use self::cond_fields_3::Prefix_Prefix as Prefix3;
-    use self::cond_fields_3_uncond_prefix::Prefix_Prefix as Prefix3UncondPrefix;
+    use self::cond_fields_2::Prefix as Prefix2;
+    use self::cond_fields_3::Prefix as Prefix3;
+    use self::cond_fields_3_uncond_prefix::Prefix as Prefix3UncondPrefix;
 
     type au32=[u32;1];
     type ai32=[i32;1];
@@ -946,15 +946,15 @@ fn prefix_on_conditional_fields() {
     };
 
     
-    type Prefix1<AF>=cond_fields_1::Prefix_Prefix<AF,i8,i32>;
-    type Prefix2<AF>=cond_fields_2::Prefix_Prefix<AF,i8,i32,i32>;
-    type Prefix3<AF>=cond_fields_3::Prefix_Prefix<AF,i8,i32,i32,i32>;
+    type Prefix1<AF>=cond_fields_1::Prefix<AF,i8,i32>;
+    type Prefix2<AF>=cond_fields_2::Prefix<AF,i8,i32,i32>;
+    type Prefix3<AF>=cond_fields_3::Prefix<AF,i8,i32,i32,i32>;
     type Prefix3UncondPrefix<AF>=
-        cond_fields_3_uncond_prefix::Prefix_Prefix<AF,i8,i32,i32,i32>;
+        cond_fields_3_uncond_prefix::Prefix<AF,i8,i32,i32,i32>;
 
     {// Casting Prefix0 to Prefix1 with different field accessibilities
         let prefix0=
-            cond_fields_0::Prefix{
+            cond_fields_0::PrefixVal{
                 _marker:UnsafeIgnoredType::<(T,T,T,T)>::DEFAULT,
                 field0:1,
             }.leak_into_prefix();
@@ -975,7 +975,7 @@ fn prefix_on_conditional_fields() {
 
 
 
-    let prefix3=cond_fields_3::Prefix{
+    let prefix3=cond_fields_3::PrefixVal{
             _marker:UnsafeIgnoredType::<((T,T,T,T),_,_,_,_)>::DEFAULT,
             field0:1,
             field1:3,
