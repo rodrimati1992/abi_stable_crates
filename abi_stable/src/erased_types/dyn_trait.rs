@@ -109,6 +109,16 @@ These are the traits:
 
 - DoubleEndedIterator
 
+- std::fmt::Write
+
+- std::io::Write
+
+- std::io::Seek
+
+- std::io::Read
+
+- std::io::BufRead
+
 - Clone 
 
 - Display 
@@ -161,19 +171,20 @@ using these (fallible) conversion methods:
 - as_any_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
 
 
-Note that `DynTrait` cannot be converted back if it was created 
+`DynTrait` cannot be converted back if it was created 
 using `DynTrait::from_borrowing_*`.
 
 # Passing DynTrait between dynamic libraries
 
-Passing DynTrait between sibling dynamic libraries 
+Passing DynTrait between dynamic libraries 
 (as in between the dynamic libraries directly loaded by the same binary/dynamic library)
-may cause the program to abort at runtime with an error message stating that 
+may cause the program to panic at runtime with an error message stating that 
 the trait is not implemented for the specific interface.
 
-This can only happen if you are passing DynTrait between sibling dynamic libraries though,
-passing DynTrait instantiated in parent/child dynamic library to the parent/child 
-should not cause an abort,it would be a bug.
+This can only happen if you are passing DynTrait between dynamic libraries,
+or if DynTrait was instantiated in the parent passed to a child,
+a DynTrait instantiated in a child dynamic library passed to the parent
+should not cause a panic,it would be a bug.
 
 ```text
         binary
@@ -184,7 +195,7 @@ lib00    lib10      lib20
 ```
 
 In this diagram passing a DynTrait constructed in lib00 to anything other than 
-the binary or lib0 will cause the abort to happen if:
+the binary or lib0 will cause the panic to happen if:
 
 - The InterfaceType requires extra traits in the version of the Interface
     that lib1 and lib2 know about (that the binary does not require).
@@ -207,6 +218,98 @@ Readme is in
 [the repository for this crate](https://github.com/rodrimati1992/abi_stable_crates),
 [crates.io](https://crates.io/crates/abi_stable),
 [lib.rs](https://lib.rs/crates/abi_stable).
+
+### Comparing DynTraits
+
+This is only possible if the erased types don't contain borrows,
+and they are not constructed using `DynTrait::from_borrowing_*` methods.
+
+DynTraits wrapping different pointer types can be compared with each other,
+it simply uses the values' implementation of PartialEq.
+
+```
+use abi_stable::{
+    DynTrait,
+    erased_types::interfaces::PartialEqInterface,
+    std_types::RArc,
+};
+
+{
+    let left:DynTrait<'static,&(),PartialEqInterface>=
+        DynTrait::from_any_ptr(&100,PartialEqInterface);
+    
+    let mut n100=100;
+    let right:DynTrait<'static,&mut (),PartialEqInterface>=
+        DynTrait::from_any_ptr(&mut n100,PartialEqInterface);
+
+    assert_eq!(left,right);
+}
+{
+    let left=
+        DynTrait::from_any_value(200,PartialEqInterface);
+
+    let right=
+        DynTrait::from_any_ptr(RArc::new(200),PartialEqInterface);
+
+    assert_eq!(left,right);
+}
+
+```
+
+### Writing to a DynTrait
+
+This is an example of using the `write!()` macro with DynTrait.
+
+```
+use abi_stable::{
+    DynTrait,
+    erased_types::interfaces::FmtWriteInterface,
+};
+
+use std::fmt::Write;
+
+let mut buffer=String::new();
+
+let mut wrapped:DynTrait<'static,&mut (),FmtWriteInterface>=
+    DynTrait::from_any_ptr(&mut buffer,FmtWriteInterface);
+
+write!(wrapped,"Foo").unwrap();
+write!(wrapped,"Bar").unwrap();
+write!(wrapped,"Baz").unwrap();
+
+drop(wrapped);
+
+assert_eq!(&buffer[..],"FooBarBaz");
+
+
+```
+
+
+### Iteration
+
+Using `DynTrait` as an `Iterator` and `DoubleEndedIterator`.
+
+```
+use abi_stable::{
+    DynTrait,
+    erased_types::interfaces::DEIteratorInterface,
+};
+
+let mut wrapped=DynTrait::from_any_value(0..=10,DEIteratorInterface::NEW);
+
+assert_eq!(
+    wrapped.by_ref().take(5).collect::<Vec<_>>(),
+    vec![0,1,2,3,4]
+);
+
+assert_eq!(
+    wrapped.rev().collect::<Vec<_>>(),
+    vec![10,9,8,7,6,5]
+);
+
+
+```
+
 
 # Making pointers compatible with DynTrait
 
