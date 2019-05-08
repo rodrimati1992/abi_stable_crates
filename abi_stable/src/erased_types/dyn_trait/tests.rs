@@ -319,7 +319,7 @@ fn serialize_test() {
         serialize_test!( reborrow );
     }
     {
-        let mut reborrow=wrapped.reborrow();
+        let reborrow=wrapped.reborrow_mut();
         serialize_test!( reborrow );
     }
 
@@ -1085,7 +1085,7 @@ mod borrowing{
 
         let s="line0\nline1\nline2".as_bytes().piped(Cursor::new);
 
-        let mut wrapped=DynTrait::from_borrowing_value(s,IoBufReadInterface);
+        let wrapped=DynTrait::from_borrowing_value(s,IoBufReadInterface);
         
         assert_eq!(
             wrapped.lines().collect::<Result<Vec<String>,_>>().unwrap(), 

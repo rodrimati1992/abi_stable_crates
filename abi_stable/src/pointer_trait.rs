@@ -102,9 +102,13 @@ pub enum PointerKind{
     SmartPointer
 }
 
-
+#[allow(non_camel_case_types)]
 pub struct PK_Reference;
+
+#[allow(non_camel_case_types)]
 pub struct PK_MutReference;
+
+#[allow(non_camel_case_types)]
 pub struct PK_SmartPointer;
 
 impl Sealed for PK_Reference{}

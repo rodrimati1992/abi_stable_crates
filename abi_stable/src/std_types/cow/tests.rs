@@ -85,18 +85,18 @@ fn to_mut(){
 fn into_owned(){
 
     {
-        let mut value=RCow::<u32>::Borrowed(&100);
+        let value=RCow::<u32>::Borrowed(&100);
         let value:u32=value.into_owned();
         assert_eq!(value,100);
     }
     {
-        let mut value=RCow::<str>::Borrowed("what".into_c());
+        let value=RCow::<str>::Borrowed("what".into_c());
         let value:RString=value.into_owned();
         assert_eq!(&*value,"what");
     }
     {
         let arr=[0,1,2,3];
-        let mut value=RCow::<[u32]>::Borrowed( (&arr[..]).into() );
+        let value=RCow::<[u32]>::Borrowed( (&arr[..]).into() );
         let value:RVec<u32>=value.into_owned();
         assert_eq!(&*value,&arr[..]);
     }
@@ -154,7 +154,7 @@ fn deserialize(){
         let list=[0u8,1,2,3];
         let serialized=bincode::serialize(&list[..]).unwrap();
         
-        let what:BorrowingRCowU8=bincode::deserialize(&serialized[..]).unwrap();
+        let what:BorrowingRCowU8<'_>=bincode::deserialize(&serialized[..]).unwrap();
 
         assert_eq!(
             what.cow.as_borrowed(),

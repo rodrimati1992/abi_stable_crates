@@ -4,7 +4,7 @@ Types and traits related to type erasure.
 
 use std::{
     cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},
-    fmt::{self, Debug, Display},
+    fmt::{Debug, Display},
     hash::{Hash, Hasher},
     ops::Deref,
 };

@@ -152,6 +152,7 @@ pub mod traits;
 #[macro_use]
 pub mod abi_stability;
 // pub mod cabi_type;
+// pub mod as_proxy;
 pub mod erased_types;
 // pub mod immovable_wrapper;
 pub mod library;
@@ -193,8 +194,6 @@ allocators,please create an issue for this.
 */
 use std::sync::atomic::AtomicUsize;
 static EXECUTABLE_IDENTITY: AtomicUsize = AtomicUsize::new(1);
-
-use crate::abi_stability::stable_abi_trait::SharedStableAbi;
 
 #[doc(inline)]
 pub use crate::{
