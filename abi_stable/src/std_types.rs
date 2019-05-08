@@ -10,6 +10,7 @@ pub mod cmp_ordering;
 pub mod cow;
 //pub mod old_cow;
 pub mod option;
+pub mod map;
 pub mod range;
 pub mod result;
 pub mod slice_mut;

@@ -1,7 +1,3 @@
-use std::{
-    fmt::{Debug, Display},
-};
-
 use super::*;
 
 use crate::{
@@ -78,7 +74,7 @@ fn from_to_box(){
 
 #[test]
 fn downcast() {
-    let mut err=Stringy::new("hello\n\rworld");
+    let err=Stringy::new("hello\n\rworld");
 
     macro_rules! downcast_ {
         (

@@ -20,7 +20,7 @@ use crate::{
     abi_stability::SharedStableAbi,
     pointer_trait::{
         StableDeref, TransmuteElement,
-        GetPointerKind,PK_SmartPointer,PK_Reference,PK_MutReference,
+        GetPointerKind,PK_SmartPointer,PK_Reference,
     },
     marker_type::ErasedObject, 
     std_types::{RBox, RCow, RStr,RVec,RIoError},
@@ -38,8 +38,7 @@ use super::{
 };
 
 
-#[cfg(test)]
-// #[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
 mod priv_ {

@@ -37,6 +37,9 @@ pub struct UnsyncSend {
 /// Zero-sized marker type used to signal that even though a type 
 /// could implement Copy and Clone,
 /// it is semantically an error to do so.
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
 pub struct NotCopyNotClone;
 
 

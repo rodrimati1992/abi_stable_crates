@@ -343,7 +343,7 @@ impl<T, E> RResult<T, E> {
     {
         match self {
             ROk(t) => t,
-            RErr(e) => Default::default(),
+            RErr(_) => Default::default(),
         }
     }
 

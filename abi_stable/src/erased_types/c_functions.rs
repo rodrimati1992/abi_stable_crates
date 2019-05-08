@@ -2,7 +2,7 @@
 
 use std::{
     fmt,
-    io::{self,Write as IoWrite,Read,BufRead,Seek},
+    io::{self,Write as IoWrite,Read,BufRead},
     ptr,
     mem,
 };

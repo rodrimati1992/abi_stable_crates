@@ -13,7 +13,7 @@ use core_extensions::prelude::*;
 
 use crate::{
     traits::{IntoReprC,IntoReprRust}, 
-    std_types::{RBoxError,RBox,ROption,RSome,RNone},
+    std_types::{RBoxError,ROption,RSome,RNone},
 };
 
 
@@ -275,7 +275,7 @@ impl RIoError {
 }
 
 impl Debug for RIoError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.error.as_ref() {
             RSome(c) => Debug::fmt(&c, f),
             RNone => f.debug_tuple("Kind").field(&self.kind).finish(),

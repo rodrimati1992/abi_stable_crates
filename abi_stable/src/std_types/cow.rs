@@ -1,4 +1,4 @@
-use std::{borrow::{Cow,Borrow}, fmt, ops::Deref};
+use std::{borrow::Cow, fmt, ops::Deref};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -7,13 +7,11 @@ use core_extensions::prelude::*;
 
 use crate::{
     StableAbi, 
-    SharedStableAbi, 
-    abi_stability::stable_abi_trait::StaticEquivalent,
     std_types::{RSlice, RStr, RString, RVec},
     traits::IntoReprC,
 };
 
-
+#[cfg(test)]
 mod tests;
 
 
@@ -214,6 +212,20 @@ where
         }
     }
 
+    pub fn borrowed<'b:'a>(&'b self)-><B as BorrowOwned<'b>>::RBorrowed{
+        match self {
+            Borrowed(x) => *x,
+            Owned(x) => B::r_borrow(x),
+        }
+    }
+}
+
+
+#[cfg(test)]
+impl<'a, B> RCow<'a, B>
+where
+    B: BorrowOwned<'a>+?Sized,
+{
     fn as_borrowed(&self)->Option<B::RBorrowed>{
         match *self {
             Borrowed(x) => Some(x),
@@ -228,6 +240,7 @@ where
         }
     }
 }
+
 
 impl<'a, B> Copy for RCow<'a, B>
 where
