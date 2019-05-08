@@ -2,30 +2,36 @@ use std::{
     borrow::Borrow,
     collections::{
         HashMap,
-        hash_map::Entry,
+        // hash_map::Entry,
     },
     cmp::{Eq,PartialEq},
     fmt::{self,Debug},
     hash::{Hash,Hasher},
+    iter::FromIterator,
     ptr::NonNull,
     marker::PhantomData,
     mem,
 };
 
+#[allow(unused_imports)]
+use core_extensions::prelude::*;
+
 use crate::{
+    DynTrait,
     StableAbi,
     marker_type::{ErasedObject,NotCopyNotClone},
     erased_types::trait_objects::HasherObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
     std_types::*,
-    traits::IntoReprC,
+    traits::IntoReprRust,
     utils::{transmute_reference,transmute_mut_reference},
 };
 
 
+mod extern_fns;
+mod iterator_stuff;
 mod map_query;
 mod map_key;
-mod extern_fns;
 
 #[cfg(test)]
 mod test;
@@ -33,7 +39,13 @@ mod test;
 use self::{
     map_query::MapQuery,
     map_key::MapKey,
-    extern_fns::*,
+};
+
+pub use self::{
+    iterator_stuff::{
+        RefIterInterface,MutIterInterface,ValIterInterface,
+        IntoIter,
+    },
 };
 
 
@@ -48,14 +60,21 @@ pub struct RHashMap<K,V>{
 
 
 impl<K,V> RHashMap<K,V>{
-    pub fn new<'k>()->RHashMap<K,V>
+    pub fn new()->RHashMap<K,V>
     where 
-        ():MapConstruction<'k,K,V>,
+        ():MapConstruction<K,V>,
+    {
+        Self::with_capacity(0)
+    }
+
+    pub fn with_capacity(capacity:usize)->RHashMap<K,V>
+    where 
+        ():MapConstruction<K,V>,
     {
         RHashMap{
-            map:<() as MapConstruction<'k,K,V>>::new_erased_map(),
+            map:<() as MapConstruction<K,V>>::erased_map_with_capacity(capacity),
             vtable:unsafe{
-                (*<() as MapConstruction<'k,K,V>>::VTABLE_REF).as_prefix_raw()
+                (*<() as MapConstruction<K,V>>::VTABLE_REF).as_prefix_raw()
             },
         }
     }
@@ -136,27 +155,91 @@ impl<K,V> RHashMap<K,V>{
     pub fn is_empty(&self)->bool{
         self.len()==0
     }
+
+    pub fn iter    (&self)->Iter<'_,K,V>{
+        let vtable=self.vtable();
+
+        vtable.iter()(&*self.map)
+    }
+    
+    pub fn iter_mut(&mut self)->IterMut<'_,K,V>{
+        let vtable=self.vtable();
+
+        vtable.iter_mut()(&mut *self.map)
+    }
+
+    pub fn drain   (&mut self)->Drain<'_,K,V>{
+        let vtable=self.vtable();
+
+        vtable.drain()(&mut *self.map)
+    }
 }
+
+
+impl<K,V> IntoIterator for RHashMap<K,V>{
+    type Item=Tuple2<K,V>;
+    type IntoIter=IntoIter<K,V>;
+    
+    fn into_iter(self)->IntoIter<K,V>{
+        let vtable=self.vtable();
+
+        vtable.iter_val()(self.map)
+    }
+}
+
+
+impl<K,V> From<HashMap<K,V>> for RHashMap<K,V>
+where
+    K:Eq+Hash,
+{
+    fn from(map:HashMap<K,V>)->Self{
+        map.into_iter().collect()
+    }
+}
+
+impl<K,V> Into<HashMap<K,V>> for RHashMap<K,V>
+where
+    K:Eq+Hash,
+{
+    fn into(self)->HashMap<K,V>{
+        self.into_iter().map(IntoReprRust::into_rust).collect()
+    }
+}
+
+
+impl<K,V> FromIterator<(K,V)> for RHashMap<K,V>
+where
+    K:Eq+Hash,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = (K,V)>
+    {
+        let iter=iter.into_iter();
+        let mut map=Self::with_capacity(iter.size_hint().0);
+        for (k,v) in iter {
+            map.insert(k,v);
+        }
+        map
+    }
+}
+
+
+pub type Iter<'a,K,V>=
+    DynTrait<'a,RBox<()>,RefIterInterface<K,V>>;
+
+pub type IterMut<'a,K,V>=
+    DynTrait<'a,RBox<()>,MutIterInterface<K,V>>;
+
+pub type Drain<'a,K,V>=
+    DynTrait<'a,RBox<()>,ValIterInterface<K,V>>;
 
 
 /// Used as the erased type of the RHashMap type.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-pub struct ErasedMap<K,V,M=()>(PhantomData<Tuple2<K,V,M>>);
-
-/// Used as the erased type of the Key type.
-#[repr(C)]
-#[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
-pub struct ErasedKey<K>(PhantomData<K>);
-
-/// Used as the erased type of the Proxy type
-/// (the type the key gets converted to do comparisons).
-#[derive(StableAbi)]
-#[repr(C)]
-#[sabi(inside_abi_stable_crate)]
-pub struct ErasedProxy<K>(PhantomData<K>);
+pub struct ErasedMap<K,V>(PhantomData<Tuple2<K,V>>);
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -176,34 +259,39 @@ pub struct VTableVal<K,V>{
     remove_entry:extern fn(&mut ErasedMap<K,V>,MapQuery<'_,K>)->ROption<Tuple2<K,V>>,
     clear_map:extern fn(&mut ErasedMap<K,V>),
     len:extern fn(&ErasedMap<K,V>)->usize,
+    iter    :extern fn(&ErasedMap<K,V>     )->Iter<'_,K,V>,
+    iter_mut:extern fn(&mut ErasedMap<K,V> )->IterMut<'_,K,V>,
+    drain   :extern fn(&mut ErasedMap<K,V> )->Drain<'_,K,V>,
+    iter_val:extern fn(RBox<ErasedMap<K,V>>)->IntoIter<K,V>,
     _type_params:PhantomData<extern fn(K,V)>,
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 
-pub trait MapConstruction<'lt,K,V>{
+pub trait MapConstruction<K,V>{
     const VTABLE:VTableVal<K,V>;
-
-    fn new_erased_map()->RBox<ErasedMap<K,V>>;
 
     const VTABLE_REF: *const WithMetadata<VTableVal<K,V>> = {
         &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
     };
+
+    fn erased_map_with_capacity(capacity:usize)->RBox<ErasedMap<K,V>>;
 }
 
-impl<'lt,K:'lt,V> MapConstruction<'lt,K,V> for ()
+impl<K,V> MapConstruction<K,V> for ()
 where
     K:Eq+Hash,
 {
-    fn new_erased_map()->RBox<ErasedMap<K,V>>{
+    fn erased_map_with_capacity(capacity:usize)->RBox<ErasedMap<K,V>>{
         unsafe{
-            let x=HashMap::<MapKey<K>,V>::new();
+            let x=HashMap::<MapKey<K>,V>::with_capacity(capacity);
             let x=RBox::new(x);
             let x=mem::transmute::<RBox<_>,RBox<ErasedMap<K,V>>>(x);
             x
         }
     }
+
 
     const VTABLE:VTableVal<K,V>=VTableVal{
         get_elem    :ErasedMap::get_elem,
@@ -212,6 +300,10 @@ where
         remove_entry:ErasedMap::remove_entry,
         clear_map   :ErasedMap::clear_map,
         len         :ErasedMap::len,
+        iter        :ErasedMap::iter,
+        iter_mut    :ErasedMap::iter_mut,
+        drain       :ErasedMap::drain,
+        iter_val    :ErasedMap::iter_val,
         _type_params:PhantomData
     };
 

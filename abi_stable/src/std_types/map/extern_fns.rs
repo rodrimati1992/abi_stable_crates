@@ -1,5 +1,10 @@
 use super::*;
 
+use crate::{
+    pointer_trait::TransmuteElement,
+    traits::IntoReprC,
+};
+
 
 impl<K,V> ErasedMap<K,V>
 where 
@@ -26,6 +31,15 @@ where
     {
         extern_fn_panic_handling!{
             let map=unsafe{ self.as_mut_hashmap() };
+            f( map )
+        }
+    }
+
+    fn run_val<'a,F,R>(this:RBox<Self>,f:F)->R
+    where F:FnOnce(RBox<HashMap<MapKey<K>,V>>)->R
+    {
+        extern_fn_panic_handling!{
+            let map=unsafe{ this.transmute_element(<HashMap<MapKey<K>,V>>::T) };
             f( map )
         }
     }
@@ -66,7 +80,45 @@ where
         self.run(|this| this.len() )
     }
 
+    pub(super)extern fn iter     (&self)->Iter<'_,K,V>{
+        self.run(|this|{
+            let iter=this.iter().map(map_iter_ref);
+            DynTrait::from_borrowing_value(iter,RefIterInterface::NEW)
+        })
+    }
+
+    pub(super)extern fn iter_mut (&mut self)->IterMut<'_,K,V>{
+        self.run_mut(|this|{
+            let iter=this.iter_mut().map(map_iter_ref);
+            DynTrait::from_borrowing_value(iter,MutIterInterface::NEW)
+        })
+    }
+
+    pub(super)extern fn drain    (&mut self)->Drain<'_,K,V>{
+        self.run_mut(|this|{
+            let iter=this.drain().map(map_iter_val);
+            DynTrait::from_borrowing_value(iter,ValIterInterface::NEW)
+        })
+    }
+
+    pub(super)extern fn iter_val<'a>(this:RBox<ErasedMap<K,V>>)->IntoIter<K,V>{
+        Self::run_val(this,|this|{
+            let iter=this.piped(RBox::into_inner).into_iter().map(map_iter_val);
+            let iter=DynTrait::from_borrowing_value(iter,ValIterInterface::NEW);
+            unsafe{ IntoIter::new(iter) }
+        })
+    }
+
 }
 
 
+fn map_iter_ref<'a,K,V:'a>((key,val):(&'a MapKey<K>,V))->Tuple2<&'a K,V>{
+    Tuple2( key.as_ref(),val )
+}
 
+fn map_iter_val<K,V>((key,val):(MapKey<K>,V))->Tuple2<K,V>{
+    Tuple2( key.into_inner(),val )
+}
+
+
+///////////////////////////////////////////////////////////////////////////////

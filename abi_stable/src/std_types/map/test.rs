@@ -155,3 +155,94 @@ fn len_is_empty(){
     assert!(map.is_empty());
     assert_eq!(map.len(),0);
 }
+
+
+fn new_stdmap()->HashMap<u32,u32>{
+    vec![
+        (90,40),
+        (10,20),
+        (88,30),
+        (77,22),
+    ].into_iter()
+     .collect()
+}
+
+
+#[test]
+fn from_hashmap(){
+    let mut stdmap=new_stdmap();
+
+    let mut map:RHashMap<u32,u32>=stdmap.clone().into();
+
+    assert_eq!(map.len(), 4);
+    
+    for Tuple2(key,val) in map.drain() {
+        assert_eq!(stdmap.remove(&key),Some(val),"key:{:?} value:{:?}",key,val);
+    }
+    assert_eq!(stdmap.len(), 0);
+
+    assert!(map.is_empty(),"map length:{:?}",map.len());
+
+}
+
+
+#[test]
+fn into_hashmap(){
+    let stdmap=new_stdmap();
+
+    let map:RHashMap<u32,u32>=stdmap.clone().into();
+
+    let stdmap2:HashMap<_,_>=map.into();
+
+    assert_eq!(stdmap2,stdmap);
+}
+
+
+#[test]
+fn from_iter(){
+    let mut stdmap=new_stdmap();
+
+    let map:RHashMap<u32,u32>=stdmap.clone().into_iter().collect();
+
+    assert_eq!(map.len(), 4);
+    
+    for Tuple2(key,val) in map.iter() {
+        assert_eq!(stdmap.remove(&key).as_ref(),Some(val),"key:{:?} value:{:?}",key,val);
+    }
+    assert_eq!(stdmap.len(), 0);
+
+}
+
+
+#[test]
+fn into_iter(){
+    let mut stdmap=new_stdmap();
+
+    let map:RHashMap<u32,u32>=stdmap.clone().into_iter().collect();
+
+    assert_eq!(map.len(), 4);
+    
+    for Tuple2(key,val) in map.into_iter() {
+        assert_eq!(stdmap.remove(&key).as_ref(),Some(&val),"key:{:?} value:{:?}",key,val);
+    }
+    assert_eq!(stdmap.len(), 0);
+
+}
+
+
+#[test]
+fn iter_mut(){
+    let mut stdmap=new_stdmap();
+    let mut map:RHashMap<_,_>=new_stdmap().into();
+
+    for Tuple2(key,val) in map.iter_mut() {
+        assert_eq!(stdmap.remove(&*key).as_ref(),Some(&*val),"key:{:?} value:{:?}",key,val);
+        *val=*val+key;
+    }
+    assert_eq!(stdmap.len(), 0);
+
+    assert_eq!(map.get(&90),Some(&130));
+    assert_eq!(map.get(&10),Some(&30));
+    assert_eq!(map.get(&88),Some(&118));
+    assert_eq!(map.get(&77),Some(&99));
+}
