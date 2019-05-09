@@ -299,7 +299,7 @@ impl ErrorTrait for RIoError {}
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod error_kind_tests{
     use super::*;
 
@@ -318,7 +318,7 @@ mod error_kind_tests{
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod io_error_tests{
     use super::*;
 

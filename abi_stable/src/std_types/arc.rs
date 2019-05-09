@@ -13,7 +13,7 @@ use crate::{
     return_value_equality::ReturnValueEquality,
 };
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod test;
 
 mod private {

@@ -363,3 +363,18 @@ macro_rules! dyn_trait {
         >
     )
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+macro_rules! assert_matches {
+    ( $(|)* $pat:pat $(| $prev_pat:pat)*  =$expr:expr)=>{{
+        let ref value=$expr;
+        assert!(
+            core_extensions::matches!($pat $(| $prev_pat)* = *value), 
+            "pattern did not match the value:\n\t\
+             {:?}
+            ",
+            *value
+        );
+    }};
+}

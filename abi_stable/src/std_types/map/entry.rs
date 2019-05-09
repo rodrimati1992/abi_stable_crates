@@ -92,6 +92,88 @@ where
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+
+
+impl<'a, K, V> REntry<'a, K, V> {
+    pub fn get(&self) -> Option<&V> {
+        match self {
+            REntry::Occupied(entry) => Some(entry.get()),
+            REntry::Vacant(entry) => None,
+        }
+    }
+
+    pub fn get_mut(&mut self) -> Option<&mut V> {
+        match self {
+            REntry::Occupied(entry) => Some(entry.get_mut()),
+            REntry::Vacant(entry) => None,
+        }
+    }
+
+    pub fn or_insert(self, default: V) -> &'a mut V {
+        match self {
+            REntry::Occupied(entry) => entry.into_mut(),
+            REntry::Vacant(entry) => entry.insert(default),
+        }
+    }
+
+    pub fn or_insert_with<F>(self, default: F) -> &'a mut V 
+    where 
+        F: FnOnce() -> V
+    {
+        match self {
+            REntry::Occupied(entry) => entry.into_mut(),
+            REntry::Vacant(entry) => entry.insert(default()),
+        }
+    }
+
+    pub fn key(&self) -> &K {
+        match self {
+            REntry::Occupied(entry) => entry.key(),
+            REntry::Vacant(entry) => entry.key(),
+        }
+    }
+
+    pub fn and_modify<F>(self, f: F) -> Self
+    where 
+        F: FnOnce(&mut V)
+    {
+        match self {
+            REntry::Occupied(mut entry) => {
+                f(entry.get_mut());
+                REntry::Occupied(entry)
+            },
+            REntry::Vacant(entry) => REntry::Vacant(entry),
+        }
+    }
+
+    pub fn or_default(self) -> &'a mut V 
+    where
+        V: Default
+    {
+        match self {
+            REntry::Occupied(entry) => entry.into_mut(),
+            REntry::Vacant(entry) => entry.insert(Default::default()),
+        }
+    }
+}
+
+
+impl<K,V> Debug for REntry<'_,K,V>
+where
+    K:Debug,
+    V:Debug,
+{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        match self {
+            REntry::Occupied(entry)=>Debug::fmt(entry,f),
+            REntry::Vacant(entry)=>Debug::fmt(entry,f),            
+        }
+    }
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -126,10 +208,7 @@ impl<'a,K,V> ROccupiedEntry<'a,K,V>{
     }
 }
 
-impl<'a,K,V> ROccupiedEntry<'a,K,V>
-where
-    K:Eq+Hash
-{
+impl<'a,K,V> ROccupiedEntry<'a,K,V>{
     fn into_inner(self)->&'a mut ErasedOccupiedEntry<K,V>{
         let mut this=ManuallyDrop::new(self);
         unsafe{ ((&mut this.entry) as *mut &'a mut ErasedOccupiedEntry<K,V>).read() }
@@ -182,6 +261,21 @@ where
     }
 }
 
+
+impl<K,V> Debug for ROccupiedEntry<'_,K,V>
+where
+    K:Debug,
+    V:Debug,
+{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        f.debug_struct("ROccupiedEntry")
+         .field("key",self.key())
+         .field("value",self.get())
+         .finish()
+    }
+}
+
+
 impl<'a,K,V> Drop for ROccupiedEntry<'a,K,V>{
     fn drop(&mut self){
         let vtable=self.vtable();
@@ -200,10 +294,7 @@ impl<'a,K,V> RVacantEntry<'a,K,V>{
     }
 }
 
-impl<'a,K,V> RVacantEntry<'a,K,V>
-where
-    K:Eq+Hash
-{
+impl<'a,K,V> RVacantEntry<'a,K,V>{
     fn into_inner(self)->&'a mut ErasedVacantEntry<K,V>{
         let mut this=ManuallyDrop::new(self);
         unsafe{ ((&mut this.entry) as *mut &'a mut ErasedVacantEntry<K,V>).read() }
@@ -241,6 +332,20 @@ where
     }
 }
 
+
+
+impl<K,V> Debug for RVacantEntry<'_,K,V>
+where
+    K:Debug,
+{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        f.debug_struct("RVacantEntry")
+         .field("key",self.key())
+         .finish()
+    }
+}
+
+
 impl<'a,K,V> Drop for RVacantEntry<'a,K,V>{
     fn drop(&mut self){
         let vtable=self.vtable();
@@ -273,10 +378,7 @@ pub struct OccupiedVTableVal<K,V>{
 }
 
 
-impl<K,V> OccupiedVTable<K,V>
-where
-    K:Eq+Hash,
-{
+impl<K,V> OccupiedVTable<K,V>{
     const VTABLE_REF: *const WithMetadata<OccupiedVTableVal<K,V>> = {
         &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
     };
@@ -293,10 +395,7 @@ where
 }
 
 
-impl<K,V> ErasedOccupiedEntry<K,V>
-where
-    K:Eq+Hash
-{
+impl<K,V> ErasedOccupiedEntry<K,V>{
     unsafe extern fn drop_entry(&mut self){
         extern_fn_panic_handling!{
             Self::run_as_unerased(self,|this|{
@@ -379,10 +478,7 @@ pub struct VacantVTableVal<K,V>{
 }
 
 
-impl<K,V> VacantVTable<K,V>
-where
-    K:Eq+Hash,
-{
+impl<K,V> VacantVTable<K,V>{
     const VTABLE_REF: *const WithMetadata<VacantVTableVal<K,V>> = {
         &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
     };
@@ -396,10 +492,7 @@ where
 }
 
 
-impl<K,V> ErasedVacantEntry<K,V>
-where
-    K:Eq+Hash
-{
+impl<K,V> ErasedVacantEntry<K,V>{
     unsafe extern fn drop_entry(&mut self){
         extern_fn_panic_handling!{
             Self::run_as_unerased(self,|this|{

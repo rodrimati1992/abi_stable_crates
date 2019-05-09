@@ -19,7 +19,7 @@ use crate::std_types::{RStr, RVec};
 
 mod iters;
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
 pub use self::iters::{Drain, IntoIter};

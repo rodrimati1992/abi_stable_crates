@@ -1,7 +1,40 @@
 use super::*;
 
+use std::str::FromStr;
+
+use crate::std_types::RString;
+
+
+fn new_stdmap()->HashMap<u32,u32>{
+    vec![
+        (90,40),
+        (10,20),
+        (88,30),
+        (77,22),
+    ].into_iter()
+     .collect()
+}
+
+fn new_map<K,V>()->RHashMap<K,V>
+where
+    K:FromStr+Hash+Eq,
+    V:FromStr,
+    K::Err:Debug,
+    V::Err:Debug,
+{
+    vec![
+        ("90","40"),
+        ("10","20"),
+        ("88","30"),
+        ("77","22"),
+    ].into_iter()
+     .map(|(k,v)| (k.parse::<K>().unwrap(),v.parse::<V>().unwrap()) )
+     .collect()
+}
+
+
 #[test]
-fn new_map(){
+fn test_new_map(){
     let mut map=RHashMap::new();
     map.insert(10,100);
     assert_eq!(map.get(&10), Some(&100));
@@ -157,16 +190,6 @@ fn len_is_empty(){
 }
 
 
-fn new_stdmap()->HashMap<u32,u32>{
-    vec![
-        (90,40),
-        (10,20),
-        (88,30),
-        (77,22),
-    ].into_iter()
-     .collect()
-}
-
 
 #[test]
 fn from_hashmap(){
@@ -245,4 +268,136 @@ fn iter_mut(){
     assert_eq!(map.get(&10),Some(&30));
     assert_eq!(map.get(&88),Some(&118));
     assert_eq!(map.get(&77),Some(&99));
+}
+
+
+fn assert_is_occupied<K,V>(map:&mut RHashMap<K,V>,k:K,mut v:V)
+where
+    K:Eq+Hash+Clone+Debug,
+    V:Clone+Debug+PartialEq,
+{
+    let mut entry=map.entry(k.clone());
+    assert_matches!(REntry::Occupied{..}=entry);
+    assert_eq!(entry.key(), &k);
+    assert_eq!(entry.get().cloned(), Some(v.clone()));
+    assert_eq!(entry.get_mut().cloned(), Some(v.clone()));
+}
+
+fn assert_is_vacant<K,V>(map:&mut RHashMap<K,V>,k:K)
+where
+    K:Eq+Hash+Clone+Debug,
+    V:Clone+Debug+PartialEq,
+{
+    let mut entry=map.entry(k.clone());
+    assert_matches!(REntry::Vacant{..}=entry);
+    assert_eq!(entry.key(), &k);
+    assert_eq!(entry.get().cloned(), None);
+    assert_eq!(entry.get_mut().cloned(), None);
+}
+
+
+#[test]
+fn existing_is_occupied(){
+    let mut map=new_map::<RString,RString>();
+
+    assert_is_occupied(&mut map,"90".into(),"40".into());
+    assert_is_occupied(&mut map,"10".into(),"20".into());
+    assert_is_occupied(&mut map,"88".into(),"30".into());
+    assert_is_occupied(&mut map,"77".into(),"22".into());
+
+    assert_is_vacant(&mut map,"13".into());
+    assert_is_vacant(&mut map,"14".into());
+}
+
+
+#[test]
+fn entry_or_insert(){
+    let mut map=new_map::<RString,RString>();
+    
+    assert_is_vacant(&mut map,"12".into());
+
+    assert_eq!(
+        *map.entry("12".into()).or_insert("100".into()),
+        "100".into_(RString::T)
+    );
+    assert_is_occupied(&mut map,"12".into(),"100".into());
+    
+    assert_eq!(
+        *map.entry("12".into()).or_insert("105".into()), 
+        "100".into_(RString::T)
+    );
+    assert_is_occupied(&mut map,"12".into(),"100".into());
+
+}
+
+
+#[test]
+fn entry_or_insert_with(){
+    let mut map=new_map::<RString,RString>();
+    
+    assert_is_vacant(&mut map,"12".into());
+
+    assert_eq!(
+        *map.entry("12".into()).or_insert_with(||"100".into()),
+        "100".into_(RString::T)
+    );
+    assert_is_occupied(&mut map,"12".into(),"100".into());
+    
+    assert_eq!(
+        *map.entry("12".into()).or_insert_with(||unreachable!()), 
+        "100".into_(RString::T)
+    );
+    assert_is_occupied(&mut map,"12".into(),"100".into());
+}
+
+
+#[test]
+fn entry_and_modify(){
+    let mut map=new_map::<RString,RString>();
+    
+    assert_is_vacant(&mut map,"12".into());
+
+    assert_matches!(
+        REntry::Vacant{..}=
+            map.entry("12".into()).and_modify(|_| unreachable!() )
+    );
+
+    assert_eq!(
+        *map.entry("12".into())
+            .and_modify(|_| unreachable!() )
+            .or_insert_with(||"100".into()),
+        "100".into_(RString::T)
+    );
+    assert_is_occupied(&mut map,"12".into(),"100".into());
+    
+    assert_eq!(
+        *map.entry("12".into())
+            .and_modify(|v| *v="what".into() )
+            .or_insert_with(||unreachable!()), 
+        "what".into_(RString::T)
+    );
+    assert_is_occupied(&mut map,"12".into(),"what".into());
+}
+
+
+
+#[test]
+fn entry_or_default(){
+    let mut map=new_map::<RString,RString>();
+    
+    assert_is_vacant(&mut map,"12".into());
+
+    assert_eq!(
+        *map.entry("12".into())
+            .and_modify(|_| unreachable!() )
+            .or_default(),
+        "".into_(RString::T)
+    );
+
+    assert_eq!(
+        *map.entry("12".into())
+            .and_modify(|v| *v="hello".into() )
+            .or_default(),
+        "hello".into_(RString::T)
+    );
 }
