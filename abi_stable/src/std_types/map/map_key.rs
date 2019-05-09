@@ -92,3 +92,10 @@ where
         }
     }
 }
+
+
+impl<K> Borrow<K> for MapKey<K>{
+    fn borrow(&self)->&K{
+        self.as_ref()
+    }
+}

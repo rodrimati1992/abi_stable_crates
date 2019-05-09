@@ -32,6 +32,7 @@ pub use self::{
     boxed::RBox,
     cmp_ordering::RCmpOrdering,
     cow::RCow,
+    map::RHashMap,
     option::{RNone, ROption, RSome},
     result::{RErr, ROk, RResult},
     slice_mut::RSliceMut,
