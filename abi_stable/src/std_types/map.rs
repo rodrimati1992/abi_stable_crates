@@ -1,9 +1,6 @@
 use std::{
     borrow::Borrow,
-    collections::{
-        HashMap,
-        // hash_map::Entry,
-    },
+    collections::HashMap,
     cmp::{Eq,PartialEq},
     fmt::{self,Debug},
     hash::{Hash,Hasher},
@@ -23,11 +20,12 @@ use crate::{
     erased_types::trait_objects::HasherObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
     std_types::*,
-    traits::IntoReprRust,
+    traits::{IntoReprRust,ErasedType},
     utils::{transmute_reference,transmute_mut_reference},
 };
 
 
+mod entry;
 mod extern_fns;
 mod iterator_stuff;
 mod map_query;
@@ -39,6 +37,7 @@ mod test;
 use self::{
     map_query::MapQuery,
     map_key::MapKey,
+    entry::{BoxedREntry},
 };
 
 pub use self::{
@@ -46,6 +45,7 @@ pub use self::{
         RefIterInterface,MutIterInterface,ValIterInterface,
         IntoIter,
     },
+    entry::{REntry,ROccupiedEntry,RVacantEntry},
 };
 
 
@@ -59,22 +59,31 @@ pub struct RHashMap<K,V>{
 }
 
 
+struct BoxedHashMap<'a,K,V>{
+    map:HashMap<MapKey<K>,V>,
+    entry:Option<BoxedREntry<'a,K,V>>,
+}
+
+
+
+
+
 impl<K,V> RHashMap<K,V>{
     pub fn new()->RHashMap<K,V>
     where 
-        ():MapConstruction<K,V>,
+        K:Hash+Eq
     {
         Self::with_capacity(0)
     }
 
     pub fn with_capacity(capacity:usize)->RHashMap<K,V>
     where 
-        ():MapConstruction<K,V>,
+        K:Hash+Eq
     {
         RHashMap{
-            map:<() as MapConstruction<K,V>>::erased_map_with_capacity(capacity),
+            map:VTable::<K,V>::erased_map_with_capacity(capacity),
             vtable:unsafe{
-                (*<() as MapConstruction<K,V>>::VTABLE_REF).as_prefix_raw()
+                (*VTable::VTABLE_REF).as_prefix_raw()
             },
         }
     }
@@ -173,6 +182,12 @@ impl<K,V> RHashMap<K,V>{
 
         vtable.drain()(&mut *self.map)
     }
+
+    pub fn entry(&mut self,key:K)->REntry<'_,K,V>{
+        let vtable=self.vtable();
+
+        vtable.entry()(&mut *self.map,key)
+    }
 }
 
 
@@ -239,7 +254,11 @@ pub type Drain<'a,K,V>=
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-pub struct ErasedMap<K,V>(PhantomData<Tuple2<K,V>>);
+struct ErasedMap<K,V>(PhantomData<Tuple2<K,V>>);
+
+unsafe impl<'a,K:'a,V:'a> ErasedType<'a> for ErasedMap<K,V> {
+    type Unerased=BoxedHashMap<'a,K,V>;
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -263,32 +282,30 @@ pub struct VTableVal<K,V>{
     iter_mut:extern fn(&mut ErasedMap<K,V> )->IterMut<'_,K,V>,
     drain   :extern fn(&mut ErasedMap<K,V> )->Drain<'_,K,V>,
     iter_val:extern fn(RBox<ErasedMap<K,V>>)->IntoIter<K,V>,
+    entry:extern fn(&mut ErasedMap<K,V>,K)->REntry<'_,K,V>,
     _type_params:PhantomData<extern fn(K,V)>,
 }
 
-//////////////////////////////////////////////////////////////////////////////
 
 
-pub trait MapConstruction<K,V>{
-    const VTABLE:VTableVal<K,V>;
-
+impl<K,V> VTable<K,V>
+where
+    K:Eq+Hash,
+{
     const VTABLE_REF: *const WithMetadata<VTableVal<K,V>> = {
         &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
     };
 
-    fn erased_map_with_capacity(capacity:usize)->RBox<ErasedMap<K,V>>;
-}
-
-impl<K,V> MapConstruction<K,V> for ()
-where
-    K:Eq+Hash,
-{
     fn erased_map_with_capacity(capacity:usize)->RBox<ErasedMap<K,V>>{
         unsafe{
-            let x=HashMap::<MapKey<K>,V>::with_capacity(capacity);
-            let x=RBox::new(x);
-            let x=mem::transmute::<RBox<_>,RBox<ErasedMap<K,V>>>(x);
-            x
+            let map=HashMap::<MapKey<K>,V>::with_capacity(capacity);
+            let boxed=BoxedHashMap{
+                map,
+                entry:None,
+            };
+            let boxed=RBox::new(boxed);
+            let boxed=mem::transmute::<RBox<_>,RBox<ErasedMap<K,V>>>(boxed);
+            boxed
         }
     }
 
@@ -304,6 +321,7 @@ where
         iter_mut    :ErasedMap::iter_mut,
         drain       :ErasedMap::drain,
         iter_val    :ErasedMap::iter_val,
+        entry       :ErasedMap::entry,
         _type_params:PhantomData
     };
 

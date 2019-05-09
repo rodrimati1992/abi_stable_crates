@@ -2,10 +2,12 @@
 Where miscellaneous traits reside.
 */
 
+use std::ops::Deref;
+
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-
+use crate::pointer_trait::TransmuteElement;
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -99,3 +101,46 @@ macro_rules! impl_into_rust_repr {
         }
     )
 }
+
+
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+
+
+
+pub(crate) unsafe trait ErasedType<'a>:Sized{
+    type Unerased;
+
+    #[inline]
+    unsafe fn from_unerased<P>(p:P)->P::TransmutedPtr
+    where 
+        P:Deref<Target=Self::Unerased>,
+        P:TransmuteElement<Self>
+    {
+        p.transmute_element(Self::T)
+    }
+
+    #[inline]
+    unsafe fn into_unerased<P>(p:P)->P::TransmutedPtr
+    where 
+        P:Deref<Target=Self>,
+        P:TransmuteElement<Self::Unerased>,
+    {
+        p.transmute_element(Self::Unerased::T)
+    }
+
+
+    #[inline]
+    unsafe fn run_as_unerased<P,F,R>(p:P,func:F)->R
+    where 
+        P:Deref<Target=Self>,
+        P:TransmuteElement<Self::Unerased>,
+        F:FnOnce(P::TransmutedPtr)->R,
+    {
+        func(Self::into_unerased(p))
+    }
+
+
+}
+
