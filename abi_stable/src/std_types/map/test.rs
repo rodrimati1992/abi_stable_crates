@@ -63,6 +63,8 @@ fn remove(){
     let mut map=RHashMap::<String,_>::new();
     map.insert("what".into(),10);
     map.insert("the".into(),5);
+    map.insert("is".into(),14);
+    map.insert("that".into(),54);
 
     assert_eq!(
         map.remove_entry("the"),
@@ -72,17 +74,59 @@ fn remove(){
         map.remove_entry("the"),
         RNone,
     );
+    
     assert_eq!(
-        map.remove_entry("what"),
+        map.remove_entry_p(&"what".into()),
         RSome(Tuple2("what".to_string(),10)),
     );
     assert_eq!(
-        map.remove_entry("what"),
+        map.remove_entry_p(&"what".into()),
+        RNone,
+    );
+    
+    assert_eq!(
+        map.remove_entry_p(&"is".into()),
+        RSome(Tuple2("is".to_string(),14)),
+    );
+    assert_eq!(
+        map.remove_entry_p(&"is".into()),
+        RNone,
+    );
+
+    assert_eq!(
+        map.remove_entry("that"),
+        RSome(Tuple2("that".to_string(),54)),
+    );
+    assert_eq!(
+        map.remove_entry("that"),
         RNone,
     );
 
 }
 
+
+fn check_get<K,V>(map:&mut RHashMap<K,V>,key:K,value:Option<V>)
+where
+    K:Eq+Hash+Clone+Debug,
+    V:PartialEq+Clone+Debug,
+{
+    assert_eq!(map.get(&key).cloned(),value.clone());
+    assert_eq!(map.get_p(&key).cloned(),value.clone());
+    assert_eq!(map.get_mut(&key).cloned(),value.clone());
+    assert_eq!(map.get_mut_p(&key).cloned(),value.clone());
+    
+    assert_eq!(map.contains_key(&key),value.is_some(),"\nkey:{:?} value:{:?}\n",key,value );
+    assert_eq!(map.contains_key_p(&key),value.is_some(),"\nkey:{:?} value:{:?}\n",key,value );
+    
+    if let Some(mut value)=value.clone() {
+        assert_eq!(&map[&key],&value);
+        assert_eq!(map.index_p(&key),&value);
+    
+        assert_eq!((&mut map[&key]),&mut value);
+        assert_eq!(map.index_mut_p(&key),&mut value);
+    }
+    
+}
 
 #[test]
 fn get(){
@@ -92,27 +136,15 @@ fn get(){
     map.insert("oof".into(),33);
     map.insert("you".into(),55);
 
-    assert_eq!(map.get("what"),Some(&10));
-    assert_eq!(map.get("the"),Some(&5));
-    assert_eq!(map.get("oof"),Some(&33));
-    assert_eq!(map.get("you"),Some(&55));
+    check_get(&mut map,"what".into(),Some(10));
+    check_get(&mut map,"the".into(),Some(5));
+    check_get(&mut map,"oof".into(),Some(33));
+    check_get(&mut map,"you".into(),Some(55));
 
-    assert_eq!(map.contains_key("what"),true);
-    assert_eq!(map.contains_key("the"),true);
-    assert_eq!(map.contains_key("oof"),true);
-    assert_eq!(map.contains_key("you"),true);
-
-
-    assert_eq!(map.get("wasdat"),None);
-    assert_eq!(map.get("thasdae"),None);
-    assert_eq!(map.get("ofwwf"),None);
-    assert_eq!(map.get("youeeeee"),None);
-
-    assert_eq!(map.contains_key("wasdat"),false);
-    assert_eq!(map.contains_key("thasdae"),false);
-    assert_eq!(map.contains_key("ofwwf"),false);
-    assert_eq!(map.contains_key("youeeeee"),false);
-
+    check_get(&mut map,"wasdat".into(),None);
+    check_get(&mut map,"thasdae".into(),None);
+    check_get(&mut map,"ofwwf".into(),None);
+    check_get(&mut map,"youeeeee".into(),None);
 
     if let Some(x)=map.get_mut("what") {
         *x=*x*2;

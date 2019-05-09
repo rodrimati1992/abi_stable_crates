@@ -47,6 +47,13 @@ where
         }
     }
 
+    pub(super)extern fn insert_elem(&mut self,key:K,value:V)->ROption<V>{
+        self.run_mut(|this|{
+            this.map.insert(MapKey::Value(key),value)
+                .into_c()
+        })
+    }
+
     pub(super)extern fn get_elem(&self,key:MapQuery<'_,K>)->Option<&V>{
         self.run(|this|unsafe{ 
             this.map.get(&key.as_mapkey()) 
@@ -59,13 +66,6 @@ where
         })
     }
 
-    pub(super)extern fn insert_elem(&mut self,key:K,value:V)->ROption<V>{
-        self.run_mut(|this|{
-            this.map.insert(MapKey::Value(key),value)
-                .into_c()
-        })
-    }
-
     pub(super)extern fn remove_entry(&mut self,key:MapQuery<'_,K>)->ROption<Tuple2<K,V>>{
         self.run_mut(|this|{
             match this.map.remove_entry(unsafe{ &key.as_mapkey() }) {
@@ -74,6 +74,24 @@ where
             }
         })
     }
+
+    pub(super)extern fn get_elem_p(&self,key:&K)->Option<&V>{
+        self.run(|this| this.map.get(key) )
+    }    
+
+    pub(super)extern fn get_mut_elem_p(&mut self,key:&K)->Option<&mut V>{
+        self.run_mut(|this| this.map.get_mut(key) )
+    }
+
+    pub(super)extern fn remove_entry_p(&mut self,key:&K)->ROption<Tuple2<K,V>>{
+        self.run_mut(|this|{
+            match this.map.remove_entry( key ) {
+                Some(x)=>RSome(Tuple2(x.0.into_inner(),x.1)),
+                None=>RNone,
+            }
+        })
+    }
+
 
     pub(super)extern fn clear_map(&mut self){
         self.run_mut(|this| this.map.clear() )

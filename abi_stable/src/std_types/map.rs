@@ -4,6 +4,7 @@ use std::{
     cmp::{Eq,PartialEq},
     fmt::{self,Debug},
     hash::{Hash,Hasher},
+    ops::{Index,IndexMut},
     iter::FromIterator,
     ptr::NonNull,
     marker::PhantomData,
@@ -94,6 +95,8 @@ impl<K,V> RHashMap<K,V>{
         }
     }
 
+    //////////////////////////////////
+
     pub fn contains_key<Q>(&self,query:&Q)->bool
     where
         K:Borrow<Q>,
@@ -124,14 +127,12 @@ impl<K,V> RHashMap<K,V>{
         }
     }
 
-    pub fn insert(&mut self,key:K,value:V)->ROption<V>
+    pub fn remove<Q>(&mut self,query:&Q)->ROption<V>
     where
-        K:Hash+Eq,
+        K:Borrow<Q>,
+        Q:Hash+Eq+?Sized
     {
-        let vtable=self.vtable();
-        unsafe{
-            vtable.insert_elem()(&mut *self.map,key,value)
-        }
+        self.remove_entry(query).map(|x| x.1 )
     }
 
     pub fn remove_entry<Q>(&mut self,query:&Q)->ROption<Tuple2<K,V>>
@@ -142,13 +143,75 @@ impl<K,V> RHashMap<K,V>{
         let vtable=self.vtable();
         vtable.remove_entry()(&mut *self.map,MapQuery::new(&query))
     }
+    
+    //////////////////////////////////
 
-    pub fn remove<Q>(&mut self,query:&Q)->ROption<V>
-    where
-        K:Borrow<Q>,
-        Q:Hash+Eq+?Sized
+    pub fn contains_key_p(&self,key:&K)->bool
+    where 
+        K:Hash+Eq
     {
-        self.remove_entry(query).map(|x| x.1 )
+        self.get_p(key).is_some()
+    }
+
+    pub fn get_p(&self,key:&K)->Option<&V>
+    where 
+        K:Hash+Eq
+    {
+        let vtable=self.vtable();
+        unsafe{
+            vtable.get_elem_p()(&*self.map,&key)
+        }
+    }
+
+    pub fn get_mut_p(&mut self,key:&K)->Option<&mut V>
+    where 
+        K:Hash+Eq
+    {
+        let vtable=self.vtable();
+        unsafe{
+            vtable.get_mut_elem_p()(&mut *self.map,&key)
+        }
+    }
+
+    pub fn remove_entry_p(&mut self,key:&K)->ROption<Tuple2<K,V>>
+    where 
+        K:Hash+Eq
+    {
+        let vtable=self.vtable();
+        vtable.remove_entry_p()(&mut *self.map,&key)
+    }
+
+    pub fn remove_p(&mut self,key:&K)->ROption<V>
+    where 
+        K:Hash+Eq
+    {
+        self.remove_entry_p(key).map(|x| x.1 )
+    }
+
+    pub fn index_p(&self,key:&K)->&V
+    where 
+        K:Hash+Eq
+    {
+        self.get_p(key).expect("no entry in RHashMap<_,_> found for key")
+    }
+
+    pub fn index_mut_p(&mut self,key:&K)->&V
+    where 
+        K:Hash+Eq
+    {
+        self.get_mut_p(key).expect("no entry in RHashMap<_,_> found for key")
+    }
+
+    //////////////////////////////////
+
+    pub fn insert(&mut self,key:K,value:V)->ROption<V>
+    where
+        K:Hash+Eq,
+    {
+        let vtable=self.vtable();
+        unsafe{
+            vtable.insert_elem()(&mut *self.map,key,value)
+        }
     }
 
     pub fn clear(&mut self){
@@ -240,6 +303,30 @@ where
 }
 
 
+impl<K,Q,V> Index<&Q> for RHashMap<K,V>
+where
+    K:Borrow<Q>,
+    Q:Eq+Hash
+{
+    type Output=V;
+
+    fn index(&self,query:&Q)->&V{
+        self.get(query).expect("no entry in RHashMap<_,_> found for key")
+    }
+}
+
+impl<K,Q,V> IndexMut<&Q> for RHashMap<K,V>
+where
+    K:Borrow<Q>,
+    Q:Eq+Hash
+{
+    fn index_mut(&mut self,query:&Q)->&mut V{
+        self.get_mut(query).expect("no entry in RHashMap<_,_> found for key")
+    }
+}
+
+
+
 pub type Iter<'a,K,V>=
     DynTrait<'a,RBox<()>,RefIterInterface<K,V>>;
 
@@ -272,10 +359,16 @@ unsafe impl<'a,K:'a,V:'a> ErasedType<'a> for ErasedMap<K,V> {
     missing_field(panic),
 )]
 pub struct VTableVal<K,V>{
+    insert_elem:extern fn(&mut ErasedMap<K,V>,K,V)->ROption<V>,
+    
     get_elem:for<'a> extern fn(&'a ErasedMap<K,V>,MapQuery<'_,K>)->Option<&'a V>,
     get_mut_elem:for<'a> extern fn(&'a mut ErasedMap<K,V>,MapQuery<'_,K>)->Option<&'a mut V>,
-    insert_elem:extern fn(&mut ErasedMap<K,V>,K,V)->ROption<V>,
     remove_entry:extern fn(&mut ErasedMap<K,V>,MapQuery<'_,K>)->ROption<Tuple2<K,V>>,
+    
+    get_elem_p:for<'a> extern fn(&'a ErasedMap<K,V>,&K)->Option<&'a V>,
+    get_mut_elem_p:for<'a> extern fn(&'a mut ErasedMap<K,V>,&K)->Option<&'a mut V>,
+    remove_entry_p:extern fn(&mut ErasedMap<K,V>,&K)->ROption<Tuple2<K,V>>,
+    
     clear_map:extern fn(&mut ErasedMap<K,V>),
     len:extern fn(&ErasedMap<K,V>)->usize,
     iter    :extern fn(&ErasedMap<K,V>     )->Iter<'_,K,V>,
@@ -311,10 +404,16 @@ where
 
 
     const VTABLE:VTableVal<K,V>=VTableVal{
+        insert_elem :ErasedMap::insert_elem,
+
         get_elem    :ErasedMap::get_elem,
         get_mut_elem:ErasedMap::get_mut_elem,
-        insert_elem :ErasedMap::insert_elem,
         remove_entry:ErasedMap::remove_entry,
+
+        get_elem_p    :ErasedMap::get_elem_p,
+        get_mut_elem_p:ErasedMap::get_mut_elem_p,
+        remove_entry_p:ErasedMap::remove_entry_p,
+
         clear_map   :ErasedMap::clear_map,
         len         :ErasedMap::len,
         iter        :ErasedMap::iter,
