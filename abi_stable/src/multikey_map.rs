@@ -419,20 +419,6 @@ mod tests{
         matches,
     };
     
-    macro_rules! assert_matches {
-        ( $(|)* $pat:pat $(| $prev_pat:pat)*  =$expr:expr)=>{
-            let value=$expr;
-            assert!(
-                matches!($pat $(| $prev_pat)* = value), 
-                "pattern did not match the value:\n\t\
-                 {:?}
-                ",
-                value
-            );
-        };
-    }
-
-
     #[test]
     fn equality(){
 

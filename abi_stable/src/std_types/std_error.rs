@@ -26,7 +26,7 @@ use crate::{
     utils::{transmute_reference,transmute_mut_reference},
 };
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod test;
 
 /// Ffi-safe version of `Box<::std::error::Error+'static>` 

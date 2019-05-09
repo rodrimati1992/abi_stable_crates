@@ -14,7 +14,7 @@ use crate::{
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod test;
 
 mod private {
