@@ -6,19 +6,20 @@ use crate::{
 };
 
 
-impl<K,V> ErasedMap<K,V>
+impl<K,V,S> ErasedMap<K,V,S>
 where 
-    K:Hash+Eq
+    K:Hash+Eq,
+    S:BuildHasher,
 {
-    pub(super) unsafe fn as_hashmap(&self)->&BoxedHashMap<'_,K,V>{
+    pub(super) unsafe fn as_hashmap(&self)->&BoxedHashMap<'_,K,V,S>{
         transmute_reference(self)
     }
-    pub(super) unsafe fn as_mut_hashmap(&mut self)->&mut BoxedHashMap<'_,K,V>{
+    pub(super) unsafe fn as_mut_hashmap(&mut self)->&mut BoxedHashMap<'_,K,V,S>{
         transmute_mut_reference(self)
     }
 
     fn run<'a,F,R>(&'a self,f:F)->R
-    where F:FnOnce(&'a BoxedHashMap<'a,K,V>)->R
+    where F:FnOnce(&'a BoxedHashMap<'a,K,V,S>)->R
     {
         extern_fn_panic_handling!{
             let map=unsafe{ self.as_hashmap() };
@@ -27,7 +28,7 @@ where
     }
     
     fn run_mut<'a,F,R>(&'a mut self,f:F)->R
-    where F:FnOnce(&'a mut BoxedHashMap<'a,K,V>)->R
+    where F:FnOnce(&'a mut BoxedHashMap<'a,K,V,S>)->R
     {
         extern_fn_panic_handling!{
             let map=unsafe{ self.as_mut_hashmap() };
@@ -37,12 +38,12 @@ where
 
     fn run_val<'a,F,R>(this:RBox<Self>,f:F)->R
     where 
-        F:FnOnce(RBox<BoxedHashMap<'a,K,V>>)->R,
+        F:FnOnce(RBox<BoxedHashMap<'a,K,V,S>>)->R,
         K:'a,
         V:'a,
     {
         extern_fn_panic_handling!{
-            let map=unsafe{ this.transmute_element(<BoxedHashMap<'a,K,V>>::T) };
+            let map=unsafe{ this.transmute_element(<BoxedHashMap<'a,K,V,S>>::T) };
             f( map )
         }
     }
@@ -93,12 +94,20 @@ where
     }
 
 
+    pub(super)extern fn reserve(&mut self,reserved:usize){
+        self.run_mut(|this| this.map.reserve(reserved) )
+    }
+
     pub(super)extern fn clear_map(&mut self){
         self.run_mut(|this| this.map.clear() )
     }
 
     pub(super)extern fn len(&self)->usize{
         self.run(|this| this.map.len() )
+    }
+
+    pub(super)extern fn capacity(&self)->usize{
+        self.run(|this| this.map.capacity() )
     }
 
     pub(super)extern fn iter     (&self)->Iter<'_,K,V>{
@@ -122,7 +131,7 @@ where
         })
     }
 
-    pub(super)extern fn iter_val<'a>(this:RBox<ErasedMap<K,V>>)->IntoIter<K,V>{
+    pub(super)extern fn iter_val<'a>(this:RBox<ErasedMap<K,V,S>>)->IntoIter<K,V>{
         Self::run_val(this,|this|{
             let iter=this.piped(RBox::into_inner).map.into_iter().map(map_iter_val);
             let iter=DynTrait::from_borrowing_value(iter,ValIterInterface::NEW);
