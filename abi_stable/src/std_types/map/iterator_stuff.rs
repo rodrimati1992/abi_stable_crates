@@ -90,7 +90,8 @@ type IntoIterInner<'a,K,V>=
 #[sabi(inside_abi_stable_crate)]
 pub struct IntoIter<K,V>{
     iter:IntoIterInner<'static,u32,u32>,
-    _marker:PhantomData<Tuple2<K,V>>,
+    // _marker:PhantomData<Tuple2<K,V>>,
+    _marker:PhantomData<Tuple3<K,V,UnsafeIgnoredType<std::rc::Rc<()>>>>,
 }
 
 

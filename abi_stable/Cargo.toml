@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable"
-version = "0.2.3"
+version = "0.3.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition="2018"
 license = "MIT/Apache-2.0"
@@ -30,8 +30,8 @@ rust_1_34=[]
 only_new_tests=[]
 
 [dependencies]
-abi_stable_derive= {version="0.2",path="../abi_stable_derive"}
-abi_stable_derive_lib= {version="0.2",path="../abi_stable_derive_lib"}
+abi_stable_derive= {version="0.3",path="../abi_stable_derive"}
+abi_stable_derive_lib= {version="0.3",path="../abi_stable_derive_lib"}
 serde          = "1.0"
 serde_derive   = "1.0"
 core_extensions= { version="0.1"}

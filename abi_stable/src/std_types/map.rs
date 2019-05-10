@@ -50,7 +50,14 @@ pub use self::{
 };
 
 
+/**
 
+An ffi-safe hashmap,which wraps `std::collections::HashMap<K,V,S>`,
+only requiring the `K:Eq+Hash` bounds when constructing it.
+
+Most of the API in `HashMap` is implemented here,including the Entry API.
+
+*/
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -105,6 +112,7 @@ unsafe impl<'a,K:'a,V:'a,S:'a> ErasedType<'a> for ErasedMap<K,V,S> {
 
 
 impl<K,V> RHashMap<K,V,RandomState>{
+    /// Constructs an empty RHashMap.
     #[inline]
     pub fn new()->RHashMap<K,V>
     where 
@@ -113,6 +121,7 @@ impl<K,V> RHashMap<K,V,RandomState>{
         Self::default()
     }
 
+    /// Constructs an empty RHashMap with the passed capacity.
     #[inline]
     pub fn with_capacity(capacity:usize)->RHashMap<K,V>
     where 
@@ -126,6 +135,7 @@ impl<K,V> RHashMap<K,V,RandomState>{
 
 
 impl<K,V,S> RHashMap<K,V,S>{
+    /// Constructs an empty RHashMap with the passed `hash_builder` to hash the keys.
     #[inline]
     pub fn with_hasher(hash_builder: S) -> RHashMap<K, V, S> 
     where
@@ -134,6 +144,8 @@ impl<K,V,S> RHashMap<K,V,S>{
     {
         Self::with_capacity_and_hasher(0,hash_builder)
     }
+    /// Constructs an empty RHashMap with the passed capacity,
+    /// and the passed `hash_builder` to hash the keys.
     pub fn with_capacity_and_hasher(
         capacity: usize,
         hash_builder: S
@@ -166,6 +178,7 @@ impl<K,V,S> RHashMap<K,V,S>{
 
 
 impl<K,V,S> RHashMap<K,V,S>{
+    /// Returns whether the map associates a value with the key.
     pub fn contains_key<Q>(&self,query:&Q)->bool
     where
         K:Borrow<Q>,
@@ -174,6 +187,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         self.get(query).is_some()
     }
 
+    /// Returns a reference to the value associated with the key.
     pub fn get<Q>(&self,query:&Q)->Option<&V>
     where
         K:Borrow<Q>,
@@ -185,6 +199,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         }
     }
 
+    /// Returns a mutable reference to the value associated with the key.
     pub fn get_mut<Q>(&mut self,query:&Q)->Option<&mut V>
     where
         K:Borrow<Q>,
@@ -196,6 +211,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         }
     }
 
+    /// Removes the value associated with the key.
     pub fn remove<Q>(&mut self,query:&Q)->ROption<V>
     where
         K:Borrow<Q>,
@@ -204,6 +220,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         self.remove_entry(query).map(|x| x.1 )
     }
 
+    /// Removes the entry for the key.
     pub fn remove_entry<Q>(&mut self,query:&Q)->ROption<Tuple2<K,V>>
     where
         K:Borrow<Q>,
@@ -216,10 +233,12 @@ impl<K,V,S> RHashMap<K,V,S>{
 
 
 impl<K,V,S> RHashMap<K,V,S>{
+    /// Returns whether the map associates a value with the key.
     pub fn contains_key_p(&self,key:&K)->bool{
         self.get_p(key).is_some()
     }
 
+    /// Returns a reference to the value associated with the key.
     pub fn get_p(&self,key:&K)->Option<&V>{
         let vtable=self.vtable();
         unsafe{
@@ -227,6 +246,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         }
     }
 
+    /// Returns a mutable reference to the value associated with the key.
     pub fn get_mut_p(&mut self,key:&K)->Option<&mut V>{
         let vtable=self.vtable();
         unsafe{
@@ -234,25 +254,38 @@ impl<K,V,S> RHashMap<K,V,S>{
         }
     }
 
+    /// Removes the entry for the key.
     pub fn remove_entry_p(&mut self,key:&K)->ROption<Tuple2<K,V>>{
         let vtable=self.vtable();
         vtable.remove_entry_p()(&mut *self.map,&key)
     }
 
+    /// Removes the value associated with the key.
     pub fn remove_p(&mut self,key:&K)->ROption<V>{
         self.remove_entry_p(key).map(|x| x.1 )
     }
 
+    /// Returns a reference to the value associated with the key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the key is not associated with a value.
     pub fn index_p(&self,key:&K)->&V{
         self.get_p(key).expect("no entry in RHashMap<_,_> found for key")
     }
 
+    /// Returns a mutable reference to the value associated with the key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the key is not associated with a value.
     pub fn index_mut_p(&mut self,key:&K)->&V{
         self.get_mut_p(key).expect("no entry in RHashMap<_,_> found for key")
     }
 
     //////////////////////////////////
 
+    /// Inserts a value into the map,associating it with a key,returning the previous value.
     pub fn insert(&mut self,key:K,value:V)->ROption<V>{
         let vtable=self.vtable();
         unsafe{
@@ -260,49 +293,67 @@ impl<K,V,S> RHashMap<K,V,S>{
         }
     }
 
+    /// Reserves enough space to insert `reserved` extra elements.
     pub fn reserve(&mut self,reserved:usize){
         let vtable=self.vtable();
 
         vtable.reserve()(&mut *self.map,reserved);
     }
 
+    /// Removes all the entries in the map.
     pub fn clear(&mut self){
         let vtable=self.vtable();
         vtable.clear_map()(&mut *self.map);
     }
 
+    /// Returns the ammount of entries in the map.
     pub fn len(&self)->usize{
         let vtable=self.vtable();
         vtable.len()(&*self.map)
     }
 
+    /// Returns the capacity of the map,the ammount of elements it can store without reallocating.
+    ///
+    /// Note that this is a lower bound,since hash maps don't necessarily have an exact capacity.
     pub fn capacity(&self)->usize{
         let vtable=self.vtable();
         vtable.capacity()(&*self.map)
     }
 
+    /// Returns whether the map contains any entries.
     pub fn is_empty(&self)->bool{
         self.len()==0
     }
 
+    /// Iterates over the entries in the map,with references to the values in the map.
+    ///
+    /// This returns an `impl Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
     pub fn iter    (&self)->Iter<'_,K,V>{
         let vtable=self.vtable();
 
         vtable.iter()(&*self.map)
     }
     
+    /// Iterates over the entries in the map,with mutable references to the values in the map.
+    ///
+    /// This returns an `impl Iterator<Item= Tuple2< &K, &mutV > >+!Send+!Sync`
     pub fn iter_mut(&mut self)->IterMut<'_,K,V>{
         let vtable=self.vtable();
 
         vtable.iter_mut()(&mut *self.map)
     }
 
+    /// Clears the map,returning an iterator over all the entries that were removed.
+    /// 
+    /// This returns an `impl Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
     pub fn drain   (&mut self)->Drain<'_,K,V>{
         let vtable=self.vtable();
 
         vtable.drain()(&mut *self.map)
     }
 
+    /// Gets a handle into the entry in the map for the key,
+    /// that allows operating directly on the entry.
     pub fn entry(&mut self,key:K)->REntry<'_,K,V>{
         let vtable=self.vtable();
 
@@ -311,6 +362,7 @@ impl<K,V,S> RHashMap<K,V,S>{
 }
 
 
+/// This returns an `impl Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
 impl<K,V,S> IntoIterator for RHashMap<K,V,S>{
     type Item=Tuple2<K,V>;
     type IntoIter=IntoIter<K,V>;
@@ -323,6 +375,7 @@ impl<K,V,S> IntoIterator for RHashMap<K,V,S>{
 }
 
 
+/// This returns an `impl Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
 impl<'a,K,V,S> IntoIterator for &'a RHashMap<K,V,S>{
     type Item=Tuple2<&'a K,&'a V>;
     type IntoIter=Iter<'a,K,V>;
@@ -333,6 +386,7 @@ impl<'a,K,V,S> IntoIterator for &'a RHashMap<K,V,S>{
 }
 
 
+/// This returns an `impl Iterator<Item= Tuple2< &K, &mutV > >+!Send+!Sync`
 impl<'a,K,V,S> IntoIterator for &'a mut RHashMap<K,V,S>{
     type Item=Tuple2<&'a K,&'a mut V>;
     type IntoIter=IterMut<'a,K,V>;
@@ -477,6 +531,17 @@ where
             })
     }
 }
+
+
+unsafe impl<K, V, S> Send for RHashMap<K, V, S> 
+where
+    HashMap<K, V, S>: Send,
+{}
+
+unsafe impl<K, V, S> Sync for RHashMap<K, V, S> 
+where
+    HashMap<K, V, S>: Sync,
+{}
 
 
 impl<K,Q,V,S> Index<&Q> for RHashMap<K,V,S>

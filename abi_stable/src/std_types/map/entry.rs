@@ -18,7 +18,7 @@ pub(super) enum BoxedREntry<'a,K,V>{
     Vacant(UnerasedVacantEntry<'a,K,V>),
 }
 
-
+/// A handle into an entry in a map, which is either vacant or occupied.
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -95,6 +95,7 @@ where
 
 
 impl<'a, K, V> REntry<'a, K, V> {
+    /// Returns a reference to the value in the entry.
     pub fn get(&self) -> Option<&V> {
         match self {
             REntry::Occupied(entry) => Some(entry.get()),
@@ -102,6 +103,7 @@ impl<'a, K, V> REntry<'a, K, V> {
         }
     }
 
+    /// Returns a mutable reference to the value in the entry.
     pub fn get_mut(&mut self) -> Option<&mut V> {
         match self {
             REntry::Occupied(entry) => Some(entry.get_mut()),
@@ -109,6 +111,8 @@ impl<'a, K, V> REntry<'a, K, V> {
         }
     }
 
+    /// Inserts `default` as the value in the entry if it wasn't occupied,
+    /// returning a mutable reference to the value in the entry.
     pub fn or_insert(self, default: V) -> &'a mut V {
         match self {
             REntry::Occupied(entry) => entry.into_mut(),
@@ -116,6 +120,8 @@ impl<'a, K, V> REntry<'a, K, V> {
         }
     }
 
+    /// Inserts `default()` as the value in the entry if it wasn't occupied,
+    /// returning a mutable reference to the value in the entry.
     pub fn or_insert_with<F>(self, default: F) -> &'a mut V 
     where 
         F: FnOnce() -> V
@@ -126,6 +132,7 @@ impl<'a, K, V> REntry<'a, K, V> {
         }
     }
 
+    /// Gets the key of the entry.
     pub fn key(&self) -> &K {
         match self {
             REntry::Occupied(entry) => entry.key(),
@@ -133,6 +140,7 @@ impl<'a, K, V> REntry<'a, K, V> {
         }
     }
 
+    /// Allows mutating an occupied entry before doing other operations.
     pub fn and_modify<F>(self, f: F) -> Self
     where 
         F: FnOnce(&mut V)
@@ -146,6 +154,8 @@ impl<'a, K, V> REntry<'a, K, V> {
         }
     }
 
+    /// Inserts the `V::default()` value in the entry if it wasn't occupied,
+    /// returning a mutable reference to the value in the entry.
     pub fn or_default(self) -> &'a mut V 
     where
         V: Default
@@ -174,6 +184,7 @@ where
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+/// A handle into an occupied entry in a map,always a variant of an REntry.
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -187,6 +198,7 @@ pub struct ROccupiedEntry<'a,K,V>{
     _marker:UnsafeIgnoredType<OccupiedEntry<'a,K,V>>
 }
 
+/// A handle into a vacant entry in a map,always a variant of an REntry.
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -224,36 +236,44 @@ impl<'a,K,V> ROccupiedEntry<'a,K,V>{
         }
     }
 
+    /// Gets the key of the entry.
     pub fn key(&self)->&K{
         let vtable=self.vtable();
 
         vtable.key()(&self.entry)
     }
 
+    /// Gets a reference to the value in the entry.
     pub fn get(&self)->&V{
         let vtable=self.vtable();
 
         vtable.get_elem()(&self.entry)
     }
 
+    /// Gets a mutable reference to the value in the entry.
+    /// To borrow with the lifetime of the map,use `ROccupiedEntry::into_mut`.
     pub fn get_mut(&mut self)->&mut V{
         let vtable=self.vtable();
 
         vtable.get_mut_elem()(&mut self.entry)
     }
 
+    /// Gets a mutable reference to the value in the entry,
+    /// that borrows with the lifetime of the map instead of from this `ROccupiedEntry`.
     pub fn into_mut(self)->&'a mut V{
         let vtable=self.vtable();
 
         vtable.into_mut_elem()(self)
     }
 
+    /// Replaces the current value of the entry with `value`,returning the previous value.
     pub fn insert(&mut self,value:V)->V{
         let vtable=self.vtable();
 
         vtable.insert_elem()(&mut self.entry,value)
     }
 
+    /// Removes the entry from the map,returns the value.
     pub fn remove(self)->V{
         let vtable=self.vtable();
 
@@ -313,18 +333,21 @@ impl<'a,K,V> RVacantEntry<'a,K,V>{
         }
     }
 
+    /// Gets the key of the entry.
     pub fn key(&self) -> &K {
         let vtable=self.vtable();
 
         vtable.key()(self.entry)
     }
 
+    /// Gets back the key that was passed to RHashMap::entry.
     pub fn into_key(self) -> K {
         let vtable=self.vtable();
 
         vtable.into_key()(self)
     }
 
+    /// Sets the value of the entry,returning a mutable reference to it.
     pub fn insert(self, value: V) -> &'a mut V {
         let vtable=self.vtable();
 

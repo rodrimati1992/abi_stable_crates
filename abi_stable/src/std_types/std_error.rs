@@ -44,7 +44,7 @@ mod test;
 pub struct RBoxError_<M = SyncSend> {
     value: RBox<ErasedObject>,
     vtable: &'static RErrorVTable,
-    _marker: PhantomData<M>,
+    _sync_send: PhantomData<M>,
 }
 
 /// Ffi safe equivalent to Box<::std::error::Error>.
@@ -55,12 +55,6 @@ pub type SendRBoxError = RBoxError_<UnsyncSend>;
 
 /// Ffi safe equivalent to Box<::std::error::Error+Send+Sync>.
 pub type RBoxError = RBoxError_<SyncSend>;
-
-
-unsafe impl Send for RBoxError_<UnsyncSend> {}
-
-unsafe impl Send for RBoxError_<SyncSend> {}
-unsafe impl Sync for RBoxError_<SyncSend> {}
 
 
 impl<M> RBoxError_<M> {
@@ -98,7 +92,7 @@ impl<M> RBoxError_<M> {
             Self {
                 value,
                 vtable,
-                _marker: PhantomData,
+                _sync_send: PhantomData,
             }
         }
     }
