@@ -8,9 +8,11 @@ use crate::{
 macro_rules! declare_iter_interface {
     (
         $k:ident=>$v:ident;
+        $(#[$attr:meta])*
         interface=$interface:ident;
         type Item=$item:ty;
     ) => (
+        $(#[$attr])*
         #[repr(C)]
         #[derive(StableAbi)]
         #[sabi(inside_abi_stable_crate)]
@@ -30,6 +32,7 @@ macro_rules! declare_iter_interface {
 
 declare_iter_interface!{
     K=>V;
+    /// The InterfaceType of the `Iter` RHashMap iterator.
     interface=RefIterInterface;
     type Item=Tuple2<&'a K,&'a V>;
 }
@@ -47,6 +50,7 @@ crate::impl_InterfaceType!{
 
 declare_iter_interface!{
     K=>V;
+    /// The InterfaceType of the `IterMut` RHashMap iterator.
     interface=MutIterInterface;
     type Item=Tuple2<&'a K,&'a mut V>;
 }
@@ -63,6 +67,7 @@ crate::impl_InterfaceType!{
 
 declare_iter_interface!{
     K=>V;
+    /// The InterfaceType of the `Drain` RHashMap iterator.
     interface=ValIterInterface;
     type Item=Tuple2<K,V>;
     

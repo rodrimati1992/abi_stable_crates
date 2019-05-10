@@ -99,7 +99,7 @@ impl<'a, K, V> REntry<'a, K, V> {
     pub fn get(&self) -> Option<&V> {
         match self {
             REntry::Occupied(entry) => Some(entry.get()),
-            REntry::Vacant(entry) => None,
+            REntry::Vacant(_) => None,
         }
     }
 
@@ -107,7 +107,7 @@ impl<'a, K, V> REntry<'a, K, V> {
     pub fn get_mut(&mut self) -> Option<&mut V> {
         match self {
             REntry::Occupied(entry) => Some(entry.get_mut()),
-            REntry::Vacant(entry) => None,
+            REntry::Vacant(_) => None,
         }
     }
 
