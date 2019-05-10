@@ -2,7 +2,12 @@ use super::*;
 
 use std::str::FromStr;
 
+use fnv::FnvBuildHasher as FnVBH;
+
 use crate::std_types::RString;
+
+
+type DefaultBH=RandomState;
 
 
 fn new_stdmap()->HashMap<u32,u32>{
@@ -15,10 +20,11 @@ fn new_stdmap()->HashMap<u32,u32>{
      .collect()
 }
 
-fn new_map<K,V>()->RHashMap<K,V>
+fn new_map<K,V,S>()->RHashMap<K,V>
 where
     K:FromStr+Hash+Eq,
     V:FromStr,
+    S:BuildHasher+Default,
     K::Err:Debug,
     V::Err:Debug,
 {
@@ -40,72 +46,143 @@ fn test_new_map(){
     assert_eq!(map.get(&10), Some(&100));
 }
 
+
+#[test]
+fn test_default(){
+    let default_=RHashMap::<u32,u32>::default();
+    let new_=RHashMap::<u32,u32>::new();
+
+    assert_eq!(default_.len(),0);
+    assert_eq!(default_.capacity(),0);
+
+    assert_eq!(default_,new_);
+}
+
+
+#[test]
+fn reserve(){
+    let mut map=RHashMap::<u32,u32>::new();
+    assert_eq!(map.len(),0);
+    assert_eq!(map.capacity(),0);
+
+    map.reserve(100);
+    assert!(100 <= map.capacity(),"capacity:{}",map.capacity());
+    assert_eq!(map.len(),0);
+}
+
+
+#[test]
+fn test_eq(){
+    let map0=new_map::<String,String,DefaultBH>();
+    let map1=new_map::<String,String,DefaultBH>();
+    let map2=new_map::<String,String,FnVBH>();
+
+    assert_eq!(map0, map1);
+}
+
+#[test]
+fn clone(){
+    macro_rules! clone_test {
+        ( $hasher:ty ) => ({
+            let map=new_map::<String,String,$hasher>();
+            let clone_=map.clone();
+            
+            // Cloned String should never point to the same buffer
+            assert_ne!(
+                map.get("90").unwrap().as_ptr(), 
+                clone_.get("90").unwrap().as_ptr(),
+            );
+
+            assert_eq!(map, clone_);
+
+        })
+    }
+
+
+    clone_test!{DefaultBH}
+    clone_test!{FnVBH}
+}
+
+
+macro_rules! insert_test {
+    ( $hasher:ty ) => ({
+        let mut map=RHashMap::<String,_,$hasher>::default();
+        map.insert("what".into(),10);
+        map.insert("the".into(),5);
+
+        assert_eq!(
+            map.insert("what".into(),33),
+            RSome(10),
+        );
+        assert_eq!(
+            map.insert("the".into(),77),
+            RSome(5),
+        );
+    })
+}
 #[test]
 fn insert(){
-    let mut map=RHashMap::<String,_>::new();
-    map.insert("what".into(),10);
-    map.insert("the".into(),5);
 
-    assert_eq!(
-        map.insert("what".into(),33),
-        RSome(10),
-    );
-    assert_eq!(
-        map.insert("the".into(),77),
-        RSome(5),
-    );
+
+    insert_test!{DefaultBH}
+    insert_test!{FnVBH}
 
 }
 
 
+macro_rules! remove_test {
+    ( $hasher:ty ) => ({
+        let mut map=RHashMap::<String,_,$hasher>::default();
+        map.insert("what".into(),10);
+        map.insert("the".into(),5);
+        map.insert("is".into(),14);
+        map.insert("that".into(),54);
+
+        assert_eq!(
+            map.remove_entry("the"),
+            RSome(Tuple2("the".to_string(),5)),
+        );
+        assert_eq!(
+            map.remove_entry("the"),
+            RNone,
+        );
+
+        assert_eq!(
+            map.remove_entry_p(&"what".into()),
+            RSome(Tuple2("what".to_string(),10)),
+        );
+        assert_eq!(
+            map.remove_entry_p(&"what".into()),
+            RNone,
+        );
+
+        assert_eq!(
+            map.remove_entry_p(&"is".into()),
+            RSome(Tuple2("is".to_string(),14)),
+        );
+        assert_eq!(
+            map.remove_entry_p(&"is".into()),
+            RNone,
+        );
+
+        assert_eq!(
+            map.remove_entry("that"),
+            RSome(Tuple2("that".to_string(),54)),
+        );
+        assert_eq!(
+            map.remove_entry("that"),
+            RNone,
+        );
+    })
+}
 #[test]
 fn remove(){
-    let mut map=RHashMap::<String,_>::new();
-    map.insert("what".into(),10);
-    map.insert("the".into(),5);
-    map.insert("is".into(),14);
-    map.insert("that".into(),54);
-
-    assert_eq!(
-        map.remove_entry("the"),
-        RSome(Tuple2("the".to_string(),5)),
-    );
-    assert_eq!(
-        map.remove_entry("the"),
-        RNone,
-    );
-    
-    assert_eq!(
-        map.remove_entry_p(&"what".into()),
-        RSome(Tuple2("what".to_string(),10)),
-    );
-    assert_eq!(
-        map.remove_entry_p(&"what".into()),
-        RNone,
-    );
-    
-    assert_eq!(
-        map.remove_entry_p(&"is".into()),
-        RSome(Tuple2("is".to_string(),14)),
-    );
-    assert_eq!(
-        map.remove_entry_p(&"is".into()),
-        RNone,
-    );
-
-    assert_eq!(
-        map.remove_entry("that"),
-        RSome(Tuple2("that".to_string(),54)),
-    );
-    assert_eq!(
-        map.remove_entry("that"),
-        RNone,
-    );
-
+    remove_test!{DefaultBH}
+    remove_test!{FnVBH}
 }
 
 
-fn check_get<K,V>(map:&mut RHashMap<K,V>,key:K,value:Option<V>)
+fn check_get<K,V,S>(map:&mut RHashMap<K,V,S>,key:K,value:Option<V>)
 where
     K:Eq+Hash+Clone+Debug,
     V:PartialEq+Clone+Debug,
@@ -128,42 +205,47 @@ where
     
 }
 
+macro_rules! get_test {
+    ( $hasher:ty ) => ({
+        let mut map=RHashMap::<String,_,$hasher>::default();
+        map.insert("what".into(),10);
+        map.insert("the".into(),5);
+        map.insert("oof".into(),33);
+        map.insert("you".into(),55);
+
+        check_get(&mut map,"what".into(),Some(10));
+        check_get(&mut map,"the".into(),Some(5));
+        check_get(&mut map,"oof".into(),Some(33));
+        check_get(&mut map,"you".into(),Some(55));
+
+        check_get(&mut map,"wasdat".into(),None);
+        check_get(&mut map,"thasdae".into(),None);
+        check_get(&mut map,"ofwwf".into(),None);
+        check_get(&mut map,"youeeeee".into(),None);
+
+        if let Some(x)=map.get_mut("what") {
+            *x=*x*2;
+        }
+        if let Some(x)=map.get_mut("the") {
+            *x=*x*2;
+        }
+        if let Some(x)=map.get_mut("oof") {
+            *x=*x*2;
+        }
+        if let Some(x)=map.get_mut("you") {
+            *x=*x*2;
+        }
+
+        assert_eq!(map.get("what"),Some(&20));
+        assert_eq!(map.get("the"),Some(&10));
+        assert_eq!(map.get("oof"),Some(&66));
+        assert_eq!(map.get("you"),Some(&110));
+    })
+}
 #[test]
 fn get(){
-    let mut map=RHashMap::<String,_>::new();
-    map.insert("what".into(),10);
-    map.insert("the".into(),5);
-    map.insert("oof".into(),33);
-    map.insert("you".into(),55);
-
-    check_get(&mut map,"what".into(),Some(10));
-    check_get(&mut map,"the".into(),Some(5));
-    check_get(&mut map,"oof".into(),Some(33));
-    check_get(&mut map,"you".into(),Some(55));
-
-    check_get(&mut map,"wasdat".into(),None);
-    check_get(&mut map,"thasdae".into(),None);
-    check_get(&mut map,"ofwwf".into(),None);
-    check_get(&mut map,"youeeeee".into(),None);
-
-    if let Some(x)=map.get_mut("what") {
-        *x=*x*2;
-    }
-    if let Some(x)=map.get_mut("the") {
-        *x=*x*2;
-    }
-    if let Some(x)=map.get_mut("oof") {
-        *x=*x*2;
-    }
-    if let Some(x)=map.get_mut("you") {
-        *x=*x*2;
-    }
-
-    assert_eq!(map.get("what"),Some(&20));
-    assert_eq!(map.get("the"),Some(&10));
-    assert_eq!(map.get("oof"),Some(&66));
-    assert_eq!(map.get("you"),Some(&110));
-
+    get_test!{DefaultBH}
+    get_test!{FnVBH}
 }
 
 
@@ -261,6 +343,14 @@ fn from_iter(){
 
     assert_eq!(map.len(), 4);
     
+    let mapper=|Tuple2(k,v):Tuple2<&u32,&u32>|{
+        (k.clone(),v.clone())
+    };
+    assert_eq!(
+        map.iter().map(mapper).collect::<Vec<_>>(), 
+        (&map).into_iter().map(mapper).collect::<Vec<_>>(), 
+    );
+
     for Tuple2(key,val) in map.iter() {
         assert_eq!(stdmap.remove(&key).as_ref(),Some(val),"key:{:?} value:{:?}",key,val);
     }
@@ -273,9 +363,17 @@ fn from_iter(){
 fn into_iter(){
     let mut stdmap=new_stdmap();
 
-    let map:RHashMap<u32,u32>=stdmap.clone().into_iter().collect();
+    let mut map:RHashMap<u32,u32>=stdmap.clone().into_iter().collect();
 
     assert_eq!(map.len(), 4);
+
+    let mapper=|Tuple2(k,v):Tuple2<&u32,&mut u32>|{
+        (k.clone(),(&*v).clone())
+    };
+    assert_eq!(
+        map.iter_mut().map(mapper).collect::<Vec<_>>(), 
+        (&mut map).into_iter().map(mapper).collect::<Vec<_>>(), 
+    );
     
     for Tuple2(key,val) in map.into_iter() {
         assert_eq!(stdmap.remove(&key).as_ref(),Some(&val),"key:{:?} value:{:?}",key,val);
@@ -300,6 +398,70 @@ fn iter_mut(){
     assert_eq!(map.get(&10),Some(&30));
     assert_eq!(map.get(&88),Some(&118));
     assert_eq!(map.get(&77),Some(&99));
+}
+
+
+#[test]
+fn extend(){
+    let expected=new_map::<String,String,DefaultBH>();
+    {
+        let mut map:RHashMap<String,String>=RHashMap::new();
+
+        map.extend(new_map::<_,_,FnVBH>());
+
+        assert_eq!(map, expected);
+    }
+    {
+        let mut map:RHashMap<String,String>=RHashMap::new();
+
+        map.extend(new_map::<_,_,DefaultBH>().into_iter().map(Tuple2::into_rust));
+
+        assert_eq!(map, expected);
+    }
+}
+
+
+#[test]
+fn test_serde(){
+    let mut map=RHashMap::<String,RString>::new();
+
+    map.insert("90".into(),"40".into());
+    map.insert("10".into(),"20".into());
+    map.insert("88".into(),"30".into());
+    map.insert("77".into(),"22".into());
+
+    let json=r##"
+        {
+            "90":"40",
+            "10":"20",
+            "88":"30",
+            "77":"22"
+        }
+    "##;
+
+    let deserialized=serde_json::from_str::<RHashMap<String,RString>>(json).unwrap();
+
+    assert_eq!(deserialized,map);
+
+    let serialized=serde_json::to_string(&map).unwrap();
+
+    fn remove_whitespace(s:&str)->String{
+        s.chars().filter(|c| !c.is_whitespace() ).collect()
+    }
+    let removed_ws=remove_whitespace(&serialized);
+
+    assert!(removed_ws.starts_with("{\""),"text:{}",removed_ws);
+    assert!(removed_ws.contains(r##""90":"40""##),"text:{}",removed_ws);
+    assert!(removed_ws.contains(r##""10":"20""##),"text:{}",removed_ws);
+    assert!(removed_ws.contains(r##""88":"30""##),"text:{}",removed_ws);
+    assert!(removed_ws.contains(r##""77":"22""##),"text:{}",removed_ws);
+    assert_eq!(removed_ws.matches("\",\"").count(),3,"text:{}",removed_ws);
+    assert!(removed_ws.ends_with("\"}"),"text:{}",removed_ws);
+
+    let redeserialized=serde_json::from_str::<RHashMap<String,RString>>(&serialized).unwrap();
+
+    assert_eq!(redeserialized,map);
+
 }
 
 
@@ -330,7 +492,7 @@ where
 
 #[test]
 fn existing_is_occupied(){
-    let mut map=new_map::<RString,RString>();
+    let mut map=new_map::<RString,RString,DefaultBH>();
 
     assert_is_occupied(&mut map,"90".into(),"40".into());
     assert_is_occupied(&mut map,"10".into(),"20".into());
@@ -344,7 +506,7 @@ fn existing_is_occupied(){
 
 #[test]
 fn entry_or_insert(){
-    let mut map=new_map::<RString,RString>();
+    let mut map=new_map::<RString,RString,DefaultBH>();
     
     assert_is_vacant(&mut map,"12".into());
 
@@ -365,7 +527,7 @@ fn entry_or_insert(){
 
 #[test]
 fn entry_or_insert_with(){
-    let mut map=new_map::<RString,RString>();
+    let mut map=new_map::<RString,RString,DefaultBH>();
     
     assert_is_vacant(&mut map,"12".into());
 
@@ -385,7 +547,7 @@ fn entry_or_insert_with(){
 
 #[test]
 fn entry_and_modify(){
-    let mut map=new_map::<RString,RString>();
+    let mut map=new_map::<RString,RString,DefaultBH>();
     
     assert_is_vacant(&mut map,"12".into());
 
@@ -415,7 +577,7 @@ fn entry_and_modify(){
 
 #[test]
 fn entry_or_default(){
-    let mut map=new_map::<RString,RString>();
+    let mut map=new_map::<RString,RString,DefaultBH>();
     
     assert_is_vacant(&mut map,"12".into());
 
