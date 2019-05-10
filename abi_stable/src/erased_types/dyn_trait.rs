@@ -490,7 +490,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: T::get_vtable(),
                 _marker:PhantomData,
-                _marker:UnsafeIgnoredType::DEFAULT,
+                _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
 
@@ -524,7 +524,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: <InterfaceFor<T,I,True>>::get_vtable(),
                 _marker:PhantomData,
-                _marker:UnsafeIgnoredType::DEFAULT,
+                _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
         
@@ -565,7 +565,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: <InterfaceFor<T,I,False>>::get_vtable(),
                 _marker:PhantomData,
-                _marker:UnsafeIgnoredType::DEFAULT,
+                _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
     }
@@ -662,13 +662,25 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         }
     }
 
+
+    macro_rules! try_unerase {
+        (
+            $this:ident,$res:expr
+        ) => (
+            if let Err(e)=$res {
+                return Err( e.map(move|_| $this ) );
+            }
+        )
+    }
+
+
     impl<'borr,P,I> DynTrait<'borr,P,I> 
     where 
         I: InterfaceBound<'borr>
     {
         /// The uid in the vtable has to be the same as the one for T,
         /// otherwise it was not created from that T in the library that declared the opaque type.
-        pub(super) fn check_same_destructor_opaque<A,T>(&self) -> Result<(), UneraseError>
+        pub(super) fn check_same_destructor_opaque<A,T>(&self) -> Result<(), UneraseError<()>>
         where
             P: TransmuteElement<T>,
             A: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
@@ -680,6 +692,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 Ok(())
             } else {
                 Err(UneraseError {
+                    dyn_trait:(),
                     expected_vtable_address: t_vtable as *const _ as usize,
                     expected_type_info:t_vtable.type_info(),
                     found_vtable_address: self.vtable as usize,
@@ -704,13 +717,13 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError>
+        pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
         where
             P: TransmuteElement<T>,
             P::Target:Sized,
             T: ImplType + GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            self.check_same_destructor_opaque::<T,T>()?;
+            try_unerase!(self,self.check_same_destructor_opaque::<T,T>());
             unsafe { 
                 let this=ManuallyDrop::new(self);
                 Ok(ptr::read(&*this.object).transmute_element(T::T)) 
@@ -733,12 +746,12 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn as_unerased<T>(&self) -> Result<&T, UneraseError>
+        pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
             P: Deref + TransmuteElement<T>,
             T: ImplType + GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            self.check_same_destructor_opaque::<T,T>()?;
+            try_unerase!(self,self.check_same_destructor_opaque::<T,T>());
             unsafe { Ok(self.object_as()) }
         }
 
@@ -758,12 +771,12 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError>
+        pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
             P: DerefMut + TransmuteElement<T>,
             T: ImplType + GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            self.check_same_destructor_opaque::<T,T>()?;
+            try_unerase!(self,self.check_same_destructor_opaque::<T,T>());
             unsafe { Ok(self.object_as_mut()) }
         }
 
@@ -784,7 +797,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn into_any_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError>
+        pub fn into_any_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
         where
             T:'static,
             P: TransmuteElement<T>,
@@ -792,7 +805,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,True>: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>()?;
+            try_unerase!(self,self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>());
             unsafe {
                 unsafe { 
                     let this=ManuallyDrop::new(self);
@@ -817,14 +830,14 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn as_any_unerased<T>(&self) -> Result<&T, UneraseError>
+        pub fn as_any_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
             T:'static,
             P: Deref + TransmuteElement<T>,
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,True>: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>()?;
+            try_unerase!(self,self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>());
             unsafe { Ok(self.object_as()) }
         }
 
@@ -844,13 +857,13 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn as_any_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError>
+        pub fn as_any_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
             P: DerefMut + TransmuteElement<T>,
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,True>: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>()?;
+            try_unerase!(self,self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>());
             unsafe { Ok(self.object_as_mut()) }
         }
 
@@ -892,7 +905,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 object: ManuallyDrop::new(&**self.object),
                 vtable: ((self.vtable as usize) | PTR_FLAG_IS_BORROWED)as *const _,
                 _marker:PhantomData,
-                _marker:UnsafeIgnoredType::DEFAULT,
+                _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
 
@@ -914,7 +927,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 object: ManuallyDrop::new(&mut **self.object),
                 vtable: ((self.vtable as usize) | PTR_FLAG_IS_BORROWED)as *const _,
                 _marker:PhantomData,
-                _marker:UnsafeIgnoredType::DEFAULT,
+                _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
     }
@@ -933,7 +946,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 object:ManuallyDrop::new(object),
                 vtable: self.vtable,
                 _marker:PhantomData,
-                _marker:UnsafeIgnoredType::DEFAULT,
+                _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
 
@@ -1604,8 +1617,9 @@ pub type GetVWInterface<'borr,This>=
 
 /// Error for `DynTrait<_>` being unerased into the wrong type
 /// with one of the `*unerased*` methods.
-#[derive(Debug,Copy, Clone)]
-pub struct UneraseError {
+#[derive(Copy, Clone)]
+pub struct UneraseError<D> {
+    dyn_trait:D,
     expected_vtable_address: usize,
     expected_type_info:&'static TypeInfo,
     found_vtable_address: usize,
@@ -1613,12 +1627,39 @@ pub struct UneraseError {
 }
 
 
-impl fmt::Display for UneraseError {
+impl<T> UneraseError<T>{
+    fn map<F,U>(self,f:F)->UneraseError<U>
+    where F:FnOnce(T)->U
+    {
+        UneraseError{
+            dyn_trait              :f(self.dyn_trait),
+            expected_vtable_address:self.expected_vtable_address,
+            expected_type_info     :self.expected_type_info,
+            found_vtable_address   :self.found_vtable_address,
+            found_type_info        :self.found_type_info,
+        }
+    }
+}
+
+
+impl<D> fmt::Debug for UneraseError<D>{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("UneraseError")
+            .field("dyn_trait",&"<not shown>")
+            .field("expected_vtable_address",&self.expected_vtable_address)
+            .field("expected_type_info",&self.expected_type_info)
+            .field("found_vtable_address",&self.found_vtable_address)
+            .field("found_type_info",&self.found_type_info)
+            .finish()
+    }
+}
+
+impl<D> fmt::Display for UneraseError<D>{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }
 }
 
-impl ::std::error::Error for UneraseError {}
+impl<D> ::std::error::Error for UneraseError<D> {}
 
 //////////////////////////////////////////////////////////////////

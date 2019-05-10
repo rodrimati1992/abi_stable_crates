@@ -52,7 +52,7 @@ are necessary to load the library at runtime.
 loads 1 or more `ìmplementation crate`s for it.
 
 `module`:refers to a struct of function pointers and other static values,
-and implement the ModuleTrait trait.
+and implement the RootModule trait.
 These are declared in the `interface crate`,exported in the `implementation crate`,
 and loaded in the `user crate`.
 

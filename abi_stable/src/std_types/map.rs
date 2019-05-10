@@ -79,13 +79,18 @@ struct BoxedHashMap<'a,K,V,S>{
     entry:Option<BoxedREntry<'a,K,V>>,
 }
 
-
+/// An RHashMap iterator,
+/// implementing `Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
 pub type Iter<'a,K,V>=
     DynTrait<'a,RBox<()>,RefIterInterface<K,V>>;
 
+/// An RHashMap iterator,
+/// implementing `Iterator<Item= Tuple2< &K, &mut V > >+!Send+!Sync`
 pub type IterMut<'a,K,V>=
     DynTrait<'a,RBox<()>,MutIterInterface<K,V>>;
 
+/// An RHashMap iterator,
+/// implementing `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
 pub type Drain<'a,K,V>=
     DynTrait<'a,RBox<()>,ValIterInterface<K,V>>;
 
@@ -327,7 +332,7 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Iterates over the entries in the map,with references to the values in the map.
     ///
-    /// This returns an `impl Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
+    /// This returns an `Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
     pub fn iter    (&self)->Iter<'_,K,V>{
         let vtable=self.vtable();
 
@@ -336,7 +341,7 @@ impl<K,V,S> RHashMap<K,V,S>{
     
     /// Iterates over the entries in the map,with mutable references to the values in the map.
     ///
-    /// This returns an `impl Iterator<Item= Tuple2< &K, &mutV > >+!Send+!Sync`
+    /// This returns an `Iterator<Item= Tuple2< &K, &mutV > >+!Send+!Sync`
     pub fn iter_mut(&mut self)->IterMut<'_,K,V>{
         let vtable=self.vtable();
 
@@ -345,7 +350,7 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Clears the map,returning an iterator over all the entries that were removed.
     /// 
-    /// This returns an `impl Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
+    /// This returns an `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
     pub fn drain   (&mut self)->Drain<'_,K,V>{
         let vtable=self.vtable();
 
@@ -362,7 +367,7 @@ impl<K,V,S> RHashMap<K,V,S>{
 }
 
 
-/// This returns an `impl Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
+/// This returns an `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
 impl<K,V,S> IntoIterator for RHashMap<K,V,S>{
     type Item=Tuple2<K,V>;
     type IntoIter=IntoIter<K,V>;
@@ -375,7 +380,7 @@ impl<K,V,S> IntoIterator for RHashMap<K,V,S>{
 }
 
 
-/// This returns an `impl Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
+/// This returns an `Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
 impl<'a,K,V,S> IntoIterator for &'a RHashMap<K,V,S>{
     type Item=Tuple2<&'a K,&'a V>;
     type IntoIter=Iter<'a,K,V>;
@@ -386,7 +391,7 @@ impl<'a,K,V,S> IntoIterator for &'a RHashMap<K,V,S>{
 }
 
 
-/// This returns an `impl Iterator<Item= Tuple2< &K, &mutV > >+!Send+!Sync`
+/// This returns an `Iterator<Item= Tuple2< &K, &mutV > >+!Send+!Sync`
 impl<'a,K,V,S> IntoIterator for &'a mut RHashMap<K,V,S>{
     type Item=Tuple2<&'a K,&'a mut V>;
     type IntoIter=IterMut<'a,K,V>;
@@ -499,7 +504,7 @@ where
     K:Debug,
     V:Debug,
 {
-    fn fmt(&self,f:&mut fmt::Formatter)->fmt::Result{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
         f.debug_map()
          .entries(self.iter().map(Tuple2::into_rust))
          .finish()
@@ -597,7 +602,7 @@ mod serde{
     {
         type Value = RHashMap<K,V,S>;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("an RHashMap")
         }
 

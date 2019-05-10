@@ -347,25 +347,7 @@ macro_rules! tag {
 ///////////////////////////////////////////////////////////////////////////////
 
 
-#[macro_export]
-macro_rules! dyn_trait {
-    ( $lt:lifetime, $ptr:ty; $( $first_trait:ident $( + $rem_traits:ident )* )?  ) => (
-        DynTrait<
-            $lt,
-            RBox<()>,
-            impl $crate::erased_types::InterfaceBound<
-                $lt,
-                $(
-                    $first_trait=True,
-                    $( $rem_traits = True ),*
-                )?
-            >
-        >
-    )
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
+#[allow(unused_macros)]
 macro_rules! assert_matches {
     ( $(|)* $pat:pat $(| $prev_pat:pat)*  =$expr:expr)=>{{
         let ref value=$expr;
