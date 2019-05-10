@@ -9,6 +9,7 @@ use std::{
     marker::PhantomData,
     mem::ManuallyDrop,
     ptr,
+    rc::Rc,
 };
 
 use serde::{de, ser, Deserialize, Deserializer};
@@ -22,7 +23,7 @@ use crate::{
         StableDeref, TransmuteElement,
         GetPointerKind,PK_SmartPointer,PK_Reference,
     },
-    marker_type::ErasedObject, 
+    marker_type::{ErasedObject,UnsafeIgnoredType}, 
     std_types::{RBox, RCow, RStr,RVec,RIoError},
 };
 
@@ -451,7 +452,9 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
     {
         pub(super) object: ManuallyDrop<P>,
         vtable: *const VTable<'borr,P,I>,
-        _marker:PhantomData<extern fn()->Tuple2<I,RStr<'borr>>>
+        _marker:PhantomData<extern fn()->Tuple2<I,RStr<'borr>>>,
+        _marker2:UnsafeIgnoredType<Rc<()>>,
+
     }
 
     impl DynTrait<'static,&'static (),()> {
@@ -487,10 +490,11 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: T::get_vtable(),
                 _marker:PhantomData,
+                _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
 
-        /// Constructs the `DynTrait<_>` from a type that doesn't implement `ImplType`.
+        /// Constructs the `DynTrait<_>` from a type that doesn't borrow anything.
         pub fn from_any_value<T,I>(object: T,interface:I) -> DynTrait<'static,RBox<()>,I>
         where
             T:'static,
@@ -502,7 +506,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         }
 
         /// Constructs the `DynTrait<_>` from a pointer to a 
-        /// type that doesn't implement `ImplType`.
+        /// type that doesn't borrow anything.
         pub fn from_any_ptr<P, T,I>(
             object: P,
             _interface:I
@@ -520,6 +524,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: <InterfaceFor<T,I,True>>::get_vtable(),
                 _marker:PhantomData,
+                _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
         
@@ -560,6 +565,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: <InterfaceFor<T,I,False>>::get_vtable(),
                 _marker:PhantomData,
+                _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
     }
@@ -765,7 +771,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         /// Unwraps the `DynTrait<_>` into a pointer of 
         /// the concrete type that it was constructed with.
         ///
-        /// T is required to not borrows anything.
+        /// T is required to not borrow anything.
         ///
         /// # Errors
         ///
@@ -798,7 +804,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         /// Unwraps the `DynTrait<_>` into a reference of 
         /// the concrete type that it was constructed with.
         ///
-        /// T is required to not borrows anything.
+        /// T is required to not borrow anything.
         ///
         /// # Errors
         ///
@@ -825,7 +831,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         /// Unwraps the `DynTrait<_>` into a mutable reference of 
         /// the concrete type that it was constructed with.
         ///
-        /// T is required to not borrows anything.
+        /// T is required to not borrow anything.
         ///
         /// # Errors
         ///
@@ -886,6 +892,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 object: ManuallyDrop::new(&**self.object),
                 vtable: ((self.vtable as usize) | PTR_FLAG_IS_BORROWED)as *const _,
                 _marker:PhantomData,
+                _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
 
@@ -907,6 +914,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 object: ManuallyDrop::new(&mut **self.object),
                 vtable: ((self.vtable as usize) | PTR_FLAG_IS_BORROWED)as *const _,
                 _marker:PhantomData,
+                _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
     }
@@ -925,6 +933,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 object:ManuallyDrop::new(object),
                 vtable: self.vtable,
                 _marker:PhantomData,
+                _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
 
@@ -1550,7 +1559,6 @@ where
 unsafe impl<'borr,P,I> Send for DynTrait<'borr,P,I>
 where
     P: Send,
-    P: Deref,
     I: InterfaceBound<'borr,Send = True>,
 {}
 
@@ -1558,7 +1566,6 @@ where
 unsafe impl<'borr,P,I> Sync for DynTrait<'borr,P,I>
 where
     P: Sync,
-    P: Deref,
     I: InterfaceBound<'borr,Sync = True>,
 {}
 
