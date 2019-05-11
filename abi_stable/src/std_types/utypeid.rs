@@ -27,6 +27,7 @@ where
 }
 
 
+#[doc(hidden)]
 pub extern "C" fn some_utypeid<T>() -> ROption<UTypeId>
 where
     T: 'static,
@@ -35,6 +36,7 @@ where
 }
 
 
+#[doc(hidden)]
 pub extern "C" fn none_utypeid() -> ROption<UTypeId>{
     RNone
 }

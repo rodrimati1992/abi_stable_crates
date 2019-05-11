@@ -90,7 +90,7 @@ To construct a `DynTrait<_>` one can use these associated functions:
 - from_borrowing_ptr
     Can be constructed from a pointer of a value.Cannot unerase the DynTrait afterwards.
 
-DynTrait uses the impls of the value when it's a `&self` or `&mut self` method,
+DynTrait uses the impls of the value in methods,
 which means that the pointer itself does not have to implement those traits,
 
 ### Trait object
@@ -485,7 +485,6 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         {
             DynTrait {
                 object: unsafe{
-                    // The lifetime here is 'static,so it's fine to erase the type.
                     ManuallyDrop::new(object.transmute_element(<()>::T))
                 },
                 vtable: T::get_vtable(),
@@ -519,7 +518,6 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         {
             DynTrait {
                 object: unsafe{
-                    // The lifetime here is 'static,so it's fine to erase the type.
                     ManuallyDrop::new(object.transmute_element(<()>::T))
                 },
                 vtable: <InterfaceFor<T,I,True>>::get_vtable(),
@@ -560,7 +558,6 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         {
             DynTrait {
                 object: unsafe{
-                    // The lifetime here is 'static,so it's fine to erase the type.
                     ManuallyDrop::new(object.transmute_element(<()>::T))
                 },
                 vtable: <InterfaceFor<T,I,False>>::get_vtable(),
@@ -1594,7 +1591,7 @@ mod sealed {
 }
 use self::sealed::Sealed;
 
-/// For accessing the Interface of a `DynTrait<Pointer<ZeroSized< Interface >>>`.
+/// For accessing the Interface of a `DynTrait<Pointer<()>,Interface>`.
 pub trait DynTraitBound<'borr>: Sealed {
     type Interface: InterfaceType;
 }
@@ -1608,7 +1605,7 @@ where
 }
 
 
-/// For accessing the `Interface` in a `DynTrait<Pointer<ZeroSized< Interface >>>`.
+/// For accessing the `Interface` in a `DynTrait<Pointer<()>,Interface>`.
 pub type GetVWInterface<'borr,This>=
     <This as DynTraitBound<'borr>>::Interface;
 
@@ -1618,8 +1615,8 @@ pub type GetVWInterface<'borr,This>=
 /// Error for `DynTrait<_>` being unerased into the wrong type
 /// with one of the `*unerased*` methods.
 #[derive(Copy, Clone)]
-pub struct UneraseError<D> {
-    dyn_trait:D,
+pub struct UneraseError<T> {
+    dyn_trait:T,
     expected_vtable_address: usize,
     expected_type_info:&'static TypeInfo,
     found_vtable_address: usize,
@@ -1638,6 +1635,12 @@ impl<T> UneraseError<T>{
             found_vtable_address   :self.found_vtable_address,
             found_type_info        :self.found_type_info,
         }
+    }
+
+    /// Extracts the DynTrait,to handle the failure to unerase it.
+    #[must_use]
+    pub fn into_inner(self)->T{
+        self.dyn_trait
     }
 }
 

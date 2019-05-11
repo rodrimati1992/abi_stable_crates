@@ -163,6 +163,16 @@ impl_InterfaceType!{
         // type Hash=False;
 
         // type Deserialize=False;
+
+        // type FmtWrite=False;
+        
+        // type IoWrite=False;
+        
+        // type IoSeek=False;
+        
+        // type IoRead=False;
+
+        // type IoBufRead=False;
     }
 }
 
@@ -421,7 +431,7 @@ and loads the pre-compiled `implementation crate` dynamic library from some path
 
 # Known limitations
 
-### Enums with fields
+### Extensible enums with fields
 
 You can't add variants to enums with fields in the `interface crate` in minor versions.
 

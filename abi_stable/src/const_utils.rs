@@ -1,3 +1,7 @@
+/*!
+Utilities for const contexts.
+*/
+
 use std::{
     marker::PhantomData,
 };
@@ -30,18 +34,22 @@ where
 //////////////////////////////////////
 
 
+/// The minimum of two `u64`s
 pub const fn min_u64(l:u64,r:u64)->u64{
     [r,l][ (l < r)as usize ]
 }
 
+/// The minimum of two `usize`s
 pub const fn min_usize(l:usize,r:usize)->usize{
     [r,l][ (l < r)as usize ]
 }
 
+/// The maximum of two `u64`s
 pub const fn max_u64(l:u64,r:u64)->u64{
     [l,r][ (l < r)as usize ]
 }
 
+/// The maximum of two `usize`s
 pub const fn max_usize(l:usize,r:usize)->usize{
     [l,r][ (l < r)as usize ]
 }
@@ -58,13 +66,13 @@ where L:TypeIdentity<Type=R>
     _marker:PhantomData<(L,R)>
 }
 
-/// Allows transmuting between `From_` and `To`
+/// Allows transmuting between `From_:Copy` and `To:Copy`
 pub union Transmuter<From_:Copy,To:Copy>{
     pub from:From_,
     pub to:To,
 }
 
-/// Allows converting between generic types that are the same concrete type 
+/// Allows converting between `Copy` generic types that are the same concrete type 
 /// (using AssertEq to prove that they are).
 ///
 /// # Safety

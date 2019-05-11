@@ -426,12 +426,22 @@ impl Serialize for RString {
 //////////////////////////////////////////////////////
 
 impl RString {
-    pub fn drain<I>(&mut self, index: I) -> Drain<'_>
+    /**
+Creates an iterator that yields the chars in the `range`,
+removing the characters in that range in the process.
+
+# Panic
+
+Panics if the start or end of the range are not on a on a char boundary, 
+or if it is out of bounds.
+
+    */
+    pub fn drain<I>(&mut self, range: I) -> Drain<'_>
     where
         str: Index<I, Output = str>,
     {
         let string = self as *mut _;
-        let slic_ = &(*self)[index];
+        let slic_ = &(*self)[range];
         let start = self.offset_of_slice(slic_);
         let end = start + slic_.len();
         Drain {

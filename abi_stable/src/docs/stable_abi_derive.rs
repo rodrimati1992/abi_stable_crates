@@ -89,13 +89,12 @@ where every field up to it is guaranteed to exist.
 This attribute turns any field conditional based on the const boolean expression 
 (which must be valid a bool constant).
 
-Whether this attribute is aplied to the prefix must not change in minor versions.
+Whether this attribute is aplied to any given prefix field must not change in minor versions.
 
-If `expression` is false,the field won't be accessible,doing the action for missing fields
+If `expression` is false,the field won't be accessible,
 and the type of the field can be anything so long as its size and alignment is compatible.
 
-If `expression` is true,the type of the field must be compatible with the same 
-(accessible)field when checking layout.
+If `expression` is true,the type of the field must be compatible when checking layout.
 
 If this attribute is apllied to prefix fields,
 it will only be compatible with other types if they agree on 

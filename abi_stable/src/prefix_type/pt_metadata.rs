@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
 };
 
+#[allow(unused_imports)]
 use crate::{
     abi_stability::{
         type_layout::{TypeLayout,TLField,TLData,TLPrefixType,TLDataDiscriminant},
@@ -19,7 +20,7 @@ use core_extensions::SelfOps;
 
 
 #[derive(Debug,Clone)]
-pub struct PrefixTypeMetadata{
+pub(crate) struct PrefixTypeMetadata{
     /// This is the ammount of fields on the prefix of the struct,
     /// which is always the same for the same type,regardless of which library it comes from.
     pub prefix_field_count:usize,
@@ -36,7 +37,8 @@ pub struct PrefixTypeMetadata{
     
 
 impl PrefixTypeMetadata{
-    pub fn new(layout:&'static TypeLayout)->Self{
+    #[cfg(test)]
+    pub(crate) fn new(layout:&'static TypeLayout)->Self{
         match layout.data {
             TLData::PrefixType(prefix)=>
                 Self::with_prefix_layout(prefix,layout),
@@ -51,7 +53,7 @@ impl PrefixTypeMetadata{
         }
     }
 
-    pub fn with_prefix_layout(prefix:TLPrefixType,layout:&'static TypeLayout)->Self{
+    pub(crate) fn with_prefix_layout(prefix:TLPrefixType,layout:&'static TypeLayout)->Self{
         Self{
             fields:prefix.fields.as_slice().into(),
             accessible_fields:prefix.accessible_fields,
@@ -61,7 +63,9 @@ impl PrefixTypeMetadata{
         }
     }
 
-    pub fn assert_valid(&self){
+    
+    #[cfg(test)]
+    pub(crate) fn assert_valid(&self){
         assert_eq!(self.layout.data.discriminant(),TLDataDiscriminant::PrefixType );
     }
 
@@ -70,7 +74,8 @@ impl PrefixTypeMetadata{
     /// # Preconditions
     /// 
     /// The prefixes must already have been checked for compatibility.
-    pub fn max(self,other:Self)->Self{
+    #[cfg(test)]
+    pub(crate) fn max(self,other:Self)->Self{
         if self.fields.len() < other.fields.len() {
             other
         }else{
@@ -82,7 +87,7 @@ impl PrefixTypeMetadata{
     /// # Preconditions
     /// 
     /// The prefixes must already have been checked for compatibility.
-    pub fn min_max(self,other:Self)->(Self,Self){
+    pub(crate) fn min_max(self,other:Self)->(Self,Self){
         if self.fields.len() < other.fields.len() {
             (self,other)
         }else{
@@ -99,7 +104,7 @@ impl PrefixTypeMetadata{
     /// This must be called after both were checked for compatibility,
     /// otherwise fields accessible in both `self` and `other` 
     /// won't be checked for compatibility or copied.
-    pub fn combine_fields_from(&mut self,other:&Self){
+    pub(crate) fn combine_fields_from(&mut self,other:&Self){
         let o_fields=&*other.fields;
 
         let min_field_count=o_fields.len().min(self.fields.len());

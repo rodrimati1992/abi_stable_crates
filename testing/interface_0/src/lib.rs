@@ -5,7 +5,7 @@ where all publically available modules(structs of function pointers) and types a
 
 This crate is where extra tests which don't belong in examples go.
 
-To load the library and the modules together,use the `load_library` function,
+To load the library and the modules together,use the `load_library_in` function,
 which will load the dynamic library from a directory(folder),
 and then all the modules inside of the library.
 

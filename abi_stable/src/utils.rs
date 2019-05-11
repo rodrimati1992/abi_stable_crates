@@ -20,6 +20,7 @@ use crate::std_types::RString;
 //////////////////////////////////////
 
 
+/// Information about a panic,used in `ffi_panic_message`. 
 #[derive(Debug,Copy,Clone)]
 pub struct PanicInfo{
     pub file:&'static str,
@@ -94,7 +95,8 @@ pub unsafe fn transmute_mut_reference<T,U>(ref_:&mut T)->&mut U{
 //////////////////////////////////////
 
 
-pub fn min_by<T,F,K>(l:T,r:T,mut f:F)->T
+#[allow(dead_code)]
+pub(crate) fn min_by<T,F,K>(l:T,r:T,mut f:F)->T
 where 
     F:FnMut(&T)->K,
     K:Ord,
@@ -107,7 +109,8 @@ where
 }
 
 
-pub fn max_by<T,F,K>(l:T,r:T,mut f:F)->T
+#[allow(dead_code)]
+pub(crate) fn max_by<T,F,K>(l:T,r:T,mut f:F)->T
 where 
     F:FnMut(&T)->K,
     K:Ord,
@@ -119,7 +122,7 @@ where
     }
 }
 
-pub fn min_max_by<T,F,K>(l:T,r:T,mut f:F)->(T,T)
+pub(crate) fn min_max_by<T,F,K>(l:T,r:T,mut f:F)->(T,T)
 where 
     F:FnMut(&T)->K,
     K:Ord,

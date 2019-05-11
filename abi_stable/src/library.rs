@@ -203,7 +203,8 @@ pub trait RootModule: Sized+SharedStableAbi  {
     }
     
     /// Loads this module from the library at the `full_path` path,
-    /// first loading the dynamic library from the `directory` if it wasn't already loaded.
+    /// first loading the dynamic library from the `full_path` path 
+    /// if it wasn't already loaded.
     fn load_from_library_at(full_path: &Path) -> Result<&'static Self, LibraryError>{
         Self::raw_library_ref()
             .try_init(|| Library::load_at(full_path)  )
@@ -256,6 +257,8 @@ pub trait RootModule: Sized+SharedStableAbi  {
     }
 
     /// Defines behavior that happens once the module is loaded.
+    ///
+    /// The default implementation does nothing.
     fn initialization(self: &'static Self) -> Result<&'static Self, LibraryError> {
         Ok(self)
     }
@@ -317,7 +320,7 @@ mod with_layout {
 
         /// Checks that the layout of the `T` from the dynamic library is 
         /// compatible with the caller's .
-        pub fn check_layout(self) -> Result<&'static T, LibraryError>
+        pub fn check_layout(&self) -> Result<&'static T, LibraryError>
         where
             T: RootModule,
         {
@@ -349,10 +352,10 @@ mod with_layout {
 
 pub use self::with_layout::WithLayout;
 
-// ABI version 0.2
+// ABI version 0.3
 // Format:
 // ABI_(A for pre-1.0 version number ,B for major version number)_(version number)
-const MAGIC_NUMBER: usize = 0xAB1_A_0002;
+const MAGIC_NUMBER: usize = 0xAB1_A_0003;
 
 //////////////////////////////////////////////////////////////////////
 

@@ -50,7 +50,7 @@ pub struct RBoxError_<M = SyncSend> {
 /// Ffi safe equivalent to Box<::std::error::Error>.
 pub type UnsyncRBoxError = RBoxError_<UnsyncUnsend>;
 
-/// Ffi safe equivalent to Box<::std::error::Error>.
+/// Ffi safe equivalent to Box<::std::error::Error+Send>.
 pub type SendRBoxError = RBoxError_<UnsyncSend>;
 
 /// Ffi safe equivalent to Box<::std::error::Error+Send+Sync>.

@@ -89,7 +89,10 @@ type IntoIterInner<'a,K,V>=
 
 
 
-
+/// An iterator that yields all the entries of an RHashMap,
+/// deallocating the hashmap afterwards.
+///
+/// This is an `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
 #[repr(transparent)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -119,11 +122,11 @@ This must be called only in `ErasedMap::into_val`.
     }
 
     #[inline]
-    pub fn iter(&self)->&IntoIterInner<'_,K,V>{
+    fn iter(&self)->&IntoIterInner<'_,K,V>{
         unsafe{ transmute_reference::<IntoIterInner<'static,u32,u32>,_>(&self.iter) }
     }
     #[inline]
-    pub fn iter_mut(&mut self)->&mut IntoIterInner<'_,K,V>{
+    fn iter_mut(&mut self)->&mut IntoIterInner<'_,K,V>{
         unsafe{ transmute_mut_reference::<IntoIterInner<'static,u32,u32>,_>(&mut self.iter) }
     }
 }

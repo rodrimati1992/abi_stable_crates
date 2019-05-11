@@ -78,83 +78,93 @@ macro_rules! declare_InterfaceType {
 declare_InterfaceType!{
 
 
-    /**
-    Defines the usable/required traits when creating a 
-    `DynTrait<Pointer<ZeroSized< ThisType >>>`
-    from a type that implements `ImplType<Interface= ThisType >` .
+/**
+Defines the usable/required traits when creating a 
+`DynTrait<Pointer<()>,ThisInterfaceType>`
+from a type that implements `ImplType<Interface= ThisInterfaceType >` .
 
-    This trait can only be implemented within the `impl_InterfaceType` macro,
-    giving a default value to each associated type,
-    so that adding associated types is not a breaking change.
+This trait can only be implemented within the `impl_InterfaceType` macro,
+giving a default value to each associated type,
+so that adding associated types is not a breaking change.
 
-    The value of every associated type is `True`/`False`.
+The value of every associated type is `True`/`False`.
 
-    On `True`,the trait would be required by and usable in `DynTrait`.
+On `True`,the trait would be required by and usable in `DynTrait`.
 
-    On `False`,the trait would not be required by and not usable in `DynTrait`.
+On `False`,the trait would not be required by and not usable in `DynTrait`.
 
-    # Example
+# Example
 
-    ```
+```
 
-    use abi_stable::{
-        StableAbi,
-        impl_InterfaceType,
-        erased_types::InterfaceType,
-        type_level::bools::*,
-    };
+use abi_stable::{
+    StableAbi,
+    impl_InterfaceType,
+    erased_types::InterfaceType,
+    type_level::bools::*,
+};
 
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub struct FooInterface;
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct FooInterface;
 
-    impl_InterfaceType!{
-        impl InterfaceType for FooInterface {
-            type Clone=True;
+impl_InterfaceType!{
+    impl InterfaceType for FooInterface {
+        type Clone=True;
 
-            type Debug=True;
+        type Debug=True;
 
-            /////////////////////////////////////    
-            //// defaulted associated types
-            /////////////////////////////////////
+        /////////////////////////////////////    
+        //// defaulted associated types
+        /////////////////////////////////////
 
-            // Changing this to require/unrequire in minor versions,is an abi breaking change.
-            // type Send=True;
+        // Changing this to require/unrequire in minor versions,is an abi breaking change.
+        // type Send=True;
 
-            // Changing this to require/unrequire in minor versions,is an abi breaking change.
-            // type Sync=True;
+        // Changing this to require/unrequire in minor versions,is an abi breaking change.
+        // type Sync=True;
 
-            // type Iterator=False;
+        // type Iterator=False;
 
-            // type DoubleEndedIterator=False;
+        // type DoubleEndedIterator=False;
 
-            // type Default=False;
+        // type Default=False;
 
-            // type Display=False;
+        // type Display=False;
 
-            // type Serialize=False;
+        // type Serialize=False;
 
-            // type Eq=False;
+        // type Eq=False;
 
-            // type PartialEq=False;
+        // type PartialEq=False;
 
-            // type Ord=False;
+        // type Ord=False;
 
-            // type PartialOrd=False;
+        // type PartialOrd=False;
 
-            // type Hash=False;
+        // type Hash=False;
 
-            // type Deserialize=False;
-        }
+        // type Deserialize=False;
+
+        // type FmtWrite=False;
+        
+        // type IoWrite=False;
+        
+        // type IoSeek=False;
+        
+        // type IoRead=False;
+
+        // type IoBufRead=False;
     }
+}
 
-    # fn main(){}
-
-
-    ```
+# fn main(){}
 
 
-    */
+```
+
+
+*/
 
 
     assoc_types[
@@ -248,7 +258,7 @@ pub trait DeserializeBorrowedInterface<'borr>: InterfaceType<Deserialize = True>
 /////////////////////////////////////////////////////////////////////
 
 
-/// The way to specify the expected Iterator::Item type.
+/// The way to specify the expected Iterator::Item type for an InterfaceType.
 ///
 /// This is a separate trait to allow iterators that yield borrowed elements.
 pub trait IteratorItem<'a>:InterfaceType{
@@ -258,6 +268,9 @@ pub trait IteratorItem<'a>:InterfaceType{
 
 
 /// Gets the Item type of an Iterator.
+///
+/// Used by `DynTrait`'s vtable to give its iter a default type,
+/// when `I:InterfaceType<Iterator=False>`.
 pub trait IteratorItemOrDefault<'borr,ImplIsRequired>:InterfaceType{
     type Item:'borr;
 }

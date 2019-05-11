@@ -331,47 +331,59 @@ impl Tag{
         }
     }
 
+    /// Constructs the Null variant.
     pub const fn null()->Self{
         Self::new(TagVariant::Primitive(Primitive::Null))
     }
+    /// Constructs the Bool variant.
     pub const fn bool_(b:bool)->Self{
         Self::new(TagVariant::Primitive(Primitive::Bool(b)))
     }
 
+    /// Constructs the Int variant.
     pub const fn int(n:i64)->Self{
         Self::new(TagVariant::Primitive(Primitive::Int(n)))
     }
 
+    /// Constructs the UInt variant.
     pub const fn uint(n:u64)->Self{
         Self::new(TagVariant::Primitive(Primitive::UInt(n)))
     }
 
+    /// Constructs the String_ variant.
     pub const fn str(s:&'static str)->Self{
         Self::new(TagVariant::Primitive(Primitive::String_(StaticStr::new(s))))
     }
 
+    /// Constructs the Ignored variant.
     pub const fn ignored(ignored:&'static Tag)->Self{
         Self::new(TagVariant::Ignored(ignored))
     }
 
+    /// Constructs the Array variant.
     pub const fn arr(s:&'static [Tag])->Self{
         Self::new(TagVariant::Array(StaticSlice::new(s)))
     }
 
+    /// Constructs the Set variant.
     pub const fn set(s:&'static [Tag])->Self{
         Self::new(TagVariant::Set(StaticSlice::new(s)))
     }
 
+    /// Constructs a KeyValue.
     pub const fn kv(key:Tag,value:Tag)->KeyValue<Tag>{
         KeyValue{key,value}
     }
 
+    /// Constructs the Map variant.
     pub const fn map(s:&'static [KeyValue<Tag>])->Self{
         Self::new(TagVariant::Map(StaticSlice::new(s)))
     }
 }
 
 impl Tag{
+    /// Converts the `Tag` into a `CheckableTag`,
+    /// so as to check `Tag`s for compatibility.
     pub fn to_checkable(self)->CheckableTag{
         let variant=match self.variant {
             TagVariant::Primitive(prim)=>
@@ -561,9 +573,11 @@ impl CheckableTag{
 /////////////////////////////////////////////////////////////////
 
 impl<T> KeyValue<T>{
+    /// Constructs a KeyValue with `key`,`value`
     pub const fn new(key:T,value:T)->Self{
         Self{ key,value }
     }
+    /// Transforms the `KeyValue<T>` to `KeyValue<U>` using `f`.
     pub fn map<F,U>(self,mut f:F)->KeyValue<U>
     where F:FnMut(T)->U
     {
@@ -573,10 +587,12 @@ impl<T> KeyValue<T>{
         }
     }
 
+    /// Converts the KeyValue into a pair.
     pub fn into_pair(self)->(T,T){
         (self.key,self.value)
     }
 
+    /// Casts a &KeyValue into a pair of references.
     pub fn as_pair(&self)->(&T,&T){
         (
             &self.key,
@@ -584,6 +600,7 @@ impl<T> KeyValue<T>{
         )
     }
 
+    /// Converts a pair into a KeyValue.
     pub fn from_pair((key,value):(T,T))->Self{
         Self{ key,value }
     }
@@ -605,27 +622,32 @@ where T:Display+TagTrait
 /////////////////////////////////////////////////////////////////
 
 
+/// Used to convert many types to `Tag`.
 pub struct FromLiteral<T>(pub T);
 
 impl FromLiteral<bool>{
+    /// Converts the wrapped `bool` into a Tag.
     pub const fn to_tag(self)->Tag{
         Tag::bool_(self.0)
     }
 }
 
 impl FromLiteral<&'static str>{
+    /// Converts the wrapped `&'static str` into a Tag.
     pub const fn to_tag(self)->Tag{
         Tag::str(self.0)
     }
 }
 
 impl FromLiteral<i64>{
+    /// Converts the wrapped `i64` into a Tag.
     pub const fn to_tag(self)->Tag{
         Tag::int(self.0)
     }
 }
 
 impl FromLiteral<Tag>{
+    /// Converts the wrapped `Tag` into a Tag.
     pub const fn to_tag(self)->Tag{
         self.0
     }
