@@ -27,6 +27,8 @@ pub(crate) struct StableAbiOptions<'a> {
 
     pub(crate) extra_bounds:Vec<WherePredicate>,
 
+    pub(crate) tags:Option<syn::Expr>,
+
     /// A hashset of the fields whose contents are opaque 
     /// (there are still some minimal checks going on).
     pub(crate) opaque_fields:HashSet<*const Field<'a>>,
@@ -98,6 +100,8 @@ impl<'a> StableAbiOptions<'a> {
                     prefix_struct:prefix.prefix_struct,
                     default_on_missing_fields:this.default_on_missing_fields,
                     on_missing_fields:this.on_missing_fields,
+                    prefix_bounds:this.prefix_bounds,
+                    accessible_if_fields:this.accessible_if_fields,
                 })
             }
 
@@ -116,6 +120,7 @@ impl<'a> StableAbiOptions<'a> {
             opaque_fields:this.opaque_fields,
             renamed_fields:this.renamed_fields,
             repr_attrs:this.repr_attrs,
+            tags:this.tags,
         }
     }
 }
@@ -131,10 +136,15 @@ struct StableAbiAttrs<'a> {
 
     extra_bounds:Vec<WherePredicate>,
 
+    tags:Option<syn::Expr>,
+
+
     /// The last field of the prefix of a Prefix-type.
     last_prefix_field:Option<LastPrefixField<'a>>,
     default_on_missing_fields:OnMissingField<'a>,
     on_missing_fields:HashMap<*const Field<'a>,OnMissingField<'a>>,
+    prefix_bounds:Vec<WherePredicate>,
+    accessible_if_fields:HashMap<*const Field<'a>,syn::Expr>,
 
     /// The type parameters that have no constraints
     unconstrained_type_params:Vec<(Ident,UnconstrainedTyParam<'a>)>,
@@ -268,6 +278,15 @@ fn parse_sabi_attr<'a>(
                 let renamed=parse_lit_as_ident(&value)
                     .piped(|x| arenas.alloc(x) );
                 this.renamed_fields.insert(field,renamed);
+            }else if ident=="accessible_if" {
+                let expr=parse_lit_as_expr(&value);
+                this.accessible_if_fields.insert(field,expr);
+            }else{
+                panic!(
+                    "unrecognized field attribute `#[sabi({}={})]` ",
+                    ident,
+                    value.value()
+                );
             }
         }
         (ParseContext::Field{field,..}, Meta::List(list)) => {
@@ -287,7 +306,7 @@ fn parse_sabi_attr<'a>(
         (
             ParseContext::TypeAttr{..},
             Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_bound),ref ident,..})
-        )if ident=="bound" =>
+        )if ident=="bound"||ident=="prefix_bound" =>
         {
             let bound=match unparsed_bound.parse::<WherePredicate>() {
                 Ok(v)=>v,
@@ -297,7 +316,44 @@ fn parse_sabi_attr<'a>(
                     e
                 ),
             };
-            this.extra_bounds.push(bound);
+            if ident=="bound"{
+                this.extra_bounds.push(bound);
+            }else if ident=="prefix_bound" {
+                this.prefix_bounds.push(bound);
+            }
+        }
+        (
+            ParseContext::TypeAttr{..},
+            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_tag),ref ident,..})
+        )if ident=="tag" =>
+        {
+            if this.tags.is_some() {
+                panic!("\n\n\
+Cannot specify multiple tags,\
+you must choose whether you want array or set semantics \
+when adding more tags.
+For array semantics you can do:
+
+- `tag![[ tag0,tag1 ]]` or `Tag::arr(&[ tag0,tag1 ])` :
+    This will require that the tags match exactly between interface and implementation.
+
+- `tag!{{ tag0,tag1 }}` or `Tag::set(&[ tag0,tag1 ])` :
+    This will require that the tags in the interface are a subset of the implementation.
+
+Tag:\n\t{}\n",
+                    unparsed_tag.value(),
+                );
+            }
+
+            let bound=match unparsed_tag.parse::<syn::Expr>() {
+                Ok(v)=>v,
+                Err(e)=>panic!(
+                    "\n\nInvalid tag expression:\n\t{}\nError:\n\t{}\n\n",
+                    unparsed_tag.value(),
+                    e
+                ),
+            };
+            this.tags=Some(bound);
         }
         (ParseContext::TypeAttr{name},Meta::List(list)) => {
             if list.ident == "override" {
@@ -434,12 +490,8 @@ fn parse_prefix_type_list<'a>(
         })))
         if nv_ident=="prefix_struct" =>{
             let type_str=type_str.value();
-            if type_str=="default" {
-                let ident=format!("{}_Prefix",type_str);
-                syn::parse_str::<Ident>(&ident).unwrap()
-            }else{
-                parse_str_as_ident(&type_str)
-            }.piped(|i| arenas.alloc(i) )
+            parse_str_as_ident(&type_str)
+                .piped(|i| arenas.alloc(i) )
         }
         x => panic!(
             "invalid #[sabi(kind(Prefix(  )))] attribute\
@@ -510,13 +562,20 @@ fn parse_str_as_ident(lit:&str)->syn::Ident{
 }
 
 fn parse_lit_as_ident(lit:&syn::LitStr)->syn::Ident{
-    match lit.parse::<syn::Ident>() {
-        Ok(ident)=>ident,
-        Err(e)=>panic!(
-            "Could not parse as an identifier:\n\t{}\nError:\n\t{}", 
-            lit.value(),
-            e
-        )
+    parse_str_lit_as(lit,"Could not parse as an identifier")
+}
+
+fn parse_lit_as_expr(lit:&syn::LitStr)->syn::Expr{
+    parse_str_lit_as(lit,"Could not parse as an expression")
+}
+
+
+fn parse_str_lit_as<P>(lit:&syn::LitStr,err_description:&str)->P
+where P:syn::parse::Parse
+{
+    match lit.parse::<P>() {
+        Ok(x)=>x,
+        Err(e)=>panic!("{}:\n\t{}\nError:\n\t{}", err_description,lit.value(),e)
     }
 }
 

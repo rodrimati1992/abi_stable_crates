@@ -2,9 +2,9 @@
 This is an example `interface crate`,
 where all publically available modules(structs of function pointers) and types are declared,
 
-To load the library and the modules together,use the `load_library` function,
+To load the library and the modules together,use the `load_library_in` function,
 which will load the dynamic library from a directory(folder),
-and then all the modules inside of the library.
+and all the modules inside of the library.
 
 */
 use std::path::Path;
@@ -17,9 +17,11 @@ use abi_stable::{
     library::{Library,LibraryError, RootModule},
     version::VersionStrings,
     type_level::bools::*,
-    erased_types::{InterfaceType,DeserializeInterfaceType},
-    ZeroSized, VirtualWrapper,
-    std_types::{RBox, RStr, RString,RVec,RArc, RSlice,RCow,RBoxError,RResult},
+    erased_types::{
+        InterfaceType,DeserializeOwnedInterface,DeserializeBorrowedInterface,IteratorItem
+    },
+    DynTrait,
+    std_types::{RBox, RStr, RString,RArc,RCow,RBoxError,RResult},
 };
 
 
@@ -34,13 +36,14 @@ use abi_stable::{
 pub struct TOState;
 
 /// The state passed to most functions in the TextOpsMod module.
-pub type TOStateBox = VirtualWrapper<RBox<ZeroSized<TOState>>>;
+pub type TOStateBox = DynTrait<'static,RBox<()>,TOState>;
 
 // This macro is used to emulate default associated types.
 // Look for the docs of InterfaceType to see 
 // which other associated types you can define.
 impl_InterfaceType!{
     impl InterfaceType for TOState {
+        type Send=False;
         type Debug = True;
         type Serialize = True;
         type Deserialize = True;
@@ -49,7 +52,8 @@ impl_InterfaceType!{
 }
 
 
-impl DeserializeInterfaceType for TOState {
+
+impl DeserializeOwnedInterface<'static> for TOState {
     type Deserialized = TOStateBox;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
@@ -67,7 +71,7 @@ impl DeserializeInterfaceType for TOState {
 pub struct TOCommand;
 
 /// A de/serializable opaque command enum,used in the TextOpsMod::run_command function.
-pub type TOCommandBox = VirtualWrapper<RBox<ZeroSized<TOCommand>>>;
+pub type TOCommandBox<'borr> = DynTrait<'borr,RBox<()>,TOCommand>;
 
 
 impl_InterfaceType!{
@@ -76,15 +80,30 @@ impl_InterfaceType!{
         type Serialize = True;
         type Deserialize = True;
         type PartialEq = True;
+        type Iterator=True;
     }
 }
 
 
-impl DeserializeInterfaceType for TOCommand {
-    type Deserialized = TOCommandBox;
+impl<'a> IteratorItem<'a> for TOCommand{
+    type Item=&'a mut RString;
+}
+
+
+
+impl DeserializeOwnedInterface<'static> for TOCommand {
+    type Deserialized = TOCommandBox<'static>;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
         MODULES.get().unwrap().deserializers().deserialize_command()(s).into_result()
+    }
+}
+
+impl<'borr> DeserializeBorrowedInterface<'borr> for TOCommand {
+    type Deserialized = TOCommandBox<'borr>;
+
+    fn deserialize_impl(s: RStr<'borr>) -> Result<Self::Deserialized, RBoxError> {
+        MODULES.get().unwrap().deserializers().deserialize_command_borrowing()(s).into_result()
     }
 }
 
@@ -98,7 +117,7 @@ impl DeserializeInterfaceType for TOCommand {
 pub struct TOReturnValue;
 
 /// A de/serializable opaque command enum,returned by the TextOpsMod::run_command function.
-pub type TOReturnValueArc = VirtualWrapper<RArc<ZeroSized<TOReturnValue>>>;
+pub type TOReturnValueArc = DynTrait<'static,RArc<()>,TOReturnValue>;
 
 
 impl_InterfaceType!{
@@ -111,7 +130,7 @@ impl_InterfaceType!{
 }
 
 
-impl DeserializeInterfaceType for TOReturnValue {
+impl DeserializeOwnedInterface<'static> for TOReturnValue {
     type Deserialized = TOReturnValueArc;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
@@ -123,85 +142,72 @@ impl DeserializeInterfaceType for TOReturnValue {
 ///////////////////////////////////////////////////////////////////////////////
 
 
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct CowStrIter;
+
+impl_InterfaceType!{
+    impl InterfaceType for CowStrIter {
+        type Iterator = True;
+    }
+}
+
+impl<'a> IteratorItem<'a> for CowStrIter{
+    type Item=RCow<'a,str>;
+}
+
+
 
 /// The parameters for every `TextOpsMod.remove_words_*` function.
 #[repr(C)]
 #[derive(StableAbi)] 
-pub struct RemoveWords<'a,S:'a>{
+pub struct RemoveWords<'a,'b>{
     /// The string we're processing.
     pub string:RStr<'a>,
     /// The words that will be removed from self.string.
-    pub words:RSlice<'a,S>,
+    ///
+    /// An iterator over `RCow<'a,str>`,
+    /// constructed from a `&'b mut impl Iterator<RCow<'a,str>>`
+    /// with `DynTrait::from_borrowing_ptr(iter,CowStrIter)`.
+    pub words:DynTrait<'a,&'b mut (),CowStrIter>,
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////
-
-/// This type is used in tests between the interface and user crates.
-#[repr(C)]
-#[derive(StableAbi)] 
-pub struct ForTests{
-    pub arc:RArc<RString>,
-    pub arc_address:usize,
-
-    pub box_:RBox<u32>,
-    pub box_address:usize,
-    
-    pub vec_:RVec<RStr<'static>>,
-    pub vec_address:usize,
-    
-    pub string:RString,
-    pub string_address:usize,
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-
 
 /// The root module of the `text_operations` dynamic library.
 /// With all the functions/modules related to processing text.
 ///
 /// To construct this module,
-/// call <TextOpsMod_Prefix as ModuleTrait>::load_from_library_in(some_directory_path)
+/// call <TextOpsMod as ModuleTrait>::load_from_library_in(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="TextOpsMod_Prefix")))]
+#[sabi(kind(Prefix(prefix_struct="TextOpsMod")))]
 //#[sabi(debug_print)]
 #[sabi(missing_field(panic))]
-pub struct TextOpsMod {
+pub struct TextOpsModVal {
     /// Constructs TOStateBox,state that is passed to other functions in this module.
     pub new: extern "C" fn() -> TOStateBox,
-    
-    /// An example module.
-    pub hello_world:&'static HelloWorldMod_Prefix,
 
     #[sabi(last_prefix_field)]    
-    pub deserializers:&'static DeserializerMod_Prefix,
+    pub deserializers:&'static DeserializerMod,
 
     /// Reverses the order of the lines.
     pub reverse_lines: extern "C" fn(&mut TOStateBox,RStr<'_>) -> RString,
     
     /// Removes the `param.words` words from the `param.string` string.
-    pub remove_words_cow: 
-        for<'a>extern "C" fn(&mut TOStateBox,param:RemoveWords<'a,RCow<'a,RStr<'a>>>) -> RString,
+    pub remove_words: 
+        extern "C" fn(&mut TOStateBox,param:RemoveWords<'_,'_>) -> RString,
     
-    /// Removes the `param.words` words from the `param.string` string.
-    pub remove_words_str: extern "C" fn(&mut TOStateBox,param:RemoveWords<RStr>) -> RString,
-    
-    /// Removes the `param.words` words from the `param.string` string.
-    pub remove_words_string: extern "C" fn(&mut TOStateBox,param:RemoveWords<RString>) -> RString,
-
     /// Gets the ammount (in bytes) of text that was processed
     pub get_processed_bytes: extern "C" fn(&TOStateBox) -> u64,
  
-    pub run_command: extern "C" fn(&mut TOStateBox,command:TOCommandBox)->TOReturnValueArc,
-
-    /// An module used in prefix-type tests.
-    pub prefix_types_tests:&'static PrefixTypeMod0_Prefix,
+    pub run_command: 
+        extern "C" fn(&mut TOStateBox,command:TOCommandBox<'static>)->TOReturnValueArc,
 }
 
 
-impl RootModule for TextOpsMod_Prefix {
+impl RootModule for TextOpsMod {
     fn raw_library_ref()->&'static LazyStaticRef<Library>{
         static RAW_LIB:LazyStaticRef<Library>=LazyStaticRef::new();
         &RAW_LIB
@@ -214,41 +220,24 @@ impl RootModule for TextOpsMod_Prefix {
 }
 
 
-/// An example sub-module in the text_operations dynamic library.
-#[repr(C)]
-#[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="HelloWorldMod_Prefix")))]
-#[sabi(missing_field(panic))]
-pub struct HelloWorldMod {
-    #[sabi(last_prefix_field)]
-    pub greeter:extern "C" fn(RStr<'_>),
-    pub for_tests:extern "C" fn()->ForTests,
-    
-    #[cfg(feature="enable_field_a")]
-    #[sabi(missing_field(option))]
-    pub field_a:u32,
-    
-    #[cfg(feature="enable_field_b")]
-    #[sabi(missing_field(option))]
-    pub field_b:u32,
-    
-    #[cfg(feature="enable_field_c")]
-    #[sabi(missing_field(option))]
-    pub field_c:u32,
-}
-
 /// A module for all deserialization functions.
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="DeserializerMod_Prefix")))]
+#[sabi(kind(Prefix(prefix_struct="DeserializerMod")))]
 #[sabi(missing_field(panic))]
-pub struct DeserializerMod {
+pub struct DeserializerModVal {
     #[sabi(last_prefix_field)]
     /// The implementation for how TOStateBox is going to be deserialized.
     pub deserialize_state: extern "C" fn(RStr<'_>) -> RResult<TOStateBox, RBoxError>,
 
     /// The implementation for how TOCommandBox is going to be deserialized.
-    pub deserialize_command: extern "C" fn(RStr<'_>) -> RResult<TOCommandBox, RBoxError>,
+    pub deserialize_command: 
+        for<'a> extern "C" fn(RStr<'a>) -> RResult<TOCommandBox<'static>, RBoxError>,
+    
+    /// The implementation for how TOCommandBox is going to be deserialized,
+    /// borrowing from the input string.
+    pub deserialize_command_borrowing: 
+        for<'borr> extern "C" fn(RStr<'borr>) -> RResult<TOCommandBox<'borr>, RBoxError>,
     
     /// The implementation for how TOReturnValueArc is going to be deserialized.
     pub deserialize_return_value: extern "C" fn(RStr<'_>) -> RResult<TOReturnValueArc, RBoxError>,
@@ -256,71 +245,21 @@ pub struct DeserializerMod {
 
 
 
-// Macro used to make sure that PrefixTypeMod0 and PrefixTypeMod1 
-// are changed in lockstep.
-macro_rules! declare_PrefixTypeMod {
-    (
-        $(#[$attr:meta])*
-        struct $struct_ident:ident;
-        prefix_struct=$prefix:literal ;
-    
-        $(extra_fields=[ $($extra_fields:tt)* ])?
-    ) => (
-        $(#[$attr])*
-        #[repr(C)]
-        #[derive(StableAbi)] 
-        #[sabi(kind(Prefix(prefix_struct=$prefix)))]
-        #[sabi(missing_field(option))]
-        pub struct $struct_ident {
-            #[sabi(last_prefix_field)]
-            pub field_a:u32,
-            $($($extra_fields)*)?
-        }
-    )
-}
-
-
-declare_PrefixTypeMod!{
-    struct PrefixTypeMod0;
-    prefix_struct="PrefixTypeMod0_Prefix";
-}
-
-declare_PrefixTypeMod!{
-    /**
-    This is unsafely converted from PrefixTypeMod0 in tests to check that 
-    `prefix.field_a()==some_integer`,
-    `prefix.field_b()==None`,
-    `prefix.field_c()==None`.
-
-    This only works because I know that both structs have the same alignment,
-    if either struct alignment changed that conversion would be unsound.
-    */
-    struct PrefixTypeMod1;
-    prefix_struct="PrefixTypeMod1_Prefix";
-    
-    extra_fields=[
-        pub field_b:u32,
-        pub field_c:u32,
-        #[sabi(missing_field(panic))]
-        pub field_d:u32,
-    ]
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
 
-/// A late-initialized reference to the global `TextOpsMod_Prefix` instance,
+/// A late-initialized reference to the global `TextOpsMod` instance,
 ///
 /// Call `load_library_in` before calling `MODULES.get()` to get a `Some(_)` value back.
 ///
-pub static MODULES:LazyStaticRef<TextOpsMod_Prefix>=LazyStaticRef::new();
+pub static MODULES:LazyStaticRef<TextOpsMod>=LazyStaticRef::new();
 
 
 /// Loads all the modules of the library at the `directory`.
 /// If it loads them once,this will continue returning the same reference.
-pub fn load_library_in(directory:&Path) -> Result<&'static TextOpsMod_Prefix,LibraryError> {
+pub fn load_library_in(directory:&Path) -> Result<&'static TextOpsMod,LibraryError> {
     MODULES.try_init(||{
-        TextOpsMod_Prefix::load_from_library_in(directory)
+        TextOpsMod::load_from_library_in(directory)
     })
 }

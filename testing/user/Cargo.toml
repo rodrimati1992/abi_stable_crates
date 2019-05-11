@@ -1,0 +1,15 @@
+[package]
+name = "testing_user_0"
+version = "0.1.0"
+authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+abi_stable={version="0.3",path="../../abi_stable"}
+structopt = "0.2"
+core_extensions = "0.1"
+jemallocator = "0.3.0"
+
+[dependencies.testing_interface_0]
+version="0.1"
+path="../interface_0"

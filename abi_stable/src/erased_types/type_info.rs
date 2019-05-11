@@ -6,12 +6,12 @@ use std::fmt;
 
 use crate::{
     version::VersionStrings, 
-    std_types::{StaticStr,utypeid::UTypeId},
+    std_types::{StaticStr,utypeid::UTypeId,ROption,RSome},
     return_value_equality::ReturnValueEquality,
 };
 
 
-/// Metadata stored in the vtable of `VirtualWrapper<_>`
+/// Metadata stored in the vtable of `DynTrait<_>`
 #[derive(Debug, Eq, PartialEq)]
 #[repr(C)]
 #[derive(StableAbi)]
@@ -19,7 +19,8 @@ use crate::{
 pub struct TypeInfo {
     pub size: usize,
     pub alignment: usize,
-    pub uid: ReturnValueEquality<UTypeId>,
+    #[doc(hidden)]
+    pub _uid: ReturnValueEquality<ROption<UTypeId>>,
     pub name: StaticStr,
     pub file: StaticStr,
     pub package: StaticStr,
@@ -29,8 +30,12 @@ pub struct TypeInfo {
 }
 
 impl TypeInfo {
+    /// Whether the `self` is the TypeInfo for the same type as `other`
     pub fn is_compatible(&self, other: &Self) -> bool {
-        self.uid == other.uid
+        match ((self._uid.function)(),(other._uid.function)() ) {
+            (RSome(l),RSome(r))=>l==r,
+            _=>false,
+        }
     }
 }
 

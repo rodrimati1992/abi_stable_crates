@@ -48,7 +48,7 @@ This is a full example,demonstrating:
 
 - `user crates`(defined in the Architecture section bellow).
 
-- `VirtualWrapper<_>`:the ffi-safe trait object(with downcasting).
+- `DynTrait<_>`:the ffi-safe trait object(with downcasting).
 
 - `interface crates`(defined in the Architecture section bellow).
 
@@ -101,8 +101,7 @@ use std::path::Path;
 use abi_stable::{
     InterfaceType,
     StableAbi,
-    VirtualWrapper,
-    ZeroSized,
+    DynTrait,
     impl_InterfaceType,
     lazy_static_ref::LazyStaticRef,
     library::{Library,LibraryError,RootModule},
@@ -122,10 +121,10 @@ pub struct TheInterface;
 impl_InterfaceType!{
     /// Each associated type represents a trait,
     /// will is required of types when ẁrapped in a 
-    /// `VirtualWrapper<Pointer<ZeroSized<TheInterface>>>`,
-    /// as well as be usable in that `VirtualWrapper<_>`.
+    /// `DynTrait<Pointer<()>,TheInterface>`,
+    /// as well as be usable in that `DynTrait<_>`.
     ///
-    /// A trait is required (and becomes usable in the `VirtualWrapper`) 
+    /// A trait is required (and becomes usable in the `DynTrait`) 
     /// when the associated type is `True`,not required when it is `False`.
     ///
     impl InterfaceType for TheInterface {
@@ -136,6 +135,16 @@ impl_InterfaceType!{
         //////////////////////////////////////////////////////////
         //  some defaulted associated types (there may be more) //
         //////////////////////////////////////////////////////////
+
+        // Changing this to require/unrequire in minor versions,is an abi breaking change.
+        // type Send=True;
+
+        // Changing this to require/unrequire in minor versions,is an abi breaking change.
+        // type Sync=True;
+
+        // type Iterator=False;
+        
+        // type DoubleEndedIterator=False;
         
         // type Clone=False;
 
@@ -154,12 +163,22 @@ impl_InterfaceType!{
         // type Hash=False;
 
         // type Deserialize=False;
+
+        // type FmtWrite=False;
+        
+        // type IoWrite=False;
+        
+        // type IoSeek=False;
+        
+        // type IoRead=False;
+
+        // type IoBufRead=False;
     }
 }
 
 
 /// An alias for the trait object used in this example
-pub type BoxedInterface=VirtualWrapper<RBox<ZeroSized<TheInterface>>>;
+pub type BoxedInterface<'borr>=DynTrait<'borr,RBox<()>,TheInterface>;
 
 
 #[repr(C)]
@@ -167,10 +186,10 @@ pub type BoxedInterface=VirtualWrapper<RBox<ZeroSized<TheInterface>>>;
 #[sabi(kind(Prefix(prefix_struct="ExampleLib")))]
 #[sabi(missing_field(panic))]
 pub struct ExampleLibVal {
-    pub new_boxed_interface: extern "C" fn()->BoxedInterface,
+    pub new_boxed_interface: extern "C" fn()->BoxedInterface<'static>,
     
     #[sabi(last_prefix_field)]
-    pub append_string:extern "C" fn(&mut BoxedInterface,RString),
+    pub append_string:extern "C" fn(&mut BoxedInterface<'_>,RString),
 }
 
 
@@ -214,8 +233,6 @@ pub fn load_root_module_in(directory:&Path) -> Result<&'static ExampleLib,Librar
 }
 */
 
-/*
-
 /// This is for the case where this example is copied into a single crate
 pub fn load_root_module_in(_directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
     ROOTMOD.try_init(||{
@@ -223,8 +240,6 @@ pub fn load_root_module_in(_directory:&Path) -> Result<&'static ExampleLib,Libra
             .check_layout()
     })
 }
-
-*/
 
 }
 
@@ -252,11 +267,11 @@ pub fn load_root_module_in(_directory:&Path) -> Result<&'static ExampleLib,Libra
 
 mod implementation {
 
-// For the case where this is copied to a single crate.
-// use super::{interface_crate};
-
 use std::fmt::{self,Display};
 
+
+// Comment this out if this is on its own crate
+use super::{interface_crate};
 
 use interface_crate::{
     BoxedInterface,
@@ -267,7 +282,7 @@ use interface_crate::{
 
 use abi_stable::{
     ImplType,
-    VirtualWrapper,
+    DynTrait,
     erased_types::TypeInfo,
     export_sabi_module,
     extern_fn_panic_handling,
@@ -295,7 +310,7 @@ pub struct StringBuilder{
 
 ///
 /// Defines this as an `implementation type`,
-/// this trait is mostly for improving error messages when unerasing the VirtualWrapper.
+/// this trait is mostly for improving error messages when unerasing the DynTrait.
 ///
 impl ImplType for StringBuilder {
     type Interface = TheInterface;
@@ -319,9 +334,9 @@ impl StringBuilder{
 
 
 // Constructs a BoxedInterface.
-extern fn new_boxed_interface()->BoxedInterface{
+extern fn new_boxed_interface()->BoxedInterface<'static>{
     extern_fn_panic_handling!{
-        VirtualWrapper::from_value(StringBuilder{
+        DynTrait::from_value(StringBuilder{
             text:"".into(),
             appended:vec![],
         })
@@ -330,7 +345,7 @@ extern fn new_boxed_interface()->BoxedInterface{
 
 
 /// Appends a string to the erased `StringBuilderType`.
-extern fn append_string(wrapped:&mut BoxedInterface,string:RString){
+extern fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
     extern_fn_panic_handling!{
         wrapped
             .as_unerased_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
@@ -392,7 +407,7 @@ A crate which declares:
 - All the public types passed to and returned by the functions.
 
 - Optionally:declares ìnterface types,types which implement InterfaceType,
-    used to specify the traits usable in the VirtualWrapper ffi-safe trait object .
+    used to specify the traits usable in the DynTrait ffi-safe trait object .
 
 
 ### Implementation crate
@@ -406,7 +421,7 @@ The crate compiled as a dynamic library that:
 
 - Optionally:create types which implement `ImplType<Iterface= Interface >`,
     where `Interface` is some interface type from the interface crate,
-    so as to be able to use wrap it in `VirtualWrapper`s of that interface.
+    so as to be able to use wrap it in `DynTrait`s of that interface.
 
 ### User crate
 
@@ -416,7 +431,7 @@ and loads the pre-compiled `implementation crate` dynamic library from some path
 
 # Known limitations
 
-### Enums with fields
+### Extensible enums with fields
 
 You can't add variants to enums with fields in the `interface crate` in minor versions.
 

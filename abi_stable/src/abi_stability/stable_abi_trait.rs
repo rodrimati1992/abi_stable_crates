@@ -4,10 +4,11 @@ Where the StableAbi trait is declares,as well as related types/traits.
 
 use core_extensions::type_level_bool::{Boolean, False, True};
 use std::{
+    cell::{Cell,UnsafeCell},
     fmt,
-    marker::PhantomData,
+    marker::{PhantomData,PhantomPinned},
     mem::ManuallyDrop,
-    num,
+    num::{self,Wrapping as NumWrapping},
     pin::Pin,
     ptr::NonNull,
     sync::atomic::{AtomicBool, AtomicIsize, AtomicPtr, AtomicUsize},
@@ -18,7 +19,7 @@ use crate::{
     return_value_equality::ReturnValueEquality,
 };
 
-use super::{LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayoutParams};
+use super::{LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayoutParams,Tag};
 
 ///////////////////////
 
@@ -48,7 +49,8 @@ This trait can be derived using ``.
 
 # Safety
 
-The layout of types implementing this trait must be stable across minor versions,
+The layout of types implementing this trait can only change by 
+adding fields at the end,if it stores a `TLData::PrefixType` in `TypeLayout.data`,
 
 # Caveats
 
@@ -74,7 +76,7 @@ Non-exhaustive list of std types that are NonZero:
 
 - &mut T (any T).
 
-- extern fn() : Any combination of StableAbi parameter/return types.
+- extern fn().
 
 - std::ptr::NonNull
 
@@ -179,16 +181,20 @@ impl AbiInfoWrapper {
 #[sabi(inside_abi_stable_crate)]
 pub struct AbiInfo {
     pub kind:TypeKind,
+    /// Whether this is a prefix,
     pub prefix_kind: bool,
+    /// Equivalent to the UTypeId returned by the function in ReturnValueEquality.
     pub type_id:ReturnValueEquality<UTypeId>,
     /// Whether the type uses non-zero value optimization,
     /// if true then an Option<Self> implements StableAbi.
     pub is_nonzero: bool,
+    /// The layout of the type.
     pub layout: &'static TypeLayout,
 }
 
 
 impl AbiInfo{
+    /// Gets the UTypeId for the `'static` equivalent of the type that created this AbiInfo.
     pub fn get_utypeid(&self)->UTypeId{
         (self.type_id.function)()
     }
@@ -196,6 +202,7 @@ impl AbiInfo{
 
 ///////////////////////////////////////////////////////////////////////////////
 
+/// The abi_stable kind of a type.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq,Eq,Ord,PartialOrd,Hash,StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -207,11 +214,20 @@ pub enum TypeKind{
     /// used to implement vtables and modules.
     Prefix,
 }
+
+
+/// For marker types that represent variants of TypeKind.
 pub trait TypeKindTrait:sealed::Sealed{
+    /// The equivalent TypeKind of this type.
     const VALUE:TypeKind;
+    /// Whether this is a prefix-kind
     const IS_PREFIX:bool;
 }
+
+/// The kind of a regular value,the default kind.
 pub struct ValueKind;
+
+/// The kind of a prefix-type,vtables and modules.
 pub struct PrefixKind;
 
 
@@ -290,14 +306,21 @@ unsafe impl<T> MakeGetAbiInfo<UnsafeOpaqueField_Bound> for T {
     };
 }
 
+/// Determines that MakeGetAbiInfo constructs the AbiInfo for a 
+/// type that implements StableAbi.
 #[allow(non_camel_case_types)]
 pub struct StableAbi_Bound;
+
+/// Determines that MakeGetAbiInfo constructs the AbiInfo for a 
+/// type that implements SharedStableAbi.
 #[allow(non_camel_case_types)]
 pub struct SharedStableAbi_Bound;
+
+/// Determines that MakeGetAbiInfo constructs the AbiInfo for any type (this is unsafe).
 #[allow(non_camel_case_types)]
 pub struct UnsafeOpaqueField_Bound;
 
-/// Retrieves the AbiInfo of `T`,
+/// Retrieves the AbiInfo of `T:StableAbi`,
 pub extern "C" fn get_abi_info<T>() -> &'static AbiInfo
 where
     T: StableAbi,
@@ -305,7 +328,7 @@ where
     T::ABI_INFO.get()
 }
 
-/// Retrieves the AbiInfo of `T`,
+/// Retrieves the AbiInfo of `T:SharedStableAbi`,
 pub extern "C" fn get_ssa_abi_info<T>() -> &'static AbiInfo
 where
     T: SharedStableAbi,
@@ -634,60 +657,61 @@ mod rust_1_34_impls{
 
 /////////////
 
-unsafe impl<N> SharedStableAbi for num::Wrapping<N>
-where
-    N: StableAbi,
-{
-    type Kind=ValueKind;
-    type IsNonZeroType = N::IsNonZeroType;
-    type StaticEquivalent=num::Wrapping<N::StaticEquivalent>;
+macro_rules! impl_stableabi_for_repr_transparent {
+    (
+        $type_constr:ident
+        $(where[ $($where_clause:tt)* ])*
+    ) => (
+        unsafe impl<P> SharedStableAbi for $type_constr<P>
+        where
+            P: StableAbi,
+            $($($where_clause)*)*
+        {
+            type Kind=ValueKind;
+            type IsNonZeroType = P::IsNonZeroType;
+            type StaticEquivalent=$type_constr<P::StaticEquivalent>;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
-        "num::Wrapping",
-        TLData::struct_(&[
-            TLField::new("0",&[],<N as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
-        ]),
-        tl_genparams!(;N;),
-    );
+            const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
+                stringify!($type_constr),
+                TLData::struct_(&[
+                    TLField::new("0",&[],<P as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
+                ]),
+                tl_genparams!(;P;),
+            );
+        }
+    )
 }
+
+
+impl_stableabi_for_repr_transparent!{ NumWrapping }
+impl_stableabi_for_repr_transparent!{ Pin }
+impl_stableabi_for_repr_transparent!{ ManuallyDrop }
+impl_stableabi_for_repr_transparent!{ Cell }
+impl_stableabi_for_repr_transparent!{ UnsafeCell }
 
 /////////////
 
-unsafe impl<P> SharedStableAbi for Pin<P>
-where
-    P: StableAbi,
-{
-    type Kind=ValueKind;
-    type IsNonZeroType = P::IsNonZeroType;
-    type StaticEquivalent=Pin<P::StaticEquivalent>;
+macro_rules! impl_stableabi_for_unit_struct {
+    (
+        $type_constr:ident
+    ) => (
+        unsafe impl SharedStableAbi for $type_constr{
+            type Kind=ValueKind;
+            type IsNonZeroType = False;
+            type StaticEquivalent=$type_constr;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
-        "Pin",
-        TLData::struct_(&[
-            TLField::new("0",&[],<P as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
-        ]),
-        tl_genparams!(;P;),
-    );
+            const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
+                stringify!($type_constr),
+                TLData::struct_(&[]),
+                tl_genparams!(;;),
+            );
+        }
+    )
 }
 
-/////////////
 
-unsafe impl<T> SharedStableAbi for ManuallyDrop<T>
-where
-    T: StableAbi,
-{
-    type Kind=ValueKind;
-    type IsNonZeroType = T::IsNonZeroType;
-    type StaticEquivalent=ManuallyDrop<T::StaticEquivalent>;
+impl_stableabi_for_unit_struct!{ PhantomPinned }
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
-        "ManuallyDrop",
-        TLData::struct_(&[
-            TLField::new("0",&[],<T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
-        ]),
-        tl_genparams!(;T;),
-    );
-}
 
 /////////////
 
@@ -709,6 +733,7 @@ macro_rules! empty_extern_fn_layout{
             },
             generics: tl_genparams!(;;),
             phantom_fields: &[],
+            tag:Tag::null(),
         })
     )
 }
@@ -771,6 +796,7 @@ unsafe impl<T> SharedStableAbi for UnsafeOpaqueField<T> {
         data: TLData::Primitive,
         generics: tl_genparams!(;;),
         phantom_fields: &[],
+        tag:Tag::null(),
     });
 }
 

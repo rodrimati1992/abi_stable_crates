@@ -8,7 +8,9 @@ pub mod arc;
 pub mod boxed;
 pub mod cmp_ordering;
 pub mod cow;
+//pub mod old_cow;
 pub mod option;
+pub mod map;
 pub mod range;
 pub mod result;
 pub mod slice_mut;
@@ -30,12 +32,13 @@ pub use self::{
     boxed::RBox,
     cmp_ordering::RCmpOrdering,
     cow::RCow,
+    map::RHashMap,
     option::{RNone, ROption, RSome},
     result::{RErr, ROk, RResult},
     slice_mut::RSliceMut,
     slices::RSlice,
-    std_error::{RBoxError, UnsyncRBoxError},
-    std_io::{RIoError, RIoErrorKind},
+    std_error::{RBoxError,SendRBoxError, UnsyncRBoxError},
+    std_io::{RIoError,RSeekFrom, RIoErrorKind},
     str::RStr,
     string::RString,
     time::RDuration,

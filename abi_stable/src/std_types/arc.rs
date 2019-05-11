@@ -4,13 +4,16 @@ use core_extensions::prelude::*;
 
 use crate::{
     abi_stability::StableAbi,
-    pointer_trait::{CallReferentDrop, StableDeref, TransmuteElement},
+    pointer_trait::{
+        CallReferentDrop, StableDeref, TransmuteElement,
+        GetPointerKind,PK_SmartPointer,
+    },
     std_types::{RResult},
     std_types::utypeid::{UTypeId,new_utypeid},
     return_value_equality::ReturnValueEquality,
 };
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod test;
 
 mod private {
@@ -43,6 +46,10 @@ mod private {
     }
 
     unsafe impl<T> StableDeref for RArc<T> {}
+
+    unsafe impl<T> GetPointerKind for RArc<T>{
+        type Kind=PK_SmartPointer;
+    }
 
     unsafe impl<T, O> TransmuteElement<O> for RArc<T> {
         type TransmutedPtr = RArc<O>;

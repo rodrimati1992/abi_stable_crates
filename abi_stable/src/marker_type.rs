@@ -2,7 +2,7 @@
 Zero-sized types .
 */
 
-use std::{marker::PhantomData, rc::Rc};
+use std::{cell::Cell,marker::PhantomData, rc::Rc};
 
 use crate::{
     derive_macro_reexports::*, 
@@ -25,36 +25,33 @@ pub struct UnsyncUnsend {
     _marker: UnsafeIgnoredType<Rc<()>>,
 }
 
+/// Marker type used to mark a type as being Send+!Sync.
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub struct UnsyncSend {
+    _marker: UnsafeIgnoredType<Cell<()>>,
+}
+
 
 /// Zero-sized marker type used to signal that even though a type 
 /// could implement Copy and Clone,
 /// it is semantically an error to do so.
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(inside_abi_stable_crate)]
 pub struct NotCopyNotClone;
 
 
 
-/// A Zero-sized type used by `VirtualWrapper<Pointer<ZeroSized<T>>>`.
+/// Used by vtables/pointers to signal that the type has been erased.
 ///
-/// If this did not wrap `T`,
-/// we could pretend to have a `T` even though we don't.
-///
-/// This type intentionally does not implement any traits.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-pub struct ZeroSized<T> {
+pub struct ErasedObject{
     _priv: [u8; 0],
-    _inner: PhantomData<T>,
 }
-
-/// Used by vtables/pointers to signal that the type has been erased.
-///
-/// Also,because `()` implements InterfaceType,
-/// `VirtualWrapper<Pointer<ErasedObject>>`
-/// can be created by calling `VirtualWrapper::from_any_ptr(ptr,())`;
-///
-pub type ErasedObject = ZeroSized<()>;
-
 
 
 /**
@@ -69,10 +66,33 @@ since the other side could choose any other type parameter.
 
 */
 #[repr(C)]
-pub struct UnsafeIgnoredType<T> {
+pub struct UnsafeIgnoredType<T:?Sized> {
     _priv: [u8; 0],
     _inner: PhantomData<T>,
 }
+
+impl<T:?Sized> UnsafeIgnoredType<T>{
+    pub const DEFAULT:Self=Self{
+        _priv:[],
+        _inner:PhantomData,
+    };
+}
+
+impl<T:?Sized> Copy for UnsafeIgnoredType<T>{}
+
+impl<T:?Sized> Default for UnsafeIgnoredType<T>{
+    fn default()->Self{
+        Self::DEFAULT
+    }
+}
+
+impl<T:?Sized> Clone for UnsafeIgnoredType<T>{
+    fn clone(&self)->Self{
+        *self
+    }
+}
+
+
 unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
     type IsNonZeroType = False;
     type Kind=ValueKind;

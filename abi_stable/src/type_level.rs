@@ -13,3 +13,7 @@ pub mod bools{
     #[doc(inline)]
     pub use core_extensions::type_level_bool::{True,False,Boolean};
 }
+
+
+// Uncomment if I have a use for type-level `Option`s
+// pub mod option;

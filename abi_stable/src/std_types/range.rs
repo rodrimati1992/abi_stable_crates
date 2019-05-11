@@ -3,6 +3,27 @@ use std::ops::{Range, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive};
 ////////////////////////////////////////////////////////////////
 
 
+macro_rules! impl_into_iterator {
+    ( $from:ident,$to:ident ) => (
+        impl<T> IntoIterator for $from<T> 
+        where 
+            $to<T>:Iterator<Item=T>
+        {
+            type IntoIter=$to<T>;
+            type Item=T;
+
+            #[inline]
+            fn into_iter(self)->$to<T>{
+                self.into()
+            }
+        }
+    )
+}
+
+
+////////////////////////////////////////////////////////////////
+
+
 /// Ffi-safe equivalent of `::std::ops::Range`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
@@ -44,6 +65,10 @@ impl_into_rust_repr! {
     }
 }
 
+
+impl_into_iterator!{ RRange,Range }
+
+
 ////////////////////////////////////////////////////////////////
 
 
@@ -74,6 +99,10 @@ impl_into_rust_repr! {
     }
 }
 
+
+impl_into_iterator!{ RRangeInclusive,RangeInclusive }
+
+
 ////////////////////////////////////////////////////////////////
 
 /// Ffi-safe equivalent of `::std::ops::RangeFrom`
@@ -100,6 +129,10 @@ impl_into_rust_repr! {
         }
     }
 }
+
+
+impl_into_iterator!{ RRangeFrom,RangeFrom }
+
 
 ////////////////////////////////////////////////////////////////
 
@@ -129,6 +162,8 @@ impl_into_rust_repr! {
     }
 }
 
+
+
 ////////////////////////////////////////////////////////////////
 
 /// Ffi-safe equivalent of `::std::ops::RangeToInclusive`
@@ -155,5 +190,9 @@ impl_into_rust_repr! {
         }
     }
 }
+
+
+
+
 
 ////////////////////////////////////////////////////////////////
