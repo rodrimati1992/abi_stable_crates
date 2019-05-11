@@ -15,4 +15,5 @@ pub mod bools{
 }
 
 
-pub mod option;
+// Uncomment if I have a use for type-level `Option`s
+// pub mod option;

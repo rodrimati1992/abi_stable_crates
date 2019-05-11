@@ -14,6 +14,8 @@ pub struct FieldAccessibility{
     bits:u64,
 }
 
+
+/// Whether a field is accessible.
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]

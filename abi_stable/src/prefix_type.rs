@@ -24,9 +24,9 @@ mod pt_metadata;
 pub use self::{
     accessible_fields::{FieldAccessibility,IsAccessible},
     layout::{PTStructLayout,PTStructLayoutParams,PTField},
-    pt_metadata::PrefixTypeMetadata,
 };
 
+pub(crate) use self::pt_metadata::PrefixTypeMetadata;
 
 
 /// For types deriving `StableAbi` with `#[sabi(kind(Prefix(..)))]`.
@@ -49,23 +49,20 @@ pub unsafe trait PrefixTypeTrait:Sized{
 
     /// A bit array,where the bit at the field index represents whether that 
     /// field is accessible.
-    ///
-    /// A `0` bit is an inaccessible field.
-    ///
-    /// A `1` bit is an accessible field.
-    ///
     const PT_FIELD_ACCESSIBILITY:FieldAccessibility;
 
     #[doc(hidden)]
-    // Whether each individual fields in the prefix is conditional.
+    // Whether each individual field in the prefix is conditional.
+    //
+    // This is checked in layout checking to ensure that 
+    // both sides agree on whether each field in the prefix is conditional,
     const PT_COND_PREFIX_FIELDS:&'static [IsConditional];
 
     /**
-A type only accessible through a shared reference,
-with access to the fields of Self at and before `#[sabi(last_prefix_field)]`.
+A type only accessible through a shared reference.
 
 The fields after the `#[sabi(last_prefix_field)]` attribute are 
-only accessible through `<field_name>` methods,
+only potentially accessible in their `<field_name>` methods,
 since their existence has to be checked at runtime.
 This is because multiple versions of the library may be loaded,
 where in some of them those fields don't exist.
@@ -167,6 +164,8 @@ pub struct WithMetadataFor<T,P>{
 
 
 
+/// Whether a field is conditional,
+/// whether it has a `#[sabi(accessible_if=" expression ")]` attribute or not.
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]

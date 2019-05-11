@@ -81,8 +81,9 @@ pub unsafe trait GetPointerKind{
     const KIND:PointerKind=<Self::Kind as PointerKindVariant>::VALUE;
 }
 
-/// A marker trait for PointerKind variants.
+/// A type-level equivalent of a PointerKind variant.
 pub trait PointerKindVariant:Sealed{
+    /// The value of the PointerKind variant Self is equivalent to.
     const VALUE:PointerKind;
 }
 
@@ -92,22 +93,28 @@ mod sealed{
 }
 
 
-
+/// Describes the kind of a pointer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash,StableAbi)]
 #[repr(C)]
 #[sabi(inside_abi_stable_crate)]
 pub enum PointerKind{
+    /// a `&T`,or a `Copy` wrapper struct containing a `&T`
     Reference,
+    /// a `&mut T`,or a non-`Drop` wrapper struct containing a `&mut T`
     MutReference,
+    /// Any pointer type that's not a reference or a mutable reference.
     SmartPointer
 }
 
+/// The type-level equivalent of `PointerKind::Reference`.
 #[allow(non_camel_case_types)]
 pub struct PK_Reference;
 
+/// The type-level equivalent of `PointerKind::MutReference`.
 #[allow(non_camel_case_types)]
 pub struct PK_MutReference;
 
+/// The type-level equivalent of `PointerKind::SmartPointer`.
 #[allow(non_camel_case_types)]
 pub struct PK_SmartPointer;
 

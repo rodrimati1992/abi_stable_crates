@@ -37,7 +37,7 @@ pub use self::{
     result::{RErr, ROk, RResult},
     slice_mut::RSliceMut,
     slices::RSlice,
-    std_error::{RBoxError, UnsyncRBoxError},
+    std_error::{RBoxError,SendRBoxError, UnsyncRBoxError},
     std_io::{RIoError,RSeekFrom, RIoErrorKind},
     str::RStr,
     string::RString,

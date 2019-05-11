@@ -122,6 +122,7 @@ impl_error_kind!{
 ///////////////////////////////////////////////////////////////////////////
 
 
+/// Ffi-safe equivalent of `std::io::SeekFrom`.
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[repr(C)]
 #[derive(StableAbi)]
@@ -161,7 +162,7 @@ impl_into_rust_repr! {
 
 ///////////////////////////////////////////////////////////////////////////
 
-/// Ffi safe equivalent to ::std::io::Error.
+/// Ffi safe equivalent to `std::io::Error`.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]

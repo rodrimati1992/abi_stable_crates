@@ -284,7 +284,7 @@ impl<K,V,S> RHashMap<K,V,S>{
     /// # Panics
     ///
     /// Panics if the key is not associated with a value.
-    pub fn index_mut_p(&mut self,key:&K)->&V{
+    pub fn index_mut_p(&mut self,key:&K)->&mut V{
         self.get_mut_p(key).expect("no entry in RHashMap<_,_> found for key")
     }
 
@@ -341,7 +341,7 @@ impl<K,V,S> RHashMap<K,V,S>{
     
     /// Iterates over the entries in the map,with mutable references to the values in the map.
     ///
-    /// This returns an `Iterator<Item= Tuple2< &K, &mutV > >+!Send+!Sync`
+    /// This returns an `Iterator<Item= Tuple2< &K, &mut V > >+!Send+!Sync`
     pub fn iter_mut(&mut self)->IterMut<'_,K,V>{
         let vtable=self.vtable();
 
@@ -391,7 +391,7 @@ impl<'a,K,V,S> IntoIterator for &'a RHashMap<K,V,S>{
 }
 
 
-/// This returns an `Iterator<Item= Tuple2< &K, &mutV > >+!Send+!Sync`
+/// This returns an `Iterator<Item= Tuple2< &K, &mut V > >+!Send+!Sync`
 impl<'a,K,V,S> IntoIterator for &'a mut RHashMap<K,V,S>{
     type Item=Tuple2<&'a K,&'a mut V>;
     type IntoIter=IterMut<'a,K,V>;
@@ -671,7 +671,7 @@ mod serde{
     // The hasher doesn't matter
     unconstrained(S),
 )]
-pub struct VTableVal<K,V,S>{
+struct VTableVal<K,V,S>{
     insert_elem:extern fn(&mut ErasedMap<K,V,S>,K,V)->ROption<V>,
     
     get_elem:for<'a> extern fn(&'a ErasedMap<K,V,S>,MapQuery<'_,K>)->Option<&'a V>,

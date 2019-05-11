@@ -1,10 +1,8 @@
 /*!
 This is an `implementation crate`,
-It exports all the modules(structs of function pointers) required by the 
-`example_0_interface`(the `interface crate`) with these functions:
-
-- get_library: Exports the root module 
-- get_hello_world_mod :Exports an example module.
+It exports the root module(a struct of function pointers) required by the 
+`example_0_interface`(the `interface crate`) in the 
+version of `get_library` with a mangled function name.
 
 */
 

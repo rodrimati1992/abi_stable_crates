@@ -44,40 +44,14 @@ pub struct NotCopyNotClone;
 
 
 
-/// A Zero-sized type used by `DynTrait<Pointer<()>,T>`.
-///
-/// If this did not wrap `T`,
-/// we could pretend to have a `T` even though we don't.
-///
-/// This type intentionally does not implement any traits.
-#[repr(C)]
-#[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
-pub struct ZeroSized<T> {
-    _priv: [u8; 0],
-    _inner: PhantomData<T>,
-}
-
 /// Used by vtables/pointers to signal that the type has been erased.
 ///
-/// Also,because `()` implements InterfaceType,
-/// `DynTrait<Pointer<ErasedObject>>`
-/// can be created by calling `DynTrait::from_any_ptr(ptr,())`.
-///
-/// Do note that `()` is an `InterfaceType<Send=True,Sync=True>`,
-/// which requires that `ptr` implements `Send+Sync`
-///
-pub type ErasedObject = ZeroSized<()>;
-
-
-
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(inside_abi_stable_crate)]
-pub struct ErasedRef<'a>{
-    _marker:PhantomData<&'a ()>
+pub struct ErasedObject{
+    _priv: [u8; 0],
 }
-
 
 
 /**

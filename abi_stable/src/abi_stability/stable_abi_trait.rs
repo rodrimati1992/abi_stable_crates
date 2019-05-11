@@ -49,7 +49,8 @@ This trait can be derived using ``.
 
 # Safety
 
-The layout of types implementing this trait must be stable across minor versions,
+The layout of types implementing this trait can only change by 
+adding fields at the end,if it stores a `TLData::PrefixType` in `TypeLayout.data`,
 
 # Caveats
 
@@ -75,7 +76,7 @@ Non-exhaustive list of std types that are NonZero:
 
 - &mut T (any T).
 
-- extern fn() : Any combination of StableAbi parameter/return types.
+- extern fn().
 
 - std::ptr::NonNull
 
@@ -180,16 +181,20 @@ impl AbiInfoWrapper {
 #[sabi(inside_abi_stable_crate)]
 pub struct AbiInfo {
     pub kind:TypeKind,
+    /// Whether this is a prefix,
     pub prefix_kind: bool,
+    /// Equivalent to the UTypeId returned by the function in ReturnValueEquality.
     pub type_id:ReturnValueEquality<UTypeId>,
     /// Whether the type uses non-zero value optimization,
     /// if true then an Option<Self> implements StableAbi.
     pub is_nonzero: bool,
+    /// The layout of the type.
     pub layout: &'static TypeLayout,
 }
 
 
 impl AbiInfo{
+    /// Gets the UTypeId for the `'static` equivalent of the type that created this AbiInfo.
     pub fn get_utypeid(&self)->UTypeId{
         (self.type_id.function)()
     }
@@ -197,6 +202,7 @@ impl AbiInfo{
 
 ///////////////////////////////////////////////////////////////////////////////
 
+/// The abi_stable kind of a type.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq,Eq,Ord,PartialOrd,Hash,StableAbi)]
 #[sabi(inside_abi_stable_crate)]
@@ -208,11 +214,20 @@ pub enum TypeKind{
     /// used to implement vtables and modules.
     Prefix,
 }
+
+
+/// For marker types that represent variants of TypeKind.
 pub trait TypeKindTrait:sealed::Sealed{
+    /// The equivalent TypeKind of this type.
     const VALUE:TypeKind;
+    /// Whether this is a prefix-kind
     const IS_PREFIX:bool;
 }
+
+/// The kind of a regular value,the default kind.
 pub struct ValueKind;
+
+/// The kind of a prefix-type,vtables and modules.
 pub struct PrefixKind;
 
 
@@ -291,14 +306,21 @@ unsafe impl<T> MakeGetAbiInfo<UnsafeOpaqueField_Bound> for T {
     };
 }
 
+/// Determines that MakeGetAbiInfo constructs the AbiInfo for a 
+/// type that implements StableAbi.
 #[allow(non_camel_case_types)]
 pub struct StableAbi_Bound;
+
+/// Determines that MakeGetAbiInfo constructs the AbiInfo for a 
+/// type that implements SharedStableAbi.
 #[allow(non_camel_case_types)]
 pub struct SharedStableAbi_Bound;
+
+/// Determines that MakeGetAbiInfo constructs the AbiInfo for any type (this is unsafe).
 #[allow(non_camel_case_types)]
 pub struct UnsafeOpaqueField_Bound;
 
-/// Retrieves the AbiInfo of `T`,
+/// Retrieves the AbiInfo of `T:StableAbi`,
 pub extern "C" fn get_abi_info<T>() -> &'static AbiInfo
 where
     T: StableAbi,
@@ -306,7 +328,7 @@ where
     T::ABI_INFO.get()
 }
 
-/// Retrieves the AbiInfo of `T`,
+/// Retrieves the AbiInfo of `T:SharedStableAbi`,
 pub extern "C" fn get_ssa_abi_info<T>() -> &'static AbiInfo
 where
     T: SharedStableAbi,
