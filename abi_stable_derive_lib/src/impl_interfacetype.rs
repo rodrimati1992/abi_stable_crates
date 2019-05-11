@@ -48,8 +48,15 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
         ("PartialOrd",DefaultVal::False),
         ("Hash",DefaultVal::False),
         ("Deserialize",DefaultVal::False),
-        // ("Send",DefaultVal::True),
-        // ("Sync",DefaultVal::True),
+        ("Send",DefaultVal::True),
+        ("Sync",DefaultVal::True),
+        ("Iterator",DefaultVal::False),
+        ("DoubleEndedIterator",DefaultVal::False),
+        ("FmtWrite",DefaultVal::False),
+        ("IoWrite",DefaultVal::False),
+        ("IoSeek",DefaultVal::False),
+        ("IoRead",DefaultVal::False),
+        ("IoBufRead",DefaultVal::False),
         ("define_this_in_the_impl_InterfaceType_macro",DefaultVal::Hidden),
     ];
 

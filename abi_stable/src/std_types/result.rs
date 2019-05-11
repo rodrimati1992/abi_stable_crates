@@ -1,3 +1,11 @@
+use std::fmt::Debug;
+
+use core_extensions::matches;
+
+use crate::std_types::{ROption,RSome,RNone};
+
+
+
 /// Ffi-safe equivalent of `Result<T,E>`.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
@@ -13,6 +21,17 @@ pub enum RResult<T, E> {
 pub use self::RResult::*;
 
 impl<T, E> RResult<T, E> {
+    /// Converts from `RResult<T,E>` to `RResult<&T,&E>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).as_ref(),ROk(&10));
+    /// assert_eq!(RErr::<u32,u32>(5).as_ref(),RErr(&5));
+    ///
+    /// ```
     #[inline]
     pub fn as_ref(&self) -> RResult<&T, &E> {
         match self {
@@ -21,6 +40,17 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Converts from `RResult<T,E>` to `RResult<&mut T,&mut E>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).as_mut(),ROk(&mut 10));
+    /// assert_eq!(RErr::<u32,u32>(5).as_mut(),RErr(&mut 5));
+    ///
+    /// ```
     #[inline]
     pub fn as_mut(&mut self) -> RResult<&mut T, &mut E> {
         match self {
@@ -29,27 +59,67 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Returns whether `self` is an `ROk`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).is_rok(),true);
+    /// assert_eq!(RErr::<u32,u32>(5).is_rok(),false);
+    ///
+    /// ```
     #[inline]
-    pub fn as_result(&self) -> Result<&T, &E> {
-        match self {
-            ROk(v) => Ok(v),
-            RErr(v) => Err(v),
-        }
+    pub fn is_rok(&self)->bool{
+        matches!{ ROk{..}=self }
     }
 
+    /// Returns whether `self` is an `RErr`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).is_rerr(),false);
+    /// assert_eq!(RErr::<u32,u32>(5).is_rerr(),true);
+    ///
+    /// ```
     #[inline]
-    pub fn as_result_mut(&mut self) -> Result<&mut T, &mut E> {
-        match self {
-            ROk(v) => Ok(v),
-            RErr(v) => Err(v),
-        }
+    pub fn is_rerr(&self)->bool{
+        matches!{ RErr{..}=self }
     }
 
+
+    /// Converts from `RResult<T,E>` to `Result<T,E>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).into_result(),Ok (10));
+    /// assert_eq!(RErr::<u32,u32>(5).into_result(),Err(5));
+    ///
+    /// ```
     #[inline]
     pub fn into_result(self) -> Result<T, E> {
         self.into()
     }
 
+    /// Converts the `RResult<T,E>` to a `RResult<U,E>` by transforming the value in ROk
+    /// using the `op` closure.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).map(|x| x*3 ),ROk(30));
+    /// assert_eq!(RErr::<u32,u32>(5).map(|x| x/2 ),RErr(5));
+    ///
+    /// ```
     #[inline]
     pub fn map<U, F>(self, op: F) -> RResult<U, E>
     where
@@ -61,6 +131,18 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Converts the `RResult<T,E>` to a `RResult<U,F>` by transforming the value in RErr
+    /// using the `op` closure.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).map_err(|x| x*3 ),ROk(10));
+    /// assert_eq!(RErr::<u32,u32>(5).map_err(|x| x/2 ),RErr(2));
+    ///
+    /// ```
     #[inline]
     pub fn map_err<F, O>(self, op: O) -> RResult<T, F>
     where
@@ -72,15 +154,54 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Converts the `RResult<T,E>` to a `U` by 
+    /// transforming the value in ROk using the `with_ok` closure,
+    /// otherwise transforming the value in RErr using the `with_err` closure,
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).map_or_else(|_|77 ,|x| x*3 ),30);
+    /// assert_eq!(RErr::<u32,u32>(5).map_or_else(|e|e*4,|x| x/2 ),20);
+    ///
+    /// ```
     #[inline]
-    pub fn map_or_else<U, M, F>(self, fallback: F, map: M) -> U
+    pub fn map_or_else<U, M, F>(self, with_err: F, with_ok: M) -> U
     where
         M: FnOnce(T) -> U,
         F: FnOnce(E) -> U,
     {
-        self.map(map).unwrap_or_else(fallback)
+        self.map(with_ok).unwrap_or_else(with_err)
     }
 
+    /// Calls the `op` closure with the value of ROk,
+    /// otherwise returning the RErr unmodified.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(
+    ///     ROk::<u32,u32>(10).and_then(|x| ROk ::<u32,u32>(x*3) ),
+    ///     ROk (30),
+    /// );
+    /// assert_eq!(
+    ///     ROk::<u32,u32>(10).and_then(|x| RErr::<u32,u32>(x*3)),
+    ///     RErr(30),
+    /// );
+    /// assert_eq!(
+    ///     RErr::<u32,u32>(5).and_then(|x| ROk ::<u32,u32>(x/2) ),
+    ///     RErr(5),
+    /// );
+    /// assert_eq!(
+    ///     RErr::<u32,u32>(5).and_then(|x| RErr::<u32,u32>(x/2) ),
+    ///     RErr(5),
+    /// );
+    ///
+    /// ```
     #[inline]
     pub fn and_then<U, F>(self, op: F) -> RResult<U, E>
     where
@@ -92,6 +213,20 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Calls the `op` closure with the value of RErr,
+    /// otherwise returning the ROk unmodified.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).or_else(|e| ROk ::<u32,u32>(e*3) ) ,ROk(10));
+    /// assert_eq!(ROk::<u32,u32>(10).or_else(|e| RErr::<u32,u32>(e*3)) ,ROk(10));
+    /// assert_eq!(RErr::<u32,u32>(5).or_else(|e| ROk ::<u32,u32>(e/2) ),ROk (2));
+    /// assert_eq!(RErr::<u32,u32>(5).or_else(|e| RErr::<u32,u32>(e/2) ),RErr(2));
+    ///
+    /// ```
     #[inline]
     pub fn or_else<F, O>(self, op: O) -> RResult<T, F>
     where
@@ -103,6 +238,61 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Unwraps `self`, returning the value in Ok.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `self` is an `Err(_)` with an error message 
+    /// using `E`s Debug implementation.
+    pub fn unwrap(self) -> T 
+    where 
+        E:Debug
+    {
+        self.into_result().unwrap()
+    }
+
+    /// Unwraps `self`, returning the value in Ok.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `self` is an `Err(_)` with an error message 
+    /// using `E`s Debug implementation,
+    /// as well as `message`.
+    pub fn expect(self, message: &str) -> T
+    where 
+        E:Debug
+    {
+        self.into_result().expect(message)
+    }
+
+    /// Unwraps `self`, returning the value in Err.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `self` is an `Ok(_)` with an error message 
+    /// using `T`s Debug implementation.
+    pub fn unwrap_err(self) -> E
+    where 
+        T:Debug
+    {
+        self.into_result().unwrap_err()
+    }
+
+    /// Unwraps `self`, returning the value in Err.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `self` is an `Ok(_)` with an error message 
+    /// using `T`s Debug implementation,
+    /// as well as `message`.
+    pub fn expect_err(self, message: &str) -> E
+    where 
+        T:Debug
+    {
+        self.into_result().expect_err(message)
+    }
+
+    /// Returns the value in the `RResult<T,E>`,or `def` if `self` is `RErr`.
     #[inline]
     pub fn unwrap_or(self, optb: T) -> T {
         match self {
@@ -111,6 +301,18 @@ impl<T, E> RResult<T, E> {
         }
     }
 
+    /// Returns the value in the `RResult<T,E>`,
+    /// or calls `def` with the error in `RErr`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).unwrap_or_else(|e| e*3 ),10);
+    /// assert_eq!(RErr::<u32,u32>(5).unwrap_or_else(|e| e/2 ),2);
+    ///
+    /// ```
     #[inline]
     pub fn unwrap_or_else<F>(self, op: F) -> T
     where
@@ -119,6 +321,68 @@ impl<T, E> RResult<T, E> {
         match self {
             ROk(t) => t,
             RErr(e) => op(e),
+        }
+    }
+
+    /// Returns the value in the `RResult<T,E>`,
+    /// or returns `T::default()` it `self` is an `RErr`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).unwrap_or_default(),10);
+    /// assert_eq!(RErr::<u32,u32>(5).unwrap_or_default(),0);
+    ///
+    /// ```
+    #[inline]
+    pub fn unwrap_or_default(self) -> T
+    where
+        T:Default
+    {
+        match self {
+            ROk(t) => t,
+            RErr(_) => Default::default(),
+        }
+    }
+
+    /// Converts from RResult<T, E> to ROption<T>,ROk maps to RSome,RErr maps to RNone.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).ok(),RSome(10));
+    /// assert_eq!(RErr::<u32,u32>(5).ok(),RNone);
+    ///
+    /// ```
+    #[inline]
+    pub fn ok(self)->ROption<T>{
+        match self {
+            ROk(t)  => RSome(t),
+            RErr(_) => RNone,
+        }
+    }
+
+
+    /// Converts from RResult<T, E> to ROption<T>,ROk maps to RNone,RErr maps to RSome.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).err(),RNone);
+    /// assert_eq!(RErr::<u32,u32>(5).err(),RSome(5));
+    ///
+    /// ```
+    #[inline]
+    pub fn err(self)->ROption<E>{
+        match self {
+            ROk(_)  => RNone,
+            RErr(v) => RSome(v),
         }
     }
 }
@@ -143,4 +407,25 @@ impl_into_rust_repr! {
             }
         }
     }
+}
+
+
+
+/////////////////////////////////////////////////////////////////////
+
+
+#[cfg(test)]
+mod test{
+    use super::*;
+
+
+    #[test]
+    fn from_into(){
+        assert_eq!(RResult::from(Ok ::<u32,u32>(10)),ROk(10));
+        assert_eq!(RResult::from(Err::<u32,u32>(4)),RErr(4));
+
+        assert_eq!(ROk::<u32,u32>(10).into_result(),Ok(10));
+        assert_eq!(RErr::<u32,u32>(4).into_result(),Err(4));
+    }
+
 }

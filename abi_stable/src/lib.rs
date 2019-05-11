@@ -52,7 +52,7 @@ are necessary to load the library at runtime.
 loads 1 or more `ìmplementation crate`s for it.
 
 `module`:refers to a struct of function pointers and other static values,
-and implement the ModuleTrait trait.
+and implement the RootModule trait.
 These are declared in the `interface crate`,exported in the `implementation crate`,
 and loaded in the `user crate`.
 
@@ -68,7 +68,7 @@ These are the kinds of types passed through FFI:
     This is the default kind when deriving StableAbi.
 
 - Opaque kind:
-    Types wrapped in `VirtualWrapper<SomePointer<ZeroSized<Interface>>>`,
+    Types wrapped in `DynTrait<SomePointer<()>,Interface>`,
     whose layout can change in any version of the library,
     and can only be unwrapped back to the original type in the dynamic library/binary 
     that created it.
@@ -104,6 +104,7 @@ To represent non-exhaustive enums without fields it is recommended using structs
 */
 
 #![allow(unused_unsafe)]
+#![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
 
 #[macro_use]
@@ -139,11 +140,19 @@ mod test_macros;
 mod test_utils;
 
 #[macro_use]
+pub mod utils;
+
+#[macro_use]
+pub mod const_utils;
+
+#[macro_use]
 pub mod traits;
+
 
 #[macro_use]
 pub mod abi_stability;
 // pub mod cabi_type;
+// pub mod as_proxy;
 pub mod erased_types;
 // pub mod immovable_wrapper;
 pub mod library;
@@ -161,7 +170,6 @@ pub mod derive_macro_reexports;
 pub mod std_types;
 
 
-pub mod utils;
 pub mod lazy_static_ref;
 pub mod type_level;
 pub mod version;
@@ -187,13 +195,10 @@ allocators,please create an issue for this.
 use std::sync::atomic::AtomicUsize;
 static EXECUTABLE_IDENTITY: AtomicUsize = AtomicUsize::new(1);
 
-use crate::abi_stability::stable_abi_trait::SharedStableAbi;
-
 #[doc(inline)]
 pub use crate::{
     abi_stability::StableAbi,
-    erased_types::{VirtualWrapper,ImplType, InterfaceType},
-    marker_type::{ErasedObject, ZeroSized},
+    erased_types::{DynTrait,ImplType, InterfaceType},
 };
 
 

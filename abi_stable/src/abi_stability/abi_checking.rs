@@ -16,11 +16,14 @@ use super::{
         TypeLayout, TLData, TLDataDiscriminant, TLEnumVariant, TLField,TLFieldAndType, 
         FullType,
     },
+    tagging::{CheckableTag,TagErrors},
 };
 use crate::{
     version::{ParseVersionError, VersionStrings},
+    prefix_type::{FieldAccessibility,IsConditional},
     std_types::{RVec, StaticSlice, StaticStr,utypeid::UTypeId,RBoxError,RResult},
     traits::IntoReprC,
+    utils::min_max_by,
 };
 
 /// All the errors from checking the layout of every nested type in AbiInfo.
@@ -47,7 +50,7 @@ pub struct AbiInstabilityError {
 }
 
 /// An individual error from checking the layout of some type.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq,Clone)]
 #[repr(C)]
 pub enum AbiInstability {
     IsPrefix(ExpectedFoundError<bool>),
@@ -62,10 +65,15 @@ pub enum AbiInstability {
     GenericParamCount(ExpectedFoundError<FullType>),
     TLDataDiscriminant(ExpectedFoundError<TLDataDiscriminant>),
     FieldCountMismatch(ExpectedFoundError<usize>),
-    FieldLifetimeMismatch(ExpectedFoundError<&'static TLField>),
-    UnexpectedField(ExpectedFoundError<&'static TLField>),
+    FieldLifetimeMismatch(ExpectedFoundError<TLField>),
+    UnexpectedField(ExpectedFoundError<TLField>),
     TooManyVariants(ExpectedFoundError<usize>),
+    MismatchedPrefixConditionality(ExpectedFoundError<StaticSlice<IsConditional>>),
     UnexpectedVariant(ExpectedFoundError<TLEnumVariant>),
+    TagError{
+        expected_found:ExpectedFoundError<CheckableTag>,
+        err:TagErrors,
+    },
 }
 
 
@@ -74,11 +82,17 @@ use self::AbiInstability as AI;
 
 impl AbiInstabilityErrors {
     #[cfg(test)]
-    pub fn flatten_errors(self) -> RVec<AbiInstability> {
-        self.errors
-            .into_iter()
-            .flat_map(|x| x.errs)
+    pub fn flatten_errors(&self) -> RVec<AbiInstability> {
+        self.flattened_errors()
             .collect::<RVec<AbiInstability>>()
+    }
+
+    #[cfg(test)]
+    pub fn flattened_errors<'a>(&'a self) -> impl Iterator<Item=AbiInstability>+'a {
+        self.errors
+            .iter()
+            .flat_map(|x| &x.errs )
+            .cloned()
     }
 }
 
@@ -102,6 +116,8 @@ impl fmt::Display for AbiInstabilityErrors {
 }
 impl fmt::Display for AbiInstabilityError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut extra_err=None::<String>;
+
         writeln!(f, "{} error(s) at:", self.errs.len())?;
         write!(f, "<this>")?;
         for field in &self.stack_trace {
@@ -146,7 +162,16 @@ impl fmt::Display for AbiInstabilityError {
                 }
                 AI::UnexpectedField(v) => ("unexpected field", v.debug_str()),
                 AI::TooManyVariants(v) => ("too many variants", v.display_str()),
+                AI::MismatchedPrefixConditionality(v)=>(
+                    "prefix fields differ in whether they are conditional",
+                    v.debug_str()
+                ),
                 AI::UnexpectedVariant(v) => ("unexpected variant", v.debug_str()),
+                AI::TagError{expected_found,err} => {
+                    extra_err=Some(err.to_string());
+
+                    ("incompatible tag", expected_found.display_str())
+                },
             };
 
             writeln!(
@@ -154,12 +179,28 @@ impl fmt::Display for AbiInstabilityError {
                 "\nError:{}\nExpected:\n{}\nFound:\n{}",
                 error_msg,
                 expected_err.expected.left_padder(4),
-                expected_err.found.left_padder(4),
+                expected_err.found   .left_padder(4),
             )?;
+            if let Some(extra_err)=&extra_err {
+                writeln!(f,"\nExtra:\n{}\n",extra_err.left_padder(4))?;
+            }
         }
         Ok(())
     }
 }
+
+//////
+
+
+/// What is AbiChecker::check_fields being called with.
+#[derive(Debug,Copy,Clone, PartialEq,Eq,Ord,PartialOrd,Hash)]
+#[repr(C)]
+enum FieldContext{
+    Fields,
+    Subfields,
+    PhantomFields,
+}
+
 
 //////
 
@@ -187,7 +228,7 @@ impl CheckingUTypeId{
 //////
 
 /// Represents an error where a value was expected,but another value was found.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq,Clone)]
 #[repr(C)]
 pub struct ExpectedFoundError<T> {
     expected: T,
@@ -284,11 +325,15 @@ impl AbiChecker {
         &mut self,
         errs: &mut RVec<AbiInstability>,
         t_lay: &'static TypeLayout,
-        t_fields: StaticSlice<TLField>,
-        o_fields: StaticSlice<TLField>,
+        o_lay: &'static TypeLayout,
+        ctx:FieldContext,
+        t_fields: &[TLField],
+        o_fields: &[TLField],
     ) {
-        let t_fields = t_fields.as_slice();
-        let o_fields = o_fields.as_slice();
+        if t_fields.is_empty()&&o_fields.is_empty() {
+            return;
+        }
+
         let is_prefix= t_lay.data.discriminant() == TLDataDiscriminant::PrefixType;
         match (t_fields.len().cmp(&o_fields.len()), is_prefix) {
             (Ordering::Greater, _) | (Ordering::Less, false) => {
@@ -302,39 +347,64 @@ impl AbiChecker {
             }
             (Ordering::Equal, _) | (Ordering::Less, true) => {}
         }
+        
+        let acc_fields:Option<(FieldAccessibility,FieldAccessibility)>=
+            match (&t_lay.data,&o_lay.data) {
+                (TLData::PrefixType(t_prefix), TLData::PrefixType(o_prefix))=>
+                    Some((t_prefix.accessible_fields, o_prefix.accessible_fields)),
+                _=>None,
+            };
 
-        let mut t_fields_iter=t_fields.iter().peekable();
-        let mut o_fields_iter=o_fields.iter().peekable();
-        while let (Some(&this_f),Some(&other_f))=(t_fields_iter.peek(),o_fields_iter.peek()) {
+
+        for (field_i,(this_f,other_f)) in t_fields.iter().zip(o_fields).enumerate() {
             if this_f.name != other_f.name {
-                push_err(errs, this_f, other_f, |x| x, AI::UnexpectedField);
-                // Skipping this field so that the error message does not 
-                // list all the other fields that they have in common.
-                if t_fields.len() < o_fields.len() {
-                    o_fields_iter.next();
-                }else{
-                    t_fields_iter.next();
-                }
+                push_err(errs, this_f, other_f, |x| *x, AI::UnexpectedField);
                 continue;
             }
-            
-            self.check_fields(
-                errs,
-                t_lay,
-                this_f.subfields,
-                other_f.subfields,
-            );
 
-            if this_f.lifetime_indices != other_f.lifetime_indices {
-                push_err(errs, this_f, other_f, |x| x, AI::FieldLifetimeMismatch);
+            let t_field_abi=this_f.abi_info.get();
+            let o_field_abi=other_f.abi_info.get();
+
+            let is_accessible=match (ctx,acc_fields) {
+                (FieldContext::Fields,Some((l,r))) => {
+                    l.is_accessible(field_i)&&r.is_accessible(field_i)
+                },
+                _ => true,
+            };
+
+            if is_accessible {
+
+                if this_f.lifetime_indices != other_f.lifetime_indices {
+                    push_err(errs, this_f, other_f, |x| *x, AI::FieldLifetimeMismatch);
+                }
+
+                self.stack_trace.push(TLFieldAndType::new(*this_f));
+                    
+                let sf_ctx=FieldContext::Subfields;
+                // Used to check function pointer parameter and return types
+                self.check_fields(errs,t_lay,o_lay,sf_ctx,&this_f.subfields,&other_f.subfields);
+
+                self.check_inner(t_field_abi, o_field_abi);
+            }else{
+                self.stack_trace.push(TLFieldAndType::new(*this_f));
+                
+                let t_field_layout=&t_field_abi.layout;
+                let o_field_layout=&o_field_abi.layout;
+                if  t_field_layout.size!=o_field_layout.size {
+                    push_err(errs, t_field_layout, o_field_layout, |x| x.size, AI::Size);
+                }
+                if t_field_layout.alignment != o_field_layout.alignment {
+                    push_err(
+                        errs, 
+                        t_field_layout, 
+                        o_field_layout, 
+                        |x| x.alignment, 
+                        AI::Alignment
+                    );
+                }
             }
 
-            self.stack_trace.push(TLFieldAndType::new(this_f));
-            self.check_inner(this_f.abi_info.get(), other_f.abi_info.get());
             self.stack_trace.pop();
-
-            t_fields_iter.next();
-            o_fields_iter.next();
         }
     }
 
@@ -396,17 +466,21 @@ impl AbiChecker {
                 let t_gens = &t_lay.full_type.generics;
                 let o_gens = &o_lay.full_type.generics;
                 if t_gens.lifetime.len() != o_gens.lifetime.len()
-                    || t_gens.type_.len() != o_gens.type_.len()
-                    || t_gens.const_.len() != o_gens.const_.len()
+                    // || t_gens.type_.len() != o_gens.type_.len()
+                    // || t_gens.const_.len() != o_gens.const_.len()
                 {
                     push_err(errs, t_lay, o_lay, |x| x.full_type, AI::GenericParamCount);
                 }
             }
+
+            // Checking phantom fields
             self.check_fields(
                 errs,
                 this.layout,
-                this.layout.phantom_fields,
-                other.layout.phantom_fields,
+                other.layout,
+                FieldContext::PhantomFields,
+                &this.layout.phantom_fields,
+                &other.layout.phantom_fields,
             );
 
             match (t_lay.size.cmp(&o_lay.size), this.prefix_kind) {
@@ -428,11 +502,30 @@ impl AbiChecker {
                 }));
             }
 
+            let t_tag=t_lay.tag.to_checkable();
+            let o_tag=o_lay.tag.to_checkable();
+            if let Err(tag_err)=t_tag.check_compatible(&o_tag) {
+                errs.push(AI::TagError{
+                    expected_found:ExpectedFoundError{
+                        expected:t_tag,
+                        found:o_tag,
+                    },
+                    err:tag_err,
+                });
+            }
+
             match (t_lay.data, o_lay.data) {
                 (TLData::Primitive, TLData::Primitive) => {}
                 (TLData::Primitive, _) => {}
                 (TLData::Struct { fields: t_fields }, TLData::Struct { fields: o_fields }) => {
-                    self.check_fields(errs, this.layout, t_fields, o_fields);
+                    self.check_fields(
+                        errs, 
+                        this.layout,
+                        other.layout,
+                        FieldContext::Fields, 
+                        &t_fields, 
+                        &o_fields
+                    );
                 }
                 (TLData::Struct { .. }, _) => {}
                 (TLData::Enum { variants: t_varis }, TLData::Enum { variants: o_varis }) => {
@@ -448,18 +541,25 @@ impl AbiChecker {
                             push_err(errs, *t_vari, *o_vari, |x| x, AI::UnexpectedVariant);
                             continue;
                         }
-                        self.check_fields(errs, this.layout, t_vari.fields, o_vari.fields);
+                        self.check_fields(
+                            errs, 
+                            this.layout, 
+                            other.layout, 
+                            FieldContext::Fields,
+                            &t_vari.fields, 
+                            &o_vari.fields
+                        );
                     }
                 }
                 (TLData::Enum { .. }, _) => {}
                 (
-                    TLData::PrefixType {..},
-                    TLData::PrefixType {..},
+                    TLData::PrefixType (t_prefix),
+                    TLData::PrefixType (o_prefix),
                 ) => {
-                    let this_prefix=PrefixTypeMetadata::new(t_lay);
-                    let other_prefix=PrefixTypeMetadata::new(o_lay);
+                    let this_prefix =PrefixTypeMetadata::with_prefix_layout(t_prefix,t_lay);
+                    let other_prefix=PrefixTypeMetadata::with_prefix_layout(o_prefix,o_lay);
 
-                    self.check_prefix_types(errs,this_prefix,other_prefix);
+                    self.check_prefix_types(errs,&this_prefix,&other_prefix);
 
                     self.checked_prefix_types.push(
                         CheckedPrefixTypes{this,this_prefix,other,other_prefix}
@@ -483,16 +583,26 @@ impl AbiChecker {
     fn check_prefix_types(
         &mut self,
         errs: &mut RVec<AbiInstability>,
-        this: PrefixTypeMetadata,
-        other: PrefixTypeMetadata,
+        this: &PrefixTypeMetadata,
+        other: &PrefixTypeMetadata,
     ){
         if this.prefix_field_count != other.prefix_field_count {
             push_err(
                 errs,
-                this ,
+                this,
                 other,
                 |x| x.prefix_field_count ,
                 AI::MismatchedPrefixSize
+            );
+        }
+
+        if this.conditional_prefix_fields != other.conditional_prefix_fields {
+            push_err(
+                errs,
+                this,
+                other,
+                |x| StaticSlice::new(x.conditional_prefix_fields) ,
+                AI::MismatchedPrefixConditionality
             );
         }
 
@@ -500,8 +610,10 @@ impl AbiChecker {
         self.check_fields(
             errs,
             this.layout,
-            this.fields,
-            other.fields
+            other.layout,
+            FieldContext::Fields,
+            &this.fields,
+            &other.fields
         );
     }
 
@@ -524,15 +636,18 @@ impl AbiChecker {
             // let o_fields=pair.other_prefix.fields;
 
             let t_index=prefix_type_map.get_index(&t_utid);
-            let o_index=prefix_type_map.get_index(&o_utid);
+            let mut o_index=prefix_type_map.get_index(&o_utid);
 
-            let max_prefix=pair.this_prefix.max(pair.other_prefix);
+            if t_index==o_index{
+                o_index=None;
+            }
 
-            // println!("t_index:{:?}o_index:{:?}",t_index,o_index);
-            // println!("t_utid:{:?}\no_utid:{:?}",t_utid,o_utid);
+            let (min_prefix,mut max_prefix)=pair.this_prefix.min_max(pair.other_prefix);
 
             match (t_index,o_index) {
                 (None,None)=>{
+                    max_prefix.combine_fields_from(&min_prefix);
+
                     let i=prefix_type_map
                         .get_or_insert(t_utid,max_prefix)
                         .into_inner()
@@ -540,22 +655,32 @@ impl AbiChecker {
                     prefix_type_map.associate_key(o_utid,i);
                 }
                 (Some(im_index),None)|(None,Some(im_index))=>{
-                    let im_prefix=prefix_type_map.get_mut_with_index(im_index).unwrap();
-                    
-                    let (l_pre,r_pre)=(*im_prefix).min_max(max_prefix);
+                    max_prefix.combine_fields_from(&min_prefix);
 
-                    self.check_prefix_types(errs,l_pre,r_pre);
+                    let im_prefix=prefix_type_map.get_mut_with_index(im_index).unwrap();
+                    let im_prefix_addr=im_prefix as *const _ as usize;
+
+                    let (min_prefix,max_prefix)=
+                        min_max_by(im_prefix,&mut max_prefix,|x|x.fields.len());
+
+                    self.check_prefix_types(errs,min_prefix,max_prefix);
                     if !errs.is_empty() { break; }
+
+                    max_prefix.combine_fields_from(&*min_prefix);
                     
-                    *im_prefix=im_prefix.max(max_prefix);
-                    drop(im_prefix);
+                    if im_prefix_addr != (max_prefix as *mut _ as usize) {
+                        mem::swap(min_prefix,max_prefix);
+                    }
+                    
                     prefix_type_map.associate_key(t_utid,im_index);
                     prefix_type_map.associate_key(o_utid,im_index);
 
                 }
                 (Some(l_index),Some(r_index))=>{
-                    let l_prefix=*prefix_type_map.get_with_index(l_index).unwrap();
-                    let r_prefix=*prefix_type_map.get_with_index(r_index).unwrap();
+                    let (l_prefix,r_prefix)=
+                        prefix_type_map.get2_mut_with_index(l_index,r_index);
+                    let l_prefix=l_prefix.unwrap();
+                    let r_prefix=r_prefix.unwrap();
 
                     let (replace,with)=if l_prefix.fields.len() < r_prefix.fields.len() {
                         (l_index,r_index)
@@ -563,22 +688,16 @@ impl AbiChecker {
                         (r_index,l_index)
                     };
 
-                    let (l_pre,r_pre)=l_prefix.min_max(r_prefix);
-                    self.check_prefix_types(errs,l_pre,r_pre);
+                    let (min_prefix,max_prefix)=min_max_by(l_prefix,r_prefix,|x|x.fields.len());
+                    self.check_prefix_types(errs,min_prefix,max_prefix);
                     if !errs.is_empty() { break; }
 
-                    if l_prefix.fields.len() != r_prefix.fields.len() {
-                        prefix_type_map.replace_with_index(replace,with);
-                    }
+                    max_prefix.combine_fields_from(&*min_prefix);
+
+                    prefix_type_map.replace_with_index(replace,with);
+
                 }
             }
-
-            // println!(
-            //     "t_prefix:{:p}\no_prefix:{:p}",
-            //     &prefix_type_map[&t_utid],
-            //     &prefix_type_map[&o_utid],
-            // );
-
         }
 
         if errs_.is_empty() {
@@ -594,13 +713,6 @@ impl AbiChecker {
     }
 }
 
-// pub(super) fn check_abi_stability_for<Interface, Impl>() -> Result<(), AbiInstabilityErrors>
-// where
-//     Interface: StableAbi,
-//     Impl: StableAbi,
-// {
-//     check_abi_stability(Interface::ABI_INFO, Impl::ABI_INFO)
-// }
 
 /**
 Checks that the layout of `interface` is compatible with `implementation`.

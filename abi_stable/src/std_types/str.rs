@@ -34,11 +34,24 @@ impl RStr<'static> {
 }
 
 impl<'a> RStr<'a> {
+    /// Constructs an empty `RStr<'a>`.
     #[inline]
     pub const fn empty() -> Self {
         Self::EMPTY
     }
 
+    /// Constructs an `RStr<'a>` from a pointer to the first byte,
+    /// and a length.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that:
+    ///
+    /// - ptr_ points to valid memory,
+    ///
+    /// - `ptr_ .. ptr+len` range is accessible memory,and is valid utf-8.
+    ///
+    /// - the data ptr_ points to must be valid for the lifetime of this `RStr<'a>`
     #[inline]
     pub const unsafe fn from_raw_parts(ptr_: *const u8, len: usize) -> Self {
         Self {
@@ -46,6 +59,7 @@ impl<'a> RStr<'a> {
         }
     }
 
+    /// Converts `&'a str` to a `RStr<'a>`.
     #[inline]
     pub fn from_str(s: &'a str) -> Self {
         unsafe {
@@ -66,16 +80,19 @@ impl<'a> RStr<'a> {
         self.as_str().index(i).into()
     }
 
+    /// Accesses the underlying byte slice.
     #[inline]
     pub fn as_rslice(&self) -> RSlice<'a, u8> {
         self.inner
     }
 
+    /// Casts this `RStr<'a>` to a `&'a str`.
     #[inline]
     pub fn as_str(&self) -> &'a str {
         unsafe { str::from_utf8_unchecked(self.inner.as_slice()) }
     }
 
+    /// Gets the length(in bytes) of this `RStr<'a>`.
     #[inline]
     pub const fn len(&self) -> usize {
         self.inner.len()

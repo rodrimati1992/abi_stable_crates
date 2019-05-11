@@ -1,24 +1,22 @@
 /*!
 This is an `implementation crate`,
-It exports all the modules(structs of function pointers) required by the 
-`example_0_interface`(the `interface crate`) with these functions:
-
-- get_library: Exports the root module 
-- get_hello_world_mod :Exports an example module.
+It exports the root module(a struct of function pointers) required by the 
+`example_0_interface`(the `interface crate`) in the 
+version of `get_library` with a mangled function name.
 
 */
 
 use std::{
+    borrow::Cow,
     collections::HashSet,
+    marker::PhantomData,
 };
 
 use example_0_interface::{
-    RemoveWords, 
-    TextOpsMod,HelloWorldMod,TextOpsMod_Prefix,
-    DeserializerMod,
+    RemoveWords, CowStrIter,
+    TextOpsMod,TextOpsModVal,
+    DeserializerModVal,
     TOState, TOStateBox,TOCommand,TOReturnValue,TOCommandBox,TOReturnValueArc,
-    PrefixTypeMod0,
-    ForTests
 };
 
 use abi_stable::{
@@ -29,7 +27,7 @@ use abi_stable::{
     prefix_type::{PrefixTypeTrait,WithMetadata},
     traits::{IntoReprC},
     std_types::{RCow, RStr,RBox,RVec,RArc, RString,RResult,ROk,RErr,RBoxError}, 
-    StableAbi, VirtualWrapper,
+    DynTrait,
 };
 use core_extensions::{SelfOps,StringExt};
 
@@ -45,7 +43,7 @@ use serde_json;
 /// WithLayout is used to check that the layout of `TextOpsMod` in this dynamic library
 /// is compatible with the layout of it in the binary that loads this library.
 #[export_sabi_module]
-pub extern "C" fn get_library() -> WithLayout<TextOpsMod_Prefix> {
+pub extern "C" fn get_library() -> WithLayout<TextOpsMod> {
     extern_fn_panic_handling!{
         instantiate_root_module()
             .piped(WithLayout::from_prefix)
@@ -53,33 +51,25 @@ pub extern "C" fn get_library() -> WithLayout<TextOpsMod_Prefix> {
 }
 
 
-fn instantiate_root_module()->&'static TextOpsMod_Prefix{
-    TextOpsMod {
+fn instantiate_root_module()->&'static TextOpsMod{
+    TextOpsModVal {
         new,
-        hello_world:HelloWorldMod{
-            greeter,
-            for_tests,
-        }.leak_into_prefix(),
         deserializers:{
             // Another way to instantiate a module.
-            const MOD_:DeserializerMod=DeserializerMod{
+            const MOD_:DeserializerModVal=DeserializerModVal{
                 deserialize_state,
                 deserialize_command,
+                deserialize_command_borrowing,
                 deserialize_return_value,
             };
-            static WITH_META:WithMetadata<DeserializerMod>=
+            static WITH_META:WithMetadata<DeserializerModVal>=
                 WithMetadata::new(PrefixTypeTrait::METADATA,MOD_);
             WITH_META.as_prefix()
         },
         reverse_lines,
-        remove_words_cow,
-        remove_words_str,
-        remove_words_string: remove_words,
+        remove_words,
         get_processed_bytes,
         run_command,
-        prefix_types_tests:PrefixTypeMod0{
-            field_a:123,
-        }.leak_into_prefix(),
     }.leak_into_prefix()
 }
 
@@ -95,9 +85,9 @@ struct TextOperationState {
 /// Declares TOState as the `ìnterface type` of `TextOperationState`.
 ///
 /// Also declares the INFO constant,with information about the type,
-/// used when erasing/unerasing the type with `VirtualWrapper<_>`.
+/// used when erasing/unerasing the type with `DynTrait<_>`.
 ///
-/// TOState defines which traits are required when constructing VirtualWrapper<_>,
+/// TOState defines which traits are required when constructing DynTrait<_>,
 /// and which ones it provides after constructing it.
 impl ImplType for TextOperationState {
     type Interface = TOState;
@@ -105,9 +95,9 @@ impl ImplType for TextOperationState {
     const INFO: &'static TypeInfo=impl_get_type_info! { TextOperationState };
 }
 
-/// Defines how the type is serialized in VirtualWrapper<_>.
+/// Defines how the type is serialized in DynTrait<_>.
 impl SerializeImplType for TextOperationState {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
+    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError> {
         serialize_json(self)
     }
 }
@@ -117,32 +107,45 @@ impl SerializeImplType for TextOperationState {
 
 
 #[derive(Debug,Serialize,Deserialize,PartialEq)]
-pub enum Command {
+pub enum Command<'a> {
     ReverseLines(RString),
     RemoveWords{
         string:RString,
         words:RVec<RString>,
+        #[serde(skip)]
+        _marker:PhantomData<&'a mut RString>,
     },
     GetProcessedBytes,
-    Batch(RVec<Command>),
+    Batch(RVec<Command<'a>>),
 }
+
+
+
+impl<'a> Iterator for Command<'a>{
+    type Item=&'a mut RString;
+
+    fn next(&mut self)->Option<Self::Item>{
+        None
+    }
+}
+
 
 /// Declares TOState as the `ìnterface type` of `TOCommand`.
 ///
 /// Also declares the INFO constant,with information about the type,
-/// used when erasing/unerasing the type with `VirtualWrapper<_>`.
+/// used when erasing/unerasing the type with `DynTrait<_>`.
 ///
-/// TOCommand defines which traits are required when constructing VirtualWrapper<_>,
+/// TOCommand defines which traits are required when constructing DynTrait<_>,
 /// and which ones it provides after constructing it.
-impl ImplType for Command {
+impl ImplType for Command<'static> {
     type Interface = TOCommand;
 
     const INFO: &'static TypeInfo=impl_get_type_info! { Command };
 }
 
-/// Defines how the type is serialized in VirtualWrapper<_>.
-impl SerializeImplType for Command {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
+/// Defines how the type is serialized in DynTrait<_>.
+impl<'borr> SerializeImplType for Command<'borr> {
+    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError> {
         serialize_json(self)
     }
 }
@@ -163,9 +166,9 @@ pub enum ReturnValue {
 /// Declares TOState as the `ìnterface type` of `TOReturnValue`.
 ///
 /// Also declares the INFO constant,with information about the type,
-/// used when erasing/unerasing the type with `VirtualWrapper<_>`.
+/// used when erasing/unerasing the type with `DynTrait<_>`.
 ///
-/// TOReturnValue defines which traits are required when constructing VirtualWrapper<_>,
+/// TOReturnValue defines which traits are required when constructing DynTrait<_>,
 /// and which ones it provides after constructing it.
 impl ImplType for ReturnValue {
     type Interface = TOReturnValue;
@@ -173,9 +176,9 @@ impl ImplType for ReturnValue {
     const INFO: &'static TypeInfo=impl_get_type_info! { ReturnValue };
 }
 
-/// Defines how the type is serialized in VirtualWrapper<_>.
+/// Defines how the type is serialized in DynTrait<_>.
 impl SerializeImplType for ReturnValue {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, RStr<'a>>, RBoxError> {
+    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError> {
         serialize_json(self)
     }
 }
@@ -195,7 +198,7 @@ where
     }
 }
 
-fn serialize_json<'a, T>(value: &'a T) -> Result<RCow<'a, RStr<'a>>, RBoxError>
+fn serialize_json<'a, T>(value: &'a T) -> Result<RCow<'a, str>, RBoxError>
 where
     T: serde::Serialize,
 {
@@ -212,16 +215,29 @@ where
 pub extern "C" fn deserialize_state(s:RStr<'_>) -> RResult<TOStateBox, RBoxError>{
     extern_fn_panic_handling! {
         deserialize_json::<TextOperationState>(s)
-            .map(VirtualWrapper::from_value)
+            .map(DynTrait::from_value)
     }
 }
 
 /// Defines how a TOCommandBox is deserialized from json.
-pub extern "C" fn deserialize_command(s:RStr<'_>) -> RResult<TOCommandBox, RBoxError>{
+pub extern "C" fn deserialize_command(
+    s:RStr<'_>
+) -> RResult<TOCommandBox<'static>, RBoxError>{
     extern_fn_panic_handling! {
         deserialize_json::<Command>(s)
             .map(RBox::new)
-            .map(VirtualWrapper::from_ptr)
+            .map(DynTrait::from_ptr)
+    }
+}
+
+/// Defines how a TOCommandBox is deserialized from json.
+pub extern "C" fn deserialize_command_borrowing<'borr>(
+    s:RStr<'borr>
+) -> RResult<TOCommandBox<'borr>, RBoxError>{
+    extern_fn_panic_handling! {
+        deserialize_json::<Command>(s)
+            .map(RBox::new)
+            .map(|x|DynTrait::from_borrowing_ptr(x,TOCommand))
     }
 }
 
@@ -230,7 +246,7 @@ pub extern "C" fn deserialize_return_value(s:RStr<'_>) -> RResult<TOReturnValueA
     extern_fn_panic_handling! {
         deserialize_json::<ReturnValue>(s)
             .map(RArc::new)
-            .map(VirtualWrapper::from_ptr)
+            .map(DynTrait::from_ptr)
     }
 }
 
@@ -238,13 +254,13 @@ pub extern "C" fn deserialize_return_value(s:RStr<'_>) -> RResult<TOReturnValueA
 
 
 /// Constructs a TextOperationState and erases it by wrapping it into a 
-/// `VirtualWrapper<Box<ZeroSized<TOState>>>`.
+/// `DynTrait<Box<()>,TOState>`.
 pub extern "C" fn new() -> TOStateBox {
     extern_fn_panic_handling! {
         let this=TextOperationState{
             processed_bytes:0,
         };
-        VirtualWrapper::from_value(this)
+        DynTrait::from_value(this)
     }
 }
 
@@ -268,48 +284,25 @@ pub extern "C" fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RSt
     }
 }
 
-/// Removes the words in `param.words` from `param.string`,
-/// as well as the whitespace that comes after it.
-// This is a separate function because ìnitializing `remove_words_str` with `remove_words`
-// does not work,due to some bound lifetime stuff,once it does this function will be obsolete.
-pub extern "C" fn remove_words_str(
-    this: &mut TOStateBox,
-    param: RemoveWords<'_, RStr<'_>>,
-) -> RString {
-    remove_words(this, param)
-}
 
 /// Removes the words in `param.words` from `param.string`,
 /// as well as the whitespace that comes after it.
-// This is a separate function because ìnitializing `remove_words_cow` with `remove_words`
-// does not work,due to some bound lifetime stuff,once it does this function will be obsolete.
-pub extern "C" fn remove_words_cow<'a>(
-    this: &mut TOStateBox,
-    param: RemoveWords<'a, RCow<'a,RStr<'a>>>,
-) -> RString {
-    remove_words(this, param)
-}
-
-/// Removes the words in `param.words` from `param.string`,
-/// as well as the whitespace that comes after it.
-pub extern "C" fn remove_words<S>(this: &mut TOStateBox, param: RemoveWords<S>) -> RString
-where
-    S: AsRef<str> + Clone + StableAbi,
-{
+pub extern "C" fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,'_>) -> RString{
     extern_fn_panic_handling! {
         let this = this.as_unerased_mut::<TextOperationState>().unwrap();
 
         this.processed_bytes+=param.string.len() as u64;
 
-        let set=param.words.iter().map(|s| s.as_ref_::<str>() ).collect::<HashSet<&str>>();
+        let set=param.words.map(RCow::into).collect::<HashSet<Cow<'_,str>>>();
         let mut buffer=String::new();
 
         let haystack=&*param.string;
         let mut prev_was_deleted=false;
         for kv in haystack.split_while(|c|c.is_alphabetic()) {
             let s=kv.str;
+            let cs=Cow::from(s);
             let is_a_word=kv.key;
-            let is_deleted= (!is_a_word&&prev_was_deleted) || (is_a_word && set.contains(&s));
+            let is_deleted= (!is_a_word&&prev_was_deleted) || (is_a_word && set.contains(&cs));
             if !is_deleted {
                 buffer.push_str(s);
             }
@@ -337,10 +330,12 @@ fn run_command_inner(this:&mut TOStateBox,command:Command)->ReturnValue{
             reverse_lines(this,s.as_rstr())
                 .piped(ReturnValue::ReverseLines)
         }
-        Command::RemoveWords{string,words}=>{
+        Command::RemoveWords{string,words,_marker:_}=>{
+            let iter=&mut words.iter().map(|s| RCow::Borrowed(s.as_rstr()) );
+
             remove_words(this,RemoveWords{
                 string:string.as_rstr(),
-                words:words.as_rslice(),
+                words:DynTrait::from_borrowing_ptr(iter,CowStrIter),
             })
             .piped(ReturnValue::RemoveWords)
         }
@@ -359,44 +354,15 @@ fn run_command_inner(this:&mut TOStateBox,command:Command)->ReturnValue{
 
 
 /// An interpreter for text operation commands
-pub extern "C" fn run_command(this:&mut TOStateBox,command:TOCommandBox)->TOReturnValueArc{
+pub extern "C" fn run_command(
+    this:&mut TOStateBox,
+    command:TOCommandBox<'static>
+)->TOReturnValueArc{
     extern_fn_panic_handling! {
-        let command = command.into_unerased::<Command>().unwrap().piped(RBox::into_inner);
+        let command = command.into_unerased::<Command<'static>>().unwrap().piped(RBox::into_inner);
         run_command_inner(this,command)
             .piped(RArc::new)
-            .piped(VirtualWrapper::from_ptr)
-    }
-}
-
-
-/////////////////////////////////////////////////////////////////////////////
-
-
-pub extern "C" fn greeter(name:RStr<'_>){
-    extern_fn_panic_handling!{
-        println!("Hello, {}!", name);
-    }
-}
-
-pub extern "C" fn for_tests()->ForTests{
-    extern_fn_panic_handling!{
-        let arc=RArc::new(RString::from("hello"));
-        let box_=RBox::new(10);
-        let vec_=RVec::from(vec!["world".into_c()]);
-        let string=RString::from("what the foo.");
-        ForTests{
-            arc_address:(&*arc) as *const _ as usize,
-            arc,
-
-            box_address:(&*box_) as *const _ as usize,
-            box_,
-            
-            vec_address:vec_.as_ptr() as usize,
-            vec_,
-            
-            string_address:string.as_ptr() as usize,
-            string,
-        }
+            .piped(DynTrait::from_ptr)
     }
 }
 
@@ -408,7 +374,7 @@ pub extern "C" fn for_tests()->ForTests{
 mod tests{
     use super::*;
 
-    use example_0_interface::{MODULES,Modules};
+    use example_0_interface::MODULES;
 
     fn setup(){
         MODULES.init(instantiate_root_module);
@@ -418,7 +384,7 @@ mod tests{
     fn test_reverse_lines() {
         let mut state = new();
         assert_eq!(
-            &*reverse_lines(&mut state, "hello\nbig\nworld".into(),()),
+            &*reverse_lines(&mut state, "hello\nbig\nworld".into()),
             "world\nbig\nhello\n"
         );
     }
@@ -427,18 +393,20 @@ mod tests{
     fn test_remove_words() {
         let mut state = new();
         {
-            let words = ["burrito".into_c(), "like".into(),"a".into()];
+            let words = ["burrito", "like","a"];
+            let mut iter=words.iter().cloned().map(RCow::from);
             let param = RemoveWords {
                 string: "Monads are like a burrito wrapper.".into(),
-                words: words[..].into_c(),
+                words: DynTrait::from_borrowing_ptr(&mut iter,CowStrIter),
             };
             assert_eq!(&*remove_words(&mut state, param), "Monads are wrapper.");
         }
         {
-            let words = ["largest".into_c(),"is".into()];
+            let words = ["largest","is"];
+            let mut iter=words.iter().cloned().map(RCow::from);
             let param = RemoveWords {
                 string: "The   largest planet  is    jupiter.".into(),
-                words: words[..].into_c(),
+                words: DynTrait::from_borrowing_ptr(&mut iter,CowStrIter),
             };
             assert_eq!(&*remove_words(&mut state, param), "The   planet  jupiter.");
         }
@@ -456,7 +424,7 @@ mod tests{
 
         let json_string=serde_json::to_string(json).unwrap();
 
-        let value0=TOStateBox::deserialize_from_str(json).unwrap();
+        let value0=TOStateBox::deserialize_owned_from_str(json).unwrap();
 
         let value1=serde_json::from_str::<TOStateBox>(&json_string).unwrap();
 
@@ -471,7 +439,7 @@ mod tests{
 
         let this=TextOperationState {
             processed_bytes: 1337,
-        }.piped(VirtualWrapper::from_value);
+        }.piped(DynTrait::from_value);
 
         let serialized_0= this.serialized().unwrap().split_whitespace().collect::<String>();
 

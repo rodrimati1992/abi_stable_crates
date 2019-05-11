@@ -1,0 +1,8 @@
+{
+    "Batch":[
+        {
+            "ReverseLines":"the best\nthis is"
+        },
+        "GetProcessedBytes"
+    ]
+}

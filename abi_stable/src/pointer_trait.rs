@@ -2,12 +2,10 @@
 Traits for pointers.
 */
 use std::{
-    marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
 
-use crate::{ZeroSized};
 // use crate::{cabi_type::CAbi};
 
 #[allow(unused_imports)]
@@ -40,9 +38,10 @@ Trait for pointers that:
 
 - Deref::deref always returns the same address (for the same pointer).
 
-- If it implements DerefMut,it always returns the same memory address.
+- If it implements DerefMut,it always returns the same memory address,
+    so long as no `&mut self``method other than `DerefMut::deref_mut` is called.
 
-- The inline layout of the pointer cannot change depending on its (Sized) referent.
+- The inline layout of the pointer cannot change depending on its referent.
 
 
 Explicit non-guarantees:
@@ -63,51 +62,87 @@ impl<P> StableDerefMut for P where P: StableDeref + DerefMut {}
 
 ///////////
 
+
 /**
-Erases a pointer,casting its referent to `ZeroSized<O>`.
+What kind of pointer this is.
 
-This is safe to do because:
+The valid kinds are:
 
--`ZeroSized<O> ` is a zero-sized type,
+- Reference:a `&T`,or a `Copy` wrapper struct containing a `&T`
 
-- StableDeref requires that the pointer always have the same layout 
-  regardless of its referent.
+- MutReference:a `&mut T`,or a non-`Drop` wrapper struct containing a `&mut T`
 
-- TransmuteElement requires that the pointer either be `!Drop`,
-    or that the pointer uses a vtable with a destructor that knows 
-    the original type of the referent
-
-It would not be safe to do this in the other direction,
-going from `ZeroSized<O>` to any other type,
-
+- SmartPointer: Any pointer type that's not a reference or a mutable reference.
 
 */
-/// 
-pub trait ErasedStableDeref<O>: StableDeref + TransmuteElement<ZeroSized<O>> {
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::{
-    ///     pointer_trait::ErasedStableDeref,
-    ///     std_types::RBox,
-    ///     reexports::SelfOps,
-    ///     ZeroSized,
-    /// };
-    ///
-    /// let signed:RBox<ZeroSized< Vec<()> >> =unsafe{
-    ///     RBox::new(1_i32)
-    ///         .erased(Vec::<()>::T)
-    /// };
-    ///
-    /// ```
-    fn erased(self, _: VariantPhantom<O>) -> Self::TransmutedPtr 
-    where Self::Target:Sized
-    {
-        unsafe { self.transmute_element(PhantomData) }
-    }
+pub unsafe trait GetPointerKind{
+    type Kind:PointerKindVariant;
+
+    const KIND:PointerKind=<Self::Kind as PointerKindVariant>::VALUE;
 }
 
-impl<P, O> ErasedStableDeref<O> for P where P: StableDeref + TransmuteElement<ZeroSized<O>> {}
+/// A type-level equivalent of a PointerKind variant.
+pub trait PointerKindVariant:Sealed{
+    /// The value of the PointerKind variant Self is equivalent to.
+    const VALUE:PointerKind;
+}
+
+use self::sealed::Sealed;
+mod sealed{
+    pub trait Sealed{}
+}
+
+
+/// Describes the kind of a pointer.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash,StableAbi)]
+#[repr(C)]
+#[sabi(inside_abi_stable_crate)]
+pub enum PointerKind{
+    /// a `&T`,or a `Copy` wrapper struct containing a `&T`
+    Reference,
+    /// a `&mut T`,or a non-`Drop` wrapper struct containing a `&mut T`
+    MutReference,
+    /// Any pointer type that's not a reference or a mutable reference.
+    SmartPointer
+}
+
+/// The type-level equivalent of `PointerKind::Reference`.
+#[allow(non_camel_case_types)]
+pub struct PK_Reference;
+
+/// The type-level equivalent of `PointerKind::MutReference`.
+#[allow(non_camel_case_types)]
+pub struct PK_MutReference;
+
+/// The type-level equivalent of `PointerKind::SmartPointer`.
+#[allow(non_camel_case_types)]
+pub struct PK_SmartPointer;
+
+impl Sealed for PK_Reference{}
+impl Sealed for PK_MutReference{}
+impl Sealed for PK_SmartPointer{}
+
+impl PointerKindVariant for PK_Reference{
+    const VALUE:PointerKind=PointerKind::Reference;
+}
+
+impl PointerKindVariant for PK_MutReference{
+    const VALUE:PointerKind=PointerKind::MutReference;
+}
+
+impl PointerKindVariant for PK_SmartPointer{
+    const VALUE:PointerKind=PointerKind::SmartPointer;
+}
+
+unsafe impl<'a,T> GetPointerKind for &'a T{
+    type Kind=PK_Reference;
+}
+
+unsafe impl<'a,T> GetPointerKind for &'a mut T{
+    type Kind=PK_MutReference;
+}
+
+
 
 ///////////
 
@@ -131,7 +166,7 @@ Callers must ensure that:
 - References to `T` are compatible with references to `Self::Target`.
 
 */
-pub unsafe trait TransmuteElement<T>: StableDeref {
+pub unsafe trait TransmuteElement<T>: StableDeref + GetPointerKind {
     type TransmutedPtr: StableDeref<Target = T>;
 
     /// Transmutes the element type of this pointer..

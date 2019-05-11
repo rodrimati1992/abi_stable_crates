@@ -1,30 +1,47 @@
 /*!
 
-Contains `VirtualWrapper<_>`'s vtable,and related types/traits.
+Contains `DynTrait<_>`'s vtable,and related types/traits.
 
 */
 use std::{
-    fmt::{self, Debug},
+    fmt::{self, Debug,Write as FmtWrite},
+    io,
     marker::PhantomData,
 };
 
-use super::c_functions::*;
-use super::*;
-
-use crate::{
-    ErasedObject,
-    prefix_type::{PrefixTypeTrait,WithMetadata},
+use super::{
+    *,
+    c_functions::*,
+    iterator::{
+        IteratorFns,MakeIteratorFns,
+        DoubleEndedIteratorFns,MakeDoubleEndedIteratorFns,
+    },
+    traits::{IteratorItemOrDefault},
 };
 
-use core_extensions::{ResultLike, StringExt};
+use crate::{
+    StableAbi,
+    abi_stability::{Tag,SharedStableAbi},
+    marker_type::ErasedObject,
+    prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
+    pointer_trait::GetPointerKind,
+    std_types::{Tuple3,RSome,RNone,RIoError,RSeekFrom},
+};
+
+
+use core_extensions::TypeIdentity;
+
+
+
+
 
 #[doc(hidden)]
-/// Returns the vtable used by VirtualWrapper to do dynamic dispatch.
-pub trait GetVtable<This,ErasedPtr,OrigPtr>: ImplType {
+/// Returns the vtable used by DynTrait to do dynamic dispatch.
+pub trait GetVtable<'borr,This,ErasedPtr,OrigPtr,I:InterfaceBound<'borr>> {
     
-    const TMP_VTABLE:VTableVal<ErasedPtr>;
+    const TMP_VTABLE:VTableVal<'borr,ErasedPtr,I>;
 
-    const GET_VTABLE:*const WithMetadata<VTableVal<ErasedPtr>>=
+    const GET_VTABLE:*const WithMetadata<VTableVal<'borr,ErasedPtr,I>>=
         &WithMetadata::new(
             PrefixTypeTrait::METADATA,
             Self::TMP_VTABLE
@@ -32,7 +49,7 @@ pub trait GetVtable<This,ErasedPtr,OrigPtr>: ImplType {
 
 
     /// Retrieves the VTable of the type.
-    fn get_vtable<'a>() -> &'a VTable<ErasedPtr>
+    fn get_vtable<'a>() -> &'a VTable<'borr,ErasedPtr,I>
     where
         This: 'a,
     {
@@ -41,242 +58,164 @@ pub trait GetVtable<This,ErasedPtr,OrigPtr>: ImplType {
     }
 }
 
-/// The set of impls this vtable stores.
-#[repr(C)]
-#[derive(Copy,Clone)]
-#[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
-pub struct ImplFlag(ImplFlagRepr);
 
-impl ImplFlag {
-    fn iter(&self) -> impl DoubleEndedIterator<Item = WhichImpl> + Clone {
-        let unimp = self.0;
-        (0..=MAX_BIT_INDEX)
-            .filter(move |i| (unimp & (1u64 << i)) != 0)
-            .map(WhichImpl)
-    }
-}
-
-impl Debug for ImplFlag {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(self.iter()).finish()
-    }
-}
-
-type ImplFlagRepr = u64;
-
-/// Returns the impls that this type represents,each impl is 1 bit in the flags.
-pub trait GetImplFlags {
-    const FLAGS: ImplFlag;
-}
 
 macro_rules! declare_meta_vtable {
-    (declare_impl_index;$value:expr;$which_impl0:ident,$which_impl1:ident $(,$rest:ident)* )=>{
-        #[allow(non_upper_case_globals)]
-        impl trait_selector::$which_impl0{
-            pub const WHICH_BIT:u16=$value;
-        }
-        #[allow(non_upper_case_globals)]
-        impl trait_selector::$which_impl1{
-            pub const WHICH_BIT:u16=$value + 1;
-        }
-
-        declare_meta_vtable!{
-            declare_impl_index;
-            ($value + 2);
-            $($rest),*
-        }
-    };
-    (declare_impl_index;$value:expr;$which_impl:ident)=>{
-        #[allow(non_upper_case_globals)]
-        impl trait_selector::$which_impl{
-            pub const WHICH_BIT:u16=$value;
-        }
-        pub const MAX_BIT_INDEX:u16=$value;
-    };
-    (declare_impl_index;$value:expr)=>{
-        pub const MAX_BIT_INDEX:u16=$value;
-    };
-    ////////////////////////////////////////////////////////////////////////
     (
+        interface=$interf:ident;
         value=$value:ident;
         erased_pointer=$erased_ptr:ident;
         original_pointer=$orig_ptr:ident;
+
+        marker_traits[
+            $([
+                impl $marker_trait:ident where [ $($phantom_where_clause:tt)* ]
+            ])*
+        ]
 
         $([
             $( #[$field_attr:meta] )*
             $field:ident : $field_ty:ty ;
             priv $priv_field:ident;
+            option=$option_ty:ident,$some_constr:ident,$none_constr:ident;
 
+            $(struct_bound=$struct_bound:expr;)*
+            
             impl[$($impl_params:tt)*] VtableFieldValue<$selector:ident>
             where [ $($where_clause:tt)* ]
             { $field_value:expr }
         ])*
     ) => (
 
-        /// This is the vtable for VirtualWrapper<_>,
+        /// This is the vtable for DynTrait<_>,
         ///
-        #[repr(C)]
+        #[repr(C,align(16))]
         #[derive(StableAbi)]
-        #[sabi(inside_abi_stable_crate)]
-        #[sabi(kind(Prefix(prefix_struct="VTable")))]
-        #[sabi(missing_field(default))]
-        pub struct VTableVal<$erased_ptr>{
-            /// Flags for quickly checking whether two VTables have the same impls.
-            pub impl_flags:ImplFlag,
+        #[sabi(
+            // debug_print,
+            inside_abi_stable_crate,
+            kind(Prefix(prefix_struct="VTable")),
+            missing_field(panic),
+            prefix_bound="I:InterfaceBound<'borr>",
+            bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound<'static>",
+            bound="<I as InterfaceBound<'borr>>::IteratorItem:StableAbi",
+            $($(bound=$struct_bound,)*)*
+        )]
+        pub struct VTableVal<'borr,$erased_ptr,$interf>
+        where $interf:InterfaceBound<'borr>
+        {
             pub type_info:&'static TypeInfo,
-            _marker:PhantomData<extern fn()->$erased_ptr>,
+            _marker:PhantomData<extern fn()->Tuple3<$erased_ptr,$interf,&'borr()>>,
             pub drop_ptr:unsafe extern "C" fn(&mut $erased_ptr),
             $(
                 $( #[$field_attr] )*
-                $priv_field:Option<($field_ty)>,
+                $priv_field:$option_ty<($field_ty)>,
             )*
         }
 
 
-        impl<$erased_ptr> VTable<$erased_ptr>{
+        impl<'borr,$erased_ptr,$interf> VTable<'borr,$erased_ptr,$interf>
+        where   
+            $interf:InterfaceBound<'borr>,
+        {
             $(
-                pub fn $field<E>(&self)->($field_ty)
+                pub fn $field(&self)->($field_ty)
                 where
-                    E:InterfaceType<$selector=True>,
+                    $interf:InterfaceType<$selector=True>,
                 {
-                    self.assert_is_subset_of::<E>();
-                    // Safety:
-                    // This is safe to call since we've checked that the
-                    // vtable contains an implementation for that trait in the assert method above.
-                    unsafe{
-                        self.$priv_field().unwrap_unchecked()
+                    const NAME:&'static &'static str=&stringify!($field);
+
+                    match self.$priv_field().into() {
+                        Some(v)=>v,
+                        None=>panic_on_missing_fieldname::<
+                            VTableVal<'borr,$erased_ptr,$interf>,
+                            $field_ty
+                        >(
+                            NAME,
+                            self._prefix_type_layout(),
+                        )
                     }
                 }
             )*
         }
 
-
-        /// A non-exhaustive enum that represents one implementations of
-        /// the traits mentioned in InterfaceType.
-        #[derive(Debug,Copy,Clone,Eq,PartialEq)]
-        #[repr(C)]
-        pub struct WhichImpl(u16);
-
-        #[allow(non_upper_case_globals)]
-        impl WhichImpl{
-            $(pub const $selector:Self=WhichImpl(trait_selector::$selector::WHICH_BIT); )*
-        }
-
-        impl<$erased_ptr> VTable<$erased_ptr>{
-            #[inline(never)]
-            #[cold]
-            fn abort_unimplemented(&self,unimplemented_impls:u64){
-                eprintln!("error:{}",
-                    TooFewImplsError::new(self.type_info(),ImplFlag(unimplemented_impls))
-                );
-                ::std::process::abort();
-            }
-
-            pub fn assert_is_subset_of<E>(&self)
-            where
-                E:GetImplFlags
-            {
-                let unimplemented_impls=self.get_unimplemented::<E>();
-                if unimplemented_impls!=0 {
-                    self.abort_unimplemented(unimplemented_impls);
-                }
-            }
-
-            #[inline]
-            /// Gets the impls from E that self does not implement.
-            pub fn get_unimplemented<E>(&self)->ImplFlagRepr
-            where
-                E:GetImplFlags
-            {
-                let required=E::FLAGS.0;
-                let provided=self.impl_flags().0;
-                required&(!provided)& LOW_MASK
-            }
-
-            /// Checks that `self` implements a subset of the impls that `other` does.
-            pub fn check_is_subset_of<E>(&self)->Result<(),TooFewImplsError>
-            where
-                E:GetImplFlags
-            {
-                let unimplemented_impls=self.get_unimplemented::<E>();
-
-                if unimplemented_impls==0 {
-                    Ok(())
-                }else{
-                    Err( TooFewImplsError::new(self.type_info(),ImplFlag(unimplemented_impls)) )
-                }
-            }
-        }
+        /// Returns the type of a vtable field.
+        pub type VTableFieldType<'borr,Selector,$value,$erased_ptr,$orig_ptr,$interf>=
+            <Selector as VTableFieldType_<'borr,$value,$erased_ptr,$orig_ptr,$interf>>::Field;
 
         /// Returns the type of a vtable field.
-        pub type VTableFieldType<Selector,$value,$erased_ptr,$orig_ptr>=
-            <Selector as VTableFieldType_<$value,$erased_ptr,$orig_ptr>>::Field;
-
-        /// Returns the type of a vtable field.
-        pub trait VTableFieldType_<$value,$erased_ptr,$orig_ptr>{
+        pub trait VTableFieldType_<'borr,$value,$erased_ptr,$orig_ptr,$interf>{
             type Field;
         }
 
         /// Returns the value of a vtable field in the current binary
         /// (this can be a different value in a dynamically_linked_library/executable).
-        pub trait VTableFieldValue<Ty,IsImpld,$value,$erased_ptr,$orig_ptr>{
-            const FIELD:Option<Ty>;
+        pub trait VTableFieldValue<'borr,Ty,IsImpld,$value,$erased_ptr,$orig_ptr,$interf>{
+            const FIELD:Ty;
         }
+
+        pub trait MarkerTrait<'borr,IsImpld,$value,$erased_ptr,$orig_ptr>{}
 
 
         $(
-            impl<$value,$erased_ptr,$orig_ptr> 
-                VTableFieldType_<$value,$erased_ptr,$orig_ptr> 
+            impl<'borr,$value,$erased_ptr,$orig_ptr,$interf> 
+                VTableFieldType_<'borr,$value,$erased_ptr,$orig_ptr,$interf> 
             for trait_selector::$selector 
+            where 
+                $interf:InterfaceBound<'borr>,
             {
-                type Field=($field_ty);
+                type Field=$field_ty;
             }
 
-            impl<$value,$erased_ptr,$orig_ptr>
-                VTableFieldValue<($field_ty),False,$value,$erased_ptr,$orig_ptr>
+            
+            impl<'borr,AnyFieldTy,$value,$erased_ptr,$orig_ptr,$interf>
+                VTableFieldValue<
+                    'borr,$option_ty<AnyFieldTy>,False,$value,$erased_ptr,$orig_ptr,$interf
+                >
             for trait_selector::$selector
             {
-                const FIELD:Option<($field_ty)>=None;
+                const FIELD:$option_ty<AnyFieldTy>=$none_constr;
             }
 
-            impl<$value,$erased_ptr,$orig_ptr,$($impl_params)*>
-                VTableFieldValue<($field_ty),True,$value,$erased_ptr,$orig_ptr>
+            impl<'borr,FieldTy,$value,$erased_ptr,$orig_ptr,$interf,$($impl_params)*>
+                VTableFieldValue<
+                    'borr,$option_ty<FieldTy>,True,$value,$erased_ptr,$orig_ptr,$interf
+                >
             for trait_selector::$selector
-            where $($where_clause)*
+            where 
+                $interf:InterfaceBound<'borr>,
+                $field_ty:TypeIdentity<Type=FieldTy>,
+                FieldTy:Copy,
+                $($where_clause)*
             {
-                const FIELD:Option<($field_ty)>=Some($field_value);
+                const FIELD:$option_ty<FieldTy>=
+                    $some_constr(type_identity!($field_ty=>FieldTy;$field_value));
             }
         )*
 
+
+
+        impl<'borr,Anything,$value,$erased_ptr,$orig_ptr> 
+            MarkerTrait<'borr,False,$value,$erased_ptr,$orig_ptr> 
+        for Anything
+        {}
+
+        $(
+            impl<'borr,$value,$erased_ptr,$orig_ptr> 
+                MarkerTrait<'borr,True,$value,$erased_ptr,$orig_ptr> 
+            for trait_selector::$marker_trait
+            where $($phantom_where_clause)*
+            {}
+        )*
+
         ///////////////////////////////////////////////////////////
-        //      Uncomment in 0.3
-        ///////////////////////////////////////////////////////////
-        // pub trait SendIf<Cond>{}
-
-        // impl<This> SendIf<False> for This
-        // {}
-
-        // impl<This> SendIf<True> for This
-        // where This:Send
-        // {}
-
-        
-        // pub trait SyncIf<Cond>{}
-
-        // impl<This> SyncIf<False> for This
-        // {}
-
-        // impl<This> SyncIf<True> for This
-        // where This:Sync
-        // {}
-        ///////////////////////////////////////////////////////////
-
-
-
 
         /// Contains marker types representing traits of the same name.
         pub mod trait_selector{
+            $(
+                /// Marker type representing the trait of the same name.
+                pub struct $marker_trait;
+            )*
             $(
                 /// Marker type representing the trait of the same name.
                 pub struct $selector;
@@ -284,98 +223,148 @@ macro_rules! declare_meta_vtable {
         }
 
 
-        declare_meta_vtable!{
-            declare_impl_index;
-            1;
-            $($selector),*
-        }
-
-        /// The largest value for the flags representing which impls are required/provided.
-        const MAX_BIT_VALUE:ImplFlagRepr= 1 << MAX_BIT_INDEX ;
-
-        // For keeping the bits that are relevant for checking that
-        // all the traits required in the InterfaceType are implemented.
-        const LOW_MASK:ImplFlagRepr=(MAX_BIT_VALUE-1)|MAX_BIT_VALUE;
-
-        $(
-            impl GetImplFlags for trait_selector::$selector{
-                const FLAGS:ImplFlag=ImplFlag(1 << Self::WHICH_BIT);
-            }
-        )*
-
-        impl<E> GetImplFlags for E
-        where
-            E:InterfaceType,
-            $(
-                E::$selector:Boolean,
-            )*
-        {
-            const FLAGS:ImplFlag=ImplFlag(
-                0 $(
-                    | [0,trait_selector::$selector::FLAGS.0]
-                      [ <E::$selector as Boolean>::VALUE as usize ]
-                )*
-            );
-        }
-
-
-        impl<This,$value,$erased_ptr,$orig_ptr,E> 
-            GetVtable<$value,$erased_ptr,$orig_ptr> 
+        impl<'borr,This,$value,$erased_ptr,$orig_ptr,$interf> 
+            GetVtable<'borr,$value,$erased_ptr,$orig_ptr,$interf>
         for This
         where
-            This:ImplType<Interface=E>,
-            E:InterfaceType+GetImplFlags,
+            This:ImplType<Interface=$interf>,
+            $interf:InterfaceBound<'borr>,
+            $(
+                trait_selector::$marker_trait:
+                    MarkerTrait<'borr,$interf::$marker_trait,$value,$erased_ptr,$orig_ptr>,
+            )*
             $(
                 trait_selector::$selector:VTableFieldValue<
-                    ($field_ty),
-                    E::$selector,
+                    'borr,
+                    $option_ty<$field_ty>,
+                    $interf::$selector,
                     $value,
                     $erased_ptr,
                     $orig_ptr,
+                    $interf,
                 >,
             )*
-            // Uncomment in 0.3
-            // $orig_ptr:SendIf<E::Send>,
-            // $orig_ptr:SyncIf<E::Sync>,
-            
-            // $erased_ptr:SendIf<E::Send>,
-            // $erased_ptr:SyncIf<E::Sync>,
         {
-            const TMP_VTABLE:VTableVal<$erased_ptr>=VTableVal{
-                impl_flags:E::FLAGS,
+            const TMP_VTABLE:VTableVal<'borr,$erased_ptr,$interf>=VTableVal{
                 type_info:This::INFO,
                 drop_ptr:drop_pointer_impl::<$orig_ptr,$erased_ptr>,
                 $(
                     $priv_field:
                         <trait_selector::$selector as
                             VTableFieldValue<
-                                VTableFieldType<
+                                $option_ty<VTableFieldType<
+                                    'borr,
                                     trait_selector::$selector,
                                     $value,
                                     $erased_ptr,
                                     $orig_ptr,
-                                >,
-                                E::$selector,
+                                    $interf,
+                                >>,
+                                $interf::$selector,
                                 $value,
                                 $erased_ptr,
                                 $orig_ptr,
+                                $interf,
                             >
                         >::FIELD,
                 )*
                 _marker:PhantomData,
             };
+
         }
 
-        impl<$erased_ptr> Debug for VTable<$erased_ptr> {
+
+
+        /// Trait used to capture all the bounds of DynTrait<_>.
+        #[allow(non_upper_case_globals)]
+        pub trait InterfaceBound<'borr>:InterfaceType {
+            #[doc(hidden)]
+            // Used to prevent users from implementing this trait.
+            const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>;
+
+            /// The Item type being iterated over,
+            /// if `Iterator=False` this is `()`.
+            type IteratorItem:'borr;
+
+            /// Describes which traits are implemented,
+            /// stored in the layout of the type in StableAbi,
+            /// using the `#[sabi(tag="<I as InterfaceBound<'borr>>::TAG")]` attribute
+            const TAG:Tag;
+
+            $( 
+                /// Used by the `StableAbi` derive macro to determine whether the field 
+                /// this is associated with is disabled.
+                const $selector:bool; 
+            )*
+
+        }   
+
+        #[allow(non_upper_case_globals)]
+        impl<'borr,I> InterfaceBound<'borr> for I
+        where 
+            I:InterfaceType,
+            I:IteratorItemOrDefault<'borr,<I as InterfaceType>::Iterator>,
+            $( I::$marker_trait:Boolean, )*
+            $( I::$selector:Boolean, )*
+        {
+            type IteratorItem=
+                <I as IteratorItemOrDefault<'borr,<I as InterfaceType>::Iterator>>::Item ;
+
+
+            const TAG:Tag={
+                const fn str_if(cond:bool,s:&'static str)->Tag{
+                    // nulls are stripped in Tag collection variants.
+                    //
+                    // I'm using null here because using Vec<_> in constants isn't possible.
+                    [ Tag::null(), Tag::str(s) ][cond as usize]
+                }
+
+                tag!{{
+                    // Auto traits have to be equivalent in every linked library,
+                    // this is why this is an array,it must match exactly.
+                    "auto traits"=>tag![[
+                        $(
+                            str_if(
+                                <I::$marker_trait as Boolean>::VALUE,
+                                stringify!($marker_trait)
+                            ),
+                        )*
+                    ]],
+                    // These traits can be a superset of the interface in the loaded library,
+                    // that is why it uses a map.
+                    "required traits"=>tag!{{
+                        $(
+                            str_if(
+                                <I::$selector as Boolean>::VALUE,
+                                stringify!($selector)
+                            ),
+                        )*
+                    }}
+                }}
+            };
+
+            $( 
+                const $selector:bool=<I::$selector as Boolean>::VALUE;
+            )*
+            
+            const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>=
+                PrivStruct(PhantomData);
+        }
+
+
+        impl<'borr,$erased_ptr,$interf> Debug for VTable<'borr,$erased_ptr,$interf> 
+        where
+            $interf:InterfaceBound<'borr>,
+        {
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
                 f.debug_struct("VTable")
                     .field("type_info",&self.type_info())
-                    $(
-                        .field(
-                            stringify!($field),
-                            &format_args!("{:x}",self.$priv_field().map_or(0,|x|x as usize))
-                        )
-                    )*
+                    // $(
+                    //     .field(
+                    //         stringify!($field),
+                    //         &format_args!("{:x}",self.$priv_field().map_or(0,|x|x as usize))
+                    //     )
+                    // )*
                     .finish()
             }
         }
@@ -384,13 +373,25 @@ macro_rules! declare_meta_vtable {
 }
 
 declare_meta_vtable! {
+    interface=I;
     value  =T;
     erased_pointer=ErasedPtr;
     original_pointer=OrigP;
 
+    marker_traits[
+        [
+            impl Send where [OrigP:Send,T:Send]
+        ]
+        [
+            impl Sync where [OrigP:Sync,T:Sync]
+        ]
+    ]
+
     [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::Clone")]
         clone_ptr:    extern "C" fn(&ErasedPtr)->ErasedPtr;
         priv _clone_ptr;
+        option=Option,Some,None;
         
         impl[] VtableFieldValue<Clone>
         where [OrigP:Clone]
@@ -399,17 +400,23 @@ declare_meta_vtable! {
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::Default")]
         default_ptr: extern "C" fn()->ErasedPtr ;
         priv _default_ptr;
+        option=Option,Some,None;
         impl[] VtableFieldValue<Default>
-        where [OrigP:Default]
-        {
+        where [
+            OrigP:GetPointerKind,
+            OrigP:DefaultImpl<<OrigP as GetPointerKind>::Kind>,
+        ]{
             default_pointer_impl::<OrigP,ErasedPtr>
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::Display")]
         display:    extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         priv _display;
+        option=Option,Some,None;
         impl[] VtableFieldValue<Display>
         where [T:Display]
         {
@@ -417,8 +424,10 @@ declare_meta_vtable! {
         }
     ]
     [
+    #[sabi(accessible_if="<I as InterfaceBound<'borr>>::Debug")]
         debug:      extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         priv _debug;
+        option=Option,Some,None;
         impl[] VtableFieldValue<Debug>
         where [T:Debug]
         {
@@ -426,19 +435,20 @@ declare_meta_vtable! {
         }
     ]
     [
-        serialize:  extern "C" fn(&ErasedObject)->RResult<RCow<'_,RStr<'_>>,RBoxError>;
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::Serialize")]
+        serialize:  extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>;
         priv _serialize;
+        option=Option,Some,None;
         impl[] VtableFieldValue<Serialize>
-        where [
-            T:ImplType+SerializeImplType,
-            T::Interface:InterfaceType<Serialize=True>,
-        ]{
+        where [ T:SerializeImplType, ]{
             serialize_impl::<T>
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::PartialEq")]
         partial_eq: extern "C" fn(&ErasedObject,&ErasedObject)->bool;
         priv _partial_eq;
+        option=Option,Some,None;
         impl[] VtableFieldValue<PartialEq>
         where [T:PartialEq,]
         {
@@ -446,8 +456,10 @@ declare_meta_vtable! {
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::Ord")]
         cmp:        extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering;
         priv _cmp;
+        option=Option,Some,None;
         impl[] VtableFieldValue<Ord>
         where [T:Ord,]
         {
@@ -455,8 +467,10 @@ declare_meta_vtable! {
         }
     ]
     [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::PartialOrd")]
         partial_cmp:extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>;
         priv _partial_cmp;
+        option=Option,Some,None;
         impl[] VtableFieldValue<PartialOrd>
         where [T:PartialOrd,]
         {
@@ -464,52 +478,109 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(last_prefix_field)]
-        hash:extern "C" fn(&ErasedObject,trait_objects::HasherTraitObject<&mut ErasedObject>);
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::Hash")]
+        hash:extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>);
         priv _hash;
+        option=Option,Some,None;
         impl[] VtableFieldValue<Hash>
         where [T:Hash]
         {
             hash_Hash::<T>
         }
     ]
+    [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::Iterator")]
+        iter:IteratorFns< <I as InterfaceBound<'borr>>::IteratorItem >;
+        priv _iter;
+        option=ROption,RSome,RNone;
+        impl[] VtableFieldValue<Iterator>
+        where [
+            T:Iterator,
+            T::Item:'borr,
+            I:InterfaceBound<'borr,IteratorItem=<T as Iterator>::Item>,
+        ]{
+            MakeIteratorFns::<T>::NEW
+        }
+    ]
+    [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::DoubleEndedIterator")]
+        back_iter:DoubleEndedIteratorFns< <I as InterfaceBound<'borr>>::IteratorItem >;
+        priv _back_iter;
+        option=ROption,RSome,RNone;
+        impl[] VtableFieldValue<DoubleEndedIterator>
+        where [
+            T:DoubleEndedIterator,
+            T::Item:'borr,
+            I:InterfaceBound<'borr,Iterator=True,IteratorItem=<T as Iterator>::Item>,
+        ]{
+            MakeDoubleEndedIteratorFns::<T>::NEW
+        }
+    ]
+    [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::FmtWrite")]
+        fmt_write_str:extern "C" fn(&mut ErasedObject,RStr<'_>)->RResult<(),()>;
+        priv _fmt_write_str;
+        option=Option,Some,None;
+        impl[] VtableFieldValue<FmtWrite>
+        where [ T:FmtWrite ]
+        {
+            write_str_fmt_write::<T>
+        }
+    ]
+    [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::IoWrite")]
+        io_write:IoWriteFns;
+        priv _io_write;
+        option=ROption,RSome,RNone;
+        impl[] VtableFieldValue<IoWrite>
+        where [ T:io::Write ]
+        {
+            MakeIoWriteFns::<T>::NEW
+        }
+    ]
+    [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::IoRead")]
+        io_read:IoReadFns;
+        priv _io_read;
+        option=ROption,RSome,RNone;
+        impl[] VtableFieldValue<IoRead>
+        where [ T:io::Read ]
+        {
+            MakeIoReadFns::<T>::NEW
+        }
+    ]
+    [
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::IoBufRead")]
+        io_bufread:IoBufReadFns;
+        priv _io_bufread;
+        option=ROption,RSome,RNone;
+        impl[] VtableFieldValue<IoBufRead>
+        where [ 
+            T:io::BufRead,
+            I:InterfaceType<IoRead=True>
+        ]{
+            MakeIoBufReadFns::<T>::NEW
+        }
+    ]
+    [
+        #[sabi(last_prefix_field)]
+        #[sabi(accessible_if="<I as InterfaceBound<'borr>>::IoSeek")]
+        io_seek:extern "C" fn(&mut ErasedObject,RSeekFrom)->RResult<u64,RIoError>;
+        priv _io_seek;
+        option=Option,Some,None;
+        impl[] VtableFieldValue<IoSeek>
+        where [ T:io::Seek ]
+        {
+            io_Seek_seek::<T>
+        }
+    ]
 }
 
 //////////////
 
-/// Error for the case in which an ImplType does not
-/// implement the traits declared in its InterfaceType.
-#[derive(Debug)]
-#[repr(C)]
-pub struct TooFewImplsError {
-    type_info: &'static TypeInfo,
-    /// The required traits that the vtable does not implement
-    unimplemented_impls: ImplFlag,
-}
 
-impl TooFewImplsError {
-    fn new(type_info: &'static TypeInfo, unimplemented_impls: ImplFlag) -> Self {
-        Self {
-            type_info,
-            unimplemented_impls,
-        }
-    }
+/// Used to prevent InterfaceBound being implemented outside this module,
+/// since it is only constructed in the impl of InterfaceBound in this module.
+#[doc(hidden)]
+pub struct PrivStruct<T>(PhantomData<T>);
 
-    pub fn unimplemented_impls(&self) -> impl DoubleEndedIterator<Item = WhichImpl> + Clone {
-        self.unimplemented_impls.iter()
-    }
-}
-
-impl fmt::Display for TooFewImplsError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let info = self.type_info;
-        writeln!(f, "these traits are not implemented (and they should be):")?;
-        for elem in self.unimplemented_impls.iter() {
-            writeln!(f, "    {:?}", elem)?;
-        }
-        writeln!(f, "Type information:\n{}", info.to_string().left_pad(4))?;
-        Ok(())
-    }
-}
-
-//////////////

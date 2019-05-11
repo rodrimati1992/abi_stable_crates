@@ -19,7 +19,7 @@ use crate::std_types::{RStr, RVec};
 
 mod iters;
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
 pub use self::iters::{Drain, IntoIter};
@@ -293,6 +293,11 @@ impl RString {
         }
     }
 
+    /// Turns this into an empty RString,keeping the same allocated buffer.
+    pub fn clear(&mut self){
+        self.inner.clear();
+    }
+
 }
 
 /// Returns an empty RString
@@ -421,12 +426,22 @@ impl Serialize for RString {
 //////////////////////////////////////////////////////
 
 impl RString {
-    pub fn drain<I>(&mut self, index: I) -> Drain<'_>
+    /**
+Creates an iterator that yields the chars in the `range`,
+removing the characters in that range in the process.
+
+# Panic
+
+Panics if the start or end of the range are not on a on a char boundary, 
+or if it is out of bounds.
+
+    */
+    pub fn drain<I>(&mut self, range: I) -> Drain<'_>
     where
         str: Index<I, Output = str>,
     {
         let string = self as *mut _;
-        let slic_ = &(*self)[index];
+        let slic_ = &(*self)[range];
         let start = self.offset_of_slice(slic_);
         let end = start + slic_.len();
         Drain {

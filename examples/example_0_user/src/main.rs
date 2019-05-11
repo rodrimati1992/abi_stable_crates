@@ -2,7 +2,6 @@ use std::{
     fs,
     path::{Path,PathBuf},
     io::{self,BufRead,Write,Read},
-    sync::Arc,
 };
 
 
@@ -11,12 +10,15 @@ use core_extensions::SelfOps;
 use structopt::StructOpt;
 
 use abi_stable::{
-    std_types::{RString,RVec,RArc,RBox},
+    std_types::{RString,RCow},
+    DynTrait,
     library::RootModule,
 };
 
 use example_0_interface::{
-    TextOpsMod_Prefix,RemoveWords,load_library_in,
+    CowStrIter,
+    TextOpsMod,
+    RemoveWords,load_library_in,
     TOCommandBox,TOStateBox,
 };
 
@@ -32,8 +34,8 @@ fn compute_library_path()->io::Result<PathBuf>{
     let debug_dir  ="../../target/debug/"  .as_ref_::<Path>().into_(PathBuf::T);
     let release_dir="../../target/release/".as_ref_::<Path>().into_(PathBuf::T);
 
-    let debug_path  =TextOpsMod_Prefix::get_library_path(&debug_dir);
-    let release_path=TextOpsMod_Prefix::get_library_path(&release_dir);
+    let debug_path  =TextOpsMod::get_library_path(&debug_dir);
+    let release_path=TextOpsMod::get_library_path(&release_dir);
 
     match (debug_path.exists(),release_path.exists()) {
         (false,false)=>debug_dir,
@@ -124,29 +126,6 @@ This example phrase,replacing some other sentence.
         words:Vec<RString>
     },
 
-    #[structopt(name = "greet")]
-    #[structopt(author="_")]
-/**
-
-Says hello to the single-word name passed in as an argument
-
-Example:
-
-Running this:
-```
-cargo run -- greet WORLD
-```
-
-Outputs this:
-```
-"Hello, WORLD!"
-```
-
-*/
-    Greet{
-        name:String
-    },
-
     #[structopt(name = "run-tests")]
     #[structopt(author="_")]
     /**
@@ -203,23 +182,21 @@ fn main()-> io::Result<()> {
         }
         Command::RemoveWords{words}=>{
             process_stdin(|line|{
+                let mut words=words.iter().map(RCow::from);
                 let params=RemoveWords{
                     string:line.into(),
-                    words:words[..].into(),
+                    words:DynTrait::from_borrowing_ptr(&mut words,CowStrIter),
                 };
 
-                mods.remove_words_string()(&mut state,params)
+                mods.remove_words()(&mut state,params)
             })?;
-        }
-        Command::Greet{name}=>{
-            mods.hello_world().greeter()(name.as_str().into());
         }
         Command::RunTests=>{
             tests::run_dynamic_library_tests(mods);
         }
         Command::JsonCommand{file}=>{
-            fn run_command(mods:&TextOpsMod_Prefix,state:&mut TOStateBox,s:&str)->RString{
-                let command=TOCommandBox::deserialize_from_str(s)
+            fn run_command(mods:&TextOpsMod,state:&mut TOStateBox,s:&str)->RString{
+                let command=TOCommandBox::deserialize_owned_from_str(s)
                     .unwrap_or_else(|e| panic!("\n{}\n",e) );
                 
                 let ret=mods.run_command()(state,command);

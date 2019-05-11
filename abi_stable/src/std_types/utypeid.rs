@@ -11,7 +11,10 @@ use std::{
     sync::atomic::AtomicUsize,
 };
 
-use crate::EXECUTABLE_IDENTITY;
+use crate::{
+    EXECUTABLE_IDENTITY,
+    std_types::{RSome,RNone,ROption},
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -22,6 +25,23 @@ where
 {
     UTypeId::new::<T>()
 }
+
+
+#[doc(hidden)]
+pub extern "C" fn some_utypeid<T>() -> ROption<UTypeId>
+where
+    T: 'static,
+{
+    RSome(UTypeId::new::<T>())
+}
+
+
+#[doc(hidden)]
+pub extern "C" fn none_utypeid() -> ROption<UTypeId>{
+    RNone
+}
+
+
 
 /// A TypeId that can compare types across dynamic libraries.
 ///

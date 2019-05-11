@@ -1,5 +1,9 @@
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::mem;
+
+use core_extensions::matches;
+
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 
 /// Ffi-safe equivalent of the `Option<_>` type.
 ///
@@ -18,6 +22,17 @@ pub enum ROption<T> {
 pub use self::ROption::*;
 
 impl<T> ROption<T> {
+    /// Converts from `ROption<T>` to `ROption<&T>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .as_ref(),RSome(&10));
+    /// assert_eq!(RNone::<u32>.as_ref(),RNone     );
+    ///
+    /// ```
     #[inline]
     pub fn as_ref(&self) -> ROption<&T> {
         match self {
@@ -26,6 +41,17 @@ impl<T> ROption<T> {
         }
     }
 
+    /// Converts from `ROption<T>` to `ROption<&mut T>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .as_mut(),RSome(&mut 10));
+    /// assert_eq!(RNone::<u32>.as_mut(),RNone );
+    ///
+    /// ```
     #[inline]
     pub fn as_mut(&mut self) -> ROption<&mut T> {
         match self {
@@ -33,38 +59,86 @@ impl<T> ROption<T> {
             RNone => RNone,
         }
     }
-
+    
+    /// Returns whether `self` is an `RSome`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .is_rsome(),true);
+    /// assert_eq!(RNone::<u32>.is_rsome(),false);
+    ///
+    /// ```
     #[inline]
-    pub fn as_option(&self) -> Option<&T> {
-        match self {
-            RSome(v) => Some(v),
-            RNone => None,
-        }
+    pub fn is_rsome(&self)->bool{
+        matches!( RSome{..}=self )
     }
 
+    /// Returns whether `self` is an `RNone`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .is_rnone(),false);
+    /// assert_eq!(RNone::<u32>.is_rnone(),true);
+    ///
+    /// ```
     #[inline]
-    pub fn as_option_mut(&mut self) -> Option<&mut T> {
-        match self {
-            RSome(v) => Some(v),
-            RNone => None,
-        }
+    pub fn is_rnone(&self)->bool{
+        matches!( RNone{..}=self )
     }
 
+
+    /// Converts from `ROption<T>` to `Option<T>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .into_option(),Some(10));
+    /// assert_eq!(RNone::<u32>.into_option(),None     );
+    ///
+    /// ```
     #[inline]
     pub fn into_option(self) -> Option<T> {
         self.into()
     }
 
+    /// Unwraps the `ROption<T>`, returning its contents.
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if `self` is `RNone` with the `msg` message.
     #[inline]
     pub fn expect(self, msg: &str) -> T {
         self.into_option().expect(msg)
     }
-
+    /// Unwraps the ROption, returning its contents.
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if `self` is `RNone`.
     #[inline]
     pub fn unwrap(self) -> T {
         self.into_option().unwrap()
     }
 
+    /// Returns the value in the `ROption<T>`,or `def` if `self` is `RNone`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .unwrap_or(99),10);
+    /// assert_eq!(RNone::<u32>.unwrap_or(99),99);
+    ///
+    /// ```
     #[inline]
     pub fn unwrap_or(self, def: T) -> T {
         match self {
@@ -73,6 +147,40 @@ impl<T> ROption<T> {
         }
     }
 
+    /// Returns the value in the `ROption<T>`,or `T::default()` if `self` is `RNone`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .unwrap_or_default(),10);
+    /// assert_eq!(RNone::<u32>.unwrap_or_default(),0);
+    ///
+    /// ```
+    #[inline]
+    pub fn unwrap_or_default(self) -> T 
+    where 
+        T:Default
+    {
+        match self {
+            RSome(x) => x,
+            RNone => Default::default(),
+        }
+    }
+
+    /// Returns the value in the `ROption<T>`,
+    /// or the return value of calling `f` if `self` is `RNone`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .unwrap_or_else(|| 77 ),10);
+    /// assert_eq!(RNone::<u32>.unwrap_or_else(|| 77 ),77);
+    ///
+    /// ```
     #[inline]
     pub fn unwrap_or_else<F>(self, f: F) -> T
     where
@@ -84,6 +192,18 @@ impl<T> ROption<T> {
         }
     }
 
+    /// Converts the `ROption<T>` to a `ROption<U>`,
+    /// transforming the contained value with the `f` closure.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .map(|x| x*2 ),RSome(20));
+    /// assert_eq!(RNone::<u32>.map(|x| x*2 ),RNone);
+    ///
+    /// ```
     #[inline]
     pub fn map<U, F>(self, f: F) -> ROption<U>
     where
@@ -95,6 +215,18 @@ impl<T> ROption<T> {
         }
     }
 
+    /// Transforms (and returns) the contained value with the `f` closure,
+    /// or returns `default`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .map_or(77,|x| x*2 ),20);
+    /// assert_eq!(RNone::<u32>.map_or(77,|x| x*2 ),77);
+    ///
+    /// ```
     #[inline]
     pub fn map_or<U, F>(self, default: U, f: F) -> U
     where
@@ -106,6 +238,18 @@ impl<T> ROption<T> {
         }
     }
 
+    /// Transforms (and returns) the contained value with the `f` closure,
+    /// or returns the value `default` returns when called.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .map_or_else(||77,|x| x*2 ),20);
+    /// assert_eq!(RNone::<u32>.map_or_else(||77,|x| x*2 ),77);
+    ///
+    /// ```
     #[inline]
     pub fn map_or_else<U, D, F>(self, default: D, f: F) -> U
     where
@@ -118,6 +262,19 @@ impl<T> ROption<T> {
         }
     }
 
+    /// Returns `self` if `preficate(&self)` is true,otherwise returns `RNone`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10).filter(|x| (x%2)==0 ),RSome(10));
+    /// assert_eq!(RSome(10).filter(|x| (x%2)==1 ),RNone    );
+    /// assert_eq!(RNone::<u32>.filter(|_| true     ),RNone    );
+    /// assert_eq!(RNone::<u32>.filter(|_| false    ),RNone    );
+    ///
+    /// ```
     pub fn filter<P>(self, predicate: P) -> Self
     where
         P: FnOnce(&T) -> bool,
@@ -130,6 +287,65 @@ impl<T> ROption<T> {
         RNone
     }
 
+    /// Returns `self` if it is RNone,otherwise returns `optb`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10).and(RSome(20)),RSome(20));
+    /// assert_eq!(RSome(10).and(RNone    ),RNone);
+    /// assert_eq!(RNone::<u32>.and(RSome(20)),RNone);
+    /// assert_eq!(RNone::<u32>.and(RNone    ),RNone);
+    ///
+    /// ```
+    #[inline]
+    pub fn and(self, optb: ROption<T>) -> ROption<T> {
+        match self {
+            RSome(_) => optb,
+            RNone => self,
+        }
+    }
+
+    /// Returns `self` if it is RNone, 
+    /// otherwise calls `optb` with the value of `RSome`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10).and_then(||RSome(20)),RSome(20));
+    /// assert_eq!(RSome(10).and_then(||RNone    ),RNone);
+    /// assert_eq!(RNone::<u32>.and_then(||RSome(20)),RNone);
+    /// assert_eq!(RNone::<u32>.and_then(||RNone    ),RNone);
+    ///
+    /// ```
+    #[inline]
+    pub fn and_then<F>(self, f: F) -> ROption<T>
+    where
+        F: FnOnce() -> ROption<T>,
+    {
+        match self {
+            RSome(_) => f(),
+            RNone => self,
+        }
+    }
+
+    /// Returns `self` if it contains a value, otherwise returns `optb`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10).or(RSome(20)),RSome(10));
+    /// assert_eq!(RSome(10).or(RNone    ),RSome(10));
+    /// assert_eq!(RNone::<u32>.or(RSome(20)),RSome(20));
+    /// assert_eq!(RNone::<u32>.or(RNone    ),RNone);
+    ///
+    /// ```
     #[inline]
     pub fn or(self, optb: ROption<T>) -> ROption<T> {
         match self {
@@ -138,6 +354,20 @@ impl<T> ROption<T> {
         }
     }
 
+    /// Returns `self` if it contains a value, 
+    /// otherwise calls `optb` and returns the value it evaluates to.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10).or_else(|| RSome(20) ),RSome(10));
+    /// assert_eq!(RSome(10).or_else(|| RNone     ),RSome(10));
+    /// assert_eq!(RNone::<u32>.or_else(|| RSome(20) ),RSome(20));
+    /// assert_eq!(RNone::<u32>.or_else(|| RNone     ),RNone);
+    ///
+    /// ```
     #[inline]
     pub fn or_else<F>(self, f: F) -> ROption<T>
     where
@@ -149,6 +379,20 @@ impl<T> ROption<T> {
         }
     }
 
+    /// Returns RNone if both values are either `RNone` or `RSome`,
+    /// otherwise returns `RSome` from either one.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10).xor(RSome(20)),RNone    );
+    /// assert_eq!(RSome(10).xor(RNone    ),RSome(10));
+    /// assert_eq!(RNone::<u32>.xor(RSome(20)),RSome(20));
+    /// assert_eq!(RNone::<u32>.xor(RNone    ),RNone    );
+    ///
+    /// ```
     #[inline]
     pub fn xor(self, optb: ROption<T>) -> ROption<T> {
         match (self, optb) {
@@ -158,10 +402,23 @@ impl<T> ROption<T> {
         }
     }
 
+    /// Sets this ROption to `RSome(value)` if it was RNone.
+    /// Returns a mutable reference to the inserted/pre-existing `RSome`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10).get_or_insert(40),&mut 10);
+    /// assert_eq!(RSome(20).get_or_insert(55),&mut 20);
+    /// assert_eq!(RNone::<u32>.get_or_insert(77),&mut 77);
+    ///
+    /// ```
     #[inline]
-    pub fn get_or_insert(&mut self, v: T) -> &mut T {
+    pub fn get_or_insert(&mut self, value: T) -> &mut T {
         match *self {
-            RNone => *self = RSome(v),
+            RNone => *self = RSome(value),
             _ => (),
         }
 
@@ -171,13 +428,26 @@ impl<T> ROption<T> {
         }
     }
 
+    /// Sets this ROption to `RSome(func())` if it was RNone.
+    /// Returns a mutable reference to the inserted/pre-existing `RSome`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10).get_or_insert_with(||40),&mut 10);
+    /// assert_eq!(RSome(20).get_or_insert_with(||55),&mut 20);
+    /// assert_eq!(RNone::<u32>.get_or_insert_with(||77),&mut 77);
+    ///
+    /// ```
     #[inline]
-    pub fn get_or_insert_with<F>(&mut self, f: F) -> &mut T
+    pub fn get_or_insert_with<F>(&mut self, func: F) -> &mut T
     where
         F: FnOnce() -> T,
     {
         match *self {
-            RNone => *self = RSome(f()),
+            RNone => *self = RSome(func()),
             _ => (),
         }
 
@@ -187,16 +457,158 @@ impl<T> ROption<T> {
         }
     }
 
+    /// Takes the value of `self`,replacing it with `RNone`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// let mut opt0=RSome(10);
+    /// assert_eq!(opt0.take(),RSome(10));
+    /// assert_eq!(opt0,RNone);
+    ///
+    /// let mut opt1=RSome(20);
+    /// assert_eq!(opt1.take(),RSome(20));
+    /// assert_eq!(opt1,RNone);
+    ///
+    /// let mut opt2=RNone::<u32>;
+    /// assert_eq!(opt2.take(),RNone);
+    /// assert_eq!(opt2,RNone);
+    ///
+    /// ```
     #[inline]
     pub fn take(&mut self) -> ROption<T> {
         mem::replace(self, RNone)
     }
 
+    /// Replaces the value of `self` with `RSome(value)`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// let mut opt0=RSome(10);
+    /// assert_eq!(opt0.replace(55),RSome(10));
+    /// assert_eq!(opt0,RSome(55));
+    ///
+    /// let mut opt1=RSome(20);
+    /// assert_eq!(opt1.replace(88),RSome(20));
+    /// assert_eq!(opt1,RSome(88));
+    ///
+    /// let mut opt2=RNone::<u32>;
+    /// assert_eq!(opt2.replace(33),RNone);
+    /// assert_eq!(opt2,RSome(33));
+    ///
+    /// ```
     #[inline]
     pub fn replace(&mut self, value: T) -> ROption<T> {
         mem::replace(self, RSome(value))
     }
 }
+    
+
+impl<T> ROption<&T>{
+    /// Converts an `Option<&T>` to a `Option<T>` by cloning its contents.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(&vec![()]).cloned(),RSome(vec![()]));
+    /// assert_eq!(RNone::<&Vec<()>>.cloned(),RNone        );
+    ///
+    /// ```
+    #[inline]
+    pub fn cloned(self)->ROption<T>
+    where 
+        T:Clone
+    {
+        match self {
+            RSome(expr) => RSome(expr.clone()),
+            RNone => RNone,
+        }
+    }
+
+    /// Converts an `Option<&T>` to a `Option<T>` by Copy-ing its contents.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(&7).copied(),RSome(7));
+    /// assert_eq!(RNone::<&u32>.copied(),RNone);
+    ///
+    /// ```
+    #[inline]
+    pub fn copied(self)->ROption<T>
+    where 
+        T:Copy
+    {
+        match self {
+            RSome(expr) => RSome(*expr),
+            RNone => RNone,
+        }
+    }
+}
+
+impl<T> ROption<&mut T>{
+    /// Converts an `Option<&mut T>` to a `Option<T>` by cloning its contents.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(&mut vec![()]).cloned(),RSome(vec![()]));
+    /// assert_eq!(RNone::<&mut Vec<()>>.cloned(),RNone    );
+    ///
+    /// ```
+    #[inline]
+    pub fn cloned(self)->ROption<T>
+    where 
+        T:Clone
+    {
+        match self {
+            RSome(expr) => RSome(expr.clone()),
+            RNone => RNone,
+        }
+    }
+
+    /// Converts an `Option<&mut T>` to a `Option<T>` by Copy-ing its contents.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(&mut 7).copied(),RSome(7));
+    /// assert_eq!(RNone::<&mut u32>.copied(),RNone   );
+    ///
+    /// ```
+    #[inline]
+    pub fn copied(self)->ROption<T>
+    where 
+        T:Copy
+    {
+        match self {
+            RSome(expr) => RSome(*expr),
+            RNone => RNone,
+        }
+    }
+}
+
+
+/// The default value is RNone.
+impl<T> Default for ROption<T> {
+    fn default()->Self{
+        RNone
+    }
+}
+
 
 impl_from_rust_repr! {
     impl[T] From<Option<T>> for ROption<T> {
@@ -240,6 +652,24 @@ where
     where
         S: Serializer,
     {
-        self.as_option().serialize(serializer)
+        self.as_ref().into_option().serialize(serializer)
     }
+}
+
+/////////////////////////////////////////////////////////////////////
+
+
+#[cfg(test)]
+mod test{
+    use super::*;
+
+    #[test]
+    fn from_into(){
+        assert_eq!(ROption::from(Some(10)),RSome(10));
+        assert_eq!(ROption::from(None::<u32>),RNone    );
+
+        assert_eq!(RSome(10).into_option(),Some(10));
+        assert_eq!(RNone::<u32>.into_option(),None    );
+    }
+
 }
