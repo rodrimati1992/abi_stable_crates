@@ -1,4 +1,9 @@
-use std::{marker::PhantomData, mem::ManuallyDrop, ops::DerefMut};
+use std::{
+    borrow::{Borrow,BorrowMut},
+    marker::PhantomData, 
+    mem::ManuallyDrop, 
+    ops::DerefMut,
+};
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
@@ -112,6 +117,37 @@ impl<T> DerefMut for RBox<T> {
         unsafe { &mut *self.data() }
     }
 }
+
+/////////////////////////////////////////////////////////////////
+
+
+impl<T> Borrow<T> for RBox<T>{
+    fn borrow(&self)->&T{
+        self
+    }
+}
+
+
+impl<T> BorrowMut<T> for RBox<T>{
+    fn borrow_mut(&mut self)->&mut T{
+        self
+    }
+}
+
+
+impl<T> AsRef<T> for RBox<T>{
+    fn as_ref(&self)->&T{
+        self
+    }
+}
+
+
+impl<T> AsMut<T> for RBox<T>{
+    fn as_mut(&mut self)->&mut T{
+        self
+    }
+}
+
 
 /////////////////////////////////////////////////////////////////
 

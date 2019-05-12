@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, mem, ops::Deref};
+use std::{borrow::Borrow,marker::PhantomData, mem, ops::Deref};
 
 use crate::std_types::{RSlice};
 
@@ -96,6 +96,20 @@ impl<T> Deref for StaticSlice<T> {
         self.as_slice()
     }
 }
+
+impl<T> Borrow<[T]> for StaticSlice<T> {
+    fn borrow(&self) -> &[T] {
+        self
+    }
+}
+
+impl<T> AsRef<[T]> for StaticSlice<T> {
+    fn as_ref(&self) -> &[T] {
+        self
+    }
+}
+
+
 
 shared_impls! {
     mod=slice_impls

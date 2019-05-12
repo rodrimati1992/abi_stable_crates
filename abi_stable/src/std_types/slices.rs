@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     io::{self, BufRead, Read},
     marker::PhantomData,
     ops::{Deref, Index},
@@ -171,6 +172,13 @@ impl_into_rust_repr! {
 }
 
 ////////////////////
+
+
+impl<'a,T:'a> Borrow<[T]> for RSlice<'a,T>{
+    fn borrow(&self)->&[T]{
+        self
+    }
+}
 
 
 impl<'a,T:'a> AsRef<[T]> for RSlice<'a,T>{

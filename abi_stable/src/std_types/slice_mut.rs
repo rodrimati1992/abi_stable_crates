@@ -1,4 +1,5 @@
 use std::{
+    borrow::{Borrow,BorrowMut},
     io::{self, Write},
     marker::PhantomData,
     mem,
@@ -222,6 +223,18 @@ impl<'a, T> Into<&'a [T]> for RSliceMut<'a, T> {
 
 ////////////////////
 
+
+impl<'a,T:'a> Borrow<[T]> for RSliceMut<'a,T>{
+    fn borrow(&self)->&[T]{
+        self
+    }
+}
+
+impl<'a,T:'a> BorrowMut<[T]> for RSliceMut<'a,T>{
+    fn borrow_mut(&mut self)->&mut [T]{
+        self
+    }
+}
 
 impl<'a,T:'a> AsRef<[T]> for RSliceMut<'a,T>{
     fn as_ref(&self)->&[T]{

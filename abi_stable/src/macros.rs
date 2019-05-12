@@ -191,9 +191,9 @@ macro_rules! extern_fn_panic_handling {
 
 /**
 
-Implements the abi_stable::type_info::GetTypeInfo trait for some type.
+Constructs the abi_stable::erased_types::TypeInfo for some type.
 
-It's necessary for the type to be `'static` because this uses TypeId.
+It's necessary for the type to be `'static` because this uses UTypeId.
 
 # Example
 

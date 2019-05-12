@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt, ops::Deref};
+use std::{borrow::{Borrow,Cow}, fmt, ops::Deref};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -278,6 +278,16 @@ where
 }
 
 ////////////////////
+
+
+impl<'a,B> Borrow<B> for RCow<'a, B>
+where
+    B: BorrowOwned<'a>+?Sized,
+{
+    fn borrow(&self)->&B{
+        self
+    }
+}
 
 
 impl<'a,B> AsRef<B> for RCow<'a, B>

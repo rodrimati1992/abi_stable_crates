@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     fmt::{self, Display},
     marker::PhantomData,
     mem,
@@ -169,6 +170,24 @@ impl Deref for StaticStr {
     type Target = str;
     fn deref(&self) -> &str {
         self.as_str()
+    }
+}
+
+impl Borrow<str> for StaticStr{
+    fn borrow(&self)->&str{
+        self
+    }
+}
+
+impl AsRef<str> for StaticStr{
+    fn as_ref(&self)->&str{
+        self
+    }
+}
+
+impl AsRef<[u8]> for StaticStr{
+    fn as_ref(&self)->&[u8]{
+        self.as_bytes()
     }
 }
 

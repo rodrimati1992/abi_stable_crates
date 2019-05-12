@@ -1,5 +1,5 @@
 use std::{
-    borrow::Cow,
+    borrow::{Cow,Borrow},
     fmt::{self, Display, Formatter},
     iter::{FromIterator, FusedIterator},
     mem,
@@ -360,9 +360,21 @@ impl FromStr for RString {
 ////////////////////
 
 
+impl Borrow<str> for RString{
+    fn borrow(&self)->&str{
+        self
+    }
+}
+
 impl AsRef<str> for RString{
     fn as_ref(&self)->&str{
         self
+    }
+}
+
+impl AsRef<[u8]> for RString{
+    fn as_ref(&self)->&[u8]{
+        self.as_bytes()
     }
 }
 
