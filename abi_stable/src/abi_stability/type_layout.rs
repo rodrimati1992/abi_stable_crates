@@ -21,7 +21,9 @@ use super::{
     AbiInfo, 
     GetAbiInfo,
     tagging::Tag,
+    reflection::ModReflMode,
 };
+
 
 /// The parameters for `TypeLayout::from_params`.
 #[repr(C)]
@@ -34,8 +36,6 @@ pub struct TypeLayoutParams {
     pub line:u32,
     pub data: TLData,
     pub generics: GenericParams,
-    pub phantom_fields: &'static [TLField],
-    pub tag:Tag,
 }
 
 
@@ -57,6 +57,7 @@ pub struct TypeLayout {
     pub full_type: FullType,
     pub phantom_fields: StaticSlice<TLField>,
     pub tag:Tag,
+    pub mod_refl_mode:ModReflMode,
 }
 
 
@@ -171,8 +172,11 @@ pub struct TLField {
     /// if you have a `&'static AbiInfo`s with the same address as one of its parent type,
     /// you've encountered a cycle.
     pub abi_info: GetAbiInfo,
-    /// Stores all extracted type parameters and return types of embedded function pointer types.
-    pub subfields:StaticSlice<TLField>,
+    /// All the function pointer types in the field.
+    pub functions:StaticSlice<TLFunction>,
+
+    /// Whether this field is only a function pointer.
+    pub is_function:bool,
 }
 
 /// Used to print a field as its field and its type.
@@ -207,21 +211,24 @@ impl TLField {
             name: StaticStr::new(name),
             lifetime_indices: StaticSlice::new(lifetime_indices),
             abi_info,
-            subfields:StaticSlice::new(empty_slice()),
+            functions:StaticSlice::new(empty_slice()),
+            is_function:false,
         }
     }
 
-    pub const fn with_subfields(
+    pub const fn with_functions(
         name: &'static str,
         lifetime_indices: &'static [LifetimeIndex],
         abi_info: GetAbiInfo,
-        subfields:&'static [TLField],
+        functions:&'static [TLFunction],
+        is_function:bool,
     ) -> Self {
         Self {
             name: StaticStr::new(name),
             lifetime_indices: StaticSlice::new(lifetime_indices),
             abi_info,
-            subfields: StaticSlice::new(subfields),
+            functions: StaticSlice::new(functions),
+            is_function,
         }
     }
 
@@ -391,6 +398,7 @@ impl TypeLayout {
             full_type: FullType::new(type_name, prim, genparams),
             phantom_fields: StaticSlice::new(phantom),
             tag:Tag::null(),
+            mod_refl_mode:ModReflMode::Opaque,
         }
     }
 
@@ -414,9 +422,25 @@ impl TypeLayout {
                 primitive: RNone,
                 generics: p.generics,
             },
-            phantom_fields: StaticSlice::new(p.phantom_fields),
-            tag:p.tag,
+            phantom_fields: StaticSlice::new(empty_slice()),
+            tag:Tag::null(),
+            mod_refl_mode:ModReflMode::Opaque,
         }
+    }
+
+    pub const fn set_phantom_fields(mut self,phantom_fields: &'static [TLField])->Self{
+        self.phantom_fields=StaticSlice::new(phantom_fields);
+        self
+    }
+
+    pub const fn set_tag(mut self,tag:Tag)->Self{
+        self.tag=tag;
+        self
+    }
+
+    pub const fn set_mod_refl_mode(mut self,mod_refl_mode:ModReflMode)->Self{
+        self.mod_refl_mode=mod_refl_mode;
+        self
     }
 }
 
@@ -615,6 +639,52 @@ impl TLFieldShallow {
                 None
             },
             full_type: abi_info.layout.full_type,
+        }
+    }
+}
+
+
+////////////////////////////////////
+
+
+
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, StableAbi)]
+#[sabi(inside_abi_stable_crate)]
+pub struct TLFunction{
+    /// The name of the field this is used inside of.
+    pub name: StaticStr,
+    
+    /// The named lifetime parameters of function itself.
+    pub bound_lifetimes: StaticSlice<StaticStr>,
+
+    /// The parameters of the function,with names.
+    /// 
+    /// Lifetime indices at and after `bound_lifetimes.len()`
+    /// are lifetimes declared in the function pointer.
+    pub params:StaticSlice<TLField>,
+
+    /// The return value of the function.
+    /// 
+    /// Lifetime indices at and after `bound_lifetimes.len()`
+    /// are lifetimes declared in the function pointer.
+    pub returns:ROption<TLField>,
+}
+
+
+impl TLFunction{
+    pub const fn new(
+        name: &'static str,
+        bound_lifetimes: &'static [StaticStr],
+        params:&'static [TLField],
+        returns:ROption<TLField>,
+    )->Self{
+        Self{
+            name:StaticStr::new(name),
+            bound_lifetimes:StaticSlice::new(bound_lifetimes),
+            params:StaticSlice::new(params),
+            returns,
         }
     }
 }

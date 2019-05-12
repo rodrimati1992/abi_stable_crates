@@ -13,6 +13,9 @@ extern crate proc_macro;
 #[macro_use]
 mod macros;
 
+#[doc(hidden)]
+pub mod reflection;
+
 mod arenas;
 mod attribute_parsing;
 mod common_tokens;

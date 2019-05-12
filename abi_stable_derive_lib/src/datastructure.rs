@@ -202,6 +202,8 @@ pub(crate) struct Field<'a> {
     /// identifier for the field,which is either an index(in a tuple struct) or a name.
     pub(crate) ident: FieldIdent<'a>,
     pub(crate) ty: &'a Type,
+    /// Whether the type of this field is just a function pointer.
+    pub(crate) is_function:bool,
     /// The type used to get the AbiInfo of the field.
     /// This has all parameter and return types of function pointers removed.
     /// Extracted into the `functions` field of this struct.
@@ -226,12 +228,18 @@ impl<'a> Field<'a> {
 
         let visit_info = tv.visit_field(&mut mutated_ty);
 
+        let is_function=match field.ty {
+            Type::BareFn{..}=>true,
+            _=>false,
+        };
+
         Self {
             attrs: &field.attrs,
             vis: &field.vis,
             referenced_lifetimes: visit_info.referenced_lifetimes,
             ident,
             ty: &field.ty,
+            is_function,
             mutated_ty,
             functions: visit_info.functions,
         }

@@ -2,6 +2,7 @@
 types and traits related to abi stability.
 */
 
+pub mod reflection;
 #[macro_use]
 pub mod type_layout;
 pub(crate) mod abi_checking;

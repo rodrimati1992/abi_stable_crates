@@ -12,6 +12,7 @@ use quote::ToTokens;
 use crate::{
     datastructure::{DataStructure, DataVariant, Field},
     prefix_types::{PrefixKind,LastPrefixField,OnMissingField},
+    reflection::ModReflMode,
 };
 use crate::*;
 
@@ -36,6 +37,8 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) renamed_fields:HashMap<*const Field<'a>,&'a Ident>,
     #[allow(dead_code)]
     pub(crate) repr_attrs:Vec<MetaList>,
+
+    pub(crate) mod_refl_mode:ModReflMode,
 }
 
 
@@ -121,6 +124,7 @@ impl<'a> StableAbiOptions<'a> {
             renamed_fields:this.renamed_fields,
             repr_attrs:this.repr_attrs,
             tags:this.tags,
+            mod_refl_mode:this.mod_refl_mode,
         }
     }
 }
@@ -154,6 +158,8 @@ struct StableAbiAttrs<'a> {
     
     renamed_fields:HashMap<*const Field<'a>,&'a Ident>,
     repr_attrs:Vec<MetaList>,
+
+    mod_refl_mode:ModReflMode,
 }
 
 #[derive(Copy, Clone)]

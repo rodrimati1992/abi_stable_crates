@@ -11,6 +11,7 @@ use syn::{
     punctuated::Punctuated,
     visit_mut::{self, VisitMut},
     Generics, Ident, Lifetime, Type, TypeBareFn, TypeReference,
+    BareFnArgName,
 };
 
 
@@ -58,6 +59,8 @@ pub(crate) struct Function<'a> {
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct FnParamRet<'a> {
+    /// The name of the argument/return type.
+    pub(crate) name: &'a str,
     /// The lifetimes this type references (including static).
     pub(crate) lifetime_refs: Vec<LifetimeIndex>,
     pub(crate) ty: &'a Type,
@@ -71,6 +74,7 @@ impl<'a> FnParamRet<'a>{
             elems:Punctuated::default(),
         };
         FnParamRet{
+            name:"returns",
             lifetime_refs:Vec::new(),
             ty:arenas.alloc( syn::Type::from(unit)  ),
             param_or_ret:ParamOrReturn::Return,
@@ -266,6 +270,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
 
         fn visit_ty<'a, 'b>(
             this: &mut FnVisitor<'a, 'b>,
+            name:&'a str,
             ty: &'a mut Type,
             param_or_ret: ParamOrReturn,
         ) {
@@ -276,6 +281,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             let param_ret = mem::replace(&mut this.param_ret, FnParamRetBuilder::new(param_or_ret));
 
             let param_ret = FnParamRet {
+                name,
                 lifetime_refs: param_ret.lifetime_refs,
                 ty: ty,
                 param_or_ret: param_ret.param_or_ret,
@@ -287,16 +293,21 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             }
         }
 
-        for param in mem::replace(&mut func.inputs, Punctuated::new()) {
+        for (i,mut param) in 
+            mem::replace(&mut func.inputs, Punctuated::new())
+                .into_iter()
+                .enumerate() 
+        {
+            let arg_name=extract_fn_arg_name(i,&mut param,arenas);
             let ty = arenas.alloc_mut(param.ty);
-            visit_ty(&mut current_function, ty, ParamOrReturn::Param);
+            visit_ty(&mut current_function,arg_name, ty, ParamOrReturn::Param);
         }
 
         match mem::replace(&mut func.output, syn::ReturnType::Default) {
             syn::ReturnType::Default => None,
             syn::ReturnType::Type(_, ty) => Some(arenas.alloc_mut(*ty)),
         }
-        .map(|ty| visit_ty(&mut current_function, ty, ParamOrReturn::Return));
+        .map(|ty| visit_ty(&mut current_function,"returns", ty, ParamOrReturn::Return));
 
         let current=current_function.current;
         self.vars.fn_info.functions.push(current);
@@ -421,6 +432,26 @@ impl<'a, 'b> VisitMut for FnVisitor<'a, 'b> {
     fn visit_lifetime_mut(&mut self, lt: &mut Lifetime) {
         if let Some(ident) = self.setup_lifetime(Some(&lt.ident)) {
             lt.ident = ident.clone();
+        }
+    }
+}
+
+/////////////
+
+fn extract_fn_arg_name<'a>(
+    index:usize,
+    arg:&mut syn::BareFnArg,
+    arenas: &'a Arenas,
+)->&'a str{
+    match arg.name.take() {
+        Some((BareFnArgName::Named(name),_))=>{
+            arenas.alloc(name.to_string())
+        }
+        Some((BareFnArgName::Wild{..},_))=>{
+            "_"
+        }
+        None=>{
+            arenas.alloc(format!("param_{}",index))
         }
     }
 }

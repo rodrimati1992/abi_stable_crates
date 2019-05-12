@@ -7,7 +7,10 @@ use std::{cmp::Ordering, fmt,mem};
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    slice,
+};
 // use std::collections::HashSet;
 
 use super::{
@@ -381,8 +384,15 @@ impl AbiChecker {
                 self.stack_trace.push(TLFieldAndType::new(*this_f));
                     
                 let sf_ctx=FieldContext::Subfields;
-                // Used to check function pointer parameter and return types
-                self.check_fields(errs,t_lay,o_lay,sf_ctx,&this_f.subfields,&other_f.subfields);
+                
+                for (t_func,o_func) in this_f.functions.iter().zip(&*other_f.functions) {
+                    self.check_fields(errs,t_lay,o_lay,sf_ctx,&t_func.params,&o_func.params);
+
+                    let t_returns=t_func.returns.as_ref().map_or(&[][..],slice::from_ref);
+                    let o_returns=o_func.returns.as_ref().map_or(&[][..],slice::from_ref);
+                    self.check_fields(errs,t_lay,o_lay,sf_ctx,t_returns,o_returns);
+                }
+
 
                 self.check_inner(t_field_abi, o_field_abi);
             }else{
