@@ -6,7 +6,7 @@ use crate::{
     attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions,Repr},
     datastructure::{DataStructure,DataVariant,Struct,Field},
     to_token_fn::ToTokenFnMut,
-    fn_pointer_extractor::ParamOrReturn,
+    fn_pointer_extractor::{FnParamRet},
     prefix_types::prefix_type_tokenizer,
 };
 
@@ -20,7 +20,7 @@ use core_extensions::{
 
 };
 
-use arrayvec::ArrayString;
+
 
 
 
@@ -191,6 +191,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
     let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens);
 
+    let mod_refl_mode=config.mod_refl_mode;
+
     quote!(
         #prefix_type_tokenizer_
 
@@ -235,11 +237,11 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                                     #(#type_params_for_generics),*;
                                     #(#const_params),*
                                 ),
-                                phantom_fields: &[],
-                                tag:#tags,
                             }
                         }
-                    )
+                    ).set_phantom_fields(&[])
+                     .set_tag(#tags)
+                     .set_mod_refl_mode(#mod_refl_mode)
                 };
             }
 
@@ -314,13 +316,14 @@ fn fields_tokenizer<'a>(
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
         for field in &struct_.fields {
-            field_tokenizer(field,config,ctokens)
+            field_tokenizer(struct_,field,config,ctokens)
                 .to_tokens(ts);
         } 
     })
 }
 
 fn field_tokenizer<'a>(
+    _struct_:&'a Struct<'a>,
     field:&'a Field<'a>,
     config:&'a StableAbiOptions<'a>,
     ctokens:&'a CommonTokens<'a>,
@@ -329,7 +332,7 @@ fn field_tokenizer<'a>(
     ToTokenFnMut::new(move|ts|{
         let ct=ctokens;
 
-        to_stream!{ts; ct.tl_field,ct.colon2,ct.with_subfields };
+        to_stream!{ts; ct.tl_field,ct.colon2,ct.with_functions };
         ct.paren.surround(ts,|ts|{
             let name=config.renamed_fields
                 .get(&(field as *const _))
@@ -374,43 +377,68 @@ fn field_tokenizer<'a>(
             
             to_stream!(ts;ct.and_);
             ct.bracket.surround(ts,|ts|{
-                use std::fmt::Write;
-                
-                let mut buffer=ArrayString::<[u8;64]>::new();
                 for (fn_i,func) in field.functions.iter().enumerate() {
-                    for (i,pr) in func.params.iter().chain(&func.returns).enumerate() {
-                        buffer.clear();
-                        write!(buffer,"fn_{}_",fn_i).drop_();
-                        
-                        match pr.param_or_ret {
-                            ParamOrReturn::Param=>write!(buffer,"p_{}",i),
-                            ParamOrReturn::Return=>write!(buffer,"returns"),
-                        }.drop_();
-                        let field_name=&*buffer;
-                        let lifetime_refs=pr.lifetime_refs_tokenizer(ctokens);
-                        // println!("{}={:?}",field_name,pr.mutated_ty);
-                        
-                        to_stream!{ts; ct.tl_field,ct.colon2,ct.new };
-                        ct.paren.surround(ts,|ts|{
-                            to_stream!(ts; field_name,ct.comma );
 
-                            to_stream!(ts; ct.and_ );
-                            ct.bracket.surround(ts,|ts| lifetime_refs.to_tokens(ts) );
+                    let pr_tokenizer=move|pr:&'a FnParamRet<'a>|{
+                        ToTokenFnMut::new(move|ts|{
+                            let field_name=pr.name;
+                            let lifetime_refs=pr.lifetime_refs_tokenizer(ctokens);
                             
-                            to_stream!(ts; ct.comma );
+                            to_stream!{ts; ct.tl_field,ct.colon2,ct.new };
+                            ct.paren.surround(ts,|ts|{
+                                to_stream!(ts; field_name,ct.comma );
 
-                            make_get_abi_info_tokenizer(
-                                pr.ty,
-                                &ct.stable_abi_bound,
-                                ct,
-                            ).to_tokens(ts);
-                        });
+                                to_stream!(ts; ct.and_ );
+                                ct.bracket.surround(ts,|ts| lifetime_refs.to_tokens(ts) );
+                                
+                                to_stream!(ts; ct.comma );
 
-                        ct.comma.to_tokens(ts);
-                    }
+                                make_get_abi_info_tokenizer(
+                                    pr.ty,
+                                    &ct.stable_abi_bound,
+                                    ct,
+                                ).to_tokens(ts);
+                            });
+                        })
+                    };
+
+                    let fn_name=if field.is_function {
+                        format!("fn_{}",fn_i)
+                    }else{
+                        field.ident().to_string()
+                    };
+
+                    let bound_lifetimes=func.named_bound_lts.iter().map(|x| x.to_string() );
+                    
+                    let params=func.params.iter().map(pr_tokenizer);
+
+                    let returns=match func.returns.as_ref() {
+                        Some(returns)=>{
+                            let returns=pr_tokenizer(returns);
+                            quote!( _sabi_reexports::RSome(#returns) )
+                        },
+                        None=>
+                            quote!( _sabi_reexports::RNone ),
+                    };
+
+                    quote!(
+                        __TLFunction::new(
+                            #fn_name,
+
+                            &[ #( __StaticStr::new(#bound_lifetimes) ),* ],
+
+                            &[ #( #params ),* ],
+
+                            #returns,
+                        ),
+                    ).to_tokens(ts);
+
                 }
 
             });
+            to_stream!{ts; ct.comma };
+
+            field.is_function.to_tokens(ts);
         });
         to_stream!{ts; ct.comma }
     })

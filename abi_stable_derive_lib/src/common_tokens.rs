@@ -138,7 +138,7 @@ declare_common_tokens! {
         cap_param="Param",
         cap_const="CONST",
         subfields="subfields",
-        with_subfields="with_subfields",
+        with_functions="with_functions",
         underscore="_",
         for_="for",
         static_="static",

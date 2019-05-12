@@ -11,8 +11,10 @@ pub use crate::{
             LifetimeIndex, 
             TLData, TLPrefixType, TLEnumVariant, TLField, 
             TypeLayout, TypeLayoutParams,
+            TLFunction
         },
         tagging::Tag,
+        reflection::ModReflMode,
     },
     prefix_type::{
         panic_on_missing_field_ty,
@@ -25,7 +27,11 @@ pub use crate::{
         PTStructLayoutParams,
         PTField,
     },
-    std_types::utypeid::new_utypeid,
+    std_types::{
+        utypeid::new_utypeid,
+        StaticStr,
+        RSome,RNone,
+    },
     version::VersionStrings,
     return_value_equality::ReturnValueEquality
 };
@@ -43,6 +49,7 @@ pub mod renamed {
         StableAbi_Bound as __StableAbi_Bound, 
         TLData as __TLData, TLEnumVariant as __TLEnumVariant,
         TLField as __TLField, TypeLayoutParams as __TypeLayoutParams,
+        TLFunction as __TLFunction,
         UnsafeOpaqueField_Bound as __UnsafeOpaqueField_Bound,
         StaticEquivalent as __StaticEquivalent,
         ValueKind  as __ValueKind,
@@ -51,6 +58,7 @@ pub mod renamed {
         PTStructLayout as __PTStructLayout,
         PTStructLayoutParams as __PTStructLayoutParams,
         PTField as __PTField,
+        StaticStr as __StaticStr,
     };
 }
 
