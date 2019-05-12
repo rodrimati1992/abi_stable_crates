@@ -1,5 +1,5 @@
 use std::{
-    borrow::Cow,
+    borrow::{Cow,Borrow,BorrowMut},
     cmp::Ordering,
     io,
     iter::FromIterator,
@@ -491,6 +491,29 @@ impl<T> DerefMut for RVec<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_mut_slice()
+    }
+}
+
+impl<T> AsRef<[T]> for RVec<T> {
+    fn as_ref(&self) -> &[T] {
+        self
+    }
+}
+impl<T> AsMut<[T]> for RVec<T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        self
+    }
+}
+
+impl<T> Borrow<[T]> for RVec<T> {
+    fn borrow(&self) -> &[T] {
+        self
+    }
+}
+
+impl<T> BorrowMut<[T]> for RVec<T> {
+    fn borrow_mut(&mut self) -> &mut [T] {
+        self
     }
 }
 

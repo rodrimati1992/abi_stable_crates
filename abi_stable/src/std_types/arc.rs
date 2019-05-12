@@ -1,4 +1,9 @@
-use std::{marker::PhantomData, mem::ManuallyDrop, sync::Arc};
+use std::{
+    borrow::{Borrow},
+    marker::PhantomData, 
+    mem::ManuallyDrop, 
+    sync::Arc,
+};
 
 use core_extensions::prelude::*;
 
@@ -164,6 +169,26 @@ impl<T> RArc<T> {
     }
     
 }
+
+
+////////////////////////////////////////////////////////////////////
+
+
+impl<T> Borrow<T> for RArc<T>{
+    fn borrow(&self)->&T{
+        self
+    }
+}
+
+
+impl<T> AsRef<T> for RArc<T>{
+    fn as_ref(&self)->&T{
+        self
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////
 
 impl<T> Default for RArc<T>
 where

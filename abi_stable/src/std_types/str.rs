@@ -1,5 +1,5 @@
 use std::{
-    borrow::Cow,
+    borrow::{Cow,Borrow},
     fmt::{self, Display},
     ops::{Deref, Index},
     str,
@@ -157,9 +157,21 @@ impl_from_rust_repr! {
 
 ////////////////////////////////
 
-impl<'a> AsRef<str> for RStr<'a>{
+impl<'a> Borrow<str> for RStr<'a>{
+    fn borrow(&self)->&str{
+        self
+    }
+}
+
+impl AsRef<str> for RStr<'_>{
     fn as_ref(&self)->&str{
         self
+    }
+}
+
+impl AsRef<[u8]> for RStr<'_>{
+    fn as_ref(&self)->&[u8]{
+        self.as_bytes()
     }
 }
 

@@ -447,7 +447,7 @@ and I'd rather have a complete solution.
 Here is the relevant rfcs for unions with Drop types:
 https://github.com/rust-lang/rfcs/blob/master/text/2514-union-initialization-and-drop.md
 
-# Minumum Rust version
+# Minimum Rust version
 
 This crate support Rust back to 1.34
 (previously 1.33,but had to abandon it because of an impossible to 
@@ -457,7 +457,7 @@ using a build script to automatically enable features from newer versions.
 # Cargo Features
 
 If it becomes possible to disable build scripts,
-you can manually enable support for Rust past 1.33 features with the `rust_*_*` cargo features.
+you can manually enable support for Rust past 1.34 features with the `rust_*_*` cargo features.
 
 # License
 
