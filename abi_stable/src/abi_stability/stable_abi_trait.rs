@@ -145,7 +145,6 @@ pub type StaticEquivalent<T>=
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct AbiInfoWrapper {
     inner: AbiInfo,
     _priv: (),
@@ -178,7 +177,6 @@ impl AbiInfoWrapper {
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct AbiInfo {
     pub kind:TypeKind,
     /// Whether this is a prefix,
@@ -205,7 +203,6 @@ impl AbiInfo{
 /// The abi_stable kind of a type.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq,Eq,Ord,PartialOrd,Hash,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum TypeKind{
     /// A value whose layout must not change in minor versions
     Value,
@@ -254,7 +251,6 @@ impl TypeKindTrait for PrefixKind {
 #[derive(Copy, Clone)]
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 // #[sabi(debug_print)]
 pub struct GetAbiInfo {
     abi_info: extern "C" fn() -> &'static AbiInfo,

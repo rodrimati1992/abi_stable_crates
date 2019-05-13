@@ -32,10 +32,9 @@ use crate::{
         stable_abi_trait::SharedStableAbi,
     },
     globals::{self,Globals},
-    lazy_static_ref::LazyStaticRef,
     marker_type::ErasedObject,
     version::{ParseVersionError, VersionNumber, VersionStrings},
-    utils::{leak_value,transmute_reference},
+    utils::{transmute_reference},
     std_types::{RVec,RBoxError},
 };
 

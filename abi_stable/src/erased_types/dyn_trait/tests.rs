@@ -44,7 +44,6 @@ struct Foo<T> {
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 struct FooInterface;
 
 
@@ -78,7 +77,7 @@ where
 }
 
 crate::impl_InterfaceType!{
-    impl crate::InterfaceType for FooInterface {
+    impl InterfaceType for FooInterface {
         type Sync = False;
         
         type Send = False;
@@ -126,11 +125,10 @@ type VirtualFoo<'a> = DynTrait<'a,RBox<()>,FooInterface>;
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 struct DebugInterface;
 
 crate::impl_InterfaceType!{
-    impl crate::InterfaceType for DebugInterface {
+    impl InterfaceType for DebugInterface {
         type Debug = True;
     }
 }
@@ -532,7 +530,6 @@ mod borrowing{
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     struct FooInterface;
 
 
@@ -560,7 +557,7 @@ mod borrowing{
     }
 
     crate::impl_InterfaceType!{
-        impl crate::InterfaceType for FooInterface {
+        impl InterfaceType for FooInterface {
             type Clone = True;
 
             type Default = True;
@@ -717,12 +714,11 @@ mod borrowing{
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     struct IterInterface;
     
 
     crate::impl_InterfaceType!{
-        impl crate::InterfaceType for IterInterface {
+        impl InterfaceType for IterInterface {
             type Iterator=True;
             type DoubleEndedIterator=True;
         }
@@ -971,11 +967,10 @@ mod borrowing{
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     struct FmtInterface;
 
     crate::impl_InterfaceType!{
-        impl crate::InterfaceType for FmtInterface {
+        impl InterfaceType for FmtInterface {
             type FmtWrite = True;
         }
     }
@@ -999,11 +994,10 @@ mod borrowing{
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     struct IoInterface;
 
     crate::impl_InterfaceType!{
-        impl crate::InterfaceType for IoInterface {
+        impl InterfaceType for IoInterface {
             type IoWrite=True;
     
             type IoSeek=True;
@@ -1068,11 +1062,10 @@ mod borrowing{
     
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     struct IoBufReadInterface;
 
     crate::impl_InterfaceType!{
-        impl crate::InterfaceType for IoBufReadInterface {
+        impl InterfaceType for IoBufReadInterface {
             type IoRead=True;
             type IoBufRead=True;
         }

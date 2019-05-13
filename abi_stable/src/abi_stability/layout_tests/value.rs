@@ -20,7 +20,6 @@ use crate::{
 mod regular {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -32,7 +31,6 @@ mod regular {
 mod changed_name {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangleiiiiii {
         x: u32,
         y: u32,
@@ -44,7 +42,6 @@ mod changed_name {
 mod swapped_fields_first {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         y: u32,
         x: u32,
@@ -56,7 +53,6 @@ mod swapped_fields_first {
 mod swapped_fields_last {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -68,7 +64,6 @@ mod swapped_fields_last {
 mod removed_field_first {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         y: u32,
         w: u16,
@@ -79,7 +74,6 @@ mod removed_field_first {
 mod removed_field_last {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -90,7 +84,6 @@ mod removed_field_last {
 mod removed_all_fields {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -103,7 +96,6 @@ mod changed_type_first {
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: shadowed::u32,
         y: u32,
@@ -115,7 +107,6 @@ mod changed_type_first {
 mod changed_type_last {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -127,7 +118,6 @@ mod changed_type_last {
 mod changed_alignment {
     #[repr(C, align(16))]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -162,14 +152,12 @@ mod shadowed {
 
     #[repr(transparent)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct u32 {
         integer: std_i32,
     }
 
     #[repr(transparent)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct i32 {
         integer: std_i32,
     }
@@ -452,7 +440,6 @@ mod gen_basic {
     use super::PhantomData;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Generics<T: 'static> {
         x: &'static T,
         y: &'static T,
@@ -464,7 +451,6 @@ mod gen_more_lts {
     use super::PhantomData;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(bound = "T:'a")]
     pub struct Generics<'a, T> {
         x: &'a T,
@@ -477,7 +463,6 @@ mod gen_more_tys {
     use super::{PhantomData,Tuple2};
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Generics<T: 'static, U> {
         x: &'static T,
         y: &'static T,
@@ -489,8 +474,7 @@ mod gen_more_tys {
 // For when const-generics are usable
 // #[repr(C)]
 // #[derive(StableAbi)]
-// #[sabi(inside_abi_stable_crate)]
-// pub struct ExtraConstParam<T,const LEN:usize> {
+//// pub struct ExtraConstParam<T,const LEN:usize> {
 //     x:T,
 //     y:T,
 //     _marker:PhantomData<(T,[u8;LEN])>,
@@ -538,7 +522,6 @@ fn different_generics() {
 mod basic_enum {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub enum Enum {
         Variant0,
         Variant1 { a: u32 },
@@ -548,7 +531,6 @@ mod basic_enum {
 mod misnamed_variant {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub enum Enum {
         Variant000000000,
         Variant1 { a: u32 },
@@ -559,7 +541,6 @@ mod extra_variant {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub enum Enum {
         Variant0,
         Variant1 { a: u32 },
@@ -602,7 +583,6 @@ mod mod_0 {
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn(&mut u32,u64) -> RString,
         pub function_1: extern "C" fn() -> RString,
@@ -614,7 +594,6 @@ mod mod_0b {
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn(&mut u32,u64,()) -> RString,
         pub function_1: extern "C" fn() -> RString,
@@ -626,7 +605,6 @@ mod mod_1 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn(&mut u32,u64,RString),
         pub function_1: extern "C" fn(RString),
@@ -638,7 +616,6 @@ mod mod_2 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn(&mut u32,u64,RString)->RString,
         pub function_1: extern "C" fn(),
@@ -650,7 +627,6 @@ mod mod_3 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn(&mut u32,u64,RString),
         pub function_1: extern "C" fn()->RString,
@@ -661,7 +637,6 @@ mod mod_4 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
         pub function_1: extern "C" fn(&mut u32,u64,RString),
@@ -673,7 +648,6 @@ mod mod_5 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
         pub function_1: extern "C" fn(&mut u32,u64,RString),
@@ -685,7 +659,6 @@ mod mod_6 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
     }
@@ -695,7 +668,6 @@ mod mod_7 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
         pub function_1: extern "C" fn(&mut u32,u64,RString),
@@ -712,7 +684,6 @@ mod mod_7 {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    inside_abi_stable_crate,
     bound="M:ToTagConst",
     tag="<M as ToTagConst>::TAG",
     unconstrained(M),

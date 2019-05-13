@@ -4,7 +4,6 @@ use std::cmp::Ordering;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum RCmpOrdering {
     #[serde(rename = "Less")]
     LessR,

@@ -5,7 +5,6 @@ use std::time::Duration;
     Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize, StableAbi,
 )]
 #[repr(C)]
-#[sabi(inside_abi_stable_crate)]
 pub struct RDuration {
     seconds: u64,
     subsec_nanos: u32,

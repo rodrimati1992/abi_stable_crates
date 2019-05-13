@@ -1,7 +1,6 @@
 /// Whether this is a module whose definition can be reflected on at runtime,
 #[repr(C)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum ModReflMode{
     /// For modules that are reflected on at runtime..
     Module,

@@ -28,7 +28,6 @@ mod private {
     /// Ffi-safe equivalent of Box<_>.
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct RBox<T> {
         data: *mut T,
         vtable: *const BoxVtable<T>,
@@ -213,7 +212,6 @@ impl<T> Drop for RBox<T> {
 
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(inside_abi_stable_crate)]
 #[sabi(kind(Prefix(prefix_struct="BoxVtable")))]
 #[sabi(missing_field(panic))]
 pub(crate) struct BoxVtableVal<T> {

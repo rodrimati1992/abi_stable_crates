@@ -18,7 +18,6 @@ use crate::*;
 
 pub(crate) struct StableAbiOptions<'a> {
     pub(crate) debug_print:bool,
-    pub(crate) inside_abi_stable_crate:bool,
     pub(crate) kind: StabilityKind<'a>,
     pub(crate) repr: Repr,
     /// The type parameters that have the __StableAbi constraint
@@ -116,7 +115,6 @@ impl<'a> StableAbiOptions<'a> {
 
         StableAbiOptions {
             debug_print:this.debug_print,
-            inside_abi_stable_crate:this.inside_abi_stable_crate,
             kind, repr , stable_abi_bounded , 
             extra_bounds :this.extra_bounds,
             unconstrained_type_params:this.unconstrained_type_params.into_iter().collect(),
@@ -134,7 +132,6 @@ impl<'a> StableAbiOptions<'a> {
 #[derive(Default)]
 struct StableAbiAttrs<'a> {
     debug_print:bool,
-    inside_abi_stable_crate:bool,
     kind: UncheckedStabilityKind<'a>,
     repr: Option<Repr>,
 
@@ -302,9 +299,6 @@ fn parse_sabi_attr<'a>(
             }else{
                 panic!("unrecognized field attribute `#[sabi({})]` ",list.ident);
             }
-        }
-        (ParseContext::TypeAttr{..},Meta::Word(ref word)) if word == "inside_abi_stable_crate" =>{
-            this.inside_abi_stable_crate=true;
         }
         (ParseContext::TypeAttr{..},Meta::Word(ref word)) if word == "debug_print" =>{
             this.debug_print=true;

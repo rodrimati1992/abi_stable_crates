@@ -313,7 +313,6 @@ where
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 #[derive(Copy,Clone)]
 pub struct IoWriteFns{
     pub(super) write:
@@ -388,7 +387,6 @@ where W:IoWrite
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 #[derive(Copy,Clone)]
 pub struct IoReadFns{
     pub(super) read:
@@ -444,7 +442,6 @@ where R:Read
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 #[derive(Copy,Clone)]
 pub struct IoBufReadFns{
     pub(super) fill_buf:

@@ -5,7 +5,6 @@ use std::{
 /// Wrapper type for an `extern fn()->T` using the return value for comparisons.
 #[repr(transparent)]
 #[derive(Debug, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct ReturnValueEquality<T> {
     pub function: extern "C" fn() -> T,
 }

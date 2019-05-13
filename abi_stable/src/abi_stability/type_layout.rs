@@ -44,7 +44,6 @@ pub struct TypeLayoutParams {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 // #[sabi(debug_print)]
-#[sabi(inside_abi_stable_crate)]
 pub struct TypeLayout {
     pub name: StaticStr,
     pub package: StaticStr,
@@ -65,7 +64,6 @@ pub struct TypeLayout {
 /// Allows lifetimes to be renamed,so long as the "same" lifetime is being referenced.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum LifetimeIndex {
     Static,
     Param(usize),
@@ -82,7 +80,6 @@ pub enum LifetimeIndex {
 ///
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct GenericParams {
     pub lifetime: StaticSlice<StaticStr>,
     pub type_: StaticSlice<&'static TypeLayout>,
@@ -93,7 +90,6 @@ pub struct GenericParams {
 /// used for printing types.
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct FullType {
     pub name: StaticStr,
     pub primitive: ROption<RustPrimitive>,
@@ -105,7 +101,6 @@ pub struct FullType {
 /// Unions are currently treated as structs.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum TLData {
     /// All the bytes for the type are valid (not necessarily all bit patterns).
     ///
@@ -126,7 +121,6 @@ pub enum TLData {
 /// vtables and modules that can be extended in minor versions.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct TLPrefixType {
     /// The first field in the suffix
     pub first_suffix_field:usize,
@@ -140,7 +134,6 @@ pub struct TLPrefixType {
 /// A discriminant-only version of TLData.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum TLDataDiscriminant {
     Primitive,
     Struct,
@@ -151,7 +144,6 @@ pub enum TLDataDiscriminant {
 /// The layout of an enum variant.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct TLEnumVariant {
     pub name: StaticStr,
     pub fields: StaticSlice<TLField>,
@@ -160,7 +152,6 @@ pub struct TLEnumVariant {
 /// The layout of a field.
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct TLField {
     /// The field's name.
     pub name: StaticStr,
@@ -182,7 +173,6 @@ pub struct TLField {
 /// Used to print a field as its field and its type.
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct TLFieldAndType {
     inner: TLField,
 }
@@ -190,7 +180,6 @@ pub struct TLFieldAndType {
 /// What primitive type this is.Used mostly for printing the type.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum RustPrimitive {
     Reference,
     MutReference,
@@ -651,7 +640,6 @@ impl TLFieldShallow {
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct TLFunction{
     /// The name of the field this is used inside of.
     pub name: StaticStr,

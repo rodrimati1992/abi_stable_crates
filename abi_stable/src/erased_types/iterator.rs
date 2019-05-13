@@ -17,7 +17,6 @@ use crate::{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct IteratorFns<Item>{
     pub(super) next       :extern fn(&mut ErasedObject)->ROption<Item>,
     pub(super) extending_rvec:
@@ -150,7 +149,6 @@ where I:Iterator
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct DoubleEndedIteratorFns<Item>{
     pub(super) next_back       :extern fn(&mut ErasedObject)->ROption<Item>,
     pub(super) extending_rvec_back:

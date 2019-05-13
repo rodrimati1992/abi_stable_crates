@@ -31,7 +31,6 @@ use crate::std_types::StaticStr;
 /// Patch cannot change the api/abi of the library at all,fixes only.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[repr(C)]
-#[sabi(inside_abi_stable_crate)]
 pub struct VersionStrings {
     pub major: StaticStr,
     pub minor: StaticStr,
@@ -51,7 +50,6 @@ pub struct VersionStrings {
 /// Patch cannot change the api/abi of the library at all,fixes only.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[repr(C)]
-#[sabi(inside_abi_stable_crate)]
 pub struct VersionNumber {
     pub major: u32,
     pub minor: u32,

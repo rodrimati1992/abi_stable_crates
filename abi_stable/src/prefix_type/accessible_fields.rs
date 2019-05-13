@@ -7,7 +7,6 @@ use std::iter::ExactSizeIterator;
 
 #[must_use="FieldAccessibility is returned by value by every mutating method."]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
 #[repr(transparent)]
 pub struct FieldAccessibility{
@@ -17,7 +16,6 @@ pub struct FieldAccessibility{
 
 /// Whether a field is accessible.
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
 #[repr(C)]
 pub enum IsAccessible{

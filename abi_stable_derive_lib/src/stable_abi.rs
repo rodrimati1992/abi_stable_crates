@@ -177,18 +177,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let stable_abi_bounded =&config.stable_abi_bounded;
     let extra_bounds       =&config.extra_bounds;
     
-    let inside_abi_stable_crate=if config.inside_abi_stable_crate { 
-        quote!(pub(super) use crate as abi_stable;)
-    }else{ 
-        quote!(pub(super) use ::abi_stable;)
-    };
-
-    let import_group=if config.inside_abi_stable_crate { 
-        quote!(crate)
-    }else{ 
-        quote!(abi_stable)
-    };
-
     let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens);
 
     let mod_refl_mode=config.mod_refl_mode;
@@ -199,10 +187,10 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         mod #module {
             use super::*;
 
-            #inside_abi_stable_crate
+            pub(super) use ::abi_stable;
 
             #[allow(unused_imports)]
-            pub(super) use #import_group::derive_macro_reexports::{
+            pub(super) use ::abi_stable::derive_macro_reexports::{
                 self as _sabi_reexports,
                 renamed::*,
             };

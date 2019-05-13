@@ -34,7 +34,6 @@ where T:From<u8>
 mod prefix0 {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     // #[sabi(debug_print)]
     #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     pub struct PrefixVal {
@@ -48,7 +47,6 @@ mod prefix1 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         // debug_print,
         kind(Prefix(prefix_struct="Prefix")),
         missing_field(with="custom_default::<_>"),
@@ -63,7 +61,6 @@ mod prefix1 {
 mod prefix2 {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     #[sabi(missing_field(default))]
     pub struct PrefixVal {
@@ -79,7 +76,6 @@ mod prefix2_misaligned {
     #[repr(C,align(16))]
     #[derive(StableAbi)]
     // #[sabi(debug_print)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     pub struct PrefixVal {
         #[sabi(last_prefix_field)]
@@ -92,7 +88,6 @@ mod prefix2_misaligned {
 mod prefix2_different_prefix {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     pub struct PrefixVal {
         pub field0: u8,
@@ -105,7 +100,6 @@ mod prefix2_different_prefix {
 mod prefix3 {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     #[sabi(missing_field(panic))]
     pub struct PrefixVal {
@@ -566,7 +560,6 @@ mod cond_fields_0 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -586,7 +579,6 @@ mod cond_fields_1 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -609,7 +601,6 @@ mod cond_fields_2 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -636,7 +627,6 @@ mod cond_fields_2_misaligned {
     #[repr(C,align(16))]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -662,7 +652,6 @@ mod cond_fields_2_different_prefix {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -689,7 +678,6 @@ mod cond_fields_3 {
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -719,7 +707,6 @@ mod cond_fields_3_uncond_prefix {
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),

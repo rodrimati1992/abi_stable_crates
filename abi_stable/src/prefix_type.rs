@@ -169,7 +169,6 @@ pub struct WithMetadataFor<T,P>{
 /// Whether a field is conditional,
 /// whether it has a `#[sabi(accessible_if=" expression ")]` attribute or not.
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
 #[repr(C)]
 pub enum IsConditional{

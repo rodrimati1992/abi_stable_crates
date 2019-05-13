@@ -29,14 +29,12 @@ Extra layout checks,passed by the user in either:
 */
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct ExtraChecks{
     pub func:extern "C" fn(ExtraChecksParams)->RResult<(),ExtraAbiErrors>
 }
 
 #[repr(C)]
 #[derive(Debug, PartialEq,Eq,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct ExtraChecksParams<'tag>{
     interface    :&'static AbiInfo,
     interface_tag:&'tag CheckableTag,
@@ -49,7 +47,6 @@ pub struct ExtraChecksParams<'tag>{
 /// All the errors returned by `ExtraChecks.func`,as well as how serious they are.
 #[repr(C)]
 #[derive(Debug, PartialEq,Eq,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct ExtraAbiErrors{
     pub errors:RVec<ExtraAbiError>,
 }
@@ -58,7 +55,6 @@ pub struct ExtraAbiErrors{
 /// An error returned by `ExtraChecks.func`.
 #[repr(C)]
 #[derive(Debug, PartialEq,Eq,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct ExtraAbiError{
     pub name:RString,
     pub description:RString,
@@ -72,7 +68,6 @@ pub struct ExtraAbiError{
 /// collects a few more errors.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq,Eq,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum ErrorSeriousness{
     /// An error that stops layout checking immediately.
     Fatal,
