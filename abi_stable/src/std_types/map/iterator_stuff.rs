@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::{
-    erased_types::IteratorItem,
+    erased_types::{IteratorItem,InterfaceType},
     type_level::bools::*,
 };
 
@@ -15,7 +15,6 @@ macro_rules! declare_iter_interface {
         $(#[$attr])*
         #[repr(C)]
         #[derive(StableAbi)]
-        #[sabi(inside_abi_stable_crate)]
         pub struct $interface<$k,$v>(PhantomData<Tuple2<$k,$v>>);
 
         impl<$k,$v> $interface<$k,$v>{
@@ -38,7 +37,7 @@ declare_iter_interface!{
 }
 
 crate::impl_InterfaceType!{
-    impl<K,V> crate::InterfaceType for RefIterInterface<K,V> {
+    impl<K,V> InterfaceType for RefIterInterface<K,V> {
         type Send=False;
         type Sync=False;
         type Iterator=True;
@@ -56,7 +55,7 @@ declare_iter_interface!{
 }
 
 crate::impl_InterfaceType!{
-    impl<K,V> crate::InterfaceType for MutIterInterface<K,V> {
+    impl<K,V> InterfaceType for MutIterInterface<K,V> {
         type Send=False;
         type Sync=False;
         type Iterator=True;
@@ -74,7 +73,7 @@ declare_iter_interface!{
 }
 
 crate::impl_InterfaceType!{
-    impl<K,V> crate::InterfaceType for ValIterInterface<K,V> {
+    impl<K,V> InterfaceType for ValIterInterface<K,V> {
         type Send=False;
         type Sync=False;
         type Iterator=True;
@@ -95,7 +94,6 @@ type IntoIterInner<'a,K,V>=
 /// This is an `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct IntoIter<K,V>{
     iter:IntoIterInner<'static,u32,u32>,
     // _marker:PhantomData<Tuple2<K,V>>,

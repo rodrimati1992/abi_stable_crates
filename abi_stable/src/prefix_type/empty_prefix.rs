@@ -2,7 +2,6 @@ use super::*;
 
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(inside_abi_stable_crate)]
 #[sabi(kind(Prefix(prefix_struct="EmptyPrefixType")))]
 #[sabi(missing_field(panic))]
 pub struct EmptyPrefixTypeVal {

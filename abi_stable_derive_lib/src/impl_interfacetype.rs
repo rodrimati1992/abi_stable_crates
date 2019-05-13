@@ -71,14 +71,8 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
             (&impl_.self_ty).into_token_stream()
         );
     }else{
-        let interface_path_s=interface_path_s.unwrap();
-        let prefix=if interface_path_s.len()>=1 && interface_path_s[0].ident=="crate" {
-            "crate::type_level"
-        }else{
-            "abi_stable::type_level"
-        };
         let parse_type=|s:&str|->SynType{
-            let s=format!("{}::{}",prefix,s);
+            let s=format!("abi_stable::type_level::{}",s);
             syn::parse_str(&s).unwrap()
         };
         DefaultValTypes{

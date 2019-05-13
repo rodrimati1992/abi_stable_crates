@@ -11,7 +11,7 @@ use crate::{
     },
     StableAbi,
     DynTrait,
-    erased_types::IteratorItem,
+    erased_types::{IteratorItem,InterfaceType},
     std_types::*,
     type_level::bools::*,
 };
@@ -27,12 +27,11 @@ macro_rules! mod_iter_ty {
 
             #[repr(C)]
             #[derive(StableAbi)]
-            #[sabi(inside_abi_stable_crate)]
             pub struct Interface;
 
 
             crate::impl_InterfaceType!{
-                impl crate::InterfaceType for Interface {
+                impl InterfaceType for Interface {
                     type Iterator=True;
                 }
             }
@@ -50,12 +49,11 @@ macro_rules! mod_iter_ty {
 mod no_iterator_interface{
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Interface;
 
 
     crate::impl_InterfaceType!{
-        impl crate::InterfaceType for Interface {}
+        impl super::InterfaceType for Interface {}
     }
 
 }

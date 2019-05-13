@@ -35,7 +35,6 @@ mod private {
     /// Ffi-safe equivalent of `std::vec::Vec`.
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     // #[sabi(debug_print)]
     pub struct RVec<T> {
         buffer: *mut T,
@@ -710,7 +709,6 @@ impl io::Write for RVec<u8> {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 enum Exactness {
     Exact,
     Above,
@@ -753,7 +751,6 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 #[sabi(kind(Prefix(prefix_struct="VecVTable")))]
 #[sabi(missing_field(panic))]
 struct VecVTableVal<T> {

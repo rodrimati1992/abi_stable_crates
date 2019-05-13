@@ -15,7 +15,6 @@ use crate::std_types::{RSlice, RString};
 /// Ffi-safe equivalent of `&'a str`
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct RStr<'a> {
     inner: RSlice<'a, u8>,
 }

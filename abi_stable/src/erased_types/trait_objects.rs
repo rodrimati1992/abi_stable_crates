@@ -23,7 +23,6 @@ use crate::{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct HasherObject<'a> {
     this:&'a mut ErasedObject,
     hash_slice: extern "C" fn(&mut ErasedObject, RSlice<'_, u8>) ,
@@ -68,7 +67,6 @@ impl<'a> Hasher for HasherObject<'a>{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct DebugDisplayObject{
     this:RBox<ErasedObject>,
     display:extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,

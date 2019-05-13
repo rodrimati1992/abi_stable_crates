@@ -5,7 +5,6 @@ macro_rules! declare_tuple {
     /// Ffi-safe equivalent of tuples.
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash,StableAbi)]
     #[repr(C)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct $tconstr< $($tparam,)* > (
         $(pub $tparam,)*
     );

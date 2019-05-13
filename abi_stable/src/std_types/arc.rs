@@ -27,7 +27,6 @@ mod private {
     /// Ffi-safe version of ::std::sync::Arc<_>
     #[derive(StableAbi)]
     #[repr(C)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct RArc<T> {
         data: *const T,
         // This is a pointer instead of a static reference only because
@@ -277,7 +276,6 @@ mod vtable_mod {
 
     #[derive(StableAbi)]
     #[repr(C)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(Prefix(prefix_struct="ArcVtable")))]
     #[sabi(missing_field(panic))]
     pub struct ArcVtableVal<T> {

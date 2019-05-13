@@ -10,7 +10,6 @@ use crate::std_types::{ROption,RSome,RNone};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum RResult<T, E> {
     #[serde(rename = "Ok")]
     ROk(T),

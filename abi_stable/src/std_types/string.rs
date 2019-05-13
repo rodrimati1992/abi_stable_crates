@@ -28,7 +28,6 @@ pub use self::iters::{Drain, IntoIter};
 #[derive(Clone)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct RString {
     inner: RVec<u8>,
 }

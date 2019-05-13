@@ -169,7 +169,6 @@ The most common examples of this type are:
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    inside_abi_stable_crate,
     unconstrained(B),
     bound="<B as BorrowOwned<'a>>::RBorrowed: StableAbi",
     bound="<B as BorrowOwned<'a>>::ROwned   : StableAbi",

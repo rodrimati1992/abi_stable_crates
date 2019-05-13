@@ -14,13 +14,11 @@ use crate::{
 /// Marker type used to mark a type as being Send+Sync.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct SyncSend;
 
 /// Marker type used to mark a type as being !Send+!Sync.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct UnsyncUnsend {
     _marker: UnsafeIgnoredType<Rc<()>>,
 }
@@ -28,7 +26,6 @@ pub struct UnsyncUnsend {
 /// Marker type used to mark a type as being Send+!Sync.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct UnsyncSend {
     _marker: UnsafeIgnoredType<Cell<()>>,
 }
@@ -39,7 +36,6 @@ pub struct UnsyncSend {
 /// it is semantically an error to do so.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct NotCopyNotClone;
 
 
@@ -48,7 +44,6 @@ pub struct NotCopyNotClone;
 ///
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct ErasedObject{
     _priv: [u8; 0],
 }
