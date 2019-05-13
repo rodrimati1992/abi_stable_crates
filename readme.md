@@ -288,17 +288,18 @@ use abi_stable::{
     extern_fn_panic_handling,
     impl_get_type_info,
     library::{WithLayout},
+    prefix_type::PrefixTypeTrait,
     std_types::RString,
 };
 
 
 /// The function which exports the root module of the library.
 #[export_sabi_module]
-pub extern "C" fn get_library() -> WithLayout<ExampleLib> {
-    WithLayout::new(ExampleLibVal{
+pub extern "C" fn get_library() -> ExampleLib {
+    ExampleLibVal{
         new_boxed_interface,
         append_string,
-    })
+    }.leak_into_prefix()
 }
 
 

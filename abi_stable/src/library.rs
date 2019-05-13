@@ -6,6 +6,8 @@ as well as functions/modules within.
 use std::{
     fmt::{self, Display},
     io,
+    marker::PhantomData,
+    mem,
     path::{Path,PathBuf},
     sync::atomic,
 };
@@ -18,8 +20,7 @@ use libloading::{
 };
 
 use abi_stable_derive_lib::{
-    mangle_library_getter_ident,
-    mangle_initialize_globals_with_ident,
+    mangled_root_module_loader_name,
 };
 
 
@@ -27,23 +28,23 @@ use abi_stable_derive_lib::{
 use crate::{
     abi_stability::{
         AbiInfoWrapper,
+        AbiInfo,
         stable_abi_trait::SharedStableAbi,
     },
-    globals::{self,InitializeGlobalsWithFn},
+    globals::{self,Globals},
     lazy_static_ref::LazyStaticRef,
-    prefix_type::PrefixTypeTrait,
+    marker_type::ErasedObject,
     version::{ParseVersionError, VersionNumber, VersionStrings},
-    utils::leak_value,
+    utils::{leak_value,transmute_reference},
     std_types::{RVec,RBoxError},
 };
 
 
 /// A handle to any dynamically loaded library,
 /// not necessarily ones that export abi_stable compatible modules.
-#[derive(Copy, Clone)]
 pub struct Library {
-    path:&'static Path,
-    library: &'static LibLoadingLibrary,
+    path:PathBuf,
+    library: LibLoadingLibrary,
 }
 
 
@@ -60,8 +61,8 @@ pub enum LibrarySuffix{
 
 impl Library {
     /// Gets the full path a library would be loaded from,
-    pub fn get_library_path(
-        folder: &Path,
+    pub fn path_in_directory(
+        directory: &Path,
         base_name: &str,
         suffix:LibrarySuffix,
     )->PathBuf{
@@ -89,31 +90,15 @@ impl Library {
         };
 
         let name=format!("{}{}.{}",prefix, maybe_suffixed_name, extension);
-        folder.join(name)
+        directory.join(name)
     }
 
     /// Loads the dynamic library at the `full_path` path.
-    pub fn load_at(full_path:&Path) -> Result<&'static Self,LibraryError> {
-        LibLoadingLibrary::new(full_path)
-            .map_err(|io|{
-                LibraryError::OpenError{ path:full_path.to_owned(), io }
-            })?
-            .piped(leak_value)
-            .piped(|library| Self { path:leak_value(full_path.to_owned()), library })
-            .piped(leak_value)
-            .piped(Ok)
-    }
-
-    /// Loads the dynamic library from the `folder`.
-    /// 
-    /// The full filename of the library is determined by `suffix`.
-    pub fn load_in(
-        folder: &Path,
-        base_name: &str,
-        suffix:LibrarySuffix,
-    ) -> Result<&'static Self,LibraryError> {
-        let path=Self::get_library_path(folder,base_name,suffix);
-        Self::load_at(&path)
+    pub fn load_at(full_path:&Path) -> Result<Self,LibraryError> {
+        match LibLoadingLibrary::new(&full_path) {
+            Ok(library)=>Ok(Self { path:full_path.to_owned(), library }),
+            Err(io)=>Err(LibraryError::OpenError{ path:full_path.to_owned(), io }),
+        }
     }
 
     /// Gets access to a static/function declared by the library.
@@ -125,11 +110,10 @@ impl Library {
     ///
     ///
     ///
-    unsafe fn get_static<T>(
+    unsafe fn get<T>(
         &self, 
         symbol_name: &[u8]
-    ) -> Result<LLSymbol<'static,T>,LibraryError> 
-    where T:'static
+    ) -> Result<LLSymbol<'_,T>,LibraryError> 
     {
         match self.library.get::<T>(symbol_name) {
             Ok(symbol)=>Ok(symbol),
@@ -147,10 +131,13 @@ impl Library {
 
 //////////////////////////////////////////////////////////////////////
 
-/// A type alias for a function that exports a module 
-/// (a struct of function pointers that implements RootModule).
-pub type LibraryGetterFn<T>=
-    extern "C" fn() -> WithLayout<T>;
+/// The path a library is loaded from.
+#[derive(Debug,Copy,Clone,PartialEq,Eq,Ord,PartialOrd,Hash)]
+pub enum LibraryPath<'a>{
+    FullPath(&'a Path),
+    Directory(&'a Path),
+}
+
 
 //////////////////////////////////////////////////////////////////////
 
@@ -161,9 +148,6 @@ pub type LibraryGetterFn<T>=
 /// For an example of a type implementing this trait you can look 
 /// for the `example/example_*_interface` crates  in this crates' repository .
 pub trait RootModule: Sized+SharedStableAbi  {
-
-    /// The late-initialized reference to the Library handle.
-    fn raw_library_ref()->&'static LazyStaticRef<Library>;
 
     /// The base name of the dynamic library,which is the same on all platforms.
     /// This is generally the name of the `implementation crate`.
@@ -177,83 +161,47 @@ pub trait RootModule: Sized+SharedStableAbi  {
     /// Initialize this with ` package_version_strings!() `
     const VERSION_STRINGS: VersionStrings;
 
-    /// The name of the function which constructs this module.
-    ///
-    /// The function signature for the loader is:
-    ///
-    /// `extern "C" fn()->WithLayout<Self>`
-    const LOADER_FN: &'static str;
+    const CONSTANTS:RootModuleConsts<Self>=RootModuleConsts{
+        base_name:Self::BASE_NAME,
+        name:Self::NAME,
+        version_strings:Self::VERSION_STRINGS,
+        abi_info:<&Self>::S_ABI_INFO,
+        _priv:PhantomData,
+    };
 
     /// Returns the path the library would be loaded from.
-    fn get_library_path(directory:&Path)-> PathBuf {
-        let base_name=Self::BASE_NAME;
-        Library::get_library_path(directory, base_name,LibrarySuffix::NoSuffix)
-    }
-
-    /// Loads this module from the library in the `directory` directory,
-    /// first loading the dynamic library from the `directory` if it wasn't already loaded.
-    fn load_from_library_in(directory: &Path) -> Result<&'static Self, LibraryError>{
-        Self::raw_library_ref()
-            .try_init(||{
-                let path=Self::get_library_path(directory);
-                // println!("loading library at:\n\t{}\n",path.display());
-                Library::load_at(&path) 
-            })
-            .and_then(Self::load_with)
-    }
-    
-    /// Loads this module from the library at the `full_path` path,
-    /// first loading the dynamic library from the `full_path` path 
-    /// if it wasn't already loaded.
-    fn load_from_library_at(full_path: &Path) -> Result<&'static Self, LibraryError>{
-        Self::raw_library_ref()
-            .try_init(|| Library::load_at(full_path)  )
-            .and_then(Self::load_with)
-    }
-
-    /// Loads this module from the `raw_library`.
-    fn load_with(raw_library:&'static Library)->Result<&'static Self,LibraryError>{
-
-        let library_getter: LLSymbol<'static,LibraryGetterFn<Self>> =unsafe{
-            let mut mangled=mangle_library_getter_ident(Self::LOADER_FN);
-            mangled.push('\0');
-            raw_library.get_static::<LibraryGetterFn<Self>>(mangled.as_bytes())?
-        };
-        
-
-        let initialize_globals_with: LLSymbol<'static,InitializeGlobalsWithFn>=unsafe{
-            let mut mangled=mangle_initialize_globals_with_ident(Self::LOADER_FN);
-            mangled.push('\0');
-            raw_library.get_static::<InitializeGlobalsWithFn>(mangled.as_bytes())?
-        };
-        
-
-        let globals=globals::initialized_globals();
-        
-
-        // This has to run before anything else.
-        initialize_globals_with(globals);
-        
-        
-        let items = library_getter();
-        
-        
-        let expected_version = Self::VERSION_STRINGS
-            .piped(VersionNumber::new)?;
-        let actual_version = items.version_strings().piped(VersionNumber::new)?;
-
-        if expected_version.major != actual_version.major || 
-            (expected_version.major==0) && expected_version.minor > actual_version.minor
-        {
-            return Err(LibraryError::IncompatibleVersionNumber {
-                library_name: Self::NAME,
-                expected_version,
-                actual_version,
-            });
+    fn get_library_path(where_:LibraryPath<'_>)-> PathBuf {
+        match where_ {
+            LibraryPath::Directory(directory)=>{
+                let base_name=Self::BASE_NAME;
+                Library::path_in_directory(directory, base_name,LibrarySuffix::NoSuffix)
+            }
+            LibraryPath::FullPath(full_path)=>  
+                full_path.to_owned(),
         }
+    }
 
-        items.check_layout()?
-            .initialization()
+    /// Loads this module from the path specified by `where_`,
+    /// first loading the dynamic library if it wasn't already loaded.
+    fn load_from_library(where_:LibraryPath<'_>) -> Result<&'static Self, LibraryError>{
+        load_raw_library::<Self>(where_)
+            .and_then(load_root_mod_with_raw_lib)
+    }
+
+    /// Returns the layout of the root module of the library at the specified path.
+    fn layout_of_library(where_:LibraryPath<'_>)->Result<&'static AbiInfo,LibraryError>{
+        let raw_lib=load_raw_library::<Self>(where_)?;
+
+        let library_getter=root_mod_getter_from_raw_library::<Self>(&raw_lib)?;
+
+        let layout=library_getter.layout()?;
+
+        // Important,If I don't leak the library after sucessfully loading the root module
+        // it would cause any use of the module to be a use after free.
+        mem::forget(raw_lib);
+
+        Ok(layout)
+
     }
 
     /// Defines behavior that happens once the module is loaded.
@@ -265,6 +213,111 @@ pub trait RootModule: Sized+SharedStableAbi  {
 }
 
 
+/// Loads this module from the `raw_library`.
+fn load_root_mod_with_raw_lib<M>(
+    raw_library:Library
+)->Result<&'static M,LibraryError>
+where
+    M:RootModule
+{
+
+    let items = root_mod_getter_from_raw_library::<M>(&raw_library)?;
+
+    let globals=globals::initialized_globals();
+    
+    // This has to run before anything else.    
+    items.initialize_library_globals(globals);
+
+    let expected_version = M::VERSION_STRINGS
+        .piped(VersionNumber::new)?;
+    let actual_version = items.version_strings().piped(VersionNumber::new)?;
+
+    if expected_version.major != actual_version.major || 
+        (expected_version.major==0) && expected_version.minor > actual_version.minor
+    {
+        return Err(LibraryError::IncompatibleVersionNumber {
+            library_name: M::NAME,
+            expected_version,
+            actual_version,
+        });
+    }
+
+    let root_mod=items.check_layout::<M>()?
+        .initialization()?;
+
+    // Important,If I don't leak the library after sucessfully loading the root module
+    // it would cause any use of the module to be a use after free.
+    mem::forget(raw_library);
+
+    Ok(root_mod)
+}
+
+
+/// Loads the raw library at `where_`
+fn load_raw_library<M>(where_:LibraryPath<'_>) -> Result<Library, LibraryError>
+where
+    M:RootModule
+{
+    let path=M::get_library_path(where_);
+    Library::load_at(&path)
+}
+
+
+pub fn root_mod_getter_from_raw_library<M>(
+    raw_library:&Library
+)->Result< WithLayout , LibraryError>
+{
+    unsafe{
+        let mut mangled=mangled_root_module_loader_name();
+        mangled.push('\0');
+        let library_getter=
+            raw_library.get::<&'static WithLayout>(mangled.as_bytes())?;
+
+        Ok(**library_getter)
+    }
+}
+
+
+//////////////////////////////////////////////////////////////////////
+
+/// Encapsulates all the important constants of `RootModule` for `M`,
+/// used mostly to construct a `WithLayout` with `WithLayout::from_constructor`.
+#[derive(Copy,Clone)]
+pub struct RootModuleConsts<M>{
+    pub base_name: &'static str,
+    pub name: &'static str,
+    pub version_strings: VersionStrings,
+    pub abi_info: &'static AbiInfoWrapper,
+    _priv:PhantomData<extern fn()->M>,
+}
+
+
+//////////////////////////////////////////////////////////////////////
+
+/// Newtype wrapper for functions which construct constants.
+///
+/// Declared to pass a function pointers to const fn.
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct Constructor<T>(pub extern fn()->T);
+
+impl<T> Copy for Constructor<T>{}
+
+impl<T> Clone for Constructor<T>{
+    fn clone(&self)->Self{
+        *self
+    }
+}
+
+//////////////////////////////////////////////////////////////////////
+
+#[repr(C)]
+#[derive(StableAbi,Copy,Clone)]
+struct InitGlobalsWith(pub extern fn(&'static Globals));
+
+const INIT_GLOBALS_WITH:InitGlobalsWith=
+    InitGlobalsWith(crate::globals::initialize_globals_with);
+
 //////////////////////////////////////////////////////////////////////
 
 mod with_layout {
@@ -273,44 +326,53 @@ mod with_layout {
     /// Used to check the layout of modules returned by module-loading functions
     /// exported by dynamic libraries.
     #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
-    pub struct WithLayout <T:'static>{
+    #[derive(StableAbi,Copy,Clone)]
+    pub struct WithLayout {
         magic_number: usize,
 
         version_strings:VersionStrings,
         layout: &'static AbiInfoWrapper,
-        value: &'static T,
+        init_globals_with:InitGlobalsWith,
+        module:ConstructorOrValue<&'static ErasedObject>
     }
 
-    impl<T> WithLayout<T> {
-        /// Constructs a WithLayout from the `PrefixStruct` of a type 
-        /// deriving `StableAbi` with 
-        /// `#[sabi(kind(Prefix(prefix_struct="PrefixStruct" )))]`.
-        pub fn from_prefix(ref_:&'static T)->Self
+    impl WithLayout {
+        /// Constructs a WithLayout from the root module loader.
+        pub const unsafe fn from_constructor<M>(
+            constructor:Constructor<&'static ErasedObject>,
+            constants:RootModuleConsts<M>,
+        )->Self
+        {
+            Self {
+                magic_number: MAGIC_NUMBER,
+                version_strings:constants.version_strings,
+                layout: constants.abi_info,
+                init_globals_with: INIT_GLOBALS_WITH,
+                module:ConstructorOrValue::Constructor(constructor),
+            }
+        }
+
+        /// Constructs a WithLayout from the module.
+        pub fn from_module<T>(value:&'static T)->Self
         where
             T: RootModule,
         {
+            let value=unsafe{ transmute_reference::<T,ErasedObject>(value) };
             Self {
                 magic_number: MAGIC_NUMBER,
                 version_strings:T::VERSION_STRINGS,
                 layout: <&T>::S_ABI_INFO,
-                value:ref_,
+                init_globals_with: INIT_GLOBALS_WITH,
+                module:ConstructorOrValue::Value(value),
             }
         }
 
-        /// Constructs a WithLayout from the 
-        /// type deriving `StableAbi` with `#[sabi(kind(Prefix(..)))]`,
-        /// leaking the value in the process.
-        pub fn new<M>(value:M) -> Self
-        where
-            M:PrefixTypeTrait<Prefix=T>+'static,
-            T: RootModule,
-        {
-            // println!("constructing a WithLayout");
-                        
-            value.leak_into_prefix()
-                .piped(Self::from_prefix)
+        fn check_abi(&self)->Result<(), LibraryError> {
+            if self.magic_number == MAGIC_NUMBER {
+                Ok(())
+            }else{
+                Err(LibraryError::InvalidMagicNumber(self.magic_number))
+            }
         }
 
         /// The version string of the library the module is being loaded from.
@@ -318,15 +380,28 @@ mod with_layout {
             self.version_strings
         }
 
+        /// Gets the layout of the root module.
+        ///
+        /// # Errors 
+        ///
+        /// This returns a LibraryError if the abi is incompatible.
+        pub fn layout(&self)->Result<&'static AbiInfo , LibraryError>{
+            self.check_abi()?;
+
+            Ok(self.layout.get())
+        }
+
+        pub fn initialize_library_globals(&self,globals:&'static Globals){
+            (self.init_globals_with.0)(globals);
+        }
+
         /// Checks that the layout of the `T` from the dynamic library is 
         /// compatible with the caller's .
-        pub fn check_layout(&self) -> Result<&'static T, LibraryError>
+        pub fn check_layout<T>(mut self) -> Result<&'static T, LibraryError>
         where
             T: RootModule,
         {
-            if self.magic_number != MAGIC_NUMBER {
-                return Err(LibraryError::InvalidMagicNumber(self.magic_number));
-            }
+            self.check_abi()?;
 
             // Using this instead of
             // crate::abi_stability::abi_checking::check_abi_stability
@@ -344,18 +419,45 @@ mod with_layout {
             
             atomic::compiler_fence(atomic::Ordering::SeqCst);
             
-            Ok(self.value)
+            let ret=unsafe{ 
+                transmute_reference::<ErasedObject,T>(self.module.get())
+            };
+            Ok(ret)
         }
     }
-
 }
 
+
 pub use self::with_layout::WithLayout;
+
 
 // ABI version 0.3
 // Format:
 // ABI_(A for pre-1.0 version number ,B for major version number)_(version number)
 const MAGIC_NUMBER: usize = 0xAB1_A_0003;
+
+//////////////////////////////////////////////////////////////////////
+
+
+#[repr(C)]
+#[derive(StableAbi,Copy,Clone)]
+enum ConstructorOrValue<T>{
+    Constructor(Constructor<T>),
+    Value(T)
+}
+
+impl<T:Copy> ConstructorOrValue<T>{
+    fn get(&mut self)->T{
+        match *self {
+            ConstructorOrValue::Value(v)=>v,
+            ConstructorOrValue::Constructor(func)=>{
+                let v=(func.0)();
+                *self=ConstructorOrValue::Value(v);
+                v
+            },
+        }
+    }
+}
 
 //////////////////////////////////////////////////////////////////////
 
@@ -371,7 +473,7 @@ pub enum LibraryError {
     },
     /// When a function/static does not exist.
     GetSymbolError{
-        library:&'static Path,
+        library:PathBuf,
         /// The name of the function/static.Does not have to be utf-8.
         symbol:Vec<u8>,
         io:io::Error,

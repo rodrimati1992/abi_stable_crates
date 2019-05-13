@@ -18,11 +18,13 @@ use core_extensions::SelfOps;
 
 
 mod accessible_fields;
+mod empty_prefix;
 mod layout;
 mod pt_metadata;
 
 pub use self::{
     accessible_fields::{FieldAccessibility,IsAccessible},
+    empty_prefix::EmptyPrefixType,
     layout::{PTStructLayout,PTStructLayoutParams,PTField},
 };
 

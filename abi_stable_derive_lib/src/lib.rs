@@ -124,16 +124,6 @@ where S: ::std::fmt::Display
 }
 
 
-/// Mangles the name of the private function that initializes the 
-/// abi_stable globals.
-#[doc(hidden)]
-pub fn mangle_initialize_globals_with_ident<S>(s:S)->String
-where S: ::std::fmt::Display
-{
-    mangle_function_ident("init_globals",s)
-}
-
-
 #[doc(hidden)]
 pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
     measure!({
@@ -158,6 +148,12 @@ pub fn impl_InterfaceType(input: TokenStream1) -> TokenStream1{
 }
 
 
+/// Gets the name of the function that loads the root module of a library.
+pub fn mangled_root_module_loader_name()->String{
+    mangle_library_getter_ident( "root module loader" )
+}
+
+
 #[doc(hidden)]
 pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     use syn::Ident;
@@ -170,17 +166,17 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
         
         let vis=&input.vis;
         let attrs=&input.attrs;
-        let ret_ty=&input.decl.output;
+        let ret_ty=match &input.decl.output {
+            syn::ReturnType::Default=>
+                panic!("\n\nThe return type of this function can't be `()`\n\n"),
+            syn::ReturnType::Type(_,ty)=>
+                &**ty,
+        };
         
         let original_fn_ident=&input.ident;
 
         let export_name=Ident::new(
-            &mangle_library_getter_ident(&original_fn_ident),
-            Span::call_site(),
-        );
-
-        let abi_stable_globals_init=Ident::new(
-            &mangle_initialize_globals_with_ident(&original_fn_ident),
+            &mangled_root_module_loader_name(),
             Span::call_site(),
         );
 
@@ -189,20 +185,30 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
 
             #[no_mangle]
             #(#attrs)*
-            #vis extern "C" fn #export_name() #ret_ty {
-                let _: abi_stable::library::LibraryGetterFn<_> = #original_fn_ident;
-                let _: abi_stable::globals::InitializeGlobalsWithFn = #abi_stable_globals_init;
+            #vis static #export_name:abi_stable::library::WithLayout={
+                use abi_stable::{
+                    library::{WithLayout as __WithLayout},
+                    StableAbi,
+                };
 
-                #[no_mangle]
-                pub extern "C" fn #abi_stable_globals_init(
-                    globals:&'static abi_stable::globals::Globals
-                ){
-                    abi_stable::globals::initialize_globals_with(globals)
+                pub extern "C" fn _sabi_erased_module(
+                )->&'static abi_stable::marker_type::ErasedObject {
+                    let ret:#ret_ty=#original_fn_ident();
+                    unsafe{
+                        abi_stable::utils::transmute_reference(ret)
+                    }
                 }
 
+                type __ReturnTy=#ret_ty;
+                type __ModuleTy=<__ReturnTy as std::ops::Deref>::Target;
                 
-                #original_fn_ident()
-            }
+                unsafe{
+                    __WithLayout::from_constructor::<__ModuleTy>(
+                        abi_stable::library::Constructor(_sabi_erased_module),
+                        <__ModuleTy as abi_stable::library::RootModule>::CONSTANTS,
+                    )
+                }
+            };
         ).into()
     })
 }

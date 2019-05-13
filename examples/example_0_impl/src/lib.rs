@@ -22,7 +22,6 @@ use example_0_interface::{
 use abi_stable::{
     export_sabi_module,
     extern_fn_panic_handling, impl_get_type_info,
-    library::WithLayout,
     erased_types::{ImplType,SerializeImplType,TypeInfo},
     prefix_type::{PrefixTypeTrait,WithMetadata},
     traits::{IntoReprC},
@@ -40,37 +39,30 @@ use serde_json;
 
 /// Exports the root module of this library.
 ///
-/// WithLayout is used to check that the layout of `TextOpsMod` in this dynamic library
-/// is compatible with the layout of it in the binary that loads this library.
+/// This code isn't run until the layout of the type it returns is checked.
 #[export_sabi_module]
-pub extern "C" fn get_library() -> WithLayout<TextOpsMod> {
+extern fn instantiate_root_module()->&'static TextOpsMod{
     extern_fn_panic_handling!{
-        instantiate_root_module()
-            .piped(WithLayout::from_prefix)
+        TextOpsModVal {
+            new,
+            deserializers:{
+                // Another way to instantiate a module.
+                const MOD_:DeserializerModVal=DeserializerModVal{
+                    deserialize_state,
+                    deserialize_command,
+                    deserialize_command_borrowing,
+                    deserialize_return_value,
+                };
+                static WITH_META:WithMetadata<DeserializerModVal>=
+                    WithMetadata::new(PrefixTypeTrait::METADATA,MOD_);
+                WITH_META.as_prefix()
+            },
+            reverse_lines,
+            remove_words,
+            get_processed_bytes,
+            run_command,
+        }.leak_into_prefix()
     }
-}
-
-
-fn instantiate_root_module()->&'static TextOpsMod{
-    TextOpsModVal {
-        new,
-        deserializers:{
-            // Another way to instantiate a module.
-            const MOD_:DeserializerModVal=DeserializerModVal{
-                deserialize_state,
-                deserialize_command,
-                deserialize_command_borrowing,
-                deserialize_return_value,
-            };
-            static WITH_META:WithMetadata<DeserializerModVal>=
-                WithMetadata::new(PrefixTypeTrait::METADATA,MOD_);
-            WITH_META.as_prefix()
-        },
-        reverse_lines,
-        remove_words,
-        get_processed_bytes,
-        run_command,
-    }.leak_into_prefix()
 }
 
 
