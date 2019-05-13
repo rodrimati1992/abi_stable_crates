@@ -14,7 +14,7 @@ use abi_stable::{
     impl_InterfaceType,
     package_version_strings,
     lazy_static_ref::LazyStaticRef,
-    library::{Library,LibraryError, RootModule},
+    library::{Library,LibraryError, RootModule,LibraryPath},
     version::VersionStrings,
     type_level::bools::*,
     erased_types::{
@@ -208,15 +208,9 @@ pub struct TextOpsModVal {
 
 
 impl RootModule for TextOpsMod {
-    fn raw_library_ref()->&'static LazyStaticRef<Library>{
-        static RAW_LIB:LazyStaticRef<Library>=LazyStaticRef::new();
-        &RAW_LIB
-    }
-
     const BASE_NAME: &'static str = "text_operations";
     const NAME: &'static str = "text_operations";
     const VERSION_STRINGS: VersionStrings = package_version_strings!();
-    const LOADER_FN: &'static str = "get_library";
 }
 
 
@@ -260,6 +254,6 @@ pub static MODULES:LazyStaticRef<TextOpsMod>=LazyStaticRef::new();
 /// If it loads them once,this will continue returning the same reference.
 pub fn load_library_in(directory:&Path) -> Result<&'static TextOpsMod,LibraryError> {
     MODULES.try_init(||{
-        TextOpsMod::load_from_library_in(directory)
+        TextOpsMod::load_from_library(LibraryPath::Directory(directory))
     })
 }

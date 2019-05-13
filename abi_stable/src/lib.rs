@@ -113,6 +113,8 @@ extern crate serde_derive;
 #[macro_use(StableAbi)]
 extern crate abi_stable_derive;
 
+extern crate self as abi_stable;
+
 
 #[doc(inline)]
 pub use abi_stable_derive::StableAbi;
@@ -217,7 +219,6 @@ pub mod globals{
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Globals{
         pub layout_checking:
             extern fn(&'static AbiInfoWrapper,&'static AbiInfoWrapper) -> RResult<(), RBoxError> ,
@@ -239,14 +240,8 @@ pub mod globals{
     }
 
 
-    pub type InitializeGlobalsWithFn=
-        extern "C" fn(&'static Globals);
-
-
     #[inline(never)]
     pub extern fn initialize_globals_with(globs:&'static Globals){
-        let _:InitializeGlobalsWithFn=initialize_globals_with;
-
         GLOBALS.init(|| globs );
     }
 }

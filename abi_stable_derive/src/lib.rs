@@ -53,13 +53,14 @@ This is applied to functions like this:
 
 ```ignore
 
+use abi_stable::prefix_type::PrefixTypeTrait;
+
 #[export_sabi_module]
-pub extern "C" fn get_hello_world_mod() -> WithLayout<TextOperationsMod> {
+pub extern "C" fn get_hello_world_mod() -> TextOperationsMod {
     extern_fn_panic_handling!{
-        let module=TextOperationsMod{
+        TextOperationsMod{
             reverse_string,
-        };
-        WithLayout::new(module)
+        }.leak_into_prefix()
     }
 }
 
