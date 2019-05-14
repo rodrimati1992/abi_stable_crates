@@ -120,7 +120,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 }
 
                 let struct_=&ds.variants[0];
-                let first_suffix_field=prefix.first_suffix_field;
+                let first_suffix_field=prefix.first_suffix_field.field_pos;
                 let fields=fields_tokenizer(struct_,config,ct);
                 
                 quote!(
@@ -179,8 +179,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     
     let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens);
 
-    let mod_refl_mode=config.mod_refl_mode;
-
     quote!(
         #prefix_type_tokenizer_
 
@@ -229,7 +227,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                         }
                     ).set_phantom_fields(&[])
                      .set_tag(#tags)
-                     .set_mod_refl_mode(#mod_refl_mode)
                 };
             }
 
@@ -322,10 +319,7 @@ fn field_tokenizer<'a>(
 
         to_stream!{ts; ct.tl_field,ct.colon2,ct.with_functions };
         ct.paren.surround(ts,|ts|{
-            let name=config.renamed_fields
-                .get(&(field as *const _))
-                .cloned()
-                .unwrap_or(field.ident());
+            let name=config.renamed_fields[field].unwrap_or(field.ident());
 
             to_stream!(ts; name.to_string() ,ct.comma );
             to_stream!(ts; ct.and_ );
@@ -339,25 +333,13 @@ fn field_tokenizer<'a>(
 
             let impls_sabi=true;
             let field_ptr:*const Field<'_>=field;
-            let is_opaque_field=config.opaque_fields.contains(&field_ptr);
+            let is_opaque_field=config.opaque_fields[field];
 
             let flavor=match (is_opaque_field,impls_sabi) {
                 (false,false)=>&ct.stable_abi_bound,
                 (false,true )=>&ct.stable_abi_bound,
                 (true ,_    )=>&ct.unsafe_opaque_field_bound,
             };
-
-            // println!(
-            //     "field:`{}:{}` impls_sabi={} is_opaque_field={} ptr={:?}\n\
-            //      opaque_fields:{:?}\n\
-            //     ",
-            //     field.ident(),
-            //     (&field.mutated_ty).into_token_stream(),
-            //     impls_sabi,
-            //     is_opaque_field,
-            //     field_ptr,
-            //     config.opaque_fields,
-            // );
 
             make_get_abi_info_tokenizer(&field.mutated_ty,flavor,ct).to_tokens(ts);
 
@@ -428,6 +410,7 @@ fn field_tokenizer<'a>(
 
             field.is_function.to_tokens(ts);
         });
+
         to_stream!{ts; ct.comma }
     })
 }

@@ -2,31 +2,27 @@ use proc_macro2::TokenStream;
 use quote::{quote,ToTokens};
 
 
-/// Whether this is a module whose definition can be reflected on at runtime,
-#[derive(Debug,Copy,Clone,PartialEq,Eq)]
-pub enum ModReflMode{
-    /// For modules that are reflected on at runtime..
-    Module,
-    /// For types whose layout can't be iterated over.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum FieldAccessor {
+    /// Accessible with `self.field_name`
+    Direct,
+    /// Accessible with `fn field_name(&self)->FieldType`
+    Method,
+    /// Accessible with `fn field_name(&self)->Option<FieldType>`
+    MethodOption,
+    /// This field is completely inaccessible.
     Opaque,
-    /// Delegates the layout to some other type,this is generally for references.
-    Delegate,
 }
 
 
-impl Default for ModReflMode{
-    fn default()->Self{
-        ModReflMode::Opaque
-    }
-}
-
-
-impl ToTokens for ModReflMode{
+impl ToTokens for FieldAccessor{
     fn to_tokens(&self, ts: &mut TokenStream) {
         match *self {
-            ModReflMode::Module  =>quote!( _sabi_reexports::ModReflMode::Module ),
-            ModReflMode::Opaque  =>quote!( _sabi_reexports::ModReflMode::Opaque ),
-            ModReflMode::Delegate=>quote!( _sabi_reexports::ModReflMode::Delegate ),
+            FieldAccessor::Direct=>quote!( _sabi_reexports::FieldAccessor::Direct ),
+            FieldAccessor::Method=>quote!( _sabi_reexports::FieldAccessor::Method ),
+            FieldAccessor::MethodOption=>quote!( _sabi_reexports::FieldAccessor::MethodOption ),
+            FieldAccessor::Opaque=>quote!( _sabi_reexports::FieldAccessor::Opaque ),
         }.to_tokens(ts);
     }
 }

@@ -18,6 +18,10 @@ use quote::ToTokens;
 
 use proc_macro2::{Span, TokenStream};
 
+mod field_map;
+
+pub(crate) use self::field_map::FieldMap;
+
 //////////////////////////////////////////////////////////////////////////////
 
 #[derive(Clone, Debug, PartialEq, Hash)]
@@ -58,7 +62,11 @@ impl<'a> hash::Hash for Enum<'a> {
 }
 
 impl<'a> DataStructure<'a> {
-    pub(crate) fn new(ast: &'a mut DeriveInput, arenas: &'a Arenas, ctokens: &'a CommonTokens<'a>) -> Self {
+    pub(crate) fn new(
+        ast: &'a mut DeriveInput, 
+        arenas: &'a Arenas, 
+        ctokens: &'a CommonTokens<'a>
+    ) -> Self {
         let name = &ast.ident;
         let enum_ = match ast.data {
             Data::Enum(_) => Some(Enum {
@@ -76,8 +84,9 @@ impl<'a> DataStructure<'a> {
 
         match &mut ast.data {
             Data::Enum(enum_) => {
-                for var in &mut enum_.variants {
+                for (variant,var) in (&mut enum_.variants).into_iter().enumerate() {
                     variants.push(Struct::new(
+                        variant,
                         &var.attrs,
                         &var.ident,
                         &mut var.fields,
@@ -88,6 +97,7 @@ impl<'a> DataStructure<'a> {
             }
             Data::Struct(struct_) => {
                 variants.push(Struct::new(
+                    0,
                     &ast.attrs,
                     name,
                     &mut struct_.fields,
@@ -99,7 +109,7 @@ impl<'a> DataStructure<'a> {
             Data::Union(union_) => {
                 let fields = Some(&union_.fields.named);
                 let sk = StructKind::Braced;
-                let vari = Struct::with_fields(&ast.attrs, name, sk, fields, &mut ty_visitor);
+                let vari = Struct::with_fields(0,&ast.attrs, name, sk, fields, &mut ty_visitor);
                 variants.push(vari);
                 data_variant = DataVariant::Union;
             }
@@ -137,6 +147,13 @@ pub(crate) enum DataVariant {
     Union,
 }
 
+
+#[derive(Copy,Clone, Debug, PartialEq, Hash)]
+pub(crate) struct FieldIndex {
+    pub(crate) variant:usize,
+    pub(crate) pos:usize,
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 #[derive(Clone, Debug, PartialEq, Hash)]
@@ -150,6 +167,7 @@ pub(crate) struct Struct<'a> {
 
 impl<'a> Struct<'a> {
     pub(crate) fn new(
+        variant:usize,
         attrs: &'a [Attribute],
         name: &'a Ident,
         fields: &'a SynFields,
@@ -166,10 +184,11 @@ impl<'a> Struct<'a> {
             SynFields::Unit => None,
         };
 
-        Self::with_fields(attrs, name, kind, fields, tv)
+        Self::with_fields(variant,attrs, name, kind, fields, tv)
     }
 
     pub(crate) fn with_fields<I>(
+        variant:usize,
         attrs: &'a [Attribute],
         name: &'a Ident,
         kind: StructKind,
@@ -183,7 +202,7 @@ impl<'a> Struct<'a> {
             attrs,
             name,
             kind,
-            fields: fields.map_or(Vec::new(), |x| Field::from_iter(name, x, tv)),
+            fields: fields.map_or(Vec::new(), |x| Field::from_iter(variant,name, x, tv)),
             _priv: (),
         }
     }
@@ -196,6 +215,7 @@ impl<'a> Struct<'a> {
 ///
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct Field<'a> {
+    pub(crate) index:FieldIndex,
     pub(crate) attrs: &'a [Attribute],
     pub(crate) vis: &'a Visibility,
     pub(crate) referenced_lifetimes: Vec<LifetimeIndex>,
@@ -214,14 +234,14 @@ pub(crate) struct Field<'a> {
 
 impl<'a> Field<'a> {
     pub(crate) fn new(
-        index: usize,
+        index: FieldIndex,
         field: &'a SynField,
         span: Span,
         tv: &mut TypeVisitor<'a>,
     ) -> Self {
         let ident = match field.ident.as_ref() {
             Some(ident) => FieldIdent::Named(ident),
-            None => FieldIdent::new_index(index, span),
+            None => FieldIdent::new_index(index.pos, span),
         };
 
         let mut mutated_ty=field.ty.clone();
@@ -234,6 +254,7 @@ impl<'a> Field<'a> {
         };
 
         Self {
+            index,
             attrs: &field.attrs,
             vis: &field.vis,
             referenced_lifetimes: visit_info.referenced_lifetimes,
@@ -252,14 +273,22 @@ impl<'a> Field<'a> {
         }
     }
 
-    pub(crate) fn from_iter<I>(name: &'a Ident, fields: I, tv: &mut TypeVisitor<'a>) -> Vec<Self>
+    pub(crate) fn from_iter<I>(
+        variant:usize,
+        name: &'a Ident, 
+        fields: I, 
+        tv: &mut TypeVisitor<'a>
+    ) -> Vec<Self>
     where
         I: IntoIterator<Item = &'a SynField>,
     {
         fields
             .into_iter()
             .enumerate()
-            .map(|(i, f)| Field::new(i, f, name.span(), tv))
+            .map(|(pos, f)|{ 
+                let fi=FieldIndex{variant,pos};
+                Field::new(fi, f, name.span(), tv)
+            })
             .collect()
     }
 }

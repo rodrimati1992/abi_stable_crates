@@ -168,6 +168,8 @@ pub struct TLField {
 
     /// Whether this field is only a function pointer.
     pub is_function:bool,
+
+    pub field_accessor:FieldAccessor,
 }
 
 /// Used to print a field as its field and its type.
@@ -188,6 +190,21 @@ pub enum RustPrimitive {
     Array,
 }
 
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+pub enum FieldAccessor {
+    /// Accessible with `self.field_name`
+    Direct,
+    /// Accessible with `fn field_name(&self)->FieldType`
+    Method,
+    /// Accessible with `fn field_name(&self)->Option<FieldType>`
+    MethodOption,
+    /// This field is completely inaccessible.
+    Opaque,
+}
+
+
 ///////////////////////////
 
 impl TLField {
@@ -202,6 +219,7 @@ impl TLField {
             abi_info,
             functions:StaticSlice::new(empty_slice()),
             is_function:false,
+            field_accessor:FieldAccessor::Direct,
         }
     }
 
@@ -218,8 +236,16 @@ impl TLField {
             abi_info,
             functions: StaticSlice::new(functions),
             is_function,
+            field_accessor:FieldAccessor::Direct,
         }
     }
+
+    pub const fn set_field_accessor(mut self,field_accessor:FieldAccessor)->Self{
+        self.field_accessor=field_accessor;
+        self
+    }
+
+
 
     /// Used for calling recursive methods,
     /// so as to avoid infinite recursion in types that reference themselves(even indirectly).
