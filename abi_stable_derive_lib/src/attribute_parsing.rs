@@ -5,14 +5,16 @@ use syn::{
     token::Comma,
 };
 
-use std::collections::{HashSet,HashMap};
+use std::{
+    collections::{HashSet,HashMap},
+    mem,
+};
 
 use quote::ToTokens;
 
 use crate::{
-    datastructure::{DataStructure, DataVariant, Field},
-    prefix_types::{PrefixKind,LastPrefixField,OnMissingField},
-    reflection::ModReflMode,
+    datastructure::{DataStructure, DataVariant, Field,FieldMap},
+    prefix_types::{PrefixKind,FirstSuffixField,OnMissingField,AccessorOrMaybe,PrefixKindField},
 };
 use crate::*;
 
@@ -31,13 +33,12 @@ pub(crate) struct StableAbiOptions<'a> {
 
     /// A hashset of the fields whose contents are opaque 
     /// (there are still some minimal checks going on).
-    pub(crate) opaque_fields:HashSet<*const Field<'a>>,
+    pub(crate) opaque_fields:FieldMap<bool>,
+    
+    pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
 
-    pub(crate) renamed_fields:HashMap<*const Field<'a>,&'a Ident>,
     #[allow(dead_code)]
     pub(crate) repr_attrs:Vec<MetaList>,
-
-    pub(crate) mod_refl_mode:ModReflMode,
 }
 
 
@@ -98,12 +99,19 @@ impl<'a> StableAbiOptions<'a> {
             UncheckedStabilityKind::Value => StabilityKind::Value,
             UncheckedStabilityKind::Prefix(prefix)=>{
                 StabilityKind::Prefix(PrefixKind{
-                    first_suffix_field:this.last_prefix_field.map_or(0,|x|x.field_index+1),
+                    first_suffix_field:this.first_suffix_field,
                     prefix_struct:prefix.prefix_struct,
                     default_on_missing_fields:this.default_on_missing_fields,
-                    on_missing_fields:this.on_missing_fields,
+                    fields:mem::replace(&mut this.prefix_kind_fields,FieldMap::empty())
+                        .map(|fi,pk_field|{
+                            AccessorOrMaybe::new(
+                                fi,
+                                this.first_suffix_field,
+                                pk_field,
+                                this.default_on_missing_fields,
+                            ) 
+                        }),
                     prefix_bounds:this.prefix_bounds,
-                    accessible_if_fields:this.accessible_if_fields,
                 })
             }
 
@@ -122,7 +130,6 @@ impl<'a> StableAbiOptions<'a> {
             renamed_fields:this.renamed_fields,
             repr_attrs:this.repr_attrs,
             tags:this.tags,
-            mod_refl_mode:this.mod_refl_mode,
         }
     }
 }
@@ -141,23 +148,22 @@ struct StableAbiAttrs<'a> {
 
 
     /// The last field of the prefix of a Prefix-type.
-    last_prefix_field:Option<LastPrefixField<'a>>,
+    first_suffix_field:FirstSuffixField,
     default_on_missing_fields:OnMissingField<'a>,
-    on_missing_fields:HashMap<*const Field<'a>,OnMissingField<'a>>,
+    prefix_kind_fields:FieldMap<PrefixKindField<'a>>,
     prefix_bounds:Vec<WherePredicate>,
-    accessible_if_fields:HashMap<*const Field<'a>,syn::Expr>,
 
     /// The type parameters that have no constraints
     unconstrained_type_params:Vec<(Ident,UnconstrainedTyParam<'a>)>,
 
     // Using raw pointers to do an identity comparison.
-    opaque_fields:HashSet<*const Field<'a>>,
+    opaque_fields:FieldMap<bool>,
     
-    renamed_fields:HashMap<*const Field<'a>,&'a Ident>,
+    renamed_fields:FieldMap<Option<&'a Ident>>,
     repr_attrs:Vec<MetaList>,
 
-    mod_refl_mode:ModReflMode,
 }
+
 
 #[derive(Copy, Clone)]
 enum UncheckedStabilityKind<'a> {
@@ -195,6 +201,10 @@ pub(crate) fn parse_attrs_for_stable_abi<'a>(
     arenas: &'a Arenas,
 ) -> StableAbiOptions<'a> {
     let mut this = StableAbiAttrs::default();
+
+    this.opaque_fields=FieldMap::defaulted(ds);
+    this.prefix_kind_fields=FieldMap::defaulted(ds);
+    this.renamed_fields=FieldMap::defaulted(ds);
 
     let name=ds.name;
 
@@ -266,9 +276,10 @@ fn parse_sabi_attr<'a>(
     match (pctx, attr) {
         (ParseContext::Field{field,field_index}, Meta::Word(word)) => {
             if word == "unsafe_opaque_field" {
-                this.opaque_fields.insert(field);
+                this.opaque_fields[field]=true;
             }else if word == "last_prefix_field" {
-                this.last_prefix_field=Some(LastPrefixField{field_index,field});
+                let field_pos=field_index+1;
+                this.first_suffix_field=FirstSuffixField{field_pos};
             }else{
                 panic!("unrecognized field attribute `#[sabi({})]` ",word);
             }
@@ -280,10 +291,10 @@ fn parse_sabi_attr<'a>(
             if ident=="rename" {
                 let renamed=parse_lit_as_ident(&value)
                     .piped(|x| arenas.alloc(x) );
-                this.renamed_fields.insert(field,renamed);
+                this.renamed_fields.insert(field,Some(renamed));
             }else if ident=="accessible_if" {
-                let expr=parse_lit_as_expr(&value);
-                this.accessible_if_fields.insert(field,expr);
+                let expr=arenas.alloc(parse_lit_as_expr(&value));
+                this.prefix_kind_fields[field].accessible_if=Some(expr);
             }else{
                 panic!(
                     "unrecognized field attribute `#[sabi({}={})]` ",
@@ -295,7 +306,7 @@ fn parse_sabi_attr<'a>(
         (ParseContext::Field{field,..}, Meta::List(list)) => {
             if list.ident == "missing_field" {
                 let on_missing_field=parse_missing_field(&list.nested,arenas);
-                this.on_missing_fields.insert(field,on_missing_field);
+                this.prefix_kind_fields[field].on_missing=Some(on_missing_field);
             }else{
                 panic!("unrecognized field attribute `#[sabi({})]` ",list.ident);
             }
