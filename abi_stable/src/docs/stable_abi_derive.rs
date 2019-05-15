@@ -59,6 +59,22 @@ Declares the struct as being a prefix-type.
 `#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`<br>
 Uses "NameOfPrefixStruct" as the name of the prefix struct.
 
+
+### `#[sabi(module_reflection(...))]` 
+
+Determines how this type is accessed when treated as a module for reflection.
+
+`#[sabi(module_reflection( Module ))]`<br>
+The default reflection mode,treats its the public fields as module items.
+
+`#[sabi(module_reflection( Opaque ))]`<br>
+Treats this as an empty module.
+
+`#[sabi(module_reflection( Deref ))]`<br>
+Delegates the treatment of this type as a module to the type it dereferences to.
+
+
+
 # Field attributes
 
 These attributes are applied to fields.
@@ -131,7 +147,6 @@ Returns `somefunction()` if the field doesn't exist.
 
 `#[sabi(missing_field(default))]`<br>
 Returns `Default::default()` if the field doesn't exist.
-
 
 
 # Supported repr attributes

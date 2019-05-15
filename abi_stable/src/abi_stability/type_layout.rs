@@ -69,6 +69,8 @@ pub enum LifetimeIndex {
     Param(usize),
 }
 
+
+
 /// Represents all the generic parameters of a type.
 /// 
 /// This is different for every different generic parameter,
@@ -640,6 +642,12 @@ struct TLFieldShallow {
     pub(crate) lifetime_indices: StaticSlice<LifetimeIndex>,
     /// This is None if it already printed that AbiInfo
     pub(crate) abi_info: Option<&'static AbiInfo>,
+
+    pub(crate)functions:StaticSlice<TLFunction>,
+
+    pub(crate)is_function:bool,
+
+    pub(crate)field_accessor:FieldAccessor,
 }
 
 impl TLFieldShallow {
@@ -654,6 +662,10 @@ impl TLFieldShallow {
                 None
             },
             full_type: abi_info.layout.full_type,
+
+            functions:field.functions,
+            is_function:field.is_function,
+            field_accessor:field.field_accessor,
         }
     }
 }
@@ -665,7 +677,7 @@ impl TLFieldShallow {
 
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, StableAbi)]
+#[derive(Debug,Copy, Clone, PartialEq, StableAbi)]
 pub struct TLFunction{
     /// The name of the field this is used inside of.
     pub name: StaticStr,

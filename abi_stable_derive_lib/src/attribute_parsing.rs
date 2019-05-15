@@ -12,7 +12,10 @@ use std::{
 
 use quote::ToTokens;
 
+use core_extensions::IteratorExt;
+
 use crate::{
+    reflection::{ModReflMode,FieldAccessor},
     datastructure::{DataStructure, DataVariant, Field,FieldMap},
     prefix_types::{PrefixKind,FirstSuffixField,OnMissingField,AccessorOrMaybe,PrefixKindField},
 };
@@ -39,6 +42,11 @@ pub(crate) struct StableAbiOptions<'a> {
 
     #[allow(dead_code)]
     pub(crate) repr_attrs:Vec<MetaList>,
+
+    pub(crate) mod_refl_mode:ModReflMode<usize>,
+
+    pub(crate) phantom_fields:Vec<(&'a str,&'a Type)>,
+
 }
 
 
@@ -52,6 +60,24 @@ pub(crate) enum StabilityKind<'a> {
     Prefix(PrefixKind<'a>),
 }
 
+impl<'a> StabilityKind<'a>{
+    pub(crate) fn field_accessor(
+        &self,
+        mod_refl_mode:ModReflMode<usize>,
+        field:&Field<'a>,
+    )->FieldAccessor{
+        let is_public=field.is_public() && mod_refl_mode!=ModReflMode::Opaque;
+        match (is_public,self) {
+            (false,_)=>
+                FieldAccessor::Opaque,
+            (true,StabilityKind::Value)=>
+                FieldAccessor::Direct,
+            (true,StabilityKind::Prefix(prefix))=>
+                prefix.field_accessor(field),
+        }
+    }
+}
+
 
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum Repr {
@@ -61,7 +87,13 @@ pub(crate) enum Repr {
 
 
 impl<'a> StableAbiOptions<'a> {
-    fn new(ds: &'a DataStructure<'a>, mut this: StableAbiAttrs<'a>) -> Self {
+    fn new(
+        ds: &'a DataStructure<'a>, 
+        mut this: StableAbiAttrs<'a>,
+        arenas: &'a Arenas,
+    ) -> Self {
+        let mut phantom_fields=Vec::<(&'a str,&'a Type)>::new();
+
         let repr = this.repr.expect(
             "\n\
              the #[repr(..)] attribute must be one of the supported attributes:\n\
@@ -121,6 +153,32 @@ impl<'a> StableAbiOptions<'a> {
             panic!("\nAbiStable does not suport non-struct #[repr(transparent)] types.\n");
         }
 
+        let mod_refl_mode=match this.mod_refl_mode {
+            Some(ModReflMode::Module)=>ModReflMode::Module,
+            Some(ModReflMode::Opaque)=>ModReflMode::Opaque,
+            Some(ModReflMode::DelegateDeref(()))=>{
+                let index=phantom_fields.len();
+                let field_ty=syn::parse_str::<Type>("<Self as ::std::op::Deref>::Target")
+                    .unwrap()
+                    .piped(|x| arenas.alloc(x) );
+
+                phantom_fields.push(("deref_target",field_ty));
+
+                &[
+                    "Self: ::std::ops::Deref",
+                    "<Self as ::std::ops::Deref>::Target:__SharedStableAbi",
+                ].iter()
+                 .map(|x| syn::parse_str::<WherePredicate>(x).unwrap() )
+                 .extending(&mut this.extra_bounds);
+
+                 ModReflMode::DelegateDeref(index)
+            }
+            None if ds.has_public_fields() =>
+                ModReflMode::Module,
+            None=>
+                ModReflMode::Opaque,
+        };
+
         StableAbiOptions {
             debug_print:this.debug_print,
             kind, repr , stable_abi_bounded , 
@@ -130,6 +188,8 @@ impl<'a> StableAbiOptions<'a> {
             renamed_fields:this.renamed_fields,
             repr_attrs:this.repr_attrs,
             tags:this.tags,
+            phantom_fields,
+            mod_refl_mode,
         }
     }
 }
@@ -162,6 +222,7 @@ struct StableAbiAttrs<'a> {
     renamed_fields:FieldMap<Option<&'a Ident>>,
     repr_attrs:Vec<MetaList>,
 
+    mod_refl_mode:Option<ModReflMode<()>>,
 }
 
 
@@ -216,7 +277,7 @@ pub(crate) fn parse_attrs_for_stable_abi<'a>(
         }
     }
 
-    StableAbiOptions::new(ds, this)
+    StableAbiOptions::new(ds, this,arenas)
 }
 
 fn parse_inner<'a>(
@@ -383,6 +444,19 @@ Tag:\n\t{}\n",
                         this.kind = UncheckedStabilityKind::Prefix(prefix);
                     }
                     x => panic!("invalid #[kind(..)] attribute:\n{:?}", x),
+                });
+            } else if list.ident == "module_reflection" {
+                with_nested_meta("kind", list.nested, |attr| match attr {
+                    Meta::Word(ref word) if word == "Module" => {
+                        this.mod_refl_mode = Some(ModReflMode::Module);
+                    }
+                    Meta::Word(ref word) if word == "Opaque" => {
+                        this.mod_refl_mode = Some(ModReflMode::Opaque);
+                    }
+                    Meta::Word(ref word) if word == "Deref" => {
+                        this.mod_refl_mode = Some(ModReflMode::DelegateDeref(()));
+                    }
+                    x => panic!("invalid #[module_reflection(..)] attribute:\n{:?}", x),
                 });
             } else if list.ident == "unconstrained" {
                 with_nested_meta("unconstrained", list.nested, |attr| match attr {

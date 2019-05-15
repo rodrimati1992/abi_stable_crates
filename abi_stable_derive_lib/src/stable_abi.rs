@@ -8,6 +8,7 @@ use crate::{
     to_token_fn::ToTokenFnMut,
     fn_pointer_extractor::{FnParamRet},
     prefix_types::prefix_type_tokenizer,
+    reflection::ModReflMode,
 };
 
 
@@ -150,7 +151,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let type_params_for_generics=
         type_params.iter().filter(|&x| !config.unconstrained_type_params.contains_key(x) );
     
-
     // For `type StaticEquivalent= ... ;`
     let lifetimes_s=lifetimes.iter().map(|_| &ctokens.static_lt );
     let type_params_s=ToTokenFnMut::new(|ts|{
@@ -178,6 +178,21 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let extra_bounds       =&config.extra_bounds;
     
     let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens);
+
+    let mod_refl_mode=match config.mod_refl_mode {
+        ModReflMode::Module=>quote!( __ModReflMode::Module ),
+        ModReflMode::Opaque=>quote!( __ModReflMode::Opaque ),
+        ModReflMode::DelegateDeref(field_index)=>{
+            quote!(
+                __ModReflMode::DelegateDeref{
+                    phantom_field_index:#field_index
+                }
+            )
+        }
+    };
+
+    let phantom_field_names=config.phantom_fields.iter().map(|x| x.0 );
+    let phantom_field_tys  =config.phantom_fields.iter().map(|x| x.1 );
 
     quote!(
         #prefix_type_tokenizer_
@@ -225,8 +240,17 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                                 ),
                             }
                         }
-                    ).set_phantom_fields(&[])
+                    ).set_phantom_fields(&[
+                        #(
+                            __TLField::new(
+                                #phantom_field_names,
+                                &[],
+                                <#phantom_field_tys as __MakeGetAbiInfo<__StableAbi_Bound>>::CONST,
+                            ),
+                        )*
+                    ])
                      .set_tag(#tags)
+                     .set_mod_refl_mode(#mod_refl_mode)
                 };
             }
 
@@ -410,6 +434,9 @@ fn field_tokenizer<'a>(
 
             field.is_function.to_tokens(ts);
         });
+
+        let field_acc=config.kind.field_accessor(config.mod_refl_mode,field);
+        quote!( .set_field_accessor(#field_acc) ).to_tokens(ts);
 
         to_stream!{ts; ct.comma }
     })
