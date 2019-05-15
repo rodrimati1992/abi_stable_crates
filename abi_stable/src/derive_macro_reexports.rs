@@ -11,7 +11,8 @@ pub use crate::{
             LifetimeIndex, 
             TLData, TLPrefixType, TLEnumVariant, TLField, 
             TypeLayout, TypeLayoutParams,
-            TLFunction
+            TLFunction,
+            FieldAccessor,
         },
         tagging::Tag,
         reflection::ModReflMode,
@@ -59,6 +60,8 @@ pub mod renamed {
         PTStructLayoutParams as __PTStructLayoutParams,
         PTField as __PTField,
         StaticStr as __StaticStr,
+        FieldAccessor as __FieldAccessor,
+        ModReflMode as __ModReflMode,
     };
 }
 

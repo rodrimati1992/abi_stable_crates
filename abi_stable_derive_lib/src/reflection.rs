@@ -2,7 +2,6 @@ use proc_macro2::TokenStream;
 use quote::{quote,ToTokens};
 
 
-#[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FieldAccessor {
     /// Accessible with `self.field_name`
@@ -19,10 +18,19 @@ pub enum FieldAccessor {
 impl ToTokens for FieldAccessor{
     fn to_tokens(&self, ts: &mut TokenStream) {
         match *self {
-            FieldAccessor::Direct=>quote!( _sabi_reexports::FieldAccessor::Direct ),
-            FieldAccessor::Method=>quote!( _sabi_reexports::FieldAccessor::Method ),
-            FieldAccessor::MethodOption=>quote!( _sabi_reexports::FieldAccessor::MethodOption ),
-            FieldAccessor::Opaque=>quote!( _sabi_reexports::FieldAccessor::Opaque ),
+            FieldAccessor::Direct=>quote!( __FieldAccessor::Direct ),
+            FieldAccessor::Method=>quote!( __FieldAccessor::Method ),
+            FieldAccessor::MethodOption=>quote!( __FieldAccessor::MethodOption ),
+            FieldAccessor::Opaque=>quote!( __FieldAccessor::Opaque ),
         }.to_tokens(ts);
     }
+}
+
+
+
+#[derive(Debug,Copy,Clone,PartialEq,Eq)]
+pub enum ModReflMode<T>{
+    Module,
+    Opaque,
+    DelegateDeref(T),
 }

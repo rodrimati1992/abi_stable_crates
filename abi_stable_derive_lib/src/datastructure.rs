@@ -30,6 +30,8 @@ pub(crate) struct DataStructure<'a> {
     pub(crate) name: &'a Ident,
     pub(crate) generics: &'a Generics,
     pub(crate) lifetime_count: usize,
+    pub(crate) field_count: usize,
+    pub(crate) pub_field_count: usize,
 
     pub(crate) fn_info: FnInfo<'a>,
 
@@ -82,37 +84,62 @@ impl<'a> DataStructure<'a> {
 
         let mut variants = Vec::new();
 
+
         match &mut ast.data {
             Data::Enum(enum_) => {
+                let override_vis=Some(&ast.vis);
+
                 for (variant,var) in (&mut enum_.variants).into_iter().enumerate() {
                     variants.push(Struct::new(
                         variant,
                         &var.attrs,
                         &var.ident,
                         &mut var.fields,
+                        override_vis,
                         &mut ty_visitor,
                     ));
                 }
                 data_variant = DataVariant::Enum;
             }
             Data::Struct(struct_) => {
+                let override_vis=None;
+
                 variants.push(Struct::new(
                     0,
                     &ast.attrs,
                     name,
                     &mut struct_.fields,
+                    override_vis,
                     &mut ty_visitor,
                 ));
                 data_variant = DataVariant::Struct;
             }
 
             Data::Union(union_) => {
+                let override_vis=None;
+
                 let fields = Some(&union_.fields.named);
                 let sk = StructKind::Braced;
-                let vari = Struct::with_fields(0,&ast.attrs, name, sk, fields, &mut ty_visitor);
+                let vari = Struct::with_fields(
+                    0,
+                    &ast.attrs, 
+                    name, 
+                    sk, 
+                    fields,
+                    override_vis,
+                    &mut ty_visitor
+                );
                 variants.push(vari);
                 data_variant = DataVariant::Union;
             }
+        }
+
+        let mut field_count=0;
+        let mut pub_field_count=0;
+
+        for vari in &variants {
+            field_count+=vari.fields.len();
+            pub_field_count+=vari.pub_field_count;
         }
 
         Self {
@@ -125,7 +152,13 @@ impl<'a> DataStructure<'a> {
             data_variant,
             enum_,
             variants,
+            field_count,
+            pub_field_count,
         }
+    }
+
+    pub(crate) fn has_public_fields(&self)->bool{
+        self.pub_field_count!=0
     }
 }
 
@@ -162,6 +195,7 @@ pub(crate) struct Struct<'a> {
     pub(crate) name: &'a Ident,
     pub(crate) kind: StructKind,
     pub(crate) fields: Vec<Field<'a>>,
+    pub(crate) pub_field_count:usize,
     _priv: (),
 }
 
@@ -171,6 +205,7 @@ impl<'a> Struct<'a> {
         attrs: &'a [Attribute],
         name: &'a Ident,
         fields: &'a SynFields,
+        override_vis:Option<&'a Visibility>,
         tv: &mut TypeVisitor<'a>,
     ) -> Self {
         let kind = match *fields {
@@ -184,7 +219,7 @@ impl<'a> Struct<'a> {
             SynFields::Unit => None,
         };
 
-        Self::with_fields(variant,attrs, name, kind, fields, tv)
+        Self::with_fields(variant,attrs, name, kind, fields,override_vis, tv)
     }
 
     pub(crate) fn with_fields<I>(
@@ -193,16 +228,23 @@ impl<'a> Struct<'a> {
         name: &'a Ident,
         kind: StructKind,
         fields: Option<I>,
+        override_vis:Option<&'a Visibility>,
         tv: &mut TypeVisitor<'a>,
     ) -> Self
     where
         I: IntoIterator<Item = &'a SynField>,
     {
+        let fields=match fields {
+            Some(x) => Field::from_iter(variant,name, x,override_vis, tv),
+            None => Vec::new(),
+        };
+
         Self {
             attrs,
             name,
             kind,
-            fields: fields.map_or(Vec::new(), |x| Field::from_iter(variant,name, x, tv)),
+            pub_field_count:fields.iter().filter(|x|x.is_public()).count(),
+            fields,
             _priv: (),
         }
     }
@@ -237,6 +279,7 @@ impl<'a> Field<'a> {
         index: FieldIndex,
         field: &'a SynField,
         span: Span,
+        override_vis:Option<&'a Visibility>,
         tv: &mut TypeVisitor<'a>,
     ) -> Self {
         let ident = match field.ident.as_ref() {
@@ -256,7 +299,7 @@ impl<'a> Field<'a> {
         Self {
             index,
             attrs: &field.attrs,
-            vis: &field.vis,
+            vis: override_vis.unwrap_or(&field.vis),
             referenced_lifetimes: visit_info.referenced_lifetimes,
             ident,
             ty: &field.ty,
@@ -265,6 +308,14 @@ impl<'a> Field<'a> {
             functions: visit_info.functions,
         }
     }
+
+    pub(crate) fn is_public(&self)->bool{
+        match self.vis {
+            Visibility::Public{..}=>true,
+            _=>false,
+        }
+    }
+
 
     pub(crate) fn ident(&self)->&Ident{
         match &self.ident {
@@ -277,6 +328,7 @@ impl<'a> Field<'a> {
         variant:usize,
         name: &'a Ident, 
         fields: I, 
+        override_vis:Option<&'a Visibility>,
         tv: &mut TypeVisitor<'a>
     ) -> Vec<Self>
     where
@@ -287,7 +339,7 @@ impl<'a> Field<'a> {
             .enumerate()
             .map(|(pos, f)|{ 
                 let fi=FieldIndex{variant,pos};
-                Field::new(fi, f, name.span(), tv)
+                Field::new(fi, f, name.span(),override_vis, tv)
             })
             .collect()
     }
