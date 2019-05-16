@@ -25,7 +25,7 @@ use core_extensions::{SelfOps};
 /// WithLayout is used to check that the layout of `TextOpsMod` in this dynamic library
 /// is compatible with the layout of it in the binary that loads this library.
 #[export_sabi_module]
-pub extern "C" fn get_library() -> WithLayout<TestingMod> {
+pub extern "C" fn get_library() -> &'static TestingMod {
     extern_fn_panic_handling!{
         TestingModVal{
             greeter,
@@ -34,7 +34,6 @@ pub extern "C" fn get_library() -> WithLayout<TestingMod> {
                 field_a:123,
             }.leak_into_prefix(),
         }.leak_into_prefix()
-            .piped(WithLayout::from_prefix)
     }
 }
 

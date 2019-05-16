@@ -15,8 +15,8 @@ pub use crate::{
             FieldAccessor,
         },
         tagging::Tag,
-        reflection::ModReflMode,
     },
+    reflection::ModReflMode,
     prefix_type::{
         panic_on_missing_field_ty,
         FieldAccessibility,

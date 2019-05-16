@@ -41,7 +41,7 @@ use crate::{
 
 /// A handle to any dynamically loaded library,
 /// not necessarily ones that export abi_stable compatible modules.
-pub struct Library {
+pub struct RawLibrary {
     path:PathBuf,
     library: LibLoadingLibrary,
 }
@@ -58,7 +58,7 @@ pub enum LibrarySuffix{
 }
 
 
-impl Library {
+impl RawLibrary {
     /// Gets the full path a library would be loaded from,
     pub fn path_in_directory(
         directory: &Path,
@@ -173,7 +173,7 @@ pub trait RootModule: Sized+SharedStableAbi  {
         match where_ {
             LibraryPath::Directory(directory)=>{
                 let base_name=Self::BASE_NAME;
-                Library::path_in_directory(directory, base_name,LibrarySuffix::NoSuffix)
+                RawLibrary::path_in_directory(directory, base_name,LibrarySuffix::NoSuffix)
             }
             LibraryPath::FullPath(full_path)=>  
                 full_path.to_owned(),
@@ -191,7 +191,7 @@ pub trait RootModule: Sized+SharedStableAbi  {
     fn layout_of_library(where_:LibraryPath<'_>)->Result<&'static AbiInfo,LibraryError>{
         let raw_lib=load_raw_library::<Self>(where_)?;
 
-        let library_getter=root_mod_getter_from_raw_library::<Self>(&raw_lib)?;
+        let library_getter=unsafe{ with_layout_from_raw_library(&raw_lib)? };
 
         let layout=library_getter.layout()?;
 
@@ -214,13 +214,13 @@ pub trait RootModule: Sized+SharedStableAbi  {
 
 /// Loads this module from the `raw_library`.
 fn load_root_mod_with_raw_lib<M>(
-    raw_library:Library
+    raw_library:RawLibrary
 )->Result<&'static M,LibraryError>
 where
     M:RootModule
 {
 
-    let items = root_mod_getter_from_raw_library::<M>(&raw_library)?;
+    let items = unsafe{ with_layout_from_raw_library(&raw_library)? };
 
     let globals=globals::initialized_globals();
     
@@ -253,17 +253,23 @@ where
 
 
 /// Loads the raw library at `where_`
-fn load_raw_library<M>(where_:LibraryPath<'_>) -> Result<Library, LibraryError>
+fn load_raw_library<M>(where_:LibraryPath<'_>) -> Result<RawLibrary, LibraryError>
 where
     M:RootModule
 {
     let path=M::get_library_path(where_);
-    Library::load_at(&path)
+    RawLibrary::load_at(&path)
 }
 
 
-pub fn root_mod_getter_from_raw_library<M>(
-    raw_library:&Library
+///
+///
+/// # Safety
+///
+/// The WithLayout is implicitly tied to the lifetime of the library,
+/// so it will be invalidated if the library is dropped. 
+unsafe fn with_layout_from_raw_library(
+    raw_library:&RawLibrary
 )->Result< WithLayout , LibraryError>
 {
     unsafe{
@@ -274,6 +280,18 @@ pub fn root_mod_getter_from_raw_library<M>(
 
         Ok(**library_getter)
     }
+}
+
+
+pub fn with_layout_from_path(path:&Path)->Result< WithLayout , LibraryError> {
+    let raw_lib=RawLibrary::load_at(path)?;
+
+    let library_getter=unsafe{ with_layout_from_raw_library(&raw_lib)? };
+
+    mem::forget(raw_lib);
+
+    Ok(library_getter)
+
 }
 
 
