@@ -1,3 +1,10 @@
+#[cfg(test)]
+pub mod tests{
+    pub mod derive_reflection;
+}
+
+pub mod export_module;
+
 /// Whether this is a module whose definition can be reflected on at runtime,
 ///
 /// Module reflection only allows accessing public fields.

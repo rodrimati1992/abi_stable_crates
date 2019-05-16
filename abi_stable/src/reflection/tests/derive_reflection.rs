@@ -1,9 +1,14 @@
+/*!
+Tests the fields related to reflection generated in the StableAbi derive macro.
+*/
+
+
 use crate::{
     abi_stability::{
-        reflection::ModReflMode,
         type_layout::{TLData,FieldAccessor,TLField},
         SharedStableAbi,
     },
+    reflection::ModReflMode,
     std_types::*,
 };
 

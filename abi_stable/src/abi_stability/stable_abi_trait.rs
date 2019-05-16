@@ -17,9 +17,12 @@ use std::{
 use crate::{
     std_types::{RNone, RSome, StaticSlice, StaticStr,utypeid::UTypeId},
     return_value_equality::ReturnValueEquality,
+    reflection::ModReflMode,
 };
 
-use super::{LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayoutParams};
+use super::{
+    LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayoutParams,
+};
 
 ///////////////////////
 
@@ -395,7 +398,7 @@ where
             &[LifetimeIndex::Param(0)],
             <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
         )],
-    );
+    ).set_mod_refl_mode(ModReflMode::DelegateDeref{phantom_field_index:0});
 }
 
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.

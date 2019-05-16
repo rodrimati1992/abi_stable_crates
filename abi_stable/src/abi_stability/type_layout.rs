@@ -15,13 +15,13 @@ use crate::{
     std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr},
     ignored_wrapper::CmpIgnored,
     prefix_type::{FieldAccessibility,IsConditional},
+    reflection::ModReflMode,
 };
 
 use super::{
     AbiInfo, 
     GetAbiInfo,
     tagging::Tag,
-    reflection::ModReflMode,
 };
 
 
@@ -194,7 +194,7 @@ pub enum RustPrimitive {
 
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi,Serialize,Deserialize)]
 pub enum FieldAccessor {
     /// Accessible with `self.field_name`
     Direct,
@@ -415,7 +415,7 @@ impl TypeLayout {
             full_type: FullType::new(type_name, prim, genparams),
             phantom_fields: StaticSlice::new(phantom),
             tag:Tag::null(),
-            mod_refl_mode:ModReflMode::Opaque,
+            mod_refl_mode:ModReflMode::Module,
         }
     }
 
@@ -441,7 +441,7 @@ impl TypeLayout {
             },
             phantom_fields: StaticSlice::new(empty_slice()),
             tag:Tag::null(),
-            mod_refl_mode:ModReflMode::Opaque,
+            mod_refl_mode:ModReflMode::Module,
         }
     }
 
@@ -712,5 +712,24 @@ impl TLFunction{
             params:StaticSlice::new(params),
             returns,
         }
+    }
+}
+
+impl Display for TLFunction{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        write!(f,"fn(")?;
+        let param_count=self.params.len();
+        for (param_i,param) in self.params.iter().enumerate() {
+            Display::fmt(&TLFieldAndType::new(*param),f)?;
+            if param_i+1!=param_count {
+                Display::fmt(&", ",f)?;
+            }
+        }
+        write!(f,")")?;
+        if let RSome(returns)=self.returns {
+            Display::fmt(&"->",f)?;
+            Display::fmt(&TLFieldAndType::new(returns),f)?;
+        }
+        Ok(())
     }
 }

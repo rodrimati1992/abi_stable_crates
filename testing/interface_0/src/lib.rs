@@ -16,7 +16,7 @@ use abi_stable::{
     StableAbi,
     package_version_strings,
     lazy_static_ref::LazyStaticRef,
-    library::{Library,LibraryError, RootModule},
+    library::{LibraryError,LibraryPath, RootModule},
     version::VersionStrings,
     std_types::{RBox, RStr, RString,RVec,RArc},
 };
@@ -25,15 +25,9 @@ use abi_stable::{
 
 
 impl RootModule for TestingMod {
-    fn raw_library_ref()->&'static LazyStaticRef<Library>{
-        static RAW_LIB:LazyStaticRef<Library>=LazyStaticRef::new();
-        &RAW_LIB
-    }
-
     const BASE_NAME: &'static str = "testing";
     const NAME: &'static str = "testing";
     const VERSION_STRINGS: VersionStrings = package_version_strings!();
-    const LOADER_FN: &'static str = "get_library";
 }
 
 
@@ -134,6 +128,6 @@ pub static MODULES:LazyStaticRef<TestingMod>=LazyStaticRef::new();
 /// If it loads them once,this will continue returning the same reference.
 pub fn load_library_in(directory:&Path) -> Result<&'static TestingMod,LibraryError> {
     MODULES.try_init(||{
-        TestingMod::load_from_library_in(directory)
+        TestingMod::load_from_library(LibraryPath::Directory(directory))
     })
 }
