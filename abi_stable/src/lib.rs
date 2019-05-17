@@ -211,7 +211,7 @@ pub mod globals{
     use crate::{
         lazy_static_ref::LazyStaticRef,
         abi_stability::{
-            abi_checking::{check_abi_stability_for_ffi},
+            abi_checking::{check_layout_compatibility_for_ffi},
             stable_abi_trait::AbiInfoWrapper,
         },
         std_types::{RResult,RBoxError},
@@ -228,7 +228,7 @@ pub mod globals{
     impl Globals{
         pub fn new()->&'static Self{
             leak_value(Globals{
-                layout_checking:check_abi_stability_for_ffi,
+                layout_checking:check_layout_compatibility_for_ffi,
             })
         }
     }

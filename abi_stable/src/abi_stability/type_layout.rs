@@ -55,6 +55,9 @@ pub struct TypeLayout {
     pub data: TLData,
     pub full_type: FullType,
     pub phantom_fields: StaticSlice<TLField>,
+    /// Extra data stored for reflection,
+    /// so as to not break the abi every time that more stuff is added for reflection.
+    pub reflection_tag:Tag,
     pub tag:Tag,
     pub mod_refl_mode:ModReflMode,
 }
@@ -386,15 +389,6 @@ impl Display for TLFieldAndType {
 ///////////////////////////
 
 impl TypeLayout {
-    
-
-
-
-
-
-
-
-
     pub(crate) const fn from_std_lib<T>(
         type_name: &'static str,
         data: TLData,
@@ -425,6 +419,7 @@ impl TypeLayout {
             data,
             full_type: FullType::new(type_name, prim, genparams),
             phantom_fields: StaticSlice::new(phantom),
+            reflection_tag:Tag::null(),
             tag:Tag::null(),
             mod_refl_mode:ModReflMode::Module,
         }
@@ -451,6 +446,7 @@ impl TypeLayout {
                 generics: p.generics,
             },
             phantom_fields: StaticSlice::new(empty_slice()),
+            reflection_tag:Tag::null(),
             tag:Tag::null(),
             mod_refl_mode:ModReflMode::Module,
         }
@@ -463,6 +459,11 @@ impl TypeLayout {
 
     pub const fn set_tag(mut self,tag:Tag)->Self{
         self.tag=tag;
+        self
+    }
+
+    pub const fn set_reflection_tag(mut self,reflection_tag:Tag)->Self{
+        self.reflection_tag=reflection_tag;
         self
     }
 

@@ -47,20 +47,11 @@ use crate::{
 };
 
 
-fn mangle_function_ident<S>(kind:&str,name:S)->String
+fn mangle_ident<S>(kind:&str,name:S)->String
 where S: ::std::fmt::Display
 {
 
-    let major=env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
-    let minor=env!("CARGO_PKG_VERSION_MINOR").parse::<u32>().unwrap();
-
-    let version_suffix=if major==0 {
-        format!("minor.{}",minor)
-    }else{
-        format!("major.{}",major)
-    };
-
-    let unmangled=format!("_as.{}.{}.vn.{}",kind,name,version_suffix);
+    let unmangled=format!("_as.{}.{}",kind,name);
 
     let mut mangled=String::with_capacity(unmangled.len()*3/2);
 
@@ -113,17 +104,6 @@ where S: ::std::fmt::Display
 }
 
 
-/// Mangles the name of the function that returns a library's functions/statics,
-/// so that one does not accidentally load
-/// dynamic libraries that use incompatible versions of abi_stable
-#[doc(hidden)]
-pub fn mangle_library_getter_ident<S>(s:S)->String
-where S: ::std::fmt::Display
-{
-    mangle_function_ident("mod",s)
-}
-
-
 #[doc(hidden)]
 pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
     measure!({
@@ -150,7 +130,7 @@ pub fn impl_InterfaceType(input: TokenStream1) -> TokenStream1{
 
 /// Gets the name of the function that loads the root module of a library.
 pub fn mangled_root_module_loader_name()->String{
-    mangle_library_getter_ident( "root module loader" )
+    mangle_ident("lib_header","root module loader")
 }
 
 
@@ -204,7 +184,7 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
                 
                 unsafe{
                     __LibHeader::from_constructor::<__ModuleTy>(
-                        abi_stable::library::Constructor(_sabi_erased_module),
+                        abi_stable::utils::Constructor(_sabi_erased_module),
                         <__ModuleTy as abi_stable::library::RootModule>::CONSTANTS,
                     )
                 }

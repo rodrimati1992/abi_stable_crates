@@ -734,11 +734,11 @@ the first parameter must be the expected layout,
 and the second must be actual layout.
 
 */
-pub(super) fn check_abi_stability(
+pub(super) fn check_layout_compatibility(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
 ) -> Result<(), AbiInstabilityErrors> {
-    check_abi_stability_with_globals(
+    check_layout_compatibility_with_globals(
         interface,
         implementation,
         get_checking_globals(),
@@ -747,7 +747,7 @@ pub(super) fn check_abi_stability(
 
 
 #[inline(never)]
-pub(super) fn check_abi_stability_with_globals(
+pub(super) fn check_layout_compatibility_with_globals(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
     globals:&CheckingGlobals,
@@ -796,6 +796,19 @@ pub(super) fn check_abi_stability_with_globals(
 
 /**
 Checks that the layout of `interface` is compatible with `implementation`,
+*/
+pub(crate) extern fn check_layout_compatibility_for_ffi(
+    interface: &'static AbiInfoWrapper,
+    implementation: &'static AbiInfoWrapper,
+) -> RResult<(), RBoxError> {
+    check_layout_compatibility(interface,implementation)
+        .map_err(RBoxError::from_fmt)
+        .into_c()
+}
+
+
+/**
+Checks that the layout of `interface` is compatible with `implementation`,
 
 # Warning
 
@@ -803,14 +816,23 @@ This function is not symmetric,
 the first parameter must be the expected layout,
 and the second must be actual layout.
 
+# Safety 
+
+This function must not be called from within a library before its layout is checked,
+since there is global state that must be set-up before its layout can be checked.
+
+The layout of a library is checked before the root module exporting function is called,
+allowing the library to load its dependencies when it is called.
+
 */
-pub(crate) extern fn check_abi_stability_for_ffi(
+pub unsafe extern fn exported_check_layout_compatibility(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
 ) -> RResult<(), RBoxError> {
-    check_abi_stability(interface,implementation)
-        .map_err(RBoxError::from_fmt)
-        .into_c()
+    extern_fn_panic_handling!{
+        (crate::globals::initialized_globals().layout_checking)
+            (interface,implementation)
+    }
 }
 
 
