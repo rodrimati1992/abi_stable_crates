@@ -102,6 +102,8 @@ where every field up to it is guaranteed to exist.
 
 ### `#[sabi(accessible_if=" expression ")]`
 
+This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
+
 This attribute turns any field conditional based on the const boolean expression 
 (which must be valid a bool constant).
 
@@ -118,6 +120,12 @@ which accessors are conditional for prefix fields.
 
 To do `#[sabi(accessible_if="<TypeParameter as Trait>::CONSTANT")]` you can use the 
 `#[sabi(prefix_bound="TypeParameter:Trait")]` attribute.
+
+### `#[sabi(refl(pub_getter=" function_name "))]`
+
+Determines the public getter for a field used by reflection.
+
+The function can return either a reference or a value.
 
 # Field and/or Container attributes
 
