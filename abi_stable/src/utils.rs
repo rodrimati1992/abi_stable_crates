@@ -196,3 +196,50 @@ macro_rules! impl_fmt_padding {
 
 impl_fmt_padding!{ String }
 impl_fmt_padding!{ RString }
+
+
+
+
+//////////////////////////////////////////////////////////////////////
+
+/// Newtype wrapper for functions which construct constants.
+///
+/// Declared to pass a function pointers to const fn.
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct Constructor<T>(pub extern fn()->T);
+
+impl<T> Copy for Constructor<T>{}
+
+impl<T> Clone for Constructor<T>{
+    fn clone(&self)->Self{
+        *self
+    }
+}
+
+//////////////////////////////////////////////////////////////////////
+
+
+#[repr(C)]
+#[derive(StableAbi,Copy,Clone)]
+pub enum ConstructorOrValue<T>{
+    Constructor(Constructor<T>),
+    Value(T)
+}
+
+impl<T> ConstructorOrValue<T>{
+
+    pub fn get(&mut self)->&T{
+        match self {
+            ConstructorOrValue::Value(v)=>v,
+            &mut ConstructorOrValue::Constructor(func)=>{
+                let v=(func.0)();
+                *self=ConstructorOrValue::Value(v);
+                match self {
+                    ConstructorOrValue::Value(v)=>v,
+                    _=>unreachable!()
+                }
+            },
+        }
+    }
+}
