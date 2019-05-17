@@ -7,7 +7,7 @@ use core_extensions::{matches, prelude::*};
 
 use crate::{
     abi_stability::{
-        abi_checking::{AbiInstability,check_abi_stability},
+        abi_checking::{AbiInstability,check_layout_compatibility},
         AbiInfoWrapper, 
         Tag,
     },
@@ -168,11 +168,11 @@ fn assert_sane_abi_info(abi: &'static AbiInfoWrapper) {
 }
 
 fn assert_equal_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static AbiInfoWrapper) {
-    assert_eq!(check_abi_stability(interface, impl_), Ok(()));
+    assert_eq!(check_layout_compatibility(interface, impl_), Ok(()));
 }
 
 fn assert_different_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static AbiInfoWrapper) {
-    let res=check_abi_stability(interface, impl_);
+    let res=check_layout_compatibility(interface, impl_);
     assert_ne!(
         res,
         Ok(()),
@@ -324,7 +324,7 @@ fn check_repr_attrs(){
 // fn different_prefixity() {
 //     let regular = <&'static regular::Rectangle>::ABI_INFO;
 //     let other = <&'static prefixed::Rectangle>::ABI_INFO;
-//     let errs = check_abi_stability(regular, other)
+//     let errs = check_layout_compatibility(regular, other)
 //         .unwrap_err()
 //         .flatten_errors();
 //     assert!(errs
@@ -345,7 +345,7 @@ fn different_zeroness() {
     assert!(non_zero.get().is_nonzero);
     assert!(!ZEROABLE_ABI.get().is_nonzero);
 
-    let errs = check_abi_stability(non_zero, ZEROABLE_ABI)
+    let errs = check_layout_compatibility(non_zero, ZEROABLE_ABI)
         .unwrap_err()
         .flatten_errors();
     assert!(errs
@@ -357,7 +357,7 @@ fn different_zeroness() {
 fn different_name() {
     let regular = regular::Rectangle::ABI_INFO;
     let other = changed_name::Rectangleiiiiii::ABI_INFO;
-    let errs = check_abi_stability(regular, other)
+    let errs = check_layout_compatibility(regular, other)
         .unwrap_err()
         .flatten_errors();
     assert!(errs
@@ -372,7 +372,7 @@ fn swapped_fields() {
     let last = swapped_fields_first::Rectangle::ABI_INFO;
 
     for other in vec![first, last] {
-        let errs = check_abi_stability(regular, other)
+        let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
         assert!(errs
@@ -391,7 +391,7 @@ fn removed_fields() {
     ];
 
     for other in list {
-        let errs = check_abi_stability(regular, other)
+        let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
         let mut found_field_count_mismatch = false;
@@ -416,7 +416,7 @@ fn removed_fields() {
 fn different_alignment() {
     let regular = regular::Rectangle::ABI_INFO;
     let other = changed_alignment::Rectangle::ABI_INFO;
-    let errs = check_abi_stability(regular, other)
+    let errs = check_layout_compatibility(regular, other)
         .unwrap_err()
         .flatten_errors();
 
@@ -492,7 +492,7 @@ fn different_generics() {
         ];
 
         for other in list {
-            let errs = check_abi_stability(regular, other)
+            let errs = check_layout_compatibility(regular, other)
                 .unwrap_err()
                 .flatten_errors();
             assert!(errs
@@ -505,7 +505,7 @@ fn different_generics() {
         let list = vec![gen_more_lts::Generics::<()>::ABI_INFO];
 
         for other in list {
-            let errs = check_abi_stability(regular, other)
+            let errs = check_layout_compatibility(regular, other)
                 .unwrap_err()
                 .flatten_errors();
             assert!(errs
@@ -554,7 +554,7 @@ fn variant_mismatch() {
 
     {
         let other = misnamed_variant::Enum::ABI_INFO;
-        let errs = check_abi_stability(regular, other)
+        let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
         assert!(errs
@@ -564,7 +564,7 @@ fn variant_mismatch() {
 
     {
         let other = extra_variant::Enum::ABI_INFO;
-        let errs = check_abi_stability(regular, other)
+        let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
         assert!(errs
@@ -786,7 +786,7 @@ fn test_tag_subsets(){
         for (l_i,l_abi) in subset.iter().enumerate() {
             for (r_i,r_abi) in subset.iter().enumerate() {
 
-                let res=check_abi_stability(l_abi,r_abi);
+                let res=check_layout_compatibility(l_abi,r_abi);
 
                 if l_i <= r_i {
                     assert_eq!(res,Ok(()));
@@ -820,7 +820,7 @@ fn test_tag_incompatible(){
     for subset in &incompatible_sets {
         for (l_i,l_abi) in subset.iter().enumerate() {
             for (r_i,r_abi) in subset.iter().enumerate() {
-                let res=check_abi_stability(l_abi,r_abi);
+                let res=check_layout_compatibility(l_abi,r_abi);
 
                 if l_i == r_i {
                     assert_eq!(res,Ok(()));

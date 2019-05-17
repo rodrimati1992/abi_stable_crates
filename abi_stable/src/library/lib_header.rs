@@ -70,7 +70,7 @@ impl LibHeader {
     {
 
         // Using this instead of
-        // crate::abi_stability::abi_checking::check_abi_stability
+        // crate::abi_stability::abi_checking::check_layout_compatibility
         // so that if this is called in a dynamic-library that loads 
         // another dynamic-library,
         // it uses the layout checker of the executable,

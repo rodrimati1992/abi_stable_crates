@@ -12,7 +12,7 @@ use rand::{
 
 use crate::{
     abi_stability::{
-        abi_checking::{AbiInstability,CheckingGlobals,check_abi_stability_with_globals},
+        abi_checking::{AbiInstability,CheckingGlobals,check_layout_compatibility_with_globals},
         stable_abi_trait::AbiInfo,
         AbiInfoWrapper, 
     },
@@ -175,10 +175,10 @@ fn prefixes_test() {
             let value_len=prefix_type_map.value_len();
             let key_len=prefix_type_map.key_len();
             // Not dropping it here causes a deadlock inside 
-            // check_abi_stability_with_globals.
+            // check_layout_compatibility_with_globals.
             drop(prefix_type_map);
 
-            let res = check_abi_stability_with_globals(this, other,&globals);
+            let res = check_layout_compatibility_with_globals(this, other,&globals);
 
             let prefix_type_map=globals.prefix_type_map.lock().unwrap();
             if t_prefix.fields.len() <= o_prefix.fields.len() {
@@ -264,7 +264,7 @@ fn check_interface_impl_pair(
     let t_prefix=PrefixTypeMetadata::new(deref_this.layout);
     let o_prefix=PrefixTypeMetadata::new(deref_other.layout);
 
-    if let Err(e)=check_abi_stability_with_globals(this,other,&globals) {
+    if let Err(e)=check_layout_compatibility_with_globals(this,other,&globals) {
         if t_prefix.fields.len() <= o_prefix.fields.len() {
             panic!("{:#?}",e);
         }else{
@@ -352,7 +352,7 @@ fn prefix_is_same_alignment(){
     let misaligned = <&prefix2_misaligned::Prefix>::ABI_INFO;
 
     for pref in vec![ PREF_0,PREF_1 ] {
-        let errs = check_abi_stability_with_globals(pref, misaligned,&globals)
+        let errs = check_layout_compatibility_with_globals(pref, misaligned,&globals)
             .unwrap_err()
             .flatten_errors();
 
@@ -372,7 +372,7 @@ fn prefix_is_same_size(){
 
     for pref in list.iter().cloned() {
         let mismatched_prefix=<&prefix2_different_prefix::Prefix>::ABI_INFO;
-        let errs = check_abi_stability_with_globals(pref,mismatched_prefix ,&globals)
+        let errs = check_layout_compatibility_with_globals(pref,mismatched_prefix ,&globals)
             .unwrap_err()
             .flatten_errors();
 
@@ -831,7 +831,7 @@ fn prefix_cond_field_test(){
 
         let globals=CheckingGlobals::new();
         for (interf,impl_) in invalid {
-            let errs = check_abi_stability_with_globals(interf,impl_ ,&globals)
+            let errs = check_layout_compatibility_with_globals(interf,impl_ ,&globals)
                 .unwrap_err()
                 .flatten_errors();
 
