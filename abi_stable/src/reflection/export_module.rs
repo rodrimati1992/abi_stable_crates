@@ -18,7 +18,7 @@ use crate::{
 pub struct MRItem{
     item_name:String,
     type_:String,
-    field_accessor:FieldAccessor,
+    field_accessor:MRFieldAccessor,
     #[serde(flatten)]
     variant:MRItemVariant,
 }
@@ -58,6 +58,21 @@ pub enum MRModReflMode{
     DelegateDeref,
 }
 
+#[repr(C)]
+#[derive(Debug,Serialize,Deserialize)]
+pub enum MRFieldAccessor {
+    /// Accessible with `self.field_name`
+    Direct,
+    /// Accessible with `fn field_name(&self)->FieldType`
+    Method{
+        name:Option<String>,
+    },
+    /// Accessible with `fn field_name(&self)->Option<FieldType>`
+    MethodOption,
+    /// This field is completely inaccessible.
+    Opaque,
+}
+
 
 impl MRItem{
     pub fn from_abi_info(
@@ -70,7 +85,7 @@ impl MRItem{
         Self{
             item_name:"root".into(),
             type_,
-            field_accessor:FieldAccessor::Direct,
+            field_accessor:MRFieldAccessor::Direct,
             variant,
         }
     }
@@ -108,7 +123,7 @@ impl MRItem{
                         MRItem{
                             item_name:field.name.to_string(),
                             type_,
-                            field_accessor:field.field_accessor,
+                            field_accessor:field.field_accessor.into(),
                             variant,
                         }
                     })
@@ -202,3 +217,22 @@ impl From<ModReflMode> for MRModReflMode{
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
+
+impl From<FieldAccessor> for MRFieldAccessor{
+    fn from(this:FieldAccessor)->MRFieldAccessor{
+        match this{
+            FieldAccessor::Direct=>
+                MRFieldAccessor::Direct,
+            FieldAccessor::Method{name}=>
+                MRFieldAccessor::Method{
+                    name:name.map(|s| s.to_string() ).into_option(),
+                },
+            FieldAccessor::MethodOption=>
+                MRFieldAccessor::MethodOption,
+            FieldAccessor::Opaque=>
+                MRFieldAccessor::Opaque,
+        }
+    }
+}

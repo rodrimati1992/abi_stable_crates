@@ -185,9 +185,9 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
 
             #[no_mangle]
             #(#attrs)*
-            #vis static #export_name:abi_stable::library::WithLayout={
+            #vis static #export_name:abi_stable::library::LibHeader={
                 use abi_stable::{
-                    library::{WithLayout as __WithLayout},
+                    library::{LibHeader as __LibHeader},
                     StableAbi,
                 };
 
@@ -203,7 +203,7 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
                 type __ModuleTy=<__ReturnTy as std::ops::Deref>::Target;
                 
                 unsafe{
-                    __WithLayout::from_constructor::<__ModuleTy>(
+                    __LibHeader::from_constructor::<__ModuleTy>(
                         abi_stable::library::Constructor(_sabi_erased_module),
                         <__ModuleTy as abi_stable::library::RootModule>::CONSTANTS,
                     )

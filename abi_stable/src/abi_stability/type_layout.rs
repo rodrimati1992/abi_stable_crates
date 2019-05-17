@@ -194,16 +194,27 @@ pub enum RustPrimitive {
 
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi,Serialize,Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum FieldAccessor {
     /// Accessible with `self.field_name`
     Direct,
     /// Accessible with `fn field_name(&self)->FieldType`
-    Method,
+    Method{
+        name:ROption<StaticStr>,
+    },
     /// Accessible with `fn field_name(&self)->Option<FieldType>`
     MethodOption,
     /// This field is completely inaccessible.
     Opaque,
+}
+
+
+impl FieldAccessor{
+    pub const fn method_named(name:&'static str)->Self{
+        FieldAccessor::Method{
+            name:RSome(StaticStr::new(name))
+        }
+    }
 }
 
 

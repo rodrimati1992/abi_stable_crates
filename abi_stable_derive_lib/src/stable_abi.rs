@@ -435,7 +435,9 @@ fn field_tokenizer<'a>(
             field.is_function.to_tokens(ts);
         });
 
-        let field_acc=config.kind.field_accessor(config.mod_refl_mode,field);
+        let field_acc=config.override_field_accessor[field]
+            .unwrap_or_else(|| config.kind.field_accessor(config.mod_refl_mode,field) );
+            
         quote!( .set_field_accessor(#field_acc) ).to_tokens(ts);
 
         to_stream!{ts; ct.comma }

@@ -124,18 +124,18 @@ impl<'a> AccessorOrMaybe<'a>{
 
 
 impl<'a> PrefixKind<'a>{
-    pub(crate) fn field_accessor(&self,field:&Field<'a>)->FieldAccessor{
+    pub(crate) fn field_accessor(&self,field:&Field<'a>)->FieldAccessor<'a>{
         use self::{AccessorOrMaybe as AOM,OnMissingField as OMF};
 
         match self.fields[field] {
             AccessorOrMaybe::Accessor=>
-                FieldAccessor::Method,
+                FieldAccessor::Method{name:None},
             AccessorOrMaybe::Maybe(MaybeAccessor{on_missing,..})=>
                 match on_missing {
                     OMF::ReturnOption=>
                         FieldAccessor::MethodOption,
                     OMF::Panic{..}|OMF::With{..}|OMF::Default_=>
-                        FieldAccessor::Method,
+                        FieldAccessor::Method{name:None},
                 },
         }
     }

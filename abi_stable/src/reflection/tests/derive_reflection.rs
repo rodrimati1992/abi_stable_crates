@@ -40,6 +40,8 @@ enum PrivEnum {
 pub struct RegularPubFields {
     pub field0: u8,
     pub field1: u8,
+    #[sabi(refl(pub_getter="what_the"))]
+    pub field2: u8,
 }
 
 #[repr(C)]
@@ -67,6 +69,7 @@ pub struct RegularMostPrivacies {
 pub struct RegularPriv {
     field0: u8,
     field1: u16,
+    #[sabi(refl(pub_getter="hello"))]
     field2: u32,
 }
 
@@ -84,6 +87,7 @@ pub struct PrefPubFieldsValue {
     pub field1: u8,
     #[sabi(missing_field(option))]
     pub field2: u8,
+    #[sabi(refl(pub_getter="hello"))]
     #[sabi(missing_field(default))]
     pub field3: u8,
     #[sabi(missing_field(panic))]
@@ -249,6 +253,7 @@ fn test_regular_pub_fields(){
         &[
             FieldAccessor::Direct,
             FieldAccessor::Direct,
+            FieldAccessor::method_named("what_the"),
         ]
     );
 }
@@ -286,7 +291,7 @@ fn test_regular_priv(){
         &[
             FieldAccessor::Opaque,
             FieldAccessor::Opaque,
-            FieldAccessor::Opaque,
+            FieldAccessor::method_named("hello"),
         ]
     );
 }
@@ -300,11 +305,11 @@ fn test_prefix_pub_fields(){
     check_prefix_accessors::<PrefixPubFields>(
         ModReflMode::Module,
         &[
-            FieldAccessor::Method,
-            FieldAccessor::Method,
+            FieldAccessor::Method{name:RNone},
+            FieldAccessor::Method{name:RNone},
             FieldAccessor::MethodOption,
-            FieldAccessor::Method,
-            FieldAccessor::Method,
+            FieldAccessor::method_named("hello"),
+            FieldAccessor::Method{name:RNone},
         ]
     );
 }
@@ -327,8 +332,8 @@ fn test_prefix_most_privacies(){
     check_prefix_accessors::<PrefixMostPrivacies>(
         ModReflMode::Module,
         &[
-            FieldAccessor::Method,
-            FieldAccessor::Method,
+            FieldAccessor::Method{name:RNone},
+            FieldAccessor::Method{name:RNone},
             FieldAccessor::MethodOption,
             FieldAccessor::MethodOption,
             FieldAccessor::Opaque,

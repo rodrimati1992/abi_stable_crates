@@ -37,6 +37,8 @@ pub(crate) struct StableAbiOptions<'a> {
     /// A hashset of the fields whose contents are opaque 
     /// (there are still some minimal checks going on).
     pub(crate) opaque_fields:FieldMap<bool>,
+
+    pub(crate) override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
     pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
 
@@ -65,7 +67,7 @@ impl<'a> StabilityKind<'a>{
         &self,
         mod_refl_mode:ModReflMode<usize>,
         field:&Field<'a>,
-    )->FieldAccessor{
+    )->FieldAccessor<'a>{
         let is_public=field.is_public() && mod_refl_mode!=ModReflMode::Opaque;
         match (is_public,self) {
             (false,_)=>
@@ -186,6 +188,7 @@ impl<'a> StableAbiOptions<'a> {
             unconstrained_type_params:this.unconstrained_type_params.into_iter().collect(),
             opaque_fields:this.opaque_fields,
             renamed_fields:this.renamed_fields,
+            override_field_accessor:this.override_field_accessor,
             repr_attrs:this.repr_attrs,
             tags:this.tags,
             phantom_fields,
@@ -194,7 +197,8 @@ impl<'a> StableAbiOptions<'a> {
     }
 }
 
-///////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Default)]
 struct StableAbiAttrs<'a> {
@@ -218,6 +222,8 @@ struct StableAbiAttrs<'a> {
 
     // Using raw pointers to do an identity comparison.
     opaque_fields:FieldMap<bool>,
+
+    override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
     renamed_fields:FieldMap<Option<&'a Ident>>,
     repr_attrs:Vec<MetaList>,
@@ -266,6 +272,7 @@ pub(crate) fn parse_attrs_for_stable_abi<'a>(
     this.opaque_fields=FieldMap::defaulted(ds);
     this.prefix_kind_fields=FieldMap::defaulted(ds);
     this.renamed_fields=FieldMap::defaulted(ds);
+    this.override_field_accessor=FieldMap::defaulted(ds);
 
     let name=ds.name;
 
@@ -368,6 +375,8 @@ fn parse_sabi_attr<'a>(
             if list.ident == "missing_field" {
                 let on_missing_field=parse_missing_field(&list.nested,arenas);
                 this.prefix_kind_fields[field].on_missing=Some(on_missing_field);
+            }else if list.ident == "refl" {
+                parse_refl_field(this,field,list.nested,arenas);
             }else{
                 panic!("unrecognized field attribute `#[sabi({})]` ",list.ident);
             }
@@ -485,6 +494,30 @@ Tag:\n\t{}\n",
         (_,x) => panic!("not allowed inside the #[sabi(...)] attribute:\n{:?}", x),
     }
 }
+
+
+fn parse_refl_field<'a>(
+    this: &mut StableAbiAttrs<'a>,
+    field:&'a Field<'a>,
+    list: Punctuated<NestedMeta, Comma>, 
+    arenas: &'a Arenas
+) {
+    use syn::{MetaNameValue as MNV};
+
+    with_nested_meta("refl", list, |attr| match attr {
+        Meta::NameValue(MetaNameValue{lit:Lit::Str(ref val),ref ident,..})=>{
+            if ident=="pub_getter" {
+                let function=arenas.alloc(val.value());
+                this.override_field_accessor[field]=
+                    Some(FieldAccessor::Method{ name:Some(function) });
+            }else{
+                panic!("invalid #[sabi(refl(..))] attribute:\n`{}={:?}`",ident,val)
+            }
+        }
+        x => panic!("invalid #[sabi(refl(..))] attribute:\n{:?}", x),
+    });
+}
+
 
 
 /// Parses the contents of #[sabi(missing_field( ... ))]

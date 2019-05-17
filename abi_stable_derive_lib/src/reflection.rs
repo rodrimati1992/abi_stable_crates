@@ -3,11 +3,13 @@ use quote::{quote,ToTokens};
 
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum FieldAccessor {
+pub enum FieldAccessor<'a> {
     /// Accessible with `self.field_name`
     Direct,
     /// Accessible with `fn field_name(&self)->FieldType`
-    Method,
+    Method{
+        name:Option<&'a str>,
+    },
     /// Accessible with `fn field_name(&self)->Option<FieldType>`
     MethodOption,
     /// This field is completely inaccessible.
@@ -15,13 +17,25 @@ pub enum FieldAccessor {
 }
 
 
-impl ToTokens for FieldAccessor{
+impl ToTokens for FieldAccessor<'_>{
     fn to_tokens(&self, ts: &mut TokenStream) {
         match *self {
-            FieldAccessor::Direct=>quote!( __FieldAccessor::Direct ),
-            FieldAccessor::Method=>quote!( __FieldAccessor::Method ),
-            FieldAccessor::MethodOption=>quote!( __FieldAccessor::MethodOption ),
-            FieldAccessor::Opaque=>quote!( __FieldAccessor::Opaque ),
+            FieldAccessor::Direct=>
+                quote!( __FieldAccessor::Direct ),
+            FieldAccessor::Method{name:None}=>
+                quote!( 
+                    __FieldAccessor::Method{
+                        name:_sabi_reexports::RNone 
+                    } 
+                ),
+            FieldAccessor::Method{name:Some(name)}=>
+                quote!( 
+                    __FieldAccessor::method_named(#name),
+                ),
+            FieldAccessor::MethodOption=>
+                quote!( __FieldAccessor::MethodOption ),
+            FieldAccessor::Opaque=>
+                quote!( __FieldAccessor::Opaque ),
         }.to_tokens(ts);
     }
 }
