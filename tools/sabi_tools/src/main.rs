@@ -13,7 +13,7 @@ fn main() {
 
     let with_layout=with_layout_from_path(path.as_ref()).unwrap();
 
-    let abi_info=with_layout.layout().unwrap();
+    let abi_info=with_layout.layout();
 
     let root_mod=MRItem::from_abi_info(abi_info.layout);
 

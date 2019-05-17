@@ -10,7 +10,7 @@ use testing_interface_0::{
 use abi_stable::{
     export_sabi_module,
     extern_fn_panic_handling, 
-    library::WithLayout,
+    library::LibHeader,
     prefix_type::PrefixTypeTrait,
     traits::{IntoReprC},
     std_types::{RStr,RBox,RVec,RArc, RString}, 
@@ -22,7 +22,7 @@ use core_extensions::{SelfOps};
 
 /// Exports the root module of this library.
 ///
-/// WithLayout is used to check that the layout of `TextOpsMod` in this dynamic library
+/// LibHeader is used to check that the layout of `TextOpsMod` in this dynamic library
 /// is compatible with the layout of it in the binary that loads this library.
 #[export_sabi_module]
 pub extern "C" fn get_library() -> &'static TestingMod {
