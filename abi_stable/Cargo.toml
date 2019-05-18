@@ -48,7 +48,9 @@ rand = "0.6"
 criterion = "0.2"
 hashbrown = "0.3"
 fnv = "1.0"
+skeptic = "0.13"
 
 
 [build-dependencies]
 rustc_version = "0.2"
+skeptic = "0.13"

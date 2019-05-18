@@ -8,7 +8,7 @@ use testing_interface_0::{
 };
 
 use abi_stable::{
-    export_sabi_module,
+    export_root_module,
     extern_fn_panic_handling, 
     library::LibHeader,
     prefix_type::PrefixTypeTrait,
@@ -24,7 +24,7 @@ use core_extensions::{SelfOps};
 ///
 /// LibHeader is used to check that the layout of `TextOpsMod` in this dynamic library
 /// is compatible with the layout of it in the binary that loads this library.
-#[export_sabi_module]
+#[export_root_module]
 pub extern "C" fn get_library() -> &'static TestingMod {
     extern_fn_panic_handling!{
         TestingModVal{

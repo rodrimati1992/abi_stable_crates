@@ -20,7 +20,7 @@ use example_0_interface::{
 };
 
 use abi_stable::{
-    export_sabi_module,
+    export_root_module,
     extern_fn_panic_handling, impl_get_type_info,
     erased_types::{ImplType,SerializeImplType,TypeInfo},
     prefix_type::{PrefixTypeTrait,WithMetadata},
@@ -40,7 +40,7 @@ use serde_json;
 /// Exports the root module of this library.
 ///
 /// This code isn't run until the layout of the type it returns is checked.
-#[export_sabi_module]
+#[export_root_module]
 extern fn instantiate_root_module()->&'static TextOpsMod{
     extern_fn_panic_handling!{
         TextOpsModVal {

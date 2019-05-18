@@ -12,7 +12,7 @@ use structopt::StructOpt;
 use abi_stable::{
     std_types::{RString,RCow},
     DynTrait,
-    library::{RootModule,LibraryPath},
+    library::RootModule,
 };
 
 use example_0_interface::{
@@ -34,8 +34,8 @@ fn compute_library_path()->io::Result<PathBuf>{
     let debug_dir  ="../../target/debug/"  .as_ref_::<Path>().into_(PathBuf::T);
     let release_dir="../../target/release/".as_ref_::<Path>().into_(PathBuf::T);
 
-    let debug_path  =TextOpsMod::get_library_path(LibraryPath::Directory(&debug_dir));
-    let release_path=TextOpsMod::get_library_path(LibraryPath::Directory(&release_dir));
+    let debug_path  =TextOpsMod::get_library_path(&debug_dir);
+    let release_path=TextOpsMod::get_library_path(&release_dir);
 
     match (debug_path.exists(),release_path.exists()) {
         (false,false)=>debug_dir,

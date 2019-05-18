@@ -55,7 +55,7 @@ This is applied to functions like this:
 
 use abi_stable::prefix_type::PrefixTypeTrait;
 
-#[export_sabi_module]
+#[export_root_module]
 pub extern "C" fn get_hello_world_mod() -> TextOperationsMod {
     extern_fn_panic_handling!{
         TextOperationsMod{
@@ -77,7 +77,7 @@ repository for this crate.
 
 */
 #[proc_macro_attribute]
-pub fn export_sabi_module(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
+pub fn export_root_module(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     abi_stable_derive_lib::mangle_library_getter_attr(attr,item)
 }
 

@@ -34,68 +34,61 @@ pub trait RootModule: Sized+SharedStableAbi  {
         _priv:PhantomData,
     };
 
-    /// Returns the path the library would be loaded from.
-    fn get_library_path(where_:LibraryPath<'_>)-> PathBuf {
-        match where_ {
-            LibraryPath::Directory(directory)=>{
-                let base_name=Self::BASE_NAME;
-                RawLibrary::path_in_directory(directory, base_name,LibrarySuffix::NoSuffix)
-            }
-            LibraryPath::FullPath(full_path)=>  
-                full_path.to_owned(),
-        }
+    /// Returns the path the library would be loaded from,given a directory(folder).
+    fn get_library_path(directory:&Path)-> PathBuf {
+        let base_name=Self::BASE_NAME;
+        RawLibrary::path_in_directory(directory, base_name,LibrarySuffix::NoSuffix)
     }
 
-    /// Loads this module from the path specified by `where_`,
-    /// first loading the dynamic library if it wasn't already loaded.
-    fn load_from_library(where_:LibraryPath<'_>) -> Result<&'static Self, LibraryError>{
+/**
+Loads this module from the path specified by `where_`,
+first loading the dynamic library if it wasn't already loaded.
+
+# Warning
+
+If this function is called within a dynamic library,
+it must be called at or after the function that exports its root module is called.
+
+**DO NOT** call this in the static initializer of a dynamic library,
+since this library relies on setting up its global state before
+calling the root module loader.
+
+# Errors
+
+This will return these errors:
+
+- LibraryError::OpenError:
+If the dynamic library itself could not be loaded.
+
+- LibraryError::GetSymbolError:
+If the root module was not exported.
+
+- LibraryError::InvalidAbiHeader:
+If the abi_stable version used by the library is not compatible.
+
+- LibraryError::ParseVersionError:
+If the version strings in the library can't be parsed as version numbers,
+this can only happen if the version strings are manually constructed.
+
+- LibraryError::IncompatibleVersionNumber:
+If the version number of the library is incompatible.
+
+- LibraryError::AbiInstability:
+If the layout of the root module is not the expected one.
+
+*/
+    fn load_from_path(where_:LibraryPath<'_>) -> Result<&'static Self, LibraryError>{
+
         let raw_library=load_raw_library::<Self>(where_)?;
-        let items = unsafe{ lib_header_from_raw_library(&raw_library)? };
+        let mut items = unsafe{ lib_header_from_raw_library(&raw_library)? };
 
-        let globals=globals::initialized_globals();
-        
-        // This has to run before anything else.    
-        items.initialize_library_globals(globals);
-
-        let expected_version = Self::VERSION_STRINGS
-            .piped(VersionNumber::new)?;
-        let actual_version = items.version_strings().piped(VersionNumber::new)?;
-
-        if expected_version.major != actual_version.major || 
-            (expected_version.major==0) && expected_version.minor > actual_version.minor
-        {
-            return Err(LibraryError::IncompatibleVersionNumber {
-                library_name: Self::NAME,
-                expected_version,
-                actual_version,
-            });
-        }
-
-        let root_mod=items.check_layout::<Self>()?
-            .initialization()?;
+        let root_mod=items.init_root_module::<Self>()?.initialization()?;
 
         // Important,If I don't leak the library after sucessfully loading the root module
         // it would cause any use of the module to be a use after free.
         mem::forget(raw_library);
 
         Ok(root_mod)
-
-    }
-
-    /// Returns the layout of the root module of the library at the specified path.
-    fn layout_of_library(where_:LibraryPath<'_>)->Result<&'static AbiInfo,LibraryError>{
-        let raw_lib=load_raw_library::<Self>(where_)?;
-
-        let library_getter=unsafe{ lib_header_from_raw_library(&raw_lib)? };
-
-        let layout=library_getter.layout();
-
-        // Important,If I don't leak the library after sucessfully loading the root module
-        // it would cause any use of the module to be a use after free.
-        mem::forget(raw_lib);
-
-        Ok(layout)
-
     }
 
     /// Defines behavior that happens once the module is loaded.
@@ -112,17 +105,35 @@ fn load_raw_library<M>(where_:LibraryPath<'_>) -> Result<RawLibrary, LibraryErro
 where
     M:RootModule
 {
-    let path=M::get_library_path(where_);
+    let path=match where_ {
+        LibraryPath::Directory(directory)=>{
+            M::get_library_path(&directory)
+        }
+        LibraryPath::FullPath(full_path)=>  
+            full_path.to_owned(),
+    };
     RawLibrary::load_at(&path)
 }
 
+/**
+Gets the LibHeader of a library.
 
-/// Gets the LibHeader of a library.
-///
-/// # Safety
-///
-/// The LibHeader is implicitly tied to the lifetime of the library,
-/// it will contain dangling `'static` references if the library is dropped. 
+# Errors
+
+This will return these errors:
+
+- LibraryError::GetSymbolError:
+If the root module was not exported.
+
+- LibraryError::InvalidAbiHeader:
+If the abi_stable used by the library is not compatible.
+
+# Safety
+
+The LibHeader is implicitly tied to the lifetime of the library,
+it will contain dangling `'static` references if the library is dropped before it does.
+
+*/
 pub unsafe fn lib_header_from_raw_library(
     raw_library:&RawLibrary
 )->Result< LibHeader , LibraryError>
@@ -139,12 +150,39 @@ pub unsafe fn lib_header_from_raw_library(
             return Err(LibraryError::InvalidAbiHeader(*header))
         }
 
-        Ok(*transmute_reference::<AbiHeader,LibHeader>(header))
+        let lib_header=transmute_reference::<AbiHeader,LibHeader>(header);
+        
+        let globals=globals::initialized_globals();
+        
+        // This has to run before anything else.
+        lib_header.initialize_library_globals(globals);
+
+        Ok(lib_header.clone())
     }
 }
 
 
-/// Gets the LibHeader of the library at the path.
+/**
+Gets the LibHeader of the library at the path.
+
+This leaks the underlying dynamic library,
+if you need to do this without leaking you'll need to use
+`lib_header_from_raw_library` instead.
+
+# Errors
+
+This will return these errors:
+
+- LibraryError::OpenError:
+If the dynamic library itself could not be loaded.
+
+- LibraryError::GetSymbolError:
+If the root module was not exported.
+
+- LibraryError::InvalidAbiHeader:
+If the abi_stable version used by the library is not compatible.
+
+*/
 pub fn lib_header_from_path(path:&Path)->Result< LibHeader , LibraryError> {
     let raw_lib=RawLibrary::load_at(path)?;
 
@@ -155,8 +193,6 @@ pub fn lib_header_from_path(path:&Path)->Result< LibHeader , LibraryError> {
     Ok(library_getter)
 
 }
-
-
 
 //////////////////////////////////////////////////////////////////////
 
