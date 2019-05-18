@@ -21,6 +21,7 @@ pub mod std_error;
 pub mod std_io;
 pub mod str;
 pub mod string;
+pub mod sync;
 pub mod time;
 pub mod tuple;
 pub mod utypeid;
