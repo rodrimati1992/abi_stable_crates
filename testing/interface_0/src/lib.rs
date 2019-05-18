@@ -128,6 +128,6 @@ pub static MODULES:LazyStaticRef<TestingMod>=LazyStaticRef::new();
 /// If it loads them once,this will continue returning the same reference.
 pub fn load_library_in(directory:&Path) -> Result<&'static TestingMod,LibraryError> {
     MODULES.try_init(||{
-        TestingMod::load_from_library(LibraryPath::Directory(directory))
+        TestingMod::load_from_path(LibraryPath::Directory(directory))
     })
 }

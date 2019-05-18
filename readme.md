@@ -54,6 +54,8 @@ This is a full example,demonstrating:
 
 - `ìmplementation crates`(defined in the Architecture section bellow).
 
+Note that each section represents its own crate ,
+with comments for how to turn them into 3 separate crates.
 
 ```rust
 
@@ -104,7 +106,7 @@ use abi_stable::{
     DynTrait,
     impl_InterfaceType,
     lazy_static_ref::LazyStaticRef,
-    library::{Library,LibraryError,RootModule},
+    library::{LibraryError,RootModule},
     package_version_strings,
     std_types::{RBox,RString},
     type_level::bools::*,
@@ -195,15 +197,9 @@ pub struct ExampleLibVal {
 
 /// The RootModule trait defines how to load the root module of a library.
 impl RootModule for ExampleLib {
-    fn raw_library_ref()->&'static LazyStaticRef<Library>{
-        static RAW_LIB:LazyStaticRef<Library>=LazyStaticRef::new();
-        &RAW_LIB
-    }
-
     const BASE_NAME: &'static str = "example_library";
     const NAME: &'static str = "example_library";
     const VERSION_STRINGS: VersionStrings = package_version_strings!();
-    const LOADER_FN: &'static str = "get_library";
 }
 
 /// A global handle to the root module of the library.
@@ -228,17 +224,14 @@ pub static ROOTMOD:LazyStaticRef<ExampleLib>=LazyStaticRef::new();
 ///
 pub fn load_root_module_in(directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
     ROOTMOD.try_init(||{
-        ExampleLib::load_from_library_in(directory)
+        ExampleLib::load_from_path(LibraryPath::Directory(directory))
     })
 }
 */
 
 /// This is for the case where this example is copied into a single crate
 pub fn load_root_module_in(_directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
-    ROOTMOD.try_init(||{
-        super::implementation::get_library()
-            .check_layout()
-    })
+    Ok(ROOTMOD.init(|| super::implementation::get_library() ))
 }
 
 }
@@ -284,18 +277,17 @@ use abi_stable::{
     ImplType,
     DynTrait,
     erased_types::TypeInfo,
-    export_sabi_module,
+    export_root_module,
     extern_fn_panic_handling,
     impl_get_type_info,
-    library::{WithLayout},
     prefix_type::PrefixTypeTrait,
     std_types::RString,
 };
 
 
 /// The function which exports the root module of the library.
-#[export_sabi_module]
-pub extern "C" fn get_library() -> ExampleLib {
+#[export_root_module]
+pub extern "C" fn get_library() -> &'static ExampleLib {
     ExampleLibVal{
         new_boxed_interface,
         append_string,
@@ -334,7 +326,7 @@ impl StringBuilder{
 }
 
 
-// Constructs a BoxedInterface.
+/// Constructs a BoxedInterface.
 extern fn new_boxed_interface()->BoxedInterface<'static>{
     extern_fn_panic_handling!{
         DynTrait::from_value(StringBuilder{
@@ -418,7 +410,7 @@ The crate compiled as a dynamic library that:
 - Implements all the functions declared in the `interface crate`.
 
 - Declares a function to export the root module,
-    using the `export_sabi_module` attribute to export the module.
+    using the `export_root_module` attribute to export the module.
 
 - Optionally:create types which implement `ImplType<Iterface= Interface >`,
     where `Interface` is some interface type from the interface crate,

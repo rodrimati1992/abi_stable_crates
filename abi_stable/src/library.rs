@@ -88,6 +88,8 @@ pub enum LibraryPath<'a>{
 /// or a module.
 #[derive(Debug)]
 pub enum LibraryError {
+    /// When some of these functions are called within global initializers
+    StaticInitializer,
     /// When a library can't be loaded, because it doesn't exist.
     OpenError{
         path:PathBuf,
@@ -130,6 +132,10 @@ impl Display for LibraryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("\n")?;
         match self {
+            LibraryError::StaticInitializer=>writeln!(
+                f,
+                "Attempted to call library-related functions in global initializer"
+            ),
             LibraryError::OpenError{path,io} => writeln!(
                 f,
                 "Could not open library at:\n\t{}\nbecause:\n\t{}",

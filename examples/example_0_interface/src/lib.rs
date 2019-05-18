@@ -179,7 +179,7 @@ pub struct RemoveWords<'a,'b>{
 /// With all the functions/modules related to processing text.
 ///
 /// To construct this module,
-/// call <TextOpsMod as ModuleTrait>::load_from_library_in(some_directory_path)
+/// call <TextOpsMod as ModuleTrait>::load_from_path_in(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)] 
 #[sabi(kind(Prefix(prefix_struct="TextOpsMod")))]
@@ -254,6 +254,6 @@ pub static MODULES:LazyStaticRef<TextOpsMod>=LazyStaticRef::new();
 /// If it loads them once,this will continue returning the same reference.
 pub fn load_library_in(directory:&Path) -> Result<&'static TextOpsMod,LibraryError> {
     MODULES.try_init(||{
-        TextOpsMod::load_from_library(LibraryPath::Directory(directory))
+        TextOpsMod::load_from_path(LibraryPath::Directory(directory))
     })
 }

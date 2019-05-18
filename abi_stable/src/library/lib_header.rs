@@ -7,7 +7,7 @@ use crate::{
 /// Used to check the layout of modules returned by module-loading functions
 /// exported by dynamic libraries.
 #[repr(C)]
-#[derive(StableAbi,Copy,Clone)]
+#[derive(StableAbi,Clone)]
 pub struct LibHeader {
     header:AbiHeader,
     root_mod_consts:ErasedRootModuleConsts,
@@ -58,13 +58,81 @@ impl LibHeader {
         self.root_mod_consts.abi_info().get()
     }
 
-    pub fn initialize_library_globals(&self,globals:&'static Globals){
+    pub(super) fn initialize_library_globals(&self,globals:&'static Globals){
         (self.init_globals_with.0)(globals);
+    }
+
+    /**
+Checks that the library is compatible,returning the root module on success.
+
+It checks that these are compatible:
+
+- The version number of the library
+
+- The layout of the root module.
+
+# Warning
+
+If this function is called within a dynamic library,
+it must be called at or after the function that exports its root module is called.
+
+**DO NOT** call this in the static initializer of a dynamic library,
+since this library relies on setting up its global state before
+calling the root module loader.
+
+# Errors
+
+This will return these errors:
+
+- LibraryError::OpenError:
+If the dynamic library itself could not be loaded.
+
+- LibraryError::GetSymbolError:
+If the root module was not exported.
+
+- LibraryError::InvalidAbiHeader:
+If the abi_stable version used by the library is not compatible.
+
+- LibraryError::ParseVersionError:
+If the version strings in the library can't be parsed as version numbers,
+this can only happen if the version strings are manually constructed.
+
+- LibraryError::IncompatibleVersionNumber:
+If the version number of the library is incompatible.
+
+- LibraryError::AbiInstability:
+If the layout of the root module is not the expected one.
+
+
+
+    */
+    pub fn init_root_module<M>(&mut self)-> Result<&'static M, LibraryError>
+    where
+        M: RootModule
+    {
+        {
+            let expected_version = M::VERSION_STRINGS
+                .piped(VersionNumber::new)?;
+
+            let actual_version = self.version_strings().piped(VersionNumber::new)?;
+
+            if expected_version.major != actual_version.major || 
+                (expected_version.major==0) && expected_version.minor > actual_version.minor
+            {
+                return Err(LibraryError::IncompatibleVersionNumber {
+                    library_name: M::NAME,
+                    expected_version,
+                    actual_version,
+                });
+            }
+        }
+
+        self.check_layout::<M>()
     }
 
     /// Checks that the layout of the `T` from the dynamic library is 
     /// compatible with the caller's .
-    pub fn check_layout<T>(mut self) -> Result<&'static T, LibraryError>
+    pub fn check_layout<T>(&mut self) -> Result<&'static T, LibraryError>
     where
         T: RootModule,
     {

@@ -121,7 +121,7 @@ pub use abi_stable_derive::StableAbi;
 
 #[doc(inline)]
 pub use abi_stable_derive::{
-    export_sabi_module,
+    export_root_module,
     impl_InterfaceType,
 };
 
@@ -140,6 +140,9 @@ mod test_macros;
 #[cfg(test)]
 #[macro_use]
 mod test_utils;
+
+#[cfg(test)]
+mod misc_tests;
 
 #[macro_use]
 pub mod utils;

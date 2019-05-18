@@ -818,11 +818,12 @@ and the second must be actual layout.
 
 # Safety 
 
-This function must not be called from within a library before its layout is checked,
-since there is global state that must be set-up before its layout can be checked.
+If this function is called within a dynamic library,
+it must be called at or after the function that exports its root module is called.
 
-The layout of a library is checked before the root module exporting function is called,
-allowing the library to load its dependencies when it is called.
+**DO NOT** call this in the static initializer of a dynamic library,
+since this library relies on setting up its global state before
+calling the root module loader.
 
 */
 pub unsafe extern fn exported_check_layout_compatibility(

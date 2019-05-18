@@ -10,4 +10,7 @@ fn main() {
     }if Version::new(1, 34, 0) <= rver {
         println!("cargo:rustc-cfg=rust_1_34");
     }
+
+    skeptic::generate_doc_tests(&["../readme.md"]);
+
 }
