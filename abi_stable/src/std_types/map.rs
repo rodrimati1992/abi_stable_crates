@@ -32,7 +32,7 @@ mod iterator_stuff;
 mod map_query;
 mod map_key;
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod test;
 
 use self::{

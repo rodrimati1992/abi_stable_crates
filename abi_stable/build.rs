@@ -2,6 +2,7 @@ use rustc_version::{version, Version};
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=../readme.md");
 
     let rver = version().unwrap();
 
