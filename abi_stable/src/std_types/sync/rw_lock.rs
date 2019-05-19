@@ -393,7 +393,7 @@ extern "C" fn unlock_exclusive(this:&OpaqueRwLock){
 
 
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests{
     use super::*;
 

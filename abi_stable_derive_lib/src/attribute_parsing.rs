@@ -18,13 +18,15 @@ use crate::{
     reflection::{ModReflMode,FieldAccessor},
     datastructure::{DataStructure, DataVariant, Field,FieldMap},
     prefix_types::{PrefixKind,FirstSuffixField,OnMissingField,AccessorOrMaybe,PrefixKindField},
+    repr_attrs::{UncheckedReprAttr,UncheckedReprKind,DiscriminantRepr,ReprAttr},
 };
 use crate::*;
 
 pub(crate) struct StableAbiOptions<'a> {
     pub(crate) debug_print:bool,
     pub(crate) kind: StabilityKind<'a>,
-    pub(crate) repr: Repr,
+    pub(crate) repr: ReprAttr,
+
     /// The type parameters that have the __StableAbi constraint
     pub(crate) stable_abi_bounded:HashSet<&'a Ident>,
 
@@ -41,9 +43,6 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
     pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
-
-    #[allow(dead_code)]
-    pub(crate) repr_attrs:Vec<MetaList>,
 
     pub(crate) mod_refl_mode:ModReflMode<usize>,
 
@@ -81,13 +80,6 @@ impl<'a> StabilityKind<'a>{
 }
 
 
-#[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
-pub(crate) enum Repr {
-    Transparent,
-    C,
-}
-
-
 impl<'a> StableAbiOptions<'a> {
     fn new(
         ds: &'a DataStructure<'a>, 
@@ -96,14 +88,7 @@ impl<'a> StableAbiOptions<'a> {
     ) -> Self {
         let mut phantom_fields=Vec::<(&'a str,&'a Type)>::new();
 
-        let repr = this.repr.expect(
-            "\n\
-             the #[repr(..)] attribute must be one of the supported attributes:\n\
-             \t- #[repr(C)]\n\
-             \t- #[repr(transparent)]\n\
-             \t- #[repr(align(<some_integer>))]\n\
-             ",
-        );
+        let repr = ReprAttr::new(this.repr);
 
         let mut stable_abi_bounded=ds.generics
             .type_params()
@@ -120,7 +105,7 @@ impl<'a> StableAbiOptions<'a> {
         }
 
         let kind = match this.kind {
-            _ if repr == Repr::Transparent => {
+            _ if repr == ReprAttr::Transparent => {
                 let field=&ds.variants[0].fields[0];
                 
                 let field_bound=syn::parse_str::<WherePredicate>(
@@ -151,8 +136,18 @@ impl<'a> StableAbiOptions<'a> {
 
         };
 
-        if repr == Repr::Transparent && ds.data_variant != DataVariant::Struct {
-            panic!("\nAbiStable does not suport non-struct #[repr(transparent)] types.\n");
+        match (repr,ds.data_variant) {
+            (ReprAttr::Transparent,DataVariant::Struct)=>{}
+            (ReprAttr::Transparent,_)=>{
+                panic!("\nAbiStable does not suport non-struct #[repr(transparent)] types.\n");
+            }
+            (ReprAttr::Int{..},DataVariant::Enum)=>{}
+            (ReprAttr::Int{..},_)=>{
+                panic!("\n\
+                    AbiStable does not suport non-enum #[repr(<some_integer_type>)] types.\
+                \n");
+            }
+            (ReprAttr::C{..},_)=>{}
         }
 
         let mod_refl_mode=match this.mod_refl_mode {
@@ -189,7 +184,6 @@ impl<'a> StableAbiOptions<'a> {
             opaque_fields:this.opaque_fields,
             renamed_fields:this.renamed_fields,
             override_field_accessor:this.override_field_accessor,
-            repr_attrs:this.repr_attrs,
             tags:this.tags,
             phantom_fields,
             mod_refl_mode,
@@ -204,7 +198,7 @@ impl<'a> StableAbiOptions<'a> {
 struct StableAbiAttrs<'a> {
     debug_print:bool,
     kind: UncheckedStabilityKind<'a>,
-    repr: Option<Repr>,
+    repr: UncheckedReprAttr,
 
     extra_bounds:Vec<WherePredicate>,
 
@@ -226,7 +220,6 @@ struct StableAbiAttrs<'a> {
     override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
     renamed_fields:FieldMap<Option<&'a Ident>>,
-    repr_attrs:Vec<MetaList>,
 
     mod_refl_mode:Option<ModReflMode<()>>,
 }
@@ -310,24 +303,27 @@ fn parse_attr_list<'a>(
     arenas: &'a Arenas
 ) {
     if list.ident == "repr" {
-        for repr in &list.nested {
-            match &repr {
-                NestedMeta::Meta(Meta::Word(ident)) if ident == "C" => {
-                    this.repr = Some(Repr::C);
+        with_nested_meta("repr", list.nested, |attr| match attr {
+            Meta::Word(ref ident)=> {
+                if ident=="C" {
+                    this.repr.set_repr_kind(UncheckedReprKind::C);
+                }else if ident=="transparent" {
+                    this.repr.set_repr_kind(UncheckedReprKind::Transparent);
+                }else if let Some(dr)=DiscriminantRepr::from_ident(ident) {
+                    this.repr.set_discriminant_repr(dr);
+                }else{
+                    panic!(
+                        "repr attribute not currently recognized by this macro:\n{:?}",
+                        ident
+                    )
                 }
-                NestedMeta::Meta(Meta::Word(ident)) if ident == "transparent" => {
-                    this.repr = Some(Repr::Transparent);
-                }
-                NestedMeta::Meta(Meta::List(list)) if list.ident == "align" => {
-                    
-                }
-                x => panic!(
-                    "repr attribute not currently recognized by this macro:\n{:?}",
-                    x
-                ),
             }
-        }
-        this.repr_attrs.push(list);
+            Meta::List(ref list) if list.ident == "align" => {}
+            x => panic!(
+                "repr attribute not currently recognized by this macro:\n{:?}",
+                x
+            ),
+        })
     } else if list.ident == "sabi" {
         with_nested_meta("sabi", list.nested, |attr| {
             parse_sabi_attr(this,pctx, attr, arenas)

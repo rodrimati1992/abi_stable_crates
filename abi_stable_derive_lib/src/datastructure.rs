@@ -91,11 +91,16 @@ impl<'a> DataStructure<'a> {
 
                 for (variant,var) in (&mut enum_.variants).into_iter().enumerate() {
                     variants.push(Struct::new(
-                        variant,
-                        &var.attrs,
-                        &var.ident,
+                        StructParams{
+                            discriminant:var.discriminant
+                                .as_ref()
+                                .map(|(_,v)| v ),
+                            variant:variant,
+                            attrs:&var.attrs,
+                            name:&var.ident,
+                            override_vis:override_vis,
+                        },
                         &mut var.fields,
-                        override_vis,
                         &mut ty_visitor,
                     ));
                 }
@@ -105,11 +110,14 @@ impl<'a> DataStructure<'a> {
                 let override_vis=None;
 
                 variants.push(Struct::new(
-                    0,
-                    &ast.attrs,
-                    name,
+                    StructParams{
+                        discriminant:None,
+                        variant:0,
+                        attrs:&ast.attrs,
+                        name:name,
+                        override_vis:override_vis,
+                    },
                     &mut struct_.fields,
-                    override_vis,
                     &mut ty_visitor,
                 ));
                 data_variant = DataVariant::Struct;
@@ -121,12 +129,15 @@ impl<'a> DataStructure<'a> {
                 let fields = Some(&union_.fields.named);
                 let sk = StructKind::Braced;
                 let vari = Struct::with_fields(
-                    0,
-                    &ast.attrs, 
-                    name, 
+                    StructParams{
+                        discriminant:None,
+                        variant:0,
+                        attrs:&ast.attrs, 
+                        name:name, 
+                        override_vis:override_vis,
+                    },
                     sk, 
                     fields,
-                    override_vis,
                     &mut ty_visitor
                 );
                 variants.push(vari);
@@ -189,6 +200,17 @@ pub(crate) struct FieldIndex {
 
 //////////////////////////////////////////////////////////////////////////////
 
+
+#[derive(Copy,Clone)]
+pub(crate) struct StructParams<'a>{
+    pub(crate) discriminant:Option<&'a syn::Expr>,
+    pub(crate) variant:usize,
+    pub(crate) attrs: &'a [Attribute],
+    pub(crate) name: &'a Ident,
+    pub(crate) override_vis:Option<&'a Visibility>,
+}
+
+
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct Struct<'a> {
     pub(crate) attrs: &'a [Attribute],
@@ -196,16 +218,14 @@ pub(crate) struct Struct<'a> {
     pub(crate) kind: StructKind,
     pub(crate) fields: Vec<Field<'a>>,
     pub(crate) pub_field_count:usize,
+    pub(crate) discriminant:Option<&'a syn::Expr>,
     _priv: (),
 }
 
 impl<'a> Struct<'a> {
     pub(crate) fn new(
-        variant:usize,
-        attrs: &'a [Attribute],
-        name: &'a Ident,
+        p:StructParams<'a>,
         fields: &'a SynFields,
-        override_vis:Option<&'a Visibility>,
         tv: &mut TypeVisitor<'a>,
     ) -> Self {
         let kind = match *fields {
@@ -219,29 +239,27 @@ impl<'a> Struct<'a> {
             SynFields::Unit => None,
         };
 
-        Self::with_fields(variant,attrs, name, kind, fields,override_vis, tv)
+        Self::with_fields(p, kind, fields, tv)
     }
 
     pub(crate) fn with_fields<I>(
-        variant:usize,
-        attrs: &'a [Attribute],
-        name: &'a Ident,
+        p:StructParams<'a>,
         kind: StructKind,
         fields: Option<I>,
-        override_vis:Option<&'a Visibility>,
         tv: &mut TypeVisitor<'a>,
     ) -> Self
     where
         I: IntoIterator<Item = &'a SynField>,
     {
         let fields=match fields {
-            Some(x) => Field::from_iter(variant,name, x,override_vis, tv),
+            Some(x) => Field::from_iter(p, x, tv),
             None => Vec::new(),
         };
 
         Self {
-            attrs,
-            name,
+            discriminant:p.discriminant,
+            attrs:p.attrs,
+            name:p.name,
             kind,
             pub_field_count:fields.iter().filter(|x|x.is_public()).count(),
             fields,
@@ -325,10 +343,8 @@ impl<'a> Field<'a> {
     }
 
     pub(crate) fn from_iter<I>(
-        variant:usize,
-        name: &'a Ident, 
+        p:StructParams<'a>,
         fields: I, 
-        override_vis:Option<&'a Visibility>,
         tv: &mut TypeVisitor<'a>
     ) -> Vec<Self>
     where
@@ -338,8 +354,8 @@ impl<'a> Field<'a> {
             .into_iter()
             .enumerate()
             .map(|(pos, f)|{ 
-                let fi=FieldIndex{variant,pos};
-                Field::new(fi, f, name.span(),override_vis, tv)
+                let fi=FieldIndex{variant:p.variant,pos};
+                Field::new(fi, f, p.name.span(),p.override_vis, tv)
             })
             .collect()
     }
@@ -369,3 +385,4 @@ impl<'a> FieldIdent<'a> {
         FieldIdent::Index(index, Ident::new(&buff, span))
     }
 }
+

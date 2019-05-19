@@ -173,7 +173,12 @@ This is the representation that most StableAbi types will have.
 though their layout is not considered equivalent to their only non-zero-sized field,
 since this library considers all types as being meaningful even if zero-sized.
 
+### `repr(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize)`
+
+These repr attributes are only supported for enums.
+
 ### `repr(align(...))`
+
 
 `repr(align(...))` is supported,
 so long as it is used in combination with the other supported repr attributes.

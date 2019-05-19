@@ -3,11 +3,12 @@
 use crate::*;
 
 use crate::{
-    attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions,Repr},
+    attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions},
     datastructure::{DataStructure,DataVariant,Struct,Field},
     to_token_fn::ToTokenFnMut,
     fn_pointer_extractor::{FnParamRet},
     prefix_types::prefix_type_tokenizer,
+    repr_attrs::ReprAttr,
     reflection::ModReflMode,
 };
 
@@ -66,7 +67,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         StabilityKind::Value=>quote!(Self),
     };
     
-    let is_transparent=config.repr==Repr::Transparent ;
+    let repr=config.repr;
+
+    let is_transparent=config.repr==ReprAttr::Transparent ;
     let is_enum=ds.data_variant==DataVariant::Enum;
     let prefix=match &config.kind {
         StabilityKind::Prefix(prefix)=>Some(prefix),
@@ -251,6 +254,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                     ])
                      .set_tag(#tags)
                      .set_mod_refl_mode(#mod_refl_mode)
+                     .set_repr_attr(#repr)
                 };
             }
 
@@ -289,6 +293,9 @@ fn variants_tokenizer<'a>(
                     fields_tokenizer(variant,config,ct).to_tokens(ts);
                 })
             });
+
+            to_stream!(ts; config.repr.tokenize_discriminant_expr(variant.discriminant) );
+
             to_stream!(ts; ct.comma );
         }
     })

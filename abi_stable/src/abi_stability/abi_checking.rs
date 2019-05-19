@@ -17,7 +17,7 @@ use super::{
     AbiInfo, AbiInfoWrapper,
     type_layout::{
         TypeLayout, TLData, TLDataDiscriminant, TLEnumVariant, TLField,TLFieldAndType, 
-        FullType,
+        FullType, ReprAttr, TLDiscriminant,
     },
     tagging::{CheckableTag,TagErrors},
 };
@@ -73,6 +73,8 @@ pub enum AbiInstability {
     TooManyVariants(ExpectedFoundError<usize>),
     MismatchedPrefixConditionality(ExpectedFoundError<StaticSlice<IsConditional>>),
     UnexpectedVariant(ExpectedFoundError<TLEnumVariant>),
+    ReprAttr(ExpectedFoundError<ReprAttr>),
+    EnumDiscriminant(ExpectedFoundError<TLDiscriminant>),
     TagError{
         expected_found:ExpectedFoundError<CheckableTag>,
         err:TagErrors,
@@ -170,6 +172,8 @@ impl fmt::Display for AbiInstabilityError {
                     v.debug_str()
                 ),
                 AI::UnexpectedVariant(v) => ("unexpected variant", v.debug_str()),
+                AI::ReprAttr(v)=>("incompatible repr attributes",v.debug_str()),
+                AI::EnumDiscriminant(v)=>("different discriminants",v.debug_str()),
                 AI::TagError{expected_found,err} => {
                     extra_err=Some(err.to_string());
 
@@ -337,7 +341,7 @@ impl AbiChecker {
             return;
         }
 
-        let is_prefix= t_lay.data.discriminant() == TLDataDiscriminant::PrefixType;
+        let is_prefix= t_lay.data.as_discriminant() == TLDataDiscriminant::PrefixType;
         match (t_fields.len().cmp(&o_fields.len()), is_prefix) {
             (Ordering::Greater, _) | (Ordering::Less, false) => {
                 push_err(
@@ -449,6 +453,10 @@ impl AbiChecker {
                 push_err(errs, this, other, |x| x.is_nonzero, AI::NonZeroness);
             }
 
+            if t_lay.repr_attr != o_lay.repr_attr {
+                push_err(errs, t_lay, o_lay, |x| x.repr_attr, AI::ReprAttr);
+            }
+
             {
                 let x = (|| {
                     let l = t_lay.package_version.parsed()?;
@@ -503,8 +511,8 @@ impl AbiChecker {
                 push_err(errs, t_lay, o_lay, |x| x.alignment, AI::Alignment);
             }
 
-            let t_discr = t_lay.data.discriminant();
-            let o_discr = o_lay.data.discriminant();
+            let t_discr = t_lay.data.as_discriminant();
+            let o_discr = o_lay.data.as_discriminant();
             if t_discr != o_discr {
                 errs.push(AI::TLDataDiscriminant(ExpectedFoundError {
                     expected: t_discr,
@@ -547,6 +555,17 @@ impl AbiChecker {
                     for (t_vari, o_vari) in t_varis.iter().zip(o_varis) {
                         let t_name = t_vari.name.as_str();
                         let o_name = o_vari.name.as_str();
+                        
+                        if t_vari.discriminant!=o_vari.discriminant {
+                            push_err(
+                                errs, 
+                                *t_vari, 
+                                *o_vari, 
+                                |x| x.discriminant, 
+                                AI::EnumDiscriminant
+                            );
+                        }
+
                         if t_name != o_name {
                             push_err(errs, *t_vari, *o_vari, |x| x, AI::UnexpectedVariant);
                             continue;

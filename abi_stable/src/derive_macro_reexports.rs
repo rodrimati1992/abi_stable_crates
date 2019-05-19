@@ -13,6 +13,9 @@ pub use crate::{
             TypeLayout, TypeLayoutParams,
             TLFunction,
             FieldAccessor,
+            ReprAttr,
+            TLDiscriminant,
+            DiscriminantRepr,
         },
         tagging::Tag,
     },
@@ -62,6 +65,11 @@ pub mod renamed {
         StaticStr as __StaticStr,
         FieldAccessor as __FieldAccessor,
         ModReflMode as __ModReflMode,
+        ReprAttr as __ReprAttr,
+        TLDiscriminant as __TLDiscriminant,
+        DiscriminantRepr as __DiscriminantRepr,
+        RSome as __RSome,
+        RNone as __RNone,
     };
 }
 

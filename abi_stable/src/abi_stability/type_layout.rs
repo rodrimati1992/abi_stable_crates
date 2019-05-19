@@ -60,6 +60,7 @@ pub struct TypeLayout {
     pub reflection_tag:Tag,
     pub tag:Tag,
     pub mod_refl_mode:ModReflMode,
+    pub repr_attr:ReprAttr,
 }
 
 
@@ -151,8 +152,80 @@ pub enum TLDataDiscriminant {
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 pub struct TLEnumVariant {
     pub name: StaticStr,
+    pub discriminant:TLDiscriminant,
     pub fields: StaticSlice<TLField>,
 }
+
+
+/// The discriminant of an enum variant.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+pub enum TLDiscriminant{
+    No,
+    Isize(isize),
+    Usize(usize),
+    Signed(i64),
+    Unsigned(u64),
+}
+
+impl TLDiscriminant{
+    pub const fn from_u8(n:u8)->Self{
+        TLDiscriminant::Unsigned(n as u64)
+    }
+    pub const fn from_u16(n:u16)->Self{
+        TLDiscriminant::Unsigned(n as u64)
+    }
+    pub const fn from_u32(n:u32)->Self{
+        TLDiscriminant::Unsigned(n as u64)
+    }
+    pub const fn from_u64(n:u64)->Self{
+        TLDiscriminant::Unsigned(n)
+    }
+
+    pub const fn from_i8(n:i8)->Self{
+        TLDiscriminant::Signed(n as i64)
+    }
+    pub const fn from_i16(n:i16)->Self{
+        TLDiscriminant::Signed(n as i64)
+    }
+    pub const fn from_i32(n:i32)->Self{
+        TLDiscriminant::Signed(n as i64)
+    }
+    pub const fn from_i64(n:i64)->Self{
+        TLDiscriminant::Signed(n)
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+pub enum ReprAttr{
+    C(ROption<DiscriminantRepr>),
+    Transparent,
+    /// Means that only `repr(IntegerType)` was used.
+    Int(DiscriminantRepr),
+}
+
+/// How the discriminant of an enum is represented.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+pub enum DiscriminantRepr {
+    U8,
+    I8,
+    U16,
+    I16,
+    U32,
+    I32,
+    U64,
+    I64,
+    /// Reserved,just in case that u128 gets a c-compatible layout
+    U128,
+    /// Reserved,just in case that i128 gets a c-compatible layout
+    I128,
+    Usize,
+    /// This is the default discriminant type for `repr(C)`.
+    Isize,
+}
+
 
 /// The layout of a field.
 #[repr(C)]
@@ -422,6 +495,7 @@ impl TypeLayout {
             reflection_tag:Tag::null(),
             tag:Tag::null(),
             mod_refl_mode:ModReflMode::Module,
+            repr_attr:ReprAttr::C(RNone),
         }
     }
 
@@ -449,6 +523,7 @@ impl TypeLayout {
             reflection_tag:Tag::null(),
             tag:Tag::null(),
             mod_refl_mode:ModReflMode::Module,
+            repr_attr:ReprAttr::C(RNone),
         }
     }
 
@@ -469,6 +544,10 @@ impl TypeLayout {
 
     pub const fn set_mod_refl_mode(mut self,mod_refl_mode:ModReflMode)->Self{
         self.mod_refl_mode=mod_refl_mode;
+        self
+    }
+    pub const fn set_repr_attr(mut self,repr_attr:ReprAttr)->Self{
+        self.repr_attr=repr_attr;
         self
     }
 }
@@ -549,7 +628,7 @@ impl TLData {
         })
     }
 
-    pub fn discriminant(&self) -> TLDataDiscriminant {
+    pub fn as_discriminant(&self) -> TLDataDiscriminant {
         match self {
             TLData::Primitive { .. } => TLDataDiscriminant::Primitive,
             TLData::Struct { .. } => TLDataDiscriminant::Struct,
@@ -565,8 +644,14 @@ impl TLEnumVariant {
     pub const fn new(name: &'static str, fields: &'static [TLField]) -> Self {
         Self {
             name: StaticStr::new(name),
+            discriminant:TLDiscriminant::No,
             fields: StaticSlice::new(fields),
         }
+    }
+
+    pub const fn set_discriminant(mut self,discriminant:TLDiscriminant)->Self{
+        self.discriminant=discriminant;
+        self
     }
 }
 
