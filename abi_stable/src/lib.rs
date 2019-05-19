@@ -159,6 +159,7 @@ pub mod abi_stability;
 // pub mod cabi_type;
 // pub mod as_proxy;
 pub mod erased_types;
+pub mod external_types;
 // pub mod immovable_wrapper;
 pub mod library;
 pub mod ignored_wrapper;

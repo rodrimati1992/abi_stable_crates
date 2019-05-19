@@ -452,6 +452,21 @@ using a build script to automatically enable features from newer versions.
 If it becomes possible to disable build scripts,
 you can manually enable support for Rust past 1.34 features with the `rust_*_*` cargo features.
 
+These are default cargo features that enable optional crates :
+
+- "channels":
+    Depends on `crossbeam-channel`,
+    wrapping channels from it for ffi in abi_stable::external_types::crossbeam_channel .
+
+To disable the default features use:
+```
+[dependencies.abi_stable]
+version="<current_version>"
+default-features=false
+features=[  ]
+```
+enabling the features you need in the `features` array.
+
 # License
 
 abi_stable is licensed under either of
