@@ -267,7 +267,7 @@ extern "C" fn try_lock_for(this:&OpaqueMutex, timeout: RDuration) -> bool{
 
 
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests{
     use super::*;
 

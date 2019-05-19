@@ -14,7 +14,6 @@ use crate::{
     marker_type::UnsafeIgnoredType,
     std_types::*,
     *,
-    test_utils::must_panic,
 };
 
 mod regular {
@@ -126,19 +125,6 @@ mod changed_alignment {
     }
 }
 
-/// For testing that adding #[repr(C)] makes the derive macro not panic.
-mod derive_validity_0 {
-    and_stringify! {
-        pub(super)const RECTANGLE_DEF_REPR;
-
-        pub struct Rectangle {
-            x:u32,
-            y:u32,
-            w:u16,
-            h:u32,
-        }
-    }
-}
 
 mod built_in {
     pub use i32 as std_i32;
@@ -290,33 +276,6 @@ fn same_different_abi_stability() {
 }
 
 
-
-// Checks that #[repr(Rust)] (the default representation) causes the derive macro
-// to panic,and that #[repr(C)] and #[repr(transparent)] do not.
-#[cfg_attr(not(miri),test)]
-fn check_repr_attrs(){
-    use abi_stable_derive_lib::derive_stable_abi_from_str;
-    must_panic(file_span!(),||{
-        derive_stable_abi_from_str(derive_validity_0::RECTANGLE_DEF_REPR)
-    }).unwrap();
-    
-    must_panic(file_span!(),||{
-        let with_repr_rust=format!(
-            "#[repr(Rust)]\n{}",
-            derive_validity_0::RECTANGLE_DEF_REPR
-        );
-        derive_stable_abi_from_str(&with_repr_rust)
-    }).unwrap();
-
-    let with_repr_c=format!("#[repr(C)]\n{}",derive_validity_0::RECTANGLE_DEF_REPR);
-    let with_repr_tranparent=format!(
-        "#[repr(transparent)]\n{}",
-        derive_validity_0::RECTANGLE_DEF_REPR
-    );
-
-    derive_stable_abi_from_str(&with_repr_c);
-    derive_stable_abi_from_str(&with_repr_tranparent);
-}
 
 // Uncomment this once I reimplement Prefix types.
 //

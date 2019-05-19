@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 pub mod tests{
     pub mod derive_reflection;
 }

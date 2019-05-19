@@ -47,7 +47,7 @@ impl PrefixTypeMetadata{
                  TypeLayout of a non-prefix-type.\n\
                  Type:{}\nDataVariant:{:?}\nPackage:{}",
                  layout.full_type,
-                 layout.data.discriminant(),
+                 layout.data.as_discriminant(),
                  layout.package,
             ),
         }
@@ -66,7 +66,7 @@ impl PrefixTypeMetadata{
     
     #[cfg(test)]
     pub(crate) fn assert_valid(&self){
-        assert_eq!(self.layout.data.discriminant(),TLDataDiscriminant::PrefixType );
+        assert_eq!(self.layout.data.as_discriminant(),TLDataDiscriminant::PrefixType );
     }
 
     /// Returns the maximum prefix.Does not check that they are compatible.

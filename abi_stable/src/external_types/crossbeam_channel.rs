@@ -37,7 +37,7 @@ mod errors;
 mod extern_fns;
 mod iteration;
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
 use self::{

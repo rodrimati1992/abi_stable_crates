@@ -25,6 +25,7 @@ mod datastructure;
 mod fn_pointer_extractor;
 mod impl_interfacetype;
 mod prefix_types;
+mod repr_attrs;
 
 mod lifetimes;
 mod stable_abi;
