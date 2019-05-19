@@ -2,6 +2,9 @@
 Contains many ffi-safe equivalents of standard library types.
 The vast majority of them can be converted to and from std equivalents.
 
+For ffi-safe equivalents/wrappers of types outside the standard library go to 
+the [external_types module](../external_types/index.html)
+
 */
 
 pub mod arc;

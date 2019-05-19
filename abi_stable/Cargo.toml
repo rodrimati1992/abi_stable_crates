@@ -22,7 +22,7 @@ include = [
 travis-ci = { repository =  "rodrimati1992/abi_stable_crates/" }
 
 [features]
-default = []
+default = ["channels"]
 
 rust_1_34=[]
 
@@ -42,7 +42,6 @@ libloading     = { version = "0.5.0" }
 parking_lot    = "0.7"
 lock_api       = "0.1"
 generational-arena = "0.2"
-
 crossbeam-channel = {version="0.3",optional=true}
 
 [dev-dependencies]
