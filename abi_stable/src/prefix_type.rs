@@ -170,7 +170,7 @@ pub struct WithMetadataFor<T,P>{
 /// whether it has a `#[sabi(accessible_if=" expression ")]` attribute or not.
 #[derive(StableAbi)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
-#[repr(C)]
+#[repr(u8)]
 pub enum IsConditional{
     No=0,
     Yes=1,

@@ -30,6 +30,7 @@ use self::{
     type_layout::{
         LifetimeIndex, TLData, TLField,
         TypeLayout, TypeLayoutParams,
+        ItemInfo,
     },
 };
 

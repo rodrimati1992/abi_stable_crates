@@ -17,7 +17,7 @@ pub struct FieldAccessibility{
 /// Whether a field is accessible.
 #[derive(StableAbi)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
-#[repr(C)]
+#[repr(u8)]
 pub enum IsAccessible{
     No=0,
     Yes=1,

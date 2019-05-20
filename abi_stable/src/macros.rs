@@ -360,3 +360,21 @@ macro_rules! assert_matches {
         );
     }};
 }
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+#[macro_export]
+macro_rules! make_item_info {
+    () => (
+        $crate::abi_stability::type_layout::ItemInfo::new(
+            env!("CARGO_PKG_NAME"),
+            abi_stable::package_version_strings!(),
+            file!(),
+            line!(),
+            $crate::abi_stability::type_layout::ModPath::with(module_path!()),
+        )
+    )
+}
+

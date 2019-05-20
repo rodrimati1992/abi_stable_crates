@@ -227,34 +227,32 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 >;
 
                 const S_LAYOUT: &'static _sabi_reexports::TypeLayout = {
-                    &_sabi_reexports::TypeLayout::from_params::<#size_align_for>(
-                        {
-                            __TypeLayoutParams {
-                                name: #stringified_name,
-                                package: env!("CARGO_PKG_NAME"),
-                                package_version: abi_stable::package_version_strings!(),
-                                file:file!(),
-                                line:line!(),
-                                data: #data_variant,
-                                generics: abi_stable::tl_genparams!(
-                                    #(#lifetimes),*;
-                                    #(#type_params_for_generics),*;
-                                    #(#const_params),*
-                                ),
-                            }
-                        }
-                    ).set_phantom_fields(&[
-                        #(
-                            __TLField::new(
-                                #phantom_field_names,
-                                &[],
-                                <#phantom_field_tys as __MakeGetAbiInfo<__StableAbi_Bound>>::CONST,
+                    &_sabi_reexports::TypeLayout::from_derive::<#size_align_for>(
+                        __private_TypeLayoutDerive {
+                            name: #stringified_name,
+                            item_info:abi_stable::make_item_info!(),
+                            data: #data_variant,
+                            generics: abi_stable::tl_genparams!(
+                                #(#lifetimes),*;
+                                #(#type_params_for_generics),*;
+                                #(#const_params),*
                             ),
-                        )*
-                    ])
-                     .set_tag(#tags)
-                     .set_mod_refl_mode(#mod_refl_mode)
-                     .set_repr_attr(#repr)
+                            phantom_fields:&[
+                                #(
+                                    __TLField::new(
+                                        #phantom_field_names,
+                                        &[],
+                                        <#phantom_field_tys as 
+                                            __MakeGetAbiInfo<__StableAbi_Bound>
+                                        >::CONST,
+                                    ),
+                                )*
+                            ],
+                            tag:#tags,
+                            mod_refl_mode:#mod_refl_mode,
+                            repr_attr:#repr,
+                        }
+                    )
                 };
             }
 

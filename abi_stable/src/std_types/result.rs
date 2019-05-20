@@ -8,7 +8,7 @@ use crate::std_types::{ROption,RSome,RNone};
 
 /// Ffi-safe equivalent of `Result<T,E>`.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
-#[repr(C)]
+#[repr(u8)]
 #[derive(StableAbi)]
 pub enum RResult<T, E> {
     #[serde(rename = "Ok")]

@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 /// Ffi-safe equivalent of ::std::cmp::Ordering.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
-#[repr(C)]
+#[repr(u8)]
 #[derive(StableAbi)]
 pub enum RCmpOrdering {
     #[serde(rename = "Less")]

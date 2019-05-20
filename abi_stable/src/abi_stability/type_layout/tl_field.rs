@@ -1,0 +1,264 @@
+use super::*;
+
+
+/// The layout of a field.
+#[repr(C)]
+#[derive(Copy, Clone, StableAbi)]
+pub struct TLField {
+    /// The field's name.
+    pub name: StaticStr,
+    /// Which lifetimes in the struct are referenced in the field type.
+    pub lifetime_indices: StaticSlice<LifetimeIndex>,
+    /// The layout of the field's type.
+    ///
+    /// This is a function pointer to avoid infinite recursion,
+    /// if you have a `&'static AbiInfo`s with the same address as one of its parent type,
+    /// you've encountered a cycle.
+    pub abi_info: GetAbiInfo,
+    /// All the function pointer types in the field.
+    pub functions:StaticSlice<TLFunction>,
+
+    /// Whether this field is only a function pointer.
+    pub is_function:bool,
+
+    pub field_accessor:FieldAccessor,
+}
+
+/// Used to print a field as its field and its type.
+#[repr(transparent)]
+#[derive(Copy, Clone, PartialEq, StableAbi)]
+pub struct TLFieldAndType {
+    inner: TLField,
+}
+
+
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+pub enum FieldAccessor {
+    /// Accessible with `self.field_name`
+    Direct,
+    /// Accessible with `fn field_name(&self)->FieldType`
+    Method{
+        name:ROption<StaticStr>,
+    },
+    /// Accessible with `fn field_name(&self)->Option<FieldType>`
+    MethodOption,
+    /// This field is completely inaccessible.
+    Opaque,
+}
+
+
+impl FieldAccessor{
+    pub const fn method_named(name:&'static str)->Self{
+        FieldAccessor::Method{
+            name:RSome(StaticStr::new(name))
+        }
+    }
+}
+
+
+///////////////////////////
+
+impl TLField {
+    pub const fn new(
+        name: &'static str,
+        lifetime_indices: &'static [LifetimeIndex],
+        abi_info: GetAbiInfo,
+    ) -> Self {
+        Self {
+            name: StaticStr::new(name),
+            lifetime_indices: StaticSlice::new(lifetime_indices),
+            abi_info,
+            functions:StaticSlice::new(empty_slice()),
+            is_function:false,
+            field_accessor:FieldAccessor::Direct,
+        }
+    }
+
+    pub const fn with_functions(
+        name: &'static str,
+        lifetime_indices: &'static [LifetimeIndex],
+        abi_info: GetAbiInfo,
+        functions:&'static [TLFunction],
+        is_function:bool,
+    ) -> Self {
+        Self {
+            name: StaticStr::new(name),
+            lifetime_indices: StaticSlice::new(lifetime_indices),
+            abi_info,
+            functions: StaticSlice::new(functions),
+            is_function,
+            field_accessor:FieldAccessor::Direct,
+        }
+    }
+
+    pub const fn set_field_accessor(mut self,field_accessor:FieldAccessor)->Self{
+        self.field_accessor=field_accessor;
+        self
+    }
+
+
+
+    /// Used for calling recursive methods,
+    /// so as to avoid infinite recursion in types that reference themselves(even indirectly).
+    fn recursive<F, U>(self, f: F) -> U
+    where
+        F: FnOnce(usize,TLFieldShallow) -> U,
+    {
+        let mut already_recursed = false;
+        let mut recursion_depth=!0;
+        let mut visited_nodes=!0;
+
+        ALREADY_RECURSED.with(|state| {
+            let mut state = state.borrow_mut();
+            recursion_depth=state.recursion_depth;
+            visited_nodes=state.visited_nodes;
+            state.recursion_depth+=1;
+            state.visited_nodes+=1;
+            already_recursed = state.visited.replace(self.abi_info.get()).is_some();
+        });
+
+        let _guard=if visited_nodes==0 { Some(ResetRecursion) }else{ None };
+
+        let field=TLFieldShallow::new(self, !already_recursed );
+        let res = f( recursion_depth, field);
+
+        ALREADY_RECURSED.with(|state| {
+            let mut state = state.borrow_mut();
+            state.recursion_depth-=1;
+        });
+
+        res
+    }
+}
+
+impl PartialEq for TLField {
+    fn eq(&self, other: &Self) -> bool {
+        self.recursive(|_,this| {
+            let r = TLFieldShallow::new(*other, this.abi_info.is_some());
+            this == r
+        })
+    }
+}
+
+/// Need to avoid recursion somewhere,so I decided to stop at the field level.
+impl Debug for TLField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.recursive(|recursion_depth,x|{
+            if recursion_depth>=2 {
+                writeln!(f,"<printing recursion limit>")
+            }else{
+                fmt::Debug::fmt(&x, f)
+            }
+        })
+    }
+}
+
+
+
+///////////////////////////
+
+
+struct ResetRecursion;
+
+impl Drop for ResetRecursion{
+    fn drop(&mut self){
+        ALREADY_RECURSED.with(|state|{
+            let mut state = state.borrow_mut();
+            state.recursion_depth=0;
+            state.visited_nodes=0;
+            state.visited.clear();
+        });
+    }
+}
+
+
+struct RecursionState{
+    recursion_depth:usize,
+    visited_nodes:u64,
+    visited:HashSet<*const AbiInfo>,
+}
+
+
+thread_local! {
+    static ALREADY_RECURSED: RefCell<RecursionState> = RefCell::new(RecursionState{
+        recursion_depth:0,
+        visited_nodes:0,
+        visited: HashSet::default(),
+    });
+}
+
+///////////////////////////
+
+impl TLFieldAndType {
+    pub fn new(inner: TLField) -> Self {
+        Self { inner }
+    }
+
+    pub fn name(&self) -> RStr<'static> {
+        self.inner.name.as_rstr()
+    }
+
+    pub fn full_type(&self) -> FullType {
+        self.inner.abi_info.get().layout.full_type
+    }
+}
+
+impl Debug for TLFieldAndType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TLFieldAndType")
+            .field("field_name:", &self.inner.name)
+            .field("type:", &self.inner.abi_info.get().layout.full_type())
+            .finish()
+    }
+}
+
+impl Display for TLFieldAndType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}:{}",
+            self.inner.name,
+            self.inner.abi_info.get().layout.full_type()
+        )
+    }
+}
+
+
+////////////////////////////////////
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+struct TLFieldShallow {
+    pub(crate) name: StaticStr,
+    pub(crate) full_type: FullType,
+    pub(crate) lifetime_indices: StaticSlice<LifetimeIndex>,
+    /// This is None if it already printed that AbiInfo
+    pub(crate) abi_info: Option<&'static AbiInfo>,
+
+    pub(crate)functions:StaticSlice<TLFunction>,
+
+    pub(crate)is_function:bool,
+
+    pub(crate)field_accessor:FieldAccessor,
+}
+
+impl TLFieldShallow {
+    fn new(field: TLField, include_abi_info: bool) -> Self {
+        let abi_info = field.abi_info.get();
+        TLFieldShallow {
+            name: field.name,
+            lifetime_indices: field.lifetime_indices,
+            abi_info: if include_abi_info {
+                Some(abi_info)
+            } else {
+                None
+            },
+            full_type: abi_info.layout.full_type,
+
+            functions:field.functions,
+            is_function:field.is_function,
+            field_accessor:field.field_accessor,
+        }
+    }
+}
+

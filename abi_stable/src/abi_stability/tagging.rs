@@ -244,7 +244,7 @@ pub struct Tag{
 
 
 /// All the Tag variants.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
 pub enum TagVariant{
     Primitive(Primitive),
@@ -256,7 +256,7 @@ pub enum TagVariant{
 
 
 /// The primitive types of a variant,which do not contain other nested tags.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
 pub enum Primitive{
     Null,
@@ -274,7 +274,7 @@ pub struct CheckableTag{
 }
 
 /// The possible variants of CheckableTag.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
 pub enum CTVariant{
     Primitive(Primitive),
@@ -766,7 +766,7 @@ impl Display for TagErrors {
 /////////////////////////////////////////////////////////////////
 
 
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug,Clone,PartialEq,StableAbi)]
 pub enum TagErrorVariant{
     MismatchedDiscriminant,

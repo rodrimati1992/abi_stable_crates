@@ -93,9 +93,10 @@ unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
     type Kind=ValueKind;
     type StaticEquivalent=();
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "UnsafeIgnoredType",
         RNone,
+        make_item_info!(),
         TLData::Primitive,
         tl_genparams!(;;),
         &[]

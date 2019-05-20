@@ -13,7 +13,7 @@ use crate::{
 };
 
 
-#[repr(C)]
+#[repr(u8)]
 #[derive(StableAbi)]
 pub enum PubEnum {
     Variant0,

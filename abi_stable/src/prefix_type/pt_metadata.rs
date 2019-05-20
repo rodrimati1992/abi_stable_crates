@@ -48,7 +48,7 @@ impl PrefixTypeMetadata{
                  Type:{}\nDataVariant:{:?}\nPackage:{}",
                  layout.full_type,
                  layout.data.as_discriminant(),
-                 layout.package,
+                 layout.package(),
             ),
         }
     }

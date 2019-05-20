@@ -22,7 +22,7 @@ pub enum UncheckedReprKind{
 }
 
 /// How the discriminant of an enum is represented.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DiscriminantRepr {
     U8,
