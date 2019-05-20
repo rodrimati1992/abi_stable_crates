@@ -161,6 +161,7 @@ pub mod abi_stability;
 pub mod erased_types;
 pub mod external_types;
 // pub mod immovable_wrapper;
+#[macro_use]
 pub mod library;
 pub mod ignored_wrapper;
 pub mod marker_type;

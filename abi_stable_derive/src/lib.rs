@@ -56,9 +56,9 @@ This is applied to functions like this:
 use abi_stable::prefix_type::PrefixTypeTrait;
 
 #[export_root_module]
-pub extern "C" fn get_hello_world_mod() -> TextOperationsMod {
+pub extern "C" fn get_hello_world_mod() -> &'static TextOperationsMod {
     extern_fn_panic_handling!{
-        TextOperationsMod{
+        TextOperationsModVal{
             reverse_string,
         }.leak_into_prefix()
     }
@@ -70,8 +70,7 @@ pub extern "C" fn get_hello_world_mod() -> TextOperationsMod {
 
 # More examples
 
-For a more detailed example look into the example/example_*_impl crates in the 
-repository for this crate.
+For a more detailed example look in the README in the repository for this crate.
 
 
 

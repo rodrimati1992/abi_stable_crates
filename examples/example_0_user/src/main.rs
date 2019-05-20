@@ -18,7 +18,7 @@ use abi_stable::{
 use example_0_interface::{
     CowStrIter,
     TextOpsMod,
-    RemoveWords,load_library_in,
+    RemoveWords,
     TOCommandBox,TOStateBox,
 };
 
@@ -163,7 +163,7 @@ Examples:
 
 fn main()-> io::Result<()> {
     let library_path=compute_library_path().unwrap();
-    let mods=load_library_in(&library_path)
+    let mods=TextOpsMod::load_from_directory(&library_path)
         .unwrap_or_else(|e| panic!("{}", e) );
     
     let opts =  Command::clap()
