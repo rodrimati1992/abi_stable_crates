@@ -220,7 +220,7 @@ impl<T> Clone for Constructor<T>{
 //////////////////////////////////////////////////////////////////////
 
 
-#[repr(C)]
+#[repr(u8)]
 #[derive(StableAbi,Copy,Clone)]
 pub enum ConstructorOrValue<T>{
     Constructor(Constructor<T>),

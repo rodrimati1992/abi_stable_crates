@@ -22,6 +22,7 @@ use crate::{
 
 use super::{
     LifetimeIndex, RustPrimitive, TLData, TLField, TypeLayout, TypeLayoutParams,
+    ItemInfo,
 };
 
 ///////////////////////
@@ -204,7 +205,7 @@ impl AbiInfo{
 ///////////////////////////////////////////////////////////////////////////////
 
 /// The abi_stable kind of a type.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq,Eq,Ord,PartialOrd,Hash,StableAbi)]
 pub enum TypeKind{
     /// A value whose layout must not change in minor versions
@@ -351,9 +352,10 @@ where T:StableAbi
     type IsNonZeroType = False;
     type StaticEquivalent=PhantomData<T::StaticEquivalent>;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "PhantomData",
         RNone,
+        ItemInfo::std_type_in("std::marker"),
         TLData::Primitive,
         tl_genparams!(;;),
         &[TLField::new("0",&[],<T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)],
@@ -365,17 +367,14 @@ unsafe impl SharedStableAbi for () {
     type StaticEquivalent=();
 
     const S_LAYOUT: &'static TypeLayout =
-        &TypeLayout::from_std_lib::<Self>("()", TLData::Primitive, tl_genparams!(;;));
+        &TypeLayout::from_std::<Self>(
+            "()", 
+            TLData::Primitive,
+            ItemInfo::primitive(), 
+            tl_genparams!(;;)
+        );
 }
 
-unsafe impl SharedStableAbi for core_extensions::Void {
-    type Kind=ValueKind;
-    type IsNonZeroType = False;
-    type StaticEquivalent=Self;
-
-    const S_LAYOUT: &'static TypeLayout =
-        &TypeLayout::from_std_lib::<Self>("Void", TLData::Primitive, tl_genparams!(;;));
-}
 
 /////////////
 
@@ -388,9 +387,10 @@ where
     type IsNonZeroType = True;
     type StaticEquivalent=&'static T::StaticEquivalent;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "&",
         RSome(RustPrimitive::Reference),
+        ItemInfo::primitive(),
         TLData::Primitive,
         tl_genparams!('a;T;),
         &[TLField::new(
@@ -410,9 +410,10 @@ where
     type IsNonZeroType = True;
     type StaticEquivalent=&'static mut T::StaticEquivalent;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "&mut",
         RSome(RustPrimitive::MutReference),
+        ItemInfo::primitive(),
         TLData::Primitive,
         tl_genparams!('a;T;),
         &[TLField::new(
@@ -432,9 +433,10 @@ where
     type IsNonZeroType = True;
     type StaticEquivalent=NonNull<T::StaticEquivalent>;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "NonNull",
         RNone,
+        ItemInfo::primitive(),
         TLData::Primitive,
         tl_genparams!(;T;),
         &[TLField::new(
@@ -453,9 +455,10 @@ where
     type IsNonZeroType = False;
     type StaticEquivalent=AtomicPtr<T::StaticEquivalent>;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "AtomicPtr",
         RNone,
+        ItemInfo::primitive(),
         TLData::Primitive,
         tl_genparams!(;T;),
         &[TLField::new(
@@ -475,9 +478,10 @@ where
     type IsNonZeroType = False;
     type StaticEquivalent=*const T::StaticEquivalent;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "*const",
         RSome(RustPrimitive::ConstPtr),
+        ItemInfo::primitive(),
         TLData::Primitive,
         tl_genparams!(;T;),
         &[TLField::new(
@@ -497,9 +501,10 @@ where
     type IsNonZeroType = False;
     type StaticEquivalent=*mut T::StaticEquivalent;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "*mut",
         RSome(RustPrimitive::MutPtr),
+        ItemInfo::primitive(),
         TLData::Primitive,
         tl_genparams!(;T;),
         &[TLField::new(
@@ -522,9 +527,10 @@ macro_rules! impl_stable_abi_array {
                 type IsNonZeroType=False;
                 type StaticEquivalent=[T::StaticEquivalent;$size];
 
-                const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std_lib_phantom::<Self>(
+                const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std_full::<Self>(
                     stringify!(concat!("[_;",stringify!($size),"]")),
                     RSome(RustPrimitive::Array),
+                    ItemInfo::primitive(),
                     TLData::Primitive,
                     tl_genparams!(;T;$size),
                     &[TLField::new("0", &[], <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST)],
@@ -553,9 +559,10 @@ where
     type IsNonZeroType = False;
     type StaticEquivalent=Option<T::StaticEquivalent>;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "Option",
         RNone,
+        ItemInfo::primitive(),
         TLData::Primitive,
         tl_genparams!(;T;),
         &[TLField::new(
@@ -570,8 +577,8 @@ where
 
 macro_rules! impl_for_concrete {
     (
-        zeroable=[$( $zeroable:ty ,)*]
-        nonzero=[ $( $nonzero:ty ,)* ]
+        zeroable=[$( ($zeroable:ty,$zeroable_ii:expr) ,)*]
+        nonzero=[ $( ($nonzero:ty,$nonzero_ii:expr) ,)* ]
     ) => (
         $(
             unsafe impl SharedStableAbi for $zeroable {
@@ -579,9 +586,10 @@ macro_rules! impl_for_concrete {
                 type IsNonZeroType=False;
                 type StaticEquivalent=Self;
 
-                const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std_lib::<Self>(
+                const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std::<Self>(
                     stringify!($zeroable),
                     TLData::Primitive,
+                    $zeroable_ii,
                     tl_genparams!(;;),
                 );
             }
@@ -593,9 +601,10 @@ macro_rules! impl_for_concrete {
                 type IsNonZeroType=True;
                 type StaticEquivalent=Self;
 
-                const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std_lib::<Self>(
+                const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std::<Self>(
                     stringify!($nonzero),
                     TLData::Primitive,
+                    $nonzero_ii,
                     tl_genparams!(;;),
                 );
             }
@@ -605,23 +614,28 @@ macro_rules! impl_for_concrete {
 
 impl_for_concrete! {
     zeroable=[
-        u8,i8,
-        u16,i16,
-        u32,i32,
-        u64,i64,
-        usize,isize,
-        bool,
-        AtomicBool,
-        AtomicIsize,
-        AtomicUsize,
+        (u8,ItemInfo::primitive()),
+        (i8,ItemInfo::primitive()),
+        (u16,ItemInfo::primitive()),
+        (i16,ItemInfo::primitive()),
+        (u32,ItemInfo::primitive()),
+        (i32,ItemInfo::primitive()),
+        (u64,ItemInfo::primitive()),
+        (i64,ItemInfo::primitive()),
+        (usize,ItemInfo::primitive()),
+        (isize,ItemInfo::primitive()),
+        (bool,ItemInfo::primitive()),
+        (AtomicBool,ItemInfo::std_type_in("std::sync::atomic")),
+        (AtomicIsize,ItemInfo::std_type_in("std::sync::atomic")),
+        (AtomicUsize,ItemInfo::std_type_in("std::sync::atomic")),
     ]
 
     nonzero=[
-        num::NonZeroU8,
-        num::NonZeroU16,
-        num::NonZeroU32,
-        num::NonZeroU64,
-        num::NonZeroUsize,
+        (num::NonZeroU8,ItemInfo::std_type_in("std::num")),
+        (num::NonZeroU16,ItemInfo::std_type_in("std::num")),
+        (num::NonZeroU32,ItemInfo::std_type_in("std::num")),
+        (num::NonZeroU64,ItemInfo::std_type_in("std::num")),
+        (num::NonZeroUsize,ItemInfo::std_type_in("std::num")),
     ]
 }
 /////////////
@@ -635,21 +649,21 @@ mod rust_1_34_impls{
 
     impl_for_concrete! {
         zeroable=[
-            atomic::AtomicI16,
-            atomic::AtomicI32,
-            atomic::AtomicI64,
-            atomic::AtomicI8,
-            atomic::AtomicU16,
-            atomic::AtomicU32,
-            atomic::AtomicU64,
-            atomic::AtomicU8,
+            (atomic::AtomicI16,ItemInfo::std_type_in("std::sync::atomic")),
+            (atomic::AtomicI32,ItemInfo::std_type_in("std::sync::atomic")),
+            (atomic::AtomicI64,ItemInfo::std_type_in("std::sync::atomic")),
+            (atomic::AtomicI8,ItemInfo::std_type_in("std::sync::atomic")),
+            (atomic::AtomicU16,ItemInfo::std_type_in("std::sync::atomic")),
+            (atomic::AtomicU32,ItemInfo::std_type_in("std::sync::atomic")),
+            (atomic::AtomicU64,ItemInfo::std_type_in("std::sync::atomic")),
+            (atomic::AtomicU8,ItemInfo::std_type_in("std::sync::atomic")),
         ]
         nonzero=[
-            core_num::NonZeroI8,
-            core_num::NonZeroI16,
-            core_num::NonZeroI32,
-            core_num::NonZeroI64,
-            core_num::NonZeroIsize,
+            (core_num::NonZeroI8,ItemInfo::std_type_in("core::num")),
+            (core_num::NonZeroI16,ItemInfo::std_type_in("core::num")),
+            (core_num::NonZeroI32,ItemInfo::std_type_in("core::num")),
+            (core_num::NonZeroI64,ItemInfo::std_type_in("core::num")),
+            (core_num::NonZeroIsize,ItemInfo::std_type_in("core::num")),
         ]
     }
 }
@@ -659,7 +673,8 @@ mod rust_1_34_impls{
 macro_rules! impl_stableabi_for_repr_transparent {
     (
         $type_constr:ident
-        $(where[ $($where_clause:tt)* ])*
+        $(where[ $($where_clause:tt)* ])* ,
+        $item_info:expr
     ) => (
         unsafe impl<P> SharedStableAbi for $type_constr<P>
         where
@@ -670,11 +685,12 @@ macro_rules! impl_stableabi_for_repr_transparent {
             type IsNonZeroType = P::IsNonZeroType;
             type StaticEquivalent=$type_constr<P::StaticEquivalent>;
 
-            const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
+            const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std::<Self>(
                 stringify!($type_constr),
                 TLData::struct_(&[
                     TLField::new("0",&[],<P as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
                 ]),
+                $item_info,
                 tl_genparams!(;P;),
             );
         }
@@ -682,26 +698,28 @@ macro_rules! impl_stableabi_for_repr_transparent {
 }
 
 
-impl_stableabi_for_repr_transparent!{ NumWrapping }
-impl_stableabi_for_repr_transparent!{ Pin }
-impl_stableabi_for_repr_transparent!{ ManuallyDrop }
-impl_stableabi_for_repr_transparent!{ Cell }
-impl_stableabi_for_repr_transparent!{ UnsafeCell }
+impl_stableabi_for_repr_transparent!{ NumWrapping ,ItemInfo::std_type_in("std::num") }
+impl_stableabi_for_repr_transparent!{ Pin         ,ItemInfo::std_type_in("std::pin") }
+impl_stableabi_for_repr_transparent!{ ManuallyDrop,ItemInfo::std_type_in("std::mem") }
+impl_stableabi_for_repr_transparent!{ Cell        ,ItemInfo::std_type_in("std::cell") }
+impl_stableabi_for_repr_transparent!{ UnsafeCell  ,ItemInfo::std_type_in("std::cell") }
 
 /////////////
 
 macro_rules! impl_stableabi_for_unit_struct {
     (
-        $type_constr:ident
+        $type_constr:ident,
+        $item_info:expr
     ) => (
         unsafe impl SharedStableAbi for $type_constr{
             type Kind=ValueKind;
             type IsNonZeroType = False;
             type StaticEquivalent=$type_constr;
 
-            const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib::<Self>(
+            const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std::<Self>(
                 stringify!($type_constr),
                 TLData::struct_(&[]),
+                $item_info,
                 tl_genparams!(;;),
             );
         }
@@ -709,7 +727,26 @@ macro_rules! impl_stableabi_for_unit_struct {
 }
 
 
-impl_stableabi_for_unit_struct!{ PhantomPinned }
+impl_stableabi_for_unit_struct!{ PhantomPinned,ItemInfo::std_type_in("std::marker") }
+
+/////////////
+
+
+unsafe impl SharedStableAbi for core_extensions::Void {
+    type Kind=ValueKind;
+    type IsNonZeroType = False;
+    type StaticEquivalent=Self;
+
+
+    const S_LAYOUT: &'static TypeLayout =
+        &TypeLayout::from_params::<Self>(TypeLayoutParams {
+            name: "Void",
+            item_info:ItemInfo::package_and_mod("core_extensions","core_extensions::Void"),
+            data: TLData::enum_(&[]),
+            generics: tl_genparams!(;;),
+        });
+}
+
 
 
 /////////////
@@ -719,14 +756,7 @@ macro_rules! empty_extern_fn_layout{
     ($this:ty) => (
         &TypeLayout::from_params::<extern "C" fn()>(TypeLayoutParams {
             name: "AFunctionPointer",
-            package: env!("CARGO_PKG_NAME"),
-            package_version: crate::version::VersionStrings {
-                major: StaticStr::new(env!("CARGO_PKG_VERSION_MAJOR")),
-                minor: StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
-                patch: StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
-            },
-            file:"<unavailable>",
-            line:0,
+            item_info:make_item_info!(),
             data: TLData::Struct {
                 fields: StaticSlice::new(&[]),
             },
@@ -782,14 +812,7 @@ unsafe impl<T> SharedStableAbi for UnsafeOpaqueField<T> {
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_params::<Self>(TypeLayoutParams {
         name: "OpaqueField",
-        package: env!("CARGO_PKG_NAME"),
-        package_version: crate::version::VersionStrings {
-            major: StaticStr::new(env!("CARGO_PKG_VERSION_MAJOR")),
-            minor: StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
-            patch: StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
-        },
-        file:"<unavailable>",
-        line:0,
+        item_info:make_item_info!(),
         data: TLData::Primitive,
         generics: tl_genparams!(;;),
     });

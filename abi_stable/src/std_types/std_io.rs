@@ -123,7 +123,7 @@ impl_error_kind!{
 
 /// Ffi-safe equivalent of `std::io::SeekFrom`.
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
-#[repr(C)]
+#[repr(u8)]
 #[derive(StableAbi)]
 pub enum RSeekFrom {
     Start(u64),

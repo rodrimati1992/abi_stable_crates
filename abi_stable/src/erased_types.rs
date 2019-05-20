@@ -61,7 +61,7 @@ pub use self::{
 /// For Debug,"{:?}" is Default_ "{:#?}" is Alternate
 ///
 /// etc.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, StableAbi)]
 pub enum FormattingMode {
     Default_,

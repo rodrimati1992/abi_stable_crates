@@ -54,7 +54,6 @@ pub struct AbiInstabilityError {
 
 /// An individual error from checking the layout of some type.
 #[derive(Debug, PartialEq,Clone)]
-#[repr(C)]
 pub enum AbiInstability {
     IsPrefix(ExpectedFoundError<bool>),
     NonZeroness(ExpectedFoundError<bool>),
@@ -226,7 +225,7 @@ impl CheckingUTypeId{
         Self{
             type_id:(this.type_id.function)(),
             name:layout.name,
-            package:layout.package,
+            package:layout.package(),
         }
     }
 }
@@ -441,8 +440,8 @@ impl AbiChecker {
                 push_err(errs, t_lay, o_lay, |x| x.full_type(), AI::Name);
                 return;
             }
-            if t_lay.package != o_lay.package {
-                push_err(errs, t_lay, o_lay, |x| x.package, AI::Package);
+            if t_lay.package() != o_lay.package() {
+                push_err(errs, t_lay, o_lay, |x| x.package(), AI::Package);
                 return;
             }
 
@@ -459,8 +458,8 @@ impl AbiChecker {
 
             {
                 let x = (|| {
-                    let l = t_lay.package_version.parsed()?;
-                    let r = o_lay.package_version.parsed()?;
+                    let l = t_lay.package_version().parsed()?;
+                    let r = o_lay.package_version().parsed()?;
                     Ok(l.is_compatible(r))
                 })();
                 match x {
@@ -469,7 +468,7 @@ impl AbiChecker {
                             errs,
                             t_lay,
                             o_lay,
-                            |x| x.package_version,
+                            |x| *x.package_version(),
                             AI::PackageVersion,
                         );
                     }

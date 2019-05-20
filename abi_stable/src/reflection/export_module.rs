@@ -58,7 +58,7 @@ pub enum MRModReflMode{
     DelegateDeref,
 }
 
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug,Serialize,Deserialize)]
 pub enum MRFieldAccessor {
     /// Accessible with `self.field_name`

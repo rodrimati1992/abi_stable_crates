@@ -66,7 +66,7 @@ pub struct ExtraAbiError{
 /// How serious an error returned from `ExtraChecks.func`,
 /// determining whether layout checking immediately returns an error or
 /// collects a few more errors.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq,Eq,StableAbi)]
 pub enum ErrorSeriousness{
     /// An error that stops layout checking immediately.
