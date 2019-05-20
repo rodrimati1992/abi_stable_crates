@@ -34,6 +34,7 @@ use crate::{
     },
     globals::{self,Globals},
     marker_type::ErasedObject,
+    lazy_static_ref::LazyStaticRef,
     version::{ParseVersionError, VersionNumber, VersionStrings},
     utils::{transmute_reference},
     std_types::{RVec,RBoxError,StaticStr},
@@ -80,6 +81,46 @@ pub enum LibraryPath<'a>{
     FullPath(&'a Path),
     Directory(&'a Path),
 }
+
+//////////////////////////////////////////////////////////////////////
+
+
+/// The static variables declared for some `RootModule` implementor.
+#[doc(hidden)]
+pub struct RootModuleStatics<M>{
+    root_mod:LazyStaticRef<M>,
+}
+
+impl<M> RootModuleStatics<M>{
+    #[doc(hidden)]
+    #[inline]
+    pub const fn _private_new()->Self{
+        Self{
+            root_mod:LazyStaticRef::new(),
+        }
+    }
+}
+
+
+/// Implements the `RootModule::root_module_statics` associated function.
+///
+/// To define the associated function use:
+/// `abi_stable::declare_root_module_statics!{TypeOfSelf}`.
+/// Passing `Self` instead of `TypeOfSelf` won't work.
+#[macro_export]
+macro_rules! declare_root_module_statics {
+    ( $this:ty ) => (
+        #[inline]
+        fn root_module_statics()->&'static $crate::library::RootModuleStatics<$this>{
+            static _ROOT_MOD_STATICS:$crate::library::RootModuleStatics<$this>=
+                $crate::library::RootModuleStatics::_private_new();
+
+            &_ROOT_MOD_STATICS
+        }
+    )
+}
+
+
 
 //////////////////////////////////////////////////////////////////////
 

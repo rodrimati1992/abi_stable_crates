@@ -1,14 +1,18 @@
 use super::*;
 
 
-/// The root module of a dynamic library,
-/// which may contain other modules,function pointers,and static references.
-///
-/// For an example of a type implementing this trait you can look 
-/// for the `example/example_*_interface` crates  in this crates' repository .
-pub trait RootModule: Sized+SharedStableAbi  {
+/**
+The root module of a dynamic library,
+which may contain other modules,function pointers,and static references.
 
-    /// The base name of the dynamic library,which is the same on all platforms.
+For an example of a type implementing this trait you can look 
+at either the readme.md,
+or the `example/example_*_interface` crates  in this crates' repository .
+
+*/
+pub trait RootModule: Sized+SharedStableAbi+'static  {
+
+    /// The name of the dynamic library,which is the same on all platforms.
     /// This is generally the name of the `implementation crate`.
     const BASE_NAME: &'static str;
 
@@ -34,6 +38,22 @@ pub trait RootModule: Sized+SharedStableAbi  {
         _priv:PhantomData,
     };
 
+    /// Gets the statics for Self.
+    ///
+    /// To define this associated function use:
+    /// `abi_stable::declare_root_module_statics!{TypeOfSelf}`.
+    /// Passing `Self` instead of `TypeOfSelf` won't work.
+    ///
+    fn root_module_statics()->&'static RootModuleStatics<Self>;
+
+/**
+Gets the root module,returning None if the module is not yet loaded.
+*/
+    #[inline]
+    fn get_module()->Option<&'static Self>{
+        Self::root_module_statics().root_mod.get()
+    }
+
     /// Returns the path the library would be loaded from,given a directory(folder).
     fn get_library_path(directory:&Path)-> PathBuf {
         let base_name=Self::BASE_NAME;
@@ -41,8 +61,28 @@ pub trait RootModule: Sized+SharedStableAbi  {
     }
 
 /**
+
+Loads the root module,with a closure which either 
+returns the root module or an error.
+
+If the root module was already loaded,
+this will return a reference to the already loaded root module,
+without calling the closure.
+
+*/
+    fn load_module_with<F,E>(f:F)->Result<&'static Self,E>
+    where
+        F:FnOnce()->Result<&'static Self,E>
+    {
+        Self::root_module_statics().root_mod.try_init(f)
+    }
+
+/**
 Loads this module from the path specified by `where_`,
 first loading the dynamic library if it wasn't already loaded.
+
+Once the root module is loaded,
+this will return a reference to the already loaded root module.
 
 # Warning
 
@@ -77,18 +117,50 @@ If the version number of the library is incompatible.
 If the layout of the root module is not the expected one.
 
 */
-    fn load_from_path(where_:LibraryPath<'_>) -> Result<&'static Self, LibraryError>{
+    fn load_from(where_:LibraryPath<'_>) -> Result<&'static Self, LibraryError>{
+        let statics=Self::root_module_statics();
+        statics.root_mod.try_init(||{
+            let raw_library=load_raw_library::<Self>(where_)?;
+            let mut items = unsafe{ lib_header_from_raw_library(&raw_library)? };
 
-        let raw_library=load_raw_library::<Self>(where_)?;
-        let mut items = unsafe{ lib_header_from_raw_library(&raw_library)? };
+            let root_mod=items.init_root_module::<Self>()?.initialization()?;
 
-        let root_mod=items.init_root_module::<Self>()?.initialization()?;
+            // Important,If I don't leak the library after sucessfully loading the root module
+            // it would cause any use of the module to be a use after free.
+            mem::forget(raw_library);
 
-        // Important,If I don't leak the library after sucessfully loading the root module
-        // it would cause any use of the module to be a use after free.
-        mem::forget(raw_library);
+            Ok(root_mod)
+        })
+    }
 
-        Ok(root_mod)
+/**
+
+Loads this module from the directory specified by `where_`,
+first loading the dynamic library if it wasn't already loaded.
+
+Once the root module is loaded,
+this will return a reference to the already loaded root module.
+
+Warnings and Errors are detailed in `load_from`,
+
+*/
+    fn load_from_directory(where_:&Path) -> Result<&'static Self, LibraryError>{
+        Self::load_from(LibraryPath::Directory(where_))
+    }
+
+/**
+
+Loads this module from the file at `path_`,
+first loading the dynamic library if it wasn't already loaded.
+
+Once the root module is loaded,
+this will return a reference to the already loaded root module.
+
+Warnings and Errors are detailed in `load_from`,
+
+*/
+    fn load_from_file(path_:&Path) -> Result<&'static Self, LibraryError>{
+        Self::load_from(LibraryPath::FullPath(path_))
     }
 
     /// Defines behavior that happens once the module is loaded.

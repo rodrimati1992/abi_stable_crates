@@ -366,10 +366,8 @@ pub extern "C" fn run_command(
 mod tests{
     use super::*;
 
-    use example_0_interface::MODULES;
-
     fn setup(){
-        MODULES.init(instantiate_root_module);
+        TextOpsMod::load_module_with(|| instantiate_root_module() );
     }
 
     #[test]

@@ -66,12 +66,12 @@ with comments for how to turn them into 3 separate crates.
 ////////////////////////////////////////////////////////////////////////////////
 
 
-use interface_crate::{ExampleLib,BoxedInterface,load_root_module_in};
+use interface_crate::{ExampleLib,BoxedInterface,load_root_module_in_directory};
 
 fn main(){
     // The type annotation is for the reader
     let library:&'static ExampleLib=
-        load_root_module_in("./target/debug".as_ref())
+        load_root_module_in_directory("./target/debug".as_ref())
             .unwrap_or_else(|e| panic!("{}",e) );
 
     // The type annotation is for the reader
@@ -116,17 +116,59 @@ use abi_stable::{
 
 
 #[repr(C)]
+#[derive(StableAbi)] 
+#[sabi(kind(Prefix(prefix_struct="ExampleLib")))]
+#[sabi(missing_field(panic))]
+pub struct ExampleLibVal {
+    pub new_boxed_interface: extern "C" fn()->BoxedInterface<'static>,
+    
+    #[sabi(last_prefix_field)]
+    pub append_string:extern "C" fn(&mut BoxedInterface<'_>,RString),
+}
+
+
+/// The RootModule trait defines how to load the root module of a library.
+impl RootModule for ExampleLib {
+
+    abi_stable::declare_root_module_statics!{ExampleLib}
+
+    const BASE_NAME: &'static str = "example_library";
+    const NAME: &'static str = "example_library";
+    const VERSION_STRINGS: VersionStrings = package_version_strings!();
+}
+
+/*
+
+/// This for the case where this example is copied into the 3 crates.
+/// 
+/// This loads the root from the library in the `directory` folder.
+///
+pub fn load_root_module_in_directory(directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
+    ExampleLib::load_from_directory(directory)
+}
+*/
+
+/// This is for the case where this example is copied into a single crate
+pub fn load_root_module_in_directory(_:&Path) -> Result<&'static ExampleLib,LibraryError> {
+    ExampleLib::load_module_with(|| Ok(super::implementation::get_library()) )
+}
+
+//////////////////////////////////////////////////////////
+
+
+
+#[repr(C)]
 #[derive(StableAbi)]
 pub struct TheInterface;
 
 // The `impl_InterfaceType` macro emulates default associated types.
 impl_InterfaceType!{
     /// Each associated type represents a trait,
-    /// will is required of types when ẁrapped in a 
+    /// which is required of types when ẁrapped in a 
     /// `DynTrait<Pointer<()>,TheInterface>`,
-    /// as well as be usable in that `DynTrait<_>`.
+    /// as well as is usable in that `DynTrait<_>`.
     ///
-    /// A trait is required (and becomes usable in the `DynTrait`) 
+    /// A trait is required (and becomes usable in `DynTrait<_>`) 
     /// when the associated type is `True`,not required when it is `False`.
     ///
     impl InterfaceType for TheInterface {
@@ -181,58 +223,6 @@ impl_InterfaceType!{
 
 /// An alias for the trait object used in this example
 pub type BoxedInterface<'borr>=DynTrait<'borr,RBox<()>,TheInterface>;
-
-
-#[repr(C)]
-#[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="ExampleLib")))]
-#[sabi(missing_field(panic))]
-pub struct ExampleLibVal {
-    pub new_boxed_interface: extern "C" fn()->BoxedInterface<'static>,
-    
-    #[sabi(last_prefix_field)]
-    pub append_string:extern "C" fn(&mut BoxedInterface<'_>,RString),
-}
-
-
-/// The RootModule trait defines how to load the root module of a library.
-impl RootModule for ExampleLib {
-    const BASE_NAME: &'static str = "example_library";
-    const NAME: &'static str = "example_library";
-    const VERSION_STRINGS: VersionStrings = package_version_strings!();
-}
-
-/// A global handle to the root module of the library.
-///
-/// To get the module call `ROOTMOD.get()`,
-/// which returns None if the module is not yet loaded.
-pub static ROOTMOD:LazyStaticRef<ExampleLib>=LazyStaticRef::new();
-
-/*
-
-/// This for the case where this example is copied into the 3 crates.
-/// 
-/// This loads the root from the library in the `directory` folder.
-/// 
-/// Failing (with an Err(_)) in these conditions:
-///
-/// - The library is not there.
-///
-/// - The module loader is not there,most likely because the abi is incompatible.
-///
-/// - The layout-checker detects a type error.
-///
-pub fn load_root_module_in(directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
-    ROOTMOD.try_init(||{
-        ExampleLib::load_from_path(LibraryPath::Directory(directory))
-    })
-}
-*/
-
-/// This is for the case where this example is copied into a single crate
-pub fn load_root_module_in(_directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
-    Ok(ROOTMOD.init(|| super::implementation::get_library() ))
-}
 
 }
 
@@ -347,6 +337,7 @@ extern fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
     }
 }
 }
+
 
 
 

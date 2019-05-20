@@ -12,7 +12,7 @@ use abi_stable::{
     library::RootModule,
 };
 
-use testing_interface_0::{TestingMod,load_library_in,PrefixTypeMod0,PrefixTypeMod1};
+use testing_interface_0::{TestingMod,PrefixTypeMod0,PrefixTypeMod1};
 
 
 #[global_allocator]
@@ -50,7 +50,7 @@ unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
 
 fn main()-> io::Result<()> {
     let library_path=compute_library_path().unwrap();
-    let mods=load_library_in(&library_path)
+    let mods=TestingMod::load_from_directory(&library_path)
         .unwrap_or_else(|e| panic!("{}", e) );
     
     run_dynamic_library_tests(mods);
