@@ -54,8 +54,8 @@ impl LibHeader {
     }
 
     /// Gets the layout of the root module.
-    pub fn layout(&self)->&'static AbiInfo{
-        self.root_mod_consts.abi_info().get()
+    pub fn layout(&self)->&'static AbiInfoWrapper{
+        self.root_mod_consts.abi_info()
     }
 
     pub(super) fn initialize_library_globals(&self,globals:&'static Globals){

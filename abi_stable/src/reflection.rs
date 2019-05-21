@@ -1,8 +1,15 @@
+
 #[cfg(all(test,not(feature="only_new_tests")))]
 pub mod tests{
     pub mod derive_reflection;
 }
 
+/**
+Implementation details of the sabi_extract tool.
+
+This is here so that its tests run among other abi_stable tests.
+*/
+#[doc(hidden)]
 pub mod export_module;
 
 /// Whether this is a module whose definition can be reflected on at runtime,
