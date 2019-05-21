@@ -178,6 +178,7 @@ pub mod std_types;
 
 
 pub mod lazy_static_ref;
+
 pub mod reflection;
 pub mod type_level;
 pub mod version;
@@ -185,6 +186,9 @@ pub mod version;
 pub mod docs;
 
 
+/// The header used to identify the version number of abi_stable
+/// that a dynamic libraries uses.
+pub static LIB_HEADER:library::AbiHeader=library::AbiHeader::VALUE;
 
 
 /// Miscelaneous items re-exported from core_extensions.

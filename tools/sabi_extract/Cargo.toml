@@ -1,5 +1,5 @@
 [package]
-name = "reflection"
+name = "sabi_extract"
 version = "0.1.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"

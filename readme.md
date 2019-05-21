@@ -461,8 +461,9 @@ enabling the features you need in the `features` array.
 
 Here are some tools,all of which are in the "tools" directory(folder).
 
+### sabi_extract
 
-
+A program to extract a variety of information from an abi_stable dynamic library.
 
 # License
 
