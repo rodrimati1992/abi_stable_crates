@@ -8,6 +8,7 @@ use core_extensions::{matches, prelude::*};
 use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,check_layout_compatibility},
+        type_layout::TLData,
         AbiInfoWrapper, 
         Tag,
     },
@@ -33,6 +34,18 @@ mod changed_name {
     pub struct Rectangleiiiiii {
         x: u32,
         y: u32,
+        w: u16,
+        h: u32,
+    }
+}
+
+mod changed_field_name {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub struct Rectangle {
+        x: u32,
+        y: u32,
+        #[sabi(rename="w2")]
         w: u16,
         h: u32,
     }
@@ -312,7 +325,7 @@ fn different_zeroness() {
         .any(|err| matches!(AbiInstability::NonZeroness{..}=err)));
 }
 
-#[cfg_attr(not(miri),test)]
+#[test]
 fn different_name() {
     let regular = regular::Rectangle::ABI_INFO;
     let other = changed_name::Rectangleiiiiii::ABI_INFO;
@@ -323,6 +336,31 @@ fn different_name() {
         .iter()
         .any(|err| matches!(AbiInstability::Name{..}=err)));
 }
+
+
+#[test]
+fn different_field_name() {
+    let regular = regular::Rectangle::ABI_INFO;
+    let other = changed_field_name::Rectangle::ABI_INFO;
+
+    let fields=match other.get().layout.data {
+        TLData::Struct{fields}=>fields.as_slice(),
+        _=>unreachable!(),
+    };
+
+    assert_eq!(fields[0].name.as_str(),"x");
+    assert_eq!(fields[1].name.as_str(),"y");
+    assert_eq!(fields[2].name.as_str(),"w2");
+
+    let errs = check_layout_compatibility(regular, other)
+        .unwrap_err()
+        .flatten_errors();
+    assert!(errs
+        .iter()
+        .any(|err| matches!(AbiInstability::UnexpectedField{..}=err)));
+}
+
+
 
 #[cfg_attr(not(miri),test)]
 fn swapped_fields() {

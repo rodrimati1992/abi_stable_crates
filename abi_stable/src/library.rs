@@ -34,7 +34,7 @@ use crate::{
     },
     globals::{self,Globals},
     marker_type::ErasedObject,
-    lazy_static_ref::LazyStaticRef,
+    late_static_ref::LateStaticRef,
     version::{ParseVersionError, VersionNumber, VersionStrings},
     utils::{transmute_reference},
     std_types::{RVec,RBoxError,StaticStr},
@@ -88,7 +88,8 @@ pub enum LibraryPath<'a>{
 /// The static variables declared for some `RootModule` implementor.
 #[doc(hidden)]
 pub struct RootModuleStatics<M>{
-    root_mod:LazyStaticRef<M>,
+    root_mod:LateStaticRef<M>,
+    raw_lib:LateStaticRef<RawLibrary>,
 }
 
 impl<M> RootModuleStatics<M>{
@@ -96,7 +97,8 @@ impl<M> RootModuleStatics<M>{
     #[inline]
     pub const fn _private_new()->Self{
         Self{
-            root_mod:LazyStaticRef::new(),
+            root_mod:LateStaticRef::new(),
+            raw_lib:LateStaticRef::new(),
         }
     }
 }

@@ -16,7 +16,7 @@ use abi_stable::{
     impl_InterfaceType,
     package_version_strings,
     declare_root_module_statics,
-    lazy_static_ref::LazyStaticRef,
+    late_static_ref::LateStaticRef,
     library::{LibraryError, RootModule,LibraryPath},
     version::VersionStrings,
     type_level::bools::*,

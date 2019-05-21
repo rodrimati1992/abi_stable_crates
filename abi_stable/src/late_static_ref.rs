@@ -7,12 +7,22 @@ use std::{
     ptr,
 };
 
-use crate::std_types::sync::RMutex;
+use crate::external_types::RMutex;
 
-/// A late-initialized static reference.
+/**
+A late-initialized static reference,with fallible initialization.
+
+As opposed to `Once`,
+this allows initialization of its static reference to happen fallibly,
+by returning a `Result<_,_>` from the try_init function,
+or by panicking inside either initialization function.
+
+On `Err(_)` and panics,one can try initialializing the static reference again.
+
+*/
 #[repr(C)]
 #[derive(StableAbi)]
-pub struct LazyStaticRef<T>{
+pub struct LateStaticRef<T>{
     pointer:AtomicPtr<T>,
     lock:RMutex<()>,
 }
@@ -20,7 +30,7 @@ pub struct LazyStaticRef<T>{
 const LOCK:RMutex<()>=RMutex::new(());
 
 
-impl<T> LazyStaticRef<T>{
+impl<T> LateStaticRef<T>{
     /// Constructs the late initialized static reference,
     /// in an uninitialized state.
     pub const fn new()->Self{
@@ -77,7 +87,7 @@ impl<T> LazyStaticRef<T>{
             .try_init(||->Result<&'static T,()>{ 
                 Ok(initializer()) 
             })
-            .expect("bug:LazyStaticRef::try_init should only return an Err if `initializer` does")
+            .expect("bug:LateStaticRef::try_init should only return an Err if `initializer` does")
     }
 
     /// Returns `Some(x:&'static T)` if the reference was initialized,otherwise returns None.
@@ -95,8 +105,8 @@ use ::std::panic::{
     RefUnwindSafe,
 };
 
-impl<T> UnwindSafe for LazyStaticRef<T>{}
-impl<T> RefUnwindSafe for LazyStaticRef<T>{}
+impl<T> UnwindSafe for LateStaticRef<T>{}
+impl<T> RefUnwindSafe for LateStaticRef<T>{}
 
 
 //////////////////////////////////////////////////////
@@ -113,7 +123,7 @@ mod tests{
 
     #[test]
     fn test_init(){
-        let ptr=LazyStaticRef::<u32>::new();
+        let ptr=LateStaticRef::<u32>::new();
 
         assert_eq!(None,ptr.get() );
         
@@ -136,7 +146,7 @@ mod tests{
 
     #[test]
     fn test_try_init(){
-        let ptr=LazyStaticRef::<u32>::new();
+        let ptr=LateStaticRef::<u32>::new();
 
         assert_eq!(None,ptr.get() );
         
