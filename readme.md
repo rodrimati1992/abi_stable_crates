@@ -349,13 +349,12 @@ extern fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
 
 This library ensures that the loaded libraries are safe to use through these mechanisms:
 
-- Types are recursively checked when the dynamic library is loaded,
-    before any function can be called.
-
-- The name of the function which exports the root module of the library is mangled
-    to prevent mixing of incompatible abi_stable versions.
+- The abi_stable ABI of the library is checked,
     Each `0.y.0` version and `x.0.0` version of abi_stable defines its own ABI 
     which is incompatible with previous versions.
+
+- Types are recursively checked when the dynamic library is loaded,
+    before any function can be called.
 
 Note that this library assumes that dynamic libraries come from a benign source,
 these checks are done purely to detect programming errors.
@@ -457,6 +456,13 @@ default-features=false
 features=[  ]
 ```
 enabling the features you need in the `features` array.
+
+# Tools
+
+Here are some tools,all of which are in the "tools" directory(folder).
+
+
+
 
 # License
 

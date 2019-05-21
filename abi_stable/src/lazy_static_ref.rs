@@ -7,20 +7,17 @@ use std::{
     ptr,
 };
 
-use lock_api::RawMutex as RawMutexTrait;
-
-use parking_lot::RawMutex;
+use crate::std_types::sync::RMutex;
 
 /// A late-initialized static reference.
+#[repr(C)]
+#[derive(StableAbi)]
 pub struct LazyStaticRef<T>{
-    // Using a RawMutex because all I need is to prevent multiple threads 
-    // from loading the static at the same time.
-    lock:RawMutex,
     pointer:AtomicPtr<T>,
+    lock:RMutex<()>,
 }
 
-// Workaround for being unable to use traits inside `const fn`.
-const LOCK:RawMutex=<RawMutex as RawMutexTrait>::INIT;
+const LOCK:RMutex<()>=RMutex::new(());
 
 
 impl<T> LazyStaticRef<T>{
@@ -49,9 +46,8 @@ impl<T> LazyStaticRef<T>{
             return Ok(pointer);
         }
         
-        self.lock.lock();
-        let unlocker=UnlockOnDrop(&self.lock);
-
+        let guard_=self.lock.lock();
+        
         if let Some(pointer)=self.get() {
             return Ok(pointer);
         }
@@ -60,7 +56,7 @@ impl<T> LazyStaticRef<T>{
 
         self.pointer.store(pointer as *const T as *mut T,Ordering::Release);
 
-        drop(unlocker);
+        drop(guard_);
 
         Ok(pointer)
 
@@ -94,15 +90,13 @@ impl<T> LazyStaticRef<T>{
     }
 }
 
+use ::std::panic::{
+    UnwindSafe,
+    RefUnwindSafe,
+};
 
-
-struct UnlockOnDrop<'a>(&'a RawMutex);
-
-impl<'a> Drop for UnlockOnDrop<'a>{
-    fn drop(&mut self){
-        (self.0).unlock();
-    }
-}
+impl<T> UnwindSafe for LazyStaticRef<T>{}
+impl<T> RefUnwindSafe for LazyStaticRef<T>{}
 
 
 //////////////////////////////////////////////////////

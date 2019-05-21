@@ -1,9 +1,16 @@
+/*!
+Ffi-safe synchronization primitives,most of which are ffi-safe wrappers of 
+[parking_lot](https://crates.io/crates/parking_lot) types
+*/
+
+pub mod once;
 pub mod mutex;
 pub mod rw_lock;
 
 pub use self::{
     mutex::RMutex,
     rw_lock::RRwLock,
+    once::ROnce,
 };
 
 
@@ -20,7 +27,7 @@ use crate::StableAbi;
 #[derive(Copy,Clone,StableAbi)]
 struct Overaligner;
 
-const RAW_LOCK_SIZE:usize=mem::size_of::<usize>()*2;
+const RAW_LOCK_SIZE:usize=mem::size_of::<usize>();
 
 #[repr(C)]
 #[derive(Copy,Clone,StableAbi)]
