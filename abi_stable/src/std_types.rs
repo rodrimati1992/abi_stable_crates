@@ -24,11 +24,25 @@ pub mod std_error;
 pub mod std_io;
 pub mod str;
 pub mod string;
-pub mod sync;
 pub mod time;
 pub mod tuple;
 pub mod utypeid;
 pub mod vec;
+
+
+/**
+There are equivalents to types in the std::sync module in abi_stable::external_types.
+
+The `sync::{Mutex,RwLock,Once}` equivalents are declared in 
+`abi_stable::external_types::parking_lot`
+
+The `mpsc` equivalents are declared in 
+`abi_stable::external_types::crossbeam_channel`,
+this is enabled by default with the `channels`/`crossbeam-channel` cargo feature.
+
+*/
+pub mod sync{}
+
 
 #[doc(inline)]
 pub use self::{

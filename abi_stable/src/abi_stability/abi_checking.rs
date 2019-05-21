@@ -861,7 +861,7 @@ pub unsafe extern fn exported_check_layout_compatibility(
 use std::sync::Mutex;
 
 use crate::{
-    lazy_static_ref::LazyStaticRef,
+    late_static_ref::LateStaticRef,
     multikey_map::MultiKeyMap,
     prefix_type::PrefixTypeMetadata,
     utils::leak_value,
@@ -880,7 +880,7 @@ impl CheckingGlobals{
     }
 }
 
-static CHECKING_GLOBALS:LazyStaticRef<CheckingGlobals>=LazyStaticRef::new();
+static CHECKING_GLOBALS:LateStaticRef<CheckingGlobals>=LateStaticRef::new();
 
 pub fn get_checking_globals()->&'static CheckingGlobals{
     CHECKING_GLOBALS.init(||{

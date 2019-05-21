@@ -16,7 +16,7 @@ use std::path::Path;
 use abi_stable::{
     StableAbi,
     package_version_strings,
-    lazy_static_ref::LazyStaticRef,
+    late_static_ref::LateStaticRef,
     library::{LibraryError,LibraryPath, RootModule},
     version::VersionStrings,
     std_types::{RBox, RStr, RString,RVec,RArc},

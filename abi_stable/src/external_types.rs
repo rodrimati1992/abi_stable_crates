@@ -13,3 +13,11 @@ pub mod crossbeam_channel;
 /// This is disabled,
 /// enable the "channels" feature to get ffi-safe wrappers for crossbeam channels.
 pub mod crossbeam_channel{}
+
+
+pub mod parking_lot;
+
+
+pub use self::{
+    parking_lot::{RMutex,RRwLock,ROnce},
+};

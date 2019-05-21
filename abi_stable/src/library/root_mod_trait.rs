@@ -1,12 +1,14 @@
 use super::*;
 
+use crate::utils::leak_value;
+
 
 /**
 The root module of a dynamic library,
 which may contain other modules,function pointers,and static references.
 
 For an example of a type implementing this trait you can look 
-at either the readme.md,
+at either the example in the readme for this crate,
 or the `example/example_*_interface` crates  in this crates' repository .
 
 */
@@ -52,6 +54,20 @@ Gets the root module,returning None if the module is not yet loaded.
     #[inline]
     fn get_module()->Option<&'static Self>{
         Self::root_module_statics().root_mod.get()
+    }
+
+/**
+Gets the RawLibrary of the module,
+returning None if the dynamic library failed to load
+(it doesn't exist or layout checking failed).
+
+Note that if the root module is initialized using `Self::load_module_with`,
+this will return None even though `Self::get_module` does not.
+
+*/
+    #[inline]
+    fn get_raw_library()->Option<&'static RawLibrary>{
+        Self::root_module_statics().raw_lib.get()
     }
 
     /// Returns the path the library would be loaded from,given a directory(folder).
@@ -127,7 +143,8 @@ If the layout of the root module is not the expected one.
 
             // Important,If I don't leak the library after sucessfully loading the root module
             // it would cause any use of the module to be a use after free.
-            mem::forget(raw_library);
+            let raw_lib=leak_value(raw_library);
+            statics.raw_lib.init(|| raw_lib );
 
             Ok(root_mod)
         })

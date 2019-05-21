@@ -34,6 +34,10 @@ Currently this library has these features:
 - Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
     and to get the layout of the type at load-time to check that it is still compatible.
 
+# Changelog
+
+The changelog is in the "Changelog.md" file.
+
 # Example crates
 
 For **example crates** using `abi_stable` you can look at the 
@@ -105,7 +109,7 @@ use abi_stable::{
     StableAbi,
     DynTrait,
     impl_InterfaceType,
-    lazy_static_ref::LazyStaticRef,
+    late_static_ref::LateStaticRef,
     library::{LibraryError,RootModule},
     package_version_strings,
     std_types::{RBox,RString},

@@ -177,7 +177,7 @@ pub mod derive_macro_reexports;
 pub mod std_types;
 
 
-pub mod lazy_static_ref;
+pub mod late_static_ref;
 
 pub mod reflection;
 pub mod type_level;
@@ -218,7 +218,7 @@ pub use crate::{
 #[doc(hidden)]
 pub mod globals{
     use crate::{
-        lazy_static_ref::LazyStaticRef,
+        late_static_ref::LateStaticRef,
         abi_stability::{
             abi_checking::{check_layout_compatibility_for_ffi},
             stable_abi_trait::AbiInfoWrapper,
@@ -242,7 +242,7 @@ pub mod globals{
         }
     }
 
-    pub(crate)static GLOBALS:LazyStaticRef<Globals>=LazyStaticRef::new();
+    pub(crate)static GLOBALS:LateStaticRef<Globals>=LateStaticRef::new();
 
     #[inline(never)]
     pub fn initialized_globals()->&'static Globals{
