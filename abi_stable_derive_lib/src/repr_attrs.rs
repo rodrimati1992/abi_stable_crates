@@ -53,9 +53,9 @@ pub(crate) static REPR_ERROR_MSG:&str="\n\
     the #[repr(..)] attribute must be one of the supported attributes:\n\
     \t- #[repr(C)]\n\
     \t- #[repr(transparent)]\n\
-    \t- #[repr(integer_type_up_to_64_bits)]\n\
-    \t- #[repr(usize)]\n\
-    \t- #[repr(isize)]\n\
+    \t- #[repr(integer_type_up_to_64_bits)]:enums only\n\
+    \t- #[repr(usize)]:enums only\n\
+    \t- #[repr(isize)]:enums only\n\
     \t- #[repr(align(<some_integer>))]\n\
 ";
 
