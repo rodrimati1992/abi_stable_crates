@@ -8,6 +8,7 @@ use super::*;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum LifetimeIndex {
     Static,
+    /// Refers to the nth lifetime parameter of the deriving type.
     Param(usize),
 }
 
@@ -21,18 +22,29 @@ pub enum LifetimeIndex {
 pub struct TLPrefixType {
     /// The first field in the suffix
     pub first_suffix_field:usize,
+    /// Which fields are accessible when the prefix type is instantiated in 
+    /// the same dynlib/binary.
     pub accessible_fields:FieldAccessibility,
+    /// Which fields in the prefix 
+    /// (what comes at and before `#[sabi(last_prefix_field)]`)
+    /// are conditionally accessible 
+    /// (with the `#[sabi(accessible_if=" expression ")]` attribute).
     pub conditional_prefix_fields:StaticSlice<IsConditional>,
+    /// All the fields of the prefix-type,even if they are inaccessible.
     pub fields: StaticSlice<TLField>,
 }
 
 
 /////////////////////////////////////////////////////
 
-
+/// The `repr(..)` attribute used on a type.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum ReprAttr{
+    /// This is an Option<NonZeroType>.
+    OptionNonZero,
+    /// This is a TLData::Primitive.
+    Primitive,
     C(ROption<DiscriminantRepr>),
     Transparent,
     /// Means that only `repr(IntegerType)` was used.
@@ -44,20 +56,34 @@ pub enum ReprAttr{
     }
 }
 
+
+impl ReprAttr{
+    pub const fn c()->Self{
+        ReprAttr::C(RNone)
+    }
+}
+
+
 /////////////////////////////////////////////////////
 
+/**
+A module path.
+*/
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum ModPath{
+    /// An item without a path
     No,
-    With(StaticStr),
+    /// An item in a module.
+    In(StaticStr),
+    /// An item in the prelude.
     Prelude,
 }
 
 
 impl ModPath{
-    pub const fn with(path:&'static str)->Self{
-        ModPath::With(StaticStr::new(path))
+    pub const fn inside(path:&'static str)->Self{
+        ModPath::In(StaticStr::new(path))
     }
 }
 
@@ -70,8 +96,11 @@ impl ModPath{
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 pub struct TLEnumVariant {
+    /// The name of the variant.
     pub name: StaticStr,
+    /// The discriminant of the variant.
     pub discriminant:TLDiscriminant,
+    /// The fields of the variant.
     pub fields: StaticSlice<TLField>,
 }
 
@@ -157,30 +186,12 @@ pub enum DiscriminantRepr {
 }
 
 
-
-/// What primitive type this is.Used mostly for printing the type.
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
-pub enum RustPrimitive {
-    Reference,
-    MutReference,
-    ConstPtr,
-    MutPtr,
-    Array,
-}
-
 ///////////////////////////
 
 
 /// Represents all the generic parameters of a type.
 /// 
-/// This is different for every different generic parameter,
-/// if any one of them changes it won't compare equal,
-/// `<Vec<u32>>::ABI_INFO.get().layout.full_type.generics`
-/// ẁon't compare equal to
-/// `<Vec<()>>::ABI_INFO.get().layout.full_type.generics`
-/// 
-///
+/// If the ammount of lifetimes change,the layouts are considered incompatible,
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 pub struct GenericParams {
@@ -202,6 +213,7 @@ impl GenericParams {
         }
     }
 
+    /// Whether this contains any generic parameters
     pub fn is_empty(&self) -> bool {
         self.lifetime.is_empty() && self.type_.is_empty() && self.const_.is_empty()
     }
@@ -244,19 +256,47 @@ impl Display for GenericParams {
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 pub enum TLData {
-    /// All the bytes for the type are valid (not necessarily all bit patterns).
-    ///
-    /// If you use this variant,
-    /// you must ensure the continuing validity of the same bit-patterns.
-    Primitive,
+    /// Types defined in the compiler.
+    Primitive(TLPrimitive),
     /// For structs and unions.
-    Struct { fields: StaticSlice<TLField> },
+    Struct { 
+        fields: StaticSlice<TLField> 
+    },
     /// For enums.
     Enum {
         variants: StaticSlice<TLEnumVariant>,
     },
     /// vtables and modules that can be extended in minor versions.
     PrefixType(TLPrefixType),
+}
+
+/// Types defined in the compiler
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+pub enum TLPrimitive{
+    U8,
+    I8,
+    U16,
+    I16,
+    U32,
+    I32,
+    U64,
+    I64,
+    Usize,
+    Isize,
+    Bool,
+    /// A `&T`
+    SharedRef,
+    /// A `&mut T`
+    MutRef,
+    /// A `*const T`
+    ConstPtr,
+    /// A `*mut T`
+    MutPtr,
+    /// An array.
+    Array{
+        len:usize,
+    },
 }
 
 
@@ -272,11 +312,17 @@ pub enum TLDataDiscriminant {
 
 
 impl TLData {
+    pub const EMPTY:Self=
+        TLData::Struct {
+            fields: StaticSlice::new(&[]),
+        };
+    
     pub const fn struct_(fields: &'static [TLField]) -> Self {
         TLData::Struct {
             fields: StaticSlice::new(fields),
         }
     }
+    
     pub const fn enum_(variants: &'static [TLEnumVariant]) -> Self {
         TLData::Enum {
             variants: StaticSlice::new(variants),
@@ -317,7 +363,7 @@ impl TLData {
 #[derive(Copy, Clone, PartialEq, StableAbi)]
 pub struct FullType {
     pub name: StaticStr,
-    pub primitive: ROption<RustPrimitive>,
+    pub primitive:ROption<TLPrimitive>,
     pub generics: GenericParams,
 }
 
@@ -325,7 +371,7 @@ pub struct FullType {
 impl FullType {
     pub const fn new(
         name: &'static str,
-        primitive: ROption<RustPrimitive>,
+        primitive: ROption<TLPrimitive>,
         generics: GenericParams,
     ) -> Self {
         Self {
@@ -343,13 +389,21 @@ impl Display for FullType {
 }
 impl Debug for FullType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use self::TLPrimitive as TLP;
+
         let (typename, start_gen, before_ty, ty_sep, end_gen) = match self.primitive {
-            RSome(RustPrimitive::Reference) => ("&", "", " ", " ", " "),
-            RSome(RustPrimitive::MutReference) => ("&", "", " mut ", " ", " "),
-            RSome(RustPrimitive::ConstPtr) => ("*const", " ", "", " ", " "),
-            RSome(RustPrimitive::MutPtr) => ("*mut", " ", "", " ", " "),
-            RSome(RustPrimitive::Array) => ("", "[", "", ";", "]"),
-            RNone => (self.name.as_str(), "<", "", ", ", ">"),
+            RSome(TLP::SharedRef) => ("&", "", " ", " ", " "),
+            RSome(TLP::MutRef) => ("&", "", " mut ", " ", " "),
+            RSome(TLP::ConstPtr) => ("*const", " ", "", " ", " "),
+            RSome(TLP::MutPtr) => ("*mut", " ", "", " ", " "),
+            RSome(TLP::Array{..}) => ("", "[", "", ";", "]"),
+             RSome(TLP::U8)|RSome(TLP::I8)
+            |RSome(TLP::U16)|RSome(TLP::I16)
+            |RSome(TLP::U32)|RSome(TLP::I32)
+            |RSome(TLP::U64)|RSome(TLP::I64)
+            |RSome(TLP::Usize)|RSome(TLP::Isize)
+            |RSome(TLP::Bool)
+            |RNone => (self.name.as_str(), "<", "", ", ", ">"),
         };
 
         fmt::Display::fmt(typename, f)?;
@@ -400,26 +454,26 @@ impl Debug for FullType {
 
 
 
-
+/// A function pointer in a field.
 #[repr(C)]
 #[derive(Debug,Copy, Clone, PartialEq, StableAbi)]
 pub struct TLFunction{
     /// The name of the field this is used inside of.
     pub name: StaticStr,
     
-    /// The named lifetime parameters of function itself.
+    /// The named lifetime parameters of the function itself.
     pub bound_lifetimes: StaticSlice<StaticStr>,
 
     /// The parameters of the function,with names.
     /// 
-    /// Lifetime indices at and after `bound_lifetimes.len()`
-    /// are lifetimes declared in the function pointer.
+    /// Lifetime indices inside mention lifetimes of the function after 
+    /// the ones from the deriving type
     pub params:StaticSlice<TLField>,
 
     /// The return value of the function.
     /// 
-    /// Lifetime indices at and after `bound_lifetimes.len()`
-    /// are lifetimes declared in the function pointer.
+    /// Lifetime indices inside mention lifetimes of the function after 
+    /// the ones from the deriving type
     pub returns:ROption<TLField>,
 }
 

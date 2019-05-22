@@ -27,11 +27,4 @@ use self::{
     stable_abi_trait::{
         GetAbiInfo,
     },
-    type_layout::{
-        LifetimeIndex, TLData, TLField,
-        TypeLayout, TypeLayoutParams,
-        ItemInfo,
-    },
 };
-
-use self::type_layout::RustPrimitive;

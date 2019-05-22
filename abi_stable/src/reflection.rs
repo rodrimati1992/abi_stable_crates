@@ -1,3 +1,6 @@
+/**
+Types and submodules for doing runtime reflection.
+*/
 
 #[cfg(all(test,not(feature="only_new_tests")))]
 pub mod tests{

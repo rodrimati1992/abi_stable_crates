@@ -47,9 +47,9 @@ pub use self::{
         LifetimeIndex,
         ModPath,
         ReprAttr,
-        RustPrimitive,
         TLData,
         TLDataDiscriminant,
+        TLPrimitive,
         TLDiscriminant,
         TLEnumVariant,
         TLFunction,
@@ -69,18 +69,26 @@ pub use self::{
 pub struct TypeLayout {
     pub name: StaticStr,
     // This is (mostly) for the Debug string
+    /// Contains information about where the type was defined.
     pub item_info:CmpIgnored<ItemInfo>,
+    /// The size of the type
     pub size: usize,
+    /// The alignment of the type.
     pub alignment: usize,
+    /// What kind of type this is,Primitive/Struct/Enum/PrefixType.
     pub data: TLData,
+    /// Used for printing the type at runtime,
     pub full_type: FullType,
+    /// Phantom fields,which don't have a runtime component(they aren't stored anywhere).
     pub phantom_fields: StaticSlice<TLField>,
     /// Extra data stored for reflection,
     /// so as to not break the abi every time that more stuff is added for reflection.
     pub reflection_tag:Tag,
+    #[doc(hidden)]
     /// Extra data stored for reflection,
-    /// so as to not break the abi every time that more stuff is added for reflection.
+    /// so as to not break the abi every time that more stuff is added.
     pub private_tag:Tag,
+    /// A json-like data structure used to add extra checks.
     pub tag:Tag,
     pub mod_refl_mode:ModReflMode,
     pub repr_attr:ReprAttr,
@@ -118,6 +126,7 @@ impl TypeLayout {
     pub(crate) const fn from_std<T>(
         type_name: &'static str,
         data: TLData,
+        repr:ReprAttr,
         item_info:ItemInfo,
         generics: GenericParams,
     ) -> Self {
@@ -126,6 +135,7 @@ impl TypeLayout {
             RNone, 
             item_info,
             data, 
+            repr,
             generics, 
             empty_slice()
         )
@@ -133,9 +143,10 @@ impl TypeLayout {
 
     pub(crate) const fn from_std_full<T>(
         type_name: &'static str,
-        prim: ROption<RustPrimitive>,
+        prim: ROption<TLPrimitive>,
         item_info:ItemInfo,
         data: TLData,
+        repr:ReprAttr,
         genparams: GenericParams,
         phantom: &'static [TLField],
     ) -> Self {
@@ -151,7 +162,7 @@ impl TypeLayout {
             private_tag:Tag::null(),
             tag:Tag::null(),
             mod_refl_mode:ModReflMode::Module,
-            repr_attr:ReprAttr::C(RNone),
+            repr_attr:repr,
         }
     }
 

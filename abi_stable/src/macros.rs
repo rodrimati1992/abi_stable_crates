@@ -365,6 +365,10 @@ macro_rules! assert_matches {
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/**
+Constructs a abi_stable::abi_stability::type_layout::ItemInfo,
+with information about the place where it's called.
+*/
 #[macro_export]
 macro_rules! make_item_info {
     () => (
@@ -373,7 +377,7 @@ macro_rules! make_item_info {
             abi_stable::package_version_strings!(),
             file!(),
             line!(),
-            $crate::abi_stability::type_layout::ModPath::with(module_path!()),
+            $crate::abi_stability::type_layout::ModPath::inside(module_path!()),
         )
     )
 }
