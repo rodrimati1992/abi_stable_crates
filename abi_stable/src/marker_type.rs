@@ -5,7 +5,7 @@ Zero-sized types .
 use std::{cell::Cell,marker::PhantomData, rc::Rc};
 
 use crate::{
-    derive_macro_reexports::*, 
+    derive_macro_reexports::{*,ReprAttr},
     std_types::RNone,
 };
 
@@ -97,7 +97,8 @@ unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
         "UnsafeIgnoredType",
         RNone,
         make_item_info!(),
-        TLData::Primitive,
+        TLData::EMPTY,
+        ReprAttr::c(),
         tl_genparams!(;;),
         &[]
     );

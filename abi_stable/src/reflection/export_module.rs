@@ -94,7 +94,7 @@ impl MRItem{
         match layout.mod_refl_mode {
             ModReflMode::Module=>{
                 let fields=match layout.data {
-                    TLData::Primitive=>
+                    TLData::Primitive{..}=>
                         return MRItemVariant::Static,
                     TLData::Struct { fields }=>
                         fields.as_slice(),

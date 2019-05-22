@@ -17,7 +17,7 @@ use super::{
     AbiInfo, AbiInfoWrapper,
     type_layout::{
         TypeLayout, TLData, TLDataDiscriminant, TLEnumVariant, TLField,TLFieldAndType, 
-        FullType, ReprAttr, TLDiscriminant,
+        FullType, ReprAttr, TLDiscriminant,TLPrimitive,
     },
     tagging::{CheckableTag,TagErrors},
 };
@@ -66,6 +66,7 @@ pub enum AbiInstability {
     Alignment(ExpectedFoundError<usize>),
     GenericParamCount(ExpectedFoundError<FullType>),
     TLDataDiscriminant(ExpectedFoundError<TLDataDiscriminant>),
+    MismatchedPrimitive(ExpectedFoundError<TLPrimitive>),
     FieldCountMismatch(ExpectedFoundError<usize>),
     FieldLifetimeMismatch(ExpectedFoundError<TLField>),
     UnexpectedField(ExpectedFoundError<TLField>),
@@ -160,6 +161,7 @@ impl fmt::Display for AbiInstabilityError {
                 ),
 
                 AI::TLDataDiscriminant(v) => ("incompatible data ", v.debug_str()),
+                AI::MismatchedPrimitive(v) => ("incompatible primitive", v.debug_str()),
                 AI::FieldCountMismatch(v) => ("too many fields", v.display_str()),
                 AI::FieldLifetimeMismatch(v) => {
                     ("field references different lifetimes", v.debug_str())
@@ -532,8 +534,15 @@ impl AbiChecker {
             }
 
             match (t_lay.data, o_lay.data) {
-                (TLData::Primitive, TLData::Primitive) => {}
-                (TLData::Primitive, _) => {}
+                (TLData::Primitive(t_prim), TLData::Primitive(o_prim)) => {
+                    if t_prim != o_prim {
+                        errs.push(AI::MismatchedPrimitive(ExpectedFoundError {
+                            expected: t_prim,
+                            found: o_prim,
+                        }));
+                    }
+                }
+                (TLData::Primitive{..}, _) => {}
                 (TLData::Struct { fields: t_fields }, TLData::Struct { fields: o_fields }) => {
                     self.check_fields(
                         errs, 

@@ -81,7 +81,7 @@ impl ItemInfo{
             },
             file:StaticStr::new("<standard_library>"),
             line:0,
-            mod_path:ModPath::with(path),
+            mod_path:ModPath::inside(path),
         }
     }
 
@@ -96,7 +96,7 @@ impl ItemInfo{
             },
             file:StaticStr::new("<unavailable>"),
             line:0,
-            mod_path:ModPath::with(mod_path),
+            mod_path:ModPath::inside(mod_path),
         }
     }
 }
