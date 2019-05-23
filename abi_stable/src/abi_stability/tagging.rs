@@ -723,6 +723,7 @@ impl Display for CheckableTag {
 /////////////////////////////////////////////////////////////////
 
 
+/// The error produced when checking `CheckableTag`s.
 #[derive(Debug,Clone,PartialEq)]
 pub struct TagErrors{
     expected:CheckableTag,
@@ -733,7 +734,7 @@ pub struct TagErrors{
 
 
 impl TagErrors{
-    pub fn context(mut self,current:CheckableTag)->Self{
+    fn context(mut self,current:CheckableTag)->Self{
         self.backtrace.push(current);
         self
     }

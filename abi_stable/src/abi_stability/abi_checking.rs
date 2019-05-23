@@ -534,6 +534,10 @@ impl AbiChecker {
             }
 
             match (t_lay.data, o_lay.data) {
+                (TLData::Opaque{..}, _) => {
+                    // No checks are necessary
+                }
+
                 (TLData::Primitive(t_prim), TLData::Primitive(o_prim)) => {
                     if t_prim != o_prim {
                         errs.push(AI::MismatchedPrimitive(ExpectedFoundError {
@@ -543,6 +547,7 @@ impl AbiChecker {
                     }
                 }
                 (TLData::Primitive{..}, _) => {}
+                
                 (TLData::Struct { fields: t_fields }, TLData::Struct { fields: o_fields }) => {
                     self.check_fields(
                         errs, 
@@ -554,6 +559,19 @@ impl AbiChecker {
                     );
                 }
                 (TLData::Struct { .. }, _) => {}
+                
+                (TLData::Union { fields: t_fields }, TLData::Union { fields: o_fields }) => {
+                    self.check_fields(
+                        errs, 
+                        this.layout,
+                        other.layout,
+                        FieldContext::Fields, 
+                        &t_fields, 
+                        &o_fields
+                    );
+                }
+                (TLData::Union { .. }, _) => {}
+                
                 (TLData::Enum { variants: t_varis }, TLData::Enum { variants: o_varis }) => {
                     let t_varis = t_varis.as_slice();
                     let o_varis = o_varis.as_slice();
@@ -589,6 +607,7 @@ impl AbiChecker {
                     }
                 }
                 (TLData::Enum { .. }, _) => {}
+                
                 (
                     TLData::PrefixType (t_prefix),
                     TLData::PrefixType (o_prefix),

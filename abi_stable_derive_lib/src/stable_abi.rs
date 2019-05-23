@@ -97,9 +97,12 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
             (false,None)=>{
                 let struct_=&ds.variants[0];
 
-                to_stream!(ts;
-                    ct.tl_data,ct.colon2,ct.struct_under
-                );
+                to_stream!(ts;ct.tl_data,ct.colon2);
+                match ds.data_variant {
+                    DataVariant::Struct=>&ct.struct_under,
+                    DataVariant::Union=>&ct.union_under,
+                    DataVariant::Enum=>unreachable!(),
+                }.to_tokens(ts);
                 ct.paren.surround(ts,|ts|{
                     ct.and_.to_tokens(ts);
                     ct.bracket.surround(ts,|ts|{

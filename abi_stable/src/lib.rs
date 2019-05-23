@@ -21,7 +21,10 @@ Currently this library has these features:
 
 - ffi-safe equivalent of trait objects for any combination of a selection of traits.
 
-- Provides ffi-safe alternatives to many standard library types..
+- Provides ffi-safe alternatives/wrappers for many standard library types,
+    in the `std_types` module.
+
+- Provides ffi-safe wrappers for some crates,in the `external_types` module.
 
 - Provides the `StableAbi` trait for asserting that types are ffi-safe.
 
@@ -35,8 +38,8 @@ Currently this library has these features:
 
 # Examples
 
-For **examples** of using `abi_stable` you can look at the crates in the examples directory ,
-in the repository for this crate.
+For **examples** of using `abi_stable` you can look at the readme,
+or for the crates in the examples directory in the repository for this crate.
 
 To run the examples generally you'll have to build the `*_impl` crate,
 then run the `*_user` crate (all `*_user` crates should have a help message and a readme.md).

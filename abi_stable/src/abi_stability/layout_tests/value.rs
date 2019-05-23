@@ -17,6 +17,62 @@ use crate::{
     *,
 };
 
+
+mod union_1a {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x: u32,
+    }
+}
+
+mod union_1b {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x_alt: u32,
+    }
+}
+
+mod union_2a {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x: u32,
+        y: u32,
+    }
+}
+
+mod union_2b {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x: u32,
+        y_alt: u32,
+    }
+}
+
+mod union_3 {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x: u32,
+        y: u32,
+        w: u16,
+    }
+}
+
+mod union_4 {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x: u32,
+        y: u32,
+        w: u16,
+        h: u32,
+    }
+}
+
 mod regular {
     #[repr(C)]
     #[derive(StableAbi)]
@@ -264,6 +320,12 @@ fn same_different_abi_stability() {
         <Tagged<TAG_DEFAULT_4>>::ABI_INFO,
         <Tagged<TAG_DEFAULT_5>>::ABI_INFO,
         <Tagged<TAG_DEFAULT_6>>::ABI_INFO,
+        <union_1a::Union>::ABI_INFO,
+        <union_1b::Union>::ABI_INFO,
+        <union_2a::Union>::ABI_INFO,
+        <union_2b::Union>::ABI_INFO,
+        <union_3::Union>::ABI_INFO,
+        <union_4::Union>::ABI_INFO,
         // <&prefix0::Prefix>::ABI_INFO,
         // <*const prefix0::Prefix>::ABI_INFO,
         // <RArc<prefix0::Prefix>>::ABI_INFO,

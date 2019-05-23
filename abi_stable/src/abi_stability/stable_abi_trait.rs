@@ -802,7 +802,7 @@ unsafe impl SharedStableAbi for core_extensions::Void {
     const S_LAYOUT: &'static TypeLayout =
         &TypeLayout::from_params::<Self>(TypeLayoutParams {
             name: "Void",
-            item_info:ItemInfo::package_and_mod("core_extensions","core_extensions::Void"),
+            item_info:ItemInfo::package_and_mod("core_extensions","core_extensions"),
             data: TLData::enum_(&[]),
             generics: tl_genparams!(;;),
         });
@@ -868,13 +868,13 @@ unsafe impl<T> SharedStableAbi for UnsafeOpaqueField<T> {
     type Kind=ValueKind;
     type IsNonZeroType = False;
 
-    /// it is fine to use `()` because this type is treated as a primitive anyway.
+    /// it is fine to use `()` because this type is treated as opaque anyway.
     type StaticEquivalent=();
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_params::<Self>(TypeLayoutParams {
         name: "OpaqueField",
         item_info:make_item_info!(),
-        data: TLData::EMPTY,
+        data: TLData::Opaque,
         generics: tl_genparams!(;;),
     });
 }
