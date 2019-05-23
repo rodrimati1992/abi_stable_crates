@@ -21,7 +21,10 @@ Currently this library has these features:
 
 - ffi-safe equivalent of trait objects for any combination of a selection of traits.
 
-- Provides ffi-safe alternatives to many standard library types..
+- Provides ffi-safe alternatives/wrappers for many standard library types,
+    in the `std_types` module.
+
+- Provides ffi-safe wrappers for some crates,in the `external_types` module.
 
 - Provides the `StableAbi` trait for asserting that types are ffi-safe.
 
@@ -35,8 +38,8 @@ Currently this library has these features:
 
 # Examples
 
-For **examples** of using `abi_stable` you can look at the crates in the examples directory ,
-in the repository for this crate.
+For **examples** of using `abi_stable` you can look at the readme,
+or for the crates in the examples directory in the repository for this crate.
 
 To run the examples generally you'll have to build the `*_impl` crate,
 then run the `*_user` crate (all `*_user` crates should have a help message and a readme.md).
@@ -113,13 +116,15 @@ extern crate serde_derive;
 #[macro_use(StableAbi)]
 extern crate abi_stable_derive;
 
+extern crate self as abi_stable;
+
 
 #[doc(inline)]
 pub use abi_stable_derive::StableAbi;
 
 #[doc(inline)]
 pub use abi_stable_derive::{
-    export_sabi_module,
+    export_root_module,
     impl_InterfaceType,
 };
 
@@ -139,6 +144,9 @@ mod test_macros;
 #[macro_use]
 mod test_utils;
 
+#[cfg(test)]
+mod misc_tests;
+
 #[macro_use]
 pub mod utils;
 
@@ -154,7 +162,9 @@ pub mod abi_stability;
 // pub mod cabi_type;
 // pub mod as_proxy;
 pub mod erased_types;
+pub mod external_types;
 // pub mod immovable_wrapper;
+#[macro_use]
 pub mod library;
 pub mod ignored_wrapper;
 pub mod marker_type;
@@ -170,13 +180,18 @@ pub mod derive_macro_reexports;
 pub mod std_types;
 
 
-pub mod lazy_static_ref;
+pub mod late_static_ref;
+
+pub mod reflection;
 pub mod type_level;
 pub mod version;
 
 pub mod docs;
 
 
+/// The header used to identify the version number of abi_stable
+/// that a dynamic libraries uses.
+pub static LIB_HEADER:library::AbiHeader=library::AbiHeader::VALUE;
 
 
 /// Miscelaneous items re-exported from core_extensions.
@@ -206,9 +221,9 @@ pub use crate::{
 #[doc(hidden)]
 pub mod globals{
     use crate::{
-        lazy_static_ref::LazyStaticRef,
+        late_static_ref::LateStaticRef,
         abi_stability::{
-            abi_checking::{check_abi_stability_for_ffi},
+            abi_checking::{check_layout_compatibility_for_ffi},
             stable_abi_trait::AbiInfoWrapper,
         },
         std_types::{RResult,RBoxError},
@@ -217,7 +232,6 @@ pub mod globals{
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Globals{
         pub layout_checking:
             extern fn(&'static AbiInfoWrapper,&'static AbiInfoWrapper) -> RResult<(), RBoxError> ,
@@ -226,12 +240,12 @@ pub mod globals{
     impl Globals{
         pub fn new()->&'static Self{
             leak_value(Globals{
-                layout_checking:check_abi_stability_for_ffi,
+                layout_checking:check_layout_compatibility_for_ffi,
             })
         }
     }
 
-    pub(crate)static GLOBALS:LazyStaticRef<Globals>=LazyStaticRef::new();
+    pub(crate)static GLOBALS:LateStaticRef<Globals>=LateStaticRef::new();
 
     #[inline(never)]
     pub fn initialized_globals()->&'static Globals{
@@ -239,14 +253,8 @@ pub mod globals{
     }
 
 
-    pub type InitializeGlobalsWithFn=
-        extern "C" fn(&'static Globals);
-
-
     #[inline(never)]
     pub extern fn initialize_globals_with(globs:&'static Globals){
-        let _:InitializeGlobalsWithFn=initialize_globals_with;
-
         GLOBALS.init(|| globs );
     }
 }

@@ -5,7 +5,7 @@ Zero-sized types .
 use std::{cell::Cell,marker::PhantomData, rc::Rc};
 
 use crate::{
-    derive_macro_reexports::*, 
+    derive_macro_reexports::{*,ReprAttr},
     std_types::RNone,
 };
 
@@ -14,13 +14,11 @@ use crate::{
 /// Marker type used to mark a type as being Send+Sync.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct SyncSend;
 
 /// Marker type used to mark a type as being !Send+!Sync.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct UnsyncUnsend {
     _marker: UnsafeIgnoredType<Rc<()>>,
 }
@@ -28,7 +26,6 @@ pub struct UnsyncUnsend {
 /// Marker type used to mark a type as being Send+!Sync.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct UnsyncSend {
     _marker: UnsafeIgnoredType<Cell<()>>,
 }
@@ -39,7 +36,6 @@ pub struct UnsyncSend {
 /// it is semantically an error to do so.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct NotCopyNotClone;
 
 
@@ -48,7 +44,6 @@ pub struct NotCopyNotClone;
 ///
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct ErasedObject{
     _priv: [u8; 0],
 }
@@ -98,10 +93,12 @@ unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
     type Kind=ValueKind;
     type StaticEquivalent=();
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_lib_phantom::<Self>(
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "UnsafeIgnoredType",
         RNone,
-        TLData::Primitive,
+        make_item_info!(),
+        TLData::EMPTY,
+        ReprAttr::c(),
         tl_genparams!(;;),
         &[]
     );

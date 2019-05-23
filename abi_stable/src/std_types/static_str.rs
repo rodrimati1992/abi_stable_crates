@@ -24,7 +24,6 @@ mod inner {
     /// Wrapper type around `&'static str` as a workaround for the
     /// non-stable-constness of str::len.
     #[derive(Copy, Clone, StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     #[repr(C)]
     pub struct StaticStr {
         #[sabi(unsafe_opaque_field)]

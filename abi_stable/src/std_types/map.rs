@@ -32,7 +32,7 @@ mod iterator_stuff;
 mod map_query;
 mod map_key;
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod test;
 
 use self::{
@@ -61,7 +61,6 @@ Most of the API in `HashMap` is implemented here,including the Entry API.
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    inside_abi_stable_crate,
     // The hasher doesn't matter
     unconstrained(S),
 )]
@@ -99,7 +98,6 @@ pub type Drain<'a,K,V>=
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    inside_abi_stable_crate,
     // The hasher doesn't matter
     unconstrained(S),
 )]
@@ -665,7 +663,6 @@ mod serde{
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    inside_abi_stable_crate,
     kind(Prefix(prefix_struct="VTable")),
     missing_field(panic),
     // The hasher doesn't matter

@@ -238,16 +238,14 @@ use crate::{
 /// For more information [look at the module-level documentation](./index.html)
 #[repr(C)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct Tag{
     variant:TagVariant,
 }
 
 
 /// All the Tag variants.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum TagVariant{
     Primitive(Primitive),
     Ignored(&'static Tag),
@@ -258,9 +256,8 @@ pub enum TagVariant{
 
 
 /// The primitive types of a variant,which do not contain other nested tags.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum Primitive{
     Null,
     Bool(bool),
@@ -272,15 +269,13 @@ pub enum Primitive{
 /// A tag that can be checked for compatibility with another tag.
 #[repr(C)]
 #[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct CheckableTag{
     variant:CTVariant,
 }
 
 /// The possible variants of CheckableTag.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum CTVariant{
     Primitive(Primitive),
     Ignored(RBox<CheckableTag>),
@@ -294,7 +289,6 @@ pub enum CTVariant{
 /// A key-value pair,used when constructing a map.
 #[repr(C)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct KeyValue<T>{
     pub key:T,
     pub value:T,
@@ -729,6 +723,7 @@ impl Display for CheckableTag {
 /////////////////////////////////////////////////////////////////
 
 
+/// The error produced when checking `CheckableTag`s.
 #[derive(Debug,Clone,PartialEq)]
 pub struct TagErrors{
     expected:CheckableTag,
@@ -739,7 +734,7 @@ pub struct TagErrors{
 
 
 impl TagErrors{
-    pub fn context(mut self,current:CheckableTag)->Self{
+    fn context(mut self,current:CheckableTag)->Self{
         self.backtrace.push(current);
         self
     }
@@ -772,9 +767,8 @@ impl Display for TagErrors {
 /////////////////////////////////////////////////////////////////
 
 
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug,Clone,PartialEq,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum TagErrorVariant{
     MismatchedDiscriminant,
     MismatchedValue,

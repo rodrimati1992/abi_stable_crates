@@ -18,11 +18,13 @@ use core_extensions::SelfOps;
 
 
 mod accessible_fields;
+mod empty_prefix;
 mod layout;
 mod pt_metadata;
 
 pub use self::{
     accessible_fields::{FieldAccessibility,IsAccessible},
+    empty_prefix::EmptyPrefixType,
     layout::{PTStructLayout,PTStructLayoutParams,PTField},
 };
 
@@ -167,9 +169,8 @@ pub struct WithMetadataFor<T,P>{
 /// Whether a field is conditional,
 /// whether it has a `#[sabi(accessible_if=" expression ")]` attribute or not.
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
-#[repr(C)]
+#[repr(u8)]
 pub enum IsConditional{
     No=0,
     Yes=1,

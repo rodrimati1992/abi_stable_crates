@@ -8,13 +8,13 @@ use testing_interface_0::{
 };
 
 use abi_stable::{
-    export_sabi_module,
+    export_root_module,
     extern_fn_panic_handling, 
-    library::WithLayout,
     prefix_type::PrefixTypeTrait,
     traits::{IntoReprC},
     std_types::{RStr,RBox,RVec,RArc, RString}, 
 };
+#[allow(unused_imports)]
 use core_extensions::{SelfOps};
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -22,10 +22,10 @@ use core_extensions::{SelfOps};
 
 /// Exports the root module of this library.
 ///
-/// WithLayout is used to check that the layout of `TextOpsMod` in this dynamic library
+/// LibHeader is used to check that the layout of `TextOpsMod` in this dynamic library
 /// is compatible with the layout of it in the binary that loads this library.
-#[export_sabi_module]
-pub extern "C" fn get_library() -> WithLayout<TestingMod> {
+#[export_root_module]
+pub extern "C" fn get_library() -> &'static TestingMod {
     extern_fn_panic_handling!{
         TestingModVal{
             greeter,
@@ -34,7 +34,6 @@ pub extern "C" fn get_library() -> WithLayout<TestingMod> {
                 field_a:123,
             }.leak_into_prefix(),
         }.leak_into_prefix()
-            .piped(WithLayout::from_prefix)
     }
 }
 

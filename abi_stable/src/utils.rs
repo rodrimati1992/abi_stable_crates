@@ -16,7 +16,6 @@ use core_extensions::{
 use crate::std_types::RString;
 
 
-
 //////////////////////////////////////
 
 
@@ -197,3 +196,53 @@ macro_rules! impl_fmt_padding {
 
 impl_fmt_padding!{ String }
 impl_fmt_padding!{ RString }
+
+
+
+
+//////////////////////////////////////////////////////////////////////
+
+/// Newtype wrapper for functions which construct constants.
+///
+/// Declared to pass a function pointers to const fn.
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct Constructor<T>(pub extern fn()->T);
+
+impl<T> Copy for Constructor<T>{}
+
+impl<T> Clone for Constructor<T>{
+    fn clone(&self)->Self{
+        *self
+    }
+}
+
+//////////////////////////////////////////////////////////////////////
+
+/// Either the constructor for a value or the value itself
+#[repr(u8)]
+#[derive(StableAbi,Copy,Clone)]
+pub enum ConstructorOrValue<T>{
+    /// This is an `extern fn()->T` which is used to construct a value of type `T`
+    Constructor(Constructor<T>),
+    /// A value of type `T`
+    Value(T)
+}
+
+impl<T> ConstructorOrValue<T>{
+    /// Gets the wrapped value,computing it from its constructor if this 
+    /// is the `Constructor` variant
+    pub fn get(&mut self)->&T{
+        match self {
+            ConstructorOrValue::Value(v)=>v,
+            &mut ConstructorOrValue::Constructor(func)=>{
+                let v=(func.0)();
+                *self=ConstructorOrValue::Value(v);
+                match self {
+                    ConstructorOrValue::Value(v)=>v,
+                    _=>unreachable!()
+                }
+            },
+        }
+    }
+}

@@ -40,7 +40,6 @@ mod test;
 /// 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct RBoxError_<M = SyncSend> {
     value: RBox<ErasedObject>,
     vtable: &'static RErrorVTable,
@@ -322,7 +321,6 @@ from_impls!{ Box<dyn ErrorTrait + 'static> , UnsyncUnsend }
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 #[sabi(kind(Prefix(prefix_struct="RErrorVTable")))]
 struct RErrorVTableVal {
     debug: extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,

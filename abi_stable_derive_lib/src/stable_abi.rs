@@ -3,11 +3,13 @@
 use crate::*;
 
 use crate::{
-    attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions,Repr},
+    attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions},
     datastructure::{DataStructure,DataVariant,Struct,Field},
     to_token_fn::ToTokenFnMut,
-    fn_pointer_extractor::ParamOrReturn,
+    fn_pointer_extractor::{FnParamRet},
     prefix_types::prefix_type_tokenizer,
+    repr_attrs::ReprAttr,
+    reflection::ModReflMode,
 };
 
 
@@ -20,7 +22,7 @@ use core_extensions::{
 
 };
 
-use arrayvec::ArrayString;
+
 
 
 
@@ -65,7 +67,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         StabilityKind::Value=>quote!(Self),
     };
     
-    let is_transparent=config.repr==Repr::Transparent ;
+    let repr=config.repr;
+
+    let is_transparent=config.repr==ReprAttr::Transparent ;
     let is_enum=ds.data_variant==DataVariant::Enum;
     let prefix=match &config.kind {
         StabilityKind::Prefix(prefix)=>Some(prefix),
@@ -93,9 +97,12 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
             (false,None)=>{
                 let struct_=&ds.variants[0];
 
-                to_stream!(ts;
-                    ct.tl_data,ct.colon2,ct.struct_under
-                );
+                to_stream!(ts;ct.tl_data,ct.colon2);
+                match ds.data_variant {
+                    DataVariant::Struct=>&ct.struct_under,
+                    DataVariant::Union=>&ct.union_under,
+                    DataVariant::Enum=>unreachable!(),
+                }.to_tokens(ts);
                 ct.paren.surround(ts,|ts|{
                     ct.and_.to_tokens(ts);
                     ct.bracket.surround(ts,|ts|{
@@ -120,7 +127,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 }
 
                 let struct_=&ds.variants[0];
-                let first_suffix_field=prefix.first_suffix_field;
+                let first_suffix_field=prefix.first_suffix_field.field_pos;
                 let fields=fields_tokenizer(struct_,config,ct);
                 
                 quote!(
@@ -150,7 +157,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let type_params_for_generics=
         type_params.iter().filter(|&x| !config.unconstrained_type_params.contains_key(x) );
     
-
     // For `type StaticEquivalent= ... ;`
     let lifetimes_s=lifetimes.iter().map(|_| &ctokens.static_lt );
     let type_params_s=ToTokenFnMut::new(|ts|{
@@ -177,19 +183,22 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let stable_abi_bounded =&config.stable_abi_bounded;
     let extra_bounds       =&config.extra_bounds;
     
-    let inside_abi_stable_crate=if config.inside_abi_stable_crate { 
-        quote!(pub(super) use crate as abi_stable;)
-    }else{ 
-        quote!(pub(super) use ::abi_stable;)
-    };
-
-    let import_group=if config.inside_abi_stable_crate { 
-        quote!(crate)
-    }else{ 
-        quote!(abi_stable)
-    };
-
     let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens);
+
+    let mod_refl_mode=match config.mod_refl_mode {
+        ModReflMode::Module=>quote!( __ModReflMode::Module ),
+        ModReflMode::Opaque=>quote!( __ModReflMode::Opaque ),
+        ModReflMode::DelegateDeref(field_index)=>{
+            quote!(
+                __ModReflMode::DelegateDeref{
+                    phantom_field_index:#field_index
+                }
+            )
+        }
+    };
+
+    let phantom_field_names=config.phantom_fields.iter().map(|x| x.0 );
+    let phantom_field_tys  =config.phantom_fields.iter().map(|x| x.1 );
 
     quote!(
         #prefix_type_tokenizer_
@@ -197,10 +206,10 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         mod #module {
             use super::*;
 
-            #inside_abi_stable_crate
+            pub(super) use ::abi_stable;
 
             #[allow(unused_imports)]
-            pub(super) use #import_group::derive_macro_reexports::{
+            pub(super) use ::abi_stable::derive_macro_reexports::{
                 self as _sabi_reexports,
                 renamed::*,
             };
@@ -221,23 +230,30 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 >;
 
                 const S_LAYOUT: &'static _sabi_reexports::TypeLayout = {
-                    &_sabi_reexports::TypeLayout::from_params::<#size_align_for>(
-                        {
-                            __TypeLayoutParams {
-                                name: #stringified_name,
-                                package: env!("CARGO_PKG_NAME"),
-                                package_version: abi_stable::package_version_strings!(),
-                                file:file!(),
-                                line:line!(),
-                                data: #data_variant,
-                                generics: abi_stable::tl_genparams!(
-                                    #(#lifetimes),*;
-                                    #(#type_params_for_generics),*;
-                                    #(#const_params),*
-                                ),
-                                phantom_fields: &[],
-                                tag:#tags,
-                            }
+                    &_sabi_reexports::TypeLayout::from_derive::<#size_align_for>(
+                        __private_TypeLayoutDerive {
+                            name: #stringified_name,
+                            item_info:abi_stable::make_item_info!(),
+                            data: #data_variant,
+                            generics: abi_stable::tl_genparams!(
+                                #(#lifetimes),*;
+                                #(#type_params_for_generics),*;
+                                #(#const_params),*
+                            ),
+                            phantom_fields:&[
+                                #(
+                                    __TLField::new(
+                                        #phantom_field_names,
+                                        &[],
+                                        <#phantom_field_tys as 
+                                            __MakeGetAbiInfo<__StableAbi_Bound>
+                                        >::CONST,
+                                    ),
+                                )*
+                            ],
+                            tag:#tags,
+                            mod_refl_mode:#mod_refl_mode,
+                            repr_attr:#repr,
                         }
                     )
                 };
@@ -278,6 +294,9 @@ fn variants_tokenizer<'a>(
                     fields_tokenizer(variant,config,ct).to_tokens(ts);
                 })
             });
+
+            to_stream!(ts; config.repr.tokenize_discriminant_expr(variant.discriminant) );
+
             to_stream!(ts; ct.comma );
         }
     })
@@ -314,13 +333,14 @@ fn fields_tokenizer<'a>(
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
         for field in &struct_.fields {
-            field_tokenizer(field,config,ctokens)
+            field_tokenizer(struct_,field,config,ctokens)
                 .to_tokens(ts);
         } 
     })
 }
 
 fn field_tokenizer<'a>(
+    _struct_:&'a Struct<'a>,
     field:&'a Field<'a>,
     config:&'a StableAbiOptions<'a>,
     ctokens:&'a CommonTokens<'a>,
@@ -329,12 +349,9 @@ fn field_tokenizer<'a>(
     ToTokenFnMut::new(move|ts|{
         let ct=ctokens;
 
-        to_stream!{ts; ct.tl_field,ct.colon2,ct.with_subfields };
+        to_stream!{ts; ct.tl_field,ct.colon2,ct.with_functions };
         ct.paren.surround(ts,|ts|{
-            let name=config.renamed_fields
-                .get(&(field as *const _))
-                .cloned()
-                .unwrap_or(field.ident());
+            let name=config.renamed_fields[field].unwrap_or(field.ident());
 
             to_stream!(ts; name.to_string() ,ct.comma );
             to_stream!(ts; ct.and_ );
@@ -347,8 +364,8 @@ fn field_tokenizer<'a>(
             to_stream!{ts; ct.comma };
 
             let impls_sabi=true;
-            let field_ptr:*const Field<'_>=field;
-            let is_opaque_field=config.opaque_fields.contains(&field_ptr);
+
+            let is_opaque_field=config.opaque_fields[field];
 
             let flavor=match (is_opaque_field,impls_sabi) {
                 (false,false)=>&ct.stable_abi_bound,
@@ -356,62 +373,81 @@ fn field_tokenizer<'a>(
                 (true ,_    )=>&ct.unsafe_opaque_field_bound,
             };
 
-            // println!(
-            //     "field:`{}:{}` impls_sabi={} is_opaque_field={} ptr={:?}\n\
-            //      opaque_fields:{:?}\n\
-            //     ",
-            //     field.ident(),
-            //     (&field.mutated_ty).into_token_stream(),
-            //     impls_sabi,
-            //     is_opaque_field,
-            //     field_ptr,
-            //     config.opaque_fields,
-            // );
-
             make_get_abi_info_tokenizer(&field.mutated_ty,flavor,ct).to_tokens(ts);
 
             to_stream!(ts;ct.comma);
             
             to_stream!(ts;ct.and_);
             ct.bracket.surround(ts,|ts|{
-                use std::fmt::Write;
-                
-                let mut buffer=ArrayString::<[u8;64]>::new();
                 for (fn_i,func) in field.functions.iter().enumerate() {
-                    for (i,pr) in func.params.iter().chain(&func.returns).enumerate() {
-                        buffer.clear();
-                        write!(buffer,"fn_{}_",fn_i).drop_();
-                        
-                        match pr.param_or_ret {
-                            ParamOrReturn::Param=>write!(buffer,"p_{}",i),
-                            ParamOrReturn::Return=>write!(buffer,"returns"),
-                        }.drop_();
-                        let field_name=&*buffer;
-                        let lifetime_refs=pr.lifetime_refs_tokenizer(ctokens);
-                        // println!("{}={:?}",field_name,pr.mutated_ty);
-                        
-                        to_stream!{ts; ct.tl_field,ct.colon2,ct.new };
-                        ct.paren.surround(ts,|ts|{
-                            to_stream!(ts; field_name,ct.comma );
 
-                            to_stream!(ts; ct.and_ );
-                            ct.bracket.surround(ts,|ts| lifetime_refs.to_tokens(ts) );
+                    let pr_tokenizer=move|pr:&'a FnParamRet<'a>|{
+                        ToTokenFnMut::new(move|ts|{
+                            let field_name=pr.name;
+                            let lifetime_refs=pr.lifetime_refs_tokenizer(ctokens);
                             
-                            to_stream!(ts; ct.comma );
+                            to_stream!{ts; ct.tl_field,ct.colon2,ct.new };
+                            ct.paren.surround(ts,|ts|{
+                                to_stream!(ts; field_name,ct.comma );
 
-                            make_get_abi_info_tokenizer(
-                                pr.ty,
-                                &ct.stable_abi_bound,
-                                ct,
-                            ).to_tokens(ts);
-                        });
+                                to_stream!(ts; ct.and_ );
+                                ct.bracket.surround(ts,|ts| lifetime_refs.to_tokens(ts) );
+                                
+                                to_stream!(ts; ct.comma );
 
-                        ct.comma.to_tokens(ts);
-                    }
+                                make_get_abi_info_tokenizer(
+                                    pr.ty,
+                                    &ct.stable_abi_bound,
+                                    ct,
+                                ).to_tokens(ts);
+                            });
+                        })
+                    };
+
+                    let fn_name=if field.is_function {
+                        format!("fn_{}",fn_i)
+                    }else{
+                        field.ident().to_string()
+                    };
+
+                    let bound_lifetimes=func.named_bound_lts.iter().map(|x| x.to_string() );
+                    
+                    let params=func.params.iter().map(pr_tokenizer);
+
+                    let returns=match func.returns.as_ref() {
+                        Some(returns)=>{
+                            let returns=pr_tokenizer(returns);
+                            quote!( _sabi_reexports::RSome(#returns) )
+                        },
+                        None=>
+                            quote!( _sabi_reexports::RNone ),
+                    };
+
+                    quote!(
+                        __TLFunction::new(
+                            #fn_name,
+
+                            &[ #( __StaticStr::new(#bound_lifetimes) ),* ],
+
+                            &[ #( #params ),* ],
+
+                            #returns,
+                        ),
+                    ).to_tokens(ts);
+
                 }
 
             });
+            to_stream!{ts; ct.comma };
+
+            field.is_function.to_tokens(ts);
         });
+
+        let field_acc=config.override_field_accessor[field]
+            .unwrap_or_else(|| config.kind.field_accessor(config.mod_refl_mode,field) );
+            
+        quote!( .set_field_accessor(#field_acc) ).to_tokens(ts);
+
         to_stream!{ts; ct.comma }
     })
 }

@@ -22,7 +22,6 @@ pub(super) enum BoxedREntry<'a,K,V>{
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    inside_abi_stable_crate,
     bound="K:'a",
     bound="V:'a",
 )]
@@ -37,12 +36,10 @@ pub enum REntry<'a,K,V>{
 
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(inside_abi_stable_crate)]
 struct ErasedOccupiedEntry<K,V>(PhantomData<Tuple2<K,V>>);
 
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(inside_abi_stable_crate)]
 struct ErasedVacantEntry  <K,V>(PhantomData<Tuple2<K,V>>);
 
 type UnerasedOccupiedEntry<'a,K,V>=
@@ -188,7 +185,6 @@ where
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    inside_abi_stable_crate,
     bound="K:'a",
     bound="V:'a",
 )]
@@ -202,7 +198,6 @@ pub struct ROccupiedEntry<'a,K,V>{
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    inside_abi_stable_crate,
     bound="K:'a",
     bound="V:'a",
 )]
@@ -386,7 +381,6 @@ impl<'a,K,V> Drop for RVacantEntry<'a,K,V>{
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    inside_abi_stable_crate,
     kind(Prefix(prefix_struct="OccupiedVTable")),
     missing_field(panic),
 )]
@@ -489,7 +483,6 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    inside_abi_stable_crate,
     kind(Prefix(prefix_struct="VacantVTable")),
     missing_field(panic),
 )]

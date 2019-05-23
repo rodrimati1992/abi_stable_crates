@@ -12,7 +12,7 @@ use rand::{
 
 use crate::{
     abi_stability::{
-        abi_checking::{AbiInstability,CheckingGlobals,check_abi_stability_with_globals},
+        abi_checking::{AbiInstability,CheckingGlobals,check_layout_compatibility_with_globals},
         stable_abi_trait::AbiInfo,
         AbiInfoWrapper, 
     },
@@ -34,7 +34,6 @@ where T:From<u8>
 mod prefix0 {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     // #[sabi(debug_print)]
     #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     pub struct PrefixVal {
@@ -48,7 +47,6 @@ mod prefix1 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         // debug_print,
         kind(Prefix(prefix_struct="Prefix")),
         missing_field(with="custom_default::<_>"),
@@ -63,7 +61,6 @@ mod prefix1 {
 mod prefix2 {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     #[sabi(missing_field(default))]
     pub struct PrefixVal {
@@ -79,7 +76,6 @@ mod prefix2_misaligned {
     #[repr(C,align(16))]
     #[derive(StableAbi)]
     // #[sabi(debug_print)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     pub struct PrefixVal {
         #[sabi(last_prefix_field)]
@@ -92,7 +88,6 @@ mod prefix2_misaligned {
 mod prefix2_different_prefix {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     pub struct PrefixVal {
         pub field0: u8,
@@ -105,7 +100,6 @@ mod prefix2_different_prefix {
 mod prefix3 {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(kind(Prefix(prefix_struct="Prefix")))]
     #[sabi(missing_field(panic))]
     pub struct PrefixVal {
@@ -181,10 +175,10 @@ fn prefixes_test() {
             let value_len=prefix_type_map.value_len();
             let key_len=prefix_type_map.key_len();
             // Not dropping it here causes a deadlock inside 
-            // check_abi_stability_with_globals.
+            // check_layout_compatibility_with_globals.
             drop(prefix_type_map);
 
-            let res = check_abi_stability_with_globals(this, other,&globals);
+            let res = check_layout_compatibility_with_globals(this, other,&globals);
 
             let prefix_type_map=globals.prefix_type_map.lock().unwrap();
             if t_prefix.fields.len() <= o_prefix.fields.len() {
@@ -270,7 +264,7 @@ fn check_interface_impl_pair(
     let t_prefix=PrefixTypeMetadata::new(deref_this.layout);
     let o_prefix=PrefixTypeMetadata::new(deref_other.layout);
 
-    if let Err(e)=check_abi_stability_with_globals(this,other,&globals) {
+    if let Err(e)=check_layout_compatibility_with_globals(this,other,&globals) {
         if t_prefix.fields.len() <= o_prefix.fields.len() {
             panic!("{:#?}",e);
         }else{
@@ -358,7 +352,7 @@ fn prefix_is_same_alignment(){
     let misaligned = <&prefix2_misaligned::Prefix>::ABI_INFO;
 
     for pref in vec![ PREF_0,PREF_1 ] {
-        let errs = check_abi_stability_with_globals(pref, misaligned,&globals)
+        let errs = check_layout_compatibility_with_globals(pref, misaligned,&globals)
             .unwrap_err()
             .flatten_errors();
 
@@ -378,7 +372,7 @@ fn prefix_is_same_size(){
 
     for pref in list.iter().cloned() {
         let mismatched_prefix=<&prefix2_different_prefix::Prefix>::ABI_INFO;
-        let errs = check_abi_stability_with_globals(pref,mismatched_prefix ,&globals)
+        let errs = check_layout_compatibility_with_globals(pref,mismatched_prefix ,&globals)
             .unwrap_err()
             .flatten_errors();
 
@@ -566,7 +560,6 @@ mod cond_fields_0 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -586,7 +579,6 @@ mod cond_fields_1 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -609,7 +601,6 @@ mod cond_fields_2 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -636,7 +627,6 @@ mod cond_fields_2_misaligned {
     #[repr(C,align(16))]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -662,7 +652,6 @@ mod cond_fields_2_different_prefix {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -689,7 +678,6 @@ mod cond_fields_3 {
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -719,7 +707,6 @@ mod cond_fields_3_uncond_prefix {
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
-        inside_abi_stable_crate,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
         unconstrained(C),
@@ -844,7 +831,7 @@ fn prefix_cond_field_test(){
 
         let globals=CheckingGlobals::new();
         for (interf,impl_) in invalid {
-            let errs = check_abi_stability_with_globals(interf,impl_ ,&globals)
+            let errs = check_layout_compatibility_with_globals(interf,impl_ ,&globals)
                 .unwrap_err()
                 .flatten_errors();
 

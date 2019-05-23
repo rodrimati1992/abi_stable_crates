@@ -61,9 +61,8 @@ pub use self::{
 /// For Debug,"{:?}" is Default_ "{:#?}" is Alternate
 ///
 /// etc.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum FormattingMode {
     Default_,
     Alternate,

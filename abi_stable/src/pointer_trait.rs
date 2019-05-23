@@ -19,9 +19,8 @@ use core_extensions::{prelude::*, utils::transmute_ignore_size};
 ///
 /// On No,the memory the pointer owns is deallocated without calling the destructor
 /// of the referent.
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum CallReferentDrop {
     Yes,
     No,
@@ -95,8 +94,7 @@ mod sealed{
 
 /// Describes the kind of a pointer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash,StableAbi)]
-#[repr(C)]
-#[sabi(inside_abi_stable_crate)]
+#[repr(u8)]
 pub enum PointerKind{
     /// a `&T`,or a `Copy` wrapper struct containing a `&T`
     Reference,

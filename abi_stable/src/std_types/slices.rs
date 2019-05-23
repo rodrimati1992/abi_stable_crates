@@ -18,7 +18,6 @@ mod private {
     /// Ffi-safe equivalent of `&'a [T]`
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(bound = "T:'a")]
     //#[sabi(debug_print)]
     pub struct RSlice<'a, T> {

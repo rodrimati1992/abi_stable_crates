@@ -11,9 +11,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 ///
 /// Use ROption<_> when `Option<_>` would not be viable.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
-#[repr(C)]
+#[repr(u8)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum ROption<T> {
     RSome(T),
     RNone,

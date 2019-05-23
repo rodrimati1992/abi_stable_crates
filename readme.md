@@ -22,7 +22,10 @@ Currently this library has these features:
 
 - ffi-safe equivalent of trait objects for any combination of a selection of traits.
 
-- Provides ffi-safe alternatives to many standard library types..
+- Provides ffi-safe alternatives/wrappers for many standard library types,
+    in the `std_types` module.
+
+- Provides ffi-safe wrappers for some crates,in the `external_types` module.
 
 - Provides the `StableAbi` trait for asserting that types are ffi-safe.
 
@@ -33,6 +36,10 @@ Currently this library has these features:
 
 - Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
     and to get the layout of the type at load-time to check that it is still compatible.
+
+# Changelog
+
+The changelog is in the "Changelog.md" file.
 
 # Example crates
 
@@ -54,6 +61,8 @@ This is a full example,demonstrating:
 
 - `ìmplementation crates`(defined in the Architecture section bellow).
 
+Note that each section represents its own crate ,
+with comments for how to turn them into 3 separate crates.
 
 ```rust
 
@@ -64,12 +73,12 @@ This is a full example,demonstrating:
 ////////////////////////////////////////////////////////////////////////////////
 
 
-use interface_crate::{ExampleLib,BoxedInterface,load_root_module_in};
+use interface_crate::{ExampleLib,BoxedInterface,load_root_module_in_directory};
 
 fn main(){
     // The type annotation is for the reader
     let library:&'static ExampleLib=
-        load_root_module_in("./target/debug".as_ref())
+        load_root_module_in_directory("./target/debug".as_ref())
             .unwrap_or_else(|e| panic!("{}",e) );
 
     // The type annotation is for the reader
@@ -103,13 +112,55 @@ use abi_stable::{
     StableAbi,
     DynTrait,
     impl_InterfaceType,
-    lazy_static_ref::LazyStaticRef,
-    library::{Library,LibraryError,RootModule},
+    late_static_ref::LateStaticRef,
+    library::{LibraryError,RootModule},
     package_version_strings,
     std_types::{RBox,RString},
     type_level::bools::*,
     version::VersionStrings,
 };
+
+
+
+#[repr(C)]
+#[derive(StableAbi)] 
+#[sabi(kind(Prefix(prefix_struct="ExampleLib")))]
+#[sabi(missing_field(panic))]
+pub struct ExampleLibVal {
+    pub new_boxed_interface: extern "C" fn()->BoxedInterface<'static>,
+    
+    #[sabi(last_prefix_field)]
+    pub append_string:extern "C" fn(&mut BoxedInterface<'_>,RString),
+}
+
+
+/// The RootModule trait defines how to load the root module of a library.
+impl RootModule for ExampleLib {
+
+    abi_stable::declare_root_module_statics!{ExampleLib}
+
+    const BASE_NAME: &'static str = "example_library";
+    const NAME: &'static str = "example_library";
+    const VERSION_STRINGS: VersionStrings = package_version_strings!();
+}
+
+/*
+
+/// This for the case where this example is copied into the 3 crates.
+/// 
+/// This loads the root from the library in the `directory` folder.
+///
+pub fn load_root_module_in_directory(directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
+    ExampleLib::load_from_directory(directory)
+}
+*/
+
+/// This is for the case where this example is copied into a single crate
+pub fn load_root_module_in_directory(_:&Path) -> Result<&'static ExampleLib,LibraryError> {
+    ExampleLib::load_module_with(|| Ok(super::implementation::get_library()) )
+}
+
+//////////////////////////////////////////////////////////
 
 
 
@@ -120,11 +171,11 @@ pub struct TheInterface;
 // The `impl_InterfaceType` macro emulates default associated types.
 impl_InterfaceType!{
     /// Each associated type represents a trait,
-    /// will is required of types when ẁrapped in a 
+    /// which is required of types when ẁrapped in a 
     /// `DynTrait<Pointer<()>,TheInterface>`,
-    /// as well as be usable in that `DynTrait<_>`.
+    /// as well as is usable in that `DynTrait<_>`.
     ///
-    /// A trait is required (and becomes usable in the `DynTrait`) 
+    /// A trait is required (and becomes usable in `DynTrait<_>`) 
     /// when the associated type is `True`,not required when it is `False`.
     ///
     impl InterfaceType for TheInterface {
@@ -180,67 +231,6 @@ impl_InterfaceType!{
 /// An alias for the trait object used in this example
 pub type BoxedInterface<'borr>=DynTrait<'borr,RBox<()>,TheInterface>;
 
-
-#[repr(C)]
-#[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="ExampleLib")))]
-#[sabi(missing_field(panic))]
-pub struct ExampleLibVal {
-    pub new_boxed_interface: extern "C" fn()->BoxedInterface<'static>,
-    
-    #[sabi(last_prefix_field)]
-    pub append_string:extern "C" fn(&mut BoxedInterface<'_>,RString),
-}
-
-
-/// The RootModule trait defines how to load the root module of a library.
-impl RootModule for ExampleLib {
-    fn raw_library_ref()->&'static LazyStaticRef<Library>{
-        static RAW_LIB:LazyStaticRef<Library>=LazyStaticRef::new();
-        &RAW_LIB
-    }
-
-    const BASE_NAME: &'static str = "example_library";
-    const NAME: &'static str = "example_library";
-    const VERSION_STRINGS: VersionStrings = package_version_strings!();
-    const LOADER_FN: &'static str = "get_library";
-}
-
-/// A global handle to the root module of the library.
-///
-/// To get the module call `ROOTMOD.get()`,
-/// which returns None if the module is not yet loaded.
-pub static ROOTMOD:LazyStaticRef<ExampleLib>=LazyStaticRef::new();
-
-/*
-
-/// This for the case where this example is copied into the 3 crates.
-/// 
-/// This loads the root from the library in the `directory` folder.
-/// 
-/// Failing (with an Err(_)) in these conditions:
-///
-/// - The library is not there.
-///
-/// - The module loader is not there,most likely because the abi is incompatible.
-///
-/// - The layout-checker detects a type error.
-///
-pub fn load_root_module_in(directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
-    ROOTMOD.try_init(||{
-        ExampleLib::load_from_library_in(directory)
-    })
-}
-*/
-
-/// This is for the case where this example is copied into a single crate
-pub fn load_root_module_in(_directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
-    ROOTMOD.try_init(||{
-        super::implementation::get_library()
-            .check_layout()
-    })
-}
-
 }
 
 
@@ -284,21 +274,21 @@ use abi_stable::{
     ImplType,
     DynTrait,
     erased_types::TypeInfo,
-    export_sabi_module,
+    export_root_module,
     extern_fn_panic_handling,
     impl_get_type_info,
-    library::{WithLayout},
+    prefix_type::PrefixTypeTrait,
     std_types::RString,
 };
 
 
 /// The function which exports the root module of the library.
-#[export_sabi_module]
-pub extern "C" fn get_library() -> WithLayout<ExampleLib> {
-    WithLayout::new(ExampleLibVal{
+#[export_root_module]
+pub extern "C" fn get_library() -> &'static ExampleLib {
+    ExampleLibVal{
         new_boxed_interface,
         append_string,
-    })
+    }.leak_into_prefix()
 }
 
 
@@ -333,7 +323,7 @@ impl StringBuilder{
 }
 
 
-// Constructs a BoxedInterface.
+/// Constructs a BoxedInterface.
 extern fn new_boxed_interface()->BoxedInterface<'static>{
     extern_fn_panic_handling!{
         DynTrait::from_value(StringBuilder{
@@ -357,6 +347,7 @@ extern fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
 
 
 
+
 ```
 
 
@@ -365,13 +356,12 @@ extern fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
 
 This library ensures that the loaded libraries are safe to use through these mechanisms:
 
-- Types are recursively checked when the dynamic library is loaded,
-    before any function can be called.
-
-- The name of the function which exports the root module of the library is mangled
-    to prevent mixing of incompatible abi_stable versions.
+- The abi_stable ABI of the library is checked,
     Each `0.y.0` version and `x.0.0` version of abi_stable defines its own ABI 
     which is incompatible with previous versions.
+
+- Types are recursively checked when the dynamic library is loaded,
+    before any function can be called.
 
 Note that this library assumes that dynamic libraries come from a benign source,
 these checks are done purely to detect programming errors.
@@ -417,7 +407,7 @@ The crate compiled as a dynamic library that:
 - Implements all the functions declared in the `interface crate`.
 
 - Declares a function to export the root module,
-    using the `export_sabi_module` attribute to export the module.
+    using the `export_root_module` attribute to export the module.
 
 - Optionally:create types which implement `ImplType<Iterface= Interface >`,
     where `Interface` is some interface type from the interface crate,
@@ -458,6 +448,29 @@ using a build script to automatically enable features from newer versions.
 
 If it becomes possible to disable build scripts,
 you can manually enable support for Rust past 1.34 features with the `rust_*_*` cargo features.
+
+These are default cargo features that enable optional crates :
+
+- "channels":
+    Depends on `crossbeam-channel`,
+    wrapping channels from it for ffi in abi_stable::external_types::crossbeam_channel .
+
+To disable the default features use:
+```
+[dependencies.abi_stable]
+version="<current_version>"
+default-features=false
+features=[  ]
+```
+enabling the features you need in the `features` array.
+
+# Tools
+
+Here are some tools,all of which are in the "tools" directory(folder).
+
+### sabi_extract
+
+A program to extract a variety of information from an abi_stable dynamic library.
 
 # License
 

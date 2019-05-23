@@ -7,11 +7,11 @@ use core_extensions::{matches, prelude::*};
 
 use crate::{
     abi_stability::{
-        abi_checking::{check_abi_stability},
+        abi_checking::{check_layout_compatibility},
     },
     StableAbi,
     DynTrait,
-    erased_types::IteratorItem,
+    erased_types::{IteratorItem,InterfaceType},
     std_types::*,
     type_level::bools::*,
 };
@@ -27,12 +27,11 @@ macro_rules! mod_iter_ty {
 
             #[repr(C)]
             #[derive(StableAbi)]
-            #[sabi(inside_abi_stable_crate)]
             pub struct Interface;
 
 
             crate::impl_InterfaceType!{
-                impl crate::InterfaceType for Interface {
+                impl InterfaceType for Interface {
                     type Iterator=True;
                 }
             }
@@ -50,12 +49,11 @@ macro_rules! mod_iter_ty {
 mod no_iterator_interface{
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Interface;
 
 
     crate::impl_InterfaceType!{
-        impl crate::InterfaceType for Interface {}
+        impl super::InterfaceType for Interface {}
     }
 
 }
@@ -96,21 +94,21 @@ fn check_subsets(){
 
     let prefs=vec![pref_iter_0,pref_iter_1,pref_iter_2,pref_iter_3];
 
-    assert_eq!(check_abi_stability(pref_zero, pref_zero), Ok(()) );
+    assert_eq!(check_layout_compatibility(pref_zero, pref_zero), Ok(()) );
     
     for impl_ in prefs.iter().cloned() {
             
-        assert_eq!(check_abi_stability(pref_zero, impl_), Ok(()) );
+        assert_eq!(check_layout_compatibility(pref_zero, impl_), Ok(()) );
 
-        assert_ne!(check_abi_stability(impl_, pref_zero), Ok(()) );
+        assert_ne!(check_layout_compatibility(impl_, pref_zero), Ok(()) );
     }
 
     for (interf_i,interf) in prefs.iter().cloned().enumerate() {
         for (impl_i,impl_) in prefs.iter().cloned().enumerate() {
             if interf_i==impl_i {
-                assert_eq!(check_abi_stability(interf, impl_), Ok(()) );
+                assert_eq!(check_layout_compatibility(interf, impl_), Ok(()) );
             }else{
-                assert_ne!(check_abi_stability(interf, impl_), Ok(()) );
+                assert_ne!(check_layout_compatibility(interf, impl_), Ok(()) );
             }
         }
     }

@@ -28,7 +28,6 @@ macro_rules! impl_into_iterator {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct RRange<T> {
     pub start: T,
     pub end: T,
@@ -76,7 +75,6 @@ impl_into_iterator!{ RRange,Range }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct RRangeInclusive<T> {
     pub start: T,
     pub end: T,
@@ -109,7 +107,6 @@ impl_into_iterator!{ RRangeInclusive,RangeInclusive }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct RRangeFrom<T> {
     pub start: T,
 }
@@ -141,7 +138,6 @@ impl_into_iterator!{ RRangeFrom,RangeFrom }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct RRangeTo<T> {
     pub end: T,
 }
@@ -170,7 +166,6 @@ impl_into_rust_repr! {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct RRangeToInclusive<T> {
     pub end: T,
 }

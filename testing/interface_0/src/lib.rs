@@ -5,18 +5,18 @@ where all publically available modules(structs of function pointers) and types a
 
 This crate is where extra tests which don't belong in examples go.
 
-To load the library and the modules together,use the `load_library_in` function,
+To load the library and the modules together,
+call `<TestingMod as ModuleTrait>::load_from_directory`,
 which will load the dynamic library from a directory(folder),
 and then all the modules inside of the library.
 
 */
-use std::path::Path;
+
 
 use abi_stable::{
     StableAbi,
     package_version_strings,
-    lazy_static_ref::LazyStaticRef,
-    library::{Library,LibraryError, RootModule},
+    library::RootModule,
     version::VersionStrings,
     std_types::{RBox, RStr, RString,RVec,RArc},
 };
@@ -25,15 +25,11 @@ use abi_stable::{
 
 
 impl RootModule for TestingMod {
-    fn raw_library_ref()->&'static LazyStaticRef<Library>{
-        static RAW_LIB:LazyStaticRef<Library>=LazyStaticRef::new();
-        &RAW_LIB
-    }
+    abi_stable::declare_root_module_statics!{TestingMod}
 
     const BASE_NAME: &'static str = "testing";
     const NAME: &'static str = "testing";
     const VERSION_STRINGS: VersionStrings = package_version_strings!();
-    const LOADER_FN: &'static str = "get_library";
 }
 
 
@@ -119,21 +115,3 @@ declare_PrefixTypeMod!{
     ]
 }
 
-
-///////////////////////////////////////////////////////////////////////////////
-
-
-/// A late-initialized reference to the global `TestingMod` instance,
-///
-/// Call `load_library_in` before calling `MODULES.get()` to get a `Some(_)` value back.
-///
-pub static MODULES:LazyStaticRef<TestingMod>=LazyStaticRef::new();
-
-
-/// Loads all the modules of the library at the `directory`.
-/// If it loads them once,this will continue returning the same reference.
-pub fn load_library_in(directory:&Path) -> Result<&'static TestingMod,LibraryError> {
-    MODULES.try_init(||{
-        TestingMod::load_from_library_in(directory)
-    })
-}

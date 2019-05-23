@@ -3,7 +3,6 @@ use super::*;
 /// A trait object used in method that access map entries without replacing them.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(inside_abi_stable_crate)]
 pub struct MapQuery<'a,K>{
     _marker:NotCopyNotClone,
     is_equal:extern fn(&K,&ErasedObject)->bool,

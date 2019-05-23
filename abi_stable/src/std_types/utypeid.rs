@@ -48,7 +48,6 @@ pub extern "C" fn none_utypeid() -> ROption<UTypeId>{
 /// No types coming from different dynamic libraries compare equal.
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Copy, Clone, Hash, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct UTypeId {
     /// A dummy AtomicUsize used as the identity of the dynamic-library/executable
     executable_identity: *const AtomicUsize,

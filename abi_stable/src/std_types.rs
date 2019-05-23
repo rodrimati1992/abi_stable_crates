@@ -2,6 +2,9 @@
 Contains many ffi-safe equivalents of standard library types.
 The vast majority of them can be converted to and from std equivalents.
 
+For ffi-safe equivalents/wrappers of types outside the standard library go to 
+the [external_types module](../external_types/index.html)
+
 */
 
 pub mod arc;
@@ -25,6 +28,21 @@ pub mod time;
 pub mod tuple;
 pub mod utypeid;
 pub mod vec;
+
+
+/**
+There are equivalents to types in the std::sync module in abi_stable::external_types.
+
+The `sync::{Mutex,RwLock,Once}` equivalents are declared in 
+`abi_stable::external_types::parking_lot`
+
+The `mpsc` equivalents are declared in 
+`abi_stable::external_types::crossbeam_channel`,
+this is enabled by default with the `channels`/`crossbeam-channel` cargo feature.
+
+*/
+pub mod sync{}
+
 
 #[doc(inline)]
 pub use self::{
