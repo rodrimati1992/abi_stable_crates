@@ -32,6 +32,7 @@ pub struct TLFieldAndType {
 }
 
 
+/// Whether a field is accessible,and how it is accessed.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum FieldAccessor {
@@ -60,6 +61,7 @@ impl FieldAccessor{
 ///////////////////////////
 
 impl TLField {
+    /// Constructs a field which does not contain function pointers.
     pub const fn new(
         name: &'static str,
         lifetime_indices: &'static [LifetimeIndex],
@@ -75,6 +77,7 @@ impl TLField {
         }
     }
 
+    /// Constructs a field which may contain function pointers.
     pub const fn with_functions(
         name: &'static str,
         lifetime_indices: &'static [LifetimeIndex],

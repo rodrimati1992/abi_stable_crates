@@ -1,4 +1,4 @@
-/**
+/*!
 Types and submodules for doing runtime reflection.
 */
 

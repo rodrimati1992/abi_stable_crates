@@ -16,11 +16,14 @@ pub enum LifetimeIndex {
 /////////////////////////////////////////////////////
 
 
+/// The definition of
 /// vtables and modules that can be extended in minor versions.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 pub struct TLPrefixType {
-    /// The first field in the suffix
+    /// The first field in the suffix,
+    /// the index to the field after 
+    /// the one to which `#[sabi(last_prefix_field)]` was applied to
     pub first_suffix_field:usize,
     /// Which fields are accessible when the prefix type is instantiated in 
     /// the same dynlib/binary.
@@ -42,10 +45,17 @@ pub struct TLPrefixType {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum ReprAttr{
     /// This is an Option<NonZeroType>.
+    /// In which the size and alignment of the Option<_> is exactly that of its contents.
+    ///
+    /// When translated to C,it is equivalent to the type parameter.
     OptionNonZero,
-    /// This is a TLData::Primitive.
+    /// This is an ffi-safe primitive type,declared in the compiler.
     Primitive,
+    /// A struct whose fields are laid out like C,
+    /// optionally with the type of the discriminant of an enum(if it is one).
     C(ROption<DiscriminantRepr>),
+    /// A type with the same size,alignment and function ABI as
+    /// its only non-zero-sized field.
     Transparent,
     /// Means that only `repr(IntegerType)` was used.
     Int(DiscriminantRepr),
@@ -58,6 +68,7 @@ pub enum ReprAttr{
 
 
 impl ReprAttr{
+    /// Constructs the ReprAttr for `#[repr(C)]` types.
     pub const fn c()->Self{
         ReprAttr::C(RNone)
     }
@@ -73,7 +84,7 @@ A module path.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum ModPath{
     /// An item without a path
-    No,
+    NoPath,
     /// An item in a module.
     In(StaticStr),
     /// An item in the prelude.
@@ -82,6 +93,7 @@ pub enum ModPath{
 
 
 impl ModPath{
+    /// Constructs a ModPath from a string with a module path.
     pub const fn inside(path:&'static str)->Self{
         ModPath::In(StaticStr::new(path))
     }
@@ -110,7 +122,7 @@ impl TLEnumVariant {
     pub const fn new(name: &'static str, fields: &'static [TLField]) -> Self {
         Self {
             name: StaticStr::new(name),
-            discriminant:TLDiscriminant::No,
+            discriminant:TLDiscriminant::Default_,
             fields: StaticSlice::new(fields),
         }
     }
@@ -129,38 +141,59 @@ impl TLEnumVariant {
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 pub enum TLDiscriminant{
-    No,
+    /// The default,compiler assigned value for the discriminant.
+    Default_,
+    /// The assigned value of a discriminant in a `#[repr(isize)]` enum.
     Isize(isize),
+    /// The assigned value of a discriminant in a `#[repr(usize)]` enum.
     Usize(usize),
+    /// The assigned value of a discriminant in a `#[repr(i8/i16/i32/i64)]` enum.
     Signed(i64),
+    /// The assigned value of a discriminant in a `#[repr(u8/u16/u32/u64)]` enum.
     Unsigned(u64),
 }
 
 impl TLDiscriminant{
+    /// Constructs a discriminant of a `#[repr(u8)]` enum.
     pub const fn from_u8(n:u8)->Self{
         TLDiscriminant::Unsigned(n as u64)
     }
+    /// Constructs a discriminant of a `#[repr(u16)]` enum.
     pub const fn from_u16(n:u16)->Self{
         TLDiscriminant::Unsigned(n as u64)
     }
+    /// Constructs a discriminant of a `#[repr(u32)]` enum.
     pub const fn from_u32(n:u32)->Self{
         TLDiscriminant::Unsigned(n as u64)
     }
+    /// Constructs a discriminant of a `#[repr(u64)]` enum.
     pub const fn from_u64(n:u64)->Self{
         TLDiscriminant::Unsigned(n)
     }
+    /// Constructs a discriminant of a `#[repr(usize)]` enum.
+    pub const fn from_usize(n:usize)->Self{
+        TLDiscriminant::Usize(n)
+    }
 
+    /// Constructs a discriminant of a `#[repr(i8)]` enum.
     pub const fn from_i8(n:i8)->Self{
         TLDiscriminant::Signed(n as i64)
     }
+    /// Constructs a discriminant of a `#[repr(i16)]` enum.
     pub const fn from_i16(n:i16)->Self{
         TLDiscriminant::Signed(n as i64)
     }
+    /// Constructs a discriminant of a `#[repr(i32)]` enum.
     pub const fn from_i32(n:i32)->Self{
         TLDiscriminant::Signed(n as i64)
     }
+    /// Constructs a discriminant of a `#[repr(i64)]` enum.
     pub const fn from_i64(n:i64)->Self{
         TLDiscriminant::Signed(n)
+    }
+    /// Constructs a discriminant of a `#[repr(usize)]` enum.
+    pub const fn from_isize(n:isize)->Self{
+        TLDiscriminant::Isize(n)
     }
 }
 
@@ -168,19 +201,30 @@ impl TLDiscriminant{
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum DiscriminantRepr {
+    /// The type of the discriminant for a `#[repr(u8)]`enum
     U8,
+    /// The type of the discriminant for a `#[repr(i8)]`enum
     I8,
+    /// The type of the discriminant for a `#[repr(u16)]`enum
     U16,
+    /// The type of the discriminant for a `#[repr(i16)]`enum
     I16,
+    /// The type of the discriminant for a `#[repr(u32)]`enum
     U32,
+    /// The type of the discriminant for a `#[repr(i32)]`enum
     I32,
+    /// The type of the discriminant for a `#[repr(u64)]`enum
     U64,
+    /// The type of the discriminant for a `#[repr(i64)]`enum
     I64,
     /// Reserved,just in case that u128 gets a c-compatible layout
     U128,
     /// Reserved,just in case that i128 gets a c-compatible layout
     I128,
+    /// The type of the discriminant for a `#[repr(usize)]`enum
     Usize,
+    /// The type of the discriminant for a `#[repr(isize)]`enum
+    ///
     /// This is the default discriminant type for `repr(C)`.
     Isize,
 }
@@ -195,12 +239,20 @@ pub enum DiscriminantRepr {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 pub struct GenericParams {
+    /// The names of the lifetimes declared by a type.
     pub lifetime: StaticSlice<StaticStr>,
+    /// The type parameters of a type.
     pub type_: StaticSlice<&'static TypeLayout>,
+    /// The values of const parameters,
+    /// this currently is special cased for arrays up to 32 elements.
     pub const_: StaticSlice<StaticStr>,
 }
 
 impl GenericParams {
+    /// Constructs a `GenericParams`.
+    ///
+    /// The preferred way of constructing a `GenericParams` is with the 
+    /// `tl_genparams` macro.
     pub const fn new(
         lifetime: &'static [StaticStr],
         type_: &'static [&'static TypeLayout],
@@ -258,8 +310,18 @@ impl Display for GenericParams {
 pub enum TLData {
     /// Types defined in the compiler.
     Primitive(TLPrimitive),
-    /// For structs and unions.
+    /// The type can't be inspected,and has no properties other than size/alignment.
+    ///
+    /// When translated to C,this would be a struct with a single array field
+    /// whose element type is the alignment in this layout,
+    /// with the same byte length as this layout .
+    Opaque,
+    /// For structs.
     Struct { 
+        fields: StaticSlice<TLField> 
+    },
+    /// For unions.
+    Union { 
         fields: StaticSlice<TLField> 
     },
     /// For enums.
@@ -305,7 +367,9 @@ pub enum TLPrimitive{
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum TLDataDiscriminant {
     Primitive,
+    Opaque,
     Struct,
+    Union,
     Enum,
     PrefixType,
 }
@@ -316,19 +380,29 @@ impl TLData {
         TLData::Struct {
             fields: StaticSlice::new(&[]),
         };
-    
+ 
+    /// Constructs `TLData::Struct` from a slice of its fields.
     pub const fn struct_(fields: &'static [TLField]) -> Self {
         TLData::Struct {
             fields: StaticSlice::new(fields),
         }
     }
     
+    /// Constructs `TLData::Union` from a slice of its fields.
+    pub const fn union_(fields: &'static [TLField]) -> Self {
+        TLData::Union {
+            fields: StaticSlice::new(fields),
+        }
+    }
+    
+    /// Constructs a `TLData::Enum` from a slice to its variants.
     pub const fn enum_(variants: &'static [TLEnumVariant]) -> Self {
         TLData::Enum {
             variants: StaticSlice::new(variants),
         }
     }
 
+    /// Constructs a `TLData::PrefixType`
     pub const fn prefix_type(
         first_suffix_field:usize,
         accessible_fields:FieldAccessibility,
@@ -343,10 +417,14 @@ impl TLData {
         })
     }
 
+    /// Converts this a TLDataDiscriminant,allowing one to query which discriminant this is
+    /// (without either copying TLData or keeping a reference).
     pub fn as_discriminant(&self) -> TLDataDiscriminant {
         match self {
             TLData::Primitive { .. } => TLDataDiscriminant::Primitive,
+            TLData::Opaque { .. } => TLDataDiscriminant::Opaque,
             TLData::Struct { .. } => TLDataDiscriminant::Struct,
+            TLData::Union { .. } => TLDataDiscriminant::Union,
             TLData::Enum { .. } => TLDataDiscriminant::Enum,
             TLData::PrefixType { .. } => TLDataDiscriminant::PrefixType,
         }
@@ -362,13 +440,17 @@ impl TLData {
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, StableAbi)]
 pub struct FullType {
+    /// The name of the type.
     pub name: StaticStr,
+    /// Whether the type is a primitive,and which one.
     pub primitive:ROption<TLPrimitive>,
+    /// The generic parameters of the type ().
     pub generics: GenericParams,
 }
 
 
 impl FullType {
+    /// Constructs a `FullType`.
     pub const fn new(
         name: &'static str,
         primitive: ROption<TLPrimitive>,
@@ -479,6 +561,7 @@ pub struct TLFunction{
 
 
 impl TLFunction{
+    /// Constructs a `TLFunction`.
     pub const fn new(
         name: &'static str,
         bound_lifetimes: &'static [StaticStr],

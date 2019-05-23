@@ -67,9 +67,11 @@ pub use self::{
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 // #[sabi(debug_print)]
 pub struct TypeLayout {
+    /// The name of this type,the `Option` in `Òption<T>`.
     pub name: StaticStr,
-    // This is (mostly) for the Debug string
     /// Contains information about where the type was defined.
+    ///
+    /// This is (mostly) for the Debug string
     pub item_info:CmpIgnored<ItemInfo>,
     /// The size of the type
     pub size: usize,
@@ -79,7 +81,8 @@ pub struct TypeLayout {
     pub data: TLData,
     /// Used for printing the type at runtime,
     pub full_type: FullType,
-    /// Phantom fields,which don't have a runtime component(they aren't stored anywhere).
+    /// Phantom fields,which don't have a runtime component(they aren't stored anywhere),
+    /// and are checked in layout checking.
     pub phantom_fields: StaticSlice<TLField>,
     /// Extra data stored for reflection,
     /// so as to not break the abi every time that more stuff is added for reflection.
@@ -90,8 +93,10 @@ pub struct TypeLayout {
     pub private_tag:Tag,
     /// A json-like data structure used to add extra checks.
     pub tag:Tag,
-    pub mod_refl_mode:ModReflMode,
+    /// The representation attribute(s) of this type.
     pub repr_attr:ReprAttr,
+    /// How this type is treated when interpreted as a module.
+    pub mod_refl_mode:ModReflMode,
 }
 
 
@@ -104,18 +109,27 @@ impl TypeLayout {
         self.full_type
     }
 
+    /// Gets the package of the type.
     pub fn package(&self)->StaticStr{
         self.item_info.package
     }
+
+    /// Gets the package version for the package of type.
     pub fn package_version(&self)->&VersionStrings{
         &self.item_info.package_version
     }
+
+    /// Gets in which file the type was defined.
     pub fn file(&self)->StaticStr{
         self.item_info.file
     }
+
+    /// Gets in which line the type was defined.
     pub fn line(&self)->u32{
         self.item_info.line
     }
+
+    /// Gets the full path to the module where the type was defined.
     pub fn mod_path(&self)->&ModPath{
         &self.item_info.mod_path
     }
@@ -166,6 +180,7 @@ impl TypeLayout {
         }
     }
 
+    /// Constructs a TypeLayout from a parameter struct.
     pub const fn from_params<T>(p: TypeLayoutParams) -> Self {
         let name = StaticStr::new(p.name);
         Self {
@@ -212,16 +227,21 @@ impl TypeLayout {
         }
     }
 
+    /// Sets the phantom fields,
+    /// fields which don't have a runtime representation
+    /// and are checked in the layout checker.
     pub const fn set_phantom_fields(mut self,phantom_fields: &'static [TLField])->Self{
         self.phantom_fields=StaticSlice::new(phantom_fields);
         self
     }
 
+    /// Sets the Tag of the type,checked for compatibility in layotu checking..
     pub const fn set_tag(mut self,tag:Tag)->Self{
         self.tag=tag;
         self
     }
 
+    /// Sets the Tag of the type used for reflection,this is not checked in layout checking.
     pub const fn set_reflection_tag(mut self,reflection_tag:Tag)->Self{
         self.reflection_tag=reflection_tag;
         self
@@ -233,11 +253,14 @@ impl TypeLayout {
         self
     }
 
+    /// Sets the module reflection mode of the type,
+    /// determining how this type is accessed when interpreted as a module.
     pub const fn set_mod_refl_mode(mut self,mod_refl_mode:ModReflMode)->Self{
         self.mod_refl_mode=mod_refl_mode;
         self
     }
 
+    /// Sets the `#[repr(_)]` attribute of the type.
     pub const fn set_repr_attr(mut self,repr_attr:ReprAttr)->Self{
         self.repr_attr=repr_attr;
         self

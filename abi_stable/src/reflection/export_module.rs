@@ -94,14 +94,15 @@ impl MRItem{
         match layout.mod_refl_mode {
             ModReflMode::Module=>{
                 let fields=match layout.data {
-                    TLData::Primitive{..}=>
-                        return MRItemVariant::Static,
                     TLData::Struct { fields }=>
                         fields.as_slice(),
-                    TLData::Enum {..}=>
-                        return MRItemVariant::Static,
                     TLData::PrefixType(prefix)=>
                         prefix.fields.as_slice(),
+                     TLData::Primitive{..}
+                    |TLData::Opaque{..}
+                    |TLData::Union{..}
+                    |TLData::Enum {..}
+                    =>return MRItemVariant::Static,
                 };
 
                 let items=fields.iter()

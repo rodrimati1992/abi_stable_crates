@@ -107,6 +107,7 @@ declare_common_tokens! {
         tl_data="__TLData",
         struct_="struct",
         struct_under="struct_",
+        union_under="union_",
         enum_under="enum_",
         cap_repr_transparent="ReprTransparent",
         prefix_type="prefix_type",
