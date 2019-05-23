@@ -369,7 +369,7 @@ mod tests{
     use abi_stable::library::RootModule;
 
     fn setup(){
-        TextOpsMod::load_module_with(|| instantiate_root_module() );
+        let _=TextOpsMod::load_module_with(|| Ok::<_,()>(instantiate_root_module()) );
     }
 
     #[test]

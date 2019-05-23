@@ -120,7 +120,6 @@ impl<'a> StableAbiOptions<'a> {
                 StabilityKind::Prefix(PrefixKind{
                     first_suffix_field:this.first_suffix_field,
                     prefix_struct:prefix.prefix_struct,
-                    default_on_missing_fields:this.default_on_missing_fields,
                     fields:mem::replace(&mut this.prefix_kind_fields,FieldMap::empty())
                         .map(|fi,pk_field|{
                             AccessorOrMaybe::new(
@@ -498,7 +497,7 @@ fn parse_refl_field<'a>(
     list: Punctuated<NestedMeta, Comma>, 
     arenas: &'a Arenas
 ) {
-    use syn::{MetaNameValue as MNV};
+
 
     with_nested_meta("refl", list, |attr| match attr {
         Meta::NameValue(MetaNameValue{lit:Lit::Str(ref val),ref ident,..})=>{

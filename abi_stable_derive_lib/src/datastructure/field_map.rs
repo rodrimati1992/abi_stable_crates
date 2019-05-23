@@ -63,7 +63,6 @@ impl<T> FieldMap<T>{
     }
 
     pub(crate) fn insert(&mut self,field:&Field<'_>,value:T)->T{
-        let index=field.index;
         mem::replace(&mut self[field], value)
     }
 }

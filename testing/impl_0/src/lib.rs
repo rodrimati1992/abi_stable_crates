@@ -10,11 +10,11 @@ use testing_interface_0::{
 use abi_stable::{
     export_root_module,
     extern_fn_panic_handling, 
-    library::LibHeader,
     prefix_type::PrefixTypeTrait,
     traits::{IntoReprC},
     std_types::{RStr,RBox,RVec,RArc, RString}, 
 };
+#[allow(unused_imports)]
 use core_extensions::{SelfOps};
 
 ///////////////////////////////////////////////////////////////////////////////////

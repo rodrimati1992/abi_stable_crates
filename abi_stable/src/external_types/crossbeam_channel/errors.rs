@@ -1,6 +1,6 @@
 use super::*;
 
-use core_extensions::{*,matches};
+use core_extensions::matches;
 
 use crate::StableAbi;
 
@@ -32,7 +32,7 @@ impl<T> Debug for RSendError<T> {
 
 
 impl<T> Display for RSendError<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Attempting to send on a disconnected channel")
     }
 }
@@ -74,7 +74,7 @@ impl Debug for RRecvError {
 
 
 impl Display for RRecvError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Attempting to recv on a disconnected channel")
     }
 }
@@ -86,7 +86,7 @@ impl ErrorTrait for RRecvError {}
 
 impl_from_rust_repr! {
     impl From<RecvError> for RRecvError {
-        fn(this){
+        fn(_this){
             RRecvError
         }
     }
@@ -94,7 +94,7 @@ impl_from_rust_repr! {
 
 impl_into_rust_repr! {
     impl Into<RecvError> for RRecvError {
-        fn(this){
+        fn(_this){
             RecvError
         }
     }

@@ -19,7 +19,7 @@ use crate::{
         LifetimeIndex, TLData, TLField, TypeLayout, TypeLayoutParams,
         ItemInfo,ReprAttr,TLPrimitive,TLEnumVariant,
     },
-    std_types::{RNone, RSome, StaticSlice, StaticStr,utypeid::UTypeId},
+    std_types::{RNone, RSome, StaticSlice, utypeid::UTypeId},
     return_value_equality::ReturnValueEquality,
     reflection::ModReflMode,
 };
