@@ -359,6 +359,23 @@ pub enum TLPrimitive{
     Array{
         len:usize,
     },
+    /// A "custom" primitive type.
+    Custom(&'static CustomPrimitive)
+}
+
+
+/// The properties of a custom primitive.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+pub struct CustomPrimitive{
+    /// The printed type name of this primitive
+    pub typename:StaticStr,
+    /// The token before the generic parameters of this primitive.Eg:"<"
+    pub start_gen:StaticStr,
+    /// The token separating generic parameters for this primitive.Eg:", "
+    pub ty_sep:StaticStr,
+    /// The token after the generic parameters of this primitive.Eg:">"
+    pub end_gen:StaticStr,
 }
 
 
@@ -479,6 +496,15 @@ impl Debug for FullType {
             RSome(TLP::ConstPtr) => ("*const", " ", "", " ", " "),
             RSome(TLP::MutPtr) => ("*mut", " ", "", " ", " "),
             RSome(TLP::Array{..}) => ("", "[", "", ";", "]"),
+            RSome(TLP::Custom(c))=>{
+                (
+                    c.typename.as_str(),
+                    c.start_gen.as_str(),
+                    "",
+                    c.ty_sep.as_str(),
+                    c.end_gen.as_str(),
+                )
+            }
              RSome(TLP::U8)|RSome(TLP::I8)
             |RSome(TLP::U16)|RSome(TLP::I16)
             |RSome(TLP::U32)|RSome(TLP::I32)

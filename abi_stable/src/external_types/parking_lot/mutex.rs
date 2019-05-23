@@ -217,7 +217,7 @@ impl<'a,T> Drop for RMutexGuard<'a, T> {
 #[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_struct="VTable")))]
 #[sabi(missing_field(panic))]
-pub struct VTableVal{
+struct VTableVal{
     lock:extern "C" fn(this:&OpaqueMutex),
     try_lock:extern "C" fn(this:&OpaqueMutex) -> bool,
     unlock:extern "C" fn(this:&OpaqueMutex),

@@ -366,6 +366,8 @@ pub extern "C" fn run_command(
 mod tests{
     use super::*;
 
+    use abi_stable::library::RootModule;
+
     fn setup(){
         TextOpsMod::load_module_with(|| instantiate_root_module() );
     }

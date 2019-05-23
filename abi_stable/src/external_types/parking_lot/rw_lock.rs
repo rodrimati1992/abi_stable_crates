@@ -314,7 +314,7 @@ impl<'a,T> Drop for RWriteGuard<'a, T> {
 #[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_struct="VTable")))]
 #[sabi(missing_field(panic))]
-pub struct VTableVal{
+struct VTableVal{
     lock_shared:extern "C" fn(this:&OpaqueRwLock),
     try_lock_shared:extern "C" fn(this:&OpaqueRwLock) -> bool,
     try_lock_shared_for:extern "C" fn(this:&OpaqueRwLock, timeout: RDuration) -> bool,

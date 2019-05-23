@@ -219,16 +219,19 @@ impl<T> Clone for Constructor<T>{
 
 //////////////////////////////////////////////////////////////////////
 
-
+/// Either the constructor for a value or the value itself
 #[repr(u8)]
 #[derive(StableAbi,Copy,Clone)]
 pub enum ConstructorOrValue<T>{
+    /// This is an `extern fn()->T` which is used to construct a value of type `T`
     Constructor(Constructor<T>),
+    /// A value of type `T`
     Value(T)
 }
 
 impl<T> ConstructorOrValue<T>{
-
+    /// Gets the wrapped value,computing it from its constructor if this 
+    /// is the `Constructor` variant
     pub fn get(&mut self)->&T{
         match self {
             ConstructorOrValue::Value(v)=>v,
