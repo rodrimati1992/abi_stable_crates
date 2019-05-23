@@ -61,12 +61,12 @@ pub(crate) static REPR_ERROR_MSG:&str="\n\
 
 
 impl UncheckedReprAttr{
-    pub fn repr_kind(&self)->Option<UncheckedReprKind>{
-        self.repr_kind
-    }
-    pub fn discriminant_repr(&self)->Option<DiscriminantRepr>{
-        self.discriminant_repr
-    }
+    // pub fn repr_kind(&self)->Option<UncheckedReprKind>{
+    //     self.repr_kind
+    // }
+    // pub fn discriminant_repr(&self)->Option<DiscriminantRepr>{
+    //     self.discriminant_repr
+    // }
     pub fn set_repr_kind(&mut self,repr_kind:UncheckedReprKind){
         if let Some(from)=self.discriminant_repr {
             panic!(
@@ -151,7 +151,7 @@ impl ReprAttr{
                 ReprAttr::Transparent=>unreachable!(),
             };
                 
-            use self::DiscriminantRepr as DR;
+
 
             let constructor=match int_repr.unwrap_or(DiscriminantRepr::Isize) {
                 DiscriminantRepr::U8 =>quote!(__TLDiscriminant::from_u8 ),

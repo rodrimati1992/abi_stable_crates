@@ -11,13 +11,12 @@ which will load the dynamic library from a directory(folder),
 and then all the modules inside of the library.
 
 */
-use std::path::Path;
+
 
 use abi_stable::{
     StableAbi,
     package_version_strings,
-    late_static_ref::LateStaticRef,
-    library::{LibraryError,LibraryPath, RootModule},
+    library::RootModule,
     version::VersionStrings,
     std_types::{RBox, RStr, RString,RVec,RArc},
 };

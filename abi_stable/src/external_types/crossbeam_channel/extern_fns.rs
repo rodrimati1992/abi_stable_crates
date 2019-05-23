@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::traits::IntoReprC;
+
 macro_rules! shared_fns {
     ( 
         erased=$erased:ident

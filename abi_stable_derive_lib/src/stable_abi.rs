@@ -364,7 +364,7 @@ fn field_tokenizer<'a>(
             to_stream!{ts; ct.comma };
 
             let impls_sabi=true;
-            let field_ptr:*const Field<'_>=field;
+
             let is_opaque_field=config.opaque_fields[field];
 
             let flavor=match (is_opaque_field,impls_sabi) {

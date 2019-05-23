@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+
 
 
 use syn::{
@@ -31,7 +31,6 @@ use crate::{
 pub(crate) struct PrefixKind<'a>{
     pub(crate) first_suffix_field:FirstSuffixField,
     pub(crate) prefix_struct:&'a Ident,
-    pub(crate) default_on_missing_fields:OnMissingField<'a>,
     pub(crate) prefix_bounds:Vec<WherePredicate>,
     pub(crate) fields:FieldMap<AccessorOrMaybe<'a>>,
 
@@ -125,7 +124,7 @@ impl<'a> AccessorOrMaybe<'a>{
 
 impl<'a> PrefixKind<'a>{
     pub(crate) fn field_accessor(&self,field:&Field<'a>)->FieldAccessor<'a>{
-        use self::{AccessorOrMaybe as AOM,OnMissingField as OMF};
+        use self::{OnMissingField as OMF};
 
         match self.fields[field] {
             AccessorOrMaybe::Accessor=>
@@ -248,8 +247,8 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
         let mut accessor_buffer=String::new();
         let prefix_struct=prefix.prefix_struct;
 
-        let accessor_docs=struct_.fields.iter().enumerate()
-            .map(move|(field_i,field)|{
+        let accessor_docs=struct_.fields.iter()
+            .map(move|field|{
                 use std::fmt::Write;
                 let mut acc_doc_buffer =String::new();
                 let _=write!(
@@ -258,7 +257,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                     deriving_name=deriving_name,
                     field_name=field.ident(),
                 );
-                let in_prefix=field_i < prefix.first_suffix_field.field_pos;
+
 
                 use self::{AccessorOrMaybe as AOM};
 

@@ -27,7 +27,7 @@ use core_extensions::SelfOps;
 
 use crate::{
     marker_type::UnsafeIgnoredType,
-    traits::{IntoReprC,IntoReprRust,ErasedType},
+    traits::{IntoReprRust,ErasedType},
     std_types::{RResult,ROk,RErr,ROption,RDuration,RBox},
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };

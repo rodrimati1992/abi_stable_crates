@@ -29,7 +29,6 @@ use abi_stable_derive_lib::{
 use crate::{
     abi_stability::{
         AbiInfoWrapper,
-        AbiInfo,
         stable_abi_trait::SharedStableAbi,
     },
     globals::{self,Globals},

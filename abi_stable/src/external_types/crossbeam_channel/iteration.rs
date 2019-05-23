@@ -21,7 +21,7 @@ impl<'a, T> Iterator for RIter<'a, T> {
 }
 
 impl<'a, T> Debug for RIter<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("RIter{..}")
     }
 }
@@ -49,7 +49,7 @@ impl<T> Iterator for RIntoIter<T> {
 }
 
 impl<T> Debug for RIntoIter<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("RIntoIter{..}")
     }
 }
