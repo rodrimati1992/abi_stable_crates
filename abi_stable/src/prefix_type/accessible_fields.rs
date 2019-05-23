@@ -5,6 +5,9 @@ use crate::const_utils::{
 use std::iter::ExactSizeIterator;
 
 
+/// Describes which prefix-type fields are accessible.
+///
+/// Each field is represented as a bit,where 0 is IsAccessible::No,and 1 s IsAccessible::Yes.
 #[must_use="FieldAccessibility is returned by value by every mutating method."]
 #[derive(StableAbi)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
@@ -24,9 +27,11 @@ pub enum IsAccessible{
 }
 
 impl IsAccessible{
+    /// Constructs an IsAccessible with a bool saying whether the field is accessible.
     pub const fn new(is_accessible:bool)->Self{
         [IsAccessible::No,IsAccessible::Yes][is_accessible as usize]
     }
+    /// Describes whether the field is accessible.
     pub const fn is_accessible(self)->bool{
         self as usize!=0
     }

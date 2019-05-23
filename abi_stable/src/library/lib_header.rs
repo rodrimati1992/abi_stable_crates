@@ -179,14 +179,19 @@ which if incompatible would produce a `LibraryError::InvalidAbiHeader`
 #[repr(C)]
 #[derive(Debug,StableAbi,Copy,Clone)]
 pub struct AbiHeader{
+    /// A magic string used to check that this is actually abi_stable.
     pub magic_string:[u8;32],
+    /// The major abi version of abi_stable
     pub abi_major:u32,
+    /// The minor abi version of abi_stable
     pub abi_minor:u32,
     _priv:(),
 }
 
 
 impl AbiHeader{
+    /// The value of the AbiHeader stored in dynamic libraries that use this 
+    /// version of abi_stable
     pub const VALUE:AbiHeader=AbiHeader{
         magic_string:*b"abi stable library for Rust     ",
         abi_major:0,
@@ -198,6 +203,7 @@ impl AbiHeader{
 
 
 impl AbiHeader{
+    /// Checks whether this AbiHeader is compatible with `other`.
     pub fn is_compatible(&self,other:&Self)->bool{
         self.magic_string == other.magic_string&&
         self.abi_major    == other.abi_major   &&

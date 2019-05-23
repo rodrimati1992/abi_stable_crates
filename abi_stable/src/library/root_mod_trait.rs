@@ -21,7 +21,7 @@ pub trait RootModule: Sized+SharedStableAbi+'static  {
     /// The name of the library used in error messages.
     const NAME: &'static str;
 
-    /// The version number of this library.
+    /// The version number of the library of `Self:RootModule`.
     /// 
     /// Initialize this with ` package_version_strings!() `
     const VERSION_STRINGS: VersionStrings;

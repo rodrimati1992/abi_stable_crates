@@ -294,7 +294,7 @@ impl<F> Closure<F>{
 #[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_struct="VTable")))]
 #[sabi(missing_field(panic))]
-pub struct VTableVal{
+struct VTableVal{
     state:extern fn(&OpaqueOnce)->ROnceState,
     call_once:extern fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
     call_once_force:extern fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
