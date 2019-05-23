@@ -52,8 +52,8 @@ fn test_must_panic() {
 /// Checks that `left` and `right` produce the exact same Display and Debug output.
 pub(crate) fn check_formatting_equivalence<T,U>(left:&T,right:&U)
 where 
-    T:Debug+Display,
-    U:Debug+Display,
+    T:Debug+Display+?Sized,
+    U:Debug+Display+?Sized,
 {
     assert_eq!(format!("{:?}",left), format!("{:?}",right));
     assert_eq!(format!("{:#?}",left), format!("{:#?}",right));

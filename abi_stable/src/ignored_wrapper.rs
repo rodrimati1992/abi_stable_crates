@@ -17,7 +17,6 @@ use std::{
 ///
 #[repr(transparent)]
 #[derive(Default,Copy,Clone,StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct CmpIgnored<T>{
     pub value:T,
 }

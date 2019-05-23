@@ -19,7 +19,6 @@ mod privacy {
     /// Ffi-safe equivalent of `&'a mut [T]`
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(bound = "T:'a")]
     pub struct RSliceMut<'a, T> {
         data: *mut T,

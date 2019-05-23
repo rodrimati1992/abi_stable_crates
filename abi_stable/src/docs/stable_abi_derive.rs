@@ -59,6 +59,22 @@ Declares the struct as being a prefix-type.
 `#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`<br>
 Uses "NameOfPrefixStruct" as the name of the prefix struct.
 
+
+### `#[sabi(module_reflection(...))]` 
+
+Determines how this type is accessed when treated as a module for reflection.
+
+`#[sabi(module_reflection( Module ))]`<br>
+The default reflection mode,treats its the public fields as module items.
+
+`#[sabi(module_reflection( Opaque ))]`<br>
+Treats this as an empty module.
+
+`#[sabi(module_reflection( Deref ))]`<br>
+Delegates the treatment of this type as a module to the type it dereferences to.
+
+
+
 # Field attributes
 
 These attributes are applied to fields.
@@ -86,6 +102,8 @@ where every field up to it is guaranteed to exist.
 
 ### `#[sabi(accessible_if=" expression ")]`
 
+This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
+
 This attribute turns any field conditional based on the const boolean expression 
 (which must be valid a bool constant).
 
@@ -102,6 +120,12 @@ which accessors are conditional for prefix fields.
 
 To do `#[sabi(accessible_if="<TypeParameter as Trait>::CONSTANT")]` you can use the 
 `#[sabi(prefix_bound="TypeParameter:Trait")]` attribute.
+
+### `#[sabi(refl(pub_getter=" function_name "))]`
+
+Determines the public getter for a field used by reflection.
+
+The function can return either a reference or a value.
 
 # Field and/or Container attributes
 
@@ -133,7 +157,6 @@ Returns `somefunction()` if the field doesn't exist.
 Returns `Default::default()` if the field doesn't exist.
 
 
-
 # Supported repr attributes
 
 Because repr attributes can cause the type to change layout,
@@ -150,7 +173,12 @@ This is the representation that most StableAbi types will have.
 though their layout is not considered equivalent to their only non-zero-sized field,
 since this library considers all types as being meaningful even if zero-sized.
 
+### `repr(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize)`
+
+These repr attributes are only supported for enums.
+
 ### `repr(align(...))`
+
 
 `repr(align(...))` is supported,
 so long as it is used in combination with the other supported repr attributes.

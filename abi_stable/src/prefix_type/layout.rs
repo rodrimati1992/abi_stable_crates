@@ -13,7 +13,6 @@ use crate::{
 /// Represents the layout of a prefix-type,for use in error messages.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct PTStructLayout {
     pub name: StaticStr,
     pub generics:CmpIgnored<StaticStr>,
@@ -42,7 +41,6 @@ pub struct PTStructLayoutParams{
 /// Represents a field of a prefix-type,for use in error messages.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct PTField {
     pub name:StaticStr,
     pub ty:CmpIgnored<StaticStr>,

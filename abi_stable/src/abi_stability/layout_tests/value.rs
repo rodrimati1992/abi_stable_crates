@@ -7,20 +7,75 @@ use core_extensions::{matches, prelude::*};
 
 use crate::{
     abi_stability::{
-        abi_checking::{AbiInstability,check_abi_stability},
+        abi_checking::{AbiInstability,check_layout_compatibility},
+        type_layout::TLData,
         AbiInfoWrapper, 
         Tag,
     },
     marker_type::UnsafeIgnoredType,
     std_types::*,
     *,
-    test_utils::must_panic,
 };
+
+
+mod union_1a {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x: u32,
+    }
+}
+
+mod union_1b {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x_alt: u32,
+    }
+}
+
+mod union_2a {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x: u32,
+        y: u32,
+    }
+}
+
+mod union_2b {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x: u32,
+        y_alt: u32,
+    }
+}
+
+mod union_3 {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x: u32,
+        y: u32,
+        w: u16,
+    }
+}
+
+mod union_4 {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub union Union {
+        x: u32,
+        y: u32,
+        w: u16,
+        h: u32,
+    }
+}
 
 mod regular {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -32,7 +87,6 @@ mod regular {
 mod changed_name {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangleiiiiii {
         x: u32,
         y: u32,
@@ -41,10 +95,21 @@ mod changed_name {
     }
 }
 
+mod changed_field_name {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub struct Rectangle {
+        x: u32,
+        y: u32,
+        #[sabi(rename="w2")]
+        w: u16,
+        h: u32,
+    }
+}
+
 mod swapped_fields_first {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         y: u32,
         x: u32,
@@ -56,7 +121,6 @@ mod swapped_fields_first {
 mod swapped_fields_last {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -68,7 +132,6 @@ mod swapped_fields_last {
 mod removed_field_first {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         y: u32,
         w: u16,
@@ -79,7 +142,6 @@ mod removed_field_first {
 mod removed_field_last {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -90,7 +152,6 @@ mod removed_field_last {
 mod removed_all_fields {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -103,7 +164,6 @@ mod changed_type_first {
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: shadowed::u32,
         y: u32,
@@ -115,7 +175,6 @@ mod changed_type_first {
 mod changed_type_last {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -127,7 +186,6 @@ mod changed_type_last {
 mod changed_alignment {
     #[repr(C, align(16))]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Rectangle {
         x: u32,
         y: u32,
@@ -136,19 +194,6 @@ mod changed_alignment {
     }
 }
 
-/// For testing that adding #[repr(C)] makes the derive macro not panic.
-mod derive_validity_0 {
-    and_stringify! {
-        pub(super)const RECTANGLE_DEF_REPR;
-
-        pub struct Rectangle {
-            x:u32,
-            y:u32,
-            w:u16,
-            h:u32,
-        }
-    }
-}
 
 mod built_in {
     pub use i32 as std_i32;
@@ -162,14 +207,12 @@ mod shadowed {
 
     #[repr(transparent)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct u32 {
         integer: std_i32,
     }
 
     #[repr(transparent)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct i32 {
         integer: std_i32,
     }
@@ -180,11 +223,11 @@ fn assert_sane_abi_info(abi: &'static AbiInfoWrapper) {
 }
 
 fn assert_equal_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static AbiInfoWrapper) {
-    assert_eq!(check_abi_stability(interface, impl_), Ok(()));
+    assert_eq!(check_layout_compatibility(interface, impl_), Ok(()));
 }
 
 fn assert_different_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static AbiInfoWrapper) {
-    let res=check_abi_stability(interface, impl_);
+    let res=check_layout_compatibility(interface, impl_);
     assert_ne!(
         res,
         Ok(()),
@@ -277,6 +320,12 @@ fn same_different_abi_stability() {
         <Tagged<TAG_DEFAULT_4>>::ABI_INFO,
         <Tagged<TAG_DEFAULT_5>>::ABI_INFO,
         <Tagged<TAG_DEFAULT_6>>::ABI_INFO,
+        <union_1a::Union>::ABI_INFO,
+        <union_1b::Union>::ABI_INFO,
+        <union_2a::Union>::ABI_INFO,
+        <union_2b::Union>::ABI_INFO,
+        <union_3::Union>::ABI_INFO,
+        <union_4::Union>::ABI_INFO,
         // <&prefix0::Prefix>::ABI_INFO,
         // <*const prefix0::Prefix>::ABI_INFO,
         // <RArc<prefix0::Prefix>>::ABI_INFO,
@@ -303,40 +352,13 @@ fn same_different_abi_stability() {
 
 
 
-// Checks that #[repr(Rust)] (the default representation) causes the derive macro
-// to panic,and that #[repr(C)] and #[repr(transparent)] do not.
-#[cfg_attr(not(miri),test)]
-fn check_repr_attrs(){
-    use abi_stable_derive_lib::derive_stable_abi_from_str;
-    must_panic(file_span!(),||{
-        derive_stable_abi_from_str(derive_validity_0::RECTANGLE_DEF_REPR)
-    }).unwrap();
-    
-    must_panic(file_span!(),||{
-        let with_repr_rust=format!(
-            "#[repr(Rust)]\n{}",
-            derive_validity_0::RECTANGLE_DEF_REPR
-        );
-        derive_stable_abi_from_str(&with_repr_rust)
-    }).unwrap();
-
-    let with_repr_c=format!("#[repr(C)]\n{}",derive_validity_0::RECTANGLE_DEF_REPR);
-    let with_repr_tranparent=format!(
-        "#[repr(transparent)]\n{}",
-        derive_validity_0::RECTANGLE_DEF_REPR
-    );
-
-    derive_stable_abi_from_str(&with_repr_c);
-    derive_stable_abi_from_str(&with_repr_tranparent);
-}
-
 // Uncomment this once I reimplement Prefix types.
 //
 // #[cfg_attr(not(miri),test)]
 // fn different_prefixity() {
 //     let regular = <&'static regular::Rectangle>::ABI_INFO;
 //     let other = <&'static prefixed::Rectangle>::ABI_INFO;
-//     let errs = check_abi_stability(regular, other)
+//     let errs = check_layout_compatibility(regular, other)
 //         .unwrap_err()
 //         .flatten_errors();
 //     assert!(errs
@@ -357,7 +379,7 @@ fn different_zeroness() {
     assert!(non_zero.get().is_nonzero);
     assert!(!ZEROABLE_ABI.get().is_nonzero);
 
-    let errs = check_abi_stability(non_zero, ZEROABLE_ABI)
+    let errs = check_layout_compatibility(non_zero, ZEROABLE_ABI)
         .unwrap_err()
         .flatten_errors();
     assert!(errs
@@ -365,17 +387,42 @@ fn different_zeroness() {
         .any(|err| matches!(AbiInstability::NonZeroness{..}=err)));
 }
 
-#[cfg_attr(not(miri),test)]
+#[test]
 fn different_name() {
     let regular = regular::Rectangle::ABI_INFO;
     let other = changed_name::Rectangleiiiiii::ABI_INFO;
-    let errs = check_abi_stability(regular, other)
+    let errs = check_layout_compatibility(regular, other)
         .unwrap_err()
         .flatten_errors();
     assert!(errs
         .iter()
         .any(|err| matches!(AbiInstability::Name{..}=err)));
 }
+
+
+#[test]
+fn different_field_name() {
+    let regular = regular::Rectangle::ABI_INFO;
+    let other = changed_field_name::Rectangle::ABI_INFO;
+
+    let fields=match other.get().layout.data {
+        TLData::Struct{fields}=>fields.as_slice(),
+        _=>unreachable!(),
+    };
+
+    assert_eq!(fields[0].name.as_str(),"x");
+    assert_eq!(fields[1].name.as_str(),"y");
+    assert_eq!(fields[2].name.as_str(),"w2");
+
+    let errs = check_layout_compatibility(regular, other)
+        .unwrap_err()
+        .flatten_errors();
+    assert!(errs
+        .iter()
+        .any(|err| matches!(AbiInstability::UnexpectedField{..}=err)));
+}
+
+
 
 #[cfg_attr(not(miri),test)]
 fn swapped_fields() {
@@ -384,7 +431,7 @@ fn swapped_fields() {
     let last = swapped_fields_first::Rectangle::ABI_INFO;
 
     for other in vec![first, last] {
-        let errs = check_abi_stability(regular, other)
+        let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
         assert!(errs
@@ -403,7 +450,7 @@ fn removed_fields() {
     ];
 
     for other in list {
-        let errs = check_abi_stability(regular, other)
+        let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
         let mut found_field_count_mismatch = false;
@@ -428,7 +475,7 @@ fn removed_fields() {
 fn different_alignment() {
     let regular = regular::Rectangle::ABI_INFO;
     let other = changed_alignment::Rectangle::ABI_INFO;
-    let errs = check_abi_stability(regular, other)
+    let errs = check_layout_compatibility(regular, other)
         .unwrap_err()
         .flatten_errors();
 
@@ -452,7 +499,6 @@ mod gen_basic {
     use super::PhantomData;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Generics<T: 'static> {
         x: &'static T,
         y: &'static T,
@@ -464,7 +510,6 @@ mod gen_more_lts {
     use super::PhantomData;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     #[sabi(bound = "T:'a")]
     pub struct Generics<'a, T> {
         x: &'a T,
@@ -477,7 +522,6 @@ mod gen_more_tys {
     use super::{PhantomData,Tuple2};
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Generics<T: 'static, U> {
         x: &'static T,
         y: &'static T,
@@ -489,8 +533,7 @@ mod gen_more_tys {
 // For when const-generics are usable
 // #[repr(C)]
 // #[derive(StableAbi)]
-// #[sabi(inside_abi_stable_crate)]
-// pub struct ExtraConstParam<T,const LEN:usize> {
+//// pub struct ExtraConstParam<T,const LEN:usize> {
 //     x:T,
 //     y:T,
 //     _marker:PhantomData<(T,[u8;LEN])>,
@@ -508,7 +551,7 @@ fn different_generics() {
         ];
 
         for other in list {
-            let errs = check_abi_stability(regular, other)
+            let errs = check_layout_compatibility(regular, other)
                 .unwrap_err()
                 .flatten_errors();
             assert!(errs
@@ -521,7 +564,7 @@ fn different_generics() {
         let list = vec![gen_more_lts::Generics::<()>::ABI_INFO];
 
         for other in list {
-            let errs = check_abi_stability(regular, other)
+            let errs = check_layout_compatibility(regular, other)
                 .unwrap_err()
                 .flatten_errors();
             assert!(errs
@@ -538,7 +581,6 @@ fn different_generics() {
 mod basic_enum {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub enum Enum {
         Variant0,
         Variant1 { a: u32 },
@@ -548,7 +590,6 @@ mod basic_enum {
 mod misnamed_variant {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub enum Enum {
         Variant000000000,
         Variant1 { a: u32 },
@@ -559,7 +600,6 @@ mod extra_variant {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub enum Enum {
         Variant0,
         Variant1 { a: u32 },
@@ -573,7 +613,7 @@ fn variant_mismatch() {
 
     {
         let other = misnamed_variant::Enum::ABI_INFO;
-        let errs = check_abi_stability(regular, other)
+        let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
         assert!(errs
@@ -583,7 +623,7 @@ fn variant_mismatch() {
 
     {
         let other = extra_variant::Enum::ABI_INFO;
-        let errs = check_abi_stability(regular, other)
+        let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
         assert!(errs
@@ -602,7 +642,6 @@ mod mod_0 {
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn(&mut u32,u64) -> RString,
         pub function_1: extern "C" fn() -> RString,
@@ -614,7 +653,6 @@ mod mod_0b {
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn(&mut u32,u64,()) -> RString,
         pub function_1: extern "C" fn() -> RString,
@@ -626,7 +664,6 @@ mod mod_1 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn(&mut u32,u64,RString),
         pub function_1: extern "C" fn(RString),
@@ -638,7 +675,6 @@ mod mod_2 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn(&mut u32,u64,RString)->RString,
         pub function_1: extern "C" fn(),
@@ -650,7 +686,6 @@ mod mod_3 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn(&mut u32,u64,RString),
         pub function_1: extern "C" fn()->RString,
@@ -661,7 +696,6 @@ mod mod_4 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
         pub function_1: extern "C" fn(&mut u32,u64,RString),
@@ -673,7 +707,6 @@ mod mod_5 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
         pub function_1: extern "C" fn(&mut u32,u64,RString),
@@ -685,7 +718,6 @@ mod mod_6 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
     }
@@ -695,7 +727,6 @@ mod mod_7 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
         pub function_1: extern "C" fn(&mut u32,u64,RString),
@@ -712,7 +743,6 @@ mod mod_7 {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    inside_abi_stable_crate,
     bound="M:ToTagConst",
     tag="<M as ToTagConst>::TAG",
     unconstrained(M),
@@ -815,7 +845,7 @@ fn test_tag_subsets(){
         for (l_i,l_abi) in subset.iter().enumerate() {
             for (r_i,r_abi) in subset.iter().enumerate() {
 
-                let res=check_abi_stability(l_abi,r_abi);
+                let res=check_layout_compatibility(l_abi,r_abi);
 
                 if l_i <= r_i {
                     assert_eq!(res,Ok(()));
@@ -849,7 +879,7 @@ fn test_tag_incompatible(){
     for subset in &incompatible_sets {
         for (l_i,l_abi) in subset.iter().enumerate() {
             for (r_i,r_abi) in subset.iter().enumerate() {
-                let res=check_abi_stability(l_abi,r_abi);
+                let res=check_layout_compatibility(l_abi,r_abi);
 
                 if l_i == r_i {
                     assert_eq!(res,Ok(()));

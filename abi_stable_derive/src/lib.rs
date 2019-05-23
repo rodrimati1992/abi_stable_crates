@@ -53,13 +53,14 @@ This is applied to functions like this:
 
 ```ignore
 
-#[export_sabi_module]
-pub extern "C" fn get_hello_world_mod() -> WithLayout<TextOperationsMod> {
+use abi_stable::prefix_type::PrefixTypeTrait;
+
+#[export_root_module]
+pub extern "C" fn get_hello_world_mod() -> &'static TextOperationsMod {
     extern_fn_panic_handling!{
-        let module=TextOperationsMod{
+        TextOperationsModVal{
             reverse_string,
-        };
-        WithLayout::new(module)
+        }.leak_into_prefix()
     }
 }
 
@@ -69,14 +70,13 @@ pub extern "C" fn get_hello_world_mod() -> WithLayout<TextOperationsMod> {
 
 # More examples
 
-For a more detailed example look into the example/example_*_impl crates in the 
-repository for this crate.
+For a more detailed example look in the README in the repository for this crate.
 
 
 
 */
 #[proc_macro_attribute]
-pub fn export_sabi_module(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
+pub fn export_root_module(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     abi_stable_derive_lib::mangle_library_getter_attr(attr,item)
 }
 

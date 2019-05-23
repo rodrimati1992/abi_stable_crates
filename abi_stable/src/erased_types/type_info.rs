@@ -15,7 +15,6 @@ use crate::{
 #[derive(Debug, Eq, PartialEq)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct TypeInfo {
     pub size: usize,
     pub alignment: usize,

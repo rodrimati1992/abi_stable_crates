@@ -9,5 +9,5 @@ members=[
     "testing/impl_0",
     "testing/interface_0",
     "testing/user",
+    "tools/*",
 ]
-

@@ -159,17 +159,16 @@ Ffi-safe equivalent of ::std::borrow::Cow.
 
 The most common examples of this type are:
 
-- RCow<'_,str>: contains an RStr<'_> or an RString.
+- `RCow<'_,str>`: contains an RStr<'_> or an RString.
 
-- RCow<'_,[T]>: contains an RSlice<'_,T> or an RVec<T>.
+- `RCow<'_,[T]>`: contains an RSlice<'_,T> or an RVec<T>.
 
-- RCow<'_,T>: contains a `&T` or a `T`.
+- `RCow<'_,T>`: contains a `&T` or a `T`.
 
 */
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    inside_abi_stable_crate,
     unconstrained(B),
     bound="<B as BorrowOwned<'a>>::RBorrowed: StableAbi",
     bound="<B as BorrowOwned<'a>>::ROwned   : StableAbi",

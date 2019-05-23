@@ -5,21 +5,28 @@ use syn::{
     token::Comma,
 };
 
-use std::collections::{HashSet,HashMap};
+use std::{
+    collections::{HashSet,HashMap},
+    mem,
+};
 
 use quote::ToTokens;
 
+use core_extensions::IteratorExt;
+
 use crate::{
-    datastructure::{DataStructure, DataVariant, Field},
-    prefix_types::{PrefixKind,LastPrefixField,OnMissingField},
+    reflection::{ModReflMode,FieldAccessor},
+    datastructure::{DataStructure, DataVariant, Field,FieldMap},
+    prefix_types::{PrefixKind,FirstSuffixField,OnMissingField,AccessorOrMaybe,PrefixKindField},
+    repr_attrs::{UncheckedReprAttr,UncheckedReprKind,DiscriminantRepr,ReprAttr},
 };
 use crate::*;
 
 pub(crate) struct StableAbiOptions<'a> {
     pub(crate) debug_print:bool,
-    pub(crate) inside_abi_stable_crate:bool,
     pub(crate) kind: StabilityKind<'a>,
-    pub(crate) repr: Repr,
+    pub(crate) repr: ReprAttr,
+
     /// The type parameters that have the __StableAbi constraint
     pub(crate) stable_abi_bounded:HashSet<&'a Ident>,
 
@@ -31,11 +38,16 @@ pub(crate) struct StableAbiOptions<'a> {
 
     /// A hashset of the fields whose contents are opaque 
     /// (there are still some minimal checks going on).
-    pub(crate) opaque_fields:HashSet<*const Field<'a>>,
+    pub(crate) opaque_fields:FieldMap<bool>,
 
-    pub(crate) renamed_fields:HashMap<*const Field<'a>,&'a Ident>,
-    #[allow(dead_code)]
-    pub(crate) repr_attrs:Vec<MetaList>,
+    pub(crate) override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
+    
+    pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
+
+    pub(crate) mod_refl_mode:ModReflMode<usize>,
+
+    pub(crate) phantom_fields:Vec<(&'a str,&'a Type)>,
+
 }
 
 
@@ -49,24 +61,34 @@ pub(crate) enum StabilityKind<'a> {
     Prefix(PrefixKind<'a>),
 }
 
-
-#[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
-pub(crate) enum Repr {
-    Transparent,
-    C,
+impl<'a> StabilityKind<'a>{
+    pub(crate) fn field_accessor(
+        &self,
+        mod_refl_mode:ModReflMode<usize>,
+        field:&Field<'a>,
+    )->FieldAccessor<'a>{
+        let is_public=field.is_public() && mod_refl_mode!=ModReflMode::Opaque;
+        match (is_public,self) {
+            (false,_)=>
+                FieldAccessor::Opaque,
+            (true,StabilityKind::Value)=>
+                FieldAccessor::Direct,
+            (true,StabilityKind::Prefix(prefix))=>
+                prefix.field_accessor(field),
+        }
+    }
 }
 
 
 impl<'a> StableAbiOptions<'a> {
-    fn new(ds: &'a DataStructure<'a>, mut this: StableAbiAttrs<'a>) -> Self {
-        let repr = this.repr.expect(
-            "\n\
-             the #[repr(..)] attribute must be one of the supported attributes:\n\
-             \t- #[repr(C)]\n\
-             \t- #[repr(transparent)]\n\
-             \t- #[repr(align(<some_integer>))]\n\
-             ",
-        );
+    fn new(
+        ds: &'a DataStructure<'a>, 
+        mut this: StableAbiAttrs<'a>,
+        arenas: &'a Arenas,
+    ) -> Self {
+        let mut phantom_fields=Vec::<(&'a str,&'a Type)>::new();
+
+        let repr = ReprAttr::new(this.repr);
 
         let mut stable_abi_bounded=ds.generics
             .type_params()
@@ -83,7 +105,7 @@ impl<'a> StableAbiOptions<'a> {
         }
 
         let kind = match this.kind {
-            _ if repr == Repr::Transparent => {
+            _ if repr == ReprAttr::Transparent => {
                 let field=&ds.variants[0].fields[0];
                 
                 let field_bound=syn::parse_str::<WherePredicate>(
@@ -96,43 +118,86 @@ impl<'a> StableAbiOptions<'a> {
             UncheckedStabilityKind::Value => StabilityKind::Value,
             UncheckedStabilityKind::Prefix(prefix)=>{
                 StabilityKind::Prefix(PrefixKind{
-                    first_suffix_field:this.last_prefix_field.map_or(0,|x|x.field_index+1),
+                    first_suffix_field:this.first_suffix_field,
                     prefix_struct:prefix.prefix_struct,
-                    default_on_missing_fields:this.default_on_missing_fields,
-                    on_missing_fields:this.on_missing_fields,
+                    fields:mem::replace(&mut this.prefix_kind_fields,FieldMap::empty())
+                        .map(|fi,pk_field|{
+                            AccessorOrMaybe::new(
+                                fi,
+                                this.first_suffix_field,
+                                pk_field,
+                                this.default_on_missing_fields,
+                            ) 
+                        }),
                     prefix_bounds:this.prefix_bounds,
-                    accessible_if_fields:this.accessible_if_fields,
                 })
             }
 
         };
 
-        if repr == Repr::Transparent && ds.data_variant != DataVariant::Struct {
-            panic!("\nAbiStable does not suport non-struct #[repr(transparent)] types.\n");
+        match (repr,ds.data_variant) {
+            (ReprAttr::Transparent,DataVariant::Struct)=>{}
+            (ReprAttr::Transparent,_)=>{
+                panic!("\nAbiStable does not suport non-struct #[repr(transparent)] types.\n");
+            }
+            (ReprAttr::Int{..},DataVariant::Enum)=>{}
+            (ReprAttr::Int{..},_)=>{
+                panic!("\n\
+                    AbiStable does not suport non-enum #[repr(<some_integer_type>)] types.\
+                \n");
+            }
+            (ReprAttr::C{..},_)=>{}
         }
+
+        let mod_refl_mode=match this.mod_refl_mode {
+            Some(ModReflMode::Module)=>ModReflMode::Module,
+            Some(ModReflMode::Opaque)=>ModReflMode::Opaque,
+            Some(ModReflMode::DelegateDeref(()))=>{
+                let index=phantom_fields.len();
+                let field_ty=syn::parse_str::<Type>("<Self as ::std::op::Deref>::Target")
+                    .unwrap()
+                    .piped(|x| arenas.alloc(x) );
+
+                phantom_fields.push(("deref_target",field_ty));
+
+                &[
+                    "Self: ::std::ops::Deref",
+                    "<Self as ::std::ops::Deref>::Target:__SharedStableAbi",
+                ].iter()
+                 .map(|x| syn::parse_str::<WherePredicate>(x).unwrap() )
+                 .extending(&mut this.extra_bounds);
+
+                 ModReflMode::DelegateDeref(index)
+            }
+            None if ds.has_public_fields() =>
+                ModReflMode::Module,
+            None=>
+                ModReflMode::Opaque,
+        };
 
         StableAbiOptions {
             debug_print:this.debug_print,
-            inside_abi_stable_crate:this.inside_abi_stable_crate,
             kind, repr , stable_abi_bounded , 
             extra_bounds :this.extra_bounds,
             unconstrained_type_params:this.unconstrained_type_params.into_iter().collect(),
             opaque_fields:this.opaque_fields,
             renamed_fields:this.renamed_fields,
-            repr_attrs:this.repr_attrs,
+            override_field_accessor:this.override_field_accessor,
             tags:this.tags,
+            phantom_fields,
+            mod_refl_mode,
         }
     }
 }
 
-///////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Default)]
 struct StableAbiAttrs<'a> {
     debug_print:bool,
-    inside_abi_stable_crate:bool,
     kind: UncheckedStabilityKind<'a>,
-    repr: Option<Repr>,
+    repr: UncheckedReprAttr,
 
     extra_bounds:Vec<WherePredicate>,
 
@@ -140,21 +205,24 @@ struct StableAbiAttrs<'a> {
 
 
     /// The last field of the prefix of a Prefix-type.
-    last_prefix_field:Option<LastPrefixField<'a>>,
+    first_suffix_field:FirstSuffixField,
     default_on_missing_fields:OnMissingField<'a>,
-    on_missing_fields:HashMap<*const Field<'a>,OnMissingField<'a>>,
+    prefix_kind_fields:FieldMap<PrefixKindField<'a>>,
     prefix_bounds:Vec<WherePredicate>,
-    accessible_if_fields:HashMap<*const Field<'a>,syn::Expr>,
 
     /// The type parameters that have no constraints
     unconstrained_type_params:Vec<(Ident,UnconstrainedTyParam<'a>)>,
 
     // Using raw pointers to do an identity comparison.
-    opaque_fields:HashSet<*const Field<'a>>,
+    opaque_fields:FieldMap<bool>,
+
+    override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
-    renamed_fields:HashMap<*const Field<'a>,&'a Ident>,
-    repr_attrs:Vec<MetaList>,
+    renamed_fields:FieldMap<Option<&'a Ident>>,
+
+    mod_refl_mode:Option<ModReflMode<()>>,
 }
+
 
 #[derive(Copy, Clone)]
 enum UncheckedStabilityKind<'a> {
@@ -193,6 +261,11 @@ pub(crate) fn parse_attrs_for_stable_abi<'a>(
 ) -> StableAbiOptions<'a> {
     let mut this = StableAbiAttrs::default();
 
+    this.opaque_fields=FieldMap::defaulted(ds);
+    this.prefix_kind_fields=FieldMap::defaulted(ds);
+    this.renamed_fields=FieldMap::defaulted(ds);
+    this.override_field_accessor=FieldMap::defaulted(ds);
+
     let name=ds.name;
 
     parse_inner(&mut this, attrs, ParseContext::TypeAttr{name}, arenas);
@@ -203,7 +276,7 @@ pub(crate) fn parse_attrs_for_stable_abi<'a>(
         }
     }
 
-    StableAbiOptions::new(ds, this)
+    StableAbiOptions::new(ds, this,arenas)
 }
 
 fn parse_inner<'a>(
@@ -229,24 +302,27 @@ fn parse_attr_list<'a>(
     arenas: &'a Arenas
 ) {
     if list.ident == "repr" {
-        for repr in &list.nested {
-            match &repr {
-                NestedMeta::Meta(Meta::Word(ident)) if ident == "C" => {
-                    this.repr = Some(Repr::C);
+        with_nested_meta("repr", list.nested, |attr| match attr {
+            Meta::Word(ref ident)=> {
+                if ident=="C" {
+                    this.repr.set_repr_kind(UncheckedReprKind::C);
+                }else if ident=="transparent" {
+                    this.repr.set_repr_kind(UncheckedReprKind::Transparent);
+                }else if let Some(dr)=DiscriminantRepr::from_ident(ident) {
+                    this.repr.set_discriminant_repr(dr);
+                }else{
+                    panic!(
+                        "repr attribute not currently recognized by this macro:\n{:?}",
+                        ident
+                    )
                 }
-                NestedMeta::Meta(Meta::Word(ident)) if ident == "transparent" => {
-                    this.repr = Some(Repr::Transparent);
-                }
-                NestedMeta::Meta(Meta::List(list)) if list.ident == "align" => {
-                    
-                }
-                x => panic!(
-                    "repr attribute not currently recognized by this macro:\n{:?}",
-                    x
-                ),
             }
-        }
-        this.repr_attrs.push(list);
+            Meta::List(ref list) if list.ident == "align" => {}
+            x => panic!(
+                "repr attribute not currently recognized by this macro:\n{:?}",
+                x
+            ),
+        })
     } else if list.ident == "sabi" {
         with_nested_meta("sabi", list.nested, |attr| {
             parse_sabi_attr(this,pctx, attr, arenas)
@@ -263,9 +339,10 @@ fn parse_sabi_attr<'a>(
     match (pctx, attr) {
         (ParseContext::Field{field,field_index}, Meta::Word(word)) => {
             if word == "unsafe_opaque_field" {
-                this.opaque_fields.insert(field);
+                this.opaque_fields[field]=true;
             }else if word == "last_prefix_field" {
-                this.last_prefix_field=Some(LastPrefixField{field_index,field});
+                let field_pos=field_index+1;
+                this.first_suffix_field=FirstSuffixField{field_pos};
             }else{
                 panic!("unrecognized field attribute `#[sabi({})]` ",word);
             }
@@ -277,10 +354,10 @@ fn parse_sabi_attr<'a>(
             if ident=="rename" {
                 let renamed=parse_lit_as_ident(&value)
                     .piped(|x| arenas.alloc(x) );
-                this.renamed_fields.insert(field,renamed);
+                this.renamed_fields.insert(field,Some(renamed));
             }else if ident=="accessible_if" {
-                let expr=parse_lit_as_expr(&value);
-                this.accessible_if_fields.insert(field,expr);
+                let expr=arenas.alloc(parse_lit_as_expr(&value));
+                this.prefix_kind_fields[field].accessible_if=Some(expr);
             }else{
                 panic!(
                     "unrecognized field attribute `#[sabi({}={})]` ",
@@ -292,13 +369,12 @@ fn parse_sabi_attr<'a>(
         (ParseContext::Field{field,..}, Meta::List(list)) => {
             if list.ident == "missing_field" {
                 let on_missing_field=parse_missing_field(&list.nested,arenas);
-                this.on_missing_fields.insert(field,on_missing_field);
+                this.prefix_kind_fields[field].on_missing=Some(on_missing_field);
+            }else if list.ident == "refl" {
+                parse_refl_field(this,field,list.nested,arenas);
             }else{
                 panic!("unrecognized field attribute `#[sabi({})]` ",list.ident);
             }
-        }
-        (ParseContext::TypeAttr{..},Meta::Word(ref word)) if word == "inside_abi_stable_crate" =>{
-            this.inside_abi_stable_crate=true;
         }
         (ParseContext::TypeAttr{..},Meta::Word(ref word)) if word == "debug_print" =>{
             this.debug_print=true;
@@ -373,6 +449,19 @@ Tag:\n\t{}\n",
                     }
                     x => panic!("invalid #[kind(..)] attribute:\n{:?}", x),
                 });
+            } else if list.ident == "module_reflection" {
+                with_nested_meta("kind", list.nested, |attr| match attr {
+                    Meta::Word(ref word) if word == "Module" => {
+                        this.mod_refl_mode = Some(ModReflMode::Module);
+                    }
+                    Meta::Word(ref word) if word == "Opaque" => {
+                        this.mod_refl_mode = Some(ModReflMode::Opaque);
+                    }
+                    Meta::Word(ref word) if word == "Deref" => {
+                        this.mod_refl_mode = Some(ModReflMode::DelegateDeref(()));
+                    }
+                    x => panic!("invalid #[module_reflection(..)] attribute:\n{:?}", x),
+                });
             } else if list.ident == "unconstrained" {
                 with_nested_meta("unconstrained", list.nested, |attr| match attr {
                     Meta::Word(type_param)=>{
@@ -400,6 +489,30 @@ Tag:\n\t{}\n",
         (_,x) => panic!("not allowed inside the #[sabi(...)] attribute:\n{:?}", x),
     }
 }
+
+
+fn parse_refl_field<'a>(
+    this: &mut StableAbiAttrs<'a>,
+    field:&'a Field<'a>,
+    list: Punctuated<NestedMeta, Comma>, 
+    arenas: &'a Arenas
+) {
+
+
+    with_nested_meta("refl", list, |attr| match attr {
+        Meta::NameValue(MetaNameValue{lit:Lit::Str(ref val),ref ident,..})=>{
+            if ident=="pub_getter" {
+                let function=arenas.alloc(val.value());
+                this.override_field_accessor[field]=
+                    Some(FieldAccessor::Method{ name:Some(function) });
+            }else{
+                panic!("invalid #[sabi(refl(..))] attribute:\n`{}={:?}`",ident,val)
+            }
+        }
+        x => panic!("invalid #[sabi(refl(..))] attribute:\n{:?}", x),
+    });
+}
+
 
 
 /// Parses the contents of #[sabi(missing_field( ... ))]

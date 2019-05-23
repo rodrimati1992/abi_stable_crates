@@ -7,14 +7,17 @@ use std::{cmp::Ordering, fmt,mem};
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    slice,
+};
 // use std::collections::HashSet;
 
 use super::{
     AbiInfo, AbiInfoWrapper,
     type_layout::{
         TypeLayout, TLData, TLDataDiscriminant, TLEnumVariant, TLField,TLFieldAndType, 
-        FullType,
+        FullType, ReprAttr, TLDiscriminant,TLPrimitive,
     },
     tagging::{CheckableTag,TagErrors},
 };
@@ -51,7 +54,6 @@ pub struct AbiInstabilityError {
 
 /// An individual error from checking the layout of some type.
 #[derive(Debug, PartialEq,Clone)]
-#[repr(C)]
 pub enum AbiInstability {
     IsPrefix(ExpectedFoundError<bool>),
     NonZeroness(ExpectedFoundError<bool>),
@@ -64,12 +66,15 @@ pub enum AbiInstability {
     Alignment(ExpectedFoundError<usize>),
     GenericParamCount(ExpectedFoundError<FullType>),
     TLDataDiscriminant(ExpectedFoundError<TLDataDiscriminant>),
+    MismatchedPrimitive(ExpectedFoundError<TLPrimitive>),
     FieldCountMismatch(ExpectedFoundError<usize>),
     FieldLifetimeMismatch(ExpectedFoundError<TLField>),
     UnexpectedField(ExpectedFoundError<TLField>),
     TooManyVariants(ExpectedFoundError<usize>),
     MismatchedPrefixConditionality(ExpectedFoundError<StaticSlice<IsConditional>>),
     UnexpectedVariant(ExpectedFoundError<TLEnumVariant>),
+    ReprAttr(ExpectedFoundError<ReprAttr>),
+    EnumDiscriminant(ExpectedFoundError<TLDiscriminant>),
     TagError{
         expected_found:ExpectedFoundError<CheckableTag>,
         err:TagErrors,
@@ -156,6 +161,7 @@ impl fmt::Display for AbiInstabilityError {
                 ),
 
                 AI::TLDataDiscriminant(v) => ("incompatible data ", v.debug_str()),
+                AI::MismatchedPrimitive(v) => ("incompatible primitive", v.debug_str()),
                 AI::FieldCountMismatch(v) => ("too many fields", v.display_str()),
                 AI::FieldLifetimeMismatch(v) => {
                     ("field references different lifetimes", v.debug_str())
@@ -167,6 +173,8 @@ impl fmt::Display for AbiInstabilityError {
                     v.debug_str()
                 ),
                 AI::UnexpectedVariant(v) => ("unexpected variant", v.debug_str()),
+                AI::ReprAttr(v)=>("incompatible repr attributes",v.debug_str()),
+                AI::EnumDiscriminant(v)=>("different discriminants",v.debug_str()),
                 AI::TagError{expected_found,err} => {
                     extra_err=Some(err.to_string());
 
@@ -219,7 +227,7 @@ impl CheckingUTypeId{
         Self{
             type_id:(this.type_id.function)(),
             name:layout.name,
-            package:layout.package,
+            package:layout.package(),
         }
     }
 }
@@ -334,7 +342,7 @@ impl AbiChecker {
             return;
         }
 
-        let is_prefix= t_lay.data.discriminant() == TLDataDiscriminant::PrefixType;
+        let is_prefix= t_lay.data.as_discriminant() == TLDataDiscriminant::PrefixType;
         match (t_fields.len().cmp(&o_fields.len()), is_prefix) {
             (Ordering::Greater, _) | (Ordering::Less, false) => {
                 push_err(
@@ -381,8 +389,15 @@ impl AbiChecker {
                 self.stack_trace.push(TLFieldAndType::new(*this_f));
                     
                 let sf_ctx=FieldContext::Subfields;
-                // Used to check function pointer parameter and return types
-                self.check_fields(errs,t_lay,o_lay,sf_ctx,&this_f.subfields,&other_f.subfields);
+                
+                for (t_func,o_func) in this_f.functions.iter().zip(&*other_f.functions) {
+                    self.check_fields(errs,t_lay,o_lay,sf_ctx,&t_func.params,&o_func.params);
+
+                    let t_returns=t_func.returns.as_ref().map_or(&[][..],slice::from_ref);
+                    let o_returns=o_func.returns.as_ref().map_or(&[][..],slice::from_ref);
+                    self.check_fields(errs,t_lay,o_lay,sf_ctx,t_returns,o_returns);
+                }
+
 
                 self.check_inner(t_field_abi, o_field_abi);
             }else{
@@ -427,8 +442,8 @@ impl AbiChecker {
                 push_err(errs, t_lay, o_lay, |x| x.full_type(), AI::Name);
                 return;
             }
-            if t_lay.package != o_lay.package {
-                push_err(errs, t_lay, o_lay, |x| x.package, AI::Package);
+            if t_lay.package() != o_lay.package() {
+                push_err(errs, t_lay, o_lay, |x| x.package(), AI::Package);
                 return;
             }
 
@@ -439,10 +454,14 @@ impl AbiChecker {
                 push_err(errs, this, other, |x| x.is_nonzero, AI::NonZeroness);
             }
 
+            if t_lay.repr_attr != o_lay.repr_attr {
+                push_err(errs, t_lay, o_lay, |x| x.repr_attr, AI::ReprAttr);
+            }
+
             {
                 let x = (|| {
-                    let l = t_lay.package_version.parsed()?;
-                    let r = o_lay.package_version.parsed()?;
+                    let l = t_lay.package_version().parsed()?;
+                    let r = o_lay.package_version().parsed()?;
                     Ok(l.is_compatible(r))
                 })();
                 match x {
@@ -451,7 +470,7 @@ impl AbiChecker {
                             errs,
                             t_lay,
                             o_lay,
-                            |x| x.package_version,
+                            |x| *x.package_version(),
                             AI::PackageVersion,
                         );
                     }
@@ -493,8 +512,8 @@ impl AbiChecker {
                 push_err(errs, t_lay, o_lay, |x| x.alignment, AI::Alignment);
             }
 
-            let t_discr = t_lay.data.discriminant();
-            let o_discr = o_lay.data.discriminant();
+            let t_discr = t_lay.data.as_discriminant();
+            let o_discr = o_lay.data.as_discriminant();
             if t_discr != o_discr {
                 errs.push(AI::TLDataDiscriminant(ExpectedFoundError {
                     expected: t_discr,
@@ -515,8 +534,20 @@ impl AbiChecker {
             }
 
             match (t_lay.data, o_lay.data) {
-                (TLData::Primitive, TLData::Primitive) => {}
-                (TLData::Primitive, _) => {}
+                (TLData::Opaque{..}, _) => {
+                    // No checks are necessary
+                }
+
+                (TLData::Primitive(t_prim), TLData::Primitive(o_prim)) => {
+                    if t_prim != o_prim {
+                        errs.push(AI::MismatchedPrimitive(ExpectedFoundError {
+                            expected: t_prim,
+                            found: o_prim,
+                        }));
+                    }
+                }
+                (TLData::Primitive{..}, _) => {}
+                
                 (TLData::Struct { fields: t_fields }, TLData::Struct { fields: o_fields }) => {
                     self.check_fields(
                         errs, 
@@ -528,6 +559,19 @@ impl AbiChecker {
                     );
                 }
                 (TLData::Struct { .. }, _) => {}
+                
+                (TLData::Union { fields: t_fields }, TLData::Union { fields: o_fields }) => {
+                    self.check_fields(
+                        errs, 
+                        this.layout,
+                        other.layout,
+                        FieldContext::Fields, 
+                        &t_fields, 
+                        &o_fields
+                    );
+                }
+                (TLData::Union { .. }, _) => {}
+                
                 (TLData::Enum { variants: t_varis }, TLData::Enum { variants: o_varis }) => {
                     let t_varis = t_varis.as_slice();
                     let o_varis = o_varis.as_slice();
@@ -537,6 +581,17 @@ impl AbiChecker {
                     for (t_vari, o_vari) in t_varis.iter().zip(o_varis) {
                         let t_name = t_vari.name.as_str();
                         let o_name = o_vari.name.as_str();
+                        
+                        if t_vari.discriminant!=o_vari.discriminant {
+                            push_err(
+                                errs, 
+                                *t_vari, 
+                                *o_vari, 
+                                |x| x.discriminant, 
+                                AI::EnumDiscriminant
+                            );
+                        }
+
                         if t_name != o_name {
                             push_err(errs, *t_vari, *o_vari, |x| x, AI::UnexpectedVariant);
                             continue;
@@ -552,6 +607,7 @@ impl AbiChecker {
                     }
                 }
                 (TLData::Enum { .. }, _) => {}
+                
                 (
                     TLData::PrefixType (t_prefix),
                     TLData::PrefixType (o_prefix),
@@ -724,11 +780,11 @@ the first parameter must be the expected layout,
 and the second must be actual layout.
 
 */
-pub(super) fn check_abi_stability(
+pub(super) fn check_layout_compatibility(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
 ) -> Result<(), AbiInstabilityErrors> {
-    check_abi_stability_with_globals(
+    check_layout_compatibility_with_globals(
         interface,
         implementation,
         get_checking_globals(),
@@ -737,7 +793,7 @@ pub(super) fn check_abi_stability(
 
 
 #[inline(never)]
-pub(super) fn check_abi_stability_with_globals(
+pub(super) fn check_layout_compatibility_with_globals(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
     globals:&CheckingGlobals,
@@ -786,6 +842,19 @@ pub(super) fn check_abi_stability_with_globals(
 
 /**
 Checks that the layout of `interface` is compatible with `implementation`,
+*/
+pub(crate) extern fn check_layout_compatibility_for_ffi(
+    interface: &'static AbiInfoWrapper,
+    implementation: &'static AbiInfoWrapper,
+) -> RResult<(), RBoxError> {
+    check_layout_compatibility(interface,implementation)
+        .map_err(RBoxError::from_fmt)
+        .into_c()
+}
+
+
+/**
+Checks that the layout of `interface` is compatible with `implementation`,
 
 # Warning
 
@@ -793,14 +862,24 @@ This function is not symmetric,
 the first parameter must be the expected layout,
 and the second must be actual layout.
 
+# Safety 
+
+If this function is called within a dynamic library,
+it must be called at or after the function that exports its root module is called.
+
+**DO NOT** call this in the static initializer of a dynamic library,
+since this library relies on setting up its global state before
+calling the root module loader.
+
 */
-pub(crate) extern fn check_abi_stability_for_ffi(
+pub unsafe extern fn exported_check_layout_compatibility(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
 ) -> RResult<(), RBoxError> {
-    check_abi_stability(interface,implementation)
-        .map_err(RBoxError::from_fmt)
-        .into_c()
+    extern_fn_panic_handling!{
+        (crate::globals::initialized_globals().layout_checking)
+            (interface,implementation)
+    }
 }
 
 
@@ -810,7 +889,7 @@ pub(crate) extern fn check_abi_stability_for_ffi(
 use std::sync::Mutex;
 
 use crate::{
-    lazy_static_ref::LazyStaticRef,
+    late_static_ref::LateStaticRef,
     multikey_map::MultiKeyMap,
     prefix_type::PrefixTypeMetadata,
     utils::leak_value,
@@ -829,7 +908,7 @@ impl CheckingGlobals{
     }
 }
 
-static CHECKING_GLOBALS:LazyStaticRef<CheckingGlobals>=LazyStaticRef::new();
+static CHECKING_GLOBALS:LateStaticRef<CheckingGlobals>=LateStaticRef::new();
 
 pub fn get_checking_globals()->&'static CheckingGlobals{
     CHECKING_GLOBALS.init(||{

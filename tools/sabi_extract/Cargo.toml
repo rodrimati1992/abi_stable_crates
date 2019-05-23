@@ -1,0 +1,11 @@
+[package]
+name = "sabi_extract"
+version = "0.1.0"
+authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+abi_stable={version="*",path="../../abi_stable"}
+structopt = "0.2"
+core_extensions = "0.1"
+serde_json="1.0"

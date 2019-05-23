@@ -7,23 +7,30 @@ use std::{
     ptr,
 };
 
-use lock_api::RawMutex as RawMutexTrait;
+use crate::external_types::RMutex;
 
-use parking_lot::RawMutex;
+/**
+A late-initialized static reference,with fallible initialization.
 
-/// A late-initialized static reference.
-pub struct LazyStaticRef<T>{
-    // Using a RawMutex because all I need is to prevent multiple threads 
-    // from loading the static at the same time.
-    lock:RawMutex,
+As opposed to `Once`,
+this allows initialization of its static reference to happen fallibly,
+by returning a `Result<_,_>` from the try_init function,
+or by panicking inside either initialization function.
+
+On `Err(_)` and panics,one can try initialializing the static reference again.
+
+*/
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct LateStaticRef<T>{
     pointer:AtomicPtr<T>,
+    lock:RMutex<()>,
 }
 
-// Workaround for being unable to use traits inside `const fn`.
-const LOCK:RawMutex=<RawMutex as RawMutexTrait>::INIT;
+const LOCK:RMutex<()>=RMutex::new(());
 
 
-impl<T> LazyStaticRef<T>{
+impl<T> LateStaticRef<T>{
     /// Constructs the late initialized static reference,
     /// in an uninitialized state.
     pub const fn new()->Self{
@@ -49,9 +56,8 @@ impl<T> LazyStaticRef<T>{
             return Ok(pointer);
         }
         
-        self.lock.lock();
-        let unlocker=UnlockOnDrop(&self.lock);
-
+        let guard_=self.lock.lock();
+        
         if let Some(pointer)=self.get() {
             return Ok(pointer);
         }
@@ -60,7 +66,7 @@ impl<T> LazyStaticRef<T>{
 
         self.pointer.store(pointer as *const T as *mut T,Ordering::Release);
 
-        drop(unlocker);
+        drop(guard_);
 
         Ok(pointer)
 
@@ -81,7 +87,7 @@ impl<T> LazyStaticRef<T>{
             .try_init(||->Result<&'static T,()>{ 
                 Ok(initializer()) 
             })
-            .expect("bug:LazyStaticRef::try_init should only return an Err if `initializer` does")
+            .expect("bug:LateStaticRef::try_init should only return an Err if `initializer` does")
     }
 
     /// Returns `Some(x:&'static T)` if the reference was initialized,otherwise returns None.
@@ -94,15 +100,13 @@ impl<T> LazyStaticRef<T>{
     }
 }
 
+use ::std::panic::{
+    UnwindSafe,
+    RefUnwindSafe,
+};
 
-
-struct UnlockOnDrop<'a>(&'a RawMutex);
-
-impl<'a> Drop for UnlockOnDrop<'a>{
-    fn drop(&mut self){
-        (self.0).unlock();
-    }
-}
+impl<T> UnwindSafe for LateStaticRef<T>{}
+impl<T> RefUnwindSafe for LateStaticRef<T>{}
 
 
 //////////////////////////////////////////////////////
@@ -119,7 +123,7 @@ mod tests{
 
     #[test]
     fn test_init(){
-        let ptr=LazyStaticRef::<u32>::new();
+        let ptr=LateStaticRef::<u32>::new();
 
         assert_eq!(None,ptr.get() );
         
@@ -142,7 +146,7 @@ mod tests{
 
     #[test]
     fn test_try_init(){
-        let ptr=LazyStaticRef::<u32>::new();
+        let ptr=LateStaticRef::<u32>::new();
 
         assert_eq!(None,ptr.get() );
         

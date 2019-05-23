@@ -64,6 +64,7 @@ declare_arenas! {
     // metalists: syn::MetaList,
     // visibilities: syn::Visibility,
     // tokenstream: TokenStream,
+    expr: syn::Expr,
     strings: String,
     paths: syn::Path,
 }

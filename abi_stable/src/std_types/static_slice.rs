@@ -22,7 +22,6 @@ mod inner {
     /// so as to replace this type with RSlice<'static,T>.
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(inside_abi_stable_crate)]
     pub struct StaticSlice<T: 'static> {
         #[sabi(unsafe_opaque_field)]
         s: &'static [T],

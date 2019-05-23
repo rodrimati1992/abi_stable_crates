@@ -26,7 +26,6 @@ use crate::{
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct RIoErrorKind {
     value: u8,
 }
@@ -124,9 +123,8 @@ impl_error_kind!{
 
 /// Ffi-safe equivalent of `std::io::SeekFrom`.
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
-#[repr(C)]
+#[repr(u8)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub enum RSeekFrom {
     Start(u64),
     End(i64),
@@ -165,7 +163,6 @@ impl_into_rust_repr! {
 /// Ffi safe equivalent to `std::io::Error`.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct RIoError {
     kind: RIoErrorKind,
     error: ROption<RBoxError>,

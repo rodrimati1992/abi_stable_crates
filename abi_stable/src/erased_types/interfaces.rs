@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct CloneInterface;
 
 crate::impl_InterfaceType!{
@@ -18,7 +17,6 @@ crate::impl_InterfaceType!{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct DefaultInterface;
 
 crate::impl_InterfaceType!{
@@ -31,7 +29,6 @@ crate::impl_InterfaceType!{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct PartialEqInterface;
 
 crate::impl_InterfaceType!{
@@ -45,7 +42,6 @@ crate::impl_InterfaceType!{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct FmtWriteInterface;
 
 crate::impl_InterfaceType!{
@@ -60,7 +56,6 @@ crate::impl_InterfaceType!{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct IteratorInterface<T>(PhantomData<T>);
 
 impl<T> IteratorInterface<T>{
@@ -84,7 +79,6 @@ impl<'a,T:'a> IteratorItem<'a> for IteratorInterface<T>{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(inside_abi_stable_crate)]
 pub struct DEIteratorInterface<T>(PhantomData<T>);
 
 impl<T> DEIteratorInterface<T>{

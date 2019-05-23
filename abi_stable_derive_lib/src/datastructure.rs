@@ -18,6 +18,10 @@ use quote::ToTokens;
 
 use proc_macro2::{Span, TokenStream};
 
+mod field_map;
+
+pub(crate) use self::field_map::FieldMap;
+
 //////////////////////////////////////////////////////////////////////////////
 
 #[derive(Clone, Debug, PartialEq, Hash)]
@@ -26,6 +30,8 @@ pub(crate) struct DataStructure<'a> {
     pub(crate) name: &'a Ident,
     pub(crate) generics: &'a Generics,
     pub(crate) lifetime_count: usize,
+    pub(crate) field_count: usize,
+    pub(crate) pub_field_count: usize,
 
     pub(crate) fn_info: FnInfo<'a>,
 
@@ -58,7 +64,11 @@ impl<'a> hash::Hash for Enum<'a> {
 }
 
 impl<'a> DataStructure<'a> {
-    pub(crate) fn new(ast: &'a mut DeriveInput, arenas: &'a Arenas, ctokens: &'a CommonTokens<'a>) -> Self {
+    pub(crate) fn new(
+        ast: &'a mut DeriveInput, 
+        arenas: &'a Arenas, 
+        ctokens: &'a CommonTokens<'a>
+    ) -> Self {
         let name = &ast.ident;
         let enum_ = match ast.data {
             Data::Enum(_) => Some(Enum {
@@ -74,12 +84,22 @@ impl<'a> DataStructure<'a> {
 
         let mut variants = Vec::new();
 
+
         match &mut ast.data {
             Data::Enum(enum_) => {
-                for var in &mut enum_.variants {
+                let override_vis=Some(&ast.vis);
+
+                for (variant,var) in (&mut enum_.variants).into_iter().enumerate() {
                     variants.push(Struct::new(
-                        &var.attrs,
-                        &var.ident,
+                        StructParams{
+                            discriminant:var.discriminant
+                                .as_ref()
+                                .map(|(_,v)| v ),
+                            variant:variant,
+                            attrs:&var.attrs,
+                            name:&var.ident,
+                            override_vis:override_vis,
+                        },
                         &mut var.fields,
                         &mut ty_visitor,
                     ));
@@ -87,9 +107,16 @@ impl<'a> DataStructure<'a> {
                 data_variant = DataVariant::Enum;
             }
             Data::Struct(struct_) => {
+                let override_vis=None;
+
                 variants.push(Struct::new(
-                    &ast.attrs,
-                    name,
+                    StructParams{
+                        discriminant:None,
+                        variant:0,
+                        attrs:&ast.attrs,
+                        name:name,
+                        override_vis:override_vis,
+                    },
                     &mut struct_.fields,
                     &mut ty_visitor,
                 ));
@@ -97,12 +124,33 @@ impl<'a> DataStructure<'a> {
             }
 
             Data::Union(union_) => {
+                let override_vis=None;
+
                 let fields = Some(&union_.fields.named);
                 let sk = StructKind::Braced;
-                let vari = Struct::with_fields(&ast.attrs, name, sk, fields, &mut ty_visitor);
+                let vari = Struct::with_fields(
+                    StructParams{
+                        discriminant:None,
+                        variant:0,
+                        attrs:&ast.attrs, 
+                        name:name, 
+                        override_vis:override_vis,
+                    },
+                    sk, 
+                    fields,
+                    &mut ty_visitor
+                );
                 variants.push(vari);
                 data_variant = DataVariant::Union;
             }
+        }
+
+        let mut field_count=0;
+        let mut pub_field_count=0;
+
+        for vari in &variants {
+            field_count+=vari.fields.len();
+            pub_field_count+=vari.pub_field_count;
         }
 
         Self {
@@ -115,7 +163,13 @@ impl<'a> DataStructure<'a> {
             data_variant,
             enum_,
             variants,
+            field_count,
+            pub_field_count,
         }
+    }
+
+    pub(crate) fn has_public_fields(&self)->bool{
+        self.pub_field_count!=0
     }
 }
 
@@ -137,7 +191,25 @@ pub(crate) enum DataVariant {
     Union,
 }
 
+
+#[derive(Copy,Clone, Debug, PartialEq, Hash)]
+pub(crate) struct FieldIndex {
+    pub(crate) variant:usize,
+    pub(crate) pos:usize,
+}
+
 //////////////////////////////////////////////////////////////////////////////
+
+
+#[derive(Copy,Clone)]
+pub(crate) struct StructParams<'a>{
+    pub(crate) discriminant:Option<&'a syn::Expr>,
+    pub(crate) variant:usize,
+    pub(crate) attrs: &'a [Attribute],
+    pub(crate) name: &'a Ident,
+    pub(crate) override_vis:Option<&'a Visibility>,
+}
+
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct Struct<'a> {
@@ -145,13 +217,14 @@ pub(crate) struct Struct<'a> {
     pub(crate) name: &'a Ident,
     pub(crate) kind: StructKind,
     pub(crate) fields: Vec<Field<'a>>,
+    pub(crate) pub_field_count:usize,
+    pub(crate) discriminant:Option<&'a syn::Expr>,
     _priv: (),
 }
 
 impl<'a> Struct<'a> {
     pub(crate) fn new(
-        attrs: &'a [Attribute],
-        name: &'a Ident,
+        p:StructParams<'a>,
         fields: &'a SynFields,
         tv: &mut TypeVisitor<'a>,
     ) -> Self {
@@ -166,12 +239,11 @@ impl<'a> Struct<'a> {
             SynFields::Unit => None,
         };
 
-        Self::with_fields(attrs, name, kind, fields, tv)
+        Self::with_fields(p, kind, fields, tv)
     }
 
     pub(crate) fn with_fields<I>(
-        attrs: &'a [Attribute],
-        name: &'a Ident,
+        p:StructParams<'a>,
         kind: StructKind,
         fields: Option<I>,
         tv: &mut TypeVisitor<'a>,
@@ -179,11 +251,18 @@ impl<'a> Struct<'a> {
     where
         I: IntoIterator<Item = &'a SynField>,
     {
+        let fields=match fields {
+            Some(x) => Field::from_iter(p, x, tv),
+            None => Vec::new(),
+        };
+
         Self {
-            attrs,
-            name,
+            discriminant:p.discriminant,
+            attrs:p.attrs,
+            name:p.name,
             kind,
-            fields: fields.map_or(Vec::new(), |x| Field::from_iter(name, x, tv)),
+            pub_field_count:fields.iter().filter(|x|x.is_public()).count(),
+            fields,
             _priv: (),
         }
     }
@@ -196,12 +275,15 @@ impl<'a> Struct<'a> {
 ///
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct Field<'a> {
+    pub(crate) index:FieldIndex,
     pub(crate) attrs: &'a [Attribute],
     pub(crate) vis: &'a Visibility,
     pub(crate) referenced_lifetimes: Vec<LifetimeIndex>,
     /// identifier for the field,which is either an index(in a tuple struct) or a name.
     pub(crate) ident: FieldIdent<'a>,
     pub(crate) ty: &'a Type,
+    /// Whether the type of this field is just a function pointer.
+    pub(crate) is_function:bool,
     /// The type used to get the AbiInfo of the field.
     /// This has all parameter and return types of function pointers removed.
     /// Extracted into the `functions` field of this struct.
@@ -212,30 +294,46 @@ pub(crate) struct Field<'a> {
 
 impl<'a> Field<'a> {
     pub(crate) fn new(
-        index: usize,
+        index: FieldIndex,
         field: &'a SynField,
         span: Span,
+        override_vis:Option<&'a Visibility>,
         tv: &mut TypeVisitor<'a>,
     ) -> Self {
         let ident = match field.ident.as_ref() {
             Some(ident) => FieldIdent::Named(ident),
-            None => FieldIdent::new_index(index, span),
+            None => FieldIdent::new_index(index.pos, span),
         };
 
         let mut mutated_ty=field.ty.clone();
 
         let visit_info = tv.visit_field(&mut mutated_ty);
 
+        let is_function=match field.ty {
+            Type::BareFn{..}=>true,
+            _=>false,
+        };
+
         Self {
+            index,
             attrs: &field.attrs,
-            vis: &field.vis,
+            vis: override_vis.unwrap_or(&field.vis),
             referenced_lifetimes: visit_info.referenced_lifetimes,
             ident,
             ty: &field.ty,
+            is_function,
             mutated_ty,
             functions: visit_info.functions,
         }
     }
+
+    pub(crate) fn is_public(&self)->bool{
+        match self.vis {
+            Visibility::Public{..}=>true,
+            _=>false,
+        }
+    }
+
 
     pub(crate) fn ident(&self)->&Ident{
         match &self.ident {
@@ -244,14 +342,21 @@ impl<'a> Field<'a> {
         }
     }
 
-    pub(crate) fn from_iter<I>(name: &'a Ident, fields: I, tv: &mut TypeVisitor<'a>) -> Vec<Self>
+    pub(crate) fn from_iter<I>(
+        p:StructParams<'a>,
+        fields: I, 
+        tv: &mut TypeVisitor<'a>
+    ) -> Vec<Self>
     where
         I: IntoIterator<Item = &'a SynField>,
     {
         fields
             .into_iter()
             .enumerate()
-            .map(|(i, f)| Field::new(i, f, name.span(), tv))
+            .map(|(pos, f)|{ 
+                let fi=FieldIndex{variant:p.variant,pos};
+                Field::new(fi, f, p.name.span(),p.override_vis, tv)
+            })
             .collect()
     }
 }
@@ -280,3 +385,4 @@ impl<'a> FieldIdent<'a> {
         FieldIdent::Index(index, Ident::new(&buff, span))
     }
 }
+
