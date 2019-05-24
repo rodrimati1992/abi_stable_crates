@@ -66,7 +66,7 @@ It generally looks like `DynTrait<'borrow,Pointer<()>,Interface>`,where:
 `trait InterfaceType` allows describing which traits are required 
 when constructing a `DynTrait<_>`,and which ones it implements.
 
-### Construction
+<h3> Construction </h3>
 
 To construct a `DynTrait<_>` one can use these associated functions:
     
@@ -93,7 +93,7 @@ To construct a `DynTrait<_>` one can use these associated functions:
 DynTrait uses the impls of the value in methods,
 which means that the pointer itself does not have to implement those traits,
 
-### Trait object
+<h3> Trait object </h3>
 
 `DynTrait<'borrow,Pointer<()>,Interface>` 
 can be used as a trait object for any combination of 
@@ -143,7 +143,7 @@ These are the traits:
 - serde::Serialize:
     first calls the objects' Deserialize impl,then serializes that as a string.
 
-### Deconstruction
+<h3> Deconstruction </h3>
 
 `DynTrait<_>` can then be unwrapped into a concrete type,
 within the same dynamic library/executable that constructed it,
@@ -210,7 +210,7 @@ the binary or lib0 will cause the panic to happen if:
 
 # Examples
 
-### In the Readme
+<h3> In the Readme </h3>
 
 The primary example using `DynTrait<_>` is in the readme.
 
@@ -219,7 +219,7 @@ Readme is in
 [crates.io](https://crates.io/crates/abi_stable),
 [lib.rs](https://lib.rs/crates/abi_stable).
 
-### Comparing DynTraits
+<h3> Comparing DynTraits </h3>
 
 This is only possible if the erased types don't contain borrows,
 and they are not constructed using `DynTrait::from_borrowing_*` methods.
@@ -256,7 +256,7 @@ use abi_stable::{
 
 ```
 
-### Writing to a DynTrait
+<h3> Writing to a DynTrait </h3>
 
 This is an example of using the `write!()` macro with DynTrait.
 
@@ -285,7 +285,7 @@ assert_eq!(&buffer[..],"FooBarBaz");
 ```
 
 
-### Iteration
+<h3> Iteration </h3>
 
 Using `DynTrait` as an `Iterator` and `DoubleEndedIterator`.
 
@@ -323,7 +323,7 @@ wrapper around a `&` or a `&mut`,
 in which case it should implement `GetPointerKind<Kind=PK_Reference>` 
 or `GetPointerKind<Kind=PK_MutReference>` respectively.
 
-### Example
+<h3> Example </h3>
 
 This is an example of a newtype wrapping an `RBox<T>`.
 
@@ -1344,7 +1344,7 @@ Extends `buffer` with as many elements of the iterator as `taking` specifies:
 
 - RSome(n): Yields n elements.
 
-### Example
+<h3> Example </h3>
 
 ```
 # use abi_stable::{
@@ -1413,7 +1413,7 @@ Extends `buffer` with as many elements of the iterator as `taking` specifies:
 
 - RSome(n): Yields n elements.
 
-### Example
+<h3> Example </h3>
 
 ```
 # use abi_stable::{
