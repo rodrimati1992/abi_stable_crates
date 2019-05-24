@@ -82,7 +82,7 @@ These are the kinds of types passed through FFI:
     which can be extended in minor versions while staying ABI compatible.
     by adding fields at the end.
 
-### Declaring enums
+<h3> Declaring enums </h3>
 
 Adding variants or fields to a variant is disallowed in minor versions.
 
