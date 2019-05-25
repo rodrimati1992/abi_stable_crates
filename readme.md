@@ -368,6 +368,12 @@ these checks are done purely to detect programming errors.
 
 # Planned features
 
+### 0.5
+
+Support for generating ffi-safe trait objects from trait definitions,using an attribute.
+These traits can have supertraits that used the same attribute as well as those that didn't.
+The generated trait objects can then be constructed from a pointer to a type that implements the trait.
+
 ### Eventually
 
 WASM support,with the same features as native dynamic libraries,
