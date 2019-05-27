@@ -178,6 +178,7 @@ pub mod return_value_equality;
 #[doc(hidden)]
 pub mod derive_macro_reexports;
 pub mod std_types;
+pub mod sabi_types;
 
 
 pub mod late_static_ref;
@@ -187,6 +188,8 @@ pub mod type_level;
 pub mod version;
 
 pub mod docs;
+
+pub mod trait_object_test;
 
 
 /// The header used to identify the version number of abi_stable
