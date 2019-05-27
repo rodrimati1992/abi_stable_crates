@@ -176,7 +176,9 @@ macro_rules! extern_fn_panic_handling {
             };
             BOMB
         };
+        let a=$crate::marker_type::NotCopyNotClone;
         let res=(move||{
+            drop(a);
             $($fn_contents)*
         })();
         aborter_guard.fuse=None;

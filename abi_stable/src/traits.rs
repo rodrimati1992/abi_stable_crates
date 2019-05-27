@@ -144,3 +144,15 @@ pub(crate) unsafe trait ErasedType<'a>:Sized{
 
 }
 
+
+
+///////////////////////////////////////////////////////////////////////////
+
+/// Unwraps a type into its owned value.
+pub trait IntoInner{
+    /// The type of the value this owns.
+    type Element;
+
+    /// Unwraps this type into its owned value.
+    fn into_inner_(self)->Self::Element;
+}
