@@ -13,9 +13,6 @@ extern crate proc_macro;
 #[macro_use]
 mod macros;
 
-#[doc(hidden)]
-pub mod reflection;
-
 mod arenas;
 mod attribute_parsing;
 mod common_tokens;
@@ -24,11 +21,16 @@ mod ignored_wrapper;
 mod datastructure;
 mod fn_pointer_extractor;
 mod impl_interfacetype;
-mod prefix_types;
-mod repr_attrs;
+
 
 mod lifetimes;
-mod stable_abi;
+
+#[doc(hidden)]
+pub mod stable_abi;
+
+#[doc(hidden)]
+pub mod sabi_trait;
+
 mod to_token_fn;
 
 use proc_macro::TokenStream as TokenStream1;

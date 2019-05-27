@@ -22,9 +22,12 @@ use core_extensions::{
 use crate::*;
 
 use crate::{
-    attribute_parsing::{StabilityKind,StableAbiOptions},
     datastructure::{DataStructure,Field,FieldMap,FieldIndex},
     to_token_fn::ToTokenFnMut,
+};
+
+use super::{
+    attribute_parsing::{StabilityKind,StableAbiOptions},
     reflection::FieldAccessor,
 };
 

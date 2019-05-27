@@ -3,13 +3,9 @@
 use crate::*;
 
 use crate::{
-    attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions},
     datastructure::{DataStructure,DataVariant,Struct,Field},
     to_token_fn::ToTokenFnMut,
     fn_pointer_extractor::{FnParamRet},
-    prefix_types::prefix_type_tokenizer,
-    repr_attrs::ReprAttr,
-    reflection::ModReflMode,
 };
 
 
@@ -23,8 +19,20 @@ use core_extensions::{
 };
 
 
+#[doc(hidden)]
+pub mod reflection;
 
+mod attribute_parsing;
 
+mod prefix_types;
+mod repr_attrs;
+
+use self::{
+    attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions},
+    prefix_types::prefix_type_tokenizer,
+    repr_attrs::ReprAttr,
+    reflection::ModReflMode,
+};
 
 
 pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
@@ -35,7 +43,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let ctokens = CommonTokens::new(arenas);
     let ctokens = &ctokens;
     let ds = DataStructure::new(&mut data, arenas, ctokens);
-    let config = &parse_attrs_for_stable_abi(&ds.attrs, &ds, arenas);
+    let config = &parse_attrs_for_stable_abi(ds.attrs, &ds, arenas);
     let generics=ds.generics;
     let name=ds.name;
 
