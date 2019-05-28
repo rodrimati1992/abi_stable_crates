@@ -11,15 +11,17 @@ use core_extensions::prelude::*;
 use crate::{
     pointer_trait::{
         CallReferentDrop, StableDeref, TransmuteElement,
-        GetPointerKind,PK_SmartPointer,
+        GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
     traits::{IntoReprRust},
+    sabi_types::MovePtr,
     std_types::utypeid::{UTypeId,new_utypeid},
     return_value_equality::ReturnValueEquality,
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
 
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(test)]
+// #[cfg(all(test,not(feature="only_new_tests")))]
 mod test;
 
 mod private {
@@ -101,11 +103,9 @@ impl<T> RBox<T> {
     }
     /// Unwraps this `Box<T>` into the value it owns on the heap.
     pub fn into_inner(this: Self) -> T {
-        let this = ManuallyDrop::new(this);
         unsafe {
             let value = this.data().read();
-            let data: *mut T = this.data();
-            (this.vtable().destructor())(data, CallReferentDrop::No);
+            Self::drop_allocation(ManuallyDrop::new(this));
             value
         }
     }
@@ -116,6 +116,28 @@ impl<T> DerefMut for RBox<T> {
         unsafe { &mut *self.data() }
     }
 }
+
+/////////////////////////////////////////////////////////////////
+
+
+
+unsafe impl<T> OwnedPointer for RBox<T>{
+    type Target=T;
+
+    #[inline]
+    unsafe fn get_move_ptr(&mut self)->MovePtr<'_,Self::Target>{
+        MovePtr::new(&mut **self)
+    }
+
+    #[inline]
+    fn drop_allocation(this:ManuallyDrop<Self>){
+        unsafe {
+            let data: *mut T = this.data();
+            (this.vtable().destructor())(data, CallReferentDrop::No);
+        }
+    }
+}
+
 
 /////////////////////////////////////////////////////////////////
 

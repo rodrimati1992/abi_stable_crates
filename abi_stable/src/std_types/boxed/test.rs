@@ -2,6 +2,8 @@ use super::*;
 
 use std::sync::Arc;
 
+use crate::test_utils::{must_panic};
+
 #[test]
 fn new_and_drop() {
     let arc_a = Arc::new(100);
@@ -65,3 +67,55 @@ fn mutated() {
     *a = 1337;
     assert_eq!(*a, 1337);
 }
+
+
+#[test]
+fn with_moved_ptr_runs(){
+    let rbox=ManuallyDrop::new(RBox::new(()));
+    
+    must_panic(file_span!(),||{
+        OwnedPointer::with_moved_ptr(rbox,|_|{
+            panic!();
+        });
+    }).unwrap();
+
+
+    let rbox=ManuallyDrop::new(RBox::new(()));
+    assert_eq!(
+        OwnedPointer::with_moved_ptr(rbox,|_|10),
+        10
+    );
+}
+
+#[test]
+fn owned_pointer_trait(){
+    let arc=Arc::new(10);
+
+
+
+    unsafe{
+        let mut cloned_arc=ManuallyDrop::new(RBox::new(arc.clone()));
+        
+        OwnedPointer::with_moved_ptr(cloned_arc,|move_ptr|{
+            assert_eq!(Arc::strong_count(&move_ptr),2);
+            
+            let moved_arc=move_ptr.into_inner();
+            assert_eq!(Arc::strong_count(&moved_arc),2);
+        });
+    }
+    assert_eq!(Arc::strong_count(&arc),1);
+    unsafe{
+        let mut cloned_arc=ManuallyDrop::new(RBox::new(arc.clone()));
+        
+        OwnedPointer::with_moved_ptr(cloned_arc,|move_ptr|{
+            assert_eq!(Arc::strong_count(&move_ptr),2);
+        });
+    }
+    assert_eq!(Arc::strong_count(&arc),1);
+}
+
+
+
+
+
+

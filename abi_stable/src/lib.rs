@@ -191,6 +191,8 @@ pub mod docs;
 
 pub mod trait_object_test;
 
+pub mod sabi_trait;
+
 
 /// The header used to identify the version number of abi_stable
 /// that a dynamic libraries uses.
