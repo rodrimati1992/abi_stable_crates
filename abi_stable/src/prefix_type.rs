@@ -11,6 +11,7 @@ use std::{
 use crate::{
     marker_type::NotCopyNotClone,
     utils::leak_value,
+    sabi_types::StaticRef,
 };
 
 
@@ -137,11 +138,19 @@ impl<T,P> WithMetadata_<T,P> {
         }
     }
     
-    /// Converts this WithMetadata<T,P> to a `<prefix_struct>` type.
+    /// Converts this WithMetadata<T,P> to a `*const <prefix_struct>` type.
     /// Use this if you need to implement nested vtables at compile-time.
     pub const fn as_prefix_raw(&self)->*const P {
         unsafe{
             self as *const Self as *const P
+        }
+    }
+
+    /// Converts a `StaticRef<WithMetadata<T,P>>` to a `StaticRef< <prefix_struct> >` type.
+    /// Use this if you need to implement nested vtables at compile-time.
+    pub const fn staticref_as_prefix(this:StaticRef<Self>)->StaticRef<P> {
+        unsafe{
+            StaticRef::from_raw(this.get_raw() as *const P)
         }
     }
 }

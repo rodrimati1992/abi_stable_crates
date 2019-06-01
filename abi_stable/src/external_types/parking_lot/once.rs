@@ -402,7 +402,7 @@ mod tests{
             scoped_thread(|scope|{
                 scope.spawn(|_|{
                     ONCE.call_once(||{
-                        thread::sleep(Duration::from_millis(50));
+                        thread::sleep(Duration::from_millis(500));
                     })
                 });
                 scope.spawn(|_|{
