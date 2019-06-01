@@ -659,17 +659,6 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
     }
 
 
-    macro_rules! try_unerase {
-        (
-            $this:ident,$res:expr
-        ) => (
-            if let Err(e)=$res {
-                return Err( e.map(move|_| $this ) );
-            }
-        )
-    }
-
-
     impl<'borr,P,I> DynTrait<'borr,P,I> 
     where 
         I: InterfaceBound<'borr>
@@ -719,7 +708,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             P::Target:Sized,
             T: ImplType + GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            try_unerase!(self,self.check_same_destructor_opaque::<T,T>());
+            check_unerased!(self,self.check_same_destructor_opaque::<T,T>());
             unsafe { 
                 let this=ManuallyDrop::new(self);
                 Ok(ptr::read(&*this.object).transmute_element(T::T)) 
@@ -747,7 +736,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             P: Deref + TransmuteElement<T>,
             T: ImplType + GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            try_unerase!(self,self.check_same_destructor_opaque::<T,T>());
+            check_unerased!(self,self.check_same_destructor_opaque::<T,T>());
             unsafe { Ok(self.object_as()) }
         }
 
@@ -772,7 +761,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             P: DerefMut + TransmuteElement<T>,
             T: ImplType + GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            try_unerase!(self,self.check_same_destructor_opaque::<T,T>());
+            check_unerased!(self,self.check_same_destructor_opaque::<T,T>());
             unsafe { Ok(self.object_as_mut()) }
         }
 
@@ -801,7 +790,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,True>: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            try_unerase!(self,self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>());
+            check_unerased!(self,self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>());
             unsafe {
                 unsafe { 
                     let this=ManuallyDrop::new(self);
@@ -833,7 +822,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,True>: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            try_unerase!(self,self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>());
+            check_unerased!(self,self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>());
             unsafe { Ok(self.object_as()) }
         }
 
@@ -859,7 +848,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,True>: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
         {
-            try_unerase!(self,self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>());
+            check_unerased!(self,self.check_same_destructor_opaque::<InterfaceFor<T,I,True>,T>());
             unsafe { Ok(self.object_as_mut()) }
         }
 

@@ -6,7 +6,8 @@ use std::fmt;
 
 use crate::{
     version::VersionStrings, 
-    std_types::{StaticStr,utypeid::UTypeId,ROption,RSome},
+    sabi_types::MaybeCmp,
+    std_types::{StaticStr,utypeid::UTypeId},
     return_value_equality::ReturnValueEquality,
 };
 
@@ -19,7 +20,7 @@ pub struct TypeInfo {
     pub size: usize,
     pub alignment: usize,
     #[doc(hidden)]
-    pub _uid: ReturnValueEquality<ROption<UTypeId>>,
+    pub _uid: ReturnValueEquality<MaybeCmp<UTypeId>>,
     pub name: StaticStr,
     pub file: StaticStr,
     pub package: StaticStr,
@@ -31,10 +32,7 @@ pub struct TypeInfo {
 impl TypeInfo {
     /// Whether the `self` is the TypeInfo for the same type as `other`
     pub fn is_compatible(&self, other: &Self) -> bool {
-        match ((self._uid.function)(),(other._uid.function)() ) {
-            (RSome(l),RSome(r))=>l==r,
-            _=>false,
-        }
+        self._uid==other._uid
     }
 }
 

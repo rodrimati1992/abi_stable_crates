@@ -7,11 +7,11 @@ use std::{mem,marker::PhantomData};
 
 use crate::{
     erased_types::{DynTraitBound},
+    sabi_types::MaybeCmp,
     std_types::{
         RBoxError, 
         RCow, RStr,StaticStr,
-        utypeid::{UTypeId,none_utypeid,some_utypeid},
-        ROption,
+        utypeid::{UTypeId,no_utypeid,some_utypeid},
     },
     version::VersionStrings,
     return_value_equality::ReturnValueEquality,
@@ -329,23 +329,23 @@ pub mod interface_for{
         };
     }
 
-    /// Gets the `ReturnValueEquality<ROption<UTypeId>>` to construct a `TypeInfo`.
+    /// Gets the `ReturnValueEquality<MaybeCmp<UTypeId>>` to construct a `TypeInfo`.
     pub trait GetUTID<IsStatic>{
-        const UID:ReturnValueEquality<ROption<UTypeId>>;
+        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>;
     }
 
 
     impl<T> GetUTID<True> for T
     where T:'static
     {
-        const UID:ReturnValueEquality<ROption<UTypeId>>=ReturnValueEquality{
+        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>=ReturnValueEquality{
             function:some_utypeid::<T>
         };
     }
 
     impl<T> GetUTID<False> for T{
-        const UID:ReturnValueEquality<ROption<UTypeId>>=ReturnValueEquality{
-            function:none_utypeid
+        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>=ReturnValueEquality{
+            function:no_utypeid
         };
     }
 }
