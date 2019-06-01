@@ -1,7 +1,9 @@
 use std::{
     ops::{Deref},
-    fmt::{self,Debug,Display},
+    fmt::{self,Display},
 };
+
+use crate::abi_stability::SharedStableAbi;
 
 
 /**
@@ -9,20 +11,22 @@ A wrapper type for vtable static references,
 and other constants that have `non-'static` generic parameters 
 but are safe to reference for the lifetime of `T`.
 
+# Purpose
+
+This type is necessary because Rust doesn't understand that vtables live for `'static`,
+even though they have `non-'static` type parameters.
+
+
+
 */
 #[repr(transparent)]
 #[derive(StableAbi)]
+#[sabi(
+    unconstrained(T),
+    bound="T:SharedStableAbi",
+)]
 pub struct StaticRef<T>{
     ref_:*const T,
-}
-
-impl<T> Debug for StaticRef<T>
-where
-    T:Debug
-{
-    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        Debug::fmt(&**self,f)
-    }
 }
 
 impl<T> Display for StaticRef<T>
@@ -42,6 +46,15 @@ impl<T> Clone for StaticRef<T>{
 }
 
 impl<T> Copy for StaticRef<T>{}
+
+
+
+
+shared_impls! {
+    mod=static_ref_impls
+    new_type=StaticRef[][T],
+    original_type=AAAA,
+}
 
 
 impl<T> StaticRef<T>{
