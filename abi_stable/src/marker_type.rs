@@ -44,8 +44,9 @@ pub struct NotCopyNotClone;
 ///
 #[repr(C)]
 #[derive(StableAbi)]
-pub struct ErasedObject{
+pub struct ErasedObject<T=()>{
     _priv: [u8; 0],
+    _marker:PhantomData<extern "C" fn()->T>,
 }
 
 

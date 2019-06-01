@@ -23,3 +23,11 @@ impl<T: PartialEq> PartialEq for ReturnValueEquality<T> {
         (self.function)() == (other.function)()
     }
 }
+
+
+impl<T> ReturnValueEquality<T>{
+    /// Gets the value returned by the function.
+    pub fn get(&self)->T{
+        (self.function)()
+    }
+}

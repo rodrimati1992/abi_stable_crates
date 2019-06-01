@@ -161,6 +161,7 @@ pub mod traits;
 pub mod abi_stability;
 // pub mod cabi_type;
 // pub mod as_proxy;
+#[macro_use]
 pub mod erased_types;
 pub mod external_types;
 // pub mod immovable_wrapper;
@@ -263,6 +264,5 @@ pub mod globals{
         GLOBALS.init(|| globs );
     }
 }
-
 
 
