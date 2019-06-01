@@ -1,6 +1,6 @@
 use std::{
     ops::{Deref,DerefMut},
-    fmt::{self,Debug,Display},
+    fmt::{self,Display},
     marker::PhantomData,
     mem::ManuallyDrop,
     ptr,
@@ -37,6 +37,7 @@ impl<'a,T> MovePtr<'a,T>{
     /// # Safety 
     ///
     /// Callers must ensure that the value the reference points at is never read again.
+    #[inline]
     pub unsafe fn new(ptr:&'a mut T)->Self{
         Self{
             ptr,
@@ -45,8 +46,9 @@ impl<'a,T> MovePtr<'a,T>{
     }
 
     /// Moves the value out of the reference
+    #[inline]
     pub fn into_inner(self)->T{
-        let mut this=ManuallyDrop::new(self);
+        let this=ManuallyDrop::new(self);
         unsafe{ 
             this.ptr.read()
         }
@@ -65,7 +67,7 @@ impl<'a,T> Display for MovePtr<'a,T>
 where
     T:Display,
 {
-    fn fmt(&self,f:&mut fmt::Formatter)->fmt::Result{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
         Display::fmt(&**self,f)
     }
 }
@@ -86,6 +88,7 @@ impl<'a,T> DerefMut for MovePtr<'a,T>{
 
 impl<'a,T> IntoInner for MovePtr<'a,T>{
     type Element=T;
+    
     fn into_inner_(self)->T{
         self.into_inner()
     }
