@@ -26,7 +26,7 @@ mod pt_metadata;
 pub use self::{
     accessible_fields::{FieldAccessibility,IsAccessible},
     empty_prefix::EmptyPrefixType,
-    layout::{PTStructLayout,PTStructLayoutParams,PTField},
+    layout::{PTStructLayout,PTStructLayoutParams},
 };
 
 pub(crate) use self::pt_metadata::PrefixTypeMetadata;
@@ -121,6 +121,7 @@ pub struct WithMetadata_<T,P>{
 
 impl<T,P> WithMetadata_<T,P> {
     /// Constructs Self with `WithMetadata::new(PrefixTypeTrait::METADATA,value)`
+    #[inline]
     pub const fn new(metadata:WithMetadataFor<T,P>,value:T)->Self{
         Self{
             _prefix_type_field_acc  :metadata.inner._prefix_type_field_acc,
@@ -132,6 +133,7 @@ impl<T,P> WithMetadata_<T,P> {
     }
 
     /// Converts this WithMetadata<T,P> to a `<prefix_struct>` type.
+    #[inline]
     pub fn as_prefix(&self)->&P {
         unsafe{
             &*self.as_prefix_raw()
@@ -140,6 +142,7 @@ impl<T,P> WithMetadata_<T,P> {
     
     /// Converts this WithMetadata<T,P> to a `*const <prefix_struct>` type.
     /// Use this if you need to implement nested vtables at compile-time.
+    #[inline]
     pub const fn as_prefix_raw(&self)->*const P {
         unsafe{
             self as *const Self as *const P
@@ -148,9 +151,19 @@ impl<T,P> WithMetadata_<T,P> {
 
     /// Converts a `StaticRef<WithMetadata<T,P>>` to a `StaticRef< <prefix_struct> >` type.
     /// Use this if you need to implement nested vtables at compile-time.
+    #[inline]
     pub const fn staticref_as_prefix(this:StaticRef<Self>)->StaticRef<P> {
         unsafe{
             StaticRef::from_raw(this.get_raw() as *const P)
+        }
+    }
+
+    #[inline]
+    pub unsafe fn into_full(this:*const Self)->*const T {
+        unsafe{
+            // Look into raw references once they exist.
+            let ptr:&T=&(*this).original;
+            ptr as *const T
         }
     }
 }
@@ -208,12 +221,12 @@ where T:PrefixTypeTrait
 {
     #[inline(never)]
     pub fn inner(
-            field_index:usize,
-            expected_layout:&'static PTStructLayout,
-            actual_layout:&'static PTStructLayout
+        field_index:usize,
+        expected_layout:&'static PTStructLayout,
+        actual_layout:&'static PTStructLayout
     )->!{
-        let field=expected_layout.fields[field_index];
-        panic_on_missing_field_val(Some(field_index),field,expected_layout,actual_layout)
+        let field=expected_layout.get_field_name(field_index).unwrap_or("<unavailable>");
+        panic_on_missing_field_val(field_index,field,expected_layout,actual_layout)
     }
 
 
@@ -225,33 +238,29 @@ where T:PrefixTypeTrait
 /// is expected to be on the `T` type when it's not.
 #[cold]
 #[inline(never)]
-pub fn panic_on_missing_fieldname<T,FieldTy>(
-    &fieldname:&&'static str,
-    actual_layout:&'static PTStructLayout
+pub fn panic_on_missing_fieldname<T>(
+    field_index:u8,
+    actual_layout:&'static PTStructLayout,
 )->!
 where T:PrefixTypeTrait
 {
     #[inline(never)]
     fn inner(
+        field_index:usize,
         expected_layout:&'static PTStructLayout,
         actual_layout:&'static PTStructLayout,
-        default_field:PTField,
     )->! {
-        let fieldname=default_field.name.as_str();
-        let field_index=expected_layout.fields.iter().position(|f| f.name.as_str()==fieldname );
-        let field=match field_index {
-            Some(field_index)=>expected_layout.fields[field_index],
-            None=>default_field,
-        };
-        panic_on_missing_field_val(field_index,field,expected_layout,actual_layout)
+        let fieldname=expected_layout
+            .get_field_name(field_index)
+            .unwrap_or("<unavaiable>");
+        panic_on_missing_field_val(field_index,fieldname,expected_layout,actual_layout)
     }
 
     inner(
+        field_index as usize,
         T::PT_LAYOUT,
         actual_layout,
-        PTField::new::<FieldTy>(fieldname,"<unavailable>"),
     )
-    
 }
 
 
@@ -260,8 +269,8 @@ where T:PrefixTypeTrait
 /// is expected to be on `expected` when it's not.
 #[inline(never)]
 pub fn panic_on_missing_field_val(
-    field_index:Option<usize>,
-    field:PTField,
+    field_index:usize,
+    field_name:&'static str,
     expected:&'static PTStructLayout,
     actual:&'static PTStructLayout,
 )->! {
@@ -271,7 +280,6 @@ pub fn panic_on_missing_field_val(
 Attempting to access nonexistent field:
     index:{index} 
     named:{field_named}
-    type(as declared):{field_type}
 
 Inside of:{struct_name}{struct_generics}
 
@@ -286,17 +294,16 @@ Found:
     Field count:{actual_field_count}
 
 \n",
-        index=field_index.map_or(Cow::Borrowed("<unavailable>"),|x| x.to_string().into() ),
-        field_named=field.name.as_str(),
-        field_type=field.ty.as_str(),
+        index=field_index,
+        field_named=field_name,
         struct_name=expected.name.as_str(),
         struct_generics=expected.generics.as_str(),
         package=expected.package,
         
         expected_package_version =expected.package_version ,
-        expected_field_count=expected.fields.len(),
+        expected_field_count=expected.get_field_names().count(),
         
         actual_package_version =actual.package_version ,
-        actual_field_count=actual.fields.len(),
+        actual_field_count=actual.get_field_names().count(),
     );
 }

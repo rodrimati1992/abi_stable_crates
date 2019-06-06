@@ -3,6 +3,7 @@ use syn::{
     Lit,WherePredicate,Type,
     punctuated::Punctuated,
     token::Comma,
+    TypeParamBound,
 };
 
 use std::{
@@ -17,6 +18,12 @@ use core_extensions::IteratorExt;
 use crate::{
     attribute_parsing::with_nested_meta,
     datastructure::{DataStructure, DataVariant, Field,FieldMap},
+    parse_utils::{
+        parse_str_as_ident,
+        parse_lit_as_ident,
+        parse_lit_as_expr,
+        parse_lit_as_type_bounds,
+    },
 };
 
 use super::{
@@ -135,6 +142,7 @@ impl<'a> StableAbiOptions<'a> {
                             ) 
                         }),
                     prefix_bounds:this.prefix_bounds,
+                    field_bounds:this.field_bounds,
                 })
             }
 
@@ -213,6 +221,7 @@ struct StableAbiAttrs<'a> {
     first_suffix_field:FirstSuffixField,
     default_on_missing_fields:OnMissingField<'a>,
     prefix_kind_fields:FieldMap<PrefixKindField<'a>>,
+
     prefix_bounds:Vec<WherePredicate>,
 
     /// The type parameters that have no constraints
@@ -225,6 +234,8 @@ struct StableAbiAttrs<'a> {
     
     renamed_fields:FieldMap<Option<&'a Ident>>,
 
+    field_bounds:FieldMap<Vec<TypeParamBound>>,
+    
     mod_refl_mode:Option<ModReflMode<()>>,
 }
 
@@ -273,6 +284,7 @@ where
     this.prefix_kind_fields=FieldMap::defaulted(ds);
     this.renamed_fields=FieldMap::defaulted(ds);
     this.override_field_accessor=FieldMap::defaulted(ds);
+    this.field_bounds=FieldMap::defaulted(ds);
 
     let name=ds.name;
 
@@ -369,6 +381,9 @@ fn parse_sabi_attr<'a>(
             }else if ident=="accessible_if" {
                 let expr=arenas.alloc(parse_lit_as_expr(&value));
                 this.prefix_kind_fields[field].accessible_if=Some(expr);
+            }else if ident == "field_bound" {
+                let bound=parse_lit_as_type_bounds(&value);
+                this.field_bounds[field].extend(bound);
             }else{
                 panic!(
                     "unrecognized field attribute `#[sabi({}={})]` ",
@@ -668,38 +683,3 @@ fn parse_unconstrained_ty_param<'a>(
 
 
 fn parse_sabi_override<'a>(_this: &mut StableAbiAttrs<'a>, _attr: Meta, _arenas: &'a Arenas) {}
-
-////////////////////////////////////////////////////////////////////
-
-
-fn parse_str_as_ident(lit:&str)->syn::Ident{
-    match syn::parse_str::<syn::Ident>(lit) {
-        Ok(ident)=>ident,
-        Err(e)=>panic!(
-            "Could not parse as an identifier:\n\t{}\nError:\n\t{}", 
-            lit,
-            e
-        )
-    }
-}
-
-fn parse_lit_as_ident(lit:&syn::LitStr)->syn::Ident{
-    parse_str_lit_as(lit,"Could not parse as an identifier")
-}
-
-fn parse_lit_as_expr(lit:&syn::LitStr)->syn::Expr{
-    parse_str_lit_as(lit,"Could not parse as an expression")
-}
-
-
-fn parse_str_lit_as<P>(lit:&syn::LitStr,err_description:&str)->P
-where P:syn::parse::Parse
-{
-    match lit.parse::<P>() {
-        Ok(x)=>x,
-        Err(e)=>panic!("{}:\n\t{}\nError:\n\t{}", err_description,lit.value(),e)
-    }
-}
-
-
-////////////////////////////////////////////////////////////////////

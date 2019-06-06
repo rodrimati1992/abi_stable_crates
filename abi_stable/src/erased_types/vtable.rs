@@ -79,6 +79,7 @@ macro_rules! declare_meta_vtable {
             $field:ident : $field_ty:ty ;
             priv $priv_field:ident;
             option=$option_ty:ident,$some_constr:ident,$none_constr:ident;
+            field_index=$field_index:ident;
 
             $(struct_bound=$struct_bound:expr;)*
             
@@ -97,7 +98,7 @@ macro_rules! declare_meta_vtable {
             kind(Prefix(prefix_struct="VTable")),
             missing_field(panic),
             prefix_bound="I:InterfaceBound<'borr>",
-            bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound<'static>",
+            // bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound<'static>",
             bound="<I as InterfaceBound<'borr>>::IteratorItem:StableAbi",
             $($(bound=$struct_bound,)*)*
         )]
@@ -123,15 +124,12 @@ macro_rules! declare_meta_vtable {
                 where
                     $interf:InterfaceType<$selector=True>,
                 {
-                    const NAME:&'static &'static str=&stringify!($field);
-
                     match self.$priv_field().into() {
                         Some(v)=>v,
                         None=>panic_on_missing_fieldname::<
                             VTableVal<'borr,$erased_ptr,$interf>,
-                            $field_ty
                         >(
-                            NAME,
+                            Self::$field_index,
                             self._prefix_type_layout(),
                         )
                     }
@@ -392,6 +390,7 @@ declare_meta_vtable! {
         clone_ptr:    extern "C" fn(&ErasedPtr)->ErasedPtr;
         priv _clone_ptr;
         option=Option,Some,None;
+        field_index=field_index_for__clone_ptr;
         
         impl[] VtableFieldValue<Clone>
         where [OrigP:Clone]
@@ -404,6 +403,8 @@ declare_meta_vtable! {
         default_ptr: extern "C" fn()->ErasedPtr ;
         priv _default_ptr;
         option=Option,Some,None;
+        field_index=field_index_for__default_ptr;
+
         impl[] VtableFieldValue<Default>
         where [
             OrigP:GetPointerKind,
@@ -417,6 +418,8 @@ declare_meta_vtable! {
         display:    extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         priv _display;
         option=Option,Some,None;
+        field_index=field_index_for__display;
+
         impl[] VtableFieldValue<Display>
         where [T:Display]
         {
@@ -428,6 +431,8 @@ declare_meta_vtable! {
         debug:      extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         priv _debug;
         option=Option,Some,None;
+        field_index=field_index_for__debug;
+
         impl[] VtableFieldValue<Debug>
         where [T:Debug]
         {
@@ -439,6 +444,8 @@ declare_meta_vtable! {
         serialize:  extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>;
         priv _serialize;
         option=Option,Some,None;
+        field_index=field_index_for__serialize;
+
         impl[] VtableFieldValue<Serialize>
         where [ T:SerializeImplType, ]{
             serialize_impl::<T>
@@ -449,6 +456,8 @@ declare_meta_vtable! {
         partial_eq: extern "C" fn(&ErasedObject,&ErasedObject)->bool;
         priv _partial_eq;
         option=Option,Some,None;
+        field_index=field_index_for__partial_eq;
+
         impl[] VtableFieldValue<PartialEq>
         where [T:PartialEq,]
         {
@@ -460,6 +469,8 @@ declare_meta_vtable! {
         cmp:        extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering;
         priv _cmp;
         option=Option,Some,None;
+        field_index=field_index_for__cmp;
+
         impl[] VtableFieldValue<Ord>
         where [T:Ord,]
         {
@@ -471,6 +482,8 @@ declare_meta_vtable! {
         partial_cmp:extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>;
         priv _partial_cmp;
         option=Option,Some,None;
+        field_index=field_index_for__partial_cmp;
+
         impl[] VtableFieldValue<PartialOrd>
         where [T:PartialOrd,]
         {
@@ -482,6 +495,8 @@ declare_meta_vtable! {
         hash:extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>);
         priv _hash;
         option=Option,Some,None;
+        field_index=field_index_for__hash;
+
         impl[] VtableFieldValue<Hash>
         where [T:Hash]
         {
@@ -493,6 +508,8 @@ declare_meta_vtable! {
         iter:IteratorFns< <I as InterfaceBound<'borr>>::IteratorItem >;
         priv _iter;
         option=ROption,RSome,RNone;
+        field_index=field_index_for__iter;
+
         impl[] VtableFieldValue<Iterator>
         where [
             T:Iterator,
@@ -507,6 +524,8 @@ declare_meta_vtable! {
         back_iter:DoubleEndedIteratorFns< <I as InterfaceBound<'borr>>::IteratorItem >;
         priv _back_iter;
         option=ROption,RSome,RNone;
+        field_index=field_index_for__back_iter;
+
         impl[] VtableFieldValue<DoubleEndedIterator>
         where [
             T:DoubleEndedIterator,
@@ -521,6 +540,8 @@ declare_meta_vtable! {
         fmt_write_str:extern "C" fn(&mut ErasedObject,RStr<'_>)->RResult<(),()>;
         priv _fmt_write_str;
         option=Option,Some,None;
+        field_index=field_index_for__fmt_write_str;
+
         impl[] VtableFieldValue<FmtWrite>
         where [ T:FmtWrite ]
         {
@@ -532,6 +553,8 @@ declare_meta_vtable! {
         io_write:IoWriteFns;
         priv _io_write;
         option=ROption,RSome,RNone;
+        field_index=field_index_for__io_write;
+
         impl[] VtableFieldValue<IoWrite>
         where [ T:io::Write ]
         {
@@ -543,6 +566,8 @@ declare_meta_vtable! {
         io_read:IoReadFns;
         priv _io_read;
         option=ROption,RSome,RNone;
+        field_index=field_index_for__io_read;
+
         impl[] VtableFieldValue<IoRead>
         where [ T:io::Read ]
         {
@@ -554,6 +579,8 @@ declare_meta_vtable! {
         io_bufread:IoBufReadFns;
         priv _io_bufread;
         option=ROption,RSome,RNone;
+        field_index=field_index_for__io_bufread;
+
         impl[] VtableFieldValue<IoBufRead>
         where [ 
             T:io::BufRead,
@@ -568,6 +595,8 @@ declare_meta_vtable! {
         io_seek:extern "C" fn(&mut ErasedObject,RSeekFrom)->RResult<u64,RIoError>;
         priv _io_seek;
         option=Option,Some,None;
+        field_index=field_index_for__io_seek;
+
         impl[] VtableFieldValue<IoSeek>
         where [ T:io::Seek ]
         {

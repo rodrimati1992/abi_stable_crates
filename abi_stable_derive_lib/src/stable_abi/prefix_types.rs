@@ -5,6 +5,8 @@ use syn::{
     punctuated::Punctuated,
     Ident,
     WherePredicate,
+    TypeParamBound,
+    Visibility,
 };
 
 use quote::ToTokens;
@@ -13,7 +15,7 @@ use quote::ToTokens;
 
 use core_extensions::{
     prelude::*,
-
+    matches,
 };
 
 
@@ -24,6 +26,7 @@ use crate::*;
 use crate::{
     datastructure::{DataStructure,Field,FieldMap,FieldIndex},
     to_token_fn::ToTokenFnMut,
+    parse_utils::parse_str_as_ident,
 };
 
 use super::{
@@ -36,6 +39,7 @@ pub(crate) struct PrefixKind<'a>{
     pub(crate) prefix_struct:&'a Ident,
     pub(crate) prefix_bounds:Vec<WherePredicate>,
     pub(crate) fields:FieldMap<AccessorOrMaybe<'a>>,
+    pub(crate) field_bounds:FieldMap<Vec<TypeParamBound>>,
 
 }
 
@@ -193,7 +197,10 @@ pub(crate) fn prefix_type_tokenizer<'a>(
 
         let stringified_generics=(&ty_generics).into_token_stream().to_string();
 
-        let prefix_struct_docs=format!("\
+        let is_ds_pub=matches!(Visibility::Public{..}=ds.vis);
+
+        let prefix_struct_docs=if is_ds_pub {
+            format!("\
 This is the prefix of 
 [{deriving_name}{generics}](./struct.{deriving_name}.html),
 only usable as `&{name}{generics}`.
@@ -226,11 +233,15 @@ impl<'some> Dummy<'some>{{
 
 ```
 then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
-            ",
-            name=prefix.prefix_struct,
-            deriving_name=stringified_deriving_name,
-            generics=stringified_generics,
-        );
+                ",
+                name=prefix.prefix_struct,
+                deriving_name=stringified_deriving_name,
+                generics=stringified_generics,
+            )
+        }else{
+            String::new()
+        };
+            
 
         // Generating the `<prefix_struct>` struct
         {
@@ -254,42 +265,43 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             .map(move|field|{
                 use std::fmt::Write;
                 let mut acc_doc_buffer =String::new();
-                let _=write!(
-                    acc_doc_buffer,
-                    "Accessor method for the `{deriving_name}::{field_name}` field.",
-                    deriving_name=deriving_name,
-                    field_name=field.ident(),
-                );
+                if is_ds_pub{
+                    let _=write!(
+                        acc_doc_buffer,
+                        "Accessor method for the `{deriving_name}::{field_name}` field.",
+                        deriving_name=deriving_name,
+                        field_name=field.ident(),
+                    );
 
+                    use self::{AccessorOrMaybe as AOM};
 
-                use self::{AccessorOrMaybe as AOM};
-
-                match prefix.fields[field] {
-                    AOM::Accessor=>
-                        acc_doc_buffer.push_str(
-                            "This is for a field which always exists."
-                        ),
-                    AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::ReturnOption,..})=>
-                        acc_doc_buffer.push_str(
-                            "Returns `Some(field_value)` if the field exists,\
-                             `None` if it does not.\
-                            "
-                        ),
-                    AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Panic,..})=>
-                        acc_doc_buffer.push_str(
-                            "\n\n# Panic\n\nPanics if the field does not exist."
-                        ),
-                    AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::With{function},..})=>
-                        write!(
-                            acc_doc_buffer,
-                            "Returns `{function}()` if the field does not exist.",
-                            function=(&function).into_token_stream().to_string()
-                        ).drop_(),
-                    AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Default_,..})=>
-                        acc_doc_buffer.push_str(
-                            "Returns `Default::default()` if the field does not exist."
-                        ),
-                };
+                    match prefix.fields[field] {
+                        AOM::Accessor=>
+                            acc_doc_buffer.push_str(
+                                "This is for a field which always exists."
+                            ),
+                        AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::ReturnOption,..})=>
+                            acc_doc_buffer.push_str(
+                                "Returns `Some(field_value)` if the field exists,\
+                                 `None` if it does not.\
+                                "
+                            ),
+                        AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Panic,..})=>
+                            acc_doc_buffer.push_str(
+                                "\n\n# Panic\n\nPanics if the field does not exist."
+                            ),
+                        AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::With{function},..})=>
+                            write!(
+                                acc_doc_buffer,
+                                "Returns `{function}()` if the field does not exist.",
+                                function=(&function).into_token_stream().to_string()
+                            ).drop_(),
+                        AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Default_,..})=>
+                            acc_doc_buffer.push_str(
+                                "Returns `Default::default()` if the field does not exist."
+                            ),
+                    };
+                }
                 acc_doc_buffer
             });
 
@@ -314,14 +326,22 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 let field_name=field.ident();
                 let ty=field.ty;
 
+                let field_bounds=&prefix.field_bounds[field];
+
+                let field_where_clause=if field_bounds.is_empty() {
+                    None 
+                }else{ 
+                    Some(quote!(where #ty:)) 
+                };
+
                 match prefix.fields[field] {
                     AccessorOrMaybe::Accessor=>{
                         quote!{
                             #vis fn #getter_name(&self)->#ty
-                            where #ty:Copy
+                            #field_where_clause #( #field_bounds+ )*
                             {
                                 unsafe{ 
-                                    let ref_=&(*self.as_full_unchecked()).original.#field_name;
+                                    let ref_=&(*self.as_full_unchecked()).#field_name;
                                     *ref_ 
                                 }
                             }
@@ -367,15 +387,14 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
                         quote!{
                             #vis fn #getter_name(&self)->#return_ty
-                            where #ty:Copy
+                            #field_where_clause #( #field_bounds+ )*
                             {
                                 let acc_bits=self.inner._prefix_type_field_acc.bits();
                                 let val=if (Self::#field_mask_ident & acc_bits)==0 {
                                     #else_
                                 }else{
                                     unsafe{
-                                        let ref_=&(*self.as_full_unchecked()).original.#field_name;
-                                        *ref_
+                                        (*self.as_full_unchecked()).#field_name
                                     }
                                 };
                                 #with_val
@@ -400,19 +419,42 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
         let enable_field_if=conditional_fields.iter().map(|&(_,cond)| cond );
 
-        let str_field_names=struct_.fields.iter().map(|x| x.ident().to_string() );
-        
-        let field_types=struct_.fields.iter().map(|x| x.ty );
-        let str_field_types=struct_.fields.iter()
-            .map(|x| x.ty.into_token_stream().to_string() );
+        let field_name_list=struct_.fields.iter()
+            .map(|x| x.ident().to_string() )
+            .collect::<Vec<String>>();
+
+        let str_field_names=field_name_list.join(";");
         
         let is_prefix_field_conditional=struct_.fields.iter()
             .take(prefix.first_suffix_field.field_pos)
             .map(|f| prefix.fields[f].is_conditional() );
 
+        let field_index_for=field_name_list.iter()
+            .map(|field_name| parse_str_as_ident(&format!("field_index_for_{}",field_name)) );
+
         let field_i=0usize..;
 
+        let field_i_b=0u8..;
+
+        let pt_layout_ident=parse_str_as_ident(&format!("__sabi_PT_LAYOUT{}",deriving_name));
+
         quote!(
+
+            const #pt_layout_ident:&'static #module::__PTStructLayout ={
+                use #module::_sabi_reexports::renamed::{
+                    __PTStructLayout,__PTStructLayoutParams,
+                };
+
+                &__PTStructLayout::new(__PTStructLayoutParams{
+                    name:#stringified_deriving_name,
+                    generics:#stringified_generics,
+                    package: env!("CARGO_PKG_NAME"),
+                    package_version: #module::abi_stable::package_version_strings!(),
+                    file:file!(),
+                    line:line!(),
+                    field_names:#str_field_names,
+                })
+            };
 
             unsafe impl #impl_generics
                 #module::_sabi_reexports::PrefixTypeTrait 
@@ -443,28 +485,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                     ]
                 };
 
-                const PT_LAYOUT:&'static #module::__PTStructLayout ={
-                    use #module::_sabi_reexports::renamed::{
-                        __PTStructLayout,__PTStructLayoutParams,__PTField
-                    };
-
-                    &__PTStructLayout::new::<Self>(__PTStructLayoutParams{
-                        name:#stringified_deriving_name,
-                        generics:#stringified_generics,
-                        package: env!("CARGO_PKG_NAME"),
-                        package_version: #module::abi_stable::package_version_strings!(),
-                        file:file!(),
-                        line:line!(),
-                        fields:&[
-                            #(
-                                __PTField::new::<#field_types>(
-                                    #str_field_names, 
-                                    #str_field_types,
-                                ),
-                            )*
-                        ]
-                    })
-                };
+                const PT_LAYOUT:&'static #module::__PTStructLayout =#pt_layout_ident;
 
                 type Prefix=#prefix_struct #ty_generics;
             }
@@ -486,8 +507,13 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 }
 
                 #(
-                    const #field_mask_idents:u64=
-                        (1<<#field_i) & Self::__AB_PTT_FIELD_ACCESSIBILTIY_MASK;
+                    const #field_index_for:u8=
+                        #field_i_b;
+
+                    // #(
+                        const #field_mask_idents:u64=
+                            (1<<#field_i) & Self::__AB_PTT_FIELD_ACCESSIBILTIY_MASK;
+                    // )*
 
                     #[doc=#accessor_docs]
                     #accessors
@@ -500,10 +526,11 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 // initialized values.
                 unsafe fn as_full_unchecked(
                     &self
-                )->*const #module::__WithMetadata_<#deriving_name #ty_generics,Self>{
-                    self 
-                    as *const Self
-                    as *const #module::__WithMetadata_<#deriving_name #ty_generics,Self>
+                )->*const #deriving_name #ty_generics {
+                    let ptr=self 
+                        as *const Self
+                        as *const #module::__WithMetadata_<#deriving_name #ty_generics,Self>;
+                    #module::__WithMetadata_::into_full(ptr)
                 }
             }
 
