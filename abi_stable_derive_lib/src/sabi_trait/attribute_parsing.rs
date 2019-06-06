@@ -1,3 +1,8 @@
+use super::{
+    *,
+    TraitDefinition,
+};
+
 use syn::{
     Attribute, Ident, Meta, MetaList, 
     ItemTrait,TraitItem,TraitItemMethod,
@@ -7,27 +12,87 @@ use syn::{
 use core_extensions::prelude::*;
 
 use crate::{
-    *,
     attribute_parsing::with_nested_meta,
     arenas::Arenas,
 };
 
 
 pub(crate) struct SabiTraitOptions<'a> {
-    derive_attrs:Vec<&'a Meta>,
-    method_derive_attrs:Vec<Vec<&'a Meta>>,
+    pub(crate) debug_print_trait:bool,
+    pub(crate) trait_definition:TraitDefinition<'a>,
 }
 
 
 impl<'a> SabiTraitOptions<'a> {
     fn new(
-        _trait_: &'a ItemTrait, 
+        trait_: &'a ItemTrait, 
         this: SabiTraitAttrs<'a>,
-        _arenas: &'a Arenas,
+        arenas: &'a Arenas,
+        ctokens:&'a CommonTokens,
     ) -> Self {
         Self{
-            derive_attrs:this.derive_attrs,
-            method_derive_attrs:this.method_derive_attrs,
+            debug_print_trait:this.debug_print_trait,
+            trait_definition:
+                TraitDefinition::new(
+                    trait_,
+                    this.attrs,
+                    this.methods_with_attrs,
+                    arenas,
+                    ctokens,
+                ),
+        }
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone)]
+pub(crate) struct DeriveAndOtherAttrs<'a>{
+    pub(crate) derive_attrs:&'a [Meta],
+    pub(crate) other_attrs:&'a [Meta],
+}
+
+
+impl<'a> DeriveAndOtherAttrs<'a>{
+    fn new(owned:OwnedDeriveAndOtherAttrs,arenas:&'a Arenas)->Self{
+        Self{
+            derive_attrs:arenas.alloc(owned.derive_attrs),
+            other_attrs:arenas.alloc(owned.other_attrs),
+        }
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+#[derive(Debug, Clone,Default)]
+pub(crate) struct OwnedDeriveAndOtherAttrs{
+    pub(crate) derive_attrs:Vec<Meta>,
+    pub(crate) other_attrs:Vec<Meta>,
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+#[derive(Debug, Clone)]
+pub(crate) struct MethodWithAttrs<'a>{
+    pub(crate) attrs:OwnedDeriveAndOtherAttrs,
+    pub(crate) item:&'a TraitItemMethod,
+}
+
+
+impl<'a> MethodWithAttrs<'a>{
+    fn new(item:&'a TraitItemMethod)->Self{
+        Self{
+            attrs:OwnedDeriveAndOtherAttrs{
+                derive_attrs:Vec::new(),
+                other_attrs:Vec::new(),
+            },
+            item,
         }
     }
 }
@@ -38,29 +103,26 @@ impl<'a> SabiTraitOptions<'a> {
 
 #[derive(Default)]
 struct SabiTraitAttrs<'a> {
-    derive_attrs:Vec<&'a Meta>,
-    method_derive_attrs:Vec<Vec<&'a Meta>>,
+    debug_print_trait:bool,
+    attrs:OwnedDeriveAndOtherAttrs,
+    methods_with_attrs:Vec<MethodWithAttrs<'a>>,
 }
 
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 enum ParseContext<'a> {
     TraitAttr{
         name:&'a Ident,
     },
-    Item{
-        item_index:usize,
-    },
+    Method,
 }
 
 
-pub(crate) fn parse_attrs_for_sabi_trait<'a,I>(
+pub(crate) fn parse_attrs_for_sabi_trait<'a>(
     trait_:&'a ItemTrait,
-    arenas: &'a Arenas
-)->SabiTraitOptions<'a>
-where
-    I:IntoIterator<Item=&'a Attribute>
-{
+    arenas: &'a Arenas,
+    ctokens:&'a CommonTokens,
+)->SabiTraitOptions<'a> {
     let mut this=SabiTraitAttrs::default();
 
     let assoc_fns:Vec<&'a TraitItemMethod>=
@@ -74,7 +136,7 @@ where
         })
         .collect();
 
-    this.method_derive_attrs.resize(assoc_fns.len(),Vec::new());
+    this.methods_with_attrs.reserve(assoc_fns.len());
 
     parse_inner(
         &mut this,
@@ -83,17 +145,19 @@ where
         arenas,
     );
 
-    for (item_index,assoc_fn) in assoc_fns.iter().cloned().enumerate() {
+    for assoc_fn in assoc_fns.iter().cloned() {
+        this.methods_with_attrs.push(MethodWithAttrs::new(assoc_fn));
+
         parse_inner(
             &mut this,
             &*assoc_fn.attrs,
-            ParseContext::Item{item_index},
+            ParseContext::Method,
             arenas,
         )
     }
 
 
-    SabiTraitOptions::new(trait_,this,arenas)
+    SabiTraitOptions::new(trait_,this,arenas,ctokens)
 }
 
 
@@ -110,7 +174,18 @@ fn parse_inner<'a,I>(
             Meta::List(list) => {
                 parse_attr_list(this,pctx, list, arenas);
             }
-            _ => {}
+            other_attr => {
+                match pctx {
+                    ParseContext::TraitAttr{..}=>{
+                        this.attrs.other_attrs.push(other_attr);
+                    }
+                    ParseContext::Method=>{
+                        this.methods_with_attrs.last_mut().unwrap()
+                            .attrs.other_attrs
+                            .push(other_attr);
+                    }
+                }
+            }
         }
     }
 }
@@ -125,6 +200,11 @@ fn parse_attr_list<'a>(
         with_nested_meta("sabi", list.nested, |attr| {
             parse_sabi_trait_attr(this,pctx, attr, arenas)
         });
+    }else if let ParseContext::Method=pctx {
+        this.methods_with_attrs
+            .last_mut().unwrap()
+            .attrs.other_attrs
+            .push(Meta::List(list));
     }
 }
 
@@ -133,15 +213,22 @@ fn parse_sabi_trait_attr<'a>(
     this: &mut SabiTraitAttrs<'a>,
     pctx: ParseContext<'a>, 
     attr: Meta, 
-    arenas: &'a Arenas
+    _arenas: &'a Arenas
 ) {
-    let attr=arenas.alloc(attr);
     match (pctx, attr) {
-        (ParseContext::Item{item_index}, attr) => {
-            this.method_derive_attrs[item_index].push(attr);
+
+        (ParseContext::Method, attr) => {
+            this.methods_with_attrs
+                .last_mut().unwrap()
+                .attrs
+                .derive_attrs
+                .push(attr);
+        }
+        (ParseContext::TraitAttr{..}, Meta::Word(ref word))if word=="debug_print_trait" => {
+            this.debug_print_trait=true;
         }
         (ParseContext::TraitAttr{..}, attr) => {
-            this.derive_attrs.push(attr);
+            this.attrs.derive_attrs.push(attr);
         }
     }
 }
