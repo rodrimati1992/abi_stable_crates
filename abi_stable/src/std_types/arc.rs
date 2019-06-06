@@ -64,6 +64,11 @@ mod private {
         pub(super) fn data(&self) -> *const T {
             self.data
         }
+        
+        #[inline(always)]
+        pub(super) unsafe fn data_mut(&mut self) -> *mut T {
+            self.data as *mut T
+        }
 
         #[inline]
         pub(crate) fn into_raw(self) -> *const T {
@@ -161,7 +166,7 @@ impl<T> RArc<T> {
                 *this=new_arc;
                 // This is fine,since this is a freshly created arc with a clone of the data.
                 unsafe{
-                    &mut *(this.data() as *mut T)
+                    &mut *this.data_mut()
                 }
             }
         }

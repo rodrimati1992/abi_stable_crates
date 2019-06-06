@@ -667,8 +667,10 @@ mod serde{
     missing_field(panic),
     // The hasher doesn't matter
     unconstrained(S),
+    //debug_print,
 )]
 struct VTableVal<K,V,S>{
+    ///
     insert_elem:extern fn(&mut ErasedMap<K,V,S>,K,V)->ROption<V>,
     
     get_elem:for<'a> extern fn(&'a ErasedMap<K,V,S>,MapQuery<'_,K>)->Option<&'a V>,

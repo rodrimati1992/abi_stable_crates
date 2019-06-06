@@ -1,0 +1,12 @@
+[package]
+name = "abi_stable_shared"
+version = "0.4.0"
+authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+
+[dependencies.core_extensions]
+default_features=false
+features=["std"]
+version="0.1"
