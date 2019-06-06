@@ -77,13 +77,25 @@ impl<T> StaticRef<T>{
     /// Gets access to the reference.
     ///
     /// This returns `&'a T` instead of `&'static T` to support vtables of `non-'static` types.
-    pub fn get<'a>(&self)->&'a T{
+    pub fn get<'a>(self)->&'a T{
         unsafe{ &*self.ref_ }
     }
 
     /// Gets access to the referenced value,as a raw pointer.
-    pub const fn get_raw<'a>(&self)->*const T{
+    pub const fn get_raw<'a>(self)->*const T{
         self.ref_
+    }
+
+    /// Transmutes this StaticRef<T> to a StaticRef<U>.
+    ///
+    /// # Safety
+    ///
+    /// StaticRef has the same rules that references have regarding
+    /// transmuting from one type to another:
+    pub const unsafe fn transmute_ref<U>(self)->StaticRef<U>{
+        StaticRef::from_raw(
+            self.ref_ as *const U
+        )
     }
 }
 

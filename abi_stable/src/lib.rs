@@ -126,6 +126,7 @@ pub use abi_stable_derive::StableAbi;
 pub use abi_stable_derive::{
     export_root_module,
     impl_InterfaceType,
+    sabi_trait,
 };
 
 #[macro_use]

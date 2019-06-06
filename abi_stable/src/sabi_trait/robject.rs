@@ -8,6 +8,7 @@ use std::{
 use core_extensions::SelfOps;
 
 use crate::{
+    erased_types::c_functions::adapt_std_fmt,
     sabi_types::MaybeCmp,
     std_types::{RBox,UTypeId},
     pointer_trait::StableDeref,
@@ -65,7 +66,7 @@ impl<P,I,V> RObject<'_,P,I,V>{
     impl_from_ptr_method!{
         /**
 Creates a trait object from a pointer to a type that must implement the 
-trait that I requires.
+trait that `I` requires.
 
 The constructed trait object cannot be converted back to the original type.
 
@@ -76,7 +77,7 @@ The constructed trait object cannot be converted back to the original type.
     impl_from_ptr_method!{
         /**
 Creates a trait object from a pointer to a type that must implement the 
-trait that I requires.
+trait that `I` requires.
 
 The constructed trait object can be converted back to the original type with 
 the `sabi_*_unerased` methods (RObject reserves `sabi` as a prefix for its own methods).
@@ -89,7 +90,7 @@ the `sabi_*_unerased` methods (RObject reserves `sabi` as a prefix for its own m
 
 impl<I,V> RObject<'_,RBox<()>,I,V>{
 /**
-Creates a trait object from a type that must implement the trait that I requires.
+Creates a trait object from a type that must implement the trait that `I` requires.
 
 The constructed trait object cannot be converted back to the original type.
 */
@@ -105,7 +106,7 @@ The constructed trait object cannot be converted back to the original type.
     }
 
 /**
-Creates a trait object from a type that must implement the trait that I requires.
+Creates a trait object from a type that must implement the trait that `I` requires.
 
 The constructed trait object can be converted back to the original type with 
 the `sabi_*_unerased` methods (RObject reserves `sabi` as a prefix for its own methods).
@@ -138,6 +139,21 @@ where
 }
 
 
+impl<'lt,P,I,V> Debug for RObject<'lt,P,I,V> 
+where
+    P: Deref<Target=()>,
+    I: InterfaceType<Debug = True>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        adapt_std_fmt::<ErasedObject>(
+            self.sabi_erased_ref(), 
+            self.sabi_robject_vtable()._sabi_debug().unwrap(), 
+            f
+        )
+    }
+}
+
+
 unsafe impl<'lt,P,I,V> Send for RObject<'lt,P,I,V> 
 where 
     I:InterfaceType<Send=True>,
@@ -148,6 +164,46 @@ where
     I:InterfaceType<Sync=True>,
 {}
 
+
+impl<'lt,P,I,V> RObject<'lt,P,I,V>{
+/**
+
+Constructs an RObject from an erased pointer and a vtable.
+
+This is mostly intended to be called by `#[sabi_trait]` derived trait objects.
+
+# Safety
+
+These are the requirements for the caller:
+
+- The `'lt` lifetime must be constrained to that of the erased type.
+
+- `P` must be a pointer to the type that the vtable functions 
+    take as the first parameter.
+
+- The vtable must be the `<SomeVTableName>` of a struct declared with 
+    `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_struct="<SomeVTableName>")))]`.
+
+- The vtable must have `StaticRef<RObjectVtable<..>>` 
+    as its first declared field
+
+*/
+    pub unsafe fn with_vtable<OrigPtr>(
+        ptr:OrigPtr,
+        vtable:StaticRef<V>,
+    )-> RObject<'lt,P,I,V>
+    where 
+        OrigPtr:TransmuteElement<(),TransmutedPtr=P>+'lt,
+        OrigPtr::Target:Sized+'lt,
+        P:StableDeref<Target=()>,
+    {
+        RObject{
+            vtable,
+            ptr:ManuallyDrop::new( ptr.transmute_element(<()>::T) ),
+            _marker:PhantomData,
+        }
+    }
+}
 
 impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     /// The uid in the vtable has to be the same as the one for T,
@@ -257,9 +313,9 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
 
     /// The vtable common to all `#[sabi_trait]` generated trait objects.
     #[inline]
-    pub fn sabi_robject_vtable<'a>(&self)->&'a RObjectVtable<P,I>{
+    pub fn sabi_robject_vtable<'a>(&self)->&'a RObjectVtable<(),P,I>{
         unsafe{ 
-            let vtable=&*(self.vtable.get() as *const V as *const BaseVtable<P,I>);
+            let vtable=&*(self.vtable.get() as *const V as *const BaseVtable<(),P,I>);
             vtable._sabi_vtable().get()
         }
     }
