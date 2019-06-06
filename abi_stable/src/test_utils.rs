@@ -9,7 +9,7 @@ use std::{
 #[derive(Debug, Clone)]
 pub struct FileSpan {
     pub file: &'static str,
-    pub line: &'static str,
+    pub line: u32,
 }
 
 pub type ThreadError = Box<dyn Any + Send + 'static>;
@@ -24,7 +24,7 @@ macro_rules! file_span {
         use crate::test_utils::FileSpan;
         FileSpan {
             file: file!(),
-            line: file!(),
+            line: line!(),
         }
     }};
 }

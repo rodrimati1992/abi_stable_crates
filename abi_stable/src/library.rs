@@ -20,9 +20,7 @@ use libloading::{
     Symbol as LLSymbol,
 };
 
-use abi_stable_derive_lib::{
-    mangled_root_module_loader_name,
-};
+use abi_stable_shared::mangled_root_module_loader_name;
 
 
 

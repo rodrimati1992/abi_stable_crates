@@ -1,6 +1,7 @@
 [workspace]
 members=[
     "abi_stable",
+    "abi_stable_shared",
     "abi_stable_derive",
     "abi_stable_derive_lib",
     "examples/example_0_impl",

@@ -211,6 +211,7 @@ impl_fmt_padding!{ RString }
 /// Declared to pass a function pointers to const fn.
 #[repr(C)]
 #[derive(StableAbi)]
+// #[sabi(debug_print)]
 pub struct Constructor<T>(pub extern fn()->T);
 
 impl<T> Copy for Constructor<T>{}
@@ -226,6 +227,7 @@ impl<T> Clone for Constructor<T>{
 /// Either the constructor for a value or the value itself
 #[repr(u8)]
 #[derive(StableAbi,Copy,Clone)]
+//#[sabi(debug_print)]
 pub enum ConstructorOrValue<T>{
     /// This is an `extern fn()->T` which is used to construct a value of type `T`
     Constructor(Constructor<T>),
@@ -272,4 +274,3 @@ pub fn assert_fnonce<F,R>(_:&F)
 where
     F:FnOnce()->R
 {}
-
