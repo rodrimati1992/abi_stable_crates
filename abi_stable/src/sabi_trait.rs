@@ -20,6 +20,7 @@ pub mod reexports{
                 vtable::{GetVTable,RObjectVtable,GetRObjectVTable},
                 for_generated_code::{sabi_from_ref,sabi_from_mut},
             },
+            std_types::RBox,
             utils::{transmute_reference,transmute_mut_reference,take_manuallydrop},
         };
 
@@ -29,17 +30,27 @@ pub mod reexports{
         };
 
         pub use std::{
+            marker::PhantomData,
             mem::ManuallyDrop,
             ptr,
         };
     }
 }
 
+pub mod prelude{
+    pub use super::{
+        markers::{YesImplAny,NoImplAny},
+    };
+}
+
 pub mod for_generated_code;
 pub mod robject;
 pub mod vtable;
 
-use std::marker::PhantomData;
+use std::{
+    fmt::Debug,
+    marker::PhantomData,
+};
 
 use self::{
     reexports::{
