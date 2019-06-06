@@ -391,11 +391,14 @@ impl AbiChecker {
                 let sf_ctx=FieldContext::Subfields;
                 
                 for (t_func,o_func) in this_f.functions.iter().zip(&*other_f.functions) {
-                    self.check_fields(errs,t_lay,o_lay,sf_ctx,&t_func.params,&o_func.params);
-
-                    let t_returns=t_func.returns.as_ref().map_or(&[][..],slice::from_ref);
-                    let o_returns=o_func.returns.as_ref().map_or(&[][..],slice::from_ref);
-                    self.check_fields(errs,t_lay,o_lay,sf_ctx,t_returns,o_returns);
+                    self.check_fields(
+                        errs,
+                        t_lay,
+                        o_lay,
+                        sf_ctx,
+                        &t_func.get_params_ret_vec(),
+                        &o_func.get_params_ret_vec(),
+                    );
                 }
 
 

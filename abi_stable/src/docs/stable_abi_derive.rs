@@ -79,6 +79,7 @@ Delegates the treatment of this type as a module to the type it dereferences to.
 
 These attributes are applied to fields.
 
+
 <h3> `#[sabi(rename="ident")]` </h3>
 
 Renames the field in the generated layout information.
@@ -92,6 +93,11 @@ and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
 This is unsafe because the layout of the type won't be verified when loading the library,
 which causes Undefined Behavior if the type has a different layout.
 
+<h3> `#[sabi(field_bound="ATrait")]` </h3>
+
+This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
+
+Adds the bound to the field type in the accessor method.
 
 <h3> `#[sabi(last_prefix_field)]` </h3>
 

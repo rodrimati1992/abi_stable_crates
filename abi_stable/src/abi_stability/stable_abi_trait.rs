@@ -102,8 +102,9 @@ The kind of abi stability of this type,there are 2:
     */
     type Kind:TypeKindTrait;
 
-    /// A version of the type which does not borrow anything,
-    /// used to create a UTypeId for doing layout checking.
+    /// A type that stands in for Self,used to create a UTypeId for doing layout checking.
+    ///
+    /// This may or may not have the same TypeId as Self.
     type StaticEquivalent:'static;
 
     /// The layout of the type provided by implementors.
@@ -305,6 +306,17 @@ unsafe impl<T> MakeGetAbiInfo<UnsafeOpaqueField_Bound> for T {
         abi_info: get_abi_info::<UnsafeOpaqueField<T>>,
     };
 }
+
+
+#[doc(hidden)]
+pub struct MakeGetAbiInfoSA<T>(T);
+
+impl<T> MakeGetAbiInfoSA<T>
+where T:MakeGetAbiInfo<StableAbi_Bound>
+{
+    const CONST:GetAbiInfo=T::CONST;
+}
+
 
 /// Determines that MakeGetAbiInfo constructs the AbiInfo for a 
 /// type that implements StableAbi.
@@ -849,6 +861,12 @@ unsafe impl SharedStableAbi for unsafe extern "C" fn() {
     const S_LAYOUT: &'static TypeLayout = empty_extern_fn_layout!(Self);
 }
 
+
+/// The GetAbiInfo of an `unsafe extern fn()`
+pub const UNSAFE_EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<unsafe extern fn()>::CONST;
+
+/// The GetAbiInfo of an `extern fn()`
+pub const EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<extern fn()>::CONST;
 
 
 /////////////

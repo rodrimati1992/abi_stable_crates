@@ -6,6 +6,9 @@ pub use crate::{
             UnsafeOpaqueField_Bound,
             ValueKind,
             PrefixKind,
+            UNSAFE_EXTERN_FN_ABI_INFO,
+            EXTERN_FN_ABI_INFO,
+            MakeGetAbiInfoSA,
         },
         type_layout::{
             LifetimeIndex, 
@@ -30,7 +33,6 @@ pub use crate::{
         WithMetadata_,
         PTStructLayout,
         PTStructLayoutParams,
-        PTField,
     },
     std_types::{
         utypeid::new_utypeid,
@@ -63,7 +65,6 @@ pub mod renamed {
         WithMetadata_ as __WithMetadata_,
         PTStructLayout as __PTStructLayout,
         PTStructLayoutParams as __PTStructLayoutParams,
-        PTField as __PTField,
         StaticStr as __StaticStr,
         FieldAccessor as __FieldAccessor,
         ModReflMode as __ModReflMode,
@@ -72,6 +73,9 @@ pub mod renamed {
         DiscriminantRepr as __DiscriminantRepr,
         RSome as __RSome,
         RNone as __RNone,
+        UNSAFE_EXTERN_FN_ABI_INFO as __UNSAFE_EXTERN_FN_ABI_INFO,
+        EXTERN_FN_ABI_INFO as __EXTERN_FN_ABI_INFO,
+        MakeGetAbiInfoSA as __sabi_MakeGetAbiInfoSA,
     };
 }
 

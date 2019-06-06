@@ -6,6 +6,7 @@ use std::{
     fmt::{self,Display},
 };
 
+use core_extensions::SelfOps;
 
 use crate::{
     reflection::{ModReflMode},
@@ -41,7 +42,7 @@ pub enum MRItemVariant{
 #[derive(Debug,Serialize,Deserialize)]
 pub struct MRFunction{
     params:Vec<MRNameType>,
-    returns:Option<MRNameType>,
+    returns:MRNameType,
 }
 
 
@@ -152,8 +153,8 @@ impl MRItem{
 impl<'a> From<&'a TLFunction> for MRFunction{
     fn from(this:&'a TLFunction)->Self{
         Self{
-            params:this.params.iter().map(MRNameType::from).collect::<Vec<_>>(),
-            returns:this.returns.as_ref().map(MRNameType::from).into_option() ,
+            params:this.get_params().map(MRNameType::from).collect::<Vec<_>>(),
+            returns:this.get_return().into_(MRNameType::T),
         }
     }
 }
@@ -169,10 +170,11 @@ impl Display for MRFunction{
             }
         }
         write!(f,")")?;
-        if let Some(returns)=&self.returns {
-            Display::fmt(&"->",f)?;
-            Display::fmt(returns,f)?;
-        }
+        
+        let returns=&self.returns;
+        Display::fmt(&"->",f)?;
+        Display::fmt(returns,f)?;
+
         Ok(())
     }
 }
@@ -180,8 +182,8 @@ impl Display for MRFunction{
 ///////////////////////////////////////////////////////////////////////////////
 
 
-impl<'a> From<&'a TLField> for MRNameType{
-    fn from(field:&'a TLField)->Self{
+impl From<TLField> for MRNameType{
+    fn from(field:TLField)->Self{
         let name=field.name.to_string();
         let type_=if field.is_function{
             field.functions[0].to_string()

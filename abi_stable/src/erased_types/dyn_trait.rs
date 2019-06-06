@@ -441,8 +441,8 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        prefix_bound="I:InterfaceBound<'borr>",
-        bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound<'static>",
+        // prefix_bound="I:InterfaceBound<'borr>",
+        // bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound<'static>",
         bound="VTable<'borr,P,I>:SharedStableAbi",
         tag="<I as InterfaceBound<'borr>>::TAG",
     )]
