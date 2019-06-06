@@ -80,3 +80,10 @@ pub fn export_root_module(attr: TokenStream1, item: TokenStream1) -> TokenStream
     abi_stable_derive_lib::mangle_library_getter_attr(attr,item)
 }
 
+
+
+#[proc_macro_attribute]
+pub fn sabi_trait(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
+    abi_stable_derive_lib::derive_sabi_trait(attr,item)
+}
+
