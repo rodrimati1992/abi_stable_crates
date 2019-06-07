@@ -110,6 +110,9 @@ To represent non-exhaustive enums without fields it is recommended using structs
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
 
+#[cfg(test)]
+use abi_stable_shared::file_span;
+
 #[macro_use]
 extern crate serde_derive;
 

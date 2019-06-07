@@ -1,3 +1,8 @@
+#[doc(hidden)]
+#[macro_use]
+pub mod test_utils;
+
+
 use core_extensions::StringExt;
 
 #[doc(hidden)]

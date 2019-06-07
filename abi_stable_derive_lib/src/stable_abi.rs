@@ -25,7 +25,11 @@ pub mod reflection;
 mod attribute_parsing;
 
 mod prefix_types;
+
 mod repr_attrs;
+
+#[cfg(test)]
+mod tests;
 
 use self::{
     attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions},
