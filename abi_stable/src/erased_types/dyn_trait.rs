@@ -1079,7 +1079,7 @@ DynTrait does not implement Clone if P==`&mut ()` :
 #     erased_types::interfaces::CloneInterface,
 # };
 
-let object=DynTrait::from_any_value((),());
+let mut object=DynTrait::from_any_value((),());
 let borrow=object.reborrow_mut();
 let _=borrow.clone();
 
