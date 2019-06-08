@@ -20,8 +20,6 @@ use abi_stable::{
     std_types::*,
 };
 
-use std::rc::Rc;
-
 let _=RSomething_from_value::<_,NoImplAny,()>(RBox::new(10_u32));
 
 ```
@@ -161,26 +159,24 @@ where
 
 #[sabi_trait]
 //#[sabi(debug_print_trait)]
-pub trait EmptyTrait:'static{}
+pub trait EmptyTrait{}
 
 
 impl EmptyTrait for () {}
 
 impl EmptyTrait for u32 {}
 
-impl<T> EmptyTrait for RArc<T> 
-where
-    T:'static,
-{}
+impl<T> EmptyTrait for RArc<T> {}
 
-impl<T> EmptyTrait for RBox<T> 
-where
-    T:'static,
-{}
+impl<T> EmptyTrait for RBox<T> {}
 
 
 //////////////////////////////////////
 
+#[sabi_trait]
+pub trait StaticTrait:'static{}
+
+//////////////////////////////////////
 
 /**
 
@@ -488,6 +484,51 @@ mod tests{
 
         erased.sabi_into_unerased::<u32>().unwrap_err();
         
+        assert_eq!(Arc::strong_count(&arc), 2);
+               
+    }
+
+    #[test]
+    fn test_reborrowing(){
+        let arc=Arc::new(107_u32);
+        let rarc=arc.clone().into_c();
+
+        assert_eq!(Arc::strong_count(&arc), 2);
+
+        let mut object:RSomething_TO<RBox<()>,(),u32>=
+            RSomething_from_value::<_,YesImplAny,()>(rarc.clone());
+        
+        assert_eq!(Arc::strong_count(&arc), 3);
+        
+        for _ in 0..10{
+            assert_eq!(
+                object.reborrow().sabi_into_unerased::<RArc<u32>>().unwrap(),
+                &RArc::new(107)
+            );
+        }
+        assert_eq!(Arc::strong_count(&arc), 3);
+
+        
+        for _ in 0..10{
+            assert_eq!(
+                object.reborrow_mut().sabi_into_unerased::<RArc<u32>>().unwrap(),
+                &mut RArc::new(107)
+            );
+        }
+
+
+        assert_eq!(Arc::strong_count(&arc), 3);
+
+        {
+            let cloned=object.reborrow().clone();
+
+            assert_eq!(format!("{:?}",cloned),"107");
+        }
+
+        assert_eq!(Arc::strong_count(&arc), 3);
+
+        drop(object);
+
         assert_eq!(Arc::strong_count(&arc), 2);
                
     }

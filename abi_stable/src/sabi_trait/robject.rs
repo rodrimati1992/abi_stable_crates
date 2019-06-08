@@ -11,7 +11,10 @@ use crate::{
     erased_types::c_functions::adapt_std_fmt,
     sabi_types::MaybeCmp,
     std_types::{RBox,UTypeId},
-    pointer_trait::StableDeref,
+    pointer_trait::{
+        StableDeref, TransmuteElement,
+        GetPointerKind,PK_SmartPointer,PK_Reference,
+    },
     sabi_trait::markers::*,
     utils::{transmute_reference,transmute_mut_reference},
 };
@@ -20,6 +23,7 @@ use crate::{
 #[derive(StableAbi)]
 pub struct RObject<'lt,P,I,V>{
     vtable:StaticRef<V>,
+    is_reborrowed:bool,
     ptr: ManuallyDrop<P>,
     _marker:PhantomData<Tuple2<&'lt (),I>>,
 }
@@ -51,6 +55,7 @@ macro_rules! impl_from_ptr_method {
         {
             RObject{
                 vtable:I::get_vtable(),
+                is_reborrowed:false,
                 ptr:unsafe{
                     let ptr=TransmuteElement::<()>::transmute_element(ptr,PhantomData);
                     ManuallyDrop::new(ptr)
@@ -124,17 +129,76 @@ the `sabi_*_unerased` methods (RObject reserves `sabi` as a prefix for its own m
 }
 
 
-impl<'lt,P,I,V> Clone for RObject<'lt,P,I,V> 
-where 
-    I:InterfaceType<Clone=True>,
+
+mod clone_impl{
+    pub trait CloneImpl<PtrKind>{
+        fn clone_impl(&self) -> Self;
+    }
+}
+use self::clone_impl::CloneImpl;
+
+
+/// This impl is for smart pointers.
+impl<'lt,P, I,V> CloneImpl<PK_SmartPointer> for RObject<'lt,P,I,V>
+where
+    P: Deref,
+    I: InterfaceType<Clone = True>,
 {
-    fn clone(&self)->Self{
+    fn clone_impl(&self) -> Self {
         let ptr=self.sabi_robject_vtable()._sabi_clone().unwrap()(&self.ptr);
         Self{
             vtable:self.vtable,
+            is_reborrowed:self.is_reborrowed,
             ptr:ManuallyDrop::new(ptr),
             _marker:PhantomData,
         }
+    }
+}
+
+/// This impl is for references.
+impl<'lt,P, I,V> CloneImpl<PK_Reference> for RObject<'lt,P,I,V>
+where
+    P: Deref+Copy,
+    I: InterfaceType<Clone = True>,
+{
+    fn clone_impl(&self) -> Self {
+        Self{
+            vtable:self.vtable,
+            is_reborrowed:self.is_reborrowed,
+            ptr:ManuallyDrop::new(*self.ptr),
+            _marker:PhantomData,
+        }
+    }
+}
+
+/**
+Clone is implemented for references and smart pointers,
+using `GetPointerKind` to decide whether `P` is a smart pointer or a reference.
+
+RObject does not implement Clone if P==`&mut ()` :
+
+
+```compile_fail
+use abi_stable::{
+    sabi_trait::prelude::*,
+    trait_object_test::*,
+    std_types::*,
+};
+
+let mut object=RSomething_from_value::<_,NoImplAny,()>(RBox::new(10_u32));
+let borrow=object.reborrow_mut();
+let _=borrow.clone();
+```
+
+*/
+impl<'lt,P, I,V> Clone for RObject<'lt,P,I,V>
+where
+    P: Deref+GetPointerKind,
+    I: InterfaceType,
+    Self:CloneImpl<<P as GetPointerKind>::Kind>,
+{
+    fn clone(&self) -> Self {
+        self.clone_impl()
     }
 }
 
@@ -176,10 +240,11 @@ This is mostly intended to be called by `#[sabi_trait]` derived trait objects.
 
 These are the requirements for the caller:
 
-- The `'lt` lifetime must be constrained to that of the erased type.
-
 - `P` must be a pointer to the type that the vtable functions 
     take as the first parameter.
+
+- The vtable must not come from a reborrowed RObject
+    (created using RObject::reborrow or RObject::reborrow_mut).
 
 - The vtable must be the `<SomeVTableName>` of a struct declared with 
     `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_struct="<SomeVTableName>")))]`.
@@ -199,6 +264,7 @@ These are the requirements for the caller:
     {
         RObject{
             vtable,
+            is_reborrowed:false,
             ptr:ManuallyDrop::new( ptr.transmute_element(<()>::T) ),
             _marker:PhantomData,
         }
@@ -304,6 +370,65 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
 }
 
 
+mod private_struct {
+    pub struct PrivStruct;
+}
+use self::private_struct::PrivStruct;
+
+
+/// This is used to make sure that reborrowing does not change 
+/// the Send-ness or Sync-ness of the pointer.
+pub trait ReborrowBounds<SendNess,SyncNess>{}
+
+// If it's reborrowing,it must have either both Sync+Send or neither.
+impl ReborrowBounds<False,False> for PrivStruct {}
+impl ReborrowBounds<True ,True > for PrivStruct {}
+
+
+impl<'lt,P,I,V> RObject<'lt,P,I,V>
+where 
+    I:InterfaceType
+{
+    /// Creates a shared reborrow of this RObject.
+    ///
+    pub fn reborrow<'re>(&'re self)->RObject<'lt,&'re (),I,V> 
+    where
+        P:Deref<Target=()>,
+        PrivStruct:ReborrowBounds<I::Send,I::Sync>,
+    {
+        // Reborrowing will break if I add extra functions that operate on `P`.
+        RObject{
+            vtable:self.vtable,
+            is_reborrowed:true,
+            ptr:ManuallyDrop::new(&**self.ptr),
+            _marker:PhantomData,
+        }
+    }
+
+    /// Creates a mutable reborrow of this RObject.
+    ///
+    /// The reborrowed RObject cannot use these methods:
+    ///
+    /// - RObject::clone
+    /// 
+    pub fn reborrow_mut<'re>(&'re mut self)->RObject<'lt,&'re mut (),I,V> 
+    where
+        P:DerefMut<Target=()>,
+        PrivStruct:ReborrowBounds<I::Send,I::Sync>,
+    {
+        // Reborrowing will break if I add extra functions that operate on `P`.
+        RObject {
+            vtable: self.vtable,
+            is_reborrowed:true,
+            ptr: ManuallyDrop::new(&mut **self.ptr),
+            _marker:PhantomData,
+        }
+    }
+}
+
+
+
+
 impl<'lt,P,I,V> RObject<'lt,P,I,V>{
 
     #[inline]
@@ -354,9 +479,13 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
 
 impl<P,I,V> Drop for RObject<'_,P,I,V>{
     fn drop(&mut self){
-        let destructor=self.sabi_robject_vtable()._sabi_drop();
-        unsafe{
-            destructor(&mut self.ptr);
+        // This condition is necessary because if the RObject was reborrowed,
+        // the destructor function would take a different pointer type.
+        if !self.is_reborrowed{
+            let destructor=self.sabi_robject_vtable()._sabi_drop();
+            unsafe{
+                destructor(&mut self.ptr);
+            }
         }
     }
 }
