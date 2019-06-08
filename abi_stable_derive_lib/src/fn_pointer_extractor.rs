@@ -138,6 +138,16 @@ impl<'a> TypeVisitor<'a> {
         }
     }
 
+    pub fn arenas(&self)->&'a Arenas{
+        self.refs.arenas
+    }
+    pub fn ctokens(&self)->&'a CommonTokens<'a>{
+        self.refs.ctokens
+    }
+    pub fn env_generics(&self)->&'a Generics{
+        self.refs.env_generics
+    }
+
     pub fn visit_field(&mut self,ty: &mut Type) -> VisitFieldRet<'a> {
         self.visit_type_mut(ty);
 

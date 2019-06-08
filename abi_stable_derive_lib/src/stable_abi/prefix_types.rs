@@ -192,6 +192,7 @@ pub(crate) fn prefix_type_tokenizer<'a>(
 
         let empty_preds=Punctuated::new();
         let where_preds=where_clause.as_ref().map_or(&empty_preds,|x|&x.predicates);
+        let prefix_bounds=&prefix.prefix_bounds;
 
         let stringified_deriving_name=deriving_name.to_string();
 
@@ -405,8 +406,6 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             });
 
 
-        let prefix_bounds=&prefix.prefix_bounds;
-
         let conditional_fields=
             struct_.fields.iter().enumerate()
                 .filter_map(|(i,field)|{
@@ -493,6 +492,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             impl #impl_generics #prefix_struct #ty_generics 
             where 
                 #(#where_preds,)*
+                #(#prefix_bounds,)*
                 #deriving_name #ty_generics: #module::_sabi_reexports::PrefixTypeTrait,
             {
                 const __AB_PTT_FIELD_ACCESSIBILTIY_MASK:u64=

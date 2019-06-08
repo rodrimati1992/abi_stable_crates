@@ -7,7 +7,8 @@ use super::{
 };
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap,HashSet},
+    iter,
     rc::Rc,
 };
 
@@ -16,7 +17,7 @@ use core_extensions::{matches,IteratorExt};
 use syn::{
     token::{Semi,Comma},
     punctuated::Punctuated,
-    Ident,ItemTrait,Visibility,FnArg,LifetimeDef,MethodSig,Meta,
+    Ident,ItemTrait,Visibility,FnArg,Lifetime,LifetimeDef,MethodSig,Meta,
     TypeParamBound,Block,WherePredicate,TraitItem,Abi,
     token::Unsafe,
 };
@@ -46,6 +47,10 @@ pub(crate) struct TraitDefinition<'a>{
     pub(crate) other_attrs:&'a [Meta],
     pub(crate) generics:&'a syn::Generics,
     pub(crate) impld_traits:Vec<RcUsableTrait>,
+    /// The lifetimes declared in the trait generic parameter list that are used in 
+    /// `&'lifetime self` `&'lifetime mut self` method receivers,
+    /// or used directly as supertraits.
+    pub(crate) lifetime_bounds:Vec<&'a Lifetime>,
     pub(crate) unimpld_traits:Rc<HashMap<Ident,RcUsableTrait>>,
     pub(crate) vis:MyVisibility<'a>,
     pub(crate) submod_vis:RelativeVis<'a>,
@@ -89,38 +94,75 @@ impl<'a> TraitDefinition<'a>{
         let mut assoc_tys=HashMap::default();
         let mut methods=Vec::<TraitMethod<'a>>::new();
 
-
-        for supertrait_bound in &trait_.supertraits{
-            let trait_bound=match supertrait_bound {
-                TypeParamBound::Trait(x)=>x,
-                _=>continue,
-            };
-            let last_path_component=match trait_bound.path.segments.last() {
-                Some(x)=>&x.value().ident,
-                None=>continue,
-            };
-
-            match trait_map.get(&last_path_component) {
-                Some(supertrait)=>{
-                    unimpld_traits.remove(&last_path_component);
-                    impld_traits.push(supertrait.clone());
-                },
-                None=>{
-                    let list=trait_map.keys().map(|x| x.to_string() ).collect::<Vec<String>>();
-
-                    panic!(
-                        "Unexpected supertrait bound:\n\t{}\nExpected one of:\n{}\n", 
-                        supertrait_bound.into_token_stream(),
-                        list.join("/"),
-                    );
-                },
-            }
-        }
-
         methods_with_attrs.into_iter()
             .filter_map(|func| TraitMethod::new(func,&trait_.vis,ctokens,arenas) )
             .extending(&mut methods);
 
+        /////////////////////////////////////////////////////
+        ////         Processing the supertrait bounds
+
+        let lifetime_params:HashSet<&'a Lifetime>=
+            trait_.generics.lifetimes()
+                .map(|l| &l.lifetime )
+                .chain(iter::once(&ctokens.static_lifetime))
+                .collect();
+
+        let mut lifetime_bounds:Vec<&'a Lifetime>=Vec::new();
+
+        // Adding the lifetime parameters in `&'a self` and `&'a mut self` 
+        // that were declared in the trait generic parameter list.
+        // This is done because those lifetime bounds are enforced as soon as 
+        // the vtable is created,instead of when the methods are called
+        // (it's enforced in method calls in regular trait objects).
+        for method in &methods {
+            if let SelfParam::ByRef{lifetime:Some(lt),..}=method.self_param {
+                if lifetime_params.contains(lt) {
+                    lifetime_bounds.push(lt);
+                }
+            }
+        }
+
+        for supertrait_bound in &trait_.supertraits{
+            match supertrait_bound {
+                TypeParamBound::Trait(trait_bound)=>{
+                    let last_path_component=match trait_bound.path.segments.last() {
+                        Some(x)=>&x.value().ident,
+                        None=>continue,
+                    };
+
+                    match trait_map.get(&last_path_component) {
+                        Some(supertrait)=>{
+                            unimpld_traits.remove(&last_path_component);
+                            impld_traits.push(supertrait.clone());
+                        },
+                        None=>{
+                            let list=trait_map.keys()
+                                .map(|x| x.to_string() )
+                                .collect::<Vec<String>>();
+
+                            panic!(
+                                "Unexpected supertrait bound:\n\t{}\nExpected one of:\n{}\n", 
+                                supertrait_bound.into_token_stream(),
+                                list.join("/"),
+                            );
+                        },
+                    }
+                }
+                TypeParamBound::Lifetime(lt)=>{
+                    if lifetime_params.contains(lt) {
+                        lifetime_bounds.push(lt);
+                    }else{
+                        panic!(
+                            "\nLifetimes is not from the '{}' trait or `'static`:\n\t{}\n\n",
+                            trait_.ident,
+                            lt.into_token_stream(),
+                        );
+                    }
+                }
+            };
+        }
+
+        /////////////////////////////////////////////////////
 
         let mut assoc_ty_index=0;
         for item in &trait_.items {
@@ -163,6 +205,7 @@ impl<'a> TraitDefinition<'a>{
             derive_attrs:arenas.alloc(attrs.derive_attrs),
             other_attrs:arenas.alloc(attrs.other_attrs),
             generics:&trait_.generics,
+            lifetime_bounds,
             impld_traits,
             unimpld_traits:Rc::new(unimpld_traits),
             vis,
@@ -299,9 +342,10 @@ impl<'a> TraitDefinition<'a>{
 
 #[derive(Debug,Clone)]
 pub(crate) struct TraitMethod<'a>{
-    /// The visibility of the trait
+    pub(crate) item:&'a syn::TraitItemMethod,
     pub(crate) unsafety: Option<&'a Unsafe>,
     pub(crate) abi: Option<&'a Abi>,
+    /// The visibility of the trait
     pub(crate) vis:&'a Visibility,
     pub(crate) derive_attrs:&'a [Meta],
     pub(crate) other_attrs:&'a [Meta],
@@ -323,6 +367,7 @@ pub(crate) struct TraitMethod<'a>{
 pub(crate) struct MethodParam<'a>{
     pub(crate) name:&'a Ident,
     pub(crate) ty:syn::Type,
+    pub(crate) pattern:&'a syn::Pat,
 }
 
 
@@ -336,6 +381,20 @@ impl<'a> TraitMethod<'a>{
         let method_signature=&mwa.item.sig;
         let decl=&method_signature.decl;
 
+        let panic_msg=||{
+            panic!("\n\n\
+                Cannot define #[sabi_trait]traits containing methods \
+                without a `self`/`&self`/`&mut self` receiver \
+                (static methods).\n\
+                Caused by the '{}' method.\n\n\
+            ",
+                method_signature.ident,
+            )
+        };
+        if decl.inputs.is_empty() {
+            panic_msg();
+        }
+
         let mut input_iter=decl.inputs.iter();
 
         let self_param=match input_iter.next()? {
@@ -347,7 +406,7 @@ impl<'a> TraitMethod<'a>{
             FnArg::SelfValue{..}=>
                 SelfParam::ByVal,
             FnArg::Captured{..}|FnArg::Inferred{..}|FnArg::Ignored{..}=>
-                return None,
+                panic_msg(),
         };
 
         let name_method=format!("{}_",method_signature.ident).as_str()
@@ -355,6 +414,7 @@ impl<'a> TraitMethod<'a>{
             .piped(|x| arena.alloc(x) );
 
         Some(Self{
+            item:&mwa.item,
             unsafety:method_signature.unsafety.as_ref(),
             abi:method_signature.abi.as_ref(),
             vis,
@@ -367,18 +427,22 @@ impl<'a> TraitMethod<'a>{
             params:input_iter
                 .enumerate()
                 .map(|(param_i,param)|{
-                    let ty=match param {
+                    let (pattern,ty)=match param {
                         FnArg::SelfRef{..}|FnArg::SelfValue{..}|FnArg::Inferred{..}=>
                             unreachable!(),
-                        FnArg::Captured(x)=>&x.ty,
-                        FnArg::Ignored(ty)=>ty,
-                    }.clone();
+                        FnArg::Captured(x)=>{
+                            (&x.pat,&x.ty)
+                        },
+                        FnArg::Ignored(ty)=>
+                            (&ctokens.ignored_pat,ty),
+                    };
 
                     let name=format!("param_{}",param_i);
                     let name=syn::parse_str::<Ident>(&name).unwrap();
                     MethodParam{
                         name:arena.alloc(name),
-                        ty,
+                        ty:ty.clone(),
+                        pattern,
                     }
                 })
                 .collect(),

@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::to_token_fn::ToTokenFnMut;
+
 #[derive(Debug,Copy,Clone)]
 pub struct MethodsTokenizer<'a>{
     pub(crate) trait_def:&'a TraitDefinition<'a>,
@@ -29,10 +31,11 @@ impl<'a> ToTokens for MethodsTokenizer<'a> {
         
 impl<'a> ToTokens for MethodTokenizer<'a> {
     fn to_tokens(&self, ts: &mut TokenStream2) {
+        let which_item=self.which_item;
         let method=self.method;
         let trait_def=self.trait_def;
         let ctokens=trait_def.ctokens;
-        let (is_trait_method,vis)=match self.which_item {
+        let (is_trait_method,vis)=match which_item {
             WhichItem::Trait
             |WhichItem::TraitImpl
             |WhichItem::TraitMethodsImpl
@@ -43,13 +46,14 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 (false,Some(trait_def.vis)),
         };
         
+
         let lifetimes=Some(&method.lifetimes).filter(|l| !l.is_empty() );
 
         // The name of the method in the __Method trait.
         let name_method=method.name_method;
         // The name of the method in the __Trait trait.
         let method_name=method.name;
-        let used_name=match self.which_item {
+        let used_name=match which_item {
             WhichItem::Trait=>method.name,
             WhichItem::TraitImpl=>method.name,
             WhichItem::TraitMethodsImpl=>method.name_method,
@@ -72,15 +76,22 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 quote!(_self:__sabi_re::MovePtr<'_,_Self>),
         };
 
-        let param_names_a=method.params.iter().map(|param| param.name );
-        let param_names_b=param_names_a.clone();
+        let param_names_a=method.params.iter()
+            .map(move|param|ToTokenFnMut::new(move|ts|{
+                if which_item==WhichItem::Trait {
+                    param.pattern.to_tokens(ts);
+                }else{
+                    param.name.to_tokens(ts);
+                }
+            }));
+        let param_ty     =method.params.iter().map(|param| &param.ty   );
         let param_names_c=param_names_a.clone();
         let return_ty=&method.output;
         
         let self_is_sized_bound=Some(&ctokens.self_sized)
             .filter(|_| is_trait_method&&method.self_param==SelfParam::ByVal );
 
-        let abi=if self.which_item==WhichItem::VtableImpl {
+        let abi=if which_item==WhichItem::VtableImpl {
             Some(&ctokens.extern_c)
         }else{
             method.abi
@@ -88,21 +99,21 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
 
         let user_where_clause=method.where_clause.get_tokenizer(ctokens);
 
-        let other_attrs=if self.which_item==WhichItem::Trait { 
+        let other_attrs=if which_item==WhichItem::Trait { 
             method.other_attrs
         }else{ 
             &[] 
         };
 
-        if WhichItem::VtableDecl==self.which_item {
+        if WhichItem::VtableDecl==which_item {
             let derive_attrs=method.derive_attrs;
             quote!( 
-                #(#[sabi(#derive_attrs)])*
+                #(#[#derive_attrs])*
                 #vis #used_name:
                     #(for< #(#lifetimes,)* >)*
                     extern "C" fn(
                         #self_param,
-                        #( #param_names_a:#param_names_b ,)* 
+                        #( #param_names_a:#param_ty ,)* 
                     ) #(-> #return_ty )*
             )
         }else{
@@ -110,7 +121,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 #(#[#other_attrs])*
                 #vis #abi fn #used_name(
                     #self_param, 
-                    #( #param_names_a:#param_names_b ,)* 
+                    #( #param_names_a:#param_ty ,)* 
                 ) #(-> #return_ty )*
                 where
                     #self_is_sized_bound
@@ -119,7 +130,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         }.to_tokens(ts);
 
 
-        match (self.which_item,&method.self_param) {
+        match (which_item,&method.self_param) {
             (WhichItem::Trait,_)=>{
                 method.default.to_tokens(ts);
                 method.semicolon.to_tokens(ts);

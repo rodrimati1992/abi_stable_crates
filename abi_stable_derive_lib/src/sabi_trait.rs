@@ -1,5 +1,6 @@
 use crate::{
     *,
+    impl_interfacetype::private_associated_type,
     parse_utils::{parse_str_as_ident},
     my_visibility::{MyVisibility,RelativeVis},
     gen_params_in::{GenParamsIn,InWhat},
@@ -10,6 +11,8 @@ use std::{
     borrow::Cow,
     marker::PhantomData,
 };
+
+use core_extensions::BoolExt;
 
 use proc_macro2::TokenStream as TokenStream2;
 
@@ -23,6 +26,9 @@ mod method_where_clause;
 mod replace_self_path;
 mod trait_definition;
 mod methods_tokenizer;
+
+#[cfg(test)]
+mod tests;
 
 use self::{
     attribute_parsing::SabiTraitOptions,
@@ -110,6 +116,7 @@ pub fn derive_sabi_trait(mut item: ItemTrait) -> TokenStream2 {
             __trait_from_ptr as #from_ptr_ctr,
         };
 
+        #[allow(explicit_outlives_requirements)]
         mod #generated_mod{
             #mod_contents
         }
@@ -147,6 +154,8 @@ fn first_items<'a>(
     let impld_traits=trait_def.impld_traits.iter().map(|x|parse_str_as_ident(x.name));
     let unimpld_traits=trait_def.unimpld_traits.keys();
 
+    let priv_assocty=private_associated_type();
+
     quote!(
         use super::*;
 
@@ -156,18 +165,17 @@ fn first_items<'a>(
         #[derive(StableAbi)]
         #submod_vis struct __TraitMarker;
 
-        pub type __TraitObject<#to_params>=
+        #submod_vis type __TraitObject<#to_params>=
             __sabi_re::RObject<'lt,_ErasedPtr,__TraitMarker,VTable<#vtable_args>>;
 
         mod __inside_generated_mod{
             use super::__TraitMarker;
             use abi_stable::{InterfaceType,type_level::bools::*};
 
-            abi_stable::impl_InterfaceType!{
-                impl InterfaceType for __TraitMarker{
-                    #( type #impld_traits=True; )*
-                    #( type #unimpld_traits=False; )*
-                }
+            impl abi_stable::InterfaceType for __TraitMarker{
+                #( type #impld_traits=True; )*
+                #( type #unimpld_traits=False; )*
+                type #priv_assocty=();
             }
         }
 
@@ -177,7 +185,7 @@ fn first_items<'a>(
 
 
 fn constructor_items<'a>(
-    TokenizerParams{ctokens,trait_def,..}:TokenizerParams,
+    TokenizerParams{ctokens,trait_def,submod_vis,..}:TokenizerParams,
     mod_:&mut TokenStream2,
 ){
     let from_ptr_params=trait_def.generics_tokenizer(
@@ -207,7 +215,7 @@ fn constructor_items<'a>(
     
 
     quote!(
-        pub fn __trait_from_ptr<#from_ptr_params>(
+        #submod_vis fn __trait_from_ptr<#from_ptr_params>(
             ptr:_OrigPtr,
         )->__TraitObject<#ret_generics>
         where
@@ -236,7 +244,7 @@ fn constructor_items<'a>(
     );
 
     quote!(
-        pub fn __trait_from_value<#from_value_params>(
+        #submod_vis fn __trait_from_value<#from_value_params>(
             ptr:_Self,
         )->__TraitObject<#ret_generics>
         where
@@ -262,8 +270,10 @@ fn trait_and_impl<'a>(
     let where_preds=&trait_def.where_preds;
     let methods_tokenizer_def=trait_def.methods_tokenizer(WhichItem::Trait);
     let methods_tokenizer_impl=trait_def.methods_tokenizer(WhichItem::TraitImpl);
+    let lifetime_bounds=&*alttrait_def.lifetime_bounds;
     let super_traits=&trait_def.impld_traits.iter()
-        .filter(|t| t.is_object_safe() )
+        // I found this more confusing than convenient
+        // .filter(|t| t.is_object_safe() ) 
         .map(|t| &t.full_path )
         .collect::<Vec<_>>();
 
@@ -274,7 +284,7 @@ fn trait_and_impl<'a>(
 
     quote!(
         #( #[#other_attrs] )*
-        #submod_vis trait __Trait<#gen_params_trait>: #( #super_traits + )*
+        #submod_vis trait __Trait<#gen_params_trait>: #( #super_traits + )* #(#lifetime_bounds+)*
         where 
             #(#where_preds,)*
         {
@@ -310,7 +320,7 @@ fn trait_and_impl<'a>(
         impl<#gen_params_header> __Trait<#gen_params_use_trait> 
         for __TraitObject<#gen_params_use_to>
         where
-            Self:#( #super_traits + )* Sized ,
+            Self:#( #super_traits + )* #(#lifetime_bounds+)* Sized ,
             #erased_ptr_bounds
             #(#where_preds,)*
         {
@@ -343,15 +353,19 @@ fn methods_trait_and_impl<'a>(
     let methods_tokenizer_decl=
         alttrait_def.methods_tokenizer(WhichItem::TraitMethodsDecl);
     let impl_where_preds=alttrait_def.trait_impl_where_preds();
+
     let super_traits_a=alttrait_def.impld_traits.iter().map(|t| &t.full_path );
     let super_traits_b=super_traits_a.clone();
+
+    let lifetime_bounds=&*alttrait_def.lifetime_bounds;
     
     let trait_docs=get_methods_trait_docs(alttrait_def);
 
     quote!(
         #[doc=#trait_docs]
         #( #[#other_attrs] )*
-        #submod_vis trait __Methods<#gen_params_traitmethod>: #( #super_traits_a + )*
+        #submod_vis trait __Methods<#gen_params_traitmethod>: 
+            #( #super_traits_a + )* #( #lifetime_bounds+ )*
         where 
             #impl_where_preds
             #(#where_preds,)*
@@ -390,7 +404,7 @@ fn methods_trait_and_impl<'a>(
         impl<#gen_params_header> __Methods<#gen_params_use_trait>
         for __TraitObject<#gen_params_use_to>
         where 
-            Self:#( #super_traits_b + )* Sized ,
+            Self:#( #super_traits_b + )* #( #lifetime_bounds+ )* Sized ,
             #(#where_preds,)*
         {
             #( type #assoc_ty_named_a=#assoc_ty_named_b; )*
@@ -414,23 +428,41 @@ fn declare_vtable<'a>(
             &ctokens.ts_self_erasedptr,
         );
 
-    let generics_use0=
+    let mut generics_use0=
         vtable_trait_decl.generics_tokenizer(
-            InWhat::ItemUse,
+            InWhat::DummyStruct,
             WithAssocTys::Yes(WhichSelf::NoSelf),
             &ctokens.ts_self_erasedptr,
         );
+    generics_use0.set_no_bounds();
+
 
     let derive_attrs=vtable_trait_decl.derive_attrs;
 
     let methods_tokenizer=vtable_trait_decl.methods_tokenizer(WhichItem::VtableDecl);
+
+    let lifetime_bounds=if vtable_trait_decl.lifetime_bounds.is_empty() {
+        None
+    }else{
+        use std::fmt::Write;
+        let mut lifetime_bounds=String::with_capacity(32);
+        lifetime_bounds.push_str("_Self:");
+        for lt in &*vtable_trait_decl.lifetime_bounds {
+            let _=write!(lifetime_bounds,"{}+",lt);
+        }
+        lifetime_bounds.push_str("Sized");
+        Some(lifetime_bounds)
+    };
+
+
 
     quote!(
         #[repr(C)]
         #[derive(StableAbi)]
         #[sabi(kind(Prefix(prefix_struct="VTable")))]
         #[sabi(missing_field(panic))]
-        #(#[sabi(#derive_attrs)])*
+        #( #[sabi(prefix_bound=#lifetime_bounds)] )*
+        #(#[#derive_attrs])*
         pub struct VTableVal<#generics_decl>{
             _sabi_tys: ::std::marker::PhantomData<
                 extern "C" fn(#generics_use0)
@@ -458,9 +490,9 @@ fn vtable_impl<'a>(
             &ctokens.ts_getvtable_params,
         );
 
-    let struct_use_generics=
+    let dummy_struct_tys=
         vtable_trait_impl.generics_tokenizer(
-            InWhat::ItemUse,
+            InWhat::DummyStruct,
             WithAssocTys::No,
             &ctokens.ts_getvtable_params,
         );
@@ -506,7 +538,7 @@ fn vtable_impl<'a>(
     let methods_tokenizer=vtable_trait_impl.methods_tokenizer(WhichItem::VtableImpl);
 
     quote!(
-        struct MakeVTable<#struct_decl_generics>(#struct_use_generics);
+        struct MakeVTable<#struct_decl_generics>(#dummy_struct_tys);
 
 
         impl<#impl_header_generics> MakeVTable<#makevtable_generics>

@@ -70,6 +70,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     };
 
     let mut prefix_type_trait_bound=None;
+    let mut prefix_bounds:&[_]=&[];
 
     let size_align_for=match &config.kind {
         StabilityKind::Prefix(prefix)=>{
@@ -78,6 +79,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
             prefix_type_trait_bound=Some(quote!(
                 #name #ty_generics:_sabi_reexports::PrefixTypeTrait,
             ));
+            prefix_bounds=&prefix.prefix_bounds;
 
             quote!( __WithMetadata_<#name #ty_generics,#prefix_struct #ty_generics> )
         }
@@ -264,6 +266,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 #(#where_clause,)*
                 #(#stable_abi_bounded:__StableAbi,)*
                 #(#extra_bounds,)*
+                #(#prefix_bounds,)*
                 #prefix_type_trait_bound
             {
                 type IsNonZeroType=_sabi_reexports::False;

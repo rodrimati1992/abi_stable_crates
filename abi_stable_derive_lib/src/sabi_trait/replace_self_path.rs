@@ -79,7 +79,7 @@ where
         
         let segments = &mut i.path.segments;
 
-        let is_self= 1 < segments.len() && segments[0].ident == "Self";
+        let is_self= segments[0].ident == "Self";
 
         match (segments.len(), is_self) {
             (0,true)|(1,true)=>panic!(

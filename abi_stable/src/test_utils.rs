@@ -7,7 +7,6 @@ pub(crate) use abi_stable_shared::test_utils::{
     FileSpan,
     ThreadError,
     ShouldHavePanickedAt,
-    file_span,
     must_panic,
 };
 
