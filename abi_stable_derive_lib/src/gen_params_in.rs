@@ -27,6 +27,11 @@ pub enum InWhat {
     ItemDecl,
     /// For when using a generic as an argument for a trait/struct/enum/union.
     ItemUse,
+    /**
+For defining the fields of a Dummy struct that is never instantiated,
+only using its associated items.
+    */
+    DummyStruct,
 }
 
 impl<'a> GenParamsIn<'a>{
@@ -61,9 +66,14 @@ where
     AL:ToTokens,
 {
     fn to_tokens(&self, ts: &mut TokenStream) {
-        let with_bounds = self.with_bounds && self.in_what != InWhat::ItemUse;
+        let with_bounds = 
+            self.with_bounds && 
+            matches!(InWhat::ImplHeader|InWhat::ItemDecl=self.in_what);
+
         let with_default = self.in_what == InWhat::ItemDecl;
         
+        let in_dummy_struct= self.in_what == InWhat::DummyStruct;
+
         let mut past_lifetimes=false;
 
         for generic in &self.generics.params {
@@ -85,13 +95,21 @@ where
                     }
                 }
                 GenericParam::Lifetime(gen) => {
-                    gen.lifetime.to_tokens(ts);
-                    if with_bounds {
-                        gen.colon_token.to_tokens(ts);
-                        gen.bounds.to_tokens(ts);
+                    if in_dummy_struct{
+                        syn::token::And::default().to_tokens(ts);
+                        gen.lifetime.to_tokens(ts);
+                        syn::token::Paren::default().surround(ts,|_|());
+                    }else{
+                        gen.lifetime.to_tokens(ts);
+                        if with_bounds {
+                            gen.colon_token.to_tokens(ts);
+                            gen.bounds.to_tokens(ts);
+                        }
                     }
                 }
                 GenericParam::Const(gen) => {
+                    if in_dummy_struct { continue; }
+                    
                     if self.in_what != InWhat::ItemUse {
                         gen.const_token.to_tokens(ts);
                     }
@@ -107,6 +125,10 @@ where
                 }
             }
             Comma::default().to_tokens(ts);
+        }
+
+        if !past_lifetimes {
+            self.after_lifetimes.to_tokens(ts);
         }
 
     }

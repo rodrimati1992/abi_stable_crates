@@ -31,6 +31,16 @@ pub struct UnsyncSend {
 }
 
 
+/// Marker type used to mark a type as being !Send+Sync.
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct SyncUnsend {
+    _marker: UnsyncUnsend,
+}
+
+unsafe impl Sync for SyncUnsend{}
+
+
 /// Zero-sized marker type used to signal that even though a type 
 /// could implement Copy and Clone,
 /// it is semantically an error to do so.

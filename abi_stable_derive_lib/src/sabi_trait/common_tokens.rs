@@ -18,6 +18,7 @@ macro_rules! declare_common_tokens {
         idents[ $( $field_ident:ident = $ident_str:expr , )* ]
         lifetime[ $( $lifetime_ident:ident = $lifetime_str:expr , )* ]
         str_lits[ $( $strlit_ident:ident = $strlit_str:expr , )* ]
+        patterns[ $( $pat_ident:ident = $pat_str:expr , )* ]
     ) => {
         #[derive(Debug)]
         pub(crate) struct CommonTokens{
@@ -28,6 +29,7 @@ macro_rules! declare_common_tokens {
             $( pub(crate) $field_ident : ::syn::Ident , )*
             $( pub(crate) $lifetime_ident : ::syn::Lifetime , )*
             $( pub(crate) $strlit_ident : ::syn::LitStr , )*
+            $( pub(crate) $pat_ident : ::syn::Pat , )*
         }
 
         impl CommonTokens{
@@ -42,6 +44,7 @@ macro_rules! declare_common_tokens {
                     $( $field_ident : ::syn::Ident::new($ident_str,span) , )*
                     $( $lifetime_ident : ::syn::parse_str($lifetime_str).unwrap() , )*
                     $( $strlit_ident : ::syn::LitStr::new($strlit_str,span) , )*
+                    $( $pat_ident : ::syn::parse_str($pat_str).unwrap() , )*
                 }
             }
         }
@@ -134,9 +137,15 @@ declare_common_tokens! {
         capself="Self",
     ]
 
-    lifetime[]
+    lifetime[
+        static_lifetime="'static",
+    ]
 
     str_lits[
         c_abi_lit="C",
+    ]
+
+    patterns[
+        ignored_pat="_",
     ]
 }

@@ -12,6 +12,6 @@ fn main() {
         println!("cargo:rustc-cfg=rust_1_34");
     }
 
-    skeptic::generate_doc_tests(&["../readme.md"]);
+    // skeptic::generate_doc_tests(&["../readme.md"]);
 
 }

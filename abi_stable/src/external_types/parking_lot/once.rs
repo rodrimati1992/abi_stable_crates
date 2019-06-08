@@ -376,9 +376,7 @@ mod tests{
 
     use crossbeam_utils::thread::scope as scoped_thread;
 
-    use crate::{
-        test_utils::must_panic,
-    };
+    use abi_stable_shared::{file_span,test_utils::{must_panic}};
 
     #[test]
     fn state(){

@@ -136,6 +136,9 @@ pub static TRAIT_LIST:&[UsableTrait<&'static str,&'static str>]=usable_traits_sl
     ("IoBufRead"          ,"::std::io::BufRead"     ,false,OS::Yes,UB::DYN_TRAIT),
 ];
 
+pub(crate) fn private_associated_type()->syn::Ident{
+    parse_str_as_ident("define_this_in_the_impl_InterfaceType_macro")
+}
 
 
 pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
@@ -184,10 +187,7 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
         }
     }
 
-    default_map.insert(
-        parse_str_as_ident("define_this_in_the_impl_InterfaceType_macro"),
-        DefaultVal::Hidden
-    );
+    default_map.insert(private_associated_type(),DefaultVal::Hidden);
 
     for (key,default_) in default_map {
         let mut attrs=Vec::<syn::Attribute>::new();

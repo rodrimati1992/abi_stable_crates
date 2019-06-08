@@ -3,8 +3,10 @@ use super::{
     TraitDefinition,
 };
 
+use std::{iter,mem};
+
 use syn::{
-    Attribute, Ident, Meta, MetaList, 
+    Attribute, Ident, Meta, MetaList, NestedMeta,
     ItemTrait,TraitItem,TraitItemMethod,
 };
 
@@ -153,8 +155,20 @@ pub(crate) fn parse_attrs_for_sabi_trait<'a>(
             &*assoc_fn.attrs,
             ParseContext::Method,
             arenas,
-        )
+        );
+
+        let last_fn=this.methods_with_attrs.last_mut().unwrap();
+
+        if !last_fn.attrs.derive_attrs.is_empty() {
+            wrap_attrs_in_sabi_list(&mut last_fn.attrs.derive_attrs)
+        }
     }
+
+
+    if !this.attrs.derive_attrs.is_empty() {
+        wrap_attrs_in_sabi_list(&mut this.attrs.derive_attrs)
+    }
+
 
 
     SabiTraitOptions::new(trait_,this,arenas,ctokens)
@@ -231,4 +245,20 @@ fn parse_sabi_trait_attr<'a>(
             this.attrs.derive_attrs.push(attr);
         }
     }
+}
+
+
+fn wrap_attrs_in_sabi_list<A>(mut attrs:&mut A)
+where
+    A:Default+Extend<Meta>+IntoIterator<Item=Meta>,
+{
+    let older_attrs=mem::replace(attrs,Default::default());
+
+    let list=Meta::List(MetaList{
+        ident:parse_str_as_ident("sabi"),
+        paren_token:Default::default(),
+        nested:older_attrs.into_iter().map(NestedMeta::Meta).collect(),
+    });
+
+    attrs.extend(iter::once(list));
 }
