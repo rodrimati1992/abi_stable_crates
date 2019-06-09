@@ -312,9 +312,11 @@ unsafe impl<T> MakeGetAbiInfo<UnsafeOpaqueField_Bound> for T {
 pub struct MakeGetAbiInfoSA<T>(T);
 
 impl<T> MakeGetAbiInfoSA<T>
-where T:MakeGetAbiInfo<StableAbi_Bound>
+where T: StableAbi,
 {
-    const CONST:GetAbiInfo=T::CONST;
+    pub const CONST:GetAbiInfo=GetAbiInfo {
+        abi_info: get_abi_info::<T>,
+    };
 }
 
 

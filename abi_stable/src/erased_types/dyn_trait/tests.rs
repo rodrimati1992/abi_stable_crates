@@ -179,7 +179,7 @@ fn default_test(){
     {
         assert_eq!(wrapped,wrapped_expected);
         assert_eq!(
-            wrapped.as_unerased::<Foo<String>>().unwrap(),
+            wrapped.sabi_as_unerased::<Foo<String>>().unwrap(),
             &concrete
         );
         assert_ne!(wrapped,new_wrapped());
@@ -194,7 +194,7 @@ fn default_test(){
         // assert_eq!(reborrow.default(),wrapped_expected.reborrow());
 
         assert_eq!(
-            reborrow.as_unerased::<Foo<String>>().unwrap(),
+            reborrow.sabi_as_unerased::<Foo<String>>().unwrap(),
             &concrete
         );
         assert_ne!(reborrow,new_wrapped());
@@ -271,12 +271,12 @@ fn deserialize_test() {
     );
     
     assert_eq!(
-        wrapped.as_unerased::<Foo<String>>().unwrap(), 
+        wrapped.sabi_as_unerased::<Foo<String>>().unwrap(), 
         &concrete,
     );
 
     assert_eq!(
-        wrapped2.as_unerased::<Foo<String>>().unwrap(), 
+        wrapped2.sabi_as_unerased::<Foo<String>>().unwrap(), 
         &concrete
     );
 }
@@ -484,14 +484,14 @@ fn to_any_test(){
         )
     }
 
-    to_unerased!( wrapped.clone() ; into_unerased     ; RBox::new(new_foo()) );
-    to_unerased!( wrapped.clone() ; into_any_unerased ; RBox::new(new_foo()) );
+    to_unerased!( wrapped.clone() ; sabi_into_unerased     ; RBox::new(new_foo()) );
+    to_unerased!( wrapped.clone() ; sabi_into_any_unerased ; RBox::new(new_foo()) );
     
-    to_unerased!( wrapped ; as_unerased     ; &new_foo() );
-    to_unerased!( wrapped ; as_any_unerased ; &new_foo() );
+    to_unerased!( wrapped ; sabi_as_unerased     ; &new_foo() );
+    to_unerased!( wrapped ; sabi_as_any_unerased ; &new_foo() );
     
-    to_unerased!( wrapped ; as_unerased_mut ; &mut new_foo() );
-    to_unerased!( wrapped ; as_any_unerased_mut ; &mut new_foo() );
+    to_unerased!( wrapped ; sabi_as_unerased_mut ; &mut new_foo() );
+    to_unerased!( wrapped ; sabi_as_any_unerased_mut ; &mut new_foo() );
     
 
 }
@@ -928,7 +928,7 @@ mod borrowing{
         // creates a different vtable.
         let dbg_wrapped=DynTrait::from_borrowing_value(value.clone(),DebugInterface);
 
-        assert!(!wrapped.is_same_type(&dbg_wrapped));
+        assert!(!wrapped.sabi_is_same_type(&dbg_wrapped));
     }
 
     #[test]
@@ -949,13 +949,13 @@ mod borrowing{
 
         to_unerased!( 
             DynTrait::from_borrowing_value(value.clone(),());
-            into_any_unerased,
+            sabi_into_any_unerased,
         );
         
         to_unerased!( 
             DynTrait::from_borrowing_value(value.clone(),());
-            as_any_unerased,
-            as_any_unerased_mut,
+            sabi_as_any_unerased,
+            sabi_as_any_unerased_mut,
         );
         
 

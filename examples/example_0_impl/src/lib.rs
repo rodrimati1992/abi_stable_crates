@@ -261,7 +261,7 @@ pub extern "C" fn new() -> TOStateBox {
 /// Reverses order of the lines in `text`.
 pub extern "C" fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
     extern_fn_panic_handling! {
-        let this = this.as_unerased_mut::<TextOperationState>().unwrap();
+        let this = this.sabi_as_unerased_mut::<TextOperationState>().unwrap();
 
         this.processed_bytes+=text.len() as u64;
 
@@ -281,7 +281,7 @@ pub extern "C" fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RSt
 /// as well as the whitespace that comes after it.
 pub extern "C" fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,'_>) -> RString{
     extern_fn_panic_handling! {
-        let this = this.as_unerased_mut::<TextOperationState>().unwrap();
+        let this = this.sabi_as_unerased_mut::<TextOperationState>().unwrap();
 
         this.processed_bytes+=param.string.len() as u64;
 
@@ -309,7 +309,7 @@ pub extern "C" fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,
 /// that was processed in functions taking `&mut TOStateBox`.
 pub extern "C" fn get_processed_bytes(this: &TOStateBox) -> u64 {
     extern_fn_panic_handling! {
-        let this = this.as_unerased::<TextOperationState>().unwrap();
+        let this = this.sabi_as_unerased::<TextOperationState>().unwrap();
         this.processed_bytes
     }
 }
@@ -351,7 +351,9 @@ pub extern "C" fn run_command(
     command:TOCommandBox<'static>
 )->TOReturnValueArc{
     extern_fn_panic_handling! {
-        let command = command.into_unerased::<Command<'static>>().unwrap().piped(RBox::into_inner);
+        let command = command.sabi_into_unerased::<Command<'static>>().unwrap()
+            .piped(RBox::into_inner);
+            
         run_command_inner(this,command)
             .piped(RArc::new)
             .piped(DynTrait::from_ptr)

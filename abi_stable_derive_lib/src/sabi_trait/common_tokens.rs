@@ -113,6 +113,7 @@ declare_common_tokens! {
         ts_lt_rbox="'lt,__sabi_re::RBox<()>,",
         ts_lt_origptr_erasability="'lt,_OrigPtr,Erasability,",
         ts_lt_uself_erasability="'lt,_Self,Erasability,",
+        ts_lt_rbox_uself_erasability="'lt,__sabi_re::RBox<_Self>,Erasability,",
         ts_make_vtable_args="Erasability,_OrigPtr::Target,_OrigPtr::TransmutedPtr,_OrigPtr,",
         ts_lt_transptr="'lt,_OrigPtr::TransmutedPtr,",
         ts_lt_erasedptr="'lt,_ErasedPtr,",

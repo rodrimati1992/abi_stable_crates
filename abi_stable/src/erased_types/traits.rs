@@ -300,15 +300,17 @@ pub use self::interface_for::InterfaceFor;
 pub mod interface_for{
     use super::*;
 
+    use crate::type_level::unerasability::GetUTID;
+
     /// Helper struct to get an `ImplType` implementation for any type.
-    pub struct InterfaceFor<T,Interface,IsStatic>(
-        PhantomData<fn()->(T,Interface,IsStatic)>
+    pub struct InterfaceFor<T,Interface,Unerasability>(
+        PhantomData<fn()->(T,Interface,Unerasability)>
     );
 
-    impl<T,Interface,IsStatic> ImplType for InterfaceFor<T,Interface,IsStatic>
+    impl<T,Interface,Unerasability> ImplType for InterfaceFor<T,Interface,Unerasability>
     where 
         Interface:InterfaceType,
-        T:GetUTID<IsStatic>,
+        Unerasability:GetUTID<T>,
     {
         type Interface=Interface;
         
@@ -316,7 +318,7 @@ pub mod interface_for{
         const INFO:&'static TypeInfo=&TypeInfo{
             size:mem::size_of::<T>(),
             alignment:mem::align_of::<T>(),
-            _uid:<T as GetUTID<IsStatic>>::UID,
+            _uid:<Unerasability as GetUTID<T>>::UID,
             name:StaticStr::new("<erased>"),
             file:StaticStr::new("<unavailable>"),
             package:StaticStr::new("<unavailable>"),
@@ -326,26 +328,6 @@ pub mod interface_for{
                 patch:StaticStr::new("99"),
             },
             _private_field:(),
-        };
-    }
-
-    /// Gets the `ReturnValueEquality<MaybeCmp<UTypeId>>` to construct a `TypeInfo`.
-    pub trait GetUTID<IsStatic>{
-        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>;
-    }
-
-
-    impl<T> GetUTID<True> for T
-    where T:'static
-    {
-        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>=ReturnValueEquality{
-            function:some_utypeid::<T>
-        };
-    }
-
-    impl<T> GetUTID<False> for T{
-        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>=ReturnValueEquality{
-            function:no_utypeid
         };
     }
 }

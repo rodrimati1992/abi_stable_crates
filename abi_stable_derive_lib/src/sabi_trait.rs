@@ -132,7 +132,8 @@ pub fn derive_sabi_trait(mut item: ItemTrait) -> TokenStream2 {
 
 fn first_items<'a>(
     TokenizerParams{
-        ctokens,trait_def,
+        ctokens,
+        trait_def,
         submod_vis,
         ..
     }:TokenizerParams,
@@ -156,6 +157,15 @@ fn first_items<'a>(
 
     let priv_assocty=private_associated_type();
 
+    let object=match trait_def.which_object {
+        WhichObject::DynTrait=>quote!(DynTrait),
+        WhichObject::RObject=>quote!(RObject),
+    };
+    let vtable_argument=match trait_def.which_object {
+        WhichObject::DynTrait=>quote!(__sabi_re::StaticRef<VTable<#vtable_args>>),
+        WhichObject::RObject=>quote!(VTable<#vtable_args>),
+    };
+
     quote!(
         use super::*;
 
@@ -166,7 +176,7 @@ fn first_items<'a>(
         #submod_vis struct __TraitMarker;
 
         #submod_vis type __TraitObject<#to_params>=
-            __sabi_re::RObject<'lt,_ErasedPtr,__TraitMarker,VTable<#vtable_args>>;
+            __sabi_re::#object<'lt,_ErasedPtr,__TraitMarker,#vtable_argument>;
 
         mod __inside_generated_mod{
             use super::__TraitMarker;
@@ -212,7 +222,38 @@ fn constructor_items<'a>(
         &ctokens.ts_make_vtable_args,
     );
     
-    
+    let fn_erasability_arg=match trait_def.which_object {
+        WhichObject::DynTrait=>quote!(Erasability),
+        WhichObject::RObject=>quote!(),
+    };
+
+    let extra_constraints_ptr=match trait_def.which_object {
+        WhichObject::DynTrait=>quote!(
+            __sabi_re::InterfaceFor<_OrigPtr::Target,__TraitMarker,Erasability>: 
+                __sabi_re::GetVtable<
+                    'lt,
+                    _OrigPtr::Target,
+                    _OrigPtr::TransmutedPtr,
+                    _OrigPtr,
+                    __TraitMarker,
+                >,
+        ),
+        WhichObject::RObject=>quote!(),
+    };
+
+    let extra_constraints_value=match trait_def.which_object {
+        WhichObject::DynTrait=>quote!(
+            __sabi_re::InterfaceFor<_Self,__TraitMarker,Erasability>: 
+                __sabi_re::GetVtable<
+                    'lt,
+                    _Self,
+                    __sabi_re::RBox<()>,
+                    __sabi_re::RBox<_Self>,
+                    __TraitMarker,
+                >,
+        ),
+        WhichObject::RObject=>quote!(),
+    };
 
     quote!(
         #submod_vis fn __trait_from_ptr<#from_ptr_params>(
@@ -223,10 +264,14 @@ fn constructor_items<'a>(
             _OrigPtr::Target:__Trait<#trait_params>+Sized+'lt,
             __TraitMarker:__sabi_re::GetRObjectVTable<
                 Erasability,_OrigPtr::Target,_OrigPtr::TransmutedPtr,_OrigPtr
-            >
+            >,
+            #extra_constraints_ptr
         {
             unsafe{
-                __TraitObject::with_vtable(ptr,MakeVTable::<#make_vtable_args>::VTABLE)
+                __TraitObject::with_vtable::<_,#fn_erasability_arg>(
+                    ptr,
+                    MakeVTable::<#make_vtable_args>::VTABLE
+                )
             }
         }
     ).to_tokens(mod_);
@@ -235,6 +280,12 @@ fn constructor_items<'a>(
         InWhat::ImplHeader,
         WithAssocTys::No,
         &ctokens.ts_lt_self_erasability,
+    );
+
+    let from_ptr_args=trait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::No,
+        &ctokens.ts_lt_rbox_uself_erasability,
     );
 
     let ret_generics=trait_def.generics_tokenizer(
@@ -251,9 +302,10 @@ fn constructor_items<'a>(
             _Self:__Trait<#trait_params>+'lt,
             __TraitMarker:__sabi_re::GetRObjectVTable<
                 Erasability,_Self,__sabi_re::RBox<()>,__sabi_re::RBox<_Self>
-            >
+            >,
+            #extra_constraints_value
         {
-            __trait_from_ptr(__sabi_re::RBox::new(ptr))
+            __trait_from_ptr::<#from_ptr_args>(__sabi_re::RBox::new(ptr))
         }
 
     ).to_tokens(mod_);
@@ -607,6 +659,20 @@ pub(crate) enum WhichItem{
     TraitMethodsImpl,
     VtableDecl,
     VtableImpl,
+}
+
+
+/// Which type used to implement the trait object.
+#[derive(Debug,Clone,Copy,PartialEq,Eq)]
+pub(crate) enum WhichObject{
+    DynTrait,
+    RObject
+}
+
+impl Default for WhichObject{
+    fn default()->Self{
+        WhichObject::RObject
+    }
 }
 
 

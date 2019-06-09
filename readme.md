@@ -338,7 +338,7 @@ extern fn new_boxed_interface()->BoxedInterface<'static>{
 extern fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
     extern_fn_panic_handling!{
         wrapped
-            .as_unerased_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
+            .sabi_as_unerased_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
             .unwrap() // Returns `&mut StringBuilder`
             .append_string(string);
     }

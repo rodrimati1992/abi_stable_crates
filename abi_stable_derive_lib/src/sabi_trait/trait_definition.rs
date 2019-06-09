@@ -42,6 +42,7 @@ pub type RcUsableTrait=Rc<UsableTrait<&'static str,syn::Path>>;
 pub(crate) struct TraitDefinition<'a>{
     pub(crate) item:&'a ItemTrait,
     pub(crate) name:&'a Ident,
+    pub(crate) which_object:WhichObject,
     pub(crate) where_preds:Punctuated<WherePredicate,Comma>,
     pub(crate) derive_attrs:&'a [Meta],
     pub(crate) other_attrs:&'a [Meta],
@@ -71,6 +72,7 @@ impl<'a> TraitDefinition<'a>{
         trait_:&'a ItemTrait,
         attrs:OwnedDeriveAndOtherAttrs,
         methods_with_attrs:Vec<MethodWithAttrs<'a>>,
+        which_object:WhichObject,
         arenas: &'a Arenas,
         ctokens:&'a CommonTokens,
     )->Self {
@@ -132,6 +134,29 @@ impl<'a> TraitDefinition<'a>{
 
                     match trait_map.get(&last_path_component) {
                         Some(supertrait)=>{
+                            let usable_by=supertrait.usable_by;
+                            match which_object {
+                                WhichObject::DynTrait if !usable_by.dyn_trait() => {
+                                    panic!(
+                                        "Cannot use this trait with DynTrait:{}",
+                                        (&trait_bound.path).into_token_stream()
+                                    );
+                                },
+                                WhichObject::RObject if !usable_by.robject() => {
+                                    panic!(
+                                        "Cannot use this trait with RObject:\n\
+                                         \t{}\n\
+                                         To make that trait usable you must use the \
+                                         #[sabi(use_dyntrait)] attribute,\
+                                         which changes the trait object implementation \
+                                         from using RObject to using DynTrait.\n\
+                                        ",
+                                        (&trait_bound.path).into_token_stream()
+                                    );
+                                },
+                                WhichObject::DynTrait|WhichObject::RObject => {}
+                            }
+
                             unimpld_traits.remove(&last_path_component);
                             impld_traits.push(supertrait.clone());
                         },
@@ -199,6 +224,7 @@ impl<'a> TraitDefinition<'a>{
         TraitDefinition{
             item:trait_,
             name:&trait_.ident,
+            which_object,
             where_preds:trait_.generics.where_clause.as_ref()
                 .map(|wc| wc.predicates.clone() )
                 .unwrap_or_default(),

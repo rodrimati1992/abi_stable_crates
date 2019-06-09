@@ -153,7 +153,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 quote!(
                         _ErasedPtr: __DerefTrait<Target=()>
                     {
-                        let __method=self.sabi_vtable().#method_name();
+                        let __method=self.sabi_et_vtable().#method_name();
                         __method(self.sabi_erased_ref(),#(#param_names_c,)*)
                     }
                 ).to_tokens(ts);
@@ -162,7 +162,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 quote!(
                         _ErasedPtr: __DerefMutTrait<Target=()>
                     {
-                        let __method=self.sabi_vtable().#method_name();
+                        let __method=self.sabi_et_vtable().#method_name();
                         __method(self.sabi_erased_mut(),#(#param_names_c,)*)
                     }
                 ).to_tokens(ts);
@@ -171,7 +171,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 quote!(
                         _ErasedPtr: __sabi_re::OwnedPointer<Target=()>
                     {
-                        let __method=self.sabi_vtable().#method_name();
+                        let __method=self.sabi_et_vtable().#method_name();
                         self.sabi_with_value(move|_self|__method(_self,#(#param_names_c,)*))
                     }
                 ).to_tokens(ts);

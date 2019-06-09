@@ -4,6 +4,9 @@ use std::sync::Arc;
 
 use crate::test_utils::{must_panic};
 
+use abi_stable_shared::file_span;
+
+
 #[test]
 fn new_and_drop() {
     let arc_a = Arc::new(100);
