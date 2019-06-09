@@ -2,7 +2,7 @@ use super::*;
 
 use crate::{
     erased_types::FormattingMode,
-    sabi_trait::markers::*,
+    type_level::unerasability::{GetUTID},
     std_types::{UTypeId,RResult,RString},
     return_value_equality::ReturnValueEquality,
 };

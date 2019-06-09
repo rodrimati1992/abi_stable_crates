@@ -15,7 +15,7 @@ use crate::{
         StableDeref, TransmuteElement,
         GetPointerKind,PK_SmartPointer,PK_Reference,
     },
-    sabi_trait::markers::*,
+    type_level::unerasability::{TU_Unerasable,TU_Opaque},
     utils::{transmute_reference,transmute_mut_reference},
 };
 
@@ -77,7 +77,7 @@ The constructed trait object cannot be converted back to the original type.
 
         */
         method_name=from_ptr,
-        requires_any=NoImplAny 
+        requires_any=TU_Opaque 
     }
     impl_from_ptr_method!{
         /**
@@ -89,7 +89,7 @@ the `sabi_*_unerased` methods (RObject reserves `sabi` as a prefix for its own m
 
         */
         method_name=from_ptr_unerasable,
-        requires_any=YesImplAny 
+        requires_any=TU_Unerasable 
     }
 }
 
@@ -104,8 +104,8 @@ The constructed trait object cannot be converted back to the original type.
     )-> RObject<'lt,RBox<()>,I,V>
     where 
         T:'lt,
-        I:GetVTable<NoImplAny,T,RBox<()>,RBox<T>,Params,VTable=V>,
-        I:GetRObjectVTable<NoImplAny,T,RBox<()>,RBox<T>>
+        I:GetVTable<TU_Opaque,T,RBox<()>,RBox<T>,Params,VTable=V>,
+        I:GetRObjectVTable<TU_Opaque,T,RBox<()>,RBox<T>>
     {
         Self::from_ptr::<_,Params>(RBox::new(value))
     }
@@ -121,8 +121,8 @@ the `sabi_*_unerased` methods (RObject reserves `sabi` as a prefix for its own m
     )-> RObject<'lt,RBox<()>,I,V>
     where 
         T:'lt,
-        I:GetVTable<YesImplAny,T,RBox<()>,RBox<T>,Params,VTable=V>,
-        I:GetRObjectVTable<YesImplAny,T,RBox<()>,RBox<T>>
+        I:GetVTable<TU_Unerasable,T,RBox<()>,RBox<T>,Params,VTable=V>,
+        I:GetRObjectVTable<TU_Unerasable,T,RBox<()>,RBox<T>>
     {
         Self::from_ptr_unerasable::<_,Params>(RBox::new(value))
     }
@@ -185,7 +185,7 @@ use abi_stable::{
     std_types::*,
 };
 
-let mut object=RSomething_from_value::<_,NoImplAny,()>(RBox::new(10_u32));
+let mut object=RSomething_from_value::<_,TU_Opaque,()>(RBox::new(10_u32));
 let borrow=object.reborrow_mut();
 let _=borrow.clone();
 ```
@@ -232,7 +232,7 @@ where
 impl<'lt,P,I,V> RObject<'lt,P,I,V>{
 /**
 
-Constructs an RObject from an erased pointer and a vtable.
+Constructs an RObject from a pointer and an extra vtable.
 
 This is mostly intended to be called by `#[sabi_trait]` derived trait objects.
 
@@ -305,7 +305,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn sabi_into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
+    pub fn sabi_into_any_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
     where
         T:'static,
         P: Deref<Target=()>+TransmuteElement<T>,
@@ -331,7 +331,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn sabi_as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
+    pub fn sabi_as_any_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
     where
         T:'static,
         P:Deref<Target=()>+TransmuteElement<T>,
@@ -356,7 +356,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn sabi_as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
+    pub fn sabi_as_any_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
     where
         T:'static,
         P:DerefMut<Target=()>+TransmuteElement<T>,
@@ -432,7 +432,7 @@ where
 impl<'lt,P,I,V> RObject<'lt,P,I,V>{
 
     #[inline]
-    pub fn sabi_vtable<'a>(&self)->&'a V{
+    pub fn sabi_et_vtable<'a>(&self)->&'a V{
         self.vtable.get()
     }
 

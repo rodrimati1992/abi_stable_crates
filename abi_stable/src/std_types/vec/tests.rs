@@ -1,5 +1,7 @@
 use super::*;
 
+use abi_stable_shared::file_span;
+
 use std::{iter,sync::Arc};
 
 #[allow(unused_imports)]

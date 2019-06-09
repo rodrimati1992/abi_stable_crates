@@ -72,6 +72,13 @@ impl UsableBy{
         robject:true,
         dyn_trait:true,
     };
+
+    pub const fn robject(&self)->bool{
+        self.robject
+    }
+    pub const fn dyn_trait(&self)->bool{
+        self.dyn_trait
+    }
 }
 
 //////////////////////

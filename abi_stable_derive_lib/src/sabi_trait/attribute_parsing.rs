@@ -39,6 +39,7 @@ impl<'a> SabiTraitOptions<'a> {
                     trait_,
                     this.attrs,
                     this.methods_with_attrs,
+                    this.which_object,
                     arenas,
                     ctokens,
                 ),
@@ -108,6 +109,7 @@ struct SabiTraitAttrs<'a> {
     debug_print_trait:bool,
     attrs:OwnedDeriveAndOtherAttrs,
     methods_with_attrs:Vec<MethodWithAttrs<'a>>,
+    which_object:WhichObject,
 }
 
 
@@ -240,6 +242,10 @@ fn parse_sabi_trait_attr<'a>(
         }
         (ParseContext::TraitAttr{..}, Meta::Word(ref word))if word=="debug_print_trait" => {
             this.debug_print_trait=true;
+        }
+        (ParseContext::TraitAttr{..}, Meta::Word(ref word))
+        if word=="use_dyntrait"||word=="use_dyn_trait" => {
+            this.which_object=WhichObject::DynTrait;
         }
         (ParseContext::TraitAttr{..}, attr) => {
             this.attrs.derive_attrs.push(attr);

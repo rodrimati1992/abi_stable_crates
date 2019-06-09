@@ -17,3 +17,44 @@ pub mod bools{
 
 // Uncomment if I have a use for type-level `Option`s
 // pub mod option;
+
+
+pub mod unerasability{
+    use crate::{
+        sabi_types::MaybeCmp,
+        std_types::utypeid::{UTypeId,no_utypeid,some_utypeid},
+        return_value_equality::ReturnValueEquality,
+    };
+
+
+    /// Indicates that a type implements `Any`.
+    pub struct TU_Unerasable;
+
+    /// Indicates that a type does not implement `Any`.
+    pub struct TU_Opaque;
+    
+
+
+
+
+    /// Gets a function optionally returning the UTypeId of `T`.
+    /// Whether the function returns `MaybeCmp::Just(typeid)` is determined by `Self`.
+    pub trait GetUTID<T>{
+        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>;
+    }
+
+
+    impl<T> GetUTID<T> for TU_Unerasable
+    where T:'static
+    {
+        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>=ReturnValueEquality{
+            function:some_utypeid::<T>
+        };
+    }
+
+    impl<T> GetUTID<T> for TU_Opaque{
+        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>=ReturnValueEquality{
+            function:no_utypeid
+        };
+    }
+}

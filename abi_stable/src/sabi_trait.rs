@@ -9,6 +9,11 @@ pub mod reexports{
 
     pub mod __sabi_re{
         pub use abi_stable::{
+            erased_types::{
+                DynTrait,
+                GetVtable,
+                traits::InterfaceFor,
+            },
             pointer_trait::{TransmuteElement,OwnedPointer},
             prefix_type::{PrefixTypeTrait,WithMetadata},
             traits::IntoInner,
@@ -38,9 +43,7 @@ pub mod reexports{
 }
 
 pub mod prelude{
-    pub use super::{
-        markers::{YesImplAny,NoImplAny},
-    };
+    pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
 }
 
 pub mod for_generated_code;
@@ -68,46 +71,3 @@ use crate::{
     sabi_types::MaybeCmp,
     std_types::Tuple2,
 };
-
-
-pub mod markers{
-    use super::*;
-
-    use crate::{
-        std_types::utypeid::{UTypeId,no_utypeid,some_utypeid},
-        return_value_equality::ReturnValueEquality,
-    };
-
-
-    /// Indicates that a type does not implement `Any`.
-    pub struct YesImplAny;
-
-    /// Indicates that a type implements `Any`.
-    pub struct NoImplAny;
-    
-
-
-
-
-    /// Gets a function optionally returning the UTypeId of `T`.
-    /// Whether the function returns `MaybeCmp::Just(typeid)` is determined by `Self`.
-    pub trait GetUTID<T>{
-        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>;
-    }
-
-
-    impl<T> GetUTID<T> for YesImplAny
-    where T:'static
-    {
-        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>=ReturnValueEquality{
-            function:some_utypeid::<T>
-        };
-    }
-
-    impl<T> GetUTID<T> for NoImplAny{
-        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>=ReturnValueEquality{
-            function:no_utypeid
-        };
-    }
-
-}
