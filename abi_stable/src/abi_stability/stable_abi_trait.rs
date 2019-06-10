@@ -5,6 +5,7 @@ Where the StableAbi trait is declares,as well as related types/traits.
 use core_extensions::type_level_bool::{Boolean, False, True};
 use std::{
     cell::{Cell,UnsafeCell},
+    cmp::{Eq,PartialEq},
     fmt,
     marker::{PhantomData,PhantomPinned},
     mem::ManuallyDrop,
@@ -273,6 +274,15 @@ impl GetAbiInfo {
         (self.abi_info)()
     }
 }
+
+impl Eq for GetAbiInfo{}
+
+impl PartialEq for GetAbiInfo{
+    fn eq(&self,other:&Self)->bool{
+        self.get()==other.get()
+    }
+}
+
 
 /// Constructs the GetAbiInfo for Self.
 ///

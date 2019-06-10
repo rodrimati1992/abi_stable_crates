@@ -432,7 +432,6 @@ macro_rules! make_item_info {
         $crate::abi_stability::type_layout::ItemInfo::new(
             env!("CARGO_PKG_NAME"),
             abi_stable::package_version_strings!(),
-            file!(),
             line!(),
             $crate::abi_stability::type_layout::ModPath::inside(module_path!()),
         )

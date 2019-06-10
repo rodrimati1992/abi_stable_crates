@@ -617,26 +617,30 @@ impl Debug for FullType {
 
 /// A function pointer in a field.
 #[repr(C)]
-#[derive(Debug,Copy, Clone, StableAbi)]
+#[derive(Copy,Clone,Debug,Eq,StableAbi)]
 pub struct TLFunction{
     /// The name of the field this is used inside of.
-    pub name: StaticStr,
+    pub name: RStr<'static>,
     
-    /// The named lifetime parameters of the function itself.
-    pub bound_lifetimes: StaticSlice<StaticStr>,
+    /// The named lifetime parameters of the function itself,separated by ';'.
+    pub bound_lifetimes: RStr<'static>,
 
     /// A ';' separated list of all the parameter names.
-    pub param_names: StaticStr,
+    pub param_names: RStr<'static>,
 
-    pub param_abi_infos: StaticSlice<GetAbiInfo>,
-    pub paramret_lifetime_indices: StaticSlice<LifetimeIndex>,
+    pub param_abi_infos: RSlice<'static,GetAbiInfo>,
+    pub paramret_lifetime_indices: RSlice<'static,LifetimeIndex>,
 
     /// The return value of the function.
     /// 
     /// Lifetime indices inside mention lifetimes of the function after 
     /// the ones from the deriving type
     pub return_abi_info:ROption<GetAbiInfo>,
+
 }
+
+
+
 
 
 impl PartialEq for TLFunction{
@@ -652,25 +656,6 @@ impl PartialEq for TLFunction{
 
 
 impl TLFunction{
-    /// Constructs a `TLFunction`.
-    pub const fn new(
-        name: &'static str,
-        bound_lifetimes: &'static [StaticStr],
-        param_names: &'static str,
-        param_abi_infos: &'static [GetAbiInfo],
-        paramret_lifetime_indices: &'static [LifetimeIndex],
-        return_abi_info:ROption<GetAbiInfo>,
-    )->Self{
-        Self{
-            name:StaticStr::new(name),
-            bound_lifetimes:StaticSlice::new(bound_lifetimes),
-            param_names:StaticStr::new(param_names),
-            param_abi_infos:StaticSlice::new(param_abi_infos),
-            paramret_lifetime_indices:StaticSlice::new(paramret_lifetime_indices),
-            return_abi_info,
-        }
-    }
-
     pub(crate) fn get_param_names(&self)->GetParamNames{
         GetParamNames{
             split:self.param_names.as_str().split(';'),

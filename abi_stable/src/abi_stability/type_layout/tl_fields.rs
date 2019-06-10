@@ -7,7 +7,7 @@ use std::{
 
 /// The layout of a field.
 #[repr(C)]
-#[derive(Copy, Clone,Debug, StableAbi)]
+#[derive(Copy, Clone, StableAbi)]
 pub struct TLFields {
     /// The field names,separating fields with ";".
     pub names: StaticStr,
@@ -18,7 +18,7 @@ pub struct TLFields {
     pub lifetime_indices: SliceAndFieldIndices<LifetimeIndex>,
 
     /// All the function pointer types in the field.
-    pub functions:StaticSlice<WithFieldIndex<TLFunction>>,
+    pub functions:Option<&'static TLFunctions >,
 
     /// All TLField fields which map 1:1.
     pub field_1to1:StaticSlice<Field1to1>,
@@ -30,14 +30,14 @@ impl TLFields{
         names: &'static str,
         variant_lengths:&'static [u16],
         lifetime_indices: SliceAndFieldIndices<LifetimeIndex>,
-        functions:&'static [WithFieldIndex<TLFunction>],
+        functions:Option<&'static TLFunctions >,
         field_1to1:&'static [Field1to1],
     )->Self{
         Self{
             names:StaticStr::new(names),
             variant_lengths:StaticSlice::new(variant_lengths),
             lifetime_indices,
-            functions:StaticSlice::new(functions),
+            functions,
             field_1to1:StaticSlice::new(field_1to1),
         }
     }
@@ -46,15 +46,28 @@ impl TLFields{
         TLFieldsIterator{
             field_names:self.names.as_str().split(FIELD_SPLITTER),
             lifetime_indices:self.lifetime_indices.iter(),
-            functions:SplitFieldBoundaries::new(
-                self.functions.as_slice(),
-                self.variant_lengths.as_slice(),
-            ),
+            field_fn_ranges:self.functions
+                .map_or(empty_slice(),|x| x.field_fn_ranges.as_slice() )
+                .iter(),
+            functions:self.functions,
             mapped_1to1:self.field_1to1.as_slice().iter(),
         }
     }
     pub fn get_field_vec(&self)->Vec<TLField>{
         self.get_fields().collect()
+    }
+}
+
+
+impl Debug for TLFields{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        f.debug_struct("TLFields")
+         .field("names",&self.names )
+         .field("variant_lengths",&self.variant_lengths )
+         .field("lifetime_indices",&self.variant_lengths )
+         .field("function_count",&self.functions.map_or(0,|x| x.functions.len() ) )
+         .field("fields",&self.get_fields().collect::<Vec<_>>())
+         .finish()
     }
 }
 
@@ -294,7 +307,8 @@ pub struct TLFieldsIterator{
     field_names:std::str::Split<'static,&'static [char]>,
 
     lifetime_indices:SAFIIter<LifetimeIndex>,
-    functions:SplitFieldBoundaries<'static,TLFunction>,
+    field_fn_ranges:slice::Iter<'static,StartLen>,
+    functions:Option<&'static TLFunctions >,
 
     mapped_1to1:slice::Iter<'static,Field1to1>,
 }
@@ -309,7 +323,10 @@ impl Iterator for TLFieldsIterator{
         Some(TLField{
             name:StaticStr::new(self.field_names.next().unwrap()),
             lifetime_indices:StaticSlice::new(self.lifetime_indices.next().unwrap().value),
-            functions:StaticSlice::new(self.functions.next().unwrap()),
+            function_range:TLFunctionRange::new(
+                self.field_fn_ranges.next().map_or(StartLen::EMPTY,|x|*x),
+                self.functions,
+            ),
             abi_info:field_1to1.abi_info,
             is_function:field_1to1.is_function,
             field_accessor:field_1to1.field_accessor,
