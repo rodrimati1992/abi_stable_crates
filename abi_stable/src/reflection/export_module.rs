@@ -95,10 +95,8 @@ impl MRItem{
         match layout.mod_refl_mode {
             ModReflMode::Module=>{
                 let fields=match layout.data {
-                    TLData::Struct { fields }=>
-                        fields.as_slice(),
-                    TLData::PrefixType(prefix)=>
-                        prefix.fields.as_slice(),
+                    TLData::Struct { fields }=>fields,
+                    TLData::PrefixType(prefix)=>prefix.fields,
                      TLData::Primitive{..}
                     |TLData::Opaque{..}
                     |TLData::Union{..}
@@ -106,11 +104,11 @@ impl MRItem{
                     =>return MRItemVariant::Static,
                 };
 
-                let items=fields.iter()
+                let items=fields.get_fields()
                     .filter(|f| f.field_accessor!=FieldAccessor::Opaque )
                     .map(|field|{
                         let (type_,variant)=if field.is_function {
-                            let func=MRFunction::from(&field.functions[0]);
+                            let func=MRFunction::from(&field.functions[0].value);
                             (
                                 func.to_string(),
                                 MRItemVariant::Function(func),
@@ -186,7 +184,7 @@ impl From<TLField> for MRNameType{
     fn from(field:TLField)->Self{
         let name=field.name.to_string();
         let type_=if field.is_function{
-            field.functions[0].to_string()
+            field.functions[0].value.to_string()
         }else{
             field.abi_info.get().layout.full_type.to_string()
         };
@@ -230,7 +228,7 @@ impl From<FieldAccessor> for MRFieldAccessor{
                 MRFieldAccessor::Direct,
             FieldAccessor::Method{name}=>
                 MRFieldAccessor::Method{
-                    name:name.map(|s| s.to_string() ).into_option(),
+                    name:name.map(|s| s.to_string() ),
                 },
             FieldAccessor::MethodOption=>
                 MRFieldAccessor::MethodOption,

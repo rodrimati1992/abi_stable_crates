@@ -8,6 +8,7 @@ use std::{cmp::Ordering, fmt,mem};
 use core_extensions::prelude::*;
 
 use std::{
+    borrow::Borrow,
     collections::HashSet,
     slice,
 };
@@ -329,16 +330,20 @@ impl AbiChecker {
     }
 
     #[inline]
-    fn check_fields(
+    fn check_fields<I,F>(
         &mut self,
         errs: &mut RVec<AbiInstability>,
         t_lay: &'static TypeLayout,
         o_lay: &'static TypeLayout,
         ctx:FieldContext,
-        t_fields: &[TLField],
-        o_fields: &[TLField],
-    ) {
-        if t_fields.is_empty()&&o_fields.is_empty() {
+        t_fields: I,
+        o_fields: I,
+    ) 
+    where
+        I:ExactSizeIterator<Item=F>,
+        F:Borrow<TLField>,
+    {
+        if t_fields.len()==0&&o_fields.len()==0 {
             return;
         }
 
@@ -347,8 +352,8 @@ impl AbiChecker {
             (Ordering::Greater, _) | (Ordering::Less, false) => {
                 push_err(
                     errs,
-                    t_fields,
-                    o_fields,
+                    &t_fields,
+                    &o_fields,
                     |x| x.len(),
                     AI::FieldCountMismatch,
                 );
@@ -364,7 +369,9 @@ impl AbiChecker {
             };
 
 
-        for (field_i,(this_f,other_f)) in t_fields.iter().zip(o_fields).enumerate() {
+        for (field_i,(this_f,other_f)) in t_fields.into_iter().zip(o_fields).enumerate() {
+            let this_f=this_f.borrow();
+            let other_f=other_f.borrow();
             if this_f.name != other_f.name {
                 push_err(errs, this_f, other_f, |x| *x, AI::UnexpectedField);
                 continue;
@@ -396,8 +403,8 @@ impl AbiChecker {
                         t_lay,
                         o_lay,
                         sf_ctx,
-                        &t_func.get_params_ret_vec(),
-                        &o_func.get_params_ret_vec(),
+                        t_func.value.get_params_ret_iter(),
+                        o_func.value.get_params_ret_iter(),
                     );
                 }
 
@@ -501,8 +508,8 @@ impl AbiChecker {
                 this.layout,
                 other.layout,
                 FieldContext::PhantomFields,
-                &this.layout.phantom_fields,
-                &other.layout.phantom_fields,
+                this.layout.phantom_fields.as_slice().iter(),
+                other.layout.phantom_fields.as_slice().iter(),
             );
 
             match (t_lay.size.cmp(&o_lay.size), this.prefix_kind) {
@@ -557,8 +564,8 @@ impl AbiChecker {
                         this.layout,
                         other.layout,
                         FieldContext::Fields, 
-                        &t_fields, 
-                        &o_fields
+                        t_fields.get_fields(), 
+                        o_fields.get_fields()
                     );
                 }
                 (TLData::Struct { .. }, _) => {}
@@ -569,13 +576,16 @@ impl AbiChecker {
                         this.layout,
                         other.layout,
                         FieldContext::Fields, 
-                        &t_fields, 
-                        &o_fields
+                        t_fields.get_fields(), 
+                        o_fields.get_fields()
                     );
                 }
                 (TLData::Union { .. }, _) => {}
                 
-                (TLData::Enum { variants: t_varis }, TLData::Enum { variants: o_varis }) => {
+                (
+                    TLData::Enum { variants: t_varis, fields: t_fields }, 
+                    TLData::Enum { variants: o_varis, fields: o_fields }
+                ) => {
                     let t_varis = t_varis.as_slice();
                     let o_varis = o_varis.as_slice();
                     if t_varis.len() != o_varis.len() {
@@ -594,20 +604,29 @@ impl AbiChecker {
                                 AI::EnumDiscriminant
                             );
                         }
+                        if t_vari.field_count!=o_vari.field_count {
+                            push_err(
+                                errs, 
+                                *t_vari, 
+                                *o_vari, 
+                                |x| x.field_count, 
+                                AI::FieldCountMismatch
+                            );
+                        }
 
                         if t_name != o_name {
                             push_err(errs, *t_vari, *o_vari, |x| x, AI::UnexpectedVariant);
                             continue;
                         }
-                        self.check_fields(
-                            errs, 
-                            this.layout, 
-                            other.layout, 
-                            FieldContext::Fields,
-                            &t_vari.fields, 
-                            &o_vari.fields
-                        );
                     }
+                    self.check_fields(
+                        errs, 
+                        this.layout, 
+                        other.layout, 
+                        FieldContext::Fields,
+                        t_fields.get_fields(), 
+                        o_fields.get_fields()
+                    );
                 }
                 (TLData::Enum { .. }, _) => {}
                 
@@ -671,8 +690,8 @@ impl AbiChecker {
             this.layout,
             other.layout,
             FieldContext::Fields,
-            &this.fields,
-            &other.fields
+            this.fields.get_fields(),
+            other.fields.get_fields()
         );
     }
 

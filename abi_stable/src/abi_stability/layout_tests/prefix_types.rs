@@ -201,7 +201,9 @@ fn prefixes_test() {
                         t_prefix.prefix_field_count,
                         pre.prefix_field_count, 
                     );
-                    for (l_field,r_field) in t_prefix.fields.iter().zip(pre.fields.iter()) {
+                    for (l_field,r_field) in 
+                        t_prefix.fields.get_fields().zip(pre.fields.get_fields()) 
+                    {
                         assert_eq!(l_field,r_field);
                     }
                 }
@@ -241,7 +243,7 @@ fn prefixes_test() {
                 None=>continue,
             };
 
-            for (l_field,r_field) in prefix.fields.iter().zip(max_prefix.fields.iter()) {
+            for (l_field,r_field) in prefix.fields.get_fields().zip(max_prefix.fields.get_fields()) {
                 assert_eq!(l_field,r_field);
             }
             assert_eq!(
@@ -291,7 +293,7 @@ fn check_interface_impl_pair(
             pre.prefix_field_count, 
         );
         for (field_i,(l_field,r_field)) in 
-            t_prefix.fields.iter().zip(pre.fields.iter()).enumerate() 
+            t_prefix.fields.get_fields().zip(pre.fields.get_fields()).enumerate() 
         {
             if t_prefix.accessible_fields.is_accessible(field_i)
                 &&o_prefix.accessible_fields.is_accessible(field_i)

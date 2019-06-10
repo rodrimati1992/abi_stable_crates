@@ -596,16 +596,19 @@ where
         "Option",
         RNone,
         ItemInfo::primitive(),
-        TLData::enum_(&[
-            TLEnumVariant::new("Some",&[
+        TLData::enum_(
+            &[
                 TLField::new(
                     "0",
                     &[],
                     <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
                 )
-            ]),
-            TLEnumVariant::new("None",&[]),
-        ]),
+            ],
+            &[
+                TLEnumVariant::new("Some",1),
+                TLEnumVariant::new("None",0),
+            ]
+        ),
         ReprAttr::OptionNonZero,
         tl_genparams!(;T;),
         &[],
@@ -817,7 +820,7 @@ unsafe impl SharedStableAbi for core_extensions::Void {
         &TypeLayout::from_params::<Self>(TypeLayoutParams {
             name: "Void",
             item_info:ItemInfo::package_and_mod("core_extensions","core_extensions"),
-            data: TLData::enum_(&[]),
+            data: TLData::enum_(&[],&[]),
             generics: tl_genparams!(;;),
         });
 }
@@ -832,9 +835,7 @@ macro_rules! empty_extern_fn_layout{
         &TypeLayout::from_params::<extern "C" fn()>(TypeLayoutParams {
             name: "AFunctionPointer",
             item_info:make_item_info!(),
-            data: TLData::Struct {
-                fields: StaticSlice::new(&[]),
-            },
+            data: TLData::struct_(&[]),
             generics: tl_genparams!(;;),
         })
     )
