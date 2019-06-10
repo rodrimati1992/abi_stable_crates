@@ -156,7 +156,11 @@ Examples:
     JsonCommand{
         /// The file to load the json command from.
         file:Option<PathBuf>
-    }
+    },
+    /// Does nothing,used to check the startup duration.
+    #[structopt(name = "nothing")]
+    #[structopt(author="_")]
+    Nothing,
 }
 
 
@@ -216,8 +220,8 @@ fn main()-> io::Result<()> {
                     process_stdin(|line| run_command(mods,&mut state,line) )?;
                 }
             }
-
         }
+        Command::Nothing=>{}
     }
 
     Ok(())

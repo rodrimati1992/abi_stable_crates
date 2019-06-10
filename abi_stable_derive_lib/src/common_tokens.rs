@@ -100,8 +100,15 @@ declare_common_tokens! {
 
     idents[
         cratename="abi_stable",
+        some="Some",
+        none="None",
+        rsome="__RSome",
+        rnone="__RNone",
         tl_field="__TLField",
+        tl_functions="__TLFunctions",
+        comp_tl_functions="__CompTLFunction",
         tl_enum_variant="__TLEnumVariant",
+        start_len="__StartLen",
         value_kind ="__ValueKind",
         prefix_kind="__PrefixKind",
         tl_data="__TLData",

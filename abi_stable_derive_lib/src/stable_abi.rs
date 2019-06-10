@@ -4,6 +4,7 @@ use crate::*;
 
 use crate::{
     datastructure::{DataStructure,DataVariant,Struct,Field,FieldIndex},
+    lifetimes::LifetimeIndex,
     to_token_fn::ToTokenFnMut,
     fn_pointer_extractor::{FnParamRet},
 };
@@ -28,6 +29,8 @@ mod prefix_types;
 
 mod repr_attrs;
 
+mod tl_functions;
+
 #[cfg(test)]
 mod tests;
 
@@ -36,6 +39,7 @@ use self::{
     prefix_types::prefix_type_tokenizer,
     repr_attrs::ReprAttr,
     reflection::ModReflMode,
+    tl_functions::{StartLen,CompTLFunction,TLFunctionsString,TLFunctionsVec},
 };
 
 
@@ -49,7 +53,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let arenas = &arenas;
     let ctokens = CommonTokens::new(arenas);
     let ctokens = &ctokens;
-    let ds = DataStructure::new(&mut data, arenas, ctokens);
+    let ds = &DataStructure::new(&mut data, arenas, ctokens);
     let config = &parse_attrs_for_stable_abi(ds.attrs, &ds, arenas);
     let generics=ds.generics;
     let name=ds.name;
@@ -126,6 +130,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 }.to_tokens(ts);
                 ct.paren.surround(ts,|ts|{
                     fields_tokenizer(
+                        ds,
                         struct_.fields.iter(),
                         variant_lengths,
                         config,
@@ -145,7 +150,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 );
                 ct.paren.surround(ts,|ts|{
                     let fields=ds.variants.iter().flat_map(|v| v.fields.iter() );
-                    fields_tokenizer(fields,variant_lengths,config,ct).to_tokens(ts);
+                    fields_tokenizer(ds,fields,variant_lengths,config,ct).to_tokens(ts);
                     ct.comma.to_tokens(ts);
                     ct.and_.to_tokens(ts);
                     ct.bracket.surround(ts,|ts| variants.to_tokens(ts) );
@@ -159,7 +164,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 let struct_=&ds.variants[0];
                 let variant_lengths=vec![ struct_.fields.len() as u16 ];
                 let first_suffix_field=prefix.first_suffix_field.field_pos;
-                let fields=fields_tokenizer(struct_.fields.iter(),variant_lengths,config,ct);
+                let fields=fields_tokenizer(ds,struct_.fields.iter(),variant_lengths,config,ct);
                 
                 quote!(
                     __TLData::prefix_type_derive(
@@ -384,6 +389,7 @@ where T:ToTokens
 
 
 fn fields_tokenizer<'a>(
+    ds:&'a DataStructure<'a>,
     mut fields:impl Iterator<Item=&'a Field<'a>>+'a,
     variant_length:Vec<u16>,
     config:&'a StableAbiOptions<'a>,
@@ -393,13 +399,14 @@ fn fields_tokenizer<'a>(
         to_stream!(ts;ctokens.tl_fields,ctokens.colon2,ctokens.new);
         ctokens.paren.surround(ts,|ts|{
             let fields=fields.by_ref().collect::<Vec<_>>();
-            fields_tokenizer_inner(fields,&variant_length,config,ctokens,ts);
+            fields_tokenizer_inner(ds,fields,&variant_length,config,ctokens,ts);
         });
     })
 }
 
 
 fn fields_tokenizer_inner<'a>(
+    ds:&'a DataStructure<'a>,
     fields:Vec<&'a Field<'a>>,
     variant_length:&[u16],
     config:&'a StableAbiOptions<'a>,
@@ -458,70 +465,15 @@ fn fields_tokenizer_inner<'a>(
     ct.comma.to_tokens(ts);
 
 
-    to_stream!(ts;ct.and_);
-    ct.bracket.surround(ts,|ts|{
-        for field in &fields {        
-            let variant=field.index.variant as u16;
-            let field_index=field.index.pos as u16;
-
-            for (fn_i,func) in field.functions.iter().enumerate() {
-
-
-                let fn_name=if field.is_function {
-                    field.ident().to_string()
-                }else{
-                    format!("fn_{}",fn_i)
-                };
-
-                let bound_lifetimes=func.named_bound_lts.iter().map(|x| x.to_string() );
-                
-                let param_names:String=func.params.iter()
-                    .map(|p| p.name.unwrap_or("") )
-                    .collect::<Vec<&str>>()
-                    .join(";");
-
-                let param_abi_infos=func.params.iter()
-                    .map(|p|{
-                        make_get_abi_info_tokenizer(p.ty,ct)
-                    });
-
-                let paramret_lifetime_indices=func.params.iter()
-                    .map(|p| p.lifetime_refs_tokenizer(ct) );
-
-                let returns=match func.returns.as_ref() {
-                    Some(returns)=>{
-                        let returns=make_get_abi_info_tokenizer(returns.ty,ct);
-                        quote!( _sabi_reexports::RSome(#returns) )
-                    },
-                    None=>
-                        quote!( _sabi_reexports::RNone ),
-                };
-
-
-
-                quote!(
-                    __WithFieldIndex::from_vari_field_val(
-                        #variant,
-                        #field_index,
-                        __TLFunction::new(
-                            #fn_name,
-
-                            &[ #( __StaticStr::new(#bound_lifetimes) ),* ],
-
-                            #param_names,
-
-                            &[ #( #param_abi_infos ),* ],
-
-                            &[ #(#paramret_lifetime_indices)* ],
-
-                            #returns,
-                        )
-                    ),
-                ).to_tokens(ts);
-            }            
-        }
-
-    });
+    if ds.fn_ptr_count==0 {
+        ct.none.to_tokens(ts);
+    }else{
+        to_stream!(ts;ct.some);
+        ct.paren.surround(ts,|ts|{
+            ct.and_.to_tokens(ts);
+            tokenize_tl_functions(ds,&fields,variant_length,config,ct,ts);
+        });
+    }
     to_stream!{ts; ct.comma };
 
 
@@ -555,3 +507,136 @@ fn fields_tokenizer_inner<'a>(
         }
     });
 }
+
+
+fn tokenize_tl_functions<'a>(
+    ds:&'a DataStructure<'a>,
+    fields:&[&'a Field<'a>],
+    _variant_length:&[u16],
+    _config:&'a StableAbiOptions<'a>,
+    ct:&'a CommonTokens<'a>,
+    ts:&mut TokenStream2,
+){
+    let mut strings=TLFunctionsString::new();
+    let mut functions=TLFunctionsVec::<CompTLFunction>::with_capacity(ds.fn_ptr_count);
+    let mut field_fn_ranges=Vec::<StartLen>::with_capacity(ds.field_count);
+    let mut abi_infos=TLFunctionsVec::<&'a syn::Type>::new();
+    let mut paramret_lifetime_indices=TLFunctionsVec::<LifetimeIndex>::new();
+
+    for field in fields {
+        let field_fns=field.functions.iter().enumerate()
+            .map(|(fn_i,func)|{
+                let mut current_func=CompTLFunction::new(ct);
+                
+                current_func.name=if field.is_function {
+                    strings.push_display(field.ident())
+                }else{
+                    strings.push_str(&format!("fn_{}",fn_i))
+                };
+
+                current_func.bound_lifetimes=strings
+                    .extend_with_display(";",func.named_bound_lts.iter());
+
+                current_func.param_names=strings
+                    .extend_with_display(";",func.params.iter().map(|p| p.name.unwrap_or("") ));
+
+                current_func.param_abi_infos=abi_infos
+                    .extend( func.params.iter().map(|p| p.ty ) );
+
+                current_func.paramret_lifetime_indices=paramret_lifetime_indices
+                    .extend( 
+                        func.params.iter()
+                            .chain(&func.returns)
+                            .flat_map(|p| p.lifetime_refs.iter().cloned() ) 
+                    );
+
+                if let Some(returns)=&func.returns {
+                    current_func.return_abi_info=Some( abi_infos.push(returns.ty) );
+                }
+                current_func
+            });
+
+        field_fn_ranges.push( functions.extend(field_fns) )
+    }
+
+    let strings=strings.into_inner();
+
+    let functions=functions.into_inner();
+
+    let field_fn_ranges=field_fn_ranges.into_iter().map(|sl| sl.tokenizer(ct) );
+
+    let abi_infos=abi_infos.into_inner().into_iter()
+        .map(|ty| make_get_abi_info_tokenizer(ty,ct) );
+
+    let paramret_lifetime_indices=paramret_lifetime_indices.into_inner().into_iter()
+        .map(|sl| sl.tokenizer(ct) );
+
+
+    quote!(
+        __TLFunctions::new(
+            #strings,
+            &[#(#functions),*],
+            &[#(#field_fn_ranges),*],
+            &[#(#abi_infos),*],
+            &[#(#paramret_lifetime_indices),*],
+        )
+    ).to_tokens(ts);
+
+}
+
+
+
+/*
+            let fn_name=if field.is_function {
+                field.ident().to_string()
+            }else{
+                format!("fn_{}",fn_i)
+            };
+
+            let bound_lifetimes=func.named_bound_lts.iter().map(|x| x.to_string() );
+            
+            let param_names:String=func.params.iter()
+                .map(|p| p.name.unwrap_or("") )
+                .collect::<Vec<&str>>()
+                .join(";");
+
+            let param_abi_infos=func.params.iter()
+                .map(|p|{
+                    make_get_abi_info_tokenizer(p.ty,ct)
+                });
+
+            let paramret_lifetime_indices=func.params.iter()
+                .map(|p| p.lifetime_refs_tokenizer(ct) );
+
+            let returns=match func.returns.as_ref() {
+                Some(returns)=>{
+                    let returns=make_get_abi_info_tokenizer(returns.ty,ct);
+                    quote!( _sabi_reexports::RSome(#returns) )
+                },
+                None=>
+                    quote!( _sabi_reexports::RNone ),
+            };
+
+
+
+            quote!(
+                __WithFieldIndex::from_vari_field_val(
+                    #variant,
+                    #field_index,
+                    __TLFunction::new(
+                        #fn_name,
+
+                        &[ #( __StaticStr::new(#bound_lifetimes) ),* ],
+
+                        #param_names,
+
+                        &[ #( #param_abi_infos ),* ],
+
+                        &[ #(#paramret_lifetime_indices)* ],
+
+                        #returns,
+                    )
+                ),
+            ).to_tokens(ts);
+
+*/

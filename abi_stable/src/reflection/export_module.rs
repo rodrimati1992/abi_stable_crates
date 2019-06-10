@@ -108,7 +108,7 @@ impl MRItem{
                     .filter(|f| f.field_accessor!=FieldAccessor::Opaque )
                     .map(|field|{
                         let (type_,variant)=if field.is_function {
-                            let func=MRFunction::from(&field.functions[0].value);
+                            let func=MRFunction::from(&field.function_range.index(0));
                             (
                                 func.to_string(),
                                 MRItemVariant::Function(func),
@@ -184,7 +184,7 @@ impl From<TLField> for MRNameType{
     fn from(field:TLField)->Self{
         let name=field.name.to_string();
         let type_=if field.is_function{
-            field.functions[0].value.to_string()
+            field.function_range.index(0).to_string()
         }else{
             field.abi_info.get().layout.full_type.to_string()
         };

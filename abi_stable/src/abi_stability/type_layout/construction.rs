@@ -44,8 +44,6 @@ pub struct ItemInfo{
     pub package:StaticStr,
     /// The version of the package where the type was defined.
     pub package_version: VersionStrings,
-    /// The file where the type was defined.
-    pub file:StaticStr,
     /// The line in the file where the type was defined.
     pub line:u32,
     /// The full path to the module where the type was defined,
@@ -58,14 +56,12 @@ impl ItemInfo{
     pub const fn new(
         package:&'static str,
         package_version: VersionStrings,
-        file:&'static str,
         line:u32,
         mod_path:ModPath,
     )->Self{
         Self{
             package: StaticStr::new(package),
             package_version,
-            file:StaticStr::new(file),
             line,
             mod_path,
         }
@@ -80,7 +76,6 @@ impl ItemInfo{
                 minor: StaticStr::new("0"),
                 patch: StaticStr::new("0"),
             },
-            file:StaticStr::new("<standard_library>"),
             line:0,
             mod_path:ModPath::Prelude,
         }
@@ -95,7 +90,6 @@ impl ItemInfo{
                 minor: StaticStr::new("0"),
                 patch: StaticStr::new("0"),
             },
-            file:StaticStr::new("<standard_library>"),
             line:0,
             mod_path:ModPath::inside(path),
         }
@@ -112,7 +106,6 @@ impl ItemInfo{
                 minor: StaticStr::new("0"),
                 patch: StaticStr::new("0"),
             },
-            file:StaticStr::new("<unavailable>"),
             line:0,
             mod_path:ModPath::inside(mod_path),
         }

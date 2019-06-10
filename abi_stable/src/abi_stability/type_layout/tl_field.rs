@@ -15,8 +15,8 @@ pub struct TLField {
     /// if you have a `&'static AbiInfo`s with the same address as one of its parent type,
     /// you've encountered a cycle.
     pub abi_info: GetAbiInfo,
-    /// All the function pointer types in the field.
-    pub functions:StaticSlice<WithFieldIndex<TLFunction>>,
+
+    pub function_range:TLFunctionRange,
 
     /// Whether this field is only a function pointer.
     pub is_function:bool,
@@ -71,26 +71,8 @@ impl TLField {
             name: StaticStr::new(name),
             lifetime_indices: StaticSlice::new(lifetime_indices),
             abi_info,
-            functions:StaticSlice::new(empty_slice()),
+            function_range:TLFunctionRange::EMPTY,
             is_function:false,
-            field_accessor:FieldAccessor::Direct,
-        }
-    }
-
-    /// Constructs a field which may contain function pointers.
-    pub const fn with_functions(
-        name: &'static str,
-        lifetime_indices: &'static [LifetimeIndex],
-        abi_info: GetAbiInfo,
-        functions:&'static [WithFieldIndex<TLFunction>],
-        is_function:bool,
-    ) -> Self {
-        Self {
-            name: StaticStr::new(name),
-            lifetime_indices: StaticSlice::new(lifetime_indices),
-            abi_info,
-            functions: StaticSlice::new(functions),
-            is_function,
             field_accessor:FieldAccessor::Direct,
         }
     }
@@ -149,7 +131,7 @@ impl PartialEq for TLField {
 impl Debug for TLField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.recursive(|recursion_depth,x|{
-            if recursion_depth>=2 {
+            if recursion_depth>=4 {
                 writeln!(f,"<printing recursion limit>")
             }else{
                 fmt::Debug::fmt(&x, f)
@@ -239,7 +221,8 @@ struct TLFieldShallow {
     /// This is None if it already printed that AbiInfo
     pub(crate) abi_info: Option<&'static AbiInfo>,
 
-    pub(crate) functions:StaticSlice<WithFieldIndex<TLFunction>>,
+    pub(crate) function_range:TLFunctionRange,
+
     pub(crate) is_function:bool,
 
     pub(crate) field_accessor:FieldAccessor,
@@ -258,7 +241,7 @@ impl TLFieldShallow {
             },
             full_type: abi_info.layout.full_type,
 
-            functions:field.functions,
+            function_range:field.function_range,
             is_function:field.is_function,
             field_accessor:field.field_accessor,
         }

@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     const_utils::empty_slice, version::VersionStrings, 
-    std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr},
+    std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr,RSlice},
     ignored_wrapper::CmpIgnored,
     prefix_type::{FieldAccessibility,IsConditional},
     reflection::ModReflMode,
@@ -28,6 +28,7 @@ use super::{
 mod construction;
 mod tl_field;
 mod tl_fields;
+mod tl_functions;
 mod tl_other;
 
 pub use self::{
@@ -49,6 +50,12 @@ pub use self::{
         WithFieldIndex,
         TLFieldsIterator,
         SliceAndFieldIndices,
+    },
+    tl_functions::{
+        TLFunctions,
+        CompTLFunction,
+        StartLen,
+        TLFunctionRange,
     },
     tl_other::{
         DiscriminantRepr,
@@ -127,11 +134,6 @@ impl TypeLayout {
     /// Gets the package version for the package of type.
     pub fn package_version(&self)->&VersionStrings{
         &self.item_info.package_version
-    }
-
-    /// Gets in which file the type was defined.
-    pub fn file(&self)->StaticStr{
-        self.item_info.file
     }
 
     /// Gets in which line the type was defined.
