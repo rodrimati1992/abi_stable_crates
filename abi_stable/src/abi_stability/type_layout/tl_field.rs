@@ -3,7 +3,7 @@ use super::*;
 
 /// The layout of a field.
 #[repr(C)]
-#[derive(Copy, Clone, StableAbi)]
+#[derive(Copy, Clone,StableAbi)]
 pub struct TLField {
     /// The field's name.
     pub name: StaticStr,
@@ -16,7 +16,7 @@ pub struct TLField {
     /// you've encountered a cycle.
     pub abi_info: GetAbiInfo,
     /// All the function pointer types in the field.
-    pub functions:StaticSlice<TLFunction>,
+    pub functions:StaticSlice<WithFieldIndex<TLFunction>>,
 
     /// Whether this field is only a function pointer.
     pub is_function:bool,
@@ -40,7 +40,7 @@ pub enum FieldAccessor {
     Direct,
     /// Accessible with `fn field_name(&self)->FieldType`
     Method{
-        name:ROption<StaticStr>,
+        name:Option<&'static StaticStr>,
     },
     /// Accessible with `fn field_name(&self)->Option<FieldType>`
     MethodOption,
@@ -50,9 +50,9 @@ pub enum FieldAccessor {
 
 
 impl FieldAccessor{
-    pub const fn method_named(name:&'static str)->Self{
+    pub const fn method_named(name:&'static StaticStr)->Self{
         FieldAccessor::Method{
-            name:RSome(StaticStr::new(name))
+            name:Some(name)
         }
     }
 }
@@ -82,7 +82,7 @@ impl TLField {
         name: &'static str,
         lifetime_indices: &'static [LifetimeIndex],
         abi_info: GetAbiInfo,
-        functions:&'static [TLFunction],
+        functions:&'static [WithFieldIndex<TLFunction>],
         is_function:bool,
     ) -> Self {
         Self {
@@ -99,7 +99,6 @@ impl TLField {
         self.field_accessor=field_accessor;
         self
     }
-
 
 
     /// Used for calling recursive methods,
@@ -134,6 +133,8 @@ impl TLField {
         res
     }
 }
+
+impl Eq for TLField{}
 
 impl PartialEq for TLField {
     fn eq(&self, other: &Self) -> bool {
@@ -238,11 +239,10 @@ struct TLFieldShallow {
     /// This is None if it already printed that AbiInfo
     pub(crate) abi_info: Option<&'static AbiInfo>,
 
-    pub(crate)functions:StaticSlice<TLFunction>,
+    pub(crate) functions:StaticSlice<WithFieldIndex<TLFunction>>,
+    pub(crate) is_function:bool,
 
-    pub(crate)is_function:bool,
-
-    pub(crate)field_accessor:FieldAccessor,
+    pub(crate) field_accessor:FieldAccessor,
 }
 
 impl TLFieldShallow {

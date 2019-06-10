@@ -406,7 +406,7 @@ fn different_field_name() {
     let other = changed_field_name::Rectangle::ABI_INFO;
 
     let fields=match other.get().layout.data {
-        TLData::Struct{fields}=>fields.as_slice(),
+        TLData::Struct{fields}=>fields.get_fields().collect::<Vec<_>>(),
         _=>unreachable!(),
     };
 

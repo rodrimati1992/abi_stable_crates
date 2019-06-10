@@ -27,6 +27,7 @@ use super::{
 
 mod construction;
 mod tl_field;
+mod tl_fields;
 mod tl_other;
 
 pub use self::{
@@ -39,6 +40,15 @@ pub use self::{
         FieldAccessor,
         TLField,
         TLFieldAndType,
+    },
+    tl_fields::{
+        TLFields,
+        TLFieldsOrSlice,
+        FieldIndex,
+        Field1to1,
+        WithFieldIndex,
+        TLFieldsIterator,
+        SliceAndFieldIndices,
     },
     tl_other::{
         DiscriminantRepr,

@@ -37,6 +37,7 @@ enum PrivEnum {
 
 #[repr(C)]
 #[derive(StableAbi)]
+//#[sabi(debug_print)]
 pub struct RegularPubFields {
     pub field0: u8,
     pub field1: u8,
@@ -163,15 +164,16 @@ fn check_enum_accessors<T>(
 {
     let layout=T::S_ABI_INFO.get().layout;
 
-    let variants=match layout.data {
-        TLData::Enum{variants}=>variants.as_slice(),
+    let mut fields=match layout.data {
+        TLData::Enum{fields,..}=>fields.get_fields(),
         x=>panic!("layout.data must be TLData::Struct{{..}}:\n{:#?}",x)
     };
 
     assert_eq!(layout.mod_refl_mode,mod_refl_mode);
-
-    for (vari,expec_vari) in variants.iter().zip( accessors ) {
-        check_fields(&*vari.fields,expec_vari)
+    
+    for expec_vari in accessors {
+        let subfields=fields.by_ref().take(expec_vari.len()).collect::<Vec<_>>();
+        check_fields(&subfields,expec_vari)
     }
 }
 
@@ -185,13 +187,13 @@ fn check_struct_accessors<T>(
     let layout=T::S_ABI_INFO.get().layout;
 
     let fields=match layout.data {
-        TLData::Struct{fields}=>fields.as_slice(),
+        TLData::Struct{fields}=>fields.get_field_vec(),
         x=>panic!("layout.data must be TLData::Struct{{..}}:\n{:#?}",x)
     };
 
     assert_eq!(layout.mod_refl_mode,mod_refl_mode);
 
-    check_fields(fields,accessors);
+    check_fields(&fields,accessors);
 }
 
 
@@ -204,13 +206,13 @@ fn check_prefix_accessors<T>(
     let layout=T::S_ABI_INFO.get().layout;
 
     let fields=match &layout.data {
-        TLData::PrefixType(prefix)=>prefix.fields.as_slice(),
+        TLData::PrefixType(prefix)=>prefix.fields.get_field_vec(),
         x=>panic!("layout.data must be TLData::Struct{{..}}:\n{:#?}",x)
     };
 
     assert_eq!(layout.mod_refl_mode,mod_refl_mode);
 
-    check_fields(fields,accessors);
+    check_fields(&fields,accessors);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -253,7 +255,7 @@ fn test_regular_pub_fields(){
         &[
             FieldAccessor::Direct,
             FieldAccessor::Direct,
-            FieldAccessor::method_named("what_the"),
+            {const FA:FieldAccessor=FieldAccessor::method_named(&StaticStr::new("what_the"));FA},
         ]
     );
 }
@@ -291,7 +293,7 @@ fn test_regular_priv(){
         &[
             FieldAccessor::Opaque,
             FieldAccessor::Opaque,
-            FieldAccessor::method_named("hello"),
+            {const FA:FieldAccessor=FieldAccessor::method_named(&StaticStr::new("hello"));FA},
         ]
     );
 }
@@ -305,11 +307,11 @@ fn test_prefix_pub_fields(){
     check_prefix_accessors::<PrefixPubFields>(
         ModReflMode::Module,
         &[
-            FieldAccessor::Method{name:RNone},
-            FieldAccessor::Method{name:RNone},
+            FieldAccessor::Method{name:None},
+            FieldAccessor::Method{name:None},
             FieldAccessor::MethodOption,
-            FieldAccessor::method_named("hello"),
-            FieldAccessor::Method{name:RNone},
+            {const FA:FieldAccessor=FieldAccessor::method_named(&StaticStr::new("hello"));FA},
+            FieldAccessor::Method{name:None},
         ]
     );
 }
@@ -332,8 +334,8 @@ fn test_prefix_most_privacies(){
     check_prefix_accessors::<PrefixMostPrivacies>(
         ModReflMode::Module,
         &[
-            FieldAccessor::Method{name:RNone},
-            FieldAccessor::Method{name:RNone},
+            FieldAccessor::Method{name:None},
+            FieldAccessor::Method{name:None},
             FieldAccessor::MethodOption,
             FieldAccessor::MethodOption,
             FieldAccessor::Opaque,

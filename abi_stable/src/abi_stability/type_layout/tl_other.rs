@@ -11,6 +11,9 @@ use crate::{
 };
 
 
+
+/////////////////////////////////////////////////////
+
 /// Which lifetime is being referenced by a field.
 /// Allows lifetimes to be renamed,so long as the "same" lifetime is being referenced.
 #[repr(u8)]
@@ -43,7 +46,7 @@ pub struct TLPrefixType {
     /// (with the `#[sabi(accessible_if=" expression ")]` attribute).
     pub conditional_prefix_fields:StaticSlice<IsConditional>,
     /// All the fields of the prefix-type,even if they are inaccessible.
-    pub fields: StaticSlice<TLField>,
+    pub fields: TLFieldsOrSlice,
 }
 
 
@@ -121,18 +124,17 @@ pub struct TLEnumVariant {
     pub name: StaticStr,
     /// The discriminant of the variant.
     pub discriminant:TLDiscriminant,
-    /// The fields of the variant.
-    pub fields: StaticSlice<TLField>,
+    pub field_count:usize,
 }
 
 
 
 impl TLEnumVariant {
-    pub const fn new(name: &'static str, fields: &'static [TLField]) -> Self {
+    pub const fn new(name: &'static str, field_count: usize) -> Self {
         Self {
             name: StaticStr::new(name),
             discriminant:TLDiscriminant::Default_,
-            fields: StaticSlice::new(fields),
+            field_count,
         }
     }
 
@@ -327,14 +329,15 @@ pub enum TLData {
     Opaque,
     /// For structs.
     Struct { 
-        fields: StaticSlice<TLField> 
+        fields: TLFieldsOrSlice 
     },
     /// For unions.
     Union { 
-        fields: StaticSlice<TLField> 
+        fields: TLFieldsOrSlice 
     },
     /// For enums.
     Enum {
+        fields: TLFieldsOrSlice,
         variants: StaticSlice<TLEnumVariant>,
     },
     /// vtables and modules that can be extended in minor versions.
@@ -404,26 +407,27 @@ pub enum TLDataDiscriminant {
 impl TLData {
     pub const EMPTY:Self=
         TLData::Struct {
-            fields: StaticSlice::new(&[]),
+            fields: TLFieldsOrSlice::from_slice(&[]),
         };
  
     /// Constructs `TLData::Struct` from a slice of its fields.
     pub const fn struct_(fields: &'static [TLField]) -> Self {
         TLData::Struct {
-            fields: StaticSlice::new(fields),
+            fields: TLFieldsOrSlice::from_slice(fields),
         }
     }
     
     /// Constructs `TLData::Union` from a slice of its fields.
     pub const fn union_(fields: &'static [TLField]) -> Self {
         TLData::Union {
-            fields: StaticSlice::new(fields),
+            fields: TLFieldsOrSlice::from_slice(fields),
         }
     }
     
     /// Constructs a `TLData::Enum` from a slice to its variants.
-    pub const fn enum_(variants: &'static [TLEnumVariant]) -> Self {
+    pub const fn enum_(fields:&'static [TLField],variants: &'static [TLEnumVariant]) -> Self {
         TLData::Enum {
+            fields:TLFieldsOrSlice::from_slice(fields),
             variants: StaticSlice::new(variants),
         }
     }
@@ -439,7 +443,47 @@ impl TLData {
             first_suffix_field,
             accessible_fields,
             conditional_prefix_fields:StaticSlice::new(conditional_prefix_fields),
-            fields:StaticSlice::new(fields),
+            fields:TLFieldsOrSlice::from_slice(fields),
+        })
+    }
+ 
+    /// Constructs `TLData::Struct` from a slice of its fields.
+    pub const fn struct_derive(fields: TLFields) -> Self {
+        TLData::Struct {
+            fields: TLFieldsOrSlice::TLFields(fields),
+        }
+    }
+    
+    /// Constructs `TLData::Union` from a slice of its fields.
+    pub const fn union_derive(fields: TLFields) -> Self {
+        TLData::Union {
+            fields: TLFieldsOrSlice::TLFields(fields),
+        }
+    }
+    
+    /// Constructs a `TLData::Enum` from a slice to its variants.
+    pub const fn enum_derive(
+        fields:TLFields,
+        variants: &'static [TLEnumVariant]
+    ) -> Self {
+        TLData::Enum {
+            fields:TLFieldsOrSlice::TLFields(fields),
+            variants: StaticSlice::new(variants),
+        }
+    }
+
+    /// Constructs a `TLData::PrefixType`
+    pub const fn prefix_type_derive(
+        first_suffix_field:usize,
+        accessible_fields:FieldAccessibility,
+        conditional_prefix_fields:&'static [IsConditional],
+        fields: TLFields,
+    )->Self{
+        TLData::PrefixType(TLPrefixType{
+            first_suffix_field,
+            accessible_fields,
+            conditional_prefix_fields:StaticSlice::new(conditional_prefix_fields),
+            fields:TLFieldsOrSlice::TLFields(fields),
         })
     }
 

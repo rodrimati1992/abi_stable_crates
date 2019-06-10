@@ -25,12 +25,12 @@ impl ToTokens for FieldAccessor<'_>{
             FieldAccessor::Method{name:None}=>
                 quote!( 
                     __FieldAccessor::Method{
-                        name:_sabi_reexports::RNone 
+                        name:None 
                     } 
                 ),
             FieldAccessor::Method{name:Some(name)}=>
                 quote!( 
-                    __FieldAccessor::method_named(#name),
+                    __FieldAccessor::method_named(&__StaticStr::new(#name))
                 ),
             FieldAccessor::MethodOption=>
                 quote!( __FieldAccessor::MethodOption ),
