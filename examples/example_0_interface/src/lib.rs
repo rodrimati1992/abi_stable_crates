@@ -17,12 +17,12 @@ use abi_stable::{
     package_version_strings,
     declare_root_module_statics,
     library::RootModule,
-    version::VersionStrings,
     type_level::bools::*,
     erased_types::{
         InterfaceType,DeserializeOwnedInterface,DeserializeBorrowedInterface,IteratorItem
     },
     DynTrait,
+    sabi_types::VersionStrings,
     std_types::{RBox, RStr, RString,RArc,RCow,RBoxError,RResult},
 };
 

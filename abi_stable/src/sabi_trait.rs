@@ -47,6 +47,7 @@ pub mod prelude{
 }
 
 pub mod for_generated_code;
+pub mod examples;
 pub mod robject;
 pub mod vtable;
 

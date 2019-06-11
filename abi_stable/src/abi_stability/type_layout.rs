@@ -11,9 +11,9 @@ use std::{
 
 
 use crate::{
-    const_utils::empty_slice, version::VersionStrings, 
+    const_utils::empty_slice, sabi_types::VersionStrings, 
+    sabi_types::CmpIgnored,
     std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr,RSlice},
-    ignored_wrapper::CmpIgnored,
     prefix_type::{FieldAccessibility,IsConditional},
     reflection::ModReflMode,
 };

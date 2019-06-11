@@ -3,8 +3,8 @@ use super::*;
 use crate::{
     erased_types::FormattingMode,
     type_level::unerasability::{GetUTID},
+    sabi_types::ReturnValueEquality,
     std_types::{UTypeId,RResult,RString},
-    return_value_equality::ReturnValueEquality,
 };
 
 /// Gets the vtable of a trait object.

@@ -129,8 +129,7 @@ impl fmt::Display for VersionStrings {
 #[macro_export]
 macro_rules! package_version_strings {
     () => {{
-        use $crate::std_types::StaticStr;
-        $crate::version::VersionStrings::new(env!("CARGO_PKG_VERSION"))
+        $crate::sabi_types::VersionStrings::new(env!("CARGO_PKG_VERSION"))
     }};
 }
 

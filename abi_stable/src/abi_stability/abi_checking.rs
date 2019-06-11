@@ -23,7 +23,7 @@ use super::{
     tagging::{CheckableTag,TagErrors},
 };
 use crate::{
-    version::{ParseVersionError, VersionStrings},
+    sabi_types::{ParseVersionError, VersionStrings},
     prefix_type::{FieldAccessibility,IsConditional},
     std_types::{RVec, StaticSlice, StaticStr,utypeid::UTypeId,RBoxError,RResult},
     traits::IntoReprC,
@@ -913,7 +913,7 @@ pub unsafe extern fn exported_check_layout_compatibility(
 use std::sync::Mutex;
 
 use crate::{
-    late_static_ref::LateStaticRef,
+    sabi_types::LateStaticRef,
     multikey_map::MultiKeyMap,
     prefix_type::PrefixTypeMetadata,
     utils::leak_value,

@@ -5,10 +5,8 @@ Contains TypeInfo,metadata for a type.
 use std::fmt;
 
 use crate::{
-    version::VersionStrings, 
-    sabi_types::MaybeCmp,
+    sabi_types::{MaybeCmp,ReturnValueEquality,VersionStrings},
     std_types::{StaticStr,utypeid::UTypeId},
-    return_value_equality::ReturnValueEquality,
 };
 
 

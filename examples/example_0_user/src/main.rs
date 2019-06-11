@@ -25,10 +25,6 @@ use example_0_interface::{
 
 mod tests;
 
-
-// #[global_allocator]
-// static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
-
 /// Returns the path the library will be loaded from.
 fn compute_library_path()->io::Result<PathBuf>{
     let debug_dir  ="../../target/debug/"  .as_ref_::<Path>().into_(PathBuf::T);

@@ -21,7 +21,7 @@ use crate::{
         ItemInfo,ReprAttr,TLPrimitive,TLEnumVariant,
     },
     std_types::{RNone, RSome, StaticSlice, utypeid::UTypeId},
-    return_value_equality::ReturnValueEquality,
+    sabi_types::ReturnValueEquality,
     reflection::ModReflMode,
 };
 

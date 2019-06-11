@@ -13,9 +13,8 @@ use crate::{
         CallReferentDrop, StableDeref, TransmuteElement,
         GetPointerKind,PK_SmartPointer,
     },
-    std_types::{RResult},
-    std_types::utypeid::{UTypeId,new_utypeid},
-    return_value_equality::ReturnValueEquality,
+    sabi_types::ReturnValueEquality,
+    std_types::{RResult,utypeid::{UTypeId,new_utypeid}},
 };
 
 #[cfg(all(test,not(feature="only_new_tests")))]

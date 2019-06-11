@@ -171,14 +171,12 @@ pub mod external_types;
 // pub mod immovable_wrapper;
 #[macro_use]
 pub mod library;
-pub mod ignored_wrapper;
 pub mod marker_type;
 mod multikey_map;
 pub mod pointer_trait;
 pub mod prefix_type;
 
-#[doc(hidden)]
-pub mod return_value_equality;
+
 
 #[doc(hidden)]
 pub mod derive_macro_reexports;
@@ -186,15 +184,11 @@ pub mod std_types;
 pub mod sabi_types;
 
 
-pub mod late_static_ref;
 
 pub mod reflection;
 pub mod type_level;
-pub mod version;
 
 pub mod docs;
-
-pub mod trait_object_test;
 
 pub mod sabi_trait;
 
@@ -231,11 +225,11 @@ pub use crate::{
 #[doc(hidden)]
 pub mod globals{
     use crate::{
-        late_static_ref::LateStaticRef,
         abi_stability::{
             abi_checking::{check_layout_compatibility_for_ffi},
             stable_abi_trait::AbiInfoWrapper,
         },
+        sabi_types::LateStaticRef,
         std_types::{RResult,RBoxError},
         utils::leak_value,
     };
