@@ -226,11 +226,11 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         quote!{
             pub struct #static_struct_name<
                 #(#lifetimes_a,)*
-                #(#type_params_a,)*
+                #(#type_params_a:?Sized,)*
                 #(const #const_param_name:#const_param_type,)*
             >(
                 #(& #lifetimes_a (),)*
-                #(#type_params_a,)*
+                extern fn(#(&#type_params_a,)*)
             );
         }
     };

@@ -73,11 +73,17 @@ where
     fn visit_type_path_mut(&mut self, i: &mut TypePath) {
         if let Some(qself) = i.qself.as_mut() {
             self.visit_type_mut(&mut qself.ty);
-            return;
         }
         
         
         let segments = &mut i.path.segments;
+
+        for segment in &mut *segments {
+            self.visit_path_arguments_mut(&mut segment.arguments);
+        }
+        
+        // println!("\nbefore:{}",(&*segments).into_token_stream() );
+        // println!("segments[1]:{}",segments.iter().nth(1).into_token_stream() );
 
         let is_self= segments[0].ident == "Self";
 
@@ -95,8 +101,6 @@ where
             (_,false)=>return,
         }
 
-        // println!("\nbefore:{}",(&*segments).into_token_stream() );
-        // println!("segments[1]:{}",(&segments[1]).into_token_stream() );
         let is_replaced=(self.is_assoc_type)(&segments[1].ident);
         // println!("is_replaced:{:?}",is_replaced );
         if let Some(replace_assoc_with)= is_replaced{

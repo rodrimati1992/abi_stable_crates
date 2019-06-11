@@ -1,5 +1,5 @@
 use syn::{
-    token::Comma,
+    token::{Comma},
     Generics,GenericParam,
 };
 

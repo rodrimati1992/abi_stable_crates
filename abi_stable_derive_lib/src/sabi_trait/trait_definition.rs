@@ -423,7 +423,7 @@ impl<'a> TraitMethod<'a>{
 
         let mut input_iter=decl.inputs.iter();
 
-        let self_param=match input_iter.next()? {
+        let mut self_param=match input_iter.next()? {
             FnArg::SelfRef(ref_)=>
                 SelfParam::ByRef{
                     lifetime:ref_.lifetime.as_ref(),
@@ -439,6 +439,22 @@ impl<'a> TraitMethod<'a>{
             .piped(parse_str_as_ident)
             .piped(|x| arena.alloc(x) );
 
+        let mut lifetimes:Vec<&'a syn::LifetimeDef>=decl.generics.lifetimes().collect();
+
+        let output=match &decl.output {
+            syn::ReturnType::Default=>None,
+            syn::ReturnType::Type(_,ty)=>{
+                let mut ty=(**ty).clone();
+                if let SelfParam::ByRef{lifetime,..}=&mut self_param {
+                    LifetimeUnelider::new(arena,ctokens,lifetime)
+                        .visit_type(&mut ty)
+                        .into_iter()
+                        .extending(&mut lifetimes);
+                }
+                Some(ty)
+            },
+        };
+
         Some(Self{
             item:&mwa.item,
             unsafety:method_signature.unsafety.as_ref(),
@@ -448,7 +464,7 @@ impl<'a> TraitMethod<'a>{
             other_attrs:arena.alloc(mwa.attrs.other_attrs),
             name:&method_signature.ident,
             name_method,
-            lifetimes:decl.generics.lifetimes().collect(),
+            lifetimes,
             self_param,
             params:input_iter
                 .enumerate()
@@ -472,10 +488,7 @@ impl<'a> TraitMethod<'a>{
                     }
                 })
                 .collect(),
-            output:match &decl.output {
-                syn::ReturnType::Default=>None,
-                syn::ReturnType::Type(_,ty)=>Some((**ty).clone()),
-            },
+            output,
             where_clause:decl.generics.where_clause.as_ref()
                 .map(|wc| MethodWhereClause::new(wc,ctokens) )
                 .unwrap_or_default(),
@@ -498,7 +511,7 @@ impl<'a> TraitMethod<'a>{
                 param,
                 replace_with.clone(),
                 &mut is_assoc_type
-            )
+            );
         }
     }
 }
@@ -527,11 +540,20 @@ impl<'a> ToTokens for GenericsTokenizer<'a> {
             self.gen_params_in.in_what != InWhat::ItemUse;
         let with_default = self.gen_params_in.in_what == InWhat::ItemDecl;
 
+        let in_dummy_struct= self.gen_params_in.in_what == InWhat::DummyStruct;
+
         self.gen_params_in.to_tokens(ts);
         if let Some((assoc_tys,self_tokens))=self.assoc_tys {
             for with_index in assoc_tys.values() {
                 self_tokens.to_tokens(ts);
                 let assoc_ty=&with_index.assoc_ty;
+
+                if in_dummy_struct {
+                    use syn::token::{Star,Const};
+                    Star::default().to_tokens(ts);
+                    Const::default().to_tokens(ts);
+                }
+
                 assoc_ty.ident.to_tokens(ts);
 
                 match &assoc_ty.colon_token {

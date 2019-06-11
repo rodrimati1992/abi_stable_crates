@@ -17,6 +17,7 @@ macro_rules! declare_common_tokens {
         types[ $( $field_ty:ident = $ty_str:expr , )* ]
         idents[ $( $field_ident:ident = $ident_str:expr , )* ]
         lifetime[ $( $lifetime_ident:ident = $lifetime_str:expr , )* ]
+        lifetime_def[ $( $lifetime_def_ident:ident = $lifetime_def_str:expr , )* ]
         str_lits[ $( $strlit_ident:ident = $strlit_str:expr , )* ]
         patterns[ $( $pat_ident:ident = $pat_str:expr , )* ]
     ) => {
@@ -28,6 +29,7 @@ macro_rules! declare_common_tokens {
             $( pub(crate) $field_ty : ::syn::Type , )*
             $( pub(crate) $field_ident : ::syn::Ident , )*
             $( pub(crate) $lifetime_ident : ::syn::Lifetime , )*
+            $( pub(crate) $lifetime_def_ident : ::syn::LifetimeDef , )*
             $( pub(crate) $strlit_ident : ::syn::LitStr , )*
             $( pub(crate) $pat_ident : ::syn::Pat , )*
         }
@@ -43,6 +45,7 @@ macro_rules! declare_common_tokens {
                     $( $field_ty : ::syn::parse_str($ty_str).unwrap() , )*
                     $( $field_ident : ::syn::Ident::new($ident_str,span) , )*
                     $( $lifetime_ident : ::syn::parse_str($lifetime_str).unwrap() , )*
+                    $( $lifetime_def_ident : ::syn::parse_str($lifetime_def_str).unwrap() , )*
                     $( $strlit_ident : ::syn::LitStr::new($strlit_str,span) , )*
                     $( $pat_ident : ::syn::parse_str($pat_str).unwrap() , )*
                 }
@@ -140,6 +143,12 @@ declare_common_tokens! {
 
     lifetime[
         static_lifetime="'static",
+        under_lifetime="'_",
+        uself_lifetime="'_self",
+    ]
+
+    lifetime_def[
+        uself_lt_def="'_self",
     ]
 
     str_lits[

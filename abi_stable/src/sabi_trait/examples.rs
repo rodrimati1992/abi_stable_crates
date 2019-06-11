@@ -362,10 +362,14 @@ where
 //////////////////////////////////////
 
 #[sabi_trait]
-trait Baz {
-    fn baz(self);
+//#[sabi(debug_print_trait)]
+pub trait Dictionary{
+    type Value;
+    type Unused:?Sized;
+    fn what(&self,_:&Self::Unused);
+    fn get(&self,key:&str)->Option<&Self::Value>;
+    fn insert(&mut self,key:RString,value:Self::Value)->Option<Self::Value>;
 }
-
 
 
 //////////////////////////////////////

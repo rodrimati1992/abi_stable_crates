@@ -68,6 +68,7 @@ declare_arenas! {
     ident: syn::Ident,
     ident_vec: Vec<syn::Ident>,
     // paths: syn::Path,
+    lifetimes:syn::Lifetime,
     fields_named: syn::FieldsNamed,
     types: syn::Type,
     // metalists: syn::MetaList,
