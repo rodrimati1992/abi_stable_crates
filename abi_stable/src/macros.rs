@@ -301,13 +301,9 @@ macro_rules! impl_get_type_info {
                     function:some_utypeid::<Self>
                 },
                 name:StaticStr::new(stringify!($type)),
-                file:StaticStr::new(file!()),
+                module:StaticStr::new(module_path!()),
                 package:StaticStr::new(env!("CARGO_PKG_NAME")),
-                package_version:VersionStrings{
-                    major:StaticStr::new(env!("CARGO_PKG_VERSION_MAJOR")),
-                    minor:StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
-                    patch:StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
-                },
+                package_version:$crate::package_version_strings!(),
                 _private_field:(),
             }
         }
@@ -430,8 +426,11 @@ with information about the place where it's called.
 macro_rules! make_item_info {
     () => (
         $crate::abi_stability::type_layout::ItemInfo::new(
-            env!("CARGO_PKG_NAME"),
-            abi_stable::package_version_strings!(),
+            concat!(
+                env!("CARGO_PKG_NAME"),
+                ";",
+                env!("CARGO_PKG_VERSION")
+            ),
             line!(),
             $crate::abi_stability::type_layout::ModPath::inside(module_path!()),
         )

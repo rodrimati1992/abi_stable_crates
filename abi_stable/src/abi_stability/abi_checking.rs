@@ -452,7 +452,9 @@ impl AbiChecker {
                 push_err(errs, t_lay, o_lay, |x| x.full_type(), AI::Name);
                 return;
             }
-            if t_lay.package() != o_lay.package() {
+            let (t_package,t_ver_str)=t_lay.package_and_version();
+            let (o_package,o_ver_str)=o_lay.package_and_version();
+            if t_package != o_package {
                 push_err(errs, t_lay, o_lay, |x| x.package(), AI::Package);
                 return;
             }
@@ -470,8 +472,8 @@ impl AbiChecker {
 
             {
                 let x = (|| {
-                    let l = t_lay.package_version().parsed()?;
-                    let r = o_lay.package_version().parsed()?;
+                    let l = t_ver_str.parsed()?;
+                    let r = o_ver_str.parsed()?;
                     Ok(l.is_compatible(r))
                 })();
                 match x {
@@ -480,7 +482,7 @@ impl AbiChecker {
                             errs,
                             t_lay,
                             o_lay,
-                            |x| *x.package_version(),
+                            |x| x.package_version(),
                             AI::PackageVersion,
                         );
                     }

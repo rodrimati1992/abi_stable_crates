@@ -829,7 +829,7 @@ unsafe impl SharedStableAbi for core_extensions::Void {
     const S_LAYOUT: &'static TypeLayout =
         &TypeLayout::from_params::<Self>(TypeLayoutParams {
             name: "Void",
-            item_info:ItemInfo::package_and_mod("core_extensions","core_extensions"),
+            item_info:ItemInfo::package_and_mod("core_extensions;0.0.0","core_extensions"),
             data: TLData::enum_(&[],&[]),
             generics: tl_genparams!(;;),
         });
