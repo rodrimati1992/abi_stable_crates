@@ -31,9 +31,8 @@ use crate::{
     },
     globals::{self,Globals},
     marker_type::ErasedObject,
-    late_static_ref::LateStaticRef,
-    version::{ParseVersionError, VersionNumber, VersionStrings},
     utils::{transmute_reference},
+    sabi_types::{ LateStaticRef, ParseVersionError, VersionNumber, VersionStrings },
     std_types::{RVec,RBoxError,StaticStr},
 };
 

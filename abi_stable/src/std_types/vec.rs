@@ -14,10 +14,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use core_extensions::prelude::*;
 
 use crate::{
-    std_types::{RSlice, RSliceMut},
-    std_types::utypeid::{UTypeId,new_utypeid},
+    sabi_types::{ReturnValueEquality},
+    std_types::{RSlice, RSliceMut,utypeid::{UTypeId,new_utypeid}},
     prefix_type::{PrefixTypeTrait,WithMetadata},
-    return_value_equality::ReturnValueEquality,
 };
 
 #[cfg(all(test,not(feature="only_new_tests")))]

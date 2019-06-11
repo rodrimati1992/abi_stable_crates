@@ -8,7 +8,6 @@ edition = "2018"
 abi_stable={version="0.4",path="../../abi_stable"}
 structopt = "0.2"
 core_extensions = "0.1"
-jemallocator = "0.3.0"
 
 [dependencies.testing_interface_0]
 version="0.1"

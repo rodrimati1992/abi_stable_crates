@@ -7,14 +7,12 @@ use std::{mem,marker::PhantomData};
 
 use crate::{
     erased_types::{DynTraitBound},
-    sabi_types::MaybeCmp,
+    sabi_types::{MaybeCmp,VersionStrings,ReturnValueEquality},
     std_types::{
         RBoxError, 
         RCow, RStr,StaticStr,
         utypeid::{UTypeId,no_utypeid,some_utypeid},
     },
-    version::VersionStrings,
-    return_value_equality::ReturnValueEquality,
 };
 
 use super::TypeInfo;

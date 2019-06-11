@@ -41,13 +41,15 @@ pub use crate::{
         PTStructLayout,
         PTStructLayoutParams,
     },
+    sabi_types::{
+        VersionStrings,
+        ReturnValueEquality,
+    },
     std_types::{
         utypeid::new_utypeid,
         StaticStr,
         RSome,RNone,
     },
-    version::VersionStrings,
-    return_value_equality::ReturnValueEquality
 };
 
 

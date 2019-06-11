@@ -17,7 +17,7 @@ use abi_stable::{
     StableAbi,
     package_version_strings,
     library::RootModule,
-    version::VersionStrings,
+    sabi_types::VersionStrings,
     std_types::{RBox, RStr, RString,RVec,RArc},
 };
 

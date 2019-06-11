@@ -21,9 +21,8 @@ pub mod bools{
 
 pub mod unerasability{
     use crate::{
-        sabi_types::MaybeCmp,
+        sabi_types::{MaybeCmp,ReturnValueEquality},
         std_types::utypeid::{UTypeId,no_utypeid,some_utypeid},
-        return_value_equality::ReturnValueEquality,
     };
 
 

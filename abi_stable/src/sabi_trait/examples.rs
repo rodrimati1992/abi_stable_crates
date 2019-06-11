@@ -16,8 +16,7 @@ use crate::{
 
 ```
 use abi_stable::{
-    sabi_trait::prelude::*,
-    trait_object_test::*,
+    sabi_trait::{prelude::*,examples::*},
     std_types::*,
 };
 
@@ -30,8 +29,7 @@ no method on the trait can be called because RSomething has mutable and by value
 
 ```compile_fail
 use abi_stable::{
-    sabi_trait::prelude::*,
-    trait_object_test::*,
+    sabi_trait::{prelude::*,examples::*},
     std_types::*,
 };
 
@@ -46,8 +44,7 @@ Cannot create RSomething from a !Sync type.
 ```compile_fail
 use abi_stable::{
     marker_type::*,
-    sabi_trait::prelude::*,
-    trait_object_test::*,
+    sabi_trait::{prelude::*,examples::*},
     std_types::*,
 };
 
@@ -62,8 +59,7 @@ Cannot create RSomething from a !Send type.
 ```compile_fail
 use abi_stable::{
     marker_type::*,
-    sabi_trait::prelude::*,
-    trait_object_test::*,
+    sabi_trait::{prelude::*,examples::*},
     std_types::*,
 };
 
@@ -219,8 +215,7 @@ no method on the trait can be called because RSomethingElse has mutable and by v
 ```compile_fail
 use abi_stable::{
     marker_type::*,
-    sabi_trait::prelude::*,
-    trait_object_test::*,
+    sabi_trait::{prelude::*,examples::*},
     std_types::*,
 };
 
@@ -234,8 +229,7 @@ RSomethingElse::into_value(what);
 ```
 use abi_stable::{
     marker_type::*,
-    sabi_trait::prelude::*,
-    trait_object_test::*,
+    sabi_trait::{prelude::*,examples::*},
     std_types::*,
 };
 
@@ -250,8 +244,7 @@ Cannot create RSomethingElse from a !Send type.
 ```compile_fail
 use abi_stable::{
     marker_type::*,
-    sabi_trait::prelude::*,
-    trait_object_test::*,
+    sabi_trait::{prelude::*,examples::*},
     std_types::*,
 };
 

@@ -14,9 +14,8 @@ use crate::{
         GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
     traits::{IntoReprRust},
-    sabi_types::MovePtr,
+    sabi_types::{MovePtr,ReturnValueEquality},
     std_types::utypeid::{UTypeId,new_utypeid},
-    return_value_equality::ReturnValueEquality,
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
 

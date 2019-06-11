@@ -132,7 +132,7 @@ macro_rules! check_unerased {
 
 macro_rules! make_rve_utypeid {
     ($ty:ty) => (
-        $crate::return_value_equality::ReturnValueEquality{
+        $crate::sabi_types::ReturnValueEquality{
             function:$crate::std_types::utypeid::new_utypeid::<$ty>
         }
     )
@@ -289,9 +289,8 @@ macro_rules! impl_get_type_info {
             use std::mem;
             use $crate::{
                 erased_types::type_info::TypeInfo,
-                version::{VersionStrings},
+                sabi_types::{VersionStrings,ReturnValueEquality},
                 std_types::{StaticStr,utypeid::some_utypeid},
-                return_value_equality::ReturnValueEquality,
             };
 
             &TypeInfo{

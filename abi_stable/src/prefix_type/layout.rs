@@ -3,9 +3,8 @@ use std::{
 };
 
 use crate::{
-    ignored_wrapper::CmpIgnored,
+    sabi_types::{CmpIgnored,VersionStrings},
     std_types::{StaticSlice,StaticStr},
-    version::VersionStrings,
 };
 
 
