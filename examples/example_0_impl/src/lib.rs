@@ -286,7 +286,7 @@ pub extern "C" fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,
         this.processed_bytes+=param.string.len() as u64;
 
         let set=param.words.map(RCow::into).collect::<HashSet<Cow<'_,str>>>();
-        let mut buffer=String::new();
+        let mut buffer=String::with_capacity(10);
 
         let haystack=&*param.string;
         let mut prev_was_deleted=false;

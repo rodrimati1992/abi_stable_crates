@@ -119,7 +119,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         }else{
             quote!(
                 #(#[#other_attrs])*
-                #vis #abi fn #used_name(
+                #vis #abi fn #used_name #(< #(#lifetimes,)* >)* (
                     #self_param, 
                     #( #param_names_a:#param_ty ,)* 
                 ) #(-> #return_ty )*

@@ -23,6 +23,7 @@ use syn::{
 mod attribute_parsing;
 mod common_tokens;
 mod method_where_clause;
+mod lifetime_unelider;
 mod replace_self_path;
 mod trait_definition;
 mod methods_tokenizer;
@@ -33,6 +34,7 @@ mod tests;
 use self::{
     attribute_parsing::SabiTraitOptions,
     common_tokens::CommonTokens,
+    lifetime_unelider::LifetimeUnelider,
     trait_definition::{TraitDefinition,TraitMethod,GenericsTokenizer},
     method_where_clause::MethodWhereClause,
     methods_tokenizer::MethodsTokenizer,
@@ -172,7 +174,7 @@ fn first_items<'a>(
         use abi_stable::sabi_trait::reexports::{*,__sabi_re};
 
         #[repr(C)]
-        #[derive(StableAbi)]
+        #[derive(abi_stable::StableAbi)]
         #submod_vis struct __TraitMarker;
 
         #submod_vis type __TraitObject<#to_params>=
