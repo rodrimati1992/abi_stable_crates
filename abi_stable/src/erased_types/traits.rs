@@ -320,13 +320,9 @@ pub mod interface_for{
             alignment:mem::align_of::<T>(),
             _uid:<Unerasability as GetUTID<T>>::UID,
             name:StaticStr::new("<erased>"),
-            file:StaticStr::new("<unavailable>"),
+            module:StaticStr::new("<unavailable>"),
             package:StaticStr::new("<unavailable>"),
-            package_version:VersionStrings{
-                major:StaticStr::new("99"),
-                minor:StaticStr::new("99"),
-                patch:StaticStr::new("99"),
-            },
+            package_version:VersionStrings::new("99.99.99"),
             _private_field:(),
         };
     }

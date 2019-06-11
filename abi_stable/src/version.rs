@@ -32,9 +32,7 @@ use crate::std_types::StaticStr;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[repr(C)]
 pub struct VersionStrings {
-    pub major: StaticStr,
-    pub minor: StaticStr,
-    pub patch: StaticStr,
+    pub version: StaticStr,
 }
 
 /// The parsed (`<major>.<minor>.<patch>`) version number of a library.
@@ -57,6 +55,9 @@ pub struct VersionNumber {
 }
 
 impl VersionStrings {
+    pub const fn new(version:&'static str)->Self{
+        Self{version:StaticStr::new(version)}
+    }
     pub fn parsed(self) -> Result<VersionNumber, ParseVersionError> {
         VersionNumber::new(self)
     }
@@ -64,17 +65,19 @@ impl VersionStrings {
 
 impl VersionNumber {
     pub fn new(vn: VersionStrings) -> Result<Self, ParseVersionError> {
+        let mut iter=vn.version.splitn(3,'.');
+
         VersionNumber {
-            major: vn
-                .major
+            major: iter.next()
+                .unwrap_or("")
                 .parse()
                 .map_err(|x| ParseVersionError::new(vn, "major", x))?,
-            minor: vn
-                .minor
+            minor: iter.next()
+                .unwrap_or("")
                 .parse()
                 .map_err(|x| ParseVersionError::new(vn, "minor", x))?,
-            patch: vn
-                .patch
+            patch: iter.next()
+                .unwrap_or("")
                 .split_while(|x| '0' <= x && x <= '9')
                 .find(|x| x.key)
                 .map_or("0", |x| x.str)
@@ -113,7 +116,7 @@ impl fmt::Display for VersionNumber {
 
 impl fmt::Display for VersionStrings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+        fmt::Display::fmt(&self.version,f)
     }
 }
 
@@ -127,11 +130,7 @@ impl fmt::Display for VersionStrings {
 macro_rules! package_version_strings {
     () => {{
         use $crate::std_types::StaticStr;
-        $crate::version::VersionStrings {
-            major: StaticStr::new(env!("CARGO_PKG_VERSION_MAJOR")),
-            minor: StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
-            patch: StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
-        }
+        $crate::version::VersionStrings::new(env!("CARGO_PKG_VERSION"))
     }};
 }
 

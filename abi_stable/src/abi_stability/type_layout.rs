@@ -127,14 +127,28 @@ impl TypeLayout {
     }
 
     /// Gets the package of the type.
+    pub fn package_and_version(&self)->(StaticStr,VersionStrings){
+        let (package,version)=self.item_info.package_and_version();
+
+        (
+            StaticStr::new(package),
+            VersionStrings::new(version)
+        )
+    }
+
+
+    /// Gets the package of the type.
     pub fn package(&self)->StaticStr{
-        self.item_info.package
+        let (package,_)=self.item_info.package_and_version();
+        StaticStr::new(package)
     }
 
     /// Gets the package version for the package of type.
-    pub fn package_version(&self)->&VersionStrings{
-        &self.item_info.package_version
+    pub fn package_version(&self)->VersionStrings{
+        let (_,version)=self.item_info.package_and_version();
+        VersionStrings::new(version)
     }
+
 
     /// Gets in which line the type was defined.
     pub fn line(&self)->u32{

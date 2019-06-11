@@ -22,7 +22,7 @@ pub struct TypeInfo {
     #[doc(hidden)]
     pub _uid: ReturnValueEquality<MaybeCmp<UTypeId>>,
     pub name: StaticStr,
-    pub file: StaticStr,
+    pub module: StaticStr,
     pub package: StaticStr,
     pub package_version: VersionStrings,
     #[doc(hidden)]
@@ -42,11 +42,11 @@ impl fmt::Display for TypeInfo {
             f,
             "type:{}\n\
              size:{} alignment:{}\n\
-             path:'{}'\n\
+             module:'{}'\n\
              package:'{}'\n\
              package_version:{}\n\
              ",
-            self.name, self.size, self.alignment, self.file, self.package, self.package_version
+            self.name, self.size, self.alignment, self.module, self.package, self.package_version
         )
     }
 }
