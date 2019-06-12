@@ -11,7 +11,8 @@ use crate::{
     traits::IntoReprC,
 };
 
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(test)]
+// #[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
 
@@ -448,7 +449,7 @@ where
 
 /// Deserializes an `RCow<'a,[u8]>` that borrows the slice from the deserializer 
 /// whenever possible.
-pub fn deserialize_bytes<'de,'a,D>(deserializer: D) -> Result<RCow<'a, [u8]>, D::Error>
+pub fn deserialize_borrowed_bytes<'de,'a,D>(deserializer: D) -> Result<RCow<'a, [u8]>, D::Error>
 where
     D: Deserializer<'de>,
     'de:'a
@@ -468,6 +469,23 @@ where
         })
 }
 
+/// Deserializes an `RCow<'a,str>` that borrows the string from the deserializer 
+/// whenever possible.
+pub fn deserialize_borrowed_str<'de,'a,D>(deserializer: D) -> Result<RCow<'a, str>, D::Error>
+where
+    D: Deserializer<'de>,
+    'de:'a
+{
+    #[derive(Deserialize)]
+    struct BorrowingCowStr<'a>(
+        #[serde(borrow)]
+        Cow<'a,str>
+    );
+
+    <BorrowingCowStr<'de> as Deserialize<'de>>::deserialize(deserializer)
+        .map(|x| RCow::from(x.0) )
+}
+
 impl<'de, 'a,T> Deserialize<'de> for RCow<'a, [T]>
 where 
     T:Clone+Deserialize<'de>,
@@ -482,20 +500,14 @@ where
 }
 
 
-#[derive(Deserialize)]
-struct BorrowingCowStr<'a>(
-    #[serde(borrow)]
-    Cow<'a,str>
-);
 
-impl<'de> Deserialize<'de> for RCow<'de, str>{
+impl<'de,'a> Deserialize<'de> for RCow<'a, str>{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-
-        <BorrowingCowStr<'de> as Deserialize<'de>>::deserialize(deserializer)
-            .map(|x| RCow::from(x.0) )
+        <Cow<'a,str> as Deserialize<'de>>::deserialize(deserializer)
+            .map(RCow::from)
     }
 }
 
