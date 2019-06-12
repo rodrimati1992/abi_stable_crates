@@ -62,6 +62,29 @@ impl LibHeader {
         (self.init_globals_with.0)(globals);
     }
 
+
+    fn check_version<M>(&self)->Result<(),LibraryError>
+    where
+        M:RootModule
+    {
+        let expected_version = M::VERSION_STRINGS
+            .piped(VersionNumber::new)?;
+
+        let actual_version = self.version_strings().piped(VersionNumber::new)?;
+
+        if expected_version.major != actual_version.major || 
+            (expected_version.major==0) && expected_version.minor > actual_version.minor
+        {
+            return Err(LibraryError::IncompatibleVersionNumber {
+                library_name: M::NAME,
+                expected_version,
+                actual_version,
+            });
+        }
+        Ok(())
+    }
+
+
     /**
 Checks that the library is compatible,returning the root module on success.
 
@@ -84,15 +107,6 @@ calling the root module loader.
 
 This will return these errors:
 
-- LibraryError::OpenError:
-If the dynamic library itself could not be loaded.
-
-- LibraryError::GetSymbolError:
-If the root module was not exported.
-
-- LibraryError::InvalidAbiHeader:
-If the abi_stable version used by the library is not compatible.
-
 - LibraryError::ParseVersionError:
 If the version strings in the library can't be parsed as version numbers,
 this can only happen if the version strings are manually constructed.
@@ -110,31 +124,61 @@ If the layout of the root module is not the expected one.
     where
         M: RootModule
     {
-        {
-            let expected_version = M::VERSION_STRINGS
-                .piped(VersionNumber::new)?;
-
-            let actual_version = self.version_strings().piped(VersionNumber::new)?;
-
-            if expected_version.major != actual_version.major || 
-                (expected_version.major==0) && expected_version.minor > actual_version.minor
-            {
-                return Err(LibraryError::IncompatibleVersionNumber {
-                    library_name: M::NAME,
-                    expected_version,
-                    actual_version,
-                });
-            }
-        }
-
+        self.check_version::<M>()?;
         self.check_layout::<M>()
     }
 
-    /// Checks that the layout of the `T` from the dynamic library is 
-    /// compatible with the caller's .
-    pub fn check_layout<T>(&mut self) -> Result<&'static T, LibraryError>
+
+
+    /**
+Checks that the version number of the library is compatible,
+returning the root module on success.
+
+This function transmutes the root module type,
+without checking that the layout is compatible first.
+
+# Warning
+
+If this function is called within a dynamic library,
+it must be called at or after the function that exports its root module is called.
+
+**DO NOT** call this in the static initializer of a dynamic library,
+since this library relies on setting up its global state before
+calling the root module loader.
+
+# Safety
+
+The caller must ensure that `M` has the expected layout.
+
+# Errors
+
+This will return these errors:
+
+- LibraryError::ParseVersionError:
+If the version strings in the library can't be parsed as version numbers,
+this can only happen if the version strings are manually constructed.
+
+- LibraryError::IncompatibleVersionNumber:
+If the version number of the library is incompatible.
+
+    */
+    pub unsafe fn init_root_module_with_unchecked_layout<M>(
+        &mut self
+    )-> Result<&'static M, LibraryError>
     where
-        T: RootModule,
+        M: RootModule
+    {
+        self.check_version::<M>()?;
+        Ok(self.unchecked_layout())
+    }
+
+
+    /// Gets the root module,first 
+    /// checking that the layout of the `M` from the dynamic library is 
+    /// compatible with the expected layout.
+    pub fn check_layout<M>(&mut self) -> Result<&'static M, LibraryError>
+    where
+        M: RootModule,
     {
 
         // Using this instead of
@@ -147,16 +191,33 @@ If the layout of the root module is not the expected one.
         // This might also reduce the code in the library,
         // because it doesn't have to compile the layout checker for every library.
         (globals::initialized_globals().layout_checking)
-            (<&T>::S_ABI_INFO, self.root_mod_consts.abi_info())
+            (<&M>::S_ABI_INFO, self.root_mod_consts.abi_info())
             .into_result()
             .map_err(LibraryError::AbiInstability)?;
         
         atomic::compiler_fence(atomic::Ordering::SeqCst);
         
         let ret=unsafe{ 
-            transmute_reference::<ErasedObject,T>(self.module.get())
+            transmute_reference::<ErasedObject,M>(self.module.get())
         };
         Ok(ret)
+    }
+
+
+/**
+Gets the root module without checking that the layout of `M` is the expected one.
+This is effectively a transmute.
+
+This is useful if a user keeps a cache of which dynamic libraries 
+have been checked for layout compatibility.
+
+# Safety
+
+The caller must ensure that `M` has the expected layout.
+
+*/
+    pub unsafe fn unchecked_layout<M>(&mut self)->&'static M{
+        transmute_reference::<ErasedObject,M>(self.module.get())
     }
 }
 
