@@ -880,14 +880,6 @@ pub(crate) extern fn check_layout_compatibility_for_ffi(
 /**
 Checks that the layout of `interface` is compatible with `implementation`,
 
-# Warning
-
-This function is not symmetric,
-the first parameter must be the expected layout,
-and the second must be actual layout.
-
-# Safety 
-
 If this function is called within a dynamic library,
 it must be called at or after the function that exports its root module is called.
 
@@ -895,8 +887,15 @@ it must be called at or after the function that exports its root module is calle
 since this library relies on setting up its global state before
 calling the root module loader.
 
+# Warning
+
+This function is not symmetric,
+the first parameter must be the expected layout,
+and the second must be actual layout.
+
+
 */
-pub unsafe extern fn exported_check_layout_compatibility(
+pub extern fn exported_check_layout_compatibility(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
 ) -> RResult<(), RBoxError> {

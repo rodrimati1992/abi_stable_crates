@@ -159,6 +159,9 @@ This is the default.
 `#[sabi(missing_field(with="somefunction"))]`<br>
 Returns `somefunction()` if the field doesn't exist.
 
+`#[sabi(missing_field(value="some_expression"))]`<br>
+Returns `some_expression` if the field doesn't exist.
+
 `#[sabi(missing_field(default))]`<br>
 Returns `Default::default()` if the field doesn't exist.
 
