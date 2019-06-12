@@ -109,8 +109,15 @@ fn into_owned(){
 #[derive(Deserialize)]
 #[serde(transparent)]
 pub struct BorrowingRCowU8<'a>{
-    #[serde(borrow,deserialize_with="deserialize_bytes")]
+    #[serde(borrow,deserialize_with="deserialize_borrowed_bytes")]
     cow:RCow<'a,[u8]>
+}
+
+#[derive(Deserialize)]
+#[serde(transparent)]
+pub struct BorrowingRCowStr<'a>{
+    #[serde(borrow,deserialize_with="deserialize_borrowed_str")]
+    cow:RCow<'a,str>
 }
 
 
@@ -122,10 +129,10 @@ fn deserialize(){
         let json=r##" "what the hell" "##;
         let str_borr="what the hell".into_(RStr::T);
 
-        let what:RCow<'_,str>=serde_json::from_str(json).unwrap();
+        let what:BorrowingRCowStr<'_>=serde_json::from_str(json).unwrap();
 
         assert_eq!(
-            what.as_borrowed(),
+            what.cow.as_borrowed(),
             Some(str_borr),
         );
     }
