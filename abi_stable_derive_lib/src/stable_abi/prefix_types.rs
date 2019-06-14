@@ -110,7 +110,10 @@ impl<'a> AccessorOrMaybe<'a>{
         pkf:PrefixKindField<'a>,
         default_omf:OnMissingField<'a>,
     )->Self{
-        if field_i.pos < first_suffix_field.field_pos && pkf.accessible_if.is_none() {
+        if field_i.pos < first_suffix_field.field_pos && 
+            pkf.accessible_if.is_none() &&
+            pkf.on_missing!=Some(OnMissingField::ReturnOption)
+        {
             AccessorOrMaybe::Accessor
         }else{
             AccessorOrMaybe::Maybe(MaybeAccessor{

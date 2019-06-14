@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    error::Error as ErrorTrait,
     panic::{catch_unwind, AssertUnwindSafe},
 };
 

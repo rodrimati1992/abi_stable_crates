@@ -1,0 +1,33 @@
+{
+    "plugins":[
+        {
+            "name":"example_1_plugin_text_munging",
+            "instances":2,
+            "rename":"text_munging"
+        },
+        {
+            "name":"example_1_plugin_utils",
+            "rename":"utils"
+        }
+    ],
+    "_hidden":[
+    ],
+    "commands":{
+        "text_munging:first":{"Rot13":"what"},
+        "text_munging:last":"GetCommands",
+        "text_munging:all":{"CapitalizeWords":{
+            "text":"This is an example text.",
+            "words":["an","text"]
+        }},
+        "utils":{"Batch":{
+            "plugin":"text_munging:first",
+            "commands":[
+                {"Rot13":"Fancr xvyyf Qhzoyrqber"},
+                {"CapitalizeWords":{
+                    "text":"Oh,that's not something I expected.",
+                    "words":["not","expected"]
+                }}
+            ]
+        }}
+    }
+}
