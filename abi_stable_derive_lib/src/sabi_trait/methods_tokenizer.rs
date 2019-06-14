@@ -2,6 +2,10 @@ use super::*;
 
 use crate::to_token_fn::ToTokenFnMut;
 
+use core_extensions::matches;
+
+use syn::token::Semi;
+
 #[derive(Debug,Copy,Clone)]
 pub struct MethodsTokenizer<'a>{
     pub(crate) trait_def:&'a TraitDefinition<'a>,
@@ -22,7 +26,7 @@ impl<'a> ToTokens for MethodsTokenizer<'a> {
         for method in &self.trait_def.methods {
             MethodTokenizer{
                 trait_def:self.trait_def,
-                method:method,
+                method,
                 which_item:self.which_item,
             }.to_tokens(ts);
         }
@@ -39,13 +43,15 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             WhichItem::Trait
             |WhichItem::TraitImpl
             |WhichItem::TraitMethodsImpl
-            |WhichItem::TraitMethodsDecl=>
-                (true,None),
+            |WhichItem::TraitMethodsDecl
+            |WhichItem::DefaultMethodRust
+            =>(true,None),
              WhichItem::VtableDecl
-            |WhichItem::VtableImpl=>
-                (false,Some(trait_def.vis)),
+            |WhichItem::VtableImpl
+            =>(false,Some(trait_def.vis)),
         };
         
+        let default_=method.default.as_ref();
 
         let lifetimes=Some(&method.lifetimes).filter(|l| !l.is_empty() );
 
@@ -59,6 +65,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             WhichItem::TraitMethodsImpl=>method.name_method,
             WhichItem::TraitMethodsDecl=>method.name_method,
             WhichItem::VtableDecl=>method.name,
+            WhichItem::DefaultMethodRust=>method.name,
             WhichItem::VtableImpl=>method.name,
         };
         let self_param=match (is_trait_method,&method.self_param) {
@@ -78,23 +85,29 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
 
         let param_names_a=method.params.iter()
             .map(move|param|ToTokenFnMut::new(move|ts|{
-                if which_item==WhichItem::Trait {
-                    param.pattern.to_tokens(ts);
-                }else{
-                    param.name.to_tokens(ts);
+                match which_item {
+                    WhichItem::Trait=>{
+                        param.pattern.to_tokens(ts);
+                    }
+                    WhichItem::DefaultMethodRust if method.default.is_some()=>{
+                        param.pattern.to_tokens(ts);
+                    }
+                    _=>{
+                        param.name.to_tokens(ts);
+                    }
                 }
             }));
         let param_ty     =method.params.iter().map(|param| &param.ty   );
         let param_names_c=param_names_a.clone();
+        let param_names_d=param_names_a.clone();
         let return_ty=&method.output;
         
         let self_is_sized_bound=Some(&ctokens.self_sized)
             .filter(|_| is_trait_method&&method.self_param==SelfParam::ByVal );
 
-        let abi=if which_item==WhichItem::VtableImpl {
-            Some(&ctokens.extern_c)
-        }else{
-            method.abi
+        let abi=match which_item {
+             WhichItem::VtableImpl=>Some(&ctokens.extern_c),
+            _=>method.abi,
         };
 
         let user_where_clause=method.where_clause.get_tokenizer(ctokens);
@@ -106,9 +119,11 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         };
 
         if WhichItem::VtableDecl==which_item {
+            let optional_field=method.default.as_ref().map(|_| &ctokens.missing_field_option );
             let derive_attrs=method.derive_attrs;
             quote!( 
                 #(#[#derive_attrs])*
+                #optional_field
                 #vis #used_name:
                     #(for< #(#lifetimes,)* >)*
                     extern "C" fn(
@@ -129,10 +144,18 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             )
         }.to_tokens(ts);
 
+        let ptr_constraint=match &method.self_param {
+            SelfParam::ByRef{is_mutable:false,..}=>
+                &ctokens.ptr_ref_bound,
+            SelfParam::ByRef{is_mutable:true,..}=>
+                &ctokens.ptr_mut_bound,
+            SelfParam::ByVal=>
+                &ctokens.ptr_val_bound,
+        };
 
         match (which_item,&method.self_param) {
             (WhichItem::Trait,_)=>{
-                method.default.to_tokens(ts);
+                method.default.as_ref().map(|x|x.block).to_tokens(ts);
                 method.semicolon.to_tokens(ts);
             }
             (WhichItem::TraitImpl,_)=>{
@@ -140,58 +163,93 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                     self.#name_method(#(#param_names_c,)*)
                 }).to_tokens(ts);
             }
-            (WhichItem::TraitMethodsDecl,SelfParam::ByRef{is_mutable:false,..})=>{
-                quote!(_ErasedPtr: __DerefTrait<Target=()>;).to_tokens(ts);
+            (WhichItem::DefaultMethodRust,_)=>{
+                ptr_constraint.to_tokens(ts);
+                match &method.default {
+                    Some(default_)=>default_.block.to_tokens(ts),
+                    None=>{
+                        quote!(
+                            { 
+                                __Methods::#name_method(self, #(#param_names_c,)*) 
+                            }
+                        ).to_tokens(ts);
+                    },
+                }
             }
-            (WhichItem::TraitMethodsDecl,SelfParam::ByRef{is_mutable:true,..})=>{
-                quote!(_ErasedPtr: __DerefMutTrait<Target=()>;).to_tokens(ts);
+            (WhichItem::TraitMethodsDecl,_)=>{
+                ptr_constraint.to_tokens(ts);
+                Semi::default().to_tokens(ts);
             }
-            (WhichItem::TraitMethodsDecl,SelfParam::ByVal)=>{
-                quote!(_ErasedPtr: __sabi_re::OwnedPointer<Target=()>;).to_tokens(ts);
-            }
-            (WhichItem::TraitMethodsImpl,SelfParam::ByRef{is_mutable:false,..})=>{
-                quote!(
-                        _ErasedPtr: __DerefTrait<Target=()>
-                    {
-                        let __method=self.sabi_et_vtable().#method_name();
-                        __method(self.sabi_erased_ref(),#(#param_names_c,)*)
+            (WhichItem::TraitMethodsImpl,_)=>{
+                let method_call=match &method.self_param {
+                    SelfParam::ByRef{is_mutable:false,..}=>{
+                        quote!( 
+                            __method(self.sabi_erased_ref(),#(#param_names_c,)*) 
+                        )
                     }
-                ).to_tokens(ts);
-            }
-            (WhichItem::TraitMethodsImpl,SelfParam::ByRef{is_mutable:true,..})=>{
-                quote!(
-                        _ErasedPtr: __DerefMutTrait<Target=()>
-                    {
-                        let __method=self.sabi_et_vtable().#method_name();
-                        __method(self.sabi_erased_mut(),#(#param_names_c,)*)
+                    SelfParam::ByRef{is_mutable:true,..}=>{
+                        quote!( 
+                            __method(self.sabi_erased_mut(),#(#param_names_c,)*) 
+                        )
                     }
-                ).to_tokens(ts);
-            }
-            (WhichItem::TraitMethodsImpl,SelfParam::ByVal)=>{
-                quote!(
-                        _ErasedPtr: __sabi_re::OwnedPointer<Target=()>
-                    {
-                        let __method=self.sabi_et_vtable().#method_name();
-                        self.sabi_with_value(move|_self|__method(_self,#(#param_names_c,)*))
+                    SelfParam::ByVal=>{
+                        quote!(
+                            self.sabi_with_value(move|_self|__method(_self,#(#param_names_c,)*))
+                        )
                     }
-                ).to_tokens(ts);
+                };
+
+                match default_ {
+                    Some(_)=>{
+                        quote!(
+                                #ptr_constraint
+                            {
+                                match self.sabi_et_vtable().#method_name() {
+                                    Some(__method)=>{
+                                        #method_call
+                                    }
+                                    None=>{
+                                        sabi_default_trait::__DefaultTrait::#method_name(
+                                            self,
+                                            #(#param_names_d,)*
+                                        )
+                                    }
+                                }
+                            }
+                        ).to_tokens(ts);
+                    }
+                    None=>{
+                        quote!(
+                                #ptr_constraint
+                            {
+                                let __method=self.sabi_et_vtable().#method_name();
+                                #method_call
+                            }
+                        ).to_tokens(ts);
+                    }
+                }
             }
             (WhichItem::VtableDecl,_)=>{
                 quote!(,).to_tokens(ts);
+            
             }
             (WhichItem::VtableImpl,SelfParam::ByRef{is_mutable:false,..})=>{
+                // This unsafe block is only necessary for `unsafe` methods.
                 quote!({unsafe{
                     __sabi_re::sabi_from_ref(
                         _self,
-                        move|_self| __Trait::#method_name(_self,#(#param_names_c,)*)
+                        move|_self| 
+                            __Trait::#method_name(_self,#(#param_names_c,)*)
                     )
                 }}).to_tokens(ts);
             }
             (WhichItem::VtableImpl,SelfParam::ByRef{is_mutable:true,..})=>{
+                // This unsafe block is only necessary for `unsafe` methods.
                 quote!({unsafe{
                     __sabi_re::sabi_from_mut(
                         _self,
-                        move|_self| __Trait::#method_name(_self,#(#param_names_c,)*)
+                        move|_self| 
+                            __Trait::#method_name(_self,#(#param_names_c,)*)
                     )
                 }}).to_tokens(ts);
             }
@@ -199,7 +257,9 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 // This unsafe block is only necessary for `unsafe` methods.
                 quote!({unsafe{
                     ::abi_stable::extern_fn_panic_handling!{no_early_return;
-                        __Trait::#method_name(_self.into_inner(),#(#param_names_c,)*)
+                        __Trait::#method_name(
+                            _self.into_inner(),#(#param_names_c,)*
+                        )
                     }
                 }}).to_tokens(ts);
             }
