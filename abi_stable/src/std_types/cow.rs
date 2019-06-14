@@ -11,8 +11,8 @@ use crate::{
     traits::IntoReprC,
 };
 
-#[cfg(test)]
-// #[cfg(all(test,not(feature="only_new_tests")))]
+// #[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
 
@@ -537,6 +537,26 @@ where
         (&**self).serialize(serializer)
     }
 }
+
+
+/// A helper type,to deserialize a RCow<'a,[u8]> which borrows from the deserializer.
+#[derive(Deserialize)]
+#[serde(transparent)]
+pub struct BorrowingRCowU8Slice<'a>{
+    #[serde(borrow,deserialize_with="deserialize_borrowed_bytes")]
+    pub cow:RCow<'a,[u8]>
+}
+
+/// A helper type,to deserialize a RCow<'a,str> which borrows from the deserializer.
+#[derive(Deserialize)]
+#[serde(transparent)]
+pub struct BorrowingRCowStr<'a>{
+    #[serde(borrow,deserialize_with="deserialize_borrowed_str")]
+    pub cow:RCow<'a,str>
+}
+
+
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 

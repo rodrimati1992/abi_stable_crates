@@ -211,7 +211,8 @@ shared_impls! {
 
 ////////////////////////////////////////////////////
 
-#[cfg(test)]
+//#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod test {
     use super::*;
 

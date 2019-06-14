@@ -44,7 +44,8 @@ where
 }
 
 
-#[cfg(test)]
+//#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tets{
     use super::*;
     #[test]

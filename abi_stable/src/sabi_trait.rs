@@ -47,9 +47,13 @@ pub mod prelude{
 }
 
 pub mod for_generated_code;
+#[cfg(any(test,feature="sabi_trait_examples"))]
 pub mod examples;
 pub mod robject;
 pub mod vtable;
+
+#[cfg(test)]
+pub mod tests;
 
 use std::{
     fmt::Debug,

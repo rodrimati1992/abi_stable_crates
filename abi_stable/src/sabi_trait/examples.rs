@@ -258,6 +258,8 @@ let _=RSomethingElse_from_value::<_,TU_Opaque,_>(ptr);
 
 
 */
+pub struct Dummy0;
+
 #[sabi_trait]
 //#[sabi(debug_print_trait)]
 pub trait RSomethingElse<T:Copy>:Send+Debug{
@@ -274,6 +276,8 @@ pub trait RSomethingElse<T:Copy>:Send+Debug{
         value
     }
 }
+
+
 
 impl RSomethingElse<u32> for u32{
     fn get(&self)->&u32{
@@ -376,6 +380,7 @@ pub trait Dictionary{
 
 
 #[cfg(test)]
+//#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests{
     use super::*;
 

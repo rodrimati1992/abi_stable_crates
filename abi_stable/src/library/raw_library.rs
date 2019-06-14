@@ -11,7 +11,7 @@ pub struct RawLibrary {
 
 impl RawLibrary {
     /// Gets the full path a library would be loaded from,
-    pub(super) fn path_in_directory(
+    pub fn path_in_directory(
         directory: &Path,
         base_name: &str,
         suffix:LibrarySuffix,

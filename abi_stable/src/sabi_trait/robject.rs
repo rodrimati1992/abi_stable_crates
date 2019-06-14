@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    *,
+    vtable::InterfaceBound,
+};
     
 use std::{
     fmt,
@@ -8,6 +11,7 @@ use std::{
 use core_extensions::SelfOps;
 
 use crate::{
+    abi_stability::SharedStableAbi,
     erased_types::c_functions::adapt_std_fmt,
     sabi_types::MaybeCmp,
     std_types::{RBox,UTypeId},
@@ -21,6 +25,12 @@ use crate::{
 
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(
+    unconstrained(V),
+    bound="V:SharedStableAbi",
+    bound="I:InterfaceBound",
+    tag="<I as InterfaceBound>::TAG",
+)]
 pub struct RObject<'lt,P,I,V>{
     vtable:StaticRef<V>,
     is_reborrowed:bool,
