@@ -5,6 +5,7 @@ use crate::{
     my_visibility::{MyVisibility,RelativeVis},
     gen_params_in::{GenParamsIn,InWhat},
     utils::NoTokens,
+    workaround::token_stream_to_string,
 };
 
 use std::{
@@ -125,12 +126,10 @@ pub fn derive_sabi_trait(mut item: ItemTrait) -> TokenStream2 {
     ).observe(|tokens|{
         // drop(_measure_time1);
         if config.debug_print_trait {
-            panic!("\n\n\n{}\n\n\n",tokens );
+            panic!("\n\n\n{}\n\n\n",token_stream_to_string(tokens.clone()));
         }
     })
 }
-
-
 
 fn first_items<'a>(
     TokenizerParams{
@@ -348,6 +347,7 @@ fn trait_and_impl<'a>(
         }
     ).to_tokens(mod_);
 
+
     let gen_params_header=
         trait_def.generics_tokenizer(
             InWhat::ImplHeader,
@@ -387,9 +387,10 @@ fn trait_and_impl<'a>(
 
 
 fn methods_trait_and_impl<'a>(
-    TokenizerParams{ctokens,trait_def,submod_vis,alttrait_def,..}:TokenizerParams,
+    param:TokenizerParams,
     mod_:&mut TokenStream2,
 ){
+    let TokenizerParams{ctokens,trait_def,submod_vis,alttrait_def,..}=param;
     let other_attrs=trait_def.other_attrs;
 
     let where_preds=&alttrait_def.where_preds;
@@ -421,7 +422,6 @@ fn methods_trait_and_impl<'a>(
         #submod_vis trait __Methods<#gen_params_traitmethod>: 
             #( #super_traits_a + )* #( #lifetime_bounds+ )*
         where 
-            #impl_where_preds
             #(#where_preds,)*
         {
             #( #assoc_ty_defs )*
@@ -459,13 +459,62 @@ fn methods_trait_and_impl<'a>(
         for __TraitObject<#gen_params_use_to>
         where 
             Self:#( #super_traits_b + )* #( #lifetime_bounds+ )* Sized ,
-            #(#where_preds,)*
+            #impl_where_preds
         {
             #( type #assoc_ty_named_a=#assoc_ty_named_b; )*
 
             #methods_tokenizer_def
         }
     ).to_tokens(mod_);
+    
+    // __DefaultTrait
+    if alttrait_def.methods.iter().any(|m|m.default.is_some()) {
+        let trait_def=param.trait_def;
+
+        let gen_params_trait=
+            trait_def.generics_tokenizer(
+                InWhat::ItemDecl,
+                WithAssocTys::No,
+                &ctokens.ts_erasedptr
+            );
+
+        let impl_header_generics=
+            trait_def.generics_tokenizer(
+                InWhat::ImplHeader,
+                WithAssocTys::No,
+                &ctokens.ts_self_erasedptr
+            );
+
+        let methods_tokenizer_default=
+            alttrait_def.methods_tokenizer(WhichItem::DefaultMethodRust);
+
+        quote!(
+            mod sabi_default_trait{
+                use super::super::*;
+                use super::__Methods;
+                use abi_stable::sabi_trait::reexports::{*,__sabi_re};
+
+                #submod_vis 
+                trait __DefaultTrait<#gen_params_trait>: __Methods<#gen_params_use_trait>
+                where 
+                    #(#where_preds,)*
+                {
+                    #methods_tokenizer_default
+                }
+
+
+                impl<#impl_header_generics> __DefaultTrait<#gen_params_use_trait> for _Self
+                where 
+                    _Self:__Methods<#gen_params_use_trait>+?Sized,
+                    #(#where_preds,)*
+                {}
+            }
+        ).to_tokens(mod_);
+
+
+
+    }
+
 }
 
 
@@ -622,6 +671,7 @@ fn vtable_impl<'a>(
                     .transmute_ref()
             };
 
+
             #methods_tokenizer
         }                    
     ).to_tokens(mod_);
@@ -659,6 +709,7 @@ pub(crate) enum WhichItem{
     TraitImpl,
     TraitMethodsDecl,
     TraitMethodsImpl,
+    DefaultMethodRust,
     VtableDecl,
     VtableImpl,
 }

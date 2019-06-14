@@ -6,7 +6,7 @@ An implementation detail of abi_stable.
 #![deny(unused_variables)]
 #![deny(unreachable_patterns)]
 #![deny(unused_doc_comments)]
-
+#![deny(unconditional_recursion)]
 
 extern crate core_extensions;
 
@@ -29,6 +29,7 @@ mod impl_interfacetype;
 mod parse_utils;
 mod my_visibility;
 mod gen_params_in;
+mod workaround;
 
 
 

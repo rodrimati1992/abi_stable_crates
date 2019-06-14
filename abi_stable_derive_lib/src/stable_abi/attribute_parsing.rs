@@ -217,7 +217,6 @@ struct StableAbiAttrs<'a> {
     tags:Option<syn::Expr>,
 
 
-    /// The last field of the prefix of a Prefix-type.
     first_suffix_field:FirstSuffixField,
     default_on_missing_fields:OnMissingField<'a>,
     prefix_kind_fields:FieldMap<PrefixKindField<'a>>,
@@ -563,6 +562,9 @@ Valid Attributes:
     `#[sabi(missing_field(with=\"somefunction\"))]`
     This returns `somefunction()` if the field doesn't exist.
     
+    `#[sabi(missing_field(value=\"some_expression\"))]`
+    This returns `(some_expression)` if the field doesn't exist.
+    
     `#[sabi(missing_field(default))]`
     This returns `Default::default` if the field doesn't exist.
 
@@ -574,13 +576,17 @@ Valid Attributes:
     match first_arg {
         Some(NestedMeta::Meta(Meta::NameValue(MetaNameValue{
             ident:ref nv_ident,
-            lit:Lit::Str(ref type_str),
+            lit:Lit::Str(ref str_),
             ..
         })))=>{
-            let function=type_str.parse::<syn::Path>().unwrap()
-                .piped(|i| arenas.alloc(i) );
             if nv_ident=="with" {
+                let function=str_.parse::<syn::Path>().unwrap()
+                    .piped(|i| arenas.alloc(i) );
                 OnMissingField::With{function}
+            }else if nv_ident=="value" {
+                let value=str_.parse::<syn::Expr>().unwrap()
+                    .piped(|i| arenas.alloc(i) );
+                OnMissingField::Value{value}
             }else{
                 panic!(
                     "Invalid attribute:{}\n{}",

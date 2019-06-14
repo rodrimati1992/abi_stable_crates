@@ -102,11 +102,13 @@ declare_common_tokens! {
             "_ErasedPtr: __DerefTrait<Target=()>+__sabi_re::OwnedPointer<Target=()>,",
         ptr_mut_val_bound=
             "_ErasedPtr: __DerefMutTrait<Target=()>+__sabi_re::OwnedPointer<Target=()>,",
+        ptr_val_bound=
+            "_ErasedPtr: __sabi_re::OwnedPointer<Target=()>,",
 
         empty_ts="",
 
         ts_self ="Self",
-        ts_uself="_Self",
+        ts_uself="_Self,",
 
         ts_self_colon2 ="Self::",
         ts_uself_colon2="_Self::",
@@ -125,6 +127,7 @@ declare_common_tokens! {
         ts_unit_erasedptr="(),_ErasedPtr,",
 
         ts_getvtable_params="IA,_Self,_ErasedPtr,_OrigPtr,",
+        missing_field_option="#[sabi(missing_field(option))]",
     ]
 
     types[
@@ -133,6 +136,8 @@ declare_common_tokens! {
     ]
 
     idents[
+        default_trait="__DefaultTrait",
+        the_trait="__Trait",
         u_erased_ptr="_ErasedPtr",
         nope_ident="__NOPE__",
         self_ident="self",

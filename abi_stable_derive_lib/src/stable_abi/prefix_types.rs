@@ -88,6 +88,10 @@ pub(crate) enum OnMissingField<'a>{
     With{
         function:&'a syn::Path,
     },
+    /// Returns `some_expression`.
+    Value{
+        value:&'a syn::Expr,
+    },
     /// Returns Default::default
     Default_,
 }
@@ -140,7 +144,7 @@ impl<'a> PrefixKind<'a>{
                 match on_missing {
                     OMF::ReturnOption=>
                         FieldAccessor::MethodOption,
-                    OMF::Panic{..}|OMF::With{..}|OMF::Default_=>
+                    OMF::Panic{..}|OMF::With{..}|OMF::Value{..}|OMF::Default_=>
                         FieldAccessor::Method{name:None},
                 },
         }
@@ -297,6 +301,11 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                                 "Returns `{function}()` if the field does not exist.",
                                 function=(&function).into_token_stream().to_string()
                             ).drop_(),
+                        AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Value{..},..})=>
+                            acc_doc_buffer.push_str("\
+                                Returns a default value (not Default::default()) \
+                                if the field does not exist.\
+                            "),
                         AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Default_,..})=>
                             acc_doc_buffer.push_str(
                                 "Returns `Default::default()` if the field does not exist."
@@ -372,6 +381,9 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                             ),
                             OnMissingField::With{function}=>quote!{
                                 #function()
+                            },
+                            OnMissingField::Value{value}=>quote!{
+                                (#value)
                             },
                             OnMissingField::Default_=>quote!{
                                 Default::default()

@@ -255,7 +255,10 @@ impl<'a> TraitDefinition<'a>{
         // `is_alt_trait==true` means that the returned trait is `trait __Methods`,
         // which changes the names of associated types.
         let (is_alt_trait,replace_with)=match which_item {
-            WhichItem::Trait|WhichItem::TraitImpl=>return this,
+            WhichItem::Trait
+            |WhichItem::TraitImpl
+            |WhichItem::DefaultMethodRust
+            =>return this,
             WhichItem::TraitMethodsDecl|WhichItem::TraitMethodsImpl=>{
                 (true ,ReplaceWith::Ident(ctokens.capself.clone()))
             },
@@ -344,6 +347,7 @@ impl<'a> TraitDefinition<'a>{
         }
     }
 
+    /// Returns the where predicates of `impl __Method for Trait_TO`.
     pub fn trait_impl_where_preds(&self)->Punctuated<WherePredicate,Comma>{
         let mut where_preds=self.where_preds.clone();
         for where_pred in &mut where_preds {
@@ -383,9 +387,15 @@ pub(crate) struct TraitMethod<'a>{
     pub(crate) params: Vec<MethodParam<'a>>,
     pub(crate) output: Option<syn::Type>,
     pub(crate) where_clause:MethodWhereClause<'a>,
-    pub(crate) default:Option<&'a Block>,
+    pub(crate) default:Option<DefaultMethod<'a>>,
     pub(crate) semicolon:Option<&'a Semi>,
     pub(crate) ctokens:&'a CommonTokens,
+}
+
+
+#[derive(Debug,Clone)]
+pub(crate) struct DefaultMethod<'a>{
+    pub(crate) block:&'a Block,
 }
 
 
@@ -406,6 +416,7 @@ impl<'a> TraitMethod<'a>{
     )->Option<Self> {
         let method_signature=&mwa.item.sig;
         let decl=&method_signature.decl;
+        let name=&method_signature.ident;
 
         let panic_msg=||{
             panic!("\n\n\
@@ -435,9 +446,12 @@ impl<'a> TraitMethod<'a>{
                 panic_msg(),
         };
 
+        let parse_alloc_ident=move|s:&str|->&'a syn::Ident{
+            arena.alloc(parse_str_as_ident(s))
+        };
+
         let name_method=format!("{}_",method_signature.ident).as_str()
-            .piped(parse_str_as_ident)
-            .piped(|x| arena.alloc(x) );
+            .piped(parse_alloc_ident);
 
         let mut lifetimes:Vec<&'a syn::LifetimeDef>=decl.generics.lifetimes().collect();
 
@@ -455,6 +469,8 @@ impl<'a> TraitMethod<'a>{
             },
         };
 
+        let default=mwa.item.default.as_ref().map(|block| DefaultMethod{block} );
+
         Some(Self{
             item:&mwa.item,
             unsafety:method_signature.unsafety.as_ref(),
@@ -462,7 +478,7 @@ impl<'a> TraitMethod<'a>{
             vis,
             derive_attrs:arena.alloc(mwa.attrs.derive_attrs),
             other_attrs:arena.alloc(mwa.attrs.other_attrs),
-            name:&method_signature.ident,
+            name,
             name_method,
             lifetimes,
             self_param,
@@ -492,7 +508,7 @@ impl<'a> TraitMethod<'a>{
             where_clause:decl.generics.where_clause.as_ref()
                 .map(|wc| MethodWhereClause::new(wc,ctokens) )
                 .unwrap_or_default(),
-            default:mwa.item.default.as_ref(),
+            default,
             semicolon:mwa.item.semi_token.as_ref(),
             ctokens,
         })
