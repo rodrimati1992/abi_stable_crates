@@ -22,20 +22,33 @@ By default these are the supertraits that `#[sabi_trait]` traits can have:
 To be able to have more supertraits you must use the `#[sabi(use_dyntrait)]` attribute,
 which will allow the supertraits that `DynTrait` can implement.
 
+### Supertrait Extensibility
+
+The properties described bellow are checked when abi_stable loads a dynamic library
+(in both the RootModule trait and LibHeader).
+
+Traits can add non-marker supertraits in minor versions without breaking ABI compatibility,
+with the (non-ABI related) caveats described in the extensibility section.
+
+Traits cannot add marker supertraits in minor versions ABI compatibly,
+because that would cause problems with thread/memory safety if allowed.
+If it were allowed,`!Send` trait objects could be passed from a binary to 
+a dynamic library(where the trait object type is `Send`),
+and that would be Undefined Behavior in many situations.
+
 # Extensibility
 
 `#[sabi_trait]` trait objects are (ABI-wise) safe to extend in minor versions,
-so long as methods are always added at the end.
+so long as methods are always added at the end,preferably as default methods.
 
 A library will not load (through safe means) if methods are added anywhere but the end.
-One can still load the library if they use unsafe code to skip the type checking 
-that abi_stable does at load-time.
-
 
 Accidentally calling newer methods on trait objects from older versions of a
-library will cause a panic at runtime.
-This is only possible if one loads multiple versions of a library,
-where the trait is extended in each version,
+library will cause a panic at runtime,unless it has a default implementation
+(within the trait definition that `#[sabi_trait]` can see).
+
+Panics can only happen if one loads multiple versions of a library,
+where the trait is extended in each version(without using default methods),
 and passes trait objects among those libraries.
 
 # Generated items.

@@ -20,6 +20,8 @@ These are some usecases for this library:
 
 Currently this library has these features:
 
+- Features the `#[sabi_trait]` attribute,for creating ffi-safe trait objects.
+
 - ffi-safe equivalent of trait objects for any combination of a selection of traits.
 
 - Provides ffi-safe alternatives/wrappers for many standard library types,
@@ -49,6 +51,16 @@ crates in the examples directory ,in the repository for this crate.
 To run the examples generally you'll have to build the `*_impl` crate,
 then run the `*_user` crate (all `*_user` crates should have a help message).
 
+These are the example crates:
+
+- 0 - modules and interface types:
+    Demonstrates abi_stable "modules"(structs of function pointers),
+    and interface types through a command line application with a dynamically linked backend.
+
+- 1 - trait objects:
+    Demonstrates ffi-safe trait objects (Generated using `#[sabi_trait]`)
+    by creating a minimal plugin system.
+
 # Example
 
 This is a full example,demonstrating:
@@ -66,14 +78,19 @@ with comments for how to turn them into 3 separate crates.
 
 ```rust
 
+
 /////////////////////////////////////////////////////////////////////////////////
 //
 //                        Application (user crate) 
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+use abi_stable::std_types::RVec;
 
-use interface_crate::{ExampleLib,BoxedInterface,load_root_module_in_directory};
+use interface_crate::{
+    AppenderType,Appender_Methods,Appender,
+    ExampleLib,BoxedInterface,load_root_module_in_directory,
+};
 
 fn main(){
     // The type annotation is for the reader
@@ -81,17 +98,43 @@ fn main(){
         load_root_module_in_directory("./target/debug".as_ref())
             .unwrap_or_else(|e| panic!("{}",e) );
 
-    // The type annotation is for the reader
-    let mut unwrapped:BoxedInterface=
-        library.new_boxed_interface()();
+    {// Trait object
 
-    library.append_string()(&mut unwrapped,"Hello".into());
-    library.append_string()(&mut unwrapped,", world!".into());
+        // The type annotation is for the reader
+        let mut appender:AppenderType<u32>=library.new_appender()();
+        appender.push_(100);
+        appender.push_(200);
 
-    assert_eq!(
-        &*unwrapped.to_string(),
-        "Hello, world!",
-    );
+        // `TraitName_Methods` is the primary way to call methods on ffi-safe trait objects,
+        // since `Trait` requires that the trait object implements the pointer traits for
+        // the maximum mutability required by its methods.
+        //
+        // TraitName_Methods only require that those pointer traits are 
+        // implemented on a per-method basis.
+        //
+        // Each method in TraitName_Methods appends '_' to 
+        // the name of each method(relative to Trait).
+        Appender_Methods::push_(&mut appender,300);
+        appender.append_(vec![500,600].into());
+        assert_eq!(
+            appender.into_rvec_(),
+            RVec::from(vec![100,200,300,500,600]) 
+        );
+    }
+    {// Erased type (using DynTrait)
+
+        // The type annotation is for the reader
+        let mut unwrapped:BoxedInterface=
+            library.new_boxed_interface()();
+
+        library.append_string()(&mut unwrapped,"Hello".into());
+        library.append_string()(&mut unwrapped,", world!".into());
+
+        assert_eq!(
+            &*unwrapped.to_string(),
+            "Hello, world!",
+        );
+    }
 
     println!("success");
 }
@@ -111,13 +154,13 @@ use abi_stable::{
     InterfaceType,
     StableAbi,
     DynTrait,
+    sabi_trait,
     impl_InterfaceType,
-    late_static_ref::LateStaticRef,
     library::{LibraryError,RootModule},
     package_version_strings,
-    std_types::{RBox,RString},
+    std_types::{RBox,RString,RVec},
     type_level::bools::*,
-    version::VersionStrings,
+    sabi_types::VersionStrings,
 };
 
 
@@ -127,6 +170,8 @@ use abi_stable::{
 #[sabi(kind(Prefix(prefix_struct="ExampleLib")))]
 #[sabi(missing_field(panic))]
 pub struct ExampleLibVal {
+    pub new_appender:extern "C" fn()->AppenderType<u32>,
+
     pub new_boxed_interface: extern "C" fn()->BoxedInterface<'static>,
     
     #[sabi(last_prefix_field)]
@@ -143,6 +188,20 @@ impl RootModule for ExampleLib {
     const NAME: &'static str = "example_library";
     const VERSION_STRINGS: VersionStrings = package_version_strings!();
 }
+
+
+#[sabi_trait]
+pub trait Appender{
+    type Element;
+    fn push(&mut self,value:Self::Element);
+    fn append(&mut self,vec:RVec<Self::Element>);
+    fn into_rvec(self)->RVec<Self::Element>;
+}
+
+/// A type alias for the Appender trait object.
+pub type AppenderType<T>=Appender_TO<'static,RBox<()>,T>;
+
+
 
 /*
 
@@ -264,6 +323,9 @@ use std::fmt::{self,Display};
 use super::{interface_crate};
 
 use interface_crate::{
+    Appender,
+    AppenderType,
+    Appender_from_value,
     BoxedInterface,
     ExampleLib,
     ExampleLibVal,
@@ -278,7 +340,8 @@ use abi_stable::{
     extern_fn_panic_handling,
     impl_get_type_info,
     prefix_type::PrefixTypeTrait,
-    std_types::RString,
+    sabi_trait::prelude::TU_Opaque,
+    std_types::{RString,RVec},
 };
 
 
@@ -286,6 +349,7 @@ use abi_stable::{
 #[export_root_module]
 pub extern "C" fn get_library() -> &'static ExampleLib {
     ExampleLibVal{
+        new_appender,
         new_boxed_interface,
         append_string,
     }.leak_into_prefix()
@@ -323,6 +387,11 @@ impl StringBuilder{
 }
 
 
+pub extern "C" fn new_appender()->AppenderType<u32>{
+    Appender_from_value::<_,TU_Opaque>(RVec::new())
+}
+
+
 /// Constructs a BoxedInterface.
 extern fn new_boxed_interface()->BoxedInterface<'static>{
     extern_fn_panic_handling!{
@@ -343,7 +412,26 @@ extern fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
             .append_string(string);
     }
 }
+
+
+impl<T> Appender for RVec<T>{
+    type Element=T;
+    fn push(&mut self,value:Self::Element){
+        self.push(value);
+    }
+    fn append(&mut self,vec:RVec<Self::Element>){
+        self.extend(vec);
+    }
+    fn into_rvec(self)->RVec<Self::Element>{
+        self
+    }
 }
+
+
+
+}
+
+
 
 
 
@@ -382,7 +470,8 @@ might get unloaded at any time.
 # Architecture
 
 
-Users of this library are expected to follow this architecture:
+This is a way that users can structure their libraries to allow for dynamic linking
+(:
 
 ### Interface crate
 
@@ -396,6 +485,10 @@ A crate which declares:
 
 - All the public types passed to and returned by the functions.
 
+- Optionally:
+    declare the ffi-safe traits with `#[sabi_trait]`,
+    used as trait objects in the public interface.
+
 - Optionally:declares ìnterface types,types which implement InterfaceType,
     used to specify the traits usable in the DynTrait ffi-safe trait object .
 
@@ -408,6 +501,10 @@ The crate compiled as a dynamic library that:
 
 - Declares a function to export the root module,
     using the `export_root_module` attribute to export the module.
+
+- Optionally:
+    Implement traits that were annotated with `#[sabi_trait]`,
+    constructing their trait objects exposed in the public API.
 
 - Optionally:create types which implement `ImplType<Iterface= Interface >`,
     where `Interface` is some interface type from the interface crate,

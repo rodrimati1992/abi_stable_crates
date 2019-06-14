@@ -19,6 +19,8 @@ These are some usecases for this library:
 
 Currently this library has these features:
 
+- Features the `#[sabi_trait]` attribute,for creating ffi-safe trait objects.
+
 - ffi-safe equivalent of trait objects for any combination of a selection of traits.
 
 - Provides ffi-safe alternatives/wrappers for many standard library types,
@@ -34,7 +36,7 @@ Currently this library has these features:
     allowing for semver compatible changes while checking the layout of types.
 
 - Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
-    and to get the layout of the type at runtime to check that it is still compatible.
+    and to get the layout of the type at load-time to check that it is still compatible.
 
 # Examples
 
@@ -76,6 +78,12 @@ These are the kinds of types passed through FFI:
     and can only be unwrapped back to the original type in the dynamic library/binary 
     that created it.
 
+- [Trait objects](./docs/sabi_trait_attribute/index.html):
+    Trait object-like types generated using `#[sabi_trait]`,
+    which erase the type of the value they wrap,implements the methods of the trait,
+    and can be unwrapped back to the original type in the dynamic library/binary 
+    that created it (if it was constructed to be unerasable and implements Any).
+
 - [Prefix kind](./docs/prefix_types/index.html):
     Types only accessible through shared references,
     most commonly vtables and modules,
@@ -93,11 +101,14 @@ To represent non-exhaustive enums without fields it is recommended using structs
 - [Unsafe code guidelines](./docs/unsafe_code_guidelines/index.html):<br>
     Describes how to write unsafe code ,relating to this library.
 
-# Macros
+# Macros (derive and attribute)
+
+- [sabi_trait attribute macro](./docs/sabi_trait_attribute/index.html):<br>
+    For generating ffi-safe trait objects.
 
 - [StableAbi derive macro](./docs/stable_abi_derive/index.html):<br>
     For asserting abi-stability of a type,
-    and obtaining the layout of the time at runtime.
+    and obtaining the layout of the type at runtime.
 
 - [Prefix-types (using the StableAbi derive macro)
   ](./docs/prefix_types/index.html):<br>

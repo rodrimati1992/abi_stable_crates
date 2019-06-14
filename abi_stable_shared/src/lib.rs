@@ -63,7 +63,7 @@ where S: ::std::fmt::Display
 }
 
 
-/// Gets the name of the function that loads the root module of a library.
+/// Gets the name of the static that contains the LibHeader of an abi_stable library.
 pub fn mangled_root_module_loader_name()->String{
     mangle_ident("lib_header","root module loader")
 }
