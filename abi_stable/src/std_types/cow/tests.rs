@@ -106,22 +106,6 @@ fn into_owned(){
 
 
 
-#[derive(Deserialize)]
-#[serde(transparent)]
-pub struct BorrowingRCowU8<'a>{
-    #[serde(borrow,deserialize_with="deserialize_borrowed_bytes")]
-    cow:RCow<'a,[u8]>
-}
-
-#[derive(Deserialize)]
-#[serde(transparent)]
-pub struct BorrowingRCowStr<'a>{
-    #[serde(borrow,deserialize_with="deserialize_borrowed_str")]
-    cow:RCow<'a,str>
-}
-
-
-
 #[test]
 fn deserialize(){
 
@@ -161,7 +145,7 @@ fn deserialize(){
         let list=[0u8,1,2,3];
         let serialized=bincode::serialize(&list[..]).unwrap();
         
-        let what:BorrowingRCowU8<'_>=bincode::deserialize(&serialized[..]).unwrap();
+        let what:BorrowingRCowU8Slice<'_>=bincode::deserialize(&serialized[..]).unwrap();
 
         assert_eq!(
             what.cow.as_borrowed(),

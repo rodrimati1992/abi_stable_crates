@@ -28,6 +28,7 @@ rust_1_34=[]
 
 # Test features,only used internally.
 only_new_tests=[]
+sabi_trait_examples=[]
 
 channels=["crossbeam-channel"]
 
