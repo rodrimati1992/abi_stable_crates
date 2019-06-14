@@ -256,7 +256,7 @@ impl AbiHeader{
     pub const VALUE:AbiHeader=AbiHeader{
         magic_string:*b"abi stable library for Rust     ",
         abi_major:0,
-        abi_minor:4,
+        abi_minor:5,
         _priv:(),
     };
 }
