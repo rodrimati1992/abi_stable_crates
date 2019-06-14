@@ -4,7 +4,6 @@ use crate::{
         abi_checking::{AbiInstability,check_layout_compatibility},
         AbiInfoWrapper,
     },
-    test_utils::must_panic,
 };
 
 
@@ -19,6 +18,7 @@ macro_rules! declare_int_repr {
 
             #[repr($repr)]
             #[derive(StableAbi)]
+            #[allow(dead_code)]
             pub enum What{
                 A $(=$discr_a)* ,
                 B $(=$discr_b)* ,
@@ -127,18 +127,13 @@ fn check_discriminant_repr_enums(){
     ];
 
     check_imcompatible_with_others(list,|errs|{
-        let mut repr_attr_errs=0;
-        let mut enum_discr_errs=0;
-
         let mut had_some_err=false;
         for err in errs {
             match err {
                 AbiInstability::ReprAttr{..}=>{
-                    repr_attr_errs+=1;
                     had_some_err=true;
                 }
                 AbiInstability::EnumDiscriminant{..}=>{
-                    enum_discr_errs+=1;
                     had_some_err=true;
                 }
                 _=>{}

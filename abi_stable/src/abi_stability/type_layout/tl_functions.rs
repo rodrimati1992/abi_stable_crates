@@ -1,7 +1,7 @@
 use super::*;
 
 use std::{
-    cmp::{PartialEq,Eq,Ord,PartialOrd,Ordering},
+    cmp::{PartialEq,Eq},
     ops::Range,
 };
 

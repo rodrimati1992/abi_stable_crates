@@ -1,10 +1,6 @@
-use std::{
-    mem,
-};
-
 use crate::{
     sabi_types::{CmpIgnored,VersionStrings},
-    std_types::{StaticSlice,StaticStr},
+    std_types::StaticStr,
 };
 
 

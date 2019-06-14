@@ -14,10 +14,6 @@ use syn::{
     BareFnArgName,
 };
 
-
-
-use proc_macro2::TokenStream;
-
 use quote::ToTokens;
 
 use core_extensions::prelude::*;
@@ -82,29 +78,6 @@ impl<'a> FnParamRet<'a>{
             param_or_ret:ParamOrReturn::Return,
         }
     }
-
-    pub fn lifetime_refs_tokenizer(&self,ctokens:&'a CommonTokens<'a>)->FnParamRetLtRefTokens<'_>{
-        FnParamRetLtRefTokens{
-            lifetime_refs:&self.lifetime_refs,
-            ctokens,
-        }
-    }
-}
-
-
-pub(crate) struct FnParamRetLtRefTokens<'a> {
-    lifetime_refs: &'a [LifetimeIndex],
-    ctokens:&'a CommonTokens<'a>,
-}
-
-
-impl<'a> ToTokens for FnParamRetLtRefTokens<'a> {
-    fn to_tokens(&self, ts: &mut TokenStream) {
-        for refs in self.lifetime_refs {
-            refs.tokenizer(self.ctokens).to_tokens(ts);
-            self.ctokens.comma.to_tokens(ts);
-        }
-    }
 }
 
 
@@ -117,6 +90,7 @@ pub(crate) struct VisitFieldRet<'a> {
 /////////////
 
 
+#[allow(dead_code)]
 impl<'a> TypeVisitor<'a> {
     #[inline(never)]
     pub fn new(arenas: &'a Arenas, ctokens: &'a CommonTokens<'a>, generics: &'a Generics) -> Self {

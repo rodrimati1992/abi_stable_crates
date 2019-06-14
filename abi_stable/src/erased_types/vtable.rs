@@ -21,7 +21,7 @@ use super::{
 
 use crate::{
     StableAbi,
-    abi_stability::{Tag,SharedStableAbi},
+    abi_stability::Tag,
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
     pointer_trait::GetPointerKind,
@@ -98,7 +98,6 @@ macro_rules! declare_meta_vtable {
             kind(Prefix(prefix_struct="VTable")),
             missing_field(panic),
             prefix_bound="I:InterfaceBound<'borr>",
-            // bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound<'static>",
             bound="<I as InterfaceBound<'borr>>::IteratorItem:StableAbi",
             $($(bound=$struct_bound,)*)*
         )]

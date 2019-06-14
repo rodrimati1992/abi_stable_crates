@@ -35,6 +35,7 @@ only using its associated items.
 }
 
 impl<'a> GenParamsIn<'a>{
+    #[allow(dead_code)]
     pub fn new(generics: &'a Generics,in_what: InWhat)->Self{
         Self{
             generics,

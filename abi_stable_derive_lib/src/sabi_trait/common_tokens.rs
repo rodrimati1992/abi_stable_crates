@@ -1,12 +1,5 @@
 use proc_macro2::{Span,TokenStream};
 
-
-
-use crate::{
-    *,
-    fn_pointer_extractor::FnParamRet,
-};
-
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 
 macro_rules! declare_common_tokens {

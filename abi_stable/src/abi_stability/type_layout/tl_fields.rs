@@ -2,7 +2,6 @@ use super::*;
 
 use std::{
     slice,
-    cmp::Ordering,
 };
 
 /// The layout of a field.
@@ -344,81 +343,4 @@ impl Iterator for TLFieldsIterator{
 
 
 impl std::iter::ExactSizeIterator for TLFieldsIterator{}
-
-
-///////////////////////////////////////////////////////////////////////////////
-
-
-#[derive(Copy,Clone,Debug)]
-pub struct SplitFieldBoundaries<'a,T>{
-    slice:&'a [WithFieldIndex<T>],
-    variant_lengths:&'a [u16],
-    index:FieldIndex,
-    remaining:usize,
-}
-
-
-impl<'a,T> SplitFieldBoundaries<'a,T>{
-    pub fn new(slice:&'a [WithFieldIndex<T>],variant_lengths:&'a [u16])->Self{
-        Self{
-            slice,
-            variant_lengths,
-            index:FieldIndex{
-                variant:0,
-                field_pos:0,
-            },
-            remaining:variant_lengths.iter().map(|&x| x as usize ).sum(),
-        }
-    }
-}
-impl<'a,T> Iterator for SplitFieldBoundaries<'a,T>{
-    type Item=&'a [WithFieldIndex<T>];
-
-    fn next(&mut self)->Option<Self::Item>{
-        if self.remaining==0 {
-            return None;
-        }
-
-        let ret:&'a [_]=if self.slice.is_empty() {
-            &[]
-        }else{
-            let next_field_ind=self.slice[0].index;
-
-            match self.index.cmp(&next_field_ind) {
-                Ordering::Less=>{
-                    &[]
-                }
-                Ordering::Equal=>{
-                    let slice=self.slice;
-                    let next_field=slice.iter()
-                        .position(|x| x.index!=next_field_ind )
-                        .unwrap_or(slice.len());
-                    let (field_values,rem)=slice.split_at(next_field);
-                    self.slice=rem;
-
-                    field_values
-                }
-                Ordering::Greater=>{
-                    panic!("\
-                        Expected next_element_index >= current_index.\n\
-                        next_element_index:{:?}
-                        current_index:{:?}
-                    ",
-                        next_field_ind,
-                        self.index,
-                    );
-                }
-            }
-        };
-
-        self.index.increment(self.variant_lengths);
-        self.remaining-=1;
-
-        Some(ret)
-    }
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-
 

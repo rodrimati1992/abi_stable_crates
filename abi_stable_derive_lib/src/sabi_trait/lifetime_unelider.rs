@@ -1,16 +1,12 @@
 use super::*;
 
-use crate::{Arenas};
-
-
 use syn::{
     visit_mut::{self, VisitMut},
-    Ident, Lifetime, TypeReference, Type,
+    Lifetime, TypeReference, Type,
 };
 
 
 pub(crate) struct LifetimeUnelider<'a,'b>{
-    arenas: &'a Arenas,
     ctokens: &'a CommonTokens,
     self_lifetime:&'b mut Option<&'a syn::Lifetime>,
     pub(crate) additional_lifetime_def:Option<&'a syn::LifetimeDef>
@@ -18,12 +14,10 @@ pub(crate) struct LifetimeUnelider<'a,'b>{
 
 impl<'a,'b> LifetimeUnelider<'a,'b>{
     pub(crate) fn new(
-        arenas: &'a Arenas,
         ctokens: &'a CommonTokens,
         self_lifetime:&'b mut Option<&'a syn::Lifetime>,
     )->Self{
         Self{
-            arenas,
             ctokens,
             self_lifetime,
             additional_lifetime_def:None,

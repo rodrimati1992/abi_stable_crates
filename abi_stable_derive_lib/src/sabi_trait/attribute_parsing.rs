@@ -50,26 +50,6 @@ impl<'a> SabiTraitOptions<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone)]
-pub(crate) struct DeriveAndOtherAttrs<'a>{
-    pub(crate) derive_attrs:&'a [Meta],
-    pub(crate) other_attrs:&'a [Meta],
-}
-
-
-impl<'a> DeriveAndOtherAttrs<'a>{
-    fn new(owned:OwnedDeriveAndOtherAttrs,arenas:&'a Arenas)->Self{
-        Self{
-            derive_attrs:arenas.alloc(owned.derive_attrs),
-            other_attrs:arenas.alloc(owned.other_attrs),
-        }
-    }
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-
 #[derive(Debug, Clone,Default)]
 pub(crate) struct OwnedDeriveAndOtherAttrs{
     pub(crate) derive_attrs:Vec<Meta>,
@@ -254,7 +234,7 @@ fn parse_sabi_trait_attr<'a>(
 }
 
 
-fn wrap_attrs_in_sabi_list<A>(mut attrs:&mut A)
+fn wrap_attrs_in_sabi_list<A>(attrs:&mut A)
 where
     A:Default+Extend<Meta>+IntoIterator<Item=Meta>,
 {

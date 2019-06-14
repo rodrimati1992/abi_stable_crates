@@ -9,6 +9,7 @@ pub use crate::{
             UNSAFE_EXTERN_FN_ABI_INFO,
             EXTERN_FN_ABI_INFO,
             MakeGetAbiInfoSA,
+            MakeGetAbiInfoUF,
         },
         type_layout::{
             LifetimeIndex, 
@@ -92,6 +93,7 @@ pub mod renamed {
         UNSAFE_EXTERN_FN_ABI_INFO as __UNSAFE_EXTERN_FN_ABI_INFO,
         EXTERN_FN_ABI_INFO as __EXTERN_FN_ABI_INFO,
         MakeGetAbiInfoSA as __sabi_MakeGetAbiInfoSA,
+        MakeGetAbiInfoUF as __sabi_MakeGetAbiInfoUF,
     };
 }
 

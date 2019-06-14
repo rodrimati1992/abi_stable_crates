@@ -94,6 +94,7 @@ pub struct UsableTrait<N,M>{
 }
 
 impl<N,M> UsableTrait<N,M>{
+    #[allow(dead_code)]
     pub fn is_object_safe(&self)->bool{
         self.object_safe==ObjectSafe::Yes
     }

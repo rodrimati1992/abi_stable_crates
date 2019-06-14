@@ -3,10 +3,9 @@
 use crate::*;
 
 use crate::{
-    datastructure::{DataStructure,DataVariant,Struct,Field,FieldIndex},
+    datastructure::{DataStructure,DataVariant,Field,FieldIndex},
     lifetimes::LifetimeIndex,
     to_token_fn::ToTokenFnMut,
-    fn_pointer_extractor::{FnParamRet},
 };
 
 
@@ -385,6 +384,24 @@ where T:ToTokens
     })
 }
 
+/// Outputs the StableAbi constant for an opaque field.
+fn make_get_abi_info_uf_tokenizer<'a,T:'a>(
+    ty:T,
+    ct:&'a CommonTokens<'a>,
+)->impl ToTokens+'a
+where T:ToTokens
+{
+    ToTokenFnMut::new(move|ts|{
+        to_stream!{ts; 
+            ct.make_get_abi_info_uf,
+            ct.colon2,
+            ct.lt,ty,ct.gt,
+            ct.colon2,
+            ct.cap_const
+        };
+    })
+}
+
 
 
 
@@ -487,12 +504,16 @@ fn fields_tokenizer_inner<'a>(
             to_stream!(ts;ct.field_1to1,ct.colon2,ct.new);
             ct.paren.surround(ts,|ts|{
                 {//abi_info:
+                    let is_opaque_field=config.opaque_fields[field];
+
                     if field.is_function {
                         if field.functions[0].is_unsafe {
                             &ct.unsafe_extern_fn_abi_info
                         }else{
                             &ct.extern_fn_abi_info
                         }.to_tokens(ts);
+                    }else if is_opaque_field {
+                        make_get_abi_info_uf_tokenizer(&field.mutated_ty,ct).to_tokens(ts);
                     }else{
                         make_get_abi_info_tokenizer(&field.mutated_ty,ct).to_tokens(ts);
                     }
@@ -583,60 +604,3 @@ fn tokenize_tl_functions<'a>(
     ).to_tokens(ts);
 
 }
-
-
-
-/*
-            let fn_name=if field.is_function {
-                field.ident().to_string()
-            }else{
-                format!("fn_{}",fn_i)
-            };
-
-            let bound_lifetimes=func.named_bound_lts.iter().map(|x| x.to_string() );
-            
-            let param_names:String=func.params.iter()
-                .map(|p| p.name.unwrap_or("") )
-                .collect::<Vec<&str>>()
-                .join(";");
-
-            let param_abi_infos=func.params.iter()
-                .map(|p|{
-                    make_get_abi_info_tokenizer(p.ty,ct)
-                });
-
-            let paramret_lifetime_indices=func.params.iter()
-                .map(|p| p.lifetime_refs_tokenizer(ct) );
-
-            let returns=match func.returns.as_ref() {
-                Some(returns)=>{
-                    let returns=make_get_abi_info_tokenizer(returns.ty,ct);
-                    quote!( _sabi_reexports::RSome(#returns) )
-                },
-                None=>
-                    quote!( _sabi_reexports::RNone ),
-            };
-
-
-
-            quote!(
-                __WithFieldIndex::from_vari_field_val(
-                    #variant,
-                    #field_index,
-                    __TLFunction::new(
-                        #fn_name,
-
-                        &[ #( __StaticStr::new(#bound_lifetimes) ),* ],
-
-                        #param_names,
-
-                        &[ #( #param_abi_infos ),* ],
-
-                        &[ #(#paramret_lifetime_indices)* ],
-
-                        #returns,
-                    )
-                ),
-            ).to_tokens(ts);
-
-*/

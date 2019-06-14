@@ -20,7 +20,7 @@ use crate::{
         LifetimeIndex, TLData, TLField, TypeLayout, TypeLayoutParams,
         ItemInfo,ReprAttr,TLPrimitive,TLEnumVariant,
     },
-    std_types::{RNone, RSome, StaticSlice, utypeid::UTypeId},
+    std_types::{RNone, RSome, utypeid::UTypeId},
     sabi_types::ReturnValueEquality,
     reflection::ModReflMode,
 };
@@ -326,6 +326,16 @@ where T: StableAbi,
 {
     pub const CONST:GetAbiInfo=GetAbiInfo {
         abi_info: get_abi_info::<T>,
+    };
+}
+
+
+#[doc(hidden)]
+pub struct MakeGetAbiInfoUF<T>(T);
+
+impl<T> MakeGetAbiInfoUF<T>{
+    pub const CONST:GetAbiInfo=GetAbiInfo {
+        abi_info: get_abi_info::<UnsafeOpaqueField<T>>,
     };
 }
 

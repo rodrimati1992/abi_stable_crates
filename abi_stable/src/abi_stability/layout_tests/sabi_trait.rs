@@ -6,7 +6,6 @@ use crate::{
         AbiInfoWrapper,
     },
     std_types::{RBox},
-    test_utils::must_panic,
 };
 
 
@@ -141,9 +140,9 @@ mod one_method_sync_send{
 #[test]
 fn adding_methods_at_the_end(){
     let list=vec![
-        <one_method::Trait_TO<RBox<()>> as StableAbi>::ABI_INFO,
-        <two_methods::Trait_TO<RBox<()>> as StableAbi>::ABI_INFO,
-        <three_methods::Trait_TO<RBox<()>> as StableAbi>::ABI_INFO,
+        <one_method::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
+        <two_methods::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
+        <three_methods::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
     ];
 
     check_subsets(&list[..],|errs|{
@@ -160,9 +159,9 @@ fn adding_methods_at_the_end(){
 #[test]
 fn adding_supertraits(){
     let list=vec![
-        <one_method::Trait_TO<RBox<()>> as StableAbi>::ABI_INFO,
-        <one_method_debug::Trait_TO<RBox<()>> as StableAbi>::ABI_INFO,
-        <one_method_clone_debug::Trait_TO<RBox<()>> as StableAbi>::ABI_INFO,
+        <one_method::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
+        <one_method_debug::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
+        <one_method_clone_debug::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
     ];
     check_subsets(&list[..],|errs|{
         assert!(
@@ -177,10 +176,10 @@ fn adding_supertraits(){
 #[test]
 fn incompatible_supertraits(){
     let list=vec![
-        <one_method::Trait_TO<RBox<()>> as StableAbi>::ABI_INFO,
-        <one_method_sync::Trait_TO<RBox<()>> as StableAbi>::ABI_INFO,
-        <one_method_send::Trait_TO<RBox<()>> as StableAbi>::ABI_INFO,
-        <one_method_sync_send::Trait_TO<RBox<()>> as StableAbi>::ABI_INFO,
+        <one_method::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
+        <one_method_sync::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
+        <one_method_send::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
+        <one_method_sync_send::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
     ];
     check_equality(&list[..],|errs|{
         assert!(

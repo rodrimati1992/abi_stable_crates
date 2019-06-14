@@ -17,7 +17,7 @@ use core_extensions::{matches,IteratorExt};
 use syn::{
     token::{Semi,Comma},
     punctuated::Punctuated,
-    Ident,ItemTrait,Visibility,FnArg,Lifetime,LifetimeDef,MethodSig,Meta,
+    Ident,ItemTrait,Visibility,FnArg,Lifetime,LifetimeDef,Meta,
     TypeParamBound,Block,WherePredicate,TraitItem,Abi,
     token::Unsafe,
 };
@@ -460,7 +460,7 @@ impl<'a> TraitMethod<'a>{
             syn::ReturnType::Type(_,ty)=>{
                 let mut ty=(**ty).clone();
                 if let SelfParam::ByRef{lifetime,..}=&mut self_param {
-                    LifetimeUnelider::new(arena,ctokens,lifetime)
+                    LifetimeUnelider::new(ctokens,lifetime)
                         .visit_type(&mut ty)
                         .into_iter()
                         .extending(&mut lifetimes);

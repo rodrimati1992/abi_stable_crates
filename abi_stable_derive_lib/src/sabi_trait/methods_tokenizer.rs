@@ -2,8 +2,6 @@ use super::*;
 
 use crate::to_token_fn::ToTokenFnMut;
 
-use core_extensions::matches;
-
 use syn::token::Semi;
 
 #[derive(Debug,Copy,Clone)]

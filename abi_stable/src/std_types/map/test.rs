@@ -78,6 +78,8 @@ fn test_eq(){
     let map2=new_map::<String,String,FnVBH>();
 
     assert_eq!(map0, map1);
+    assert_eq!(map0, map2);
+    assert_eq!(map1, map2);
 }
 
 #[test]
@@ -465,7 +467,7 @@ fn test_serde(){
 }
 
 
-fn assert_is_occupied<K,V>(map:&mut RHashMap<K,V>,k:K,mut v:V)
+fn assert_is_occupied<K,V>(map:&mut RHashMap<K,V>,k:K,v:V)
 where
     K:Eq+Hash+Clone+Debug,
     V:Clone+Debug+PartialEq,

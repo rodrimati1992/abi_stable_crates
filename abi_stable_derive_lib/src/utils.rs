@@ -15,12 +15,14 @@ impl ToTokens for NoTokens {
 }
 
 
+#[allow(dead_code)]
 pub struct PrintDurationOnDrop{
     start:Instant,
     file_span:FileSpan,
 }
 
 impl PrintDurationOnDrop{
+    #[allow(dead_code)]
     pub fn new(file_span:FileSpan)->Self{
         Self{
             start:Instant::now(),

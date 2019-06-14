@@ -4,16 +4,12 @@ use crate::{
     parse_utils::{parse_str_as_ident},
     my_visibility::{MyVisibility,RelativeVis},
     gen_params_in::{GenParamsIn,InWhat},
-    utils::NoTokens,
     workaround::token_stream_to_string,
 };
 
 use std::{
-    borrow::Cow,
     marker::PhantomData,
 };
-
-use core_extensions::BoolExt;
 
 use proc_macro2::TokenStream as TokenStream2;
 
@@ -36,11 +32,13 @@ use self::{
     attribute_parsing::SabiTraitOptions,
     common_tokens::CommonTokens,
     lifetime_unelider::LifetimeUnelider,
-    trait_definition::{TraitDefinition,TraitMethod,GenericsTokenizer},
+    trait_definition::{TraitDefinition,TraitMethod},
     method_where_clause::MethodWhereClause,
     methods_tokenizer::MethodsTokenizer,
 };
 
+
+#[allow(dead_code)]
 #[derive(Copy,Clone)]
 struct TokenizerParams<'a>{
     arenas:&'a Arenas,
@@ -56,7 +54,7 @@ struct TokenizerParams<'a>{
 
 
 
-pub fn derive_sabi_trait(mut item: ItemTrait) -> TokenStream2 {
+pub fn derive_sabi_trait(item: ItemTrait) -> TokenStream2 {
     let arenas = Arenas::default();
     let arenas = &arenas;
     let ctokens = CommonTokens::new();
@@ -110,6 +108,7 @@ pub fn derive_sabi_trait(mut item: ItemTrait) -> TokenStream2 {
     vtable_impl(tokenizer_params,&mut mod_contents);
 
     quote!(
+        #[doc(inline)]
         #vis use self::#generated_mod::{
             __TraitObject as #trait_to,
             __Methods as #trait_method,
@@ -733,6 +732,7 @@ impl Default for WhichObject{
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub(crate) enum WhichSelf{
     /// Self::AssocTy
+    #[allow(dead_code)]
     Regular,
     /// _Self::AssocTy
     Underscore,

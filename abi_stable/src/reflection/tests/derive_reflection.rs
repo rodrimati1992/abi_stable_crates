@@ -26,6 +26,7 @@ pub enum PubEnum {
 
 #[repr(C)]
 #[derive(StableAbi)]
+#[allow(dead_code)]
 enum PrivEnum {
     Variant0,
     Variant1(RString),

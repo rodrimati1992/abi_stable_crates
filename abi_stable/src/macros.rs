@@ -289,7 +289,7 @@ macro_rules! impl_get_type_info {
             use std::mem;
             use $crate::{
                 erased_types::type_info::TypeInfo,
-                sabi_types::{VersionStrings,ReturnValueEquality},
+                sabi_types::{ReturnValueEquality},
                 std_types::{StaticStr,utypeid::some_utypeid},
             };
 

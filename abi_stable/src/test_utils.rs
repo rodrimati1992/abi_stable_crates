@@ -3,6 +3,7 @@ use std::{
     fmt::{self, Debug, Display},
 };
 
+#[allow(unused_imports)]
 pub(crate) use abi_stable_shared::test_utils::{
     FileSpan,
     ThreadError,
