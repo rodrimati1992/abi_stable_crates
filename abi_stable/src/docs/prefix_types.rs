@@ -41,7 +41,7 @@ For the grammar reference,you can look at the documentation for
 
 # Examples
 
-### Example 1
+<h3> Example 1 </h3>
 
 Declaring a Prefix-type.
 
@@ -69,7 +69,7 @@ pub struct ModuleVal {
 
 ```
 
-### Example 2:Declaring a type with a VTable
+<h3> Example 2:Declaring a type with a VTable </h3>
 
 Here is the implementation of a Box-like type,which uses a VTable that is itself a Prefix.
 
@@ -201,7 +201,7 @@ unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {
 ```
 
 
-### Example 3:module
+<h3> Example 3:module </h3>
 
 This declares,initializes,and uses a module.
 

@@ -13,9 +13,8 @@ use crate::{
         CallReferentDrop, StableDeref, TransmuteElement,
         GetPointerKind,PK_SmartPointer,
     },
-    std_types::{RResult},
-    std_types::utypeid::{UTypeId,new_utypeid},
-    return_value_equality::ReturnValueEquality,
+    sabi_types::ReturnValueEquality,
+    std_types::{RResult,utypeid::{UTypeId,new_utypeid}},
 };
 
 #[cfg(all(test,not(feature="only_new_tests")))]
@@ -63,6 +62,11 @@ mod private {
         #[inline(always)]
         pub(super) fn data(&self) -> *const T {
             self.data
+        }
+        
+        #[inline(always)]
+        pub(super) unsafe fn data_mut(&mut self) -> *mut T {
+            self.data as *mut T
         }
 
         #[inline]
@@ -161,7 +165,7 @@ impl<T> RArc<T> {
                 *this=new_arc;
                 // This is fine,since this is a freshly created arc with a clone of the data.
                 unsafe{
-                    &mut *(this.data() as *mut T)
+                    &mut *this.data_mut()
                 }
             }
         }

@@ -1,6 +1,16 @@
 
 use super::*;
 
+use crate::{
+    abi_stability::{
+        stable_abi_trait::{MakeGetAbiInfo,StableAbi_Bound},
+    },
+    std_types::RVec,
+};
+
+
+
+/////////////////////////////////////////////////////
 
 /// Which lifetime is being referenced by a field.
 /// Allows lifetimes to be renamed,so long as the "same" lifetime is being referenced.
@@ -34,7 +44,7 @@ pub struct TLPrefixType {
     /// (with the `#[sabi(accessible_if=" expression ")]` attribute).
     pub conditional_prefix_fields:StaticSlice<IsConditional>,
     /// All the fields of the prefix-type,even if they are inaccessible.
-    pub fields: StaticSlice<TLField>,
+    pub fields: TLFieldsOrSlice,
 }
 
 
@@ -112,18 +122,17 @@ pub struct TLEnumVariant {
     pub name: StaticStr,
     /// The discriminant of the variant.
     pub discriminant:TLDiscriminant,
-    /// The fields of the variant.
-    pub fields: StaticSlice<TLField>,
+    pub field_count:usize,
 }
 
 
 
 impl TLEnumVariant {
-    pub const fn new(name: &'static str, fields: &'static [TLField]) -> Self {
+    pub const fn new(name: &'static str, field_count: usize) -> Self {
         Self {
             name: StaticStr::new(name),
             discriminant:TLDiscriminant::Default_,
-            fields: StaticSlice::new(fields),
+            field_count,
         }
     }
 
@@ -318,14 +327,15 @@ pub enum TLData {
     Opaque,
     /// For structs.
     Struct { 
-        fields: StaticSlice<TLField> 
+        fields: TLFieldsOrSlice 
     },
     /// For unions.
     Union { 
-        fields: StaticSlice<TLField> 
+        fields: TLFieldsOrSlice 
     },
     /// For enums.
     Enum {
+        fields: TLFieldsOrSlice,
         variants: StaticSlice<TLEnumVariant>,
     },
     /// vtables and modules that can be extended in minor versions.
@@ -395,26 +405,27 @@ pub enum TLDataDiscriminant {
 impl TLData {
     pub const EMPTY:Self=
         TLData::Struct {
-            fields: StaticSlice::new(&[]),
+            fields: TLFieldsOrSlice::from_slice(&[]),
         };
  
     /// Constructs `TLData::Struct` from a slice of its fields.
     pub const fn struct_(fields: &'static [TLField]) -> Self {
         TLData::Struct {
-            fields: StaticSlice::new(fields),
+            fields: TLFieldsOrSlice::from_slice(fields),
         }
     }
     
     /// Constructs `TLData::Union` from a slice of its fields.
     pub const fn union_(fields: &'static [TLField]) -> Self {
         TLData::Union {
-            fields: StaticSlice::new(fields),
+            fields: TLFieldsOrSlice::from_slice(fields),
         }
     }
     
     /// Constructs a `TLData::Enum` from a slice to its variants.
-    pub const fn enum_(variants: &'static [TLEnumVariant]) -> Self {
+    pub const fn enum_(fields:&'static [TLField],variants: &'static [TLEnumVariant]) -> Self {
         TLData::Enum {
+            fields:TLFieldsOrSlice::from_slice(fields),
             variants: StaticSlice::new(variants),
         }
     }
@@ -430,7 +441,47 @@ impl TLData {
             first_suffix_field,
             accessible_fields,
             conditional_prefix_fields:StaticSlice::new(conditional_prefix_fields),
-            fields:StaticSlice::new(fields),
+            fields:TLFieldsOrSlice::from_slice(fields),
+        })
+    }
+ 
+    /// Constructs `TLData::Struct` from a slice of its fields.
+    pub const fn struct_derive(fields: TLFields) -> Self {
+        TLData::Struct {
+            fields: TLFieldsOrSlice::TLFields(fields),
+        }
+    }
+    
+    /// Constructs `TLData::Union` from a slice of its fields.
+    pub const fn union_derive(fields: TLFields) -> Self {
+        TLData::Union {
+            fields: TLFieldsOrSlice::TLFields(fields),
+        }
+    }
+    
+    /// Constructs a `TLData::Enum` from a slice to its variants.
+    pub const fn enum_derive(
+        fields:TLFields,
+        variants: &'static [TLEnumVariant]
+    ) -> Self {
+        TLData::Enum {
+            fields:TLFieldsOrSlice::TLFields(fields),
+            variants: StaticSlice::new(variants),
+        }
+    }
+
+    /// Constructs a `TLData::PrefixType`
+    pub const fn prefix_type_derive(
+        first_suffix_field:usize,
+        accessible_fields:FieldAccessibility,
+        conditional_prefix_fields:&'static [IsConditional],
+        fields: TLFields,
+    )->Self{
+        TLData::PrefixType(TLPrefixType{
+            first_suffix_field,
+            accessible_fields,
+            conditional_prefix_fields:StaticSlice::new(conditional_prefix_fields),
+            fields:TLFieldsOrSlice::TLFields(fields),
         })
     }
 
@@ -564,60 +615,202 @@ impl Debug for FullType {
 
 /// A function pointer in a field.
 #[repr(C)]
-#[derive(Debug,Copy, Clone, PartialEq, StableAbi)]
+#[derive(Copy,Clone,Debug,Eq,StableAbi)]
 pub struct TLFunction{
     /// The name of the field this is used inside of.
-    pub name: StaticStr,
+    pub name: RStr<'static>,
     
-    /// The named lifetime parameters of the function itself.
-    pub bound_lifetimes: StaticSlice<StaticStr>,
+    /// The named lifetime parameters of the function itself,separated by ';'.
+    pub bound_lifetimes: RStr<'static>,
 
-    /// The parameters of the function,with names.
-    /// 
-    /// Lifetime indices inside mention lifetimes of the function after 
-    /// the ones from the deriving type
-    pub params:StaticSlice<TLField>,
+    /// A ';' separated list of all the parameter names.
+    pub param_names: RStr<'static>,
+
+    pub param_abi_infos: RSlice<'static,GetAbiInfo>,
+    pub paramret_lifetime_indices: RSlice<'static,LifetimeIndex>,
 
     /// The return value of the function.
     /// 
     /// Lifetime indices inside mention lifetimes of the function after 
     /// the ones from the deriving type
-    pub returns:ROption<TLField>,
+    pub return_abi_info:ROption<GetAbiInfo>,
+
+}
+
+
+
+
+
+impl PartialEq for TLFunction{
+    fn eq(&self,other:&Self)->bool{
+        self.name==other.name&&
+        self.bound_lifetimes==other.bound_lifetimes&&
+        self.param_names==other.param_names&&
+        self.get_params_ret_iter().eq(other.get_params_ret_iter())&&
+        self.paramret_lifetime_indices==other.paramret_lifetime_indices&&
+        self.return_abi_info.map(|x| x.get() )==other.return_abi_info.map(|x| x.get() )
+    }
 }
 
 
 impl TLFunction{
-    /// Constructs a `TLFunction`.
-    pub const fn new(
-        name: &'static str,
-        bound_lifetimes: &'static [StaticStr],
-        params:&'static [TLField],
-        returns:ROption<TLField>,
-    )->Self{
-        Self{
-            name:StaticStr::new(name),
-            bound_lifetimes:StaticSlice::new(bound_lifetimes),
-            params:StaticSlice::new(params),
-            returns,
+    pub(crate) fn get_param_names(&self)->GetParamNames{
+        GetParamNames{
+            split:self.param_names.as_str().split(';'),
+            length:self.param_abi_infos.len(),
+            current:0,
         }
+    }
+
+    /// Gets the parameter types
+    pub(crate) fn get_params(&self)->impl ExactSizeIterator<Item=TLField>+Clone+Debug {
+        self.get_param_names()
+            .zip(self.param_abi_infos.as_slice().iter().cloned())
+            .map(|(param_name,abi_info)|{
+                TLField::new(param_name,&[],abi_info)
+            })
+    }
+    
+    pub(crate) fn get_return(&self)->TLField{
+        const UNIT_GET_ABI_INFO:GetAbiInfo=<() as MakeGetAbiInfo<StableAbi_Bound>>::CONST;
+        TLField::new(
+            "__returns",
+            self.paramret_lifetime_indices.as_slice(),
+            self.return_abi_info.unwrap_or(UNIT_GET_ABI_INFO)
+        )
+    }
+
+    /// Gets the parameters and return types 
+    pub(crate) fn get_params_ret_iter(&self)->
+        ChainOnce<impl ExactSizeIterator<Item=TLField>+Clone+Debug,TLField>
+    {
+        ChainOnce::new(self.get_params(),self.get_return())
+    }
+
+    /// Gets the parameters and return types 
+    #[allow(dead_code)]
+    pub(crate) fn get_params_ret_vec(&self)->RVec<TLField>{
+        self.get_params_ret_iter().collect()
     }
 }
 
 impl Display for TLFunction{
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
         write!(f,"fn(")?;
-        let param_count=self.params.len();
-        for (param_i,param) in self.params.iter().enumerate() {
-            Display::fmt(&TLFieldAndType::new(*param),f)?;
+        let params=self.get_params();
+        let param_count=params.len();
+        for (param_i,param) in params.enumerate() {
+            Display::fmt(&TLFieldAndType::new(param),f)?;
             if param_i+1!=param_count {
                 Display::fmt(&", ",f)?;
             }
         }
         write!(f,")")?;
-        if let RSome(returns)=self.returns {
-            Display::fmt(&"->",f)?;
-            Display::fmt(&TLFieldAndType::new(returns),f)?;
-        }
+        
+        let returns=self.get_return(); 
+        Display::fmt(&"->",f)?;
+        Display::fmt(&TLFieldAndType::new(returns),f)?;
+
         Ok(())
     }
 }
+
+
+/////////////////////////////////////////////////////////////////////////////
+
+
+#[derive(Debug,Clone)]
+pub struct GetParamNames{
+    split:std::str::Split<'static,char>,
+    length:usize,
+    current:usize,
+}
+
+impl Iterator for GetParamNames{
+    type Item=&'static str;
+    fn next(&mut self) -> Option<Self::Item>{
+        if self.length==self.current{
+            return None;
+        }
+        let current=self.current;
+        self.current+=1;
+        match self.split.next().filter(|&x| !x.is_empty()||x=="_" ) {
+            Some(x)=>Some(x),
+            None=>Some(PARAM_INDEX[current]),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len=self.length-self.current;
+        (len,Some(len))
+    }
+    fn count(self) -> usize {
+        let len=self.length-self.current;
+        len
+    }
+}
+
+
+impl std::iter::ExactSizeIterator for GetParamNames{}
+
+
+static PARAM_INDEX: [&'static str; 64] = [
+    "param_0", "param_1", "param_2", "param_3", "param_4", "param_5", "param_6", "param_7",
+    "param_8", "param_9", "param_10", "param_11", "param_12", "param_13", "param_14", "param_15",
+    "param_16", "param_17", "param_18", "param_19", "param_20", "param_21", "param_22", "param_23",
+    "param_24", "param_25", "param_26", "param_27", "param_28", "param_29", "param_30", "param_31",
+    "param_32", "param_33", "param_34", "param_35", "param_36", "param_37", "param_38", "param_39",
+    "param_40", "param_41", "param_42", "param_43", "param_44", "param_45", "param_46", "param_47",
+    "param_48", "param_49", "param_50", "param_51", "param_52", "param_53", "param_54", "param_55",
+    "param_56", "param_57", "param_58", "param_59", "param_60", "param_61", "param_62", "param_63",
+];
+
+
+//////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug,Clone)]
+pub struct ChainOnce<I,T>{
+    iter:I,
+    once:Option<T>,
+}
+
+impl<I> ChainOnce<I,I::Item>
+where
+    I:ExactSizeIterator
+{
+    fn new(iter:I,once:I::Item)->Self{
+        Self{
+            iter,
+            once:Some(once),
+        }
+    }
+    fn length(&self)->usize{
+        self.iter.len()+(self.once.is_some() as usize)
+    }
+}
+impl<I> Iterator for ChainOnce<I,I::Item>
+where
+    I:ExactSizeIterator
+{
+    type Item=I::Item;
+    fn next(&mut self) -> Option<I::Item>{
+        if let ret@Some(_)=self.iter.next() {
+            return ret;
+        }
+        self.once.take()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len=self.length();
+        (len,Some(len))
+    }
+    fn count(self) -> usize {
+        self.length()
+    }
+}
+
+
+impl<I> std::iter::ExactSizeIterator for ChainOnce<I,I::Item>
+where
+    I:ExactSizeIterator
+{}

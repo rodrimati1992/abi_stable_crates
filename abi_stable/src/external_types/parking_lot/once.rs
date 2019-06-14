@@ -364,8 +364,8 @@ where
 
 
 
-
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
+//#[cfg(test)]
 mod tests{
     use super::*;
 
@@ -376,9 +376,7 @@ mod tests{
 
     use crossbeam_utils::thread::scope as scoped_thread;
 
-    use crate::{
-        test_utils::must_panic,
-    };
+    use abi_stable_shared::{file_span,test_utils::{must_panic}};
 
     #[test]
     fn state(){
@@ -402,7 +400,7 @@ mod tests{
             scoped_thread(|scope|{
                 scope.spawn(|_|{
                     ONCE.call_once(||{
-                        thread::sleep(Duration::from_millis(50));
+                        thread::sleep(Duration::from_millis(500));
                     })
                 });
                 scope.spawn(|_|{

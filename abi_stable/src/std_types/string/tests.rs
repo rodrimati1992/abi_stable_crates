@@ -2,6 +2,9 @@ use super::*;
 
 use crate::test_utils::must_panic;
 
+use abi_stable_shared::file_span;
+
+
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 

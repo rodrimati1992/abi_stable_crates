@@ -19,6 +19,8 @@ These are some usecases for this library:
 
 Currently this library has these features:
 
+- Features the `#[sabi_trait]` attribute,for creating ffi-safe trait objects.
+
 - ffi-safe equivalent of trait objects for any combination of a selection of traits.
 
 - Provides ffi-safe alternatives/wrappers for many standard library types,
@@ -34,7 +36,7 @@ Currently this library has these features:
     allowing for semver compatible changes while checking the layout of types.
 
 - Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
-    and to get the layout of the type at runtime to check that it is still compatible.
+    and to get the layout of the type at load-time to check that it is still compatible.
 
 # Examples
 
@@ -76,13 +78,19 @@ These are the kinds of types passed through FFI:
     and can only be unwrapped back to the original type in the dynamic library/binary 
     that created it.
 
+- [Trait objects](./docs/sabi_trait_attribute/index.html):
+    Trait object-like types generated using `#[sabi_trait]`,
+    which erase the type of the value they wrap,implements the methods of the trait,
+    and can be unwrapped back to the original type in the dynamic library/binary 
+    that created it (if it was constructed to be unerasable and implements Any).
+
 - [Prefix kind](./docs/prefix_types/index.html):
     Types only accessible through shared references,
     most commonly vtables and modules,
     which can be extended in minor versions while staying ABI compatible.
     by adding fields at the end.
 
-### Declaring enums
+<h3> Declaring enums </h3>
 
 Adding variants or fields to a variant is disallowed in minor versions.
 
@@ -93,11 +101,14 @@ To represent non-exhaustive enums without fields it is recommended using structs
 - [Unsafe code guidelines](./docs/unsafe_code_guidelines/index.html):<br>
     Describes how to write unsafe code ,relating to this library.
 
-# Macros
+# Macros (derive and attribute)
+
+- [sabi_trait attribute macro](./docs/sabi_trait_attribute/index.html):<br>
+    For generating ffi-safe trait objects.
 
 - [StableAbi derive macro](./docs/stable_abi_derive/index.html):<br>
     For asserting abi-stability of a type,
-    and obtaining the layout of the time at runtime.
+    and obtaining the layout of the type at runtime.
 
 - [Prefix-types (using the StableAbi derive macro)
   ](./docs/prefix_types/index.html):<br>
@@ -109,6 +120,9 @@ To represent non-exhaustive enums without fields it is recommended using structs
 #![allow(unused_unsafe)]
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
+
+#[cfg(test)]
+use abi_stable_shared::file_span;
 
 #[macro_use]
 extern crate serde_derive;
@@ -126,6 +140,7 @@ pub use abi_stable_derive::StableAbi;
 pub use abi_stable_derive::{
     export_root_module,
     impl_InterfaceType,
+    sabi_trait,
 };
 
 #[macro_use]
@@ -161,32 +176,32 @@ pub mod traits;
 pub mod abi_stability;
 // pub mod cabi_type;
 // pub mod as_proxy;
+#[macro_use]
 pub mod erased_types;
 pub mod external_types;
 // pub mod immovable_wrapper;
 #[macro_use]
 pub mod library;
-pub mod ignored_wrapper;
 pub mod marker_type;
 mod multikey_map;
 pub mod pointer_trait;
 pub mod prefix_type;
 
-#[doc(hidden)]
-pub mod return_value_equality;
+
 
 #[doc(hidden)]
 pub mod derive_macro_reexports;
 pub mod std_types;
+pub mod sabi_types;
 
 
-pub mod late_static_ref;
 
 pub mod reflection;
 pub mod type_level;
-pub mod version;
 
 pub mod docs;
+
+pub mod sabi_trait;
 
 
 /// The header used to identify the version number of abi_stable
@@ -221,11 +236,11 @@ pub use crate::{
 #[doc(hidden)]
 pub mod globals{
     use crate::{
-        late_static_ref::LateStaticRef,
         abi_stability::{
             abi_checking::{check_layout_compatibility_for_ffi},
             stable_abi_trait::AbiInfoWrapper,
         },
+        sabi_types::LateStaticRef,
         std_types::{RResult,RBoxError},
         utils::leak_value,
     };
@@ -258,6 +273,5 @@ pub mod globals{
         GLOBALS.init(|| globs );
     }
 }
-
 
 

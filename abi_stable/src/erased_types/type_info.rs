@@ -5,9 +5,8 @@ Contains TypeInfo,metadata for a type.
 use std::fmt;
 
 use crate::{
-    version::VersionStrings, 
-    std_types::{StaticStr,utypeid::UTypeId,ROption,RSome},
-    return_value_equality::ReturnValueEquality,
+    sabi_types::{MaybeCmp,ReturnValueEquality,VersionStrings},
+    std_types::{StaticStr,utypeid::UTypeId},
 };
 
 
@@ -19,9 +18,9 @@ pub struct TypeInfo {
     pub size: usize,
     pub alignment: usize,
     #[doc(hidden)]
-    pub _uid: ReturnValueEquality<ROption<UTypeId>>,
+    pub _uid: ReturnValueEquality<MaybeCmp<UTypeId>>,
     pub name: StaticStr,
-    pub file: StaticStr,
+    pub module: StaticStr,
     pub package: StaticStr,
     pub package_version: VersionStrings,
     #[doc(hidden)]
@@ -31,10 +30,7 @@ pub struct TypeInfo {
 impl TypeInfo {
     /// Whether the `self` is the TypeInfo for the same type as `other`
     pub fn is_compatible(&self, other: &Self) -> bool {
-        match ((self._uid.function)(),(other._uid.function)() ) {
-            (RSome(l),RSome(r))=>l==r,
-            _=>false,
-        }
+        self._uid==other._uid
     }
 }
 
@@ -44,11 +40,11 @@ impl fmt::Display for TypeInfo {
             f,
             "type:{}\n\
              size:{} alignment:{}\n\
-             path:'{}'\n\
+             module:'{}'\n\
              package:'{}'\n\
              package_version:{}\n\
              ",
-            self.name, self.size, self.alignment, self.file, self.package, self.package_version
+            self.name, self.size, self.alignment, self.module, self.package, self.package_version
         )
     }
 }

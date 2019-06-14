@@ -8,8 +8,8 @@ use std::{cmp::Ordering, fmt,mem};
 use core_extensions::prelude::*;
 
 use std::{
+    borrow::Borrow,
     collections::HashSet,
-    slice,
 };
 // use std::collections::HashSet;
 
@@ -22,7 +22,7 @@ use super::{
     tagging::{CheckableTag,TagErrors},
 };
 use crate::{
-    version::{ParseVersionError, VersionStrings},
+    sabi_types::{ParseVersionError, VersionStrings},
     prefix_type::{FieldAccessibility,IsConditional},
     std_types::{RVec, StaticSlice, StaticStr,utypeid::UTypeId,RBoxError,RResult},
     traits::IntoReprC,
@@ -329,16 +329,20 @@ impl AbiChecker {
     }
 
     #[inline]
-    fn check_fields(
+    fn check_fields<I,F>(
         &mut self,
         errs: &mut RVec<AbiInstability>,
         t_lay: &'static TypeLayout,
         o_lay: &'static TypeLayout,
         ctx:FieldContext,
-        t_fields: &[TLField],
-        o_fields: &[TLField],
-    ) {
-        if t_fields.is_empty()&&o_fields.is_empty() {
+        t_fields: I,
+        o_fields: I,
+    ) 
+    where
+        I:ExactSizeIterator<Item=F>,
+        F:Borrow<TLField>,
+    {
+        if t_fields.len()==0&&o_fields.len()==0 {
             return;
         }
 
@@ -347,8 +351,8 @@ impl AbiChecker {
             (Ordering::Greater, _) | (Ordering::Less, false) => {
                 push_err(
                     errs,
-                    t_fields,
-                    o_fields,
+                    &t_fields,
+                    &o_fields,
                     |x| x.len(),
                     AI::FieldCountMismatch,
                 );
@@ -364,7 +368,9 @@ impl AbiChecker {
             };
 
 
-        for (field_i,(this_f,other_f)) in t_fields.iter().zip(o_fields).enumerate() {
+        for (field_i,(this_f,other_f)) in t_fields.into_iter().zip(o_fields).enumerate() {
+            let this_f=this_f.borrow();
+            let other_f=other_f.borrow();
             if this_f.name != other_f.name {
                 push_err(errs, this_f, other_f, |x| *x, AI::UnexpectedField);
                 continue;
@@ -390,12 +396,15 @@ impl AbiChecker {
                     
                 let sf_ctx=FieldContext::Subfields;
                 
-                for (t_func,o_func) in this_f.functions.iter().zip(&*other_f.functions) {
-                    self.check_fields(errs,t_lay,o_lay,sf_ctx,&t_func.params,&o_func.params);
-
-                    let t_returns=t_func.returns.as_ref().map_or(&[][..],slice::from_ref);
-                    let o_returns=o_func.returns.as_ref().map_or(&[][..],slice::from_ref);
-                    self.check_fields(errs,t_lay,o_lay,sf_ctx,t_returns,o_returns);
+                for (t_func,o_func) in this_f.function_range.iter().zip(other_f.function_range) {
+                    self.check_fields(
+                        errs,
+                        t_lay,
+                        o_lay,
+                        sf_ctx,
+                        t_func.get_params_ret_iter(),
+                        o_func.get_params_ret_iter(),
+                    );
                 }
 
 
@@ -442,7 +451,9 @@ impl AbiChecker {
                 push_err(errs, t_lay, o_lay, |x| x.full_type(), AI::Name);
                 return;
             }
-            if t_lay.package() != o_lay.package() {
+            let (t_package,t_ver_str)=t_lay.package_and_version();
+            let (o_package,o_ver_str)=o_lay.package_and_version();
+            if t_package != o_package {
                 push_err(errs, t_lay, o_lay, |x| x.package(), AI::Package);
                 return;
             }
@@ -460,8 +471,8 @@ impl AbiChecker {
 
             {
                 let x = (|| {
-                    let l = t_lay.package_version().parsed()?;
-                    let r = o_lay.package_version().parsed()?;
+                    let l = t_ver_str.parsed()?;
+                    let r = o_ver_str.parsed()?;
                     Ok(l.is_compatible(r))
                 })();
                 match x {
@@ -470,7 +481,7 @@ impl AbiChecker {
                             errs,
                             t_lay,
                             o_lay,
-                            |x| *x.package_version(),
+                            |x| x.package_version(),
                             AI::PackageVersion,
                         );
                     }
@@ -498,8 +509,8 @@ impl AbiChecker {
                 this.layout,
                 other.layout,
                 FieldContext::PhantomFields,
-                &this.layout.phantom_fields,
-                &other.layout.phantom_fields,
+                this.layout.phantom_fields.as_slice().iter(),
+                other.layout.phantom_fields.as_slice().iter(),
             );
 
             match (t_lay.size.cmp(&o_lay.size), this.prefix_kind) {
@@ -554,8 +565,8 @@ impl AbiChecker {
                         this.layout,
                         other.layout,
                         FieldContext::Fields, 
-                        &t_fields, 
-                        &o_fields
+                        t_fields.get_fields(), 
+                        o_fields.get_fields()
                     );
                 }
                 (TLData::Struct { .. }, _) => {}
@@ -566,13 +577,16 @@ impl AbiChecker {
                         this.layout,
                         other.layout,
                         FieldContext::Fields, 
-                        &t_fields, 
-                        &o_fields
+                        t_fields.get_fields(), 
+                        o_fields.get_fields()
                     );
                 }
                 (TLData::Union { .. }, _) => {}
                 
-                (TLData::Enum { variants: t_varis }, TLData::Enum { variants: o_varis }) => {
+                (
+                    TLData::Enum { variants: t_varis, fields: t_fields }, 
+                    TLData::Enum { variants: o_varis, fields: o_fields }
+                ) => {
                     let t_varis = t_varis.as_slice();
                     let o_varis = o_varis.as_slice();
                     if t_varis.len() != o_varis.len() {
@@ -591,20 +605,29 @@ impl AbiChecker {
                                 AI::EnumDiscriminant
                             );
                         }
+                        if t_vari.field_count!=o_vari.field_count {
+                            push_err(
+                                errs, 
+                                *t_vari, 
+                                *o_vari, 
+                                |x| x.field_count, 
+                                AI::FieldCountMismatch
+                            );
+                        }
 
                         if t_name != o_name {
                             push_err(errs, *t_vari, *o_vari, |x| x, AI::UnexpectedVariant);
                             continue;
                         }
-                        self.check_fields(
-                            errs, 
-                            this.layout, 
-                            other.layout, 
-                            FieldContext::Fields,
-                            &t_vari.fields, 
-                            &o_vari.fields
-                        );
                     }
+                    self.check_fields(
+                        errs, 
+                        this.layout, 
+                        other.layout, 
+                        FieldContext::Fields,
+                        t_fields.get_fields(), 
+                        o_fields.get_fields()
+                    );
                 }
                 (TLData::Enum { .. }, _) => {}
                 
@@ -668,8 +691,8 @@ impl AbiChecker {
             this.layout,
             other.layout,
             FieldContext::Fields,
-            &this.fields,
-            &other.fields
+            this.fields.get_fields(),
+            other.fields.get_fields()
         );
     }
 
@@ -856,14 +879,6 @@ pub(crate) extern fn check_layout_compatibility_for_ffi(
 /**
 Checks that the layout of `interface` is compatible with `implementation`,
 
-# Warning
-
-This function is not symmetric,
-the first parameter must be the expected layout,
-and the second must be actual layout.
-
-# Safety 
-
 If this function is called within a dynamic library,
 it must be called at or after the function that exports its root module is called.
 
@@ -871,8 +886,15 @@ it must be called at or after the function that exports its root module is calle
 since this library relies on setting up its global state before
 calling the root module loader.
 
+# Warning
+
+This function is not symmetric,
+the first parameter must be the expected layout,
+and the second must be actual layout.
+
+
 */
-pub unsafe extern fn exported_check_layout_compatibility(
+pub extern fn exported_check_layout_compatibility(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
 ) -> RResult<(), RBoxError> {
@@ -889,7 +911,7 @@ pub unsafe extern fn exported_check_layout_compatibility(
 use std::sync::Mutex;
 
 use crate::{
-    late_static_ref::LateStaticRef,
+    sabi_types::LateStaticRef,
     multikey_map::MultiKeyMap,
     prefix_type::PrefixTypeMetadata,
     utils::leak_value,

@@ -415,9 +415,7 @@ mod tests{
 
     use crate::test_utils::must_panic;
 
-    use core_extensions::{
-        matches,
-    };
+    use abi_stable_shared::file_span;
     
     #[test]
     fn equality(){

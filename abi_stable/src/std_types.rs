@@ -60,7 +60,7 @@ pub use self::{
     str::RStr,
     string::RString,
     time::RDuration,
-    tuple::{Tuple2, Tuple3, Tuple4},
+    tuple::{Tuple1,Tuple2, Tuple3, Tuple4},
     vec::RVec,
     utypeid::UTypeId,
     static_str::StaticStr,

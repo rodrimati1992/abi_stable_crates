@@ -3,7 +3,7 @@ use super::*;
 
 /// The layout of a field.
 #[repr(C)]
-#[derive(Copy, Clone, StableAbi)]
+#[derive(Copy, Clone,StableAbi)]
 pub struct TLField {
     /// The field's name.
     pub name: StaticStr,
@@ -15,8 +15,8 @@ pub struct TLField {
     /// if you have a `&'static AbiInfo`s with the same address as one of its parent type,
     /// you've encountered a cycle.
     pub abi_info: GetAbiInfo,
-    /// All the function pointer types in the field.
-    pub functions:StaticSlice<TLFunction>,
+
+    pub function_range:TLFunctionRange,
 
     /// Whether this field is only a function pointer.
     pub is_function:bool,
@@ -40,7 +40,7 @@ pub enum FieldAccessor {
     Direct,
     /// Accessible with `fn field_name(&self)->FieldType`
     Method{
-        name:ROption<StaticStr>,
+        name:Option<&'static StaticStr>,
     },
     /// Accessible with `fn field_name(&self)->Option<FieldType>`
     MethodOption,
@@ -50,9 +50,9 @@ pub enum FieldAccessor {
 
 
 impl FieldAccessor{
-    pub const fn method_named(name:&'static str)->Self{
+    pub const fn method_named(name:&'static StaticStr)->Self{
         FieldAccessor::Method{
-            name:RSome(StaticStr::new(name))
+            name:Some(name)
         }
     }
 }
@@ -71,26 +71,8 @@ impl TLField {
             name: StaticStr::new(name),
             lifetime_indices: StaticSlice::new(lifetime_indices),
             abi_info,
-            functions:StaticSlice::new(empty_slice()),
+            function_range:TLFunctionRange::EMPTY,
             is_function:false,
-            field_accessor:FieldAccessor::Direct,
-        }
-    }
-
-    /// Constructs a field which may contain function pointers.
-    pub const fn with_functions(
-        name: &'static str,
-        lifetime_indices: &'static [LifetimeIndex],
-        abi_info: GetAbiInfo,
-        functions:&'static [TLFunction],
-        is_function:bool,
-    ) -> Self {
-        Self {
-            name: StaticStr::new(name),
-            lifetime_indices: StaticSlice::new(lifetime_indices),
-            abi_info,
-            functions: StaticSlice::new(functions),
-            is_function,
             field_accessor:FieldAccessor::Direct,
         }
     }
@@ -99,7 +81,6 @@ impl TLField {
         self.field_accessor=field_accessor;
         self
     }
-
 
 
     /// Used for calling recursive methods,
@@ -135,6 +116,8 @@ impl TLField {
     }
 }
 
+impl Eq for TLField{}
+
 impl PartialEq for TLField {
     fn eq(&self, other: &Self) -> bool {
         self.recursive(|_,this| {
@@ -148,7 +131,7 @@ impl PartialEq for TLField {
 impl Debug for TLField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.recursive(|recursion_depth,x|{
-            if recursion_depth>=2 {
+            if recursion_depth>=4 {
                 writeln!(f,"<printing recursion limit>")
             }else{
                 fmt::Debug::fmt(&x, f)
@@ -238,11 +221,11 @@ struct TLFieldShallow {
     /// This is None if it already printed that AbiInfo
     pub(crate) abi_info: Option<&'static AbiInfo>,
 
-    pub(crate)functions:StaticSlice<TLFunction>,
+    pub(crate) function_range:TLFunctionRange,
 
-    pub(crate)is_function:bool,
+    pub(crate) is_function:bool,
 
-    pub(crate)field_accessor:FieldAccessor,
+    pub(crate) field_accessor:FieldAccessor,
 }
 
 impl TLFieldShallow {
@@ -258,7 +241,7 @@ impl TLFieldShallow {
             },
             full_type: abi_info.layout.full_type,
 
-            functions:field.functions,
+            function_range:field.function_range,
             is_function:field.is_function,
             field_accessor:field.field_accessor,
         }

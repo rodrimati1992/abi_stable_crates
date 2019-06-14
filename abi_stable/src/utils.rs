@@ -5,6 +5,8 @@ Utility functions.
 use std::{
     cmp::Ord,
     fmt::{self,Debug,Display},
+    mem::ManuallyDrop,
+    ptr,
 };
 
 
@@ -75,6 +77,7 @@ where T:'a // T:'a is for the docs
 ///
 /// This has the same safety concerns that `std::mem::transmute` has,including that
 /// `T` has to have an alignment and be compatible with `U`.
+#[inline]
 pub unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
     &*(ref_ as *const _ as *const U)
 }
@@ -87,7 +90,8 @@ pub unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
 ///
 /// This has the same safety concerns that `std::mem::transmute` has,including that
 /// `T` has to have an alignment and be compatible with `U`.
-pub unsafe fn transmute_mut_reference<T,U>(ref_:&mut T)->&mut U{
+#[inline]
+pub unsafe fn transmute_mut_reference<'a,T,U>(ref_:&'a mut T)->&'a mut U{
     &mut *(ref_ as *mut _ as *mut U)
 }
 
@@ -207,6 +211,7 @@ impl_fmt_padding!{ RString }
 /// Declared to pass a function pointers to const fn.
 #[repr(C)]
 #[derive(StableAbi)]
+// #[sabi(debug_print)]
 pub struct Constructor<T>(pub extern fn()->T);
 
 impl<T> Copy for Constructor<T>{}
@@ -222,6 +227,7 @@ impl<T> Clone for Constructor<T>{
 /// Either the constructor for a value or the value itself
 #[repr(u8)]
 #[derive(StableAbi,Copy,Clone)]
+//#[sabi(debug_print)]
 pub enum ConstructorOrValue<T>{
     /// This is an `extern fn()->T` which is used to construct a value of type `T`
     Constructor(Constructor<T>),
@@ -246,3 +252,25 @@ impl<T> ConstructorOrValue<T>{
         }
     }
 }
+
+
+//////////////////////////////////////////////////////////////////////
+
+/// Takes the contents out of a `ManuallyDrop<T>`.
+///
+/// # Safety
+///
+/// After this function is called `slot` will become uninitialized and 
+/// must not be read again.
+pub unsafe fn take_manuallydrop<T>(slot: &mut ManuallyDrop<T>) -> T {
+    ManuallyDrop::into_inner(ptr::read(slot))
+}
+
+
+
+#[doc(hidden)]
+#[inline(always)]
+pub fn assert_fnonce<F,R>(_:&F)
+where
+    F:FnOnce()->R
+{}

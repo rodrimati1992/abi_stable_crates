@@ -32,6 +32,7 @@ pub(crate) struct DataStructure<'a> {
     pub(crate) lifetime_count: usize,
     pub(crate) field_count: usize,
     pub(crate) pub_field_count: usize,
+    pub(crate) fn_ptr_count:usize,
 
     pub(crate) fn_info: FnInfo<'a>,
 
@@ -147,10 +148,12 @@ impl<'a> DataStructure<'a> {
 
         let mut field_count=0;
         let mut pub_field_count=0;
+        let mut fn_ptr_count=0;
 
         for vari in &variants {
             field_count+=vari.fields.len();
             pub_field_count+=vari.pub_field_count;
+            fn_ptr_count+=vari.fn_ptr_count;
         }
 
         Self {
@@ -165,6 +168,7 @@ impl<'a> DataStructure<'a> {
             variants,
             field_count,
             pub_field_count,
+            fn_ptr_count,
         }
     }
 
@@ -218,6 +222,7 @@ pub(crate) struct Struct<'a> {
     pub(crate) kind: StructKind,
     pub(crate) fields: Vec<Field<'a>>,
     pub(crate) pub_field_count:usize,
+    pub(crate) fn_ptr_count:usize,
     pub(crate) discriminant:Option<&'a syn::Expr>,
     _priv: (),
 }
@@ -256,12 +261,23 @@ impl<'a> Struct<'a> {
             None => Vec::new(),
         };
 
+        let mut pub_field_count=0usize;
+        let mut fn_ptr_count=0usize;
+
+        for field in &fields {
+            if field.is_public() {
+                pub_field_count+=1;
+            }
+            fn_ptr_count+=field.functions.len();
+        }
+
         Self {
             discriminant:p.discriminant,
             attrs:p.attrs,
             name:p.name,
             kind,
-            pub_field_count:fields.iter().filter(|x|x.is_public()).count(),
+            pub_field_count,
+            fn_ptr_count,
             fields,
             _priv: (),
         }

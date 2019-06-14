@@ -116,10 +116,23 @@ macro_rules! rtry_opt {
 
 ///////////////////////////////////////////////////////////////////////
 
+macro_rules! check_unerased {
+    (
+        $this:ident,$res:expr
+    ) => (
+        if let Err(e)=$res {
+            return Err( e.map(move|_| $this ) );
+        }
+    )
+}
+
+
+///////////////////////////////////////////////////////////////////////
+
 
 macro_rules! make_rve_utypeid {
     ($ty:ty) => (
-        $crate::return_value_equality::ReturnValueEquality{
+        $crate::sabi_types::ReturnValueEquality{
             function:$crate::std_types::utypeid::new_utypeid::<$ty>
         }
     )
@@ -138,6 +151,16 @@ Use this to make sure that you handle panics inside `extern fn` correctly.
 This macro causes an abort if a panic reaches this point.
 
 It does not prevent functions inside from using `::std::panic::catch_unwind` to catch the panic.
+
+# Early returns
+
+This macro by default wraps the passed code in a closure so that any 
+early returns that happen inside don't interfere with the macro generated code.
+
+If you don't have an early return (a `return`/`continue`/`break`) 
+in the code passed to this macro you can use 
+`extern_fn_panic_handling!{no_early_return; <code here> }`,
+which *might* be cheaper(this has not been tested yet).
 
 # Example 
 
@@ -160,7 +183,30 @@ where
         println!("{:?}",this);
     }
 }
+```
 
+# Example, no_early_return
+
+
+```
+use std::fmt;
+
+use abi_stable::{
+    extern_fn_panic_handling,
+    std_types::RString,
+};
+
+
+pub extern "C" fn print_debug<T>(this: &T,buf: &mut RString)
+where
+    T: fmt::Debug,
+{
+    extern_fn_panic_handling!{no_early_return;
+        use std::fmt::Write;
+
+        println!("{:?}",this);
+    }
+}
 
 ```
 
@@ -168,19 +214,30 @@ where
 */
 #[macro_export]
 macro_rules! extern_fn_panic_handling {
-    ( $($fn_contents:tt)* ) => (
+    (no_early_return; $($fn_contents:tt)* ) => (
         let mut aborter_guard={
             use $crate::utils::{AbortBomb,PanicInfo};
+            #[allow(dead_code)]
             const BOMB:AbortBomb=AbortBomb{
                 fuse:Some(&PanicInfo{file:file!(),line:line!()})
             };
             BOMB
         };
-        let res=(move||{
+        let res={
             $($fn_contents)*
-        })();
+        };
         aborter_guard.fuse=None;
         res
+    );
+    ( $($fn_contents:tt)* ) => (
+        extern_fn_panic_handling!{
+            no_early_return;
+            let a=$crate::marker_type::NotCopyNotClone;
+            (move||{
+                drop(a);
+                $($fn_contents)*
+            })()
+        }
     )
 }
 
@@ -232,9 +289,8 @@ macro_rules! impl_get_type_info {
             use std::mem;
             use $crate::{
                 erased_types::type_info::TypeInfo,
-                version::{VersionStrings},
+                sabi_types::{ReturnValueEquality},
                 std_types::{StaticStr,utypeid::some_utypeid},
-                return_value_equality::ReturnValueEquality,
             };
 
             &TypeInfo{
@@ -244,13 +300,9 @@ macro_rules! impl_get_type_info {
                     function:some_utypeid::<Self>
                 },
                 name:StaticStr::new(stringify!($type)),
-                file:StaticStr::new(file!()),
+                module:StaticStr::new(module_path!()),
                 package:StaticStr::new(env!("CARGO_PKG_NAME")),
-                package_version:VersionStrings{
-                    major:StaticStr::new(env!("CARGO_PKG_VERSION_MAJOR")),
-                    minor:StaticStr::new(env!("CARGO_PKG_VERSION_MINOR")),
-                    patch:StaticStr::new(env!("CARGO_PKG_VERSION_PATCH")),
-                },
+                package_version:$crate::package_version_strings!(),
                 _private_field:(),
             }
         }
@@ -373,9 +425,11 @@ with information about the place where it's called.
 macro_rules! make_item_info {
     () => (
         $crate::abi_stability::type_layout::ItemInfo::new(
-            env!("CARGO_PKG_NAME"),
-            abi_stable::package_version_strings!(),
-            file!(),
+            concat!(
+                env!("CARGO_PKG_NAME"),
+                ";",
+                env!("CARGO_PKG_VERSION")
+            ),
             line!(),
             $crate::abi_stability::type_layout::ModPath::inside(module_path!()),
         )

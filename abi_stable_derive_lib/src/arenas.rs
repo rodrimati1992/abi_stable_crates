@@ -1,3 +1,5 @@
+use std::fmt;
+
 use typed_arena::Arena;
 
 macro_rules! declare_arenas {
@@ -13,6 +15,12 @@ macro_rules! declare_arenas {
                 Arenas{
                     $( $field_name:Arena::new(), )*
                 }
+            }
+        }
+
+        impl fmt::Debug for Arenas{
+            fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+                fmt::Debug::fmt("Arenas{..}",f)
             }
         }
 
@@ -56,14 +64,17 @@ macro_rules! declare_arenas {
 }
 
 declare_arenas! {
+    vec_meta: Vec<syn::Meta>,
     ident: syn::Ident,
     ident_vec: Vec<syn::Ident>,
     // paths: syn::Path,
+    lifetimes:syn::Lifetime,
     fields_named: syn::FieldsNamed,
     types: syn::Type,
     // metalists: syn::MetaList,
     // visibilities: syn::Visibility,
-    // tokenstream: TokenStream,
+    tokenstream: proc_macro2::TokenStream,
+    meta_attr: syn::Meta,
     expr: syn::Expr,
     strings: String,
     paths: syn::Path,

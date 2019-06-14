@@ -301,7 +301,7 @@ mod tests{
     fn debug_display(){
         let str_="\nhello\rhello\rhello\n";
         let mutex=RMutex::new(str_);
-        let mut guard=mutex.lock();
+        let guard=mutex.lock();
 
         check_formatting_equivalence(&guard,str_);
     }
