@@ -75,8 +75,6 @@ pub fn write_token_stream(ts:TokenStream2,buffer:&mut String){
 
 pub fn token_stream_to_string(ts:TokenStream2)->String{
     let mut buffer=String::new();
-    for tt in ts {
-        write_token_tree(tt,&mut buffer);
-    }
+    write_token_stream(ts,&mut buffer);
     buffer
 }

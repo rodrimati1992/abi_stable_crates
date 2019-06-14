@@ -287,11 +287,11 @@ impl RSomethingElse<u32> for u32{
         self
     }
 
-    fn passthrough_string(&self,value:RString)->RString{
+    fn passthrough_string(&self,_:RString)->RString{
         RString::new()
     }
 
-    fn passthrough_arc(&self,value:RArc<u32>)->RArc<u32>{
+    fn passthrough_arc(&self,_:RArc<u32>)->RArc<u32>{
         RArc::new(77)
     }
 }
@@ -389,8 +389,6 @@ mod tests{
         utils::leak_value,
     };
 
-    fn assert_sync<T:Sync>(_:&T){}
-    fn assert_debug<T:Debug>(_:&T){}
     fn assert_sync_send_debug_clone<T:Sync+Send+Debug+Clone>(_:&T){}
 
 
@@ -406,9 +404,9 @@ mod tests{
             #[test]
             fn $fn_name(){
                 let number=100_u32;
-                let mut object=$from_value::<_,TU_Unerasable,()>(number);
-                let mut arcobj=$from_ptr::<_,TU_Unerasable,()>(RArc::new(number));
-                let mut erased=$from_ptr::<_,TU_Opaque,()>(RBox::new(number));
+                let object=$from_value::<_,TU_Unerasable,()>(number);
+                let arcobj=$from_ptr::<_,TU_Unerasable,()>(RArc::new(number));
+                let erased=$from_ptr::<_,TU_Opaque,()>(RBox::new(number));
                 
                 assert_sync_send_debug_clone(&object);
                 assert_sync_send_debug_clone(&arcobj);
@@ -436,7 +434,7 @@ mod tests{
                     assert_eq!(object.sabi_as_any_unerased_mut::<u32>().ok(),None);
                     assert_eq!(object.sabi_as_any_unerased_mut::<i8>().ok(),None);
                     object=object.sabi_into_any_unerased::<u32>().unwrap_err().into_inner();
-                    object=object.sabi_into_any_unerased::<i8>().unwrap_err().into_inner();
+                    let _=object.sabi_into_any_unerased::<i8>().unwrap_err().into_inner();
                 }
 
                 fn create_from_ref<'a,T>(value:&'a T)->$typename<'a,&'a(),(),T::Element>
@@ -518,12 +516,12 @@ mod tests{
 
         assert_eq!(Arc::strong_count(&arc), 2);
 
-        let mut object:EmptyTrait_TO<RBox<()>>=
+        let mut object:EmptyTrait_TO<'_,RBox<()>>=
             EmptyTrait_from_value::<_,TU_Unerasable>(rarc.clone());
         
         assert_eq!(Arc::strong_count(&arc), 3);
 
-        let mut erased:EmptyTrait_TO<RArc<()>>=
+        let erased:EmptyTrait_TO<'_,RArc<()>>=
             EmptyTrait_from_ptr::<_,TU_Opaque>(rarc.clone());
         
         assert_eq!(Arc::strong_count(&arc), 4);
@@ -561,7 +559,7 @@ mod tests{
 
         assert_eq!(Arc::strong_count(&arc), 2);
 
-        let mut object:RSomething_TO<RBox<()>,(),u32>=
+        let mut object:RSomething_TO<'_,RBox<()>,(),u32>=
             RSomething_from_value::<_,TU_Unerasable,()>(rarc.clone());
         
         assert_eq!(Arc::strong_count(&arc), 3);

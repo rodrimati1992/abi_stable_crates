@@ -69,10 +69,10 @@ impl PrefixTypeMetadata{
     }
 
     
-    #[cfg(test)]
-    pub(crate) fn assert_valid(&self){
-        assert_eq!(self.layout.data.as_discriminant(),TLDataDiscriminant::PrefixType );
-    }
+    // #[cfg(test)]
+    // pub(crate) fn assert_valid(&self){
+    //     assert_eq!(self.layout.data.as_discriminant(),TLDataDiscriminant::PrefixType );
+    // }
 
     /// Returns the maximum prefix.Does not check that they are compatible.
     /// 

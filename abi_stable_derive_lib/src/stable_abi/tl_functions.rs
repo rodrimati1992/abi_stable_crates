@@ -154,6 +154,7 @@ impl TLFunctionsString{
         )
     }
 
+    #[allow(dead_code)]
     pub fn extend_with_str<I>(&mut self,separator:&str,iter:I)->StartLen
     where
         I:IntoIterator,

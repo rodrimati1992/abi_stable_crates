@@ -111,10 +111,6 @@ mod test{
 
     use std::sync::Arc;
 
-    use crate::{
-        pointer_trait::OwnedPointer,
-    };
-
     #[test]
     fn with_manuallydrop(){
         let arc=Arc::new(10);

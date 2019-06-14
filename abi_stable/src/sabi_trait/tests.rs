@@ -1,13 +1,10 @@
 use std::{
-    fmt::Debug,
-    hash::Hash,
-    sync::Arc,
     mem,
 };
 
 use crate::{
     *,
-    std_types::{RBox,RString,RArc,Tuple1,Tuple2,Tuple3},
+    std_types::RBox,
     sabi_trait::prelude::*,
     type_level::bools::*,
 };
@@ -65,13 +62,13 @@ fn downcasting_tests(){
     unsafe{
         use self::method_no_default::*;
         let empty=empty::Trait_from_value::<_,TU_Opaque>(());
-        let object=mem::transmute::<_,Trait_TO<RBox<()>>>(empty);
+        let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
         must_panic(file_span!(),|| object.apply(2,5) ).unwrap();
     }
     unsafe{
         use self::method_default::*;
         let empty=empty::Trait_from_value::<_,TU_Opaque>(());
-        let object=mem::transmute::<_,Trait_TO<RBox<()>>>(empty);
+        let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
         assert_eq!(object.apply(2,5),21);
     }
     
@@ -84,7 +81,7 @@ fn downcasting_tests(){
         }
         unsafe{            
             use self::method_default::*;
-            let object=mem::transmute::<_,Trait_TO<RBox<()>>>(no_default);
+            let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(no_default);
             assert_eq!(object.apply(2,5), 14);
         }
     }
@@ -96,7 +93,7 @@ fn downcasting_tests(){
         }
         unsafe{
             use self::method_no_default::*;
-            let object=mem::transmute::<_,Trait_TO<RBox<()>>>(with_default);
+            let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(with_default);
             assert_eq!(object.apply(2,5), 28);
         }
     }
@@ -105,63 +102,50 @@ fn downcasting_tests(){
 
 
 
-mod single_method{
-    use super::*;
-    #[sabi_trait]
-    pub trait Trait{
-        #[sabi(last_prefix_field)]
-        fn apply(&self,l:u32,r:u32)->u32;
+#[sabi_trait]
+trait DefaultMethodPair{
+    fn foo(&self,x:u32)->u32{
+        self.bar(x+10)
+    }
+    fn bar(&self,y:u32)->u32{
+        self.baz(y+20)
+    }
+    fn baz(&self,z:u32)->u32{
+        z+40
     }
 }
 
-mod two_methods{
-    use super::*;
-    #[sabi_trait]
-    pub trait Trait{
-        #[sabi(last_prefix_field)]
-        fn apply(&self,l:u32,r:u32)->u32;
-        fn apply2(&self,l:u32,r:u32)->u32;
+struct A;
+struct B;
+struct C;
+
+
+impl DefaultMethodPair for A{
+    fn foo(&self,x:u32)->u32{
+        x+100
     }
 }
 
-mod three_methods{
-    use super::*;
-    #[sabi_trait]
-    pub trait Trait{
-        #[sabi(last_prefix_field)]
-        fn apply(&self,l:u32,r:u32)->u32;
-        fn apply2(&self,l:u32,r:u32)->u32;
-        fn apply3(&self,l:u32,r:u32)->u32;
+impl DefaultMethodPair for B{
+    fn bar(&self,y:u32)->u32{
+        y+200
     }
 }
 
-mod single_methods_more_supertraits{
-    use super::*;
-    #[sabi_trait]
-    pub trait Trait:Clone+Debug{
-        #[sabi(last_prefix_field)]
-        fn apply(&self,l:u32,r:u32)->u32;
+impl DefaultMethodPair for C{
+    fn baz(&self,z:u32)->u32{
+        z+300
     }
 }
 
-mod single_methods_sync{
-    use super::*;
-    #[sabi_trait]
-    pub trait Trait:Clone+Debug{
-        #[sabi(last_prefix_field)]
-        fn apply(&self,l:u32,r:u32)->u32;
-    }
-}
 
-mod single_methods_send{
-    use super::*;
-    #[sabi_trait]
-    pub trait Trait:Clone+Debug{
-        #[sabi(last_prefix_field)]
-        fn apply(&self,l:u32,r:u32)->u32;
-    }
-}
+#[test]
+fn default_methods(){
+    let a=DefaultMethodPair_from_value::<_,TU_Opaque>(A);
+    let b=DefaultMethodPair_from_value::<_,TU_Opaque>(B);
+    let c=DefaultMethodPair_from_value::<_,TU_Opaque>(C);
 
-fn check_compatibility(){
-    
+    assert_eq!(a.foo(1), 101);
+    assert_eq!(b.foo(1), 211);
+    assert_eq!(c.foo(1), 331);
 }

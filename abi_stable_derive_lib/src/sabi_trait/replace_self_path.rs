@@ -1,11 +1,8 @@
-use super::*;
-
 use arrayvec::ArrayVec;
 
 use syn::visit_mut::VisitMut;
-use syn::{Ident, TypeParamBound, TypePath,TraitItemType};
+use syn::{Ident, TypePath,TraitItemType};
 
-use proc_macro2::TokenStream;
 use quote::ToTokens;
 
 use std::mem;

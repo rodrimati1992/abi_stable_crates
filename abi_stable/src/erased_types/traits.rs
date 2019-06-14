@@ -7,11 +7,10 @@ use std::{mem,marker::PhantomData};
 
 use crate::{
     erased_types::{DynTraitBound},
-    sabi_types::{MaybeCmp,VersionStrings,ReturnValueEquality},
+    sabi_types::VersionStrings,
     std_types::{
         RBoxError, 
         RCow, RStr,StaticStr,
-        utypeid::{UTypeId,no_utypeid,some_utypeid},
     },
 };
 

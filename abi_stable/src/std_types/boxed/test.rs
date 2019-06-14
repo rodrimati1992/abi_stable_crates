@@ -97,7 +97,7 @@ fn owned_pointer_trait(){
 
 
     unsafe{
-        let mut cloned_arc=ManuallyDrop::new(RBox::new(arc.clone()));
+        let cloned_arc=ManuallyDrop::new(RBox::new(arc.clone()));
         
         OwnedPointer::with_moved_ptr(cloned_arc,|move_ptr|{
             assert_eq!(Arc::strong_count(&move_ptr),2);
@@ -108,7 +108,7 @@ fn owned_pointer_trait(){
     }
     assert_eq!(Arc::strong_count(&arc),1);
     unsafe{
-        let mut cloned_arc=ManuallyDrop::new(RBox::new(arc.clone()));
+        let cloned_arc=ManuallyDrop::new(RBox::new(arc.clone()));
         
         OwnedPointer::with_moved_ptr(cloned_arc,|move_ptr|{
             assert_eq!(Arc::strong_count(&move_ptr),2);

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::{marker::PhantomData, num, ptr, sync::atomic};
+use std::{marker::PhantomData,mem, num, ptr, sync::atomic};
 
 #[allow(unused_imports)]
 use core_extensions::{matches, prelude::*};
@@ -236,6 +236,31 @@ fn assert_different_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static
         impl_,
     );
 }
+
+
+#[repr(transparent)]
+#[derive(StableAbi)]
+pub struct UnsafeOF{
+    #[sabi(unsafe_opaque_field)]
+    opaque:Vec<u8>,
+}
+
+
+#[test]
+fn unsafe_opaque_fields(){
+    let layout=UnsafeOF::ABI_INFO.get().layout;
+
+    let fields=match layout.data {
+        TLData::Struct{fields}=>fields.get_fields().collect::<Vec<_>>(),
+        _=>unreachable!(),
+    };
+
+    let field_0_ai=fields[0].abi_info.get().layout;
+    assert_eq!(field_0_ai.data, TLData::Opaque);
+    assert_eq!(field_0_ai.size, mem::size_of::<Vec<u8>>());
+    assert_eq!(field_0_ai.alignment, mem::align_of::<Vec<u8>>());
+}
+
 
 #[cfg_attr(not(miri),test)]
 fn same_different_abi_stability() {

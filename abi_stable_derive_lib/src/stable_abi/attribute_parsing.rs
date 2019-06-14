@@ -118,12 +118,12 @@ impl<'a> StableAbiOptions<'a> {
 
         let kind = match this.kind {
             _ if repr == ReprAttr::Transparent => {
-                let field=&ds.variants[0].fields[0];
+                // let field=&ds.variants[0].fields[0];
                 
-                let field_bound=syn::parse_str::<WherePredicate>(
-                    &format!("({}):__StableAbi",(&field.mutated_ty).into_token_stream())
-                ).expect(concat!(file!(),"-",line!()));
-                this.extra_bounds.push(field_bound);
+                // let field_bound=syn::parse_str::<WherePredicate>(
+                //     &format!("({}):__StableAbi",(&field.mutated_ty).into_token_stream())
+                // ).expect(concat!(file!(),"-",line!()));
+                // this.extra_bounds.push(field_bound);
 
                 StabilityKind::Value
             }

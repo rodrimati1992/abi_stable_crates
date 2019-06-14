@@ -1,8 +1,6 @@
 
 use super::*;
 
-use std::iter;
-
 use crate::{
     abi_stability::{
         stable_abi_trait::{MakeGetAbiInfo,StableAbi_Bound},
@@ -690,6 +688,7 @@ impl TLFunction{
     }
 
     /// Gets the parameters and return types 
+    #[allow(dead_code)]
     pub(crate) fn get_params_ret_vec(&self)->RVec<TLField>{
         self.get_params_ret_iter().collect()
     }

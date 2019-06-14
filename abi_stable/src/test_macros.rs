@@ -1,4 +1,5 @@
 /// Passes the tokens through as well as defines a constant with the stringified tokens.
+#[allow(unused_macros)]
 macro_rules! and_stringify {
     (
         $vis:vis const $stringified_name:ident;

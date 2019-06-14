@@ -1,5 +1,3 @@
-use core_extensions::IteratorExt;
-
 use syn::{
     parse,
     punctuated::Punctuated,
@@ -51,10 +49,12 @@ pub(crate) fn parse_lit_as_expr(lit:&syn::LitStr)->syn::Expr{
     parse_str_lit_as(lit,"Could not parse as an expression")
 }
 
+#[allow(dead_code)]
 pub(crate) fn parse_lit_as_type_bound(lit:&syn::LitStr)->TypeParamBound{
     parse_str_lit_as(lit,"Could not parse as an a bound")
 }
 
+#[allow(dead_code)]
 pub(crate) fn parse_lit_as_type_bounds(str_: &LitStr) -> Punctuated<TypeParamBound, Add> {
     parse_str_lit_as::<ParseBounds>(str_,"Could not parse as type bounds")
         .list

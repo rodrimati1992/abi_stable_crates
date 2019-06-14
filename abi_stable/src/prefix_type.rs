@@ -4,7 +4,6 @@ Types,traits,and functions used by prefix-types.
 */
 
 use std::{
-    borrow::Cow,
     marker::PhantomData,
 };
 
