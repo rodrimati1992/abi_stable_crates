@@ -1,5 +1,28 @@
 This is the changelog,summarising changes in each version.
 
+# 0.5
+
+- Moved some top-level abi_stable modules 
+    (ignored_wrapper,late_static_ref,return_value_equality,version) 
+    to sabi_types.
+
+- Added `#[sabi_trait]` example crate,which implement a basic plugin system.
+
+- Moved example crates to their own numbered subfolders.
+
+- Added unchecked versions of library loading methods in LibHeader.
+
+- Made generated type layout constants significantly smaller(in the binary),
+    by changing representation of fields and functions to structs of arrays(approximately).
+
+- Implemented RObject,the default backend type of `#[sabi_trait]`.
+
+- Implemented `#[sabi_trait]` attribute for generating ffi-safe trait objects 
+    from a trait definition.
+
+- Added MovePtr type and OwnedPointer trait,mostly for `#[sabi_trait]`.
+
+
 # 0.4
 
 - Added basic module reflection,changing a few details of how layout is represented.
