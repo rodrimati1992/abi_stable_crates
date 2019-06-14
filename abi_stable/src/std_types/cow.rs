@@ -11,6 +11,7 @@ use crate::{
     traits::IntoReprC,
 };
 
+// #[cfg(test)]
 #[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
@@ -448,7 +449,7 @@ where
 
 /// Deserializes an `RCow<'a,[u8]>` that borrows the slice from the deserializer 
 /// whenever possible.
-pub fn deserialize_bytes<'de,'a,D>(deserializer: D) -> Result<RCow<'a, [u8]>, D::Error>
+pub fn deserialize_borrowed_bytes<'de,'a,D>(deserializer: D) -> Result<RCow<'a, [u8]>, D::Error>
 where
     D: Deserializer<'de>,
     'de:'a
@@ -468,6 +469,23 @@ where
         })
 }
 
+/// Deserializes an `RCow<'a,str>` that borrows the string from the deserializer 
+/// whenever possible.
+pub fn deserialize_borrowed_str<'de,'a,D>(deserializer: D) -> Result<RCow<'a, str>, D::Error>
+where
+    D: Deserializer<'de>,
+    'de:'a
+{
+    #[derive(Deserialize)]
+    struct BorrowingCowStr<'a>(
+        #[serde(borrow)]
+        Cow<'a,str>
+    );
+
+    <BorrowingCowStr<'de> as Deserialize<'de>>::deserialize(deserializer)
+        .map(|x| RCow::from(x.0) )
+}
+
 impl<'de, 'a,T> Deserialize<'de> for RCow<'a, [T]>
 where 
     T:Clone+Deserialize<'de>,
@@ -482,20 +500,14 @@ where
 }
 
 
-#[derive(Deserialize)]
-struct BorrowingCowStr<'a>(
-    #[serde(borrow)]
-    Cow<'a,str>
-);
 
-impl<'de> Deserialize<'de> for RCow<'de, str>{
+impl<'de,'a> Deserialize<'de> for RCow<'a, str>{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-
-        <BorrowingCowStr<'de> as Deserialize<'de>>::deserialize(deserializer)
-            .map(|x| RCow::from(x.0) )
+        <Cow<'a,str> as Deserialize<'de>>::deserialize(deserializer)
+            .map(RCow::from)
     }
 }
 
@@ -525,6 +537,26 @@ where
         (&**self).serialize(serializer)
     }
 }
+
+
+/// A helper type,to deserialize a RCow<'a,[u8]> which borrows from the deserializer.
+#[derive(Deserialize)]
+#[serde(transparent)]
+pub struct BorrowingRCowU8Slice<'a>{
+    #[serde(borrow,deserialize_with="deserialize_borrowed_bytes")]
+    pub cow:RCow<'a,[u8]>
+}
+
+/// A helper type,to deserialize a RCow<'a,str> which borrows from the deserializer.
+#[derive(Deserialize)]
+#[serde(transparent)]
+pub struct BorrowingRCowStr<'a>{
+    #[serde(borrow,deserialize_with="deserialize_borrowed_str")]
+    pub cow:RCow<'a,str>
+}
+
+
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 

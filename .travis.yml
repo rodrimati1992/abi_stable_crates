@@ -12,14 +12,25 @@ matrix:
     - rust: 1.34.0
 
 script:
-  - cd "${TRAVIS_BUILD_DIR}/abi_stable"
+  - cd "${TRAVIS_BUILD_DIR}/abi_stable_derive_lib"
   - cargo test --release
   
-  - cd "${TRAVIS_BUILD_DIR}/examples/example_0_impl/"
+  - cd "${TRAVIS_BUILD_DIR}/abi_stable"
+  - cargo test --release --features sabi_trait_examples
+  
+  - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
   - cargo build --release
   - cargo test --release
-  - cd "${TRAVIS_BUILD_DIR}/examples/example_0_user/"
+  - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/user/"
   - cargo run --release -- run-tests
+  
+  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_0/"
+  - cargo build --release
+  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_1/"
+  - cargo build --release
+  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/application/"
+  - cargo run --release
+
   
   - cd "${TRAVIS_BUILD_DIR}/testing/impl_0/"
   - cargo build --release

@@ -20,9 +20,7 @@ use libloading::{
     Symbol as LLSymbol,
 };
 
-use abi_stable_derive_lib::{
-    mangled_root_module_loader_name,
-};
+use abi_stable_shared::mangled_root_module_loader_name;
 
 
 
@@ -33,9 +31,8 @@ use crate::{
     },
     globals::{self,Globals},
     marker_type::ErasedObject,
-    late_static_ref::LateStaticRef,
-    version::{ParseVersionError, VersionNumber, VersionStrings},
     utils::{transmute_reference},
+    sabi_types::{ LateStaticRef, ParseVersionError, VersionNumber, VersionStrings },
     std_types::{RVec,RBoxError,StaticStr},
 };
 

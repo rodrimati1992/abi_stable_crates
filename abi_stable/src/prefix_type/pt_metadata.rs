@@ -1,12 +1,17 @@
 use std::{
     borrow::Cow,
+    slice,
 };
 
 #[allow(unused_imports)]
 use crate::{
     abi_stability::{
-        type_layout::{TypeLayout,TLField,TLData,TLPrefixType,TLDataDiscriminant},
+        type_layout::{
+            TypeLayout,TLField,TLData,TLPrefixType,TLDataDiscriminant,
+            TLFieldsOrSlice,TLFieldsIterator,TLFields,
+        },
     },
+    std_types::*,
 };
 
 use super::{
@@ -29,12 +34,12 @@ pub(crate) struct PrefixTypeMetadata{
 
     pub conditional_prefix_fields:&'static [IsConditional],
 
-    pub fields:Cow<'static,[TLField]>,
+    pub fields:InitialFieldsOrMut,
 
     /// The layout of the struct,for error messages.
     pub layout:&'static TypeLayout,
 }
-    
+
 
 impl PrefixTypeMetadata{
     #[cfg(test)]
@@ -55,7 +60,7 @@ impl PrefixTypeMetadata{
 
     pub(crate) fn with_prefix_layout(prefix:TLPrefixType,layout:&'static TypeLayout)->Self{
         Self{
-            fields:prefix.fields.as_slice().into(),
+            fields:InitialFieldsOrMut::from(prefix.fields),
             accessible_fields:prefix.accessible_fields,
             conditional_prefix_fields:prefix.conditional_prefix_fields.as_slice(),
             prefix_field_count:prefix.first_suffix_field,
@@ -64,10 +69,10 @@ impl PrefixTypeMetadata{
     }
 
     
-    #[cfg(test)]
-    pub(crate) fn assert_valid(&self){
-        assert_eq!(self.layout.data.as_discriminant(),TLDataDiscriminant::PrefixType );
-    }
+    // #[cfg(test)]
+    // pub(crate) fn assert_valid(&self){
+    //     assert_eq!(self.layout.data.as_discriminant(),TLDataDiscriminant::PrefixType );
+    // }
 
     /// Returns the maximum prefix.Does not check that they are compatible.
     /// 
@@ -105,7 +110,7 @@ impl PrefixTypeMetadata{
     /// otherwise fields accessible in both `self` and `other` 
     /// won't be checked for compatibility or copied.
     pub(crate) fn combine_fields_from(&mut self,other:&Self){
-        let o_fields=&*other.fields;
+        let mut o_fields=other.fields.get_fields();
 
         let min_field_count=o_fields.len().min(self.fields.len());
         
@@ -114,20 +119,21 @@ impl PrefixTypeMetadata{
                 .zip(other.accessible_fields.iter_field_count(min_field_count))
                 .enumerate() 
         {
+            let o_field=o_fields.next().unwrap();
             if !t_acc.is_accessible() && o_acc.is_accessible() {
                 let t_fields=self.fields.to_mut();
 
-                t_fields[field_i]=o_fields[field_i];
+                t_fields[field_i]=o_field.into_owned();
             }
         }
 
         if min_field_count==self.fields.len() {
             let t_fields=self.fields.to_mut();
             
-            for (i,o_field) in o_fields[min_field_count..].iter().cloned().enumerate() {
+            for (i,o_field) in o_fields.enumerate() {
                 let field_i=i+min_field_count;
 
-                t_fields.push(o_field);
+                t_fields.push(o_field.into_owned());
                 self.accessible_fields=
                     self.accessible_fields.set_accessibility(field_i,IsAccessible::Yes);
             }
@@ -135,4 +141,93 @@ impl PrefixTypeMetadata{
     }
 }
 
+
+/////////////////////////////////////////////////////////////////////////////////
+
+
+#[derive(Debug,Clone)]
+pub(crate) enum InitialFieldsOrMut{
+    TLFields(TLFields),
+    Slice(StaticSlice<TLField>),
+    Mutable(Vec<TLField>),
+}
+
+
+impl From<TLFieldsOrSlice> for InitialFieldsOrMut{
+    fn from(this:TLFieldsOrSlice)->Self{
+        match this {
+            TLFieldsOrSlice::TLFields(x)=>InitialFieldsOrMut::TLFields(x),
+            TLFieldsOrSlice::Slice(x)=>InitialFieldsOrMut::Slice(x),
+
+        }
+    }
+}
+
+
+impl InitialFieldsOrMut{
+    pub fn to_mut(&mut self)->&mut Vec<TLField>{
+        match self {
+            InitialFieldsOrMut::Mutable(x)=>x,
+            this=>{
+                let list=this.get_fields().map(Cow::into_owned).collect::<Vec<TLField>>();
+                *this=InitialFieldsOrMut::Mutable(list);
+                match this {
+                    InitialFieldsOrMut::Mutable(x)=>x,
+                    _=>unreachable!()
+                }
+            }
+        }
+    }
+    pub fn get_fields(&self)->IFOMIter<'_>{
+        match self {
+            InitialFieldsOrMut::TLFields(x)=>IFOMIter::TLFields(x.get_fields()),
+            InitialFieldsOrMut::Slice(x)=>IFOMIter::Slice(x.as_slice().iter()),
+            InitialFieldsOrMut::Mutable(x)=>IFOMIter::Slice(x.iter()),
+        }
+    }
+    pub fn len(&self)->usize{
+        match self {
+            InitialFieldsOrMut::TLFields(x)=>x.field_1to1.len(),
+            InitialFieldsOrMut::Slice(x)=>x.len(),
+            InitialFieldsOrMut::Mutable(x)=>x.len(),
+        }
+    }
+}
+
+
+#[repr(C)]
+#[derive(Clone,Debug)]
+pub enum IFOMIter<'a>{
+    TLFields(TLFieldsIterator),
+    Slice(slice::Iter<'a,TLField>),
+}
+
+
+
+impl<'a> Iterator for IFOMIter<'a>{
+    type Item=Cow<'a,TLField>;
+
+    fn next(&mut self)->Option<Cow<'a,TLField>>{
+        match self {
+            IFOMIter::TLFields(iter)=>iter.next().map(Cow::Owned),
+            IFOMIter::Slice(iter)=>iter.next().map(Cow::Borrowed),
+        }
+    }
+
+    fn size_hint(&self)->(usize,Option<usize>){
+        match self {
+            IFOMIter::TLFields(iter)=>iter.size_hint(),
+            IFOMIter::Slice(iter)=>iter.size_hint(),
+        }
+    }
+    fn count(self) -> usize {
+        match self {
+            IFOMIter::TLFields(iter)=>iter.count(),
+            IFOMIter::Slice(iter)=>iter.count(),
+        }
+    }
+}
+
+
+impl<'a> std::iter::ExactSizeIterator for IFOMIter<'a>{}
 

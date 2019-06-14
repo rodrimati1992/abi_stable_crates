@@ -1,11 +1,6 @@
-use std::{
-    mem,
-};
-
 use crate::{
-    ignored_wrapper::CmpIgnored,
-    std_types::{StaticSlice,StaticStr},
-    version::VersionStrings,
+    sabi_types::{CmpIgnored,VersionStrings},
+    std_types::StaticStr,
 };
 
 
@@ -20,9 +15,7 @@ pub struct PTStructLayout {
     pub package_version: VersionStrings,
     pub file:CmpIgnored<StaticStr>, // This is for the Debug string
     pub line:CmpIgnored<u32>, // This is for the Debug string
-    pub size: usize,
-    pub alignment: usize,
-    pub fields:StaticSlice<PTField>,
+    pub field_names:StaticStr,
 }
 
 
@@ -34,27 +27,15 @@ pub struct PTStructLayoutParams{
     pub package_version: VersionStrings,
     pub file:&'static str, // This is for the Debug string
     pub line:u32, // This is for the Debug string
-    pub fields:&'static [PTField],
+    pub field_names:&'static str,
 }
-
-
-/// Represents a field of a prefix-type,for use in error messages.
-#[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
-pub struct PTField {
-    pub name:StaticStr,
-    pub ty:CmpIgnored<StaticStr>,
-    pub size:usize,
-    pub alignment:usize,
-}
-
 
 
 //////////////////////////////////////////////////////////////
 
 
 impl PTStructLayout{
-    pub const fn new<T>(params:PTStructLayoutParams)->Self{
+    pub const fn new(params:PTStructLayoutParams)->Self{
         Self{
             name:StaticStr::new(params.name),
             generics:CmpIgnored::new(StaticStr::new(params.generics)),
@@ -62,21 +43,19 @@ impl PTStructLayout{
             package_version:params.package_version,
             file:CmpIgnored::new(StaticStr::new(params.file)),
             line:CmpIgnored::new(params.line),
-            size:mem::size_of::<T>(),
-            alignment:mem::align_of::<T>(),
-            fields:StaticSlice::new(params.fields),
+            field_names:StaticStr::new(params.field_names),
         }
     }
-}
 
+    pub fn get_field_names(&self)->impl Iterator<Item=&'static str>{
+        self.field_names.as_str().split(';').filter(|x| !x.is_empty() )
+    }
 
-impl PTField{
-    pub const fn new<T>(name:&'static str ,ty:&'static str)->Self{
-        Self{
-            name:StaticStr::new(name),
-            ty:CmpIgnored::new(StaticStr::new(ty)),
-            size:mem::size_of::<T>(),
-            alignment:mem::align_of::<T>(),
-        }
+    pub fn get_field_names_vec(&self)->Vec<&'static str>{
+        self.get_field_names().collect()
+    }
+
+    pub fn get_field_name(&self,field_index:usize)->Option<&'static str>{
+        self.get_field_names().nth(field_index)
     }
 }

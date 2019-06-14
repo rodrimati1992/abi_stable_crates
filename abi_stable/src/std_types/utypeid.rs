@@ -13,7 +13,7 @@ use std::{
 
 use crate::{
     EXECUTABLE_IDENTITY,
-    std_types::{RSome,RNone,ROption},
+    sabi_types::MaybeCmp,
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -28,19 +28,18 @@ where
 
 
 #[doc(hidden)]
-pub extern "C" fn some_utypeid<T>() -> ROption<UTypeId>
+pub extern "C" fn some_utypeid<T>() -> MaybeCmp<UTypeId>
 where
     T: 'static,
 {
-    RSome(UTypeId::new::<T>())
+    MaybeCmp::Just(UTypeId::new::<T>())
 }
 
 
 #[doc(hidden)]
-pub extern "C" fn none_utypeid() -> ROption<UTypeId>{
-    RNone
+pub extern "C" fn no_utypeid() -> MaybeCmp<UTypeId>{
+    MaybeCmp::Nothing
 }
-
 
 
 /// A TypeId that can compare types across dynamic libraries.

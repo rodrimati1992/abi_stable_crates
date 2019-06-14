@@ -10,23 +10,23 @@ The StableAbi derive macro allows one to implement the StableAbi trait to :
 
 These attributes are applied on the type declaration.
 
-### `#[sabi(unconstrained(TypeParameter))]` 
+<h3> `#[sabi(unconstrained(TypeParameter))]`  </h3>
 
 Removes the implicit `TypeParameter:StableAbi` constraint.
 
 This is only necessary if you are passing `TypeParameter` to `UnsafeIgnoredType`
 
-### `#[sabi(bound="Type:ATrait")]`
+<h3> `#[sabi(bound="Type:ATrait")]` </h3>
 
 Adds a bound to the `StableAbi` impl.
 
-### `#[sabi(prefix_bound="Type:ATrait")]`
+<h3> `#[sabi(prefix_bound="Type:ATrait")]` </h3>
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
 Adds a bound to the `PrefixTypeTrait` impl.
 
-### `#[sabi(tag=" some_expr ")]`
+<h3> `#[sabi(tag=" some_expr ")]` </h3>
 
 Adds a "tag" associated with the type,
 a dynamically typed data structure used to encode extra properties about a type.
@@ -49,18 +49,18 @@ Sibling means libraries loaded at runtime by the same library/binary
 For more information about tags,[look here](../../abi_stability/tagging/index.html)
 
 
-### `#[sabi(debug_print)]`
+<h3> `#[sabi(debug_print)]` </h3>
 
 Prints the generated code,stopping compilation.
 
-### `#[sabi(kind(Prefix( .. )))]`
+<h3> `#[sabi(kind(Prefix( .. )))]` </h3>
 Declares the struct as being a prefix-type.
 
 `#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`<br>
 Uses "NameOfPrefixStruct" as the name of the prefix struct.
 
 
-### `#[sabi(module_reflection(...))]` 
+<h3> `#[sabi(module_reflection(...))]`  </h3>
 
 Determines how this type is accessed when treated as a module for reflection.
 
@@ -79,12 +79,13 @@ Delegates the treatment of this type as a module to the type it dereferences to.
 
 These attributes are applied to fields.
 
-### `#[sabi(rename="ident")]`
+
+<h3> `#[sabi(rename="ident")]` </h3>
 
 Renames the field in the generated layout information.
 Use this when renaming private fields.
 
-### `#[sabi(unsafe_opaque_field)]`
+<h3> `#[sabi(unsafe_opaque_field)]` </h3>
 
 Does not require the field to implement StableAbi,
 and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
@@ -92,15 +93,20 @@ and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
 This is unsafe because the layout of the type won't be verified when loading the library,
 which causes Undefined Behavior if the type has a different layout.
 
+<h3> `#[sabi(field_bound="ATrait")]` </h3>
 
-### `#[sabi(last_prefix_field)]`
+This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
+
+Adds the bound to the field type in the accessor method.
+
+<h3> `#[sabi(last_prefix_field)]` </h3>
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
 Declares that the field it is applied to is the last field in the prefix,
 where every field up to it is guaranteed to exist.
 
-### `#[sabi(accessible_if=" expression ")]`
+<h3> `#[sabi(accessible_if=" expression ")]` </h3>
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
@@ -121,7 +127,7 @@ which accessors are conditional for prefix fields.
 To do `#[sabi(accessible_if="<TypeParameter as Trait>::CONSTANT")]` you can use the 
 `#[sabi(prefix_bound="TypeParameter:Trait")]` attribute.
 
-### `#[sabi(refl(pub_getter=" function_name "))]`
+<h3> `#[sabi(refl(pub_getter=" function_name "))]` </h3>
 
 Determines the public getter for a field used by reflection.
 
@@ -129,7 +135,7 @@ The function can return either a reference or a value.
 
 # Field and/or Container attributes
 
-### `#[sabi(missing_field( .. ))]`
+<h3> `#[sabi(missing_field( .. ))]` </h3>
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
@@ -153,6 +159,9 @@ This is the default.
 `#[sabi(missing_field(with="somefunction"))]`<br>
 Returns `somefunction()` if the field doesn't exist.
 
+`#[sabi(missing_field(value="some_expression"))]`<br>
+Returns `some_expression` if the field doesn't exist.
+
 `#[sabi(missing_field(default))]`<br>
 Returns `Default::default()` if the field doesn't exist.
 
@@ -163,21 +172,21 @@ Because repr attributes can cause the type to change layout,
 the StableAbi derive macro has to know about every repr attribute applied to the type,
 since it might invalidate layout stability.
 
-### `repr(C)`
+<h3> `repr(C)` </h3>
 
 This is the representation that most StableAbi types will have.
 
-### `repr(transparent)`
+<h3> `repr(transparent)` </h3>
 
 `repr(transparent)` types are supported,
 though their layout is not considered equivalent to their only non-zero-sized field,
 since this library considers all types as being meaningful even if zero-sized.
 
-### `repr(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize)`
+<h3> `repr(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize)` </h3>
 
 These repr attributes are only supported for enums.
 
-### `repr(align(...))`
+<h3> `repr(align(...))` </h3>
 
 
 `repr(align(...))` is supported,
@@ -186,7 +195,7 @@ so long as it is used in combination with the other supported repr attributes.
 
 # Examples 
 
-### Basic example
+<h3> Basic example </h3>
 
 ```
 
@@ -201,7 +210,7 @@ struct Point2D{
 
 ```
 
-### Prefix-types
+<h3> Prefix-types </h3>
 
 For examples of Prefix-types [look here](../prefix_types/index.html#examples).
 

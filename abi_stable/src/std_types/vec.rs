@@ -14,10 +14,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use core_extensions::prelude::*;
 
 use crate::{
-    std_types::{RSlice, RSliceMut},
-    std_types::utypeid::{UTypeId,new_utypeid},
+    sabi_types::{ReturnValueEquality},
+    std_types::{RSlice, RSliceMut,utypeid::{UTypeId,new_utypeid}},
     prefix_type::{PrefixTypeTrait,WithMetadata},
-    return_value_equality::ReturnValueEquality,
 };
 
 #[cfg(all(test,not(feature="only_new_tests")))]
@@ -378,7 +377,7 @@ impl<T> RVec<T> {
         let old_length = self.length;
         self.length = to;
         unsafe {
-            for elem in &mut self.entire_buffer()[to..old_length] {
+            for elem in self.get_unchecked_mut(to..old_length) {
                 ptr::drop_in_place(elem);
             }
         }
@@ -428,9 +427,15 @@ where
                 self.resize_capacity(new_len, Exactness::Above);
                 // Using new_len instead of the capacity because resize_capacity may
                 // grow the capacity more than requested.
-                let new_elems = &mut self.entire_buffer()[old_len..new_len];
-                for elem_ptr in new_elems {
-                    ptr::write(elem_ptr, value.clone());
+                //
+                // Also replaced usage of slice with raw pointers based on a 
+                // comment mentioning how slices must only reference initialized memory.
+                let start=self.buffer_mut();
+                let mut current=start.add(old_len);
+                let end=start.add(new_len);
+                while current!=end {
+                    ptr::write(current, value.clone());
+                    current=current.add(1);
                 }
                 self.length = new_len;
             },

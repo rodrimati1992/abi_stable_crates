@@ -14,10 +14,6 @@ use syn::{
     BareFnArgName,
 };
 
-
-
-use proc_macro2::TokenStream;
-
 use quote::ToTokens;
 
 use core_extensions::prelude::*;
@@ -52,6 +48,8 @@ pub(crate) struct Function<'a> {
     pub(crate) named_bound_lt_set: Ignored<HashSet<&'a Ident>>,
     pub(crate) named_bound_lts_count:usize,
 
+    pub(crate) is_unsafe: bool,
+
     pub(crate) params: Vec<FnParamRet<'a>>,
     /// None if its return type is `()`.
     pub(crate) returns: Option<FnParamRet<'a>>,
@@ -60,7 +58,7 @@ pub(crate) struct Function<'a> {
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct FnParamRet<'a> {
     /// The name of the argument/return type.
-    pub(crate) name: &'a str,
+    pub(crate) name: Option<&'a str>,
     /// The lifetimes this type references (including static).
     pub(crate) lifetime_refs: Vec<LifetimeIndex>,
     pub(crate) ty: &'a Type,
@@ -74,33 +72,10 @@ impl<'a> FnParamRet<'a>{
             elems:Punctuated::default(),
         };
         FnParamRet{
-            name:"returns",
+            name:None,
             lifetime_refs:Vec::new(),
             ty:arenas.alloc( syn::Type::from(unit)  ),
             param_or_ret:ParamOrReturn::Return,
-        }
-    }
-
-    pub fn lifetime_refs_tokenizer(&self,ctokens:&'a CommonTokens<'a>)->FnParamRetLtRefTokens<'_>{
-        FnParamRetLtRefTokens{
-            lifetime_refs:&self.lifetime_refs,
-            ctokens,
-        }
-    }
-}
-
-
-pub(crate) struct FnParamRetLtRefTokens<'a> {
-    lifetime_refs: &'a [LifetimeIndex],
-    ctokens:&'a CommonTokens<'a>,
-}
-
-
-impl<'a> ToTokens for FnParamRetLtRefTokens<'a> {
-    fn to_tokens(&self, ts: &mut TokenStream) {
-        for refs in self.lifetime_refs {
-            refs.tokenizer(self.ctokens).to_tokens(ts);
-            self.ctokens.comma.to_tokens(ts);
         }
     }
 }
@@ -115,6 +90,7 @@ pub(crate) struct VisitFieldRet<'a> {
 /////////////
 
 
+#[allow(dead_code)]
 impl<'a> TypeVisitor<'a> {
     #[inline(never)]
     pub fn new(arenas: &'a Arenas, ctokens: &'a CommonTokens<'a>, generics: &'a Generics) -> Self {
@@ -134,6 +110,16 @@ impl<'a> TypeVisitor<'a> {
                 },
             },
         }
+    }
+
+    pub fn arenas(&self)->&'a Arenas{
+        self.refs.arenas
+    }
+    pub fn ctokens(&self)->&'a CommonTokens<'a>{
+        self.refs.ctokens
+    }
+    pub fn env_generics(&self)->&'a Generics{
+        self.refs.env_generics
     }
 
     pub fn visit_field(&mut self,ty: &mut Type) -> VisitFieldRet<'a> {
@@ -226,6 +212,8 @@ impl<'a> VisitMut for TypeVisitor<'a> {
         let ctokens = self.refs.ctokens;
         let arenas = self.refs.arenas;
 
+        let is_unsafe=func.unsafety.is_some();
+
         let abi = func
             .abi
             .as_ref()
@@ -262,6 +250,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
                 named_bound_lts_count:named_bound_lts.len(),
                 named_bound_lts,
                 named_bound_lt_set:Ignored::new(named_bound_lt_set),
+                is_unsafe,
                 params: Vec::new(),
                 returns: None,
             },
@@ -270,7 +259,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
 
         fn visit_ty<'a, 'b>(
             this: &mut FnVisitor<'a, 'b>,
-            name:&'a str,
+            name:Option<&'a str>,
             ty: &'a mut Type,
             param_or_ret: ParamOrReturn,
         ) {
@@ -307,7 +296,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             syn::ReturnType::Default => None,
             syn::ReturnType::Type(_, ty) => Some(arenas.alloc_mut(*ty)),
         }
-        .map(|ty| visit_ty(&mut current_function,"returns", ty, ParamOrReturn::Return));
+        .map(|ty| visit_ty(&mut current_function,None, ty, ParamOrReturn::Return));
 
         let current=current_function.current;
         self.vars.fn_info.functions.push(current);
@@ -439,19 +428,13 @@ impl<'a, 'b> VisitMut for FnVisitor<'a, 'b> {
 /////////////
 
 fn extract_fn_arg_name<'a>(
-    index:usize,
+    _index:usize,
     arg:&mut syn::BareFnArg,
     arenas: &'a Arenas,
-)->&'a str{
+)->Option<&'a str>{
     match arg.name.take() {
-        Some((BareFnArgName::Named(name),_))=>{
-            arenas.alloc(name.to_string())
-        }
-        Some((BareFnArgName::Wild{..},_))=>{
-            "_"
-        }
-        None=>{
-            arenas.alloc(format!("param_{}",index))
-        }
+        Some((BareFnArgName::Named(name),_))=>Some(arenas.alloc(name.to_string())),
+        Some((BareFnArgName::Wild{..},_))=>None,
+        None=>None,
     }
 }

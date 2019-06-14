@@ -5,6 +5,7 @@ Where the StableAbi trait is declares,as well as related types/traits.
 use core_extensions::type_level_bool::{Boolean, False, True};
 use std::{
     cell::{Cell,UnsafeCell},
+    cmp::{Eq,PartialEq},
     fmt,
     marker::{PhantomData,PhantomPinned},
     mem::ManuallyDrop,
@@ -19,8 +20,8 @@ use crate::{
         LifetimeIndex, TLData, TLField, TypeLayout, TypeLayoutParams,
         ItemInfo,ReprAttr,TLPrimitive,TLEnumVariant,
     },
-    std_types::{RNone, RSome, StaticSlice, utypeid::UTypeId},
-    return_value_equality::ReturnValueEquality,
+    std_types::{RNone, RSome, utypeid::UTypeId},
+    sabi_types::ReturnValueEquality,
     reflection::ModReflMode,
 };
 
@@ -102,8 +103,9 @@ The kind of abi stability of this type,there are 2:
     */
     type Kind:TypeKindTrait;
 
-    /// A version of the type which does not borrow anything,
-    /// used to create a UTypeId for doing layout checking.
+    /// A type that stands in for Self,used to create a UTypeId for doing layout checking.
+    ///
+    /// This may or may not have the same TypeId as Self.
     type StaticEquivalent:'static;
 
     /// The layout of the type provided by implementors.
@@ -273,6 +275,15 @@ impl GetAbiInfo {
     }
 }
 
+impl Eq for GetAbiInfo{}
+
+impl PartialEq for GetAbiInfo{
+    fn eq(&self,other:&Self)->bool{
+        self.get()==other.get()
+    }
+}
+
+
 /// Constructs the GetAbiInfo for Self.
 ///
 /// # Safety
@@ -305,6 +316,29 @@ unsafe impl<T> MakeGetAbiInfo<UnsafeOpaqueField_Bound> for T {
         abi_info: get_abi_info::<UnsafeOpaqueField<T>>,
     };
 }
+
+
+#[doc(hidden)]
+pub struct MakeGetAbiInfoSA<T>(T);
+
+impl<T> MakeGetAbiInfoSA<T>
+where T: StableAbi,
+{
+    pub const CONST:GetAbiInfo=GetAbiInfo {
+        abi_info: get_abi_info::<T>,
+    };
+}
+
+
+#[doc(hidden)]
+pub struct MakeGetAbiInfoUF<T>(T);
+
+impl<T> MakeGetAbiInfoUF<T>{
+    pub const CONST:GetAbiInfo=GetAbiInfo {
+        abi_info: get_abi_info::<UnsafeOpaqueField<T>>,
+    };
+}
+
 
 /// Determines that MakeGetAbiInfo constructs the AbiInfo for a 
 /// type that implements StableAbi.
@@ -582,16 +616,19 @@ where
         "Option",
         RNone,
         ItemInfo::primitive(),
-        TLData::enum_(&[
-            TLEnumVariant::new("Some",&[
+        TLData::enum_(
+            &[
                 TLField::new(
                     "0",
                     &[],
                     <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
                 )
-            ]),
-            TLEnumVariant::new("None",&[]),
-        ]),
+            ],
+            &[
+                TLEnumVariant::new("Some",1),
+                TLEnumVariant::new("None",0),
+            ]
+        ),
         ReprAttr::OptionNonZero,
         tl_genparams!(;T;),
         &[],
@@ -802,8 +839,8 @@ unsafe impl SharedStableAbi for core_extensions::Void {
     const S_LAYOUT: &'static TypeLayout =
         &TypeLayout::from_params::<Self>(TypeLayoutParams {
             name: "Void",
-            item_info:ItemInfo::package_and_mod("core_extensions","core_extensions"),
-            data: TLData::enum_(&[]),
+            item_info:ItemInfo::package_and_mod("core_extensions;0.0.0","core_extensions"),
+            data: TLData::enum_(&[],&[]),
             generics: tl_genparams!(;;),
         });
 }
@@ -818,9 +855,7 @@ macro_rules! empty_extern_fn_layout{
         &TypeLayout::from_params::<extern "C" fn()>(TypeLayoutParams {
             name: "AFunctionPointer",
             item_info:make_item_info!(),
-            data: TLData::Struct {
-                fields: StaticSlice::new(&[]),
-            },
+            data: TLData::struct_(&[]),
             generics: tl_genparams!(;;),
         })
     )
@@ -849,6 +884,12 @@ unsafe impl SharedStableAbi for unsafe extern "C" fn() {
     const S_LAYOUT: &'static TypeLayout = empty_extern_fn_layout!(Self);
 }
 
+
+/// The GetAbiInfo of an `unsafe extern fn()`
+pub const UNSAFE_EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<unsafe extern fn()>::CONST;
+
+/// The GetAbiInfo of an `extern fn()`
+pub const EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<extern fn()>::CONST;
 
 
 /////////////

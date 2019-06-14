@@ -20,7 +20,7 @@ use crate::{
     },
     type_level::{
         //option::{Some_,None_,SomeTrait}
-        bools::{Boolean, False, True},
+        bools::{False, True},
     },
 };
 
@@ -37,6 +37,7 @@ pub(crate) mod iterator;
 
 pub mod dyn_trait;
 
+#[macro_use]
 pub(crate) mod vtable;
 
 pub mod traits;

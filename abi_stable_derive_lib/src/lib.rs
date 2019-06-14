@@ -3,8 +3,10 @@ An implementation detail of abi_stable.
 */
 
 #![recursion_limit="192"]
-//#![deny(unused_variables)]
-
+#![deny(unused_variables)]
+#![deny(unreachable_patterns)]
+#![deny(unused_doc_comments)]
+#![deny(unconditional_recursion)]
 
 extern crate core_extensions;
 
@@ -13,8 +15,8 @@ extern crate proc_macro;
 #[macro_use]
 mod macros;
 
-#[doc(hidden)]
-pub mod reflection;
+#[macro_use]
+mod utils;
 
 mod arenas;
 mod attribute_parsing;
@@ -24,11 +26,19 @@ mod ignored_wrapper;
 mod datastructure;
 mod fn_pointer_extractor;
 mod impl_interfacetype;
-mod prefix_types;
-mod repr_attrs;
+mod parse_utils;
+mod my_visibility;
+mod gen_params_in;
+mod workaround;
+
+
+
 
 mod lifetimes;
-mod stable_abi;
+
+#[doc(hidden)]
+pub mod stable_abi;
+
 mod to_token_fn;
 
 use proc_macro::TokenStream as TokenStream1;
@@ -45,79 +55,26 @@ use core_extensions::prelude::*;
 use crate::{
     arenas::{AllocMethods, Arenas},
     common_tokens::CommonTokens,
+    utils::PrintDurationOnDrop,
 };
 
 
-fn mangle_ident<S>(kind:&str,name:S)->String
-where S: ::std::fmt::Display
-{
-
-    let unmangled=format!("_as.{}.{}",kind,name);
-
-    let mut mangled=String::with_capacity(unmangled.len()*3/2);
-
-    for kv in unmangled.split_while(|c| c.is_alphanumeric() ) {
-        if kv.key {
-            mangled.push_str(kv.str);
-            continue
-        }
-        for c in kv.str.chars() {
-            mangled.push_str(match c {
-                '.'=>"_0",
-                '_'=>"_1",
-                '-'=>"_2",
-                '<'=>"_3",
-                '>'=>"_4",
-                '('=>"_5",
-                ')'=>"_6",
-                '['=>"_7",
-                ']'=>"_8",
-                '{'=>"_9",
-                '}'=>"_a",
-                ' '=>"_b",
-                ','=>"_c",
-                ':'=>"_d",
-                ';'=>"_e",
-                '!'=>"_f",
-                '#'=>"_g",
-                '$'=>"_h",
-                '%'=>"_i",
-                '/'=>"_j",
-                '='=>"_k",
-                '?'=>"_l",
-                '¿'=>"_m",
-                '¡'=>"_o",
-                '*'=>"_p",
-                '+'=>"_q",
-                '~'=>"_r",
-                '|'=>"_s",
-                '°'=>"_t",
-                '¬'=>"_u",
-                '\''=>"_x",
-                '\"'=>"_y",
-                '`'=>"_z",
-                c=>panic!("cannot currently mangle the '{}' character.", c),
-            });
-        }
-    }
-
-    mangled
-}
 
 
 #[doc(hidden)]
 pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
+    let input = syn::parse::<DeriveInput>(input).unwrap();
     measure!({
-        let input = syn::parse::<DeriveInput>(input).unwrap();
-        // println!("deriving StableAbi for {}",input.ident);
-        stable_abi::derive(input).into()
-    })
+        stable_abi::derive(input)
+    }).into()
 }
 
 #[doc(hidden)]
 pub fn derive_stable_abi_from_str(s: &str) -> TokenStream2 {
     let input = syn::parse_str::<DeriveInput>(s).unwrap();
-    stable_abi::derive(input)
+    measure!({
+        stable_abi::derive(input)
+    })
 }
 
 
@@ -129,9 +86,20 @@ pub fn impl_InterfaceType(input: TokenStream1) -> TokenStream1{
 }
 
 
-/// Gets the name of the function that loads the root module of a library.
-pub fn mangled_root_module_loader_name()->String{
-    mangle_ident("lib_header","root module loader")
+
+#[doc(hidden)]
+pub mod sabi_trait;
+
+#[doc(hidden)]
+pub fn derive_sabi_trait(_attr: TokenStream1, item: TokenStream1) -> TokenStream1{
+    let item = syn::parse::<syn::ItemTrait>(item).unwrap();
+    sabi_trait::derive_sabi_trait(item).into()
+}
+
+#[doc(hidden)]
+pub fn derive_sabi_trait_str(item: &str) -> TokenStream2{
+    let item = syn::parse_str::<syn::ItemTrait>(item).unwrap();
+    sabi_trait::derive_sabi_trait(item)
 }
 
 
@@ -140,6 +108,8 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
     use syn::Ident;
 
     use proc_macro2::Span;
+
+    use abi_stable_shared::mangled_root_module_loader_name;
     
 
     measure!({

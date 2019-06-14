@@ -2,11 +2,12 @@
 Traits for pointers.
 */
 use std::{
+    mem::ManuallyDrop,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
 
-// use crate::{cabi_type::CAbi};
+use crate::sabi_types::MovePtr;
 
 #[allow(unused_imports)]
 use core_extensions::{prelude::*, utils::transmute_ignore_size};
@@ -244,4 +245,49 @@ unsafe impl<'a, T: 'a> StableDeref for &'a mut T {}
 
 unsafe impl<'a, T: 'a, O: 'a> TransmuteElement<O> for &'a mut T {
     type TransmutedPtr = &'a mut O;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+/**
+For owned pointers,allows extracting their contents separate from deallocating them.
+
+# Safety for implementor
+
+- The pointer type is either `!Drop`(no drop glue either),
+    or it uses a vtable to Drop the referent and deallocate the memory correctly.
+*/
+pub unsafe trait OwnedPointer:Sized{
+    /// The type of the value this owns.
+    type Target;
+
+    /// Gets a move pointer to the contents of this pointer.
+    ///
+    /// # Safety
+    ///
+    /// This function moves the owned contents out of this pointer,
+    /// the only safe thing that can be done with the pointer afterwads 
+    /// is to call OwnedPointer::drop_allocation.
+    unsafe fn get_move_ptr(&mut self)->MovePtr<'_,Self::Target>;
+
+    /// Deallocates the pointer without dropping its owned contents.
+    ///
+    /// Note that if `Self::get_move_ptr` has not been called this will 
+    /// leak the values owned by the referent of the pointer. 
+    ///
+    fn drop_allocation(this:ManuallyDrop<Self>);
+
+    #[inline]
+    fn with_moved_ptr<F,R>(mut this:ManuallyDrop<Self>,f:F)->R
+    where 
+        F:FnOnce(MovePtr<'_,Self::Target>)->R
+    {
+        unsafe{
+            let ret=f(Self::get_move_ptr(&mut this));
+            Self::drop_allocation(this);
+            ret
+        }
+    }
 }

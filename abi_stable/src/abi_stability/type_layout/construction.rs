@@ -40,12 +40,9 @@ pub struct _private_TypeLayoutDerive {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq,StableAbi)]
 pub struct ItemInfo{
-    /// The package where the type was defined.
-    pub package:StaticStr,
-    /// The version of the package where the type was defined.
-    pub package_version: VersionStrings,
-    /// The file where the type was defined.
-    pub file:StaticStr,
+    /// The package where the type was defined,and the version string.
+    /// With the `package;version_number` format.
+    pub package_and_version:StaticStr,
     /// The line in the file where the type was defined.
     pub line:u32,
     /// The full path to the module where the type was defined,
@@ -56,16 +53,12 @@ pub struct ItemInfo{
 impl ItemInfo{
     #[doc(hidden)]
     pub const fn new(
-        package:&'static str,
-        package_version: VersionStrings,
-        file:&'static str,
+        package_and_version:&'static str,
         line:u32,
         mod_path:ModPath,
     )->Self{
         Self{
-            package: StaticStr::new(package),
-            package_version,
-            file:StaticStr::new(file),
+            package_and_version: StaticStr::new(package_and_version),
             line,
             mod_path,
         }
@@ -74,13 +67,7 @@ impl ItemInfo{
     /// Constructs an ItemInfo for a std primitive
     pub const fn primitive()->Self{
         Self{
-            package: StaticStr::new("std"),
-            package_version: VersionStrings {
-                major: StaticStr::new("1"),
-                minor: StaticStr::new("0"),
-                patch: StaticStr::new("0"),
-            },
-            file:StaticStr::new("<standard_library>"),
+            package_and_version: StaticStr::new("std;1.0.0"),
             line:0,
             mod_path:ModPath::Prelude,
         }
@@ -89,13 +76,7 @@ impl ItemInfo{
     /// Constructs an ItemInfo for an std type with a path.
     pub const fn std_type_in(path:&'static str)->Self{
         Self{
-            package: StaticStr::new("std"),
-            package_version: VersionStrings {
-                major: StaticStr::new("1"),
-                minor: StaticStr::new("0"),
-                patch: StaticStr::new("0"),
-            },
-            file:StaticStr::new("<standard_library>"),
+            package_and_version: StaticStr::new("std;1.0.0"),
             line:0,
             mod_path:ModPath::inside(path),
         }
@@ -103,19 +84,29 @@ impl ItemInfo{
 
     /// Constructs an ItemInfo for a type in a package and the path to its module.
     ///
+    /// `package_and_version` must be formatted like this:`package_name;major.minor.patch`
+    ///
     /// `mod_path` must include the crate name.
-    pub const fn package_and_mod(package:&'static str,mod_path:&'static str)->Self{
+    pub const fn package_and_mod(package_and_version:&'static str,mod_path:&'static str)->Self{
         Self{
-            package: StaticStr::new(package),
-            package_version: VersionStrings {
-                major: StaticStr::new("0"),
-                minor: StaticStr::new("0"),
-                patch: StaticStr::new("0"),
-            },
-            file:StaticStr::new("<unavailable>"),
+            package_and_version:StaticStr::new(package_and_version),
             line:0,
             mod_path:ModPath::inside(mod_path),
         }
     }
 }
 
+
+impl ItemInfo{
+    pub fn package_and_version(&self)->(&'static str,&'static str){
+        let pav=self.package_and_version.as_str();
+        match pav.find(';') {
+            Some(separator)=>{
+                (&pav[..separator],&pav[(separator+1)..])
+            }
+            None=>{
+                (&pav[..],"")
+            }
+        }
+    }
+}

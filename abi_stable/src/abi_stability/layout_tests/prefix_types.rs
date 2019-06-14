@@ -201,7 +201,9 @@ fn prefixes_test() {
                         t_prefix.prefix_field_count,
                         pre.prefix_field_count, 
                     );
-                    for (l_field,r_field) in t_prefix.fields.iter().zip(pre.fields.iter()) {
+                    for (l_field,r_field) in 
+                        t_prefix.fields.get_fields().zip(pre.fields.get_fields()) 
+                    {
                         assert_eq!(l_field,r_field);
                     }
                 }
@@ -241,7 +243,7 @@ fn prefixes_test() {
                 None=>continue,
             };
 
-            for (l_field,r_field) in prefix.fields.iter().zip(max_prefix.fields.iter()) {
+            for (l_field,r_field) in prefix.fields.get_fields().zip(max_prefix.fields.get_fields()) {
                 assert_eq!(l_field,r_field);
             }
             assert_eq!(
@@ -291,7 +293,7 @@ fn check_interface_impl_pair(
             pre.prefix_field_count, 
         );
         for (field_i,(l_field,r_field)) in 
-            t_prefix.fields.iter().zip(pre.fields.iter()).enumerate() 
+            t_prefix.fields.get_fields().zip(pre.fields.get_fields()).enumerate() 
         {
             if t_prefix.accessible_fields.is_accessible(field_i)
                 &&o_prefix.accessible_fields.is_accessible(field_i)
@@ -587,10 +589,12 @@ mod cond_fields_1 {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
+        #[sabi(field_bound="Copy")]
         #[sabi(last_prefix_field)]
         pub field0: T,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_1 ")]
+        #[sabi(field_bound="Copy")]
         pub field1: U,
     }
 }
@@ -610,12 +614,15 @@ mod cond_fields_2 {
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         #[sabi(last_prefix_field)]
+        #[sabi(field_bound="Copy")]
         pub field0: T,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_1 ")]
+        #[sabi(field_bound="Copy")]
         pub field1: U,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_2 ")]
+        #[sabi(field_bound="Copy")]
         pub field2: V,
     }
 }
@@ -660,13 +667,16 @@ mod cond_fields_2_different_prefix {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
+        #[sabi(field_bound="Copy")]
         pub field0: T,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_1 ")]
         #[sabi(last_prefix_field)]
+        #[sabi(field_bound="Copy")]
         pub field1: U,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_2 ")]
+        #[sabi(field_bound="Copy")]
         pub field2: V,
     }
 }
@@ -687,15 +697,19 @@ mod cond_fields_3 {
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         #[sabi(last_prefix_field)]
+        #[sabi(field_bound="Copy")]
         pub field0: T,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_1 ")]
+        #[sabi(field_bound="Copy")]
         pub field1: U,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_2 ")]
+        #[sabi(field_bound="Copy")]
         pub field2: V,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_3 ")]
+        #[sabi(field_bound="Copy")]
         pub field3: W,
     }
 }
@@ -715,15 +729,19 @@ mod cond_fields_3_uncond_prefix {
         pub _marker:UnsafeIgnoredType<(C,T,U,V,W)>,
         
         #[sabi(last_prefix_field)]
+        #[sabi(field_bound="Copy")]
         pub field0: T,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_1 ")]
+        #[sabi(field_bound="Copy")]
         pub field1: U,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_2 ")]
+        #[sabi(field_bound="Copy")]
         pub field2: V,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_3 ")]
+        #[sabi(field_bound="Copy")]
         pub field3: W,
     }
 }

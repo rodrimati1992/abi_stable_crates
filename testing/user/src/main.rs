@@ -15,9 +15,6 @@ use abi_stable::{
 use testing_interface_0::{TestingMod,PrefixTypeMod0,PrefixTypeMod1};
 
 
-#[global_allocator]
-static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
-
 
 /// Returns the path the library will be loaded from.
 fn compute_library_path()->io::Result<PathBuf>{
