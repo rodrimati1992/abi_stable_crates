@@ -18,10 +18,10 @@ script:
   - cd "${TRAVIS_BUILD_DIR}/abi_stable"
   - cargo test --release
   
-  - cd "${TRAVIS_BUILD_DIR}/examples/_0/impl/"
+  - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
   - cargo build --release
   - cargo test --release
-  - cd "${TRAVIS_BUILD_DIR}/examples/_0/user/"
+  - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/user/"
   - cargo run --release -- run-tests
   
   - cd "${TRAVIS_BUILD_DIR}/testing/impl_0/"
