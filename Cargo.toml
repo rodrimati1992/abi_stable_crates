@@ -8,6 +8,7 @@ members=[
     "examples/0_modules_and_interface_types/interface",
     "examples/0_modules_and_interface_types/user",
     "examples/1_trait_objects/plugin_0",
+    "examples/1_trait_objects/plugin_1",
     "examples/1_trait_objects/interface",
     "examples/1_trait_objects/application",
     "testing/impl_0",

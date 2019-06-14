@@ -24,6 +24,14 @@ script:
   - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/user/"
   - cargo run --release -- run-tests
   
+  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_0/"
+  - cargo build --release
+  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_1/"
+  - cargo build --release
+  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/application/"
+  - cargo run --release
+
+  
   - cd "${TRAVIS_BUILD_DIR}/testing/impl_0/"
   - cargo build --release
   - cd "${TRAVIS_BUILD_DIR}/testing/user/"
