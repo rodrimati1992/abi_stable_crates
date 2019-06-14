@@ -16,9 +16,9 @@ To run this application:
 
     - `cargo run --release`,
 
-    - `cargo build; ../../target/debug/example_0_user[.exe]`
+    - `cargo build; ../../../target/debug/example_0_user[.exe]`
 
-    - `cargo build --release; ../../target/release/example_0_user[.exe]`
+    - `cargo build --release; ../../../target/release/example_0_user[.exe]`
 
 3.    use one of the subcommands in the help message.
 

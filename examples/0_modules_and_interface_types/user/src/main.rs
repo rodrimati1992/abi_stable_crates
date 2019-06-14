@@ -27,8 +27,8 @@ mod tests;
 
 /// Returns the path the library will be loaded from.
 fn compute_library_path()->io::Result<PathBuf>{
-    let debug_dir  ="../../target/debug/"  .as_ref_::<Path>().into_(PathBuf::T);
-    let release_dir="../../target/release/".as_ref_::<Path>().into_(PathBuf::T);
+    let debug_dir  ="../../../target/debug/"  .as_ref_::<Path>().into_(PathBuf::T);
+    let release_dir="../../../target/release/".as_ref_::<Path>().into_(PathBuf::T);
 
     let debug_path  =TextOpsMod::get_library_path(&debug_dir);
     let release_path=TextOpsMod::get_library_path(&release_dir);

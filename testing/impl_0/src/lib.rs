@@ -47,6 +47,7 @@ pub extern "C" fn greeter(name:RStr<'_>){
 pub extern "C" fn for_tests()->ForTests{
     extern_fn_panic_handling!{
         let arc=RArc::new(RString::from("hello"));
+        ::std::mem::forget(arc.clone());
         let box_=RBox::new(10);
         let vec_=RVec::from(vec!["world".into_c()]);
         let string=RString::from("what the foo.");
