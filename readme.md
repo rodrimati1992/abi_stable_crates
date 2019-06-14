@@ -67,6 +67,8 @@ This is a full example,demonstrating:
 
 - `user crates`(defined in the Architecture section bellow).
 
+- `#[sabi_trait]` generated ffi-safe trait objects.
+
 - `DynTrait<_>`:the ffi-safe trait object(with downcasting).
 
 - `interface crates`(defined in the Architecture section bellow).
