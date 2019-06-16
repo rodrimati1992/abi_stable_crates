@@ -458,10 +458,9 @@ these checks are done purely to detect programming errors.
 
 # Planned features
 
-### 0.5
+### 0.6
 
-Support for generating ffi-safe trait objects from trait definitions,using an attribute.
-The generated trait objects can then be constructed from a pointer to a type that implements the trait.
+Ffi-safe non-exhaustive enums with fields,allowing for libraries to add variants to enums without breaking backwards compatibility (API or ABI).
 
 ### Eventually
 
@@ -529,17 +528,7 @@ and loads the pre-compiled `implementation crate` dynamic library from some path
 
 You can't add variants to enums with fields in the `interface crate` in minor versions.
 
-Adding a variant to an enum with fields in a minor version is a breaking change,
-since `implementation crates` have to be usable with  previous minor versions of 
-the `interface crate`.
-If the `implementation crate` returns an enum in the interface it cannot add variants because 
-it would break users of previous `interface crates` at runtime.
-
-Using unions to solve this does not currently work since they don't work with non-Copy types,
-and I'd rather have a complete solution.
-
-Here is the relevant rfcs for unions with Drop types:
-https://github.com/rust-lang/rfcs/blob/master/text/2514-union-initialization-and-drop.md
+This will be part of the 0.6 release.
 
 # Minimum Rust version
 
