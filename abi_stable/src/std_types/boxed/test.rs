@@ -73,11 +73,11 @@ fn mutated() {
 
 
 #[test]
-fn with_moved_ptr_runs(){
+fn with_move_ptr_runs(){
     let rbox=ManuallyDrop::new(RBox::new(()));
     
     must_panic(file_span!(),||{
-        OwnedPointer::with_moved_ptr(rbox,|_|{
+        OwnedPointer::with_move_ptr(rbox,|_|{
             panic!();
         });
     }).unwrap();
@@ -85,7 +85,7 @@ fn with_moved_ptr_runs(){
 
     let rbox=ManuallyDrop::new(RBox::new(()));
     assert_eq!(
-        OwnedPointer::with_moved_ptr(rbox,|_|10),
+        OwnedPointer::with_move_ptr(rbox,|_|10),
         10
     );
 }
@@ -99,7 +99,7 @@ fn owned_pointer_trait(){
     unsafe{
         let cloned_arc=ManuallyDrop::new(RBox::new(arc.clone()));
         
-        OwnedPointer::with_moved_ptr(cloned_arc,|move_ptr|{
+        OwnedPointer::with_move_ptr(cloned_arc,|move_ptr|{
             assert_eq!(Arc::strong_count(&move_ptr),2);
             
             let moved_arc=move_ptr.into_inner();
@@ -110,7 +110,7 @@ fn owned_pointer_trait(){
     unsafe{
         let cloned_arc=ManuallyDrop::new(RBox::new(arc.clone()));
         
-        OwnedPointer::with_moved_ptr(cloned_arc,|move_ptr|{
+        OwnedPointer::with_move_ptr(cloned_arc,|move_ptr|{
             assert_eq!(Arc::strong_count(&move_ptr),2);
         });
     }

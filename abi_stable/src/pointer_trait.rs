@@ -28,8 +28,13 @@ pub enum CallReferentDrop {
 }
 
 
-/// The type of the destructor for every pointer type from in this crate.
-pub type DestructorType<T> = unsafe extern "C" fn(data:*mut T, CallReferentDrop);
+/// Determines whether the pointer is deallocated.
+#[repr(u8)]
+#[derive(Debug,Clone,Copy,PartialEq,Eq,StableAbi)]
+pub enum Deallocate{
+    No,
+    Yes,
+}
 
 /**
 Trait for pointers that:
@@ -267,26 +272,26 @@ pub unsafe trait OwnedPointer:Sized{
     ///
     /// # Safety
     ///
-    /// This function moves the owned contents out of this pointer,
+    /// This function logically moves the owned contents out of this pointer,
     /// the only safe thing that can be done with the pointer afterwads 
     /// is to call OwnedPointer::drop_allocation.
-    unsafe fn get_move_ptr(&mut self)->MovePtr<'_,Self::Target>;
+    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>;
 
     /// Deallocates the pointer without dropping its owned contents.
     ///
     /// Note that if `Self::get_move_ptr` has not been called this will 
     /// leak the values owned by the referent of the pointer. 
     ///
-    fn drop_allocation(this:ManuallyDrop<Self>);
+    unsafe fn drop_allocation(this:&mut ManuallyDrop<Self>);
 
     #[inline]
-    fn with_moved_ptr<F,R>(mut this:ManuallyDrop<Self>,f:F)->R
+    fn with_move_ptr<F,R>(mut this:ManuallyDrop<Self>,f:F)->R
     where 
         F:FnOnce(MovePtr<'_,Self::Target>)->R
     {
         unsafe{
             let ret=f(Self::get_move_ptr(&mut this));
-            Self::drop_allocation(this);
+            Self::drop_allocation(&mut this);
             ret
         }
     }

@@ -10,6 +10,7 @@ pub mod move_ptr;
 pub mod return_value_equality;
 pub mod static_ref;
 pub mod version;
+pub mod rsmallbox;
 
 
 pub use self::{
@@ -18,6 +19,7 @@ pub use self::{
     maybe_cmp::MaybeCmp,
     move_ptr::MovePtr,
     return_value_equality::ReturnValueEquality,
+    rsmallbox::RSmallBox,
     late_static_ref::LateStaticRef,
     version::{VersionNumber,VersionStrings,ParseVersionError},
 };

@@ -483,7 +483,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
         P: OwnedPointer<Target=()>,
         F:FnOnce(MovePtr<'_,()>)->R,
     {
-        OwnedPointer::with_moved_ptr(self.sabi_into_erased_ptr(),f)
+        OwnedPointer::with_move_ptr(self.sabi_into_erased_ptr(),f)
     }
 }
 

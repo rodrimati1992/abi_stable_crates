@@ -295,7 +295,7 @@ mod vtable_mod {
 use self::vtable_mod::{ArcVtable, VTableGetter};
 
 unsafe extern "C" fn destructor_arc<T>(this: *const T, call_drop: CallReferentDrop) {
-    extern_fn_panic_handling! {
+    extern_fn_panic_handling! {no_early_return;
         if call_drop == CallReferentDrop::Yes {
             drop(Arc::from_raw(this));
         } else {

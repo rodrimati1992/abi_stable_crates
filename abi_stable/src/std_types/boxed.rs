@@ -1,8 +1,10 @@
 use std::{
+    alloc::{self,Layout},
     borrow::{Borrow,BorrowMut},
     marker::PhantomData, 
     mem::ManuallyDrop, 
     ops::DerefMut,
+    ptr,
 };
 
 #[allow(unused_imports)]
@@ -10,7 +12,7 @@ use core_extensions::prelude::*;
 
 use crate::{
     pointer_trait::{
-        CallReferentDrop, StableDeref, TransmuteElement,
+        CallReferentDrop,Deallocate, StableDeref, TransmuteElement,
         GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
     traits::{IntoReprRust},
@@ -47,6 +49,11 @@ mod private {
                 vtable: VTableGetter::<T>::LIB_VTABLE.as_prefix_raw(),
                 _marker: PhantomData,
             }
+        }
+
+        /// Constructs a `Box<T>` from a `MovePtr<'_,T>`.
+        pub fn from_move_ptr(p: MovePtr<'_,T>) -> RBox<T> {
+            p.into_rbox()
         }
 
         pub(super) fn data(&self) -> *mut T {
@@ -95,7 +102,7 @@ impl<T> RBox<T> {
             } else {
                 let ret = Box::new(this.data().read());
                 // Just deallocating the Box<_>. without dropping the inner value
-                (this.vtable().destructor())(this.data(), CallReferentDrop::No);
+                (this.vtable().destructor())(this.data(), CallReferentDrop::No,Deallocate::Yes);
                 ret
             }
         }
@@ -104,7 +111,7 @@ impl<T> RBox<T> {
     pub fn into_inner(this: Self) -> T {
         unsafe {
             let value = this.data().read();
-            Self::drop_allocation(ManuallyDrop::new(this));
+            Self::drop_allocation(&mut ManuallyDrop::new(this));
             value
         }
     }
@@ -124,15 +131,15 @@ unsafe impl<T> OwnedPointer for RBox<T>{
     type Target=T;
 
     #[inline]
-    unsafe fn get_move_ptr(&mut self)->MovePtr<'_,Self::Target>{
-        MovePtr::new(&mut **self)
+    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>{
+        MovePtr::new(&mut **this)
     }
 
     #[inline]
-    fn drop_allocation(this:ManuallyDrop<Self>){
+    unsafe fn drop_allocation(this:&mut ManuallyDrop<Self>){
         unsafe {
             let data: *mut T = this.data();
-            (this.vtable().destructor())(data, CallReferentDrop::No);
+            (this.vtable().destructor())(data, CallReferentDrop::No,Deallocate::Yes);
         }
     }
 }
@@ -224,7 +231,7 @@ impl<T> Drop for RBox<T> {
     fn drop(&mut self) {
         unsafe {
             let data = self.data();
-            (RBox::vtable(self).destructor())(data, CallReferentDrop::Yes);
+            (RBox::vtable(self).destructor())(data, CallReferentDrop::Yes,Deallocate::Yes);
         }
     }
 }
@@ -238,7 +245,7 @@ impl<T> Drop for RBox<T> {
 pub(crate) struct BoxVtableVal<T> {
     type_id:ReturnValueEquality<UTypeId>,
     #[sabi(last_prefix_field)]
-    destructor: unsafe extern "C" fn(*mut T, CallReferentDrop),
+    destructor: unsafe extern "C" fn(*mut T, CallReferentDrop,Deallocate),
 }
 
 struct VTableGetter<'a, T>(&'a T);
@@ -268,13 +275,14 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
         );
 }
 
-unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {
-    extern_fn_panic_handling! {
-        let mut box_ = Box::from_raw(v as *mut ManuallyDrop<T>);
-        if call_drop == CallReferentDrop::Yes {
-            ManuallyDrop::drop(&mut *box_);
+unsafe extern "C" fn destroy_box<T>(ptr: *mut T, call_drop: CallReferentDrop,dealloc:Deallocate) {
+    extern_fn_panic_handling! {no_early_return;
+        if let CallReferentDrop::Yes=call_drop {
+            ptr::drop_in_place(ptr);
         }
-        drop(box_);
+        if let Deallocate::Yes=dealloc {
+            Box::from_raw(ptr as *mut ManuallyDrop<T>);
+        }
     }
 }
 
