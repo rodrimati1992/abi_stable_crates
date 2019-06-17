@@ -1,12 +1,17 @@
 use std::{
+    alloc::{self,Layout},
     ops::{Deref,DerefMut},
     fmt::{self,Display},
     marker::PhantomData,
     mem::ManuallyDrop,
     ptr,
+    
 };
 
-use crate::traits::IntoInner;
+use crate::{
+    traits::IntoInner,
+    std_types::RBox,
+};
 
 /**
 A move pointer,which allows moving the value from the reference,
@@ -43,6 +48,42 @@ impl<'a,T> MovePtr<'a,T>{
             ptr,
             _marker:PhantomData,
         }
+    }
+
+    /// Gets a raw pointer to the value being moved.
+    #[inline]
+    pub const fn as_ptr(&self)->*const T{
+        self.ptr
+    }
+
+    /// Gets a raw pointer to the value being moved.
+    #[inline]
+    pub const fn as_mut_ptr(&self)->*const T{
+        self.ptr
+    }
+
+    /// Converts this MovePtr into a raw pointer,
+    /// which must be moved from before the pointed to value is deallocated.
+    pub const fn into_raw(self)->*mut T{
+        let ptr=self.ptr;
+        ManuallyDrop::new(self);
+        ptr
+    }
+
+    /// Moves the value into a new `Box<T>`
+    pub fn into_box(self)->Box<T>{
+        unsafe{
+            let allocated=alloc::alloc(Layout::new::<T>()) as *mut T;
+
+            self.into_raw().copy_to_nonoverlapping(allocated,1);
+
+            Box::from_raw(allocated)
+        }
+    }
+
+    /// Moves the value into a new `RBox<T>`
+    pub fn into_rbox(self)->RBox<T>{
+        self.into_box().into()
     }
 
     /// Moves the value out of the reference
