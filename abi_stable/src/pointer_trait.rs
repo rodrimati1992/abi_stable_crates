@@ -36,34 +36,6 @@ pub enum Deallocate{
     Yes,
 }
 
-/**
-Trait for pointers that:
-
-- Point to a single location in memory,even after being moved.
-
-- Deref::deref always returns the same address (for the same pointer).
-
-- If it implements DerefMut,it always returns the same memory address,
-    so long as no `&mut self``method other than `DerefMut::deref_mut` is called.
-
-- The inline layout of the pointer cannot change depending on its referent.
-
-
-Explicit non-guarantees:
-
-- If the pointer is converted by value to another pointer type
-    (ie:going from RBox<T> to Box<T>,RArc<T> to Arc<T>),
-    the address cannot be relied on being the same,
-    even if it implements StableDeref.
-
-
-*/
-pub unsafe trait StableDeref: Deref + Sized {}
-
-/// An alias for `StableDeref + DerefMut`.
-pub trait StableDerefMut: StableDeref + DerefMut {}
-
-impl<P> StableDerefMut for P where P: StableDeref + DerefMut {}
 
 ///////////
 
@@ -170,8 +142,8 @@ Callers must ensure that:
 - References to `T` are compatible with references to `Self::Target`.
 
 */
-pub unsafe trait TransmuteElement<T>: StableDeref + GetPointerKind {
-    type TransmutedPtr: StableDeref<Target = T>;
+pub unsafe trait TransmuteElement<T>: Deref + GetPointerKind + Sized {
+    type TransmutedPtr: Deref<Target = T>;
 
     /// Transmutes the element type of this pointer..
     ///
@@ -211,42 +183,11 @@ pub unsafe trait TransmuteElement<T>: StableDeref + GetPointerKind {
 
 ///////////
 
-// unsafe impl<P> StableDeref for CAbi<P>
-// where
-//     P: StableDeref,
-//     P::Target: Sized,
-// {
-// }
-
-// unsafe impl<P, T> TransmuteElement<T> for CAbi<P>
-// where
-//     P: StableDeref + TransmuteElement<T>,
-//     P::TransmutedPtr: StableDerefMut,
-//     <P as Deref>::Target: Sized,
-//     <P::TransmutedPtr as Deref>::Target: Sized,
-// {
-//     type TransmutedPtr = CAbi<P::TransmutedPtr>;
-// }
-
-///////////
-
-unsafe impl<T> StableDeref for Box<T> {}
-
-///////////
-
-unsafe impl<T> StableDeref for Arc<T> {}
-
-///////////
-
-unsafe impl<'a, T: 'a> StableDeref for &'a T {}
-
 unsafe impl<'a, T: 'a, O: 'a> TransmuteElement<O> for &'a T {
     type TransmutedPtr = &'a O;
 }
 
 ///////////
-
-unsafe impl<'a, T: 'a> StableDeref for &'a mut T {}
 
 unsafe impl<'a, T: 'a, O: 'a> TransmuteElement<O> for &'a mut T {
     type TransmutedPtr = &'a mut O;

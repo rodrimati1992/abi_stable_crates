@@ -12,7 +12,7 @@ use core_extensions::prelude::*;
 
 use crate::{
     pointer_trait::{
-        CallReferentDrop,Deallocate, StableDeref, TransmuteElement,
+        CallReferentDrop,Deallocate, TransmuteElement,
         GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
     traits::{IntoReprRust},
@@ -71,8 +71,6 @@ mod private {
 }
 
 pub use self::private::RBox;
-
-unsafe impl<T> StableDeref for RBox<T> {}
 
 unsafe impl<T> GetPointerKind for RBox<T>{
     type Kind=PK_SmartPointer;

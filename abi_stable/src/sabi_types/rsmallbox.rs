@@ -1,6 +1,6 @@
 use crate::{
     pointer_trait::{
-        CallReferentDrop,Deallocate, StableDeref, TransmuteElement,
+        CallReferentDrop,Deallocate,TransmuteElement,
         GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
     sabi_types::MovePtr,
@@ -16,6 +16,7 @@ use std::{
     ptr,
 };
 
+#[allow(unused_imports)]
 use core_extensions::SelfOps;
 
 use serde::{Serialize,Deserialize,Serializer,Deserializer};

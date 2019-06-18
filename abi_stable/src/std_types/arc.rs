@@ -10,7 +10,7 @@ use core_extensions::prelude::*;
 use crate::{
     abi_stability::StableAbi,
     pointer_trait::{
-        CallReferentDrop, StableDeref, TransmuteElement,
+        CallReferentDrop, TransmuteElement,
         GetPointerKind,PK_SmartPointer,
     },
     sabi_types::ReturnValueEquality,
@@ -47,8 +47,6 @@ mod private {
             }
         }
     }
-
-    unsafe impl<T> StableDeref for RArc<T> {}
 
     unsafe impl<T> GetPointerKind for RArc<T>{
         type Kind=PK_SmartPointer;
