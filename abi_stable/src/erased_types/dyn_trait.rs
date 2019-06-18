@@ -20,7 +20,7 @@ use core_extensions::{prelude::*, ResultLike};
 use crate::{
     abi_stability::SharedStableAbi,
     pointer_trait::{
-        StableDeref, TransmuteElement,OwnedPointer,
+        TransmuteElement,OwnedPointer,
         GetPointerKind,PK_SmartPointer,PK_Reference,
     },
     marker_type::{ErasedObject,UnsafeIgnoredType}, 
@@ -60,7 +60,7 @@ It generally looks like `DynTrait<'borrow,Pointer<()>,Interface>`,where:
 
 - `'borrow` is the borrow that the type that was erased had.
 
-- `Pointer` is some `pointer_trait::StableDeref` pointer type.
+- `Pointer` implements `std::ops::Deref`.
 
 - `Interface` is an `InterfaceType`,which describes what traits are 
     required when constructing the `DynTrait<_>` and which ones it implements.
@@ -316,7 +316,7 @@ assert_eq!(
 # Making pointers compatible with DynTrait
 
 To make pointers compatible with DynTrait,they must imlement the 
-`abi_stable::pointer_trait::{GetPointerKind,StableDeref,TransmuteElement}` traits 
+`abi_stable::pointer_trait::{GetPointerKind,Deref,TransmuteElement}` traits 
 as shown in the example.
 
 `GetPointerKind` should generally be implemented with `type Kind=PK_SmartPointer`.
@@ -368,7 +368,7 @@ use abi_stable::{
     std_types::RBox,
     erased_types::IteratorItem,
     pointer_trait::{
-        PK_SmartPointer,GetPointerKind,StableDeref,TransmuteElement
+        PK_SmartPointer,GetPointerKind,TransmuteElement
     },
     type_level::bools::True,
 };
@@ -404,8 +404,6 @@ impl<T> DerefMut for NewtypeBox<T>{
 unsafe impl<T> GetPointerKind for NewtypeBox<T>{
     type Kind=PK_SmartPointer;
 }
-
-unsafe impl<T> StableDeref for NewtypeBox<T> {}
 
 unsafe impl<T,O> TransmuteElement<O> for NewtypeBox<T>
 where 
@@ -483,7 +481,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             T: ImplType,
             T::Interface:InterfaceBound<'static>,
             T: GetVtable<'static,T,P::TransmutedPtr,P,<T as ImplType>::Interface>,
-            P: StableDeref<Target = T>+TransmuteElement<()>,
+            P: Deref<Target = T>+TransmuteElement<()>,
         {
             DynTrait {
                 object: unsafe{
@@ -517,7 +515,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             I:InterfaceBound<'static>,
             T:'static,
             InterfaceFor<T,I,TU_Unerasable>: GetVtable<'static,T,P::TransmutedPtr,P,I>,
-            P: StableDeref<Target = T>+TransmuteElement<()>,
+            P: Deref<Target = T>+TransmuteElement<()>,
         {
             DynTrait {
                 object: unsafe{
@@ -558,7 +556,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             T:'borr,
             I:InterfaceBound<'borr>,
             InterfaceFor<T,I,TU_Opaque>: GetVtable<'borr,T,P::TransmutedPtr,P,I>,
-            P: StableDeref<Target = T>+TransmuteElement<()>,
+            P: Deref<Target = T>+TransmuteElement<()>,
         {
             DynTrait {
                 object: unsafe{
@@ -609,7 +607,7 @@ These are the requirements for the caller:
             InterfaceFor<OrigPtr::Target,I,Erasability>: 
                 GetVtable<'borr,OrigPtr::Target,P,OrigPtr,I>,
             OrigPtr: TransmuteElement<(),TransmutedPtr=P>+'borr,
-            P:StableDeref<Target=()>,
+            P:Deref<Target=()>,
         {
             DynTrait {
                 object: unsafe{

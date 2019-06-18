@@ -16,7 +16,7 @@ use crate::{
     sabi_types::MaybeCmp,
     std_types::{RBox,UTypeId},
     pointer_trait::{
-        StableDeref, TransmuteElement,
+        TransmuteElement,
         GetPointerKind,PK_SmartPointer,PK_Reference,
     },
     type_level::unerasability::{TU_Unerasable,TU_Opaque},
@@ -51,7 +51,7 @@ macro_rules! impl_from_ptr_method {
         )-> RObject<'lt,P,I,V>
         where 
             OrigPtr:TransmuteElement<(),TransmutedPtr=P>+'lt,
-            P:StableDeref<Target=()>,
+            P:Deref<Target=()>,
             OrigPtr::Target:Sized+'lt,
             I:GetVTable<
                 $requires_any,
@@ -270,7 +270,7 @@ These are the requirements for the caller:
     where 
         OrigPtr:TransmuteElement<(),TransmutedPtr=P>+'lt,
         OrigPtr::Target:Sized+'lt,
-        P:StableDeref<Target=()>,
+        P:Deref<Target=()>,
     {
         RObject{
             vtable,

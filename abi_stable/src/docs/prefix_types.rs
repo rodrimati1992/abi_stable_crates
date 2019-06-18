@@ -84,7 +84,7 @@ use std::{
 use abi_stable::{
     StableAbi,
     extern_fn_panic_handling,
-    pointer_trait::{CallReferentDrop, StableDeref, TransmuteElement},
+    pointer_trait::{CallReferentDrop, TransmuteElement},
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
 

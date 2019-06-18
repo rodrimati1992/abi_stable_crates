@@ -184,6 +184,7 @@ pub mod external_types;
 pub mod library;
 pub mod marker_type;
 mod multikey_map;
+pub mod nonexhaustive_enum;
 pub mod pointer_trait;
 pub mod prefix_type;
 
