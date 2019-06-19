@@ -5,7 +5,7 @@ Functions and types related to the layout checking.
 use std::{cmp::Ordering, fmt,mem};
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::{prelude::*,matches};
 
 use std::{
     borrow::Borrow,
@@ -16,8 +16,9 @@ use std::{
 use super::{
     AbiInfo, AbiInfoWrapper,
     type_layout::{
-        TypeLayout, TLData, TLDataDiscriminant, TLEnumVariant, TLField,TLFieldAndType, 
+        TypeLayout, TLData, TLDataDiscriminant, TLField,TLFieldAndType, 
         FullType, ReprAttr, TLDiscriminant,TLPrimitive,
+        TLEnum,IsExhaustive,
     },
     tagging::{CheckableTag,TagErrors},
 };
@@ -72,7 +73,8 @@ pub enum AbiInstability {
     UnexpectedField(ExpectedFoundError<TLField>),
     TooManyVariants(ExpectedFoundError<usize>),
     MismatchedPrefixConditionality(ExpectedFoundError<StaticSlice<IsConditional>>),
-    UnexpectedVariant(ExpectedFoundError<TLEnumVariant>),
+    MismatchedExhaustiveness(ExpectedFoundError<IsExhaustive>),
+    UnexpectedVariant(ExpectedFoundError<StaticStr>),
     ReprAttr(ExpectedFoundError<ReprAttr>),
     EnumDiscriminant(ExpectedFoundError<TLDiscriminant>),
     TagError{
@@ -170,6 +172,10 @@ impl fmt::Display for AbiInstabilityError {
                 AI::TooManyVariants(v) => ("too many variants", v.display_str()),
                 AI::MismatchedPrefixConditionality(v)=>(
                     "prefix fields differ in whether they are conditional",
+                    v.debug_str()
+                ),
+                AI::MismatchedExhaustiveness(v)=>(
+                    "enums differ in whether they are exhaustive",
                     v.debug_str()
                 ),
                 AI::UnexpectedVariant(v) => ("unexpected variant", v.debug_str()),
@@ -346,7 +352,12 @@ impl AbiChecker {
             return;
         }
 
-        let is_prefix= t_lay.data.as_discriminant() == TLDataDiscriminant::PrefixType;
+        let is_prefix= matches!(
+            TLData::PrefixType{..}
+            |TLData::Enum(TLEnum{is_exhaustive:IsExhaustive::No,..})
+            =t_lay.data
+        );
+            ;
         match (t_fields.len().cmp(&o_fields.len()), is_prefix) {
             (Ordering::Greater, _) | (Ordering::Less, false) => {
                 push_err(
@@ -583,40 +594,55 @@ impl AbiChecker {
                 }
                 (TLData::Union { .. }, _) => {}
                 
-                (
-                    TLData::Enum { variants: t_varis, fields: t_fields }, 
-                    TLData::Enum { variants: o_varis, fields: o_fields }
-                ) => {
-                    let t_varis = t_varis.as_slice();
-                    let o_varis = o_varis.as_slice();
-                    if t_varis.len() != o_varis.len() {
-                        push_err(errs, t_varis, o_varis, |x| x.len(), AI::TooManyVariants);
+                ( TLData::Enum(t_enum),TLData::Enum(o_enum)  ) => {
+                    let TLEnum{ fields: t_fields,.. }=t_enum;
+                    let TLEnum{ fields: o_fields,.. }=o_enum;
+
+                    let t_fcount = t_enum.field_count.as_slice();
+                    let o_fcount = o_enum.field_count.as_slice();
+
+                    let t_exhaus=t_enum.is_exhaustive;
+                    let o_exhaus=o_enum.is_exhaustive;
+
+                    if t_exhaus!=o_exhaus {
+                        push_err(
+                            errs,
+                            t_enum,
+                            o_enum, 
+                            |x| x.is_exhaustive, 
+                            AI::MismatchedExhaustiveness
+                        );
                     }
-                    for (t_vari, o_vari) in t_varis.iter().zip(o_varis) {
-                        let t_name = t_vari.name.as_str();
-                        let o_name = o_vari.name.as_str();
+
+                    if t_exhaus==IsExhaustive::Yes&&t_fcount.len()!=o_fcount.len() ||
+                       t_exhaus==IsExhaustive::No &&t_fcount.len() >o_fcount.len()
+                    {
+                        push_err(errs, t_fcount, o_fcount, |x| x.len(), AI::TooManyVariants);
+                    }
+
+                    
+                    if let Err(d_errs)=t_enum.discriminants.compare(&o_enum.discriminants) {
+                        errs.extend(d_errs);
+                    }
+
+                    let mut t_names=t_enum.variant_names.as_str().split(';');
+                    let mut o_names=o_enum.variant_names.as_str().split(';');
+                    for (t_field_count, o_field_count) in t_fcount.iter().zip(o_fcount) {
+                        let t_name = t_names.next().unwrap_or("<this unavailable>");
+                        let o_name = o_names.next().unwrap_or("<other unavailable>");
                         
-                        if t_vari.discriminant!=o_vari.discriminant {
+                        if t_field_count!=o_field_count {
                             push_err(
                                 errs, 
-                                *t_vari, 
-                                *o_vari, 
-                                |x| x.discriminant, 
-                                AI::EnumDiscriminant
-                            );
-                        }
-                        if t_vari.field_count!=o_vari.field_count {
-                            push_err(
-                                errs, 
-                                *t_vari, 
-                                *o_vari, 
-                                |x| x.field_count, 
+                                *t_field_count, 
+                                *o_field_count, 
+                                |x| x as usize, 
                                 AI::FieldCountMismatch
                             );
                         }
 
                         if t_name != o_name {
-                            push_err(errs, *t_vari, *o_vari, |x| x, AI::UnexpectedVariant);
+                            push_err(errs, t_name, o_name,StaticStr::new, AI::UnexpectedVariant);
                             continue;
                         }
                     }
@@ -941,7 +967,7 @@ pub fn get_checking_globals()->&'static CheckingGlobals{
 
 ///////////////////////////////////////////////
 
-fn push_err<O, U, FG, VC>(
+pub(super) fn push_err<O, U, FG, VC>(
     errs: &mut RVec<AbiInstability>,
     this: O,
     other: O,

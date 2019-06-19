@@ -166,7 +166,7 @@ fn check_enum_accessors<T>(
     let layout=T::S_ABI_INFO.get().layout;
 
     let mut fields=match layout.data {
-        TLData::Enum{fields,..}=>fields.get_fields(),
+        TLData::Enum(enum_)=>enum_.fields.get_fields(),
         x=>panic!("layout.data must be TLData::Struct{{..}}:\n{:#?}",x)
     };
 

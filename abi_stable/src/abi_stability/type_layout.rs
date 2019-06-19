@@ -26,6 +26,7 @@ use super::{
 
 
 mod construction;
+mod tl_enums;
 mod tl_field;
 mod tl_fields;
 mod tl_functions;
@@ -36,6 +37,14 @@ pub use self::{
         TypeLayoutParams,
         _private_TypeLayoutDerive,
         ItemInfo,
+    },
+    tl_enums::{
+        TLEnum,
+        TLDiscriminant,
+        TLDiscriminants,
+        DiscriminantRepr,
+        GetVariantNames,
+        IsExhaustive,
     },
     tl_field::{
         FieldAccessor,
@@ -58,7 +67,6 @@ pub use self::{
         TLFunctionRange,
     },
     tl_other::{
-        DiscriminantRepr,
         FullType,
         GenericParams,
         LifetimeIndex,
@@ -67,8 +75,6 @@ pub use self::{
         TLData,
         TLDataDiscriminant,
         TLPrimitive,
-        TLDiscriminant,
-        TLEnumVariant,
         TLFunction,
         TLPrefixType,
     },

@@ -6,17 +6,20 @@ use syn::{
     LitStr,
 };
 
+use proc_macro2::Span;
+
 
 
 pub(crate) fn parse_str_as_ident(lit:&str)->syn::Ident{
-    match syn::parse_str::<syn::Ident>(lit) {
-        Ok(ident)=>ident,
-        Err(e)=>panic!(
-            "Could not parse as an identifier:\n\t{}\nError:\n\t{}", 
-            lit,
-            e
-        )
-    }
+    syn::Ident::new(&lit,Span::call_site())
+    // match syn::parse_str::<syn::Ident>(lit) {
+    //     Ok(ident)=>ident,
+    //     Err(e)=>panic!(
+    //         "Could not parse as an identifier:\n\t{}\nError:\n\t{}", 
+    //         lit,
+    //         e
+    //     )
+    // }
 }
 
 pub(crate) fn parse_str_as_path(lit:&str)->syn::Path{
@@ -42,7 +45,7 @@ where P:syn::parse::Parse
 }
 
 pub(crate) fn parse_lit_as_ident(lit:&syn::LitStr)->syn::Ident{
-    parse_str_lit_as(lit,"Could not parse as an identifier")
+    syn::Ident::new(&lit.value(),Span::call_site())
 }
 
 pub(crate) fn parse_lit_as_expr(lit:&syn::LitStr)->syn::Expr{

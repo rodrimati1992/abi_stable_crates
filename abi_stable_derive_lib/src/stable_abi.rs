@@ -119,7 +119,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
             (false,None)=>{
                 let struct_=&ds.variants[0];
 
-                let variant_lengths=vec![ struct_.fields.len() as u16 ];
+                let variant_lengths=&[ struct_.fields.len() as u8 ];
 
                 to_stream!(ts;ct.tl_data,ct.colon2);
                 match ds.data_variant {
@@ -138,21 +138,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 })
             }
             (true,None)=>{
-                let variants=variants_tokenizer(&ds,config,ct);
-
-                let variant_lengths=ds.variants.iter()
-                    .map(|x|x.fields.len() as u16)
-                    .collect::<Vec<u16>>();
-
-                to_stream!(ts;
-                    ct.tl_data,ct.colon2,ct.enum_under
-                );
+                quote!(__TLData::Enum).to_tokens(ts);
                 ct.paren.surround(ts,|ts|{
-                    let fields=ds.variants.iter().flat_map(|v| v.fields.iter() );
-                    fields_tokenizer(ds,fields,variant_lengths,config,ct).to_tokens(ts);
-                    ct.comma.to_tokens(ts);
-                    ct.and_.to_tokens(ts);
-                    ct.bracket.surround(ts,|ts| variants.to_tokens(ts) );
+                    tokenize_enum(ds,config,ctokens).to_tokens(ts);
                 });
             }
             (false,Some(prefix))=>{
@@ -161,7 +149,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 }
 
                 let struct_=&ds.variants[0];
-                let variant_lengths=vec![ struct_.fields.len() as u16 ];
+                let variant_lengths=&[ struct_.fields.len() as u8 ];
                 let first_suffix_field=prefix.first_suffix_field.field_pos;
                 let fields=fields_tokenizer(ds,struct_.fields.iter(),variant_lengths,config,ct);
                 
@@ -332,36 +320,43 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     })
 }
 
-/// Outputs `value` wrapped in `stringify!( ... )` to a TokenStream .
-fn stringified_token<'a,T>(ctokens:&'a CommonTokens<'a>,value:&'a T)->impl ToTokens+'a
-where T:ToTokens
-{
-    ToTokenFnMut::new(move|ts|{
-        to_stream!(ts; ctokens.stringify_,ctokens.bang );
-        ctokens.paren.surround(ts,|ts| value.to_tokens(ts) );
-    })
-}
-
-fn variants_tokenizer<'a>(
+fn tokenize_enum<'a>(
     ds:&'a DataStructure<'a>,
     config:&'a StableAbiOptions<'a>,
     ct:&'a CommonTokens<'a>
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
+        let mut variant_names=String::new();
         for variant in &ds.variants {
-            to_stream!{ts;
-                ct.tl_enum_variant,ct.colon2,ct.new
-            }
-            ct.paren.surround(ts,|ts|{
-                stringified_token(ct,variant.name).to_tokens(ts);
-                ct.comma.to_tokens(ts);
-                variant.fields.len().to_tokens(ts);
-            });
-
-            to_stream!(ts; config.repr.tokenize_discriminant_expr(variant.discriminant) );
-
-            to_stream!(ts; ct.comma );
+            use std::fmt::Write;
+            let _=write!(variant_names,"{};",variant.name);
         }
+
+        let is_exhaustive=&ct.cap_yes;
+
+        let variant_lengths=&ds.variants.iter()
+            .map(|x|{
+                assert!(x.fields.len() < 256,"variant '{}' has more than 255 fields.",x.name);
+                x.fields.len() as u8
+            })
+            .collect::<Vec<u8>>();
+
+        let fields=ds.variants.iter().flat_map(|v| v.fields.iter() );
+        let fields=fields_tokenizer(ds,fields,variant_lengths,config,ct);
+
+        let discriminants=ds.variants.iter().map(|x|x.discriminant);
+        let discriminants=config.repr.tokenize_discriminant_exprs(discriminants,ct);
+
+
+        quote!(
+            &__TLEnum::for_derive(
+                #variant_names,
+                __IsExhaustive::#is_exhaustive,
+                #fields,
+                #discriminants,
+                &[#( #variant_lengths ),*],
+            )
+        ).to_tokens(ts);
     })
 }
 
@@ -408,7 +403,7 @@ where T:ToTokens
 fn fields_tokenizer<'a>(
     ds:&'a DataStructure<'a>,
     mut fields:impl Iterator<Item=&'a Field<'a>>+'a,
-    variant_length:Vec<u16>,
+    variant_length:&'a [u8],
     config:&'a StableAbiOptions<'a>,
     ctokens:&'a CommonTokens<'a>,
 )->impl ToTokens+'a{
@@ -416,7 +411,7 @@ fn fields_tokenizer<'a>(
         to_stream!(ts;ctokens.tl_fields,ctokens.colon2,ctokens.new);
         ctokens.paren.surround(ts,|ts|{
             let fields=fields.by_ref().collect::<Vec<_>>();
-            fields_tokenizer_inner(ds,fields,&variant_length,config,ctokens,ts);
+            fields_tokenizer_inner(ds,fields,variant_length,config,ctokens,ts);
         });
     })
 }
@@ -425,7 +420,7 @@ fn fields_tokenizer<'a>(
 fn fields_tokenizer_inner<'a>(
     ds:&'a DataStructure<'a>,
     fields:Vec<&'a Field<'a>>,
-    variant_length:&[u16],
+    variant_length:&'a [u8],
     config:&'a StableAbiOptions<'a>,
     ct:&'a CommonTokens<'a>,
     ts:&mut TokenStream2,
@@ -433,9 +428,9 @@ fn fields_tokenizer_inner<'a>(
 
     let mut names=String::new();
 
-    let mut lifetime_ind_pos:Vec<(FieldIndex,usize)>=Vec::new();
+    let mut lifetime_ind_pos:Vec<(FieldIndex,u16)>=Vec::new();
 
-    let mut current_lt_index=0_usize;
+    let mut current_lt_index=0_u16;
     for field in &fields {
         use std::fmt::Write;
         let name=config.renamed_fields[field].unwrap_or(field.ident());
@@ -445,7 +440,7 @@ fn fields_tokenizer_inner<'a>(
             field.index,
             current_lt_index,
         ));
-        current_lt_index+=field.referenced_lifetimes.len();
+        current_lt_index+=field.referenced_lifetimes.len() as u16;
     }
 
     names.to_tokens(ts);
@@ -473,7 +468,7 @@ fn fields_tokenizer_inner<'a>(
             for (fi,index) in lifetime_ind_pos {
                 to_stream!(ts;ct.with_field_index,ct.colon2,ct.from_vari_field_val);
                 ct.paren.surround(ts,|ts|{
-                    to_stream!(ts;fi.variant as u16,ct.comma,fi.pos as u16,ct.comma,index)
+                    to_stream!(ts;fi.variant as u16,ct.comma,fi.pos as u8,ct.comma,index)
                 });
                 to_stream!(ts;ct.comma);
             }
@@ -533,7 +528,7 @@ fn fields_tokenizer_inner<'a>(
 fn tokenize_tl_functions<'a>(
     ds:&'a DataStructure<'a>,
     fields:&[&'a Field<'a>],
-    _variant_length:&[u16],
+    _variant_length:&[u8],
     _config:&'a StableAbiOptions<'a>,
     ct:&'a CommonTokens<'a>,
     ts:&mut TokenStream2,

@@ -18,7 +18,7 @@ use std::{
 use crate::{
     abi_stability::type_layout::{
         LifetimeIndex, TLData, TLField, TypeLayout, TypeLayoutParams,
-        ItemInfo,ReprAttr,TLPrimitive,TLEnumVariant,
+        ItemInfo,ReprAttr,TLPrimitive,TLEnum,TLDiscriminants,IsExhaustive,
     },
     std_types::{RNone, RSome, utypeid::UTypeId},
     sabi_types::ReturnValueEquality,
@@ -616,7 +616,9 @@ where
         "Option",
         RNone,
         ItemInfo::primitive(),
-        TLData::enum_(
+        TLData::Enum(&TLEnum::new(
+            "Some;None;",
+            IsExhaustive::Yes,
             &[
                 TLField::new(
                     "0",
@@ -624,11 +626,9 @@ where
                     <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
                 )
             ],
-            &[
-                TLEnumVariant::new("Some",1),
-                TLEnumVariant::new("None",0),
-            ]
-        ),
+            TLDiscriminants::from_u8_slice(&[0,1]),
+            &[1,0]
+        )),
         ReprAttr::OptionNonZero,
         tl_genparams!(;T;),
         &[],
@@ -840,7 +840,13 @@ unsafe impl SharedStableAbi for core_extensions::Void {
         &TypeLayout::from_params::<Self>(TypeLayoutParams {
             name: "Void",
             item_info:ItemInfo::package_and_mod("core_extensions;0.0.0","core_extensions"),
-            data: TLData::enum_(&[],&[]),
+            data: TLData::Enum(&TLEnum::new(
+                "",
+                IsExhaustive::Yes,
+                &[],
+                TLDiscriminants::from_u8_slice(&[]),
+                &[]
+            )),
             generics: tl_genparams!(;;),
         });
 }

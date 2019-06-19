@@ -11,7 +11,7 @@ pub struct TLFields {
     /// The field names,separating fields with ";".
     pub names: StaticStr,
 
-    pub variant_lengths:StaticSlice<u16>,
+    pub variant_lengths:StaticSlice<u8>,
 
     /// Which lifetimes in the struct are referenced in the field type.
     pub lifetime_indices: SliceAndFieldIndices<LifetimeIndex>,
@@ -27,7 +27,7 @@ pub struct TLFields {
 impl TLFields{
     pub const fn new(
         names: &'static str,
-        variant_lengths:&'static [u16],
+        variant_lengths:&'static [u8],
         lifetime_indices: SliceAndFieldIndices<LifetimeIndex>,
         functions:Option<&'static TLFunctions >,
         field_1to1:&'static [Field1to1],
@@ -156,14 +156,14 @@ impl std::iter::ExactSizeIterator for TLFOSIter{}
 #[derive(Copy, Clone,Debug, StableAbi,Ord,PartialOrd,Eq,PartialEq)]
 pub struct SliceAndFieldIndices<T:'static>{
     pub values: StaticSlice<T>,
-    pub field_indices: StaticSlice<WithFieldIndex<usize>>,
+    pub field_indices: StaticSlice<WithFieldIndex<u16>>,
 }
 
 
 impl<T> SliceAndFieldIndices<T>{
     pub const fn new(
         values: &'static [T],
-        field_indices:&'static [WithFieldIndex<usize>],
+        field_indices:&'static [WithFieldIndex<u16>],
     )->Self{
         Self{
             values:StaticSlice::new(values),
@@ -184,7 +184,7 @@ impl<T> SliceAndFieldIndices<T>{
 #[derive(Copy, Clone,Debug)]
 pub struct SAFIIter<T:'static>{
     values:&'static [T],
-    field_indices:&'static [WithFieldIndex<usize>],
+    field_indices:&'static [WithFieldIndex<u16>],
 }
 
 impl<T:'static> Iterator for SAFIIter<T>{
@@ -194,10 +194,10 @@ impl<T:'static> Iterator for SAFIIter<T>{
         let field_index=self.field_indices.get(0)?;
         let len=self.values.len();
         self.field_indices=&self.field_indices[1..];
-        let next_ind=self.field_indices.first().map_or(len,|x| x.value );
+        let next_ind=self.field_indices.first().map_or(len,|x| x.value as usize);
         Some(WithFieldIndex{
             index:field_index.index,
-            value:&self.values[field_index.value..next_ind],
+            value:&self.values[field_index.value as usize ..next_ind],
         })
     }
 
@@ -224,16 +224,16 @@ impl<T> std::iter::ExactSizeIterator for SAFIIter<T>{}
 #[derive(Copy, Clone,Debug, StableAbi,Ord,PartialOrd,Eq,PartialEq)]
 pub struct FieldIndex{
     pub variant:u16,
-    pub field_pos:u16,
+    pub field_pos:u8,
 }
 
 impl FieldIndex {
-    pub const fn from_variant_field(variant:u16,field_pos:u16)->Self{
+    pub const fn from_variant_field(variant:u16,field_pos:u8)->Self{
         Self{variant,field_pos}
     }
-    pub fn increment(&mut self,variant_lengths:&[u16]){
+    pub fn increment(&mut self,variant_lengths:&[u8]){
         let next_field_pos=self.field_pos+1;
-        if variant_lengths[self.variant as usize]as u16 == next_field_pos {
+        if variant_lengths[self.variant as usize]== next_field_pos {
             let next_variant=self.variant+1;
             if variant_lengths.len()as u16 != next_variant {
                 self.variant=next_variant;
@@ -286,7 +286,7 @@ pub struct WithFieldIndex<T>{
 }
 
 impl<T> WithFieldIndex<T>{
-    pub const fn from_vari_field_val(variant:u16,field_pos:u16,value:T)->Self{
+    pub const fn from_vari_field_val(variant:u16,field_pos:u8,value:T)->Self{
         Self{
             index:FieldIndex{variant,field_pos},
             value,
