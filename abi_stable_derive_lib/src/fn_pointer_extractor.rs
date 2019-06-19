@@ -196,7 +196,7 @@ impl<'a> Vars<'a> {
     pub fn add_referenced_env_lifetime(&mut self, ind: LifetimeIndex) {
         let is_env_lt = match ind {
             LifetimeIndex::Static => true,
-            LifetimeIndex::Param { index } => index < self.fn_info.env_lifetimes.len(),
+            LifetimeIndex::Param { index } => (index as usize) < self.fn_info.env_lifetimes.len(),
         };
         if is_env_lt {
             self.referenced_lifetimes.push(ind);
@@ -312,7 +312,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             let env_lifetimes = self.vars.fn_info.env_lifetimes.iter();
             let found_lt = env_lifetimes.enumerate().position(|(_, lt_ident)| *lt_ident == lt);
             match found_lt {
-                Some(index) => LifetimeIndex::Param { index },
+                Some(index) => LifetimeIndex::Param { index:index as _ },
                 None => panic!("unknown lifetime:'{}", (&*lt).into_token_stream()),
             }
         }
@@ -347,7 +347,7 @@ impl<'a, 'b> FnVisitor<'a, 'b> {
                         ),
                         1=> {
                             LifetimeIndex::Param {
-                                index: self.vars.fn_info.initial_bound_lifetime,
+                                index: self.vars.fn_info.initial_bound_lifetime as _,
                             }
                         }
                         _ => panic!(
@@ -368,7 +368,7 @@ impl<'a, 'b> FnVisitor<'a, 'b> {
             match found_lt {
                 Some(index) => {
                     ret = Some(&ctokens.underscore);
-                    LifetimeIndex::Param { index }
+                    LifetimeIndex::Param { index:index as _ }
                 }
                 None => panic!("unknown lifetime:'{}", (&*lt).into_token_stream()),
             }
@@ -383,7 +383,7 @@ impl<'a, 'b> FnVisitor<'a, 'b> {
     fn new_bound_lifetime(&mut self) -> LifetimeIndex {
         let index = self.vars.fn_info.initial_bound_lifetime+self.current.named_bound_lts_count;
         self.current.named_bound_lts_count+=1;
-        LifetimeIndex::Param { index }
+        LifetimeIndex::Param { index:index as _ }
     }
 }
 
