@@ -110,6 +110,18 @@ impl ModPath{
     }
 }
 
+
+impl Display for ModPath{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ModPath::NoPath=>Display::fmt("<no path>",f),
+            ModPath::In(mod_)=>Display::fmt(mod_,f),
+            ModPath::Prelude=>Display::fmt("<prelude>",f),
+        }
+    }
+}
+
+
 /////////////////////////////////////////////////////
 
 
