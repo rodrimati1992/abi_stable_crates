@@ -25,6 +25,7 @@ pub use crate::{
             TLDiscriminants,
             TLFields,
             TLEnum,
+            TLNonExhaustive,
             TLFunction,
             TLFunctions,
             TypeLayout, TypeLayoutParams,
@@ -32,6 +33,11 @@ pub use crate::{
             _private_TypeLayoutDerive,
         },
         tagging::Tag,
+    },
+    nonexhaustive_enum::{
+        assert_nonexhaustive,
+        GetEnumInfo,EnumInfo,ValidDiscriminant,GetNonExhaustive,
+        NonExhaustive,
     },
     reflection::ModReflMode,
     prefix_type::{
@@ -51,8 +57,10 @@ pub use crate::{
     std_types::{
         utypeid::new_utypeid,
         StaticStr,
+        StaticSlice,
         RSome,RNone,
     },
+    traits::InlineStorage,
 };
 
 
