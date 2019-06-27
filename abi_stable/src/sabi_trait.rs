@@ -47,7 +47,8 @@ pub mod prelude{
 }
 
 pub mod for_generated_code;
-#[cfg(any(test,feature="sabi_trait_examples"))]
+#[cfg(any(all(test,not(feature="only_new_tests")),feature="sabi_trait_examples"))]
+// #[cfg(any(test,feature="sabi_trait_examples"))]
 pub mod examples;
 pub mod robject;
 pub mod vtable;
