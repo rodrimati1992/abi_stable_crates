@@ -22,112 +22,7 @@ use core_extensions::SelfOps;
 use serde::{Serialize,Deserialize,Serializer,Deserializer};
 
 
-/**
-Type used as the inline storage of an RSmallBox.
-
-# Safety
-
-Implementors must:
-
-- Be types for which all bitpatterns are valid.
-
-- Not implement Drop,and have no drop glue.
-
-*/
-pub unsafe trait InlineStorage{}
-
-
-macro_rules! impl_for_arrays {
-    ( ty=$ty:ty , len[ $($len:expr),* $(,)* ] ) => (
-        $(
-            unsafe impl InlineStorage for [$ty;$len] {}
-        )*
-    )
-}
-
-
-impl_for_arrays!{
-    ty=u8,
-    len[
-        0,1,2,3,4,5,6,7,8,9,
-        10,11,12,13,14,15,16,17,18,19,
-        20,21,22,23,24,25,26,27,28,29,
-        30,31,32,33,34,35,36,37,38,39,
-        40,41,42,43,44,45,46,47,48,49,
-        50,51,52,53,54,55,56,57,58,59,
-        60,61,62,63,64,
-    ]
-}
-
-impl_for_arrays!{
-    ty=u32,
-    len[
-        0,1,2,3,4,5,6,7,8,9,
-        10,11,12,13,14,15,16,17,18,19,
-        20,21,22,23,24,25,26,27,28,29,
-        30,31,32,33,34,35,36,37,38,39,
-        40,41,42,43,44,45,46,47,48,
-    ]
-}
-
-impl_for_arrays!{
-    ty=u64,
-    len[
-        0,1,2,3,4,5,6,7,8,9,
-        10,11,12,13,14,15,16,17,18,19,
-        20,21,22,23,24,
-    ]
-}
-
-impl_for_arrays!{
-    ty=usize,
-    len[
-        0,1,2,3,4,5,6,7,8,9,
-        10,11,12,13,14,15,16,17,18,19,
-        20,21,22,23,24,25,26,27,28,29,
-        30,31,32,33,34,35,36,37,38,39,
-        40,41,42,43,44,45,46,47,48,
-    ]
-}
-
-
-macro_rules! declare_alignments {
-    (
-        $(( $aligner:ident, $alignment:expr ),)*
-    ) => (
-        $(
-            #[repr(C)]
-            #[repr(align($alignment))]
-            pub struct $aligner<Inline>{
-                inline:Inline,
-            }
-            
-            unsafe impl<Inline> InlineStorage for $aligner<Inline>
-            where
-                Inline:InlineStorage,
-            {}
-        )*
-    )
-}
-
-
-/// Helper types related to the alignemnt of `RSmallBox`'s  inline storage.
-pub mod alignment{
-    use super::*;
-    
-    declare_alignments!{
-        ( AlignTo1,1 ),
-        ( AlignTo2,2 ),
-        ( AlignTo4,4 ),
-        ( AlignTo8,8 ),
-        ( AlignTo16,16 ),
-        ( AlignTo32,32 ),
-        ( AlignTo64,64 ),
-        ( AlignTo128,128 ),
-    }
-}
-
-
+pub use crate::traits::{alignment,InlineStorage};
 
 
 pub use self::private::RSmallBox;
@@ -352,7 +247,7 @@ impl<T,Inline> Display for RSmallBox<T,Inline>
 where 
     T:Display
 {
-    fn fmt(&self,f:&mut fmt::Formatter)->fmt::Result{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
         Display::fmt(&**self,f)
     }
 }
@@ -363,6 +258,11 @@ shared_impls! {
     mod=box_impls
     new_type=RSmallBox[][T,Inline],
     original_type=Box,
+}
+
+
+unsafe impl<T, O, Inline> TransmuteElement<O> for RSmallBox<T,Inline> {
+    type TransmutedPtr = RSmallBox<O,Inline>;
 }
 
 unsafe impl<T: Send,Inline> Send for RSmallBox<T,Inline> {}

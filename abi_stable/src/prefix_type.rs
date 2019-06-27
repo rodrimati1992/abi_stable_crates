@@ -148,6 +148,15 @@ impl<T,P> WithMetadata_<T,P> {
         }
     }
 
+    /// Converts this `*const WithMetadata<T,P>` to a `*const <prefix_struct>` type.
+    /// Use this if you need to implement nested vtables at compile-time.
+    #[inline]
+    pub const unsafe fn raw_as_prefix(this:*const Self)->*const P {
+        unsafe{
+            this as *const Self as *const P
+        }
+    }
+
     /// Converts a `StaticRef<WithMetadata<T,P>>` to a `StaticRef< <prefix_struct> >` type.
     /// Use this if you need to implement nested vtables at compile-time.
     #[inline]

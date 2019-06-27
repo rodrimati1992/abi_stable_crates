@@ -68,9 +68,15 @@ macro_rules! declare_meta_vtable {
         erased_pointer=$erased_ptr:ident;
         original_pointer=$orig_ptr:ident;
 
+        auto_traits[
+            $([
+                impl $auto_trait:ident where [ $($phantom_where_clause:tt)* ]
+            ])*
+        ]
+
         marker_traits[
             $([
-                impl $marker_trait:ident where [ $($phantom_where_clause:tt)* ]
+                impl $marker_trait:ident where [ $($marker_where_clause:tt)* ]
             ])*
         ]
 
@@ -200,8 +206,16 @@ macro_rules! declare_meta_vtable {
         $(
             impl<'borr,$value,$erased_ptr,$orig_ptr> 
                 MarkerTrait<'borr,True,$value,$erased_ptr,$orig_ptr> 
-            for trait_selector::$marker_trait
+            for trait_selector::$auto_trait
             where $($phantom_where_clause)*
+            {}
+        )*
+
+        $(
+            impl<'borr,$value,$erased_ptr,$orig_ptr> 
+                MarkerTrait<'borr,True,$value,$erased_ptr,$orig_ptr> 
+            for trait_selector::$marker_trait
+            where $($marker_where_clause)*
             {}
         )*
 
@@ -209,6 +223,10 @@ macro_rules! declare_meta_vtable {
 
         /// Contains marker types representing traits of the same name.
         pub mod trait_selector{
+            $(
+                /// Marker type representing the trait of the same name.
+                pub struct $auto_trait;
+            )*
             $(
                 /// Marker type representing the trait of the same name.
                 pub struct $marker_trait;
@@ -226,6 +244,10 @@ macro_rules! declare_meta_vtable {
         where
             This:ImplType<Interface=$interf>,
             $interf:InterfaceBound<'borr>,
+            $(
+                trait_selector::$auto_trait:
+                    MarkerTrait<'borr,$interf::$auto_trait,$value,$erased_ptr,$orig_ptr>,
+            )*
             $(
                 trait_selector::$marker_trait:
                     MarkerTrait<'borr,$interf::$marker_trait,$value,$erased_ptr,$orig_ptr>,
@@ -301,6 +323,7 @@ macro_rules! declare_meta_vtable {
         where 
             I:InterfaceType,
             I:IteratorItemOrDefault<'borr,<I as InterfaceType>::Iterator>,
+            $( I::$auto_trait:Boolean, )*
             $( I::$marker_trait:Boolean, )*
             $( I::$selector:Boolean, )*
         {
@@ -322,8 +345,8 @@ macro_rules! declare_meta_vtable {
                     "auto traits"=>tag![[
                         $(
                             str_if(
-                                <I::$marker_trait as Boolean>::VALUE,
-                                stringify!($marker_trait)
+                                <I::$auto_trait as Boolean>::VALUE,
+                                stringify!($auto_trait)
                             ),
                         )*
                     ]],
@@ -334,6 +357,12 @@ macro_rules! declare_meta_vtable {
                             str_if(
                                 <I::$selector as Boolean>::VALUE,
                                 stringify!($selector)
+                            ),
+                        )*
+                        $(
+                            str_if(
+                                <I::$marker_trait as Boolean>::VALUE,
+                                stringify!($marker_trait)
                             ),
                         )*
                     }}
@@ -375,12 +404,18 @@ declare_meta_vtable! {
     erased_pointer=ErasedPtr;
     original_pointer=OrigP;
 
-    marker_traits[
+    auto_traits[
         [
             impl Send where [OrigP:Send,T:Send]
         ]
         [
             impl Sync where [OrigP:Sync,T:Sync]
+        ]
+    ]
+
+    marker_traits[
+        [
+            impl Error where [T:std::error::Error]
         ]
     ]
 

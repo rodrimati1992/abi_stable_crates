@@ -3,8 +3,7 @@ Traits for pointers.
 */
 use std::{
     mem::ManuallyDrop,
-    ops::{Deref, DerefMut},
-    sync::Arc,
+    ops::{Deref},
 };
 
 use crate::sabi_types::MovePtr;

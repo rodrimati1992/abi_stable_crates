@@ -6,7 +6,6 @@ Traits for types wrapped in `DynTrait<_>`
 use std::{mem,marker::PhantomData};
 
 use crate::{
-    erased_types::{DynTraitBound},
     sabi_types::VersionStrings,
     std_types::{
         RBoxError, 
@@ -14,7 +13,7 @@ use crate::{
     },
 };
 
-use super::TypeInfo;
+use super::{DynTraitBound,TypeInfo};
 
 #[allow(unused_imports)]
 use crate::type_level::bools::{False, True};
@@ -206,6 +205,8 @@ impl_InterfaceType!{
         type IoRead;
 
         type IoBufRead;
+        
+        type Error;
     ]
 
 
