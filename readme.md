@@ -462,6 +462,9 @@ these checks are done purely to detect programming errors.
 
 Ffi-safe non-exhaustive enums with fields,allowing for libraries to add variants to enums without breaking backwards compatibility (API or ABI).
 
+Make `#[sabi_trait]` generated trait objects more ergonomic,as well as improve compile-time errors.
+Some of those improvements will require small (but still breaking) changes.
+
 ### Eventually
 
 WASM support,with the same features as native dynamic libraries,
