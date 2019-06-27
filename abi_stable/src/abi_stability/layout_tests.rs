@@ -11,5 +11,8 @@ mod erased_types;
 // #[cfg(test)]
 mod repr_and_discr;
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod sabi_trait;
+
+#[cfg(test)]
+mod nonexhaustive_enums;

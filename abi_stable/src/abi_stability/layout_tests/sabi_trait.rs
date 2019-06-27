@@ -2,7 +2,11 @@ use crate::{
     sabi_trait,
     StableAbi,
     abi_stability::{
-        abi_checking::{AbiInstability,check_layout_compatibility},
+        abi_checking::{
+            AbiInstability,check_layout_compatibility,
+            check_layout_compatibility_with_globals,
+            CheckingGlobals,
+        },
         AbiInfoWrapper,
     },
     std_types::{RBox},
@@ -16,10 +20,11 @@ fn check_subsets<F>(list:&[&'static AbiInfoWrapper],mut f:F)
 where
     F:FnMut(&[AbiInstability])
 {
+    let globals=CheckingGlobals::new();
+    
     for (l_i,l_abi) in list.iter().enumerate() {
         for (r_i,r_abi) in list.iter().enumerate() {
-
-            let res=check_layout_compatibility(l_abi,r_abi);
+            let res=check_layout_compatibility_with_globals(l_abi,r_abi,&globals);
 
             if l_i <= r_i {
                 assert_eq!(res,Ok(()));
@@ -189,4 +194,3 @@ fn incompatible_supertraits(){
         );        
     });
 }
-
