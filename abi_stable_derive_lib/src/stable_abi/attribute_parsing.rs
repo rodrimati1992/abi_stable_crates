@@ -11,22 +11,27 @@ use std::{
     mem,
 };
 
-use quote::ToTokens;
-
 use core_extensions::IteratorExt;
+
+use proc_macro2::Span;
+
+use quote::ToTokens;
 
 use crate::{
     attribute_parsing::with_nested_meta,
     datastructure::{DataStructure, DataVariant, Field,FieldMap},
     parse_utils::{
         parse_str_as_ident,
+        parse_str_as_type,
         parse_lit_as_ident,
         parse_lit_as_expr,
+        parse_lit_as_type,
         parse_lit_as_type_bounds,
     },
 };
 
 use super::{
+    nonexhaustive::{UncheckedNonExhaustive,NonExhaustive,EnumInterface,IntOrType},
     reflection::{ModReflMode,FieldAccessor},
     prefix_types::{PrefixKind,FirstSuffixField,OnMissingField,AccessorOrMaybe,PrefixKindField},
     repr_attrs::{UncheckedReprAttr,UncheckedReprKind,DiscriminantRepr,ReprAttr},
@@ -41,6 +46,7 @@ pub(crate) struct StableAbiOptions<'a> {
 
     /// The type parameters that have the __StableAbi constraint
     pub(crate) stable_abi_bounded:HashSet<&'a Ident>,
+    pub(crate) stable_abi_bounded_ty:Vec<&'a Type>,
 
     pub(crate) unconstrained_type_params:HashMap<Ident,UnconstrainedTyParam<'a>>,
 
@@ -71,6 +77,7 @@ pub(crate) struct UnconstrainedTyParam<'a>{
 pub(crate) enum StabilityKind<'a> {
     Value,
     Prefix(PrefixKind<'a>),
+    NonExhaustive(NonExhaustive<'a>),
 }
 
 impl<'a> StabilityKind<'a>{
@@ -83,7 +90,7 @@ impl<'a> StabilityKind<'a>{
         match (is_public,self) {
             (false,_)=>
                 FieldAccessor::Opaque,
-            (true,StabilityKind::Value)=>
+            (true,StabilityKind::Value)|(true,StabilityKind::NonExhaustive{..})=>
                 FieldAccessor::Direct,
             (true,StabilityKind::Prefix(prefix))=>
                 prefix.field_accessor(field),
@@ -145,7 +152,11 @@ impl<'a> StableAbiOptions<'a> {
                     field_bounds:this.field_bounds,
                 })
             }
-
+            UncheckedStabilityKind::NonExhaustive(nonexhaustive)=>{
+                nonexhaustive
+                    .piped(|x| NonExhaustive::new(x,ds,arenas) )
+                    .piped(StabilityKind::NonExhaustive)
+            }
         };
 
         match (repr,ds.data_variant) {
@@ -188,9 +199,14 @@ impl<'a> StableAbiOptions<'a> {
                 ModReflMode::Opaque,
         };
 
+        let stable_abi_bounded_ty:Vec<&'a syn::Type>=
+            this.extra_phantom_fields.iter().map(|(_,ty)| *ty ).collect();
+
+        phantom_fields.extend(this.extra_phantom_fields);
+
         StableAbiOptions {
             debug_print:this.debug_print,
-            kind, repr , stable_abi_bounded , 
+            kind, repr , stable_abi_bounded , stable_abi_bounded_ty,
             extra_bounds :this.extra_bounds,
             unconstrained_type_params:this.unconstrained_type_params.into_iter().collect(),
             opaque_fields:this.opaque_fields,
@@ -234,15 +250,18 @@ struct StableAbiAttrs<'a> {
     renamed_fields:FieldMap<Option<&'a Ident>>,
 
     field_bounds:FieldMap<Vec<TypeParamBound>>,
+
+    extra_phantom_fields:Vec<(&'a str,&'a Type)>,
     
     mod_refl_mode:Option<ModReflMode<()>>,
 }
 
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 enum UncheckedStabilityKind<'a> {
     Value,
     Prefix(UncheckedPrefixKind<'a>),
+    NonExhaustive(UncheckedNonExhaustive<'a>),
 }
 
 #[derive(Copy, Clone)]
@@ -250,12 +269,12 @@ struct UncheckedPrefixKind<'a>{
     prefix_struct:&'a Ident,
 }
 
-
 impl<'a> Default for UncheckedStabilityKind<'a>{
     fn default()->Self{
         UncheckedStabilityKind::Value
     }
 }
+
 
 
 #[derive(Copy, Clone)]
@@ -425,6 +444,17 @@ fn parse_sabi_attr<'a>(
         }
         (
             ParseContext::TypeAttr{..},
+            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_field),ref ident,..})
+        )if ident=="phantom_field" =>
+        {
+            let unparsed_field=unparsed_field.value();
+            let mut iter=unparsed_field.splitn(2,':');
+            let name=arenas.alloc(iter.next().unwrap_or("").to_string());
+            let ty=arenas.alloc(parse_str_as_type(iter.next().unwrap_or("")));
+            this.extra_phantom_fields.push((name,ty));
+        }
+        (
+            ParseContext::TypeAttr{..},
             Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_tag),ref ident,..})
         )if ident=="tag" =>
         {
@@ -471,6 +501,10 @@ Tag:\n\t{}\n",
                     Meta::List(ref list) if list.ident == "Prefix" => {
                         let prefix=parse_prefix_type_list(name,&list.nested,arenas);
                         this.kind = UncheckedStabilityKind::Prefix(prefix);
+                    }
+                    Meta::List(ref list) if list.ident == "WithNonExhaustive" => {
+                        let nonexhaustive=parse_non_exhaustive_list(name,&list.nested,arenas);
+                        this.kind = UncheckedStabilityKind::NonExhaustive(nonexhaustive);
                     }
                     x => panic!("invalid #[kind(..)] attribute:\n{:?}", x),
                 });
@@ -646,6 +680,129 @@ fn parse_prefix_type_list<'a>(
     UncheckedPrefixKind{
         prefix_struct,
     }
+}
+
+
+/// Parses the contents of #[sabi(kind(WithNonExhaustive( ... )))]
+fn parse_non_exhaustive_list<'a>(
+    _name:&'a Ident,
+    list: &Punctuated<NestedMeta, Comma>, 
+    arenas: &'a Arenas
+)->UncheckedNonExhaustive<'a>{
+
+    let trait_set=[
+        "Clone","Display","Debug",
+        "Eq","PartialEq","Ord","PartialOrd",
+        "Hash","Deserialize","Serialize","Send","Sync","Error",
+    ].iter()
+     .map(|e| arenas.alloc(Ident::new(e,Span::call_site()) ) )
+     .collect::<HashSet<&'a Ident>>();
+
+    let mut this=UncheckedNonExhaustive::default();
+
+    for elem in list {
+        match elem {
+            NestedMeta::Meta(Meta::NameValue(MetaNameValue{ident,lit,..}))=>{
+                match lit {
+                    Lit::Str(str_lit)if ident=="align"=>{
+                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
+                        this.alignment=Some(IntOrType::Type(ty));
+                    }
+                    Lit::Int(int_lit)if ident=="align"=>{
+                        this.alignment=Some(IntOrType::Int(int_lit.value() as usize));
+                    }
+                    Lit::Str(str_lit)if ident=="size"=>{
+                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
+                        this.size=Some(IntOrType::Type(ty));
+                    }
+                    Lit::Int(int_lit)if ident=="size"=>{
+                        this.size=Some(IntOrType::Int(int_lit.value() as usize));
+                    }
+                    Lit::Str(str_lit)if ident=="assert_nonexhaustive"=>{
+                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
+                        this.assert_nonexh.push(ty);
+                    }
+                    Lit::Str(str_lit)if ident=="interface"=>{
+                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
+                        this.enum_interface=Some(EnumInterface::Old(ty));
+                    }
+                    x => panic!(
+                        "invalid #[sabi(kind(WithNonExhaustive(  )))] attribute:\n{:?}\n", 
+                        x
+                    )
+                }
+            }
+            NestedMeta::Meta(Meta::List(sublist))if sublist.ident=="assert_nonexhaustive" =>{
+                for assertion in &sublist.nested {
+                    match assertion {
+                        NestedMeta::Literal(Lit::Str(str_lit))=>{
+                            let ty=arenas.alloc(parse_lit_as_type(str_lit));
+                            this.assert_nonexh.push(ty);
+                        }
+                        x => panic!(
+                            "invalid #[sabi(kind(WithNonExhaustive(assert_nonexhaustive(  ))))] \
+                             attribute:\n{:?}\n", 
+                            x
+                        )
+                    }
+                }
+            }
+            NestedMeta::Meta(Meta::List(sublist))if sublist.ident=="traits" =>{
+                let enum_interface=match &mut this.enum_interface {
+                    Some(EnumInterface::New(x))=>x,
+                    Some(EnumInterface::Old{..})=>{
+                        panic!("Cannot use both `interface=\"...\"` and `traits(...)`")
+                    }
+                    x@None=>{
+                        *x=Some(EnumInterface::New(Default::default()));
+                        match x {
+                            Some(EnumInterface::New(x))=>x,
+                            _=>unreachable!()
+                        }
+                    }
+                };
+
+                for subelem in &sublist.nested {
+                    let (ident,is_impld)=match subelem {
+                        NestedMeta::Meta(Meta::Word(ident))=>{
+                            (ident,true)
+                        }
+                        NestedMeta::Meta(Meta::NameValue(
+                            MetaNameValue{ident,lit:Lit::Bool(bool_lit),..}
+                        ))=>{
+                            (ident,bool_lit.value)
+                        }
+                        x => panic!(
+                            "invalid \
+                             #[sabi(kind(WithNonExhaustive(traits(  ))))] attribute:\n{:?}\n", 
+                            x
+                        )
+                    };
+
+                    match trait_set.get(ident) {
+                        Some(&trait_ident) => {
+                            if is_impld {
+                                &mut enum_interface.impld
+                            }else{
+                                &mut enum_interface.unimpld
+                            }.push(trait_ident);
+                        },
+                        None =>panic!(
+                            "invalid trait inside \
+                             #[sabi(kind(WithNonExhaustive(traits(  ))))]:\n{:?}\n", 
+                            ident
+                        ),
+                    }
+                }
+            }
+            x => panic!(
+                "invalid #[sabi(kind(WithNonExhaustive(  )))] attribute:\n{:?}\n", 
+                x
+            )
+        }
+    }
+
+    this
 }
 
 

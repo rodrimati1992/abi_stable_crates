@@ -4,6 +4,7 @@ use crate::*;
 
 use crate::{
     datastructure::{DataStructure,DataVariant,Field,FieldIndex},
+    gen_params_in::{GenParamsIn,InWhat},
     lifetimes::LifetimeIndex,
     to_token_fn::ToTokenFnMut,
 };
@@ -24,6 +25,8 @@ pub mod reflection;
 
 mod attribute_parsing;
 
+mod nonexhaustive;
+
 mod prefix_types;
 
 mod repr_attrs;
@@ -35,6 +38,7 @@ mod tests;
 
 use self::{
     attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions},
+    nonexhaustive::{tokenize_enum_info,tokenize_nonexhaustive_items},
     prefix_types::prefix_type_tokenizer,
     repr_attrs::ReprAttr,
     reflection::ModReflMode,
@@ -57,25 +61,40 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let generics=ds.generics;
     let name=ds.name;
 
+    let module=Ident::new(&format!("_sabi_{}",name),Span::call_site());
+
     // drop(_measure_time0);
 
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
     let where_clause=&where_clause.unwrap().predicates;
 
     let associated_kind = match config.kind {
-        StabilityKind::Value => &ctokens.value_kind,
-        StabilityKind::Prefix{..}=>&ctokens.prefix_kind,
+        StabilityKind::Value|StabilityKind::NonExhaustive{..} => 
+            &ctokens.value_kind,
+        StabilityKind::Prefix{..}=>
+            &ctokens.prefix_kind,
     };
 
-    let impl_name= match &config.kind {
-        StabilityKind::Value => name,
-        StabilityKind::Prefix(prefix)=>&prefix.prefix_struct,
+    let impl_ty= match &config.kind {
+        StabilityKind::Value => 
+            quote!(#name #ty_generics ),
+        StabilityKind::Prefix(prefix)=>{
+            let n=&prefix.prefix_struct;
+            quote!(#n #ty_generics )
+        },
+        StabilityKind::NonExhaustive(nonexhaustive)=>{
+            let marker=nonexhaustive.nonexhaustive_marker;
+            quote!(#marker < #name  #ty_generics , __Storage > )
+        }
     };
 
     let mut prefix_type_trait_bound=None;
     let mut prefix_bounds:&[_]=&[];
 
     let size_align_for=match &config.kind {
+        StabilityKind::NonExhaustive(_)=>{
+            quote!(__Storage)
+        },
         StabilityKind::Prefix(prefix)=>{
             let prefix_struct=prefix.prefix_struct;
 
@@ -97,6 +116,10 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         StabilityKind::Prefix(prefix)=>Some(prefix),
         _=>None,
     };
+    let nonexhaustive_opt=match &config.kind {
+        StabilityKind::NonExhaustive(nonexhaustive)=>Some(nonexhaustive),
+        _=>None,
+    };
 
     let tags_opt=&config.tags;
     let tags=ToTokenFnMut::new(move|ts|{
@@ -110,6 +133,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
             }
         }
     });
+
+    let nonexhaustive_items=tokenize_nonexhaustive_items(&module,ds,config,ctokens);
+    let nonexhaustive_tokens=tokenize_enum_info(ds,config,ctokens);
 
 
     let data_variant=ToTokenFnMut::new(|ts|{
@@ -140,7 +166,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
             (true,None)=>{
                 quote!(__TLData::Enum).to_tokens(ts);
                 ct.paren.surround(ts,|ts|{
-                    tokenize_enum(ds,config,ctokens).to_tokens(ts);
+                    tokenize_enum(ds,nonexhaustive_opt,config,ctokens).to_tokens(ts);
                 });
             }
             (false,Some(prefix))=>{
@@ -225,9 +251,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
     let stringified_name=name.to_string();
 
-    let module=Ident::new(&format!("_sabi_{}",name),Span::call_site());
-
     let stable_abi_bounded =&config.stable_abi_bounded;
+    let stable_abi_bounded_ty =&config.stable_abi_bounded_ty;
     let extra_bounds       =&config.extra_bounds;
     
     let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens);
@@ -249,8 +274,14 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
     // let _measure_time1=PrintDurationOnDrop::new(file_span!());
 
+    let storage_opt=nonexhaustive_opt.map(|_| &ctokens.und_storage );
+    let generics_header=
+        GenParamsIn::with_after_types(&ds.generics,InWhat::ImplHeader,storage_opt);
+
     quote!(
         #prefix_type_tokenizer_
+
+        #nonexhaustive_items
 
         mod #module {
             use super::*;
@@ -265,10 +296,13 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
             #static_struct_decl
 
-            unsafe impl #impl_generics __SharedStableAbi for #impl_name #ty_generics 
+            #nonexhaustive_tokens
+
+            unsafe impl <#generics_header> __SharedStableAbi for #impl_ty 
             where 
                 #(#where_clause,)*
                 #(#stable_abi_bounded:__StableAbi,)*
+                #(#stable_abi_bounded_ty:__StableAbi,)*
                 #(#extra_bounds,)*
                 #(#prefix_bounds,)*
                 #prefix_type_trait_bound
@@ -322,6 +356,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
 fn tokenize_enum<'a>(
     ds:&'a DataStructure<'a>,
+    nonexhaustive_opt:Option<&'a nonexhaustive::NonExhaustive<'a>>,
     config:&'a StableAbiOptions<'a>,
     ct:&'a CommonTokens<'a>
 )->impl ToTokens+'a{
@@ -332,7 +367,16 @@ fn tokenize_enum<'a>(
             let _=write!(variant_names,"{};",variant.name);
         }
 
-        let is_exhaustive=&ct.cap_yes;
+        let is_exhaustive=match nonexhaustive_opt {
+            Some(_)=>{
+                let name=ds.name;
+                let (_, ty_generics,_) = ds.generics.split_for_impl();
+                quote!(nonexhaustive(
+                    &_sabi_reexports::TLNonExhaustive::new::< #name #ty_generics >()
+                ))
+            },
+            None=>quote!(exhaustive()),
+        };
 
         let variant_lengths=&ds.variants.iter()
             .map(|x|{

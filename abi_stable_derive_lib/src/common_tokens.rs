@@ -22,7 +22,7 @@ macro_rules! declare_common_tokens {
         pub(crate) struct CommonTokens<'a>{
             $( pub(crate) $field_new : $token_new , )*
             $( pub(crate) $field_token : ::syn::token::$token_token , )*
-            $( pub(crate) $field_ts : TokenStream , )*
+            $( pub(crate) $field_ts : TokenStream2 , )*
             $( pub(crate) $field_ty : ::syn::Type , )*
             $( pub(crate) $field_ident : ::syn::Ident , )*
             $( pub(crate) $lifetime_ident : ::syn::Lifetime , )*
@@ -92,7 +92,7 @@ declare_common_tokens! {
     ]
 
     token_streams[
-
+        und_storage="__Storage,",
     ]
 
     types[
@@ -105,8 +105,6 @@ declare_common_tokens! {
         none="None",
         rsome="__RSome",
         rnone="__RNone",
-        cap_yes="Yes",
-        cap_no="No",
         tl_field="__TLField",
         tl_functions="__TLFunctions",
         comp_tl_functions="__CompTLFunction",
