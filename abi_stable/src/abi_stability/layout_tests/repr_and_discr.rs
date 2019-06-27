@@ -12,6 +12,8 @@ macro_rules! declare_int_repr {
         mod=$mod_ident:ident 
         repr=$repr:ident 
         discriminants( $($discr_a:expr)* , $($discr_b:expr)* , $($discr_c:expr)* ) 
+        discr_ty=$discr_ty:ty,
+        check=( $($variant:ident=$discr_value:expr),* $(,)* ) 
     ) => (
         mod $mod_ident{
             use crate::StableAbi;
@@ -24,6 +26,13 @@ macro_rules! declare_int_repr {
                 B $(=$discr_b)* ,
                 C $(=$discr_c)* ,
             }
+
+            #[test]
+            fn check_discriminant_values(){
+                $(
+                    assert_eq!(What::$variant as $discr_ty,$discr_value );
+                )*
+            }
         }
     )
 }
@@ -32,60 +41,96 @@ declare_int_repr!{
     mod=c_repr_a
     repr=C
     discriminants(,,)
+    discr_ty=isize,
+    check=( A=0,B=1,C=2, ) 
 }
 
 declare_int_repr!{
     mod=c_repr_b
     repr=C
     discriminants(10,,)
+    discr_ty=isize,
+    check=( A=10,B=11,C=12, ) 
 }
 
 declare_int_repr!{
     mod=u8_repr_a
     repr=u8
     discriminants(,,)
+    discr_ty=u8,
+    check=( A=0,B=1,C=2, )
 }
 
 declare_int_repr!{
     mod=u8_repr_b
     repr=u8
     discriminants(10,,)
+    discr_ty=u8,
+    check=( A=10,B=11,C=12, )
 }
 
 declare_int_repr!{
     mod=u16_repr_a
     repr=u16
     discriminants(,,)
+    discr_ty=u16,
+    check=( A=0,B=1,C=2, )
 }
 
 declare_int_repr!{
     mod=usize_repr_a
     repr=usize
     discriminants(,,)
+    discr_ty=usize,
+    check=( A=0,B=1,C=2, )
 }
 
 declare_int_repr!{
     mod=i8_repr_a
     repr=i8
     discriminants(,,)
+    discr_ty=i8,
+    check=( A=0,B=1,C=2, )
 }
 
 declare_int_repr!{
     mod=i8_repr_b
     repr=i8
     discriminants(10,,)
+    discr_ty=i8,
+    check=( A=10,B=11,C=12, )
+}
+
+declare_int_repr!{
+    mod=i8_repr_c
+    repr=i8
+    discriminants(,10,)
+    discr_ty=i8,
+    check=( A=0,B=10,C=11, )
+}
+
+declare_int_repr!{
+    mod=i8_repr_d
+    repr=i8
+    discriminants(,,10)
+    discr_ty=i8,
+    check=( A=0,B=1,C=10, )
 }
 
 declare_int_repr!{
     mod=i16_repr_a
     repr=i16
     discriminants(,,)
+    discr_ty=i16,
+    check=( A=0,B=1,C=2, )
 }
 
 declare_int_repr!{
     mod=isize_repr_a
     repr=isize
     discriminants(,,)
+    discr_ty=isize,
+    check=( A=0,B=1,C=2, )
 }
 
 
@@ -147,3 +192,6 @@ fn check_discriminant_repr_enums(){
 }
 
 
+#[test]
+fn check_discriminants(){
+}
