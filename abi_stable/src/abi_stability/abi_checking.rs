@@ -18,7 +18,7 @@ use super::{
     type_layout::{
         TypeLayout, TLData, TLDataDiscriminant, TLField,TLFieldAndType, 
         FullType, ReprAttr, TLDiscriminant,TLPrimitive,
-        TLEnum,IsExhaustive,
+        TLEnum,IsExhaustive,IncompatibleWithNonExhaustive,TLNonExhaustive,
     },
     tagging::{CheckableTag,TagErrors},
 };
@@ -27,11 +27,11 @@ use crate::{
     prefix_type::{FieldAccessibility,IsConditional},
     std_types::{RVec, StaticSlice, StaticStr,utypeid::UTypeId,RBoxError,RResult},
     traits::IntoReprC,
-    utils::min_max_by,
+    utils::{max_by,min_max_by},
 };
 
 /// All the errors from checking the layout of every nested type in AbiInfo.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[repr(C)]
 pub struct AbiInstabilityErrors {
     pub interface: &'static AbiInfo,
@@ -44,7 +44,7 @@ pub struct AbiInstabilityErrors {
 ///
 /// Error that happen lower or higher on the stack are stored in separate
 ///  `AbiInstabilityError`s.
-#[derive(Debug, PartialEq)]
+#[derive(Debug,Clone, PartialEq)]
 #[repr(C)]
 pub struct AbiInstabilityError {
     pub stack_trace: RVec<TLFieldAndType>,
@@ -77,6 +77,7 @@ pub enum AbiInstability {
     UnexpectedVariant(ExpectedFoundError<StaticStr>),
     ReprAttr(ExpectedFoundError<ReprAttr>),
     EnumDiscriminant(ExpectedFoundError<TLDiscriminant>),
+    IncompatibleWithNonExhaustive(IncompatibleWithNonExhaustive),
     TagError{
         expected_found:ExpectedFoundError<CheckableTag>,
         err:TagErrors,
@@ -134,8 +135,9 @@ impl fmt::Display for AbiInstabilityError {
             write!(f, ":{}", last.full_type())?;
         }
         writeln!(f)?;
+
         for err in &self.errs {
-            let (error_msg, expected_err): (&'static str, ExpectedFoundError<String>) = match err {
+            let pair = match err {
                 AI::IsPrefix(v) => ("mismatched prefixness", v.debug_str()),
                 AI::NonZeroness(v) => ("mismatched non-zeroness", v.display_str()),
                 AI::Name(v) => ("mismatched type", v.display_str()),
@@ -146,7 +148,7 @@ impl fmt::Display for AbiInstabilityError {
 
                     (
                         "could not parse version string",
-                        ExpectedFoundError { expected, found },
+                        Some(ExpectedFoundError { expected, found }),
                     )
                 }
                 AI::PackageVersion(v) => ("incompatible package versions", v.display_str()),
@@ -181,6 +183,11 @@ impl fmt::Display for AbiInstabilityError {
                 AI::UnexpectedVariant(v) => ("unexpected variant", v.debug_str()),
                 AI::ReprAttr(v)=>("incompatible repr attributes",v.debug_str()),
                 AI::EnumDiscriminant(v)=>("different discriminants",v.debug_str()),
+                AI::IncompatibleWithNonExhaustive(e)=>{
+                    extra_err=Some(e.to_string());
+
+                    ("",None)
+                }
                 AI::TagError{expected_found,err} => {
                     extra_err=Some(err.to_string());
 
@@ -188,13 +195,17 @@ impl fmt::Display for AbiInstabilityError {
                 },
             };
 
-            writeln!(
-                f,
-                "\nError:{}\nExpected:\n{}\nFound:\n{}",
-                error_msg,
-                expected_err.expected.left_padder(4),
-                expected_err.found   .left_padder(4),
-            )?;
+            let (error_msg, expected_err):(&'static str, Option<ExpectedFoundError<String>>)=pair;
+
+            if let Some(expected_err)=expected_err{
+                writeln!(
+                    f,
+                    "\nError:{}\nExpected:\n{}\nFound:\n{}",
+                    error_msg,
+                    expected_err.expected.left_padder(4),
+                    expected_err.found   .left_padder(4),
+                )?;
+            }
             if let Some(extra_err)=&extra_err {
                 writeln!(f,"\nExtra:\n{}\n",extra_err.left_padder(4))?;
             }
@@ -245,8 +256,8 @@ impl CheckingUTypeId{
 #[derive(Debug, PartialEq,Clone)]
 #[repr(C)]
 pub struct ExpectedFoundError<T> {
-    expected: T,
-    found: T,
+    pub expected: T,
+    pub found: T,
 }
 
 impl<T> ExpectedFoundError<T> {
@@ -277,18 +288,18 @@ impl<T> ExpectedFoundError<T> {
         }
     }
 
-    pub fn display_str(&self) -> ExpectedFoundError<String>
+    pub fn display_str(&self) -> Option<ExpectedFoundError<String>>
     where
         T: fmt::Display,
     {
-        self.as_ref().map(|x| format!("{:#}", x))
+        Some(self.as_ref().map(|x| format!("{:#}", x)))
     }
 
-    pub fn debug_str(&self) -> ExpectedFoundError<String>
+    pub fn debug_str(&self) -> Option<ExpectedFoundError<String>>
     where
         T: fmt::Debug,
     {
-        self.as_ref().map(|x| format!("{:#?}", x))
+        Some(self.as_ref().map(|x| format!("{:#?}", x)))
     }
 }
 
@@ -308,11 +319,29 @@ pub struct CheckedPrefixTypes{
 }
 
 
+#[derive(Debug,Copy,Clone)]
+#[repr(C)]
+pub struct NonExhaustiveEnumWithContext{
+    abi_info:&'static AbiInfo,
+    enum_:&'static TLEnum,
+    nonexhaustive:&'static TLNonExhaustive,
+}
+
+
+#[derive(Debug,Copy,Clone)]
+#[repr(C)]
+pub struct CheckedNonExhaustiveEnums{
+    this:NonExhaustiveEnumWithContext,
+    other:NonExhaustiveEnumWithContext,
+}
+
+
 ///////////////////////////////////////////////
 
 struct AbiChecker {
     stack_trace: RVec<TLFieldAndType>,
     checked_prefix_types:RVec<CheckedPrefixTypes>,
+    checked_nonexhaustive_enums:RVec<CheckedNonExhaustiveEnums>,
 
     visited: HashSet<(CheckingUTypeId,CheckingUTypeId)>,
     errors: RVec<AbiInstabilityError>,
@@ -327,6 +356,7 @@ impl AbiChecker {
         Self {
             stack_trace: RVec::new(),
             checked_prefix_types:RVec::new(),
+            checked_nonexhaustive_enums:RVec::new(),
 
             visited: HashSet::default(),
             errors: RVec::new(),
@@ -352,12 +382,11 @@ impl AbiChecker {
             return;
         }
 
-        let is_prefix= matches!(
-            TLData::PrefixType{..}
-            |TLData::Enum(TLEnum{is_exhaustive:IsExhaustive::No,..})
-            =t_lay.data
-        );
-            ;
+        let is_prefix= match &t_lay.data {
+            TLData::PrefixType{..}=>true,
+            TLData::Enum(enum_)=>!enum_.exhaustiveness.is_exhaustive(),
+            _=>false,
+        };
         match (t_fields.len().cmp(&o_fields.len()), is_prefix) {
             (Ordering::Greater, _) | (Ordering::Less, false) => {
                 push_err(
@@ -595,65 +624,23 @@ impl AbiChecker {
                 (TLData::Union { .. }, _) => {}
                 
                 ( TLData::Enum(t_enum),TLData::Enum(o_enum)  ) => {
-                    let TLEnum{ fields: t_fields,.. }=t_enum;
-                    let TLEnum{ fields: o_fields,.. }=o_enum;
-
-                    let t_fcount = t_enum.field_count.as_slice();
-                    let o_fcount = o_enum.field_count.as_slice();
-
-                    let t_exhaus=t_enum.is_exhaustive;
-                    let o_exhaus=o_enum.is_exhaustive;
-
-                    if t_exhaus!=o_exhaus {
-                        push_err(
-                            errs,
-                            t_enum,
-                            o_enum, 
-                            |x| x.is_exhaustive, 
-                            AI::MismatchedExhaustiveness
-                        );
+                    self.check_enum(errs,this,other,t_enum,o_enum);
+                    let t_as_ne=t_enum.exhaustiveness.as_nonexhaustive();
+                    let o_as_ne=o_enum.exhaustiveness.as_nonexhaustive();
+                    if let (Some(this_ne),Some(other_ne))=(t_as_ne,o_as_ne) {
+                        self.checked_nonexhaustive_enums.push(CheckedNonExhaustiveEnums{
+                            this:NonExhaustiveEnumWithContext{
+                                abi_info:this,
+                                enum_:t_enum,
+                                nonexhaustive:this_ne,
+                            },
+                            other:NonExhaustiveEnumWithContext{
+                                abi_info:other,
+                                enum_:o_enum,
+                                nonexhaustive:other_ne,
+                            },
+                        });
                     }
-
-                    if t_exhaus==IsExhaustive::Yes&&t_fcount.len()!=o_fcount.len() ||
-                       t_exhaus==IsExhaustive::No &&t_fcount.len() >o_fcount.len()
-                    {
-                        push_err(errs, t_fcount, o_fcount, |x| x.len(), AI::TooManyVariants);
-                    }
-
-                    
-                    if let Err(d_errs)=t_enum.discriminants.compare(&o_enum.discriminants) {
-                        errs.extend(d_errs);
-                    }
-
-                    let mut t_names=t_enum.variant_names.as_str().split(';');
-                    let mut o_names=o_enum.variant_names.as_str().split(';');
-                    for (t_field_count, o_field_count) in t_fcount.iter().zip(o_fcount) {
-                        let t_name = t_names.next().unwrap_or("<this unavailable>");
-                        let o_name = o_names.next().unwrap_or("<other unavailable>");
-                        
-                        if t_field_count!=o_field_count {
-                            push_err(
-                                errs, 
-                                *t_field_count, 
-                                *o_field_count, 
-                                |x| x as usize, 
-                                AI::FieldCountMismatch
-                            );
-                        }
-
-                        if t_name != o_name {
-                            push_err(errs, t_name, o_name,StaticStr::new, AI::UnexpectedVariant);
-                            continue;
-                        }
-                    }
-                    self.check_fields(
-                        errs, 
-                        this.layout, 
-                        other.layout, 
-                        FieldContext::Fields,
-                        t_fields.get_fields(), 
-                        o_fields.get_fields()
-                    );
                 }
                 (TLData::Enum { .. }, _) => {}
                 
@@ -682,6 +669,85 @@ impl AbiChecker {
                 _priv:(),
             });
         }
+    }
+
+
+    fn check_enum(
+        &mut self,
+        errs: &mut RVec<AbiInstability>,
+        this: &'static AbiInfo,other: &'static AbiInfo,
+        t_enum:&'static TLEnum,o_enum:&'static TLEnum,
+    ){
+        let TLEnum{ fields: t_fields,.. }=t_enum;
+        let TLEnum{ fields: o_fields,.. }=o_enum;
+
+        let t_fcount = t_enum.field_count.as_slice();
+        let o_fcount = o_enum.field_count.as_slice();
+
+        let t_exhaus=t_enum.exhaustiveness;
+        let o_exhaus=o_enum.exhaustiveness;
+
+        if t_exhaus.is_exhaustive()!=o_exhaus.is_exhaustive() {
+            push_err(
+                errs,
+                t_enum,
+                o_enum, 
+                |x| x.exhaustiveness, 
+                AI::MismatchedExhaustiveness
+            );
+        }
+
+        if let (Some(this_ne),Some(other_ne))=
+            (t_exhaus.as_nonexhaustive(),o_exhaus.as_nonexhaustive())
+        {
+            if let Err(e)=this_ne.check_compatible(this.layout){
+                errs.push(AI::IncompatibleWithNonExhaustive(e))
+            }
+            if let Err(e)=other_ne.check_compatible(other.layout){
+                errs.push(AI::IncompatibleWithNonExhaustive(e))
+            }
+        }
+
+        if t_exhaus.is_exhaustive()&&t_fcount.len()!=o_fcount.len() ||
+           t_exhaus.is_nonexhaustive()&&t_fcount.len() >o_fcount.len()
+        {
+            push_err(errs, t_fcount, o_fcount, |x| x.len(), AI::TooManyVariants);
+        }
+
+        
+        if let Err(d_errs)=t_enum.discriminants.compare(&o_enum.discriminants) {
+            errs.extend(d_errs);
+        }
+
+        let mut t_names=t_enum.variant_names.as_str().split(';');
+        let mut o_names=o_enum.variant_names.as_str().split(';');
+        for (t_field_count, o_field_count) in t_fcount.iter().zip(o_fcount) {
+            let t_name = t_names.next().unwrap_or("<this unavailable>");
+            let o_name = o_names.next().unwrap_or("<other unavailable>");
+            
+            if t_field_count!=o_field_count {
+                push_err(
+                    errs, 
+                    *t_field_count, 
+                    *o_field_count, 
+                    |x| x as usize, 
+                    AI::FieldCountMismatch
+                );
+            }
+
+            if t_name != o_name {
+                push_err(errs, t_name, o_name,StaticStr::new, AI::UnexpectedVariant);
+                continue;
+            }
+        }
+        self.check_fields(
+            errs, 
+            this.layout, 
+            other.layout, 
+            FieldContext::Fields,
+            t_fields.get_fields(), 
+            o_fields.get_fields()
+        );
     }
 
 
@@ -735,6 +801,7 @@ impl AbiChecker {
 
         for pair in mem::replace(&mut self.checked_prefix_types,Default::default()) {
             // let t_lay=pair.this_prefix.layout;
+            let errors_before=self.errors.len();
             let t_utid=pair.this .get_utypeid();
             let o_utid=pair.other.get_utypeid();
             // let t_fields=pair.this_prefix.fields;
@@ -769,7 +836,7 @@ impl AbiChecker {
                         min_max_by(im_prefix,&mut max_prefix,|x|x.fields.len());
 
                     self.check_prefix_types(errs,min_prefix,max_prefix);
-                    if !errs.is_empty() { break; }
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
 
                     max_prefix.combine_fields_from(&*min_prefix);
                     
@@ -795,7 +862,7 @@ impl AbiChecker {
 
                     let (min_prefix,max_prefix)=min_max_by(l_prefix,r_prefix,|x|x.fields.len());
                     self.check_prefix_types(errs,min_prefix,max_prefix);
-                    if !errs.is_empty() { break; }
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
 
                     max_prefix.combine_fields_from(&*min_prefix);
 
@@ -816,6 +883,109 @@ impl AbiChecker {
             })
         }
     }
+
+
+    fn final_non_exhaustive_enum_checks(
+        &mut self,
+        globals:&CheckingGlobals
+    )->Result<(),AbiInstabilityError>{
+        self.error_index += 1;
+        let mut errs_ = RVec::<AbiInstability>::new();
+        let errs =&mut errs_;
+
+        let mut nonexhaustive_map=globals.nonexhaustive_map.lock().unwrap();
+
+
+        for pair in mem::replace(&mut self.checked_nonexhaustive_enums,Default::default()) {
+            let CheckedNonExhaustiveEnums{this,other}=pair;
+            let errors_before=self.errors.len();
+            
+            let t_utid=this .abi_info.get_utypeid();
+            let o_utid=other.abi_info.get_utypeid();
+
+            let t_index=nonexhaustive_map.get_index(&t_utid);
+            let mut o_index=nonexhaustive_map.get_index(&o_utid);
+
+            if t_index==o_index{
+                o_index=None;
+            }
+
+            let mut max_=max_by(this,other,|x|x.enum_.variant_count());
+            
+            match (t_index,o_index) {
+                (None,None)=>{
+                    let i=nonexhaustive_map
+                        .get_or_insert(t_utid,max_)
+                        .into_inner()
+                        .index;
+                    
+                    nonexhaustive_map.associate_key(o_utid,i);
+                }
+                (Some(im_index),None)|(None,Some(im_index))=>{
+                    let im_nonexh=nonexhaustive_map.get_mut_with_index(im_index).unwrap();
+                    let im_nonexh_addr=im_nonexh as *const _ as usize;
+
+                    let (min_nonexh,max_nonexh)=
+                        min_max_by(im_nonexh,&mut max_,|x|x.enum_.variant_count());
+
+                    self.check_enum(
+                        errs,
+                        min_nonexh.abi_info,max_nonexh.abi_info,
+                        min_nonexh.enum_   ,max_nonexh.enum_   ,
+                    );
+
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
+
+                    if im_nonexh_addr != (max_nonexh as *mut _ as usize) {
+                        mem::swap(min_nonexh,max_nonexh);
+                    }
+
+                    nonexhaustive_map.associate_key(t_utid,im_index);
+                    nonexhaustive_map.associate_key(o_utid,im_index);
+                }
+                (Some(l_index),Some(r_index))=>{
+                    let (l_nonexh,r_nonexh)=
+                        nonexhaustive_map.get2_mut_with_index(l_index,r_index);
+                    let l_nonexh=l_nonexh.unwrap();
+                    let r_nonexh=r_nonexh.unwrap();
+
+                    let (replace,with)=
+                        if l_nonexh.enum_.variant_count() < r_nonexh.enum_.variant_count() {
+                            (l_index,r_index)
+                        }else{
+                            (r_index,l_index)
+                        };
+
+                    let (min_nonexh,max_nonexh)=
+                        min_max_by(l_nonexh,r_nonexh,|x|x.enum_.variant_count());
+                    
+                    self.check_enum(
+                        errs,
+                        min_nonexh.abi_info,max_nonexh.abi_info,
+                        min_nonexh.enum_   ,max_nonexh.enum_   ,
+                    );
+
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
+
+                    nonexhaustive_map.replace_with_index(replace,with);
+                }
+            }
+        }
+
+        if errs_.is_empty() {
+            Ok(())
+        }else{
+            Err(AbiInstabilityError {
+                stack_trace: self.stack_trace.clone(),
+                errs: errs_,
+                index: self.error_index,
+                _priv:(),
+            })
+        }
+    }
+
+    
+
 }
 
 
@@ -869,6 +1039,9 @@ pub(super) fn check_layout_compatibility_with_globals(
         checker.check_inner(interface, implementation);
         if checker.errors.is_empty() {
             if let Err(e)=checker.final_prefix_type_checks(globals) {
+                checker.errors.push(e);
+            }
+            if let Err(e)=checker.final_non_exhaustive_enum_checks(globals) {
                 checker.errors.push(e);
             }
         }
@@ -946,12 +1119,14 @@ use crate::{
 #[derive(Debug)]
 pub struct CheckingGlobals{
     pub(crate) prefix_type_map:Mutex<MultiKeyMap<UTypeId,PrefixTypeMetadata>>,
+    pub(crate) nonexhaustive_map:Mutex<MultiKeyMap<UTypeId,NonExhaustiveEnumWithContext>>,
 }
 
 impl CheckingGlobals{
     pub fn new()->Self{
         CheckingGlobals{
             prefix_type_map:MultiKeyMap::new().piped(Mutex::new),
+            nonexhaustive_map:MultiKeyMap::new().piped(Mutex::new),
         }
     }
 }

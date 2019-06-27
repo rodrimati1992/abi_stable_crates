@@ -45,6 +45,8 @@ pub use self::{
         DiscriminantRepr,
         GetVariantNames,
         IsExhaustive,
+        TLNonExhaustive,
+        IncompatibleWithNonExhaustive,
     },
     tl_field::{
         FieldAccessor,

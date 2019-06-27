@@ -618,7 +618,7 @@ where
         ItemInfo::primitive(),
         TLData::Enum(&TLEnum::new(
             "Some;None;",
-            IsExhaustive::Yes,
+            IsExhaustive::exhaustive(),
             &[
                 TLField::new(
                     "0",
@@ -842,7 +842,7 @@ unsafe impl SharedStableAbi for core_extensions::Void {
             item_info:ItemInfo::package_and_mod("core_extensions;0.0.0","core_extensions"),
             data: TLData::Enum(&TLEnum::new(
                 "",
-                IsExhaustive::Yes,
+                IsExhaustive::exhaustive(),
                 &[],
                 TLDiscriminants::from_u8_slice(&[]),
                 &[]

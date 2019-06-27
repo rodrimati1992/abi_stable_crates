@@ -17,7 +17,7 @@ use crate::{
 pub struct TLEnum{
     /// A ';' separated list of all variant names
     pub variant_names:StaticStr,
-    pub is_exhaustive:IsExhaustive,
+    pub exhaustiveness:IsExhaustive,
     pub fields: TLFieldsOrSlice,
     pub discriminants:TLDiscriminants,
     pub field_count:StaticSlice<u8>,
@@ -28,14 +28,14 @@ impl TLEnum{
     /// Constructs a `TLData::Enum`.
     pub const fn new(
         variant_names:&'static str,
-        is_exhaustive:IsExhaustive,
+        exhaustiveness:IsExhaustive,
         fields: &'static [TLField],
         discriminants:TLDiscriminants,
         field_count:&'static [u8],
     ) -> Self {
         TLEnum {
             variant_names:StaticStr::new(variant_names),
-            is_exhaustive,
+            exhaustiveness,
             fields:TLFieldsOrSlice::from_slice(fields),
             discriminants,
             field_count:StaticSlice::new(field_count),
@@ -45,14 +45,14 @@ impl TLEnum{
     /// Constructs a `TLData::Enum`.
     pub const fn for_derive(
         variant_names:&'static str,
-        is_exhaustive:IsExhaustive,
+        exhaustiveness:IsExhaustive,
         fields: TLFields,
         discriminants:TLDiscriminants,
         field_count:&'static [u8],
     ) -> Self {
         TLEnum {
             variant_names:StaticStr::new(variant_names),
-            is_exhaustive,
+            exhaustiveness,
             fields:TLFieldsOrSlice::TLFields(fields),
             discriminants,
             field_count:StaticSlice::new(field_count),
@@ -64,6 +64,18 @@ impl TLEnum{
             split:self.variant_names.as_str().split(';'),
             length:self.field_count.len(),
             current:0,
+        }
+    }
+
+    pub fn variant_count(&self)->usize{
+        self.field_count.len()
+    }
+
+    pub fn max_min<'a>(&'a self,other:&'a TLEnum)->(&'a TLEnum,&'a TLEnum){
+        if self.variant_count() < other.variant_count() {
+            (self,other)
+        }else{
+            (other,self)
         }
     }
 }
@@ -219,11 +231,100 @@ pub enum DiscriminantRepr {
 
 
 /// Whether this enum is exhaustive,if `Yes` it can add variants in minor versions.
-#[repr(u8)]
+#[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
-pub enum IsExhaustive{
-    Yes,
-    No,
+pub struct IsExhaustive{
+    value:Option<&'static TLNonExhaustive>,
+}
+
+
+impl IsExhaustive{
+    pub const fn exhaustive()->IsExhaustive{
+        IsExhaustive{value:None}
+    }
+    pub const fn nonexhaustive(nonexhaustive:&'static TLNonExhaustive)->IsExhaustive{
+        IsExhaustive{value:Some(nonexhaustive)}
+    }
+    pub fn is_exhaustive(&self)->bool{
+        self.value.is_none()
+    }
+    pub fn is_nonexhaustive(&self)->bool{
+        self.value.is_some()
+    }
+    pub fn as_nonexhaustive(&self)->Option<&'static TLNonExhaustive>{
+        self.value
+    }
+}
+
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+pub struct TLNonExhaustive{
+    original_size:usize,
+    original_alignment:usize,
+}
+
+
+impl TLNonExhaustive{
+    pub const fn new<T>()->Self{
+        Self{
+            original_size:std::mem::size_of::<T>(),
+            original_alignment:std::mem::align_of::<T>(),
+        }
+    }
+
+    pub fn check_compatible(&self,layout:&TypeLayout)->Result<(),IncompatibleWithNonExhaustive>{
+        let err=
+            layout.size < self.original_size || 
+            layout.alignment < self.original_alignment;
+
+        if err {
+            Err(IncompatibleWithNonExhaustive{
+                full_type:layout.full_type.to_string(),
+                module_path:layout.item_info.mod_path,
+                type_size:self.original_size,
+                type_alignment:self.original_alignment,
+                storage_size:layout.size,
+                storage_alignment:layout.alignment,
+            })
+        }else{
+            Ok(())
+        }
+    }
+}
+
+////////////////////////////
+
+
+#[repr(C)]
+#[derive(Debug,Clone,PartialEq, Eq,StableAbi)]
+pub struct IncompatibleWithNonExhaustive{
+    full_type:String,
+    module_path:ModPath,
+    type_size:usize,
+    type_alignment:usize,
+    storage_size:usize,
+    storage_alignment:usize,
+}
+
+
+impl Display for IncompatibleWithNonExhaustive{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        write!(
+            f,
+            "Type '{ty}' has an incompatible layout for the storage.\n\
+             Type    size:{t_size} alignment:{t_align}
+             Storage size:{s_size} alignment:{s_align}
+             module_path:{mod_}
+            ",
+            ty=self.full_type,
+            t_size=self.type_size,
+            t_align=self.type_alignment,
+            s_size=self.storage_size,
+            s_align=self.storage_alignment,
+            mod_=self.module_path,
+        )
+    }
 }
 
 
