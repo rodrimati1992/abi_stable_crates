@@ -10,6 +10,10 @@ The StableAbi derive macro allows one to implement the StableAbi trait to :
 
 These attributes are applied on the type declaration.
 
+<h3> `#[sabi(phantom_field="name:type")]` </h3>
+
+Adds a virtual field to the type layout constant.
+
 <h3> `#[sabi(unconstrained(TypeParameter))]`  </h3>
 
 Removes the implicit `TypeParameter:StableAbi` constraint.
@@ -57,8 +61,16 @@ Prints the generated code,stopping compilation.
 Declares the struct as being a prefix-type.
 
 `#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`<br>
-Uses "NameOfPrefixStruct" as the name of the prefix struct.
+Declares an ffi-safe equivalent of a vtable/module,
+that can be extended in semver compatible versions.<br>
+Uses "NameOfPrefixStruct" as the name of the prefix struct.<br>
+For more details on prefix-types [look here](../prefix_types/index.html)
 
+`#[sabi(kind(WithNonExhaustive(...)))]`<br>
+Declares this enum as being nonexhaustive,
+generating items and impls necessary to wrap this enum in a `NonExhaustive<>`
+to pass it through ffi.
+For more details on nonexhaustive enums [look here](../sabi_nonexhaustive/index.html)
 
 <h3> `#[sabi(module_reflection(...))]`  </h3>
 
