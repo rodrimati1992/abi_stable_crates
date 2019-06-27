@@ -16,7 +16,8 @@ pub(crate) struct GenParamsIn<'a,AL=NoTokens> {
     pub generics: &'a Generics,
     pub in_what: InWhat,
     pub with_bounds:bool,
-    pub after_lifetimes:Option<AL>,
+    after_lifetimes:Option<AL>,
+    after_types:Option<AL>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -41,7 +42,8 @@ impl<'a> GenParamsIn<'a>{
             generics,
             in_what,
             with_bounds:true,
-            after_lifetimes:None
+            after_lifetimes:None,
+            after_types:None,
         }
     }
 
@@ -54,6 +56,16 @@ impl<'a,AL> GenParamsIn<'a,AL>{
             in_what,
             with_bounds:true,
             after_lifetimes:Some(after_lifetimes),
+            after_types:None,
+        }
+    }
+    pub fn with_after_types(generics: &'a Generics,in_what: InWhat,after_types:AL)->Self{
+        Self{
+            generics,
+            in_what,
+            with_bounds:true,
+            after_lifetimes:None,
+            after_types:Some(after_types),
         }
     }
     pub fn set_no_bounds(&mut self){
@@ -75,63 +87,68 @@ where
         
         let in_dummy_struct= self.in_what == InWhat::DummyStruct;
 
-        let mut past_lifetimes=false;
+        let mut iter=self.generics.params.iter().peekable();
 
-        for generic in &self.generics.params {
-            if !past_lifetimes && !matches!(GenericParam::Lifetime{..}=generic) {
-                self.after_lifetimes.to_tokens(ts);
-                past_lifetimes=true;
-            }
+        let comma=Comma::default();
 
-            match generic {
-                GenericParam::Type(gen) => {
-                    gen.ident.to_tokens(ts);
-                    if with_bounds {
-                        gen.colon_token.to_tokens(ts);
-                        gen.bounds.to_tokens(ts);
-                    }
-                    if with_default {
-                        gen.eq_token.to_tokens(ts);
-                        gen.default.to_tokens(ts);
-                    }
-                }
-                GenericParam::Lifetime(gen) => {
-                    if in_dummy_struct{
-                        syn::token::And::default().to_tokens(ts);
-                        gen.lifetime.to_tokens(ts);
-                        syn::token::Paren::default().surround(ts,|_|());
-                    }else{
-                        gen.lifetime.to_tokens(ts);
-                        if with_bounds {
-                            gen.colon_token.to_tokens(ts);
-                            gen.bounds.to_tokens(ts);
-                        }
-                    }
-                }
-                GenericParam::Const(gen) => {
-                    if in_dummy_struct { continue; }
-                    
-                    if self.in_what != InWhat::ItemUse {
-                        gen.const_token.to_tokens(ts);
-                    }
-                    gen.ident.to_tokens(ts);
-                    if with_bounds {
-                        gen.colon_token.to_tokens(ts);
-                        gen.ty.to_tokens(ts);
-                    }
-                    if with_default {
-                        gen.eq_token.to_tokens(ts);
-                        gen.default.to_tokens(ts);
-                    }
+        while let Some(GenericParam::Lifetime(gen))=iter.peek() {
+            iter.next();
+
+            if in_dummy_struct{
+                syn::token::And::default().to_tokens(ts);
+                gen.lifetime.to_tokens(ts);
+                syn::token::Paren::default().surround(ts,|_|());
+            }else{
+                gen.lifetime.to_tokens(ts);
+                if with_bounds {
+                    gen.colon_token.to_tokens(ts);
+                    gen.bounds.to_tokens(ts);
                 }
             }
-            Comma::default().to_tokens(ts);
+
+            comma.to_tokens(ts);
         }
 
-        if !past_lifetimes {
-            self.after_lifetimes.to_tokens(ts);
+        self.after_lifetimes.to_tokens(ts);
+
+        while let Some(GenericParam::Type(gen))=iter.peek() {
+            iter.next();
+            
+            gen.ident.to_tokens(ts);
+            if with_bounds {
+                gen.colon_token.to_tokens(ts);
+                gen.bounds.to_tokens(ts);
+            }
+            if with_default {
+                gen.eq_token.to_tokens(ts);
+                gen.default.to_tokens(ts);
+            }
+            
+            comma.to_tokens(ts);
         }
 
+        self.after_types.to_tokens(ts);
+
+        if !in_dummy_struct{
+            while let Some(GenericParam::Const(gen))=iter.peek() {
+                iter.next();
+                
+                if self.in_what != InWhat::ItemUse {
+                    gen.const_token.to_tokens(ts);
+                }
+                gen.ident.to_tokens(ts);
+                if with_bounds {
+                    gen.colon_token.to_tokens(ts);
+                    gen.ty.to_tokens(ts);
+                }
+                if with_default {
+                    gen.eq_token.to_tokens(ts);
+                    gen.default.to_tokens(ts);
+                }
+                
+                comma.to_tokens(ts);
+            }
+        }
     }
 }
 
