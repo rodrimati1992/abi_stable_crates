@@ -684,8 +684,6 @@ These are the requirements for the caller:
         }
 
         /// Returns the address of the wrapped object.
-        ///
-        /// This will not change between calls for the same `DynTrait<_>`.
         pub fn sabi_object_address(&self) -> usize
         where
             P: Deref,
@@ -1223,13 +1221,20 @@ where
     }
 }
 
+impl<'borr,P, I,EV> std::error::Error for DynTrait<'borr,P,I,EV>
+where
+    P: Deref,
+    I: InterfaceBound<'borr,Display=True,Debug=True,Error = True>,
+{}
+
+
+
 /**
 First it serializes a `DynTrait<_>` into a string by using 
 <ConcreteType as SerializeImplType>::serialize_impl,
 then it serializes the string.
 
 */
-/// ,then it .
 impl<'borr,P, I,EV> Serialize for DynTrait<'borr,P,I,EV>
 where
     P: Deref,
