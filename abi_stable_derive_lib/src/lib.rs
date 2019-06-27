@@ -22,6 +22,7 @@ mod arenas;
 mod attribute_parsing;
 mod common_tokens;
 mod constants;
+mod either;
 mod ignored_wrapper;
 mod datastructure;
 mod fn_pointer_extractor;

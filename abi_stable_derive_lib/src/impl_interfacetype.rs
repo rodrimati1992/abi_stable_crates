@@ -142,6 +142,7 @@ pub static TRAIT_LIST:&[UsableTrait<&'static str,&'static str>]=usable_traits_sl
     ("IoSeek"             ,"::std::io::Seek"        ,false,OS::Yes,UB::DYN_TRAIT),
     ("IoRead"             ,"::std::io::Read"        ,false,OS::Yes,UB::DYN_TRAIT),
     ("IoBufRead"          ,"::std::io::BufRead"     ,false,OS::Yes,UB::DYN_TRAIT),
+    ("Error"              ,"::std::error::Error"    ,false,OS::Yes,UB::DYN_TRAIT),
 ];
 
 pub(crate) fn private_associated_type()->syn::Ident{

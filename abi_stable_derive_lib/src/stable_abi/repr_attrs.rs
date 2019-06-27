@@ -140,6 +140,33 @@ impl ReprAttr{
                 ReprAttr::Int(x),
         }
     }
+
+    pub fn type_ident(&self)->Option<syn::Ident>{
+        let int_repr=match *self {
+            ReprAttr::C(None)=>
+                DiscriminantRepr::Isize,
+            ReprAttr::C(Some(int_repr))|ReprAttr::Int(int_repr)=>
+                int_repr,
+            ReprAttr::Transparent=>
+                return None,
+        };
+
+        let ty_lit=match int_repr {
+            DiscriminantRepr::U8 =>"u8",
+            DiscriminantRepr::U16=>"u16",
+            DiscriminantRepr::U32=>"u32",
+            DiscriminantRepr::U64=>"u64",
+            DiscriminantRepr::I8 =>"i8",
+            DiscriminantRepr::I16=>"i16",
+            DiscriminantRepr::I32=>"i32",
+            DiscriminantRepr::I64=>"i64",
+            DiscriminantRepr::Usize=>"usize",
+            DiscriminantRepr::Isize=>"isize",
+        };
+
+        Some(syn::Ident::new(ty_lit,Span::call_site()))
+    }
+
     pub(crate) fn tokenize_discriminant_exprs<'a,I>(
         self,
         exprs:I,
@@ -175,6 +202,25 @@ impl ReprAttr{
                 ctokens.bracket.surround(ts,|ts|{
                     tokenize_discriminant_exprs_inner(&mut exprs,ctokens,ts);
                 });
+            });
+        })
+    }
+
+
+    pub(crate) fn tokenize_discriminant_slice<'a,I>(
+        self,
+        exprs:I,
+        ctokens:&'a CommonTokens,
+    )->impl ToTokens+'a 
+    where
+        I:IntoIterator<Item=Option<&'a syn::Expr>>+'a
+    {
+        let mut exprs=exprs.into_iter();
+
+        ToTokenFnMut::new(move|ts|{
+            ctokens.and_.to_tokens(ts);
+            ctokens.bracket.surround(ts,|ts|{
+                tokenize_discriminant_exprs_inner(&mut exprs,ctokens,ts);
             });
         })
     }
