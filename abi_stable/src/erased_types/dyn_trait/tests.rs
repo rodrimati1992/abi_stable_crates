@@ -493,7 +493,23 @@ fn to_any_test(){
     to_unerased!( wrapped ; sabi_as_unerased_mut ; &mut new_foo() );
     to_unerased!( wrapped ; sabi_as_any_unerased_mut ; &mut new_foo() );
     
-
+    {
+        to_unerased!( wrapped.reborrow_mut() ; sabi_into_unerased     ; &mut new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; sabi_into_any_unerased ; &mut new_foo() );
+        
+        to_unerased!( wrapped.reborrow_mut() ; sabi_as_unerased     ; &new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; sabi_as_any_unerased ; &new_foo() );
+        
+        to_unerased!( wrapped.reborrow_mut() ; sabi_as_unerased_mut ; &mut new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; sabi_as_any_unerased_mut ; &mut new_foo() );
+    }    
+    {
+        to_unerased!( wrapped.reborrow() ; sabi_into_unerased     ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; sabi_into_any_unerased ; &new_foo() );
+        
+        to_unerased!( wrapped.reborrow() ; sabi_as_unerased     ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; sabi_as_any_unerased ; &new_foo() );
+    }
 }
 
 
