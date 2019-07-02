@@ -146,6 +146,9 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
                 pub extern "C" fn _sabi_erased_module(
                 )->&'static abi_stable::marker_type::ErasedObject {
                     let ret:#ret_ty=#original_fn_ident();
+                    let _=abi_stable::library::RootModule::load_module_with(||{
+                        Ok::<_,()>(ret)
+                    });
                     unsafe{
                         abi_stable::utils::transmute_reference(ret)
                     }

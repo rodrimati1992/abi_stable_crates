@@ -2,7 +2,7 @@
 
 For Rust-to-Rust ffi,
 with a focus on creating libraries loaded at program startup,
-type-checked at load-time.
+and with load-time type-checking.
 
 This library allows defining Rust libraries that can be loaded at runtime,
 even if they were built with a different Rust version than the crate that depends on it.
@@ -10,9 +10,8 @@ even if they were built with a different Rust version than the crate that depend
 These are some usecases for this library:
     
 - Converting a Rust dependency tree from compiling statically into a single binary,
-    into a binary and dynamic libraries,
+    into one binary (and potentially) many dynamic libraries,
     allowing separate re-compilation on changes.
-
 
 - Creating a plugin system (without support for unloading).
     
@@ -32,6 +31,8 @@ Currently this library has these features:
 - Provides the `StableAbi` trait for asserting that types are ffi-safe.
 
 - Features for building extensible modules and vtables,without breaking ABI compatibility.
+
+- Supports ffi-safe nonexhaustive enums,wrapped in `NonExhaustive<>`.
 
 - Checking at load-time that the types in the dynamic library have the expected layout,
     allowing for semver compatible changes while checking the layout of types.
@@ -60,6 +61,10 @@ These are the example crates:
 - 1 - trait objects:
     Demonstrates ffi-safe trait objects (Generated using `#[sabi_trait]`)
     by creating a minimal plugin system.
+
+- 2 - nonexhaustive-enums:
+    Demonstrates nonexhaustive-enums as parameters and return values,
+    for an application that manages the catalogue of a shop.
 
 # Example
 
@@ -523,15 +528,6 @@ The crate compiled as a dynamic library that:
 
 A crate that that declares the `ìnterface crate` as a dependency,
 and loads the pre-compiled `implementation crate` dynamic library from some path.
-
-
-# Known limitations
-
-### Extensible enums with fields
-
-You can't add variants to enums with fields in the `interface crate` in minor versions.
-
-This will be part of the 0.6 release.
 
 # Minimum Rust version
 

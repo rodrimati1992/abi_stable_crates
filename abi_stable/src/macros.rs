@@ -92,7 +92,7 @@ macro_rules! tl_genparams {
 #[macro_export]
 macro_rules! rtry {
     ($expr:expr) => {{
-        use $crate::result::{RErr, ROk};
+        use $crate::std_types::result::{RErr, ROk};
         match $expr.into() {
             ROk(x) => x,
             RErr(x) => return RErr(From::from(x)),
@@ -104,7 +104,7 @@ macro_rules! rtry {
 #[macro_export]
 macro_rules! rtry_opt {
     ($expr:expr) => {{
-        use $crate::option::{RNone, RSome};
+        use $crate::std_types::option::{RNone, RSome};
         match $expr.into() {
             RSome(x) => x,
             RNone => return RNone,

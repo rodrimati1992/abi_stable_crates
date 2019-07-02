@@ -32,6 +32,8 @@ Currently this library has these features:
 
 - Features for building extensible modules and vtables,without breaking ABI compatibility.
 
+- Supports ffi-safe nonexhaustive enums,wrapped in `NonExhaustive<>`.
+
 - Checking at load-time that the types in the dynamic library have the expected layout,
     allowing for semver compatible changes while checking the layout of types.
 
@@ -68,23 +70,28 @@ which can be done using the StableAbi derive macro.
 
 These are the kinds of types passed through FFI:
 
-- Value kind:
+- Value kind:<br>
     The layout of types passed by value must not change in a minor version.
     This is the default kind when deriving StableAbi.
 
-- Opaque kind:
+- [Nonexhaustive enums](./docs/sabi_nonexhaustive/index.html):<br>
+    Enums wrapped inside 
+    [`NonExhaustive<>`](./nonexhaustive_enum/nonexhaustive/struct.NonExhaustive.html),
+    which can add variants in minor versions of the library.
+
+- Opaque kind:<br>
     Types wrapped in `DynTrait<SomePointer<()>,Interface>`,
     whose layout can change in any version of the library,
     and can only be unwrapped back to the original type in the dynamic library/binary 
     that created it.
 
-- [Trait objects](./docs/sabi_trait_attribute/index.html):
+- [Trait objects](./docs/sabi_trait_attribute/index.html):<br>
     Trait object-like types generated using `#[sabi_trait]`,
     which erase the type of the value they wrap,implements the methods of the trait,
     and can be unwrapped back to the original type in the dynamic library/binary 
     that created it (if it was constructed to be unerasable and implements Any).
 
-- [Prefix kind](./docs/prefix_types/index.html):
+- [Prefix kind](./docs/prefix_types/index.html):<br>
     Types only accessible through shared references,
     most commonly vtables and modules,
     which can be extended in minor versions while staying ABI compatible.
@@ -109,6 +116,9 @@ To represent non-exhaustive enums without fields it is recommended using structs
 - [StableAbi derive macro](./docs/stable_abi_derive/index.html):<br>
     For asserting abi-stability of a type,
     and obtaining the layout of the type at runtime.
+
+- [Nonexhaustive enums](./docs/sabi_nonexhaustive/index.html):<br>
+    Details for how to declare nonexhaustive enums.
 
 - [Prefix-types (using the StableAbi derive macro)
   ](./docs/prefix_types/index.html):<br>
