@@ -21,7 +21,8 @@ use example_0_interface::{
 
 use abi_stable::{
     export_root_module,
-    extern_fn_panic_handling, impl_get_type_info,
+    sabi_extern_fn,
+    impl_get_type_info,
     erased_types::{ImplType,SerializeImplType,TypeInfo},
     prefix_type::{PrefixTypeTrait,WithMetadata},
     traits::{IntoReprC},
@@ -36,33 +37,30 @@ use serde_json;
 
 ///////////////////////////////////////////////////////////////////////////////////
 
-
 /// Exports the root module of this library.
 ///
 /// This code isn't run until the layout of the type it returns is checked.
 #[export_root_module]
-extern fn instantiate_root_module()->&'static TextOpsMod{
-    extern_fn_panic_handling!{
-        TextOpsModVal {
-            new,
-            deserializers:{
-                // Another way to instantiate a module.
-                const MOD_:DeserializerModVal=DeserializerModVal{
-                    deserialize_state,
-                    deserialize_command,
-                    deserialize_command_borrowing,
-                    deserialize_return_value,
-                };
-                static WITH_META:WithMetadata<DeserializerModVal>=
-                    WithMetadata::new(PrefixTypeTrait::METADATA,MOD_);
-                WITH_META.as_prefix()
-            },
-            reverse_lines,
-            remove_words,
-            get_processed_bytes,
-            run_command,
-        }.leak_into_prefix()
-    }
+fn instantiate_root_module()->&'static TextOpsMod{
+    TextOpsModVal {
+        new,
+        deserializers:{
+            // Another way to instantiate a module.
+            const MOD_:DeserializerModVal=DeserializerModVal{
+                deserialize_state,
+                deserialize_command,
+                deserialize_command_borrowing,
+                deserialize_return_value,
+            };
+            static WITH_META:WithMetadata<DeserializerModVal>=
+                WithMetadata::new(PrefixTypeTrait::METADATA,MOD_);
+            WITH_META.as_prefix()
+        },
+        reverse_lines,
+        remove_words,
+        get_processed_bytes,
+        run_command,
+    }.leak_into_prefix()
 }
 
 
@@ -204,42 +202,38 @@ where
 //////////////////////////////////////////////////////////////////////////////////////
 
 /// Defines how a TOStateBox is deserialized from json.
-pub extern "C" fn deserialize_state(s:RStr<'_>) -> RResult<TOStateBox, RBoxError>{
-    extern_fn_panic_handling! {
-        deserialize_json::<TextOperationState>(s)
-            .map(DynTrait::from_value)
-    }
+#[sabi_extern_fn]
+pub fn deserialize_state(s:RStr<'_>) -> RResult<TOStateBox, RBoxError>{
+    deserialize_json::<TextOperationState>(s)
+        .map(DynTrait::from_value)
 }
 
 /// Defines how a TOCommandBox is deserialized from json.
-pub extern "C" fn deserialize_command(
+#[sabi_extern_fn]
+pub fn deserialize_command(
     s:RStr<'_>
 ) -> RResult<TOCommandBox<'static>, RBoxError>{
-    extern_fn_panic_handling! {
-        deserialize_json::<Command>(s)
-            .map(RBox::new)
-            .map(DynTrait::from_ptr)
-    }
+    deserialize_json::<Command>(s)
+        .map(RBox::new)
+        .map(DynTrait::from_ptr)
 }
 
 /// Defines how a TOCommandBox is deserialized from json.
-pub extern "C" fn deserialize_command_borrowing<'borr>(
+#[sabi_extern_fn]
+pub fn deserialize_command_borrowing<'borr>(
     s:RStr<'borr>
 ) -> RResult<TOCommandBox<'borr>, RBoxError>{
-    extern_fn_panic_handling! {
-        deserialize_json::<Command>(s)
-            .map(RBox::new)
-            .map(|x|DynTrait::from_borrowing_ptr(x,TOCommand))
-    }
+    deserialize_json::<Command>(s)
+        .map(RBox::new)
+        .map(|x|DynTrait::from_borrowing_ptr(x,TOCommand))
 }
 
 /// Defines how a TOReturnValueArc is deserialized from json.
-pub extern "C" fn deserialize_return_value(s:RStr<'_>) -> RResult<TOReturnValueArc, RBoxError>{
-    extern_fn_panic_handling! {
-        deserialize_json::<ReturnValue>(s)
-            .map(RArc::new)
-            .map(DynTrait::from_ptr)
-    }
+#[sabi_extern_fn]
+pub fn deserialize_return_value(s:RStr<'_>) -> RResult<TOReturnValueArc, RBoxError>{
+    deserialize_json::<ReturnValue>(s)
+        .map(RArc::new)
+        .map(DynTrait::from_ptr)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -247,71 +241,67 @@ pub extern "C" fn deserialize_return_value(s:RStr<'_>) -> RResult<TOReturnValueA
 
 /// Constructs a TextOperationState and erases it by wrapping it into a 
 /// `DynTrait<Box<()>,TOState>`.
-pub extern "C" fn new() -> TOStateBox {
-    extern_fn_panic_handling! {
-        let this=TextOperationState{
-            processed_bytes:0,
-        };
-        DynTrait::from_value(this)
-    }
+#[sabi_extern_fn]
+pub fn new() -> TOStateBox {
+    let this=TextOperationState{
+        processed_bytes:0,
+    };
+    DynTrait::from_value(this)
 }
 
 
 
 /// Reverses order of the lines in `text`.
-pub extern "C" fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
-    extern_fn_panic_handling! {
-        let this = this.sabi_as_unerased_mut::<TextOperationState>().unwrap();
+#[sabi_extern_fn]
+pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
+    let this = this.sabi_as_unerased_mut::<TextOperationState>().unwrap();
 
-        this.processed_bytes+=text.len() as u64;
+    this.processed_bytes+=text.len() as u64;
 
-        let mut lines=text.lines().collect::<Vec<&str>>();
-        lines.reverse();
-        let mut buffer=RString::with_capacity(text.len());
-        for line in lines {
-            buffer.push_str(line);
-            buffer.push('\n');
-        }
-        buffer
+    let mut lines=text.lines().collect::<Vec<&str>>();
+    lines.reverse();
+    let mut buffer=RString::with_capacity(text.len());
+    for line in lines {
+        buffer.push_str(line);
+        buffer.push('\n');
     }
+    buffer
 }
 
 
 /// Removes the words in `param.words` from `param.string`,
 /// as well as the whitespace that comes after it.
-pub extern "C" fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,'_>) -> RString{
-    extern_fn_panic_handling! {
-        let this = this.sabi_as_unerased_mut::<TextOperationState>().unwrap();
+#[sabi_extern_fn]
+pub fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,'_>) -> RString{
+    let this = this.sabi_as_unerased_mut::<TextOperationState>().unwrap();
 
-        this.processed_bytes+=param.string.len() as u64;
+    this.processed_bytes+=param.string.len() as u64;
 
-        let set=param.words.map(RCow::into).collect::<HashSet<Cow<'_,str>>>();
-        let mut buffer=String::with_capacity(10);
+    let set=param.words.map(RCow::into).collect::<HashSet<Cow<'_,str>>>();
+    let mut buffer=String::with_capacity(10);
 
-        let haystack=&*param.string;
-        let mut prev_was_deleted=false;
-        for kv in haystack.split_while(|c|c.is_alphabetic()) {
-            let s=kv.str;
-            let cs=Cow::from(s);
-            let is_a_word=kv.key;
-            let is_deleted= (!is_a_word&&prev_was_deleted) || (is_a_word && set.contains(&cs));
-            if !is_deleted {
-                buffer.push_str(s);
-            }
-            prev_was_deleted=is_deleted;
+    let haystack=&*param.string;
+    let mut prev_was_deleted=false;
+    for kv in haystack.split_while(|c|c.is_alphabetic()) {
+        let s=kv.str;
+        let cs=Cow::from(s);
+        let is_a_word=kv.key;
+        let is_deleted= (!is_a_word&&prev_was_deleted) || (is_a_word && set.contains(&cs));
+        if !is_deleted {
+            buffer.push_str(s);
         }
-
-        buffer.into()
+        prev_was_deleted=is_deleted;
     }
+
+    buffer.into()
 }
 
 /// Returns the ammount of text (in bytes) 
 /// that was processed in functions taking `&mut TOStateBox`.
-pub extern "C" fn get_processed_bytes(this: &TOStateBox) -> u64 {
-    extern_fn_panic_handling! {
-        let this = this.sabi_as_unerased::<TextOperationState>().unwrap();
-        this.processed_bytes
-    }
+#[sabi_extern_fn]
+pub fn get_processed_bytes(this: &TOStateBox) -> u64 {
+    let this = this.sabi_as_unerased::<TextOperationState>().unwrap();
+    this.processed_bytes
 }
 
 
@@ -346,18 +336,17 @@ fn run_command_inner(this:&mut TOStateBox,command:Command)->ReturnValue{
 
 
 /// An interpreter for text operation commands
-pub extern "C" fn run_command(
+#[sabi_extern_fn]
+pub fn run_command(
     this:&mut TOStateBox,
     command:TOCommandBox<'static>
 )->TOReturnValueArc{
-    extern_fn_panic_handling! {
-        let command = command.sabi_into_unerased::<Command<'static>>().unwrap()
-            .piped(RBox::into_inner);
-            
-        run_command_inner(this,command)
-            .piped(RArc::new)
-            .piped(DynTrait::from_ptr)
-    }
+    let command = command.sabi_into_unerased::<Command<'static>>().unwrap()
+        .piped(RBox::into_inner);
+        
+    run_command_inner(this,command)
+        .piped(RArc::new)
+        .piped(DynTrait::from_ptr)
 }
 
 

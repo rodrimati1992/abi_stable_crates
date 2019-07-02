@@ -12,7 +12,7 @@ use proc_macro::TokenStream as TokenStream1;
 /**
 
 
-This macro is documented in abi_stable::docs
+This macro is documented in abi_stable::docs::stable_abi_derive
 
 */
 
@@ -56,12 +56,10 @@ This is applied to functions like this:
 use abi_stable::prefix_type::PrefixTypeTrait;
 
 #[export_root_module]
-pub extern "C" fn get_hello_world_mod() -> &'static TextOperationsMod {
-    extern_fn_panic_handling!{
-        TextOperationsModVal{
-            reverse_string,
-        }.leak_into_prefix()
-    }
+pub fn get_hello_world_mod() -> &'static TextOperationsMod {
+    TextOperationsModVal{
+        reverse_string,
+    }.leak_into_prefix()
 }
 
 # fn main(){}
@@ -78,6 +76,14 @@ For a more detailed example look in the README in the repository for this crate.
 #[proc_macro_attribute]
 pub fn export_root_module(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     abi_stable_derive_lib::mangle_library_getter_attr(attr,item)
+}
+
+/**
+This macro is documented in abi_stable::docs::sabi_extern_fn
+*/
+#[proc_macro_attribute]
+pub fn sabi_extern_fn(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
+    abi_stable_derive_lib::sabi_extern_fn(attr,item)
 }
 
 

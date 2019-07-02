@@ -214,7 +214,7 @@ where
 */
 #[macro_export]
 macro_rules! extern_fn_panic_handling {
-    (no_early_return; $($fn_contents:tt)* ) => (
+    (no_early_return; $($fn_contents:tt)* ) => ({
         let mut aborter_guard={
             use $crate::utils::{AbortBomb,PanicInfo};
             #[allow(dead_code)]
@@ -228,9 +228,9 @@ macro_rules! extern_fn_panic_handling {
         };
         aborter_guard.fuse=None;
         res
-    );
+    });
     ( $($fn_contents:tt)* ) => (
-        extern_fn_panic_handling!{
+        $crate::extern_fn_panic_handling!{
             no_early_return;
             let a=$crate::marker_type::NotCopyNotClone;
             (move||{
