@@ -344,7 +344,7 @@ use abi_stable::{
     DynTrait,
     erased_types::TypeInfo,
     export_root_module,
-    extern_fn_panic_handling,
+    sabi_extern_fn,
     impl_get_type_info,
     prefix_type::PrefixTypeTrait,
     sabi_trait::prelude::TU_Opaque,
@@ -354,7 +354,7 @@ use abi_stable::{
 
 /// The function which exports the root module of the library.
 #[export_root_module]
-pub extern "C" fn get_library() -> &'static ExampleLib {
+pub fn get_library() -> &'static ExampleLib {
     ExampleLibVal{
         new_appender,
         new_boxed_interface,
@@ -393,31 +393,29 @@ impl StringBuilder{
     }
 }
 
-
-pub extern "C" fn new_appender()->AppenderType<u32>{
+#[sabi_extern_fn]
+pub fn new_appender()->AppenderType<u32>{
     Appender_from_value::<_,TU_Opaque>(RVec::new())
 }
 
 
 /// Constructs a BoxedInterface.
-extern fn new_boxed_interface()->BoxedInterface<'static>{
-    extern_fn_panic_handling!{
-        DynTrait::from_value(StringBuilder{
-            text:"".into(),
-            appended:vec![],
-        })
-    }
+#[sabi_extern_fn]
+fn new_boxed_interface()->BoxedInterface<'static>{
+    DynTrait::from_value(StringBuilder{
+        text:"".into(),
+        appended:vec![],
+    })
 }
 
 
 /// Appends a string to the erased `StringBuilderType`.
-extern fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
-    extern_fn_panic_handling!{
-        wrapped
-            .sabi_as_unerased_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
-            .unwrap() // Returns `&mut StringBuilder`
-            .append_string(string);
-    }
+#[sabi_extern_fn]
+fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
+    wrapped
+        .sabi_as_unerased_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
+        .unwrap() // Returns `&mut StringBuilder`
+        .append_string(string);
 }
 
 

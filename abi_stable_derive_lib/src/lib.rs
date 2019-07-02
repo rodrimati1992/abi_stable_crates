@@ -31,6 +31,7 @@ mod parse_utils;
 mod my_visibility;
 mod gen_params_in;
 mod workaround;
+mod sabi_extern_fn_impl;
 
 
 
@@ -59,6 +60,8 @@ use crate::{
     utils::PrintDurationOnDrop,
 };
 
+
+pub use self::sabi_extern_fn_impl::sabi_extern_fn;
 
 
 
@@ -111,10 +114,12 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
     use proc_macro2::Span;
 
     use abi_stable_shared::mangled_root_module_loader_name;
+
+    use crate::sabi_extern_fn_impl::{convert_to_sabi_extern_fn,WithEarlyReturn};
     
 
     measure!({
-        let input = syn::parse::<ItemFn>(item).unwrap();
+        let mut input = syn::parse::<ItemFn>(item).unwrap();
         
         let vis=&input.vis;
         let attrs=&input.attrs;
@@ -145,13 +150,15 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
 
                 pub extern "C" fn _sabi_erased_module(
                 )->&'static abi_stable::marker_type::ErasedObject {
-                    let ret:#ret_ty=#original_fn_ident();
-                    let _=abi_stable::library::RootModule::load_module_with(||{
-                        Ok::<_,()>(ret)
-                    });
-                    unsafe{
-                        abi_stable::utils::transmute_reference(ret)
-                    }
+                    ::abi_stable::extern_fn_panic_handling!(
+                        let ret:#ret_ty=#original_fn_ident();
+                        let _=abi_stable::library::RootModule::load_module_with(||{
+                            Ok::<_,()>(ret)
+                        });
+                        unsafe{
+                            abi_stable::utils::transmute_reference(ret)
+                        }
+                    )
                 }
 
                 type __ReturnTy=#ret_ty;
@@ -167,4 +174,5 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
         ).into()
     })
 }
+
 

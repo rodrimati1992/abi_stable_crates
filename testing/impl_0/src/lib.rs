@@ -25,16 +25,14 @@ use core_extensions::{SelfOps};
 /// LibHeader is used to check that the layout of `TextOpsMod` in this dynamic library
 /// is compatible with the layout of it in the binary that loads this library.
 #[export_root_module]
-pub extern "C" fn get_library() -> &'static TestingMod {
-    extern_fn_panic_handling!{
-        TestingModVal{
-            greeter,
-            for_tests,
-            prefix_types_tests:PrefixTypeMod0Val{
-                field_a:123,
-            }.leak_into_prefix(),
-        }.leak_into_prefix()
-    }
+pub fn get_library() -> &'static TestingMod {
+    TestingModVal{
+        greeter,
+        for_tests,
+        prefix_types_tests:PrefixTypeMod0Val{
+            field_a:123,
+        }.leak_into_prefix(),
+    }.leak_into_prefix()
 }
 
 

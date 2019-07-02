@@ -151,6 +151,7 @@ pub use abi_stable_derive::{
     export_root_module,
     impl_InterfaceType,
     sabi_trait,
+    sabi_extern_fn,
 };
 
 #[macro_use]
@@ -286,3 +287,7 @@ pub mod globals{
 }
 
 
+#[sabi_extern_fn(no_early_return)]
+fn hello(){
+
+}

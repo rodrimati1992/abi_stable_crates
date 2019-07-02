@@ -12,7 +12,7 @@ use std::{
 
 use abi_stable::{
     export_root_module,
-    extern_fn_panic_handling,
+    sabi_extern_fn,
     external_types::crossbeam_channel::RSender,
     prefix_type::PrefixTypeTrait,
     sabi_trait::prelude::TU_Opaque,
@@ -40,12 +40,10 @@ use serde::{Serialize,Deserialize};
 ///
 /// This code isn't run until the layout of the type it returns is checked.
 #[export_root_module]
-extern fn instantiate_root_module()->&'static PluginMod{
-    extern_fn_panic_handling!{
-        PluginModVal {
-            new,
-        }.leak_into_prefix()
-    }
+fn instantiate_root_module()->&'static PluginMod{
+    PluginModVal {
+        new,
+    }.leak_into_prefix()
 }
 
 
@@ -53,16 +51,12 @@ extern fn instantiate_root_module()->&'static PluginMod{
 
 
 
-pub extern "C" fn new(
-    _sender:RSender<AsyncCommand>,
-    plugin_id:PluginId,
-) -> RResult<PluginType,AppError> {
-    extern_fn_panic_handling! {
-        let this=TextMunging{
-            plugin_id,
-        };
-        ROk(Plugin_from_value::<_,TU_Opaque>(this))
-    }
+#[sabi_extern_fn]
+pub fn new(_sender:RSender<AsyncCommand>,plugin_id:PluginId) -> RResult<PluginType,AppError> {
+    let this=TextMunging{
+        plugin_id,
+    };
+    ROk(Plugin_from_value::<_,TU_Opaque>(this))
 }
 
 
