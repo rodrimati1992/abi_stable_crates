@@ -45,6 +45,8 @@ mod tests;
 
 A generic type for all ffi-safe non-exhaustive enums.
 
+This type allows adding variants to enums it wraps in ABI compatible versions of a library.
+
 # Generic parameters
 
 <h3> `E` </h3>
@@ -70,6 +72,94 @@ The interface of the enum(it implements `InterfaceType`),
 determining which traits are required when constructing `NonExhaustive<>`
 and which are available afterwards.
 
+### Example
+
+Say that we define an error type for a library.
+
+
+Version 1.0.
+```
+use abi_stable::{
+    StableAbi,
+    nonexhaustive_enum::{NonExhaustiveFor,NonExhaustive},
+    std_types::RString,
+    sabi_trait,
+};
+
+#[repr(u8)]
+#[derive(StableAbi,Debug,Clone,PartialEq)]
+#[sabi(kind(WithNonExhaustive(
+    size="[usize;8]",
+    traits(Debug,Clone,PartialEq),
+)))]
+pub enum Error{
+    #[doc(hidden)]
+    __NonExhaustive,
+    CouldNotFindItem{
+        name:RString,
+    },
+    OutOfStock{
+        id:usize,
+        name:RString,
+    },
+}
+
+
+fn returns_could_not_find_item(name:RString)->NonExhaustiveFor<Error>{
+    let e=Error::CouldNotFindItem{name};
+    NonExhaustive::new(e)
+}
+
+fn returns_out_of_stock(id:usize,name:RString)->NonExhaustiveFor<Error>{
+    let e=Error::OutOfStock{id,name};
+    NonExhaustive::new(e)
+}
+
+```
+
+Then in 1.1 we add another error variant,returned only by new library functions.
+
+```
+use abi_stable::{
+    StableAbi,
+    nonexhaustive_enum::{NonExhaustiveFor,NonExhaustive},
+    std_types::RString,
+    sabi_trait,
+};
+
+#[repr(u8)]
+#[derive(StableAbi,Debug,Clone,PartialEq)]
+#[sabi(kind(WithNonExhaustive(
+    size="[usize;8]",
+    traits(Debug,Clone,PartialEq),
+)))]
+pub enum Error{
+    #[doc(hidden)]
+    __NonExhaustive,
+    CouldNotFindItem{
+        name:RString,
+    },
+    OutOfStock{
+        id:usize,
+        name:RString,
+    },
+    InvalidItemId{
+        id:usize,
+    },
+}
+
+
+fn returns_invalid_item_id()->NonExhaustiveFor<Error>{
+    NonExhaustive::new(Error::InvalidItemId{id:100})
+}
+
+```
+
+If a library user attempted to unwrap `Error::InvalidItemId` 
+(using NonExhaustive::as_enum/as_enum_mut/into_enum)
+with the 1.0 version of `Error` they would get an `Err(..)` back.
+
+
 */
 #[repr(C)]
 #[derive(StableAbi)]
@@ -86,7 +176,8 @@ pub struct NonExhaustive<E,S,I>{
     _marker:PhantomData<Tuple2<UnsafeIgnoredType<E>,UnsafeIgnoredType<I>>>,
 }
 
-
+/// The type of a `NonExhaustive<>` wrapping the enum E,
+/// using the `E`'s  default storage and interface.
 pub type NonExhaustiveFor<E>=
     NonExhaustive<
         E,
@@ -94,6 +185,8 @@ pub type NonExhaustiveFor<E>=
         <E as GetEnumInfo>::DefaultInterface,
     >;
 
+/// The type of a `NonExhaustive<>` wrapping the enum E,
+/// using the `E`'s  default storage and a custom interface.
 pub type NonExhaustiveWI<E,I>=
     NonExhaustive<
         E,
@@ -101,6 +194,8 @@ pub type NonExhaustiveWI<E,I>=
         I,
     >;
 
+/// The type of a `NonExhaustive<>` wrapping the enum E,
+/// using a custom storage and the `E`'s default interface.
 pub type NonExhaustiveWS<E,S>=
     NonExhaustive<
         E,
@@ -158,6 +253,7 @@ This panics if the storage has an alignment or size smaller than that of `E`.
     {
         NonExhaustive::with_storage_and_interface(value)
     }
+
 /**    
 Constructs a `NonExhaustive<>` from `value` using both a custom interface and storage.
 
@@ -170,10 +266,10 @@ This panics if the storage has an alignment or size smaller than that of `E`.
         E:GetVTable<S,I>,
     {
         unsafe{
-            NonExhaustive::with_vtable_unchecked(value,E::VTABLE_REF)
+            NonExhaustive::with_vtable(value,E::VTABLE_REF)
         }
     }
-    pub unsafe fn with_vtable_unchecked(
+    pub(super) unsafe fn with_vtable(
         value:E,
         vtable:StaticRef<NonExhaustiveVtable<E,S,I>>
     )->Self{
@@ -190,18 +286,22 @@ This panics if the storage has an alignment or size smaller than that of `E`.
         this
     }
 
+
     /// Checks that the alignment of `E` is correct,returning `true` if it is.
     pub fn check_alignment()->bool{
         let align_enum=std::mem::align_of::<E>();
         let align_storage=std::mem::align_of::<S>();
         align_enum <= align_storage
     }
+
+    /// Checks that the size of `E` is correct,returning `true` if it is.
     pub fn check_size()->bool{
         let size_enum=std::mem::size_of::<E>();
         let size_storage=std::mem::size_of::<S>();
         size_enum <= size_storage
     }
 
+    /// Asserts that `E` fits within `S`,with the correct alignment and size.
     pub fn assert_fits_within_storage(){
         let align_enum=std::mem::align_of::<E>();
         let align_storage=std::mem::align_of::<S>();
@@ -224,6 +324,33 @@ impl<E,S,I> NonExhaustive<E,S,I>
 where
     E:GetEnumInfo
 {
+/**
+Unwraps a reference to this `NonExhaustive<>` into a reference to the original enum.
+
+# Errors
+
+This returns an error if the wrapped enum is of a variant that is 
+not valid in this context.
+
+# Example
+
+This shows NonExhaustive<enum> some of which can and cannot be unwrapped.
+That enum come from a newer version of the library than this has an interface for.
+
+```
+use abi_stable::nonexhaustive_enum::{
+    doc_enums::example_2::{Foo,new_a,new_b,new_c},
+};
+
+assert_eq!(new_a()  .as_enum().ok(),Some(&Foo::A)    );
+assert_eq!(new_b(10).as_enum().ok(),Some(&Foo::B(10)));
+assert_eq!(new_b(77).as_enum().ok(),Some(&Foo::B(77)));
+assert_eq!(new_c().as_enum().ok()  ,None             );
+
+
+```
+
+*/
     pub fn as_enum(&self)->Result<&E,UnwrapEnumError<&Self>>{
         let discriminant=self.get_discriminant();
         if E::is_valid_discriminant(discriminant) {
@@ -235,6 +362,34 @@ where
         }
     }
 
+/**
+Unwraps a mutable reference to this `NonExhaustive<>` into a 
+mutable reference to the original enum.
+
+# Errors
+
+This returns an error if the wrapped enum is of a variant that is 
+not valid in this context.
+
+# Example
+
+This shows NonExhaustive<enum> some of which can and cannot be unwrapped.
+That enum come from a newer version of the library than this has an interface for.
+
+```
+use abi_stable::nonexhaustive_enum::{
+    doc_enums::example_1::{Foo,new_a,new_b,new_c},
+};
+
+assert_eq!(new_a()  .as_enum_mut().ok(),Some(&mut Foo::A));
+assert_eq!(new_b(10).as_enum_mut().ok(),None);
+assert_eq!(new_b(77).as_enum_mut().ok(),None);
+assert_eq!(new_c().as_enum_mut().ok()  ,None);
+
+
+```
+
+*/
     pub fn as_enum_mut(&mut self)->Result<&mut E,UnwrapEnumError<&mut Self>>
     where 
         E:GetVTable<S,I>,
@@ -256,6 +411,31 @@ where
         }
     }
 
+/**
+Unwraps this `NonExhaustive<>` into the original enum.
+
+# Errors
+
+This returns an error if the wrapped enum is of a variant that is 
+not valid in this context.
+
+# Example
+
+This shows NonExhaustive<enum> some of which can and cannot be unwrapped.
+That enum come from a newer version of the library than this has an interface for.
+
+```
+use abi_stable::nonexhaustive_enum::{
+    doc_enums::example_2::{Foo,new_a,new_b,new_c},
+};
+
+assert_eq!(new_a()  .into_enum().ok(),Some(Foo::A));
+assert_eq!(new_b(10).into_enum().ok(),Some(Foo::B(10)));
+assert_eq!(new_b(77).into_enum().ok(),Some(Foo::B(77)));
+assert_eq!(new_c().into_enum().ok()  ,None);
+
+
+*/
     pub fn into_enum(self)->Result<E,UnwrapEnumError<Self>>{
         let discriminant=self.get_discriminant();
         if E::is_valid_discriminant(discriminant) {
@@ -268,11 +448,20 @@ where
         }
     }
 
+/**
+Returns whether the discriminant of this enum is valid in this context.
+
+The only way for it to be invalid is if the dynamic library is a 
+newer version than the interface this has a dependency.
+*/
     #[inline]
     pub fn is_valid_discriminant(&self)->bool{
         E::is_valid_discriminant(self.get_discriminant())
     }
 
+/**
+Gets the value of the discriminant of the enum.
+*/
     #[inline]
     pub fn get_discriminant(&self)->E::Discriminant{
         unsafe{
@@ -341,7 +530,7 @@ This panics if the storage has an alignment or size smaller than that of `F`.
 
 /**
 Transmute this pointer to a `NonExhaustive<E,S,I>` into 
-a pointer (of the same kind) to a `&NonExhaustive<F,S,I>`,
+a pointer (of the same kind) to a `NonExhaustive<F,S,I>`,
 changing the type of the enum it wraps.
 
 # Safety
@@ -364,6 +553,7 @@ This panics if the storage has an alignment or size smaller than that of `F`.
         this.transmute_element(<NonExhaustive<F,S,I>>::T)
     }
 
+    /// Gets a reference to the vtable of this `NonExhaustive<>`.
     pub fn vtable<'a>(&self)->&'a NonExhaustiveVtable<E,S,I>{
         self.vtable.get()
     }
