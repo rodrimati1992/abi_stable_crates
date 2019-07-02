@@ -1,0 +1,15 @@
+[package]
+name = "example_2_interface"
+version = "1.0.0"
+authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+abi_stable={path="../../../abi_stable"}
+core_extensions="0.1"
+serde={version="1.0",features=["derive"]}
+serde_json={version="1.0",features=["raw_value"]}
+
+
+[features]
+v1_1=[]
