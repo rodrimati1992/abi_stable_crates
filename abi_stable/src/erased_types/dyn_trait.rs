@@ -41,6 +41,7 @@ use super::{
 };
 
 
+// #[cfg(test)]
 #[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
@@ -750,19 +751,15 @@ These are the requirements for the caller:
         pub(super) fn sabi_check_same_destructor<A,T>(&self) -> Result<(), UneraseError<()>>
         where
             P: TransmuteElement<T>,
-            A: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
+            A: ImplType,
         {
-            let t_vtable:&VTable<'borr,P,I> = A::get_vtable();
-            if self.sabi_vtable_address() == t_vtable as *const _ as usize
-                || self.sabi_vtable().type_info().is_compatible(t_vtable.type_info())
-            {
+            let t_info = A::INFO;
+            if self.sabi_vtable().type_info().is_compatible(t_info) {
                 Ok(())
             } else {
                 Err(UneraseError {
                     dyn_trait:(),
-                    expected_vtable_address: t_vtable as *const _ as usize,
-                    expected_type_info:t_vtable.type_info(),
-                    found_vtable_address: self.vtable as usize,
+                    expected_type_info:t_info,
                     found_type_info:self.sabi_vtable().type_info(),
                 })
             }
@@ -788,7 +785,7 @@ These are the requirements for the caller:
         where
             P: TransmuteElement<T>,
             P::Target:Sized,
-            T: ImplType + GetVtable<'borr,T,P,P::TransmutedPtr,I>,
+            T: ImplType,
         {
             check_unerased!(self,self.sabi_check_same_destructor::<T,T>());
             unsafe { 
@@ -816,7 +813,7 @@ These are the requirements for the caller:
         pub fn sabi_as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
             P: Deref + TransmuteElement<T>,
-            T: ImplType + GetVtable<'borr,T,P,P::TransmutedPtr,I>,
+            T: ImplType,
         {
             check_unerased!(self,self.sabi_check_same_destructor::<T,T>());
             unsafe { Ok(self.sabi_object_as()) }
@@ -841,7 +838,7 @@ These are the requirements for the caller:
         pub fn sabi_as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
             P: DerefMut + TransmuteElement<T>,
-            T: ImplType + GetVtable<'borr,T,P,P::TransmutedPtr,I>,
+            T: ImplType,
         {
             check_unerased!(self,self.sabi_check_same_destructor::<T,T>());
             unsafe { Ok(self.sabi_object_as_mut()) }
@@ -870,7 +867,7 @@ These are the requirements for the caller:
             P: TransmuteElement<T>,
             P::Target:Sized,
             Self:DynTraitBound<'borr>,
-            InterfaceFor<T,I,TU_Unerasable>: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
+            InterfaceFor<T,I,TU_Unerasable>: ImplType,
         {
             check_unerased!(
                 self,
@@ -905,7 +902,7 @@ These are the requirements for the caller:
             T:'static,
             P: Deref + TransmuteElement<T>,
             Self:DynTraitBound<'borr>,
-            InterfaceFor<T,I,TU_Unerasable>: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
+            InterfaceFor<T,I,TU_Unerasable>: ImplType,
         {
             check_unerased!(
                 self,
@@ -934,7 +931,7 @@ These are the requirements for the caller:
         where
             P: DerefMut + TransmuteElement<T>,
             Self:DynTraitBound<'borr>,
-            InterfaceFor<T,I,TU_Unerasable>: GetVtable<'borr,T,P,P::TransmutedPtr,I>,
+            InterfaceFor<T,I,TU_Unerasable>: ImplType,
         {
             check_unerased!(
                 self,
@@ -1714,9 +1711,7 @@ pub type GetVWInterface<'borr,This>=
 #[derive(Copy, Clone)]
 pub struct UneraseError<T> {
     dyn_trait:T,
-    expected_vtable_address: usize,
     expected_type_info:&'static TypeInfo,
-    found_vtable_address: usize,
     found_type_info:&'static TypeInfo,
 }
 
@@ -1727,9 +1722,7 @@ impl<T> UneraseError<T>{
     {
         UneraseError{
             dyn_trait              :f(self.dyn_trait),
-            expected_vtable_address:self.expected_vtable_address,
             expected_type_info     :self.expected_type_info,
-            found_vtable_address   :self.found_vtable_address,
             found_type_info        :self.found_type_info,
         }
     }
@@ -1746,9 +1739,7 @@ impl<D> fmt::Debug for UneraseError<D>{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("UneraseError")
             .field("dyn_trait",&"<not shown>")
-            .field("expected_vtable_address",&self.expected_vtable_address)
             .field("expected_type_info",&self.expected_type_info)
-            .field("found_vtable_address",&self.found_vtable_address)
             .field("found_type_info",&self.found_type_info)
             .finish()
     }
