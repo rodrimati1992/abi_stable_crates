@@ -47,7 +47,13 @@ impl<T> Clone for StaticRef<T>{
 
 impl<T> Copy for StaticRef<T>{}
 
+unsafe impl<'a,T:'a> Sync for StaticRef<T>
+where &'a T:Sync
+{}
 
+unsafe impl<'a,T:'a> Send for StaticRef<T>
+where &'a T:Send
+{}
 
 
 shared_impls! {
