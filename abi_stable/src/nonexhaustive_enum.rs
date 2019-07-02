@@ -1,3 +1,5 @@
+pub mod doc_enums;
+
 #[cfg(test)]
 pub mod examples;
 

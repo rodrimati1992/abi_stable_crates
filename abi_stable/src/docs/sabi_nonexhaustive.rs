@@ -10,6 +10,9 @@ The enum can then be wrapped in a
 [`NonExhaustive<>`](../../nonexhaustive_enum/nonexhaustive/struct.NonExhaustive.html),
 but can only be converted back into it if the discriminant is valid in that context.
 
+Nonexhaustive enums can safely add variants in minor versions,
+giving library authors some flexibility in their design.
+
 # Items 
 
 `Enum`: this is the annotated enum,which does not derive `StableAbi`,
@@ -146,5 +149,130 @@ Example:`assert_nonexhaustive="Foo<RBox<u8>>")`<br>
 Syntax:`assert_nonexhaustive("type0","type1")`<br>
 Example:`assert_nonexhaustive("Foo<RArc<u8>>")`<br>
 Example:`assert_nonexhaustive("Foo<u8>","Foo<RVec<()>>")`<br>
+
+# Example
+
+Say that we want to define a "private" enum
+(it's exposed to the ABI but it's not public API),
+used internally to send information between instances of the same library,
+of potentially different (compatible) versions.
+
+
+```
+use abi_stable::{
+    StableAbi,
+    nonexhaustive_enum::{NonExhaustiveFor,NonExhaustive},
+    std_types::RString,
+    sabi_trait,
+};
+
+
+#[doc(hidden)]
+#[repr(C)]
+#[derive(StableAbi,Debug,Clone,PartialEq)]
+pub struct ObjectId(
+    pub usize
+);
+
+#[doc(hidden)]
+#[repr(C)]
+#[derive(StableAbi,Debug,Clone,PartialEq)]
+pub struct GroupId(
+    pub usize
+);
+
+
+#[repr(u8)]
+#[derive(StableAbi,Debug,Clone,PartialEq)]
+#[sabi(kind(WithNonExhaustive(
+    size="[usize;8]",
+    traits(Debug,Clone,PartialEq),
+)))]
+pub enum Event{
+    #[doc(hidden)]
+    __NonExhaustive,
+    CreatedInstance{
+        object_id:ObjectId,
+    },
+    RemovedInstance{
+        object_id:ObjectId,
+    },
+    
+    /////////////////
+    // Added in 1.1
+    /////////////////
+    CreatedGroup{
+        name:RString,
+        group_id:GroupId,
+    },
+    RemovedGroup{
+        name:RString,
+        group_id:GroupId,
+    },
+    AssociatedWithGroup{
+        object_id:ObjectId,
+        group_id:GroupId,
+    },
+    
+    /////////////////
+    // Added in 1.2
+    /////////////////
+    RemovedAssociationWithGroup{
+        object_id:ObjectId,
+        group_id:GroupId,
+    }
+}
+
+// Only available from 1.0
+pub fn make_created_instance(object_id:ObjectId)->NonExhaustiveFor<Event>{
+    let ev=Event::CreatedInstance{object_id};
+    NonExhaustive::new(ev)
+}
+
+// Only available from 1.0
+pub fn make_removed_instance(object_id:ObjectId)->NonExhaustiveFor<Event>{
+    let ev=Event::RemovedInstance{object_id};
+    NonExhaustive::new(ev)
+}
+
+// Only available from 1.1
+pub fn make_created_group(name:RString,group_id:GroupId)->NonExhaustiveFor<Event>{
+    let ev=Event::CreatedGroup{name,group_id};
+    NonExhaustive::new(ev)
+}
+
+// Only available from 1.1
+pub fn make_removed_group(name:RString,group_id:GroupId)->NonExhaustiveFor<Event>{
+    let ev=Event::RemovedGroup{name,group_id};
+    NonExhaustive::new(ev)
+}
+
+// Only available from 1.1
+pub fn make_associated_with_group(
+    object_id:ObjectId,
+    group_id:GroupId,
+)->NonExhaustiveFor<Event>{
+    let ev=Event::AssociatedWithGroup{object_id,group_id};
+    NonExhaustive::new(ev)
+}
+
+// Only available from 1.2
+pub fn make_removed_association_with_group(
+    object_id:ObjectId,
+    group_id:GroupId,
+)->NonExhaustiveFor<Event>{
+    let ev=Event::RemovedAssociationWithGroup{object_id,group_id};
+    NonExhaustive::new(ev)
+}
+
+
+```
+
+The functions here are merely to demonstrate how one can construct each of these variants.
+
+If one of the variants from newer versions are sent into a library/binary 
+that has a previous version of `Event`,
+`NonExhaustive<Event>` won't be convertible back into `Event`.
+
 
 */

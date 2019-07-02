@@ -35,7 +35,7 @@ where
     extern_fn_panic_handling! {unsafe{
         let this=transmute_reference::<ErasedObject,E>(this);
         let clone=this.clone();
-        NonExhaustive::with_vtable_unchecked(clone,vtable)
+        NonExhaustive::with_vtable(clone,vtable)
     }}
 }
 

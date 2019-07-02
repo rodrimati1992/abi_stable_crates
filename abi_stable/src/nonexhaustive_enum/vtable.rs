@@ -82,6 +82,10 @@ pub struct NonExhaustiveVtableVal<E,S,I>{
 }
 
 
+unsafe impl<E,S,I> Sync for NonExhaustiveVtable<E,S,I>{}
+unsafe impl<E,S,I> Send for NonExhaustiveVtable<E,S,I>{}
+
+
 impl<E,S,I> NonExhaustiveVtable<E,S,I>{
     pub fn enum_info(&self)->&'static EnumInfo<<E as GetEnumInfo>::Discriminant>
     where
