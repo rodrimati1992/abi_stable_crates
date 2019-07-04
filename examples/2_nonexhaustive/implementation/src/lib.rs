@@ -33,11 +33,12 @@ fn instantiate_root_module()->&'static ShopMod{
 
 #[sabi_extern_fn]
 pub fn new()->Shop_TO<'static,RBox<()>>{
-    Shop_from_value::<_,TU_Opaque>(
+    Shop_from_value(
         ShopState{
             items_map:HashMap::default(),
             items:Vec::new(),
-        }
+        },
+        TU_Opaque
     )
 }
 

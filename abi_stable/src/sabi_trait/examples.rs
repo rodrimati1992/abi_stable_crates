@@ -20,7 +20,7 @@ use abi_stable::{
     std_types::*,
 };
 
-let _=RSomething_from_value::<_,TU_Opaque,()>(RBox::new(10_u32));
+let _=RSomething_from_value::<_,_,()>(RBox::new(10_u32),TU_Opaque);
 
 ```
 
@@ -34,7 +34,7 @@ use abi_stable::{
 };
 
 
-let what=RSomething_from_ptr::<_,TU_Opaque,_>(RArc::new(100u32));
+let what=RSomething_from_ptr(RArc::new(100u32),TU_Opaque);
 RSomething::into_value(what);
 
 ```
@@ -51,7 +51,7 @@ use abi_stable::{
 use std::marker::PhantomData;
 
 let ptr=RBox::new(PhantomData::<UnsyncSend>);
-let _=RSomething_from_value::<_,TU_Opaque,()>(ptr);
+let _=RSomething_from_value::<_,_,()>(ptr,TU_Opaque);
 
 ```
 
@@ -66,7 +66,7 @@ use abi_stable::{
 use std::marker::PhantomData;
 
 let ptr=RBox::new(PhantomData::<SyncUnsend>);
-let _=RSomething_from_value::<_,TU_Opaque,()>(ptr);
+let _=RSomething_from_value::<_,_,()>(ptr,TU_Opaque);
 
 ```
 
@@ -219,7 +219,7 @@ use abi_stable::{
     std_types::*,
 };
 
-let what=RSomethingElse_from_ptr::<_,TU_Opaque,_>(RArc::new(100u32));
+let what=RSomethingElse_from_ptr(RArc::new(100u32),TU_Opaque);
 RSomethingElse::into_value(what);
 
 
@@ -236,7 +236,7 @@ use abi_stable::{
 use std::marker::PhantomData;
 
 let ptr=RBox::new(PhantomData::<UnsyncSend>);
-let _=RSomethingElse_from_value::<_,TU_Opaque,_>(ptr);
+let _=RSomethingElse_from_value(ptr,TU_Opaque);
 
 ```
 
@@ -251,7 +251,7 @@ use abi_stable::{
 use std::marker::PhantomData;
 
 let ptr=RBox::new(PhantomData::<SyncUnsend>);
-let _=RSomethingElse_from_value::<_,TU_Opaque,_>(ptr);
+let _=RSomethingElse_from_value(ptr,TU_Opaque);
 
 ```
 
@@ -404,9 +404,9 @@ mod tests{
             #[test]
             fn $fn_name(){
                 let number=100_u32;
-                let object=$from_value::<_,TU_Unerasable,()>(number);
-                let arcobj=$from_ptr::<_,TU_Unerasable,()>(RArc::new(number));
-                let erased=$from_ptr::<_,TU_Opaque,()>(RBox::new(number));
+                let object=$from_value::<_,_,()>(number,TU_Unerasable);
+                let arcobj=$from_ptr::<_,_,()>(RArc::new(number),TU_Unerasable);
+                let erased=$from_ptr::<_,_,()>(RBox::new(number),TU_Opaque);
                 
                 assert_sync_send_debug_clone(&object);
                 assert_sync_send_debug_clone(&arcobj);
@@ -441,14 +441,14 @@ mod tests{
                 where
                     T:$traitname<()>+'a
                 {
-                    $from_ptr::<_,TU_Opaque,()>(value)
+                    $from_ptr::<_,_,()>(value,TU_Opaque)
                 }
 
                 fn create_from_val<'a,T>(value:T)->$typename<'a,RBox<()>,(),T::Element>
                 where
                     T:$traitname<()>+'a,
                 {
-                    $from_value::<_,TU_Opaque,()>(value)
+                    $from_value::<_,_,()>(value,TU_Opaque)
                 }
 
                 let what=RBox::new(100);
@@ -475,7 +475,7 @@ mod tests{
 
             #[test]
             fn $something_methods(){
-                let mut object=$from_value::<_,TU_Opaque,()>(100);
+                let mut object=$from_value::<_,_,()>(100,TU_Opaque);
                 let mut cloned=object.clone();
                 
                 assert_eq!(object.get_(),&100);
@@ -517,12 +517,12 @@ mod tests{
         assert_eq!(Arc::strong_count(&arc), 2);
 
         let mut object:EmptyTrait_TO<'_,RBox<()>>=
-            EmptyTrait_from_value::<_,TU_Unerasable>(rarc.clone());
+            EmptyTrait_from_value(rarc.clone(),TU_Unerasable);
         
         assert_eq!(Arc::strong_count(&arc), 3);
 
         let erased:EmptyTrait_TO<'_,RArc<()>>=
-            EmptyTrait_from_ptr::<_,TU_Opaque>(rarc.clone());
+            EmptyTrait_from_ptr(rarc.clone(),TU_Opaque);
         
         assert_eq!(Arc::strong_count(&arc), 4);
 
@@ -560,7 +560,7 @@ mod tests{
         assert_eq!(Arc::strong_count(&arc), 2);
 
         let mut object:RSomething_TO<'_,RBox<()>,(),u32>=
-            RSomething_from_value::<_,TU_Unerasable,()>(rarc.clone());
+            RSomething_from_value::<_,_,()>(rarc.clone(),TU_Unerasable);
         
         assert_eq!(Arc::strong_count(&arc), 3);
         
@@ -600,7 +600,7 @@ mod tests{
     #[test]
     fn rsomething_else(){
         {
-            let object=RSomethingElse_from_value::<_,TU_Opaque,_>(RArc::new(100_u32));
+            let object=RSomethingElse_from_value(RArc::new(100_u32),TU_Opaque);
             let _:&dyn RSomethingElse<u32>=&object;
             
             assert_eq!(object.get(),&100);
@@ -610,7 +610,7 @@ mod tests{
 
         }
         {
-            let object=RSomethingElse_from_value::<_,TU_Opaque,_>(RArc::new(100_u32));
+            let object=RSomethingElse_from_value(RArc::new(100_u32),TU_Opaque);
             assert_eq!(object.get_(),&100);
             assert_eq!(object.passthrough_arc_(RArc::new(90)), RArc::new(90));
             assert_eq!(object.passthrough_string_(RString::from("what")), RString::from("what"));
@@ -618,7 +618,7 @@ mod tests{
 
         }
         {
-            let object=RSomethingElse_from_value::<_,TU_Unerasable,u32>(100u32);
+            let object=RSomethingElse_from_value::<_,_,u32>(100u32,TU_Unerasable);
             assert_eq!(object.passthrough_arc_(RArc::new(90)), RArc::new(77));
             assert_eq!(object.passthrough_string_(RString::from("what")), RString::from(""));
         }
@@ -626,10 +626,10 @@ mod tests{
 
     #[test]
     fn rfoo(){
-        let object       =leak_value(RFoo_from_ptr::<_,TU_Opaque,_>(RBox::new(RArc::new(76))));
-        let tuple1_object=leak_value(RFoo_from_ptr::<_,TU_Opaque,_>(RArc::new(Tuple1(100))));
-        let tuple2_object=leak_value(RFoo_from_value::<_,TU_Opaque,_>(Tuple2(101u32,202_u32)));
-        let tuple3_object=leak_value(RFoo_from_value::<_,TU_Opaque,_>(Tuple3(11,22,300_u32)));
+        let object       =leak_value(RFoo_from_ptr(RBox::new(RArc::new(76)),TU_Opaque));
+        let tuple1_object=leak_value(RFoo_from_ptr(RArc::new(Tuple1(100)),TU_Opaque));
+        let tuple2_object=leak_value(RFoo_from_value(Tuple2(101u32,202_u32),TU_Opaque));
+        let tuple3_object=leak_value(RFoo_from_value(Tuple3(11,22,300_u32),TU_Opaque));
 
         assert_eq!(object.get(),&76);
         assert_eq!(tuple1_object.get(),&100);

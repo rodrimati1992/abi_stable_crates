@@ -56,7 +56,7 @@ pub fn new(_sender:RSender<AsyncCommand>,plugin_id:PluginId) -> RResult<PluginTy
     let this=TextMunging{
         plugin_id,
     };
-    ROk(Plugin_from_value::<_,TU_Opaque>(this))
+    ROk(Plugin_from_value(this,TU_Opaque))
 }
 
 

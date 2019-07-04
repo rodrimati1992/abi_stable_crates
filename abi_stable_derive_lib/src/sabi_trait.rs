@@ -270,6 +270,7 @@ fn constructor_items<'a>(
     quote!(
         #submod_vis fn __trait_from_ptr<#from_ptr_params>(
             ptr:_OrigPtr,
+            _erasability:Erasability,
         )->__TraitObject<#ret_generics>
         where
             _OrigPtr:__sabi_re::TransmuteElement<()>+'lt,
@@ -309,6 +310,7 @@ fn constructor_items<'a>(
     quote!(
         #submod_vis fn __trait_from_value<#from_value_params>(
             ptr:_Self,
+            erasability:Erasability,
         )->__TraitObject<#ret_generics>
         where
             _Self:__Trait<#trait_params>+'lt,
@@ -317,7 +319,7 @@ fn constructor_items<'a>(
             >,
             #extra_constraints_value
         {
-            __trait_from_ptr::<#from_ptr_args>(__sabi_re::RBox::new(ptr))
+            __trait_from_ptr::<#from_ptr_args>(__sabi_re::RBox::new(ptr),erasability)
         }
 
     ).to_tokens(mod_);

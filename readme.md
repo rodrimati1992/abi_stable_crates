@@ -395,7 +395,7 @@ impl StringBuilder{
 
 #[sabi_extern_fn]
 pub fn new_appender()->AppenderType<u32>{
-    Appender_from_value::<_,TU_Opaque>(RVec::new())
+    Appender_from_value(RVec::new(),TU_Opaque)
 }
 
 

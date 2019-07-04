@@ -60,10 +60,10 @@ where `Trait` is the name of the annotated trait:
 
 A constructor for the trait object,which takes a pointer to a value that implements the trait.
 
-Generally it is called like this:
-`Trait_from_ptr::<_,Erasability, TraitParam0, TraitParam1 >( pointer )`.
+Generally it is called like this(::<> isn't always necessary):
+`Trait_from_ptr::<_,_, TraitParam0, TraitParam1 >( pointer,<Erasability> )`.
 
-Where `Erasability` can be either:
+Where `<Erasability>` can be either:
 
 -`TU_Unerasable`:
     Which allows the trait object to be unerased,requires that the value implements any.
@@ -227,7 +227,7 @@ pub trait Dictionary{
         // You can unerase trait objects constructed with `TU_Unerasable` 
         // (as opposed to `TU_Opaque`,which can't be unerased).
         let mut object:Dictionary_TO<'_,RBox<()>,u32>=
-            Dictionary_from_value::<_,TU_Unerasable>(map.clone());
+            Dictionary_from_value(map.clone(),TU_Unerasable);
 
         assert_eq!(object.get("hello"),Some(&100));
         assert_eq!(Dictionary::get(&object,"hello"),Some(&100));
@@ -252,7 +252,7 @@ pub trait Dictionary{
         // You can unerase trait objects constructed with `TU_Unerasable` 
         // (as opposed to `TU_Opaque`,which can't be unerased).
         let object:Dictionary_TO<'_,RArc<()>,u32>=
-            Dictionary_from_ptr::<_,TU_Unerasable>(arc);
+            Dictionary_from_ptr(arc,TU_Unerasable);
 
         assert_eq!(object.get_("world"),Some(&10));
         assert_eq!(Dictionary_Methods::get_(&object,"world"),Some(&10));
@@ -291,7 +291,7 @@ pub trait Dictionary{
 
     // This type annotation is for the reader
     let object:Dictionary_TO<'_,RBox<()>,RString>=
-        Dictionary_from_value::<_,TU_Opaque>( () );
+        Dictionary_from_value( () ,TU_Opaque);
 
     assert_eq!(object.get("hello"),None);
     assert_eq!(object.get("world"),None);

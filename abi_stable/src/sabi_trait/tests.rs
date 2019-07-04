@@ -61,20 +61,20 @@ fn downcasting_tests(){
 
     unsafe{
         use self::method_no_default::*;
-        let empty=empty::Trait_from_value::<_,TU_Opaque>(());
+        let empty=empty::Trait_from_value((),TU_Opaque);
         let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
         must_panic(file_span!(),|| object.apply(2,5) ).unwrap();
     }
     unsafe{
         use self::method_default::*;
-        let empty=empty::Trait_from_value::<_,TU_Opaque>(());
+        let empty=empty::Trait_from_value((),TU_Opaque);
         let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
         assert_eq!(object.apply(2,5),21);
     }
     
 
     {
-        let no_default=method_no_default::Trait_from_value::<_,TU_Opaque>(());
+        let no_default=method_no_default::Trait_from_value((),TU_Opaque);
         {
             use self::method_no_default::*;
             assert_eq!(no_default.apply(2,5), 14);
@@ -86,7 +86,7 @@ fn downcasting_tests(){
         }
     }
     {
-        let with_default=method_default::Trait_from_value::<_,TU_Opaque>(True);
+        let with_default=method_default::Trait_from_value(True,TU_Opaque);
         {
             use self::method_default::*;
             assert_eq!(with_default.apply(2,5), 28);
@@ -141,9 +141,9 @@ impl DefaultMethodPair for C{
 
 #[test]
 fn default_methods(){
-    let a=DefaultMethodPair_from_value::<_,TU_Opaque>(A);
-    let b=DefaultMethodPair_from_value::<_,TU_Opaque>(B);
-    let c=DefaultMethodPair_from_value::<_,TU_Opaque>(C);
+    let a=DefaultMethodPair_from_value(A,TU_Opaque);
+    let b=DefaultMethodPair_from_value(B,TU_Opaque);
+    let c=DefaultMethodPair_from_value(C,TU_Opaque);
 
     assert_eq!(a.foo(1), 101);
     assert_eq!(b.foo(1), 211);
