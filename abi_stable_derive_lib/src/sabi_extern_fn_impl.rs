@@ -1,20 +1,11 @@
 use std::mem;
 
-use abi_stable_shared::mangled_root_module_loader_name;
-
-use core_extensions::BoolExt;
-
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::{Span,TokenStream as TokenStream2,TokenTree};
 
 use quote::{quote, ToTokens};
 
-use syn::{
-    ItemFn,
-    Ident,
-    Expr,
-    ExprVerbatim,
-};
+use syn::{ItemFn,Expr,ExprVerbatim};
 
 
 

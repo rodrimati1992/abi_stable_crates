@@ -152,8 +152,14 @@ fn first_items<'a>(
         &ctokens.ts_unit_erasedptr,
     );
 
-    let impld_traits=trait_def.impld_traits.iter().map(|x|parse_str_as_ident(x.name));
-    let unimpld_traits=trait_def.unimpld_traits.keys();
+    let impld_traits=trait_def.impld_traits.iter()
+        .map(|x|parse_str_as_ident(x.name))
+        .collect::<Vec<_>>();
+    let impld_traits_a=&*impld_traits;
+    let impld_traits_b=&*impld_traits;
+
+    let unimpld_traits_a=trait_def.unimpld_traits.keys();
+    let unimpld_traits_b=trait_def.unimpld_traits.keys();
 
     let priv_assocty=private_associated_type();
 
@@ -180,11 +186,17 @@ fn first_items<'a>(
 
         mod __inside_generated_mod{
             use super::__TraitMarker;
-            use abi_stable::{InterfaceType,type_level::bools::*};
+            use abi_stable::{
+                InterfaceType,
+                type_level::{
+                    impl_enum::{Implemented,Unimplemented},
+                    trait_marker,
+                },
+            };
 
             impl abi_stable::InterfaceType for __TraitMarker{
-                #( type #impld_traits=True; )*
-                #( type #unimpld_traits=False; )*
+                #( type #impld_traits_a=Implemented<trait_marker::#impld_traits_b>; )*
+                #( type #unimpld_traits_a=Unimplemented<trait_marker::#unimpld_traits_b>; )*
                 type #priv_assocty=();
             }
         }

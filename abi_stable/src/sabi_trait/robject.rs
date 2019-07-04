@@ -19,7 +19,11 @@ use crate::{
         TransmuteElement,
         GetPointerKind,PK_SmartPointer,PK_Reference,
     },
-    type_level::unerasability::{TU_Unerasable,TU_Opaque},
+    type_level::{
+        unerasability::{TU_Unerasable,TU_Opaque},
+        impl_enum::{Implemented,Unimplemented},
+        trait_marker,
+    },
     utils::{transmute_reference,transmute_mut_reference},
 };
 
@@ -152,7 +156,7 @@ use self::clone_impl::CloneImpl;
 impl<'lt,P, I,V> CloneImpl<PK_SmartPointer> for RObject<'lt,P,I,V>
 where
     P: Deref,
-    I: InterfaceType<Clone = True>,
+    I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone_impl(&self) -> Self {
         let ptr=self.sabi_robject_vtable()._sabi_clone().unwrap()(&self.ptr);
@@ -169,7 +173,7 @@ where
 impl<'lt,P, I,V> CloneImpl<PK_Reference> for RObject<'lt,P,I,V>
 where
     P: Deref+Copy,
-    I: InterfaceType<Clone = True>,
+    I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone_impl(&self) -> Self {
         Self{
@@ -216,7 +220,7 @@ where
 impl<'lt,P,I,V> Debug for RObject<'lt,P,I,V> 
 where
     P: Deref<Target=()>,
-    I: InterfaceType<Debug = True>,
+    I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         adapt_std_fmt::<ErasedObject>(
@@ -230,12 +234,12 @@ where
 
 unsafe impl<'lt,P,I,V> Send for RObject<'lt,P,I,V> 
 where 
-    I:InterfaceType<Send=True>,
+    I:InterfaceType<Send = Implemented<trait_marker::Send>>,
 {}
 
 unsafe impl<'lt,P,I,V> Sync for RObject<'lt,P,I,V> 
 where 
-    I:InterfaceType<Sync=True>,
+    I:InterfaceType<Sync = Implemented<trait_marker::Sync>>,
 {}
 
 
@@ -391,8 +395,13 @@ use self::private_struct::PrivStruct;
 pub trait ReborrowBounds<SendNess,SyncNess>{}
 
 // If it's reborrowing,it must have either both Sync+Send or neither.
-impl ReborrowBounds<False,False> for PrivStruct {}
-impl ReborrowBounds<True ,True > for PrivStruct {}
+impl ReborrowBounds<Unimplemented<trait_marker::Send>,Unimplemented<trait_marker::Sync>> 
+for PrivStruct 
+{}
+
+impl ReborrowBounds<Implemented<trait_marker::Send>,Implemented<trait_marker::Sync>> 
+for PrivStruct 
+{}
 
 
 impl<'lt,P,I,V> RObject<'lt,P,I,V>

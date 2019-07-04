@@ -14,7 +14,8 @@ use crate::{
     },
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
     type_level::{
-        bools::{True,False,Boolean},
+        impl_enum::{Implemented,Unimplemented,IsImplemented},
+        trait_marker,
     },
     sabi_types::{StaticRef},
     std_types::{ROption,RResult,RString,RCow,RCmpOrdering,RBoxError},
@@ -146,14 +147,18 @@ pub mod trait_bounds{
 
     macro_rules! declare_conditional_marker {
         (
+            type $selector:ident;
             trait $trait_name:ident[$self_:ident,$Filler:ident,$OrigPtr:ident]
             where [ $($where_preds:tt)* ]
         ) => (
-            pub trait $trait_name<$self_,$Filler,$OrigPtr>:Boolean{}
+            pub trait $trait_name<$self_,$Filler,$OrigPtr>{}
 
-            impl<$self_,$Filler,$OrigPtr> $trait_name<$self_,$Filler,$OrigPtr> for False{}
+            impl<$self_,$Filler,$OrigPtr> $trait_name<$self_,$Filler,$OrigPtr> 
+            for Unimplemented<trait_marker::$selector>
+            {}
             
-            impl<$self_,$Filler,$OrigPtr> $trait_name<$self_,$Filler,$OrigPtr> for True
+            impl<$self_,$Filler,$OrigPtr> $trait_name<$self_,$Filler,$OrigPtr>
+            for Implemented<trait_marker::$selector>
             where
                 $($where_preds)*
             {}
@@ -170,21 +175,23 @@ pub mod trait_bounds{
             field_index=$field_index:ident;
             value=$field_value:expr,
         ) => (
-            pub trait $trait_name<$enum_,$filler,$interf>:Boolean
+            pub trait $trait_name<$enum_,$filler,$interf>
             where
                 $($($where_preds_both)*)?
             {
                 const VALUE:Option<$field_ty>;
             }
 
-            impl<$enum_,$filler,$interf> $trait_name<$enum_,$filler,$interf> for False
+            impl<$enum_,$filler,$interf> $trait_name<$enum_,$filler,$interf>
+            for Unimplemented<trait_marker::$selector>
             where
                 $($($where_preds_both)*)?
             {
                 const VALUE:Option<$field_ty>=None;
             }
 
-            impl<$enum_,$filler,$interf> $trait_name<$enum_,$filler,$interf> for True
+            impl<$enum_,$filler,$interf> $trait_name<$enum_,$filler,$interf> 
+            for Implemented<trait_marker::$selector>
             where
                 $($($where_preds_both)*)?
                 $($where_preds)*
@@ -195,7 +202,7 @@ pub mod trait_bounds{
             impl<E,S,$interf> NonExhaustiveVtable<E,S,$interf>{
                 pub fn $field(&self)->$field_ty
                 where
-                    $interf:InterfaceType<$selector=True>,
+                    $interf:InterfaceType<$selector=Implemented<trait_marker::$selector>>,
                 {
                     match self.$priv_field().into() {
                         Some(v)=>v,
@@ -213,11 +220,13 @@ pub mod trait_bounds{
 
 
     declare_conditional_marker!{
+        type Send;
         trait RequiresSend[E,S,I]
         where [ E:Send ]
     }
 
     declare_conditional_marker!{
+        type Sync;
         trait RequiresSync[E,S,I]
         where [ E:Sync ]
     }
@@ -317,8 +326,8 @@ macro_rules! declare_InterfaceBound {
         impl<I> InterfaceBound for I
         where 
             I:InterfaceType,
-            $(I::$auto_trait:Boolean,)*
-            $(I::$required_traits:Boolean,)*
+            $(I::$auto_trait:IsImplemented,)*
+            $(I::$required_traits:IsImplemented,)*
         {
             const TAG:Tag={
                 const fn str_if(cond:bool,s:&'static str)->Tag{
@@ -329,7 +338,7 @@ macro_rules! declare_InterfaceBound {
                     "auto traits"=>tag![[
                         $(  
                             str_if(
-                                <I::$auto_trait as Boolean>::VALUE,
+                                <I::$auto_trait as IsImplemented>::VALUE,
                                 stringify!($auto_trait)
                             ),
                         )*
@@ -337,7 +346,7 @@ macro_rules! declare_InterfaceBound {
                     "required traits"=>tag!{{
                         $(  
                             str_if(
-                                <I::$required_traits as Boolean>::VALUE,
+                                <I::$required_traits as IsImplemented>::VALUE,
                                 stringify!($required_traits)
                             ),
                         )*
@@ -345,8 +354,8 @@ macro_rules! declare_InterfaceBound {
                 }}
             };
 
-            $(const $auto_trait:bool=<I::$auto_trait as Boolean>::VALUE;)*
-            $(const $required_traits:bool=<I::$required_traits as Boolean>::VALUE;)*
+            $(const $auto_trait:bool=<I::$auto_trait as IsImplemented>::VALUE;)*
+            $(const $required_traits:bool=<I::$required_traits as IsImplemented>::VALUE;)*
         }
     )
 }

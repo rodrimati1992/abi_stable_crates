@@ -21,7 +21,10 @@ use crate::{
         SerializeEnum,DeserializeOwned,DeserializeBorrowed,
     },
     pointer_trait::TransmuteElement,
-    type_level::bools::True,
+    type_level::{
+        impl_enum::Implemented,
+        trait_marker,
+    },
     sabi_types::{StaticRef},
     std_types::{RStr,Tuple2,RBoxError,RCow},
     traits::IntoReprRust,
@@ -29,6 +32,7 @@ use crate::{
 
 use core_extensions::{
     SelfOps,
+    TypeIdentity,
     utils::transmute_ignore_size,
 };
 
@@ -580,7 +584,7 @@ This panics if the storage has an alignment or size smaller than that of `F`.
 
 impl<E,S,I> Clone for NonExhaustive<E,S,I>
 where
-    I: InterfaceBound<Clone = True>,
+    I: InterfaceBound<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone(&self)->Self{
         self.vtable().clone_()(self.sabi_erased_ref(),self.vtable)
@@ -589,7 +593,7 @@ where
 
 impl<E,S,I> Display for NonExhaustive<E,S,I>
 where
-    I: InterfaceBound<Display = True>,
+    I: InterfaceBound<Display = Implemented<trait_marker::Display>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         c_functions::adapt_std_fmt::<ErasedObject>(
@@ -602,7 +606,7 @@ where
 
 impl<E,S,I> Debug for NonExhaustive<E,S,I>
 where
-    I: InterfaceBound<Debug = True>,
+    I: InterfaceBound<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         c_functions::adapt_std_fmt::<ErasedObject>(
@@ -617,14 +621,14 @@ where
 impl<E,S,I> Eq for NonExhaustive<E,S,I>
 where
     Self: PartialEq,
-    I: InterfaceBound<Eq = True>,
+    I: InterfaceBound<Eq = Implemented<trait_marker::Eq>>,
 {
 }
 
 
 impl<E,S,I1,I2> PartialEq<NonExhaustive<E,S,I2>> for NonExhaustive<E,S,I1>
 where
-    I1: InterfaceBound<PartialEq = True>,
+    I1: InterfaceBound<PartialEq = Implemented<trait_marker::PartialEq>>,
 {
     fn eq(&self, other: &NonExhaustive<E,S,I2>) -> bool {
         self.vtable().partial_eq()(self.sabi_erased_ref(), other.as_ref_with_interface())
@@ -634,7 +638,7 @@ where
 
 impl<E,S,I> Ord for NonExhaustive<E,S,I>
 where
-    I: InterfaceBound<Ord = True>,
+    I: InterfaceBound<Ord = Implemented<trait_marker::Ord>>,
     Self: PartialOrd + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -645,7 +649,7 @@ where
 
 impl<E,S,I1,I2> PartialOrd<NonExhaustive<E,S,I2>> for NonExhaustive<E,S,I1>
 where
-    I1: InterfaceBound<PartialOrd = True>,
+    I1: InterfaceBound<PartialOrd = Implemented<trait_marker::PartialOrd>>,
     Self: PartialEq<NonExhaustive<E,S,I2>>,
 {
     fn partial_cmp(&self, other: &NonExhaustive<E,S,I2>) -> Option<Ordering> {
@@ -663,7 +667,7 @@ where
 impl<E,S,I> PartialOrd<E> for NonExhaustive<E,S,I>
 where
     E: GetEnumInfo+PartialOrd,
-    I: InterfaceBound<PartialOrd = True>,
+    I: InterfaceBound<PartialOrd = Implemented<trait_marker::PartialOrd>>,
     Self: PartialEq<E>,
 {
     fn partial_cmp(&self, other: &E) -> Option<Ordering> {
@@ -677,7 +681,7 @@ where
 impl<E,S,I> PartialEq<E> for NonExhaustive<E,S,I>
 where
     E: GetEnumInfo+PartialEq,
-    I: InterfaceBound<PartialEq = True>,
+    I: InterfaceBound<PartialEq = Implemented<trait_marker::PartialEq>>,
 {
     fn eq(&self, other: &E) -> bool {
         match self.as_enum() {
@@ -697,7 +701,7 @@ impl<E,S,I> NonExhaustive<E,S,I>{
     /// `<ConcreteType as SerializeImplType>::serialize_impl`.
     pub fn serialized<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError>
     where
-        I: SerializeEnum<E>+InterfaceBound<Serialize=True>,
+        I: SerializeEnum<E>+InterfaceBound<Serialize=Implemented<trait_marker::Serialize>>,
     {
         self.vtable().serialize()(self.sabi_erased_ref()).into_result()
     }
@@ -706,7 +710,8 @@ impl<E,S,I> NonExhaustive<E,S,I>{
     /// `<I as DeserializeOwned>::deserialize_enum`.
     pub fn deserialize_owned_from_str(s: &str) -> Result<Self, RBoxError>
     where
-        I: DeserializeOwned<E,S,I>+InterfaceBound<Deserialize=True>,
+        I: DeserializeOwned<E,S,I>,
+        I: InterfaceBound<Deserialize= Implemented<trait_marker::Deserialize>>,
         E:GetEnumInfo,
     {
         s.piped(RStr::from).piped(I::deserialize_enum)
@@ -717,7 +722,8 @@ impl<E,S,I> NonExhaustive<E,S,I>{
     pub fn deserialize_borrowing_from_str<'borr>(s: &'borr str) -> Result<Self, RBoxError>
     where
         Self:'borr,
-        I: DeserializeBorrowed<'borr,E,S,I>+InterfaceBound<Deserialize=True>,
+        I: DeserializeBorrowed<'borr,E,S,I>,
+        I: InterfaceBound<Deserialize= Implemented<trait_marker::Deserialize>>,
         E:GetEnumInfo,
     {
         s.piped(RStr::from).piped(I::deserialize_enum)
@@ -733,7 +739,7 @@ then it serializes the string.
 */
 impl<E,S,I> Serialize for NonExhaustive<E,S,I>
 where
-    I: InterfaceBound<Serialize = True>,
+    I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
 {
     fn serialize<Z>(&self, serializer: Z) -> Result<Z::Ok, Z::Error>
     where
@@ -753,7 +759,8 @@ impl<'de,E,S,I> Deserialize<'de> for NonExhaustive<E,S,I>
 where
     E: 'de+Deserialize<'de>+GetVTable<S,I>,
     S: 'de,
-    I: 'de+InterfaceBound<Deserialize=True>+DeserializeOwned<E,S,I>,
+    I: 'de+InterfaceBound<Deserialize=Implemented<trait_marker::Deserialize>>,
+    I: DeserializeOwned<E,S,I>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -772,7 +779,7 @@ where
 
 impl<E,S,I> Hash for NonExhaustive<E,S,I>
 where
-    I: InterfaceBound<Hash = True>,
+    I: InterfaceBound<Hash = Implemented<trait_marker::Hash>>,
 {
     fn hash<H>(&self, state: &mut H)
     where
@@ -785,7 +792,11 @@ where
 
 impl<E,S,I> std::error::Error for NonExhaustive<E,S,I>
 where
-    I: InterfaceBound<Debug = True,Display = True,Error = True>,
+    I: InterfaceBound<
+        Debug = Implemented<trait_marker::Debug>,
+        Display = Implemented<trait_marker::Display>,
+        Error = Implemented<trait_marker::Error>
+    >,
 {}
 
 /////////////////////

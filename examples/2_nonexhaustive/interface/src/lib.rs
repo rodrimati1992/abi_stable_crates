@@ -3,7 +3,11 @@ use abi_stable::{
     library::RootModule,
     sabi_types::{VersionStrings},
     std_types::{RBox,RString,RResult,RStr,RBoxError,RVec},
-    type_level::bools::True,
+    type_level::{
+        bools::True,
+        impl_enum::{Implemented,Unimplemented,IsImplemented},
+        trait_marker,
+    },
     sabi_trait,
     StableAbi,InterfaceType,
     package_version_strings,
@@ -56,7 +60,7 @@ impl<'de,T> Deserialize<'de> for SerdeWrapper<NonExhaustiveFor<T>>
 where
     T: GetEnumInfo+'de,
     T::DefaultInterface: DeserializeOwned<T,T::DefaultStorage,T::DefaultInterface>,
-    T::DefaultInterface: InterfaceBound<Deserialize=True>,
+    T::DefaultInterface: InterfaceBound<Deserialize=Implemented<trait_marker::Deserialize>>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

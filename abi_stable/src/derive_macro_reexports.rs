@@ -61,6 +61,10 @@ pub use crate::{
         RSome,RNone,
     },
     traits::InlineStorage,
+    type_level::{
+        impl_enum::{Implemented,Unimplemented,ImplFrom},
+        trait_marker,
+    }
 };
 
 
