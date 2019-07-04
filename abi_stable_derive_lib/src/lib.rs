@@ -115,11 +115,8 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
 
     use abi_stable_shared::mangled_root_module_loader_name;
 
-    use crate::sabi_extern_fn_impl::{convert_to_sabi_extern_fn,WithEarlyReturn};
-    
-
     measure!({
-        let mut input = syn::parse::<ItemFn>(item).unwrap();
+        let input = syn::parse::<ItemFn>(item).unwrap();
         
         let vis=&input.vis;
         let attrs=&input.attrs;

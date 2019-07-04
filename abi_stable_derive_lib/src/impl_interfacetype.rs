@@ -3,8 +3,6 @@ use std::collections::HashMap;
 
 use syn::{
     ItemImpl,
-
-    Type as SynType,
     ImplItem,
     ImplItemType,
     Visibility,
@@ -12,7 +10,7 @@ use syn::{
 
 use proc_macro2::TokenStream as TokenStream2;
 
-use quote::{ToTokens};
+use quote::{ToTokens,quote};
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
@@ -43,13 +41,6 @@ impl From<bool> for DefaultVal{
     fn from(b:bool)->Self{
         if b { DefaultVal::True }else{ DefaultVal::False }
     }
-}
-
-//////////////////////
-
-struct DefaultValTypes{
-    false_:SynType,
-    true_:SynType,
 }
 
 //////////////////////
@@ -152,28 +143,24 @@ pub(crate) fn private_associated_type()->syn::Ident{
 
 pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
     let interfacetype:syn::Ident=syn::parse_str("InterfaceType").unwrap();
+
+    let mut const_name=(&impl_.self_ty).into_token_stream().to_string();
+    const_name.retain(|c| c.is_alphanumeric() );
+    const_name.insert_str(0,"_impl_InterfaceType");
+    let const_name=parse_str_as_ident(&const_name);
     
     let interface_path_s=impl_.trait_.as_ref().map(|x| &x.1.segments );
     let is_interface_type=interface_path_s
         .and_then(|x| x.last() )
         .map_or(false,|path_| path_.value().ident==interfacetype );
 
-    let defval_paths=if !is_interface_type {
+    if !is_interface_type {
         panic!(
             "expected 'impl<...> InterfaceType for {} ' ",
             (&impl_.self_ty).into_token_stream()
         );
-    }else{
-        let parse_type=|s:&str|->SynType{
-            let s=format!("abi_stable::type_level::{}",s);
-            syn::parse_str(&s).unwrap()
-        };
-        DefaultValTypes{
-            false_:parse_type("bools::False"),
-            true_:parse_type("bools::True"),
-        }
-    };
-
+    }
+    
     let mut default_map=TRAIT_LIST
         .iter()
         .map(|ut|{
@@ -181,7 +168,7 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
         })
         .collect::<HashMap<_,_>>();
 
-    for item in &impl_.items {
+    for item in &mut impl_.items {
         match item {
             ImplItem::Type(assoc_ty)=>{
                 assert_ne!(
@@ -191,6 +178,13 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
                      the 'define_this_in_the_impl_InterfaceType_macro' associated type yourself"
                 );
                 default_map.remove(&assoc_ty.ident);
+
+                let old_ty=&assoc_ty.ty;
+                let name=&assoc_ty.ident;
+
+                assoc_ty.ty=type_from_token_stream(
+                    quote!( ImplFrom<#old_ty, trait_marker::#name> )
+                );
             }
             _=>{}
         }
@@ -202,13 +196,13 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
         let mut attrs=Vec::<syn::Attribute>::new();
 
         let ty=match default_ {
-            DefaultVal::False=>&defval_paths.false_,
-            DefaultVal::True=>&defval_paths.true_,
+            DefaultVal::False=>quote!( Unimplemented<trait_marker::#key> ),
+            DefaultVal::True=>quote!( Implemented<trait_marker::#key> ),
             DefaultVal::Hidden=>{
                 attrs.extend(parse_syn_attributes("#[doc(hidden)]"));
-                &defval_paths.false_
+                quote!( () )
             },
-        }.clone();
+        }.piped(type_from_token_stream);
 
         let defaulted=ImplItemType{
             attrs,
@@ -224,11 +218,25 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
         impl_.items.push(ImplItem::Type(defaulted))
     }
 
-    impl_.into_token_stream()
+    quote!(
+        const #const_name:()={
+            use ::abi_stable::derive_macro_reexports::{
+                Implemented,
+                Unimplemented,
+                ImplFrom,
+                trait_marker,
+            };
+
+            #impl_
+        };
+    )
 }
 
 
-
+fn type_from_token_stream(tts:TokenStream2)->syn::Type{
+    let x=syn::TypeVerbatim{tts};
+    syn::Type::Verbatim(x)
+}
 
 
 

@@ -16,7 +16,11 @@ use crate::{
 use super::{DynTraitBound,TypeInfo};
 
 #[allow(unused_imports)]
-use crate::type_level::bools::{False, True};
+use crate::type_level::{
+    bools::{False, True},
+    impl_enum::{Implemented,Unimplemented,IsImplemented},
+    trait_marker,
+};
 
 /**
 An `implementation type`,
@@ -230,7 +234,9 @@ so that the implementation can be delegated
 to the `implementation crate`.
 
 */
-pub trait DeserializeOwnedInterface<'borr>: InterfaceType<Deserialize = True> {
+pub trait DeserializeOwnedInterface<'borr>: 
+    InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>> 
+{
     type Deserialized: DynTraitBound<'borr,Interface = Self>+'borr;
 
     fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError>;
@@ -245,7 +251,9 @@ so that the implementation can be delegated
 to the `implementation crate`.
 
 */
-pub trait DeserializeBorrowedInterface<'borr>: InterfaceType<Deserialize = True> {
+pub trait DeserializeBorrowedInterface<'borr>: 
+    InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>> 
+{
     type Deserialized: DynTraitBound<'borr,Interface = Self>+'borr;
 
     fn deserialize_impl(s: RStr<'borr>) -> Result<Self::Deserialized, RBoxError> ;
@@ -268,13 +276,13 @@ pub trait IteratorItem<'a>:InterfaceType{
 /// Gets the Item type of an Iterator.
 ///
 /// Used by `DynTrait`'s vtable to give its iter a default type,
-/// when `I:InterfaceType<Iterator=False>`.
+/// when `I:InterfaceType<Iterator=Implemented<_>>`.
 pub trait IteratorItemOrDefault<'borr,ImplIsRequired>:InterfaceType{
     type Item:'borr;
 }
 
 
-impl<'borr,I,Item> IteratorItemOrDefault<'borr,True> for I
+impl<'borr,I,Item> IteratorItemOrDefault<'borr,Implemented<trait_marker::Iterator>> for I
 where
     I:InterfaceType+IteratorItem<'borr,Item=Item>,
     Item:'borr,
@@ -283,7 +291,7 @@ where
 }
 
 
-impl<'borr,I> IteratorItemOrDefault<'borr,False> for I
+impl<'borr,I> IteratorItemOrDefault<'borr,Unimplemented<trait_marker::Iterator>> for I
 where I:InterfaceType
 {
     type Item=();

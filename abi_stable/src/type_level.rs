@@ -59,3 +59,111 @@ pub mod unerasability{
         };
     }
 }
+
+
+/// Marker types representing traits.
+pub mod trait_marker{
+    pub struct Send;
+    pub struct Sync;
+    pub struct Clone;
+    pub struct Default;
+    pub struct Display;
+    pub struct Debug;
+    pub struct Serialize;
+    pub struct Eq;
+    pub struct PartialEq;
+    pub struct Ord;
+    pub struct PartialOrd;
+    pub struct Hash;
+    pub struct Deserialize;
+    pub struct Iterator;
+    pub struct DoubleEndedIterator;
+    pub struct FmtWrite;
+    pub struct IoWrite;
+    pub struct IoSeek;
+    pub struct IoRead;
+    pub struct IoBufRead;
+    pub struct Error;
+    
+    #[doc(hidden)]
+    pub struct define_this_in_the_impl_InterfaceType_macro;
+}
+
+
+/// Type-level-enum representing whether a trait is implemented or not implemented.
+pub mod impl_enum{
+
+    use std::marker::PhantomData;
+
+    use core_extensions::type_level_bool::{True,False,Boolean};
+
+    mod sealed{
+        pub trait Sealed{}
+    }
+    use self::sealed::Sealed;
+
+    /// Queries whether this type is `Implemented<T>`
+    pub trait IsImplemented:Sealed{
+        const VALUE:bool;
+    }
+
+    
+
+    /// Converts a type to either Unimplemented<T> or Implemented<T>.
+    pub trait ImplFrom_<T>{
+        type Impl;
+        const IMPL:Self::Impl;
+    }
+
+    impl<T> ImplFrom_<T> for False {
+        type Impl=Unimplemented<T>;
+        const IMPL:Unimplemented<T>=Unimplemented::NEW;
+    }
+
+    impl<T> ImplFrom_<T> for True {
+        type Impl=Implemented<T>;
+        const IMPL:Implemented<T>=Implemented::NEW;
+    }
+
+    impl<T> ImplFrom_<T> for Unimplemented<T> {
+        type Impl=Unimplemented<T>;
+        const IMPL:Unimplemented<T>=Unimplemented::NEW;
+    }
+
+    impl<T> ImplFrom_<T> for Implemented<T> {
+        type Impl=Implemented<T>;
+        const IMPL:Implemented<T>=Implemented::NEW;
+    }
+
+    /// Converts False to Unimplemented<T> and True to Implemented<T>.
+    pub type ImplFrom<B,T>=
+        <B as ImplFrom_<T>>::Impl;
+
+
+
+    /// Describes a trait being implemented.
+    pub struct Implemented<T>(PhantomData<fn()->T>);
+
+    impl<T> Implemented<T>{
+        pub const NEW:Implemented<T>=Implemented(PhantomData);
+    }
+
+    impl<T> Sealed for Implemented<T>{}
+    impl<T> IsImplemented for Implemented<T>{
+        const VALUE:bool=true;
+    }
+
+
+
+    /// Describes a trait being unimplemented.
+    pub struct Unimplemented<T>(PhantomData<fn()->T>);
+
+    impl<T> Unimplemented<T>{
+        pub const NEW:Unimplemented<T>=Unimplemented(PhantomData);
+    }
+
+    impl<T> Sealed for Unimplemented<T>{}
+    impl<T> IsImplemented for Unimplemented<T>{
+        const VALUE:bool=false;
+    }
+}

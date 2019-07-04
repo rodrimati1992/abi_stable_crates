@@ -339,15 +339,32 @@ pub(crate) fn tokenize_enum_info<'a>(
                 
                 let priv_assocty=private_associated_type();
 
-                let impld=impld.iter();
-                let unimpld=unimpld.iter();
+                let impld_a=impld.iter();
+                let impld_b=impld.iter();
+
+                let unimpld_a=unimpld.iter();
+                let unimpld_b=unimpld.iter();
+
+                let const_ident=parse_str_as_ident(&format!(
+                    "_impl_InterfaceType_constant_{}",
+                    name,
+                ));
 
                 quote!(
-                    impl abi_stable::InterfaceType for #enum_interface {
-                        #( type #impld=_sabi_reexports::True; )*
-                        #( type #unimpld= _sabi_reexports::False; )*
-                        type #priv_assocty=();
-                    }
+                    const #const_ident:()={
+                        use abi_stable::{
+                            InterfaceType,
+                            type_level::{
+                                impl_enum::{Implemented,Unimplemented},
+                                trait_marker,
+                            },
+                        };
+                        impl InterfaceType for #enum_interface {
+                            #( type #impld_a=Implemented<trait_marker::#impld_b>; )*
+                            #( type #unimpld_a=Unimplemented<trait_marker::#unimpld_b>; )*
+                            type #priv_assocty=();
+                        }
+                    };
                 ).to_tokens(ts);
             }
             Some(EnumInterface::Old{..})=>{}

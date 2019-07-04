@@ -26,7 +26,11 @@ use crate::{
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
     pointer_trait::GetPointerKind,
     std_types::{Tuple3,RSome,RNone,RIoError,RSeekFrom},
-    type_level::bools::*,
+    type_level::{
+        bools::*,
+        impl_enum::{Implemented,Unimplemented,IsImplemented},
+        trait_marker,
+    },
 };
 
 
@@ -127,7 +131,7 @@ macro_rules! declare_meta_vtable {
             $(
                 pub fn $field(&self)->($field_ty)
                 where
-                    $interf:InterfaceType<$selector=True>,
+                    $interf:InterfaceType<$selector=Implemented<trait_marker::$selector>>,
                 {
                     match self.$priv_field().into() {
                         Some(v)=>v,
@@ -173,7 +177,13 @@ macro_rules! declare_meta_vtable {
             
             impl<'borr,AnyFieldTy,$value,$erased_ptr,$orig_ptr,$interf>
                 VTableFieldValue<
-                    'borr,$option_ty<AnyFieldTy>,False,$value,$erased_ptr,$orig_ptr,$interf
+                    'borr,
+                    $option_ty<AnyFieldTy>,
+                    Unimplemented<trait_marker::$selector>,
+                    $value,
+                    $erased_ptr,
+                    $orig_ptr,
+                    $interf
                 >
             for trait_selector::$selector
             {
@@ -182,7 +192,13 @@ macro_rules! declare_meta_vtable {
 
             impl<'borr,FieldTy,$value,$erased_ptr,$orig_ptr,$interf,$($impl_params)*>
                 VTableFieldValue<
-                    'borr,$option_ty<FieldTy>,True,$value,$erased_ptr,$orig_ptr,$interf
+                    'borr,
+                    $option_ty<FieldTy>,
+                    Implemented<trait_marker::$selector>,
+                    $value,
+                    $erased_ptr,
+                    $orig_ptr,
+                    $interf
                 >
             for trait_selector::$selector
             where 
@@ -198,22 +214,22 @@ macro_rules! declare_meta_vtable {
 
 
 
-        impl<'borr,Anything,$value,$erased_ptr,$orig_ptr> 
-            MarkerTrait<'borr,False,$value,$erased_ptr,$orig_ptr> 
+        impl<'borr,Anything,$value,X,$erased_ptr,$orig_ptr> 
+            MarkerTrait<'borr,Unimplemented<X>,$value,$erased_ptr,$orig_ptr> 
         for Anything
         {}
 
         $(
-            impl<'borr,$value,$erased_ptr,$orig_ptr> 
-                MarkerTrait<'borr,True,$value,$erased_ptr,$orig_ptr> 
+            impl<'borr,$value,X,$erased_ptr,$orig_ptr> 
+                MarkerTrait<'borr,Implemented<X>,$value,$erased_ptr,$orig_ptr> 
             for trait_selector::$auto_trait
             where $($phantom_where_clause)*
             {}
         )*
 
         $(
-            impl<'borr,$value,$erased_ptr,$orig_ptr> 
-                MarkerTrait<'borr,True,$value,$erased_ptr,$orig_ptr> 
+            impl<'borr,$value,X,$erased_ptr,$orig_ptr> 
+                MarkerTrait<'borr,Implemented<X>,$value,$erased_ptr,$orig_ptr> 
             for trait_selector::$marker_trait
             where $($marker_where_clause)*
             {}
@@ -323,9 +339,9 @@ macro_rules! declare_meta_vtable {
         where 
             I:InterfaceType,
             I:IteratorItemOrDefault<'borr,<I as InterfaceType>::Iterator>,
-            $( I::$auto_trait:Boolean, )*
-            $( I::$marker_trait:Boolean, )*
-            $( I::$selector:Boolean, )*
+            $( I::$auto_trait:IsImplemented, )*
+            $( I::$marker_trait:IsImplemented, )*
+            $( I::$selector:IsImplemented, )*
         {
             type IteratorItem=
                 <I as IteratorItemOrDefault<'borr,<I as InterfaceType>::Iterator>>::Item ;
@@ -345,7 +361,7 @@ macro_rules! declare_meta_vtable {
                     "auto traits"=>tag![[
                         $(
                             str_if(
-                                <I::$auto_trait as Boolean>::VALUE,
+                                <I::$auto_trait as IsImplemented>::VALUE,
                                 stringify!($auto_trait)
                             ),
                         )*
@@ -355,13 +371,13 @@ macro_rules! declare_meta_vtable {
                     "required traits"=>tag!{{
                         $(
                             str_if(
-                                <I::$selector as Boolean>::VALUE,
+                                <I::$selector as IsImplemented>::VALUE,
                                 stringify!($selector)
                             ),
                         )*
                         $(
                             str_if(
-                                <I::$marker_trait as Boolean>::VALUE,
+                                <I::$marker_trait as IsImplemented>::VALUE,
                                 stringify!($marker_trait)
                             ),
                         )*
@@ -370,7 +386,7 @@ macro_rules! declare_meta_vtable {
             };
 
             $( 
-                const $selector:bool=<I::$selector as Boolean>::VALUE;
+                const $selector:bool=<I::$selector as IsImplemented>::VALUE;
             )*
             
             const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>=
@@ -564,7 +580,11 @@ declare_meta_vtable! {
         where [
             T:DoubleEndedIterator,
             T::Item:'borr,
-            I:InterfaceBound<'borr,Iterator=True,IteratorItem=<T as Iterator>::Item>,
+            I:InterfaceBound<
+                'borr,
+                Iterator=Implemented<trait_marker::Iterator>,
+                IteratorItem=<T as Iterator>::Item
+            >,
         ]{
             MakeDoubleEndedIteratorFns::<T>::NEW
         }
@@ -618,7 +638,7 @@ declare_meta_vtable! {
         impl[] VtableFieldValue<IoBufRead>
         where [ 
             T:io::BufRead,
-            I:InterfaceType<IoRead=True>
+            I:InterfaceType<IoRead= Implemented<trait_marker::IoRead>>
         ]{
             MakeIoBufReadFns::<T>::NEW
         }
