@@ -13,20 +13,18 @@ use std::{
 };
 // use std::collections::HashSet;
 
-use super::{
-    AbiInfo, AbiInfoWrapper,
-    type_layout::{
-        TypeLayout, TLData, TLDataDiscriminant, TLField,TLFieldAndType, 
-        FullType, ReprAttr, TLDiscriminant,TLPrimitive,
-        TLEnum,IsExhaustive,IncompatibleWithNonExhaustive,TLNonExhaustive,
-    },
-    tagging::{CheckableTag,TagErrors},
-};
+use super::{AbiInfo, AbiInfoWrapper};
 use crate::{
     sabi_types::{ParseVersionError, VersionStrings},
     prefix_type::{FieldAccessibility,IsConditional},
     std_types::{RVec, StaticSlice, StaticStr,utypeid::UTypeId,RBoxError,RResult},
     traits::IntoReprC,
+    type_layout::{
+        TypeLayout, TLData, TLDataDiscriminant, TLField,TLFieldAndType, 
+        FullType, ReprAttr, TLDiscriminant,TLPrimitive,
+        TLEnum,IsExhaustive,IncompatibleWithNonExhaustive,TLNonExhaustive,
+        tagging::{CheckableTag,TagErrors},
+    },
     utils::{max_by,min_max_by},
 };
 
@@ -1142,7 +1140,7 @@ pub fn get_checking_globals()->&'static CheckingGlobals{
 
 ///////////////////////////////////////////////
 
-pub(super) fn push_err<O, U, FG, VC>(
+pub(crate) fn push_err<O, U, FG, VC>(
     errs: &mut RVec<AbiInstability>,
     this: O,
     other: O,

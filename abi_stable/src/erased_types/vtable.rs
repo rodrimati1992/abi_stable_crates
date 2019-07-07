@@ -21,13 +21,12 @@ use super::{
 
 use crate::{
     StableAbi,
-    abi_stability::Tag,
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
     pointer_trait::GetPointerKind,
     std_types::{Tuple3,RSome,RNone,RIoError,RSeekFrom},
+    type_layout::Tag,
     type_level::{
-        bools::*,
         impl_enum::{Implemented,Unimplemented,IsImplemented},
         trait_marker,
     },

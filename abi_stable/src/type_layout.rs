@@ -11,17 +11,12 @@ use std::{
 
 
 use crate::{
+    abi_stability::stable_abi_trait::{AbiInfo,GetAbiInfo},
     const_utils::empty_slice, sabi_types::VersionStrings, 
     sabi_types::CmpIgnored,
     std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr,RSlice},
     prefix_type::{FieldAccessibility,IsConditional},
     reflection::ModReflMode,
-};
-
-use super::{
-    AbiInfo, 
-    GetAbiInfo,
-    tagging::Tag,
 };
 
 
@@ -31,6 +26,7 @@ mod tl_field;
 mod tl_fields;
 mod tl_functions;
 mod tl_other;
+pub mod tagging;
 
 pub use self::{
     construction::{
@@ -80,6 +76,7 @@ pub use self::{
         TLFunction,
         TLPrefixType,
     },
+    tagging::Tag,
 };
 
 

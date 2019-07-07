@@ -70,10 +70,9 @@ use self::{
 };
 
 use crate::{
-    abi_stability::Tag,
     erased_types::{c_functions,InterfaceType},
     marker_type::ErasedObject,
-    type_level::bools::{True,False,Boolean},
     sabi_types::MaybeCmp,
     std_types::Tuple2,
+    type_layout::Tag,
 };

@@ -86,6 +86,7 @@ pub mod trait_marker{
     pub struct Error;
     
     #[doc(hidden)]
+    #[allow(non_camel_case_types)]
     pub struct define_this_in_the_impl_InterfaceType_macro;
 }
 
@@ -95,7 +96,7 @@ pub mod impl_enum{
 
     use std::marker::PhantomData;
 
-    use core_extensions::type_level_bool::{True,False,Boolean};
+    use core_extensions::type_level_bool::{True,False};
 
     mod sealed{
         pub trait Sealed{}

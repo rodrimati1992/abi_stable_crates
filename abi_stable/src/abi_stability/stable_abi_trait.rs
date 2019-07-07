@@ -16,13 +16,13 @@ use std::{
 };
 
 use crate::{
-    abi_stability::type_layout::{
-        LifetimeIndex, TLData, TLField, TypeLayout, TypeLayoutParams,
-        ItemInfo,ReprAttr,TLPrimitive,TLEnum,TLDiscriminants,IsExhaustive,
-    },
     std_types::{RNone, RSome, utypeid::UTypeId},
     sabi_types::ReturnValueEquality,
     reflection::ModReflMode,
+    type_layout::{
+        LifetimeIndex, TLData, TLField, TypeLayout, TypeLayoutParams,
+        ItemInfo,ReprAttr,TLPrimitive,TLEnum,TLDiscriminants,IsExhaustive,
+    },
 };
 
 
