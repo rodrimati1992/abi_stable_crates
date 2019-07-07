@@ -20,7 +20,7 @@ use crate::{
     },
     type_level::{
         //option::{Some_,None_,SomeTrait}
-        bools::{False, True},
+        bools::True,
     },
 };
 

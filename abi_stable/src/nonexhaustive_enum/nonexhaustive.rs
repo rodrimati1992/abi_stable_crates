@@ -32,7 +32,6 @@ use crate::{
 
 use core_extensions::{
     SelfOps,
-    TypeIdentity,
     utils::transmute_ignore_size,
 };
 
@@ -175,7 +174,7 @@ with the 1.0 version of `Error` they would get an `Err(..)` back.
     phantom_field="non_exhaustive:<E as GetNonExhaustive<S>>::NonExhaustive",
 )]
 pub struct NonExhaustive<E,S,I>{
-    fill:S,
+    fill:ManuallyDrop<S>,
     vtable:StaticRef<NonExhaustiveVtable<E,S,I>>,
     _marker:PhantomData<Tuple2<UnsafeIgnoredType<E>,UnsafeIgnoredType<I>>>,
 }
@@ -285,7 +284,7 @@ This panics if the storage has an alignment or size smaller than that of `E`.
             _marker:PhantomData
         };
         
-        (&mut this.fill as *mut S as *mut E).write(value);
+        (&mut this.fill as *mut ManuallyDrop<S> as *mut E).write(value);
 
         this
     }
@@ -359,7 +358,7 @@ assert_eq!(new_c().as_enum().ok()  ,None             );
         let discriminant=self.get_discriminant();
         if E::is_valid_discriminant(discriminant) {
             unsafe{
-                Ok(&*(&self.fill as *const S as *const E))
+                Ok(&*(&self.fill as *const ManuallyDrop<S> as *const E))
             }
         }else{
             Err(UnwrapEnumError::new(self))
@@ -408,7 +407,7 @@ assert_eq!(new_c().as_enum_mut().ok()  ,None);
             */
             self.vtable=E::VTABLE_REF;
             unsafe{
-                Ok(&mut *(&mut self.fill as *mut S as *mut E))
+                Ok(&mut *(&mut self.fill as *mut ManuallyDrop<S> as *mut E))
             }
         }else{
             Err(UnwrapEnumError::new(self))
@@ -445,7 +444,7 @@ assert_eq!(new_c().into_enum().ok()  ,None);
         if E::is_valid_discriminant(discriminant) {
             let this=ManuallyDrop::new(self);
             unsafe{
-                Ok((&this.fill as *const S as *const E).read())
+                Ok((&this.fill as *const ManuallyDrop<S> as *const E).read())
             }
         }else{
             Err(UnwrapEnumError::new(self))
@@ -469,7 +468,7 @@ Gets the value of the discriminant of the enum.
     #[inline]
     pub fn get_discriminant(&self)->E::Discriminant{
         unsafe{
-            *(&self.fill as *const S as *const E::Discriminant)
+            *(&self.fill as *const ManuallyDrop<S> as *const E::Discriminant)
         }
     }
 
@@ -570,13 +569,13 @@ This panics if the storage has an alignment or size smaller than that of `F`.
 
     fn sabi_erased_ref(&self)->&ErasedObject{
         unsafe{
-            &*(&self.fill as *const S as *const ErasedObject)
+            &*(&self.fill as *const ManuallyDrop<S> as *const ErasedObject)
         }
     }
 
     fn sabi_erased_mut(&mut self)->&mut ErasedObject{
         unsafe{
-            &mut *(&mut self.fill as *mut S as *mut ErasedObject)
+            &mut *(&mut self.fill as *mut ManuallyDrop<S> as *mut ErasedObject)
         }
     }
 }

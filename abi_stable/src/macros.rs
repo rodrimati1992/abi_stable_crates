@@ -67,10 +67,8 @@ macro_rules! tl_genparams {
     ( $($lt:lifetime),*  ; $($ty:ty),*  ; $($const_p:expr),*  ) => ({
         #[allow(unused_imports)]
         use $crate::{
-            abi_stability::{
-                stable_abi_trait::SharedStableAbi,
-                type_layout::GenericParams
-            },
+            abi_stability::stable_abi_trait::SharedStableAbi,
+            type_layout::GenericParams,
             std_types::StaticStr,
         };
 
@@ -363,14 +361,14 @@ struct Value<T>{
 #[macro_export]
 macro_rules! tag {
     ([ $( $elem:expr ),* $(,)? ])=>{{
-        use $crate::abi_stability::tagging::FromLiteral;
+        use $crate::type_layout::tagging::FromLiteral;
         
         Tag::arr(&[
             $( FromLiteral($elem).to_tag(), )*
         ])
     }};
     ({ $( $key:expr=>$value:expr ),* $(,)? })=>{{
-        use $crate::abi_stability::tagging::{FromLiteral,Tag};
+        use $crate::type_layout::tagging::{FromLiteral,Tag};
 
         Tag::map(&[
             $(
@@ -382,7 +380,7 @@ macro_rules! tag {
         ])
     }};
     ({ $( $key:expr ),* $(,)? })=>{{
-        use $crate::abi_stability::tagging::FromLiteral;
+        use $crate::type_layout::tagging::FromLiteral;
 
         Tag::set(&[
             $(
@@ -391,7 +389,7 @@ macro_rules! tag {
         ])
     }};
     ($expr:expr) => {{
-        $crate::abi_stability::tagging::FromLiteral($expr).to_tag()
+        $crate::type_layout::tagging::FromLiteral($expr).to_tag()
     }};
 }
 
@@ -424,14 +422,14 @@ with information about the place where it's called.
 #[macro_export]
 macro_rules! make_item_info {
     () => (
-        $crate::abi_stability::type_layout::ItemInfo::new(
+        $crate::type_layout::ItemInfo::new(
             concat!(
                 env!("CARGO_PKG_NAME"),
                 ";",
                 env!("CARGO_PKG_VERSION")
             ),
             line!(),
-            $crate::abi_stability::type_layout::ModPath::inside(module_path!()),
+            $crate::type_layout::ModPath::inside(module_path!()),
         )
     )
 }

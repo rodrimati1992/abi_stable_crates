@@ -6,7 +6,6 @@ use std::{
 };
 
 use crate::{
-    abi_stability::Tag,
     erased_types::{c_functions,trait_objects,InterfaceType,FormattingMode},
     marker_type::ErasedObject,
     nonexhaustive_enum::{
@@ -19,6 +18,7 @@ use crate::{
     },
     sabi_types::{StaticRef},
     std_types::{ROption,RResult,RString,RCow,RCmpOrdering,RBoxError},
+    type_layout::Tag,
     traits::InlineStorage,
 };
 
