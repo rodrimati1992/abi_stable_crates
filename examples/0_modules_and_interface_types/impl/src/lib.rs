@@ -47,6 +47,7 @@ fn instantiate_root_module()->&'static TextOpsMod{
         deserializers:{
             // Another way to instantiate a module.
             const MOD_:DeserializerModVal=DeserializerModVal{
+                something:PhantomData,
                 deserialize_state,
                 deserialize_command,
                 deserialize_command_borrowing,

@@ -71,11 +71,30 @@ impl Debug for TLFields{
 }
 
 
+impl Display for TLFields {
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fields_display_formatting(self.get_fields(),f)
+    }
+}
+
+
 impl Eq for TLFields{}
 impl PartialEq for TLFields{
     fn eq(&self,other:&Self)->bool{
         self.get_fields().eq(other.get_fields())
     }
+}
+
+
+fn fields_display_formatting<I>(iter:I,f:&mut fmt::Formatter<'_>)->fmt::Result
+where
+    I:IntoIterator<Item=TLField>
+{
+    for field in iter {
+        Display::fmt(&field,f)?;
+        writeln!(f)?;
+    }
+    Ok(())
 }
 
 
@@ -116,6 +135,13 @@ impl TLFieldsOrSlice{
 pub enum TLFOSIter{
     TLFields(TLFieldsIterator),
     Slice(slice::Iter<'static,TLField>),
+}
+
+
+impl Display for TLFieldsOrSlice {
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fields_display_formatting(self.get_fields(),f)
+    }
 }
 
 

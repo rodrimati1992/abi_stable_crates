@@ -20,9 +20,10 @@ use crate::{
     std_types::{RVec, StaticSlice, StaticStr,utypeid::UTypeId,RBoxError,RResult},
     traits::IntoReprC,
     type_layout::{
-        TypeLayout, TLData, TLDataDiscriminant, TLField,TLFieldAndType, 
+        TypeLayout, TLData, TLDataDiscriminant, TLField, 
         FullType, ReprAttr, TLDiscriminant,TLPrimitive,
         TLEnum,IsExhaustive,IncompatibleWithNonExhaustive,TLNonExhaustive,
+        TLFieldOrFunction, TLFunction,
         tagging::{CheckableTag,TagErrors},
     },
     utils::{max_by,min_max_by},
@@ -45,7 +46,7 @@ pub struct AbiInstabilityErrors {
 #[derive(Debug,Clone, PartialEq)]
 #[repr(C)]
 pub struct AbiInstabilityError {
-    pub stack_trace: RVec<TLFieldAndType>,
+    pub stack_trace: RVec<ExpectedFound<TLFieldOrFunction>>,
     pub errs: RVec<AbiInstability>,
     pub index: usize,
     _priv:(),
@@ -54,30 +55,30 @@ pub struct AbiInstabilityError {
 /// An individual error from checking the layout of some type.
 #[derive(Debug, PartialEq,Clone)]
 pub enum AbiInstability {
-    IsPrefix(ExpectedFoundError<bool>),
-    NonZeroness(ExpectedFoundError<bool>),
-    Name(ExpectedFoundError<FullType>),
-    Package(ExpectedFoundError<StaticStr>),
+    IsPrefix(ExpectedFound<bool>),
+    NonZeroness(ExpectedFound<bool>),
+    Name(ExpectedFound<FullType>),
+    Package(ExpectedFound<StaticStr>),
     PackageVersionParseError(ParseVersionError),
-    PackageVersion(ExpectedFoundError<VersionStrings>),
-    MismatchedPrefixSize(ExpectedFoundError<usize>),
-    Size(ExpectedFoundError<usize>),
-    Alignment(ExpectedFoundError<usize>),
-    GenericParamCount(ExpectedFoundError<FullType>),
-    TLDataDiscriminant(ExpectedFoundError<TLDataDiscriminant>),
-    MismatchedPrimitive(ExpectedFoundError<TLPrimitive>),
-    FieldCountMismatch(ExpectedFoundError<usize>),
-    FieldLifetimeMismatch(ExpectedFoundError<TLField>),
-    UnexpectedField(ExpectedFoundError<TLField>),
-    TooManyVariants(ExpectedFoundError<usize>),
-    MismatchedPrefixConditionality(ExpectedFoundError<StaticSlice<IsConditional>>),
-    MismatchedExhaustiveness(ExpectedFoundError<IsExhaustive>),
-    UnexpectedVariant(ExpectedFoundError<StaticStr>),
-    ReprAttr(ExpectedFoundError<ReprAttr>),
-    EnumDiscriminant(ExpectedFoundError<TLDiscriminant>),
+    PackageVersion(ExpectedFound<VersionStrings>),
+    MismatchedPrefixSize(ExpectedFound<usize>),
+    Size(ExpectedFound<usize>),
+    Alignment(ExpectedFound<usize>),
+    GenericParamCount(ExpectedFound<FullType>),
+    TLDataDiscriminant(ExpectedFound<TLDataDiscriminant>),
+    MismatchedPrimitive(ExpectedFound<TLPrimitive>),
+    FieldCountMismatch(ExpectedFound<usize>),
+    FieldLifetimeMismatch(ExpectedFound<TLField>),
+    FnLifetimeMismatch(ExpectedFound<TLFunction>),
+    UnexpectedField(ExpectedFound<TLField>),
+    TooManyVariants(ExpectedFound<usize>),
+    MismatchedPrefixConditionality(ExpectedFound<StaticSlice<IsConditional>>),
+    MismatchedExhaustiveness(ExpectedFound<IsExhaustive>),
+    UnexpectedVariant(ExpectedFound<StaticStr>),
+    ReprAttr(ExpectedFound<ReprAttr>),
+    EnumDiscriminant(ExpectedFound<TLDiscriminant>),
     IncompatibleWithNonExhaustive(IncompatibleWithNonExhaustive),
     TagError{
-        expected_found:ExpectedFoundError<CheckableTag>,
         err:TagErrors,
     },
 }
@@ -107,12 +108,8 @@ impl fmt::Display for AbiInstabilityErrors {
         writeln!(
             f,
             "Compared <this>:\n{}\nTo <other>:\n{}\n",
-            self.interface.layout.full_type().to_string().left_padder(4),
-            self.implementation
-                .layout
-                .full_type()
-                .to_string()
-                .left_padder(4),
+            self.interface.layout.to_string().left_padder(4),
+            self.implementation.layout.to_string().left_padder(4),
         )?;
         for err in &self.errors {
             fmt::Display::fmt(err, f)?;
@@ -120,17 +117,28 @@ impl fmt::Display for AbiInstabilityErrors {
         Ok(())
     }
 }
+
 impl fmt::Display for AbiInstabilityError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut extra_err=None::<String>;
 
-        writeln!(f, "{} error(s) at:", self.errs.len())?;
-        write!(f, "<this>")?;
-        for field in &self.stack_trace {
-            write!(f, ".{}", field.name())?;
+        write!(f, "{} error(s)", self.errs.len())?;
+        if self.stack_trace.is_empty() {
+            writeln!(f,".")?;
+        }else{
+            writeln!(f,"inside:\n    <other>\n")?;
         }
-        if let Some(last) = self.stack_trace.last() {
-            write!(f, ":{}", last.full_type())?;
+        for field in &self.stack_trace {
+            writeln!(f, "{}\n", field.found.to_string().left_padder(4))?;
+        }
+        if let Some(ExpectedFound{expected,found}) = self.stack_trace.last() {
+            writeln!(
+                f, 
+                "Layout of expected type:\n{}\n\n\
+                 Layout of found type:\n{}\n", 
+                expected.formatted_layout().left_padder(4),
+                found.formatted_layout().left_padder(4),
+            )?;
         }
         writeln!(f)?;
 
@@ -146,7 +154,7 @@ impl fmt::Display for AbiInstabilityError {
 
                     (
                         "could not parse version string",
-                        Some(ExpectedFoundError { expected, found }),
+                        Some(ExpectedFound { expected, found }),
                     )
                 }
                 AI::PackageVersion(v) => ("incompatible package versions", v.display_str()),
@@ -165,10 +173,13 @@ impl fmt::Display for AbiInstabilityError {
                 AI::TLDataDiscriminant(v) => ("incompatible data ", v.debug_str()),
                 AI::MismatchedPrimitive(v) => ("incompatible primitive", v.debug_str()),
                 AI::FieldCountMismatch(v) => ("too many fields", v.display_str()),
-                AI::FieldLifetimeMismatch(v) => {
-                    ("field references different lifetimes", v.debug_str())
+                AI::FnLifetimeMismatch(v) => {
+                    ("function pointers reference different lifetimes", v.display_str())
                 }
-                AI::UnexpectedField(v) => ("unexpected field", v.debug_str()),
+                AI::FieldLifetimeMismatch(v) => {
+                    ("field references different lifetimes", v.display_str())
+                }
+                AI::UnexpectedField(v) => ("unexpected field", v.display_str()),
                 AI::TooManyVariants(v) => ("too many variants", v.display_str()),
                 AI::MismatchedPrefixConditionality(v)=>(
                     "prefix fields differ in whether they are conditional",
@@ -186,14 +197,14 @@ impl fmt::Display for AbiInstabilityError {
 
                     ("",None)
                 }
-                AI::TagError{expected_found,err} => {
+                AI::TagError{err} => {
                     extra_err=Some(err.to_string());
 
-                    ("incompatible tag", expected_found.display_str())
+                    ("", None)
                 },
             };
 
-            let (error_msg, expected_err):(&'static str, Option<ExpectedFoundError<String>>)=pair;
+            let (error_msg, expected_err):(&'static str, Option<ExpectedFound<String>>)=pair;
 
             if let Some(expected_err)=expected_err{
                 writeln!(
@@ -253,47 +264,47 @@ impl CheckingUTypeId{
 /// Represents an error where a value was expected,but another value was found.
 #[derive(Debug, PartialEq,Clone)]
 #[repr(C)]
-pub struct ExpectedFoundError<T> {
+pub struct ExpectedFound<T> {
     pub expected: T,
     pub found: T,
 }
 
-impl<T> ExpectedFoundError<T> {
-    pub fn new<O, F>(this: O, other: O, mut field_getter: F) -> ExpectedFoundError<T>
+impl<T> ExpectedFound<T> {
+    pub fn new<O, F>(this: O, other: O, mut field_getter: F) -> ExpectedFound<T>
     where
         F: FnMut(O) -> T,
     {
-        ExpectedFoundError {
+        ExpectedFound {
             expected: field_getter(this),
             found: field_getter(other),
         }
     }
 
-    pub fn as_ref(&self) -> ExpectedFoundError<&T> {
-        ExpectedFoundError {
+    pub fn as_ref(&self) -> ExpectedFound<&T> {
+        ExpectedFound {
             expected: &self.expected,
             found: &self.found,
         }
     }
 
-    pub fn map<F, U>(self, mut f: F) -> ExpectedFoundError<U>
+    pub fn map<F, U>(self, mut f: F) -> ExpectedFound<U>
     where
         F: FnMut(T) -> U,
     {
-        ExpectedFoundError {
+        ExpectedFound {
             expected: f(self.expected),
             found: f(self.found),
         }
     }
 
-    pub fn display_str(&self) -> Option<ExpectedFoundError<String>>
+    pub fn display_str(&self) -> Option<ExpectedFound<String>>
     where
         T: fmt::Display,
     {
         Some(self.as_ref().map(|x| format!("{:#}", x)))
     }
 
-    pub fn debug_str(&self) -> Option<ExpectedFoundError<String>>
+    pub fn debug_str(&self) -> Option<ExpectedFound<String>>
     where
         T: fmt::Debug,
     {
@@ -337,7 +348,7 @@ pub struct CheckedNonExhaustiveEnums{
 ///////////////////////////////////////////////
 
 struct AbiChecker {
-    stack_trace: RVec<TLFieldAndType>,
+    stack_trace: RVec<ExpectedFound<TLFieldOrFunction>>,
     checked_prefix_types:RVec<CheckedPrefixTypes>,
     checked_nonexhaustive_enums:RVec<CheckedNonExhaustiveEnums>,
 
@@ -379,7 +390,7 @@ impl AbiChecker {
         if t_fields.len()==0&&o_fields.len()==0 {
             return;
         }
-
+        
         let is_prefix= match &t_lay.data {
             TLData::PrefixType{..}=>true,
             TLData::Enum(enum_)=>!enum_.exhaustiveness.is_exhaustive(),
@@ -430,11 +441,28 @@ impl AbiChecker {
                     push_err(errs, this_f, other_f, |x| *x, AI::FieldLifetimeMismatch);
                 }
 
-                self.stack_trace.push(TLFieldAndType::new(*this_f));
-                    
+                self.stack_trace.push(ExpectedFound{
+                    expected:(*this_f).into(),
+                    found:(*other_f).into(),
+                });
+
                 let sf_ctx=FieldContext::Subfields;
-                
+
                 for (t_func,o_func) in this_f.function_range.iter().zip(other_f.function_range) {
+                    self.error_index += 1;
+                    let errs_index = self.error_index;
+                    let mut errs_ = RVec::<AbiInstability>::new();
+                    let errs=&mut errs_;
+
+                    self.stack_trace.push(ExpectedFound{
+                        expected:t_func.into(),
+                        found:o_func.into(),
+                    });
+
+                    if t_func.paramret_lifetime_indices != o_func.paramret_lifetime_indices {
+                        push_err(errs, t_func, o_func, |x| x, AI::FnLifetimeMismatch);
+                    }
+
                     self.check_fields(
                         errs,
                         t_lay,
@@ -443,12 +471,27 @@ impl AbiChecker {
                         t_func.get_params_ret_iter(),
                         o_func.get_params_ret_iter(),
                     );
+
+                    if !errs_.is_empty() {
+                        self.errors.push(AbiInstabilityError {
+                            stack_trace: self.stack_trace.clone(),
+                            errs: errs_,
+                            index: errs_index,
+                            _priv:(),
+                        });
+                    }
+
+                    self.stack_trace.pop();
                 }
 
 
                 self.check_inner(t_field_abi, o_field_abi);
+                self.stack_trace.pop();
             }else{
-                self.stack_trace.push(TLFieldAndType::new(*this_f));
+                self.stack_trace.push(ExpectedFound{
+                    expected:(*this_f).into(),
+                    found:(*other_f).into(),
+                });
                 
                 let t_field_layout=&t_field_abi.layout;
                 let o_field_layout=&o_field_abi.layout;
@@ -464,9 +507,9 @@ impl AbiChecker {
                         AI::Alignment
                     );
                 }
+                self.stack_trace.pop();
             }
 
-            self.stack_trace.pop();
         }
     }
 
@@ -564,7 +607,7 @@ impl AbiChecker {
             let t_discr = t_lay.data.as_discriminant();
             let o_discr = o_lay.data.as_discriminant();
             if t_discr != o_discr {
-                errs.push(AI::TLDataDiscriminant(ExpectedFoundError {
+                errs.push(AI::TLDataDiscriminant(ExpectedFound {
                     expected: t_discr,
                     found: o_discr,
                 }));
@@ -574,10 +617,6 @@ impl AbiChecker {
             let o_tag=o_lay.tag.to_checkable();
             if let Err(tag_err)=t_tag.check_compatible(&o_tag) {
                 errs.push(AI::TagError{
-                    expected_found:ExpectedFoundError{
-                        expected:t_tag,
-                        found:o_tag,
-                    },
                     err:tag_err,
                 });
             }
@@ -589,7 +628,7 @@ impl AbiChecker {
 
                 (TLData::Primitive(t_prim), TLData::Primitive(o_prim)) => {
                     if t_prim != o_prim {
-                        errs.push(AI::MismatchedPrimitive(ExpectedFoundError {
+                        errs.push(AI::MismatchedPrimitive(ExpectedFound {
                             expected: t_prim,
                             found: o_prim,
                         }));
@@ -1023,7 +1062,7 @@ pub(super) fn check_layout_compatibility_with_globals(
     if interface.prefix_kind || implementation.prefix_kind {
         errors = vec![AbiInstabilityError {
             stack_trace: vec![].into(),
-            errs: vec![AbiInstability::IsPrefix(ExpectedFoundError {
+            errs: vec![AbiInstability::IsPrefix(ExpectedFound {
                 expected: false,
                 found: true,
             })]
@@ -1148,9 +1187,9 @@ pub(crate) fn push_err<O, U, FG, VC>(
     mut variant_constructor: VC,
 ) where
     FG: FnMut(O) -> U,
-    VC: FnMut(ExpectedFoundError<U>) -> AbiInstability,
+    VC: FnMut(ExpectedFound<U>) -> AbiInstability,
 {
-    let x = ExpectedFoundError::new(this, other, field_getter);
+    let x = ExpectedFound::new(this, other, field_getter);
     let x = variant_constructor(x);
     errs.push(x);
 }

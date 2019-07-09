@@ -196,6 +196,10 @@ impl TLFunctionRange{
     pub fn len(self)->usize{
         self.fn_range.len()
     }
+    #[inline]
+    pub fn is_empty(self)->bool{
+        self.fn_range.len==0
+    }
 }
 
 
