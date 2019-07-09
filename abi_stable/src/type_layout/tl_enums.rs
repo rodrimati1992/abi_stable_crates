@@ -81,6 +81,19 @@ impl TLEnum{
 }
 
 
+impl Display for TLEnum {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f,"variants:{:?}",self.variant_names)?;
+        writeln!(f,"exhaustiveness:{:?}",self.exhaustiveness)?;
+        writeln!(f,"fields(all variants combined):\n{}",self.fields.to_string().left_padder(4))?;
+        writeln!(f,"discriminants:{:?}",self.discriminants)?;
+        writeln!(f,"field counts(per-variant):{:?}",self.field_count)?;
+        Ok(())        
+    }
+}
+
+
+
 ///////////////////////////
 
 

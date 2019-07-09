@@ -48,6 +48,22 @@ pub struct TLPrefixType {
 }
 
 
+impl Display for TLPrefixType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f,"first_suffix_field:{}",self.first_suffix_field)?;
+        write!(f,"accessible_fields:\n    ")?;
+        f.debug_list()
+         .entries(self.accessible_fields.iter_field_count(self.fields.len()))
+         .finish()?;
+        writeln!(f,)?;
+        writeln!(f,"conditional_prefix_fields:\n    {:?}",self.conditional_prefix_fields)?;
+        writeln!(f,"fields:\n{}",self.fields.to_string().left_padder(4))?;
+        Ok(())
+    }
+}
+
+
+
 /////////////////////////////////////////////////////
 
 /// The `repr(..)` attribute used on a type.
@@ -221,6 +237,38 @@ pub enum TLData {
     /// vtables and modules that can be extended in minor versions.
     PrefixType(TLPrefixType),
 }
+
+
+impl Display for TLData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TLData::Primitive(prim)=>{
+                writeln!(f,"Primitive:{:?}",prim)
+            },
+            TLData::Opaque=>{
+                writeln!(f,"Opaque data")
+            },
+            TLData::Struct{fields}=>{
+                writeln!(f,"Struct with Fields:\n{}",fields.to_string().left_padder(4))
+            },
+            TLData::Union{fields}=>{
+                writeln!(f,"Union with Fields:\n{}",fields.to_string().left_padder(4))
+            },
+            TLData::Enum (tlenum)=>{
+                writeln!(f,"Enum:")?;
+                Display::fmt(tlenum,f)
+            },
+            TLData::PrefixType(prefix)=>{
+                writeln!(f,"Prefix type:")?;
+                Display::fmt(prefix,f)
+            },
+        }
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
 
 /// Types defined in the compiler
 #[repr(u8)]
@@ -483,6 +531,50 @@ impl Debug for FullType {
 ////////////////////////////////////
 
 
+#[repr(u8)]
+#[derive(Copy,Clone,Debug,Eq,PartialEq,StableAbi)]
+pub enum TLFieldOrFunction{
+    Field(TLField),
+    Function(TLFunction),
+}
+
+
+impl From<TLField> for TLFieldOrFunction{
+    fn from(x:TLField)->Self{
+        TLFieldOrFunction::Field(x)
+    }
+}
+
+impl From<TLFunction> for TLFieldOrFunction{
+    fn from(x:TLFunction)->Self{
+        TLFieldOrFunction::Function(x)
+    }
+}
+
+
+impl Display for TLFieldOrFunction{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        match self {
+            TLFieldOrFunction::Field(x)=>Display::fmt(x,f),
+            TLFieldOrFunction::Function(x)=>Display::fmt(x,f),
+        }
+    }
+}
+
+
+impl TLFieldOrFunction{
+    pub fn formatted_layout(&self)->String{
+        match self {
+            TLFieldOrFunction::Field(x)=>x.abi_info.get().layout.to_string(),
+            TLFieldOrFunction::Function(x)=>x.to_string(),
+        }
+    }
+}
+
+
+////////////////////////////////////
+
+
 
 /// A function pointer in a field.
 #[repr(C)]
@@ -546,7 +638,7 @@ impl TLFunction{
         const UNIT_GET_ABI_INFO:GetAbiInfo=<() as MakeGetAbiInfo<StableAbi_Bound>>::CONST;
         TLField::new(
             "__returns",
-            self.paramret_lifetime_indices.as_slice(),
+            &[],
             self.return_abi_info.unwrap_or(UNIT_GET_ABI_INFO)
         )
     }
@@ -571,7 +663,9 @@ impl Display for TLFunction{
         let params=self.get_params();
         let param_count=params.len();
         for (param_i,param) in params.enumerate() {
-            Display::fmt(&TLFieldAndType::new(param),f)?;
+            Display::fmt(&param.name,f)?;
+            Display::fmt(&": ",f)?;
+            Display::fmt(&param.full_type(),f)?;
             if param_i+1!=param_count {
                 Display::fmt(&", ",f)?;
             }
@@ -580,7 +674,11 @@ impl Display for TLFunction{
         
         let returns=self.get_return(); 
         Display::fmt(&"->",f)?;
-        Display::fmt(&TLFieldAndType::new(returns),f)?;
+        Display::fmt(&returns.full_type(),f)?;
+
+        if !self.paramret_lifetime_indices.is_empty() {
+            writeln!(f,"\nlifetime indices:{:?}",self.paramret_lifetime_indices)?;
+        }
 
         Ok(())
     }

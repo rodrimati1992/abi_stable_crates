@@ -574,7 +574,7 @@ fn declare_vtable<'a>(
 
     quote!(
         #[repr(C)]
-        #[derive(StableAbi)]
+        #[derive(abi_stable::StableAbi)]
         #[sabi(kind(Prefix(prefix_struct="VTable")))]
         #[sabi(missing_field(panic))]
         #( #[sabi(prefix_bound=#lifetime_bounds)] )*

@@ -9,6 +9,7 @@ use std::{
     mem,
 };
 
+use core_extensions::StringExt;
 
 use crate::{
     abi_stability::stable_abi_trait::{AbiInfo,GetAbiInfo},
@@ -47,7 +48,6 @@ pub use self::{
     tl_field::{
         FieldAccessor,
         TLField,
-        TLFieldAndType,
     },
     tl_fields::{
         TLFields,
@@ -75,6 +75,7 @@ pub use self::{
         TLPrimitive,
         TLFunction,
         TLPrefixType,
+        TLFieldOrFunction,
     },
     tagging::Tag,
 };
@@ -299,3 +300,36 @@ impl TypeLayout {
 }
 
 
+
+
+
+impl Display for TypeLayout {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (package,version)=self.item_info.package_and_version();
+        writeln!(
+            f,
+            "--- Type Layout ---\n\
+             type:{ty}\n\
+             size:{size} align:{align}\n\
+             package:'{package}' version:'{version}'",
+            ty   =self.full_type(),
+            size =self.size,
+            align=self.alignment,
+            package=package,
+            version=version,
+        )?;
+        writeln!(f,"data:\n{}",self.data.to_string().left_padder(4))?;
+        if !self.phantom_fields.is_empty() {
+            writeln!(f,"Phantom fields:\n")?;
+            for field in &*self.phantom_fields {
+                write!(f,"{}",field.to_string().left_padder(4))?;
+            }
+        }
+        writeln!(f,"Tag:\n{}",self.tag.to_string().left_padder(4))?;
+        writeln!(f,"Reflection Tag:\n{}",self.reflection_tag.to_string().left_padder(4))?;
+        writeln!(f,"Private Tag:\n{}",self.private_tag.to_string().left_padder(4))?;
+        writeln!(f,"Repr attribute:{:?}",self.repr_attr)?;
+        writeln!(f,"Module reflection mode:{:?}",self.mod_refl_mode)?;
+        Ok(())
+    }
+}
