@@ -12,7 +12,7 @@ A type with lifetime type,and lifetime parameters:
 use abi_stable::{
     tl_genparams,
     StableAbi,
-    abi_stability::type_layout::GenericParams
+    type_layout::GenericParams
 };
 
 struct Reference<'a,'b,T,U>(&'a T,&'b U);
@@ -39,7 +39,7 @@ Note that while this example won't compile until const parameters are usable,
 use abi_stable::{
     tl_genparams,
     StableAbi,
-    abi_stability::type_layout::GenericParams
+    type_layout::GenericParams
 };
 
 struct ArrayReference<'a,'b,T,U,const SIZE_T:usize,const SIZE_U:usize>{
@@ -337,7 +337,7 @@ way that keeps the tags and the type bounds in sync.
 ```
 use abi_stable::{
     tag,
-    abi_stability::Tag,
+    type_layout::Tag,
     StableAbi,
 };
 
@@ -416,7 +416,7 @@ macro_rules! assert_matches {
 
 
 /**
-Constructs a abi_stable::abi_stability::type_layout::ItemInfo,
+Constructs a abi_stable::type_layout::ItemInfo,
 with information about the place where it's called.
 */
 #[macro_export]

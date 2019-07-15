@@ -30,7 +30,7 @@ use crate::{
 };
 
 /// All the errors from checking the layout of every nested type in AbiInfo.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 #[repr(C)]
 pub struct AbiInstabilityErrors {
     pub interface: &'static AbiInfo,
@@ -103,6 +103,11 @@ impl AbiInstabilityErrors {
     }
 }
 
+impl fmt::Debug for AbiInstabilityErrors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self,f)
+    }
+}
 impl fmt::Display for AbiInstabilityErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(

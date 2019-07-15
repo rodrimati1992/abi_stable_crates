@@ -108,7 +108,7 @@ impl Name for Boor{
 ```rust
 use abi_stable::{
     tag,
-    abi_stability::Tag,
+    type_layout::Tag,
 };
 
 const NULL:Tag=Tag::null();
@@ -173,7 +173,7 @@ const MAP_0_FN:Tag=Tag::map(&[
 ```rust
 use abi_stable::{
     tag,
-    abi_stability::Tag,
+    type_layout::Tag,
 };
 
 const TAG:Tag=tag!{{

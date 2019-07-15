@@ -4,7 +4,7 @@ use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,push_err},
     },
-    std_types::{StaticSlice,StaticStr,RVec},
+    std_types::{StaticSlice,StaticStr,RVec,RString},
 };
 
 
@@ -293,7 +293,7 @@ impl TLNonExhaustive{
 
         if err {
             Err(IncompatibleWithNonExhaustive{
-                full_type:layout.full_type.to_string(),
+                full_type:layout.full_type.to_string().into(),
                 module_path:layout.item_info.mod_path,
                 type_size:self.original_size,
                 type_alignment:self.original_alignment,
@@ -312,7 +312,7 @@ impl TLNonExhaustive{
 #[repr(C)]
 #[derive(Debug,Clone,PartialEq, Eq,StableAbi)]
 pub struct IncompatibleWithNonExhaustive{
-    full_type:String,
+    full_type:RString,
     module_path:ModPath,
     type_size:usize,
     type_alignment:usize,
