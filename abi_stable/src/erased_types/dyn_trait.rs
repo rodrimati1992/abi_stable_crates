@@ -42,6 +42,7 @@ use super::{
     trait_objects::*,
     vtable::{GetVtable, VTable},
     traits::InterfaceFor,
+    IteratorItemOrDefault,
 };
 
 
@@ -131,6 +132,8 @@ These are the traits:
 - Display 
 
 - Debug 
+
+- std::error::Error
 
 - Default: Can be called as an inherent method.
 
@@ -446,14 +449,14 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        // prefix_bound="I:InterfaceBound<'borr>",
-        // bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound<'static>",
+        // debug_print,
+        // prefix_bound="I:InterfaceBound",
+        // bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound",
+        bound="I:InterfaceBound",
         bound="VTable<'borr,P,I>:SharedStableAbi",
-        tag="<I as InterfaceBound<'borr>>::TAG",
+        tag="<I as InterfaceBound>::TAG",
     )]
-    pub struct DynTrait<'borr,P,I,EV=()> 
-    where I:InterfaceBound<'borr>
-    {
+    pub struct DynTrait<'borr,P,I,EV=()> {
         pub(super) object: ManuallyDrop<P>,
         vtable: *const VTable<'borr,P,I>,
         extra_vtable:EV,
@@ -470,7 +473,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         pub fn from_value<T>(object: T) -> DynTrait<'static,RBox<()>,T::Interface>
         where
             T: ImplType,
-            T::Interface:InterfaceBound<'static>,
+            T::Interface:InterfaceBound,
             T: GetVtable<'static,T,RBox<()>,RBox<T>,<T as ImplType>::Interface>,
         {
             let object = RBox::new(object);
@@ -484,7 +487,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         pub fn from_ptr<P, T>(object: P) -> DynTrait<'static,P::TransmutedPtr,T::Interface>
         where
             T: ImplType,
-            T::Interface:InterfaceBound<'static>,
+            T::Interface:InterfaceBound,
             T: GetVtable<'static,T,P::TransmutedPtr,P,<T as ImplType>::Interface>,
             P: Deref<Target = T>+TransmuteElement<()>,
         {
@@ -503,7 +506,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         pub fn from_any_value<T,I>(object: T,interface:I) -> DynTrait<'static,RBox<()>,I>
         where
             T:'static,
-            I:InterfaceBound<'static>,
+            I:InterfaceBound,
             InterfaceFor<T,I,TU_Unerasable> : GetVtable<'static,T,RBox<()>,RBox<T>,I>,
         {
             let object = RBox::new(object);
@@ -517,7 +520,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             _interface:I
         ) -> DynTrait<'static,P::TransmutedPtr,I>
         where
-            I:InterfaceBound<'static>,
+            I:InterfaceBound,
             T:'static,
             InterfaceFor<T,I,TU_Unerasable>: GetVtable<'static,T,P::TransmutedPtr,P,I>,
             P: Deref<Target = T>+TransmuteElement<()>,
@@ -542,7 +545,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         ) -> DynTrait<'borr,RBox<()>,I>
         where
             T:'borr,
-            I:InterfaceBound<'borr>,
+            I:InterfaceBound,
             InterfaceFor<T,I,TU_Opaque> : GetVtable<'borr,T,RBox<()>,RBox<T>,I>,
         {
             let object = RBox::new(object);
@@ -559,7 +562,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         ) -> DynTrait<'borr,P::TransmutedPtr,I>
         where
             T:'borr,
-            I:InterfaceBound<'borr>,
+            I:InterfaceBound,
             InterfaceFor<T,I,TU_Opaque>: GetVtable<'borr,T,P::TransmutedPtr,P,I>,
             P: Deref<Target = T>+TransmuteElement<()>,
         {
@@ -577,10 +580,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
 
 
 
-    impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV>
-    where 
-        I: InterfaceBound<'borr>
-    {
+    impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV>{
     /**
 
 Constructs an DynTrait from an erased pointer and an extra vtable.
@@ -608,7 +608,7 @@ These are the requirements for the caller:
         )-> DynTrait<'borr,P,I,EV>
         where
             OrigPtr::Target:Sized+'borr,
-            I:InterfaceBound<'borr>,
+            I:InterfaceBound,
             InterfaceFor<OrigPtr::Target,I,Erasability>: 
                 GetVtable<'borr,OrigPtr::Target,P,OrigPtr,I>,
             OrigPtr: TransmuteElement<(),TransmutedPtr=P>+'borr,
@@ -628,10 +628,7 @@ These are the requirements for the caller:
 
 
 
-    impl<P,I,EV> DynTrait<'static,P,I,EV> 
-    where 
-        I: InterfaceBound<'static>
-    {
+    impl<P,I,EV> DynTrait<'static,P,I,EV> {
         /// Allows checking whether 2 `DynTrait<_>`s have a value of the same type.
         ///
         /// Notes:
@@ -642,17 +639,14 @@ These are the requirements for the caller:
         /// - `DynTrait`s constructed using `DynTrait::from_borrowing_*`
         /// are never considered to wrap the same type.
         pub fn sabi_is_same_type<Other,I2,EV2>(&self,other:&DynTrait<'static,Other,I2,EV2>)->bool
-        where I2:InterfaceBound<'static>
+        where I2:InterfaceBound
         {
             self.sabi_vtable_address()==other.sabi_vtable_address()||
             self.sabi_vtable().type_info().is_compatible(other.sabi_vtable().type_info())
         }
     }
 
-    impl<'borr,P,I,EV> DynTrait<'borr,P,I,StaticRef<EV>>
-    where 
-        I: InterfaceBound<'borr>
-    {
+    impl<'borr,P,I,EV> DynTrait<'borr,P,I,StaticRef<EV>>{
         /// A vtable used by `#[sabi_trait]` derived trait objects.
         #[inline]
         pub fn sabi_et_vtable<'a>(&self)->&'a EV{
@@ -660,10 +654,7 @@ These are the requirements for the caller:
         }
     }
         
-    impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV>
-    where 
-        I: InterfaceBound<'borr>
-    {
+    impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV>{
         #[inline]
         pub(super) fn sabi_extra_vtable(&self)->EV
         where
@@ -746,10 +737,7 @@ These are the requirements for the caller:
     }
 
 
-    impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV> 
-    where 
-        I: InterfaceBound<'borr>
-    {
+    impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV> {
         /// The uid in the vtable has to be the same as the one for T,
         /// otherwise it was not created from that T in the library that declared the opaque type.
         pub(super) fn sabi_check_same_destructor<A,T>(&self) -> Result<(), UneraseError<()>>
@@ -969,7 +957,7 @@ These are the requirements for the caller:
     
     impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV> 
     where 
-        I:InterfaceBound<'borr>
+        I:InterfaceType
     {
         /// Creates a shared reborrow of this DynTrait.
         ///
@@ -1020,11 +1008,7 @@ These are the requirements for the caller:
     }
 
 
-    impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV> 
-    where 
-        I:InterfaceBound<'borr>+'borr,
-        EV:'borr,
-    {
+    impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV> {
         /// Constructs a DynTrait<P,I> with a `P`,using the same vtable.
         /// `P` must come from a function in the vtable,
         /// or come from a copy of `P:Copy+GetPointerKind<Kind=PK_Reference>`,
@@ -1038,6 +1022,13 @@ These are the requirements for the caller:
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
+    }
+
+    impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV> 
+    where 
+        I:InterfaceBound+'borr,
+        EV:'borr,
+    {
 
 /**
 Constructs a `DynTrait<P,I>` with the default value for `P`.
@@ -1117,9 +1108,7 @@ let _=borrow.default();
         }
     }
 
-    impl<'borr,P,I,EV> Drop for DynTrait<'borr,P,I,EV>
-    where I:InterfaceBound<'borr>
-    {
+    impl<'borr,P,I,EV> Drop for DynTrait<'borr,P,I,EV>{
         fn drop(&mut self){
             unsafe{
                 let vtable=self.sabi_vtable();
@@ -1159,7 +1148,7 @@ use self::clone_impl::CloneImpl;
 impl<'borr,P, I,EV> CloneImpl<PK_SmartPointer> for DynTrait<'borr,P,I,EV>
 where
     P: Deref,
-    I: InterfaceBound<'borr,Clone = Implemented<trait_marker::Clone>>+'borr,
+    I: InterfaceBound<Clone = Implemented<trait_marker::Clone>>+'borr,
     EV:Copy+'borr,
 {
     fn clone_impl(&self) -> Self {
@@ -1173,7 +1162,7 @@ where
 impl<'borr,P, I,EV> CloneImpl<PK_Reference> for DynTrait<'borr,P,I,EV>
 where
     P: Deref+Copy,
-    I: InterfaceBound<'borr,Clone = Implemented<trait_marker::Clone>>+'borr,
+    I: InterfaceBound<Clone = Implemented<trait_marker::Clone>>+'borr,
     EV:Copy+'borr,
 {
     fn clone_impl(&self) -> Self {
@@ -1204,7 +1193,7 @@ let _=borrow.clone();
 impl<'borr,P, I,EV> Clone for DynTrait<'borr,P,I,EV>
 where
     P: Deref+GetPointerKind,
-    I: InterfaceBound<'borr>,
+    I: InterfaceBound,
     Self:CloneImpl<<P as GetPointerKind>::Kind>,
 {
     fn clone(&self) -> Self {
@@ -1218,7 +1207,7 @@ where
 impl<'borr,P, I,EV> Display for DynTrait<'borr,P,I,EV>
 where
     P: Deref,
-    I: InterfaceBound<'borr,Display = Implemented<trait_marker::Display>>,
+    I: InterfaceBound<Display = Implemented<trait_marker::Display>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         adapt_std_fmt::<ErasedObject>(self.sabi_erased_ref(), self.sabi_vtable().display(), f)
@@ -1228,7 +1217,7 @@ where
 impl<'borr,P, I,EV> Debug for DynTrait<'borr,P,I,EV>
 where
     P: Deref,
-    I: InterfaceBound<'borr,Debug = Implemented<trait_marker::Debug>>,
+    I: InterfaceBound<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         adapt_std_fmt::<ErasedObject>(self.sabi_erased_ref(), self.sabi_vtable().debug(), f)
@@ -1239,7 +1228,6 @@ impl<'borr,P, I,EV> std::error::Error for DynTrait<'borr,P,I,EV>
 where
     P: Deref,
     I: InterfaceBound<
-        'borr,
         Display=Implemented<trait_marker::Display>,
         Debug=Implemented<trait_marker::Debug>,
         Error=Implemented<trait_marker::Error>,
@@ -1257,7 +1245,7 @@ then it serializes the string.
 impl<'borr,P, I,EV> Serialize for DynTrait<'borr,P,I,EV>
 where
     P: Deref,
-    I: InterfaceBound<'borr,Serialize = Implemented<trait_marker::Serialize>>,
+    I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -1276,7 +1264,7 @@ impl<'de,'borr:'de, P, I,EV> Deserialize<'de> for DynTrait<'borr,P,I,EV>
 where
     EV: 'borr,
     P: Deref+'borr,
-    I: InterfaceBound<'borr>+'borr,
+    I: InterfaceBound+'borr,
     I: DeserializeOwnedInterface<
         'borr,
         Deserialize = Implemented<trait_marker::Deserialize>, 
@@ -1296,7 +1284,7 @@ impl<P, I,EV> Eq for DynTrait<'static,P,I,EV>
 where
     Self: PartialEq,
     P: Deref,
-    I: InterfaceBound<'static,Eq = Implemented<trait_marker::Eq>>,
+    I: InterfaceBound<Eq = Implemented<trait_marker::Eq>>,
 {
 }
 
@@ -1304,7 +1292,7 @@ impl<P, P2, I,EV,EV2> PartialEq<DynTrait<'static,P2,I,EV2>> for DynTrait<'static
 where
     P: Deref,
     P2: Deref,
-    I: InterfaceBound<'static,PartialEq = Implemented<trait_marker::PartialEq>>,
+    I: InterfaceBound<PartialEq = Implemented<trait_marker::PartialEq>>,
 {
     fn eq(&self, other: &DynTrait<'static,P2,I,EV2>) -> bool {
         // unsafe: must check that the vtable is the same,otherwise return a sensible value.
@@ -1319,7 +1307,7 @@ where
 impl<P, I,EV> Ord for DynTrait<'static,P,I,EV>
 where
     P: Deref,
-    I: InterfaceBound<'static,Ord = Implemented<trait_marker::Ord>>,
+    I: InterfaceBound<Ord = Implemented<trait_marker::Ord>>,
     Self: PartialOrd + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -1336,7 +1324,7 @@ impl<P, P2, I,EV,EV2> PartialOrd<DynTrait<'static,P2,I,EV2>> for DynTrait<'stati
 where
     P: Deref,
     P2: Deref,
-    I: InterfaceBound<'static,PartialOrd = Implemented<trait_marker::PartialOrd>>,
+    I: InterfaceBound<PartialOrd = Implemented<trait_marker::PartialOrd>>,
     Self: PartialEq<DynTrait<'static,P2,I,EV2>>,
 {
     fn partial_cmp(&self, other: &DynTrait<'static,P2,I,EV2>) -> Option<Ordering> {
@@ -1354,7 +1342,7 @@ where
 impl<'borr,P, I,EV> Hash for DynTrait<'borr,P,I,EV>
 where
     P: Deref,
-    I: InterfaceBound<'borr,Hash = Implemented<trait_marker::Hash>>,
+    I: InterfaceBound<Hash = Implemented<trait_marker::Hash>>,
 {
     fn hash<H>(&self, state: &mut H)
     where
@@ -1371,7 +1359,9 @@ where
 impl<'borr,P, I,Item,EV> Iterator for DynTrait<'borr,P,I,EV>
 where
     P: DerefMut,
-    I: InterfaceBound<'borr,Iterator = Implemented<trait_marker::Iterator>,IteratorItem=Item>,
+    I: IteratorItemOrDefault<'borr,Item=Item>,
+    I: InterfaceBound<Iterator = Implemented<trait_marker::Iterator>>,
+    Item:'borr,
 {
     type Item=Item;
 
@@ -1406,7 +1396,9 @@ where
 impl<'borr,P, I,Item,EV> DynTrait<'borr,P,I,EV>
 where
     P: DerefMut,
-    I: InterfaceBound<'borr,Iterator = Implemented<trait_marker::Iterator>,IteratorItem=Item>,
+    I: IteratorItemOrDefault<'borr,Item=Item>,
+    I: InterfaceBound<Iterator = Implemented<trait_marker::Iterator>>,
+    Item:'borr,
 {
 /**
 Eagerly skips n elements from the iterator.
@@ -1504,11 +1496,9 @@ impl<'borr,P, I,Item,EV> DoubleEndedIterator for DynTrait<'borr,P,I,EV>
 where
     Self:Iterator<Item=Item>,
     P: DerefMut,
-    I: InterfaceBound<
-        'borr,
-        DoubleEndedIterator = Implemented<trait_marker::DoubleEndedIterator>,
-        IteratorItem=Item
-    >,
+    I: IteratorItemOrDefault<'borr,Item=Item>,
+    I: InterfaceBound<DoubleEndedIterator = Implemented<trait_marker::DoubleEndedIterator>>,
+    Item:'borr,
 {
 
     fn next_back(&mut self)->Option<Item>{
@@ -1522,11 +1512,9 @@ impl<'borr,P, I,Item,EV> DynTrait<'borr,P,I,EV>
 where
     Self:Iterator<Item=Item>,
     P: DerefMut,
-    I: InterfaceBound<
-        'borr,
-        DoubleEndedIterator = Implemented<trait_marker::DoubleEndedIterator>,
-        IteratorItem=Item
-    >,
+    I: IteratorItemOrDefault<'borr,Item=Item>,
+    I: InterfaceBound<DoubleEndedIterator = Implemented<trait_marker::DoubleEndedIterator>>,
+    Item:'borr,
 {
     pub fn nth_back_(&mut self,nth:usize)->Option<Item>{
         let vtable=self.sabi_vtable();
@@ -1577,7 +1565,7 @@ assert_eq!(
 impl<'borr,P,I,EV> fmtWrite for DynTrait<'borr,P,I,EV>
 where
     P: DerefMut,
-    I: InterfaceBound<'borr,FmtWrite = Implemented<trait_marker::FmtWrite>>,
+    I: InterfaceBound<FmtWrite = Implemented<trait_marker::FmtWrite>>,
 {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error>{
         let vtable = self.sabi_vtable();
@@ -1611,7 +1599,7 @@ where
 impl<'borr,P,I,EV> io::Write for DynTrait<'borr,P,I,EV>
 where
     P: DerefMut,
-    I: InterfaceBound<'borr,IoWrite = Implemented<trait_marker::IoWrite>>,
+    I: InterfaceBound<IoWrite = Implemented<trait_marker::IoWrite>>,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize>{
         let vtable = self.sabi_vtable().io_write();
@@ -1637,7 +1625,7 @@ where
 impl<'borr,P,I,EV> io::Read for DynTrait<'borr,P,I,EV>
 where
     P: DerefMut,
-    I: InterfaceBound<'borr,IoRead = Implemented<trait_marker::IoRead>>,
+    I: InterfaceBound<IoRead = Implemented<trait_marker::IoRead>>,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>{
         let vtable = self.sabi_vtable().io_read();
@@ -1661,7 +1649,6 @@ impl<'borr,P,I,EV> io::BufRead for DynTrait<'borr,P,I,EV>
 where
     P: DerefMut,
     I: InterfaceBound<
-        'borr,
         IoRead = Implemented<trait_marker::IoRead>,
         IoBufRead = Implemented<trait_marker::IoBufRead>
     >,
@@ -1686,7 +1673,7 @@ where
 impl<'borr,P,I,EV> io::Seek for DynTrait<'borr,P,I,EV>
 where
     P: DerefMut,
-    I: InterfaceBound<'borr,IoSeek = Implemented<trait_marker::IoSeek>>,
+    I: InterfaceBound<IoSeek = Implemented<trait_marker::IoSeek>>,
 {
     fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64>{
         let vtable = self.sabi_vtable();
@@ -1701,14 +1688,14 @@ where
 unsafe impl<'borr,P,I,EV> Send for DynTrait<'borr,P,I,EV>
 where
     P: Send,
-    I: InterfaceBound<'borr,Send = Implemented<trait_marker::Send>>,
+    I: InterfaceBound<Send = Implemented<trait_marker::Send>>,
 {}
 
 
 unsafe impl<'borr,P,I,EV> Sync for DynTrait<'borr,P,I,EV>
 where
     P: Sync,
-    I: InterfaceBound<'borr,Sync = Implemented<trait_marker::Sync>>,
+    I: InterfaceBound<Sync = Implemented<trait_marker::Sync>>,
 {}
 
 
@@ -1718,7 +1705,7 @@ mod sealed {
     use super::*;
     pub trait Sealed {}
     impl<'borr,P,I,EV> Sealed for DynTrait<'borr,P,I,EV> 
-    where I:InterfaceBound<'borr>
+    where I:InterfaceBound
     {}
 }
 use self::sealed::Sealed;
@@ -1731,7 +1718,7 @@ pub trait DynTraitBound<'borr>: Sealed {
 impl<'borr,P, I,EV> DynTraitBound<'borr> for DynTrait<'borr,P,I,EV>
 where
     P: Deref,
-    I: InterfaceBound<'borr>,
+    I: InterfaceBound,
 {
     type Interface = I;
 }
