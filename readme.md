@@ -332,7 +332,7 @@ use super::{interface_crate};
 use interface_crate::{
     Appender,
     AppenderType,
-    Appender_from_value,
+    Appender_TO,
     BoxedInterface,
     ExampleLib,
     ExampleLibVal,
@@ -395,7 +395,7 @@ impl StringBuilder{
 
 #[sabi_extern_fn]
 pub fn new_appender()->AppenderType<u32>{
-    Appender_from_value(RVec::new(),TU_Opaque)
+    Appender_TO::from_value(RVec::new(),TU_Opaque)
 }
 
 

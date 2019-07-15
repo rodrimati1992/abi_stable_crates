@@ -14,6 +14,7 @@ pub mod reexports{
                 GetVtable,
                 traits::InterfaceFor,
             },
+            marker_type::{UnsafeIgnoredType,SyncSend,UnsyncUnsend,UnsyncSend,SyncUnsend},
             pointer_trait::{TransmuteElement,OwnedPointer},
             prefix_type::{PrefixTypeTrait,WithMetadata},
             traits::IntoInner,
@@ -55,6 +56,9 @@ pub mod vtable;
 
 #[cfg(test)]
 pub mod tests;
+
+// #[cfg(test)]
+pub mod test_supertraits;
 
 use std::{
     fmt::Debug,

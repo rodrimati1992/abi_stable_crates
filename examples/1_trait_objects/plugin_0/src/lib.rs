@@ -25,7 +25,7 @@ use example_1_interface::{
     CommandDescription,
     Error as AppError,
     Plugin,PluginType,PluginId,PluginMod,PluginModVal,
-    Plugin_from_value,
+    Plugin_TO,
     utils::process_command,
 };
 
@@ -56,7 +56,7 @@ pub fn new(_sender:RSender<AsyncCommand>,plugin_id:PluginId) -> RResult<PluginTy
     let this=TextMunging{
         plugin_id,
     };
-    ROk(Plugin_from_value(this,TU_Opaque))
+    ROk(Plugin_TO::from_value(this,TU_Opaque))
 }
 
 
