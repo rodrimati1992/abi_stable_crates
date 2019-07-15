@@ -302,7 +302,6 @@ pub(crate) struct TraitMethod<'a>{
     pub(crate) derive_attrs:&'a [Meta],
     pub(crate) other_attrs:&'a [Meta],
     pub(crate) name:&'a Ident,
-    /// The name of this method in the __Method trait.
     pub(crate) self_param:SelfParam<'a>,
     pub(crate) lifetimes: Vec<&'a LifetimeDef>,
     pub(crate) params: Vec<MethodParam<'a>>,
