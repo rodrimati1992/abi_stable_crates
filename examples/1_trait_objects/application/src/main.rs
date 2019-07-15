@@ -19,7 +19,7 @@ use core_extensions::{SelfOps,SliceExt,StringExt};
 
 use example_1_interface::{
     AsyncCommand,
-    Application_from_ptr,
+    Application_TO,
     Application,
     Error as AppError,
     Plugin,

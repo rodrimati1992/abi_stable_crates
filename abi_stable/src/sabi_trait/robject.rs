@@ -199,7 +199,7 @@ use abi_stable::{
     std_types::*,
 };
 
-let mut object=RSomething_from_value::<_,_,()>(RBox::new(10_u32),TU_Opaque);
+let mut object=RSomething_TO::<_,()>::from_value(RBox::new(10_u32),TU_Opaque);
 let borrow=object.reborrow_mut();
 let _=borrow.clone();
 ```

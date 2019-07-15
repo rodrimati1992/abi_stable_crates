@@ -16,7 +16,7 @@ use abi_stable::{
 use core_extensions::SelfOps;
 
 use example_2_interface::{
-    Cents,Command,Error,ItemId,ReturnVal,Shop,Shop_TO,Shop_from_value,ShopMod,ShopModVal,
+    Cents,Command,Error,ItemId,ReturnVal,Shop,Shop_TO,Shop_TO,ShopMod,ShopModVal,
     SerdeWrapper,
 };
 
@@ -33,7 +33,7 @@ fn instantiate_root_module()->&'static ShopMod{
 
 #[sabi_extern_fn]
 pub fn new()->Shop_TO<'static,RBox<()>>{
-    Shop_from_value(
+    Shop_TO::from_value(
         ShopState{
             items_map:HashMap::default(),
             items:Vec::new(),
