@@ -22,7 +22,7 @@ use abi_stable::{
     std_types::*,
 };
 
-let _=RSomething_TO::<_,()>::from_value(RBox::new(10_u32),TU_Opaque);
+let _=RSomething_TO::<_,(),u32>::from_value(RBox::new(10_u32),TU_Opaque);
 
 ```
 
@@ -53,7 +53,7 @@ use abi_stable::{
 use std::marker::PhantomData;
 
 let ptr=RBox::new(PhantomData::<UnsyncSend>);
-let _=RSomething_TO::<_,()>::from_value(ptr,TU_Opaque);
+let _=RSomething_TO::<_,(),PhantomData::<UnsyncSend>>::from_value(ptr,TU_Opaque);
 
 ```
 
@@ -68,7 +68,7 @@ use abi_stable::{
 use std::marker::PhantomData;
 
 let ptr=RBox::new(PhantomData::<SyncUnsend>);
-let _=RSomething_TO::<_,()>::from_value(ptr,TU_Opaque);
+let _=RSomething_TO::<_,(),PhantomData<SyncUnsend>>::from_value(ptr,TU_Opaque);
 
 ```
 
