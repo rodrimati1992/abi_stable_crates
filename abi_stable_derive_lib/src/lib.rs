@@ -3,7 +3,7 @@ An implementation detail of abi_stable.
 */
 
 #![recursion_limit="192"]
-#![deny(unused_variables)]
+//#![deny(unused_variables)]
 #![deny(unreachable_patterns)]
 #![deny(unused_doc_comments)]
 #![deny(unconditional_recursion)]
@@ -21,6 +21,7 @@ mod utils;
 mod arenas;
 mod attribute_parsing;
 mod common_tokens;
+mod composite_collections;
 mod constants;
 mod either;
 mod ignored_wrapper;

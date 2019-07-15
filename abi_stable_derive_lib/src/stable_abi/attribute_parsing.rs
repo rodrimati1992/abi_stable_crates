@@ -61,6 +61,7 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
     pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
+    pub(crate) changed_types:FieldMap<Option<&'a Type>>,
 
     pub(crate) mod_refl_mode:ModReflMode<usize>,
 
@@ -211,6 +212,7 @@ impl<'a> StableAbiOptions<'a> {
             unconstrained_type_params:this.unconstrained_type_params.into_iter().collect(),
             opaque_fields:this.opaque_fields,
             renamed_fields:this.renamed_fields,
+            changed_types:this.changed_types,
             override_field_accessor:this.override_field_accessor,
             tags:this.tags,
             phantom_fields,
@@ -248,6 +250,7 @@ struct StableAbiAttrs<'a> {
     override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
     renamed_fields:FieldMap<Option<&'a Ident>>,
+    changed_types:FieldMap<Option<&'a Type>>,
 
     field_bounds:FieldMap<Vec<TypeParamBound>>,
 
@@ -303,6 +306,7 @@ where
     this.renamed_fields=FieldMap::defaulted(ds);
     this.override_field_accessor=FieldMap::defaulted(ds);
     this.field_bounds=FieldMap::defaulted(ds);
+    this.changed_types=FieldMap::defaulted(ds);
 
     let name=ds.name;
 
@@ -396,6 +400,10 @@ fn parse_sabi_attr<'a>(
                 let renamed=parse_lit_as_ident(&value)
                     .piped(|x| arenas.alloc(x) );
                 this.renamed_fields.insert(field,Some(renamed));
+            }else if ident=="unsafe_change_type" {
+                let changed_type=parse_lit_as_type(&value)
+                    .piped(|x| arenas.alloc(x) );
+                this.changed_types.insert(field,Some(changed_type));
             }else if ident=="accessible_if" {
                 let expr=arenas.alloc(parse_lit_as_expr(&value));
                 this.prefix_kind_fields[field].accessible_if=Some(expr);

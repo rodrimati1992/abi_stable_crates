@@ -3,6 +3,11 @@
 use crate::*;
 
 use crate::{
+    composite_collections::{
+        SmallStartLen as StartLen,
+        SmallCompositeString as CompositeString,
+        SmallCompositeVec as CompositeVec,
+    },
     datastructure::{DataStructure,DataVariant,Field,FieldIndex},
     gen_params_in::{GenParamsIn,InWhat},
     lifetimes::LifetimeIndex,
@@ -31,7 +36,7 @@ mod prefix_types;
 
 mod repr_attrs;
 
-mod tl_functions;
+mod tl_function;
 
 #[cfg(test)]
 mod tests;
@@ -42,7 +47,7 @@ use self::{
     prefix_types::prefix_type_tokenizer,
     repr_attrs::ReprAttr,
     reflection::ModReflMode,
-    tl_functions::{StartLen,CompTLFunction,TLFunctionsString,TLFunctionsVec},
+    tl_function::{VisitedFieldMap,VisitedField,CompTLFunction},
 };
 
 
@@ -159,6 +164,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                         struct_.fields.iter(),
                         variant_lengths,
                         config,
+                        arenas,
                         ct
                     ).to_tokens(ts);
                 })
@@ -166,7 +172,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
             (true,None)=>{
                 quote!(__TLData::Enum).to_tokens(ts);
                 ct.paren.surround(ts,|ts|{
-                    tokenize_enum(ds,nonexhaustive_opt,config,ctokens).to_tokens(ts);
+                    tokenize_enum(ds,nonexhaustive_opt,config,arenas,ctokens).to_tokens(ts);
                 });
             }
             (false,Some(prefix))=>{
@@ -177,7 +183,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                 let struct_=&ds.variants[0];
                 let variant_lengths=&[ struct_.fields.len() as u8 ];
                 let first_suffix_field=prefix.first_suffix_field.field_pos;
-                let fields=fields_tokenizer(ds,struct_.fields.iter(),variant_lengths,config,ct);
+                let fields=
+                    fields_tokenizer(ds,struct_.fields.iter(),variant_lengths,config,arenas,ct);
                 
                 quote!(
                     __TLData::prefix_type_derive(
@@ -358,6 +365,7 @@ fn tokenize_enum<'a>(
     ds:&'a DataStructure<'a>,
     nonexhaustive_opt:Option<&'a nonexhaustive::NonExhaustive<'a>>,
     config:&'a StableAbiOptions<'a>,
+    arenas:&'a Arenas,
     ct:&'a CommonTokens<'a>
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
@@ -386,7 +394,7 @@ fn tokenize_enum<'a>(
             .collect::<Vec<u8>>();
 
         let fields=ds.variants.iter().flat_map(|v| v.fields.iter() );
-        let fields=fields_tokenizer(ds,fields,variant_lengths,config,ct);
+        let fields=fields_tokenizer(ds,fields,variant_lengths,config,arenas,ct);
 
         let discriminants=ds.variants.iter().map(|x|x.discriminant);
         let discriminants=config.repr.tokenize_discriminant_exprs(discriminants,ct);
@@ -418,7 +426,7 @@ where T:ToTokens
             ct.colon2,
             ct.lt,ty,ct.gt,
             ct.colon2,
-            ct.cap_const
+            ct.cap_stable_abi
         };
     })
 }
@@ -436,10 +444,13 @@ where T:ToTokens
             ct.colon2,
             ct.lt,ty,ct.gt,
             ct.colon2,
-            ct.cap_const
+            ct.cap_opaque_field
         };
     })
 }
+
+
+
 
 
 
@@ -449,13 +460,14 @@ fn fields_tokenizer<'a>(
     mut fields:impl Iterator<Item=&'a Field<'a>>+'a,
     variant_length:&'a [u8],
     config:&'a StableAbiOptions<'a>,
+    arenas: &'a Arenas, 
     ctokens:&'a CommonTokens<'a>,
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
         to_stream!(ts;ctokens.tl_fields,ctokens.colon2,ctokens.new);
         ctokens.paren.surround(ts,|ts|{
             let fields=fields.by_ref().collect::<Vec<_>>();
-            fields_tokenizer_inner(ds,fields,variant_length,config,ctokens,ts);
+            fields_tokenizer_inner(ds,fields,variant_length,config,arenas,ctokens,ts);
         });
     })
 }
@@ -466,6 +478,7 @@ fn fields_tokenizer_inner<'a>(
     fields:Vec<&'a Field<'a>>,
     variant_length:&'a [u8],
     config:&'a StableAbiOptions<'a>,
+    arenas: &'a Arenas, 
     ct:&'a CommonTokens<'a>,
     ts:&mut TokenStream2,
 ){
@@ -474,9 +487,12 @@ fn fields_tokenizer_inner<'a>(
 
     let mut lifetime_ind_pos:Vec<(FieldIndex,u16)>=Vec::new();
 
+    let visited_fields=VisitedFieldMap::new(ds,config,arenas,ct);
+
     let mut current_lt_index=0_u16;
     for field in &fields {
         use std::fmt::Write;
+        let visited_field=&visited_fields.map[field];
         let name=config.renamed_fields[field].unwrap_or(field.ident());
         let _=write!(names,"{};",name);
 
@@ -484,7 +500,7 @@ fn fields_tokenizer_inner<'a>(
             field.index,
             current_lt_index,
         ));
-        current_lt_index+=field.referenced_lifetimes.len() as u16;
+        current_lt_index+=visited_field.referenced_lifetimes.len() as u16;
     }
 
     names.to_tokens(ts);
@@ -502,7 +518,9 @@ fn fields_tokenizer_inner<'a>(
     ct.paren.surround(ts,|ts|{
         ct.and_.to_tokens(ts);
         ct.bracket.surround(ts,|ts|{
-            for li in fields.iter().flat_map(|f| &f.referenced_lifetimes ) {
+            for li in fields.iter()
+                .flat_map(|f| &visited_fields.map[f].referenced_lifetimes ) 
+            {
                 to_stream!(ts;li.tokenizer(ct),ct.comma);
             }
         });
@@ -521,13 +539,13 @@ fn fields_tokenizer_inner<'a>(
     ct.comma.to_tokens(ts);
 
 
-    if ds.fn_ptr_count==0 {
+    if visited_fields.fn_ptr_count==0 {
         ct.none.to_tokens(ts);
     }else{
         to_stream!(ts;ct.some);
         ct.paren.surround(ts,|ts|{
             ct.and_.to_tokens(ts);
-            tokenize_tl_functions(ds,&fields,variant_length,config,ct,ts);
+            tokenize_tl_functions(ds,&fields,&visited_fields,variant_length,config,ct,ts);
         });
     }
     to_stream!{ts; ct.comma };
@@ -536,6 +554,7 @@ fn fields_tokenizer_inner<'a>(
     to_stream!{ts; ct.and_ };
     ct.bracket.surround(ts,|ts|{
         for field in &fields {
+            let visited_field=&visited_fields.map[field];
 
             let field_accessor=config.override_field_accessor[field]
                 .unwrap_or_else(|| config.kind.field_accessor(config.mod_refl_mode,field) );
@@ -545,22 +564,24 @@ fn fields_tokenizer_inner<'a>(
                 {//abi_info:
                     let is_opaque_field=config.opaque_fields[field];
 
-                    if field.is_function {
-                        if field.functions[0].is_unsafe {
+                    if visited_field.is_function {
+                        if visited_field.functions[0].is_unsafe {
                             &ct.unsafe_extern_fn_abi_info
                         }else{
                             &ct.extern_fn_abi_info
                         }.to_tokens(ts);
                     }else if is_opaque_field {
-                        make_get_abi_info_uf_tokenizer(&field.mutated_ty,ct).to_tokens(ts);
+                        make_get_abi_info_uf_tokenizer(&visited_field.mutated_ty,ct)
+                            .to_tokens(ts);
                     }else{
-                        make_get_abi_info_tokenizer(&field.mutated_ty,ct).to_tokens(ts);
+                        make_get_abi_info_tokenizer(&visited_field.mutated_ty,ct)
+                            .to_tokens(ts);
                     }
 
                     to_stream!(ts;ct.comma);
                 }
 
-                to_stream!(ts;field.is_function,ct.comma);
+                to_stream!(ts;visited_field.is_function,ct.comma);
                 to_stream!(ts;field_accessor,ct.comma);
             });
             to_stream!(ts;ct.comma);
@@ -572,23 +593,26 @@ fn fields_tokenizer_inner<'a>(
 fn tokenize_tl_functions<'a>(
     ds:&'a DataStructure<'a>,
     fields:&[&'a Field<'a>],
+    visited_fields:&VisitedFieldMap<'a>,
     _variant_length:&[u8],
     _config:&'a StableAbiOptions<'a>,
     ct:&'a CommonTokens<'a>,
     ts:&mut TokenStream2,
 ){
-    let mut strings=TLFunctionsString::new();
-    let mut functions=TLFunctionsVec::<CompTLFunction>::with_capacity(ds.fn_ptr_count);
+    let mut strings=CompositeString::new();
+    let mut functions=CompositeVec::<CompTLFunction>::with_capacity(visited_fields.fn_ptr_count);
     let mut field_fn_ranges=Vec::<StartLen>::with_capacity(ds.field_count);
-    let mut abi_infos=TLFunctionsVec::<&'a syn::Type>::new();
-    let mut paramret_lifetime_indices=TLFunctionsVec::<LifetimeIndex>::new();
+    let mut abi_infos=CompositeVec::<&'a syn::Type>::new();
+    let mut paramret_lifetime_indices=CompositeVec::<LifetimeIndex>::new();
 
     for field in fields {
-        let field_fns=field.functions.iter().enumerate()
+        let visited_field=&visited_fields.map[field];
+
+        let field_fns=visited_field.functions.iter().enumerate()
             .map(|(fn_i,func)|{
                 let mut current_func=CompTLFunction::new(ct);
                 
-                current_func.name=if field.is_function {
+                current_func.name=if visited_field.is_function {
                     strings.push_display(field.ident())
                 }else{
                     strings.push_str(&format!("fn_{}",fn_i))
