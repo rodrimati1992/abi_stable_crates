@@ -46,14 +46,12 @@ pub fn ffi_panic_message(info:&'static PanicInfo) -> ! {
 
 #[doc(hidden)]
 pub struct AbortBomb{
-    pub fuse:Option<&'static PanicInfo>,
+    pub fuse:&'static PanicInfo,
 }
 
 impl Drop for AbortBomb{
     fn drop(&mut self){
-        if let Some(fuse)=self.fuse {
-            ffi_panic_message(fuse);
-        }
+        ffi_panic_message(self.fuse);
     }
 }
 
