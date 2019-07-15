@@ -268,7 +268,7 @@ pub trait DeserializeBorrowedInterface<'borr>:
 ///
 /// This is a separate trait to allow iterators that yield borrowed elements.
 pub trait IteratorItem<'a>:InterfaceType{
-    type Item:'a;
+    type Item;
 }
 
 
@@ -277,25 +277,41 @@ pub trait IteratorItem<'a>:InterfaceType{
 ///
 /// Used by `DynTrait`'s vtable to give its iter a default type,
 /// when `I:InterfaceType<Iterator=Implemented<_>>`.
-pub trait IteratorItemOrDefault<'borr,ImplIsRequired>:InterfaceType{
-    type Item:'borr;
+pub trait IteratorItemOrDefault<'borr>:InterfaceType{
+    type Item;
 }
 
 
-impl<'borr,I,Item> IteratorItemOrDefault<'borr,Implemented<trait_marker::Iterator>> for I
-where
-    I:InterfaceType+IteratorItem<'borr,Item=Item>,
-    Item:'borr,
+impl<'borr,I,Item> IteratorItemOrDefault<'borr> for I
+where 
+    I:InterfaceType,
+    I:IteratorItemOrDefaultHelper<
+        'borr,
+        <I as InterfaceType>::Iterator,
+        Item=Item,
+    >
 {
     type Item=Item;
 }
 
 
-impl<'borr,I> IteratorItemOrDefault<'borr,Unimplemented<trait_marker::Iterator>> for I
-where I:InterfaceType
+#[doc(hidden)]
+pub trait IteratorItemOrDefaultHelper<'borr,ImplIsRequired>{
+    type Item;
+}
+
+impl<'borr,I,Item> IteratorItemOrDefaultHelper<'borr,Implemented<trait_marker::Iterator>> for I
+where
+    I:IteratorItem<'borr,Item=Item>,
 {
+    type Item=Item;
+}
+
+
+impl<'borr,I> IteratorItemOrDefaultHelper<'borr,Unimplemented<trait_marker::Iterator>> for I{
     type Item=();
 }
+
 
 
 //////////////////////////////////////////////////////////////////

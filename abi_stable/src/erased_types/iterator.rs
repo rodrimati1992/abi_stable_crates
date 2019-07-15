@@ -5,6 +5,7 @@ use std::{
 
 
 use crate::{
+    const_utils::Transmuter,
     std_types::{RVec,ROption,RSome,RNone,Tuple2},
     marker_type::ErasedObject,
     utils::{transmute_reference,transmute_mut_reference},
@@ -49,7 +50,7 @@ pub struct MakeIteratorFns<I>(PhantomData<extern fn()->I>);
 impl<I> MakeIteratorFns<I>
 where I:Iterator
 {
-    pub(super) const NEW:IteratorFns<I::Item>=IteratorFns{
+    const ITER:IteratorFns<I::Item>=IteratorFns{
         next:next::<I>,
         extending_rvec:extending_rvec::<I>,
         size_hint:size_hint::<I>,
@@ -57,6 +58,12 @@ where I:Iterator
         last:last::<I>,
         nth:nth::<I>,
         skip_eager:skip_eager::<I>,
+    };
+
+    pub(super) const NEW:IteratorFns<()>=unsafe{
+        Transmuter{
+            from:Self::ITER
+        }.to
     };
 }
 
@@ -177,10 +184,16 @@ pub struct MakeDoubleEndedIteratorFns<I>(PhantomData<extern fn()->I>);
 impl<I> MakeDoubleEndedIteratorFns<I>
 where I:DoubleEndedIterator
 {
-    pub(super) const NEW:DoubleEndedIteratorFns<I::Item>=DoubleEndedIteratorFns{
+    pub(super) const ITER:DoubleEndedIteratorFns<I::Item>=DoubleEndedIteratorFns{
         next_back:next_back::<I>,
         extending_rvec_back:extending_rvec_back::<I>,
         nth_back:nth_back::<I>,
+    };
+
+    pub(super) const NEW:DoubleEndedIteratorFns<()>=unsafe{
+        Transmuter{
+            from:Self::ITER
+        }.to
     };
 }
 

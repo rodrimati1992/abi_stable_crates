@@ -49,7 +49,7 @@ pub use self::{
     vtable::{ GetVtable,InterfaceBound},
     traits::{
         ImplType, InterfaceType, SerializeImplType, DeserializeOwnedInterface,
-        DeserializeBorrowedInterface,IteratorItem,
+        DeserializeBorrowedInterface,IteratorItem,IteratorItemOrDefault,
     },
     type_info::TypeInfo,
 };
