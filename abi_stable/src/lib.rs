@@ -287,8 +287,3 @@ pub mod globals{
     }
 }
 
-
-#[sabi_extern_fn(no_early_return)]
-fn hello(){
-
-}

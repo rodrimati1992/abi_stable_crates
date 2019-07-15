@@ -8,12 +8,11 @@ use core_extensions::{matches, prelude::*};
 use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,check_layout_compatibility},
-        type_layout::TLData,
         AbiInfoWrapper, 
-        Tag,
     },
     marker_type::UnsafeIgnoredType,
     std_types::*,
+    type_layout::{Tag,TLData},
     *,
 };
 
