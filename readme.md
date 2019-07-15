@@ -95,7 +95,7 @@ with comments for how to turn them into 3 separate crates.
 use abi_stable::std_types::RVec;
 
 use interface_crate::{
-    AppenderType,Appender_Methods,Appender,
+    AppenderType,AppenderType_TO,
     ExampleLib,BoxedInterface,load_root_module_in_directory,
 };
 
@@ -109,22 +109,20 @@ fn main(){
 
         // The type annotation is for the reader
         let mut appender:AppenderType<u32>=library.new_appender()();
-        appender.push_(100);
-        appender.push_(200);
+        appender.push(100);
+        appender.push(200);
 
-        // `TraitName_Methods` is the primary way to call methods on ffi-safe trait objects,
+        // The primary to use the methods in the trait is through the inherent methods on 
+        // the ffi-safe trait object,
         // since `Trait` requires that the trait object implements the pointer traits for
         // the maximum mutability required by its methods.
         //
-        // TraitName_Methods only require that those pointer traits are 
+        // The inherent methods only require that those pointer traits are 
         // implemented on a per-method basis.
-        //
-        // Each method in TraitName_Methods appends '_' to 
-        // the name of each method(relative to Trait).
-        Appender_Methods::push_(&mut appender,300);
-        appender.append_(vec![500,600].into());
+        Appender_TO::push(&mut appender,300);
+        appender.append(vec![500,600].into());
         assert_eq!(
-            appender.into_rvec_(),
+            appender.into_rvec(),
             RVec::from(vec![100,200,300,500,600]) 
         );
     }

@@ -91,6 +91,8 @@ pub fn unbounded<T>() -> (RSender<T>, RReceiver<T>) {
 
 /// The sender end of a channel,
 /// which can be either bounded or unbounded.
+#[repr(C)]
+#[derive(StableAbi)]
 pub struct RSender<T>{
     channel:RBox<ErasedSender<T>>,
     vtable:*const VTable<T>,
@@ -236,6 +238,8 @@ impl_from_rust_repr! {
 
 /// The receiver end of a channel,
 /// which can be either bounded or unbounded.
+#[repr(C)]
+#[derive(StableAbi)]
 pub struct RReceiver<T>{
     channel:RBox<ErasedReceiver<T>>,
     vtable:*const VTable<T>,

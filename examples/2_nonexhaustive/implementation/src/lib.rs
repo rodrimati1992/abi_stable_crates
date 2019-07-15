@@ -16,7 +16,7 @@ use abi_stable::{
 use core_extensions::SelfOps;
 
 use example_2_interface::{
-    Cents,Command,Error,ItemId,ReturnVal,Shop,Shop_TO,Shop_TO,ShopMod,ShopModVal,
+    Cents,Command,Error,ItemId,ReturnVal,Shop,Shop_TO,ShopMod,ShopModVal,
     SerdeWrapper,
 };
 

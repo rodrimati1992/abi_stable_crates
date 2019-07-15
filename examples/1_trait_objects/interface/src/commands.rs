@@ -9,7 +9,10 @@ use serde::{
     de::{self,Deserializer, DeserializeOwned, IgnoredAny, Visitor, MapAccess, Error as _},
 };
 
-use abi_stable::std_types::*;
+use abi_stable::{
+    StableAbi,
+    std_types::*,
+};
 
 /// The commands that map to methods in the Plugin trait.
 // This is intentionally not `#[derive(StableAbi)]`,
@@ -122,7 +125,8 @@ impl CommandTrait for BasicCommand{
 
 
 /// Describes a command.
-#[derive(Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[repr(C)]
+#[derive(Debug,Clone,PartialEq,Eq,Serialize,Deserialize,StableAbi)]
 pub struct CommandDescription{
     /// A description of what this command does.
     pub name:RCow<'static,str>,
@@ -148,7 +152,8 @@ impl CommandDescription{
 ////////////////////////////////////////////////////////////////////////////////
 
 
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[repr(C)]
+#[derive(Debug,Clone,PartialEq,Eq,StableAbi)]
 pub struct AsyncCommand{
     pub from:PluginId,
     pub which_plugin:WhichPlugin,

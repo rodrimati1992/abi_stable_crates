@@ -10,7 +10,7 @@ use crate::{
         BasicRetVal,
     },
     error::Unsupported,
-    ApplicationMut,WhichCommandRet,Error,Plugin,PluginType,Plugin_Methods,
+    ApplicationMut,WhichCommandRet,Error,Plugin,PluginType,
 };
 
 use abi_stable::{
@@ -118,7 +118,7 @@ where
     let cmd=serde_json::to_string(&command)
          .map_err(|e| Error::Serialize(RBoxError::new(e),WhichCommandRet::Command) )?;
 
-    let ret=this.json_command_(RStr::from(&*cmd),app).into_result()?;
+    let ret=this.json_command(RStr::from(&*cmd),app).into_result()?;
 
     let which_variant=serde_json::from_str::<WhichVariant>(&*ret)
         .map_err(|e| Error::Deserialize(RBoxError::new(e),WhichCommandRet::Return) )?;
