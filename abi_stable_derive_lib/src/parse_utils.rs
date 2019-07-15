@@ -27,6 +27,10 @@ pub(crate) fn parse_str_as_path(lit:&str)->syn::Path{
     parse_str_as(lit,"Could not parse as a path")
 }
 
+pub(crate) fn parse_str_as_trait_bound(lit:&str)->syn::TraitBound{
+    parse_str_as(lit,"Could not parse as a trait bound")
+}
+
 pub(crate) fn parse_str_as_type(lit:&str)->syn::Type{
     parse_str_as(lit,"Could not parse as a type")
 }
