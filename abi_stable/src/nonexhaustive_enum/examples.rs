@@ -259,6 +259,7 @@ pub(crate) mod generic_a{
         size=64,
         traits(Debug,PartialEq,Eq,Ord,PartialOrd,Clone,Hash)
     )))]
+    //#[sabi(debug_print)]
     pub(crate) enum Foo<T>{
         A,
         B,

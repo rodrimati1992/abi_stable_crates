@@ -42,13 +42,14 @@ where
 
 pub(crate) extern "C" fn partial_eq_impl<E,F,I>(
     this: &ErasedObject,
-    other: &NonExhaustive<E,F,I>
+    other: &ErasedObject
 ) -> bool
 where
     E: GetEnumInfo+PartialEq,
 {
     extern_fn_panic_handling! {
         let this=unsafe{ transmute_reference::<ErasedObject,E>(this) };
+        let other=unsafe{ transmute_reference::<ErasedObject,NonExhaustive<E,F,I>>(other) };
         match other.as_enum() {
             Ok(other)=>this==other,
             Err(_)=>false,
@@ -58,13 +59,14 @@ where
 
 pub(crate) extern "C" fn cmp_ord<E,F,I>(
     this: &ErasedObject,
-    other: &NonExhaustive<E,F,I>
+    other: &ErasedObject
 ) -> RCmpOrdering
 where
     E: GetEnumInfo+Ord,
 {
     extern_fn_panic_handling! {
         let this=unsafe{ transmute_reference::<ErasedObject,E>(this) };
+        let other=unsafe{ transmute_reference::<ErasedObject,NonExhaustive<E,F,I>>(other) };
         
         match other.as_enum() {
             Ok(other)=>this.cmp(other).into_c(),
@@ -75,13 +77,14 @@ where
 
 pub(crate) extern "C" fn partial_cmp_ord<E,F,I>(
     this: &ErasedObject, 
-    other: &NonExhaustive<E,F,I>,
+    other: &ErasedObject
 ) -> ROption<RCmpOrdering>
 where
     E: GetEnumInfo+PartialOrd,
 {
     extern_fn_panic_handling! {
         let this=unsafe{ transmute_reference::<ErasedObject,E>(this) };
+        let other=unsafe{ transmute_reference::<ErasedObject,NonExhaustive<E,F,I>>(other) };
         
         match other.as_enum() {
             Ok(other)=>this.partial_cmp(other).map(IntoReprC::into_c).into_c(),
