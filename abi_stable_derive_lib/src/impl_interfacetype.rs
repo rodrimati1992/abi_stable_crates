@@ -76,65 +76,142 @@ impl UsableBy{
 
 /// A trait usable in either RObject or DynTrait.
 #[derive(Debug,Copy,Clone)]
-pub struct UsableTrait<N,M>{
-    pub name:N,
-    pub full_path:M,
-    pub default_value:bool,
-    pub object_safe:ObjectSafe,
-    pub usable_by:UsableBy,
+pub struct UsableTrait{
+    pub which_trait:WhichTrait,
+    pub name:&'static str,
+    pub full_path:&'static str,
 }
 
-impl<N,M> UsableTrait<N,M>{
-    #[allow(dead_code)]
-    pub fn is_object_safe(&self)->bool{
-        self.object_safe==ObjectSafe::Yes
-    }
-}
-
-
-macro_rules! usable_traits_slice {
+macro_rules! usable_traits {
     ( 
         $( 
-            ($name:expr,$full_path:expr,$default_value:expr,$object_safe:expr,$usable_by:expr), 
+            $field:ident=
+            (
+                $which_trait:ident,
+                $full_path:expr,
+                $default_value:expr,
+                $object_safe:expr,
+                $usable_by:expr
+            ),
         )* 
     ) => (
-        &[$(
+        pub static TRAIT_LIST:&[UsableTrait]=&[$(
             UsableTrait{
-                name:$name,
+                name:stringify!($which_trait),
+                which_trait:WhichTrait::$which_trait,
                 full_path:$full_path,
-                default_value:$default_value,
-                object_safe:$object_safe,
-                usable_by:$usable_by,
             },
-        )*]
+        )*];
+
+        #[repr(u8)]
+        #[derive(Debug,Copy,Clone,PartialEq,Eq,Ord,PartialOrd,Hash)]
+        pub enum WhichTrait{
+            $($which_trait,)*
+        }
+
+
+        impl WhichTrait{
+            pub fn default_value(self)->bool{
+                match self {
+                    $( WhichTrait::$which_trait=>$default_value, )*
+                }
+            }
+            pub fn object_safe(self)->ObjectSafe{
+                match self {
+                    $( WhichTrait::$which_trait=>$object_safe, )*
+                }
+            }
+            pub fn usable_by(self)->UsableBy{
+                match self {
+                    $( WhichTrait::$which_trait=>$usable_by, )*
+                }
+            }
+        }
+
+
+        #[derive(Debug,Copy,Clone,Default)]
+        pub struct TraitStruct<T>{
+            $(pub $field:T,)*
+        }
+
+        impl TraitStruct<UsableTrait>{
+            pub const TRAITS:Self=TraitStruct{$(
+                $field:UsableTrait{
+                    name:stringify!($which_trait),
+                    which_trait:WhichTrait::$which_trait,
+                    full_path:$full_path,
+                },
+            )*};
+        }
+
+        impl<T> TraitStruct<T>{
+            pub fn as_ref(&self)->TraitStruct<&T>{
+                TraitStruct{
+                    $($field:&self.$field,)*
+                }
+            }
+
+            pub fn map<F,U>(self,mut f:F)->TraitStruct<U>
+            where F:FnMut(WhichTrait,T)->U
+            {
+                TraitStruct{
+                    $($field:f(WhichTrait::$which_trait,self.$field),)*
+                }
+            }
+
+            pub fn to_vec(self)->Vec<T>{
+                vec![
+                    $( self.$field ,)*
+                ]
+            }
+        }
+
+        impl<T> ::std::ops::Index<WhichTrait> for TraitStruct<T>{
+            type Output=T;
+            fn index(&self, index: WhichTrait) -> &Self::Output {
+                match index {
+                    $( WhichTrait::$which_trait=>&self.$field, )*
+                }
+            }
+        }
+
+        impl<T> ::std::ops::IndexMut<WhichTrait> for TraitStruct<T>{
+            fn index_mut(&mut self, index: WhichTrait) -> &mut Self::Output {
+                match index {
+                    $( WhichTrait::$which_trait=>&mut self.$field, )*
+                }
+            }
+        }
     )
 }
 
 use self::{UsableBy as UB,ObjectSafe as OS};
 
-pub static TRAIT_LIST:&[UsableTrait<&'static str,&'static str>]=usable_traits_slice![
-    ("Clone"              ,"::std::clone::Clone"    ,false,OS::No ,UB::ROBJECT_AND_DYN_TRAIT),
-    ("Default"            ,"::std::default::Default",false,OS::No ,UB::DYN_TRAIT),
-    ("Display"            ,"::std::fmt::Display"    ,false,OS::Yes,UB::DYN_TRAIT),
-    ("Debug"              ,"::std::fmt::Debug"      ,false,OS::Yes,UB::ROBJECT_AND_DYN_TRAIT),
-    ("Serialize"          ,"::serde::Serialize"     ,false,OS::No ,UB::DYN_TRAIT),
-    ("Eq"                 ,"::std::cmp::Eq"         ,false,OS::Yes,UB::DYN_TRAIT),
-    ("PartialEq"          ,"::std::cmp::PartialEq"  ,false,OS::Yes,UB::DYN_TRAIT),
-    ("Ord"                ,"::std::cmp::Ord"        ,false,OS::Yes,UB::DYN_TRAIT),
-    ("PartialOrd"         ,"::std::cmp::PartialOrd" ,false,OS::Yes,UB::DYN_TRAIT),
-    ("Hash"               ,"::std::hash::Hash"      ,false,OS::Yes,UB::DYN_TRAIT),
-    ("Deserialize"        ,"::serde::Deserialize"   ,false,OS::No ,UB::DYN_TRAIT),
-    ("Send"               ,"::std::marker::Send"    ,true ,OS::Yes,UB::ROBJECT_AND_DYN_TRAIT),
-    ("Sync"               ,"::std::marker::Sync"    ,true ,OS::Yes,UB::ROBJECT_AND_DYN_TRAIT),
-    ("Iterator"           ,"::std::iter::Iterator"  ,false,OS::Yes,UB::DYN_TRAIT),
-    ("DoubleEndedIterator","::std::iter::DoubleEndedIterator",false,OS::Yes,UB::DYN_TRAIT),
-    ("FmtWrite"           ,"::std::fmt::Write"      ,false,OS::Yes,UB::DYN_TRAIT),
-    ("IoWrite"            ,"::std::io::Write"       ,false,OS::Yes,UB::DYN_TRAIT),
-    ("IoSeek"             ,"::std::io::Seek"        ,false,OS::Yes,UB::DYN_TRAIT),
-    ("IoRead"             ,"::std::io::Read"        ,false,OS::Yes,UB::DYN_TRAIT),
-    ("IoBufRead"          ,"::std::io::BufRead"     ,false,OS::Yes,UB::DYN_TRAIT),
-    ("Error"              ,"::std::error::Error"    ,false,OS::Yes,UB::DYN_TRAIT),
-];
+usable_traits!{
+    clone=(Clone,"::std::clone::Clone",false,OS::No ,UB::ROBJECT_AND_DYN_TRAIT),
+    default=(Default,"::std::default::Default",false,OS::No ,UB::DYN_TRAIT),
+    display=(Display,"::std::fmt::Display",false,OS::Yes,UB::DYN_TRAIT),
+    debug=(Debug,"::std::fmt::Debug",false,OS::Yes,UB::ROBJECT_AND_DYN_TRAIT),
+    serialize=(Serialize,"::serde::Serialize",false,OS::No ,UB::DYN_TRAIT),
+    eq=(Eq,"::std::cmp::Eq",false,OS::Yes,UB::DYN_TRAIT),
+    partial_eq=(PartialEq,"::std::cmp::PartialEq",false,OS::Yes,UB::DYN_TRAIT),
+    ord=(Ord,"::std::cmp::Ord",false,OS::Yes,UB::DYN_TRAIT),
+    partial_ord=(PartialOrd,"::std::cmp::PartialOrd",false,OS::Yes,UB::DYN_TRAIT),
+    hash=(Hash,"::std::hash::Hash",false,OS::Yes,UB::DYN_TRAIT),
+    deserialize=(Deserialize,"::serde::Deserialize",false,OS::No ,UB::DYN_TRAIT),
+    send=(Send,"::std::marker::Send",true ,OS::Yes,UB::ROBJECT_AND_DYN_TRAIT),
+    sync=(Sync,"::std::marker::Sync",true ,OS::Yes,UB::ROBJECT_AND_DYN_TRAIT),
+    iterator=(Iterator,"::std::iter::Iterator",false,OS::Yes,UB::DYN_TRAIT),
+    double_ended_iterator=(
+        DoubleEndedIterator,"::std::iter::DoubleEndedIterator",false,OS::Yes,UB::DYN_TRAIT
+    ),
+    fmt_write=(FmtWrite,"::std::fmt::Write",false,OS::Yes,UB::DYN_TRAIT),
+    io_write=(IoWrite,"::std::io::Write",false,OS::Yes,UB::DYN_TRAIT),
+    io_seek=(IoSeek,"::std::io::Seek",false,OS::Yes,UB::DYN_TRAIT),
+    io_read=(IoRead,"::std::io::Read",false,OS::Yes,UB::DYN_TRAIT),
+    io_buf_read=(IoBufRead,"::std::io::BufRead",false,OS::Yes,UB::DYN_TRAIT),
+    error=(Error,"::std::error::Error",false,OS::Yes,UB::DYN_TRAIT),
+}
 
 pub(crate) fn private_associated_type()->syn::Ident{
     parse_str_as_ident("define_this_in_the_impl_InterfaceType_macro")
@@ -164,7 +241,7 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
     let mut default_map=TRAIT_LIST
         .iter()
         .map(|ut|{
-            ( parse_str_as_ident(ut.name) , DefaultVal::from(ut.default_value.clone()) ) 
+            ( parse_str_as_ident(ut.name) , DefaultVal::from(ut.which_trait.default_value()) ) 
         })
         .collect::<HashMap<_,_>>();
 
