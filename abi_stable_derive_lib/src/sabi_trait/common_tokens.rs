@@ -99,6 +99,7 @@ declare_common_tokens! {
             "_ErasedPtr: __sabi_re::OwnedPointer<Target=()>,",
 
         empty_ts="",
+        ts_empty="",
 
         ts_self ="Self",
         ts_uself="_Self,",
@@ -115,7 +116,11 @@ declare_common_tokens! {
         ts_make_vtable_args="Erasability,_OrigPtr::Target,_OrigPtr::TransmutedPtr,_OrigPtr,",
         ts_lt_transptr="'lt,_OrigPtr::TransmutedPtr,",
         ts_lt_erasedptr="'lt,_ErasedPtr,",
+        ts_lt_de_erasedptr="'lt,'de,_ErasedPtr,",
+        ts_erasedptr_and2="_ErasedPtr,_ErasedPtr2,",
+        ts_staticlt_erasedptr2="'static,_ErasedPtr2,",
         ts_erasedptr="_ErasedPtr,",
+        ts_staticlt_erasedptr="'static,_ErasedPtr,",
         ts_self_erasedptr="_Self,_ErasedPtr,",
         ts_unit_erasedptr="(),_ErasedPtr,",
 
