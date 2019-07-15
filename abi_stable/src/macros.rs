@@ -213,18 +213,20 @@ where
 #[macro_export]
 macro_rules! extern_fn_panic_handling {
     (no_early_return; $($fn_contents:tt)* ) => ({
-        let mut aborter_guard={
+        let aborter_guard={
             use $crate::utils::{AbortBomb,PanicInfo};
             #[allow(dead_code)]
             const BOMB:AbortBomb=AbortBomb{
-                fuse:Some(&PanicInfo{file:file!(),line:line!()})
+                fuse:&PanicInfo{file:file!(),line:line!()}
             };
             BOMB
         };
         let res={
             $($fn_contents)*
         };
-        aborter_guard.fuse=None;
+
+        ::std::mem::forget(aborter_guard);
+        
         res
     });
     ( $($fn_contents:tt)* ) => (

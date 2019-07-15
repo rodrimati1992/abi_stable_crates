@@ -83,6 +83,7 @@ where
 #[sabi(kind(WithNonExhaustive(
     size="[usize;8]",
     traits(Debug,Clone,PartialEq,Deserialize),
+    assert_nonexhaustive="Command",
 )))]
 pub enum Command{
     #[doc(hidden)]
@@ -129,8 +130,9 @@ impl DeserializeOwned<Command,Command_Storage,Command_Interface> for Command_Int
 #[cfg_attr(feature="v1_1",derive(Deserialize))]
 #[derive(StableAbi,Debug,Clone,PartialEq)]
 #[sabi(kind(WithNonExhaustive(
-    size=64,
+    size="[usize;10]",
     interface="Command_Interface",
+    assert_nonexhaustive="ReturnVal",
 )))]
 pub enum ReturnVal{
     #[doc(hidden)]

@@ -337,6 +337,7 @@ fn same_different_abi_stability() {
         <mod_4::Mod>::ABI_INFO,
         <mod_5::Mod>::ABI_INFO,
         <mod_6::Mod>::ABI_INFO,
+        <mod_6b::Mod>::ABI_INFO,
         <mod_7::Mod>::ABI_INFO,
         <Tagged<TAG_DEFAULT_1>>::ABI_INFO,
         <Tagged<TAG_DEFAULT_2>>::ABI_INFO,
@@ -744,6 +745,15 @@ mod mod_6 {
     #[derive(StableAbi)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
+    }
+}
+
+// Changing only the return type
+mod mod_6b {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub struct Mod{
+        pub function_0: extern "C" fn()->u32,
     }
 }
 
