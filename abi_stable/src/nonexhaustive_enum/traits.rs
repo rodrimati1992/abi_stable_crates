@@ -53,6 +53,8 @@ pub unsafe trait GetEnumInfo:Sized{
 }
 
 
+#[derive(StableAbi)]
+#[repr(C)]
 pub struct EnumInfo<D:'static>{
     pub type_name:StaticStr,
 

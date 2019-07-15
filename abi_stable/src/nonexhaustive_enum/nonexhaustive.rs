@@ -8,6 +8,7 @@ use std::{
 };
 
 use crate::{
+    abi_stability::SharedStableAbi,
     erased_types::{
         c_functions,
         trait_objects::{
@@ -167,13 +168,16 @@ with the 1.0 version of `Error` they would get an `Err(..)` back.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    unconstrained(E,I),
+    unconstrained(E,S,I),
     bound="E: GetNonExhaustive<S>",
     bound="I: InterfaceBound",
+    bound="NonExhaustiveVtable<E,S,I>: SharedStableAbi",
     tag="<I as InterfaceBound>::TAG",
     phantom_field="non_exhaustive:<E as GetNonExhaustive<S>>::NonExhaustive",
 )]
 pub struct NonExhaustive<E,S,I>{
+    // This is an opaque field since we only care about its size and alignment
+    #[sabi(unsafe_opaque_field)]
     fill:ManuallyDrop<S>,
     vtable:StaticRef<NonExhaustiveVtable<E,S,I>>,
     _marker:PhantomData<Tuple2<UnsafeIgnoredType<E>,UnsafeIgnoredType<I>>>,
@@ -630,7 +634,7 @@ where
     I1: InterfaceBound<PartialEq = Implemented<trait_marker::PartialEq>>,
 {
     fn eq(&self, other: &NonExhaustive<E,S,I2>) -> bool {
-        self.vtable().partial_eq()(self.sabi_erased_ref(), other.as_ref_with_interface())
+        self.vtable().partial_eq()(self.sabi_erased_ref(), other.sabi_erased_ref())
     }
 }
 
@@ -641,7 +645,7 @@ where
     Self: PartialOrd + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.vtable().cmp()(self.sabi_erased_ref(), other.as_ref_with_interface()).into()
+        self.vtable().cmp()(self.sabi_erased_ref(), other.sabi_erased_ref()).into()
     }
 }
 
@@ -652,7 +656,7 @@ where
     Self: PartialEq<NonExhaustive<E,S,I2>>,
 {
     fn partial_cmp(&self, other: &NonExhaustive<E,S,I2>) -> Option<Ordering> {
-        self.vtable().partial_cmp()(self.sabi_erased_ref(), other.as_ref_with_interface())
+        self.vtable().partial_cmp()(self.sabi_erased_ref(), other.sabi_erased_ref())
             .map(IntoReprRust::into_rust)
             .into()
     }

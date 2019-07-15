@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     erased_types::{c_functions,trait_objects,InterfaceType,FormattingMode},
-    marker_type::ErasedObject,
+    marker_type::{ErasedObject,UnsafeIgnoredType},
     nonexhaustive_enum::{
         alt_c_functions,NonExhaustive,EnumInfo,GetEnumInfo,SerializeEnum,
     },
@@ -42,22 +42,26 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    unconstrained(E,I),
+    unconstrained(E,S,I),
     missing_field(default),
-    kind(Prefix(prefix_struct="NonExhaustiveVtable"))
+    kind(Prefix(prefix_struct="NonExhaustiveVtable")),
+    //debug_print,
 )]
 pub struct NonExhaustiveVtableVal<E,S,I>{
-    pub(crate) _sabi_tys:PhantomData<extern "C" fn(E,S,I)>,
+    pub(crate) _sabi_tys:UnsafeIgnoredType<(E,S,I)>,
     
     _sabi_enum_info:*const EnumInfo<u8>,
 
     pub(crate) _sabi_drop :unsafe extern "C" fn(this:&mut ErasedObject),
+
+    #[sabi(unsafe_opaque_field)]
     pub(crate) _sabi_clone:Option<
         extern "C" fn(
             &ErasedObject,
-            StaticRef<NonExhaustiveVtable<E,S,I>>
+            StaticRef<NonExhaustiveVtable<E,S,I>>,
         )->NonExhaustive<E,S,I>
     >,
+
     pub(crate) _sabi_debug:Option<
         extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
     >,
@@ -68,13 +72,13 @@ pub struct NonExhaustiveVtableVal<E,S,I>{
         extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>
     >,
     pub(crate) _sabi_partial_eq: Option<
-        extern "C" fn(&ErasedObject,&NonExhaustive<E,S,I>)->bool
+        extern "C" fn(&ErasedObject,&ErasedObject)->bool
     >,
     pub(crate) _sabi_cmp: Option<
-        extern "C" fn(&ErasedObject,&NonExhaustive<E,S,I>)->RCmpOrdering,
+        extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering,
     >,
     pub(crate) _sabi_partial_cmp: Option<
-        extern "C" fn(&ErasedObject,&NonExhaustive<E,S,I>)->ROption<RCmpOrdering>,
+        extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>,
     >,
     #[sabi(last_prefix_field)]
     pub(crate) _sabi_hash:Option<
@@ -121,7 +125,7 @@ where
 {
     const VTABLE_VAL:NonExhaustiveVtableVal<E,S,I>=
         NonExhaustiveVtableVal{
-            _sabi_tys:PhantomData,
+            _sabi_tys:UnsafeIgnoredType::DEFAULT,
             _sabi_enum_info:E::ENUM_INFO
                 as *const EnumInfo<<E as GetEnumInfo>::Discriminant>
                 as *const EnumInfo<u8>,
@@ -276,7 +280,7 @@ pub mod trait_bounds{
         trait InitPartialEqField[E,S,I]
         where_for_both[ E:GetEnumInfo, ]
         where [ E:PartialEq ]
-        _sabi_partial_eq,partial_eq: extern "C" fn(&ErasedObject,&NonExhaustive<E,S,I>)->bool;
+        _sabi_partial_eq,partial_eq: extern "C" fn(&ErasedObject,&ErasedObject)->bool;
         field_index=field_index_for__sabi_partial_eq;
         value=alt_c_functions::partial_eq_impl::<E,S,I>,
     }
@@ -286,7 +290,7 @@ pub mod trait_bounds{
         where_for_both[ E:GetEnumInfo, ]
         where [ E:PartialOrd ]
         _sabi_partial_cmp,partial_cmp:
-            extern "C" fn(&ErasedObject,&NonExhaustive<E,S,I>)->ROption<RCmpOrdering>;
+            extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>;
         field_index=field_index_for__sabi_partial_cmp;
         value=alt_c_functions::partial_cmp_ord::<E,S,I>,
     }
@@ -295,7 +299,7 @@ pub mod trait_bounds{
         trait InitOrdField[E,S,I]
         where_for_both[ E:GetEnumInfo, ]
         where [ E:Ord ]
-        _sabi_cmp,cmp: extern "C" fn(&ErasedObject,&NonExhaustive<E,S,I>)->RCmpOrdering;
+        _sabi_cmp,cmp: extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering;
         field_index=field_index_for__sabi_cmp;
         value=alt_c_functions::cmp_ord::<E,S,I>,
     }

@@ -34,6 +34,7 @@ pub(crate) struct UncheckedNonExhaustive<'a>{
 
 #[derive(Clone)]
 pub(crate) struct NonExhaustive<'a>{
+    pub(crate) nonexhaustive_alias:&'a Ident,
     pub(crate) nonexhaustive_marker:&'a Ident,
     pub(crate) enum_storage:&'a Ident,
     pub(crate) alignment:IntOrType<'a>,
@@ -85,7 +86,7 @@ impl<'a> NonExhaustive<'a>{
 
         if let Some(EnumInterface::New(enum_interface))=&mut unchecked.enum_interface{
             let mut trait_map=TRAIT_LIST.iter()
-                .map(|x| ( parse_ident(x.name) , x.default_value ) )
+                .map(|x| ( parse_ident(x.name) , x.which_trait.default_value() ) )
                 .collect::<HashMap<&'a syn::Ident,bool>>();
 
             enum_interface.impld.iter()
@@ -120,6 +121,7 @@ impl<'a> NonExhaustive<'a>{
 
 
         Self{
+            nonexhaustive_alias:parse_ident(&format!("{}_NE",name)),
             nonexhaustive_marker:parse_ident(&format!("{}_NEMarker",name)),
             enum_storage:parse_ident(&format!("{}_Storage",name)),
             alignment,
@@ -163,6 +165,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
             _=>return,
         };
         let vis=ds.vis;
+        let nonexhaustive_alias=this.nonexhaustive_alias;
         let nonexhaustive_marker=this.nonexhaustive_marker;
         let enum_storage=this.enum_storage;
 
@@ -180,14 +183,35 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
             IntOrType::Type(ty)=>quote!( std::mem::size_of::<#ty>() ),
         };
 
+        let name=ds.name;
+
+        let mut type_generics_decl=GenParamsIn::new(ds.generics,InWhat::ImplHeader);
+        type_generics_decl.set_no_bounds();
+
+        let type_generics_use=GenParamsIn::new(ds.generics,InWhat::ItemUse);
+
+        let alias_docs=format!(
+            "An alias for the NonExhaustive wrapped version of `{}<_>`.",
+            name
+        );
+
+        let default_interface=&this.default_interface;
+
         quote!(
             #[repr(C)]
-            #[derive(abi_stable::StableAbi)]
             #aligner_attribute
             #vis struct #enum_storage{
                 _filler:[u8; #aligner_size ],
                 #aligner_field
             }
+
+            #[doc=#alias_docs]
+            #vis type #nonexhaustive_alias<#type_generics_decl>=
+                #module::_sabi_reexports::NonExhaustive<
+                    #name<#type_generics_use>,
+                    #enum_storage,
+                    #default_interface,
+                >;
 
             unsafe impl #module::_sabi_reexports::InlineStorage for #enum_storage{}
 
