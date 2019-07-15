@@ -324,7 +324,7 @@ pub struct MakeGetAbiInfoSA<T>(T);
 impl<T> MakeGetAbiInfoSA<T>
 where T: StableAbi,
 {
-    pub const CONST:GetAbiInfo=GetAbiInfo {
+    pub const STABLE_ABI:GetAbiInfo=GetAbiInfo {
         abi_info: get_abi_info::<T>,
     };
 }
@@ -334,7 +334,7 @@ where T: StableAbi,
 pub struct MakeGetAbiInfoUF<T>(T);
 
 impl<T> MakeGetAbiInfoUF<T>{
-    pub const CONST:GetAbiInfo=GetAbiInfo {
+    pub const OPAQUE_FIELD:GetAbiInfo=GetAbiInfo {
         abi_info: get_abi_info::<UnsafeOpaqueField<T>>,
     };
 }
@@ -892,10 +892,10 @@ unsafe impl SharedStableAbi for unsafe extern "C" fn() {
 
 
 /// The GetAbiInfo of an `unsafe extern fn()`
-pub const UNSAFE_EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<unsafe extern fn()>::CONST;
+pub const UNSAFE_EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<unsafe extern fn()>::STABLE_ABI;
 
 /// The GetAbiInfo of an `extern fn()`
-pub const EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<extern fn()>::CONST;
+pub const EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<extern fn()>::STABLE_ABI;
 
 
 /////////////

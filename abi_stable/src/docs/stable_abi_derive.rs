@@ -97,6 +97,12 @@ These attributes are applied to fields.
 Renames the field in the generated layout information.
 Use this when renaming private fields.
 
+<h3> `#[sabi(unsafe_change_type="SomeType")]` </h3>
+
+Changes the type of this field in the generated type layout constant to SomeType.
+
+This has the `unsafe` prefix because SomeType is relied on being correct by `StableAbi`.
+
 <h3> `#[sabi(unsafe_opaque_field)]` </h3>
 
 Does not require the field to implement StableAbi,

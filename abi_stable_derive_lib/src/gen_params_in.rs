@@ -1,11 +1,11 @@
 use syn::{
-    token::{Comma},
+    token::{Comma,Colon,Const,Star},
     Generics,GenericParam,
 };
 
 use core_extensions::matches;
 use proc_macro2::TokenStream;
-use quote::ToTokens;
+use quote::{quote,ToTokens};
 
 use crate::utils::NoTokens;
 
@@ -15,6 +15,7 @@ use crate::utils::NoTokens;
 pub(crate) struct GenParamsIn<'a,AL=NoTokens> {
     pub generics: &'a Generics,
     pub in_what: InWhat,
+    pub unsized_types:bool,
     pub with_bounds:bool,
     after_lifetimes:Option<AL>,
     after_types:Option<AL>,
@@ -41,6 +42,7 @@ impl<'a> GenParamsIn<'a>{
         Self{
             generics,
             in_what,
+            unsized_types:false,
             with_bounds:true,
             after_lifetimes:None,
             after_types:None,
@@ -54,6 +56,7 @@ impl<'a,AL> GenParamsIn<'a,AL>{
         Self{
             generics,
             in_what,
+            unsized_types:false,
             with_bounds:true,
             after_lifetimes:Some(after_lifetimes),
             after_types:None,
@@ -63,6 +66,7 @@ impl<'a,AL> GenParamsIn<'a,AL>{
         Self{
             generics,
             in_what,
+            unsized_types:false,
             with_bounds:true,
             after_lifetimes:None,
             after_types:Some(after_types),
@@ -70,6 +74,17 @@ impl<'a,AL> GenParamsIn<'a,AL>{
     }
     pub fn set_no_bounds(&mut self){
         self.with_bounds=false;
+    }
+    pub fn set_unsized_types(&mut self){
+        self.unsized_types=true;
+    }
+    pub fn outputs_bounds(&self)->bool{
+        self.with_bounds && 
+        matches!(InWhat::ImplHeader|InWhat::ItemDecl=self.in_what)
+    }
+    pub fn are_types_unsized(&self)->bool{
+        self.unsized_types&&
+        matches!(InWhat::ItemDecl|InWhat::ImplHeader=self.in_what)
     }
 }
 
@@ -79,13 +94,13 @@ where
     AL:ToTokens,
 {
     fn to_tokens(&self, ts: &mut TokenStream) {
-        let with_bounds = 
-            self.with_bounds && 
-            matches!(InWhat::ImplHeader|InWhat::ItemDecl=self.in_what);
+        let with_bounds = self.outputs_bounds();
 
         let with_default = self.in_what == InWhat::ItemDecl;
         
         let in_dummy_struct= self.in_what == InWhat::DummyStruct;
+
+        let unsized_types=self.are_types_unsized();
 
         let mut iter=self.generics.params.iter().peekable();
 
@@ -114,11 +129,22 @@ where
         while let Some(GenericParam::Type(gen))=iter.peek() {
             iter.next();
             
-            gen.ident.to_tokens(ts);
-            if with_bounds {
-                gen.colon_token.to_tokens(ts);
-                gen.bounds.to_tokens(ts);
+            if in_dummy_struct {
+                Star::default().to_tokens(ts);
+                Const::default().to_tokens(ts);
             }
+            gen.ident.to_tokens(ts);
+            
+            if (with_bounds&&gen.colon_token.is_some())||unsized_types {
+                Colon::default().to_tokens(ts);
+                if unsized_types {
+                    quote!(?Sized+).to_tokens(ts);
+                }
+                if with_bounds {
+                    gen.bounds.to_tokens(ts);
+                }
+            }
+
             if with_default {
                 gen.eq_token.to_tokens(ts);
                 gen.default.to_tokens(ts);
@@ -137,8 +163,8 @@ where
                     gen.const_token.to_tokens(ts);
                 }
                 gen.ident.to_tokens(ts);
-                if with_bounds {
-                    gen.colon_token.to_tokens(ts);
+                if self.in_what!= InWhat::ItemUse {
+                    Colon::default().to_tokens(ts);
                     gen.ty.to_tokens(ts);
                 }
                 if with_default {

@@ -153,6 +153,8 @@ declare_common_tokens! {
         cap_static="Static",
         cap_param="Param",
         cap_const="CONST",
+        cap_opaque_field="OPAQUE_FIELD",
+        cap_stable_abi="STABLE_ABI",
         subfields="subfields",
         with_functions="with_functions",
         underscore="_",
