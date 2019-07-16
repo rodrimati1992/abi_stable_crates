@@ -60,7 +60,7 @@ pub mod vtable;
 #[cfg(test)]
 pub mod tests;
 
-// #[cfg(test)]
+#[cfg(test)]
 pub mod test_supertraits;
 
 use std::{

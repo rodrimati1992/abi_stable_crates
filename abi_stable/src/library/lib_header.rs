@@ -7,12 +7,13 @@ use crate::{
 /// Used to check the layout of modules returned by module-loading functions
 /// exported by dynamic libraries.
 #[repr(C)]
-#[derive(StableAbi,Clone)]
+#[derive(StableAbi)]
 pub struct LibHeader {
     header:AbiHeader,
     root_mod_consts:ErasedRootModuleConsts,
     init_globals_with:InitGlobalsWith,
-    module:ConstructorOrValue<&'static ErasedObject>
+    module:LateStaticRef<ErasedObject>,
+    constructor:Constructor<&'static ErasedObject>,
 }
 
 impl LibHeader {
@@ -26,7 +27,8 @@ impl LibHeader {
             header:AbiHeader::VALUE,
             root_mod_consts:root_mod_consts.erased(),
             init_globals_with: INIT_GLOBALS_WITH,
-            module:ConstructorOrValue::Constructor(constructor),
+            module:LateStaticRef::new(),
+            constructor:constructor,
         }
     }
 
@@ -40,7 +42,8 @@ impl LibHeader {
             header:AbiHeader::VALUE,
             root_mod_consts: T::CONSTANTS.erased(),
             init_globals_with: INIT_GLOBALS_WITH,
-            module:ConstructorOrValue::Value(value),
+            module:LateStaticRef::initialized(value),
+            constructor:GetAbortingConstructor::ABORTING_CONSTRUCTOR,
         }
     }
 
@@ -120,7 +123,7 @@ If the layout of the root module is not the expected one.
 
 
     */
-    pub fn init_root_module<M>(&mut self)-> Result<&'static M, LibraryError>
+    pub fn init_root_module<M>(&self)-> Result<&'static M, LibraryError>
     where
         M: RootModule
     {
@@ -163,7 +166,7 @@ If the version number of the library is incompatible.
 
     */
     pub unsafe fn init_root_module_with_unchecked_layout<M>(
-        &mut self
+        &self
     )-> Result<&'static M, LibraryError>
     where
         M: RootModule
@@ -176,7 +179,7 @@ If the version number of the library is incompatible.
     /// Gets the root module,first 
     /// checking that the layout of the `M` from the dynamic library is 
     /// compatible with the expected layout.
-    pub fn check_layout<M>(&mut self) -> Result<&'static M, LibraryError>
+    pub fn check_layout<M>(&self) -> Result<&'static M, LibraryError>
     where
         M: RootModule,
     {
@@ -198,7 +201,8 @@ If the version number of the library is incompatible.
         atomic::compiler_fence(atomic::Ordering::SeqCst);
         
         let ret=unsafe{ 
-            transmute_reference::<ErasedObject,M>(self.module.get())
+            let module=self.module.init(|| (self.constructor.0)() );
+            transmute_reference::<ErasedObject,M>(module)
         };
         Ok(ret)
     }
@@ -216,10 +220,37 @@ have been checked for layout compatibility.
 The caller must ensure that `M` has the expected layout.
 
 */
-    pub unsafe fn unchecked_layout<M>(&mut self)->&'static M{
-        transmute_reference::<ErasedObject,M>(self.module.get())
+    pub unsafe fn unchecked_layout<M>(&self)->&'static M{
+        let module=self.module.init(|| (self.constructor.0)() );
+        transmute_reference::<ErasedObject,M>(module)
+    }
+
+
+}
+
+//////////////////////////////////////////////////////////////////////
+
+
+struct GetAbortingConstructor<T>(T);
+
+impl<T> GetAbortingConstructor<T>{
+    const ABORTING_CONSTRUCTOR:Constructor<T>=
+        Constructor(Self::aborting_constructor);
+
+    extern fn aborting_constructor()->T{
+        extern_fn_panic_handling!{
+            panic!(
+                "BUG:\n\
+                 This function \
+                 (abi_stable::library::lib_header::GetAbortingConstructor::aborting_constructor) \
+                 must only be used \
+                 as a dummy functions when initializing `LibHeader` \
+                 within `LibHeader::from_module`."
+            );
+        }
     }
 }
+
 
 //////////////////////////////////////////////////////////////////////
 
@@ -236,6 +267,7 @@ const INIT_GLOBALS_WITH:InitGlobalsWith=
 /**
 Represents the abi_stable version used by a compiled dynamic library,
 which if incompatible would produce a `LibraryError::InvalidAbiHeader`
+
 */
 #[repr(C)]
 #[derive(Debug,StableAbi,Copy,Clone)]
