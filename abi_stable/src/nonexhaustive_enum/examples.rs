@@ -245,7 +245,9 @@ pub(crate) mod too_large{
         traits(Debug,PartialEq,Eq,Clone)
     )))]
     pub(crate) enum Foo{
-        Variant([u16;32])
+        A,
+        B(i8),
+        C([u16;32])
     }
 }
 

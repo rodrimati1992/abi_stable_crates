@@ -351,6 +351,8 @@ fn same_different_abi_stability() {
         <union_2b::Union>::ABI_INFO,
         <union_3::Union>::ABI_INFO,
         <union_4::Union>::ABI_INFO,
+        <enum_extra_fields_a::Enum>::ABI_INFO,
+        <enum_extra_fields_b::Enum>::ABI_INFO,
         // <&prefix0::Prefix>::ABI_INFO,
         // <*const prefix0::Prefix>::ABI_INFO,
         // <RArc<prefix0::Prefix>>::ABI_INFO,
@@ -609,6 +611,24 @@ mod basic_enum {
     pub enum Enum {
         Variant0,
         Variant1 { a: u32 },
+    }
+}
+
+mod enum_extra_fields_a {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub enum Enum {
+        Variant0,
+        Variant1 { a: u32,b:u32 },
+    }
+}
+
+mod enum_extra_fields_b {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub enum Enum {
+        Variant0,
+        Variant1 { a: u32,b:u32,c:u32 },
     }
 }
 

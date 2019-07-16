@@ -50,7 +50,7 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
 pub struct NonExhaustiveVtableVal<E,S,I>{
     pub(crate) _sabi_tys:UnsafeIgnoredType<(E,S,I)>,
     
-    _sabi_enum_info:*const EnumInfo<u8>,
+    pub enum_info:&'static EnumInfo,
 
     pub(crate) _sabi_drop :unsafe extern "C" fn(this:&mut ErasedObject),
 
@@ -91,22 +91,6 @@ unsafe impl<E,S,I> Sync for NonExhaustiveVtable<E,S,I>{}
 unsafe impl<E,S,I> Send for NonExhaustiveVtable<E,S,I>{}
 
 
-impl<E,S,I> NonExhaustiveVtable<E,S,I>{
-    pub fn enum_info(&self)->&'static EnumInfo<<E as GetEnumInfo>::Discriminant>
-    where
-        E:GetEnumInfo
-    {
-        unsafe{
-            &*(
-                self._sabi_enum_info()
-                    as *const EnumInfo<u8>
-                    as *const EnumInfo<<E as GetEnumInfo>::Discriminant>
-            )
-        }
-    }
-}
-
-
 unsafe impl<E,S,I> GetVTable<S,I> for E
 where 
     S:InlineStorage,
@@ -126,9 +110,7 @@ where
     const VTABLE_VAL:NonExhaustiveVtableVal<E,S,I>=
         NonExhaustiveVtableVal{
             _sabi_tys:UnsafeIgnoredType::DEFAULT,
-            _sabi_enum_info:E::ENUM_INFO
-                as *const EnumInfo<<E as GetEnumInfo>::Discriminant>
-                as *const EnumInfo<u8>,
+            enum_info:E::ENUM_INFO,
             _sabi_drop:alt_c_functions::drop_impl::<E>,
             _sabi_clone:<I::Clone as InitCloneField<E,S,I>>::VALUE,
             _sabi_debug:<I::Debug as InitDebugField<E,S,I>>::VALUE,

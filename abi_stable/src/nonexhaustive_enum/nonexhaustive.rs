@@ -822,7 +822,7 @@ impl<E,S,I> Drop for NonExhaustive<E,S,I>{
 pub trait NonExhaustiveSharedOps{
     type Discriminant:ValidDiscriminant;
     fn get_discriminant_(&self)->Self::Discriminant;
-    fn enum_info_(&self)->&'static EnumInfo<Self::Discriminant>;
+    fn enum_info_(&self)->&'static EnumInfo;
 }
 
 
@@ -836,7 +836,7 @@ macro_rules! impl_neso {
             self.get_discriminant()
         }
 
-        fn enum_info_(&self)->&'static EnumInfo<Self::Discriminant>{
+        fn enum_info_(&self)->&'static EnumInfo{
             self.vtable().enum_info()
         }
     )

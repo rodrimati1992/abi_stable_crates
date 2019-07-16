@@ -31,6 +31,46 @@ use crate::{
 use core_extensions::{matches,SelfOps};
 
 
+mod with_2_enums_a{
+    use super::*;
+    #[repr(C)]
+    #[derive(crate::StableAbi)]
+    pub struct Struct{
+        a:command_a::Foo_NE,
+        b:command_a::Foo_NE,
+    }
+}
+
+mod with_2_enums_b{
+    use super::*;
+    #[repr(C)]
+    #[derive(crate::StableAbi)]
+    pub struct Struct{
+        a:command_a::Foo_NE,
+        b:command_b::Foo_NE,
+    }
+}
+
+mod with_2_enums_c{
+    use super::*;
+    #[repr(C)]
+    #[derive(crate::StableAbi)]
+    pub struct Struct{
+        a:command_a::Foo_NE,
+        b:command_c::Foo_NE,
+    }
+}
+
+mod with_2_enums_d{
+    use super::*;
+    #[repr(C)]
+    #[derive(crate::StableAbi)]
+    pub struct Struct{
+        a:command_a::Foo_NE,
+        b:command_h::Foo_NE,
+    }
+}
+
 
 fn check_subsets<F>(list:&[&'static AbiInfoWrapper],mut f:F)
 where
@@ -65,6 +105,33 @@ fn check_enum_subsets(){
         <NonExhaustiveFor<command_a::Foo> as StableAbi>::ABI_INFO,
         <NonExhaustiveFor<command_b::Foo> as StableAbi>::ABI_INFO,
         <NonExhaustiveFor<command_c::Foo> as StableAbi>::ABI_INFO,
+    ];
+
+    check_subsets(&list,|errs|{
+        assert!(
+            errs
+            .iter()
+            .any(|err| matches!(AbiInstability::TooManyVariants{..}=err))
+        );
+    })
+}
+
+// This test ensures that a struct with 2 nonexhaustive enums works as expected.
+//
+// This test is partly to ensure that a `NonExhaustive<>` produces different 
+// `UTypeId`s with different enums,
+// that is a bug I discovered while testing out type errors in 
+// the 2_nonexhaustive example crates.
+// This bug was caused by `#[sabi(unconstrained(T))]` 
+// causing the type parameter to be ignored when generating the UTypeId,
+// meaning that even if the type parameter changed the UTypeId wouldn't.
+#[test]
+fn check_2_enum_subsets(){
+    let list=vec![
+        <with_2_enums_a::Struct as StableAbi>::ABI_INFO,
+        <with_2_enums_b::Struct as StableAbi>::ABI_INFO,
+        <with_2_enums_c::Struct as StableAbi>::ABI_INFO,
+        <with_2_enums_d::Struct as StableAbi>::ABI_INFO,
     ];
 
     check_subsets(&list,|errs|{
@@ -126,13 +193,25 @@ fn mismatched_discriminant(){
 
 #[test]
 fn check_storage_unstorable(){
-    let abi=<NonExhaustiveFor<too_large::Foo> as StableAbi>::ABI_INFO;
+    let abi_a=<NonExhaustiveFor<command_a::Foo> as StableAbi>::ABI_INFO;
+    let abi_b=<NonExhaustiveFor<command_b::Foo> as StableAbi>::ABI_INFO;
+    let abi_large=<NonExhaustiveFor<too_large::Foo> as StableAbi>::ABI_INFO;
 
-    check_layout_compatibility(abi,abi)
-        .unwrap_err()
-        .flatten_errors()
-        .iter()
-        .any(|err| matches!(AbiInstability::IncompatibleWithNonExhaustive{..}=err));
+    let checks=vec![
+        (abi_a,abi_large),
+        (abi_b,abi_large),
+        (abi_large,abi_large),
+        (abi_large,abi_a),
+        (abi_large,abi_b),
+    ];
+
+    for (l,r) in checks {
+        check_layout_compatibility(l,r)
+            .unwrap_err()
+            .flatten_errors()
+            .iter()
+            .any(|err| matches!(AbiInstability::IncompatibleWithNonExhaustive{..}=err));
+    }
 }
 
 
