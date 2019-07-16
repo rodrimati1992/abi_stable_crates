@@ -45,38 +45,31 @@ pub unsafe trait GetEnumInfo:Sized{
     
     type DefaultInterface;
 
-    const ENUM_INFO:&'static EnumInfo<Self::Discriminant>;
-
-    const DISCRIMINANTS:&'static [Self::Discriminant];
+    const ENUM_INFO:&'static EnumInfo;
     
+    fn discriminants()->&'static [Self::Discriminant];
+
     fn is_valid_discriminant(discriminant:Self::Discriminant)->bool;
 }
 
 
 #[derive(StableAbi)]
 #[repr(C)]
-pub struct EnumInfo<D:'static>{
+pub struct EnumInfo{
     pub type_name:StaticStr,
 
     pub variants:StaticSlice<StaticStr>,
-
-    pub discriminants:StaticSlice<D>,
 }
 
-impl<D> EnumInfo<D>
-where
-    D:'static
-{
+impl EnumInfo{
     #[doc(hidden)]
     pub const fn _for_derive(
         type_name:&'static str,
         variants:&'static [StaticStr],
-        discriminants:&'static [D]
     )->Self{
         Self{
             type_name:StaticStr::new(type_name),
             variants:StaticSlice::new(variants),
-            discriminants:StaticSlice::new(discriminants),
         }
     }
 }

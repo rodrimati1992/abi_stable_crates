@@ -295,6 +295,12 @@ pub(crate) fn tokenize_enum_info<'a>(
 
         quote!(
 
+            impl #impl_generics #name #ty_generics 
+            #where_clause
+            {
+                const _SABI_NE_DISCR_CNSNT_:&'static [#discriminant_type]=
+                    #discriminant_tokens;
+            }
 
             unsafe impl #impl_generics _sabi_reexports::GetEnumInfo for #name #ty_generics 
             #where_clause
@@ -305,20 +311,21 @@ pub(crate) fn tokenize_enum_info<'a>(
                 
                 type DefaultInterface=#default_interface;
 
-                const ENUM_INFO:&'static _sabi_reexports::EnumInfo<Self::Discriminant>=
+                const ENUM_INFO:&'static _sabi_reexports::EnumInfo=
                     &_sabi_reexports::EnumInfo::_for_derive(
                         #name_str,
                         &[ #( __StaticStr::new( #variant_names ), )* ],
-                        Self::DISCRIMINANTS,
                     );
-                
-                const DISCRIMINANTS:&'static [Self::Discriminant]=#discriminant_tokens;
 
-                fn is_valid_discriminant(discriminant:Self::Discriminant)->bool{
+                fn discriminants()->&'static [#discriminant_type]{
+                    Self::_SABI_NE_DISCR_CNSNT_
+                }
+
+                fn is_valid_discriminant(discriminant:#discriminant_type)->bool{
                     #( 
                         ( 
-                            Self::DISCRIMINANTS[#start_discrs] <= discriminant && 
-                            discriminant <= Self::DISCRIMINANTS[#end_discrs]
+                            Self::_SABI_NE_DISCR_CNSNT_[#start_discrs] <= discriminant && 
+                            discriminant <= Self::_SABI_NE_DISCR_CNSNT_[#end_discrs]
                         )|| 
                     )*
                     false

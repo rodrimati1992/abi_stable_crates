@@ -729,25 +729,25 @@ impl AbiChecker {
         let t_exhaus=t_enum.exhaustiveness;
         let o_exhaus=o_enum.exhaustiveness;
 
-        if t_exhaus.is_exhaustive()!=o_exhaus.is_exhaustive() {
-            push_err(
-                errs,
-                t_enum,
-                o_enum, 
-                |x| x.exhaustiveness, 
-                AI::MismatchedExhaustiveness
-            );
-        }
-
-        if let (Some(this_ne),Some(other_ne))=
-            (t_exhaus.as_nonexhaustive(),o_exhaus.as_nonexhaustive())
-        {
-            if let Err(e)=this_ne.check_compatible(this.layout){
-                errs.push(AI::IncompatibleWithNonExhaustive(e))
+        match (t_exhaus.as_nonexhaustive(),o_exhaus.as_nonexhaustive()) {
+            (Some(this_ne),Some(other_ne))=>{
+                if let Err(e)=this_ne.check_compatible(this.layout){
+                    errs.push(AI::IncompatibleWithNonExhaustive(e))
+                }
+                if let Err(e)=other_ne.check_compatible(other.layout){
+                    errs.push(AI::IncompatibleWithNonExhaustive(e))
+                }
             }
-            if let Err(e)=other_ne.check_compatible(other.layout){
-                errs.push(AI::IncompatibleWithNonExhaustive(e))
+            (Some(_),None)|(None,Some(_))=>{
+                push_err(
+                    errs,
+                    t_enum,
+                    o_enum, 
+                    |x| x.exhaustiveness, 
+                    AI::MismatchedExhaustiveness
+                );
             }
+            (None,None)=>{}
         }
 
         if t_exhaus.is_exhaustive()&&t_fcount.len()!=o_fcount.len() ||
@@ -763,10 +763,13 @@ impl AbiChecker {
 
         let mut t_names=t_enum.variant_names.as_str().split(';');
         let mut o_names=o_enum.variant_names.as_str().split(';');
+        let mut total_field_count=0;
         for (t_field_count, o_field_count) in t_fcount.iter().zip(o_fcount) {
             let t_name = t_names.next().unwrap_or("<this unavailable>");
             let o_name = o_names.next().unwrap_or("<other unavailable>");
             
+            total_field_count+=usize::from(*t_field_count);
+
             if t_field_count!=o_field_count {
                 push_err(
                     errs, 
@@ -782,6 +785,12 @@ impl AbiChecker {
                 continue;
             }
         }
+
+        let min_field_count=t_fields.len().min(o_fields.len());
+        if total_field_count!=min_field_count {
+            push_err(errs, total_field_count, min_field_count,|x|x, AI::FieldCountMismatch);
+        }
+
         self.check_fields(
             errs, 
             this.layout, 
