@@ -111,27 +111,27 @@ pub mod impl_enum{
     
 
     /// Converts a type to either Unimplemented<T> or Implemented<T>.
-    pub trait ImplFrom_<T>{
-        type Impl;
+    pub trait ImplFrom_<T:?Sized>{
+        type Impl:?Sized;
         const IMPL:Self::Impl;
     }
 
-    impl<T> ImplFrom_<T> for False {
+    impl<T:?Sized> ImplFrom_<T> for False {
         type Impl=Unimplemented<T>;
         const IMPL:Unimplemented<T>=Unimplemented::NEW;
     }
 
-    impl<T> ImplFrom_<T> for True {
+    impl<T:?Sized> ImplFrom_<T> for True {
         type Impl=Implemented<T>;
         const IMPL:Implemented<T>=Implemented::NEW;
     }
 
-    impl<T> ImplFrom_<T> for Unimplemented<T> {
+    impl<T:?Sized> ImplFrom_<T> for Unimplemented<T> {
         type Impl=Unimplemented<T>;
         const IMPL:Unimplemented<T>=Unimplemented::NEW;
     }
 
-    impl<T> ImplFrom_<T> for Implemented<T> {
+    impl<T:?Sized> ImplFrom_<T> for Implemented<T> {
         type Impl=Implemented<T>;
         const IMPL:Implemented<T>=Implemented::NEW;
     }
@@ -143,9 +143,9 @@ pub mod impl_enum{
 
 
     /// Describes a trait being implemented.
-    pub struct Implemented<T>(PhantomData<fn()->T>);
+    pub struct Implemented<T:?Sized>(PhantomData<fn()->T>);
 
-    impl<T> Implemented<T>{
+    impl<T:?Sized> Implemented<T>{
         pub const NEW:Implemented<T>=Implemented(PhantomData);
     }
 
@@ -157,9 +157,9 @@ pub mod impl_enum{
 
 
     /// Describes a trait being unimplemented.
-    pub struct Unimplemented<T>(PhantomData<fn()->T>);
+    pub struct Unimplemented<T:?Sized>(PhantomData<fn()->T>);
 
-    impl<T> Unimplemented<T>{
+    impl<T:?Sized> Unimplemented<T>{
         pub const NEW:Unimplemented<T>=Unimplemented(PhantomData);
     }
 

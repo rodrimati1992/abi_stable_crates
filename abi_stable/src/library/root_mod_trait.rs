@@ -137,7 +137,7 @@ If the layout of the root module is not the expected one.
         let statics=Self::root_module_statics();
         statics.root_mod.try_init(||{
             let raw_library=load_raw_library::<Self>(where_)?;
-            let mut items = unsafe{ lib_header_from_raw_library(&raw_library)? };
+            let items = unsafe{ lib_header_from_raw_library(&raw_library)? };
 
             let root_mod=items.init_root_module::<Self>()?.initialization()?;
 
@@ -225,7 +225,7 @@ it will contain dangling `'static` references if the library is dropped before i
 */
 pub unsafe fn lib_header_from_raw_library(
     raw_library:&RawLibrary
-)->Result< LibHeader , LibraryError>
+)->Result< &'static LibHeader , LibraryError>
 {
     unsafe{
         let mut mangled=mangled_root_module_loader_name();
@@ -246,7 +246,7 @@ pub unsafe fn lib_header_from_raw_library(
         // This has to run before anything else.
         lib_header.initialize_library_globals(globals);
 
-        Ok(lib_header.clone())
+        Ok(lib_header)
     }
 }
 
@@ -272,7 +272,7 @@ If the root module was not exported.
 If the abi_stable version used by the library is not compatible.
 
 */
-pub fn lib_header_from_path(path:&Path)->Result< LibHeader , LibraryError> {
+pub fn lib_header_from_path(path:&Path)->Result< &'static LibHeader , LibraryError> {
     let raw_lib=RawLibrary::load_at(path)?;
 
     let library_getter=unsafe{ lib_header_from_raw_library(&raw_lib)? };
