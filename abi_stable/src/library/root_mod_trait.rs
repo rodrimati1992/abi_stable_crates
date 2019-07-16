@@ -34,10 +34,18 @@ pub trait RootModule: Sized+SharedStableAbi+'static  {
             base_name:StaticStr::new(Self::BASE_NAME),
             name:StaticStr::new(Self::NAME),
             version_strings:Self::VERSION_STRINGS,
-            abi_info:<&Self>::S_ABI_INFO,
+            abi_info:IsAbiChecked::Yes(<&Self>::S_ABI_INFO),
             _priv:(),
         },
         _priv:PhantomData,
+    };
+
+    /// Like Self::CONSTANTS,
+    /// except without including the type layout constant for the root module.
+    const CONSTANTS_NO_ABI_INFO:RootModuleConsts<Self>={
+        let mut consts=Self::CONSTANTS;
+        consts.inner.abi_info=IsAbiChecked::No;
+        consts
     };
 
     /// Gets the statics for Self.
@@ -345,7 +353,7 @@ declare_root_module_consts!{
         base_name: StaticStr,
         name: StaticStr,
         version_strings: VersionStrings,
-        abi_info: &'static AbiInfoWrapper,
+        abi_info: IsAbiChecked,
     ]
 }
 

@@ -20,7 +20,7 @@ use libloading::{
     Symbol as LLSymbol,
 };
 
-use abi_stable_shared::mangled_root_module_loader_name;
+pub use abi_stable_shared::mangled_root_module_loader_name;
 
 
 
@@ -77,6 +77,28 @@ pub enum LibraryPath<'a>{
     FullPath(&'a Path),
     Directory(&'a Path),
 }
+
+//////////////////////////////////////////////////////////////////////
+
+
+/// Whether the ABI of a root module is checked.
+#[repr(u8)]
+#[derive(Debug,Copy,Clone,StableAbi)]
+pub enum IsAbiChecked{
+    Yes(&'static AbiInfoWrapper),
+    No
+}
+
+
+impl IsAbiChecked{
+    pub fn into_option(self)->Option<&'static AbiInfoWrapper>{
+        match self {
+            IsAbiChecked::Yes(x)=>Some(x),
+            IsAbiChecked::No    =>None,
+        }
+    }
+}
+
 
 //////////////////////////////////////////////////////////////////////
 

@@ -41,6 +41,7 @@ use serde_json;
 ///
 /// This code isn't run until the layout of the type it returns is checked.
 #[export_root_module]
+// #[unsafe_no_layout_constant]
 fn instantiate_root_module()->&'static TextOpsMod{
     TextOpsModVal {
         new,
