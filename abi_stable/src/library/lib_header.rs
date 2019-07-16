@@ -57,8 +57,12 @@ impl LibHeader {
     }
 
     /// Gets the layout of the root module.
-    pub fn layout(&self)->&'static AbiInfoWrapper{
-        self.root_mod_consts.abi_info()
+    ///
+    /// This returns a None if the root module layout is not included
+    /// because the `#[unsafe_no_layout_constant]` 
+    /// attribute was used on the function exporting the root module.
+    pub fn layout(&self)->Option<&'static AbiInfoWrapper>{
+        self.root_mod_consts.abi_info().into_option()
     }
 
     pub(super) fn initialize_library_globals(&self,globals:&'static Globals){
@@ -183,20 +187,21 @@ If the version number of the library is incompatible.
     where
         M: RootModule,
     {
-
-        // Using this instead of
-        // crate::abi_stability::abi_checking::check_layout_compatibility
-        // so that if this is called in a dynamic-library that loads 
-        // another dynamic-library,
-        // it uses the layout checker of the executable,
-        // ensuring a globally unique view of the layout of types.
-        //
-        // This might also reduce the code in the library,
-        // because it doesn't have to compile the layout checker for every library.
-        (globals::initialized_globals().layout_checking)
-            (<&M>::S_ABI_INFO, self.root_mod_consts.abi_info())
-            .into_result()
-            .map_err(LibraryError::AbiInstability)?;
+        if let IsAbiChecked::Yes(root_mod_abi_info)=self.root_mod_consts.abi_info(){
+            // Using this instead of
+            // crate::abi_stability::abi_checking::check_layout_compatibility
+            // so that if this is called in a dynamic-library that loads 
+            // another dynamic-library,
+            // it uses the layout checker of the executable,
+            // ensuring a globally unique view of the layout of types.
+            //
+            // This might also reduce the code in the library,
+            // because it doesn't have to compile the layout checker for every library.
+            (globals::initialized_globals().layout_checking)
+                (<&M>::S_ABI_INFO, root_mod_abi_info)
+                .into_result()
+                .map_err(LibraryError::AbiInstability)?;
+        }
         
         atomic::compiler_fence(atomic::Ordering::SeqCst);
         

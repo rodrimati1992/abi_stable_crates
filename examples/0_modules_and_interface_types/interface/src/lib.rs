@@ -74,7 +74,8 @@ impl RootModule for TextOpsMod {
 #[sabi(kind(Prefix(prefix_struct="DeserializerMod")))]
 #[sabi(missing_field(panic))]
 pub struct DeserializerModVal {
-    pub something: std::marker::PhantomData<abi_stable::std_types::RHashMap<RString,RString>>,
+    pub something: std::marker::PhantomData<()>,
+    // pub something: std::marker::PhantomData<abi_stable::std_types::RHashMap<RString,RString>>,
     #[sabi(last_prefix_field)]
     /// The implementation for how TOStateBox is going to be deserialized.
     pub deserialize_state: extern "C" fn(RStr<'_>) -> RResult<TOStateBox, RBoxError>,

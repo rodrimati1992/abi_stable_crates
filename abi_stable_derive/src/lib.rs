@@ -66,6 +66,41 @@ pub fn get_hello_world_mod() -> &'static TextOperationsMod {
 
 ```
 
+# Generated code
+
+Exporting the root module creates a 
+`static THE_NAME_USED_FOR_ALL_ROOT_MODULES:LibHeader= ... ;` 
+with these things:
+
+- The abi_stable version number used by the dynamic library.
+
+- A constant describing the layout of the exported root module,and every type it references.
+
+- A lazily initialized reference to the root module.
+
+- The constructor function of the root module.
+
+The name used for root modules is the one returned by 
+`abi_stable::library::mangled_root_module_loader_name`.
+Because there can't be multiple root modules for a library,
+that function returns a constant.
+
+
+# Remove type layout constant
+
+One can avoid generating the type layout constant for the exported root module by using the
+`#[unsafe_no_layout_constant]` attribute,
+with the downside that if the layout changes(in an incompatible way)
+it could be Undefined Behavior.
+
+This attribute is useful if one wants to minimize the size of the dynamic library when 
+doing a public release.
+
+It is strongly encouraged that this attribute is used conditionally,
+disabling it in Continuous Integration so that the 
+binary compatibility of a dynamic library is checked at some point before releasing it.
+
+
 # More examples
 
 For a more detailed example look in the README in the repository for this crate.
