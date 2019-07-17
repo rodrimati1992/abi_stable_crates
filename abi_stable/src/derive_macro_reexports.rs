@@ -1,8 +1,8 @@
 pub use crate::{
     abi_stability::{
+        get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
         stable_abi_trait::{
-            StaticEquivalent,
-            MakeGetAbiInfo,  StableAbi,  SharedStableAbi, StableAbi_Bound,
+            MakeGetAbiInfo,  StableAbi,  SharedStableAbi, StableAbi_Bound, SharedStableAbi_Bound,
             UnsafeOpaqueField_Bound,
             ValueKind,
             PrefixKind,
@@ -73,11 +73,14 @@ pub use core_extensions::type_level_bool::{False, True};
 
 pub mod renamed {
     pub use super::{
+        GetStaticEquivalent_ as __GetStaticEquivalent_,
+        GetStaticEquivalent as __GetStaticEquivalent,
         LifetimeIndex::Param as __LIParam, LifetimeIndex::Static as __LIStatic,
         MakeGetAbiInfo as __MakeGetAbiInfo, 
         StableAbi as __StableAbi,
         SharedStableAbi as __SharedStableAbi,
         StableAbi_Bound as __StableAbi_Bound, 
+        SharedStableAbi_Bound as __SharedStableAbi_Bound, 
         TLData as __TLData,
         TLField as __TLField, TypeLayoutParams as __TypeLayoutParams,
         _private_TypeLayoutDerive as __private_TypeLayoutDerive,
@@ -91,7 +94,6 @@ pub mod renamed {
         StartLen as __StartLen,
         SliceAndFieldIndices as __SAFI,
         UnsafeOpaqueField_Bound as __UnsafeOpaqueField_Bound,
-        StaticEquivalent as __StaticEquivalent,
         ValueKind  as __ValueKind,
         PrefixKind as __PrefixKind,
         WithMetadata_ as __WithMetadata_,

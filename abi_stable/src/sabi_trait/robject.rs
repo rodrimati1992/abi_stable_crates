@@ -30,7 +30,7 @@ use crate::{
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    unconstrained(V),
+    not_stableabi(V),
     bound="V:SharedStableAbi",
     bound="I:InterfaceBound",
     tag="<I as InterfaceBound>::TAG",

@@ -61,16 +61,6 @@ mod with_2_enums_c{
     }
 }
 
-mod with_2_enums_d{
-    use super::*;
-    #[repr(C)]
-    #[derive(crate::StableAbi)]
-    pub struct Struct{
-        a:command_a::Foo_NE,
-        b:command_h::Foo_NE,
-    }
-}
-
 
 fn check_subsets<F>(list:&[&'static AbiInfoWrapper],mut f:F)
 where
@@ -83,7 +73,7 @@ where
             let res=check_layout_compatibility_with_globals(l_abi,r_abi,&globals);
 
             if l_i <= r_i {
-                assert_eq!(res,Ok(()),"{:#?}",res);
+                assert_eq!(res,Ok(()),"\n\nl_i:{} r_i:{}\n\n",l_i,r_i);
             }else{
                 if let Ok(_)=res {
                     let _=dbg!(l_i);
@@ -131,7 +121,6 @@ fn check_2_enum_subsets(){
         <with_2_enums_a::Struct as StableAbi>::ABI_INFO,
         <with_2_enums_b::Struct as StableAbi>::ABI_INFO,
         <with_2_enums_c::Struct as StableAbi>::ABI_INFO,
-        <with_2_enums_d::Struct as StableAbi>::ABI_INFO,
     ];
 
     check_subsets(&list,|errs|{

@@ -73,7 +73,6 @@ trait Name{
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi( 
-    unconstrained(S),
     bound="S:Name",
     tag = r##" tag!( S::NAME ) "## ,
 )]
@@ -81,20 +80,28 @@ struct StringParameterized<S>{
     _marker:UnsafeIgnoredType<S>
 }
 
-
+#[repr(C)]
+#[derive(StableAbi)]
 struct Foo;
+
 impl Name for Foo{
     const NAME:&'static str="Hello, World!";
 }
 
 
+#[repr(C)]
+#[derive(StableAbi)]
 struct Bar;
+
 impl Name for Bar{
-    const NAME:&'static str="Hello, World!";
+    const NAME:&'static str="Hello, Helloooooo!";
 }
 
 
+#[repr(C)]
+#[derive(StableAbi)]
 struct Boor;
+
 impl Name for Boor{
     const NAME:&'static str="This is a different string!";
 }

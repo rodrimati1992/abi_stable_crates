@@ -147,7 +147,7 @@ declare_common_tokens! {
         sabi_reexports="_sabi_reexports",
         cmp_ignored="__CmpIgnored",
         lifetime_index="__LifetimeIndex",
-        static_equivalent="__StaticEquivalent",
+        static_equivalent="__GetStaticEquivalent",
         li_static="__LIStatic",
         li_index="__LIParam",
         cap_static="Static",

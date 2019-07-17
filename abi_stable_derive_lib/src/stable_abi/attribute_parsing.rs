@@ -46,9 +46,9 @@ pub(crate) struct StableAbiOptions<'a> {
 
     /// The type parameters that have the __StableAbi constraint
     pub(crate) stable_abi_bounded:HashSet<&'a Ident>,
-    pub(crate) stable_abi_bounded_ty:Vec<&'a Type>,
-
-    pub(crate) unconstrained_type_params:HashMap<Ident,UnconstrainedTyParam<'a>>,
+    pub(crate) static_equiv_bounded:Vec<&'a Ident>,
+    
+    pub(crate) unconstrained_type_params:HashMap<Ident,NotStableAbiBound>,
 
     pub(crate) extra_bounds:Vec<WherePredicate>,
 
@@ -70,8 +70,9 @@ pub(crate) struct StableAbiOptions<'a> {
 }
 
 
-pub(crate) struct UnconstrainedTyParam<'a>{
-    pub(crate) static_equivalent:Option<&'a Type>
+pub(crate) enum NotStableAbiBound{
+    NoBound,
+    GetStaticEquivalent,
 }
 
 
@@ -110,12 +111,19 @@ impl<'a> StableAbiOptions<'a> {
 
         let repr = ReprAttr::new(this.repr);
 
+        let mut static_equiv_bounded=Vec::new();
+
         let mut stable_abi_bounded=ds.generics
             .type_params()
             .map(|x| &x.ident )
             .collect::<HashSet<&'a Ident>>();
 
-        for (type_param,_) in &this.unconstrained_type_params {
+        for (type_param,what) in &this.unconstrained_type_params {
+            if let NotStableAbiBound::GetStaticEquivalent=what {
+                if let Some(&ident)=stable_abi_bounded.get(type_param) {
+                    static_equiv_bounded.push(ident);
+                }
+            }
             if !stable_abi_bounded.remove(type_param) {
                 panic!(
                     "'{}' declared as a phantom type parameter but is not a type parameter",
@@ -200,14 +208,11 @@ impl<'a> StableAbiOptions<'a> {
                 ModReflMode::Opaque,
         };
 
-        let stable_abi_bounded_ty:Vec<&'a syn::Type>=
-            this.extra_phantom_fields.iter().map(|(_,ty)| *ty ).collect();
-
         phantom_fields.extend(this.extra_phantom_fields);
 
         StableAbiOptions {
             debug_print:this.debug_print,
-            kind, repr , stable_abi_bounded , stable_abi_bounded_ty,
+            kind, repr , stable_abi_bounded , static_equiv_bounded ,
             extra_bounds :this.extra_bounds,
             unconstrained_type_params:this.unconstrained_type_params.into_iter().collect(),
             opaque_fields:this.opaque_fields,
@@ -242,7 +247,7 @@ struct StableAbiAttrs<'a> {
     prefix_bounds:Vec<WherePredicate>,
 
     /// The type parameters that have no constraints
-    unconstrained_type_params:Vec<(Ident,UnconstrainedTyParam<'a>)>,
+    unconstrained_type_params:Vec<(Ident,NotStableAbiBound)>,
 
     // Using raw pointers to do an identity comparison.
     opaque_fields:FieldMap<bool>,
@@ -529,21 +534,28 @@ Tag:\n\t{}\n",
                     }
                     x => panic!("invalid #[module_reflection(..)] attribute:\n{:?}", x),
                 });
-            } else if list.ident == "unconstrained" {
-                with_nested_meta("unconstrained", list.nested, |attr| match attr {
+            } else if list.ident == "not_stableabi" {
+                with_nested_meta("not_stableabi", list.nested, |attr| match attr {
                     Meta::Word(type_param)=>{
-                        let unconstrained=UnconstrainedTyParam{
-                            static_equivalent:None,
-                        };
-                        this.unconstrained_type_params.push((type_param,unconstrained));
-                    }
-                    Meta::List(type_param)=>{
-                        let ty=type_param.ident;
-                        let v=parse_unconstrained_ty_param(type_param.nested,arenas);
-                        this.unconstrained_type_params.push((ty,v));
+                        this.unconstrained_type_params.push(
+                            (type_param,NotStableAbiBound::GetStaticEquivalent)
+                        );
                     }
                     x => panic!(
-                        "invalid #[unconstrained(..)] attribute\
+                        "invalid #[not_stableabi(..)] attribute\
+                         (it must be the identifier of a type parameter):\n{:?}\n", 
+                        x
+                    ),
+                })
+            } else if list.ident == "unsafe_unconstrained" {
+                with_nested_meta("unsafe_unconstrained", list.nested, |attr| match attr {
+                    Meta::Word(type_param)=>{
+                        this.unconstrained_type_params.push(
+                            (type_param,NotStableAbiBound::NoBound)
+                        );
+                    }
+                    x => panic!(
+                        "invalid #[unsafe_unconstrained(..)] attribute\
                          (it must be the identifier of a type parameter):\n{:?}\n", 
                         x
                     ),
@@ -812,45 +824,5 @@ fn parse_non_exhaustive_list<'a>(
 
     this
 }
-
-
-/// Parses the contents of #[sabi(unconstrained(Type( ... )))]
-fn parse_unconstrained_ty_param<'a>(
-    list: Punctuated<NestedMeta, Comma>, 
-    arenas: &'a Arenas
-)-> UnconstrainedTyParam<'a> {
-    match list.into_iter().next() {
-        Some(NestedMeta::Meta(Meta::NameValue(MetaNameValue{
-            ident:ref nv_ident,
-            lit:Lit::Str(ref type_str),
-            ..
-        })))
-        if nv_ident=="StaticEquivalent" =>{
-            let ty=match type_str.parse::<syn::Type>() {
-                Ok(ty)=>ty,
-                Err(e)=>panic!(
-                    "Could not parse as a type:\n\t{}\nError:\n\t{}", 
-                    type_str.value(),
-                    e
-                )
-            };
-
-            UnconstrainedTyParam{
-                static_equivalent:Some(arenas.alloc(ty)),
-            }
-        }
-        Some(x) => panic!(
-            "invalid #[sabi(unconstrained(  )] attribute\
-             (it must be StaticEquivalent=\"Type\" ):\n{:?}\n", 
-            x
-        ),
-        None=>{
-            UnconstrainedTyParam{
-                static_equivalent:None,
-            }
-        }
-    }
-}
-
 
 fn parse_sabi_override<'a>(_this: &mut StableAbiAttrs<'a>, _attr: Meta, _arenas: &'a Arenas) {}

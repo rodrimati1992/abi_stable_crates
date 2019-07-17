@@ -22,7 +22,7 @@ even though they have `non-'static` type parameters.
 #[repr(transparent)]
 #[derive(StableAbi)]
 #[sabi(
-    unconstrained(T),
+    not_stableabi(T),
     bound="T:SharedStableAbi",
 )]
 pub struct StaticRef<T>{

@@ -14,9 +14,21 @@ These attributes are applied on the type declaration.
 
 Adds a virtual field to the type layout constant.
 
-<h3> `#[sabi(unconstrained(TypeParameter))]`  </h3>
+<h3> `#[sabi(not_stableabi(TypeParameter))]`  </h3>
+
+Removes the implicit `TypeParameter:StableAbi` constraint,
+leaving a `TypeParameter:GetStaticEquivalent` constraint.
+
+<h3> `#[sabi(unsafe_unconstrained(TypeParameter))]`  </h3>
 
 Removes the implicit `TypeParameter:StableAbi` constraint.
+
+The type parameter will be ignored when determining whether the type 
+has already been checked,when loading a dynamic library,
+
+Don't use this if transmuting this type to have different type parameters,
+only changing `#[sabi(unsafe_unconstrained())]` one,
+would cause Undefined Behavior.
 
 This is only necessary if you are passing `TypeParameter` to `UnsafeIgnoredType`
 
