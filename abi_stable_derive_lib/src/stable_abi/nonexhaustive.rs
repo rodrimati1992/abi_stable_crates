@@ -199,8 +199,10 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
         quote!(
             #[repr(C)]
+            #[derive(::abi_stable::StableAbi)]
             #aligner_attribute
             #vis struct #enum_storage{
+                #[sabi(unsafe_opaque_field)]
                 _filler:[u8; #aligner_size ],
                 #aligner_field
             }
@@ -224,6 +226,8 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
         if let Some(new_interface)=this.new_interface{
             quote!( 
+                #[repr(C)]
+                #[derive(::abi_stable::StableAbi)]
                 #vis struct #new_interface;
             ).to_tokens(ts);
         }
@@ -293,7 +297,20 @@ pub(crate) fn tokenize_enum_info<'a>(
 
         let (impl_generics, ty_generics, where_clause) = ds.generics.split_for_impl();
 
+        let preds=where_clause.as_ref().map(|w| &w.predicates );
+
         quote!(
+
+            unsafe impl #impl_generics _sabi_reexports::GetStaticEquivalent_ for #name #ty_generics 
+            where
+                #nonexhaustive_marker <Self,#enum_storage> :
+                    _sabi_reexports::GetStaticEquivalent_,
+                #preds
+            {
+                type StaticEquivalent=_sabi_reexports::GetStaticEquivalent<
+                    #nonexhaustive_marker <Self,#enum_storage>
+                >;
+            }
 
             impl #impl_generics #name #ty_generics 
             #where_clause

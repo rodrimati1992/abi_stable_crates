@@ -799,8 +799,6 @@ mod mod_7 {
 #[sabi(
     bound="M:ToTagConst",
     tag="<M as ToTagConst>::TAG",
-    unconstrained(M),
-
 )]
 pub struct Tagged<M>(UnsafeIgnoredType<M>);
 
@@ -814,6 +812,8 @@ macro_rules! declare_tags {
         $(const $marker_ty:ident = $tag:expr;)*
     ) => (
         $(
+            #[repr(C)]
+            #[derive(StableAbi)]
             pub struct $marker_ty;
 
             impl ToTagConst for $marker_ty {

@@ -16,6 +16,7 @@ use std::{
 };
 
 use crate::{
+    abi_stability::get_static_equivalent::GetStaticEquivalent_,
     std_types::{RNone, RSome, utypeid::UTypeId},
     sabi_types::ReturnValueEquality,
     reflection::ModReflMode,
@@ -64,7 +65,7 @@ because of that,`#[derive(StableAbi)]` detects the presence of `extern fn` types
 in type definitions.
 
 */
-pub unsafe trait SharedStableAbi {
+pub unsafe trait SharedStableAbi:GetStaticEquivalent_ {
     /**
 Whether this type has a single invalid bit-pattern.
 
@@ -103,11 +104,6 @@ The kind of abi stability of this type,there are 2:
     */
     type Kind:TypeKindTrait;
 
-    /// A type that stands in for Self,used to create a UTypeId for doing layout checking.
-    ///
-    /// This may or may not have the same TypeId as Self.
-    type StaticEquivalent:'static;
-
     /// The layout of the type provided by implementors.
     const S_LAYOUT: &'static TypeLayout;
 
@@ -136,16 +132,6 @@ where
 
 
 ///////////////////////
-
-
-/// Gets the `'static` equivalent of the type,so as to get the TypeId,
-/// to uniquely identify the TypeLayout for each type.
-pub type StaticEquivalent<T>=
-    <T as SharedStableAbi>::StaticEquivalent;
-
-
-///////////////////////
-
 
 /// Wraps a correctly constructed AbiInfo.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -379,12 +365,17 @@ where
 
 ///////////////////////////////////////////////////////////////////////////////
 
+unsafe impl<T> GetStaticEquivalent_ for PhantomData<T> 
+where T:GetStaticEquivalent_
+{
+    type StaticEquivalent=PhantomData<T::StaticEquivalent>;
+}
+
 unsafe impl<T> SharedStableAbi for PhantomData<T> 
 where T:StableAbi
 {
     type Kind=ValueKind;
     type IsNonZeroType = False;
-    type StaticEquivalent=PhantomData<T::StaticEquivalent>;
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "PhantomData",
@@ -396,10 +387,14 @@ where T:StableAbi
         &[TLField::new("0",&[],<T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)],
     );
 }
+
+
+unsafe impl GetStaticEquivalent_ for () {
+    type StaticEquivalent=();
+}
 unsafe impl SharedStableAbi for () {
     type Kind=ValueKind;
     type IsNonZeroType = False;
-    type StaticEquivalent=();
 
     const S_LAYOUT: &'static TypeLayout =
         &TypeLayout::from_std::<Self>(
@@ -414,6 +409,14 @@ unsafe impl SharedStableAbi for () {
 
 /////////////
 
+
+unsafe impl<'a, T> GetStaticEquivalent_ for &'a T
+where
+    T: 'a + GetStaticEquivalent_,
+{
+    type StaticEquivalent=&'static T::StaticEquivalent;
+}
+
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<'a, T> SharedStableAbi for &'a T
 where
@@ -421,7 +424,6 @@ where
 {
     type Kind=ValueKind;
     type IsNonZeroType = True;
-    type StaticEquivalent=&'static T::StaticEquivalent;
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "&",
@@ -438,6 +440,14 @@ where
     ).set_mod_refl_mode(ModReflMode::DelegateDeref{phantom_field_index:0});
 }
 
+
+unsafe impl<'a, T> GetStaticEquivalent_ for &'a mut T
+where
+    T: 'a + GetStaticEquivalent_,
+{
+    type StaticEquivalent=&'static mut T::StaticEquivalent;
+}
+
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<'a, T> SharedStableAbi for &'a mut T
 where
@@ -445,7 +455,6 @@ where
 {
     type Kind=ValueKind;
     type IsNonZeroType = True;
-    type StaticEquivalent=&'static mut T::StaticEquivalent;
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "&mut",
@@ -462,6 +471,14 @@ where
     );
 }
 
+
+unsafe impl<T> GetStaticEquivalent_ for NonNull<T>
+where
+    T: GetStaticEquivalent_,
+{
+    type StaticEquivalent=NonNull<T::StaticEquivalent>;
+}
+
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<T> SharedStableAbi for NonNull<T>
 where
@@ -469,7 +486,6 @@ where
 {
     type Kind=ValueKind;
     type IsNonZeroType = True;
-    type StaticEquivalent=NonNull<T::StaticEquivalent>;
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "NonNull",
@@ -488,13 +504,20 @@ where
     );
 }
 
+
+unsafe impl<T> GetStaticEquivalent_ for AtomicPtr<T>
+where
+    T: GetStaticEquivalent_,
+{
+    type StaticEquivalent=AtomicPtr<T::StaticEquivalent>;
+}
+
 unsafe impl<T> SharedStableAbi for AtomicPtr<T>
 where
     T: StableAbi,
 {
     type Kind=ValueKind;
     type IsNonZeroType = False;
-    type StaticEquivalent=AtomicPtr<T::StaticEquivalent>;
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "AtomicPtr",
@@ -513,6 +536,12 @@ where
     );
 }
 
+unsafe impl<T> GetStaticEquivalent_ for *const T
+where
+    T: GetStaticEquivalent_,
+{
+    type StaticEquivalent=*const T::StaticEquivalent;
+}
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<T> SharedStableAbi for *const T
 where
@@ -520,7 +549,6 @@ where
 {
     type Kind=ValueKind;
     type IsNonZeroType = False;
-    type StaticEquivalent=*const T::StaticEquivalent;
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "*const",
@@ -537,6 +565,13 @@ where
     );
 }
 
+
+unsafe impl<T> GetStaticEquivalent_ for *mut T
+where
+    T: GetStaticEquivalent_,
+{
+    type StaticEquivalent=*mut T::StaticEquivalent;
+}
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<T> SharedStableAbi for *mut T
 where
@@ -544,7 +579,6 @@ where
 {
     type Kind=ValueKind;
     type IsNonZeroType = False;
-    type StaticEquivalent=*mut T::StaticEquivalent;
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "*mut",
@@ -566,12 +600,17 @@ where
 macro_rules! impl_stable_abi_array {
     ($($size:expr),*)=>{
         $(
+            unsafe impl<T> GetStaticEquivalent_ for [T;$size]
+            where T:GetStaticEquivalent_
+            {
+                type StaticEquivalent=[T::StaticEquivalent;$size];
+            }
+
             unsafe impl<T> SharedStableAbi for [T;$size]
             where T:StableAbi
             {
                 type Kind=ValueKind;
                 type IsNonZeroType=False;
-                type StaticEquivalent=[T::StaticEquivalent;$size];
 
                 const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std_full::<Self>(
                     stringify!(concat!("[_;",stringify!($size),"]")),
@@ -602,6 +641,12 @@ impl_stable_abi_array! {
 
 /////////////
 
+unsafe impl<T> GetStaticEquivalent_ for Option<T>
+where
+    T: GetStaticEquivalent_,
+{
+    type StaticEquivalent=Option<T::StaticEquivalent>;
+}
 /// Implementing abi stability for Option<T> is fine if
 /// T is a NonZero primitive type.
 unsafe impl<T> SharedStableAbi for Option<T>
@@ -610,7 +655,6 @@ where
 {
     type Kind=ValueKind;
     type IsNonZeroType = False;
-    type StaticEquivalent=Option<T::StaticEquivalent>;
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "Option",
@@ -643,10 +687,12 @@ macro_rules! impl_for_primitive_ints {
         $( ($zeroable:ty,$tl_primitive:expr) ,)*
     ) => (
         $(
+            unsafe impl GetStaticEquivalent_ for $zeroable {
+                type StaticEquivalent=Self;
+            }
             unsafe impl SharedStableAbi for $zeroable {
                 type Kind=ValueKind;
                 type IsNonZeroType=False;
-                type StaticEquivalent=Self;
 
                 const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std_full::<Self>(
                     stringify!($zeroable),
@@ -685,10 +731,12 @@ macro_rules! impl_for_concrete {
         ]
     ) => (
         $(
+            unsafe impl GetStaticEquivalent_ for $this {
+                type StaticEquivalent=Self;
+            }
             unsafe impl SharedStableAbi for $this {
                 type Kind=ValueKind;
                 type IsNonZeroType=$zeroness;
-                type StaticEquivalent=Self;
 
                 const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std::<Self>(
                     stringify!($this),
@@ -772,6 +820,13 @@ macro_rules! impl_stableabi_for_repr_transparent {
         $(where[ $($where_clause:tt)* ])* ,
         $item_info:expr
     ) => (
+        unsafe impl<P> GetStaticEquivalent_ for $type_constr<P>
+        where
+            P: GetStaticEquivalent_,
+            $($($where_clause)*)*
+        {
+            type StaticEquivalent=$type_constr<P::StaticEquivalent>;
+        }
         unsafe impl<P> SharedStableAbi for $type_constr<P>
         where
             P: StableAbi,
@@ -779,7 +834,6 @@ macro_rules! impl_stableabi_for_repr_transparent {
         {
             type Kind=ValueKind;
             type IsNonZeroType = P::IsNonZeroType;
-            type StaticEquivalent=$type_constr<P::StaticEquivalent>;
 
             const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std::<Self>(
                 stringify!($type_constr),
@@ -808,10 +862,12 @@ macro_rules! impl_stableabi_for_unit_struct {
         $type_constr:ident,
         $item_info:expr
     ) => (
+        unsafe impl GetStaticEquivalent_ for $type_constr{
+            type StaticEquivalent=$type_constr;
+        }
         unsafe impl SharedStableAbi for $type_constr{
             type Kind=ValueKind;
             type IsNonZeroType = False;
-            type StaticEquivalent=$type_constr;
 
             const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std::<Self>(
                 stringify!($type_constr),
@@ -830,10 +886,12 @@ impl_stableabi_for_unit_struct!{ PhantomPinned,ItemInfo::std_type_in("std::marke
 /////////////
 
 
+unsafe impl GetStaticEquivalent_ for core_extensions::Void {
+    type StaticEquivalent=Self;
+}
 unsafe impl SharedStableAbi for core_extensions::Void {
     type Kind=ValueKind;
     type IsNonZeroType = False;
-    type StaticEquivalent=Self;
 
 
     const S_LAYOUT: &'static TypeLayout =
@@ -871,10 +929,12 @@ macro_rules! empty_extern_fn_layout{
 /// This is the only function type that implements StableAbi
 /// so as to make it more obvious that functions involving lifetimes
 /// cannot implement this trait directly (because of higher ranked trait bounds).
+unsafe impl GetStaticEquivalent_ for extern "C" fn() {
+    type StaticEquivalent=Self;
+}
 unsafe impl SharedStableAbi for extern "C" fn() {
     type Kind=ValueKind;
     type IsNonZeroType = True;
-    type StaticEquivalent=Self;
 
     const S_LAYOUT: &'static TypeLayout = empty_extern_fn_layout!(Self);
 }
@@ -882,10 +942,12 @@ unsafe impl SharedStableAbi for extern "C" fn() {
 /// This is the only function type that implements StableAbi
 /// so as to make it more obvious that functions involving lifetimes
 /// cannot implement this trait directly (because of higher ranked trait bounds).
+unsafe impl GetStaticEquivalent_ for unsafe extern "C" fn() {
+    type StaticEquivalent=Self;
+}
 unsafe impl SharedStableAbi for unsafe extern "C" fn() {
     type Kind=ValueKind;
     type IsNonZeroType = True;
-    type StaticEquivalent=Self;
 
     const S_LAYOUT: &'static TypeLayout = empty_extern_fn_layout!(Self);
 }
@@ -911,12 +973,13 @@ pub const EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<extern fn()>::STABLE_
 #[repr(transparent)]
 pub struct UnsafeOpaqueField<T>(T);
 
+unsafe impl<T> GetStaticEquivalent_ for UnsafeOpaqueField<T> {
+    /// it is fine to use `()` because this type is treated as opaque anyway.
+    type StaticEquivalent=();
+}
 unsafe impl<T> SharedStableAbi for UnsafeOpaqueField<T> {
     type Kind=ValueKind;
     type IsNonZeroType = False;
-
-    /// it is fine to use `()` because this type is treated as opaque anyway.
-    type StaticEquivalent=();
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_params::<Self>(TypeLayoutParams {
         name: "OpaqueField",

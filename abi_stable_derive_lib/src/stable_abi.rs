@@ -42,7 +42,9 @@ mod tl_function;
 mod tests;
 
 use self::{
-    attribute_parsing::{parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions},
+    attribute_parsing::{
+        parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions,NotStableAbiBound
+    },
     nonexhaustive::{tokenize_enum_info,tokenize_nonexhaustive_items},
     prefix_types::prefix_type_tokenizer,
     repr_attrs::ReprAttr,
@@ -219,12 +221,13 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         let ct=ctokens;
 
         for ty in type_params {
-            if let Some(unconstrained)=config.unconstrained_type_params.get(ty) {
-                unconstrained.static_equivalent
-                    .unwrap_or(&ct.empty_tuple)
-                    .to_tokens(ts);
-            }else{
-                to_stream!(ts; ct.static_equivalent, ct.lt, ty, ct.gt);
+            match config.unconstrained_type_params.get(ty) {
+                Some(NotStableAbiBound::NoBound)=>{
+                    ct.empty_tuple.to_tokens(ts);
+                }
+                Some(NotStableAbiBound::GetStaticEquivalent)|None=>{
+                    to_stream!(ts; ct.static_equivalent, ct.lt, ty, ct.gt);
+                }
             }
             ct.comma.to_tokens(ts);
         }
@@ -259,7 +262,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let stringified_name=name.to_string();
 
     let stable_abi_bounded =&config.stable_abi_bounded;
-    let stable_abi_bounded_ty =&config.stable_abi_bounded_ty;
+    let static_equiv_bounded =&config.static_equiv_bounded;
     let extra_bounds       =&config.extra_bounds;
     
     let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens);
@@ -278,6 +281,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
     let phantom_field_names=config.phantom_fields.iter().map(|x| x.0 );
     let phantom_field_tys  =config.phantom_fields.iter().map(|x| x.1 );
+    let phantom_field_tys_b=phantom_field_tys.clone();
 
     // let _measure_time1=PrintDurationOnDrop::new(file_span!());
 
@@ -305,22 +309,34 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
             #nonexhaustive_tokens
 
+            unsafe impl <#generics_header> __GetStaticEquivalent_ for #impl_ty 
+            where 
+                #(#where_clause,)*
+                #(#stable_abi_bounded:__StableAbi,)*
+                #(#static_equiv_bounded:__GetStaticEquivalent_,)*
+                #(#extra_bounds,)*
+                #(#prefix_bounds,)*
+                #prefix_type_trait_bound
+            {
+                type StaticEquivalent=#static_struct_name < 
+                    #(#lifetimes_s,)*
+                    #type_params_s
+                    #(#const_params_s),* 
+                >;
+            }
+
             unsafe impl <#generics_header> __SharedStableAbi for #impl_ty 
             where 
                 #(#where_clause,)*
                 #(#stable_abi_bounded:__StableAbi,)*
-                #(#stable_abi_bounded_ty:__StableAbi,)*
+                #(#phantom_field_tys_b:__SharedStableAbi,)*
+                #(#static_equiv_bounded:__GetStaticEquivalent_,)*
                 #(#extra_bounds,)*
                 #(#prefix_bounds,)*
                 #prefix_type_trait_bound
             {
                 type IsNonZeroType=_sabi_reexports::False;
                 type Kind=#associated_kind;
-                type StaticEquivalent=#static_struct_name < 
-                    #(#lifetimes_s,)*
-                    #type_params_s
-                    #(#const_params_s),* 
-                >;
 
                 const S_LAYOUT: &'static _sabi_reexports::TypeLayout = {
                     &_sabi_reexports::TypeLayout::from_derive::<#size_align_for>(
@@ -338,8 +354,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                                     __TLField::new(
                                         #phantom_field_names,
                                         &[],
-                                        <#phantom_field_tys as 
-                                            __MakeGetAbiInfo<__StableAbi_Bound>
+                                        <#phantom_field_tys as
+                                            __MakeGetAbiInfo<__SharedStableAbi_Bound>
                                         >::CONST,
                                     ),
                                 )*

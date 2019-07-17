@@ -168,10 +168,10 @@ with the 1.0 version of `Error` they would get an `Err(..)` back.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    unconstrained(E,S,I),
+    //debug_print,
+    not_stableabi(E,S,I),
     bound="E: GetNonExhaustive<S>",
     bound="I: InterfaceBound",
-    bound="NonExhaustiveVtable<E,S,I>: SharedStableAbi",
     tag="<I as InterfaceBound>::TAG",
     phantom_field="non_exhaustive:<E as GetNonExhaustive<S>>::NonExhaustive",
 )]
@@ -180,7 +180,7 @@ pub struct NonExhaustive<E,S,I>{
     #[sabi(unsafe_opaque_field)]
     fill:ManuallyDrop<S>,
     vtable:StaticRef<NonExhaustiveVtable<E,S,I>>,
-    _marker:PhantomData<Tuple2<UnsafeIgnoredType<E>,UnsafeIgnoredType<I>>>,
+    _marker:PhantomData<()>,
 }
 
 /// The type of a `NonExhaustive<>` wrapping the enum E,

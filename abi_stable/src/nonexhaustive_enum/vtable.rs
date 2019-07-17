@@ -42,7 +42,7 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    unconstrained(E,S,I),
+    not_stableabi(E,S,I),
     missing_field(default),
     kind(Prefix(prefix_struct="NonExhaustiveVtable")),
     //debug_print,
