@@ -150,6 +150,99 @@ Syntax:`assert_nonexhaustive("type0","type1")`<br>
 Example:`assert_nonexhaustive("Foo<RArc<u8>>")`<br>
 Example:`assert_nonexhaustive("Foo<u8>","Foo<RVec<()>>")`<br>
 
+# Example,boxing variants of unknown size
+
+This example demonstrates how one can use boxing to store types larger than `[usize;2]`
+(the size of `RBox<_>`),
+because one of the variant contains a generic type.
+
+
+
+```
+use abi_stable::{
+    StableAbi,
+    nonexhaustive_enum::{NonExhaustiveFor,NonExhaustive},
+    std_types::{RBox,RString},
+    sabi_trait,
+};
+
+use std::{
+    cmp::PartialEq,
+    fmt::{self,Debug,Display},
+};
+
+
+#[repr(u8)]
+#[derive(StableAbi,Debug,Clone,PartialEq)]
+#[sabi(kind(WithNonExhaustive(
+    size="[usize;3]",
+    traits(Debug,Display,Clone,PartialEq),
+)))]
+pub enum Message<T>{
+    #[doc(hidden)]
+    __NonExhaustive,
+    SaysHello,
+    SaysGoodbye,
+    Custom(RBox<T>),
+    
+    ////////////////////////////////////////
+    // Available since 1.1
+    ////////////////////////////////////////
+    SaysThankYou(RBox<SaysThankYou>)
+    
+}
+
+
+impl<T> Display for Message<T>
+where
+    T:Display
+{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        match self {
+            Message::__NonExhaustive=>unreachable!(),
+            Message::SaysHello=>write!(f,"Hello!"),
+            Message::SaysGoodbye=>write!(f,"Goodbye!"),
+            Message::Custom(custom)=>Display::fmt(&**custom,f),
+            Message::SaysThankYou(x)=>writeln!(f,"Thank you,{}!",x.to),
+        }
+    }
+}
+
+
+// Only available since 1.1
+#[repr(C)]
+#[derive(StableAbi,Debug,Clone,PartialEq)]
+pub struct SaysThankYou{
+    to:RString,
+}
+
+
+// Constructor function for a custom message
+fn make_custom_message<T>(custom:T)->Message_NE<T>
+where
+    T:Debug+Display+Clone+PartialEq,
+{
+    let x=RBox::new(custom);
+    let x=Message::Custom(x);
+    NonExhaustive::new(x)
+}
+
+// Constructor function for a thank you message,available since 1.1 .
+fn make_says_thank_you<T>(to:RString)->Message_NE<T>
+where
+    T:Debug+Display+Clone+PartialEq,
+{
+    let msg=SaysThankYou{
+        to,
+    };
+    let msg=Message::SaysThankYou(RBox::new(msg));
+    NonExhaustive::new(msg)
+}
+
+```
+
+
+
 # Example
 
 Say that we want to define a "private" enum
@@ -223,44 +316,44 @@ pub enum Event{
     }
 }
 
-// Only available from 1.0
-pub fn make_created_instance(object_id:ObjectId)->NonExhaustiveFor<Event>{
+// Constructor function only available from 1.0
+pub fn make_created_instance(object_id:ObjectId)->Event_NE{
     let ev=Event::CreatedInstance{object_id};
     NonExhaustive::new(ev)
 }
 
-// Only available from 1.0
-pub fn make_removed_instance(object_id:ObjectId)->NonExhaustiveFor<Event>{
+// Constructor function only available from 1.0
+pub fn make_removed_instance(object_id:ObjectId)->Event_NE{
     let ev=Event::RemovedInstance{object_id};
     NonExhaustive::new(ev)
 }
 
-// Only available from 1.1
-pub fn make_created_group(name:RString,group_id:GroupId)->NonExhaustiveFor<Event>{
+// Constructor function only available from 1.1
+pub fn make_created_group(name:RString,group_id:GroupId)->Event_NE{
     let ev=Event::CreatedGroup{name,group_id};
     NonExhaustive::new(ev)
 }
 
-// Only available from 1.1
-pub fn make_removed_group(name:RString,group_id:GroupId)->NonExhaustiveFor<Event>{
+// Constructor function only available from 1.1
+pub fn make_removed_group(name:RString,group_id:GroupId)->Event_NE{
     let ev=Event::RemovedGroup{name,group_id};
     NonExhaustive::new(ev)
 }
 
-// Only available from 1.1
+// Constructor function only available from 1.1
 pub fn make_associated_with_group(
     object_id:ObjectId,
     group_id:GroupId,
-)->NonExhaustiveFor<Event>{
+)->Event_NE{
     let ev=Event::AssociatedWithGroup{object_id,group_id};
     NonExhaustive::new(ev)
 }
 
-// Only available from 1.2
+// Constructor function only available from 1.2
 pub fn make_removed_association_with_group(
     object_id:ObjectId,
     group_id:GroupId,
-)->NonExhaustiveFor<Event>{
+)->Event_NE{
     let ev=Event::RemovedAssociationWithGroup{object_id,group_id};
     NonExhaustive::new(ev)
 }
