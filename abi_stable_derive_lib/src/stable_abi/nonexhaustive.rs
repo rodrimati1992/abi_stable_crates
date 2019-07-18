@@ -86,7 +86,7 @@ impl<'a> NonExhaustive<'a>{
 
         if let Some(EnumInterface::New(enum_interface))=&mut unchecked.enum_interface{
             let mut trait_map=TRAIT_LIST.iter()
-                .map(|x| ( parse_ident(x.name) , x.which_trait.default_value() ) )
+                .map(|x| ( parse_ident(x.name) , false ) )
                 .collect::<HashMap<&'a syn::Ident,bool>>();
 
             enum_interface.impld.iter()
