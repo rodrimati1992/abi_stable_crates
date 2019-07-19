@@ -18,6 +18,8 @@ giving library authors some flexibility in their design.
 `Enum`: this is the annotated enum,which does not derive `StableAbi`,
 requiring it to be wrapped in a `NonExhaustive<>` to be passed through ffi.
 
+`Enum_NE`: A type alias for the deriving type wrapped in a `NonExhaustive<>`.
+
 `Enum_NEMarker`:
 A marker type which implements StableAbi with the layout of `Enum`,
 used as a phantom field of NonExhaustive.
@@ -25,8 +27,13 @@ used as a phantom field of NonExhaustive.
 `Enum_Storage`:
 A type used as storage space by the `NonExhaustive<>` type to store the enum.
 
+`Enum_Bounds`:
+Acts as an alias for the traits that were specified in the `traits(...)` parameter.
+This is only created if the `traits(...)` parameter is specified.
+
 `Enum_Interface`:
-Describes the traits required when constructing a `NonExhaustive<>` and usable with it.<br>
+Describes the traits required when constructing a `NonExhaustive<>` and usable with it
+(this is a type that implements InterfaceType).<br>
 This is only created if the `traits` parameter is passed to `#[sabi(kind(WithNonExhaustive(..)))]`.
 
 # Parameters
@@ -131,8 +138,7 @@ The `*Interface` types from the examples come from the
 `abi_stable::erased_types::interfaces` module.
 
 
-
-# NonExhaustive assertions
+### NonExhaustive assertions
 
 This generates a test that checks that the listed types can be stored within `NonExhaustive`.
 
@@ -183,11 +189,14 @@ pub enum Message<T>{
     __NonExhaustive,
     SaysHello,
     SaysGoodbye,
+
+    #[sabi(with_boxed_constructor)]
     Custom(RBox<T>),
     
     ////////////////////////////////////////
     // Available since 1.1
     ////////////////////////////////////////
+    #[sabi(with_boxed_constructor)]
     SaysThankYou(RBox<SaysThankYou>)
     
 }
@@ -216,28 +225,41 @@ pub struct SaysThankYou{
     to:RString,
 }
 
-
-// Constructor function for a custom message
-fn make_custom_message<T>(custom:T)->Message_NE<T>
-where
-    T:Debug+Display+Clone+PartialEq,
+# fn main(){
+ 
+// Constructing Message::Custom wrapped in a NonExhaustive 
 {
-    let x=RBox::new(custom);
-    let x=Message::Custom(x);
-    NonExhaustive::new(x)
-}
+    let custom_message:Message_NE<RString>=
+        Message::Custom_NE("Hello".into());
 
-// Constructor function for a thank you message,available since 1.1 .
-fn make_says_thank_you<T>(to:RString)->Message_NE<T>
-where
-    T:Debug+Display+Clone+PartialEq,
-{
-    let msg=SaysThankYou{
-        to,
+    let custom_message_desugar:Message_NE<RString>={
+        let x=RBox::new("Hello".into());
+        let x=Message::Custom(x);
+        NonExhaustive::new(x)
     };
-    let msg=Message::SaysThankYou(RBox::new(msg));
-    NonExhaustive::new(msg)
+
+    assert_eq!(custom_message,custom_message_desugar);
 }
+
+
+// Constructing Message::SaysThankYou wrapped in a NonExhaustive 
+// This variant is only available since 1.1
+{
+    let says_thank_you:Message_NE<RString>=
+        Message::SaysThankYou_NE(SaysThankYou{
+            to:"Hello".into(),
+        });
+
+    let says_thank_you_desugar:Message_NE<RString>={
+        let x=SaysThankYou{to:"Hello".into()};
+        let x=Message::SaysThankYou(RBox::new(x));
+        NonExhaustive::new(x)
+    };
+
+    assert_eq!(says_thank_you,says_thank_you_desugar);
+}
+
+# }
 
 ```
 
@@ -250,26 +272,30 @@ Say that we want to define a "private" enum
 used internally to send information between instances of the same library,
 of potentially different (compatible) versions.
 
+If one of the variants from newer versions are sent into a library/binary 
+that has a previous version of `Event`,
+`Event_NE` (an alias for NonExhaustive wrapping an Event) 
+won't be convertible back into `Event`.
 
 ```
 use abi_stable::{
     StableAbi,
     nonexhaustive_enum::{NonExhaustiveFor,NonExhaustive},
-    std_types::RString,
+    std_types::{RString,RArc},
     sabi_trait,
 };
 
 
 #[doc(hidden)]
 #[repr(C)]
-#[derive(StableAbi,Debug,Clone,PartialEq)]
+#[derive(StableAbi,Debug,Clone,Copy,PartialEq)]
 pub struct ObjectId(
     pub usize
 );
 
 #[doc(hidden)]
 #[repr(C)]
-#[derive(StableAbi,Debug,Clone,PartialEq)]
+#[derive(StableAbi,Debug,Clone,Copy,PartialEq)]
 pub struct GroupId(
     pub usize
 );
@@ -281,6 +307,7 @@ pub struct GroupId(
     size="[usize;8]",
     traits(Debug,Clone,PartialEq),
 )))]
+#[sabi(with_constructor)]
 pub enum Event{
     #[doc(hidden)]
     __NonExhaustive,
@@ -313,59 +340,124 @@ pub enum Event{
     RemovedAssociationWithGroup{
         object_id:ObjectId,
         group_id:GroupId,
-    }
+    },
+    #[sabi(with_boxed_constructor)]
+    DummyVariant{
+        pointer:RArc<()>,
+    },
 }
 
-// Constructor function only available from 1.0
-pub fn make_created_instance(object_id:ObjectId)->Event_NE{
-    let ev=Event::CreatedInstance{object_id};
-    NonExhaustive::new(ev)
+let objectid_0=ObjectId(0);
+let objectid_1=ObjectId(1);
+
+let groupid_0=GroupId(0);
+let groupid_1=GroupId(0);
+
+// Constructing a Event::CreatedInstance wrapped in a NonExhaustive
+{
+    let from_ne_constructor:Event_NE=
+        Event::CreatedInstance_NE(objectid_0);
+    let regular={
+        let ev=Event::CreatedInstance{object_id:objectid_0};
+        NonExhaustive::new(ev)
+    };
+
+    assert_eq!(from_ne_constructor,regular);
 }
 
-// Constructor function only available from 1.0
-pub fn make_removed_instance(object_id:ObjectId)->Event_NE{
-    let ev=Event::RemovedInstance{object_id};
-    NonExhaustive::new(ev)
+// Constructing a Event::RemovedInstance wrapped in a NonExhaustive
+{
+    let from_ne_constructor=Event::RemovedInstance_NE(objectid_0);
+    let regular={
+        let ev=Event::RemovedInstance{object_id:objectid_0};
+        NonExhaustive::new(ev)
+    };
+
+    assert_eq!(from_ne_constructor,regular);
 }
 
-// Constructor function only available from 1.1
-pub fn make_created_group(name:RString,group_id:GroupId)->Event_NE{
-    let ev=Event::CreatedGroup{name,group_id};
-    NonExhaustive::new(ev)
+// Constructing a Event::RemovedInstance wrapped in a NonExhaustive
+{
+    let from_ne_constructor=Event::RemovedInstance_NE(objectid_0);
+    let regular={
+        let ev=Event::RemovedInstance{object_id:objectid_0};
+        NonExhaustive::new(ev)
+    };
+
+    assert_eq!(from_ne_constructor,regular);
 }
 
-// Constructor function only available from 1.1
-pub fn make_removed_group(name:RString,group_id:GroupId)->Event_NE{
-    let ev=Event::RemovedGroup{name,group_id};
-    NonExhaustive::new(ev)
+// Constructing a Event::CreatedGroup wrapped in a NonExhaustive
+// This is only available from 1.1
+{
+    let from_ne_constructor=Event::CreatedGroup_NE("hello".into(),groupid_0);
+    let regular={
+        let ev=Event::CreatedGroup{name:"hello".into(),group_id:groupid_0};
+        NonExhaustive::new(ev)
+    };
+
+    assert_eq!(from_ne_constructor,regular);
 }
 
-// Constructor function only available from 1.1
-pub fn make_associated_with_group(
-    object_id:ObjectId,
-    group_id:GroupId,
-)->Event_NE{
-    let ev=Event::AssociatedWithGroup{object_id,group_id};
-    NonExhaustive::new(ev)
+// Constructing a Event::RemovedGroup wrapped in a NonExhaustive
+// This is only available from 1.1
+{
+    let from_ne_constructor=Event::RemovedGroup_NE("hello".into(),groupid_0);
+    let regular={
+        let ev=Event::RemovedGroup{name:"hello".into(),group_id:groupid_0};
+        NonExhaustive::new(ev)
+    };
+
+    assert_eq!(from_ne_constructor,regular);
 }
 
-// Constructor function only available from 1.2
-pub fn make_removed_association_with_group(
-    object_id:ObjectId,
-    group_id:GroupId,
-)->Event_NE{
-    let ev=Event::RemovedAssociationWithGroup{object_id,group_id};
-    NonExhaustive::new(ev)
+
+// Constructing a Event::AssociatedWithGroup wrapped in a NonExhaustive
+// This is only available from 1.1
+{
+    let from_ne_constructor=Event::AssociatedWithGroup_NE(objectid_0,groupid_0);
+    let regular={
+        let ev=Event::AssociatedWithGroup{
+            object_id:objectid_0,
+            group_id:groupid_0,
+        };
+        NonExhaustive::new(ev)
+    };
+
+    assert_eq!(from_ne_constructor,regular);
 }
 
+
+// Constructing a Event::RemovedAssociationWithGroup wrapped in a NonExhaustive
+// This is only available from 1.2
+{
+    let from_ne_constructor=Event::RemovedAssociationWithGroup_NE(objectid_0,groupid_0);
+    let regular={
+        let ev=Event::RemovedAssociationWithGroup{
+            object_id:objectid_0,
+            group_id:groupid_0,
+        };
+        NonExhaustive::new(ev)
+    };
+
+    assert_eq!(from_ne_constructor,regular);
+}
+
+// Constructing a Event::DummyVariant wrapped in a NonExhaustive
+// This is only available from 1.2
+{
+    let from_ne_constructor=Event::DummyVariant_NE(());
+    let regular={
+        let x=RArc::new(());
+        let x=Event::DummyVariant{
+            pointer:x
+        };
+        NonExhaustive::new(x)
+    };
+
+    assert_eq!(from_ne_constructor,regular);
+}
 
 ```
-
-The functions here are merely to demonstrate how one can construct each of these variants.
-
-If one of the variants from newer versions are sent into a library/binary 
-that has a previous version of `Event`,
-`NonExhaustive<Event>` won't be convertible back into `Event`.
-
 
 */

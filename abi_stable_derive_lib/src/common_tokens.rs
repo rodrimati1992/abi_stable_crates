@@ -92,6 +92,7 @@ declare_common_tokens! {
     ]
 
     token_streams[
+        ts_empty="",
         und_storage="__Storage,",
     ]
 

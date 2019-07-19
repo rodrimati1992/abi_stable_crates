@@ -2,6 +2,8 @@ use std::{
     collections::HashMap,
 };
 
+use core_extensions::SelfOps;
+
 use syn::Ident;
 
 use quote::{quote,ToTokens};
@@ -17,8 +19,8 @@ use crate::{
     common_tokens::CommonTokens,
     datastructure::{DataStructure},
     gen_params_in::{GenParamsIn,InWhat},
-    impl_interfacetype::{TRAIT_LIST,private_associated_type},
-    parse_utils::parse_str_as_ident,
+    impl_interfacetype::{private_associated_type,TRAIT_LIST,UsableTrait},
+    parse_utils::{parse_str_as_ident,parse_str_as_path},
     to_token_fn::ToTokenFnMut,
 };
 
@@ -43,6 +45,44 @@ pub(crate) struct NonExhaustive<'a>{
     pub(crate) new_interface:Option<&'a Ident>,
     pub(crate) default_interface:TokenStream2,
     pub(crate) assert_nonexh:Vec<&'a syn::Type>,
+    pub(crate) bounds_trait:Option<BoundsTrait<'a>>,
+    pub(crate) variant_constructor:Vec<Option<VariantConstructor<'a>>>,
+}
+
+
+#[derive(Clone)]
+pub struct BoundsTrait<'a>{
+    ident:&'a Ident,
+    bounds:Vec<&'a syn::Path>,
+}
+
+
+#[derive(Clone)]
+/// How a NonExhaustive<Enum,...> is constructed
+pub enum UncheckedVariantConstructor{
+    /// Constructs an enum variant using a function 
+    /// with parameters of the same type as the fields.
+    Regular,
+    /// Constructs an enum variant containing a pointer,
+    /// using a function taking the referent of the pointer.
+    Boxed,
+}
+
+#[derive(Clone)]
+/// How a NonExhaustive<Enum,...> is constructed
+pub enum VariantConstructor<'a>{
+    /// Constructs an enum variant using a function 
+    /// with parameters of the same type as the fields.
+    Regular,
+    /// Constructs an enum variant containing a pointer,
+    /// using a function taking the referent of the pointer.
+    ///
+    /// The type of the referent is extracted from the first type parameter 
+    /// in the type of the only field of a variant.
+    Boxed{
+        referent:Option<&'a syn::Type>,
+        pointer:&'a syn::Type,
+    },
 }
 
 
@@ -62,6 +102,7 @@ pub(crate) struct NewEnumInterface<'a>{
 impl<'a> NonExhaustive<'a>{
     pub fn new(
         mut unchecked:UncheckedNonExhaustive<'a>,
+        variant_constructor:Vec<Option<UncheckedVariantConstructor>>,
         ds: &'a DataStructure<'a>,
         arenas: &'a Arenas,
     )->Self{
@@ -84,31 +125,49 @@ impl<'a> NonExhaustive<'a>{
             );
         });
 
+        let mut bounds_trait=None::<BoundsTrait<'a>>;
+
         if let Some(EnumInterface::New(enum_interface))=&mut unchecked.enum_interface{
             let mut trait_map=TRAIT_LIST.iter()
-                .map(|x| ( parse_ident(x.name) , false ) )
-                .collect::<HashMap<&'a syn::Ident,bool>>();
+                .map(|x| ( parse_ident(x.name) , x ) )
+                .collect::<HashMap<&'a syn::Ident,&'static UsableTrait>>();
+            
+            let mut bounds_trait_inner=Vec::<&'a syn::Path>::new();
 
-            enum_interface.impld.iter()
-                .chain(enum_interface.unimpld.iter())
-                .for_each(|&trait_|{
-                    if trait_map.remove(trait_).is_none() {
-                        panic!("Trait {} was not in TRAIT_LIST.",trait_);
+            for &trait_ in &enum_interface.impld {
+                match trait_map.remove(trait_) {
+                    Some(ut) => {
+                        use crate::impl_interfacetype::WhichTrait as WT;
+                        if let WT::Deserialize=ut.which_trait {
+                            continue;
+                        } 
+                        let full_path=arenas.alloc(parse_str_as_path(ut.full_path));
+                        bounds_trait_inner.push(full_path);
                     }
-                });
+                    None => panic!("Trait {} was not in TRAIT_LIST.",trait_),
+                }
+            }
+
+            bounds_trait=Some(BoundsTrait{
+                ident:parse_ident(&format!("{}_Bounds",name)),
+                bounds:bounds_trait_inner,
+            });
+
+            for &trait_ in &enum_interface.unimpld{
+                if trait_map.remove(trait_).is_none(){
+                    panic!("Trait {} was not in TRAIT_LIST.",trait_);
+                }
+            }
+
 
             for (trait_,is_impld) in trait_map {
-                if is_impld {
-                    &mut enum_interface.impld
-                }else{
-                    &mut enum_interface.unimpld
-                }.push(trait_);
+                enum_interface.unimpld.push(trait_);
             }
         }
 
         let (default_interface,new_interface)=match unchecked.enum_interface {
             Some(EnumInterface::New{..})=>{
-                let name=arenas.alloc(parse_str_as_ident(&format!("{}_Interface",name)));
+                let name=parse_ident(&format!("{}_Interface",name));
                 (name.into_token_stream(),Some(name))
             },
             Some(EnumInterface::Old(ty))=>{
@@ -118,6 +177,31 @@ impl<'a> NonExhaustive<'a>{
                 (quote!(()),None)
             }
         };
+
+
+        let variant_constructor=variant_constructor.into_iter()
+            .zip(&ds.variants)
+            .map(|(vc,variant)|->Option<VariantConstructor>{
+                let vc=vc?;
+
+                match vc {
+                    UncheckedVariantConstructor::Regular=>{
+                        VariantConstructor::Regular
+                    }
+                    UncheckedVariantConstructor::Boxed=>{
+                        match variant.fields.first() {
+                            Some(first_field) => 
+                                VariantConstructor::Boxed{
+                                    referent:extract_first_type_param(first_field.ty),
+                                    pointer:first_field.ty,
+                                },
+                            None => 
+                                VariantConstructor::Regular,
+                        }                        
+                    }
+                }.piped(Some)
+            })
+            .collect();
 
 
         Self{
@@ -130,6 +214,8 @@ impl<'a> NonExhaustive<'a>{
             default_interface,
             new_interface,
             assert_nonexh:unchecked.assert_nonexh,
+            bounds_trait,
+            variant_constructor,
         }
     }
 }
@@ -151,12 +237,36 @@ fn expr_from_int(int:u64)->syn::Expr{
     x
 }
 
+fn extract_first_type_param(ty:&syn::Type)->Option<&syn::Type>{
+    match ty {
+        syn::Type::Path(path)=>{
+            if path.qself.is_some() {
+                return None;
+            }
+            let args=&path.path.segments.last()?.into_value().arguments;
+            let args=match args {
+                syn::PathArguments::AngleBracketed(x)=>x,
+                _=>return None,
+            };
+            args.args
+                .iter()
+                .find_map(|arg|{
+                    match arg {
+                        syn::GenericArgument::Type(ty) => Some(ty),
+                        _=>None,
+                    }
+                })
+        }
+        _=>None,
+    }
+}
+
 
 pub(crate) fn tokenize_nonexhaustive_items<'a>(
     module:&'a Ident,
     ds:&'a DataStructure<'a>,
     config:&'a StableAbiOptions<'a>,
-    _ct:&'a CommonTokens<'a>
+    ct:&'a CommonTokens<'a>
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
 
@@ -184,6 +294,9 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
         };
 
         let name=ds.name;
+
+        let generics_header=
+            GenParamsIn::new(&ds.generics,InWhat::ImplHeader);
 
         let mut type_generics_decl=GenParamsIn::new(ds.generics,InWhat::ImplHeader);
         type_generics_decl.set_no_bounds();
@@ -224,11 +337,99 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
         ).to_tokens(ts);
 
 
+        if let Some(BoundsTrait{ident,bounds})=&this.bounds_trait{
+            quote!( 
+                #vis trait #ident:#(#bounds+)*{}
+                impl<This> #ident for This
+                where
+                    This:#(#bounds+)*
+                {}
+            ).to_tokens(ts);
+        }
+
         if let Some(new_interface)=this.new_interface{
             quote!( 
                 #[repr(C)]
                 #[derive(::abi_stable::StableAbi)]
                 #vis struct #new_interface;
+            ).to_tokens(ts);
+        }
+
+        if this.variant_constructor.iter().any(|x| x.is_some() ) {
+            let constructors=this.variant_constructor
+                .iter()
+                .cloned()
+                .zip(&ds.variants)
+                .filter_map(|(vc,variant)|{
+                    let vc=vc?;
+                    let variant_ident=variant.name;
+                    let method_name=parse_str_as_ident(&format!("{}_NE",variant.name));
+
+                    match vc {
+                        VariantConstructor::Regular=>{
+                            let field_names_a=variant.fields.iter().map(|x|x.ident());
+                            let field_names_b=field_names_a.clone();
+                            let field_names_c=variant.fields.iter().map(|x|&x.ident);
+                            let field_types=variant.fields.iter().map(|x|x.ty);
+                            quote!{
+                                #vis fn #method_name(
+                                    #( #field_names_a : #field_types ,)*
+                                )->#nonexhaustive_alias<#type_generics_use> {
+                                    let x=#name::#variant_ident{
+                                        #( #field_names_c:#field_names_b, )*
+                                    };
+                                    #nonexhaustive_alias::new(x)
+                                }
+                            }
+                        }
+                        VariantConstructor::Boxed{referent,pointer}=>{
+                            let ptr_field_ident=&variant.fields[0].ident;
+                            let type_param=ToTokenFnMut::new(|ts|{
+                                match referent {
+                                    Some(x) => x.to_tokens(ts),
+                                    None => 
+                                        quote!( <#pointer as ::std::ops::Deref>::Target )
+                                            .to_tokens(ts),
+                                }
+                            });
+                            
+                            quote!{
+                                #vis fn #method_name(
+                                    value:#type_param,
+                                )->#nonexhaustive_alias<#type_generics_use> {
+                                    let x=<#pointer>::new(value);
+                                    let x=#name::#variant_ident{
+                                        #ptr_field_ident:x,
+                                    };
+                                    #nonexhaustive_alias::new(x)
+                                }
+                            }
+                        }
+                    }.piped(Some)
+                });
+
+            let preds=ds.generics.where_clause.as_ref().map(|w| &w.predicates );
+
+            let bound=match &this.bounds_trait {
+                Some(BoundsTrait{ident,..}) => 
+                    quote!(#ident),
+                None => 
+                    quote!( 
+                        #module::_sabi_reexports::GetNonExhaustiveVTable<
+                            #enum_storage,
+                            #default_interface,
+                        > 
+                    ),
+            };
+
+            quote!(
+                impl<#generics_header> #name<#type_generics_use>
+                where
+                    Self: #bound ,
+                    #preds
+                {
+                    #(#constructors)*
+                }
             ).to_tokens(ts);
         }
 

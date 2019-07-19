@@ -31,7 +31,10 @@ use crate::{
 };
 
 use super::{
-    nonexhaustive::{UncheckedNonExhaustive,NonExhaustive,EnumInterface,IntOrType},
+    nonexhaustive::{
+        UncheckedNonExhaustive,NonExhaustive,EnumInterface,IntOrType,
+        UncheckedVariantConstructor,
+    },
     reflection::{ModReflMode,FieldAccessor},
     prefix_types::{PrefixKind,FirstSuffixField,OnMissingField,AccessorOrMaybe,PrefixKindField},
     repr_attrs::{UncheckedReprAttr,UncheckedReprKind,DiscriminantRepr,ReprAttr},
@@ -162,8 +165,9 @@ impl<'a> StableAbiOptions<'a> {
                 })
             }
             UncheckedStabilityKind::NonExhaustive(nonexhaustive)=>{
+                let variant_constructor=this.variant_constructor;
                 nonexhaustive
-                    .piped(|x| NonExhaustive::new(x,ds,arenas) )
+                    .piped(|x| NonExhaustive::new(x,variant_constructor,ds,arenas) )
                     .piped(StabilityKind::NonExhaustive)
             }
         };
@@ -252,6 +256,8 @@ struct StableAbiAttrs<'a> {
     // Using raw pointers to do an identity comparison.
     opaque_fields:FieldMap<bool>,
 
+    variant_constructor:Vec<Option<UncheckedVariantConstructor>>,
+
     override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
     renamed_fields:FieldMap<Option<&'a Ident>>,
@@ -290,6 +296,9 @@ enum ParseContext<'a> {
     TypeAttr{
         name:&'a Ident,
     },
+    Variant{
+        variant_index:usize,
+    },
     Field{
         field_index:usize,
         field:&'a Field<'a>,
@@ -312,12 +321,14 @@ where
     this.override_field_accessor=FieldMap::defaulted(ds);
     this.field_bounds=FieldMap::defaulted(ds);
     this.changed_types=FieldMap::defaulted(ds);
+    this.variant_constructor.resize(ds.variants.len(),None);
 
     let name=ds.name;
 
     parse_inner(&mut this, attrs, ParseContext::TypeAttr{name}, arenas);
 
-    for variant in &ds.variants {
+    for (variant_index,variant) in ds.variants.iter().enumerate() {
+        parse_inner(&mut this, variant.attrs, ParseContext::Variant{variant_index}, arenas);
         for (field_index,field) in variant.fields.iter().enumerate() {
             parse_inner(&mut this, field.attrs, ParseContext::Field{field,field_index}, arenas);
         }
@@ -563,8 +574,34 @@ Tag:\n\t{}\n",
             }else{
                 panic!("Unrecodnized #[sabi(..)] attribute:\n{}",list.into_token_stream());
             }
-
         }
+        (
+            ParseContext::TypeAttr{..},
+            Meta::Word(ref word)
+        ) if word == "with_constructor" =>{
+            this.variant_constructor.iter_mut()
+                .for_each(|x|*x=Some(UncheckedVariantConstructor::Regular));
+        }
+        (
+            ParseContext::TypeAttr{..},
+            Meta::Word(ref word)
+        ) if word == "with_boxed_constructor" =>{
+            this.variant_constructor.iter_mut()
+                .for_each(|x|*x=Some(UncheckedVariantConstructor::Boxed));
+        }
+        (
+            ParseContext::Variant{variant_index},
+            Meta::Word(ref word)
+        ) if word == "with_constructor" =>{
+            this.variant_constructor[variant_index]=Some(UncheckedVariantConstructor::Regular);
+        }
+        (
+            ParseContext::Variant{variant_index},
+            Meta::Word(ref word)
+        ) if word == "with_boxed_constructor" =>{
+            this.variant_constructor[variant_index]=Some(UncheckedVariantConstructor::Boxed);
+        }
+        
         (_,x) => panic!("not allowed inside the #[sabi(...)] attribute:\n{:?}", x),
     }
 }

@@ -114,7 +114,7 @@ impl<'a> DataStructure<'a> {
                     StructParams{
                         discriminant:None,
                         variant:0,
-                        attrs:&ast.attrs,
+                        attrs:&[],
                         name:name,
                         override_vis:override_vis,
                     },
@@ -133,7 +133,7 @@ impl<'a> DataStructure<'a> {
                     StructParams{
                         discriminant:None,
                         variant:0,
-                        attrs:&ast.attrs, 
+                        attrs:&[], 
                         name:name, 
                         override_vis:override_vis,
                     },

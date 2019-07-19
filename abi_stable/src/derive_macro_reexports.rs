@@ -14,6 +14,7 @@ pub use crate::{
     },
     nonexhaustive_enum::{
         assert_nonexhaustive,
+        GetVTable as GetNonExhaustiveVTable,
         GetEnumInfo,EnumInfo,ValidDiscriminant,GetNonExhaustive,
         NonExhaustive,
     },
