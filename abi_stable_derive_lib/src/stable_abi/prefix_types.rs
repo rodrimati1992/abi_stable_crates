@@ -325,11 +325,16 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             }
             
             let field_name=field.ident();
-            field_index_for
-                .push(parse_str_as_ident(&format!("field_index_for_{}",field_name)));
+            {
+                let mut new_ident=parse_str_as_ident(&format!("field_index_for_{}",field_name));
+                new_ident.set_span(field_name.span());
+                field_index_for.push(new_ident);
+            }
             
             let field_mask=format!("__AB_PTT_FIELD_{}_ACCESSIBILTIY_MASK",index);
-            field_mask_idents.push(syn::parse_str::<Ident>(&field_mask).unwrap());
+            let mut field_mask=syn::parse_str::<Ident>(&field_mask).unwrap();
+            field_mask.set_span(field.ident().span());
+            field_mask_idents.push(field_mask);
 
             match acc_on_missing {
                 AOM::Accessor =>{
@@ -351,7 +356,8 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             accessor_buffer.clear();
             write!(accessor_buffer,"{}",field.ident()).drop_();
             let vis=field.vis;
-            let getter_name=syn::parse_str::<Ident>(&*accessor_buffer).unwrap();
+            let mut getter_name=syn::parse_str::<Ident>(&*accessor_buffer).unwrap();
+            getter_name.set_span(field.ident().span());
             let field_name=field.ident();
             let ty=field.ty;
 
@@ -462,7 +468,8 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
         let field_i_a=0u8..;
         let field_i_b=0u8..;
 
-        let pt_layout_ident=parse_str_as_ident(&format!("__sabi_PT_LAYOUT{}",deriving_name));
+        let mut pt_layout_ident=parse_str_as_ident(&format!("__sabi_PT_LAYOUT{}",deriving_name));
+        pt_layout_ident.set_span(deriving_name.span());
 
         quote!(
 

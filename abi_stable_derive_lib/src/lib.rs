@@ -34,6 +34,7 @@ mod my_visibility;
 mod gen_params_in;
 mod workaround;
 mod sabi_extern_fn_impl;
+mod set_span_visitor;
 
 
 

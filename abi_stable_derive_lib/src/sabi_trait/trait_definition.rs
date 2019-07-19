@@ -6,6 +6,10 @@ use super::{
     parse_utils::{parse_str_as_ident,parse_str_as_trait_bound},
 };
 
+use crate::{
+    set_span_visitor::SetSpanVisitor,
+};
+
 use std::{
     collections::{HashMap,HashSet},
     iter,
@@ -20,8 +24,11 @@ use syn::{
     Ident,ItemTrait,Visibility,FnArg,Lifetime,LifetimeDef,Meta,
     TypeParamBound,Block,WherePredicate,TraitItem,Abi,
     token::Unsafe,
+    spanned::Spanned,
+    visit_mut::VisitMut,
 };
 
+use proc_macro2::Span;
 
 
 
@@ -366,10 +373,6 @@ impl<'a> TraitMethod<'a>{
                 panic_msg(),
         };
 
-        let parse_alloc_ident=move|s:&str|->&'a syn::Ident{
-            arena.alloc(parse_str_as_ident(s))
-        };
-
         let mut lifetimes:Vec<&'a syn::LifetimeDef>=decl.generics.lifetimes().collect();
 
         let output=match &decl.output {
@@ -412,7 +415,8 @@ impl<'a> TraitMethod<'a>{
                     };
 
                     let name=format!("param_{}",param_i);
-                    let name=syn::parse_str::<Ident>(&name).unwrap();
+                    let mut name=syn::parse_str::<Ident>(&name).unwrap();
+                    name.set_span(param.span());
                     MethodParam{
                         name:arena.alloc(name),
                         ty:ty.clone(),
@@ -542,9 +546,10 @@ struct GetSupertraits<'a>{
 pub(crate) struct TraitImplness<'a>{
     pub(crate) which_trait:WhichTrait,
     pub(crate) name:&'static str,
-    pub(crate) ident:&'a Ident,
+    pub(crate) ident:Ident,
     pub(crate) bound:syn::TraitBound,
     pub(crate) is_implemented:bool,
+    pub(crate) _marker:PhantomData<&'a ()>,
 }
 
 
@@ -566,9 +571,10 @@ where
         TraitImplness{
             which_trait:t.which_trait,
             name:t.name,
-            ident:arenas.alloc(parse_str_as_ident(t.name)),
+            ident:parse_str_as_ident(t.name),
             bound:parse_str_as_trait_bound(t.full_path),
             is_implemented:false,
+            _marker:PhantomData,
         }
     });
 
@@ -610,11 +616,24 @@ where
                             WhichObject::DynTrait|WhichObject::RObject => {}
                         }
 
-                        trait_struct[which_trait].is_implemented=true;
+                        fn set_impld<'a>(
+                            wtrait:&mut TraitImplness<'a>,
+                            span:Span,
+                        ){
+                            wtrait.is_implemented=true;
+                            wtrait.ident.set_span(span);
+                            SetSpanVisitor::new(span)
+                                .visit_trait_bound_mut(&mut wtrait.bound);
+                        }
+
+                        let span=trait_bound.span();
+
+                        set_impld(&mut trait_struct[which_trait],span);
+
 
                         match which_trait {
                             WhichTrait::Iterator|WhichTrait::DoubleEndedIterator=>{
-                                trait_struct.iterator.is_implemented=true;
+                                set_impld(&mut trait_struct.iterator,span);
 
                                 let iter_item=extract_iterator_item(last_path_component,arenas);
                                 iterator_item=iterator_item.or(iter_item);
@@ -638,19 +657,19 @@ where
                                 panic!("Serialize is not currently supported.");
                             }
                             WhichTrait::Eq|WhichTrait::PartialOrd=>{
-                                trait_struct.partial_eq.is_implemented=true;
+                                set_impld(&mut trait_struct.partial_eq,span);
                             }
                             WhichTrait::Ord=>{
-                                trait_struct.partial_eq.is_implemented=true;
-                                trait_struct.eq.is_implemented=true;
-                                trait_struct.partial_ord.is_implemented=true;
+                                set_impld(&mut trait_struct.partial_eq,span);
+                                set_impld(&mut trait_struct.eq,span);
+                                set_impld(&mut trait_struct.partial_ord,span);
                             }
                             WhichTrait::IoBufRead=>{
-                                trait_struct.io_read.is_implemented=true;
+                                set_impld(&mut trait_struct.io_read,span);
                             }
                             WhichTrait::Error=>{
-                                trait_struct.display.is_implemented=true;
-                                trait_struct.debug.is_implemented=true;
+                                set_impld(&mut trait_struct.display,span);
+                                set_impld(&mut trait_struct.debug,span);
                             }
                             _=>{}
                         }
@@ -713,7 +732,7 @@ where
         if trait_.is_implemented {
             impld_traits.push(trait_);
         }else{
-            unimpld_traits.push(trait_.ident)
+            unimpld_traits.push(arenas.alloc(trait_.ident.clone()));
         }
     }
 
