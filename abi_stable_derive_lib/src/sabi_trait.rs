@@ -203,7 +203,7 @@ fn first_items<'a>(
         &ctokens.ts_unit_erasedptr,
     );
 
-    let impld_traits=trait_def.impld_traits.iter().map(|x|x.ident);
+    let impld_traits=trait_def.impld_traits.iter().map(|x|&x.ident);
     let impld_traits_a=impld_traits.clone();
     let impld_traits_b=impld_traits.clone();
 

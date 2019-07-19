@@ -4,11 +4,14 @@ use std::{
 
 use core_extensions::SelfOps;
 
-use syn::Ident;
+use syn::{
+    Ident,
+    visit_mut::VisitMut,
+};
 
 use quote::{quote,ToTokens};
 
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span,TokenStream as TokenStream2};
 
 use super::{
     attribute_parsing::{StabilityKind,StableAbiOptions},
@@ -21,6 +24,7 @@ use crate::{
     gen_params_in::{GenParamsIn,InWhat},
     impl_interfacetype::{private_associated_type,TRAIT_LIST,UsableTrait},
     parse_utils::{parse_str_as_ident,parse_str_as_path},
+    set_span_visitor::SetSpanVisitor,
     to_token_fn::ToTokenFnMut,
 };
 
@@ -111,8 +115,12 @@ impl<'a> NonExhaustive<'a>{
         let alignment=unchecked.alignment
             .unwrap_or(IntOrType::Int(std::mem::size_of::<usize>()));
         
-        let parse_ident=move|s:&str|->&'a Ident{
-            arenas.alloc(parse_str_as_ident(s))
+        let parse_ident=move|s:&str,span:Option<Span>|->&'a Ident{
+            let mut ident=parse_str_as_ident(s);
+            if let Some(span)=span{
+                ident.set_span(span)
+            }
+            arenas.alloc(ident)
         };
 
         let size=unchecked.size.unwrap_or_else(||{
@@ -129,7 +137,7 @@ impl<'a> NonExhaustive<'a>{
 
         if let Some(EnumInterface::New(enum_interface))=&mut unchecked.enum_interface{
             let mut trait_map=TRAIT_LIST.iter()
-                .map(|x| ( parse_ident(x.name) , x ) )
+                .map(|x| ( parse_ident(x.name,None) , x ) )
                 .collect::<HashMap<&'a syn::Ident,&'static UsableTrait>>();
             
             let mut bounds_trait_inner=Vec::<&'a syn::Path>::new();
@@ -141,15 +149,19 @@ impl<'a> NonExhaustive<'a>{
                         if let WT::Deserialize=ut.which_trait {
                             continue;
                         } 
-                        let full_path=arenas.alloc(parse_str_as_path(ut.full_path));
-                        bounds_trait_inner.push(full_path);
+                        let mut full_path=parse_str_as_path(ut.full_path);
+
+                        SetSpanVisitor::new(trait_.span())
+                            .visit_path_mut(&mut full_path);
+
+                        bounds_trait_inner.push(arenas.alloc(full_path));
                     }
                     None => panic!("Trait {} was not in TRAIT_LIST.",trait_),
                 }
             }
 
             bounds_trait=Some(BoundsTrait{
-                ident:parse_ident(&format!("{}_Bounds",name)),
+                ident:parse_ident(&format!("{}_Bounds",name),None),
                 bounds:bounds_trait_inner,
             });
 
@@ -159,15 +171,14 @@ impl<'a> NonExhaustive<'a>{
                 }
             }
 
-
-            for (trait_,is_impld) in trait_map {
+            for (trait_,_) in trait_map {
                 enum_interface.unimpld.push(trait_);
             }
         }
 
         let (default_interface,new_interface)=match unchecked.enum_interface {
             Some(EnumInterface::New{..})=>{
-                let name=parse_ident(&format!("{}_Interface",name));
+                let name=parse_ident(&format!("{}_Interface",name),None);
                 (name.into_token_stream(),Some(name))
             },
             Some(EnumInterface::Old(ty))=>{
@@ -205,9 +216,9 @@ impl<'a> NonExhaustive<'a>{
 
 
         Self{
-            nonexhaustive_alias:parse_ident(&format!("{}_NE",name)),
-            nonexhaustive_marker:parse_ident(&format!("{}_NEMarker",name)),
-            enum_storage:parse_ident(&format!("{}_Storage",name)),
+            nonexhaustive_alias:parse_ident(&format!("{}_NE",name),None),
+            nonexhaustive_marker:parse_ident(&format!("{}_NEMarker",name),None),
+            enum_storage:parse_ident(&format!("{}_Storage",name),None),
             alignment,
             size,
             enum_interface:unchecked.enum_interface,
@@ -363,7 +374,8 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
                 .filter_map(|(vc,variant)|{
                     let vc=vc?;
                     let variant_ident=variant.name;
-                    let method_name=parse_str_as_ident(&format!("{}_NE",variant.name));
+                    let mut method_name=parse_str_as_ident(&format!("{}_NE",variant.name));
+                    method_name.set_span(variant.name.span());
 
                     match vc {
                         VariantConstructor::Regular=>{
