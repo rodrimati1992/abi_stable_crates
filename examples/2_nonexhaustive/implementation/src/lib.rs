@@ -16,8 +16,8 @@ use abi_stable::{
 use core_extensions::SelfOps;
 
 use example_2_interface::{
-    Cents,Command,Error,ItemId,ReturnVal,Shop,Shop_TO,ShopMod,ShopModVal,
-    SerdeWrapper,
+    Cents,Command,Command_NE,Error,ItemId,ReturnVal,ReturnVal_NE,Shop,Shop_TO,ShopMod,ShopModVal,
+    SerdeWrapper,ParamCreateItem,RetRenameItem,
 };
 
 
@@ -63,12 +63,15 @@ struct Item{
 impl Shop for ShopState{
     fn run_command(
         &mut self,
-        cmd:NonExhaustiveFor<Command>,
-    )->RResult<NonExhaustiveFor<ReturnVal>,NonExhaustiveFor<Error>>{
+        cmd:Command_NE,
+    )->RResult<ReturnVal_NE,NonExhaustiveFor<Error>>{
         use std::collections::hash_map::Entry;
 
         match cmd.into_enum() {
-            Ok(Command::CreateItem{name,initial_count:count,price})=>{
+            Ok(Command::CreateItem(inner_cmd))=>{
+                let ParamCreateItem{name,initial_count:count,price}=
+                    RBox::into_inner(inner_cmd);
+
                 match self.items_map.entry(name.clone()) {
                     Entry::Occupied(entry)=>{
                         let id=ItemId{id:*entry.get()};
@@ -123,7 +126,9 @@ impl Shop for ShopState{
                         let old_name=mem::replace(&mut item.name,new_name.clone());
                         self.items_map.remove(&old_name);
                         self.items_map.insert(new_name.clone(),id.id);
-                        ReturnVal::RenameItem{id,old_name,new_name}
+                        RetRenameItem{id,old_name,new_name}
+                            .piped(RBox::new)
+                            .piped(ReturnVal::RenameItem)
                     }
                     None => {
                         return RErr(NonExhaustive::new(Error::ItemIdNotFound{id}));
@@ -160,13 +165,13 @@ impl Shop for ShopState{
 
 
 #[sabi_extern_fn]
-fn deserialize_command(s:RStr<'_>)->RResult<NonExhaustiveFor<Command>,RBoxError>{
+fn deserialize_command(s:RStr<'_>)->RResult<Command_NE,RBoxError>{
     deserialize_json::<Command>(s.into())
         .map(NonExhaustiveFor::new)
 }
 
 #[sabi_extern_fn]
-fn deserialize_ret_val(s:RStr<'_>)->RResult<NonExhaustiveFor<ReturnVal>,RBoxError>{
+fn deserialize_ret_val(s:RStr<'_>)->RResult<ReturnVal_NE,RBoxError>{
     deserialize_json::<ReturnVal>(s.into())
         .map(NonExhaustiveFor::new)
 }

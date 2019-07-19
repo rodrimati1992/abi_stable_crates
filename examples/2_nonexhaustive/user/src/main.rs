@@ -10,13 +10,12 @@ use core_extensions::SelfOps;
 use structopt::StructOpt;
 
 use abi_stable::{
-    nonexhaustive_enum::NonExhaustiveFor,
     std_types::{RString,ROk,RErr},
     library::RootModule,
 };
 
 use example_2_interface::{
-    Shop,ShopMod,Command,ReturnVal,
+    Shop,ShopMod,Command_NE,ReturnVal,
 };
 
 
@@ -74,7 +73,7 @@ fn main(){
         }
     };
 
-    let command=match NonExhaustiveFor::<Command>::deserialize_owned_from_str(&file) {
+    let command=match Command_NE::deserialize_owned_from_str(&file) {
         Ok(x) => x,
         Err(e) => {
             eprintln!(
