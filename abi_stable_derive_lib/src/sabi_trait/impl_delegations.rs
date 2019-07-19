@@ -18,7 +18,10 @@ use crate::{
 /// Generates the code that delegates the implementation of the supertraits 
 /// to the wrapped DynTrait or RObject.
 pub(super) fn delegated_impls<'a>(
-    TokenizerParams{arenas,ctokens,config,totrait_def,..}:TokenizerParams<'a>,
+    TokenizerParams{
+        arenas,ctokens,config,totrait_def,trait_to,trait_backend,trait_interface,
+        ..
+    }:TokenizerParams<'a>,
     mod_:&mut TokenStream2,
 ){
     let where_preds=&totrait_def.where_preds;
@@ -70,7 +73,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.debug {
         quote!(
             impl<#gen_params_header> std::fmt::Debug
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
                 _ErasedPtr:__DerefTrait<Target=()>,
                 #(#where_preds,)*
@@ -85,7 +88,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.display {
         quote!(
             impl<#gen_params_header> std::fmt::Display
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
                 _ErasedPtr:__DerefTrait<Target=()>,
                 #(#where_preds,)*
@@ -100,7 +103,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.error {
         quote!(
             impl<#gen_params_header> std::error::Error
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
                 _ErasedPtr:__DerefTrait<Target=()>,
                 #(#where_preds,)*
@@ -110,9 +113,9 @@ pub(super) fn delegated_impls<'a>(
     if impls.clone {
         quote!(
             impl<#gen_params_header> std::clone::Clone
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
-                __UsedTraitObject<#gen_params_use_to>:Clone,
+                #trait_backend<#gen_params_use_to>:Clone,
                 _ErasedPtr:__DerefTrait<Target=()>,
                 #(#where_preds,)*
             {
@@ -129,7 +132,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.hash {
         quote!(
             impl<#gen_params_header> std::hash::Hash
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
                 _ErasedPtr:__DerefTrait<Target=()>,
                 #(#where_preds,)*
@@ -147,7 +150,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.send {
         quote!(
             unsafe impl<#gen_params_header> std::marker::Send
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
                 #(#where_preds,)*
             {}
@@ -156,7 +159,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.sync {
         quote!(
             unsafe impl<#gen_params_header> std::marker::Sync
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
                 #(#where_preds,)*
             {}
@@ -165,7 +168,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.fmt_write {
         quote!(
             impl<#gen_params_header> std::fmt::Write
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
                 _ErasedPtr:__DerefMutTrait<Target=()>,
                 #(#where_preds,)*
@@ -180,7 +183,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.io_write {
         quote!(
             impl<#gen_params_header> std::io::Write
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
                 _ErasedPtr:__DerefMutTrait<Target=()>,
                 #(#where_preds,)*
@@ -200,7 +203,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.io_read {
         quote!(
             impl<#gen_params_header> std::io::Read
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
                 _ErasedPtr:__DerefMutTrait<Target=()>,
                 #(#where_preds,)*
@@ -218,7 +221,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.io_buf_read {
         quote!(
             impl<#gen_params_header> std::io::BufRead
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
                 _ErasedPtr:__DerefMutTrait<Target=()>,
                 #(#where_preds,)*
@@ -236,7 +239,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.io_seek {
         quote!(
             impl<#gen_params_header> std::io::Seek
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
                 _ErasedPtr:__DerefMutTrait<Target=()>,
                 #(#where_preds,)*
@@ -264,7 +267,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.eq{
         quote!(
             impl<#gen_params_header> std::cmp::Eq
-            for __TraitObject<#gen_params_use_to_static>
+            for #trait_to<#gen_params_use_to_static>
             where
                 _ErasedPtr:__DerefTrait<Target=()>,
                 #(#where_preds,)*
@@ -273,14 +276,14 @@ pub(super) fn delegated_impls<'a>(
     }
     if impls.partial_eq{
         quote!(
-            impl<#gen_params_header_and2> std::cmp::PartialEq<__TraitObject<#gen_params_use_2>>
-            for __TraitObject<#gen_params_use_to_static>
+            impl<#gen_params_header_and2> std::cmp::PartialEq<#trait_to<#gen_params_use_2>>
+            for #trait_to<#gen_params_use_to_static>
             where
                 _ErasedPtr:__DerefTrait<Target=()>,
                 _ErasedPtr2:__DerefTrait<Target=()>,
                 #(#where_preds,)*
             {
-                fn eq(&self,other:&__TraitObject<#gen_params_use_2>)->bool{
+                fn eq(&self,other:&#trait_to<#gen_params_use_2>)->bool{
                     std::cmp::PartialEq::eq(
                         &self.obj,
                         &other.obj
@@ -293,7 +296,7 @@ pub(super) fn delegated_impls<'a>(
     if impls.ord{
         quote!(
             impl<#gen_params_header> std::cmp::Ord
-            for __TraitObject<#gen_params_use_to_static>
+            for #trait_to<#gen_params_use_to_static>
             where
                 _ErasedPtr:__DerefTrait<Target=()>,
                 #(#where_preds,)*
@@ -309,8 +312,8 @@ pub(super) fn delegated_impls<'a>(
     }
     if impls.partial_ord{
         quote!(
-            impl<#gen_params_header_and2> std::cmp::PartialOrd<__TraitObject<#gen_params_use_2>>
-            for __TraitObject<#gen_params_use_to_static>
+            impl<#gen_params_header_and2> std::cmp::PartialOrd<#trait_to<#gen_params_use_2>>
+            for #trait_to<#gen_params_use_to_static>
             where
                 _ErasedPtr:__DerefTrait<Target=()>,
                 _ErasedPtr2:__DerefTrait<Target=()>,
@@ -318,7 +321,7 @@ pub(super) fn delegated_impls<'a>(
             {
                 fn partial_cmp(
                     &self,
-                    other:&__TraitObject<#gen_params_use_2>
+                    other:&#trait_to<#gen_params_use_2>
                 )->Option<std::cmp::Ordering> {
                     std::cmp::PartialOrd::partial_cmp(
                         &self.obj,
@@ -354,9 +357,9 @@ pub(super) fn delegated_impls<'a>(
     //     let lifetime_param=deserialize_bound.lifetime;
 
     //     quote!(
-    //         impl<#gen_params_header> #deserialize_path for __TraitObject<#gen_params_use_to>
+    //         impl<#gen_params_header> #deserialize_path for #trait_to<#gen_params_use_to>
     //         where
-    //             __UsedTraitObject<#gen_params_use_to>: #deserialize_path,
+    //             #trait_backend<#gen_params_use_to>: #deserialize_path,
     //             _ErasedPtr:__DerefTrait<Target=()>,
     //             #(#where_preds,)*
     //         {
@@ -364,7 +367,7 @@ pub(super) fn delegated_impls<'a>(
     //             where
     //                 D: ::serde::Deserializer<#lifetime_param>,
     //             {
-    //                 __UsedTraitObject::<#gen_params_use_to>::deserialize(deserializer)
+    //                 #trait_backend::<#gen_params_use_to>::deserialize(deserializer)
     //                     .map(Self::from_sabi)
     //             }
     //         }
@@ -373,9 +376,9 @@ pub(super) fn delegated_impls<'a>(
     
     // if impls.serialize{
     //     quote!(
-    //         impl<#gen_params_header> ::serde::Serialize for __TraitObject<#gen_params_use_to>
+    //         impl<#gen_params_header> ::serde::Serialize for #trait_to<#gen_params_use_to>
     //         where
-    //             __UsedTraitObject<#gen_params_use_to>: ::serde::Serialize,
+    //             #trait_backend<#gen_params_use_to>: ::serde::Serialize,
     //             _ErasedPtr:__DerefTrait<Target=()>,
     //             #(#where_preds,)*
     //         {
@@ -395,7 +398,7 @@ pub(super) fn delegated_impls<'a>(
         quote!(
             impl<#trait_interface_header>
                 abi_stable::erased_types::IteratorItem<'lt>
-            for __TraitInterface<#trait_interface_use>
+            for #trait_interface<#trait_interface_use>
             where
                 #iter_item:'lt,
             {
@@ -405,11 +408,11 @@ pub(super) fn delegated_impls<'a>(
     }
     if impls.iterator {
         quote!(
-            impl<#gen_params_header> std::iter::Iterator for __TraitObject<#gen_params_use_to>
+            impl<#gen_params_header> std::iter::Iterator for #trait_to<#gen_params_use_to>
             where
-                __UsedTraitObject<#gen_params_use_to>:std::iter::Iterator,
+                #trait_backend<#gen_params_use_to>:std::iter::Iterator,
             {
-                type Item=<__UsedTraitObject<#gen_params_use_to>as std::iter::Iterator>::Item;
+                type Item=<#trait_backend<#gen_params_use_to>as std::iter::Iterator>::Item;
 
                 fn next(&mut self)->Option<Self::Item>{
                     self.obj.next()
@@ -436,9 +439,9 @@ pub(super) fn delegated_impls<'a>(
     if impls.double_ended_iterator {
         quote!(
             impl<#gen_params_header> std::iter::DoubleEndedIterator 
-            for __TraitObject<#gen_params_use_to>
+            for #trait_to<#gen_params_use_to>
             where
-                __UsedTraitObject<#gen_params_use_to>:std::iter::DoubleEndedIterator,
+                #trait_backend<#gen_params_use_to>:std::iter::DoubleEndedIterator,
             {
                 fn next_back(&mut self)->Option<Self::Item>{
                     self.obj.next_back()
