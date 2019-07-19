@@ -195,6 +195,80 @@ Returns `some_expression` if the field doesn't exist.
 `#[sabi(missing_field(default))]`<br>
 Returns `Default::default()` if the field doesn't exist.
 
+# Variant and/or Container attributes
+
+<h3> `#[sabi(with_constructor)]` </h3>
+
+This is only valid for nonexhaustive enums,declared with `#[sabi(kind(WithNonExhaustive(..)))]`.
+
+Creates constructors for enum variant(s),named the same as the variant(s) with an `_NE` suffix.
+
+This attribute can be overriden on variants(when it was also applied to the Container itself).
+
+For a variant like this:
+`VariantNamed{foo:RString,bar:RBox<Struct>}`
+it would generate an associated function like this(the exact generated code might differ a bit):
+```
+fn VariantNamed_NE(foo:RString,bar:RBox<Struct>)->Enum_NE{
+    let x=Enum::VariantNamed{foo,bar};
+    NonExhaustive::new(x)
+}
+```
+
+<h3> `#[sabi(with_boxed_constructor)]` </h3>
+
+This is only valid for nonexhaustive enums,declared with `#[sabi(kind(WithNonExhaustive(..)))]`.
+
+Creates constructors for enum variant(s) which only contain a pointer,
+named the same as the variant(s) with an `_NE` suffix.
+
+This attribute can be overriden on variants(when it was also applied to the Container itself).
+
+All constructor functions are declared inside a single impl block with 
+`Self` bounded by the traits that are necessary to construct `NonExhaustive<>` from it.
+
+For a variant like this:
+
+`VariantNamed(RBox<T>)`
+
+it would generate an associated function like this(the exact generated code might differ a bit):
+```ignore
+fn VariantNamed_NE(value:T)->Enum_NE<T>{
+    let x=RBox::new(value);
+    let x=Enum::VariantNamed(x);
+    NonExhaustive::new(x)
+}
+```
+
+<br>
+
+For a variant like this:
+
+`VariantNamed{ptr_:MyPointer<T>}`
+
+it would generate an associated function like this(the exact generated code might differ a bit):
+```ignore
+fn VariantNamed_NE(value:T)->Enum_NE<T>{
+    let x=MyPointer::new(value);
+    let x=Enum::VariantNamed{ptr_:x};
+    NonExhaustive::new(x)
+}
+```
+
+For a variant like this:
+
+`VariantNamed(BoxedStruct)`
+
+it would generate an associated function like this(the exact generated code might differ a bit):
+```ignore
+fn VariantNamed_NE(value:<BoxedStruct as ::std::ops::Deref>::Target)->Enum_NE<T>{
+    let x=BoxedStruct::new(value);
+    let x=Enum::VariantNamed(x);
+    NonExhaustive::new(x)
+}
+```
+
+
 
 # Supported repr attributes
 
