@@ -259,6 +259,23 @@ fn first_items<'a>(
         (true ,true )=>"SyncSend",
     }.piped(parse_str_as_ident);
 
+    let trait_backend_docs=format!(
+        "An alias for the underlying implementation of `{}`.",
+        trait_to,
+    );
+
+    let trait_interface_docs=format!(
+        "A marker type describing the traits that are required when constructing `{}`,\
+         and are then implemented by it,
+         by implementing InterfaceType.",
+        trait_to,
+    );
+    
+    let trait_to_docs=format!(
+        "The trait object for `{trait_}`.",
+        trait_=trait_ident
+    );
+
     quote!(
         use super::*;
 
@@ -266,6 +283,8 @@ fn first_items<'a>(
 
         use self::#trait_ident as __Trait;
 
+
+        #[doc=#trait_backend_docs]
         #submod_vis type #trait_backend<#uto_params>=
             __sabi_re::#object<
                 'lt,
@@ -275,6 +294,7 @@ fn first_items<'a>(
             >;
 
 
+        #[doc=#trait_interface_docs]
         #[repr(C)]
         #[derive(::abi_stable::StableAbi)]
         #submod_vis struct #trait_interface<#trait_interface_decl>(
@@ -286,6 +306,7 @@ fn first_items<'a>(
         }
 
 
+        #[doc=#trait_to_docs]
         #[repr(transparent)]
         #[derive(::abi_stable::StableAbi)]
         #[sabi(bound=#used_to_bound)]
@@ -445,11 +466,31 @@ fn constructor_items<'a>(
             &ctokens.ts_empty,
         );
 
+    let shared_docs=format!(
+        "
+`erasability` describes whether the trait object can be \
+converted back into the original type or not.
+Its possible values are `TU_Unerasable` and `TU_Opaque`.
+"
+    );
+
+    let from_ptr_docs=format!(
+        "Constructs this trait object from a pointer to a type that implements `{trait_}`.",
+        trait_=trait_ident
+    );
+
+    let from_value_docs=format!(
+        "Constructs this trait a type that implements `{trait_}`.",
+        trait_=trait_ident
+    );
+
     quote!(
         impl<#gen_params_header> #trait_to<#gen_params_use_to> {
+            #[doc=#from_ptr_docs]
+            #[doc=#shared_docs]
             #submod_vis fn from_ptr<_OrigPtr,Erasability>(
                 ptr:_OrigPtr,
-                _erasability:Erasability,
+                erasability:Erasability,
             )->Self
             where
                 _OrigPtr:__sabi_re::TransmuteElement<(),TransmutedPtr=_ErasedPtr>+'lt,
@@ -464,6 +505,7 @@ fn constructor_items<'a>(
                     >,
                 #extra_constraints_ptr
             {
+                let _erasability=erasability;
                 unsafe{
                     Self{
                         obj:#trait_backend::with_vtable::<_,#fn_erasability_arg>(
@@ -484,6 +526,8 @@ fn constructor_items<'a>(
             }
         }
         impl<#gen_params_header_rbox> #trait_to<#gen_params_use_to_rbox> {
+            #[doc=#from_value_docs]
+            #[doc=#shared_docs]
             #submod_vis fn from_value<_Self,Erasability>(
                 ptr:_Self,
                 erasability:Erasability,
