@@ -314,14 +314,26 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
         let type_generics_use=GenParamsIn::new(ds.generics,InWhat::ItemUse);
 
+        let storage_docs=format!(
+            "The InlineStorage for the NonExhaustive wrapped version of `{}<_>`.",
+            name
+        );
+
         let alias_docs=format!(
             "An alias for the NonExhaustive wrapped version of `{}<_>`.",
+            name
+        );
+
+        let marker_docs=format!(
+            "A marker type which implements StableAbi with the layout of {},\
+             used as a phantom field of NonExhaustive.",
             name
         );
 
         let default_interface=&this.default_interface;
 
         quote!(
+            #[doc=#storage_docs]
             #[repr(C)]
             #[derive(::abi_stable::StableAbi)]
             #aligner_attribute
@@ -341,6 +353,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
             unsafe impl #module::_sabi_reexports::InlineStorage for #enum_storage{}
 
+            #[doc=#marker_docs]
             #vis struct #nonexhaustive_marker<T,S>(
                 std::marker::PhantomData<T>,
                 std::marker::PhantomData<S>,
@@ -349,8 +362,15 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
 
         if let Some(BoundsTrait{ident,bounds})=&this.bounds_trait{
+            let trait_docs=format!(
+                "Acts as an alias for the traits that \
+                 were specified for `{}` in `traits(...)`.",
+                name
+            );
             quote!( 
+                #[doc=#trait_docs]
                 #vis trait #ident:#(#bounds+)*{}
+
                 impl<This> #ident for This
                 where
                     This:#(#bounds+)*
@@ -359,7 +379,15 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
         }
 
         if let Some(new_interface)=this.new_interface{
+            let interface_docs=format!(
+                "Describes the traits required when constructing a \
+                 `NonExhaustive<>` from `{}`,and are usable with it,\
+                 by implementing `InterfaceType`.",
+                name
+            );
+
             quote!( 
+                #[doc=#interface_docs]
                 #[repr(C)]
                 #[derive(::abi_stable::StableAbi)]
                 #vis struct #new_interface;

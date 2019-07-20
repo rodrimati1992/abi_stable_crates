@@ -38,6 +38,7 @@ pub mod example_1{
         size="[usize;4]",
         traits(Debug,Clone,PartialEq)
     )))]
+    //#[sabi(debug_print)]
     pub enum Foo{
         A,
     }
