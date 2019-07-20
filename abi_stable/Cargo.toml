@@ -26,6 +26,8 @@ default = ["channels"]
 
 rust_1_34=[]
 
+rust_1_36=[]
+
 # Test features,only used internally.
 only_new_tests=[]
 sabi_trait_examples=[]

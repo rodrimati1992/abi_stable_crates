@@ -199,6 +199,7 @@ pub mod nonexhaustive_enum;
 pub mod pointer_trait;
 pub mod prefix_type;
 pub mod type_layout;
+pub mod inline_storage;
 
 
 

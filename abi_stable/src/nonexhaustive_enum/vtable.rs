@@ -19,7 +19,7 @@ use crate::{
     sabi_types::{StaticRef},
     std_types::{ROption,RResult,RString,RCow,RCmpOrdering,RBoxError},
     type_layout::Tag,
-    traits::InlineStorage,
+    inline_storage::InlineStorage,
 };
 
 

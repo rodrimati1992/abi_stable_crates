@@ -213,7 +213,7 @@ This attribute can be overriden on variants(when it was also applied to the Cont
 For a variant like this:
 `VariantNamed{foo:RString,bar:RBox<Struct>}`
 it would generate an associated function like this(the exact generated code might differ a bit):
-```
+```ignore
 fn VariantNamed_NE(foo:RString,bar:RBox<Struct>)->Enum_NE{
     let x=Enum::VariantNamed{foo,bar};
     NonExhaustive::new(x)

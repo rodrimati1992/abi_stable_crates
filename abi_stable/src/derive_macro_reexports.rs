@@ -12,6 +12,7 @@ pub use crate::{
             MakeGetAbiInfoUF,
         },
     },
+    inline_storage::InlineStorage,
     nonexhaustive_enum::{
         assert_nonexhaustive,
         GetVTable as GetNonExhaustiveVTable,
@@ -39,7 +40,6 @@ pub use crate::{
         StaticSlice,
         RSome,RNone,
     },
-    traits::InlineStorage,
     type_layout::{
         CompTLFunction,
         DiscriminantRepr,
