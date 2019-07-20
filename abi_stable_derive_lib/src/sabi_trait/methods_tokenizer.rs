@@ -111,15 +111,20 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 #optional_field
                 #vis #used_name:
                     #(for< #(#lifetimes,)* >)*
-                    extern "C" fn(
+                    unsafe extern "C" fn(
                         #self_param,
                         #( #param_names_a:#param_ty ,)* 
                     ) #(-> #return_ty )*
             )
         }else{
+            let unsafety=match which_item {
+                WhichItem::VtableImpl=>Some(&ctokens.unsafe_),
+                _=>method.unsafety
+            };
+
             quote!(
                 #(#[#other_attrs])*
-                #vis #abi fn #used_name #(< #(#lifetimes,)* >)* (
+                #vis #unsafety #abi fn #used_name #(< #(#lifetimes,)* >)* (
                     #self_param, 
                     #( #param_names_a:#param_ty ,)* 
                 ) #(-> #return_ty )*
@@ -177,7 +182,9 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                             {
                                 match self.obj.sabi_et_vtable().#method_name() {
                                     Some(__method)=>{
-                                        #method_call
+                                        unsafe{
+                                            #method_call
+                                        }
                                     }
                                     None=>{
                                         #(
@@ -194,7 +201,9 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                                 #ptr_constraint
                             {
                                 let __method=self.obj.sabi_et_vtable().#method_name();
-                                #method_call
+                                unsafe{
+                                    #method_call
+                                }
                             }
                         ).to_tokens(ts);
                     }
@@ -205,34 +214,31 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             
             }
             (WhichItem::VtableImpl,SelfParam::ByRef{is_mutable:false,..})=>{
-                // This unsafe block is only necessary for `unsafe` methods.
-                quote!({unsafe{
+                quote!({
                     __sabi_re::sabi_from_ref(
                         _self,
                         move|_self| 
                             __Trait::#method_name(_self,#(#param_names_c,)*)
                     )
-                }}).to_tokens(ts);
+                }).to_tokens(ts);
             }
             (WhichItem::VtableImpl,SelfParam::ByRef{is_mutable:true,..})=>{
-                // This unsafe block is only necessary for `unsafe` methods.
-                quote!({unsafe{
+                quote!({
                     __sabi_re::sabi_from_mut(
                         _self,
                         move|_self| 
                             __Trait::#method_name(_self,#(#param_names_c,)*)
                     )
-                }}).to_tokens(ts);
+                }).to_tokens(ts);
             }
             (WhichItem::VtableImpl,SelfParam::ByVal)=>{
-                // This unsafe block is only necessary for `unsafe` methods.
-                quote!({unsafe{
+                quote!({
                     ::abi_stable::extern_fn_panic_handling!{no_early_return;
                         __Trait::#method_name(
                             _self.into_inner(),#(#param_names_c,)*
                         )
                     }
-                }}).to_tokens(ts);
+                }).to_tokens(ts);
             }
         }
     }

@@ -102,9 +102,9 @@ pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
 
     #[sabi(last_prefix_field)]
     pub _sabi_drop :unsafe extern "C" fn(this:&mut ErasedPtr),
-    pub _sabi_clone:Option<extern "C" fn(this:&ErasedPtr)->ErasedPtr>,
+    pub _sabi_clone:Option<unsafe extern "C" fn(this:&ErasedPtr)->ErasedPtr>,
     pub _sabi_debug:Option<
-        extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
+        unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
     >,
 }
 
@@ -120,7 +120,7 @@ pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
     kind(Prefix(prefix_struct="BaseVtable")),
 )]
 pub(super)struct BaseVtableVal<_Self,ErasedPtr,I>{
-    pub _sabi_tys:PhantomData<extern "C" fn(_Self,ErasedPtr,I)>,
+    pub _sabi_tys:PhantomData<unsafe extern "C" fn(_Self,ErasedPtr,I)>,
 
     #[sabi(last_prefix_field)]
     pub _sabi_vtable:StaticRef<RObjectVtable<_Self,ErasedPtr,I>>,
@@ -195,14 +195,14 @@ pub mod trait_bounds{
         type Clone;
         trait InitCloneField[_Self,ErasedPtr,OrigPtr]
         where [ OrigPtr:Clone ]
-        type=extern "C" fn(this:&ErasedPtr)->ErasedPtr,
+        type=unsafe extern "C" fn(this:&ErasedPtr)->ErasedPtr,
         value=c_functions::clone_pointer_impl::<OrigPtr,ErasedPtr>,
     }
     declare_field_initalizer!{
         type Debug;
         trait InitDebugField[_Self,ErasedPtr,OrigPtr]
         where [ _Self:Debug ]
-        type=extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
+        type=unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
         value=c_functions::debug_impl::<_Self>,
     }
 

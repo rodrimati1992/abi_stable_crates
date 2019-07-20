@@ -159,7 +159,9 @@ where
     I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone_impl(&self) -> Self {
-        let ptr=self.sabi_robject_vtable()._sabi_clone().unwrap()(&self.ptr);
+        let ptr=unsafe{
+            self.sabi_robject_vtable()._sabi_clone().unwrap()(&self.ptr)
+        };
         Self{
             vtable:self.vtable,
             is_reborrowed:self.is_reborrowed,
@@ -223,11 +225,13 @@ where
     I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        adapt_std_fmt::<ErasedObject>(
-            self.sabi_erased_ref(), 
-            self.sabi_robject_vtable()._sabi_debug().unwrap(), 
-            f
-        )
+        unsafe{
+            adapt_std_fmt::<ErasedObject>(
+                self.sabi_erased_ref(), 
+                self.sabi_robject_vtable()._sabi_debug().unwrap(), 
+                f
+            )
+        }
     }
 }
 
