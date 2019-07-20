@@ -63,12 +63,14 @@ pub(crate) struct StableAbiOptions<'a> {
 
     pub(crate) override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
-    pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
+     pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
     pub(crate) changed_types:FieldMap<Option<&'a Type>>,
 
     pub(crate) mod_refl_mode:ModReflMode<usize>,
 
+
     pub(crate) phantom_fields:Vec<(&'a str,&'a Type)>,
+    pub(crate) phantom_type_params:Vec<&'a Type>,
 
 }
 
@@ -213,6 +215,14 @@ impl<'a> StableAbiOptions<'a> {
         };
 
         phantom_fields.extend(this.extra_phantom_fields);
+        phantom_fields.extend(
+            this.phantom_type_params.iter().cloned()
+                .enumerate()
+                .map(|(i,ty)|{
+                    let name=arenas.alloc(format!("_phantom_ty_param_{}",i));
+                    (&**name,ty)
+                })
+        );
 
         StableAbiOptions {
             debug_print:this.debug_print,
@@ -225,6 +235,7 @@ impl<'a> StableAbiOptions<'a> {
             override_field_accessor:this.override_field_accessor,
             tags:this.tags,
             phantom_fields,
+            phantom_type_params:this.phantom_type_params,
             mod_refl_mode,
         }
     }
@@ -266,6 +277,7 @@ struct StableAbiAttrs<'a> {
     field_bounds:FieldMap<Vec<TypeParamBound>>,
 
     extra_phantom_fields:Vec<(&'a str,&'a Type)>,
+    phantom_type_params:Vec<&'a Type>,
     
     mod_refl_mode:Option<ModReflMode<()>>,
 }
@@ -476,6 +488,14 @@ fn parse_sabi_attr<'a>(
             let name=arenas.alloc(iter.next().unwrap_or("").to_string());
             let ty=arenas.alloc(parse_str_as_type(iter.next().unwrap_or("")));
             this.extra_phantom_fields.push((name,ty));
+        }
+        (
+            ParseContext::TypeAttr{..},
+            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref str_lit),ref ident,..})
+        )if ident=="phantom_type_param" =>
+        {
+            let ty=arenas.alloc(parse_lit_as_type(str_lit));
+            this.phantom_type_params.push(ty);
         }
         (
             ParseContext::TypeAttr{..},

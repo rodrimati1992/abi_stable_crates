@@ -14,6 +14,11 @@ These attributes are applied on the type declaration.
 
 Adds a virtual field to the type layout constant.
 
+<h3> `#[sabi(phantom_type_param="type")]` </h3>
+
+Adds a virtual type parameter to the type layout constant,
+which is checked for compatibility.
+
 <h3> `#[sabi(not_stableabi(TypeParameter))]`  </h3>
 
 Removes the implicit `TypeParameter:StableAbi` constraint,

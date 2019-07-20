@@ -64,7 +64,7 @@ where
 */
 #[macro_export]
 macro_rules! tl_genparams {
-    ( $($lt:lifetime),*  ; $($ty:ty),*  ; $($const_p:expr),*  ) => ({
+    ( $($lt:lifetime),*  ; $($ty:ty),* $(,)*  ; $($const_p:expr),*  ) => ({
         #[allow(unused_imports)]
         use $crate::{
             abi_stability::stable_abi_trait::SharedStableAbi,
