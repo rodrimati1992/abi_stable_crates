@@ -15,6 +15,7 @@ use crate::{
             HasherObject,
         },
     },
+    inline_storage::ScratchSpace,
     marker_type::{ErasedObject,UnsafeIgnoredType},
     nonexhaustive_enum::{
         GetVTable,NonExhaustiveVtable,InterfaceBound,GetEnumInfo,GetNonExhaustive,
@@ -178,7 +179,7 @@ with the 1.0 version of `Error` they would get an `Err(..)` back.
 pub struct NonExhaustive<E,S,I>{
     // This is an opaque field since we only care about its size and alignment
     #[sabi(unsafe_opaque_field)]
-    fill:ManuallyDrop<S>,
+    fill:ScratchSpace<S>,
     vtable:StaticRef<NonExhaustiveVtable<E,S,I>>,
     _marker:PhantomData<()>,
 }
@@ -283,12 +284,16 @@ This panics if the storage has an alignment or size smaller than that of `E`.
         Self::assert_fits_within_storage();
 
         let mut this=Self{
-            fill:mem::uninitialized(),
+            fill:unsafe{
+                // The fact that the vtable was constructed ensures that 
+                // `Inline` implements `InlineStorage`
+                ScratchSpace::uninit_unbounded()
+            },
             vtable,
             _marker:PhantomData
         };
         
-        (&mut this.fill as *mut ManuallyDrop<S> as *mut E).write(value);
+        (&mut this.fill as *mut ScratchSpace<S> as *mut E).write(value);
 
         this
     }
@@ -314,7 +319,7 @@ This panics if the storage has an alignment or size smaller than that of `E`.
         let align_storage=std::mem::align_of::<S>();
         assert!(
             Self::check_alignment(),
-            "The alignment of the storage is lower than the enum:\n\t{}!={}",
+            "The alignment of the storage is lower than the enum:\n\t{} < {}",
             align_storage,align_enum,
         );
         let size_enum=std::mem::size_of::<E>();
@@ -362,7 +367,7 @@ assert_eq!(new_c().as_enum().ok()  ,None             );
         let discriminant=self.get_discriminant();
         if E::is_valid_discriminant(discriminant) {
             unsafe{
-                Ok(&*(&self.fill as *const ManuallyDrop<S> as *const E))
+                Ok(&*(&self.fill as *const ScratchSpace<S> as *const E))
             }
         }else{
             Err(UnwrapEnumError::new(self))
@@ -411,7 +416,7 @@ assert_eq!(new_c().as_enum_mut().ok()  ,None);
             */
             self.vtable=E::VTABLE_REF;
             unsafe{
-                Ok(&mut *(&mut self.fill as *mut ManuallyDrop<S> as *mut E))
+                Ok(&mut *(&mut self.fill as *mut ScratchSpace<S> as *mut E))
             }
         }else{
             Err(UnwrapEnumError::new(self))
@@ -448,7 +453,7 @@ assert_eq!(new_c().into_enum().ok()  ,None);
         if E::is_valid_discriminant(discriminant) {
             let this=ManuallyDrop::new(self);
             unsafe{
-                Ok((&this.fill as *const ManuallyDrop<S> as *const E).read())
+                Ok((&this.fill as *const ScratchSpace<S> as *const E).read())
             }
         }else{
             Err(UnwrapEnumError::new(self))
@@ -472,7 +477,7 @@ Gets the value of the discriminant of the enum.
     #[inline]
     pub fn get_discriminant(&self)->E::Discriminant{
         unsafe{
-            *(&self.fill as *const ManuallyDrop<S> as *const E::Discriminant)
+            *(&self.fill as *const ScratchSpace<S> as *const E::Discriminant)
         }
     }
 
@@ -573,13 +578,13 @@ This panics if the storage has an alignment or size smaller than that of `F`.
 
     fn sabi_erased_ref(&self)->&ErasedObject{
         unsafe{
-            &*(&self.fill as *const ManuallyDrop<S> as *const ErasedObject)
+            &*(&self.fill as *const ScratchSpace<S> as *const ErasedObject)
         }
     }
 
     fn sabi_erased_mut(&mut self)->&mut ErasedObject{
         unsafe{
-            &mut *(&mut self.fill as *mut ManuallyDrop<S> as *mut ErasedObject)
+            &mut *(&mut self.fill as *mut ScratchSpace<S> as *mut ErasedObject)
         }
     }
 }

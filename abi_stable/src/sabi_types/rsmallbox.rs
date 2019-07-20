@@ -22,7 +22,8 @@ use core_extensions::SelfOps;
 use serde::{Serialize,Deserialize,Serializer,Deserializer};
 
 
-pub use crate::traits::{alignment,InlineStorage};
+pub use crate::inline_storage::{alignment,InlineStorage};
+use crate::inline_storage::ScratchSpace;
 
 
 pub use self::private::RSmallBox;
@@ -48,7 +49,7 @@ To ensure that the inline storage has enough alignemnt you can use one of hte
 
 */
     pub struct RSmallBox<T,Inline>{
-        inline:ManuallyDrop<Inline>,
+        inline:ScratchSpace<Inline>,
         ptr:*mut T,
         destroy: unsafe extern "C" fn(*mut T, CallReferentDrop,Deallocate),
         _marker:PhantomData<(T,Inline)>
@@ -78,7 +79,7 @@ To ensure that the inline storage has enough alignemnt you can use one of hte
         #[inline]
         pub fn as_mut_ptr(this:&mut Self)->*mut T{
             if this.ptr.is_null() {
-                (&mut this.inline as *mut ManuallyDrop<Inline> as *mut T)
+                (&mut this.inline as *mut ScratchSpace<Inline> as *mut T)
             }else{
                 this.ptr
             }
@@ -88,7 +89,7 @@ To ensure that the inline storage has enough alignemnt you can use one of hte
         #[inline]
         pub fn as_ptr(this:&Self)->*const T{
             if this.ptr.is_null() {
-                (&this.inline as *const ManuallyDrop<Inline> as *const T)
+                (&this.inline as *const ScratchSpace<Inline> as *const T)
             }else{
                 this.ptr
             }
@@ -104,12 +105,12 @@ To ensure that the inline storage has enough alignemnt you can use one of hte
             let value_align =mem::align_of::<T>();
 
             unsafe{
-                let mut inline:ManuallyDrop<Inline>=mem::uninitialized();
+                let mut inline:ScratchSpace<Inline>=ScratchSpace::uninitialized();
                 let (storage_ptr,ptr)=if inline_size < value_size || inline_align < value_align {
                     let x=alloc::alloc(Layout::new::<T>());
                     (x,x as *mut T)
                 }else{
-                    ( (&mut inline as *mut ManuallyDrop<Inline> as *mut u8), ptr::null_mut() )
+                    ( (&mut inline as *mut ScratchSpace<Inline> as *mut u8), ptr::null_mut() )
                 };
 
                 (from_ptr.into_raw() as *const T as *const u8)
@@ -157,7 +158,7 @@ To ensure that the inline storage has enough alignemnt you can use one of hte
 
         pub(super) unsafe fn drop_in_place(this:&mut Self,drop_referent:CallReferentDrop){
             let (ptr,dealloc)=if this.ptr.is_null() {
-                (&mut this.inline as *mut ManuallyDrop<Inline> as *mut T,Deallocate::No)
+                (&mut this.inline as *mut ScratchSpace<Inline> as *mut T,Deallocate::No)
             }else{
                 (this.ptr,Deallocate::Yes)
             };

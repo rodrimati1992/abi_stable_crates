@@ -272,7 +272,11 @@ fn first_items<'a>(
     );
     
     let trait_to_docs=format!(
-        "The trait object for `{trait_}`.",
+        "\
+The trait object for `{trait_}`.
+
+There are extra methods on the `obj` field.
+",
         trait_=trait_ident
     );
 
