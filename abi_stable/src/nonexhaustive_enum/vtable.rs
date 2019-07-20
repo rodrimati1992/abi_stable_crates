@@ -56,33 +56,33 @@ pub struct NonExhaustiveVtableVal<E,S,I>{
 
     #[sabi(unsafe_opaque_field)]
     pub(crate) _sabi_clone:Option<
-        extern "C" fn(
+        unsafe extern "C" fn(
             &ErasedObject,
             StaticRef<NonExhaustiveVtable<E,S,I>>,
         )->NonExhaustive<E,S,I>
     >,
 
     pub(crate) _sabi_debug:Option<
-        extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
+        unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
     >,
     pub(crate) _sabi_display:Option<
-        extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
+        unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
     >,
     pub(crate) _sabi_serialize: Option<
-        extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>
+        unsafe extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>
     >,
     pub(crate) _sabi_partial_eq: Option<
-        extern "C" fn(&ErasedObject,&ErasedObject)->bool
+        unsafe extern "C" fn(&ErasedObject,&ErasedObject)->bool
     >,
     pub(crate) _sabi_cmp: Option<
-        extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering,
+        unsafe extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering,
     >,
     pub(crate) _sabi_partial_cmp: Option<
-        extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>,
+        unsafe extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>,
     >,
     #[sabi(last_prefix_field)]
     pub(crate) _sabi_hash:Option<
-        extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>)
+        unsafe extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>)
     >,
 }
 
@@ -223,7 +223,7 @@ pub mod trait_bounds{
         where_for_both[ E:GetEnumInfo, ]
         where [ E:Clone ]
         _sabi_clone,clone_: 
-            extern "C" fn(
+            unsafe extern "C" fn(
                 &ErasedObject,
                 StaticRef<NonExhaustiveVtable<E,S,I>>
             )->NonExhaustive<E,S,I>;
@@ -235,7 +235,7 @@ pub mod trait_bounds{
         trait InitDebugField[E,S,I]
         where [ E:Debug ]
         _sabi_debug,debug: 
-            extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
+            unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         field_index=field_index_for__sabi_debug;
         value=c_functions::debug_impl::<E>,
     }
@@ -244,7 +244,7 @@ pub mod trait_bounds{
         trait InitDisplayField[E,S,I]
         where [ E:Display ]
         _sabi_display,display: 
-            extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
+            unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         field_index=field_index_for__sabi_display;
         value=c_functions::display_impl::<E>,
     }
@@ -253,7 +253,7 @@ pub mod trait_bounds{
         trait InitSerializeField[E,S,I]
         where [ I:SerializeEnum<E> ]
         _sabi_serialize,serialize: 
-            extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>;
+            unsafe extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>;
         field_index=field_index_for__sabi_serialize;
         value=alt_c_functions::serialize_impl::<E,I>,
     }
@@ -262,7 +262,7 @@ pub mod trait_bounds{
         trait InitPartialEqField[E,S,I]
         where_for_both[ E:GetEnumInfo, ]
         where [ E:PartialEq ]
-        _sabi_partial_eq,partial_eq: extern "C" fn(&ErasedObject,&ErasedObject)->bool;
+        _sabi_partial_eq,partial_eq: unsafe extern "C" fn(&ErasedObject,&ErasedObject)->bool;
         field_index=field_index_for__sabi_partial_eq;
         value=alt_c_functions::partial_eq_impl::<E,S,I>,
     }
@@ -272,7 +272,7 @@ pub mod trait_bounds{
         where_for_both[ E:GetEnumInfo, ]
         where [ E:PartialOrd ]
         _sabi_partial_cmp,partial_cmp:
-            extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>;
+            unsafe extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>;
         field_index=field_index_for__sabi_partial_cmp;
         value=alt_c_functions::partial_cmp_ord::<E,S,I>,
     }
@@ -281,7 +281,7 @@ pub mod trait_bounds{
         trait InitOrdField[E,S,I]
         where_for_both[ E:GetEnumInfo, ]
         where [ E:Ord ]
-        _sabi_cmp,cmp: extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering;
+        _sabi_cmp,cmp: unsafe extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering;
         field_index=field_index_for__sabi_cmp;
         value=alt_c_functions::cmp_ord::<E,S,I>,
     }
@@ -289,7 +289,7 @@ pub mod trait_bounds{
         type Hash;
         trait InitHashField[E,S,I]
         where [ E:Hash ]
-        _sabi_hash,hash: extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>);
+        _sabi_hash,hash: unsafe extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>);
         field_index=field_index_for__sabi_hash;
         value=c_functions::hash_Hash::<E>,
     }

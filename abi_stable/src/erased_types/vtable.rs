@@ -454,7 +454,7 @@ declare_meta_vtable! {
 
     [
         #[sabi(accessible_if="<I as InterfaceBound>::Clone")]
-        clone_ptr:    extern "C" fn(&ErasedPtr)->ErasedPtr;
+        clone_ptr:    unsafe extern "C" fn(&ErasedPtr)->ErasedPtr;
         priv _clone_ptr;
         option=Option,Some,None;
         field_index=field_index_for__clone_ptr;
@@ -467,7 +467,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::Default")]
-        default_ptr: extern "C" fn()->ErasedPtr ;
+        default_ptr: unsafe extern "C" fn()->ErasedPtr ;
         priv _default_ptr;
         option=Option,Some,None;
         field_index=field_index_for__default_ptr;
@@ -482,7 +482,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::Display")]
-        display:    extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
+        display:unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         priv _display;
         option=Option,Some,None;
         field_index=field_index_for__display;
@@ -495,7 +495,7 @@ declare_meta_vtable! {
     ]
     [
     #[sabi(accessible_if="<I as InterfaceBound>::Debug")]
-        debug:      extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
+        debug:unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
         priv _debug;
         option=Option,Some,None;
         field_index=field_index_for__debug;
@@ -508,7 +508,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::Serialize")]
-        serialize:  extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>;
+        serialize:unsafe extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>;
         priv _serialize;
         option=Option,Some,None;
         field_index=field_index_for__serialize;
@@ -520,7 +520,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::PartialEq")]
-        partial_eq: extern "C" fn(&ErasedObject,&ErasedObject)->bool;
+        partial_eq: unsafe extern "C" fn(&ErasedObject,&ErasedObject)->bool;
         priv _partial_eq;
         option=Option,Some,None;
         field_index=field_index_for__partial_eq;
@@ -533,7 +533,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::Ord")]
-        cmp:        extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering;
+        cmp:        unsafe extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering;
         priv _cmp;
         option=Option,Some,None;
         field_index=field_index_for__cmp;
@@ -546,7 +546,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::PartialOrd")]
-        partial_cmp:extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>;
+        partial_cmp:unsafe extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>;
         priv _partial_cmp;
         option=Option,Some,None;
         field_index=field_index_for__partial_cmp;
@@ -559,7 +559,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::Hash")]
-        hash:extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>);
+        hash:unsafe extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>);
         priv _hash;
         option=Option,Some,None;
         field_index=field_index_for__hash;
@@ -610,7 +610,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::FmtWrite")]
-        fmt_write_str:extern "C" fn(&mut ErasedObject,RStr<'_>)->RResult<(),()>;
+        fmt_write_str:unsafe extern "C" fn(&mut ErasedObject,RStr<'_>)->RResult<(),()>;
         priv _fmt_write_str;
         option=Option,Some,None;
         field_index=field_index_for__fmt_write_str;
@@ -665,7 +665,7 @@ declare_meta_vtable! {
     [
         #[sabi(last_prefix_field)]
         #[sabi(accessible_if="<I as InterfaceBound>::IoSeek")]
-        io_seek:extern "C" fn(&mut ErasedObject,RSeekFrom)->RResult<u64,RIoError>;
+        io_seek:unsafe extern "C" fn(&mut ErasedObject,RSeekFrom)->RResult<u64,RIoError>;
         priv _io_seek;
         option=Option,Some,None;
         field_index=field_index_for__io_seek;

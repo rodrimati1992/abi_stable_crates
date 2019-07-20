@@ -595,7 +595,9 @@ where
     I: InterfaceBound<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone(&self)->Self{
-        self.vtable().clone_()(self.sabi_erased_ref(),self.vtable)
+        unsafe{
+            self.vtable().clone_()(self.sabi_erased_ref(),self.vtable)
+        }
     }
 }
 
@@ -604,11 +606,13 @@ where
     I: InterfaceBound<Display = Implemented<trait_marker::Display>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        c_functions::adapt_std_fmt::<ErasedObject>(
-            self.sabi_erased_ref(),
-            self.vtable().display(),
-            f
-        )
+        unsafe{
+            c_functions::adapt_std_fmt::<ErasedObject>(
+                self.sabi_erased_ref(),
+                self.vtable().display(),
+                f
+            )
+        }
     }
 }
 
@@ -617,11 +621,13 @@ where
     I: InterfaceBound<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        c_functions::adapt_std_fmt::<ErasedObject>(
-            self.sabi_erased_ref(),
-            self.vtable().debug(),
-            f
-        )
+        unsafe{
+            c_functions::adapt_std_fmt::<ErasedObject>(
+                self.sabi_erased_ref(),
+                self.vtable().debug(),
+                f
+            )
+        }
     }
 }
 
@@ -639,7 +645,9 @@ where
     I1: InterfaceBound<PartialEq = Implemented<trait_marker::PartialEq>>,
 {
     fn eq(&self, other: &NonExhaustive<E,S,I2>) -> bool {
-        self.vtable().partial_eq()(self.sabi_erased_ref(), other.sabi_erased_ref())
+        unsafe{
+            self.vtable().partial_eq()(self.sabi_erased_ref(), other.sabi_erased_ref())
+        }
     }
 }
 
@@ -650,7 +658,9 @@ where
     Self: PartialOrd + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.vtable().cmp()(self.sabi_erased_ref(), other.sabi_erased_ref()).into()
+        unsafe{
+            self.vtable().cmp()(self.sabi_erased_ref(), other.sabi_erased_ref()).into()
+        }
     }
 }
 
@@ -661,9 +671,11 @@ where
     Self: PartialEq<NonExhaustive<E,S,I2>>,
 {
     fn partial_cmp(&self, other: &NonExhaustive<E,S,I2>) -> Option<Ordering> {
-        self.vtable().partial_cmp()(self.sabi_erased_ref(), other.sabi_erased_ref())
-            .map(IntoReprRust::into_rust)
-            .into()
+        unsafe{
+            self.vtable().partial_cmp()(self.sabi_erased_ref(), other.sabi_erased_ref())
+                .map(IntoReprRust::into_rust)
+                .into()
+        }
     }
 }
 
@@ -679,9 +691,11 @@ where
     Self: PartialEq<E>,
 {
     fn partial_cmp(&self, other: &E) -> Option<Ordering> {
-        match self.as_enum() {
-            Ok(this)=>this.partial_cmp(other),
-            Err(_)=>Some(Ordering::Greater),
+        unsafe{
+            match self.as_enum() {
+                Ok(this)=>this.partial_cmp(other),
+                Err(_)=>Some(Ordering::Greater),
+            }
         }
     }
 }
@@ -711,7 +725,9 @@ impl<E,S,I> NonExhaustive<E,S,I>{
     where
         I: SerializeEnum<E>+InterfaceBound<Serialize=Implemented<trait_marker::Serialize>>,
     {
-        self.vtable().serialize()(self.sabi_erased_ref()).into_result()
+        unsafe{
+            self.vtable().serialize()(self.sabi_erased_ref()).into_result()
+        }
     }
 
     /// Deserializes a string into a `NonExhaustive<_>`,by using 
@@ -753,10 +769,12 @@ where
     where
         Z: Serializer,
     {
-        self.vtable().serialize()(self.sabi_erased_ref())
-            .into_result()
-            .map_err(ser::Error::custom)?
-            .serialize(serializer)
+        unsafe{
+            self.vtable().serialize()(self.sabi_erased_ref())
+                .into_result()
+                .map_err(ser::Error::custom)?
+                .serialize(serializer)
+        }
     }
 }
 
@@ -793,7 +811,9 @@ where
     where
         H: Hasher,
     {
-        self.vtable().hash()(self.sabi_erased_ref(), HasherObject::new(state))
+        unsafe{
+            self.vtable().hash()(self.sabi_erased_ref(), HasherObject::new(state))
+        }
     }
 }
 

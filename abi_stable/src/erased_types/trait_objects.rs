@@ -25,8 +25,8 @@ use crate::{
 #[derive(StableAbi)]
 pub struct HasherObject<'a> {
     this:&'a mut ErasedObject,
-    hash_slice: extern "C" fn(&mut ErasedObject, RSlice<'_, u8>) ,
-    finish: extern "C" fn(&ErasedObject) -> u64 ,
+    hash_slice: unsafe extern "C" fn(&mut ErasedObject, RSlice<'_, u8>) ,
+    finish: unsafe extern "C" fn(&ErasedObject) -> u64 ,
 }
 
 impl<'a> HasherObject<'a> {
@@ -55,10 +55,14 @@ impl<'a> HasherObject<'a> {
 
 impl<'a> Hasher for HasherObject<'a>{
     fn finish(&self) -> u64 {
-        (self.finish)((&*self.this).into())
+        unsafe{
+            (self.finish)((&*self.this).into())
+        }
     }
     fn write(&mut self, bytes: &[u8]) {
-        (self.hash_slice)((&mut *self.this).into(), bytes.into())
+        unsafe{
+            (self.hash_slice)((&mut *self.this).into(), bytes.into())
+        }
     }
 }
 
@@ -69,8 +73,8 @@ impl<'a> Hasher for HasherObject<'a>{
 #[derive(StableAbi)]
 pub struct DebugDisplayObject{
     this:RBox<ErasedObject>,
-    display:extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
-    debug  :extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
+    display:unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
+    debug  :unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
 }
 
 
@@ -96,14 +100,18 @@ impl DebugDisplayObject{
 
 impl Display for DebugDisplayObject{
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        adapt_std_fmt::<ErasedObject>(&*self.this, self.display , f)
+        unsafe{
+            adapt_std_fmt::<ErasedObject>(&*self.this, self.display , f)
+        }
     }
 }
 
 
 impl Debug for DebugDisplayObject{
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        adapt_std_fmt::<ErasedObject>(&*self.this, self.debug , f)
+        unsafe{
+            adapt_std_fmt::<ErasedObject>(&*self.this, self.debug , f)
+        }
     }
 }
 

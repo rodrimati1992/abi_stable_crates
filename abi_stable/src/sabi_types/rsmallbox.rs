@@ -62,18 +62,12 @@ To ensure that the inline storage has enough alignemnt you can use one of hte
         where
             Inline:InlineStorage
         {
-            Self::new_inner(value)
-        }
-
-        #[inline]
-        pub(super)fn new_inner(value:T)->RSmallBox<T,Inline>{
             let mut value=ManuallyDrop::new(value);
 
             unsafe{
                 RSmallBox::from_move_ptr(MovePtr::new(&mut *value))
             }
         }
-
 
         /// Gets a raw pointer into the underlying data.
         #[inline]
@@ -96,7 +90,10 @@ To ensure that the inline storage has enough alignemnt you can use one of hte
         }
 
         /// Constructs this RSmallBox from a MovePtr.
-        pub fn from_move_ptr(from_ptr:MovePtr<'_,T>)->Self{
+        pub fn from_move_ptr(from_ptr:MovePtr<'_,T>)->Self
+        where
+            Inline:InlineStorage
+        {
             let destroy=destroy::<T>;
             let inline_size =mem::size_of::<Inline>();
             let value_size =mem::size_of::<T>();
@@ -105,7 +102,7 @@ To ensure that the inline storage has enough alignemnt you can use one of hte
             let value_align =mem::align_of::<T>();
 
             unsafe{
-                let mut inline:ScratchSpace<Inline>=ScratchSpace::uninitialized();
+                let mut inline:ScratchSpace<Inline>=ScratchSpace::uninit();
                 let (storage_ptr,ptr)=if inline_size < value_size || inline_align < value_align {
                     let x=alloc::alloc(Layout::new::<T>());
                     (x,x as *mut T)
@@ -237,9 +234,10 @@ where
 impl<T,Inline> Clone for RSmallBox<T,Inline>
 where
     T: Clone,
+    Inline:InlineStorage,
 {
     fn clone(&self) -> Self {
-        RSmallBox::new_inner((**self).clone())
+        RSmallBox::new((**self).clone())
     }
 }
 
