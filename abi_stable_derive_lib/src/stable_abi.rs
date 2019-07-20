@@ -283,6 +283,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let phantom_field_tys  =config.phantom_fields.iter().map(|x| x.1 );
     let phantom_field_tys_b=phantom_field_tys.clone();
 
+    let phantom_type_params=&config.phantom_type_params;
+
     // let _measure_time1=PrintDurationOnDrop::new(file_span!());
 
     let storage_opt=nonexhaustive_opt.map(|_| &ctokens.und_storage );
@@ -346,7 +348,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                             data: #data_variant,
                             generics: abi_stable::tl_genparams!(
                                 #(#lifetimes),*;
-                                #(#type_params_for_generics),*;
+                                #(#type_params_for_generics,)*
+                                #(#phantom_type_params,)*;
                                 #(#const_params),*
                             ),
                             phantom_fields:&[

@@ -173,7 +173,7 @@ with the 1.0 version of `Error` they would get an `Err(..)` back.
     bound="E: GetNonExhaustive<S>",
     bound="I: InterfaceBound",
     tag="<I as InterfaceBound>::TAG",
-    phantom_field="non_exhaustive:<E as GetNonExhaustive<S>>::NonExhaustive",
+    phantom_type_param="<E as GetNonExhaustive<S>>::NonExhaustive",
 )]
 pub struct NonExhaustive<E,S,I>{
     // This is an opaque field since we only care about its size and alignment
