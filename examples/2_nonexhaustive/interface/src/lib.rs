@@ -1,6 +1,8 @@
 use abi_stable::{
+    external_types::{RawValueRef,RawValueBox},
     nonexhaustive_enum::{
-        NonExhaustiveFor,NonExhaustive,DeserializeOwned,GetEnumInfo,InterfaceBound
+        NonExhaustiveFor,NonExhaustive,GetEnumInfo,InterfaceBound,
+        DeserializeEnum,SerializeEnum,
     },
     library::RootModule,
     sabi_types::{VersionStrings},
@@ -17,22 +19,17 @@ use abi_stable::{
     impl_InterfaceType,
 };
 
-#[cfg(feature="v1_1")]
-use serde::{Deserialize,Deserializer};
-
-use serde_json::value::RawValue;
+use serde::{Deserialize,Deserializer,Serialize,Serializer};
 
 
 #[repr(transparent)]
-#[cfg_attr(feature="v1_1",derive(Deserialize))]
-#[derive(StableAbi,Debug,Clone,Copy,PartialEq)]
+#[derive(StableAbi,Debug,Clone,Copy,PartialEq,Deserialize,Serialize)]
 pub struct Cents{
     pub cents:u64,
 }
 
 #[repr(transparent)]
-#[cfg_attr(feature="v1_1",derive(Deserialize))]
-#[derive(StableAbi,Debug,Clone,Copy,PartialEq)]
+#[derive(StableAbi,Debug,Clone,Copy,PartialEq,Deserialize,Serialize)]
 pub struct ItemId{
     #[doc(hidden)]
     pub id:usize,
@@ -42,49 +39,11 @@ pub struct ItemId{
 ///////////////////////////////////////////////////////////////////////////////
 
 
-#[repr(transparent)]
-#[cfg(feature="v1_1")]
-#[derive(StableAbi,Debug,Clone,PartialEq)]
-pub struct SerdeWrapper<T>{
-    pub inner:T,
-}
-
-#[cfg(feature="v1_1")]
-impl<T> SerdeWrapper<T>{
-    pub fn new(inner:T)->Self{
-        Self{inner}
-    }
-}
-
-
-#[cfg(feature="v1_1")]
-impl<'de,T> Deserialize<'de> for SerdeWrapper<NonExhaustiveFor<T>>
-where
-    T: GetEnumInfo+'de,
-    T::DefaultInterface: DeserializeOwned<T,T::DefaultStorage,T::DefaultInterface>,
-    T::DefaultInterface: InterfaceBound<Deserialize=Implemented<trait_marker::Deserialize>>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = <&RawValue>::deserialize(deserializer)?;
-        NonExhaustiveFor::<T>::deserialize_owned_from_str(s.get())
-            .map(|x| SerdeWrapper{inner:x} )
-            .map_err(serde::de::Error::custom)
-    }
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-
-
 #[repr(u8)]
-#[cfg_attr(feature="v1_1",derive(Deserialize))]
-#[derive(StableAbi,Debug,Clone,PartialEq)]
+#[derive(StableAbi,Debug,Clone,PartialEq,Deserialize,Serialize)]
 #[sabi(kind(WithNonExhaustive(
     size="[usize;8]",
-    traits(Send,Sync,Debug,Clone,PartialEq,Deserialize),
+    traits(Send,Sync,Debug,Clone,PartialEq,Serialize,Deserialize),
     assert_nonexhaustive="Command",
 )))]
 pub enum Command{
@@ -112,7 +71,7 @@ pub enum Command{
     #[cfg(feature="v1_1")]
     #[sabi(with_constructor)]
     Many{
-        list:RVec<SerdeWrapper<Command_NE>>
+        list:RVec<Command_NE>
     },
 }
 
@@ -128,17 +87,25 @@ pub type Command_NE=
 */
 
 #[repr(C)]
-#[cfg_attr(feature="v1_1",derive(Deserialize))]
-#[derive(StableAbi,Debug,Clone,PartialEq)]
+#[derive(StableAbi,Debug,Clone,PartialEq,Deserialize,Serialize)]
 pub struct ParamCreateItem{
     pub name:RString,
     pub initial_count:u32,
     pub price:Cents,
 }
 
-impl DeserializeOwned<Command,Command_Storage,Command_Interface> for Command_Interface{
-    fn deserialize_enum(s: RStr<'_>) -> Result<Command_NE, RBoxError>{
-        ShopMod::get_module().unwrap().deserialize_command()(s).into_result()
+impl SerializeEnum<Command_NE> for Command_Interface {
+    type Proxy=RawValueBox;
+
+    fn serialize_enum(this:&Command_NE) -> Result<RawValueBox, RBoxError>{
+        ShopMod::get_module().unwrap().serialize_command()(this).into_result()
+    }
+}
+
+impl<'a> DeserializeEnum<'a,Command_NE> for Command_Interface{
+    type Proxy=RawValueRef<'a>;
+    fn deserialize_enum(s: RawValueRef<'a>) -> Result<Command_NE, RBoxError>{
+        ShopMod::get_module().unwrap().deserialize_command()(s.get_rstr()).into_result()
     }
 }
 
@@ -194,8 +161,7 @@ fn examples_of_constructing_a_Command(){
 
 
 #[repr(u8)]
-#[cfg_attr(feature="v1_1",derive(Deserialize))]
-#[derive(StableAbi,Debug,Clone,PartialEq)]
+#[derive(StableAbi,Debug,Clone,PartialEq,Deserialize,Serialize)]
 #[sabi(kind(WithNonExhaustive(
     size="[usize;6]",
     interface="Command_Interface",
@@ -227,7 +193,7 @@ pub enum ReturnVal{
     #[cfg(feature="v1_1")]
     #[sabi(with_constructor)]
     Many{
-        list:RVec<SerdeWrapper<ReturnVal_NE>>
+        list:RVec<ReturnVal_NE>
     },
 }
 
@@ -243,18 +209,29 @@ pub type ReturnVal_NE=
 
 #[cfg(feature="v1_1")]
 #[repr(C)]
-#[derive(StableAbi,Debug,Clone,PartialEq,Deserialize)]
+#[derive(StableAbi,Debug,Clone,PartialEq,Serialize,Deserialize)]
 pub struct RetRenameItem{
     pub id:ItemId,
     pub new_name:RString,
     pub old_name:RString,
 }
 
-impl DeserializeOwned<ReturnVal,ReturnVal_Storage,Command_Interface> for Command_Interface{
-    fn deserialize_enum(s: RStr<'_>) -> Result<ReturnVal_NE, RBoxError>{
-        ShopMod::get_module().unwrap().deserialize_ret_val()(s).into_result()
+impl SerializeEnum<ReturnVal_NE> for Command_Interface {
+    type Proxy=RawValueBox;
+
+    fn serialize_enum(this:&ReturnVal_NE) -> Result<RawValueBox, RBoxError>{
+        ShopMod::get_module().unwrap().serialize_ret_val()(this).into_result()
     }
 }
+
+impl<'a> DeserializeEnum<'a,ReturnVal_NE> for Command_Interface{
+    type Proxy=RawValueRef<'a>;
+    fn deserialize_enum(s: RawValueRef<'a>) -> Result<ReturnVal_NE, RBoxError>{
+        ShopMod::get_module().unwrap().deserialize_ret_val()(s.get_rstr()).into_result()
+    }
+}
+
+
 
 
 #[test]
@@ -374,12 +351,14 @@ fn examples_of_constructing_an_Error(){
 pub struct ShopModVal {
     pub new:extern "C" fn()->Shop_TO<'static,RBox<()>>,
 
-    pub deserialize_command:
-        extern "C" fn(s:RStr<'_>)->RResult<Command_NE,RBoxError>,
+    pub deserialize_command:extern "C" fn(s:RStr<'_>)->RResult<Command_NE,RBoxError>,
+
+    pub deserialize_ret_val:extern "C" fn(s:RStr<'_>)->RResult<ReturnVal_NE,RBoxError>,
+
+    pub serialize_command:extern "C" fn(&Command_NE)->RResult<RawValueBox,RBoxError>,
 
     #[sabi(last_prefix_field)]
-    pub deserialize_ret_val:
-        extern "C" fn(s:RStr<'_>)->RResult<ReturnVal_NE,RBoxError>,
+    pub serialize_ret_val:extern "C" fn(&ReturnVal_NE)->RResult<RawValueBox,RBoxError>,
 }
 
 
