@@ -199,7 +199,9 @@ You must ensure that `Inline` is valid for all bitpatterns,ie:it implements `Inl
     #[inline]
     pub(crate) unsafe fn uninit_unbounded()->Self{
         unsafe{
-            std::mem::MaybeUninit::uninit()
+            Self{
+                storage:std::mem::MaybeUninit::uninit()
+            }
         }
     }
 }

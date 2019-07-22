@@ -18,7 +18,6 @@ use std::{
 
 use crate::{
     sabi_trait,
-    erased_types::{DeserializeOwnedInterface,SerializeImplType},
     type_level::unerasability::{TU_Unerasable,TU_Opaque},
     std_types::{RCow,RBox,RBoxError,RStr},
     DynTrait,

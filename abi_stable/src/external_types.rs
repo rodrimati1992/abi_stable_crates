@@ -17,7 +17,15 @@ pub mod crossbeam_channel{}
 
 pub mod parking_lot;
 
+#[cfg(feature="serde_json")]
+pub mod serde_json;
+
 
 pub use self::{
     parking_lot::{RMutex,RRwLock,ROnce},
 };
+    
+
+#[cfg(feature="serde_json")]
+pub use self::serde_json::{RawValueRef,RawValueBox};
+
