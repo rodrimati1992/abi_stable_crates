@@ -382,18 +382,16 @@ fn serde_test() {
     let json_d=r#"{"D":{"name":"what"}}"#;
     let json_dd_d=serde_json::to_string(&json_d).unwrap();
 
+
     assert_eq!(
         serde_json::from_str::<NonExhaustiveFor<FooC>>(r#" "oinoiasnd" "#).map_err(drop),
         Err(()),
     );
 
     assert_eq!(
-        NonExhaustiveFor::<FooC>::deserialize_owned_from_str(r#"oinoiasnd"#).map_err(drop),
-        Err(()),
-    );
-
-    assert_eq!(
-        NonExhaustiveFor::<FooC>::deserialize_borrowing_from_str(r#"oinoiasnd"#).map_err(drop),
+        NonExhaustiveFor::<FooC>::deserialize_from_proxy(
+            r#"oinoiasnd"#.into()
+        ).map_err(drop),
         Err(()),
     );
 
@@ -411,22 +409,16 @@ fn serde_test() {
             assert_eq!(deserialized,*variant);
         }
         {
-            let deserialized=NonExhaustiveFor::<FooC>::deserialize_owned_from_str(json).unwrap();
-            assert_eq!(deserialized,*expected);
-            assert_eq!(deserialized,*variant);
-        }
-        {
             let deserialized=
-                NonExhaustiveFor::<FooC>::deserialize_borrowing_from_str(json).unwrap();
+                NonExhaustiveFor::<FooC>::deserialize_from_proxy(json.into()).unwrap();
             assert_eq!(deserialized,*expected);
             assert_eq!(deserialized,*variant);
         }
 
         assert_eq!(&*serde_json::to_string(&expected).unwrap(), json_dd);
-        assert_eq!(&*expected.serialized().unwrap(), json);
+        assert_eq!(&*expected.serialize_into_proxy().unwrap(), json);
         assert_eq!(&*serde_json::to_string(&variant).unwrap(), json);
     }
-
 }
 
 

@@ -453,49 +453,51 @@ macro_rules! delegate_interface_serde {
             $delegates_to:
                 $crate::nonexhaustive_enum::SerializeEnum<$this>
         {
+            type Proxy=<
+                $delegates_to as
+                $crate::nonexhaustive_enum::SerializeEnum<$this>
+            >::Proxy;
+
             fn serialize_enum<'a>(
                 this:&'a $this
-            ) -> Result<$crate::std_types::RCow<'a, str>, $crate::std_types::RBoxError>{
+            ) -> Result<Self::Proxy, $crate::std_types::RBoxError>{
                 <$delegates_to>::serialize_enum(this)
             }
         }
 
-        impl<$($impl_header)* S,I> 
-            $crate::nonexhaustive_enum::DeserializeOwned<$this,S,I> for $interf
-        where
-            $this:$crate::nonexhaustive_enum::GetEnumInfo,
-            $delegates_to:
-                $crate::nonexhaustive_enum::DeserializeOwned<$this,S,I>
-        {
-            fn deserialize_enum(
-                s: $crate::std_types::RStr<'_>
-            ) -> Result<
-                    $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>, 
-                    $crate::std_types::RBoxError
-                >
-            {
-                <$delegates_to as 
-                    $crate::nonexhaustive_enum::DeserializeOwned<$this,S,I>
-                >::deserialize_enum(s)
-            }
-        }
-
         impl<$lt,$($impl_header)* S,I> 
-            $crate::nonexhaustive_enum::DeserializeBorrowed<$lt,$this,S,I> for $interf
+            $crate::nonexhaustive_enum::DeserializeEnum<
+                $lt,
+                $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>
+            > 
+        for $interf
         where
             $this:$crate::nonexhaustive_enum::GetEnumInfo+$lt,
             $delegates_to:
-                $crate::nonexhaustive_enum::DeserializeBorrowed<$lt,$this,S,I>
+                $crate::nonexhaustive_enum::DeserializeEnum<
+                    $lt,
+                    $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>
+                >
         {
+            type Proxy=<
+                $delegates_to as
+                $crate::nonexhaustive_enum::DeserializeEnum<
+                    $lt,
+                    $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>
+                >
+            >::Proxy;
+
             fn deserialize_enum(
-                s: $crate::std_types::RStr<$lt>
+                s: Self::Proxy
             ) -> Result<
                     $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>,
                     $crate::std_types::RBoxError
                 >
             {
                 <$delegates_to as 
-                    $crate::nonexhaustive_enum::DeserializeBorrowed<$this,S,I>
+                    $crate::nonexhaustive_enum::DeserializeEnum<
+                        $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>
+                    >
                 >::deserialize_enum(s)
             }
         }
