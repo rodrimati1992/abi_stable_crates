@@ -48,8 +48,10 @@ pub use self::{
     dyn_trait::{DynTrait, DynTraitBound},
     vtable::{ GetVtable,InterfaceBound},
     traits::{
-        ImplType, InterfaceType, SerializeImplType, DeserializeOwnedInterface,
-        DeserializeBorrowedInterface,IteratorItem,IteratorItemOrDefault,
+        ImplType, InterfaceType, 
+        DeserializeDyn, GetDeserializeDynProxy,
+        SerializeImplType, SerializeProxyType, GetSerializeProxyType,
+        IteratorItem,IteratorItemOrDefault,
     },
     type_info::TypeInfo,
 };

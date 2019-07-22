@@ -18,7 +18,7 @@ use super::{DynTraitBound,TypeInfo};
 #[allow(unused_imports)]
 use crate::type_level::{
     bools::{False, True},
-    impl_enum::{Implemented,Unimplemented,IsImplemented},
+    impl_enum::{Implemented,Unimplemented},
     trait_marker,
 };
 
@@ -218,47 +218,120 @@ impl_InterfaceType!{
 
 
 
+///////////////////////////////////////////////////////////////////////////////
+
+
 /**
 Describes how this `implementation type` is serialized.
 */
-pub trait SerializeImplType {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError>;
+pub trait SerializeImplType{
+    type Interface:SerializeProxyType;
+
+    fn serialize_impl(
+        &self
+    ) -> Result<<Self::Interface as SerializeProxyType>::Proxy, RBoxError>;
 }
 
+
+
+pub trait SerializeProxyType:InterfaceType{
+    type Proxy;
+}
+
+pub trait GetSerializeProxyType:InterfaceType{
+    type ProxyType;
+}
+
+impl<I,PT> GetSerializeProxyType for I
+where
+    I:InterfaceType,
+    I:GetSerializeProxyTypeHelper<
+        <I as InterfaceType>::Serialize,
+        ProxyType=PT
+    >,
+{
+    type ProxyType=PT;
+}
+
+#[doc(hidden)]
+pub trait GetSerializeProxyTypeHelper<IS>:InterfaceType{
+    type ProxyType;
+}
+
+impl<I> GetSerializeProxyTypeHelper<Implemented<trait_marker::Serialize>> for I
+where
+    I:SerializeProxyType,
+{
+    type ProxyType=<I as SerializeProxyType>::Proxy;
+}
+
+impl<I> GetSerializeProxyTypeHelper<Unimplemented<trait_marker::Serialize>> for I
+where
+    I:InterfaceType,
+{
+    type ProxyType=();
+}
+
+
+///////////////////////////////////////
+
+
 /**
-Describes how this `interface type` is deserialized,
-not borrowing from the input RStr.
+Describes how something is deserialized,using a proxy to do so.
 
 Generally this delegates to a library function,
 so that the implementation can be delegated
 to the `implementation crate`.
 
 */
-pub trait DeserializeOwnedInterface<'borr>: 
-    InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>> 
-{
-    type Deserialized: DynTraitBound<'borr,Interface = Self>+'borr;
+pub trait DeserializeDyn<'borr,D> {
+    type Proxy;
 
-    fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError>;
+    fn deserialize_dyn(s: Self::Proxy) -> Result<D, RBoxError>;
 }
 
-/**
-Describes how this `interface type` is deserialized,
-borrowing from the input RStr.
 
-Generally this delegates to a library function,
-so that the implementation can be delegated
-to the `implementation crate`.
-
-*/
-pub trait DeserializeBorrowedInterface<'borr>: 
-    InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>> 
-{
-    type Deserialized: DynTraitBound<'borr,Interface = Self>+'borr;
-
-    fn deserialize_impl(s: RStr<'borr>) -> Result<Self::Deserialized, RBoxError> ;
+pub trait GetDeserializeDynProxy<'borr,D>:InterfaceType{
+    type ProxyType;
 }
 
+impl<'borr,I,D,PT> GetDeserializeDynProxy<'borr,D> for I
+where
+    I:InterfaceType,
+    I:GetDeserializeDynProxyHelper<
+        'borr,
+        D,
+        <I as InterfaceType>::Deserialize,
+        ProxyType=PT
+    >,
+{
+    type ProxyType=PT;
+}
+
+
+#[doc(hidden)]
+pub trait GetDeserializeDynProxyHelper<'borr,D,IS>:InterfaceType{
+    type ProxyType;
+}
+
+impl<'borr,I,D> 
+    GetDeserializeDynProxyHelper<'borr,D,Implemented<trait_marker::Deserialize>> 
+for I
+where
+    I:InterfaceType,
+    I:DeserializeDyn<'borr,D>
+{
+    type ProxyType=<I as DeserializeDyn<'borr,D>>::Proxy;
+}
+
+impl<'borr,I,D> 
+    GetDeserializeDynProxyHelper<'borr,D,Unimplemented<trait_marker::Deserialize>> 
+for I
+where
+    I:InterfaceType,
+{
+    type ProxyType=();
+}
 
 
 /////////////////////////////////////////////////////////////////////
