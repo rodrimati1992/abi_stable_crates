@@ -41,13 +41,13 @@ use super::{
     c_functions::adapt_std_fmt,
     trait_objects::*,
     vtable::{GetVtable, VTable},
-    traits::InterfaceFor,
+    traits::{InterfaceFor,DeserializeDyn,SerializeImplType,GetSerializeProxyType},
     IteratorItemOrDefault,
 };
 
 
-// #[cfg(test)]
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(test)]
+// #[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
 mod priv_ {
@@ -1073,42 +1073,25 @@ let _=borrow.default();
 
         /// It serializes a `DynTrait<_>` into a string by using 
         /// `<ConcreteType as SerializeImplType>::serialize_impl`.
-        pub fn serialized<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError>
+        pub fn serialize_into_proxy(&self) -> Result<I::ProxyType, RBoxError>
         where
             P: Deref,
             I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
+            I: GetSerializeProxyType
         {
             unsafe{
                 self.sabi_vtable().serialize()(self.sabi_erased_ref()).into_result()
             }
         }
-
-        /// Deserializes a string into a `DynTrait<_>`,by using 
-        /// `<I as DeserializeOwnedInterface>::deserialize_impl`.
-        pub fn deserialize_owned_from_str(s: &str) -> Result<Self, RBoxError>
+        /// Deserializes a `DynTrait<'borr,_>` from a proxy type,by using 
+        /// `<I as DeserializeDyn<'borr,Self>>::deserialize_dyn`.
+        pub fn deserialize_from_proxy<'de>(proxy:I::Proxy) -> Result<Self, RBoxError>
         where
             P: 'borr+Deref,
-            I: DeserializeOwnedInterface<
-                'borr,
-                Deserialize = Implemented<trait_marker::Deserialize>, 
-                Deserialized = Self
-            >,
-        {
-            s.piped(RStr::from).piped(I::deserialize_impl)
-        }
+            I: DeserializeDyn<'de,Self>,
 
-        /// Deserializes a `&'borr str` into a `DynTrait<'borr,_>`,by using 
-        /// `<I as DeserializeBorrowedInterface<'borr>>::deserialize_impl`.
-        pub fn deserialize_borrowing_from_str(s: &'borr str) -> Result<Self, RBoxError>
-        where
-            P: 'borr+Deref,
-            I: DeserializeBorrowedInterface<
-                'borr,
-                Deserialize = Implemented<trait_marker::Deserialize>,
-                Deserialized = Self
-            >,
         {
-            s.piped(RStr::from).piped(I::deserialize_impl)
+            I::deserialize_dyn(proxy)
         }
     }
 
@@ -1264,6 +1247,8 @@ impl<'borr,P, I,EV> Serialize for DynTrait<'borr,P,I,EV>
 where
     P: Deref,
     I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
+    I: GetSerializeProxyType,
+    I::ProxyType:Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -1285,18 +1270,15 @@ where
     EV: 'borr,
     P: Deref+'borr,
     I: InterfaceBound+'borr,
-    I: DeserializeOwnedInterface<
-        'borr,
-        Deserialize = Implemented<trait_marker::Deserialize>, 
-        Deserialized = Self,
-    >,
+    I: DeserializeDyn<'de,Self>,
+    <I as DeserializeDyn<'de,Self>>::Proxy:Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        I::deserialize_impl(RStr::from(&*s)).map_err(de::Error::custom)
+        let s = <<I as DeserializeDyn<'de,Self>>::Proxy>::deserialize(deserializer)?;
+        I::deserialize_dyn(s).map_err(de::Error::custom)
     }
 }
 
