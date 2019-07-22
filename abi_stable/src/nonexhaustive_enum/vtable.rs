@@ -6,10 +6,11 @@ use std::{
 };
 
 use crate::{
+    const_utils::Transmuter,
     erased_types::{c_functions,trait_objects,InterfaceType,FormattingMode},
     marker_type::{ErasedObject,UnsafeIgnoredType},
     nonexhaustive_enum::{
-        alt_c_functions,NonExhaustive,EnumInfo,GetEnumInfo,SerializeEnum,
+        alt_c_functions,NonExhaustive,EnumInfo,GetEnumInfo,SerializeEnum,GetSerializeEnumProxy,
     },
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
     type_level::{
@@ -20,6 +21,7 @@ use crate::{
     std_types::{ROption,RResult,RString,RCow,RCmpOrdering,RBoxError},
     type_layout::Tag,
     inline_storage::InlineStorage,
+    StableAbi,
 };
 
 
@@ -42,6 +44,8 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
+    bound="I:GetSerializeEnumProxy<NonExhaustive<E,S,I>>",
+    bound="<I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType: StableAbi",
     not_stableabi(E,S,I),
     missing_field(default),
     kind(Prefix(prefix_struct="NonExhaustiveVtable")),
@@ -68,8 +72,13 @@ pub struct NonExhaustiveVtableVal<E,S,I>{
     pub(crate) _sabi_display:Option<
         unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
     >,
-    pub(crate) _sabi_serialize: Option<
-        unsafe extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>
+    #[sabi(unsafe_change_type=r##"
+        unsafe extern "C" fn(
+            &ErasedObject
+        )->RResult< <I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType, RBoxError>
+    "##)]
+    pub(crate) erased_sabi_serialize: Option<
+        unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>
     >,
     pub(crate) _sabi_partial_eq: Option<
         unsafe extern "C" fn(&ErasedObject,&ErasedObject)->bool
@@ -115,7 +124,7 @@ where
             _sabi_clone:<I::Clone as InitCloneField<E,S,I>>::VALUE,
             _sabi_debug:<I::Debug as InitDebugField<E,S,I>>::VALUE,
             _sabi_display:<I::Display as InitDisplayField<E,S,I>>::VALUE,
-            _sabi_serialize:<I::Serialize as InitSerializeField<E,S,I>>::VALUE,
+            erased_sabi_serialize:<I::Serialize as InitSerializeField<E,S,I>>::VALUE,
             _sabi_partial_eq:<I::PartialEq as InitPartialEqField<E,S,I>>::VALUE,
             _sabi_partial_cmp:<I::PartialOrd as InitPartialOrdField<E,S,I>>::VALUE,
             _sabi_cmp:<I::Ord as InitOrdField<E,S,I>>::VALUE,
@@ -124,6 +133,27 @@ where
 }
 
 
+
+type UnerasedSerializeFn<E,S,I>=
+    unsafe extern "C" fn(
+        &ErasedObject
+    )->RResult< <I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType, RBoxError>;
+
+
+impl<E,S,I> NonExhaustiveVtable<E,S,I>{
+    pub fn serialize(&self)->UnerasedSerializeFn<E,S,I>
+    where
+        I:InterfaceBound<Serialize=Implemented<trait_marker::Serialize>>,
+        I:GetSerializeEnumProxy<NonExhaustive<E,S,I>>,
+    {
+        unsafe{
+            std::mem::transmute::<
+                unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>,
+                UnerasedSerializeFn<E,S,I>,
+            >( self.priv_serialize() )
+        }
+    }
+}
 
 
 
@@ -251,11 +281,20 @@ pub mod trait_bounds{
     declare_field_initalizer!{
         type Serialize;
         trait InitSerializeField[E,S,I]
-        where [ I:SerializeEnum<E> ]
-        _sabi_serialize,serialize: 
-            unsafe extern "C" fn(&ErasedObject)->RResult<RCow<'_,str>,RBoxError>;
-        field_index=field_index_for__sabi_serialize;
-        value=alt_c_functions::serialize_impl::<E,I>,
+        where [ I:SerializeEnum<NonExhaustive<E,S,I>> ]
+        erased_sabi_serialize,priv_serialize: 
+            unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>;
+        field_index=field_index_for_erased_sabi_serialize;
+        value=unsafe{
+            Transmuter::<
+                unsafe extern "C" fn(
+                    &ErasedObject
+                )->RResult<<I as SerializeEnum<NonExhaustive<E,S,I>>>::Proxy,RBoxError>,
+                unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>
+            >{
+                from:alt_c_functions::serialize_impl::<NonExhaustive<E,S,I>,I>
+            }.to
+        },
     }
     declare_field_initalizer!{
         type PartialEq;

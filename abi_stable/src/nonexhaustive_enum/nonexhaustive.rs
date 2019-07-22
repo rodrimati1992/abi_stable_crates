@@ -20,7 +20,7 @@ use crate::{
     nonexhaustive_enum::{
         GetVTable,NonExhaustiveVtable,InterfaceBound,GetEnumInfo,GetNonExhaustive,
         ValidDiscriminant,EnumInfo,
-        SerializeEnum,DeserializeOwned,DeserializeBorrowed,
+        SerializeEnum,DeserializeEnum,
     },
     pointer_trait::TransmuteElement,
     type_level::{
@@ -34,6 +34,7 @@ use crate::{
 
 use core_extensions::{
     SelfOps,
+    TypeIdentity,
     utils::transmute_ignore_size,
 };
 
@@ -171,6 +172,7 @@ with the 1.0 version of `Error` they would get an `Err(..)` back.
 #[sabi(
     //debug_print,
     not_stableabi(E,S,I),
+    bound="NonExhaustiveVtable<E,S,I>:SharedStableAbi",
     bound="E: GetNonExhaustive<S>",
     bound="I: InterfaceBound",
     tag="<I as InterfaceBound>::TAG",
@@ -717,53 +719,43 @@ where
 /////////////////////
 
 
-
 impl<E,S,I> NonExhaustive<E,S,I>{
-    /// It serializes a `NonExhaustive<_>` into a string by using 
-    /// `<ConcreteType as SerializeImplType>::serialize_impl`.
-    pub fn serialized<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError>
+    /// It serializes a `NonExhaustive<_>` into a proxy.
+    pub fn serialize_into_proxy(&self) -> Result<I::Proxy, RBoxError>
     where
-        I: SerializeEnum<E>+InterfaceBound<Serialize=Implemented<trait_marker::Serialize>>,
+        I: InterfaceBound<Serialize=Implemented<trait_marker::Serialize>>,
+        I: SerializeEnum<NonExhaustive<E,S,I>>,
     {
         unsafe{
             self.vtable().serialize()(self.sabi_erased_ref()).into_result()
         }
     }
 
-    /// Deserializes a string into a `NonExhaustive<_>`,by using 
-    /// `<I as DeserializeOwned>::deserialize_enum`.
-    pub fn deserialize_owned_from_str(s: &str) -> Result<Self, RBoxError>
+    /// Deserializes a `NonExhaustive<_>` from a proxy.
+    pub fn deserialize_from_proxy<'borr>(proxy: I::Proxy) -> Result<Self, RBoxError>
     where
-        I: DeserializeOwned<E,S,I>,
         I: InterfaceBound<Deserialize= Implemented<trait_marker::Deserialize>>,
+        I: DeserializeEnum<'borr,NonExhaustive<E,S,I>>,
+        I::Proxy:'borr,
         E:GetEnumInfo,
     {
-        s.piped(RStr::from).piped(I::deserialize_enum)
-    }
-
-    /// Deserializes a `&'borr str` into a `NonExhaustive<'borr,_>`,by using 
-    /// `<I as DeserializeBorrowed<'borr>>::deserialize_enum`.
-    pub fn deserialize_borrowing_from_str<'borr>(s: &'borr str) -> Result<Self, RBoxError>
-    where
-        Self:'borr,
-        I: DeserializeBorrowed<'borr,E,S,I>,
-        I: InterfaceBound<Deserialize= Implemented<trait_marker::Deserialize>>,
-        E:GetEnumInfo,
-    {
-        s.piped(RStr::from).piped(I::deserialize_enum)
+        I::deserialize_enum(proxy)
     }
 
 }
 
+
+
+
 /**
-First it serializes a `NonExhaustive<_>` into a string by using 
-<ConcreteType as SerializeImplType>::serialize_impl,
-then it serializes the string.
+First it serializes a `NonExhaustive<_>` into a proxy,then it serializes that proxy.
 
 */
 impl<E,S,I> Serialize for NonExhaustive<E,S,I>
 where
     I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
+    I: SerializeEnum<NonExhaustive<E,S,I>>,
+    I::Proxy:Serialize,
 {
     fn serialize<Z>(&self, serializer: Z) -> Result<Z::Ok, Z::Error>
     where
@@ -780,20 +772,25 @@ where
 
 
 /// First it Deserializes a string,then it deserializes into a 
-/// `NonExhaustive<_>`,by using `<I as DeserializeOwned>::deserialize_impl`.
+/// `NonExhaustive<_>`,by using `<I as DeserializeEnum>::deserialize_enum`.
 impl<'de,E,S,I> Deserialize<'de> for NonExhaustive<E,S,I>
 where
-    E: 'de+Deserialize<'de>+GetVTable<S,I>,
+    E: 'de+GetVTable<S,I>,
     S: 'de,
     I: 'de+InterfaceBound<Deserialize=Implemented<trait_marker::Deserialize>>,
-    I: DeserializeOwned<E,S,I>,
+    I: DeserializeEnum<'de,NonExhaustive<E,S,I>>,
+    <I as DeserializeEnum<'de,NonExhaustive<E,S,I>>>::Proxy:Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        I::deserialize_enum(RStr::from(&*s)).map_err(de::Error::custom)
+        let s = <
+            <I as DeserializeEnum<'de,NonExhaustive<E,S,I>>>::Proxy as 
+            Deserialize
+        >::deserialize(deserializer)?;
+
+        I::deserialize_enum(s).map_err(de::Error::custom)
     }
 }
 
@@ -848,6 +845,33 @@ pub trait NonExhaustiveSharedOps{
     type Discriminant:ValidDiscriminant;
     fn get_discriminant_(&self)->Self::Discriminant;
     fn enum_info_(&self)->&'static EnumInfo;
+}
+
+
+pub struct DiscrAndEnumInfo<E>{
+    discr:E,
+    enum_info:&'static EnumInfo,
+}
+
+
+impl<E> DiscrAndEnumInfo<E>{
+    pub fn new(discr:E,enum_info:&'static EnumInfo)->Self{
+        Self{discr,enum_info}
+    }
+}
+
+
+impl<E> NonExhaustiveSharedOps for DiscrAndEnumInfo<E>
+where
+    E:ValidDiscriminant
+{
+    type Discriminant=E;
+    fn get_discriminant_(&self)->E{
+        self.discr
+    }
+    fn enum_info_(&self)->&'static EnumInfo{
+        self.enum_info
+    }
 }
 
 
@@ -908,6 +932,18 @@ impl<N> UnwrapEnumError<N>{
     pub fn into_inner(self)->N{
         self.non_exhaustive
     }
+
+    pub fn into_boxed(self)->RBoxError
+    where
+        N:NonExhaustiveSharedOps,
+    {
+        let x=DiscrAndEnumInfo{
+            discr:self.non_exhaustive.get_discriminant_(),
+            enum_info:self.non_exhaustive.enum_info_(),
+        };
+        let x=UnwrapEnumError::new(x);
+        RBoxError::new(x)
+    }
 }
 
 impl<N> UnwrapEnumError<N>{
@@ -916,6 +952,7 @@ impl<N> UnwrapEnumError<N>{
         Self{non_exhaustive}
     }
 }
+
 
 impl<N> Display for UnwrapEnumError<N>
 where
@@ -942,6 +979,15 @@ where
          .field("discriminant",&self.non_exhaustive.get_discriminant_())
          .field("enum",&self.non_exhaustive.enum_info_().type_name)
          .finish()
+    }
+}
+
+impl<N> From<UnwrapEnumError<N>> for RBoxError
+where
+    N:NonExhaustiveSharedOps
+{
+    fn from(uee:UnwrapEnumError<N>)->RBoxError{
+        uee.into_boxed()
     }
 }
 

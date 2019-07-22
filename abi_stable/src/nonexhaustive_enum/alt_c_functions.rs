@@ -94,16 +94,14 @@ where
 }
 
 
-pub(crate) unsafe extern "C" fn serialize_impl<'a, E,I>(
-    this: &'a ErasedObject
-) -> RResult<RCow<'a, str>, RBoxError>
+pub(crate) unsafe extern "C" fn serialize_impl<NE,I>(
+    this: &ErasedObject
+) -> RResult<<I as SerializeEnum<NE>>::Proxy, RBoxError>
 where
-    I: SerializeEnum<E>,
+    I: SerializeEnum<NE>,
 {
     extern_fn_panic_handling! {
-        let this=transmute_reference::<ErasedObject,E>(this);
-        I::serialize_enum(this)
-            .map(|x| mem::transmute::<RCow<'_,str>,RCow<'a,str>>(x) )
-            .into()
+        let this=transmute_reference::<ErasedObject,NE>(this);
+        I::serialize_enum(this).into()
     }
 }

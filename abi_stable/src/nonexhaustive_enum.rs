@@ -18,8 +18,9 @@ pub use self::{
         EnumInfo,
         ValidDiscriminant,
         SerializeEnum,
-        DeserializeOwned,
-        DeserializeBorrowed,
+        DeserializeEnum,
+        GetSerializeEnumProxy,
+        GetDeserializeEnumProxy,
     },
 };
 

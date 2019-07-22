@@ -6,6 +6,11 @@ use std::{
 
 use crate::{
     std_types::{StaticStr,StaticSlice,RBoxError,RStr,RCow},
+    type_level::{
+        impl_enum::{Implemented,Unimplemented},
+        trait_marker,
+    },
+    InterfaceType,
 };
 
 use super::{NonExhaustive};
@@ -80,7 +85,7 @@ impl EnumInfo{
 
 
 /// Marker trait for types that abi_stable supports as enum discriminants.
-pub trait ValidDiscriminant:Sealed+Copy+Eq+Ord+Debug+'static{}
+pub trait ValidDiscriminant:Sealed+Copy+Eq+Ord+Debug+Send+Sync+'static{}
 
 mod sealed{
     pub trait Sealed{}
@@ -103,15 +108,62 @@ macro_rules! impl_valid_discriminant {
 impl_valid_discriminant!{u8,i8,u16,i16,u32,i32,u64,i64,usize,isize}
 
 
-/////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
 
 /**
 Describes how some enum is serialized.
 */
-pub trait SerializeEnum<E>{
-    fn serialize_enum<'a>(this:&'a E) -> Result<RCow<'a, str>, RBoxError>;
+pub trait SerializeEnum<NE>{
+    type Proxy;
+
+    fn serialize_enum(this:&NE) -> Result<Self::Proxy, RBoxError>;
 }
+
+
+pub trait GetSerializeEnumProxy<NE>:InterfaceType{
+    type ProxyType;
+}
+
+impl<I,NE,PT> GetSerializeEnumProxy<NE> for I
+where
+    I:InterfaceType,
+    I:GetSerializeEnumProxyHelper<
+        NE,
+        <I as InterfaceType>::Serialize,
+        ProxyType=PT
+    >,
+{
+    type ProxyType=PT;
+}
+
+#[doc(hidden)]
+pub trait GetSerializeEnumProxyHelper<NE,IS>:InterfaceType{
+    type ProxyType;
+}
+
+impl<I,NE> 
+    GetSerializeEnumProxyHelper<NE,Implemented<trait_marker::Serialize>> 
+for I
+where
+    I:InterfaceType,
+    I:SerializeEnum<NE>,
+{
+    type ProxyType=<I as SerializeEnum<NE>>::Proxy;
+}
+
+impl<I,NE> 
+    GetSerializeEnumProxyHelper<NE,Unimplemented<trait_marker::Serialize>> 
+for I
+where
+    I:InterfaceType,
+{
+    type ProxyType=();
+}
+
+
+///////////////////////////////////////
+
 
 /**
 Describes how a nonexhaustive enum is deserialized.
@@ -121,21 +173,51 @@ so that the implementation can be delegated
 to the `implementation crate`.
 
 */
-pub trait DeserializeOwned<E,S,I> {
-    fn deserialize_enum(s: RStr<'_>) -> Result<NonExhaustive<E,S,I>, RBoxError>
-    where E:GetEnumInfo;
+pub trait DeserializeEnum<'borr,NE> {
+    type Proxy;
+
+    fn deserialize_enum(s: Self::Proxy) -> Result<NE, RBoxError>;
 }
 
-/**
-Describes how a nonexhaustive enum is deserialized,
-borrowing from the input RStr.
 
-Generally this delegates to a library function,
-so that the implementation can be delegated
-to the `implementation crate`.
+pub trait GetDeserializeEnumProxy<'borr,NE>:InterfaceType{
+    type ProxyType;
+}
 
-*/
-pub trait DeserializeBorrowed<'borr,E,S,I> {
-    fn deserialize_enum(s: RStr<'borr>) -> Result<NonExhaustive<E,S,I>, RBoxError> 
-    where E:GetEnumInfo+'borr;
+impl<'borr,I,NE,PT> GetDeserializeEnumProxy<'borr,NE> for I
+where
+    I:InterfaceType,
+    I:GetDeserializeEnumProxyHelper<
+        'borr,
+        NE,
+        <I as InterfaceType>::Deserialize,
+        ProxyType=PT
+    >,
+{
+    type ProxyType=PT;
+}
+
+
+#[doc(hidden)]
+pub trait GetDeserializeEnumProxyHelper<'borr,NE,IS>:InterfaceType{
+    type ProxyType;
+}
+
+impl<'borr,I,NE> 
+    GetDeserializeEnumProxyHelper<'borr,NE,Implemented<trait_marker::Deserialize>> 
+for I
+where
+    I:InterfaceType,
+    I:DeserializeEnum<'borr,NE>
+{
+    type ProxyType=<I as DeserializeEnum<'borr,NE>>::Proxy;
+}
+
+impl<'borr,I,NE> 
+    GetDeserializeEnumProxyHelper<'borr,NE,Unimplemented<trait_marker::Deserialize>> 
+for I
+where
+    I:InterfaceType,
+{
+    type ProxyType=();
 }

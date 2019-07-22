@@ -194,14 +194,7 @@ pub(crate) mod command_serde{
 
     use serde::{Serialize,Deserialize};
 
-    use crate::{
-        nonexhaustive_enum::{
-            SerializeEnum,DeserializeOwned,DeserializeBorrowed,NonExhaustiveFor,NonExhaustive,
-            GetEnumInfo,GetVTable,
-        },
-        std_types::RString,
-        type_level::bools::{True},
-    };
+    use crate::std_types::RString;
 
     #[repr(u8)]
     #[derive(StableAbi,Hash,Debug,PartialEq,Eq,Ord,PartialOrd,Clone,Deserialize,Serialize)]
@@ -376,43 +369,36 @@ pub(crate) mod codecs{
 
     use crate::{
         nonexhaustive_enum::{
-            SerializeEnum,DeserializeOwned,DeserializeBorrowed,NonExhaustiveFor,NonExhaustive,
+            SerializeEnum,DeserializeEnum,NonExhaustiveFor,NonExhaustive,
             GetEnumInfo,GetVTable,
         },
-        std_types::{RBoxError,RStr,RCow},
+        std_types::{RBoxError,RStr,RString},
         type_level::bools::{True},
     };   
 
     pub struct Json;
 
-    impl<E> SerializeEnum<E> for Json
+    impl<E,S,I> SerializeEnum<NonExhaustive<E,S,I>> for Json
     where
-        E:Serialize
+        E:Serialize+GetEnumInfo
     {
-        fn serialize_enum<'a>(this:&'a E) -> Result<RCow<'a, str>, RBoxError>{
-            serde_json::to_string(this)
-                .map(RCow::from)
+        type Proxy=RString;
+
+        fn serialize_enum(this:&NonExhaustive<E,S,I>) -> Result<RString, RBoxError>{
+            serde_json::to_string(this.as_enum()?)
+                .map(RString::from)
                 .map_err(RBoxError::new)
         }
     }
 
-    impl<E,S,I> DeserializeOwned<E,S,I> for Json
+    impl<'borr,E,S,I> DeserializeEnum<'borr,NonExhaustive<E,S,I>> for Json
     where
         E:GetVTable<S,I>+for<'de>Deserialize<'de>,
     {
-        fn deserialize_enum(s: RStr<'_>) -> Result<NonExhaustive<E,S,I>, RBoxError>{
-            serde_json::from_str(&*s)
-                .map(NonExhaustive::with_storage_and_interface)
-                .map_err(RBoxError::new)
-        }
-    }
+        type Proxy=RString;
 
-    impl<'borr,E,S,I> DeserializeBorrowed<'borr,E,S,I> for Json
-    where
-        E:GetVTable<S,I>+Deserialize<'borr>+'borr,
-    {
-        fn deserialize_enum(s: RStr<'borr>) -> Result<NonExhaustive<E,S,I>, RBoxError> {
-            serde_json::from_str(s.into())
+        fn deserialize_enum(s: RString) -> Result<NonExhaustive<E,S,I>, RBoxError>{
+            serde_json::from_str(&s)
                 .map(NonExhaustive::with_storage_and_interface)
                 .map_err(RBoxError::new)
         }
