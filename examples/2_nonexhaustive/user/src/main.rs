@@ -73,7 +73,7 @@ fn main(){
         }
     };
 
-    let command=match Command_NE::deserialize_owned_from_str(&file) {
+    let command=match serde_json::from_str::<Command_NE>(&file) {
         Ok(x) => x,
         Err(e) => {
             eprintln!(
