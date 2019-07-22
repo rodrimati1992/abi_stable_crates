@@ -13,13 +13,14 @@ and all the modules inside of the library.
 
 use abi_stable::{
     StableAbi,
+    external_types::{RawValueRef,RawValueBox},
     impl_InterfaceType,
     package_version_strings,
     declare_root_module_statics,
     library::RootModule,
     type_level::bools::*,
     erased_types::{
-        InterfaceType,DeserializeOwnedInterface,DeserializeBorrowedInterface,IteratorItem
+        InterfaceType,DeserializeDyn,SerializeProxyType,IteratorItem
     },
     DynTrait,
     sabi_types::VersionStrings,
@@ -122,12 +123,22 @@ impl_InterfaceType!{
 }
 
 
+/// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
+/// a RawValueBox containing the serialized data,
+/// then the returned RawValueBox is serialized.
+impl SerializeProxyType for TOState{
+    type Proxy=RawValueBox;
+}
 
-impl DeserializeOwnedInterface<'static> for TOState {
-    type Deserialized = TOStateBox;
 
-    fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
-        TextOpsMod::get_module().unwrap().deserializers().deserialize_state()(s).into_result()
+impl<'borr> DeserializeDyn<'borr,TOStateBox> for TOState {
+    type Proxy = RawValueRef<'borr>;
+
+    fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<TOStateBox, RBoxError> {
+        TextOpsMod::get_module().unwrap()
+            .deserializers()
+            .deserialize_state()(s.get_rstr())
+            .into_result()
     }
 }
 
@@ -160,21 +171,22 @@ impl<'a> IteratorItem<'a> for TOCommand{
 }
 
 
-
-impl DeserializeOwnedInterface<'static> for TOCommand {
-    type Deserialized = TOCommandBox<'static>;
-
-    fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
-        TextOpsMod::get_module().unwrap().deserializers().deserialize_command()(s).into_result()
-    }
+/// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
+/// a RawValueBox containing the serialized data,
+/// then the returned RawValueBox is serialized.
+impl SerializeProxyType for TOCommand{
+    type Proxy=RawValueBox;
 }
 
-impl<'borr> DeserializeBorrowedInterface<'borr> for TOCommand {
-    type Deserialized = TOCommandBox<'borr>;
+/// Describes how TOCommandBox is deserialized
+impl<'borr> DeserializeDyn<'borr,TOCommandBox<'static>> for TOCommand {
+    type Proxy = RawValueRef<'borr> ;
 
-    fn deserialize_impl(s: RStr<'borr>) -> Result<Self::Deserialized, RBoxError> {
-        TextOpsMod::get_module()
-            .unwrap().deserializers().deserialize_command_borrowing()(s).into_result()
+    fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<TOCommandBox<'static>, RBoxError> {
+        TextOpsMod::get_module().unwrap()
+            .deserializers()
+            .deserialize_command()(s.get_rstr())
+            .into_result()
     }
 }
 
@@ -201,12 +213,22 @@ impl_InterfaceType!{
 }
 
 
-impl DeserializeOwnedInterface<'static> for TOReturnValue {
-    type Deserialized = TOReturnValueArc;
+/// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
+/// a RawValueBox containing the serialized data,
+/// then the returned RawValueBox is serialized.
+impl SerializeProxyType for TOReturnValue{
+    type Proxy=RawValueBox;
+}
 
-    fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
-        TextOpsMod::get_module()
-            .unwrap().deserializers().deserialize_return_value()(s).into_result()
+/// Describes how TOCommandBox is deserialized
+impl<'borr> DeserializeDyn<'borr,TOReturnValueArc> for TOReturnValue {
+    type Proxy = RawValueRef<'borr>;
+
+    fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<TOReturnValueArc, RBoxError> {
+        TextOpsMod::get_module().unwrap()
+            .deserializers()
+            .deserialize_return_value()(s.get_rstr())
+            .into_result()
     }
 }
 

@@ -20,6 +20,7 @@ use example_0_interface::{
 };
 
 use abi_stable::{
+    external_types::RawValueBox,
     export_root_module,
     sabi_extern_fn,
     impl_get_type_info,
@@ -89,7 +90,9 @@ impl ImplType for TextOperationState {
 
 /// Defines how the type is serialized in DynTrait<_>.
 impl SerializeImplType for TextOperationState {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError> {
+    type Interface = TOState;
+    
+    fn serialize_impl<'a>(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
     }
 }
@@ -137,7 +140,8 @@ impl ImplType for Command<'static> {
 
 /// Defines how the type is serialized in DynTrait<_>.
 impl<'borr> SerializeImplType for Command<'borr> {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError> {
+    type Interface = TOCommand;
+    fn serialize_impl<'a>(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
     }
 }
@@ -170,7 +174,8 @@ impl ImplType for ReturnValue {
 
 /// Defines how the type is serialized in DynTrait<_>.
 impl SerializeImplType for ReturnValue {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError> {
+    type Interface = TOReturnValue;
+    fn serialize_impl<'a>(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
     }
 }
@@ -190,12 +195,12 @@ where
     }
 }
 
-fn serialize_json<'a, T>(value: &'a T) -> Result<RCow<'a, str>, RBoxError>
+fn serialize_json<'a, T>(value: &'a T) -> Result<RawValueBox, RBoxError>
 where
     T: serde::Serialize,
 {
     match serde_json::to_string::<T>(&value) {
-        Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
+        Ok(v)=>unsafe{ Ok(RawValueBox::from_rstring_unchecked(v.into_c())) },
         Err(e)=>Err(RBoxError::new(e)),
     }
 }
@@ -361,6 +366,8 @@ mod tests{
 
     use abi_stable::library::RootModule;
 
+    use serde_json::value::RawValue;
+
     fn setup(){
         let _=TextOpsMod::load_module_with(|| Ok::<_,()>(instantiate_root_module()) );
     }
@@ -407,11 +414,10 @@ mod tests{
             }
         "#;
 
-        let json_string=serde_json::to_string(json).unwrap();
+        let rvref=serde_json::from_str::<&RawValue>(json).unwrap();
+        let value0=TOStateBox::deserialize_from_proxy(rvref.into()).unwrap();
 
-        let value0=TOStateBox::deserialize_owned_from_str(json).unwrap();
-
-        let value1=serde_json::from_str::<TOStateBox>(&json_string).unwrap();
+        let value1=serde_json::from_str::<TOStateBox>(&json).unwrap();
 
         assert_eq!(value0,value1);
 
@@ -426,7 +432,11 @@ mod tests{
             processed_bytes: 1337,
         }.piped(DynTrait::from_value);
 
-        let serialized_0= this.serialized().unwrap().split_whitespace().collect::<String>();
+        let serialized_0= this.serialize_into_proxy()
+            .unwrap()
+            .get()
+            .split_whitespace()
+            .collect::<String>();
 
         let expected_0=r#"{"processed_bytes":1337}"#;
 
@@ -434,7 +444,7 @@ mod tests{
 
         assert_eq!(
             serde_json::to_string(&this).unwrap(), 
-            serde_json::to_string(&expected_0).unwrap(),
+            expected_0,
         );
     }
 

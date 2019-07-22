@@ -196,13 +196,13 @@ fn main()-> io::Result<()> {
         }
         Command::JsonCommand{file}=>{
             fn run_command(mods:&TextOpsMod,state:&mut TOStateBox,s:&str)->RString{
-                let command=TOCommandBox::deserialize_owned_from_str(s)
+                let command=serde_json::from_str(s)
                     .unwrap_or_else(|e| panic!("\n{}\n",e) );
                 
                 let ret=mods.run_command()(state,command);
-                ret.serialized()
+                serde_json::to_string(&ret)
                     .unwrap_or_else(|e| panic!("\n{}\n",e) )
-                    .into_owned()
+                    .into()
             }
 
             match file.as_ref().map(|f| (f,fs::read_to_string(f)) ) {
