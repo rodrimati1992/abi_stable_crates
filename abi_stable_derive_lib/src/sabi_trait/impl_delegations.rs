@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream as TokenStream2;
 
-use quote::{quote, ToTokens};
+use quote::{quote, ToTokens, quote_spanned};
 
 use syn::token::Comma;
 
@@ -27,6 +27,7 @@ pub(super) fn delegated_impls<'a>(
     let where_preds=&totrait_def.where_preds;
 
     let impls=totrait_def.trait_flags;
+    let spans=&totrait_def.trait_spans;
 
     let erased_ptr_bounds=totrait_def.erased_ptr_preds();
 
@@ -71,7 +72,7 @@ pub(super) fn delegated_impls<'a>(
 
 
     if impls.debug {
-        quote!(
+        quote_spanned!(spans.debug=>
             impl<#gen_params_header> std::fmt::Debug
             for #trait_to<#gen_params_use_to>
             where
@@ -86,7 +87,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.display {
-        quote!(
+        quote_spanned!(spans.display=>
             impl<#gen_params_header> std::fmt::Display
             for #trait_to<#gen_params_use_to>
             where
@@ -101,7 +102,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.error {
-        quote!(
+        quote_spanned!(spans.error=>
             impl<#gen_params_header> std::error::Error
             for #trait_to<#gen_params_use_to>
             where
@@ -111,7 +112,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.clone {
-        quote!(
+        quote_spanned!(spans.clone=>
             impl<#gen_params_header> std::clone::Clone
             for #trait_to<#gen_params_use_to>
             where
@@ -130,7 +131,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.hash {
-        quote!(
+        quote_spanned!(spans.hash=>
             impl<#gen_params_header> std::hash::Hash
             for #trait_to<#gen_params_use_to>
             where
@@ -148,7 +149,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.send {
-        quote!(
+        quote_spanned!(spans.send=>
             unsafe impl<#gen_params_header> std::marker::Send
             for #trait_to<#gen_params_use_to>
             where
@@ -157,7 +158,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.sync {
-        quote!(
+        quote_spanned!(spans.sync=>
             unsafe impl<#gen_params_header> std::marker::Sync
             for #trait_to<#gen_params_use_to>
             where
@@ -166,7 +167,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.fmt_write {
-        quote!(
+        quote_spanned!(spans.fmt_write=>
             impl<#gen_params_header> std::fmt::Write
             for #trait_to<#gen_params_use_to>
             where
@@ -181,7 +182,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.io_write {
-        quote!(
+        quote_spanned!(spans.io_write=>
             impl<#gen_params_header> std::io::Write
             for #trait_to<#gen_params_use_to>
             where
@@ -201,7 +202,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.io_read {
-        quote!(
+        quote_spanned!(spans.io_read=>
             impl<#gen_params_header> std::io::Read
             for #trait_to<#gen_params_use_to>
             where
@@ -219,7 +220,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.io_buf_read {
-        quote!(
+        quote_spanned!(spans.io_buf_read=>
             impl<#gen_params_header> std::io::BufRead
             for #trait_to<#gen_params_use_to>
             where
@@ -237,7 +238,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.io_seek {
-        quote!(
+        quote_spanned!(spans.io_seek=>
             impl<#gen_params_header> std::io::Seek
             for #trait_to<#gen_params_use_to>
             where
@@ -265,7 +266,7 @@ pub(super) fn delegated_impls<'a>(
         );
 
     if impls.eq{
-        quote!(
+        quote_spanned!(spans.eq=>
             impl<#gen_params_header> std::cmp::Eq
             for #trait_to<#gen_params_use_to_static>
             where
@@ -275,7 +276,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.partial_eq{
-        quote!(
+        quote_spanned!(spans.partial_eq=>
             impl<#gen_params_header_and2> std::cmp::PartialEq<#trait_to<#gen_params_use_2>>
             for #trait_to<#gen_params_use_to_static>
             where
@@ -294,7 +295,7 @@ pub(super) fn delegated_impls<'a>(
 
     }
     if impls.ord{
-        quote!(
+        quote_spanned!(spans.ord=>
             impl<#gen_params_header> std::cmp::Ord
             for #trait_to<#gen_params_use_to_static>
             where
@@ -311,7 +312,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.partial_ord{
-        quote!(
+        quote_spanned!(spans.partial_ord=>
             impl<#gen_params_header_and2> std::cmp::PartialOrd<#trait_to<#gen_params_use_2>>
             for #trait_to<#gen_params_use_to_static>
             where
@@ -395,7 +396,7 @@ pub(super) fn delegated_impls<'a>(
     if let Some(iter_item)=&totrait_def.iterator_item {
         let ty_params=totrait_def.generics.type_params().map(|x|&x.ident);
         let assoc_tys=totrait_def.assoc_tys.keys();
-        quote!(
+        quote_spanned!(spans.iterator=>
             impl<#trait_interface_header>
                 abi_stable::erased_types::IteratorItem<'lt>
             for #trait_interface<#trait_interface_use>
@@ -407,7 +408,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.iterator {
-        quote!(
+        quote_spanned!(spans.iterator=>
             impl<#gen_params_header> std::iter::Iterator for #trait_to<#gen_params_use_to>
             where
                 #trait_backend<#gen_params_use_to>:std::iter::Iterator,
@@ -437,7 +438,7 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.double_ended_iterator {
-        quote!(
+        quote_spanned!(spans.double_ended_iterator=>
             impl<#gen_params_header> std::iter::DoubleEndedIterator 
             for #trait_to<#gen_params_use_to>
             where

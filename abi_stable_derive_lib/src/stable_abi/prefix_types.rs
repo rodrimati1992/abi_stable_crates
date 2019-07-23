@@ -9,7 +9,7 @@ use syn::{
     Visibility,
 };
 
-use quote::ToTokens;
+use quote::{ToTokens,quote_spanned};
 
 
 
@@ -359,6 +359,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             let mut getter_name=syn::parse_str::<Ident>(&*accessor_buffer).unwrap();
             getter_name.set_span(field.ident().span());
             let field_name=field.ident();
+            let field_span=field_name.span();
             let ty=field.ty;
 
             let field_bounds=&prefix.field_bounds[field];
@@ -371,7 +372,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
             match prefix.fields[field] {
                 AccessorOrMaybe::Accessor=>{
-                    unconditional_accessors.push(quote!{
+                    unconditional_accessors.push(quote_spanned!{field_span=>
                         #vis fn #getter_name(&self)->#ty
                         #field_where_clause #( #field_bounds+ )*
                         {
@@ -393,10 +394,10 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                     };
 
                     let else_=match on_missing_field {
-                        OnMissingField::ReturnOption=>quote!{
+                        OnMissingField::ReturnOption=>quote_spanned!{field_span=>
                             return None 
                         },
-                        OnMissingField::Panic=>quote!(
+                        OnMissingField::Panic=>quote_spanned!(field_span=>
                             #module::_sabi_reexports::panic_on_missing_field_ty::<
                                 #deriving_name #ty_generics
                             >(
@@ -404,26 +405,26 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                                 self.inner._prefix_type_layout,
                             )
                         ),
-                        OnMissingField::With{function}=>quote!{
+                        OnMissingField::With{function}=>quote_spanned!{field_span=>
                             #function()
                         },
-                        OnMissingField::Value{value}=>quote!{
+                        OnMissingField::Value{value}=>quote_spanned!{field_span=>
                             (#value)
                         },
-                        OnMissingField::Default_=>quote!{
+                        OnMissingField::Default_=>quote_spanned!{field_span=>
                             Default::default()
                         },
                     };
 
                     let with_val=if is_optional {
-                        quote!( Some(val) )
+                        quote_spanned!(field_span=> Some(val) )
                     }else{
-                        quote!( val )
+                        quote_spanned!(field_span=> val )
                     };
 
                     let field_mask_ident=&field_mask_idents[field_i];
 
-                    conditional_accessors.push(quote!{
+                    conditional_accessors.push(quote_spanned!{field_span=>
                         #vis fn #getter_name(&self)->#return_ty
                         #field_where_clause #( #field_bounds+ )*
                         {
@@ -523,6 +524,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
                 type Prefix=#prefix_struct #ty_generics;
             }
+
             
             impl #impl_generics #prefix_struct #ty_generics 
             where 
@@ -551,6 +553,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 }
             }
 
+            
             impl #impl_generics #prefix_struct #ty_generics 
             where 
                 #(#where_preds,)*

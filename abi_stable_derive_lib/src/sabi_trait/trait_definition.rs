@@ -58,6 +58,7 @@ pub(crate) struct TraitDefinition<'a>{
     pub(crate) impld_traits:Vec<TraitImplness<'a>>,
     pub(crate) unimpld_traits:Vec<&'a Ident>,
     pub(crate) trait_flags:TraitStruct<bool>,
+    pub(crate) trait_spans:TraitStruct<Span>,
     /// The lifetimes declared in the trait generic parameter list that are used in 
     /// `&'lifetime self` `&'lifetime mut self` method receivers,
     /// or used directly as supertraits.
@@ -110,6 +111,7 @@ impl<'a> TraitDefinition<'a>{
             iterator_item,
             deserialize_bound,
             trait_flags,
+            trait_spans,
         }=get_supertraits(
             &trait_.supertraits,
             &lifetime_params,
@@ -182,6 +184,7 @@ impl<'a> TraitDefinition<'a>{
             impld_traits,
             unimpld_traits,
             trait_flags,
+            trait_spans,
             vis,
             submod_vis,
             assoc_tys,
@@ -539,6 +542,7 @@ struct GetSupertraits<'a>{
     iterator_item:Option<&'a syn::Type>,
     deserialize_bound:Option<DeserializeBound<'a>>,
     trait_flags:TraitStruct<bool>,
+    trait_spans:TraitStruct<Span>,
 }
 
 
@@ -727,6 +731,7 @@ where
     let mut impld_traits=Vec::new();
     let mut unimpld_traits=Vec::new();
     let trait_flags=trait_struct.as_ref().map(|_,x| x.is_implemented );
+    let trait_spans=trait_struct.as_ref().map(|_,x| x.ident.span() );
 
     for trait_ in trait_struct.to_vec() {
         if trait_.is_implemented {
@@ -744,6 +749,7 @@ where
         iterator_item,
         deserialize_bound,
         trait_flags,
+        trait_spans,
     }
 }
 
