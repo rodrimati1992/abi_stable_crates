@@ -1,14 +1,11 @@
-use std::{
-    ptr,
-    mem,
-};
+use std::ptr;
 
 use crate::{
     marker_type::ErasedObject,
     nonexhaustive_enum::{NonExhaustive,NonExhaustiveVtable,GetEnumInfo,SerializeEnum},
     utils::{transmute_reference,transmute_mut_reference},
     sabi_types::StaticRef,
-    std_types::{ROption,RCmpOrdering,RSome,RResult,RCow,RBoxError},
+    std_types::{ROption,RCmpOrdering,RSome,RResult,RBoxError},
     traits::IntoReprC,
 };
 

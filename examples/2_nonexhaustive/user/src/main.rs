@@ -1,22 +1,17 @@
 use std::{
-    fs,
     path::{Path,PathBuf},
-    io::{self,BufRead,Write,Read},
+    io,
 };
 
 
 use core_extensions::SelfOps;
 
-use structopt::StructOpt;
-
 use abi_stable::{
-    std_types::{RString,ROk,RErr},
+    std_types::{ROk,RErr},
     library::RootModule,
 };
 
-use example_2_interface::{
-    Shop,ShopMod,Command_NE,ReturnVal,
-};
+use example_2_interface::{ShopMod,Command_NE};
 
 
 /// Returns the path the library will be loaded from.

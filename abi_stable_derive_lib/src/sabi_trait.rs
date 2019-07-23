@@ -51,10 +51,8 @@ struct TokenizerParams<'a>{
     totrait_def:&'a TraitDefinition<'a>,
     vtable_trait_decl:&'a TraitDefinition<'a>,
     vtable_trait_impl:&'a TraitDefinition<'a>,
-    generated_mod:&'a syn::Ident,
     trait_ident:&'a syn::Ident,
     trait_to:&'a syn::Ident,
-    trait_method:&'a syn::Ident,
     trait_backend:&'a syn::Ident,
     trait_interface:&'a syn::Ident,
 }
@@ -82,7 +80,6 @@ pub fn derive_sabi_trait(item: ItemTrait) -> TokenStream2 {
 
     let generated_mod=&parse_str_as_ident(&format!("{}_module",trait_ident));
     let trait_to    =&parse_str_as_ident(&format!("{}_TO",trait_ident));
-    let trait_method=&parse_str_as_ident(&format!("{}_Methods",trait_ident));
     let trait_backend=&parse_str_as_ident(&format!("{}_Backend",trait_ident));
     let trait_interface=&parse_str_as_ident(&format!("{}_Interface",trait_ident));
     
@@ -98,10 +95,8 @@ pub fn derive_sabi_trait(item: ItemTrait) -> TokenStream2 {
         totrait_def,
         vtable_trait_decl,
         vtable_trait_impl,
-        generated_mod,
         trait_ident,
         trait_to    ,
-        trait_method,
         trait_backend,
         trait_interface,
     };
@@ -146,9 +141,7 @@ fn first_items<'a>(
         ctokens,
         trait_def,
         submod_vis,
-        generated_mod,
         trait_to,
-        trait_method,
         trait_backend,
         trait_interface,
         ..
@@ -230,19 +223,6 @@ fn first_items<'a>(
             &ctokens.ts_empty,
         );
     // dummy_struct_generics.set_unsized_types();
-
-    let gen_params_header=
-        trait_def.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_empty,
-        );
-    let gen_params_use=
-        trait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_empty,
-        );
 
     let used_trait_object=quote!(#trait_backend<#uto_params_use>);
 
@@ -353,18 +333,6 @@ fn constructor_items<'a>(
     }:TokenizerParams,
     mod_:&mut TokenStream2,
 ){
-    let from_ptr_params=totrait_def.generics_tokenizer(
-        InWhat::ImplHeader,
-        WithAssocTys::No,
-        &ctokens.ts_lt_origptr_erasability,
-    );
-
-    let ret_generics=totrait_def.generics_tokenizer(
-        InWhat::ItemUse,
-        WithAssocTys::Yes(WhichSelf::FullyQualified),
-        &ctokens.ts_lt_transptr,
-    );
-
     let trait_params=totrait_def.generics_tokenizer(
         InWhat::ItemUse,
         WithAssocTys::No,
@@ -556,7 +524,7 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
 
 
 fn trait_and_impl<'a>(
-    TokenizerParams{ctokens,submod_vis,trait_def,trait_ident,trait_to,..}:TokenizerParams,
+    TokenizerParams{ctokens,submod_vis,trait_def,trait_to,..}:TokenizerParams,
     mod_:&mut TokenStream2,
 ){
     let other_attrs=trait_def.other_attrs;
@@ -633,19 +601,12 @@ fn methods_impls<'a>(
     param:TokenizerParams,
     mod_:&mut TokenStream2,
 ){
-    let TokenizerParams{ctokens,totrait_def,submod_vis,trait_to,..}=param;
+    let TokenizerParams{ctokens,totrait_def,trait_to,..}=param;
     
-    let where_preds=&totrait_def.where_preds;
-
-    let assoc_ty_defs=totrait_def.assoc_tys.values().map(|x| &x.assoc_ty );
-
-    let methods_tokenizer_decl=
-        totrait_def.methods_tokenizer(WhichItem::TraitObjectImpl);
     let impl_where_preds=totrait_def.trait_impl_where_preds();
 
     let super_traits_a=totrait_def.impld_traits.iter().map(|t| &t.bound );
-    let super_traits_b=super_traits_a.clone();
-
+    
     let lifetime_bounds=&*totrait_def.lifetime_bounds;
     
     let gen_params_header=
@@ -653,12 +614,6 @@ fn methods_impls<'a>(
             InWhat::ImplHeader,
             WithAssocTys::Yes(WhichSelf::NoSelf),
             &ctokens.ts_lt_erasedptr,
-        );
-    let gen_params_use_trait=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::No,
-            &ctokens.ts_erasedptr,
         );
     let gen_params_use_to=
         totrait_def.generics_tokenizer(
@@ -908,6 +863,7 @@ pub(crate) enum WhichSelf{
     /// _Self::AssocTy
     Underscore,
     /// <_OrigPtr as __Trait< <generic_params> >>::AssocTy
+    #[allow(dead_code)]
     FullyQualified,
     /// AssocTy
     NoSelf,

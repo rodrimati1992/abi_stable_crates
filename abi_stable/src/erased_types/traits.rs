@@ -7,13 +7,10 @@ use std::{mem,marker::PhantomData};
 
 use crate::{
     sabi_types::VersionStrings,
-    std_types::{
-        RBoxError, 
-        RCow, RStr,StaticStr,
-    },
+    std_types::{RBoxError, StaticStr},
 };
 
-use super::{DynTraitBound,TypeInfo};
+use super::TypeInfo;
 
 #[allow(unused_imports)]
 use crate::type_level::{

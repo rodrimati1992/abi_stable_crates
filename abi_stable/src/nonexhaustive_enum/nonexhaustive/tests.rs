@@ -1,5 +1,4 @@
 use crate::{
-    StableAbi,
     test_utils::{
         check_formatting_equivalence,
     },
@@ -11,7 +10,6 @@ use crate::{
             command_c,
             command_h_mismatched_discriminant,
             command_serde,
-            too_large,
             generic_a,
             many_ranges_a,
             many_ranges_b,
@@ -196,9 +194,9 @@ fn clone_test(){
     let arc=Arc::new(100);
     assert_eq!(Arc::strong_count(&arc), 1);
 
-    let mut variant_a=NonExhaustive::new(Foo::<Arc<i32>>::A);
-    let mut variant_b=NonExhaustive::new(Foo::<Arc<i32>>::B);
-    let mut variant_c=NonExhaustive::new(Foo::<Arc<i32>>::C(arc.clone()));
+    let variant_a=NonExhaustive::new(Foo::<Arc<i32>>::A);
+    let variant_b=NonExhaustive::new(Foo::<Arc<i32>>::B);
+    let variant_c=NonExhaustive::new(Foo::<Arc<i32>>::C(arc.clone()));
 
     assert_eq!(Arc::strong_count(&arc), 2);
     
@@ -276,6 +274,7 @@ fn cmp_test(){
             var_b=$var_b:ident;
             var_c=$var_c:ident;
         ) => (
+            #[allow(unused_variables)]
             for ($variant,$wrapped) in 
                 vec![(&variant_a,&wrapped_a),(&variant_b,&wrapped_b),(&variant_c,&wrapped_c)] 
             {

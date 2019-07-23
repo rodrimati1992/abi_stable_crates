@@ -24,7 +24,7 @@ use crate::{
         FullType, ReprAttr, TLDiscriminant,TLPrimitive,
         TLEnum,IsExhaustive,IncompatibleWithNonExhaustive,TLNonExhaustive,
         TLFieldOrFunction, TLFunction,
-        tagging::{CheckableTag,TagErrors},
+        tagging::TagErrors,
     },
     utils::{max_by,min_max_by},
 };

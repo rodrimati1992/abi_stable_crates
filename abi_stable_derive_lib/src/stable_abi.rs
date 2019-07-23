@@ -49,7 +49,7 @@ use self::{
     prefix_types::prefix_type_tokenizer,
     repr_attrs::ReprAttr,
     reflection::ModReflMode,
-    tl_function::{VisitedFieldMap,VisitedField,CompTLFunction},
+    tl_function::{VisitedFieldMap,CompTLFunction},
 };
 
 

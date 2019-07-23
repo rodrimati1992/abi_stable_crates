@@ -16,7 +16,7 @@ use crate::{
         },
     },
     inline_storage::ScratchSpace,
-    marker_type::{ErasedObject,UnsafeIgnoredType},
+    marker_type::ErasedObject,
     nonexhaustive_enum::{
         GetVTable,NonExhaustiveVtable,InterfaceBound,GetEnumInfo,GetNonExhaustive,
         ValidDiscriminant,EnumInfo,
@@ -28,13 +28,12 @@ use crate::{
         trait_marker,
     },
     sabi_types::{StaticRef},
-    std_types::{RStr,Tuple2,RBoxError,RCow},
+    std_types::RBoxError,
     traits::IntoReprRust,
 };
 
 use core_extensions::{
     SelfOps,
-    TypeIdentity,
     utils::transmute_ignore_size,
 };
 
@@ -570,12 +569,6 @@ This panics if the storage has an alignment or size smaller than that of `F`.
     /// Gets a reference to the vtable of this `NonExhaustive<>`.
     pub fn vtable<'a>(&self)->&'a NonExhaustiveVtable<E,S,I>{
         self.vtable.get()
-    }
-
-    fn as_ref_with_interface<I2>(&self)->&NonExhaustive<E,S,I2>{
-        unsafe{
-            mem::transmute::<&NonExhaustive<E,S,I>,&NonExhaustive<E,S,I2>>(self)
-        }
     }
 
     fn sabi_erased_ref(&self)->&ErasedObject{

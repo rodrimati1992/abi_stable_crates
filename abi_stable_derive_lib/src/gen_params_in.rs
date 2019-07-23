@@ -75,6 +75,7 @@ impl<'a,AL> GenParamsIn<'a,AL>{
     pub fn set_no_bounds(&mut self){
         self.with_bounds=false;
     }
+    #[allow(dead_code)]
     pub fn set_unsized_types(&mut self){
         self.unsized_types=true;
     }

@@ -1,7 +1,7 @@
 use super::{
     *,
     attribute_parsing::{MethodWithAttrs,OwnedDeriveAndOtherAttrs},
-    impl_interfacetype::{TRAIT_LIST,UsableTrait,TraitStruct,WhichTrait},
+    impl_interfacetype::{TRAIT_LIST,TraitStruct,WhichTrait},
     replace_self_path::{self,ReplaceWith},
     parse_utils::{parse_str_as_ident,parse_str_as_trait_bound},
 };
@@ -13,7 +13,6 @@ use crate::{
 use std::{
     collections::{HashMap,HashSet},
     iter,
-    rc::Rc,
 };
 
 use core_extensions::{matches,IteratorExt};
@@ -54,6 +53,7 @@ pub(crate) struct TraitDefinition<'a>{
     pub(crate) iterator_item:Option<&'a syn::Type>,
     /// The path for the implemented serde::Deserialize trait 
     /// (it may reference some trait lifetime parameter)
+    #[allow(dead_code)]
     pub(crate) deserialize_bound:Option<DeserializeBound<'a>>,
     pub(crate) impld_traits:Vec<TraitImplness<'a>>,
     pub(crate) unimpld_traits:Vec<&'a Ident>,
@@ -201,7 +201,6 @@ impl<'a> TraitDefinition<'a>{
         let mut this=self.clone();
 
         let ctokens=self.ctokens;
-        let arenas=self.arenas;
 
         let replace_with=match which_item {
             WhichItem::Trait|WhichItem::TraitImpl=>{
@@ -466,6 +465,7 @@ pub struct GenericsTokenizer<'a>{
 }
 
 impl<'a> GenericsTokenizer<'a>{
+    #[allow(dead_code)]
     pub fn set_unsized_types(&mut self){
         self.gen_params_in.set_unsized_types();
     }
@@ -562,7 +562,7 @@ fn get_supertraits<'a,I>(
     lifetime_params:&HashSet<&'a Lifetime>,
     which_object:WhichObject,
     arenas: &'a Arenas,
-    ctokens:&'a CommonTokens,
+    _ctokens:&'a CommonTokens,
 )->GetSupertraits<'a>
 where
     I:IntoIterator<Item=&'a TypeParamBound>
@@ -584,7 +584,7 @@ where
 
     let mut lifetime_bounds=Vec::new();
     let mut iterator_item=None;
-    let mut deserialize_bound=None;
+    let deserialize_bound=None;
 
     for supertrait_bound in supertraits{
         match supertrait_bound {
@@ -762,11 +762,11 @@ fn extract_iterator_item<'a>(
     last_path_component:&syn::PathSegment,
     arenas:&'a Arenas,
 )->Option<&'a syn::Type>{
-    use syn::{Binding,GenericArgument,PathArguments};
+    use syn::{GenericArgument,PathArguments};
 
     let angle_brackets=match &last_path_component.arguments {
         PathArguments::AngleBracketed(x)=>x,
-        x=>return None
+        _=>return None
     };
 
     for gen_arg in &angle_brackets.args {
@@ -803,15 +803,16 @@ fn type_as_iter_path_arguments(ty:syn::Type)->syn::PathArguments{
 
 
 /// Extracts the lifetime in `Deserialize<'lt>` out of a path component.
+#[allow(dead_code)]
 fn extract_deserialize_lifetime<'a>(
     last_path_component:&syn::PathSegment,
     arenas:&'a Arenas,
 )->&'a syn::Lifetime{
-    use syn::{Binding,GenericArgument,PathArguments};
+    use syn::{GenericArgument,PathArguments};
 
     let angle_brackets=match &last_path_component.arguments {
         PathArguments::AngleBracketed(x)=>x,
-        x=>panic!(
+        _=>panic!(
             "Expected a lifetime parameter inside '{}'",
             last_path_component.into_token_stream(),
         )

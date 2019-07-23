@@ -17,7 +17,6 @@ use abi_stable::{
 
 use example_1_interface::{
     AsyncCommand,
-    Application,
     ApplicationMut,
     CommandDescription,
     Error as AppError,

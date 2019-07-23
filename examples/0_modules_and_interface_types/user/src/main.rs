@@ -15,12 +15,7 @@ use abi_stable::{
     library::RootModule,
 };
 
-use example_0_interface::{
-    CowStrIter,
-    TextOpsMod,
-    RemoveWords,
-    TOCommandBox,TOStateBox,
-};
+use example_0_interface::{CowStrIter,TextOpsMod,RemoveWords,TOStateBox};
 
 
 mod tests;

@@ -21,7 +21,6 @@ use crate::{
             command_c_mismatched_field,
             command_h,
             command_h_mismatched_discriminant,
-            command_serde,
             too_large,
         },
         NonExhaustiveFor,

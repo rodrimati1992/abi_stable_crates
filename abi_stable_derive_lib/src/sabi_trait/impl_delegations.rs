@@ -1,25 +1,23 @@
 use proc_macro2::TokenStream as TokenStream2;
 
-use quote::{quote, ToTokens, quote_spanned};
+use quote::{ToTokens, quote_spanned};
 
-use syn::token::Comma;
+
 
 use crate::{
-    AllocMethods,
     gen_params_in::{InWhat},
     sabi_trait::{
         WhichSelf,
         WithAssocTys,
         TokenizerParams,
     },
-    to_token_fn::ToTokenFnMut,
 };
 
 /// Generates the code that delegates the implementation of the supertraits 
 /// to the wrapped DynTrait or RObject.
 pub(super) fn delegated_impls<'a>(
     TokenizerParams{
-        arenas,ctokens,config,totrait_def,trait_to,trait_backend,trait_interface,
+        arenas:_,ctokens,totrait_def,trait_to,trait_backend,trait_interface,
         ..
     }:TokenizerParams<'a>,
     mod_:&mut TokenStream2,
@@ -29,14 +27,12 @@ pub(super) fn delegated_impls<'a>(
     let impls=totrait_def.trait_flags;
     let spans=&totrait_def.trait_spans;
 
-    let erased_ptr_bounds=totrait_def.erased_ptr_preds();
-
-    let gen_params_deser_header=
-        totrait_def.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_lt_de_erasedptr,
-        );
+    // let gen_params_deser_header=
+    //     totrait_def.generics_tokenizer(
+    //         InWhat::ImplHeader,
+    //         WithAssocTys::Yes(WhichSelf::NoSelf),
+    //         &ctokens.ts_lt_de_erasedptr,
+    //     );
 
     let gen_params_header=
         totrait_def.generics_tokenizer(
@@ -394,8 +390,6 @@ pub(super) fn delegated_impls<'a>(
     // }
 
     if let Some(iter_item)=&totrait_def.iterator_item {
-        let ty_params=totrait_def.generics.type_params().map(|x|&x.ident);
-        let assoc_tys=totrait_def.assoc_tys.keys();
         quote_spanned!(spans.iterator=>
             impl<#trait_interface_header>
                 abi_stable::erased_types::IteratorItem<'lt>
@@ -427,11 +421,11 @@ pub(super) fn delegated_impls<'a>(
                     self.obj.size_hint()
                 }
 
-                fn count(mut self)->usize{
+                fn count(self)->usize{
                     self.obj.count()
                 }
 
-                fn last(mut self)->Option<Self::Item>{
+                fn last(self)->Option<Self::Item>{
                     self.obj.last()
                 }
             }

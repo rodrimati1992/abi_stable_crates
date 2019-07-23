@@ -128,7 +128,7 @@ impl PartialEq for TLField {
 /// Need to avoid recursion somewhere,so I decided to stop at the field level.
 impl Debug for TLField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.recursive(|recursion_depth,x|{
+        self.recursive(|_recursion_depth,x|{
             // if recursion_depth>=5 {
             //     writeln!(f,"<printing recursion limit>")
             // }else{

@@ -117,11 +117,13 @@ pub(crate) type UsedUninit<Inline>=std::mem::MaybeUninit<Inline>;
 /// Used internally to avoid requiring Rust 1.36.0 .
 #[repr(transparent)]
 pub(crate) struct ScratchSpace<Inline>{
+    #[allow(dead_code)]
     storage:UsedUninit<Inline>,
 }
 
 impl<Inline> ScratchSpace<Inline>{
     #[inline]
+    #[allow(dead_code)]
     pub(crate) fn new<T>(value:T)->Self
     where
         Inline:InlineStorage
@@ -139,6 +141,7 @@ You must ensure that `T` has a compatible size/alignement with `Inline`,
 and that `Inline` si valid for all bitpatterns.
 */
     #[inline]
+    #[allow(dead_code)]
     pub(crate) unsafe fn new_unchecked<T>(value:T)->Self{
         let mut this=Self::uninit_unbounded();
         (&mut this as *mut Self as *mut T).write(value);

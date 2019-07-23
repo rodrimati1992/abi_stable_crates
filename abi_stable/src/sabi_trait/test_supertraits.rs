@@ -18,9 +18,7 @@ use std::{
 
 use crate::{
     sabi_trait,
-    type_level::unerasability::{TU_Unerasable,TU_Opaque},
-    std_types::{RCow,RBox,RBoxError,RStr},
-    DynTrait,
+    type_level::unerasability::TU_Unerasable,
 };
 
 
@@ -422,7 +420,7 @@ pub mod only_error{
     pub struct Struct;
 
     impl Display for Struct{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fn fmt(&self,_:&mut fmt::Formatter<'_>)->fmt::Result{
             Ok(())
         }
     }
@@ -455,7 +453,7 @@ pub mod only_fmt_write{
     pub struct Struct;
 
     impl FmtWriteTrait for Struct{
-        fn write_str(&mut self, s: &str) -> Result<(), fmt::Error>{
+        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error>{
             Ok(())
         }
     }
@@ -486,7 +484,7 @@ pub mod only_io_write{
     pub struct Struct;
 
     impl IoWriteTrait for Struct{
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize>{
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize>{
             Ok(0)
         }
         fn flush(&mut self) -> io::Result<()>{
@@ -520,7 +518,7 @@ pub mod only_io_read{
     pub struct Struct;
 
     impl IoReadTrait for Struct{
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>{
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize>{
             Ok(0)
         }
     }
@@ -551,7 +549,7 @@ pub mod only_io_bufread{
     pub struct Struct;
 
     impl IoReadTrait for Struct{
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>{
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize>{
             Ok(0)
         }
     }
@@ -560,7 +558,7 @@ pub mod only_io_bufread{
         fn fill_buf(&mut self) -> io::Result<&[u8]>{
             Ok(&[])
         }
-        fn consume(&mut self, amt: usize){}
+        fn consume(&mut self, _amt: usize){}
 
     }
 
@@ -649,13 +647,13 @@ pub mod every_trait{
     impl ErrorTrait for Struct{}
 
     impl FmtWriteTrait for Struct{
-        fn write_str(&mut self, s: &str) -> Result<(), fmt::Error>{
+        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error>{
             Ok(())
         }
     }
 
     impl IoWriteTrait for Struct{
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize>{
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize>{
             Ok(0)
         }
         fn flush(&mut self) -> io::Result<()>{
@@ -664,7 +662,7 @@ pub mod every_trait{
     }
 
     impl IoReadTrait for Struct{
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>{
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize>{
             Ok(0)
         }
     }
@@ -673,7 +671,7 @@ pub mod every_trait{
         fn fill_buf(&mut self) -> io::Result<&[u8]>{
             Ok(&[])
         }
-        fn consume(&mut self, amt: usize){}
+        fn consume(&mut self, _amt: usize){}
     }
 
     impl IoSeekTrait for Struct{    

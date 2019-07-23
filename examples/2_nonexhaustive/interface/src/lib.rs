@@ -1,25 +1,16 @@
 use abi_stable::{
     external_types::{RawValueRef,RawValueBox},
-    nonexhaustive_enum::{
-        NonExhaustiveFor,NonExhaustive,GetEnumInfo,InterfaceBound,
-        DeserializeEnum,SerializeEnum,
-    },
+    nonexhaustive_enum::{NonExhaustiveFor,DeserializeEnum,SerializeEnum},
     library::RootModule,
     sabi_types::{VersionStrings},
     std_types::{RBox,RString,RResult,RStr,RBoxError,RVec},
-    type_level::{
-        bools::True,
-        impl_enum::{Implemented,Unimplemented,IsImplemented},
-        trait_marker,
-    },
     sabi_trait,
-    StableAbi,InterfaceType,
+    StableAbi,
     package_version_strings,
     declare_root_module_statics,
-    impl_InterfaceType,
 };
 
-use serde::{Deserialize,Deserializer,Serialize,Serializer};
+use serde::{Deserialize,Serialize};
 
 
 #[repr(transparent)]
@@ -112,7 +103,9 @@ impl<'a> DeserializeEnum<'a,Command_NE> for Command_Interface{
 
 #[test]
 #[cfg(feature="v1_1")]
-fn examples_of_constructing_a_Command(){
+fn examples_of_constructing_a_command(){
+    use abi_stable::nonexhaustive_enum::NonExhaustive;
+
     let id=ItemId{id:0};
 
 
@@ -236,7 +229,9 @@ impl<'a> DeserializeEnum<'a,ReturnVal_NE> for Command_Interface{
 
 #[test]
 #[cfg(feature="v1_1")]
-fn examples_of_constructing_a_ReturnVal(){
+fn examples_of_constructing_a_returnval(){
+    use abi_stable::nonexhaustive_enum::NonExhaustive;
+
     let id=ItemId{id:0};
 
     // Constructing a ReturnVal::RemoveItem wrapped in NonExhaustive 
@@ -312,7 +307,9 @@ pub enum Error{
 // which generates constructor functions for variants which wrap a pointer.
 #[test]
 #[cfg(feature="v1_1")]
-fn examples_of_constructing_an_Error(){
+fn examples_of_constructing_an_error(){
+    use abi_stable::nonexhaustive_enum::NonExhaustive;
+
     let id=ItemId{id:0};
 
     assert_eq!(

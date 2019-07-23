@@ -5,7 +5,7 @@ use std::{
 
 
 use crate::{
-    std_types::{StaticStr,StaticSlice,RBoxError,RStr,RCow},
+    std_types::{StaticStr,StaticSlice,RBoxError},
     type_level::{
         impl_enum::{Implemented,Unimplemented},
         trait_marker,
@@ -13,7 +13,6 @@ use crate::{
     InterfaceType,
 };
 
-use super::{NonExhaustive};
 
 /**
 Gets the type with the type layout of Self when it's stored in `NonExhaustive<>`.

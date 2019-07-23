@@ -76,7 +76,6 @@ fn downcasting_tests(){
     {
         let no_default=method_no_default::Trait_TO::from_value((),TU_Opaque);
         {
-            use self::method_no_default::*;
             assert_eq!(no_default.apply(2,5), 14);
         }
         unsafe{            
@@ -88,7 +87,6 @@ fn downcasting_tests(){
     {
         let with_default=method_default::Trait_TO::from_value(True,TU_Opaque);
         {
-            use self::method_default::*;
             assert_eq!(with_default.apply(2,5), 28);
         }
         unsafe{
