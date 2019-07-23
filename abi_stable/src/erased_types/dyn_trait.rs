@@ -216,6 +216,153 @@ the binary or lib0 will cause the panic to happen if:
 
 
 
+# serializing/deserializing DynTraits 
+
+To be able to serialize and deserialize a DynTrait,
+the interface it uses must implement `SerializeProxyType` and `DeserializeDyn`,
+and the implementation type must implement `SerializeImplType`.
+
+For a more realistic example you can look at the 
+"examples/0_modules_and_interface_types" crates in the repository for this crate.
+
+```
+use abi_stable::{
+    StableAbi,
+    impl_get_type_info,
+    sabi_extern_fn,
+    erased_types::{
+        InterfaceType,DeserializeDyn,SerializeProxyType,ImplType,SerializeImplType,
+        TypeInfo,
+    },
+    external_types::{RawValueRef,RawValueBox},
+    impl_InterfaceType,
+    prefix_type::PrefixTypeTrait,
+    type_level::bools::*,
+    DynTrait,
+    std_types::{RBox, RStr,RBoxError,RResult,ROk,RErr},
+    traits::IntoReprC,
+};
+
+use serde::{Deserialize,Serialize};
+
+/// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct FooInterface;
+
+/// The state passed to most functions in the TextOpsMod module.
+pub type FooInterfaceBox = DynTrait<'static,RBox<()>,FooInterface>;
+
+impl_InterfaceType!{
+    impl InterfaceType for FooInterface {
+        type Send=False;
+        type Debug = True;
+        type Clone = True;
+        type Serialize = True;
+        type Deserialize = True;
+        type PartialEq = True;
+    }
+}
+
+
+/// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
+/// a RawValueBox containing the serialized data,
+/// then the returned RawValueBox is serialized.
+impl SerializeProxyType for FooInterface{
+    type Proxy=RawValueBox;
+}
+
+
+impl<'borr> DeserializeDyn<'borr,FooInterfaceBox> for FooInterface {
+    type Proxy = RawValueRef<'borr>;
+
+    fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<FooInterfaceBox, RBoxError> {
+        get_module()
+            .deserialize_foo()(s.get_rstr())
+            .into_result()
+    }
+}
+
+
+#[repr(C)]
+#[derive(StableAbi)] 
+#[sabi(kind(Prefix(prefix_struct="Module")))]
+#[sabi(missing_field(panic))]
+pub struct ModuleVal{
+    #[sabi(last_prefix_field)]
+    pub deserialize_foo:extern "C" fn(s:RStr<'_>)->RResult<FooInterfaceBox,RBoxError>,
+}
+
+
+# fn get_module()->&'static Module{
+#     ModuleVal{
+#         deserialize_foo,
+#     }.leak_into_prefix()
+# }
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
+////   In implementation crate (the one that gets compiled as a dynamic library)    /////
+/////////////////////////////////////////////////////////////////////////////////////////
+
+
+#[derive(Debug,Clone,PartialEq,Serialize,Deserialize)]
+pub struct Foo{
+    name:String,
+}
+
+impl ImplType for Foo {
+    type Interface = FooInterface;
+
+    const INFO: &'static TypeInfo=impl_get_type_info! { Foo };
+}
+
+impl SerializeImplType for Foo {
+    type Interface = FooInterface;
+
+    fn serialize_impl<'a>(&'a self) -> Result<RawValueBox, RBoxError> {
+        match serde_json::to_string(self) {
+            Ok(v)=>{
+                RawValueBox::try_from_string(v)
+                    .map_err(RBoxError::new)
+            }
+            Err(e)=>Err(RBoxError::new(e)),
+        }
+    }
+}
+
+#[sabi_extern_fn]
+pub fn deserialize_foo(s:RStr<'_>)->RResult<FooInterfaceBox,RBoxError>{
+    match serde_json::from_str::<Foo>(s.into()) {
+        Ok(x) => ROk(DynTrait::from_value(x)),
+        Err(e) => RErr(RBoxError::new(e)),
+    }
+}
+
+# fn main(){
+
+let foo=Foo{name:"nope".into()};
+let object=DynTrait::from_value(foo.clone());
+
+assert_eq!(
+    serde_json::from_str::<FooInterfaceBox>(r##"
+        {
+            "name":"nope"
+        }
+    "##).unwrap(),
+    object
+);
+
+assert_eq!(
+    serde_json::to_string(&object).unwrap(),
+    r##"{"name":"nope"}"##
+);
+
+
+# }
+
+```
+
 
 
 # Examples
@@ -228,6 +375,7 @@ Readme is in
 [the repository for this crate](https://github.com/rodrimati1992/abi_stable_crates),
 [crates.io](https://crates.io/crates/abi_stable),
 [lib.rs](https://lib.rs/crates/abi_stable).
+
 
 <h3> Comparing DynTraits </h3>
 

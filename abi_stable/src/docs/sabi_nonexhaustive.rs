@@ -156,6 +156,148 @@ Syntax:`assert_nonexhaustive("type0","type1")`<br>
 Example:`assert_nonexhaustive("Foo<RArc<u8>>")`<br>
 Example:`assert_nonexhaustive("Foo<u8>","Foo<RVec<()>>")`<br>
 
+# `serde` support
+
+`NonExhaustive<>` only implements serde::{Serialize,Deserialize} 
+if the interface type parameter allows them,
+and also implements the SerializeEnum and DeserializeEnum.
+
+### Defining a (de)serializable nonexhaustive enum.
+
+This defines a nonexhaustive enum and demonstrates how it is (de)serialized.
+
+For a more realistic example you can look at the 
+"examples/2_nonexhaustive/interface" crate in the repository for this crate.
+
+```
+
+use abi_stable::{
+    StableAbi,
+    rtry,
+    sabi_extern_fn,
+    external_types::{RawValueBox,RawValueRef},
+    nonexhaustive_enum::{NonExhaustive,SerializeEnum,DeserializeEnum},
+    prefix_type::PrefixTypeTrait,
+    std_types::{RBoxError,RString,RStr,RResult,ROk,RErr},
+    traits::IntoReprC,
+};
+
+use serde::{Deserialize,Serialize};
+
+#[repr(u8)]
+#[derive(StableAbi,Debug,Clone,PartialEq,Deserialize,Serialize)]
+#[sabi(kind(WithNonExhaustive(
+    size="[usize;10]",
+    traits(Debug,Clone,PartialEq,Serialize,Deserialize),
+)))]
+#[sabi(with_constructor)]
+pub enum ValidTag{
+    #[doc(hidden)]
+    __NonExhaustive,
+    Foo,
+    Bar,
+    Tag{
+        name:RString,
+        tag:RString,
+    }
+}
+
+impl SerializeEnum<ValidTag_NE> for ValidTag_Interface {
+    type Proxy=RawValueBox;
+
+    fn serialize_enum(this:&ValidTag_NE) -> Result<RawValueBox, RBoxError>{
+        get_module()
+            .serialize_tag()(this)
+            .into_result()
+        
+    }
+}
+
+impl<'a> DeserializeEnum<'a,ValidTag_NE> for ValidTag_Interface{
+    type Proxy=RawValueRef<'a>;
+    fn deserialize_enum(s: RawValueRef<'a>) -> Result<ValidTag_NE, RBoxError>{
+        get_module()
+            .deserialize_tag()(s.get_rstr())
+            .into_result()
+    }
+}
+
+
+# fn main(){
+
+assert_eq!(
+    serde_json::from_str::<ValidTag_NE>(r#""Foo""#).unwrap(),
+    ValidTag::Foo_NE()
+);
+
+assert_eq!(
+    serde_json::from_str::<ValidTag_NE>(r#""Bar""#).unwrap(),
+    ValidTag::Bar_NE()
+);
+
+assert_eq!(
+    serde_json::from_str::<ValidTag_NE>(r#"
+        {"Tag":{
+            "name":"what",
+            "tag":"the"
+        }}
+    "#).unwrap(),
+    ValidTag::Tag_NE("what".into(),"the".into())
+);
+
+# }
+
+
+#[repr(C)]
+#[derive(StableAbi)] 
+#[sabi(kind(Prefix(prefix_struct="Module")))]
+#[sabi(missing_field(panic))]
+pub struct ModuleVal{
+    pub serialize_tag:extern "C" fn(&ValidTag_NE)->RResult<RawValueBox,RBoxError>,
+    
+    #[sabi(last_prefix_field)]
+    pub deserialize_tag:extern "C" fn(s:RStr<'_>)->RResult<ValidTag_NE,RBoxError>,
+}
+
+
+# fn get_module()->&'static Module{
+#     ModuleVal{
+#         serialize_tag,
+#         deserialize_tag,
+#     }.leak_into_prefix()
+# }
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
+////   In implementation crate (the one that gets compiled as a dynamic library)    /////
+/////////////////////////////////////////////////////////////////////////////////////////
+
+#[sabi_extern_fn]
+pub fn serialize_tag(enum_:&ValidTag_NE)->RResult<RawValueBox,RBoxError>{
+    let enum_=rtry!( enum_.as_enum().into_c() );
+    
+    match serde_json::to_string(&enum_) {
+        Ok(v)=>{
+            RawValueBox::try_from_string(v)
+                .map_err(RBoxError::new)
+                .into_c()
+        }
+        Err(e)=>RErr(RBoxError::new(e)),
+    }
+}
+
+#[sabi_extern_fn]
+pub fn deserialize_tag(s:RStr<'_>)->RResult<ValidTag_NE,RBoxError>{
+    match serde_json::from_str::<ValidTag>(s.into()) {
+        Ok(x) => ROk(NonExhaustive::new(x)),
+        Err(e) => RErr(RBoxError::new(e)),
+    }
+}
+
+
+```
+
+
 # Example,boxing variants of unknown size
 
 This example demonstrates how one can use boxing to store types larger than `[usize;2]`
