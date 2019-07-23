@@ -54,20 +54,21 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
 
         // The name of the method in the __Trait trait.
         let method_name=method.name;
+        let method_span=method_name.span();
         let used_name=method.name;
         let self_param=match (is_method,&method.self_param) {
             (true,SelfParam::ByRef{lifetime,is_mutable:false})=>
-                quote!(& #lifetime self),
+                quote_spanned!(method_span=> & #lifetime self),
             (true,SelfParam::ByRef{lifetime,is_mutable:true})=>
-                quote!(& #lifetime mut self),
+                quote_spanned!(method_span=> & #lifetime mut self),
             (true,SelfParam::ByVal)=>
-                quote!(self),
+                quote_spanned!(method_span=> self),
             (false,SelfParam::ByRef{lifetime,is_mutable:false})=>
-                quote!(_self:& #lifetime __ErasedObject<_Self>),
+                quote_spanned!(method_span=> _self:& #lifetime __ErasedObject<_Self>),
             (false,SelfParam::ByRef{lifetime,is_mutable:true})=>
-                quote!(_self:& #lifetime mut __ErasedObject<_Self>),
+                quote_spanned!(method_span=> _self:& #lifetime mut __ErasedObject<_Self>),
             (false,SelfParam::ByVal)=>
-                quote!(_self:__sabi_re::MovePtr<'_,_Self>),
+                quote_spanned!(method_span=> _self:__sabi_re::MovePtr<'_,_Self>),
         };
 
         let param_names_a=method.params.iter()
@@ -106,7 +107,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         if WhichItem::VtableDecl==which_item {
             let optional_field=method.default.as_ref().map(|_| &ctokens.missing_field_option );
             let derive_attrs=method.derive_attrs;
-            quote!( 
+            quote_spanned!( method_span=>
                 #(#[#derive_attrs])*
                 #optional_field
                 #vis #used_name:
@@ -122,7 +123,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 _=>method.unsafety
             };
 
-            quote!(
+            quote_spanned!(method_span=>
                 #(#[#other_attrs])*
                 #vis #unsafety #abi fn #used_name #(< #(#lifetimes,)* >)* (
                     #self_param, 
@@ -149,24 +150,24 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 method.semicolon.to_tokens(ts);
             }
             (WhichItem::TraitImpl,_)=>{
-                quote!({
+                quote_spanned!(method_span=>{
                     self.#method_name(#(#param_names_c,)*)
                 }).to_tokens(ts);
             }
             (WhichItem::TraitObjectImpl,_)=>{
                 let method_call=match &method.self_param {
                     SelfParam::ByRef{is_mutable:false,..}=>{
-                        quote!( 
+                        quote_spanned!(method_span=> 
                             __method(self.obj.sabi_erased_ref(),#(#param_names_c,)*) 
                         )
                     }
                     SelfParam::ByRef{is_mutable:true,..}=>{
-                        quote!( 
+                        quote_spanned!(method_span=> 
                             __method(self.obj.sabi_erased_mut(),#(#param_names_c,)*) 
                         )
                     }
                     SelfParam::ByVal=>{
-                        quote!(
+                        quote_spanned!(method_span=>
                             self.obj.sabi_with_value(
                                 move|_self|__method(_self,#(#param_names_c,)*)
                             )
@@ -177,7 +178,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 match default_ {
                     Some(default_)=>{
                         let block=&default_.block;
-                        quote!(
+                        quote_spanned!(method_span=>
                                 #ptr_constraint
                             {
                                 match self.obj.sabi_et_vtable().#method_name() {
@@ -197,7 +198,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                         ).to_tokens(ts);
                     }
                     None=>{
-                        quote!(
+                        quote_spanned!(method_span=>
                                 #ptr_constraint
                             {
                                 let __method=self.obj.sabi_et_vtable().#method_name();
@@ -210,11 +211,11 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 }
             }
             (WhichItem::VtableDecl,_)=>{
-                quote!(,).to_tokens(ts);
+                quote_spanned!(method_span=> , ).to_tokens(ts);
             
             }
             (WhichItem::VtableImpl,SelfParam::ByRef{is_mutable:false,..})=>{
-                quote!({
+                quote_spanned!(method_span=>{
                     __sabi_re::sabi_from_ref(
                         _self,
                         move|_self| 
@@ -223,7 +224,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 }).to_tokens(ts);
             }
             (WhichItem::VtableImpl,SelfParam::ByRef{is_mutable:true,..})=>{
-                quote!({
+                quote_spanned!(method_span=>{
                     __sabi_re::sabi_from_mut(
                         _self,
                         move|_self| 
@@ -232,7 +233,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 }).to_tokens(ts);
             }
             (WhichItem::VtableImpl,SelfParam::ByVal)=>{
-                quote!({
+                quote_spanned!(method_span=>{
                     ::abi_stable::extern_fn_panic_handling!{no_early_return;
                         __Trait::#method_name(
                             _self.into_inner(),#(#param_names_c,)*

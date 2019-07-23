@@ -10,7 +10,7 @@ use syn::{
 
 use proc_macro2::TokenStream as TokenStream2;
 
-use quote::{ToTokens,quote};
+use quote::{ToTokens,quote,quote_spanned};
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
@@ -258,9 +258,10 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
 
                 let old_ty=&assoc_ty.ty;
                 let name=&assoc_ty.ident;
+                let span=name.span();
 
                 assoc_ty.ty=type_from_token_stream(
-                    quote!( ImplFrom<#old_ty, trait_marker::#name> )
+                    quote_spanned!(span=> ImplFrom<#old_ty, trait_marker::#name> )
                 );
             }
             _=>{}
@@ -272,12 +273,14 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
     for (key,default_) in default_map {
         let mut attrs=Vec::<syn::Attribute>::new();
 
+        let span=key.span();
+
         let ty=match default_ {
-            DefaultVal::False=>quote!( Unimplemented<trait_marker::#key> ),
-            DefaultVal::True=>quote!( Implemented<trait_marker::#key> ),
+            DefaultVal::False=>quote_spanned!(span=> Unimplemented<trait_marker::#key> ),
+            DefaultVal::True=>quote_spanned!(span=> Implemented<trait_marker::#key> ),
             DefaultVal::Hidden=>{
                 attrs.extend(parse_syn_attributes("#[doc(hidden)]"));
-                quote!( () )
+                quote_spanned!(span=> () )
             },
         }.piped(type_from_token_stream);
 

@@ -51,7 +51,7 @@ use proc_macro2::TokenStream as TokenStream2;
 
 use syn::{DeriveInput,ItemFn};
 
-use quote::{quote, ToTokens};
+use quote::{quote, ToTokens, quote_spanned};
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
