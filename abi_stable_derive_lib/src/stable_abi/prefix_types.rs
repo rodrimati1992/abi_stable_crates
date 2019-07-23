@@ -474,6 +474,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
         quote!(
 
+            #[allow(non_upper_case_globals)]
             const #pt_layout_ident:&'static #module::__PTStructLayout ={
                 use #module::_sabi_reexports::renamed::{
                     __PTStructLayout,__PTStructLayoutParams,
@@ -525,7 +526,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 type Prefix=#prefix_struct #ty_generics;
             }
 
-            
+            #[allow(non_upper_case_globals)]
             impl #impl_generics #prefix_struct #ty_generics 
             where 
                 #(#where_preds,)*
@@ -554,6 +555,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             }
 
             
+            #[allow(non_upper_case_globals)]
             impl #impl_generics #prefix_struct #ty_generics 
             where 
                 #(#where_preds,)*

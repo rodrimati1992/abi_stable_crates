@@ -20,7 +20,8 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
 
 }
 
-fn mangle_library_getter_str(mut item: &str)->TokenStream2{
+#[cfg(test)]
+fn mangle_library_getter_str(item: &str)->TokenStream2{
     mangle_library_getter_inner(
         syn::parse_str::<ItemFn>(item).unwrap()
     )

@@ -2,8 +2,6 @@ use super::*;
 
 use crate::to_token_fn::ToTokenFnMut;
 
-use syn::token::Semi;
-
 #[derive(Debug,Copy,Clone)]
 pub struct MethodsTokenizer<'a>{
     pub(crate) trait_def:&'a TraitDefinition<'a>,

@@ -14,6 +14,7 @@ use crate::{
 ///////////////////////////////////////////////////////////////////////////////
 
 
+#[allow(dead_code)]
 pub(crate) struct VisitedFieldMap<'a>{
     pub(crate) map:FieldMap<VisitedField<'a>>,
     pub(crate) fn_info: FnInfo<'a>,
@@ -68,6 +69,7 @@ impl<'a> VisitedFieldMap<'a>{
 
 
 /// A `Field<'a>` with extra information.
+#[allow(dead_code)]
 pub struct VisitedField<'a>{
     pub(crate) inner:&'a Field<'a>,
     pub(crate) referenced_lifetimes: Vec<LifetimeIndex>,

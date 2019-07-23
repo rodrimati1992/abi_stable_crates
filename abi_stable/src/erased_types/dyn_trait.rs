@@ -25,7 +25,7 @@ use crate::{
     },
     marker_type::{ErasedObject,UnsafeIgnoredType}, 
     sabi_types::{StaticRef,MovePtr},
-    std_types::{RBox, RCow, RStr,RVec,RIoError},
+    std_types::{RBox, RStr,RVec,RIoError},
     type_level::{
         unerasability::{TU_Unerasable,TU_Opaque},
         impl_enum::{Implemented,Unimplemented},
@@ -41,7 +41,7 @@ use super::{
     c_functions::adapt_std_fmt,
     trait_objects::*,
     vtable::{GetVtable, VTable},
-    traits::{InterfaceFor,DeserializeDyn,SerializeImplType,GetSerializeProxyType},
+    traits::{InterfaceFor,DeserializeDyn,GetSerializeProxyType},
     IteratorItemOrDefault,
 };
 

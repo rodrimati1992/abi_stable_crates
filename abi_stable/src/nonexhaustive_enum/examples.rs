@@ -1,6 +1,7 @@
 /*!
 Example non-exhaustive enums,used in tests
 */
+#![allow(dead_code)]
 
 
 pub(crate) mod command_one{
@@ -18,7 +19,7 @@ pub(crate) mod command_one{
     }
 
     impl Display for Foo{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fn fmt(&self,_:&mut fmt::Formatter<'_>)->fmt::Result{
             Ok(())
         }
     }
@@ -39,7 +40,7 @@ pub(crate) mod command_one_more_traits_1{
     }
 
     impl Display for Foo{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fn fmt(&self,_:&mut fmt::Formatter<'_>)->fmt::Result{
             Ok(())
         }
     }
@@ -59,7 +60,7 @@ pub(crate) mod command_one_more_traits_2{
     }
 
     impl Display for Foo{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fn fmt(&self,_:&mut fmt::Formatter<'_>)->fmt::Result{
             Ok(())
         }
     }
@@ -79,7 +80,7 @@ pub(crate) mod command_one_more_traits_3{
     }
 
     impl Display for Foo{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fn fmt(&self,_:&mut fmt::Formatter<'_>)->fmt::Result{
             Ok(())
         }
     }
@@ -100,7 +101,7 @@ pub(crate) mod command_a{
     }
 
     impl Display for Foo{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fn fmt(&self,_:&mut fmt::Formatter<'_>)->fmt::Result{
             Ok(())
         }
     }
@@ -117,7 +118,7 @@ pub(crate) mod command_a_exhaustive{
     }
 
     impl Display for Foo{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fn fmt(&self,_:&mut fmt::Formatter<'_>)->fmt::Result{
             Ok(())
         }
     }
@@ -139,15 +140,13 @@ pub(crate) mod command_b{
     }
 
     impl Display for Foo{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fn fmt(&self,_:&mut fmt::Formatter<'_>)->fmt::Result{
             Ok(())
         }
     }
 }
 
 pub(crate) mod command_c{
-    use std::fmt::{self,Display};
-    
     use crate::std_types::RString;
 
     #[repr(u8)]
@@ -168,8 +167,6 @@ pub(crate) mod command_c{
 }
 
 pub(crate) mod command_c_mismatched_field{
-    use std::fmt::{self,Display};
-
     use crate::std_types::RVec;
 
     #[repr(u8)]
@@ -278,8 +275,6 @@ pub(crate) mod generic_a{
 
 
 pub(crate) mod many_ranges_a{
-    use std::fmt::{self,Display};
-
     #[repr(u8)]
     #[derive(StableAbi,Debug,PartialEq,Eq,Clone)]
     #[sabi(kind(WithNonExhaustive(
@@ -297,8 +292,6 @@ pub(crate) mod many_ranges_a{
 }
 
 pub(crate) mod many_ranges_b{
-    use std::fmt::{self,Display};
-
     #[repr(u8)]
     #[derive(StableAbi,Debug,PartialEq,Eq,Clone)]
     #[sabi(kind(WithNonExhaustive(
@@ -331,7 +324,7 @@ pub(crate) mod command_h{
     }
 
     impl Display for Foo{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fn fmt(&self,_:&mut fmt::Formatter<'_>)->fmt::Result{
             Ok(())
         }
     }
@@ -354,7 +347,7 @@ pub(crate) mod command_h_mismatched_discriminant{
     }
 
     impl Display for Foo{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fn fmt(&self,_:&mut fmt::Formatter<'_>)->fmt::Result{
             Ok(())
         }
     }
@@ -369,11 +362,10 @@ pub(crate) mod codecs{
 
     use crate::{
         nonexhaustive_enum::{
-            SerializeEnum,DeserializeEnum,NonExhaustiveFor,NonExhaustive,
+            SerializeEnum,DeserializeEnum,NonExhaustive,
             GetEnumInfo,GetVTable,
         },
-        std_types::{RBoxError,RStr,RString},
-        type_level::bools::{True},
+        std_types::{RBoxError,RString},
     };   
 
     pub struct Json;

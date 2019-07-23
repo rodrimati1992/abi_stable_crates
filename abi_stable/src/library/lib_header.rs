@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::{
-    utils::{Constructor,ConstructorOrValue},
+    utils::Constructor,
 };
 
 /// Used to check the layout of modules returned by module-loading functions

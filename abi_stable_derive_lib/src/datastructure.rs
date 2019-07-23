@@ -1,8 +1,4 @@
 use crate::*;
-use crate::{
-    fn_pointer_extractor::{FnInfo,Function, TypeVisitor},
-    lifetimes::LifetimeIndex,
-};
 
 use std::fmt::Write;
 use std::{cmp, hash};
@@ -67,8 +63,8 @@ impl<'a> hash::Hash for Enum<'a> {
 impl<'a> DataStructure<'a> {
     pub(crate) fn new(
         ast: &'a mut DeriveInput, 
-        arenas: &'a Arenas, 
-        ctokens: &'a CommonTokens<'a>
+        _arenas: &'a Arenas, 
+        _ctokens: &'a CommonTokens<'a>
     ) -> Self {
         let name = &ast.ident;
         let enum_ = match ast.data {

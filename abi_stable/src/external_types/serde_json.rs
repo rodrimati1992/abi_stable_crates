@@ -250,22 +250,6 @@ fn from_boxed_rawvalue(x:Box<RawValue>)->Box<str>{
 }
 
 
-unsafe fn into_boxed_rawvalue(x:Box<str>)->Box<RawValue>{
-    // This would become Undefined Behavior in either of these cases:
-    //
-    // - serde_json somehow changes RawValue to be more than a newtype wrapper around `str`
-    //
-    // - transmuting from Box<ReprTransparentNewtype> to Box<str>
-    //
-    mem::transmute::<Box<str>,Box<RawValue>>(x)
-}
-
-
-fn from_ref_rawvalue(x:&RawValue)->&str{
-    x.get()
-}
-
-
 unsafe fn into_ref_rawvalue(x:&str)->&RawValue{
     // This would become Undefined Behavior in either of these cases:
     //

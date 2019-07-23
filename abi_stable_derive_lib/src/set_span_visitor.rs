@@ -1,8 +1,5 @@
 use syn::{
-    visit_mut::{
-        VisitMut,
-        visit_ident_mut,
-    },
+    visit_mut::VisitMut,
     spanned::Spanned,
     Ident,
 };
@@ -20,6 +17,7 @@ impl SetSpanVisitor{
     pub fn new(span:Span)->Self{
         Self{span}
     }
+    #[allow(dead_code)]
     pub fn span_of<T>(thing:&T)->Self
     where
         T:Spanned,

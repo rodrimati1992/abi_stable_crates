@@ -277,7 +277,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
     module:&'a Ident,
     ds:&'a DataStructure<'a>,
     config:&'a StableAbiOptions<'a>,
-    ct:&'a CommonTokens<'a>
+    _ct:&'a CommonTokens<'a>
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
 
@@ -463,6 +463,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
             };
 
             quote!(
+                #[allow(non_snake_case)]
                 impl<#generics_header> #name<#type_generics_use>
                 where
                     Self: #bound ,

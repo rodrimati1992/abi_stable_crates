@@ -2,7 +2,6 @@ use std::{
     cmp::{PartialEq,Ord,PartialOrd},
     fmt::{Debug,Display},
     hash::Hash,
-    marker::PhantomData,
 };
 
 use crate::{
@@ -18,7 +17,7 @@ use crate::{
         trait_marker,
     },
     sabi_types::{StaticRef},
-    std_types::{ROption,RResult,RString,RCow,RCmpOrdering,RBoxError},
+    std_types::{ROption,RResult,RString,RCmpOrdering,RBoxError},
     type_layout::Tag,
     inline_storage::InlineStorage,
     StableAbi,

@@ -22,15 +22,6 @@ use crate::parse_utils::parse_str_as_ident;
 
 
 #[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord,Hash)]
-pub enum ObjectSafe{
-    Yes,
-    No,
-}
-
-
-//////////////////////
-
-#[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord,Hash)]
 pub enum DefaultVal{
     False,
     True,
@@ -90,7 +81,6 @@ macro_rules! usable_traits {
                 $which_trait:ident,
                 $full_path:expr,
                 $default_value:expr,
-                $object_safe:expr,
                 $usable_by:expr
             ),
         )* 
@@ -114,11 +104,6 @@ macro_rules! usable_traits {
             pub fn default_value(self)->bool{
                 match self {
                     $( WhichTrait::$which_trait=>$default_value, )*
-                }
-            }
-            pub fn object_safe(self)->ObjectSafe{
-                match self {
-                    $( WhichTrait::$which_trait=>$object_safe, )*
                 }
             }
             pub fn usable_by(self)->UsableBy{
@@ -185,32 +170,32 @@ macro_rules! usable_traits {
     )
 }
 
-use self::{UsableBy as UB,ObjectSafe as OS};
+use self::{UsableBy as UB};
 
 usable_traits!{
-    clone=(Clone,"::std::clone::Clone",false,OS::No ,UB::ROBJECT_AND_DYN_TRAIT),
-    default=(Default,"::std::default::Default",false,OS::No ,UB::DYN_TRAIT),
-    display=(Display,"::std::fmt::Display",false,OS::Yes,UB::DYN_TRAIT),
-    debug=(Debug,"::std::fmt::Debug",false,OS::Yes,UB::ROBJECT_AND_DYN_TRAIT),
-    serialize=(Serialize,"::serde::Serialize",false,OS::No ,UB::DYN_TRAIT),
-    eq=(Eq,"::std::cmp::Eq",false,OS::Yes,UB::DYN_TRAIT),
-    partial_eq=(PartialEq,"::std::cmp::PartialEq",false,OS::Yes,UB::DYN_TRAIT),
-    ord=(Ord,"::std::cmp::Ord",false,OS::Yes,UB::DYN_TRAIT),
-    partial_ord=(PartialOrd,"::std::cmp::PartialOrd",false,OS::Yes,UB::DYN_TRAIT),
-    hash=(Hash,"::std::hash::Hash",false,OS::Yes,UB::DYN_TRAIT),
-    deserialize=(Deserialize,"::serde::Deserialize",false,OS::No ,UB::DYN_TRAIT),
-    send=(Send,"::std::marker::Send",true ,OS::Yes,UB::ROBJECT_AND_DYN_TRAIT),
-    sync=(Sync,"::std::marker::Sync",true ,OS::Yes,UB::ROBJECT_AND_DYN_TRAIT),
-    iterator=(Iterator,"::std::iter::Iterator",false,OS::Yes,UB::DYN_TRAIT),
+    clone=(Clone,"::std::clone::Clone",false,UB::ROBJECT_AND_DYN_TRAIT),
+    default=(Default,"::std::default::Default",false,UB::DYN_TRAIT),
+    display=(Display,"::std::fmt::Display",false,UB::DYN_TRAIT),
+    debug=(Debug,"::std::fmt::Debug",false,UB::ROBJECT_AND_DYN_TRAIT),
+    serialize=(Serialize,"::serde::Serialize",false,UB::DYN_TRAIT),
+    eq=(Eq,"::std::cmp::Eq",false,UB::DYN_TRAIT),
+    partial_eq=(PartialEq,"::std::cmp::PartialEq",false,UB::DYN_TRAIT),
+    ord=(Ord,"::std::cmp::Ord",false,UB::DYN_TRAIT),
+    partial_ord=(PartialOrd,"::std::cmp::PartialOrd",false,UB::DYN_TRAIT),
+    hash=(Hash,"::std::hash::Hash",false,UB::DYN_TRAIT),
+    deserialize=(Deserialize,"::serde::Deserialize",false,UB::DYN_TRAIT),
+    send=(Send,"::std::marker::Send",true ,UB::ROBJECT_AND_DYN_TRAIT),
+    sync=(Sync,"::std::marker::Sync",true ,UB::ROBJECT_AND_DYN_TRAIT),
+    iterator=(Iterator,"::std::iter::Iterator",false,UB::DYN_TRAIT),
     double_ended_iterator=(
-        DoubleEndedIterator,"::std::iter::DoubleEndedIterator",false,OS::Yes,UB::DYN_TRAIT
+        DoubleEndedIterator,"::std::iter::DoubleEndedIterator",false,UB::DYN_TRAIT
     ),
-    fmt_write=(FmtWrite,"::std::fmt::Write",false,OS::Yes,UB::DYN_TRAIT),
-    io_write=(IoWrite,"::std::io::Write",false,OS::Yes,UB::DYN_TRAIT),
-    io_seek=(IoSeek,"::std::io::Seek",false,OS::Yes,UB::DYN_TRAIT),
-    io_read=(IoRead,"::std::io::Read",false,OS::Yes,UB::DYN_TRAIT),
-    io_buf_read=(IoBufRead,"::std::io::BufRead",false,OS::Yes,UB::DYN_TRAIT),
-    error=(Error,"::std::error::Error",false,OS::Yes,UB::DYN_TRAIT),
+    fmt_write=(FmtWrite,"::std::fmt::Write",false,UB::DYN_TRAIT),
+    io_write=(IoWrite,"::std::io::Write",false,UB::DYN_TRAIT),
+    io_seek=(IoSeek,"::std::io::Seek",false,UB::DYN_TRAIT),
+    io_read=(IoRead,"::std::io::Read",false,UB::DYN_TRAIT),
+    io_buf_read=(IoBufRead,"::std::io::BufRead",false,UB::DYN_TRAIT),
+    error=(Error,"::std::error::Error",false,UB::DYN_TRAIT),
 }
 
 pub(crate) fn private_associated_type()->syn::Ident{
