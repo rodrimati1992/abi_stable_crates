@@ -1,5 +1,5 @@
 use std::{
-    convert::TryFrom,
+    convert::{TryFrom,TryInto},
     fmt::{self,Debug,Display},
     mem,
 };
@@ -58,6 +58,11 @@ Converts a `RStr<'a>` to a `RawValueRef<'a>` without checking whether it is vali
     #[inline]
     pub fn get_rstr(&self)->RStr<'a>{
         self.get().into()
+    }
+
+    #[inline]
+    pub fn try_from_str(input:&'a str)->Result<Self,JsonError>{
+        input.try_into()
     }
 }
 
@@ -136,6 +141,7 @@ Converts a `String` to an `RawValueBox` without checking whether it is valid JSO
 `input` must be valid JSON and contain no leading or trailing whitespace.
 
 */
+    #[inline]
     pub unsafe fn from_string_unchecked(input:String)->RawValueBox{
         Self{
             string:input.into()
@@ -150,10 +156,16 @@ Converts an `RString` to an `RawValueBox` without checking whether it is valid J
 `input` must be valid JSON and contain no leading or trailing whitespace.
 
 */
+    #[inline]
     pub unsafe fn from_rstring_unchecked(input:RString)->RawValueBox{
         Self{
             string:input
         }
+    }
+
+    #[inline]
+    pub fn try_from_string(input:String)->Result<Self,JsonError>{
+        input.try_into()
     }
 
     #[inline]
