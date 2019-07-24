@@ -13,6 +13,7 @@ matrix:
 
 script:
   
+  - rustup install nightly
 
   - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
   - cargo +nightly build --release
