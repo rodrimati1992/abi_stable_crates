@@ -12,32 +12,57 @@ matrix:
     - rust: 1.34.0
 
 script:
+  
+
+  - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
+  - cargo +nightly build --release
+
+  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_0/"
+  - cargo +nightly build --release
+
+  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_1/"
+  - cargo +nightly build --release
+
+  - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/implementation/"
+  - cargo +nightly build --release
+
+  - cd "${TRAVIS_BUILD_DIR}/testing/impl_0/"
+  - cargo +nightly build --release
+
+
+  - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
+  - cargo check
+
+  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_0/"
+  - cargo check
+
+  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_1/"
+  - cargo check
+
+  - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/implementation/"
+  - cargo check
+
+  - cd "${TRAVIS_BUILD_DIR}/testing/impl_0/"
+  - cargo check
+
+
   - cd "${TRAVIS_BUILD_DIR}/abi_stable_derive_lib"
-  - cargo test --release
+  - cargo test
   
   - cd "${TRAVIS_BUILD_DIR}/abi_stable"
-  - cargo test --release --features sabi_trait_examples
+  - cargo test --features sabi_trait_examples
   
   - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
-  - cargo build --release
-  - cargo test --release
+  - cargo test
   - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/user/"
   - cargo run --release -- run-tests
   
-  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_0/"
-  - cargo build --release
-  - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_1/"
-  - cargo build --release
   - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/application/"
   - cargo run --release
 
   - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/implementation/"
-  - cargo build --release
-  - cargo test --release
+  - cargo test
   - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/user/"
   - cargo run --release
-
-  - cd "${TRAVIS_BUILD_DIR}/testing/impl_0/"
-  - cargo build --release
   - cd "${TRAVIS_BUILD_DIR}/testing/user/"
   - cargo run --release

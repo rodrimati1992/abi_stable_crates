@@ -613,7 +613,7 @@ macro_rules! impl_stable_abi_array {
                 type IsNonZeroType=False;
 
                 const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std_full::<Self>(
-                    stringify!(concat!("[_;",stringify!($size),"]")),
+                    "array",
                     RSome(TLPrimitive::Array{len:$size}),
                     ItemInfo::primitive(),
                     TLData::Primitive(TLPrimitive::Array{len:$size}),
