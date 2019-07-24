@@ -1,3 +1,7 @@
+/*!
+Contains the `RSmallBox<_>` type.
+*/
+
 use crate::{
     pointer_trait::{
         CallReferentDrop,Deallocate,TransmuteElement,

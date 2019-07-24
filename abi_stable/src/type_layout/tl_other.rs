@@ -431,7 +431,7 @@ pub struct FullType {
     pub name: StaticStr,
     /// Whether the type is a primitive,and which one.
     pub primitive:ROption<TLPrimitive>,
-    /// The generic parameters of the type ().
+    /// The generic parameters of the type
     pub generics: GenericParams,
 }
 
@@ -531,6 +531,9 @@ impl Debug for FullType {
 ////////////////////////////////////
 
 
+/**
+Either a TLField or a TLFunction.
+*/
 #[repr(u8)]
 #[derive(Copy,Clone,Debug,Eq,PartialEq,StableAbi)]
 pub enum TLFieldOrFunction{
@@ -563,6 +566,7 @@ impl Display for TLFieldOrFunction{
 
 
 impl TLFieldOrFunction{
+    /// Outputs this into a String with `Display` formatting.
     pub fn formatted_layout(&self)->String{
         match self {
             TLFieldOrFunction::Field(x)=>x.abi_info.get().layout.to_string(),

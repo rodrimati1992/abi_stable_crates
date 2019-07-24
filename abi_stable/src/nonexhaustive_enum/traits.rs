@@ -1,3 +1,7 @@
+/*!
+The traits releated to nonexhaustive enums.
+*/
+
 use std::{
     cmp::{Eq,Ord},
     fmt::Debug,
@@ -36,32 +40,45 @@ Describes the discriminant of an enum,and its valid values.
 
 # Safety
 
-This must be an enum with a `#[repr(C)]` and `#[repr(SomeIntegerType)]` attribute.
+This must be an enum with a `#[repr(C)]` or `#[repr(SomeIntegerType)]` attribute.
 
 The type of the discriminant must match `Self::NonExhaustive`.
 
 
 */
 pub unsafe trait GetEnumInfo:Sized{
+    /// The type of the discriminant.
     type Discriminant:ValidDiscriminant;
 
+    /// The default storage type,
+    /// used to store this enum inside `NonExhaustive<>`,
+    /// and allow the enum to grow in size in newer ABI compatible versions.
     type DefaultStorage;
     
+    /// The default InterfaceType,
+    /// used to determine the traits that are required when constructing a `NonExhaustive<>`,
+    /// and are then usable afterwards.
     type DefaultInterface;
 
+    /// Information about the enum.
     const ENUM_INFO:&'static EnumInfo;
     
+    /// The values of the discriminants of each variant.
     fn discriminants()->&'static [Self::Discriminant];
 
+    /// Whether `discriminant` is one of the valid discriminants for this enum in this context.
     fn is_valid_discriminant(discriminant:Self::Discriminant)->bool;
 }
 
 
+/// Contains miscelaneous information about an enum.
 #[derive(StableAbi)]
 #[repr(C)]
 pub struct EnumInfo{
+    /// The name of a type,eg:`Vec` for a `Vec<u8>`.
     pub type_name:StaticStr,
 
+    /// The names of the variants of the enum.
     pub variants:StaticSlice<StaticStr>,
 }
 
@@ -84,6 +101,8 @@ impl EnumInfo{
 
 
 /// Marker trait for types that abi_stable supports as enum discriminants.
+///
+/// This trait cannot be implemented outside of this module.
 pub trait ValidDiscriminant:Sealed+Copy+Eq+Ord+Debug+Send+Sync+'static{}
 
 mod sealed{
@@ -112,14 +131,20 @@ impl_valid_discriminant!{u8,i8,u16,i16,u32,i32,u64,i64,usize,isize}
 
 /**
 Describes how some enum is serialized.
+
+This is generally implemented by the interface of an enum
+(Enum_Interface,that implement InterfaceType).
 */
 pub trait SerializeEnum<NE>{
+    /// The intermediate type the `NE` is converted into,to serialize it.
     type Proxy;
 
+    /// Serializes an enum into its proxy type.
     fn serialize_enum(this:&NE) -> Result<Self::Proxy, RBoxError>;
 }
 
 
+#[doc(hidden)]
 pub trait GetSerializeEnumProxy<NE>:InterfaceType{
     type ProxyType;
 }
@@ -171,14 +196,19 @@ Generally this delegates to a library function,
 so that the implementation can be delegated
 to the `implementation crate`.
 
+This is generally implemented by the interface of an enum
+(Enum_Interface,that implement InterfaceType).
+
 */
 pub trait DeserializeEnum<'borr,NE> {
+    /// The intermediate type the `NE` is converted from,to deserialize it.
     type Proxy;
 
+    /// Deserializes an enum from its proxy type.
     fn deserialize_enum(s: Self::Proxy) -> Result<NE, RBoxError>;
 }
 
-
+#[doc(hidden)]
 pub trait GetDeserializeEnumProxy<'borr,NE>:InterfaceType{
     type ProxyType;
 }

@@ -1,3 +1,7 @@
+/*!
+Contains the `InlineStorage` trait,and related items.
+*/
+
 /**
 Type used as the inline storage of a RSmallBox<>/NonExhaustive<>.
 

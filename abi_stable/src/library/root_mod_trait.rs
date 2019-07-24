@@ -299,6 +299,7 @@ macro_rules! declare_root_module_consts {
         fields=[
             $(
                 $(#[$field_meta:meta])*
+                method_docs=$method_docs:expr,
                 $field:ident : $field_ty:ty
             ),* $(,)*
         ]
@@ -326,10 +327,12 @@ macro_rules! declare_root_module_consts {
 
 
         impl<M> RootModuleConsts<M>{
+            /// Gets the type-erased version of this type.
             pub const fn erased(&self)->ErasedRootModuleConsts{
                 self.inner
             }
             $(
+                #[doc=$method_docs]
                 pub const fn $field(&self)->$field_ty{
                     self.inner.$field
                 }
@@ -338,6 +341,7 @@ macro_rules! declare_root_module_consts {
 
         impl ErasedRootModuleConsts{
             $(
+                #[doc=$method_docs]
                 pub const fn $field(&self)->$field_ty{
                     self.$field
                 }
@@ -350,9 +354,18 @@ macro_rules! declare_root_module_consts {
 
 declare_root_module_consts!{
     fields=[
+        method_docs="
+         The name of the dynamic library,which is the same on all platforms.
+         This is generally the name of the implementation crate.",
         base_name: StaticStr,
+
+        method_docs="The name of the library used in error messages.",
         name: StaticStr,
+
+        method_docs="The version number of the library this was created from.",
         version_strings: VersionStrings,
+
+        method_docs="The (optional) type layout constant of the root module.",
         abi_info: IsAbiChecked,
     ]
 }

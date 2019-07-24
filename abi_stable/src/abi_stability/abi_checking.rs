@@ -1120,9 +1120,11 @@ pub(crate) extern fn check_layout_compatibility_for_ffi(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
 ) -> RResult<(), RBoxError> {
-    check_layout_compatibility(interface,implementation)
-        .map_err(RBoxError::from_fmt)
-        .into_c()
+    extern_fn_panic_handling!{
+        check_layout_compatibility(interface,implementation)
+            .map_err(RBoxError::from_fmt)
+            .into_c()
+    }
 }
 
 

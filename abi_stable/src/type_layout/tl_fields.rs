@@ -11,6 +11,8 @@ pub struct TLFields {
     /// The field names,separating fields with ";".
     pub names: StaticStr,
 
+    /// The ammount of fields of each variant of the type,
+    /// treating structs and unions as a single variant enum.
     pub variant_lengths:StaticSlice<u8>,
 
     /// Which lifetimes in the struct are referenced in the field type.
@@ -25,6 +27,7 @@ pub struct TLFields {
 
 
 impl TLFields{
+    /// Constructs a `TLFields` from its component parts
     pub const fn new(
         names: &'static str,
         variant_lengths:&'static [u8],
@@ -41,6 +44,7 @@ impl TLFields{
         }
     }
 
+    /// Gets an iterator over the fields.
     pub fn get_fields(&self)->TLFieldsIterator{
         TLFieldsIterator{
             field_names:self.names.as_str().split(FIELD_SPLITTER),
@@ -52,6 +56,8 @@ impl TLFields{
             mapped_1to1:self.field_1to1.as_slice().iter(),
         }
     }
+    
+    /// Collects the fields into a `Vec<TLField>`.
     pub fn get_field_vec(&self)->Vec<TLField>{
         self.get_fields().collect()
     }
@@ -100,6 +106,10 @@ where
 
 ///////////////////////////////////////////////////////////////////////////////
 
+
+/**
+Either a `TLFields` or a static slice of `TLField`.
+*/
 #[repr(u8)]
 #[derive(Copy, Clone,Debug, StableAbi,PartialEq,Eq)]
 pub enum TLFieldsOrSlice{
@@ -108,19 +118,24 @@ pub enum TLFieldsOrSlice{
 }
 
 impl TLFieldsOrSlice{
+    /// Constructs a TLFieldsOrSlice from a slice of `TLField` 
     pub const fn from_slice(slice:&'static [TLField])->Self{
         TLFieldsOrSlice::Slice(StaticSlice::new(slice))
     }
 
+    /// Gets an iterator over the fields.
     pub fn get_fields(&self)->TLFOSIter{
         match self {
             TLFieldsOrSlice::TLFields(x)=>TLFOSIter::TLFields(x.get_fields()),
             TLFieldsOrSlice::Slice(x)=>TLFOSIter::Slice(x.as_slice().iter()),
         }
     }
+    
+    /// Collects the fields into a `Vec<TLField>`.
     pub fn get_field_vec(&self)->Vec<TLField>{
         self.get_fields().collect()
     }
+    /// Returns the ammount of fields in this `TLFieldsOrSlice`.
     pub fn len(&self)->usize{
         match self {
             TLFieldsOrSlice::TLFields(x)=>x.field_1to1.len(),
@@ -130,6 +145,7 @@ impl TLFieldsOrSlice{
 }
 
 
+/// A iterator over all the fields of a type definition.
 #[repr(C)]
 #[derive(Clone,Debug)]
 pub enum TLFOSIter{
@@ -178,6 +194,9 @@ impl std::iter::ExactSizeIterator for TLFOSIter{}
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/**
+A slice of `T`,and a slice of ranges into the first slice,associating each range with a field.
+*/
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi,Ord,PartialOrd,Eq,PartialEq)]
 pub struct SliceAndFieldIndices<T:'static>{
@@ -187,6 +206,7 @@ pub struct SliceAndFieldIndices<T:'static>{
 
 
 impl<T> SliceAndFieldIndices<T>{
+    /// Constructs the SliceAndFieldIndices from its component parts.
     pub const fn new(
         values: &'static [T],
         field_indices:&'static [WithFieldIndex<u16>],
@@ -197,6 +217,7 @@ impl<T> SliceAndFieldIndices<T>{
         }
     }
 
+    /// Iterates over the ranges of T,associated with a field each.
     pub fn iter(&self)->SAFIIter<T>{
         SAFIIter{
             values:self.values.as_slice(),
@@ -246,6 +267,10 @@ impl<T> std::iter::ExactSizeIterator for SAFIIter<T>{}
 
 ///////////////////////////////////////////////////////////////////////////////
 
+
+/**
+An index composed of the (variant,field_position) pair.
+*/
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi,Ord,PartialOrd,Eq,PartialEq)]
 pub struct FieldIndex{
@@ -273,6 +298,9 @@ impl FieldIndex {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+/**
+Properties that are associated with all fields.
+*/
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi)]
 pub struct Field1to1{
@@ -304,6 +332,9 @@ impl Field1to1{
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/**
+A pair of (FieldIndex,T).
+*/
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi,Ord,PartialOrd,Eq,PartialEq)]
 pub struct WithFieldIndex<T>{
@@ -312,6 +343,7 @@ pub struct WithFieldIndex<T>{
 }
 
 impl<T> WithFieldIndex<T>{
+    /// A convenience constructor.
     pub const fn from_vari_field_val(variant:u16,field_pos:u8,value:T)->Self{
         Self{
             index:FieldIndex{variant,field_pos},
@@ -327,6 +359,9 @@ impl<T> WithFieldIndex<T>{
 const FIELD_SPLITTER:&'static [char]=&[';','|'];
 
 
+/**
+An iterator over all the fields in a type definition.
+*/
 #[derive(Clone,Debug)]
 pub struct TLFieldsIterator{
     field_names:std::str::Split<'static,&'static [char]>,

@@ -33,6 +33,7 @@ script:
 
   - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/implementation/"
   - cargo build --release
+  - cargo test --release
   - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/user/"
   - cargo run --release
 

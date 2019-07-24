@@ -111,7 +111,7 @@ impl CompTLFunction{
 
 
 
-/// The start and length of a slice into a slice in `TLFunctions`.
+/// The start and length of a slice into `TLFunctions`.
 #[repr(C)]
 #[derive(Copy,Clone,Debug,PartialEq,Eq,Ord,PartialOrd,StableAbi)]
 pub struct StartLen{
@@ -158,6 +158,9 @@ impl StartLen{
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/**
+A slice of functions from a TLFunctions.
+*/
 #[repr(C)]
 #[derive(Copy,Clone,StableAbi)]
 pub struct TLFunctionRange{
@@ -172,30 +175,40 @@ impl TLFunctionRange{
         fn_range:StartLen::EMPTY,
     };
 
+    /// Constructs this slice from a range and an optional `TLFunctions`.
     #[inline]
     pub const fn new(fn_range:StartLen,functions:Option<&'static TLFunctions>)->Self{
         Self{functions,fn_range}
     }
 
+    /// Returns an iterator over the `TLFunction`s in the slice.
     #[inline]
     pub fn iter(self)->TLFunctionIter{
         TLFunctionIter::new(self.fn_range,self.functions)
     }
 
+    /// Gets a TLFunction at the `index`.This returns None if `index` is outside the slice.
     pub fn get(self,index:usize)->Option<TLFunction>{
         self.functions?.get(self.fn_range.start()+index)
     }
 
+    /// Gets a TLFunction at the `index`.
+    ///
+    /// # Panic
+    ///
+    /// This panics if the TLFunction is outside the slice.
     pub fn index(self,index:usize)->TLFunction{
         self.functions
             .expect("self.functions must be Some(..) to index a TLFunctionRange")
             .index(self.fn_range.start()+index)
     }
 
+    /// Gets the length of this slice.
     #[inline]
     pub fn len(self)->usize{
         self.fn_range.len()
     }
+    /// Gets whether this slice is empty.
     #[inline]
     pub fn is_empty(self)->bool{
         self.fn_range.len==0

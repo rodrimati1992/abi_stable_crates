@@ -1,3 +1,8 @@
+/*!
+Containst the `GetStaticEquivalent_` trait and related items.
+
+*/
+
 /// A type that stands in for Self,used to create a UTypeId for doing layout checking.
 ///
 /// This may or may not have the same TypeId as Self.

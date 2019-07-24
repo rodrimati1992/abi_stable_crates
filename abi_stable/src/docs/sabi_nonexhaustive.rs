@@ -15,26 +15,28 @@ giving library authors some flexibility in their design.
 
 # Items 
 
+These are the items relevant to nonexhaustive enums:
+
 `Enum`: this is the annotated enum,which does not derive `StableAbi`,
 requiring it to be wrapped in a `NonExhaustive<>` to be passed through ffi.
 
-`Enum_NE`: A type alias for the deriving type wrapped in a `NonExhaustive<>`.
+`Enum_NE`(generated): 
+    A type alias for the deriving type wrapped in a `NonExhaustive<>`.
 
-`Enum_NEMarker`:
+`Enum_NEMarker`(generated):
 A marker type which implements StableAbi with the layout of `Enum`,
 used as a phantom field of NonExhaustive.
 
-`Enum_Storage`:
+`Enum_Storage`(generated):
 A type used as storage space by the `NonExhaustive<>` type to store the enum.
 
-`Enum_Bounds`:
+`Enum_Bounds`(generated):
 Acts as an alias for the traits that were specified in the `traits(...)` parameter.
 This is only created if the `traits(...)` parameter is specified.
 
-`Enum_Interface`:
-Describes the traits required when constructing a `NonExhaustive<>` and usable with it
-(this is a type that implements InterfaceType).<br>
-This is only created if the `traits` parameter is passed to `#[sabi(kind(WithNonExhaustive(..)))]`.
+`Enum_Interface`(generated):
+Describes the traits required when constructing a `NonExhaustive<>` and usable with it afterwards
+(this is a type that implements InterfaceType).
 
 # Parameters
 
@@ -87,9 +89,9 @@ All the traits are optional.
 
 These are the valid traits:
 
-- Send:Which is required by default,you must write `Send=false` to unrequire it.
+- Send
 
-- Sync:Which is required by default,you must write `Sync=false` to unrequire it.
+- Sync
 
 - Clone
 
@@ -97,9 +99,9 @@ These are the valid traits:
 
 - Display
 
-- Serialize: serde::Serialize
+- Serialize: serde::Serialize.Look bellow for clarifications on how to use serde.
 
-- Deserialize: serde::Deserialize
+- Deserialize: serde::Deserialize.Look bellow for clarifications on how to use serde.
 
 - Eq
 
@@ -243,6 +245,18 @@ assert_eq!(
         }}
     "#).unwrap(),
     ValidTag::Tag_NE("what".into(),"the".into())
+);
+
+
+
+assert_eq!(
+    &serde_json::to_string(&ValidTag::Foo_NE()).unwrap(),
+    r#""Foo""#,
+);
+
+assert_eq!(
+    &serde_json::to_string(&ValidTag::Bar_NE()).unwrap(),
+    r#""Bar""#,
 );
 
 # }

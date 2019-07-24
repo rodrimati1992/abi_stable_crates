@@ -1,17 +1,33 @@
+/*!
+Contains types and traits for nonexhaustive enums.
+
+The most important type here is [NonExhaustive](./nonexhaustive/struct.NonExhaustive.html),
+which allows passing an enum which used the
+`#[derive(StableAbi)] #[sabi(kind(WithNonExhaustive(...)))]`
+attributes through ffi.
+
+*/
+
+#[doc(hidden)]
 pub mod doc_enums;
 
 #[cfg(test)]
 pub mod examples;
 
 pub mod nonexhaustive;
-pub mod vtable;
+pub(crate) mod vtable;
 pub mod traits;
-pub mod alt_c_functions;
+pub(crate) mod alt_c_functions;
+
+
+pub(crate) use self::{
+    vtable::{NonExhaustiveVtable,InterfaceBound},
+};
 
 
 pub use self::{
     nonexhaustive::{NonExhaustive,NonExhaustiveFor,NonExhaustiveWI,NonExhaustiveWS},
-    vtable::{GetVTable,NonExhaustiveVtable,InterfaceBound},
+    vtable::GetVTable,
     traits::{
         GetNonExhaustive,
         GetEnumInfo,

@@ -51,6 +51,7 @@ pub use self::{
     },
     tl_fields::{
         TLFields,
+        TLFOSIter,
         TLFieldsOrSlice,
         FieldIndex,
         Field1to1,

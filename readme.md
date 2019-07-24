@@ -95,7 +95,7 @@ with comments for how to turn them into 3 separate crates.
 use abi_stable::std_types::RVec;
 
 use interface_crate::{
-    AppenderType,AppenderType_TO,
+    AppenderType,Appender_TO,
     ExampleLib,BoxedInterface,load_root_module_in_directory,
 };
 
@@ -112,7 +112,7 @@ fn main(){
         appender.push(100);
         appender.push(200);
 
-        // The primary to use the methods in the trait is through the inherent methods on 
+        // The primary way to use the methods in the trait is through the inherent methods on 
         // the ffi-safe trait object,
         // since `Trait` requires that the trait object implements the pointer traits for
         // the maximum mutability required by its methods.
@@ -438,7 +438,6 @@ impl<T> Appender for RVec<T>{
 
 
 
-
 ```
 
 
@@ -458,13 +457,6 @@ Note that this library assumes that dynamic libraries come from a benign source,
 these checks are done purely to detect programming errors.
 
 # Planned features
-
-### 0.6
-
-Ffi-safe non-exhaustive enums with fields,allowing for libraries to add variants to enums without breaking backwards compatibility (API or ABI).
-
-Make `#[sabi_trait]` generated trait objects more ergonomic,as well as improve compile-time errors.
-Some of those improvements will require small (but still breaking) changes.
 
 ### Eventually
 
@@ -499,7 +491,8 @@ A crate which declares:
     declare the ffi-safe traits with `#[sabi_trait]`,
     used as trait objects in the public interface.
 
-- Optionally:declares ìnterface types,types which implement InterfaceType,
+- Optionally:
+    declares ìnterface types,types which implement InterfaceType,
     used to specify the traits usable in the DynTrait ffi-safe trait object .
 
 
@@ -542,6 +535,7 @@ These are default cargo features that enable optional crates :
 - "channels":
     Depends on `crossbeam-channel`,
     wrapping channels from it for ffi in abi_stable::external_types::crossbeam_channel .
+
 
 To disable the default features use:
 ```

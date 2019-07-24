@@ -27,6 +27,63 @@ use crate::{
     utils::{transmute_reference,transmute_mut_reference},
 };
 
+
+/**
+`RObject` implements ffi-safe trait objects,for a minimal selection of traits.
+
+The main use of `RObject<_>` is as the default backend for `#[sabi_trait]` 
+generated trait objects.
+
+# Construction
+
+To construct an `RObject<_>` directly (not as part of a trait object) 
+you can call one of these methods:
+
+- from_ptr
+    Can be constructed from a pointer of a value.Cannot unerase the RObject afterwards.
+
+- from_ptr_unerasable:
+    Can be constructed from a pointer of a value.Requires a `'static` value.
+
+- from_value:
+    Can be constructed from the value directly.Cannot unerase the RObject afterwards.
+
+- from_value_unerasable
+    Can be constructed from the value directly.Requires a `'static` value.
+
+# Trait object
+
+`RObject<'borrow,Pointer<()>,Interface,VTable>` 
+can be used as a trait object for any combination of 
+the traits listed bellow.
+
+These are the traits:
+
+- Send
+
+- Sync
+
+- Debug
+
+- Clone
+
+# Deconstruction
+
+`RObject<_>` can then be unwrapped into a concrete type,
+within the same dynamic library/executable that constructed it,
+using these (fallible) conversion methods:
+
+- sabi_into_any_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
+
+- sabi_as_any_unerased:Unwraps into a `&T`.Requires `T:'static`.
+
+- sabi_as_any_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
+
+`RObject` can only be converted back if it was created 
+using a `RObject::*_unerased` function.
+
+
+*/
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
