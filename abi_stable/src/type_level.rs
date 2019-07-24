@@ -18,7 +18,9 @@ pub mod bools{
 // Uncomment if I have a use for type-level `Option`s
 // pub mod option;
 
-
+/// Type-level enum representing whether a 
+/// `DynTrait`/`RObject`/`#[sabi_trait]`-generated trait object
+/// can be converted back into the concrete type they were constructed with.
 pub mod unerasability{
     use crate::{
         sabi_types::{MaybeCmp,ReturnValueEquality},

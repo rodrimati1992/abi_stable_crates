@@ -1,14 +1,14 @@
 /*!
-StableAbi types that aren't wrappers for other types.
+ffi-safe types that aren't wrappers for other types.
 */
 
 
 pub mod ignored_wrapper;
-pub mod late_static_ref;
-pub mod maybe_cmp;
+mod late_static_ref;
+mod maybe_cmp;
 pub mod move_ptr;
-pub mod return_value_equality;
-pub mod static_ref;
+mod return_value_equality;
+mod static_ref;
 pub mod version;
 pub mod rsmallbox;
 

@@ -1,3 +1,7 @@
+/*!
+Contains `NonExhaustive<>` and related items.
+*/
+
 use std::{
     cmp::{Ordering,PartialEq,Eq,Ord,PartialOrd},
     fmt::{self,Debug,Display},
@@ -231,7 +235,7 @@ This panics if the storage has an alignment or size smaller than that of `E`.
         NonExhaustive::with_storage_and_interface(value)
     }
 
-/*
+/**
 Constructs a `NonExhaustive<>` from `value` using its default storage 
 and a custom interface.
 
@@ -567,7 +571,7 @@ This panics if the storage has an alignment or size smaller than that of `F`.
     }
 
     /// Gets a reference to the vtable of this `NonExhaustive<>`.
-    pub fn vtable<'a>(&self)->&'a NonExhaustiveVtable<E,S,I>{
+    pub(crate) fn vtable<'a>(&self)->&'a NonExhaustiveVtable<E,S,I>{
         self.vtable.get()
     }
 
@@ -841,6 +845,7 @@ pub trait NonExhaustiveSharedOps{
 }
 
 
+/// A struct storing the discriminant and `EnumInfo` of some enum.
 pub struct DiscrAndEnumInfo<E>{
     discr:E,
     enum_info:&'static EnumInfo,
@@ -848,8 +853,21 @@ pub struct DiscrAndEnumInfo<E>{
 
 
 impl<E> DiscrAndEnumInfo<E>{
+    /// Constructs this `DiscrAndEnumInfo`.
     pub fn new(discr:E,enum_info:&'static EnumInfo)->Self{
         Self{discr,enum_info}
+    }
+    /// The value of a discriminant that wasn't valid in this context
+    /// (it is of a variant declared in a newer version of a dynamic library),
+    pub fn discr(&self)->E
+    where
+        E:ValidDiscriminant
+    {
+        self.discr
+    }
+    /// The `EnumInfo` of an enum.
+    pub fn enum_info(&self)->&'static EnumInfo{
+        self.enum_info
     }
 }
 
@@ -910,11 +928,18 @@ where
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/**
+An error for a situation where a `NonExhaustive<>` could not be unwrapped into the enum
+because the discriminant wasn't valid in this context
+(likely because it is from a newer version of the library).
+*/
 #[must_use]
 #[repr(transparent)]
 #[derive(Clone,PartialEq,Eq,PartialOrd,Ord,StableAbi)]
 pub struct UnwrapEnumError<N>{
+    /// This field is either a `NonExhaustive<>` or a `DiscrAndEnumInfo<>`
     pub non_exhaustive:N,
+    _priv:(),
 }
 
 
@@ -926,6 +951,7 @@ impl<N> UnwrapEnumError<N>{
         self.non_exhaustive
     }
 
+    /// Converts this into a boxed error.
     pub fn into_boxed(self)->RBoxError
     where
         N:NonExhaustiveSharedOps,
@@ -941,8 +967,11 @@ impl<N> UnwrapEnumError<N>{
 
 impl<N> UnwrapEnumError<N>{
     #[inline]
-    pub const fn new(non_exhaustive:N)->Self{
-        Self{non_exhaustive}
+    const fn new(non_exhaustive:N)->Self{
+        Self{
+            non_exhaustive,
+            _priv:(),
+        }
     }
 }
 

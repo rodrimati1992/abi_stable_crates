@@ -230,11 +230,15 @@ pub trait SerializeImplType{
 }
 
 
-
+/**
+Gets the intermediate type an ImplType is converted into,to serialize it.
+*/
 pub trait SerializeProxyType:InterfaceType{
+    /// The intermediate type an ImplType is converted into,to serialize it
     type Proxy;
 }
 
+#[doc(hidden)]
 pub trait GetSerializeProxyType:InterfaceType{
     type ProxyType;
 }
@@ -274,7 +278,7 @@ where
 
 
 /**
-Describes how something is deserialized,using a proxy to do so.
+Describes how `D` is deserialized,using a proxy to do so.
 
 Generally this delegates to a library function,
 so that the implementation can be delegated
@@ -282,12 +286,16 @@ to the `implementation crate`.
 
 */
 pub trait DeserializeDyn<'borr,D> {
+    /// The type that is deserialized and then converted into `D`,
+    /// with `DeserializeDyn::deserialize_dyn`.
     type Proxy;
 
+    /// Converts the proxy type into `D`.
     fn deserialize_dyn(s: Self::Proxy) -> Result<D, RBoxError>;
 }
 
 
+#[doc(hidden)]
 pub trait GetDeserializeDynProxy<'borr,D>:InterfaceType{
     type ProxyType;
 }
@@ -389,6 +397,7 @@ impl<'borr,I> IteratorItemOrDefaultHelper<'borr,Unimplemented<trait_marker::Iter
 
 pub use self::interface_for::InterfaceFor;
 
+#[doc(hidden)]
 pub mod interface_for{
     use super::*;
 

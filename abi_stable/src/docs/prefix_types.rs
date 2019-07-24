@@ -8,7 +8,7 @@ Prefix-types cannot directly be passed through ffi,
 instead they must be converted to the type declared with `prefix_struct="PrefixEquivalent"`,
 and then pass `&PrefixEquivalent` instead.
 
-To convert `T` to `&PrefixEquivalent` use either:
+To convert `T` to `&PrefixEquivalent` you an use one of:
 
 - `PrefixTypeTrait::leak_into_prefix`:<br>
     Which does the conversion directly,but leaks the value.
@@ -18,6 +18,14 @@ To convert `T` to `&PrefixEquivalent` use either:
     First create a `&'a WithMetadata<Self>` constant,
     then use the `WithMetadata::as_prefix` method at runtime 
     to cast it to `&PrefixEquivalent`.
+
+- `prefix_type::WithMetadata::new` and then `WithMetadata::staticref_as_prefix`:<br>
+    Use this if you need a compiletime constant.
+    First create a `StaticRef<WithMetadata<Self>>` constant using 
+    the `StaticRef::from_raw` function,
+    then use the `WithMetadata::staticref_as_prefix` associated function at runtime 
+    to cast it to `StaticRef<PrefixEquivalent>`.
+
 
 All fields on `&PrefixEquivalent` are accessed through accessor methods 
 with the same name as the fields.
@@ -86,6 +94,7 @@ use abi_stable::{
     extern_fn_panic_handling,
     pointer_trait::{CallReferentDrop, TransmuteElement},
     prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::StaticRef,
 };
 
 /// An ffi-safe `Box<T>`
@@ -94,9 +103,7 @@ use abi_stable::{
 pub struct BoxLike<T> {
     data: *mut T,
     
-    // This can't be a `&'static BoxVtable<T>` because Rust will complain that 
-    // `T` does not live for the `'static` lifetime.
-    vtable: *const BoxVtable<T>,
+    vtable: StaticRef<BoxVtable<T>>,
 
     _marker: PhantomData<T>,
 }
@@ -108,16 +115,13 @@ impl<T> BoxLike<T>{
         
         Self{
             data:Box::into_raw(box_),
-            vtable:unsafe{ (*BoxVtableVal::VTABLE).as_prefix() },
+            vtable:WithMetadata::staticref_as_prefix(BoxVtableVal::VTABLE),
             _marker:PhantomData,
         }
     }
 
-    // This is to get around a limitation of the type system where
-    // vtables of generic types can't just be `&'static VTable<T>`
-    // because it complains that T doesn't live forever.
     fn vtable<'a>(&self)->&'a BoxVtable<T>{
-        unsafe{ &(*self.vtable) }
+        self.vtable.get()
     }
 
     /// Extracts the value this owns.
@@ -181,8 +185,10 @@ impl<T> BoxVtableVal<T>{
 
     // This can't be a `&'static WithMetadata<Self>` because Rust will complain that 
     // `T` does not live for the `'static` lifetime.
-    const VTABLE:*const WithMetadata<Self>={
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::TMP0)
+    const VTABLE:StaticRef<WithMetadata<Self>>=unsafe{
+        StaticRef::from_raw(
+            &WithMetadata::new(PrefixTypeTrait::METADATA,Self::TMP0)
+        )
     };
 }
 
@@ -208,6 +214,7 @@ This declares,initializes,and uses a module.
 ```
 use abi_stable::{
     StableAbi,
+    sabi_extern_fn,
     std_types::RDuration,
     prefix_type::PrefixTypeTrait,
 };
@@ -262,17 +269,23 @@ type Id=u32;
 #       (RDuration::new(1_000_000,0),1),
 #   ];
 #
-#   extern fn customer_for(id:Id)->RDuration{
+#   #[sabi_extern_fn]
+#   fn customer_for(id:Id)->RDuration{
 #       VARS[id as usize].0
 #   }
 # 
-#   extern fn bike_count(id:Id)->u32{
+#   #[sabi_extern_fn]
+#   fn bike_count(id:Id)->u32{
 #       VARS[id as usize].1
 #   }
-#   extern fn visits(id:Id)->u32{
+#
+#   #[sabi_extern_fn]
+#   fn visits(id:Id)->u32{
 #       VARS[id as usize].1
 #   }
-#   extern fn score(id:Id)->u32{
+#
+#   #[sabi_extern_fn]
+#   fn score(id:Id)->u32{
 #       VARS[id as usize].1
 #   }
 #

@@ -441,7 +441,7 @@ macro_rules! make_item_info {
 ///////////////////////////////////////////////////////////////////////////////
 
 
-#[macro_export]
+#[allow(unused_macros)]
 macro_rules! delegate_interface_serde {
     (
         impl[$($impl_header:tt)* ] Traits<$this:ty> for $interf:ty ;

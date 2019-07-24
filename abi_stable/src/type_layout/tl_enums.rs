@@ -17,9 +17,13 @@ use crate::{
 pub struct TLEnum{
     /// A ';' separated list of all variant names
     pub variant_names:StaticStr,
+    /// The exhaustiveness of this enum.
     pub exhaustiveness:IsExhaustive,
+    /// All the fields of the enums,not separated by variant.
     pub fields: TLFieldsOrSlice,
+    /// The discriminants of the variants in the enum.
     pub discriminants:TLDiscriminants,
+    /// The ammount of fields of each variant.
     pub field_count:StaticSlice<u8>,
 }
 
@@ -43,6 +47,7 @@ impl TLEnum{
     }
 
     /// Constructs a `TLData::Enum`.
+    #[doc(hidden)]
     pub const fn for_derive(
         variant_names:&'static str,
         exhaustiveness:IsExhaustive,
@@ -59,6 +64,7 @@ impl TLEnum{
         }
     }
 
+    /// Returns an iterator over the names of the variants in this enum.
     pub fn variant_names_iter(&self)->GetVariantNames{
         GetVariantNames{
             split:self.variant_names.as_str().split(';'),
@@ -67,10 +73,12 @@ impl TLEnum{
         }
     }
 
+    /// Returns the ammount of variants in the enum.
     pub fn variant_count(&self)->usize{
         self.field_count.len()
     }
 
+    /// Returns the enum with the (maximum,minimum) ammount of variants.
     pub fn max_min<'a>(&'a self,other:&'a TLEnum)->(&'a TLEnum,&'a TLEnum){
         if self.variant_count() < other.variant_count() {
             (self,other)
@@ -243,7 +251,7 @@ pub enum DiscriminantRepr {
 }
 
 
-/// Whether this enum is exhaustive,if `Yes` it can add variants in minor versions.
+/// Whether this enum is exhaustive,if it is,it can add variants in minor versions.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub struct IsExhaustive{
@@ -252,24 +260,30 @@ pub struct IsExhaustive{
 
 
 impl IsExhaustive{
+    /// Constructs this `IsExhaustive` as being exhaustive.
     pub const fn exhaustive()->IsExhaustive{
         IsExhaustive{value:None}
     }
+    /// Constructs this `IsExhaustive` as being nonexhaustive.
     pub const fn nonexhaustive(nonexhaustive:&'static TLNonExhaustive)->IsExhaustive{
         IsExhaustive{value:Some(nonexhaustive)}
     }
+    /// Whether this is an exhaustive enum.
     pub fn is_exhaustive(&self)->bool{
         self.value.is_none()
     }
+    /// Whether this is an nonexhaustive enum.
     pub fn is_nonexhaustive(&self)->bool{
         self.value.is_some()
     }
+    /// Converts this to a TLNonExhaustive.Returning None if it is exhaustive.
     pub fn as_nonexhaustive(&self)->Option<&'static TLNonExhaustive>{
         self.value
     }
 }
 
 
+/// Properties exclusive to nonexhaustive enums.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub struct TLNonExhaustive{
@@ -279,6 +293,7 @@ pub struct TLNonExhaustive{
 
 
 impl TLNonExhaustive{
+    /// Constructs the TLNonExhaustive from the size and alignment of `T`
     pub const fn new<T>()->Self{
         Self{
             original_size:std::mem::size_of::<T>(),
@@ -286,6 +301,8 @@ impl TLNonExhaustive{
         }
     }
 
+    /// Checks that `layout` is compatible with `self.size` and `self.alignment`,
+    /// returning an error if it's not.
     pub fn check_compatible(&self,layout:&TypeLayout)->Result<(),IncompatibleWithNonExhaustive>{
         let err=
             layout.size < self.original_size || 
@@ -309,6 +326,11 @@ impl TLNonExhaustive{
 ////////////////////////////
 
 
+
+/**
+An error produced when checking that the Storage of a nonexhaustive enum is 
+compatible with the enum.
+*/
 #[repr(C)]
 #[derive(Debug,Clone,PartialEq, Eq,StableAbi)]
 pub struct IncompatibleWithNonExhaustive{
@@ -344,6 +366,9 @@ impl Display for IncompatibleWithNonExhaustive{
 /////////////////////////////////////////////////////////////////////////////
 
 
+/**
+An iterator that yields the names of an enum's variants.
+*/
 #[derive(Debug,Clone)]
 pub struct GetVariantNames{
     split:std::str::Split<'static,char>,

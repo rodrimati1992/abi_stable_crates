@@ -26,8 +26,10 @@ use crate::{
 
 /// Gets the vtable of `NonExhaustive<Self,S,I>`.
 pub unsafe trait GetVTable<S,I>:GetEnumInfo{
+    #[doc(hidden)]
     const VTABLE_VAL:NonExhaustiveVtableVal<Self,S,I>;
     
+    #[doc(hidden)]
     const VTABLE_PTR: *const WithMetadata<NonExhaustiveVtableVal<Self,S,I>> = 
         &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE_VAL);
 
@@ -40,6 +42,7 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
 
 
 /// The vtable for NonExhaustive<>.
+#[doc(hidden)]
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
@@ -115,6 +118,7 @@ where
     I::Ord:InitOrdField<E,S,I>,
     I::Hash:InitHashField<E,S,I>,
 {
+    #[doc(hidden)]
     const VTABLE_VAL:NonExhaustiveVtableVal<E,S,I>=
         NonExhaustiveVtableVal{
             _sabi_tys:UnsafeIgnoredType::DEFAULT,
@@ -339,6 +343,7 @@ macro_rules! declare_InterfaceBound {
         required_traits=[ $( $required_traits:ident ),* $(,)* ]
     ) => (
 
+        #[doc(hidden)]
         #[allow(non_upper_case_globals)]
         pub trait InterfaceBound:InterfaceType{
             const TAG:Tag;

@@ -1,3 +1,7 @@
+/*!
+Contains the `MovePtr<_>` type.
+*/
+
 use std::{
     alloc::{self,Layout},
     ops::{Deref,DerefMut},

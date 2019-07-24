@@ -1,5 +1,5 @@
 /*!
-Where the StableAbi trait is declares,as well as related types/traits.
+Where the StableAbi trait is declared,as well as related types/traits.
 */
 
 use core_extensions::type_level_bool::{Boolean, False, True};

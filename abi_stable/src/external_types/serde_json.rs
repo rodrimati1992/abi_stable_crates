@@ -1,3 +1,7 @@
+/*!
+Ffi-safe equivalents of `serde_json` types.
+*/
+
 use std::{
     convert::{TryFrom,TryInto},
     fmt::{self,Debug,Display},
@@ -50,16 +54,21 @@ Converts a `RStr<'a>` to a `RawValueRef<'a>` without checking whether it is vali
         }
     }
 
+    /// Gets the json being serialized as a `&str`.
     #[inline]
     pub fn get(&self)->&'a str{
         self.ref_.as_str()
     }
 
+    /// Gets the json being serialized as a `RStr<'a>`.
     #[inline]
     pub fn get_rstr(&self)->RStr<'a>{
         self.get().into()
     }
 
+    /// Attempts to convert a `&'a str` into a `RawValueRef<'a>`.
+    ///
+    /// Fails in the same cases as parsing a `&'a RawValue` from a string does.
     #[inline]
     pub fn try_from_str(input:&'a str)->Result<Self,JsonError>{
         input.try_into()
@@ -163,16 +172,21 @@ Converts an `RString` to an `RawValueBox` without checking whether it is valid J
         }
     }
 
+    /// Attempts to convert a `String` into a `RawValueBox`.
+    ///
+    /// Fails in the same cases as converting a String into a `Box<RawValue>` does.
     #[inline]
     pub fn try_from_string(input:String)->Result<Self,JsonError>{
         input.try_into()
     }
 
+    /// Gets the json being serialized as a `&str`.
     #[inline]
     pub fn get(&self)->&str{
         self.string.as_str()
     }
     
+    /// Gets the json being serialized as a `RStr<'a>`.
     #[inline]
     pub fn get_rstr(&self)->RStr<'_>{
         self.get().into()

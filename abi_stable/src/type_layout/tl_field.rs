@@ -16,11 +16,13 @@ pub struct TLField {
     /// you've encountered a cycle.
     pub abi_info: GetAbiInfo,
 
+    /// The function pointer types within the field.
     pub function_range:TLFunctionRange,
 
     /// Whether this field is only a function pointer.
     pub is_function:bool,
 
+    /// How this field is accessed.
     pub field_accessor:FieldAccessor,
 }
 
@@ -43,6 +45,7 @@ pub enum FieldAccessor {
 
 
 impl FieldAccessor{
+    /// Constructs a FieldAccessor for a method named `name`.
     pub const fn method_named(name:&'static StaticStr)->Self{
         FieldAccessor::Method{
             name:Some(name)

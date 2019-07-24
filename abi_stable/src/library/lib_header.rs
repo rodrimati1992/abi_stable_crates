@@ -47,6 +47,7 @@ impl LibHeader {
         }
     }
 
+    /// All the important constants of a `RootModule` for some erased type.
     pub fn root_mod_consts(&self)->&ErasedRootModuleConsts{
         &self.root_mod_consts
     }
@@ -293,7 +294,7 @@ impl AbiHeader{
     pub const VALUE:AbiHeader=AbiHeader{
         magic_string:*b"abi stable library for Rust     ",
         abi_major:0,
-        abi_minor:5,
+        abi_minor:6,
         _priv:(),
     };
 }

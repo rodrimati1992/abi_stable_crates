@@ -19,25 +19,32 @@ These are some usecases for this library:
 
 Currently this library has these features:
 
-- Features the `#[sabi_trait]` attribute,for creating ffi-safe trait objects.
+- Features the [`#[sabi_trait]`](./docs/sabi_trait_attribute/index.html)
+    attribute,for creating ffi-safe trait objects.
 
-- ffi-safe equivalent of trait objects for any combination of a selection of traits.
+- [ffi-safe equivalent of some trait objects](./erased_types/dyn_trait/struct.DynTrait.html) 
+    for any combination of them.
 
 - Provides ffi-safe alternatives/wrappers for many standard library types,
-    in the `std_types` module.
+    in the [`std_types`](./std_types/index.html) module.
 
-- Provides ffi-safe wrappers for some crates,in the `external_types` module.
+- Provides ffi-safe wrappers for some crates,
+    in the [`external_types`](./external_types/index.html) module.
 
-- Provides the `StableAbi` trait for asserting that types are ffi-safe.
+- Provides the [`StableAbi`](./abi_stability/stable_abi_trait/trait.StableAbi.html) 
+    trait for asserting that types are ffi-safe.
 
-- Features for building extensible modules and vtables,without breaking ABI compatibility.
+- [Features for building extensible modules and vtables](./docs/prefix_types/index.html),
+    without breaking ABI compatibility.
 
-- Supports ffi-safe nonexhaustive enums,wrapped in `NonExhaustive<>`.
+- [Supports ffi-safe nonexhaustive enums](./docs/sabi_nonexhaustive/index.html),
+    wrapped in [`NonExhaustive<>`](./nonexhaustive_enum/nonexhaustive/struct.NonExhaustive.html).
 
 - Checking at load-time that the types in the dynamic library have the expected layout,
     allowing for semver compatible changes while checking the layout of types.
 
-- Provides the `StableAbi` derive macro to both assert that the type is ffi compatible,
+- Provides the [`StableAbi` derive macro](./docs/stable_abi_derive/index.html)
+    to both assert that the type is ffi compatible,
     and to get the layout of the type at load-time to check that it is still compatible.
 
 # Examples
@@ -58,12 +65,12 @@ are necessary to load the library at runtime.
 `user crate`:A crate that depends on an `interface crate` and 
 loads 1 or more `ìmplementation crate`s for it.
 
-`module`:refers to a struct of function pointers and other static values,
-and implement the RootModule trait.
+`module`:refers to a struct of function pointers and other static values.
+The root module implement the RootModule trait.
 These are declared in the `interface crate`,exported in the `implementation crate`,
 and loaded in the `user crate`.
 
-# Rust-to-Rust FFI guidelines.
+# Rust-to-Rust FFI types.
 
 Types must implement StableAbi to be safely passed through the FFI boundary,
 which can be done using the StableAbi derive macro.
@@ -96,12 +103,6 @@ These are the kinds of types passed through FFI:
     most commonly vtables and modules,
     which can be extended in minor versions while staying ABI compatible.
     by adding fields at the end.
-
-<h3> Declaring enums </h3>
-
-Adding variants or fields to a variant is disallowed in minor versions.
-
-To represent non-exhaustive enums without fields it is recommended using structs and associated constants so that it is not UB to keep adding field-less variants in minor versions.
 
 # Extra documentation
 
