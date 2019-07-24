@@ -16,8 +16,7 @@ use serde_json;
 #[allow(unused_imports)]
 use crate::{
     erased_types::{
-        DynTrait,ImplType, InterfaceType, SerializeImplType,DeserializeOwnedInterface,
-        DeserializeBorrowedInterface,IteratorItem,
+        DynTrait,ImplType, InterfaceType,IteratorItem,
     },
     impl_get_type_info,
     type_level::bools::{False,True},
@@ -68,9 +67,11 @@ impl<T> SerializeImplType for Foo<T>
 where
     T: Serialize,
 {
-    fn serialize_impl(&self) -> Result<RCow<'_, str>, RBoxError> {
+    type Interface=FooInterface;
+
+    fn serialize_impl(&self) -> Result<RString, RBoxError> {
         match serde_json::to_string(self) {
-            Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
+            Ok(v)=>Ok(v.into_c()),
             Err(e)=>Err(RBoxError::new(e)),
         }
     }
@@ -106,11 +107,14 @@ crate::impl_InterfaceType!{
     }
 }
 
+impl SerializeProxyType for FooInterface{
+    type Proxy=RString;
+}
 
-impl DeserializeOwnedInterface<'static> for FooInterface {
-    type Deserialized = VirtualFoo<'static>;
+impl<'a> DeserializeDyn<'a,VirtualFoo<'static>> for FooInterface {
+    type Proxy=RString;
 
-    fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError> {
+    fn deserialize_dyn(s: RString) -> Result<VirtualFoo<'static>, RBoxError> {
         match ::serde_json::from_str::<Foo<String>>(&*s) {
             Ok(x) => Ok(DynTrait::from_value(x)),
             Err(e) => Err(RBoxError::new(e)),
@@ -257,11 +261,12 @@ pub const JSON_0:&'static str=r#"
 fn deserialize_test() {
 
     let json=JSON_0;
-    let json_ss=serde_json::to_string(json).unwrap();
 
+    let json_ss=serde_json::to_string(json).unwrap();
+    
     let concrete = serde_json::from_str::<Foo<String>>(json).unwrap();
 
-    let wrapped = VirtualFoo::deserialize_owned_from_str(json).unwrap();
+    let wrapped = VirtualFoo::deserialize_from_proxy(json.into()).unwrap();
     let wrapped= wrapped.reborrow();
     let wrapped2 = serde_json::from_str::<VirtualFoo<'static>>(&json_ss).unwrap();
 
@@ -292,7 +297,7 @@ fn serialize_test() {
         ( $wrapped:ident ) => ({
             assert_eq!(
                 &*concrete.piped_ref(serde_json::to_string).unwrap(),
-                &*$wrapped.serialized().unwrap()
+                &*$wrapped.serialize_into_proxy().unwrap()
             );
 
             assert_eq!(
@@ -303,7 +308,7 @@ fn serialize_test() {
             );
 
             assert_eq!(
-                $wrapped.serialized().unwrap()
+                $wrapped.serialize_into_proxy().unwrap()
                     .piped_ref(serde_json::to_string).unwrap(),
                 $wrapped.piped_ref(serde_json::to_string).unwrap()
             );
@@ -493,7 +498,23 @@ fn to_any_test(){
     to_unerased!( wrapped ; sabi_as_unerased_mut ; &mut new_foo() );
     to_unerased!( wrapped ; sabi_as_any_unerased_mut ; &mut new_foo() );
     
-
+    {
+        to_unerased!( wrapped.reborrow_mut() ; sabi_into_unerased     ; &mut new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; sabi_into_any_unerased ; &mut new_foo() );
+        
+        to_unerased!( wrapped.reborrow_mut() ; sabi_as_unerased     ; &new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; sabi_as_any_unerased ; &new_foo() );
+        
+        to_unerased!( wrapped.reborrow_mut() ; sabi_as_unerased_mut ; &mut new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; sabi_as_any_unerased_mut ; &mut new_foo() );
+    }    
+    {
+        to_unerased!( wrapped.reborrow() ; sabi_into_unerased     ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; sabi_into_any_unerased ; &new_foo() );
+        
+        to_unerased!( wrapped.reborrow() ; sabi_as_unerased     ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; sabi_as_any_unerased ; &new_foo() );
+    }
 }
 
 
@@ -532,6 +553,10 @@ mod borrowing{
     #[derive(StableAbi)]
     struct FooInterface;
 
+    impl SerializeProxyType for FooInterface{
+        type Proxy=RString;
+    }
+
 
     impl<'a> Display for Foo<'a>{
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -548,9 +573,11 @@ mod borrowing{
     }
 
     impl<'a> SerializeImplType for Foo<'a>{
-        fn serialize_impl(&self) -> Result<RCow<'_, str>, RBoxError> {
+        type Interface=FooInterface;
+
+        fn serialize_impl(&self) -> Result<RString, RBoxError> {
             match serde_json::to_string(self) {
-                Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
+                Ok(v)=>Ok(v.into_c()),
                 Err(e)=>Err(RBoxError::new(e)),
             }
         }
@@ -575,10 +602,10 @@ mod borrowing{
     }
 
 
-    impl<'borr> DeserializeBorrowedInterface<'borr> for FooInterface {
-        type Deserialized = VirtualFoo<'borr>;
+    impl<'borr> DeserializeDyn<'borr,VirtualFoo<'borr>> for FooInterface {
+        type Proxy=RStr<'borr>;
 
-        fn deserialize_impl(s: RStr<'borr>) -> Result<VirtualFoo<'borr>, RBoxError> {
+        fn deserialize_dyn(s: RStr<'borr>) -> Result<VirtualFoo<'borr>, RBoxError> {
             match ::serde_json::from_str::<Foo<'borr>>(s.as_str()) {
                 Ok(x) => Ok(DynTrait::from_borrowing_value(x,FooInterface)),
                 Err(e) => Err(RBoxError::new(e)),
@@ -642,7 +669,7 @@ mod borrowing{
 
         assert_eq!(
             &*serde_json::to_string(&foo).unwrap(),
-            &*wrapped.serialized().unwrap(),
+            &*wrapped.serialize_into_proxy().unwrap(),
         );
     }
 
@@ -654,7 +681,7 @@ mod borrowing{
 
         for str_ in list.iter().map(|s| s.as_str() ) {
             let foo:Foo<'_>=serde_json::from_str(str_).unwrap();
-            let wrapped=VirtualFoo::deserialize_borrowing_from_str(str_).unwrap();
+            let wrapped=VirtualFoo::deserialize_from_proxy(str_.into()).unwrap();
 
             check_fmt(&foo,&wrapped);
         }

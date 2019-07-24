@@ -10,7 +10,7 @@ use core_extensions::prelude::*;
 use crate::{
     abi_stability::StableAbi,
     pointer_trait::{
-        CallReferentDrop, StableDeref, TransmuteElement,
+        CallReferentDrop, TransmuteElement,
         GetPointerKind,PK_SmartPointer,
     },
     sabi_types::ReturnValueEquality,
@@ -47,8 +47,6 @@ mod private {
             }
         }
     }
-
-    unsafe impl<T> StableDeref for RArc<T> {}
 
     unsafe impl<T> GetPointerKind for RArc<T>{
         type Kind=PK_SmartPointer;
@@ -295,7 +293,7 @@ mod vtable_mod {
 use self::vtable_mod::{ArcVtable, VTableGetter};
 
 unsafe extern "C" fn destructor_arc<T>(this: *const T, call_drop: CallReferentDrop) {
-    extern_fn_panic_handling! {
+    extern_fn_panic_handling! {no_early_return;
         if call_drop == CallReferentDrop::Yes {
             drop(Arc::from_raw(this));
         } else {

@@ -8,12 +8,15 @@ use core_extensions::{matches, prelude::*};
 use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,check_layout_compatibility},
-        type_layout::TLData,
         AbiInfoWrapper, 
-        Tag,
+    },
+    external_types::{
+        crossbeam_channel::{RReceiver,RSender},
+        RMutex,RRwLock,ROnce
     },
     marker_type::UnsafeIgnoredType,
     std_types::*,
+    type_layout::{Tag,TLData},
     *,
 };
 
@@ -310,6 +313,10 @@ fn same_different_abi_stability() {
         <num::NonZeroU16>::ABI_INFO,
         <ptr::NonNull<()>>::ABI_INFO,
         <ptr::NonNull<i32>>::ABI_INFO,
+        <RHashMap<RString,RString>>::ABI_INFO,
+        <RHashMap<RString,i32>>::ABI_INFO,
+        <RHashMap<i32,RString>>::ABI_INFO,
+        <RHashMap<i32,i32>>::ABI_INFO,
         <RVec<()>>::ABI_INFO,
         <RVec<i32>>::ABI_INFO,
         <RSlice<'_, ()>>::ABI_INFO,
@@ -327,9 +334,21 @@ fn same_different_abi_stability() {
         <RArc<u32>>::ABI_INFO,
         <RBox<()>>::ABI_INFO,
         <RBox<u32>>::ABI_INFO,
+        <RBoxError>::ABI_INFO,
+        <SendRBoxError>::ABI_INFO,
+        <UnsyncRBoxError>::ABI_INFO,
         <RCmpOrdering>::ABI_INFO,
         <PhantomData<()>>::ABI_INFO,
         <PhantomData<RString>>::ABI_INFO,
+        <RMutex<()>>::ABI_INFO,
+        <RMutex<RString>>::ABI_INFO,
+        <RRwLock<()>>::ABI_INFO,
+        <RRwLock<RString>>::ABI_INFO,
+        <RSender<()>>::ABI_INFO,
+        <RSender<RString>>::ABI_INFO,
+        <RReceiver<()>>::ABI_INFO,
+        <RReceiver<RString>>::ABI_INFO,
+        <ROnce>::ABI_INFO,
         <mod_0::Mod>::ABI_INFO,
         <mod_0b::Mod>::ABI_INFO,
         <mod_1::Mod>::ABI_INFO,
@@ -338,6 +357,7 @@ fn same_different_abi_stability() {
         <mod_4::Mod>::ABI_INFO,
         <mod_5::Mod>::ABI_INFO,
         <mod_6::Mod>::ABI_INFO,
+        <mod_6b::Mod>::ABI_INFO,
         <mod_7::Mod>::ABI_INFO,
         <Tagged<TAG_DEFAULT_1>>::ABI_INFO,
         <Tagged<TAG_DEFAULT_2>>::ABI_INFO,
@@ -351,9 +371,8 @@ fn same_different_abi_stability() {
         <union_2b::Union>::ABI_INFO,
         <union_3::Union>::ABI_INFO,
         <union_4::Union>::ABI_INFO,
-        // <&prefix0::Prefix>::ABI_INFO,
-        // <*const prefix0::Prefix>::ABI_INFO,
-        // <RArc<prefix0::Prefix>>::ABI_INFO,
+        <enum_extra_fields_a::Enum>::ABI_INFO,
+        <enum_extra_fields_b::Enum>::ABI_INFO,
     ];
 
     let (_dur, ()) = core_extensions::measure_time::measure(|| {
@@ -612,6 +631,24 @@ mod basic_enum {
     }
 }
 
+mod enum_extra_fields_a {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub enum Enum {
+        Variant0,
+        Variant1 { a: u32,b:u32 },
+    }
+}
+
+mod enum_extra_fields_b {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub enum Enum {
+        Variant0,
+        Variant1 { a: u32,b:u32,c:u32 },
+    }
+}
+
 mod misnamed_variant {
     #[repr(C)]
     #[derive(StableAbi)]
@@ -748,6 +785,15 @@ mod mod_6 {
     }
 }
 
+// Changing only the return type
+mod mod_6b {
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub struct Mod{
+        pub function_0: extern "C" fn()->u32,
+    }
+}
+
 mod mod_7 {
     use crate::std_types::RString;
     #[repr(C)]
@@ -770,8 +816,6 @@ mod mod_7 {
 #[sabi(
     bound="M:ToTagConst",
     tag="<M as ToTagConst>::TAG",
-    unconstrained(M),
-
 )]
 pub struct Tagged<M>(UnsafeIgnoredType<M>);
 
@@ -785,6 +829,8 @@ macro_rules! declare_tags {
         $(const $marker_ty:ident = $tag:expr;)*
     ) => (
         $(
+            #[repr(C)]
+            #[derive(StableAbi)]
             pub struct $marker_ty;
 
             impl ToTagConst for $marker_ty {

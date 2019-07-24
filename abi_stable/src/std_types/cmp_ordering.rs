@@ -5,21 +5,18 @@ use std::cmp::Ordering;
 #[repr(u8)]
 #[derive(StableAbi)]
 pub enum RCmpOrdering {
-    #[serde(rename = "Less")]
-    LessR,
-    #[serde(rename = "Equal")]
-    EqualR,
-    #[serde(rename = "Greater")]
-    GreaterR,
+    Less,
+    Equal,
+    Greater,
 }
 
 impl_from_rust_repr! {
     impl From<Ordering> for RCmpOrdering {
         fn(this){
             match this {
-                Ordering::Less=>RCmpOrdering::LessR,
-                Ordering::Equal=>RCmpOrdering::EqualR,
-                Ordering::Greater=>RCmpOrdering::GreaterR,
+                Ordering::Less=>RCmpOrdering::Less,
+                Ordering::Equal=>RCmpOrdering::Equal,
+                Ordering::Greater=>RCmpOrdering::Greater,
             }
         }
     }
@@ -29,9 +26,9 @@ impl_into_rust_repr! {
     impl Into<Ordering> for RCmpOrdering {
         fn(this){
             match this {
-                RCmpOrdering::LessR=>Ordering::Less,
-                RCmpOrdering::EqualR=>Ordering::Equal,
-                RCmpOrdering::GreaterR=>Ordering::Greater,
+                RCmpOrdering::Less=>Ordering::Less,
+                RCmpOrdering::Equal=>Ordering::Equal,
+                RCmpOrdering::Greater=>Ordering::Greater,
             }
         }
     }

@@ -13,7 +13,7 @@ use crate::common_tokens::CommonTokens;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum LifetimeIndex {
     Static,
-    Param { index: usize },
+    Param { index: u8 },
 }
 
 impl LifetimeIndex {

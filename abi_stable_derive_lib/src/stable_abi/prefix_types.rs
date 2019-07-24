@@ -9,7 +9,7 @@ use syn::{
     Visibility,
 };
 
-use quote::ToTokens;
+use quote::{ToTokens,quote_spanned};
 
 
 
@@ -54,7 +54,7 @@ pub(crate) struct PrefixKindField<'a>{
 
 
 /// The different types of prefix-type accessors.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug,Copy, Clone, PartialEq, Eq)]
 pub enum AccessorOrMaybe<'a>{
     /// Unconditionally returns the field.
     Accessor,
@@ -63,7 +63,7 @@ pub enum AccessorOrMaybe<'a>{
 }
 
 
-#[derive(Copy, Clone, Default, PartialEq, Eq)]
+#[derive(Debug,Copy, Clone, Default, PartialEq, Eq)]
 pub struct MaybeAccessor<'a>{
     accessible_if:Option<&'a syn::Expr>,
     on_missing:OnMissingField<'a>,
@@ -78,7 +78,7 @@ pub(crate) struct FirstSuffixField{
 
 
 /// What happens in a Prefix-type field getter if the field does not exist.
-#[derive(Copy,Clone, PartialEq, Eq, Hash)]
+#[derive(Debug,Copy,Clone, PartialEq, Eq, Hash)]
 pub(crate) enum OnMissingField<'a>{
     /// Returns an `Option<FieldType>`,where it returns None if the field is absent.
     ReturnOption,
@@ -180,7 +180,7 @@ pub(crate) fn prefix_type_tokenizer<'a>(
             StabilityKind::Prefix(prefix)=>prefix,
             _=>return,
         };
-        
+
         if struct_.fields.len() > 64 {
             panic!("\n\n`#[sabi(kind(Prefix(..)))]` structs cannot have more than 64 fields\n\n");
         }
@@ -269,156 +269,179 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
         let mut accessor_buffer=String::new();
         let prefix_struct=prefix.prefix_struct;
 
-        let accessor_docs=struct_.fields.iter()
-            .map(move|field|{
-                use std::fmt::Write;
-                let mut acc_doc_buffer =String::new();
-                if is_ds_pub{
-                    let _=write!(
-                        acc_doc_buffer,
-                        "Accessor method for the `{deriving_name}::{field_name}` field.",
-                        deriving_name=deriving_name,
-                        field_name=field.ident(),
-                    );
 
-                    use self::{AccessorOrMaybe as AOM};
+        let mut uncond_acc_docs=Vec::new();
 
-                    match prefix.fields[field] {
-                        AOM::Accessor=>
-                            acc_doc_buffer.push_str(
-                                "This is for a field which always exists."
-                            ),
-                        AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::ReturnOption,..})=>
-                            acc_doc_buffer.push_str(
-                                "Returns `Some(field_value)` if the field exists,\
-                                 `None` if it does not.\
-                                "
-                            ),
-                        AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Panic,..})=>
-                            acc_doc_buffer.push_str(
-                                "\n\n# Panic\n\nPanics if the field does not exist."
-                            ),
-                        AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::With{function},..})=>
-                            write!(
-                                acc_doc_buffer,
-                                "Returns `{function}()` if the field does not exist.",
-                                function=(&function).into_token_stream().to_string()
-                            ).drop_(),
-                        AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Value{..},..})=>
-                            acc_doc_buffer.push_str("\
-                                Returns a default value (not Default::default()) \
-                                if the field does not exist.\
-                            "),
-                        AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Default_,..})=>
-                            acc_doc_buffer.push_str(
-                                "Returns `Default::default()` if the field does not exist."
-                            ),
-                    };
+        let mut cond_acc_docs=Vec::new();
+        let mut field_mask_idents=Vec::new();
+        let mut field_index_for=Vec::new();
+
+        for (index,field) in struct_.fields.iter().enumerate() {
+            use std::fmt::Write;
+            use self::{AccessorOrMaybe as AOM};
+
+            let mut acc_doc_buffer =String::new();
+            let acc_on_missing=prefix.fields[field];
+            if is_ds_pub{
+                let _=write!(
+                    acc_doc_buffer,
+                    "Accessor method for the `{deriving_name}::{field_name}` field.",
+                    deriving_name=deriving_name,
+                    field_name=field.ident(),
+                );
+
+
+                match acc_on_missing {
+                    AOM::Accessor=>
+                        acc_doc_buffer.push_str(
+                            "This is for a field which always exists."
+                        ),
+                    AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::ReturnOption,..})=>
+                        acc_doc_buffer.push_str(
+                            "Returns `Some(field_value)` if the field exists,\
+                             `None` if it does not.\
+                            "
+                        ),
+                    AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Panic,..})=>
+                        acc_doc_buffer.push_str(
+                            "\n\n# Panic\n\nPanics if the field does not exist."
+                        ),
+                    AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::With{function},..})=>
+                        write!(
+                            acc_doc_buffer,
+                            "Returns `{function}()` if the field does not exist.",
+                            function=(&function).into_token_stream().to_string()
+                        ).drop_(),
+                    AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Value{..},..})=>
+                        acc_doc_buffer.push_str("\
+                            Returns a default value (not Default::default()) \
+                            if the field does not exist.\
+                        "),
+                    AOM::Maybe(MaybeAccessor{on_missing:OnMissingField::Default_,..})=>
+                        acc_doc_buffer.push_str(
+                            "Returns `Default::default()` if the field does not exist."
+                        ),
+                };
+            }
+            
+            let field_name=field.ident();
+            {
+                let mut new_ident=parse_str_as_ident(&format!("field_index_for_{}",field_name));
+                new_ident.set_span(field_name.span());
+                field_index_for.push(new_ident);
+            }
+            
+            let field_mask=format!("__AB_PTT_FIELD_{}_ACCESSIBILTIY_MASK",index);
+            let mut field_mask=syn::parse_str::<Ident>(&field_mask).unwrap();
+            field_mask.set_span(field.ident().span());
+            field_mask_idents.push(field_mask);
+
+            match acc_on_missing {
+                AOM::Accessor =>{
+                    uncond_acc_docs.push(acc_doc_buffer);
                 }
-                acc_doc_buffer
-            });
+                AOM::Maybe{..}=>{
+                    cond_acc_docs.push(acc_doc_buffer);
+                }
+            }
+        }
 
         let field_count=struct_.fields.len();
+
+        let mut unconditional_accessors=Vec::new();
+        let mut conditional_accessors=Vec::new();
         
-        let ref field_mask_idents=(0..field_count)
-            .map(|i|{
-                let field_mask=format!("__AB_PTT_FIELD_{}_ACCESSIBILTIY_MASK",i);
-                syn::parse_str::<Ident>(&field_mask).unwrap()
-            })
-            .collect::<Vec<Ident>>();
+        for (field_i,field)in struct_.fields.iter().enumerate() {
+            use std::fmt::Write;
+            accessor_buffer.clear();
+            write!(accessor_buffer,"{}",field.ident()).drop_();
+            let vis=field.vis;
+            let mut getter_name=syn::parse_str::<Ident>(&*accessor_buffer).unwrap();
+            getter_name.set_span(field.ident().span());
+            let field_name=field.ident();
+            let field_span=field_name.span();
+            let ty=field.ty;
 
-        
+            let field_bounds=&prefix.field_bounds[field];
 
-        let accessors=struct_.fields.iter().enumerate()
-            .map(move|(field_i,field)|{
-                use std::fmt::Write;
-                accessor_buffer.clear();
-                write!(accessor_buffer,"{}",field.ident()).drop_();
-                let vis=field.vis;
-                let getter_name=syn::parse_str::<Ident>(&*accessor_buffer).unwrap();
-                let field_name=field.ident();
-                let ty=field.ty;
+            let field_where_clause=if field_bounds.is_empty() {
+                None 
+            }else{ 
+                Some(quote!(where #ty:)) 
+            };
 
-                let field_bounds=&prefix.field_bounds[field];
+            match prefix.fields[field] {
+                AccessorOrMaybe::Accessor=>{
+                    unconditional_accessors.push(quote_spanned!{field_span=>
+                        #vis fn #getter_name(&self)->#ty
+                        #field_where_clause #( #field_bounds+ )*
+                        {
+                            unsafe{ 
+                                let ref_=&(*self.as_full_unchecked()).#field_name;
+                                *ref_ 
+                            }
+                        }
+                    })
+                },
+                AccessorOrMaybe::Maybe(maybe_accessor)=>{
+                    let on_missing_field=maybe_accessor.on_missing;
+                    let is_optional=on_missing_field==OnMissingField::ReturnOption;
 
-                let field_where_clause=if field_bounds.is_empty() {
-                    None 
-                }else{ 
-                    Some(quote!(where #ty:)) 
-                };
+                    let return_ty=if is_optional {
+                        quote!( Option< #ty > )
+                    }else{
+                        quote!( #ty)
+                    };
 
-                match prefix.fields[field] {
-                    AccessorOrMaybe::Accessor=>{
-                        quote!{
-                            #vis fn #getter_name(&self)->#ty
-                            #field_where_clause #( #field_bounds+ )*
-                            {
-                                unsafe{ 
-                                    let ref_=&(*self.as_full_unchecked()).#field_name;
-                                    *ref_ 
+                    let else_=match on_missing_field {
+                        OnMissingField::ReturnOption=>quote_spanned!{field_span=>
+                            return None 
+                        },
+                        OnMissingField::Panic=>quote_spanned!(field_span=>
+                            #module::_sabi_reexports::panic_on_missing_field_ty::<
+                                #deriving_name #ty_generics
+                            >(
+                                #field_i,
+                                self.inner._prefix_type_layout,
+                            )
+                        ),
+                        OnMissingField::With{function}=>quote_spanned!{field_span=>
+                            #function()
+                        },
+                        OnMissingField::Value{value}=>quote_spanned!{field_span=>
+                            (#value)
+                        },
+                        OnMissingField::Default_=>quote_spanned!{field_span=>
+                            Default::default()
+                        },
+                    };
+
+                    let with_val=if is_optional {
+                        quote_spanned!(field_span=> Some(val) )
+                    }else{
+                        quote_spanned!(field_span=> val )
+                    };
+
+                    let field_mask_ident=&field_mask_idents[field_i];
+
+                    conditional_accessors.push(quote_spanned!{field_span=>
+                        #vis fn #getter_name(&self)->#return_ty
+                        #field_where_clause #( #field_bounds+ )*
+                        {
+                            let acc_bits=self.inner._prefix_type_field_acc.bits();
+                            let val=if (Self::#field_mask_ident & acc_bits)==0 {
+                                #else_
+                            }else{
+                                unsafe{
+                                    (*self.as_full_unchecked()).#field_name
                                 }
-                            }
+                            };
+                            #with_val
                         }
-                    },
-                    AccessorOrMaybe::Maybe(maybe_accessor)=>{
-                        let on_missing_field=maybe_accessor.on_missing;
-                        let is_optional=on_missing_field==OnMissingField::ReturnOption;
-
-                        let return_ty=if is_optional {
-                            quote!( Option< #ty > )
-                        }else{
-                            quote!( #ty)
-                        };
-
-                        let else_=match on_missing_field {
-                            OnMissingField::ReturnOption=>quote!{
-                                return None 
-                            },
-                            OnMissingField::Panic=>quote!(
-                                #module::_sabi_reexports::panic_on_missing_field_ty::<
-                                    #deriving_name #ty_generics
-                                >(
-                                    #field_i,
-                                    self.inner._prefix_type_layout,
-                                )
-                            ),
-                            OnMissingField::With{function}=>quote!{
-                                #function()
-                            },
-                            OnMissingField::Value{value}=>quote!{
-                                (#value)
-                            },
-                            OnMissingField::Default_=>quote!{
-                                Default::default()
-                            },
-                        };
-
-                        let with_val=if is_optional {
-                            quote!( Some(val) )
-                        }else{
-                            quote!( val )
-                        };
-
-                        let field_mask_ident=&field_mask_idents[field_i];
-
-                        quote!{
-                            #vis fn #getter_name(&self)->#return_ty
-                            #field_where_clause #( #field_bounds+ )*
-                            {
-                                let acc_bits=self.inner._prefix_type_field_acc.bits();
-                                let val=if (Self::#field_mask_ident & acc_bits)==0 {
-                                    #else_
-                                }else{
-                                    unsafe{
-                                        (*self.as_full_unchecked()).#field_name
-                                    }
-                                };
-                                #with_val
-                            }
-                        }
-                    }
+                    });
                 }
-            });
+            }
+        }
 
 
         let conditional_fields=
@@ -443,17 +466,15 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             .take(prefix.first_suffix_field.field_pos)
             .map(|f| prefix.fields[f].is_conditional() );
 
-        let field_index_for=field_name_list.iter()
-            .map(|field_name| parse_str_as_ident(&format!("field_index_for_{}",field_name)) );
-
-        let field_i=0usize..;
-
+        let field_i_a=0u8..;
         let field_i_b=0u8..;
 
-        let pt_layout_ident=parse_str_as_ident(&format!("__sabi_PT_LAYOUT{}",deriving_name));
+        let mut pt_layout_ident=parse_str_as_ident(&format!("__sabi_PT_LAYOUT{}",deriving_name));
+        pt_layout_ident.set_span(deriving_name.span());
 
         quote!(
 
+            #[allow(non_upper_case_globals)]
             const #pt_layout_ident:&'static #module::__PTStructLayout ={
                 use #module::_sabi_reexports::renamed::{
                     __PTStructLayout,__PTStructLayoutParams,
@@ -469,6 +490,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                     field_names:#str_field_names,
                 })
             };
+
 
             unsafe impl #impl_generics
                 #module::_sabi_reexports::PrefixTypeTrait 
@@ -504,37 +526,20 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 type Prefix=#prefix_struct #ty_generics;
             }
 
+            #[allow(non_upper_case_globals)]
             impl #impl_generics #prefix_struct #ty_generics 
             where 
                 #(#where_preds,)*
-                #(#prefix_bounds,)*
-                #deriving_name #ty_generics: #module::_sabi_reexports::PrefixTypeTrait,
             {
-                const __AB_PTT_FIELD_ACCESSIBILTIY_MASK:u64=
-                    <#deriving_name #ty_generics as 
-                        #module::_sabi_reexports::PrefixTypeTrait 
-                    >::PT_FIELD_ACCESSIBILITY.bits();
-
-                /// Accessor to get the layout of the type.
-                #[inline(always)]
-                pub fn _prefix_type_layout(&self)-> &'static #module::__PTStructLayout {
-                    self.inner._prefix_type_layout
-                }
+                #(
+                    #[doc=#uncond_acc_docs]
+                    #unconditional_accessors
+                )*
 
                 #(
                     const #field_index_for:u8=
-                        #field_i_b;
-
-                    // #(
-                        const #field_mask_idents:u64=
-                            (1<<#field_i) & Self::__AB_PTT_FIELD_ACCESSIBILTIY_MASK;
-                    // )*
-
-                    #[doc=#accessor_docs]
-                    #accessors
+                        #field_i_a;
                 )*
-
-
 
                 // Returns a `*const _` instead of a `&_` because the compiler 
                 // might assume in the future that references point to fully 
@@ -547,6 +552,36 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                         as *const #module::__WithMetadata_<#deriving_name #ty_generics,Self>;
                     #module::__WithMetadata_::into_full(ptr)
                 }
+            }
+
+            
+            #[allow(non_upper_case_globals)]
+            impl #impl_generics #prefix_struct #ty_generics 
+            where 
+                #(#where_preds,)*
+                #(#prefix_bounds,)*
+                #deriving_name #ty_generics: #module::_sabi_reexports::PrefixTypeTrait,
+            {
+                const __AB_PTT_FIELD_ACCESSIBILTIY_MASK:u64=
+                    <#deriving_name #ty_generics as 
+                        #module::_sabi_reexports::PrefixTypeTrait 
+                    >::PT_FIELD_ACCESSIBILITY.bits();
+
+                #(
+                    const #field_mask_idents:u64=
+                        (1<<#field_i_b) & Self::__AB_PTT_FIELD_ACCESSIBILTIY_MASK;
+                )*
+
+                /// Accessor to get the layout of the type.
+                #[inline(always)]
+                pub fn _prefix_type_layout(&self)-> &'static #module::__PTStructLayout {
+                    self.inner._prefix_type_layout
+                }
+
+                #(
+                    #[doc=#cond_acc_docs]
+                    #(#conditional_accessors)*
+                )*
             }
 
         ).to_tokens(ts);

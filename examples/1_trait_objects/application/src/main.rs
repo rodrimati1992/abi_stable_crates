@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap,VecDeque},
-    fs,
-    io::{self,BufRead,Write,Read},
+    io,
     path::{Path,PathBuf},
     mem,
     sync::Arc,
@@ -9,9 +8,9 @@ use std::{
 
 use abi_stable::{
     external_types::crossbeam_channel::{self,RSender,RReceiver},
-    std_types::{RString,RStr,RCow,RResult,RVec,ROk,RErr,RSome},
+    std_types::{RString,RStr,RResult,RVec,ROk,RErr,RSome},
     sabi_trait::prelude::TU_Opaque,
-    library::{RawLibrary,RootModule,LibraryError,LibrarySuffix,lib_header_from_path},
+    library::{RawLibrary,LibraryError,LibrarySuffix,lib_header_from_path},
 };
 
 #[allow(unused_imports)]
@@ -19,10 +18,9 @@ use core_extensions::{SelfOps,SliceExt,StringExt};
 
 use example_1_interface::{
     AsyncCommand,
-    Application_from_ptr,
+    Application_TO,
     Application,
     Error as AppError,
-    Plugin,
     PluginId,
     PluginMod,
     PluginType,
@@ -126,8 +124,6 @@ pub struct DelayedResponse{
 
 fn main()-> io::Result<()> {
 
-    let errors=Vec::<LibraryError>::new();
-
     let config_path=match std::env::args_os().nth(1) {
         Some(os)=>PathBuf::from(os),
         None=>{
@@ -201,7 +197,7 @@ fn main()-> io::Result<()> {
         };
 
         let res=(||{
-            let mut header=lib_header_from_path(&library_path)?;
+            let header=lib_header_from_path(&library_path)?;
             header.init_root_module::<PluginMod>()
         })();
 

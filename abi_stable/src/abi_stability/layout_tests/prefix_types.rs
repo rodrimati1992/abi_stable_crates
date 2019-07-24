@@ -564,7 +564,7 @@ mod cond_fields_0 {
     #[sabi(
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
-        unconstrained(C),
+        unsafe_unconstrained(C),
     )]
     pub struct PrefixVal<C> {
         pub _marker:UnsafeIgnoredType<C>,
@@ -583,7 +583,7 @@ mod cond_fields_1 {
     #[sabi(
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
-        unconstrained(C),
+        unsafe_unconstrained(C),
     )]
     pub struct PrefixVal<C,T=u8,U=u16> {
         pub _marker:UnsafeIgnoredType<C>,
@@ -607,7 +607,7 @@ mod cond_fields_2 {
     #[sabi(
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
-        unconstrained(C),
+        unsafe_unconstrained(C),
     )]
     pub struct PrefixVal<C,T=u8,U=u16,V=u32> {
         pub _marker:UnsafeIgnoredType<C>,
@@ -636,7 +636,7 @@ mod cond_fields_2_misaligned {
     #[sabi(
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
-        unconstrained(C),
+        unsafe_unconstrained(C),
     )]
     pub struct PrefixVal<C> {
         pub _marker:UnsafeIgnoredType<C>,
@@ -661,7 +661,7 @@ mod cond_fields_2_different_prefix {
     #[sabi(
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
-        unconstrained(C),
+        unsafe_unconstrained(C),
     )]
     pub struct PrefixVal<C,T=u8,U=u16,V=u32> {
         pub _marker:UnsafeIgnoredType<C>,
@@ -690,7 +690,7 @@ mod cond_fields_3 {
         // debug_print,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
-        unconstrained(C),
+        unsafe_unconstrained(C),
     )]
     pub struct PrefixVal<C,T=u8,U=u16,V=u32,W=u64> {
         pub _marker:UnsafeIgnoredType<(C,T,U,V,W)>,
@@ -723,7 +723,7 @@ mod cond_fields_3_uncond_prefix {
         // debug_print,
         kind(Prefix(prefix_struct="Prefix")),
         prefix_bound="C:EnabledFields",
-        unconstrained(C),
+        unsafe_unconstrained(C),
     )]
     pub struct PrefixVal<C,T=u8,U=u16,V=u32,W=u64> {
         pub _marker:UnsafeIgnoredType<(C,T,U,V,W)>,

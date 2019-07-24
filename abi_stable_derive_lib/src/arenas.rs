@@ -67,7 +67,7 @@ declare_arenas! {
     vec_meta: Vec<syn::Meta>,
     ident: syn::Ident,
     ident_vec: Vec<syn::Ident>,
-    // paths: syn::Path,
+    trait_bound: syn::TraitBound,
     lifetimes:syn::Lifetime,
     fields_named: syn::FieldsNamed,
     types: syn::Type,

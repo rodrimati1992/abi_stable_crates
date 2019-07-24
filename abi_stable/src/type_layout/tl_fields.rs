@@ -11,7 +11,9 @@ pub struct TLFields {
     /// The field names,separating fields with ";".
     pub names: StaticStr,
 
-    pub variant_lengths:StaticSlice<u16>,
+    /// The ammount of fields of each variant of the type,
+    /// treating structs and unions as a single variant enum.
+    pub variant_lengths:StaticSlice<u8>,
 
     /// Which lifetimes in the struct are referenced in the field type.
     pub lifetime_indices: SliceAndFieldIndices<LifetimeIndex>,
@@ -25,9 +27,10 @@ pub struct TLFields {
 
 
 impl TLFields{
+    /// Constructs a `TLFields` from its component parts
     pub const fn new(
         names: &'static str,
-        variant_lengths:&'static [u16],
+        variant_lengths:&'static [u8],
         lifetime_indices: SliceAndFieldIndices<LifetimeIndex>,
         functions:Option<&'static TLFunctions >,
         field_1to1:&'static [Field1to1],
@@ -41,6 +44,7 @@ impl TLFields{
         }
     }
 
+    /// Gets an iterator over the fields.
     pub fn get_fields(&self)->TLFieldsIterator{
         TLFieldsIterator{
             field_names:self.names.as_str().split(FIELD_SPLITTER),
@@ -52,6 +56,8 @@ impl TLFields{
             mapped_1to1:self.field_1to1.as_slice().iter(),
         }
     }
+    
+    /// Collects the fields into a `Vec<TLField>`.
     pub fn get_field_vec(&self)->Vec<TLField>{
         self.get_fields().collect()
     }
@@ -71,6 +77,13 @@ impl Debug for TLFields{
 }
 
 
+impl Display for TLFields {
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fields_display_formatting(self.get_fields(),f)
+    }
+}
+
+
 impl Eq for TLFields{}
 impl PartialEq for TLFields{
     fn eq(&self,other:&Self)->bool{
@@ -79,8 +92,24 @@ impl PartialEq for TLFields{
 }
 
 
+fn fields_display_formatting<I>(iter:I,f:&mut fmt::Formatter<'_>)->fmt::Result
+where
+    I:IntoIterator<Item=TLField>
+{
+    for field in iter {
+        Display::fmt(&field,f)?;
+        writeln!(f)?;
+    }
+    Ok(())
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 
+
+/**
+Either a `TLFields` or a static slice of `TLField`.
+*/
 #[repr(u8)]
 #[derive(Copy, Clone,Debug, StableAbi,PartialEq,Eq)]
 pub enum TLFieldsOrSlice{
@@ -89,19 +118,24 @@ pub enum TLFieldsOrSlice{
 }
 
 impl TLFieldsOrSlice{
+    /// Constructs a TLFieldsOrSlice from a slice of `TLField` 
     pub const fn from_slice(slice:&'static [TLField])->Self{
         TLFieldsOrSlice::Slice(StaticSlice::new(slice))
     }
 
+    /// Gets an iterator over the fields.
     pub fn get_fields(&self)->TLFOSIter{
         match self {
             TLFieldsOrSlice::TLFields(x)=>TLFOSIter::TLFields(x.get_fields()),
             TLFieldsOrSlice::Slice(x)=>TLFOSIter::Slice(x.as_slice().iter()),
         }
     }
+    
+    /// Collects the fields into a `Vec<TLField>`.
     pub fn get_field_vec(&self)->Vec<TLField>{
         self.get_fields().collect()
     }
+    /// Returns the ammount of fields in this `TLFieldsOrSlice`.
     pub fn len(&self)->usize{
         match self {
             TLFieldsOrSlice::TLFields(x)=>x.field_1to1.len(),
@@ -111,11 +145,19 @@ impl TLFieldsOrSlice{
 }
 
 
+/// A iterator over all the fields of a type definition.
 #[repr(C)]
 #[derive(Clone,Debug)]
 pub enum TLFOSIter{
     TLFields(TLFieldsIterator),
     Slice(slice::Iter<'static,TLField>),
+}
+
+
+impl Display for TLFieldsOrSlice {
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fields_display_formatting(self.get_fields(),f)
+    }
 }
 
 
@@ -152,18 +194,22 @@ impl std::iter::ExactSizeIterator for TLFOSIter{}
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/**
+A slice of `T`,and a slice of ranges into the first slice,associating each range with a field.
+*/
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi,Ord,PartialOrd,Eq,PartialEq)]
 pub struct SliceAndFieldIndices<T:'static>{
     pub values: StaticSlice<T>,
-    pub field_indices: StaticSlice<WithFieldIndex<usize>>,
+    pub field_indices: StaticSlice<WithFieldIndex<u16>>,
 }
 
 
 impl<T> SliceAndFieldIndices<T>{
+    /// Constructs the SliceAndFieldIndices from its component parts.
     pub const fn new(
         values: &'static [T],
-        field_indices:&'static [WithFieldIndex<usize>],
+        field_indices:&'static [WithFieldIndex<u16>],
     )->Self{
         Self{
             values:StaticSlice::new(values),
@@ -171,6 +217,7 @@ impl<T> SliceAndFieldIndices<T>{
         }
     }
 
+    /// Iterates over the ranges of T,associated with a field each.
     pub fn iter(&self)->SAFIIter<T>{
         SAFIIter{
             values:self.values.as_slice(),
@@ -184,7 +231,7 @@ impl<T> SliceAndFieldIndices<T>{
 #[derive(Copy, Clone,Debug)]
 pub struct SAFIIter<T:'static>{
     values:&'static [T],
-    field_indices:&'static [WithFieldIndex<usize>],
+    field_indices:&'static [WithFieldIndex<u16>],
 }
 
 impl<T:'static> Iterator for SAFIIter<T>{
@@ -194,10 +241,10 @@ impl<T:'static> Iterator for SAFIIter<T>{
         let field_index=self.field_indices.get(0)?;
         let len=self.values.len();
         self.field_indices=&self.field_indices[1..];
-        let next_ind=self.field_indices.first().map_or(len,|x| x.value );
+        let next_ind=self.field_indices.first().map_or(len,|x| x.value as usize);
         Some(WithFieldIndex{
             index:field_index.index,
-            value:&self.values[field_index.value..next_ind],
+            value:&self.values[field_index.value as usize ..next_ind],
         })
     }
 
@@ -220,20 +267,24 @@ impl<T> std::iter::ExactSizeIterator for SAFIIter<T>{}
 
 ///////////////////////////////////////////////////////////////////////////////
 
+
+/**
+An index composed of the (variant,field_position) pair.
+*/
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi,Ord,PartialOrd,Eq,PartialEq)]
 pub struct FieldIndex{
     pub variant:u16,
-    pub field_pos:u16,
+    pub field_pos:u8,
 }
 
 impl FieldIndex {
-    pub const fn from_variant_field(variant:u16,field_pos:u16)->Self{
+    pub const fn from_variant_field(variant:u16,field_pos:u8)->Self{
         Self{variant,field_pos}
     }
-    pub fn increment(&mut self,variant_lengths:&[u16]){
+    pub fn increment(&mut self,variant_lengths:&[u8]){
         let next_field_pos=self.field_pos+1;
-        if variant_lengths[self.variant as usize]as u16 == next_field_pos {
+        if variant_lengths[self.variant as usize]== next_field_pos {
             let next_variant=self.variant+1;
             if variant_lengths.len()as u16 != next_variant {
                 self.variant=next_variant;
@@ -247,6 +298,9 @@ impl FieldIndex {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+/**
+Properties that are associated with all fields.
+*/
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi)]
 pub struct Field1to1{
@@ -278,6 +332,9 @@ impl Field1to1{
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/**
+A pair of (FieldIndex,T).
+*/
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi,Ord,PartialOrd,Eq,PartialEq)]
 pub struct WithFieldIndex<T>{
@@ -286,7 +343,8 @@ pub struct WithFieldIndex<T>{
 }
 
 impl<T> WithFieldIndex<T>{
-    pub const fn from_vari_field_val(variant:u16,field_pos:u16,value:T)->Self{
+    /// A convenience constructor.
+    pub const fn from_vari_field_val(variant:u16,field_pos:u8,value:T)->Self{
         Self{
             index:FieldIndex{variant,field_pos},
             value,
@@ -301,6 +359,9 @@ impl<T> WithFieldIndex<T>{
 const FIELD_SPLITTER:&'static [char]=&[';','|'];
 
 
+/**
+An iterator over all the fields in a type definition.
+*/
 #[derive(Clone,Debug)]
 pub struct TLFieldsIterator{
     field_names:std::str::Split<'static,&'static [char]>,

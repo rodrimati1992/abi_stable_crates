@@ -2,7 +2,7 @@
 
 For Rust-to-Rust ffi,
 with a focus on creating libraries loaded at program startup,
-type-checked at load-time.
+and with load-time type-checking.
 
 This library allows defining Rust libraries that can be loaded at runtime,
 even if they were built with a different Rust version than the crate that depends on it.
@@ -10,9 +10,8 @@ even if they were built with a different Rust version than the crate that depend
 These are some usecases for this library:
     
 - Converting a Rust dependency tree from compiling statically into a single binary,
-    into a binary and dynamic libraries,
+    into one binary (and potentially) many dynamic libraries,
     allowing separate re-compilation on changes.
-
 
 - Creating a plugin system (without support for unloading).
     
@@ -32,6 +31,8 @@ Currently this library has these features:
 - Provides the `StableAbi` trait for asserting that types are ffi-safe.
 
 - Features for building extensible modules and vtables,without breaking ABI compatibility.
+
+- Supports ffi-safe nonexhaustive enums,wrapped in `NonExhaustive<>`.
 
 - Checking at load-time that the types in the dynamic library have the expected layout,
     allowing for semver compatible changes while checking the layout of types.
@@ -60,6 +61,10 @@ These are the example crates:
 - 1 - trait objects:
     Demonstrates ffi-safe trait objects (Generated using `#[sabi_trait]`)
     by creating a minimal plugin system.
+
+- 2 - nonexhaustive-enums:
+    Demonstrates nonexhaustive-enums as parameters and return values,
+    for an application that manages the catalogue of a shop.
 
 # Example
 
@@ -90,7 +95,7 @@ with comments for how to turn them into 3 separate crates.
 use abi_stable::std_types::RVec;
 
 use interface_crate::{
-    AppenderType,Appender_Methods,Appender,
+    AppenderType,Appender_TO,
     ExampleLib,BoxedInterface,load_root_module_in_directory,
 };
 
@@ -104,22 +109,20 @@ fn main(){
 
         // The type annotation is for the reader
         let mut appender:AppenderType<u32>=library.new_appender()();
-        appender.push_(100);
-        appender.push_(200);
+        appender.push(100);
+        appender.push(200);
 
-        // `TraitName_Methods` is the primary way to call methods on ffi-safe trait objects,
+        // The primary way to use the methods in the trait is through the inherent methods on 
+        // the ffi-safe trait object,
         // since `Trait` requires that the trait object implements the pointer traits for
         // the maximum mutability required by its methods.
         //
-        // TraitName_Methods only require that those pointer traits are 
+        // The inherent methods only require that those pointer traits are 
         // implemented on a per-method basis.
-        //
-        // Each method in TraitName_Methods appends '_' to 
-        // the name of each method(relative to Trait).
-        Appender_Methods::push_(&mut appender,300);
-        appender.append_(vec![500,600].into());
+        Appender_TO::push(&mut appender,300);
+        appender.append(vec![500,600].into());
         assert_eq!(
-            appender.into_rvec_(),
+            appender.into_rvec(),
             RVec::from(vec![100,200,300,500,600]) 
         );
     }
@@ -327,7 +330,7 @@ use super::{interface_crate};
 use interface_crate::{
     Appender,
     AppenderType,
-    Appender_from_value,
+    Appender_TO,
     BoxedInterface,
     ExampleLib,
     ExampleLibVal,
@@ -339,7 +342,7 @@ use abi_stable::{
     DynTrait,
     erased_types::TypeInfo,
     export_root_module,
-    extern_fn_panic_handling,
+    sabi_extern_fn,
     impl_get_type_info,
     prefix_type::PrefixTypeTrait,
     sabi_trait::prelude::TU_Opaque,
@@ -349,7 +352,7 @@ use abi_stable::{
 
 /// The function which exports the root module of the library.
 #[export_root_module]
-pub extern "C" fn get_library() -> &'static ExampleLib {
+pub fn get_library() -> &'static ExampleLib {
     ExampleLibVal{
         new_appender,
         new_boxed_interface,
@@ -388,31 +391,29 @@ impl StringBuilder{
     }
 }
 
-
-pub extern "C" fn new_appender()->AppenderType<u32>{
-    Appender_from_value::<_,TU_Opaque>(RVec::new())
+#[sabi_extern_fn]
+pub fn new_appender()->AppenderType<u32>{
+    Appender_TO::from_value(RVec::new(),TU_Opaque)
 }
 
 
 /// Constructs a BoxedInterface.
-extern fn new_boxed_interface()->BoxedInterface<'static>{
-    extern_fn_panic_handling!{
-        DynTrait::from_value(StringBuilder{
-            text:"".into(),
-            appended:vec![],
-        })
-    }
+#[sabi_extern_fn]
+fn new_boxed_interface()->BoxedInterface<'static>{
+    DynTrait::from_value(StringBuilder{
+        text:"".into(),
+        appended:vec![],
+    })
 }
 
 
 /// Appends a string to the erased `StringBuilderType`.
-extern fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
-    extern_fn_panic_handling!{
-        wrapped
-            .sabi_as_unerased_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
-            .unwrap() // Returns `&mut StringBuilder`
-            .append_string(string);
-    }
+#[sabi_extern_fn]
+fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
+    wrapped
+        .sabi_as_unerased_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
+        .unwrap() // Returns `&mut StringBuilder`
+        .append_string(string);
 }
 
 
@@ -437,7 +438,6 @@ impl<T> Appender for RVec<T>{
 
 
 
-
 ```
 
 
@@ -457,13 +457,6 @@ Note that this library assumes that dynamic libraries come from a benign source,
 these checks are done purely to detect programming errors.
 
 # Planned features
-
-### 0.6
-
-Ffi-safe non-exhaustive enums with fields,allowing for libraries to add variants to enums without breaking backwards compatibility (API or ABI).
-
-Make `#[sabi_trait]` generated trait objects more ergonomic,as well as improve compile-time errors.
-Some of those improvements will require small (but still breaking) changes.
 
 ### Eventually
 
@@ -498,7 +491,8 @@ A crate which declares:
     declare the ffi-safe traits with `#[sabi_trait]`,
     used as trait objects in the public interface.
 
-- Optionally:declares ìnterface types,types which implement InterfaceType,
+- Optionally:
+    declares ìnterface types,types which implement InterfaceType,
     used to specify the traits usable in the DynTrait ffi-safe trait object .
 
 
@@ -524,15 +518,6 @@ The crate compiled as a dynamic library that:
 A crate that that declares the `ìnterface crate` as a dependency,
 and loads the pre-compiled `implementation crate` dynamic library from some path.
 
-
-# Known limitations
-
-### Extensible enums with fields
-
-You can't add variants to enums with fields in the `interface crate` in minor versions.
-
-This will be part of the 0.6 release.
-
 # Minimum Rust version
 
 This crate support Rust back to 1.34
@@ -550,6 +535,7 @@ These are default cargo features that enable optional crates :
 - "channels":
     Depends on `crossbeam-channel`,
     wrapping channels from it for ffi in abi_stable::external_types::crossbeam_channel .
+
 
 To disable the default features use:
 ```

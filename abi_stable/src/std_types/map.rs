@@ -62,7 +62,7 @@ Most of the API in `HashMap` is implemented here,including the Entry API.
 #[repr(C)]
 #[sabi(
     // The hasher doesn't matter
-    unconstrained(S),
+    unsafe_unconstrained(S),
 )]
 pub struct RHashMap<K,V,S=RandomState>{
     map:RBox<ErasedMap<K,V,S>>,
@@ -99,7 +99,7 @@ pub type Drain<'a,K,V>=
 #[derive(StableAbi)]
 #[sabi(
     // The hasher doesn't matter
-    unconstrained(S),
+    unsafe_unconstrained(S),
 )]
 struct ErasedMap<K,V,S>(
     PhantomData<Tuple2<K,V>>,
@@ -666,7 +666,7 @@ mod serde{
     kind(Prefix(prefix_struct="VTable")),
     missing_field(panic),
     // The hasher doesn't matter
-    unconstrained(S),
+    unsafe_unconstrained(S),
     //debug_print,
 )]
 struct VTableVal<K,V,S>{

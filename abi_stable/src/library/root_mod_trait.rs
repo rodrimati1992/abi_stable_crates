@@ -34,10 +34,18 @@ pub trait RootModule: Sized+SharedStableAbi+'static  {
             base_name:StaticStr::new(Self::BASE_NAME),
             name:StaticStr::new(Self::NAME),
             version_strings:Self::VERSION_STRINGS,
-            abi_info:<&Self>::S_ABI_INFO,
+            abi_info:IsAbiChecked::Yes(<&Self>::S_ABI_INFO),
             _priv:(),
         },
         _priv:PhantomData,
+    };
+
+    /// Like Self::CONSTANTS,
+    /// except without including the type layout constant for the root module.
+    const CONSTANTS_NO_ABI_INFO:RootModuleConsts<Self>={
+        let mut consts=Self::CONSTANTS;
+        consts.inner.abi_info=IsAbiChecked::No;
+        consts
     };
 
     /// Gets the statics for Self.
@@ -137,7 +145,7 @@ If the layout of the root module is not the expected one.
         let statics=Self::root_module_statics();
         statics.root_mod.try_init(||{
             let raw_library=load_raw_library::<Self>(where_)?;
-            let mut items = unsafe{ lib_header_from_raw_library(&raw_library)? };
+            let items = unsafe{ lib_header_from_raw_library(&raw_library)? };
 
             let root_mod=items.init_root_module::<Self>()?.initialization()?;
 
@@ -225,7 +233,7 @@ it will contain dangling `'static` references if the library is dropped before i
 */
 pub unsafe fn lib_header_from_raw_library(
     raw_library:&RawLibrary
-)->Result< LibHeader , LibraryError>
+)->Result< &'static LibHeader , LibraryError>
 {
     unsafe{
         let mut mangled=mangled_root_module_loader_name();
@@ -246,7 +254,7 @@ pub unsafe fn lib_header_from_raw_library(
         // This has to run before anything else.
         lib_header.initialize_library_globals(globals);
 
-        Ok(lib_header.clone())
+        Ok(lib_header)
     }
 }
 
@@ -272,7 +280,7 @@ If the root module was not exported.
 If the abi_stable version used by the library is not compatible.
 
 */
-pub fn lib_header_from_path(path:&Path)->Result< LibHeader , LibraryError> {
+pub fn lib_header_from_path(path:&Path)->Result< &'static LibHeader , LibraryError> {
     let raw_lib=RawLibrary::load_at(path)?;
 
     let library_getter=unsafe{ lib_header_from_raw_library(&raw_lib)? };
@@ -291,6 +299,7 @@ macro_rules! declare_root_module_consts {
         fields=[
             $(
                 $(#[$field_meta:meta])*
+                method_docs=$method_docs:expr,
                 $field:ident : $field_ty:ty
             ),* $(,)*
         ]
@@ -318,10 +327,12 @@ macro_rules! declare_root_module_consts {
 
 
         impl<M> RootModuleConsts<M>{
+            /// Gets the type-erased version of this type.
             pub const fn erased(&self)->ErasedRootModuleConsts{
                 self.inner
             }
             $(
+                #[doc=$method_docs]
                 pub const fn $field(&self)->$field_ty{
                     self.inner.$field
                 }
@@ -330,6 +341,7 @@ macro_rules! declare_root_module_consts {
 
         impl ErasedRootModuleConsts{
             $(
+                #[doc=$method_docs]
                 pub const fn $field(&self)->$field_ty{
                     self.$field
                 }
@@ -342,10 +354,19 @@ macro_rules! declare_root_module_consts {
 
 declare_root_module_consts!{
     fields=[
+        method_docs="
+         The name of the dynamic library,which is the same on all platforms.
+         This is generally the name of the implementation crate.",
         base_name: StaticStr,
+
+        method_docs="The name of the library used in error messages.",
         name: StaticStr,
+
+        method_docs="The version number of the library this was created from.",
         version_strings: VersionStrings,
-        abi_info: &'static AbiInfoWrapper,
+
+        method_docs="The (optional) type layout constant of the root module.",
+        abi_info: IsAbiChecked,
     ]
 }
 

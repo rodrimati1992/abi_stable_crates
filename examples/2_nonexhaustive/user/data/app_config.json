@@ -1,0 +1,13 @@
+{
+    "Many":{"list":[
+        {"CreateItem":{
+            "name":"Box of Void",
+            "initial_count":10000,
+            "price":{"cents":100}
+        }},
+        {"AddItem":{
+            "id":{"id":0},
+            "count":10
+        }}
+    ]}
+}

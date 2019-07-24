@@ -10,9 +10,7 @@ use core_extensions::SelfOps;
 
 use crate::{
     reflection::{ModReflMode},
-    abi_stability::{
-        type_layout::*,
-    },
+    type_layout::*,
 };
 
 #[derive(Debug,Serialize,Deserialize)]
