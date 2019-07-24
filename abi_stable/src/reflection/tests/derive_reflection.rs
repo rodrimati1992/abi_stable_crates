@@ -4,11 +4,9 @@ Tests the fields related to reflection generated in the StableAbi derive macro.
 
 
 use crate::{
-    abi_stability::{
-        type_layout::{TLData,FieldAccessor,TLField},
-        SharedStableAbi,
-    },
+    abi_stability::{SharedStableAbi},
     reflection::ModReflMode,
+    type_layout::{TLData,FieldAccessor,TLField},
     std_types::*,
 };
 
@@ -111,31 +109,38 @@ pub struct PrefixPubFieldsOpaqueValue {
 }
 
 
-#[repr(C)]
-#[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="PrefixMostPrivacies")))]
-pub struct PrefMostPrivaciesValue {
-    pub field0: u8,
-    #[sabi(last_prefix_field)]
-    pub field1: u8,
-    pub field2: u8,
-    pub field3: u8,
-    pub(super)field4: u16,
-    #[sabi(missing_field(default))]
-    field5: u32,
-}
+#[allow(dead_code)]
+mod some_prefixes{
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(kind(Prefix(prefix_struct="PrefixMostPrivacies")))]
+    pub struct PrefMostPrivaciesValue {
+        pub field0: u8,
+        #[sabi(last_prefix_field)]
+        pub field1: u8,
+        pub field2: u8,
+        pub field3: u8,
+        pub(super)field4: u16,
+        #[sabi(missing_field(default))]
+        field5: u32,
+    }
 
 
-#[repr(C)]
-#[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="PrefixPriv")))]
-pub struct PrefPrivValue {
-    field0: u8,
-    pub(super) field1: u16,
-    #[sabi(last_prefix_field)]
-    #[sabi(missing_field(default))]
-    pub(crate) field2: u32,
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(kind(Prefix(prefix_struct="PrefixPriv")))]
+    pub struct PrefPrivValue {
+        field0: u8,
+        pub(super) field1: u16,
+        #[sabi(last_prefix_field)]
+        #[sabi(missing_field(default))]
+        pub(crate) field2: u32,
+    }
 }
+
+pub use self::some_prefixes::*;
+
+
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -166,7 +171,7 @@ fn check_enum_accessors<T>(
     let layout=T::S_ABI_INFO.get().layout;
 
     let mut fields=match layout.data {
-        TLData::Enum{fields,..}=>fields.get_fields(),
+        TLData::Enum(enum_)=>enum_.fields.get_fields(),
         x=>panic!("layout.data must be TLData::Struct{{..}}:\n{:#?}",x)
     };
 

@@ -5,13 +5,11 @@ use std::{
 
 #[allow(unused_imports)]
 use crate::{
-    abi_stability::{
-        type_layout::{
-            TypeLayout,TLField,TLData,TLPrefixType,TLDataDiscriminant,
-            TLFieldsOrSlice,TLFieldsIterator,TLFields,
-        },
-    },
     std_types::*,
+    type_layout::{
+        TypeLayout,TLField,TLData,TLPrefixType,TLDataDiscriminant,
+        TLFieldsOrSlice,TLFieldsIterator,TLFields,
+    },
 };
 
 use super::{

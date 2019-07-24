@@ -8,6 +8,7 @@ edition = "2018"
 abi_stable={version="*",path="../../../abi_stable"}
 structopt = "0.2"
 core_extensions = "0.1"
+serde_json = "1.0"
 
 [dependencies.example_0_interface]
 version="0.1"

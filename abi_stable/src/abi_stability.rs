@@ -2,29 +2,18 @@
 types and traits related to abi stability.
 */
 
-#[macro_use]
-pub mod type_layout;
 pub(crate) mod abi_checking;
+pub mod get_static_equivalent;
 pub mod stable_abi_trait;
-pub mod tagging;
 
 
 mod layout_tests;
 
 pub use self::{
     abi_checking::exported_check_layout_compatibility as check_layout_compatibility,
+    get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
     stable_abi_trait::{
         AbiInfo, AbiInfoWrapper, StableAbi,
         SharedStableAbi,
-    },
-    tagging::{
-        Tag,
-    }
-
-};
-
-use self::{
-    stable_abi_trait::{
-        GetAbiInfo,
     },
 };

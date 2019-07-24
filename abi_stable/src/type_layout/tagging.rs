@@ -73,7 +73,6 @@ trait Name{
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi( 
-    unconstrained(S),
     bound="S:Name",
     tag = r##" tag!( S::NAME ) "## ,
 )]
@@ -81,20 +80,28 @@ struct StringParameterized<S>{
     _marker:UnsafeIgnoredType<S>
 }
 
-
+#[repr(C)]
+#[derive(StableAbi)]
 struct Foo;
+
 impl Name for Foo{
     const NAME:&'static str="Hello, World!";
 }
 
 
+#[repr(C)]
+#[derive(StableAbi)]
 struct Bar;
+
 impl Name for Bar{
-    const NAME:&'static str="Hello, World!";
+    const NAME:&'static str="Hello, Helloooooo!";
 }
 
 
+#[repr(C)]
+#[derive(StableAbi)]
 struct Boor;
+
 impl Name for Boor{
     const NAME:&'static str="This is a different string!";
 }
@@ -108,7 +115,7 @@ impl Name for Boor{
 ```rust
 use abi_stable::{
     tag,
-    abi_stability::Tag,
+    type_layout::Tag,
 };
 
 const NULL:Tag=Tag::null();
@@ -173,7 +180,7 @@ const MAP_0_FN:Tag=Tag::map(&[
 ```rust
 use abi_stable::{
     tag,
-    abi_stability::Tag,
+    type_layout::Tag,
 };
 
 const TAG:Tag=tag!{{
@@ -305,9 +312,33 @@ impl TagTrait for Tag{
     }
 }
 
+impl<'a> TagTrait for &'a Tag{
+    fn is_null(&self)->bool{
+        self.variant==TagVariant::Primitive(Primitive::Null)
+    }
+}
+
 impl TagTrait for CheckableTag{
     fn is_null(&self)->bool{
         self.variant==CTVariant::Primitive(Primitive::Null)
+    }
+}
+
+impl<KV> TagTrait for KeyValue<KV>
+where 
+    KV:TagTrait
+{
+    fn is_null(&self)->bool{
+        self.key.is_null()
+    }
+}
+
+impl<'a,KV> TagTrait for &'a KeyValue<KV>
+where 
+    KV:TagTrait
+{
+    fn is_null(&self)->bool{
+        self.key.is_null()
     }
 }
 
@@ -654,10 +685,10 @@ impl FromLiteral<Tag>{
 fn display_iter<I>(iter:I,f:&mut fmt::Formatter<'_>,indent:usize)->fmt::Result 
 where
     I:IntoIterator,
-    I::Item:Display,
+    I::Item:Display+TagTrait,
 {
     let mut buffer=String::new();
-    for elem in iter {
+    for elem in iter.into_iter().filter(|x| !x.is_null() ) {
         Display::fmt(&buffer.display_pad(indent,&elem)?,f)?;
         writeln!(f,",")?;
     }
@@ -690,6 +721,35 @@ impl Display for Primitive {
     }
 }
 
+
+impl Display for Tag {
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
+        match &self.variant {
+            TagVariant::Primitive(prim)=>{
+                Display::fmt(prim,f)?;
+            },
+            TagVariant::Ignored(ignored)=>{
+                Display::fmt(ignored,f)?;
+            }
+            TagVariant::Array(arr)=>{
+                writeln!(f,"[")?;
+                display_iter(&**arr,f,4)?;
+                write!(f,"]")?;
+            },
+            TagVariant::Set(map)=>{
+                writeln!(f,"{{")?;
+                display_iter(map.iter(),f,4)?;
+                write!(f,"}}")?;
+            },
+            TagVariant::Map(map)=>{
+                writeln!(f,"{{")?;
+                display_iter(map.iter(),f,4)?;
+                write!(f,"}}")?;
+            },
+        }
+        Ok(())
+    }
+}
 
 impl Display for CheckableTag {
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {

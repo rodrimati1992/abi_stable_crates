@@ -9,8 +9,10 @@ use std::{
     mem,
 };
 
+use core_extensions::StringExt;
 
 use crate::{
+    abi_stability::stable_abi_trait::{AbiInfo,GetAbiInfo},
     const_utils::empty_slice, sabi_types::VersionStrings, 
     sabi_types::CmpIgnored,
     std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr,RSlice},
@@ -18,18 +20,14 @@ use crate::{
     reflection::ModReflMode,
 };
 
-use super::{
-    AbiInfo, 
-    GetAbiInfo,
-    tagging::Tag,
-};
-
 
 mod construction;
+mod tl_enums;
 mod tl_field;
 mod tl_fields;
 mod tl_functions;
 mod tl_other;
+pub mod tagging;
 
 pub use self::{
     construction::{
@@ -37,13 +35,23 @@ pub use self::{
         _private_TypeLayoutDerive,
         ItemInfo,
     },
+    tl_enums::{
+        TLEnum,
+        TLDiscriminant,
+        TLDiscriminants,
+        DiscriminantRepr,
+        GetVariantNames,
+        IsExhaustive,
+        TLNonExhaustive,
+        IncompatibleWithNonExhaustive,
+    },
     tl_field::{
         FieldAccessor,
         TLField,
-        TLFieldAndType,
     },
     tl_fields::{
         TLFields,
+        TLFOSIter,
         TLFieldsOrSlice,
         FieldIndex,
         Field1to1,
@@ -58,7 +66,6 @@ pub use self::{
         TLFunctionRange,
     },
     tl_other::{
-        DiscriminantRepr,
         FullType,
         GenericParams,
         LifetimeIndex,
@@ -67,11 +74,11 @@ pub use self::{
         TLData,
         TLDataDiscriminant,
         TLPrimitive,
-        TLDiscriminant,
-        TLEnumVariant,
         TLFunction,
         TLPrefixType,
+        TLFieldOrFunction,
     },
+    tagging::Tag,
 };
 
 
@@ -294,3 +301,36 @@ impl TypeLayout {
 }
 
 
+
+
+
+impl Display for TypeLayout {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (package,version)=self.item_info.package_and_version();
+        writeln!(
+            f,
+            "--- Type Layout ---\n\
+             type:{ty}\n\
+             size:{size} align:{align}\n\
+             package:'{package}' version:'{version}'",
+            ty   =self.full_type(),
+            size =self.size,
+            align=self.alignment,
+            package=package,
+            version=version,
+        )?;
+        writeln!(f,"data:\n{}",self.data.to_string().left_padder(4))?;
+        if !self.phantom_fields.is_empty() {
+            writeln!(f,"Phantom fields:\n")?;
+            for field in &*self.phantom_fields {
+                write!(f,"{}",field.to_string().left_padder(4))?;
+            }
+        }
+        writeln!(f,"Tag:\n{}",self.tag.to_string().left_padder(4))?;
+        writeln!(f,"Reflection Tag:\n{}",self.reflection_tag.to_string().left_padder(4))?;
+        writeln!(f,"Private Tag:\n{}",self.private_tag.to_string().left_padder(4))?;
+        writeln!(f,"Repr attribute:{:?}",self.repr_attr)?;
+        writeln!(f,"Module reflection mode:{:?}",self.mod_refl_mode)?;
+        Ok(())
+    }
+}

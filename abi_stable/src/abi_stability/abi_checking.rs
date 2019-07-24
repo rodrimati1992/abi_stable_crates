@@ -5,7 +5,7 @@ Functions and types related to the layout checking.
 use std::{cmp::Ordering, fmt,mem};
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::{prelude::*,matches};
 
 use std::{
     borrow::Borrow,
@@ -13,24 +13,24 @@ use std::{
 };
 // use std::collections::HashSet;
 
-use super::{
-    AbiInfo, AbiInfoWrapper,
-    type_layout::{
-        TypeLayout, TLData, TLDataDiscriminant, TLEnumVariant, TLField,TLFieldAndType, 
-        FullType, ReprAttr, TLDiscriminant,TLPrimitive,
-    },
-    tagging::{CheckableTag,TagErrors},
-};
+use super::{AbiInfo, AbiInfoWrapper};
 use crate::{
     sabi_types::{ParseVersionError, VersionStrings},
     prefix_type::{FieldAccessibility,IsConditional},
     std_types::{RVec, StaticSlice, StaticStr,utypeid::UTypeId,RBoxError,RResult},
     traits::IntoReprC,
-    utils::min_max_by,
+    type_layout::{
+        TypeLayout, TLData, TLDataDiscriminant, TLField, 
+        FullType, ReprAttr, TLDiscriminant,TLPrimitive,
+        TLEnum,IsExhaustive,IncompatibleWithNonExhaustive,TLNonExhaustive,
+        TLFieldOrFunction, TLFunction,
+        tagging::TagErrors,
+    },
+    utils::{max_by,min_max_by},
 };
 
 /// All the errors from checking the layout of every nested type in AbiInfo.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 #[repr(C)]
 pub struct AbiInstabilityErrors {
     pub interface: &'static AbiInfo,
@@ -43,10 +43,10 @@ pub struct AbiInstabilityErrors {
 ///
 /// Error that happen lower or higher on the stack are stored in separate
 ///  `AbiInstabilityError`s.
-#[derive(Debug, PartialEq)]
+#[derive(Debug,Clone, PartialEq)]
 #[repr(C)]
 pub struct AbiInstabilityError {
-    pub stack_trace: RVec<TLFieldAndType>,
+    pub stack_trace: RVec<ExpectedFound<TLFieldOrFunction>>,
     pub errs: RVec<AbiInstability>,
     pub index: usize,
     _priv:(),
@@ -55,28 +55,30 @@ pub struct AbiInstabilityError {
 /// An individual error from checking the layout of some type.
 #[derive(Debug, PartialEq,Clone)]
 pub enum AbiInstability {
-    IsPrefix(ExpectedFoundError<bool>),
-    NonZeroness(ExpectedFoundError<bool>),
-    Name(ExpectedFoundError<FullType>),
-    Package(ExpectedFoundError<StaticStr>),
+    IsPrefix(ExpectedFound<bool>),
+    NonZeroness(ExpectedFound<bool>),
+    Name(ExpectedFound<FullType>),
+    Package(ExpectedFound<StaticStr>),
     PackageVersionParseError(ParseVersionError),
-    PackageVersion(ExpectedFoundError<VersionStrings>),
-    MismatchedPrefixSize(ExpectedFoundError<usize>),
-    Size(ExpectedFoundError<usize>),
-    Alignment(ExpectedFoundError<usize>),
-    GenericParamCount(ExpectedFoundError<FullType>),
-    TLDataDiscriminant(ExpectedFoundError<TLDataDiscriminant>),
-    MismatchedPrimitive(ExpectedFoundError<TLPrimitive>),
-    FieldCountMismatch(ExpectedFoundError<usize>),
-    FieldLifetimeMismatch(ExpectedFoundError<TLField>),
-    UnexpectedField(ExpectedFoundError<TLField>),
-    TooManyVariants(ExpectedFoundError<usize>),
-    MismatchedPrefixConditionality(ExpectedFoundError<StaticSlice<IsConditional>>),
-    UnexpectedVariant(ExpectedFoundError<TLEnumVariant>),
-    ReprAttr(ExpectedFoundError<ReprAttr>),
-    EnumDiscriminant(ExpectedFoundError<TLDiscriminant>),
+    PackageVersion(ExpectedFound<VersionStrings>),
+    MismatchedPrefixSize(ExpectedFound<usize>),
+    Size(ExpectedFound<usize>),
+    Alignment(ExpectedFound<usize>),
+    GenericParamCount(ExpectedFound<FullType>),
+    TLDataDiscriminant(ExpectedFound<TLDataDiscriminant>),
+    MismatchedPrimitive(ExpectedFound<TLPrimitive>),
+    FieldCountMismatch(ExpectedFound<usize>),
+    FieldLifetimeMismatch(ExpectedFound<TLField>),
+    FnLifetimeMismatch(ExpectedFound<TLFunction>),
+    UnexpectedField(ExpectedFound<TLField>),
+    TooManyVariants(ExpectedFound<usize>),
+    MismatchedPrefixConditionality(ExpectedFound<StaticSlice<IsConditional>>),
+    MismatchedExhaustiveness(ExpectedFound<IsExhaustive>),
+    UnexpectedVariant(ExpectedFound<StaticStr>),
+    ReprAttr(ExpectedFound<ReprAttr>),
+    EnumDiscriminant(ExpectedFound<TLDiscriminant>),
+    IncompatibleWithNonExhaustive(IncompatibleWithNonExhaustive),
     TagError{
-        expected_found:ExpectedFoundError<CheckableTag>,
         err:TagErrors,
     },
 }
@@ -101,17 +103,18 @@ impl AbiInstabilityErrors {
     }
 }
 
+impl fmt::Debug for AbiInstabilityErrors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self,f)
+    }
+}
 impl fmt::Display for AbiInstabilityErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(
             f,
             "Compared <this>:\n{}\nTo <other>:\n{}\n",
-            self.interface.layout.full_type().to_string().left_padder(4),
-            self.implementation
-                .layout
-                .full_type()
-                .to_string()
-                .left_padder(4),
+            self.interface.layout.to_string().left_padder(4),
+            self.implementation.layout.to_string().left_padder(4),
         )?;
         for err in &self.errors {
             fmt::Display::fmt(err, f)?;
@@ -119,21 +122,33 @@ impl fmt::Display for AbiInstabilityErrors {
         Ok(())
     }
 }
+
 impl fmt::Display for AbiInstabilityError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut extra_err=None::<String>;
 
-        writeln!(f, "{} error(s) at:", self.errs.len())?;
-        write!(f, "<this>")?;
-        for field in &self.stack_trace {
-            write!(f, ".{}", field.name())?;
+        write!(f, "{} error(s)", self.errs.len())?;
+        if self.stack_trace.is_empty() {
+            writeln!(f,".")?;
+        }else{
+            writeln!(f,"inside:\n    <other>\n")?;
         }
-        if let Some(last) = self.stack_trace.last() {
-            write!(f, ":{}", last.full_type())?;
+        for field in &self.stack_trace {
+            writeln!(f, "{}\n", field.found.to_string().left_padder(4))?;
+        }
+        if let Some(ExpectedFound{expected,found}) = self.stack_trace.last() {
+            writeln!(
+                f, 
+                "Layout of expected type:\n{}\n\n\
+                 Layout of found type:\n{}\n", 
+                expected.formatted_layout().left_padder(4),
+                found.formatted_layout().left_padder(4),
+            )?;
         }
         writeln!(f)?;
+
         for err in &self.errs {
-            let (error_msg, expected_err): (&'static str, ExpectedFoundError<String>) = match err {
+            let pair = match err {
                 AI::IsPrefix(v) => ("mismatched prefixness", v.debug_str()),
                 AI::NonZeroness(v) => ("mismatched non-zeroness", v.display_str()),
                 AI::Name(v) => ("mismatched type", v.display_str()),
@@ -144,7 +159,7 @@ impl fmt::Display for AbiInstabilityError {
 
                     (
                         "could not parse version string",
-                        ExpectedFoundError { expected, found },
+                        Some(ExpectedFound { expected, found }),
                     )
                 }
                 AI::PackageVersion(v) => ("incompatible package versions", v.display_str()),
@@ -163,32 +178,48 @@ impl fmt::Display for AbiInstabilityError {
                 AI::TLDataDiscriminant(v) => ("incompatible data ", v.debug_str()),
                 AI::MismatchedPrimitive(v) => ("incompatible primitive", v.debug_str()),
                 AI::FieldCountMismatch(v) => ("too many fields", v.display_str()),
-                AI::FieldLifetimeMismatch(v) => {
-                    ("field references different lifetimes", v.debug_str())
+                AI::FnLifetimeMismatch(v) => {
+                    ("function pointers reference different lifetimes", v.display_str())
                 }
-                AI::UnexpectedField(v) => ("unexpected field", v.debug_str()),
+                AI::FieldLifetimeMismatch(v) => {
+                    ("field references different lifetimes", v.display_str())
+                }
+                AI::UnexpectedField(v) => ("unexpected field", v.display_str()),
                 AI::TooManyVariants(v) => ("too many variants", v.display_str()),
                 AI::MismatchedPrefixConditionality(v)=>(
                     "prefix fields differ in whether they are conditional",
                     v.debug_str()
                 ),
+                AI::MismatchedExhaustiveness(v)=>(
+                    "enums differ in whether they are exhaustive",
+                    v.debug_str()
+                ),
                 AI::UnexpectedVariant(v) => ("unexpected variant", v.debug_str()),
                 AI::ReprAttr(v)=>("incompatible repr attributes",v.debug_str()),
                 AI::EnumDiscriminant(v)=>("different discriminants",v.debug_str()),
-                AI::TagError{expected_found,err} => {
+                AI::IncompatibleWithNonExhaustive(e)=>{
+                    extra_err=Some(e.to_string());
+
+                    ("",None)
+                }
+                AI::TagError{err} => {
                     extra_err=Some(err.to_string());
 
-                    ("incompatible tag", expected_found.display_str())
+                    ("", None)
                 },
             };
 
-            writeln!(
-                f,
-                "\nError:{}\nExpected:\n{}\nFound:\n{}",
-                error_msg,
-                expected_err.expected.left_padder(4),
-                expected_err.found   .left_padder(4),
-            )?;
+            let (error_msg, expected_err):(&'static str, Option<ExpectedFound<String>>)=pair;
+
+            if let Some(expected_err)=expected_err{
+                writeln!(
+                    f,
+                    "\nError:{}\nExpected:\n{}\nFound:\n{}",
+                    error_msg,
+                    expected_err.expected.left_padder(4),
+                    expected_err.found   .left_padder(4),
+                )?;
+            }
             if let Some(extra_err)=&extra_err {
                 writeln!(f,"\nExtra:\n{}\n",extra_err.left_padder(4))?;
             }
@@ -238,51 +269,51 @@ impl CheckingUTypeId{
 /// Represents an error where a value was expected,but another value was found.
 #[derive(Debug, PartialEq,Clone)]
 #[repr(C)]
-pub struct ExpectedFoundError<T> {
-    expected: T,
-    found: T,
+pub struct ExpectedFound<T> {
+    pub expected: T,
+    pub found: T,
 }
 
-impl<T> ExpectedFoundError<T> {
-    pub fn new<O, F>(this: O, other: O, mut field_getter: F) -> ExpectedFoundError<T>
+impl<T> ExpectedFound<T> {
+    pub fn new<O, F>(this: O, other: O, mut field_getter: F) -> ExpectedFound<T>
     where
         F: FnMut(O) -> T,
     {
-        ExpectedFoundError {
+        ExpectedFound {
             expected: field_getter(this),
             found: field_getter(other),
         }
     }
 
-    pub fn as_ref(&self) -> ExpectedFoundError<&T> {
-        ExpectedFoundError {
+    pub fn as_ref(&self) -> ExpectedFound<&T> {
+        ExpectedFound {
             expected: &self.expected,
             found: &self.found,
         }
     }
 
-    pub fn map<F, U>(self, mut f: F) -> ExpectedFoundError<U>
+    pub fn map<F, U>(self, mut f: F) -> ExpectedFound<U>
     where
         F: FnMut(T) -> U,
     {
-        ExpectedFoundError {
+        ExpectedFound {
             expected: f(self.expected),
             found: f(self.found),
         }
     }
 
-    pub fn display_str(&self) -> ExpectedFoundError<String>
+    pub fn display_str(&self) -> Option<ExpectedFound<String>>
     where
         T: fmt::Display,
     {
-        self.as_ref().map(|x| format!("{:#}", x))
+        Some(self.as_ref().map(|x| format!("{:#}", x)))
     }
 
-    pub fn debug_str(&self) -> ExpectedFoundError<String>
+    pub fn debug_str(&self) -> Option<ExpectedFound<String>>
     where
         T: fmt::Debug,
     {
-        self.as_ref().map(|x| format!("{:#?}", x))
+        Some(self.as_ref().map(|x| format!("{:#?}", x)))
     }
 }
 
@@ -302,11 +333,29 @@ pub struct CheckedPrefixTypes{
 }
 
 
+#[derive(Debug,Copy,Clone)]
+#[repr(C)]
+pub struct NonExhaustiveEnumWithContext{
+    abi_info:&'static AbiInfo,
+    enum_:&'static TLEnum,
+    nonexhaustive:&'static TLNonExhaustive,
+}
+
+
+#[derive(Debug,Copy,Clone)]
+#[repr(C)]
+pub struct CheckedNonExhaustiveEnums{
+    this:NonExhaustiveEnumWithContext,
+    other:NonExhaustiveEnumWithContext,
+}
+
+
 ///////////////////////////////////////////////
 
 struct AbiChecker {
-    stack_trace: RVec<TLFieldAndType>,
+    stack_trace: RVec<ExpectedFound<TLFieldOrFunction>>,
     checked_prefix_types:RVec<CheckedPrefixTypes>,
+    checked_nonexhaustive_enums:RVec<CheckedNonExhaustiveEnums>,
 
     visited: HashSet<(CheckingUTypeId,CheckingUTypeId)>,
     errors: RVec<AbiInstabilityError>,
@@ -321,6 +370,7 @@ impl AbiChecker {
         Self {
             stack_trace: RVec::new(),
             checked_prefix_types:RVec::new(),
+            checked_nonexhaustive_enums:RVec::new(),
 
             visited: HashSet::default(),
             errors: RVec::new(),
@@ -345,8 +395,12 @@ impl AbiChecker {
         if t_fields.len()==0&&o_fields.len()==0 {
             return;
         }
-
-        let is_prefix= t_lay.data.as_discriminant() == TLDataDiscriminant::PrefixType;
+        
+        let is_prefix= match &t_lay.data {
+            TLData::PrefixType{..}=>true,
+            TLData::Enum(enum_)=>!enum_.exhaustiveness.is_exhaustive(),
+            _=>false,
+        };
         match (t_fields.len().cmp(&o_fields.len()), is_prefix) {
             (Ordering::Greater, _) | (Ordering::Less, false) => {
                 push_err(
@@ -392,11 +446,28 @@ impl AbiChecker {
                     push_err(errs, this_f, other_f, |x| *x, AI::FieldLifetimeMismatch);
                 }
 
-                self.stack_trace.push(TLFieldAndType::new(*this_f));
-                    
+                self.stack_trace.push(ExpectedFound{
+                    expected:(*this_f).into(),
+                    found:(*other_f).into(),
+                });
+
                 let sf_ctx=FieldContext::Subfields;
-                
+
                 for (t_func,o_func) in this_f.function_range.iter().zip(other_f.function_range) {
+                    self.error_index += 1;
+                    let errs_index = self.error_index;
+                    let mut errs_ = RVec::<AbiInstability>::new();
+                    let errs=&mut errs_;
+
+                    self.stack_trace.push(ExpectedFound{
+                        expected:t_func.into(),
+                        found:o_func.into(),
+                    });
+
+                    if t_func.paramret_lifetime_indices != o_func.paramret_lifetime_indices {
+                        push_err(errs, t_func, o_func, |x| x, AI::FnLifetimeMismatch);
+                    }
+
                     self.check_fields(
                         errs,
                         t_lay,
@@ -405,12 +476,27 @@ impl AbiChecker {
                         t_func.get_params_ret_iter(),
                         o_func.get_params_ret_iter(),
                     );
+
+                    if !errs_.is_empty() {
+                        self.errors.push(AbiInstabilityError {
+                            stack_trace: self.stack_trace.clone(),
+                            errs: errs_,
+                            index: errs_index,
+                            _priv:(),
+                        });
+                    }
+
+                    self.stack_trace.pop();
                 }
 
 
                 self.check_inner(t_field_abi, o_field_abi);
+                self.stack_trace.pop();
             }else{
-                self.stack_trace.push(TLFieldAndType::new(*this_f));
+                self.stack_trace.push(ExpectedFound{
+                    expected:(*this_f).into(),
+                    found:(*other_f).into(),
+                });
                 
                 let t_field_layout=&t_field_abi.layout;
                 let o_field_layout=&o_field_abi.layout;
@@ -426,9 +512,9 @@ impl AbiChecker {
                         AI::Alignment
                     );
                 }
+                self.stack_trace.pop();
             }
 
-            self.stack_trace.pop();
         }
     }
 
@@ -526,7 +612,7 @@ impl AbiChecker {
             let t_discr = t_lay.data.as_discriminant();
             let o_discr = o_lay.data.as_discriminant();
             if t_discr != o_discr {
-                errs.push(AI::TLDataDiscriminant(ExpectedFoundError {
+                errs.push(AI::TLDataDiscriminant(ExpectedFound {
                     expected: t_discr,
                     found: o_discr,
                 }));
@@ -536,10 +622,6 @@ impl AbiChecker {
             let o_tag=o_lay.tag.to_checkable();
             if let Err(tag_err)=t_tag.check_compatible(&o_tag) {
                 errs.push(AI::TagError{
-                    expected_found:ExpectedFoundError{
-                        expected:t_tag,
-                        found:o_tag,
-                    },
                     err:tag_err,
                 });
             }
@@ -551,7 +633,7 @@ impl AbiChecker {
 
                 (TLData::Primitive(t_prim), TLData::Primitive(o_prim)) => {
                     if t_prim != o_prim {
-                        errs.push(AI::MismatchedPrimitive(ExpectedFoundError {
+                        errs.push(AI::MismatchedPrimitive(ExpectedFound {
                             expected: t_prim,
                             found: o_prim,
                         }));
@@ -583,51 +665,24 @@ impl AbiChecker {
                 }
                 (TLData::Union { .. }, _) => {}
                 
-                (
-                    TLData::Enum { variants: t_varis, fields: t_fields }, 
-                    TLData::Enum { variants: o_varis, fields: o_fields }
-                ) => {
-                    let t_varis = t_varis.as_slice();
-                    let o_varis = o_varis.as_slice();
-                    if t_varis.len() != o_varis.len() {
-                        push_err(errs, t_varis, o_varis, |x| x.len(), AI::TooManyVariants);
+                ( TLData::Enum(t_enum),TLData::Enum(o_enum)  ) => {
+                    self.check_enum(errs,this,other,t_enum,o_enum);
+                    let t_as_ne=t_enum.exhaustiveness.as_nonexhaustive();
+                    let o_as_ne=o_enum.exhaustiveness.as_nonexhaustive();
+                    if let (Some(this_ne),Some(other_ne))=(t_as_ne,o_as_ne) {
+                        self.checked_nonexhaustive_enums.push(CheckedNonExhaustiveEnums{
+                            this:NonExhaustiveEnumWithContext{
+                                abi_info:this,
+                                enum_:t_enum,
+                                nonexhaustive:this_ne,
+                            },
+                            other:NonExhaustiveEnumWithContext{
+                                abi_info:other,
+                                enum_:o_enum,
+                                nonexhaustive:other_ne,
+                            },
+                        });
                     }
-                    for (t_vari, o_vari) in t_varis.iter().zip(o_varis) {
-                        let t_name = t_vari.name.as_str();
-                        let o_name = o_vari.name.as_str();
-                        
-                        if t_vari.discriminant!=o_vari.discriminant {
-                            push_err(
-                                errs, 
-                                *t_vari, 
-                                *o_vari, 
-                                |x| x.discriminant, 
-                                AI::EnumDiscriminant
-                            );
-                        }
-                        if t_vari.field_count!=o_vari.field_count {
-                            push_err(
-                                errs, 
-                                *t_vari, 
-                                *o_vari, 
-                                |x| x.field_count, 
-                                AI::FieldCountMismatch
-                            );
-                        }
-
-                        if t_name != o_name {
-                            push_err(errs, *t_vari, *o_vari, |x| x, AI::UnexpectedVariant);
-                            continue;
-                        }
-                    }
-                    self.check_fields(
-                        errs, 
-                        this.layout, 
-                        other.layout, 
-                        FieldContext::Fields,
-                        t_fields.get_fields(), 
-                        o_fields.get_fields()
-                    );
                 }
                 (TLData::Enum { .. }, _) => {}
                 
@@ -656,6 +711,94 @@ impl AbiChecker {
                 _priv:(),
             });
         }
+    }
+
+
+    fn check_enum(
+        &mut self,
+        errs: &mut RVec<AbiInstability>,
+        this: &'static AbiInfo,other: &'static AbiInfo,
+        t_enum:&'static TLEnum,o_enum:&'static TLEnum,
+    ){
+        let TLEnum{ fields: t_fields,.. }=t_enum;
+        let TLEnum{ fields: o_fields,.. }=o_enum;
+
+        let t_fcount = t_enum.field_count.as_slice();
+        let o_fcount = o_enum.field_count.as_slice();
+
+        let t_exhaus=t_enum.exhaustiveness;
+        let o_exhaus=o_enum.exhaustiveness;
+
+        match (t_exhaus.as_nonexhaustive(),o_exhaus.as_nonexhaustive()) {
+            (Some(this_ne),Some(other_ne))=>{
+                if let Err(e)=this_ne.check_compatible(this.layout){
+                    errs.push(AI::IncompatibleWithNonExhaustive(e))
+                }
+                if let Err(e)=other_ne.check_compatible(other.layout){
+                    errs.push(AI::IncompatibleWithNonExhaustive(e))
+                }
+            }
+            (Some(_),None)|(None,Some(_))=>{
+                push_err(
+                    errs,
+                    t_enum,
+                    o_enum, 
+                    |x| x.exhaustiveness, 
+                    AI::MismatchedExhaustiveness
+                );
+            }
+            (None,None)=>{}
+        }
+
+        if t_exhaus.is_exhaustive()&&t_fcount.len()!=o_fcount.len() ||
+           t_exhaus.is_nonexhaustive()&&t_fcount.len() >o_fcount.len()
+        {
+            push_err(errs, t_fcount, o_fcount, |x| x.len(), AI::TooManyVariants);
+        }
+
+        
+        if let Err(d_errs)=t_enum.discriminants.compare(&o_enum.discriminants) {
+            errs.extend(d_errs);
+        }
+
+        let mut t_names=t_enum.variant_names.as_str().split(';');
+        let mut o_names=o_enum.variant_names.as_str().split(';');
+        let mut total_field_count=0;
+        for (t_field_count, o_field_count) in t_fcount.iter().zip(o_fcount) {
+            let t_name = t_names.next().unwrap_or("<this unavailable>");
+            let o_name = o_names.next().unwrap_or("<other unavailable>");
+            
+            total_field_count+=usize::from(*t_field_count);
+
+            if t_field_count!=o_field_count {
+                push_err(
+                    errs, 
+                    *t_field_count, 
+                    *o_field_count, 
+                    |x| x as usize, 
+                    AI::FieldCountMismatch
+                );
+            }
+
+            if t_name != o_name {
+                push_err(errs, t_name, o_name,StaticStr::new, AI::UnexpectedVariant);
+                continue;
+            }
+        }
+
+        let min_field_count=t_fields.len().min(o_fields.len());
+        if total_field_count!=min_field_count {
+            push_err(errs, total_field_count, min_field_count,|x|x, AI::FieldCountMismatch);
+        }
+
+        self.check_fields(
+            errs, 
+            this.layout, 
+            other.layout, 
+            FieldContext::Fields,
+            t_fields.get_fields(), 
+            o_fields.get_fields()
+        );
     }
 
 
@@ -709,6 +852,7 @@ impl AbiChecker {
 
         for pair in mem::replace(&mut self.checked_prefix_types,Default::default()) {
             // let t_lay=pair.this_prefix.layout;
+            let errors_before=self.errors.len();
             let t_utid=pair.this .get_utypeid();
             let o_utid=pair.other.get_utypeid();
             // let t_fields=pair.this_prefix.fields;
@@ -743,7 +887,7 @@ impl AbiChecker {
                         min_max_by(im_prefix,&mut max_prefix,|x|x.fields.len());
 
                     self.check_prefix_types(errs,min_prefix,max_prefix);
-                    if !errs.is_empty() { break; }
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
 
                     max_prefix.combine_fields_from(&*min_prefix);
                     
@@ -769,7 +913,7 @@ impl AbiChecker {
 
                     let (min_prefix,max_prefix)=min_max_by(l_prefix,r_prefix,|x|x.fields.len());
                     self.check_prefix_types(errs,min_prefix,max_prefix);
-                    if !errs.is_empty() { break; }
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
 
                     max_prefix.combine_fields_from(&*min_prefix);
 
@@ -790,6 +934,109 @@ impl AbiChecker {
             })
         }
     }
+
+
+    fn final_non_exhaustive_enum_checks(
+        &mut self,
+        globals:&CheckingGlobals
+    )->Result<(),AbiInstabilityError>{
+        self.error_index += 1;
+        let mut errs_ = RVec::<AbiInstability>::new();
+        let errs =&mut errs_;
+
+        let mut nonexhaustive_map=globals.nonexhaustive_map.lock().unwrap();
+
+
+        for pair in mem::replace(&mut self.checked_nonexhaustive_enums,Default::default()) {
+            let CheckedNonExhaustiveEnums{this,other}=pair;
+            let errors_before=self.errors.len();
+            
+            let t_utid=this .abi_info.get_utypeid();
+            let o_utid=other.abi_info.get_utypeid();
+
+            let t_index=nonexhaustive_map.get_index(&t_utid);
+            let mut o_index=nonexhaustive_map.get_index(&o_utid);
+
+            if t_index==o_index{
+                o_index=None;
+            }
+
+            let mut max_=max_by(this,other,|x|x.enum_.variant_count());
+            
+            match (t_index,o_index) {
+                (None,None)=>{
+                    let i=nonexhaustive_map
+                        .get_or_insert(t_utid,max_)
+                        .into_inner()
+                        .index;
+                    
+                    nonexhaustive_map.associate_key(o_utid,i);
+                }
+                (Some(im_index),None)|(None,Some(im_index))=>{
+                    let im_nonexh=nonexhaustive_map.get_mut_with_index(im_index).unwrap();
+                    let im_nonexh_addr=im_nonexh as *const _ as usize;
+
+                    let (min_nonexh,max_nonexh)=
+                        min_max_by(im_nonexh,&mut max_,|x|x.enum_.variant_count());
+
+                    self.check_enum(
+                        errs,
+                        min_nonexh.abi_info,max_nonexh.abi_info,
+                        min_nonexh.enum_   ,max_nonexh.enum_   ,
+                    );
+
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
+
+                    if im_nonexh_addr != (max_nonexh as *mut _ as usize) {
+                        mem::swap(min_nonexh,max_nonexh);
+                    }
+
+                    nonexhaustive_map.associate_key(t_utid,im_index);
+                    nonexhaustive_map.associate_key(o_utid,im_index);
+                }
+                (Some(l_index),Some(r_index))=>{
+                    let (l_nonexh,r_nonexh)=
+                        nonexhaustive_map.get2_mut_with_index(l_index,r_index);
+                    let l_nonexh=l_nonexh.unwrap();
+                    let r_nonexh=r_nonexh.unwrap();
+
+                    let (replace,with)=
+                        if l_nonexh.enum_.variant_count() < r_nonexh.enum_.variant_count() {
+                            (l_index,r_index)
+                        }else{
+                            (r_index,l_index)
+                        };
+
+                    let (min_nonexh,max_nonexh)=
+                        min_max_by(l_nonexh,r_nonexh,|x|x.enum_.variant_count());
+                    
+                    self.check_enum(
+                        errs,
+                        min_nonexh.abi_info,max_nonexh.abi_info,
+                        min_nonexh.enum_   ,max_nonexh.enum_   ,
+                    );
+
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
+
+                    nonexhaustive_map.replace_with_index(replace,with);
+                }
+            }
+        }
+
+        if errs_.is_empty() {
+            Ok(())
+        }else{
+            Err(AbiInstabilityError {
+                stack_trace: self.stack_trace.clone(),
+                errs: errs_,
+                index: self.error_index,
+                _priv:(),
+            })
+        }
+    }
+
+    
+
 }
 
 
@@ -829,7 +1076,7 @@ pub(super) fn check_layout_compatibility_with_globals(
     if interface.prefix_kind || implementation.prefix_kind {
         errors = vec![AbiInstabilityError {
             stack_trace: vec![].into(),
-            errs: vec![AbiInstability::IsPrefix(ExpectedFoundError {
+            errs: vec![AbiInstability::IsPrefix(ExpectedFound {
                 expected: false,
                 found: true,
             })]
@@ -843,6 +1090,9 @@ pub(super) fn check_layout_compatibility_with_globals(
         checker.check_inner(interface, implementation);
         if checker.errors.is_empty() {
             if let Err(e)=checker.final_prefix_type_checks(globals) {
+                checker.errors.push(e);
+            }
+            if let Err(e)=checker.final_non_exhaustive_enum_checks(globals) {
                 checker.errors.push(e);
             }
         }
@@ -870,9 +1120,11 @@ pub(crate) extern fn check_layout_compatibility_for_ffi(
     interface: &'static AbiInfoWrapper,
     implementation: &'static AbiInfoWrapper,
 ) -> RResult<(), RBoxError> {
-    check_layout_compatibility(interface,implementation)
-        .map_err(RBoxError::from_fmt)
-        .into_c()
+    extern_fn_panic_handling!{
+        check_layout_compatibility(interface,implementation)
+            .map_err(RBoxError::from_fmt)
+            .into_c()
+    }
 }
 
 
@@ -920,12 +1172,14 @@ use crate::{
 #[derive(Debug)]
 pub struct CheckingGlobals{
     pub(crate) prefix_type_map:Mutex<MultiKeyMap<UTypeId,PrefixTypeMetadata>>,
+    pub(crate) nonexhaustive_map:Mutex<MultiKeyMap<UTypeId,NonExhaustiveEnumWithContext>>,
 }
 
 impl CheckingGlobals{
     pub fn new()->Self{
         CheckingGlobals{
             prefix_type_map:MultiKeyMap::new().piped(Mutex::new),
+            nonexhaustive_map:MultiKeyMap::new().piped(Mutex::new),
         }
     }
 }
@@ -941,7 +1195,7 @@ pub fn get_checking_globals()->&'static CheckingGlobals{
 
 ///////////////////////////////////////////////
 
-fn push_err<O, U, FG, VC>(
+pub(crate) fn push_err<O, U, FG, VC>(
     errs: &mut RVec<AbiInstability>,
     this: O,
     other: O,
@@ -949,9 +1203,9 @@ fn push_err<O, U, FG, VC>(
     mut variant_constructor: VC,
 ) where
     FG: FnMut(O) -> U,
-    VC: FnMut(ExpectedFoundError<U>) -> AbiInstability,
+    VC: FnMut(ExpectedFound<U>) -> AbiInstability,
 {
-    let x = ExpectedFoundError::new(this, other, field_getter);
+    let x = ExpectedFound::new(this, other, field_getter);
     let x = variant_constructor(x);
     errs.push(x);
 }

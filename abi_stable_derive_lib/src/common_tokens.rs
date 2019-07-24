@@ -22,7 +22,7 @@ macro_rules! declare_common_tokens {
         pub(crate) struct CommonTokens<'a>{
             $( pub(crate) $field_new : $token_new , )*
             $( pub(crate) $field_token : ::syn::token::$token_token , )*
-            $( pub(crate) $field_ts : TokenStream , )*
+            $( pub(crate) $field_ts : TokenStream2 , )*
             $( pub(crate) $field_ty : ::syn::Type , )*
             $( pub(crate) $field_ident : ::syn::Ident , )*
             $( pub(crate) $lifetime_ident : ::syn::Lifetime , )*
@@ -76,6 +76,7 @@ declare_common_tokens! {
     token[
         dot=Dot,
         and_=And,
+        add=Add,
         bang=Bang,
         comma=Comma,
         semicolon=Semi,
@@ -91,7 +92,8 @@ declare_common_tokens! {
     ]
 
     token_streams[
-
+        ts_empty="",
+        und_storage="__Storage,",
     ]
 
     types[
@@ -107,7 +109,6 @@ declare_common_tokens! {
         tl_field="__TLField",
         tl_functions="__TLFunctions",
         comp_tl_functions="__CompTLFunction",
-        tl_enum_variant="__TLEnumVariant",
         start_len="__StartLen",
         value_kind ="__ValueKind",
         prefix_kind="__PrefixKind",
@@ -147,12 +148,14 @@ declare_common_tokens! {
         sabi_reexports="_sabi_reexports",
         cmp_ignored="__CmpIgnored",
         lifetime_index="__LifetimeIndex",
-        static_equivalent="__StaticEquivalent",
+        static_equivalent="__GetStaticEquivalent",
         li_static="__LIStatic",
         li_index="__LIParam",
         cap_static="Static",
         cap_param="Param",
         cap_const="CONST",
+        cap_opaque_field="OPAQUE_FIELD",
+        cap_stable_abi="STABLE_ABI",
         subfields="subfields",
         with_functions="with_functions",
         underscore="_",

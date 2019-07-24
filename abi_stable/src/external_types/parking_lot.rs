@@ -31,7 +31,7 @@ const RAW_LOCK_SIZE:usize=mem::size_of::<usize>();
 
 #[repr(C)]
 #[derive(Copy,Clone,StableAbi)]
-#[sabi(unconstrained(T))]
+#[sabi(unsafe_unconstrained(T))]
 struct UnsafeOveralignedField<T,P>{
     #[sabi(unsafe_opaque_field)]
     value:T,

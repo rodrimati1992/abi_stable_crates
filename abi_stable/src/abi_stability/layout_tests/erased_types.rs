@@ -108,7 +108,13 @@ fn check_subsets(){
             if interf_i==impl_i {
                 assert_eq!(check_layout_compatibility(interf, impl_), Ok(()) );
             }else{
-                assert_ne!(check_layout_compatibility(interf, impl_), Ok(()) );
+                assert_ne!(
+                    check_layout_compatibility(interf, impl_),
+                    Ok(()),
+                    "interf:\n{:#?}\n\n\nimpl:\n{:#?}",
+                    interf,
+                    impl_,
+                );
             }
         }
     }

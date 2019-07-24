@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable"
-version = "0.5.1"
+version = "0.6.1"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition="2018"
 license = "MIT/Apache-2.0"
@@ -22,9 +22,11 @@ include = [
 travis-ci = { repository =  "rodrimati1992/abi_stable_crates/" }
 
 [features]
-default = ["channels"]
+default = ["channels","serde_json"]
 
 rust_1_34=[]
+
+rust_1_36=[]
 
 # Test features,only used internally.
 only_new_tests=[]
@@ -34,9 +36,9 @@ channels=["crossbeam-channel"]
 
 
 [dependencies]
-abi_stable_derive= {version="0.5",path="../abi_stable_derive"}
-abi_stable_shared= {version="0.5",path="../abi_stable_shared"}
-serde          = "1.0"
+abi_stable_derive= {version="0.6",path="../abi_stable_derive"}
+abi_stable_shared= {version="0.6",path="../abi_stable_shared"}
+serde          = {version="1.0",features=["derive"]}
 serde_derive   = "1.0"
 core_extensions= { version="0.1"}
 libloading     = { version = "0.5.0" }
@@ -44,11 +46,12 @@ parking_lot    = "0.7"
 lock_api       = "0.1"
 generational-arena = "0.2"
 crossbeam-channel = {version="0.3",optional=true}
+serde_json = {version="1.0",features=["raw_value"],optional=true}
 
 [dev-dependencies]
 bincode = "1.1"
 crossbeam-utils = "0.6"
-serde_json = "1.0"
+serde_json = {version="1.0",features=["raw_value"]}
 rand = "0.6"
 criterion = "0.2"
 hashbrown = "0.3"

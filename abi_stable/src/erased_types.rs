@@ -15,12 +15,12 @@ use serde::{Serialize, Serializer};
 use crate::{
     traits::{IntoReprC, IntoReprRust},
     std_types::{
-        RBoxError, RCmpOrdering, RCow, RErr, ROk, ROption,RResult, RString,RStr,
+        RBoxError, RCmpOrdering, RErr, ROk, ROption,RResult, RString,RStr,
         RSlice, RSliceMut
     },
     type_level::{
         //option::{Some_,None_,SomeTrait}
-        bools::{False, True},
+        bools::True,
     },
 };
 
@@ -43,13 +43,14 @@ pub(crate) mod vtable;
 pub mod traits;
 
 
-
 pub use self::{
     dyn_trait::{DynTrait, DynTraitBound},
     vtable::{ GetVtable,InterfaceBound},
     traits::{
-        ImplType, InterfaceType, SerializeImplType, DeserializeOwnedInterface,
-        DeserializeBorrowedInterface,IteratorItem,
+        ImplType, InterfaceType, 
+        DeserializeDyn, 
+        SerializeImplType, SerializeProxyType, 
+        IteratorItem,IteratorItemOrDefault,
     },
     type_info::TypeInfo,
 };

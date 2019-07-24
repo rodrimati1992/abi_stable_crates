@@ -38,7 +38,7 @@ impl TheApplication{
     pub fn run_command(&mut self,which_plugin:WhichPlugin,command:RStr<'_>)->Result<(),AppError>{
         let list=self.state.expand_which_plugin(which_plugin)?;
         for index in list {
-            let state=Application_from_ptr::<_,TU_Opaque>(&mut self.state);
+            let state=Application_TO::from_ptr(&mut self.state,TU_Opaque);
             let plugin=&mut self.plugins[index as usize];
             println!("command:\n{}", command.left_pad(4));
             let resp=plugin.json_command(command,state).into_result()?;
@@ -60,7 +60,7 @@ impl TheApplication{
         let mut responses=mem::replace(&mut self.state.responses,VecDeque::new());
         for DelayedResponse{to,from,response} in responses.drain(..) {
             let response=PluginResponse::owned_response(from,response);
-            let state=Application_from_ptr::<_,TU_Opaque>(&mut self.state);
+            let state=Application_TO::from_ptr(&mut self.state,TU_Opaque);
             if let RSome(res)=self.plugins[to]
                 .handle_response(response.into(),state)
                 .into_result()?
@@ -78,7 +78,7 @@ impl TheApplication{
     }
 
     fn run_command_(&mut self,from:&PluginId,to:usize,command:&str)->Result<(),AppError>{
-        let state=Application_from_ptr::<_,TU_Opaque>(&mut self.state);
+        let state=Application_TO::from_ptr(&mut self.state,TU_Opaque);
         let response=self.plugins[to].json_command(command.into(),state).into_result()?;
         let to=self.state.index_for_plugin_id(from)?;
 

@@ -234,13 +234,17 @@ impl<M> ErrorTrait for RBoxError_<M> {}
 
 impl<M> Display for RBoxError_<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        adapt_std_fmt(&*self.value, self.vtable.display(), f)
+        unsafe{
+            adapt_std_fmt(&*self.value, self.vtable.display(), f)
+        }
     }
 }
 
 impl<M> Debug for RBoxError_<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        adapt_std_fmt(&*self.value, self.vtable.debug(), f)
+        unsafe{
+            adapt_std_fmt(&*self.value, self.vtable.debug(), f)
+        }
     }
 }
 
@@ -323,8 +327,8 @@ from_impls!{ Box<dyn ErrorTrait + 'static> , UnsyncUnsend }
 #[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_struct="RErrorVTable")))]
 struct RErrorVTableVal {
-    debug: extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
-    display: extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
+    debug: unsafe extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
+    display: unsafe extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
     #[sabi(last_prefix_field)]
     type_id: extern "C" fn()->UTypeId,
 }

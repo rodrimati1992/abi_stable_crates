@@ -6,18 +6,18 @@ Traits for types wrapped in `DynTrait<_>`
 use std::{mem,marker::PhantomData};
 
 use crate::{
-    erased_types::{DynTraitBound},
     sabi_types::VersionStrings,
-    std_types::{
-        RBoxError, 
-        RCow, RStr,StaticStr,
-    },
+    std_types::{RBoxError, StaticStr},
 };
 
 use super::TypeInfo;
 
 #[allow(unused_imports)]
-use crate::type_level::bools::{False, True};
+use crate::type_level::{
+    bools::{False, True},
+    impl_enum::{Implemented,Unimplemented},
+    trait_marker,
+};
 
 /**
 An `implementation type`,
@@ -206,6 +206,8 @@ impl_InterfaceType!{
         type IoRead;
 
         type IoBufRead;
+        
+        type Error;
     ]
 
 
@@ -213,43 +215,128 @@ impl_InterfaceType!{
 
 
 
+///////////////////////////////////////////////////////////////////////////////
+
+
 /**
 Describes how this `implementation type` is serialized.
 */
-pub trait SerializeImplType {
-    fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError>;
+pub trait SerializeImplType{
+    type Interface:SerializeProxyType;
+
+    fn serialize_impl(
+        &self
+    ) -> Result<<Self::Interface as SerializeProxyType>::Proxy, RBoxError>;
 }
 
+
 /**
-Describes how this `interface type` is deserialized,
-not borrowing from the input RStr.
+Gets the intermediate type an ImplType is converted into,to serialize it.
+*/
+pub trait SerializeProxyType:InterfaceType{
+    /// The intermediate type an ImplType is converted into,to serialize it
+    type Proxy;
+}
+
+#[doc(hidden)]
+pub trait GetSerializeProxyType:InterfaceType{
+    type ProxyType;
+}
+
+impl<I,PT> GetSerializeProxyType for I
+where
+    I:InterfaceType,
+    I:GetSerializeProxyTypeHelper<
+        <I as InterfaceType>::Serialize,
+        ProxyType=PT
+    >,
+{
+    type ProxyType=PT;
+}
+
+#[doc(hidden)]
+pub trait GetSerializeProxyTypeHelper<IS>:InterfaceType{
+    type ProxyType;
+}
+
+impl<I> GetSerializeProxyTypeHelper<Implemented<trait_marker::Serialize>> for I
+where
+    I:SerializeProxyType,
+{
+    type ProxyType=<I as SerializeProxyType>::Proxy;
+}
+
+impl<I> GetSerializeProxyTypeHelper<Unimplemented<trait_marker::Serialize>> for I
+where
+    I:InterfaceType,
+{
+    type ProxyType=();
+}
+
+
+///////////////////////////////////////
+
+
+/**
+Describes how `D` is deserialized,using a proxy to do so.
 
 Generally this delegates to a library function,
 so that the implementation can be delegated
 to the `implementation crate`.
 
 */
-pub trait DeserializeOwnedInterface<'borr>: InterfaceType<Deserialize = True> {
-    type Deserialized: DynTraitBound<'borr,Interface = Self>+'borr;
+pub trait DeserializeDyn<'borr,D> {
+    /// The type that is deserialized and then converted into `D`,
+    /// with `DeserializeDyn::deserialize_dyn`.
+    type Proxy;
 
-    fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError>;
+    /// Converts the proxy type into `D`.
+    fn deserialize_dyn(s: Self::Proxy) -> Result<D, RBoxError>;
 }
 
-/**
-Describes how this `interface type` is deserialized,
-borrowing from the input RStr.
 
-Generally this delegates to a library function,
-so that the implementation can be delegated
-to the `implementation crate`.
-
-*/
-pub trait DeserializeBorrowedInterface<'borr>: InterfaceType<Deserialize = True> {
-    type Deserialized: DynTraitBound<'borr,Interface = Self>+'borr;
-
-    fn deserialize_impl(s: RStr<'borr>) -> Result<Self::Deserialized, RBoxError> ;
+#[doc(hidden)]
+pub trait GetDeserializeDynProxy<'borr,D>:InterfaceType{
+    type ProxyType;
 }
 
+impl<'borr,I,D,PT> GetDeserializeDynProxy<'borr,D> for I
+where
+    I:InterfaceType,
+    I:GetDeserializeDynProxyHelper<
+        'borr,
+        D,
+        <I as InterfaceType>::Deserialize,
+        ProxyType=PT
+    >,
+{
+    type ProxyType=PT;
+}
+
+
+#[doc(hidden)]
+pub trait GetDeserializeDynProxyHelper<'borr,D,IS>:InterfaceType{
+    type ProxyType;
+}
+
+impl<'borr,I,D> 
+    GetDeserializeDynProxyHelper<'borr,D,Implemented<trait_marker::Deserialize>> 
+for I
+where
+    I:InterfaceType,
+    I:DeserializeDyn<'borr,D>
+{
+    type ProxyType=<I as DeserializeDyn<'borr,D>>::Proxy;
+}
+
+impl<'borr,I,D> 
+    GetDeserializeDynProxyHelper<'borr,D,Unimplemented<trait_marker::Deserialize>> 
+for I
+where
+    I:InterfaceType,
+{
+    type ProxyType=();
+}
 
 
 /////////////////////////////////////////////////////////////////////
@@ -259,7 +346,7 @@ pub trait DeserializeBorrowedInterface<'borr>: InterfaceType<Deserialize = True>
 ///
 /// This is a separate trait to allow iterators that yield borrowed elements.
 pub trait IteratorItem<'a>:InterfaceType{
-    type Item:'a;
+    type Item;
 }
 
 
@@ -267,26 +354,42 @@ pub trait IteratorItem<'a>:InterfaceType{
 /// Gets the Item type of an Iterator.
 ///
 /// Used by `DynTrait`'s vtable to give its iter a default type,
-/// when `I:InterfaceType<Iterator=False>`.
-pub trait IteratorItemOrDefault<'borr,ImplIsRequired>:InterfaceType{
-    type Item:'borr;
+/// when `I:InterfaceType<Iterator=Implemented<_>>`.
+pub trait IteratorItemOrDefault<'borr>:InterfaceType{
+    type Item;
 }
 
 
-impl<'borr,I,Item> IteratorItemOrDefault<'borr,True> for I
-where
-    I:InterfaceType+IteratorItem<'borr,Item=Item>,
-    Item:'borr,
+impl<'borr,I,Item> IteratorItemOrDefault<'borr> for I
+where 
+    I:InterfaceType,
+    I:IteratorItemOrDefaultHelper<
+        'borr,
+        <I as InterfaceType>::Iterator,
+        Item=Item,
+    >
 {
     type Item=Item;
 }
 
 
-impl<'borr,I> IteratorItemOrDefault<'borr,False> for I
-where I:InterfaceType
+#[doc(hidden)]
+pub trait IteratorItemOrDefaultHelper<'borr,ImplIsRequired>{
+    type Item;
+}
+
+impl<'borr,I,Item> IteratorItemOrDefaultHelper<'borr,Implemented<trait_marker::Iterator>> for I
+where
+    I:IteratorItem<'borr,Item=Item>,
 {
+    type Item=Item;
+}
+
+
+impl<'borr,I> IteratorItemOrDefaultHelper<'borr,Unimplemented<trait_marker::Iterator>> for I{
     type Item=();
 }
+
 
 
 //////////////////////////////////////////////////////////////////
@@ -294,6 +397,7 @@ where I:InterfaceType
 
 pub use self::interface_for::InterfaceFor;
 
+#[doc(hidden)]
 pub mod interface_for{
     use super::*;
 

@@ -16,19 +16,14 @@ pub struct TLField {
     /// you've encountered a cycle.
     pub abi_info: GetAbiInfo,
 
+    /// The function pointer types within the field.
     pub function_range:TLFunctionRange,
 
     /// Whether this field is only a function pointer.
     pub is_function:bool,
 
+    /// How this field is accessed.
     pub field_accessor:FieldAccessor,
-}
-
-/// Used to print a field as its field and its type.
-#[repr(transparent)]
-#[derive(Copy, Clone, PartialEq, StableAbi)]
-pub struct TLFieldAndType {
-    inner: TLField,
 }
 
 
@@ -50,6 +45,7 @@ pub enum FieldAccessor {
 
 
 impl FieldAccessor{
+    /// Constructs a FieldAccessor for a method named `name`.
     pub const fn method_named(name:&'static StaticStr)->Self{
         FieldAccessor::Method{
             name:Some(name)
@@ -80,6 +76,11 @@ impl TLField {
     pub const fn set_field_accessor(mut self,field_accessor:FieldAccessor)->Self{
         self.field_accessor=field_accessor;
         self
+    }
+
+
+    pub fn full_type(&self)->FullType{
+        self.abi_info.get().layout.full_type
     }
 
 
@@ -130,15 +131,49 @@ impl PartialEq for TLField {
 /// Need to avoid recursion somewhere,so I decided to stop at the field level.
 impl Debug for TLField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.recursive(|recursion_depth,x|{
-            if recursion_depth>=4 {
-                writeln!(f,"<printing recursion limit>")
-            }else{
+        self.recursive(|_recursion_depth,x|{
+            // if recursion_depth>=5 {
+            //     writeln!(f,"<printing recursion limit>")
+            // }else{
                 fmt::Debug::fmt(&x, f)
-            }
+            // }
         })
     }
 }
+
+impl Display for TLField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let layout=self.abi_info.get().layout;
+        let (package,version)=layout.item_info.package_and_version();
+        writeln!(
+            f,
+            "field_name:{name}\n\
+             type:{ty}\n\
+             size:{size} align:{align}\n\
+             package:'{package}' version:'{version}'",
+            name =self.name,
+            ty   =layout.full_type(),
+            size =layout.size,
+            align=layout.alignment,
+            package=package,
+            version=version,
+        )?;
+
+        if !self.function_range.is_empty() {
+            writeln!(f,"fn pointer(s):")?;
+            for func in self.function_range.iter() {
+                writeln!(f,"{}",func.to_string().left_padder(4))?;
+            }
+        }
+
+        if !self.lifetime_indices.is_empty() {
+            writeln!(f,"lifetime indices:{:?}",self.lifetime_indices)?;
+        }
+
+        Ok(())
+    }
+}
+
 
 
 
@@ -172,42 +207,6 @@ thread_local! {
         visited_nodes:0,
         visited: HashSet::default(),
     });
-}
-
-///////////////////////////
-
-impl TLFieldAndType {
-    pub fn new(inner: TLField) -> Self {
-        Self { inner }
-    }
-
-    pub fn name(&self) -> RStr<'static> {
-        self.inner.name.as_rstr()
-    }
-
-    pub fn full_type(&self) -> FullType {
-        self.inner.abi_info.get().layout.full_type
-    }
-}
-
-impl Debug for TLFieldAndType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TLFieldAndType")
-            .field("field_name:", &self.inner.name)
-            .field("type:", &self.inner.abi_info.get().layout.full_type())
-            .finish()
-    }
-}
-
-impl Display for TLFieldAndType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}:{}",
-            self.inner.name,
-            self.inner.abi_info.get().layout.full_type()
-        )
-    }
 }
 
 

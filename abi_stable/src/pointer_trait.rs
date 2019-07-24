@@ -3,8 +3,7 @@ Traits for pointers.
 */
 use std::{
     mem::ManuallyDrop,
-    ops::{Deref, DerefMut},
-    sync::Arc,
+    ops::{Deref},
 };
 
 use crate::sabi_types::MovePtr;
@@ -28,37 +27,14 @@ pub enum CallReferentDrop {
 }
 
 
-/// The type of the destructor for every pointer type from in this crate.
-pub type DestructorType<T> = unsafe extern "C" fn(data:*mut T, CallReferentDrop);
+/// Determines whether the pointer is deallocated.
+#[repr(u8)]
+#[derive(Debug,Clone,Copy,PartialEq,Eq,StableAbi)]
+pub enum Deallocate{
+    No,
+    Yes,
+}
 
-/**
-Trait for pointers that:
-
-- Point to a single location in memory,even after being moved.
-
-- Deref::deref always returns the same address (for the same pointer).
-
-- If it implements DerefMut,it always returns the same memory address,
-    so long as no `&mut self``method other than `DerefMut::deref_mut` is called.
-
-- The inline layout of the pointer cannot change depending on its referent.
-
-
-Explicit non-guarantees:
-
-- If the pointer is converted by value to another pointer type
-    (ie:going from RBox<T> to Box<T>,RArc<T> to Arc<T>),
-    the address cannot be relied on being the same,
-    even if it implements StableDeref.
-
-
-*/
-pub unsafe trait StableDeref: Deref + Sized {}
-
-/// An alias for `StableDeref + DerefMut`.
-pub trait StableDerefMut: StableDeref + DerefMut {}
-
-impl<P> StableDerefMut for P where P: StableDeref + DerefMut {}
 
 ///////////
 
@@ -165,8 +141,8 @@ Callers must ensure that:
 - References to `T` are compatible with references to `Self::Target`.
 
 */
-pub unsafe trait TransmuteElement<T>: StableDeref + GetPointerKind {
-    type TransmutedPtr: StableDeref<Target = T>;
+pub unsafe trait TransmuteElement<T>: Deref + GetPointerKind + Sized {
+    type TransmutedPtr: Deref<Target = T>;
 
     /// Transmutes the element type of this pointer..
     ///
@@ -206,42 +182,11 @@ pub unsafe trait TransmuteElement<T>: StableDeref + GetPointerKind {
 
 ///////////
 
-// unsafe impl<P> StableDeref for CAbi<P>
-// where
-//     P: StableDeref,
-//     P::Target: Sized,
-// {
-// }
-
-// unsafe impl<P, T> TransmuteElement<T> for CAbi<P>
-// where
-//     P: StableDeref + TransmuteElement<T>,
-//     P::TransmutedPtr: StableDerefMut,
-//     <P as Deref>::Target: Sized,
-//     <P::TransmutedPtr as Deref>::Target: Sized,
-// {
-//     type TransmutedPtr = CAbi<P::TransmutedPtr>;
-// }
-
-///////////
-
-unsafe impl<T> StableDeref for Box<T> {}
-
-///////////
-
-unsafe impl<T> StableDeref for Arc<T> {}
-
-///////////
-
-unsafe impl<'a, T: 'a> StableDeref for &'a T {}
-
 unsafe impl<'a, T: 'a, O: 'a> TransmuteElement<O> for &'a T {
     type TransmutedPtr = &'a O;
 }
 
 ///////////
-
-unsafe impl<'a, T: 'a> StableDeref for &'a mut T {}
 
 unsafe impl<'a, T: 'a, O: 'a> TransmuteElement<O> for &'a mut T {
     type TransmutedPtr = &'a mut O;
@@ -267,26 +212,26 @@ pub unsafe trait OwnedPointer:Sized{
     ///
     /// # Safety
     ///
-    /// This function moves the owned contents out of this pointer,
+    /// This function logically moves the owned contents out of this pointer,
     /// the only safe thing that can be done with the pointer afterwads 
     /// is to call OwnedPointer::drop_allocation.
-    unsafe fn get_move_ptr(&mut self)->MovePtr<'_,Self::Target>;
+    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>;
 
     /// Deallocates the pointer without dropping its owned contents.
     ///
     /// Note that if `Self::get_move_ptr` has not been called this will 
     /// leak the values owned by the referent of the pointer. 
     ///
-    fn drop_allocation(this:ManuallyDrop<Self>);
+    unsafe fn drop_allocation(this:&mut ManuallyDrop<Self>);
 
     #[inline]
-    fn with_moved_ptr<F,R>(mut this:ManuallyDrop<Self>,f:F)->R
+    fn with_move_ptr<F,R>(mut this:ManuallyDrop<Self>,f:F)->R
     where 
         F:FnOnce(MovePtr<'_,Self::Target>)->R
     {
         unsafe{
             let ret=f(Self::get_move_ptr(&mut this));
-            Self::drop_allocation(this);
+            Self::drop_allocation(&mut this);
             ret
         }
     }

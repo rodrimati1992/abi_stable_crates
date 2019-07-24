@@ -99,10 +99,13 @@ impl<T:?Sized> Clone for UnsafeIgnoredType<T>{
 }
 
 
+
+unsafe impl<T> GetStaticEquivalent_ for UnsafeIgnoredType<T> {
+    type StaticEquivalent=();
+}
 unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
     type IsNonZeroType = False;
     type Kind=ValueKind;
-    type StaticEquivalent=();
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
         "UnsafeIgnoredType",

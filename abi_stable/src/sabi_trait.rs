@@ -1,3 +1,8 @@
+/*!
+Contains items related to the `#[sabi_trait]` attribute.
+*/
+
+#[doc(hidden)]
 pub mod reexports{
 
     pub use std::{
@@ -14,6 +19,7 @@ pub mod reexports{
                 GetVtable,
                 traits::InterfaceFor,
             },
+            marker_type::{UnsafeIgnoredType,SyncSend,UnsyncUnsend,UnsyncSend,SyncUnsend},
             pointer_trait::{TransmuteElement,OwnedPointer},
             prefix_type::{PrefixTypeTrait,WithMetadata},
             traits::IntoInner,
@@ -42,18 +48,34 @@ pub mod reexports{
     }
 }
 
+/// A prelude for modules using `#[sabi_trait]` generated traits/trait objects.
 pub mod prelude{
     pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
 }
 
+#[doc(hidden)]
 pub mod for_generated_code;
+#[cfg(any(
+    all(test,not(feature="only_new_tests")),
+    feature="sabi_trait_examples"
+))]
+
 #[cfg(any(test,feature="sabi_trait_examples"))]
 pub mod examples;
+
+/**
+Contains `RObject` and related items.
+*/
 pub mod robject;
+
+#[doc(hidden)]
 pub mod vtable;
 
 #[cfg(test)]
 pub mod tests;
+
+#[cfg(test)]
+pub mod test_supertraits;
 
 use std::{
     fmt::Debug,
@@ -69,10 +91,9 @@ use self::{
 };
 
 use crate::{
-    abi_stability::Tag,
     erased_types::{c_functions,InterfaceType},
     marker_type::ErasedObject,
-    type_level::bools::{True,False,Boolean},
     sabi_types::MaybeCmp,
     std_types::Tuple2,
+    type_layout::Tag,
 };

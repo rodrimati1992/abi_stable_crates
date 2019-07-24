@@ -11,22 +11,30 @@ use std::{
     mem,
 };
 
-use quote::ToTokens;
-
 use core_extensions::IteratorExt;
+
+use proc_macro2::Span;
+
+use quote::ToTokens;
 
 use crate::{
     attribute_parsing::with_nested_meta,
     datastructure::{DataStructure, DataVariant, Field,FieldMap},
     parse_utils::{
         parse_str_as_ident,
+        parse_str_as_type,
         parse_lit_as_ident,
         parse_lit_as_expr,
+        parse_lit_as_type,
         parse_lit_as_type_bounds,
     },
 };
 
 use super::{
+    nonexhaustive::{
+        UncheckedNonExhaustive,NonExhaustive,EnumInterface,IntOrType,
+        UncheckedVariantConstructor,
+    },
     reflection::{ModReflMode,FieldAccessor},
     prefix_types::{PrefixKind,FirstSuffixField,OnMissingField,AccessorOrMaybe,PrefixKindField},
     repr_attrs::{UncheckedReprAttr,UncheckedReprKind,DiscriminantRepr,ReprAttr},
@@ -41,8 +49,9 @@ pub(crate) struct StableAbiOptions<'a> {
 
     /// The type parameters that have the __StableAbi constraint
     pub(crate) stable_abi_bounded:HashSet<&'a Ident>,
-
-    pub(crate) unconstrained_type_params:HashMap<Ident,UnconstrainedTyParam<'a>>,
+    pub(crate) static_equiv_bounded:Vec<&'a Ident>,
+    
+    pub(crate) unconstrained_type_params:HashMap<Ident,NotStableAbiBound>,
 
     pub(crate) extra_bounds:Vec<WherePredicate>,
 
@@ -54,23 +63,28 @@ pub(crate) struct StableAbiOptions<'a> {
 
     pub(crate) override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
-    pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
+     pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
+    pub(crate) changed_types:FieldMap<Option<&'a Type>>,
 
     pub(crate) mod_refl_mode:ModReflMode<usize>,
 
+
     pub(crate) phantom_fields:Vec<(&'a str,&'a Type)>,
+    pub(crate) phantom_type_params:Vec<&'a Type>,
 
 }
 
 
-pub(crate) struct UnconstrainedTyParam<'a>{
-    pub(crate) static_equivalent:Option<&'a Type>
+pub(crate) enum NotStableAbiBound{
+    NoBound,
+    GetStaticEquivalent,
 }
 
 
 pub(crate) enum StabilityKind<'a> {
     Value,
     Prefix(PrefixKind<'a>),
+    NonExhaustive(NonExhaustive<'a>),
 }
 
 impl<'a> StabilityKind<'a>{
@@ -83,7 +97,7 @@ impl<'a> StabilityKind<'a>{
         match (is_public,self) {
             (false,_)=>
                 FieldAccessor::Opaque,
-            (true,StabilityKind::Value)=>
+            (true,StabilityKind::Value)|(true,StabilityKind::NonExhaustive{..})=>
                 FieldAccessor::Direct,
             (true,StabilityKind::Prefix(prefix))=>
                 prefix.field_accessor(field),
@@ -102,12 +116,19 @@ impl<'a> StableAbiOptions<'a> {
 
         let repr = ReprAttr::new(this.repr);
 
+        let mut static_equiv_bounded=Vec::new();
+
         let mut stable_abi_bounded=ds.generics
             .type_params()
             .map(|x| &x.ident )
             .collect::<HashSet<&'a Ident>>();
 
-        for (type_param,_) in &this.unconstrained_type_params {
+        for (type_param,what) in &this.unconstrained_type_params {
+            if let NotStableAbiBound::GetStaticEquivalent=what {
+                if let Some(&ident)=stable_abi_bounded.get(type_param) {
+                    static_equiv_bounded.push(ident);
+                }
+            }
             if !stable_abi_bounded.remove(type_param) {
                 panic!(
                     "'{}' declared as a phantom type parameter but is not a type parameter",
@@ -145,7 +166,12 @@ impl<'a> StableAbiOptions<'a> {
                     field_bounds:this.field_bounds,
                 })
             }
-
+            UncheckedStabilityKind::NonExhaustive(nonexhaustive)=>{
+                let variant_constructor=this.variant_constructor;
+                nonexhaustive
+                    .piped(|x| NonExhaustive::new(x,variant_constructor,ds,arenas) )
+                    .piped(StabilityKind::NonExhaustive)
+            }
         };
 
         match (repr,ds.data_variant) {
@@ -188,16 +214,28 @@ impl<'a> StableAbiOptions<'a> {
                 ModReflMode::Opaque,
         };
 
+        phantom_fields.extend(this.extra_phantom_fields);
+        phantom_fields.extend(
+            this.phantom_type_params.iter().cloned()
+                .enumerate()
+                .map(|(i,ty)|{
+                    let name=arenas.alloc(format!("_phantom_ty_param_{}",i));
+                    (&**name,ty)
+                })
+        );
+
         StableAbiOptions {
             debug_print:this.debug_print,
-            kind, repr , stable_abi_bounded , 
+            kind, repr , stable_abi_bounded , static_equiv_bounded ,
             extra_bounds :this.extra_bounds,
             unconstrained_type_params:this.unconstrained_type_params.into_iter().collect(),
             opaque_fields:this.opaque_fields,
             renamed_fields:this.renamed_fields,
+            changed_types:this.changed_types,
             override_field_accessor:this.override_field_accessor,
             tags:this.tags,
             phantom_fields,
+            phantom_type_params:this.phantom_type_params,
             mod_refl_mode,
         }
     }
@@ -224,32 +262,38 @@ struct StableAbiAttrs<'a> {
     prefix_bounds:Vec<WherePredicate>,
 
     /// The type parameters that have no constraints
-    unconstrained_type_params:Vec<(Ident,UnconstrainedTyParam<'a>)>,
+    unconstrained_type_params:Vec<(Ident,NotStableAbiBound)>,
 
     // Using raw pointers to do an identity comparison.
     opaque_fields:FieldMap<bool>,
 
+    variant_constructor:Vec<Option<UncheckedVariantConstructor>>,
+
     override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
     renamed_fields:FieldMap<Option<&'a Ident>>,
+    changed_types:FieldMap<Option<&'a Type>>,
 
     field_bounds:FieldMap<Vec<TypeParamBound>>,
+
+    extra_phantom_fields:Vec<(&'a str,&'a Type)>,
+    phantom_type_params:Vec<&'a Type>,
     
     mod_refl_mode:Option<ModReflMode<()>>,
 }
 
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 enum UncheckedStabilityKind<'a> {
     Value,
     Prefix(UncheckedPrefixKind<'a>),
+    NonExhaustive(UncheckedNonExhaustive<'a>),
 }
 
 #[derive(Copy, Clone)]
 struct UncheckedPrefixKind<'a>{
     prefix_struct:&'a Ident,
 }
-
 
 impl<'a> Default for UncheckedStabilityKind<'a>{
     fn default()->Self{
@@ -258,10 +302,14 @@ impl<'a> Default for UncheckedStabilityKind<'a>{
 }
 
 
+
 #[derive(Copy, Clone)]
 enum ParseContext<'a> {
     TypeAttr{
         name:&'a Ident,
+    },
+    Variant{
+        variant_index:usize,
     },
     Field{
         field_index:usize,
@@ -284,12 +332,15 @@ where
     this.renamed_fields=FieldMap::defaulted(ds);
     this.override_field_accessor=FieldMap::defaulted(ds);
     this.field_bounds=FieldMap::defaulted(ds);
+    this.changed_types=FieldMap::defaulted(ds);
+    this.variant_constructor.resize(ds.variants.len(),None);
 
     let name=ds.name;
 
     parse_inner(&mut this, attrs, ParseContext::TypeAttr{name}, arenas);
 
-    for variant in &ds.variants {
+    for (variant_index,variant) in ds.variants.iter().enumerate() {
+        parse_inner(&mut this, variant.attrs, ParseContext::Variant{variant_index}, arenas);
         for (field_index,field) in variant.fields.iter().enumerate() {
             parse_inner(&mut this, field.attrs, ParseContext::Field{field,field_index}, arenas);
         }
@@ -377,6 +428,10 @@ fn parse_sabi_attr<'a>(
                 let renamed=parse_lit_as_ident(&value)
                     .piped(|x| arenas.alloc(x) );
                 this.renamed_fields.insert(field,Some(renamed));
+            }else if ident=="unsafe_change_type" {
+                let changed_type=parse_lit_as_type(&value)
+                    .piped(|x| arenas.alloc(x) );
+                this.changed_types.insert(field,Some(changed_type));
             }else if ident=="accessible_if" {
                 let expr=arenas.alloc(parse_lit_as_expr(&value));
                 this.prefix_kind_fields[field].accessible_if=Some(expr);
@@ -422,6 +477,25 @@ fn parse_sabi_attr<'a>(
             }else if ident=="prefix_bound" {
                 this.prefix_bounds.push(bound);
             }
+        }
+        (
+            ParseContext::TypeAttr{..},
+            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_field),ref ident,..})
+        )if ident=="phantom_field" =>
+        {
+            let unparsed_field=unparsed_field.value();
+            let mut iter=unparsed_field.splitn(2,':');
+            let name=arenas.alloc(iter.next().unwrap_or("").to_string());
+            let ty=arenas.alloc(parse_str_as_type(iter.next().unwrap_or("")));
+            this.extra_phantom_fields.push((name,ty));
+        }
+        (
+            ParseContext::TypeAttr{..},
+            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref str_lit),ref ident,..})
+        )if ident=="phantom_type_param" =>
+        {
+            let ty=arenas.alloc(parse_lit_as_type(str_lit));
+            this.phantom_type_params.push(ty);
         }
         (
             ParseContext::TypeAttr{..},
@@ -472,6 +546,10 @@ Tag:\n\t{}\n",
                         let prefix=parse_prefix_type_list(name,&list.nested,arenas);
                         this.kind = UncheckedStabilityKind::Prefix(prefix);
                     }
+                    Meta::List(ref list) if list.ident == "WithNonExhaustive" => {
+                        let nonexhaustive=parse_non_exhaustive_list(name,&list.nested,arenas);
+                        this.kind = UncheckedStabilityKind::NonExhaustive(nonexhaustive);
+                    }
                     x => panic!("invalid #[kind(..)] attribute:\n{:?}", x),
                 });
             } else if list.ident == "module_reflection" {
@@ -487,21 +565,28 @@ Tag:\n\t{}\n",
                     }
                     x => panic!("invalid #[module_reflection(..)] attribute:\n{:?}", x),
                 });
-            } else if list.ident == "unconstrained" {
-                with_nested_meta("unconstrained", list.nested, |attr| match attr {
+            } else if list.ident == "not_stableabi" {
+                with_nested_meta("not_stableabi", list.nested, |attr| match attr {
                     Meta::Word(type_param)=>{
-                        let unconstrained=UnconstrainedTyParam{
-                            static_equivalent:None,
-                        };
-                        this.unconstrained_type_params.push((type_param,unconstrained));
-                    }
-                    Meta::List(type_param)=>{
-                        let ty=type_param.ident;
-                        let v=parse_unconstrained_ty_param(type_param.nested,arenas);
-                        this.unconstrained_type_params.push((ty,v));
+                        this.unconstrained_type_params.push(
+                            (type_param,NotStableAbiBound::GetStaticEquivalent)
+                        );
                     }
                     x => panic!(
-                        "invalid #[unconstrained(..)] attribute\
+                        "invalid #[not_stableabi(..)] attribute\
+                         (it must be the identifier of a type parameter):\n{:?}\n", 
+                        x
+                    ),
+                })
+            } else if list.ident == "unsafe_unconstrained" {
+                with_nested_meta("unsafe_unconstrained", list.nested, |attr| match attr {
+                    Meta::Word(type_param)=>{
+                        this.unconstrained_type_params.push(
+                            (type_param,NotStableAbiBound::NoBound)
+                        );
+                    }
+                    x => panic!(
+                        "invalid #[unsafe_unconstrained(..)] attribute\
                          (it must be the identifier of a type parameter):\n{:?}\n", 
                         x
                     ),
@@ -509,8 +594,34 @@ Tag:\n\t{}\n",
             }else{
                 panic!("Unrecodnized #[sabi(..)] attribute:\n{}",list.into_token_stream());
             }
-
         }
+        (
+            ParseContext::TypeAttr{..},
+            Meta::Word(ref word)
+        ) if word == "with_constructor" =>{
+            this.variant_constructor.iter_mut()
+                .for_each(|x|*x=Some(UncheckedVariantConstructor::Regular));
+        }
+        (
+            ParseContext::TypeAttr{..},
+            Meta::Word(ref word)
+        ) if word == "with_boxed_constructor" =>{
+            this.variant_constructor.iter_mut()
+                .for_each(|x|*x=Some(UncheckedVariantConstructor::Boxed));
+        }
+        (
+            ParseContext::Variant{variant_index},
+            Meta::Word(ref word)
+        ) if word == "with_constructor" =>{
+            this.variant_constructor[variant_index]=Some(UncheckedVariantConstructor::Regular);
+        }
+        (
+            ParseContext::Variant{variant_index},
+            Meta::Word(ref word)
+        ) if word == "with_boxed_constructor" =>{
+            this.variant_constructor[variant_index]=Some(UncheckedVariantConstructor::Boxed);
+        }
+        
         (_,x) => panic!("not allowed inside the #[sabi(...)] attribute:\n{:?}", x),
     }
 }
@@ -649,43 +760,126 @@ fn parse_prefix_type_list<'a>(
 }
 
 
-/// Parses the contents of #[sabi(unconstrained(Type( ... )))]
-fn parse_unconstrained_ty_param<'a>(
-    list: Punctuated<NestedMeta, Comma>, 
+/// Parses the contents of #[sabi(kind(WithNonExhaustive( ... )))]
+fn parse_non_exhaustive_list<'a>(
+    _name:&'a Ident,
+    list: &Punctuated<NestedMeta, Comma>, 
     arenas: &'a Arenas
-)-> UnconstrainedTyParam<'a> {
-    match list.into_iter().next() {
-        Some(NestedMeta::Meta(Meta::NameValue(MetaNameValue{
-            ident:ref nv_ident,
-            lit:Lit::Str(ref type_str),
-            ..
-        })))
-        if nv_ident=="StaticEquivalent" =>{
-            let ty=match type_str.parse::<syn::Type>() {
-                Ok(ty)=>ty,
-                Err(e)=>panic!(
-                    "Could not parse as a type:\n\t{}\nError:\n\t{}", 
-                    type_str.value(),
-                    e
-                )
-            };
+)->UncheckedNonExhaustive<'a>{
 
-            UnconstrainedTyParam{
-                static_equivalent:Some(arenas.alloc(ty)),
+    let trait_set=[
+        "Clone","Display","Debug",
+        "Eq","PartialEq","Ord","PartialOrd",
+        "Hash","Deserialize","Serialize","Send","Sync","Error",
+    ].iter()
+     .map(|e| arenas.alloc(Ident::new(e,Span::call_site()) ) )
+     .collect::<HashSet<&'a Ident>>();
+
+    let mut this=UncheckedNonExhaustive::default();
+
+    for elem in list {
+        match elem {
+            NestedMeta::Meta(Meta::NameValue(MetaNameValue{ident,lit,..}))=>{
+                match lit {
+                    Lit::Str(str_lit)if ident=="align"=>{
+                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
+                        this.alignment=Some(IntOrType::Type(ty));
+                    }
+                    Lit::Int(int_lit)if ident=="align"=>{
+                        this.alignment=Some(IntOrType::Int(int_lit.value() as usize));
+                    }
+                    Lit::Str(str_lit)if ident=="size"=>{
+                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
+                        this.size=Some(IntOrType::Type(ty));
+                    }
+                    Lit::Int(int_lit)if ident=="size"=>{
+                        this.size=Some(IntOrType::Int(int_lit.value() as usize));
+                    }
+                    Lit::Str(str_lit)if ident=="assert_nonexhaustive"=>{
+                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
+                        this.assert_nonexh.push(ty);
+                    }
+                    Lit::Str(str_lit)if ident=="interface"=>{
+                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
+                        this.enum_interface=Some(EnumInterface::Old(ty));
+                    }
+                    x => panic!(
+                        "invalid #[sabi(kind(WithNonExhaustive(  )))] attribute:\n{:?}\n", 
+                        x
+                    )
+                }
             }
-        }
-        Some(x) => panic!(
-            "invalid #[sabi(unconstrained(  )] attribute\
-             (it must be StaticEquivalent=\"Type\" ):\n{:?}\n", 
-            x
-        ),
-        None=>{
-            UnconstrainedTyParam{
-                static_equivalent:None,
+            NestedMeta::Meta(Meta::List(sublist))if sublist.ident=="assert_nonexhaustive" =>{
+                for assertion in &sublist.nested {
+                    match assertion {
+                        NestedMeta::Literal(Lit::Str(str_lit))=>{
+                            let ty=arenas.alloc(parse_lit_as_type(str_lit));
+                            this.assert_nonexh.push(ty);
+                        }
+                        x => panic!(
+                            "invalid #[sabi(kind(WithNonExhaustive(assert_nonexhaustive(  ))))] \
+                             attribute:\n{:?}\n", 
+                            x
+                        )
+                    }
+                }
             }
+            NestedMeta::Meta(Meta::List(sublist))if sublist.ident=="traits" =>{
+                let enum_interface=match &mut this.enum_interface {
+                    Some(EnumInterface::New(x))=>x,
+                    Some(EnumInterface::Old{..})=>{
+                        panic!("Cannot use both `interface=\"...\"` and `traits(...)`")
+                    }
+                    x@None=>{
+                        *x=Some(EnumInterface::New(Default::default()));
+                        match x {
+                            Some(EnumInterface::New(x))=>x,
+                            _=>unreachable!()
+                        }
+                    }
+                };
+
+                for subelem in &sublist.nested {
+                    let (ident,is_impld)=match subelem {
+                        NestedMeta::Meta(Meta::Word(ident))=>{
+                            (ident,true)
+                        }
+                        NestedMeta::Meta(Meta::NameValue(
+                            MetaNameValue{ident,lit:Lit::Bool(bool_lit),..}
+                        ))=>{
+                            (ident,bool_lit.value)
+                        }
+                        x => panic!(
+                            "invalid \
+                             #[sabi(kind(WithNonExhaustive(traits(  ))))] attribute:\n{:?}\n", 
+                            x
+                        )
+                    };
+
+                    match trait_set.get(ident) {
+                        Some(&trait_ident) => {
+                            if is_impld {
+                                &mut enum_interface.impld
+                            }else{
+                                &mut enum_interface.unimpld
+                            }.push(trait_ident);
+                        },
+                        None =>panic!(
+                            "invalid trait inside \
+                             #[sabi(kind(WithNonExhaustive(traits(  ))))]:\n{:?}\n", 
+                            ident
+                        ),
+                    }
+                }
+            }
+            x => panic!(
+                "invalid #[sabi(kind(WithNonExhaustive(  )))] attribute:\n{:?}\n", 
+                x
+            )
         }
     }
-}
 
+    this
+}
 
 fn parse_sabi_override<'a>(_this: &mut StableAbiAttrs<'a>, _attr: Meta, _arenas: &'a Arenas) {}

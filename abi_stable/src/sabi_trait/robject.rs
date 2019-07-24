@@ -16,17 +16,78 @@ use crate::{
     sabi_types::MaybeCmp,
     std_types::{RBox,UTypeId},
     pointer_trait::{
-        StableDeref, TransmuteElement,
+        TransmuteElement,
         GetPointerKind,PK_SmartPointer,PK_Reference,
     },
-    type_level::unerasability::{TU_Unerasable,TU_Opaque},
+    type_level::{
+        unerasability::{TU_Unerasable,TU_Opaque},
+        impl_enum::{Implemented,Unimplemented},
+        trait_marker,
+    },
     utils::{transmute_reference,transmute_mut_reference},
 };
 
+
+/**
+`RObject` implements ffi-safe trait objects,for a minimal selection of traits.
+
+The main use of `RObject<_>` is as the default backend for `#[sabi_trait]` 
+generated trait objects.
+
+# Construction
+
+To construct an `RObject<_>` directly (not as part of a trait object) 
+you can call one of these methods:
+
+- from_ptr
+    Can be constructed from a pointer of a value.Cannot unerase the RObject afterwards.
+
+- from_ptr_unerasable:
+    Can be constructed from a pointer of a value.Requires a `'static` value.
+
+- from_value:
+    Can be constructed from the value directly.Cannot unerase the RObject afterwards.
+
+- from_value_unerasable
+    Can be constructed from the value directly.Requires a `'static` value.
+
+# Trait object
+
+`RObject<'borrow,Pointer<()>,Interface,VTable>` 
+can be used as a trait object for any combination of 
+the traits listed bellow.
+
+These are the traits:
+
+- Send
+
+- Sync
+
+- Debug
+
+- Clone
+
+# Deconstruction
+
+`RObject<_>` can then be unwrapped into a concrete type,
+within the same dynamic library/executable that constructed it,
+using these (fallible) conversion methods:
+
+- sabi_into_any_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
+
+- sabi_as_any_unerased:Unwraps into a `&T`.Requires `T:'static`.
+
+- sabi_as_any_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
+
+`RObject` can only be converted back if it was created 
+using a `RObject::*_unerased` function.
+
+
+*/
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    unconstrained(V),
+    not_stableabi(V),
     bound="V:SharedStableAbi",
     bound="I:InterfaceBound",
     tag="<I as InterfaceBound>::TAG",
@@ -51,7 +112,7 @@ macro_rules! impl_from_ptr_method {
         )-> RObject<'lt,P,I,V>
         where 
             OrigPtr:TransmuteElement<(),TransmutedPtr=P>+'lt,
-            P:StableDeref<Target=()>,
+            P:Deref<Target=()>,
             OrigPtr::Target:Sized+'lt,
             I:GetVTable<
                 $requires_any,
@@ -152,10 +213,12 @@ use self::clone_impl::CloneImpl;
 impl<'lt,P, I,V> CloneImpl<PK_SmartPointer> for RObject<'lt,P,I,V>
 where
     P: Deref,
-    I: InterfaceType<Clone = True>,
+    I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone_impl(&self) -> Self {
-        let ptr=self.sabi_robject_vtable()._sabi_clone().unwrap()(&self.ptr);
+        let ptr=unsafe{
+            self.sabi_robject_vtable()._sabi_clone().unwrap()(&self.ptr)
+        };
         Self{
             vtable:self.vtable,
             is_reborrowed:self.is_reborrowed,
@@ -169,7 +232,7 @@ where
 impl<'lt,P, I,V> CloneImpl<PK_Reference> for RObject<'lt,P,I,V>
 where
     P: Deref+Copy,
-    I: InterfaceType<Clone = True>,
+    I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone_impl(&self) -> Self {
         Self{
@@ -195,7 +258,7 @@ use abi_stable::{
     std_types::*,
 };
 
-let mut object=RSomething_from_value::<_,TU_Opaque,()>(RBox::new(10_u32));
+let mut object=RSomething_TO::<_,()>::from_value(RBox::new(10_u32),TU_Opaque);
 let borrow=object.reborrow_mut();
 let _=borrow.clone();
 ```
@@ -216,26 +279,28 @@ where
 impl<'lt,P,I,V> Debug for RObject<'lt,P,I,V> 
 where
     P: Deref<Target=()>,
-    I: InterfaceType<Debug = True>,
+    I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        adapt_std_fmt::<ErasedObject>(
-            self.sabi_erased_ref(), 
-            self.sabi_robject_vtable()._sabi_debug().unwrap(), 
-            f
-        )
+        unsafe{
+            adapt_std_fmt::<ErasedObject>(
+                self.sabi_erased_ref(), 
+                self.sabi_robject_vtable()._sabi_debug().unwrap(), 
+                f
+            )
+        }
     }
 }
 
 
 unsafe impl<'lt,P,I,V> Send for RObject<'lt,P,I,V> 
 where 
-    I:InterfaceType<Send=True>,
+    I:InterfaceType<Send = Implemented<trait_marker::Send>>,
 {}
 
 unsafe impl<'lt,P,I,V> Sync for RObject<'lt,P,I,V> 
 where 
-    I:InterfaceType<Sync=True>,
+    I:InterfaceType<Sync = Implemented<trait_marker::Sync>>,
 {}
 
 
@@ -270,7 +335,7 @@ These are the requirements for the caller:
     where 
         OrigPtr:TransmuteElement<(),TransmutedPtr=P>+'lt,
         OrigPtr::Target:Sized+'lt,
-        P:StableDeref<Target=()>,
+        P:Deref<Target=()>,
     {
         RObject{
             vtable,
@@ -391,8 +456,13 @@ use self::private_struct::PrivStruct;
 pub trait ReborrowBounds<SendNess,SyncNess>{}
 
 // If it's reborrowing,it must have either both Sync+Send or neither.
-impl ReborrowBounds<False,False> for PrivStruct {}
-impl ReborrowBounds<True ,True > for PrivStruct {}
+impl ReborrowBounds<Unimplemented<trait_marker::Send>,Unimplemented<trait_marker::Sync>> 
+for PrivStruct 
+{}
+
+impl ReborrowBounds<Implemented<trait_marker::Send>,Implemented<trait_marker::Sync>> 
+for PrivStruct 
+{}
 
 
 impl<'lt,P,I,V> RObject<'lt,P,I,V>
@@ -483,7 +553,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
         P: OwnedPointer<Target=()>,
         F:FnOnce(MovePtr<'_,()>)->R,
     {
-        OwnedPointer::with_moved_ptr(self.sabi_into_erased_ptr(),f)
+        OwnedPointer::with_move_ptr(self.sabi_into_erased_ptr(),f)
     }
 }
 

@@ -40,6 +40,15 @@ impl<T> LateStaticRef<T>{
         }
     }
 
+    /// Constructs the late initialized static reference,
+    /// initialized with `value`.
+    pub const fn initialized(value:&'static T)->Self{
+        Self{
+            lock:LOCK,
+            pointer:AtomicPtr::new(value as *const T as *mut T),
+        }
+    }
+
     /// Lazily initializes the reference with `initializer`,
     /// returning the reference if either it was already initialized,or
     /// if `initalizer` returned Ok(..).

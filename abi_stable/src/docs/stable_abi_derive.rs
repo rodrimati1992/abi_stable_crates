@@ -10,9 +10,30 @@ The StableAbi derive macro allows one to implement the StableAbi trait to :
 
 These attributes are applied on the type declaration.
 
-<h3> `#[sabi(unconstrained(TypeParameter))]`  </h3>
+<h3> `#[sabi(phantom_field="name:type")]` </h3>
+
+Adds a virtual field to the type layout constant.
+
+<h3> `#[sabi(phantom_type_param="type")]` </h3>
+
+Adds a virtual type parameter to the type layout constant,
+which is checked for compatibility.
+
+<h3> `#[sabi(not_stableabi(TypeParameter))]`  </h3>
+
+Removes the implicit `TypeParameter:StableAbi` constraint,
+leaving a `TypeParameter:GetStaticEquivalent` constraint.
+
+<h3> `#[sabi(unsafe_unconstrained(TypeParameter))]`  </h3>
 
 Removes the implicit `TypeParameter:StableAbi` constraint.
+
+The type parameter will be ignored when determining whether the type 
+has already been checked,when loading a dynamic library,
+
+Don't use this if transmuting this type to have different type parameters,
+only changing `#[sabi(unsafe_unconstrained())]` one,
+would cause Undefined Behavior.
 
 This is only necessary if you are passing `TypeParameter` to `UnsafeIgnoredType`
 
@@ -57,8 +78,16 @@ Prints the generated code,stopping compilation.
 Declares the struct as being a prefix-type.
 
 `#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`<br>
-Uses "NameOfPrefixStruct" as the name of the prefix struct.
+Declares an ffi-safe equivalent of a vtable/module,
+that can be extended in semver compatible versions.<br>
+Uses "NameOfPrefixStruct" as the name of the prefix struct.<br>
+For more details on prefix-types [look here](../prefix_types/index.html)
 
+`#[sabi(kind(WithNonExhaustive(...)))]`<br>
+Declares this enum as being nonexhaustive,
+generating items and impls necessary to wrap this enum in a `NonExhaustive<>`
+to pass it through ffi.
+For more details on nonexhaustive enums [look here](../sabi_nonexhaustive/index.html)
 
 <h3> `#[sabi(module_reflection(...))]`  </h3>
 
@@ -84,6 +113,12 @@ These attributes are applied to fields.
 
 Renames the field in the generated layout information.
 Use this when renaming private fields.
+
+<h3> `#[sabi(unsafe_change_type="SomeType")]` </h3>
+
+Changes the type of this field in the generated type layout constant to SomeType.
+
+This has the `unsafe` prefix because SomeType is relied on being correct by `StableAbi`.
 
 <h3> `#[sabi(unsafe_opaque_field)]` </h3>
 
@@ -164,6 +199,80 @@ Returns `some_expression` if the field doesn't exist.
 
 `#[sabi(missing_field(default))]`<br>
 Returns `Default::default()` if the field doesn't exist.
+
+# Variant and/or Container attributes
+
+<h3> `#[sabi(with_constructor)]` </h3>
+
+This is only valid for nonexhaustive enums,declared with `#[sabi(kind(WithNonExhaustive(..)))]`.
+
+Creates constructors for enum variant(s),named the same as the variant(s) with an `_NE` suffix.
+
+This attribute can be overriden on variants(when it was also applied to the Container itself).
+
+For a variant like this:
+`VariantNamed{foo:RString,bar:RBox<Struct>}`
+it would generate an associated function like this(the exact generated code might differ a bit):
+```ignore
+fn VariantNamed_NE(foo:RString,bar:RBox<Struct>)->Enum_NE{
+    let x=Enum::VariantNamed{foo,bar};
+    NonExhaustive::new(x)
+}
+```
+
+<h3> `#[sabi(with_boxed_constructor)]` </h3>
+
+This is only valid for nonexhaustive enums,declared with `#[sabi(kind(WithNonExhaustive(..)))]`.
+
+Creates constructors for enum variant(s) which only contain a pointer,
+named the same as the variant(s) with an `_NE` suffix.
+
+This attribute can be overriden on variants(when it was also applied to the Container itself).
+
+All constructor functions are declared inside a single impl block with 
+`Self` bounded by the traits that are necessary to construct `NonExhaustive<>` from it.
+
+For a variant like this:
+
+`VariantNamed(RBox<T>)`
+
+it would generate an associated function like this(the exact generated code might differ a bit):
+```ignore
+fn VariantNamed_NE(value:T)->Enum_NE<T>{
+    let x=RBox::new(value);
+    let x=Enum::VariantNamed(x);
+    NonExhaustive::new(x)
+}
+```
+
+<br>
+
+For a variant like this:
+
+`VariantNamed{ptr_:MyPointer<T>}`
+
+it would generate an associated function like this(the exact generated code might differ a bit):
+```ignore
+fn VariantNamed_NE(value:T)->Enum_NE<T>{
+    let x=MyPointer::new(value);
+    let x=Enum::VariantNamed{ptr_:x};
+    NonExhaustive::new(x)
+}
+```
+
+For a variant like this:
+
+`VariantNamed(BoxedStruct)`
+
+it would generate an associated function like this(the exact generated code might differ a bit):
+```ignore
+fn VariantNamed_NE(value:<BoxedStruct as ::std::ops::Deref>::Target)->Enum_NE<T>{
+    let x=BoxedStruct::new(value);
+    let x=Enum::VariantNamed(x);
+    NonExhaustive::new(x)
+}
+```
+
 
 
 # Supported repr attributes

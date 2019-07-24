@@ -12,7 +12,7 @@ A type with lifetime type,and lifetime parameters:
 use abi_stable::{
     tl_genparams,
     StableAbi,
-    abi_stability::type_layout::GenericParams
+    type_layout::GenericParams
 };
 
 struct Reference<'a,'b,T,U>(&'a T,&'b U);
@@ -39,7 +39,7 @@ Note that while this example won't compile until const parameters are usable,
 use abi_stable::{
     tl_genparams,
     StableAbi,
-    abi_stability::type_layout::GenericParams
+    type_layout::GenericParams
 };
 
 struct ArrayReference<'a,'b,T,U,const SIZE_T:usize,const SIZE_U:usize>{
@@ -64,13 +64,11 @@ where
 */
 #[macro_export]
 macro_rules! tl_genparams {
-    ( $($lt:lifetime),*  ; $($ty:ty),*  ; $($const_p:expr),*  ) => ({
+    ( $($lt:lifetime),*  ; $($ty:ty),* $(,)*  ; $($const_p:expr),*  ) => ({
         #[allow(unused_imports)]
         use $crate::{
-            abi_stability::{
-                stable_abi_trait::SharedStableAbi,
-                type_layout::GenericParams
-            },
+            abi_stability::stable_abi_trait::SharedStableAbi,
+            type_layout::GenericParams,
             std_types::StaticStr,
         };
 
@@ -92,7 +90,7 @@ macro_rules! tl_genparams {
 #[macro_export]
 macro_rules! rtry {
     ($expr:expr) => {{
-        use $crate::result::{RErr, ROk};
+        use $crate::std_types::result::{RErr, ROk};
         match $expr.into() {
             ROk(x) => x,
             RErr(x) => return RErr(From::from(x)),
@@ -104,7 +102,7 @@ macro_rules! rtry {
 #[macro_export]
 macro_rules! rtry_opt {
     ($expr:expr) => {{
-        use $crate::option::{RNone, RSome};
+        use $crate::std_types::option::{RNone, RSome};
         match $expr.into() {
             RSome(x) => x,
             RNone => return RNone,
@@ -214,23 +212,25 @@ where
 */
 #[macro_export]
 macro_rules! extern_fn_panic_handling {
-    (no_early_return; $($fn_contents:tt)* ) => (
-        let mut aborter_guard={
+    (no_early_return; $($fn_contents:tt)* ) => ({
+        let aborter_guard={
             use $crate::utils::{AbortBomb,PanicInfo};
             #[allow(dead_code)]
             const BOMB:AbortBomb=AbortBomb{
-                fuse:Some(&PanicInfo{file:file!(),line:line!()})
+                fuse:&PanicInfo{file:file!(),line:line!()}
             };
             BOMB
         };
         let res={
             $($fn_contents)*
         };
-        aborter_guard.fuse=None;
+
+        ::std::mem::forget(aborter_guard);
+        
         res
-    );
+    });
     ( $($fn_contents:tt)* ) => (
-        extern_fn_panic_handling!{
+        $crate::extern_fn_panic_handling!{
             no_early_return;
             let a=$crate::marker_type::NotCopyNotClone;
             (move||{
@@ -339,7 +339,7 @@ way that keeps the tags and the type bounds in sync.
 ```
 use abi_stable::{
     tag,
-    abi_stability::Tag,
+    type_layout::Tag,
     StableAbi,
 };
 
@@ -363,14 +363,14 @@ struct Value<T>{
 #[macro_export]
 macro_rules! tag {
     ([ $( $elem:expr ),* $(,)? ])=>{{
-        use $crate::abi_stability::tagging::FromLiteral;
+        use $crate::type_layout::tagging::FromLiteral;
         
         Tag::arr(&[
             $( FromLiteral($elem).to_tag(), )*
         ])
     }};
     ({ $( $key:expr=>$value:expr ),* $(,)? })=>{{
-        use $crate::abi_stability::tagging::{FromLiteral,Tag};
+        use $crate::type_layout::tagging::{FromLiteral,Tag};
 
         Tag::map(&[
             $(
@@ -382,7 +382,7 @@ macro_rules! tag {
         ])
     }};
     ({ $( $key:expr ),* $(,)? })=>{{
-        use $crate::abi_stability::tagging::FromLiteral;
+        use $crate::type_layout::tagging::FromLiteral;
 
         Tag::set(&[
             $(
@@ -391,7 +391,7 @@ macro_rules! tag {
         ])
     }};
     ($expr:expr) => {{
-        $crate::abi_stability::tagging::FromLiteral($expr).to_tag()
+        $crate::type_layout::tagging::FromLiteral($expr).to_tag()
     }};
 }
 
@@ -418,21 +418,90 @@ macro_rules! assert_matches {
 
 
 /**
-Constructs a abi_stable::abi_stability::type_layout::ItemInfo,
+Constructs a abi_stable::type_layout::ItemInfo,
 with information about the place where it's called.
 */
 #[macro_export]
 macro_rules! make_item_info {
     () => (
-        $crate::abi_stability::type_layout::ItemInfo::new(
+        $crate::type_layout::ItemInfo::new(
             concat!(
                 env!("CARGO_PKG_NAME"),
                 ";",
                 env!("CARGO_PKG_VERSION")
             ),
             line!(),
-            $crate::abi_stability::type_layout::ModPath::inside(module_path!()),
+            $crate::type_layout::ModPath::inside(module_path!()),
         )
     )
 }
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+#[allow(unused_macros)]
+macro_rules! delegate_interface_serde {
+    (
+        impl[$($impl_header:tt)* ] Traits<$this:ty> for $interf:ty ;
+        lifetime=$lt:lifetime;
+        delegate_to=$delegates_to:ty;
+    ) => (
+        impl<$($impl_header)*> $crate::nonexhaustive_enum::SerializeEnum<$this> for $interf
+        where
+            $delegates_to:
+                $crate::nonexhaustive_enum::SerializeEnum<$this>
+        {
+            type Proxy=<
+                $delegates_to as
+                $crate::nonexhaustive_enum::SerializeEnum<$this>
+            >::Proxy;
+
+            fn serialize_enum<'a>(
+                this:&'a $this
+            ) -> Result<Self::Proxy, $crate::std_types::RBoxError>{
+                <$delegates_to>::serialize_enum(this)
+            }
+        }
+
+        impl<$lt,$($impl_header)* S,I> 
+            $crate::nonexhaustive_enum::DeserializeEnum<
+                $lt,
+                $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>
+            > 
+        for $interf
+        where
+            $this:$crate::nonexhaustive_enum::GetEnumInfo+$lt,
+            $delegates_to:
+                $crate::nonexhaustive_enum::DeserializeEnum<
+                    $lt,
+                    $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>
+                >
+        {
+            type Proxy=<
+                $delegates_to as
+                $crate::nonexhaustive_enum::DeserializeEnum<
+                    $lt,
+                    $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>
+                >
+            >::Proxy;
+
+            fn deserialize_enum(
+                s: Self::Proxy
+            ) -> Result<
+                    $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>,
+                    $crate::std_types::RBoxError
+                >
+            {
+                <$delegates_to as 
+                    $crate::nonexhaustive_enum::DeserializeEnum<
+                        $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>
+                    >
+                >::deserialize_enum(s)
+            }
+        }
+    )
+}
+
 

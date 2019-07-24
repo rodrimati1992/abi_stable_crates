@@ -14,6 +14,22 @@ crate::impl_InterfaceType!{
 
 //////////////////////////////////////////////
 
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct CloneEqInterface;
+
+crate::impl_InterfaceType!{
+    impl crate::erased_types::InterfaceType for CloneEqInterface {
+        type Debug=True;
+        type Clone=True;
+        type Eq=True;
+        type PartialEq=True;
+    }
+}
+
+
+//////////////////////////////////////////////
+
 
 #[repr(C)]
 #[derive(StableAbi)]
