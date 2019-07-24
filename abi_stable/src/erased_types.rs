@@ -43,11 +43,6 @@ pub(crate) mod vtable;
 pub mod traits;
 
 
-
-pub(crate) use self::{
-    traits::{GetDeserializeDynProxy,GetSerializeProxyType},
-};
-
 pub use self::{
     dyn_trait::{DynTrait, DynTraitBound},
     vtable::{ GetVtable,InterfaceBound},
