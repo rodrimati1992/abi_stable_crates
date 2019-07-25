@@ -3,7 +3,7 @@ This is an example `interface crate`,
 where all publically available modules(structs of function pointers) and types are declared,
 
 To load the library and the modules together,
-call `<PluginMod as ModuleTrait>::load_from_directory`,
+call `<PluginMod as RootModule>::load_from_directory`,
 which will load the dynamic library from a directory(folder),
 and all the modules inside of the library.
 
@@ -131,7 +131,7 @@ pub trait Plugin {
 /// The root module of a`plugin` dynamic library.
 ///
 /// To load this module,
-/// call <PluginMod as ModuleTrait>::load_from_directory(some_directory_path)
+/// call <PluginMod as RootModule>::load_from_directory(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)] 
 #[sabi(kind(Prefix(prefix_struct="PluginMod")))]

@@ -3,7 +3,7 @@ This is an example `interface crate`,
 where all publically available modules(structs of function pointers) and types are declared,
 
 To load the library and the modules together,
-call `<TextOpsMod as ModuleTrait>::load_from_directory`,
+call `<TextOpsMod as RootModule>::load_from_directory`,
 which will load the dynamic library from a directory(folder),
 and all the modules inside of the library.
 
@@ -14,7 +14,6 @@ and all the modules inside of the library.
 use abi_stable::{
     StableAbi,
     external_types::{RawValueRef,RawValueBox},
-    impl_InterfaceType,
     package_version_strings,
     declare_root_module_statics,
     library::RootModule,
@@ -34,7 +33,7 @@ use abi_stable::{
 /// With all the functions/modules related to processing text.
 ///
 /// To load this module,
-/// call <TextOpsMod as ModuleTrait>::load_from_directory(some_directory_path)
+/// call <TextOpsMod as RootModule>::load_from_directory(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)] 
 #[sabi(kind(Prefix(prefix_struct="TextOpsMod")))]
@@ -104,23 +103,11 @@ pub struct DeserializerModVal {
 /// An `InterfaceType` describing which traits are implemented by TOStateBox.
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Serialize,Deserialize,PartialEq))]
 pub struct TOState;
 
 /// The state passed to most functions in the TextOpsMod module.
 pub type TOStateBox = DynTrait<'static,RBox<()>,TOState>;
-
-// This macro is used to emulate default associated types.
-// Look for the docs of InterfaceType to see 
-// which other associated types you can define.
-impl_InterfaceType!{
-    impl InterfaceType for TOState {
-        type Send=False;
-        type Debug = True;
-        type Serialize = True;
-        type Deserialize = True;
-        type PartialEq = True;
-    }
-}
 
 
 /// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
@@ -149,22 +136,11 @@ impl<'borr> DeserializeDyn<'borr,TOStateBox> for TOState {
 /// An `InterfaceType` describing which traits are implemented by TOCommandBox.
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Send,Sync,Debug,Serialize,Deserialize,PartialEq,Iterator))]
 pub struct TOCommand;
 
 /// A de/serializable opaque command enum,used in the TextOpsMod::run_command function.
 pub type TOCommandBox<'borr> = DynTrait<'borr,RBox<()>,TOCommand>;
-
-
-impl_InterfaceType!{
-    impl InterfaceType for TOCommand {
-        type Debug = True;
-        type Serialize = True;
-        type Deserialize = True;
-        type PartialEq = True;
-        type Iterator=True;
-    }
-}
-
 
 impl<'a> IteratorItem<'a> for TOCommand{
     type Item=&'a mut RString;
@@ -197,20 +173,11 @@ impl<'borr> DeserializeDyn<'borr,TOCommandBox<'static>> for TOCommand {
 /// An `InterfaceType` describing which traits are implemented by TOReturnValueArc.
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Sync,Send,Debug,Serialize,Deserialize,PartialEq))]
 pub struct TOReturnValue;
 
 /// A de/serializable opaque command enum,returned by the TextOpsMod::run_command function.
 pub type TOReturnValueArc = DynTrait<'static,RArc<()>,TOReturnValue>;
-
-
-impl_InterfaceType!{
-    impl InterfaceType for TOReturnValue {
-        type Debug = True;
-        type Serialize = True;
-        type Deserialize = True;
-        type PartialEq = True;
-    }
-}
 
 
 /// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
@@ -238,13 +205,8 @@ impl<'borr> DeserializeDyn<'borr,TOReturnValueArc> for TOReturnValue {
 
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Sync,Send,Iterator))]
 pub struct CowStrIter;
-
-impl_InterfaceType!{
-    impl InterfaceType for CowStrIter {
-        type Iterator = True;
-    }
-}
 
 impl<'a> IteratorItem<'a> for CowStrIter{
     type Item=RCow<'a,str>;

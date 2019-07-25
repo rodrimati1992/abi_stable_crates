@@ -116,9 +116,9 @@ and won't be usable afterwards.
 
 These are the traits you can specify:
 
-- Send
+- Send:Changing this to require/unrequire in minor versions,is an abi breaking change.
 
-- Sync
+- Sync:Changing this to require/unrequire in minor versions,is an abi breaking change.
 
 - Clone
 
