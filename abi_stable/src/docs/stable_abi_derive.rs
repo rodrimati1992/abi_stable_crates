@@ -102,6 +102,75 @@ Treats this as an empty module.
 `#[sabi(module_reflection( Deref ))]`<br>
 Delegates the treatment of this type as a module to the type it dereferences to.
 
+<h3> `#[sabi(impl_InterfaceType(...))]`  </h3>
+
+Implements the `InterfaceType` trait for a type,
+defining the usable/required traits when creating a 
+`DynTrait<_,ThisType>`/`NonExhaustive<_,_,ThisType>`.
+
+Syntax:`#[sabi(impl_InterfaceType(Trait0,Trait1,...,TraitN))]`
+
+If a trait is not specified,
+it will not be required when constructing DynTrait/NonExhaustive,
+and won't be usable afterwards.
+
+These are the traits you can specify:
+
+- Send
+
+- Sync
+
+- Clone
+
+- Default
+
+- Display
+
+- Debug
+
+- Eq
+
+- PartialEq
+
+- Ord
+
+- PartialOrd
+
+- Hash
+
+- Deserialize
+
+- Serialize
+
+- Iterator:
+    this type will also have to implement `abi_stable::erased_types::IteratorItem`.
+
+- DoubleEndedIterator:
+    this type will also have to implement `abi_stable::erased_types::IteratorItem`.
+
+- FmtWrite: corresponds to `std::fmt::Write` .
+
+- IoWrite: corresponds to `std::io::Write` .
+
+- IoSeek: corresponds to `std::io::Seek` .
+
+- IoRead: corresponds to `std::io::Read` .
+
+- IoBufRead: corresponds to `std::io::BufRead` .
+
+- Error
+
+<br>
+Examples:
+
+- `#[sabi(impl_InterfaceType(Send,Sync))]`
+
+- `#[sabi(impl_InterfaceType(Send,Sync,Iterator,DoubleEndedIterator))]`
+
+- `#[sabi(impl_InterfaceType(Clone,Debug,FmtWrite))]`
+
+- `#[sabi(impl_InterfaceType(Clone,Debug,IoWrite,IoRead))]`
+
 
 
 # Field attributes

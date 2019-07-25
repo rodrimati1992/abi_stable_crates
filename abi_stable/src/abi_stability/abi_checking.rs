@@ -87,6 +87,7 @@ pub enum AbiInstability {
 
 use self::AbiInstability as AI;
 
+#[allow(dead_code)]
 impl AbiInstabilityErrors {
     #[cfg(test)]
     pub fn flatten_errors(&self) -> RVec<AbiInstability> {

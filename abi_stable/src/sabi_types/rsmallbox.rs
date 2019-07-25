@@ -346,5 +346,5 @@ unsafe extern "C" fn destroy<T>(ptr:*mut T,drop_referent:CallReferentDrop,deallo
 
 
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
