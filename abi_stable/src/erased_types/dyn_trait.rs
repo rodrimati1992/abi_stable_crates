@@ -248,21 +248,11 @@ use serde::{Deserialize,Serialize};
 /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Sync,Debug,Clone,Serialize,Deserialize,PartialEq))]
 pub struct FooInterface;
 
 /// The state passed to most functions in the TextOpsMod module.
 pub type FooInterfaceBox = DynTrait<'static,RBox<()>,FooInterface>;
-
-impl_InterfaceType!{
-    impl InterfaceType for FooInterface {
-        type Send=False;
-        type Debug = True;
-        type Clone = True;
-        type Serialize = True;
-        type Deserialize = True;
-        type PartialEq = True;
-    }
-}
 
 
 /// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
@@ -575,16 +565,8 @@ where
 
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Sync,Send,Iterator,DoubleEndedIterator,Clone,Debug))]
 pub struct IteratorInterface;
-
-impl_InterfaceType!{
-    impl InterfaceType for IteratorInterface {
-        type Iterator = True;
-        type DoubleEndedIterator = True;
-        type Clone = True;
-        type Debug = True;
-    }
-}
 
 impl<'a> IteratorItem<'a> for IteratorInterface{
     type Item=&'a str;

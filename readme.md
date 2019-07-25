@@ -227,69 +227,14 @@ pub fn load_root_module_in_directory(_:&Path) -> Result<&'static ExampleLib,Libr
 //////////////////////////////////////////////////////////
 
 
-
+/// This types implement `ÌnterfaceType`
+/// (because of the `#[sabi(impl_InterfaceType())]` subattribute of `#[derive(StableAbi)]` ),
+/// which describes the traits required when constructing `DynTrait<_,TheInterface>`,
+/// and are then implemented by it.
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Sync,Send,Debug,Display))]
 pub struct TheInterface;
-
-// The `impl_InterfaceType` macro emulates default associated types.
-impl_InterfaceType!{
-    /// Each associated type represents a trait,
-    /// which is required of types when ẁrapped in a 
-    /// `DynTrait<Pointer<()>,TheInterface>`,
-    /// as well as is usable in that `DynTrait<_>`.
-    ///
-    /// A trait is required (and becomes usable in `DynTrait<_>`) 
-    /// when the associated type is `True`,not required when it is `False`.
-    ///
-    impl InterfaceType for TheInterface {
-        type Debug = True;
-
-        type Display = True;
-
-        //////////////////////////////////////////////////////////
-        //  some defaulted associated types (there may be more) //
-        //////////////////////////////////////////////////////////
-
-        // Changing this to require/unrequire in minor versions,is an abi breaking change.
-        // type Send=True;
-
-        // Changing this to require/unrequire in minor versions,is an abi breaking change.
-        // type Sync=True;
-
-        // type Iterator=False;
-        
-        // type DoubleEndedIterator=False;
-        
-        // type Clone=False;
-
-        // type Default=False;
-
-        // type Serialize=False;
-
-        // type Eq=False;
-
-        // type PartialEq=False;
-
-        // type Ord=False;
-
-        // type PartialOrd=False;
-
-        // type Hash=False;
-
-        // type Deserialize=False;
-
-        // type FmtWrite=False;
-        
-        // type IoWrite=False;
-        
-        // type IoSeek=False;
-        
-        // type IoRead=False;
-
-        // type IoBufRead=False;
-    }
-}
 
 
 /// An alias for the trait object used in this example
