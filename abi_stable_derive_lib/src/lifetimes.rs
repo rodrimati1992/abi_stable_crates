@@ -5,9 +5,10 @@
 
 
 use proc_macro2::TokenStream;
+use syn::token::Paren;
 use quote::{ToTokens};
 
-use crate::common_tokens::CommonTokens;
+use crate::common_tokens::LifetimeTokens;
 
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -18,7 +19,7 @@ pub(crate) enum LifetimeIndex {
 
 impl LifetimeIndex {
     /// Produces the tokens of the type_layout::LifetimeIndex version of this type
-    pub fn tokenizer<'a>(self,ctokens:&'a CommonTokens<'a>)->LifetimeIndexTokenizer<'a>{
+    pub fn tokenizer<'a>(self,ctokens:&'a LifetimeTokens)->LifetimeIndexTokenizer<'a>{
         LifetimeIndexTokenizer{li:self,ctokens}
     }
 }
@@ -26,7 +27,7 @@ impl LifetimeIndex {
 
 pub struct LifetimeIndexTokenizer<'a>{
     li:LifetimeIndex,
-    ctokens:&'a CommonTokens<'a>,
+    ctokens:&'a LifetimeTokens,
 }
 
 
@@ -39,7 +40,7 @@ impl<'a> ToTokens for LifetimeIndexTokenizer<'a> {
             }
             LifetimeIndex::Param{index,..}=>{
                 ctokens.li_index.to_tokens(ts);
-                ctokens.paren.surround(ts,|ts| index.to_tokens(ts) );
+                Paren::default().surround(ts,|ts| index.to_tokens(ts) );
             }
         }
     }

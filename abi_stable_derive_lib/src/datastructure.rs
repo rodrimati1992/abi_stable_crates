@@ -63,8 +63,7 @@ impl<'a> hash::Hash for Enum<'a> {
 impl<'a> DataStructure<'a> {
     pub(crate) fn new(
         ast: &'a mut DeriveInput, 
-        _arenas: &'a Arenas, 
-        _ctokens: &'a CommonTokens<'a>
+        _arenas: &'a Arenas,
     ) -> Self {
         let name = &ast.ident;
         let enum_ = match ast.data {

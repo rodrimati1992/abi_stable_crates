@@ -30,6 +30,7 @@ use crate::{
 };
 
 use super::{
+    CommonTokens,
     attribute_parsing::{StabilityKind,StableAbiOptions},
     reflection::FieldAccessor,
 };
