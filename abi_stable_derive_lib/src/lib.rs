@@ -20,8 +20,8 @@ mod utils;
 
 mod arenas;
 mod attribute_parsing;
-mod common_tokens;
 mod composite_collections;
+mod common_tokens;
 mod constants;
 mod either;
 mod ignored_wrapper;
@@ -59,7 +59,6 @@ use core_extensions::prelude::*;
 #[allow(unused_imports)]
 use crate::{
     arenas::{AllocMethods, Arenas},
-    common_tokens::CommonTokens,
     utils::PrintDurationOnDrop,
 };
 

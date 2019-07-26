@@ -30,6 +30,8 @@ pub mod reflection;
 
 mod attribute_parsing;
 
+mod common_tokens;
+
 mod nonexhaustive;
 
 mod prefix_types;
@@ -46,6 +48,7 @@ use self::{
         parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions,NotStableAbiBound,
         ImplInterfaceType,
     },
+    common_tokens::CommonTokens,
     nonexhaustive::{tokenize_enum_info,tokenize_nonexhaustive_items},
     prefix_types::prefix_type_tokenizer,
     repr_attrs::ReprAttr,
@@ -64,7 +67,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let arenas = &arenas;
     let ctokens = CommonTokens::new(arenas);
     let ctokens = &ctokens;
-    let ds = &DataStructure::new(&mut data, arenas, ctokens);
+    let ds = &DataStructure::new(&mut data, arenas);
     let config = &parse_attrs_for_stable_abi(ds.attrs, &ds, arenas);
     let generics=ds.generics;
     let name=ds.name;
@@ -545,7 +548,7 @@ fn fields_tokenizer_inner<'a>(
             for li in fields.iter()
                 .flat_map(|f| &visited_fields.map[f].referenced_lifetimes ) 
             {
-                to_stream!(ts;li.tokenizer(ct),ct.comma);
+                to_stream!(ts;li.tokenizer(ct.as_ref()),ct.comma);
             }
         });
         ct.comma.to_tokens(ts);
@@ -671,13 +674,13 @@ fn tokenize_tl_functions<'a>(
 
     let functions=functions.into_inner();
 
-    let field_fn_ranges=field_fn_ranges.into_iter().map(|sl| sl.tokenizer(ct) );
+    let field_fn_ranges=field_fn_ranges.into_iter().map(|sl| sl.tokenizer(ct.as_ref()) );
 
     let abi_infos=abi_infos.into_inner().into_iter()
         .map(|ty| make_get_abi_info_tokenizer(ty,ct) );
 
     let paramret_lifetime_indices=paramret_lifetime_indices.into_inner().into_iter()
-        .map(|sl| sl.tokenizer(ct) );
+        .map(|sl| sl.tokenizer(ct.as_ref()) );
 
 
     quote!(
