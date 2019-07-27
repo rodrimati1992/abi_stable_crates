@@ -1,8 +1,7 @@
 /*!
 This is an `implementation crate`,
 It exports the root module(a struct of function pointers) required by the 
-`example_0_interface`(the `interface crate`) in the 
-version of `get_library` with a mangled function name.
+`example_0_interface`(the `interface crate`).
 
 */
 
@@ -52,7 +51,7 @@ fn instantiate_root_module()->&'static PluginMod{
 
 #[sabi_extern_fn]
 pub fn new(_sender:RSender<AsyncCommand>,plugin_id:PluginId) -> RResult<PluginType,AppError> {
-    let this=TextMunging{
+    let this=CommandUtils{
         plugin_id,
     };
     ROk(Plugin_TO::from_value(this,TU_Opaque))
@@ -90,7 +89,7 @@ pub enum ReturnValue{
 
 
 fn run_command_inner(
-    this:&mut TextMunging,
+    this:&mut CommandUtils,
     command:UtilCmd,
     mut app:ApplicationMut<'_>,
 )->Result<ReturnValue,AppError>{
@@ -123,12 +122,12 @@ fn run_command_inner(
 //////////////////////////////////////////////////////////////////////////////////////
 
 
-struct TextMunging{
+struct CommandUtils{
     plugin_id:PluginId,
 }
 
 
-impl Plugin for TextMunging {
+impl Plugin for CommandUtils {
     fn json_command(
         &mut self,
         command: RStr<'_>,

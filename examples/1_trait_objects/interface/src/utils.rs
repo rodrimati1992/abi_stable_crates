@@ -20,27 +20,24 @@ use abi_stable::{
 use serde::{Serialize,Deserialize};
 
 
-// fn deserialize_json<'a, T>(s: RStr<'a>,which:WhichCommandRet) -> RResult<T, AppError>
-// where
-//     T: serde::Deserialize<'a>,
-// {
-//     match serde_json::from_str::<T>(s.into()) {
-//         Ok(x) => ROk(x),
-//         Err(e) => RErr(AppError::Deserialize(e)),
-//     }
-// }
+/**
+Sends a json encoded command to a plugin,and returns the response by encoding it to json.
 
-// fn serialize_json<'a, T>(value: &'a T,which:WhichCommandRet) -> Result<RCow<'a, str>, AppError>
-// where
-//     T: serde::Serialize,
-// {
-//     match serde_json::to_string::<T>(&value) {
-//         Ok(v)=>Ok(v.into_c().piped(RCow::Owned)),
-//         Err(e)=>Err(AppError::new(e)),
-//     }
-// }
+# Errors
 
+These are all error that this function returns
+(this does not include error returned as part of the command):
 
+- Error::Serialize:
+    If the command/return value could not be serialized to JSON.
+
+- Error::Deserialize
+    If the command/return value could not be deserialized from JSON(this comes from the plugin).
+
+- Error::UnsupportedCommand
+    If the command is not supported by the plugin.
+
+*/
 pub fn process_command<'de,P,C,R,F>(this:&mut P,command:RStr<'de>,f:F)->RResult<RString,Error>
 where 
     P:Plugin,
