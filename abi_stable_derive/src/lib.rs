@@ -128,3 +128,11 @@ pub fn sabi_trait(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     abi_stable_derive_lib::derive_sabi_trait(attr,item)
 }
 
+
+/**
+This macro is documented in abi_stable::docs::get_static_equivalent
+*/
+#[proc_macro_derive(GetStaticEquivalent, attributes(sabi))]
+pub fn derive_get_static_equivalent(input: TokenStream1) -> TokenStream1 {
+    abi_stable_derive_lib::derive_get_static_equivalent(input)
+}

@@ -243,6 +243,8 @@ use abi_stable::{
     std_types::{RBox,RArc,RHashMap,RString,RStr,ROption,RNone},
 };
 
+use std::fmt::Debug;
+
 #[sabi_trait]
 pub trait Dictionary:Debug+Clone{
     type Value;
@@ -262,11 +264,8 @@ pub trait Dictionary:Debug+Clone{
     fn insert(&mut self,key:RString,value:Self::Value)->ROption<Self::Value>;
 
     /// You can add defaulted methods in minor versions(it's not a breaking change).
-    fn from_hashmap(map:RHashMap<RString,u32>)->Self
-    where
-        RHashMap<RString,u32>:Into<Self>
-    {
-        map.into()
+    fn contains(&self,key:RStr<'_>)->bool{
+        self.get(key).is_some()
     }
 }
 

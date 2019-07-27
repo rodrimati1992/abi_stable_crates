@@ -114,7 +114,7 @@ If a trait is not specified,
 it will not be required when constructing DynTrait/NonExhaustive,
 and won't be usable afterwards.
 
-These are the traits you can specify:
+<span id="InterfaceType_traits"> These are the traits you can specify: </span>
 
 - Send:Changing this to require/unrequire in minor versions,is an abi breaking change.
 

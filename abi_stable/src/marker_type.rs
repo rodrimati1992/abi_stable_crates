@@ -82,6 +82,11 @@ impl<T:?Sized> UnsafeIgnoredType<T>{
         _priv:[],
         _inner:PhantomData,
     };
+
+    pub const NEW:Self=Self{
+        _priv:[],
+        _inner:PhantomData,
+    };
 }
 
 impl<T:?Sized> Copy for UnsafeIgnoredType<T>{}
