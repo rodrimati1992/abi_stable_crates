@@ -42,6 +42,19 @@ pub struct TextOpsModVal {
     /// Constructs TOStateBox,state that is passed to other functions in this module.
     pub new: extern "C" fn() -> TOStateBox,
 
+/**
+The `deserializers` submodule.
+
+The `#[sabi(last_prefix_field)]` attribute here means that this is the last field in this struct
+that was defined in the first compatible version of the library
+(0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+requiring new fields to always be added bellow preexisting ones.
+
+The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
+bumps its "major" version,
+at which point it would be moved to the last field at the time.
+
+*/
     #[sabi(last_prefix_field)]    
     pub deserializers:&'static DeserializerMod,
 
@@ -75,9 +88,22 @@ impl RootModule for TextOpsMod {
 #[sabi(missing_field(panic))]
 pub struct DeserializerModVal {
     pub something: std::marker::PhantomData<()>,
-    // pub something: std::marker::PhantomData<abi_stable::std_types::RHashMap<RString,RString>>,
+
+    /**
+The implementation for how TOStateBox is going to be deserialized.
+
+
+The `#[sabi(last_prefix_field)]` attribute here means that this is the last field in this struct
+that was defined in the first compatible version of the library
+(0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+requiring new fields to always be added bellow preexisting ones.
+
+The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
+bumps its "major" version,
+at which point it would be moved to the last field at the time.
+
+*/
     #[sabi(last_prefix_field)]
-    /// The implementation for how TOStateBox is going to be deserialized.
     pub deserialize_state: extern "C" fn(RStr<'_>) -> RResult<TOStateBox, RBoxError>,
 
     /// The implementation for how TOCommandBox is going to be deserialized.
@@ -99,8 +125,11 @@ pub struct DeserializerModVal {
 
 ///////////////////////////////////////////////
 
-
-/// An `InterfaceType` describing which traits are implemented by TOStateBox.
+/**
+An `InterfaceType` describing which traits are required 
+when constructing `TOStateBox`(Serialize,Deserialize,and PartialEq)
+and are then usable afterwards.
+*/
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Serialize,Deserialize,PartialEq))]
@@ -118,7 +147,12 @@ impl SerializeProxyType for TOState{
 }
 
 
+/**
+Describes how a `TOStateBox` is deserialized.
+*/
 impl<'borr> DeserializeDyn<'borr,TOStateBox> for TOState {
+    /// The intermediate type that is deserialized,
+    /// and then converted to `TOStateBox` with `DeserializeDyn::deserialize_dyn`.
     type Proxy = RawValueRef<'borr>;
 
     fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<TOStateBox, RBoxError> {
@@ -132,8 +166,11 @@ impl<'borr> DeserializeDyn<'borr,TOStateBox> for TOState {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-
-/// An `InterfaceType` describing which traits are implemented by TOCommandBox.
+/**
+An `InterfaceType` describing which traits are required 
+when constructing `TOCommandBox`(Send,Sync,Debug,Serialize,etc)
+and are then usable afterwards.
+*/
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Send,Sync,Debug,Serialize,Deserialize,PartialEq,Iterator))]
@@ -142,6 +179,8 @@ pub struct TOCommand;
 /// A de/serializable opaque command enum,used in the TextOpsMod::run_command function.
 pub type TOCommandBox<'borr> = DynTrait<'borr,RBox<()>,TOCommand>;
 
+/// This specifies the type Item type that `DynTrait<_,TOCommand>` 
+/// yields when iterating.
 impl<'a> IteratorItem<'a> for TOCommand{
     type Item=&'a mut RString;
 }
@@ -156,6 +195,8 @@ impl SerializeProxyType for TOCommand{
 
 /// Describes how TOCommandBox is deserialized
 impl<'borr> DeserializeDyn<'borr,TOCommandBox<'static>> for TOCommand {
+    /// The intermediate type that is deserialized,
+    /// and then converted to `TOCommandBox` with `DeserializeDyn::deserialize_dyn
     type Proxy = RawValueRef<'borr> ;
 
     fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<TOCommandBox<'static>, RBoxError> {
@@ -170,7 +211,11 @@ impl<'borr> DeserializeDyn<'borr,TOCommandBox<'static>> for TOCommand {
 ///////////////////////////////////////////////////////////////////////////////
 
 
-/// An `InterfaceType` describing which traits are implemented by TOReturnValueArc.
+/**
+An `InterfaceType` describing which traits are required 
+when constructing `TOReturnValueArc`(Send,Sync,Debug,Serialize,Deserialize,and PartialEq)
+and are then usable afterwards.
+*/
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Sync,Send,Debug,Serialize,Deserialize,PartialEq))]
@@ -180,15 +225,17 @@ pub struct TOReturnValue;
 pub type TOReturnValueArc = DynTrait<'static,RArc<()>,TOReturnValue>;
 
 
-/// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
+/// First <ConcreteType as SerializeImplType>::serialize_impl returns 
 /// a RawValueBox containing the serialized data,
 /// then the returned RawValueBox is serialized.
 impl SerializeProxyType for TOReturnValue{
     type Proxy=RawValueBox;
 }
 
-/// Describes how TOCommandBox is deserialized
+/// Describes how TOReturnValueArc is deserialized
 impl<'borr> DeserializeDyn<'borr,TOReturnValueArc> for TOReturnValue {
+    /// The intermediate type that is deserialized,
+    /// and then converted to `TOReturnValueArc` with `DeserializeDyn::deserialize_dyn
     type Proxy = RawValueRef<'borr>;
 
     fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<TOReturnValueArc, RBoxError> {
@@ -203,18 +250,25 @@ impl<'borr> DeserializeDyn<'borr,TOReturnValueArc> for TOReturnValue {
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/**
+An `InterfaceType` describing which traits are required 
+when constructing `DynTrait<_,CowStrIter>`(Send,Sync,and Iterator)
+and are then usable afterwards.
+*/
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Sync,Send,Iterator))]
 pub struct CowStrIter;
 
+/// This specifies the type Item type that `DynTrait<_,CowStrIter>` 
+/// yields when iterating.
 impl<'a> IteratorItem<'a> for CowStrIter{
     type Item=RCow<'a,str>;
 }
 
 
 
-/// The parameters for every `TextOpsMod.remove_words_*` function.
+/// The parameters for the `TextOpsMod.remove_words` function.
 #[repr(C)]
 #[derive(StableAbi)] 
 pub struct RemoveWords<'a,'b>{

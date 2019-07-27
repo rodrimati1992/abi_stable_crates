@@ -388,6 +388,44 @@ struct Point2D{
 
 ```
 
+<h3> On a `#[repr(transparent)]` newtype </h3>
+
+```
+
+use abi_stable::StableAbi;
+
+#[repr(transparent)]
+#[derive(StableAbi)]
+pub struct Wrapper<T>{
+    pub inner:T
+}
+
+```
+
+<h3> On a `#[repr(u8)]` enum.
+
+This enum cannot add variants in minor versions,
+for that you have to use [nonexhaustive enums](../sabi_nonexhaustive/index.html).
+
+```
+use abi_stable::{
+    StableAbi,
+    std_types::RString,
+};
+
+#[repr(u8)]
+#[derive(StableAbi)]
+pub enum Command{
+    LaunchRockets,
+    EatLaundry,
+    WakeTheDragon{
+        using:RString
+    }
+}
+
+```
+
+
 <h3> Prefix-types </h3>
 
 For examples of Prefix-types [look here](../prefix_types/index.html#examples).

@@ -244,17 +244,40 @@ use abi_stable::{
 };
 
 #[sabi_trait]
-pub trait Dictionary{
+pub trait Dictionary:Debug+Clone{
     type Value;
+
     fn get(&self,key:RStr<'_>)->Option<&Self::Value>;
+
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last method 
+    /// that was defined in the first compatible version of the library
+    /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+    /// requiring new methods to always be added bellow preexisting ones.
+    /// 
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library 
+    /// bumps its "major" version,
+    /// at which point it would be moved to the last method at the time.
+    /// 
+    #[sabi(last_prefix_field)]
     fn insert(&mut self,key:RString,value:Self::Value)->ROption<Self::Value>;
+
+    /// You can add defaulted methods in minor versions(it's not a breaking change).
+    fn from_hashmap(map:RHashMap<RString,u32>)->Self
+    where
+        RHashMap<RString,u32>:Into<Self>
+    {
+        map.into()
+    }
 }
 
 
 # fn main() {
 
 {
-    impl<V> Dictionary for RHashMap<RString,V>{
+    impl<V> Dictionary for RHashMap<RString,V>
+    where
+        V:Debug+Clone
+    {
         type Value=V;
         fn get(&self,key:RStr<'_>)->Option<&V>{
             self.get(key.as_str())

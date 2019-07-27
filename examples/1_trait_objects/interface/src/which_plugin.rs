@@ -17,6 +17,7 @@ use core_extensions::{StringExt,SelfOps};
 use serde::{Serialize,Deserialize,Deserializer,Serializer};
 
 
+/// A way to choose to which plugins one refers to when sending commands,and other operations.
 #[repr(u8)]
 #[derive(Debug,Clone,PartialEq,Eq,StableAbi)]
 pub enum WhichPlugin{
@@ -35,7 +36,8 @@ pub enum WhichPlugin{
 
 
 impl WhichPlugin{
-    /// Gets a string that can be used as a key in the application config.
+    /// Converts this `WhichPlugin` to its json representation,
+    /// generally used as a key in a json object.
     pub fn to_key(&self)->RString{
         let mut buffer=RString::new();
         self.write_key(&mut buffer);

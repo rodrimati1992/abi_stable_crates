@@ -1,6 +1,6 @@
 [package]
 name = "example_2_interface"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
 

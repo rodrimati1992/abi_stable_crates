@@ -77,6 +77,20 @@ pub struct ModuleVal {
 
 ```
 
+In this example:
+
+- `#[sabi(kind(Prefix(prefix_struct="Module")))]` declares this type as being a prefix-type
+    with an ffi-safe equivalent called `Module` to which `ModuleVal` can be converted into.
+
+- `#[sabi(missing_field(panic))]` 
+    makes the field accessors panic when attempting to 
+    access nonexistent fields instead of the default of returning an Option<FieldType>.
+
+- `#[sabi(last_prefix_field)]`means that it is the last field in the struct
+    that was defined in the first compatible version of the library
+    (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+    requiring new fields to always be added bellow preexisting ones.
+
 <h3> Example 2:Declaring a type with a VTable </h3>
 
 Here is the implementation of a Box-like type,which uses a VTable that is itself a Prefix.
@@ -173,6 +187,17 @@ impl<T> Drop for BoxLike<T>{
 #[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_struct="BoxVtable")))]
 pub(crate) struct BoxVtableVal<T> {
+
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is 
+    /// the last field in this struct that was defined in the 
+    /// first compatible version of the library
+    /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+    /// requiring new fields to always be added bellow preexisting ones.
+    /// 
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
+    /// bumps its "major" version,
+    /// at which point it would be moved to the last field at the time.
+    ///
     #[sabi(last_prefix_field)]
     destructor: unsafe extern "C" fn(*mut T, CallReferentDrop),
 }
@@ -225,12 +250,16 @@ use abi_stable::{
 #[sabi(kind(Prefix(prefix_struct="PersonMod")))]
 pub struct PersonModVal {
 
-    // The getter for this field is infallible,defined (approximately) like this:
-    // ```
-    //  extern fn customer_for(&self)->extern fn(Id)->RDuration {
-    //      self.customer_for
-    //  }
-    // ```
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is 
+    /// the last field in this struct that was defined in the 
+    /// first compatible version of the library
+    /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+    /// requiring new fields to always be added bellow preexisting ones.
+    /// 
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
+    /// bumps its "major" version,
+    /// at which point it would be moved to the last field at the time.
+    ///
     #[sabi(last_prefix_field)]
     pub customer_for: extern fn(Id)->RDuration,
 
