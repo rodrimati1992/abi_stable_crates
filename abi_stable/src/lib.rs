@@ -146,7 +146,10 @@ extern crate self as abi_stable;
 
 
 #[doc(inline)]
-pub use abi_stable_derive::StableAbi;
+pub use abi_stable_derive::{
+    StableAbi,
+    GetStaticEquivalent,
+};
 
 #[doc(inline)]
 pub use abi_stable_derive::{
@@ -289,3 +292,4 @@ pub mod globals{
         GLOBALS.init(|| globs );
     }
 }
+

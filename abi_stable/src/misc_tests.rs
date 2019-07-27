@@ -2,3 +2,5 @@
 
 
 mod impl_interfacetype_attr;
+
+mod impl_interfacetype_macro;
