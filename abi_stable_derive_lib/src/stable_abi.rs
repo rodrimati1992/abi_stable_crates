@@ -10,6 +10,7 @@ use crate::{
     },
     datastructure::{DataStructure,DataVariant,Field,FieldIndex},
     gen_params_in::{GenParamsIn,InWhat},
+    impl_interfacetype::impl_interfacetype_tokenizer,
     lifetimes::LifetimeIndex,
     to_token_fn::ToTokenFnMut,
 };
@@ -46,7 +47,6 @@ mod tests;
 use self::{
     attribute_parsing::{
         parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions,NotStableAbiBound,
-        ImplInterfaceType,
     },
     common_tokens::CommonTokens,
     nonexhaustive::{tokenize_enum_info,tokenize_nonexhaustive_items},
@@ -262,7 +262,12 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         }
     };
 
-    let interfacetype_tokenizer=impl_interfacetype_tokenizer(ds,config);
+    let interfacetype_tokenizer=
+        impl_interfacetype_tokenizer(
+            ds.name,
+            ds.generics,
+            config.impl_interfacetype.as_ref(),
+        );
 
 
     let stringified_name=name.to_string();
@@ -696,55 +701,4 @@ fn tokenize_tl_functions<'a>(
 }
 
 
-
-fn impl_interfacetype_tokenizer<'a>(
-    ds:&'a DataStructure,
-    config:&'a StableAbiOptions<'a>,
-)->impl ToTokens+'a{
-    ToTokenFnMut::new(move|ts|{
-        let ImplInterfaceType{impld,unimpld}=
-            match &config.impl_interfacetype {
-                Some(x) => x,
-                None => return,
-            };
-        
-        let (impl_generics, ty_generics, where_clause) = ds.generics.split_for_impl();
-        let name=ds.name;
-
-        let const_ident=crate::parse_utils::parse_str_as_ident(&format!(
-            "_impl_InterfaceType_constant_{}",
-            name,
-        ));
-
-        let impld_a=impld;
-        let impld_b=impld;
-
-        let unimpld_a=unimpld;
-        let unimpld_b=unimpld;
-
-        let priv_assocty=crate::impl_interfacetype::private_associated_type();
-
-        quote!(
-            const #const_ident:()={
-                use abi_stable::{
-                    InterfaceType,
-                    type_level::{
-                        impl_enum::{
-                            Implemented as __Implemented,
-                            Unimplemented as __Unimplemented,
-                        },
-                        trait_marker,
-                    },
-                };
-                impl #impl_generics InterfaceType for #name #ty_generics 
-                #where_clause 
-                {
-                    #( type #impld_a=__Implemented<trait_marker::#impld_b>; )*
-                    #( type #unimpld_a=__Unimplemented<trait_marker::#unimpld_b>; )*
-                    type #priv_assocty=();
-                }
-            };
-        ).to_tokens(ts);
-    })
-}
 

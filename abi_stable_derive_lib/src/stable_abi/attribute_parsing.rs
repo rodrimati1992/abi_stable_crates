@@ -18,8 +18,8 @@ use proc_macro2::Span;
 use quote::ToTokens;
 
 use crate::{
-    attribute_parsing::with_nested_meta,
-    impl_interfacetype::{TRAIT_LIST,TraitStruct,WhichTrait},
+    attribute_parsing::{with_nested_meta},
+    impl_interfacetype::{ImplInterfaceType,parse_impl_interfacetype},
     datastructure::{DataStructure, DataVariant, Field,FieldMap},
     parse_utils::{
         parse_str_as_ident,
@@ -69,7 +69,7 @@ pub(crate) struct StableAbiOptions<'a> {
 
     pub(crate) mod_refl_mode:ModReflMode<usize>,
 
-    pub(crate) impl_interfacetype:Option<ImplInterfaceType<'a>>,
+    pub(crate) impl_interfacetype:Option<ImplInterfaceType>,
 
     pub(crate) phantom_fields:Vec<(&'a str,&'a Type)>,
     pub(crate) phantom_type_params:Vec<&'a Type>,
@@ -282,7 +282,7 @@ struct StableAbiAttrs<'a> {
     extra_phantom_fields:Vec<(&'a str,&'a Type)>,
     phantom_type_params:Vec<&'a Type>,
 
-    impl_interfacetype:Option<ImplInterfaceType<'a>>,
+    impl_interfacetype:Option<ImplInterfaceType>,
     
     mod_refl_mode:Option<ModReflMode<()>>,
 }
@@ -597,7 +597,7 @@ Tag:\n\t{}\n",
                     ),
                 })
             } else if list.ident == "impl_InterfaceType" {
-                this.impl_interfacetype=Some(parse_impl_interfacetype(&list.nested,arenas));
+                this.impl_interfacetype=Some(parse_impl_interfacetype(&list.nested));
             }else{
                 panic!("Unrecodnized #[sabi(..)] attribute:\n{}",list.into_token_stream());
             }
@@ -890,65 +890,6 @@ fn parse_non_exhaustive_list<'a>(
 }
 
 
-pub(crate) struct ImplInterfaceType<'a>{
-    pub(crate) impld  :Vec<&'a Ident>,
-    pub(crate) unimpld:Vec<&'a Ident>,
-}
-
-
-fn parse_impl_interfacetype<'a>(
-    list: &Punctuated<NestedMeta, Comma>, 
-    arenas: &'a Arenas
-)->ImplInterfaceType<'a>{
-    let trait_map=TRAIT_LIST.iter()
-        .map(|t|{
-            let ident=parse_str_as_ident(t.name);
-            (arenas.alloc(ident),t.which_trait)
-        })
-        .collect::<HashMap<&'a Ident,WhichTrait>>();
-
-    let mut impld_struct=TraitStruct::TRAITS.map(|_,_|false);
-
-    let mut impld  =Vec::new();
-    let mut unimpld=Vec::new();
-
-    for subelem in list {
-        let trait_ident=match subelem {
-            NestedMeta::Meta(Meta::Word(ident))=>
-                ident,
-            x => panic!(
-                "invalid attribute inside #[sabi(impl_InterfaceType(  ))]:\n{:?}\n", 
-                x
-            )
-        };
-
-        match trait_map.get(trait_ident) {
-            Some(&which_trait) => {
-                impld_struct[which_trait]=true;
-            },
-            None =>panic!(
-                "invalid trait inside #[sabi(impl_InterfaceType(  ))]:\n\
-                 \t{:?}\n\
-                 Valid traits:\n    {}\n", 
-                trait_ident,
-                trait_map.keys().map(|x|x.to_string()).collect::<Vec<String>>().join("\n    "),
-            ),
-        }
-    }
-
-    for (&trait_,&which_trait) in &trait_map {
-        if impld_struct[which_trait] {
-            &mut impld
-        }else{
-            &mut unimpld
-        }.push(trait_);
-    }
-
-    ImplInterfaceType{
-        impld,
-        unimpld,
-    }
-}
 
 
 fn parse_sabi_override<'a>(_this: &mut StableAbiAttrs<'a>, _attr: Meta, _arenas: &'a Arenas) {}
