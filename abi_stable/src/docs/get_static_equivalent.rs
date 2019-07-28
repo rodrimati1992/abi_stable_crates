@@ -12,7 +12,8 @@ because it's not part of any field (type parameters are not compared).
 
 These attributes are applied on the type declaration.
 
-<h3 id="impl_InterfaceType"> `#[sabi(impl_InterfaceType(...))]`  </h3>
+<span id="impl_InterfaceType"></span>
+### `#[sabi(impl_InterfaceType(...))]`
 
 Implements the `InterfaceType` trait for a type,
 defining the usable/required traits when creating a 
@@ -30,7 +31,7 @@ and won't be usable afterwards.
 
 # Examples
 
-<h3> Using an associated constant </h3>
+###  Using an associated constant 
 
 This example demonstrates how one can have a type parameter,
 and use the value of an associated constant as the identity of the type.
@@ -116,7 +117,7 @@ assert!(
 
 ```
 
-<h3> Using an associated type </h3>
+###  Using an associated type 
 
 This example demonstrates how one can have a type parameter,
 and use its associated type as a field.
