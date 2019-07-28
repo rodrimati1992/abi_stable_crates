@@ -30,7 +30,7 @@ for each variant **in the interface**:
 # Examples
 
 
-<h3> Declaring a unit type with a tag. </h3>
+###  Declaring a unit type with a tag. 
 
 ```
 
@@ -47,7 +47,7 @@ struct UnitType;
 
 ```
 
-<h3> Emulating const generics for strings </h3>
+###  Emulating const generics for strings 
 
 This emulates a `const NAME:&'static str` parameter,
 which is checked as being the same between the interface and implementation.
@@ -110,7 +110,7 @@ impl Name for Boor{
 
 ```
 
-<h3> Declaring each variant. </h3>
+###  Declaring each variant. 
 
 ```rust
 use abi_stable::{
@@ -174,7 +174,7 @@ const MAP_0_FN:Tag=Tag::map(&[
 
 ```
 
-<h3> Creating a complex data structure. </h3>
+###  Creating a complex data structure. 
 
 
 ```rust
