@@ -311,7 +311,7 @@ pub fn load_root_module_in_directory(_:&Path) -> Result<&'static ExampleLib,Libr
 
 
 /// This types implement `ÌnterfaceType`
-/// (because of the `#[sabi(impl_InterfaceType())]` subattribute of `#[derive(StableAbi)]` ),
+/// (because of the `#[sabi(impl_InterfaceType())]` helper attribute of `#[derive(StableAbi)]` ),
 /// describing the traits required when constructing `DynTrait<_,TheInterface>`,
 /// and are then implemented by it.
 #[repr(C)]

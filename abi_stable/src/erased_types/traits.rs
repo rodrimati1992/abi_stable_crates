@@ -108,7 +108,7 @@ use abi_stable::{
 pub struct FooInterface;
 
 /*
-The `#[sabi(impl_InterfaceType(Clone,Debug))]` attribute 
+The `#[sabi(impl_InterfaceType(Clone,Debug))]` helper attribute 
 (as part of #[derive(StableAbi)]) above is roughly equivalent to this impl:
 
 impl InterfaceType for FooInterface {
