@@ -45,7 +45,8 @@ use serde::{ser,de,Serialize,Deserialize,Serializer,Deserializer};
 
 
 
-#[cfg(test)]
+// #[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
 
@@ -58,12 +59,12 @@ This type allows adding variants to enums it wraps in ABI compatible versions of
 
 # Generic parameters
 
-<h3> `E` </h3>
+###  `E` 
 
 This is the enums that this was constructed from,
 and can be unwrapped back into if it's one of the valid variants in this context.
 
-<h3> `S` </h3>
+###  `S` 
 
 The storage type,used to store the enum opaquely.
 
@@ -75,7 +76,7 @@ This is necessary because:
 
 - To give some flexibility to grow the enum in semver compatible versions of a library.
 
-<h3> `I` </h3>
+###  `I` 
 
 The interface of the enum(it implements `InterfaceType`),
 determining which traits are required when constructing `NonExhaustive<>`

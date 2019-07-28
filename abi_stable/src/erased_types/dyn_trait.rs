@@ -46,8 +46,8 @@ use super::{
 };
 
 
-#[cfg(test)]
-// #[cfg(all(test,not(feature="only_new_tests")))]
+// #[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
 mod priv_ {
@@ -74,7 +74,7 @@ It generally looks like `DynTrait<'borrow,Pointer<()>,Interface>`,where:
 `trait InterfaceType` allows describing which traits are required 
 when constructing a `DynTrait<_>`,and which ones it implements.
 
-<h3> Construction </h3>
+###  Construction 
 
 To construct a `DynTrait<_>` one can use these associated functions:
     
@@ -101,7 +101,7 @@ To construct a `DynTrait<_>` one can use these associated functions:
 DynTrait uses the impls of the value in methods,
 which means that the pointer itself does not have to implement those traits,
 
-<h3> Trait object </h3>
+###  Trait object 
 
 `DynTrait<'borrow,Pointer<()>,Interface>` 
 can be used as a trait object for any combination of 
@@ -153,7 +153,7 @@ These are the traits:
 - serde::Serialize:
     first calls the objects' Deserialize impl,then serializes that as a string.
 
-<h3> Deconstruction </h3>
+###  Deconstruction 
 
 `DynTrait<_>` can then be unwrapped into a concrete type,
 within the same dynamic library/executable that constructed it,
@@ -248,21 +248,11 @@ use serde::{Deserialize,Serialize};
 /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Sync,Debug,Clone,Serialize,Deserialize,PartialEq))]
 pub struct FooInterface;
 
 /// The state passed to most functions in the TextOpsMod module.
 pub type FooInterfaceBox = DynTrait<'static,RBox<()>,FooInterface>;
-
-impl_InterfaceType!{
-    impl InterfaceType for FooInterface {
-        type Send=False;
-        type Debug = True;
-        type Clone = True;
-        type Serialize = True;
-        type Deserialize = True;
-        type PartialEq = True;
-    }
-}
 
 
 /// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
@@ -367,7 +357,7 @@ assert_eq!(
 
 # Examples
 
-<h3> In the Readme </h3>
+###  In the Readme 
 
 The primary example using `DynTrait<_>` is in the readme.
 
@@ -377,7 +367,7 @@ Readme is in
 [lib.rs](https://lib.rs/crates/abi_stable).
 
 
-<h3> Comparing DynTraits </h3>
+###  Comparing DynTraits 
 
 This is only possible if the erased types don't contain borrows,
 and they are not constructed using `DynTrait::from_borrowing_*` methods.
@@ -414,7 +404,7 @@ use abi_stable::{
 
 ```
 
-<h3> Writing to a DynTrait </h3>
+###  Writing to a DynTrait 
 
 This is an example of using the `write!()` macro with DynTrait.
 
@@ -443,7 +433,7 @@ assert_eq!(&buffer[..],"FooBarBaz");
 ```
 
 
-<h3> Iteration </h3>
+###  Iteration 
 
 Using `DynTrait` as an `Iterator` and `DoubleEndedIterator`.
 
@@ -481,7 +471,7 @@ wrapper around a `&` or a `&mut`,
 in which case it should implement `GetPointerKind<Kind=PK_Reference>` 
 or `GetPointerKind<Kind=PK_MutReference>` respectively.
 
-<h3> Example </h3>
+###  Example 
 
 This is an example of a newtype wrapping an `RBox<T>`.
 
@@ -575,16 +565,8 @@ where
 
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Sync,Send,Iterator,DoubleEndedIterator,Clone,Debug))]
 pub struct IteratorInterface;
-
-impl_InterfaceType!{
-    impl InterfaceType for IteratorInterface {
-        type Iterator = True;
-        type DoubleEndedIterator = True;
-        type Clone = True;
-        type Debug = True;
-    }
-}
 
 impl<'a> IteratorItem<'a> for IteratorInterface{
     type Item=&'a str;
@@ -1627,7 +1609,7 @@ Extends `buffer` with as many elements of the iterator as `taking` specifies:
 
 - RSome(n): Yields n elements.
 
-<h3> Example </h3>
+###  Example 
 
 ```
 # use abi_stable::{
@@ -1706,7 +1688,7 @@ Extends `buffer` with as many elements of the iterator as `taking` specifies:
 
 - RSome(n): Yields n elements.
 
-<h3> Example </h3>
+###  Example 
 
 ```
 # use abi_stable::{

@@ -43,6 +43,7 @@ struct Foo<T> {
 
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Clone,Default,Display,Debug,Serialize,Deserialize,Ord,Hash))]
 struct FooInterface;
 
 
@@ -77,36 +78,6 @@ where
     }
 }
 
-crate::impl_InterfaceType!{
-    impl InterfaceType for FooInterface {
-        type Sync = False;
-        
-        type Send = False;
-
-        type Clone = True;
-
-        type Default = True;
-
-        type Display = True;
-
-        type Debug = True;
-
-        type Serialize = True;
-
-        type Deserialize = True;
-
-        type Eq = True;
-
-        type PartialEq = True;
-
-        type Ord = True;
-
-        type PartialOrd = True;
-
-        type Hash = True;
-    }
-}
-
 impl SerializeProxyType for FooInterface{
     type Proxy=RString;
 }
@@ -129,13 +100,8 @@ type VirtualFoo<'a> = DynTrait<'a,RBox<()>,FooInterface>;
 
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Send,Sync,Debug))]
 struct DebugInterface;
-
-crate::impl_InterfaceType!{
-    impl InterfaceType for DebugInterface {
-        type Debug = True;
-    }
-}
 
 
 /////////////////////////////////
@@ -551,6 +517,9 @@ mod borrowing{
 
     #[repr(C)]
     #[derive(StableAbi)]
+    #[sabi(impl_InterfaceType(
+        Send,Sync,Clone,Default,Display,Debug,Serialize,Deserialize,Hash
+    ))]
     struct FooInterface;
 
     impl SerializeProxyType for FooInterface{
@@ -580,24 +549,6 @@ mod borrowing{
                 Ok(v)=>Ok(v.into_c()),
                 Err(e)=>Err(RBoxError::new(e)),
             }
-        }
-    }
-
-    crate::impl_InterfaceType!{
-        impl InterfaceType for FooInterface {
-            type Clone = True;
-
-            type Default = True;
-
-            type Display = True;
-
-            type Debug = True;
-
-            type Serialize = True;
-
-            type Deserialize = True;
-
-            type Hash = True;
         }
     }
 
@@ -741,15 +692,8 @@ mod borrowing{
 
     #[repr(C)]
     #[derive(StableAbi)]
+    #[sabi(impl_InterfaceType(Send,Sync,DoubleEndedIterator))]
     struct IterInterface;
-    
-
-    crate::impl_InterfaceType!{
-        impl InterfaceType for IterInterface {
-            type Iterator=True;
-            type DoubleEndedIterator=True;
-        }
-    }
 
 
     impl<'a> IteratorItem<'a> for IterInterface{
@@ -994,13 +938,8 @@ mod borrowing{
 
     #[repr(C)]
     #[derive(StableAbi)]
+    #[sabi(impl_InterfaceType(Send,Sync,FmtWrite))]
     struct FmtInterface;
-
-    crate::impl_InterfaceType!{
-        impl InterfaceType for FmtInterface {
-            type FmtWrite = True;
-        }
-    }
 
 
     #[test]
@@ -1021,19 +960,9 @@ mod borrowing{
 
     #[repr(C)]
     #[derive(StableAbi)]
+    #[sabi(impl_InterfaceType(Send,Sync,IoWrite,IoSeek,IoRead,IoBufRead))]
     struct IoInterface;
 
-    crate::impl_InterfaceType!{
-        impl InterfaceType for IoInterface {
-            type IoWrite=True;
-    
-            type IoSeek=True;
-            
-            type IoRead=True;
-
-            type IoBufRead=True;
-        }
-    }
 
     #[test]
     fn io_write(){
@@ -1089,14 +1018,9 @@ mod borrowing{
     
     #[repr(C)]
     #[derive(StableAbi)]
+    #[sabi(impl_InterfaceType(Send,Sync,IoRead,IoBufRead))]
     struct IoBufReadInterface;
 
-    crate::impl_InterfaceType!{
-        impl InterfaceType for IoBufReadInterface {
-            type IoRead=True;
-            type IoBufRead=True;
-        }
-    }
 
     #[test]
     fn io_bufread(){

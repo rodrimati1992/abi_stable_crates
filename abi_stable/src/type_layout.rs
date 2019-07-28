@@ -312,12 +312,15 @@ impl Display for TypeLayout {
             "--- Type Layout ---\n\
              type:{ty}\n\
              size:{size} align:{align}\n\
-             package:'{package}' version:'{version}'",
+             package:'{package}' version:'{version}'\n\
+             line:{line} mod:{mod_path}",
             ty   =self.full_type(),
             size =self.size,
             align=self.alignment,
             package=package,
             version=version,
+            line=self.item_info.line,
+            mod_path=self.item_info.mod_path,
         )?;
         writeln!(f,"data:\n{}",self.data.to_string().left_padder(4))?;
         if !self.phantom_fields.is_empty() {

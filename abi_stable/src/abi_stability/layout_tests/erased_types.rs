@@ -27,15 +27,8 @@ macro_rules! mod_iter_ty {
 
             #[repr(C)]
             #[derive(StableAbi)]
+            #[sabi(impl_InterfaceType(Send,Sync,Iterator))]
             pub struct Interface;
-
-
-            crate::impl_InterfaceType!{
-                impl InterfaceType for Interface {
-                    type Iterator=True;
-                }
-            }
-
 
             impl<$lt> IteratorItem<$lt> for Interface{
                 type Item=$ty;
@@ -49,13 +42,8 @@ macro_rules! mod_iter_ty {
 mod no_iterator_interface{
     #[repr(C)]
     #[derive(StableAbi)]
+    #[sabi(impl_InterfaceType(Send,Sync))]
     pub struct Interface;
-
-
-    crate::impl_InterfaceType!{
-        impl super::InterfaceType for Interface {}
-    }
-
 }
 
 

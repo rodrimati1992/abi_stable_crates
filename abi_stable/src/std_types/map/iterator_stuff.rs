@@ -32,53 +32,30 @@ macro_rules! declare_iter_interface {
 declare_iter_interface!{
     K=>V;
     /// The InterfaceType of the `Iter` RHashMap iterator.
+    #[sabi(impl_InterfaceType(Iterator,Clone))]
     interface=RefIterInterface;
     type Item=Tuple2<&'a K,&'a V>;
 }
-
-crate::impl_InterfaceType!{
-    impl<K,V> InterfaceType for RefIterInterface<K,V> {
-        type Send=False;
-        type Sync=False;
-        type Iterator=True;
-        type Clone=True;
-    }
-}
-
 
 
 declare_iter_interface!{
     K=>V;
     /// The InterfaceType of the `IterMut` RHashMap iterator.
+    #[sabi(impl_InterfaceType(Iterator))]
     interface=MutIterInterface;
     type Item=Tuple2<&'a K,&'a mut V>;
 }
-
-crate::impl_InterfaceType!{
-    impl<K,V> InterfaceType for MutIterInterface<K,V> {
-        type Send=False;
-        type Sync=False;
-        type Iterator=True;
-    }
-}
-
 
 
 declare_iter_interface!{
     K=>V;
     /// The InterfaceType of the `Drain` RHashMap iterator.
+    #[sabi(impl_InterfaceType(Iterator))]
     interface=ValIterInterface;
     type Item=Tuple2<K,V>;
     
 }
 
-crate::impl_InterfaceType!{
-    impl<K,V> InterfaceType for ValIterInterface<K,V> {
-        type Send=False;
-        type Sync=False;
-        type Iterator=True;
-    }
-}
 
 
 ///////////////////////////////////////////////////////////////////////////////

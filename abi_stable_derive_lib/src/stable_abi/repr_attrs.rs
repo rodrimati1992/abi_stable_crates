@@ -3,9 +3,10 @@ use proc_macro2::{TokenStream,Span};
 use quote::{quote,ToTokens};
 
 use crate::{
-    common_tokens::CommonTokens,
     to_token_fn::ToTokenFnMut,
 };
+
+use super::common_tokens::CommonTokens;
 
 
 

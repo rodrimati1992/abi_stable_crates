@@ -31,6 +31,11 @@ providing default values for associated types not specified in the impl block.
 
 For an example look at `abi_stable::erased_types::InterfaceType`.
 
+<b>
+This macro has been deprecated in favor of using the `#[sabi(impl_InterfaceType())]` 
+subattribute of both `#[derive(StableAbi)]` and `#[derive(GetStaticEquivalent)]`
+</b>
+
 */
 #[proc_macro]
 #[allow(non_snake_case)]
@@ -128,3 +133,11 @@ pub fn sabi_trait(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     abi_stable_derive_lib::derive_sabi_trait(attr,item)
 }
 
+
+/**
+This macro is documented in abi_stable::docs::get_static_equivalent
+*/
+#[proc_macro_derive(GetStaticEquivalent, attributes(sabi))]
+pub fn derive_get_static_equivalent(input: TokenStream1) -> TokenStream1 {
+    abi_stable_derive_lib::derive_get_static_equivalent(input)
+}

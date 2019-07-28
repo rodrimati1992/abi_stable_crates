@@ -1,8 +1,7 @@
 /*!
 This is an `implementation crate`,
 It exports the root module(a struct of function pointers) required by the 
-`example_0_interface`(the `interface crate`) in the 
-version of `get_library` with a mangled function name.
+`example_0_interface`(the `interface crate`).
 
 */
 
@@ -50,7 +49,7 @@ fn instantiate_root_module()->&'static PluginMod{
 //////////////////////////////////////////////////////////////////////////////////////
 
 
-
+/// Instantiates the plugin.
 #[sabi_extern_fn]
 pub fn new(_sender:RSender<AsyncCommand>,plugin_id:PluginId) -> RResult<PluginType,AppError> {
     let this=TextMunging{

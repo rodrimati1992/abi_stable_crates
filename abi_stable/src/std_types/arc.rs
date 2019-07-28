@@ -78,6 +78,7 @@ mod private {
             unsafe { &*self.vtable }
         }
 
+        #[allow(dead_code)]
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
             self.vtable = VTableGetter::LIB_VTABLE_FOR_TESTING.as_prefix_raw();
@@ -262,6 +263,7 @@ mod vtable_mod {
             &WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE)
         };
 
+        #[allow(dead_code)]
         #[cfg(test)]
         pub(super) const LIB_VTABLE_FOR_TESTING: &'a WithMetadata<ArcVtableVal<T>> = {
             &WithMetadata::new(

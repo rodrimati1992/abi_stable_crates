@@ -14,5 +14,8 @@ mod repr_and_discr;
 #[cfg(all(test,not(feature="only_new_tests")))]
 mod sabi_trait;
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod nonexhaustive_enums;
+
+#[cfg(test)]
+mod get_static_equivalent;

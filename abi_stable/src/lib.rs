@@ -132,6 +132,7 @@ These are the kinds of types passed through FFI:
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
 
+#[allow(unused_imports)]
 #[cfg(test)]
 use abi_stable_shared::file_span;
 
@@ -145,7 +146,10 @@ extern crate self as abi_stable;
 
 
 #[doc(inline)]
-pub use abi_stable_derive::StableAbi;
+pub use abi_stable_derive::{
+    StableAbi,
+    GetStaticEquivalent,
+};
 
 #[doc(inline)]
 pub use abi_stable_derive::{
@@ -288,3 +292,4 @@ pub mod globals{
         GLOBALS.init(|| globs );
     }
 }
+

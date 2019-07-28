@@ -87,6 +87,7 @@ fn one_u64()->u64{
     1
 }
 
+/// The type that the configuration file is deserialized into.
 #[derive(Debug,Clone,Deserialize)]
 pub struct Config{
     pub plugins:RVec<PluginToLoad>,
@@ -94,6 +95,8 @@ pub struct Config{
 }
 
 
+/// A description of plugin instances that were instantiated and left to instantiate,
+/// as well as the root module of the plugin's dynamic library to instantiate the plugins.
 pub struct PluginModAndIndices{
     root_module:&'static PluginMod,
     to_be_instantiated:u64,
@@ -103,21 +106,27 @@ pub struct PluginModAndIndices{
 
 pub type PluginIndices=SmallVec<[usize;1]>;
 
+/// Commands sent to plugins after calling `Application::send_command_to_plugin`.
 #[derive(Debug)]
 pub struct DelayedCommand{
+    /// Which plugin sent the command
     from:PluginId,
     /// The index in plugins to which the command is sent.
     plugin_index:usize,
+    /// The command for the `plugin_index` plugin.
     command:Arc<RString>,
 }
 
 
+/// Used to handle the responses to the delayed commands sent to plugins after calling
+/// `Application::send_command_to_plugin`.
 #[derive(Debug)]
 pub struct DelayedResponse{
     /// The plugin that sends the reponse.
     from:PluginId,
     /// The plugin that sent the command for which this is the reponse.
     to:usize,
+    /// The response from the `from` plugin to the `to` plugin.
     response:RString,
 }
 
