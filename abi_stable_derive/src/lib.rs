@@ -31,6 +31,11 @@ providing default values for associated types not specified in the impl block.
 
 For an example look at `abi_stable::erased_types::InterfaceType`.
 
+<b>
+This macro has been deprecated in favor of using the `#[sabi(impl_InterfaceType())]` 
+subattribute of both `#[derive(StableAbi)]` and `#[derive(GetStaticEquivalent)]`
+</b>
+
 */
 #[proc_macro]
 #[allow(non_snake_case)]

@@ -132,7 +132,7 @@ and are then usable afterwards.
 */
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Serialize,Deserialize,PartialEq))]
+#[sabi(impl_InterfaceType(Serialize,Deserialize,Debug,PartialEq))]
 pub struct TOState;
 
 /// The state passed to most functions in the TextOpsMod module.

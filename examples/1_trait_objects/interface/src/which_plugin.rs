@@ -97,7 +97,7 @@ impl WhichPlugin{
         match selector {
             "first"=>return Ok(WhichPlugin::First{named}),
             ""|"last"=>return Ok(WhichPlugin::Last{named}),
-            "all"=>return Ok(WhichPlugin::Every{named}),
+            "all"|"every"=>return Ok(WhichPlugin::Every{named}),
             _=>(),
         }
 
@@ -245,7 +245,8 @@ mod tests{
 
         for (_,elem) in str_expected {
             let str_=serde_json::to_string(&elem).unwrap();
-            let other:WhichPlugin=serde_json::from_str(&str_).unwrap();
+            let other:WhichPlugin=serde_json::from_str(&str_)
+                .unwrap_or_else(|e| panic!("{}",e) );
             assert_eq!(other,elem);
         }
 
