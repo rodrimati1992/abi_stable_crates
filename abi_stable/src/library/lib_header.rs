@@ -61,7 +61,7 @@ impl LibHeader {
     ///
     /// This returns a None if the root module layout is not included
     /// because the `#[unsafe_no_layout_constant]` 
-    /// attribute was used on the function exporting the root module.
+    /// helper attribute was used on the function exporting the root module.
     pub fn layout(&self)->Option<&'static AbiInfoWrapper>{
         self.root_mod_consts.abi_info().into_option()
     }

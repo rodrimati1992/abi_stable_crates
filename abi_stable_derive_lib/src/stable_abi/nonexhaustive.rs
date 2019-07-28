@@ -128,7 +128,7 @@ impl<'a> NonExhaustive<'a>{
                 "\n\
                 You must specify the size of the enum storage in NonExhaustive<> using \
                 the `size=integer literal` or `size=\"type\"` argument inside of \
-                the `#[sabi(kind(WithNonExhaustive(...)))]` subattribute.\n\
+                the `#[sabi(kind(WithNonExhaustive(...)))]` helper attribute.\n\
                 "
             );
         });
