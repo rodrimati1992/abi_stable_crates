@@ -19,7 +19,7 @@ By default these are the supertraits that `#[sabi_trait]` traits can have:
 
 - Sync
 
-To be able to have more supertraits you must use the `#[sabi(use_dyntrait)]` attribute,
+To be able to have more supertraits you must use the `#[sabi(use_dyntrait)]` helper attribute,
 which changes the underlying implementation from `RObject<_>` to `DynTrait<_>`,
 allowing these supertraits:
 
@@ -177,7 +177,7 @@ This is equivalent to calling `Trait_TO::from_ptr` with `RBox::new(value)`.
 
 Constructs the trait object from its underlying implementation,
 either `RObject` or `DynTrait` depending on whether the
-`#[sabi(use_dyntrait)]` attribute was used.
+`#[sabi(use_dyntrait)]` helper attribute was used.
 
 ###  Trait 
 

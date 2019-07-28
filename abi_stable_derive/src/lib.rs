@@ -33,7 +33,7 @@ For an example look at `abi_stable::erased_types::InterfaceType`.
 
 <b>
 This macro has been deprecated in favor of using the `#[sabi(impl_InterfaceType())]` 
-subattribute of both `#[derive(StableAbi)]` and `#[derive(GetStaticEquivalent)]`
+helper attribute of both `#[derive(StableAbi)]` and `#[derive(GetStaticEquivalent)]`
 </b>
 
 */

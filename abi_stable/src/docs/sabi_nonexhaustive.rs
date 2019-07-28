@@ -1,6 +1,6 @@
 /*!
 
-Using the `#[sabi(kind(WithNonExhaustive(...)))]` subattribute for 
+Using the `#[sabi(kind(WithNonExhaustive(...)))]` helper attribute for 
 [`#[derive(StableAbi)]`](../stable_abi_derive/index.html) allows you to store the enum
 in 
 [`NonExhaustive<>`](../../nonexhaustive_enum/nonexhaustive/struct.NonExhaustive.html),
@@ -41,7 +41,7 @@ Describes the traits required when constructing a `NonExhaustive<>` and usable w
 # Parameters
 
 These are the required and optional parameters for the 
-`#[sabi(kind(WithNonExhaustive(...)))]` subattribute.
+`#[sabi(kind(WithNonExhaustive(...)))]` helper attribute.
 
 ### Specifying alignment (optional parameter)
 
@@ -195,7 +195,7 @@ use serde::{Deserialize,Serialize};
     // and are then available with it.
     traits(Debug,Clone,PartialEq,Serialize,Deserialize),
 )))]
-// The `#[sabi(with_constructor)]` attribute here generates constructor functions
+// The `#[sabi(with_constructor)]` helper attribute here generates constructor functions
 // that look take the fields of the variant as parameters and return a `ValidTag_NE`.
 #[sabi(with_constructor)] 
 pub enum ValidTag{

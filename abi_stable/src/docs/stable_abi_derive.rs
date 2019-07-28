@@ -8,7 +8,7 @@ The StableAbi derive macro allows one to implement the StableAbi trait to :
 
 # Container Attributes
 
-These attributes are applied on the type declaration.
+These helper attributes are applied on the type declaration.
 
 ###  `#[sabi(phantom_field="name:type")]` 
 
@@ -175,7 +175,7 @@ Examples:
 
 # Field attributes
 
-These attributes are applied to fields.
+These helper attributes are applied to fields.
 
 
 ###  `#[sabi(rename="ident")]` 
@@ -229,7 +229,7 @@ it will only be compatible with other types if they agree on
 which accessors are conditional for prefix fields.
 
 To do `#[sabi(accessible_if="<TypeParameter as Trait>::CONSTANT")]` you can use the 
-`#[sabi(prefix_bound="TypeParameter:Trait")]` attribute.
+`#[sabi(prefix_bound="TypeParameter:Trait")]` helper attribute.
 
 ###  `#[sabi(refl(pub_getter=" function_name "))]` 
 

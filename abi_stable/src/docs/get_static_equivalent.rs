@@ -2,7 +2,7 @@
 
 The `GetStaticEquivalent` derive macro allows implementing the `GetStaticEquivalent_` trait,
 allowing the type to be passed as a type parameter of a type deriving `StableAbi`,
-that used the `#[sabi(not_stableabi(TypeParameter))]` attribute.
+that used the `#[sabi(not_stableabi(TypeParameter))]` helper attribute.
 
 Be aware that if you use `#[sabi(not_stableabi(TypeParameter))]`,
 the type parameter won't be compared for compatibility,
@@ -10,7 +10,7 @@ because it's not part of any field (type parameters are not compared).
 
 # Container Attributes
 
-These attributes are applied on the type declaration.
+These helper attributes are applied on the type declaration.
 
 <span id="impl_InterfaceType"></span>
 ### `#[sabi(impl_InterfaceType(...))]`

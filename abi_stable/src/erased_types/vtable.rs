@@ -368,7 +368,7 @@ macro_rules! declare_meta_vtable {
 
             /// Describes which traits are implemented,
             /// stored in the layout of the type in StableAbi,
-            /// using the `#[sabi(tag="<I as InterfaceBound>::TAG")]` attribute
+            /// using the `#[sabi(tag="<I as InterfaceBound>::TAG")]` helper attribute
             const TAG:Tag;
 
             $( 
