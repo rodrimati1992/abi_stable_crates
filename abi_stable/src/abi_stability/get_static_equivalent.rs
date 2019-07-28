@@ -36,3 +36,10 @@ where
 {
     type StaticEquivalent=Unsized<[T::StaticEquivalent]>;
 }
+
+unsafe impl<T:?Sized> GetStaticEquivalent_ for Unsized<T>
+where
+    T:GetStaticEquivalent_
+{
+    type StaticEquivalent=Unsized<T::StaticEquivalent>;
+}

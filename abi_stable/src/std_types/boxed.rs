@@ -62,6 +62,7 @@ mod private {
             unsafe { &*self.vtable }
         }
 
+        #[allow(dead_code)]
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
             self.vtable = VTableGetter::<T>::LIB_VTABLE_FOR_TESTING.as_prefix_raw();
@@ -259,6 +260,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     const LIB_VTABLE: &'a WithMetadata<BoxVtableVal<T>> = 
         &WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE);
 
+    #[allow(dead_code)]
     #[cfg(test)]
     const LIB_VTABLE_FOR_TESTING: &'a WithMetadata<BoxVtableVal<T>> = 
         &WithMetadata::new(

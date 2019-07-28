@@ -74,6 +74,22 @@ impl<T, E> RResult<T, E> {
         matches!{ ROk{..}=self }
     }
 
+    /// Returns whether `self` is an `ROk`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).is_ok(),true);
+    /// assert_eq!(RErr::<u32,u32>(5).is_ok(),false);
+    ///
+    /// ```
+    #[inline]
+    pub fn is_ok(&self)->bool{
+        matches!{ ROk{..}=self }
+    }
+
     /// Returns whether `self` is an `RErr`
     ///
     /// # Example
@@ -87,6 +103,22 @@ impl<T, E> RResult<T, E> {
     /// ```
     #[inline]
     pub fn is_rerr(&self)->bool{
+        matches!{ RErr{..}=self }
+    }
+
+    /// Returns whether `self` is an `RErr`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).is_err(),false);
+    /// assert_eq!(RErr::<u32,u32>(5).is_err(),true);
+    ///
+    /// ```
+    #[inline]
+    pub fn is_err(&self)->bool{
         matches!{ RErr{..}=self }
     }
 

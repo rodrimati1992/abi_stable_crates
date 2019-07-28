@@ -3,7 +3,6 @@ use syn::Type;
 use super::*;
 
 use crate::{
-    common_tokens::CommonTokens,
     composite_collections::{SmallStartLen as StartLen},
     datastructure::{FieldMap,Field},
     fn_pointer_extractor::{FnInfo,Function, TypeVisitor},
@@ -30,7 +29,7 @@ impl<'a> VisitedFieldMap<'a>{
         arenas: &'a Arenas, 
         ctokens: &'a CommonTokens<'a>
     )->Self{
-        let mut tv = TypeVisitor::new(arenas, ctokens, ds.generics);
+        let mut tv = TypeVisitor::new(arenas, ctokens.as_ref(), ds.generics);
         let mut fn_ptr_count = 0;
         let map=FieldMap::<VisitedField<'a>>::with(ds,|field|{
             let mut mutated_ty=config.changed_types[field].unwrap_or(field.ty).clone();
@@ -121,19 +120,19 @@ impl<'a> ToTokens for CompTLFunction<'a> {
         let ct=self.ctokens;
         to_stream!(ts;ct.comp_tl_functions,ct.colon2,ct.new);
         ct.paren.surround(ts,|ts|{
-            self.name.tokenize(ct,ts);
+            self.name.tokenize(ct.as_ref(),ts);
             ct.comma.to_tokens(ts);
 
-            self.bound_lifetimes.tokenize(ct,ts);
+            self.bound_lifetimes.tokenize(ct.as_ref(),ts);
             ct.comma.to_tokens(ts);
 
-            self.param_names.tokenize(ct,ts);
+            self.param_names.tokenize(ct.as_ref(),ts);
             ct.comma.to_tokens(ts);
 
-            self.param_abi_infos.tokenize(ct,ts);
+            self.param_abi_infos.tokenize(ct.as_ref(),ts);
             ct.comma.to_tokens(ts);
 
-            self.paramret_lifetime_indices.tokenize(ct,ts);
+            self.paramret_lifetime_indices.tokenize(ct.as_ref(),ts);
             ct.comma.to_tokens(ts);
 
             match self.return_abi_info {

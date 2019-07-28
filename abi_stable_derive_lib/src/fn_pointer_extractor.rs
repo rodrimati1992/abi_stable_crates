@@ -21,6 +21,7 @@ use core_extensions::prelude::*;
 use std::collections::HashSet;
 
 use crate::{
+    common_tokens::FnPointerTokens,
     lifetimes::LifetimeIndex,
     ignored_wrapper::Ignored,
 };
@@ -93,7 +94,7 @@ pub(crate) struct VisitFieldRet<'a> {
 #[allow(dead_code)]
 impl<'a> TypeVisitor<'a> {
     #[inline(never)]
-    pub fn new(arenas: &'a Arenas, ctokens: &'a CommonTokens<'a>, generics: &'a Generics) -> Self {
+    pub fn new(arenas: &'a Arenas, ctokens: &'a FnPointerTokens, generics: &'a Generics) -> Self {
         TypeVisitor {
             refs: ImmutableRefs {
                 arenas,
@@ -115,7 +116,7 @@ impl<'a> TypeVisitor<'a> {
     pub fn arenas(&self)->&'a Arenas{
         self.refs.arenas
     }
-    pub fn ctokens(&self)->&'a CommonTokens<'a>{
+    pub fn ctokens(&self)->&'a FnPointerTokens{
         self.refs.ctokens
     }
     pub fn env_generics(&self)->&'a Generics{
@@ -153,7 +154,7 @@ pub(crate) struct TypeVisitor<'a> {
 #[derive(Copy, Clone)]
 struct ImmutableRefs<'a> {
     arenas: &'a Arenas,
-    ctokens: &'a CommonTokens<'a>,
+    ctokens: &'a FnPointerTokens,
     /// Generics provided by the environment (eg:the struct this type is used inside of).
     env_generics: &'a Generics,
 }

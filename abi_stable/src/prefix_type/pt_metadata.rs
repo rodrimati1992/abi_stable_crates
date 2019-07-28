@@ -40,6 +40,7 @@ pub(crate) struct PrefixTypeMetadata{
 
 
 impl PrefixTypeMetadata{
+    #[allow(dead_code)]
     #[cfg(test)]
     pub(crate) fn new(layout:&'static TypeLayout)->Self{
         match layout.data {
@@ -77,6 +78,7 @@ impl PrefixTypeMetadata{
     /// # Preconditions
     /// 
     /// The prefixes must already have been checked for compatibility.
+    #[allow(dead_code)]
     #[cfg(test)]
     pub(crate) fn max(self,other:Self)->Self{
         if self.fields.len() < other.fields.len() {

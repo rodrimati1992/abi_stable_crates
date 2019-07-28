@@ -6,7 +6,7 @@ where all publically available modules(structs of function pointers) and types a
 This crate is where extra tests which don't belong in examples go.
 
 To load the library and the modules together,
-call `<TestingMod as ModuleTrait>::load_from_directory`,
+call `<TestingMod as RootModule>::load_from_directory`,
 which will load the dynamic library from a directory(folder),
 and then all the modules inside of the library.
 

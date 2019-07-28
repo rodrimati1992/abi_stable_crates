@@ -15,7 +15,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens};
 
 use crate::{
-    common_tokens::CommonTokens,
+    common_tokens::StartLenTokens,
 };
 
 
@@ -33,12 +33,12 @@ impl SmallStartLen{
         Self{start,len}
     }
 
-    pub(crate) fn tokenize<'a>(self,ct:&'a CommonTokens<'a>,ts: &mut TokenStream2){
+    pub(crate) fn tokenize<'a>(self,ct:&'a StartLenTokens,ts: &mut TokenStream2){
         self.tokenizer(ct).to_tokens(ts);
     }
 
     #[inline]
-    pub(crate) fn tokenizer<'a>(self,ctokens:&'a CommonTokens<'a>)->SmallStartLenTokenizer<'a>{
+    pub(crate) fn tokenizer<'a>(self,ctokens:&'a StartLenTokens)->SmallStartLenTokenizer<'a>{
         SmallStartLenTokenizer{
             start:self.start,
             len:self.len,
@@ -50,18 +50,21 @@ impl SmallStartLen{
 pub struct SmallStartLenTokenizer<'a>{
     start:u16,
     len:u16,
-    ctokens:&'a CommonTokens<'a>,
+    ctokens:&'a StartLenTokens,
 }
 
 impl<'a> ToTokens for SmallStartLenTokenizer<'a> {
     fn to_tokens(&self,ts: &mut TokenStream2) {
+        use syn::token::{Colon2,Comma,Paren};
+
         let ct=self.ctokens;
-        to_stream!(ts; ct.start_len,ct.colon2,ct.new );
-        ct.paren.surround(ts,|ts|{
-            to_stream!(ts; self.start,ct.comma,self.len );
+        to_stream!(ts; ct.start_len,Colon2::default(),ct.new );
+        Paren::default().surround(ts,|ts|{
+            to_stream!(ts; self.start,Comma::default(),self.len );
         });
     }
 }
+
 
 ///////////////////////////////////////////////////////////////////////
 

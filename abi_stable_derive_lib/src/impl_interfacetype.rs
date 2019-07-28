@@ -1,21 +1,30 @@
 use std::collections::HashMap;
 
 
-use syn::{
-    ItemImpl,
-    ImplItem,
-    ImplItemType,
-    Visibility,
-};
-
-use proc_macro2::TokenStream as TokenStream2;
-
-use quote::{ToTokens,quote,quote_spanned};
 
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-use crate::parse_utils::parse_str_as_ident;
+use quote::{ToTokens,quote,quote_spanned};
+
+use syn::Ident;
+
+use crate::{
+    parse_utils::parse_str_as_ident,
+    to_token_fn::ToTokenFnMut,
+};
+
+
+
+
+pub(crate) mod attribute_parsing;
+mod macro_impl;
+
+
+pub(crate) use self::{
+    attribute_parsing::{ImplInterfaceType,parse_impl_interfacetype},
+    macro_impl::the_macro,
+};
 
 
 //////////////////////
@@ -203,122 +212,65 @@ pub(crate) fn private_associated_type()->syn::Ident{
 }
 
 
-pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
-    let interfacetype:syn::Ident=syn::parse_str("InterfaceType").unwrap();
 
-    let mut const_name=(&impl_.self_ty).into_token_stream().to_string();
-    const_name.retain(|c| c.is_alphanumeric() );
-    const_name.insert_str(0,"_impl_InterfaceType");
-    let const_name=parse_str_as_ident(&const_name);
-    
-    let interface_path_s=impl_.trait_.as_ref().map(|x| &x.1.segments );
-    let is_interface_type=interface_path_s
-        .and_then(|x| x.last() )
-        .map_or(false,|path_| path_.value().ident==interfacetype );
+//////////////////////////////////////////////////////////////////////////////
 
-    if !is_interface_type {
-        panic!(
-            "expected 'impl<...> InterfaceType for {} ' ",
-            (&impl_.self_ty).into_token_stream()
-        );
-    }
-    
-    let mut default_map=TRAIT_LIST
-        .iter()
-        .map(|ut|{
-            ( parse_str_as_ident(ut.name) , DefaultVal::from(ut.which_trait.default_value()) ) 
-        })
-        .collect::<HashMap<_,_>>();
 
-    for item in &mut impl_.items {
-        match item {
-            ImplItem::Type(assoc_ty)=>{
-                assert_ne!(
-                    assoc_ty.ident,
-                    "define_this_in_the_impl_InterfaceType_macro",
-                    "you are not supposed to define\n\t\
-                     the 'define_this_in_the_impl_InterfaceType_macro' associated type yourself"
-                );
-                default_map.remove(&assoc_ty.ident);
 
-                let old_ty=&assoc_ty.ty;
-                let name=&assoc_ty.ident;
-                let span=name.span();
 
-                assoc_ty.ty=type_from_token_stream(
-                    quote_spanned!(span=> ImplFrom<#old_ty, trait_marker::#name> )
-                );
-            }
-            _=>{}
-        }
-    }
-
-    default_map.insert(private_associated_type(),DefaultVal::Hidden);
-
-    for (key,default_) in default_map {
-        let mut attrs=Vec::<syn::Attribute>::new();
-
-        let span=key.span();
-
-        let ty=match default_ {
-            DefaultVal::False=>quote_spanned!(span=> Unimplemented<trait_marker::#key> ),
-            DefaultVal::True=>quote_spanned!(span=> Implemented<trait_marker::#key> ),
-            DefaultVal::Hidden=>{
-                attrs.extend(parse_syn_attributes("#[doc(hidden)]"));
-                quote_spanned!(span=> () )
-            },
-        }.piped(type_from_token_stream);
-
-        let defaulted=ImplItemType{
-            attrs,
-            vis: Visibility::Inherited,
-            defaultness: None,
-            type_token: Default::default(),
-            ident:key,
-            generics: Default::default(),
-            eq_token: Default::default(),
-            ty,
-            semi_token: Default::default(),
-        };
-        impl_.items.push(ImplItem::Type(defaulted))
-    }
-
-    quote!(
-        const #const_name:()={
-            use ::abi_stable::derive_macro_reexports::{
-                Implemented,
-                Unimplemented,
-                ImplFrom,
-                trait_marker,
+pub(crate) fn impl_interfacetype_tokenizer<'a>(
+    name:&'a Ident,
+    generics:&'a syn::Generics,
+    impl_interfacetype:Option<&'a ImplInterfaceType>,
+)->impl ToTokens+'a{
+    ToTokenFnMut::new(move|ts|{
+        let ImplInterfaceType{impld,unimpld}=
+            match impl_interfacetype {
+                Some(x) => x,
+                None => return,
             };
+        
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+        
+        let const_ident=crate::parse_utils::parse_str_as_ident(&format!(
+            "_impl_InterfaceType_constant_{}",
+            name,
+        ));
 
-            #impl_
-        };
-    )
+        let impld_a=impld;
+        let impld_b=impld;
+
+        let unimpld_a=unimpld;
+        let unimpld_b=unimpld;
+
+        let priv_assocty=private_associated_type();
+
+        quote!(
+            const #const_ident:()={
+                use abi_stable::{
+                    type_level::{
+                        impl_enum::{
+                            Implemented as __Implemented,
+                            Unimplemented as __Unimplemented,
+                        },
+                        trait_marker,
+                    },
+                };
+                impl #impl_generics abi_stable::InterfaceType for #name #ty_generics 
+                #where_clause 
+                {
+                    #( type #impld_a=__Implemented<trait_marker::#impld_b>; )*
+                    #( type #unimpld_a=__Unimplemented<trait_marker::#unimpld_b>; )*
+                    type #priv_assocty=();
+                }
+            };
+        ).to_tokens(ts);
+    })
 }
 
 
-fn type_from_token_stream(tts:TokenStream2)->syn::Type{
-    let x=syn::TypeVerbatim{tts};
-    syn::Type::Verbatim(x)
-}
 
 
+//////////////////////////////////////////////////////////////////////////////
 
 
-pub fn parse_syn_attributes(str_: &str) -> Vec<syn::Attribute> {
-    syn::parse_str::<ParseOuter>(str_).unwrap().attributes
-}
-
-
-struct ParseOuter {
-    attributes: Vec<syn::Attribute>,
-}
-
-impl syn::parse::Parse for ParseOuter {
-    fn parse(input: syn::parse::ParseStream) -> syn::parse::Result<Self> {
-        Ok(Self {
-            attributes: syn::Attribute::parse_outer(input)?,
-        })
-    }
-}

@@ -1,8 +1,7 @@
 /*!
 This is an `implementation crate`,
 It exports the root module(a struct of function pointers) required by the 
-`example_0_interface`(the `interface crate`) in the 
-version of `get_library` with a mangled function name.
+`example_0_interface`(the `interface crate`).
 
 */
 
@@ -101,6 +100,7 @@ impl SerializeImplType for TextOperationState {
 //////////////////////////////////////////////////////////////////////////////////////
 
 
+/// An enum used to send commands to this library dynamically.
 #[derive(Debug,Serialize,Deserialize,PartialEq)]
 pub enum Command<'a> {
     ReverseLines(RString),
@@ -151,6 +151,8 @@ impl<'borr> SerializeImplType for Command<'borr> {
 //////////////////////////////////////////////////////////////////////////////////////
 
 
+/// The return type of `fn run_command`,
+/// where the returned variant corresponds to the `Command` that was passed in.
 #[derive(Debug,Serialize,Deserialize,PartialEq)]
 pub enum ReturnValue {
     ReverseLines(RString),

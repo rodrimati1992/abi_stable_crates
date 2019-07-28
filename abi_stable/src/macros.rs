@@ -363,7 +363,7 @@ struct Value<T>{
 #[macro_export]
 macro_rules! tag {
     ([ $( $elem:expr ),* $(,)? ])=>{{
-        use $crate::type_layout::tagging::FromLiteral;
+        use $crate::type_layout::tagging::{Tag,FromLiteral};
         
         Tag::arr(&[
             $( FromLiteral($elem).to_tag(), )*
@@ -382,7 +382,7 @@ macro_rules! tag {
         ])
     }};
     ({ $( $key:expr ),* $(,)? })=>{{
-        use $crate::type_layout::tagging::FromLiteral;
+        use $crate::type_layout::tagging::{Tag,FromLiteral};
 
         Tag::set(&[
             $(

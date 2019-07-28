@@ -10,6 +10,7 @@ use crate::{
     },
     datastructure::{DataStructure,DataVariant,Field,FieldIndex},
     gen_params_in::{GenParamsIn,InWhat},
+    impl_interfacetype::impl_interfacetype_tokenizer,
     lifetimes::LifetimeIndex,
     to_token_fn::ToTokenFnMut,
 };
@@ -30,6 +31,8 @@ pub mod reflection;
 
 mod attribute_parsing;
 
+mod common_tokens;
+
 mod nonexhaustive;
 
 mod prefix_types;
@@ -43,8 +46,9 @@ mod tests;
 
 use self::{
     attribute_parsing::{
-        parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions,NotStableAbiBound
+        parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions,NotStableAbiBound,
     },
+    common_tokens::CommonTokens,
     nonexhaustive::{tokenize_enum_info,tokenize_nonexhaustive_items},
     prefix_types::prefix_type_tokenizer,
     repr_attrs::ReprAttr,
@@ -63,7 +67,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let arenas = &arenas;
     let ctokens = CommonTokens::new(arenas);
     let ctokens = &ctokens;
-    let ds = &DataStructure::new(&mut data, arenas, ctokens);
+    let ds = &DataStructure::new(&mut data, arenas);
     let config = &parse_attrs_for_stable_abi(ds.attrs, &ds, arenas);
     let generics=ds.generics;
     let name=ds.name;
@@ -258,6 +262,13 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         }
     };
 
+    let interfacetype_tokenizer=
+        impl_interfacetype_tokenizer(
+            ds.name,
+            ds.generics,
+            config.impl_interfacetype.as_ref(),
+        );
+
 
     let stringified_name=name.to_string();
 
@@ -310,6 +321,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
             #static_struct_decl
 
             #nonexhaustive_tokens
+
+            #interfacetype_tokenizer
 
             unsafe impl <#generics_header> __GetStaticEquivalent_ for #impl_ty 
             where 
@@ -540,7 +553,7 @@ fn fields_tokenizer_inner<'a>(
             for li in fields.iter()
                 .flat_map(|f| &visited_fields.map[f].referenced_lifetimes ) 
             {
-                to_stream!(ts;li.tokenizer(ct),ct.comma);
+                to_stream!(ts;li.tokenizer(ct.as_ref()),ct.comma);
             }
         });
         ct.comma.to_tokens(ts);
@@ -666,13 +679,13 @@ fn tokenize_tl_functions<'a>(
 
     let functions=functions.into_inner();
 
-    let field_fn_ranges=field_fn_ranges.into_iter().map(|sl| sl.tokenizer(ct) );
+    let field_fn_ranges=field_fn_ranges.into_iter().map(|sl| sl.tokenizer(ct.as_ref()) );
 
     let abi_infos=abi_infos.into_inner().into_iter()
         .map(|ty| make_get_abi_info_tokenizer(ty,ct) );
 
     let paramret_lifetime_indices=paramret_lifetime_indices.into_inner().into_iter()
-        .map(|sl| sl.tokenizer(ct) );
+        .map(|sl| sl.tokenizer(ct.as_ref()) );
 
 
     quote!(
@@ -686,3 +699,6 @@ fn tokenize_tl_functions<'a>(
     ).to_tokens(ts);
 
 }
+
+
+

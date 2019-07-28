@@ -221,6 +221,7 @@ where
 }
 
 
+#[allow(dead_code)]
 #[cfg(test)]
 impl<'a, B> RCow<'a, B>
 where

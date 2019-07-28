@@ -18,22 +18,35 @@ use core_extensions::strings::StringExt;
 #[repr(u8)]
 #[derive(Debug,StableAbi)]
 pub enum Error{
+    /// An error produced by `serde_json::to_string`.
     Serialize(RBoxError,WhichCommandRet),
+    /// An error produced by `serde_json::from_string`.
     Deserialize(RBoxError,WhichCommandRet),
+    /// A deserialization error produced when trying to deserialize json 
+    /// as a particular command type.
     UnsupportedCommand(RBox<Unsupported>),
+    /// A deserialization error produced when trying to deserialize json 
+    /// as a particular return value type.
     UnsupportedReturnValue(RBox<Unsupported>),
+    /// An invalid plugin.
     InvalidPlugin(WhichPlugin),
+    /// A custom error.
     Custom(RBoxError),
+    /// A list of errors.
     Many(RVec<Error>),
 }
 
-
+/// Represents a command or return value that wasn't supported.
 #[repr(C)]
 #[derive(Debug,StableAbi)]
 pub struct Unsupported{
+    /// The name of the plugin for which the command/return value wasn't supported.
     pub plugin_name:RString,
+    /// The command/return value that wasn't supported.
     pub command_name:RString,
+    /// A custom error.
     pub error:RBoxError,
+    /// A list of the commands that the plugin supports
     pub supported_commands:RVec<CommandDescription>,
 }
 

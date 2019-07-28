@@ -18,7 +18,8 @@ use proc_macro2::Span;
 use quote::ToTokens;
 
 use crate::{
-    attribute_parsing::with_nested_meta,
+    attribute_parsing::{with_nested_meta},
+    impl_interfacetype::{ImplInterfaceType,parse_impl_interfacetype},
     datastructure::{DataStructure, DataVariant, Field,FieldMap},
     parse_utils::{
         parse_str_as_ident,
@@ -63,11 +64,12 @@ pub(crate) struct StableAbiOptions<'a> {
 
     pub(crate) override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
-     pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
+    pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
     pub(crate) changed_types:FieldMap<Option<&'a Type>>,
 
     pub(crate) mod_refl_mode:ModReflMode<usize>,
 
+    pub(crate) impl_interfacetype:Option<ImplInterfaceType>,
 
     pub(crate) phantom_fields:Vec<(&'a str,&'a Type)>,
     pub(crate) phantom_type_params:Vec<&'a Type>,
@@ -234,6 +236,7 @@ impl<'a> StableAbiOptions<'a> {
             changed_types:this.changed_types,
             override_field_accessor:this.override_field_accessor,
             tags:this.tags,
+            impl_interfacetype:this.impl_interfacetype,
             phantom_fields,
             phantom_type_params:this.phantom_type_params,
             mod_refl_mode,
@@ -278,6 +281,8 @@ struct StableAbiAttrs<'a> {
 
     extra_phantom_fields:Vec<(&'a str,&'a Type)>,
     phantom_type_params:Vec<&'a Type>,
+
+    impl_interfacetype:Option<ImplInterfaceType>,
     
     mod_refl_mode:Option<ModReflMode<()>>,
 }
@@ -591,6 +596,8 @@ Tag:\n\t{}\n",
                         x
                     ),
                 })
+            } else if list.ident == "impl_InterfaceType" {
+                this.impl_interfacetype=Some(parse_impl_interfacetype(&list.nested));
             }else{
                 panic!("Unrecodnized #[sabi(..)] attribute:\n{}",list.into_token_stream());
             }
@@ -881,5 +888,8 @@ fn parse_non_exhaustive_list<'a>(
 
     this
 }
+
+
+
 
 fn parse_sabi_override<'a>(_this: &mut StableAbiAttrs<'a>, _attr: Meta, _arenas: &'a Arenas) {}

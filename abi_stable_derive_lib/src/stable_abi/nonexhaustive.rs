@@ -15,11 +15,11 @@ use proc_macro2::{Span,TokenStream as TokenStream2};
 
 use super::{
     attribute_parsing::{StabilityKind,StableAbiOptions},
+    common_tokens::CommonTokens,
 };
 
 use crate::{
     arenas::{Arenas,AllocMethods},
-    common_tokens::CommonTokens,
     datastructure::{DataStructure},
     gen_params_in::{GenParamsIn,InWhat},
     impl_interfacetype::{private_associated_type,TRAIT_LIST,UsableTrait},

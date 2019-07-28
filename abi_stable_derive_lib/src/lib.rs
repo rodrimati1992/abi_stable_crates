@@ -20,10 +20,11 @@ mod utils;
 
 mod arenas;
 mod attribute_parsing;
-mod common_tokens;
 mod composite_collections;
+mod common_tokens;
 mod constants;
 mod either;
+mod get_static_equivalent;
 mod ignored_wrapper;
 mod datastructure;
 mod fn_pointer_extractor;
@@ -59,7 +60,6 @@ use core_extensions::prelude::*;
 #[allow(unused_imports)]
 use crate::{
     arenas::{AllocMethods, Arenas},
-    common_tokens::CommonTokens,
     utils::PrintDurationOnDrop,
 };
 
@@ -111,4 +111,14 @@ pub fn derive_sabi_trait_str(item: &str) -> TokenStream2{
     let item = syn::parse_str::<syn::ItemTrait>(item).unwrap();
     sabi_trait::derive_sabi_trait(item)
 }
+
+
+#[doc(hidden)]
+pub fn derive_get_static_equivalent(input: TokenStream1) -> TokenStream1 {
+    let input = syn::parse::<DeriveInput>(input).unwrap();
+    measure!({
+        get_static_equivalent::derive(input)
+    }).into()
+}
+
 

@@ -6,7 +6,7 @@ use std::{
 use serde::de::{Deserialize, Deserializer, Visitor, MapAccess};
 
 
-/// Used to deserialize a json object to a list of key-value pairs
+/// Used to deserialize a list of key-value pairs from a json object.
 #[derive(Clone,Debug)]
 pub struct VecFromMap<K,V>{
     pub vec:Vec<(K,V)>,

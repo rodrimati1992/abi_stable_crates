@@ -383,8 +383,8 @@ pub trait Dictionary{
 //////////////////////////////////////
 
 
-#[cfg(test)]
-//#[cfg(all(test,not(feature="only_new_tests")))]
+// #[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod tests{
     use super::*;
 
