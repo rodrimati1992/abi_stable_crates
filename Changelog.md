@@ -1,7 +1,21 @@
 This is the changelog,summarising changes in each version.
 
+
+
 # 0.6
 
+### 0.6.2
+
+- Added the `#[derive(GetStaticEquivalent)]` derive macro.
+
+- Added `#[sabi(impl_InterfaceType())]` helper attribute to `#[derive(StableAbi)]` 
+    and `#[derive(GetStaticEquivalent)]`.
+
+- Replaced most uses of `impl_InterfaceType!{}` with the helper attribute.
+
+- Added comments explaining abi_stable concepts in examples.
+
+### 0.6.0
 
 - Implemented nonexhastive enum derivation and NonExhaustive wrapper type,
     with documentation on how to use them,
