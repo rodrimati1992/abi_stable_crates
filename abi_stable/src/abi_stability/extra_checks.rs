@@ -22,7 +22,7 @@ use crate::{
 Extra layout checks,passed by the user in either:
 
 - the StableAbi derive macro:
-    in the `#[sabi(extra_checks=" funtion_name::<type_params> ")]` attribute.
+    in the `#[sabi(extra_checks=" funtion_name::<type_params> ")]` helper attribute.
 
 - the `extra_checks` field of `TypeLayoutParams`,
 

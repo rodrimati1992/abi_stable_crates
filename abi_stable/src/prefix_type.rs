@@ -197,7 +197,7 @@ pub struct WithMetadataFor<T,P>{
 
 
 /// Whether a field is conditional,
-/// whether it has a `#[sabi(accessible_if=" expression ")]` attribute or not.
+/// whether it has a `#[sabi(accessible_if=" expression ")]` helper attribute or not.
 #[derive(StableAbi)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
 #[repr(u8)]

@@ -1,7 +1,7 @@
 /*!
 
 Prefix-types are types that derive StableAbi along with the 
-`#[sabi(kind(Prefix(prefix_struct="PrefixEquivalent")))]` attribute.
+`#[sabi(kind(Prefix(prefix_struct="PrefixEquivalent")))]` helper attribute.
 This is mostly intended for **vtables** and **modules**.
 
 Prefix-types cannot directly be passed through ffi,
