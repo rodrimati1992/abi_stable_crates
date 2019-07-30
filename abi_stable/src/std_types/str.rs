@@ -12,7 +12,31 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::std_types::{RSlice, RString};
 
-/// Ffi-safe equivalent of `&'a str`
+/**
+Ffi-safe equivalent of `&'a str`
+
+# Example
+
+This defines a function that returns the first word in a string.
+
+```
+use abi_stable::{
+    std_types::RStr,
+    sabi_extern_fn,
+};
+
+
+#[sabi_extern_fn]
+fn first_word(phrase:RStr<'_>)->RStr<'_>{
+    match phrase.as_str().split_whitespace().next() {
+        Some(x)=>x.into(),
+        None=>"".into()
+    }
+}
+
+```
+
+*/
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 pub struct RStr<'a> {
@@ -34,6 +58,17 @@ impl RStr<'static> {
 
 impl<'a> RStr<'a> {
     /// Constructs an empty `RStr<'a>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RStr;
+    ///
+    /// const STR:RStr<'static>=RStr::empty();
+    ///
+    /// assert_eq!(STR,RStr::from(""));
+    ///
+    /// ```
     #[inline]
     pub const fn empty() -> Self {
         Self::EMPTY
@@ -51,6 +86,22 @@ impl<'a> RStr<'a> {
     /// - `ptr_ .. ptr+len` range is accessible memory,and is valid utf-8.
     ///
     /// - the data ptr_ points to must be valid for the lifetime of this `RStr<'a>`
+    ///
+    /// # Examples
+    ///
+    /// This function unsafely converts a `&str` to an `RStr<'_>`,
+    /// equivalent to doing `RStr::from`.
+    ///
+    /// ```
+    /// use abi_stable::std_types::RStr;
+    ///
+    /// fn convert(slice_:&str)->RStr<'_>{
+    ///     unsafe{
+    ///         RStr::from_raw_parts( slice_.as_ptr(), slice_.len() )
+    ///     }
+    /// }
+    ///
+    /// ```
     #[inline]
     pub const unsafe fn from_raw_parts(ptr_: *const u8, len: usize) -> Self {
         Self {
@@ -59,6 +110,17 @@ impl<'a> RStr<'a> {
     }
 
     /// Converts `&'a str` to a `RStr<'a>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RStr;
+    ///
+    /// assert_eq!(RStr::from_str("").as_str(), "");
+    /// assert_eq!(RStr::from_str("Hello").as_str(), "Hello");
+    /// assert_eq!(RStr::from_str("World").as_str(), "World");
+    ///
+    /// ```
     #[inline]
     pub fn from_str(s: &'a str) -> Self {
         unsafe {
@@ -72,6 +134,20 @@ impl<'a> RStr<'a> {
     ///
     /// This is an inherent method instead of an implementation of the
     /// ::std::ops::Index trait because it does not return a reference.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RStr;
+    ///
+    /// let str=RStr::from("What is that.");
+    ///
+    /// assert_eq!(str.slice(..),str);
+    /// assert_eq!(str.slice(..4),RStr::from("What"));
+    /// assert_eq!(str.slice(4..),RStr::from(" is that."));
+    /// assert_eq!(str.slice(4..7),RStr::from(" is"));
+    ///
+    /// ```
     pub fn slice<I>(&self, i: I) -> RStr<'a>
     where
         str: Index<I, Output = str>,
@@ -80,18 +156,51 @@ impl<'a> RStr<'a> {
     }
 
     /// Accesses the underlying byte slice.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RSlice,RStr};
+    ///
+    /// let str=RStr::from("What is that.");
+    /// let bytes=RSlice::from("What is that.".as_bytes());
+    ///
+    /// assert_eq!(str.as_rslice(),bytes);
+    ///
+    /// ```
     #[inline]
     pub fn as_rslice(&self) -> RSlice<'a, u8> {
         self.inner
     }
 
     /// Casts this `RStr<'a>` to a `&'a str`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RStr;
+    ///
+    /// let str="What is that.";
+    /// assert_eq!(RStr::from(str).as_str(),str);
+    ///
+    /// ```
     #[inline]
     pub fn as_str(&self) -> &'a str {
         unsafe { str::from_utf8_unchecked(self.inner.as_slice()) }
     }
 
     /// Gets the length(in bytes) of this `RStr<'a>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RStr;
+    ///
+    /// assert_eq!(RStr::from("").len(),0);
+    /// assert_eq!(RStr::from("a").len(),1);
+    /// assert_eq!(RStr::from("What").len(),4);
+    ///
+    /// ```
     #[inline]
     pub const fn len(&self) -> usize {
         self.inner.len()
