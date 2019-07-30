@@ -20,6 +20,17 @@ mod inner {
     ///
     /// Once `<[T]>::len` is stable in const contests define the RSlice::from_slice const fn
     /// so as to replace this type with RSlice<'static,T>.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::StaticSlice;
+    ///
+    /// const SLICE:StaticSlice<u32>=StaticSlice::new(&[11,12,13,14]);
+    ///
+    /// assert_eq!(&SLICE[..], &[11,12,13,14]);
+    ///
+    /// ```
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct StaticSlice<T: 'static> {
@@ -39,6 +50,17 @@ mod inner {
 
     impl<T: 'static> StaticSlice<T> {
         /// Creates a `StaticSlice<T>` from a `&'static [T]`
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::StaticSlice;
+        ///
+        /// let slic=StaticSlice::new(&[0,1,2,3]);
+        ///
+        /// assert_eq!(&*slic,&[0,1,2,3]);
+        ///
+        /// ```
         #[inline]
         pub const fn new(s: &'static [T]) -> Self {
             StaticSlice {
@@ -48,11 +70,34 @@ mod inner {
             }
         }
         /// Gets the `&'static [Y]` back.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::StaticSlice;
+        ///
+        /// let slic=StaticSlice::new(&[-1,-2,-3,-4]);
+        ///
+        /// assert_eq!(slic.as_slice(),&[-1,-2,-3,-4]);
+        ///
+        /// ```
         #[inline]
         pub fn as_slice(&self) -> &'static [T] {
             self.as_rslice().into()
         }
+
         /// Converts the internal `&'static [T]` into a `RSlice<'static,T>`.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::{RSlice,StaticSlice};
+        ///
+        /// let slic=StaticSlice::new(&[-1,-2,-3,-4]);
+        ///
+        /// assert_eq!(slic.as_rslice(), RSlice::from_slice(&[-1,-2,-3,-4]));
+        ///
+        /// ```
         #[inline]
         pub fn as_rslice(&self) -> RSlice<'static, T> {
             unsafe {

@@ -23,6 +23,17 @@ mod inner {
 
     /// Wrapper type around `&'static str` as a workaround for the
     /// non-stable-constness of str::len.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::StaticStr;
+    ///
+    /// const STR:StaticStr=StaticStr::new("foo");
+    ///
+    /// assert_eq!(&STR[..], "foo");
+    ///
+    /// ```
     #[derive(Copy, Clone, StableAbi)]
     #[repr(C)]
     pub struct StaticStr {
@@ -35,6 +46,17 @@ mod inner {
 
     impl StaticStr {
         /// Creates a StaticStr from a `&'static str`
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::StaticStr;
+        ///
+        /// const BAR:StaticStr=StaticStr::new("bar");
+        ///
+        /// assert_eq!(&*BAR, "bar");
+        ///
+        /// ```
         #[inline]
         pub const fn new(s: &'static str) -> Self {
             StaticStr {
@@ -44,11 +66,33 @@ mod inner {
             }
         }
         /// Gets the `&'static str` back.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::StaticStr;
+        ///
+        /// const NOM:StaticStr=StaticStr::new("baz");
+        ///
+        /// assert_eq!(NOM.as_str(), "baz");
+        ///
+        /// ```
         #[inline]
         pub fn as_str(&self) -> &'static str {
             self.as_rstr().into()
         }
         /// Converts the internal `&'static str` into a `RStr<'static>`.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::{RStr,StaticStr};
+        ///
+        /// const PARSEC:StaticStr=StaticStr::new("{}");
+        ///
+        /// assert_eq!(PARSEC.as_rstr(), RStr::from("{}"));
+        ///
+        /// ```
         #[inline]
         pub fn as_rstr(&self) -> RStr<'static> {
             let s = (&self.s) as *const &'static str as *const [usize; 2];
