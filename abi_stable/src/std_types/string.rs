@@ -250,6 +250,20 @@ impl RString {
     ///
     /// This will return a `Err(::std::string::FromUtf16Error{..})` 
     /// if `vec` was not valid utf-8.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    /// 
+    /// let str="What the 😈.";
+    /// let str_utf16=str.encode_utf16().collect::<Vec<u16>>();
+    ///
+    /// assert_eq!(
+    ///     RString::from_utf16(&str_utf16).unwrap(),
+    ///     RString::from(str),
+    /// );
+    /// ```
     pub fn from_utf16(s: &[u16]) -> Result<Self, FromUtf16Error> {
         String::from_utf16(s).map(From::from)
     }

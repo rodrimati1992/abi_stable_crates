@@ -22,6 +22,47 @@ Ffi-safe equivalent of `&'a mut [T]`
 As of the writing this documentation the abi stability of `&mut [T]` is 
 not yet guaranteed.
 
+# Lifetime problems
+
+Because RSliceMut dereferences into a mutable slice,you can call slice method on it.
+
+If you call a slice method that returns a borrow into the slice,
+it will have the lifetime of the `let slice:RSliceMut<'a,[T]>` variable instead of the `'a` 
+lifetime that it's parameterized over.
+
+To get a slice with the same lifetime as an RSliceMut,
+one must use one of the `RSliceMut::{into_slice,into_slice_mut}` methods.
+
+
+Example of what would not work:
+
+```compile_fail
+use abi_stable::std_types::RSliceMut;
+
+fn into_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a [T] {
+    &*slic
+}
+
+fn into_slice_mut<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
+    &mut *slic
+}
+```
+
+Example of what would work:
+
+```
+use abi_stable::std_types::RSliceMut;
+
+fn into_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a [T] {
+    slic.into_slice()
+}
+
+fn into_slice_mut<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
+    slic.into_slice_mut()
+}
+```
+
+
 # Example
 
 Defining an extern fn that returns a mutable reference to 
