@@ -1,3 +1,7 @@
+/*!
+Contains an ffi-safe equivalent of `&'static str`,constructible in constants.
+*/
+
 use std::{
     borrow::Borrow,
     fmt::{self, Display},

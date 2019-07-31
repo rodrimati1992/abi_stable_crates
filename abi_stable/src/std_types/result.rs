@@ -1,3 +1,7 @@
+/*!
+Contains the ffi-safe equivalent of `std::result::Result`.
+*/
+
 use std::fmt::Debug;
 
 use core_extensions::matches;

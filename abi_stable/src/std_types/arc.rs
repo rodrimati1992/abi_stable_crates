@@ -1,3 +1,7 @@
+/*!
+Contains the ffi-safe equivalent of `std::sync::Arc`.
+*/
+
 use std::{
     borrow::{Borrow},
     marker::PhantomData, 

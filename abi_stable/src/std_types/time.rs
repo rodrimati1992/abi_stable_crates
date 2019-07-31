@@ -1,3 +1,7 @@
+/*!
+Contains ffi-safe equivalent of `std::time::Duration`.
+*/
+
 use std::time::Duration;
 
 /// Ffi-safe equivalent of ::std::time::Duration .

@@ -1,3 +1,7 @@
+/*!
+Contains an ffi-safe equivalent of `&'static [T]`,constructible in constants.
+*/
+
 use std::{borrow::Borrow,marker::PhantomData, mem, ops::Deref};
 
 use crate::std_types::{RSlice};

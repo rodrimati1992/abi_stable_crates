@@ -1,3 +1,7 @@
+/*!
+Contains the ffi-safe equivalent of `std::collections::HashMap`,and related items.
+*/
+
 use std::{
     borrow::Borrow,
     collections::{HashMap,hash_map::RandomState},

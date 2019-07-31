@@ -1,3 +1,7 @@
+/*!
+Contains the ffi-safe equivalent of `std::ops::Range*` types.
+*/
+
 use std::ops::{Range, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive};
 
 ////////////////////////////////////////////////////////////////

@@ -1,3 +1,7 @@
+/*!
+Contains the ffi-safe equivalent of `&'a mut [T]`.
+*/
+
 use std::{
     borrow::{Borrow,BorrowMut},
     io::{self, Write},

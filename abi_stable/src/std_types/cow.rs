@@ -1,3 +1,7 @@
+/*!
+Contains the ffi-safe equivalent of `std::borrow::Cow`,and related items.
+*/
+
 use std::{borrow::{Borrow,Cow}, fmt, ops::Deref};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

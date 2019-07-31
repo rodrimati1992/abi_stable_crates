@@ -1,3 +1,8 @@
+/*!
+Contains the ffi-safe equivalent of `std::cmp::Ordering`.
+*/
+
+
 use std::cmp::Ordering;
 
 /**
