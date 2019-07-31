@@ -1,3 +1,7 @@
+/*!
+Contains the ffi-safe equivalent of `std::option::Option`.
+*/
+
 use std::mem;
 
 use core_extensions::matches;
@@ -88,6 +92,39 @@ impl<T> ROption<T> {
     /// ```
     #[inline]
     pub fn is_rnone(&self)->bool{
+        matches!( RNone{..}=self )
+    }
+
+    
+    /// Returns whether `self` is an `RSome`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .is_some(),true);
+    /// assert_eq!(RNone::<u32>.is_some(),false);
+    ///
+    /// ```
+    #[inline]
+    pub fn is_some(&self)->bool{
+        matches!( RSome{..}=self )
+    }
+
+    /// Returns whether `self` is an `RNone`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .is_none(),false);
+    /// assert_eq!(RNone::<u32>.is_none(),true);
+    ///
+    /// ```
+    #[inline]
+    pub fn is_none(&self)->bool{
         matches!( RNone{..}=self )
     }
 

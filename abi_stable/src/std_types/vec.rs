@@ -1,3 +1,7 @@
+/*!
+Contains an ffi-safe equivalent of `Vec<T>`.
+*/
+
 use std::{
     borrow::{Cow,Borrow,BorrowMut},
     cmp::Ordering,

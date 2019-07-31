@@ -1,3 +1,8 @@
+/*!
+Contains the ffi-safe equivalent of `std::boxed::Box`.
+*/
+
+
 use std::{
     borrow::{Borrow,BorrowMut},
     marker::PhantomData, 

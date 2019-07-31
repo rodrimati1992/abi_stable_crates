@@ -1,6 +1,6 @@
 /*! 
 Ffi-safe version of 
-`Box<::std::error::Error+Sync+Send+'static>` and `Box<::std::error::Error+'static>`
+`Box<::std::error::Error+'static>` with all combinations of `Send` and `Sync`.
 */
 use std::{
     error::Error as ErrorTrait,

@@ -31,7 +31,7 @@ pub mod vec;
 
 
 /**
-There are equivalents to types in the std::sync module in abi_stable::external_types.
+Some types from the `std::sync` module have ffi-safe equivalents in abi_stable::external_types.
 
 The `sync::{Mutex,RwLock,Once}` equivalents are declared in 
 `abi_stable::external_types::parking_lot`

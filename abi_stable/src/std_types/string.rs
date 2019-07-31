@@ -1,3 +1,7 @@
+/*!
+Contains an ffi-safe equivalent of `std::string::String`.
+*/
+
 use std::{
     borrow::{Cow,Borrow},
     fmt::{self, Display, Formatter},

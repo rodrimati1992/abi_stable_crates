@@ -1,3 +1,7 @@
+/*!
+Contains ffi-safe equivalents of tuples up to 4 elements.
+*/
+
 #![allow(non_snake_case)]
 
 macro_rules! declare_tuple {

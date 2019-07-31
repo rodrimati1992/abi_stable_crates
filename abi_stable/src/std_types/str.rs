@@ -1,3 +1,7 @@
+/*!
+Contains an ffi-safe equivalent of `&'a str`.
+*/
+
 use std::{
     borrow::{Cow,Borrow},
     fmt::{self, Display},

@@ -1,5 +1,5 @@
-/**
-Ffi-safe versions of some `std::io` types.
+/*!
+Ffi-safe equivalents of `std::io::{ErrorKind,Error,SeekFrom}`.
 */
 
 use std::{
@@ -263,7 +263,7 @@ impl RIoError {
         }
     }
 
-    /// Constructs an RIoError from a 
+    /// Constructs an RIoError from a type convertible into a
     /// `Box<dyn ErrorTrait+Send+Sync+'static>` and a `std::io::ErrorKind`.
     ///
     /// # Example
