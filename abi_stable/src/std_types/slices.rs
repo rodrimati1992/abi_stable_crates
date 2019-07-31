@@ -21,6 +21,40 @@ Ffi-safe equivalent of `&'a [T]`
 As of the writing this documentation the abi stability of `&[T]` is 
 not yet guaranteed.
 
+# Lifetime problems
+
+Because RSlice dereferences into a slice,you can call slice method on it.
+
+If you call a slice method that returns a borrow into the slice,
+it will have the lifetime of the `let slice:RSlice<'a,[T]>` variable instead of the `'a` 
+lifetime that it's parameterized over.
+
+To get a slice with the same lifetime as an RSlice,
+one must use the `RSlice::as_slice` method.
+
+
+Example of what would not work:
+
+```compile_fail
+use abi_stable::std_types::RSlice;
+
+fn into_slice<'a,T>(slic:RSlice<'a,T>)->&'a [T] {
+    &*slic
+}
+```
+
+Example of what would work:
+
+```
+use abi_stable::std_types::RSlice;
+
+fn into_slice<'a,T>(slic:RSlice<'a,T>)->&'a [T] {
+    slic.as_slice()
+}
+```
+
+
+
 # Example
 
 Defining an extern fn that returns a reference to 
