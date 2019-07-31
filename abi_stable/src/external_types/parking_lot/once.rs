@@ -40,6 +40,42 @@ fn assert_mutex_size(){
 
 /**
 A synchronization primitive for running global initialization once.
+
+# Example
+
+```
+use abi_stable::{
+    external_types::{ROnce,RMutex},
+    utils::leak_value,
+};
+
+static MUTEX:RMutex<usize>=RMutex::new(0);
+
+// For some reason this is causing the compiler to panic (as of Rust 1.36).
+// static ONCE:ROnce=ROnce::new();
+
+static ONCE:ROnce=ROnce::NEW;
+
+let guards=
+    std::iter::repeat_with(||{
+        std::thread::spawn(||{
+            ONCE.call_once(||{
+                *MUTEX.lock()+=1;
+            })
+        })
+    })
+    .take(20)
+    .collect::<Vec<_>>();
+
+for guard in guards{
+    guard.join().unwrap();
+}
+
+assert_eq!(*MUTEX.lock(),1);
+
+```
+
+
 */
 #[repr(C)]
 #[derive(StableAbi)]
@@ -50,17 +86,79 @@ pub struct ROnce{
 
 impl ROnce{
     /// Constructs an ROnce.
-    pub const fn new() -> Self{
-        Self{
+    ///
+    /// As of Rust 1.36 this can't be called in const contexts,
+    /// because is causes the compiler to panic.
+    ///
+    /// You can declare static like this:`static ONCE:ROnce=ROnce::NEW;`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::ROnce;
+    ///
+    /// // For some reason this is causing the compiler to panic (as of Rust 1.36).
+    /// // static ONCE:ROnce=ROnce::new();
+    ///
+    /// static ONCE:ROnce=ROnce::NEW;
+    /// 
+    /// let once=ROnce::new();
+    ///
+    /// ```
+    pub const fn new() -> ROnce{
+        ROnce{
             opaque_once:OPAQUE_ONCE,
             vtable:VTable::VTABLE.as_prefix_raw(),
         }
     }
+
+    /// Constructs an ROnce.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::ROnce;
+    ///
+    /// // For some reason this is causing the compiler to panic (as of Rust 1.36).
+    /// // static ONCE:ROnce=ROnce::new();
+    ///
+    /// static ONCE:ROnce=ROnce::NEW;
+    ///
+    /// ```
+    pub const NEW:Self=
+        ROnce{
+            opaque_once:OPAQUE_ONCE,
+            vtable:VTable::VTABLE.as_prefix_raw(),
+        };
+
     fn vtable(&self)->&'static VTable{
         unsafe{ &*self.vtable }
     }
 
-    /// Gets the running state of this ROnce.
+/**
+Gets the running state of this ROnce.
+
+# Example
+
+```
+use abi_stable::external_types::parking_lot::once::{ROnce,ROnceState};
+
+let once=ROnce::new();
+
+assert_eq!(once.state(), ROnceState::New );
+
+let _=std::panic::catch_unwind(||{
+    once.call_once(|| panic!() );
+});
+
+assert!( once.state().poisoned() );
+
+once.call_once_force(|_| () );
+
+assert!( once.state().done() );
+
+```
+*/
     pub fn state(&self) -> ROnceState{
         self.vtable().state()(&self.opaque_once)
     }
@@ -79,7 +177,22 @@ to this method has run to completion.
 Panics in the closure will cause this ROnce to become poisoned,
 and any future calls to this method will panic.
 
+# Example
 
+```
+use abi_stable::external_types::ROnce;
+
+let once=ROnce::new();
+let mut counter=0usize;
+
+once.call_once(|| counter+=1 );
+once.call_once(|| counter+=1 );
+once.call_once(|| counter+=1 );
+once.call_once(|| counter+=1 );
+
+assert_eq!(counter,1);
+
+```
 */
     pub fn call_once<F>(&self, f: F) 
     where
@@ -106,6 +219,32 @@ Runs an initialization function,even if the ROnce is poisoned.
 This will keep trying to run different closures until one of them doesn't panic.
 
 The ROnceState parameter describes whether the ROnce is New or Poisoned.
+
+
+# Example
+
+```
+use abi_stable::external_types::ROnce;
+
+use std::panic::{self,AssertUnwindSafe};
+
+let once=ROnce::new();
+let mut counter=0usize;
+
+for i in 0..100 {
+    let _=panic::catch_unwind(AssertUnwindSafe(||{
+        once.call_once_force(|_|{
+            if i < 6 {
+                panic!();
+            }
+            counter=i;
+        })
+    }));
+}
+
+assert_eq!(counter,6);
+
+```
 
 */
     pub fn call_once_force<F>(&self, f: F) 
@@ -167,11 +306,46 @@ pub enum ROnceState{
 
 
 impl ROnceState{
-    /// Whether the ROnce is poisoned,requiring call_once_force to run.
+    /**
+Whether the ROnce is poisoned,requiring call_once_force to run.
+
+# Example
+
+```
+use abi_stable::external_types::ROnce;
+
+let once=ROnce::new();
+
+let _=std::panic::catch_unwind(||{
+    once.call_once(|| panic!() );
+});
+
+assert!(once.state().poisoned());
+
+```
+
+    */
     pub fn poisoned(&self) -> bool{
         matches!( ROnceState::Poisoned=self )
     }
-    /// Whether the ROnce has already finished running.
+
+/**    
+Whether the ROnce has already finished running.
+
+# Example
+
+```
+use abi_stable::external_types::ROnce;
+
+let once=ROnce::new();
+
+once.call_once(|| () );
+
+assert!(once.state().done());
+
+```
+
+*/
     pub fn done(&self) -> bool{
         matches!( ROnceState::Done=self )
     }

@@ -47,6 +47,28 @@ As opposed to the standard library version of this type,
 this mutex type does not use poisoning,
 simply unlocking the lock when a panic happens.
 
+# Example
+
+```
+use abi_stable::external_types::RMutex;
+
+static MUTEX:RMutex<usize>=RMutex::new(0);
+
+let guard=std::thread::spawn(||{
+    for _ in 0..100 {
+        *MUTEX.lock()+=1;
+    }
+});
+
+for _ in 0..100 {
+    *MUTEX.lock()+=1;
+}
+
+guard.join().unwrap();
+
+assert_eq!(*MUTEX.lock(),200);
+
+```
 */
 #[repr(C)]
 #[derive(StableAbi)]
@@ -61,6 +83,7 @@ pub struct RMutex<T>{
 A mutex guard,which allows mutable access to the data inside the mutex.
 
 When dropped this will unlock the mutex.
+
 */
 #[repr(transparent)]
 #[derive(StableAbi)]
@@ -78,6 +101,17 @@ pub struct RMutexGuard<'a, T> {
 
 impl<T> RMutex<T>{
     /// Constructs a mutex,wrapping `value`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::RMutex;
+    ///
+    /// static MUTEX:RMutex<Option<String>>=RMutex::new(None);
+    /// 
+    /// let mutex=RMutex::new(0);
+    ///
+    /// ```
     pub const fn new(value:T)->Self{
         Self{
             raw_mutex:OPAQUE_MUTEX,
@@ -100,6 +134,17 @@ impl<T> RMutex<T>{
     }
 
     /// Unwraps this mutex into its wrapped data.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::RMutex;
+    ///
+    /// let mutex=RMutex::new("hello".to_string());
+    ///
+    /// assert_eq!(mutex.into_inner().as_str(),"hello");
+    ///
+    /// ```
     #[inline]
     pub fn into_inner(self)->T{
         self.data.into_inner()
@@ -108,6 +153,20 @@ impl<T> RMutex<T>{
     /// Gets a mutable reference to its wrapped data.
     ///
     /// This does not require any locking,since it takes `self` mutably.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::RMutex;
+    ///
+    /// let mut mutex=RMutex::new("Hello".to_string());
+    ///
+    /// mutex.get_mut().push_str(", World!");
+    ///
+    /// assert_eq!(mutex.lock().as_str(),"Hello, World!");
+    /// 
+    ///
+    /// ```
     #[inline]
     pub fn get_mut(&mut self)->RMutexGuard<'_,T>{
         self.make_guard()
@@ -118,7 +177,25 @@ Acquires a mutex,blocking the current thread until it can.
 
 This function returns a guard which releases the mutex when it is dropped.
 
-Trying to lock the mutex in the same theread that holds the lock will cause a deadlock.
+Trying to lock the mutex in the same thread that holds the lock will cause a deadlock.
+
+# Example
+
+```
+use abi_stable::external_types::RMutex;
+
+static MUTEX:RMutex<usize>=RMutex::new(0);
+
+let guard=std::thread::spawn(|| *MUTEX.lock()+=1 );
+
+*MUTEX.lock()+=4;
+
+guard.join().unwrap();
+
+assert_eq!(*MUTEX.lock(),5);
+
+```
+
     */
     #[inline]
     pub fn lock(&self)->RMutexGuard<'_,T>{
@@ -129,6 +206,22 @@ Trying to lock the mutex in the same theread that holds the lock will cause a de
 Attemps to acquire a mutex.
 
 Returns the mutex guard if the mutex can be immediately acquired,otherwise returns RNone.
+
+# Example
+
+```
+use abi_stable::external_types::RMutex;
+
+static MUTEX:RMutex<usize>=RMutex::new(0);
+
+let mut guard=MUTEX.try_lock().unwrap();
+
+assert!( MUTEX.try_lock().is_none() );
+
+assert_eq!(*guard,0);
+
+```
+
 */    
     #[inline]
     pub fn try_lock(&self) -> ROption<RMutexGuard<'_,T>>{
@@ -144,6 +237,28 @@ Attempts to acquire a mutex for the timeout duration.
 
 Once the timeout is reached,this will return None,
 otherwise it will return the mutex guard.
+
+
+# Example
+
+```
+use abi_stable::{
+    external_types::RMutex,
+    std_types::RDuration,
+};
+
+static MUTEX:RMutex<usize>=RMutex::new(0);
+
+static DUR:RDuration=RDuration::from_millis(4);
+
+let mut guard=MUTEX.try_lock_for(DUR).unwrap();
+
+assert!( MUTEX.try_lock_for(DUR).is_none() );
+
+assert_eq!(*guard,0);
+
+```
+
 */
     #[inline]
     pub fn try_lock_for(&self, timeout: RDuration) -> ROption<RMutexGuard<'_,T>>{
