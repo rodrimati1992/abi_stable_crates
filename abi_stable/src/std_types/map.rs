@@ -972,7 +972,7 @@ where
 impl<K,Q,V,S> Index<&Q> for RHashMap<K,V,S>
 where
     K:Borrow<Q>,
-    Q:Eq+Hash
+    Q:Eq+Hash+?Sized
 {
     type Output=V;
 
@@ -984,7 +984,7 @@ where
 impl<K,Q,V,S> IndexMut<&Q> for RHashMap<K,V,S>
 where
     K:Borrow<Q>,
-    Q:Eq+Hash
+    Q:Eq+Hash+?Sized
 {
     fn index_mut(&mut self,query:&Q)->&mut V{
         self.get_mut(query).expect("no entry in RHashMap<_,_> found for key")
