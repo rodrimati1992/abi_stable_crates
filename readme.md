@@ -463,7 +463,7 @@ pub fn new_appender()->AppenderBox<u32>{
     
     - It's not the same type.
 
-    - It was constructed with `TU_Unerasable`.
+    - It was constructed with `TU_Opaque`.
 
     */
     Appender_TO::from_value(RVec::new(),TU_Opaque)
