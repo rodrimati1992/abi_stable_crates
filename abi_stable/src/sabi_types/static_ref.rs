@@ -16,7 +16,80 @@ but are safe to reference for the lifetime of `T`.
 This type is necessary because Rust doesn't understand that vtables live for `'static`,
 even though they have `non-'static` type parameters.
 
+# Example
 
+This defines a vtable,using a StaticRef as the pointer to the vtable.
+
+This example is not intended to be fully functional,
+it's only to demonstrate a use for StaticRef.
+
+```
+use abi_stable::{
+    marker_type::ErasedObject,
+    prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::StaticRef,
+    utils::transmute_mut_reference,
+    StableAbi,
+    sabi_extern_fn,
+};
+
+use std::marker::PhantomData;
+
+/// An ffi-safe `Box<T>`
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct BoxLike<T> {
+    data: *mut T,
+    
+    vtable: StaticRef<VTable<T>>,
+
+    _marker: PhantomData<T>,
+}
+
+
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(kind(Prefix(prefix_struct="VTable")))]
+#[sabi(missing_field(panic))]
+pub struct VTableVal<T>{
+    #[sabi(last_prefix_field)]
+    drop_:unsafe extern "C" fn(*mut T),
+}
+
+
+mod vtable{
+    use super::*;
+
+    impl<T> VTableVal<T> {
+        const VALUE:Self=
+            Self{
+                drop_:drop_::<T>,
+            };
+
+        const VTABLE:StaticRef<WithMetadata<Self>>=unsafe{
+            StaticRef::from_raw(
+                &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VALUE)
+            )
+        };
+
+        pub(super)fn vtable()->StaticRef<VTable<T>> {
+            WithMetadata::staticref_as_prefix(Self::VTABLE)
+        }
+    }
+}
+
+
+
+
+#[sabi_extern_fn]
+unsafe fn drop_<T>(object:*mut T){
+    std::ptr::drop_in_place(object);
+}
+
+# fn main(){}
+
+```
 
 */
 #[repr(transparent)]
@@ -69,6 +142,23 @@ impl<T> StaticRef<T>{
     /// # Safety
     ///
     /// You must ensure that the raw pointer is valid for the lifetime of `T`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::sabi_types::StaticRef;
+    ///
+    /// struct GetPtr<T>(T);
+    ///
+    /// impl<T> GetPtr<T>{
+    ///     const PTR:*const Option<T>=&None;
+    ///
+    ///     const STATIC:StaticRef<Option<T>>=unsafe{
+    ///         StaticRef::from_raw(Self::PTR)
+    ///     };
+    /// }
+    ///
+    /// ```
     pub const unsafe fn from_raw(ref_:*const T)->Self{
         Self{ref_}
     }
@@ -76,6 +166,25 @@ impl<T> StaticRef<T>{
     /// Constructs this StaticRef from a static reference
     ///
     /// This implicitly requires that `T:'static`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::sabi_types::StaticRef;
+    ///
+    /// struct GetPtr<T>(T);
+    ///
+    /// impl<T> GetPtr<T>
+    /// where
+    ///     T:'static
+    /// {
+    ///     const REF:&'static Option<T>=&None;
+    ///
+    ///     const STATIC:StaticRef<Option<T>>=
+    ///         StaticRef::from_ref(Self::REF);
+    /// }
+    ///
+    /// ```
     pub const fn from_ref(ref_:&'static T)->Self{
         Self{ref_}
     }
@@ -83,11 +192,52 @@ impl<T> StaticRef<T>{
     /// Gets access to the reference.
     ///
     /// This returns `&'a T` instead of `&'static T` to support vtables of `non-'static` types.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::sabi_types::StaticRef;
+    ///
+    /// struct GetPtr<T>(T);
+    ///
+    /// impl<T> GetPtr<T>{
+    ///     const PTR:*const Option<T>=&None;
+    ///
+    ///     const STATIC:StaticRef<Option<T>>=unsafe{
+    ///         StaticRef::from_raw(Self::PTR)
+    ///     };
+    /// }
+    ///
+    /// let reference:&'static Option<String>=
+    ///     GetPtr::<String>::STATIC.get();
+    ///
+    /// ```
     pub fn get<'a>(self)->&'a T{
         unsafe{ &*self.ref_ }
     }
 
     /// Gets access to the referenced value,as a raw pointer.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::sabi_types::StaticRef;
+    /// use std::convert::Infallible;
+    ///
+    /// struct GetPtr<T>(T);
+    ///
+    /// impl<T> GetPtr<T>{
+    ///     const PTR:*const Option<T>=&None;
+    ///
+    ///     const STATIC:StaticRef<Option<T>>=unsafe{
+    ///         StaticRef::from_raw(Self::PTR)
+    ///     };
+    /// }
+    ///
+    /// let reference:*const Option<Infallible>=
+    ///     GetPtr::<Infallible>::STATIC.get_raw();
+    ///
+    /// ```
     pub const fn get_raw<'a>(self)->*const T{
         self.ref_
     }
@@ -98,6 +248,28 @@ impl<T> StaticRef<T>{
     ///
     /// StaticRef has the same rules that references have regarding
     /// transmuting from one type to another:
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::sabi_types::StaticRef;
+    ///
+    /// struct GetPtr<T>(T);
+    ///
+    /// impl<T> GetPtr<T>{
+    ///     const PTR:*const Option<T>=&None;
+    ///
+    ///     const STATIC:StaticRef<Option<T>>=unsafe{
+    ///         StaticRef::from_raw(Self::PTR)
+    ///     };
+    /// }
+    ///
+    /// let reference:StaticRef<Option<[();0xFFF_FFFF]>>=unsafe{
+    ///     GetPtr::<()>::STATIC
+    ///         .transmute_ref::<Option<[();0xFFF_FFFF]>>()
+    /// };
+    ///
+    /// ```
     pub const unsafe fn transmute_ref<U>(self)->StaticRef<U>{
         StaticRef::from_raw(
             self.ref_ as *const U

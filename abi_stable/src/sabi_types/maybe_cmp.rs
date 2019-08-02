@@ -2,7 +2,24 @@ use std::{
     cmp::{PartialEq, Eq, PartialOrd,Ordering},
 };
 
-/// An Option-like type which is only compares equal if it contains a value.
+/**
+An Option-like type which is only compares equal if it contains a value.
+
+# Example
+
+```
+use abi_stable::sabi_types::MaybeCmp;
+
+assert_eq!( MaybeCmp::Just(10), MaybeCmp::Just(10) );
+
+assert_ne!( MaybeCmp::Just(0), MaybeCmp::Just(10) );
+assert_ne!( MaybeCmp::Just(0), MaybeCmp::Nothing );
+assert_ne!( MaybeCmp::Nothing, MaybeCmp::Just(0) );
+assert_ne!( MaybeCmp::<u32>::Nothing, MaybeCmp::Nothing );
+
+```
+
+*/
 #[derive(Debug, Copy, Clone, Hash)]
 #[repr(u8)]
 #[derive(StableAbi)]

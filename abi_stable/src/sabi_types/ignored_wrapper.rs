@@ -9,12 +9,58 @@ use std::{
     hash::{Hash,Hasher},
 };
 
-/// Wrapper type used to ignore its contents in comparisons.
-///
-/// It also:
-///
-/// - replaces the hash of T with the hash of `()`.
-///
+/**
+Wrapper type used to ignore its contents in comparisons.
+
+Use this if you want to derive trait while ignoring the contents of fields in the 
+PartialEq/Eq/PartialOrd/Ord/Hash traits.
+
+It also:
+
+- replaces the hash of T with the hash of `()`.
+
+# Example
+
+This example defines a struct with a `CmpIgnored` field.
+
+```
+use abi_stable::sabi_types::CmpIgnored;
+
+use std::collections::HashSet;
+
+#[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash)]
+pub struct User{
+    name:String,
+    surname:String,
+    alt_name:CmpIgnored<String>,
+}
+
+
+let a=User{
+    name:"J__n".to_string(),
+    surname:"E____t".to_string(),
+    alt_name:"Z______l P______d".to_string().into(),
+};
+
+let b=User{
+    name:"J__n".to_string(),
+    surname:"E____t".to_string(),
+    alt_name:"H___ of B_____".to_string().into(),
+};
+
+assert_eq!(a,b);
+
+let mut map=HashSet::new();
+
+map.replace(a.clone());
+assert_eq!( map.replace(b.clone()).unwrap().alt_name.as_str(), "Z______l P______d" );
+
+assert_eq!(map.len(),1);
+assert_eq!( map.get(&a).unwrap().alt_name.as_str(), "H___ of B_____" );
+
+```
+
+*/
 #[repr(transparent)]
 #[derive(Default,Copy,Clone,StableAbi)]
 pub struct CmpIgnored<T>{
@@ -23,6 +69,16 @@ pub struct CmpIgnored<T>{
 
 
 impl<T> CmpIgnored<T>{
+    /// Constructs a CmpIgnored.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::sabi_types::CmpIgnored;
+    ///
+    /// let val=CmpIgnored::new(100);
+    ///
+    /// ```
     pub const fn new(value:T)->Self{
         Self{value}
     }
