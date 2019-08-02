@@ -349,7 +349,24 @@ impl<T> RVec<T> {
     ///
     /// # Example
     ///
-    /// //TODO
+    /// ```
+    /// use abi_stable::std_types::RVec;
+    ///
+    /// let mut list=RVec::<u64>::new();
+    ///
+    /// list.reserve_exact(10);
+    ///
+    /// unsafe{
+    ///     let start=list.as_mut_ptr();
+    ///     for i in 0..10 {
+    ///         start.add(i as usize).write(i);
+    ///     }
+    ///     list.set_len(10);
+    /// }
+    ///
+    /// assert_eq!( list, (0..10).collect::<RVec<u64>>() );
+    ///
+    /// ```
     pub unsafe fn set_len(&mut self, new_len: usize) {
         self.length = new_len;
     }

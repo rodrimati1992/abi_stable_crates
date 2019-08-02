@@ -570,9 +570,43 @@ where
 ////////////////////////////////////////////////////////////
 
 
+/**
+Deserializes an `RCow<'a,[u8]>` that borrows the slice from the deserializer 
+whenever possible.
 
-/// Deserializes an `RCow<'a,[u8]>` that borrows the slice from the deserializer 
-/// whenever possible.
+# Example
+
+Defining a type containing an `RCow<'a,[u8]>` which borrows from the deserializer.
+
+```
+use abi_stable::std_types::cow::{
+    deserialize_borrowed_bytes,
+    RCow,
+};
+
+use serde::{Deserialize,Serialize};
+
+
+#[derive(Debug,Deserialize,Serialize,PartialEq)]
+pub struct TheSlice<'a>{
+    #[serde(borrow,deserialize_with="deserialize_borrowed_bytes")]
+    slice:RCow<'a,[u8]>,
+}
+
+
+let the_slice=TheSlice{ slice:RCow::from(vec![0,1,2,3,4,5]) };
+
+let vec=bincode::serialize(&the_slice).unwrap();
+
+let deserialized_slice=bincode::deserialize(&vec).unwrap();
+
+assert_eq!(the_slice,deserialized_slice);
+
+assert!( deserialized_slice.slice.is_borrowed() );
+
+```
+
+*/
 pub fn deserialize_borrowed_bytes<'de,'a,D>(deserializer: D) -> Result<RCow<'a, [u8]>, D::Error>
 where
     D: Deserializer<'de>,
@@ -593,8 +627,48 @@ where
         })
 }
 
-/// Deserializes an `RCow<'a,str>` that borrows the string from the deserializer 
-/// whenever possible.
+
+/**
+Deserializes an `RCow<'a,str>` that borrows the string from the deserializer 
+whenever possible.
+
+
+# Example
+
+Defining a type containing an `RCow<'a,str>` which borrows from the deserializer.
+
+```
+use abi_stable::std_types::cow::{
+    deserialize_borrowed_str,
+    RCow,
+};
+
+use serde::{Deserialize,Serialize};
+
+
+#[derive(Debug,Deserialize,Serialize,PartialEq)]
+pub struct TheSlice<'a>{
+    #[serde(borrow,deserialize_with="deserialize_borrowed_str")]
+    slice:RCow<'a,str>,
+}
+
+
+let the_slice=TheSlice{ slice:RCow::from("That's a lot of fish.") };
+
+let string=serde_json::to_string(&the_slice).unwrap();
+
+let deserialized_slice=serde_json::from_str::<TheSlice<'_>>(&string).unwrap();
+
+assert_eq!(the_slice,deserialized_slice);
+
+assert!( deserialized_slice.slice.is_borrowed() );
+
+```
+
+
+
+
+*/
 pub fn deserialize_borrowed_str<'de,'a,D>(deserializer: D) -> Result<RCow<'a, str>, D::Error>
 where
     D: Deserializer<'de>,
@@ -662,8 +736,33 @@ where
     }
 }
 
+/**
+A helper type,to deserialize a RCow<'a,[u8]> which borrows from the deserializer.
 
-/// A helper type,to deserialize a RCow<'a,[u8]> which borrows from the deserializer.
+# Example
+
+```
+use abi_stable::std_types::cow::{
+    deserialize_borrowed_bytes,
+    BorrowingRCowU8Slice,
+};
+
+
+let the_slice:Vec<u8>=vec![0,1,2,3,4,5];
+
+let vec=bincode::serialize(&the_slice).unwrap();
+
+let deserialized_slice=bincode::deserialize::<BorrowingRCowU8Slice<'_>>(&vec).unwrap();
+
+assert_eq!( &*deserialized_slice.cow, &*the_slice );
+
+assert!( deserialized_slice.cow.is_borrowed() );
+
+
+```
+
+
+*/
 #[derive(Deserialize)]
 #[serde(transparent)]
 pub struct BorrowingRCowU8Slice<'a>{
@@ -671,7 +770,34 @@ pub struct BorrowingRCowU8Slice<'a>{
     pub cow:RCow<'a,[u8]>
 }
 
-/// A helper type,to deserialize a RCow<'a,str> which borrows from the deserializer.
+
+/**
+A helper type,to deserialize a RCow<'a,str> which borrows from the deserializer.
+
+# Example
+
+Defining a type containing an `RCow<'a,str>` borrowing from the deserializer,
+serializing it, and then deserializing it.
+
+```
+use abi_stable::std_types::cow::{
+    deserialize_borrowed_str,
+    BorrowingRCowStr,
+};
+
+
+let json=r##""W____ of S____""##;
+
+let deserialized_slice=serde_json::from_str::<BorrowingRCowStr<'_>>(json).unwrap();
+
+assert_eq!( &*deserialized_slice.cow, json.trim_matches('"') );
+
+assert!( deserialized_slice.cow.is_borrowed() );
+
+```
+
+
+*/
 #[derive(Deserialize)]
 #[serde(transparent)]
 pub struct BorrowingRCowStr<'a>{

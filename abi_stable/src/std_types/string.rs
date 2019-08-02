@@ -904,6 +904,17 @@ impl<'a> FromIterator<&'a char> for RString {
 //////////////////////////////////////////////////////
 
 /// Error that happens when attempting to convert an `RVec<u8>` into an RString.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::std_types::RString;
+///
+/// let err=RString::from_utf8(vec![0,0,0,255]).unwrap_err();
+///
+/// assert_eq!( err.as_bytes() , &[0,0,0,255] )
+///
+/// ```
 #[derive(Debug)]
 pub struct FromUtf8Error {
     bytes: RVec<u8>,
@@ -911,9 +922,53 @@ pub struct FromUtf8Error {
 }
 
 impl FromUtf8Error{
+    /// Unwraps this error into the bytes that were attempted to convert into an RString.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RString,RVec};
+    ///
+    /// let bytes:RVec<u8>= vec![72, 111, 95, 95, 95, 95, 95, 99, 107, 255].into();
+    ///
+    /// let err=RString::from_utf8(bytes.clone()).unwrap_err();
+    ///
+    /// assert_eq!( err.into_bytes(), bytes );
+    ///
+    /// ```
     pub fn into_bytes(self)->RVec<u8>{
         self.bytes
     }
+    /// Gets access to bytes that were attempted to convert into an RString.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let bytes= vec![99, 114, 121, 115, 116, 97, 108, 255];
+    ///
+    /// let err=RString::from_utf8(bytes.clone()).unwrap_err();
+    ///
+    /// assert_eq!( err.as_bytes(), &bytes[..] );
+    ///
+    /// ```
+    pub fn as_bytes(&self)->&[u8]{
+        &self.bytes
+    }
+
+    /// Gets a Utf8Error with information about the conversion error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let err=RString::from_utf8( vec![0, 0, 255] ).unwrap_err();
+    ///
+    /// assert_eq!( err.error().valid_up_to(), 2 );
+    ///
+    /// ```
     pub fn error(&self)->Utf8Error{
         self.error
     }
