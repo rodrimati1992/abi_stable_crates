@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/rodrimati1992/abi_stable_crates.svg?branch=master)](https://travis-ci.org/rodrimati1992/abi_stable_crates)
+[![Build Status](https://travis-ci.org/rodrimati1992/abi_stable_crates.svg?branch=master)](https://travis-ci.org/rodrimati1992/abi_stable_crates) [![Join the chat at https://gitter.im/abi_stable_crates/community](https://badges.gitter.im/abi_stable_crates/community.svg)](https://gitter.im/abi_stable_crates/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 For Rust-to-Rust ffi,
 with a focus on creating libraries loaded at program startup,
