@@ -19,6 +19,65 @@ or by panicking inside either initialization function.
 
 On `Err(_)` and panics,one can try initialializing the static reference again.
 
+# Example
+
+This lazily loads a configuration file.
+
+```
+
+use abi_stable::{
+    sabi_types::LateStaticRef,
+    std_types::{RBox,RBoxError,RHashMap,RString},
+    utils::leak_value,
+};
+
+use std::{
+    fs,
+    io,
+    path::Path,
+};
+
+use serde::Deserialize;
+
+
+#[derive(Deserialize)]
+pub struct Config{
+    pub user_actions:RHashMap<RString,UserAction>,
+}
+
+#[derive(Deserialize)]
+pub enum UserAction{
+    Include,
+    Ignore,
+    ReplaceWith,
+}
+
+
+fn load_module(file_path:&Path)->Result<&'static Config,RBoxError>{
+    static CONFIG:LateStaticRef<Config>=LateStaticRef::new();
+    
+    CONFIG.try_init(||{
+        let file=load_file(file_path).map_err(RBoxError::new)?;
+        let config=serde_json::from_str::<Config>(&file).map_err(RBoxError::new)?;
+        Ok(leak_value(config))
+    })
+}
+
+
+# fn load_file(file_path:&Path)->Result<String,RBoxError>{
+#     let str=r##"
+#         {
+#             "user_actions":{
+#                 "oolong":"prolonged",
+#                 "genius":"idiot"
+#             }
+#         }
+#     "##.to_string();
+#     Ok(str)
+# }
+
+```
+
 */
 #[repr(C)]
 #[derive(StableAbi)]
@@ -33,6 +92,15 @@ const LOCK:RMutex<()>=RMutex::new(());
 impl<T> LateStaticRef<T>{
     /// Constructs the late initialized static reference,
     /// in an uninitialized state.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::sabi_types::LateStaticRef;
+    ///
+    /// static LATE_REF:LateStaticRef<String>=LateStaticRef::new();
+    ///
+    /// ```
     pub const fn new()->Self{
         Self{
             lock:LOCK,
@@ -42,6 +110,16 @@ impl<T> LateStaticRef<T>{
 
     /// Constructs the late initialized static reference,
     /// initialized with `value`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::sabi_types::LateStaticRef;
+    ///
+    /// static LATE_REF:LateStaticRef<&'static str>=
+    ///     LateStaticRef::initialized(&"Hello!");
+    ///
+    /// ```
     pub const fn initialized(value:&'static T)->Self{
         Self{
             lock:LOCK,
@@ -58,6 +136,34 @@ impl<T> LateStaticRef<T>{
     ///
     /// If `initializer` panics,the panic is propagated,
     /// and the reference can be initalized later.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{
+    ///     sabi_types::LateStaticRef,
+    ///     utils::leak_value,
+    /// };
+    ///
+    /// static LATE:LateStaticRef<String>=LateStaticRef::new();
+    ///
+    /// static EARLY:LateStaticRef<&'static str>=
+    ///     LateStaticRef::initialized(&"Hello!");
+    ///
+    /// assert_eq!( LATE.try_init(|| Err("oh no!") ), Err("oh no!") );
+    /// assert_eq!( 
+    ///     LATE
+    ///         .try_init(||->Result<&'static String,()>{
+    ///             Ok( leak_value("Yay".to_string()) )
+    ///         })
+    ///         .map(|s| s.as_str() ),
+    ///     Ok("Yay"),
+    /// );
+    /// 
+    /// assert_eq!( EARLY.try_init(|| Err("oh no!") ), Ok(&"Hello!") );
+    ///
+    ///
+    /// ```
     pub fn try_init<F,E>(&self,initializer:F)->Result<&'static T,E>
     where F:FnOnce()->Result<&'static T,E>
     {
@@ -88,6 +194,29 @@ impl<T> LateStaticRef<T>{
     ///
     /// If `initializer` panics,the panic is propagated,
     /// and the reference can be initalized later.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{
+    ///     sabi_types::LateStaticRef,
+    ///     utils::leak_value,
+    /// };
+    ///
+    /// static LATE:LateStaticRef<String>=LateStaticRef::new();
+    ///
+    /// static EARLY:LateStaticRef<&'static str>=
+    ///     LateStaticRef::initialized(&"Hello!");
+    ///
+    /// let _=std::panic::catch_unwind(||{
+    ///     LATE.init(|| panic!() );
+    /// });
+    ///
+    /// assert_eq!( LATE.init(|| leak_value("Yay".to_string()) ), &"Yay" );
+    ///
+    /// assert_eq!( EARLY.init(|| panic!() ), &"Hello!" );
+    ///
+    /// ```
     #[inline]
     pub fn init<F>(&self,initializer:F)->&'static T
     where F:FnOnce()->&'static T
@@ -100,6 +229,31 @@ impl<T> LateStaticRef<T>{
     }
 
     /// Returns `Some(x:&'static T)` if the reference was initialized,otherwise returns None.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{
+    ///     sabi_types::LateStaticRef,
+    ///     utils::leak_value,
+    /// };
+    ///
+    /// static LATE:LateStaticRef<String>=LateStaticRef::new();
+    ///
+    /// static EARLY:LateStaticRef<&'static str>=
+    ///     LateStaticRef::initialized(&"Hello!");
+    ///
+    /// let _=std::panic::catch_unwind(||{
+    ///     LATE.init(|| panic!() );
+    /// });
+    ///
+    /// assert_eq!( LATE.get(), None );
+    /// LATE.init(|| leak_value("Yay".to_string()) );
+    /// assert_eq!( LATE.get().map(|s| s.as_str() ), Some("Yay") );
+    ///
+    /// assert_eq!( EARLY.get(), Some(&"Hello!") );
+    ///
+    /// ```
     pub fn get(&self)->Option<&'static T>{
         unsafe{
             self.pointer
