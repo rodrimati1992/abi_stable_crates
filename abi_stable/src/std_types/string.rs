@@ -979,3 +979,5 @@ impl fmt::Display for FromUtf8Error {
         fmt::Display::fmt(&self.error, f)
     }
 }
+
+impl std::error::Error for FromUtf8Error{}

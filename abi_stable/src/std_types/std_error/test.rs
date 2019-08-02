@@ -1,6 +1,7 @@
 use super::*;
 
 use crate::{
+    std_types::string::FromUtf8Error as OtherErr,
     test_utils::{check_formatting_equivalence,deref_address,Stringy},
 };
 
@@ -81,8 +82,8 @@ fn downcast() {
             method=$method:ident,
             conv=$conv:expr
         ) => ({
-            let res0=err.clone().piped(RBoxError::new).$method::<Stringy>().piped($conv).is_some();
-            let res1=err.clone().piped(RBoxError::new).$method::<u32>()    .piped($conv).is_none();
+            let res0=RBoxError::new(err.clone()).$method::<Stringy>().piped($conv).is_some();
+            let res1=RBoxError::new(err.clone()).$method::<OtherErr>().piped($conv).is_none();
 
             assert!(res0,"This RBoxError could not be downcasted to Stringy.");
 
