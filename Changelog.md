@@ -1,7 +1,42 @@
 This is the changelog,summarising changes in each version.
 
+
+
 # 0.6
 
+### 0.6.3
+
+- Added documentation examples to virtually every type/method in 
+    `abi_stable::{external_types,sabi_types,std_types}`
+
+- Added a few methods/associated functions because examples made it 
+    obvious that they were necessary.
+
+- Changed RBoxError_ downcast methods to downcast through a 
+    `Box<dyn Error+ ... >` if it wraps one.
+    
+    This involves a tiny breaking change where downcast now requires 
+    `std::error::Error` to be implemented by the error being downcasted.
+    This breaking change should not be a problem,
+    since `RBoxError::{new,from_box,from}` requires that the type implements the `Error` trait,
+    meaning that one can only sensibly downcast to types that implement the trait
+
+- Added `ROnce::NEW` associated constant as a workaround for a compiler bug
+
+- Added `abi_stable::inline_storage::alignment::AlignToUsize`
+
+### 0.6.2
+
+- Added the `#[derive(GetStaticEquivalent)]` derive macro.
+
+- Added `#[sabi(impl_InterfaceType())]` helper attribute to `#[derive(StableAbi)]` 
+    and `#[derive(GetStaticEquivalent)]`.
+
+- Replaced most uses of `impl_InterfaceType!{}` with the helper attribute.
+
+- Added comments explaining abi_stable concepts in examples.
+
+### 0.6.0
 
 - Implemented nonexhastive enum derivation and NonExhaustive wrapper type,
     with documentation on how to use them,

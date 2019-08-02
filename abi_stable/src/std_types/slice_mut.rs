@@ -1,3 +1,7 @@
+/*!
+Contains the ffi-safe equivalent of `&'a mut [T]`.
+*/
+
 use std::{
     borrow::{Borrow,BorrowMut},
     io::{self, Write},
@@ -16,7 +20,78 @@ use crate::std_types::{RSlice, RVec};
 mod privacy {
     use super::*;
 
-    /// Ffi-safe equivalent of `&'a mut [T]`
+/**
+Ffi-safe equivalent of `&'a mut [T]`
+
+As of the writing this documentation the abi stability of `&mut [T]` is 
+not yet guaranteed.
+
+# Lifetime problems
+
+Because RSliceMut dereferences into a mutable slice,you can call slice method on it.
+
+If you call a slice method that returns a borrow into the slice,
+it will have the lifetime of the `let slice:RSliceMut<'a,[T]>` variable instead of the `'a` 
+lifetime that it's parameterized over.
+
+To get a slice with the same lifetime as an RSliceMut,
+one must use one of the `RSliceMut::{into_slice,into_slice_mut}` methods.
+
+
+Example of what would not work:
+
+```compile_fail
+use abi_stable::std_types::RSliceMut;
+
+fn into_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a [T] {
+    &*slic
+}
+
+fn into_slice_mut<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
+    &mut *slic
+}
+```
+
+Example of what would work:
+
+```
+use abi_stable::std_types::RSliceMut;
+
+fn into_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a [T] {
+    slic.into_slice()
+}
+
+fn into_slice_mut<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
+    slic.into_slice_mut()
+}
+```
+
+
+# Example
+
+Defining an extern fn that returns a mutable reference to 
+the first element that compares equal to a parameter.
+
+```
+use abi_stable::{
+    std_types::RSliceMut,
+    sabi_extern_fn,
+};
+
+#[sabi_extern_fn]
+pub fn find_first_mut<'a,T>(slice_:RSliceMut<'a,T>,element:&T)->Option<&'a mut T>
+where
+    T:std::cmp::PartialEq
+{
+    slice_.iter()
+        .position(|x| x==element )
+        .map(|i| &mut slice_.into_slice_mut()[i] )
+}
+
+
+```
+
+*/
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(bound = "T:'a")]
@@ -45,11 +120,39 @@ mod privacy {
         }
 
         /// The length (in elements) of this slice.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RSliceMut;
+        ///
+        /// assert_eq!(RSliceMut::<u8>::from_mut_slice(&mut[]).len(), 0);
+        /// assert_eq!(RSliceMut::from_mut_slice(&mut[0]).len(), 1);
+        /// assert_eq!(RSliceMut::from_mut_slice(&mut[0,1]).len(), 2);
+        /// 
+        ///
+        /// ```
         #[inline(always)]
         pub const fn len(&self) -> usize {
             self.length
         }
-
+        
+        /// Whether this slice is empty.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RSliceMut;
+        ///
+        /// assert_eq!(RSliceMut::<u8>::from_mut_slice(&mut []).is_empty(), true);
+        /// assert_eq!(RSliceMut::from_mut_slice(&mut [0]).is_empty(), false);
+        /// assert_eq!(RSliceMut::from_mut_slice(&mut [0,1]).is_empty(), false);
+        ///
+        /// ```
+        #[inline]
+        pub const fn is_empty(&self) -> bool {
+            self.length==0
+        }
 
         /// Constructs an `RSliceMut<'a,T>` from a pointer to the first element,
         /// and a length.
@@ -65,6 +168,23 @@ mod privacy {
         /// - ptr_ is aligned to `T`.
         ///
         /// - the data ptr_ points to must be valid for the lifetime of this `RSlice<'a,T>`
+        ///
+        /// # Examples
+        ///
+        /// This function unsafely converts a `&mut [T]` to an `RSliceMut<T>`,
+        /// equivalent to doing `RSliceMut::from_mut_slice`.
+        ///
+        /// ```
+        /// use abi_stable::std_types::RSliceMut;
+        ///
+        /// fn convert<T>(slice_:&mut [T])->RSliceMut<'_,T>{
+        ///     let len=slice_.len();
+        ///     unsafe{
+        ///         RSliceMut::from_raw_parts_mut( slice_.as_mut_ptr(), len )
+        ///     }
+        /// }
+        ///
+        /// ```
         pub unsafe fn from_raw_parts_mut(ptr_: *mut T, len: usize) -> Self {
             Self {
                 data: ptr_,
@@ -86,16 +206,62 @@ impl<'a, T> RSliceMut<'a, T> {
     /// Converts a mutable reference to `T` to a single element `RSliceMut<'a,T>`.
     ///
     /// Note:this function does not copy anything.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RSliceMut;
+    ///
+    /// assert_eq!(RSliceMut::from_mut(&mut 0), RSliceMut::from_mut_slice(&mut [0]) );
+    /// assert_eq!(RSliceMut::from_mut(&mut 1), RSliceMut::from_mut_slice(&mut [1]) );
+    /// assert_eq!(RSliceMut::from_mut(&mut 2), RSliceMut::from_mut_slice(&mut [2]) );
+    /// 
+    ///
+    /// ```
     pub fn from_mut(ref_:&'a mut T)->Self{
         unsafe{
             Self::from_raw_parts_mut(ref_,1)
         }
     }
 
+    /// Converts a `&'a mut [T]` to a `RSliceMut<'a,T>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RSliceMut;
+    ///
+    /// let empty:&mut [u8]=&mut [];
+    ///
+    /// assert_eq!(RSliceMut::<u8>::from_mut_slice(&mut[]).as_mut_slice(), empty);
+    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0]).as_mut_slice()     , &mut [0][..]);
+    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0,1]).as_mut_slice()   , &mut [0,1][..]);
+    /// 
+    /// ```
+    #[inline]
+    pub fn from_mut_slice(slic:&'a mut [T])->Self{
+        slic.into()
+    }
+
     /// Creates an `RSlice<'a,T>` with access to the `range` range of elements.
     ///
     /// This is an inherent method instead of an implementation of the
     /// ::std::ops::Index trait because it does not return a reference.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RSliceMut,RSlice};
+    ///
+    /// let slic=&mut[0,1,2,3];
+    /// let slic=RSliceMut::from_mut_slice(slic);
+    ///
+    /// assert_eq!(slic.slice(..),RSlice::from_slice(&[0,1,2,3]));
+    /// assert_eq!(slic.slice(..2),RSlice::from_slice(&[0,1]));
+    /// assert_eq!(slic.slice(2..),RSlice::from_slice(&[2,3]));
+    /// assert_eq!(slic.slice(1..3),RSlice::from_slice(&[1,2]));
+    ///
+    /// ```
     pub fn slice<I>(&self, i: I) -> RSlice<'_, T>
     where
         [T]: Index<I, Output = [T]>,
@@ -107,6 +273,21 @@ impl<'a, T> RSliceMut<'a, T> {
     ///
     /// This is an inherent method instead of an implementation of the
     /// ::std::ops::IndexMut trait because it does not return a reference.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RSliceMut;
+    ///
+    /// let slic=&mut[0,1,2,3];
+    /// let mut slic=RSliceMut::from_mut_slice(slic);
+    ///
+    /// assert_eq!(slic.slice_mut(..),RSliceMut::from_mut_slice(&mut[0,1,2,3]));
+    /// assert_eq!(slic.slice_mut(..2),RSliceMut::from_mut_slice(&mut[0,1]));
+    /// assert_eq!(slic.slice_mut(2..),RSliceMut::from_mut_slice(&mut[2,3]));
+    /// assert_eq!(slic.slice_mut(1..3),RSliceMut::from_mut_slice(&mut[1,2]));
+    ///
+    /// ```
     pub fn slice_mut<'b, I>(&'b mut self, i: I) -> RSliceMut<'b, T>
     where
         [T]: IndexMut<I, Output = [T]>,
@@ -115,6 +296,21 @@ impl<'a, T> RSliceMut<'a, T> {
     }
 
     /// Creates a new `RVec<T>` and clones all the elements of this slice into it.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RSliceMut,RVec};
+    ///
+    /// let slic=&mut[0,1,2,3];
+    /// let slic=RSliceMut::from_mut_slice(slic);
+    ///
+    /// assert_eq!(slic.slice(..).to_rvec(),RVec::from_slice(&[0,1,2,3]));
+    /// assert_eq!(slic.slice(..2).to_rvec(),RVec::from_slice(&[0,1]));
+    /// assert_eq!(slic.slice(2..).to_rvec(),RVec::from_slice(&[2,3]));
+    /// assert_eq!(slic.slice(1..3).to_rvec(),RVec::from_slice(&[1,2]));
+    ///
+    /// ```
     pub fn to_rvec(&self) -> RVec<T>
     where
         T: Clone,
@@ -131,6 +327,15 @@ impl<'a, T> RSliceMut<'a, T> {
     }
 
     /// Creates an `&'_ [T]` with access to all the elements of this slice.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RSliceMut;
+    ///
+    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0,1,2,3]).as_slice(), &[0,1,2,3]);
+    ///
+    /// ```
     pub fn as_slice(&self) -> &[T] {
         unsafe { self.as_slice_unbounded_lifetime() }
     }
@@ -139,11 +344,32 @@ impl<'a, T> RSliceMut<'a, T> {
     ///
     /// This is different to `as_slice` in that the returned lifetime of 
     /// this function  is larger.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RSliceMut;
+    ///
+    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0,1,2,3]).into_slice(), &[0,1,2,3]);
+    ///
+    /// ```
     pub fn into_slice(self) -> &'a [T] {
         unsafe { self.as_slice_unbounded_lifetime() }
     }
 
     /// Creates an `RSlice<'_, T>` with access to all the elements of this slice.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RSliceMut,RSlice};
+    ///
+    /// assert_eq!(
+    ///     RSliceMut::from_mut_slice(&mut[0,1,2,3]).as_rslice(),
+    ///     RSlice::from_slice(&[0,1,2,3]),
+    /// );
+    ///
+    /// ```
     pub fn as_rslice(&self) -> RSlice<'_, T> {
         self.as_slice().into()
     }
@@ -152,11 +378,32 @@ impl<'a, T> RSliceMut<'a, T> {
     ///
     /// This is different to `as_rslice` in that the returned lifetime of 
     /// this function  is larger.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RSliceMut,RSlice};
+    ///
+    /// assert_eq!(
+    ///     RSliceMut::from_mut_slice(&mut[0,1,2,3]).into_rslice(),
+    ///     RSlice::from_slice(&[0,1,2,3]),
+    /// );
+    ///
+    /// ```
     pub fn into_rslice(self) -> RSlice<'a, T> {
         self.into_slice().into()
     }
     
     /// Creates a `&'_ mut [T]` with access to all the elements of this slice.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RSliceMut;
+    ///
+    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0,1,2,3]).as_mut_slice(), &mut [0,1,2,3]);
+    ///
+    /// ```
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         unsafe { self.as_mut_slice_unbounded_lifetime() }
     }
@@ -165,7 +412,35 @@ impl<'a, T> RSliceMut<'a, T> {
     ///
     /// This is different to `as_mut_slice` in that the returned lifetime of 
     /// this function is larger.
+    ///
+    /// This will be deprecated in 0.7.0.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RSliceMut;
+    ///
+    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0,1,2,3]).into_slice_mut(), &mut [0,1,2,3]);
+    ///
+    /// ```
     pub fn into_slice_mut(mut self) -> &'a mut [T] {
+        unsafe { self.as_mut_slice_unbounded_lifetime() }
+    }
+
+    /// Creates a `&'a mut [T]` with access to all the elements of this slice.
+    ///
+    /// This is different to `as_mut_slice` in that the returned lifetime of 
+    /// this function is larger.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RSliceMut;
+    ///
+    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0,1,2,3]).into_mut_slice(), &mut [0,1,2,3]);
+    ///
+    /// ```
+    pub fn into_mut_slice(mut self) -> &'a mut [T] {
         unsafe { self.as_mut_slice_unbounded_lifetime() }
     }
 }

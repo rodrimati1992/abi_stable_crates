@@ -235,4 +235,17 @@ pub unsafe trait OwnedPointer:Sized{
             ret
         }
     }
+
+    #[inline]
+    fn in_move_ptr<F,R>(self,f:F)->R
+    where 
+        F:FnOnce(MovePtr<'_,Self::Target>)->R
+    {
+        unsafe{
+            let mut this=ManuallyDrop::new(self);
+            let ret=f(Self::get_move_ptr(&mut this));
+            Self::drop_allocation(&mut this);
+            ret
+        }
+    }
 }

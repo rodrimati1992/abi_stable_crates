@@ -29,6 +29,23 @@ use crate::std_types::StaticStr;
 /// Minor versions are mutually incompatible for both users and implementors.
 ///
 /// Patch cannot change the api/abi of the library at all,fixes only.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::sabi_types::VersionStrings;
+///
+/// let v1_0_0=VersionStrings::new("1.0.0").parsed().unwrap();
+/// let v1_0_5=VersionStrings::new("1.0.5").parsed().unwrap();
+/// let v1_1_0=VersionStrings::new("1.1.0").parsed().unwrap();
+/// let v2_0_0=VersionStrings::new("1.0.5").parsed().unwrap();
+///
+///
+/// assert!(  v1_0_0.is_compatible(v1_0_5),"'{}' '{}'",v1_0_0,v1_0_5);
+/// assert!(  v1_0_5.is_compatible(v1_1_0),"'{}' '{}'",v1_0_5,v1_1_0);
+/// assert!( !v1_1_0.is_compatible(v2_0_0),"'{}' '{}'",v1_1_0,v2_0_0);
+///
+/// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[repr(C)]
 pub struct VersionStrings {
@@ -46,6 +63,23 @@ pub struct VersionStrings {
 /// any previous minor release (with the same major number).
 ///
 /// Patch cannot change the api/abi of the library at all,fixes only.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::sabi_types::VersionNumber;
+///
+/// let v0_1_0=VersionNumber{major:0,minor:1,patch:0};
+/// let v0_1_5=VersionNumber{major:0,minor:1,patch:5};
+/// let v0_1_8=VersionNumber{major:0,minor:1,patch:8};
+/// let v0_2_0=VersionNumber{major:0,minor:2,patch:0};
+///
+///
+/// assert!(  v0_1_0.is_compatible(v0_1_5),"'{}' '{}'",v0_1_0,v0_1_5);
+/// assert!(  v0_1_5.is_compatible(v0_1_8),"'{}' '{}'",v0_1_5,v0_1_8);
+/// assert!( !v0_1_8.is_compatible(v0_2_0),"'{}' '{}'",v0_1_8,v0_2_0);
+///
+/// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[repr(C)]
 pub struct VersionNumber {
@@ -55,15 +89,64 @@ pub struct VersionNumber {
 }
 
 impl VersionStrings {
+    /// Constructs a VersionStrings from a string with the 
+    /// "major.minor.patch" format,where each one is a valid number.
+    /// 
+    /// This does not check whether the string is correctly formatted,
+    /// that check is done inside `VersionStrings::parsed`/`VersionNumber::new`.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use abi_stable::sabi_types::VersionStrings;
+    /// 
+    /// static VERSION:VersionStrings=VersionStrings::new("0.1.2");
+    /// 
+    /// ```
     pub const fn new(version:&'static str)->Self{
         Self{version:StaticStr::new(version)}
     }
+
+    /// Attempts to convert a `VersionStrings` into a `VersionNumber`
+    /// 
+    /// This returns a `ParseVersionError` if the string is not correctly formatted.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use abi_stable::sabi_types::{VersionNumber,VersionStrings};
+    /// 
+    /// static VERSION:VersionStrings=VersionStrings::new("0.1.2");
+    /// 
+    /// assert_eq!( VERSION.parsed(), Ok(VersionNumber{major:0,minor:1,patch:2}) );
+    ///
+    /// let err_version=VersionStrings::new("0.a.2.b");
+    /// assert!( err_version.parsed().is_err() );
+    /// 
+    /// ```
     pub fn parsed(self) -> Result<VersionNumber, ParseVersionError> {
         VersionNumber::new(self)
     }
 }
 
 impl VersionNumber {
+    /// Attempts to convert a `VersionStrings` into a `VersionNumber`
+    /// 
+    /// This returns a `ParseVersionError` if the string is not correctly formatted.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use abi_stable::sabi_types::{VersionNumber,VersionStrings};
+    /// 
+    /// static VERSION:VersionStrings=VersionStrings::new("10.5.20");
+    /// 
+    /// assert_eq!( VersionNumber::new(VERSION), Ok(VersionNumber{major:10,minor:5,patch:20}) );
+    ///
+    /// let err_version=VersionStrings::new("not a version number");
+    /// assert!( VersionNumber::new(err_version).is_err() );
+    /// 
+    /// ```
     pub fn new(vn: VersionStrings) -> Result<Self, ParseVersionError> {
         let mut iter=vn.version.splitn(3,'.');
 
@@ -99,6 +182,22 @@ impl VersionNumber {
     ///
     /// - Libraries are compatible so long as they are the same
     ///     major version with a minor_version >=`self`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::sabi_types::VersionNumber;
+    ///
+    /// let v0_1_0=VersionNumber{major:0,minor:1,patch:0};
+    /// let v0_1_5=VersionNumber{major:0,minor:1,patch:5};
+    /// let v0_1_8=VersionNumber{major:0,minor:1,patch:8};
+    /// let v0_2_0=VersionNumber{major:0,minor:2,patch:0};
+    ///
+    /// assert!(  v0_1_0.is_compatible(v0_1_5),"'{}' '{}'",v0_1_0,v0_1_5);
+    /// assert!(  v0_1_5.is_compatible(v0_1_8),"'{}' '{}'",v0_1_5,v0_1_8);
+    /// assert!( !v0_1_8.is_compatible(v0_2_0),"'{}' '{}'",v0_1_8,v0_2_0);
+    ///
+    /// ```
     pub fn is_compatible(self, library_implementor: VersionNumber) -> bool {
         if self.major == 0 && library_implementor.major == 0 {
             self.minor == library_implementor.minor && self.patch <= library_implementor.patch

@@ -1,3 +1,7 @@
+/*!
+Contains the ffi-safe equivalent of `std::result::Result`.
+*/
+
 use std::fmt::Debug;
 
 use core_extensions::matches;
@@ -275,6 +279,22 @@ impl<T, E> RResult<T, E> {
     ///
     /// Panics if `self` is an `Err(_)` with an error message 
     /// using `E`s Debug implementation.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!( ROk::<_,()>(500).unwrap(), 500 );
+    ///
+    /// ```
+    ///
+    /// This one panics:
+    /// ```should_panic
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// let _=RErr::<(),_>("Oh noooo!").unwrap();
+    /// ```
     pub fn unwrap(self) -> T 
     where 
         E:Debug
@@ -289,6 +309,22 @@ impl<T, E> RResult<T, E> {
     /// Panics if `self` is an `Err(_)` with an error message 
     /// using `E`s Debug implementation,
     /// as well as `message`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!( ROk::<_,()>(500).expect("Are you OK?"), 500 );
+    ///
+    /// ```
+    ///
+    /// This one panics:
+    /// ```should_panic
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// let _=RErr::<(),_>(()).expect("This can't be!");
+    /// ```
     pub fn expect(self, message: &str) -> T
     where 
         E:Debug
@@ -302,6 +338,22 @@ impl<T, E> RResult<T, E> {
     ///
     /// Panics if `self` is an `Ok(_)` with an error message 
     /// using `T`s Debug implementation.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!( RErr::<(),u32>(0xB007).unwrap_err(), 0xB007 );
+    ///
+    /// ```
+    ///
+    /// This one panics:
+    /// ```should_panic
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// let _=ROk::<(),()>(()).unwrap_err();
+    /// ```
     pub fn unwrap_err(self) -> E
     where 
         T:Debug
@@ -316,6 +368,22 @@ impl<T, E> RResult<T, E> {
     /// Panics if `self` is an `Ok(_)` with an error message 
     /// using `T`s Debug implementation,
     /// as well as `message`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!( RErr::<(),u32>(0xB001).expect_err("Murphy's law"), 0xB001 );
+    ///
+    /// ```
+    ///
+    /// This one panics:
+    /// ```should_panic
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// let _=ROk::<(),()>(()).expect_err("Everything is Ok");
+    /// ```
     pub fn expect_err(self, message: &str) -> E
     where 
         T:Debug
@@ -324,6 +392,16 @@ impl<T, E> RResult<T, E> {
     }
 
     /// Returns the value in the `RResult<T,E>`,or `def` if `self` is `RErr`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(ROk::<u32,u32>(10).unwrap_or(0xEEEE),10);
+    /// assert_eq!(RErr::<u32,u32>(5).unwrap_or(0b101010),0b101010);
+    ///
+    /// ```
     #[inline]
     pub fn unwrap_or(self, optb: T) -> T {
         match self {
