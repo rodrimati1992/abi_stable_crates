@@ -459,6 +459,121 @@ pub struct SaysThankYou{
 
 # Example
 
+This example shows how one can use RSmallBox to define a generic nonexhausitve enum.
+
+```
+
+use abi_stable::{
+    sabi_types::RSmallBox,
+    std_types::{RString,RVec},
+    reexports::SelfOps,
+    StableAbi,
+};
+
+#[repr(u8)]
+#[derive(StableAbi,Debug,Clone,PartialEq)]
+#[sabi(kind(WithNonExhaustive(
+    // Determines the maximum size of this enum in semver compatible versions.
+    // This is 11 usize large because:
+    //    - The enum discriminant occupies 1 usize(because the enum is usize aligned).
+    //    - RSmallBox<T,[usize;8]>: is 10 usize large
+    size="[usize;11]",
+    // Determines the traits that are required when wrapping this enum in NonExhaustive,
+    // and are then available with it.
+    traits(Debug,Clone,PartialEq),
+)))]
+#[sabi(with_constructor)]
+pub enum SomeEnum<T>{
+    #[doc(hidden)]
+    __NonExhaustive,
+    Foo,
+    Bar,
+    Crash{
+        reason:RString,
+        animal:RString,
+    },
+    // This variant was added in a newer (compatible) version of the library.
+    #[sabi(with_boxed_constructor)]
+    Other(RSmallBox<T,[usize;8]>)
+}
+
+impl<T> SomeEnum<T>{
+    pub fn is_inline(&self)->bool{
+        match self {
+            SomeEnum::__NonExhaustive=>true,
+            SomeEnum::Foo=>true,
+            SomeEnum::Bar=>true,
+            SomeEnum::Crash{..}=>true,
+            SomeEnum::Other(rsbox)=>RSmallBox::is_inline(rsbox),
+        }
+    }
+
+    pub fn is_heap_allocated(&self)->bool{
+        !self.is_inline()
+    }
+
+}
+
+
+#[repr(C)]
+#[derive(StableAbi,Debug,Clone,PartialEq)]
+pub struct FullName{
+    pub name:RString,
+    pub surname:RString,
+}
+
+
+/// A way to represent a frozen `Vec<Vec<T>>`.
+///
+/// This example just constructs NestedVec directly,
+/// realistically it would be constructed in an associated function of NestedVec.
+#[repr(C)]
+#[derive(StableAbi,Debug,Clone,PartialEq)]
+pub struct NestedVec<T>{
+    indices:RVec<usize>,
+    nested:RVec<T>,
+    dummy_field:u32,
+}
+
+
+# fn main(){
+
+let crash=SomeEnum::<()>::Crash_NE("No reason".into(),"Bandi____".into());
+
+let other_fullname=
+    SomeEnum::Other_NE(FullName{ name:"R__e".into(), surname:"L_____e".into() });
+
+let other_nestedlist={
+    let nestedlist=NestedVec{
+        indices:vec![0,2,3,5].into(),
+        // Each line here is a nested list.
+        nested:vec![
+            false,false,
+            true,
+            true,false,
+            true,true,true,
+        ].into(),
+        dummy_field:0,
+    };
+    SomeEnum::Other_NE(nestedlist)
+};
+
+
+
+
+assert!( crash.as_enum().unwrap().is_inline() );
+assert!( other_fullname.as_enum().unwrap().is_inline() );
+assert!( other_nestedlist.as_enum().unwrap().is_heap_allocated() );
+
+
+# }
+
+
+
+```
+
+# Example
+
 Say that we want to define a "private" enum
 (it's exposed to the ABI but it's not public API),
 used internally to send information between instances of the same library,
