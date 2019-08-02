@@ -27,7 +27,56 @@ mod test;
 mod private {
     use super::*;
 
-    /// Ffi-safe version of ::std::sync::Arc<_>
+/**    
+Ffi-safe version of ::std::sync::Arc<_>
+
+# Example
+
+Using an `RArc<RMutex<RVec<u32>>>` to get a list populated from multiple threads.
+
+```
+use abi_stable::{
+    external_types::RMutex,
+    std_types::{RArc,RVec},
+};
+
+use std::thread;
+
+let arc=RArc::new(RMutex::new(RVec::new()));
+
+{
+    let arc2=RArc::clone(&arc);
+    assert!( std::ptr::eq(&*arc,&*arc2) );
+}
+
+let mut guards=Vec::new();
+
+for i in 0..10_u64 {
+    let arc=RArc::clone(&arc);
+    guards.push(thread::spawn(move||{
+        for j in 0..100_u64{
+            arc.lock().push(i*100+j);
+        }
+    }));
+}
+
+for guard in guards{
+    guard.join().unwrap();
+}
+
+let mut vec=RArc::try_unwrap(arc)
+    .ok()
+    .expect("All the threads were joined,so this must be the only RArc")
+    .into_inner();
+
+vec.sort();
+
+assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
+
+
+```
+
+*/
     #[derive(StableAbi)]
     #[repr(C)]
     pub struct RArc<T> {
@@ -93,12 +142,19 @@ mod private {
 pub use self::private::RArc;
 
 impl<T> RArc<T> {
+    /// Constructs an `RArc` from a value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RArc;
+    ///
+    /// let arc=RArc::new(100);
+    ///
+    /// ```
     pub fn new(this: T) -> Self {
         Arc::new(this).into()
     }
-}
-
-impl<T> RArc<T> {
 
     /// Converts this into an `Arc<T>`
     ///
@@ -112,6 +168,18 @@ impl<T> RArc<T> {
     /// `T` is cloned if the current dynamic_library/executable is 
     /// not the one that created the `RArc<T>`,
     /// and the strong count is greater than 1.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RArc;
+    /// use std::sync::Arc;
+    ///
+    /// let arc=RArc::new(100);
+    ///
+    /// assert_eq!( RArc::into_arc(arc), Arc::new(100) );
+    ///
+    /// ```
     pub fn into_arc(this: Self) -> Arc<T>
     where
         T: Clone,
@@ -131,6 +199,20 @@ impl<T> RArc<T> {
 
     /// Attempts to unwrap this `RArc<T>` into a `T`,
     /// returns Err(self) if the `RArc<T>`s strong count is greater than 1.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RArc;
+    /// 
+    /// let arc0=RArc::new(100);
+    /// assert_eq!( RArc::try_unwrap(arc0), Ok(100) );
+    ///
+    /// let arc1=RArc::new(100);
+    /// let arc1_clone=RArc::clone(&arc1);
+    /// assert_eq!( RArc::try_unwrap(arc1), Err(arc1_clone.clone()) );
+    ///
+    /// ```
     #[inline]
     pub fn try_unwrap(this: Self) -> Result<T, Self>{
         let vtable = this.vtable();
@@ -139,6 +221,21 @@ impl<T> RArc<T> {
 
     /// Attempts to create a mutable reference to `T`,
     /// failing if `RArc<T>`s strong count is greater than 1.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RArc;
+    /// 
+    /// let mut arc0=RArc::new(100);
+    /// *RArc::get_mut(&mut arc0).unwrap()+=400;
+    /// assert_eq!( *arc0, 500 );
+    ///
+    /// let mut arc1=RArc::new(100);
+    /// let _arc1_clone=RArc::clone(&arc1);
+    /// assert_eq!( RArc::get_mut(&mut arc1), None );
+    ///
+    /// ```
     #[inline]
     pub fn get_mut(this: &mut Self) -> Option<&mut T>{
         let vtable = this.vtable();
@@ -154,6 +251,23 @@ impl<T> RArc<T> {
     /// After this call, the strong count of `this` will be 1,
     /// because either it was 1 before the call,
     /// or because a new `RArc<T>` was created to ensure unique ownership of `T`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RArc;
+    /// 
+    /// let mut arc0=RArc::new(100);
+    /// *RArc::make_mut(&mut arc0)+=400;
+    /// assert_eq!( *arc0, 500 );
+    ///
+    /// let mut arc1=RArc::new(100);
+    /// let arc1_clone=RArc::clone(&arc1);
+    /// *RArc::make_mut(&mut arc1)+=400;
+    /// assert_eq!( *arc1, 500 );
+    /// assert_eq!( *arc1_clone, 100 );
+    ///
+    /// ```
     #[inline]
     pub fn make_mut<'a>(this: &'a mut Self) -> &'a mut T 
     where T:Clone

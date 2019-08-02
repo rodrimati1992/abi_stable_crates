@@ -150,6 +150,22 @@ impl<T> ROption<T> {
     /// # Panics
     /// 
     /// Panics if `self` is `RNone` with the `msg` message.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!( RSome(100).expect("must contain a value"), 100 );
+    ///
+    /// ```
+    ///
+    /// This one panics:
+    /// ```should_panic
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// let _=RNone::<()>.expect("Oh noooo!");
+    /// ```
     #[inline]
     pub fn expect(self, msg: &str) -> T {
         self.into_option().expect(msg)
@@ -159,6 +175,22 @@ impl<T> ROption<T> {
     /// # Panics
     /// 
     /// Panics if `self` is `RNone`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!( RSome(500).unwrap(), 500 );
+    ///
+    /// ```
+    ///
+    /// This one panics:
+    /// ```should_panic
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// let _=RNone::<()>.unwrap();
+    /// ```
     #[inline]
     pub fn unwrap(self) -> T {
         self.into_option().unwrap()

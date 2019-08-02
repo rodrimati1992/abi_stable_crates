@@ -27,6 +27,17 @@ pub struct RDuration {
 
 impl RDuration {
     /// Constructs this RDuration from seconds and the nanoseconds inside a second .
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RDuration;
+    /// 
+    /// let dur=RDuration::new(1,456_000_000);
+    /// assert_eq!( dur.as_millis(), 1_456 );
+    /// assert_eq!( dur.as_micros(), 1_456_000 );
+    /// 
+    /// ```
     pub const fn new(seconds: u64, subsec_nanos: u32) -> Self {
         Self {
             subsec_nanos,
