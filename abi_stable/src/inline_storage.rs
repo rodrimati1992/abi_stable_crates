@@ -73,9 +73,10 @@ impl_for_arrays!{
 
 macro_rules! declare_alignments {
     (
-        $(( $aligner:ident, $alignment:expr ),)*
+        $(( $docs:expr, $aligner:ident, $alignment:expr ),)*
     ) => (
         $(
+            #[doc=$docs]
             #[repr(C)]
             #[repr(align($alignment))]
             pub struct $aligner<Inline>{
@@ -96,15 +97,31 @@ pub mod alignment{
     use super::*;
     
     declare_alignments!{
-        ( AlignTo1,1 ),
-        ( AlignTo2,2 ),
-        ( AlignTo4,4 ),
-        ( AlignTo8,8 ),
-        ( AlignTo16,16 ),
-        ( AlignTo32,32 ),
-        ( AlignTo64,64 ),
-        ( AlignTo128,128 ),
+        ( "Aligns its contents to an address at a multiple of 1 bytes.",AlignTo1,1 ),
+        ( "Aligns its contents to an address at a multiple of 2 bytes.",AlignTo2,2 ),
+        ( "Aligns its contents to an address at a multiple of 4 bytes.",AlignTo4,4 ),
+        ( "Aligns its contents to an address at a multiple of 8 bytes.",AlignTo8,8 ),
+        ( "Aligns its contents to an address at a multiple of 16 bytes.",AlignTo16,16 ),
+        ( "Aligns its contents to an address at a multiple of 32 bytes.",AlignTo32,32 ),
+        ( "Aligns its contents to an address at a multiple of 64 bytes.",AlignTo64,64 ),
+        ( "Aligns its contents to an address at a multiple of 128 bytes.",AlignTo128,128 ),
     }
+
+    /// Aligns its contents to an address to an address at 
+    /// a multiple of the size of a pointer.
+    #[repr(C)]
+    #[cfg_attr(target_pointer_width="128",repr(C,align(16)))]
+    #[cfg_attr(target_pointer_width="64",repr(C,align(8)))]
+    #[cfg_attr(target_pointer_width="32",repr(C,align(4)))]
+    #[cfg_attr(target_pointer_width="16",repr(C,align(2)))]
+    pub struct AlignToUsize<Inline>{
+        inline:Inline,
+    }
+
+    unsafe impl<Inline> InlineStorage for AlignToUsize<Inline>
+    where
+        Inline:InlineStorage,
+    {}
 }
 
 
