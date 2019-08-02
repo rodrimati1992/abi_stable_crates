@@ -101,10 +101,46 @@ pub struct IntoIter<T> {
 
 
 impl<T> IntoIter<T>{
+    /// Returns a slice over the remainder of the `Vec<T>` that is being iterated over.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RVec;
+    ///
+    /// let mut iter=RVec::from(vec![0,1,2,3]).into_iter();
+    ///
+    /// assert_eq!( iter.as_slice(), &[0,1,2,3] );
+    ///
+    /// assert_eq!( iter.next(), Some(0) );
+    /// assert_eq!( iter.as_slice(), &[1,2,3] );
+    ///
+    /// assert_eq!( iter.next_back(), Some(3) );
+    /// assert_eq!( iter.as_slice(), &[1,2] );
+    ///
+    /// ```
     pub fn as_slice(&self)->&[T]{
         self.iter.as_slice()
     }
 
+    /// Returns a mutable slice over the remainder of the `Vec<T>` that is being iterated over.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RVec;
+    ///
+    /// let mut iter=RVec::from(vec![0,1,2,3]).into_iter();
+    ///
+    /// assert_eq!( iter.as_mut_slice(), &mut [0,1,2,3] );
+    ///
+    /// assert_eq!( iter.next(), Some(0) );
+    /// assert_eq!( iter.as_mut_slice(), &mut [1,2,3] );
+    ///
+    /// assert_eq!( iter.next_back(), Some(3) );
+    /// assert_eq!( iter.as_mut_slice(), &mut [1,2] );
+    ///
+    /// ```
     pub fn as_mut_slice(&mut self)->&mut [T]{
         self.iter.as_mut_slice()
     }
@@ -148,10 +184,56 @@ pub struct Drain<'a, T> {
 }
 
 impl<'a,T> Drain<'a,T>{
+    /// Returns a slice over the remainder of the `Vec<T>` that is being drained.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RVec;
+    ///
+    /// let mut list=(0..8).collect::<RVec<u8>>();
+    /// let mut iter=list.drain(3..7);
+    ///
+    /// assert_eq!( iter.as_slice(), &[3,4,5,6] );
+    ///
+    /// assert_eq!( iter.next(), Some(3) );
+    /// assert_eq!( iter.as_slice(), &[4,5,6] );
+    ///
+    /// assert_eq!( iter.next(), Some(4) );
+    /// assert_eq!( iter.as_slice(), &[5,6] );
+    ///
+    /// drop(iter);
+    ///
+    /// assert_eq!(list.as_slice(),&[0,1,2,7]);
+    ///
+    /// ```
     pub fn as_slice(&self)->&[T]{
         self.iter.as_slice()
     }
 
+    /// Returns a mutable slice over the remainder of the `Vec<T>` that is being drained.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RVec;
+    ///
+    /// let mut list=(0..8).collect::<RVec<u8>>();
+    /// let mut iter=list.drain(3..7);
+    ///
+    /// assert_eq!( iter.as_mut_slice(), &mut [3,4,5,6] );
+    ///
+    /// assert_eq!( iter.next(), Some(3) );
+    /// assert_eq!( iter.as_mut_slice(), &mut [4,5,6] );
+    ///
+    /// assert_eq!( iter.next(), Some(4) );
+    /// assert_eq!( iter.as_mut_slice(), &mut [5,6] );
+    ///
+    /// drop(iter);
+    ///
+    /// assert_eq!(list.as_slice(),&[0,1,2,7]);
+    ///
+    /// ```
     pub fn as_mut_slice(&mut self)->&mut [T]{
         self.iter.as_mut_slice()
     }

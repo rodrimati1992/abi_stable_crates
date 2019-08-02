@@ -1,3 +1,7 @@
+/*!
+Contains an ffi-safe equivalent of `std::string::String`.
+*/
+
 use std::{
     borrow::{Cow,Borrow},
     fmt::{self, Display, Formatter},
@@ -24,7 +28,31 @@ mod tests;
 
 pub use self::iters::{Drain, IntoIter};
 
-/// Ffi-safe equivalent of ::std::string::String
+/**
+Ffi-safe equivalent of ::std::string::String
+
+# Example
+
+This defines a function returning the last word of an RString.
+
+```
+use abi_stable::{
+    std_types::RString,
+    sabi_extern_fn,
+};
+
+
+#[sabi_extern_fn]
+fn first_word(phrase:RString)->RString{
+    match phrase.split_whitespace().next_back() {
+        Some(x)=>x.into(),
+        None=>RString::new(),
+    }
+}
+
+```
+
+*/
 #[derive(Clone)]
 #[repr(C)]
 #[derive(StableAbi)]
@@ -34,12 +62,35 @@ pub struct RString {
 
 impl RString {
     /// Creates a new,empty RString.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let str=RString::new();
+    /// 
+    /// assert_eq!(&str[..],"");
+    ///
+    /// ```
     pub fn new() -> Self {
         String::new().into()
     }
 
     /// Creates a new,
     /// empty RString with the capacity to push strings that add up to `cap` bytes.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let str=RString::with_capacity(10);
+    /// 
+    /// assert_eq!(&str[..],"");
+    /// assert_eq!(str.capacity(),10);
+    ///
+    /// ```
     pub fn with_capacity(cap:usize) -> Self {
         String::with_capacity(cap).into()
     }
@@ -48,6 +99,20 @@ impl RString {
     ///
     /// This is an inherent method instead of an implementation of the
     /// ::std::ops::Index trait because it does not return a reference.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RStr,RString};
+    ///
+    /// let str=RString::from("What is that.");
+    /// 
+    /// assert_eq!(str.slice(..),RStr::from("What is that."));
+    /// assert_eq!(str.slice(..4),RStr::from("What"));
+    /// assert_eq!(str.slice(4..),RStr::from(" is that."));
+    /// assert_eq!(str.slice(4..7),RStr::from(" is"));
+    ///
+    /// ```
     #[inline]
     pub fn slice<'a, I>(&'a self, i: I) -> RStr<'a>
     where
@@ -57,34 +122,96 @@ impl RString {
     }
 
     /// Creates a `&str` with access to all the characters of the `RString`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let str="What is that.";
+    /// assert_eq!(RString::from(str).as_str(),str);
+    ///
+    /// ```
     #[inline]
     pub fn as_str(&self) -> &str {
         &*self
     }
 
     /// Creates an `RStr<'_>` with access to all the characters of the `RString`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RStr,RString};
+    ///
+    /// let str="What is that.";
+    /// assert_eq!(
+    ///     RString::from(str).as_rstr(),
+    ///     RStr::from(str),
+    /// );
+    ///
+    /// ```
     #[inline]
     pub fn as_rstr(&self) -> RStr<'_> {
         self.as_str().into()
     }
 
     /// Returns the current length (in bytes) of the RString.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// assert_eq!(RString::from("").len(),0);
+    /// assert_eq!(RString::from("a").len(),1);
+    /// assert_eq!(RString::from("Regular").len(),7);
+    ///
+    /// ```
     #[inline]
     pub const fn len(&self) -> usize {
         self.inner.len()
     }
 
     /// Returns the current capacity (in bytes) of the RString.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let mut str=RString::with_capacity(13);
+    ///
+    /// assert_eq!(str.capacity(),13);
+    ///
+    /// str.push_str("What is that.");
+    /// assert_eq!(str.capacity(),13);
+    ///
+    /// str.push(' ');
+    /// assert_ne!(str.capacity(),13);
+    ///
+    /// ```
     #[inline]
     pub const fn capacity(&self) -> usize {
         self.inner.capacity()
     }
 
+    /// An unchecked conversion from a `RVec<u8>` to an `RString`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RString,RVec};
+    ///
+    /// let bytes=RVec::from("hello".as_bytes());
+    ///
+    /// unsafe{
+    ///     assert_eq!( RString::from_utf8_unchecked(bytes).as_str(), "hello" );
+    /// }
+    ///
+    /// ```
     #[inline]
-    pub unsafe fn from_utf8_unchecked<V>(vec: RVec<u8>) -> Self
-    where
-        V: Into<RVec<u8>>,
-    {
+    pub unsafe fn from_utf8_unchecked(vec: RVec<u8>) -> Self{
         RString { inner: vec.into() }
     }
 
@@ -93,6 +220,19 @@ impl RString {
     /// # Errors
     ///
     /// This will return a `Err(FromUtf8Error{..})` if `vec` was not valid utf-8.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RString,RVec};
+    ///
+    /// let bytes_ok=RVec::from("hello".as_bytes());
+    /// let bytes_err=RVec::from(vec![255]);
+    ///
+    /// assert_eq!( RString::from_utf8(bytes_ok).unwrap(), RString::from("hello") );
+    /// assert!( RString::from_utf8(bytes_err).is_err() );
+    ///
+    /// ```
     pub fn from_utf8<V>(vec: V) -> Result<Self, FromUtf8Error>
     where
         V: Into<RVec<u8>>,
@@ -114,10 +254,37 @@ impl RString {
     ///
     /// This will return a `Err(::std::string::FromUtf16Error{..})` 
     /// if `vec` was not valid utf-8.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    /// 
+    /// let str="What the 😈.";
+    /// let str_utf16=str.encode_utf16().collect::<Vec<u16>>();
+    ///
+    /// assert_eq!(
+    ///     RString::from_utf16(&str_utf16).unwrap(),
+    ///     RString::from(str),
+    /// );
+    /// ```
     pub fn from_utf16(s: &[u16]) -> Result<Self, FromUtf16Error> {
         String::from_utf16(s).map(From::from)
     }
+
     /// Cheap conversion of this `RString` to a `RVec<u8>` 
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RString,RVec};
+    ///
+    /// let bytes=RVec::from("hello".as_bytes());
+    /// let str=RString::from("hello");
+    ///
+    /// assert_eq!(str.into_bytes(),bytes);
+    ///
+    /// ```
     pub fn into_bytes(self) -> RVec<u8> {
         self.inner
     }
@@ -128,19 +295,66 @@ impl RString {
     ///
     /// If this is invoked outside of the dynamic library/binary that created it,
     /// it will allocate a new `String` and move the data into it.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let std_str=String::from("hello");
+    /// let str=RString::from("hello");
+    ///
+    /// assert_eq!(str.into_string(),std_str);
+    ///
+    /// ```
     pub fn into_string(self) -> String {
         unsafe { String::from_utf8_unchecked(self.inner.into_vec()) }
     }
     /// Copies the `RString` into a `String`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// assert_eq!(RString::from("world").to_string(), String::from("world"));
+    ///
+    /// ```
     pub fn to_string(&self) -> String {
         self.as_str().to_string()
     }
+    
     /// Reserves `àdditional` additional capacity for any extra string data.
     /// This may reserve more than necessary for the additional capacity.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let mut str=RString::new();
+    ///
+    /// str.reserve(10);
+    /// assert!(str.capacity()>=10);
+    ///
+    /// ```
     pub fn reserve(&mut self, additional: usize) {
         self.inner.reserve(additional);
     }
-    /// Shrinks the capacity of the RString to match its 
+
+    /// Shrinks the capacity of the RString to match its length.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let mut str=RString::with_capacity(100);
+    /// str.push_str("nope");
+    /// str.shrink_to_fit();
+    /// assert_eq!(str.capacity(),4);
+    ///
+    /// ```
     pub fn shrink_to_fit(&mut self) {
         self.inner.shrink_to_fit()
     }
@@ -148,11 +362,38 @@ impl RString {
     /// Reserves `àdditional` additional capacity for any extra string data.
     /// 
     /// Prefer using `reserve` for most situations.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let mut str=RString::new();
+    ///
+    /// str.reserve_exact(10);
+    /// assert_eq!(str.capacity(),10);
+    ///
+    /// ```
     pub fn reserve_exact(&mut self, additional: usize) {
         self.inner.reserve_exact(additional);
     }
 
     /// Appends the `ch` char at the end of this RString.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let mut str=RString::new();
+    ///
+    /// str.push('O');
+    /// str.push('O');
+    /// str.push('P');
+    ///
+    /// assert_eq!(str.as_str(),"OOP");
+    ///
+    /// ```
     pub fn push(&mut self, ch: char) {
         match ch.len_utf8() {
             1 => self.inner.push(ch as u8),
@@ -161,6 +402,20 @@ impl RString {
     }
 
     /// Appends the `s` &str at the end of this RString.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let mut str=RString::new();
+    ///
+    /// str.push_str("green ");
+    /// str.push_str("frog");
+    ///
+    /// assert_eq!(str.as_str(),"green frog");
+    ///
+    /// ```
     pub fn push_str(&mut self, s: &str) {
         self.inner.extend_from_copy_slice(s.as_bytes());
     }
@@ -168,6 +423,20 @@ impl RString {
     /// Removes the last character,
     /// returns Some(_) if this RString is not empty,
     /// otherwise returns None.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RString,RVec};
+    ///
+    /// let mut str=RString::from("yep");
+    ///
+    /// assert_eq!(str.pop(),Some('p'));
+    /// assert_eq!(str.pop(),Some('e'));
+    /// assert_eq!(str.pop(),Some('y'));
+    /// assert_eq!(str.pop(),None);
+    ///
+    /// ```
     pub fn pop(&mut self)->Option<char>{
         // literal copy-paste of std,so if this is wrong std is wrong.
 
@@ -184,6 +453,21 @@ impl RString {
     /// # Panics
     /// 
     /// Panics if the index is out of bounds or if it is not on a char boundary.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RString,RVec};
+    ///
+    /// let mut str=RString::from("Galileo");
+    ///
+    /// assert_eq!(str.remove(3),'i');
+    /// assert_eq!(str.as_str(),"Galleo");
+    ///
+    /// assert_eq!(str.remove(4),'e');
+    /// assert_eq!(str.as_str(),"Gallo");
+    ///
+    /// ```
     pub fn remove(&mut self,idx:usize)->char{
         // literal copy-paste of std,so if this is wrong std is wrong.
 
@@ -210,6 +494,24 @@ impl RString {
     /// # Panics
     /// 
     /// Panics if the index is out of bounds or if it is not on a char boundary.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RString,RVec};
+    ///
+    /// let mut str=RString::from("Cap");
+    ///
+    /// str.insert(1,'r');
+    /// assert_eq!(str.as_str(),"Crap");
+    ///
+    /// str.insert(4,'p');
+    /// assert_eq!(str.as_str(),"Crapp");
+    ///
+    /// str.insert(5,'y');
+    /// assert_eq!(str.as_str(),"Crappy");
+    ///
+    /// ```
     pub fn insert(&mut self, idx: usize, ch: char) {
         let mut bits = [0; 4];
         let str_ = ch.encode_utf8(&mut bits);
@@ -222,6 +524,24 @@ impl RString {
     /// # Panics
     /// 
     /// Panics if the index is out of bounds or if it is not on a char boundary.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RString,RVec};
+    ///
+    /// let mut str=RString::from("rust");
+    ///
+    /// str.insert_str(0,"T");
+    /// assert_eq!(str.as_str(),"Trust");
+    ///
+    /// str.insert_str(5," the source");
+    /// assert_eq!(str.as_str(),"Trust the source");
+    ///
+    /// str.insert_str(5," the types in");
+    /// assert_eq!(str.as_str(),"Trust the types in the source");
+    ///
+    /// ```
     pub fn insert_str(&mut self, idx: usize, string: &str) {
         // literal copy-paste of std,so if this is wrong std is wrong.
         
@@ -256,6 +576,29 @@ impl RString {
     ///
     /// This means that a character will be removed if `pred(that_character)` 
     /// returns false.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RString,RVec};
+    ///
+    /// {
+    ///     let mut str=RString::from("There were 10 people.");
+    ///     str.retain(|c| !c.is_numeric() );
+    ///     assert_eq!(str.as_str(),"There were  people.");
+    /// }
+    /// {
+    ///     let mut str=RString::from("There were 10 people.");
+    ///     str.retain(|c| !c.is_whitespace() );
+    ///     assert_eq!(str.as_str(),"Therewere10people.");
+    /// }
+    /// {
+    ///     let mut str=RString::from("There were 10 people.");
+    ///     str.retain(|c| c.is_numeric() );
+    ///     assert_eq!(str.as_str(),"10");
+    /// }
+    ///
+    /// ```
     #[inline]
     pub fn retain<F>(&mut self, mut pred: F)
     where F: FnMut(char) -> bool
@@ -293,6 +636,21 @@ impl RString {
     }
 
     /// Turns this into an empty RString,keeping the same allocated buffer.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RString,RVec};
+    ///
+    /// let mut str=RString::from("Nurse");
+    ///
+    /// assert_eq!(str.as_str(),"Nurse");
+    /// 
+    /// str.clear();
+    /// 
+    /// assert_eq!(str.as_str(),"");
+    ///
+    /// ```
     pub fn clear(&mut self){
         self.inner.clear();
     }
@@ -446,6 +804,48 @@ removing the characters in that range in the process.
 Panics if the start or end of the range are not on a on a char boundary, 
 or if it is out of bounds.
 
+# Example
+
+```
+use abi_stable::std_types::RString;
+
+let orig="Not a single way";
+
+{
+    let mut str=RString::from(orig);
+    assert_eq!(
+        str.drain(..).collect::<String>(),
+        orig,
+    );
+    assert_eq!(str.as_str(),"");
+}
+{
+    let mut str=RString::from(orig);
+    assert_eq!(
+        str.drain(..4).collect::<String>(),
+        "Not ",
+    );
+    assert_eq!(str.as_str(),"a single way");
+}
+{
+    let mut str=RString::from(orig);
+    assert_eq!(
+        str.drain(4..).collect::<String>(),
+        "a single way",
+    );
+    assert_eq!(str.as_str(),"Not ");
+}
+{
+    let mut str=RString::from(orig);
+    assert_eq!(
+        str.drain(4..13).collect::<String>(),
+        "a single ",
+    );
+    assert_eq!(str.as_str(),"Not way");
+}
+
+```
+
     */
     pub fn drain<I>(&mut self, range: I) -> Drain<'_>
     where
@@ -504,6 +904,17 @@ impl<'a> FromIterator<&'a char> for RString {
 //////////////////////////////////////////////////////
 
 /// Error that happens when attempting to convert an `RVec<u8>` into an RString.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::std_types::RString;
+///
+/// let err=RString::from_utf8(vec![0,0,0,255]).unwrap_err();
+///
+/// assert_eq!( err.as_bytes() , &[0,0,0,255] )
+///
+/// ```
 #[derive(Debug)]
 pub struct FromUtf8Error {
     bytes: RVec<u8>,
@@ -511,9 +922,53 @@ pub struct FromUtf8Error {
 }
 
 impl FromUtf8Error{
+    /// Unwraps this error into the bytes that were attempted to convert into an RString.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RString,RVec};
+    ///
+    /// let bytes:RVec<u8>= vec![72, 111, 95, 95, 95, 95, 95, 99, 107, 255].into();
+    ///
+    /// let err=RString::from_utf8(bytes.clone()).unwrap_err();
+    ///
+    /// assert_eq!( err.into_bytes(), bytes );
+    ///
+    /// ```
     pub fn into_bytes(self)->RVec<u8>{
         self.bytes
     }
+    /// Gets access to bytes that were attempted to convert into an RString.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let bytes= vec![99, 114, 121, 115, 116, 97, 108, 255];
+    ///
+    /// let err=RString::from_utf8(bytes.clone()).unwrap_err();
+    ///
+    /// assert_eq!( err.as_bytes(), &bytes[..] );
+    ///
+    /// ```
+    pub fn as_bytes(&self)->&[u8]{
+        &self.bytes
+    }
+
+    /// Gets a Utf8Error with information about the conversion error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let err=RString::from_utf8( vec![0, 0, 255] ).unwrap_err();
+    ///
+    /// assert_eq!( err.error().valid_up_to(), 2 );
+    ///
+    /// ```
     pub fn error(&self)->Utf8Error{
         self.error
     }
@@ -524,3 +979,5 @@ impl fmt::Display for FromUtf8Error {
         fmt::Display::fmt(&self.error, f)
     }
 }
+
+impl std::error::Error for FromUtf8Error{}

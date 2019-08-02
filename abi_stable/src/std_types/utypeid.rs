@@ -19,6 +19,26 @@ use crate::{
 ///////////////////////////////////////////////////////////////////////////////
 
 /// `extern "C" fn` version of UTypeId::new.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::std_types::utypeid::new_utypeid;
+/// use std::collections::HashMap;
+///
+/// let hashmap_id=new_utypeid::< HashMap<String,String> >();
+/// let vec_id=new_utypeid::< Vec<String> >();
+/// let u32_id=new_utypeid::< u32 >();
+///
+/// assert_eq!( hashmap_id, hashmap_id );
+/// assert_eq!( vec_id, vec_id );
+/// assert_eq!( u32_id, u32_id );
+///
+/// assert_ne!( vec_id, hashmap_id );
+/// assert_ne!( u32_id, hashmap_id );
+/// assert_ne!( vec_id, u32_id );
+///
+/// ```
 pub extern "C" fn new_utypeid<T>() -> UTypeId
 where
     T: 'static,
@@ -44,7 +64,19 @@ pub extern "C" fn no_utypeid() -> MaybeCmp<UTypeId>{
 
 /// A TypeId that can compare types across dynamic libraries.
 ///
-/// No types coming from different dynamic libraries compare equal.
+/// No UTypeId constructed in different dynamic libraries compare equal.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::std_types::UTypeId;
+///
+/// assert_eq!(UTypeId::new::<()>(), UTypeId::new::<()>());
+/// assert_eq!(UTypeId::new::<Box<String>>(), UTypeId::new::<Box<String>>());
+///
+/// assert_ne!(UTypeId::new::<()>(), UTypeId::new::<Vec<()>>());
+/// assert_ne!(UTypeId::new::<Box<String>>(), UTypeId::new::<&str>());
+/// ```
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Copy, Clone, Hash, StableAbi)]
 pub struct UTypeId {
@@ -57,6 +89,16 @@ pub struct UTypeId {
 
 impl UTypeId {
     /// Constructs UTypeId from a type that satisfies the `'static` bound.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::UTypeId;
+    /// use std::collections::HashMap;
+    ///
+    /// let id=UTypeId::new::< HashMap<String,String> >();
+    /// # drop(id);
+    /// ```
     #[inline(always)]
     pub fn new<T>() -> Self
     where

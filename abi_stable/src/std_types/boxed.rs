@@ -1,3 +1,8 @@
+/*!
+Contains the ffi-safe equivalent of `std::boxed::Box`.
+*/
+
+
 use std::{
     borrow::{Borrow,BorrowMut},
     marker::PhantomData, 
@@ -27,7 +32,43 @@ mod test;
 mod private {
     use super::*;
 
-    /// Ffi-safe equivalent of Box<_>.
+    /**
+Ffi-safe equivalent of Box<_>.
+
+# Example
+
+Declaring a recursive datatype.
+
+```
+use abi_stable::{
+    std_types::{RBox,RString},
+    StableAbi,
+};
+
+#[repr(u8)]
+#[derive(StableAbi)]
+enum Command{
+    SendProduct{
+        id:u64,
+    },
+    GoProtest{
+        cause:RString,
+        place:RString,
+    },
+    SendComplaint{
+        cause:RString,
+        website:RString,
+    },
+    WithMetadata{
+        command:RBox<Command>,
+        metadata:RString,
+    },
+}
+
+
+```
+
+    */
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct RBox<T> {
@@ -38,10 +79,31 @@ mod private {
 
     impl<T> RBox<T> {
         /// Constucts an `RBox<T>` from a value.
+        ///
+        /// # Example 
+        ///
+        /// ```
+        /// use abi_stable::std_types::RBox;
+        ///
+        /// let baux=RBox::new(100);
+        /// assert_eq!(*baux,100);
+        ///
+        /// ```
         pub fn new(value: T) -> Self {
             Box::new(value).piped(RBox::from_box)
         }
         /// Converts a `Box<T>` to an `RBox<T>`,reusing its heap allocation.
+        ///
+        /// # Example 
+        ///
+        /// ```
+        /// use abi_stable::std_types::RBox;
+        ///
+        /// let baux=Box::new(200);
+        /// let baux=RBox::from_box(baux);
+        /// assert_eq!(*baux,200);
+        ///
+        /// ```
         pub fn from_box(p: Box<T>) -> RBox<T> {
             RBox {
                 data: Box::into_raw(p),
@@ -51,6 +113,24 @@ mod private {
         }
 
         /// Constructs a `Box<T>` from a `MovePtr<'_,T>`.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use std::mem::ManuallyDrop;
+        /// 
+        /// use abi_stable::{
+        ///     pointer_trait::OwnedPointer,
+        ///     sabi_types::RSmallBox,
+        ///     std_types::RBox,
+        /// };
+        ///
+        /// let b=RSmallBox::<_,[u8;1]>::new(77u8);
+        /// let rbox:RBox<_>=b.in_move_ptr(|x| RBox::from_move_ptr(x) );
+        /// 
+        /// assert_eq!(*rbox,77);
+        ///
+        /// ```
         pub fn from_move_ptr(p: MovePtr<'_,T>) -> RBox<T> {
             p.into_rbox()
         }
@@ -87,6 +167,17 @@ impl<T> RBox<T> {
     ///
     /// If this is invoked outside of the dynamic library/binary that created the `RBox<T>`,
     /// it will allocate a new `Box<T>` and move the data into it.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RBox;
+    ///
+    /// let baux:RBox<u32>=RBox::new(200);
+    /// let baux:Box<u32>=RBox::into_box(baux);
+    /// assert_eq!(*baux,200);
+    ///
+    /// ```
     pub fn into_box(this: Self) -> Box<T> {
         let this = ManuallyDrop::new(this);
 
@@ -106,6 +197,17 @@ impl<T> RBox<T> {
         }
     }
     /// Unwraps this `Box<T>` into the value it owns on the heap.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RBox;
+    ///
+    /// let baux:RBox<u32>=RBox::new(200);
+    /// let baux:u32=RBox::into_inner(baux);
+    /// assert_eq!(baux,200);
+    ///
+    /// ```
     pub fn into_inner(this: Self) -> T {
         unsafe {
             let value = this.data().read();

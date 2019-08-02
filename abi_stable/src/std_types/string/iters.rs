@@ -11,6 +11,24 @@ pub struct IntoIter {
 }
 
 impl IntoIter {
+    /// Returns a string slice over the remainder of the string that is being iterated over.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let mut iter=RString::from("abcd").into_iter();
+    ///
+    /// assert_eq!(iter.as_str(),"abcd");
+    ///
+    /// assert_eq!(iter.next(),Some('a'));
+    /// assert_eq!(iter.as_str(),"bcd");
+    ///
+    /// assert_eq!(iter.next_back(),Some('d'));
+    /// assert_eq!(iter.as_str(),"bc");
+    ///
+    /// ```
     pub fn as_str(&self) -> &str {
         self.iter.as_str()
     }
@@ -59,6 +77,29 @@ unsafe impl<'a> Sync for Drain<'a> {}
 unsafe impl<'a> Send for Drain<'a> {}
 
 impl<'a> Drain<'a> {
+    /// Returns a string slice over the remainder of the string that is being drained.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let mut string=RString::from("abcdefg");
+    /// let mut iter=string.drain(2..6);
+    ///
+    /// assert_eq!(iter.as_str(),"cdef");
+    ///
+    /// assert_eq!(iter.next(),Some('c'));
+    /// assert_eq!(iter.as_str(),"def");
+    ///
+    /// assert_eq!(iter.next_back(),Some('f'));
+    /// assert_eq!(iter.as_str(),"de");
+    ///
+    /// drop(iter);
+    ///
+    /// assert_eq!(string.as_str(),"abg")
+    ///
+    /// ```
     pub fn as_str(&self) -> &str {
         self.iter.as_str()
     }

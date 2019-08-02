@@ -1,3 +1,7 @@
+/*!
+Contains the ffi-safe equivalent of `std::option::Option`.
+*/
+
 use std::mem;
 
 use core_extensions::matches;
@@ -91,6 +95,39 @@ impl<T> ROption<T> {
         matches!( RNone{..}=self )
     }
 
+    
+    /// Returns whether `self` is an `RSome`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .is_some(),true);
+    /// assert_eq!(RNone::<u32>.is_some(),false);
+    ///
+    /// ```
+    #[inline]
+    pub fn is_some(&self)->bool{
+        matches!( RSome{..}=self )
+    }
+
+    /// Returns whether `self` is an `RNone`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!(RSome(10)   .is_none(),false);
+    /// assert_eq!(RNone::<u32>.is_none(),true);
+    ///
+    /// ```
+    #[inline]
+    pub fn is_none(&self)->bool{
+        matches!( RNone{..}=self )
+    }
+
 
     /// Converts from `ROption<T>` to `Option<T>`.
     ///
@@ -113,6 +150,22 @@ impl<T> ROption<T> {
     /// # Panics
     /// 
     /// Panics if `self` is `RNone` with the `msg` message.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!( RSome(100).expect("must contain a value"), 100 );
+    ///
+    /// ```
+    ///
+    /// This one panics:
+    /// ```should_panic
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// let _=RNone::<()>.expect("Oh noooo!");
+    /// ```
     #[inline]
     pub fn expect(self, msg: &str) -> T {
         self.into_option().expect(msg)
@@ -122,6 +175,22 @@ impl<T> ROption<T> {
     /// # Panics
     /// 
     /// Panics if `self` is `RNone`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// assert_eq!( RSome(500).unwrap(), 500 );
+    ///
+    /// ```
+    ///
+    /// This one panics:
+    /// ```should_panic
+    /// # use abi_stable::std_types::*; 
+    ///
+    /// let _=RNone::<()>.unwrap();
+    /// ```
     #[inline]
     pub fn unwrap(self) -> T {
         self.into_option().unwrap()

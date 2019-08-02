@@ -41,6 +41,14 @@ pub struct FmtWriteInterface;
 
 //////////////////////////////////////////////
 
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(impl_InterfaceType(IoWrite))]
+pub struct IoWriteInterface;
+
+
+//////////////////////////////////////////////
+
 
 #[repr(C)]
 #[derive(StableAbi)]
