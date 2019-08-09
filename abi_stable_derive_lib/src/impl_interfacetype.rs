@@ -1,3 +1,8 @@
+/*!
+The implementation of both the `#[sabi(impl_InterfaceType())]` helper attributes,
+and the `impl_InterfaceType!{}` macro.
+*/
+
 use std::collections::HashMap;
 
 
@@ -29,23 +34,28 @@ pub(crate) use self::{
 
 //////////////////////
 
-
+/// The default value for an associated type.
 #[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord,Hash)]
 pub enum DefaultVal{
-    False,
-    True,
+    /// The value of the associated type is `Unimplemented<trait_marker::AssocTypeName>`
+    Unimplemented,
+    /// The value of the associated type is `Implemented<trait_marker::AssocTypeName>`
+    Implemented,
+    /// The associated type is `#[doc(hidden)]`,
+    /// to signal to users that the trait is not supposed to be implemented manually,
     Hidden,
 }
 
 impl From<bool> for DefaultVal{
     fn from(b:bool)->Self{
-        if b { DefaultVal::True }else{ DefaultVal::False }
+        if b { DefaultVal::Implemented }else{ DefaultVal::Unimplemented }
     }
 }
 
 //////////////////////
 
-/// The types a trait can be used with.
+/// The trait object implementations (either RObject or DynTrait) 
+/// that a trait can be used with.
 #[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord,Hash)]
 pub struct UsableBy{
     robject:bool,
@@ -74,7 +84,7 @@ impl UsableBy{
 
 //////////////////////
 
-/// A trait usable in either RObject or DynTrait.
+/// Information about a trait that is usable in RObject and/or DynTrait.
 #[derive(Debug,Copy,Clone)]
 pub struct UsableTrait{
     pub which_trait:WhichTrait,
@@ -94,6 +104,7 @@ macro_rules! usable_traits {
             ),
         )* 
     ) => (
+        /// A list of all the traits usable in RObject and/or DynTrait.
         pub static TRAIT_LIST:&[UsableTrait]=&[$(
             UsableTrait{
                 name:stringify!($which_trait),
@@ -102,6 +113,8 @@ macro_rules! usable_traits {
             },
         )*];
 
+        /// Represents all the trait usable in `RObject` and/or `DynTrait`,
+        /// usable as an index for `TraitStruct`.
         #[repr(u8)]
         #[derive(Debug,Copy,Clone,PartialEq,Eq,Ord,PartialOrd,Hash)]
         pub enum WhichTrait{
@@ -122,7 +135,9 @@ macro_rules! usable_traits {
             }
         }
 
-
+        /// An generic struct with all the traits usable in RObject and/or DynTrait,
+        /// indexable by `WhichTrait`.
+        ///
         #[derive(Debug,Copy,Clone,Default)]
         pub struct TraitStruct<T>{
             $(pub $field:T,)*
@@ -217,7 +232,9 @@ pub(crate) fn private_associated_type()->syn::Ident{
 
 
 
-
+/// Returns a tokenizer
+/// which prints an implementation of InterfaceType for `name`,
+/// with `impl_interfacetype` determining the associated types.
 pub(crate) fn impl_interfacetype_tokenizer<'a>(
     name:&'a Ident,
     generics:&'a syn::Generics,

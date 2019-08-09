@@ -1,3 +1,7 @@
+/*!
+For parsing the helper attributess for `#[derive(GetStaticEquivalent)]`.
+*/
+
 use std::marker::PhantomData;
 
 use quote::ToTokens;
@@ -14,7 +18,7 @@ use crate::{
 };
 
 
-
+/// This is derived from the helper attributes of the `#[derive(GetStaticEquivalent)]` macrp.
 #[derive(Default)]
 pub(super) struct GetStaticEquivAttrs<'a>{
     pub(super) impl_interfacetype:Option<ImplInterfaceType>,
@@ -23,6 +27,7 @@ pub(super) struct GetStaticEquivAttrs<'a>{
 }
 
 
+/// Parses the helper attributes of the `#[derive(GetStaticEquivalent)]` macrp.
 pub(super) fn parse_attrs_for_get_static_equiv<'a,I>(
     attrs: I,
 ) -> GetStaticEquivAttrs<'a>
@@ -43,6 +48,7 @@ where
     this
 }
 
+// Helper function of `parse_attrs_for_get_static_equiv`.
 fn parse_attr_list<'a>(
     this: &mut GetStaticEquivAttrs<'a>,
     list: MetaList, 
@@ -54,6 +60,7 @@ fn parse_attr_list<'a>(
     }
 }
 
+// Helper function of `parse_attrs_for_get_static_equiv`.
 fn parse_gse_attr<'a>(
     this: &mut GetStaticEquivAttrs<'a>,
     attr: Meta, 
