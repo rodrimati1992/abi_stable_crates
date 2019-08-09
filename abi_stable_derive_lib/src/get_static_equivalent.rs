@@ -1,3 +1,7 @@
+/*!
+Stuff related to the `GetStaticEquivalent` derive macro.
+*/
+
 use proc_macro2::{Span,TokenStream as TokenStream2};
 
 use quote::{quote, ToTokens};
@@ -17,6 +21,7 @@ use crate::{
 mod attribute_parsing;
 
 
+/// The implementation of the `GetStaticEquivalent` derive macro.
 pub(crate) fn derive(data: DeriveInput) -> TokenStream2{
     let name=&data.ident;
     let generics=&data.generics;
@@ -42,8 +47,8 @@ pub(crate) fn derive(data: DeriveInput) -> TokenStream2{
     ret
 }
 
-
-pub(crate) fn get_static_equiv_tokenizer<'a>(
+/// Tokenizes the `GetStaticEquivalent_` implementation for some type.
+fn get_static_equiv_tokenizer<'a>(
     name:&'a Ident,
     generics:&'a Generics,
     extra_bounds:TokenStream2,

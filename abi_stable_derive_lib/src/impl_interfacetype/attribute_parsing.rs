@@ -14,13 +14,14 @@ use crate::{
 };
 
 
-
+/// The traits that are (un)implemented,parsed from the `#[sabi(impl_InterfaceType())]`
+/// helper attribute.
 pub(crate) struct ImplInterfaceType{
     pub(crate) impld  :Vec<Ident>,
     pub(crate) unimpld:Vec<Ident>,
 }
 
-
+/// Parses the `#[sabi(impl_InterfaceType())]` helper attribute.
 pub(crate) fn parse_impl_interfacetype<'a>(
     list: &Punctuated<NestedMeta, Comma>
 )->ImplInterfaceType{

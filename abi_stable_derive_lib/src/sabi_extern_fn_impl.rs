@@ -1,3 +1,7 @@
+/*!
+Implementation details of the `#[sabi_extern_fn]` attribute.
+*/
+
 use std::mem;
 
 use proc_macro::TokenStream as TokenStream1;
@@ -25,14 +29,14 @@ pub(crate) fn sabi_extern_fn_str(attr: &str, item: &str) -> TokenStream2 {
     )
 }
 
-
+/// Whether the function contains an early return or not.
 #[derive(Debug,Copy,Clone,PartialEq)]
 pub enum WithEarlyReturn{
     No,
     Yes,
 }
 
-
+/// Converts a function into an `extern "C" fn` which aborts on panic.
 pub(crate) fn convert_to_sabi_extern_fn(
     with_early_return:WithEarlyReturn,
     item:&mut ItemFn,
