@@ -371,8 +371,7 @@ This function does these things:
 
 - Adds the lifetime as a referenced lifetime.
 
-- If `lt` is None returns `Some('_)`,otherwise returns None,
-    this is to unelide lifetime parameters in references.
+- If `lt` is `Some('someident)` returns `Some('_)`.
 
     */
     #[inline(never)]
@@ -381,7 +380,7 @@ This function does these things:
         let mut ret: Option<&'a Ident> = None;
         if lt == Some(&ctokens.static_) {
             LifetimeIndex::Static
-        } else if lt.map_or(true,|lt| lt== &ctokens.underscore) {
+        } else if lt==None || lt==Some(&ctokens.underscore) {
             match self.param_ret.param_or_ret {
                 ParamOrReturn::Param => {
                     self.new_bound_lifetime()
@@ -479,7 +478,6 @@ impl<'a, 'b> VisitMut for FnVisitor<'a, 'b> {
     fn visit_lifetime_mut(&mut self, lt: &mut Lifetime) {
         if let Some(ident) = self.setup_lifetime(Some(&lt.ident)) {
             lt.ident = ident.clone();
-            unreachable!()
         }
     }
 }
