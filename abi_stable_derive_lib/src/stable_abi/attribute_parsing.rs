@@ -322,6 +322,7 @@ enum ParseContext<'a> {
     },
 }
 
+/// Parses the attributes for the `StableAbi` derive macro.
 pub(crate) fn parse_attrs_for_stable_abi<'a,I>(
     attrs: I,
     ds: &'a DataStructure<'a>,
@@ -354,13 +355,13 @@ where
     StableAbiOptions::new(ds, this,arenas)
 }
 
+/// Parses an individual attribute
 fn parse_inner<'a,I>(
     this: &mut StableAbiAttrs<'a>,
     attrs: I,
     pctx: ParseContext<'a>,
     arenas: &'a Arenas,
-) 
-where
+) where
     I:IntoIterator<Item=&'a Attribute>
 {
     for attr in attrs {
@@ -373,6 +374,7 @@ where
     }
 }
 
+/// Parses an individual attribute list (A `#[attribute( .. )] attribute`).
 fn parse_attr_list<'a>(
     this: &mut StableAbiAttrs<'a>,
     pctx: ParseContext<'a>,
@@ -408,6 +410,7 @@ fn parse_attr_list<'a>(
     }
 }
 
+/// Parses the contents of a `#[sabi( .. )]` attribute.
 fn parse_sabi_attr<'a>(
     this: &mut StableAbiAttrs<'a>,
     pctx: ParseContext<'a>, 
@@ -634,6 +637,7 @@ Tag:\n\t{}\n",
 }
 
 
+/// Parses the `#[sabi(refl="...")` attribute.
 fn parse_refl_field<'a>(
     this: &mut StableAbiAttrs<'a>,
     field:&'a Field<'a>,
@@ -661,11 +665,6 @@ fn parse_missing_field<'a>(
     list: &Punctuated<NestedMeta, Comma>, 
     arenas: &'a Arenas
 )->OnMissingField<'a>{
-// `#[sabi(missing_field(panic))]`
-// `#[sabi(missing_field(panic="somefunction"))]`
-// `#[sabi(missing_field(option))]`
-// `#[sabi(missing_field(with="somefunction"))]`
-// `#[sabi(missing_field(default))]`
     let attribute_msg="
 
 Valid Attributes:

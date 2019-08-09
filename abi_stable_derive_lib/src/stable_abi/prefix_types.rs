@@ -1,4 +1,8 @@
+/*!
 
+Code generation for prefix-types.
+
+*/
 
 
 use syn::{
@@ -35,6 +39,7 @@ use super::{
     reflection::FieldAccessor,
 };
 
+/// Configuration for code generation related to prefix-types.
 pub(crate) struct PrefixKind<'a>{
     pub(crate) first_suffix_field:FirstSuffixField,
     pub(crate) prefix_struct:&'a Ident,
@@ -46,7 +51,7 @@ pub(crate) struct PrefixKind<'a>{
 
 
 
-
+/// Used while parsing the prefix-type-related attributes on fields.
 #[derive(Copy,Default, Clone)]
 pub(crate) struct PrefixKindField<'a>{
     pub(crate) accessible_if:Option<&'a syn::Expr>,
@@ -63,10 +68,13 @@ pub enum AccessorOrMaybe<'a>{
     Maybe(MaybeAccessor<'a>)
 }
 
-
+/// Describes a field accessor which is either optional or 
+/// does some action when the field is missing.
 #[derive(Debug,Copy, Clone, Default, PartialEq, Eq)]
 pub struct MaybeAccessor<'a>{
+    /// If Some,it uses a bool constant to determine whether a field is accessible.
     accessible_if:Option<&'a syn::Expr>,
+    /// What the accessor method does when the field is missing.
     on_missing:OnMissingField<'a>,
 }
 
@@ -128,6 +136,7 @@ impl<'a> AccessorOrMaybe<'a>{
         self.to_maybe_accessor().map_or(false,|x| x.accessible_if.is_some() )
     }
 
+    /// Converts this to a MaybeAccessor,returning None if it is not the `Maybe` variant.
     pub(crate) fn to_maybe_accessor(&self)->Option<MaybeAccessor>{
         match *self {
             AccessorOrMaybe::Maybe(x)=>Some(x),
@@ -138,6 +147,7 @@ impl<'a> AccessorOrMaybe<'a>{
 
 
 impl<'a> PrefixKind<'a>{
+    /// Gets the accessibility for a field,used for (very basic) runtime reflection.
     pub(crate) fn field_accessor(&self,field:&Field<'a>)->FieldAccessor<'a>{
         use self::{OnMissingField as OMF};
 
@@ -170,7 +180,6 @@ pub(crate) fn prefix_type_tokenizer<'a>(
     config:&'a StableAbiOptions<'a>,
     _ctokens:&'a CommonTokens<'a>,
 )->impl ToTokens+'a {
-    // let ct=ctokens;
     ToTokenFnMut::new(move|ts|{
         let struct_=match ds.variants.get(0) {
             Some(x)=>x,
@@ -185,15 +194,6 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         if struct_.fields.len() > 64 {
             panic!("\n\n`#[sabi(kind(Prefix(..)))]` structs cannot have more than 64 fields\n\n");
         }
-
-        // let repr_attrs=ToTokenFnMut::new(move|ts|{
-        //     for list in &config.repr_attrs {
-        //         ct.pound.to_tokens(ts);
-        //         ct.bracket.surround(ts,|ts|{
-        //             list.to_tokens(ts);
-        //         });
-        //     }
-        // });
 
         let deriving_name=ds.name;
         let (ref impl_generics,ref ty_generics,ref where_clause) = ds.generics.split_for_impl();
@@ -272,11 +272,12 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
 
         let mut uncond_acc_docs=Vec::new();
-
         let mut cond_acc_docs=Vec::new();
         let mut field_mask_idents=Vec::new();
         let mut field_index_for=Vec::new();
 
+        // Creates the docs for the accessor functions.
+        // Creates the identifiers for constants associated with each field.
         for (index,field) in struct_.fields.iter().enumerate() {
             use std::fmt::Write;
             use self::{AccessorOrMaybe as AOM};
@@ -347,11 +348,14 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             }
         }
 
+        
+
         let field_count=struct_.fields.len();
 
         let mut unconditional_accessors=Vec::new();
         let mut conditional_accessors=Vec::new();
         
+        // Creates TokenStreams for each accessor function.
         for (field_i,field)in struct_.fields.iter().enumerate() {
             use std::fmt::Write;
             accessor_buffer.clear();
@@ -457,11 +461,11 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
         let enable_field_if=conditional_fields.iter().map(|&(_,cond)| cond );
 
-        let field_name_list=struct_.fields.iter()
+        let str_field_names=struct_.fields
+            .iter()
             .map(|x| x.ident().to_string() )
-            .collect::<Vec<String>>();
-
-        let str_field_names=field_name_list.join(";");
+            .collect::<Vec<String>>()
+            .join(";");
         
         let is_prefix_field_conditional=struct_.fields.iter()
             .take(prefix.first_suffix_field.field_pos)
@@ -500,6 +504,8 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 #(#where_preds,)*
                 #(#prefix_bounds,)*
             {
+                // Describes the accessibility of all the fields,
+                // used to initialize the `WithMetadata<Self>::_prefix_type_field_acc` field.
                 const PT_FIELD_ACCESSIBILITY:#module::_sabi_reexports::FieldAccessibility={
                     use self::#module::_sabi_reexports::{
                         FieldAccessibility as __FieldAccessibility,
@@ -514,6 +520,13 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                     )*
                 };
                 
+                // Describes whether a prefix field are conditional or not.
+                //
+                // "prefix field" is every field at and before the one with the 
+                // `#[sabi(last_prefix_field)]` attribute.
+                //
+                // A field is conditional if it has the 
+                // `#[sabi(accessible_if=" expression ")]` attribute on it.
                 const PT_COND_PREFIX_FIELDS:&'static [#module::_sabi_reexports::IsConditional]={
                     use #module::_sabi_reexports::IsConditional as __IsConditional;
 
@@ -522,8 +535,10 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                     ]
                 };
 
+                // A description of the struct used for error messages.
                 const PT_LAYOUT:&'static #module::__PTStructLayout =#pt_layout_ident;
 
+                // This is a struct whose only non-zero-sized field is `WithMetadata_<(),Self>`.
                 type Prefix=#prefix_struct #ty_generics;
             }
 
@@ -538,6 +553,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 )*
 
                 #(
+                    // This is the field index,starting with 0,from the top field.
                     const #field_index_for:u8=
                         #field_i_a;
                 )*
@@ -563,17 +579,25 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 #(#prefix_bounds,)*
                 #deriving_name #ty_generics: #module::_sabi_reexports::PrefixTypeTrait,
             {
+                // The accessibility of all fields,
+                // used bellow to initialize the mask for each individual field.
+                //
+                // If the nth bit is:
+                //    0:the field is inaccessible.
+                //    1:the field is accessible.
                 const __AB_PTT_FIELD_ACCESSIBILTIY_MASK:u64=
                     <#deriving_name #ty_generics as 
                         #module::_sabi_reexports::PrefixTypeTrait 
                     >::PT_FIELD_ACCESSIBILITY.bits();
 
                 #(
+                    // The mask to get whether the field is accessible in the accessor method,
+                    // by doing `self._prefix_type_field_acc.bits() & Self::#field_mask_ident`.
                     const #field_mask_idents:u64=
                         (1<<#field_i_b) & Self::__AB_PTT_FIELD_ACCESSIBILTIY_MASK;
                 )*
 
-                /// Accessor to get the layout of the type.
+                /// Accessor to get the layout of the type,used for error messages.
                 #[inline(always)]
                 pub fn _prefix_type_layout(&self)-> &'static #module::__PTStructLayout {
                     self.inner._prefix_type_layout
