@@ -2,7 +2,7 @@ use crate::{
     *,
     impl_interfacetype::private_associated_type,
     parse_utils::{parse_str_as_ident},
-    my_visibility::{MyVisibility,RelativeVis},
+    my_visibility::{VisibilityKind,RelativeVis},
     gen_params_in::{GenParamsIn,InWhat},
     workaround::token_stream_to_string,
 };
@@ -38,7 +38,7 @@ use self::{
     methods_tokenizer::MethodsTokenizer,
 };
 
-
+/// Variables passed to all the `*_items` functions here.
 #[allow(dead_code)]
 #[derive(Copy,Clone)]
 struct TokenizerParams<'a>{
@@ -46,7 +46,7 @@ struct TokenizerParams<'a>{
     ctokens:&'a CommonTokens,
     config:&'a SabiTraitOptions<'a>,
     trait_def:&'a TraitDefinition<'a>,
-    vis:MyVisibility<'a>,
+    vis:VisibilityKind<'a>,
     submod_vis:RelativeVis<'a>,
     totrait_def:&'a TraitDefinition<'a>,
     vtable_trait_decl:&'a TraitDefinition<'a>,
@@ -58,7 +58,7 @@ struct TokenizerParams<'a>{
 }
 
 
-
+/// The implementation of the `#[sabi_trait]` proc-macro attribute.
 pub fn derive_sabi_trait(item: ItemTrait) -> TokenStream2 {
     let arenas = Arenas::default();
     let arenas = &arenas;
@@ -136,6 +136,23 @@ pub fn derive_sabi_trait(item: ItemTrait) -> TokenStream2 {
     })
 }
 
+
+/**
+Outputs these items:
+
+- `Trait_Backend`: 
+    A type alias to the underlying implementation of the trait object,
+    which is either RObject
+
+- `Trait_Interface`
+    A marker type describing the traits that are required when constructing 
+    the underlying implementation of the trait object,
+    and are then implemented by it,by implementing InterfaceType.
+
+- `Trait_TO`:
+    The ffi-safe trait object for the trait.
+
+*/
 fn first_items<'a>(
     TokenizerParams{
         ctokens,
@@ -325,7 +342,7 @@ There are extra methods on the `obj` field.
 }
 
 
-
+/// Outputs the trait object constructors.
 fn constructor_items<'a>(
     TokenizerParams{
         ctokens,totrait_def,submod_vis,trait_ident,trait_to,trait_backend,trait_interface,
@@ -522,7 +539,8 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
     ).to_tokens(mod_);
 }
 
-
+/// Outputs the annotated trait (as modified by the proc-macro)
+/// and an implementation of the trait for the generated trait object.
 fn trait_and_impl<'a>(
     TokenizerParams{ctokens,submod_vis,trait_def,trait_to,..}:TokenizerParams,
     mod_:&mut TokenStream2,
@@ -596,7 +614,8 @@ fn trait_and_impl<'a>(
     ).to_tokens(mod_);
 }
 
-
+/// An inherent implementation of the generated trait object,
+/// which mirrors the trait definition.
 fn methods_impls<'a>(
     param:TokenizerParams,
     mod_:&mut TokenStream2,
@@ -635,7 +654,7 @@ fn methods_impls<'a>(
     ).to_tokens(mod_);
 }
 
-
+/// Outputs the vtable struct.
 fn declare_vtable<'a>(
     TokenizerParams{ctokens,vtable_trait_decl,submod_vis,trait_interface,..}:TokenizerParams,
     mod_:&mut TokenStream2,
@@ -713,7 +732,14 @@ fn declare_vtable<'a>(
 
 }
 
+/**
+Outputs the vtable impl block with both:
 
+- A constant where the vtable is constructed.
+
+- The methods that the vtable is constructed with.
+
+*/
 fn vtable_impl<'a>(
     TokenizerParams{ctokens,vtable_trait_impl,trait_ident,trait_interface,..}:TokenizerParams,
     mod_:&mut TokenStream2,
@@ -829,13 +855,18 @@ pub(crate) enum SelfParam<'a>{
     ByVal,
 }
 
-
+/// Which item this is refering to.
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub(crate) enum WhichItem{
+    /// the method in the trait definition
     Trait,
+    /// the method in the trait implemetation for the generated trait object.
     TraitImpl,
+    /// the methods in the inherent implemetation of the generated trait object.
     TraitObjectImpl,
+    /// the fields of the trait object vtable.
     VtableDecl,
+    /// the methods used to construct the vtable.
     VtableImpl,
 }
 
@@ -870,6 +901,7 @@ pub(crate) enum WhichSelf{
 }
 
 
+/// Whether to include associated types when printing generic parameters. 
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub(crate) enum WithAssocTys{
     No,

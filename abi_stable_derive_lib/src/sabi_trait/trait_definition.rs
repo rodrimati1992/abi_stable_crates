@@ -41,35 +41,56 @@ pub struct AssocTyWithIndex{
 ////////////////////////////////////////////////////////////////////////////////
 
 
+/// Represents a trait for use in `#[sabi_trait]`.
 #[derive(Debug,Clone)]
 pub(crate) struct TraitDefinition<'a>{
     pub(crate) item:&'a ItemTrait,
+    /// The name of the trait.
     pub(crate) name:&'a Ident,
+    /// What type to use the backend for the trait object,DynTrait or RObject.
     pub(crate) which_object:WhichObject,
+    /// The where predicates in the where clause of the trait,
+    /// if it doesn't have one this is empty.
     pub(crate) where_preds:Punctuated<WherePredicate,Comma>,
+    /// Attributes applied to the vtable.
     pub(crate) derive_attrs:&'a [Meta],
+    /// Attributes applied to the trait.
     pub(crate) other_attrs:&'a [Meta],
     pub(crate) generics:&'a syn::Generics,
+    /// The `Iterator::Item` type for this trait,
+    /// None if it doesn't have Iterator as a supertrait.
     pub(crate) iterator_item:Option<&'a syn::Type>,
+    #[allow(dead_code)]
     /// The path for the implemented serde::Deserialize trait 
     /// (it may reference some trait lifetime parameter)
-    #[allow(dead_code)]
     pub(crate) deserialize_bound:Option<DeserializeBound<'a>>,
+    /// The traits this has as supertraits.
     pub(crate) impld_traits:Vec<TraitImplness<'a>>,
+    /// The traits this doesn't have as supertraits.
     pub(crate) unimpld_traits:Vec<&'a Ident>,
+    /// A struct describing the traits this does and doesn't have as supertraits 
+    /// (true means implemented,false means unimplemented)
     pub(crate) trait_flags:TraitStruct<bool>,
+    /// The region of code of the identifiers for the supertraits,
+    /// with `Span::call_site()` for the ones that aren't supertraits.
     pub(crate) trait_spans:TraitStruct<Span>,
     /// The lifetimes declared in the trait generic parameter list that are used in 
     /// `&'lifetime self` `&'lifetime mut self` method receivers,
     /// or used directly as supertraits.
     pub(crate) lifetime_bounds:Vec<&'a Lifetime>,
-    pub(crate) vis:MyVisibility<'a>,
+    /// The visibility of the trait.
+    pub(crate) vis:VisibilityKind<'a>,
+    /// The visibility of the trait,inside a submodule.
     pub(crate) submod_vis:RelativeVis<'a>,
     // The keys use the proginal identifier for the associated type.
     pub(crate) assoc_tys:HashMap<&'a Ident, AssocTyWithIndex>,
+    /// 
     pub(crate) methods:Vec<TraitMethod<'a>>,
+    /// Whether this has by mutable reference methods.
     pub(crate) has_mut_methods:bool,
+    /// Whether this has by-value methods.
     pub(crate) has_val_methods:bool,
+    /// A TokenStream with the equivalent of `<Pointer::Target as Trait>::`
     pub(crate) ts_fq_self:&'a TokenStream2,
     pub(crate) ctokens:&'a CommonTokens,
     pub(crate) arenas:&'a Arenas,
@@ -86,7 +107,7 @@ impl<'a> TraitDefinition<'a>{
         arenas: &'a Arenas,
         ctokens:&'a CommonTokens,
     )->Self {
-        let vis=MyVisibility::new(&trait_.vis);
+        let vis=VisibilityKind::new(&trait_.vis);
         let submod_vis=vis.submodule_level(1);
         let mut assoc_tys=HashMap::default();
         let mut methods=Vec::<TraitMethod<'a>>::new();
@@ -197,6 +218,8 @@ impl<'a> TraitDefinition<'a>{
         }
     }
 
+    /// Returns a clone of `self`,
+    /// where usages of associated types are replaced for use in `which_item`.
     pub fn replace_self(&self,which_item:WhichItem)->Self{
         let mut this=self.clone();
 
@@ -243,7 +266,20 @@ impl<'a> TraitDefinition<'a>{
         this
     }
 
-
+    /// Returns a tokenizer for the generic parameters in this trait.
+    ///
+    /// # Parameters
+    /// 
+    /// - `in_what`:
+    ///     Determines where the generic parameters are printed.
+    ///     Eg:impl headers,trait declaration,trait usage.
+    ///
+    /// - `with_assoc_tys`:
+    ///     Whether associated types are printed,and how.
+    /// 
+    /// - `after_lifetimes`:
+    ///     What will be printed after lifetime parameters.
+    /// 
     pub fn generics_tokenizer(
         &self,
         in_what:InWhat,
@@ -268,6 +304,10 @@ impl<'a> TraitDefinition<'a>{
         }
     }
 
+    /// Returns the where predicates for the erased pointer type of the ffi-safe trait object.
+    ///
+    /// Example erased pointer types:`RBox<()>`,`RArc<()>`,`&()`,`&mut ()`
+    ///
     pub fn erased_ptr_preds(&self)->&'a TokenStream2{
         let ctokens=self.ctokens;
         match (self.has_mut_methods,self.has_val_methods) {
@@ -278,7 +318,8 @@ impl<'a> TraitDefinition<'a>{
         }
     }
 
-    /// Returns the where predicates of `impl Trait_TO`.
+    /// Returns the where predicates of the inherent implementation of 
+    /// the ffi-safe trait object.
     pub fn trait_impl_where_preds(&self)->Punctuated<WherePredicate,Comma>{
         let mut where_preds=self.where_preds.clone();
         for where_pred in &mut where_preds {
@@ -291,6 +332,7 @@ impl<'a> TraitDefinition<'a>{
         where_preds
     }
 
+    /// Returns a tokenizer that outputs the method definitions inside the `which_item` item.
     pub fn methods_tokenizer(&self,which_item:WhichItem)->MethodsTokenizer<'_>{
         MethodsTokenizer{
             trait_def:self,
@@ -301,22 +343,33 @@ impl<'a> TraitDefinition<'a>{
 
 ////////////////////////////////////////////////////////////////////////////////
 
+
+/// Represents a trait method for use in `#[sabi_trait]`.
 #[derive(Debug,Clone)]
 pub(crate) struct TraitMethod<'a>{
+    /// A refernce to the `syn` type this was derived from.
     pub(crate) item:&'a syn::TraitItemMethod,
     pub(crate) unsafety: Option<&'a Unsafe>,
     pub(crate) abi: Option<&'a Abi>,
     /// The visibility of the trait
     pub(crate) vis:&'a Visibility,
+    /// Attributes applied to the method in the vtable.
     pub(crate) derive_attrs:&'a [Meta],
+    /// Attributes applied to the method in the trait definition.
     pub(crate) other_attrs:&'a [Meta],
+    /// The name of the method.
     pub(crate) name:&'a Ident,
     pub(crate) self_param:SelfParam<'a>,
+    /// The lifetime parameters of this method.
     pub(crate) lifetimes: Vec<&'a LifetimeDef>,
     pub(crate) params: Vec<MethodParam<'a>>,
+    /// The return type of this method,if None this returns `()`.
     pub(crate) output: Option<syn::Type>,
     pub(crate) where_clause:MethodWhereClause<'a>,
+    /// The default implementation of the method.
     pub(crate) default:Option<DefaultMethod<'a>>,
+    /// The semicolon token for the method
+    /// (when the method did not have a default implementation).
     pub(crate) semicolon:Option<&'a Semi>,
     pub(crate) ctokens:&'a CommonTokens,
 }
@@ -330,8 +383,13 @@ pub(crate) struct DefaultMethod<'a>{
 
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub(crate) struct MethodParam<'a>{
+    /// The name of the method parameter,
+    /// which is `param_<number_of_parameter>` if the parameter is not just an identifier
+    /// (ie:`(left,right)`,`Rect3D{x,y,z}`)
     pub(crate) name:&'a Ident,
+    /// The parameter type.
     pub(crate) ty:syn::Type,
+    /// The pattern for the parameter
     pub(crate) pattern:&'a syn::Pat,
 }
 
@@ -436,7 +494,11 @@ impl<'a> TraitMethod<'a>{
         })
     }
 
-
+    /// Returns a clone of `self`,
+    /// where usages of associated types are replaced for use in `which_item`.
+    ///
+    /// Whether `Self::AssocTy` is an associated type is determined using `is_assoc_type`,
+    /// which returns `Some()` with what to do with the associated type.
     pub fn replace_self<F>(&mut self,replace_with:ReplaceWith,mut is_assoc_type: F)
     where
         F: FnMut(&Ident) -> Option<ReplaceWith>,
@@ -458,6 +520,8 @@ impl<'a> TraitMethod<'a>{
 ////////////////////////////////////////////////////////////////////////////////
 
 
+/// Used to print the generic parameters of a trait,
+/// potentially including its associated types.
 #[derive(Debug,Copy,Clone)]
 pub struct GenericsTokenizer<'a>{
     gen_params_in:GenParamsIn<'a,&'a TokenStream2>,
@@ -465,10 +529,12 @@ pub struct GenericsTokenizer<'a>{
 }
 
 impl<'a> GenericsTokenizer<'a>{
+    /// Changes type parameters to have a `?Sized` bound.
     #[allow(dead_code)]
     pub fn set_unsized_types(&mut self){
         self.gen_params_in.set_unsized_types();
     }
+    /// Removes bounds on type parameters.
     pub fn set_no_bounds(&mut self){
         self.gen_params_in.set_no_bounds();
     }
@@ -528,13 +594,14 @@ impl<'a> ToTokens for GenericsTokenizer<'a> {
 ////////////////////////////////////////////////////////////////////////////////
 
 
+/// Represents a `Deserialize<'de>` supertrait bound.
 #[derive(Debug,Clone)]
 pub(crate) struct DeserializeBound<'a>{
     pub(crate) bound:&'a syn::TraitBound,
     pub(crate) lifetime:&'a syn::Lifetime,
 }
 
-
+/// Used to returns the information about supertraits,to construct TraitDefinition.
 struct GetSupertraits<'a>{
     impld_traits:Vec<TraitImplness<'a>>,
     unimpld_traits:Vec<&'a Ident>,
@@ -545,7 +612,7 @@ struct GetSupertraits<'a>{
     trait_spans:TraitStruct<Span>,
 }
 
-
+/// Contains information about a supertrait,including whether it's implemented.
 #[derive(Debug,Clone)]
 pub(crate) struct TraitImplness<'a>{
     pub(crate) which_trait:WhichTrait,
@@ -556,7 +623,7 @@ pub(crate) struct TraitImplness<'a>{
     pub(crate) _marker:PhantomData<&'a ()>,
 }
 
-
+/// Processes the supertrait bounds of a trait definition.
 fn get_supertraits<'a,I>(
     supertraits: I,
     lifetime_params:&HashSet<&'a Lifetime>,
@@ -571,6 +638,8 @@ where
         .map(|t| (parse_str_as_ident(t.name),t.which_trait) )
         .collect::<HashMap<Ident,WhichTrait>>();
 
+    // A struct indexable by `WhichTrait`,
+    // with information about all possible supertraits.
     let mut trait_struct=TraitStruct::TRAITS.map(|_,t|{
         TraitImplness{
             which_trait:t.which_trait,

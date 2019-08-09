@@ -6,6 +6,7 @@ use syn::{
 };
 
 
+/// Used to unelide the lifetimes in the `&self` parameter of methods.
 pub(crate) struct LifetimeUnelider<'a,'b>{
     ctokens: &'a CommonTokens,
     self_lifetime:&'b mut Option<&'a syn::Lifetime>,
@@ -24,6 +25,7 @@ impl<'a,'b> LifetimeUnelider<'a,'b>{
         }
     }
 
+    /// Unelide the lifetimes the `&self` parameter of methods.
     pub(crate) fn visit_type(mut self,ty: &mut Type)->Option<&'a syn::LifetimeDef>{
         visit_mut::visit_type_mut(&mut self,ty);
         self.additional_lifetime_def
@@ -31,7 +33,7 @@ impl<'a,'b> LifetimeUnelider<'a,'b>{
 }
 
 impl<'a,'b> LifetimeUnelider<'a,'b> {
-    pub(crate) fn setup_lifetime(&mut self)->Lifetime{
+    fn setup_lifetime(&mut self)->Lifetime{
         let ct=self.ctokens;
         let additional_lifetime_def=&mut self.additional_lifetime_def;
         let x=self.self_lifetime.get_or_insert_with(||{

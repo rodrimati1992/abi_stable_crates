@@ -1,3 +1,27 @@
+/*!
+Contains the MethodsTokenizer type,
+which is used to print the definition of the method in different places.
+
+Where this is used is determined by WhichItem:
+
+- `WhichItem::Trait`: 
+    outputs the method in the trait definition.
+
+- `WhichItem::TraitImpl`: 
+    outputs the method in the trait implemetation for the generated trait object.
+
+- `WhichItem::TraitObjectImpl`:
+    outputs the methods in the inherent implemetation of the generated trait object.
+
+- `WhichItem::VtableDecl`: 
+    outputs the fields of the trait object vtable.
+
+- `WhichItem::VtableImpl`: 
+    outputs the methods used to construct the vtable.
+
+
+*/
+
 use super::*;
 
 use crate::to_token_fn::ToTokenFnMut;
@@ -35,38 +59,52 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         let method=self.method;
         let trait_def=self.trait_def;
         let ctokens=trait_def.ctokens;
+        // is_method: Whether this is a method,instead of an associated function or field.
+        //
+        // vis: the visibility of the generated method,
+        //      None if it's implicit,Some(_) if it's explicit.
         let (is_method,vis)=match which_item {
-            WhichItem::Trait
-            |WhichItem::TraitImpl
-            =>(true,None),
-            WhichItem::TraitObjectImpl=>
-                (true,Some(trait_def.submod_vis)),
-             WhichItem::VtableDecl
-            |WhichItem::VtableImpl
-            =>(false,Some(trait_def.submod_vis)),
+            WhichItem::Trait|WhichItem::TraitImpl=>{
+                (true,None)
+            }
+            WhichItem::TraitObjectImpl=>{
+                (true,Some(trait_def.submod_vis))
+            }
+            WhichItem::VtableDecl|WhichItem::VtableImpl=>{
+                (false,Some(trait_def.submod_vis))
+            }
         };
         
+        // The default implementation block used both by:
+        // - the trait definition.
+        // - the trait object inherent impl
+        //      (for the case where the method doesn't exist in the vtable).
         let default_=method.default.as_ref();
 
         let lifetimes=Some(&method.lifetimes).filter(|l| !l.is_empty() );
 
-        // The name of the method in the __Trait trait.
         let method_name=method.name;
         let method_span=method_name.span();
-        let used_name=method.name;
+
         let self_param=match (is_method,&method.self_param) {
-            (true,SelfParam::ByRef{lifetime,is_mutable:false})=>
-                quote_spanned!(method_span=> & #lifetime self),
-            (true,SelfParam::ByRef{lifetime,is_mutable:true})=>
-                quote_spanned!(method_span=> & #lifetime mut self),
-            (true,SelfParam::ByVal)=>
-                quote_spanned!(method_span=> self),
-            (false,SelfParam::ByRef{lifetime,is_mutable:false})=>
-                quote_spanned!(method_span=> _self:& #lifetime __ErasedObject<_Self>),
-            (false,SelfParam::ByRef{lifetime,is_mutable:true})=>
-                quote_spanned!(method_span=> _self:& #lifetime mut __ErasedObject<_Self>),
-            (false,SelfParam::ByVal)=>
-                quote_spanned!(method_span=> _self:__sabi_re::MovePtr<'_,_Self>),
+            (true,SelfParam::ByRef{lifetime,is_mutable:false})=>{
+                quote_spanned!(method_span=> & #lifetime self)
+            }
+            (true,SelfParam::ByRef{lifetime,is_mutable:true})=>{
+                quote_spanned!(method_span=> & #lifetime mut self)
+            }
+            (true,SelfParam::ByVal)=>{
+                quote_spanned!(method_span=> self)
+            }
+            (false,SelfParam::ByRef{lifetime,is_mutable:false})=>{
+                quote_spanned!(method_span=> _self:& #lifetime __ErasedObject<_Self>)
+            }
+            (false,SelfParam::ByRef{lifetime,is_mutable:true})=>{
+                quote_spanned!(method_span=> _self:& #lifetime mut __ErasedObject<_Self>)
+            }
+            (false,SelfParam::ByVal)=>{
+                quote_spanned!(method_span=> _self:__sabi_re::MovePtr<'_,_Self>)
+            }
         };
 
         let param_names_a=method.params.iter()
@@ -108,7 +146,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             quote_spanned!( method_span=>
                 #(#[#derive_attrs])*
                 #optional_field
-                #vis #used_name:
+                #vis #method_name:
                     #(for< #(#lifetimes,)* >)*
                     unsafe extern "C" fn(
                         #self_param,
@@ -123,7 +161,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
 
             quote_spanned!(method_span=>
                 #(#[#other_attrs])*
-                #vis #unsafety #abi fn #used_name #(< #(#lifetimes,)* >)* (
+                #vis #unsafety #abi fn #method_name #(< #(#lifetimes,)* >)* (
                     #self_param, 
                     #( #param_names_a:#param_ty ,)* 
                 ) #(-> #return_ty )*

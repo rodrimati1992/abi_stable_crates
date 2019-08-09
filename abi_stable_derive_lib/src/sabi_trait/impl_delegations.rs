@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-/// Generates the code that delegates the implementation of the supertraits 
+/// Generates the code that delegates the implementation of the traits 
 /// to the wrapped DynTrait or RObject.
 pub(super) fn delegated_impls<'a>(
     TokenizerParams{

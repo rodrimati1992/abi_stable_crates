@@ -19,7 +19,9 @@ use crate::{
 };
 
 
+/// Configuration parsed from the helper attributes of `#[sabi_trait]`
 pub(crate) struct SabiTraitOptions<'a> {
+    /// Whether the output of the proc-macro is printed with println.
     pub(crate) debug_print_trait:bool,
     pub(crate) trait_definition:TraitDefinition<'a>,
 }
@@ -50,9 +52,12 @@ impl<'a> SabiTraitOptions<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// The attributes used in the vtable,and the trait.
 #[derive(Debug, Clone,Default)]
 pub(crate) struct OwnedDeriveAndOtherAttrs{
+    /// The attributes used in the vtable.
     pub(crate) derive_attrs:Vec<Meta>,
+    /// The attributes used in the trait.
     pub(crate) other_attrs:Vec<Meta>,
 }
 
@@ -60,15 +65,17 @@ pub(crate) struct OwnedDeriveAndOtherAttrs{
 ////////////////////////////////////////////////////////////////////////////////
 
 
-
+/// The `syn` type for methods,as well as its attributes split by where they are used.
 #[derive(Debug, Clone)]
 pub(crate) struct MethodWithAttrs<'a>{
+    /// The attributes used in the vtable,and the trait.
     pub(crate) attrs:OwnedDeriveAndOtherAttrs,
     pub(crate) item:&'a TraitItemMethod,
 }
 
 
 impl<'a> MethodWithAttrs<'a>{
+    /// Constructs a `MethodWithAttrs` with no attributes.
     fn new(item:&'a TraitItemMethod)->Self{
         Self{
             attrs:OwnedDeriveAndOtherAttrs{
@@ -84,15 +91,22 @@ impl<'a> MethodWithAttrs<'a>{
 ////////////////////////////////////////////////////////////////////////////////
 
 
+/// A datastructure used while parsing the helper attributes of #[sabi_trait].
 #[derive(Default)]
 struct SabiTraitAttrs<'a> {
+    /// Whether the output of the proc-macro is printed with println.
     debug_print_trait:bool,
+    /// The attributes used in the vtable,and the trait.
     attrs:OwnedDeriveAndOtherAttrs,
+    /// The `syn` type for methods,as well as their attributes split by where they are used.
     methods_with_attrs:Vec<MethodWithAttrs<'a>>,
+    /// Which type to use as the underlying implementation of the trait object,
+    /// either DynTrait or RObject.
     which_object:WhichObject,
 }
 
 
+/// Used as context while parsing helper attributes of #[sabi_trait].
 #[derive(Debug, Copy, Clone)]
 enum ParseContext<'a> {
     TraitAttr{
@@ -102,6 +116,7 @@ enum ParseContext<'a> {
 }
 
 
+/// Parses the helper attributes for `#[sabi_trait]`.
 pub(crate) fn parse_attrs_for_sabi_trait<'a>(
     trait_:&'a ItemTrait,
     arenas: &'a Arenas,
@@ -156,7 +171,7 @@ pub(crate) fn parse_attrs_for_sabi_trait<'a>(
     SabiTraitOptions::new(trait_,this,arenas,ctokens)
 }
 
-
+/// Parses all the attributes on an item.
 fn parse_inner<'a,I>(
     this: &mut SabiTraitAttrs<'a>,
     attrs: I,
@@ -186,6 +201,7 @@ fn parse_inner<'a,I>(
     }
 }
 
+/// Parses the list attributes on an item.
 fn parse_attr_list<'a>(
     this: &mut SabiTraitAttrs<'a>,
     pctx: ParseContext<'a>,
@@ -205,6 +221,7 @@ fn parse_attr_list<'a>(
 }
 
 
+/// Parses the `#[sabi()]` attributes on an item.
 fn parse_sabi_trait_attr<'a>(
     this: &mut SabiTraitAttrs<'a>,
     pctx: ParseContext<'a>, 
@@ -234,6 +251,7 @@ fn parse_sabi_trait_attr<'a>(
 }
 
 
+/// Wraps a list of Meta with `#[sabi(  )]`
 fn wrap_attrs_in_sabi_list<A>(attrs:&mut A)
 where
     A:Default+Extend<Meta>+IntoIterator<Item=Meta>,
