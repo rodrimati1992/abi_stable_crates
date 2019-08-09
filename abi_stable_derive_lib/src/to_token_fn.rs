@@ -3,6 +3,7 @@ use quote::ToTokens;
 
 use std::cell::RefCell;
 
+/// Used to more easily implement ToTokens.
 pub(crate) struct ToTokenFnMut<F> {
     func: RefCell<F>,
 }

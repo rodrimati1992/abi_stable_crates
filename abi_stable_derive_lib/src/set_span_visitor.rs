@@ -7,7 +7,7 @@ use syn::{
 
 use proc_macro2::Span;
 
-
+/// Used to set the span of all identifier of the thing it's visiting.
 #[derive(Debug,Clone,Copy)]
 pub struct SetSpanVisitor{
     pub span:Span,

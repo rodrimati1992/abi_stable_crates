@@ -1,3 +1,7 @@
+/*!
+Wrapper type(s) where their value is ignored in comparisons .
+*/
+
 use std::{
     ops::{Deref,DerefMut},
     fmt::{self,Debug,Display},
@@ -5,6 +9,7 @@ use std::{
     hash::{Hash,Hasher},
 };
 
+/// Wrapper type used to ignore its contents in comparisons.
 #[repr(transparent)]
 #[derive(Default,Copy,Clone)]
 pub struct Ignored<T>{

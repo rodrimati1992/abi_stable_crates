@@ -1,8 +1,6 @@
 /*!
-Contains a function for extracting information about the lifetime parameters
-of an `extern fn`,and requires all lifetimes to be unelided
-to some extent(for non-reference types at least),
-
+Contains visitor type for 
+extracting function pointers and the referenced lifetimes of the fields of a type declaration.
 */
 
 use std::mem;
@@ -27,6 +25,7 @@ use crate::{
 };
 use crate::*;
 
+/// Information about all the function pointers in a type declaration.
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct FnInfo<'a> {
     /// The generics of the struct this function pointer type is used inside of.
@@ -37,36 +36,49 @@ pub(crate) struct FnInfo<'a> {
     env_lifetimes: Vec<&'a Ident>,
 
     /// The index of first lifetime declared by all functions.
-    /// (not one it references from the struct/enum definition it is used inside of).
+    /// (with higher lifetime indices from the struct/enum definition it is used inside of).
     initial_bound_lifetime: usize,
 
     pub functions: Vec<Function<'a>>,
 }
 
+/// A function pointer in a type declaration.
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct Function<'a> {
+    /// The named lifetimes for this function pointer type,
+    /// the ones declared within `for<'a,'b,'c>`.
     pub(crate) named_bound_lts: Vec<&'a Ident>,
+    /// A set version of the `named_bound_lts` field.
     pub(crate) named_bound_lt_set: Ignored<HashSet<&'a Ident>>,
+    /// The amount of named lifetimes declared by the function pointer.
     pub(crate) named_bound_lts_count:usize,
 
     pub(crate) is_unsafe: bool,
 
+    /// The parameters of this function pointer,including name and type.
     pub(crate) params: Vec<FnParamRet<'a>>,
+    /// What this function pointer returns,including name and type.
+    ///
     /// None if its return type is `()`.
     pub(crate) returns: Option<FnParamRet<'a>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct FnParamRet<'a> {
-    /// The name of the argument/return type.
+    /// The name of the parameter/return type.
+    ///
+    /// This is None if the parameter doesn't have a name.
     pub(crate) name: Option<&'a str>,
     /// The lifetimes this type references (including static).
     pub(crate) lifetime_refs: Vec<LifetimeIndex>,
+    /// The type of the parameter/return type.
     pub(crate) ty: &'a Type,
+    /// Whether this is a parameter or a return type.
     pub(crate) param_or_ret: ParamOrReturn,
 }
 
 impl<'a> FnParamRet<'a>{
+    /// Constructs an `FnParamRet` for a `()` return type.
     pub fn unit_ret(arenas:&'a Arenas)->Self{
         let unit=syn::TypeTuple{
             paren_token:Default::default(),
@@ -81,9 +93,11 @@ impl<'a> FnParamRet<'a>{
     }
 }
 
-
+/// The information returned from visiting a field.
 pub(crate) struct VisitFieldRet<'a> {
+    /// The lifetimes that the field references.
     pub(crate) referenced_lifetimes: Vec<LifetimeIndex>,
+    /// The function pointer types in the field.
     pub(crate) functions:Vec<Function<'a>>,
 }
 
@@ -113,16 +127,21 @@ impl<'a> TypeVisitor<'a> {
         }
     }
 
+    /// Gets the arena this references.
     pub fn arenas(&self)->&'a Arenas{
         self.refs.arenas
     }
+    /// Gets the CommonTokens this references.
     pub fn ctokens(&self)->&'a FnPointerTokens{
         self.refs.ctokens
     }
+    /// Gets the generic parameters this references.
     pub fn env_generics(&self)->&'a Generics{
         self.refs.env_generics
     }
 
+    /// Visit a field type,
+    /// returning the function pointer types and referenced lifetimes.
     pub fn visit_field(&mut self,ty: &mut Type) -> VisitFieldRet<'a> {
         self.visit_type_mut(ty);
 
@@ -139,17 +158,23 @@ impl<'a> TypeVisitor<'a> {
 
 /////////////
 
+/// Whether this is a parameter or a return type/value.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate)enum ParamOrReturn {
     Param,
     Return,
 }
 
+/// A type which visits an entire type definition a field at a time,
+/// extracting function pointers and lifetimes for each field.
 pub(crate) struct TypeVisitor<'a> {
+    /// immutable references shared with other data structures-
     refs: ImmutableRefs<'a>,
+    /// variables which are mutated when visiting.
     vars: Vars<'a>,
 }
 
+/// Some immutable references used when visiting field types.
 #[allow(dead_code)]
 #[derive(Copy, Clone)]
 struct ImmutableRefs<'a> {
@@ -159,6 +184,7 @@ struct ImmutableRefs<'a> {
     env_generics: &'a Generics,
 }
 
+/// variables which are mutated when visiting.
 struct Vars<'a> {
     /// What lifetimes in env_lifetimes are referenced in the type being visited.
     /// For TLField.
@@ -166,23 +192,28 @@ struct Vars<'a> {
     fn_info: FnInfo<'a>,
 }
 
+/// Used to visit a function pointer type.
 struct FnVisitor<'a, 'b> {
     refs: ImmutableRefs<'a>,
     vars: &'b mut Vars<'a>,
 
+    /// The current function pointer type that is being visited,
     current: Function<'a>,
-    param_ret: FnParamRetBuilder,
+    /// The lifetime indices inside a parameter/return type that is currently being visited.
+    param_ret: FnParamRetLifetimes,
 }
 
-struct FnParamRetBuilder {
+/// The lifetime indices inside a parameter/return type.
+struct FnParamRetLifetimes {
     /// The lifetimes this type references (including static).
     lifetime_refs: Vec<LifetimeIndex>,
+    /// Whether this is a parameter or return type.
     param_or_ret: ParamOrReturn,
 }
 
 /////////////
 
-impl FnParamRetBuilder {
+impl FnParamRetLifetimes {
     fn new(param_or_ret: ParamOrReturn) -> Self {
         Self {
             lifetime_refs: Vec::new(),
@@ -194,6 +225,8 @@ impl FnParamRetBuilder {
 /////////////
 
 impl<'a> Vars<'a> {
+    /// Registers a lifetime index,
+    /// selecting those that come from the type declaration itself.
     pub fn add_referenced_env_lifetime(&mut self, ind: LifetimeIndex) {
         let is_env_lt = match ind {
             LifetimeIndex::Static => true,
@@ -208,6 +241,7 @@ impl<'a> Vars<'a> {
 /////////////
 
 impl<'a> VisitMut for TypeVisitor<'a> {
+    /// Visits a function pointer type within a field type.
     #[inline(never)]
     fn visit_type_bare_fn_mut(&mut self, func: &mut TypeBareFn) {
         let ctokens = self.refs.ctokens;
@@ -242,7 +276,9 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             .flat_map(|lt| lt.lifetimes)
             .map(|lt| arenas.alloc(lt.lifetime.ident))
             .collect::<Vec<&'a Ident>>();
+
         let named_bound_lt_set=named_bound_lts.iter().cloned().collect();
+
 
         let mut current_function = FnVisitor {
             refs: self.refs,
@@ -255,20 +291,24 @@ impl<'a> VisitMut for TypeVisitor<'a> {
                 params: Vec::new(),
                 returns: None,
             },
-            param_ret: FnParamRetBuilder::new(ParamOrReturn::Param),
+            param_ret: FnParamRetLifetimes::new(ParamOrReturn::Param),
         };
 
-        fn visit_ty<'a, 'b>(
+        // Visits a parameter or return type within a function pointer type.
+        fn visit_param_ret<'a, 'b>(
             this: &mut FnVisitor<'a, 'b>,
             name:Option<&'a str>,
             ty: &'a mut Type,
             param_or_ret: ParamOrReturn,
         ) {
-            this.param_ret = FnParamRetBuilder::new(param_or_ret);
+            this.param_ret = FnParamRetLifetimes::new(param_or_ret);
 
             this.visit_type_mut(ty);
 
-            let param_ret = mem::replace(&mut this.param_ret, FnParamRetBuilder::new(param_or_ret));
+            let param_ret = mem::replace(
+                &mut this.param_ret, 
+                FnParamRetLifetimes::new(param_or_ret)
+            );
 
             let param_ret = FnParamRet {
                 name,
@@ -290,19 +330,21 @@ impl<'a> VisitMut for TypeVisitor<'a> {
         {
             let arg_name=extract_fn_arg_name(i,&mut param,arenas);
             let ty = arenas.alloc_mut(param.ty);
-            visit_ty(&mut current_function,arg_name, ty, ParamOrReturn::Param);
+            visit_param_ret(&mut current_function,arg_name, ty, ParamOrReturn::Param);
         }
 
         match mem::replace(&mut func.output, syn::ReturnType::Default) {
             syn::ReturnType::Default => None,
             syn::ReturnType::Type(_, ty) => Some(arenas.alloc_mut(*ty)),
         }
-        .map(|ty| visit_ty(&mut current_function,None, ty, ParamOrReturn::Return));
+        .map(|ty| visit_param_ret(&mut current_function,None, ty, ParamOrReturn::Return));
 
         let current=current_function.current;
         self.vars.fn_info.functions.push(current);
     }
 
+    /// Visits a lifetime within a field type,
+    /// pushing it to the list of referenced lifetimes.
     #[inline(never)]
     fn visit_lifetime_mut(&mut self, lt: &mut Lifetime) {
         let ctokens = self.refs.ctokens;
@@ -324,9 +366,17 @@ impl<'a> VisitMut for TypeVisitor<'a> {
 /////////////
 
 impl<'a, 'b> FnVisitor<'a, 'b> {
+    /**
+This function does these things:
+
+- Adds the lifetime as a referenced lifetime.
+
+- If `lt` is None returns `Some('_)`,otherwise returns None,
+    this is to unelide lifetime parameters in references.
+
+    */
     #[inline(never)]
     fn setup_lifetime(&mut self, lt: Option<&Ident>) -> Option<&'a Ident> {
-        // let arenas=self.ty_visitor.arenas;
         let ctokens = self.refs.ctokens;
         let mut ret: Option<&'a Ident> = None;
         if lt == Some(&ctokens.static_) {
@@ -380,6 +430,7 @@ impl<'a, 'b> FnVisitor<'a, 'b> {
         });
         ret
     }
+    
     /// Adds a bound lifetime to the `extern fn()` and returns an index to it
     fn new_bound_lifetime(&mut self) -> LifetimeIndex {
         let index = self.vars.fn_info.initial_bound_lifetime+self.current.named_bound_lts_count;
@@ -407,6 +458,9 @@ impl<'a, 'b> VisitMut for FnVisitor<'a, 'b> {
         );
     }
 
+    /// Visits references inside the function pointer type,
+    /// uneliding their lifetime parameter,
+    /// and pushing the lifetime to the list of lifetime indices.
     fn visit_type_reference_mut(&mut self, ref_: &mut TypeReference) {
         let _ctokens = self.refs.ctokens;
         let lt = ref_.lifetime.as_ref().map(|x| &x.ident);
@@ -416,12 +470,16 @@ impl<'a, 'b> VisitMut for FnVisitor<'a, 'b> {
             }
         }
 
+        // Visits the `Foo` type in a `&'a Foo`.
         visit_mut::visit_type_mut(self, &mut ref_.elem)
     }
 
+    /// Visits a lifetime inside the function pointer type,
+    /// and pushing the lifetime to the list of lifetime indices.
     fn visit_lifetime_mut(&mut self, lt: &mut Lifetime) {
         if let Some(ident) = self.setup_lifetime(Some(&lt.ident)) {
             lt.ident = ident.clone();
+            unreachable!()
         }
     }
 }

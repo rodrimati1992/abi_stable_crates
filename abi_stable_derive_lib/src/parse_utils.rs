@@ -1,3 +1,7 @@
+/*!
+Functions for parsing many `syn` types.
+*/
+
 use syn::{
     parse,
     punctuated::Punctuated,

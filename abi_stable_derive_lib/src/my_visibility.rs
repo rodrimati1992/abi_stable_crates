@@ -1,3 +1,7 @@
+/*!
+Types for conveniently representing visibility.
+*/
+
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 #[allow(unused_imports)]
@@ -12,12 +16,14 @@ use core_extensions::prelude::*;
 
 use std::cmp::{Ordering, PartialOrd};
 
+/// A visibility in a nested module.
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct RelativeVis<'a> {
     visibility_kind: VisibilityKind<'a>,
     nesting: u8,
 }
 
+/// A visibility.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum VisibilityKind<'a> {
     Private,
@@ -30,14 +36,9 @@ pub enum VisibilityKind<'a> {
     Public,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd)]
-pub struct MyVisibility<'a> {
-    pub kind: VisibilityKind<'a>,
-}
-
-impl<'a> MyVisibility<'a> {
+impl<'a> VisibilityKind<'a> {
     pub fn new(vis: &'a Visibility) -> Self {
-        let kind = match vis {
+        match vis {
             &Visibility::Public { .. } => VisibilityKind::Public,
             &Visibility::Crate { .. } => VisibilityKind::Crate,
             &Visibility::Inherited { .. } => VisibilityKind::Private,
@@ -77,10 +78,6 @@ impl<'a> MyVisibility<'a> {
                     VisibilityKind::Absolute(path)
                 }
             }
-        };
-
-        Self {
-            kind,
         }
     }
 
@@ -91,13 +88,13 @@ impl<'a> MyVisibility<'a> {
     /// nesting==1 means the module bellow that.
     pub(crate) fn submodule_level(self, nesting: u8) -> RelativeVis<'a> {
         RelativeVis {
-            visibility_kind: self.kind,
+            visibility_kind: self,
             nesting,
         }
     }
 }
 
-impl<'a> ToTokens for MyVisibility<'a> {
+impl<'a> ToTokens for VisibilityKind<'a> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.submodule_level(0).to_tokens(tokens)
     }
@@ -153,7 +150,7 @@ impl<'a> ToTokens for RelativeVis<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Eq,PartialEq,PartialOrd,Ord)]
 enum VKDiscr {
     Private,
     Super,
@@ -163,8 +160,8 @@ enum VKDiscr {
 }
 
 impl<'a> VisibilityKind<'a> {
-    fn to_discriminant(&self) -> VKDiscr {
-        match *self {
+    fn to_discriminant(self) -> VKDiscr {
+        match self {
             VisibilityKind::Private { .. } => VKDiscr::Private,
             VisibilityKind::Super { .. } => VKDiscr::Super,
             VisibilityKind::Absolute { .. } => VKDiscr::Absolute,
@@ -177,6 +174,7 @@ impl<'a> VisibilityKind<'a> {
 impl<'a> PartialOrd for VisibilityKind<'a> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         use self::VisibilityKind as VK;
+
 
         match self.to_discriminant().cmp(&other.to_discriminant()) {
             expr @ Ordering::Less | expr @ Ordering::Greater => return Some(expr),
@@ -221,7 +219,7 @@ mod tests {
                 $ident:ident=$string:expr
             ) => {
                 let $ident: Visibility = syn::parse_str($string).expect($string);
-                let $ident = MyVisibility::new(&$ident).kind;
+                let $ident = VisibilityKind::new(&$ident).kind;
             };
         }
 

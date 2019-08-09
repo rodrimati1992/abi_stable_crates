@@ -23,7 +23,6 @@ mod attribute_parsing;
 mod composite_collections;
 mod common_tokens;
 mod constants;
-mod either;
 mod get_static_equivalent;
 mod ignored_wrapper;
 mod datastructure;

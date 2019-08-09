@@ -18,7 +18,7 @@ use crate::{
     common_tokens::StartLenTokens,
 };
 
-
+/// A `{start:16,len:u16}` range.
 #[derive(Copy,Clone,Debug,PartialEq,Eq,Ord,PartialOrd)]
 pub struct SmallStartLen{
     pub start:u16,
@@ -29,7 +29,7 @@ impl SmallStartLen{
     pub const EMPTY:Self=Self{start:0,len:0};
 
     #[inline]
-    pub fn new(start:u16,len:u16)->Self{
+    pub const fn new(start:u16,len:u16)->Self{
         Self{start,len}
     }
 
@@ -68,7 +68,8 @@ impl<'a> ToTokens for SmallStartLenTokenizer<'a> {
 
 ///////////////////////////////////////////////////////////////////////
 
-
+/// A String-like type,
+/// returning a `{start:16,len:u16}` range from methods that extend it.
 pub struct SmallCompositeString{
     buffer:String,
 }
@@ -137,7 +138,8 @@ impl SmallCompositeString{
 
 ///////////////////////////////////////////////////////////////////////
 
-
+/// A Vec-like type,
+/// returning a `{start:16,len:u16}` range from methods that extend it.
 pub struct SmallCompositeVec<T>{
     list:Vec<T>,
 }
