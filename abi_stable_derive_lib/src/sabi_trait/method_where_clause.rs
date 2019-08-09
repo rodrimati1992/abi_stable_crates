@@ -4,6 +4,8 @@ use quote::ToTokens;
 
 use syn::{WhereClause,WherePredicate};
 
+
+/// Parses and prints the syntactically valid where clauses in object safe traits.
 #[derive(Debug,Default,Clone,PartialEq,Eq)]
 pub(crate) struct MethodWhereClause<'a>{
     pub requires_self_sized:bool,

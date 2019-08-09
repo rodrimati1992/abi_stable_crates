@@ -1,3 +1,7 @@
+/**
+Contains the replace_self_path function,and the ReplaceWith enum.
+*/
+
 use arrayvec::ArrayVec;
 
 use syn::visit_mut::VisitMut;
@@ -7,14 +11,19 @@ use quote::ToTokens;
 
 use std::mem;
 
+/// What to do with the a path component when it's found.
 #[derive(Debug,Clone)]
-pub enum ReplaceWith{
+pub(crate) enum ReplaceWith{
+    /// Replaces the identifier of the path component with another.
     Ident(Ident),
+    /// Removes the path component.
     Remove,
+    /// Keeps the path component.
     Keep,
 }
 
-pub trait VisitMutWith{
+// This is only pub(crate) because it appears as a bound of `replace_self_path`.
+pub(crate)trait VisitMutWith{
     fn visit_mut_with<F>(&mut self,other:&mut SelfReplacer<F>)
     where
         F: FnMut(&Ident) -> Option<ReplaceWith>;
@@ -45,7 +54,18 @@ impl_visit_mut_with!{
     (syn::Type,VisitMut::visit_type_mut),
 }
 
+/**
+Replaces all associated types of `Self` from `value`.
 
+`replace_with` determines what happens to `Self::` when `Some()` is 
+returned from `is_assoc_type`.
+
+`is_assoc_type` is used to find the associated types to replace 
+(when the function returns Some(_)),
+as well as what to replace them with.
+
+
+*/
 pub(crate) fn replace_self_path<V,F>(
     value: &mut V,
     replace_with:ReplaceWith,
@@ -57,8 +77,9 @@ pub(crate) fn replace_self_path<V,F>(
     value.visit_mut_with(&mut SelfReplacer { is_assoc_type , replace_with });
 }
 
-#[doc(hidden)]
-pub struct SelfReplacer<F> {
+
+// This is only pub(crate) because it is used within the VisitMutWith trait.
+pub(crate)struct SelfReplacer<F> {
     is_assoc_type: F,
     replace_with:ReplaceWith,
 }
