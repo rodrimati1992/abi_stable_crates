@@ -5,18 +5,30 @@ use std::{
     ops::{Index,IndexMut},
 };
 
+/**
+This is a map from fields to some value.
+
+If you put this in a type,and use Default to initialize it,
+you must remember to replace the `FieldMap` using either `FieldMap::defaulted` or `FieldMap::with`
+
+*/
 #[derive(Default,Clone, Debug, PartialEq, Hash)]
 pub(crate) struct FieldMap<T> {
+    // The outer vec is the enum variant (if it's a struct/union it's a single element Vec),
+    // the inner one is the field within a variant/struct/union.
     fields:Vec<Vec<T>>,
 }
 
 impl<T> FieldMap<T>{
+    /// Constructs an empty FieldMap.
     pub(crate) fn empty()->Self{
         Self{
             fields:Vec::new(),
         }
     }
 
+    /// Constructs an FieldMap which maps each field in the DataStructure 
+    /// to the default value for `T`.
     pub(crate) fn defaulted<'a>(ds:&'a DataStructure<'a>)->Self
     where 
         T:Default
@@ -24,6 +36,8 @@ impl<T> FieldMap<T>{
         Self::with(ds,|_| T::default() )
     }
     
+    /// Constructs an FieldMap which maps each field in the DataStructure to a value
+    /// (obtained by mapping each individual field to `T` using a closure).
     pub(crate) fn with<'a,F>(ds:&'a DataStructure<'a>,mut f:F)->Self
     where
         F:FnMut(&'a Field<'a>)->T
@@ -38,6 +52,7 @@ impl<T> FieldMap<T>{
         }
     }
 
+    /// Maps each value in the map to another one,using a closure.
     pub(crate) fn map<F,U>(self,mut f:F)->FieldMap<U>
     where
         F:FnMut(FieldIndex,T)->U
@@ -62,6 +77,7 @@ impl<T> FieldMap<T>{
         FieldMap{fields}
     }
 
+    /// Add a new field to the map along with a value that it maps into.
     pub(crate) fn insert(&mut self,field:&Field<'_>,value:T)->T{
         mem::replace(&mut self[field], value)
     }

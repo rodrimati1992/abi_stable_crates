@@ -1,7 +1,6 @@
 use crate::*;
 
 use std::fmt::Write;
-use std::{cmp, hash};
 
 use arrayvec::ArrayString;
 
@@ -20,6 +19,7 @@ pub(crate) use self::field_map::FieldMap;
 
 //////////////////////////////////////////////////////////////////////////////
 
+/// A type definition(enum,struct,union).
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct DataStructure<'a> {
     pub(crate) vis: &'a Visibility,
@@ -28,37 +28,18 @@ pub(crate) struct DataStructure<'a> {
     pub(crate) lifetime_count: usize,
     pub(crate) field_count: usize,
     pub(crate) pub_field_count: usize,
-    // pub(crate) fn_ptr_count:usize,
-
-    // pub(crate) fn_info: FnInfo<'a>,
 
     pub(crate) attrs: &'a [Attribute],
 
+    /// Whether this is a struct/union/enum.
     pub(crate) data_variant: DataVariant,
-    pub(crate) enum_: Option<Enum<'a>>,
+
+    /// The variants in the type definition.
+    ///
+    /// If it is a struct or a union this only has 1 element.
     pub(crate) variants: Vec<Struct<'a>>,
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct Enum<'a> {
-    pub(crate) name: &'a Ident,
-    pub(crate) path: TokenStream,
-}
-
-impl<'a> cmp::PartialEq for Enum<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-    }
-}
-
-impl<'a> hash::Hash for Enum<'a> {
-    fn hash<H>(&self, hasher: &mut H)
-    where
-        H: hash::Hasher,
-    {
-        self.name.hash(hasher);
-    }
-}
 
 impl<'a> DataStructure<'a> {
     pub(crate) fn new(
@@ -66,17 +47,8 @@ impl<'a> DataStructure<'a> {
         _arenas: &'a Arenas,
     ) -> Self {
         let name = &ast.ident;
-        let enum_ = match ast.data {
-            Data::Enum(_) => Some(Enum {
-                name,
-                path: quote! { #name:: },
-            }),
-            _ => None,
-        };
 
         let data_variant: DataVariant;
-
-        // let mut ty_visitor = TypeVisitor::new(arenas, ctokens, &ast.generics);
 
         let mut variants = Vec::new();
 
@@ -97,7 +69,6 @@ impl<'a> DataStructure<'a> {
                             override_vis:override_vis,
                         },
                         &mut var.fields,
-                        // &mut ty_visitor,
                     ));
                 }
                 data_variant = DataVariant::Enum;
@@ -114,7 +85,6 @@ impl<'a> DataStructure<'a> {
                         override_vis:override_vis,
                     },
                     &mut struct_.fields,
-                    // &mut ty_visitor,
                 ));
                 data_variant = DataVariant::Struct;
             }
@@ -134,7 +104,6 @@ impl<'a> DataStructure<'a> {
                     },
                     sk, 
                     fields,
-                    // &mut ty_visitor
                 );
                 variants.push(vari);
                 data_variant = DataVariant::Union;
@@ -143,27 +112,22 @@ impl<'a> DataStructure<'a> {
 
         let mut field_count=0;
         let mut pub_field_count=0;
-        // let mut fn_ptr_count=0;
 
         for vari in &variants {
             field_count+=vari.fields.len();
             pub_field_count+=vari.pub_field_count;
-            // fn_ptr_count+=vari.fn_ptr_count;
         }
 
         Self {
             vis: &ast.vis,
             name,
-            // fn_info: ty_visitor.into_fn_info(),
             attrs: &ast.attrs,
             generics: &ast.generics,
             lifetime_count:ast.generics.lifetimes().count(),
             data_variant,
-            enum_,
             variants,
             field_count,
             pub_field_count,
-            // fn_ptr_count,
         }
     }
 
@@ -201,32 +165,46 @@ pub(crate) struct FieldIndex {
 
 
 #[derive(Copy,Clone)]
-pub(crate) struct StructParams<'a>{
-    pub(crate) discriminant:Option<&'a syn::Expr>,
-    pub(crate) variant:usize,
-    pub(crate) attrs: &'a [Attribute],
-    pub(crate) name: &'a Ident,
-    pub(crate) override_vis:Option<&'a Visibility>,
+struct StructParams<'a>{
+    discriminant:Option<&'a syn::Expr>,
+    variant:usize,
+    attrs: &'a [Attribute],
+    name: &'a Ident,
+    override_vis:Option<&'a Visibility>,
 }
 
-
+/// A struct/union or a variant of an enum.
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct Struct<'a> {
+    /// The attributes of this `Struct`.
+    ///
+    /// If this is a struct/union:these is the same as DataStructure.attrs.
+    ///
+    /// If this is an enum:these are the attributes on the variant.
     pub(crate) attrs: &'a [Attribute],
+    /// The name of this `Struct`.
+    ///
+    /// If this is a struct/union:these is the same as DataStructure.name.
+    ///
+    /// If this is an enum:this is the name of the variant.
     pub(crate) name: &'a Ident,
     pub(crate) kind: StructKind,
     pub(crate) fields: Vec<Field<'a>>,
     pub(crate) pub_field_count:usize,
-    // pub(crate) fn_ptr_count:usize,
+    /// The value of this discriminant.
+    ///
+    /// If this is a Some(_):This is an enum with an explicit discriminant value.
+    ///
+    /// If this is an None:
+    ///     This is either a struct/union or an enum variant without an explicit discriminant.
     pub(crate) discriminant:Option<&'a syn::Expr>,
     _priv: (),
 }
 
 impl<'a> Struct<'a> {
-    pub(crate) fn new(
+    fn new(
         p:StructParams<'a>,
         fields: &'a SynFields,
-        // tv: &mut TypeVisitor<'a>,
     ) -> Self {
         let kind = match *fields {
             SynFields::Named { .. } => StructKind::Braced,
@@ -240,32 +218,27 @@ impl<'a> Struct<'a> {
         };
 
         Self::with_fields(p, kind, fields)
-        // Self::with_fields(p, kind, fields, tv)
     }
 
-    pub(crate) fn with_fields<I>(
+    fn with_fields<I>(
         p:StructParams<'a>,
         kind: StructKind,
         fields: Option<I>,
-        // tv: &mut TypeVisitor<'a>,
     ) -> Self
     where
         I: IntoIterator<Item = &'a SynField>,
     {
         let fields=match fields {
             Some(x) => Field::from_iter(p, x),
-            // Some(x) => Field::from_iter(p, x, tv),
             None => Vec::new(),
         };
 
         let mut pub_field_count=0usize;
-        // let mut fn_ptr_count=0usize;
 
         for field in &fields {
             if field.is_public() {
                 pub_field_count+=1;
             }
-            // fn_ptr_count+=field.functions.len();
         }
 
         Self {
@@ -274,7 +247,6 @@ impl<'a> Struct<'a> {
             name:p.name,
             kind,
             pub_field_count,
-            // fn_ptr_count,
             fields,
             _priv: (),
         }
@@ -291,52 +263,29 @@ pub(crate) struct Field<'a> {
     pub(crate) index:FieldIndex,
     pub(crate) attrs: &'a [Attribute],
     pub(crate) vis: &'a Visibility,
-    // pub(crate) referenced_lifetimes: Vec<LifetimeIndex>,
     /// identifier for the field,which is either an index(in a tuple struct) or a name.
     pub(crate) ident: FieldIdent<'a>,
     pub(crate) ty: &'a Type,
-    // /// Whether the type of this field is just a function pointer.
-    // pub(crate) is_function:bool,
-    // /// The type used to get the AbiInfo of the field.
-    // /// This has all parameter and return types of function pointers removed.
-    // /// Extracted into the `functions` field of this struct.
-    // pub(crate) mutated_ty: Type,
-    // /// The function pointers from this field.
-    // pub(crate) functions:Vec<Function<'a>>,
 }
 
 impl<'a> Field<'a> {
-    pub(crate) fn new(
+    fn new(
         index: FieldIndex,
         field: &'a SynField,
         span: Span,
         override_vis:Option<&'a Visibility>,
-        // tv: &mut TypeVisitor<'a>,
     ) -> Self {
         let ident = match field.ident.as_ref() {
             Some(ident) => FieldIdent::Named(ident),
             None => FieldIdent::new_index(index.pos, span),
         };
 
-        // let mut mutated_ty=field.ty.clone();
-
-        // let visit_info = tv.visit_field(&mut mutated_ty);
-
-        // let is_function=match field.ty {
-        //     Type::BareFn{..}=>true,
-        //     _=>false,
-        // };
-
         Self {
             index,
             attrs: &field.attrs,
             vis: override_vis.unwrap_or(&field.vis),
-            // referenced_lifetimes: visit_info.referenced_lifetimes,
             ident,
             ty: &field.ty,
-            // is_function,
-            // mutated_ty,
-            // functions: visit_info.functions,
         }
     }
 
@@ -347,7 +296,7 @@ impl<'a> Field<'a> {
         }
     }
 
-
+    /// Gets the identifier of this field as an `&Ident`.
     pub(crate) fn ident(&self)->&Ident{
         match &self.ident {
             FieldIdent::Index(_,ident)=>ident,
@@ -355,10 +304,9 @@ impl<'a> Field<'a> {
         }
     }
 
-    pub(crate) fn from_iter<I>(
+    fn from_iter<I>(
         p:StructParams<'a>,
         fields: I, 
-        // tv: &mut TypeVisitor<'a>
     ) -> Vec<Self>
     where
         I: IntoIterator<Item = &'a SynField>,
@@ -368,7 +316,6 @@ impl<'a> Field<'a> {
             .enumerate()
             .map(|(pos, f)|{ 
                 let fi=FieldIndex{variant:p.variant,pos};
-                // Field::new(fi, f, p.name.span(),p.override_vis, tv)
                 Field::new(fi, f, p.name.span(),p.override_vis)
             })
             .collect()

@@ -1,3 +1,7 @@
+/**
+Contains the `GenParamsIn` type,for printing generic parameters.
+*/
+
 use syn::{
     token::{Comma,Colon,Const,Star},
     Generics,GenericParam,
@@ -11,16 +15,24 @@ use crate::utils::NoTokens;
 
 /// Used to print (with ToTokens) the generc parameter differently depending on where
 /// it is being used/declared.
+///
+/// One can also add stuff to be printed after lifetime/type parameters.
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct GenParamsIn<'a,AL=NoTokens> {
     pub generics: &'a Generics,
+    /// Where the generic parameters are being printed.
     pub in_what: InWhat,
+    /// Whether type parameters are all `?Sized`
     pub unsized_types:bool,
+    /// Whether type bounds will be printed in type parameter declarations.
     pub with_bounds:bool,
+    /// What will be printed after lifetime parameters
     after_lifetimes:Option<AL>,
+    /// What will be printed after type parameters
     after_types:Option<AL>,
 }
 
+/// Where the generic parameters are being printed.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum InWhat {
     /// For the header of an impl block,as in the contents of `impl< ... >`.
@@ -52,6 +64,7 @@ impl<'a> GenParamsIn<'a>{
 }
 
 impl<'a,AL> GenParamsIn<'a,AL>{
+    /// Constructs a GenParamsIn that prints `after lifetimes` after lifetime parameters.
     pub fn with_after_lifetimes(generics: &'a Generics,in_what: InWhat,after_lifetimes:AL)->Self{
         Self{
             generics,
@@ -62,6 +75,7 @@ impl<'a,AL> GenParamsIn<'a,AL>{
             after_types:None,
         }
     }
+    /// Constructs a GenParamsIn that prints `after types` after type parameters.
     pub fn with_after_types(generics: &'a Generics,in_what: InWhat,after_types:AL)->Self{
         Self{
             generics,
@@ -72,17 +86,23 @@ impl<'a,AL> GenParamsIn<'a,AL>{
             after_types:Some(after_types),
         }
     }
+    /// Removes the bounds on type parameters on type parameter declarations.
     pub fn set_no_bounds(&mut self){
         self.with_bounds=false;
     }
+    /// Makes all type parameters `?Sized`.
     #[allow(dead_code)]
     pub fn set_unsized_types(&mut self){
         self.unsized_types=true;
     }
+
+    /// Queries whether bounds are printed.
     pub fn outputs_bounds(&self)->bool{
         self.with_bounds && 
         matches!(InWhat::ImplHeader|InWhat::ItemDecl=self.in_what)
     }
+
+    /// Queries whether all types have a `?Sized` bound.
     pub fn are_types_unsized(&self)->bool{
         self.unsized_types&&
         matches!(InWhat::ItemDecl|InWhat::ImplHeader=self.in_what)
