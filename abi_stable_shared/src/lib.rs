@@ -5,6 +5,7 @@ pub mod test_utils;
 
 use core_extensions::StringExt;
 
+/// The name mangling scheme of `abi_stable`.
 #[doc(hidden)]
 pub fn mangle_ident<S>(kind:&str,name:S)->String
 where S: ::std::fmt::Display

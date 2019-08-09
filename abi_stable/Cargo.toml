@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable"
-version = "0.6.3"
+version = "0.6.4"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition="2018"
 license = "MIT/Apache-2.0"
@@ -36,8 +36,8 @@ channels=["crossbeam-channel"]
 
 
 [dependencies]
-abi_stable_derive= {version="0.6.2",path="../abi_stable_derive"}
-abi_stable_shared= {version="0.6.0",path="../abi_stable_shared"}
+abi_stable_derive= {version="0.6.4",path="../abi_stable_derive"}
+abi_stable_shared= {version="0.6.4",path="../abi_stable_shared"}
 serde          = {version="1.0",features=["derive"]}
 serde_derive   = "1.0"
 core_extensions= { version="0.1"}
