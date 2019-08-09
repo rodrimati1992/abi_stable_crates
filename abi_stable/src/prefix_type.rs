@@ -69,6 +69,10 @@ since their existence has to be checked at runtime.
 This is because multiple versions of the library may be loaded,
 where in some of them those fields don't exist.
 
+This is generally a struct whose only non-zero-sized field is `WithMetadata_<(),Self>`.
+
+```
+
 */
     type Prefix;
 

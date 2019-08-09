@@ -79,6 +79,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let (_, ty_generics, where_clause) = generics.split_for_impl();
     let where_clause=&where_clause.unwrap().predicates;
 
+    // The value of the `SharedStableAbi::Kind` associated type.
     let associated_kind = match config.kind {
         StabilityKind::Value|StabilityKind::NonExhaustive{..} => 
             &ctokens.value_kind,
@@ -86,6 +87,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
             &ctokens.prefix_kind,
     };
 
+    // The type that implements SharedStableAbi
     let impl_ty= match &config.kind {
         StabilityKind::Value => 
             quote!(#name #ty_generics ),
@@ -102,6 +104,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     let mut prefix_type_trait_bound=None;
     let mut prefix_bounds:&[_]=&[];
 
+    // The type whose size and alignment that is stored in the type layout.
     let size_align_for=match &config.kind {
         StabilityKind::NonExhaustive(_)=>{
             quote!(__Storage)
@@ -132,7 +135,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         _=>None,
     };
 
+
     let tags_opt=&config.tags;
+    // tokenizes the `Tag` data structure associated with this type.
     let tags=ToTokenFnMut::new(move|ts|{
         match &tags_opt {
             Some(tag)=>{
@@ -145,10 +150,15 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         }
     });
 
+    
+    // tokenizes the items for nonexhaustive enums outside of the module this generates.
     let nonexhaustive_items=tokenize_nonexhaustive_items(&module,ds,config,ctokens);
+
+    // tokenizes the items for nonexhaustive enums inside of the module this generates.
     let nonexhaustive_tokens=tokenize_enum_info(ds,config,ctokens);
 
 
+    // The tokenizer for the TLData stored in the TypeLayout
     let data_variant=ToTokenFnMut::new(|ts|{
         let ct=ctokens;
 
@@ -238,7 +248,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     });
     let const_params_s=&const_params;
 
-
+    // The name of the struct this generates,
+    // to use as the `GetStaticEquivalent_::StaticEquivalent` associated type.
     let static_struct_name=Ident::new(&format!("_static_{}",name),Span::call_site());
 
     let static_struct_decl={
@@ -262,6 +273,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
         }
     };
 
+    // if the `#[sabi(impl_InterfaceType())]` attribute was used:
+    // tokenizes the implementation of `InterfaceType` for `#name #ty_params`
     let interfacetype_tokenizer=
         impl_interfacetype_tokenizer(
             ds.name,
@@ -298,6 +311,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
     // let _measure_time1=PrintDurationOnDrop::new(file_span!());
 
+    // The storage type parameter that is added if this is a nonexhaustive enum.
     let storage_opt=nonexhaustive_opt.map(|_| &ctokens.und_storage );
     let generics_header=
         GenParamsIn::with_after_types(&ds.generics,InWhat::ImplHeader,storage_opt);
@@ -393,6 +407,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     })
 }
 
+// Tokenizes a `TLEnum{ .. }`
 fn tokenize_enum<'a>(
     ds:&'a DataStructure<'a>,
     nonexhaustive_opt:Option<&'a nonexhaustive::NonExhaustive<'a>>,
@@ -483,10 +498,7 @@ where T:ToTokens
 
 
 
-
-
-
-
+/// Tokenizes a TLFields,
 fn fields_tokenizer<'a>(
     ds:&'a DataStructure<'a>,
     mut fields:impl Iterator<Item=&'a Field<'a>>+'a,
@@ -503,7 +515,6 @@ fn fields_tokenizer<'a>(
         });
     })
 }
-
 
 fn fields_tokenizer_inner<'a>(
     ds:&'a DataStructure<'a>,
@@ -621,7 +632,7 @@ fn fields_tokenizer_inner<'a>(
     });
 }
 
-
+/// Tokenizes a TLFunctions
 fn tokenize_tl_functions<'a>(
     ds:&'a DataStructure<'a>,
     fields:&[&'a Field<'a>],

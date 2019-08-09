@@ -9,7 +9,7 @@ use crate::{
 use super::common_tokens::CommonTokens;
 
 
-
+/// Used to parse ReprAttr from attributes.
 #[derive(Debug,Default, Copy, Clone, PartialEq, Eq)]
 pub struct UncheckedReprAttr{
     repr_kind:Option<UncheckedReprKind>,
@@ -43,7 +43,10 @@ pub enum DiscriminantRepr {
 }
 
 
-
+/// The representation attribute of the type.
+///
+/// This doesn't include `#[repr(align())]` since the alignment is 
+/// stored as part of TypeLayout anyway.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ReprAttr{
     C(Option<DiscriminantRepr>),
@@ -65,12 +68,6 @@ pub(crate) static REPR_ERROR_MSG:&str="\n\
 
 
 impl UncheckedReprAttr{
-    // pub fn repr_kind(&self)->Option<UncheckedReprKind>{
-    //     self.repr_kind
-    // }
-    // pub fn discriminant_repr(&self)->Option<DiscriminantRepr>{
-    //     self.discriminant_repr
-    // }
     pub fn set_repr_kind(&mut self,repr_kind:UncheckedReprKind){
         if let Some(from)=self.discriminant_repr {
             panic!(
@@ -96,6 +93,9 @@ impl UncheckedReprAttr{
 
 
 impl DiscriminantRepr{
+    /// Gets a `DiscriminantRepr` from the identifier of an integer type.
+    ///
+    /// Returns None if the identifier is not a supported integer type.
     pub fn from_ident(ident:&syn::Ident)->Option<Self>{
         if ident=="u8" {
             Some(DiscriminantRepr::U8)
@@ -142,6 +142,8 @@ impl ReprAttr{
         }
     }
 
+    /// Gets the type of the discriminant determined by this representation attribute.
+    /// Returns None if the representation is `#[repr(transparent)]`.
     pub fn type_ident(&self)->Option<syn::Ident>{
         let int_repr=match *self {
             ReprAttr::C(None)=>
@@ -168,6 +170,10 @@ impl ReprAttr{
         Some(syn::Ident::new(ty_lit,Span::call_site()))
     }
 
+    /// Returns a type which outputs a `DiscriminantRepr` with 
+    /// a slice of the items in the iterator,
+    /// where each Option is unwrapped by replacing `None`s 
+    /// with the value of the last `Some()` incremented by the distance to the current element.
     pub(crate) fn tokenize_discriminant_exprs<'a,I>(
         self,
         exprs:I,
@@ -208,6 +214,9 @@ impl ReprAttr{
     }
 
 
+    /// Returns a type which outputs a slice with the items in the iterator,
+    /// where each Option is unwrapped by replacing `None`s 
+    /// with the value of the last `Some()` incremented by the distance to the current element.
     pub(crate) fn tokenize_discriminant_slice<'a,I>(
         self,
         exprs:I,
@@ -228,7 +237,10 @@ impl ReprAttr{
 }
 
 
-pub(crate) fn tokenize_discriminant_exprs_inner<'a,I>(
+/// Outputs the items in the iterator separated by commas,
+/// where each Option is unwrapped by replacing `None`s 
+/// with the value of the last `Some()` incremented by the distance to the current element.
+fn tokenize_discriminant_exprs_inner<'a,I>(
     exprs:I,
     ctokens:&'a CommonTokens,
     ts:&mut TokenStream

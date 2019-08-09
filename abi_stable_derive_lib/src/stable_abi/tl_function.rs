@@ -1,3 +1,7 @@
+/*!
+Contains types related to the type layout of function pointers.
+*/
+
 use syn::Type;
 
 use super::*;
@@ -5,18 +9,17 @@ use super::*;
 use crate::{
     composite_collections::{SmallStartLen as StartLen},
     datastructure::{FieldMap,Field},
-    fn_pointer_extractor::{FnInfo,Function, TypeVisitor},
+    fn_pointer_extractor::{Function,TypeVisitor},
     lifetimes::LifetimeIndex,
 };
 
 
 ///////////////////////////////////////////////////////////////////////////////
 
-
+/// Associates extra information related to function pointers to a type declaration.
 #[allow(dead_code)]
 pub(crate) struct VisitedFieldMap<'a>{
     pub(crate) map:FieldMap<VisitedField<'a>>,
-    pub(crate) fn_info: FnInfo<'a>,
     pub(crate) fn_ptr_count:usize,
     priv_:(),
 }
@@ -56,7 +59,6 @@ impl<'a> VisitedFieldMap<'a>{
         });
         Self{
             map,
-            fn_info: tv.into_fn_info(),
             fn_ptr_count,
             priv_:(),
         }
@@ -71,6 +73,7 @@ impl<'a> VisitedFieldMap<'a>{
 #[allow(dead_code)]
 pub struct VisitedField<'a>{
     pub(crate) inner:&'a Field<'a>,
+    /// The lifetimes used in the field's type.
     pub(crate) referenced_lifetimes: Vec<LifetimeIndex>,
     /// identifier for the field,which is either an index(in a tuple struct) or a name.
     /// Whether the type of this field is just a function pointer.
@@ -88,6 +91,8 @@ pub struct VisitedField<'a>{
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/// This is how a function pointer is stored,
+/// in which every field is a range into `TLFunctions`.
 #[derive(Copy,Clone,Debug,PartialEq,Eq,Ord,PartialOrd)]
 pub struct CompTLFunction<'a>{
     pub(crate) ctokens:&'a CommonTokens<'a>,
@@ -101,6 +106,7 @@ pub struct CompTLFunction<'a>{
 
 
 impl<'a> CompTLFunction<'a>{
+    /// Constructs a default CompTLFunction.
     pub(crate) fn new(ctokens:&'a CommonTokens)->Self{
         CompTLFunction{
             ctokens,
