@@ -18,10 +18,6 @@ use crate::{
         RBoxError, RCmpOrdering, RErr, ROk, ROption,RResult, RString,RStr,
         RSlice, RSliceMut
     },
-    type_level::{
-        //option::{Some_,None_,SomeTrait}
-        bools::True,
-    },
 };
 
 pub(crate)mod c_functions;

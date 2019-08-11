@@ -258,7 +258,7 @@ pub type FooInterfaceBox = DynTrait<'static,RBox<()>,FooInterface>;
 /// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
 /// a RawValueBox containing the serialized data,
 /// then the returned RawValueBox is serialized.
-impl SerializeProxyType for FooInterface{
+impl<'s> SerializeProxyType<'s> for FooInterface{
     type Proxy=RawValueBox;
 }
 
@@ -307,10 +307,10 @@ impl ImplType for Foo {
     const INFO: &'static TypeInfo=impl_get_type_info! { Foo };
 }
 
-impl SerializeImplType for Foo {
+impl<'s> SerializeImplType<'s> for Foo {
     type Interface = FooInterface;
 
-    fn serialize_impl<'a>(&'a self) -> Result<RawValueBox, RBoxError> {
+    fn serialize_impl(&'s self) -> Result<RawValueBox, RBoxError> {
         match serde_json::to_string(self) {
             Ok(v)=>{
                 RawValueBox::try_from_string(v)
@@ -1203,11 +1203,11 @@ let _=borrow.default();
 
         /// It serializes a `DynTrait<_>` into a string by using 
         /// `<ConcreteType as SerializeImplType>::serialize_impl`.
-        pub fn serialize_into_proxy(&self) -> Result<I::ProxyType, RBoxError>
+        pub fn serialize_into_proxy<'a>(&'a self) -> Result<I::ProxyType, RBoxError>
         where
             P: Deref,
             I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
-            I: GetSerializeProxyType
+            I: GetSerializeProxyType<'a>
         {
             unsafe{
                 self.sabi_vtable().serialize()(self.sabi_erased_ref()).into_result()
@@ -1377,7 +1377,7 @@ impl<'borr,P, I,EV> Serialize for DynTrait<'borr,P,I,EV>
 where
     P: Deref,
     I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
-    I: GetSerializeProxyType,
+    I: GetSerializeProxyType<'borr>,
     I::ProxyType:Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -1385,7 +1385,7 @@ where
         S: Serializer,
     {
         unsafe{
-            self.sabi_vtable().serialize()(self.sabi_erased_ref())
+            self.sabi_vtable().serialize()(&*(self.sabi_erased_ref() as *const ErasedObject))
                 .into_result()
                 .map_err(ser::Error::custom)?
                 .serialize(serializer)
