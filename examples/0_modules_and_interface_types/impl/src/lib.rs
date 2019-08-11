@@ -88,10 +88,10 @@ impl ImplType for TextOperationState {
 }
 
 /// Defines how the type is serialized in DynTrait<_>.
-impl SerializeImplType for TextOperationState {
+impl<'a> SerializeImplType<'a> for TextOperationState {
     type Interface = TOState;
     
-    fn serialize_impl<'a>(&'a self) -> Result<RawValueBox, RBoxError> {
+    fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
     }
 }
@@ -139,9 +139,9 @@ impl ImplType for Command<'static> {
 }
 
 /// Defines how the type is serialized in DynTrait<_>.
-impl<'borr> SerializeImplType for Command<'borr> {
+impl<'borr,'a> SerializeImplType<'a> for Command<'borr> {
     type Interface = TOCommand;
-    fn serialize_impl<'a>(&'a self) -> Result<RawValueBox, RBoxError> {
+    fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
     }
 }
@@ -175,9 +175,9 @@ impl ImplType for ReturnValue {
 }
 
 /// Defines how the type is serialized in DynTrait<_>.
-impl SerializeImplType for ReturnValue {
+impl<'a> SerializeImplType<'a> for ReturnValue {
     type Interface = TOReturnValue;
-    fn serialize_impl<'a>(&'a self) -> Result<RawValueBox, RBoxError> {
+    fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
     }
 }

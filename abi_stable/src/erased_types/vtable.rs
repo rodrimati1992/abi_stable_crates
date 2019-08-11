@@ -110,8 +110,8 @@ macro_rules! declare_meta_vtable {
             prefix_bound="I:InterfaceBound",
             bound="I:IteratorItemOrDefault<'borr>",
             bound="<I as IteratorItemOrDefault<'borr>>::Item:StableAbi",
-            bound="I:GetSerializeProxyType",
-            bound="<I as GetSerializeProxyType>::ProxyType:StableAbi",
+            bound="I:for<'s> GetSerializeProxyType<'s>",
+            bound="for<'s> <I as GetSerializeProxyType<'s>>::ProxyType:StableAbi",
             $($(bound=$struct_bound,)*)*
         )]
         pub struct VTableVal<'borr,$erased_ptr,$interf>{
@@ -174,25 +174,25 @@ macro_rules! declare_meta_vtable {
                 }
             }
 
-            pub fn serialize(&self)->UnerasedSerializeFn<I>
+            pub fn serialize<'s>(&self)->UnerasedSerializeFn<'s,I>
             where
                 I:InterfaceBound<Serialize=Implemented<trait_marker::Serialize>>,
-                I:GetSerializeProxyType,
+                I:GetSerializeProxyType<'s>,
             {
                 unsafe{
                     std::mem::transmute::<
                         unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>,
-                        UnerasedSerializeFn<I>,
+                        UnerasedSerializeFn<'s,I>,
                     >( self.erased_serialize() )
                 }
             }
         }
 
 
-        pub type UnerasedSerializeFn<I>=
+        pub type UnerasedSerializeFn<'s,I>=
             unsafe extern "C" fn(
-                &ErasedObject
-            )->RResult<<I as GetSerializeProxyType>::ProxyType,RBoxError>;
+                &'s ErasedObject
+            )->RResult<<I as GetSerializeProxyType<'s>>::ProxyType,RBoxError>;
 
 
         /// Returns the type of a vtable field.
@@ -531,9 +531,10 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(unsafe_change_type=r#"
+            for<'s>
             unsafe extern "C" fn(
-                &ErasedObject
-            )->RResult<<I as GetSerializeProxyType>::ProxyType,RBoxError>
+                &'s ErasedObject
+            )->RResult<<I as GetSerializeProxyType<'s>>::ProxyType,RBoxError>
         "#)]
         #[sabi(accessible_if="<I as InterfaceBound>::Serialize")]
         erased_serialize:unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>;
@@ -543,14 +544,14 @@ declare_meta_vtable! {
 
         impl[] VtableFieldValue<Serialize>
         where [ 
-            T:SerializeImplType<Interface=I>,
-            I:SerializeProxyType,
+            T:for<'s>SerializeImplType<'s,Interface=I>,
+            I:for<'s>SerializeProxyType<'s>,
         ]{
             unsafe{
                 Transmuter::<
                     unsafe extern "C" fn(
-                        &ErasedObject
-                    )->RResult<<I as SerializeProxyType>::Proxy,RBoxError>,
+                        &ErasedObject<T>
+                    )->RResult<<I as SerializeProxyType<'_>>::Proxy,RBoxError>,
                     unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>
                 >{
                     from:serialize_impl::<T,I>

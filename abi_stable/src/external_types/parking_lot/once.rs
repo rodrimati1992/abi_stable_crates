@@ -27,7 +27,7 @@ type OpaqueOnce=
 const OM_PADDING:usize=RAW_LOCK_SIZE-mem::size_of::<PLOnce>();
 
 const OPAQUE_ONCE:OpaqueOnce=
-    OpaqueOnce::new(parking_lot::ONCE_INIT,[0u8;OM_PADDING]);
+    OpaqueOnce::new(parking_lot::Once::new(),[0u8;OM_PADDING]);
 
 #[allow(dead_code)]
 fn assert_mutex_size(){

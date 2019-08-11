@@ -64,13 +64,13 @@ where
     const INFO:&'static crate::erased_types::TypeInfo=impl_get_type_info! { Foo[T] };
 }
 
-impl<T> SerializeImplType for Foo<T>
+impl<'s,T> SerializeImplType<'s> for Foo<T>
 where
     T: Serialize,
 {
     type Interface=FooInterface;
 
-    fn serialize_impl(&self) -> Result<RString, RBoxError> {
+    fn serialize_impl(&'s self) -> Result<RString, RBoxError> {
         match serde_json::to_string(self) {
             Ok(v)=>Ok(v.into_c()),
             Err(e)=>Err(RBoxError::new(e)),
@@ -78,7 +78,7 @@ where
     }
 }
 
-impl SerializeProxyType for FooInterface{
+impl<'s> SerializeProxyType<'s> for FooInterface{
     type Proxy=RString;
 }
 
@@ -522,7 +522,7 @@ mod borrowing{
     ))]
     struct FooInterface;
 
-    impl SerializeProxyType for FooInterface{
+    impl<'s> SerializeProxyType<'s> for FooInterface{
         type Proxy=RString;
     }
 
@@ -541,7 +541,7 @@ mod borrowing{
         const INFO:&'static crate::erased_types::TypeInfo=impl_get_type_info! { Foo[T] };
     }
 
-    impl<'a> SerializeImplType for Foo<'a>{
+    impl<'a,'s> SerializeImplType<'s> for Foo<'a>{
         type Interface=FooInterface;
 
         fn serialize_impl(&self) -> Result<RString, RBoxError> {
