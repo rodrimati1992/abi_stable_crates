@@ -62,8 +62,8 @@ impl LibHeader {
     /// This returns a None if the root module layout is not included
     /// because the `#[unsafe_no_layout_constant]` 
     /// helper attribute was used on the function exporting the root module.
-    pub fn layout(&self)->Option<&'static AbiInfoWrapper>{
-        self.root_mod_consts.abi_info().into_option()
+    pub fn layout(&self)->Option<&'static TypeLayout>{
+        self.root_mod_consts.layout().into_option()
     }
 
     pub(super) fn initialize_library_globals(&self,globals:&'static Globals){
@@ -188,7 +188,7 @@ If the version number of the library is incompatible.
     where
         M: RootModule,
     {
-        if let IsAbiChecked::Yes(root_mod_abi_info)=self.root_mod_consts.abi_info(){
+        if let IsLayoutChecked::Yes(root_mod_layout)=self.root_mod_consts.layout(){
             // Using this instead of
             // crate::abi_stability::abi_checking::check_layout_compatibility
             // so that if this is called in a dynamic-library that loads 
@@ -199,7 +199,7 @@ If the version number of the library is incompatible.
             // This might also reduce the code in the library,
             // because it doesn't have to compile the layout checker for every library.
             (globals::initialized_globals().layout_checking)
-                (<&M>::S_ABI_INFO, root_mod_abi_info)
+                (<&M>::S_LAYOUT, root_mod_layout)
                 .into_result()
                 .map_err(LibraryError::AbiInstability)?;
         }

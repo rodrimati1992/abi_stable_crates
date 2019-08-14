@@ -34,7 +34,7 @@ pub trait RootModule: Sized+SharedStableAbi+'static  {
             base_name:StaticStr::new(Self::BASE_NAME),
             name:StaticStr::new(Self::NAME),
             version_strings:Self::VERSION_STRINGS,
-            abi_info:IsAbiChecked::Yes(<&Self>::S_ABI_INFO),
+            layout:IsLayoutChecked::Yes(<&Self>::S_LAYOUT),
             _priv:(),
         },
         _priv:PhantomData,
@@ -44,7 +44,7 @@ pub trait RootModule: Sized+SharedStableAbi+'static  {
     /// except without including the type layout constant for the root module.
     const CONSTANTS_NO_ABI_INFO:RootModuleConsts<Self>={
         let mut consts=Self::CONSTANTS;
-        consts.inner.abi_info=IsAbiChecked::No;
+        consts.inner.layout=IsLayoutChecked::No;
         consts
     };
 
@@ -366,7 +366,7 @@ declare_root_module_consts!{
         version_strings: VersionStrings,
 
         method_docs="The (optional) type layout constant of the root module.",
-        abi_info: IsAbiChecked,
+        layout: IsLayoutChecked,
     ]
 }
 

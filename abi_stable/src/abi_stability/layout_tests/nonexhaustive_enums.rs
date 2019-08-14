@@ -6,7 +6,6 @@ use crate::{
             check_layout_compatibility_with_globals,
             CheckingGlobals,
         },
-        AbiInfoWrapper,
     },
     nonexhaustive_enum::{
         examples::{
@@ -25,6 +24,7 @@ use crate::{
         },
         NonExhaustiveFor,
     },
+    type_layout::TypeLayout,
 };
 
 use core_extensions::{matches,SelfOps};
@@ -61,7 +61,7 @@ mod with_2_enums_c{
 }
 
 
-fn check_subsets<F>(list:&[&'static AbiInfoWrapper],mut f:F)
+fn check_subsets<F>(list:&[&'static TypeLayout],mut f:F)
 where
     F:FnMut(&[AbiInstability])
 {
@@ -91,9 +91,9 @@ where
 #[test]
 fn check_enum_subsets(){
     let list=vec![
-        <NonExhaustiveFor<command_a::Foo> as StableAbi>::ABI_INFO,
-        <NonExhaustiveFor<command_b::Foo> as StableAbi>::ABI_INFO,
-        <NonExhaustiveFor<command_c::Foo> as StableAbi>::ABI_INFO,
+        <NonExhaustiveFor<command_a::Foo> as StableAbi>::LAYOUT,
+        <NonExhaustiveFor<command_b::Foo> as StableAbi>::LAYOUT,
+        <NonExhaustiveFor<command_c::Foo> as StableAbi>::LAYOUT,
     ];
 
     check_subsets(&list,|errs|{
@@ -117,9 +117,9 @@ fn check_enum_subsets(){
 #[test]
 fn check_2_enum_subsets(){
     let list=vec![
-        <with_2_enums_a::Struct as StableAbi>::ABI_INFO,
-        <with_2_enums_b::Struct as StableAbi>::ABI_INFO,
-        <with_2_enums_c::Struct as StableAbi>::ABI_INFO,
+        <with_2_enums_a::Struct as StableAbi>::LAYOUT,
+        <with_2_enums_b::Struct as StableAbi>::LAYOUT,
+        <with_2_enums_c::Struct as StableAbi>::LAYOUT,
     ];
 
     check_subsets(&list,|errs|{
@@ -134,10 +134,10 @@ fn check_2_enum_subsets(){
 #[test]
 fn check_impld_traits_subsets(){
     let list=vec![
-        <NonExhaustiveFor<command_one::Foo> as StableAbi>::ABI_INFO,
-        <NonExhaustiveFor<command_one_more_traits_1::Foo> as StableAbi>::ABI_INFO,
-        <NonExhaustiveFor<command_one_more_traits_2::Foo> as StableAbi>::ABI_INFO,
-        <NonExhaustiveFor<command_one_more_traits_3::Foo> as StableAbi>::ABI_INFO,
+        <NonExhaustiveFor<command_one::Foo> as StableAbi>::LAYOUT,
+        <NonExhaustiveFor<command_one_more_traits_1::Foo> as StableAbi>::LAYOUT,
+        <NonExhaustiveFor<command_one_more_traits_2::Foo> as StableAbi>::LAYOUT,
+        <NonExhaustiveFor<command_one_more_traits_3::Foo> as StableAbi>::LAYOUT,
     ];
 
     check_subsets(&list,|errs|{
@@ -152,8 +152,8 @@ fn check_impld_traits_subsets(){
 
 #[test]
 fn exhaustiveness(){
-    let unwrapped=<command_a_exhaustive::Foo as StableAbi>::ABI_INFO;
-    let wrapped=<NonExhaustiveFor<command_a::Foo> as StableAbi>::ABI_INFO;
+    let unwrapped=<command_a_exhaustive::Foo as StableAbi>::LAYOUT;
+    let wrapped=<NonExhaustiveFor<command_a::Foo> as StableAbi>::LAYOUT;
 
     for (l,r) in vec![ (unwrapped,wrapped), (wrapped,unwrapped) ] {
         check_layout_compatibility(l,r)
@@ -167,9 +167,9 @@ fn exhaustiveness(){
 
 #[test]
 fn mismatched_discriminant(){
-    let regular   =<NonExhaustiveFor<command_h::Foo> as StableAbi>::ABI_INFO;
+    let regular   =<NonExhaustiveFor<command_h::Foo> as StableAbi>::LAYOUT;
     let mismatched=
-        <NonExhaustiveFor<command_h_mismatched_discriminant::Foo> as StableAbi>::ABI_INFO;
+        <NonExhaustiveFor<command_h_mismatched_discriminant::Foo> as StableAbi>::LAYOUT;
     
     check_layout_compatibility(regular,mismatched)
         .unwrap_err()
@@ -181,9 +181,9 @@ fn mismatched_discriminant(){
 
 #[test]
 fn check_storage_unstorable(){
-    let abi_a=<NonExhaustiveFor<command_a::Foo> as StableAbi>::ABI_INFO;
-    let abi_b=<NonExhaustiveFor<command_b::Foo> as StableAbi>::ABI_INFO;
-    let abi_large=<NonExhaustiveFor<too_large::Foo> as StableAbi>::ABI_INFO;
+    let abi_a=<NonExhaustiveFor<command_a::Foo> as StableAbi>::LAYOUT;
+    let abi_b=<NonExhaustiveFor<command_b::Foo> as StableAbi>::LAYOUT;
+    let abi_large=<NonExhaustiveFor<too_large::Foo> as StableAbi>::LAYOUT;
 
     let checks=vec![
         (abi_a,abi_large),
@@ -205,11 +205,11 @@ fn check_storage_unstorable(){
 
 #[test]
 fn incompatible_overlapping_variants(){
-    let abi_one=<NonExhaustiveFor<command_one::Foo> as StableAbi>::ABI_INFO;
-    let abi_a=<NonExhaustiveFor<command_a::Foo> as StableAbi>::ABI_INFO;
-    let abi_b=<NonExhaustiveFor<command_b::Foo> as StableAbi>::ABI_INFO;
-    let abi_c=<NonExhaustiveFor<command_c::Foo> as StableAbi>::ABI_INFO;
-    let abi_c_mf=<NonExhaustiveFor<command_c_mismatched_field::Foo> as StableAbi>::ABI_INFO;
+    let abi_one=<NonExhaustiveFor<command_one::Foo> as StableAbi>::LAYOUT;
+    let abi_a=<NonExhaustiveFor<command_a::Foo> as StableAbi>::LAYOUT;
+    let abi_b=<NonExhaustiveFor<command_b::Foo> as StableAbi>::LAYOUT;
+    let abi_c=<NonExhaustiveFor<command_c::Foo> as StableAbi>::LAYOUT;
+    let abi_c_mf=<NonExhaustiveFor<command_c_mismatched_field::Foo> as StableAbi>::LAYOUT;
 
     fn unwrap_the_err(errs:Result<(), AbiInstabilityErrors>){
         let mut found_mismatch=false;

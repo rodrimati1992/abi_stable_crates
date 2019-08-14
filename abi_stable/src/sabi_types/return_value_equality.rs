@@ -82,6 +82,11 @@ impl<T> ReturnValueEquality<T>{
     pub fn new(function: extern "C" fn() -> T)->Self{
         Self{function}
     }
+    
+    /// Gets the value returned by the function.
+    pub fn get(&self)->T{
+        (self.function)()
+    }
 }
 
 impl<T> Copy for ReturnValueEquality<T>{}
@@ -96,13 +101,5 @@ impl<T: Eq> Eq for ReturnValueEquality<T> {}
 impl<T: PartialEq> PartialEq for ReturnValueEquality<T> {
     fn eq(&self, other: &Self) -> bool {
         (self.function)() == (other.function)()
-    }
-}
-
-
-impl<T> ReturnValueEquality<T>{
-    /// Gets the value returned by the function.
-    pub fn get(&self)->T{
-        (self.function)()
     }
 }

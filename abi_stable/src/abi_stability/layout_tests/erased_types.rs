@@ -11,9 +11,8 @@ use crate::{
     },
     StableAbi,
     DynTrait,
-    erased_types::{IteratorItem,InterfaceType},
+    erased_types::IteratorItem,
     std_types::*,
-    type_level::bools::*,
 };
 
 
@@ -73,12 +72,12 @@ mod_iter_ty!{
 fn check_subsets(){
     type BoxTrait<'a,I>=DynTrait<'a,RBox<()>,I>;
 
-    let pref_zero=<DynTrait<'_,RBox<()>,no_iterator_interface::Interface>>::ABI_INFO;
+    let pref_zero=<DynTrait<'_,RBox<()>,no_iterator_interface::Interface>>::LAYOUT;
 
-    let pref_iter_0=<BoxTrait<'_,rstring_interface::Interface>>::ABI_INFO;
-    let pref_iter_1=<BoxTrait<'_,rstr_interface::Interface>>::ABI_INFO;
-    let pref_iter_2=<BoxTrait<'_,u8_interface::Interface>>::ABI_INFO;
-    let pref_iter_3=<BoxTrait<'_,unit_interface::Interface>>::ABI_INFO;
+    let pref_iter_0=<BoxTrait<'_,rstring_interface::Interface>>::LAYOUT;
+    let pref_iter_1=<BoxTrait<'_,rstr_interface::Interface>>::LAYOUT;
+    let pref_iter_2=<BoxTrait<'_,u8_interface::Interface>>::LAYOUT;
+    let pref_iter_3=<BoxTrait<'_,unit_interface::Interface>>::LAYOUT;
 
     let prefs=vec![pref_iter_0,pref_iter_1,pref_iter_2,pref_iter_3];
 

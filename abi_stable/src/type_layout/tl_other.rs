@@ -3,7 +3,7 @@ use super::*;
 
 use crate::{
     abi_stability::{
-        stable_abi_trait::{MakeGetAbiInfo,StableAbi_Bound},
+        stable_abi_trait::{GetTypeLayoutCtor,StableAbi_Bound},
     },
     std_types::RVec,
 };
@@ -29,7 +29,7 @@ pub enum LifetimeIndex {
 /// The definition of
 /// vtables and modules that can be extended in minor versions.
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub struct TLPrefixType {
     /// The first field in the suffix,
     /// the index to the field after 
@@ -145,7 +145,7 @@ impl Display for ModPath{
 /// 
 /// If the ammount of lifetimes change,the layouts are considered incompatible,
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq,StableAbi)]
 pub struct GenericParams {
     /// The names of the lifetimes declared by a type.
     pub lifetime: StaticSlice<StaticStr>,
@@ -214,7 +214,7 @@ impl Display for GenericParams {
 ///
 /// Unions are currently treated as structs.
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum TLData {
     /// Types defined in the compiler.
     Primitive(TLPrimitive),
@@ -272,7 +272,7 @@ impl Display for TLData {
 
 /// Types defined in the compiler
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq,StableAbi)]
 pub enum TLPrimitive{
     U8,
     I8,
@@ -325,6 +325,8 @@ impl PartialEq for CustomPrimitive{
     }
 }
 
+
+///////////////////////////////////////////////////////////////////////////////
 
 
 /// A discriminant-only version of TLData.
@@ -425,7 +427,7 @@ impl TLData {
 /// The typename and generics of the type this layout is associated to,
 /// used for printing types.
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, StableAbi)]
+#[derive(Copy, Clone, PartialEq, Eq, StableAbi)]
 pub struct FullType {
     /// The name of the type.
     pub name: StaticStr,
@@ -569,7 +571,7 @@ impl TLFieldOrFunction{
     /// Outputs this into a String with `Display` formatting.
     pub fn formatted_layout(&self)->String{
         match self {
-            TLFieldOrFunction::Field(x)=>x.abi_info.get().layout.to_string(),
+            TLFieldOrFunction::Field(x)=>x.layout.get().to_string(),
             TLFieldOrFunction::Function(x)=>x.to_string(),
         }
     }
@@ -593,14 +595,14 @@ pub struct TLFunction{
     /// A ';' separated list of all the parameter names.
     pub param_names: RStr<'static>,
 
-    pub param_abi_infos: RSlice<'static,GetAbiInfo>,
+    pub param_type_layouts: RSlice<'static,GetTypeLayout>,
     pub paramret_lifetime_indices: RSlice<'static,LifetimeIndex>,
 
     /// The return value of the function.
     /// 
     /// Lifetime indices inside mention lifetimes of the function after 
     /// the ones from the deriving type
-    pub return_abi_info:ROption<GetAbiInfo>,
+    pub return_type_layout:ROption<GetTypeLayout>,
 
 }
 
@@ -615,7 +617,7 @@ impl PartialEq for TLFunction{
         self.param_names==other.param_names&&
         self.get_params_ret_iter().eq(other.get_params_ret_iter())&&
         self.paramret_lifetime_indices==other.paramret_lifetime_indices&&
-        self.return_abi_info.map(|x| x.get() )==other.return_abi_info.map(|x| x.get() )
+        self.return_type_layout.map(|x| x.get() )==other.return_type_layout.map(|x| x.get() )
     }
 }
 
@@ -624,7 +626,7 @@ impl TLFunction{
     pub(crate) fn get_param_names(&self)->GetParamNames{
         GetParamNames{
             split:self.param_names.as_str().split(';'),
-            length:self.param_abi_infos.len(),
+            length:self.param_type_layouts.len(),
             current:0,
         }
     }
@@ -632,18 +634,18 @@ impl TLFunction{
     /// Gets the parameter types
     pub(crate) fn get_params(&self)->impl ExactSizeIterator<Item=TLField>+Clone+Debug {
         self.get_param_names()
-            .zip(self.param_abi_infos.as_slice().iter().cloned())
-            .map(|(param_name,abi_info)|{
-                TLField::new(param_name,&[],abi_info)
+            .zip(self.param_type_layouts.as_slice().iter().cloned())
+            .map(|(param_name,layout)|{
+                TLField::new(param_name,&[],layout)
             })
     }
     
     pub(crate) fn get_return(&self)->TLField{
-        const UNIT_GET_ABI_INFO:GetAbiInfo=<() as MakeGetAbiInfo<StableAbi_Bound>>::CONST;
+        const UNIT_GET_ABI_INFO:GetTypeLayout=<() as GetTypeLayoutCtor<StableAbi_Bound>>::CONST;
         TLField::new(
             "__returns",
             &[],
-            self.return_abi_info.unwrap_or(UNIT_GET_ABI_INFO)
+            self.return_type_layout.unwrap_or(UNIT_GET_ABI_INFO)
         )
     }
 

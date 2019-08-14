@@ -257,10 +257,10 @@ pub mod globals{
     use crate::{
         abi_stability::{
             abi_checking::{check_layout_compatibility_for_ffi},
-            stable_abi_trait::AbiInfoWrapper,
         },
         sabi_types::LateStaticRef,
         std_types::{RResult,RBoxError},
+        type_layout::TypeLayout,
         utils::leak_value,
     };
 
@@ -268,7 +268,7 @@ pub mod globals{
     #[derive(StableAbi)]
     pub struct Globals{
         pub layout_checking:
-            extern fn(&'static AbiInfoWrapper,&'static AbiInfoWrapper) -> RResult<(), RBoxError> ,
+            extern fn(&'static TypeLayout,&'static TypeLayout) -> RResult<(), RBoxError> ,
     }
 
     impl Globals{

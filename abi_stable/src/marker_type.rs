@@ -113,6 +113,7 @@ unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
     type Kind=ValueKind;
 
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
+        Self::S_ABI_CONSTS,
         "UnsafeIgnoredType",
         RNone,
         make_item_info!(),

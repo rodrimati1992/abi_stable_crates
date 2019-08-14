@@ -128,6 +128,7 @@ macro_rules! check_unerased {
 ///////////////////////////////////////////////////////////////////////
 
 
+/// Constructs a `ReturnValueEquality<UTypeId>` that returns the UTypeId of the `$ty` type.
 macro_rules! make_rve_utypeid {
     ($ty:ty) => (
         $crate::sabi_types::ReturnValueEquality{

@@ -2,14 +2,14 @@ pub use crate::{
     abi_stability::{
         get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
         stable_abi_trait::{
-            MakeGetAbiInfo,  StableAbi,  SharedStableAbi, StableAbi_Bound, SharedStableAbi_Bound,
+            GetTypeLayoutCtor,  StableAbi,  SharedStableAbi, StableAbi_Bound, SharedStableAbi_Bound,
             UnsafeOpaqueField_Bound,
             ValueKind,
             PrefixKind,
             UNSAFE_EXTERN_FN_ABI_INFO,
             EXTERN_FN_ABI_INFO,
-            MakeGetAbiInfoSA,
-            MakeGetAbiInfoUF,
+            GetTypeLayoutCtorSA,
+            GetTypeLayoutCtorUF,
         },
     },
     inline_storage::InlineStorage,
@@ -77,7 +77,7 @@ pub mod renamed {
         GetStaticEquivalent_ as __GetStaticEquivalent_,
         GetStaticEquivalent as __GetStaticEquivalent,
         LifetimeIndex::Param as __LIParam, LifetimeIndex::Static as __LIStatic,
-        MakeGetAbiInfo as __MakeGetAbiInfo, 
+        GetTypeLayoutCtor as __GetTypeLayoutCtor, 
         StableAbi as __StableAbi,
         SharedStableAbi as __SharedStableAbi,
         StableAbi_Bound as __StableAbi_Bound, 
@@ -111,8 +111,8 @@ pub mod renamed {
         RNone as __RNone,
         UNSAFE_EXTERN_FN_ABI_INFO as __UNSAFE_EXTERN_FN_ABI_INFO,
         EXTERN_FN_ABI_INFO as __EXTERN_FN_ABI_INFO,
-        MakeGetAbiInfoSA as __sabi_MakeGetAbiInfoSA,
-        MakeGetAbiInfoUF as __sabi_MakeGetAbiInfoUF,
+        GetTypeLayoutCtorSA as __sabi_GetTypeLayoutCtorSA,
+        GetTypeLayoutCtorUF as __sabi_GetTypeLayoutCtorUF,
     };
 }
 

@@ -16,7 +16,7 @@ pub struct TLFunctions{
     pub functions:StaticSlice<CompTLFunction>,
     /// The range of `CompTLFunction` that each field in TLFields owns.
     pub field_fn_ranges:StaticSlice<StartLen>,
-    pub abi_infos: StaticSlice<GetAbiInfo>,
+    pub type_layouts: StaticSlice<GetTypeLayout>,
     pub paramret_lifetime_indices: StaticSlice<LifetimeIndex>,
 }
 
@@ -28,14 +28,14 @@ impl TLFunctions {
         strings: &'static str,
         functions:&'static [CompTLFunction],
         field_fn_ranges:&'static [StartLen],
-        abi_infos: &'static [GetAbiInfo],
+        type_layouts: &'static [GetTypeLayout],
         paramret_lifetime_indices: &'static [LifetimeIndex],
     )->Self{
         Self{
             strings:StaticStr::new(strings),
             functions:StaticSlice::new(functions),
             field_fn_ranges:StaticSlice::new(field_fn_ranges),
-            abi_infos:StaticSlice::new(abi_infos),
+            type_layouts:StaticSlice::new(type_layouts),
             paramret_lifetime_indices:StaticSlice::new(paramret_lifetime_indices),
         }
     }
@@ -65,9 +65,9 @@ pub struct CompTLFunction{
     name:StartLen,
     bound_lifetimes:StartLen,
     param_names:StartLen,
-    param_abi_infos:StartLen,
+    param_type_layouts:StartLen,
     paramret_lifetime_indices:StartLen,
-    return_abi_info:ROption<u16>,
+    return_type_layout:ROption<u16>,
 }
 
 
@@ -76,17 +76,17 @@ impl CompTLFunction{
         name:StartLen,
         bound_lifetimes:StartLen,
         param_names:StartLen,
-        param_abi_infos:StartLen,
+        param_type_layouts:StartLen,
         paramret_lifetime_indices:StartLen,
-        return_abi_info:ROption<u16>,
+        return_type_layout:ROption<u16>,
     )->Self{
         Self{
             name,
             bound_lifetimes,
             param_names,
-            param_abi_infos,
+            param_type_layouts,
             paramret_lifetime_indices,
-            return_abi_info,
+            return_type_layout,
         }
     }
 
@@ -95,12 +95,12 @@ impl CompTLFunction{
             name:self.name.get_str(with.strings),
             bound_lifetimes:self.bound_lifetimes.get_str(with.strings),
             param_names:self.param_names.get_str(with.strings),
-            param_abi_infos:self.param_abi_infos.get_slice(with.abi_infos),
+            param_type_layouts:self.param_type_layouts.get_slice(with.type_layouts),
             paramret_lifetime_indices:
                 self.paramret_lifetime_indices
                     .get_slice(with.paramret_lifetime_indices),
-            return_abi_info:
-                self.return_abi_info.map(|x| with.abi_infos[x as usize] ),
+            return_type_layout:
+                self.return_type_layout.map(|x| with.type_layouts[x as usize] ),
         }
     }
 }
