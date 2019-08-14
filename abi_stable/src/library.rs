@@ -25,15 +25,13 @@ pub use abi_stable_shared::mangled_root_module_loader_name;
 
 
 use crate::{
-    abi_stability::{
-        AbiInfoWrapper,
-        stable_abi_trait::SharedStableAbi,
-    },
+    abi_stability::stable_abi_trait::SharedStableAbi,
     globals::{self,Globals},
     marker_type::ErasedObject,
-    utils::{transmute_reference},
+    type_layout::TypeLayout,
     sabi_types::{ LateStaticRef, ParseVersionError, VersionNumber, VersionStrings },
     std_types::{RVec,RBoxError,StaticStr},
+    utils::{transmute_reference},
 };
 
 
@@ -84,17 +82,17 @@ pub enum LibraryPath<'a>{
 /// Whether the ABI of a root module is checked.
 #[repr(u8)]
 #[derive(Debug,Copy,Clone,StableAbi)]
-pub enum IsAbiChecked{
-    Yes(&'static AbiInfoWrapper),
+pub enum IsLayoutChecked{
+    Yes(&'static TypeLayout),
     No
 }
 
 
-impl IsAbiChecked{
-    pub fn into_option(self)->Option<&'static AbiInfoWrapper>{
+impl IsLayoutChecked{
+    pub fn into_option(self)->Option<&'static TypeLayout>{
         match self {
-            IsAbiChecked::Yes(x)=>Some(x),
-            IsAbiChecked::No    =>None,
+            IsLayoutChecked::Yes(x)=>Some(x),
+            IsLayoutChecked::No    =>None,
         }
     }
 }

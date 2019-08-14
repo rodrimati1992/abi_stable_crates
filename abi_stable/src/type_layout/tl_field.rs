@@ -12,9 +12,9 @@ pub struct TLField {
     /// The layout of the field's type.
     ///
     /// This is a function pointer to avoid infinite recursion,
-    /// if you have a `&'static AbiInfo`s with the same address as one of its parent type,
+    /// if you have a `&'static TypeLayout`s with the same address as one of its parent type,
     /// you've encountered a cycle.
-    pub abi_info: GetAbiInfo,
+    pub layout: GetTypeLayout,
 
     /// The function pointer types within the field.
     pub function_range:TLFunctionRange,
@@ -61,12 +61,12 @@ impl TLField {
     pub const fn new(
         name: &'static str,
         lifetime_indices: &'static [LifetimeIndex],
-        abi_info: GetAbiInfo,
+        layout: GetTypeLayout,
     ) -> Self {
         Self {
             name: StaticStr::new(name),
             lifetime_indices: StaticSlice::new(lifetime_indices),
-            abi_info,
+            layout,
             function_range:TLFunctionRange::EMPTY,
             is_function:false,
             field_accessor:FieldAccessor::Direct,
@@ -80,7 +80,7 @@ impl TLField {
 
 
     pub fn full_type(&self)->FullType{
-        self.abi_info.get().layout.full_type
+        self.layout.get().full_type
     }
 
 
@@ -100,7 +100,7 @@ impl TLField {
             visited_nodes=state.visited_nodes;
             state.recursion_depth+=1;
             state.visited_nodes+=1;
-            already_recursed = state.visited.replace(self.abi_info.get()).is_some();
+            already_recursed = state.visited.replace(self.layout.get()).is_some();
         });
 
         let _guard=if visited_nodes==0 { Some(ResetRecursion) }else{ None };
@@ -122,7 +122,7 @@ impl Eq for TLField{}
 impl PartialEq for TLField {
     fn eq(&self, other: &Self) -> bool {
         self.recursive(|_,this| {
-            let r = TLFieldShallow::new(*other, this.abi_info.is_some());
+            let r = TLFieldShallow::new(*other, this.layout.is_some());
             this == r
         })
     }
@@ -143,7 +143,7 @@ impl Debug for TLField {
 
 impl Display for TLField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let layout=self.abi_info.get().layout;
+        let layout=self.layout.get();
         let (package,version)=layout.item_info.package_and_version();
         writeln!(
             f,
@@ -197,7 +197,7 @@ impl Drop for ResetRecursion{
 struct RecursionState{
     recursion_depth:usize,
     visited_nodes:u64,
-    visited:HashSet<*const AbiInfo>,
+    visited:HashSet<*const TypeLayout>,
 }
 
 
@@ -217,8 +217,8 @@ struct TLFieldShallow {
     pub(crate) name: StaticStr,
     pub(crate) full_type: FullType,
     pub(crate) lifetime_indices: StaticSlice<LifetimeIndex>,
-    /// This is None if it already printed that AbiInfo
-    pub(crate) abi_info: Option<&'static AbiInfo>,
+    /// This is None if it already printed that TypeLayout
+    pub(crate) layout: Option<&'static TypeLayout>,
 
     pub(crate) function_range:TLFunctionRange,
 
@@ -228,17 +228,17 @@ struct TLFieldShallow {
 }
 
 impl TLFieldShallow {
-    fn new(field: TLField, include_abi_info: bool) -> Self {
-        let abi_info = field.abi_info.get();
+    fn new(field: TLField, include_type_layout: bool) -> Self {
+        let layout = field.layout.get();
         TLFieldShallow {
             name: field.name,
             lifetime_indices: field.lifetime_indices,
-            abi_info: if include_abi_info {
-                Some(abi_info)
+            layout: if include_type_layout {
+                Some(layout)
             } else {
                 None
             },
-            full_type: abi_info.layout.full_type,
+            full_type: layout.full_type,
 
             function_range:field.function_range,
             is_function:field.is_function,

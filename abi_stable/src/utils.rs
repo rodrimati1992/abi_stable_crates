@@ -206,8 +206,8 @@ impl_fmt_padding!{ RString }
 
 /// Newtype wrapper for functions which construct constants.
 ///
-/// Declared to pass a function pointers to const fn.
-#[repr(C)]
+/// Declared to pass function pointers to const fn.
+#[repr(transparent)]
 #[derive(StableAbi)]
 // #[sabi(debug_print)]
 pub struct Constructor<T>(pub extern fn()->T);
@@ -217,6 +217,36 @@ impl<T> Copy for Constructor<T>{}
 impl<T> Clone for Constructor<T>{
     fn clone(&self)->Self{
         *self
+    }
+}
+
+impl<T> Debug for Constructor<T>
+where
+    T:Debug
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&self.get(), f)
+    }
+}
+
+impl<T> Constructor<T> {
+    /// Constructs a `T` by calling the wrapped function.
+    pub fn get(self) -> T {
+        (self.0)()
+    }
+}
+
+impl<T> Eq for Constructor<T>
+where
+    T:Eq
+{}
+
+impl<T> PartialEq for Constructor<T>
+where
+    T:PartialEq
+{
+    fn eq(&self,other:&Self)->bool{
+        self.get()==other.get()
     }
 }
 

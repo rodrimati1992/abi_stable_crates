@@ -74,7 +74,7 @@ pub enum MRFieldAccessor {
 
 
 impl MRItem{
-    pub fn from_abi_info(
+    pub fn from_type_layout(
         layout:&'static TypeLayout,
     )->Self{
         let type_=layout.full_type.to_string();
@@ -112,7 +112,7 @@ impl MRItem{
                                 MRItemVariant::Function(func),
                             )
                         }else{
-                            let layout=field.abi_info.get().layout;
+                            let layout=field.layout.get();
                             (
                                 layout.full_type.to_string(),
                                 Self::get_item_variant(layout),
@@ -135,7 +135,7 @@ impl MRItem{
                 MRItemVariant::Static,
             ModReflMode::DelegateDeref{phantom_field_index}=>{
                 let delegate_to=layout.phantom_fields[phantom_field_index];
-                let inner_layout=delegate_to.abi_info.get().layout;
+                let inner_layout=delegate_to.layout.get();
                 Self::get_item_variant(inner_layout)
             }
         }
@@ -184,7 +184,7 @@ impl From<TLField> for MRNameType{
         let type_=if field.is_function{
             field.function_range.index(0).to_string()
         }else{
-            field.abi_info.get().layout.full_type.to_string()
+            field.layout.get().full_type.to_string()
         };
 
         Self{

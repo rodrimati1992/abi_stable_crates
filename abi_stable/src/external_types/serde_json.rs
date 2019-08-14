@@ -507,7 +507,10 @@ assert_eq!(
     ///
     /// let raw=serde_json::from_str::<RawValueBox>(JSON).unwrap();
     ///
-    /// assert_eq!( raw.as_raw_value_ref(), RawValueRef::try_from_str(JSON).unwrap() );
+    /// assert_eq!( 
+    ///     raw.get(), 
+    ///     RawValueRef::try_from_str(JSON).unwrap().get()
+    /// );
     ///
     /// ```
     #[inline]

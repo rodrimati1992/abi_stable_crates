@@ -7,16 +7,16 @@ use crate::{
             check_layout_compatibility_with_globals,
             CheckingGlobals,
         },
-        AbiInfoWrapper,
     },
     std_types::{RBox},
+    type_layout::TypeLayout,
 };
 
 
 use core_extensions::{matches};
 
 
-fn check_subsets<F>(list:&[&'static AbiInfoWrapper],mut f:F)
+fn check_subsets<F>(list:&[&'static TypeLayout],mut f:F)
 where
     F:FnMut(&[AbiInstability])
 {
@@ -42,7 +42,7 @@ where
 }
 
 
-fn check_equality<F>(list:&[&'static AbiInfoWrapper],mut f:F)
+fn check_equality<F>(list:&[&'static TypeLayout],mut f:F)
 where
     F:FnMut(&[AbiInstability])
 {
@@ -145,9 +145,9 @@ mod one_method_sync_send{
 #[test]
 fn adding_methods_at_the_end(){
     let list=vec![
-        <one_method::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
-        <two_methods::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
-        <three_methods::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
+        <one_method::Trait_TO<'_,RBox<()>> as StableAbi>::LAYOUT,
+        <two_methods::Trait_TO<'_,RBox<()>> as StableAbi>::LAYOUT,
+        <three_methods::Trait_TO<'_,RBox<()>> as StableAbi>::LAYOUT,
     ];
 
     check_subsets(&list[..],|errs|{
@@ -164,9 +164,9 @@ fn adding_methods_at_the_end(){
 #[test]
 fn adding_supertraits(){
     let list=vec![
-        <one_method::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
-        <one_method_debug::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
-        <one_method_clone_debug::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
+        <one_method::Trait_TO<'_,RBox<()>> as StableAbi>::LAYOUT,
+        <one_method_debug::Trait_TO<'_,RBox<()>> as StableAbi>::LAYOUT,
+        <one_method_clone_debug::Trait_TO<'_,RBox<()>> as StableAbi>::LAYOUT,
     ];
     check_subsets(&list[..],|errs|{
         assert!(
@@ -181,10 +181,10 @@ fn adding_supertraits(){
 #[test]
 fn incompatible_supertraits(){
     let list=vec![
-        <one_method::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
-        <one_method_sync::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
-        <one_method_send::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
-        <one_method_sync_send::Trait_TO<'_,RBox<()>> as StableAbi>::ABI_INFO,
+        <one_method::Trait_TO<'_,RBox<()>> as StableAbi>::LAYOUT,
+        <one_method_sync::Trait_TO<'_,RBox<()>> as StableAbi>::LAYOUT,
+        <one_method_send::Trait_TO<'_,RBox<()>> as StableAbi>::LAYOUT,
+        <one_method_sync_send::Trait_TO<'_,RBox<()>> as StableAbi>::LAYOUT,
     ];
     check_equality(&list[..],|errs|{
         assert!(

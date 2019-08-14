@@ -13,7 +13,7 @@ use crate::{
 
 /// The layout of an enum.
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub struct TLEnum{
     /// A ';' separated list of all variant names
     pub variant_names:StaticStr,
@@ -117,7 +117,7 @@ macro_rules! declare_tl_discriminants {
     ) => (
         /// The discriminant of an enum variant.
         #[repr(u8)]
-        #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
         pub enum TLDiscriminants{
             $(
                 $(#[$variant_attr])*

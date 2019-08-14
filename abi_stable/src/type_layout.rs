@@ -9,13 +9,13 @@ use std::{
     mem,
 };
 
-use core_extensions::StringExt;
+use core_extensions::{matches,StringExt};
 
 use crate::{
-    abi_stability::stable_abi_trait::{AbiInfo,GetAbiInfo},
+    abi_stability::stable_abi_trait::{GetTypeLayout,AbiConsts,TypeKind},
     const_utils::empty_slice, sabi_types::VersionStrings, 
     sabi_types::CmpIgnored,
-    std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr,RSlice},
+    std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr,RSlice,UTypeId},
     prefix_type::{FieldAccessibility,IsConditional},
     reflection::ModReflMode,
 };
@@ -88,9 +88,12 @@ pub use self::{
 /// The layout of a type,
 /// also includes metadata about where the type was defined.
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq,StableAbi)]
 // #[sabi(debug_print)]
 pub struct TypeLayout {
+    /// Contains constants equivalent to the associated types in 
+    /// the SharedStableAbi impl of the type this is the layout for.
+    pub abi_consts:AbiConsts,
     /// The name of this type,the `Option` in `Òption<T>`.
     pub name: StaticStr,
     /// Contains information about where the type was defined.
@@ -128,11 +131,13 @@ pub struct TypeLayout {
 ///////////////////////////
 
 impl TypeLayout {
+    
 
     pub(crate) const fn full_type(&self) -> FullType {
         self.full_type
     }
 
+   
     /// Gets the package of the type.
     pub fn package_and_version(&self)->(StaticStr,VersionStrings){
         let (package,version)=self.item_info.package_and_version();
@@ -166,11 +171,13 @@ impl TypeLayout {
     pub fn mod_path(&self)->&ModPath{
         &self.item_info.mod_path
     }
+
 }
 
 
 impl TypeLayout {
     pub(crate) const fn from_std<T>(
+        abi_consts:AbiConsts,
         type_name: &'static str,
         data: TLData,
         repr:ReprAttr,
@@ -178,6 +185,7 @@ impl TypeLayout {
         generics: GenericParams,
     ) -> Self {
         Self::from_std_full::<T>(
+            abi_consts,
             type_name, 
             RNone, 
             item_info,
@@ -189,6 +197,7 @@ impl TypeLayout {
     }
 
     pub(crate) const fn from_std_full<T>(
+        abi_consts:AbiConsts,
         type_name: &'static str,
         prim: ROption<TLPrimitive>,
         item_info:ItemInfo,
@@ -198,6 +207,7 @@ impl TypeLayout {
         phantom: &'static [TLField],
     ) -> Self {
         Self {
+            abi_consts,
             name: StaticStr::new(type_name),
             item_info:CmpIgnored::new(item_info),
             size: mem::size_of::<T>(),
@@ -217,6 +227,7 @@ impl TypeLayout {
     pub const fn from_params<T>(p: TypeLayoutParams) -> Self {
         let name = StaticStr::new(p.name);
         Self {
+            abi_consts:p.abi_consts,
             name,
             item_info:CmpIgnored::new(p.item_info),
             size: mem::size_of::<T>(),
@@ -241,6 +252,7 @@ impl TypeLayout {
     pub const fn from_derive<T>(p: _private_TypeLayoutDerive) -> Self {
         let name = StaticStr::new(p.name);
         Self {
+            abi_consts:p.abi_consts,
             name,
             item_info:CmpIgnored::new(p.item_info),
             size: mem::size_of::<T>(),
@@ -297,6 +309,24 @@ impl TypeLayout {
     pub const fn set_repr_attr(mut self,repr_attr:ReprAttr)->Self{
         self.repr_attr=repr_attr;
         self
+    }
+
+    /// Whether this is a prefix-type(module or vtable).
+    pub fn is_prefix_kind(&self)->bool{
+        matches!(TLData::PrefixType{..}=self.data)
+    }
+
+
+    pub fn type_kind(&self)->TypeKind{
+        self.abi_consts.kind
+    }
+
+    pub fn is_nonzero(&self)->bool{
+        self.abi_consts.is_nonzero
+    }
+
+    pub fn get_utypeid(&self)->UTypeId{
+        self.abi_consts.type_id.get()
     }
 }
 

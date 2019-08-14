@@ -78,7 +78,7 @@ pub struct VisitedField<'a>{
     /// identifier for the field,which is either an index(in a tuple struct) or a name.
     /// Whether the type of this field is just a function pointer.
     pub(crate) is_function:bool,
-    /// The type used to get the AbiInfo of the field.
+    /// The type used to get the TypeLayout of the field.
     /// This has all parameter and return types of function pointers removed.
     /// Extracted into the `functions` field of this struct.
     pub(crate) mutated_ty: Type,
@@ -99,9 +99,9 @@ pub struct CompTLFunction<'a>{
     pub(crate) name:StartLen,
     pub(crate) bound_lifetimes:StartLen,
     pub(crate) param_names:StartLen,
-    pub(crate) param_abi_infos:StartLen,
+    pub(crate) param_type_layouts:StartLen,
     pub(crate) paramret_lifetime_indices:StartLen,
-    pub(crate) return_abi_info:Option<u16>,
+    pub(crate) return_type_layout:Option<u16>,
 }
 
 
@@ -113,9 +113,9 @@ impl<'a> CompTLFunction<'a>{
             name:StartLen::EMPTY,
             bound_lifetimes:StartLen::EMPTY,
             param_names:StartLen::EMPTY,
-            param_abi_infos:StartLen::EMPTY,
+            param_type_layouts:StartLen::EMPTY,
             paramret_lifetime_indices:StartLen::EMPTY,
-            return_abi_info:None,
+            return_type_layout:None,
         }
     }
 }
@@ -135,13 +135,13 @@ impl<'a> ToTokens for CompTLFunction<'a> {
             self.param_names.tokenize(ct.as_ref(),ts);
             ct.comma.to_tokens(ts);
 
-            self.param_abi_infos.tokenize(ct.as_ref(),ts);
+            self.param_type_layouts.tokenize(ct.as_ref(),ts);
             ct.comma.to_tokens(ts);
 
             self.paramret_lifetime_indices.tokenize(ct.as_ref(),ts);
             ct.comma.to_tokens(ts);
 
-            match self.return_abi_info {
+            match self.return_type_layout {
                 Some(x) => {
                     ct.rsome.to_tokens(ts);
                     ct.paren.surround(ts,|ts|{

@@ -168,7 +168,7 @@ fn check_enum_accessors<T>(
 )where
     T:SharedStableAbi
 {
-    let layout=T::S_ABI_INFO.get().layout;
+    let layout=T::S_LAYOUT;
 
     let mut fields=match layout.data {
         TLData::Enum(enum_)=>enum_.fields.get_fields(),
@@ -190,7 +190,7 @@ fn check_struct_accessors<T>(
 )where
     T:SharedStableAbi
 {
-    let layout=T::S_ABI_INFO.get().layout;
+    let layout=T::S_LAYOUT;
 
     let fields=match layout.data {
         TLData::Struct{fields}=>fields.get_field_vec(),
@@ -209,7 +209,7 @@ fn check_prefix_accessors<T>(
 )where
     T:SharedStableAbi
 {
-    let layout=T::S_ABI_INFO.get().layout;
+    let layout=T::S_LAYOUT;
 
     let fields=match &layout.data {
         TLData::PrefixType(prefix)=>prefix.fields.get_field_vec(),

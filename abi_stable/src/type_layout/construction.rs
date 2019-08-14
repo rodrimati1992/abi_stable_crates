@@ -8,6 +8,7 @@ use super::*;
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct TypeLayoutParams {
+    pub abi_consts:AbiConsts,
     /// The name of the type,without generic parameters.
     pub name: &'static str,
     /// Information about where the type was declared,
@@ -25,6 +26,7 @@ pub struct TypeLayoutParams {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct _private_TypeLayoutDerive {
+    pub abi_consts:AbiConsts,
     pub name: &'static str,
     pub item_info:ItemInfo,
     pub data: TLData,

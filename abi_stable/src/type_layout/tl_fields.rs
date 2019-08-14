@@ -118,6 +118,8 @@ pub enum TLFieldsOrSlice{
 }
 
 impl TLFieldsOrSlice{
+    pub const EMPTY:Self=Self::from_slice(&[]);
+
     /// Constructs a TLFieldsOrSlice from a slice of `TLField` 
     pub const fn from_slice(slice:&'static [TLField])->Self{
         TLFieldsOrSlice::Slice(StaticSlice::new(slice))
@@ -307,9 +309,9 @@ pub struct Field1to1{
     /// The layout of the field's type.
     ///
     /// This is a function pointer to avoid infinite recursion,
-    /// if you have a `&'static AbiInfo`s with the same address as one of its parent type,
+    /// if you have a `&'static TypeLayout`s with the same address as one of its parent type,
     /// you've encountered a cycle.
-    pub abi_info: GetAbiInfo,
+    pub layout: GetTypeLayout,
 
     /// Whether this field is only a function pointer.
     pub is_function:bool,
@@ -320,11 +322,11 @@ pub struct Field1to1{
 
 impl Field1to1{
     pub const fn new(
-        abi_info: GetAbiInfo,
+        layout: GetTypeLayout,
         is_function:bool,
         field_accessor:FieldAccessor,
     )->Self{
-        Self{abi_info,is_function,field_accessor}
+        Self{layout,is_function,field_accessor}
     }
 }
 
@@ -387,7 +389,7 @@ impl Iterator for TLFieldsIterator{
                 self.field_fn_ranges.next().map_or(StartLen::EMPTY,|x|*x),
                 self.functions,
             ),
-            abi_info:field_1to1.abi_info,
+            layout:field_1to1.layout,
             is_function:field_1to1.is_function,
             field_accessor:field_1to1.field_accessor,
         })

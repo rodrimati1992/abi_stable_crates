@@ -36,9 +36,9 @@ pub struct ExtraChecks{
 #[repr(C)]
 #[derive(Debug, PartialEq,Eq,StableAbi)]
 pub struct ExtraChecksParams<'tag>{
-    interface    :&'static AbiInfo,
+    interface    :&'static TypeLayout,
     interface_tag:&'tag CheckableTag,
-    impl_   :&'static AbiInfo,
+    impl_   :&'static TypeLayout,
     impl_tag:&'tag CheckableTag,
 }
 
