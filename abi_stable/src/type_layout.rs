@@ -27,6 +27,7 @@ mod tl_field;
 mod tl_fields;
 mod tl_functions;
 mod tl_other;
+mod printing;
 pub mod tagging;
 
 pub use self::{
@@ -88,14 +89,16 @@ pub use self::{
 /// The layout of a type,
 /// also includes metadata about where the type was defined.
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq,StableAbi)]
+#[derive(Copy, Clone, PartialEq, Eq,StableAbi)]
 // #[sabi(debug_print)]
 pub struct TypeLayout {
+    /// Used for printing the type at runtime,
+    pub full_type: FullType,
+    /// The name of this type,the `Option` in `Òption<T>`.
+    pub name: StaticStr,
     /// Contains constants equivalent to the associated types in 
     /// the SharedStableAbi impl of the type this is the layout for.
     pub abi_consts:AbiConsts,
-    /// The name of this type,the `Option` in `Òption<T>`.
-    pub name: StaticStr,
     /// Contains information about where the type was defined.
     ///
     /// This is (mostly) for the Debug string
@@ -106,8 +109,6 @@ pub struct TypeLayout {
     pub alignment: usize,
     /// What kind of type this is,Primitive/Struct/Enum/PrefixType.
     pub data: TLData,
-    /// Used for printing the type at runtime,
-    pub full_type: FullType,
     /// Phantom fields,which don't have a runtime component(they aren't stored anywhere),
     /// and are checked in layout checking.
     pub phantom_fields: StaticSlice<TLField>,

@@ -3,7 +3,7 @@ use super::*;
 
 /// The layout of a field.
 #[repr(C)]
-#[derive(Copy, Clone,StableAbi)]
+#[derive(Debug, Copy, Clone, StableAbi)]
 pub struct TLField {
     /// The field's name.
     pub name: StaticStr,
@@ -124,19 +124,6 @@ impl PartialEq for TLField {
         self.recursive(|_,this| {
             let r = TLFieldShallow::new(*other, this.layout.is_some());
             this == r
-        })
-    }
-}
-
-/// Need to avoid recursion somewhere,so I decided to stop at the field level.
-impl Debug for TLField {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.recursive(|_recursion_depth,x|{
-            // if recursion_depth>=5 {
-            //     writeln!(f,"<printing recursion limit>")
-            // }else{
-                fmt::Debug::fmt(&x, f)
-            // }
         })
     }
 }

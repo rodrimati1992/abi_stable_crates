@@ -755,6 +755,48 @@ mod rust_1_34_impls{
     }
 }
 
+
+#[cfg(any(rust_1_36,feature="rust_1_36"))]
+mod rust_1_36_impls{
+    use super::*;
+    use std::mem::MaybeUninit;
+
+    unsafe impl<T> GetStaticEquivalent_ for MaybeUninit<T>
+    where
+        T:GetStaticEquivalent_
+    {
+        type StaticEquivalent=MaybeUninit<T::StaticEquivalent>;
+    }
+    unsafe impl<T> SharedStableAbi for MaybeUninit<T>
+    where
+        T:StableAbi
+    {
+        type Kind=ValueKind;
+
+        // MaybeUninit blocks layout optimizations.
+        type IsNonZeroType = False;
+
+        const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std::<Self>(
+            Self::S_ABI_CONSTS,
+            stringify!($this),
+            TLData::struct_(&[
+                TLField::new(
+                    "value",
+                    &[],
+                    <T as GetTypeLayoutCtor<StableAbi_Bound>>::CONST,
+                )
+            ]),
+            // Using `ReprAttr::Transparent` so that if I add C header file translation
+            // it will be translated to just `T`.
+            ReprAttr::Transparent,
+            ItemInfo::std_type_in("std::mem"),
+            tl_genparams!(;;),
+        );
+    }
+}
+
+
+
 /////////////
 
 macro_rules! impl_stableabi_for_repr_transparent {
