@@ -18,4 +18,5 @@ members=[
     "testing/interface_0",
     "testing/user",
     "tools/*",
+    "playground/",
 ]

@@ -199,7 +199,7 @@ use self::{UsableBy as UB};
 usable_traits!{
     clone=(Clone,"::std::clone::Clone",false,UB::ROBJECT_AND_DYN_TRAIT),
     default=(Default,"::std::default::Default",false,UB::DYN_TRAIT),
-    display=(Display,"::std::fmt::Display",false,UB::DYN_TRAIT),
+    display=(Display,"::std::fmt::Display",false,UB::ROBJECT_AND_DYN_TRAIT),
     debug=(Debug,"::std::fmt::Debug",false,UB::ROBJECT_AND_DYN_TRAIT),
     serialize=(Serialize,"::serde::Serialize",false,UB::DYN_TRAIT),
     eq=(Eq,"::std::cmp::Eq",false,UB::DYN_TRAIT),
@@ -219,7 +219,7 @@ usable_traits!{
     io_seek=(IoSeek,"::std::io::Seek",false,UB::DYN_TRAIT),
     io_read=(IoRead,"::std::io::Read",false,UB::DYN_TRAIT),
     io_buf_read=(IoBufRead,"::std::io::BufRead",false,UB::DYN_TRAIT),
-    error=(Error,"::std::error::Error",false,UB::DYN_TRAIT),
+    error=(Error,"::std::error::Error",false,UB::ROBJECT_AND_DYN_TRAIT),
 }
 
 pub(crate) fn private_associated_type()->syn::Ident{
