@@ -293,6 +293,34 @@ where
 }
 
 
+impl<'lt,P,I,V> Display for RObject<'lt,P,I,V> 
+where
+    P: Deref<Target=()>,
+    I: InterfaceType<Display = Implemented<trait_marker::Display>>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        unsafe{
+            adapt_std_fmt::<ErasedObject>(
+                self.sabi_erased_ref(), 
+                self.sabi_robject_vtable()._sabi_display().unwrap(), 
+                f
+            )
+        }
+    }
+}
+
+impl<'lt,P, I,V> std::error::Error for RObject<'lt,P,I,V>
+where
+    P: Deref<Target=()>,
+    I: InterfaceBound<
+        Display=Implemented<trait_marker::Display>,
+        Debug=Implemented<trait_marker::Debug>,
+        Error=Implemented<trait_marker::Error>,
+    >,
+{}
+
+
+
 unsafe impl<'lt,P,I,V> Send for RObject<'lt,P,I,V> 
 where 
     I:InterfaceType<Send = Implemented<trait_marker::Send>>,

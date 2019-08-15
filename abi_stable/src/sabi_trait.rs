@@ -78,7 +78,7 @@ pub mod tests;
 pub mod test_supertraits;
 
 use std::{
-    fmt::Debug,
+    fmt::{Debug,Display},
     marker::PhantomData,
 };
 

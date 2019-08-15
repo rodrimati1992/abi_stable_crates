@@ -55,6 +55,7 @@ where
     I::Send:RequiresSend<_Self,ErasedPtr,OrigPtr>,
     I::Clone:InitCloneField<_Self,ErasedPtr,OrigPtr>,
     I::Debug:InitDebugField<_Self,ErasedPtr,OrigPtr>,
+    I::Display:InitDisplayField<_Self,ErasedPtr,OrigPtr>,
     IA:GetUTID<_Self>,
 {
     const VTABLE_VAL:RObjectVtableVal<_Self,ErasedPtr,I>=
@@ -64,6 +65,7 @@ where
             _sabi_drop:c_functions::drop_pointer_impl::<OrigPtr,ErasedPtr>,
             _sabi_clone:<I::Clone as InitCloneField<_Self,ErasedPtr,OrigPtr>>::VALUE,
             _sabi_debug:<I::Debug as InitDebugField<_Self,ErasedPtr,OrigPtr>>::VALUE,
+            _sabi_display:<I::Display as InitDisplayField<_Self,ErasedPtr,OrigPtr>>::VALUE,
         };
 }
 
@@ -104,6 +106,9 @@ pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
     pub _sabi_drop :unsafe extern "C" fn(this:&mut ErasedPtr),
     pub _sabi_clone:Option<unsafe extern "C" fn(this:&ErasedPtr)->ErasedPtr>,
     pub _sabi_debug:Option<
+        unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
+    >,
+    pub _sabi_display:Option<
         unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
     >,
 }
@@ -205,6 +210,13 @@ pub mod trait_bounds{
         type=unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
         value=c_functions::debug_impl::<_Self>,
     }
+    declare_field_initalizer!{
+        type Display;
+        trait InitDisplayField[_Self,ErasedPtr,OrigPtr]
+        where [ _Self:Display ]
+        type=unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
+        value=c_functions::display_impl::<_Self>,
+    }
 
 
 
@@ -264,5 +276,5 @@ macro_rules! declare_InterfaceBound {
 
 declare_InterfaceBound!{
     auto_traits=[ Sync,Send ]
-    required_traits=[ Clone,Debug ]
+    required_traits=[ Clone,Debug,Display,Error ]
 }
