@@ -21,15 +21,16 @@ use super::{
 
 use crate::{
     StableAbi,
+    abi_stability::ExtraChecksRef,
     const_utils::Transmuter,
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
     pointer_trait::GetPointerKind,
     std_types::{Tuple3,RSome,RNone,RIoError,RSeekFrom},
-    type_layout::Tag,
     type_level::{
         impl_enum::{Implemented,Unimplemented,IsImplemented},
         trait_marker,
+        unerasability::TU_Opaque,
     },
 };
 
@@ -368,8 +369,11 @@ macro_rules! declare_meta_vtable {
 
             /// Describes which traits are implemented,
             /// stored in the layout of the type in StableAbi,
-            /// using the `#[sabi(tag="<I as InterfaceBound>::TAG")]` helper attribute
-            const TAG:Tag;
+            const EXTRA_CHECKS:&'static EnabledTraits;
+
+            extern "C" fn extra_checks()->ExtraChecksRef{
+                ExtraChecksRef::from_ptr(Self::EXTRA_CHECKS,TU_Opaque)
+            }
 
             $( 
                 /// Used by the `StableAbi` derive macro to determine whether the field 
@@ -377,7 +381,15 @@ macro_rules! declare_meta_vtable {
                 const $selector:bool; 
             )*
 
-        }   
+        }
+
+        const fn if_u16(cond:bool,if_true:u16)->u16{
+            0_u16.wrapping_sub(cond as u16) & if_true
+        }
+
+        const fn if_u64(cond:bool,if_true:u64)->u64{
+            0_u64.wrapping_sub(cond as u64) & if_true
+        }
 
         #[allow(non_upper_case_globals)]
         impl<I> InterfaceBound for I
@@ -387,42 +399,35 @@ macro_rules! declare_meta_vtable {
             $( I::$marker_trait:IsImplemented, )*
             $( I::$selector:IsImplemented, )*
         {
-            const TAG:Tag={
-                const fn str_if(cond:bool,s:&'static str)->Tag{
-                    // nulls are stripped in Tag collection variants.
-                    //
-                    // I'm using null here because using Vec<_> in constants isn't possible.
-                    [ Tag::null(), Tag::str(s) ][cond as usize]
-                }
+            const EXTRA_CHECKS:&'static EnabledTraits=&EnabledTraits{
+                
+                // Auto traits have to be equivalent in every linked library,
+                // this is why this is an array,it must match exactly.
+                auto_traits:
+                    $(
+                        if_u16(
+                            <I::$auto_trait as IsImplemented>::VALUE,
+                            enabled_traits::auto_trait_mask::$auto_trait
+                        )|
+                    )*
+                    0,
 
-                tag!{{
-                    // Auto traits have to be equivalent in every linked library,
-                    // this is why this is an array,it must match exactly.
-                    "auto traits"=>tag![[
-                        $(
-                            str_if(
-                                <I::$auto_trait as IsImplemented>::VALUE,
-                                stringify!($auto_trait)
-                            ),
-                        )*
-                    ]],
-                    // These traits can be a superset of the interface in the loaded library,
-                    // that is why it uses a map.
-                    "required traits"=>tag!{{
-                        $(
-                            str_if(
-                                <I::$selector as IsImplemented>::VALUE,
-                                stringify!($selector)
-                            ),
-                        )*
-                        $(
-                            str_if(
-                                <I::$marker_trait as IsImplemented>::VALUE,
-                                stringify!($marker_trait)
-                            ),
-                        )*
-                    }}
-                }}
+                // These traits can be a superset of the interface in the loaded library,
+                // that is why it uses a map.
+                regular_traits:
+                    $(
+                        if_u64(
+                            <I::$marker_trait as IsImplemented>::VALUE,
+                            enabled_traits::regular_trait_mask::$marker_trait
+                        )|
+                    )*
+                    $(
+                        if_u64(
+                            <I::$selector as IsImplemented>::VALUE,
+                            enabled_traits::regular_trait_mask::$selector
+                        )|
+                    )*
+                    0,
             };
 
             $( 
@@ -441,15 +446,25 @@ macro_rules! declare_meta_vtable {
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
                 f.debug_struct("VTable")
                     .field("type_info",&self.type_info())
-                    // $(
-                    //     .field(
-                    //         stringify!($field),
-                    //         &format_args!("{:x}",self.$priv_field().map_or(0,|x|x as usize))
-                    //     )
-                    // )*
                     .finish()
             }
         }
+
+        use self::enabled_traits::*;
+
+        pub mod enabled_traits{
+            declare_enabled_traits!{
+                auto_traits[
+                    $($auto_trait,)*
+                ]
+
+                regular_traits[
+                    $($marker_trait,)*
+                    $($selector,)*
+                ]
+            }
+        }
+
 
     )
 }

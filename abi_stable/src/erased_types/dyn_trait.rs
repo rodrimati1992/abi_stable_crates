@@ -584,7 +584,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         // bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound",
         bound="I:InterfaceBound",
         bound="VTable<'borr,P,I>:SharedStableAbi",
-        tag="<I as InterfaceBound>::TAG",
+        extra_checks="<I as InterfaceBound>::extra_checks",
     )]
     pub struct DynTrait<'borr,P,I,EV=()> {
         pub(super) object: ManuallyDrop<P>,
@@ -1060,6 +1060,53 @@ These are the requirements for the caller:
                 self.sabi_check_same_destructor::<InterfaceFor<T,I,TU_Unerasable>,T>()
             );
             unsafe { Ok(self.sabi_object_as_mut()) }
+        }
+
+        /// Unwraps the `DynTrait<_>` into a pointer to T,
+        /// without checking whether `T` is the type that the DynTrait was constructed with.
+        ///
+        /// # Safety
+        ///
+        /// You must check that `T` is the type that DynTrait was constructed
+        /// with through other means.
+        #[inline]
+        pub unsafe fn sabi_unchecked_into_unerased<T>(self) -> P::TransmutedPtr
+        where
+            P: Deref+ TransmuteElement<T>,
+            P::Target:Sized,
+        {
+            let this=ManuallyDrop::new(self);
+            ptr::read(&*this.object).transmute_element(T::T)
+        }
+
+        /// Unwraps the `DynTrait<_>` into a reference to T,
+        /// without checking whether `T` is the type that the DynTrait was constructed with.
+        ///
+        /// # Safety
+        ///
+        /// You must check that `T` is the type that DynTrait was constructed
+        /// with through other means.
+        #[inline]
+        pub unsafe fn sabi_unchecked_as_unerased<T>(&self) -> &T
+        where
+            P: Deref
+        {
+            self.sabi_object_as()
+        }
+
+        /// Unwraps the `DynTrait<_>` into a mutable reference to T,
+        /// without checking whether `T` is the type that the DynTrait was constructed with.
+        ///
+        /// # Safety
+        ///
+        /// You must check that `T` is the type that DynTrait was constructed
+        /// with through other means.
+        #[inline]
+        pub unsafe fn sabi_unchecked_as_unerased_mut<T>(&mut self) -> &mut T
+        where
+            P: DerefMut
+        {
+            self.sabi_object_as_mut()
         }
 
     }

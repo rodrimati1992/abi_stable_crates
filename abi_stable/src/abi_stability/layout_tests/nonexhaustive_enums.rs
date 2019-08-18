@@ -144,7 +144,7 @@ fn check_impld_traits_subsets(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::TagError{..}=err))
+            .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err))
         );
     })
 }

@@ -1,7 +1,4 @@
-use super::{
-    *,
-    vtable::InterfaceBound,
-};
+use super::*;
     
 use std::{
     fmt,
@@ -12,7 +9,10 @@ use core_extensions::SelfOps;
 
 use crate::{
     abi_stability::SharedStableAbi,
-    erased_types::c_functions::adapt_std_fmt,
+    erased_types::{
+        c_functions::adapt_std_fmt,
+        InterfaceBound,
+    },
     sabi_types::MaybeCmp,
     std_types::{RBox,UTypeId},
     pointer_trait::{
@@ -90,7 +90,7 @@ using a `RObject::*_unerased` function.
     not_stableabi(V),
     bound="V:SharedStableAbi",
     bound="I:InterfaceBound",
-    tag="<I as InterfaceBound>::TAG",
+    extra_checks="<I as InterfaceBound>::extra_checks",
 )]
 pub struct RObject<'lt,P,I,V>{
     vtable:StaticRef<V>,
@@ -468,6 +468,52 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
         unsafe { 
             Ok(transmute_mut_reference::<(),T>(&mut **self.ptr))
         }
+    }
+
+    /// Unwraps the `RObject<_>` into a pointer to T,
+    /// without checking whether `T` is the type that the RObject was constructed with.
+    ///
+    /// # Safety
+    ///
+    /// You must check that `T` is the type that RObject was constructed
+    /// with through other means.
+    #[inline]
+    pub unsafe fn sabi_unchecked_into_unerased<T>(self) -> P::TransmutedPtr
+    where
+        P: Deref<Target=()> + TransmuteElement<T>,
+    {
+        let this=ManuallyDrop::new(self);
+        ptr::read(&*this.ptr).transmute_element(T::T)
+    }
+
+    /// Unwraps the `RObject<_>` into a reference to T,
+    /// without checking whether `T` is the type that the RObject was constructed with.
+    ///
+    /// # Safety
+    ///
+    /// You must check that `T` is the type that RObject was constructed
+    /// with through other means.
+    #[inline]
+    pub unsafe fn sabi_unchecked_as_unerased<T>(&self) -> &T
+    where
+        P:Deref<Target=()>,
+    {
+        transmute_reference::<(),T>(&**self.ptr)
+    }
+
+    /// Unwraps the `RObject<_>` into a mutable reference to T,
+    /// without checking whether `T` is the type that the RObject was constructed with.
+    ///
+    /// # Safety
+    ///
+    /// You must check that `T` is the type that RObject was constructed
+    /// with through other means.
+    #[inline]
+    pub unsafe fn sabi_unchecked_as_unerased_mut<T>(&mut self) -> &mut T
+    where
+        P:DerefMut<Target=()>,
+    {
+        transmute_mut_reference::<(),T>(&mut **self.ptr)
     }
 
 }

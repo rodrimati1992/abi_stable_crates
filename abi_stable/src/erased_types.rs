@@ -20,6 +20,10 @@ use crate::{
     },
 };
 
+
+#[macro_use]
+mod enabled_traits_macro;
+
 pub(crate)mod c_functions;
 
 /// `impl InterfaceType`s used in examples.
@@ -41,7 +45,7 @@ pub mod traits;
 
 pub use self::{
     dyn_trait::{DynTrait, DynTraitBound},
-    vtable::{ GetVtable,InterfaceBound},
+    vtable::{ GetVtable,InterfaceBound,enabled_traits },
     traits::{
         ImplType, InterfaceType, 
         DeserializeDyn, 
