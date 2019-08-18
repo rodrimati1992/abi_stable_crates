@@ -66,6 +66,7 @@ pub use crate::{
         impl_enum::{Implemented,Unimplemented,ImplFrom},
         trait_marker,
     },
+    utils::Constructor,
 };
 
 

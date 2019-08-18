@@ -57,6 +57,7 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) extra_bounds:Vec<WherePredicate>,
 
     pub(crate) tags:Option<syn::Expr>,
+    pub(crate) extra_checks:Option<syn::Expr>,
 
     /// A hashset of the fields whose contents are opaque 
     /// (there are still some minimal checks going on).
@@ -236,6 +237,7 @@ impl<'a> StableAbiOptions<'a> {
             changed_types:this.changed_types,
             override_field_accessor:this.override_field_accessor,
             tags:this.tags,
+            extra_checks:this.extra_checks,
             impl_interfacetype:this.impl_interfacetype,
             phantom_fields,
             phantom_type_params:this.phantom_type_params,
@@ -256,6 +258,7 @@ struct StableAbiAttrs<'a> {
     extra_bounds:Vec<WherePredicate>,
 
     tags:Option<syn::Expr>,
+    extra_checks:Option<syn::Expr>,
 
 
     first_suffix_field:FirstSuffixField,
@@ -508,14 +511,27 @@ fn parse_sabi_attr<'a>(
         (
             ParseContext::TypeAttr{..},
             Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_tag),ref ident,..})
-        )if ident=="tag" =>
+        )if ident=="tag"||ident=="extra_checks" =>
         {
-            if this.tags.is_some() {
-                panic!("\n\n\
+            let bound=||{
+                match unparsed_tag.parse::<syn::Expr>() {
+                    Ok(v)=>v,
+                    Err(e)=>panic!(
+                        "\n\nInvalid tag expression:\n\t{}\nError:\n\t{}\n\n",
+                        unparsed_tag.value(),
+                        e
+                    ),
+                }
+            };
+
+            if ident=="tag" {
+                if this.tags.is_some() {
+                    panic!("\n\n\
 Cannot specify multiple tags,\
 you must choose whether you want array or set semantics \
 when adding more tags.
-For array semantics you can do:
+
+For multiple elements you can do:
 
 - `tag![[ tag0,tag1 ]]` or `Tag::arr(&[ tag0,tag1 ])` :
     This will require that the tags match exactly between interface and implementation.
@@ -524,19 +540,22 @@ For array semantics you can do:
     This will require that the tags in the interface are a subset of the implementation.
 
 Tag:\n\t{}\n",
-                    unparsed_tag.value(),
-                );
+                        unparsed_tag.value(),
+                    );
+                }
+                
+                this.tags=Some(bound());
+            }else if ident=="extra_checks" {
+                if this.extra_checks.is_some() {
+                    panic!("\
+                        Cannot use the `#[sabi(extra_checks=\"\")]` \
+                        attribute multiple times,\
+                    ");
+                }
+                
+                this.extra_checks=Some(bound());
             }
 
-            let bound=match unparsed_tag.parse::<syn::Expr>() {
-                Ok(v)=>v,
-                Err(e)=>panic!(
-                    "\n\nInvalid tag expression:\n\t{}\nError:\n\t{}\n\n",
-                    unparsed_tag.value(),
-                    e
-                ),
-            };
-            this.tags=Some(bound);
         }
         (ParseContext::TypeAttr{name},Meta::List(list)) => {
             if list.ident == "override" {
