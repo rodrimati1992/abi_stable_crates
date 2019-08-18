@@ -9,14 +9,17 @@ use core_extensions::{prelude::*,matches};
 
 use std::{
     borrow::Borrow,
+    cell::Cell,
     collections::HashSet,
 };
 // use std::collections::HashSet;
 
 use crate::{
+    abi_stability::{ExtraChecksRef,TypeChecker,TypeChecker_TO,ExtraChecksError},
     sabi_types::{ParseVersionError, VersionStrings},
     prefix_type::{FieldAccessibility,IsConditional},
-    std_types::{RVec, StaticSlice, StaticStr,utypeid::UTypeId,RBoxError,RResult},
+    sabi_types::CmpIgnored,
+    std_types::{RArc,RVec, StaticSlice, StaticStr,UTypeId,RBoxError,RResult,ROk,RErr},
     traits::IntoReprC,
     type_layout::{
         TypeLayout, TLData, TLDataDiscriminant, TLField, 
@@ -25,6 +28,7 @@ use crate::{
         TLFieldOrFunction, TLFunction,
         tagging::TagErrors,
     },
+    type_level::unerasability::TU_Opaque,
     utils::{max_by,min_max_by},
 };
 
@@ -54,6 +58,7 @@ pub struct AbiInstabilityError {
 /// An individual error from checking the layout of some type.
 #[derive(Debug, PartialEq,Clone)]
 pub enum AbiInstability {
+    ReentrantLayoutCheckingCall,
     NonZeroness(ExpectedFound<bool>),
     Name(ExpectedFound<FullType>),
     Package(ExpectedFound<StaticStr>),
@@ -76,11 +81,18 @@ pub enum AbiInstability {
     ReprAttr(ExpectedFound<ReprAttr>),
     EnumDiscriminant(ExpectedFound<TLDiscriminant>),
     IncompatibleWithNonExhaustive(IncompatibleWithNonExhaustive),
+    NoneExtraChecks,
+    ExtraCheckError(CmpIgnored<ExtraCheckError>),
     TagError{
         err:TagErrors,
     },
 }
 
+#[derive(Debug,Clone)]
+pub struct ExtraCheckError{
+    pub err:RArc<RBoxError>,
+    pub expected_err:ExpectedFound<ExtraChecksRef>,
+}
 
 
 use self::AbiInstability as AI;
@@ -148,6 +160,7 @@ impl fmt::Display for AbiInstabilityError {
 
         for err in &self.errs {
             let pair = match err {
+                AI::ReentrantLayoutCheckingCall => ("mismatched non-zeroness", None),
                 AI::NonZeroness(v) => ("mismatched non-zeroness", v.display_str()),
                 AI::Name(v) => ("mismatched type", v.display_str()),
                 AI::Package(v) => ("mismatched package", v.display_str()),
@@ -200,6 +213,19 @@ impl fmt::Display for AbiInstabilityError {
 
                     ("",None)
                 }
+                AI::NoneExtraChecks=>{
+                    let msg="\
+                        Interface contains a value in `extra_checks` \
+                        while the implementation does not.\
+                    ";
+                    (msg, None)
+                }
+                AI::ExtraCheckError(ec_error) => {
+                    let ExtraCheckError{err,expected_err}=&**ec_error;
+                    extra_err=Some((**err).to_string());
+
+                    ("", expected_err.display_str())
+                },
                 AI::TagError{err} => {
                     extra_err=Some(err.to_string());
 
@@ -621,6 +647,35 @@ impl AbiChecker {
                 });
             }
 
+            match (t_lay.extra_checks(),o_lay.extra_checks()) {
+                (None,_)=>{}
+                (Some(_),None)=>{
+                    errs.push(AI::NoneExtraChecks);
+                }
+                (Some(t_extra_checks),Some(o_extra_checks))=>{
+                    let checker=TypeChecker_TO::from_ptr(&mut *self,TU_Opaque);
+
+                    match t_extra_checks.check_compatibility(t_lay,o_lay,checker) {
+                        ROk(())|RErr(ExtraChecksError::TypeChecker)=>{}
+                        RErr(ExtraChecksError::NoneExtraChecks)=>{
+                            errs.push(AI::NoneExtraChecks);
+                        }
+                        RErr(ExtraChecksError::ExtraChecks(et_err))=>{
+                            let e=ExtraCheckError{
+                                    err: RArc::new(et_err),
+                                    expected_err: ExpectedFound{
+                                        expected:t_extra_checks,
+                                        found:o_extra_checks,
+                                    }
+                                }.piped(CmpIgnored::new)
+                                 .piped(AI::ExtraCheckError);
+
+                            errs.push(e);
+                        }
+                    }
+                }
+            }
+
             match (t_lay.data, o_lay.data) {
                 (TLData::Opaque{..}, _) => {
                     // No checks are necessary
@@ -835,6 +890,7 @@ impl AbiChecker {
     }
 
 
+    /// Combines the prefix types into a global map of prefix types.
     fn final_prefix_type_checks(
         &mut self,
         globals:&CheckingGlobals
@@ -930,7 +986,7 @@ impl AbiChecker {
         }
     }
 
-
+    /// Combines the nonexhaustive enums into a global map of nonexhaustive enums.
     fn final_non_exhaustive_enum_checks(
         &mut self,
         globals:&CheckingGlobals
@@ -1117,9 +1173,27 @@ pub(crate) extern fn check_layout_compatibility_for_ffi(
     implementation: &'static TypeLayout,
 ) -> RResult<(), RBoxError> {
     extern_fn_panic_handling!{
-        check_layout_compatibility(interface,implementation)
-            .map_err(RBoxError::from_fmt)
-            .into_c()
+        let mut is_already_inside=false;
+        INSIDE_LAYOUT_CHECKER.with(|inside|{
+            is_already_inside=inside.get();
+            inside.set(true);
+        });
+        let _guard=LayoutCheckerGuard;
+
+        if is_already_inside {
+            let errors = 
+                vec![AbiInstabilityError {
+                    stack_trace: vec![].into(),
+                    errs:vec![AbiInstability::ReentrantLayoutCheckingCall].into(),
+                    index: 0,
+                    _priv:(),
+                }].into_c();
+
+            Err(AbiInstabilityErrors{ interface, implementation, errors, _priv:() })
+        }else{
+            check_layout_compatibility(interface,implementation)
+        }.map_err(RBoxError::from_fmt)
+         .into_c()
     }
 }
 
@@ -1152,6 +1226,44 @@ pub extern fn exported_check_layout_compatibility(
     }
 }
 
+
+
+impl TypeChecker for AbiChecker{
+    fn check_compatibility(
+        &mut self,
+        interface:&'static TypeLayout,
+        implementation:&'static TypeLayout,
+    )->RResult<(), ExtraChecksError> {
+        let error_count_before=self.errors.len();
+        
+        self.check_inner(interface,implementation);
+
+        if error_count_before==self.errors.len() {
+            ROk(())
+        }else{
+            RErr(ExtraChecksError::TypeChecker)
+        }
+    }
+}
+
+
+///////////////////////////////////////////////
+
+
+thread_local!{
+    static INSIDE_LAYOUT_CHECKER:Cell<bool>=Cell::new(false);
+}
+
+
+struct LayoutCheckerGuard;
+
+impl Drop for LayoutCheckerGuard{
+    fn drop(&mut self){
+        INSIDE_LAYOUT_CHECKER.with(|inside|{
+            inside.set(false);
+        });
+    }
+}
 
 
 ///////////////////////////////////////////////
