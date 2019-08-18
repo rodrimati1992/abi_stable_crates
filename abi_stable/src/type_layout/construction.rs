@@ -24,7 +24,7 @@ pub struct TypeLayoutParams {
 
 #[doc(hidden)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone)]
 pub struct _private_TypeLayoutDerive {
     pub abi_consts:AbiConsts,
     pub name: &'static str,
@@ -32,7 +32,8 @@ pub struct _private_TypeLayoutDerive {
     pub data: TLData,
     pub generics: GenericParams,
     pub phantom_fields: &'static [TLField],
-    pub tag:Tag,
+    pub tag:&'static Tag,
+    pub extra_checks:Option<Constructor<ExtraChecksRef>>,
     pub mod_refl_mode:ModReflMode,
     pub repr_attr:ReprAttr,
 }

@@ -3,4 +3,4 @@
 **/*.7z
 Cargo.lock
 __ignored__*
-playground/
+playground/*

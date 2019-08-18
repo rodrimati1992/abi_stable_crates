@@ -12,12 +12,16 @@ use std::{
 use core_extensions::{matches,StringExt};
 
 use crate::{
-    abi_stability::stable_abi_trait::{GetTypeLayout,AbiConsts,TypeKind},
+    abi_stability::{
+        stable_abi_trait::{GetTypeLayout,AbiConsts,TypeKind},
+        ExtraChecksRef,
+    },
     const_utils::empty_slice, sabi_types::VersionStrings, 
     sabi_types::CmpIgnored,
     std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr,RSlice,UTypeId},
     prefix_type::{FieldAccessibility,IsConditional},
     reflection::ModReflMode,
+    utils::Constructor,
 };
 
 
@@ -114,13 +118,11 @@ pub struct TypeLayout {
     pub phantom_fields: StaticSlice<TLField>,
     /// Extra data stored for reflection,
     /// so as to not break the abi every time that more stuff is added for reflection.
-    pub reflection_tag:Tag,
-    #[doc(hidden)]
-    /// Extra data stored for reflection,
-    /// so as to not break the abi every time that more stuff is added.
-    pub private_tag:Tag,
+    pub reflection_tag:&'static Tag,
     /// A json-like data structure used to add extra checks.
-    pub tag:Tag,
+    pub tag:&'static Tag,
+    /// A json-like data structure used to add extra checks.
+    pub extra_checks:CmpIgnored<Option<Constructor<ExtraChecksRef>>>,
     /// The representation attribute(s) of this type.
     pub repr_attr:ReprAttr,
     /// How this type is treated when interpreted as a module.
@@ -173,6 +175,11 @@ impl TypeLayout {
         &self.item_info.mod_path
     }
 
+    #[inline]
+    pub fn extra_checks(&self)->Option<ExtraChecksRef>{
+        self.extra_checks.value.map(Constructor::get)
+    }
+
 }
 
 
@@ -216,9 +223,9 @@ impl TypeLayout {
             data,
             full_type: FullType::new(type_name, prim, genparams),
             phantom_fields: StaticSlice::new(phantom),
-            reflection_tag:Tag::null(),
-            private_tag:Tag::null(),
-            tag:Tag::null(),
+            reflection_tag:Tag::NULL,
+            tag:Tag::NULL,
+            extra_checks:CmpIgnored::new(None),
             mod_refl_mode:ModReflMode::Module,
             repr_attr:repr,
         }
@@ -240,9 +247,9 @@ impl TypeLayout {
                 generics: p.generics,
             },
             phantom_fields: StaticSlice::new(empty_slice()),
-            reflection_tag:Tag::null(),
-            private_tag:Tag::null(),
-            tag:Tag::null(),
+            reflection_tag:Tag::NULL,
+            tag:Tag::NULL,
+            extra_checks:CmpIgnored::new(None),
             mod_refl_mode:ModReflMode::Module,
             repr_attr:ReprAttr::C(RNone),
         }
@@ -265,9 +272,9 @@ impl TypeLayout {
                 generics: p.generics,
             },
             phantom_fields: StaticSlice::new(p.phantom_fields),
-            reflection_tag:Tag::null(),
-            private_tag:Tag::null(),
+            reflection_tag:Tag::NULL,
             tag:p.tag,
+            extra_checks:CmpIgnored::new(p.extra_checks),
             mod_refl_mode:p.mod_refl_mode,
             repr_attr:p.repr_attr,
         }
@@ -282,20 +289,14 @@ impl TypeLayout {
     }
 
     /// Sets the Tag of the type,checked for compatibility in layotu checking..
-    pub const fn set_tag(mut self,tag:Tag)->Self{
+    pub const fn set_tag(mut self,tag:&'static Tag)->Self{
         self.tag=tag;
         self
     }
 
     /// Sets the Tag of the type used for reflection,this is not checked in layout checking.
-    pub const fn set_reflection_tag(mut self,reflection_tag:Tag)->Self{
+    pub const fn set_reflection_tag(mut self,reflection_tag:&'static Tag)->Self{
         self.reflection_tag=reflection_tag;
-        self
-    }
-
-    #[doc(hidden)]
-    pub const fn _private_method_set_private_tag(mut self,private_tag:Tag)->Self{
-        self.private_tag=private_tag;
         self
     }
 
@@ -362,7 +363,12 @@ impl Display for TypeLayout {
         }
         writeln!(f,"Tag:\n{}",self.tag.to_string().left_padder(4))?;
         writeln!(f,"Reflection Tag:\n{}",self.reflection_tag.to_string().left_padder(4))?;
-        writeln!(f,"Private Tag:\n{}",self.private_tag.to_string().left_padder(4))?;
+        let extra_checks=
+            match self.extra_checks() {
+                Some(x)=>x.to_string(),
+                None=>"<nothing>".to_string(),
+            };
+        writeln!(f,"Extra checks:\n{}",extra_checks.left_padder(4))?;
         writeln!(f,"Repr attribute:{:?}",self.repr_attr)?;
         writeln!(f,"Module reflection mode:{:?}",self.mod_refl_mode)?;
         Ok(())
