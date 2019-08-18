@@ -18,11 +18,12 @@ use crate::{
         trait_objects::{
             HasherObject,
         },
+        InterfaceBound,
     },
     inline_storage::ScratchSpace,
     marker_type::ErasedObject,
     nonexhaustive_enum::{
-        GetVTable,NonExhaustiveVtable,InterfaceBound,GetEnumInfo,GetNonExhaustive,
+        GetVTable,NonExhaustiveVtable,GetEnumInfo,GetNonExhaustive,
         ValidDiscriminant,EnumInfo,
         SerializeEnum,DeserializeEnum,
     },
@@ -179,7 +180,7 @@ with the 1.0 version of `Error` they would get an `Err(..)` back.
     bound="NonExhaustiveVtable<E,S,I>:SharedStableAbi",
     bound="E: GetNonExhaustive<S>",
     bound="I: InterfaceBound",
-    tag="<I as InterfaceBound>::TAG",
+    extra_checks="<I as InterfaceBound>::extra_checks",
     phantom_type_param="<E as GetNonExhaustive<S>>::NonExhaustive",
 )]
 pub struct NonExhaustive<E,S,I>{

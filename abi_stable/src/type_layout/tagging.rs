@@ -222,17 +222,11 @@ use core_extensions::{
 
 use crate::{
     StableAbi,
-    std_types::{
-        StaticStr,
-        StaticSlice,
-        RVec,
-        ROption,
-        RSome,
-        RNone,
-        RBox,
-    },
+    abi_stability::{TypeChecker_TO,ExtraChecks,ExtraChecksExt,ExtraChecksError},
+    std_types::{StaticStr,StaticSlice,RBox,RVec,ROption,RSome,RNone,RResult},
     traits::IntoReprC,
     utils::FmtPadding,
+    type_layout::TypeLayout,
 };
 
 
@@ -355,6 +349,8 @@ impl Tag{
             variant,
         }
     }
+
+    pub const NULL:&'static Tag=&Tag::null();
 
     /// Constructs the Null variant.
     pub const fn null()->Self{
@@ -823,6 +819,31 @@ impl Display for TagErrors {
     }
 }
 
+impl std::error::Error for TagErrors{}
+
+
+/////////////////////////////////////////////////////////////////
+
+
+impl ExtraChecks for Tag {
+    fn type_layout(&self)->&'static TypeLayout{
+        Self::LAYOUT
+    }
+
+    fn check_compatibility(
+        &self,
+        _layout_containing_self:&'static TypeLayout,
+        layout_containing_other:&'static TypeLayout,
+        checker:TypeChecker_TO<'_,&mut ()>,
+    )->RResult<(), ExtraChecksError> {
+        self.with_both_extra_checks(layout_containing_other,checker,|other|{
+            let t_tag=self.to_checkable();
+            let o_tag=other.to_checkable();
+            t_tag.check_compatible(&o_tag)
+        })
+    }
+}
+
 
 /////////////////////////////////////////////////////////////////
 
@@ -899,6 +920,8 @@ impl Display for TagErrorVariant {
         Ok(())
     }
 }
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////////

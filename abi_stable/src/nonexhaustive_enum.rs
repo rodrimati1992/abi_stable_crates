@@ -21,7 +21,7 @@ pub(crate) mod alt_c_functions;
 
 
 pub(crate) use self::{
-    vtable::{NonExhaustiveVtable,InterfaceBound},
+    vtable::{NonExhaustiveVtable},
 };
 
 

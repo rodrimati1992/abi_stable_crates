@@ -1,10 +1,10 @@
 use super::*;
 
 use crate::{
-    erased_types::FormattingMode,
+    erased_types::{FormattingMode,InterfaceBound},
     type_level::{
         unerasability::{GetUTID},
-        impl_enum::{Implemented,Unimplemented,IsImplemented},
+        impl_enum::{Implemented,Unimplemented},
         trait_marker,
     },
     sabi_types::ReturnValueEquality,
@@ -121,7 +121,7 @@ pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
 #[derive(StableAbi)]
 #[sabi(
     bound="I:InterfaceBound",
-    tag="<I as InterfaceBound>::TAG",
+    extra_checks="<I as InterfaceBound>::extra_checks",
     kind(Prefix(prefix_struct="BaseVtable")),
 )]
 pub(super)struct BaseVtableVal<_Self,ErasedPtr,I>{
@@ -223,58 +223,3 @@ pub mod trait_bounds{
 
 }
 
-macro_rules! declare_InterfaceBound {
-    (
-        auto_traits=[ $( $auto_trait:ident ),* ]
-        required_traits=[ $( $required_traits:ident ),* ]
-    ) => (
-
-        #[allow(non_upper_case_globals)]
-        pub trait InterfaceBound:InterfaceType{
-            const TAG:Tag;
-            $(const $auto_trait:bool;)*
-            $(const $required_traits:bool;)*
-        }
-
-        #[allow(non_upper_case_globals)]
-        impl<I> InterfaceBound for I
-        where 
-            I:InterfaceType,
-            $(I::$auto_trait:IsImplemented,)*
-            $(I::$required_traits:IsImplemented,)*
-        {
-            const TAG:Tag={
-                const fn str_if(cond:bool,s:&'static str)->Tag{
-                    [ Tag::null(), Tag::str(s) ][cond as usize]
-                }
-
-                tag!{{
-                    "auto traits"=>tag![[
-                        $(  
-                            str_if(
-                                <I::$auto_trait as IsImplemented>::VALUE,
-                                stringify!($auto_trait)
-                            ),
-                        )*
-                    ]],
-                    "required traits"=>tag!{{
-                        $(  
-                            str_if(
-                                <I::$required_traits as IsImplemented>::VALUE,
-                                stringify!($required_traits)
-                            ),
-                        )*
-                    }}
-                }}
-            };
-
-            $(const $auto_trait:bool=<I::$auto_trait as IsImplemented>::VALUE;)*
-            $(const $required_traits:bool=<I::$required_traits as IsImplemented>::VALUE;)*
-        }
-    )
-}
-
-declare_InterfaceBound!{
-    auto_traits=[ Sync,Send ]
-    required_traits=[ Clone,Debug,Display,Error ]
-}

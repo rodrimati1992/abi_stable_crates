@@ -172,7 +172,7 @@ fn adding_supertraits(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::TagError{..}=err))
+            .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err))
         );        
     });
 }
@@ -190,7 +190,7 @@ fn incompatible_supertraits(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::TagError{..}=err))
+            .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err))
         );        
     });
 }

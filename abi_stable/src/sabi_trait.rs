@@ -95,5 +95,4 @@ use crate::{
     marker_type::ErasedObject,
     sabi_types::MaybeCmp,
     std_types::Tuple2,
-    type_layout::Tag,
 };
