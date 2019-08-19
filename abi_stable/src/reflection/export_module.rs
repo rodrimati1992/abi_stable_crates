@@ -102,7 +102,7 @@ impl MRItem{
                     =>return MRItemVariant::Static,
                 };
 
-                let items=fields.get_fields()
+                let items=fields.iter()
                     .filter(|f| f.field_accessor!=FieldAccessor::Opaque )
                     .map(|field|{
                         let (type_,variant)=if field.is_function {

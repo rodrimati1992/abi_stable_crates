@@ -38,16 +38,7 @@ fn traverse_type_layouts_inner<'a,F>(
     if state.visited.replace(layout.get_utypeid()).is_none() {
         callback(layout);
 
-        // This is inlined here because the proper way to access all `&'a TypeLayout`
-        // that a type contains requires 
-        let fields=match layout.data {
-            TLData::Primitive{..}|TLData::Opaque=>
-                TLFieldsOrSlice::EMPTY,
-            TLData::Struct{fields}=>fields,
-            TLData::Union{fields}=>fields,
-            TLData::Enum (tlenum)=>tlenum.fields,
-            TLData::PrefixType(prefix)=>prefix.fields,
-        };
+        let fields=layout.get_fields().unwrap_or_default();
 
         if let TLFieldsOrSlice::TLFields(TLFields{functions:Some(functions),..})=fields {
             for get_type_layout in functions.type_layouts.as_slice() {
@@ -56,7 +47,7 @@ fn traverse_type_layouts_inner<'a,F>(
         }
 
 
-        for field in fields.get_fields() {
+        for field in fields {
             traverse_type_layouts_inner(field.layout.get(), state, callback);
         }
 

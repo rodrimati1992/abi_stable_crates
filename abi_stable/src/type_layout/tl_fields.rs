@@ -45,7 +45,7 @@ impl TLFields{
     }
 
     /// Gets an iterator over the fields.
-    pub fn get_fields(&self)->TLFieldsIterator{
+    pub fn iter(&self)->TLFieldsIterator{
         TLFieldsIterator{
             field_names:self.names.as_str().split(FIELD_SPLITTER),
             lifetime_indices:self.lifetime_indices.iter(),
@@ -58,11 +58,21 @@ impl TLFields{
     }
     
     /// Collects the fields into a `Vec<TLField>`.
-    pub fn get_field_vec(&self)->Vec<TLField>{
-        self.get_fields().collect()
+    pub fn to_vec(&self)->Vec<TLField>{
+        self.iter().collect()
     }
 }
 
+
+impl IntoIterator for TLFields {
+    type IntoIter=TLFieldsIterator;
+    type Item=TLField;
+
+    #[inline]
+    fn into_iter(self)->Self::IntoIter{
+        self.iter()
+    }
+}
 
 impl Debug for TLFields{
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
@@ -71,7 +81,7 @@ impl Debug for TLFields{
          .field("variant_lengths",&self.variant_lengths )
          .field("lifetime_indices",&self.variant_lengths )
          .field("function_count",&self.functions.map_or(0,|x| x.functions.len() ) )
-         .field("fields",&self.get_fields().collect::<Vec<_>>())
+         .field("fields",&self.to_vec())
          .finish()
     }
 }
@@ -79,7 +89,7 @@ impl Debug for TLFields{
 
 impl Display for TLFields {
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        fields_display_formatting(self.get_fields(),f)
+        fields_display_formatting(self.iter(),f)
     }
 }
 
@@ -87,7 +97,7 @@ impl Display for TLFields {
 impl Eq for TLFields{}
 impl PartialEq for TLFields{
     fn eq(&self,other:&Self)->bool{
-        self.get_fields().eq(other.get_fields())
+        self.iter().eq(other.iter())
     }
 }
 
@@ -120,23 +130,27 @@ pub enum TLFieldsOrSlice{
 impl TLFieldsOrSlice{
     pub const EMPTY:Self=Self::from_slice(&[]);
 
-    /// Constructs a TLFieldsOrSlice from a slice of `TLField` 
+    /// Constructs a TLFieldsOrSlice from a slice of `TLField` .
+    ///
+    /// This was defined to make construct TLFieldsOrSlice more easily 
+    /// from a `&'static [TLField;N]`.
     pub const fn from_slice(slice:&'static [TLField])->Self{
         TLFieldsOrSlice::Slice(StaticSlice::new(slice))
     }
 
     /// Gets an iterator over the fields.
-    pub fn get_fields(&self)->TLFOSIter{
+    pub fn iter(&self)->TLFOSIter{
         match self {
-            TLFieldsOrSlice::TLFields(x)=>TLFOSIter::TLFields(x.get_fields()),
+            TLFieldsOrSlice::TLFields(x)=>TLFOSIter::TLFields(x.iter()),
             TLFieldsOrSlice::Slice(x)=>TLFOSIter::Slice(x.as_slice().iter()),
         }
     }
     
     /// Collects the fields into a `Vec<TLField>`.
-    pub fn get_field_vec(&self)->Vec<TLField>{
-        self.get_fields().collect()
+    pub fn to_vec(&self)->Vec<TLField>{
+        self.iter().collect()
     }
+
     /// Returns the ammount of fields in this `TLFieldsOrSlice`.
     pub fn len(&self)->usize{
         match self {
@@ -144,7 +158,40 @@ impl TLFieldsOrSlice{
             TLFieldsOrSlice::Slice(x)=>x.len(),
         }
     }
+
+    /// Whether this contains no fields.
+    pub fn is_empty(&self)->bool{
+        self.len()==0
+    }
 }
+
+
+impl IntoIterator for TLFieldsOrSlice {
+    type IntoIter=TLFOSIter;
+    type Item=TLField;
+
+    #[inline]
+    fn into_iter(self)->Self::IntoIter{
+        self.iter()
+    }
+}
+
+
+impl Display for TLFieldsOrSlice {
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        fields_display_formatting(self.iter(),f)
+    }
+}
+
+impl Default for TLFieldsOrSlice{
+    fn default()->Self{
+        Self::EMPTY
+    }
+}
+
+
+/////////////////////////////////////////////////////
+
 
 
 /// A iterator over all the fields of a type definition.
@@ -153,13 +200,6 @@ impl TLFieldsOrSlice{
 pub enum TLFOSIter{
     TLFields(TLFieldsIterator),
     Slice(slice::Iter<'static,TLField>),
-}
-
-
-impl Display for TLFieldsOrSlice {
-    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        fields_display_formatting(self.get_fields(),f)
-    }
 }
 
 
@@ -227,6 +267,17 @@ impl<T> SliceAndFieldIndices<T>{
         }
     }
 }
+
+impl<T:'static> IntoIterator for SliceAndFieldIndices<T> {
+    type IntoIter=SAFIIter<T>;
+    type Item=WithFieldIndex<&'static [T]>;
+
+    #[inline]
+    fn into_iter(self)->Self::IntoIter{
+        self.iter()
+    }
+}
+
 
 
 #[repr(C)]

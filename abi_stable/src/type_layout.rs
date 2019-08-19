@@ -180,6 +180,35 @@ impl TypeLayout {
         self.extra_checks.value.map(Constructor::get)
     }
 
+/**
+Gets the fields of this type.
+
+# Return value
+
+If this a:
+
+- primitive or opaque type:
+    It returns `None`.
+
+- enum:
+    It returns `Some()` with all the fields in the order that they were declared,
+    ignoring variants.
+
+- structs/unions/prefix types:
+    It returns `Some()` with all the fields in the order that the were declared.
+
+*/
+    pub fn get_fields(&self)->Option<TLFieldsOrSlice>{
+        match &self.data {
+            TLData::Primitive{..}|TLData::Opaque=>
+                None,
+            TLData::Struct{fields}=>Some(*fields),
+            TLData::Union{fields}=>Some(*fields),
+            TLData::Enum (tlenum)=>Some(tlenum.fields),
+            TLData::PrefixType(prefix)=>Some(prefix.fields),
+        }
+    }
+
 }
 
 

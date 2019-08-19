@@ -723,7 +723,6 @@ impl_for_concrete! {
 /////////////
 
 
-#[cfg(any(rust_1_34,feature="rust_1_34"))]
 mod rust_1_34_impls{
     use super::*;
     use std::sync::atomic::*;
