@@ -294,13 +294,15 @@ macro_rules! impl_get_type_info {
                 std_types::{StaticStr,utypeid::some_utypeid},
             };
 
+            $crate::impl_get_typename!{ let type_name= $type $([$($params)*])? }
+            
             &TypeInfo{
                 size:mem::size_of::<Self>(),
                 alignment:mem::align_of::<Self>(),
                 _uid:ReturnValueEquality{
                     function:some_utypeid::<Self>
                 },
-                name:StaticStr::new(stringify!($type)),
+                type_name,
                 module:StaticStr::new(module_path!()),
                 package:StaticStr::new(env!("CARGO_PKG_NAME")),
                 package_version:$crate::package_version_strings!(),
@@ -309,6 +311,35 @@ macro_rules! impl_get_type_info {
         }
     )
 }
+
+#[macro_export]
+#[cfg(not(any(rust_1_38,feature="rust_1_38")))]
+#[doc(hidden)]
+macro_rules! impl_get_typename{
+    (
+        let $type_name:ident = $type:ident $([$($params:tt)*])?
+    ) => (
+        let $type_name={
+            extern "C" fn __get_type_name()->StaticStr{
+                $crate::std_types::StaticStr::new(stringify!($type))
+            }
+
+            $crate::utils::Constructor(__get_type_name)
+        };
+    )
+}
+
+#[macro_export]
+#[cfg(any(rust_1_38,feature="rust_1_38"))]
+#[doc(hidden)]
+macro_rules! impl_get_typename{
+    (
+        let $type_name:ident = $type:ident $([$($params:tt)*])?
+    ) => (
+        let $type_name=$crate::utils::get_type_name::<$type<$( $($params)* )? >>;
+    )
+}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -448,6 +479,11 @@ Constructs an `RVec<_>` using the same syntax that the `std::vec` macro uses.
 # Example
 
 ```
+
+use abi_stable::{
+    rvec,
+    std_types::RVec,  
+};
 
 assert_eq!(RVec::<u32>::new(), rvec![]);
 assert_eq!(RVec::from(vec![0]), rvec![0]);

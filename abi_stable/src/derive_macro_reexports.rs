@@ -32,6 +32,7 @@ pub use crate::{
     },
     sabi_types::{
         VersionStrings,
+        MovePtr,
         ReturnValueEquality,
     },
     std_types::{
