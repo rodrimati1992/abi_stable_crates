@@ -697,8 +697,8 @@ impl AbiChecker {
                         this,
                         other,
                         FieldContext::Fields, 
-                        t_fields.get_fields(), 
-                        o_fields.get_fields()
+                        t_fields.iter(), 
+                        o_fields.iter()
                     );
                 }
                 (TLData::Struct { .. }, _) => {}
@@ -709,8 +709,8 @@ impl AbiChecker {
                         this,
                         other,
                         FieldContext::Fields, 
-                        t_fields.get_fields(), 
-                        o_fields.get_fields()
+                        t_fields.iter(), 
+                        o_fields.iter()
                     );
                 }
                 (TLData::Union { .. }, _) => {}
@@ -846,8 +846,8 @@ impl AbiChecker {
             this, 
             other, 
             FieldContext::Fields,
-            t_fields.get_fields(), 
-            o_fields.get_fields()
+            t_fields.iter(), 
+            o_fields.iter()
         );
     }
 
@@ -884,8 +884,8 @@ impl AbiChecker {
             this.layout,
             other.layout,
             FieldContext::Fields,
-            this.fields.get_fields(),
-            other.fields.get_fields()
+            this.fields.iter(),
+            other.fields.iter()
         );
     }
 

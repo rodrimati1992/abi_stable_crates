@@ -110,7 +110,7 @@ impl PrefixTypeMetadata{
     /// otherwise fields accessible in both `self` and `other` 
     /// won't be checked for compatibility or copied.
     pub(crate) fn combine_fields_from(&mut self,other:&Self){
-        let mut o_fields=other.fields.get_fields();
+        let mut o_fields=other.fields.iter();
 
         let min_field_count=o_fields.len().min(self.fields.len());
         
@@ -169,7 +169,7 @@ impl InitialFieldsOrMut{
         match self {
             InitialFieldsOrMut::Mutable(x)=>x,
             this=>{
-                let list=this.get_fields().map(Cow::into_owned).collect::<Vec<TLField>>();
+                let list=this.iter().map(Cow::into_owned).collect::<Vec<TLField>>();
                 *this=InitialFieldsOrMut::Mutable(list);
                 match this {
                     InitialFieldsOrMut::Mutable(x)=>x,
@@ -178,9 +178,9 @@ impl InitialFieldsOrMut{
             }
         }
     }
-    pub fn get_fields(&self)->IFOMIter<'_>{
+    pub fn iter(&self)->IFOMIter<'_>{
         match self {
-            InitialFieldsOrMut::TLFields(x)=>IFOMIter::TLFields(x.get_fields()),
+            InitialFieldsOrMut::TLFields(x)=>IFOMIter::TLFields(x.iter()),
             InitialFieldsOrMut::Slice(x)=>IFOMIter::Slice(x.as_slice().iter()),
             InitialFieldsOrMut::Mutable(x)=>IFOMIter::Slice(x.iter()),
         }

@@ -24,9 +24,9 @@ travis-ci = { repository =  "rodrimati1992/abi_stable_crates/" }
 [features]
 default = ["channels","serde_json"]
 
-rust_1_34=[]
-
 rust_1_36=[]
+
+rust_1_38=["rust_1_36"]
 
 # Test features,only used internally.
 only_new_tests=[]
