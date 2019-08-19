@@ -4,7 +4,7 @@ Contains an ffi-safe equivalent of `&'static [T]`,constructible in constants.
 
 use std::{borrow::Borrow,marker::PhantomData, mem, ops::Deref};
 
-use crate::std_types::{RSlice};
+use crate::std_types::{RSlice,Tuple2};
 
 pub use self::inner::StaticSlice;
 
@@ -42,7 +42,7 @@ mod inner {
         s: &'static [T],
         #[sabi(unsafe_opaque_field)]
         conversion: RSliceFromStaticSlice<T>,
-        _private_initializer: PhantomData<Assertions>,
+        _private_initializer: PhantomData<Tuple2<Assertions,T>>,
     }
 
     impl<T> Copy for StaticSlice<T> {}
