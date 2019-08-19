@@ -389,3 +389,12 @@ fn into_vec() {
         assert_eq!(orig, list_1);
     }
 }
+
+#[test]
+fn rvec_macro(){
+    assert_eq!(RVec::<u32>::new(), rvec![]);
+    assert_eq!(RVec::from(vec![0]), rvec![0]);
+    assert_eq!(RVec::from(vec![0,3]), rvec![0,3]);
+    assert_eq!(RVec::from(vec![0,3,6]), rvec![0,3,6]);
+    assert_eq!(RVec::from(vec![1;10]), rvec![1;10]);
+}

@@ -438,6 +438,123 @@ macro_rules! make_item_info {
 }
 
 
+///////////////////////////////////////////////////////////////////////////////
+
+
+
+/**
+Constructs an `RVec<_>` using the same syntax that the `std::vec` macro uses.
+
+# Example
+
+```
+
+assert_eq!(RVec::<u32>::new(), rvec![]);
+assert_eq!(RVec::from(vec![0]), rvec![0]);
+assert_eq!(RVec::from(vec![0,3]), rvec![0,3]);
+assert_eq!(RVec::from(vec![0,3,6]), rvec![0,3,6]);
+assert_eq!(RVec::from(vec![1;10]), rvec![1;10]);
+
+```
+*/
+#[macro_export]
+macro_rules! rvec {
+    ( $( $anything:tt )* ) => (
+        $crate::std_types::RVec::from(vec![ $($anything)* ])
+    )
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+/**
+Use this macro to construct a `Tuple*` with the values passed to the macro.
+
+# Example 
+
+```
+use abi_stable::{
+    rtuple,
+    std_types::{Tuple1,Tuple2,Tuple3,Tuple4},
+};
+
+assert_eq!(rtuple!(), ());
+
+assert_eq!(rtuple!(3), Tuple1(3));
+
+assert_eq!(rtuple!(3,5), Tuple2(3,5));
+
+assert_eq!(rtuple!(3,5,8), Tuple3(3,5,8));
+
+assert_eq!(rtuple!(3,5,8,9), Tuple4(3,5,8,9));
+
+```
+
+*/
+
+#[macro_export]
+macro_rules! rtuple {
+    () => (());
+    ($v0:expr $(,)* ) => (
+        $crate::std_types::Tuple1($v0)
+    );
+    ($v0:expr,$v1:expr $(,)* ) => (
+        $crate::std_types::Tuple2($v0,$v1)
+    );
+    ($v0:expr,$v1:expr,$v2:expr $(,)* ) => (
+        $crate::std_types::Tuple3($v0,$v1,$v2)
+    );
+    ($v0:expr,$v1:expr,$v2:expr,$v3:expr $(,)* ) => (
+        $crate::std_types::Tuple4($v0,$v1,$v2,$v3)
+    );
+}
+
+
+/**
+Use this macro to get the type of a `Tuple*` with the types passed to the macro.
+
+# Example 
+
+```
+use abi_stable::{
+    RTuple,
+    std_types::{Tuple1,Tuple2,Tuple3,Tuple4},
+};
+
+let tuple0:RTuple!()=();
+
+let tuple1:RTuple!(i32)=Tuple1(3);
+
+let tuple2:RTuple!(i32,i32,)=Tuple2(3,5);
+
+let tuple3:RTuple!(i32,i32,u32,)=Tuple3(3,5,8);
+
+let tuple4:RTuple!(i32,i32,u32,u32)=Tuple4(3,5,8,9);
+
+
+```
+
+*/
+#[macro_export]
+macro_rules! RTuple {
+    () => (
+        ()
+    );
+    ($v0:ty $(,)* ) => (
+        $crate::std_types::Tuple1<$v0>
+    );
+    ($v0:ty,$v1:ty $(,)* ) => (
+        $crate::std_types::Tuple2<$v0,$v1>
+    );
+    ($v0:ty,$v1:ty,$v2:ty $(,)* ) => (
+        $crate::std_types::Tuple3<$v0,$v1,$v2>
+    );
+    ($v0:ty,$v1:ty,$v2:ty,$v3:ty $(,)* ) => (
+        $crate::std_types::Tuple4<$v0,$v1,$v2,$v3>
+    );
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 
