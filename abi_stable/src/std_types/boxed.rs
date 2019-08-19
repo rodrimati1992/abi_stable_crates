@@ -132,7 +132,7 @@ enum Command{
         ///
         /// ```
         pub fn from_move_ptr(p: MovePtr<'_,T>) -> RBox<T> {
-            p.into_rbox()
+            MovePtr::into_rbox(p)
         }
 
         pub(super) fn data(&self) -> *mut T {

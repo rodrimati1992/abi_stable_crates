@@ -272,7 +272,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 quote_spanned!(method_span=>{
                     ::abi_stable::extern_fn_panic_handling!{no_early_return;
                         __Trait::#method_name(
-                            _self.into_inner(),#(#param_names_c,)*
+                            __sabi_re::MovePtr::into_inner(_self),#(#param_names_c,)*
                         )
                     }
                 }).to_tokens(ts);

@@ -19,7 +19,7 @@ pub struct TypeInfo {
     pub alignment: usize,
     #[doc(hidden)]
     pub _uid: ReturnValueEquality<MaybeCmp<UTypeId>>,
-    pub name: StaticStr,
+    pub type_name: crate::utils::Constructor<StaticStr>,
     pub module: StaticStr,
     pub package: StaticStr,
     pub package_version: VersionStrings,
@@ -38,13 +38,18 @@ impl fmt::Display for TypeInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(
             f,
-            "type:{}\n\
-             size:{} alignment:{}\n\
-             module:'{}'\n\
-             package:'{}'\n\
-             package_version:{}\n\
+            "type:{ty}\n\
+             size:{size} alignment:{alignment}\n\
+             module:'{module}'\n\
+             package:'{package}'\n\
+             package_version:{package_version}\n\
              ",
-            self.name, self.size, self.alignment, self.module, self.package, self.package_version
+            ty=self.type_name,
+            size=self.size, 
+            alignment=self.alignment, 
+            module=self.module, 
+            package=self.package, 
+            package_version=self.package_version
         )
     }
 }

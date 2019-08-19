@@ -8,6 +8,7 @@ use std::{mem,marker::PhantomData};
 use crate::{
     sabi_types::VersionStrings,
     std_types::{RBoxError, StaticStr},
+    utils::Constructor,
 };
 
 use super::TypeInfo;
@@ -428,7 +429,7 @@ pub mod interface_for{
             size:mem::size_of::<T>(),
             alignment:mem::align_of::<T>(),
             _uid:<Unerasability as GetUTID<T>>::UID,
-            name:StaticStr::new("<erased>"),
+            type_name:Constructor(crate::utils::get_type_name::<T>),
             module:StaticStr::new("<unavailable>"),
             package:StaticStr::new("<unavailable>"),
             package_version:VersionStrings::new("99.99.99"),
@@ -436,7 +437,6 @@ pub mod interface_for{
         };
     }
 }
-
 
 
 

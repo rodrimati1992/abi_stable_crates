@@ -15,7 +15,7 @@ use core_extensions::{
     prelude::*,
 };
 
-use crate::std_types::RString;
+use crate::std_types::{RString,StaticStr};
 
 
 //////////////////////////////////////
@@ -229,6 +229,15 @@ where
     }
 }
 
+impl<T> Display for Constructor<T>
+where
+    T:Display
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.get(), f)
+    }
+}
+
 impl<T> Constructor<T> {
     /// Constructs a `T` by calling the wrapped function.
     pub fn get(self) -> T {
@@ -302,3 +311,17 @@ pub fn assert_fnonce<F,R>(_:&F)
 where
     F:FnOnce()->R
 {}
+
+//////////////////////////////////////////////////////////////////////
+
+#[cfg(not(any(rust_1_38,feature="rust_1_38")))]
+#[doc(hidden)]
+pub extern "C" fn get_type_name<T>()->StaticStr{
+    StaticStr::new("<unavailable>")
+}
+
+#[cfg(any(rust_1_38,feature="rust_1_38"))]
+#[doc(hidden)]
+pub extern "C" fn get_type_name<T>()->StaticStr{
+    StaticStr::new(std::any::type_name::<T>())
+}

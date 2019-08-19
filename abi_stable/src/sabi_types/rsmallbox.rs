@@ -302,7 +302,7 @@ assert!( RSmallBox::is_inline(&just_right) );
                     ( (&mut inline as *mut ScratchSpace<Inline> as *mut u8), ptr::null_mut() )
                 };
 
-                (from_ptr.into_raw() as *const T as *const u8)
+                (MovePtr::into_raw(from_ptr) as *const T as *const u8)
                     .copy_to_nonoverlapping(storage_ptr,value_size);
 
                 Self{
@@ -397,7 +397,7 @@ assert!( RSmallBox::is_inline(&just_right) );
         pub fn into_inner(this:Self)->T{
             Self::with_move_ptr(
                 ManuallyDrop::new(this),
-                |x|x.into_inner()
+                |x|MovePtr::into_inner(x)
             )
         }
 
@@ -434,7 +434,7 @@ assert!( RSmallBox::is_inline(&just_right) );
         fn into(self)->RBox<T>{
             Self::with_move_ptr(
                 ManuallyDrop::new(self),
-                |x|x.into_rbox()
+                |x|MovePtr::into_rbox(x)
             )
         }
     }
