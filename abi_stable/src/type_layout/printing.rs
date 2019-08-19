@@ -63,6 +63,12 @@ fn traverse_type_layouts_inner<'a,F>(
         for field in layout.phantom_fields.as_slice() {
             traverse_type_layouts_inner(field.layout.get(), state, callback);
         }
+
+        if let Some(extra_checks)=layout.extra_checks() {
+            for layout in &*extra_checks.nested_type_layouts() {
+                traverse_type_layouts_inner(layout, state, callback);
+            }
+        }
     }
 }
 

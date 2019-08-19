@@ -1,5 +1,5 @@
 use crate::{
-    std_types::{RBoxError,RResult},
+    std_types::{RBoxError,RCow,RResult},
     type_layout::TypeLayout,
     traits::IntoReprC,
     rtry,
@@ -48,6 +48,11 @@ in the extra_checks field.
         layout_containing_other:&'static TypeLayout,
         checker:TypeChecker_TO<'_,&mut ()>,
     )->RResult<(), ExtraChecksError>;
+
+    /// Returns the `TypeLayout`s owned or referenced by `self`.
+    /// 
+    /// This is necessary for the Debug implementation of `TypeLayout`.
+    fn nested_type_layouts(&self)->RCow<'_,[&'static TypeLayout]>;
 }
 
 
@@ -77,9 +82,9 @@ pub trait ExtraChecksExt:ExtraChecks{
         );
 
         // This checks that the layouts of `this` and `other` are compatible,
-        // so that calling the `sabi_unchecked_into_unerased` method is sound.
+        // so that calling the `unchecked_into_unerased` method is sound.
         rtry!( checker.check_compatibility(self.type_layout(),other.type_layout()) );
-        let other_ue=unsafe{ other.obj.sabi_unchecked_into_unerased::<Self>() };
+        let other_ue=unsafe{ other.obj.unchecked_into_unerased::<Self>() };
 
         f(other_ue).map_err(ExtraChecksError::from_extra_checks).into_c()
     }

@@ -26,7 +26,7 @@ macro_rules! declare_enabled_traits {
         use crate::{
             abi_stability::{TypeChecker_TO,ExtraChecks,ExtraChecksExt,ExtraChecksError},
             type_layout::TypeLayout,
-            std_types::RResult,
+            std_types::{RCow,RResult},
             StableAbi,
         };
 
@@ -124,6 +124,10 @@ macro_rules! declare_enabled_traits {
                         Ok(())
                     }
                 })
+            }
+
+            fn nested_type_layouts(&self)->RCow<'_,[&'static TypeLayout]>{
+                RCow::from_slice(&[])
             }
         }
 

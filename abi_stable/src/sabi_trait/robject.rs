@@ -73,11 +73,11 @@ These are the traits:
 within the same dynamic library/executable that constructed it,
 using these (fallible) conversion methods:
 
-- sabi_into_any_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
+- into_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
 
-- sabi_as_any_unerased:Unwraps into a `&T`.Requires `T:'static`.
+- as_unerased:Unwraps into a `&T`.Requires `T:'static`.
 
-- sabi_as_any_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
+- as_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
 
 `RObject` can only be converted back if it was created 
 using a `RObject::*_unerased` function.
@@ -156,7 +156,7 @@ Creates a trait object from a pointer to a type that must implement the
 trait that `I` requires.
 
 The constructed trait object can be converted back to the original type with 
-the `sabi_*_unerased` methods (RObject reserves `sabi` as a prefix for its own methods).
+the `unerased` methods (RObject reserves `sabi` as a prefix for its own methods).
 
         */
         method_name=from_ptr_unerasable,
@@ -185,7 +185,7 @@ The constructed trait object cannot be converted back to the original type.
 Creates a trait object from a type that must implement the trait that `I` requires.
 
 The constructed trait object can be converted back to the original type with 
-the `sabi_*_unerased` methods (RObject reserves `sabi` as a prefix for its own methods).
+the `unerased` methods (RObject reserves `sabi` as a prefix for its own methods).
 */
     pub fn from_value_unerasable<'lt,T,Params>(
         value:T,
@@ -408,7 +408,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn sabi_into_any_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
+    pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
     where
         T:'static,
         P: Deref<Target=()>+TransmuteElement<T>,
@@ -434,7 +434,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn sabi_as_any_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
+    pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
     where
         T:'static,
         P:Deref<Target=()>+TransmuteElement<T>,
@@ -459,7 +459,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn sabi_as_any_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
+    pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
     where
         T:'static,
         P:DerefMut<Target=()>+TransmuteElement<T>,
@@ -478,7 +478,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     /// You must check that `T` is the type that RObject was constructed
     /// with through other means.
     #[inline]
-    pub unsafe fn sabi_unchecked_into_unerased<T>(self) -> P::TransmutedPtr
+    pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
     where
         P: Deref<Target=()> + TransmuteElement<T>,
     {
@@ -494,7 +494,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     /// You must check that `T` is the type that RObject was constructed
     /// with through other means.
     #[inline]
-    pub unsafe fn sabi_unchecked_as_unerased<T>(&self) -> &T
+    pub unsafe fn unchecked_as_unerased<T>(&self) -> &T
     where
         P:Deref<Target=()>,
     {
@@ -509,7 +509,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     /// You must check that `T` is the type that RObject was constructed
     /// with through other means.
     #[inline]
-    pub unsafe fn sabi_unchecked_as_unerased_mut<T>(&mut self) -> &mut T
+    pub unsafe fn unchecked_as_unerased_mut<T>(&mut self) -> &mut T
     where
         P:DerefMut<Target=()>,
     {
