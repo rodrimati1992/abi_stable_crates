@@ -134,17 +134,17 @@ has this trait object:`Foo_TO<'a,'lt,Pointer,T,U,Hello,World>`.
 One can access the underlying implementation of the trait object through the `obj` field,
 allowing one to call these methods(a nonexhaustive list):
 
-- sabi_into_unerased(only DynTrait)
+- into_unerased_impltype(only DynTrait)
 
-- sabi_as_unerased(only DynTrait)
+- as_unerased_impltype(only DynTrait)
 
-- sabi_as_unerased_mut(only DynTrait)
+- as_unerased_mut_impltype(only DynTrait)
 
-- sabi_into_any_unerased
+- into_unerased
 
-- sabi_as_any_unerased
+- as_unerased
 
-- sabi_as_any_unerased_mut
+- as_unerased_mut
 
 To reconstruct `Trait_TO` from its underlying implementation,
 you can use the `Trait_TO::from_sabi` associated function.
@@ -308,7 +308,7 @@ pub trait Dictionary:Debug+Clone{
 
         // You can only unerase a trait object if it was constructed with `TU_Unerasable`
         // and it's being unerased into a type that implements `std::any::Any`.
-        let map:RBox<RHashMap<RString,u32>>=object.obj.sabi_into_any_unerased().unwrap();
+        let map:RBox<RHashMap<RString,u32>>=object.obj.into_unerased().unwrap();
 
         assert_eq!(map.get("hello".into()), Some(&100));
         assert_eq!(map.get("world".into()), Some(&10));
@@ -334,7 +334,7 @@ pub trait Dictionary:Debug+Clone{
         // Dictionary::insert(&mut object,"what".into(),99);
         
 
-        let map:RArc<RHashMap<RString,u32>>=object.obj.sabi_into_any_unerased().unwrap();
+        let map:RArc<RHashMap<RString,u32>>=object.obj.into_unerased().unwrap();
         assert_eq!(map.get("hello".into()), Some(&100));
         assert_eq!(map.get("world".into()), Some(&10));
     }
@@ -360,7 +360,7 @@ pub trait Dictionary:Debug+Clone{
     assert_eq!(object.get("world".into()),None);
 
     // Cannot unerase trait objects created with `TU_Opaque`.
-    assert_eq!(object.obj.sabi_into_any_unerased::<()>().ok(),None);
+    assert_eq!(object.obj.into_unerased::<()>().ok(),None);
 }
 
 # }

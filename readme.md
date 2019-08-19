@@ -444,7 +444,7 @@ pub fn new_appender()->AppenderBox<u32>{
     /*
     What `TU_Opaque` does here is specify that the trait object cannot be unerased,
     disallowing the `Appender_TO` from being unwrapped back into an `RVec<u32>`
-    using the `trait_object.obj.sabi_*_unerased()` methods.
+    using the `trait_object.obj.*_unerased_*()` methods.
     
     To be able to unwrap a `#[sabi_trait]` trait object back into the type it 
     was constructed with,you must:
@@ -454,7 +454,7 @@ pub fn new_appender()->AppenderBox<u32>{
     - Pass `TU_Unerasable` instead of `TU_Opaque` to Appender_TO::{from_value,from_ptr}.
 
     - Unerase the trait object back into the original type with
-        `trait_object.obj.sabi_into_unerased::<RVec<u32>>().unwrap()` 
+        `trait_object.obj.into_unerased_impltype::<RVec<u32>>().unwrap()` 
         (or the other unerasure methods).
 
     Unerasing a trait object will fail in any of these conditions:
@@ -484,7 +484,7 @@ fn new_boxed_interface()->BoxedInterface<'static>{
 #[sabi_extern_fn]
 fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
     wrapped
-        .sabi_as_unerased_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
+        .as_unerased_mut_impltype::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
         .unwrap() // Returns `&mut StringBuilder`
         .append_string(string);
 }

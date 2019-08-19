@@ -223,7 +223,7 @@ use core_extensions::{
 use crate::{
     StableAbi,
     abi_stability::{TypeChecker_TO,ExtraChecks,ExtraChecksExt,ExtraChecksError},
-    std_types::{StaticStr,StaticSlice,RBox,RVec,ROption,RSome,RNone,RResult},
+    std_types::{StaticStr,StaticSlice,RBox,RCow,RVec,ROption,RSome,RNone,RResult},
     traits::IntoReprC,
     utils::FmtPadding,
     type_layout::TypeLayout,
@@ -841,6 +841,10 @@ impl ExtraChecks for Tag {
             let o_tag=other.to_checkable();
             t_tag.check_compatible(&o_tag)
         })
+    }
+
+    fn nested_type_layouts(&self)->RCow<'_,[&'static TypeLayout]>{
+        RCow::from_slice(&[])
     }
 }
 

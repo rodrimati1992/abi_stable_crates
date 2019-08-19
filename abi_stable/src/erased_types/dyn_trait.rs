@@ -159,26 +159,26 @@ These are the traits:
 within the same dynamic library/executable that constructed it,
 using these (fallible) conversion methods:
 
-- sabi_into_unerased:
+- into_unerased_impltype:
     Unwraps into a pointer to `T`.
     Where `DynTrait<P<()>,Interface>`'s 
         Interface must equal `<T as ImplType>::Interface`
 
-- sabi_as_unerased:
+- as_unerased_impltype:
     Unwraps into a `&T`.
     Where `DynTrait<P<()>,Interface>`'s 
         Interface must equal `<T as ImplType>::Interface`
 
-- sabi_as_unerased_mut:
+- as_unerased_mut_impltype:
     Unwraps into a `&mut T`.
     Where `DynTrait<P<()>,Interface>`'s 
         Interface must equal `<T as ImplType>::Interface`
 
-- sabi_into_any_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
+- into_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
 
-- sabi_as_any_unerased:Unwraps into a `&T`.Requires `T:'static`.
+- as_unerased:Unwraps into a `&T`.Requires `T:'static`.
 
-- sabi_as_any_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
+- as_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
 
 
 `DynTrait` cannot be converted back if it was created 
@@ -903,7 +903,7 @@ These are the requirements for the caller:
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn sabi_into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
+        pub fn into_unerased_impltype<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
         where
             P: TransmuteElement<T>,
             P::Target:Sized,
@@ -932,7 +932,7 @@ These are the requirements for the caller:
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn sabi_as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
+        pub fn as_unerased_impltype<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
             P: Deref + TransmuteElement<T>,
             T: ImplType,
@@ -957,7 +957,7 @@ These are the requirements for the caller:
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn sabi_as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
+        pub fn as_unerased_mut_impltype<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
             P: DerefMut + TransmuteElement<T>,
             T: ImplType,
@@ -983,7 +983,7 @@ These are the requirements for the caller:
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn sabi_into_any_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
+        pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
         where
             T:'static,
             P: TransmuteElement<T>,
@@ -1019,7 +1019,7 @@ These are the requirements for the caller:
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn sabi_as_any_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
+        pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
             T:'static,
             P: Deref + TransmuteElement<T>,
@@ -1049,7 +1049,7 @@ These are the requirements for the caller:
         ///
         /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
         ///
-        pub fn sabi_as_any_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
+        pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
             P: DerefMut + TransmuteElement<T>,
             Self:DynTraitBound<'borr>,
@@ -1070,7 +1070,7 @@ These are the requirements for the caller:
         /// You must check that `T` is the type that DynTrait was constructed
         /// with through other means.
         #[inline]
-        pub unsafe fn sabi_unchecked_into_unerased<T>(self) -> P::TransmutedPtr
+        pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
         where
             P: Deref+ TransmuteElement<T>,
             P::Target:Sized,
@@ -1087,7 +1087,7 @@ These are the requirements for the caller:
         /// You must check that `T` is the type that DynTrait was constructed
         /// with through other means.
         #[inline]
-        pub unsafe fn sabi_unchecked_as_unerased<T>(&self) -> &T
+        pub unsafe fn unchecked_as_unerased<T>(&self) -> &T
         where
             P: Deref
         {
@@ -1102,7 +1102,7 @@ These are the requirements for the caller:
         /// You must check that `T` is the type that DynTrait was constructed
         /// with through other means.
         #[inline]
-        pub unsafe fn sabi_unchecked_as_unerased_mut<T>(&mut self) -> &mut T
+        pub unsafe fn unchecked_as_unerased_mut<T>(&mut self) -> &mut T
         where
             P: DerefMut
         {

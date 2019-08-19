@@ -149,7 +149,7 @@ fn default_test(){
     {
         assert_eq!(wrapped,wrapped_expected);
         assert_eq!(
-            wrapped.sabi_as_unerased::<Foo<String>>().unwrap(),
+            wrapped.as_unerased_impltype::<Foo<String>>().unwrap(),
             &concrete
         );
         assert_ne!(wrapped,new_wrapped());
@@ -164,7 +164,7 @@ fn default_test(){
         // assert_eq!(reborrow.default(),wrapped_expected.reborrow());
 
         assert_eq!(
-            reborrow.sabi_as_unerased::<Foo<String>>().unwrap(),
+            reborrow.as_unerased_impltype::<Foo<String>>().unwrap(),
             &concrete
         );
         assert_ne!(reborrow,new_wrapped());
@@ -242,12 +242,12 @@ fn deserialize_test() {
     );
     
     assert_eq!(
-        wrapped.sabi_as_unerased::<Foo<String>>().unwrap(), 
+        wrapped.as_unerased_impltype::<Foo<String>>().unwrap(), 
         &concrete,
     );
 
     assert_eq!(
-        wrapped2.sabi_as_unerased::<Foo<String>>().unwrap(), 
+        wrapped2.as_unerased_impltype::<Foo<String>>().unwrap(), 
         &concrete
     );
 }
@@ -455,31 +455,31 @@ fn to_any_test(){
         )
     }
 
-    to_unerased!( wrapped.clone() ; sabi_into_unerased     ; RBox::new(new_foo()) );
-    to_unerased!( wrapped.clone() ; sabi_into_any_unerased ; RBox::new(new_foo()) );
+    to_unerased!( wrapped.clone() ; into_unerased_impltype     ; RBox::new(new_foo()) );
+    to_unerased!( wrapped.clone() ; into_unerased ; RBox::new(new_foo()) );
     
-    to_unerased!( wrapped ; sabi_as_unerased     ; &new_foo() );
-    to_unerased!( wrapped ; sabi_as_any_unerased ; &new_foo() );
+    to_unerased!( wrapped ; as_unerased_impltype     ; &new_foo() );
+    to_unerased!( wrapped ; as_unerased ; &new_foo() );
     
-    to_unerased!( wrapped ; sabi_as_unerased_mut ; &mut new_foo() );
-    to_unerased!( wrapped ; sabi_as_any_unerased_mut ; &mut new_foo() );
+    to_unerased!( wrapped ; as_unerased_mut_impltype ; &mut new_foo() );
+    to_unerased!( wrapped ; as_unerased_mut ; &mut new_foo() );
     
     {
-        to_unerased!( wrapped.reborrow_mut() ; sabi_into_unerased     ; &mut new_foo() );
-        to_unerased!( wrapped.reborrow_mut() ; sabi_into_any_unerased ; &mut new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; into_unerased_impltype     ; &mut new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; into_unerased ; &mut new_foo() );
         
-        to_unerased!( wrapped.reborrow_mut() ; sabi_as_unerased     ; &new_foo() );
-        to_unerased!( wrapped.reborrow_mut() ; sabi_as_any_unerased ; &new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; as_unerased_impltype     ; &new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; as_unerased ; &new_foo() );
         
-        to_unerased!( wrapped.reborrow_mut() ; sabi_as_unerased_mut ; &mut new_foo() );
-        to_unerased!( wrapped.reborrow_mut() ; sabi_as_any_unerased_mut ; &mut new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; as_unerased_mut_impltype ; &mut new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; as_unerased_mut ; &mut new_foo() );
     }    
     {
-        to_unerased!( wrapped.reborrow() ; sabi_into_unerased     ; &new_foo() );
-        to_unerased!( wrapped.reborrow() ; sabi_into_any_unerased ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; into_unerased_impltype     ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; into_unerased ; &new_foo() );
         
-        to_unerased!( wrapped.reborrow() ; sabi_as_unerased     ; &new_foo() );
-        to_unerased!( wrapped.reborrow() ; sabi_as_any_unerased ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; as_unerased_impltype     ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; as_unerased ; &new_foo() );
     }
 }
 
@@ -920,13 +920,13 @@ mod borrowing{
 
         to_unerased!( 
             DynTrait::from_borrowing_value(value.clone(),());
-            sabi_into_any_unerased,
+            into_unerased,
         );
         
         to_unerased!( 
             DynTrait::from_borrowing_value(value.clone(),());
-            sabi_as_any_unerased,
-            sabi_as_any_unerased_mut,
+            as_unerased,
+            as_unerased_mut,
         );
         
 
