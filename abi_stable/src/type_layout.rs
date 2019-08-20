@@ -17,11 +17,10 @@ use crate::{
         ExtraChecksStaticRef,
     },
     const_utils::empty_slice, sabi_types::VersionStrings, 
-    sabi_types::CmpIgnored,
+    sabi_types::{CmpIgnored,Constructor},
     std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr,RSlice,UTypeId},
     prefix_type::{FieldAccessibility,IsConditional},
     reflection::ModReflMode,
-    utils::Constructor,
 };
 
 

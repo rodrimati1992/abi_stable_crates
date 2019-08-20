@@ -7,7 +7,7 @@ use crate::{
         impl_enum::{Implemented,Unimplemented},
         trait_marker,
     },
-    sabi_types::ReturnValueEquality,
+    sabi_types::Constructor,
     std_types::{UTypeId,RResult,RString},
 };
 
@@ -100,7 +100,7 @@ where
 pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
     pub _sabi_tys:PhantomData<extern "C" fn(_Self,ErasedPtr,I)>,
     
-    pub _sabi_type_id:ReturnValueEquality<MaybeCmp<UTypeId>>,
+    pub _sabi_type_id:Constructor<MaybeCmp<UTypeId>>,
 
     #[sabi(last_prefix_field)]
     pub _sabi_drop :unsafe extern "C" fn(this:&mut ErasedPtr),

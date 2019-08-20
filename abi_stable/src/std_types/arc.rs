@@ -17,7 +17,7 @@ use crate::{
         CallReferentDrop, TransmuteElement,
         GetPointerKind,PK_SmartPointer,
     },
-    sabi_types::ReturnValueEquality,
+    sabi_types::Constructor,
     std_types::{RResult,utypeid::{UTypeId,new_utypeid}},
 };
 
@@ -367,9 +367,7 @@ mod vtable_mod {
 
     impl<'a, T: 'a> VTableGetter<'a, T> {
         const DEFAULT_VTABLE:ArcVtableVal<T>=ArcVtableVal {
-            type_id:ReturnValueEquality{
-                function:new_utypeid::<RArc<()>>
-            },
+            type_id:Constructor( new_utypeid::<RArc<()>> ),
             destructor: destructor_arc::<T>,
             clone: clone_arc::<T>,
             get_mut: get_mut_arc::<T>,
@@ -387,9 +385,7 @@ mod vtable_mod {
             &WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 ArcVtableVal{
-                    type_id:ReturnValueEquality{
-                        function:new_utypeid::<RArc<i32>>
-                    },
+                    type_id:Constructor( new_utypeid::<RArc<i32>> ),
                     ..Self::DEFAULT_VTABLE
                 }
             )
@@ -401,7 +397,7 @@ mod vtable_mod {
     #[sabi(kind(Prefix(prefix_struct="ArcVtable")))]
     #[sabi(missing_field(panic))]
     pub struct ArcVtableVal<T> {
-        pub(super) type_id:ReturnValueEquality<UTypeId>,
+        pub(super) type_id:Constructor<UTypeId>,
         pub(super) destructor: unsafe extern "C" fn(*const T, CallReferentDrop),
         pub(super) clone: extern "C" fn(&RArc<T>) -> RArc<T>,
         pub(super) get_mut: extern "C" fn(&mut RArc<T>) -> Option<&mut T>,

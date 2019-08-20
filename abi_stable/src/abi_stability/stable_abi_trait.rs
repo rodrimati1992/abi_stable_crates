@@ -15,14 +15,13 @@ use std::{
 
 use crate::{
     abi_stability::get_static_equivalent::GetStaticEquivalent_,
+    sabi_types::Constructor,
     std_types::{RNone, RSome, utypeid::UTypeId},
-    sabi_types::ReturnValueEquality,
     reflection::ModReflMode,
     type_layout::{
         LifetimeIndex, TLData, TLField, TypeLayout, TypeLayoutParams,
         ItemInfo,ReprAttr,TLPrimitive,TLEnum,TLDiscriminants,IsExhaustive,
     },
-    utils::Constructor,
 };
 
 
@@ -108,7 +107,9 @@ The kind of abi stability of this type,there are 2:
 
     const S_ABI_CONSTS: AbiConsts=AbiConsts {
         kind:<Self::Kind as TypeKindTrait>::VALUE,
-        type_id:make_rve_utypeid!(Self::StaticEquivalent),
+        type_id:Constructor(
+            crate::std_types::utypeid::new_utypeid::<Self::StaticEquivalent> 
+        ),
         is_nonzero: <Self::IsNonZeroType as Boolean>::VALUE,
     };
 }
@@ -134,8 +135,8 @@ pub struct AbiConsts {
     /// 
     pub kind:TypeKind,
     
-    /// Equivalent to the UTypeId returned by the function in ReturnValueEquality.
-    pub type_id:ReturnValueEquality<UTypeId>,
+    /// Equivalent to the UTypeId returned by the function in Constructor.
+    pub type_id:Constructor<UTypeId>,
     
     /// Whether the type uses non-zero value optimization,
     /// if true then an Option<Self> implements StableAbi.

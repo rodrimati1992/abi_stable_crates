@@ -128,22 +128,6 @@ macro_rules! check_unerased {
 ///////////////////////////////////////////////////////////////////////
 
 
-/// Constructs a `ReturnValueEquality<UTypeId>` that returns the UTypeId of the `$ty` type.
-macro_rules! make_rve_utypeid {
-    ($ty:ty) => (
-        $crate::sabi_types::ReturnValueEquality{
-            function:$crate::std_types::utypeid::new_utypeid::<$ty>
-        }
-    )
-}
-
-
-
-///////////////////////////////////////////////////////////////////////
-
-
-
-
 /**
 Use this to make sure that you handle panics inside `extern fn` correctly.
 
@@ -290,7 +274,6 @@ macro_rules! impl_get_type_info {
             use std::mem;
             use $crate::{
                 erased_types::type_info::TypeInfo,
-                sabi_types::{ReturnValueEquality},
                 std_types::{StaticStr,utypeid::some_utypeid},
             };
 
@@ -299,9 +282,7 @@ macro_rules! impl_get_type_info {
             &TypeInfo{
                 size:mem::size_of::<Self>(),
                 alignment:mem::align_of::<Self>(),
-                _uid:ReturnValueEquality{
-                    function:some_utypeid::<Self>
-                },
+                _uid:$crate::sabi_types::Constructor( some_utypeid::<Self> ),
                 type_name,
                 module:StaticStr::new(module_path!()),
                 package:StaticStr::new(env!("CARGO_PKG_NAME")),
@@ -324,7 +305,7 @@ macro_rules! impl_get_typename{
                 $crate::std_types::StaticStr::new(stringify!($type))
             }
 
-            $crate::utils::Constructor(__get_type_name)
+            $crate::sabi_types::Constructor(__get_type_name)
         };
     )
 }
@@ -336,7 +317,7 @@ macro_rules! impl_get_typename{
     (
         let $type_name:ident = $type:ident $([$($params:tt)*])?
     ) => (
-        let $type_name=$crate::utils::Constructor(
+        let $type_name=$crate::sabi_types::Constructor(
             $crate::utils::get_type_name::<$type<$( $($params)* )? >>
         );
     )

@@ -6,9 +6,8 @@ Traits for types wrapped in `DynTrait<_>`
 use std::{mem,marker::PhantomData};
 
 use crate::{
-    sabi_types::VersionStrings,
+    sabi_types::{Constructor,VersionStrings},
     std_types::{RBoxError, StaticStr},
-    utils::Constructor,
 };
 
 use super::TypeInfo;

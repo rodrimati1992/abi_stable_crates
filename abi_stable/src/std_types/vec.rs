@@ -18,7 +18,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use core_extensions::prelude::*;
 
 use crate::{
-    sabi_types::{ReturnValueEquality},
+    sabi_types::Constructor,
     std_types::{RSlice, RSliceMut,utypeid::{UTypeId,new_utypeid}},
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
@@ -1266,9 +1266,7 @@ struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
     const DEFAULT_VTABLE:VecVTableVal<T>=VecVTableVal{
-        type_id:ReturnValueEquality{
-            function:new_utypeid::<RVec<()>>
-        },
+        type_id:Constructor( new_utypeid::<RVec<()>> ),
         destructor: destructor_vec,
         grow_capacity_to: grow_capacity_to_vec,
         shrink_to_fit: shrink_to_fit_vec,
@@ -1283,9 +1281,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
         &WithMetadata::new(
             PrefixTypeTrait::METADATA,
             VecVTableVal {
-                type_id:ReturnValueEquality{
-                    function:new_utypeid::<RVec<i32>>
-                },
+                type_id:Constructor( new_utypeid::<RVec<i32>> ),
                 ..Self::DEFAULT_VTABLE
             }
         );
@@ -1297,7 +1293,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
 #[sabi(kind(Prefix(prefix_struct="VecVTable")))]
 #[sabi(missing_field(panic))]
 struct VecVTableVal<T> {
-    type_id:ReturnValueEquality<UTypeId>,
+    type_id:Constructor<UTypeId>,
     destructor: extern "C" fn(&mut RVec<T>),
     grow_capacity_to: extern "C" fn(&mut RVec<T>, usize, Exactness),
     #[sabi(last_prefix_field)]
