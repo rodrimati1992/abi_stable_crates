@@ -538,7 +538,7 @@ mod borrowing{
 
     impl ImplType for Foo<'static>{
         type Interface = FooInterface;
-        const INFO:&'static crate::erased_types::TypeInfo=impl_get_type_info! { Foo[T] };
+        const INFO:&'static crate::erased_types::TypeInfo=impl_get_type_info! { Foo['static] };
     }
 
     impl<'a,'s> SerializeImplType<'s> for Foo<'a>{

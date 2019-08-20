@@ -336,7 +336,9 @@ macro_rules! impl_get_typename{
     (
         let $type_name:ident = $type:ident $([$($params:tt)*])?
     ) => (
-        let $type_name=$crate::utils::get_type_name::<$type<$( $($params)* )? >>;
+        let $type_name=$crate::utils::Constructor(
+            $crate::utils::get_type_name::<$type<$( $($params)* )? >>
+        );
     )
 }
 
