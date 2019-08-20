@@ -280,6 +280,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
     // The name of the struct this generates,
     // to use as the `GetStaticEquivalent_::StaticEquivalent` associated type.
     let static_struct_name=Ident::new(&format!("_static_{}",name),Span::call_site());
+    
+    let item_info_const=Ident::new(&format!("_item_info_const_{}",name),Span::call_site());
 
     let static_struct_decl={
         let const_param_name=generics.const_params().map(|c| &c.ident );
@@ -350,6 +352,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
 
         #nonexhaustive_items
 
+        const #item_info_const:abi_stable::type_layout::ItemInfo=
+            abi_stable::make_item_info!();
+
         mod #module {
             use super::*;
 
@@ -401,7 +406,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
                         __private_TypeLayoutDerive {
                             abi_consts: Self::S_ABI_CONSTS,
                             name: #stringified_name,
-                            item_info:abi_stable::make_item_info!(),
+                            item_info:#item_info_const,
                             data: #data_variant,
                             generics: abi_stable::tl_genparams!(
                                 #(#lifetimes),*;
