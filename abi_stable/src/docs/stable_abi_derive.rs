@@ -75,7 +75,10 @@ Adds an `ExtraChecks` trait object associated with the type,
 which allows encoding and checking extra properties about a type.
 
 `<some_function>` is an expression of this type: 
-`extern "C" fn()->ExtraChecks_TO<&'static ()>`.
+`extern "C" fn()->ExtraChecksStaticRef`.
+
+For examples of using this attribute
+[look here](../../abi_stability/trait.ExtraChecks.html#examples)
 
 ###  `#[sabi(debug_print)]` 
 

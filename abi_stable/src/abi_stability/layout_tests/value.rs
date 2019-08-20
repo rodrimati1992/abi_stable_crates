@@ -253,7 +253,7 @@ fn unsafe_opaque_fields(){
     let layout=UnsafeOF::LAYOUT;
 
     let fields=match layout.data {
-        TLData::Struct{fields}=>fields.get_fields().collect::<Vec<_>>(),
+        TLData::Struct{fields}=>fields.iter().collect::<Vec<_>>(),
         _=>unreachable!(),
     };
 
@@ -452,7 +452,7 @@ fn different_field_name() {
     let other = changed_field_name::Rectangle::LAYOUT;
 
     let fields=match other.data {
-        TLData::Struct{fields}=>fields.get_fields().collect::<Vec<_>>(),
+        TLData::Struct{fields}=>fields.iter().collect::<Vec<_>>(),
         _=>unreachable!(),
     };
 
@@ -816,6 +816,7 @@ mod mod_7 {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
+    not_stableabi(M),
     bound="M:ToTagConst",
     tag="<M as ToTagConst>::TAG",
 )]
@@ -832,7 +833,7 @@ macro_rules! declare_tags {
     ) => (
         $(
             #[repr(C)]
-            #[derive(StableAbi)]
+            #[derive(GetStaticEquivalent)]
             pub struct $marker_ty;
 
             impl ToTagConst for $marker_ty {

@@ -33,7 +33,7 @@ pub struct _private_TypeLayoutDerive {
     pub generics: GenericParams,
     pub phantom_fields: &'static [TLField],
     pub tag:&'static Tag,
-    pub extra_checks:Option<Constructor<ExtraChecksRef>>,
+    pub extra_checks:Option<Constructor<ExtraChecksStaticRef>>,
     pub mod_refl_mode:ModReflMode,
     pub repr_attr:ReprAttr,
 }

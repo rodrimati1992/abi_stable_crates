@@ -17,5 +17,9 @@ mod sabi_trait;
 #[cfg(all(test,not(feature="only_new_tests")))]
 mod nonexhaustive_enums;
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
+//#[cfg(test)]
 mod get_static_equivalent;
+
+#[cfg(test)]
+mod extra_checks_combined;

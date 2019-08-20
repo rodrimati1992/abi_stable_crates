@@ -14,7 +14,7 @@ use core_extensions::{matches,StringExt};
 use crate::{
     abi_stability::{
         stable_abi_trait::{GetTypeLayout,AbiConsts,TypeKind},
-        ExtraChecksRef,
+        ExtraChecksStaticRef,
     },
     const_utils::empty_slice, sabi_types::VersionStrings, 
     sabi_types::CmpIgnored,
@@ -122,7 +122,7 @@ pub struct TypeLayout {
     /// A json-like data structure used to add extra checks.
     pub tag:&'static Tag,
     /// A json-like data structure used to add extra checks.
-    pub extra_checks:CmpIgnored<Option<Constructor<ExtraChecksRef>>>,
+    pub extra_checks:CmpIgnored<Option<Constructor<ExtraChecksStaticRef>>>,
     /// The representation attribute(s) of this type.
     pub repr_attr:ReprAttr,
     /// How this type is treated when interpreted as a module.
@@ -176,7 +176,7 @@ impl TypeLayout {
     }
 
     #[inline]
-    pub fn extra_checks(&self)->Option<ExtraChecksRef>{
+    pub fn extra_checks(&self)->Option<ExtraChecksStaticRef>{
         self.extra_checks.value.map(Constructor::get)
     }
 

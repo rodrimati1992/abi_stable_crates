@@ -836,7 +836,7 @@ impl ExtraChecks for Tag {
         layout_containing_other:&'static TypeLayout,
         checker:TypeChecker_TO<'_,&mut ()>,
     )->RResult<(), ExtraChecksError> {
-        self.with_both_extra_checks(layout_containing_other,checker,|other|{
+        Self::downcast_with_layout(layout_containing_other,checker,|other|{
             let t_tag=self.to_checkable();
             let o_tag=other.to_checkable();
             t_tag.check_compatible(&o_tag)
