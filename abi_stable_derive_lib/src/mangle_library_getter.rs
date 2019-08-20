@@ -91,7 +91,7 @@ fn mangle_library_getter_inner(mut input:ItemFn)->TokenStream2{
             
             unsafe{
                 __LibHeader::from_constructor::<__ModuleTy>(
-                    abi_stable::utils::Constructor(_sabi_erased_module),
+                    abi_stable::sabi_types::Constructor(_sabi_erased_module),
                     <__ModuleTy as abi_stable::library::RootModule>::#assoc_constant,
                 )
             }

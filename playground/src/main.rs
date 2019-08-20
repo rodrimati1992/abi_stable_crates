@@ -8,5 +8,5 @@ use abi_stable::{
 use core_extensions::SelfOps;
 
 fn main() {
-    
+    println!("{}",<RBox<()>>::LAYOUT);
 }

@@ -17,10 +17,7 @@ use abi_stable::{
     package_version_strings,
     declare_root_module_statics,
     library::RootModule,
-    type_level::bools::*,
-    erased_types::{
-        InterfaceType,DeserializeDyn,SerializeProxyType,IteratorItem
-    },
+    erased_types::{DeserializeDyn,SerializeProxyType,IteratorItem},
     DynTrait,
     sabi_types::VersionStrings,
     std_types::{RBox, RStr, RString,RArc,RCow,RBoxError,RResult},

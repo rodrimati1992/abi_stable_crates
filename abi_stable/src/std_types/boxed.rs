@@ -20,7 +20,7 @@ use crate::{
         GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
     traits::{IntoReprRust},
-    sabi_types::{MovePtr,ReturnValueEquality},
+    sabi_types::{Constructor,MovePtr},
     std_types::utypeid::{UTypeId,new_utypeid},
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
@@ -343,7 +343,7 @@ impl<T> Drop for RBox<T> {
 #[sabi(kind(Prefix(prefix_struct="BoxVtable")))]
 #[sabi(missing_field(panic))]
 pub(crate) struct BoxVtableVal<T> {
-    type_id:ReturnValueEquality<UTypeId>,
+    type_id:Constructor<UTypeId>,
     #[sabi(last_prefix_field)]
     destructor: unsafe extern "C" fn(*mut T, CallReferentDrop,Deallocate),
 }
@@ -352,9 +352,7 @@ struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
     const DEFAULT_VTABLE:BoxVtableVal<T>=BoxVtableVal{
-        type_id:ReturnValueEquality{
-            function:new_utypeid::<RBox<()>>
-        },
+        type_id:Constructor( new_utypeid::<RBox<()>> ),
         destructor: destroy_box::<T>,
     };
 
@@ -368,9 +366,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
         &WithMetadata::new(
             PrefixTypeTrait::METADATA,
             BoxVtableVal {
-                type_id:ReturnValueEquality{
-                    function: new_utypeid::<RBox<i32>>
-                },
+                type_id:Constructor( new_utypeid::<RBox<i32>> ),
                 ..Self::DEFAULT_VTABLE
             }
         );

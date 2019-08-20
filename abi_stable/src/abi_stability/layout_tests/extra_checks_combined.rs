@@ -134,12 +134,6 @@ struct WithConstant<C>{
     _marker:UnsafeIgnoredType<C>,
 }
 
-impl<C> WithConstant<C>{
-    const NEW:Self=Self{
-        _marker:UnsafeIgnoredType::NEW,
-    };
-}
-
 impl<C> WithConstant<C>
 where 
     C:GetConstant

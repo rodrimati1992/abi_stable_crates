@@ -31,9 +31,9 @@ pub use crate::{
         PTStructLayoutParams,
     },
     sabi_types::{
+        Constructor,
         VersionStrings,
         MovePtr,
-        ReturnValueEquality,
     },
     std_types::{
         utypeid::new_utypeid,
@@ -67,7 +67,6 @@ pub use crate::{
         impl_enum::{Implemented,Unimplemented,ImplFrom},
         trait_marker,
     },
-    utils::Constructor,
 };
 
 
