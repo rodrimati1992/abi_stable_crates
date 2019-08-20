@@ -107,7 +107,7 @@ macro_rules! declare_enabled_traits {
                 layout_containing_other:&'static TypeLayout,
                 checker:TypeChecker_TO<'_,&mut ()>,
             )->RResult<(), ExtraChecksError> {
-                self.with_both_extra_checks(layout_containing_other,checker,|other|{
+                Self::downcast_with_layout(layout_containing_other,checker,|other|{
                     if self.auto_traits!=other.auto_traits {
                         Err(ImpldTraitsError{
                             kind:ImpldTraitsErrorKind::MismatchedAutoTraits,

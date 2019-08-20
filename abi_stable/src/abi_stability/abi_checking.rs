@@ -15,11 +15,18 @@ use std::{
 // use std::collections::HashSet;
 
 use crate::{
-    abi_stability::{ExtraChecksRef,TypeChecker,TypeChecker_TO,ExtraChecksError},
+    abi_stability::{
+        ExtraChecksBox,ExtraChecks_TO,
+        TypeChecker,TypeChecker_TO,
+        ExtraChecksError,
+    },
     sabi_types::{ParseVersionError, VersionStrings},
     prefix_type::{FieldAccessibility,IsConditional},
     sabi_types::CmpIgnored,
-    std_types::{RArc,RVec, StaticSlice, StaticStr,UTypeId,RBoxError,RResult,ROk,RErr},
+    std_types::{
+        RArc,RVec, StaticSlice, StaticStr,UTypeId,RBoxError,RResult,
+        RSome,RNone,ROk,RErr,
+    },
     traits::IntoReprC,
     type_layout::{
         TypeLayout, TLData, TLDataDiscriminant, TLField, 
@@ -91,7 +98,7 @@ pub enum AbiInstability {
 #[derive(Debug,Clone)]
 pub struct ExtraCheckError{
     pub err:RArc<RBoxError>,
-    pub expected_err:ExpectedFound<ExtraChecksRef>,
+    pub expected_err:ExpectedFound<RArc<RBoxError>>,
 }
 
 
@@ -366,6 +373,15 @@ pub struct NonExhaustiveEnumWithContext{
 }
 
 
+#[derive(Debug,Clone)]
+#[repr(C)]
+pub struct ExtraChecksBoxWithContext{
+    t_lay:&'static TypeLayout,
+    o_lay:&'static TypeLayout,
+    extra_checks:ExtraChecksBox,
+}
+
+
 #[derive(Debug,Copy,Clone)]
 #[repr(C)]
 pub struct CheckedNonExhaustiveEnums{
@@ -380,6 +396,7 @@ struct AbiChecker {
     stack_trace: RVec<ExpectedFound<TLFieldOrFunction>>,
     checked_prefix_types:RVec<CheckedPrefixTypes>,
     checked_nonexhaustive_enums:RVec<CheckedNonExhaustiveEnums>,
+    checked_extra_checks:RVec<ExtraChecksBoxWithContext>,
 
     visited: HashSet<(CheckingUTypeId,CheckingUTypeId)>,
     errors: RVec<AbiInstabilityError>,
@@ -395,6 +412,7 @@ impl AbiChecker {
             stack_trace: RVec::new(),
             checked_prefix_types:RVec::new(),
             checked_nonexhaustive_enums:RVec::new(),
+            checked_extra_checks:RVec::new(),
 
             visited: HashSet::default(),
             errors: RVec::new(),
@@ -653,25 +671,34 @@ impl AbiChecker {
                     errs.push(AI::NoneExtraChecks);
                 }
                 (Some(t_extra_checks),Some(o_extra_checks))=>{
-                    let checker=TypeChecker_TO::from_ptr(&mut *self,TU_Opaque);
+                    let mut ty_checker=TypeChecker_TO::from_ptr(&mut *self,TU_Opaque);
 
-                    match t_extra_checks.check_compatibility(t_lay,o_lay,checker) {
-                        ROk(())|RErr(ExtraChecksError::TypeChecker)=>{}
-                        RErr(ExtraChecksError::NoneExtraChecks)=>{
-                            errs.push(AI::NoneExtraChecks);
-                        }
-                        RErr(ExtraChecksError::ExtraChecks(et_err))=>{
-                            let e=ExtraCheckError{
-                                    err: RArc::new(et_err),
-                                    expected_err: ExpectedFound{
-                                        expected:t_extra_checks,
-                                        found:o_extra_checks,
-                                    }
-                                }.piped(CmpIgnored::new)
-                                 .piped(AI::ExtraCheckError);
+                    let res=handle_extra_checks_ret(
+                        t_extra_checks.clone(),
+                        o_extra_checks.clone(),
+                        errs,
+                        move||{
+                            let ty_checker_=ty_checker.sabi_reborrow_mut();
+                            rtry!( t_extra_checks.check_compatibility(t_lay,o_lay,ty_checker_) );
+                            
+                            let ty_checker_=ty_checker.sabi_reborrow_mut();
+                            let opt=rtry!( 
+                                t_extra_checks.combine(o_extra_checks,ty_checker_)
+                            );
 
-                            errs.push(e);
+                            opt.map(|combined|{
+                                ExtraChecksBoxWithContext{
+                                    t_lay,
+                                    o_lay,
+                                    extra_checks:combined
+                                }
+                            })
+                            .piped(ROk)
                         }
+                    );
+
+                    if let Ok(RSome(x))=res {
+                        self.checked_extra_checks.push(x);
                     }
                 }
             }
@@ -1086,8 +1113,88 @@ impl AbiChecker {
         }
     }
 
-    
+    /// Combines the ExtraChecksBox into a global map.
+    fn final_extra_checks(
+        &mut self,
+        globals:&CheckingGlobals
+    )->Result<(),AbiInstabilityError>{
+        self.error_index += 1;
+        let mut errs_ = RVec::<AbiInstability>::new();
+        let errs =&mut errs_;
 
+        let mut extra_checker_map=globals.extra_checker_map.lock().unwrap();
+
+        for with_context in mem::replace(&mut self.checked_extra_checks,Default::default()) {
+            let ExtraChecksBoxWithContext{t_lay,o_lay,extra_checks}=with_context;
+
+            let errors_before=self.errors.len();
+            let type_checker=TypeChecker_TO::from_ptr(&mut *self,TU_Opaque);
+            let t_utid=t_lay.get_utypeid();
+            let o_utid=o_lay.get_utypeid();
+
+            let t_index=extra_checker_map.get_index(&t_utid);
+            let mut o_index=extra_checker_map.get_index(&o_utid);
+
+            if t_index==o_index{
+                o_index=None;
+            }
+
+            match (t_index,o_index) {
+                (None,None)=>{
+                    let i=extra_checker_map
+                        .get_or_insert(t_utid,extra_checks)
+                        .into_inner()
+                        .index;
+                    extra_checker_map.associate_key(o_utid,i);
+                }
+                (Some(im_index),None)|(None,Some(im_index))=>{
+                    let other_checks=extra_checker_map.get_mut_with_index(im_index).unwrap();
+
+                    combine_extra_checks(
+                        errs,
+                        type_checker,
+                        other_checks,
+                        &[extra_checks.sabi_reborrow()]
+                    );
+
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
+
+                    extra_checker_map.associate_key(t_utid,im_index);
+                    extra_checker_map.associate_key(o_utid,im_index);
+
+                }
+                (Some(l_index),Some(r_index))=>{
+                    let (l_extra_checks,r_extra_checks)=
+                        extra_checker_map.get2_mut_with_index(l_index,r_index);
+                    let l_extra_checks=l_extra_checks.unwrap();
+                    let r_extra_checks=r_extra_checks.unwrap();
+
+                    combine_extra_checks(
+                        errs,
+                        type_checker,
+                        l_extra_checks,
+                        &[ r_extra_checks.sabi_reborrow(), extra_checks.sabi_reborrow() ]
+                    );
+
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
+
+                    extra_checker_map.replace_with_index(r_index,l_index);
+
+                }
+            }
+        }
+
+        if errs_.is_empty() {
+            Ok(())
+        }else{
+            Err(AbiInstabilityError {
+                stack_trace: self.stack_trace.clone(),
+                errs: errs_,
+                index: self.error_index,
+                _priv:(),
+            })
+        }
+    }
 }
 
 
@@ -1145,6 +1252,9 @@ pub(super) fn check_layout_compatibility_with_globals(
                 checker.errors.push(e);
             }
             if let Err(e)=checker.final_non_exhaustive_enum_checks(globals) {
+                checker.errors.push(e);
+            }
+            if let Err(e)=checker.final_extra_checks(globals) {
                 checker.errors.push(e);
             }
         }
@@ -1281,6 +1391,7 @@ use crate::{
 pub struct CheckingGlobals{
     pub(crate) prefix_type_map:Mutex<MultiKeyMap<UTypeId,PrefixTypeMetadata>>,
     pub(crate) nonexhaustive_map:Mutex<MultiKeyMap<UTypeId,NonExhaustiveEnumWithContext>>,
+    pub(crate) extra_checker_map:Mutex<MultiKeyMap<UTypeId,ExtraChecksBox>>,
 }
 
 impl CheckingGlobals{
@@ -1288,6 +1399,7 @@ impl CheckingGlobals{
         CheckingGlobals{
             prefix_type_map:MultiKeyMap::new().piped(Mutex::new),
             nonexhaustive_map:MultiKeyMap::new().piped(Mutex::new),
+            extra_checker_map:MultiKeyMap::new().piped(Mutex::new),
         }
     }
 }
@@ -1316,4 +1428,70 @@ pub(crate) fn push_err<O, U, FG, VC>(
     let x = ExpectedFound::new(this, other, field_getter);
     let x = variant_constructor(x);
     errs.push(x);
+}
+
+
+fn handle_extra_checks_ret<F,R>(
+    expected_extra_checks:ExtraChecks_TO<'static,&()>,
+    found_extra_checks:ExtraChecks_TO<'static,&()>,
+    errs: &mut RVec<AbiInstability>,
+    f:F
+)->Result<R,()>
+where
+    F:FnOnce()->RResult<R, ExtraChecksError>
+{
+    match f() {
+        ROk(x)=>{
+            Ok(x)
+        }
+        RErr(ExtraChecksError::TypeChecker)=>{
+            Err(())
+        }
+        RErr(ExtraChecksError::NoneExtraChecks)=>{
+            errs.push(AI::NoneExtraChecks);
+            Err(())
+        }
+        RErr(ExtraChecksError::ExtraChecks(et_err))=>{
+            let e=ExtraCheckError{
+                    err: RArc::new(et_err),
+                    expected_err: ExpectedFound{
+                        expected:expected_extra_checks
+                            .piped(RBoxError::from_fmt)
+                            .piped(RArc::new),
+
+                        found:found_extra_checks
+                            .piped(RBoxError::from_fmt)
+                            .piped(RArc::new),
+                    }
+                }.piped(CmpIgnored::new)
+                 .piped(AI::ExtraCheckError);
+
+            errs.push(e);
+            Err(())
+        }
+    }
+}
+
+fn combine_extra_checks(
+    errs: &mut RVec<AbiInstability>,
+    mut ty_checker:TypeChecker_TO<'_,&mut ()>,
+    extra_checks:&mut ExtraChecksBox,
+    slic:&[ExtraChecks_TO<'static,&()>]
+){
+    for other in slic {
+        let other_ref=other.sabi_reborrow();
+        let ty_checker=ty_checker.sabi_reborrow_mut();
+        let opt_ret=handle_extra_checks_ret(
+            extra_checks.sabi_reborrow(),
+            other.sabi_reborrow(),
+            errs,
+            || extra_checks.sabi_reborrow().combine( other_ref , ty_checker ) 
+        );
+
+        match opt_ret {
+            Ok(RSome(new))=>{ *extra_checks=new; },
+            Ok(RNone)=>{},
+            Err(_)=>break,
+        }
+    }
 }

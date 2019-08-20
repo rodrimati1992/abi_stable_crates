@@ -21,7 +21,7 @@ use super::{
 
 use crate::{
     StableAbi,
-    abi_stability::ExtraChecksRef,
+    abi_stability::ExtraChecksStaticRef,
     const_utils::Transmuter,
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
@@ -371,8 +371,8 @@ macro_rules! declare_meta_vtable {
             /// stored in the layout of the type in StableAbi,
             const EXTRA_CHECKS:&'static EnabledTraits;
 
-            extern "C" fn extra_checks()->ExtraChecksRef{
-                ExtraChecksRef::from_ptr(Self::EXTRA_CHECKS,TU_Opaque)
+            extern "C" fn extra_checks()->ExtraChecksStaticRef{
+                ExtraChecksStaticRef::from_ptr(Self::EXTRA_CHECKS,TU_Opaque)
             }
 
             $( 

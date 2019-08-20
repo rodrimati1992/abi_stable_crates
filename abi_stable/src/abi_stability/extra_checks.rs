@@ -1,9 +1,10 @@
 use crate::{
-    std_types::{RBoxError,RCow,RResult},
+    std_types::{RBox,RBoxError,RCow,RResult,ROption,RNone,ROk},
     type_layout::TypeLayout,
     traits::IntoReprC,
     rtry,
     sabi_trait,
+    StableAbi,
 };
 
 use std::{
@@ -22,6 +23,7 @@ pub unsafe trait TypeChecker{
     )->RResult<(), ExtraChecksError>;
 }
 
+
 /**
 Allows defining extra checks for a type.
 
@@ -32,8 +34,8 @@ To use a type to add extra checks follow these steps:
 
 - Implement this trait for that type,
 
-- Declare a `extern "C" fn()->ExtraChecksRef` function,
-    which constructs ExtraChecksRef with `ExtraChecksRef::from_ptr`.
+- Declare a `extern "C" fn()->ExtraChecksStaticRef` function,
+    which constructs ExtraChecksStaticRef with `ExtraChecksStaticRef::from_ptr`.
 
 - Derive StableAbi for some type,using the `#[sabi(extra_checks="the_function")]` attribute.
 
@@ -47,7 +49,7 @@ This defines an ExtraChecks which checks that fields are alphabetically sorted
 use abi_stable::{
     abi_stability::{
         check_layout_compatibility,
-        TypeChecker_TO,ExtraChecks,ExtraChecksRef,ExtraChecksExt,ExtraChecksError
+        TypeChecker_TO,ExtraChecks,ExtraChecksStaticRef,ExtraChecksExt,ExtraChecksError
     },
     type_layout::TypeLayout,
     sabi_trait::prelude::TU_Opaque,
@@ -97,8 +99,8 @@ struct Person{
 /////////////////////////////////////////
 
 #[sabi_extern_fn]
-pub extern "C" fn get_in_order_checker()->ExtraChecksRef{
-    ExtraChecksRef::from_ptr(
+pub extern "C" fn get_in_order_checker()->ExtraChecksStaticRef{
+    ExtraChecksStaticRef::from_ptr(
         &InOrderChecker,
         TU_Opaque,
     )
@@ -128,7 +130,7 @@ impl ExtraChecks for InOrderChecker {
         layout_containing_other:&'static TypeLayout,
         checker:TypeChecker_TO<'_,&mut ()>,
     )->RResult<(), ExtraChecksError> {
-        self.with_both_extra_checks(layout_containing_other,checker,|_|{
+        Self::downcast_with_layout(layout_containing_other,checker,|_|{
             let fields=layout_containing_self.get_fields().unwrap_or_default();
 
             if fields.is_empty() {
@@ -143,6 +145,7 @@ impl ExtraChecks for InOrderChecker {
                         first_one:curr.name,
                     });
                 }
+                prev=curr;
             }
             Ok(())
         })
@@ -190,7 +193,7 @@ the same for both types.
 use abi_stable::{
     abi_stability::{
         check_layout_compatibility,
-        TypeChecker_TO,ExtraChecks,ExtraChecksRef,ExtraChecksExt,ExtraChecksError
+        TypeChecker_TO,ExtraChecks,ExtraChecksStaticRef,ExtraChecksExt,ExtraChecksError
     },
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
@@ -266,8 +269,8 @@ where
         &ConstChecker{number:C::NUMBER};
 
     #[sabi_extern_fn]
-    pub fn get_const_checker()->ExtraChecksRef{
-        ExtraChecksRef::from_ptr(
+    pub fn get_const_checker()->ExtraChecksStaticRef{
+        ExtraChecksStaticRef::from_ptr(
             Self::CHECKER,
             TU_Opaque,
         )
@@ -338,7 +341,7 @@ impl ExtraChecks for ConstChecker {
         layout_containing_other:&'static TypeLayout,
         checker:TypeChecker_TO<'_,&mut ()>,
     )->RResult<(), ExtraChecksError> {
-        self.with_both_extra_checks(layout_containing_other,checker,|other|{
+        Self::downcast_with_layout(layout_containing_other,checker,|other|{
             if self.number==other.number {
                 Ok(())
             }else{
@@ -385,7 +388,8 @@ impl std::error::Error for UnequalConstError{}
 
 */
 #[sabi_trait]
-pub unsafe trait ExtraChecks:Debug+Display+Clone+'static{
+//#[sabi(debug_print_trait)]
+pub unsafe trait ExtraChecks:Debug+Display+Clone{
     /// Gets the type layout of `Self`(the type that implements ExtraChecks)
     fn type_layout(&self)->&'static TypeLayout;
 
@@ -414,37 +418,77 @@ in the extra_checks field.
     /// 
     /// This is necessary for the Debug implementation of `TypeLayout`.
     fn nested_type_layouts(&self)->RCow<'_,[&'static TypeLayout]>;
+
+    /// Combines this ExtraChecks trait object with another one.
+    ///
+    /// To guarantee that the `extra_checks` 
+    /// associated with a type (inside `<TheType as StableAbi>::LAYOUT.extra_cheks` )
+    /// has a single representative value across all dynamic libraries,
+    /// you must override this method,
+    /// and return `ROk(RSome(_))` by combining `self` and `other` in some way.
+    ///
+    /// # Return value
+    ///
+    /// This returns:
+    ///
+    /// - `ROk(RNone)`: 
+    ///     If `self` doesn't need to be unified across all dynamic libraries,
+    ///     or the representative version doesn't need to be updated.
+    ///
+    /// - `ROk(RSome(_))`: 
+    ///     If `self` needs to be unified across all dynamic libraries,
+    ///     returning the combined `self` and `other`.
+    ///
+    /// - `RErr(_)`: If there was a problem unifying `self` and `other`.
+    ///
+    fn combine(
+        &self,
+        _other:ExtraChecks_TO<'static,&'_ ()>,
+        _checker:TypeChecker_TO<'_,&'_ mut ()>
+    )->CombineResult{
+        ROk(RNone)
+    }
 }
 
 
-//TODO
-pub type ExtraChecksRef=ExtraChecks_TO<'static,&'static ()>;
 
+/// An ffi-safe trait object that adds extra checks to a StableAbi type.
+pub type ExtraChecksStaticRef=ExtraChecks_TO<'static,&'static ()>;
 
-#[repr(transparent)]
-#[derive(StableAbi)]
-pub struct What(Option<crate::utils::Constructor<ExtraChecksRef>>);
+pub type ExtraChecksBox=ExtraChecks_TO<'static,RBox<()>>;
 
+pub type CombineResult=RResult<ROption<ExtraChecksBox>, ExtraChecksError>;
 
 /// An extension trait for `ExtraChecks` implementors.
-pub trait ExtraChecksExt:ExtraChecks{
-    fn with_both_extra_checks<F,R,E>(
-        &self,
+pub trait ExtraChecksExt:StableAbi+ExtraChecks{
+    fn downcast_with_layout<F,R,E>(
         layout_containing_other:&'static TypeLayout,
-        mut checker:TypeChecker_TO<'_,&mut ()>,
+        checker:TypeChecker_TO<'_,&mut ()>,
         f:F,
     )->RResult<R, ExtraChecksError>
     where
-        F:FnOnce(&'static Self)->Result<R,E>,
+        Self:'static,
+        F:FnOnce(&Self)->Result<R,E>,
         E:Send+Sync+ErrorTrait+'static,
     {
         let other=rtry!(
             layout_containing_other.extra_checks().ok_or(ExtraChecksError::NoneExtraChecks)
         );
 
+        Self::downcast_with_object(other,checker,f)
+    }
+    fn downcast_with_object<F,R,E>(
+        other:ExtraChecks_TO<'static,&()>,
+        mut checker:TypeChecker_TO<'_,&mut ()>,
+        f:F,
+    )->RResult<R, ExtraChecksError>
+    where
+        F:FnOnce(&Self)->Result<R,E>,
+        E:Send+Sync+ErrorTrait+'static,
+    {
         // This checks that the layouts of `this` and `other` are compatible,
         // so that calling the `unchecked_into_unerased` method is sound.
-        rtry!( checker.check_compatibility(self.type_layout(),other.type_layout()) );
+        rtry!( checker.check_compatibility(<Self as StableAbi>::LAYOUT,other.type_layout()) );
         let other_ue=unsafe{ other.obj.unchecked_into_unerased::<Self>() };
 
         f(other_ue).map_err(ExtraChecksError::from_extra_checks).into_c()
@@ -454,7 +498,7 @@ pub trait ExtraChecksExt:ExtraChecks{
 
 impl<This> ExtraChecksExt for This
 where
-    This:?Sized+ExtraChecks
+    This:?Sized+StableAbi+ExtraChecks
 {}
 
 

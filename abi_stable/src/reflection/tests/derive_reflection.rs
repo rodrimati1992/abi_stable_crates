@@ -171,7 +171,7 @@ fn check_enum_accessors<T>(
     let layout=T::S_LAYOUT;
 
     let mut fields=match layout.data {
-        TLData::Enum(enum_)=>enum_.fields.get_fields(),
+        TLData::Enum(enum_)=>enum_.fields.iter(),
         x=>panic!("layout.data must be TLData::Struct{{..}}:\n{:#?}",x)
     };
 
@@ -193,7 +193,7 @@ fn check_struct_accessors<T>(
     let layout=T::S_LAYOUT;
 
     let fields=match layout.data {
-        TLData::Struct{fields}=>fields.get_field_vec(),
+        TLData::Struct{fields}=>fields.to_vec(),
         x=>panic!("layout.data must be TLData::Struct{{..}}:\n{:#?}",x)
     };
 
@@ -212,7 +212,7 @@ fn check_prefix_accessors<T>(
     let layout=T::S_LAYOUT;
 
     let fields=match &layout.data {
-        TLData::PrefixType(prefix)=>prefix.fields.get_field_vec(),
+        TLData::PrefixType(prefix)=>prefix.fields.to_vec(),
         x=>panic!("layout.data must be TLData::Struct{{..}}:\n{:#?}",x)
     };
 
