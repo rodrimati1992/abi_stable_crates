@@ -4,6 +4,7 @@ use crate::{
     parse_utils::{parse_str_as_ident},
     my_visibility::{VisibilityKind,RelativeVis},
     gen_params_in::{GenParamsIn,InWhat},
+    to_token_fn::ToTokenFnMut,
     workaround::token_stream_to_string,
 };
 
@@ -344,12 +345,14 @@ There are extra methods on the `obj` field.
 
 /// Outputs the trait object constructors.
 fn constructor_items<'a>(
-    TokenizerParams{
-        ctokens,totrait_def,submod_vis,trait_ident,trait_to,trait_backend,trait_interface,
-        ..
-    }:TokenizerParams,
+    params:TokenizerParams<'a>,
     mod_:&mut TokenStream2,
 ){
+    let TokenizerParams{
+        ctokens,totrait_def,submod_vis,trait_ident,trait_to,trait_backend,trait_interface,
+        ..
+    }=params;
+
     let trait_params=totrait_def.generics_tokenizer(
         InWhat::ItemUse,
         WithAssocTys::No,
@@ -473,6 +476,8 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
         trait_=trait_ident
     );
 
+    let reborrow_methods=reborrow_methods_tokenizer(params);
+
     quote!(
         impl<#gen_params_header> #trait_to<#gen_params_use_to> {
             #[doc=#from_ptr_docs]
@@ -513,6 +518,8 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
                     _marker:__sabi_re::UnsafeIgnoredType::DEFAULT,
                 }
             }
+
+            #reborrow_methods
         }
         impl<#gen_params_header_rbox> #trait_to<#gen_params_use_to_rbox> {
             #[doc=#from_value_docs]
@@ -538,6 +545,59 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
 
     ).to_tokens(mod_);
 }
+
+
+/// Returns a tokenizer for the reborrowing methods
+fn reborrow_methods_tokenizer<'a>(
+    TokenizerParams{ctokens,totrait_def,submod_vis,trait_to,..}:TokenizerParams<'a>,
+)->impl ToTokens+'a{
+    ToTokenFnMut::new(move|ts|{
+        let traits=totrait_def.trait_flags;
+        // If the trait object doesn't have both Sync+Send as supertraits or neither,
+        // it can't be reborrowed.
+        if traits.sync!=traits.send {
+            return;
+        }
+
+        let gen_params_use_ref=
+            totrait_def.generics_tokenizer(
+                InWhat::ItemUse,
+                WithAssocTys::Yes(WhichSelf::NoSelf),
+                &ctokens.ts_lt_ref,
+            );
+
+        let gen_params_use_mut=
+            totrait_def.generics_tokenizer(
+                InWhat::ItemUse,
+                WithAssocTys::Yes(WhichSelf::NoSelf),
+                &ctokens.ts_lt_mut,
+            );
+
+
+        quote!(
+            #submod_vis fn sabi_reborrow<'_sub>(&'_sub self)->#trait_to<#gen_params_use_ref>
+            where
+                _ErasedPtr:std::ops::Deref<Target=()>
+            {
+                let x=self.obj.reborrow();
+                // This is transmuting the pointer type parameter of the vtable.
+                let x=unsafe{ std::mem::transmute(x) };
+                #trait_to::from_sabi(x)
+            }
+
+            #submod_vis fn sabi_reborrow_mut<'_sub>(&'_sub mut self)->#trait_to<#gen_params_use_mut>
+            where
+                _ErasedPtr:std::ops::DerefMut<Target=()>
+            {
+                let x=self.obj.reborrow_mut();
+                // This is transmuting the pointer type parameter of the vtable.
+                let x=unsafe{ std::mem::transmute(x) };
+                #trait_to::from_sabi(x)
+            }
+        ).to_tokens(ts);
+    })
+}
+
 
 /// Outputs the annotated trait (as modified by the proc-macro)
 /// and an implementation of the trait for the generated trait object.

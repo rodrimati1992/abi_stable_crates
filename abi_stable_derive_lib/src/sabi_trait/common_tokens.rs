@@ -125,6 +125,8 @@ declare_common_tokens! {
         ts_make_vtable_args="Erasability,_OrigPtr::Target,_OrigPtr::TransmutedPtr,_OrigPtr,",
         ts_lt_transptr="'lt,_OrigPtr::TransmutedPtr,",
         ts_lt_erasedptr="'lt,_ErasedPtr,",
+        ts_lt_ref="'lt,&'_sub(),",
+        ts_lt_mut="'lt,&'_sub mut (),",
         ts_lt_de_erasedptr="'lt,'de,_ErasedPtr,",
         ts_erasedptr_and2="_ErasedPtr,_ErasedPtr2,",
         ts_staticlt_erasedptr2="'static,_ErasedPtr2,",
