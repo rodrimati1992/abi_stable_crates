@@ -13,9 +13,16 @@ use std::{
 };
 
 
+/// This checks that the layout of types coming from dynamic libraries 
+/// are compatible with those of the binary/dynlib that loads them.
+///
 #[sabi_trait]
 pub unsafe trait TypeChecker{
     /// Checks that `ìnterface` is compatible with `implementation.` 
+    /// 
+    /// This is equivalent to `check_layout_compatibility`,
+    /// except that it can also be called re-entrantly
+    /// (while `check_layout_compatibility` cannot be called re-entrantly)
     fn check_compatibility(
         &mut self,
         interface:&'static TypeLayout,
@@ -24,9 +31,13 @@ pub unsafe trait TypeChecker{
 }
 
 
+/// An ffi-safe equivalent of &'b mut (dyn TypeChecker+'a)
+pub type TypeCheckerMut<'a,'b>=
+    TypeChecker_TO<'a,&'b mut ()>;
+
+
 /**
 Allows defining extra checks for a type.
-
 
 # Usage
 
@@ -49,11 +60,12 @@ This defines an ExtraChecks which checks that fields are alphabetically sorted
 use abi_stable::{
     abi_stability::{
         check_layout_compatibility,
-        TypeChecker_TO,ExtraChecks,ExtraChecksStaticRef,ExtraChecksExt,ExtraChecksError
+        TypeCheckerMut,ExtraChecks,ExtraChecksStaticRef,
+        ForExtraChecksImplementor,ExtraChecksError,
     },
     type_layout::TypeLayout,
     sabi_trait::prelude::TU_Opaque,
-    std_types::{RCow,RDuration,RResult,RString,StaticStr},
+    std_types::{RCow,RDuration,RResult,ROption,RString,StaticStr},
     sabi_extern_fn,
     StableAbi,
 };
@@ -128,7 +140,7 @@ impl ExtraChecks for InOrderChecker {
         &self,
         layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeChecker_TO<'_,&mut ()>,
+        checker:TypeCheckerMut<'_,'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,checker,|_|{
             let fields=layout_containing_self.get_fields().unwrap_or_default();
@@ -193,7 +205,8 @@ the same for both types.
 use abi_stable::{
     abi_stability::{
         check_layout_compatibility,
-        TypeChecker_TO,ExtraChecks,ExtraChecksStaticRef,ExtraChecksExt,ExtraChecksError
+        TypeCheckerMut,ExtraChecks,ExtraChecksStaticRef,
+        ForExtraChecksImplementor,ExtraChecksError,
     },
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
@@ -339,7 +352,7 @@ impl ExtraChecks for ConstChecker {
         &self,
         layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeChecker_TO<'_,&mut ()>,
+        checker:TypeCheckerMut<'_,'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,checker,|other|{
             if self.number==other.number {
@@ -431,14 +444,14 @@ A("ab")<---B("abc")
 use abi_stable::{
     abi_stability::{
         check_layout_compatibility,
-        TypeChecker_TO,
-        ExtraChecks,ExtraChecksStaticRef,ExtraChecks_TO,CombineResult,
-        ExtraChecksExt,ExtraChecksError
+        TypeCheckerMut,
+        ExtraChecks,ExtraChecksStaticRef,ExtraChecksRef,ExtraChecksBox,
+        ForExtraChecksImplementor,ExtraChecksError,
     },
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
     sabi_trait::prelude::TU_Opaque,
-    std_types::{RCow,RResult,RSome,StaticStr},
+    std_types::{RCow,RResult,ROption,RSome,StaticStr},
     sabi_extern_fn,
     GetStaticEquivalent,
     StableAbi,
@@ -605,7 +618,7 @@ impl ExtraChecks for ConstChecker {
         &self,
         _layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeChecker_TO<'_,&mut ()>,
+        checker:TypeCheckerMut<'_,'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,checker,|other|{
             self.check_compatible_inner(other)
@@ -618,13 +631,13 @@ impl ExtraChecks for ConstChecker {
 
     fn combine(
         &self,
-        other:ExtraChecks_TO<'static,&()>,
-        checker:TypeChecker_TO<'_,&mut ()>
-    )->CombineResult{
+        other:ExtraChecksRef<'_>,
+        checker:TypeCheckerMut<'_,'_>
+    )->RResult<ROption<ExtraChecksBox>, ExtraChecksError>{
         Self::downcast_with_object(other,checker,|other|{
             let (min,max)=min_max_by(self,other,|x|x.chars.len());
             min.check_compatible_inner(max)
-                .map(|_| RSome( ExtraChecks_TO::from_value(max.clone(),TU_Opaque) ) )
+                .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TU_Opaque) ) )
         })
     }
 }
@@ -676,27 +689,39 @@ where
 //#[sabi(debug_print_trait)]
 pub unsafe trait ExtraChecks:Debug+Display+Clone{
     /// Gets the type layout of `Self`(the type that implements ExtraChecks)
+    ///
+    /// This is used to downcast the trait object in 
+    /// `ForExtraChecksImplementor::downcast_*` methods,
+    /// by ensuring that its type layout is 
+    /// compatible with that of another ExtraChecks implementor.
     fn type_layout(&self)->&'static TypeLayout;
 
 /**
 
 Checks that `self` is compatible another type which implements ExtraChecks.
 
+Calling `check_layout_compatibility` from here will immediately return an error,
+prefer doing `checker.check_compatibility(...)` instead.
 
+# Parameters
 
 `layout_containing_self`:
 The TypeLayout containing `self` in the extra_checks field.
 
 `layout_containing_other`:
-The TypeLayout containing the other ExtraChecks implementor that this is compared with,
-in the extra_checks field.
+The TypeLayout containing the other ExtraChecks trait object in the extra_checks field,
+that this is compared to.
+
+`checker`:
+The trait object of the type checker,which allows this function to check type layouts.
+
 
 */
     fn check_compatibility(
         &self,
         layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeChecker_TO<'_,&mut ()>,
+        checker:TypeCheckerMut<'_,'_>,
     )->RResult<(), ExtraChecksError>;
 
     /// Returns the `TypeLayout`s owned or referenced by `self`.
@@ -704,51 +729,87 @@ in the extra_checks field.
     /// This is necessary for the Debug implementation of `TypeLayout`.
     fn nested_type_layouts(&self)->RCow<'_,[&'static TypeLayout]>;
 
-    /// Combines this ExtraChecks trait object with another one.
-    ///
-    /// To guarantee that the `extra_checks` 
-    /// associated with a type (inside `<TheType as StableAbi>::LAYOUT.extra_cheks` )
-    /// has a single representative value across all dynamic libraries,
-    /// you must override this method,
-    /// and return `ROk(RSome(_))` by combining `self` and `other` in some way.
-    ///
-    /// # Return value
-    ///
-    /// This returns:
-    ///
-    /// - `ROk(RNone)`: 
-    ///     If `self` doesn't need to be unified across all dynamic libraries,
-    ///     or the representative version doesn't need to be updated.
-    ///
-    /// - `ROk(RSome(_))`: 
-    ///     If `self` needs to be unified across all dynamic libraries,
-    ///     returning the combined `self` and `other`.
-    ///
-    /// - `RErr(_)`: If there was a problem unifying `self` and `other`.
-    ///
+/**
+Combines this ExtraChecks trait object with another one.
+
+To guarantee that the `extra_checks` 
+associated with a type (inside `<TheType as StableAbi>::LAYOUT.extra_cheks` )
+has a single representative value across all dynamic libraries,
+you must override this method,
+and return `ROk(RSome(_))` by combining `self` and `other` in some way.
+
+
+# Parameters
+
+`other`:
+The other ExtraChecks trait object that this is combined with..
+
+`checker`:
+The trait object of the type checker,which allows this function to check type layouts.
+
+
+# Return value
+
+This returns:
+
+- `ROk(RNone)`: 
+    If `self` doesn't need to be unified across all dynamic libraries,
+    or the representative version doesn't need to be updated.
+
+- `ROk(RSome(_))`: 
+    If `self` needs to be unified across all dynamic libraries,
+    returning the combined `self` and `other`.
+
+- `RErr(_)`: If there was a problem unifying `self` and `other`.
+
+*/
     fn combine(
         &self,
-        _other:ExtraChecks_TO<'static,&'_ ()>,
-        _checker:TypeChecker_TO<'_,&'_ mut ()>
-    )->CombineResult{
+        _other:ExtraChecksRef<'_>,
+        _checker:TypeCheckerMut<'_,'_>,
+    )->RResult<ROption<ExtraChecksBox>, ExtraChecksError>{
         ROk(RNone)
     }
 }
 
 
 
-/// An ffi-safe trait object that adds extra checks to a StableAbi type.
+/// An ffi-safe equivalent of `&'static dyn ExtraChecks`.
 pub type ExtraChecksStaticRef=ExtraChecks_TO<'static,&'static ()>;
 
+/// An ffi-safe equivalent of `&'a dyn ExtraChecks`.
+pub type ExtraChecksRef<'a>=ExtraChecks_TO<'static,&'a ()>;
+
+/// An ffi-safe equivalent of `Box<dyn ExtraChecks>`.
 pub type ExtraChecksBox=ExtraChecks_TO<'static,RBox<()>>;
 
-pub type CombineResult=RResult<ROption<ExtraChecksBox>, ExtraChecksError>;
+
 
 /// An extension trait for `ExtraChecks` implementors.
-pub trait ExtraChecksExt:StableAbi+ExtraChecks{
+pub trait ForExtraChecksImplementor:StableAbi+ExtraChecks{
+
+/**
+Allows one to access the unerased type of the ExtraChecks trait object 
+within `layout_containing_other`.
+
+# Returns
+
+- ROk(_): 
+    If `other` could be unerased to `Self`,and `f` did not return any errors.
+
+- RErr(ExtraChecksError::NoneExtraChecks): 
+    If`layout_containing_other` does not contain an ExtraChecks trait object.
+
+- RErr(ExtraChecksError::TypeChecker): 
+    If there is an error while type checking.
+
+- RErr(ExtraChecksError::ExtraChecks(_)): 
+    If there is an custom error within the function.
+
+*/
     fn downcast_with_layout<F,R,E>(
         layout_containing_other:&'static TypeLayout,
-        checker:TypeChecker_TO<'_,&mut ()>,
+        checker:TypeCheckerMut<'_,'_>,
         f:F,
     )->RResult<R, ExtraChecksError>
     where
@@ -762,9 +823,25 @@ pub trait ExtraChecksExt:StableAbi+ExtraChecks{
 
         Self::downcast_with_object(other,checker,f)
     }
+
+/**
+Allows one to access the unerased type of the `other` trait object .
+
+# Returns
+
+- ROk(_): 
+    If `other` could be unerased to `Self`,and `f` did not return any errors.
+
+- RErr(ExtraChecksError::TypeChecker): 
+    If there is an error while type checking.
+
+- RErr(ExtraChecksError::ExtraChecks(_)): 
+    If there is an custom error within the function.
+
+*/
     fn downcast_with_object<F,R,E>(
-        other:ExtraChecks_TO<'static,&()>,
-        mut checker:TypeChecker_TO<'_,&mut ()>,
+        other:ExtraChecksRef<'_>,
+        mut checker:TypeCheckerMut<'_,'_>,
         f:F,
     )->RResult<R, ExtraChecksError>
     where
@@ -781,7 +858,7 @@ pub trait ExtraChecksExt:StableAbi+ExtraChecks{
 }
 
 
-impl<This> ExtraChecksExt for This
+impl<This> ForExtraChecksImplementor for This
 where
     This:?Sized+StableAbi+ExtraChecks
 {}
@@ -790,18 +867,22 @@ where
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/// The errors returned from `ExtraChecks` and `ForExtraChecksImplementor` methods.
 #[repr(u8)]
 #[derive(Debug,StableAbi)]
 pub enum ExtraChecksError{
+    /// When a type checking error happens within `TypeChecker`.
     TypeChecker,
-    /// When `extra_checks==Some(_)` in the interface type layout,
-    /// but the `extra_checks==None` in the implementation type layout.
+    /// When trying to get a ExtraChecks trait object from `TypeLayout.extra_checks==None` .
     NoneExtraChecks,
+    /// A custom error returned by the ExtraChecker or 
+    /// the closures in `ForExtraChecksImplementor::downcast_*`.
     ExtraChecks(RBoxError),
 }
 
 
 impl ExtraChecksError {
+    /// Constructs a `ExtraChecksError::ExtraChecks` from an error.
     pub fn from_extra_checks<E>(err:E)->ExtraChecksError
     where
         E:Send+Sync+ErrorTrait+'static,

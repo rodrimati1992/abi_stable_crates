@@ -222,7 +222,7 @@ use core_extensions::{
 
 use crate::{
     StableAbi,
-    abi_stability::{TypeChecker_TO,ExtraChecks,ExtraChecksExt,ExtraChecksError},
+    abi_stability::{TypeCheckerMut,ExtraChecks,ForExtraChecksImplementor,ExtraChecksError},
     std_types::{StaticStr,StaticSlice,RBox,RCow,RVec,ROption,RSome,RNone,RResult},
     traits::IntoReprC,
     utils::FmtPadding,
@@ -834,7 +834,7 @@ impl ExtraChecks for Tag {
         &self,
         _layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeChecker_TO<'_,&mut ()>,
+        checker:TypeCheckerMut<'_,'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,checker,|other|{
             let t_tag=self.to_checkable();
