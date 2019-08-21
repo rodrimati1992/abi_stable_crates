@@ -16,8 +16,8 @@ use std::{
 
 use crate::{
     abi_stability::{
-        ExtraChecksBox,ExtraChecks_TO,
-        TypeChecker,TypeChecker_TO,
+        ExtraChecksBox,ExtraChecksRef,
+        TypeChecker,TypeCheckerMut,
         ExtraChecksError,
     },
     sabi_types::{ParseVersionError, VersionStrings},
@@ -671,7 +671,7 @@ impl AbiChecker {
                     errs.push(AI::NoneExtraChecks);
                 }
                 (Some(t_extra_checks),Some(o_extra_checks))=>{
-                    let mut ty_checker=TypeChecker_TO::from_ptr(&mut *self,TU_Opaque);
+                    let mut ty_checker=TypeCheckerMut::from_ptr(&mut *self,TU_Opaque);
 
                     let res=handle_extra_checks_ret(
                         t_extra_checks.clone(),
@@ -1128,7 +1128,7 @@ impl AbiChecker {
             let ExtraChecksBoxWithContext{t_lay,o_lay,extra_checks}=with_context;
 
             let errors_before=self.errors.len();
-            let type_checker=TypeChecker_TO::from_ptr(&mut *self,TU_Opaque);
+            let type_checker=TypeCheckerMut::from_ptr(&mut *self,TU_Opaque);
             let t_utid=t_lay.get_utypeid();
             let o_utid=o_lay.get_utypeid();
 
@@ -1432,8 +1432,8 @@ pub(crate) fn push_err<O, U, FG, VC>(
 
 
 fn handle_extra_checks_ret<F,R>(
-    expected_extra_checks:ExtraChecks_TO<'static,&()>,
-    found_extra_checks:ExtraChecks_TO<'static,&()>,
+    expected_extra_checks:ExtraChecksRef<'_>,
+    found_extra_checks:ExtraChecksRef<'_>,
     errs: &mut RVec<AbiInstability>,
     f:F
 )->Result<R,()>
@@ -1474,9 +1474,9 @@ where
 
 fn combine_extra_checks(
     errs: &mut RVec<AbiInstability>,
-    mut ty_checker:TypeChecker_TO<'_,&mut ()>,
+    mut ty_checker:TypeCheckerMut<'_,'_>,
     extra_checks:&mut ExtraChecksBox,
-    slic:&[ExtraChecks_TO<'static,&()>]
+    slic:&[ExtraChecksRef<'_>]
 ){
     for other in slic {
         let other_ref=other.sabi_reborrow();

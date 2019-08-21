@@ -24,7 +24,10 @@ macro_rules! declare_enabled_traits {
         use std::fmt::{self,Debug,Display};
 
         use crate::{
-            abi_stability::{TypeChecker_TO,ExtraChecks,ExtraChecksExt,ExtraChecksError},
+            abi_stability::{
+                TypeCheckerMut,ExtraChecks,
+                ForExtraChecksImplementor,ExtraChecksError,
+            },
             type_layout::TypeLayout,
             std_types::{RCow,RResult},
             StableAbi,
@@ -105,7 +108,7 @@ macro_rules! declare_enabled_traits {
                 &self,
                 _layout_containing_self:&'static TypeLayout,
                 layout_containing_other:&'static TypeLayout,
-                checker:TypeChecker_TO<'_,&mut ()>,
+                checker:TypeCheckerMut<'_,'_>,
             )->RResult<(), ExtraChecksError> {
                 Self::downcast_with_layout(layout_containing_other,checker,|other|{
                     if self.auto_traits!=other.auto_traits {

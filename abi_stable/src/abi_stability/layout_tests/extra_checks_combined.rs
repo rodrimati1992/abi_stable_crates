@@ -1,14 +1,14 @@
 use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,CheckingGlobals,check_layout_compatibility_with_globals},
-        TypeChecker_TO,
-        ExtraChecks,ExtraChecksStaticRef,ExtraChecks_TO,CombineResult,
-        ExtraChecksExt,ExtraChecksError
+        TypeCheckerMut,
+        ExtraChecks,ExtraChecksStaticRef,ExtraChecksBox,ExtraChecksRef,
+        ForExtraChecksImplementor,ExtraChecksError
     },
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
     sabi_trait::prelude::TU_Opaque,
-    std_types::{RCow,RResult,RSome,StaticStr},
+    std_types::{RCow,RResult,ROption,RSome,StaticStr},
     sabi_extern_fn,
     utils,
     GetStaticEquivalent,
@@ -227,7 +227,7 @@ impl ExtraChecks for ConstChecker {
         &self,
         _layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeChecker_TO<'_,&mut ()>,
+        checker:TypeCheckerMut<'_,'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,checker,|other|{
             self.check_compatible_inner(other)
@@ -240,13 +240,13 @@ impl ExtraChecks for ConstChecker {
 
     fn combine(
         &self,
-        other:ExtraChecks_TO<'static,&()>,
-        checker:TypeChecker_TO<'_,&mut ()>
-    )->CombineResult{
+        other:ExtraChecksRef<'_>,
+        checker:TypeCheckerMut<'_,'_>
+    )->RResult<ROption<ExtraChecksBox>, ExtraChecksError>{
         Self::downcast_with_object(other,checker,|other|{
             let (min,max)=utils::min_max_by(self,other,|x|x.chars.len());
             min.check_compatible_inner(max)
-                .map(|_| RSome( ExtraChecks_TO::from_value(max.clone(),TU_Opaque) ) )
+                .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TU_Opaque) ) )
         })
     }
 }
