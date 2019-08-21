@@ -216,7 +216,9 @@ impl<T> RArc<T> {
     #[inline]
     pub fn try_unwrap(this: Self) -> Result<T, Self>{
         let vtable = this.vtable();
-        (vtable.try_unwrap())(this).into_result()
+        unsafe{
+            (vtable.try_unwrap())(this).into_result()
+        }
     }
 
     /// Attempts to create a mutable reference to `T`,
@@ -239,7 +241,9 @@ impl<T> RArc<T> {
     #[inline]
     pub fn get_mut(this: &mut Self) -> Option<&mut T>{
         let vtable = this.vtable();
-        (vtable.get_mut())(this)
+        unsafe{
+            (vtable.get_mut())(this)
+        }
     }
 
     /// Makes a mutable reference to `T`,
@@ -287,6 +291,53 @@ impl<T> RArc<T> {
             }
         }
     }
+
+    /// Gets the number of RArc that point to the value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RArc;
+    /// 
+    /// let arc=RArc::new(0);
+    /// assert_eq!( RArc::strong_count(&arc), 1 );
+    ///
+    /// let clone=RArc::clone(&arc);
+    /// assert_eq!( RArc::strong_count(&arc), 2 );
+    ///
+    /// ```
+    pub fn strong_count(this:&Self)->usize{
+        let vtable = this.vtable();
+        unsafe{
+            vtable.strong_count()(this)
+        }
+    }
+
+    /// Gets the number of std::sync::Weak that point to the value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RArc;
+    /// 
+    /// use std::sync::Arc;
+    /// 
+    /// let rustarc=Arc::new(0);
+    /// let arc=RArc::from(rustarc.clone());
+    /// assert_eq!( RArc::weak_count(&arc), 0 );
+    /// 
+    /// let weak_0=Arc::downgrade(&rustarc);
+    /// assert_eq!( RArc::weak_count(&arc), 1 );
+    ///
+    /// let weak_1=Arc::downgrade(&rustarc);
+    /// assert_eq!( RArc::weak_count(&arc), 2 );
+    /// ```
+    pub fn weak_count(this:&Self)->usize{
+        let vtable = this.vtable();
+        unsafe{
+            vtable.weak_count()(this)
+        }
+    }
     
 }
 
@@ -321,7 +372,9 @@ where
 
 impl<T> Clone for RArc<T> {
     fn clone(&self) -> Self {
-        (self.vtable().clone())(self)
+        unsafe{
+            (self.vtable().clone())(self)
+        }
     }
 }
 
@@ -372,6 +425,8 @@ mod vtable_mod {
             clone: clone_arc::<T>,
             get_mut: get_mut_arc::<T>,
             try_unwrap: try_unwrap_arc::<T>,
+            strong_count: strong_count_arc::<T>,
+            weak_count: weak_count_arc::<T>,
         };
 
         // The VTABLE for this type in this executable/library
@@ -399,37 +454,39 @@ mod vtable_mod {
     pub struct ArcVtableVal<T> {
         pub(super) type_id:Constructor<UTypeId>,
         pub(super) destructor: unsafe extern "C" fn(*const T, CallReferentDrop),
-        pub(super) clone: extern "C" fn(&RArc<T>) -> RArc<T>,
-        pub(super) get_mut: extern "C" fn(&mut RArc<T>) -> Option<&mut T>,
+        pub(super) clone: unsafe extern "C" fn(&RArc<T>) -> RArc<T>,
+        pub(super) get_mut: unsafe extern "C" fn(&mut RArc<T>) -> Option<&mut T>,
+        pub(super) try_unwrap: unsafe extern "C" fn(RArc<T>) -> RResult<T, RArc<T>>,
+        pub(super) strong_count: unsafe extern "C" fn(&RArc<T>) -> usize,
         #[sabi(last_prefix_field)]
-        pub(super) try_unwrap:extern "C" fn(RArc<T>) -> RResult<T, RArc<T>>,
+        pub(super) weak_count:unsafe extern "C" fn(&RArc<T>) -> usize,
     }
 
-}
-use self::vtable_mod::{ArcVtable, VTableGetter};
-
-unsafe extern "C" fn destructor_arc<T>(this: *const T, call_drop: CallReferentDrop) {
-    extern_fn_panic_handling! {no_early_return;
-        if call_drop == CallReferentDrop::Yes {
-            drop(Arc::from_raw(this));
-        } else {
-            drop(Arc::from_raw(this as *const ManuallyDrop<T>));
+    unsafe extern "C" fn destructor_arc<T>(this: *const T, call_drop: CallReferentDrop) {
+        extern_fn_panic_handling! {no_early_return;
+            if call_drop == CallReferentDrop::Yes {
+                drop(Arc::from_raw(this));
+            } else {
+                drop(Arc::from_raw(this as *const ManuallyDrop<T>));
+            }
         }
     }
-}
 
-extern "C" fn clone_arc<T>(this: &RArc<T>) -> RArc<T> {
-    unsafe {
-        this.data()
-            .piped(|x| Arc::from_raw(x))
-            .piped(ManuallyDrop::new)
-            .piped(|x| Arc::clone(&x))
-            .into()
+    unsafe fn with_arc_ref<T,F,R>(this:&RArc<T>,f:F)->R
+    where
+        F:FnOnce(&Arc<T>)->R
+    {
+        let x=this.data();
+        let x=Arc::from_raw(x);
+        let x=ManuallyDrop::new(x);
+        f(&x)
     }
-}
 
-extern "C" fn get_mut_arc<'a,T>(this: &'a mut RArc<T>) -> Option<&'a mut T> {
-    unsafe {
+    unsafe extern "C" fn clone_arc<T>(this: &RArc<T>) -> RArc<T> {
+        with_arc_ref(this,|x| Arc::clone(&x).into() )
+    }
+
+    unsafe extern "C" fn get_mut_arc<'a,T>(this: &'a mut RArc<T>) -> Option<&'a mut T> {
         let arc=Arc::from_raw(this.data());
         let mut arc=ManuallyDrop::new(arc);
         // This is fine,since we are only touching the data afterwards,
@@ -437,14 +494,23 @@ extern "C" fn get_mut_arc<'a,T>(this: &'a mut RArc<T>) -> Option<&'a mut T> {
         let arc:&'a mut Arc<T>=&mut *(&mut *arc as *mut Arc<T>);
         Arc::get_mut(arc)
     }
-}
 
-extern "C" fn try_unwrap_arc<T>(this: RArc<T>) -> RResult<T, RArc<T>> {
-    unsafe {
+    unsafe extern "C" fn try_unwrap_arc<T>(this: RArc<T>) -> RResult<T, RArc<T>> {
         this.into_raw()
             .piped(|x| Arc::from_raw(x))
             .piped(Arc::try_unwrap)
             .map_err(RArc::from)
             .into()
     }
+
+    unsafe extern "C" fn strong_count_arc<T>(this: &RArc<T>) -> usize {
+        with_arc_ref(this,|x| Arc::strong_count(&x) )
+    }
+
+    unsafe extern "C" fn weak_count_arc<T>(this: &RArc<T>) -> usize {
+        with_arc_ref(this,|x| Arc::weak_count(&x) )
+    }
+
+
 }
+use self::vtable_mod::{ArcVtable, VTableGetter};
