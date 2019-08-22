@@ -71,7 +71,8 @@ pub mod robject;
 #[doc(hidden)]
 pub mod vtable;
 
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(test)]
+// #[cfg(all(test,not(feature="only_new_tests")))]
 pub mod tests;
 
 #[cfg(all(test,not(feature="only_new_tests")))]

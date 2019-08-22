@@ -79,7 +79,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         // - the trait definition.
         // - the trait object inherent impl
         //      (for the case where the method doesn't exist in the vtable).
-        let default_=method.default.as_ref();
+        let default_=method.default.as_ref().filter(|_| !method.disable_inherent_default );
 
         let lifetimes=Some(&method.lifetimes).filter(|l| !l.is_empty() );
 
@@ -141,7 +141,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         };
 
         if WhichItem::VtableDecl==which_item {
-            let optional_field=method.default.as_ref().map(|_| &ctokens.missing_field_option );
+            let optional_field=default_.as_ref().map(|_| &ctokens.missing_field_option );
             let derive_attrs=method.derive_attrs;
             quote_spanned!( method_span=>
                 #(#[#derive_attrs])*

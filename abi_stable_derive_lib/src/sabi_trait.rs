@@ -637,41 +637,45 @@ fn trait_and_impl<'a>(
     ).to_tokens(mod_);
 
 
-    let gen_params_header=
-        trait_def.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_lt_erasedptr,
-        );
-    let gen_params_use_trait=
-        trait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::No,
-            &ctokens.empty_ts,
-        );
-    let gen_params_use_to=
-        trait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_lt_erasedptr,
-        );
+    if ! trait_def.disable_trait_impl {
 
-    let assoc_ty_named_a=trait_def.assoc_tys.values().map(|x| &x.assoc_ty.ident );
-    let assoc_ty_named_b=assoc_ty_named_a.clone();
+        let gen_params_header=
+            trait_def.generics_tokenizer(
+                InWhat::ImplHeader,
+                WithAssocTys::Yes(WhichSelf::NoSelf),
+                &ctokens.ts_lt_erasedptr,
+            );
+        let gen_params_use_trait=
+            trait_def.generics_tokenizer(
+                InWhat::ItemUse,
+                WithAssocTys::No,
+                &ctokens.empty_ts,
+            );
+        let gen_params_use_to=
+            trait_def.generics_tokenizer(
+                InWhat::ItemUse,
+                WithAssocTys::Yes(WhichSelf::NoSelf),
+                &ctokens.ts_lt_erasedptr,
+            );
 
-    quote!(
-        impl<#gen_params_header> #trait_ident<#gen_params_use_trait> 
-        for #trait_to<#gen_params_use_to>
-        where
-            Self:#( #super_traits_b + )* #(#lifetime_bounds+)* Sized ,
-            #erased_ptr_bounds
-            #(#where_preds,)*
-        {
-            #( type #assoc_ty_named_a=#assoc_ty_named_b; )*
+        let assoc_ty_named_a=trait_def.assoc_tys.values().map(|x| &x.assoc_ty.ident );
+        let assoc_ty_named_b=assoc_ty_named_a.clone();
 
-            #methods_tokenizer_impl
-        }
-    ).to_tokens(mod_);
+        quote!(
+            impl<#gen_params_header> #trait_ident<#gen_params_use_trait> 
+            for #trait_to<#gen_params_use_to>
+            where
+                Self:#( #super_traits_b + )* #(#lifetime_bounds+)* Sized ,
+                #erased_ptr_bounds
+                #(#where_preds,)*
+            {
+                #( type #assoc_ty_named_a=#assoc_ty_named_b; )*
+
+                #methods_tokenizer_impl
+            }
+        ).to_tokens(mod_);
+    }
+
 }
 
 /// An inherent implementation of the generated trait object,
