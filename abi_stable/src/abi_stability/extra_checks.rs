@@ -17,12 +17,14 @@ use std::{
 /// are compatible with those of the binary/dynlib that loads them.
 ///
 #[sabi_trait]
+#[sabi(no_trait_impl)]
 pub unsafe trait TypeChecker{
     /// Checks that `ìnterface` is compatible with `implementation.` 
     /// 
     /// This is equivalent to `check_layout_compatibility`,
     /// except that it can also be called re-entrantly
     /// (while `check_layout_compatibility` cannot be called re-entrantly)
+    #[sabi(last_prefix_field)]
     fn check_compatibility(
         &mut self,
         interface:&'static TypeLayout,
@@ -686,7 +688,7 @@ where
 
 */
 #[sabi_trait]
-//#[sabi(debug_print_trait)]
+#[sabi(no_trait_impl)]
 pub unsafe trait ExtraChecks:Debug+Display+Clone{
     /// Gets the type layout of `Self`(the type that implements ExtraChecks)
     ///
@@ -763,6 +765,7 @@ This returns:
 - `RErr(_)`: If there was a problem unifying `self` and `other`.
 
 */
+    #[sabi(last_prefix_field)]
     fn combine(
         &self,
         _other:ExtraChecksRef<'_>,
@@ -770,6 +773,7 @@ This returns:
     )->RResult<ROption<ExtraChecksBox>, ExtraChecksError>{
         ROk(RNone)
     }
+
 }
 
 

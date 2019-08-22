@@ -179,6 +179,19 @@ Constructs the trait object from its underlying implementation,
 either `RObject` or `DynTrait` depending on whether the
 `#[sabi(use_dyntrait)]` helper attribute was used.
 
+### Trait_TO::sabi_reborrow
+
+Reborrows the trait object,going from `&Trait_TO<'lt,SomePtr<()>>` to `Trait_TO<'lt,&()>`.
+
+This is only generated if the trait has both or neither Send and Sync as supertraits.
+
+### Trait_TO::sabi_reborrow_mut
+
+Reborrows the trait object mutably,
+going from `&mut Trait_TO<'lt,SomePtr<()>>` to `Trait_TO<'lt,&mut ()>`.
+
+This is only generated if the trait has both or neither Send and Sync as supertraits.
+
 ###  Trait 
 
 The trait is defined similarly to how it is before being transformed by the 
@@ -199,6 +212,23 @@ that are valid for `#[derive(StableAbi)]`.
 # Trait attributes.
 
 These are attributes for the generated trait,applied on the trait(not on methods).
+
+###  #[sabi(no_trait_impl)]
+
+Disables the implementation of the trait for the trait object,
+you can still call the inherent versions of those methods on the trait object.
+
+This is useful to reduce compile-time overhead,
+and to allow users to declare a blanket(generic) implementation of the trait.
+
+###  #[sabi(no_default_fallback)]
+
+Stops using default implementation of methods (from the trait declaration) 
+as the fallback implementation of the method when it's not in the vtable,
+because the trait object comes from a previous version of the library.
+
+By using this attribute,defaulted methods will behave the same as 
+non-defaulted methods when they don't exist in the vtable.
 
 ###  #[sabi(debug_print_trait)] 
 

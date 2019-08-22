@@ -36,15 +36,7 @@ impl<'a> SabiTraitOptions<'a> {
     ) -> Self {
         Self{
             debug_print_trait:this.debug_print_trait,
-            trait_definition:
-                TraitDefinition::new(
-                    trait_,
-                    this.attrs,
-                    this.methods_with_attrs,
-                    this.which_object,
-                    arenas,
-                    ctokens,
-                ),
+            trait_definition:TraitDefinition::new(trait_,this,arenas,ctokens),
         }
     }
 }
@@ -93,16 +85,21 @@ impl<'a> MethodWithAttrs<'a>{
 
 /// A datastructure used while parsing the helper attributes of #[sabi_trait].
 #[derive(Default)]
-struct SabiTraitAttrs<'a> {
+pub(super) struct SabiTraitAttrs<'a> {
     /// Whether the output of the proc-macro is printed with println.
-    debug_print_trait:bool,
+    pub(super) debug_print_trait:bool,
     /// The attributes used in the vtable,and the trait.
-    attrs:OwnedDeriveAndOtherAttrs,
+    pub(super) attrs:OwnedDeriveAndOtherAttrs,
     /// The `syn` type for methods,as well as their attributes split by where they are used.
-    methods_with_attrs:Vec<MethodWithAttrs<'a>>,
+    pub(super) methods_with_attrs:Vec<MethodWithAttrs<'a>>,
     /// Which type to use as the underlying implementation of the trait object,
     /// either DynTrait or RObject.
-    which_object:WhichObject,
+    pub(super) which_object:WhichObject,
+    /// If true,removes the `impl Trait for Trait_TO`
+    pub(super) disable_trait_impl:bool,
+    /// If true,doesn't use the default implementation of methods when 
+    /// the vtable entry is absent.
+    pub(super) disable_inherent_default:Vec<bool>,
 }
 
 
@@ -112,7 +109,9 @@ enum ParseContext<'a> {
     TraitAttr{
         name:&'a Ident,
     },
-    Method,
+    Method{
+        index:usize,
+    },
 }
 
 
@@ -137,6 +136,8 @@ pub(crate) fn parse_attrs_for_sabi_trait<'a>(
 
     this.methods_with_attrs.reserve(assoc_fns.len());
 
+    this.disable_inherent_default.resize(assoc_fns.len(),false);
+
     parse_inner(
         &mut this,
         &*trait_.attrs,
@@ -144,13 +145,13 @@ pub(crate) fn parse_attrs_for_sabi_trait<'a>(
         arenas,
     );
 
-    for assoc_fn in assoc_fns.iter().cloned() {
+    for (index,assoc_fn) in assoc_fns.iter().cloned().enumerate() {
         this.methods_with_attrs.push(MethodWithAttrs::new(assoc_fn));
 
         parse_inner(
             &mut this,
             &*assoc_fn.attrs,
-            ParseContext::Method,
+            ParseContext::Method{index},
             arenas,
         );
 
@@ -190,7 +191,7 @@ fn parse_inner<'a,I>(
                     ParseContext::TraitAttr{..}=>{
                         this.attrs.other_attrs.push(other_attr);
                     }
-                    ParseContext::Method=>{
+                    ParseContext::Method{..}=>{
                         this.methods_with_attrs.last_mut().unwrap()
                             .attrs.other_attrs
                             .push(other_attr);
@@ -212,7 +213,7 @@ fn parse_attr_list<'a>(
         with_nested_meta("sabi", list.nested, |attr| {
             parse_sabi_trait_attr(this,pctx, attr, arenas)
         });
-    }else if let ParseContext::Method=pctx {
+    }else if let ParseContext::Method{..}=pctx {
         this.methods_with_attrs
             .last_mut().unwrap()
             .attrs.other_attrs
@@ -229,20 +230,34 @@ fn parse_sabi_trait_attr<'a>(
     _arenas: &'a Arenas
 ) {
     match (pctx, attr) {
-
-        (ParseContext::Method, attr) => {
-            this.methods_with_attrs
-                .last_mut().unwrap()
-                .attrs
-                .derive_attrs
-                .push(attr);
+        (_, Meta::Word(ref word))if word=="no_default_fallback" => {
+            match pctx {
+                ParseContext::TraitAttr{..}=>{
+                    for is_disabled in &mut this.disable_inherent_default {
+                        *is_disabled=true;
+                    }
+                }
+                ParseContext::Method{index}=>{
+                    this.disable_inherent_default[index]=true;
+                }
+            }
         }
-        (ParseContext::TraitAttr{..}, Meta::Word(ref word))if word=="debug_print_trait" => {
+        (_, Meta::Word(ref word))if word=="debug_print_trait" => {
             this.debug_print_trait=true;
         }
         (ParseContext::TraitAttr{..}, Meta::Word(ref word))
         if word=="use_dyntrait"||word=="use_dyn_trait" => {
             this.which_object=WhichObject::DynTrait;
+        }
+        (ParseContext::TraitAttr{..}, Meta::Word(ref word))if word=="no_trait_impl" => {
+            this.disable_trait_impl=true;
+        }
+        (ParseContext::Method{..}, attr) => {
+            this.methods_with_attrs
+                .last_mut().unwrap()
+                .attrs
+                .derive_attrs
+                .push(attr);
         }
         (ParseContext::TraitAttr{..}, attr) => {
             this.attrs.derive_attrs.push(attr);

@@ -1,6 +1,6 @@
 use super::{
     *,
-    attribute_parsing::{MethodWithAttrs,OwnedDeriveAndOtherAttrs},
+    attribute_parsing::{MethodWithAttrs,SabiTraitAttrs},
     impl_interfacetype::{TRAIT_LIST,TraitStruct,WhichTrait},
     replace_self_path::{self,ReplaceWith},
     parse_utils::{parse_str_as_ident,parse_str_as_trait_bound},
@@ -90,6 +90,8 @@ pub(crate) struct TraitDefinition<'a>{
     pub(crate) has_mut_methods:bool,
     /// Whether this has by-value methods.
     pub(crate) has_val_methods:bool,
+    /// Disables `ìmpl Trait for Trait_TO`
+    pub(crate) disable_trait_impl:bool,
     /// A TokenStream with the equivalent of `<Pointer::Target as Trait>::`
     pub(crate) ts_fq_self:&'a TokenStream2,
     pub(crate) ctokens:&'a CommonTokens,
@@ -99,11 +101,16 @@ pub(crate) struct TraitDefinition<'a>{
 ////////////////////////////////////////////////////////////////////////////////
 
 impl<'a> TraitDefinition<'a>{
-    pub fn new(
+    pub(super) fn new(
         trait_:&'a ItemTrait,
-        attrs:OwnedDeriveAndOtherAttrs,
-        methods_with_attrs:Vec<MethodWithAttrs<'a>>,
-        which_object:WhichObject,
+        SabiTraitAttrs{
+            attrs,
+            methods_with_attrs,
+            which_object,
+            disable_trait_impl,
+            disable_inherent_default,
+            ..
+        }:SabiTraitAttrs<'a>,
         arenas: &'a Arenas,
         ctokens:&'a CommonTokens,
     )->Self {
@@ -112,8 +119,10 @@ impl<'a> TraitDefinition<'a>{
         let mut assoc_tys=HashMap::default();
         let mut methods=Vec::<TraitMethod<'a>>::new();
 
-        methods_with_attrs.into_iter()
-            .filter_map(|func| TraitMethod::new(func,&trait_.vis,ctokens,arenas) )
+        methods_with_attrs.into_iter().zip(disable_inherent_default)
+            .filter_map(|(func,disable_inh_def)|{
+                TraitMethod::new(func,disable_inh_def,&trait_.vis,ctokens,arenas) 
+            })
             .extending(&mut methods);
 
         /////////////////////////////////////////////////////
@@ -212,6 +221,7 @@ impl<'a> TraitDefinition<'a>{
             methods,
             has_mut_methods,
             has_val_methods,
+            disable_trait_impl,
             ts_fq_self:arenas.alloc(ts_fq_self),
             ctokens,
             arenas,
@@ -347,6 +357,7 @@ impl<'a> TraitDefinition<'a>{
 /// Represents a trait method for use in `#[sabi_trait]`.
 #[derive(Debug,Clone)]
 pub(crate) struct TraitMethod<'a>{
+    pub(crate) disable_inherent_default:bool,
     /// A refernce to the `syn` type this was derived from.
     pub(crate) item:&'a syn::TraitItemMethod,
     pub(crate) unsafety: Option<&'a Unsafe>,
@@ -397,6 +408,7 @@ pub(crate) struct MethodParam<'a>{
 impl<'a> TraitMethod<'a>{
     pub fn new(
         mwa:MethodWithAttrs<'a>,
+        disable_inherent_default:bool,
         vis:&'a Visibility,
         ctokens:&'a CommonTokens,
         arena:&'a Arenas,
@@ -452,6 +464,7 @@ impl<'a> TraitMethod<'a>{
         let default=mwa.item.default.as_ref().map(|block| DefaultMethod{block} );
 
         Some(Self{
+            disable_inherent_default,
             item:&mwa.item,
             unsafety:method_signature.unsafety.as_ref(),
             abi:method_signature.abi.as_ref(),
