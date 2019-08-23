@@ -22,7 +22,7 @@ mod attribute_parsing;
 
 
 /// The implementation of the `GetStaticEquivalent` derive macro.
-pub(crate) fn derive(data: DeriveInput) -> TokenStream2{
+pub(crate) fn derive(data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let name=&data.ident;
     let generics=&data.generics;
     let config=self::attribute_parsing::parse_attrs_for_get_static_equiv(&data.attrs);
@@ -44,7 +44,7 @@ pub(crate) fn derive(data: DeriveInput) -> TokenStream2{
         panic!("\n\n\n{}\n\n\n",ret);
     }
 
-    ret
+    Ok(ret)
 }
 
 /// Tokenizes the `GetStaticEquivalent_` implementation for some type.

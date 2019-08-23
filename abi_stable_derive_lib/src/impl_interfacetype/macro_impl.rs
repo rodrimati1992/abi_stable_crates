@@ -14,7 +14,7 @@ use syn::{
 ///
 /// This macro takes in an impl block for the InterfaceType trait,
 /// and emulates defaulted associated types for the ones that weren't mentioned.
-pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
+pub fn the_macro(mut impl_:ItemImpl)->Result<TokenStream2,syn::Error>{
     let interfacetype:syn::Ident=syn::parse_str("InterfaceType").unwrap();
 
     let mut const_name=(&impl_.self_ty).into_token_stream().to_string();
@@ -113,7 +113,7 @@ pub fn the_macro(mut impl_:ItemImpl)->TokenStream2{
 
             #impl_
         };
-    )
+    ).piped(Ok)
 }
 
 
