@@ -60,7 +60,7 @@ struct TokenizerParams<'a>{
 
 
 /// The implementation of the `#[sabi_trait]` proc-macro attribute.
-pub fn derive_sabi_trait(item: ItemTrait) -> TokenStream2 {
+pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
     let arenas = Arenas::default();
     let arenas = &arenas;
     let ctokens = CommonTokens::new();
@@ -135,6 +135,7 @@ pub fn derive_sabi_trait(item: ItemTrait) -> TokenStream2 {
             panic!("\n\n\n{}\n\n\n",token_stream_to_string(tokens.clone()));
         }
     })
+    .piped(Ok)
 }
 
 

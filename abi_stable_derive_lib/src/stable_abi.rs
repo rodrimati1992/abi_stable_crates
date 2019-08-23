@@ -57,7 +57,7 @@ use self::{
 };
 
 
-pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
+pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     data.generics.make_where_clause();
 
     // println!("\nderiving for {}",data.ident);
@@ -441,6 +441,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> TokenStream2 {
             panic!("\n\n\n{}\n\n\n",tokens );
         }
     })
+    .piped(Ok)
 }
 
 // Tokenizes a `TLEnum{ .. }`

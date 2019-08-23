@@ -36,15 +36,20 @@ mod method_no_default{
     }
 }
 
-mod method_disabled_default{
+mod method_disabled_one_default{
     use super::*;
     
     #[sabi_trait]
-    // #[sabi(debug_print_trait)]
     pub trait Trait{
+        fn first_method(&self)->u32{
+            0xf000
+        }
         #[sabi(no_default_fallback)]
         fn apply(&self,l:u32,r:u32)->u32{
             (l+r)*3
+        }
+        fn last_method(&self)->u32{
+            0xfAAA
         }
     }
     
@@ -53,6 +58,23 @@ mod method_disabled_default{
             (l+r)*4
         }
     }
+}
+
+mod method_disabled_all_default{
+    use super::*;
+    
+    #[sabi_trait]
+    #[sabi(no_default_fallback)]
+    pub trait Trait{
+        fn first_method(&self)->u32{
+            0xf000
+        }
+        fn last_method(&self)->u32{
+            0xfAAA
+        }
+    }
+    
+    impl Trait for () {}
 }
 
 mod method_default{
@@ -79,10 +101,19 @@ fn downcasting_tests(){
 
 
     unsafe{
-        use self::method_disabled_default::*;
+        use self::method_disabled_one_default::*;
         let empty=empty::Trait_TO::from_value((),TU_Opaque);
         let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
+        assert_eq!(object.first_method(), 0xf000);
+        assert_eq!(object.last_method(), 0xfAAA);
         must_panic(file_span!(),|| object.apply(2,5) ).unwrap();
+    }
+    unsafe{
+        use self::method_disabled_all_default::*;
+        let empty=empty::Trait_TO::from_value((),TU_Opaque);
+        let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
+        must_panic(file_span!(),|| object.first_method() ).unwrap();
+        must_panic(file_span!(),|| object.last_method() ).unwrap();
     }
     unsafe{
         use self::method_no_default::*;
