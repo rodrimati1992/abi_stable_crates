@@ -36,10 +36,10 @@ extern fn returns_none()->ROption<u32>{
 }
 
 
-const A: Constructor<ROption<u32>>= Constructor::new(returns_100);
-const B: Constructor<ROption<u32>>= Constructor::new(returns_100b);
-const C: Constructor<ROption<u32>>= Constructor::new(returns_200);
-const D: Constructor<ROption<u32>>= Constructor::new(returns_none);
+const A: Constructor<ROption<u32>>= Constructor(returns_100);
+const B: Constructor<ROption<u32>>= Constructor(returns_100b);
+const C: Constructor<ROption<u32>>= Constructor(returns_200);
+const D: Constructor<ROption<u32>>= Constructor(returns_none);
 
 assert_eq!(A,A);
 assert_eq!(B,B);

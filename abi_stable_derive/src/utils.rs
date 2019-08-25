@@ -179,6 +179,7 @@ impl<T> Into<Result<T,syn::Error>> for DefaultedResult<T>{
 }
 
 impl<T> DefaultedResult<T>{
+    #[allow(dead_code)]
     pub(crate) fn into_result(self)->Result<T,syn::Error>{
         self.errors
     }

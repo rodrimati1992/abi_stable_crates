@@ -2,12 +2,14 @@
 An implementation detail of abi_stable.
 */
 
+#![recursion_limit="192"]
+//#![deny(unused_variables)]
+#![deny(unreachable_patterns)]
+#![deny(unused_doc_comments)]
+#![deny(unconditional_recursion)]
+
+
 extern crate proc_macro;
-
-extern crate abi_stable_derive_lib;
-
-use proc_macro::TokenStream as TokenStream1;
-
 
 /**
 
@@ -18,7 +20,7 @@ This macro is documented in abi_stable::docs::stable_abi_derive
 
 #[proc_macro_derive(StableAbi, attributes(sabi))]
 pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
-    abi_stable_derive_lib::derive_stable_abi(input)
+    parse_or_compile_err( input, stable_abi::derive ).into()
 }
 
 
@@ -40,7 +42,7 @@ helper attribute of both `#[derive(StableAbi)]` and `#[derive(GetStaticEquivalen
 #[proc_macro]
 #[allow(non_snake_case)]
 pub fn impl_InterfaceType(input: TokenStream1) -> TokenStream1 {
-    abi_stable_derive_lib::impl_InterfaceType(input)
+    parse_or_compile_err( input, impl_interfacetype::the_macro ).into()
 }
 
 
@@ -115,7 +117,7 @@ For a more detailed example look in the README in the repository for this crate.
 */
 #[proc_macro_attribute]
 pub fn export_root_module(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
-    abi_stable_derive_lib::mangle_library_getter_attr(attr,item)
+    crate::mangle_library_getter::mangle_library_getter_attr(attr,item)
 }
 
 /**
@@ -123,14 +125,14 @@ This macro is documented in abi_stable::docs::sabi_extern_fn
 */
 #[proc_macro_attribute]
 pub fn sabi_extern_fn(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
-    abi_stable_derive_lib::sabi_extern_fn(attr,item)
+    crate::sabi_extern_fn_impl::sabi_extern_fn(attr,item)
 }
 
 
 
 #[proc_macro_attribute]
-pub fn sabi_trait(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
-    abi_stable_derive_lib::derive_sabi_trait(attr,item)
+pub fn sabi_trait(_attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
+    parse_or_compile_err( item, sabi_trait::derive_sabi_trait ).into()
 }
 
 
@@ -139,12 +141,97 @@ This macro is documented in abi_stable::docs::get_static_equivalent
 */
 #[proc_macro_derive(GetStaticEquivalent, attributes(sabi))]
 pub fn derive_get_static_equivalent(input: TokenStream1) -> TokenStream1 {
-    abi_stable_derive_lib::derive_get_static_equivalent(input)
+    parse_or_compile_err( input, get_static_equivalent::derive ).into()
 }
 
 
+///////////////////////////////////////////////////////////////////////////////
 
-#[test]
-fn hello(){
-    
+
+
+#[macro_use]
+mod macros;
+
+#[macro_use]
+mod utils;
+
+mod arenas;
+mod attribute_parsing;
+mod common_tokens;
+mod composite_collections;
+mod constants;
+mod datastructure;
+mod fn_pointer_extractor;
+mod gen_params_in;
+mod get_static_equivalent;
+mod ignored_wrapper;
+mod impl_interfacetype;
+mod lifetimes;
+mod mangle_library_getter;
+mod my_visibility;
+mod parse_utils;
+mod sabi_extern_fn_impl;
+mod set_span_visitor;
+mod to_token_fn;
+mod workaround;
+
+#[doc(hidden)]
+pub(crate) mod stable_abi;
+
+#[doc(hidden)]
+pub(crate) mod sabi_trait;
+
+
+
+use proc_macro::TokenStream as TokenStream1;
+use proc_macro2::TokenStream as TokenStream2;
+
+use syn::{DeriveInput,ItemFn};
+
+use quote::{quote, ToTokens, quote_spanned};
+
+#[allow(unused_imports)]
+use core_extensions::prelude::*;
+
+#[allow(unused_imports)]
+use crate::{
+    arenas::{AllocMethods, Arenas},
+    utils::PrintDurationOnDrop,
+};
+
+
+#[cfg(test)]
+pub(crate) fn derive_stable_abi_from_str(s: &str) -> TokenStream2 {
+    parse_str_or_compile_err( s, stable_abi::derive )
+}
+
+#[cfg(test)]
+pub(crate) fn derive_sabi_trait_str(item: &str) -> TokenStream2{
+    parse_str_or_compile_err( item, sabi_trait::derive_sabi_trait )
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+fn parse_or_compile_err<P,F>(input:TokenStream1,f:F)->TokenStream2
+where 
+    P:syn::parse::Parse,
+    F:FnOnce(P)->Result<TokenStream2,syn::Error>
+{
+    syn::parse::<P>(input)
+        .and_then(f)
+        .unwrap_or_else(|e| e.to_compile_error() )
+}
+
+
+#[cfg(test)]
+fn parse_str_or_compile_err<P,F>(input:&str,f:F)->TokenStream2
+where 
+    P:syn::parse::Parse,
+    F:FnOnce(P)->Result<TokenStream2,syn::Error>
+{
+    syn::parse_str::<P>(input)
+        .and_then(f)
+        .unwrap_or_else(|e| e.to_compile_error() )
 }
