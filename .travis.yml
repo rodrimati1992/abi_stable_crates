@@ -47,7 +47,7 @@ script:
   - cargo check
 
 
-  - cd "${TRAVIS_BUILD_DIR}/abi_stable_derive_lib"
+  - cd "${TRAVIS_BUILD_DIR}/abi_stable_derive"
   - cargo test
   
   - cd "${TRAVIS_BUILD_DIR}/abi_stable"
