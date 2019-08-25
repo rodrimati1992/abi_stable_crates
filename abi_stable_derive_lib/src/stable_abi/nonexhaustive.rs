@@ -26,6 +26,7 @@ use crate::{
     parse_utils::{parse_str_as_ident,parse_str_as_path},
     set_span_visitor::SetSpanVisitor,
     to_token_fn::ToTokenFnMut,
+    utils::SynResultExt,
 };
 
 
@@ -136,7 +137,7 @@ impl<'a> NonExhaustive<'a>{
         variant_constructor:Vec<Option<UncheckedVariantConstructor>>,
         ds: &'a DataStructure<'a>,
         arenas: &'a Arenas,
-    )->Self{
+    )-> Result<Self,syn::Error> {
         let name=ds.name;
 
         let alignment=unchecked.alignment
@@ -150,14 +151,18 @@ impl<'a> NonExhaustive<'a>{
             arenas.alloc(ident)
         };
 
+        let mut errors=Ok::<(),syn::Error>(());
+
         let size=unchecked.size.unwrap_or_else(||{
-            panic!(
+            errors.push_err(spanned_err!(
+                name,
                 "\n\
                 You must specify the size of the enum storage in NonExhaustive<> using \
                 the `size=integer literal` or `size=\"type\"` argument inside of \
                 the `#[sabi(kind(WithNonExhaustive(...)))]` helper attribute.\n\
                 "
-            );
+            ));
+            IntOrType::Int(0)
         });
 
         let mut bounds_trait=None::<BoundsTrait<'a>>;
@@ -176,14 +181,17 @@ impl<'a> NonExhaustive<'a>{
                         if let WT::Deserialize=ut.which_trait {
                             continue;
                         } 
-                        let mut full_path=parse_str_as_path(ut.full_path);
+                        let mut full_path=parse_str_as_path(ut.full_path)?;
 
                         SetSpanVisitor::new(trait_.span())
                             .visit_path_mut(&mut full_path);
 
                         bounds_trait_inner.push(arenas.alloc(full_path));
                     }
-                    None => panic!("Trait {} was not in TRAIT_LIST.",trait_),
+                    None =>{
+                        // This is an internal error.
+                        panic!("Trait {} was not in TRAIT_LIST.",trait_)
+                    }
                 }
             }
 
@@ -194,6 +202,7 @@ impl<'a> NonExhaustive<'a>{
 
             for &trait_ in &enum_interface.unimpld{
                 if trait_map.remove(trait_).is_none(){
+                    // This is an internal error.
                     panic!("Trait {} was not in TRAIT_LIST.",trait_);
                 }
             }
@@ -242,7 +251,7 @@ impl<'a> NonExhaustive<'a>{
             .collect();
 
 
-        Self{
+        Ok(Self{
             nonexhaustive_alias:parse_ident(&format!("{}_NE",name),None),
             nonexhaustive_marker:parse_ident(&format!("{}_NEMarker",name),None),
             enum_storage:parse_ident(&format!("{}_Storage",name),None),
@@ -254,7 +263,7 @@ impl<'a> NonExhaustive<'a>{
             assert_nonexh:unchecked.assert_nonexh,
             bounds_trait,
             variant_constructor,
-        }
+        })
     }
 }
 
@@ -265,16 +274,6 @@ pub enum IntOrType<'a>{
     Type(&'a syn::Type),
 }
 
-/// Used to tokenize an integer without a type suffix.
-fn expr_from_int(int:u64)->syn::Expr{
-    let call_site=proc_macro2::Span::call_site();
-    let x=syn::LitInt::new(int,syn::IntSuffix::None,call_site);
-    let x=syn::Lit::Int(x);
-    let x=syn::ExprLit{attrs:Vec::new(),lit:x};
-    let x=syn::Expr::Lit(x);
-    x
-}
-
 /// Extracts the first type parameter of a generic type.
 fn extract_first_type_param(ty:&syn::Type)->Option<&syn::Type>{
     match ty {
@@ -282,7 +281,7 @@ fn extract_first_type_param(ty:&syn::Type)->Option<&syn::Type>{
             if path.qself.is_some() {
                 return None;
             }
-            let args=&path.path.segments.last()?.into_value().arguments;
+            let args=&path.path.segments.last()?.arguments;
             let args=match args {
                 syn::PathArguments::AngleBracketed(x)=>x,
                 _=>return None,
@@ -322,7 +321,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
         let (aligner_attribute,aligner_field)=match this.alignment {
             IntOrType::Int(bytes)=>{
-                let bytes=expr_from_int(bytes as _);
+                let bytes=crate::utils::expr_from_int(bytes as _);
                 ( Some(quote!(#[repr(align(#bytes))])) , None )
             }
             IntOrType::Type(ty)=>
@@ -513,8 +512,17 @@ pub(crate) fn tokenize_enum_info<'a>(
     ds:&'a DataStructure<'a>,
     config:&'a StableAbiOptions<'a>,
     ct:&'a CommonTokens<'a>
-)->impl ToTokens+'a{
-    ToTokenFnMut::new(move|ts|{
+)-> Result<impl ToTokens+'a,syn::Error> {
+    let opt_type_ident=config.repr.type_ident();
+    if let (StabilityKind::NonExhaustive{..},None)=(&config.kind,&opt_type_ident) {
+        return_spanned_err!(
+            ds.name,
+            "Attempted to get type of discriminant for this representation:\n\t{:?}",
+            config.repr
+        );
+    }
+
+    Ok(ToTokenFnMut::new(move|ts|{
         let this=match &config.kind {
             StabilityKind::NonExhaustive(x)=>x,
             _=>return,
@@ -531,12 +539,9 @@ pub(crate) fn tokenize_enum_info<'a>(
         let discriminant_tokens=config.repr
             .tokenize_discriminant_slice(discriminants.iter().cloned(),ct);
 
-        let discriminant_type=match config.repr.type_ident() {
+        let discriminant_type=match &opt_type_ident {
             Some(x)=>x,
-            None=>panic!(
-                "Attempted to get type of discriminant for this representation:\n\t{:?}",
-                config.repr
-            )
+            None=>unreachable!(),
         };
 
         let nonexhaustive_marker=this.nonexhaustive_marker;
@@ -691,5 +696,5 @@ pub(crate) fn tokenize_enum_info<'a>(
             Some(EnumInterface::Old{..})=>{}
             None=>{}
         }
-    })
+    }))
 }

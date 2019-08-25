@@ -3,25 +3,32 @@ Contains visitor type for
 extracting function pointers and the referenced lifetimes of the fields of a type declaration.
 */
 
-use std::mem;
-
-use syn::{
-    punctuated::Punctuated,
-    visit_mut::{self, VisitMut},
-    Generics, Ident, Lifetime, Type, TypeBareFn, TypeReference,
-    BareFnArgName,
+use std::{
+    collections::HashSet,
+    mem,
 };
 
-use quote::ToTokens;
 
 use core_extensions::prelude::*;
 
-use std::collections::HashSet;
+use syn::{
+    punctuated::Punctuated,
+    spanned::Spanned,
+    visit_mut::{self, VisitMut},
+    Generics, Ident, Lifetime, Type, TypeBareFn, TypeReference,
+};
+
+use proc_macro2::Span;
+
+use quote::ToTokens;
+
+
 
 use crate::{
     common_tokens::FnPointerTokens,
     lifetimes::LifetimeIndex,
     ignored_wrapper::Ignored,
+    utils::SynResultExt,
 };
 use crate::*;
 
@@ -123,6 +130,7 @@ impl<'a> TypeVisitor<'a> {
                     initial_bound_lifetime: generics.lifetimes().count(),
                     functions: Vec::new(),
                 },
+                errors:Ok(()),
             },
         }
     }
@@ -149,6 +157,10 @@ impl<'a> TypeVisitor<'a> {
             referenced_lifetimes: mem::replace(&mut self.vars.referenced_lifetimes, Vec::new()),
             functions:mem::replace(&mut self.vars.fn_info.functions, Vec::new()),
         }
+    }
+
+    pub fn get_errors(&mut self)->Result<(),syn::Error>{
+        mem::replace(&mut self.vars.errors,Ok(()))
     }
 
     pub fn into_fn_info(self)->FnInfo<'a>{
@@ -190,6 +202,7 @@ struct Vars<'a> {
     /// For TLField.
     referenced_lifetimes: Vec<LifetimeIndex>,
     fn_info: FnInfo<'a>,
+    errors: Result<(),syn::Error>,
 }
 
 /// Used to visit a function pointer type.
@@ -205,6 +218,7 @@ struct FnVisitor<'a, 'b> {
 
 /// The lifetime indices inside a parameter/return type.
 struct FnParamRetLifetimes {
+    span:Span,//TODO
     /// The lifetimes this type references (including static).
     lifetime_refs: Vec<LifetimeIndex>,
     /// Whether this is a parameter or return type.
@@ -214,8 +228,9 @@ struct FnParamRetLifetimes {
 /////////////
 
 impl FnParamRetLifetimes {
-    fn new(param_or_ret: ParamOrReturn) -> Self {
+    fn new(param_or_ret: ParamOrReturn, span: Option<Span>) -> Self {
         Self {
+            span:span.unwrap_or_else(Span::call_site),
             lifetime_refs: Vec::new(),
             param_or_ret,
         }
@@ -255,17 +270,15 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             .map(|x| x.name.as_ref().unwrap_or(&ctokens.c_abi_lit));
 
         if abi != Some(&ctokens.c_abi_lit) {
-            let func_str=format!("\ntype:{}",(&func).into_token_stream().to_string());
             match abi {
-                Some(abi) => panic!(
-                    "abi not supported for function pointers:\n{:?}\n{}\n", 
+                Some(abi) => self.vars.errors.push_err(spanned_err!(
                     abi,
-                    func_str
-                ),
-                None => panic!(
-                    "the default abi is not supported for function pointers{}",
-                    func_str
-                ),
+                    "Abi not supported for function pointers", 
+                )),
+                None => self.vars.errors.push_err(spanned_err!(
+                    func,
+                    "The default abi is not supported for function pointers.",
+                )),
             }
         }
 
@@ -291,7 +304,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
                 params: Vec::new(),
                 returns: None,
             },
-            param_ret: FnParamRetLifetimes::new(ParamOrReturn::Param),
+            param_ret: FnParamRetLifetimes::new(ParamOrReturn::Param,None),
         };
 
         // Visits a parameter or return type within a function pointer type.
@@ -301,13 +314,15 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             ty: &'a mut Type,
             param_or_ret: ParamOrReturn,
         ) {
-            this.param_ret = FnParamRetLifetimes::new(param_or_ret);
+            let ty_span=Some(ty.span());
+
+            this.param_ret = FnParamRetLifetimes::new(param_or_ret,ty_span);
 
             this.visit_type_mut(ty);
 
             let param_ret = mem::replace(
                 &mut this.param_ret, 
-                FnParamRetLifetimes::new(param_or_ret)
+                FnParamRetLifetimes::new(param_or_ret,ty_span)
             );
 
             let param_ret = FnParamRet {
@@ -356,7 +371,10 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             let found_lt = env_lifetimes.enumerate().position(|(_, lt_ident)| *lt_ident == lt);
             match found_lt {
                 Some(index) => LifetimeIndex::Param { index:index as _ },
-                None => panic!("unknown lifetime:'{}", (&*lt).into_token_stream()),
+                None => {
+                    self.vars.errors.push_err(spanned_err!(lt,"unknown lifetime"));
+                    LifetimeIndex::Static
+                }
             }
         }
         .piped(|lt| self.vars.add_referenced_env_lifetime(lt))
@@ -387,31 +405,33 @@ This function does these things:
                 },
                 ParamOrReturn::Return => 
                     match self.current.named_bound_lts_count {
-                        0 => panic!(
-                            "\nattempted to use an elided lifetime  in the \
-                             return type when there are no lifetimes \
-                             used in any parameter:\n\
-                             {}\n\
-                             ",
-                            lt.unwrap_or(&ctokens.underscore)
-                        ),
+                        0 =>{
+                            self.vars.errors.push_err(syn_err!(
+                                self.param_ret.span,
+                                "attempted to use an elided lifetime  in the \
+                                 return type when there are no lifetimes \
+                                 used in any parameter",
+                            ));
+                            LifetimeIndex::Static
+                        } 
                         1=> {
                             LifetimeIndex::Param {
                                 index: self.vars.fn_info.initial_bound_lifetime as _,
                             }
                         }
-                        _ => panic!(
-                            "\nattempted to use an elided lifetime in the \
-                             return type when there are multiple lifetimes used \
-                             in parameters :\n\
-                             {}\n\
-                             ",
-                            lt.unwrap_or(&ctokens.underscore)
-                        ),
+                        _ =>{
+                            self.vars.errors.push_err(syn_err!(
+                                self.param_ret.span,
+                                "attempted to use an elided lifetime in the \
+                                 return type when there are multiple lifetimes used \
+                                 in parameters.",
+                            ));
+                            LifetimeIndex::Static
+                        }
                     },
             }
         } else {
-            let lt=lt.unwrap();
+            let lt=lt.expect("BUG");
             let env_lts = self.vars.fn_info.env_lifetimes.iter();
             let fn_lts = self.current.named_bound_lts.iter();
             let found_lt = env_lts.chain(fn_lts).position(|ident| *ident == lt);
@@ -420,7 +440,10 @@ This function does these things:
                     ret = Some(&ctokens.underscore);
                     LifetimeIndex::Param { index:index as _ }
                 }
-                None => panic!("unknown lifetime:'{}", (&*lt).into_token_stream()),
+                None => {
+                    self.vars.errors.push_err(spanned_err!(lt,"unknown lifetime"));
+                    LifetimeIndex::Static
+                },
             }
         }
         .piped(|li| {
@@ -441,10 +464,10 @@ This function does these things:
 impl<'a, 'b> VisitMut for FnVisitor<'a, 'b> {
     #[inline(never)]
     fn visit_type_bare_fn_mut(&mut self, func: &mut TypeBareFn) {
-        panic!(
+        self.vars.errors.push_err(syn_err!(
+            self.param_ret.span,
             "\n\
-             This library does not currently support nested function pointers\n\
-             nested function pointer:\n\t{func}\n\
+             This library does not currently support nested function pointers.\n\
              To use the function pointer as a parameter define a wrapper type:\n\
              \t#[derive(StableAbi)]\n\
              \t#[repr(transparent)] \n\
@@ -453,8 +476,8 @@ impl<'a, 'b> VisitMut for FnVisitor<'a, 'b> {
              \t}}\n\
              \n\
              ",
-            func = (&func).into_token_stream()
-        );
+             func=func.to_token_stream()
+        ))
     }
 
     /// Visits references inside the function pointer type,
@@ -490,8 +513,7 @@ fn extract_fn_arg_name<'a>(
     arenas: &'a Arenas,
 )->Option<&'a str>{
     match arg.name.take() {
-        Some((BareFnArgName::Named(name),_))=>Some(arenas.alloc(name.to_string())),
-        Some((BareFnArgName::Wild{..},_))=>None,
+        Some((name,_))=>Some(arenas.alloc(name.to_string())),
         None=>None,
     }
 }

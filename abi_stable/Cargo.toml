@@ -31,6 +31,7 @@ rust_1_38=["rust_1_36"]
 # Test features,only used internally.
 only_new_tests=[]
 sabi_trait_examples=[]
+nonexhaustive_examples=[]
 
 channels=["crossbeam-channel"]
 

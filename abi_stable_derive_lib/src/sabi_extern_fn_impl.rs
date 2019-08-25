@@ -9,23 +9,31 @@ use proc_macro2::{Span,TokenStream as TokenStream2,TokenTree};
 
 use quote::{quote, ToTokens};
 
-use syn::{ItemFn,Expr,ExprVerbatim};
+use syn::{ItemFn,Expr};
+
+use crate::{parse_or_compile_err};
+
+#[cfg(test)]
+use crate::{parse_str_or_compile_err};
 
 
 
 #[doc(hidden)]
 pub fn sabi_extern_fn(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
-    sabi_extern_fn_inner(
-        attr.into(),
-        syn::parse::<ItemFn>(item).unwrap(),
+    parse_or_compile_err( 
+        item, 
+        move|item| sabi_extern_fn_inner(attr.into(),item) 
     ).into()
 }
 
 #[cfg(test)]
 pub(crate) fn sabi_extern_fn_str(attr: &str, item: &str) -> TokenStream2 {
-    sabi_extern_fn_inner(
-        syn::parse_str::<TokenStream2>(attr).unwrap(),
-        syn::parse_str::<ItemFn>(item).unwrap(),
+    parse_str_or_compile_err( 
+        item, 
+        move|item|{
+            let attr=syn::parse_str::<TokenStream2>(attr)?;
+            sabi_extern_fn_inner(attr,item) 
+        }
     )
 }
 
@@ -46,7 +54,7 @@ pub(crate) fn convert_to_sabi_extern_fn(
         WithEarlyReturn::Yes=>None,
     };
     
-    item.abi=Some(syn::Abi{
+    item.sig.abi=Some(syn::Abi{
         extern_token:Default::default(),
         name:Some(syn::LitStr::new("C",Span::call_site()))
     });
@@ -60,7 +68,6 @@ pub(crate) fn convert_to_sabi_extern_fn(
             #(#statements)*
         )
     };
-    let x=ExprVerbatim{tts:x};
     let x=Expr::Verbatim(x);
     let x=syn::Stmt::Expr(x);
     let x=vec![x];
@@ -68,14 +75,14 @@ pub(crate) fn convert_to_sabi_extern_fn(
 }
 
 
-fn sabi_extern_fn_inner(attr:TokenStream2,mut item:ItemFn)->TokenStream2{
+fn sabi_extern_fn_inner(attr:TokenStream2,mut item:ItemFn)->Result<TokenStream2,syn::Error>{
     let with_early_return=match attr.into_iter().next() {
         Some(TokenTree::Ident(ref ident))if ident =="no_early_return"=>
             WithEarlyReturn::No,
         Some(tt)=>
-            panic!(
-                "Unrecognized `#[sabi_extern_fn]` parameter:\n\t{}",
-                tt
+            return_spanned_err!(
+                tt,
+                "Unrecognized `#[sabi_extern_fn]` parameter",
             ),
         None=>
             WithEarlyReturn::Yes,
@@ -83,7 +90,7 @@ fn sabi_extern_fn_inner(attr:TokenStream2,mut item:ItemFn)->TokenStream2{
     
     convert_to_sabi_extern_fn(with_early_return,&mut item);
     
-    item.into_token_stream()
+    Ok(item.into_token_stream())
 }
 
 
@@ -121,7 +128,7 @@ mod tests{
                         println!("{}",HELLO);
                         println!(",");
                         println!("{}",WORLD);
-                        panic!()
+                        "stuff".into()
                     }
                 "##,
                 quote!(
@@ -131,7 +138,7 @@ mod tests{
                             println!("{}",HELLO);
                             println!(",");
                             println!("{}",WORLD);
-                            panic!()
+                            "stuff".into()
                         )
                     }
                 )

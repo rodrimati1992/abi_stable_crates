@@ -31,9 +31,10 @@ impl<'a> VisitedFieldMap<'a>{
         config:&'a StableAbiOptions<'a>,
         arenas: &'a Arenas, 
         ctokens: &'a CommonTokens<'a>
-    )->Self{
+    )-> Result<Self,syn::Error> {
         let mut tv = TypeVisitor::new(arenas, ctokens.as_ref(), ds.generics);
         let mut fn_ptr_count = 0;
+
         let map=FieldMap::<VisitedField<'a>>::with(ds,|field|{
             let mut mutated_ty=config.changed_types[field].unwrap_or(field.ty).clone();
             let is_opaque=config.opaque_fields[field];
@@ -44,7 +45,6 @@ impl<'a> VisitedFieldMap<'a>{
             };
 
             let visit_info = tv.visit_field(&mut mutated_ty);
-
 
             let functions=if is_opaque { Vec::new() }else{ visit_info.functions };
             fn_ptr_count+=functions.len();
@@ -57,11 +57,14 @@ impl<'a> VisitedFieldMap<'a>{
                 functions,
             }
         });
-        Self{
+
+        tv.get_errors()?;
+
+        Ok(Self{
             map,
             fn_ptr_count,
             priv_:(),
-        }
+        })
     }
 }
 

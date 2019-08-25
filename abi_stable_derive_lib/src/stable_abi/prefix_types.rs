@@ -179,8 +179,17 @@ pub(crate) fn prefix_type_tokenizer<'a>(
     ds:&'a DataStructure<'a>,
     config:&'a StableAbiOptions<'a>,
     _ctokens:&'a CommonTokens<'a>,
-)->impl ToTokens+'a {
-    ToTokenFnMut::new(move|ts|{
+)-> Result<impl ToTokens+'a,syn::Error> {
+    if matches!(StabilityKind::Prefix{..}=&config.kind) && 
+        ds.variants.get(0).map_or(false,|struct_| struct_.fields.len() > 64 )
+    {
+        return_spanned_err!(
+            ds.name,
+            "`#[sabi(kind(Prefix(..)))]` structs cannot have more than 64 fields."
+        );
+    }
+
+    Ok(ToTokenFnMut::new(move|ts|{
         let struct_=match ds.variants.get(0) {
             Some(x)=>x,
             None=>return,
@@ -191,15 +200,13 @@ pub(crate) fn prefix_type_tokenizer<'a>(
             _=>return,
         };
 
-        if struct_.fields.len() > 64 {
-            panic!("\n\n`#[sabi(kind(Prefix(..)))]` structs cannot have more than 64 fields\n\n");
-        }
-
         let deriving_name=ds.name;
         let (ref impl_generics,ref ty_generics,ref where_clause) = ds.generics.split_for_impl();
 
         let empty_preds=Punctuated::new();
-        let where_preds=where_clause.as_ref().map_or(&empty_preds,|x|&x.predicates);
+        let where_preds=where_clause.as_ref().map_or(&empty_preds,|x|&x.predicates).into_iter();
+        let where_preds_b=where_preds.clone();
+        let where_preds_c=where_preds.clone();
         let prefix_bounds=&prefix.prefix_bounds;
 
         let stringified_deriving_name=deriving_name.to_string();
@@ -271,8 +278,8 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
         let prefix_struct=prefix.prefix_struct;
 
 
-        let mut uncond_acc_docs=Vec::new();
-        let mut cond_acc_docs=Vec::new();
+        let mut uncond_acc_docs=Vec::<String>::new();
+        let mut cond_acc_docs=Vec::<String>::new();
         let mut field_mask_idents=Vec::new();
         let mut field_index_for=Vec::new();
 
@@ -334,7 +341,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             }
             
             let field_mask=format!("__AB_PTT_FIELD_{}_ACCESSIBILTIY_MASK",index);
-            let mut field_mask=syn::parse_str::<Ident>(&field_mask).unwrap();
+            let mut field_mask=syn::parse_str::<Ident>(&field_mask).expect("BUG");
             field_mask.set_span(field.ident().span());
             field_mask_idents.push(field_mask);
 
@@ -361,7 +368,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             accessor_buffer.clear();
             write!(accessor_buffer,"{}",field.ident()).drop_();
             let vis=field.vis;
-            let mut getter_name=syn::parse_str::<Ident>(&*accessor_buffer).unwrap();
+            let mut getter_name=syn::parse_str::<Ident>(&*accessor_buffer).expect("BUG");
             getter_name.set_span(field.ident().span());
             let field_name=field.ident();
             let field_span=field_name.span();
@@ -495,8 +502,9 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                     field_names:#str_field_names,
                 })
             };
+        ).to_tokens(ts);
 
-
+        quote!(
             unsafe impl #impl_generics
                 #module::_sabi_reexports::PrefixTypeTrait 
             for #deriving_name #ty_generics 
@@ -541,11 +549,13 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 // This is a struct whose only non-zero-sized field is `WithMetadata_<(),Self>`.
                 type Prefix=#prefix_struct #ty_generics;
             }
+        ).to_tokens(ts);
 
+        quote!(
             #[allow(non_upper_case_globals)]
             impl #impl_generics #prefix_struct #ty_generics 
             where 
-                #(#where_preds,)*
+                #(#where_preds_b,)*
             {
                 #(
                     #[doc=#uncond_acc_docs]
@@ -570,12 +580,13 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                     #module::__WithMetadata_::into_full(ptr)
                 }
             }
+        ).to_tokens(ts);
 
-            
+        quote!(            
             #[allow(non_upper_case_globals)]
             impl #impl_generics #prefix_struct #ty_generics 
             where 
-                #(#where_preds,)*
+                #(#where_preds_c,)*
                 #(#prefix_bounds,)*
                 #deriving_name #ty_generics: #module::_sabi_reexports::PrefixTypeTrait,
             {
@@ -605,12 +616,12 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
                 #(
                     #[doc=#cond_acc_docs]
-                    #(#conditional_accessors)*
+                    #conditional_accessors
                 )*
             }
 
         ).to_tokens(ts);
 
 
-    })
+    }))
 }

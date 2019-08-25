@@ -70,7 +70,7 @@ fn check_struct_repr_attrs(){
 
     let rect_def=RECTANGLE_DEF_REPR;
 
-    must_panic(file_span!(),|| derive_sabi(rect_def) ).unwrap();
+    must_panic(file_span!(),|| derive_sabi(rect_def) ).expect("TEST BUG");
     
     let invalid_reprs=vec![
         "Rust",
@@ -94,7 +94,7 @@ fn check_struct_repr_attrs(){
                 struct_def=rect_def,
             );
             derive_sabi(&with_repr_rust)
-        }).unwrap();
+        }).expect("TEST BUG");
     }
 
 

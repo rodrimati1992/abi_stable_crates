@@ -1,3 +1,4 @@
+#![allow(unused_macros)]
 
 macro_rules! to_stream {
     ( $stream:ident ; $($expr:expr),* $(,)* ) => {{
@@ -8,11 +9,40 @@ macro_rules! to_stream {
 }
 
 
-macro_rules! measure {
-    ( $e:expr ) => ({
-        $e
-        // let (dur,val)= ::core_extensions::measure_time::measure(||$e);
-        // println!("{}-{}:taken {} to run",file!(),line!(),dur);
-        // val
+macro_rules! spanned_err {
+    ( $e:expr, $($fmt:tt)* ) => ({
+        $crate::utils::spanned_err(
+            &$e,
+            &format!($($fmt)*),
+        )
+    })
+}
+
+
+macro_rules! return_spanned_err {
+    ( $e:expr, $($fmt:tt)* ) => ({
+        return Err($crate::utils::spanned_err(
+            &$e,
+            &format!($($fmt)*),
+        ))
+    })
+}
+
+macro_rules! syn_err {
+    ( $span:expr, $($fmt:tt)* ) => ({
+        $crate::utils::syn_err(
+            $span,
+            &format!($($fmt)*),
+        )
+    })
+}
+
+
+macro_rules! return_syn_err {
+    ( $span:expr, $($fmt:tt)* ) => ({
+        return Err($crate::utils::syn_err(
+            $span,
+            &format!($($fmt)*),
+        ))
     })
 }

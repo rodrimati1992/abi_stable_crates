@@ -24,7 +24,7 @@ pub(crate) struct ImplInterfaceType{
 /// Parses the `#[sabi(impl_InterfaceType())]` helper attribute.
 pub(crate) fn parse_impl_interfacetype<'a>(
     list: &Punctuated<NestedMeta, Comma>
-)->ImplInterfaceType{
+)-> Result<ImplInterfaceType,syn::Error> {
     let trait_map=TRAIT_LIST.iter()
         .map(|t|{
             let ident=parse_str_as_ident(t.name);
@@ -37,15 +37,23 @@ pub(crate) fn parse_impl_interfacetype<'a>(
     let mut impld  =Vec::new();
     let mut unimpld=Vec::new();
 
+    let valid_traits=||->String{
+        trait_map.keys().map(|x|x.to_string()).collect::<Vec<String>>().join("\n    ")
+    };
+
     for subelem in list {
         let trait_ident=match subelem {
-            NestedMeta::Meta(Meta::Word(ident))=>
-                ident,
-            x => panic!(
-                "invalid attribute inside #[sabi(impl_InterfaceType(  ))]:\n{:?}\n", 
-                x
+            NestedMeta::Meta(Meta::Path(ident))=>ident.get_ident(),
+            _ => None,
+        }.ok_or_else(||{
+            spanned_err!(
+                subelem,
+                "invalid attribute inside #[sabi(impl_InterfaceType(  ))].\n\
+                 Valid traits:\n    {}\n\
+                ",
+                valid_traits()
             )
-        };
+        })?;
 
         match trait_map.get(trait_ident) {
             Some(&which_trait) => {
@@ -73,12 +81,11 @@ pub(crate) fn parse_impl_interfacetype<'a>(
                     _=>{}
                 }
             },
-            None =>panic!(
-                "invalid trait inside #[sabi(impl_InterfaceType(  ))]:\n\
-                 \t{:?}\n\
-                 Valid traits:\n    {}\n", 
+            None =>return_spanned_err!(
                 trait_ident,
-                trait_map.keys().map(|x|x.to_string()).collect::<Vec<String>>().join("\n    "),
+                "invalid trait inside #[sabi(impl_InterfaceType(  ))]:\n\
+                 Valid traits:\n    {}\n", 
+                valid_traits(),
             ),
         }
     }
@@ -91,8 +98,8 @@ pub(crate) fn parse_impl_interfacetype<'a>(
         }.push(trait_);
     }
 
-    ImplInterfaceType{
+    Ok(ImplInterfaceType{
         impld,
         unimpld,
-    }
+    })
 }

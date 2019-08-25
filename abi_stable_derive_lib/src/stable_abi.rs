@@ -13,6 +13,7 @@ use crate::{
     impl_interfacetype::impl_interfacetype_tokenizer,
     lifetimes::LifetimeIndex,
     to_token_fn::ToTokenFnMut,
+    //utils::SynResultExt,
 };
 
 
@@ -51,7 +52,6 @@ use self::{
     common_tokens::CommonTokens,
     nonexhaustive::{tokenize_enum_info,tokenize_nonexhaustive_items},
     prefix_types::prefix_type_tokenizer,
-    repr_attrs::ReprAttr,
     reflection::ModReflMode,
     tl_function::{VisitedFieldMap,CompTLFunction},
 };
@@ -68,18 +68,20 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let ctokens = CommonTokens::new(arenas);
     let ctokens = &ctokens;
     let ds = &DataStructure::new(&mut data, arenas);
-    let config = &parse_attrs_for_stable_abi(ds.attrs, ds, arenas);
+    let config = &parse_attrs_for_stable_abi(ds.attrs, ds, arenas)?;
     let generics=ds.generics;
     let name=ds.name;
 
-    let visited_fields=&VisitedFieldMap::new(ds,config,arenas,ctokens);
+    let visited_fields=&VisitedFieldMap::new(ds,config,arenas,ctokens)?;
 
     let module=Ident::new(&format!("_sabi_{}",name),Span::call_site());
+
 
     // drop(_measure_time0);
 
     let (_, ty_generics, where_clause) = generics.split_for_impl();
-    let where_clause=&where_clause.unwrap().predicates;
+    let where_clause=(&where_clause.expect("BUG").predicates).into_iter();
+    let where_clause_b=where_clause.clone();
 
     // The value of the `SharedStableAbi::Kind` associated type.
     let associated_kind = match config.kind {
@@ -126,7 +128,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     
     let repr=config.repr;
 
-    let is_transparent=config.repr==ReprAttr::Transparent ;
+    let is_transparent=config.repr.is_repr_transparent();
     let is_enum=ds.data_variant==DataVariant::Enum;
     let prefix=match &config.kind {
         StabilityKind::Prefix(prefix)=>Some(prefix),
@@ -165,7 +167,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let nonexhaustive_items=tokenize_nonexhaustive_items(&module,ds,config,ctokens);
 
     // tokenizes the items for nonexhaustive enums inside of the module this generates.
-    let nonexhaustive_tokens=tokenize_enum_info(ds,config,ctokens);
+    let nonexhaustive_tokens=tokenize_enum_info(ds,config,ctokens)?;
 
 
 
@@ -222,7 +224,10 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             }
             (false,Some(prefix))=>{
                 if is_transparent{
-                    panic!("repr(transparent) prefix types not supported");
+                    spanned_err!(name,"repr(transparent) prefix types not supported")
+                        .to_compile_error()
+                        .to_tokens(ts);
+                    return;
                 }
 
                 let struct_=&ds.variants[0];
@@ -245,7 +250,10 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                 ).to_tokens(ts);
             }
             (true,Some(_))=>{
-                panic!("enum prefix types not supported");
+                spanned_err!(name,"enum prefix types not supported")
+                    .to_compile_error()
+                    .to_tokens(ts);
+                return;
             }
         };
     });
@@ -316,11 +324,12 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
     let stringified_name=name.to_string();
 
-    let stable_abi_bounded =&config.stable_abi_bounded;
+    let stable_abi_bounded =(&config.stable_abi_bounded).into_iter();
+    let stable_abi_bounded_b=stable_abi_bounded.clone();
     let static_equiv_bounded =&config.static_equiv_bounded;
     let extra_bounds       =&config.extra_bounds;
     
-    let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens);
+    let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens)?;
 
     let mod_refl_mode=match config.mod_refl_mode {
         ModReflMode::Module=>quote!( __ModReflMode::Module ),
@@ -346,6 +355,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let storage_opt=nonexhaustive_opt.map(|_| &ctokens.und_storage );
     let generics_header=
         GenParamsIn::with_after_types(&ds.generics,InWhat::ImplHeader,storage_opt);
+
 
     quote!(
         #prefix_type_tokenizer_
@@ -390,8 +400,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
             unsafe impl <#generics_header> __SharedStableAbi for #impl_ty 
             where 
-                #(#where_clause,)*
-                #(#stable_abi_bounded:__StableAbi,)*
+                #(#where_clause_b,)*
+                #(#stable_abi_bounded_b:__StableAbi,)*
                 #(#phantom_field_tys_b:__SharedStableAbi,)*
                 #(#static_equiv_bounded:__GetStaticEquivalent_,)*
                 #(#extra_bounds,)*

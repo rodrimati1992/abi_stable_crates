@@ -27,6 +27,7 @@ pub(super) fn delegated_impls<'a>(
     let impls=totrait_def.trait_flags;
     let spans=&totrait_def.trait_spans;
 
+
     // let gen_params_deser_header=
     //     totrait_def.generics_tokenizer(
     //         InWhat::ImplHeader,
@@ -68,6 +69,8 @@ pub(super) fn delegated_impls<'a>(
 
 
     if impls.debug {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.debug=>
             impl<#gen_params_header> std::fmt::Debug
             for #trait_to<#gen_params_use_to>
@@ -83,6 +86,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.display {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.display=>
             impl<#gen_params_header> std::fmt::Display
             for #trait_to<#gen_params_use_to>
@@ -98,6 +103,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.error {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.error=>
             impl<#gen_params_header> std::error::Error
             for #trait_to<#gen_params_use_to>
@@ -108,6 +115,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.clone {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.clone=>
             impl<#gen_params_header> std::clone::Clone
             for #trait_to<#gen_params_use_to>
@@ -127,6 +136,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.hash {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.hash=>
             impl<#gen_params_header> std::hash::Hash
             for #trait_to<#gen_params_use_to>
@@ -145,6 +156,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.send {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.send=>
             unsafe impl<#gen_params_header> std::marker::Send
             for #trait_to<#gen_params_use_to>
@@ -154,6 +167,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.sync {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.sync=>
             unsafe impl<#gen_params_header> std::marker::Sync
             for #trait_to<#gen_params_use_to>
@@ -163,6 +178,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.fmt_write {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.fmt_write=>
             impl<#gen_params_header> std::fmt::Write
             for #trait_to<#gen_params_use_to>
@@ -178,6 +195,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.io_write {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.io_write=>
             impl<#gen_params_header> std::io::Write
             for #trait_to<#gen_params_use_to>
@@ -198,6 +217,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.io_read {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.io_read=>
             impl<#gen_params_header> std::io::Read
             for #trait_to<#gen_params_use_to>
@@ -216,6 +237,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.io_buf_read {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.io_buf_read=>
             impl<#gen_params_header> std::io::BufRead
             for #trait_to<#gen_params_use_to>
@@ -234,6 +257,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.io_seek {
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.io_seek=>
             impl<#gen_params_header> std::io::Seek
             for #trait_to<#gen_params_use_to>
@@ -262,6 +287,8 @@ pub(super) fn delegated_impls<'a>(
         );
 
     if impls.eq{
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.eq=>
             impl<#gen_params_header> std::cmp::Eq
             for #trait_to<#gen_params_use_to_static>
@@ -272,6 +299,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.partial_eq{
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.partial_eq=>
             impl<#gen_params_header_and2> std::cmp::PartialEq<#trait_to<#gen_params_use_2>>
             for #trait_to<#gen_params_use_to_static>
@@ -291,6 +320,8 @@ pub(super) fn delegated_impls<'a>(
 
     }
     if impls.ord{
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.ord=>
             impl<#gen_params_header> std::cmp::Ord
             for #trait_to<#gen_params_use_to_static>
@@ -308,6 +339,8 @@ pub(super) fn delegated_impls<'a>(
         ).to_tokens(mod_);
     }
     if impls.partial_ord{
+        let where_preds=where_preds.into_iter();
+
         quote_spanned!(spans.partial_ord=>
             impl<#gen_params_header_and2> std::cmp::PartialOrd<#trait_to<#gen_params_use_2>>
             for #trait_to<#gen_params_use_to_static>
@@ -372,6 +405,7 @@ pub(super) fn delegated_impls<'a>(
     // }
     
     // if impls.serialize{
+        
     //     quote!(
     //         impl<#gen_params_header> ::serde::Serialize for #trait_to<#gen_params_use_to>
     //         where
