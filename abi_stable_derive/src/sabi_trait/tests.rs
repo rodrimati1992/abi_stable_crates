@@ -36,8 +36,10 @@ fn must_not_pass(){
     ];
     for elem in list {
         must_panic(file_span!(),||{
-            derive_sabi_trait(elem)
-        }).expect("TEST BUG");
+            derive_sabi_trait(elem).unwrap()
+        }).unwrap_or_else(|_|{
+            panic!("This passed wrongly:\n{}\n", elem);
+        });
         
     }
 }

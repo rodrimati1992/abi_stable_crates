@@ -292,3 +292,13 @@ pub mod globals{
         GLOBALS.init(|| globs );
     }
 }
+
+
+#[repr(u8)]
+#[derive(StableAbi)]
+#[sabi(kind(WithNonExhaustive(
+    traits(),
+)))]
+pub(crate) enum Foo{
+    A,
+}

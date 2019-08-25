@@ -42,7 +42,7 @@ fn test_discriminant_gen_code(){
             repr_attr=repr_attr,
         );
 
-        let output=derive_sabi(&input).to_string();
+        let output=derive_sabi(&input).unwrap().to_string();
 
         println!("Output:\n{}\n",output);
 
@@ -70,7 +70,7 @@ fn check_struct_repr_attrs(){
 
     let rect_def=RECTANGLE_DEF_REPR;
 
-    must_panic(file_span!(),|| derive_sabi(rect_def) ).expect("TEST BUG");
+    must_panic(file_span!(),|| derive_sabi(rect_def).unwrap() ).expect("TEST BUG");
     
     let invalid_reprs=vec![
         "Rust",
@@ -93,11 +93,13 @@ fn check_struct_repr_attrs(){
                 repr=invalid_repr,
                 struct_def=rect_def,
             );
-            derive_sabi(&with_repr_rust)
-        }).expect("TEST BUG");
+            derive_sabi(&with_repr_rust).unwrap();
+        }).unwrap_or_else(|_|{
+            panic!("invalid_repr={}",invalid_repr);
+        });
     }
 
 
-    derive_sabi(&format!("#[repr(C)]\n{}",rect_def));
-    derive_sabi(&format!("#[repr(transparent)]\n{}",rect_def));
+    derive_sabi(&format!("#[repr(C)]\n{}",rect_def)).unwrap();
+    derive_sabi(&format!("#[repr(transparent)]\n{}",rect_def)).unwrap();
 }

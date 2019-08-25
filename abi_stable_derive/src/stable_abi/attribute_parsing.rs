@@ -29,7 +29,7 @@ use crate::{
         parse_lit_as_type,
         parse_lit_as_type_bounds,
     },
-    utils::{DefaultedResult,SynPathExt,SynResultExt},
+    utils::{LinearResult,SynPathExt,SynResultExt},
 };
 
 use super::{
@@ -127,7 +127,7 @@ impl<'a> StableAbiOptions<'a> {
             .map(|x| &x.ident )
             .collect::<HashSet<&'a Ident>>();
 
-        let mut errors=Ok::<_,syn::Error>(());
+        let mut errors=LinearResult::ok(());
 
         for (type_param,what) in &this.unconstrained_type_params {
             if let NotStableAbiBound::GetStaticEquivalent=what {
@@ -235,6 +235,8 @@ impl<'a> StableAbiOptions<'a> {
                 })
         );
 
+        errors.into_result()?;
+
         Ok(StableAbiOptions {
             debug_print:this.debug_print,
             kind, repr , stable_abi_bounded , static_equiv_bounded ,
@@ -297,7 +299,7 @@ struct StableAbiAttrs<'a> {
     
     mod_refl_mode:Option<ModReflMode<()>>,
 
-    errors:DefaultedResult<()>,
+    errors:LinearResult<()>,
 }
 
 
@@ -365,8 +367,7 @@ where
         }
     }
 
-    this.errors.errors?;
-    this.errors=Default::default();
+    this.errors.take()?;
 
     StableAbiOptions::new(ds, this,arenas)
 }
@@ -919,7 +920,7 @@ fn parse_non_exhaustive_list<'a>(
 
     let mut this=UncheckedNonExhaustive::default();
 
-    let mut errors=Ok::<_,syn::Error>(());
+    let mut errors=LinearResult::ok(());
 
     for elem in list {
         match elem {
@@ -1025,6 +1026,6 @@ fn parse_non_exhaustive_list<'a>(
         }
     }
 
-    errors.map(|_| this )
+    errors.into_result().map(|_| this )
 }
 

@@ -201,13 +201,15 @@ use crate::{
 
 
 #[cfg(test)]
-pub(crate) fn derive_stable_abi_from_str(s: &str) -> TokenStream2 {
-    parse_str_or_compile_err( s, stable_abi::derive )
+pub(crate) fn derive_stable_abi_from_str(s: &str) -> Result<TokenStream2,syn::Error> {
+    syn::parse_str(s)
+        .and_then(stable_abi::derive)
 }
 
 #[cfg(test)]
-pub(crate) fn derive_sabi_trait_str(item: &str) -> TokenStream2{
-    parse_str_or_compile_err( item, sabi_trait::derive_sabi_trait )
+pub(crate) fn derive_sabi_trait_str(item: &str) -> Result<TokenStream2,syn::Error> {
+    syn::parse_str(item)
+        .and_then(sabi_trait::derive_sabi_trait)
 }
 
 
@@ -220,18 +222,6 @@ where
     F:FnOnce(P)->Result<TokenStream2,syn::Error>
 {
     syn::parse::<P>(input)
-        .and_then(f)
-        .unwrap_or_else(|e| e.to_compile_error() )
-}
-
-
-#[cfg(test)]
-fn parse_str_or_compile_err<P,F>(input:&str,f:F)->TokenStream2
-where 
-    P:syn::parse::Parse,
-    F:FnOnce(P)->Result<TokenStream2,syn::Error>
-{
-    syn::parse_str::<P>(input)
         .and_then(f)
         .unwrap_or_else(|e| e.to_compile_error() )
 }
