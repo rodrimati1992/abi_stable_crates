@@ -81,7 +81,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         //      (for the case where the method doesn't exist in the vtable).
         let default_=method.default.as_ref().filter(|_| !method.disable_inherent_default );
 
-        let lifetimes=Some(&method.lifetimes).filter(|l| !l.is_empty() );
+        let lifetimes=Some(&method.lifetimes).filter(|l| !l.is_empty() ).into_iter();
 
         let method_name=method.name;
         let method_span=method_name.span();
@@ -122,7 +122,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         let param_names_c=param_names_a.clone();
         let param_names_d=param_names_a.clone();
         let param_names_e=method.params.iter().map(|x| x.pattern );
-        let return_ty=&method.output;
+        let return_ty=(&method.output).into_iter();
         
         let self_is_sized_bound=Some(&ctokens.self_sized)
             .filter(|_| is_method&&method.self_param==SelfParam::ByVal );

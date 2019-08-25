@@ -4,8 +4,6 @@ For parsing the helper attributess for `#[derive(GetStaticEquivalent)]`.
 
 use std::marker::PhantomData;
 
-use quote::ToTokens;
-
 use syn::{
     Attribute, Meta, MetaList,
 };
@@ -15,6 +13,7 @@ use syn::{
 use crate::{
     attribute_parsing::{with_nested_meta},
     impl_interfacetype::{ImplInterfaceType,parse_impl_interfacetype},
+    utils::SynPathExt,
 };
 
 
@@ -30,62 +29,56 @@ pub(super) struct GetStaticEquivAttrs<'a>{
 /// Parses the helper attributes of the `#[derive(GetStaticEquivalent)]` macrp.
 pub(super) fn parse_attrs_for_get_static_equiv<'a,I>(
     attrs: I,
-) -> GetStaticEquivAttrs<'a>
+) -> Result<GetStaticEquivAttrs<'a>,syn::Error>
 where
     I:IntoIterator<Item=&'a Attribute>
 {
     let mut this=GetStaticEquivAttrs::default();
 
     for attr in attrs {
-        match attr.parse_meta().unwrap() {
+        match attr.parse_meta()? {
             Meta::List(list) => {
-                parse_attr_list(&mut this,list);
+                parse_attr_list(&mut this,list)?;
             }
             _ => {}
         }
     }
 
-    this
+    Ok(this)
 }
 
 // Helper function of `parse_attrs_for_get_static_equiv`.
 fn parse_attr_list<'a>(
     this: &mut GetStaticEquivAttrs<'a>,
     list: MetaList, 
-) {
-    if list.ident == "sabi" {
+)-> Result<(),syn::Error> {
+    if list.path.equals_str("sabi") {
         with_nested_meta("sabi", list.nested, |attr| {
             parse_gse_attr(this, attr)
-        });
+        })?;
     }
+    Ok(())
 }
 
 // Helper function of `parse_attrs_for_get_static_equiv`.
 fn parse_gse_attr<'a>(
     this: &mut GetStaticEquivAttrs<'a>,
     attr: Meta, 
-) {
+)-> Result<(),syn::Error> {
     match attr {
         Meta::List(list)=>{
-            if list.ident == "impl_InterfaceType" {
-                this.impl_interfacetype=Some(parse_impl_interfacetype(&list.nested));
+            if list.path.equals_str("impl_InterfaceType") {
+                this.impl_interfacetype=Some(parse_impl_interfacetype(&list.nested)?);
             }else{
-                panic!(
-                    "Unrecodnized #[sabi(..)] attribute:\n{}",
-                    list.into_token_stream(),
-                );
+                return_spanned_err!(list,"Unrecodnized #[sabi(..)] attribute.");
             }
         }
-        Meta::Word(ref word) if word=="debug_print"=>{
+        Meta::Path(ref word) if word.equals_str("debug_print")=>{
             this.debug_print=true;
         }
-        x =>{
-            panic!(
-                "not allowed inside the #[sabi(...)] attribute:\n{}",
-                x.into_token_stream()
-            );
-        }
+        x =>return_spanned_err!(x,"Unrecodnized #[sabi(..)] attribute."),
     }
+    Ok(())
 }
 
 

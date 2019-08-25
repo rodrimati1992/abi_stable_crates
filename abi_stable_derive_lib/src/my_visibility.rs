@@ -45,16 +45,15 @@ impl<'a> VisibilityKind<'a> {
             &Visibility::Restricted(ref restricted) => {
                 let path = &restricted.path;
                 let is_global = restricted.path.leading_colon.is_some();
-                let path_seg_0 = path.segments.first().unwrap();
-                let path_seg_0 = path_seg_0.value();
-                let is_crate = path_seg_0.ident == "crate";
+                let path_seg_0 = path.segments.first();
+                let is_crate = path_seg_0.map_or(false,|x| x.ident == "crate");
                 if is_global || is_crate {
                     if is_crate && path.segments.len() == 1 {
                         VisibilityKind::Crate
                     } else {
                         VisibilityKind::Absolute(path)
                     }
-                } else if path_seg_0.ident == "self" {
+                } else if path_seg_0.map_or(false,|x| x.ident == "self") {
                     assert!(
                         path.segments.len() == 1,
                         "paths in pub(...) that start with 'self' \
@@ -63,7 +62,7 @@ impl<'a> VisibilityKind<'a> {
                     );
 
                     VisibilityKind::Private
-                } else if path_seg_0.ident == "super" {
+                } else if path_seg_0.map_or(false,|x| x.ident == "super") {
                     assert!(
                         path.segments.iter().all(|segment| segment.ident == "super"),
                         "paths in pub(...) that start with 'super' \

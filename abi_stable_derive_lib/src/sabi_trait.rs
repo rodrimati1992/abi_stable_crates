@@ -68,15 +68,15 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
     
     let trait_ident=&item.ident;
 
-    let config=&self::attribute_parsing::parse_attrs_for_sabi_trait(&item,arenas,ctokens);
+    let config=&self::attribute_parsing::parse_attrs_for_sabi_trait(&item,arenas,ctokens)?;
 
     let trait_def=&config.trait_definition;
     let vis=trait_def.vis;
     let submod_vis=trait_def.submod_vis;
     
-    let totrait_def=&trait_def.replace_self(WhichItem::TraitObjectImpl);
-    let vtable_trait_decl=&trait_def.replace_self(WhichItem::VtableDecl);
-    let vtable_trait_impl=&trait_def.replace_self(WhichItem::VtableImpl);
+    let totrait_def=&trait_def.replace_self(WhichItem::TraitObjectImpl)?;
+    let vtable_trait_decl=&trait_def.replace_self(WhichItem::VtableDecl)?;
+    let vtable_trait_impl=&trait_def.replace_self(WhichItem::VtableImpl)?;
 
 
     let generated_mod=&parse_str_as_ident(&format!("{}_module",trait_ident));
@@ -108,7 +108,7 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
     
     trait_and_impl(tokenizer_params,&mut mod_contents);
 
-    methods_impls(tokenizer_params,&mut mod_contents);
+    methods_impls(tokenizer_params,&mut mod_contents)?;
 
     declare_vtable(tokenizer_params,&mut mod_contents);
     
@@ -209,7 +209,7 @@ fn first_items<'a>(
         &ctokens.ts_lt_erasedptr,
     );
 
-    let where_preds=&trait_def.where_preds;
+    let where_preds=(&trait_def.where_preds).into_iter();
 
     let vtable_args=trait_def.generics_tokenizer(
         InWhat::ItemUse,
@@ -609,7 +609,8 @@ fn trait_and_impl<'a>(
     let other_attrs=trait_def.other_attrs;
     let gen_params_trait=
         trait_def.generics_tokenizer(InWhat::ItemDecl,WithAssocTys::No,&ctokens.empty_ts);
-    let where_preds=&trait_def.where_preds;
+    let where_preds=(&trait_def.where_preds).into_iter();
+    let where_preds_b=where_preds.clone();
     let methods_tokenizer_def=trait_def.methods_tokenizer(WhichItem::Trait);
     let methods_tokenizer_impl=trait_def.methods_tokenizer(WhichItem::TraitImpl);
     let lifetime_bounds=&*trait_def.lifetime_bounds;
@@ -668,7 +669,7 @@ fn trait_and_impl<'a>(
             where
                 Self:#( #super_traits_b + )* #(#lifetime_bounds+)* Sized ,
                 #erased_ptr_bounds
-                #(#where_preds,)*
+                #(#where_preds_b,)*
             {
                 #( type #assoc_ty_named_a=#assoc_ty_named_b; )*
 
@@ -684,10 +685,10 @@ fn trait_and_impl<'a>(
 fn methods_impls<'a>(
     param:TokenizerParams,
     mod_:&mut TokenStream2,
-){
+)-> Result<(),syn::Error> {
     let TokenizerParams{ctokens,totrait_def,trait_to,..}=param;
     
-    let impl_where_preds=totrait_def.trait_impl_where_preds();
+    let impl_where_preds=totrait_def.trait_impl_where_preds()?;
 
     let super_traits_a=totrait_def.impld_traits.iter().map(|t| &t.bound );
     
@@ -717,6 +718,8 @@ fn methods_impls<'a>(
             #methods_tokenizer_def
         }
     ).to_tokens(mod_);
+
+    Ok(())
 }
 
 /// Outputs the vtable struct.
@@ -759,7 +762,7 @@ fn declare_vtable<'a>(
         }
         lifetime_bounds.push_str("Sized");
         Some(lifetime_bounds)
-    };
+    }.into_iter();
 
     let trait_interface_use=
         vtable_trait_decl.generics_tokenizer(

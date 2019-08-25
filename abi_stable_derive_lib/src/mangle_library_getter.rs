@@ -15,28 +15,20 @@ use abi_stable_shared::mangled_root_module_loader_name;
 
 #[doc(hidden)]
 pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
-
-    measure!({
-        mangle_library_getter_inner(
-            syn::parse::<ItemFn>(item).unwrap()
-        ).into()
-    })
-
+    parse_or_compile_err( item, mangle_library_getter_inner ).into()
 }
 
 #[cfg(test)]
 fn mangle_library_getter_str(item: &str)->TokenStream2{
-    mangle_library_getter_inner(
-        syn::parse_str::<ItemFn>(item).unwrap()
-    )
+    parse_str_or_compile_err( item, mangle_library_getter_inner )
 }
 
 
-fn mangle_library_getter_inner(mut input:ItemFn)->TokenStream2{
+fn mangle_library_getter_inner(mut input:ItemFn)->Result<TokenStream2,syn::Error>{
     let vis=&input.vis;
 
     let unsafe_no_layout_constant_path=
-        syn::parse_str::<syn::Path>("unsafe_no_layout_constant").unwrap();
+        syn::parse_str::<syn::Path>("unsafe_no_layout_constant").expect("BUG");
 
     let mut found_unsafe_no_layout_constant=false;
     input.attrs.retain(|attr|{
@@ -49,21 +41,24 @@ fn mangle_library_getter_inner(mut input:ItemFn)->TokenStream2{
         Span::call_site(),
     );
 
-    let ret_ty=match &input.decl.output {
+    let ret_ty=match &input.sig.output {
         syn::ReturnType::Default=>
-            panic!("\n\nThe return type of this function can't be `()`\n\n"),
+            return_spanned_err!(
+                input.sig.ident,
+                "The return type can't be `()`"
+            ),
         syn::ReturnType::Type(_,ty)=>
-            &**ty,
+            ty,
     };
     
-    let original_fn_ident=&input.ident;
+    let original_fn_ident=&input.sig.ident;
 
     let export_name=Ident::new(
         &mangled_root_module_loader_name(),
         Span::call_site(),
     );
 
-    quote!(
+    Ok(quote!(
         #input
 
         #[no_mangle]
@@ -96,7 +91,7 @@ fn mangle_library_getter_inner(mut input:ItemFn)->TokenStream2{
                 )
             }
         };
-    )
+    ))
 }
 
 

@@ -44,10 +44,10 @@ macro_rules! declare_common_tokens {
                 Self{
                     $( $field_new : < $token_new >::new(span) , )*
                     $( $field_token : Default::default() , )*
-                    $( $field_ts : ::syn::parse_str($ts_str).unwrap() , )*
-                    $( $field_ty : ::syn::parse_str($ty_str).unwrap() , )*
+                    $( $field_ts : ::syn::parse_str($ts_str).expect("BUG") , )*
+                    $( $field_ty : ::syn::parse_str($ty_str).expect("BUG") , )*
                     $( $field_ident : ::syn::Ident::new($ident_str,span) , )*
-                    $( $lifetime_ident : ::syn::parse_str($lifetime_str).unwrap() , )*
+                    $( $lifetime_ident : ::syn::parse_str($lifetime_str).expect("BUG") , )*
                     $( $strlit_ident : ::syn::LitStr::new($strlit_str,span) , )*
                     unit_ret:FnParamRet::unit_ret(arenas),
                 }

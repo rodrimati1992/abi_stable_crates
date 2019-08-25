@@ -15,7 +15,7 @@ use syn::{
 /// This macro takes in an impl block for the InterfaceType trait,
 /// and emulates defaulted associated types for the ones that weren't mentioned.
 pub fn the_macro(mut impl_:ItemImpl)->Result<TokenStream2,syn::Error>{
-    let interfacetype:syn::Ident=syn::parse_str("InterfaceType").unwrap();
+    let interfacetype:syn::Ident=syn::parse_str("InterfaceType").expect("BUG");
 
     let mut const_name=(&impl_.self_ty).into_token_stream().to_string();
     const_name.retain(|c| c.is_alphanumeric() );
@@ -25,12 +25,13 @@ pub fn the_macro(mut impl_:ItemImpl)->Result<TokenStream2,syn::Error>{
     let interface_path_s=impl_.trait_.as_ref().map(|x| &x.1.segments );
     let is_interface_type=interface_path_s
         .and_then(|x| x.last() )
-        .map_or(false,|path_| path_.value().ident==interfacetype );
+        .map_or(false,|path_| path_.ident==interfacetype );
 
     if !is_interface_type {
-        panic!(
+        return_spanned_err!(
+            impl_,
             "expected 'impl<...> InterfaceType for {} ' ",
-            (&impl_.self_ty).into_token_stream()
+            impl_.self_ty.to_token_stream(),
         );
     }
     
@@ -62,7 +63,7 @@ pub fn the_macro(mut impl_:ItemImpl)->Result<TokenStream2,syn::Error>{
                 let name=&assoc_ty.ident;
                 let span=name.span();
 
-                assoc_ty.ty=type_from_token_stream(
+                assoc_ty.ty=syn::Type::Verbatim(
                     quote_spanned!(span=> ImplFrom<#old_ty, trait_marker::#name> )
                 );
             }
@@ -83,10 +84,10 @@ pub fn the_macro(mut impl_:ItemImpl)->Result<TokenStream2,syn::Error>{
             DefaultVal::Unimplemented=>quote_spanned!(span=> Unimplemented<trait_marker::#key> ),
             DefaultVal::Implemented=>quote_spanned!(span=> Implemented<trait_marker::#key> ),
             DefaultVal::Hidden=>{
-                attrs.extend(parse_syn_attributes("#[doc(hidden)]"));
+                attrs.extend(parse_syn_attributes("#[doc(hidden)]").expect("BUG"));
                 quote_spanned!(span=> () )
             },
-        }.piped(type_from_token_stream);
+        }.piped(syn::Type::Verbatim);
 
         let defaulted=ImplItemType{
             attrs,
@@ -117,18 +118,13 @@ pub fn the_macro(mut impl_:ItemImpl)->Result<TokenStream2,syn::Error>{
 }
 
 
-fn type_from_token_stream(tts:TokenStream2)->syn::Type{
-    let x=syn::TypeVerbatim{tts};
-    syn::Type::Verbatim(x)
-}
-
-
 
 /// Parses an inner attribute `#[]` from a string.
 ///
 /// inner attribute as opposed to an outer attribute `#![]`.
-pub fn parse_syn_attributes(str_: &str) -> Vec<syn::Attribute> {
-    syn::parse_str::<ParseOuter>(str_).unwrap().attributes
+pub fn parse_syn_attributes(str_: &str) -> Result<Vec<syn::Attribute>,syn::Error> {
+    syn::parse_str::<ParseOuter>(str_)
+        .map(|x|x.attributes)
 }
 
 

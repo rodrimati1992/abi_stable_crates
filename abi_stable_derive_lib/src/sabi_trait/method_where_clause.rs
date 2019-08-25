@@ -4,6 +4,8 @@ use quote::ToTokens;
 
 use syn::{WhereClause,WherePredicate};
 
+use crate::utils::SynResultExt;
+
 
 /// Parses and prints the syntactically valid where clauses in object safe traits.
 #[derive(Debug,Default,Clone,PartialEq,Eq)]
@@ -14,38 +16,39 @@ pub(crate) struct MethodWhereClause<'a>{
 
 
 impl<'a> MethodWhereClause<'a>{
-    pub fn new(where_:&'a WhereClause,ctokens:&'a CommonTokens)->Self{
+    pub fn new(where_:&'a WhereClause,ctokens:&'a CommonTokens)-> Result<Self,syn::Error> {
         let mut this=MethodWhereClause::default();
+        let mut error=Ok::<_,syn::Error>(());
         
         for predicate in &where_.predicates {
             match predicate {
                 WherePredicate::Type(ty_pred)=>{
                     if ty_pred.bounds.is_empty() {
-                        panic!("The bounds are empty:'{}'",predicate.into_token_stream());
+                        error.push_err(spanned_err!(predicate,"The bounds are empty"));
                     }
                     if ty_pred.bounded_ty==ctokens.self_ty && 
                         ty_pred.bounds[0]==ctokens.sized_bound 
                     {
                         this.requires_self_sized=true;
                     }else{
-                        panic!("This bound is not supported:\n{}\n",predicate.into_token_stream());
+                        error.push_err(spanned_err!(predicate,"This bound is not supported"));
                     }
                 }
                 WherePredicate::Lifetime{..}=>{
-                    panic!(
-                        "Lifetime constraints are not currently supported.\n`{}`\n",
-                        predicate.into_token_stream()
-                    )
+                    error.push_err(spanned_err!(
+                        predicate,
+                        "Lifetime constraints are not currently supported"
+                    ));
                 }
                 WherePredicate::Eq{..}=>{
-                    panic!(
-                        "Type equality constraints are not currently supported.\n`{}`\n",
-                        predicate.into_token_stream()
-                    )
+                    error.push_err(spanned_err!(
+                        predicate,
+                        "Type equality constraints are not currently supported",
+                    ));
                 }
             }
         }
-        this
+        error.map(|_| this )
     }
 
     pub fn get_tokenizer(&self,ctokens:&'a CommonTokens)->MethodWhereClauseTokenizer<'_>{

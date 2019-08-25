@@ -25,7 +25,7 @@ mod attribute_parsing;
 pub(crate) fn derive(data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let name=&data.ident;
     let generics=&data.generics;
-    let config=self::attribute_parsing::parse_attrs_for_get_static_equiv(&data.attrs);
+    let config=self::attribute_parsing::parse_attrs_for_get_static_equiv(&data.attrs)?;
     
     let impl_it=impl_interfacetype_tokenizer(
         name,
@@ -62,7 +62,7 @@ fn get_static_equiv_tokenizer<'a>(
         let ct_lt=syn::token::Lt::default();
         let ct_static_equivalent=parse_str_as_ident("__GetStaticEquivalent");
         let ct_comma=syn::token::Comma::default();
-        let ct_static_lt=syn::parse_str::<syn::Lifetime>("'static").unwrap();
+        let ct_static_lt=syn::parse_str::<syn::Lifetime>("'static").expect("BUG");
 
         
         let lifetimes_s=lifetimes.iter().map(|_| &ct_static_lt );
@@ -79,9 +79,9 @@ fn get_static_equiv_tokenizer<'a>(
         let static_struct_name=Ident::new(&format!("_static_{}",name),Span::call_site());
 
         let empty_preds=Punctuated::new();
-        let where_preds=where_clause.as_ref().map_or(&empty_preds,|x|&x.predicates);
+        let where_preds=where_clause.as_ref().map_or(&empty_preds,|x|&x.predicates).into_iter();
 
-        let lifetimes_a  =lifetimes  ;    
+        let lifetimes_a  =lifetimes;    
         let type_params_a=type_params;
         let const_param_name=generics.const_params().map(|c| &c.ident );
         let const_param_type=generics.const_params().map(|c| &c.ty );

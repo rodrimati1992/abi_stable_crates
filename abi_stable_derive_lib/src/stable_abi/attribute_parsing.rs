@@ -29,6 +29,7 @@ use crate::{
         parse_lit_as_type,
         parse_lit_as_type_bounds,
     },
+    utils::{DefaultedResult,SynPathExt,SynResultExt},
 };
 
 use super::{
@@ -38,7 +39,7 @@ use super::{
     },
     reflection::{ModReflMode,FieldAccessor},
     prefix_types::{PrefixKind,FirstSuffixField,OnMissingField,AccessorOrMaybe,PrefixKindField},
-    repr_attrs::{UncheckedReprAttr,UncheckedReprKind,DiscriminantRepr,ReprAttr},
+    repr_attrs::{UncheckedReprAttr,UncheckedReprKind,DiscriminantRepr,ReprAttr,REPR_ERROR_MSG},
 };
 
 use crate::*;
@@ -114,10 +115,10 @@ impl<'a> StableAbiOptions<'a> {
         ds: &'a DataStructure<'a>, 
         mut this: StableAbiAttrs<'a>,
         arenas: &'a Arenas,
-    ) -> Self {
+    ) -> Result<Self,syn::Error> {
         let mut phantom_fields=Vec::<(&'a str,&'a Type)>::new();
 
-        let repr = ReprAttr::new(this.repr);
+        let repr = ReprAttr::new(this.repr)?;
 
         let mut static_equiv_bounded=Vec::new();
 
@@ -126,6 +127,8 @@ impl<'a> StableAbiOptions<'a> {
             .map(|x| &x.ident )
             .collect::<HashSet<&'a Ident>>();
 
+        let mut errors=Ok::<_,syn::Error>(());
+
         for (type_param,what) in &this.unconstrained_type_params {
             if let NotStableAbiBound::GetStaticEquivalent=what {
                 if let Some(&ident)=stable_abi_bounded.get(type_param) {
@@ -133,15 +136,16 @@ impl<'a> StableAbiOptions<'a> {
                 }
             }
             if !stable_abi_bounded.remove(type_param) {
-                panic!(
+                errors.push_err(spanned_err!(
+                    ds.name,
                     "'{}' declared as a phantom type parameter but is not a type parameter",
                     type_param 
-                )
+                ));
             }
         }
 
         let kind = match this.kind {
-            _ if repr == ReprAttr::Transparent => {
+            _ if repr.is_repr_transparent() => {
                 // let field=&ds.variants[0].fields[0];
                 
                 // let field_bound=syn::parse_str::<WherePredicate>(
@@ -172,21 +176,25 @@ impl<'a> StableAbiOptions<'a> {
             UncheckedStabilityKind::NonExhaustive(nonexhaustive)=>{
                 let variant_constructor=this.variant_constructor;
                 nonexhaustive
-                    .piped(|x| NonExhaustive::new(x,variant_constructor,ds,arenas) )
+                    .piped(|x| NonExhaustive::new(x,variant_constructor,ds,arenas) )?
                     .piped(StabilityKind::NonExhaustive)
             }
         };
 
         match (repr,ds.data_variant) {
-            (ReprAttr::Transparent,DataVariant::Struct)=>{}
-            (ReprAttr::Transparent,_)=>{
-                panic!("\nAbiStable does not suport non-struct #[repr(transparent)] types.\n");
+            (ReprAttr::Transparent{..},DataVariant::Struct)=>{}
+            (ReprAttr::Transparent(span),_)=>{
+                errors.push_err(syn_err!(
+                    *span,
+                    "\nAbiStable does not suport non-struct #[repr(transparent)] types.\n"
+                ));
             }
             (ReprAttr::Int{..},DataVariant::Enum)=>{}
-            (ReprAttr::Int{..},_)=>{
-                panic!("\n\
-                    AbiStable does not suport non-enum #[repr(<some_integer_type>)] types.\
-                \n");
+            (ReprAttr::Int(_,span),_)=>{
+                errors.push_err(syn_err!(
+                    *span,
+                    "AbiStable does not suport non-enum #[repr(<some_integer_type>)] types."
+                ));
             }
             (ReprAttr::C{..},_)=>{}
         }
@@ -197,7 +205,7 @@ impl<'a> StableAbiOptions<'a> {
             Some(ModReflMode::DelegateDeref(()))=>{
                 let index=phantom_fields.len();
                 let field_ty=syn::parse_str::<Type>("<Self as ::std::op::Deref>::Target")
-                    .unwrap()
+                    .expect("BUG")
                     .piped(|x| arenas.alloc(x) );
 
                 phantom_fields.push(("deref_target",field_ty));
@@ -206,7 +214,7 @@ impl<'a> StableAbiOptions<'a> {
                     "Self: ::std::ops::Deref",
                     "<Self as ::std::ops::Deref>::Target:__SharedStableAbi",
                 ].iter()
-                 .map(|x| syn::parse_str::<WherePredicate>(x).unwrap() )
+                 .map(|x| syn::parse_str::<WherePredicate>(x).expect("BUG") )
                  .extending(&mut this.extra_bounds);
 
                  ModReflMode::DelegateDeref(index)
@@ -227,7 +235,7 @@ impl<'a> StableAbiOptions<'a> {
                 })
         );
 
-        StableAbiOptions {
+        Ok(StableAbiOptions {
             debug_print:this.debug_print,
             kind, repr , stable_abi_bounded , static_equiv_bounded ,
             extra_bounds :this.extra_bounds,
@@ -242,7 +250,7 @@ impl<'a> StableAbiOptions<'a> {
             phantom_fields,
             phantom_type_params:this.phantom_type_params,
             mod_refl_mode,
-        }
+        })
     }
 }
 
@@ -288,6 +296,8 @@ struct StableAbiAttrs<'a> {
     impl_interfacetype:Option<ImplInterfaceType>,
     
     mod_refl_mode:Option<ModReflMode<()>>,
+
+    errors:DefaultedResult<()>,
 }
 
 
@@ -330,7 +340,7 @@ pub(crate) fn parse_attrs_for_stable_abi<'a,I>(
     attrs: I,
     ds: &'a DataStructure<'a>,
     arenas: &'a Arenas,
-) -> StableAbiOptions<'a> 
+) -> Result<StableAbiOptions<'a>,syn::Error>
 where
     I:IntoIterator<Item=&'a Attribute>
 {
@@ -346,14 +356,17 @@ where
 
     let name=ds.name;
 
-    parse_inner(&mut this, attrs, ParseContext::TypeAttr{name}, arenas);
+    parse_inner(&mut this, attrs, ParseContext::TypeAttr{name}, arenas)?;
 
     for (variant_index,variant) in ds.variants.iter().enumerate() {
-        parse_inner(&mut this, variant.attrs, ParseContext::Variant{variant_index}, arenas);
+        parse_inner(&mut this, variant.attrs, ParseContext::Variant{variant_index}, arenas)?;
         for (field_index,field) in variant.fields.iter().enumerate() {
-            parse_inner(&mut this, field.attrs, ParseContext::Field{field,field_index}, arenas);
+            parse_inner(&mut this, field.attrs, ParseContext::Field{field,field_index}, arenas)?;
         }
     }
+
+    this.errors.errors?;
+    this.errors=Default::default();
 
     StableAbiOptions::new(ds, this,arenas)
 }
@@ -364,17 +377,23 @@ fn parse_inner<'a,I>(
     attrs: I,
     pctx: ParseContext<'a>,
     arenas: &'a Arenas,
-) where
+)-> Result<(),syn::Error>
+where
     I:IntoIterator<Item=&'a Attribute>
 {
     for attr in attrs {
-        match attr.parse_meta().unwrap() {
-            Meta::List(list) => {
-                parse_attr_list(this,pctx, list, arenas);
+        match attr.parse_meta() {
+            Ok(Meta::List(list)) => {
+                parse_attr_list(this,pctx, list, arenas)
+                    .combine_into_err(&mut this.errors);
+            }
+            Err(e)=>{
+                this.errors.push_err(e);
             }
             _ => {}
         }
     }
+    Ok(())
 }
 
 /// Parses an individual attribute list (A `#[attribute( .. )] attribute`).
@@ -383,34 +402,46 @@ fn parse_attr_list<'a>(
     pctx: ParseContext<'a>,
     list: MetaList, 
     arenas: &'a Arenas
-) {
-    if list.ident == "repr" {
+)-> Result<(),syn::Error> {
+    if list.path.equals_str("repr") {
+        fn make_err(tokens:&dyn ToTokens)->syn::Error{
+            spanned_err!(
+                tokens,
+                "repr attribute not currently recognized by this macro.{}",
+                REPR_ERROR_MSG
+            )
+        }
         with_nested_meta("repr", list.nested, |attr| match attr {
-            Meta::Word(ref ident)=> {
+            Meta::Path(ref path)=> {
+                let ident=path.get_ident().ok_or_else(|| make_err(path) )?;
+                let span=ident.span();
+
                 if ident=="C" {
-                    this.repr.set_repr_kind(UncheckedReprKind::C);
+                    this.repr.set_repr_kind(UncheckedReprKind::C,span)
                 }else if ident=="transparent" {
-                    this.repr.set_repr_kind(UncheckedReprKind::Transparent);
+                    this.repr.set_repr_kind(UncheckedReprKind::Transparent,span)
                 }else if let Some(dr)=DiscriminantRepr::from_ident(ident) {
-                    this.repr.set_discriminant_repr(dr);
+                    this.repr.set_discriminant_repr(dr,span)
                 }else{
-                    panic!(
-                        "repr attribute not currently recognized by this macro:\n{:?}",
-                        ident
-                    )
-                }
+                    Err(make_err(ident))
+                }.combine_into_err(&mut this.errors);
+                Ok(())
             }
-            Meta::List(ref list) if list.ident == "align" => {}
-            x => panic!(
-                "repr attribute not currently recognized by this macro:\n{:?}",
-                x
-            ),
-        })
-    } else if list.ident == "sabi" {
+            Meta::List(ref list) if list.path.equals_str("align") => {
+                Ok(())
+            }
+            x => {
+                Err(make_err(&x))
+            }
+        }).combine_into_err(&mut this.errors);;
+    } else if list.path.equals_str("sabi") {
         with_nested_meta("sabi", list.nested, |attr| {
             parse_sabi_attr(this,pctx, attr, arenas)
-        });
+                .combine_into_err(&mut this.errors);
+            Ok(())
+        })?;
     }
+    Ok(())
 }
 
 /// Parses the contents of a `#[sabi( .. )]` attribute.
@@ -419,240 +450,288 @@ fn parse_sabi_attr<'a>(
     pctx: ParseContext<'a>, 
     attr: Meta, 
     arenas: &'a Arenas
-) {
+)-> Result<(),syn::Error> {
+    fn make_err(tokens:&dyn ToTokens)->syn::Error{
+        spanned_err!(tokens,"unrecognized attribute")
+    }
     match (pctx, attr) {
-        (ParseContext::Field{field,field_index}, Meta::Word(word)) => {
+        (ParseContext::Field{field,field_index}, Meta::Path(path)) => {
+            let word=path.get_ident().ok_or_else(|| make_err(&path) )?;
+
             if word == "unsafe_opaque_field" {
                 this.opaque_fields[field]=true;
             }else if word == "last_prefix_field" {
                 let field_pos=field_index+1;
                 this.first_suffix_field=FirstSuffixField{field_pos};
             }else{
-                panic!("unrecognized field attribute `#[sabi({})]` ",word);
+                return Err(make_err(&path))?;
             }
         }
         (
             ParseContext::Field{field,..}, 
-            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref value),ref ident,..})
+            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref value),ref path,..})
         ) => {
+            let ident=path.get_ident().ok_or_else(|| make_err(&path) )?;
+            
             if ident=="rename" {
                 let renamed=parse_lit_as_ident(&value)
                     .piped(|x| arenas.alloc(x) );
                 this.renamed_fields.insert(field,Some(renamed));
             }else if ident=="unsafe_change_type" {
-                let changed_type=parse_lit_as_type(&value)
+                let changed_type=parse_lit_as_type(&value)?
                     .piped(|x| arenas.alloc(x) );
                 this.changed_types.insert(field,Some(changed_type));
             }else if ident=="accessible_if" {
-                let expr=arenas.alloc(parse_lit_as_expr(&value));
+                let expr=arenas.alloc(parse_lit_as_expr(&value)?);
                 this.prefix_kind_fields[field].accessible_if=Some(expr);
             }else if ident == "field_bound" {
-                let bound=parse_lit_as_type_bounds(&value);
+                let bound=parse_lit_as_type_bounds(&value)?;
                 this.field_bounds[field].extend(bound);
             }else{
-                panic!(
-                    "unrecognized field attribute `#[sabi({}={})]` ",
-                    ident,
-                    value.value()
-                );
+                return Err(make_err(&path))?;
             }
         }
         (ParseContext::Field{field,..}, Meta::List(list)) => {
-            if list.ident == "missing_field" {
-                let on_missing_field=parse_missing_field(&list.nested,arenas);
+            let ident=list.path.get_ident().ok_or_else(|| make_err(&list.path) )?;
+            
+            if ident=="missing_field" {
+                let on_missing_field=parse_missing_field(&list.nested,arenas)?;
                 this.prefix_kind_fields[field].on_missing=Some(on_missing_field);
-            }else if list.ident == "refl" {
-                parse_refl_field(this,field,list.nested,arenas);
+            }else if ident=="refl" {
+                parse_refl_field(this,field,list.nested,arenas)?;
             }else{
-                panic!("unrecognized field attribute `#[sabi({})]` ",list.ident);
+                return_spanned_err!(ident,"unrecognized field attribute");
             }
         }
-        (ParseContext::TypeAttr{..},Meta::Word(ref word)) if word == "debug_print" =>{
+        (ParseContext::TypeAttr{..},Meta::Path(ref path)) if path.equals_str("debug_print") =>{
             this.debug_print=true;
         }
         (
             ParseContext::TypeAttr{..},
-            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_bound),ref ident,..})
-        )if ident=="bound"||ident=="prefix_bound" =>
-        {
-            let bound=match unparsed_bound.parse::<WherePredicate>() {
-                Ok(v)=>v,
-                Err(e)=>panic!(
-                    "\n\nInvalid bound:\n\t{}\nError:\n\t{}\n\n",
-                    unparsed_bound.value(),
-                    e
-                ),
-            };
-            if ident=="bound"{
-                this.extra_bounds.push(bound);
-            }else if ident=="prefix_bound" {
-                this.prefix_bounds.push(bound);
-            }
-        }
-        (
-            ParseContext::TypeAttr{..},
-            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_field),ref ident,..})
-        )if ident=="phantom_field" =>
-        {
-            let unparsed_field=unparsed_field.value();
-            let mut iter=unparsed_field.splitn(2,':');
-            let name=arenas.alloc(iter.next().unwrap_or("").to_string());
-            let ty=arenas.alloc(parse_str_as_type(iter.next().unwrap_or("")));
-            this.extra_phantom_fields.push((name,ty));
-        }
-        (
-            ParseContext::TypeAttr{..},
-            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref str_lit),ref ident,..})
-        )if ident=="phantom_type_param" =>
-        {
-            let ty=arenas.alloc(parse_lit_as_type(str_lit));
-            this.phantom_type_params.push(ty);
-        }
-        (
-            ParseContext::TypeAttr{..},
-            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_tag),ref ident,..})
-        )if ident=="tag"||ident=="extra_checks" =>
-        {
-            let bound=||{
-                match unparsed_tag.parse::<syn::Expr>() {
+            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref unparsed_lit),ref path,..})
+        )=>{
+            let ident=path.get_ident().ok_or_else(|| make_err(path) )?;
+
+            if ident=="bound"||ident=="prefix_bound" {
+                let ident=path.get_ident().ok_or_else(|| make_err(path) )?;
+
+                let bound=match unparsed_lit.parse::<WherePredicate>() {
                     Ok(v)=>v,
-                    Err(e)=>panic!(
-                        "\n\nInvalid tag expression:\n\t{}\nError:\n\t{}\n\n",
-                        unparsed_tag.value(),
+                    Err(e)=>return_spanned_err!(
+                        ident,
+                        "\n\nInvalid bound:\n\t{}\nError:\n\t{}\n\n",
+                        unparsed_lit.value(),
                         e
                     ),
+                };
+                if ident=="bound"{
+                    this.extra_bounds.push(bound);
+                }else if ident=="prefix_bound" {
+                    this.prefix_bounds.push(bound);
                 }
-            };
+            }else if ident=="phantom_field"{
+                let unparsed_field=unparsed_lit.value();
+                let mut iter=unparsed_field.splitn(2,':');
+                let name=arenas.alloc(iter.next().unwrap_or("").to_string());
+                let ty=arenas.alloc(parse_str_as_type(iter.next().unwrap_or(""))?);
+                this.extra_phantom_fields.push((name,ty));
+            }else if ident=="phantom_type_param"{
+                let ty=arenas.alloc(parse_lit_as_type(unparsed_lit)?);
+                this.phantom_type_params.push(ty);
+            }else if ident=="tag"||ident=="extra_checks" {
+                let bound=unparsed_lit.parse::<syn::Expr>()
+                    .map_err(|e|{
+                        spanned_err!(unparsed_lit,"Invalid expression.\nError:\n\t{}",e)
+                    });
 
-            if ident=="tag" {
-                if this.tags.is_some() {
-                    panic!("\n\n\
-Cannot specify multiple tags,\
-you must choose whether you want array or set semantics \
-when adding more tags.
-
-For multiple elements you can do:
-
-- `tag![[ tag0,tag1 ]]` or `Tag::arr(&[ tag0,tag1 ])` :
-    This will require that the tags match exactly between interface and implementation.
-
-- `tag!{{ tag0,tag1 }}` or `Tag::set(&[ tag0,tag1 ])` :
-    This will require that the tags in the interface are a subset of the implementation.
-
-Tag:\n\t{}\n",
-                        unparsed_tag.value(),
-                    );
+                if ident=="tag" {
+                    if this.tags.is_some() {
+                        return_spanned_err!(
+                            unparsed_lit,
+                            "\
+                            Cannot specify multiple tags,\
+                            you must choose whether you want array or set semantics \
+                            when adding more tags.\n\
+                            \n\
+                            For multiple elements you can do:\n\
+                            \n\
+                            - `tag![[ tag0,tag1 ]]` or `Tag::arr(&[ tag0,tag1 ])` :\n\
+                                \tThis will require that the tags match exactly between \
+                                interface and implementation.\n\
+                            \n\
+                            - `tag!{{ tag0,tag1 }}` or `Tag::set(&[ tag0,tag1 ])` :\n\
+                                \tThis will require that the tags in the interface are \
+                                a subset of the implementation.\n\
+                            ",
+                        );
+                    }
+                    this.tags=Some(bound?);
+                }else if ident=="extra_checks" {
+                    if this.extra_checks.is_some() {
+                        return_spanned_err!(
+                            ident,
+                            "Cannot use the `#[sabi(extra_checks=\"\")]` \
+                             attribute multiple times,\
+                            "
+                        );
+                    }
+                    
+                    this.extra_checks=Some(bound?);
                 }
-                
-                this.tags=Some(bound());
-            }else if ident=="extra_checks" {
-                if this.extra_checks.is_some() {
-                    panic!("\
-                        Cannot use the `#[sabi(extra_checks=\"\")]` \
-                        attribute multiple times,\
-                    ");
-                }
-                
-                this.extra_checks=Some(bound());
+
+            }else{
+                return Err(make_err(path));
             }
-
         }
         (ParseContext::TypeAttr{name},Meta::List(list)) => {
-            if list.ident == "override" {
-                with_nested_meta("override", list.nested, |attr| {
-                    parse_sabi_override(this, attr, arenas)
-                });
-            } else if list.ident == "missing_field" {
-                this.default_on_missing_fields=parse_missing_field(&list.nested,arenas);
-            } else if list.ident == "kind" {
-                with_nested_meta("kind", list.nested, |attr| match attr {
-                    Meta::Word(ref word) if word == "Value" => {
-                        this.kind = UncheckedStabilityKind::Value;
+            let ident=list.path.get_ident().ok_or_else(|| make_err(&list.path) )?;
+
+            if ident == "missing_field" {
+                this.default_on_missing_fields=parse_missing_field(&list.nested,arenas)?;
+            } else if ident == "kind" {
+                with_nested_meta("kind", list.nested, |attr|{
+                    match attr {
+                        Meta::Path(ref path) if path.equals_str("Value") => {
+                            this.kind = UncheckedStabilityKind::Value;
+                        }
+                        Meta::List(ref list)=>{
+                            let ident=match list.path.get_ident() {
+                                Some(x)=>x,
+                                None=>return_spanned_err!(list,"invalid #[kind(..)] attribute"),
+                            };
+
+                            if ident == "Prefix" {
+                                let prefix=parse_prefix_type_list(name,&list.nested,arenas)?;
+                                this.kind = UncheckedStabilityKind::Prefix(prefix);
+                            }else if ident == "WithNonExhaustive" {
+                                let nonexhaustive=
+                                    parse_non_exhaustive_list(name,&list.nested,arenas)?;
+                                this.kind = UncheckedStabilityKind::NonExhaustive(nonexhaustive);
+                            }else{
+                                this.errors.push_err(spanned_err!(
+                                    ident,
+                                    "invalid #[kind(..)] attribute"
+                                ));
+                            }
+                        }
+                        x => this.errors.push_err(spanned_err!(
+                            x,
+                            "invalid #[kind(..)] attribute",
+                        )),
                     }
-                    Meta::List(ref list) if list.ident == "Prefix" => {
-                        let prefix=parse_prefix_type_list(name,&list.nested,arenas);
-                        this.kind = UncheckedStabilityKind::Prefix(prefix);
+                    Ok(())
+                })?;
+            } else if ident == "module_reflection" {
+                fn mrefl_err(tokens:&dyn ToTokens)->syn::Error{
+                    spanned_err!(
+                        tokens,
+                        "invalid #[module_reflection(..)] attribute."
+                    )
+                }
+
+                with_nested_meta("module_reflection", list.nested, |attr| {
+                    match attr {
+                        Meta::Path(ref path)=>{
+                            let word=path.get_ident().ok_or_else(|| mrefl_err(path) )?;
+
+                            if word == "Module" {
+                                this.mod_refl_mode = Some(ModReflMode::Module);
+                            }else if word == "Opaque" {
+                                this.mod_refl_mode = Some(ModReflMode::Opaque);
+                            }else if word == "Deref" {
+                                this.mod_refl_mode = Some(ModReflMode::DelegateDeref(()));
+                            }else{
+                                this.errors.push_err(mrefl_err(word));
+                            }
+                        } 
+                        ref x => this.errors.push_err(mrefl_err(x)),
                     }
-                    Meta::List(ref list) if list.ident == "WithNonExhaustive" => {
-                        let nonexhaustive=parse_non_exhaustive_list(name,&list.nested,arenas);
-                        this.kind = UncheckedStabilityKind::NonExhaustive(nonexhaustive);
-                    }
-                    x => panic!("invalid #[kind(..)] attribute:\n{:?}", x),
-                });
-            } else if list.ident == "module_reflection" {
-                with_nested_meta("kind", list.nested, |attr| match attr {
-                    Meta::Word(ref word) if word == "Module" => {
-                        this.mod_refl_mode = Some(ModReflMode::Module);
-                    }
-                    Meta::Word(ref word) if word == "Opaque" => {
-                        this.mod_refl_mode = Some(ModReflMode::Opaque);
-                    }
-                    Meta::Word(ref word) if word == "Deref" => {
-                        this.mod_refl_mode = Some(ModReflMode::DelegateDeref(()));
-                    }
-                    x => panic!("invalid #[module_reflection(..)] attribute:\n{:?}", x),
-                });
-            } else if list.ident == "not_stableabi" {
-                with_nested_meta("not_stableabi", list.nested, |attr| match attr {
-                    Meta::Word(type_param)=>{
-                        this.unconstrained_type_params.push(
-                            (type_param,NotStableAbiBound::GetStaticEquivalent)
-                        );
-                    }
-                    x => panic!(
+                    Ok(())
+                })?;
+            } else if ident == "not_stableabi" {
+                fn nsabi_err(tokens:&dyn ToTokens)->syn::Error{
+                    spanned_err!(
+                        tokens,
                         "invalid #[not_stableabi(..)] attribute\
-                         (it must be the identifier of a type parameter):\n{:?}\n", 
-                        x
-                    ),
-                })
-            } else if list.ident == "unsafe_unconstrained" {
-                with_nested_meta("unsafe_unconstrained", list.nested, |attr| match attr {
-                    Meta::Word(type_param)=>{
-                        this.unconstrained_type_params.push(
-                            (type_param,NotStableAbiBound::NoBound)
-                        );
+                         (it must be the identifier of a type parameter)."
+                    )
+                }
+
+                with_nested_meta("not_stableabi", list.nested, |attr|{
+                    match attr {
+                        Meta::Path(path)=>{
+                            let type_param=path.into_ident().map_err(|p| nsabi_err(&p) )?;
+
+                            this.unconstrained_type_params.push(
+                                (type_param,NotStableAbiBound::GetStaticEquivalent)
+                            );
+                        }
+                        x => this.errors.push_err(nsabi_err(&x)),
                     }
-                    x => panic!(
+                    Ok(())
+                })?;
+            } else if ident == "unsafe_unconstrained" {
+                fn uu_err(tokens:&dyn ToTokens)->syn::Error{
+                    spanned_err!(
+                        tokens,
                         "invalid #[unsafe_unconstrained(..)] attribute\
-                         (it must be the identifier of a type parameter):\n{:?}\n", 
-                        x
-                    ),
-                })
-            } else if list.ident == "impl_InterfaceType" {
-                this.impl_interfacetype=Some(parse_impl_interfacetype(&list.nested));
+                         (it must be the identifier of a type parameter)."
+                    )
+                }
+
+                with_nested_meta("unsafe_unconstrained", list.nested, |attr| {
+                    match attr {
+                        Meta::Path(path)=>{
+                            let type_param=path.into_ident().map_err(|p| uu_err(&p) )?;
+
+                            this.unconstrained_type_params.push(
+                                (type_param,NotStableAbiBound::NoBound)
+                            );
+                        }
+                        x => this.errors.push_err(spanned_err!(
+                            x,
+                            "invalid #[unsafe_unconstrained(..)] attribute\
+                             (it must be the identifier of a type parameter)."
+                        )),
+                    }
+                    Ok(())   
+                })?;
+            } else if ident == "impl_InterfaceType" {
+                this.impl_interfacetype=Some(parse_impl_interfacetype(&list.nested)?);
             }else{
-                panic!("Unrecodnized #[sabi(..)] attribute:\n{}",list.into_token_stream());
+                return_spanned_err!(
+                    list,
+                    "Unrecodnized #[sabi(..)] attribute",
+                );
             }
         }
-        (
-            ParseContext::TypeAttr{..},
-            Meta::Word(ref word)
-        ) if word == "with_constructor" =>{
-            this.variant_constructor.iter_mut()
-                .for_each(|x|*x=Some(UncheckedVariantConstructor::Regular));
+        (ParseContext::TypeAttr{..},Meta::Path(ref path))=>{
+            let word=path.get_ident().ok_or_else(|| make_err(&path) )?;
+
+            if word == "with_constructor" {
+                this.variant_constructor.iter_mut()
+                    .for_each(|x|*x=Some(UncheckedVariantConstructor::Regular));
+            }else if word=="with_boxed_constructor" {
+                this.variant_constructor.iter_mut()
+                    .for_each(|x|*x=Some(UncheckedVariantConstructor::Boxed));
+            }else{
+                return Err(make_err(&path));
+            }
         }
-        (
-            ParseContext::TypeAttr{..},
-            Meta::Word(ref word)
-        ) if word == "with_boxed_constructor" =>{
-            this.variant_constructor.iter_mut()
-                .for_each(|x|*x=Some(UncheckedVariantConstructor::Boxed));
+        (ParseContext::Variant{variant_index},Meta::Path(ref path))=>{
+            let word=path.get_ident().ok_or_else(|| make_err(&path) )?;
+            
+            if word=="with_constructor" {
+                this.variant_constructor[variant_index]=Some(UncheckedVariantConstructor::Regular);
+            }else if word=="with_boxed_constructor" {
+                this.variant_constructor[variant_index]=Some(UncheckedVariantConstructor::Boxed);
+            }else{
+                return Err(make_err(&path));
+            }
         }
-        (
-            ParseContext::Variant{variant_index},
-            Meta::Word(ref word)
-        ) if word == "with_constructor" =>{
-            this.variant_constructor[variant_index]=Some(UncheckedVariantConstructor::Regular);
-        }
-        (
-            ParseContext::Variant{variant_index},
-            Meta::Word(ref word)
-        ) if word == "with_boxed_constructor" =>{
-            this.variant_constructor[variant_index]=Some(UncheckedVariantConstructor::Boxed);
-        }
-        
-        (_,x) => panic!("not allowed inside the #[sabi(...)] attribute:\n{:?}", x),
+        (_,x) => return Err(make_err(&x)),
     }
+    Ok(())
 }
 
 
@@ -662,19 +741,28 @@ fn parse_refl_field<'a>(
     field:&'a Field<'a>,
     list: Punctuated<NestedMeta, Comma>, 
     arenas: &'a Arenas
-) {
-    with_nested_meta("refl", list, |attr| match attr {
-        Meta::NameValue(MetaNameValue{lit:Lit::Str(ref val),ref ident,..})=>{
-            if ident=="pub_getter" {
-                let function=arenas.alloc(val.value());
-                this.override_field_accessor[field]=
-                    Some(FieldAccessor::Method{ name:Some(function) });
-            }else{
-                panic!("invalid #[sabi(refl(..))] attribute:\n`{}={:?}`",ident,val)
+)-> Result<(),syn::Error> {
+    fn make_err(tokens:&dyn ToTokens)->syn::Error{
+        spanned_err!(tokens,"invalid #[sabi(refl(..))] attribute.")
+    }
+
+    with_nested_meta("refl", list, |attr| {
+        match attr {
+            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref val),ref path,..})=>{
+                let ident=path.get_ident().ok_or_else(|| make_err(path) )?;
+
+                if ident=="pub_getter" {
+                    let function=arenas.alloc(val.value());
+                    this.override_field_accessor[field]=
+                        Some(FieldAccessor::Method{ name:Some(function) });
+                }else{
+                    this.errors.push_err(make_err(path));
+                }
             }
+            ref x => this.errors.push_err(make_err(x))
         }
-        x => panic!("invalid #[sabi(refl(..))] attribute:\n{:?}", x),
-    });
+        Ok(())
+    })
 }
 
 
@@ -683,8 +771,8 @@ fn parse_refl_field<'a>(
 fn parse_missing_field<'a>(
     list: &Punctuated<NestedMeta, Comma>, 
     arenas: &'a Arenas
-)->OnMissingField<'a>{
-    let attribute_msg="
+)-> Result<OnMissingField<'a>,syn::Error> {
+    const ATTRIBUTE_MSG:&'static str="
 
 Valid Attributes:
 
@@ -705,50 +793,57 @@ Valid Attributes:
     This returns `Default::default` if the field doesn't exist.
 
 ";
-
+    let mf_err=|tokens:&dyn ToTokens|->syn::Error{
+        spanned_err!(
+            tokens,
+            "Invalid attribute.\n{}",
+            ATTRIBUTE_MSG,
+        )
+    };
 
     let first_arg=list.into_iter().next();
 
     match first_arg {
         Some(NestedMeta::Meta(Meta::NameValue(MetaNameValue{
-            ident:ref nv_ident,
+            path,
             lit:Lit::Str(ref str_),
             ..
         })))=>{
+            let nv_ident=path.get_ident().ok_or_else(|| mf_err(&path) )?;
+
             if nv_ident=="with" {
-                let function=str_.parse::<syn::Path>().unwrap()
+                let function=str_.parse::<syn::Path>()?
                     .piped(|i| arenas.alloc(i) );
-                OnMissingField::With{function}
+                Ok(OnMissingField::With{function})
             }else if nv_ident=="value" {
-                let value=str_.parse::<syn::Expr>().unwrap()
+                let value=str_.parse::<syn::Expr>()?
                     .piped(|i| arenas.alloc(i) );
-                OnMissingField::Value{value}
+                Ok(OnMissingField::Value{value})
             }else{
-                panic!(
-                    "Invalid attribute:{}\n{}",
-                    first_arg.into_token_stream(),
-                    attribute_msg
-                )
+                Err(mf_err(&first_arg))
             }
         }
-        Some(NestedMeta::Meta(Meta::Word(ref word)))if word=="option"=>{
-            OnMissingField::ReturnOption
+        Some(NestedMeta::Meta(Meta::Path(ref path)))=>{
+            let word=path.get_ident().ok_or_else(|| mf_err(&first_arg) )?;
+
+            if word=="option" {
+                Ok(OnMissingField::ReturnOption)
+            }else if word=="panic" {
+                Ok(OnMissingField::Panic)
+            }else if word=="default" {
+                Ok(OnMissingField::Default_)
+            }else{
+                Err(mf_err(word))
+            }
         }
-        Some(NestedMeta::Meta(Meta::Word(ref word)))if word=="panic"=>{
-            OnMissingField::Panic
+        Some(rem)=>{
+            Err(mf_err(&rem))
         }
-        Some(NestedMeta::Meta(Meta::Word(ref word)))if word=="default"=>{
-            OnMissingField::Default_
-        }
-        Some(rem)=>panic!(
-            "Invalid attribute:{}\n{}",
-            rem.into_token_stream(),
-            attribute_msg
-        ),
-        None=>panic!(
+        None=>Err(spanned_err!(
+            list,
             "Error:Expected one attribute inside `missing_field(..)`\n{}",
-            attribute_msg
-        ),
+            ATTRIBUTE_MSG
+        )),
     }
 }
 
@@ -758,30 +853,30 @@ fn parse_prefix_type_list<'a>(
     _name:&'a Ident,
     list: &Punctuated<NestedMeta, Comma>, 
     arenas: &'a Arenas
-)->UncheckedPrefixKind<'a>{
+)-> Result<UncheckedPrefixKind<'a>,syn::Error> {
     let mut iter=list.into_iter();
 
     let prefix_struct=match iter.next() {
         Some(NestedMeta::Meta(Meta::NameValue(MetaNameValue{
-            ident:ref nv_ident,
+            ref path,
             lit:Lit::Str(ref type_str),
             ..
         })))
-        if nv_ident=="prefix_struct" =>{
+        if path.equals_str("prefix_struct") =>{
             let type_str=type_str.value();
             parse_str_as_ident(&type_str)
                 .piped(|i| arenas.alloc(i) )
         }
-        x => panic!(
+        ref x => return_spanned_err!(
+            x,
             "invalid #[sabi(kind(Prefix(  )))] attribute\
-             (it must be prefix_struct=\"NameOfPrefixStruct|default\" ):\n{:?}\n", 
-            x
+             (it must be prefix_struct=\"NameOfPrefixStruct\" )."
         )
     };
     
-    UncheckedPrefixKind{
+    Ok(UncheckedPrefixKind{
         prefix_struct,
-    }
+    })
 }
 
 
@@ -790,124 +885,146 @@ fn parse_non_exhaustive_list<'a>(
     _name:&'a Ident,
     list: &Punctuated<NestedMeta, Comma>, 
     arenas: &'a Arenas
-)->UncheckedNonExhaustive<'a>{
+)-> Result<UncheckedNonExhaustive<'a>,syn::Error> {
 
-    let trait_set=[
+    fn make_err(tokens:&dyn ToTokens,param:&str)->syn::Error{
+        spanned_err!(
+            tokens,
+            "invalid #[sabi(kind(WithNonExhaustive({})))] attribute",
+            param,
+        )
+    }
+
+    let trait_set_strs=[
         "Clone","Display","Debug",
         "Eq","PartialEq","Ord","PartialOrd",
         "Hash","Deserialize","Serialize","Send","Sync","Error",
-    ].iter()
-     .map(|e| arenas.alloc(Ident::new(e,Span::call_site()) ) )
-     .collect::<HashSet<&'a Ident>>();
+    ];    
+
+    let trait_set=trait_set_strs
+        .iter()
+        .map(|e| arenas.alloc(Ident::new(e,Span::call_site()) ) )
+        .collect::<HashSet<&'a Ident>>();
+
+    let trait_err=|trait_ident:&dyn ToTokens|->syn::Error{
+        spanned_err!(
+            trait_ident,
+            "Invalid trait in  #[sabi(kind(WithNonExhaustive(traits())))].\n\
+             Valid traits:\n\t{}\
+            ",
+            trait_set_strs.join("\n\t")
+        )
+    };
+    
 
     let mut this=UncheckedNonExhaustive::default();
 
+    let mut errors=Ok::<_,syn::Error>(());
+
     for elem in list {
         match elem {
-            NestedMeta::Meta(Meta::NameValue(MetaNameValue{ident,lit,..}))=>{
-                match lit {
-                    Lit::Str(str_lit)if ident=="align"=>{
-                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
-                        this.alignment=Some(IntOrType::Type(ty));
-                    }
-                    Lit::Int(int_lit)if ident=="align"=>{
-                        this.alignment=Some(IntOrType::Int(int_lit.value() as usize));
-                    }
-                    Lit::Str(str_lit)if ident=="size"=>{
-                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
-                        this.size=Some(IntOrType::Type(ty));
-                    }
-                    Lit::Int(int_lit)if ident=="size"=>{
-                        this.size=Some(IntOrType::Int(int_lit.value() as usize));
-                    }
-                    Lit::Str(str_lit)if ident=="assert_nonexhaustive"=>{
-                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
-                        this.assert_nonexh.push(ty);
-                    }
-                    Lit::Str(str_lit)if ident=="interface"=>{
-                        let ty=arenas.alloc(parse_lit_as_type(str_lit));
-                        this.enum_interface=Some(EnumInterface::Old(ty));
-                    }
-                    x => panic!(
-                        "invalid #[sabi(kind(WithNonExhaustive(  )))] attribute:\n{:?}\n", 
-                        x
-                    )
-                }
-            }
-            NestedMeta::Meta(Meta::List(sublist))if sublist.ident=="assert_nonexhaustive" =>{
-                for assertion in &sublist.nested {
-                    match assertion {
-                        NestedMeta::Literal(Lit::Str(str_lit))=>{
-                            let ty=arenas.alloc(parse_lit_as_type(str_lit));
-                            this.assert_nonexh.push(ty);
-                        }
-                        x => panic!(
-                            "invalid #[sabi(kind(WithNonExhaustive(assert_nonexhaustive(  ))))] \
-                             attribute:\n{:?}\n", 
-                            x
-                        )
-                    }
-                }
-            }
-            NestedMeta::Meta(Meta::List(sublist))if sublist.ident=="traits" =>{
-                let enum_interface=match &mut this.enum_interface {
-                    Some(EnumInterface::New(x))=>x,
-                    Some(EnumInterface::Old{..})=>{
-                        panic!("Cannot use both `interface=\"...\"` and `traits(...)`")
-                    }
-                    x@None=>{
-                        *x=Some(EnumInterface::New(Default::default()));
-                        match x {
-                            Some(EnumInterface::New(x))=>x,
-                            _=>unreachable!()
-                        }
-                    }
-                };
+            NestedMeta::Meta(Meta::NameValue(MetaNameValue{path,lit,..}))=>{
+                let ident=path.get_ident().ok_or_else(|| make_err(&path,"") )?;
 
-                for subelem in &sublist.nested {
-                    let (ident,is_impld)=match subelem {
-                        NestedMeta::Meta(Meta::Word(ident))=>{
-                            (ident,true)
+                match lit {
+                    Lit::Int(int_lit)=>{
+                        let int=IntOrType::Int(int_lit.base10_parse::<usize>()?);
+                        if ident=="align" {
+                            this.alignment=Some(int);
+                        }else if ident=="size" {
+                            this.size=Some(int);
+                        }else{
+                            return Err(make_err(ident,""))
                         }
-                        NestedMeta::Meta(Meta::NameValue(
-                            MetaNameValue{ident,lit:Lit::Bool(bool_lit),..}
-                        ))=>{
-                            (ident,bool_lit.value)
+                    }
+                    Lit::Str(str_lit)=>{
+                        let ty=arenas.alloc(parse_lit_as_type(str_lit)?);
+
+                        if ident=="align" {
+                            this.alignment=Some(IntOrType::Type(ty));
+                        }else if ident=="size" {
+                            this.size=Some(IntOrType::Type(ty));
+                        }else if ident=="assert_nonexhaustive" {
+                            this.assert_nonexh.push(ty);
+                        }else if ident=="interface" {
+                            this.enum_interface=Some(EnumInterface::Old(ty));
+                        }else{
+                            errors.push_err(make_err(ident,""))
                         }
-                        x => panic!(
-                            "invalid \
-                             #[sabi(kind(WithNonExhaustive(traits(  ))))] attribute:\n{:?}\n", 
-                            x
-                        )
+                    }
+                    ref x => errors.push_err(make_err(x,"")),
+                }
+            }
+            NestedMeta::Meta(Meta::List(sublist))=>{
+                let ident=sublist.path.get_ident().ok_or_else(|| make_err(&sublist,"") )?;
+
+                if ident=="assert_nonexhaustive" {
+                    for assertion in &sublist.nested {
+                        match assertion {
+                            NestedMeta::Lit(Lit::Str(str_lit))=>{
+                                let ty=arenas.alloc(parse_lit_as_type(str_lit)?);
+                                this.assert_nonexh.push(ty);
+                            }
+                            x => errors.push_err(make_err(x,"assert_nonexhaustive( )"))
+                        }
+                    }
+                }else if ident=="traits" {
+                    let enum_interface=match &mut this.enum_interface {
+                        Some(EnumInterface::New(x))=>x,
+                        Some(EnumInterface::Old{..})=>{
+                            return_spanned_err!(
+                                ident,
+                                "Cannot use both `interface=\"...\"` and `traits(...)`"
+                            )
+                        }
+                        x@None=>{
+                            *x=Some(EnumInterface::New(Default::default()));
+                            match x {
+                                Some(EnumInterface::New(x))=>x,
+                                _=>unreachable!()
+                            }
+                        }
                     };
 
-                    match trait_set.get(ident) {
-                        Some(&trait_ident) => {
-                            if is_impld {
-                                &mut enum_interface.impld
-                            }else{
-                                &mut enum_interface.unimpld
-                            }.push(trait_ident);
-                        },
-                        None =>panic!(
-                            "invalid trait inside \
-                             #[sabi(kind(WithNonExhaustive(traits(  ))))]:\n{:?}\n", 
-                            ident
-                        ),
+                    for subelem in &sublist.nested {
+                        let (ident,is_impld)=match subelem {
+                            NestedMeta::Meta(Meta::Path(path))=>{
+                                let ident=path.get_ident()
+                                    .ok_or_else(|| trait_err(ident) )?;
+                                (ident,true)
+                            }
+                            NestedMeta::Meta(Meta::NameValue(
+                                MetaNameValue{path,lit:Lit::Bool(bool_lit),..}
+                            ))=>{
+                                let ident=path.get_ident()
+                                    .ok_or_else(|| trait_err(ident) )?;
+                                (ident,bool_lit.value)
+                            }
+                            x =>{
+                                errors.push_err(trait_err(x));
+                                continue
+                            }
+                        };
+
+                        match trait_set.get(ident) {
+                            Some(&trait_ident) => {
+                                if is_impld {
+                                    &mut enum_interface.impld
+                                }else{
+                                    &mut enum_interface.unimpld
+                                }.push(trait_ident);
+                            },
+                            None =>errors.push_err(trait_err(ident))
+                        }
                     }
+                }else{
+                    errors.push_err(make_err(ident,""));
                 }
             }
-            x => panic!(
-                "invalid #[sabi(kind(WithNonExhaustive(  )))] attribute:\n{:?}\n", 
-                x
-            )
+            x => errors.push_err(make_err(x,""))
         }
     }
 
-    this
+    errors.map(|_| this )
 }
 
-
-
-
-fn parse_sabi_override<'a>(_this: &mut StableAbiAttrs<'a>, _attr: Meta, _arenas: &'a Arenas) {}

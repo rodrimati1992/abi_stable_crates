@@ -28,7 +28,7 @@ pub(crate) struct FnPointerTokens{
 impl FnPointerTokens{
     pub fn new(span:Span)->Self{
         Self{
-            c_abi_lit:syn::parse_str(r#""C""#).unwrap(),
+            c_abi_lit:syn::parse_str(r#""C""#).expect("BUG"),
             static_:Ident::new("static",span),
             underscore:Ident::new("_",span),
         }

@@ -80,3 +80,4 @@ impl<T> DEIteratorInterface<T>{
 impl<'a,T:'a> IteratorItem<'a> for DEIteratorInterface<T>{
     type Item=T;
 }
+

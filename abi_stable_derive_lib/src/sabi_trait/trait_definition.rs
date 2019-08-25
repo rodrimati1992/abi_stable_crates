@@ -3,11 +3,12 @@ use super::{
     attribute_parsing::{MethodWithAttrs,SabiTraitAttrs},
     impl_interfacetype::{TRAIT_LIST,TraitStruct,WhichTrait},
     replace_self_path::{self,ReplaceWith},
-    parse_utils::{parse_str_as_ident,parse_str_as_trait_bound},
+    parse_utils::{parse_str_as_ident,parse_str_as_type,parse_str_as_trait_bound},
 };
 
 use crate::{
     set_span_visitor::SetSpanVisitor,
+    utils::{dummy_ident,SynResultExt},
 };
 
 use std::{
@@ -113,15 +114,23 @@ impl<'a> TraitDefinition<'a>{
         }:SabiTraitAttrs<'a>,
         arenas: &'a Arenas,
         ctokens:&'a CommonTokens,
-    )->Self {
+    )-> Result<Self,syn::Error> {
         let vis=VisibilityKind::new(&trait_.vis);
         let submod_vis=vis.submodule_level(1);
         let mut assoc_tys=HashMap::default();
         let mut methods=Vec::<TraitMethod<'a>>::new();
 
+        let mut errors=Ok::<_,syn::Error>(());
+
         methods_with_attrs.into_iter().zip(disable_inherent_default)
             .filter_map(|(func,disable_inh_def)|{
-                TraitMethod::new(func,disable_inh_def,&trait_.vis,ctokens,arenas) 
+                match TraitMethod::new(func,disable_inh_def,&trait_.vis,ctokens,arenas) {
+                    Ok(x)=>x,
+                    Err(e)=>{
+                        errors.push_err(e);
+                        None
+                    }
+                }
             })
             .extending(&mut methods);
 
@@ -142,6 +151,7 @@ impl<'a> TraitDefinition<'a>{
             deserialize_bound,
             trait_flags,
             trait_spans,
+            errors:supertrait_errors,
         }=get_supertraits(
             &trait_.supertraits,
             &lifetime_params,
@@ -149,6 +159,7 @@ impl<'a> TraitDefinition<'a>{
             arenas,
             ctokens,
         );
+        errors.combine_err(supertrait_errors);
 
         // Adding the lifetime parameters in `&'a self` and `&'a mut self` 
         // that were declared in the trait generic parameter list.
@@ -179,10 +190,10 @@ impl<'a> TraitDefinition<'a>{
 
                     assoc_ty_index+=1;
                 },
-                item=>panic!(
-                    "\nAssociated item not compatible with #[sabi_trait]:\n\t{}\n\n",
-                    item.into_token_stream(),
-                ),
+                item=>errors.push_err(spanned_err!(
+                    item,
+                    "Associated item not compatible with #[sabi_trait]",
+                )),
             }
         }
 
@@ -198,7 +209,7 @@ impl<'a> TraitDefinition<'a>{
             quote!( <_OrigPtr::Target as __Trait #generics_params >:: )
         };
 
-        TraitDefinition{
+        Ok(TraitDefinition{
             item:trait_,
             name:&trait_.ident,
             which_object,
@@ -225,19 +236,21 @@ impl<'a> TraitDefinition<'a>{
             ts_fq_self:arenas.alloc(ts_fq_self),
             ctokens,
             arenas,
-        }
+        })
     }
 
     /// Returns a clone of `self`,
     /// where usages of associated types are replaced for use in `which_item`.
-    pub fn replace_self(&self,which_item:WhichItem)->Self{
+    pub fn replace_self(&self,which_item:WhichItem)->Result<Self,syn::Error>{
         let mut this=self.clone();
 
         let ctokens=self.ctokens;
 
+        let mut errors=Ok::<(),syn::Error>(());
+
         let replace_with=match which_item {
             WhichItem::Trait|WhichItem::TraitImpl=>{
-                return this;
+                return Ok(this);
             }
             WhichItem::TraitObjectImpl=>{
                 ReplaceWith::Remove
@@ -259,7 +272,8 @@ impl<'a> TraitDefinition<'a>{
         };
 
         for where_pred in &mut this.where_preds {
-            replace_self_path::replace_self_path(where_pred,replace_with.clone(),is_assoc_type);
+            replace_self_path::replace_self_path(where_pred,replace_with.clone(),is_assoc_type)
+                .combine_into_err(&mut errors);
         }
 
         for assoc_ty in this.assoc_tys.values_mut() {
@@ -267,13 +281,14 @@ impl<'a> TraitDefinition<'a>{
                 &mut assoc_ty.assoc_ty,
                 replace_with.clone(),
                 is_assoc_type,
-            );
+            ).combine_into_err(&mut errors);
         }
 
         for method in &mut this.methods {
-            method.replace_self(replace_with.clone(),is_assoc_type);
+            method.replace_self(replace_with.clone(),is_assoc_type)
+                .combine_into_err(&mut errors);
         }
-        this
+        errors.map(|_| this )        
     }
 
     /// Returns a tokenizer for the generic parameters in this trait.
@@ -330,16 +345,17 @@ impl<'a> TraitDefinition<'a>{
 
     /// Returns the where predicates of the inherent implementation of 
     /// the ffi-safe trait object.
-    pub fn trait_impl_where_preds(&self)->Punctuated<WherePredicate,Comma>{
+    pub fn trait_impl_where_preds(&self)-> Result<Punctuated<WherePredicate,Comma>,syn::Error> {
         let mut where_preds=self.where_preds.clone();
+        let mut errors=Ok::<(),syn::Error>(());
         for where_pred in &mut where_preds {
             replace_self_path::replace_self_path(
                 where_pred,
                 ReplaceWith::Remove,
                 |ident| self.assoc_tys.get(ident).map(|_| ReplaceWith::Remove )
-            );
+            ).combine_into_err(&mut errors);
         }
-        where_preds
+        errors.map(|_| where_preds )
     }
 
     /// Returns a tokenizer that outputs the method definitions inside the `which_item` item.
@@ -412,37 +428,43 @@ impl<'a> TraitMethod<'a>{
         vis:&'a Visibility,
         ctokens:&'a CommonTokens,
         arena:&'a Arenas,
-    )->Option<Self> {
+    )-> Result<Option<Self>,syn::Error> {
         let method_signature=&mwa.item.sig;
-        let decl=&method_signature.decl;
+        let decl=method_signature;
         let name=&method_signature.ident;
 
-        let panic_msg=||{
-            panic!("\n\n\
-                Cannot define #[sabi_trait]traits containing methods \
-                without a `self`/`&self`/`&mut self` receiver \
-                (static methods).\n\
-                Caused by the '{}' method.\n\n\
-            ",
+        let mut errors=Ok(());
+
+        let push_error_msg=|errors:&mut Result<(),syn::Error>|{
+            errors.push_err(spanned_err!(
                 method_signature.ident,
-            )
+                "Cannot define #[sabi_trait]traits containing methods \
+                 without a `self`/`&self`/`&mut self` receiver (static methods)."
+            ));
         };
         if decl.inputs.is_empty() {
-            panic_msg();
+            push_error_msg(&mut errors);
         }
 
         let mut input_iter=decl.inputs.iter();
 
-        let mut self_param=match input_iter.next()? {
-            FnArg::SelfRef(ref_)=>
-                SelfParam::ByRef{
-                    lifetime:ref_.lifetime.as_ref(),
-                    is_mutable:ref_.mutability.is_some(),
-                },
-            FnArg::SelfValue{..}=>
-                SelfParam::ByVal,
-            FnArg::Captured{..}|FnArg::Inferred{..}|FnArg::Ignored{..}=>
-                panic_msg(),
+        let mut self_param=match input_iter.next() {
+            Some(FnArg::Receiver(receiver))=>
+                match &receiver.reference {
+                    Some((_,lifetime))=>
+                        SelfParam::ByRef{
+                            lifetime:lifetime.as_ref(),
+                            is_mutable:receiver.mutability.is_some(),
+                        },
+                    None=>
+                        SelfParam::ByVal,
+                }
+            Some(FnArg::Typed{..})=>{
+                push_error_msg(&mut errors);
+                SelfParam::ByVal
+            }
+            None=>
+                return Ok(None),
         };
 
         let mut lifetimes:Vec<&'a syn::LifetimeDef>=decl.generics.lifetimes().collect();
@@ -450,7 +472,7 @@ impl<'a> TraitMethod<'a>{
         let output=match &decl.output {
             syn::ReturnType::Default=>None,
             syn::ReturnType::Type(_,ty)=>{
-                let mut ty=(**ty).clone();
+                let mut ty:syn::Type=(**ty).clone();
                 if let SelfParam::ByRef{lifetime,..}=&mut self_param {
                     LifetimeUnelider::new(ctokens,lifetime)
                         .visit_type(&mut ty)
@@ -463,7 +485,40 @@ impl<'a> TraitMethod<'a>{
 
         let default=mwa.item.default.as_ref().map(|block| DefaultMethod{block} );
 
-        Some(Self{
+        let where_clause=decl.generics.where_clause.as_ref()
+            .and_then(|wc|{
+                match MethodWhereClause::new(wc,ctokens)  {
+                    Ok(x)=>Some(x),
+                    Err(e)=>{ errors.push_err(e); None }
+                }
+            })
+            .unwrap_or_default();
+
+        let mut params=Vec::<MethodParam<'a>>::with_capacity(input_iter.len());
+
+        for (param_i,param) in input_iter.enumerate(){
+            let (pattern,ty)=match param {
+                FnArg::Receiver{..}=>unreachable!(),
+                FnArg::Typed(typed)=>(&*typed.pat,&*typed.ty),
+            };
+
+            let name=format!("param_{}",param_i);
+            let mut name=syn::parse_str::<Ident>(&name).unwrap_or_else(|e|{
+                errors.push_err(e);
+                dummy_ident()
+            });
+            name.set_span(param.span());
+
+            params.push(MethodParam{
+                name:arena.alloc(name),
+                ty:ty.clone(),
+                pattern,
+            });
+        }        
+
+        errors?;
+
+        Ok(Some(Self{
             disable_inherent_default,
             item:&mwa.item,
             unsafety:method_signature.unsafety.as_ref(),
@@ -474,37 +529,13 @@ impl<'a> TraitMethod<'a>{
             name,
             lifetimes,
             self_param,
-            params:input_iter
-                .enumerate()
-                .map(|(param_i,param)|{
-                    let (pattern,ty)=match param {
-                        FnArg::SelfRef{..}|FnArg::SelfValue{..}|FnArg::Inferred{..}=>
-                            unreachable!(),
-                        FnArg::Captured(x)=>{
-                            (&x.pat,&x.ty)
-                        },
-                        FnArg::Ignored(ty)=>
-                            (&ctokens.ignored_pat,ty),
-                    };
-
-                    let name=format!("param_{}",param_i);
-                    let mut name=syn::parse_str::<Ident>(&name).unwrap();
-                    name.set_span(param.span());
-                    MethodParam{
-                        name:arena.alloc(name),
-                        ty:ty.clone(),
-                        pattern,
-                    }
-                })
-                .collect(),
+            params,
             output,
-            where_clause:decl.generics.where_clause.as_ref()
-                .map(|wc| MethodWhereClause::new(wc,ctokens) )
-                .unwrap_or_default(),
+            where_clause,
             default,
             semicolon:mwa.item.semi_token.as_ref(),
             ctokens,
-        })
+        }))
     }
 
     /// Returns a clone of `self`,
@@ -512,10 +543,16 @@ impl<'a> TraitMethod<'a>{
     ///
     /// Whether `Self::AssocTy` is an associated type is determined using `is_assoc_type`,
     /// which returns `Some()` with what to do with the associated type.
-    pub fn replace_self<F>(&mut self,replace_with:ReplaceWith,mut is_assoc_type: F)
+    pub fn replace_self<F>(
+        &mut self,
+        replace_with:ReplaceWith,
+        mut is_assoc_type: F
+    )->Result<(),syn::Error>
     where
         F: FnMut(&Ident) -> Option<ReplaceWith>,
     {
+        let mut errors=Ok::<(),syn::Error>(());
+
         for param in self.params.iter_mut()
             .map(|x| &mut x.ty )
             .chain(self.output.as_mut())
@@ -524,8 +561,9 @@ impl<'a> TraitMethod<'a>{
                 param,
                 replace_with.clone(),
                 &mut is_assoc_type
-            );
+            ).combine_into_err(&mut errors);
         }
+        errors
     }
 }
 
@@ -623,6 +661,7 @@ struct GetSupertraits<'a>{
     deserialize_bound:Option<DeserializeBound<'a>>,
     trait_flags:TraitStruct<bool>,
     trait_spans:TraitStruct<Span>,
+    errors:Result<(),syn::Error>,
 }
 
 /// Contains information about a supertrait,including whether it's implemented.
@@ -643,7 +682,7 @@ fn get_supertraits<'a,I>(
     which_object:WhichObject,
     arenas: &'a Arenas,
     _ctokens:&'a CommonTokens,
-)->GetSupertraits<'a>
+)-> GetSupertraits<'a>
 where
     I:IntoIterator<Item=&'a TypeParamBound>
 {
@@ -658,7 +697,7 @@ where
             which_trait:t.which_trait,
             name:t.name,
             ident:parse_str_as_ident(t.name),
-            bound:parse_str_as_trait_bound(t.full_path),
+            bound:parse_str_as_trait_bound(t.full_path).expect("BUG"),
             is_implemented:false,
             _marker:PhantomData,
         }
@@ -666,13 +705,14 @@ where
 
     let mut lifetime_bounds=Vec::new();
     let mut iterator_item=None;
+    let mut errors=Ok::<_,syn::Error>(());
     let deserialize_bound=None;
 
     for supertrait_bound in supertraits{
         match supertrait_bound {
             TypeParamBound::Trait(trait_bound)=>{
                 let last_path_component=match trait_bound.path.segments.last() {
-                    Some(x)=>x.into_value(),
+                    Some(x)=>x,
                     None=>continue,
                 };
                 let trait_ident=&last_path_component.ident;
@@ -682,22 +722,21 @@ where
                         let usable_by=which_trait.usable_by();
                         match which_object {
                             WhichObject::DynTrait if !usable_by.dyn_trait() => {
-                                panic!(
-                                    "Cannot use this trait with DynTrait:{}",
-                                    (&trait_bound.path).into_token_stream()
-                                );
+                                errors.push_err(spanned_err!(
+                                    trait_bound.path,
+                                    "Cannot use this trait with DynTrait",
+                                ));
                             },
                             WhichObject::RObject if !usable_by.robject() => {
-                                panic!(
-                                    "Cannot use this trait with RObject:\n\
-                                     \t{}\n\
+                                errors.push_err(spanned_err!(
+                                    trait_bound.path,
+                                    "Cannot use this trait with RObject.
                                      To make that trait usable you must use the \
                                      #[sabi(use_dyntrait)] attribute,\
                                      which changes the trait object implementation \
                                      from using RObject to using DynTrait.\n\
                                     ",
-                                    (&trait_bound.path).into_token_stream()
-                                );
+                                ));
                             },
                             WhichObject::DynTrait|WhichObject::RObject => {}
                         }
@@ -737,10 +776,16 @@ where
                                 //             ),
                                 //     }
                                 // ));
-                                panic!("Deserialize is not currently supported.");
+                                errors.push_err(spanned_err!(
+                                    trait_bound.path,
+                                    "Deserialize is not currently supported."
+                                ));
                             }
                             WhichTrait::Serialize=>{
-                                panic!("Serialize is not currently supported.");
+                                errors.push_err(spanned_err!(
+                                    trait_bound.path,
+                                    "Serialize is not currently supported."
+                                ));
                             }
                             WhichTrait::Eq|WhichTrait::PartialOrd=>{
                                 set_impld(&mut trait_struct.partial_eq,span);
@@ -765,11 +810,12 @@ where
                             .map(|x| x.to_string() )
                             .collect::<Vec<String>>();
 
-                        panic!(
-                            "Unexpected supertrait bound:\n\t{}\nExpected one of:\n{}\n", 
-                            supertrait_bound.into_token_stream(),
+                        errors.push_err(spanned_err!(
+                            supertrait_bound,
+                            "Unexpected supertrait bound.\nExpected one of:\n{}",
                             list.join("/"),
-                        );
+                        ));
+                        break;
                     },
                 }
             }
@@ -777,10 +823,11 @@ where
                 if lifetime_params.contains(lt) {
                     lifetime_bounds.push(lt);
                 }else{
-                    panic!(
-                        "\nLifetimes is not from the trait or `'static`:\n\t{}\n\n",
-                        lt.into_token_stream(),
-                    );
+                    errors.push_err(spanned_err!(
+                        lt,
+                        "Lifetimes is not from the trait or `'static`.",
+                    ));
+                    break;
                 }
             }
         };
@@ -792,15 +839,18 @@ where
     if iter_trait.is_implemented||de_iter_trait.is_implemented {
         let iter_item:syn::Type=iterator_item.cloned()
             .unwrap_or_else(||{
-                panic!(
-                    "You must specify the Iterator item type,with `{}<Item= SomeType >` .",
-                    if de_iter_trait.is_implemented { "DoubleEndedÌterator" }else{ "Ìterator" }
-                );
+                let span=if de_iter_trait.is_implemented {
+                    de_iter_trait.ident.span()
+                }else{
+                    iter_trait.ident.span()
+                };
+                errors.push_err(syn_err!(span,"You must specify the Iterator item type."));
+                parse_str_as_type("()").expect("BUG")
             });
         let path_args=type_as_iter_path_arguments(iter_item);
 
         fn set_last_arguments(bounds:&mut syn::TraitBound,path_args:syn::PathArguments){
-            bounds.path.segments.last_mut().unwrap().value_mut().arguments=path_args;
+            bounds.path.segments.last_mut().expect("BUG").arguments=path_args;
         }
 
         if de_iter_trait.is_implemented{
@@ -832,6 +882,7 @@ where
         deserialize_bound,
         trait_flags,
         trait_spans,
+        errors,
     }
 }
 
@@ -889,27 +940,21 @@ fn type_as_iter_path_arguments(ty:syn::Type)->syn::PathArguments{
 fn extract_deserialize_lifetime<'a>(
     last_path_component:&syn::PathSegment,
     arenas:&'a Arenas,
-)->&'a syn::Lifetime{
+)-> Result<&'a syn::Lifetime,syn::Error> {
     use syn::{GenericArgument,PathArguments};
 
     let angle_brackets=match &last_path_component.arguments {
         PathArguments::AngleBracketed(x)=>x,
-        _=>panic!(
-            "Expected a lifetime parameter inside '{}'",
-            last_path_component.into_token_stream(),
-        )
+        _=>return_spanned_err!(last_path_component,"Expected a lifetime parameter inside")
     };
 
     for gen_arg in &angle_brackets.args {
         match gen_arg {
             GenericArgument::Lifetime(lt) =>{
-                return arenas.alloc(lt.clone());
+                return Ok(arenas.alloc(lt.clone()));
             }
             _=>{}
         }
     }
-    panic!(
-        "Expected a lifetime parameter inside '{}'",
-        last_path_component.into_token_stream(),
-    )
+    Err(spanned_err!(last_path_component,"Expected a lifetime parameter inside"))
 }

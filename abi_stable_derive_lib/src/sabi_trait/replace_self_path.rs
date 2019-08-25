@@ -7,9 +7,10 @@ use arrayvec::ArrayVec;
 use syn::visit_mut::VisitMut;
 use syn::{Ident, TypePath,TraitItemType};
 
-use quote::ToTokens;
-
 use std::mem;
+
+use crate::utils::SynResultExt;
+
 
 /// What to do with the a path component when it's found.
 #[derive(Debug,Clone)]
@@ -70,11 +71,14 @@ pub(crate) fn replace_self_path<V,F>(
     value: &mut V,
     replace_with:ReplaceWith,
     is_assoc_type: F
-) where
+)-> Result<(),syn::Error>
+where
     V:VisitMutWith,
     F: FnMut(&Ident) -> Option<ReplaceWith>,
 {
-    value.visit_mut_with(&mut SelfReplacer { is_assoc_type , replace_with });
+    let mut replacer=SelfReplacer { is_assoc_type , replace_with , errors:Ok(()) };
+    value.visit_mut_with(&mut replacer);
+    replacer.errors
 }
 
 
@@ -82,6 +86,7 @@ pub(crate) fn replace_self_path<V,F>(
 pub(crate)struct SelfReplacer<F> {
     is_assoc_type: F,
     replace_with:ReplaceWith,
+    errors:Result<(),syn::Error>,
 }
 
 impl<F> VisitMut for SelfReplacer<F>
@@ -106,15 +111,20 @@ where
         let is_self= segments[0].ident == "Self";
 
         match (segments.len(), is_self) {
-            (0,true)|(1,true)=>panic!(
-                "Self can't be used in a parameter,return type,or associated type.", 
-            ),
+            (0,true)|(1,true)=>{
+                self.errors.push_err(spanned_err!(
+                    segments,
+                    "Self can't be used in a parameter,return type,or associated type.", 
+                ));
+                return;
+            }
             (2,true)=>{}
             (_,true)=>{
-                panic!(
-                    "Paths with 3 or more components are currently unsupported:\n{}\n", 
-                    (&*segments).into_token_stream()
-                );
+                self.errors.push_err(spanned_err!(
+                    segments,
+                    "Paths with 3 or more components are currently unsupported", 
+                ));
+                return;
             }
             (_,false)=>return,
         }
