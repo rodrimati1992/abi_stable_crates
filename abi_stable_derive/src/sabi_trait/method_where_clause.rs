@@ -4,7 +4,7 @@ use quote::ToTokens;
 
 use syn::{WhereClause,WherePredicate};
 
-use crate::utils::SynResultExt;
+use crate::utils::{LinearResult,SynResultExt};
 
 
 /// Parses and prints the syntactically valid where clauses in object safe traits.
@@ -18,7 +18,7 @@ pub(crate) struct MethodWhereClause<'a>{
 impl<'a> MethodWhereClause<'a>{
     pub fn new(where_:&'a WhereClause,ctokens:&'a CommonTokens)-> Result<Self,syn::Error> {
         let mut this=MethodWhereClause::default();
-        let mut error=Ok::<_,syn::Error>(());
+        let mut error=LinearResult::ok(());
         
         for predicate in &where_.predicates {
             match predicate {
@@ -48,7 +48,7 @@ impl<'a> MethodWhereClause<'a>{
                 }
             }
         }
-        error.map(|_| this )
+        error.into_result().map(|_| this )
     }
 
     pub fn get_tokenizer(&self,ctokens:&'a CommonTokens)->MethodWhereClauseTokenizer<'_>{

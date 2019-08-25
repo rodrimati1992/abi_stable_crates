@@ -1,6 +1,8 @@
 use std::{
     fmt::Display,
+    mem::{self,ManuallyDrop},
     ops::{Deref,DerefMut},
+    ptr,
     time::Instant,
 };
 
@@ -132,23 +134,51 @@ impl<T> SynResultExt for Result<T,syn::Error>{
 ////////////////////////////////////////////////////////////////////////////////
 
 
+/// A result wrapper which panics if it's the error variant is not handled,
+/// by calling `.into_result()`.
 #[derive(Debug,Clone)]
-pub(crate) struct DefaultedResult<T>{
-    pub(crate) errors:Result<T,syn::Error>,
+pub(crate) struct LinearResult<T>{
+    errors:ManuallyDrop<Result<T,syn::Error>>,
 }
 
-impl<T> Default for DefaultedResult<T>
+impl<T> Drop for LinearResult<T>{
+    fn drop(&mut self){
+        let res=unsafe{ take_manuallydrop(&mut self.errors) };
+        res.expect("Expected LinearResult to be handled");
+    }
+}
+
+impl<T> LinearResult<T>{
+    #[inline]
+    pub(crate) fn new(res:Result<T,syn::Error>)->Self{
+        Self{
+            errors:ManuallyDrop::new(res),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn ok(value:T)->Self{
+        Self::new(Ok(value))
+    }
+}
+
+impl<T> Default for LinearResult<T>
 where
     T:Default
 {
     fn default()->Self{
-        DefaultedResult{
-            errors:Ok(T::default())
-        }
+        Self::new(Ok(T::default()))
     }
 }
 
-impl<T> Deref for DefaultedResult<T>{
+impl<T> From<Result<T,syn::Error>> for LinearResult<T>{
+    #[inline]
+    fn from(res:Result<T,syn::Error>)->Self{
+        Self::new(res)
+    }
+}
+
+impl<T> Deref for LinearResult<T>{
     type Target=Result<T,syn::Error>;
 
     fn deref(&self)->&Result<T,syn::Error>{
@@ -156,36 +186,43 @@ impl<T> Deref for DefaultedResult<T>{
     }
 }
 
-impl<T> DerefMut for DefaultedResult<T>{
+impl<T> DerefMut for LinearResult<T>{
     fn deref_mut(&mut self)->&mut Result<T,syn::Error>{
         &mut self.errors
     }
 }
 
-impl<T> From<Result<T,syn::Error>> for DefaultedResult<T>{
-    #[inline]
-    fn from(res:Result<T,syn::Error>)->Self{
-        DefaultedResult{
-            errors:res
-        }
-    }
-}
 
-impl<T> Into<Result<T,syn::Error>> for DefaultedResult<T>{
+impl<T> Into<Result<T,syn::Error>> for LinearResult<T>{
     #[inline]
     fn into(self)->Result<T,syn::Error>{
-        self.errors
+        self.into_result()
     }
 }
 
-impl<T> DefaultedResult<T>{
-    #[allow(dead_code)]
+#[allow(dead_code)]
+impl<T> LinearResult<T>{
+    #[inline]
     pub(crate) fn into_result(self)->Result<T,syn::Error>{
-        self.errors
+        let mut this=ManuallyDrop::new(self);
+        unsafe{ take_manuallydrop(&mut this.errors) }
+    }
+
+    #[inline]
+    pub(crate) fn take(&mut self)->Result<T,syn::Error>
+    where
+        T:Default
+    {
+        self.replace(Ok(Default::default()))
+    }
+
+    #[inline]
+    pub(crate) fn replace(&mut self,other:Result<T,syn::Error>)->Result<T,syn::Error>{
+        mem::replace(&mut *self.errors,other)
     }
 }
 
-impl<T> SynResultExt for DefaultedResult<T>{
+impl<T> SynResultExt for LinearResult<T>{
     #[inline]
     fn push_err(&mut self,err:syn::Error){
         self.errors.push_err(err);
@@ -196,7 +233,7 @@ impl<T> SynResultExt for DefaultedResult<T>{
     }
     #[inline]
     fn combine_into_err<T2>(self,into:&mut Result<T2,syn::Error>){
-        self.errors.combine_into_err(into);
+        self.into_result().combine_into_err(into);
     }
 }
 
@@ -211,4 +248,18 @@ pub(crate) fn spanned_err(tokens:&dyn ToTokens, display:&dyn Display)-> syn::Err
 #[allow(dead_code)]
 pub(crate) fn syn_err(span:Span,display:&dyn Display)-> syn::Error {
     syn::Error::new(span,display)
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+/// Takes the contents out of a `ManuallyDrop<T>`.
+///
+/// # Safety
+///
+/// After this function is called `slot` will become uninitialized and 
+/// must not be read again.
+pub unsafe fn take_manuallydrop<T>(slot: &mut ManuallyDrop<T>) -> T {
+    ManuallyDrop::into_inner(ptr::read(slot))
 }

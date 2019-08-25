@@ -19,8 +19,9 @@ pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> To
 }
 
 #[cfg(test)]
-fn mangle_library_getter_str(item: &str)->TokenStream2{
-    parse_str_or_compile_err( item, mangle_library_getter_inner )
+fn mangle_library_getter_str(item: &str)-> Result<TokenStream2,syn::Error> {
+    syn::parse_str(item)
+        .and_then(mangle_library_getter_inner)
 }
 
 
@@ -144,7 +145,7 @@ mod tests{
         ];
 
         for (item,expected_const) in list {
-            let str_out=mangle_library_getter_str(item).to_string()
+            let str_out=mangle_library_getter_str(item).unwrap().to_string()
                 .chars()
                 .filter(|c|!c.is_whitespace())
                 .collect::<String>();

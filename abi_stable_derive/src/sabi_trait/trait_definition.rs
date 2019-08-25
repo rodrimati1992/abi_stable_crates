@@ -8,7 +8,7 @@ use super::{
 
 use crate::{
     set_span_visitor::SetSpanVisitor,
-    utils::{dummy_ident,SynResultExt},
+    utils::{dummy_ident,LinearResult,SynResultExt},
 };
 
 use std::{
@@ -120,7 +120,7 @@ impl<'a> TraitDefinition<'a>{
         let mut assoc_tys=HashMap::default();
         let mut methods=Vec::<TraitMethod<'a>>::new();
 
-        let mut errors=Ok::<_,syn::Error>(());
+        let mut errors=LinearResult::ok(());
 
         methods_with_attrs.into_iter().zip(disable_inherent_default)
             .filter_map(|(func,disable_inh_def)|{
@@ -159,7 +159,7 @@ impl<'a> TraitDefinition<'a>{
             arenas,
             ctokens,
         );
-        errors.combine_err(supertrait_errors);
+        errors.combine_err(supertrait_errors.into());
 
         // Adding the lifetime parameters in `&'a self` and `&'a mut self` 
         // that were declared in the trait generic parameter list.
@@ -209,6 +209,8 @@ impl<'a> TraitDefinition<'a>{
             quote!( <_OrigPtr::Target as __Trait #generics_params >:: )
         };
 
+        errors.into_result()?;
+
         Ok(TraitDefinition{
             item:trait_,
             name:&trait_.ident,
@@ -246,7 +248,7 @@ impl<'a> TraitDefinition<'a>{
 
         let ctokens=self.ctokens;
 
-        let mut errors=Ok::<(),syn::Error>(());
+        let mut errors=LinearResult::ok(());
 
         let replace_with=match which_item {
             WhichItem::Trait|WhichItem::TraitImpl=>{
@@ -288,7 +290,7 @@ impl<'a> TraitDefinition<'a>{
             method.replace_self(replace_with.clone(),is_assoc_type)
                 .combine_into_err(&mut errors);
         }
-        errors.map(|_| this )        
+        errors.into_result().map(|_| this )        
     }
 
     /// Returns a tokenizer for the generic parameters in this trait.
@@ -347,7 +349,7 @@ impl<'a> TraitDefinition<'a>{
     /// the ffi-safe trait object.
     pub fn trait_impl_where_preds(&self)-> Result<Punctuated<WherePredicate,Comma>,syn::Error> {
         let mut where_preds=self.where_preds.clone();
-        let mut errors=Ok::<(),syn::Error>(());
+        let mut errors=LinearResult::ok(());
         for where_pred in &mut where_preds {
             replace_self_path::replace_self_path(
                 where_pred,
@@ -355,7 +357,7 @@ impl<'a> TraitDefinition<'a>{
                 |ident| self.assoc_tys.get(ident).map(|_| ReplaceWith::Remove )
             ).combine_into_err(&mut errors);
         }
-        errors.map(|_| where_preds )
+        errors.into_result().map(|_| where_preds )
     }
 
     /// Returns a tokenizer that outputs the method definitions inside the `which_item` item.
@@ -433,7 +435,7 @@ impl<'a> TraitMethod<'a>{
         let decl=method_signature;
         let name=&method_signature.ident;
 
-        let mut errors=Ok(());
+        let mut errors=LinearResult::ok(());
 
         let push_error_msg=|errors:&mut Result<(),syn::Error>|{
             errors.push_err(spanned_err!(
@@ -463,8 +465,10 @@ impl<'a> TraitMethod<'a>{
                 push_error_msg(&mut errors);
                 SelfParam::ByVal
             }
-            None=>
-                return Ok(None),
+            None=>{
+                push_error_msg(&mut errors);
+                return errors.into_result().map(|_|unreachable!());
+            }
         };
 
         let mut lifetimes:Vec<&'a syn::LifetimeDef>=decl.generics.lifetimes().collect();
@@ -516,7 +520,7 @@ impl<'a> TraitMethod<'a>{
             });
         }        
 
-        errors?;
+        errors.into_result()?;
 
         Ok(Some(Self{
             disable_inherent_default,
@@ -551,7 +555,7 @@ impl<'a> TraitMethod<'a>{
     where
         F: FnMut(&Ident) -> Option<ReplaceWith>,
     {
-        let mut errors=Ok::<(),syn::Error>(());
+        let mut errors=LinearResult::ok(());
 
         for param in self.params.iter_mut()
             .map(|x| &mut x.ty )
@@ -563,7 +567,7 @@ impl<'a> TraitMethod<'a>{
                 &mut is_assoc_type
             ).combine_into_err(&mut errors);
         }
-        errors
+        errors.into()
     }
 }
 
@@ -661,7 +665,7 @@ struct GetSupertraits<'a>{
     deserialize_bound:Option<DeserializeBound<'a>>,
     trait_flags:TraitStruct<bool>,
     trait_spans:TraitStruct<Span>,
-    errors:Result<(),syn::Error>,
+    errors:LinearResult<()>,
 }
 
 /// Contains information about a supertrait,including whether it's implemented.
@@ -705,7 +709,7 @@ where
 
     let mut lifetime_bounds=Vec::new();
     let mut iterator_item=None;
-    let mut errors=Ok::<_,syn::Error>(());
+    let mut errors=LinearResult::ok(());
     let deserialize_bound=None;
 
     for supertrait_bound in supertraits{

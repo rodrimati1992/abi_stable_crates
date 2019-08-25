@@ -17,7 +17,7 @@ use crate::{
     attribute_parsing::with_nested_meta,
     arenas::Arenas,
     parse_utils::parse_str_as_path,
-    utils::{DefaultedResult,SynPathExt,SynResultExt},
+    utils::{LinearResult,SynPathExt,SynResultExt},
 };
 
 
@@ -103,7 +103,7 @@ pub(super) struct SabiTraitAttrs<'a> {
     /// the vtable entry is absent.
     pub(super) disable_inherent_default:Vec<bool>,
 
-    pub(super) errors:DefaultedResult<()>,
+    pub(super) errors:LinearResult<()>,
 }
 
 
@@ -171,8 +171,7 @@ pub(crate) fn parse_attrs_for_sabi_trait<'a>(
         wrap_attrs_in_sabi_list(&mut this.attrs.derive_attrs)
     }
 
-    this.errors.errors?;
-    this.errors=Default::default();
+    this.errors.take()?;
 
     SabiTraitOptions::new(trait_,this,arenas,ctokens)
 }

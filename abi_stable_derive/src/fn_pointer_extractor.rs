@@ -28,7 +28,7 @@ use crate::{
     common_tokens::FnPointerTokens,
     lifetimes::LifetimeIndex,
     ignored_wrapper::Ignored,
-    utils::SynResultExt,
+    utils::{LinearResult,SynResultExt},
 };
 use crate::*;
 
@@ -130,7 +130,7 @@ impl<'a> TypeVisitor<'a> {
                     initial_bound_lifetime: generics.lifetimes().count(),
                     functions: Vec::new(),
                 },
-                errors:Ok(()),
+                errors:LinearResult::ok(()),
             },
         }
     }
@@ -202,7 +202,7 @@ struct Vars<'a> {
     /// For TLField.
     referenced_lifetimes: Vec<LifetimeIndex>,
     fn_info: FnInfo<'a>,
-    errors: Result<(),syn::Error>,
+    errors: LinearResult<()>,
 }
 
 /// Used to visit a function pointer type.

@@ -13,10 +13,6 @@ use syn::{ItemFn,Expr};
 
 use crate::{parse_or_compile_err};
 
-#[cfg(test)]
-use crate::{parse_str_or_compile_err};
-
-
 
 #[doc(hidden)]
 pub fn sabi_extern_fn(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
@@ -27,14 +23,12 @@ pub fn sabi_extern_fn(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
 }
 
 #[cfg(test)]
-pub(crate) fn sabi_extern_fn_str(attr: &str, item: &str) -> TokenStream2 {
-    parse_str_or_compile_err( 
-        item, 
-        move|item|{
+pub(crate) fn sabi_extern_fn_str(attr: &str, item: &str) -> Result<TokenStream2,syn::Error> {
+    syn::parse_str(item)
+        .and_then(move|item|{
             let attr=syn::parse_str::<TokenStream2>(attr)?;
             sabi_extern_fn_inner(attr,item) 
-        }
-    )
+        })
 }
 
 /// Whether the function contains an early return or not.
@@ -147,7 +141,7 @@ mod tests{
 
         for (attr,item,expected) in list {
             assert_eq!(
-                sabi_extern_fn_str(attr,item).to_string(),
+                sabi_extern_fn_str(attr,item).unwrap().to_string(),
                 expected.to_string()
             );
         }

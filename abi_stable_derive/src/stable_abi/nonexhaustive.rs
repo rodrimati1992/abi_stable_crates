@@ -26,7 +26,7 @@ use crate::{
     parse_utils::{parse_str_as_ident,parse_str_as_path},
     set_span_visitor::SetSpanVisitor,
     to_token_fn::ToTokenFnMut,
-    utils::SynResultExt,
+    utils::{LinearResult,SynResultExt},
 };
 
 
@@ -151,7 +151,7 @@ impl<'a> NonExhaustive<'a>{
             arenas.alloc(ident)
         };
 
-        let mut errors=Ok::<(),syn::Error>(());
+        let mut errors=LinearResult::ok(());
 
         let size=unchecked.size.unwrap_or_else(||{
             errors.push_err(spanned_err!(
@@ -250,6 +250,7 @@ impl<'a> NonExhaustive<'a>{
             })
             .collect();
 
+        errors.into_result()?;
 
         Ok(Self{
             nonexhaustive_alias:parse_ident(&format!("{}_NE",name),None),

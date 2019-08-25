@@ -9,7 +9,7 @@ use syn::{Ident, TypePath,TraitItemType};
 
 use std::mem;
 
-use crate::utils::SynResultExt;
+use crate::utils::{LinearResult,SynResultExt};
 
 
 /// What to do with the a path component when it's found.
@@ -76,9 +76,13 @@ where
     V:VisitMutWith,
     F: FnMut(&Ident) -> Option<ReplaceWith>,
 {
-    let mut replacer=SelfReplacer { is_assoc_type , replace_with , errors:Ok(()) };
+    let mut replacer=SelfReplacer { 
+        is_assoc_type,
+        replace_with, 
+        errors:LinearResult::ok(()),
+    };
     value.visit_mut_with(&mut replacer);
-    replacer.errors
+    replacer.errors.into()
 }
 
 
@@ -86,7 +90,7 @@ where
 pub(crate)struct SelfReplacer<F> {
     is_assoc_type: F,
     replace_with:ReplaceWith,
-    errors:Result<(),syn::Error>,
+    errors:LinearResult<()>,
 }
 
 impl<F> VisitMut for SelfReplacer<F>
