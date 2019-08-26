@@ -12,6 +12,8 @@ use std::{
     fmt::{self,Display},
 };
 
+use core_extensions::SelfOps;
+
 
 /// This checks that the layout of types coming from dynamic libraries 
 /// are compatible with those of the binary/dynlib that loads them.
@@ -144,7 +146,7 @@ impl ExtraChecks for InOrderChecker {
         layout_containing_other:&'static TypeLayout,
         checker:TypeCheckerMut<'_,'_>,
     )->RResult<(), ExtraChecksError> {
-        Self::downcast_with_layout(layout_containing_other,checker,|_|{
+        Self::downcast_with_layout(layout_containing_other,checker,|_,_|{
             let fields=layout_containing_self.get_fields().unwrap_or_default();
 
             if fields.is_empty() {
@@ -356,7 +358,7 @@ impl ExtraChecks for ConstChecker {
         layout_containing_other:&'static TypeLayout,
         checker:TypeCheckerMut<'_,'_>,
     )->RResult<(), ExtraChecksError> {
-        Self::downcast_with_layout(layout_containing_other,checker,|other|{
+        Self::downcast_with_layout(layout_containing_other,checker,|other,_|{
             if self.number==other.number {
                 Ok(())
             }else{
@@ -622,7 +624,7 @@ impl ExtraChecks for ConstChecker {
         layout_containing_other:&'static TypeLayout,
         checker:TypeCheckerMut<'_,'_>,
     )->RResult<(), ExtraChecksError> {
-        Self::downcast_with_layout(layout_containing_other,checker,|other|{
+        Self::downcast_with_layout(layout_containing_other,checker,|other,_|{
             self.check_compatible_inner(other)
         })
     }
@@ -818,7 +820,7 @@ within `layout_containing_other`.
     )->RResult<R, ExtraChecksError>
     where
         Self:'static,
-        F:FnOnce(&Self)->Result<R,E>,
+        F:FnOnce(&Self,TypeCheckerMut<'_,'_>)->Result<R,E>,
         E:Send+Sync+ErrorTrait+'static,
     {
         let other=rtry!(
@@ -830,6 +832,8 @@ within `layout_containing_other`.
 
 /**
 Allows one to access the unerased type of the `other` trait object .
+
+If the closure returns an `ExtraChecksError`,it'll be returned unmodified and unwrapped.
 
 # Returns
 
@@ -849,7 +853,7 @@ Allows one to access the unerased type of the `other` trait object .
         f:F,
     )->RResult<R, ExtraChecksError>
     where
-        F:FnOnce(&Self)->Result<R,E>,
+        F:FnOnce(&Self,TypeCheckerMut<'_,'_>)->Result<R,E>,
         E:Send+Sync+ErrorTrait+'static,
     {
         // This checks that the layouts of `this` and `other` are compatible,
@@ -857,7 +861,14 @@ Allows one to access the unerased type of the `other` trait object .
         rtry!( checker.check_compatibility(<Self as StableAbi>::LAYOUT,other.type_layout()) );
         let other_ue=unsafe{ other.obj.unchecked_into_unerased::<Self>() };
 
-        f(other_ue).map_err(ExtraChecksError::from_extra_checks).into_c()
+        f(other_ue,checker)
+            .map_err(|e|{
+                match RBoxError::new(e).downcast::<ExtraChecksError>() {
+                    Ok(x)=>x.piped(RBox::into_inner),
+                    Err(e)=>ExtraChecksError::from_extra_checks(e),
+                }
+            })
+            .into_c()
     }
 }
 

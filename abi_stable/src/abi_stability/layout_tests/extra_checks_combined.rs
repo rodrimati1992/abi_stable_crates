@@ -8,16 +8,21 @@ use crate::{
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
     sabi_trait::prelude::TU_Opaque,
-    std_types::{RCow,RResult,ROption,RSome,StaticStr},
+    sabi_types::{Constructor,CmpIgnored},
+    std_types::*,
     sabi_extern_fn,
-    utils,
+    utils::{self,leak_value},
     GetStaticEquivalent,
     StableAbi,
 };
 
-use std::fmt::{self,Display};
+use std::{
+    fmt::{self,Display},
+    marker::PhantomData,
+    ptr,
+};
 
-use core_extensions::matches;
+use core_extensions::{matches,SelfOps};
 
 
 fn check_subsets<F>(list:&[&'static TypeLayout],mut f:F)
@@ -116,7 +121,6 @@ fn test_incompatible(){
 
 
 //////////////////////////////////////////////////////////////////////////////////
-
 
 
 #[repr(C)]
@@ -229,7 +233,7 @@ impl ExtraChecks for ConstChecker {
         layout_containing_other:&'static TypeLayout,
         checker:TypeCheckerMut<'_,'_>,
     )->RResult<(), ExtraChecksError> {
-        Self::downcast_with_layout(layout_containing_other,checker,|other|{
+        Self::downcast_with_layout(layout_containing_other,checker,|other,_|{
             self.check_compatible_inner(other)
         })
     }
@@ -243,7 +247,7 @@ impl ExtraChecks for ConstChecker {
         other:ExtraChecksRef<'_>,
         checker:TypeCheckerMut<'_,'_>
     )->RResult<ROption<ExtraChecksBox>, ExtraChecksError>{
-        Self::downcast_with_object(other,checker,|other|{
+        Self::downcast_with_object(other,checker,|other,_|{
             let (min,max)=utils::min_max_by(self,other,|x|x.chars.len());
             min.check_compatible_inner(max)
                 .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TU_Opaque) ) )
@@ -275,3 +279,161 @@ impl Display for UnequalConstError{
 }
 
 impl std::error::Error for UnequalConstError{}
+
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+
+
+/// This is used to check that type checking within ExtraChecks works as expected.
+#[repr(C)]
+#[derive(Debug,Clone,StableAbi)]
+pub struct IdentityChecker{
+    type_layout:&'static TypeLayout,
+}
+
+impl Display for IdentityChecker{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        Display::fmt(self.type_layout,f)
+    }
+}
+
+
+impl ExtraChecks for IdentityChecker {
+    fn type_layout(&self)->&'static TypeLayout{
+        <Self as StableAbi>::LAYOUT
+    }
+
+    fn check_compatibility(
+        &self,
+        _layout_containing_self:&'static TypeLayout,
+        layout_containing_other:&'static TypeLayout,
+        ty_checker:TypeCheckerMut<'_,'_>,
+    )->RResult<(), ExtraChecksError> {
+        Self::downcast_with_layout(layout_containing_other,ty_checker,|other,mut ty_checker|{
+            ty_checker.check_compatibility(self.type_layout,other.type_layout).into_result()
+        }).observe(|res|{
+            assert!(
+                matches!(ROk(_)|RErr(ExtraChecksError::TypeChecker)=res),
+                "It isn't either ROk or an RErr(TypeChecker):\n{:?}",
+                res
+            )
+        })
+    }
+
+    fn nested_type_layouts(&self)->RCow<'_,[&'static TypeLayout]>{
+        std::slice::from_ref(&self.type_layout)
+            .into()
+    }
+}
+
+
+
+#[test]
+fn test_identity_extra_checker() {
+
+    struct MakeExtraChecks<T>(T);
+
+    impl<T> MakeExtraChecks<T>
+    where
+        T:StableAbi
+    {
+        const NEW:&'static IdentityChecker=
+            &IdentityChecker{ type_layout:T::LAYOUT };
+        
+        extern fn construct_extra_checks()->ExtraChecksStaticRef{
+            ExtraChecksStaticRef::from_ptr(
+                Self::NEW,
+                TU_Opaque
+            )
+        }
+
+    }
+
+    fn wrap_type_layout<T>()->&'static TypeLayout
+    where
+        T:StableAbi
+    {
+        <()>::LAYOUT.clone()
+            .mutated(|this|{
+                this.extra_checks=
+                    Constructor(MakeExtraChecks::<T>::construct_extra_checks)
+                    .piped(Some)
+                    .piped(CmpIgnored::new);
+            })
+            .piped(leak_value)
+    }
+
+    use crate::{
+        external_types::ROnce,
+    };
+
+    let list = vec![
+        wrap_type_layout::<&mut ()>(),
+        wrap_type_layout::<&mut i32>(),
+        wrap_type_layout::<&()>(),
+        wrap_type_layout::<&i32>(),
+        wrap_type_layout::<&'static &'static ()>(),
+        wrap_type_layout::<&'static mut &'static ()>(),
+        wrap_type_layout::<&'static &'static mut ()>(),
+        wrap_type_layout::<[(); 0]>(),
+        wrap_type_layout::<[(); 1]>(),
+        wrap_type_layout::<[u32; 3]>(),
+        wrap_type_layout::<i32>(),
+        wrap_type_layout::<u32>(),
+        wrap_type_layout::<bool>(),
+        wrap_type_layout::<ptr::NonNull<()>>(),
+        wrap_type_layout::<ptr::NonNull<i32>>(),
+        wrap_type_layout::<RHashMap<RString,RString>>(),
+        wrap_type_layout::<RHashMap<RString,i32>>(),
+        wrap_type_layout::<RHashMap<i32,RString>>(),
+        wrap_type_layout::<RHashMap<i32,i32>>(),
+        wrap_type_layout::<Option<&()>>(),
+        wrap_type_layout::<Option<&u32>>(),
+        wrap_type_layout::<Option<extern "C" fn()>>(),
+        wrap_type_layout::<ROption<()>>(),
+        wrap_type_layout::<ROption<u32>>(),
+        wrap_type_layout::<RCow<'_, str>>(),
+        wrap_type_layout::<RCow<'_, [u32]>>(),
+        wrap_type_layout::<RArc<()>>(),
+        wrap_type_layout::<RArc<u32>>(),
+        wrap_type_layout::<RBox<()>>(),
+        wrap_type_layout::<RBox<u32>>(),
+        wrap_type_layout::<RBoxError>(),
+        wrap_type_layout::<PhantomData<()>>(),
+        wrap_type_layout::<PhantomData<RString>>(),
+        wrap_type_layout::<ROnce>(),
+    ];
+
+    let (_dur, ()) = core_extensions::measure_time::measure(|| {
+        let globals=CheckingGlobals::new();
+        for (i, this) in list.iter().cloned().enumerate() {
+            for (j, other) in list.iter().cloned().enumerate() {
+                let res=check_layout_compatibility_with_globals(this, other,&globals);
+
+                if i == j {
+                    assert_eq!(res, Ok(()));
+                } else {
+                    assert_ne!(
+                        res,
+                        Ok(()),
+                        "\n\nInterface:{:#?}\n\nimplementation:{:#?}",
+                        this,
+                        other,
+                    );
+
+                    let found_extra_checks_error=res
+                        .unwrap_err()
+                        .flatten_errors()
+                        .into_iter()
+                        .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err) );
+
+                    assert!(!found_extra_checks_error);
+                    
+
+                }
+            }
+        }
+    });
+}
+
