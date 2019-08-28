@@ -77,6 +77,13 @@ impl<T> FieldMap<T>{
         FieldMap{fields}
     }
 
+    /// Whether the field index maps to a field.
+    pub(crate) fn contains_index(&self,index:FieldIndex)->bool{
+        self.fields
+            .get(index.variant)
+            .map_or(false,|variant| index.pos < variant.len() )
+    }
+
     /// Add a new field to the map along with a value that it maps into.
     pub(crate) fn insert(&mut self,field:&Field<'_>,value:T)->T{
         mem::replace(&mut self[field], value)
