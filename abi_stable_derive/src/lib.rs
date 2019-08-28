@@ -175,6 +175,9 @@ mod set_span_visitor;
 mod to_token_fn;
 mod workaround;
 
+#[cfg(test)]
+mod test_framework;
+
 #[doc(hidden)]
 pub(crate) mod stable_abi;
 
