@@ -13,8 +13,12 @@ use proc_macro2::TokenStream as TokenStream2;
 use serde::Deserialize;
 
 mod regex_wrapper;
+mod text_replacement;
+mod vec_from_map;
 
 use self::regex_wrapper::RegexWrapper;
+use self::vec_from_map::{deserialize_vec_pairs,VecFromMap};
+use self::text_replacement::replace_text;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -25,7 +29,10 @@ type CompositeString=crate::composite_collections::CompositeString<usize>;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
+#[derive(Debug,Clone,Deserialize)]
+pub(crate) struct Tests{
+    cases:Vec<TestCase>,
+}
 
 #[derive(Debug,Clone,Deserialize)]
 pub(crate) struct TestCase{
@@ -37,131 +44,157 @@ pub(crate) struct TestCase{
 #[derive(Debug,Clone,Deserialize)]
 pub(crate) struct Subcase{
     #[serde(default)]
-    replacements:HashMap<RegexWrapper,String>,
+    #[serde(deserialize_with="deserialize_vec_pairs")]
+    replacements:Vec<(String,String)>,
     
-    /// Searches for these regexes in the output,which must be found for the test to pass.
+    /// Tries to match all these searches on the string.
     #[serde(default)]
-    regex_search_for:Vec<RegexWrapper>,
+    find_all:Vec<Matcher>,
     
-    /// Searches for these strings in the output,which must be found for the test to pass.
+    /// Tries to find whether there is a match for any of these searches on the string.
     #[serde(default)]
-    search_for:Vec<String>,
+    find_any:Vec<Matcher>,
 
     error_count:usize,
 }
 
-impl TestCase{
-    pub(crate) fn load(text_case_name:&str)->Vec<TestCase>{
+impl Tests{
+    pub(crate) fn load(text_case_name:&str)->Tests{
         let path=Path::new("./test_data/").join(format!("{}.ron",text_case_name));
         let file=std::fs::read_to_string(path).unwrap();
         ron::de::from_str(&file).unwrap()
     }
 
-    pub(crate) fn new(name:String,code:String)->Self{
-        Self{
-            name,
-            code,
-            subcase:Vec::new(),
-        }
-    }
-
-    pub(crate) fn add_subcase(mut self,subcase:Subcase)->Self{
-        self.subcase.push(Rc::new(subcase));
-        self
-    }
-
-    pub(crate) fn check_with<F>(&self,mut f:F)->Result<(),TestErrors>
-    where
-        F:FnMut(&str)->Result<TokenStream2,syn::Error>
-    {
-        let mut test_errors=TestErrors{
-            test_name:self.name.clone(),
-            expected:Vec::new(),
-        };
-
-        for subcase in &self.subcase {
-            let input:String=subcase.replacements
-                .iter()
-                .fold(self.code.clone(),|input,(regex,replacement)|->String{
-                    regex.replace_all(&input,&**replacement).into_owned()
-                });
-            
-            let mut composite_strings=CompositeString::new();
-
-            let result=match f(&input) {
-                Ok(x)=>Ok(composite_strings.push_display(&x).into_range()),
-                Err(e)=>{
-                    e.into_iter()
-                        .map(|x|{
-                            let _=composite_strings.push_str("\0");
-                            composite_strings.push_display(&x).into_range()
-                        })
-                        .collect::<Vec<Range<usize>>>()
-                        .piped(Err)
-                },
-            };
-
-            let output=composite_strings.into_inner();
-
-            let error_count=match &result {
-                Ok(_) => 0,
-                Err(x) => x.len(),
-            };
-
-            let not_found_regexes=
-                subcase.regex_search_for.iter() 
-                    .filter(|r| !r.is_match(&output) )
-                    .cloned()
-                    .collect::<Vec<_>>();
-
-            let not_found_text=
-                subcase.search_for.iter()
-                    .filter(|s| !output.contains(&**s) )
-                    .cloned()
-                    .collect::<Vec<_>>();
-
-            let is_success={
-                subcase.error_count==error_count&&
-                not_found_regexes.is_empty()&&
-                not_found_text.is_empty()
-            };
-
-            if !is_success {
-                test_errors.expected.push(TestErr{
-                    input,
-                    result,
-                    output,
-                    not_found_regexes,
-                    not_found_text,
-                    subcase: subcase.clone(),
-                });
-            }
-        }
-
-        if test_errors.expected.is_empty() {
-            Ok(())
-        }else{
-            Err(test_errors)
-        }
-    }
-
-    pub fn run_test<F>(list:&[Self],mut f:F)
+    pub(crate) fn run_test<F>(&self,mut f:F)
     where
         F:FnMut(&str)->Result<TokenStream2,syn::Error>
     {
         let mut had_err=false;
-        for test_case in list {
-            if let Err(e)=test_case.check_with(&mut f) {
-                eprintln!("{}",e);
+
+        let mut input=String::new();
+
+        for test_case in &self.cases {
+            let mut test_errors=TestErrors{
+                test_name:test_case.name.clone(),
+                expected:Vec::new(),
+            };
+
+            for subcase in &test_case.subcase {
+                replace_text(&test_case.code, &subcase.replacements, &mut input);
+                
+                let mut composite_strings=CompositeString::new();
+
+                let result=match f(&input) {
+                    Ok(x)=>Ok(composite_strings.push_display(&x).into_range()),
+                    Err(e)=>{
+                        e.into_iter()
+                            .map(|x|{
+                                let _=composite_strings.push_str("\0");
+                                composite_strings.push_display(&x).into_range()
+                            })
+                            .collect::<Vec<Range<usize>>>()
+                            .piped(Err)
+                    },
+                };
+
+                let output=composite_strings.into_inner();
+
+                let error_count=match &result {
+                    Ok(_) => 0,
+                    Err(x) => x.len(),
+                };
+
+                let not_found_all=
+                    subcase.find_all.iter() 
+                        .filter(|s| !s.matches(&output) )
+                        .cloned()
+                        .collect::<Vec<_>>();
+
+                let not_found_any=
+                    !subcase.find_any.iter().any(|s| s.matches(&output) );
+
+                let is_success={
+                    subcase.error_count==error_count&&
+                    not_found_all.is_empty()&&
+                    not_found_any
+                };
+
+                if !is_success {
+                    test_errors.expected.push(TestErr{
+                        input:input.clone(),
+                        result,
+                        output,
+                        not_found_all,
+                        not_found_any,
+                        subcase: subcase.clone(),
+                    });
+                }
+            }
+
+            if !test_errors.expected.is_empty() {
+                eprintln!("{}",test_errors);
                 had_err=true;
             }
         }
+        
         if had_err {
             panic!()
         }
     }
 }
 
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+#[derive(Debug,Clone,Deserialize)]
+pub enum Matcher{
+    #[serde(alias="regex")]
+    Regex(RegexWrapper),
+    
+    #[serde(alias="str")]
+    Str(String),
+
+    #[serde(alias="not")]
+    Not(Box<Matcher>),
+}
+
+
+impl Matcher{
+    fn matches(&self,text:&str)->bool{
+        match self {
+            Matcher::Regex(regex)=>{
+                regex.is_match(text)
+            }
+            Matcher::Str(find)=>{
+                text.contains(&*find)
+            }
+            Matcher::Not(searcher)=>{
+                !searcher.matches(text)
+            }
+        }
+    }
+}
+
+
+impl Display for Matcher{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        match self {
+            Matcher::Regex(regex)=>{
+                writeln!(f,"Regex:\n{}",regex.to_string().left_padder(4))
+            }
+            Matcher::Str(find)=>{
+                writeln!(f,"String:\n{}",find.to_string().left_padder(4))
+            }
+            Matcher::Not(searcher)=>{
+                writeln!(f,"Not:\n{}",searcher.to_string().left_padder(4))
+            }
+        }
+    }
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -177,8 +210,8 @@ pub(crate) struct TestErr{
     input:String,
     result:Result<Range<usize>,Vec<Range<usize>>>,
     output:String,
-    not_found_regexes:Vec<RegexWrapper>,
-    not_found_text:Vec<String>,
+    not_found_all:Vec<Matcher>,
+    not_found_any:bool,
     subcase:Rc<Subcase>,
 }
 
@@ -195,15 +228,22 @@ impl Display for TestErrors{
 
             writeln!(f,"    Test Input:\n{}",test.input.left_padder(6))?;
 
-            for regex in &test.not_found_regexes {
-                let regex=format!("\"{}\"",&**regex);
-                writeln!(f,"    Expected regex to match:\n{}",regex.left_padder(6))?;
+            if !test.not_found_all.is_empty() {
+                writeln!(f,"    Expected all of these to match:")?;
+                
+                for search_for in &test.not_found_all {
+                    Display::fmt(&search_for.to_string().left_padder(6),f)?;
+                    writeln!(f)?;
+                }
             }
+
             
-            for search_for in &test.not_found_text {
-                let search_for=format!("\"{}\"",search_for);
-                writeln!(f,"    Expected string to match:\n{}",search_for.left_padder(6))?;
+            if test.not_found_any {
+                for search_for in &test.subcase.find_any {
+                    Display::fmt(&search_for.to_string().left_padder(6),f)?;
+                }
             }
+
 
             match &test.result {
                 Ok(output_r)=>{

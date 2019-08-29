@@ -38,6 +38,7 @@ features=["full","extra-traits","visit","visit-mut"]
 serde={version="1.0",features=["derive","rc"]}
 ron= "0.5"
 regex= "~1.2" #regex can bump the minimum required Rust version in minor versions
+aho-corasick= "0.7"
 
 
 [lib]
