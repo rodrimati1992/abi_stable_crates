@@ -24,7 +24,6 @@ use crate::{
     parse_utils::{
         parse_str_as_ident,
         parse_str_as_type,
-        parse_lit_as_ident,
         parse_lit_as_expr,
         parse_lit_as_type,
         parse_lit_as_type_bounds,
@@ -166,7 +165,7 @@ impl<'a> StableAbiOptions<'a> {
                                 fi,
                                 this.first_suffix_field,
                                 pk_field,
-                                this.default_on_missing_fields,
+                                this.default_on_missing_fields.unwrap_or_default(),
                             ) 
                         }),
                     prefix_bounds:this.prefix_bounds,
@@ -272,7 +271,7 @@ struct StableAbiAttrs<'a> {
 
 
     first_suffix_field:FirstSuffixField,
-    default_on_missing_fields:OnMissingField<'a>,
+    default_on_missing_fields:Option<OnMissingField<'a>>,
     prefix_kind_fields:FieldMap<PrefixKindField<'a>>,
 
     prefix_bounds:Vec<WherePredicate>,
@@ -475,7 +474,8 @@ fn parse_sabi_attr<'a>(
             let ident=path.get_ident().ok_or_else(|| make_err(&path) )?;
             
             if ident=="rename" {
-                let renamed=parse_lit_as_ident(&value)
+                let renamed=value
+                    .parse::<Ident>()?
                     .piped(|x| arenas.alloc(x) );
                 this.renamed_fields.insert(field,Some(renamed));
             }else if ident=="unsafe_change_type" {
@@ -497,7 +497,14 @@ fn parse_sabi_attr<'a>(
             
             if ident=="missing_field" {
                 let on_missing_field=parse_missing_field(&list.nested,arenas)?;
-                this.prefix_kind_fields[field].on_missing=Some(on_missing_field);
+                let on_missing=&mut this.prefix_kind_fields[field].on_missing;
+                if on_missing.is_some(){
+                    return_spanned_err!(
+                        ident,
+                        "Cannot use this attribute multiple times on the same field"
+                    );
+                }
+                *on_missing=Some(on_missing_field);
             }else if ident=="refl" {
                 parse_refl_field(this,field,list.nested,arenas)?;
             }else{
@@ -588,7 +595,14 @@ fn parse_sabi_attr<'a>(
             let ident=list.path.get_ident().ok_or_else(|| make_err(&list.path) )?;
 
             if ident == "missing_field" {
-                this.default_on_missing_fields=parse_missing_field(&list.nested,arenas)?;
+                let on_missing=&mut this.default_on_missing_fields;
+                if on_missing.is_some(){
+                    return_spanned_err!(
+                        ident,
+                        "Cannot use this attribute multiple times on the container"
+                    );
+                }
+                *on_missing=Some(parse_missing_field(&list.nested,arenas)?);
             } else if ident == "kind" {
                 with_nested_meta("kind", list.nested, |attr|{
                     match attr {
@@ -631,6 +645,10 @@ fn parse_sabi_attr<'a>(
                 }
 
                 with_nested_meta("module_reflection", list.nested, |attr| {
+                    if this.mod_refl_mode.is_some() {
+                        return_spanned_err!(ident,"Cannot use this attribute multiple times");
+                    }
+                    
                     match attr {
                         Meta::Path(ref path)=>{
                             let word=path.get_ident().ok_or_else(|| mrefl_err(path) )?;
@@ -698,6 +716,9 @@ fn parse_sabi_attr<'a>(
                     Ok(())   
                 })?;
             } else if ident == "impl_InterfaceType" {
+                if this.impl_interfacetype.is_some() {
+                    return_spanned_err!(ident,"Cannot use this attribute multiple times")
+                }
                 this.impl_interfacetype=Some(parse_impl_interfacetype(&list.nested)?);
             }else{
                 return_spanned_err!(
@@ -754,6 +775,7 @@ fn parse_refl_field<'a>(
 
                 if ident=="pub_getter" {
                     let function=arenas.alloc(val.value());
+                    let _=val.parse::<Ident>()?;
                     this.override_field_accessor[field]=
                         Some(FieldAccessor::Method{ name:Some(function) });
                 }else{
@@ -916,6 +938,13 @@ fn parse_non_exhaustive_list<'a>(
             trait_set_strs.join("\n\t")
         )
     };
+
+    fn both_err(ident:&Ident)->syn::Error{
+        spanned_err!(
+            ident,
+            "Cannot use both `interface=\"...\"` and `traits(...)`"
+        )
+    }
     
 
     let mut this=UncheckedNonExhaustive::default();
@@ -948,6 +977,9 @@ fn parse_non_exhaustive_list<'a>(
                         }else if ident=="assert_nonexhaustive" {
                             this.assert_nonexh.push(ty);
                         }else if ident=="interface" {
+                            if this.enum_interface.is_some() {
+                                return Err(both_err(ident));
+                            }
                             this.enum_interface=Some(EnumInterface::Old(ty));
                         }else{
                             errors.push_err(make_err(ident,""))
@@ -973,10 +1005,7 @@ fn parse_non_exhaustive_list<'a>(
                     let enum_interface=match &mut this.enum_interface {
                         Some(EnumInterface::New(x))=>x,
                         Some(EnumInterface::Old{..})=>{
-                            return_spanned_err!(
-                                ident,
-                                "Cannot use both `interface=\"...\"` and `traits(...)`"
-                            )
+                            return Err(both_err(ident));
                         }
                         x@None=>{
                             *x=Some(EnumInterface::New(Default::default()));

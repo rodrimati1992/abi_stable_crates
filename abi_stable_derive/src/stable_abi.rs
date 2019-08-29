@@ -171,11 +171,11 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
 
 
-    let is_nonzero=if is_transparent {
-        let first=FieldIndex{variant:0,pos:0};
-        let visited_field=&visited_fields.map[first];
+    let first_field=FieldIndex{variant:0,pos:0};
+    let is_nonzero=if is_transparent && visited_fields.map.contains_index(first_field) {
+        let visited_field=&visited_fields.map[first_field];
 
-        let is_opaque_field=config.opaque_fields[first];
+        let is_opaque_field=config.opaque_fields[first_field];
         if visited_field.is_function {
             quote!( _sabi_reexports::True )
         }else if is_opaque_field {
