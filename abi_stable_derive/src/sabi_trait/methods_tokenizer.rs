@@ -144,8 +144,8 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             let optional_field=default_.as_ref().map(|_| &ctokens.missing_field_option );
             let derive_attrs=method.derive_attrs;
             quote_spanned!( method_span=>
-                #(#[#derive_attrs])*
                 #optional_field
+                #(#[#derive_attrs])*
                 #vis #method_name:
                     #(for< #(#lifetimes,)* >)*
                     unsafe extern "C" fn(

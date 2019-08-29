@@ -6,12 +6,14 @@ use syn::{
     parse,
     punctuated::Punctuated,
     token::Add,
+    Ident,
     TypeParamBound,
     LitStr,
 };
 
 use proc_macro2::Span;
 
+use crate::utils::SynResultExt;
 
 
 pub(crate) fn parse_str_as_ident(lit:&str)->syn::Ident{
@@ -30,9 +32,7 @@ pub(crate) fn parse_str_as_type(lit:&str)-> Result<syn::Type,syn::Error> {
     syn::parse_str(lit)
 }
 
-pub(crate) fn parse_lit_as_ident(lit:&syn::LitStr)->syn::Ident{
-    syn::Ident::new(&lit.value(),Span::call_site())
-}
+
 
 pub(crate) fn parse_lit_as_expr(lit:&syn::LitStr)-> Result<syn::Expr,syn::Error>{
     lit.parse()

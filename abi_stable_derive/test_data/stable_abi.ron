@@ -1,0 +1,1042 @@
+(
+  cases:[
+    (
+      name:"struct repr attrs",
+      code:r##"
+          #[repr( #repr )]
+          struct Foo;
+      "##,
+      subcase: [
+        ( replacements: { "#repr":"u8" }, error_count: 1 ),
+        ( replacements: { "#repr":"u16" }, error_count: 1 ),
+        ( replacements: { "#repr":"u32" }, error_count: 1 ),
+        ( replacements: { "#repr":"u64" }, error_count: 1 ),
+        ( replacements: { "#repr":"usize" }, error_count: 1 ),
+        ( replacements: { "#repr":"i8" }, error_count: 1 ),
+        ( replacements: { "#repr":"i16" }, error_count: 1 ),
+        ( replacements: { "#repr":"i32" }, error_count: 1 ),
+        ( replacements: { "#repr":"i64" }, error_count: 1 ),
+        ( replacements: { "#repr":"isize" }, error_count: 1 ),
+        ( replacements: { "#repr":"transparent" }, error_count: 0 ),
+        ( replacements: { "#repr":"C" }, error_count: 0 ),
+        ( replacements: { "#repr":"C,align(16)" }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"union repr attrs",
+      code:r##"
+        #[repr( #repr )]
+        struct Foo;
+      "##,
+      subcase: [
+        ( replacements: { "#repr":"u8" }, error_count: 1 ),
+        ( replacements: { "#repr":"u16" }, error_count: 1 ),
+        ( replacements: { "#repr":"u32" }, error_count: 1 ),
+        ( replacements: { "#repr":"u64" }, error_count: 1 ),
+        ( replacements: { "#repr":"usize" }, error_count: 1 ),
+        ( replacements: { "#repr":"i8" }, error_count: 1 ),
+        ( replacements: { "#repr":"i16" }, error_count: 1 ),
+        ( replacements: { "#repr":"i32" }, error_count: 1 ),
+        ( replacements: { "#repr":"i64" }, error_count: 1 ),
+        ( replacements: { "#repr":"isize" }, error_count: 1 ),
+        ( replacements: { "#repr":"transparent" }, error_count: 0 ),
+        ( replacements: { "#repr":"C" }, error_count: 0 ),
+        ( replacements: { "#repr":"C,align(16)" }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"enum repr attrs",
+      code:r##"
+        #[repr( #repr )]
+        enum Foo{}
+      "##,
+      subcase: [
+        ( replacements: { "#repr":"u8" }, error_count: 0 ),
+        ( replacements: { "#repr":"u16" }, error_count: 0 ),
+        ( replacements: { "#repr":"u32" }, error_count: 0 ),
+        ( replacements: { "#repr":"u64" }, error_count: 0 ),
+        ( replacements: { "#repr":"usize" }, error_count: 0 ),
+        ( replacements: { "#repr":"i8" }, error_count: 0 ),
+        ( replacements: { "#repr":"i16" }, error_count: 0 ),
+        ( replacements: { "#repr":"i32" }, error_count: 0 ),
+        ( replacements: { "#repr":"i64" }, error_count: 0 ),
+        ( replacements: { "#repr":"isize" }, error_count: 0 ),
+        ( replacements: { "#repr":"transparent" }, error_count: 1 ),
+        ( replacements: { "#repr":"C" }, error_count: 0 ),
+        ( replacements: { "#repr":"C,align(16)" }, error_count: 0 ),
+      ],
+    ),
+
+    /*////////////////////////////////////////////////////////////////////////////
+                      Container attributes
+    
+    Every attribute here should be in the same order as the documentation.
+    */////////////////////////////////////////////////////////////////////////////
+    (
+      name:"phantom fields",
+      code:r##"
+        #[repr(C)]
+        #[sabi(phantom_field@field1)]
+        #[sabi(phantom_field@field2)]
+        struct Foo;
+
+      "##,
+      subcase: [
+        ( replacements: { "@field1":r#"="i32""#, "@field2":r#"="what""# }, error_count: 2 ),
+        ( replacements: { "@field1":r#"="i32""#, "@field2":r#"="a:String""# }, error_count: 1 ),
+        ( replacements: { "@field1":r#"32"#, "@field2":r#"="a:String""# }, error_count: 1 ),
+        // Repeated phantom field names are fine.
+        ( replacements: { "@field1":r#"="a:u32""#, "@field2":r#"="a:String""# }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"phantom_type_param",
+      code:r##"
+        #[repr(C)]
+        #[sabi(phantom_type_param@phantom1)]
+        #[sabi(phantom_type_param@phantom2)]
+        struct Foo;
+      "##,
+      subcase: [
+        ( replacements: { "@phantom1":r#"="i32""#, "@phantom2":r#"="what""# }, error_count: 0 ),
+        ( replacements: { "@phantom1":r#"="i32""#, "@phantom2":r#"="a:String""# }, error_count: 1 ),
+        ( replacements: { "@phantom1":r#"(foo)"#, "@phantom2":r#"="a:String""# }, error_count: 2 ),
+        // Repeated phantom phantom names are fine.
+        ( replacements: { "@phantom1":r#"="a:u32""#, "@phantom2":r#"="a:String""# }, error_count: 2 ),
+      ],
+    ),
+    (
+      name:"not_stableabi",
+      code:r##"
+        #[repr(C)]
+        #[sabi(not_stableabi@p1)]
+        #[sabi(not_stableabi@p2)]
+        enum Foo<T,U,V>{
+          Bar(T,U,V),
+        }
+      "##,
+      subcase: [
+        ( replacements: { "@p1":r#"(X)"#, "@p2":r#"(Y)"# }, error_count: 2 ),
+        ( replacements: { "@p1":r#"T"#, "@p2":r#"U"# }, error_count: 2 ),
+        ( replacements: { "@p1":r#"T"#, "@p2":r#"="U""# }, error_count: 2 ),
+        ( replacements: { "@p1":r#"(T)"#, "@p2":r#"="U""# }, error_count: 1 ),
+        ( replacements: { "@p1":r#"(T)"#, "@p2":r#"(U)"# }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"not_stableabi",
+      code:r##"
+        #[repr(C)]
+        #[sabi(unsafe_unconstrained@p1)]
+        #[sabi(unsafe_unconstrained@p2)]
+        enum Foo<T,U,V>{
+          Bar(T,U,V),
+        }
+      "##,
+      subcase: [
+        ( replacements: { "@p1":r#"(X)"#, "@p2":r#"(Y)"# }, error_count: 2 ),
+        ( replacements: { "@p1":r#"T"#, "@p2":r#"U"# }, error_count: 2 ),
+        ( replacements: { "@p1":r#"T"#, "@p2":r#"="U""# }, error_count: 2 ),
+        ( replacements: { "@p1":r#"(T)"#, "@p2":r#"="U""# }, error_count: 1 ),
+        ( replacements: { "@p1":r#"(T)"#, "@p2":r#"(U)"# }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"bound",
+      code:r##"
+        #[repr(C)]
+        #[sabi(bound@p1)]
+        #[sabi(bound@p2)]
+        enum Foo{
+          Bar,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@p1":r#"="i32:Foo""#, "@p2":r#"="String:Bar""# }, 
+          find_all: [regex("i32 *: *Foo"),regex("String *: *Bar")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#""i32:Foo""#, "@p2":r#"="String:Bar""# }, 
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@p1":r#"()"#, "@p2":r#"(String:Bar)"# }, 
+          error_count: 2,
+        ),
+      ],
+    ),
+    (
+      name:"prefix_bound",
+      code:r##"
+        #[repr(C)]
+        #[sabi(prefix_bound@p1)]
+        #[sabi(prefix_bound@p2)]
+        #[sabi(kind(Prefix(prefix_struct="VecVTable")))]
+        struct Foo{
+          x:u32,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@p1":r#"="i32:Foo""#, "@p2":r#"="String:Bar""# }, 
+          find_all: [regex("i32 *: *Foo"),regex("String *: *Bar")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#""i32:Foo""#, "@p2":r#"="String:Bar""# }, 
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@p1":r#"()"#, "@p2":r#"(String:Bar)"# }, 
+          error_count: 2,
+        ),
+      ],
+    ),
+    (
+      name:"tags",
+      code:r##"
+          #[repr(C)]
+          #[sabi( @tag1 )]
+          #[sabi( @tag2 )]
+          struct Foo;
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@tag1":r#"tag="tag![[0]]""#, "@tag2":r#""# }, 
+          find_all: [regex(r#"tag *! *\[ *\[ *0 *\] *\]"#)],
+          error_count: 0
+        ),
+        ( 
+          replacements: { "@tag1":r#""#, "@tag2":r#" tag="tag![[0]]" "# }, 
+          find_all: [regex(r#"tag *! *\[ *\[ *0 *\] *\]"#)],
+          error_count: 0
+        ),
+        ( 
+          replacements: { "@tag1":r#"tag="tag![[0]]""#, "@tag2":r#"tag="tag![[0]]" "# }, 
+          error_count: 1
+        ),
+        ( 
+          replacements: { "@tag1":r#"tag=100"#, "@tag2":r#""# }, 
+          error_count: 1
+        ),
+        ( 
+          replacements: { "@tag1":r#"tag()"#, "@tag2":r#"tag="tag![[0]]" "# }, 
+          error_count: 1
+        ),
+      ],
+    ),
+    (
+      name:"extra_checks",
+      code:r##"
+          #[repr(C)]
+          #[sabi( @ec1 )]
+          #[sabi( @ec2 )]
+          struct Foo;
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@ec1":r#"extra_checks="aaa" "#, "@ec2":r#""# }, 
+          find_all: [str("aaa")],
+          error_count: 0
+        ),
+        ( 
+          replacements: { "@ec1":r#""#, "@ec2":r#" extra_checks="aaa" "# }, 
+          find_all: [str("aaa")],
+          error_count: 0
+        ),
+        ( 
+          replacements: { "@ec1":r#"extra_checks="aaa" "#, "@ec2":r#"extra_checks="b" "# }, 
+          error_count: 1
+        ),
+      ],
+    ),
+    (
+      name:"module_reflection",
+      code:r##"
+        #[repr(C)]
+        #[sabi(module_reflection@mr1)]
+        #[sabi(@mr2)]
+        struct Foo;
+      "##,
+      subcase: [
+        ( replacements: { "@mr1":r#"(qweqw)"#, "@mr2":r#""# }, error_count: 1 ),
+        ( replacements: { "@mr1":r#"(Module)"#, "@mr2":r#""# }, error_count: 0 ),
+        ( 
+          replacements: { "@mr1":r#"(Module)"#, "@mr2":r#"module_reflection(Opaque)"# }, 
+          find_all: [str("multiple times")],
+          error_count: 1
+        ),
+        ( replacements: { "@mr1":r#"(Opaque)"#, "@mr2":r#""# }, error_count: 0 ),
+        ( replacements: { "@mr1":r#"(Deref)"#, "@mr2":r#""# }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"impl_InterfaceType",
+      code:r##"
+        #[repr(C)]
+        #[sabi(impl_InterfaceType@II1)]
+        #[sabi(@II2)]
+        struct Foo;
+      "##,
+      subcase: [
+        ( replacements: { "@II1":r#"()"#, "@II2":r#""# }, error_count: 0 ),
+        ( replacements: { "@II1":r#"="""#, "@II2":r#""# }, error_count: 1 ),
+        ( replacements: { "@II1":r#"(Debug,Display)"#, "@II2":r#""# }, error_count: 0 ),
+        ( replacements: { "@II1":r#"(Debug,whoot,Display)"#, "@II2":r#""# }, error_count: 1 ),
+        ( 
+          replacements: { "@II1":r#"()"#, "@II2":r#"impl_InterfaceType()"# }, 
+          find_all: [str("multiple times")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { "@II1":r#"(aaaaa)"#, "@II2":r#"impl_InterfaceType()"# }, 
+          error_count: 1
+        ),
+      ],
+    ),
+    /*////////////////////////////////////////////////////////////////////////////
+                      Field attributes
+    
+    Every attribute here should be in the same order as the documentation.
+    */////////////////////////////////////////////////////////////////////////////
+    (
+      name:"rename struct fields",
+      code:r##"
+        #[repr(C)]
+        struct Foo{
+          #[sabi(@ra1)]
+          a:u32,
+          #[sabi(@ra2)]
+          b:u64,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@ra1":r#"rename="nope" "#, "@ra2":r#""# },
+          find_all: [str("nope;b")],
+          error_count: 0 
+        ),
+        ( 
+          replacements: { "@ra1":r#""#, "@ra2":r#"rename="pops" "# },
+          find_all: [str("a;pops")],
+          error_count: 0 
+        ),
+        ( 
+          replacements: { "@ra1":r#"rename="nope" "#, "@ra2":r#"rename="pops" "# },
+          find_all: [str("nope;pops")],
+          error_count: 0 
+        ),
+        ( 
+          replacements: { "@ra1":r#"rename="" "#, "@ra2":r#""# },
+          find_all: [str("identifier")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { "@ra1":r#"rename("nope") "#, "@ra2":r#"rename="pops" "# },
+          find_all: [str("field attribute")],
+          error_count: 1 
+        ),
+        ( 
+          replacements: { "@ra1":r#""#, "@ra2":r#"rename(pops)"# },
+          find_all: [str("field attribute")],
+          error_count: 1 
+        ),
+      ],
+    ),
+    (
+      name:"rename enum fields",
+      code:r##"
+        #[repr(C)]
+        enum Foo{
+          Variant0(
+            #[sabi(@ra1)]
+            u32
+          ),
+          Variant1{
+            #[sabi(@ra2)]
+            what:u64
+          }
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@ra1":r#"rename="nope" "#, "@ra2":r#""# },
+          find_all: [str("nope;what")],
+          error_count: 0 
+        ),
+        ( 
+          replacements: { "@ra1":r#""#, "@ra2":r#"rename="pops" "# },
+          find_all: [str("0;pops")],
+          error_count: 0 
+        ),
+        ( 
+          replacements: { "@ra1":r#"rename="nope" "#, "@ra2":r#"rename="pops" "# },
+          find_all: [str("nope;pops")],
+          error_count: 0 
+        ),
+        ( 
+          replacements: { "@ra1":r#"rename("nope") "#, "@ra2":r#"rename="pops" "# },
+          find_all: [str("field attribute")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { "@ra1":r#"rename="" "#, "@ra2":r#""# },
+          find_all: [str("identifier")],
+          error_count: 1
+        ),
+      ],
+    ),
+    (
+      name:"unsafe_change_type",
+      code:r##"
+        #[repr(C)]
+        struct Foo{
+          #[sabi(unsafe_change_type@uct1)]
+          a:u32,
+          #[sabi(@uct2)]
+          b:u64,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@uct1":r#"="MyType" "#, "@uct2":r#""# },
+          find_all: [str("MyType"),str("u64"),not(str("u32"))],
+          error_count: 0 
+        ),
+        ( 
+          replacements: { "@uct1":r#"="MyType" "#, "@uct2":r#"unsafe_change_type="YourType""# },
+          find_all: [str("MyType"),str("YourType"),not(str("u32")),not(str("u64"))],
+          error_count: 0 
+        ),
+        ( 
+          replacements: { "@uct1":r#"="" "#, "@uct2":r#""# },
+          find_all: [str("identifier")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { "@uct1":r#"(MyType) "#, "@uct2":r#""# },
+          find_all: [str("field attribute")],
+          error_count: 1
+        ),
+      ],
+    ),
+    (
+      name:"unsafe_opaque_field",
+      code:r##"
+        #[repr(C)]
+        struct Foo{
+          #[sabi(@uct1)]
+          a:MyString,
+          #[sabi(@uct2)]
+          b:Vec,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@uct1":r#"unsafe_opaque_field"#, "@uct2":r#""# },
+          find_all: [str("OPAQUE_FIELD")],
+          error_count: 0
+        ),
+        ( 
+          replacements: { "@uct1":r#""#, "@uct2":r#""# },
+          find_all: [not(str("OPAQUE_FIELD"))],
+          error_count: 0
+        ),
+      ],
+    ),
+    (
+      name:"prefix type field bound",
+      code:r##"
+        #[repr(C)]
+        #[sabi(kind(Prefix(prefix_struct="VecVTable")))]
+        struct Foo{
+          #[sabi(field_bound@b1)]
+          hello:Vec
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@b1":r#"="1000""# },
+          find_all: [str("identifier")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { "@b1":r#"()"# },
+          find_all: [str("attribute")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { "@b1":r#"="Debug""# },
+          find_all: [regex(r#"Vec *: *Debug"#)],
+          error_count: 0
+        ),
+      ],
+    ),
+    (
+      name:"last_prefix_field",
+      code:r##"
+        #[repr(C)]
+        #[sabi(@a1)]
+        struct Foo{
+          #[sabi(@b1)]
+          hello:Vec
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@a1":r#""#, "@b1":r#"last_prefix_field"# },
+          error_count: 0
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@b1":r#"last_prefix_field"# 
+          },
+          error_count: 0
+        ),
+        ( 
+          replacements: { "@a1":r#""#, "@b1":r#""# },
+          error_count: 0
+        ),
+      ],
+    ),
+    (
+      name:"accessible_if",
+      code:r##"
+        #[repr(C)]
+        #[sabi(@a1)]
+        struct Foo{
+          #[sabi(accessible_if@b1)]
+          hello:Vec
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@a1":r#""#, "@b1":r#" ="false" "# },
+          error_count: 0
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@b1":r#" ="true&&false" "# 
+          },
+          error_count: 0
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@b1":r#" ="<TypeParameter as Trait>::CONSTANT" "# 
+          },
+          error_count: 0
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@b1":r#" ="" "# 
+          },
+          find_all: [str("expression")],
+          error_count: 1
+        ),
+        ( 
+          replacements: {
+            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@b1":r#"()"# 
+          },
+          find_all: [str("attribute")],
+          error_count: 1
+        ),
+        ( 
+          replacements: {
+            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@b1":r#""# 
+          },
+          find_all: [str("attribute")],
+          error_count: 1
+        ),
+      ],
+    ),
+    (
+      name:"pub_getter",
+      code:r##"
+        #[repr(C)]
+        struct Foo{
+          #[sabi(refl(pub_getter@b1))]
+          hello:Vec
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@b1":r#"="hello" "# },
+          error_count: 0
+        ),
+        ( 
+          replacements: { "@b1":r#"="hello::<>" "# },
+          find_all: [str("expected")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { "@b1":r#"="" "# },
+          find_all: [str("identifier")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { "@b1":r#"()"# },
+          find_all: [str("attribute")],
+          error_count: 1
+        ),
+      ],
+    ),
+
+    /*////////////////////////////////////////////////////////////////////////////
+                      Field or Container attributes
+    
+    Every attribute here should be in the same order as the documentation.
+    */////////////////////////////////////////////////////////////////////////////
+    (
+      name:"missing_field non-prefix",
+      code:r##"
+        #[repr(C)]
+        #[sabi(@a1)]
+        struct Foo{
+          #[sabi(missing_field@b1)]
+          #[sabi(@b2)]
+          hello:Vec
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@a1":r#""#, "@b1":r#"(panic)"#, "@b2":r#""# },
+          error_count: 0
+        ),
+      ]
+    ),
+    (
+      name:"missing_field prefix",
+      code:r##"
+        #[repr(C)]
+        #[sabi(kind(Prefix(prefix_struct="AAAA")))]
+        #[sabi(@a1)]
+        struct Foo{
+          #[sabi(missing_field@b1)]
+          #[sabi(@b2)]
+          hello:Vec
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(panic)"# ,
+            "@b2":r#""#,
+          },
+          error_count: 0
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(option)"# ,
+            "@b2":r#""#,
+          },
+          error_count: 0
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(default)"# ,
+            "@b2":r#""#,
+          },
+          error_count: 0
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(asdsadas)"# ,
+            "@b2":r#""#,
+          },
+          find_all: [str("attribute")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(option)"# ,
+            "@b2":r#"missing_field(option)"#,
+          },
+          find_all: [str("multiple times")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#"
+              missing_field(option),
+              missing_field(option),
+            "#,
+            "@b1":r#"(option)"# ,
+            "@b2":r#""#,
+          },
+          find_all: [str("multiple times")],
+          error_count: 1
+        ),
+
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(with="somefunction")"# ,
+            "@b2":r#""#,
+          },
+          error_count: 0
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(with())"# ,
+            "@b2":r#""#,
+          },
+          find_all: [str("attribute")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(with="")"# ,
+            "@b2":r#""#,
+          },
+          find_all: [str("identifier")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(with="asasd asd")"# ,
+            "@b2":r#""#,
+          },
+          find_all: [str("token")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(with="somefunction")"# ,
+            "@b2":r#""#,
+          },
+          error_count: 0
+        ),
+
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(value="2+2")"# ,
+            "@b2":r#""#,
+          },
+          error_count: 0
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(value())"# ,
+            "@b2":r#""#,
+          },
+          find_all: [str("attribute")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(value="")"# ,
+            "@b2":r#""#,
+          },
+          find_all: [str("expression")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(value="asasd asd")"# ,
+            "@b2":r#""#,
+          },
+          find_all: [str("token")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
+            "@b1":r#"(value="somefunction")"# ,
+            "@b2":r#""#,
+          },
+          error_count: 0
+        ),
+
+        
+      ],
+    ),
+    ///////////////////////////
+    (
+      name:"with_constructor exhaustive",
+      code:r##"
+        #[repr(C)]
+        #[sabi(@p1)]
+        enum Foo<T,U,V>{
+          #[sabi(@f1)]
+          Bar,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@p1":r#""#, "@f1":r#""# },
+          find_all: [not(str("Bar_NE"))],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#"with_constructor"#, "@f1":r#""# },
+          find_all: [not(str("Bar_NE"))],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#""#, "@f1":r#"with_constructor"# },
+          find_all: [not(str("Bar_NE"))],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#"with_constructor"#, "@f1":r#"with_constructor"# },
+          find_all: [not(str("Bar_NE"))],
+          error_count: 0,
+        ),
+      ],
+    ),
+    (
+      name:"with_boxed_constructor exhaustive",
+      code:r##"
+        #[repr(C)]
+        #[sabi(@p1)]
+        enum Foo<T,U,V>{
+          #[sabi(@f1)]
+          Bar,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@p1":r#""#, "@f1":r#""# },
+          find_all: [not(str("Bar_NE"))],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#"with_boxed_constructor"#, "@f1":r#""# },
+          find_all: [not(str("Bar_NE"))],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#""#, "@f1":r#"with_boxed_constructor"# },
+          find_all: [not(str("Bar_NE"))],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#"with_boxed_constructor"#, "@f1":r#"with_boxed_constructor"# },
+          find_all: [not(str("Bar_NE"))],
+          error_count: 0,
+        ),
+      ],
+    ),
+    (
+      name:"with_constructor nonexhaustive",
+      code:r##"
+        #[repr(C)]
+        #[sabi(kind(WithNonExhaustive( size="[usize;10]", traits() )))]
+        #[sabi(@p1)]
+        enum Foo<T,U,V>{
+          #[sabi(@f1)]
+          Bar,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@p1":r#""#, "@f1":r#""# },
+          find_all: [not(str("Bar_NE"))],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#"with_constructor"#, "@f1":r#""# },
+          find_all: [str("fn Bar_NE")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#""#, "@f1":r#"with_constructor"# },
+          find_all: [str("fn Bar_NE")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#"with_constructor"#, "@f1":r#"with_constructor"# },
+          find_all: [str("fn Bar_NE")],
+          error_count: 0,
+        ),
+      ],
+    ),
+    (
+      name:"with_boxed_constructor nonexhaustive",
+      code:r##"
+        #[repr(C)]
+        #[sabi(kind(WithNonExhaustive( size="[usize;10]", traits() )))]
+        #[sabi(@p1)]
+        enum Foo<T,U,V>{
+          #[sabi(@f1)]
+          Bar,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@p1":r#""#, "@f1":r#""# },
+          find_all: [not(str("Bar_NE"))],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#"with_boxed_constructor"#, "@f1":r#""# },
+          find_all: [str("fn Bar_NE")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#""#, "@f1":r#"with_boxed_constructor"# },
+          find_all: [str("fn Bar_NE")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#"with_boxed_constructor"#, "@f1":r#"with_boxed_constructor"# },
+          find_all: [str("fn Bar_NE")],
+          error_count: 0,
+        ),
+      ],
+    ),
+    /*////////////////////////////////////////////////////////////////////////////
+                #[sabi(kind(WithNonExhaustive()))] attribute
+    
+    Every attribute here should be in the same order as the documentation.
+    *///////////////////////////////////////////////////////////////////////////// 
+    (
+      name:"with_boxed_constructor nonexhaustive",
+      code:r##"
+        #[repr(C)]
+        #[sabi(kind(WithNonExhaustive( size@size, @p1 )))]
+        enum Foo<T,V>{
+          Bar,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@size":r#""#, "@p1":r#""# },
+          find_all: [str("attribute")],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#""# },
+          find_all: [str("100")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@size":r#" ="MyString" "#, "@p1":r#""# },
+          find_all: [str("MyString")],
+          error_count: 0,
+        ),
+
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"align"# },
+          find_all: [str("attribute")],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"align=200"# },
+          find_all: [str("200")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"align="MyVec" "# },
+          find_all: [str("MyVec")],
+          error_count: 0,
+        ),
+        
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"interface"# },
+          find_all: [str("attribute")],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"interface() "# },
+          find_all: [str("attribute")],
+          error_count: 1,
+        ),
+        (
+          replacements: { "@size":r#"=100"#, "@p1":r#"interface="" "# },
+          find_all: [str("expected")],
+          error_count: 1,
+        ),
+        (
+          replacements: { "@size":r#"=100"#, "@p1":r#"interface="FooInterface::<T>" "# },
+          find_all: [regex("DefaultInterface *= *FooInterface *:: *< *T *>")],
+          error_count: 0,
+        ),
+
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"traits"# },
+          find_all: [str("attribute")],
+          error_count: 1,
+        ),
+        (
+          replacements: { "@size":r#"=100"#, "@p1":r#"traits="" "# },
+          find_all: [str("expected")],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"traits() "# },
+          find_all: [],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"traits(Debug,Display) "# },
+          find_all: [],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"traits(Debug,foobar) "# },
+          find_all: [str("trait")],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { 
+            "@size":r#"=100"#,
+            "@p1":r#"traits(Debug), interface="foo" "# 
+          },
+          find_all: [str("both")],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { 
+            "@size":r#"=100"#,
+            "@p1":r#"interface="foo", traits(Debug) "# 
+          },
+          find_all: [str("both")],
+          error_count: 1,
+        ),
+        
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"assert_nonexhaustive"# },
+          find_all: [str("attribute")],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"assert_nonexhaustive="MyStr" "# },
+          find_all: [str("MyStr")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"assert_nonexhaustive() "# },
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"assert_nonexhaustive("MyVec","MyStr") "# },
+          find_all: [str("MyVec"),str("MyStr")],
+          error_count: 0,
+        ),
+        
+      ],
+    ),
+  ]
+)

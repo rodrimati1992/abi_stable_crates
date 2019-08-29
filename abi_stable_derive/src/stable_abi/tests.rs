@@ -1,4 +1,7 @@
-use crate::derive_stable_abi_from_str as derive_sabi;
+use crate::{
+    derive_stable_abi_from_str as derive_sabi,
+    test_framework::Tests,
+};
 
 use abi_stable_shared::{file_span,test_utils::{must_panic}};
 
@@ -63,7 +66,10 @@ fn test_discriminant_gen_code(){
 }
 
 
-
+#[test]
+fn test_cases(){
+    Tests::load("stable_abi").run_test(derive_sabi);
+}
 
 #[test]
 fn check_struct_repr_attrs(){
