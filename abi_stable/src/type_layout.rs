@@ -93,6 +93,9 @@ pub use self::{
 /// also includes metadata about where the type was defined.
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Eq,StableAbi)]
+// I am specifically applying this attribute to TypeLayout to make
+// ExtraChecks take less time checking its own layout.
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct TypeLayout {
     /// Used for printing the type at runtime,
     pub full_type: FullType,

@@ -4,6 +4,7 @@ use super::*;
 /// The layout of a field.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLField {
     /// The field's name.
     pub name: StaticStr,
@@ -30,6 +31,7 @@ pub struct TLField {
 /// Whether a field is accessible,and how it is accessed.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum FieldAccessor {
     /// Accessible with `self.field_name`
     Direct,

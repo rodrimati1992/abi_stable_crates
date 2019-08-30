@@ -7,6 +7,7 @@ use std::{
 /// The layout of a field.
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLFields {
     /// The field names,separating fields with ";".
     pub names: StaticStr,
@@ -122,6 +123,7 @@ Either a `TLFields` or a static slice of `TLField`.
 */
 #[repr(u8)]
 #[derive(Copy, Clone,Debug, StableAbi,PartialEq,Eq)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLFieldsOrSlice{
     TLFields(TLFields),
     Slice(StaticSlice<TLField>),
@@ -326,6 +328,7 @@ An index composed of the (variant,field_position) pair.
 */
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi,Ord,PartialOrd,Eq,PartialEq)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct FieldIndex{
     pub variant:u16,
     pub field_pos:u8,
@@ -356,6 +359,7 @@ Properties that are associated with all fields.
 */
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct Field1to1{
     /// The layout of the field's type.
     ///

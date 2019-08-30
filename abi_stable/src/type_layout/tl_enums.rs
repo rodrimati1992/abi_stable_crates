@@ -14,6 +14,7 @@ use crate::{
 /// The layout of an enum.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLEnum{
     /// A ';' separated list of all variant names
     pub variant_names:StaticStr,
@@ -204,6 +205,7 @@ declare_tl_discriminants!{
 /// The discriminant of an enum variant.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLDiscriminant{
     /// The assigned value of a discriminant in a `#[repr(isize)]` enum.
     Isize(isize),
@@ -221,6 +223,7 @@ pub enum TLDiscriminant{
 /// How the discriminant of an enum is represented.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum DiscriminantRepr {
     /// The type of the discriminant for a `#[repr(u8)]`enum
     U8,
@@ -254,6 +257,7 @@ pub enum DiscriminantRepr {
 /// Whether this enum is exhaustive,if it is,it can add variants in minor versions.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct IsExhaustive{
     value:Option<&'static TLNonExhaustive>,
 }
@@ -286,6 +290,7 @@ impl IsExhaustive{
 /// Properties exclusive to nonexhaustive enums.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLNonExhaustive{
     original_size:usize,
     original_alignment:usize,
@@ -333,6 +338,7 @@ compatible with the enum.
 */
 #[repr(C)]
 #[derive(Debug,Clone,PartialEq, Eq,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct IncompatibleWithNonExhaustive{
     full_type:RString,
     module_path:ModPath,

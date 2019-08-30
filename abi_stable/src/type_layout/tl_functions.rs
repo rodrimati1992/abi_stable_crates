@@ -10,6 +10,7 @@ use std::{
 /// A function pointer in a field.
 #[repr(C)]
 #[derive(Debug,Copy, Clone, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLFunctions{
     /// The strings of function/bound_lifetime/parameter names.
     pub strings: StaticStr,
@@ -61,6 +62,7 @@ impl TLFunctions {
 /// Equivalent to TLFunction,in which every field is a range into a `TLFunctions`.
 #[repr(C)]
 #[derive(Copy,Clone,Debug,PartialEq,Eq,Ord,PartialOrd,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct CompTLFunction{
     name:StartLen,
     bound_lifetimes:StartLen,
@@ -114,6 +116,7 @@ impl CompTLFunction{
 /// The start and length of a slice into `TLFunctions`.
 #[repr(C)]
 #[derive(Copy,Clone,Debug,PartialEq,Eq,Ord,PartialOrd,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct StartLen{
     pub start:u16,
     pub len:u16,
@@ -163,6 +166,7 @@ A slice of functions from a TLFunctions.
 */
 #[repr(C)]
 #[derive(Copy,Clone,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLFunctionRange{
     functions:Option<&'static TLFunctions>,
     fn_range:StartLen,

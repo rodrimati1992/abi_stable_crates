@@ -239,6 +239,7 @@ use crate::{
 /// For more information [look at the module-level documentation](./index.html)
 #[repr(C)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct Tag{
     variant:TagVariant,
 }
@@ -247,6 +248,7 @@ pub struct Tag{
 /// All the Tag variants.
 #[repr(u8)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum TagVariant{
     Primitive(Primitive),
     Ignored(&'static Tag),
@@ -259,6 +261,7 @@ pub enum TagVariant{
 /// The primitive types of a variant,which do not contain other nested tags.
 #[repr(u8)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum Primitive{
     Null,
     Bool(bool),
@@ -270,6 +273,7 @@ pub enum Primitive{
 /// A tag that can be checked for compatibility with another tag.
 #[repr(C)]
 #[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct CheckableTag{
     variant:CTVariant,
 }
@@ -277,6 +281,7 @@ pub struct CheckableTag{
 /// The possible variants of CheckableTag.
 #[repr(u8)]
 #[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum CTVariant{
     Primitive(Primitive),
     Ignored(RBox<CheckableTag>),

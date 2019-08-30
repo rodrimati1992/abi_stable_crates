@@ -20,6 +20,7 @@ use core_extensions::SelfOps;
 ///
 #[sabi_trait]
 #[sabi(no_trait_impl)]
+//#[sabi(debug_print_trait)]
 pub unsafe trait TypeChecker{
     /// Checks that `ìnterface` is compatible with `implementation.` 
     /// 

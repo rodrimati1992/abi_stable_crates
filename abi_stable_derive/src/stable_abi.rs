@@ -47,7 +47,8 @@ mod tests;
 
 use self::{
     attribute_parsing::{
-        parse_attrs_for_stable_abi, StabilityKind,StableAbiOptions,NotStableAbiBound,
+        parse_attrs_for_stable_abi, StabilityKind, StableAbiOptions, NotStableAbiBound,
+        FieldTransparency,
     },
     common_tokens::CommonTokens,
     nonexhaustive::{tokenize_enum_info,tokenize_nonexhaustive_items},
@@ -175,7 +176,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let is_nonzero=if is_transparent && visited_fields.map.contains_index(first_field) {
         let visited_field=&visited_fields.map[first_field];
 
-        let is_opaque_field=config.opaque_fields[first_field];
+        let is_opaque_field=config.opaque_fields[first_field].is_opaque();
         if visited_field.is_function {
             quote!( _sabi_reexports::True )
         }else if is_opaque_field {
@@ -429,9 +430,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                                     __TLField::new(
                                         #phantom_field_names,
                                         &[],
-                                        <#phantom_field_tys as
-                                            __GetTypeLayoutCtor<__SharedStableAbi_Bound>
-                                        >::CONST,
+                                        __GetTypeLayoutCtor::<
+                                            #phantom_field_tys
+                                        >::SHARED_STABLE_ABI,
                                     ),
                                 )*
                             ],
@@ -507,42 +508,28 @@ fn tokenize_enum<'a>(
 }
 
 
-/// Outputs the StableAbi constant.
+#[must_use]
 fn make_get_type_layout_tokenizer<'a,T:'a>(
     ty:T,
+    field_transparency:FieldTransparency,
     ct:&'a CommonTokens<'a>,
 )->impl ToTokens+'a
 where T:ToTokens
 {
     ToTokenFnMut::new(move|ts|{
         to_stream!{ts; 
-            ct.make_get_type_layout_sa,
+            ct.get_type_layout_ctor,
             ct.colon2,
             ct.lt,ty,ct.gt,
             ct.colon2,
-            ct.cap_stable_abi
         };
+        match field_transparency {
+            FieldTransparency::Regular=> &ct.cap_stable_abi,
+            FieldTransparency::Opaque=> &ct.cap_opaque_field,
+            FieldTransparency::SabiOpaque=> &ct.cap_sabi_opaque_field,
+        }.to_tokens(ts);
     })
 }
-
-/// Outputs the StableAbi constant for an opaque field.
-fn make_get_type_layout_uf_tokenizer<'a,T:'a>(
-    ty:T,
-    ct:&'a CommonTokens<'a>,
-)->impl ToTokens+'a
-where T:ToTokens
-{
-    ToTokenFnMut::new(move|ts|{
-        to_stream!{ts; 
-            ct.make_get_type_layout_uf,
-            ct.colon2,
-            ct.lt,ty,ct.gt,
-            ct.colon2,
-            ct.cap_opaque_field
-        };
-    })
-}
-
 
 
 /// Tokenizes a TLFields,
@@ -650,7 +637,6 @@ fn fields_tokenizer_inner<'a>(
             to_stream!(ts;ct.field_1to1,ct.colon2,ct.new);
             ct.paren.surround(ts,|ts|{
                 {//layout:
-                    let is_opaque_field=config.opaque_fields[field];
 
                     if visited_field.is_function {
                         if visited_field.functions[0].is_unsafe {
@@ -658,12 +644,12 @@ fn fields_tokenizer_inner<'a>(
                         }else{
                             &ct.extern_fn_type_layout
                         }.to_tokens(ts);
-                    }else if is_opaque_field {
-                        make_get_type_layout_uf_tokenizer(&visited_field.mutated_ty,ct)
-                            .to_tokens(ts);
                     }else{
-                        make_get_type_layout_tokenizer(&visited_field.mutated_ty,ct)
-                            .to_tokens(ts);
+                        make_get_type_layout_tokenizer(
+                            &visited_field.mutated_ty,
+                            config.opaque_fields[field],
+                            ct
+                        ).to_tokens(ts);
                     }
 
                     to_stream!(ts;ct.comma);
@@ -683,17 +669,18 @@ fn tokenize_tl_functions<'a>(
     fields:&[&'a Field<'a>],
     visited_fields:&'a VisitedFieldMap<'a>,
     _variant_length:&[u8],
-    _config:&'a StableAbiOptions<'a>,
+    config:&'a StableAbiOptions<'a>,
     ct:&'a CommonTokens<'a>,
     ts:&mut TokenStream2,
 ){
     let mut strings=CompositeString::new();
     let mut functions=CompositeVec::<CompTLFunction>::with_capacity(visited_fields.fn_ptr_count);
     let mut field_fn_ranges=Vec::<StartLen>::with_capacity(ds.field_count);
-    let mut type_layouts=CompositeVec::<&'a syn::Type>::new();
+    let mut type_layouts=CompositeVec::<( FieldTransparency, &'a syn::Type )>::new();
     let mut paramret_lifetime_indices=CompositeVec::<LifetimeIndex>::new();
 
     for &field in fields {
+        let field_transparency=config.opaque_fields[field];
         let visited_field=&visited_fields.map[field];
 
         let field_fns=visited_field.functions.iter().enumerate()
@@ -713,7 +700,7 @@ fn tokenize_tl_functions<'a>(
                     .extend_with_display(";",func.params.iter().map(|p| p.name.unwrap_or("") ));
 
                 current_func.param_type_layouts=type_layouts
-                    .extend( func.params.iter().map(|p| p.ty ) );
+                    .extend( func.params.iter().map(|p| ( field_transparency, p.ty ) ) );
 
                 current_func.paramret_lifetime_indices=paramret_lifetime_indices
                     .extend( 
@@ -723,7 +710,8 @@ fn tokenize_tl_functions<'a>(
                     );
 
                 if let Some(returns)=&func.returns {
-                    current_func.return_type_layout=Some( type_layouts.push(returns.ty) );
+                    current_func.return_type_layout=
+                        Some( type_layouts.push(( field_transparency, returns.ty )) );
                 }
                 current_func
             });
@@ -737,8 +725,13 @@ fn tokenize_tl_functions<'a>(
 
     let field_fn_ranges=field_fn_ranges.into_iter().map(|sl| sl.tokenizer(ct.as_ref()) );
 
-    let type_layouts=type_layouts.into_inner().into_iter()
-        .map(|ty| make_get_type_layout_tokenizer(ty,ct) );
+    let type_layouts=type_layouts.into_inner();
+    let type_layouts=ToTokenFnMut::new(|ts|{
+        for ( field_transparency, ty ) in &type_layouts {
+            make_get_type_layout_tokenizer(ty,*field_transparency,ct).to_tokens(ts);
+            ct.comma.to_tokens(ts);
+        }
+    });
 
     let paramret_lifetime_indices=paramret_lifetime_indices.into_inner().into_iter()
         .map(|sl| sl.tokenizer(ct.as_ref()) );
@@ -749,7 +742,7 @@ fn tokenize_tl_functions<'a>(
             #strings,
             &[#(#functions),*],
             &[#(#field_fn_ranges),*],
-            &[#(#type_layouts),*],
+            &[#type_layouts],
             &[#(#paramret_lifetime_indices),*],
         )
     ).to_tokens(ts);

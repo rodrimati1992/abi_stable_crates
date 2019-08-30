@@ -3,7 +3,7 @@ use super::*;
 
 use crate::{
     abi_stability::{
-        stable_abi_trait::{GetTypeLayoutCtor,StableAbi_Bound},
+        stable_abi_trait::{GetTypeLayoutCtor},
     },
     std_types::RVec,
 };
@@ -16,6 +16,7 @@ use crate::{
 /// Allows lifetimes to be renamed,so long as the "same" lifetime is being referenced.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum LifetimeIndex {
     Static,
     /// Refers to the nth lifetime parameter of the deriving type.
@@ -30,6 +31,7 @@ pub enum LifetimeIndex {
 /// vtables and modules that can be extended in minor versions.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLPrefixType {
     /// The first field in the suffix,
     /// the index to the field after 
@@ -69,6 +71,7 @@ impl Display for TLPrefixType {
 /// The `repr(..)` attribute used on a type.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum ReprAttr{
     /// This is an Option<NonZeroType>.
     /// In which the size and alignment of the Option<_> is exactly that of its contents.
@@ -109,6 +112,7 @@ A module path.
 */
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum ModPath{
     /// An item without a path
     NoPath,
@@ -146,6 +150,7 @@ impl Display for ModPath{
 /// If the ammount of lifetimes change,the layouts are considered incompatible,
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct GenericParams {
     /// The names of the lifetimes declared by a type.
     pub lifetime: StaticSlice<StaticStr>,
@@ -215,6 +220,7 @@ impl Display for GenericParams {
 /// Unions are currently treated as structs.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLData {
     /// Types defined in the compiler.
     Primitive(TLPrimitive),
@@ -273,6 +279,7 @@ impl Display for TLData {
 /// Types defined in the compiler
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLPrimitive{
     U8,
     I8,
@@ -305,6 +312,7 @@ pub enum TLPrimitive{
 /// The properties of a custom primitive.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct CustomPrimitive{
     /// The printed type name of this primitive
     pub typename:StaticStr,
@@ -332,6 +340,7 @@ impl PartialEq for CustomPrimitive{
 /// A discriminant-only version of TLData.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLDataDiscriminant {
     Primitive,
     Opaque,
@@ -428,6 +437,7 @@ impl TLData {
 /// used for printing types.
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct FullType {
     /// The name of the type.
     pub name: StaticStr,
@@ -538,6 +548,7 @@ Either a TLField or a TLFunction.
 */
 #[repr(u8)]
 #[derive(Copy,Clone,Debug,Eq,PartialEq,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLFieldOrFunction{
     Field(TLField),
     Function(TLFunction),
@@ -585,6 +596,7 @@ impl TLFieldOrFunction{
 /// A function pointer in a field.
 #[repr(C)]
 #[derive(Copy,Clone,Debug,Eq,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLFunction{
     /// The name of the field this is used inside of.
     pub name: RStr<'static>,
@@ -641,7 +653,7 @@ impl TLFunction{
     }
     
     pub(crate) fn get_return(&self)->TLField{
-        const UNIT_GET_ABI_INFO:GetTypeLayout=<() as GetTypeLayoutCtor<StableAbi_Bound>>::CONST;
+        const UNIT_GET_ABI_INFO:GetTypeLayout=GetTypeLayoutCtor::<()>::STABLE_ABI;
         TLField::new(
             "__returns",
             &[],

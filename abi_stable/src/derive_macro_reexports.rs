@@ -2,14 +2,11 @@ pub use crate::{
     abi_stability::{
         get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
         stable_abi_trait::{
-            GetTypeLayoutCtor,  StableAbi,  SharedStableAbi, StableAbi_Bound, SharedStableAbi_Bound,
-            UnsafeOpaqueField_Bound,
+            GetTypeLayoutCtor,  StableAbi,  SharedStableAbi,
             ValueKind,
             PrefixKind,
             UNSAFE_EXTERN_FN_ABI_INFO,
             EXTERN_FN_ABI_INFO,
-            GetTypeLayoutCtorSA,
-            GetTypeLayoutCtorUF,
         },
     },
     inline_storage::InlineStorage,
@@ -81,8 +78,6 @@ pub mod renamed {
         GetTypeLayoutCtor as __GetTypeLayoutCtor, 
         StableAbi as __StableAbi,
         SharedStableAbi as __SharedStableAbi,
-        StableAbi_Bound as __StableAbi_Bound, 
-        SharedStableAbi_Bound as __SharedStableAbi_Bound, 
         TLData as __TLData,
         TLField as __TLField, TypeLayoutParams as __TypeLayoutParams,
         _private_TypeLayoutDerive as __private_TypeLayoutDerive,
@@ -95,7 +90,6 @@ pub mod renamed {
         TLEnum as __TLEnum,
         StartLen as __StartLen,
         SliceAndFieldIndices as __SAFI,
-        UnsafeOpaqueField_Bound as __UnsafeOpaqueField_Bound,
         ValueKind  as __ValueKind,
         PrefixKind as __PrefixKind,
         WithMetadata_ as __WithMetadata_,
@@ -112,8 +106,6 @@ pub mod renamed {
         RNone as __RNone,
         UNSAFE_EXTERN_FN_ABI_INFO as __UNSAFE_EXTERN_FN_ABI_INFO,
         EXTERN_FN_ABI_INFO as __EXTERN_FN_ABI_INFO,
-        GetTypeLayoutCtorSA as __sabi_GetTypeLayoutCtorSA,
-        GetTypeLayoutCtorUF as __sabi_GetTypeLayoutCtorUF,
     };
 }
 
