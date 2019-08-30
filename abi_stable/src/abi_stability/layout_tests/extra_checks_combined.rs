@@ -1,6 +1,9 @@
 use crate::{
     abi_stability::{
-        abi_checking::{AbiInstability,CheckingGlobals,check_layout_compatibility_with_globals},
+        abi_checking::{
+            AbiInstability,CheckingGlobals,
+            check_layout_compatibility,check_layout_compatibility_with_globals,
+        },
         TypeCheckerMut,
         ExtraChecks,ExtraChecksStaticRef,ExtraChecksBox,ExtraChecksRef,
         ForExtraChecksImplementor,ExtraChecksError
@@ -406,10 +409,9 @@ fn test_identity_extra_checker() {
     ];
 
     let (_dur, ()) = core_extensions::measure_time::measure(|| {
-        let globals=CheckingGlobals::new();
         for (i, this) in list.iter().cloned().enumerate() {
             for (j, other) in list.iter().cloned().enumerate() {
-                let res=check_layout_compatibility_with_globals(this, other,&globals);
+                let res=check_layout_compatibility(this, other);
 
                 if i == j {
                     assert_eq!(res, Ok(()));

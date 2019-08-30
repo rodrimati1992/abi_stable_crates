@@ -52,7 +52,7 @@ fn must_pass(){
     let list=vec![
         "
             trait ConstBaz<const N:usize> {
-                fn baz(self: Self);
+                fn baz(self);
             }
         ",
     ];

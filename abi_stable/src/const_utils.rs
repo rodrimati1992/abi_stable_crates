@@ -10,6 +10,28 @@ use std::{
 use core_extensions::prelude::*;
 
 
+//////////////////////////////////////////////////////////////////
+
+// Used to test trait bounds in proc-macros.
+pub(crate) trait AssocStr{
+    const STR:&'static str;
+}
+
+macro_rules! impl_assoc_str {
+    ( $($ty:ty),* ) => (
+        $(
+            impl AssocStr for $ty {
+                const STR:&'static str=stringify!( $ty );
+            }
+        )*
+    )
+}
+
+impl_assoc_str!{ i8,i16,i32,i64,isize,u8,u16,u32,u64,usize }
+
+
+
+
 //////////////////////////////////////
 
 

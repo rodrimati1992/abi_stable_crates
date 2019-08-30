@@ -45,7 +45,7 @@ pub(crate) struct PrefixKind<'a>{
     pub(crate) prefix_struct:&'a Ident,
     pub(crate) prefix_bounds:Vec<WherePredicate>,
     pub(crate) fields:FieldMap<AccessorOrMaybe<'a>>,
-    pub(crate) field_bounds:FieldMap<Vec<TypeParamBound>>,
+    pub(crate) accessor_bounds:FieldMap<Vec<TypeParamBound>>,
 
 }
 
@@ -374,9 +374,9 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             let field_span=field_name.span();
             let ty=field.ty;
 
-            let field_bounds=&prefix.field_bounds[field];
+            let accessor_bounds=&prefix.accessor_bounds[field];
 
-            let field_where_clause=if field_bounds.is_empty() {
+            let field_where_clause=if accessor_bounds.is_empty() {
                 None 
             }else{ 
                 Some(quote!(where #ty:)) 
@@ -386,7 +386,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 AccessorOrMaybe::Accessor=>{
                     unconditional_accessors.push(quote_spanned!{field_span=>
                         #vis fn #getter_name(&self)->#ty
-                        #field_where_clause #( #field_bounds+ )*
+                        #field_where_clause #( #accessor_bounds+ )*
                         {
                             unsafe{ 
                                 let ref_=&(*self.as_full_unchecked()).#field_name;
@@ -438,7 +438,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
                     conditional_accessors.push(quote_spanned!{field_span=>
                         #vis fn #getter_name(&self)->#return_ty
-                        #field_where_clause #( #field_bounds+ )*
+                        #field_where_clause #( #accessor_bounds+ )*
                         {
                             let acc_bits=self.inner._prefix_type_field_acc.bits();
                             let val=if (Self::#field_mask_ident & acc_bits)==0 {
