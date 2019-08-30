@@ -181,8 +181,6 @@ Examples:
 
 - `#[sabi(impl_InterfaceType(Clone,Debug,IoWrite,IoRead))]`
 
-
-
 # Field attributes
 
 These helper attributes are applied to fields.
@@ -207,7 +205,18 @@ and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
 This is unsafe because the layout of the type won't be verified when loading the library,
 which causes Undefined Behavior if the type has a different layout.
 
-###  `#[sabi(field_bound="ATrait")]` 
+###  `#[sabi(bound="SomeBound")]` 
+
+Adds a `TheFieldType:SomeBound` constraint to the `StableAbi` impl.
+
+Eg: 
+```ignore
+#[sabi(bound="Debug")]
+name:StaticStr,
+```
+adds the `StaticStr:Debug` bound to the `StableAbi` impl
+
+###  `#[sabi(accessor_bound="ATrait")]` 
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 

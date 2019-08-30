@@ -11,7 +11,7 @@ use std::{
     mem,
 };
 
-use core_extensions::IteratorExt;
+use core_extensions::{matches,IteratorExt};
 
 use proc_macro2::Span;
 
@@ -84,6 +84,9 @@ pub(crate) enum NotStableAbiBound{
 }
 
 
+//////////////////////
+
+
 pub(crate) enum StabilityKind<'a> {
     Value,
     Prefix(PrefixKind<'a>),
@@ -147,10 +150,10 @@ impl<'a> StableAbiOptions<'a> {
             _ if repr.is_repr_transparent() => {
                 // let field=&ds.variants[0].fields[0];
                 
-                // let field_bound=syn::parse_str::<WherePredicate>(
+                // let accessor_bound=syn::parse_str::<WherePredicate>(
                 //     &format!("({}):__StableAbi",(&field.mutated_ty).into_token_stream())
                 // ).expect(concat!(file!(),"-",line!()));
-                // this.extra_bounds.push(field_bound);
+                // this.extra_bounds.push(accessor_bound);
 
                 StabilityKind::Value
             }
@@ -169,7 +172,7 @@ impl<'a> StableAbiOptions<'a> {
                             ) 
                         }),
                     prefix_bounds:this.prefix_bounds,
-                    field_bounds:this.field_bounds,
+                    accessor_bounds:this.accessor_bounds,
                 })
             }
             UncheckedStabilityKind::NonExhaustive(nonexhaustive)=>{
@@ -289,7 +292,7 @@ struct StableAbiAttrs<'a> {
     renamed_fields:FieldMap<Option<&'a Ident>>,
     changed_types:FieldMap<Option<&'a Type>>,
 
-    field_bounds:FieldMap<Vec<TypeParamBound>>,
+    accessor_bounds:FieldMap<Vec<TypeParamBound>>,
 
     extra_phantom_fields:Vec<(&'a str,&'a Type)>,
     phantom_type_params:Vec<&'a Type>,
@@ -351,7 +354,7 @@ where
     this.prefix_kind_fields=FieldMap::defaulted(ds);
     this.renamed_fields=FieldMap::defaulted(ds);
     this.override_field_accessor=FieldMap::defaulted(ds);
-    this.field_bounds=FieldMap::defaulted(ds);
+    this.accessor_bounds=FieldMap::defaulted(ds);
     this.changed_types=FieldMap::defaulted(ds);
     this.variant_constructor.resize(ds.variants.len(),None);
 
@@ -485,9 +488,13 @@ fn parse_sabi_attr<'a>(
             }else if ident=="accessible_if" {
                 let expr=arenas.alloc(parse_lit_as_expr(&value)?);
                 this.prefix_kind_fields[field].accessible_if=Some(expr);
-            }else if ident == "field_bound" {
+            }else if ident == "accessor_bound" {
                 let bound=parse_lit_as_type_bounds(&value)?;
-                this.field_bounds[field].extend(bound);
+                this.accessor_bounds[field].extend(bound);
+            }else if ident == "bound" {
+                let bounds=parse_lit_as_type_bounds(&value)?;
+                let preds=where_predicate_from(field.ty.clone(), bounds);
+                this.extra_bounds.push(preds);
             }else{
                 return Err(make_err(&path))?;
             }
@@ -523,15 +530,7 @@ fn parse_sabi_attr<'a>(
             if ident=="bound"||ident=="prefix_bound" {
                 let ident=path.get_ident().ok_or_else(|| make_err(path) )?;
 
-                let bound=match unparsed_lit.parse::<WherePredicate>() {
-                    Ok(v)=>v,
-                    Err(e)=>return_spanned_err!(
-                        ident,
-                        "\n\nInvalid bound:\n\t{}\nError:\n\t{}\n\n",
-                        unparsed_lit.value(),
-                        e
-                    ),
-                };
+                let bound=unparsed_lit.parse::<WherePredicate>()?;
                 if ident=="bound"{
                     this.extra_bounds.push(bound);
                 }else if ident=="prefix_bound" {
@@ -547,10 +546,7 @@ fn parse_sabi_attr<'a>(
                 let ty=arenas.alloc(parse_lit_as_type(unparsed_lit)?);
                 this.phantom_type_params.push(ty);
             }else if ident=="tag"||ident=="extra_checks" {
-                let bound=unparsed_lit.parse::<syn::Expr>()
-                    .map_err(|e|{
-                        spanned_err!(unparsed_lit,"Invalid expression.\nError:\n\t{}",e)
-                    });
+                let bound=unparsed_lit.parse::<syn::Expr>();
 
                 if ident=="tag" {
                     if this.tags.is_some() {
@@ -1057,4 +1053,26 @@ fn parse_non_exhaustive_list<'a>(
 
     errors.into_result().map(|_| this )
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+fn where_predicate_from(
+    ty:syn::Type,
+    bounds:Punctuated<TypeParamBound, syn::token::Add>
+) ->syn::WherePredicate {
+    let x=syn::PredicateType{
+        lifetimes: None,
+        bounded_ty: ty,
+        colon_token: Default::default(),
+        bounds,
+    };
+    syn::WherePredicate::Type(x)
+}
+
+
+
+
+
 

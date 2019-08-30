@@ -638,7 +638,7 @@ impl ExtraChecks for ConstChecker {
         other:ExtraChecksRef<'_>,
         checker:TypeCheckerMut<'_,'_>
     )->RResult<ROption<ExtraChecksBox>, ExtraChecksError>{
-        Self::downcast_with_object(other,checker,|other|{
+        Self::downcast_with_object(other,checker,|other,_|{
             let (min,max)=min_max_by(self,other,|x|x.chars.len());
             min.check_compatible_inner(max)
                 .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TU_Opaque) ) )

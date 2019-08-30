@@ -142,7 +142,7 @@
       ],
     ),
     (
-      name:"bound",
+      name:"struct bounds",
       code:r##"
         #[repr(C)]
         #[sabi(bound@p1)]
@@ -163,6 +163,35 @@
         ),
         ( 
           replacements: { "@p1":r#"()"#, "@p2":r#"(String:Bar)"# }, 
+          error_count: 2,
+        ),
+      ],
+    ),
+    (
+      name:"field bound",
+      code:r##"
+        #[repr(C)]
+        struct Foo{
+          #[sabi(@p1)]
+          hello: String,
+          #[sabi(@p2)]
+          hello: Nope,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@p1":r#"bound="Debug""#, "@p2":r#"bound="Display""# }, 
+          find_all: [regex("String *: *Debug"),regex("Nope *: *Display")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1":r#"bound="" "#, "@p2":r#""# }, 
+          find_all: [str("empty")],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@p1":r#"bound="" "#, "@p2":r#"bound="" "# }, 
+          find_all: [str("empty")],
           error_count: 2,
         ),
       ],
@@ -452,7 +481,7 @@
         #[repr(C)]
         #[sabi(kind(Prefix(prefix_struct="VecVTable")))]
         struct Foo{
-          #[sabi(field_bound@b1)]
+          #[sabi(accessor_bound@b1)]
           hello:Vec
         }
       "##,

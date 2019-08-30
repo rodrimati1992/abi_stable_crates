@@ -23,3 +23,6 @@ mod get_static_equivalent;
 
 #[cfg(test)]
 mod extra_checks_combined;
+
+#[cfg(test)]
+mod stable_abi_attributes;

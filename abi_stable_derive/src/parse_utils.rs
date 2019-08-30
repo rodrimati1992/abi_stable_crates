@@ -6,14 +6,14 @@ use syn::{
     parse,
     punctuated::Punctuated,
     token::Add,
-    Ident,
+    //Ident,
     TypeParamBound,
     LitStr,
 };
 
 use proc_macro2::Span;
 
-use crate::utils::SynResultExt;
+//use crate::utils::SynResultExt;
 
 
 pub(crate) fn parse_str_as_ident(lit:&str)->syn::Ident{
@@ -52,7 +52,13 @@ pub(crate) fn parse_lit_as_type_bounds(
     str_: &LitStr
 ) -> Result<Punctuated<TypeParamBound, Add>,syn::Error> {
     str_.parse::<ParseBounds>()
-        .map(|x| x.list )
+        .and_then(|x|{
+            if x.list.is_empty() {
+                Err(spanned_err!(str_,"type bounds can't be empty"))
+            }else{
+                Ok(x.list)
+            }
+        })
 }
 
 
