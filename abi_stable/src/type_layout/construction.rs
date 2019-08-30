@@ -42,6 +42,7 @@ pub struct _private_TypeLayoutDerive {
 /// Information about where a type was declared.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct ItemInfo{
     /// The package where the type was defined,and the version string.
     /// With the `package;version_number` format.

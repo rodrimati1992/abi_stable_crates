@@ -406,6 +406,7 @@ fn test_identity_extra_checker() {
         wrap_type_layout::<PhantomData<()>>(),
         wrap_type_layout::<PhantomData<RString>>(),
         wrap_type_layout::<ROnce>(),
+        wrap_type_layout::<TypeLayout>(),
     ];
 
     let (_dur, ()) = core_extensions::measure_time::measure(|| {

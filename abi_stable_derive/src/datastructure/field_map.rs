@@ -89,6 +89,30 @@ impl<T> FieldMap<T>{
         mem::replace(&mut self[field], value)
     }
 
+    #[allow(dead_code)]
+    pub(crate) fn iter(&self)->impl Iterator<Item=(FieldIndex,&'_ T)>+'_ {
+        self.fields
+            .iter().enumerate()
+            .flat_map(|(v_i,v)|{
+                v.iter().enumerate()
+                    .map(move|(f_i,f)|{
+                        let index=FieldIndex{variant:v_i as _, pos: f_i as _};
+                        ( index, f )
+                    })
+            })
+    }
+
+    pub(crate) fn iter_mut(&mut self)->impl Iterator<Item=(FieldIndex,&'_ mut T)>+'_ {
+        self.fields
+            .iter_mut().enumerate()
+            .flat_map(|(v_i,v)|{
+                v.iter_mut().enumerate()
+                    .map(move|(f_i,f)|{
+                        let index=FieldIndex{variant:v_i as _, pos: f_i as _};
+                        ( index, f )
+                    })
+            })
+    }
 }
 
 

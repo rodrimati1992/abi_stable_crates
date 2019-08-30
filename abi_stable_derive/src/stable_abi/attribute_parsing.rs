@@ -61,7 +61,7 @@ pub(crate) struct StableAbiOptions<'a> {
 
     /// A hashset of the fields whose contents are opaque 
     /// (there are still some minimal checks going on).
-    pub(crate) opaque_fields:FieldMap<bool>,
+    pub(crate) opaque_fields:FieldMap<FieldTransparency>,
 
     pub(crate) override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
@@ -81,6 +81,29 @@ pub(crate) struct StableAbiOptions<'a> {
 pub(crate) enum NotStableAbiBound{
     NoBound,
     GetStaticEquivalent,
+}
+
+
+//////////////////////
+
+
+#[derive(Debug,Clone,Copy)]
+pub(crate) enum FieldTransparency{
+    Regular,
+    Opaque,
+    SabiOpaque,
+}
+
+impl FieldTransparency{
+    pub(crate) fn is_opaque(self)->bool{
+        matches!(FieldTransparency::Opaque{..}= self )
+    }
+}
+
+impl Default for FieldTransparency{
+    fn default()->Self{
+        FieldTransparency::Regular
+    }
 }
 
 
@@ -283,7 +306,7 @@ struct StableAbiAttrs<'a> {
     unconstrained_type_params:Vec<(Ident,NotStableAbiBound)>,
 
     // Using raw pointers to do an identity comparison.
-    opaque_fields:FieldMap<bool>,
+    opaque_fields:FieldMap<FieldTransparency>,
 
     variant_constructor:Vec<Option<UncheckedVariantConstructor>>,
 
@@ -462,7 +485,9 @@ fn parse_sabi_attr<'a>(
             let word=path.get_ident().ok_or_else(|| make_err(&path) )?;
 
             if word == "unsafe_opaque_field" {
-                this.opaque_fields[field]=true;
+                this.opaque_fields[field]=FieldTransparency::Opaque;
+            }else if word=="unsafe_sabi_opaque_field" {
+                this.opaque_fields[field]=FieldTransparency::SabiOpaque;
             }else if word == "last_prefix_field" {
                 let field_pos=field_index+1;
                 this.first_suffix_field=FirstSuffixField{field_pos};
@@ -732,6 +757,14 @@ fn parse_sabi_attr<'a>(
             }else if word=="with_boxed_constructor" {
                 this.variant_constructor.iter_mut()
                     .for_each(|x|*x=Some(UncheckedVariantConstructor::Boxed));
+            }else if word=="unsafe_opaque_fields" {
+                this.opaque_fields
+                    .iter_mut()
+                    .for_each(|(_,x)|*x=FieldTransparency::Opaque);
+            }else if word=="unsafe_sabi_opaque_fields" {
+                this.opaque_fields
+                    .iter_mut()
+                    .for_each(|(_,x)|*x=FieldTransparency::SabiOpaque);
             }else{
                 return Err(make_err(&path));
             }

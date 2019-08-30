@@ -37,7 +37,7 @@ impl<'a> VisitedFieldMap<'a>{
 
         let map=FieldMap::<VisitedField<'a>>::with(ds,|field|{
             let mut mutated_ty=config.changed_types[field].unwrap_or(field.ty).clone();
-            let is_opaque=config.opaque_fields[field];
+            let is_opaque=config.opaque_fields[field].is_opaque();
 
             let is_function=match mutated_ty {
                 Type::BareFn{..}=>!is_opaque,

@@ -202,75 +202,37 @@ impl TypeKindTrait for PrefixKind {
 /// Gets for the TypeLayout of some type,wraps an `extern "C" fn() -> &'static TypeLayout`.
 pub type GetTypeLayout=Constructor<&'static TypeLayout>;
 
-/// Constructs the GetTypeLayout for Self.
-///
-/// # Safety
-///
-/// Implementors must make sure that the TypeLayout actually describes the layout of the type.
-pub unsafe trait GetTypeLayoutCtor<B> {
-    const CONST: GetTypeLayout;
-}
+// pub unsafe trait GetTypeLayoutCtor<B> {
 
-unsafe impl<T> GetTypeLayoutCtor<StableAbi_Bound> for T
-where
-    T: StableAbi,
-{
-    const CONST: GetTypeLayout = Constructor (
-        get_type_layout::<T>,
-    );
-}
 
-unsafe impl<T> GetTypeLayoutCtor<SharedStableAbi_Bound> for T
-where
-    T: SharedStableAbi,
+#[doc(hidden)]
+pub struct GetTypeLayoutCtor<T>(T);
+
+impl<T> GetTypeLayoutCtor<T>
+where T: SharedStableAbi,
 {
-    const CONST: GetTypeLayout = Constructor (
+    pub const SHARED_STABLE_ABI:GetTypeLayout=Constructor (
         get_ssa_type_layout::<T>,
     );
 }
 
-unsafe impl<T> GetTypeLayoutCtor<UnsafeOpaqueField_Bound> for T {
-    const CONST: GetTypeLayout = Constructor (
-        get_type_layout::<UnsafeOpaqueField<T>>,
-    );
-}
-
-
-#[doc(hidden)]
-pub struct GetTypeLayoutCtorSA<T>(T);
-
-impl<T> GetTypeLayoutCtorSA<T>
+impl<T> GetTypeLayoutCtor<T>
 where T: StableAbi,
 {
     pub const STABLE_ABI:GetTypeLayout=Constructor (
         get_type_layout::<T>,
     );
+
+    pub const SABI_OPAQUE_FIELD:GetTypeLayout=Constructor (
+        get_type_layout::<SabiUnsafeOpaqueField<T>>,
+    );
 }
 
-
-#[doc(hidden)]
-pub struct GetTypeLayoutCtorUF<T>(T);
-
-impl<T> GetTypeLayoutCtorUF<T>{
+impl<T> GetTypeLayoutCtor<T>{
     pub const OPAQUE_FIELD:GetTypeLayout=Constructor (
         get_type_layout::<UnsafeOpaqueField<T>>,
     );
 }
-
-
-/// Determines that GetTypeLayoutCtor constructs the TypeLayout for a 
-/// type that implements StableAbi.
-#[allow(non_camel_case_types)]
-pub struct StableAbi_Bound;
-
-/// Determines that GetTypeLayoutCtor constructs the TypeLayout for a 
-/// type that implements SharedStableAbi.
-#[allow(non_camel_case_types)]
-pub struct SharedStableAbi_Bound;
-
-/// Determines that GetTypeLayoutCtor constructs the TypeLayout for any type (this is unsafe).
-#[allow(non_camel_case_types)]
-pub struct UnsafeOpaqueField_Bound;
 
 /// Retrieves the TypeLayout of `T:StableAbi`,
 pub extern "C" fn get_type_layout<T>() -> &'static TypeLayout
@@ -317,7 +279,7 @@ where T:StableAbi
         TLData::EMPTY,
         ReprAttr::c(),
         tl_genparams!(;;),
-        &[TLField::new("0",&[],<T as GetTypeLayoutCtor<StableAbi_Bound>>::CONST,)],
+        &[TLField::new("0",&[],GetTypeLayoutCtor::<T>::STABLE_ABI,)],
     );
 }
 
@@ -370,7 +332,7 @@ where
         &[TLField::new(
             "0",
             &[LifetimeIndex::Param(0)],
-            <T as GetTypeLayoutCtor<SharedStableAbi_Bound>>::CONST,
+            GetTypeLayoutCtor::<T>::SHARED_STABLE_ABI,
         )],
     ).set_mod_refl_mode(ModReflMode::DelegateDeref{phantom_field_index:0});
 }
@@ -402,7 +364,7 @@ where
         &[TLField::new(
             "0",
             &[LifetimeIndex::Param(0)],
-            <T as GetTypeLayoutCtor<StableAbi_Bound>>::CONST,
+            GetTypeLayoutCtor::<T>::STABLE_ABI,
         )],
     );
 }
@@ -432,7 +394,7 @@ where
             TLField::new(
                 "0",
                 &[],
-                <*mut T as GetTypeLayoutCtor<StableAbi_Bound>>::CONST,
+                GetTypeLayoutCtor::<*mut T>::STABLE_ABI,
             )
         ]),
         ReprAttr::Transparent,
@@ -465,7 +427,7 @@ where
             TLField::new(
                 "0",
                 &[],
-                <*mut T as GetTypeLayoutCtor<StableAbi_Bound>>::CONST,
+                GetTypeLayoutCtor::<*mut T>::STABLE_ABI,
             )
         ]),
         ReprAttr::Transparent,
@@ -499,7 +461,7 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as GetTypeLayoutCtor<SharedStableAbi_Bound>>::CONST,
+            GetTypeLayoutCtor::<T>::SHARED_STABLE_ABI,
         )],
     );
 }
@@ -530,7 +492,7 @@ where
         &[TLField::new(
             "0",
             &[],
-            <T as GetTypeLayoutCtor<StableAbi_Bound>>::CONST,
+            GetTypeLayoutCtor::<T>::STABLE_ABI,
         )],
     );
 }
@@ -564,7 +526,7 @@ macro_rules! impl_stable_abi_array {
                         TLField::new(
                             "element", 
                             &[],
-                            <T as GetTypeLayoutCtor<SharedStableAbi_Bound>>::CONST
+                            GetTypeLayoutCtor::<T>::SHARED_STABLE_ABI
                         )
                     ],
                 );
@@ -609,7 +571,7 @@ where
                 TLField::new(
                     "0",
                     &[],
-                    <T as GetTypeLayoutCtor<StableAbi_Bound>>::CONST,
+                    GetTypeLayoutCtor::<T>::STABLE_ABI,
                 )
             ],
             TLDiscriminants::from_u8_slice(&[0,1]),
@@ -688,7 +650,7 @@ macro_rules! impl_for_concrete {
                         TLField::new(
                             "0",
                             &[],
-                            <$prim_repr as GetTypeLayoutCtor<StableAbi_Bound>>::CONST,
+                            GetTypeLayoutCtor::<$prim_repr>::STABLE_ABI,
                         )
                     ]),
                     ReprAttr::Transparent,
@@ -783,7 +745,7 @@ mod rust_1_36_impls{
                 TLField::new(
                     "value",
                     &[],
-                    <T as GetTypeLayoutCtor<StableAbi_Bound>>::CONST,
+                    GetTypeLayoutCtor::<T>::STABLE_ABI,
                 )
             ]),
             // Using `ReprAttr::Transparent` so that if I add C header file translation
@@ -824,7 +786,7 @@ macro_rules! impl_stableabi_for_repr_transparent {
                 Self::S_ABI_CONSTS,
                 stringify!($type_constr),
                 TLData::struct_(&[
-                    TLField::new("0",&[],<P as GetTypeLayoutCtor<StableAbi_Bound>>::CONST,)
+                    TLField::new("0",&[],GetTypeLayoutCtor::<P>::STABLE_ABI,)
                 ]),
                 ReprAttr::Transparent,
                 $item_info,
@@ -944,11 +906,11 @@ unsafe impl SharedStableAbi for unsafe extern "C" fn() {
 
 /// The GetTypeLayout of an `unsafe extern fn()`
 pub const UNSAFE_EXTERN_FN_ABI_INFO:GetTypeLayout=
-    GetTypeLayoutCtorSA::<unsafe extern fn()>::STABLE_ABI;
+    GetTypeLayoutCtor::<unsafe extern fn()>::STABLE_ABI;
 
 /// The GetTypeLayout of an `extern fn()`
 pub const EXTERN_FN_ABI_INFO:GetTypeLayout=
-    GetTypeLayoutCtorSA::<extern fn()>::STABLE_ABI;
+    GetTypeLayoutCtor::<extern fn()>::STABLE_ABI;
 
 
 /////////////
@@ -975,6 +937,39 @@ unsafe impl<T> SharedStableAbi for UnsafeOpaqueField<T> {
     const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_params::<Self>(TypeLayoutParams {
         abi_consts:Self::S_ABI_CONSTS,
         name: "OpaqueField",
+        item_info:make_item_info!(),
+        data: TLData::Opaque,
+        generics: tl_genparams!(;;),
+    });
+}
+
+/////////////
+
+/// Allows one to ensure that a `T` implements `StableAbi` without storing it's layout,
+/// by pretending that it is a primitive type.
+/// 
+/// Used by the StableAbi derive macro by fields marker as `#[sabi(unsafe_sabi_opaque_field)]`.
+/// 
+/// # Safety
+/// 
+/// You must ensure that the layout of `T` is compatible through other means.
+#[repr(transparent)]
+pub struct SabiUnsafeOpaqueField<T>(T);
+
+unsafe impl<T> GetStaticEquivalent_ for SabiUnsafeOpaqueField<T> {
+    /// it is fine to use `()` because this type is treated as opaque anyway.
+    type StaticEquivalent=();
+}
+unsafe impl<T> SharedStableAbi for SabiUnsafeOpaqueField<T> 
+where
+    T:StableAbi
+{
+    type Kind=ValueKind;
+    type IsNonZeroType = False;
+
+    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_params::<Self>(TypeLayoutParams {
+        abi_consts:Self::S_ABI_CONSTS,
+        name: "SabiOpaqueField",
         item_info:make_item_info!(),
         data: TLData::Opaque,
         generics: tl_genparams!(;;),

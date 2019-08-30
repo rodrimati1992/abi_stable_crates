@@ -181,6 +181,23 @@ Examples:
 
 - `#[sabi(impl_InterfaceType(Clone,Debug,IoWrite,IoRead))]`
 
+###  `#[sabi(unsafe_opaque_fields]`
+
+Does not require any field to implement StableAbi,
+and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
+
+This is unsafe because the layout of their type won't be verified when loading the library,
+which causes Undefined Behavior if the type has a different layout.
+
+
+###  `#[sabi(unsafe_sabi_opaque_fields)]`
+
+Requires every field to implement StableAbi(unless overridden),
+but doesn't check their layout.
+
+This is unsafe because the layout of their type won't be verified when loading the library,
+which causes Undefined Behavior if the type has a different layout.
+
 # Field attributes
 
 These helper attributes are applied to fields.
@@ -201,6 +218,14 @@ This has the `unsafe` prefix because SomeType is relied on being correct by `Sta
 
 Does not require the field to implement StableAbi,
 and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
+
+This is unsafe because the layout of the type won't be verified when loading the library,
+which causes Undefined Behavior if the type has a different layout.
+
+###  `#[sabi(unsafe_sabi_opaque_field)]`
+
+Requires the field to implement StableAbi(unless overridden),
+but doesn't check its layout.
 
 This is unsafe because the layout of the type won't be verified when loading the library,
 which causes Undefined Behavior if the type has a different layout.

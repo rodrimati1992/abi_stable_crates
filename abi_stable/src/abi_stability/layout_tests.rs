@@ -21,7 +21,7 @@ mod nonexhaustive_enums;
 //#[cfg(test)]
 mod get_static_equivalent;
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod extra_checks_combined;
 
 #[cfg(test)]
