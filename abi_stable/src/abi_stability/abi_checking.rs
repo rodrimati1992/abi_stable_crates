@@ -24,7 +24,7 @@ use crate::{
     prefix_type::{FieldAccessibility,IsConditional},
     sabi_types::CmpIgnored,
     std_types::{
-        RArc,RVec, StaticSlice, StaticStr,UTypeId,RBoxError,RResult,
+        RArc,RVec, StaticSlice, StaticStr,UTypeId,RBoxError,RResult,RSlice,
         RSome,RNone,ROk,RErr,
     },
     traits::IntoReprC,
@@ -82,7 +82,7 @@ pub enum AbiInstability {
     FnLifetimeMismatch(ExpectedFound<TLFunction>),
     UnexpectedField(ExpectedFound<TLField>),
     TooManyVariants(ExpectedFound<usize>),
-    MismatchedPrefixConditionality(ExpectedFound<StaticSlice<IsConditional>>),
+    MismatchedPrefixConditionality(ExpectedFound<RSlice<'static,IsConditional>>),
     MismatchedExhaustiveness(ExpectedFound<IsExhaustive>),
     UnexpectedVariant(ExpectedFound<StaticStr>),
     ReprAttr(ExpectedFound<ReprAttr>),
@@ -279,7 +279,7 @@ enum FieldContext{
 #[repr(C)]
 struct CheckingUTypeId{
     type_id:UTypeId,
-    name:StaticStr,
+    name:&'static str,
     package:StaticStr,
 }
 
@@ -288,7 +288,7 @@ impl CheckingUTypeId{
         let layout=this;
         Self{
             type_id:this.get_utypeid(),
-            name:layout.name,
+            name:layout.name(),
             package:layout.package(),
         }
     }
@@ -575,7 +575,7 @@ impl AbiChecker {
 
         (|| {
             let errs = &mut errs_;
-            if t_lay.name != o_lay.name {
+            if t_lay.name() != o_lay.name() {
                 push_err(errs, t_lay, o_lay, |x| x.full_type(), AI::Name);
                 return;
             }
@@ -900,7 +900,7 @@ impl AbiChecker {
                 errs,
                 this,
                 other,
-                |x| StaticSlice::new(x.conditional_prefix_fields) ,
+                |x| RSlice::from(x.conditional_prefix_fields),
                 AI::MismatchedPrefixConditionality
             );
         }

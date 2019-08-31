@@ -4,7 +4,7 @@ use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,push_err},
     },
-    std_types::{StaticSlice,StaticStr,RVec,RString},
+    std_types::{StaticStr,RSlice,RVec,RString},
 };
 
 
@@ -25,7 +25,7 @@ pub struct TLEnum{
     /// The discriminants of the variants in the enum.
     pub discriminants:TLDiscriminants,
     /// The ammount of fields of each variant.
-    pub field_count:StaticSlice<u8>,
+    pub field_count:RSlice<'static,u8>,
 }
 
 
@@ -34,16 +34,16 @@ impl TLEnum{
     pub const fn new(
         variant_names:&'static str,
         exhaustiveness:IsExhaustive,
-        fields: &'static [TLField],
+        fields: RSlice<'static,TLField>,
         discriminants:TLDiscriminants,
-        field_count:&'static [u8],
+        field_count:RSlice<'static,u8>,
     ) -> Self {
         TLEnum {
             variant_names:StaticStr::new(variant_names),
             exhaustiveness,
-            fields:TLFieldsOrSlice::from_slice(fields),
+            fields:TLFieldsOrSlice::Slice(fields),
             discriminants,
-            field_count:StaticSlice::new(field_count),
+            field_count,
         }
     }
 
@@ -54,14 +54,14 @@ impl TLEnum{
         exhaustiveness:IsExhaustive,
         fields: TLFields,
         discriminants:TLDiscriminants,
-        field_count:&'static [u8],
+        field_count:RSlice<'static,u8>,
     ) -> Self {
         TLEnum {
             variant_names:StaticStr::new(variant_names),
             exhaustiveness,
             fields:TLFieldsOrSlice::TLFields(fields),
             discriminants,
-            field_count:StaticSlice::new(field_count),
+            field_count,
         }
     }
 
@@ -111,9 +111,7 @@ macro_rules! declare_tl_discriminants {
         $((
             $(#[$variant_attr:meta])*
             $variant:ident ( $ty:ty ),
-            $single:ident,
-            $(#[$method_attr:meta])*
-            $method:ident
+            $single:ident
         ))*
     ) => (
         /// The discriminant of an enum variant.
@@ -122,18 +120,11 @@ macro_rules! declare_tl_discriminants {
         pub enum TLDiscriminants{
             $(
                 $(#[$variant_attr])*
-                $variant(StaticSlice<$ty>),
+                $variant(RSlice<'static,$ty>),
             )*
         }
 
         impl TLDiscriminants{
-            $(
-                $(#[$method_attr])*
-                pub const fn $method(arr:&'static [$ty])->Self{
-                    TLDiscriminants::$variant(StaticSlice::new(arr))
-                }
-            )*
-
             /// Gets the type of a discriminant in this TLDiscriminants.
             pub fn discriminant_repr(&self)->DiscriminantRepr{
                 match self {
@@ -188,16 +179,16 @@ macro_rules! declare_tl_discriminants {
 
 
 declare_tl_discriminants!{
-    ( U8(u8) ,Signed  , from_u8_slice )
-    ( I8(i8) ,Unsigned, from_i8_slice )
-    ( U16(u16) ,Signed  , from_u16_slice )
-    ( I16(i16) ,Unsigned, from_i16_slice )
-    ( U32(u32) ,Signed  , from_u32_slice )
-    ( I32(i32) ,Unsigned, from_i32_slice )
-    ( U64(u64) ,Signed  , from_u64_slice )
-    ( I64(i64) ,Unsigned, from_i64_slice )
-    ( Usize(usize) ,Usize, from_usize_slice )
-    ( Isize(isize) ,Isize, from_isize_slice )
+    ( U8(u8) ,Signed  )
+    ( I8(i8) ,Unsigned)
+    ( U16(u16) ,Signed  )
+    ( I16(i16) ,Unsigned)
+    ( U32(u32) ,Signed  )
+    ( I32(i32) ,Unsigned)
+    ( U64(u64) ,Signed  )
+    ( I64(i64) ,Unsigned)
+    ( Usize(usize) ,Usize)
+    ( Isize(isize) ,Isize)
 }
 
 

@@ -535,10 +535,12 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 //
                 // A field is conditional if it has the 
                 // `#[sabi(accessible_if=" expression ")]` attribute on it.
-                const PT_COND_PREFIX_FIELDS:&'static [#module::_sabi_reexports::IsConditional]={
+                const PT_COND_PREFIX_FIELDS:
+                    abi_stable::std_types::RSlice<'static,#module::_sabi_reexports::IsConditional>=
+                {
                     use #module::_sabi_reexports::IsConditional as __IsConditional;
 
-                    &[
+                    abi_stable::rslice![
                         #( __IsConditional::new( #is_prefix_field_conditional ) ,)*
                     ]
                 };

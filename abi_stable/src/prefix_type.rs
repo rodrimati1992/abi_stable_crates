@@ -11,6 +11,7 @@ use crate::{
     marker_type::NotCopyNotClone,
     utils::leak_value,
     sabi_types::StaticRef,
+    std_types::RSlice,
 };
 
 
@@ -58,7 +59,7 @@ pub unsafe trait PrefixTypeTrait:Sized{
     //
     // This is checked in layout checking to ensure that 
     // both sides agree on whether each field in the prefix is conditional,
-    const PT_COND_PREFIX_FIELDS:&'static [IsConditional];
+    const PT_COND_PREFIX_FIELDS:RSlice<'static,IsConditional>;
 
     /**
 A type only accessible through a shared reference.

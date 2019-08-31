@@ -226,20 +226,20 @@ impl ReprAttr{
             };
 
             match int_repr.unwrap_or(DiscriminantRepr::Isize) {
-                DiscriminantRepr::U8 =>quote!(__TLDiscriminants::from_u8_slice ),
-                DiscriminantRepr::U16=>quote!(__TLDiscriminants::from_u16_slice),
-                DiscriminantRepr::U32=>quote!(__TLDiscriminants::from_u32_slice),
-                DiscriminantRepr::U64=>quote!(__TLDiscriminants::from_u64_slice),
-                DiscriminantRepr::I8 =>quote!(__TLDiscriminants::from_i8_slice ),
-                DiscriminantRepr::I16=>quote!(__TLDiscriminants::from_i16_slice),
-                DiscriminantRepr::I32=>quote!(__TLDiscriminants::from_i32_slice),
-                DiscriminantRepr::I64=>quote!(__TLDiscriminants::from_i64_slice),
-                DiscriminantRepr::Usize=>quote!(__TLDiscriminants::from_usize_slice ),
-                DiscriminantRepr::Isize=>quote!(__TLDiscriminants::from_isize_slice ),
+                DiscriminantRepr::U8 =>quote!(__TLDiscriminants::U8  ),
+                DiscriminantRepr::U16=>quote!(__TLDiscriminants::U16 ),
+                DiscriminantRepr::U32=>quote!(__TLDiscriminants::U32 ),
+                DiscriminantRepr::U64=>quote!(__TLDiscriminants::U64 ),
+                DiscriminantRepr::I8 =>quote!(__TLDiscriminants::I8  ),
+                DiscriminantRepr::I16=>quote!(__TLDiscriminants::I16 ),
+                DiscriminantRepr::I32=>quote!(__TLDiscriminants::I32 ),
+                DiscriminantRepr::I64=>quote!(__TLDiscriminants::I64 ),
+                DiscriminantRepr::Usize=>quote!(__TLDiscriminants::Usize  ),
+                DiscriminantRepr::Isize=>quote!(__TLDiscriminants::Isize  ),
             }.to_tokens(ts);
             
             ctokens.paren.surround(ts,|ts|{
-                ctokens.and_.to_tokens(ts);
+                quote!( abi_stable::rslice! ).to_tokens(ts);
                 ctokens.bracket.surround(ts,|ts|{
                     tokenize_discriminant_exprs_inner(&mut exprs,ctokens,ts);
                 });

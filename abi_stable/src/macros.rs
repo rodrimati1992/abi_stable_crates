@@ -73,9 +73,9 @@ macro_rules! tl_genparams {
         };
 
         GenericParams::new(
-            &[$( StaticStr::new( stringify!($lt) ) ,)*],
-            &[$( <$ty as SharedStableAbi>::S_LAYOUT ,)*],
-            &[$( StaticStr::new( stringify!($const_p) ) ,)*],
+            StaticStr::new( concat!($(  stringify!($lt),"," ),*) ),
+            $crate::rslice![$( <$ty as SharedStableAbi>::S_LAYOUT ,)*],
+            $crate::rslice![$( StaticStr::new( stringify!($const_p) ) ,)*],
         )
     })
 }
@@ -380,14 +380,14 @@ macro_rules! tag {
     ([ $( $elem:expr ),* $(,)? ])=>{{
         use $crate::type_layout::tagging::{Tag,FromLiteral};
         
-        Tag::arr(&[
+        Tag::arr($crate::rslice![
             $( FromLiteral($elem).to_tag(), )*
         ])
     }};
     ({ $( $key:expr=>$value:expr ),* $(,)? })=>{{
         use $crate::type_layout::tagging::{FromLiteral,Tag};
 
-        Tag::map(&[
+        Tag::map($crate::rslice![
             $(
                 Tag::kv(
                     FromLiteral($key).to_tag(),
@@ -399,7 +399,7 @@ macro_rules! tag {
     ({ $( $key:expr ),* $(,)? })=>{{
         use $crate::type_layout::tagging::{Tag,FromLiteral};
 
-        Tag::set(&[
+        Tag::set($crate::rslice![
             $(
                 FromLiteral($key).to_tag(),
             )*
@@ -571,6 +571,78 @@ macro_rules! RTuple {
     );
     ($v0:ty,$v1:ty,$v2:ty,$v3:ty $(,)* ) => (
         $crate::std_types::Tuple4<$v0,$v1,$v2,$v3>
+    );
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+/**
+A macro to construct `RSlice<'_,T>` constants.
+
+# Examples
+
+```
+use abi_stable::{
+    std_types::RSlice,
+    rslice,
+};
+
+const RSLICE_0:RSlice<'static,u8>=rslice![];
+const RSLICE_1:RSlice<'static,u8>=rslice![1];
+const RSLICE_2:RSlice<'static,u8>=rslice![1,2];
+const RSLICE_3:RSlice<'static,u8>=rslice![1,2,3];
+const RSLICE_4:RSlice<'static,u8>=rslice![1,2,3,5];
+const RSLICE_5:RSlice<'static,u8>=rslice![1,2,3,5,8];
+const RSLICE_6:RSlice<'static,u8>=rslice![1,2,3,5,8,13];
+
+assert_eq!( RSLICE_0.as_slice(), <&[u8]>::default() );
+assert_eq!( RSLICE_0.len(), 0 );
+
+assert_eq!( RSLICE_1.as_slice(), &[1] );
+assert_eq!( RSLICE_1.len(), 1 );
+
+assert_eq!( RSLICE_2.as_slice(), &[1,2] );
+assert_eq!( RSLICE_2.len(), 2 );
+
+assert_eq!( RSLICE_3.as_slice(), &[1,2,3] );
+assert_eq!( RSLICE_3.len(), 3 );
+
+assert_eq!( RSLICE_4.as_slice(), &[1,2,3,5] );
+assert_eq!( RSLICE_4.len(), 4 );
+
+assert_eq!( RSLICE_5.as_slice(), &[1,2,3,5,8] );
+assert_eq!( RSLICE_5.len(), 5 );
+
+assert_eq!( RSLICE_6.as_slice(), &[1,2,3,5,8,13] );
+assert_eq!( RSLICE_6.len(), 6 );
+
+
+```
+
+*/
+#[macro_export]
+macro_rules! rslice {
+    (@count;  ) => ( 0 );
+    (@count; $v0:expr) => ( 1 );
+    (@count; $v0:expr,$v1:expr) => ( 2 );
+    (@count; $v0:expr,$v1:expr,$v2:expr) => ( 3 );
+    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr) => ( 4 );
+    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr $(,$rem:expr)+) => ( 
+        4 + $crate::rslice!(@count; $($rem),* )
+    );
+    () => (
+        $crate::std_types::RSlice::EMPTY
+    );
+    ( $( $elem:expr ),* $(,)* ) => (
+        unsafe{
+            // This forces the length to be evaluated at compile-time.
+            const _RSLICE_LEN:usize=$crate::rslice!(@count; $($elem),* );
+            $crate::std_types::RSlice::from_raw_parts_with_lifetime(
+                &[ $($elem),* ],
+                _RSLICE_LEN,
+            )
+        }
     );
 }
 

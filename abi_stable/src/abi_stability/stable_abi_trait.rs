@@ -279,7 +279,7 @@ where T:StableAbi
         TLData::EMPTY,
         ReprAttr::c(),
         tl_genparams!(;;),
-        &[TLField::new("0",&[],GetTypeLayoutCtor::<T>::STABLE_ABI,)],
+        rslice![TLField::new("0",rslice![],GetTypeLayoutCtor::<T>::STABLE_ABI,)],
     );
 }
 
@@ -329,9 +329,9 @@ where
         TLData::Primitive(TLPrimitive::SharedRef),
         ReprAttr::Primitive,
         tl_genparams!('a;T;),
-        &[TLField::new(
+        rslice![TLField::new(
             "0",
-            &[LifetimeIndex::Param(0)],
+            rslice![LifetimeIndex::Param(0)],
             GetTypeLayoutCtor::<T>::SHARED_STABLE_ABI,
         )],
     ).set_mod_refl_mode(ModReflMode::DelegateDeref{phantom_field_index:0});
@@ -361,9 +361,9 @@ where
         TLData::Primitive(TLPrimitive::MutRef),
         ReprAttr::Primitive,
         tl_genparams!('a;T;),
-        &[TLField::new(
+        rslice![TLField::new(
             "0",
-            &[LifetimeIndex::Param(0)],
+            rslice![LifetimeIndex::Param(0)],
             GetTypeLayoutCtor::<T>::STABLE_ABI,
         )],
     );
@@ -390,16 +390,16 @@ where
         "NonNull",
         RNone,
         ItemInfo::std_type_in("std::ptr"),
-        TLData::struct_(&[
+        TLData::struct_(rslice![
             TLField::new(
                 "0",
-                &[],
+                rslice![],
                 GetTypeLayoutCtor::<*mut T>::STABLE_ABI,
             )
         ]),
         ReprAttr::Transparent,
         tl_genparams!(;T;),
-        &[],
+        rslice![],
     );
 }
 
@@ -423,16 +423,16 @@ where
         "AtomicPtr",
         RNone,
         ItemInfo::std_type_in("std::sync::atomic"),
-        TLData::struct_(&[
+        TLData::struct_(rslice![
             TLField::new(
                 "0",
-                &[],
+                rslice![],
                 GetTypeLayoutCtor::<*mut T>::STABLE_ABI,
             )
         ]),
         ReprAttr::Transparent,
         tl_genparams!(;T;),
-        &[],
+        rslice![],
     );
 }
 
@@ -458,9 +458,9 @@ where
         TLData::Primitive(TLPrimitive::ConstPtr),
         ReprAttr::Primitive,
         tl_genparams!(;T;),
-        &[TLField::new(
+        rslice![TLField::new(
             "0",
-            &[],
+            rslice![],
             GetTypeLayoutCtor::<T>::SHARED_STABLE_ABI,
         )],
     );
@@ -489,9 +489,9 @@ where
         TLData::Primitive(TLPrimitive::MutPtr),
         ReprAttr::Primitive,
         tl_genparams!(;T;),
-        &[TLField::new(
+        rslice![TLField::new(
             "0",
-            &[],
+            rslice![],
             GetTypeLayoutCtor::<T>::STABLE_ABI,
         )],
     );
@@ -522,10 +522,10 @@ macro_rules! impl_stable_abi_array {
                     TLData::Primitive(TLPrimitive::Array{len:$size}),
                     ReprAttr::Primitive,
                     tl_genparams!(;T;$size),
-                    &[
+                    rslice![
                         TLField::new(
                             "element", 
-                            &[],
+                            rslice![],
                             GetTypeLayoutCtor::<T>::SHARED_STABLE_ABI
                         )
                     ],
@@ -567,19 +567,19 @@ where
         TLData::Enum(&TLEnum::new(
             "Some;None;",
             IsExhaustive::exhaustive(),
-            &[
+            rslice![
                 TLField::new(
                     "0",
-                    &[],
+                    rslice![],
                     GetTypeLayoutCtor::<T>::STABLE_ABI,
                 )
             ],
-            TLDiscriminants::from_u8_slice(&[0,1]),
-            &[1,0]
+            TLDiscriminants::U8(rslice![0,1]),
+            rslice![1,0]
         )),
         ReprAttr::OptionNonZero,
         tl_genparams!(;T;),
-        &[],
+        rslice![],
     );
 }
 
@@ -606,7 +606,7 @@ macro_rules! impl_for_primitive_ints {
                     TLData::Primitive($tl_primitive),
                     ReprAttr::Primitive,
                     tl_genparams!(;;),
-                    &[],
+                    rslice![],
                 );
             }
         )*
@@ -646,10 +646,10 @@ macro_rules! impl_for_concrete {
                 const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std::<Self>(
                     Self::S_ABI_CONSTS,
                     stringify!($this),
-                    TLData::struct_(&[
+                    TLData::struct_(rslice![
                         TLField::new(
                             "0",
-                            &[],
+                            rslice![],
                             GetTypeLayoutCtor::<$prim_repr>::STABLE_ABI,
                         )
                     ]),
@@ -741,10 +741,10 @@ mod rust_1_36_impls{
         const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std::<Self>(
             Self::S_ABI_CONSTS,
             stringify!($this),
-            TLData::struct_(&[
+            TLData::struct_(rslice![
                 TLField::new(
                     "value",
-                    &[],
+                    rslice![],
                     GetTypeLayoutCtor::<T>::STABLE_ABI,
                 )
             ]),
@@ -785,8 +785,8 @@ macro_rules! impl_stableabi_for_repr_transparent {
             const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std::<Self>(
                 Self::S_ABI_CONSTS,
                 stringify!($type_constr),
-                TLData::struct_(&[
-                    TLField::new("0",&[],GetTypeLayoutCtor::<P>::STABLE_ABI,)
+                TLData::struct_(rslice![
+                    TLField::new("0",rslice![],GetTypeLayoutCtor::<P>::STABLE_ABI,)
                 ]),
                 ReprAttr::Transparent,
                 $item_info,
@@ -851,9 +851,9 @@ unsafe impl SharedStableAbi for core_extensions::Void {
             data: TLData::Enum(&TLEnum::new(
                 "",
                 IsExhaustive::exhaustive(),
-                &[],
-                TLDiscriminants::from_u8_slice(&[]),
-                &[]
+                rslice![],
+                TLDiscriminants::U8(rslice![]),
+                rslice![]
             )),
             generics: tl_genparams!(;;),
         });
@@ -870,7 +870,7 @@ macro_rules! empty_extern_fn_layout{
             abi_consts:Self::S_ABI_CONSTS,
             name: "AFunctionPointer",
             item_info:make_item_info!(),
-            data: TLData::struct_(&[]),
+            data: TLData::struct_(rslice![]),
             generics: tl_genparams!(;;),
         })
     )

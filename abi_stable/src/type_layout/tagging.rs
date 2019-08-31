@@ -114,7 +114,7 @@ impl Name for Boor{
 
 ```rust
 use abi_stable::{
-    tag,
+    rslice,tag,
     type_layout::Tag,
 };
 
@@ -140,7 +140,7 @@ const STR_0_MACRO:Tag=tag!("Hello,World!");
 const STR_0_FN:Tag=Tag::str("Hello,World!");
 
 const ARR_0_MACRO:Tag=tag![[ 0,1,2,3 ]];
-const ARR_0_FN:Tag=Tag::arr(&[
+const ARR_0_FN:Tag=Tag::arr(rslice![
     Tag::int(0),
     Tag::int(1),
     Tag::int(2),
@@ -149,7 +149,7 @@ const ARR_0_FN:Tag=Tag::arr(&[
 
 
 const SET_0_MACRO:Tag=tag!{{ 0,1,2,3 }};
-const SET_0_FN:Tag=Tag::set(&[
+const SET_0_FN:Tag=Tag::set(rslice![
     Tag::int(0),
     Tag::int(1),
     Tag::int(2),
@@ -163,7 +163,7 @@ const MAP_0_MACRO:Tag=tag!{{
     2=>false,
     3=>100,
 }};
-const MAP_0_FN:Tag=Tag::map(&[
+const MAP_0_FN:Tag=Tag::map(rslice![
     Tag::kv( Tag::int(0), Tag::str("a")),
     Tag::kv( Tag::int(1), Tag::str("b")),
     Tag::kv( Tag::int(2), Tag::bool_(false)),
@@ -223,7 +223,7 @@ use core_extensions::{
 use crate::{
     StableAbi,
     abi_stability::{TypeCheckerMut,ExtraChecks,ForExtraChecksImplementor,ExtraChecksError},
-    std_types::{StaticStr,StaticSlice,RBox,RCow,RVec,ROption,RSome,RNone,RResult},
+    std_types::{StaticStr,RSlice,RBox,RCow,RVec,ROption,RSome,RNone,RResult},
     traits::IntoReprC,
     utils::FmtPadding,
     type_layout::TypeLayout,
@@ -252,9 +252,9 @@ pub struct Tag{
 pub enum TagVariant{
     Primitive(Primitive),
     Ignored(&'static Tag),
-    Array(StaticSlice<Tag>),
-    Set(StaticSlice<Tag>),
-    Map(StaticSlice<KeyValue<Tag>>),
+    Array(RSlice<'static,Tag>),
+    Set(RSlice<'static,Tag>),
+    Map(RSlice<'static,KeyValue<Tag>>),
 }
 
 
@@ -387,13 +387,13 @@ impl Tag{
     }
 
     /// Constructs the Array variant.
-    pub const fn arr(s:&'static [Tag])->Self{
-        Self::new(TagVariant::Array(StaticSlice::new(s)))
+    pub const fn arr(s:RSlice<'static,Tag>)->Self{
+        Self::new(TagVariant::Array(s))
     }
 
     /// Constructs the Set variant.
-    pub const fn set(s:&'static [Tag])->Self{
-        Self::new(TagVariant::Set(StaticSlice::new(s)))
+    pub const fn set(s:RSlice<'static,Tag>)->Self{
+        Self::new(TagVariant::Set(s))
     }
 
     /// Constructs a KeyValue.
@@ -402,8 +402,8 @@ impl Tag{
     }
 
     /// Constructs the Map variant.
-    pub const fn map(s:&'static [KeyValue<Tag>])->Self{
-        Self::new(TagVariant::Map(StaticSlice::new(s)))
+    pub const fn map(s:RSlice<'static,KeyValue<Tag>>)->Self{
+        Self::new(TagVariant::Map(s))
     }
 }
 
