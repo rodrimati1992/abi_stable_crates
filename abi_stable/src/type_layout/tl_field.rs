@@ -9,7 +9,7 @@ pub struct TLField {
     /// The field's name.
     pub name: StaticStr,
     /// Which lifetimes in the struct are referenced in the field type.
-    pub lifetime_indices: StaticSlice<LifetimeIndex>,
+    pub lifetime_indices: RSlice<'static,LifetimeIndex>,
     /// The layout of the field's type.
     ///
     /// This is a function pointer to avoid infinite recursion,
@@ -62,12 +62,12 @@ impl TLField {
     /// Constructs a field which does not contain function pointers.
     pub const fn new(
         name: &'static str,
-        lifetime_indices: &'static [LifetimeIndex],
+        lifetime_indices: RSlice<'static,LifetimeIndex>,
         layout: GetTypeLayout,
     ) -> Self {
         Self {
             name: StaticStr::new(name),
-            lifetime_indices: StaticSlice::new(lifetime_indices),
+            lifetime_indices,
             layout,
             function_range:TLFunctionRange::EMPTY,
             is_function:false,
@@ -205,7 +205,7 @@ thread_local! {
 struct TLFieldShallow {
     pub(crate) name: StaticStr,
     pub(crate) full_type: FullType,
-    pub(crate) lifetime_indices: StaticSlice<LifetimeIndex>,
+    pub(crate) lifetime_indices: RSlice<'static,LifetimeIndex>,
     /// This is None if it already printed that TypeLayout
     pub(crate) layout: Option<&'static TypeLayout>,
 

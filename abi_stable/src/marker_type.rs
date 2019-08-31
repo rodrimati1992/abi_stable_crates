@@ -120,6 +120,6 @@ unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
         TLData::EMPTY,
         ReprAttr::c(),
         tl_genparams!(;;),
-        &[]
+        rslice![]
     );
 }

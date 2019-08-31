@@ -14,11 +14,11 @@ use std::{
 pub struct TLFunctions{
     /// The strings of function/bound_lifetime/parameter names.
     pub strings: StaticStr,
-    pub functions:StaticSlice<CompTLFunction>,
+    pub functions:RSlice<'static,CompTLFunction>,
     /// The range of `CompTLFunction` that each field in TLFields owns.
-    pub field_fn_ranges:StaticSlice<StartLen>,
-    pub type_layouts: StaticSlice<GetTypeLayout>,
-    pub paramret_lifetime_indices: StaticSlice<LifetimeIndex>,
+    pub field_fn_ranges:RSlice<'static,StartLen>,
+    pub type_layouts: RSlice<'static,GetTypeLayout>,
+    pub paramret_lifetime_indices: RSlice<'static,LifetimeIndex>,
 }
 
 
@@ -27,17 +27,17 @@ pub struct TLFunctions{
 impl TLFunctions {
     pub const fn new(
         strings: &'static str,
-        functions:&'static [CompTLFunction],
-        field_fn_ranges:&'static [StartLen],
-        type_layouts: &'static [GetTypeLayout],
-        paramret_lifetime_indices: &'static [LifetimeIndex],
+        functions:RSlice<'static,CompTLFunction>,
+        field_fn_ranges:RSlice<'static,StartLen>,
+        type_layouts: RSlice<'static,GetTypeLayout>,
+        paramret_lifetime_indices: RSlice<'static,LifetimeIndex>,
     )->Self{
         Self{
             strings:StaticStr::new(strings),
-            functions:StaticSlice::new(functions),
-            field_fn_ranges:StaticSlice::new(field_fn_ranges),
-            type_layouts:StaticSlice::new(type_layouts),
-            paramret_lifetime_indices:StaticSlice::new(paramret_lifetime_indices),
+            functions,
+            field_fn_ranges,
+            type_layouts,
+            paramret_lifetime_indices,
         }
     }
 
@@ -148,8 +148,8 @@ impl StartLen{
         self.start()..self.end()
     }
     #[inline]
-    pub fn get_slice<T>(self,slice:StaticSlice<T>)->RSlice<'static,T>{
-        slice.as_rslice().slice(self.to_range())
+    pub fn get_slice<T>(self,slice:RSlice<'static,T>)->RSlice<'static,T>{
+        slice.slice(self.to_range())
     }
     #[inline]
     pub fn get_str(self,str:StaticStr)->RStr<'static>{

@@ -89,7 +89,7 @@ fn is_sabi_opaque_fields(){
 
         for (field,field_typename) in fields.into_iter().zip(field_typenames) {
             if let Some(typename)=field_typename {
-                assert_eq!( field.layout.get().name.as_str(), typename );
+                assert_eq!( field.layout.get().name(), typename );
             }
         }
     }

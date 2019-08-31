@@ -18,7 +18,7 @@ use crate::{
     },
     const_utils::empty_slice, sabi_types::VersionStrings, 
     sabi_types::{CmpIgnored,Constructor},
-    std_types::{RNone, ROption, RSome, RStr, StaticSlice,StaticStr,RSlice,UTypeId},
+    std_types::{RNone, ROption, RSome,RStr,StaticStr,RSlice,UTypeId},
     prefix_type::{FieldAccessibility,IsConditional},
     reflection::ModReflMode,
 };
@@ -99,8 +99,6 @@ pub use self::{
 pub struct TypeLayout {
     /// Used for printing the type at runtime,
     pub full_type: FullType,
-    /// The name of this type,the `Option` in `Òption<T>`.
-    pub name: StaticStr,
     /// Contains constants equivalent to the associated types in 
     /// the SharedStableAbi impl of the type this is the layout for.
     pub abi_consts:AbiConsts,
@@ -116,7 +114,7 @@ pub struct TypeLayout {
     pub data: TLData,
     /// Phantom fields,which don't have a runtime component(they aren't stored anywhere),
     /// and are checked in layout checking.
-    pub phantom_fields: StaticSlice<TLField>,
+    pub phantom_fields: RSlice<'static,TLField>,
     /// Extra data stored for reflection,
     /// so as to not break the abi every time that more stuff is added for reflection.
     pub reflection_tag:&'static Tag,
@@ -230,7 +228,7 @@ impl TypeLayout {
             data, 
             repr,
             generics, 
-            empty_slice()
+            RSlice::EMPTY,
         )
     }
 
@@ -242,17 +240,16 @@ impl TypeLayout {
         data: TLData,
         repr:ReprAttr,
         genparams: GenericParams,
-        phantom: &'static [TLField],
+        phantom_fields: RSlice<'static,TLField>,
     ) -> Self {
         Self {
             abi_consts,
-            name: StaticStr::new(type_name),
             item_info:CmpIgnored::new(item_info),
             size: mem::size_of::<T>(),
             alignment: mem::align_of::<T>(),
             data,
             full_type: FullType::new(type_name, prim, genparams),
-            phantom_fields: StaticSlice::new(phantom),
+            phantom_fields,
             reflection_tag:Tag::NULL,
             tag:Tag::NULL,
             extra_checks:CmpIgnored::new(None),
@@ -266,7 +263,6 @@ impl TypeLayout {
         let name = StaticStr::new(p.name);
         Self {
             abi_consts:p.abi_consts,
-            name,
             item_info:CmpIgnored::new(p.item_info),
             size: mem::size_of::<T>(),
             alignment: mem::align_of::<T>(),
@@ -276,7 +272,7 @@ impl TypeLayout {
                 primitive: RNone,
                 generics: p.generics,
             },
-            phantom_fields: StaticSlice::new(empty_slice()),
+            phantom_fields: RSlice::EMPTY,
             reflection_tag:Tag::NULL,
             tag:Tag::NULL,
             extra_checks:CmpIgnored::new(None),
@@ -291,7 +287,6 @@ impl TypeLayout {
         let name = StaticStr::new(p.name);
         Self {
             abi_consts:p.abi_consts,
-            name,
             item_info:CmpIgnored::new(p.item_info),
             size: mem::size_of::<T>(),
             alignment: mem::align_of::<T>(),
@@ -301,33 +296,13 @@ impl TypeLayout {
                 primitive: RNone,
                 generics: p.generics,
             },
-            phantom_fields: StaticSlice::new(p.phantom_fields),
+            phantom_fields:p.phantom_fields,
             reflection_tag:Tag::NULL,
             tag:p.tag,
             extra_checks:CmpIgnored::new(p.extra_checks),
             mod_refl_mode:p.mod_refl_mode,
             repr_attr:p.repr_attr,
         }
-    }
-
-    /// Sets the phantom fields,
-    /// fields which don't have a runtime representation
-    /// and are checked in the layout checker.
-    pub const fn set_phantom_fields(mut self,phantom_fields: &'static [TLField])->Self{
-        self.phantom_fields=StaticSlice::new(phantom_fields);
-        self
-    }
-
-    /// Sets the Tag of the type,checked for compatibility in layotu checking..
-    pub const fn set_tag(mut self,tag:&'static Tag)->Self{
-        self.tag=tag;
-        self
-    }
-
-    /// Sets the Tag of the type used for reflection,this is not checked in layout checking.
-    pub const fn set_reflection_tag(mut self,reflection_tag:&'static Tag)->Self{
-        self.reflection_tag=reflection_tag;
-        self
     }
 
     /// Sets the module reflection mode of the type,
@@ -337,17 +312,14 @@ impl TypeLayout {
         self
     }
 
-    /// Sets the `#[repr(_)]` attribute of the type.
-    pub const fn set_repr_attr(mut self,repr_attr:ReprAttr)->Self{
-        self.repr_attr=repr_attr;
-        self
-    }
-
     /// Whether this is a prefix-type(module or vtable).
     pub fn is_prefix_kind(&self)->bool{
         matches!(TLData::PrefixType{..}=self.data)
     }
 
+    pub fn name(&self)->&'static str{
+        self.full_type.name.as_str()
+    }
 
     pub fn type_kind(&self)->TypeKind{
         self.abi_consts.kind

@@ -31,7 +31,7 @@ pub struct _private_TypeLayoutDerive {
     pub item_info:ItemInfo,
     pub data: TLData,
     pub generics: GenericParams,
-    pub phantom_fields: &'static [TLField],
+    pub phantom_fields: RSlice<'static,TLField>,
     pub tag:&'static Tag,
     pub extra_checks:Option<Constructor<ExtraChecksStaticRef>>,
     pub mod_refl_mode:ModReflMode,

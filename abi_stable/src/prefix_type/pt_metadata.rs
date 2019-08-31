@@ -148,7 +148,7 @@ impl PrefixTypeMetadata{
 #[derive(Debug,Clone)]
 pub(crate) enum InitialFieldsOrMut{
     TLFields(TLFields),
-    Slice(StaticSlice<TLField>),
+    Slice(RSlice<'static,TLField>),
     Mutable(Vec<TLField>),
 }
 

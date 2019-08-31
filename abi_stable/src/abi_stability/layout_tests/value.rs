@@ -850,40 +850,40 @@ declare_tags!{
     const TAG_DEFAULT_2=Tag::int(0);
     const TAG_DEFAULT_3=Tag::uint(0);
     const TAG_DEFAULT_4=Tag::str("");
-    const TAG_DEFAULT_5=Tag::arr(&[]);
-    const TAG_DEFAULT_6=Tag::set(&[]);
+    const TAG_DEFAULT_5=Tag::arr(RSlice::EMPTY);
+    const TAG_DEFAULT_6=Tag::set(RSlice::EMPTY);
     
-    const TAG_EMPTY_SET=Tag::set(&[]);
+    const TAG_EMPTY_SET=Tag::set(RSlice::EMPTY);
     
-    const TAG_SET_A0=Tag::set(&[
+    const TAG_SET_A0=Tag::set(rslice![
         Tag::str("Sync"),
     ]);
-    const TAG_SET_A1=Tag::set(&[
+    const TAG_SET_A1=Tag::set(rslice![
         Tag::str("Send"),
     ]);
-    const TAG_SET_A2=Tag::set(&[
+    const TAG_SET_A2=Tag::set(rslice![
         Tag::str("Copy"),
     ]);
-    const TAG_SET_A3=Tag::set(&[
+    const TAG_SET_A3=Tag::set(rslice![
         Tag::str("Clone"),
     ]);
-    const TAG_SET_B0=Tag::set(&[
+    const TAG_SET_B0=Tag::set(rslice![
         Tag::str("Send"),
         Tag::str("Sync"),
     ]);
-    const TAG_SET_B1=Tag::set(&[
+    const TAG_SET_B1=Tag::set(rslice![
         Tag::str("Copy"),
         Tag::str("Clone"),
     ]);
 
-    const TAG_SET_C0=Tag::set(&[
+    const TAG_SET_C0=Tag::set(rslice![
         Tag::str("Send"),
         Tag::str("Sync"),
         Tag::str("Copy"),
         Tag::str("Clone"),
     ]);
 
-    const TAG_SET_C1=Tag::set(&[
+    const TAG_SET_C1=Tag::set(rslice![
         Tag::str("Debug"),
         Tag::str("Display"),
     ]);

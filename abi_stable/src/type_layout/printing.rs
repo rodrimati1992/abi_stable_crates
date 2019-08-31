@@ -138,7 +138,7 @@ impl Debug for TypeLayout{
 
         f.debug_struct("TypeLayout")
             .field("full_type",&self.full_type)
-            .field("name",&self.name)
+            .field("name",&self.name())
             .field("abi_consts",&self.abi_consts)
             .field("item_info",&self.item_info)
             .field("size",&self.size)

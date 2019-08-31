@@ -5,7 +5,7 @@ use crate::{
     abi_stability::{
         stable_abi_trait::{GetTypeLayoutCtor},
     },
-    std_types::RVec,
+    std_types::{StaticSlice,RVec},
 };
 
 
@@ -44,7 +44,7 @@ pub struct TLPrefixType {
     /// (what comes at and before `#[sabi(last_prefix_field)]`)
     /// are conditionally accessible 
     /// (with the `#[sabi(accessible_if=" expression ")]` attribute).
-    pub conditional_prefix_fields:StaticSlice<IsConditional>,
+    pub conditional_prefix_fields:RSlice<'static,IsConditional>,
     /// All the fields of the prefix-type,even if they are inaccessible.
     pub fields: TLFieldsOrSlice,
 }
@@ -153,12 +153,11 @@ impl Display for ModPath{
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct GenericParams {
     /// The names of the lifetimes declared by a type.
-    pub lifetime: StaticSlice<StaticStr>,
+    pub lifetime: StaticStr,
     /// The type parameters of a type.
-    pub type_: StaticSlice<&'static TypeLayout>,
-    /// The values of const parameters,
-    /// this currently is special cased for arrays up to 32 elements.
-    pub const_: StaticSlice<StaticStr>,
+    pub type_: RSlice<'static,&'static TypeLayout>,
+    /// The values of const parameters,this will work properly eventually.
+    pub const_: RSlice<'static,StaticStr>,
 }
 
 impl GenericParams {
@@ -167,20 +166,24 @@ impl GenericParams {
     /// The preferred way of constructing a `GenericParams` is with the 
     /// `tl_genparams` macro.
     pub const fn new(
-        lifetime: &'static [StaticStr],
-        type_: &'static [&'static TypeLayout],
-        const_: &'static [StaticStr],
+        lifetime: StaticStr,
+        type_: RSlice<'static,&'static TypeLayout>,
+        const_: RSlice<'static,StaticStr>,
     ) -> Self {
         Self {
-            lifetime: StaticSlice::new(lifetime),
-            type_: StaticSlice::new(type_),
-            const_: StaticSlice::new(const_),
+            lifetime,
+            type_,
+            const_,
         }
     }
 
     /// Whether this contains any generic parameters
     pub fn is_empty(&self) -> bool {
         self.lifetime.is_empty() && self.type_.is_empty() && self.const_.is_empty()
+    }
+
+    pub fn lifetimes(&self)-> impl Iterator<Item=&'static str>+Clone+Send+Sync+'static {
+        self.lifetime.as_str().split(',').filter(|x| !x.is_empty() )
     }
 }
 
@@ -195,8 +198,8 @@ impl Display for GenericParams {
             Ok(())
         };
 
-        for (i, param) in self.lifetime.iter().cloned().enumerate() {
-            fmt::Display::fmt(param.as_str(), &mut *f)?;
+        for (i, param) in self.lifetimes().enumerate() {
+            fmt::Display::fmt(param, &mut *f)?;
             post_iter(i, self.lifetime.len(), &mut *f)?;
         }
         for (i, param) in self.type_.iter().cloned().enumerate() {
@@ -354,20 +357,20 @@ pub enum TLDataDiscriminant {
 impl TLData {
     pub const EMPTY:Self=
         TLData::Struct {
-            fields: TLFieldsOrSlice::from_slice(&[]),
+            fields: TLFieldsOrSlice::Slice(RSlice::EMPTY),
         };
  
     /// Constructs `TLData::Struct` from a slice of its fields.
-    pub const fn struct_(fields: &'static [TLField]) -> Self {
+    pub const fn struct_(fields: RSlice<'static,TLField>) -> Self {
         TLData::Struct {
-            fields: TLFieldsOrSlice::from_slice(fields),
+            fields: TLFieldsOrSlice::Slice(fields),
         }
     }
     
     /// Constructs `TLData::Union` from a slice of its fields.
-    pub const fn union_(fields: &'static [TLField]) -> Self {
+    pub const fn union_(fields: RSlice<'static,TLField>) -> Self {
         TLData::Union {
-            fields: TLFieldsOrSlice::from_slice(fields),
+            fields: TLFieldsOrSlice::Slice(fields),
         }
     }
     
@@ -375,14 +378,14 @@ impl TLData {
     pub const fn prefix_type(
         first_suffix_field:usize,
         accessible_fields:FieldAccessibility,
-        conditional_prefix_fields:&'static [IsConditional],
-        fields: &'static [TLField],
+        conditional_prefix_fields:RSlice<'static,IsConditional>,
+        fields: RSlice<'static,TLField>,
     )->Self{
         TLData::PrefixType(TLPrefixType{
             first_suffix_field,
             accessible_fields,
-            conditional_prefix_fields:StaticSlice::new(conditional_prefix_fields),
-            fields:TLFieldsOrSlice::from_slice(fields),
+            conditional_prefix_fields,
+            fields:TLFieldsOrSlice::Slice(fields),
         })
     }
  
@@ -404,13 +407,13 @@ impl TLData {
     pub const fn prefix_type_derive(
         first_suffix_field:usize,
         accessible_fields:FieldAccessibility,
-        conditional_prefix_fields:&'static [IsConditional],
+        conditional_prefix_fields:RSlice<'static,IsConditional>,
         fields: TLFields,
     )->Self{
         TLData::PrefixType(TLPrefixType{
             first_suffix_field,
             accessible_fields,
-            conditional_prefix_fields:StaticSlice::new(conditional_prefix_fields),
+            conditional_prefix_fields,
             fields:TLFieldsOrSlice::TLFields(fields),
         })
     }
@@ -514,8 +517,8 @@ impl Debug for FullType {
             let total_generics_len=
                 generics.lifetime.len()+generics.type_.len()+generics.const_.len();
 
-            for param in generics.lifetime.iter().cloned() {
-                fmt::Display::fmt(param.as_str(), &mut *f)?;
+            for param in self.generics.lifetimes() {
+                fmt::Display::fmt(param, &mut *f)?;
                 post_iter(i,total_generics_len, &mut *f)?;
                 i+=1;
             }
@@ -648,7 +651,7 @@ impl TLFunction{
         self.get_param_names()
             .zip(self.param_type_layouts.as_slice().iter().cloned())
             .map(|(param_name,layout)|{
-                TLField::new(param_name,&[],layout)
+                TLField::new(param_name,RSlice::EMPTY,layout)
             })
     }
     
@@ -656,7 +659,7 @@ impl TLFunction{
         const UNIT_GET_ABI_INFO:GetTypeLayout=GetTypeLayoutCtor::<()>::STABLE_ABI;
         TLField::new(
             "__returns",
-            &[],
+            RSlice::EMPTY,
             self.return_type_layout.unwrap_or(UNIT_GET_ABI_INFO)
         )
     }

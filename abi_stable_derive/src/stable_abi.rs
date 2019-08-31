@@ -425,11 +425,11 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                                 #(#phantom_type_params,)*;
                                 #(#const_params),*
                             ),
-                            phantom_fields:&[
+                            phantom_fields:abi_stable::rslice![
                                 #(
                                     __TLField::new(
                                         #phantom_field_names,
-                                        &[],
+                                        abi_stable::rslice![],
                                         __GetTypeLayoutCtor::<
                                             #phantom_field_tys
                                         >::SHARED_STABLE_ABI,
@@ -501,7 +501,7 @@ fn tokenize_enum<'a>(
                 __IsExhaustive::#is_exhaustive,
                 #fields,
                 #discriminants,
-                &[#( #variant_lengths ),*],
+                abi_stable::rslice![#( #variant_lengths ),*],
             )
         ).to_tokens(ts);
     })
@@ -581,7 +581,7 @@ fn fields_tokenizer_inner<'a>(
     names.to_tokens(ts);
     ct.comma.to_tokens(ts);
 
-    ct.and_.to_tokens(ts);
+    quote!( abi_stable::rslice! ).to_tokens(ts);
     ct.bracket.surround(ts,|ts|{
         for len in variant_length.iter().cloned() {
             to_stream!(ts;len,ct.comma);
@@ -591,7 +591,7 @@ fn fields_tokenizer_inner<'a>(
 
     to_stream!(ts;ct.slice_and_field_indices,ct.colon2,ct.new);
     ct.paren.surround(ts,|ts|{
-        ct.and_.to_tokens(ts);
+        quote!( abi_stable::rslice! ).to_tokens(ts);
         ct.bracket.surround(ts,|ts|{
             for li in fields.iter().cloned()
                 .flat_map(|f| &visited_fields.map[f].referenced_lifetimes ) 
@@ -600,7 +600,8 @@ fn fields_tokenizer_inner<'a>(
             }
         });
         ct.comma.to_tokens(ts);
-        ct.and_.to_tokens(ts);
+        
+        quote!( abi_stable::rslice! ).to_tokens(ts);
         ct.bracket.surround(ts,|ts|{
             for (fi,index) in lifetime_ind_pos {
                 to_stream!(ts;ct.with_field_index,ct.colon2,ct.from_vari_field_val);
@@ -626,7 +627,7 @@ fn fields_tokenizer_inner<'a>(
     to_stream!{ts; ct.comma };
 
 
-    to_stream!{ts; ct.and_ };
+    quote!( abi_stable::rslice! ).to_tokens(ts);
     ct.bracket.surround(ts,|ts|{
         for &field in &fields {
             let visited_field=&visited_fields.map[field];
@@ -740,10 +741,10 @@ fn tokenize_tl_functions<'a>(
     quote!(
         __TLFunctions::new(
             #strings,
-            &[#(#functions),*],
-            &[#(#field_fn_ranges),*],
-            &[#type_layouts],
-            &[#(#paramret_lifetime_indices),*],
+            abi_stable::rslice![#(#functions),*],
+            abi_stable::rslice![#(#field_fn_ranges),*],
+            abi_stable::rslice![#type_layouts],
+            abi_stable::rslice![#(#paramret_lifetime_indices),*],
         )
     ).to_tokens(ts);
 

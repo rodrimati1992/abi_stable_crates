@@ -156,6 +156,18 @@ where
                 _marker: PhantomData,
             }
         }
+
+        #[doc(hidden)]
+        pub const unsafe fn from_raw_parts_with_lifetime(
+            slice:&'a [T],
+            len: usize,
+        ) -> Self {
+            Self {
+                data: slice.as_ptr(),
+                length: len,
+                _marker: PhantomData,
+            }
+        }
     }
     
     impl<'a, T> RSlice<'a, T> {

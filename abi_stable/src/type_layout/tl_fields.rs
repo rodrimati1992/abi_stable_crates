@@ -14,7 +14,7 @@ pub struct TLFields {
 
     /// The ammount of fields of each variant of the type,
     /// treating structs and unions as a single variant enum.
-    pub variant_lengths:StaticSlice<u8>,
+    pub variant_lengths:RSlice<'static,u8>,
 
     /// Which lifetimes in the struct are referenced in the field type.
     pub lifetime_indices: SliceAndFieldIndices<LifetimeIndex>,
@@ -23,7 +23,7 @@ pub struct TLFields {
     pub functions:Option<&'static TLFunctions >,
 
     /// All TLField fields which map 1:1.
-    pub field_1to1:StaticSlice<Field1to1>,
+    pub field_1to1:RSlice<'static,Field1to1>,
 }
 
 
@@ -31,17 +31,17 @@ impl TLFields{
     /// Constructs a `TLFields` from its component parts
     pub const fn new(
         names: &'static str,
-        variant_lengths:&'static [u8],
+        variant_lengths: RSlice<'static,u8>,
         lifetime_indices: SliceAndFieldIndices<LifetimeIndex>,
         functions:Option<&'static TLFunctions >,
-        field_1to1:&'static [Field1to1],
+        field_1to1:RSlice<'static,Field1to1>,
     )->Self{
         Self{
             names:StaticStr::new(names),
-            variant_lengths:StaticSlice::new(variant_lengths),
+            variant_lengths,
             lifetime_indices,
             functions,
-            field_1to1:StaticSlice::new(field_1to1),
+            field_1to1,
         }
     }
 
@@ -126,19 +126,11 @@ Either a `TLFields` or a static slice of `TLField`.
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLFieldsOrSlice{
     TLFields(TLFields),
-    Slice(StaticSlice<TLField>),
+    Slice(RSlice<'static,TLField>),
 }
 
 impl TLFieldsOrSlice{
-    pub const EMPTY:Self=Self::from_slice(&[]);
-
-    /// Constructs a TLFieldsOrSlice from a slice of `TLField` .
-    ///
-    /// This was defined to make construct TLFieldsOrSlice more easily 
-    /// from a `&'static [TLField;N]`.
-    pub const fn from_slice(slice:&'static [TLField])->Self{
-        TLFieldsOrSlice::Slice(StaticSlice::new(slice))
-    }
+    pub const EMPTY:Self=TLFieldsOrSlice::Slice(RSlice::EMPTY);
 
     /// Gets an iterator over the fields.
     pub fn iter(&self)->TLFOSIter{
@@ -244,20 +236,20 @@ A slice of `T`,and a slice of ranges into the first slice,associating each range
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi,Ord,PartialOrd,Eq,PartialEq)]
 pub struct SliceAndFieldIndices<T:'static>{
-    pub values: StaticSlice<T>,
-    pub field_indices: StaticSlice<WithFieldIndex<u16>>,
+    pub values: RSlice<'static,T>,
+    pub field_indices: RSlice<'static,WithFieldIndex<u16>>,
 }
 
 
 impl<T> SliceAndFieldIndices<T>{
     /// Constructs the SliceAndFieldIndices from its component parts.
     pub const fn new(
-        values: &'static [T],
-        field_indices:&'static [WithFieldIndex<u16>],
+        values: RSlice<'static,T>,
+        field_indices:RSlice<'static,WithFieldIndex<u16>>,
     )->Self{
         Self{
-            values:StaticSlice::new(values),
-            field_indices:StaticSlice::new(field_indices),
+            values,
+            field_indices,
         }
     }
 
@@ -439,7 +431,7 @@ impl Iterator for TLFieldsIterator{
 
         Some(TLField{
             name:StaticStr::new(self.field_names.next().unwrap()),
-            lifetime_indices:StaticSlice::new(self.lifetime_indices.next().unwrap().value),
+            lifetime_indices:RSlice::from_slice(self.lifetime_indices.next().unwrap().value),
             function_range:TLFunctionRange::new(
                 self.field_fn_ranges.next().map_or(StartLen::EMPTY,|x|*x),
                 self.functions,
