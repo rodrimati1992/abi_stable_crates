@@ -88,7 +88,7 @@ pub enum ReprAttr{
     Transparent,
     /// Means that only `repr(IntegerType)` was used.
     Int(DiscriminantRepr),
-    // Added just in case that I add support in 0.4.*
+    // Added just in case that I add support for it
     #[doc(hidden)]
     Packed{
         alignment:usize,
