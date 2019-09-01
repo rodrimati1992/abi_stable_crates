@@ -650,6 +650,69 @@ macro_rules! rslice {
 ///////////////////////////////////////////////////////////////////////////////
 
 
+
+/**
+A macro to construct `RStr<'static>` constants.
+
+# Examples
+
+```
+use abi_stable::{
+    std_types::RStr,
+    rstr,
+};
+
+const RSTR_0:RStr<'static>=rstr!("");
+const RSTR_1:RStr<'static>=rstr!("1");
+const RSTR_2:RStr<'static>=rstr!("12");
+const RSTR_3:RStr<'static>=rstr!("123");
+const RSTR_4:RStr<'static>=rstr!("1235");
+const RSTR_5:RStr<'static>=rstr!("12358");
+const RSTR_6:RStr<'static>=rstr!("1235813");
+
+assert_eq!( RSTR_0.as_str(), "" );
+assert_eq!( RSTR_0.len(), 0 );
+
+assert_eq!( RSTR_1.as_str(), "1" );
+assert_eq!( RSTR_1.len(), 1 );
+
+assert_eq!( RSTR_2.as_str(), "12" );
+assert_eq!( RSTR_2.len(), 2 );
+
+assert_eq!( RSTR_3.as_str(), "123" );
+assert_eq!( RSTR_3.len(), 3 );
+
+assert_eq!( RSTR_4.as_str(), "1235" );
+assert_eq!( RSTR_4.len(), 4 );
+
+assert_eq!( RSTR_5.as_str(), "12358" );
+assert_eq!( RSTR_5.len(), 5 );
+
+assert_eq!( RSTR_6.as_str(), "1235813" );
+assert_eq!( RSTR_6.len(), 7 );
+
+
+```
+
+*/
+#[macro_export]
+macro_rules! rstr {
+    ( $lit:literal ) => {unsafe{
+        mod string_module{
+            abi_stable_derive::get_string_length!{$lit}
+        }
+
+        $crate::std_types::RStr::from_raw_parts(
+            $lit.as_ptr(),
+            string_module::LEN,
+        )
+    }}
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
 #[allow(unused_macros)]
 macro_rules! delegate_interface_serde {
     (
