@@ -301,8 +301,8 @@ macro_rules! impl_get_typename{
         let $type_name:ident = $type:ident $([$($params:tt)*])?
     ) => (
         let $type_name={
-            extern "C" fn __get_type_name()->StaticStr{
-                $crate::std_types::StaticStr::new(stringify!($type))
+            extern "C" fn __get_type_name()->$crate::std_types::RStr<'static>{
+                stringify!($type).into()
             }
 
             $crate::sabi_types::Constructor(__get_type_name)

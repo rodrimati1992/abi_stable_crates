@@ -20,8 +20,8 @@ use core_extensions::SelfOps;
 ///
 #[sabi_trait]
 #[sabi(no_trait_impl)]
-//#[sabi(debug_print_trait)]
-pub unsafe trait TypeChecker{
+// #[sabi(debug_print_trait)]
+pub unsafe trait TypeChecker:'static {
     /// Checks that `ìnterface` is compatible with `implementation.` 
     /// 
     /// This is equivalent to `check_layout_compatibility`,
@@ -36,9 +36,19 @@ pub unsafe trait TypeChecker{
 }
 
 
+
+
+
+
+
+
+
+
+
+
 /// An ffi-safe equivalent of &'b mut (dyn TypeChecker+'a)
-pub type TypeCheckerMut<'a,'b>=
-    TypeChecker_TO<'a,&'b mut ()>;
+pub type TypeCheckerMut<'b>=
+    TypeChecker_TO<&'b mut ()>;
 
 
 /**
@@ -145,7 +155,7 @@ impl ExtraChecks for InOrderChecker {
         &self,
         layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeCheckerMut<'_,'_>,
+        checker:TypeCheckerMut<'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,checker,|_,_|{
             let fields=layout_containing_self.get_fields().unwrap_or_default();
@@ -357,7 +367,7 @@ impl ExtraChecks for ConstChecker {
         &self,
         layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeCheckerMut<'_,'_>,
+        checker:TypeCheckerMut<'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,checker,|other,_|{
             if self.number==other.number {
@@ -623,7 +633,7 @@ impl ExtraChecks for ConstChecker {
         &self,
         _layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeCheckerMut<'_,'_>,
+        checker:TypeCheckerMut<'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,checker,|other,_|{
             self.check_compatible_inner(other)
@@ -637,7 +647,7 @@ impl ExtraChecks for ConstChecker {
     fn combine(
         &self,
         other:ExtraChecksRef<'_>,
-        checker:TypeCheckerMut<'_,'_>
+        checker:TypeCheckerMut<'_>
     )->RResult<ROption<ExtraChecksBox>, ExtraChecksError>{
         Self::downcast_with_object(other,checker,|other,_|{
             let (min,max)=min_max_by(self,other,|x|x.chars.len());
@@ -692,7 +702,7 @@ where
 */
 #[sabi_trait]
 #[sabi(no_trait_impl)]
-pub unsafe trait ExtraChecks:Debug+Display+Clone{
+pub unsafe trait ExtraChecks:'static+Debug+Display+Clone{
     /// Gets the type layout of `Self`(the type that implements ExtraChecks)
     ///
     /// This is used to downcast the trait object in 
@@ -726,7 +736,7 @@ The trait object of the type checker,which allows this function to check type la
         &self,
         layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeCheckerMut<'_,'_>,
+        checker:TypeCheckerMut<'_>,
     )->RResult<(), ExtraChecksError>;
 
     /// Returns the `TypeLayout`s owned or referenced by `self`.
@@ -772,7 +782,7 @@ This returns:
     fn combine(
         &self,
         _other:ExtraChecksRef<'_>,
-        _checker:TypeCheckerMut<'_,'_>,
+        _checker:TypeCheckerMut<'_>,
     )->RResult<ROption<ExtraChecksBox>, ExtraChecksError>{
         ROk(RNone)
     }
@@ -782,13 +792,13 @@ This returns:
 
 
 /// An ffi-safe equivalent of `&'static dyn ExtraChecks`.
-pub type ExtraChecksStaticRef=ExtraChecks_TO<'static,&'static ()>;
+pub type ExtraChecksStaticRef=ExtraChecks_TO<&'static ()>;
 
 /// An ffi-safe equivalent of `&'a dyn ExtraChecks`.
-pub type ExtraChecksRef<'a>=ExtraChecks_TO<'static,&'a ()>;
+pub type ExtraChecksRef<'a>=ExtraChecks_TO<&'a ()>;
 
 /// An ffi-safe equivalent of `Box<dyn ExtraChecks>`.
-pub type ExtraChecksBox=ExtraChecks_TO<'static,RBox<()>>;
+pub type ExtraChecksBox=ExtraChecks_TO<RBox<()>>;
 
 
 
@@ -816,12 +826,12 @@ within `layout_containing_other`.
 */
     fn downcast_with_layout<F,R,E>(
         layout_containing_other:&'static TypeLayout,
-        checker:TypeCheckerMut<'_,'_>,
+        checker:TypeCheckerMut<'_>,
         f:F,
     )->RResult<R, ExtraChecksError>
     where
         Self:'static,
-        F:FnOnce(&Self,TypeCheckerMut<'_,'_>)->Result<R,E>,
+        F:FnOnce(&Self,TypeCheckerMut<'_>)->Result<R,E>,
         E:Send+Sync+ErrorTrait+'static,
     {
         let other=rtry!(
@@ -850,11 +860,11 @@ If the closure returns an `ExtraChecksError`,it'll be returned unmodified and un
 */
     fn downcast_with_object<F,R,E>(
         other:ExtraChecksRef<'_>,
-        mut checker:TypeCheckerMut<'_,'_>,
+        mut checker:TypeCheckerMut<'_>,
         f:F,
     )->RResult<R, ExtraChecksError>
     where
-        F:FnOnce(&Self,TypeCheckerMut<'_,'_>)->Result<R,E>,
+        F:FnOnce(&Self,TypeCheckerMut<'_>)->Result<R,E>,
         E:Send+Sync+ErrorTrait+'static,
     {
         // This checks that the layouts of `this` and `other` are compatible,

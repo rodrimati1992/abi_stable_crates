@@ -93,6 +93,8 @@ pub(crate) struct TraitDefinition<'a>{
     pub(crate) has_val_methods:bool,
     /// Disables `ìmpl Trait for Trait_TO`
     pub(crate) disable_trait_impl:bool,
+    /// Whether this has `'static` as a supertrait syntactically.
+    pub(crate) is_static:IsStaticTrait,
     /// A TokenStream with the equivalent of `<Pointer::Target as Trait>::`
     pub(crate) ts_fq_self:&'a TokenStream2,
     pub(crate) ctokens:&'a CommonTokens,
@@ -137,6 +139,8 @@ impl<'a> TraitDefinition<'a>{
         /////////////////////////////////////////////////////
         ////         Processing the supertrait bounds
 
+        let mut is_static=IsStaticTrait::No;
+
         let lifetime_params:HashSet<&'a Lifetime>=
             trait_.generics.lifetimes()
                 .map(|l| &l.lifetime )
@@ -174,7 +178,11 @@ impl<'a> TraitDefinition<'a>{
             }
         }
 
-
+        for lt in &lifetime_bounds {
+            if lt.ident=="static" {
+                is_static=IsStaticTrait::Yes;
+            }
+        }
         /////////////////////////////////////////////////////
 
         let mut assoc_ty_index=0;
@@ -236,6 +244,7 @@ impl<'a> TraitDefinition<'a>{
             has_val_methods,
             disable_trait_impl,
             ts_fq_self:arenas.alloc(ts_fq_self),
+            is_static,
             ctokens,
             arenas,
         })

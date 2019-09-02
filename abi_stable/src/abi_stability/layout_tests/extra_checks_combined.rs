@@ -234,7 +234,7 @@ impl ExtraChecks for ConstChecker {
         &self,
         _layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeCheckerMut<'_,'_>,
+        checker:TypeCheckerMut<'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,checker,|other,_|{
             self.check_compatible_inner(other)
@@ -248,7 +248,7 @@ impl ExtraChecks for ConstChecker {
     fn combine(
         &self,
         other:ExtraChecksRef<'_>,
-        checker:TypeCheckerMut<'_,'_>
+        checker:TypeCheckerMut<'_>
     )->RResult<ROption<ExtraChecksBox>, ExtraChecksError>{
         Self::downcast_with_object(other,checker,|other,_|{
             let (min,max)=utils::min_max_by(self,other,|x|x.chars.len());
@@ -311,7 +311,7 @@ impl ExtraChecks for IdentityChecker {
         &self,
         _layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        ty_checker:TypeCheckerMut<'_,'_>,
+        ty_checker:TypeCheckerMut<'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,ty_checker,|other,mut ty_checker|{
             ty_checker.check_compatibility(self.type_layout,other.type_layout).into_result()

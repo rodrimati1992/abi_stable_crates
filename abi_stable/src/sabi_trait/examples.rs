@@ -327,7 +327,7 @@ where
 //////////////////////////////////////
 
 #[sabi_trait]
-//#[sabi(debug_print_trait)]
+// #[sabi(debug_print_trait)]
 pub trait RFoo<'a,T:Copy+'a>{
     fn get(&'a self)->&'a T;
 }

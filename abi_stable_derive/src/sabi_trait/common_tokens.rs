@@ -8,6 +8,8 @@ use proc_macro2::{Span,TokenStream};
 
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 
+use core_extensions::matches;
+
 macro_rules! declare_common_tokens {
     (
         abi[ $( $field_abi:ident = $abi_str:expr , )* ]
@@ -94,8 +96,7 @@ declare_common_tokens! {
         self_sized="Self:Sized,",
         makevtable_typarams="IA,_Self,_ErasedPtr,_OrigPtr,",
         vtable_typarams="_Self,_ErasedPtr,",
-        trait_obj_typarams="'lt,_ErasedPtr",
-
+        
         ptr_ref_bound=
             "_ErasedPtr: __DerefTrait<Target=()>,",
         ptr_mut_bound=
@@ -116,22 +117,9 @@ declare_common_tokens! {
         ts_self_colon2 ="Self::",
         ts_uself_colon2="_Self::",
 
-        ts_lt="'lt,",
-        ts_lt_self_erasability="'lt,_Self,Erasability,",
-        ts_lt_rbox="'lt,__sabi_re::RBox<()>,",
-        ts_lt_origptr_erasability="'lt,_OrigPtr,Erasability,",
-        ts_lt_uself_erasability="'lt,_Self,Erasability,",
-        ts_lt_rbox_uself_erasability="'lt,__sabi_re::RBox<_Self>,Erasability,",
         ts_make_vtable_args="Erasability,_OrigPtr::Target,_OrigPtr::TransmutedPtr,_OrigPtr,",
-        ts_lt_transptr="'lt,_OrigPtr::TransmutedPtr,",
-        ts_lt_erasedptr="'lt,_ErasedPtr,",
-        ts_lt_ref="'lt,&'_sub(),",
-        ts_lt_mut="'lt,&'_sub mut (),",
-        ts_lt_de_erasedptr="'lt,'de,_ErasedPtr,",
         ts_erasedptr_and2="_ErasedPtr,_ErasedPtr2,",
-        ts_staticlt_erasedptr2="'static,_ErasedPtr2,",
         ts_erasedptr="_ErasedPtr,",
-        ts_staticlt_erasedptr="'static,_ErasedPtr,",
         ts_self_erasedptr="_Self,_ErasedPtr,",
         ts_unit_erasedptr="(),_ErasedPtr,",
 
@@ -177,3 +165,86 @@ declare_common_tokens! {
         unsafe_=Unsafe,
     ]
 }
+
+
+////////////////////////////////////////////////////////
+
+
+macro_rules! declare_lifetime_tokens {
+    (
+        lifetime_tokens=[ $( $ident:ident = $expr:expr ,)* ]
+        one_lifetime_tokens=[ $( $one_ident:ident = $one_expr:expr ,)* ]
+        static_lifetime_tokens=[ $( $static_ident:ident = $static_expr:expr ,)* ]
+    ) => (
+
+        #[derive(Debug,Clone,Copy)]
+        pub(crate) enum IsStaticTrait{
+            Yes,
+            No,
+        }
+
+        #[derive(Debug,Clone)]
+        pub(crate) struct LifetimeTokens{
+            $(
+                pub(crate) $ident:TokenStream,
+            )*
+            $(
+                pub(crate) $static_ident:TokenStream,
+            )*
+            $(
+                pub(crate) $one_ident:TokenStream,
+            )*
+            pub(crate) plus_lt:TokenStream,
+        }
+
+        impl LifetimeTokens{
+            pub(crate) fn new(is_it:IsStaticTrait)->Self{
+                let is_static=matches!(IsStaticTrait::Yes=is_it);
+                let lt=if is_static { "" }else{ "'lt," };
+                let static_lt=if is_static { "" }else{ "'static," };
+                let one_lt=if is_static { "'static," }else{ "'lt," };
+
+                LifetimeTokens{
+                    $(
+                        $ident: {
+                            let s=format!("{}{}",lt,$expr);
+                            syn::parse_str::<TokenStream>(&s).unwrap()
+                        },
+                    )*
+                    $(
+                        $one_ident: {
+                            let s=format!("{}{}",one_lt,$one_expr);
+                            syn::parse_str::<TokenStream>(&s).unwrap()
+                        },
+                    )*
+                    $(
+                        $static_ident: {
+                            let s=format!("{}{}",static_lt,$static_expr);
+                            syn::parse_str::<TokenStream>(&s).unwrap()
+                        },
+                    )*
+                    plus_lt: syn::parse_str(if is_static { "" }else{ "+ 'lt" }).unwrap(),
+                }
+            }
+        }
+
+    )
+}
+
+declare_lifetime_tokens!{
+    lifetime_tokens=[
+        lt="",
+        lt_erasedptr="_ErasedPtr,",
+        lt_rbox="__sabi_re::RBox<()>,",
+        lt_ref="&'_sub(),",
+        lt_mut="&'_sub mut (),",
+    ]
+    one_lifetime_tokens=[
+        one_lt="",
+    ]
+    static_lifetime_tokens=[
+        staticlt_erasedptr2="_ErasedPtr2,",
+        staticlt_erasedptr="_ErasedPtr,",
+    ]
+}
+

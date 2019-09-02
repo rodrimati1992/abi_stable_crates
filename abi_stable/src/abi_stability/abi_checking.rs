@@ -1474,7 +1474,7 @@ where
 
 fn combine_extra_checks(
     errs: &mut RVec<AbiInstability>,
-    mut ty_checker:TypeCheckerMut<'_,'_>,
+    mut ty_checker:TypeCheckerMut<'_>,
     extra_checks:&mut ExtraChecksBox,
     slic:&[ExtraChecksRef<'_>]
 ){

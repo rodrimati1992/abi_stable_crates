@@ -839,7 +839,7 @@ impl ExtraChecks for Tag {
         &self,
         _layout_containing_self:&'static TypeLayout,
         layout_containing_other:&'static TypeLayout,
-        checker:TypeCheckerMut<'_,'_>,
+        checker:TypeCheckerMut<'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,checker,|other,_|{
             let t_tag=self.to_checkable();

@@ -201,6 +201,14 @@ These are the differences:
 
 - If there is a by-value method,a `Self:Sized` constraint will be added automatically.
 
+- Lifetime supertraits are stripped,because they disallow the trait object to be 
+constructed with a reference of a smaller lifetime.
+
+### Trait_Bounds
+
+A trait used as an alias for `Trait + lifetime supertraits`,
+because lifetime supertraits are stripped from Trait.
+
 # VTable attributes
 
 To pass attributes to the generated vtable you can use the `#[sabi(  )]` attributes 

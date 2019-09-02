@@ -71,6 +71,7 @@ where
 mod one_method{
     use super::*;
     #[sabi_trait]
+    // #[sabi(debug_print_trait)]
     pub trait Trait{
         #[sabi(last_prefix_field)]
         fn apply(&self,l:u32,r:u32)->u32;

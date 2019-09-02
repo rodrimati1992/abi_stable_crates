@@ -108,7 +108,7 @@ macro_rules! declare_enabled_traits {
                 &self,
                 _layout_containing_self:&'static TypeLayout,
                 layout_containing_other:&'static TypeLayout,
-                checker:TypeCheckerMut<'_,'_>,
+                checker:TypeCheckerMut<'_>,
             )->RResult<(), ExtraChecksError> {
                 Self::downcast_with_layout(layout_containing_other,checker,|other,_|{
                     if self.auto_traits!=other.auto_traits {
