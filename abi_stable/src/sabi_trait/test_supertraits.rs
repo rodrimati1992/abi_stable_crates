@@ -18,7 +18,7 @@ use std::{
 
 use crate::{
     sabi_trait,
-    type_level::unerasability::TU_Unerasable,
+    type_level::unerasability::{TU_Opaque,TU_Unerasable},
 };
 
 
@@ -37,6 +37,86 @@ pub mod no_supertraits{
     fn test_constructible(){
         let object=Trait_TO::from_value(Struct,TU_Unerasable);
         object.method();
+    }
+}
+
+pub mod static_supertrait{
+    use super::*;
+
+    #[sabi_trait]
+    pub trait Trait:'static {
+        fn method(&self){}
+    }
+
+    pub struct Struct<'a>(&'a str);
+
+    impl Trait for Struct<'_>{}
+
+    fn test_constructible(){
+        let object=Trait_TO::from_value(Struct(""),TU_Unerasable);
+        object.method();
+    }
+
+    // Testing that Trait_Bounds has 'static as a supertrait,
+    trait Dummy{
+        fn dummy<T>()
+        where T:Trait_Bounds;
+    }
+    impl Dummy for (){
+        fn dummy<T>()
+        where T:Trait_Bounds+'static
+        {}
+    }
+    
+
+    // Testing that Trait does not have 'static as a supertrait.
+    fn assert_trait_inner<T>(_:T)
+    where T:Trait
+    {}
+    fn assert_trait(){
+        let mut a=String::new();
+        a.push_str("w");
+        assert_trait_inner(Struct(&a));
+    }
+}
+
+pub mod nonstatic_supertrait{
+    use super::*;
+
+    #[sabi_trait]
+    pub trait Trait<'a>:'a {
+        fn method(&self){}
+    }
+
+    pub struct Struct<'a>(&'a str);
+
+    impl<'a,'b> Trait<'a> for Struct<'b>{}
+
+    fn test_constructible(){
+        let object=Trait_TO::from_value(Struct(""),TU_Unerasable);
+        object.method();
+    }
+
+    // Testing that Trait_Bounds has 'a as a supertrait,
+    trait Dummy{
+        fn dummy<'a,T>()
+        where T:Trait_Bounds<'a>;
+    }
+    impl Dummy for (){
+        fn dummy<'a,T>()
+        where T:Trait_Bounds<'a>+'a
+        {}
+    }
+    
+
+    // Testing that Trait does not have 'a as a supertrait.
+    fn assert_trait_inner<'a,T>(_:T)
+    where T:Trait<'a>
+    {}
+    fn assert_trait(){
+        let mut a=String::new();
+        a.push_str("w");
+        assert_trait_inner(Struct(&a));
     }
 }
 
@@ -179,6 +259,7 @@ pub mod only_partial_eq{
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
+    // #[sabi(debug_print_trait)]
     pub trait Trait:PartialEq{
         fn method(&self){}
     }
@@ -607,6 +688,11 @@ pub mod only_io_seek{
     }
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+
 pub mod every_trait{
     use super::*;
 
@@ -695,6 +781,209 @@ pub mod every_trait{
 
     fn test_constructible(){
         let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        object.method();
+        assert_bound(&object);
+    }
+
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+pub mod every_trait_static{
+    use super::*;
+
+    #[sabi_trait]
+    #[sabi(use_dyntrait)]
+    pub trait Trait:
+        'static+
+        Clone+
+        Iterator+DoubleEndedIterator<Item=&'static ()>+
+        Display+Debug+Error+
+        PartialEq+Eq+PartialOrd+Ord+
+        Hash+
+        FmtWrite+IoWrite+IoRead+IoBufRead+IoSeek
+    {
+        fn method(&self){}
+    }
+    #[derive(Debug,Clone,PartialEq,PartialOrd,Eq,Ord,Hash)]
+    pub struct Struct;
+
+    impl Display for Struct{
+        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+            Display::fmt("What!?",f)
+        }
+    }
+
+    impl Iterator for Struct{
+        type Item=&'static ();
+        fn next(&mut self)->Option<&'static ()>{
+            None
+        }
+    }
+
+    impl DoubleEndedIterator for Struct{
+        fn next_back(&mut self)->Option<&'static ()>{
+            None
+        }
+    }
+
+    impl ErrorTrait for Struct{}
+
+    impl FmtWriteTrait for Struct{
+        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error>{
+            Ok(())
+        }
+    }
+
+    impl IoWriteTrait for Struct{
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize>{
+            Ok(0)
+        }
+        fn flush(&mut self) -> io::Result<()>{
+            Ok(())
+        }
+    }
+
+    impl IoReadTrait for Struct{
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize>{
+            Ok(0)
+        }
+    }
+
+    impl IoBufReadTrait for Struct{    
+        fn fill_buf(&mut self) -> io::Result<&[u8]>{
+            Ok(&[])
+        }
+        fn consume(&mut self, _amt: usize){}
+    }
+
+    impl IoSeekTrait for Struct{    
+        fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64>{
+            Ok(0)
+        }
+    }
+
+    impl Trait for Struct{}
+
+    fn assert_bound<T>(_:&T)
+    where
+        T:Trait+
+            Clone+
+            Iterator+DoubleEndedIterator<Item=&'static ()>+
+            Display+Debug+ErrorTrait+
+            PartialEq+Eq+PartialOrd+Ord+
+            std::hash::Hash+
+            FmtWriteTrait+IoWriteTrait+IoReadTrait+IoBufReadTrait+IoSeekTrait
+    {}
+
+    fn test_constructible(){
+        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        object.method();
+        assert_bound(&object);
+    }
+
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+pub mod every_trait_nonstatic{
+    use super::*;
+
+    #[sabi_trait]
+    #[sabi(use_dyntrait)]
+    pub trait Trait<'a>:
+        'a+
+        Clone+
+        Iterator+DoubleEndedIterator<Item=&'static ()>+
+        Display+Debug+Error+
+        //PartialEq+Eq+PartialOrd+Ord+
+        Hash+
+        FmtWrite+IoWrite+IoRead+IoBufRead+IoSeek
+    {
+        fn method(&self){}
+    }
+    #[derive(Debug,Clone,PartialEq,PartialOrd,Eq,Ord,Hash)]
+    pub struct Struct<'a>(&'a String);
+
+    impl Display for Struct<'_>{
+        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+            Display::fmt("What!?",f)
+        }
+    }
+
+    impl Iterator for Struct<'_>{
+        type Item=&'static ();
+        fn next(&mut self)->Option<&'static ()>{
+            None
+        }
+    }
+
+    impl DoubleEndedIterator for Struct<'_>{
+        fn next_back(&mut self)->Option<&'static ()>{
+            None
+        }
+    }
+
+    impl ErrorTrait for Struct<'_>{}
+
+    impl FmtWriteTrait for Struct<'_>{
+        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error>{
+            Ok(())
+        }
+    }
+
+    impl IoWriteTrait for Struct<'_>{
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize>{
+            Ok(0)
+        }
+        fn flush(&mut self) -> io::Result<()>{
+            Ok(())
+        }
+    }
+
+    impl IoReadTrait for Struct<'_>{
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize>{
+            Ok(0)
+        }
+    }
+
+    impl IoBufReadTrait for Struct<'_>{    
+        fn fill_buf(&mut self) -> io::Result<&[u8]>{
+            Ok(&[])
+        }
+        fn consume(&mut self, _amt: usize){}
+    }
+
+    impl IoSeekTrait for Struct<'_>{    
+        fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64>{
+            Ok(0)
+        }
+    }
+
+    impl<'a> Trait<'a> for Struct<'a>{}
+
+    fn assert_bound<'a,T>(_:&T)
+    where
+        T:Trait<'a>
+    {}
+
+    fn test_constructible(){
+        use crate::std_types::RBox;
+
+        let string=String::new();
+        let value=Struct(&string);
+        let object=Trait_TO::from_ptr(RBox::new(value),TU_Opaque);
         object.method();
         assert_bound(&object);
     }

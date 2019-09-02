@@ -18,6 +18,7 @@ use crate::{
 pub(super) fn delegated_impls<'a>(
     TokenizerParams{
         arenas:_,ctokens,totrait_def,trait_to,trait_backend,trait_interface,
+        lt_tokens,
         ..
     }:TokenizerParams<'a>,
     mod_:&mut TokenStream2,
@@ -32,33 +33,33 @@ pub(super) fn delegated_impls<'a>(
     //     totrait_def.generics_tokenizer(
     //         InWhat::ImplHeader,
     //         WithAssocTys::Yes(WhichSelf::NoSelf),
-    //         &ctokens.ts_lt_de_erasedptr,
+    //         &lt_tokens.lt_de_erasedptr,
     //     );
 
     let gen_params_header=
         totrait_def.generics_tokenizer(
             InWhat::ImplHeader,
             WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_lt_erasedptr,
+            &lt_tokens.lt_erasedptr,
         );
     let gen_params_use_to=
         totrait_def.generics_tokenizer(
             InWhat::ItemUse,
             WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_lt_erasedptr,
+            &lt_tokens.lt_erasedptr,
         );
 
     let gen_params_use_to_static=
         totrait_def.generics_tokenizer(
             InWhat::ItemUse,
             WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_staticlt_erasedptr,
+            &lt_tokens.staticlt_erasedptr,
         );
 
     let trait_interface_header=totrait_def.generics_tokenizer(
         InWhat::ImplHeader,
         WithAssocTys::Yes(WhichSelf::NoSelf),
-        &ctokens.ts_lt,
+        &lt_tokens.lt,
     );
 
     let trait_interface_use=totrait_def.generics_tokenizer(
@@ -283,7 +284,7 @@ pub(super) fn delegated_impls<'a>(
         totrait_def.generics_tokenizer(
             InWhat::ItemUse,
             WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_staticlt_erasedptr2,
+            &lt_tokens.staticlt_erasedptr2,
         );
 
     if impls.eq{
@@ -373,7 +374,7 @@ pub(super) fn delegated_impls<'a>(
     //             }
     //         }));
 
-    //     let suffix=&ctokens.ts_lt_erasedptr;
+    //     let suffix=&lt_tokens.lt_erasedptr;
 
     //     let header_generics=arenas.alloc(quote!( #lifetimes #suffix ));
 
@@ -424,12 +425,13 @@ pub(super) fn delegated_impls<'a>(
     // }
 
     if let Some(iter_item)=&totrait_def.iterator_item {
+        let one_lt=&lt_tokens.one_lt;
         quote_spanned!(spans.iterator=>
             impl<#trait_interface_header>
-                abi_stable::erased_types::IteratorItem<'lt>
+                abi_stable::erased_types::IteratorItem<#one_lt>
             for #trait_interface<#trait_interface_use>
             where
-                #iter_item:'lt,
+                #iter_item:#one_lt
             {
                 type Item=#iter_item;
             }

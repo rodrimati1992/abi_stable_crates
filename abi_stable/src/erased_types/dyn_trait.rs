@@ -741,7 +741,7 @@ These are the requirements for the caller:
             I:InterfaceBound,
             InterfaceFor<OrigPtr::Target,I,Erasability>: 
                 GetVtable<'borr,OrigPtr::Target,P,OrigPtr,I>,
-            OrigPtr: TransmuteElement<(),TransmutedPtr=P>+'borr,
+            OrigPtr: TransmuteElement<(),TransmutedPtr=P>,
             P:Deref<Target=()>,
         {
             DynTrait {

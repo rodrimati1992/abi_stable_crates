@@ -32,7 +32,7 @@ mod tests;
 
 use self::{
     attribute_parsing::SabiTraitOptions,
-    common_tokens::CommonTokens,
+    common_tokens::{CommonTokens,IsStaticTrait,LifetimeTokens},
     lifetime_unelider::LifetimeUnelider,
     trait_definition::{TraitDefinition,TraitMethod},
     method_where_clause::MethodWhereClause,
@@ -53,9 +53,14 @@ struct TokenizerParams<'a>{
     vtable_trait_decl:&'a TraitDefinition<'a>,
     vtable_trait_impl:&'a TraitDefinition<'a>,
     trait_ident:&'a syn::Ident,
+    /// The name of `Trait_Bounds`.
+    trait_bounds:&'a syn::Ident,
     trait_to:&'a syn::Ident,
     trait_backend:&'a syn::Ident,
     trait_interface:&'a syn::Ident,
+    /// TokenStreams that don't have a `'lt,` if the trait object requires 
+    /// `'static` to be constructed.
+    lt_tokens:&'a LifetimeTokens,
 }
 
 
@@ -71,6 +76,7 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
     let config=&self::attribute_parsing::parse_attrs_for_sabi_trait(&item,arenas,ctokens)?;
 
     let trait_def=&config.trait_definition;
+    let lt_tokens=&LifetimeTokens::new(trait_def.is_static);
     let vis=trait_def.vis;
     let submod_vis=trait_def.submod_vis;
     
@@ -80,6 +86,7 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
 
 
     let generated_mod=&parse_str_as_ident(&format!("{}_module",trait_ident));
+    let trait_bounds=&parse_str_as_ident(&format!("{}_Bounds",trait_ident));
     let trait_to    =&parse_str_as_ident(&format!("{}_TO",trait_ident));
     let trait_backend=&parse_str_as_ident(&format!("{}_Backend",trait_ident));
     let trait_interface=&parse_str_as_ident(&format!("{}_Interface",trait_ident));
@@ -90,6 +97,7 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
         arenas,
         ctokens,
         config,
+        lt_tokens,
         trait_def,
         vis,
         submod_vis,
@@ -97,6 +105,7 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
         vtable_trait_decl,
         vtable_trait_impl,
         trait_ident,
+        trait_bounds,
         trait_to    ,
         trait_backend,
         trait_interface,
@@ -120,6 +129,7 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
         #[doc(inline)]
         #vis use self::#generated_mod::{
             #trait_to,
+            #trait_bounds,
             #trait_interface,
             #trait_ident,
             #trait_backend,
@@ -158,6 +168,7 @@ Outputs these items:
 fn first_items<'a>(
     TokenizerParams{
         ctokens,
+        lt_tokens,
         trait_def,
         submod_vis,
         trait_to,
@@ -172,14 +183,14 @@ fn first_items<'a>(
     let mut uto_params=trait_def.generics_tokenizer(
         InWhat::ItemDecl,
         WithAssocTys::Yes(WhichSelf::NoSelf),
-        &ctokens.ts_lt_erasedptr,
+        &lt_tokens.lt_erasedptr,
     );
     uto_params.set_no_bounds();
 
     let uto_params_use=trait_def.generics_tokenizer(
         InWhat::ItemUse,
         WithAssocTys::Yes(WhichSelf::NoSelf),
-        &ctokens.ts_lt_erasedptr,
+        &lt_tokens.lt_erasedptr,
     );
 
     let mut trait_interface_header=trait_def.generics_tokenizer(
@@ -206,7 +217,7 @@ fn first_items<'a>(
     let to_params=trait_def.generics_tokenizer(
         InWhat::ItemDecl,
         WithAssocTys::Yes(WhichSelf::NoSelf),
-        &ctokens.ts_lt_erasedptr,
+        &lt_tokens.lt_erasedptr,
     );
 
     let where_preds=(&trait_def.where_preds).into_iter();
@@ -279,6 +290,8 @@ There are extra methods on the `obj` field.
         trait_=trait_ident
     );
 
+    let one_lt=&lt_tokens.one_lt;
+
     quote!(
         use super::*;
 
@@ -290,7 +303,7 @@ There are extra methods on the `obj` field.
         #[doc=#trait_backend_docs]
         #submod_vis type #trait_backend<#uto_params>=
             __sabi_re::#object<
-                'lt,
+                #one_lt
                 _ErasedPtr,
                 #trait_interface<#trait_interface_use>,
                 #vtable_argument
@@ -351,6 +364,7 @@ fn constructor_items<'a>(
 ){
     let TokenizerParams{
         ctokens,totrait_def,submod_vis,trait_ident,trait_to,trait_backend,trait_interface,
+        lt_tokens,trait_bounds,
         ..
     }=params;
 
@@ -382,6 +396,8 @@ fn constructor_items<'a>(
         &ctokens.ts_empty,
     );
 
+    let one_lt=&lt_tokens.one_lt;
+
     let extra_constraints_ptr=match totrait_def.which_object {
         WhichObject::DynTrait=>quote!(
             #trait_interface<#trait_interface_use>:
@@ -392,7 +408,7 @@ fn constructor_items<'a>(
                 Erasability
             >: 
                 __sabi_re::GetVtable<
-                    'lt,
+                    #one_lt
                     _OrigPtr::Target,
                     _OrigPtr::TransmutedPtr,
                     _OrigPtr,
@@ -402,13 +418,14 @@ fn constructor_items<'a>(
         WhichObject::RObject=>quote!(),
     };
 
+
     let extra_constraints_value=match totrait_def.which_object {
         WhichObject::DynTrait=>quote!(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
             __sabi_re::InterfaceFor<_Self,#trait_interface<#trait_interface_use>,Erasability>: 
                 __sabi_re::GetVtable<
-                    'lt,
+                    #one_lt
                     _Self,
                     __sabi_re::RBox<()>,
                     __sabi_re::RBox<_Self>,
@@ -422,34 +439,34 @@ fn constructor_items<'a>(
         totrait_def.generics_tokenizer(
             InWhat::ImplHeader,
             WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_lt_erasedptr,
+            &lt_tokens.lt_erasedptr,
         );
     
     let gen_params_use_to=
         totrait_def.generics_tokenizer(
             InWhat::ItemUse,
             WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_lt_erasedptr,
+            &lt_tokens.lt_erasedptr,
         );
 
     let gen_params_header_rbox=
         totrait_def.generics_tokenizer(
             InWhat::ImplHeader,
             WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_lt,
+            &lt_tokens.lt,
         );
     
     let gen_params_use_to_rbox=
         totrait_def.generics_tokenizer(
             InWhat::ItemUse,
             WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_lt_rbox,
+            &lt_tokens.lt_rbox,
         );
 
     let uto_params_use=totrait_def.generics_tokenizer(
         InWhat::ItemUse,
         WithAssocTys::Yes(WhichSelf::NoSelf),
-        &ctokens.ts_lt_erasedptr,
+        &lt_tokens.lt_erasedptr,
     );
 
     let trait_interface_use=
@@ -479,6 +496,8 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
 
     let reborrow_methods=reborrow_methods_tokenizer(params);
 
+    let plus_lt=&lt_tokens.plus_lt;
+
     quote!(
         impl<#gen_params_header> #trait_to<#gen_params_use_to> {
             #[doc=#from_ptr_docs]
@@ -488,11 +507,11 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
                 erasability:Erasability,
             )->Self
             where
-                _OrigPtr:__sabi_re::TransmuteElement<(),TransmutedPtr=_ErasedPtr>+'lt,
+                _OrigPtr:__sabi_re::TransmuteElement<(),TransmutedPtr=_ErasedPtr> #plus_lt,
                 _OrigPtr::Target:
-                    #trait_ident<#trait_params #( #assoc_tys_a= #assoc_tys_b, )* >+
-                    Sized+
-                    'lt,
+                    #trait_bounds<#trait_params #( #assoc_tys_a= #assoc_tys_b, )* >+
+                    Sized
+                    #plus_lt,
                 _ErasedPtr:std::ops::Deref<Target=()>,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
@@ -530,7 +549,9 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
                 erasability:Erasability,
             )->Self
             where
-                _Self:#trait_ident<#trait_params #( #assoc_tys_c= #assoc_tys_d, )* >+'lt,
+                _Self:
+                    #trait_bounds<#trait_params #( #assoc_tys_c= #assoc_tys_d, )* >
+                    #plus_lt,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
                         Erasability,_Self,__sabi_re::RBox<()>,__sabi_re::RBox<_Self>
@@ -550,7 +571,7 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
 
 /// Returns a tokenizer for the reborrowing methods
 fn reborrow_methods_tokenizer<'a>(
-    TokenizerParams{ctokens,totrait_def,submod_vis,trait_to,..}:TokenizerParams<'a>,
+    TokenizerParams{totrait_def,submod_vis,trait_to,lt_tokens,..}:TokenizerParams<'a>,
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
         let traits=totrait_def.trait_flags;
@@ -564,14 +585,14 @@ fn reborrow_methods_tokenizer<'a>(
             totrait_def.generics_tokenizer(
                 InWhat::ItemUse,
                 WithAssocTys::Yes(WhichSelf::NoSelf),
-                &ctokens.ts_lt_ref,
+                &lt_tokens.lt_ref,
             );
 
         let gen_params_use_mut=
             totrait_def.generics_tokenizer(
                 InWhat::ItemUse,
                 WithAssocTys::Yes(WhichSelf::NoSelf),
-                &ctokens.ts_lt_mut,
+                &lt_tokens.lt_mut,
             );
 
 
@@ -603,7 +624,10 @@ fn reborrow_methods_tokenizer<'a>(
 /// Outputs the annotated trait (as modified by the proc-macro)
 /// and an implementation of the trait for the generated trait object.
 fn trait_and_impl<'a>(
-    TokenizerParams{ctokens,submod_vis,trait_def,trait_to,..}:TokenizerParams,
+    TokenizerParams{
+        ctokens,submod_vis,trait_def,trait_to,lt_tokens,
+        trait_ident,trait_bounds,..
+    }:TokenizerParams,
     mod_:&mut TokenStream2,
 ){
     let other_attrs=trait_def.other_attrs;
@@ -622,13 +646,11 @@ fn trait_and_impl<'a>(
 
     let erased_ptr_bounds=trait_def.erased_ptr_preds();
 
-    let trait_ident=&trait_def.name;
-
     quote!(
         #( #[#other_attrs] )*
         #submod_vis trait #trait_ident<
             #gen_params_trait
-        >: #( #super_traits_a + )* #(#lifetime_bounds+)*
+        >: #( #super_traits_a + )*
         where 
             #(#where_preds,)*
         {
@@ -638,6 +660,35 @@ fn trait_and_impl<'a>(
         }
     ).to_tokens(mod_);
 
+    let gen_params_use_trait=
+        trait_def.generics_tokenizer(
+            InWhat::ItemUse,
+            WithAssocTys::No,
+            &ctokens.empty_ts,
+        );
+
+    {
+        let gen_params_header=
+            trait_def.generics_tokenizer(
+                InWhat::ImplHeader,
+                WithAssocTys::No,
+                &ctokens.ts_uself,
+            );
+
+        quote!(
+            #submod_vis trait #trait_bounds<#gen_params_trait>: 
+                #trait_ident<#gen_params_use_trait>
+                #( + #lifetime_bounds )*
+            {}
+
+            impl<#gen_params_header> #trait_bounds<#gen_params_use_trait> for _Self
+            where
+                _Self: #trait_ident<#gen_params_use_trait> #( + #lifetime_bounds )*
+            {}
+        ).to_tokens(mod_);
+
+    }
+
 
     if ! trait_def.disable_trait_impl {
 
@@ -645,19 +696,13 @@ fn trait_and_impl<'a>(
             trait_def.generics_tokenizer(
                 InWhat::ImplHeader,
                 WithAssocTys::Yes(WhichSelf::NoSelf),
-                &ctokens.ts_lt_erasedptr,
-            );
-        let gen_params_use_trait=
-            trait_def.generics_tokenizer(
-                InWhat::ItemUse,
-                WithAssocTys::No,
-                &ctokens.empty_ts,
+                &lt_tokens.lt_erasedptr,
             );
         let gen_params_use_to=
             trait_def.generics_tokenizer(
                 InWhat::ItemUse,
                 WithAssocTys::Yes(WhichSelf::NoSelf),
-                &ctokens.ts_lt_erasedptr,
+                &lt_tokens.lt_erasedptr,
             );
 
         let assoc_ty_named_a=trait_def.assoc_tys.values().map(|x| &x.assoc_ty.ident );
@@ -686,25 +731,23 @@ fn methods_impls<'a>(
     param:TokenizerParams,
     mod_:&mut TokenStream2,
 )-> Result<(),syn::Error> {
-    let TokenizerParams{ctokens,totrait_def,trait_to,..}=param;
+    let TokenizerParams{totrait_def,trait_to,lt_tokens,..}=param;
     
     let impl_where_preds=totrait_def.trait_impl_where_preds()?;
 
     let super_traits_a=totrait_def.impld_traits.iter().map(|t| &t.bound );
     
-    let lifetime_bounds=&*totrait_def.lifetime_bounds;
-    
     let gen_params_header=
         totrait_def.generics_tokenizer(
             InWhat::ImplHeader,
             WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_lt_erasedptr,
+            &lt_tokens.lt_erasedptr,
         );
     let gen_params_use_to=
         totrait_def.generics_tokenizer(
             InWhat::ItemUse,
             WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_lt_erasedptr,
+            &lt_tokens.lt_erasedptr,
         );
     
     let methods_tokenizer_def=totrait_def.methods_tokenizer(WhichItem::TraitObjectImpl);
@@ -712,7 +755,7 @@ fn methods_impls<'a>(
     quote!(
         impl<#gen_params_header> #trait_to<#gen_params_use_to>
         where 
-            Self:#( #super_traits_a + )* #( #lifetime_bounds+ )* Sized ,
+            Self:#( #super_traits_a + )* Sized ,
             #impl_where_preds
         {
             #methods_tokenizer_def
@@ -771,10 +814,13 @@ fn declare_vtable<'a>(
             &ctokens.ts_empty,
         );
 
-
     let robject_vtable=quote!(
         __sabi_re::StaticRef<
-            __sabi_re::RObjectVtable<_Self,_ErasedPtr,#trait_interface<#trait_interface_use>>
+            __sabi_re::RObjectVtable<
+                _Self,
+                _ErasedPtr,
+                #trait_interface<#trait_interface_use>
+            >
         >
     );
     let vtable_bound=format!("{}: ::abi_stable::StableAbi",(&robject_vtable).into_token_stream());
@@ -809,7 +855,10 @@ Outputs the vtable impl block with both:
 
 */
 fn vtable_impl<'a>(
-    TokenizerParams{ctokens,vtable_trait_impl,trait_ident,trait_interface,..}:TokenizerParams,
+    TokenizerParams{
+        ctokens,vtable_trait_impl,trait_interface,
+        trait_bounds,..
+    }:TokenizerParams,
     mod_:&mut TokenStream2,
 ){
     let struct_decl_generics=
@@ -879,7 +928,7 @@ fn vtable_impl<'a>(
 
         impl<#impl_header_generics> MakeVTable<#makevtable_generics>
         where 
-            _Self:#trait_ident<#trait_generics>,
+            _Self:#trait_bounds<#trait_generics>,
             #trait_interface<#trait_interface_use>:
                 __sabi_re::GetRObjectVTable<IA,_Self,_ErasedPtr,_OrigPtr>,
         {

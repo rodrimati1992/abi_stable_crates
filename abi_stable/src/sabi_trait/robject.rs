@@ -361,7 +361,7 @@ These are the requirements for the caller:
         vtable:StaticRef<V>,
     )-> RObject<'lt,P,I,V>
     where 
-        OrigPtr:TransmuteElement<(),TransmutedPtr=P>+'lt,
+        OrigPtr:TransmuteElement<(),TransmutedPtr=P>,
         OrigPtr::Target:Sized+'lt,
         P:Deref<Target=()>,
     {
