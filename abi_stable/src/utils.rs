@@ -15,7 +15,7 @@ use core_extensions::{
     prelude::*,
 };
 
-use crate::std_types::{RString,RStr,StaticStr};
+use crate::std_types::{RString,RStr};
 
 
 //////////////////////////////////////

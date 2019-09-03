@@ -12,12 +12,16 @@ mod layout_tests;
 
 pub use self::{
     abi_checking::exported_check_layout_compatibility as check_layout_compatibility,
+    get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
+    stable_abi_trait::{StableAbi,SharedStableAbi,AbiConsts},
+};
+
+#[doc(no_inline)]
+pub use self::{
     extra_checks::{
         TypeChecker,TypeCheckerMut,
         ExtraChecks,ExtraChecks_TO,ForExtraChecksImplementor,
         ExtraChecksBox,ExtraChecksStaticRef,ExtraChecksRef,
         ExtraChecksError,
     },
-    get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
-    stable_abi_trait::{StableAbi,SharedStableAbi,AbiConsts},
 };

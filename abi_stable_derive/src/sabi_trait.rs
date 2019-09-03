@@ -283,11 +283,11 @@ fn first_items<'a>(
     
     let trait_to_docs=format!(
         "\
-The trait object for `{trait_}`.
+The trait object for [{Trait}](trait.{Trait}.html).
 
 There are extra methods on the `obj` field.
 ",
-        trait_=trait_ident
+        Trait=trait_ident
     );
 
     let one_lt=&lt_tokens.one_lt;
@@ -675,7 +675,14 @@ fn trait_and_impl<'a>(
                 &ctokens.ts_uself,
             );
 
+        let docs=format!(
+            "A trait alias for [{Trait}](trait.{Trait}.html) + the lifetime bounds that \
+             it had before being stripped by the `#[sabi_trait]` attribute.
+            ",
+            Trait=trait_ident
+        );
         quote!(
+            #[doc= #docs ]
             #submod_vis trait #trait_bounds<#gen_params_trait>: 
                 #trait_ident<#gen_params_use_trait>
                 #( + #lifetime_bounds )*

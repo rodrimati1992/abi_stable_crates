@@ -7,7 +7,7 @@ use std::{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// A function pointer in a field.
+/// All the function pointer types in a type declaration.
 #[repr(C)]
 #[derive(Debug,Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
@@ -25,6 +25,7 @@ pub struct TLFunctions{
 
 
 impl TLFunctions {
+    /// Constructs a TLFunctions.
     pub const fn new(
         strings: &'static str,
         functions:RSlice<'static,CompTLFunction>,
@@ -41,15 +42,23 @@ impl TLFunctions {
         }
     }
 
-    pub fn get(&'static self,index:usize)->Option<TLFunction>{
-        let func=self.functions.get(index)?;
+    /// The the `nth` TLFunction in this `TLFunctions`.
+    /// Returns None if there is not `nth` TLFunction.
+    pub fn get(&'static self,nth:usize)->Option<TLFunction>{
+        let func=self.functions.get(nth)?;
         Some(func.expand(self))
     }
 
-    pub fn index(&'static self,index:usize)->TLFunction{
-        self.functions[index].expand(self)
+    /// The the `nth` TLFunction in this `TLFunctions`.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if `nth` is out of bounds (`self.len() <= nth`)
+    pub fn index(&'static self,nth:usize)->TLFunction{
+        self.functions[nth].expand(self)
     }
 
+    /// Gets the amount of `TLFunction`s in this TLFunctions.
     #[inline]
     pub fn len(&'static self)->usize{
         self.functions.len()
@@ -74,6 +83,7 @@ pub struct CompTLFunction{
 
 
 impl CompTLFunction{
+    /// Constructs a CompTLFunction.
     pub const fn new(
         name:StartLen,
         bound_lifetimes:StartLen,
@@ -92,15 +102,16 @@ impl CompTLFunction{
         }
     }
 
+    /// Decompresses this CompTLFunction into a TLFunction.
     pub fn expand(&self,with:&'static TLFunctions)->TLFunction{
+        let strings=with.strings.as_rstr();
         TLFunction{
-            name:self.name.get_str(with.strings),
-            bound_lifetimes:self.bound_lifetimes.get_str(with.strings),
-            param_names:self.param_names.get_str(with.strings),
-            param_type_layouts:self.param_type_layouts.get_slice(with.type_layouts),
+            name: strings.slice(self.name.to_range()),
+            bound_lifetimes: strings.slice(self.bound_lifetimes.to_range()),
+            param_names: strings.slice(self.param_names.to_range()),
+            param_type_layouts: with.type_layouts.slice(self.param_type_layouts.to_range()),
             paramret_lifetime_indices:
-                self.paramret_lifetime_indices
-                    .get_slice(with.paramret_lifetime_indices),
+                with.paramret_lifetime_indices.slice(self.paramret_lifetime_indices.to_range()),
             return_type_layout:
                 self.return_type_layout.map(|x| with.type_layouts[x as usize] ),
         }
@@ -124,36 +135,36 @@ pub struct StartLen{
 
 
 impl StartLen{
-
+    /// An empty range.
     pub const EMPTY:Self=Self{start:0,len:0};
 
+    /// Constructs a range.
     pub const fn new(start:u16,len:u16)->Self{
         Self{start,len}
     }
 
+    /// The start of this range.
     #[inline]
     pub const fn start(self)->usize{
         self.start as usize
     }
+
+    /// The length of this range.
     #[inline]
     pub const fn len(self)->usize{
         self.len as usize
     }
+
+    /// The exclusive end of this range.
     #[inline]
     pub const fn end(self)->usize{
         (self.start+self.len) as usize
     }
+
+    /// Converts this range to a `std::ops::Range`.
     #[inline]
     pub const fn to_range(self)->Range<usize>{
         self.start()..self.end()
-    }
-    #[inline]
-    pub fn get_slice<T>(self,slice:RSlice<'static,T>)->RSlice<'static,T>{
-        slice.slice(self.to_range())
-    }
-    #[inline]
-    pub fn get_str(self,str:StaticStr)->RStr<'static>{
-        str.as_rstr().slice(self.to_range())
     }
 }
 
@@ -167,13 +178,14 @@ A slice of functions from a TLFunctions.
 #[repr(C)]
 #[derive(Copy,Clone,StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
-pub struct TLFunctionRange{
+pub struct TLFunctionSlice{
     functions:Option<&'static TLFunctions>,
     fn_range:StartLen,
 }
 
 
-impl TLFunctionRange{
+impl TLFunctionSlice{
+    /// An empty slice of `TLFunction`s
     pub const EMPTY:Self=Self{
         functions:None,
         fn_range:StartLen::EMPTY,
@@ -203,7 +215,7 @@ impl TLFunctionRange{
     /// This panics if the TLFunction is outside the slice.
     pub fn index(self,index:usize)->TLFunction{
         self.functions
-            .expect("self.functions must be Some(..) to index a TLFunctionRange")
+            .expect("self.functions must be Some(..) to index a TLFunctionSlice")
             .index(self.fn_range.start()+index)
     }
 
@@ -220,7 +232,7 @@ impl TLFunctionRange{
 }
 
 
-impl IntoIterator for TLFunctionRange{
+impl IntoIterator for TLFunctionSlice{
     type IntoIter=TLFunctionIter;
     type Item=TLFunction;
 
@@ -231,7 +243,7 @@ impl IntoIterator for TLFunctionRange{
 }
 
 
-impl Debug for TLFunctionRange{
+impl Debug for TLFunctionSlice{
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
         f.debug_list()
          .entries(self.iter())
@@ -239,9 +251,9 @@ impl Debug for TLFunctionRange{
     }
 }
 
-impl Eq for TLFunctionRange{}
+impl Eq for TLFunctionSlice{}
 
-impl PartialEq for TLFunctionRange{
+impl PartialEq for TLFunctionSlice{
     fn eq(&self,other:&Self)->bool{
         self.fn_range.len==other.fn_range.len&&
         self.iter().eq(other.iter())

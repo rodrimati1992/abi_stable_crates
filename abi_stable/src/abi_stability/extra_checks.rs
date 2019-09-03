@@ -1,69 +1,18 @@
-use crate::{
-    std_types::{RBox,RBoxError,RCow,RResult,ROption,RNone,ROk},
-    type_layout::TypeLayout,
-    traits::IntoReprC,
-    rtry,
-    sabi_trait,
-    StableAbi,
-};
+/*!
+Contains items for adding checks to individual types.
 
-use std::{
-    error::Error as ErrorTrait,
-    fmt::{self,Display},
-};
+# Implementing and using ExtraChecks
 
-use core_extensions::SelfOps;
+To add extra checks to a type follow these steps:
 
+- Create some type and implement ExtraChecks for it,
 
-/// This checks that the layout of types coming from dynamic libraries 
-/// are compatible with those of the binary/dynlib that loads them.
-///
-#[sabi_trait]
-#[sabi(no_trait_impl)]
-// #[sabi(debug_print_trait)]
-pub unsafe trait TypeChecker:'static {
-    /// Checks that `ìnterface` is compatible with `implementation.` 
-    /// 
-    /// This is equivalent to `check_layout_compatibility`,
-    /// except that it can also be called re-entrantly
-    /// (while `check_layout_compatibility` cannot be called re-entrantly)
-    #[sabi(last_prefix_field)]
-    fn check_compatibility(
-        &mut self,
-        interface:&'static TypeLayout,
-        implementation:&'static TypeLayout,
-    )->RResult<(), ExtraChecksError>;
-}
+- Create an `extern "C" fn()->ExtraChecksStaticRef` function,
+    constructing an ExtraChecksStaticRef with `ExtraChecksStaticRef::from_ptr`
+    with a `&'static TypeThatImplsExtraChecks`.
 
-
-
-
-
-
-
-
-
-
-
-
-/// An ffi-safe equivalent of &'b mut (dyn TypeChecker+'a)
-pub type TypeCheckerMut<'b>=
-    TypeChecker_TO<&'b mut ()>;
-
-
-/**
-Allows defining extra checks for a type.
-
-# Usage
-
-To use a type to add extra checks follow these steps:
-
-- Implement this trait for that type,
-
-- Declare a `extern "C" fn()->ExtraChecksStaticRef` function,
-    which constructs ExtraChecksStaticRef with `ExtraChecksStaticRef::from_ptr`.
-
-- Derive StableAbi for some type,using the `#[sabi(extra_checks="the_function")]` attribute.
+- Apply the `#[sabi(extra_checks="the_function")]` attribute
+    to the type that uses `#[derive(StableAbi)]`.
 
 # Examples
 
@@ -451,6 +400,8 @@ A("ab")<---B("abc")
 \__________C("abcd")
 ```
 
+The case that is not fine happens when the `ExtraChecks_TO::combine` method returned an error.
+
 
 ### Example
 
@@ -700,6 +651,65 @@ where
 ```
 
 */
+
+
+use crate::{
+    std_types::{RBox,RBoxError,RCow,RResult,ROption,RNone,ROk},
+    type_layout::TypeLayout,
+    traits::IntoReprC,
+    rtry,
+    sabi_trait,
+    StableAbi,
+};
+
+use std::{
+    error::Error as ErrorTrait,
+    fmt::{self,Display},
+};
+
+use core_extensions::SelfOps;
+
+
+/// This checks that the layout of types coming from dynamic libraries 
+/// are compatible with those of the binary/dynlib that loads them.
+///
+#[sabi_trait]
+#[sabi(no_trait_impl)]
+// #[sabi(debug_print_trait)]
+pub unsafe trait TypeChecker:'static {
+    /// Checks that `ìnterface` is compatible with `implementation.` 
+    /// 
+    /// This is equivalent to `check_layout_compatibility`,
+    /// except that it can also be called re-entrantly
+    /// (while `check_layout_compatibility` cannot be called re-entrantly)
+    #[sabi(last_prefix_field)]
+    fn check_compatibility(
+        &mut self,
+        interface:&'static TypeLayout,
+        implementation:&'static TypeLayout,
+    )->RResult<(), ExtraChecksError>;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/// An ffi-safe equivalent of &'b mut (dyn TypeChecker+'a)
+pub type TypeCheckerMut<'b>=
+    TypeChecker_TO<&'b mut ()>;
+
+/// Allows defining extra checks for a type.
+///
+/// Look at the 
+/// [module level documentation](./index.html)
+/// for more details.
 #[sabi_trait]
 #[sabi(no_trait_impl)]
 pub unsafe trait ExtraChecks:'static+Debug+Display+Clone{
@@ -708,7 +718,11 @@ pub unsafe trait ExtraChecks:'static+Debug+Display+Clone{
     /// This is used to downcast the trait object in 
     /// `ForExtraChecksImplementor::downcast_*` methods,
     /// by ensuring that its type layout is 
-    /// compatible with that of another ExtraChecks implementor.
+    /// compatible with that of another ExtraChecks trait object
+    ///
+    /// It can't use `UTypeId`s to check compatibility of trait objects 
+    /// from different dynamic libraries,
+    /// because `UTypeId`s from different dynamic libraries are incompatible.
     fn type_layout(&self)->&'static TypeLayout;
 
 /**

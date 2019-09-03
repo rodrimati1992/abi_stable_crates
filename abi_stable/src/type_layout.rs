@@ -67,7 +67,7 @@ pub use self::{
         TLFunctions,
         CompTLFunction,
         StartLen,
-        TLFunctionRange,
+        TLFunctionSlice,
     },
     tl_other::{
         FullType,
