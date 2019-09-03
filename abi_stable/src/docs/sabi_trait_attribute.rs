@@ -269,6 +269,24 @@ Trait objects generated using this attribute have similar restrictions to built-
     this requires that the pointer that the generated trait object wraps 
     implements `abi_stable::pointer_trait::OwnedPointer`.
 
+# Questions and Answers
+
+**Question:** Why does Calling from_ptr/from_value give me a expected a `'static` value error?
+
+Answer: There are 3 possible reasons
+
+- 1: Because the trait has a 'static supertrait bound.
+
+- 2: Because the trait has one of the comparison traits (Eq/PartialEq/Ord/PartialOrd)
+as supertraits.
+This requires the type to be ''static` because comparing trait objects requires 
+constructing a `std::any::TypeId`,which itself requires `'static` to be constructed.
+
+- 3: Because you passed TU_Unerasable to the constructor function,
+which requires constructing a `std::any::TypeId`
+(to unerase the trait object back into the value),
+which itself requires `'static` to be constructed.
+
 # Examples
 
 ###  Dictionary trait 

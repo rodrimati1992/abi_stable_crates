@@ -5,7 +5,7 @@ use crate::{
     abi_stability::{
         stable_abi_trait::{GetTypeLayoutCtor},
     },
-    std_types::{StaticSlice,RVec},
+    std_types::RVec,
 };
 
 

@@ -51,6 +51,7 @@ Currently this library has these features:
 
 For **examples** of using `abi_stable` you can look at the readme,
 or for the crates in the examples directory in the repository for this crate.
+This crate also has examples for most features on their own.
 
 To run the examples generally you'll have to build the `*_impl` crate,
 then run the `*_user` crate (all `*_user` crates should have a help message and a readme.md).

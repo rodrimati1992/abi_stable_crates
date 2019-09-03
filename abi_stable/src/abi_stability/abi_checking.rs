@@ -24,7 +24,7 @@ use crate::{
     prefix_type::{FieldAccessibility,IsConditional},
     sabi_types::CmpIgnored,
     std_types::{
-        RArc,RVec, StaticSlice, StaticStr,UTypeId,RBoxError,RResult,RSlice,
+        RArc,RVec,StaticStr,UTypeId,RBoxError,RResult,RSlice,
         RSome,RNone,ROk,RErr,
     },
     traits::IntoReprC,

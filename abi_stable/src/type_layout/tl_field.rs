@@ -18,7 +18,7 @@ pub struct TLField {
     pub layout: GetTypeLayout,
 
     /// The function pointer types within the field.
-    pub function_range:TLFunctionRange,
+    pub function_range:TLFunctionSlice,
 
     /// Whether this field is only a function pointer.
     pub is_function:bool,
@@ -69,7 +69,7 @@ impl TLField {
             name: StaticStr::new(name),
             lifetime_indices,
             layout,
-            function_range:TLFunctionRange::EMPTY,
+            function_range:TLFunctionSlice::EMPTY,
             is_function:false,
             field_accessor:FieldAccessor::Direct,
         }
@@ -209,7 +209,7 @@ struct TLFieldShallow {
     /// This is None if it already printed that TypeLayout
     pub(crate) layout: Option<&'static TypeLayout>,
 
-    pub(crate) function_range:TLFunctionRange,
+    pub(crate) function_range:TLFunctionSlice,
 
     pub(crate) is_function:bool,
 

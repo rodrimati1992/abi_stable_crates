@@ -4,7 +4,7 @@ use std::{
     slice,
 };
 
-/// The layout of a field.
+/// The layout of all field in a type definition.
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
@@ -231,7 +231,7 @@ impl std::iter::ExactSizeIterator for TLFOSIter{}
 
 
 /**
-A slice of `T`,and a slice of ranges into the first slice,associating each range with a field.
+A slice of `T`,and a slice of ranges into self.values,associating each range with a field.
 */
 #[repr(C)]
 #[derive(Copy, Clone,Debug, StableAbi,Ord,PartialOrd,Eq,PartialEq)]
@@ -432,7 +432,7 @@ impl Iterator for TLFieldsIterator{
         Some(TLField{
             name:StaticStr::new(self.field_names.next().unwrap()),
             lifetime_indices:RSlice::from_slice(self.lifetime_indices.next().unwrap().value),
-            function_range:TLFunctionRange::new(
+            function_range:TLFunctionSlice::new(
                 self.field_fn_ranges.next().map_or(StartLen::EMPTY,|x|*x),
                 self.functions,
             ),
