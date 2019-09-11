@@ -87,7 +87,6 @@ declare_common_tokens! {
     with_new[
         start_len_tokens=crate::common_tokens::StartLenTokens,
         fn_pointer_tokens=crate::common_tokens::FnPointerTokens,
-        lifetime_tokens=crate::common_tokens::LifetimeTokens,
     ]
 
     token[
@@ -125,7 +124,7 @@ declare_common_tokens! {
         rnone="__RNone",
         tl_field="__TLField",
         tl_functions="__TLFunctions",
-        comp_tl_functions="__CompTLFunction",
+        comp_tl_function="__CompTLFunction",
         value_kind ="__ValueKind",
         prefix_kind="__PrefixKind",
         tl_data="__TLData",
@@ -141,7 +140,7 @@ declare_common_tokens! {
         name="name",
         fields="fields",
         field_1to1="__Field1to1",
-        tl_fields="__TLFields",
+        comp_tl_fields="__CompTLFields",
         slice_and_field_indices="__SAFI",
         with_field_index="__WithFieldIndex",
         from_vari_field_val="from_vari_field_val",
@@ -155,8 +154,8 @@ declare_common_tokens! {
         //layout="LAYOUT",
         get="get",
         stable_abi_bound="__StableAbi_Bound",
-        unsafe_extern_fn_type_layout="__UNSAFE_EXTERN_FN_ABI_INFO",
-        extern_fn_type_layout="__EXTERN_FN_ABI_INFO",
+        unsafe_extern_fn_type_layout="__UNSAFE_EXTERN_FN_LAYOUT",
+        extern_fn_type_layout="__EXTERN_FN_LAYOUT",
         get_type_layout_ctor="__GetTypeLayoutCtor",
         sabi_reexports="_sabi_reexports",
         cmp_ignored="__CmpIgnored",
@@ -168,6 +167,7 @@ declare_common_tokens! {
         cap_opaque_field="OPAQUE_FIELD",
         cap_sabi_opaque_field="SABI_OPAQUE_FIELD",
         cap_stable_abi="STABLE_ABI",
+        cap_shared_stable_abi="SHARED_STABLE_ABI",
         subfields="subfields",
         with_functions="with_functions",
         underscore="_",

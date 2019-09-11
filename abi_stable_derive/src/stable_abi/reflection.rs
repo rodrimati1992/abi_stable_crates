@@ -1,6 +1,6 @@
-use proc_macro2::TokenStream;
-use quote::{quote,ToTokens};
-
+use super::{
+    SharedVars,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FieldAccessor<'a> {
@@ -17,29 +17,35 @@ pub enum FieldAccessor<'a> {
 }
 
 
-impl ToTokens for FieldAccessor<'_>{
-    fn to_tokens(&self, ts: &mut TokenStream) {
-        match *self {
-            FieldAccessor::Direct=>
-                quote!( __FieldAccessor::Direct ),
-            FieldAccessor::Method{name:None}=>
-                quote!( 
-                    __FieldAccessor::Method{
-                        name:None 
-                    } 
-                ),
-            FieldAccessor::Method{name:Some(name)}=>
-                quote!( 
-                    __FieldAccessor::method_named(&__StaticStr::new(#name))
-                ),
-            FieldAccessor::MethodOption=>
-                quote!( __FieldAccessor::MethodOption ),
-            FieldAccessor::Opaque=>
-                quote!( __FieldAccessor::Opaque ),
-        }.to_tokens(ts);
+impl<'a> FieldAccessor<'a>{
+    pub(crate) fn compress(self,shared_vars:&mut SharedVars<'a>)->CompFieldAccessor{
+        match self {
+            FieldAccessor::Direct=>{
+                CompFieldAccessor::DIRECT
+            }
+            FieldAccessor::Method{name:None}=>{
+                CompFieldAccessor::METHOD
+            }
+            FieldAccessor::Method{name:Some(name)}=>{
+                let _=shared_vars.push_str(name);
+                CompFieldAccessor::METHOD_NAMED
+            }
+            FieldAccessor::MethodOption=>{
+                CompFieldAccessor::METHOD_OPTION
+            }
+            FieldAccessor::Opaque=>{
+                CompFieldAccessor::OPAQUE
+            }
+        }
     }
 }
 
+abi_stable_shared::declare_comp_field_accessor!{
+    attrs=[]
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 
 
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]

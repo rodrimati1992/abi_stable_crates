@@ -5,15 +5,13 @@ use crate::*;
 use crate::{
     composite_collections::{
         SmallStartLen as StartLen,
-        SmallCompositeString as CompositeString,
         SmallCompositeVec as CompositeVec,
     },
     datastructure::{DataStructure,DataVariant,Field,FieldIndex},
     gen_params_in::{GenParamsIn,InWhat},
     impl_interfacetype::impl_interfacetype_tokenizer,
-    lifetimes::LifetimeIndex,
+    literals_constructors::{rslice_tokenizer,rstr_tokenizer},
     to_token_fn::ToTokenFnMut,
-    //utils::SynResultExt,
 };
 
 
@@ -23,7 +21,7 @@ use proc_macro2::{TokenStream as TokenStream2,Span};
 
 use core_extensions::{
     prelude::*,
-
+    IteratorExt,
 };
 
 
@@ -34,6 +32,8 @@ mod attribute_parsing;
 
 mod common_tokens;
 
+mod generic_params;
+
 mod nonexhaustive;
 
 mod prefix_types;
@@ -42,19 +42,30 @@ mod repr_attrs;
 
 mod tl_function;
 
+mod tl_field;
+
+mod tl_multi_tl;
+
+mod shared_vars;
+
+
 #[cfg(test)]
 mod tests;
 
+
 use self::{
     attribute_parsing::{
-        parse_attrs_for_stable_abi, StabilityKind, StableAbiOptions, NotStableAbiBound,
-        FieldTransparency,
+        parse_attrs_for_stable_abi, StabilityKind, StableAbiOptions, ASTypeParamBound,
+        LayoutConstructor,
     },
     common_tokens::CommonTokens,
     nonexhaustive::{tokenize_enum_info,tokenize_nonexhaustive_items},
     prefix_types::prefix_type_tokenizer,
     reflection::ModReflMode,
+    tl_field::CompTLField,
     tl_function::{VisitedFieldMap,CompTLFunction},
+    tl_multi_tl::TypeLayoutRange,
+    shared_vars::SharedVars,
 };
 
 
@@ -70,12 +81,18 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let ctokens = &ctokens;
     let ds = &DataStructure::new(&mut data, arenas);
     let config = &parse_attrs_for_stable_abi(ds.attrs, ds, arenas)?;
+    let shared_vars=&mut SharedVars::new(arenas,ctokens);
     let generics=ds.generics;
     let name=ds.name;
 
-    let visited_fields=&VisitedFieldMap::new(ds,config,arenas,ctokens)?;
+    // This has to come before the `VisitedFieldMap`.
+    let generic_params_tokens=
+        generic_params::GenericParams::new(ds,shared_vars,config,ctokens);
+
+    let visited_fields=&VisitedFieldMap::new(ds,config,shared_vars,ctokens)?;
 
     let module=Ident::new(&format!("_sabi_{}",name),Span::call_site());
+
 
 
     // drop(_measure_time0);
@@ -135,26 +152,16 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
         StabilityKind::Prefix(prefix)=>Some(prefix),
         _=>None,
     };
-    let nonexhaustive_opt=match &config.kind {
+    let nonexh_opt=match &config.kind {
         StabilityKind::NonExhaustive(nonexhaustive)=>Some(nonexhaustive),
         _=>None,
     };
 
-
-    let tags_opt=&config.tags;
     // tokenizes the `Tag` data structure associated with this type.
-    let tags=ToTokenFnMut::new(move|ts|{
-        ctokens.and_.to_tokens(ts);
-        match &tags_opt {
-            Some(tag)=>{
-                tag.to_tokens(ts);
-            }
-            None=>{
-                quote!( _sabi_reexports::Tag::null() )
-                    .to_tokens(ts);
-            }
-        }
-    });
+    let tags=match &config.tags {
+        Some(tag)=>quote!( Some(&#tag) ),
+        None=>quote!( None ),
+    };
 
     
     let extra_checks=
@@ -176,13 +183,13 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let is_nonzero=if is_transparent && visited_fields.map.contains_index(first_field) {
         let visited_field=&visited_fields.map[first_field];
 
-        let is_opaque_field=config.opaque_fields[first_field].is_opaque();
-        if visited_field.is_function {
+        let is_opaque_field=config.layout_ctor[first_field].is_opaque();
+        if visited_field.comp_field.is_function() {
             quote!( _sabi_reexports::True )
         }else if is_opaque_field {
             quote!( _sabi_reexports::False )
         }else{
-            let ty=&visited_field.mutated_ty;
+            let ty=visited_field.comp_field.type_(&shared_vars);
             quote!( <#ty as __SharedStableAbi>::IsNonZeroType )
         }
     }else{
@@ -190,95 +197,104 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     };
 
 
-    // The tokenizer for the TLData stored in the TypeLayout
-    let data_variant=ToTokenFnMut::new(|ts|{
-        let ct=ctokens;
-
-        match ( is_enum, prefix ) {
-            (false,None)=>{
-                let struct_=&ds.variants[0];
-
-                let variant_lengths=&[ struct_.fields.len() as u8 ];
-
-                to_stream!(ts;ct.tl_data,ct.colon2);
+    let ct=ctokens;
+    // The tokens for the MonoTLData stored in the TypeLayout
+    let mono_tl_data;
+    // The tokens for the GenericTLData stored in the TypeLayout
+    let generic_tl_data;
+    
+    match ( is_enum, prefix ) {
+        (false,None)=>{
+            let struct_=&ds.variants[0];
+            mono_tl_data={
+                let fields=fields_tokenizer(ds,struct_.fields.iter(),visited_fields,ct);
                 match ds.data_variant {
-                    DataVariant::Struct=>&ct.struct_under,
-                    DataVariant::Union=>&ct.union_under,
-                    DataVariant::Enum=>unreachable!(),
-                }.to_tokens(ts);
-                ct.paren.surround(ts,|ts|{
-                    fields_tokenizer(
-                        ds,
-                        struct_.fields.iter(),
-                        variant_lengths,
-                        config,
-                        visited_fields,
-                        ct
-                    ).to_tokens(ts);
-                })
-            }
-            (true,None)=>{
-                quote!(__TLData::Enum).to_tokens(ts);
-                ct.paren.surround(ts,|ts|{
-                    tokenize_enum(ds,nonexhaustive_opt,config,visited_fields,ctokens).to_tokens(ts);
-                });
-            }
-            (false,Some(prefix))=>{
-                if is_transparent{
-                    spanned_err!(name,"repr(transparent) prefix types not supported")
-                        .to_compile_error()
-                        .to_tokens(ts);
-                    return;
+                    DataVariant::Struct=>
+                        quote!( _sabi_reexports::MonoTLData::derive_struct(#fields) ),
+                    DataVariant::Union=>
+                        quote!( _sabi_reexports::MonoTLData::derive_union(#fields) ),
+                    DataVariant::Enum=>
+                        unreachable!(),
                 }
+            };
+            generic_tl_data={
+                match ds.data_variant {
+                    DataVariant::Struct=>
+                        quote!( _sabi_reexports::GenericTLData::Struct ),
+                    DataVariant::Union=>
+                        quote!( _sabi_reexports::GenericTLData::Union ),
+                    DataVariant::Enum=>
+                        unreachable!(),
+                }
+            };
+        },
+        (true,None)=>{
+            mono_tl_data={
+                let mono_enum_tokenizer=
+                    tokenize_mono_enum(ds,nonexh_opt,config,visited_fields,shared_vars);
+                quote!( _sabi_reexports::MonoTLData::Enum(#mono_enum_tokenizer) )
+            };
+            generic_tl_data={
+                let generic_enum_tokenizer=
+                    tokenize_generic_enum(ds,nonexh_opt,config,visited_fields,ct);
+                quote!( _sabi_reexports::GenericTLData::Enum(#generic_enum_tokenizer) )
+            };
+        }
+        (false,Some(prefix))=>{
+            if is_transparent{
+                return_spanned_err!(name,"repr(transparent) prefix types not supported")
+            }
 
+            mono_tl_data={
                 let struct_=&ds.variants[0];
-                let variant_lengths=&[ struct_.fields.len() as u8 ];
                 let first_suffix_field=prefix.first_suffix_field.field_pos;
                 let fields=struct_.fields.iter();
-                let fields=fields_tokenizer(ds,fields,variant_lengths,config,visited_fields,ct);
-                
+                let fields=fields_tokenizer(ds,fields,visited_fields,ct);
+                let field_conditionality_ident=prefix.field_conditionality_ident;
                 quote!(
-                    __TLData::prefix_type_derive(
+                    _sabi_reexports::MonoTLData::prefix_type_derive(
                         #first_suffix_field,
+                        #field_conditionality_ident,
+                        #fields
+                    )
+                )
+            };
+            generic_tl_data={
+                quote!(
+                    _sabi_reexports::GenericTLData::prefix_type_derive(
                         <#name #ty_generics as 
                             _sabi_reexports::PrefixTypeTrait
                         >::PT_FIELD_ACCESSIBILITY,
-                        <#name #ty_generics as 
-                            _sabi_reexports::PrefixTypeTrait
-                        >::PT_COND_PREFIX_FIELDS,
-                        #fields
                     )
-                ).to_tokens(ts);
-            }
-            (true,Some(_))=>{
-                spanned_err!(name,"enum prefix types not supported")
-                    .to_compile_error()
-                    .to_tokens(ts);
-                return;
-            }
-        };
-    });
+                )
+            };
+        }
+        (true,Some(_))=>{
+            return_spanned_err!(name,"enum prefix types not supported");
+        }
+    };
 
     
     let lifetimes=&generics.lifetimes().map(|x|&x.lifetime).collect::<Vec<_>>();
     let type_params=&generics.type_params().map(|x|&x.ident).collect::<Vec<_>>();
     let const_params=&generics.const_params().map(|x|&x.ident).collect::<Vec<_>>();
-    
-    let type_params_for_generics=
-        type_params.iter().filter(|&x| !config.unconstrained_type_params.contains_key(x) );
+
     
     // For `type StaticEquivalent= ... ;`
     let lifetimes_s=lifetimes.iter().map(|_| &ctokens.static_lt );
     let type_params_s=ToTokenFnMut::new(|ts|{
         let ct=ctokens;
 
-        for ty in type_params {
-            match config.unconstrained_type_params.get(ty) {
-                Some(NotStableAbiBound::NoBound)=>{
+        for (ty_param,bounds) in config.type_param_bounds.iter() {
+            match bounds {
+                ASTypeParamBound::NoBound=>{
                     ct.empty_tuple.to_tokens(ts);
                 }
-                Some(NotStableAbiBound::GetStaticEquivalent)|None=>{
-                    to_stream!(ts; ct.static_equivalent, ct.lt, ty, ct.gt);
+                 ASTypeParamBound::GetStaticEquivalent
+                |ASTypeParamBound::StableAbi
+                |ASTypeParamBound::SharedStableAbi
+                =>{
+                    to_stream!(ts; ct.static_equivalent, ct.lt, ty_param, ct.gt);
                 }
             }
             ct.comma.to_tokens(ts);
@@ -323,11 +339,28 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
         );
 
 
-    let stringified_name=name.to_string();
+    let stringified_name=rstr_tokenizer(name.to_string());
 
-    let stable_abi_bounded =(&config.stable_abi_bounded).into_iter();
-    let stable_abi_bounded_b=stable_abi_bounded.clone();
-    let static_equiv_bounded =&config.static_equiv_bounded;
+    let mut shared_stable_abi_bounded=Vec::new();
+    let mut stable_abi_bounded=Vec::new();
+    let mut static_equiv_bounded=Vec::new();
+
+    for (ident,bounds) in config.type_param_bounds.iter() {
+        let list=match bounds {
+            ASTypeParamBound::NoBound=>None,
+            ASTypeParamBound::GetStaticEquivalent=>Some(&mut static_equiv_bounded),
+            ASTypeParamBound::StableAbi=>Some(&mut stable_abi_bounded),
+            ASTypeParamBound::SharedStableAbi=>Some(&mut shared_stable_abi_bounded),
+        };
+        if let Some(list)=list {
+            list.push(ident);
+        }
+    }
+
+    let shared_stable_abi_bounded=&shared_stable_abi_bounded;
+    let stable_abi_bounded=&stable_abi_bounded;
+    let static_equiv_bounded=&static_equiv_bounded;
+
     let extra_bounds       =&config.extra_bounds;
     
     let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens)?;
@@ -344,19 +377,29 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
         }
     };
 
-    let phantom_field_names=config.phantom_fields.iter().map(|x| x.0 );
     let phantom_field_tys  =config.phantom_fields.iter().map(|x| x.1 );
-    let phantom_field_tys_b=phantom_field_tys.clone();
 
-    let phantom_type_params=&config.phantom_type_params;
+    // This has to be collected into a Vec ahead of time,
+    // so that the names and types are stored in SharedVars.
+    let phantom_fields=config.phantom_fields.iter()
+        .map(|(name,ty)|{
+            CompTLField::from_expanded_std_field(
+                name,
+                std::iter::empty(),
+                shared_vars.push_type(LayoutConstructor::SharedStableAbi,*ty),
+                shared_vars,
+            )
+        })
+        .collect::<Vec<CompTLField>>(); 
+    let phantom_fields=rslice_tokenizer(&phantom_fields);
+
 
     // let _measure_time1=PrintDurationOnDrop::new(file_span!());
 
     // The storage type parameter that is added if this is a nonexhaustive enum.
-    let storage_opt=nonexhaustive_opt.map(|_| &ctokens.und_storage );
+    let storage_opt=nonexh_opt.map(|_| &ctokens.und_storage );
     let generics_header=
         GenParamsIn::with_after_types(&ds.generics,InWhat::ImplHeader,storage_opt);
-
 
     quote!(
         #prefix_type_tokenizer_
@@ -387,6 +430,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             where 
                 #(#where_clause,)*
                 #(#stable_abi_bounded:__StableAbi,)*
+                #(#shared_stable_abi_bounded:__SharedStableAbi,)*
                 #(#static_equiv_bounded:__GetStaticEquivalent_,)*
                 #(#extra_bounds,)*
                 #(#prefix_bounds,)*
@@ -402,8 +446,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             unsafe impl <#generics_header> __SharedStableAbi for #impl_ty 
             where 
                 #(#where_clause_b,)*
-                #(#stable_abi_bounded_b:__StableAbi,)*
-                #(#phantom_field_tys_b:__SharedStableAbi,)*
+                #(#stable_abi_bounded:__StableAbi,)*
+                #(#shared_stable_abi_bounded:__SharedStableAbi,)*
+                #(#phantom_field_tys:__SharedStableAbi,)*
                 #(#static_equiv_bounded:__GetStaticEquivalent_,)*
                 #(#extra_bounds,)*
                 #(#prefix_bounds,)*
@@ -413,33 +458,28 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                 type Kind=#associated_kind;
 
                 const S_LAYOUT: &'static _sabi_reexports::TypeLayout = {
+                    const _MONO_TYPE_LAYOUT_:_sabi_reexports::MonoTypeLayout=
+                        _sabi_reexports::MonoTypeLayout::from_derive(
+                            _sabi_reexports::_private_MonoTypeLayoutDerive{
+                                name: #stringified_name,
+                                item_info: #item_info_const,
+                                data: #mono_tl_data,
+                                generics: #generic_params_tokens,
+                                mod_refl_mode:#mod_refl_mode,
+                                repr_attr:#repr,
+                                phantom_fields:#phantom_fields,
+                            }
+                        );
+
+
                     &_sabi_reexports::TypeLayout::from_derive::<#size_align_for>(
-                        __private_TypeLayoutDerive {
+                        _sabi_reexports::_private_TypeLayoutDerive {
+                            shared_vars:&#shared_vars,
+                            mono:&_MONO_TYPE_LAYOUT_,
                             abi_consts: Self::S_ABI_CONSTS,
-                            name: #stringified_name,
-                            item_info:#item_info_const,
-                            data: #data_variant,
-                            generics: abi_stable::tl_genparams!(
-                                #(#lifetimes),*;
-                                #(#type_params_for_generics,)*
-                                #(#phantom_type_params,)*;
-                                #(#const_params),*
-                            ),
-                            phantom_fields:abi_stable::rslice![
-                                #(
-                                    __TLField::new(
-                                        #phantom_field_names,
-                                        abi_stable::rslice![],
-                                        __GetTypeLayoutCtor::<
-                                            #phantom_field_tys
-                                        >::SHARED_STABLE_ABI,
-                                    ),
-                                )*
-                            ],
+                            data:#generic_tl_data,
                             tag:#tags,
                             extra_checks:#extra_checks,
-                            mod_refl_mode:#mod_refl_mode,
-                            repr_attr:#repr,
                         }
                     )
                 };
@@ -455,21 +495,56 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     .piped(Ok)
 }
 
-// Tokenizes a `TLEnum{ .. }`
-fn tokenize_enum<'a>(
+// Tokenizes a `MonoTLEnum{ .. }`
+fn tokenize_mono_enum<'a>(
     ds:&'a DataStructure<'a>,
-    nonexhaustive_opt:Option<&'a nonexhaustive::NonExhaustive<'a>>,
-    config:&'a StableAbiOptions<'a>,
+    _nonexhaustive_opt:Option<&'a nonexhaustive::NonExhaustive<'a>>,
+    _config:&'a StableAbiOptions<'a>,
     visited_fields:&'a VisitedFieldMap<'a>,
-    ct:&'a CommonTokens<'a>
+    shared_vars:&mut SharedVars<'a>,
 )->impl ToTokens+'a{
-    ToTokenFnMut::new(move|ts|{
+    let ct=shared_vars.ctokens();
+
+    let variant_names_start_len={
         let mut variant_names=String::new();
         for variant in &ds.variants {
             use std::fmt::Write;
             let _=write!(variant_names,"{};",variant.name);
         }
+        shared_vars.push_str(&variant_names)
+    };
 
+    ToTokenFnMut::new(move|ts|{
+        let variant_names_start_len=variant_names_start_len.tokenizer(ct.as_ref());
+
+        let variant_lengths=ds.variants.iter()
+            .map(|x|{
+                assert!(x.fields.len() < 256,"variant '{}' has more than 255 fields.",x.name);
+                x.fields.len() as u8
+            });
+
+        let fields=ds.variants.iter().flat_map(|v| v.fields.iter() );
+        let fields=fields_tokenizer(ds,fields,visited_fields,ct);
+
+        quote!(
+            _sabi_reexports::MonoTLEnum::new(
+                #variant_names_start_len,
+                abi_stable::rslice![#( #variant_lengths ),*],
+                #fields,
+            )
+        ).to_tokens(ts);
+    })
+}
+
+// Tokenizes a `GenericTLEnum{ .. }`
+fn tokenize_generic_enum<'a>(
+    ds:&'a DataStructure<'a>,
+    nonexhaustive_opt:Option<&'a nonexhaustive::NonExhaustive<'a>>,
+    config:&'a StableAbiOptions<'a>,
+    _visited_fields:&'a VisitedFieldMap<'a>,
+    ct:&'a CommonTokens<'a>,
+)->impl ToTokens+'a{
+    ToTokenFnMut::new(move|ts|{
         let is_exhaustive=match nonexhaustive_opt {
             Some(_)=>{
                 let name=ds.name;
@@ -481,71 +556,30 @@ fn tokenize_enum<'a>(
             None=>quote!(exhaustive()),
         };
 
-        let variant_lengths=&ds.variants.iter()
-            .map(|x|{
-                assert!(x.fields.len() < 256,"variant '{}' has more than 255 fields.",x.name);
-                x.fields.len() as u8
-            })
-            .collect::<Vec<u8>>();
-
-        let fields=ds.variants.iter().flat_map(|v| v.fields.iter() );
-        let fields=fields_tokenizer(ds,fields,variant_lengths,config,visited_fields,ct);
-
         let discriminants=ds.variants.iter().map(|x|x.discriminant);
         let discriminants=config.repr.tokenize_discriminant_exprs(discriminants,ct);
 
-
         quote!(
-            &__TLEnum::for_derive(
-                #variant_names,
+            _sabi_reexports::GenericTLEnum::new(
                 __IsExhaustive::#is_exhaustive,
-                #fields,
                 #discriminants,
-                abi_stable::rslice![#( #variant_lengths ),*],
             )
         ).to_tokens(ts);
     })
 }
 
-
-#[must_use]
-fn make_get_type_layout_tokenizer<'a,T:'a>(
-    ty:T,
-    field_transparency:FieldTransparency,
-    ct:&'a CommonTokens<'a>,
-)->impl ToTokens+'a
-where T:ToTokens
-{
-    ToTokenFnMut::new(move|ts|{
-        to_stream!{ts; 
-            ct.get_type_layout_ctor,
-            ct.colon2,
-            ct.lt,ty,ct.gt,
-            ct.colon2,
-        };
-        match field_transparency {
-            FieldTransparency::Regular=> &ct.cap_stable_abi,
-            FieldTransparency::Opaque=> &ct.cap_opaque_field,
-            FieldTransparency::SabiOpaque=> &ct.cap_sabi_opaque_field,
-        }.to_tokens(ts);
-    })
-}
-
-
 /// Tokenizes a TLFields,
 fn fields_tokenizer<'a>(
     ds:&'a DataStructure<'a>,
     mut fields:impl Iterator<Item=&'a Field<'a>>+'a,
-    variant_length:&'a [u8],
-    config:&'a StableAbiOptions<'a>,
     visited_fields:&'a VisitedFieldMap<'a>,
     ctokens:&'a CommonTokens<'a>,
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
-        to_stream!(ts;ctokens.tl_fields,ctokens.colon2,ctokens.new);
+        to_stream!(ts;ctokens.comp_tl_fields,ctokens.colon2,ctokens.new);
         ctokens.paren.surround(ts,|ts|{
             let fields=fields.by_ref().collect::<Vec<_>>();
-            fields_tokenizer_inner(ds,fields,variant_length,config,visited_fields,ctokens,ts);
+            fields_tokenizer_inner(ds,fields,visited_fields,ctokens,ts);
         });
     })
 }
@@ -553,67 +587,14 @@ fn fields_tokenizer<'a>(
 fn fields_tokenizer_inner<'a>(
     ds:&'a DataStructure<'a>,
     fields:Vec<&'a Field<'a>>,
-    variant_length:&'a [u8],
-    config:&'a StableAbiOptions<'a>,
     visited_fields:&'a VisitedFieldMap<'a>,
     ct:&'a CommonTokens<'a>,
     ts:&mut TokenStream2,
 ){
+    let iter=fields.iter().map(|field| &visited_fields.map[*field].comp_field );
+    rslice_tokenizer(iter).to_tokens(ts);
 
-    let mut names=String::new();
-
-    let mut lifetime_ind_pos:Vec<(FieldIndex,u16)>=Vec::new();
-
-    let mut current_lt_index=0_u16;
-    for &field in &fields {
-        use std::fmt::Write;
-        let visited_field=&visited_fields.map[field];
-        let name=config.renamed_fields[field].unwrap_or(field.ident());
-        let _=write!(names,"{};",name);
-
-        lifetime_ind_pos.push((
-            field.index,
-            current_lt_index,
-        ));
-        current_lt_index+=visited_field.referenced_lifetimes.len() as u16;
-    }
-
-    names.to_tokens(ts);
     ct.comma.to_tokens(ts);
-
-    quote!( abi_stable::rslice! ).to_tokens(ts);
-    ct.bracket.surround(ts,|ts|{
-        for len in variant_length.iter().cloned() {
-            to_stream!(ts;len,ct.comma);
-        }
-    });
-    ct.comma.to_tokens(ts);
-
-    to_stream!(ts;ct.slice_and_field_indices,ct.colon2,ct.new);
-    ct.paren.surround(ts,|ts|{
-        quote!( abi_stable::rslice! ).to_tokens(ts);
-        ct.bracket.surround(ts,|ts|{
-            for li in fields.iter().cloned()
-                .flat_map(|f| &visited_fields.map[f].referenced_lifetimes ) 
-            {
-                to_stream!(ts;li.tokenizer(ct.as_ref()),ct.comma);
-            }
-        });
-        ct.comma.to_tokens(ts);
-        
-        quote!( abi_stable::rslice! ).to_tokens(ts);
-        ct.bracket.surround(ts,|ts|{
-            for (fi,index) in lifetime_ind_pos {
-                to_stream!(ts;ct.with_field_index,ct.colon2,ct.from_vari_field_val);
-                ct.paren.surround(ts,|ts|{
-                    to_stream!(ts;fi.variant as u16,ct.comma,fi.pos as u8,ct.comma,index)
-                });
-                to_stream!(ts;ct.comma);
-            }
-        });
-    });
-    ct.comma.to_tokens(ts);
-
 
     if visited_fields.fn_ptr_count==0 {
         ct.none.to_tokens(ts);
@@ -621,47 +602,11 @@ fn fields_tokenizer_inner<'a>(
         to_stream!(ts;ct.some);
         ct.paren.surround(ts,|ts|{
             ct.and_.to_tokens(ts);
-            tokenize_tl_functions(ds,&fields,&visited_fields,variant_length,config,ct,ts);
+            tokenize_tl_functions(ds,&fields,&visited_fields,ct,ts);
         });
     }
     to_stream!{ts; ct.comma };
 
-
-    quote!( abi_stable::rslice! ).to_tokens(ts);
-    ct.bracket.surround(ts,|ts|{
-        for &field in &fields {
-            let visited_field=&visited_fields.map[field];
-
-            let field_accessor=config.override_field_accessor[field]
-                .unwrap_or_else(|| config.kind.field_accessor(config.mod_refl_mode,field) );
-
-            to_stream!(ts;ct.field_1to1,ct.colon2,ct.new);
-            ct.paren.surround(ts,|ts|{
-                {//layout:
-
-                    if visited_field.is_function {
-                        if visited_field.functions[0].is_unsafe {
-                            &ct.unsafe_extern_fn_type_layout
-                        }else{
-                            &ct.extern_fn_type_layout
-                        }.to_tokens(ts);
-                    }else{
-                        make_get_type_layout_tokenizer(
-                            &visited_field.mutated_ty,
-                            config.opaque_fields[field],
-                            ct
-                        ).to_tokens(ts);
-                    }
-
-                    to_stream!(ts;ct.comma);
-                }
-
-                to_stream!(ts;visited_field.is_function,ct.comma);
-                to_stream!(ts;field_accessor,ct.comma);
-            });
-            to_stream!(ts;ct.comma);
-        }
-    });
 }
 
 /// Tokenizes a TLFunctions
@@ -669,82 +614,25 @@ fn tokenize_tl_functions<'a>(
     ds:&'a DataStructure<'a>,
     fields:&[&'a Field<'a>],
     visited_fields:&'a VisitedFieldMap<'a>,
-    _variant_length:&[u8],
-    config:&'a StableAbiOptions<'a>,
     ct:&'a CommonTokens<'a>,
     ts:&mut TokenStream2,
 ){
-    let mut strings=CompositeString::new();
-    let mut functions=CompositeVec::<CompTLFunction>::with_capacity(visited_fields.fn_ptr_count);
+    let mut functions=
+        CompositeVec::<&'a CompTLFunction>::with_capacity(visited_fields.fn_ptr_count);
     let mut field_fn_ranges=Vec::<StartLen>::with_capacity(ds.field_count);
-    let mut type_layouts=CompositeVec::<( FieldTransparency, &'a syn::Type )>::new();
-    let mut paramret_lifetime_indices=CompositeVec::<LifetimeIndex>::new();
 
-    for &field in fields {
-        let field_transparency=config.opaque_fields[field];
-        let visited_field=&visited_fields.map[field];
-
-        let field_fns=visited_field.functions.iter().enumerate()
-            .map(|(fn_i,func)|{
-                let mut current_func=CompTLFunction::new(ct);
-                
-                current_func.name=if visited_field.is_function {
-                    strings.push_display(field.ident())
-                }else{
-                    strings.push_str(&format!("fn_{}",fn_i))
-                };
-
-                current_func.bound_lifetimes=strings
-                    .extend_with_display(";",func.named_bound_lts.iter());
-
-                current_func.param_names=strings
-                    .extend_with_display(";",func.params.iter().map(|p| p.name.unwrap_or("") ));
-
-                current_func.param_type_layouts=type_layouts
-                    .extend( func.params.iter().map(|p| ( field_transparency, p.ty ) ) );
-
-                current_func.paramret_lifetime_indices=paramret_lifetime_indices
-                    .extend( 
-                        func.params.iter()
-                            .chain(&func.returns)
-                            .flat_map(|p| p.lifetime_refs.iter().cloned() ) 
-                    );
-
-                if let Some(returns)=&func.returns {
-                    current_func.return_type_layout=
-                        Some( type_layouts.push(( field_transparency, returns.ty )) );
-                }
-                current_func
-            });
-
-        field_fn_ranges.push( functions.extend(field_fns) )
-    }
-
-    let strings=strings.into_inner();
+    fields.iter()
+        .map(|field| functions.extend(&visited_fields.map[*field].functions) )
+        .extending(&mut field_fn_ranges);
 
     let functions=functions.into_inner();
 
     let field_fn_ranges=field_fn_ranges.into_iter().map(|sl| sl.tokenizer(ct.as_ref()) );
 
-    let type_layouts=type_layouts.into_inner();
-    let type_layouts=ToTokenFnMut::new(|ts|{
-        for ( field_transparency, ty ) in &type_layouts {
-            make_get_type_layout_tokenizer(ty,*field_transparency,ct).to_tokens(ts);
-            ct.comma.to_tokens(ts);
-        }
-    });
-
-    let paramret_lifetime_indices=paramret_lifetime_indices.into_inner().into_iter()
-        .map(|sl| sl.tokenizer(ct.as_ref()) );
-
-
     quote!(
         __TLFunctions::new(
-            #strings,
             abi_stable::rslice![#(#functions),*],
             abi_stable::rslice![#(#field_fn_ranges),*],
-            abi_stable::rslice![#type_layouts],
-            abi_stable::rslice![#(#paramret_lifetime_indices),*],
         )
     ).to_tokens(ts);
 

@@ -55,6 +55,21 @@ pub(crate) fn dummy_ident()->syn::Ident{
 
 ////////////////////////////////////////////////////////////////////////////////
 
+pub(crate) fn type_from_ident(ident: syn::Ident) -> syn::Type {
+    let path: syn::Path = ident.into();
+    let path = syn::TypePath { qself: None, path };
+    path.into()
+}
+
+pub(crate) fn expr_from_ident(ident:syn::Ident)->syn::Expr{
+    let x=syn::Path::from(ident);
+    let x=syn::ExprPath{
+        attrs:Vec::new(),
+        qself:None,
+        path:x,
+    };
+    syn::Expr::Path(x)
+}
 
 /// Used to tokenize an integer without a type suffix.
 pub(crate) fn expr_from_int(int:u64)->syn::Expr{

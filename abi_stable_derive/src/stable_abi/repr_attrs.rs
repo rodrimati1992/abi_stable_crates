@@ -1,9 +1,11 @@
-use core_extensions::matches;
+#[allow(unused_imports)]
+use core_extensions::{matches,SelfOps};
 use proc_macro2::{TokenStream,Span};
 use quote::{quote,ToTokens};
 
 use crate::{
     ignored_wrapper::Ignored,
+    literals_constructors::rslice_tokenizer,
     to_token_fn::ToTokenFnMut,
 };
 
@@ -226,23 +228,20 @@ impl ReprAttr{
             };
 
             match int_repr.unwrap_or(DiscriminantRepr::Isize) {
-                DiscriminantRepr::U8 =>quote!(__TLDiscriminants::U8  ),
-                DiscriminantRepr::U16=>quote!(__TLDiscriminants::U16 ),
-                DiscriminantRepr::U32=>quote!(__TLDiscriminants::U32 ),
-                DiscriminantRepr::U64=>quote!(__TLDiscriminants::U64 ),
-                DiscriminantRepr::I8 =>quote!(__TLDiscriminants::I8  ),
-                DiscriminantRepr::I16=>quote!(__TLDiscriminants::I16 ),
-                DiscriminantRepr::I32=>quote!(__TLDiscriminants::I32 ),
-                DiscriminantRepr::I64=>quote!(__TLDiscriminants::I64 ),
-                DiscriminantRepr::Usize=>quote!(__TLDiscriminants::Usize  ),
-                DiscriminantRepr::Isize=>quote!(__TLDiscriminants::Isize  ),
+                DiscriminantRepr::U8 =>quote!(__TLDiscriminants::from_u8_slice  ),
+                DiscriminantRepr::U16=>quote!(__TLDiscriminants::from_u16_slice ),
+                DiscriminantRepr::U32=>quote!(__TLDiscriminants::from_u32_slice ),
+                DiscriminantRepr::U64=>quote!(__TLDiscriminants::from_u64_slice ),
+                DiscriminantRepr::I8 =>quote!(__TLDiscriminants::from_i8_slice  ),
+                DiscriminantRepr::I16=>quote!(__TLDiscriminants::from_i16_slice ),
+                DiscriminantRepr::I32=>quote!(__TLDiscriminants::from_i32_slice ),
+                DiscriminantRepr::I64=>quote!(__TLDiscriminants::from_i64_slice ),
+                DiscriminantRepr::Usize=>quote!(__TLDiscriminants::from_usize_slice  ),
+                DiscriminantRepr::Isize=>quote!(__TLDiscriminants::from_isize_slice  ),
             }.to_tokens(ts);
             
             ctokens.paren.surround(ts,|ts|{
-                quote!( abi_stable::rslice! ).to_tokens(ts);
-                ctokens.bracket.surround(ts,|ts|{
-                    tokenize_discriminant_exprs_inner(&mut exprs,ctokens,ts);
-                });
+                tokenize_discriminant_exprs_inner(&mut exprs,SliceType::RSlice,ctokens,ts);
             });
         })
     }
@@ -262,10 +261,7 @@ impl ReprAttr{
         let mut exprs=exprs.into_iter();
 
         ToTokenFnMut::new(move|ts|{
-            ctokens.and_.to_tokens(ts);
-            ctokens.bracket.surround(ts,|ts|{
-                tokenize_discriminant_exprs_inner(&mut exprs,ctokens,ts);
-            });
+            tokenize_discriminant_exprs_inner(&mut exprs,SliceType::StdSlice,ctokens,ts);
         })
     }
 }
@@ -296,11 +292,19 @@ impl ReprAttr{
 }
 
 
+#[derive(Copy,Clone)]
+enum SliceType{
+    StdSlice,
+    RSlice,
+}
+
+
 /// Outputs the items in the iterator separated by commas,
 /// where each Option is unwrapped by replacing `None`s 
 /// with the value of the last `Some()` incremented by the distance to the current element.
 fn tokenize_discriminant_exprs_inner<'a,I>(
     exprs:I,
+    type_:SliceType,
     ctokens:&'a CommonTokens,
     ts:&mut TokenStream
 )where
@@ -310,29 +314,40 @@ fn tokenize_discriminant_exprs_inner<'a,I>(
     let mut last_explicit_discr=&zero_expr;
     let mut since_last_expr=0;
 
-    for expr in exprs {
-        match expr {
-            Some(discr)=>{
-                discr.to_tokens(ts);
-
-                last_explicit_discr=discr;
-                since_last_expr=1;
+    let iter=exprs
+        .map(|expr|{
+            match expr {
+                Some(discr)=>{
+                    let ts=quote!(#discr);
+                    last_explicit_discr=discr;
+                    since_last_expr=1;
+                    ts
+                }
+                None=>{
+                    let offset=crate::utils::uint_lit(since_last_expr);
+                    let ts=quote!( (#last_explicit_discr)+#offset );
+                    since_last_expr+=1;
+                    ts
+                }
             }
-            None=>{
-                let offset=crate::utils::uint_lit(since_last_expr);
-
-                ctokens.paren.surround(ts,|ts|{ 
-                    last_explicit_discr.to_tokens(ts);
-                });
-                ctokens.add.to_tokens(ts);
-                offset.to_tokens(ts);
-
-                since_last_expr+=1;
-            }
+        });
+    match type_ {
+        SliceType::StdSlice=>{
+            ctokens.and_.to_tokens(ts);
+            ctokens.bracket.surround(ts,|ts|{
+                for elem in iter {
+                    elem.to_tokens(ts);
+                    ctokens.comma.to_tokens(ts)
+                }
+            });
         }
-        ctokens.comma.to_tokens(ts);
+        SliceType::RSlice=>{
+            rslice_tokenizer(iter).to_tokens(ts);
+        }
     }
+
 }
+
 
 
 
@@ -341,11 +356,11 @@ impl ToTokens for ReprAttr{
     fn to_tokens(&self, ts: &mut TokenStream) {
         match *self {
             ReprAttr::C(None,_)=>{
-                quote!(__ReprAttr::C(__RNone))
+                quote!(__ReprAttr::C)
             }
             ReprAttr::C(Some(int_repr),_)=>{
                 let int_repr=discr_repr_tokenizer(int_repr);
-                quote!(__ReprAttr::C(__RSome(#int_repr)))
+                quote!(__ReprAttr::CAndInt(#int_repr))
             }
             ReprAttr::Transparent(_)=>{
                 quote!(__ReprAttr::Transparent)
