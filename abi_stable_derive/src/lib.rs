@@ -3,7 +3,11 @@ An implementation detail of abi_stable.
 */
 
 #![recursion_limit="192"]
-//#![deny(unused_variables)]
+// #![deny(unused_variables)]
+// #![deny(unused_imports)]
+// #![deny(unused_parens)]
+// #![deny(unused_assignments)]
+// #![deny(unused_mut)]
 #![deny(unreachable_patterns)]
 #![deny(unused_doc_comments)]
 #![deny(unconditional_recursion)]
@@ -136,6 +140,13 @@ pub fn sabi_trait(_attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
 }
 
 
+#[doc(hidden)]
+#[proc_macro]
+pub fn concatenated_and_ranges( input: TokenStream1) -> TokenStream1 {
+    parse_or_compile_err( input, concat_and_ranges::macro_impl ).into()
+}
+
+
 /**
 This macro is documented in abi_stable::docs::get_static_equivalent
 */
@@ -169,6 +180,7 @@ mod utils;
 
 mod arenas;
 mod attribute_parsing;
+mod concat_and_ranges;
 mod common_tokens;
 mod composite_collections;
 mod constants;
@@ -179,6 +191,7 @@ mod get_static_equivalent;
 mod ignored_wrapper;
 mod impl_interfacetype;
 mod lifetimes;
+mod literals_constructors;
 mod mangle_library_getter;
 mod my_visibility;
 mod parse_utils;
@@ -212,6 +225,7 @@ use core_extensions::prelude::*;
 use crate::{
     arenas::{AllocMethods, Arenas},
     utils::PrintDurationOnDrop,
+    to_token_fn::ToTokenFnMut,
 };
 
 
