@@ -218,8 +218,8 @@ fn incompatible_overlapping_variants(){
                 found_mismatch=true;
                 for full_type in vec![&ef.expected,&ef.found] {
                     assert!(
-                        full_type.name.as_str()=="RVec"||
-                        full_type.name.as_str()=="RString",
+                        full_type.name()=="RVec"||
+                        full_type.name()=="RString",
                         "err:{:?}",
                         e
                     );

@@ -220,8 +220,8 @@ mod shadowed {
     }
 }
 
-fn assert_sane_type_layout(abi: &'static TypeLayout) {
-    assert_equal_type_layout(abi, abi);
+fn assert_sane_type_layout(layout: &'static TypeLayout) {
+    assert_equal_type_layout(layout, layout);
 }
 
 fn assert_equal_type_layout(interface: &'static TypeLayout, impl_: &'static TypeLayout) {
@@ -252,15 +252,15 @@ pub struct UnsafeOF{
 fn unsafe_opaque_fields(){
     let layout=UnsafeOF::LAYOUT;
 
-    let fields=match layout.data {
+    let fields=match layout.data() {
         TLData::Struct{fields}=>fields.iter().collect::<Vec<_>>(),
         _=>unreachable!(),
     };
 
-    let field_0_ai=fields[0].layout.get();
-    assert_eq!(field_0_ai.data, TLData::Opaque);
-    assert_eq!(field_0_ai.size, mem::size_of::<Vec<u8>>());
-    assert_eq!(field_0_ai.alignment, mem::align_of::<Vec<u8>>());
+    let field_0_ai=fields[0].layout();
+    assert_eq!(field_0_ai.data(), TLData::Opaque);
+    assert_eq!(field_0_ai.size(), mem::size_of::<Vec<u8>>());
+    assert_eq!(field_0_ai.alignment(), mem::align_of::<Vec<u8>>());
 }
 
 
@@ -398,6 +398,37 @@ fn same_different_abi_stability() {
 
 
 
+#[cfg_attr(not(miri),test)]
+fn compare_references() {
+    let list = vec![
+        <&mut ()>::LAYOUT,
+        <&mut i32>::LAYOUT,
+        <&()>::LAYOUT,
+        <&i32>::LAYOUT,
+        <&'static &'static ()>::LAYOUT,
+        <&'static mut &'static ()>::LAYOUT,
+        <&'static &'static mut ()>::LAYOUT,
+    ];
+
+    let (_dur, ()) = core_extensions::measure_time::measure(|| {
+        for (i, this) in list.iter().cloned().enumerate() {
+            for (j, other) in list.iter().cloned().enumerate() {
+                if i == j {
+                    assert_equal_type_layout(this, other);
+                } else {
+                    assert_different_type_layout(this, other);
+                }
+            }
+        }
+
+        for this in vec![<UnsafeIgnoredType<()>>::LAYOUT, <UnsafeIgnoredType<RString>>::LAYOUT] {
+            assert_equal_type_layout(<UnsafeIgnoredType<()>>::LAYOUT, this)
+        }
+    });
+}
+
+
+
 // Uncomment this once I reimplement Prefix types.
 //
 // #[cfg_attr(not(miri),test)]
@@ -415,9 +446,8 @@ fn same_different_abi_stability() {
 #[cfg_attr(not(miri),test)]
 fn different_zeroness() {
     const ZEROABLE_ABI: &'static TypeLayout = &{
-        let mut abi = *<&()>::LAYOUT;
-        abi.abi_consts.is_nonzero = false;
-        abi
+        <&()>::LAYOUT
+            ._set_is_nonzero(false)
     };
 
     let non_zero = <&()>::LAYOUT;
@@ -451,14 +481,14 @@ fn different_field_name() {
     let regular = regular::Rectangle::LAYOUT;
     let other = changed_field_name::Rectangle::LAYOUT;
 
-    let fields=match other.data {
+    let fields=match other.data() {
         TLData::Struct{fields}=>fields.iter().collect::<Vec<_>>(),
         _=>unreachable!(),
     };
 
-    assert_eq!(fields[0].name.as_str(),"x");
-    assert_eq!(fields[1].name.as_str(),"y");
-    assert_eq!(fields[2].name.as_str(),"w2");
+    assert_eq!(fields[0].name(),"x");
+    assert_eq!(fields[1].name(),"y");
+    assert_eq!(fields[2].name(),"w2");
 
     let errs = check_layout_compatibility(regular, other)
         .unwrap_err()

@@ -2,7 +2,7 @@ use crate::{
     abi_stability::{
         abi_checking::{
             AbiInstability,CheckingGlobals,
-            check_layout_compatibility,check_layout_compatibility_with_globals,
+            check_layout_compatibility_with_globals,
         },
         TypeCheckerMut,
         ExtraChecks,ExtraChecksStaticRef,ExtraChecksBox,ExtraChecksRef,
@@ -331,6 +331,9 @@ impl ExtraChecks for IdentityChecker {
 }
 
 
+#[repr(transparent)]
+#[derive(StableAbi)]
+struct Blah<T>(T);
 
 #[test]
 fn test_identity_extra_checker() {
@@ -358,12 +361,14 @@ fn test_identity_extra_checker() {
         T:StableAbi
     {
         <()>::LAYOUT.clone()
-            .mutated(|this|{
-                this.extra_checks=
-                    Constructor(MakeExtraChecks::<T>::construct_extra_checks)
-                    .piped(Some)
-                    .piped(CmpIgnored::new);
-            })
+            ._set_extra_checks(
+                Constructor(MakeExtraChecks::<T>::construct_extra_checks)
+                .piped(Some)
+                .piped(CmpIgnored::new)
+            )
+            ._set_type_id(Constructor(
+                crate::std_types::utypeid::new_utypeid::<Blah<T::StaticEquivalent>>
+            ))
             .piped(leak_value)
     }
 
@@ -372,6 +377,12 @@ fn test_identity_extra_checker() {
     };
 
     let list = vec![
+        wrap_type_layout::<u32>(),
+        wrap_type_layout::<[(); 0]>(),
+        wrap_type_layout::<[(); 1]>(),
+        wrap_type_layout::<[u32; 3]>(),
+        wrap_type_layout::<i32>(),
+        wrap_type_layout::<bool>(),
         wrap_type_layout::<&mut ()>(),
         wrap_type_layout::<&mut i32>(),
         wrap_type_layout::<&()>(),
@@ -379,12 +390,6 @@ fn test_identity_extra_checker() {
         wrap_type_layout::<&'static &'static ()>(),
         wrap_type_layout::<&'static mut &'static ()>(),
         wrap_type_layout::<&'static &'static mut ()>(),
-        wrap_type_layout::<[(); 0]>(),
-        wrap_type_layout::<[(); 1]>(),
-        wrap_type_layout::<[u32; 3]>(),
-        wrap_type_layout::<i32>(),
-        wrap_type_layout::<u32>(),
-        wrap_type_layout::<bool>(),
         wrap_type_layout::<ptr::NonNull<()>>(),
         wrap_type_layout::<ptr::NonNull<i32>>(),
         wrap_type_layout::<RHashMap<RString,RString>>(),
@@ -409,10 +414,12 @@ fn test_identity_extra_checker() {
         wrap_type_layout::<TypeLayout>(),
     ];
 
+    let globals=CheckingGlobals::new();
+
     let (_dur, ()) = core_extensions::measure_time::measure(|| {
         for (i, this) in list.iter().cloned().enumerate() {
             for (j, other) in list.iter().cloned().enumerate() {
-                let res=check_layout_compatibility(this, other);
+                let res=check_layout_compatibility_with_globals(this, other, &globals);
 
                 if i == j {
                     assert_eq!(res, Ok(()));

@@ -5,20 +5,24 @@ use crate::{
 };
 
 
+/// Tests that `#[sabi(bound="")]` on a field works.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(tag="tag![ <T as crate::const_utils::AssocStr>::STR ]")]
-struct FieldBound<T>{
+#[allow(dead_code)]
+pub struct FieldBound<T>{
     #[sabi(bound="crate::const_utils::AssocStr")]
-    value:T,
+    pub value:T,
 }
 
+/// Tests that `#[sabi(bound="")]` on a type definition works.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(bound="T:crate::const_utils::AssocStr")]
 #[sabi(tag="tag![ <T as crate::const_utils::AssocStr>::STR ]")]
-struct TypeBound<T>{
-    value:T,
+#[allow(dead_code)]
+pub struct TypeBound<T>{
+    pub value:T,
 }
 
 
@@ -82,14 +86,14 @@ fn is_sabi_opaque_fields(){
     ];
 
     for (layout,field_typenames) in list {
-        let fields=match layout.data {
+        let fields=match layout.data() {
             TLData::Struct{fields}=>fields,
             _=>unreachable!()
         };
 
         for (field,field_typename) in fields.into_iter().zip(field_typenames) {
             if let Some(typename)=field_typename {
-                assert_eq!( field.layout.get().name(), typename );
+                assert_eq!( field.layout().name(), typename );
             }
         }
     }

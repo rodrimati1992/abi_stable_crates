@@ -114,7 +114,7 @@ mod prefix3 {
 
 /// Dereferences the TypeLayout of a `&T` to the layout of `T`
 fn dereference_abi(abi:&'static TypeLayout)->&'static TypeLayout{
-    abi.phantom_fields[0].layout.get()
+    abi.phantom_fields().get(0).unwrap().layout()
 }
 
 
