@@ -8,13 +8,12 @@ use crate::{
     std_types::*,
     type_layout::{
         TypeLayout,TLField,TLData,TLPrefixType,TLDataDiscriminant,
-        TLFieldsOrSlice,TLFieldsIterator,TLFields,
+        TLFieldsIterator,TLFields,
     },
 };
 
 use super::{
-    accessible_fields::{FieldAccessibility,IsAccessible},
-    IsConditional,
+    accessible_fields::{FieldAccessibility,FieldConditionality,IsAccessible},
 };
 
 
@@ -26,11 +25,11 @@ use core_extensions::SelfOps;
 pub(crate) struct PrefixTypeMetadata{
     /// This is the ammount of fields on the prefix of the struct,
     /// which is always the same for the same type,regardless of which library it comes from.
-    pub prefix_field_count:usize,
+    pub prefix_field_count:u8,
 
     pub accessible_fields:FieldAccessibility,
 
-    pub conditional_prefix_fields:&'static [IsConditional],
+    pub conditional_prefix_fields:FieldConditionality,
 
     pub fields:InitialFieldsOrMut,
 
@@ -43,15 +42,15 @@ impl PrefixTypeMetadata{
     #[allow(dead_code)]
     #[cfg(test)]
     pub(crate) fn new(layout:&'static TypeLayout)->Self{
-        match layout.data {
+        match layout.data() {
             TLData::PrefixType(prefix)=>
                 Self::with_prefix_layout(prefix,layout),
             _=>panic!(
                 "Attempting to construct a PrefixTypeMetadata from a \
                  TypeLayout of a non-prefix-type.\n\
                  Type:{}\nDataVariant:{:?}\nPackage:{}",
-                 layout.full_type,
-                 layout.data.as_discriminant(),
+                 layout.full_type(),
+                 layout.data_discriminant(),
                  layout.package(),
             ),
         }
@@ -61,7 +60,7 @@ impl PrefixTypeMetadata{
         Self{
             fields:InitialFieldsOrMut::from(prefix.fields),
             accessible_fields:prefix.accessible_fields,
-            conditional_prefix_fields:prefix.conditional_prefix_fields.as_slice(),
+            conditional_prefix_fields:prefix.conditional_prefix_fields,
             prefix_field_count:prefix.first_suffix_field,
             layout,
         }
@@ -148,18 +147,13 @@ impl PrefixTypeMetadata{
 #[derive(Debug,Clone)]
 pub(crate) enum InitialFieldsOrMut{
     TLFields(TLFields),
-    Slice(RSlice<'static,TLField>),
     Mutable(Vec<TLField>),
 }
 
 
-impl From<TLFieldsOrSlice> for InitialFieldsOrMut{
-    fn from(this:TLFieldsOrSlice)->Self{
-        match this {
-            TLFieldsOrSlice::TLFields(x)=>InitialFieldsOrMut::TLFields(x),
-            TLFieldsOrSlice::Slice(x)=>InitialFieldsOrMut::Slice(x),
-
-        }
+impl From<TLFields> for InitialFieldsOrMut{
+    fn from(this:TLFields)->Self{
+        InitialFieldsOrMut::TLFields(this)
     }
 }
 
@@ -181,14 +175,12 @@ impl InitialFieldsOrMut{
     pub fn iter(&self)->IFOMIter<'_>{
         match self {
             InitialFieldsOrMut::TLFields(x)=>IFOMIter::TLFields(x.iter()),
-            InitialFieldsOrMut::Slice(x)=>IFOMIter::Slice(x.as_slice().iter()),
             InitialFieldsOrMut::Mutable(x)=>IFOMIter::Slice(x.iter()),
         }
     }
     pub fn len(&self)->usize{
         match self {
-            InitialFieldsOrMut::TLFields(x)=>x.field_1to1.len(),
-            InitialFieldsOrMut::Slice(x)=>x.len(),
+            InitialFieldsOrMut::TLFields(x)=>x.len(),
             InitialFieldsOrMut::Mutable(x)=>x.len(),
         }
     }

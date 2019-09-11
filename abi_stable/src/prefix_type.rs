@@ -11,7 +11,6 @@ use crate::{
     marker_type::NotCopyNotClone,
     utils::leak_value,
     sabi_types::StaticRef,
-    std_types::RSlice,
 };
 
 
@@ -24,7 +23,7 @@ mod layout;
 mod pt_metadata;
 
 pub use self::{
-    accessible_fields::{FieldAccessibility,IsAccessible},
+    accessible_fields::{FieldAccessibility,FieldConditionality,IsAccessible,IsConditional},
     empty_prefix::EmptyPrefixType,
     layout::{PTStructLayout,PTStructLayoutParams},
 };
@@ -59,7 +58,7 @@ pub unsafe trait PrefixTypeTrait:Sized{
     //
     // This is checked in layout checking to ensure that 
     // both sides agree on whether each field in the prefix is conditional,
-    const PT_COND_PREFIX_FIELDS:RSlice<'static,IsConditional>;
+    const PT_COND_PREFIX_FIELDS:FieldConditionality;
 
     /**
 A type only accessible through a shared reference.
@@ -195,31 +194,6 @@ pub struct WithMetadataFor<T,P>{
     inner:WithMetadata_<(),()>,
     _marker:PhantomData<(T,P)>
 }
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-
-
-/// Whether a field is conditional,
-/// whether it has a `#[sabi(accessible_if=" expression ")]` helper attribute or not.
-#[derive(StableAbi)]
-#[derive(Debug,Copy,Clone,PartialEq,Eq)]
-#[repr(u8)]
-pub enum IsConditional{
-    No=0,
-    Yes=1,
-}
-
-impl IsConditional{
-    pub const fn new(is_accessible:bool)->Self{
-        [IsConditional::No,IsConditional::Yes][is_accessible as usize]
-    }
-    pub const fn is_conditional(self)->bool{
-        self as usize!=0
-    }
-}
-
 
 
 ////////////////////////////////////////////////////////////////////////////////

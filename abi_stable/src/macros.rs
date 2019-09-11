@@ -1,62 +1,11 @@
 
 /**
-Use this when constructing a `abi_stable::abi_stability::TypeLayoutParams`
-when manually implementing StableAbi,
-to more ergonomically initialize the generics field.
+Use this when constructing a `abi_stable::type_layout::MonoTypeLayout`
+when manually implementing StableAbi.
 
 # Example 
 
-A type with lifetime type,and lifetime parameters:
-
-```
-use abi_stable::{
-    tl_genparams,
-    StableAbi,
-    type_layout::GenericParams
-};
-
-struct Reference<'a,'b,T,U>(&'a T,&'b U);
-
-impl<'a,'b,T,U> Reference<'a,'b,T,U>
-where
-    T:StableAbi,
-    U:StableAbi,
-{
-    const GENERICS:GenericParams=
-        tl_genparams!('a,'b ; T,U ; );
-}
-
-
-```
-
-# Example
-
-A type with lifetime,type,and const parameters.
-
-Note that while this example won't compile until const parameters are usable,
-
-```ignore
-use abi_stable::{
-    tl_genparams,
-    StableAbi,
-    type_layout::GenericParams
-};
-
-struct ArrayReference<'a,'b,T,U,const SIZE_T:usize,const SIZE_U:usize>{
-    first:&'a [T;SIZE_T],
-    second:&'b [U;SIZE_U],
-}
-
-impl<'a,'b,T,U,const SIZE_T:usize,const SIZE_U:usize> 
-    Reference<'a,'b,T,U,SIZE_T,SIZE_U>
-where
-    T:StableAbi,
-    U:StableAbi,
-{
-    const GENERICS:GenericParams=
-        tl_genparams!('a,'b ; T,U ; SIZE_T,SIZE_U );
-}
-
+TODO
 ```
 
 
@@ -64,23 +13,30 @@ where
 */
 #[macro_export]
 macro_rules! tl_genparams {
-    ( $($lt:lifetime),*  ; $($ty:ty),* $(,)*  ; $($const_p:expr),*  ) => ({
+    (count;  ) => ( 0 );
+    (count; $v0:lifetime) => ( 1 );
+    (count; $v0:lifetime,$v1:lifetime) => ( 2 );
+    (count; $v0:lifetime,$v1:lifetime $(,$rem:lifetime)+) => ( 
+        2 + $crate::rslice!(@count; $($rem),* )
+    );
+    ( $($lt:lifetime),*  ; $($ty:expr)? ; $($const_p:expr)? ) => ({
         #[allow(unused_imports)]
         use $crate::{
             abi_stability::stable_abi_trait::SharedStableAbi,
-            type_layout::GenericParams,
-            std_types::StaticStr,
+            type_layout::CompGenericParams,
         };
 
-        GenericParams::new(
-            StaticStr::new( concat!($(  stringify!($lt),"," ),*) ),
-            $crate::rslice![$( <$ty as SharedStableAbi>::S_LAYOUT ,)*],
-            $crate::rslice![$( StaticStr::new( stringify!($const_p) ) ,)*],
+        #[allow(unused_parens)]
+        let ty_param_range=$crate::type_layout::StartLenConverter( ($($ty)?) ).to_start_len();
+
+        CompGenericParams::new(
+            $crate::nul_str!($(stringify!($lt),",",)*),
+            $crate::tl_genparams!(count; $($lt),* ),
+            ty_param_range,
+            $crate::type_layout::StartLenConverter( ($($const_p)?) ).to_start_len(),
         )
     })
 }
-
-
 
 
 ///////////////////////////////////////////////////////////////////////
@@ -446,7 +402,7 @@ macro_rules! make_item_info {
                 env!("CARGO_PKG_VERSION")
             ),
             line!(),
-            $crate::type_layout::ModPath::inside(module_path!()),
+            $crate::type_layout::ModPath::inside($crate::nul_str!(module_path!())),
         )
     )
 }
@@ -699,7 +655,7 @@ assert_eq!( RSTR_6.len(), 7 );
 macro_rules! rstr {
     ( $lit:literal ) => {unsafe{
         mod string_module{
-            abi_stable_derive::get_string_length!{$lit}
+            $crate::get_string_length!{$lit}
         }
 
         $crate::std_types::RStr::from_raw_parts(
@@ -707,6 +663,87 @@ macro_rules! rstr {
             string_module::LEN,
         )
     }}
+}
+
+
+/// Constructs a NulStr from a string literal.
+#[macro_export]
+macro_rules! nul_str {
+    ( $($str:expr),* $(,)* ) => {unsafe{
+        $crate::sabi_types::NulStr::from_str(concat!($($str,)* "\0"))
+    }}
+}
+
+
+/**
+Constructs a RStr with the concatenation of the passed in strings,
+and variables with the range for the individual strings.
+*/
+#[macro_export]
+macro_rules! multi_str {
+    (
+        $( #[$mod_attr:meta] )*
+        mod $module:ident {
+            $( const $variable:ident=$string:literal; )*
+        }
+    ) => (
+        $( #[$mod_attr] )*
+        mod $module{
+            $crate::abi_stable_derive::concatenated_and_ranges!{
+                CONCATENATED( $($variable=$string),* )
+            }
+        }
+    )
+}
+
+/**
+Constructs a `&'static SharedVars`
+*/
+macro_rules! make_shared_vars{
+    (
+        let $shared_vars:ident ={
+            $(
+                strings={
+                     $( $variable:ident : $string:literal ),* $(,)*
+                },
+            )?
+            $( lifetime_indices=[ $($lifetime_indices:expr),* $(,)* ], )?
+            $( type_layouts=[ $($ty_layout:ty),* $(,)* ], )?
+            $( type_layouts_shared=[ $($ty_layout_shared:ty),* $(,)* ], )?
+            $( constants=[ $( $constants:expr ),* $(,)* ], )?
+        };
+    )=>{
+        
+        $crate::multi_str!{
+            #[allow(non_upper_case_globals)]
+            mod _inner_multi_str_mod{
+                $( $( const $variable = $string; )* )?
+            }
+        }
+        $( use _inner_multi_str_mod::{$($variable,)*}; )?
+        
+        let $shared_vars={
+            #[allow(unused_imports)]
+            use $crate::abi_stability::stable_abi_trait::GetTypeLayoutCtor;
+
+            &$crate::type_layout::SharedVars::new(
+                _inner_multi_str_mod::CONCATENATED,
+                rslice![ $( $($lifetime_indices),* )? ],
+                rslice![ 
+                    $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )? 
+                    $( $( GetTypeLayoutCtor::<$ty_layout_shared>::SHARED_STABLE_ABI,)* )? 
+                ],
+                rslice![$( 
+                    $(
+                        $crate::abi_stability::ConstGeneric::new(
+                            &$constants,
+                            $crate::abi_stability::GetConstGenericVTable::VTABLE,
+                        )
+                    ),* 
+                )?],
+            )
+        };
+    }
 }
 
 
