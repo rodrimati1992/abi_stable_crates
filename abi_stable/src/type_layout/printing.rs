@@ -38,21 +38,8 @@ fn traverse_type_layouts_inner<'a,F>(
     if state.visited.replace(layout.get_utypeid()).is_none() {
         callback(layout);
 
-        let fields=layout.get_fields().unwrap_or_default();
-
-        if let TLFieldsOrSlice::TLFields(TLFields{functions:Some(functions),..})=fields {
-            for get_type_layout in functions.type_layouts.as_slice() {
-                traverse_type_layouts_inner(get_type_layout.get(), state, callback);
-            }
-        }
-
-
-        for field in fields {
-            traverse_type_layouts_inner(field.layout.get(), state, callback);
-        }
-
-        for field in layout.phantom_fields.as_slice() {
-            traverse_type_layouts_inner(field.layout.get(), state, callback);
+        for layout in layout.shared_vars.type_layouts() {
+            traverse_type_layouts_inner(layout.get(), state, callback);
         }
 
         if let Some(extra_checks)=layout.extra_checks() {
@@ -105,7 +92,7 @@ impl Debug for TypeLayout{
             });
             let ptr=TypeLayoutPointer{
                 key_in_map:index,
-                type_:&self.full_type,
+                type_:self.full_type(),
             };
             return Debug::fmt(&ptr,f);
         }
@@ -136,20 +123,21 @@ impl Debug for TypeLayout{
         // even on panics.
         let _guard=DecrementLevel;
 
+
         f.debug_struct("TypeLayout")
-            .field("full_type",&self.full_type)
             .field("name",&self.name())
-            .field("abi_consts",&self.abi_consts)
-            .field("item_info",&self.item_info)
-            .field("size",&self.size)
-            .field("alignment",&self.alignment)
-            .field("data",&self.data)
-            .field("phantom_fields",&self.phantom_fields)
-            .field("reflection_tag",&self.reflection_tag)
-            .field("tag",&self.tag)
+            .field("full_type",&self.full_type())
+            .field("is_nonzero",&self.is_nonzero())
+            .field("alignment",&self.alignment())
+            .field("size",&self.size())
+            .field("data",&self.data())
             .field("extra_checks",&self.extra_checks())
-            .field("repr_attr",&self.repr_attr)
-            .field("mod_refl_mode",&self.mod_refl_mode)
+            .field("type_id",&self.get_utypeid())
+            .field("item_info",&self.item_info())
+            .field("phantom_fields",&self.phantom_fields())
+            .field("tag",&self.tag())
+            .field("repr_attr",&self.repr_attr())
+            .field("mod_refl_mode",&self.mod_refl_mode())
             .observe(|_| drop(_guard) )
             .field("nested_type_layouts",&WithIndices(&type_infos))
             .finish()
@@ -181,9 +169,9 @@ impl Drop for DecrementLevel{
 ////////////////
 
 #[derive(Debug)]
-struct TypeLayoutPointer<'a>{
+struct TypeLayoutPointer{
     key_in_map:usize,
-    type_:&'a FullType,
+    type_:FmtFullType,
 }
 
 

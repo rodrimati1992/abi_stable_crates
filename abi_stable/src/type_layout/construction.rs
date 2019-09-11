@@ -3,39 +3,29 @@ use super::*;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
-/// The parameters for `TypeLayout::from_params`.
-#[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct TypeLayoutParams {
+#[allow(non_camel_case_types)]
+#[doc(hidden)]
+#[derive(Copy, Clone)]
+pub struct _private_TypeLayoutDerive {
+    pub shared_vars: &'static SharedVars,
+    pub mono: &'static MonoTypeLayout,
     pub abi_consts:AbiConsts,
-    /// The name of the type,without generic parameters.
-    pub name: &'static str,
-    /// Information about where the type was declared,
-    /// generally created with `make_item_info!()`.
-    pub item_info:ItemInfo,
-    /// The definition of the type.
-    pub data: TLData,
-    /// The generic parameters of the type,
-    /// generally constructed with the `tl_genparams` macro.
-    pub generics: GenericParams,
+    pub data: GenericTLData,
+    pub tag:Option<&'static Tag>,
+    pub extra_checks:Option<Constructor<ExtraChecksStaticRef>>,
 }
 
-
+#[allow(non_camel_case_types)]
 #[doc(hidden)]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct _private_TypeLayoutDerive {
-    pub abi_consts:AbiConsts,
-    pub name: &'static str,
+#[derive(Copy, Clone)]
+pub struct _private_MonoTypeLayoutDerive {
+    pub name: RStr<'static>,
     pub item_info:ItemInfo,
-    pub data: TLData,
-    pub generics: GenericParams,
-    pub phantom_fields: RSlice<'static,TLField>,
-    pub tag:&'static Tag,
-    pub extra_checks:Option<Constructor<ExtraChecksStaticRef>>,
-    pub mod_refl_mode:ModReflMode,
+    pub data: MonoTLData,
+    pub generics: CompGenericParams,
     pub repr_attr:ReprAttr,
+    pub mod_refl_mode:ModReflMode,
+    pub phantom_fields:RSlice<'static,CompTLFieldRepr>,
 }
 
 
@@ -62,7 +52,7 @@ impl ItemInfo{
         mod_path:ModPath,
     )->Self{
         Self{
-            package_and_version: StaticStr::new(package_and_version),
+            package_and_version:StaticStr::new(package_and_version),
             line,
             mod_path,
         }
@@ -73,16 +63,16 @@ impl ItemInfo{
         Self{
             package_and_version: StaticStr::new("std;1.0.0"),
             line:0,
-            mod_path:ModPath::Prelude,
+            mod_path:ModPath::PRELUDE,
         }
     }
 
     /// Constructs an ItemInfo for an std type with a path.
-    pub const fn std_type_in(path:&'static str)->Self{
+    pub const fn std_type_in(mod_path:NulStr<'static>)->Self{
         Self{
             package_and_version: StaticStr::new("std;1.0.0"),
             line:0,
-            mod_path:ModPath::inside(path),
+            mod_path:ModPath::inside(mod_path),
         }
     }
 
@@ -91,7 +81,10 @@ impl ItemInfo{
     /// `package_and_version` must be formatted like this:`package_name;major.minor.patch`
     ///
     /// `mod_path` must include the crate name.
-    pub const fn package_and_mod(package_and_version:&'static str,mod_path:&'static str)->Self{
+    pub const fn package_and_mod(
+        package_and_version:&'static str,
+        mod_path:NulStr<'static>
+    )->Self{
         Self{
             package_and_version:StaticStr::new(package_and_version),
             line:0,

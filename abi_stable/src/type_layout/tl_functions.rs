@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::traits::IntoReprC;
+
 use std::{
     cmp::{PartialEq,Eq},
     ops::Range,
@@ -12,13 +14,9 @@ use std::{
 #[derive(Debug,Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLFunctions{
-    /// The strings of function/bound_lifetime/parameter names.
-    pub strings: StaticStr,
     pub functions:RSlice<'static,CompTLFunction>,
     /// The range of `CompTLFunction` that each field in TLFields owns.
     pub field_fn_ranges:RSlice<'static,StartLen>,
-    pub type_layouts: RSlice<'static,GetTypeLayout>,
-    pub paramret_lifetime_indices: RSlice<'static,LifetimeIndex>,
 }
 
 
@@ -27,26 +25,20 @@ pub struct TLFunctions{
 impl TLFunctions {
     /// Constructs a TLFunctions.
     pub const fn new(
-        strings: &'static str,
         functions:RSlice<'static,CompTLFunction>,
         field_fn_ranges:RSlice<'static,StartLen>,
-        type_layouts: RSlice<'static,GetTypeLayout>,
-        paramret_lifetime_indices: RSlice<'static,LifetimeIndex>,
     )->Self{
         Self{
-            strings:StaticStr::new(strings),
             functions,
             field_fn_ranges,
-            type_layouts,
-            paramret_lifetime_indices,
         }
     }
 
     /// The the `nth` TLFunction in this `TLFunctions`.
     /// Returns None if there is not `nth` TLFunction.
-    pub fn get(&'static self,nth:usize)->Option<TLFunction>{
+    pub fn get(&'static self,nth:usize,shared_vars:&'static SharedVars)->Option<TLFunction>{
         let func=self.functions.get(nth)?;
-        Some(func.expand(self))
+        Some(func.expand(shared_vars))
     }
 
     /// The the `nth` TLFunction in this `TLFunctions`.
@@ -54,8 +46,8 @@ impl TLFunctions {
     /// # Panics
     ///
     /// This function panics if `nth` is out of bounds (`self.len() <= nth`)
-    pub fn index(&'static self,nth:usize)->TLFunction{
-        self.functions[nth].expand(self)
+    pub fn index(&'static self,nth:usize,shared_vars:&'static SharedVars)->TLFunction{
+        self.functions[nth].expand(shared_vars)
     }
 
     /// Gets the amount of `TLFunction`s in this TLFunctions.
@@ -74,46 +66,55 @@ impl TLFunctions {
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct CompTLFunction{
     name:StartLen,
-    bound_lifetimes:StartLen,
-    param_names:StartLen,
-    param_type_layouts:StartLen,
-    paramret_lifetime_indices:StartLen,
-    return_type_layout:ROption<u16>,
+    bound_lifetimes_len:u16,
+    param_names_len:u16,
+    /// Stores `!0` if the return type is `()`.
+    return_type_layout:u16,
+    paramret_lifetime_range:LifetimeRange,
+    param_type_layouts:TypeLayoutRange,
 }
+
 
 
 impl CompTLFunction{
     /// Constructs a CompTLFunction.
     pub const fn new(
         name:StartLen,
-        bound_lifetimes:StartLen,
-        param_names:StartLen,
-        param_type_layouts:StartLen,
-        paramret_lifetime_indices:StartLen,
-        return_type_layout:ROption<u16>,
+        bound_lifetimes_len:u16,
+        param_names_len:u16,
+        return_type_layout:u16,
+        paramret_lifetime_range:u32,
+        param_type_layouts:u64,
     )->Self{
         Self{
             name,
-            bound_lifetimes,
-            param_names,
-            param_type_layouts,
-            paramret_lifetime_indices,
+            bound_lifetimes_len,
+            param_names_len,
             return_type_layout,
+            paramret_lifetime_range: LifetimeRange::from_u21(paramret_lifetime_range),
+            param_type_layouts: TypeLayoutRange::from_u64(param_type_layouts),
         }
     }
 
     /// Decompresses this CompTLFunction into a TLFunction.
-    pub fn expand(&self,with:&'static TLFunctions)->TLFunction{
-        let strings=with.strings.as_rstr();
+    pub fn expand(&self,shared_vars:&'static SharedVars)->TLFunction{
+        let strings=shared_vars.strings().into_c();
+        let lifetime_indices=shared_vars.lifetime_indices();
+        let type_layouts=shared_vars.type_layouts();
+
+        let bound_lifetimes=
+            self.name.end()..self.name.end()+(self.bound_lifetimes_len as usize);
+        let param_names=
+            bound_lifetimes.end..bound_lifetimes.end+(self.param_names_len as usize);
+
         TLFunction{
+            shared_vars:CmpIgnored::new(shared_vars),
             name: strings.slice(self.name.to_range()),
-            bound_lifetimes: strings.slice(self.bound_lifetimes.to_range()),
-            param_names: strings.slice(self.param_names.to_range()),
-            param_type_layouts: with.type_layouts.slice(self.param_type_layouts.to_range()),
-            paramret_lifetime_indices:
-                with.paramret_lifetime_indices.slice(self.paramret_lifetime_indices.to_range()),
-            return_type_layout:
-                self.return_type_layout.map(|x| with.type_layouts[x as usize] ),
+            bound_lifetimes: strings.slice(bound_lifetimes),
+            param_names: strings.slice(param_names),
+            param_type_layouts: self.param_type_layouts.expand(type_layouts),
+            paramret_lifetime_indices: self.paramret_lifetime_range.slicing(lifetime_indices),
+            return_type_layout: type_layouts.get(self.return_type_layout as usize).cloned(),
         }
     }
 }
@@ -121,56 +122,6 @@ impl CompTLFunction{
 
 
 ///////////////////////////////////////////////////////////////////////////////
-
-
-
-/// The start and length of a slice into `TLFunctions`.
-#[repr(C)]
-#[derive(Copy,Clone,Debug,PartialEq,Eq,Ord,PartialOrd,StableAbi)]
-#[sabi(unsafe_sabi_opaque_fields)]
-pub struct StartLen{
-    pub start:u16,
-    pub len:u16,
-}
-
-
-impl StartLen{
-    /// An empty range.
-    pub const EMPTY:Self=Self{start:0,len:0};
-
-    /// Constructs a range.
-    pub const fn new(start:u16,len:u16)->Self{
-        Self{start,len}
-    }
-
-    /// The start of this range.
-    #[inline]
-    pub const fn start(self)->usize{
-        self.start as usize
-    }
-
-    /// The length of this range.
-    #[inline]
-    pub const fn len(self)->usize{
-        self.len as usize
-    }
-
-    /// The exclusive end of this range.
-    #[inline]
-    pub const fn end(self)->usize{
-        (self.start+self.len) as usize
-    }
-
-    /// Converts this range to a `std::ops::Range`.
-    #[inline]
-    pub const fn to_range(self)->Range<usize>{
-        self.start()..self.end()
-    }
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-
 
 /**
 A slice of functions from a TLFunctions.
@@ -180,32 +131,55 @@ A slice of functions from a TLFunctions.
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLFunctionSlice{
     functions:Option<&'static TLFunctions>,
+    shared_vars:&'static SharedVars,
     fn_range:StartLen,
 }
 
 
 impl TLFunctionSlice{
-    /// An empty slice of `TLFunction`s
-    pub const EMPTY:Self=Self{
-        functions:None,
-        fn_range:StartLen::EMPTY,
-    };
-
     /// Constructs this slice from a range and an optional `TLFunctions`.
     #[inline]
-    pub const fn new(fn_range:StartLen,functions:Option<&'static TLFunctions>)->Self{
-        Self{functions,fn_range}
+    pub const fn new(
+        fn_range:StartLen,
+        functions:Option<&'static TLFunctions>,
+        shared_vars:&'static SharedVars,
+    )->Self{
+        Self{functions,fn_range,shared_vars}
+    }
+
+    pub const fn empty(shared_vars:&'static SharedVars,)->Self{
+        Self{
+            functions:None,
+            shared_vars,
+            fn_range:StartLen::EMPTY,
+        }
+    }
+    
+    pub const fn shared_vars(&self)->&'static SharedVars{
+        self.shared_vars
+    }
+
+    pub fn for_field(
+        field_index:usize,
+        functions:Option<&'static TLFunctions>,
+        shared_vars:&'static SharedVars,
+    )->Self{
+        let start_len=functions
+            .and_then(|fns| fns.field_fn_ranges.get(field_index).cloned() )
+            .unwrap_or(StartLen::EMPTY);
+
+        Self::new(start_len,functions,shared_vars)
     }
 
     /// Returns an iterator over the `TLFunction`s in the slice.
     #[inline]
     pub fn iter(self)->TLFunctionIter{
-        TLFunctionIter::new(self.fn_range,self.functions)
+        TLFunctionIter::new(self.fn_range,self.functions,self.shared_vars)
     }
 
     /// Gets a TLFunction at the `index`.This returns None if `index` is outside the slice.
     pub fn get(self,index:usize)->Option<TLFunction>{
-        self.functions?.get(self.fn_range.start()+index)
+        self.functions?.get( self.fn_range.start()+index, self.shared_vars )
     }
 
     /// Gets a TLFunction at the `index`.
@@ -216,7 +190,7 @@ impl TLFunctionSlice{
     pub fn index(self,index:usize)->TLFunction{
         self.functions
             .expect("self.functions must be Some(..) to index a TLFunctionSlice")
-            .index(self.fn_range.start()+index)
+            .index( self.fn_range.start()+index, self.shared_vars )
     }
 
     /// Gets the length of this slice.
@@ -269,11 +243,16 @@ pub struct TLFunctionIter{
     start:usize,
     end:usize,
     functions:Option<&'static TLFunctions>,
+    shared_vars:&'static SharedVars,
 }
 
 
 impl TLFunctionIter{
-    pub fn new(start_len:StartLen,functions:Option<&'static TLFunctions>)->Self{
+    pub fn new(
+        start_len:StartLen,
+        functions:Option<&'static TLFunctions>,
+        shared_vars:&'static SharedVars,
+    )->Self{
         let Range{start,end}=start_len.to_range();
         if let Some(functions)=functions {
             assert!(start <= functions.len(),"{} < {}",start,functions.len());
@@ -283,6 +262,7 @@ impl TLFunctionIter{
             start,
             end,
             functions,
+            shared_vars,
         }
     }
     fn length(&self)->usize{
@@ -298,7 +278,7 @@ impl Iterator for TLFunctionIter{
         if self.start==self.end {
             return None;
         }
-        let ret=functions.index(self.start);
+        let ret=functions.index(self.start,self.shared_vars);
         self.start+=1;
         Some(ret)
     }

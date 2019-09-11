@@ -1,0 +1,98 @@
+use super::*;
+use super::data_structures::ArrayLen;
+
+use std::ops::{Deref,Index};
+
+
+abi_stable_shared::declare_tl_lifetime_types!{
+    attrs=[ 
+        derive(StableAbi),
+    ]
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+
+impl Display for LifetimeIndex{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        match *self {
+            LifetimeIndex::STATIC=>f.write_str("'static"),
+            LifetimeIndex::ANONYMOUS=>f.write_str("'_"),
+            LifetimeIndex::NONE=>f.write_str("'NONE"),
+            LifetimeIndex{bits:n}=>write!(f,"'{}",n-Self::START_OF_LIFETIMES),
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+impl LifetimeRange {
+    pub fn slicing(self,lifetime_indices:&[LifetimeIndexPair])->LifetimeArrayOrSlice<'_>{
+        let len=self.len();
+        if len <= 3 {
+            LifetimeArrayOrSlice::Array(ArrayLen{
+                len:(len+1) as u16/2,
+                array: LifetimeIndexArray { bits: self.array_bits() }.to_array(),
+            })
+        }else{
+            // Both the start and length are divided by 2 because lifetimes 
+            // are stored in pairs.
+            let start=((self.bits&Self::START_MASK) as usize)/2;
+            let end  =start+len/2;
+            let x=RSlice::from_slice(&lifetime_indices[start..end]);
+            LifetimeArrayOrSlice::Slice(x)
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+pub enum LifetimeArrayOrSlice<'a>{
+    Slice(RSlice<'a,LifetimeIndexPair>),
+    Array(ArrayLen<[LifetimeIndexPair;2]>),
+}
+
+
+impl<'a> LifetimeArrayOrSlice<'a>{
+    pub const EMPTY:Self=LifetimeArrayOrSlice::Array(ArrayLen{
+        len:0,
+        array:[LifetimeIndexPair::NONE,LifetimeIndexPair::NONE]
+    });
+
+    pub fn as_slice(&self)->&[LifetimeIndexPair]{
+        match self {
+            LifetimeArrayOrSlice::Slice(slice)=>{
+                slice.as_slice()
+            }
+            LifetimeArrayOrSlice::Array(arraylen)=>{
+                &arraylen.array[..arraylen.len as usize]
+            }            
+        }
+    }
+}
+
+
+impl<'a> Deref for LifetimeArrayOrSlice<'a>{
+    type Target=[LifetimeIndexPair];
+
+    #[inline]
+    fn deref(&self)->&[LifetimeIndexPair]{
+        self.as_slice()
+    }
+}
+
+
+impl<'a,I,Output> Index<I> for LifetimeArrayOrSlice<'a>
+where
+    [LifetimeIndexPair]:Index<I,Output=Output>,
+{
+    type Output=Output;
+
+    #[inline]
+    fn index(&self,i:I)->&Output{
+        &self.as_slice()[i]
+    }
+}
