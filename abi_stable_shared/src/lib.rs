@@ -2,6 +2,15 @@
 #[macro_use]
 pub mod test_utils;
 
+#[doc(hidden)]
+pub mod type_layout{
+    pub mod small_types;
+    pub mod tl_field_accessor_macro;
+    pub mod tl_field_macro;
+    pub mod tl_lifetimes_macro;
+    pub mod tl_multi_tl_macro;
+}
+
 
 use core_extensions::StringExt;
 
