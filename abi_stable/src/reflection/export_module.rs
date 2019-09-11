@@ -77,7 +77,7 @@ impl MRItem{
     pub fn from_type_layout(
         layout:&'static TypeLayout,
     )->Self{
-        let type_=layout.full_type.to_string();
+        let type_=layout.full_type().to_string();
 
         let variant=Self::get_item_variant(layout);
 
@@ -90,9 +90,9 @@ impl MRItem{
     }
 
     fn get_item_variant(layout:&'static TypeLayout)->MRItemVariant {
-        match layout.mod_refl_mode {
+        match layout.mod_refl_mode() {
             ModReflMode::Module=>{
-                let fields=match layout.data {
+                let fields=match layout.data() {
                     TLData::Struct { fields }=>fields,
                     TLData::PrefixType(prefix)=>prefix.fields,
                      TLData::Primitive{..}
@@ -103,39 +103,39 @@ impl MRItem{
                 };
 
                 let items=fields.iter()
-                    .filter(|f| f.field_accessor!=FieldAccessor::Opaque )
+                    .filter(|f| f.field_accessor() !=FieldAccessor::Opaque )
                     .map(|field|{
-                        let (type_,variant)=if field.is_function {
-                            let func=MRFunction::from(&field.function_range.index(0));
+                        let (type_,variant)=if field.is_function() {
+                            let func=MRFunction::from(&field.function_range().index(0));
                             (
                                 func.to_string(),
                                 MRItemVariant::Function(func),
                             )
                         }else{
-                            let layout=field.layout.get();
+                            let layout=field.layout();
                             (
-                                layout.full_type.to_string(),
+                                layout.full_type().to_string(),
                                 Self::get_item_variant(layout),
                             )
                         };
                         MRItem{
-                            item_name:field.name.to_string(),
+                            item_name:field.name().to_string(),
                             type_,
-                            field_accessor:field.field_accessor.into(),
+                            field_accessor:field.field_accessor().into(),
                             variant,
                         }
                     })
                     .collect::<Vec<_>>();
                 MRItemVariant::Module(MRModule{
-                    mod_refl_mode:layout.mod_refl_mode.into(),
+                    mod_refl_mode:layout.mod_refl_mode().into(),
                     items,
                 })
             }
             ModReflMode::Opaque=>
                 MRItemVariant::Static,
-            ModReflMode::DelegateDeref{phantom_field_index}=>{
-                let delegate_to=layout.phantom_fields[phantom_field_index];
-                let inner_layout=delegate_to.layout.get();
+            ModReflMode::DelegateDeref{layout_index}=>{
+                let delegate_to=layout.shared_vars().type_layouts()[layout_index as usize];
+                let inner_layout=delegate_to.get();
                 Self::get_item_variant(inner_layout)
             }
         }
@@ -180,11 +180,11 @@ impl Display for MRFunction{
 
 impl From<TLField> for MRNameType{
     fn from(field:TLField)->Self{
-        let name=field.name.to_string();
-        let type_=if field.is_function{
-            field.function_range.index(0).to_string()
+        let name=field.name().to_string();
+        let type_=if field.is_function() {
+            field.function_range().index(0).to_string()
         }else{
-            field.layout.get().full_type.to_string()
+            field.layout().full_type().to_string()
         };
 
         Self{
@@ -224,10 +224,10 @@ impl From<FieldAccessor> for MRFieldAccessor{
         match this{
             FieldAccessor::Direct=>
                 MRFieldAccessor::Direct,
-            FieldAccessor::Method{name}=>
-                MRFieldAccessor::Method{
-                    name:name.map(|s| s.to_string() ),
-                },
+            FieldAccessor::Method=>
+                MRFieldAccessor::Method{name:None},
+            FieldAccessor::MethodNamed{name}=>
+                MRFieldAccessor::Method{name:Some(name.to_string())},
             FieldAccessor::MethodOption=>
                 MRFieldAccessor::MethodOption,
             FieldAccessor::Opaque=>

@@ -184,6 +184,11 @@ where
         pub fn as_slice(&self) -> &'a [T] {
             unsafe { ::std::slice::from_raw_parts(self.data, self.length) }
         }
+
+        /// TODO
+        pub const fn as_ptr(&self) -> *const T{
+            self.data
+        }
         
         /// The length (in elements) of this slice.
         ///

@@ -199,6 +199,7 @@ pub(crate) mod command_serde{
         size=64,
         traits(Debug,Display,PartialEq,Eq,Clone,Deserialize,Serialize)
     )))]
+    // #[sabi(debug_print)]
     pub(crate) enum Foo{
         A,
         B(i8),
