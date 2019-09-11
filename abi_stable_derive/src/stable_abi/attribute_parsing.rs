@@ -7,7 +7,7 @@ use syn::{
 };
 
 use std::{
-    collections::{HashSet,HashMap},
+    collections::HashSet,
     mem,
 };
 
@@ -20,7 +20,7 @@ use quote::ToTokens;
 use crate::{
     attribute_parsing::{with_nested_meta},
     impl_interfacetype::{ImplInterfaceType,parse_impl_interfacetype},
-    datastructure::{DataStructure, DataVariant, Field,FieldMap},
+    datastructure::{DataStructure, DataVariant, Field, FieldMap, TypeParamMap},
     parse_utils::{
         parse_str_as_ident,
         parse_str_as_type,
@@ -48,20 +48,14 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) kind: StabilityKind<'a>,
     pub(crate) repr: ReprAttr,
 
-    /// The type parameters that have the __StableAbi constraint
-    pub(crate) stable_abi_bounded:HashSet<&'a Ident>,
-    pub(crate) static_equiv_bounded:Vec<&'a Ident>,
-    
-    pub(crate) unconstrained_type_params:HashMap<Ident,NotStableAbiBound>,
+    pub(crate) type_param_bounds:TypeParamMap<'a,ASTypeParamBound>,
 
     pub(crate) extra_bounds:Vec<WherePredicate>,
 
     pub(crate) tags:Option<syn::Expr>,
     pub(crate) extra_checks:Option<syn::Expr>,
 
-    /// A hashset of the fields whose contents are opaque 
-    /// (there are still some minimal checks going on).
-    pub(crate) opaque_fields:FieldMap<FieldTransparency>,
+    pub(crate) layout_ctor:FieldMap<LayoutConstructor>,
 
     pub(crate) override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
@@ -78,31 +72,58 @@ pub(crate) struct StableAbiOptions<'a> {
 }
 
 
-pub(crate) enum NotStableAbiBound{
+//////////////////////
+
+#[derive(Debug,Clone,Copy,Eq,PartialEq,Hash)]
+pub(crate) enum ASTypeParamBound{
     NoBound,
     GetStaticEquivalent,
+    StableAbi,
+    SharedStableAbi,
+}
+
+impl Default for ASTypeParamBound{
+    fn default()->Self{
+        ASTypeParamBound::StableAbi
+    }
 }
 
 
 //////////////////////
 
 
-#[derive(Debug,Clone,Copy)]
-pub(crate) enum FieldTransparency{
+#[derive(Debug,Clone,Copy,Eq,PartialEq,Hash)]
+pub(crate) enum LayoutConstructor{
     Regular,
+    SharedStableAbi,
     Opaque,
     SabiOpaque,
 }
 
-impl FieldTransparency{
+impl LayoutConstructor{
     pub(crate) fn is_opaque(self)->bool{
-        matches!(FieldTransparency::Opaque{..}= self )
+        matches!(LayoutConstructor::Opaque{..}= self )
     }
 }
 
-impl Default for FieldTransparency{
+impl From<ASTypeParamBound> for LayoutConstructor{
+    fn from(bound:ASTypeParamBound)->Self{
+        match bound {
+            ASTypeParamBound::NoBound=>
+                LayoutConstructor::Opaque,
+            ASTypeParamBound::GetStaticEquivalent=>
+                LayoutConstructor::Opaque,
+            ASTypeParamBound::StableAbi=>
+                LayoutConstructor::Regular,
+            ASTypeParamBound::SharedStableAbi=>
+                LayoutConstructor::SharedStableAbi,
+        }
+    }
+}
+
+impl Default for LayoutConstructor{
     fn default()->Self{
-        FieldTransparency::Regular
+        LayoutConstructor::Regular
     }
 }
 
@@ -145,29 +166,7 @@ impl<'a> StableAbiOptions<'a> {
 
         let repr = ReprAttr::new(this.repr)?;
 
-        let mut static_equiv_bounded=Vec::new();
-
-        let mut stable_abi_bounded=ds.generics
-            .type_params()
-            .map(|x| &x.ident )
-            .collect::<HashSet<&'a Ident>>();
-
         let mut errors=LinearResult::ok(());
-
-        for (type_param,what) in &this.unconstrained_type_params {
-            if let NotStableAbiBound::GetStaticEquivalent=what {
-                if let Some(&ident)=stable_abi_bounded.get(type_param) {
-                    static_equiv_bounded.push(ident);
-                }
-            }
-            if !stable_abi_bounded.remove(type_param) {
-                errors.push_err(spanned_err!(
-                    ds.name,
-                    "'{}' declared as a phantom type parameter but is not a type parameter",
-                    type_param 
-                ));
-            }
-        }
 
         let kind = match this.kind {
             _ if repr.is_repr_transparent() => {
@@ -196,6 +195,10 @@ impl<'a> StableAbiOptions<'a> {
                         }),
                     prefix_bounds:this.prefix_bounds,
                     accessor_bounds:this.accessor_bounds,
+                    field_conditionality_ident:{
+                        let x=format!("_{}__PT_FIELD_CONDITIONALITY",ds.name);
+                        arenas.alloc(Ident::new(&x,Span::call_site()))
+                    },
                 })
             }
             UncheckedStabilityKind::NonExhaustive(nonexhaustive)=>{
@@ -263,19 +266,19 @@ impl<'a> StableAbiOptions<'a> {
         errors.into_result()?;
 
         Ok(StableAbiOptions {
-            debug_print:this.debug_print,
-            kind, repr , stable_abi_bounded , static_equiv_bounded ,
-            extra_bounds :this.extra_bounds,
-            unconstrained_type_params:this.unconstrained_type_params.into_iter().collect(),
-            opaque_fields:this.opaque_fields,
-            renamed_fields:this.renamed_fields,
-            changed_types:this.changed_types,
-            override_field_accessor:this.override_field_accessor,
-            tags:this.tags,
-            extra_checks:this.extra_checks,
-            impl_interfacetype:this.impl_interfacetype,
+            debug_print: this.debug_print,
+            kind, repr ,
+            extra_bounds : this.extra_bounds,
+            type_param_bounds: this.type_param_bounds,
+            layout_ctor: this.layout_ctor,
+            renamed_fields: this.renamed_fields,
+            changed_types: this.changed_types,
+            override_field_accessor: this.override_field_accessor,
+            tags: this.tags,
+            extra_checks: this.extra_checks,
+            impl_interfacetype: this.impl_interfacetype,
             phantom_fields,
-            phantom_type_params:this.phantom_type_params,
+            phantom_type_params: this.phantom_type_params,
             mod_refl_mode,
         })
     }
@@ -302,11 +305,9 @@ struct StableAbiAttrs<'a> {
 
     prefix_bounds:Vec<WherePredicate>,
 
-    /// The type parameters that have no constraints
-    unconstrained_type_params:Vec<(Ident,NotStableAbiBound)>,
+    type_param_bounds:TypeParamMap<'a,ASTypeParamBound>,
 
-    // Using raw pointers to do an identity comparison.
-    opaque_fields:FieldMap<FieldTransparency>,
+    layout_ctor:FieldMap<LayoutConstructor>,
 
     variant_constructor:Vec<Option<UncheckedVariantConstructor>>,
 
@@ -348,7 +349,7 @@ impl<'a> Default for UncheckedStabilityKind<'a>{
 
 
 
-#[derive(Copy, Clone)]
+#[derive(Debug,Copy, Clone)]
 enum ParseContext<'a> {
     TypeAttr{
         name:&'a Ident,
@@ -373,13 +374,15 @@ where
 {
     let mut this = StableAbiAttrs::default();
 
-    this.opaque_fields=FieldMap::defaulted(ds);
+    this.layout_ctor=FieldMap::defaulted(ds);
     this.prefix_kind_fields=FieldMap::defaulted(ds);
     this.renamed_fields=FieldMap::defaulted(ds);
     this.override_field_accessor=FieldMap::defaulted(ds);
     this.accessor_bounds=FieldMap::defaulted(ds);
     this.changed_types=FieldMap::defaulted(ds);
     this.variant_constructor.resize(ds.variants.len(),None);
+    
+    this.type_param_bounds=TypeParamMap::defaulted(ds);
 
     let name=ds.name;
 
@@ -394,7 +397,7 @@ where
 
     this.errors.take()?;
 
-    StableAbiOptions::new(ds, this,arenas)
+    StableAbiOptions::new(ds, this, arenas)
 }
 
 /// Parses an individual attribute
@@ -485,9 +488,9 @@ fn parse_sabi_attr<'a>(
             let word=path.get_ident().ok_or_else(|| make_err(&path) )?;
 
             if word == "unsafe_opaque_field" {
-                this.opaque_fields[field]=FieldTransparency::Opaque;
+                this.layout_ctor[field]=LayoutConstructor::Opaque;
             }else if word=="unsafe_sabi_opaque_field" {
-                this.opaque_fields[field]=FieldTransparency::SabiOpaque;
+                this.layout_ctor[field]=LayoutConstructor::SabiOpaque;
             }else if word == "last_prefix_field" {
                 let field_pos=field_index+1;
                 this.first_suffix_field=FirstSuffixField{field_pos};
@@ -702,9 +705,8 @@ fn parse_sabi_attr<'a>(
                         Meta::Path(path)=>{
                             let type_param=path.into_ident().map_err(|p| nsabi_err(&p) )?;
 
-                            this.unconstrained_type_params.push(
-                                (type_param,NotStableAbiBound::GetStaticEquivalent)
-                            );
+                            this.type_param_bounds[&type_param]=
+                                ASTypeParamBound::GetStaticEquivalent;
                         }
                         x => this.errors.push_err(nsabi_err(&x)),
                     }
@@ -724,9 +726,7 @@ fn parse_sabi_attr<'a>(
                         Meta::Path(path)=>{
                             let type_param=path.into_ident().map_err(|p| uu_err(&p) )?;
 
-                            this.unconstrained_type_params.push(
-                                (type_param,NotStableAbiBound::NoBound)
-                            );
+                            this.type_param_bounds[&type_param]=ASTypeParamBound::NoBound;
                         }
                         x => this.errors.push_err(spanned_err!(
                             x,
@@ -758,13 +758,13 @@ fn parse_sabi_attr<'a>(
                 this.variant_constructor.iter_mut()
                     .for_each(|x|*x=Some(UncheckedVariantConstructor::Boxed));
             }else if word=="unsafe_opaque_fields" {
-                this.opaque_fields
+                this.layout_ctor
                     .iter_mut()
-                    .for_each(|(_,x)|*x=FieldTransparency::Opaque);
+                    .for_each(|(_,x)|*x=LayoutConstructor::Opaque);
             }else if word=="unsafe_sabi_opaque_fields" {
-                this.opaque_fields
+                this.layout_ctor
                     .iter_mut()
-                    .for_each(|(_,x)|*x=FieldTransparency::SabiOpaque);
+                    .for_each(|(_,x)|*x=LayoutConstructor::SabiOpaque);
             }else{
                 return Err(make_err(&path));
             }
