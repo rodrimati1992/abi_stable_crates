@@ -243,9 +243,10 @@ impl<'a> Vars<'a> {
     /// Registers a lifetime index,
     /// selecting those that come from the type declaration itself.
     pub fn add_referenced_env_lifetime(&mut self, ind: LifetimeIndex) {
-        let is_env_lt = match ind {
-            LifetimeIndex::Static => true,
-            LifetimeIndex::Param { index } => (index as usize) < self.fn_info.env_lifetimes.len(),
+        let is_env_lt = match (ind,ind.to_param()) {
+            (LifetimeIndex::STATIC,_) => true,
+            (_,Some(index))=> (index as usize) < self.fn_info.env_lifetimes.len(),
+            _ => false,
         };
         if is_env_lt {
             self.referenced_lifetimes.push(ind);
@@ -365,15 +366,15 @@ impl<'a> VisitMut for TypeVisitor<'a> {
         let ctokens = self.refs.ctokens;
         let lt = &lt.ident;
         if *lt == ctokens.static_ {
-            LifetimeIndex::Static
+            LifetimeIndex::STATIC
         } else {
             let env_lifetimes = self.vars.fn_info.env_lifetimes.iter();
             let found_lt = env_lifetimes.enumerate().position(|(_, lt_ident)| *lt_ident == lt);
             match found_lt {
-                Some(index) => LifetimeIndex::Param { index:index as _ },
+                Some(index) => LifetimeIndex::Param(index as _),
                 None => {
                     self.vars.errors.push_err(spanned_err!(lt,"unknown lifetime"));
-                    LifetimeIndex::Static
+                    LifetimeIndex::STATIC
                 }
             }
         }
@@ -397,7 +398,7 @@ This function does these things:
         let ctokens = self.refs.ctokens;
         let mut ret: Option<&'a Ident> = None;
         if lt == Some(&ctokens.static_) {
-            LifetimeIndex::Static
+            LifetimeIndex::STATIC
         } else if lt==None || lt==Some(&ctokens.underscore) {
             match self.param_ret.param_or_ret {
                 ParamOrReturn::Param => {
@@ -412,12 +413,12 @@ This function does these things:
                                  return type when there are no lifetimes \
                                  used in any parameter",
                             ));
-                            LifetimeIndex::Static
+                            LifetimeIndex::STATIC
                         } 
                         1=> {
-                            LifetimeIndex::Param {
-                                index: self.vars.fn_info.initial_bound_lifetime as _,
-                            }
+                            LifetimeIndex::Param(
+                                self.vars.fn_info.initial_bound_lifetime as _,
+                            )
                         }
                         _ =>{
                             self.vars.errors.push_err(syn_err!(
@@ -426,7 +427,7 @@ This function does these things:
                                  return type when there are multiple lifetimes used \
                                  in parameters.",
                             ));
-                            LifetimeIndex::Static
+                            LifetimeIndex::STATIC
                         }
                     },
             }
@@ -438,11 +439,11 @@ This function does these things:
             match found_lt {
                 Some(index) => {
                     ret = Some(&ctokens.underscore);
-                    LifetimeIndex::Param { index:index as _ }
+                    LifetimeIndex::Param( index as _  )
                 }
                 None => {
                     self.vars.errors.push_err(spanned_err!(lt,"unknown lifetime"));
-                    LifetimeIndex::Static
+                    LifetimeIndex::STATIC
                 },
             }
         }
@@ -457,7 +458,7 @@ This function does these things:
     fn new_bound_lifetime(&mut self) -> LifetimeIndex {
         let index = self.vars.fn_info.initial_bound_lifetime+self.current.named_bound_lts_count;
         self.current.named_bound_lts_count+=1;
-        LifetimeIndex::Param { index:index as _ }
+        LifetimeIndex::Param( index as _ )
     }
 }
 

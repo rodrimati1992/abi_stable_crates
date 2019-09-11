@@ -14,8 +14,13 @@ use quote::ToTokens;
 use proc_macro2::{Span, TokenStream};
 
 mod field_map;
+mod type_param_map;
 
-pub(crate) use self::field_map::FieldMap;
+pub(crate) use self::{
+    field_map::FieldMap,
+    type_param_map::TypeParamMap,
+
+};
 
 //////////////////////////////////////////////////////////////////////////////
 

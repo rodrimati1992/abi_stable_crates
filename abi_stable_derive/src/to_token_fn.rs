@@ -17,6 +17,13 @@ where
             func: RefCell::new(f),
         }
     }
+    #[allow(dead_code)]
+    pub(crate) fn boxed<'a>(f: F) -> Box<dyn ToTokens+'a> 
+    where
+        F:'a,
+    {
+        Box::new(Self::new(f))
+    }
 }
 
 impl<F> ToTokens for ToTokenFnMut<F>

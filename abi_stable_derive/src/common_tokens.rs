@@ -34,23 +34,3 @@ impl FnPointerTokens{
         }
     }
 }
-
-
-
-#[derive(Debug)]
-pub(crate) struct LifetimeTokens{
-    pub(crate) li_static: Ident,
-    pub(crate) li_index: Ident,
-}
-
-impl LifetimeTokens{
-    pub fn new(span:Span)->Self{
-        Self{
-            li_static:Ident::new("__LIStatic",span),
-            li_index:Ident::new("__LIParam",span),
-        }
-    }
-}
-
-
-        

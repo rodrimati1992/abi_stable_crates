@@ -46,7 +46,7 @@ pub(crate) struct PrefixKind<'a>{
     pub(crate) prefix_bounds:Vec<WherePredicate>,
     pub(crate) fields:FieldMap<AccessorOrMaybe<'a>>,
     pub(crate) accessor_bounds:FieldMap<Vec<TypeParamBound>>,
-
+    pub(crate) field_conditionality_ident:&'a Ident,
 }
 
 
@@ -474,6 +474,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             .collect::<Vec<String>>()
             .join(";");
         
+        let conditional_enumerate=0usize..;
         let is_prefix_field_conditional=struct_.fields.iter()
             .take(prefix.first_suffix_field.field_pos)
             .map(|f| prefix.fields[f].is_conditional() );
@@ -504,7 +505,22 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             };
         ).to_tokens(ts);
 
+        let field_conditionality_ident=prefix.field_conditionality_ident;
+
         quote!(
+            // This is so that the field conditionality is only computed once.
+            const #field_conditionality_ident:#module::_sabi_reexports::FieldConditionality={
+                use #module::_sabi_reexports::{self,IsConditional as __IsConditional};
+                _sabi_reexports::FieldConditionality::with_field_count(0)
+                #( 
+                    .set_conditionality(
+                        #conditional_enumerate,
+                        __IsConditional::new( #is_prefix_field_conditional )
+                    )
+                )*
+            };
+
+
             unsafe impl #impl_generics
                 #module::_sabi_reexports::PrefixTypeTrait 
             for #deriving_name #ty_generics 
@@ -515,11 +531,8 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 // Describes the accessibility of all the fields,
                 // used to initialize the `WithMetadata<Self>::_prefix_type_field_acc` field.
                 const PT_FIELD_ACCESSIBILITY:#module::_sabi_reexports::FieldAccessibility={
-                    use self::#module::_sabi_reexports::{
-                        FieldAccessibility as __FieldAccessibility,
-                        IsAccessible as __IsAccessible,
-                    };
-                    __FieldAccessibility::with_field_count(#field_count)
+                    use #module::_sabi_reexports::{self,IsAccessible as __IsAccessible};
+                    _sabi_reexports::FieldAccessibility::with_field_count(#field_count)
                     #(
                         .set_accessibility(
                             #disabled_field_indices,
@@ -535,15 +548,8 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 //
                 // A field is conditional if it has the 
                 // `#[sabi(accessible_if=" expression ")]` attribute on it.
-                const PT_COND_PREFIX_FIELDS:
-                    abi_stable::std_types::RSlice<'static,#module::_sabi_reexports::IsConditional>=
-                {
-                    use #module::_sabi_reexports::IsConditional as __IsConditional;
-
-                    abi_stable::rslice![
-                        #( __IsConditional::new( #is_prefix_field_conditional ) ,)*
-                    ]
-                };
+                const PT_COND_PREFIX_FIELDS:#module::_sabi_reexports::FieldConditionality=
+                    #field_conditionality_ident;
 
                 // A description of the struct used for error messages.
                 const PT_LAYOUT:&'static #module::__PTStructLayout =#pt_layout_ident;

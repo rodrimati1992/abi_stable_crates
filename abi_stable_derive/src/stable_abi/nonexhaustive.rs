@@ -23,6 +23,7 @@ use crate::{
     datastructure::{DataStructure},
     gen_params_in::{GenParamsIn,InWhat},
     impl_interfacetype::{private_associated_type,TRAIT_LIST,UsableTrait},
+    literals_constructors::{rstr_tokenizer,rslice_tokenizer},
     parse_utils::{parse_str_as_ident,parse_str_as_path},
     set_span_visitor::SetSpanVisitor,
     to_token_fn::ToTokenFnMut,
@@ -530,13 +531,15 @@ pub(crate) fn tokenize_enum_info<'a>(
         };
 
         let name=ds.name;
-        let name_str=ds.name.to_string();
+        let name_str=rstr_tokenizer(ds.name.to_string());
 
-        let variant_names=ds.variants.iter().map(|x| x.name.to_string() );
+        let variant_names=ds.variants.iter()
+            .map(|x| rstr_tokenizer(x.name.to_string()) )
+            .piped(rslice_tokenizer);
 
         let discriminants=ds.variants.iter().map(|x|x.discriminant)
             .collect::<Vec<Option<&'a syn::Expr>>>();
-
+        
         let discriminant_tokens=config.repr
             .tokenize_discriminant_slice(discriminants.iter().cloned(),ct);
 
@@ -578,6 +581,7 @@ pub(crate) fn tokenize_enum_info<'a>(
 
         let preds=where_clause.as_ref().map(|w| &w.predicates );
 
+
         quote!(
 
             unsafe impl #impl_generics _sabi_reexports::GetStaticEquivalent_ for #name #ty_generics 
@@ -594,7 +598,7 @@ pub(crate) fn tokenize_enum_info<'a>(
             impl #impl_generics #name #ty_generics 
             #where_clause
             {
-                const _SABI_NE_DISCR_CNSNT_:&'static [#discriminant_type]=
+                const _SABI_NE_DISCR_CNSNT_STD_:&'static[#discriminant_type]=
                     #discriminant_tokens;
             }
 
@@ -610,18 +614,18 @@ pub(crate) fn tokenize_enum_info<'a>(
                 const ENUM_INFO:&'static _sabi_reexports::EnumInfo=
                     &_sabi_reexports::EnumInfo::_for_derive(
                         #name_str,
-                        &[ #( __StaticStr::new( #variant_names ), )* ],
+                        #variant_names,
                     );
 
                 fn discriminants()->&'static [#discriminant_type]{
-                    Self::_SABI_NE_DISCR_CNSNT_
+                    Self::_SABI_NE_DISCR_CNSNT_STD_
                 }
 
                 fn is_valid_discriminant(discriminant:#discriminant_type)->bool{
                     #( 
                         ( 
-                            Self::_SABI_NE_DISCR_CNSNT_[#start_discrs] <= discriminant && 
-                            discriminant <= Self::_SABI_NE_DISCR_CNSNT_[#end_discrs]
+                            Self::_SABI_NE_DISCR_CNSNT_STD_[#start_discrs] <= discriminant && 
+                            discriminant <= Self::_SABI_NE_DISCR_CNSNT_STD_[#end_discrs]
                         )|| 
                     )*
                     false

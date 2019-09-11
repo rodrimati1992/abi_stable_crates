@@ -11,7 +11,6 @@ use std::{
     convert::TryFrom,
     fmt::{Debug,Display},
     marker::PhantomData,
-    ops::{Add,Range},
 };
 
 use proc_macro2::TokenStream as TokenStream2;
@@ -33,16 +32,9 @@ pub struct StartLen<N>{
     pub len:N,
 }
 
-macro_rules! start_len_constructors {
-    ( $($int_ty:ty),* ) => (
-        impl StartLen<u16>{
-            pub const EMPTY:Self=Self{start:0,len:0};
-        }
-    )
+impl StartLen<u16>{
+    abi_stable_shared::declare_start_len_bit_methods!{}
 }
-
-start_len_constructors!{u16,usize}
-
 
 impl<N> StartLen<N>{
     #[inline]
@@ -55,21 +47,6 @@ impl<N> StartLen<N>{
             start: N::try_from(start).unwrap(),
             len: N::try_from(len).unwrap(),
         }
-    }
-
-    pub(crate) fn tokenize<'a>(self,ct:&'a StartLenTokens,ts: &mut TokenStream2)
-    where
-        N:ToTokens
-    {
-        self.tokenizer(ct).to_tokens(ts);
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn into_range(self)->Range<N>
-    where
-        N:Copy+Add<N,Output=N>
-    {
-        self.start..(self.start+self.len)
     }
 
     #[inline]
@@ -107,6 +84,7 @@ where
 ///////////////////////////////////////////////////////////////////////
 
 
+#[allow(dead_code)]
 pub type SmallCompositeString=CompositeString<u16>;
 
 
@@ -117,6 +95,7 @@ pub struct CompositeString<N>{
     _integer:PhantomData<N>,
 }
 
+#[allow(dead_code)]
 impl<N> CompositeString<N>
 where
     N:TryFrom<usize>,
@@ -179,6 +158,9 @@ where
     pub fn into_inner(self)->String{
         self.buffer
     }
+    pub fn as_inner(&self)->&str{
+        &self.buffer
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -193,6 +175,7 @@ pub struct CompositeVec<T,N>{
 }
 
 
+#[allow(dead_code)]
 impl<T,N> CompositeVec<T,N>
 where
     N:TryFrom<usize>,
@@ -233,5 +216,8 @@ where
 
     pub fn into_inner(self)->Vec<T>{
         self.list
+    }
+    pub fn as_inner(&self)->&[T]{
+        &self.list
     }
 }

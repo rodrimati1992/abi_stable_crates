@@ -2,17 +2,19 @@
 Contains types related to the type layout of function pointers.
 */
 
-use syn::Type;
 
 use super::*;
 
 use crate::{
     composite_collections::{SmallStartLen as StartLen},
-    datastructure::{FieldMap,Field},
-    fn_pointer_extractor::{Function,TypeVisitor},
-    lifetimes::LifetimeIndex,
+    datastructure::FieldMap,
+    fn_pointer_extractor::TypeVisitor,
+    lifetimes::LifetimeRange,
 };
 
+use std::marker::PhantomData;
+
+use syn::Type;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -29,32 +31,96 @@ impl<'a> VisitedFieldMap<'a>{
     pub(crate) fn new(
         ds:&'a DataStructure<'a>,
         config:&'a StableAbiOptions<'a>,
-        arenas: &'a Arenas, 
+        shared_vars:&mut SharedVars<'a>,
         ctokens: &'a CommonTokens<'a>
     )-> Result<Self,syn::Error> {
+        let arenas=shared_vars.arenas();
         let mut tv = TypeVisitor::new(arenas, ctokens.as_ref(), ds.generics);
         let mut fn_ptr_count = 0;
 
         let map=FieldMap::<VisitedField<'a>>::with(ds,|field|{
+            // The type used to get the TypeLayout of the field.
+            // This has all parameter and return types of function pointers removed.
+            // Extracted into the `functions` field of this struct.
             let mut mutated_ty=config.changed_types[field].unwrap_or(field.ty).clone();
-            let is_opaque=config.opaque_fields[field].is_opaque();
+            let layout_ctor=config.layout_ctor[field];
+            let is_opaque=layout_ctor.is_opaque();
 
             let is_function=match mutated_ty {
                 Type::BareFn{..}=>!is_opaque,
                 _=>false,
             };
 
+            
             let visit_info = tv.visit_field(&mut mutated_ty);
 
-            let functions=if is_opaque { Vec::new() }else{ visit_info.functions };
+            let mutated_ty=arenas.alloc(mutated_ty);
+            
+            let field_accessor=config.override_field_accessor[field]
+                .unwrap_or_else(|| config.kind.field_accessor(config.mod_refl_mode,field) );
+            
+            let name=config.renamed_fields[field].unwrap_or(field.ident()).to_string();
+
+            let comp_field=CompTLField::from_expanded(
+                &name,
+                visit_info.referenced_lifetimes.iter().cloned(),
+                field_accessor,
+                shared_vars.push_type(layout_ctor,mutated_ty),
+                is_function,
+                shared_vars,
+            );
+
+            let iterated_functions=if is_opaque { Vec::new() }else{ visit_info.functions };
+
+            let functions=iterated_functions.iter().enumerate()
+                .map(|(fn_i,func)|{
+                    let name=if is_function {
+                        shared_vars.push_str(&name)
+                    }else{
+                        shared_vars.push_str(&format!("fn_{}",fn_i))
+                    };
+
+                    let bound_lifetimes_len=shared_vars
+                        .extend_with_display(";",func.named_bound_lts.iter())
+                        .len;
+
+                    let param_names_len=shared_vars
+                        .extend_with_display(";",func.params.iter().map(|p| p.name.unwrap_or("") ))
+                        .len;
+
+                    
+                    let param_type_layouts=
+                        TypeLayoutRange::compress_params(&func.params,shared_vars);
+                    
+                    let paramret_lifetime_range=shared_vars
+                        .extend_with_lifetime_indices( 
+                            func.params.iter()
+                                .chain(&func.returns)
+                                .flat_map(|p| p.lifetime_refs.iter().cloned() ) 
+                        );
+
+                    let return_type_layout=match &func.returns {
+                        Some(ret) => shared_vars.push_type(layout_ctor,ret.ty ),
+                        None => !0,
+                    };
+                    
+                    CompTLFunction{
+                        name,
+                        bound_lifetimes_len,
+                        param_names_len,
+                        param_type_layouts,
+                        paramret_lifetime_range,
+                        return_type_layout,
+                    }
+                })
+                .collect::<Vec<CompTLFunction>>();
+
             fn_ptr_count+=functions.len();
 
             VisitedField{
-                inner:field,
-                referenced_lifetimes: visit_info.referenced_lifetimes,
-                is_function,
-                mutated_ty,
+                comp_field,
                 functions,
+                _marker:PhantomData,
             }
         });
 
@@ -75,18 +141,10 @@ impl<'a> VisitedFieldMap<'a>{
 /// A `Field<'a>` with extra information.
 #[allow(dead_code)]
 pub struct VisitedField<'a>{
-    pub(crate) inner:&'a Field<'a>,
-    /// The lifetimes used in the field's type.
-    pub(crate) referenced_lifetimes: Vec<LifetimeIndex>,
-    /// identifier for the field,which is either an index(in a tuple struct) or a name.
-    /// Whether the type of this field is just a function pointer.
-    pub(crate) is_function:bool,
-    /// The type used to get the TypeLayout of the field.
-    /// This has all parameter and return types of function pointers removed.
-    /// Extracted into the `functions` field of this struct.
-    pub(crate) mutated_ty: Type,
+    pub(crate) comp_field: CompTLField,
     /// The function pointers from this field.
-    pub(crate) functions:Vec<Function<'a>>,
+    pub(crate) functions:Vec<CompTLFunction>,
+    _marker:PhantomData<&'a ()>,
 }
 
 
@@ -97,66 +155,41 @@ pub struct VisitedField<'a>{
 /// This is how a function pointer is stored,
 /// in which every field is a range into `TLFunctions`.
 #[derive(Copy,Clone,Debug,PartialEq,Eq,Ord,PartialOrd)]
-pub struct CompTLFunction<'a>{
-    pub(crate) ctokens:&'a CommonTokens<'a>,
-    pub(crate) name:StartLen,
-    pub(crate) bound_lifetimes:StartLen,
-    pub(crate) param_names:StartLen,
-    pub(crate) param_type_layouts:StartLen,
-    pub(crate) paramret_lifetime_indices:StartLen,
-    pub(crate) return_type_layout:Option<u16>,
+pub struct CompTLFunction{
+    name:StartLen,
+    bound_lifetimes_len:u16,
+    param_names_len:u16,
+    /// Stores `!0` if the return type is `()`.
+    return_type_layout:u16,
+    paramret_lifetime_range:LifetimeRange,
+    param_type_layouts:TypeLayoutRange,
 }
 
 
-impl<'a> CompTLFunction<'a>{
-    /// Constructs a default CompTLFunction.
-    pub(crate) fn new(ctokens:&'a CommonTokens)->Self{
-        CompTLFunction{
-            ctokens,
-            name:StartLen::EMPTY,
-            bound_lifetimes:StartLen::EMPTY,
-            param_names:StartLen::EMPTY,
-            param_type_layouts:StartLen::EMPTY,
-            paramret_lifetime_indices:StartLen::EMPTY,
-            return_type_layout:None,
-        }
-    }
-}
-
-
-impl<'a> ToTokens for CompTLFunction<'a> {
+impl ToTokens for CompTLFunction {
     fn to_tokens(&self, ts: &mut TokenStream2) {
-        let ct=self.ctokens;
-        to_stream!(ts;ct.comp_tl_functions,ct.colon2,ct.new);
-        ct.paren.surround(ts,|ts|{
-            self.name.tokenize(ct.as_ref(),ts);
-            ct.comma.to_tokens(ts);
+        let name_start=self.name.start;
+        let name_len=self.name.len;
+        
+        let bound_lifetimes_len=self.bound_lifetimes_len;
+        let param_names_len=self.param_names_len;
+        let return_type_layout=self.return_type_layout;
+        let paramret_lifetime_range=self.paramret_lifetime_range.to_u21();
+        let param_type_layouts=self.param_type_layouts.to_u64();
 
-            self.bound_lifetimes.tokenize(ct.as_ref(),ts);
-            ct.comma.to_tokens(ts);
 
-            self.param_names.tokenize(ct.as_ref(),ts);
-            ct.comma.to_tokens(ts);
+        quote!(
+            __CompTLFunction::new(
+                __StartLen::new(#name_start,#name_len),
+                #bound_lifetimes_len,
+                #param_names_len,
+                #return_type_layout,
+                #paramret_lifetime_range,
+                #param_type_layouts,
+            )
+        ).to_tokens(ts);
+        
 
-            self.param_type_layouts.tokenize(ct.as_ref(),ts);
-            ct.comma.to_tokens(ts);
-
-            self.paramret_lifetime_indices.tokenize(ct.as_ref(),ts);
-            ct.comma.to_tokens(ts);
-
-            match self.return_type_layout {
-                Some(x) => {
-                    ct.rsome.to_tokens(ts);
-                    ct.paren.surround(ts,|ts|{
-                        x.to_tokens(ts);
-                    });
-                },
-                None => {
-                    ct.rnone.to_tokens(ts);
-                },
-            }
-            ct.comma.to_tokens(ts);
-        });
     }
 }
 
