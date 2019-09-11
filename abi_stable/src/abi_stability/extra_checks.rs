@@ -107,18 +107,17 @@ impl ExtraChecks for InOrderChecker {
         checker:TypeCheckerMut<'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,checker,|_,_|{
-            let fields=layout_containing_self.get_fields().unwrap_or_default();
-
-            if fields.is_empty() {
-                return Ok(());
-            }
+            let fields=match layout_containing_self.get_fields() {
+                Some(fields)if !fields.is_empty()=>fields,
+                _=>return Ok(()),
+            };
 
             let mut prev=fields.iter().next().unwrap();
             for curr in fields {
-                if prev.name > curr.name {
+                if prev.name() > curr.name() {
                     return Err(OutOfOrderError{
-                        previous_one:prev.name,
-                        first_one:curr.name,
+                        previous_one:prev.name(),
+                        first_one:curr.name(),
                     });
                 }
                 prev=curr;
@@ -136,10 +135,10 @@ impl ExtraChecks for InOrderChecker {
 
 #[derive(Debug,Clone)]
 pub struct OutOfOrderError{
-    previous_one:StaticStr,
+    previous_one:&'static str,
 
     /// The first field that is out of order.
-    first_one:StaticStr,
+    first_one:&'static str,
 }
 
 impl Display for OutOfOrderError{
@@ -675,7 +674,8 @@ use core_extensions::SelfOps;
 ///
 #[sabi_trait]
 #[sabi(no_trait_impl)]
-// #[sabi(debug_print_trait)]
+//#[sabi(debug_print_trait)]
+//#[sabi(debug_print)]
 pub unsafe trait TypeChecker:'static {
     /// Checks that `ìnterface` is compatible with `implementation.` 
     /// 

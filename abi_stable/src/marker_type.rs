@@ -5,8 +5,10 @@ Zero-sized types .
 use std::{cell::Cell,marker::PhantomData, rc::Rc};
 
 use crate::{
-    derive_macro_reexports::{*,ReprAttr},
-    std_types::RNone,
+    derive_macro_reexports::*,
+    type_layout::{
+        MonoTypeLayout, MonoTLData, ReprAttr, TypeLayout, GenericTLData,
+    }
 };
 
 
@@ -112,14 +114,27 @@ unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
     type IsNonZeroType = False;
     type Kind=ValueKind;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
-        Self::S_ABI_CONSTS,
-        "UnsafeIgnoredType",
-        RNone,
-        make_item_info!(),
-        TLData::EMPTY,
-        ReprAttr::c(),
-        tl_genparams!(;;),
-        rslice![]
-    );
+
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            rstr!("UnsafeIgnoredType"),
+            make_item_info!(),
+            MonoTLData::struct_(rslice![]),
+            tl_genparams!(;;),
+            ReprAttr::C,
+            ModReflMode::Module,
+            rslice![],
+        );
+
+        make_shared_vars!{
+            let shared_vars={};
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Struct,
+        )
+    };
 }

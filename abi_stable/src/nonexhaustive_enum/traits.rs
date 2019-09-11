@@ -9,7 +9,7 @@ use std::{
 
 
 use crate::{
-    std_types::{StaticStr,StaticSlice,RBoxError},
+    std_types::{RStr,RSlice,RBoxError},
     type_level::{
         impl_enum::{Implemented,Unimplemented},
         trait_marker,
@@ -64,6 +64,9 @@ pub unsafe trait GetEnumInfo:Sized{
     const ENUM_INFO:&'static EnumInfo;
     
     /// The values of the discriminants of each variant.
+    ///
+    /// This is a function instead of an associated constant because 
+    /// it breaks in Rust 1.34 otherwise .
     fn discriminants()->&'static [Self::Discriminant];
 
     /// Whether `discriminant` is one of the valid discriminants for this enum in this context.
@@ -72,25 +75,25 @@ pub unsafe trait GetEnumInfo:Sized{
 
 
 /// Contains miscelaneous information about an enum.
-#[derive(StableAbi)]
 #[repr(C)]
+#[derive(StableAbi)]
 pub struct EnumInfo{
     /// The name of a type,eg:`Vec` for a `Vec<u8>`.
-    pub type_name:StaticStr,
+    pub type_name:RStr<'static>,
 
     /// The names of the variants of the enum.
-    pub variants:StaticSlice<StaticStr>,
+    pub variants:RSlice<'static,RStr<'static>>,
 }
 
 impl EnumInfo{
     #[doc(hidden)]
     pub const fn _for_derive(
-        type_name:&'static str,
-        variants:&'static [StaticStr],
+        type_name:RStr<'static>,
+        variants:RSlice<'static,RStr<'static>>,
     )->Self{
         Self{
-            type_name:StaticStr::new(type_name),
-            variants:StaticSlice::new(variants),
+            type_name,
+            variants,
         }
     }
 }

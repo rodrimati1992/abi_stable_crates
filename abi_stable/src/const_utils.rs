@@ -13,7 +13,8 @@ use core_extensions::prelude::*;
 //////////////////////////////////////////////////////////////////
 
 // Used to test trait bounds in proc-macros.
-pub(crate) trait AssocStr{
+#[doc(hidden)]
+pub trait AssocStr{
     const STR:&'static str;
 }
 
@@ -57,6 +58,16 @@ where
 
 
 /// The minimum of two `u64`s
+pub const fn min_u8(l:u8,r:u8)->u8{
+    [r,l][ (l < r)as usize ]
+}
+
+/// The minimum of two `u64`s
+pub const fn min_u16(l:u16,r:u16)->u16{
+    [r,l][ (l < r)as usize ]
+}
+
+/// The minimum of two `u64`s
 pub const fn min_u64(l:u64,r:u64)->u64{
     [r,l][ (l < r)as usize ]
 }
@@ -74,6 +85,26 @@ pub const fn max_u64(l:u64,r:u64)->u64{
 /// The maximum of two `usize`s
 pub const fn max_usize(l:usize,r:usize)->usize{
     [l,r][ (l < r)as usize ]
+}
+
+
+
+//////////////////////////////////////
+
+
+pub const fn saturating_sub_usize(l:usize,r:usize)->usize{
+    let mask = -((r < l) as isize);
+    l.wrapping_sub(r) & (mask as usize)
+}
+
+pub const fn saturating_sub_u8(l:u8,r:u8)->u8{
+    let mask = -((r < l) as i8);
+    l.wrapping_sub(r) & (mask as u8)
+}
+
+pub const fn log2_usize(n:usize)->u8{
+    const USIZE_BITS:u8=(std::mem::size_of::<usize>()*8)as u8;
+    saturating_sub_u8(USIZE_BITS-n.leading_zeros() as u8,1)as u8
 }
 
 
@@ -109,4 +140,24 @@ macro_rules! type_identity {
         $crate::const_utils::Transmuter::<$from,$to>{ from:$expr }
             .to
     }}
+}
+
+//////////////////////////////////////
+
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+
+    #[test]
+    fn log2_usize_test(){
+        assert_eq!(log2_usize(0),0);
+        assert_eq!(log2_usize(1),0);
+        for power in 1..=63 {
+            let n=1<<power;
+            assert_eq!(log2_usize(n-1),power-1,"power:{} n:{}",power,n);
+            assert_eq!(log2_usize(n)  ,power  ,"power:{} n:{}",power,n);
+            assert_eq!(log2_usize(n+1),power  ,"power:{} n:{}",power,n);
+        }
+    }
 }

@@ -17,6 +17,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[repr(u8)]
 #[derive(StableAbi)]
+// #[sabi(debug_print)]
 pub enum ROption<T> {
     RSome(T),
     RNone,

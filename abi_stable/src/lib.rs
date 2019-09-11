@@ -160,6 +160,11 @@ pub use abi_stable_derive::{
     sabi_extern_fn,
 };
 
+#[doc(hidden)]
+pub use abi_stable_derive::{
+    get_string_length,
+};
+
 #[macro_use]
 mod impls;
 

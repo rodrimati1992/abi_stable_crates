@@ -31,12 +31,8 @@ pub enum ModReflMode{
     Opaque,
     /// Delegates the layout to some other type,this is generally for references.
     DelegateDeref{
-        /// To which phantom field this delegates to.
-        ///
-        /// If one uses `#[sabi(module_reflection(Deref))]` 
-        /// a phantom field with the type of `<Self as Deref>::Target`
-        /// will be created,and this will refer to it.
-        phantom_field_index:usize,
+        /// To which layout in `TypeLayout.shared_vars.type_layouts` this delegates to.
+        layout_index:u8,
     },
 }
 
