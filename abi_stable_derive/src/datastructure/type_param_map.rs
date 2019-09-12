@@ -95,18 +95,25 @@ impl<'a,T> TypeParamMap<'a,T>{
         }
     }
 
-    pub(crate) fn get_index(&self,ident:&Ident)->Option<usize>{
-        self.idents.map.get(ident).cloned()
+    pub(crate) fn len(&self)->usize{
+        self.ty_params.len()
     }
 
-    pub(crate) fn get<I>(&self,index:I)->Option<&T>
+    pub(crate) fn get_index(&self,ident:&Ident)->Result<usize,syn::Error>{
+        match self.idents.map.get(ident) {
+            Some(x)=>Ok(*x),
+            None=>Err(spanned_err!(ident,"identifier for an invalid type parameter")),
+        }
+    }
+
+    pub(crate) fn get<I>(&self,index:I)->Result<&T,syn::Error>
     where
         Self:Getter<I,Elem=T>,
     {
         self.get_inner(index)
     }
 
-    pub(crate) fn get_mut<I>(&mut self,index:I)->Option<&mut T>
+    pub(crate) fn get_mut<I>(&mut self,index:I)->Result<&mut T,syn::Error>
     where
         Self:Getter<I,Elem=T>,
     {
@@ -159,31 +166,44 @@ impl<'a,T> IndexMut<&Ident> for TypeParamMap<'a,T>{
 pub trait Getter<Index>{
     type Elem;
 
-    fn get_inner(&self,index:Index)->Option<&Self::Elem>;
-    fn get_mut_inner(&mut self,index:Index)->Option<&mut Self::Elem>;
+    fn get_inner(&self,index:Index)->Result<&Self::Elem,syn::Error>;
+    fn get_mut_inner(&mut self,index:Index)->Result<&mut Self::Elem,syn::Error>;
 }
 
 impl<'a,T> Getter<usize> for TypeParamMap<'a,T>{
     type Elem=T;
 
-    fn get_inner(&self,index:usize)->Option<&Self::Elem>{
-        self.ty_params.get(index)
+    fn get_inner(&self,index:usize)->Result<&Self::Elem,syn::Error>{
+        self.ty_params
+            .get(index)
+            .ok_or_else(|| err_from_index(index,self.len()) )
     }
-    fn get_mut_inner(&mut self,index:usize)->Option<&mut Self::Elem>{
-        self.ty_params.get_mut(index)
+    fn get_mut_inner(&mut self,index:usize)->Result<&mut Self::Elem,syn::Error>{
+        let len=self.len();
+        self.ty_params
+            .get_mut(index)
+            .ok_or_else(|| err_from_index(index,len) )
     }
 }
 
 impl<'a,T> Getter<&Ident> for TypeParamMap<'a,T>{
     type Elem=T;
 
-    fn get_inner(&self,ident:&Ident)->Option<&Self::Elem>{
-        let index=self.idents.map.get(ident)?;
-        self.ty_params.get(*index)
+    fn get_inner(&self,ident:&Ident)->Result<&Self::Elem,syn::Error>{
+        let index=self.get_index(ident)?;
+        Ok(&self.ty_params[index])
     }
-    fn get_mut_inner(&mut self,ident:&Ident)->Option<&mut Self::Elem>{
-        let index=self.idents.map.get(ident)?;
-        self.ty_params.get_mut(*index)
+    fn get_mut_inner(&mut self,ident:&Ident)->Result<&mut Self::Elem,syn::Error>{
+        let index=self.get_index(ident)?;
+        Ok(&mut self.ty_params[index])
     }
 }
 
+fn err_from_index(index:usize,len:usize)->syn::Error{
+    syn_err!(
+        proc_macro2::Span::call_site(),
+        "index for type parameters is out of bounds, index={} len={}",
+        index,
+        len,
+    )
+}

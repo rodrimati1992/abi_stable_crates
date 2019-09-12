@@ -58,7 +58,7 @@
         ( 
           replacements: { "#repr":"u8" }, 
           find_all:[
-            regex("__TLDiscriminants *:: *U8"),
+            regex("__TLDiscriminants *:: *from_u8_slice"),
             regex("__DiscriminantRepr *:: *U8"),
             str("10"),str("20"),str("30"),
           ],
@@ -67,7 +67,7 @@
         ( 
           replacements: { "#repr":"u16" }, 
           find_all:[
-            regex("__TLDiscriminants *:: *U16"),
+            regex("__TLDiscriminants *:: *from_u16_slice"),
             regex("__DiscriminantRepr *:: *U16"),
             str("10"),str("20"),str("30"),
           ],
@@ -76,7 +76,7 @@
         ( 
           replacements: { "#repr":"u32" }, 
           find_all:[
-            regex("__TLDiscriminants *:: *U32"),
+            regex("__TLDiscriminants *:: *from_u32_slice"),
             regex("__DiscriminantRepr *:: *U32"),
             str("10"),str("20"),str("30"),
           ],
@@ -85,7 +85,7 @@
         ( 
           replacements: { "#repr":"u64" }, 
           find_all:[
-            regex("__TLDiscriminants *:: *U64"),
+            regex("__TLDiscriminants *:: *from_u64_slice"),
             regex("__DiscriminantRepr *:: *U64"),
             str("10"),str("20"),str("30"),
           ],
@@ -94,7 +94,7 @@
         ( 
           replacements: { "#repr":"usize" }, 
           find_all:[
-            regex("__TLDiscriminants *:: *Usize"),
+            regex("__TLDiscriminants *:: *from_usize_slice"),
             regex("__DiscriminantRepr *:: *Usize"),
             str("10"),str("20"),str("30"),
           ],
@@ -103,7 +103,7 @@
         ( 
           replacements: { "#repr":"i8" }, 
           find_all:[
-            regex("__TLDiscriminants *:: *I8"),
+            regex("__TLDiscriminants *:: *from_i8_slice"),
             regex("__DiscriminantRepr *:: *I8"),
             str("10"),str("20"),str("30"),
           ],
@@ -112,7 +112,7 @@
         ( 
           replacements: { "#repr":"i16" }, 
           find_all:[
-            regex("__TLDiscriminants *:: *I16"),
+            regex("__TLDiscriminants *:: *from_i16_slice"),
             regex("__DiscriminantRepr *:: *I16"),
             str("10"),str("20"),str("30"),
           ],
@@ -121,7 +121,7 @@
         ( 
           replacements: { "#repr":"i32" }, 
           find_all:[
-            regex("__TLDiscriminants *:: *I32"),
+            regex("__TLDiscriminants *:: *from_i32_slice"),
             regex("__DiscriminantRepr *:: *I32"),
             str("10"),str("20"),str("30"),
           ],
@@ -130,7 +130,7 @@
         ( 
           replacements: { "#repr":"i64" }, 
           find_all:[
-            regex("__TLDiscriminants *:: *I64"),
+            regex("__TLDiscriminants *:: *from_i64_slice"),
             regex("__DiscriminantRepr *:: *I64"),
             str("10"),str("20"),str("30"),
           ],
@@ -139,7 +139,7 @@
         ( 
           replacements: { "#repr":"isize" }, 
           find_all:[
-            regex("__TLDiscriminants *:: *Isize"),
+            regex("__TLDiscriminants *:: *from_isize_slice"),
             regex("__DiscriminantRepr *:: *Isize"),
             str("10"),str("20"),str("30"),
           ],
@@ -520,7 +520,7 @@
         ),
         ( 
           replacements: { "@uct1":r#"="MyType" "#, "@uct2":r#"unsafe_change_type="YourType""# },
-          find_all: [str("MyType"),str("YourType"),not(str("u32")),not(str("u64"))],
+          find_all: [str("MyType"),str("YourType"),not(regex("< *u32 *>")),not(regex("< *u64 *>"))],
           error_count: 0 
         ),
         ( 
