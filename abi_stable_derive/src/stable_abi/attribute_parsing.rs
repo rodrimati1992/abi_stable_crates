@@ -705,7 +705,7 @@ fn parse_sabi_attr<'a>(
                         Meta::Path(path)=>{
                             let type_param=path.into_ident().map_err(|p| nsabi_err(&p) )?;
 
-                            this.type_param_bounds[&type_param]=
+                            *this.type_param_bounds.get_mut(&type_param)?=
                                 ASTypeParamBound::GetStaticEquivalent;
                         }
                         x => this.errors.push_err(nsabi_err(&x)),
@@ -726,7 +726,8 @@ fn parse_sabi_attr<'a>(
                         Meta::Path(path)=>{
                             let type_param=path.into_ident().map_err(|p| uu_err(&p) )?;
 
-                            this.type_param_bounds[&type_param]=ASTypeParamBound::NoBound;
+                            *this.type_param_bounds.get_mut(&type_param)?=
+                                ASTypeParamBound::NoBound;
                         }
                         x => this.errors.push_err(spanned_err!(
                             x,

@@ -11,6 +11,7 @@ use std::{
     convert::TryFrom,
     fmt::{Debug,Display},
     marker::PhantomData,
+    ops::{Add,Range},
 };
 
 use proc_macro2::TokenStream as TokenStream2;
@@ -47,6 +48,14 @@ impl<N> StartLen<N>{
             start: N::try_from(start).unwrap(),
             len: N::try_from(len).unwrap(),
         }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn into_range(self)->Range<N>
+    where
+        N:Copy+Add<N,Output=N>
+    {
+        self.start..(self.start+self.len)
     }
 
     #[inline]
