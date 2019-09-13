@@ -141,8 +141,7 @@ impl<'a> NonExhaustive<'a>{
     )-> Result<Self,syn::Error> {
         let name=ds.name;
 
-        let alignment=unchecked.alignment
-            .unwrap_or(IntOrType::Int(std::mem::size_of::<usize>()));
+        let alignment=unchecked.alignment.unwrap_or(IntOrType::Usize);
         
         let parse_ident=move|s:&str,span:Option<Span>|->&'a Ident{
             let mut ident=parse_str_as_ident(s);
@@ -274,6 +273,7 @@ impl<'a> NonExhaustive<'a>{
 pub enum IntOrType<'a>{
     Int(usize),
     Type(&'a syn::Type),
+    Usize,
 }
 
 /// Extracts the first type parameter of a generic type.
@@ -328,11 +328,14 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
             }
             IntOrType::Type(ty)=>
                 ( None , Some(quote!(__aligner:[#ty;0],)) ),
+            IntOrType::Usize=>
+                ( None , Some(quote!(__aligner:[usize;0],)) ),
         };
 
         let aligner_size=match this.size {
             IntOrType::Int(size)=>quote!( #size ),
             IntOrType::Type(ty)=>quote!( std::mem::size_of::<#ty>() ),
+            IntOrType::Usize=>quote!( std::mem::size_of::<usize>() ),
         };
 
         let name=ds.name;
