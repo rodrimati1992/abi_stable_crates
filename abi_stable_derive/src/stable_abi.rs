@@ -97,7 +97,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
     // drop(_measure_time0);
 
-    let (_, ty_generics, where_clause) = generics.split_for_impl();
+    let (_, _, where_clause) = generics.split_for_impl();
     let where_clause=(&where_clause.expect("BUG").predicates).into_iter();
     let where_clause_b=where_clause.clone();
 
@@ -109,17 +109,19 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             &ctokens.prefix_kind,
     };
 
+    let ty_generics=GenParamsIn::new(generics,InWhat::ItemUse);
+
     // The type that implements SharedStableAbi
     let impl_ty= match &config.kind {
         StabilityKind::Value => 
-            quote!(#name #ty_generics ),
+            quote!(#name <#ty_generics> ),
         StabilityKind::Prefix(prefix)=>{
             let n=&prefix.prefix_struct;
-            quote!(#n #ty_generics )
+            quote!(#n <#ty_generics> )
         },
         StabilityKind::NonExhaustive(nonexhaustive)=>{
             let marker=nonexhaustive.nonexhaustive_marker;
-            quote!(#marker < #name  #ty_generics , __Storage > )
+            quote!(#marker < #name  <#ty_generics> , __Storage > )
         }
     };
 
@@ -135,11 +137,11 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             let prefix_struct=prefix.prefix_struct;
 
             prefix_type_trait_bound=Some(quote!(
-                #name #ty_generics:_sabi_reexports::PrefixTypeTrait,
+                #name <#ty_generics>:_sabi_reexports::PrefixTypeTrait,
             ));
             prefix_bounds=&prefix.prefix_bounds;
 
-            quote!( __WithMetadata_<#name #ty_generics,#prefix_struct #ty_generics> )
+            quote!( __WithMetadata_<#name <#ty_generics>,#prefix_struct <#ty_generics>> )
         }
         StabilityKind::Value=>quote!(Self),
     };
@@ -262,7 +264,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             generic_tl_data={
                 quote!(
                     _sabi_reexports::GenericTLData::prefix_type_derive(
-                        <#name #ty_generics as 
+                        <#name <#ty_generics> as 
                             _sabi_reexports::PrefixTypeTrait
                         >::PT_FIELD_ACCESSIBILITY,
                     )
@@ -439,7 +441,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                 type StaticEquivalent=#static_struct_name < 
                     #(#lifetimes_s,)*
                     #type_params_s
-                    #(#const_params_s),* 
+                    #({#const_params_s}),* 
                 >;
             }
 
@@ -548,9 +550,11 @@ fn tokenize_generic_enum<'a>(
         let is_exhaustive=match nonexhaustive_opt {
             Some(_)=>{
                 let name=ds.name;
-                let (_, ty_generics,_) = ds.generics.split_for_impl();
+
+                let ty_generics=GenParamsIn::new(ds.generics,InWhat::ItemUse);
+                // let (_, ty_generics,_) = ds.generics.split_for_impl();
                 quote!(nonexhaustive(
-                    &_sabi_reexports::TLNonExhaustive::new::< #name #ty_generics >()
+                    &_sabi_reexports::TLNonExhaustive::new::< #name <#ty_generics> >()
                 ))
             },
             None=>quote!(exhaustive()),

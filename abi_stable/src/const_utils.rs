@@ -2,6 +2,8 @@
 Utilities for const contexts.
 */
 
+use crate::std_types::StaticStr;
+
 use std::{
     marker::PhantomData,
 };
@@ -15,20 +17,43 @@ use core_extensions::prelude::*;
 // Used to test trait bounds in proc-macros.
 #[doc(hidden)]
 pub trait AssocStr{
-    const STR:&'static str;
+    const STR:StaticStr;
 }
 
 macro_rules! impl_assoc_str {
     ( $($ty:ty),* ) => (
         $(
             impl AssocStr for $ty {
-                const STR:&'static str=stringify!( $ty );
+                const STR:StaticStr=StaticStr::new(stringify!( $ty ));
             }
         )*
     )
 }
 
 impl_assoc_str!{ i8,i16,i32,i64,isize,u8,u16,u32,u64,usize }
+
+//////////////////////////////////////////////////////////////////
+
+// Used to test trait bounds in proc-macros.
+#[doc(hidden)]
+pub trait AssocInt{
+    const NUM:usize;
+}
+
+macro_rules! impl_assoc_str {
+    ( $($ty:ty=$val:expr),* $(,)* ) => (
+        $(
+            impl AssocInt for $ty {
+                const NUM:usize=$val;
+            }
+        )*
+    )
+}
+
+impl_assoc_str!{
+    i8=0,i16=1,i32=2,i64=3,isize=4,
+    u8=5,u16=6,u32=7,u64=8,usize=9,
+}
 
 
 
@@ -153,7 +178,7 @@ mod tests{
     fn log2_usize_test(){
         assert_eq!(log2_usize(0),0);
         assert_eq!(log2_usize(1),0);
-        for power in 1..=63 {
+        for power in 1..=62 {
             let n=1<<power;
             assert_eq!(log2_usize(n-1),power-1,"power:{} n:{}",power,n);
             assert_eq!(log2_usize(n)  ,power  ,"power:{} n:{}",power,n);

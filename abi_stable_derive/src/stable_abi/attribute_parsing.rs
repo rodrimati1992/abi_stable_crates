@@ -68,7 +68,8 @@ pub(crate) struct StableAbiOptions<'a> {
 
     pub(crate) phantom_fields:Vec<(&'a str,&'a Type)>,
     pub(crate) phantom_type_params:Vec<&'a Type>,
-
+    pub(crate) phantom_const_params:Vec<&'a syn::Expr>,
+    
 }
 
 
@@ -279,6 +280,7 @@ impl<'a> StableAbiOptions<'a> {
             impl_interfacetype: this.impl_interfacetype,
             phantom_fields,
             phantom_type_params: this.phantom_type_params,
+            phantom_const_params: this.phantom_const_params,
             mod_refl_mode,
         })
     }
@@ -320,6 +322,7 @@ struct StableAbiAttrs<'a> {
 
     extra_phantom_fields:Vec<(&'a str,&'a Type)>,
     phantom_type_params:Vec<&'a Type>,
+    phantom_const_params:Vec<&'a syn::Expr>,
 
     impl_interfacetype:Option<ImplInterfaceType>,
     
@@ -462,7 +465,7 @@ fn parse_attr_list<'a>(
             x => {
                 Err(make_err(&x))
             }
-        }).combine_into_err(&mut this.errors);;
+        }).combine_into_err(&mut this.errors);
     } else if list.path.equals_str("sabi") {
         with_nested_meta("sabi", list.nested, |attr| {
             parse_sabi_attr(this,pctx, attr, arenas)
@@ -573,6 +576,9 @@ fn parse_sabi_attr<'a>(
             }else if ident=="phantom_type_param"{
                 let ty=arenas.alloc(parse_lit_as_type(unparsed_lit)?);
                 this.phantom_type_params.push(ty);
+            }else if ident=="phantom_const_param"{
+                let constant=arenas.alloc(parse_lit_as_expr(unparsed_lit)?);
+                this.phantom_const_params.push(constant);
             }else if ident=="tag"||ident=="extra_checks" {
                 let bound=unparsed_lit.parse::<syn::Expr>();
 

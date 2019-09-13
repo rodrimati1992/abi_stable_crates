@@ -19,6 +19,11 @@ Adds a virtual field to the type layout constant.
 Adds a virtual type parameter to the type layout constant,
 which is checked for compatibility.
 
+###  `#[sabi(phantom_const_param="constant expression")]` 
+
+Adds a virtual const parameter to the type layout constant,
+which is checked for equality.
+
 ###  `#[sabi(not_stableabi(TypeParameter))]`  
 
 Replaces the implicit `TypeParameter:StableAbi` constraint

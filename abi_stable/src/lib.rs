@@ -133,6 +133,12 @@ These are the kinds of types passed through FFI:
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
 
+// this only requires nightly features if it's in the nightly channel
+#![cfg_attr(
+    all(nightly_rust,feature="nightly_const_params"),
+    feature(const_generics)
+)]
+
 #[allow(unused_imports)]
 #[cfg(test)]
 use abi_stable_shared::file_span;

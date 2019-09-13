@@ -21,8 +21,11 @@ mod nonexhaustive_enums;
 //#[cfg(test)]
 mod get_static_equivalent;
 
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(test)]
 mod extra_checks_combined;
 
-#[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod stable_abi_attributes;
+
+#[cfg(test)]
+mod const_params;

@@ -28,6 +28,17 @@ rust_1_36=[]
 
 rust_1_38=["rust_1_36"]
 
+# Enables stuff that requires const generics,use this once const generics are stabilized.
+const_params=[]
+
+# Enables all nightly features.
+all_nightly=[
+    "nightly_const_params",
+]
+
+# Enables stuff that requires const generics(in nightly Rust).
+nightly_const_params=[]
+
 # Test features,only used internally.
 only_new_tests=[]
 sabi_trait_examples=[]
