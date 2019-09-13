@@ -8,6 +8,7 @@ use crate::{
         ExtraChecks,ExtraChecksStaticRef,ExtraChecksBox,ExtraChecksRef,
         ForExtraChecksImplementor,ExtraChecksError
     },
+    const_utils::abs_sub_usize,
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
     sabi_trait::prelude::TU_Opaque,
@@ -500,4 +501,139 @@ fn test_cyclic_extra_checker() {
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
+
+
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(extra_checks="Self::construct_extra_checks")]
+struct WithLocalExtraChecker<C0,C1>{
+    _marker:UnsafeIgnoredType<(C0,C1)>
+}
+
+impl<C0,C1> WithLocalExtraChecker<C0,C1>
+where
+    C0:StableAbi,
+    C1:StableAbi,
+{
+    extern fn construct_extra_checks()->ExtraChecksStaticRef{
+        ExtraChecksStaticRef::from_ptr(
+            &LocalExtraChecker{
+                comp0:<C0 as StableAbi>::LAYOUT,
+                comp1:<C1 as StableAbi>::LAYOUT,
+            },
+            TU_Opaque
+        )
+    }
+}
+
+
+#[repr(C)]
+#[derive(Debug,Clone,StableAbi)]
+pub struct LocalExtraChecker{
+    comp0:&'static TypeLayout,
+    comp1:&'static TypeLayout,
+}
+
+impl Display for LocalExtraChecker{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        writeln!(
+            f,
+            "\ncomp0 type_layout:\n{}\ncomp1 type_layout:\n{}\n",
+            self.comp0,
+            self.comp1,
+        )
+    }
+}
+
+
+impl ExtraChecks for LocalExtraChecker {
+    fn type_layout(&self)->&'static TypeLayout{
+        <Self as StableAbi>::LAYOUT
+    }
+
+    fn check_compatibility(
+        &self,
+        _layout_containing_self:&'static TypeLayout,
+        layout_containing_other:&'static TypeLayout,
+        ty_checker:TypeCheckerMut<'_>,
+    )->RResult<(), ExtraChecksError> {
+        Self::downcast_with_layout(layout_containing_other,ty_checker,|other,mut ty_checker|{
+            ty_checker.local_check_compatibility(self.comp0,other.comp0)
+                .or_else(|_| ty_checker.local_check_compatibility(self.comp0,other.comp1) )
+                .or_else(|_| ty_checker.local_check_compatibility(self.comp1,other.comp0) )
+                .or_else(|_| ty_checker.local_check_compatibility(self.comp1,other.comp1) )
+                .into_result()
+        })
+    }
+
+    fn nested_type_layouts(&self)->RCow<'_,[&'static TypeLayout]>{
+        vec![self.comp0,self.comp1].into()
+    }
+}
+
+
+
+
+/// This is used to check that ExtraChecks that contain the type that they are checking 
+/// alway return an error.
+#[test]
+fn test_local_extra_checker() {
+
+    use crate::{
+        external_types::ROnce,
+    };
+
+    let list = vec![
+        WithLocalExtraChecker::<i32,u32>::LAYOUT,
+        WithLocalExtraChecker::<RString,i32>::LAYOUT,
+        WithLocalExtraChecker::<(),RString>::LAYOUT,
+        WithLocalExtraChecker::<RVec<()>,()>::LAYOUT,
+        WithLocalExtraChecker::<ROnce,RVec<()>>::LAYOUT,
+    ];
+
+    let layout = <WithCyclicExtraChecker as StableAbi>::LAYOUT;
+
+    let globals=CheckingGlobals::new();
+
+    for window in list.windows(2) {
+        let res=check_layout_compatibility_with_globals(window[0], window[1], &globals);
+        assert_eq!(res,Ok(()));
+    }
+
+    for (i, this) in list.iter().cloned().enumerate() {
+        for (j, other) in list.iter().cloned().enumerate() {
+            let res=check_layout_compatibility_with_globals(this, other, &globals);
+
+            if abs_sub_usize(j,i)<=1 {
+                assert_eq!(res, Ok(()), "j:{} i:{}",j,i);
+            } else {
+                assert_ne!(
+                    res,
+                    Ok(()),
+                    "\n\nInterface:{:#?}\n\nimplementation:{:#?}",
+                    this,
+                    other,
+                );
+
+                let mut found_extra_checks_error=false;
+                let mut found_name_error=false;
+                for err in res.unwrap_err().flatten_errors().into_iter() {
+                    match err {
+                        AbiInstability::ExtraCheckError{..}=>found_extra_checks_error=true,
+                        AbiInstability::Name{..}=>found_name_error=true,
+                        _=>{}
+                    }
+                }
+
+                assert!(
+                    !found_extra_checks_error&&found_name_error,
+                    "\n\nInterface:{:#?}\n\nimplementation:{:#?}",
+                    this,
+                    other,
+                );
+            }
+        }
+    }
+}
 
