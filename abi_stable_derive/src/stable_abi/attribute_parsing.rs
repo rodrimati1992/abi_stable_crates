@@ -712,6 +712,27 @@ fn parse_sabi_attr<'a>(
                     }
                     Ok(())
                 })?;
+            } else if ident == "shared_stableabi" {
+                fn nsabi_err(tokens:&dyn ToTokens)->syn::Error{
+                    spanned_err!(
+                        tokens,
+                        "invalid #[shared_stableabi(..)] attribute\
+                         (it must be the identifier of a type parameter)."
+                    )
+                }
+
+                with_nested_meta("shared_stableabi", list.nested, |attr|{
+                    match attr {
+                        Meta::Path(path)=>{
+                            let type_param=path.into_ident().map_err(|p| nsabi_err(&p) )?;
+
+                            *this.type_param_bounds.get_mut(&type_param)?=
+                                ASTypeParamBound::SharedStableAbi;
+                        }
+                        x => this.errors.push_err(nsabi_err(&x)),
+                    }
+                    Ok(())
+                })?;
             } else if ident == "unsafe_unconstrained" {
                 fn uu_err(tokens:&dyn ToTokens)->syn::Error{
                     spanned_err!(

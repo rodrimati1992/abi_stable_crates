@@ -64,6 +64,36 @@ pub struct UnsafeSabiOpaqueField0<T,U>{
 ////////////////////////////////////////////////////////////////////////////////
 
 
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(kind(Prefix(prefix_struct="PrefixType1")))]
+struct PrefixType1Val {}
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(kind(Prefix(prefix_struct="PrefixType2")))]
+struct PrefixType2Val {
+    a:u32,
+}
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(shared_stableabi(T))]
+struct WithPrefixType<T>{
+    ptr:*const T,
+}
+
+#[test]
+fn shared_stable_abi_attribute(){
+    let _=<WithPrefixType<PrefixType1> as StableAbi>::LAYOUT;
+    let _=<WithPrefixType<PrefixType2> as StableAbi>::LAYOUT;
+    let _=<WithPrefixType<()> as StableAbi>::LAYOUT;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
 #[test]
 fn is_sabi_opaque_fields(){
     let list:Vec<(&'static TypeLayout,Vec<Option<&'static str>>)>=vec![
