@@ -21,8 +21,13 @@ which is checked for compatibility.
 
 ###  `#[sabi(not_stableabi(TypeParameter))]`  
 
-Removes the implicit `TypeParameter:StableAbi` constraint,
-leaving a `TypeParameter:GetStaticEquivalent` constraint.
+Replaces the implicit `TypeParameter:StableAbi` constraint
+with a `TypeParameter:GetStaticEquivalent` constraint.
+
+###  `#[sabi(shared_stableabi(TypeParameter))]`  
+
+Replaces the implicit `TypeParameter:StableAbi` constraint
+with a `TypeParameter:SharedStableAbi` constraint.
 
 ###  `#[sabi(unsafe_unconstrained(TypeParameter))]`  
 

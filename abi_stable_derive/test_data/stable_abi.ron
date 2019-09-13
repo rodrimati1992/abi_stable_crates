@@ -208,7 +208,25 @@
       ],
     ),
     (
-      name:"not_stableabi",
+      name:"shared_stableabi",
+      code:r##"
+        #[repr(C)]
+        #[sabi(shared_stableabi@p1)]
+        #[sabi(shared_stableabi@p2)]
+        enum Foo<T,U,V>{
+          Bar(T,U,V),
+        }
+      "##,
+      subcase: [
+        ( replacements: { "@p1":r#"(X)"#, "@p2":r#"(Y)"# }, error_count: 2 ),
+        ( replacements: { "@p1":r#"T"#, "@p2":r#"U"# }, error_count: 2 ),
+        ( replacements: { "@p1":r#"T"#, "@p2":r#"="U""# }, error_count: 2 ),
+        ( replacements: { "@p1":r#"(T)"#, "@p2":r#"="U""# }, error_count: 1 ),
+        ( replacements: { "@p1":r#"(T)"#, "@p2":r#"(U)"# }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"unsafe_unconstrained",
       code:r##"
         #[repr(C)]
         #[sabi(unsafe_unconstrained@p1)]
