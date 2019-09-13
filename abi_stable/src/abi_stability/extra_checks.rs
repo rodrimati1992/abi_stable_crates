@@ -682,12 +682,31 @@ pub unsafe trait TypeChecker:'static {
     /// This is equivalent to `check_layout_compatibility`,
     /// except that it can also be called re-entrantly
     /// (while `check_layout_compatibility` cannot be called re-entrantly)
-    #[sabi(last_prefix_field)]
+    ///
+    /// # Errors
+    ///
+    /// The errors detected in this method are always propagated,
+    /// to prevent the propagation of errors call the `is_compatible` method.
+    ///
     fn check_compatibility(
         &mut self,
         interface:&'static TypeLayout,
         implementation:&'static TypeLayout,
     )->RResult<(), ExtraChecksError>;
+
+    /// Checks that `ìnterface` is compatible with `implementation.` 
+    /// 
+    /// This is equivalent to the `check_compatibility` method,
+    /// except that it does not propagate errors automatically,
+    /// they must be returned as part of the error of the `ExtraChecks` that calls this.
+    #[sabi(last_prefix_field)]
+    fn local_check_compatibility(
+        &mut self,
+        interface:&'static TypeLayout,
+        implementation:&'static TypeLayout,
+    )->RResult<(), ExtraChecksError>;
+
+    
 }
 
 
@@ -913,6 +932,8 @@ where
 pub enum ExtraChecksError{
     /// When a type checking error happens within `TypeChecker`.
     TypeChecker,
+    /// Errors returned from `TypeChecker::local_check_compatibility`
+    TypeCheckerErrors(RBoxError),
     /// When trying to get a ExtraChecks trait object from `TypeLayout.extra_checks==None` .
     NoneExtraChecks,
     /// A custom error returned by the ExtraChecker or 
@@ -938,6 +959,8 @@ impl Display for ExtraChecksError{
         match self {
             ExtraChecksError::TypeChecker=>
                 Display::fmt("A type checker error happened.",f),
+            ExtraChecksError::TypeCheckerErrors(e)=>
+                writeln!(f,"Errors that happened during type checking:\n{}",e),
             ExtraChecksError::NoneExtraChecks=>
                 Display::fmt("No `ExtraChecks` in the implementation.",f),
             ExtraChecksError::ExtraChecks(e)=>

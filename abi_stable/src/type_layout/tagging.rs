@@ -381,6 +381,11 @@ impl Tag{
         Self::new(TagVariant::Primitive(Primitive::String_(StaticStr::new(s))))
     }
 
+    /// Constructs the String_ variant.
+    pub const fn staticstr(s:StaticStr)->Self{
+        Self::new(TagVariant::Primitive(Primitive::String_(s)))
+    }
+
     /// Constructs the Ignored variant.
     pub const fn ignored(ignored:&'static Tag)->Self{
         Self::new(TagVariant::Ignored(ignored))
@@ -662,6 +667,13 @@ impl FromLiteral<&'static str>{
     /// Converts the wrapped `&'static str` into a Tag.
     pub const fn to_tag(self)->Tag{
         Tag::str(self.0)
+    }
+}
+
+impl FromLiteral<StaticStr>{
+    /// Converts the wrapped `&'static str` into a Tag.
+    pub const fn to_tag(self)->Tag{
+        Tag::staticstr(self.0)
     }
 }
 

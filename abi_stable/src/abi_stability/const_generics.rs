@@ -1,7 +1,7 @@
 //! This module implements the trait object used to check const generics.
 
 use crate::{
-    abi_stability::{TypeCheckerMut,check_layout_compatibility},
+    abi_stability::{ExtraChecksError,TypeCheckerMut,check_layout_compatibility},
     erased_types::{
         c_functions::{adapt_std_fmt,debug_impl,partial_eq_impl},
         FormattingMode,
@@ -32,6 +32,9 @@ pub struct ConstGeneric{
     vtable:StaticRef<ConstGenericVTable>,
 }
 
+unsafe impl Send for ConstGeneric{}
+unsafe impl Sync for ConstGeneric{}
+
 impl ConstGeneric{
     pub const fn new<T>(this:&'static T, vtable_for:ConstGenericVTableFor<T>)->Self{
         Self{
@@ -40,13 +43,17 @@ impl ConstGeneric{
         }
     }
 
-    pub fn is_equal(&self,other:&Self,mut checker:TypeCheckerMut<'_>)->Result<bool,RBoxError> {
-        match checker.check_compatibility(self.vtable.layout(),other.vtable.layout()) {
+    pub fn is_equal(
+        &self,
+        other:&Self,
+        mut checker:TypeCheckerMut<'_>
+    )->Result<bool,ExtraChecksError> {
+        match dbg!(checker.check_compatibility(self.vtable.layout(),other.vtable.layout())) {
             ROk(_)=>unsafe{
                 Ok(self.vtable.partial_eq()( &*self.ptr, &*other.ptr ))
             },
             RErr(e)=>{
-                Err(RBoxError::new(e))
+                Err(e)
             }
         }
     }
@@ -119,7 +126,7 @@ pub trait GetConstGenericVTable:Sized {
 
 impl<This> GetConstGenericVTable for This
 where
-    This:StableAbi+Eq+PartialEq+Debug
+    This:StableAbi+Eq+PartialEq+Debug+Send+Sync
 {
     #[doc(hidden)]
     const _VTABLE_STATIC: StaticRef<WithMetadata<ConstGenericVTableVal>> = {

@@ -20,6 +20,9 @@ pub struct NulStr<'a>{
     _marker:PhantomData<&'a u8>,
 }
 
+unsafe impl Sync for NulStr<'_>{}
+unsafe impl Send for NulStr<'_>{}
+
 
 impl NulStr<'static>{
     /// An empty string.

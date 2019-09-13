@@ -66,7 +66,8 @@ impl<'a> GenericParams<'a>{
 
         let const_param_range={
             let const_params=generics.const_params()
-                .map(|cp| arenas.alloc(expr_from_ident(cp.ident.clone())) );
+                .map(|cp| arenas.alloc(expr_from_ident(cp.ident.clone())) )
+                .chain(config.phantom_const_params.iter().cloned());
             shared_vars.extend_with_constants(const_params)
         };
 

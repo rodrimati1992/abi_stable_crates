@@ -126,6 +126,7 @@ where
         let mut iter=self.generics.params.iter().peekable();
 
         let comma=Comma::default();
+        let brace=syn::token::Brace::default();
 
         while let Some(GenericParam::Lifetime(gen))=iter.peek() {
             iter.next();
@@ -183,7 +184,17 @@ where
                 if self.in_what != InWhat::ItemUse {
                     gen.const_token.to_tokens(ts);
                 }
-                gen.ident.to_tokens(ts);
+                if self.in_what == InWhat::ItemUse{
+                    // Have to surround the const parameter when it's used,
+                    // because otherwise it's interpreted as a type parameter.
+                    // Remove this branch once outputting the identifier 
+                    // for the const parameter just works.
+                    brace.surround(ts,|ts|{
+                        gen.ident.to_tokens(ts);
+                    });
+                }else{
+                    gen.ident.to_tokens(ts);
+                }
                 if self.in_what!= InWhat::ItemUse {
                     Colon::default().to_tokens(ts);
                     gen.ty.to_tokens(ts);

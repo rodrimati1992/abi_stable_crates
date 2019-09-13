@@ -447,3 +447,57 @@ fn test_identity_extra_checker() {
     });
 }
 
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(extra_checks="Self::construct_extra_checks")]
+struct WithCyclicExtraChecker;
+
+impl WithCyclicExtraChecker {
+    const NEW:&'static IdentityChecker=
+        &IdentityChecker{ type_layout:Self::LAYOUT };
+    
+    extern fn construct_extra_checks()->ExtraChecksStaticRef{
+        ExtraChecksStaticRef::from_ptr(
+            Self::NEW,
+            TU_Opaque
+        )
+    }
+}
+
+
+/// This is used to check that ExtraChecks that contain the type that they are checking 
+/// alway return an error.
+#[test]
+fn test_cyclic_extra_checker() {
+
+    use crate::{
+        external_types::ROnce,
+    };
+
+    let layout = <WithCyclicExtraChecker as StableAbi>::LAYOUT;
+
+    let globals=CheckingGlobals::new();
+
+    let res=check_layout_compatibility_with_globals(layout, layout, &globals);
+
+    assert_ne!(res,Ok(()),"layout:{:#?}",layout);
+
+    let found_extra_checks_error=res
+        .unwrap_err()
+        .flatten_errors()
+        .into_iter()
+        .any(|err| matches!(AbiInstability::CyclicTypeChecking{..}=err) );
+
+    assert!(found_extra_checks_error);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+

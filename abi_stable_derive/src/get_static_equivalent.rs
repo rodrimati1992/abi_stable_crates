@@ -12,6 +12,7 @@ use syn::{
 };
 
 use crate::{
+    gen_params_in::{GenParamsIn,InWhat},
     impl_interfacetype::impl_interfacetype_tokenizer,
     parse_utils::parse_str_as_ident,
     to_token_fn::ToTokenFnMut,
@@ -74,7 +75,9 @@ fn get_static_equiv_tokenizer<'a>(
         let const_params_s=&const_params;
 
 
-        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+        let ty_generics=GenParamsIn::new(generics,InWhat::ItemUse);
 
         let static_struct_name=Ident::new(&format!("_static_{}",name),Span::call_site());
 
@@ -108,7 +111,7 @@ fn get_static_equiv_tokenizer<'a>(
                     extern fn(#(&#type_params_a,)*)
                 );
 
-                unsafe impl #impl_generics  __GetStaticEquivalent_ for #name #ty_generics
+                unsafe impl #impl_generics  __GetStaticEquivalent_ for #name <#ty_generics>
                 where 
                     #(#where_preds,)*
                     #(#type_params_a:__GetStaticEquivalent_,)*
@@ -117,7 +120,7 @@ fn get_static_equiv_tokenizer<'a>(
                     type StaticEquivalent=#static_struct_name < 
                         #(#lifetimes_s,)*
                         #type_params_s
-                        #(#const_params_s),* 
+                        #({#const_params_s}),* 
                     >;
                 }
             };

@@ -57,6 +57,7 @@ fn assert_all_traits_impld(){
 
 #[repr(C)]
 #[derive(StableAbi)]
+// #[sabi(debug_print)]
 #[sabi(impl_InterfaceType())]
 pub struct NoTraitsImpld<T>(PhantomData<T>);
 
