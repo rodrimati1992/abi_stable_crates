@@ -112,7 +112,18 @@ pub const fn max_usize(l:usize,r:usize)->usize{
     [l,r][ (l < r)as usize ]
 }
 
+pub const fn min_max_usize(l:usize,r:usize)->(usize,usize){
+    [(r,l),(l,r)][(l < r)as usize]
+}
 
+
+
+//////////////////////////////////////
+
+pub const fn abs_sub_usize(l:usize,r:usize)->usize{
+    let (min,max)=min_max_usize(l,r);
+    max-min
+}
 
 //////////////////////////////////////
 
@@ -174,12 +185,29 @@ macro_rules! type_identity {
 mod tests{
     use super::*;
 
+    const USIZE_BITS:u8=(std::mem::size_of::<usize>()*8)as u8;
+
+    #[test]
+    fn abs_sub_test(){
+        for p in 0..USIZE_BITS {
+            let n=1usize<<p;
+            assert_eq!(abs_sub_usize(0,n),n);
+            assert_eq!(abs_sub_usize(n,0),n);
+        }
+        assert_eq!(abs_sub_usize(4,5),1);
+        assert_eq!(abs_sub_usize(5,5),0);
+        assert_eq!(abs_sub_usize(5,4),1);
+        assert_eq!(abs_sub_usize(5,0),5);
+        assert_eq!(abs_sub_usize(0,5),5);
+    }
+
+
     #[test]
     fn log2_usize_test(){
         assert_eq!(log2_usize(0),0);
         assert_eq!(log2_usize(1),0);
-        for power in 1..=62 {
-            let n=1<<power;
+        for power in 1..USIZE_BITS {
+            let n=1usize<<power;
             assert_eq!(log2_usize(n-1),power-1,"power:{} n:{}",power,n);
             assert_eq!(log2_usize(n)  ,power  ,"power:{} n:{}",power,n);
             assert_eq!(log2_usize(n+1),power  ,"power:{} n:{}",power,n);

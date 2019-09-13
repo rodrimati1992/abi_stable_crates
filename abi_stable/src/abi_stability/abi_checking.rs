@@ -23,7 +23,7 @@ use crate::{
     prefix_type::{FieldAccessibility,FieldConditionality},
     sabi_types::CmpIgnored,
     std_types::{
-        RArc,RVec,StaticStr,UTypeId,RBoxError,RResult,
+        RArc,RBox,RVec,StaticStr,UTypeId,RBoxError,RResult,
         RSome,RNone,ROk,RErr,
     },
     traits::IntoReprC,
@@ -385,6 +385,7 @@ impl AbiChecker {
         self.error_index += 1;
         let errs_index = self.error_index;
         let mut errs_ = RVec::<AbiInstability>::new();
+        let mut top_level_errs_ = RVec::<AbiInstabilityError>::new();
         let t_lay = &this;
         let o_lay = &other;
 
@@ -424,6 +425,7 @@ impl AbiChecker {
 
         (|| {
             let errs = &mut errs_;
+            let top_level_errs= &mut top_level_errs_;
             if t_lay.name() != o_lay.name() {
                 push_err(errs, t_lay, o_lay, |x| x.full_type(), AI::Name);
                 return;
@@ -538,6 +540,7 @@ impl AbiChecker {
                         t_extra_checks.clone(),
                         o_extra_checks.clone(),
                         errs,
+                        top_level_errs,
                         move||{
                             let ty_checker_=ty_checker.sabi_reborrow_mut();
                             rtry!( t_extra_checks.check_compatibility(t_lay,o_lay,ty_checker_) );
@@ -640,6 +643,8 @@ impl AbiChecker {
                 ( TLData::PrefixType {..}, _ ) => {}
             }
         })();
+
+        self.errors.extend(top_level_errs_);
 
         let check_st=self.visited.get_mut(&cuti_pair).unwrap();
         if errs_.is_empty() && 
@@ -989,10 +994,14 @@ impl AbiChecker {
     fn final_extra_checks(
         &mut self,
         globals:&CheckingGlobals
-    )->Result<(),AbiInstabilityError>{
+    )->Result<(),RVec<AbiInstabilityError>>{
         self.error_index += 1;
+
+        let mut top_level_errs_ = RVec::<AbiInstabilityError>::new();
+
         let mut errs_ = RVec::<AbiInstability>::new();
         let errs =&mut errs_;
+        let top_level_errs =&mut top_level_errs_;
 
         let mut extra_checker_map=globals.extra_checker_map.lock().unwrap();
 
@@ -1024,6 +1033,7 @@ impl AbiChecker {
 
                     combine_extra_checks(
                         errs,
+                        top_level_errs,
                         type_checker,
                         other_checks,
                         &[extra_checks.sabi_reborrow()]
@@ -1043,6 +1053,7 @@ impl AbiChecker {
 
                     combine_extra_checks(
                         errs,
+                        top_level_errs,
                         type_checker,
                         l_extra_checks,
                         &[ r_extra_checks.sabi_reborrow(), extra_checks.sabi_reborrow() ]
@@ -1059,12 +1070,13 @@ impl AbiChecker {
         if errs_.is_empty() {
             Ok(())
         }else{
-            Err(AbiInstabilityError {
+            top_level_errs.push(AbiInstabilityError {
                 stack_trace: self.stack_trace.clone(),
                 errs: errs_,
                 index: self.error_index,
                 _priv:(),
-            })
+            });
+            Err(top_level_errs_)
         }
     }
 }
@@ -1127,7 +1139,7 @@ pub(super) fn check_layout_compatibility_with_globals(
                 checker.errors.push(e);
             }
             if let Err(e)=checker.final_extra_checks(globals) {
-                checker.errors.push(e);
+                checker.errors.extend(e);
             }
         }
         errors = checker.errors;
@@ -1247,6 +1259,14 @@ impl TypeChecker for AbiChecker{
         implementation:&'static TypeLayout,
     )->RResult<(), ExtraChecksError> {
         let error_count_before=self.errors.len();
+
+        dbg!(error_count_before);
+        println!(
+            "interface:{} implementation:{}", 
+            interface.full_type(),
+            implementation.full_type()
+        );
+        dbg!();
         
         self.check_compatibility_inner(interface,implementation)
             .map_err(|_|{
@@ -1342,11 +1362,27 @@ fn handle_extra_checks_ret<F,R>(
     expected_extra_checks:ExtraChecksRef<'_>,
     found_extra_checks:ExtraChecksRef<'_>,
     errs: &mut RVec<AbiInstability>,
+    top_level_errs: &mut RVec<AbiInstabilityError>,
     f:F
 )->Result<R,()>
 where
     F:FnOnce()->RResult<R, ExtraChecksError>
 {
+    let make_extra_check_error=move|e:RBoxError|->AbiInstability{
+        ExtraCheckError{
+            err: RArc::new(e),
+            expected_err: ExpectedFound{
+                expected:expected_extra_checks
+                    .piped(RBoxError::from_fmt)
+                    .piped(RArc::new),
+
+                found:found_extra_checks
+                    .piped(RBoxError::from_fmt)
+                    .piped(RArc::new),
+            }
+        }.piped(CmpIgnored::new)
+         .piped(AI::ExtraCheckError)
+    };
     match f() {
         ROk(x)=>{
             Ok(x)
@@ -1354,30 +1390,19 @@ where
         RErr(ExtraChecksError::TypeChecker)=>{
             Err(())
         }
-        // ExtraChecks should not return TypeCheckerErrors directly,
-        RErr(ExtraChecksError::TypeCheckerErrors{..})=>{
+        RErr(ExtraChecksError::TypeCheckerErrors(e))=>{
+            match e.downcast::<AbiInstabilityErrors>() {
+                Ok(e)=>top_level_errs.extend(RBox::into_inner(e).errors),
+                Err(e)=>errs.push(make_extra_check_error(e)),
+            }
             Err(())
         }
         RErr(ExtraChecksError::NoneExtraChecks)=>{
             errs.push(AI::NoneExtraChecks);
             Err(())
         }
-        RErr(ExtraChecksError::ExtraChecks(et_err))=>{
-            let e=ExtraCheckError{
-                    err: RArc::new(et_err),
-                    expected_err: ExpectedFound{
-                        expected:expected_extra_checks
-                            .piped(RBoxError::from_fmt)
-                            .piped(RArc::new),
-
-                        found:found_extra_checks
-                            .piped(RBoxError::from_fmt)
-                            .piped(RArc::new),
-                    }
-                }.piped(CmpIgnored::new)
-                 .piped(AI::ExtraCheckError);
-
-            errs.push(e);
+        RErr(ExtraChecksError::ExtraChecks(e))=>{
+            errs.push(make_extra_check_error(e));
             Err(())
         }
     }
@@ -1385,6 +1410,7 @@ where
 
 fn combine_extra_checks(
     errs: &mut RVec<AbiInstability>,
+    top_level_errs: &mut RVec<AbiInstabilityError>,
     mut ty_checker:TypeCheckerMut<'_>,
     extra_checks:&mut ExtraChecksBox,
     slic:&[ExtraChecksRef<'_>]
@@ -1396,6 +1422,7 @@ fn combine_extra_checks(
             extra_checks.sabi_reborrow(),
             other.sabi_reborrow(),
             errs,
+            top_level_errs,
             || extra_checks.sabi_reborrow().combine( other_ref , ty_checker ) 
         );
 
