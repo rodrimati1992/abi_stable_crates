@@ -26,7 +26,7 @@ use quote::ToTokens;
 
 use crate::{
     common_tokens::FnPointerTokens,
-    lifetimes::LifetimeIndex,
+    lifetimes::{LifetimeIndex,LifetimeSet,LifetimeCounters},
     ignored_wrapper::Ignored,
     utils::{LinearResult,SynResultExt},
 };
@@ -44,7 +44,7 @@ pub(crate) struct FnInfo<'a> {
 
     /// The index of first lifetime declared by all functions.
     /// (with higher lifetime indices from the struct/enum definition it is used inside of).
-    initial_bound_lifetime: usize,
+    initial_bound_lifetime: u8,
 
     pub functions: Vec<Function<'a>>,
 }
@@ -52,13 +52,19 @@ pub(crate) struct FnInfo<'a> {
 /// A function pointer in a type declaration.
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct Function<'a> {
+    /// The index of the first lifetime the function declares,if there are any.
+    pub(crate) first_bound_lt:u8,
+    
+    /// The index of the first unnamed lifetime of the function,if there are any.
+    pub(crate) first_unnamed_bound_lt:u8,
+    
     /// The named lifetimes for this function pointer type,
     /// the ones declared within `for<'a,'b,'c>`.
     pub(crate) named_bound_lts: Vec<&'a Ident>,
     /// A set version of the `named_bound_lts` field.
     pub(crate) named_bound_lt_set: Ignored<HashSet<&'a Ident>>,
-    /// The amount of named lifetimes declared by the function pointer.
-    pub(crate) named_bound_lts_count:usize,
+    /// The amount of lifetimes declared by the function pointer.
+    pub(crate) bound_lts_count:u8,
 
     pub(crate) is_unsafe: bool,
 
@@ -68,6 +74,7 @@ pub(crate) struct Function<'a> {
     ///
     /// None if its return type is `()`.
     pub(crate) returns: Option<FnParamRet<'a>>,
+    
 }
 
 #[derive(Clone, Debug, PartialEq, Hash)]
@@ -127,7 +134,7 @@ impl<'a> TypeVisitor<'a> {
                 fn_info: FnInfo {
                     parent_generics: &generics,
                     env_lifetimes: generics.lifetimes().map(|lt| &lt.lifetime.ident).collect(),
-                    initial_bound_lifetime: generics.lifetimes().count(),
+                    initial_bound_lifetime: generics.lifetimes().count() as u8,
                     functions: Vec::new(),
                 },
                 errors:LinearResult::ok(()),
@@ -152,7 +159,6 @@ impl<'a> TypeVisitor<'a> {
     /// returning the function pointer types and referenced lifetimes.
     pub fn visit_field(&mut self,ty: &mut Type) -> VisitFieldRet<'a> {
         self.visit_type_mut(ty);
-
         VisitFieldRet {
             referenced_lifetimes: mem::replace(&mut self.vars.referenced_lifetimes, Vec::new()),
             functions:mem::replace(&mut self.vars.fn_info.functions, Vec::new()),
@@ -209,6 +215,8 @@ struct Vars<'a> {
 struct FnVisitor<'a, 'b> {
     refs: ImmutableRefs<'a>,
     vars: &'b mut Vars<'a>,
+
+    lifetime_counts: LifetimeCounters,
 
     /// The current function pointer type that is being visited,
     current: Function<'a>,
@@ -293,12 +301,15 @@ impl<'a> VisitMut for TypeVisitor<'a> {
 
         let named_bound_lt_set=named_bound_lts.iter().cloned().collect();
 
-
+        let first_bound_lt=self.vars.fn_info.initial_bound_lifetime;
         let mut current_function = FnVisitor {
             refs: self.refs,
             vars: &mut self.vars,
+            lifetime_counts:LifetimeCounters::new(),
             current: Function {
-                named_bound_lts_count:named_bound_lts.len(),
+                first_bound_lt,
+                first_unnamed_bound_lt: first_bound_lt+named_bound_lts.len() as u8,
+                bound_lts_count:named_bound_lts.len() as u8,
                 named_bound_lts,
                 named_bound_lt_set:Ignored::new(named_bound_lt_set),
                 is_unsafe,
@@ -355,7 +366,8 @@ impl<'a> VisitMut for TypeVisitor<'a> {
         }
         .map(|ty| visit_param_ret(&mut current_function,None, ty, ParamOrReturn::Return));
 
-        let current=current_function.current;
+        let mut current=current_function.current;
+        current.anonimize_lifetimes(&current_function.lifetime_counts);
         self.vars.fn_info.functions.push(current);
     }
 
@@ -374,7 +386,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
                 Some(index) => LifetimeIndex::Param(index as _),
                 None => {
                     self.vars.errors.push_err(spanned_err!(lt,"unknown lifetime"));
-                    LifetimeIndex::STATIC
+                    LifetimeIndex::NONE
                 }
             }
         }
@@ -405,7 +417,7 @@ This function does these things:
                     self.new_bound_lifetime()
                 },
                 ParamOrReturn::Return => 
-                    match self.current.named_bound_lts_count {
+                    match self.current.bound_lts_count {
                         0 =>{
                             self.vars.errors.push_err(syn_err!(
                                 self.param_ret.span,
@@ -413,7 +425,7 @@ This function does these things:
                                  return type when there are no lifetimes \
                                  used in any parameter",
                             ));
-                            LifetimeIndex::STATIC
+                            LifetimeIndex::NONE
                         } 
                         1=> {
                             LifetimeIndex::Param(
@@ -427,7 +439,7 @@ This function does these things:
                                  return type when there are multiple lifetimes used \
                                  in parameters.",
                             ));
-                            LifetimeIndex::STATIC
+                            LifetimeIndex::NONE
                         }
                     },
             }
@@ -443,21 +455,21 @@ This function does these things:
                 }
                 None => {
                     self.vars.errors.push_err(spanned_err!(lt,"unknown lifetime"));
-                    LifetimeIndex::STATIC
+                    LifetimeIndex::NONE
                 },
             }
         }
         .piped(|li| {
             self.param_ret.lifetime_refs.push(li);
-            self.vars.add_referenced_env_lifetime(li);
+            self.lifetime_counts.increment(li);
         });
         ret
     }
     
     /// Adds a bound lifetime to the `extern fn()` and returns an index to it
     fn new_bound_lifetime(&mut self) -> LifetimeIndex {
-        let index = self.vars.fn_info.initial_bound_lifetime+self.current.named_bound_lts_count;
-        self.current.named_bound_lts_count+=1;
+        let index = self.vars.fn_info.initial_bound_lifetime+self.current.bound_lts_count;
+        self.current.bound_lts_count+=1;
         LifetimeIndex::Param( index as _ )
     }
 }
@@ -518,3 +530,50 @@ fn extract_fn_arg_name<'a>(
         None=>None,
     }
 }
+
+/////////////
+
+impl<'a> Function<'a>{
+    /// Turns lifetimes in the function parameters that aren't
+    /// used in the return type or used only once into LifeimeIndex::ANONYMOUS,
+    fn anonimize_lifetimes(&mut self,lifetime_counts:&LifetimeCounters){
+        let mut return_lts=LifetimeSet::new();
+
+        let first_bound_lt=self.first_bound_lt;
+
+        let mut current_lt=first_bound_lt;
+
+        let asigned_lts=(0u8..=self.bound_lts_count)
+            .map(|i|{
+                let lt_i:u8=first_bound_lt+i;
+
+                if lifetime_counts.get(LifetimeIndex::Param(lt_i))<=1 {
+                    LifetimeIndex::ANONYMOUS
+                }else{
+                    let ret=LifetimeIndex::Param(current_lt);
+                    current_lt+=1;
+                    ret
+                }
+            })
+            .collect::<Vec<LifetimeIndex>>();
+
+        for params in &mut self.params{
+            for p_lt in &mut params.lifetime_refs {
+                let param=match p_lt.to_param() {
+                    Some(param)=>(param as usize).wrapping_sub(first_bound_lt as usize),
+                    None=>continue,
+                };
+                
+                if let Some(assigned)=asigned_lts.get(param) {
+                    *p_lt=*assigned;
+                }
+            }
+        }
+    }
+}
+
+
+
+
+
+

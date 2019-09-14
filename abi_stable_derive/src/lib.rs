@@ -201,6 +201,9 @@ mod to_token_fn;
 mod workaround;
 
 #[cfg(test)]
+mod fn_pointer_tests;
+
+#[cfg(test)]
 mod test_framework;
 
 #[doc(hidden)]

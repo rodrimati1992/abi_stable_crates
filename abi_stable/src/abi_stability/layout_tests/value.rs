@@ -375,6 +375,9 @@ fn same_different_abi_stability() {
         <union_4::Union>::LAYOUT,
         <enum_extra_fields_a::Enum>::LAYOUT,
         <enum_extra_fields_b::Enum>::LAYOUT,
+        <gen_more_lts_b::Generics<'_>>::LAYOUT,
+        <gen_more_lts_c::Generics<'_>>::LAYOUT,
+        <gen_more_lts_d::Generics<'_>>::LAYOUT,
     ];
 
     let (_dur, ()) = core_extensions::measure_time::measure(|| {
@@ -591,6 +594,36 @@ mod gen_more_lts {
         x: &'a T,
         y: &'a T,
         _marker: PhantomData<(&'a T)>,
+    }
+}
+
+mod gen_more_lts_b {
+    use super::PhantomData;
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub struct Generics<'a> {
+        x: &'a (),
+        y: &'static (),
+    }
+}
+
+mod gen_more_lts_c {
+    use super::PhantomData;
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub struct Generics<'a> {
+        x: &'static (),
+        y: &'a &'static &'static &'static &'static &'static &'static (),
+    }
+}
+
+mod gen_more_lts_d {
+    use super::PhantomData;
+    #[repr(C)]
+    #[derive(StableAbi)]
+    pub struct Generics<'a> {
+        x: &'static (),
+        y: &'a &'a &'a &'a &'static &'static &'static (),
     }
 }
 

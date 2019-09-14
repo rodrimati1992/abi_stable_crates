@@ -334,7 +334,9 @@ mod tests{
             rslice![],
         ));
 
-        let lifetime_range=LifetimeRange::with_1(LifetimeIndex::STATIC);
+        let mut arr=[LifetimeIndex::NONE;5];
+        arr[0]=LifetimeIndex::STATIC;
+        let lifetime_range=LifetimeRange::from_array(arr);
 
         let field=CompTLField::new(
             StartLen::new(9,3),

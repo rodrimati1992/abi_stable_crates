@@ -30,18 +30,16 @@ impl Display for LifetimeIndex{
 impl LifetimeRange {
     pub fn slicing(self,lifetime_indices:&[LifetimeIndexPair])->LifetimeArrayOrSlice<'_>{
         let len=self.len();
-        if len <= 3 {
-            LifetimeArrayOrSlice::Array(ArrayLen{
-                len:(len+1) as u16/2,
-                array: LifetimeIndexArray { bits: self.array_bits() }.to_array(),
-            })
-        }else{
-            // Both the start and length are divided by 2 because lifetimes 
-            // are stored in pairs.
-            let start=((self.bits&Self::START_MASK) as usize)/2;
-            let end  =start+len/2;
+        if self.is_range() {
+            let start=(self.bits&Self::START_MASK) as usize;
+            let end  =start+len;
             let x=RSlice::from_slice(&lifetime_indices[start..end]);
             LifetimeArrayOrSlice::Slice(x)
+        }else{
+            LifetimeArrayOrSlice::Array(ArrayLen{
+                len:(len+1) as u16/2,
+                array: LifetimeIndexArray::from_u20(self.bits).to_array(),
+            })
         }
     }
 }
@@ -52,14 +50,14 @@ impl LifetimeRange {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum LifetimeArrayOrSlice<'a>{
     Slice(RSlice<'a,LifetimeIndexPair>),
-    Array(ArrayLen<[LifetimeIndexPair;2]>),
+    Array(ArrayLen<[LifetimeIndexPair;3]>),
 }
 
 
 impl<'a> LifetimeArrayOrSlice<'a>{
     pub const EMPTY:Self=LifetimeArrayOrSlice::Array(ArrayLen{
         len:0,
-        array:[LifetimeIndexPair::NONE,LifetimeIndexPair::NONE]
+        array:[LifetimeIndexPair::NONE,LifetimeIndexPair::NONE,LifetimeIndexPair::NONE]
     });
 
     pub fn as_slice(&self)->&[LifetimeIndexPair]{
@@ -85,7 +83,7 @@ impl<'a> Deref for LifetimeArrayOrSlice<'a>{
 }
 
 
-impl<'a,I,Output> Index<I> for LifetimeArrayOrSlice<'a>
+impl<'a,I,Output:?Sized> Index<I> for LifetimeArrayOrSlice<'a>
 where
     [LifetimeIndexPair]:Index<I,Output=Output>,
 {
@@ -96,3 +94,9 @@ where
         &self.as_slice()[i]
     }
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+
