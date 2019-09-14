@@ -29,3 +29,6 @@ mod stable_abi_attributes;
 
 #[cfg(test)]
 mod const_params;
+
+#[cfg(test)]
+mod lifetime_indices_tests;

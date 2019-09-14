@@ -217,7 +217,7 @@ impl TypeLayout {
         }
     }
 
-    pub(crate) const fn shared_vars(&self)->&'static SharedVars{
+    pub const fn shared_vars(&self)->&'static SharedVars{
         self.shared_vars
     }
 

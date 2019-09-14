@@ -1,7 +1,7 @@
 use crate::{
     arenas::Arenas,
     composite_collections::{SmallStartLen as StartLen},
-    lifetimes::{LifetimeIndex,LifetimeIndexArray,LifetimeIndexPair,LifetimeRange},
+    lifetimes::{LifetimeIndex,LifetimeIndexPair,LifetimeRange},
     literals_constructors::{rslice_tokenizer,rstr_tokenizer},
     ToTokenFnMut,
 };
@@ -83,18 +83,20 @@ impl<'a> SharedVars<'a>{
         self.lifetime_indices.extend(iter);
         let len=self.lifetime_indices.len()-start;
 
-        if len <= 3 {
-            let mut drainer=self.lifetime_indices.drain(start..);
-            let li0=drainer.next().unwrap_or(LifetimeIndex::NONE);
-            let li1=drainer.next().unwrap_or(LifetimeIndex::NONE);
-            let li2=drainer.next().unwrap_or(LifetimeIndex::NONE);
-            let array=LifetimeIndexArray::with_3(li0,li1,li2);
-            LifetimeRange::with_array_length(array,len)
+        if len <= 5 {
+            let mut drainer=self.lifetime_indices.drain(start..).fuse();
+            LifetimeRange::from_array([
+                drainer.next().unwrap_or(LifetimeIndex::NONE),
+                drainer.next().unwrap_or(LifetimeIndex::NONE),
+                drainer.next().unwrap_or(LifetimeIndex::NONE),
+                drainer.next().unwrap_or(LifetimeIndex::NONE),
+                drainer.next().unwrap_or(LifetimeIndex::NONE),
+            ])
         }else{
             if (len&1)==1 {
                 self.lifetime_indices.push(LifetimeIndex::NONE);
             }
-            LifetimeRange::with_more_than_3( start..self.lifetime_indices.len() )
+            LifetimeRange::from_range( start/2..self.lifetime_indices.len()/2 )
         }
     }
 

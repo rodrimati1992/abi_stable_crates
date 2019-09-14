@@ -275,7 +275,7 @@ impl Iterator for TLFunctionIter{
 
     fn next(&mut self)->Option<TLFunction>{
         let functions=self.functions?;
-        if self.start==self.end {
+        if self.start>=self.end {
             return None;
         }
         let ret=functions.index(self.start,self.shared_vars);
