@@ -14,7 +14,7 @@ use core_extensions::{matches,StringExt};
 
 use crate::{
     abi_stability::{
-        stable_abi_trait::{GetTypeLayout,AbiConsts},
+        stable_abi_trait::{TypeLayoutCtor,AbiConsts},
         ExtraChecksStaticRef,
     },
     const_utils::log2_usize, 

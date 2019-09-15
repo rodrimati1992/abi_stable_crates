@@ -27,7 +27,7 @@ pub struct SharedVars{
     /// - For parameters and return types in function pointers in fields.
     ///
     lifetime_indices: *const LifetimeIndexPair,
-    type_layouts: *const GetTypeLayout,
+    type_layouts: *const TypeLayoutCtor,
     constants: *const ConstGeneric,
 
     strings_len: u16,
@@ -43,7 +43,7 @@ impl SharedVars{
     pub const fn new(
         strings: RStr<'static>,
         lifetime_indices: RSlice<'static,LifetimeIndexPairRepr>,
-        type_layouts: RSlice<'static,GetTypeLayout>,
+        type_layouts: RSlice<'static,TypeLayoutCtor>,
         constants: RSlice<'static,ConstGeneric>,
     )->Self{
         Self{
@@ -75,7 +75,7 @@ impl SharedVars{
             slice::from_raw_parts( self.lifetime_indices, self.lifetime_indices_len as usize )
         }
     }
-    pub fn type_layouts(&self)->&'static [GetTypeLayout]{
+    pub fn type_layouts(&self)->&'static [TypeLayoutCtor]{
         unsafe{
             slice::from_raw_parts( self.type_layouts, self.type_layouts_len as usize )
         }
