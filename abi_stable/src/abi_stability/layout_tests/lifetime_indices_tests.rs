@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use core_extensions::SelfOps;
+use core_extensions::{SelfOps,matches};
 
 #[allow(unused_imports)]
 use crate::std_types::{Tuple1,Tuple2,Tuple3,Tuple4};
@@ -7,6 +7,7 @@ use crate::std_types::{Tuple1,Tuple2,Tuple3,Tuple4};
 use crate::{
     std_types::{RStr,RSlice},
     type_layout::{
+        LifetimeArrayOrSlice,
         LifetimeIndex,
         LifetimeIndexPair,
         LifetimeIndexPair as LAP,
@@ -31,6 +32,7 @@ pub struct LRTestParam{
     pub layout:&'static TypeLayout,
     pub shared_vars_lifetimes:Vec<LifetimeIndexPair>,
     pub paramret_lifetimes:Vec<LifetimeRange>,
+    pub field_lt_indices:Vec<Vec<LifetimeIndexPair>>,
 }
 
 
@@ -214,6 +216,7 @@ fn test_single_function_lifetime_ranges(){
                 LAP::new(LR0,LRN),
             ],
             paramret_lifetimes:vec![LifetimeRange::from_range(0..8)],
+            field_lt_indices:vec![vec![]],
         },
         LRTestParam{
             layout:<loads_of_lifetimes_single_param::Struct as StableAbi>::LAYOUT,
@@ -224,26 +227,31 @@ fn test_single_function_lifetime_ranges(){
                 LAP::new(LR0,LRN),
             ],
             paramret_lifetimes:vec![LifetimeRange::from_range(0..4)],
+            field_lt_indices:vec![vec![]],
         },
         LRTestParam{
             layout:<four_lifetimes_single_param::Struct as StableAbi>::LAYOUT,
             shared_vars_lifetimes:vec![],
             paramret_lifetimes:vec![LifetimeRange::from_array([LR0,LRA,LRA,LR0,LRN])],
+            field_lt_indices:vec![vec![]],
         },
         LRTestParam{
             layout:<three_lifetimes_single_param::Struct as StableAbi>::LAYOUT,
             shared_vars_lifetimes:vec![],
             paramret_lifetimes:vec![LifetimeRange::from_array([LR0,LRA,LR0,LRN,LRN])],
+            field_lt_indices:vec![vec![]],
         },
         LRTestParam{
             layout:<lifetimes_rep_a_single_param::Struct as StableAbi>::LAYOUT,
             shared_vars_lifetimes:vec![],
             paramret_lifetimes:vec![LifetimeRange::from_array([LR0,LR0,LR1,LRA,LR1])],
+            field_lt_indices:vec![vec![]],
         },
         LRTestParam{
             layout:<lifetimes_rep_b_single_param::Struct as StableAbi>::LAYOUT,
             shared_vars_lifetimes:vec![],
             paramret_lifetimes:vec![LifetimeRange::from_array([LR0,LR0,LRN,LRN,LRN])],
+            field_lt_indices:vec![vec![]],
         },
         LRTestParam{
             layout:<lifetimes_four_params::Struct as StableAbi>::LAYOUT,
@@ -256,6 +264,12 @@ fn test_single_function_lifetime_ranges(){
                 LAP::new(LR2,LRS),                
             ],
             paramret_lifetimes:vec![LifetimeRange::from_range(3..6)],
+            field_lt_indices:vec![
+                vec![LAP::new(LRS,LRN)],
+                vec![LAP::new(LR0,LRN)],
+                vec![LAP::new(LR0,LR1),LAP::new(LR1,LR1),LAP::new(LRS,LRS)],
+                vec![],
+            ],
         },
         LRTestParam{
             layout:<many_bound_lifetimes::Struct as StableAbi>::LAYOUT,
@@ -274,6 +288,15 @@ fn test_single_function_lifetime_ranges(){
                 LAP::new(LRS,LR1),
             ],
             paramret_lifetimes:vec![LifetimeRange::from_range(0..8)],
+            field_lt_indices:vec![
+                vec![],
+                vec![
+                    LAP::new(LR0,LR1),
+                    LAP::new(LRS,LR1),
+                    LAP::new(LR0,LRS),
+                    LAP::new(LRS,LR1),
+                ],
+            ],
         },
         LRTestParam{
             layout:<many_bound_lifetimes_b::Struct as StableAbi>::LAYOUT,
@@ -294,6 +317,15 @@ fn test_single_function_lifetime_ranges(){
                 LAP::new(LRS,LR1),
             ],
             paramret_lifetimes:vec![LifetimeRange::from_range(0..10)],
+            field_lt_indices:vec![
+                vec![],
+                vec![
+                    LAP::new(LR0,LR1),
+                    LAP::new(LRS,LR1),
+                    LAP::new(LR0,LRS),
+                    LAP::new(LRS,LR1),
+                ],
+            ],
         },
         LRTestParam{
             layout:<nested_fn_pointer::Struct as StableAbi>::LAYOUT,
@@ -333,6 +365,25 @@ fn test_single_function_lifetime_ranges(){
                 LifetimeRange::from_range(8..12),
                 LifetimeRange::from_range(15..23),
             ],
+            field_lt_indices:vec![
+                vec![
+                    LAP::new(LR0,LRS),
+                    LAP::new(LR0,LR0),
+                    LAP::new(LR1,LRS),
+                    LAP::new(LRS,LRN),
+                ],
+                vec![
+                    LAP::new(LR0,LR1),
+                    LAP::new(LRS,LRS),
+                    LAP::new(LR0,LR1),
+                ],
+                vec![
+                    LAP::new(LR0,LR1),
+                    LAP::new(LRS,LRS),
+                    LAP::new(LR0,LRN),
+                ],
+                vec![],
+            ],
         },
     ];
 
@@ -344,7 +395,8 @@ fn test_single_function_lifetime_ranges(){
             test.layout.mod_path(),
         );
 
-        let functions=test.layout.get_fields().unwrap().iter().flat_map(|f| f.function_range() );
+        let fields=test.layout.get_fields().unwrap();
+        let functions=fields.iter().flat_map(|f| f.function_range() );
 
         for (func,paramret_lifetimes) in functions.zip(test.paramret_lifetimes){
             assert_eq!(
@@ -352,6 +404,25 @@ fn test_single_function_lifetime_ranges(){
                 &paramret_lifetimes.slicing(&test.shared_vars_lifetimes[..])[..],
                 "module_path:{}",
                 test.layout.mod_path(),
+            );
+        }
+
+        let iter=fields.iter().zip(test.field_lt_indices).enumerate();
+        for (field_i,(field,expected_lt_indices)) in iter {
+            let lifetime_indices=field.lifetime_indices();
+            assert_eq!(
+                &lifetime_indices[..],
+                &expected_lt_indices[..],
+                "\nfield_i:{}\nfield_name:{}\nmod_path:{}\n",
+                field_i,
+                field.name(),
+                test.layout.line(),
+            );
+
+            assert_eq!(
+                lifetime_indices.len()<=2 || 
+                lifetime_indices.len()==3 && lifetime_indices[2].second()==LRN ,
+                matches!(LifetimeArrayOrSlice::Array{..}=lifetime_indices),
             );
         }
     }
