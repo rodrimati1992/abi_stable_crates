@@ -43,7 +43,7 @@ struct TypeTest{
     layout:&'static TypeLayout,
     vars_types:Vec<TypeLayoutCtor>,
     field_types:Vec<usize>,
-    functions:Vec<FnTest>,
+    functions:Vec<Vec<FnTest>>,
 }
 
 fn get_tlc<T>()->TypeLayoutCtor
@@ -60,81 +60,81 @@ fn assert_types(){
             layout:get_type_layout::<Tuple1<i32>>(),
             vars_types:vec![get_tlc::<i32>()],
             field_types:vec![0],
-            functions:vec![],
+            functions:vec![vec![]],
         },
 
         TypeTest{
             layout:get_type_layout::<Tuple2<i32,i32>>(),
             vars_types:vec![get_tlc::<i32>(), get_tlc::<i32>()],
             field_types:vec![0,1],
-            functions:vec![],
+            functions:vec![vec![]],
         },
         TypeTest{
             layout:get_type_layout::<Tuple2<i32,RVec<()>>>(),
             vars_types:vec![get_tlc::<i32>(), get_tlc::<RVec<()>>()],
             field_types:vec![0,1],
-            functions:vec![],
+            functions:vec![vec![]],
         },
 
         TypeTest{
             layout:get_type_layout::<Tuple3<i32,RString,i32>>(),
             vars_types:vec![ get_tlc::<i32>(), get_tlc::<RString>(), get_tlc::<i32>() ],
             field_types:vec![0,1,2],
-            functions:vec![],
+            functions:vec![vec![]],
         },
         TypeTest{
             layout:get_type_layout::<Tuple3<i32,i32,i32>>(),
             vars_types:vec![ get_tlc::<i32>(), get_tlc::<i32>(), get_tlc::<i32>() ],
             field_types:vec![0,1,2],
-            functions:vec![],
+            functions:vec![vec![]],
         },
 
         TypeTest{
             layout:get_type_layout::<gen_basic::Generics<i32>>(),
             vars_types:vec![ get_tlc::<&i32>(), get_tlc::<PhantomData<i32>>() ],
             field_types:vec![0,0,1],
-            functions:vec![],
+            functions:vec![vec![]],
         },
         TypeTest{
             layout:get_type_layout::<gen_basic::Generics<RString>>(),
             vars_types:vec![ get_tlc::<&RString>(), get_tlc::<PhantomData<RString>>() ],
             field_types:vec![0,0,1],
-            functions:vec![],
+            functions:vec![vec![]],
         },
 
         TypeTest{
             layout:get_type_layout::<basic_enum::Enum>(),
             vars_types:vec![ get_tlc::<u32>() ],
             field_types:vec![0],
-            functions:vec![],
+            functions:vec![vec![]],
         },
 
         TypeTest{
             layout:get_type_layout::<enum_extra_fields_b::Enum>(),
             vars_types:vec![ get_tlc::<u32>() ],
             field_types:vec![0,0,0],
-            functions:vec![],
+            functions:vec![vec![]],
         },
 
         TypeTest{
             layout:get_type_layout::<extra_variant::Enum>(),
             vars_types:vec![ get_tlc::<u32>(), get_tlc::<RString>() ],
             field_types:vec![0,1],
-            functions:vec![],
+            functions:vec![vec![]],
         },
 
         TypeTest{
             layout:get_type_layout::<swapped_fields_first::Rectangle>(),
             vars_types:vec![ get_tlc::<u32>(), get_tlc::<u16>() ],
             field_types:vec![0,0,1,0],
-            functions:vec![],
+            functions:vec![vec![]],
         },
 
         TypeTest{
             layout:get_type_layout::<gen_more_lts_b::Generics<'_>>(),
             vars_types:vec![ get_tlc::<&()>() ],
             field_types:vec![0,0],
-            functions:vec![],
+            functions:vec![vec![]],
         },
 
         TypeTest{
@@ -147,9 +147,9 @@ fn assert_types(){
             ],
             field_types:vec![0,0,0],
             functions:vec![
-                FnTest{ params:vec![] ,ret:1 },
-                FnTest{ params:vec![2,3,1] ,ret:!0 },
-                FnTest{ params:vec![2,3,1] ,ret:!0 },
+                vec![ FnTest{ params:vec![] ,ret:1 } ],
+                vec![ FnTest{ params:vec![2,3,1] ,ret:!0 } ],
+                vec![ FnTest{ params:vec![2,3,1] ,ret:!0 } ],
             ],
         },
 
@@ -164,9 +164,9 @@ fn assert_types(){
             ],
             field_types:vec![0,0,0],
             functions:vec![
-                FnTest{ params:vec![] ,ret:1 },
-                FnTest{ params:vec![2,3,1] ,ret:!0},
-                FnTest{ params:vec![4,4,4] ,ret:!0 },
+                vec![ FnTest{ params:vec![] ,ret:1 } ],
+                vec![ FnTest{ params:vec![2,3,1] ,ret:!0} ],
+                vec![ FnTest{ params:vec![4,4,4] ,ret:!0 } ],
             ],
         },
     ];
@@ -182,52 +182,58 @@ fn assert_types(){
         );
     };
 
+    let empty_vec=Vec::new();
+
     for ty_test in list {
         let shared_vars=ty_test.layout.shared_vars();
+        let vars_types=&ty_test.vars_types;
 
         let fields=ty_test.layout.get_fields().unwrap();
+        let mut expected_fns_list=ty_test.functions.iter();
         for (field_i,field) in fields.iter().enumerate() {
             let field_layout=field.layout();
             let expected_layout={
                 let x=ty_test.field_types[field_i];
-                ty_test.vars_types[x].get()
+                vars_types[x].get()
             };
 
             test_layout(field_layout,expected_layout);
+            
+            let mut expected_fns=expected_fns_list.next().unwrap_or(&empty_vec).iter();
+            for field_func in field.function_range() {
+                let expected_fn=expected_fns.next().unwrap();
+
+                let mut expected_params=expected_fn.params.iter();
+
+                for param in field_func.param_type_layouts.iter() {
+                    let expected_param=expected_params.next()
+                        .and_then(|x| vars_types.get(*x) )
+                        .unwrap_or_else(|| panic!("mismatched parameter type: {}",field_func) );
+                    test_layout( param.get(), expected_param.get() );
+                }
+
+                match ( field_func.return_type_layout, vars_types.get(expected_fn.ret) ) {
+                    (Some(found_ret),Some(expected_ret))=>{
+                        test_layout( found_ret.get(), expected_ret.get() );
+                    }
+                    (None,None)=>{}
+                    _=>panic!(
+                        "mismatched return type: {}\n\
+                         shared_vars.type_layouts:{:#?}\n\
+                         found function parameter/ret:{:#?} {:?}
+                         expected function parameter/ret:{:#?} {:?}
+                         ",
+                        field_func,
+                        type_layouts_fmt(shared_vars.type_layouts().iter().cloned()),
+                        type_layouts_fmt(field_func.param_type_layouts.iter()),
+                        type_layouts_fmt(field_func.return_type_layout),
+                        type_layouts_fmt(expected_fn.params.iter().map(|x| vars_types[*x] )),
+                        type_layouts_fmt(vars_types.get(expected_fn.ret).cloned()),
+                    )
+                }
+            }
         }
         
-        let mut expected_fns=ty_test.functions.iter();
-        for func in fields.iter().flat_map(|f| f.function_range() ){
-            let expected_fn=expected_fns.next().unwrap();
-            let mut expected_params=expected_fn.params.iter();
-
-            for param in func.param_type_layouts.iter() {
-                let expected_param=expected_params.next()
-                    .and_then(|x| ty_test.vars_types.get(*x) )
-                    .unwrap_or_else(|| panic!("mismatched parameter type: {}",func) );
-                test_layout( param.get(), expected_param.get() );
-            }
-
-            match ( func.return_type_layout, ty_test.vars_types.get(expected_fn.ret) ) {
-                (Some(found_ret),Some(expected_ret))=>{
-                    test_layout( found_ret.get(), expected_ret.get() );
-                }
-                (None,None)=>{}
-                _=>panic!(
-                    "mismatched return type: {}\n\
-                     shared_vars.type_layouts:{:#?}\n\
-                     found function parameter/ret:{:#?} {:?}
-                     expected function parameter/ret:{:#?} {:?}
-                     ",
-                    func,
-                    type_layouts_fmt(shared_vars.type_layouts().iter().cloned()),
-                    type_layouts_fmt(func.param_type_layouts.iter()),
-                    type_layouts_fmt(func.return_type_layout),
-                    type_layouts_fmt(expected_fn.params.iter().map(|x| ty_test.vars_types[*x] )),
-                    type_layouts_fmt(ty_test.vars_types.get(expected_fn.ret).cloned()),
-                )
-            }
-        }
     }
 }
 
