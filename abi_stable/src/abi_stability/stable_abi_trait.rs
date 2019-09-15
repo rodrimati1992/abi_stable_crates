@@ -198,7 +198,7 @@ impl TypeKindTrait for PrefixKind {
 ///////////////////////////////////////////////////////////////////////////////
 
 /// Gets for the TypeLayout of some type,wraps an `extern "C" fn() -> &'static TypeLayout`.
-pub type GetTypeLayout=Constructor<&'static TypeLayout>;
+pub type TypeLayoutCtor=Constructor<&'static TypeLayout>;
 
 // pub unsafe trait GetTypeLayoutCtor<B> {
 
@@ -209,7 +209,7 @@ pub struct GetTypeLayoutCtor<T>(T);
 impl<T> GetTypeLayoutCtor<T>
 where T: SharedStableAbi,
 {
-    pub const SHARED_STABLE_ABI:GetTypeLayout=Constructor (
+    pub const SHARED_STABLE_ABI:TypeLayoutCtor=Constructor (
         get_ssa_type_layout::<T>,
     );
 }
@@ -217,17 +217,17 @@ where T: SharedStableAbi,
 impl<T> GetTypeLayoutCtor<T>
 where T: StableAbi,
 {
-    pub const STABLE_ABI:GetTypeLayout=Constructor (
+    pub const STABLE_ABI:TypeLayoutCtor=Constructor (
         get_type_layout::<T>,
     );
 
-    pub const SABI_OPAQUE_FIELD:GetTypeLayout=Constructor (
+    pub const SABI_OPAQUE_FIELD:TypeLayoutCtor=Constructor (
         get_type_layout::<SabiUnsafeOpaqueField<T>>,
     );
 }
 
 impl<T> GetTypeLayoutCtor<T>{
-    pub const OPAQUE_FIELD:GetTypeLayout=Constructor (
+    pub const OPAQUE_FIELD:TypeLayoutCtor=Constructor (
         get_type_layout::<UnsafeOpaqueField<T>>,
     );
 }
@@ -1127,12 +1127,12 @@ unsafe impl SharedStableAbi for unsafe extern "C" fn() {
 }
 
 
-/// The GetTypeLayout of an `unsafe extern fn()`
-pub const UNSAFE_EXTERN_FN_LAYOUT:GetTypeLayout=
+/// The TypeLayoutCtor of an `unsafe extern fn()`
+pub const UNSAFE_EXTERN_FN_LAYOUT:TypeLayoutCtor=
     GetTypeLayoutCtor::<unsafe extern fn()>::STABLE_ABI;
 
-/// The GetTypeLayout of an `extern fn()`
-pub const EXTERN_FN_LAYOUT:GetTypeLayout=
+/// The TypeLayoutCtor of an `extern fn()`
+pub const EXTERN_FN_LAYOUT:TypeLayoutCtor=
     GetTypeLayoutCtor::<extern fn()>::STABLE_ABI;
 
 

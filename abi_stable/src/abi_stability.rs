@@ -15,7 +15,7 @@ pub use self::{
     abi_checking::exported_check_layout_compatibility as check_layout_compatibility,
     const_generics::{ConstGeneric,GetConstGenericVTable},
     get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
-    stable_abi_trait::{StableAbi,SharedStableAbi,AbiConsts},
+    stable_abi_trait::{StableAbi,SharedStableAbi,AbiConsts,TypeLayoutCtor,GetTypeLayoutCtor},
 };
 
 #[doc(no_inline)]

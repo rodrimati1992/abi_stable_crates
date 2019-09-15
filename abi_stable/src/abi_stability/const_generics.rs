@@ -48,7 +48,7 @@ impl ConstGeneric{
         other:&Self,
         mut checker:TypeCheckerMut<'_>
     )->Result<bool,ExtraChecksError> {
-        match dbg!(checker.check_compatibility(self.vtable.layout(),other.vtable.layout())) {
+        match checker.check_compatibility(self.vtable.layout(),other.vtable.layout()) {
             ROk(_)=>unsafe{
                 Ok(self.vtable.partial_eq()( &*self.ptr, &*other.ptr ))
             },

@@ -19,8 +19,21 @@ use crate::{
     *,
 };
 
+use super::shared_types::{
+    basic_enum,
+    gen_basic,
+    gen_more_lts,
+    enum_extra_fields_b,
+    extra_variant,
+    swapped_fields_first,
+    gen_more_lts_b,
+    mod_5,
+    mod_7,
+};
 
-mod union_1a {
+
+
+pub(super) mod union_1a {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -28,7 +41,7 @@ mod union_1a {
     }
 }
 
-mod union_1b {
+pub(super) mod union_1b {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -36,7 +49,7 @@ mod union_1b {
     }
 }
 
-mod union_2a {
+pub(super) mod union_2a {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -45,7 +58,7 @@ mod union_2a {
     }
 }
 
-mod union_2b {
+pub(super) mod union_2b {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -54,7 +67,7 @@ mod union_2b {
     }
 }
 
-mod union_3 {
+pub(super) mod union_3 {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -64,7 +77,7 @@ mod union_3 {
     }
 }
 
-mod union_4 {
+pub(super) mod union_4 {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -75,7 +88,7 @@ mod union_4 {
     }
 }
 
-mod regular {
+pub(super) mod regular {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -86,7 +99,7 @@ mod regular {
     }
 }
 
-mod changed_name {
+pub(super) mod changed_name {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangleiiiiii {
@@ -97,7 +110,7 @@ mod changed_name {
     }
 }
 
-mod changed_field_name {
+pub(super) mod changed_field_name {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -109,18 +122,7 @@ mod changed_field_name {
     }
 }
 
-mod swapped_fields_first {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub struct Rectangle {
-        y: u32,
-        x: u32,
-        w: u16,
-        h: u32,
-    }
-}
-
-mod swapped_fields_last {
+pub(super) mod swapped_fields_last {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -131,7 +133,7 @@ mod swapped_fields_last {
     }
 }
 
-mod removed_field_first {
+pub(super) mod removed_field_first {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -141,7 +143,7 @@ mod removed_field_first {
     }
 }
 
-mod removed_field_last {
+pub(super) mod removed_field_last {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -151,7 +153,7 @@ mod removed_field_last {
     }
 }
 
-mod removed_all_fields {
+pub(super) mod removed_all_fields {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -161,7 +163,7 @@ mod removed_all_fields {
     }
 }
 
-mod changed_type_first {
+pub(super) mod changed_type_first {
     use super::shadowed;
 
     #[repr(C)]
@@ -174,7 +176,7 @@ mod changed_type_first {
     }
 }
 
-mod changed_type_last {
+pub(super) mod changed_type_last {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -185,7 +187,7 @@ mod changed_type_last {
     }
 }
 
-mod changed_alignment {
+pub(super) mod changed_alignment {
     #[repr(C, align(16))]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -197,14 +199,14 @@ mod changed_alignment {
 }
 
 
-mod built_in {
+pub(super) mod built_in {
     pub use i32 as std_i32;
     pub use u32 as std_u32;
 }
 
 /// Types that have the same type-name and layout as built-in types.
 #[allow(non_camel_case_types)]
-mod shadowed {
+pub(super) mod shadowed {
     use super::built_in::*;
 
     #[repr(transparent)]
@@ -574,40 +576,7 @@ fn different_alignment() {
 //// Generics
 //////////////////////////////////////////////////////////
 
-mod gen_basic {
-    use super::PhantomData;
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub struct Generics<T: 'static> {
-        x: &'static T,
-        y: &'static T,
-        _marker: PhantomData<(T)>,
-    }
-}
-
-mod gen_more_lts {
-    use super::PhantomData;
-    #[repr(C)]
-    #[derive(StableAbi)]
-    #[sabi(bound = "T:'a")]
-    pub struct Generics<'a, T> {
-        x: &'a T,
-        y: &'a T,
-        _marker: PhantomData<(&'a T)>,
-    }
-}
-
-mod gen_more_lts_b {
-    use super::PhantomData;
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub struct Generics<'a> {
-        x: &'a (),
-        y: &'static (),
-    }
-}
-
-mod gen_more_lts_c {
+pub(super) mod gen_more_lts_c {
     use super::PhantomData;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -617,7 +586,7 @@ mod gen_more_lts_c {
     }
 }
 
-mod gen_more_lts_d {
+pub(super) mod gen_more_lts_d {
     use super::PhantomData;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -627,7 +596,7 @@ mod gen_more_lts_d {
     }
 }
 
-mod gen_more_tys {
+pub(super) mod gen_more_tys {
     use super::{PhantomData,Tuple2};
     #[repr(C)]
     #[derive(StableAbi)]
@@ -638,7 +607,7 @@ mod gen_more_tys {
     }
 }
 
-// mod gen_more_consts{
+// pub(super) mod gen_more_consts{
 // For when const-generics are usable
 // #[repr(C)]
 // #[derive(StableAbi)]
@@ -687,16 +656,8 @@ fn different_generics() {
 ////    Enums
 //////////////////////////////////////////////////////////
 
-mod basic_enum {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub enum Enum {
-        Variant0,
-        Variant1 { a: u32 },
-    }
-}
 
-mod enum_extra_fields_a {
+pub(super) mod enum_extra_fields_a {
     #[repr(C)]
     #[derive(StableAbi)]
     pub enum Enum {
@@ -705,16 +666,7 @@ mod enum_extra_fields_a {
     }
 }
 
-mod enum_extra_fields_b {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub enum Enum {
-        Variant0,
-        Variant1 { a: u32,b:u32,c:u32 },
-    }
-}
-
-mod misnamed_variant {
+pub(super) mod misnamed_variant {
     #[repr(C)]
     #[derive(StableAbi)]
     pub enum Enum {
@@ -723,16 +675,6 @@ mod misnamed_variant {
     }
 }
 
-mod extra_variant {
-    use crate::std_types::RString;
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub enum Enum {
-        Variant0,
-        Variant1 { a: u32 },
-        Variant3(RString),
-    }
-}
 
 #[cfg_attr(not(miri),test)]
 fn variant_mismatch() {
@@ -764,7 +706,7 @@ fn variant_mismatch() {
 //////////////////////////////////////////////////////////////////////////////
 ///  Modules,with function pointers
 
-mod mod_0 {
+pub(super) mod mod_0 {
     use crate::std_types::RString;
 
     #[repr(C)]
@@ -775,7 +717,7 @@ mod mod_0 {
     }
 }
 
-mod mod_0b {
+pub(super) mod mod_0b {
     use crate::std_types::RString;
 
     #[repr(C)]
@@ -787,7 +729,7 @@ mod mod_0b {
 }
 
 
-mod mod_1 {
+pub(super) mod mod_1 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -798,7 +740,7 @@ mod mod_1 {
 }
 
 
-mod mod_2 {
+pub(super) mod mod_2 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -809,7 +751,7 @@ mod mod_2 {
 }
 
 
-mod mod_3 {
+pub(super) mod mod_3 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -819,7 +761,7 @@ mod mod_3 {
     }
 }
 
-mod mod_4 {
+pub(super) mod mod_4 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -830,18 +772,7 @@ mod mod_4 {
 }
 
 
-mod mod_5 {
-    use crate::std_types::RString;
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn()->RString,
-        pub function_1: extern "C" fn(&mut u32,u64,RString),
-        pub function_2: extern "C" fn(&mut u32,u64,RString),
-    }
-}
-
-mod mod_6 {
+pub(super) mod mod_6 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -851,7 +782,7 @@ mod mod_6 {
 }
 
 // Changing only the return type
-mod mod_6b {
+pub(super) mod mod_6b {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Mod{
@@ -859,16 +790,6 @@ mod mod_6b {
     }
 }
 
-mod mod_7 {
-    use crate::std_types::RString;
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn()->RString,
-        pub function_1: extern "C" fn(&mut u32,u64,RString),
-        pub function_2: extern "C" fn((),(),()),
-    }
-}
 
 
 //////////////////////////////////////////////////////////////////////////////

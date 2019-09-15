@@ -15,7 +15,7 @@ pub struct TLField {
     /// This is a function pointer to avoid infinite recursion,
     /// if you have a `&'static TypeLayout`s with the same address as one of its parent type,
     /// you've encountered a cycle.
-    layout: GetTypeLayout,
+    layout: TypeLayoutCtor,
 
     /// The function pointer types within the field.
     function_range:TLFunctionSlice,
@@ -35,7 +35,7 @@ impl TLField {
     /// Constructs a field which does not contain function pointers,or lifetime indices.
     pub const fn new(
         name: RStr<'static>,
-        layout: GetTypeLayout,
+        layout: TypeLayoutCtor,
         vars:&'static SharedVars,
     ) -> Self {
         Self {
@@ -271,7 +271,7 @@ impl CompTLField{
         comp.expand(accessor_payload).unwrap_or(FieldAccessor::Opaque)
     }
 
-    pub fn type_layout(&self,type_layouts:&'static [GetTypeLayout])-> GetTypeLayout {
+    pub fn type_layout(&self,type_layouts:&'static [TypeLayoutCtor])-> TypeLayoutCtor {
         type_layouts[self.type_layout_index()]
     }
 
@@ -323,9 +323,9 @@ mod tests{
 
     #[test]
     fn roundtrip(){
-        const UNIT_CTOR:GetTypeLayout=GetTypeLayoutCtor::<()>::STABLE_ABI;
-        const U32_CTOR:GetTypeLayout=GetTypeLayoutCtor::<u32>::STABLE_ABI;
-        const RSTRING_CTOR:GetTypeLayout=GetTypeLayoutCtor::<RString>::STABLE_ABI;
+        const UNIT_CTOR:TypeLayoutCtor=GetTypeLayoutCtor::<()>::STABLE_ABI;
+        const U32_CTOR:TypeLayoutCtor=GetTypeLayoutCtor::<u32>::STABLE_ABI;
+        const RSTRING_CTOR:TypeLayoutCtor=GetTypeLayoutCtor::<RString>::STABLE_ABI;
 
         let vars=leak_value(SharedVars::new(
             rstr!("foo;bar; baz; "),

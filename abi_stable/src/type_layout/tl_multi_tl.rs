@@ -1,5 +1,5 @@
 use crate::{
-    abi_stability::stable_abi_trait::GetTypeLayout,
+    abi_stability::stable_abi_trait::TypeLayoutCtor,
     std_types::RSlice,
     type_layout::data_structures::ArrayLen,
 };
@@ -24,7 +24,7 @@ impl TypeLayoutRange{
         ]
     }
 
-    pub fn expand<'a>(&self,type_layouts:&'a [GetTypeLayout])->MultipleTypeLayouts<'a>{
+    pub fn expand<'a>(&self,type_layouts:&'a [TypeLayoutCtor])->MultipleTypeLayouts<'a>{
         let indices=self.to_array();
         let len=self.len();
 
@@ -57,8 +57,8 @@ impl TypeLayoutRange{
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub struct MultipleTypeLayouts<'a>{
-    first_4:ArrayLen<[GetTypeLayout;4]>,
-    remaining:RSlice<'a,GetTypeLayout>,
+    first_4:ArrayLen<[TypeLayoutCtor;4]>,
+    remaining:RSlice<'a,TypeLayoutCtor>,
 }
 
 
@@ -84,9 +84,9 @@ pub struct MTLIterator<'a>{
 
 
 impl<'a> Iterator for MTLIterator<'a>{
-    type Item=GetTypeLayout;
+    type Item=TypeLayoutCtor;
 
-    fn next(&mut self)->Option<GetTypeLayout>{
+    fn next(&mut self)->Option<TypeLayoutCtor>{
         if self.index < self.this.len() {
             let ret=if self.index < 4 {
                 self.this.first_4.array[self.index]

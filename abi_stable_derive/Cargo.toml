@@ -21,7 +21,7 @@ include = [
 [dependencies]
 abi_stable_shared= {version="0.6",path="../abi_stable_shared"}
 quote = "1.0"
-typed-arena = "1.5"
+typed-arena = "~1.5"
 proc-macro2 = "1.0"
 arrayvec    = "0.4"
 

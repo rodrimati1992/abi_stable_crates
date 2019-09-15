@@ -126,7 +126,7 @@ pub struct GenericParams{
     /// The names of the lifetimes declared by a type.
     lifetime: NulStr<'static>,
     /// The type parameters of a type,getting them from the containing TypeLayout.
-    types: &'static [GetTypeLayout],
+    types: &'static [TypeLayoutCtor],
     /// The const parameters of a type,getting them from the containing TypeLayout.
     consts: &'static [ConstGeneric],
     lifetime_count:u8,
@@ -144,7 +144,7 @@ impl GenericParams {
     pub fn lifetime_count(&self)->usize{
         self.lifetime_count as usize
     }
-    pub fn type_params(&self)->&'static [GetTypeLayout]{
+    pub fn type_params(&self)->&'static [TypeLayoutCtor]{
         self.types
     }
     pub fn const_params(&self)->&'static [ConstGeneric]{
@@ -162,8 +162,8 @@ impl Display for GenericParams {
             }
             Ok(())
         };
-
-        for (i, param) in self.lifetimes().enumerate() {
+ 
+       for (i, param) in self.lifetimes().enumerate() {
             fmt::Display::fmt(param, &mut *f)?;
             post_iter(i, self.lifetime_count(), &mut *f)?;
         }
@@ -414,7 +414,7 @@ pub struct TLFunction{
     /// 
     /// Lifetime indices inside mention lifetimes of the function after 
     /// the ones from the deriving type
-    pub return_type_layout:Option<GetTypeLayout>,
+    pub return_type_layout:Option<TypeLayoutCtor>,
 
 }
 
@@ -454,7 +454,7 @@ impl TLFunction{
     }
     
     pub(crate) fn get_return(&self)->TLField{
-        const UNIT_GET_ABI_INFO:GetTypeLayout=GetTypeLayoutCtor::<()>::STABLE_ABI;
+        const UNIT_GET_ABI_INFO:TypeLayoutCtor=GetTypeLayoutCtor::<()>::STABLE_ABI;
         TLField::new(
             rstr!("__returns"),
             self.return_type_layout.unwrap_or(UNIT_GET_ABI_INFO),
