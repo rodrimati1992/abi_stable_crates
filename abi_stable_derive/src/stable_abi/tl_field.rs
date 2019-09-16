@@ -19,10 +19,10 @@ abi_stable_shared::declare_comp_tl_field!{
 
 impl CompTLField{
     pub(crate) fn from_expanded<'a,I>(
-        name:&str,
+        name:&syn::Ident,
         lifetime_indices:I,
         field_accessor:FieldAccessor<'a>,
-        layout: u16,
+        layout: TypeLayoutIndex,
         is_function:bool,
         shared_vars:&mut SharedVars<'a>,
     )->Self
@@ -30,7 +30,7 @@ impl CompTLField{
         I:IntoIterator<Item=LifetimeIndex>,
     {
         let (name_range,comp_field_accessor)=
-            Self::push_name_field_accessor(&name,field_accessor,shared_vars);
+            Self::push_name_field_accessor(name,field_accessor,shared_vars);
 
         Self::new(
             name_range,
@@ -42,9 +42,9 @@ impl CompTLField{
     }
 
     pub(crate) fn from_expanded_std_field<'a,I>(
-        name:&str,
+        name:&syn::Ident,
         lifetime_indices:I,
-        layout: u16,
+        layout: TypeLayoutIndex,
         shared_vars:&mut SharedVars<'a>,
     )->Self
     where
@@ -63,13 +63,15 @@ impl CompTLField{
     /// Pushes the name and field accessor payload with the 
     /// `<name><field_accessor_payload>;` format.
     fn push_name_field_accessor<'a>(
-        name:&str,
+        name:&syn::Ident,
         field_accessor:FieldAccessor<'a>,
         shared_vars:&mut SharedVars<'a>,
     )->(StartLen,CompFieldAccessor){
-        let name_range=shared_vars.push_str(name);
+        let name_range=shared_vars.push_ident(name);
+        shared_vars.combine_err( name_range.check_ident_length(name.span()) );
+        
         let comp_field_accessor=field_accessor.compress(shared_vars);
-        shared_vars.push_str(";");
+        shared_vars.push_str(";",None);
         (name_range,comp_field_accessor)
     }
 }
@@ -85,5 +87,24 @@ impl ToTokens for CompTLField {
     fn to_tokens(&self, ts: &mut TokenStream2) {
         self.bits0.to_tokens(ts);
     }
+}
+
+
+
+
+
+
+
+
+
+abi_stable_shared::declare_type_layout_index!{
+    attrs=[]
+}
+
+impl TypeLayoutIndex{
+    /// Used to recover from syn errors,
+    /// this value shouldn't be used in the layout constant since it's reserved
+    /// for errors.
+    pub const DUMMY:Self=Self::from_u10(!0);
 }
 

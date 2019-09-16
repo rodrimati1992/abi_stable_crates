@@ -2,13 +2,15 @@ use super::{
     SharedVars,
 };
 
+use syn::Ident;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FieldAccessor<'a> {
     /// Accessible with `self.field_name`
     Direct,
     /// Accessible with `fn field_name(&self)->FieldType`
     Method{
-        name:Option<&'a str>,
+        name:Option<&'a Ident>,
     },
     /// Accessible with `fn field_name(&self)->Option<FieldType>`
     MethodOption,
@@ -27,7 +29,7 @@ impl<'a> FieldAccessor<'a>{
                 CompFieldAccessor::METHOD
             }
             FieldAccessor::Method{name:Some(name)}=>{
-                let _=shared_vars.push_str(name);
+                let _=shared_vars.push_ident(name);
                 CompFieldAccessor::METHOD_NAMED
             }
             FieldAccessor::MethodOption=>{

@@ -66,7 +66,7 @@ pub(crate) struct StableAbiOptions<'a> {
 
     pub(crate) impl_interfacetype:Option<ImplInterfaceType>,
 
-    pub(crate) phantom_fields:Vec<(&'a str,&'a Type)>,
+    pub(crate) phantom_fields:Vec<(&'a Ident,&'a Type)>,
     pub(crate) phantom_type_params:Vec<&'a Type>,
     pub(crate) phantom_const_params:Vec<&'a syn::Expr>,
     
@@ -163,7 +163,7 @@ impl<'a> StableAbiOptions<'a> {
         mut this: StableAbiAttrs<'a>,
         arenas: &'a Arenas,
     ) -> Result<Self,syn::Error> {
-        let mut phantom_fields=Vec::<(&'a str,&'a Type)>::new();
+        let mut phantom_fields=Vec::<(&'a Ident,&'a Type)>::new();
 
         let repr = ReprAttr::new(this.repr)?;
 
@@ -237,7 +237,8 @@ impl<'a> StableAbiOptions<'a> {
                     .expect("BUG")
                     .piped(|x| arenas.alloc(x) );
 
-                phantom_fields.push(("deref_target",field_ty));
+                let dt=arenas.alloc(parse_str_as_ident("deref_target"));
+                phantom_fields.push((dt,field_ty));
 
                 &[
                     "Self: ::std::ops::Deref",
@@ -259,8 +260,9 @@ impl<'a> StableAbiOptions<'a> {
             this.phantom_type_params.iter().cloned()
                 .enumerate()
                 .map(|(i,ty)|{
-                    let name=arenas.alloc(format!("_phantom_ty_param_{}",i));
-                    (&**name,ty)
+                    let x=format!("_phantom_ty_param_{}",i);
+                    let name=arenas.alloc(parse_str_as_ident(&x));
+                    (name,ty)
                 })
         );
 
@@ -320,7 +322,7 @@ struct StableAbiAttrs<'a> {
 
     accessor_bounds:FieldMap<Vec<TypeParamBound>>,
 
-    extra_phantom_fields:Vec<(&'a str,&'a Type)>,
+    extra_phantom_fields:Vec<(&'a Ident,&'a Type)>,
     phantom_type_params:Vec<&'a Type>,
     phantom_const_params:Vec<&'a syn::Expr>,
 
@@ -570,7 +572,11 @@ fn parse_sabi_attr<'a>(
             }else if ident=="phantom_field"{
                 let unparsed_field=unparsed_lit.value();
                 let mut iter=unparsed_field.splitn(2,':');
-                let name=arenas.alloc(iter.next().unwrap_or("").to_string());
+                let name={
+                    let x=iter.next().unwrap_or("");
+                    let x=syn::parse_str::<Ident>(x)?;
+                    arenas.alloc(x)
+                };
                 let ty=arenas.alloc(parse_str_as_type(iter.next().unwrap_or(""))?);
                 this.extra_phantom_fields.push((name,ty));
             }else if ident=="phantom_type_param"{
@@ -831,8 +837,7 @@ fn parse_refl_field<'a>(
                 let ident=path.get_ident().ok_or_else(|| make_err(path) )?;
 
                 if ident=="pub_getter" {
-                    let function=arenas.alloc(val.value());
-                    let _=val.parse::<Ident>()?;
+                    let function=arenas.alloc(val.parse::<Ident>()?);
                     this.override_field_accessor[field]=
                         Some(FieldAccessor::Method{ name:Some(function) });
                 }else{

@@ -245,6 +245,15 @@ abi_stable_shared::declare_comp_tl_field!{
 
 
 
+abi_stable_shared::declare_type_layout_index!{
+    attrs=[
+        derive(StableAbi),
+        sabi(unsafe_sabi_opaque_fields),
+    ]
+}
+
+
+
 impl CompTLField{
 
 
@@ -342,7 +351,7 @@ mod tests{
             StartLen::new(9,3),
             lifetime_range,
             CompFieldAccessor::DIRECT,
-            2,
+            TypeLayoutIndex::from_u10(2),
             false,
         );
         

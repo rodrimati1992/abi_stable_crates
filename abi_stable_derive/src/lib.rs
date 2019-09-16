@@ -201,7 +201,7 @@ mod to_token_fn;
 mod workaround;
 
 #[cfg(test)]
-mod fn_pointer_tests;
+mod input_code_range_tests;
 
 #[cfg(test)]
 mod test_framework;

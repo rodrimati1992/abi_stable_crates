@@ -21,19 +21,21 @@ macro_rules! declare_comp_tl_field {(
         const FIELD_ACCESSOR_OFFSET:u32=Self::LIFETIME_INDICES_OFFSET+LifetimeRange::BIT_SIZE;
         
         const TYPE_LAYOUT_OFFSET:u32=Self::FIELD_ACCESSOR_OFFSET+CompFieldAccessor::BIT_SIZE;
-        const TYPE_LAYOUT_SR_MASK:u64=0b1_1111_1111_1111;
-        const TYPE_LAYOUT_BIT_SIZE:u32=13;
+        const TYPE_LAYOUT_SR_MASK:u64=TypeLayoutIndex::MASK as u64;
+        
+        pub const TYPE_LAYOUT_MAX_VAL:usize=TypeLayoutIndex::MASK as usize;
 
-        const IS_FUNCTION_OFFSET:u32=Self::TYPE_LAYOUT_OFFSET+Self::TYPE_LAYOUT_BIT_SIZE;
+        const IS_FUNCTION_OFFSET:u32=Self::TYPE_LAYOUT_OFFSET+TypeLayoutIndex::BIT_SIZE;
         const IS_FUNCTION_BIT_SIZE:u32=1;
 
         pub const BIT_SIZE:u32=Self::IS_FUNCTION_OFFSET+Self::IS_FUNCTION_BIT_SIZE;
 
+        #[inline]
         pub const fn new(
             name:StartLen,
             lifetime_indices:LifetimeRange,
             field_accessor:CompFieldAccessor,
-            layout: u16,
+            layout: TypeLayoutIndex,
             is_function:bool,
         )->Self{
             // A compile-time assertion that the bit fields fit inside a u64
@@ -43,7 +45,7 @@ macro_rules! declare_comp_tl_field {(
                  ((name.to_u26() as u64)<<Self::NAME_OFFSET)
                 |((lifetime_indices.to_u21() as u64)<<Self::LIFETIME_INDICES_OFFSET)
                 |((field_accessor.to_u3() as u64)<<Self::FIELD_ACCESSOR_OFFSET)
-                |((layout as u64 & Self::TYPE_LAYOUT_SR_MASK)<<Self::TYPE_LAYOUT_OFFSET)
+                |((layout.to_u10() as u64)<<Self::TYPE_LAYOUT_OFFSET)
                 |((is_function as u64)<<Self::IS_FUNCTION_OFFSET)
             };
 
@@ -70,7 +72,7 @@ macro_rules! declare_comp_tl_field {(
             (self.bits0 & (1<<Self::IS_FUNCTION_OFFSET))!=0
         }
 
-
+        #[inline]
         pub const fn std_field(
             name:StartLen,
             lifetime_indices:LifetimeRange,
@@ -80,7 +82,7 @@ macro_rules! declare_comp_tl_field {(
                 name,
                 lifetime_indices,
                 CompFieldAccessor::DIRECT,
-                layout,
+                TypeLayoutIndex::from_u10(layout),
                 false,
             )
         }

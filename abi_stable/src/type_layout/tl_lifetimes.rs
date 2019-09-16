@@ -5,6 +5,7 @@ use std::ops::{Deref,Index};
 
 
 abi_stable_shared::declare_tl_lifetime_types!{
+    repr=u8,
     attrs=[ 
         derive(StableAbi),
     ]

@@ -1,6 +1,7 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! declare_tl_lifetime_types {( 
+    repr=$repr:ty,
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
 
@@ -10,7 +11,7 @@ macro_rules! declare_tl_lifetime_types {(
     #[derive(Copy, Clone, PartialEq, Eq)]
     $(#[ $extra_attrs ])*
     pub struct LifetimeIndex{
-        bits:u8
+        bits:$repr
     }
 
     impl LifetimeIndex {
@@ -24,16 +25,19 @@ macro_rules! declare_tl_lifetime_types {(
         pub const ANONYMOUS: Self = LifetimeIndex{bits:1};
         pub const STATIC: Self = LifetimeIndex{bits:2};
 
-        const START_OF_LIFETIMES:u8=3;
+        const START_OF_LIFETIMES:$repr=3;
+        pub const MAX_LIFETIME_PARAM:$repr=15-Self::START_OF_LIFETIMES;
 
         /// Constructs a LifetimeIndex to the nth lifetime parameter of a type.
-        pub const fn Param(index: u8) -> LifetimeIndex {
+        #[inline]
+        pub const fn Param(index: $repr) -> LifetimeIndex {
             LifetimeIndex{
                 bits:index + Self::START_OF_LIFETIMES,
             }
         }
 
-        pub fn to_param(self)->Option<u8>{
+        #[inline]
+        pub fn to_param(self)->Option<$repr>{
             if self.bits < Self::START_OF_LIFETIMES {
                 None
             }else{
@@ -41,14 +45,16 @@ macro_rules! declare_tl_lifetime_types {(
             }
         }
 
+        #[inline]
         pub const fn from_u4(bits: u8) -> Self {
             LifetimeIndex{
-                bits:bits & 0b1111
+                bits:(bits & 0b1111)as _
             }
         }
 
+        #[inline]
         pub const fn to_u4(self) -> u8 {
-            self.bits & 0b1111
+            (self.bits & 0b1111)as _
         }
     }
 
@@ -85,36 +91,45 @@ macro_rules! declare_tl_lifetime_types {(
     impl LifetimeIndexArray {
         pub const EMPTY: Self = Self { bits: 0 };
 
+        #[inline]
         pub const fn from_array(array: [LifetimeIndex;5]) -> Self {
             let bits= array[0].bits as u32 | ((array[1].bits as u32) << 4)
                 | ((array[2].bits as u32) << 8) | ((array[3].bits as u32) << 12)
                 | ((array[4].bits as u32) << 16);
             Self {bits}
         }
+
+        #[inline]
         pub const fn to_array(self) -> [LifetimeIndexPair; 3] {
             [
                 LifetimeIndexPair::new(
-                    LifetimeIndex{ bits: (self.bits & 0b1111)as u8 },
-                    LifetimeIndex{ bits: ((self.bits >> 4) & 0b1111)as u8 },
+                    LifetimeIndex{ bits: (self.bits & 0b1111)as $repr },
+                    LifetimeIndex{ bits: ((self.bits >> 4) & 0b1111)as $repr },
                 ),
                 LifetimeIndexPair::new(
-                    LifetimeIndex{ bits: ((self.bits >> 8) & 0b1111)as u8 },
-                    LifetimeIndex{ bits: ((self.bits >> 12) & 0b1111)as u8 },
+                    LifetimeIndex{ bits: ((self.bits >> 8) & 0b1111)as $repr },
+                    LifetimeIndex{ bits: ((self.bits >> 12) & 0b1111)as $repr },
                 ),
                 LifetimeIndexPair::new(
-                    LifetimeIndex{ bits: ((self.bits >> 16) & 0b1111)as u8 },
+                    LifetimeIndex{ bits: ((self.bits >> 16) & 0b1111)as $repr },
                     LifetimeIndex::NONE,
                 )
             ]
         }
+
+        #[inline]
         pub const fn to_u20(self) -> u32 {
             self.bits&0xF_FF_FF 
-        }
+        }        
+
+        #[inline]
         pub const fn from_u20(bits: u32) -> Self {
             Self {
                 bits:bits&0xF_FF_FF 
             }
         }
+
+        #[inline]
         pub const fn len(mut self)->usize{
             (8-(self.bits.leading_zeros()>>2))as usize
         }
@@ -146,7 +161,10 @@ macro_rules! declare_tl_lifetime_types {(
         pub const START_MASK: u32 = 0b1_1111_1111_1111;
         pub const BIT_SIZE:u32=21;
 
-        pub const fn Param(index: u8) -> Self {
+        pub const MAX_START:usize=Self::START_MASK as usize;
+        pub const MAX_LEN:usize=Self::LEN_SR_MASK as usize;
+
+        pub const fn Param(index: $repr) -> Self {
             Self::from_array([
                 LifetimeIndex::Param(index),
                 LifetimeIndex::NONE,
@@ -163,6 +181,7 @@ macro_rules! declare_tl_lifetime_types {(
             }
         }
 
+        #[inline]
         pub const fn from_range(range:std::ops::Range<usize>)->Self{
             let len=range.end-range.start;
             Self{
@@ -187,12 +206,18 @@ macro_rules! declare_tl_lifetime_types {(
                 LifetimeIndexArray::from_u20(self.bits).len()
             }
         }
+
+        #[inline]
         pub const fn is_range(self)->bool{
             (self.bits&Self::IS_RANGE_BIT)==Self::IS_RANGE_BIT
         }
+
+        #[inline]
         pub const fn to_u21(self) -> u32 {
             self.bits & Self::MASK
         }
+
+        #[inline]
         pub const fn from_u21(bits: u32) -> Self {
             Self {
                 bits: bits & Self::MASK,
@@ -208,7 +233,7 @@ macro_rules! declare_tl_lifetime_types {(
     #[derive(Copy, Clone, PartialEq, Eq)]
     $(#[ $extra_attrs ])*
     pub struct LifetimeIndexPair{
-        pub bits:u8,
+        bits:$repr,
     }
 
     pub type LifetimeIndexPairRepr=u8;
@@ -220,25 +245,30 @@ macro_rules! declare_tl_lifetime_types {(
         pub const NONE:LifetimeIndexPair=
             LifetimeIndexPair::new( LifetimeIndex::NONE, LifetimeIndex::NONE );
 
+        #[inline]
         pub const fn new(first:LifetimeIndex,second:LifetimeIndex)->Self{
             Self{
-                bits:first.to_u4() | (second.to_u4()<<4),
+                bits:(first.to_u4() | (second.to_u4()<<4)) as _,
             }
         }
 
         #[inline]
         pub const fn first(self)->LifetimeIndex{
-            LifetimeIndex::from_u4(self.bits)
+            LifetimeIndex::from_u4(self.bits as _)
         }
 
         #[inline]
         pub const fn second(self)->LifetimeIndex{
-            LifetimeIndex::from_u4(self.bits>>4)
+            LifetimeIndex::from_u4((self.bits>>4) as _)
         }
 
         #[inline]
         pub const fn both(self)->(LifetimeIndex,LifetimeIndex){
             (self.first(),self.second())
+        }
+
+        pub const fn to_u8(self)->u8{
+            self.bits as _
         }
     }
 

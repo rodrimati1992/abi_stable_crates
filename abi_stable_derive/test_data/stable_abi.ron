@@ -1169,5 +1169,116 @@
         
       ],
     ),
+    /*////////////////////////////////////////////////////////////////////////////
+              Stuff that should error because it goes over some limit
+    *///////////////////////////////////////////////////////////////////////////// 
+    (
+      name:"Max unique lifetime parameters",
+      code:r##"
+          #[repr(C)]
+          struct Foo{
+            func:for<'a,'b,'c,'d,'e,'f,'g,'h,'i,'j,'k,'l,'m,'n> 
+              extern fn(
+                  &'a (),&'a (),
+                  &'b (),&'b (),
+                  &'c (),&'c (),
+                  &'d (),&'d (),
+                  &'e (),&'e (),
+                  &'f (),&'f (),
+                  &'g (),&'g (),
+                  &'h (),&'h (),
+                  &'i (),&'i (),
+                  &'j (),&'j (),
+                  &'k (),&'k (),
+                  &'l (),&'l (),
+                  &'m (),&'m (),
+                  &'#lt (),&'#lt (),
+              ),
+          }
+      "##,
+      subcase: [
+        ( replacements: { "#lt":"n" }, error_count: 1 ),
+        ( replacements: { "#lt":"m" }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"Max field ident length",
+      code:r##"
+          #[repr(C)]
+          struct Foo{
+            typetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetype#name:(),
+          }
+      "##,
+      subcase: [
+        ( replacements: { "#name":"type" }, error_count: 1  ),
+        ( replacements: { "#name":"typ" }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"Max func ident length",
+      code:r##"
+          #[repr(C)]
+          struct Foo{
+            typetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetype#name:extern fn(),
+          }
+      "##,
+      subcase: [
+        ( replacements: { "#name":"type" }, error_count: 2 ),
+        ( replacements: { "#name":"typ" }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"Max lifetime parameter count struct",
+      code:r##"
+          #[repr(C)]
+          struct Foo<
+            'aa,'ab,'ac,'ad,'ae,'af,'ag,'ah,'ai,'aj,'ak,'al,'am,#p0
+          >(
+            &'aa(),&'ab(),&'ac(),&'ad(),&'ae(),&'af(),&'ag(),&'ah(),
+            &'ai(),&'aj(),&'ak(),&'al(),&'am(),#f0
+          );
+      "##,
+      subcase: [
+        ( replacements: { "#p0":"'an,","#f0":"&'an()," }, error_count: 1 ),
+        ( replacements: { "#p0":"","#f0":"" }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"Max lifetime parameter count fn pointer",
+      code:r##"
+          #[repr(C)]
+          struct Foo(
+            for<'aa,'ab,'ac,'ad,'ae,'af,'ag,'ah,'ai,'aj,'ak,'al,'am,#p0>
+              extern fn(
+                &'aa(),&'ab(),&'ac(),&'ad(),&'ae(),&'af(),&'ag(),&'ah(),
+                &'aa(),&'ab(),&'ac(),&'ad(),&'ae(),&'af(),&'ag(),&'ah(),
+                &'ai(),&'aj(),&'ak(),&'al(),&'am(),#f0
+                &'ai(),&'aj(),&'ak(),&'al(),&'am(),#f0
+              )
+          );
+      "##,
+      subcase: [
+        ( replacements: { "#p0":"'an,","#f0":"&'an()," }, error_count: 1 ),
+        ( replacements: { "#p0":"","#f0":"" }, error_count: 0 ),
+      ],
+    ),
+    (
+      name:"Max lifetime parameter count both",
+      code:r##"
+          #[repr(C)]
+          struct Foo<'aa,'ab,'ac,'ad,'ae,'af,'ag,'ah,>(
+              &'aa(),&'ab(),&'ac(),&'ad(),&'ae(),&'af(),&'ag(),&'ah(),
+              for<'ai,'aj,'ak,'al,'am,#p0>
+              extern fn(
+                &'ai(),&'aj(),&'ak(),&'al(),&'am(),#f0
+                &'ai(),&'aj(),&'ak(),&'al(),&'am(),#f0
+              )
+          );
+      "##,
+      subcase: [
+        ( replacements: { "#p0":"'an,","#f0":"&'an()," }, error_count: 1 ),
+        ( replacements: { "#p0":"","#f0":"" }, error_count: 0 ),
+      ],
+    ),
   ]
 )

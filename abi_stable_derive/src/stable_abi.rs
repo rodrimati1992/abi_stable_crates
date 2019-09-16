@@ -10,6 +10,7 @@ use crate::{
     datastructure::{DataStructure,DataVariant,Field,FieldIndex},
     gen_params_in::{GenParamsIn,InWhat},
     impl_interfacetype::impl_interfacetype_tokenizer,
+    lifetimes::LifetimeIndex,
     literals_constructors::{rslice_tokenizer,rstr_tokenizer},
     to_token_fn::ToTokenFnMut,
 };
@@ -88,6 +89,14 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     // This has to come before the `VisitedFieldMap`.
     let generic_params_tokens=
         generic_params::GenericParams::new(ds,shared_vars,config,ctokens);
+
+    if generics.lifetimes().count()>LifetimeIndex::MAX_LIFETIME_PARAM+1 {
+        return_syn_err!(
+            Span::call_site(),
+            "Cannot have more than {} lifetime parameter.",
+            LifetimeIndex::MAX_LIFETIME_PARAM+1
+        );
+    }
 
     let visited_fields=&VisitedFieldMap::new(ds,config,shared_vars,ctokens)?;
 
@@ -403,6 +412,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let generics_header=
         GenParamsIn::with_after_types(&ds.generics,InWhat::ImplHeader,storage_opt);
 
+    shared_vars.extract_errs()?;
+
     quote!(
         #prefix_type_tokenizer_
 
@@ -513,7 +524,7 @@ fn tokenize_mono_enum<'a>(
             use std::fmt::Write;
             let _=write!(variant_names,"{};",variant.name);
         }
-        shared_vars.push_str(&variant_names)
+        shared_vars.push_str(&variant_names,None)
     };
 
     ToTokenFnMut::new(move|ts|{

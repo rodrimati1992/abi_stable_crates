@@ -59,10 +59,10 @@ impl<'a> VisitedFieldMap<'a>{
             let field_accessor=config.override_field_accessor[field]
                 .unwrap_or_else(|| config.kind.field_accessor(config.mod_refl_mode,field) );
             
-            let name=config.renamed_fields[field].unwrap_or(field.ident()).to_string();
+            let name=config.renamed_fields[field].unwrap_or(field.ident());
 
             let comp_field=CompTLField::from_expanded(
-                &name,
+                name,
                 visit_info.referenced_lifetimes.iter().cloned(),
                 field_accessor,
                 shared_vars.push_type(layout_ctor,mutated_ty),
@@ -74,18 +74,23 @@ impl<'a> VisitedFieldMap<'a>{
 
             let functions=iterated_functions.iter().enumerate()
                 .map(|(fn_i,func)|{
-                    let name=if is_function {
-                        shared_vars.push_str(&name)
+                    let name_span=name.span();
+                    let name_start_len=if is_function {
+                        shared_vars.push_ident(&name)
                     }else{
-                        shared_vars.push_str(&format!("fn_{}",fn_i))
+                        shared_vars.push_str(&format!("fn_{}",fn_i),Some(name_span))
                     };
 
+                    shared_vars.combine_err( name_start_len.check_ident_length(name_span) );
+
                     let bound_lifetimes_len=shared_vars
-                        .extend_with_display(";",func.named_bound_lts.iter())
+                        .extend_with_idents(",",func.named_bound_lts.iter().cloned())
                         .len;
 
+                    let params_iter=func.params.iter()
+                        .map(|p| p.name.unwrap_or(&ctokens.underscore) );
                     let param_names_len=shared_vars
-                        .extend_with_display(";",func.params.iter().map(|p| p.name.unwrap_or("") ))
+                        .extend_with_idents(",",params_iter)
                         .len;
 
                     
@@ -100,12 +105,12 @@ impl<'a> VisitedFieldMap<'a>{
                         );
 
                     let return_type_layout=match &func.returns {
-                        Some(ret) => shared_vars.push_type(layout_ctor,ret.ty ),
+                        Some(ret) => shared_vars.push_type(layout_ctor,ret.ty ).to_u10(),
                         None => !0,
                     };
                     
                     CompTLFunction{
-                        name,
+                        name:name_start_len,
                         bound_lifetimes_len,
                         param_names_len,
                         param_type_layouts,

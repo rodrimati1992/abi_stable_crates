@@ -6,8 +6,7 @@ use std::fmt::{self,Debug};
 
 /// A set of lifetime indices.
 pub(crate) struct LifetimeCounters{
-    set:[u8;64],
-    max_index:u8,
+    set:Vec<u8>,
 }
 
 const MASK:u8=0b11;
@@ -16,14 +15,15 @@ const MAX_VAL:u8=3;
 impl LifetimeCounters{
     pub fn new()->Self{
         Self{
-            set:[0;64],
-            max_index:0,
+            set:Vec::new(),
         }
     }
     /// Increments the counter for the `lifetime` lifetime,stopping at 3.
     pub fn increment(&mut self,lifetime:LifetimeIndex)->u8{
         let (i,shift)=Self::get_index_shift( lifetime.bits );
-        self.max_index=(i as u8).max(self.max_index);
+        if i>=self.set.len() {
+            self.set.resize(i+1,0);
+        }
         let bits=&mut self.set[i];
         let mask=MASK << shift;
         if (*bits&mask)==mask {
@@ -36,13 +36,17 @@ impl LifetimeCounters{
 
     pub fn get(&self,lifetime:LifetimeIndex)->u8{
         let (i,shift)=Self::get_index_shift( lifetime.bits );
-        (self.set[i] >> shift) & MASK
+        match self.set.get(i) {
+            Some(&bits) => (bits >> shift) & MASK,
+            None => 0,
+        }
+        
     }
     
-    fn get_index_shift(lt:u8)->(usize,u8){
+    fn get_index_shift(lt:usize)->(usize,u8){
         (
-            (lt>>2).into(),
-            (lt&3)<<1
+            lt>>2,
+            ((lt&3)<<1)as u8
         )
     }
 }
@@ -52,7 +56,7 @@ impl LifetimeCounters{
 impl Debug for LifetimeCounters{
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
         f.debug_list()
-         .entries(self.set[..usize::from(self.max_index)].iter().cloned().map(U8Wrapper))
+         .entries(self.set.iter().cloned().map(U8Wrapper))
          .finish()
     }
 }
@@ -88,6 +92,7 @@ mod tests{
             LifetimeIndex::Param(7),
             LifetimeIndex::Param(8),
             LifetimeIndex::Param(9),
+            LifetimeIndex::Param(999),
             LifetimeIndex::ANONYMOUS,
             LifetimeIndex::STATIC,
             LifetimeIndex::NONE,
