@@ -305,3 +305,11 @@ pub mod globals{
     }
 }
 
+
+
+#[repr(C)]
+#[derive(StableAbi)]
+struct Foo<'a>{
+  a:&'b (),
+  b:extern fn(&u8),
+}

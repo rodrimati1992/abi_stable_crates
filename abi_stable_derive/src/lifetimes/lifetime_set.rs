@@ -2,17 +2,20 @@ use super::LifetimeIndex;
 
 /// A set of lifetime indices.
 pub(crate) struct LifetimeSet{
-    set:[u64;4]
+    set:Vec<u8>
 }
 
 impl LifetimeSet{
     pub fn new()->Self{
         Self{
-            set:[0;4],
+            set:Vec::new(),
         }
     }
     pub fn insert(&mut self,lifetime:LifetimeIndex)->Option<LifetimeIndex>{
         let (i,bit)=Self::get_index_bit( lifetime.bits );
+        if i>=self.set.len() {
+            self.set.resize(i+1,0);
+        }
         let bits=&mut self.set[i];
         if (*bits & bit)==0 {
             *bits|=bit;
@@ -25,6 +28,9 @@ impl LifetimeSet{
     #[allow(dead_code)]    
     pub fn remove(&mut self,lifetime:LifetimeIndex)->Option<LifetimeIndex>{
         let (i,bit)=Self::get_index_bit( lifetime.bits );
+        if i>=self.set.len() {
+            return None;
+        }
         let bits=&mut self.set[i];
         if (*bits & bit)==0 {
             None
@@ -36,11 +42,17 @@ impl LifetimeSet{
     
     pub fn contains(&self,lifetime:LifetimeIndex)->bool{
         let (i,bit)=Self::get_index_bit( lifetime.bits );
-        (self.set[i] & bit)!=0
+        match self.set.get(i) {
+            Some(&bits) => (bits & bit)!=0,
+            None => false,
+        }
     }
     
-    fn get_index_bit(lt:u8)->(usize,u64){
-        ((lt>>6).into(),1<<(lt&63))
+    fn get_index_bit(lt:usize)->(usize,u8){
+        (
+            lt>>3,
+            1<<(lt as u8 & 7)
+        )
     }
 }
 

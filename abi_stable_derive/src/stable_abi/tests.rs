@@ -46,16 +46,13 @@ fn check_struct_repr_attrs(){
     ];
 
     for invalid_repr in invalid_reprs {
-        must_panic(file_span!(),||{
-            let with_repr_rust=format!(
-                "#[repr({repr})]\n{struct_def}",
-                repr=invalid_repr,
-                struct_def=rect_def,
-            );
-            derive_sabi(&with_repr_rust).unwrap();
-        }).unwrap_or_else(|_|{
-            panic!("invalid_repr={}",invalid_repr);
-        });
+        
+        let with_repr_rust=format!(
+            "#[repr({repr})]\n{struct_def}",
+            repr=invalid_repr,
+            struct_def=rect_def,
+        );
+        assert!(derive_sabi(&with_repr_rust).is_err())
     }
 
 

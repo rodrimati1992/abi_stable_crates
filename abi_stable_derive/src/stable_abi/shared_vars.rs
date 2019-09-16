@@ -3,21 +3,24 @@ use crate::{
     composite_collections::{SmallStartLen as StartLen},
     lifetimes::{LifetimeIndex,LifetimeIndexPair,LifetimeRange},
     literals_constructors::{rslice_tokenizer,rstr_tokenizer},
+    utils::{join_spans,LinearResult,SynResultExt},
     ToTokenFnMut,
 };
 
 use super::{
     attribute_parsing::LayoutConstructor,
+    tl_field::TypeLayoutIndex,
     CommonTokens,
 };
 
 use core_extensions::SelfOps;
 
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{TokenStream as TokenStream2,Span};
 
 use quote::{quote,ToTokens};
 
 use std::{
+    borrow::Borrow,
     collections::HashMap,
     fmt::Display,
 };
@@ -32,6 +35,11 @@ pub(crate) struct SharedVars<'a>{
     type_layouts_map: HashMap<(LayoutConstructor,&'a syn::Type),u16>,
     type_layouts: Vec<(LayoutConstructor,&'a syn::Type)>,
     constants: Vec<&'a syn::Expr>,
+    overflowed_strings:LinearResult<()>,
+    overflowed_lifetime_indices:LinearResult<()>,
+    overflowed_type_layouts:LinearResult<()>,
+    overflowed_constants:LinearResult<()>,
+    extra_errs:LinearResult<()>,
 }
 
 impl<'a> SharedVars<'a>{
@@ -44,6 +52,11 @@ impl<'a> SharedVars<'a>{
             type_layouts: Vec::new(),
             type_layouts_map: HashMap::new(),
             constants: Vec::new(),
+            overflowed_strings:LinearResult::ok(()),
+            overflowed_lifetime_indices:LinearResult::ok(()),
+            overflowed_type_layouts:LinearResult::ok(()),
+            overflowed_constants:LinearResult::ok(()),
+            extra_errs:LinearResult::ok(()),
         }
     }
 
@@ -55,24 +68,99 @@ impl<'a> SharedVars<'a>{
         self.ctokens
     }
 
-    pub(crate) fn push_str(&mut self,s:&str)->StartLen{
-        let start=self.strings.len();
-        self.strings.push_str(s);
-        StartLen::new(start,self.strings.len()-start)
+    pub(crate) fn extract_errs(&mut self)->Result<(),syn::Error>{
+        let mut errors=Ok::<(),syn::Error>(());
+        self.overflowed_strings.take().combine_into_err(&mut errors);
+        self.overflowed_lifetime_indices.take().combine_into_err(&mut errors);
+        self.overflowed_type_layouts.take().combine_into_err(&mut errors);
+        self.overflowed_constants.take().combine_into_err(&mut errors);
+        self.extra_errs.take().combine_into_err(&mut errors);
+        errors
     }
 
-    pub fn extend_with_display<I>(&mut self,separator:&str,iter:I)->StartLen
+    fn push_str_inner<F>(&mut self,f:F)->StartLen
     where
-        I:IntoIterator,
-        I::Item:Display,
+        F:FnOnce(&mut Self)->Option<Span>
     {
-        use std::fmt::Write;
         let start=self.strings.len();
-        for elem in iter {
-            let _=write!(self.strings,"{}",elem);
-            self.strings.push_str(separator);
+        let span=f(self);
+        let len=self.strings.len()-start;
+
+        if start >= (1<<16) || len >=(1<<16) {
+            self.string_overflow_err(span);
+            StartLen::DUMMY
+        }else{
+            StartLen::new(start,len)
         }
-        StartLen::new(start,self.strings.len()-start)
+    }
+
+    pub(crate) fn push_err(&mut self,e:syn::Error){
+        self.extra_errs.push_err(e);
+    }
+
+    pub(crate) fn combine_err(&mut self,r:Result<(),syn::Error>){
+        self.extra_errs.combine_err(r);
+    }
+
+    pub(crate) fn push_ident(&mut self,ident:&syn::Ident)-> StartLen {
+        self.push_str_inner(|this|{
+            use std::fmt::Write;
+            let _=write!(this.strings,"{}",ident);
+            Some(ident.span())
+        })
+    }
+
+    pub(crate) fn push_str(&mut self,s:&str,span:Option<Span>)-> StartLen {
+        self.push_str_inner(|this|{
+            this.strings.push_str(s);
+            span
+        })
+    }
+
+    pub fn extend_with_idents<I>(&mut self,separator:&str,iter:I)->StartLen
+    where
+        I:IntoIterator<Item=&'a syn::Ident>,
+    {
+        self.push_str_inner(|this|{
+            use std::fmt::Write;
+            let mut last_span=None;
+            for ident in iter {
+                last_span=Some(ident.span());
+                let _=write!(this.strings,"{}",ident);
+                this.push_str(separator,last_span);
+            }
+            last_span
+        })
+    }
+
+    pub fn extend_with_display<I,T>(&mut self,separator:&str,iter:I)->StartLen
+    where
+        I:IntoIterator<Item=(T,Span)>,
+        T:Display,
+    {
+        self.push_str_inner(|this|{
+            use std::fmt::Write;
+            let mut last_span=None;
+            for (elem,span) in iter {
+                last_span=Some(span);
+                let _=write!(this.strings,"{}",elem);
+                this.push_str(separator,Some(span));
+            }
+            last_span
+        })
+    }
+
+    #[inline(never)]
+    #[cold]
+    pub(crate) fn string_overflow_err(&mut self,span:Option<Span>){
+        if self.overflowed_strings.is_ok() {
+            self.overflowed_strings.push_err(syn_err!(
+                span.unwrap_or_else(Span::call_site),
+                "Cannot have more than 64 kylobytes of identifiers in the type combined.
+                 This ammount is approximate since it stores separators after some identifiers.\
+                ",
+            ));
+        }
     }
 
     pub(crate) fn extend_with_lifetime_indices<I>(&mut self,iter:I)->LifetimeRange
@@ -96,22 +184,71 @@ impl<'a> SharedVars<'a>{
             if (len&1)==1 {
                 self.lifetime_indices.push(LifetimeIndex::NONE);
             }
-            LifetimeRange::from_range( start/2..self.lifetime_indices.len()/2 )
+
+            let half_len=self.lifetime_indices.len()/2;
+            if half_len>LifetimeRange::MAX_START {
+                self.lifetime_overflow_start_err();
+                LifetimeRange::DUMMY
+            }else if half_len>LifetimeRange::MAX_LEN {
+                self.lifetime_overflow_len_err();
+                LifetimeRange::DUMMY
+            }else{
+                LifetimeRange::from_range( start/2..half_len )
+            }
         }
     }
 
-    pub(crate) fn push_type(&mut self,layout_ctor:LayoutConstructor,type_:&'a syn::Type)->u16{
+    #[inline(never)]
+    #[cold]
+    pub(crate) fn lifetime_overflow_start_err(&mut self){
+        if self.overflowed_lifetime_indices.is_ok() {
+            self.overflowed_lifetime_indices.push_err(syn_err!(
+                Span::call_site(),
+                "Cannot have more than {} lifetimes arguments within a type definition.\n\
+                 The ammount is approximate,\n
+                 since this stores 5 or fewer lifetimes in fields/function pointers inline,
+                 and those don't contribute to the lifetime arguments limit.",
+                LifetimeRange::MAX_START*2,
+            ));
+        }
+    }
+
+    #[inline(never)]
+    #[cold]
+    pub(crate) fn lifetime_overflow_len_err(&mut self){
+        if self.overflowed_lifetime_indices.is_ok() {
+            self.overflowed_lifetime_indices.push_err(syn_err!(
+                Span::call_site(),
+                "Cannot have more than {} lifetimes arguments within \
+                 a field or function pointer.\n",
+                LifetimeRange::MAX_LEN*2,
+            ));
+        }
+    }
+
+
+    pub(crate) fn push_type(
+        &mut self,
+        layout_ctor:LayoutConstructor,
+        type_:&'a syn::Type,
+    )->TypeLayoutIndex{
         let type_layouts=&mut self.type_layouts;
         
         let key=(layout_ctor,type_);
 
-        *self.type_layouts_map
+        let len=*self.type_layouts_map
             .entry(key)
             .or_insert_with(move||{
                 let len=type_layouts.len();
                 type_layouts.push(key);
                 len as u16
-            })
+            });
+        if len > TypeLayoutIndex::MAX_VAL_U16 {
+            self.construct_type_overflow_err();
+            TypeLayoutIndex::DUMMY
+        }else{
+            TypeLayoutIndex::from_u10(len)
+        }
     }
 
     pub(crate) fn extend_type<I>(&mut self,layout_ctor:LayoutConstructor,types:I)->StartLen
@@ -123,8 +260,31 @@ impl<'a> SharedVars<'a>{
             self.type_layouts.push((layout_ctor,ty));
         }
         let end=self.type_layouts.len();
-        StartLen::new(start,end-start)
+
+        if end > TypeLayoutIndex::MAX_VAL {
+            self.construct_type_overflow_err();
+            StartLen::DUMMY
+        }else{
+            StartLen::new(start,end-start)
+        }
+        
     }
+
+    #[inline(never)]
+    #[cold]
+    fn construct_type_overflow_err(&mut self){
+        if self.overflowed_type_layouts.is_ok() {
+            self.overflowed_type_layouts.push_err(syn_err!(
+                join_spans(
+                    self.type_layouts.drain(TypeLayoutIndex::MAX_VAL..).map(|(_,ty)|ty)
+                ),
+                "Cannot have more than {} unique types(ignoring lifetime parameters) \
+                 within a type definition.",
+                TypeLayoutIndex::MAX_VAL,
+            ));
+        }
+    }
+
 
     pub fn get_type(&self,index:usize)->Option<&'a syn::Type>{
         self.type_layouts.get(index).map(|(_,ty)| *ty )
@@ -139,8 +299,28 @@ impl<'a> SharedVars<'a>{
             self.constants.push(expr);
         }
         let end=self.constants.len();
-        StartLen::new(start,end-start)
+        if end>=(1<<8) {
+            self.construct_const_overflow_err();
+            StartLen::DUMMY
+        }else{
+            StartLen::new(start,end-start)
+        }
     }
+
+    #[inline(never)]
+    #[cold]
+    fn construct_const_overflow_err(&mut self){
+        if self.overflowed_constants.is_ok() {
+            self.overflowed_constants.push_err(syn_err!(
+                Span::call_site(),
+                "Cannot have more than {} unique types(ignoring lifetime parameters) \
+                 within a type definition.",
+                TypeLayoutIndex::MAX_VAL,
+            ));
+        }
+    }
+
+
 }
 
 impl<'a> ToTokens for SharedVars<'a>{
@@ -151,7 +331,7 @@ impl<'a> ToTokens for SharedVars<'a>{
             .map(|chunk|{
                 let first=chunk[0];
                 let second=chunk.get(1).map_or(LifetimeIndex::NONE,|x|*x);
-                LifetimeIndexPair::new(first,second).bits
+                LifetimeIndexPair::new(first,second).to_u8()
             })
             .piped(rslice_tokenizer);
 

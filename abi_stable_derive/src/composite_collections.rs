@@ -14,7 +14,7 @@ use std::{
     ops::{Add,Range},
 };
 
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{TokenStream as TokenStream2,Span};
 use quote::{ToTokens};
 
 use crate::{
@@ -65,6 +65,24 @@ impl<N> StartLen<N>{
             len:self.len,
             ctokens,
         }
+    }
+}
+
+impl StartLen<u16>{
+    pub const DUMMY:Self=Self{
+        start:(1u16<<15)+1,
+        len:(1u16<<15)+1,
+    };
+
+    pub fn check_ident_length(&self,span:Span)->Result<(),syn::Error>{
+        if self.len > Self::IDENT_MAX_LEN {
+            return_syn_err!(
+                span,
+                "Identifier is too long,it must be at most {} bytes.",
+                Self::IDENT_MAX_LEN,
+            );
+        }
+        Ok(())
     }
 }
 

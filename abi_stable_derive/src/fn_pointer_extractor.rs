@@ -44,7 +44,7 @@ pub(crate) struct FnInfo<'a> {
 
     /// The index of first lifetime declared by all functions.
     /// (with higher lifetime indices from the struct/enum definition it is used inside of).
-    initial_bound_lifetime: u8,
+    initial_bound_lifetime: usize,
 
     pub functions: Vec<Function<'a>>,
 }
@@ -52,11 +52,14 @@ pub(crate) struct FnInfo<'a> {
 /// A function pointer in a type declaration.
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub(crate) struct Function<'a> {
+    pub(crate) fn_token: syn::Token!(fn),
+    pub(crate) func_span: Ignored<Span>,
+
     /// The index of the first lifetime the function declares,if there are any.
-    pub(crate) first_bound_lt:u8,
+    pub(crate) first_bound_lt:usize,
     
     /// The index of the first unnamed lifetime of the function,if there are any.
-    pub(crate) first_unnamed_bound_lt:u8,
+    pub(crate) first_unnamed_bound_lt:usize,
     
     /// The named lifetimes for this function pointer type,
     /// the ones declared within `for<'a,'b,'c>`.
@@ -64,9 +67,12 @@ pub(crate) struct Function<'a> {
     /// A set version of the `named_bound_lts` field.
     pub(crate) named_bound_lt_set: Ignored<HashSet<&'a Ident>>,
     /// The amount of lifetimes declared by the function pointer.
-    pub(crate) bound_lts_count:u8,
+    pub(crate) bound_lts_count:usize,
 
     pub(crate) is_unsafe: bool,
+
+    /// The Span for the first time that a bound lifetime appears in the type definition.
+    pub(crate) bound_lt_spans: Ignored<Vec<Option<Span>>>,
 
     /// The parameters of this function pointer,including name and type.
     pub(crate) params: Vec<FnParamRet<'a>>,
@@ -82,7 +88,7 @@ pub(crate) struct FnParamRet<'a> {
     /// The name of the parameter/return type.
     ///
     /// This is None if the parameter doesn't have a name.
-    pub(crate) name: Option<&'a str>,
+    pub(crate) name: Option<&'a Ident>,
     /// The lifetimes this type references (including static).
     pub(crate) lifetime_refs: Vec<LifetimeIndex>,
     /// The type of the parameter/return type.
@@ -134,7 +140,7 @@ impl<'a> TypeVisitor<'a> {
                 fn_info: FnInfo {
                     parent_generics: &generics,
                     env_lifetimes: generics.lifetimes().map(|lt| &lt.lifetime.ident).collect(),
-                    initial_bound_lifetime: generics.lifetimes().count() as u8,
+                    initial_bound_lifetime: generics.lifetimes().count(),
                     functions: Vec::new(),
                 },
                 errors:LinearResult::ok(()),
@@ -166,7 +172,7 @@ impl<'a> TypeVisitor<'a> {
     }
 
     pub fn get_errors(&mut self)->Result<(),syn::Error>{
-        mem::replace(&mut self.vars.errors,Ok(()))
+        self.vars.errors.take()
     }
 
     pub fn into_fn_info(self)->FnInfo<'a>{
@@ -226,7 +232,7 @@ struct FnVisitor<'a, 'b> {
 
 /// The lifetime indices inside a parameter/return type.
 struct FnParamRetLifetimes {
-    span:Span,//TODO
+    span: Span,
     /// The lifetimes this type references (including static).
     lifetime_refs: Vec<LifetimeIndex>,
     /// Whether this is a parameter or return type.
@@ -253,7 +259,7 @@ impl<'a> Vars<'a> {
     pub fn add_referenced_env_lifetime(&mut self, ind: LifetimeIndex) {
         let is_env_lt = match (ind,ind.to_param()) {
             (LifetimeIndex::STATIC,_) => true,
-            (_,Some(index))=> (index as usize) < self.fn_info.env_lifetimes.len(),
+            (_,Some(index))=> index < self.fn_info.env_lifetimes.len(),
             _ => false,
         };
         if is_env_lt {
@@ -270,6 +276,8 @@ impl<'a> VisitMut for TypeVisitor<'a> {
     fn visit_type_bare_fn_mut(&mut self, func: &mut TypeBareFn) {
         let ctokens = self.refs.ctokens;
         let arenas = self.refs.arenas;
+
+        let func_span=func.span();
 
         let is_unsafe=func.unsafety.is_some();
 
@@ -302,16 +310,20 @@ impl<'a> VisitMut for TypeVisitor<'a> {
         let named_bound_lt_set=named_bound_lts.iter().cloned().collect();
 
         let first_bound_lt=self.vars.fn_info.initial_bound_lifetime;
+        let bound_lts_count=named_bound_lts.len();
         let mut current_function = FnVisitor {
             refs: self.refs,
             vars: &mut self.vars,
             lifetime_counts:LifetimeCounters::new(),
             current: Function {
+                fn_token:func.fn_token,
+                func_span: Ignored::new(func_span),
                 first_bound_lt,
-                first_unnamed_bound_lt: first_bound_lt+named_bound_lts.len() as u8,
-                bound_lts_count:named_bound_lts.len() as u8,
+                first_unnamed_bound_lt: first_bound_lt+named_bound_lts.len(),
+                bound_lts_count,
                 named_bound_lts,
                 named_bound_lt_set:Ignored::new(named_bound_lt_set),
+                bound_lt_spans: Ignored::new(vec![None;bound_lts_count]),
                 is_unsafe,
                 params: Vec::new(),
                 returns: None,
@@ -322,7 +334,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
         // Visits a parameter or return type within a function pointer type.
         fn visit_param_ret<'a, 'b>(
             this: &mut FnVisitor<'a, 'b>,
-            name:Option<&'a str>,
+            name:Option<&'a Ident>,
             ty: &'a mut Type,
             param_or_ret: ParamOrReturn,
         ) {
@@ -340,7 +352,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             let param_ret = FnParamRet {
                 name,
                 lifetime_refs: param_ret.lifetime_refs,
-                ty: ty,
+                ty,
                 param_or_ret: param_ret.param_or_ret,
             };
 
@@ -350,13 +362,9 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             }
         }
 
-        for (i,mut param) in 
-            mem::replace(&mut func.inputs, Punctuated::new())
-                .into_iter()
-                .enumerate() 
-        {
-            let arg_name=extract_fn_arg_name(i,&mut param,arenas);
-            let ty = arenas.alloc_mut(param.ty);
+        for (i,param) in func.inputs.iter_mut().enumerate() {
+            let arg_name=extract_fn_arg_name(i,param,arenas);
+            let ty = arenas.alloc_mut(param.ty.clone());
             visit_param_ret(&mut current_function,arg_name, ty, ParamOrReturn::Param);
         }
 
@@ -367,7 +375,8 @@ impl<'a> VisitMut for TypeVisitor<'a> {
         .map(|ty| visit_param_ret(&mut current_function,None, ty, ParamOrReturn::Return));
 
         let mut current=current_function.current;
-        current.anonimize_lifetimes(&current_function.lifetime_counts);
+        current.anonimize_lifetimes(&current_function.lifetime_counts,&mut self.vars.errors);
+        while let Some(_)=func.inputs.pop() {}
         self.vars.fn_info.functions.push(current);
     }
 
@@ -406,7 +415,7 @@ This function does these things:
 
     */
     #[inline(never)]
-    fn setup_lifetime(&mut self, lt: Option<&Ident>) -> Option<&'a Ident> {
+    fn setup_lifetime(&mut self, lt: Option<&Ident>, span:Span) -> Option<&'a Ident> {
         let ctokens = self.refs.ctokens;
         let mut ret: Option<&'a Ident> = None;
         if lt == Some(&ctokens.static_) {
@@ -414,13 +423,13 @@ This function does these things:
         } else if lt==None || lt==Some(&ctokens.underscore) {
             match self.param_ret.param_or_ret {
                 ParamOrReturn::Param => {
-                    self.new_bound_lifetime()
+                    self.new_bound_lifetime(span)
                 },
                 ParamOrReturn::Return => 
                     match self.current.bound_lts_count {
                         0 =>{
                             self.vars.errors.push_err(syn_err!(
-                                self.param_ret.span,
+                                span,
                                 "attempted to use an elided lifetime  in the \
                                  return type when there are no lifetimes \
                                  used in any parameter",
@@ -434,7 +443,7 @@ This function does these things:
                         }
                         _ =>{
                             self.vars.errors.push_err(syn_err!(
-                                self.param_ret.span,
+                                span,
                                 "attempted to use an elided lifetime in the \
                                  return type when there are multiple lifetimes used \
                                  in parameters.",
@@ -450,6 +459,9 @@ This function does these things:
             let found_lt = env_lts.chain(fn_lts).position(|ident| *ident == lt);
             match found_lt {
                 Some(index) => {
+                    if let Some(index)=index.checked_sub(self.current.first_bound_lt) {
+                        self.current.bound_lt_spans[index].get_or_insert( span );
+                    }
                     ret = Some(&ctokens.underscore);
                     LifetimeIndex::Param( index as _  )
                 }
@@ -467,8 +479,9 @@ This function does these things:
     }
     
     /// Adds a bound lifetime to the `extern fn()` and returns an index to it
-    fn new_bound_lifetime(&mut self) -> LifetimeIndex {
+    fn new_bound_lifetime(&mut self,span:Span) -> LifetimeIndex {
         let index = self.vars.fn_info.initial_bound_lifetime+self.current.bound_lts_count;
+        self.current.bound_lt_spans.push(Some(span));
         self.current.bound_lts_count+=1;
         LifetimeIndex::Param( index as _ )
     }
@@ -499,7 +512,7 @@ impl<'a, 'b> VisitMut for FnVisitor<'a, 'b> {
     fn visit_type_reference_mut(&mut self, ref_: &mut TypeReference) {
         let _ctokens = self.refs.ctokens;
         let lt = ref_.lifetime.as_ref().map(|x| &x.ident);
-        if let Some(ident) = self.setup_lifetime(lt).cloned() {
+        if let Some(ident) = self.setup_lifetime(lt,ref_.and_token.span()).cloned() {
             if let Some(lt)=&mut ref_.lifetime {
                 lt.ident = ident
             }
@@ -512,7 +525,7 @@ impl<'a, 'b> VisitMut for FnVisitor<'a, 'b> {
     /// Visits a lifetime inside the function pointer type,
     /// and pushing the lifetime to the list of lifetime indices.
     fn visit_lifetime_mut(&mut self, lt: &mut Lifetime) {
-        if let Some(ident) = self.setup_lifetime(Some(&lt.ident)) {
+        if let Some(ident) = self.setup_lifetime(Some(&lt.ident),lt.apostrophe.span()) {
             lt.ident = ident.clone();
         }
     }
@@ -524,9 +537,9 @@ fn extract_fn_arg_name<'a>(
     _index:usize,
     arg:&mut syn::BareFnArg,
     arenas: &'a Arenas,
-)->Option<&'a str>{
+)->Option<&'a Ident>{
     match arg.name.take() {
-        Some((name,_))=>Some(arenas.alloc(name.to_string())),
+        Some((name,_))=>Some(arenas.alloc(name)),
         None=>None,
     }
 }
@@ -536,20 +549,34 @@ fn extract_fn_arg_name<'a>(
 impl<'a> Function<'a>{
     /// Turns lifetimes in the function parameters that aren't
     /// used in the return type or used only once into LifeimeIndex::ANONYMOUS,
-    fn anonimize_lifetimes(&mut self,lifetime_counts:&LifetimeCounters){
+    fn anonimize_lifetimes(
+        &mut self,
+        lifetime_counts:&LifetimeCounters,
+        errors:&mut Result<(),syn::Error>
+    ){
         let mut return_lts=LifetimeSet::new();
 
         let first_bound_lt=self.first_bound_lt;
 
         let mut current_lt=first_bound_lt;
 
-        let asigned_lts=(0u8..=self.bound_lts_count)
+        let asigned_lts=(0..self.bound_lts_count)
             .map(|i|{
-                let lt_i:u8=first_bound_lt+i;
-
+                let lt_i:usize=first_bound_lt+i;
+        
                 if lifetime_counts.get(LifetimeIndex::Param(lt_i))<=1 {
                     LifetimeIndex::ANONYMOUS
                 }else{
+                    if current_lt == LifetimeIndex::MAX_LIFETIME_PARAM+1 {
+                        errors.push_err(syn_err!(
+                            *self.func_span,
+                            // self.bound_lt_spans[i].unwrap_or_else(||self.fn_token.span()),
+                            "Cannot have more than {} non-static lifetimes that \
+                             are used multiple times",
+                            LifetimeIndex::MAX_LIFETIME_PARAM+1
+                        ));
+                    }
+
                     let ret=LifetimeIndex::Param(current_lt);
                     current_lt+=1;
                     ret
@@ -557,10 +584,11 @@ impl<'a> Function<'a>{
             })
             .collect::<Vec<LifetimeIndex>>();
 
+
         for params in &mut self.params{
             for p_lt in &mut params.lifetime_refs {
                 let param=match p_lt.to_param() {
-                    Some(param)=>(param as usize).wrapping_sub(first_bound_lt as usize),
+                    Some(param)=>(param).wrapping_sub(first_bound_lt),
                     None=>continue,
                 };
                 
@@ -571,7 +599,6 @@ impl<'a> Function<'a>{
         }
     }
 }
-
 
 
 

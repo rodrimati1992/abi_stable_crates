@@ -11,6 +11,7 @@ use abi_stable_shared::test_utils::{FileSpan};
 use core_extensions::measure_time::MyDuration;
 use quote::{ToTokens};
 use proc_macro2::{Span,TokenStream as TokenStream2};
+use syn::spanned::Spanned;
 
 
 #[derive(Debug,Copy,Clone,PartialEq,Eq,Hash)]
@@ -135,11 +136,13 @@ impl<T> SynResultExt for Result<T,syn::Error>{
             Err(e)=>e.combine(err),
         }
     }
+
     fn combine_err<T2>(&mut self,res:Result<T2,syn::Error>) {
         if let Err(err)=res {
             self.push_err(err);
         }
     }
+
     fn combine_into_err<T2>(self,into:&mut Result<T2,syn::Error>){
         into.combine_err(self);
     }
@@ -242,10 +245,12 @@ impl<T> SynResultExt for LinearResult<T>{
     fn push_err(&mut self,err:syn::Error){
         self.errors.push_err(err);
     }
+
     #[inline]
     fn combine_err<T2>(&mut self,res:Result<T2,syn::Error>) {
         self.errors.combine_err(res);
     }
+
     #[inline]
     fn combine_into_err<T2>(self,into:&mut Result<T2,syn::Error>){
         self.into_result().combine_into_err(into);
@@ -268,6 +273,24 @@ pub(crate) fn syn_err(span:Span,display:&dyn Display)-> syn::Error {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+
+pub fn join_spans<I,T>(iter:I)->Span
+where
+    I:IntoIterator<Item=T>,
+    T:Spanned,
+{
+    let call_site=Span::call_site();
+    let mut iter=iter.into_iter();
+    let first:Span=match iter.next() {
+        Some(x)=>x.span(),
+        None=>return call_site,
+    };
+
+    iter.fold(first,|l,r| l.join(r.span()).unwrap_or(call_site) )
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 
 /// Takes the contents out of a `ManuallyDrop<T>`.
 ///

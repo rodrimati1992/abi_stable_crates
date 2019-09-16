@@ -9,6 +9,7 @@ pub mod type_layout{
     pub mod tl_field_macro;
     pub mod tl_lifetimes_macro;
     pub mod tl_multi_tl_macro;
+    pub mod tl_type_layout_index;
 }
 
 

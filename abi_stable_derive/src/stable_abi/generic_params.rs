@@ -30,6 +30,7 @@ impl<'a> GenericParams<'a>{
                     let ty:&'a syn::Type=*ty;
                     shared_vars.borrow_mut()
                         .push_type(LayoutConstructor::SharedStableAbi,ty) 
+                        .to_u10()
                 });
 
             let type_param_bounds=config.type_param_bounds
@@ -42,7 +43,7 @@ impl<'a> GenericParams<'a>{
                     };
 
                     let layout_ctor=bounds.into_(LayoutConstructor::T);
-                    shared_vars.borrow_mut().push_type(layout_ctor,type_)
+                    shared_vars.borrow_mut().push_type(layout_ctor,type_).to_u10()
                 });
 
             let mut iter=type_param_bounds.chain(phantom_type_params);
