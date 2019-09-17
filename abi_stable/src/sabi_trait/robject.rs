@@ -17,7 +17,7 @@ use crate::{
     std_types::{RBox,UTypeId},
     pointer_trait::{
         TransmuteElement,
-        GetPointerKind,PK_SmartPointer,PK_Reference,
+        GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
     },
     type_level::{
         unerasability::{TU_Unerasable,TU_Opaque},
@@ -92,9 +92,11 @@ using a `RObject::*_unerased` function.
     bound="I:InterfaceBound",
     extra_checks="<I as InterfaceBound>::extra_checks",
 )]
-pub struct RObject<'lt,P,I,V>{
+pub struct RObject<'lt,P,I,V>
+where
+    P:GetPointerKind
+{
     vtable:StaticRef<V>,
-    is_reborrowed:bool,
     ptr: ManuallyDrop<P>,
     _marker:PhantomData<Tuple2<&'lt (),I>>,
 }
@@ -126,7 +128,6 @@ macro_rules! impl_from_ptr_method {
         {
             RObject{
                 vtable:I::get_vtable(),
-                is_reborrowed:false,
                 ptr:unsafe{
                     let ptr=TransmuteElement::<()>::transmute_element(ptr,PhantomData);
                     ManuallyDrop::new(ptr)
@@ -138,7 +139,10 @@ macro_rules! impl_from_ptr_method {
     )
 }
 
-impl<P,I,V> RObject<'_,P,I,V>{
+impl<P,I,V> RObject<'_,P,I,V>
+where
+    P:GetPointerKind
+{
     impl_from_ptr_method!{
         /**
 Creates a trait object from a pointer to a type that must implement the 
@@ -212,7 +216,7 @@ use self::clone_impl::CloneImpl;
 /// This impl is for smart pointers.
 impl<'lt,P, I,V> CloneImpl<PK_SmartPointer> for RObject<'lt,P,I,V>
 where
-    P: Deref,
+    P: Deref+GetPointerKind,
     I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone_impl(&self) -> Self {
@@ -221,7 +225,6 @@ where
         };
         Self{
             vtable:self.vtable,
-            is_reborrowed:self.is_reborrowed,
             ptr:ManuallyDrop::new(ptr),
             _marker:PhantomData,
         }
@@ -231,13 +234,12 @@ where
 /// This impl is for references.
 impl<'lt,P, I,V> CloneImpl<PK_Reference> for RObject<'lt,P,I,V>
 where
-    P: Deref+Copy,
+    P: Deref+Copy+GetPointerKind,
     I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone_impl(&self) -> Self {
         Self{
             vtable:self.vtable,
-            is_reborrowed:self.is_reborrowed,
             ptr:ManuallyDrop::new(*self.ptr),
             _marker:PhantomData,
         }
@@ -278,7 +280,7 @@ where
 
 impl<'lt,P,I,V> Debug for RObject<'lt,P,I,V> 
 where
-    P: Deref<Target=()>,
+    P: Deref<Target=()>+GetPointerKind,
     I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -295,7 +297,7 @@ where
 
 impl<'lt,P,I,V> Display for RObject<'lt,P,I,V> 
 where
-    P: Deref<Target=()>,
+    P: Deref<Target=()>+GetPointerKind,
     I: InterfaceType<Display = Implemented<trait_marker::Display>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -311,7 +313,7 @@ where
 
 impl<'lt,P, I,V> std::error::Error for RObject<'lt,P,I,V>
 where
-    P: Deref<Target=()>,
+    P: Deref<Target=()>+GetPointerKind,
     I: InterfaceBound<
         Display=Implemented<trait_marker::Display>,
         Debug=Implemented<trait_marker::Debug>,
@@ -323,16 +325,21 @@ where
 
 unsafe impl<'lt,P,I,V> Send for RObject<'lt,P,I,V> 
 where 
+    P:GetPointerKind,
     I:InterfaceType<Send = Implemented<trait_marker::Send>>,
 {}
 
 unsafe impl<'lt,P,I,V> Sync for RObject<'lt,P,I,V> 
-where 
+where
+    P:GetPointerKind,
     I:InterfaceType<Sync = Implemented<trait_marker::Sync>>,
 {}
 
 
-impl<'lt,P,I,V> RObject<'lt,P,I,V>{
+impl<'lt,P,I,V> RObject<'lt,P,I,V>
+where
+    P:GetPointerKind,
+{
 /**
 
 Constructs an RObject from a pointer and an extra vtable.
@@ -367,14 +374,16 @@ These are the requirements for the caller:
     {
         RObject{
             vtable,
-            is_reborrowed:false,
             ptr:ManuallyDrop::new( ptr.transmute_element(<()>::T) ),
             _marker:PhantomData,
         }
     }
 }
 
-impl<'lt,P,I,V> RObject<'lt,P,I,V>{
+impl<'lt,P,I,V> RObject<'lt,P,I,V>
+where
+    P:GetPointerKind,
+{
     /// The uid in the vtable has to be the same as the one for T,
     /// otherwise it was not created from that T in the library that 
     /// declared the trait object.
@@ -540,8 +549,9 @@ for PrivStruct
 
 
 impl<'lt,P,I,V> RObject<'lt,P,I,V>
-where 
-    I:InterfaceType
+where
+    P:GetPointerKind,
+    I:InterfaceType,
 {
     /// Creates a shared reborrow of this RObject.
     ///
@@ -553,7 +563,6 @@ where
         // Reborrowing will break if I add extra functions that operate on `P`.
         RObject{
             vtable:self.vtable,
-            is_reborrowed:true,
             ptr:ManuallyDrop::new(&**self.ptr),
             _marker:PhantomData,
         }
@@ -573,7 +582,6 @@ where
         // Reborrowing will break if I add extra functions that operate on `P`.
         RObject {
             vtable: self.vtable,
-            is_reborrowed:true,
             ptr: ManuallyDrop::new(&mut **self.ptr),
             _marker:PhantomData,
         }
@@ -583,8 +591,10 @@ where
 
 
 
-impl<'lt,P,I,V> RObject<'lt,P,I,V>{
-
+impl<'lt,P,I,V> RObject<'lt,P,I,V>
+where
+    P:GetPointerKind,
+{
     #[inline]
     pub fn sabi_et_vtable<'a>(&self)->&'a V{
         self.vtable.get()
@@ -631,11 +641,14 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     }
 }
 
-impl<P,I,V> Drop for RObject<'_,P,I,V>{
+impl<P,I,V> Drop for RObject<'_,P,I,V>
+where
+    P:GetPointerKind,
+{
     fn drop(&mut self){
         // This condition is necessary because if the RObject was reborrowed,
         // the destructor function would take a different pointer type.
-        if !self.is_reborrowed{
+        if <P as GetPointerKind>::KIND==PointerKind::SmartPointer {
             let destructor=self.sabi_robject_vtable()._sabi_drop();
             unsafe{
                 destructor(&mut self.ptr);

@@ -328,6 +328,7 @@ There are extra methods on the `obj` field.
         #[sabi(bound=#used_to_bound)]
         #submod_vis struct #trait_to<#to_params>
         where
+            _ErasedPtr:__GetPointerKind,
             #(#where_preds)*
         {
             #submod_vis obj:#used_trait_object,
@@ -499,7 +500,10 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
     let plus_lt=&lt_tokens.plus_lt;
 
     quote!(
-        impl<#gen_params_header> #trait_to<#gen_params_use_to> {
+        impl<#gen_params_header> #trait_to<#gen_params_use_to> 
+        where
+            _ErasedPtr:__GetPointerKind,
+        {
             #[doc=#from_ptr_docs]
             #[doc=#shared_docs]
             #submod_vis fn from_ptr<_OrigPtr,Erasability>(
@@ -762,6 +766,7 @@ fn methods_impls<'a>(
     quote!(
         impl<#gen_params_header> #trait_to<#gen_params_use_to>
         where 
+            _ErasedPtr:__GetPointerKind,
             Self:#( #super_traits_a + )* Sized ,
             #impl_where_preds
         {
@@ -840,7 +845,10 @@ fn declare_vtable<'a>(
         #( #[sabi(prefix_bound=#lifetime_bounds)] )*
         #[sabi(bound=#vtable_bound)]
         #(#[#derive_attrs])*
-        #submod_vis struct VTableVal<#generics_decl>{
+        #submod_vis struct VTableVal<#generics_decl>
+        where
+            _ErasedPtr:__GetPointerKind,
+        {
             _sabi_tys: ::std::marker::PhantomData<
                 extern "C" fn(#generics_use0)
             >,
@@ -936,6 +944,7 @@ fn vtable_impl<'a>(
         impl<#impl_header_generics> MakeVTable<#makevtable_generics>
         where 
             _Self:#trait_bounds<#trait_generics>,
+            _ErasedPtr:__GetPointerKind,
             #trait_interface<#trait_interface_use>:
                 __sabi_re::GetRObjectVTable<IA,_Self,_ErasedPtr,_OrigPtr>,
         {

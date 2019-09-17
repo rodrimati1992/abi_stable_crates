@@ -214,7 +214,9 @@ Test that #[sabi(no_trait_impl)] disables the trait impl for the trait object.
 #[sabi(no_trait_impl)]
 trait NoTraitImplA{}
 
-impl<P> NoTraitImplA for NoTraitImplA_TO<'_,P>{}
+impl<P> NoTraitImplA for NoTraitImplA_TO<'_,P>
+where P:crate::pointer_trait::GetPointerKind,
+{}
 
 
 
