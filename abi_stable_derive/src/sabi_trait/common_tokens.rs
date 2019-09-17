@@ -98,13 +98,13 @@ declare_common_tokens! {
         vtable_typarams="_Self,_ErasedPtr,",
         
         ptr_ref_bound=
-            "_ErasedPtr: __DerefTrait<Target=()>,",
+            "_ErasedPtr: __GetPointerKind<Target=()>,",
         ptr_mut_bound=
-            "_ErasedPtr: __DerefMutTrait<Target=()>,",
+            "_ErasedPtr: __GetPointerKind+__DerefMutTrait<Target=()>,",
         ptr_ref_val_bound=
-            "_ErasedPtr: __DerefTrait<Target=()>+__sabi_re::OwnedPointer<Target=()>,",
+            "_ErasedPtr: __sabi_re::OwnedPointer<Target=()>,",
         ptr_mut_val_bound=
-            "_ErasedPtr: __DerefMutTrait<Target=()>+__sabi_re::OwnedPointer<Target=()>,",
+            "_ErasedPtr: __sabi_re::OwnedPointer<Target=()>,",
         ptr_val_bound=
             "_ErasedPtr: __sabi_re::OwnedPointer<Target=()>,",
 

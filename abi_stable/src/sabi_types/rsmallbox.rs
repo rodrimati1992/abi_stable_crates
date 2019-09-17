@@ -549,8 +549,6 @@ where
 
 
 unsafe impl<T,Inline> OwnedPointer for RSmallBox<T,Inline>{
-    type Target=T;
-
     #[inline]
     unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>{
         MovePtr::new(&mut **this)

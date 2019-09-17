@@ -9,7 +9,10 @@ pub mod reexports{
         ops::{Deref as __DerefTrait,DerefMut as __DerefMutTrait},
     };
 
-    pub use crate::marker_type::ErasedObject as __ErasedObject;
+    pub use crate::{
+        marker_type::ErasedObject as __ErasedObject,
+        pointer_trait::GetPointerKind as __GetPointerKind,
+    };
 
 
     pub mod __sabi_re{
