@@ -1219,7 +1219,7 @@
       code:r##"
           #[repr(C)]
           struct Foo{
-            typetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetype#name:extern fn(),
+            typetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetypetype#name:extern "C" fn(),
           }
       "##,
       subcase: [
@@ -1249,7 +1249,7 @@
           #[repr(C)]
           struct Foo(
             for<'aa,'ab,'ac,'ad,'ae,'af,'ag,'ah,'ai,'aj,'ak,'al,'am,#p0>
-              extern fn(
+              extern "C" fn(
                 &'aa(),&'ab(),&'ac(),&'ad(),&'ae(),&'af(),&'ag(),&'ah(),
                 &'aa(),&'ab(),&'ac(),&'ad(),&'ae(),&'af(),&'ag(),&'ah(),
                 &'ai(),&'aj(),&'ak(),&'al(),&'am(),#f0
@@ -1269,7 +1269,7 @@
           struct Foo<'aa,'ab,'ac,'ad,'ae,'af,'ag,'ah,>(
               &'aa(),&'ab(),&'ac(),&'ad(),&'ae(),&'af(),&'ag(),&'ah(),
               for<'ai,'aj,'ak,'al,'am,#p0>
-              extern fn(
+              extern "C" fn(
                 &'ai(),&'aj(),&'ak(),&'al(),&'am(),#f0
                 &'ai(),&'aj(),&'ak(),&'al(),&'am(),#f0
               )
