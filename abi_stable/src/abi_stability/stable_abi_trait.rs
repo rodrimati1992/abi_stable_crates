@@ -82,7 +82,7 @@ Non-exhaustive list of std types that are NonZero:
 
 - &mut T (any T).
 
-- extern fn().
+- extern "C" fn().
 
 - std::ptr::NonNull
 
@@ -1083,7 +1083,7 @@ const MONO_TL_EXTERN_FN:&'static MonoTypeLayout=&MonoTypeLayout::new(
 );
 
 
-/// The layout of `extern fn()` and `unsafe extern fn()`
+/// The layout of `extern "C" fn()` and `unsafe extern "C" fn()`
 macro_rules! empty_extern_fn_layout{
     ($this:ty) => ({
         make_shared_vars!{
@@ -1127,13 +1127,13 @@ unsafe impl SharedStableAbi for unsafe extern "C" fn() {
 }
 
 
-/// The TypeLayoutCtor of an `unsafe extern fn()`
+/// The TypeLayoutCtor of an `unsafe extern "C" fn()`
 pub const UNSAFE_EXTERN_FN_LAYOUT:TypeLayoutCtor=
-    GetTypeLayoutCtor::<unsafe extern fn()>::STABLE_ABI;
+    GetTypeLayoutCtor::<unsafe extern "C" fn()>::STABLE_ABI;
 
-/// The TypeLayoutCtor of an `extern fn()`
+/// The TypeLayoutCtor of an `extern "C" fn()`
 pub const EXTERN_FN_LAYOUT:TypeLayoutCtor=
-    GetTypeLayoutCtor::<extern fn()>::STABLE_ABI;
+    GetTypeLayoutCtor::<extern "C" fn()>::STABLE_ABI;
 
 
 /////////////

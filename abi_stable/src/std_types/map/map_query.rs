@@ -5,7 +5,7 @@ use super::*;
 #[repr(C)]
 pub struct MapQuery<'a,K>{
     _marker:NotCopyNotClone,
-    is_equal:extern fn(&K,&ErasedObject)->bool,
+    is_equal:extern "C" fn(&K,&ErasedObject)->bool,
     hash    :extern "C" fn(&ErasedObject,HasherObject<'_>),
     query:&'a ErasedObject,
 }
@@ -60,7 +60,7 @@ impl<'a,K> Hash for MapQuery<'a,K>{
 }
 
 
-extern fn is_equal<K,Q>(key:&K,query:&ErasedObject)->bool
+extern "C" fn is_equal<K,Q>(key:&K,query:&ErasedObject)->bool
 where
     K:Borrow<Q>,
     Q:Eq+?Sized,
@@ -72,7 +72,7 @@ where
 }
 
 
-extern fn hash<Q>(query:&ErasedObject,mut hasher:HasherObject<'_>)
+extern "C" fn hash<Q>(query:&ErasedObject,mut hasher:HasherObject<'_>)
 where
     Q:Hash+?Sized,
 {

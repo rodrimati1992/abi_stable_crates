@@ -261,7 +261,7 @@ where
 //////////////////////////////////////////////////////////////////////////////////////
 
 
-pub(super) unsafe extern fn write_str_fmt_write<T>(
+pub(super) unsafe extern "C" fn write_str_fmt_write<T>(
     this:&mut ErasedObject, 
     data:RStr<'_>
 ) -> RResult<(), ()>

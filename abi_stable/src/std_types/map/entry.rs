@@ -667,13 +667,13 @@ impl<'a,K,V> Drop for RVacantEntry<'a,K,V>{
     missing_field(panic),
 )]
 pub struct OccupiedVTableVal<K,V>{
-    drop_entry:unsafe extern fn(&mut ErasedOccupiedEntry<K,V>),
-    key:extern fn(&ErasedOccupiedEntry<K,V>)->&K,
-    get_elem:extern fn(&ErasedOccupiedEntry<K,V>)->&V,
-    get_mut_elem:extern fn(&mut ErasedOccupiedEntry<K,V>)->&mut V,
-    into_mut_elem:extern fn(ROccupiedEntry<'_,K,V>)->&'_ mut V,
-    insert_elem:extern fn(&mut ErasedOccupiedEntry<K,V>,V)->V,
-    remove:extern fn(ROccupiedEntry<'_,K,V>)->V,
+    drop_entry:unsafe extern "C" fn(&mut ErasedOccupiedEntry<K,V>),
+    key:extern "C" fn(&ErasedOccupiedEntry<K,V>)->&K,
+    get_elem:extern "C" fn(&ErasedOccupiedEntry<K,V>)->&V,
+    get_mut_elem:extern "C" fn(&mut ErasedOccupiedEntry<K,V>)->&mut V,
+    into_mut_elem:extern "C" fn(ROccupiedEntry<'_,K,V>)->&'_ mut V,
+    insert_elem:extern "C" fn(&mut ErasedOccupiedEntry<K,V>,V)->V,
+    remove:extern "C" fn(ROccupiedEntry<'_,K,V>)->V,
 }
 
 
@@ -695,14 +695,14 @@ impl<K,V> OccupiedVTable<K,V>{
 
 
 impl<K,V> ErasedOccupiedEntry<K,V>{
-    unsafe extern fn drop_entry(&mut self){
+    unsafe extern "C" fn drop_entry(&mut self){
         extern_fn_panic_handling!{
             Self::run_as_unerased(self,|this|{
                 ManuallyDrop::drop(this);
             }) 
         }
     }
-    extern fn key(&self)->&K{
+    extern "C" fn key(&self)->&K{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 self,
@@ -710,7 +710,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern fn get_elem(&self)->&V{
+    extern "C" fn get_elem(&self)->&V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 self,
@@ -718,7 +718,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern fn get_mut_elem(&mut self)->&mut V{
+    extern "C" fn get_mut_elem(&mut self)->&mut V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 self,
@@ -726,7 +726,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern fn into_mut_elem(this:ROccupiedEntry<'_,K,V>)->&'_ mut V{
+    extern "C" fn into_mut_elem(this:ROccupiedEntry<'_,K,V>)->&'_ mut V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),
@@ -734,7 +734,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern fn insert_elem(&mut self,elem:V)->V{
+    extern "C" fn insert_elem(&mut self,elem:V)->V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 self,
@@ -742,7 +742,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern fn remove(this:ROccupiedEntry<'_,K,V>)->V{
+    extern "C" fn remove(this:ROccupiedEntry<'_,K,V>)->V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),
@@ -769,10 +769,10 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
     missing_field(panic),
 )]
 pub struct VacantVTableVal<K,V>{
-    drop_entry:unsafe extern fn(&mut ErasedVacantEntry<K,V>),
-    key:extern fn(&ErasedVacantEntry<K,V>)->&K,
-    into_key:extern fn(RVacantEntry<'_,K,V>)->K,
-    insert_elem:extern fn(RVacantEntry<'_,K,V>,V)->&'_ mut V,
+    drop_entry:unsafe extern "C" fn(&mut ErasedVacantEntry<K,V>),
+    key:extern "C" fn(&ErasedVacantEntry<K,V>)->&K,
+    into_key:extern "C" fn(RVacantEntry<'_,K,V>)->K,
+    insert_elem:extern "C" fn(RVacantEntry<'_,K,V>,V)->&'_ mut V,
 }
 
 
@@ -791,14 +791,14 @@ impl<K,V> VacantVTable<K,V>{
 
 
 impl<K,V> ErasedVacantEntry<K,V>{
-    unsafe extern fn drop_entry(&mut self){
+    unsafe extern "C" fn drop_entry(&mut self){
         extern_fn_panic_handling!{
             Self::run_as_unerased(self,|this|{
                 ManuallyDrop::drop(this);
             }) 
         }
     }
-    extern fn key(&self)->&K{
+    extern "C" fn key(&self)->&K{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 self,
@@ -806,7 +806,7 @@ impl<K,V> ErasedVacantEntry<K,V>{
             ) 
         }}
     }
-    extern fn into_key<'a>(this:RVacantEntry<'_,K,V>)->K{
+    extern "C" fn into_key<'a>(this:RVacantEntry<'_,K,V>)->K{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),
@@ -814,7 +814,7 @@ impl<K,V> ErasedVacantEntry<K,V>{
             )
         }}
     }
-    extern fn insert_elem(this:RVacantEntry<'_,K,V>,elem:V)->&'_ mut V{
+    extern "C" fn insert_elem(this:RVacantEntry<'_,K,V>,elem:V)->&'_ mut V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),

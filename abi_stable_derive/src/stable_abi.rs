@@ -74,7 +74,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     data.generics.make_where_clause();
 
     // println!("\nderiving for {}",data.ident);
-    // let _measure_time0=PrintDurationOnDrop::new(file_span!());
+    // let _measure_time0=PrintDurationOnDrop::new(abi_stable_shared::file_span!());
 
     let arenas = Arenas::default();
     let arenas = &arenas;
@@ -98,13 +98,11 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
         );
     }
 
-    let visited_fields=&VisitedFieldMap::new(ds,config,shared_vars,ctokens)?;
+    let visited_fields=&VisitedFieldMap::new(ds,config,shared_vars,ctokens);
+    shared_vars.extract_errs()?;
 
     let module=Ident::new(&format!("_sabi_{}",name),Span::call_site());
 
-
-
-    // drop(_measure_time0);
 
     let (_, _, where_clause) = generics.split_for_impl();
     let where_clause=(&where_clause.expect("BUG").predicates).into_iter();
@@ -190,11 +188,10 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
 
 
-    let first_field=FieldIndex{variant:0,pos:0};
-    let is_nonzero=if is_transparent && visited_fields.map.contains_index(first_field) {
-        let visited_field=&visited_fields.map[first_field];
+    let is_nonzero=if is_transparent && visited_fields.map.len()!=0 {
+        let visited_field=&visited_fields.map[0];
 
-        let is_opaque_field=config.layout_ctor[first_field].is_opaque();
+        let is_opaque_field=visited_field.layout_ctor.is_opaque();
         if visited_field.comp_field.is_function() {
             quote!( _sabi_reexports::True )
         }else if is_opaque_field {
@@ -218,7 +215,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
         (false,None)=>{
             let struct_=&ds.variants[0];
             mono_tl_data={
-                let fields=fields_tokenizer(ds,struct_.fields.iter(),visited_fields,ct);
+                let fields=fields_tokenizer(ds,visited_fields,ct);
                 match ds.data_variant {
                     DataVariant::Struct=>
                         quote!( _sabi_reexports::MonoTLData::derive_struct(#fields) ),
@@ -259,8 +256,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             mono_tl_data={
                 let struct_=&ds.variants[0];
                 let first_suffix_field=prefix.first_suffix_field.field_pos;
-                let fields=struct_.fields.iter();
-                let fields=fields_tokenizer(ds,fields,visited_fields,ct);
+                let fields=fields_tokenizer(ds,visited_fields,ct);
                 let field_conditionality_ident=prefix.field_conditionality_ident;
                 quote!(
                     _sabi_reexports::MonoTLData::prefix_type_derive(
@@ -335,7 +331,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                 #(const #const_param_name:#const_param_type,)*
             >(
                 #(& #lifetimes_a (),)*
-                extern fn(#(&#type_params_a,)*)
+                extern "C" fn(#(&#type_params_a,)*)
             );
         }
     };
@@ -404,15 +400,15 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
         .collect::<Vec<CompTLField>>(); 
     let phantom_fields=rslice_tokenizer(&phantom_fields);
 
-
-    // let _measure_time1=PrintDurationOnDrop::new(file_span!());
-
     // The storage type parameter that is added if this is a nonexhaustive enum.
     let storage_opt=nonexh_opt.map(|_| &ctokens.und_storage );
     let generics_header=
         GenParamsIn::with_after_types(&ds.generics,InWhat::ImplHeader,storage_opt);
 
     shared_vars.extract_errs()?;
+
+    // drop(_measure_time0);
+    // let _measure_time1=PrintDurationOnDrop::new(abi_stable_shared::file_span!());
 
     quote!(
         #prefix_type_tokenizer_
@@ -536,8 +532,7 @@ fn tokenize_mono_enum<'a>(
                 x.fields.len() as u8
             });
 
-        let fields=ds.variants.iter().flat_map(|v| v.fields.iter() );
-        let fields=fields_tokenizer(ds,fields,visited_fields,ct);
+        let fields=fields_tokenizer(ds,visited_fields,ct);
 
         quote!(
             _sabi_reexports::MonoTLEnum::new(
@@ -586,27 +581,24 @@ fn tokenize_generic_enum<'a>(
 /// Tokenizes a TLFields,
 fn fields_tokenizer<'a>(
     ds:&'a DataStructure<'a>,
-    mut fields:impl Iterator<Item=&'a Field<'a>>+'a,
     visited_fields:&'a VisitedFieldMap<'a>,
     ctokens:&'a CommonTokens<'a>,
 )->impl ToTokens+'a{
     ToTokenFnMut::new(move|ts|{
         to_stream!(ts;ctokens.comp_tl_fields,ctokens.colon2,ctokens.new);
         ctokens.paren.surround(ts,|ts|{
-            let fields=fields.by_ref().collect::<Vec<_>>();
-            fields_tokenizer_inner(ds,fields,visited_fields,ctokens,ts);
+            fields_tokenizer_inner(ds,visited_fields,ctokens,ts);
         });
     })
 }
 
 fn fields_tokenizer_inner<'a>(
     ds:&'a DataStructure<'a>,
-    fields:Vec<&'a Field<'a>>,
     visited_fields:&'a VisitedFieldMap<'a>,
     ct:&'a CommonTokens<'a>,
     ts:&mut TokenStream2,
 ){
-    let iter=fields.iter().map(|field| &visited_fields.map[*field].comp_field );
+    let iter=visited_fields.map.iter().map(|field| field.comp_field );
     rslice_tokenizer(iter).to_tokens(ts);
 
     ct.comma.to_tokens(ts);
@@ -617,7 +609,7 @@ fn fields_tokenizer_inner<'a>(
         to_stream!(ts;ct.some);
         ct.paren.surround(ts,|ts|{
             ct.and_.to_tokens(ts);
-            tokenize_tl_functions(ds,&fields,&visited_fields,ct,ts);
+            tokenize_tl_functions(ds,&visited_fields,ct,ts);
         });
     }
     to_stream!{ts; ct.comma };
@@ -627,7 +619,6 @@ fn fields_tokenizer_inner<'a>(
 /// Tokenizes a TLFunctions
 fn tokenize_tl_functions<'a>(
     ds:&'a DataStructure<'a>,
-    fields:&[&'a Field<'a>],
     visited_fields:&'a VisitedFieldMap<'a>,
     ct:&'a CommonTokens<'a>,
     ts:&mut TokenStream2,
@@ -636,8 +627,9 @@ fn tokenize_tl_functions<'a>(
         CompositeVec::<&'a CompTLFunction>::with_capacity(visited_fields.fn_ptr_count);
     let mut field_fn_ranges=Vec::<StartLen>::with_capacity(ds.field_count);
 
-    fields.iter()
-        .map(|field| functions.extend(&visited_fields.map[*field].functions) )
+    visited_fields.map
+        .iter()
+        .map(|field| functions.extend(&field.functions) )
         .extending(&mut field_fn_ranges);
 
     let functions=functions.into_inner();

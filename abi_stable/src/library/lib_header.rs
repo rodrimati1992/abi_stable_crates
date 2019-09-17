@@ -243,7 +243,7 @@ impl<T> GetAbortingConstructor<T>{
     const ABORTING_CONSTRUCTOR:Constructor<T>=
         Constructor(Self::aborting_constructor);
 
-    extern fn aborting_constructor()->T{
+    extern "C" fn aborting_constructor()->T{
         extern_fn_panic_handling!{
             panic!(
                 "BUG:\n\
@@ -262,7 +262,7 @@ impl<T> GetAbortingConstructor<T>{
 
 #[repr(C)]
 #[derive(StableAbi,Copy,Clone)]
-struct InitGlobalsWith(pub extern fn(&'static Globals));
+struct InitGlobalsWith(pub extern "C" fn(&'static Globals));
 
 const INIT_GLOBALS_WITH:InitGlobalsWith=
     InitGlobalsWith(crate::globals::initialize_globals_with);

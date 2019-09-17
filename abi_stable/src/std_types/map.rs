@@ -1093,26 +1093,26 @@ mod serde{
 )]
 struct VTableVal<K,V,S>{
     ///
-    insert_elem:extern fn(&mut ErasedMap<K,V,S>,K,V)->ROption<V>,
+    insert_elem:extern "C" fn(&mut ErasedMap<K,V,S>,K,V)->ROption<V>,
     
-    get_elem:for<'a> extern fn(&'a ErasedMap<K,V,S>,MapQuery<'_,K>)->Option<&'a V>,
-    get_mut_elem:for<'a> extern fn(&'a mut ErasedMap<K,V,S>,MapQuery<'_,K>)->Option<&'a mut V>,
-    remove_entry:extern fn(&mut ErasedMap<K,V,S>,MapQuery<'_,K>)->ROption<Tuple2<K,V>>,
+    get_elem:for<'a> extern "C" fn(&'a ErasedMap<K,V,S>,MapQuery<'_,K>)->Option<&'a V>,
+    get_mut_elem:for<'a> extern "C" fn(&'a mut ErasedMap<K,V,S>,MapQuery<'_,K>)->Option<&'a mut V>,
+    remove_entry:extern "C" fn(&mut ErasedMap<K,V,S>,MapQuery<'_,K>)->ROption<Tuple2<K,V>>,
     
-    get_elem_p:for<'a> extern fn(&'a ErasedMap<K,V,S>,&K)->Option<&'a V>,
-    get_mut_elem_p:for<'a> extern fn(&'a mut ErasedMap<K,V,S>,&K)->Option<&'a mut V>,
-    remove_entry_p:extern fn(&mut ErasedMap<K,V,S>,&K)->ROption<Tuple2<K,V>>,
+    get_elem_p:for<'a> extern "C" fn(&'a ErasedMap<K,V,S>,&K)->Option<&'a V>,
+    get_mut_elem_p:for<'a> extern "C" fn(&'a mut ErasedMap<K,V,S>,&K)->Option<&'a mut V>,
+    remove_entry_p:extern "C" fn(&mut ErasedMap<K,V,S>,&K)->ROption<Tuple2<K,V>>,
     
-    reserve:extern fn(&mut ErasedMap<K,V,S>,usize),
-    clear_map:extern fn(&mut ErasedMap<K,V,S>),
-    len:extern fn(&ErasedMap<K,V,S>)->usize,
-    capacity:extern fn(&ErasedMap<K,V,S>)->usize,
-    iter    :extern fn(&ErasedMap<K,V,S>     )->Iter<'_,K,V>,
-    iter_mut:extern fn(&mut ErasedMap<K,V,S> )->IterMut<'_,K,V>,
-    drain   :extern fn(&mut ErasedMap<K,V,S> )->Drain<'_,K,V>,
-    iter_val:extern fn(RBox<ErasedMap<K,V,S>>)->IntoIter<K,V>,
+    reserve:extern "C" fn(&mut ErasedMap<K,V,S>,usize),
+    clear_map:extern "C" fn(&mut ErasedMap<K,V,S>),
+    len:extern "C" fn(&ErasedMap<K,V,S>)->usize,
+    capacity:extern "C" fn(&ErasedMap<K,V,S>)->usize,
+    iter    :extern "C" fn(&ErasedMap<K,V,S>     )->Iter<'_,K,V>,
+    iter_mut:extern "C" fn(&mut ErasedMap<K,V,S> )->IterMut<'_,K,V>,
+    drain   :extern "C" fn(&mut ErasedMap<K,V,S> )->Drain<'_,K,V>,
+    iter_val:extern "C" fn(RBox<ErasedMap<K,V,S>>)->IntoIter<K,V>,
     #[sabi(last_prefix_field)]
-    entry:extern fn(&mut ErasedMap<K,V,S>,K)->REntry<'_,K,V>,
+    entry:extern "C" fn(&mut ErasedMap<K,V,S>,K)->REntry<'_,K,V>,
 }
 
 

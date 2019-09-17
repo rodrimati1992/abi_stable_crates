@@ -108,7 +108,7 @@ fn get_static_equiv_tokenizer<'a>(
                     #(const #const_param_name:#const_param_type,)*
                 >(
                     #(& #lifetimes_a (),)*
-                    extern fn(#(&#type_params_a,)*)
+                    extern "C" fn(#(&#type_params_a,)*)
                 );
 
                 unsafe impl #impl_generics  __GetStaticEquivalent_ for #name <#ty_generics>

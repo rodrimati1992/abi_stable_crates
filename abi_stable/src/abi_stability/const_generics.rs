@@ -100,7 +100,7 @@ impl Eq for ConstGeneric{}
 #[sabi(missing_field(panic))]
 pub struct ConstGenericVTableVal{
     layout:&'static TypeLayout,
-    partial_eq:unsafe extern fn(&ErasedObject,&ErasedObject)->bool,
+    partial_eq:unsafe extern "C" fn(&ErasedObject,&ErasedObject)->bool,
     debug:unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
 }
 

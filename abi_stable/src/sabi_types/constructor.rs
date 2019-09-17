@@ -19,19 +19,19 @@ use abi_stable::{
 };
 
 
-extern fn returns_100()->ROption<u32>{
+extern "C" fn returns_100()->ROption<u32>{
     RSome(100)
 }
 
-extern fn returns_100b()->ROption<u32>{
+extern "C" fn returns_100b()->ROption<u32>{
     RSome(100)
 }
 
-extern fn returns_200()->ROption<u32>{
+extern "C" fn returns_200()->ROption<u32>{
     RSome(200)
 }
 
-extern fn returns_none()->ROption<u32>{
+extern "C" fn returns_none()->ROption<u32>{
     RNone
 }
 
@@ -59,7 +59,7 @@ assert_ne!(C,D);
 #[repr(transparent)]
 #[derive(StableAbi)]
 // #[sabi(debug_print)]
-pub struct Constructor<T>(pub extern fn()->T);
+pub struct Constructor<T>(pub extern "C" fn()->T);
 
 impl<T> Copy for Constructor<T>{}
 
@@ -136,7 +136,7 @@ where
 #[derive(StableAbi,Copy,Clone)]
 //#[sabi(debug_print)]
 pub enum ConstructorOrValue<T>{
-    /// This is an `extern fn()->T` which is used to construct a value of type `T`
+    /// This is an `extern "C" fn()->T` which is used to construct a value of type `T`
     Constructor(Constructor<T>),
     /// A value of type `T`
     Value(T)

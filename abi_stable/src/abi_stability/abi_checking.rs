@@ -1162,7 +1162,7 @@ pub(super) fn check_layout_compatibility_with_globals(
 /**
 Checks that the layout of `interface` is compatible with `implementation`,
 */
-pub(crate) extern fn check_layout_compatibility_for_ffi(
+pub(crate) extern "C" fn check_layout_compatibility_for_ffi(
     interface: &'static TypeLayout,
     implementation: &'static TypeLayout,
 ) -> RResult<(), RBoxError> {
@@ -1210,7 +1210,7 @@ and the second must be actual layout.
 
 
 */
-pub extern fn exported_check_layout_compatibility(
+pub extern "C" fn exported_check_layout_compatibility(
     interface: &'static TypeLayout,
     implementation: &'static TypeLayout,
 ) -> RResult<(), RBoxError> {
