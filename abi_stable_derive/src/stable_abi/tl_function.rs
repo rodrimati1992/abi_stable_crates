@@ -21,7 +21,7 @@ use syn::Type;
 /// Associates extra information related to function pointers to a type declaration.
 #[allow(dead_code)]
 pub(crate) struct VisitedFieldMap<'a>{
-    pub(crate) map:FieldMap<VisitedField<'a>>,
+    pub(crate) map:Vec<VisitedField<'a>>,
     pub(crate) fn_ptr_count:usize,
     priv_:(),
 }
@@ -33,12 +33,12 @@ impl<'a> VisitedFieldMap<'a>{
         config:&'a StableAbiOptions<'a>,
         shared_vars:&mut SharedVars<'a>,
         ctokens: &'a CommonTokens<'a>
-    )-> Result<Self,syn::Error> {
+    )-> Self {
         let arenas=shared_vars.arenas();
         let mut tv = TypeVisitor::new(arenas, ctokens.as_ref(), ds.generics);
         let mut fn_ptr_count = 0;
 
-        let map=FieldMap::<VisitedField<'a>>::with(ds,|field|{
+        let map=ds.variants.iter().flat_map(|x| &x.fields ).map(|field|{
             // The type used to get the TypeLayout of the field.
             // This has all parameter and return types of function pointers removed.
             // Extracted into the `functions` field of this struct.
@@ -124,18 +124,20 @@ impl<'a> VisitedFieldMap<'a>{
 
             VisitedField{
                 comp_field,
+                layout_ctor,
                 functions,
                 _marker:PhantomData,
             }
-        });
+        })
+        .collect::<Vec<VisitedField<'a>>>();
 
-        tv.get_errors()?;
+        shared_vars.combine_err( tv.get_errors() );
 
-        Ok(Self{
+        Self{
             map,
             fn_ptr_count,
             priv_:(),
-        })
+        }
     }
 }
 
@@ -147,6 +149,7 @@ impl<'a> VisitedFieldMap<'a>{
 #[allow(dead_code)]
 pub struct VisitedField<'a>{
     pub(crate) comp_field: CompTLField,
+    pub(crate) layout_ctor:LayoutConstructor,
     /// The function pointers from this field.
     pub(crate) functions:Vec<CompTLFunction>,
     _marker:PhantomData<&'a ()>,

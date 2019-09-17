@@ -1178,7 +1178,7 @@
           #[repr(C)]
           struct Foo{
             func:for<'a,'b,'c,'d,'e,'f,'g,'h,'i,'j,'k,'l,'m,'n> 
-              extern fn(
+              extern "C" fn(
                   &'a (),&'a (),
                   &'b (),&'b (),
                   &'c (),&'c (),

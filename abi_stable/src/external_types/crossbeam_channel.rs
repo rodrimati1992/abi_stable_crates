@@ -825,6 +825,7 @@ unsafe impl<'a,T:'a> ErasedType<'a> for ErasedReceiver<T> {
 #[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_struct="VTable")))]
 #[sabi(missing_field(panic))]
+//#[sabi(debug_print)]
 struct VTableVal<T>{
     send:extern "C" fn(this:&ErasedSender<T>,T) -> RResult<(),RSendError<T>>,
     try_send:extern "C" fn(this:&ErasedSender<T>,T) -> RResult<(),RTrySendError<T>>,

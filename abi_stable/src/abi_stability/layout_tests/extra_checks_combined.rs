@@ -348,7 +348,7 @@ fn test_identity_extra_checker() {
         const NEW:&'static IdentityChecker=
             &IdentityChecker{ type_layout:T::LAYOUT };
         
-        extern fn construct_extra_checks()->ExtraChecksStaticRef{
+        extern "C" fn construct_extra_checks()->ExtraChecksStaticRef{
             ExtraChecksStaticRef::from_ptr(
                 Self::NEW,
                 TU_Opaque
@@ -462,7 +462,7 @@ impl WithCyclicExtraChecker {
     const NEW:&'static IdentityChecker=
         &IdentityChecker{ type_layout:Self::LAYOUT };
     
-    extern fn construct_extra_checks()->ExtraChecksStaticRef{
+    extern "C" fn construct_extra_checks()->ExtraChecksStaticRef{
         ExtraChecksStaticRef::from_ptr(
             Self::NEW,
             TU_Opaque
@@ -516,7 +516,7 @@ where
     C0:StableAbi,
     C1:StableAbi,
 {
-    extern fn construct_extra_checks()->ExtraChecksStaticRef{
+    extern "C" fn construct_extra_checks()->ExtraChecksStaticRef{
         ExtraChecksStaticRef::from_ptr(
             &LocalExtraChecker{
                 comp0:<C0 as StableAbi>::LAYOUT,

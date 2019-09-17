@@ -56,6 +56,7 @@ This crate also has examples for most features on their own.
 To run the examples generally you'll have to build the `*_impl` crate,
 then run the `*_user` crate (all `*_user` crates should have a help message and a readme.md).
 
+
 # Glossary
 
 `interface crate`:the crate that declares the public functions and types that 
@@ -110,6 +111,9 @@ These are the kinds of types passed through FFI:
 - [Unsafe code guidelines](./docs/unsafe_code_guidelines/index.html):<br>
     Describes how to write unsafe code ,relating to this library.
 
+- [Troubleshooting](./docs/troubleshooting/index.html):<br>
+    Some problems and their solutions.
+
 # Macros (derive and attribute)
 
 - [sabi_trait attribute macro](./docs/sabi_trait_attribute/index.html):<br>
@@ -126,6 +130,7 @@ These are the kinds of types passed through FFI:
   ](./docs/prefix_types/index.html):<br>
     The method by which *vtables* and *modules* are implemented,
     allowing extending them in minor versions of a library.
+
 
 */
 
@@ -280,7 +285,7 @@ pub mod globals{
     #[derive(StableAbi)]
     pub struct Globals{
         pub layout_checking:
-            extern fn(&'static TypeLayout,&'static TypeLayout) -> RResult<(), RBoxError> ,
+            extern "C" fn(&'static TypeLayout,&'static TypeLayout) -> RResult<(), RBoxError> ,
     }
 
     impl Globals{
@@ -300,16 +305,8 @@ pub mod globals{
 
 
     #[inline(never)]
-    pub extern fn initialize_globals_with(globs:&'static Globals){
+    pub extern "C" fn initialize_globals_with(globs:&'static Globals){
         GLOBALS.init(|| globs );
     }
 }
 
-
-
-#[repr(C)]
-#[derive(StableAbi)]
-struct Foo<'a>{
-  a:&'b (),
-  b:extern fn(&u8),
-}

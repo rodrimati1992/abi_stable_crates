@@ -53,7 +53,7 @@ mod loads_of_lifetimes_single_param{
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Struct{
-        func:for<'a> extern fn(&'a&&&&&u8)->&'a u8,
+        func:for<'a> extern "C" fn(&'a&&&&&u8)->&'a u8,
     }
 }
 
@@ -62,7 +62,7 @@ mod four_lifetimes_single_param{
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Struct{
-        func:for<'a> extern fn(&'a&&u8)->&'a u8,
+        func:for<'a> extern "C" fn(&'a&&u8)->&'a u8,
     }
 }
 
@@ -71,7 +71,7 @@ mod three_lifetimes_single_param{
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Struct{
-        func:for<'a> extern fn(&'a&u8)->&'a u8,
+        func:for<'a> extern "C" fn(&'a&u8)->&'a u8,
     }
 }
 
@@ -80,7 +80,7 @@ mod lifetimes_rep_a_single_param{
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Struct{
-        func:for<'a,'b> extern fn(&'a&'a&'b&u8)->&'b u8,
+        func:for<'a,'b> extern "C" fn(&'a&'a&'b&u8)->&'b u8,
     }
 }
 
@@ -89,7 +89,7 @@ mod lifetimes_rep_b_single_param{
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Struct{
-        func:for<'a> extern fn(&'a&'a u8),
+        func:for<'a> extern "C" fn(&'a&'a u8),
     }
 }
 
@@ -103,7 +103,7 @@ mod lifetimes_four_params{
         reference_b:&'lt0 (),
         reference_c:&'lt0 &'lt1 &'lt1 &'lt1 &'static &'static (),
         func_abba:for<'a,'b> 
-            extern fn( &'b (), &'static (), RSlice<'a,RStr<'_>>, RStr<'a>)->&'static (),
+            extern "C" fn( &'b (), &'static (), RSlice<'a,RStr<'_>>, RStr<'a>)->&'static (),
     }
 
 }
@@ -115,7 +115,7 @@ mod many_bound_lifetimes{
     // #[sabi(debug_print)]
     pub struct Struct<'lt0,'lt1>{
         func_abba:for<'a,'b,'c,'d,'e,'f,'g,'h,'i,'j,'k,'l,'m,'n,'o> 
-            extern fn(
+            extern "C" fn(
                 &'a (),&'b (),
                 &'c (),&'d (),
                 &'e (),&'f (),
@@ -139,7 +139,7 @@ mod many_bound_lifetimes_b{
     // #[sabi(debug_print)]
     pub struct Struct<'lt0,'lt1>{
         func_abba:for<'a,'b,'c,'d,'e,'f,'g,'h,'i,'j,'k,'l,'m,'n,'o,'p> 
-            extern fn(
+            extern "C" fn(
                 &'a (),&'b (),
                 &'c (),&'d (),
                 &'e (),&'f (),
@@ -167,11 +167,11 @@ mod nested_fn_pointer{
         funcs:Tuple2<
             Tuple2<
                 &'lt0 &'static (),
-                for<'a,'b> extern fn(&'a &'a &'a (),RStr<'b>,&'lt0 &'lt1 (),&()),
+                for<'a,'b> extern "C" fn(&'a &'a &'a (),RStr<'b>,&'lt0 &'lt1 (),&()),
             >,
             Tuple2<
                &'lt0 &'lt0 &'lt1 &'static &'static (),
-                for<'a,'b> extern fn(&'b &'b &'a (),RStr<'a>,&&'lt1 (),&()),
+                for<'a,'b> extern "C" fn(&'b &'b &'a (),RStr<'a>,&&'lt1 (),&()),
             >,
         >,
         hello: Tuple4<
@@ -186,7 +186,7 @@ mod nested_fn_pointer{
             &'lt0 (),
         >,
         func_b:for<'a,'b,'c,'d,'e,'f,'g,'h,'i,'j,'k,'l,'m,'n,'o> 
-            extern fn(
+            extern "C" fn(
                 &'a (),&'b (),
                 &'c (),&'d (),
                 &'e (),&'f (),

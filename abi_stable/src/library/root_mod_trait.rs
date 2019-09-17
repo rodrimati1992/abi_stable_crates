@@ -310,7 +310,7 @@ macro_rules! declare_root_module_consts {
         #[derive(StableAbi,Copy,Clone)]
         pub struct RootModuleConsts<M>{
             inner:ErasedRootModuleConsts,
-            _priv:PhantomData<extern fn()->M>,
+            _priv:PhantomData<extern "C" fn()->M>,
         }
 
 

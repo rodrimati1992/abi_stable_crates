@@ -117,7 +117,7 @@ macro_rules! declare_meta_vtable {
         )]
         pub struct VTableVal<'borr,$erased_ptr,$interf>{
             pub type_info:&'static TypeInfo,
-            _marker:PhantomData<extern fn()->Tuple3<$erased_ptr,$interf,&'borr()>>,
+            _marker:PhantomData<extern "C" fn()->Tuple3<$erased_ptr,$interf,&'borr()>>,
             pub drop_ptr:unsafe extern "C" fn(&mut $erased_ptr),
             $(
                 $( #[$field_attr] )*

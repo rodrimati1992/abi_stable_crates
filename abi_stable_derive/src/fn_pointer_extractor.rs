@@ -284,20 +284,36 @@ impl<'a> VisitMut for TypeVisitor<'a> {
         let abi = func
             .abi
             .as_ref()
-            .map(|x| x.name.as_ref().unwrap_or(&ctokens.c_abi_lit));
-
-        if abi != Some(&ctokens.c_abi_lit) {
-            match abi {
-                Some(abi) => self.vars.errors.push_err(spanned_err!(
+            .map(|x| x.name.as_ref());
+        const ABI_ERR:&'static str="\
+            must write `extern \"C\" fn` for function pointer types,\
+             because there is a bug where `extern fn` \
+             anywhere in the type definition causes compilation errors to lose \
+             the locations of errors (called Spans)\
+        ";
+        match abi {
+            Some(Some(abi)) if *abi==ctokens.c_abi_lit => {}
+            Some(Some(abi)) => {
+                self.vars.errors.push_err(spanned_err!(
                     abi,
                     "Abi not supported for function pointers", 
-                )),
-                None => self.vars.errors.push_err(spanned_err!(
+                ));
+                return;
+            },
+            Some(None)=>{
+                self.vars.errors.push_err(spanned_err!(func,"You {}", ABI_ERR));
+                return;
+            },
+            None => {
+                self.vars.errors.push_err(spanned_err!(
                     func,
-                    "The default abi is not supported for function pointers.",
-                )),
+                    "The default abi is not supported for function pointers,you {}`.",
+                    ABI_ERR
+                ));
+                return;
             }
         }
+
 
         let named_bound_lts: Vec<&'a Ident> = func
             .lifetimes
@@ -478,7 +494,7 @@ This function does these things:
         ret
     }
     
-    /// Adds a bound lifetime to the `extern fn()` and returns an index to it
+    /// Adds a bound lifetime to the `extern "C" fn()` and returns an index to it
     fn new_bound_lifetime(&mut self,span:Span) -> LifetimeIndex {
         let index = self.vars.fn_info.initial_bound_lifetime+self.current.bound_lts_count;
         self.current.bound_lt_spans.push(Some(span));
@@ -569,10 +585,10 @@ impl<'a> Function<'a>{
                 }else{
                     if current_lt == LifetimeIndex::MAX_LIFETIME_PARAM+1 {
                         errors.push_err(syn_err!(
-                            *self.func_span,
-                            // self.bound_lt_spans[i].unwrap_or_else(||self.fn_token.span()),
-                            "Cannot have more than {} non-static lifetimes that \
-                             are used multiple times",
+                            self.bound_lt_spans[i].unwrap_or_else(||*self.func_span),
+                            "Cannot have more than {} non-static lifetimes \
+                             (except for lifetimes only used once inside \
+                             function pointer types)",
                             LifetimeIndex::MAX_LIFETIME_PARAM+1
                         ));
                     }

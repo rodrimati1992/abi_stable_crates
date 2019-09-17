@@ -469,9 +469,9 @@ impl<F> Closure<F>{
 #[sabi(kind(Prefix(prefix_struct="VTable")))]
 #[sabi(missing_field(panic))]
 struct VTableVal{
-    state:extern fn(&OpaqueOnce)->ROnceState,
-    call_once:extern fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
-    call_once_force:extern fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
+    state:extern "C" fn(&OpaqueOnce)->ROnceState,
+    call_once:extern "C" fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
+    call_once_force:extern "C" fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
 }
 
 impl VTable{
@@ -492,12 +492,12 @@ impl VTable{
 ///////////////////////////////////////////////////////////////////////////////
 
 
-extern fn state(this:&OpaqueOnce)->ROnceState{
+extern "C" fn state(this:&OpaqueOnce)->ROnceState{
     extern_fn_panic_handling!{
         this.value.state().into()
     }
 }
-extern fn call_once(
+extern "C" fn call_once(
     this:&OpaqueOnce,
     erased_closure:&mut ErasedClosure,
     runner:RunClosure,
@@ -508,7 +508,7 @@ extern fn call_once(
         });
     })
 }
-extern fn call_once_force(
+extern "C" fn call_once_force(
     this:&OpaqueOnce,
     erased_closure:&mut ErasedClosure,
     runner:RunClosure,

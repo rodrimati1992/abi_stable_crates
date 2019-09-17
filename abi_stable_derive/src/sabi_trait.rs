@@ -314,7 +314,7 @@ There are extra methods on the `obj` field.
         #[repr(C)]
         #[derive(::abi_stable::StableAbi)]
         #submod_vis struct #trait_interface<#trait_interface_decl>(
-            ::std::marker::PhantomData<extern fn(#dummy_struct_generics)>
+            ::std::marker::PhantomData<extern "C" fn(#dummy_struct_generics)>
         );
 
         impl<#trait_interface_header> #trait_interface<#trait_interface_use> {

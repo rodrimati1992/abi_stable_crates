@@ -590,7 +590,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         pub(super) object: ManuallyDrop<P>,
         vtable: *const VTable<'borr,P,I>,
         extra_vtable:EV,
-        _marker:PhantomData<extern fn()->Tuple2<I,RStr<'borr>>>,
+        _marker:PhantomData<extern "C" fn()->Tuple2<I,RStr<'borr>>>,
         _marker2:UnsafeIgnoredType<Rc<()>>,
 
     }
