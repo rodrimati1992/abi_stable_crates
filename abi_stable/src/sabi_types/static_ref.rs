@@ -5,6 +5,8 @@ use std::{
 
 use crate::abi_stability::SharedStableAbi;
 
+use super::RRef;
+
 
 /**
 A wrapper type for vtable static references,
@@ -242,7 +244,7 @@ impl<T> StaticRef<T>{
         self.ref_
     }
 
-    /// Transmutes this StaticRef<T> to a StaticRef<U>.
+    /// Transmutes this `StaticRef<T>` to a `StaticRef<U>`.
     ///
     /// # Safety
     ///
@@ -274,6 +276,26 @@ impl<T> StaticRef<T>{
         StaticRef::from_raw(
             self.ref_ as *const U
         )
+    }
+
+    /// Converts this `StaticRef<T>` to an `RRef<'a,T>`.
+    pub const fn to_rref<'a>(self)->RRef<'a,T>
+    where
+        T:'a,
+    {
+        unsafe{
+            RRef::from_raw(self.ref_)
+        }
+    }
+}
+
+impl<T> From<RRef<'static,T>> for StaticRef<T>
+where
+    T:'static,
+{
+    #[inline]
+    fn from(v:RRef<'static,T>)->Self{
+        v.to_staticref()
     }
 }
 
