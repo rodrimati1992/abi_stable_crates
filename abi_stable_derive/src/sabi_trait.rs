@@ -387,7 +387,7 @@ fn constructor_items<'a>(
     );
     
     let fn_erasability_arg=match totrait_def.which_object {
-        WhichObject::DynTrait=>quote!(Erasability),
+        WhichObject::DynTrait=>quote!(Unerasability),
         WhichObject::RObject=>quote!(),
     };
 
@@ -406,7 +406,7 @@ fn constructor_items<'a>(
             __sabi_re::InterfaceFor<
                 _OrigPtr::Target,
                 #trait_interface<#trait_interface_use>,
-                Erasability
+                Unerasability
             >: 
                 __sabi_re::GetVtable<
                     #one_lt
@@ -424,7 +424,7 @@ fn constructor_items<'a>(
         WhichObject::DynTrait=>quote!(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
-            __sabi_re::InterfaceFor<_Self,#trait_interface<#trait_interface_use>,Erasability>: 
+            __sabi_re::InterfaceFor<_Self,#trait_interface<#trait_interface_use>,Unerasability>: 
                 __sabi_re::GetVtable<
                     #one_lt
                     _Self,
@@ -506,9 +506,9 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
         {
             #[doc=#from_ptr_docs]
             #[doc=#shared_docs]
-            #submod_vis fn from_ptr<_OrigPtr,Erasability>(
+            #submod_vis fn from_ptr<_OrigPtr,Unerasability>(
                 ptr:_OrigPtr,
-                erasability:Erasability,
+                erasability:Unerasability,
             )->Self
             where
                 _OrigPtr:__sabi_re::TransmuteElement<(),TransmutedPtr=_ErasedPtr> #plus_lt,
@@ -519,7 +519,7 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
                 _ErasedPtr:std::ops::Deref<Target=()>,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
-                        Erasability,_OrigPtr::Target,_ErasedPtr,_OrigPtr
+                        Unerasability,_OrigPtr::Target,_ErasedPtr,_OrigPtr
                     >,
                 #extra_constraints_ptr
             {
@@ -548,9 +548,9 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
         impl<#gen_params_header_rbox> #trait_to<#gen_params_use_to_rbox> {
             #[doc=#from_value_docs]
             #[doc=#shared_docs]
-            #submod_vis fn from_value<_Self,Erasability>(
+            #submod_vis fn from_value<_Self,Unerasability>(
                 ptr:_Self,
-                erasability:Erasability,
+                erasability:Unerasability,
             )->Self
             where
                 _Self:
@@ -558,13 +558,13 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
                     #plus_lt,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
-                        Erasability,_Self,__sabi_re::RBox<()>,__sabi_re::RBox<_Self>
+                        Unerasability,_Self,__sabi_re::RBox<()>,__sabi_re::RBox<_Self>
                     >,
                 #extra_constraints_value
             {
                 Self::from_ptr::<
                     __sabi_re::RBox<_Self>,
-                    Erasability
+                    Unerasability
                 >(__sabi_re::RBox::new(ptr),erasability)
             }
         }

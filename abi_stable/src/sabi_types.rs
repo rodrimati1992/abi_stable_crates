@@ -10,6 +10,7 @@ mod nul_str;
 mod maybe_cmp;
 pub mod move_ptr;
 mod static_ref;
+mod rref;
 pub mod version;
 pub mod rsmallbox;
 
@@ -21,6 +22,7 @@ pub use self::{
     nul_str::NulStr,
     maybe_cmp::MaybeCmp,
     move_ptr::MovePtr,
+    rref::RRef,
     rsmallbox::RSmallBox,
     late_static_ref::LateStaticRef,
     version::{VersionNumber,VersionStrings,ParseVersionError},

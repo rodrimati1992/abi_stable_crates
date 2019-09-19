@@ -3,7 +3,10 @@ use std::{
     fmt::{self,Display},
 };
 
-use crate::abi_stability::SharedStableAbi;
+use crate::{
+    abi_stability::SharedStableAbi,
+    pointer_trait::{TransmuteElement,GetPointerKind,PK_Reference},
+};
 
 use super::RRef;
 
@@ -183,11 +186,11 @@ impl<T> StaticRef<T>{
     ///     const REF:&'static Option<T>=&None;
     ///
     ///     const STATIC:StaticRef<Option<T>>=
-    ///         StaticRef::from_ref(Self::REF);
+    ///         StaticRef::new(Self::REF);
     /// }
     ///
     /// ```
-    pub const fn from_ref(ref_:&'static T)->Self{
+    pub const fn new(ref_:&'static T)->Self{
         Self{ref_}
     }
 
@@ -307,3 +310,10 @@ impl<T> Deref for StaticRef<T>{
     }
 }
 
+unsafe impl<T> GetPointerKind for StaticRef<T>{
+    type Kind=PK_Reference;
+}
+
+unsafe impl<T,U> TransmuteElement<U> for StaticRef<T>{
+    type TransmutedPtr= StaticRef<U>;
+}

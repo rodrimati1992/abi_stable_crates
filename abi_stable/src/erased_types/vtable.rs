@@ -16,7 +16,10 @@ use super::{
         IteratorFns,MakeIteratorFns,
         DoubleEndedIteratorFns,MakeDoubleEndedIteratorFns,
     },
-    traits::{IteratorItemOrDefault,SerializeImplType,GetSerializeProxyType},
+    traits::{
+        IteratorItemOrDefault,InterfaceFor,
+        SerializeImplType,GetSerializeProxyType,
+    },
 };
 
 use crate::{
@@ -25,7 +28,8 @@ use crate::{
     const_utils::Transmuter,
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
-    pointer_trait::GetPointerKind,
+    pointer_trait::{GetPointerKind,TransmuteElement},
+    sabi_types::StaticRef,
     std_types::{Tuple3,RSome,RNone,RIoError,RSeekFrom},
     type_level::{
         impl_enum::{Implemented,Unimplemented,IsImplemented},
@@ -41,29 +45,48 @@ use core_extensions::TypeIdentity;
 
 
 
-#[doc(hidden)]
 /// Returns the vtable used by DynTrait to do dynamic dispatch.
 pub trait GetVtable<'borr,This,ErasedPtr,OrigPtr,I:InterfaceBound> {
     
+    #[doc(hidden)]
     const TMP_VTABLE:VTableVal<'borr,ErasedPtr,I>;
 
-    const GET_VTABLE:*const WithMetadata<VTableVal<'borr,ErasedPtr,I>>=
-        &WithMetadata::new(
+    #[doc(hidden)]
+    const _GET_INNER_VTABLE:StaticRef<VTable<'borr,ErasedPtr,I>>=unsafe{
+        let x=&WithMetadata::new(
             PrefixTypeTrait::METADATA,
             Self::TMP_VTABLE
         );
+        let x=StaticRef::from_raw(x);
+        WithMetadata::staticref_as_prefix(x)
+    };
 
-
-    /// Retrieves the VTable of the type.
-    fn get_vtable<'a>() -> &'a VTable<'borr,ErasedPtr,I>
-    where
-        This: 'a,
-    {
-        // I am just getting a vtable
-        unsafe { (*Self::GET_VTABLE).as_prefix() }
-    }
 }
 
+
+#[repr(transparent)]
+pub struct VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>{
+    pub(super) vtable:StaticRef<VTable<'borr,ErasedPtr,I>>,
+    _for:PhantomData<extern "C" fn(T,OrigPtr,Unerasability)>
+}
+
+
+impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> 
+    VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+where
+    OrigPtr: TransmuteElement<(), Target=T, TransmutedPtr=ErasedPtr>,
+    ErasedPtr: GetPointerKind<Target=()>,
+    I: InterfaceBound,
+    InterfaceFor<T,I,Unerasability>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,
+{    
+    pub const GET:Self=Self{
+        vtable:<
+            InterfaceFor<T,I,Unerasability> as 
+            GetVtable<'borr,T,ErasedPtr,OrigPtr,I>
+        >::_GET_INNER_VTABLE,
+        _for:PhantomData,
+    };
+}
 
 
 macro_rules! declare_meta_vtable {

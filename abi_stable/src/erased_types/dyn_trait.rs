@@ -24,7 +24,7 @@ use crate::{
         GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
     },
     marker_type::{ErasedObject,UnsafeIgnoredType}, 
-    sabi_types::{StaticRef,MovePtr},
+    sabi_types::{Constructor,MovePtr,RRef,StaticRef},
     std_types::{RBox, RStr,RVec,RIoError},
     type_level::{
         unerasability::{TU_Unerasable,TU_Opaque},
@@ -591,9 +591,9 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         P:GetPointerKind
     {
         pub(super) object: ManuallyDrop<P>,
-        vtable: *const VTable<'borr,P,I>,
-        extra_vtable:EV,
-        _marker:PhantomData<extern "C" fn()->Tuple2<I,RStr<'borr>>>,
+        vtable: StaticRef<VTable<'borr,P,I>>,
+        extra_value:EV,
+        _marker:PhantomData<Constructor<Tuple2<I,RStr<'borr>>>>,
         _marker2:UnsafeIgnoredType<Rc<()>>,
 
     }
@@ -629,8 +629,8 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 object: unsafe{
                     ManuallyDrop::new(object.transmute_element(<()>::T))
                 },
-                vtable: T::get_vtable(),
-                extra_vtable:(),
+                vtable: T::_GET_INNER_VTABLE,
+                extra_value:(),
                 _marker:PhantomData,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
@@ -664,8 +664,8 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 object: unsafe{
                     ManuallyDrop::new(object.transmute_element(<()>::T))
                 },
-                vtable: <InterfaceFor<T,I,TU_Unerasable>>::get_vtable(),
-                extra_vtable:(),
+                vtable: <InterfaceFor<T,I,TU_Unerasable>>::_GET_INNER_VTABLE,
+                extra_value:(),
                 _marker:PhantomData,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
@@ -706,8 +706,8 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 object: unsafe{
                     ManuallyDrop::new(object.transmute_element(<()>::T))
                 },
-                vtable: <InterfaceFor<T,I,TU_Opaque>>::get_vtable(),
-                extra_vtable:(),
+                vtable: <InterfaceFor<T,I,TU_Opaque>>::_GET_INNER_VTABLE,
+                extra_value:(),
                 _marker:PhantomData,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
@@ -718,53 +718,138 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
 
     impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV>
     where
-        P:GetPointerKind
+        P:GetPointerKind<Target=()>
     {
-    /**
+        /// Constructs an DynTrait from an erased pointer and an extra value.
+        pub fn with_extra_value<OrigPtr,Unerasability>(
+            ptr:OrigPtr,
+            extra_value:EV,
+        )-> DynTrait<'borr,P,I,EV>
+        where
+            OrigPtr::Target:Sized+'borr,
+            I:InterfaceBound,
+            InterfaceFor<OrigPtr::Target,I,Unerasability>: 
+                GetVtable<'borr,OrigPtr::Target,P,OrigPtr,I>,
+            OrigPtr: TransmuteElement<(),TransmutedPtr=P>,
+        {
+            DynTrait {
+                object: unsafe{
+                    ManuallyDrop::new(ptr.transmute_element(<()>::T))
+                },
+                vtable: <InterfaceFor<OrigPtr::Target,I,Unerasability>>::_GET_INNER_VTABLE,
+                extra_value,
+                _marker:PhantomData,
+                _marker2:UnsafeIgnoredType::DEFAULT,
+            }
+        }
 
-Constructs an DynTrait from an erased pointer and an extra vtable.
-
-# Safety
-
-These are the requirements for the caller:
-
-- `P` must be a pointer to the type that `extra_vtable` functions 
-    take as the first parameter.
-
-- The vtable must not come from a reborrowed DynTrait
-    (created using DynTrait::reborrow or DynTrait::reborrow_mut).
-
-- The vtable must be the `<SomeVTableName>` of a struct declared with 
-    `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_struct="<SomeVTableName>")))]`.
-
-- The vtable must have `StaticRef<RObjectVtable<..>>` 
-    as its first declared field
-
-    */
-        pub unsafe fn with_vtable<OrigPtr,Erasability>(
+        #[doc(hidden)]
+        pub fn with_vtable<OrigPtr,Unerasability>(
             ptr:OrigPtr,
             extra_vtable:EV,
         )-> DynTrait<'borr,P,I,EV>
         where
             OrigPtr::Target:Sized+'borr,
             I:InterfaceBound,
-            InterfaceFor<OrigPtr::Target,I,Erasability>: 
+            InterfaceFor<OrigPtr::Target,I,Unerasability>: 
                 GetVtable<'borr,OrigPtr::Target,P,OrigPtr,I>,
             OrigPtr: TransmuteElement<(),TransmutedPtr=P>,
-            P:Deref<Target=()>,
         {
+            Self::with_extra_value(ptr,extra_vtable)
+        }
+    }
+
+    impl<'borr,'a,I,EV> DynTrait<'borr,RRef<'a,()>,I,EV>
+    where
+        'borr:'a,
+    {
+
+/**
+This function allows constructing a DynTrait in a constant/static.
+
+# Parameters
+
+`ptr`:
+This is generally constructed with `RRef::new(&value)`
+`RRef` is a reference-like type that can be erased inside a `const fn` on stable Rust
+(once it becomes possible to unsafely cast `&T` to `&()` inside a `const fn`,
+and the minimum Rust version is bumped,this type will be replaced with a reference)
+
+<br>
+
+`vtable_for`:
+This is constructible with `VTableDT::GET`.
+`VTableDT` wraps the vtable for a `DynTrait`,
+while keeping the original type and pointer type that it was constructed for,
+allowing this function to be safe to call.
+
+<br>
+
+`extra_value`:
+This is used by `#[sabi_trait]` trait objects to store their vtable inside DynTrait.
+
+<br>
+
+`unerasability` can be either:
+
+- `TU_Unerasable`:
+    Which allows the trait object to be unerased,requires that the value implements any.
+
+- `TU_Opaque`:
+    Which does not allow the trait object to be unerased.
+
+# Example
+
+```
+use abi_stable::{
+    erased_types::{
+        interfaces::DebugDisplayInterface,
+        DynTrait,TU_Opaque,VTableDT,
+    },
+    sabi_types::RRef,
+};
+
+static STRING:&str="What the heck";
+
+static DYN:DynTrait<'static,RRef<'static,()>,DebugDisplayInterface,()>=
+    DynTrait::from_const(
+        RRef::new(&STRING),
+        VTableDT::GET,
+        (),
+        TU_Opaque,
+    );
+
+fn main(){
+    assert_eq!( format!("{}",DYN), format!("{}",STRING) );
+    assert_eq!( format!("{:?}",DYN), format!("{:?}",STRING) );    
+}
+
+```
+
+*/
+        pub const fn from_const<T,Unerasability>(
+            ptr:RRef<'a,T>,
+            vtable_for:VTableDT<'borr,T,RRef<'a,()>,RRef<'a,T>,I,Unerasability>,
+            extra_value:EV,
+            unerasability:Unerasability,
+        )-> Self
+        where
+            T:'borr,
+        {
+            // Must wrap unerasability in a ManuallyDrop because otherwise this 
+            // errors with `constant functions cannot evaluate destructors`.
+            ManuallyDrop::new(unerasability);
             DynTrait {
                 object: unsafe{
-                    ManuallyDrop::new(ptr.transmute_element(<()>::T))
+                    ManuallyDrop::new(ptr.transmute_ref::<()>())
                 },
-                vtable: <InterfaceFor<OrigPtr::Target,I,Erasability>>::get_vtable(),
-                extra_vtable,
+                vtable: vtable_for.vtable,
+                extra_value,
                 _marker:PhantomData,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
     }
-
 
 
     impl<P,I,EV> DynTrait<'static,P,I,EV> 
@@ -797,7 +882,7 @@ These are the requirements for the caller:
         /// A vtable used by `#[sabi_trait]` derived trait objects.
         #[inline]
         pub fn sabi_et_vtable<'a>(&self)->&'a EV{
-            self.extra_vtable.get()
+            self.extra_value.get()
         }
     }
         
@@ -805,24 +890,32 @@ These are the requirements for the caller:
     where
         P:GetPointerKind
     {
+        /// Gets access to the extra value that was stored in this DynTrait in the 
+        /// `with_extra_value` constructor.
         #[inline]
+        pub fn sabi_extra_value(&self)->&EV{
+            &self.extra_value
+        }
+
+        #[inline]
+        #[doc(hidden)]
         pub(super) fn sabi_extra_vtable(&self)->EV
         where
             EV:Copy,
         {
-            self.extra_vtable
+            self.extra_value
         }
 
         #[inline]
         pub(super) fn sabi_vtable<'a>(&self) -> &'a VTable<'borr,P,I>{
             unsafe {
-                &*self.vtable
+                self.vtable.get()
             }
         }
 
         #[inline]
         pub(super)fn sabi_vtable_address(&self) -> usize {
-            self.vtable as usize
+            self.vtable.get_raw() as usize
         }
 
         /// Returns the address of the wrapped object.
@@ -1171,8 +1264,8 @@ These are the requirements for the caller:
             // Reborrowing will break if I add extra functions that operate on `P`.
             DynTrait {
                 object: ManuallyDrop::new(&**self.object),
-                vtable: self.vtable as *const _ as *const _,
-                extra_vtable:self.sabi_extra_vtable(),
+                vtable: unsafe{ self.vtable.transmute_ref() },
+                extra_value:*self.sabi_extra_value(),
                 _marker:PhantomData,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
@@ -1192,12 +1285,12 @@ These are the requirements for the caller:
             PrivStruct:ReborrowBounds<I::Send,I::Sync>,
             EV:Copy,
         {
-            let extra_vtable=self.sabi_extra_vtable();
+            let extra_value=*self.sabi_extra_value();
             // Reborrowing will break if I add extra functions that operate on `P`.
             DynTrait {
                 object: ManuallyDrop::new(&mut **self.object),
-                vtable: self.vtable as *const _ as *const _,
-                extra_vtable,
+                vtable: unsafe{ self.vtable.transmute_ref() },
+                extra_value,
                 _marker:PhantomData,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
@@ -1213,11 +1306,11 @@ These are the requirements for the caller:
         /// `P` must come from a function in the vtable,
         /// or come from a copy of `P:Copy+GetPointerKind<Kind=PK_Reference>`,
         /// to ensure that it is compatible with the functions in it.
-        pub(super) fn from_new_ptr(&self, object: P,extra_vtable:EV) -> Self {
+        pub(super) fn from_new_ptr(&self, object: P,extra_value:EV) -> Self {
             Self {
                 object:ManuallyDrop::new(object),
                 vtable: self.vtable,
-                extra_vtable,
+                extra_value,
                 _marker:PhantomData,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
@@ -1268,7 +1361,7 @@ let _=borrow.default();
         {
             unsafe{
                 let new = self.sabi_vtable().default_ptr()();
-                self.from_new_ptr(new,self.sabi_extra_vtable())
+                self.from_new_ptr(new,*self.sabi_extra_value())
             }
         }
 
@@ -1344,7 +1437,7 @@ where
         unsafe{
             let vtable = self.sabi_vtable();
             let new = vtable.clone_ptr()(&*self.object);
-            self.from_new_ptr(new,self.sabi_extra_vtable())
+            self.from_new_ptr(new,*self.sabi_extra_value())
         }
     }
 }
@@ -1357,7 +1450,7 @@ where
     EV:Copy+'borr,
 {
     fn clone_impl(&self) -> Self {
-        self.from_new_ptr(*self.object,self.sabi_extra_vtable())
+        self.from_new_ptr(*self.object,*self.sabi_extra_value())
     }
 }
 
