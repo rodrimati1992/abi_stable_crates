@@ -45,7 +45,7 @@ pub mod traits;
 
 pub use self::{
     dyn_trait::{DynTrait, DynTraitBound},
-    vtable::{ GetVtable,InterfaceBound,enabled_traits },
+    vtable::{ GetVtable,InterfaceBound,VTableDT,enabled_traits },
     traits::{
         ImplType, InterfaceType, 
         DeserializeDyn, 
@@ -54,6 +54,9 @@ pub use self::{
     },
     type_info::TypeInfo,
 };
+
+#[doc(no_inline)]
+pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
 
 
 /// The formatting mode for all std::fmt formatters.

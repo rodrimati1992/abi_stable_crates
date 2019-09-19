@@ -130,7 +130,7 @@ where
 {
     #[doc(hidden)]
     const _VTABLE_STATIC: StaticRef<WithMetadata<ConstGenericVTableVal>> = {
-        StaticRef::from_ref(&WithMetadata::new(
+        StaticRef::new(&WithMetadata::new(
             PrefixTypeTrait::METADATA,
             ConstGenericVTableVal{
                 layout: <Self as StableAbi>::LAYOUT,

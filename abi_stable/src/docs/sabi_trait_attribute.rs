@@ -154,11 +154,11 @@ you can use the `Trait_TO::from_sabi` associated function.
 A constructor for the trait object,which takes a pointer to a value that implements the trait.
 
 Generally it is called like this(::<> isn't always necessary):
-`Trait_TO::from_ptr( pointer,<Erasability> )`.<br>
+`Trait_TO::from_ptr( pointer,<Unerasability> )`.<br>
 or like this(if type inference isn't enough):
-`Trait_TO::<_,TraitParam0, TraitParam1>::from_ptr( pointer,<Erasability> )`.
+`Trait_TO::<_,TraitParam0, TraitParam1>::from_ptr( pointer,<Unerasability> )`.
 
-Where `<Erasability>` can be either:
+Where `<Unerasability>` can be either:
 
 -`TU_Unerasable`:
     Which allows the trait object to be unerased,requires that the value implements any.

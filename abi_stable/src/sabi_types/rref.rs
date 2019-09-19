@@ -4,7 +4,10 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::abi_stability::SharedStableAbi;
+use crate::{
+    abi_stability::SharedStableAbi,
+    pointer_trait::{TransmuteElement,GetPointerKind,PK_Reference},
+};
 
 use super::StaticRef;
 
@@ -105,11 +108,11 @@ impl<'a,T> RRef<'a,T>{
     ///     const REF:&'a Option<T>=&None;
     ///
     ///     const STATIC:RRef<'a,Option<T>>=
-    ///         RRef::from_ref(Self::REF);
+    ///         RRef::new(Self::REF);
     /// }
     ///
     /// ```
-    pub const fn from_ref(ref_:&'a T)->Self{
+    pub const fn new(ref_:&'a T)->Self{
         Self{
             ref_,
             _marker:PhantomData,
@@ -294,3 +297,14 @@ impl<'a,T> Deref for RRef<'a,T>{
     }
 }
 
+
+unsafe impl<'a,T> GetPointerKind for RRef<'a,T>{
+    type Kind=PK_Reference;
+}
+
+unsafe impl<'a,T,U> TransmuteElement<U> for RRef<'a,T>
+where
+    U:'a,
+{
+    type TransmutedPtr= RRef<'a,U>;
+}
