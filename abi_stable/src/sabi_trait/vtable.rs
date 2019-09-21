@@ -1,14 +1,14 @@
 use super::*;
 
 use crate::{
-    erased_types::{FormattingMode,InterfaceBound},
+    erased_types::{FormattingMode,InterfaceBound,VTableDT},
     type_level::{
         unerasability::{GetUTID},
         impl_enum::{Implemented,Unimplemented},
         trait_marker,
     },
     sabi_types::Constructor,
-    std_types::{UTypeId,RResult,RString},
+    std_types::{UTypeId,RResult,RString,Tuple3},
 };
 
 /// Gets the vtable of a trait object.
@@ -21,6 +21,9 @@ pub unsafe trait GetVTable<IA,_Self,ErasedPtr,OrigPtr,Params>{
     type VTable;
     fn get_vtable()->StaticRef<Self::VTable>;
 }
+
+
+//////////////////////////////////////////////////////////////////////////////
 
 /// Gets an `RObjectVtable<_Self,ErasedPtr,TO>`,
 /// which is stored as the first field of all generated trait object vtables.
@@ -41,6 +44,115 @@ where
         WithMetadata::staticref_as_prefix(prefix)
     };
 }
+
+
+//////////////////////////////////////////////////////////////////////////////
+
+#[allow(non_camel_case_types)]
+pub type VTableTO_RO<T,OrigPtr,Unerasability,V>=VTableTO<T,OrigPtr,Unerasability,V,()>;
+
+#[allow(non_camel_case_types)]
+pub type VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>=
+    VTableTO<
+        _Self,
+        OrigPtr,
+        Unerasability,
+        V,
+        VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability>
+    >;
+
+
+
+/// This is used to safely pass the vtable to `#[sabi_trait]` generated trait objects.
+pub struct VTableTO<_Self,OrigPtr,Unerasability,V,DT>{
+    vtable:StaticRef<V>,
+    for_dyn_trait:DT,
+    _for:PhantomData<Constructor<Tuple3<_Self,OrigPtr,Unerasability>>>,
+}
+
+impl<_Self,OrigPtr,Unerasability,V,DT> Copy for VTableTO<_Self,OrigPtr,Unerasability,V,DT>
+where DT:Copy
+{}
+
+impl<_Self,OrigPtr,Unerasability,V,DT> Clone for VTableTO<_Self,OrigPtr,Unerasability,V,DT>
+where DT:Copy
+{
+    fn clone(&self)->Self{
+        *self
+    }
+}
+
+
+impl<_Self,OrigPtr,Unerasability,V> VTableTO<_Self,OrigPtr,Unerasability,V,()>{
+
+/**
+Wraps an erased vtable.
+
+# Safety
+
+These are the requirements for the caller:
+
+- `OrigPtr` must be a pointer to the type that the vtable functions 
+    take as the first parameter.
+
+- The vtable must not come from a reborrowed RObject
+    (created using RObject::reborrow or RObject::reborrow_mut).
+
+- The vtable must be the `<SomeVTableName>` of a struct declared with 
+    `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_struct="<SomeVTableName>")))]`.
+
+- The vtable must have `StaticRef<RObjectVtable<..>>` 
+    as its first declared field
+*/
+    pub const unsafe fn for_robject(vtable:StaticRef<V>)->Self{
+        Self{
+            vtable,
+            for_dyn_trait:(),
+            _for:PhantomData
+        }
+    }
+
+
+}
+
+
+impl<_Self,OrigPtr,Unerasability,V,DT> VTableTO<_Self,OrigPtr,Unerasability,V,DT>{
+    pub const fn robject_vtable(&self)->StaticRef<V>{
+        self.vtable
+    }
+    
+    pub const fn dyntrait_vtable(&self)->&DT{
+        &self.for_dyn_trait
+    }
+}
+
+impl<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V> 
+    VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>
+{
+
+/**
+Wraps an erased vtable,alongside the vtable for DynTrait.
+
+# Safety
+
+This has the same safety requirements as the 'for_robject' constructor
+*/
+    pub const unsafe fn for_dyntrait(
+        vtable:StaticRef<V>,
+        for_dyn_trait:VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability>,
+    )->Self{
+        Self{
+            vtable,
+            for_dyn_trait,
+            _for:PhantomData
+        }
+    }
+    
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+
 
 
 #[doc(hidden)]

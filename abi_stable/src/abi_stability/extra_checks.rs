@@ -673,7 +673,7 @@ use core_extensions::SelfOps;
 /// are compatible with those of the binary/dynlib that loads them.
 ///
 #[sabi_trait]
-#[sabi(no_trait_impl)]
+// #[sabi(no_trait_impl)]
 //#[sabi(debug_print_trait)]
 //#[sabi(debug_print)]
 pub unsafe trait TypeChecker:'static {

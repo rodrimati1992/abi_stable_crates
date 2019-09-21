@@ -64,12 +64,24 @@ pub trait GetVtable<'borr,This,ErasedPtr,OrigPtr,I:InterfaceBound> {
 }
 
 
+/// This type allows passing the vtable for DynTrait to `from_const` with `VTableDT::GET`.
 #[repr(transparent)]
 pub struct VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>{
     pub(super) vtable:StaticRef<VTable<'borr,ErasedPtr,I>>,
     _for:PhantomData<extern "C" fn(T,OrigPtr,Unerasability)>
 }
 
+impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> Copy 
+    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+{}
+
+impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> Clone
+    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+{
+    fn clone(&self)->Self{
+        *self
+    }
+}
 
 impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> 
     VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>

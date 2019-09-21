@@ -78,7 +78,7 @@ pub(crate) struct TraitDefinition<'a>{
     /// The lifetimes declared in the trait generic parameter list that are used in 
     /// `&'lifetime self` `&'lifetime mut self` method receivers,
     /// or used directly as supertraits.
-    pub(crate) lifetime_bounds:Vec<&'a Lifetime>,
+    pub(crate) lifetime_bounds:Punctuated<&'a Lifetime,Comma>,
     /// The visibility of the trait.
     pub(crate) vis:VisibilityKind<'a>,
     /// The visibility of the trait,inside a submodule.
@@ -602,6 +602,16 @@ impl<'a> GenericsTokenizer<'a>{
     pub fn set_no_bounds(&mut self){
         self.gen_params_in.set_no_bounds();
     }
+    pub fn skip_lifetimes(&mut self){
+        self.gen_params_in.skip_lifetimes();
+    }
+    pub fn skip_consts(&mut self){
+        self.gen_params_in.skip_consts();
+    }
+    pub fn skip_unbounded(&mut self){
+        self.gen_params_in.skip_unbounded();
+    }
+
 }
 
 
@@ -614,11 +624,18 @@ impl<'a> ToTokens for GenericsTokenizer<'a> {
 
         let in_dummy_struct= self.gen_params_in.in_what == InWhat::DummyStruct;
 
+        let skips_unbounded=self.gen_params_in.skips_unbounded();
+
         self.gen_params_in.to_tokens(ts);
         if let Some((assoc_tys,self_tokens))=self.assoc_tys {
             for with_index in assoc_tys.values() {
-                self_tokens.to_tokens(ts);
                 let assoc_ty=&with_index.assoc_ty;
+
+                if skips_unbounded && assoc_ty.bounds.is_empty() {
+                    continue;
+                }
+
+                self_tokens.to_tokens(ts);
 
                 if in_dummy_struct {
                     use syn::token::{Star,Const};
@@ -669,7 +686,7 @@ pub(crate) struct DeserializeBound<'a>{
 struct GetSupertraits<'a>{
     impld_traits:Vec<TraitImplness<'a>>,
     unimpld_traits:Vec<&'a Ident>,
-    lifetime_bounds:Vec<&'a Lifetime>,
+    lifetime_bounds:Punctuated<&'a Lifetime,Comma>,
     iterator_item:Option<&'a syn::Type>,
     deserialize_bound:Option<DeserializeBound<'a>>,
     trait_flags:TraitStruct<bool>,
@@ -716,7 +733,7 @@ where
         }
     });
 
-    let mut lifetime_bounds=Vec::new();
+    let mut lifetime_bounds=Punctuated::<&'a Lifetime,Comma>::new();
     let mut iterator_item=None;
     let mut errors=LinearResult::ok(());
     let deserialize_bound=None;

@@ -759,10 +759,8 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         }
     }
 
-    impl<'borr,'a,I,EV> DynTrait<'borr,RRef<'a,()>,I,EV>
-    where
-        'borr:'a,
-    {
+    impl<'borr,'a,I,EV> DynTrait<'borr,RRef<'a,()>,I,EV>{
+
 
 /**
 This function allows constructing a DynTrait in a constant/static.
@@ -777,6 +775,16 @@ and the minimum Rust version is bumped,this type will be replaced with a referen
 
 <br>
 
+`unerasability` can be either:
+
+- `TU_Unerasable`:
+    Which allows the trait object to be unerased,requires that the value implements any.
+
+- `TU_Opaque`:
+    Which does not allow the trait object to be unerased.
+
+<br>
+
 `vtable_for`:
 This is constructible with `VTableDT::GET`.
 `VTableDT` wraps the vtable for a `DynTrait`,
@@ -788,15 +796,6 @@ allowing this function to be safe to call.
 `extra_value`:
 This is used by `#[sabi_trait]` trait objects to store their vtable inside DynTrait.
 
-<br>
-
-`unerasability` can be either:
-
-- `TU_Unerasable`:
-    Which allows the trait object to be unerased,requires that the value implements any.
-
-- `TU_Opaque`:
-    Which does not allow the trait object to be unerased.
 
 # Example
 
@@ -813,10 +812,10 @@ static STRING:&str="What the heck";
 
 static DYN:DynTrait<'static,RRef<'static,()>,DebugDisplayInterface,()>=
     DynTrait::from_const(
-        RRef::new(&STRING),
+        &STRING,
+        TU_Opaque,
         VTableDT::GET,
         (),
-        TU_Opaque,
     );
 
 fn main(){
@@ -828,10 +827,10 @@ fn main(){
 
 */
         pub const fn from_const<T,Unerasability>(
-            ptr:RRef<'a,T>,
+            ptr:&'a T,
+            unerasability:Unerasability,
             vtable_for:VTableDT<'borr,T,RRef<'a,()>,RRef<'a,T>,I,Unerasability>,
             extra_value:EV,
-            unerasability:Unerasability,
         )-> Self
         where
             T:'borr,
@@ -841,7 +840,8 @@ fn main(){
             ManuallyDrop::new(unerasability);
             DynTrait {
                 object: unsafe{
-                    ManuallyDrop::new(ptr.transmute_ref::<()>())
+                    let x=RRef::new(ptr).transmute_ref::<()>();
+                    ManuallyDrop::new(x)
                 },
                 vtable: vtable_for.vtable,
                 extra_value,
@@ -881,8 +881,8 @@ fn main(){
     {
         /// A vtable used by `#[sabi_trait]` derived trait objects.
         #[inline]
-        pub fn sabi_et_vtable<'a>(&self)->&'a EV{
-            self.extra_value.get()
+        pub fn sabi_et_vtable(&self)->StaticRef<EV>{
+            self.extra_value
         }
     }
         

@@ -282,7 +282,6 @@ pub trait RSomethingElse<T:Copy>:Send+Debug{
 }
 
 
-
 impl RSomethingElse<u32> for u32{
     fn get(&self)->&u32{
         self
@@ -383,8 +382,8 @@ pub trait Dictionary{
 //////////////////////////////////////
 
 
-// #[cfg(test)]
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(test)]
+// #[cfg(all(test,not(feature="only_new_tests")))]
 mod tests{
     use super::*;
 
@@ -668,4 +667,37 @@ mod tests{
         assert_eq!(RFoo::get(tuple2_object),&202);
         assert_eq!(RFoo::get(tuple3_object),&300);
     }
+
+
+    struct MekeRSomethingCTO<'a,T>(&'a T);
+
+    #[test]
+    fn test_from_const(){
+        const RS_U32:RSomething_CTO<'static,'static,(),u32>=
+            RSomething_CTO::from_const(
+                &0,
+                TU_Opaque,
+                RSomething_MV::VTABLE,
+            );
+
+        assert_eq!(RS_U32.get(), &0);
+
+        fn make_const_rsomething<'borr,'a,T,U>(ref_:&'a T)->RSomething_CTO<'borr,'a,(),U>
+        where
+            T:'borr+RSomething<(),Element=U>,
+            U:Debug,
+        {
+            RSomething_CTO::from_const(
+                ref_,
+                TU_Opaque,
+                RSomething_MV::VTABLE,
+            )
+        }
+
+        let hi=make_const_rsomething(&77);
+        assert_eq!(hi.get(), &77);
+
+
+    }
+
 }

@@ -123,6 +123,8 @@ Trait_TO has these generic parameters(in order):
 
 - `trait_type_param_n`: The type parameters of the trait.
 
+- `trait_const_param_n`: The const parameters of the trait.
+
 - `trait_assoc_type_n`: The associated types of the trait.
 
 
@@ -149,6 +151,32 @@ allowing one to call these methods(a nonexhaustive list):
 To reconstruct `Trait_TO` from its underlying implementation,
 you can use the `Trait_TO::from_sabi` associated function.
 
+###  Trait_CTO
+
+A type alias for the type of the trait objct that is constructible in constants,
+with the `from_const` constructor function.
+
+Constructed with `Trait_CTO::from_const(&value,Trait_MV::VTABLE)`.
+
+Trait_CTO has these generic parameters(in order):
+
+- `'trait_lifetime_n`: The lifetime parameters of the trait,if any.
+
+- `'lt`:this is the lifetime of the type that the trait object was construct with.
+
+- `'_ref`:this is the lifetime of the reference that this was constructed with.
+
+- `trait_type_param_n`: The type parameters of the trait.
+
+- `trait_const_param_n`: The const parameters of the trait.
+
+- `trait_assoc_type_n`: The associated types of the trait.
+
+
+###  Trait_MV
+
+A helper type used to construct the vtable of the trait object with its associated constants.
+
 ###  Trait_TO::from_ptr 
 
 A constructor for the trait object,which takes a pointer to a value that implements the trait.
@@ -163,7 +191,7 @@ Where `<Unerasability>` can be either:
 -`TU_Unerasable`:
     Which allows the trait object to be unerased,requires that the value implements any.
 
-.`TU_Opaque`Which does not allow the trait object to be unerased.
+.`TU_Opaque`:Which does not allow the trait object to be unerased.
 
 Where `TraitParam` are the type parameters of the trait.
 
@@ -178,6 +206,19 @@ This is equivalent to calling `Trait_TO::from_ptr` with `RBox::new(value)`.
 Constructs the trait object from its underlying implementation,
 either `RObject` or `DynTrait` depending on whether the
 `#[sabi(use_dyntrait)]` helper attribute was used.
+
+###  Trait_TO::from_const
+
+Constructs the trait object from a reference to a constant value,
+eg:`Trait_CTO::from_const(&value,<Unerasability>,Trait_MV::VTABLE)`.
+
+Where `<Unerasability>` can be either:
+
+-`TU_Unerasable`:
+    Which allows the trait object to be unerased,requires that the value implements any.
+
+.`TU_Opaque`:Which does not allow the trait object to be unerased.
+
 
 ### Trait_TO::sabi_reborrow
 
@@ -422,6 +463,65 @@ pub trait Dictionary:Debug+Clone{
 # }
 
 ```
+
+
+# Constructing a trait object in a constant
+
+This shows how one can construct a `#[sabi_trait]` generated trait object in a constant/static.
+
+```rust
+
+use abi_stable::{
+    sabi_trait::TU_Opaque,
+    sabi_trait,
+
+};
+
+#[sabi_trait]
+pub trait StaticSet:Sync+Send+Debug+Clone{
+    type Element;
+
+    /// Whether the set contains the key.
+    fn contains(&self,key:&Self::Element)->bool;
+}
+
+impl<'a,T> StaticSet for &'a [T]
+where
+    T:std::fmt::Debug+Sync+Send+std::cmp::PartialEq
+{
+    type Element=T;
+    
+    fn contains(&self,key:&Self::Element)->bool{
+        (**self).contains(key)
+    }
+}
+
+const CARDS:&'static [char]=&['A','2','3','4','5','6','7','8','9','J','Q','K'];
+
+static IS_CARD:StaticSet_CTO<'static,'static,char>=
+    StaticSet_CTO::from_const(
+        &CARDS,
+        TU_Opaque,
+        StaticSet_MV::VTABLE,
+    );
+
+# fn main(){
+
+assert!( IS_CARD.contains(&'A') );
+assert!( IS_CARD.contains(&'4') );
+assert!( IS_CARD.contains(&'7') );
+assert!( IS_CARD.contains(&'9') );
+assert!( IS_CARD.contains(&'J') );
+
+assert!( ! IS_CARD.contains(&'0') );
+assert!( ! IS_CARD.contains(&'1') );
+assert!( ! IS_CARD.contains(&'B') );
+
+# }
+
+```
+
+
 
 
 */

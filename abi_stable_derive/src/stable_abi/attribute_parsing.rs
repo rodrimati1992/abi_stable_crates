@@ -27,6 +27,7 @@ use crate::{
         parse_lit_as_expr,
         parse_lit_as_type,
         parse_lit_as_type_bounds,
+        ParsePunctuated,
     },
     utils::{LinearResult,SynPathExt,SynResultExt},
 };
@@ -568,6 +569,17 @@ fn parse_sabi_attr<'a>(
                     this.extra_bounds.push(bound);
                 }else if ident=="prefix_bound" {
                     this.prefix_bounds.push(bound);
+                }
+            }else if ident=="bounds"||ident=="prefix_bounds" {
+                let ident=path.get_ident().ok_or_else(|| make_err(path) )?;
+
+                let bound=unparsed_lit
+                    .parse::<ParsePunctuated<WherePredicate,Comma>>()?
+                    .list;
+                if ident=="bounds"{
+                    this.extra_bounds.extend(bound);
+                }else if ident=="prefix_bounds" {
+                    this.prefix_bounds.extend(bound);
                 }
             }else if ident=="phantom_field"{
                 let unparsed_field=unparsed_lit.value();
