@@ -59,6 +59,13 @@ pub struct UnsafeSabiOpaqueField0<T,U>{
     world:U,
 }
 
+    
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(unsafe_allow_type_macros)]
+pub struct WithTypeMacro{
+    type_:RTuple!((),(),()),
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////

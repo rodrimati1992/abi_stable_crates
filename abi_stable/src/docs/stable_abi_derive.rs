@@ -67,6 +67,17 @@ This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
 Adds many bound to the `PrefixTypeTrait` impl.
 
+### `#[sabi(unsafe_allow_type_macros)]`
+
+This allows type macros to be used alongside the StableAbi derive macro.
+
+The reason this is unsafe to enable them is because StableAbi cannot currently 
+analize the lifetimes within macros,
+which means that if any lifetime argument inside the macro invocation changes
+it won't be checked by the runtime type checker.
+
+A type macro is any macro that evaluates to a type.
+
 ###  `#[sabi(tag=" some_expr ")]` 
 
 Adds a "tag" associated with the type,

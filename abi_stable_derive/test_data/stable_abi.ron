@@ -1037,6 +1037,31 @@
         ),
       ],
     ),
+
+    (
+      name:"macros",
+      code:r##"
+          #[repr(C)]
+          #[sabi(#attr)]
+          struct Foo{
+            huh:#ty
+          }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "#ty":"()","#attr":"" },
+          error_count: 0
+        ),
+        ( 
+          replacements: { "#ty":"T!()","#attr":"" },
+          error_count: 1
+        ),
+        ( 
+          replacements: { "#ty":"T!()","#attr":"unsafe_allow_type_macros" }, 
+          error_count: 0
+        ),
+      ],
+    ),
     /*////////////////////////////////////////////////////////////////////////////
                 #[sabi(kind(WithNonExhaustive()))] attribute
     

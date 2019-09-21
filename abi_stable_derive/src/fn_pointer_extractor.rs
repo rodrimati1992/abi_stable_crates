@@ -136,6 +136,7 @@ impl<'a> TypeVisitor<'a> {
                 env_generics: generics,
             },
             vars: Vars {
+                allow_type_macros:false,
                 referenced_lifetimes: Vec::default(),
                 fn_info: FnInfo {
                     parent_generics: &generics,
@@ -146,6 +147,10 @@ impl<'a> TypeVisitor<'a> {
                 errors:LinearResult::ok(()),
             },
         }
+    }
+
+    pub fn allow_type_macros(&mut self){
+        self.vars.allow_type_macros=true;
     }
 
     /// Gets the arena this references.
@@ -210,6 +215,7 @@ struct ImmutableRefs<'a> {
 
 /// variables which are mutated when visiting.
 struct Vars<'a> {
+    allow_type_macros: bool,
     /// What lifetimes in env_lifetimes are referenced in the type being visited.
     /// For TLField.
     referenced_lifetimes: Vec<LifetimeIndex>,
@@ -417,6 +423,12 @@ impl<'a> VisitMut for TypeVisitor<'a> {
         }
         .piped(|lt| self.vars.add_referenced_env_lifetime(lt))
     }
+
+    fn visit_type_macro_mut(&mut self, i: &mut syn::TypeMacro){
+        if !self.vars.allow_type_macros{
+            push_type_macro_err(&mut self.vars.errors,i);
+        }
+    }
 }
 
 /////////////
@@ -545,6 +557,12 @@ impl<'a, 'b> VisitMut for FnVisitor<'a, 'b> {
             lt.ident = ident.clone();
         }
     }
+
+    fn visit_type_macro_mut(&mut self, i: &mut syn::TypeMacro){
+        if !self.vars.allow_type_macros{
+            push_type_macro_err(&mut self.vars.errors,i);
+        }
+    }
 }
 
 /////////////
@@ -617,6 +635,23 @@ impl<'a> Function<'a>{
 }
 
 
+
+fn push_type_macro_err(res:&mut Result<(),syn::Error>,i: &syn::TypeMacro){
+    res.push_err(spanned_err!(
+        i,
+        "\
+Cannot currently use type macros safely.
+
+To enable use of type macros use the `#[sabi(unsafe_allow_type_macros)]` attribute.
+
+The reason this is unsafe to enable them is because StableAbi cannot currently 
+analize the lifetimes within macros,
+which means that if any lifetime argument inside the macro invocation changes
+it won't be checked by the runtime type checker.
+
+"
+    ));
+}
 
 
 

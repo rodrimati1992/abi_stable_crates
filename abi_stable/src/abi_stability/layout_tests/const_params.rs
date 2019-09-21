@@ -74,6 +74,7 @@ mod two_phantom{
     use crate::{
         const_utils::AssocStr,
         marker_type::UnsafeIgnoredType,
+        std_types::tuple::*,
     };
     
 
@@ -85,7 +86,7 @@ mod two_phantom{
         phantom_const_param="T::STR",
         phantom_const_param="U::STR",
     )]
-    pub struct Struct<T,U>(UnsafeIgnoredType<RTuple!(T,U)>);
+    pub struct Struct<T,U>(UnsafeIgnoredType<Tuple2<T,U>>);
 }
 
 
