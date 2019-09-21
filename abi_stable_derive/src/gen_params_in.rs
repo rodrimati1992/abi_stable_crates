@@ -26,10 +26,13 @@ pub(crate) struct GenParamsIn<'a,AL=NoTokens> {
     pub unsized_types:bool,
     /// Whether type bounds will be printed in type parameter declarations.
     pub with_bounds:bool,
+    skip_lifetimes:bool,
     /// What will be printed after lifetime parameters
     after_lifetimes:Option<AL>,
     /// What will be printed after type parameters
     after_types:Option<AL>,
+    skip_consts:bool,
+    skip_unbounded:bool,
 }
 
 /// Where the generic parameters are being printed.
@@ -56,8 +59,11 @@ impl<'a> GenParamsIn<'a>{
             in_what,
             unsized_types:false,
             with_bounds:true,
+            skip_lifetimes:false,
             after_lifetimes:None,
             after_types:None,
+            skip_consts:false,
+            skip_unbounded:false,
         }
     }
 
@@ -71,8 +77,11 @@ impl<'a,AL> GenParamsIn<'a,AL>{
             in_what,
             unsized_types:false,
             with_bounds:true,
+            skip_lifetimes:false,
             after_lifetimes:Some(after_lifetimes),
             after_types:None,
+            skip_consts:false,
+            skip_unbounded:false,
         }
     }
     /// Constructs a GenParamsIn that prints `after types` after type parameters.
@@ -82,8 +91,11 @@ impl<'a,AL> GenParamsIn<'a,AL>{
             in_what,
             unsized_types:false,
             with_bounds:true,
+            skip_lifetimes:false,
             after_lifetimes:None,
             after_types:Some(after_types),
+            skip_consts:false,
+            skip_unbounded:false,
         }
     }
     /// Removes the bounds on type parameters on type parameter declarations.
@@ -94,6 +106,23 @@ impl<'a,AL> GenParamsIn<'a,AL>{
     #[allow(dead_code)]
     pub fn set_unsized_types(&mut self){
         self.unsized_types=true;
+    }
+
+    pub fn skip_lifetimes(&mut self){
+        self.skip_lifetimes=true;
+    }
+
+    pub fn skip_consts(&mut self){
+        self.skip_consts=true;
+    }
+    pub fn skip_unbounded(&mut self){
+        self.skip_unbounded=true;
+        self.skip_consts();
+        self.skip_lifetimes();
+    }
+
+    pub fn skips_unbounded(&self)->bool{
+        self.skip_unbounded
     }
 
     /// Queries whether bounds are printed.
@@ -128,28 +157,37 @@ where
         let comma=Comma::default();
         let brace=syn::token::Brace::default();
 
-        while let Some(GenericParam::Lifetime(gen))=iter.peek() {
-            iter.next();
-
-            if in_dummy_struct{
-                syn::token::And::default().to_tokens(ts);
-                gen.lifetime.to_tokens(ts);
-                syn::token::Paren::default().surround(ts,|_|());
-            }else{
-                gen.lifetime.to_tokens(ts);
-                if with_bounds {
-                    gen.colon_token.to_tokens(ts);
-                    gen.bounds.to_tokens(ts);
-                }
+        if self.skip_lifetimes {
+            while let Some(GenericParam::Lifetime{..})=iter.peek() {
+                iter.next();
             }
+        }else{
+            while let Some(GenericParam::Lifetime(gen))=iter.peek() {
+                iter.next();
 
-            comma.to_tokens(ts);
+                if in_dummy_struct{
+                    syn::token::And::default().to_tokens(ts);
+                    gen.lifetime.to_tokens(ts);
+                    syn::token::Paren::default().surround(ts,|_|());
+                }else{
+                    gen.lifetime.to_tokens(ts);
+                    if with_bounds {
+                        gen.colon_token.to_tokens(ts);
+                        gen.bounds.to_tokens(ts);
+                    }
+                }
+
+                comma.to_tokens(ts);
+            }
         }
 
         self.after_lifetimes.to_tokens(ts);
 
         while let Some(GenericParam::Type(gen))=iter.peek() {
             iter.next();
+            if gen.bounds.is_empty() && self.skip_unbounded {
+                continue;
+            }
             
             if in_dummy_struct {
                 Star::default().to_tokens(ts);
@@ -177,7 +215,7 @@ where
 
         self.after_types.to_tokens(ts);
 
-        if !in_dummy_struct{
+        if !in_dummy_struct && !self.skip_consts{
             while let Some(GenericParam::Const(gen))=iter.peek() {
                 iter.next();
                 

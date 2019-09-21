@@ -99,10 +99,7 @@ unsafe fn drop_<T>(object:*mut T){
 */
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(
-    not_stableabi(T),
-    bound="T:SharedStableAbi",
-)]
+#[sabi(shared_stableabi(T))]
 pub struct StaticRef<T>{
     ref_:*const T,
 }

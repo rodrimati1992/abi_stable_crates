@@ -217,7 +217,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                         quote_spanned!(method_span=>
                                 #ptr_constraint
                             {
-                                match self.obj.sabi_et_vtable().#method_name() {
+                                match self.sabi_vtable().#method_name() {
                                     Some(__method)=>{
                                         unsafe{
                                             #method_call
@@ -237,7 +237,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                         quote_spanned!(method_span=>
                                 #ptr_constraint
                             {
-                                let __method=self.obj.sabi_et_vtable().#method_name();
+                                let __method=self.sabi_vtable().#method_name();
                                 unsafe{
                                     #method_call
                                 }

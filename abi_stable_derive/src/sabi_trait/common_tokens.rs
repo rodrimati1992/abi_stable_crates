@@ -122,8 +122,10 @@ declare_common_tokens! {
         ts_erasedptr="_ErasedPtr,",
         ts_self_erasedptr="_Self,_ErasedPtr,",
         ts_unit_erasedptr="(),_ErasedPtr,",
+        ts_unit_rref_unit="(),__sabi_re::RRef<'_sub,()>,",
 
-        ts_getvtable_params="IA,_Self,_ErasedPtr,_OrigPtr,",
+        ts_getvtable_params="'lt,'_sub,IA,_Self,_ErasedPtr,_OrigPtr,",
+        ts_getvtable_dummy_struct_fields="&'lt(),&'_sub(),IA,_Self,_ErasedPtr,_OrigPtr,",
         missing_field_option="#[sabi(missing_field(option))]",
     ]
 
@@ -236,8 +238,10 @@ declare_lifetime_tokens!{
         lt="",
         lt_erasedptr="_ErasedPtr,",
         lt_rbox="__sabi_re::RBox<()>,",
+        lt_rref="__sabi_re::RRef<'_sub,()>,",
         lt_ref="&'_sub(),",
         lt_mut="&'_sub mut (),",
+        lt_sub_lt="'_sub,",
     ]
     one_lifetime_tokens=[
         one_lt="",

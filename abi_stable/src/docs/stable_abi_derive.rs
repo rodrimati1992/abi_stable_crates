@@ -57,6 +57,16 @@ This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
 Adds a bound to the `PrefixTypeTrait` impl.
 
+###  `#[sabi(bounds="Type:ATrait,Type2:OtherTrait")]` 
+
+Adds many bounds to the `StableAbi` impl.
+
+###  `#[sabi(prefix_bounds="Type:ATrait,Type2:OtherTrait")]` 
+
+This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
+
+Adds many bound to the `PrefixTypeTrait` impl.
+
 ###  `#[sabi(tag=" some_expr ")]` 
 
 Adds a "tag" associated with the type,

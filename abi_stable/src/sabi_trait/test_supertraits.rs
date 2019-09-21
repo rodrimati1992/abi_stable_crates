@@ -91,6 +91,7 @@ pub mod nonstatic_supertrait{
     pub struct Struct<'a>(&'a str);
 
     impl<'a,'b> Trait<'a> for Struct<'b>{}
+    impl<'a,T> Trait<'a> for Option<T>{}
 
     fn test_constructible(){
         let object=Trait_TO::from_value(Struct(""),TU_Unerasable);
@@ -109,6 +110,27 @@ pub mod nonstatic_supertrait{
     }
     
 
+    struct MakeBorrowedCTO<'a,'b,T>(&'b (),&'a (),T);
+
+    impl<'a,'b,T> MakeBorrowedCTO<'a,'b,T>
+    where
+        T:'a,
+        'a:'b,
+    {
+        pub const NONE:Option<&'a T>=None;
+
+        pub const CONST:Trait_CTO<'a,'a,'b>=
+            Trait_CTO::from_const(
+                &Self::NONE,
+                TU_Opaque,
+                Trait_MV::VTABLE,
+            );
+        pub fn get_const(_:&'a T)->Trait_CTO<'a,'a,'b>{
+            Self::CONST
+        }
+    }
+
+
     // Testing that Trait does not have 'a as a supertrait.
     fn assert_trait_inner<'a,T>(_:T)
     where T:Trait<'a>
@@ -117,6 +139,15 @@ pub mod nonstatic_supertrait{
         let mut a=String::new();
         a.push_str("w");
         assert_trait_inner(Struct(&a));
+
+        {
+            let a=0usize;
+            MakeBorrowedCTO::get_const(&a).method();
+        }
+        {
+            let a=String::new();
+            MakeBorrowedCTO::get_const(&a).method();
+        }
     }
 }
 
@@ -914,7 +945,7 @@ pub mod every_trait_nonstatic{
         fn method(&self){}
     }
     #[derive(Debug,Clone,PartialEq,PartialOrd,Eq,Ord,Hash)]
-    pub struct Struct<'a>(&'a String);
+    pub struct Struct<'a>(&'a str);
 
     impl Display for Struct<'_>{
         fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
@@ -986,6 +1017,29 @@ pub mod every_trait_nonstatic{
         let object=Trait_TO::from_ptr(RBox::new(value),TU_Opaque);
         object.method();
         assert_bound(&object);
+
+        {
+            let value=Struct(&string);
+            constructs_const_a(&value);
+
+            let value=Struct("");
+            constructs_const_a(&value);
+        }
+
+    }
+
+    const CONST_A:Trait_CTO<'static,'static,'static>=
+        Trait_CTO::from_const(
+            &Struct(""),
+            TU_Opaque,
+            Trait_MV::VTABLE,
+        );
+
+    fn constructs_const_a<'a,'b,'borr,T>(ref_:&'b T)->Trait_CTO<'a,'borr,'b>
+    where
+        T:'borr+'a+Trait<'a>
+    {
+        Trait_CTO::from_const(ref_,TU_Opaque,Trait_MV::VTABLE)
     }
 
 }

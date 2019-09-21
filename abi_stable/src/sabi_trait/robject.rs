@@ -13,7 +13,7 @@ use crate::{
         c_functions::adapt_std_fmt,
         InterfaceBound,
     },
-    sabi_types::MaybeCmp,
+    sabi_types::{MaybeCmp,RRef},
     std_types::{RBox,UTypeId},
     pointer_trait::{
         TransmuteElement,
@@ -100,110 +100,6 @@ where
     ptr: ManuallyDrop<P>,
     _marker:PhantomData<Tuple2<&'lt (),I>>,
 }
-
-
-macro_rules! impl_from_ptr_method {
-    ( 
-        $( #[$attr:meta] )*
-        method_name=$method_name:ident,
-        requires_any=$requires_any:ty 
-    ) => (
-        $( #[$attr] )*
-        pub fn $method_name<'lt,OrigPtr,Params>(
-            ptr:OrigPtr,
-        )-> RObject<'lt,P,I,V>
-        where 
-            OrigPtr:TransmuteElement<(),TransmutedPtr=P>+'lt,
-            P:Deref<Target=()>,
-            OrigPtr::Target:Sized+'lt,
-            I:GetVTable<
-                $requires_any,
-                OrigPtr::Target,
-                OrigPtr::TransmutedPtr,
-                OrigPtr,
-                Params,
-                VTable=V
-            >,
-            I:GetRObjectVTable<$requires_any,OrigPtr::Target,OrigPtr::TransmutedPtr,OrigPtr>
-        {
-            RObject{
-                vtable:I::get_vtable(),
-                ptr:unsafe{
-                    let ptr=TransmuteElement::<()>::transmute_element(ptr,PhantomData);
-                    ManuallyDrop::new(ptr)
-                },
-                _marker:PhantomData,
-            }
-        }
-
-    )
-}
-
-impl<P,I,V> RObject<'_,P,I,V>
-where
-    P:GetPointerKind
-{
-    impl_from_ptr_method!{
-        /**
-Creates a trait object from a pointer to a type that must implement the 
-trait that `I` requires.
-
-The constructed trait object cannot be converted back to the original type.
-
-        */
-        method_name=from_ptr,
-        requires_any=TU_Opaque 
-    }
-    impl_from_ptr_method!{
-        /**
-Creates a trait object from a pointer to a type that must implement the 
-trait that `I` requires.
-
-The constructed trait object can be converted back to the original type with 
-the `unerased` methods (RObject reserves `sabi` as a prefix for its own methods).
-
-        */
-        method_name=from_ptr_unerasable,
-        requires_any=TU_Unerasable 
-    }
-}
-
-impl<I,V> RObject<'_,RBox<()>,I,V>{
-/**
-Creates a trait object from a type that must implement the trait that `I` requires.
-
-The constructed trait object cannot be converted back to the original type.
-*/
-    pub fn from_value<'lt,T,Params>(
-        value:T,
-    )-> RObject<'lt,RBox<()>,I,V>
-    where 
-        T:'lt,
-        I:GetVTable<TU_Opaque,T,RBox<()>,RBox<T>,Params,VTable=V>,
-        I:GetRObjectVTable<TU_Opaque,T,RBox<()>,RBox<T>>
-    {
-        Self::from_ptr::<_,Params>(RBox::new(value))
-    }
-
-/**
-Creates a trait object from a type that must implement the trait that `I` requires.
-
-The constructed trait object can be converted back to the original type with 
-the `unerased` methods (RObject reserves `sabi` as a prefix for its own methods).
-*/
-    pub fn from_value_unerasable<'lt,T,Params>(
-        value:T,
-    )-> RObject<'lt,RBox<()>,I,V>
-    where 
-        T:'lt,
-        I:GetVTable<TU_Unerasable,T,RBox<()>,RBox<T>,Params,VTable=V>,
-        I:GetRObjectVTable<TU_Unerasable,T,RBox<()>,RBox<T>>
-    {
-        Self::from_ptr_unerasable::<_,Params>(RBox::new(value))
-    }
-}
-
-
 
 mod clone_impl{
     pub trait CloneImpl<PtrKind>{
@@ -338,7 +234,7 @@ where
 
 impl<'lt,P,I,V> RObject<'lt,P,I,V>
 where
-    P:GetPointerKind,
+    P:GetPointerKind<Target=()>,
 {
 /**
 
@@ -379,6 +275,61 @@ These are the requirements for the caller:
         }
     }
 }
+
+
+impl<'borr,'a,I,V> RObject<'borr,RRef<'a,()>,I,V>{
+
+/**
+This function allows constructing an RObject in a constant/static.
+
+This is generally intended for `#[sabi_trait]`
+
+
+# Safety
+
+This has the same safety requirements as `RObject::with_vtable`
+
+# Example
+
+Because this is intended for `#[sabi_trait]` generated trait objects,
+this demonstrates how to construct one in a constant.
+
+```
+use abi_stable::sabi_trait::{
+    doc_examples::{ConstExample_CTO,ConstExample_MV},
+    prelude::TU_Opaque,
+};
+
+const EXAMPLE0:ConstExample_CTO<'static,'static>=
+    ConstExample_CTO::from_const(
+        &0usize,
+        TU_Opaque,
+        ConstExample_MV::VTABLE,
+    );
+
+
+```
+
+
+*/
+    pub const unsafe fn with_vtable_const<T,Unerasability>(
+        ptr: &'a T,
+        vtable:VTableTO_RO<T,RRef<'a,T>,Unerasability,V>,
+    )-> Self
+    where
+        T:'borr,
+    {
+        RObject{
+            vtable: vtable.robject_vtable(),
+            ptr:{
+                let x=RRef::new(ptr).transmute_ref::<()>();
+                ManuallyDrop::new(x)
+            },
+            _marker:PhantomData,
+        }
+    }
+}
+
 
 impl<'lt,P,I,V> RObject<'lt,P,I,V>
 where
@@ -596,8 +547,8 @@ where
     P:GetPointerKind,
 {
     #[inline]
-    pub fn sabi_et_vtable<'a>(&self)->&'a V{
-        self.vtable.get()
+    pub fn sabi_et_vtable(&self)->StaticRef<V>{
+        self.vtable
     }
 
     /// The vtable common to all `#[sabi_trait]` generated trait objects.
