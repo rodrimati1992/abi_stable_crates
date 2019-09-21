@@ -70,6 +70,8 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) phantom_fields:Vec<(&'a Ident,&'a Type)>,
     pub(crate) phantom_type_params:Vec<&'a Type>,
     pub(crate) phantom_const_params:Vec<&'a syn::Expr>,
+
+    pub(crate) allow_type_macros:bool,
     
 }
 
@@ -284,6 +286,7 @@ impl<'a> StableAbiOptions<'a> {
             phantom_fields,
             phantom_type_params: this.phantom_type_params,
             phantom_const_params: this.phantom_const_params,
+            allow_type_macros: this.allow_type_macros,
             mod_refl_mode,
         })
     }
@@ -330,6 +333,8 @@ struct StableAbiAttrs<'a> {
     impl_interfacetype:Option<ImplInterfaceType>,
     
     mod_refl_mode:Option<ModReflMode<()>>,
+
+    allow_type_macros:bool,
 
     errors:LinearResult<()>,
 }
@@ -811,6 +816,8 @@ fn parse_sabi_attr<'a>(
                 this.layout_ctor
                     .iter_mut()
                     .for_each(|(_,x)|*x=LayoutConstructor::SabiOpaque);
+            }else if word=="unsafe_allow_type_macros" {
+                this.allow_type_macros=true;
             }else{
                 return Err(make_err(&path));
             }

@@ -36,6 +36,10 @@ impl<'a> VisitedFieldMap<'a>{
     )-> Self {
         let arenas=shared_vars.arenas();
         let mut tv = TypeVisitor::new(arenas, ctokens.as_ref(), ds.generics);
+        if config.allow_type_macros{
+            tv.allow_type_macros();
+        }
+
         let mut fn_ptr_count = 0;
 
         let map=ds.variants.iter().flat_map(|x| &x.fields ).map(|field|{
