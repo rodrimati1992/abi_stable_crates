@@ -14,7 +14,7 @@ use core_extensions::prelude::*;
 use crate::{
     abi_stability::StableAbi,
     pointer_trait::{
-        CallReferentDrop, TransmuteElement,
+        CallReferentDrop, CanTransmuteElement,
         GetPointerKind,PK_SmartPointer,
     },
     sabi_types::Constructor,
@@ -105,7 +105,7 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
         type Kind=PK_SmartPointer;
     }
 
-    unsafe impl<T, O> TransmuteElement<O> for RArc<T> {
+    unsafe impl<T, O> CanTransmuteElement<O> for RArc<T> {
         type TransmutedPtr = RArc<O>;
     }
 

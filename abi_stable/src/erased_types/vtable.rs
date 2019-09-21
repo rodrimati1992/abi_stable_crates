@@ -28,7 +28,7 @@ use crate::{
     const_utils::Transmuter,
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
-    pointer_trait::{GetPointerKind,TransmuteElement},
+    pointer_trait::{GetPointerKind,CanTransmuteElement,TransmuteElement},
     sabi_types::StaticRef,
     std_types::{Tuple3,RSome,RNone,RIoError,RSeekFrom},
     type_level::{
@@ -86,7 +86,7 @@ impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> Clone
 impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> 
     VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
 where
-    OrigPtr: TransmuteElement<(), Target=T, TransmutedPtr=ErasedPtr>,
+    OrigPtr: CanTransmuteElement<(), Target=T, TransmutedPtr=ErasedPtr>,
     ErasedPtr: GetPointerKind<Target=()>,
     I: InterfaceBound,
     InterfaceFor<T,I,Unerasability>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,

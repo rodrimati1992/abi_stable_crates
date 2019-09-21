@@ -7,7 +7,7 @@ use std::ops::Deref;
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-use crate::pointer_trait::TransmuteElement;
+use crate::pointer_trait::{CanTransmuteElement,TransmuteElement};
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -116,18 +116,18 @@ pub(crate) unsafe trait ErasedType<'a>:Sized{
     unsafe fn from_unerased<P>(p:P)->P::TransmutedPtr
     where 
         P:Deref<Target=Self::Unerased>,
-        P:TransmuteElement<Self>
+        P:CanTransmuteElement<Self>
     {
-        p.transmute_element(Self::T)
+        p.transmute_element::<Self>()
     }
 
     #[inline]
     unsafe fn into_unerased<P>(p:P)->P::TransmutedPtr
     where 
         P:Deref<Target=Self>,
-        P:TransmuteElement<Self::Unerased>,
+        P:CanTransmuteElement<Self::Unerased>,
     {
-        p.transmute_element(Self::Unerased::T)
+        p.transmute_element::<Self::Unerased>()
     }
 
 
@@ -135,7 +135,7 @@ pub(crate) unsafe trait ErasedType<'a>:Sized{
     unsafe fn run_as_unerased<P,F,R>(p:P,func:F)->R
     where 
         P:Deref<Target=Self>,
-        P:TransmuteElement<Self::Unerased>,
+        P:CanTransmuteElement<Self::Unerased>,
         F:FnOnce(P::TransmutedPtr)->R,
     {
         func(Self::into_unerased(p))

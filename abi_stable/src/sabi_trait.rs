@@ -24,7 +24,7 @@ pub mod reexports{
                 traits::InterfaceFor,
             },
             marker_type::{UnsafeIgnoredType,SyncSend,UnsyncUnsend,UnsyncSend,SyncUnsend},
-            pointer_trait::{TransmuteElement,OwnedPointer},
+            pointer_trait::{CanTransmuteElement,TransmuteElement,OwnedPointer},
             prefix_type::{PrefixTypeTrait,WithMetadata},
             traits::IntoInner,
             sabi_types::{RRef,MovePtr,StaticRef},

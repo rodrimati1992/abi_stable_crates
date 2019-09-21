@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     abi_stability::SharedStableAbi,
-    pointer_trait::{TransmuteElement,GetPointerKind,PK_Reference},
+    pointer_trait::{CanTransmuteElement,GetPointerKind,PK_Reference},
 };
 
 use super::StaticRef;
@@ -302,7 +302,7 @@ unsafe impl<'a,T> GetPointerKind for RRef<'a,T>{
     type Kind=PK_Reference;
 }
 
-unsafe impl<'a,T,U> TransmuteElement<U> for RRef<'a,T>
+unsafe impl<'a,T,U> CanTransmuteElement<U> for RRef<'a,T>
 where
     U:'a,
 {

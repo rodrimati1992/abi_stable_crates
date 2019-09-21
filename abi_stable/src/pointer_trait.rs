@@ -141,9 +141,11 @@ Callers must ensure that:
 - References to `T` are compatible with references to `Self::Target`.
 
 */
-pub unsafe trait TransmuteElement<T>: GetPointerKind {
+pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
     type TransmutedPtr: Deref<Target = T>;
+}
 
+pub trait TransmuteElement{
     /// Transmutes the element type of this pointer..
     ///
     /// # Safety
@@ -163,32 +165,36 @@ pub unsafe trait TransmuteElement<T>: GetPointerKind {
     /// ```
     /// use abi_stable::{
     ///     pointer_trait::TransmuteElement,
-    ///     reexports::SelfOps,
     ///     std_types::RBox,
     /// };
     ///
     /// let signed:RBox<u32>=unsafe{
     ///     RBox::new(1_i32)
-    ///         .transmute_element(u32::T)
+    ///         .transmute_element::<u32>()
     /// };
     ///
     /// ```
-    unsafe fn transmute_element(self, _: VariantPhantom<T>) -> Self::TransmutedPtr 
-    where Self::Target:Sized
+    unsafe fn transmute_element<T>(self) -> <Self as CanTransmuteElement<T>>::TransmutedPtr 
+    where
+        Self:CanTransmuteElement<T>,
+        Self::Target:Sized,
     {
         transmute_ignore_size::<Self, Self::TransmutedPtr>(self)
     }
 }
 
+impl<This:?Sized> TransmuteElement for This{}
+
+
 ///////////
 
-unsafe impl<'a, T: 'a, O: 'a> TransmuteElement<O> for &'a T {
+unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a T {
     type TransmutedPtr = &'a O;
 }
 
 ///////////
 
-unsafe impl<'a, T: 'a, O: 'a> TransmuteElement<O> for &'a mut T {
+unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a mut T {
     type TransmutedPtr = &'a mut O;
 }
 

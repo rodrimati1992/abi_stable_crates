@@ -620,7 +620,7 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
                 unerasability:Unerasability,
             )->Self
             where
-                _OrigPtr:__sabi_re::TransmuteElement<(),TransmutedPtr=_ErasedPtr> #plus_lt,
+                _OrigPtr:__sabi_re::CanTransmuteElement<(),TransmutedPtr=_ErasedPtr> #plus_lt,
                 _OrigPtr::Target:
                     #trait_bounds<#trait_params #( #assoc_tys_a= #assoc_tys_b, )* >+
                     Sized
@@ -1195,7 +1195,7 @@ fn vtable_impl<'a>(
         impl<#impl_header_generics> #make_vtable_ident<#makevtable_generics>
         where 
             _Self:#trait_bounds<#trait_generics>,
-            _OrigPtr:__sabi_re::TransmuteElement<(),Target=_Self,TransmutedPtr=_ErasedPtr>,
+            _OrigPtr:__sabi_re::CanTransmuteElement<(),Target=_Self,TransmutedPtr=_ErasedPtr>,
             _ErasedPtr:__GetPointerKind<Target=()>,
             #trait_interface<#trait_interface_use>:
                 __sabi_re::GetRObjectVTable<IA,_Self,_ErasedPtr,_OrigPtr>,

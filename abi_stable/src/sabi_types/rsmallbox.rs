@@ -4,7 +4,7 @@ Contains the `RSmallBox<_>` type.
 
 use crate::{
     pointer_trait::{
-        CallReferentDrop,Deallocate,TransmuteElement,
+        CallReferentDrop,Deallocate,CanTransmuteElement,
         GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
     sabi_types::MovePtr,
@@ -508,7 +508,7 @@ shared_impls! {
 }
 
 
-unsafe impl<T, O, Inline> TransmuteElement<O> for RSmallBox<T,Inline> {
+unsafe impl<T, O, Inline> CanTransmuteElement<O> for RSmallBox<T,Inline> {
     type TransmutedPtr = RSmallBox<O,Inline>;
 }
 
