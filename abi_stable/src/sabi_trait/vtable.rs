@@ -233,7 +233,7 @@ pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
 #[derive(StableAbi)]
 #[sabi(
     bound="I:InterfaceBound",
-    extra_checks="<I as InterfaceBound>::extra_checks",
+    extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
     kind(Prefix(prefix_struct="BaseVtable")),
 )]
 pub(super)struct BaseVtableVal<_Self,ErasedPtr,I>{

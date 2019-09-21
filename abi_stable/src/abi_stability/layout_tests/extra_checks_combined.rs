@@ -4,9 +4,11 @@ use crate::{
             AbiInstability,CheckingGlobals,
             check_layout_compatibility_with_globals,
         },
+        stable_abi_trait::get_type_layout,
         TypeCheckerMut,
         ExtraChecks,ExtraChecksStaticRef,ExtraChecksBox,ExtraChecksRef,
-        ForExtraChecksImplementor,ExtraChecksError
+        StoredExtraChecks,ExtraChecks_MV,
+        ForExtraChecksImplementor,ExtraChecksError,
     },
     const_utils::abs_sub_usize,
     marker_type::UnsafeIgnoredType,
@@ -23,6 +25,7 @@ use crate::{
 use std::{
     fmt::{self,Display},
     marker::PhantomData,
+    mem::ManuallyDrop,
     ptr,
 };
 
@@ -134,7 +137,7 @@ fn test_incompatible(){
     // (a supertrait of StableAbi).
     not_stableabi(C),
     bound="C:GetConstant",
-    extra_checks="Self::get_const_checker"
+    extra_checks="Self::CHECKER"
 )]
 struct WithConstant<C>{
     // UnsafeIgnoredType is equivalent to PhantomData,
@@ -146,18 +149,10 @@ impl<C> WithConstant<C>
 where 
     C:GetConstant
 {
-    const CHECKER:&'static ConstChecker=
-        &ConstChecker{
+    const CHECKER:ConstChecker=
+        ConstChecker{
             chars:StaticStr::new(C::CHARS)
         };
-
-    #[sabi_extern_fn]
-    pub fn get_const_checker()->ExtraChecksStaticRef{
-        ExtraChecksStaticRef::from_ptr(
-            Self::CHECKER,
-            TU_Opaque,
-        )
-    }
 }
 
 
@@ -293,12 +288,12 @@ impl std::error::Error for UnequalConstError{}
 #[repr(C)]
 #[derive(Debug,Clone,StableAbi)]
 pub struct IdentityChecker{
-    type_layout:&'static TypeLayout,
+    type_layout:Constructor<&'static TypeLayout>,
 }
 
 impl Display for IdentityChecker{
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        Display::fmt(self.type_layout,f)
+        Display::fmt(&self.type_layout,f)
     }
 }
 
@@ -315,7 +310,9 @@ impl ExtraChecks for IdentityChecker {
         ty_checker:TypeCheckerMut<'_>,
     )->RResult<(), ExtraChecksError> {
         Self::downcast_with_layout(layout_containing_other,ty_checker,|other,mut ty_checker|{
-            ty_checker.check_compatibility(self.type_layout,other.type_layout).into_result()
+            let t_lay=self.type_layout.get();
+            let o_lay=other.type_layout.get();
+            ty_checker.check_compatibility(t_lay,o_lay).into_result()
         }).observe(|res|{
             assert!(
                 matches!(ROk(_)|RErr(ExtraChecksError::TypeChecker)=res),
@@ -326,8 +323,7 @@ impl ExtraChecks for IdentityChecker {
     }
 
     fn nested_type_layouts(&self)->RCow<'_,[&'static TypeLayout]>{
-        std::slice::from_ref(&self.type_layout)
-            .into()
+        vec![self.type_layout.get()].into()
     }
 }
 
@@ -345,16 +341,14 @@ fn test_identity_extra_checker() {
     where
         T:StableAbi
     {
-        const NEW:&'static IdentityChecker=
-            &IdentityChecker{ type_layout:T::LAYOUT };
-        
-        extern "C" fn construct_extra_checks()->ExtraChecksStaticRef{
-            ExtraChecksStaticRef::from_ptr(
-                Self::NEW,
-                TU_Opaque
-            )
-        }
-
+        const NEW:&'static ManuallyDrop<StoredExtraChecks>=
+            &ManuallyDrop::new(StoredExtraChecks::from_const(
+                &IdentityChecker{ 
+                    type_layout:Constructor(get_type_layout::<T>)
+                },
+                TU_Opaque,
+                ExtraChecks_MV::VTABLE,
+            ));
     }
 
     fn wrap_type_layout<T>()->&'static TypeLayout
@@ -363,7 +357,7 @@ fn test_identity_extra_checker() {
     {
         <()>::LAYOUT.clone()
             ._set_extra_checks(
-                Constructor(MakeExtraChecks::<T>::construct_extra_checks)
+                MakeExtraChecks::<T>::NEW
                 .piped(Some)
                 .piped(CmpIgnored::new)
             )
@@ -455,19 +449,12 @@ fn test_identity_extra_checker() {
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(extra_checks="Self::construct_extra_checks")]
+#[sabi(extra_checks="Self::NEW")]
 struct WithCyclicExtraChecker;
 
 impl WithCyclicExtraChecker {
-    const NEW:&'static IdentityChecker=
-        &IdentityChecker{ type_layout:Self::LAYOUT };
-    
-    extern "C" fn construct_extra_checks()->ExtraChecksStaticRef{
-        ExtraChecksStaticRef::from_ptr(
-            Self::NEW,
-            TU_Opaque
-        )
-    }
+    const NEW:IdentityChecker=
+        IdentityChecker{ type_layout:Constructor(get_type_layout::<Self>) };
 }
 
 
@@ -506,7 +493,7 @@ fn test_cyclic_extra_checker() {
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(extra_checks="Self::construct_extra_checks")]
+#[sabi(extra_checks="Self::EXTRA_CHECKER")]
 struct WithLocalExtraChecker<C0,C1>{
     _marker:UnsafeIgnoredType<(C0,C1)>
 }
@@ -516,15 +503,11 @@ where
     C0:StableAbi,
     C1:StableAbi,
 {
-    extern "C" fn construct_extra_checks()->ExtraChecksStaticRef{
-        ExtraChecksStaticRef::from_ptr(
-            &LocalExtraChecker{
-                comp0:<C0 as StableAbi>::LAYOUT,
-                comp1:<C1 as StableAbi>::LAYOUT,
-            },
-            TU_Opaque
-        )
-    }
+    const EXTRA_CHECKER:LocalExtraChecker=
+        LocalExtraChecker{
+            comp0:<C0 as StableAbi>::LAYOUT,
+            comp1:<C1 as StableAbi>::LAYOUT,
+        };
 }
 
 

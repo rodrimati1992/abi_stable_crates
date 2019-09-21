@@ -7,7 +7,7 @@ use std::{
     cell::RefCell,
     collections::HashSet,
     fmt::{self, Debug, Display, Formatter},
-    mem,
+    mem::{self,ManuallyDrop},
 };
 
 use core_extensions::{matches,StringExt};
@@ -15,7 +15,7 @@ use core_extensions::{matches,StringExt};
 use crate::{
     abi_stability::{
         stable_abi_trait::{TypeLayoutCtor,AbiConsts},
-        ExtraChecksStaticRef,
+        StoredExtraChecks,ExtraChecksStaticRef,
     },
     const_utils::log2_usize, 
     sabi_types::VersionStrings, 
@@ -166,7 +166,7 @@ pub struct TypeLayout {
     data:GenericTLData,
     
     /// A json-like data structure used to add extra checks.
-    extra_checks:CmpIgnored<Option<Constructor<ExtraChecksStaticRef>>>,
+    extra_checks:CmpIgnored<Option<&'static ManuallyDrop<StoredExtraChecks>>>,
 
     /// Equivalent to the UTypeId returned by the function in Constructor.
     type_id:Constructor<UTypeId>,
@@ -263,7 +263,7 @@ impl TypeLayout {
 
     #[inline]
     pub fn extra_checks(&self)->Option<ExtraChecksStaticRef>{
-        self.extra_checks.value.map(Constructor::get)
+        self.extra_checks.value.map(|x| x.sabi_reborrow() )
     }
 
 /**
@@ -322,7 +322,7 @@ If this a:
     #[cfg(test)]
     pub const fn _set_extra_checks(
         mut self,
-        extra_checks:CmpIgnored<Option<Constructor<ExtraChecksStaticRef>>>
+        extra_checks:CmpIgnored<Option<&'static ManuallyDrop<StoredExtraChecks>>>
     )->Self{
         self.extra_checks=extra_checks;
         self

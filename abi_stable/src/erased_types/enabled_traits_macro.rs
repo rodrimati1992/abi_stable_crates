@@ -47,7 +47,7 @@ macro_rules! declare_enabled_traits {
 
 
         #[repr(C)]
-        #[derive(Clone,StableAbi)]
+        #[derive(Copy,Clone,StableAbi)]
         pub struct EnabledTraits{
             pub auto_traits:u16,
             pub regular_traits:u64,

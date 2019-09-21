@@ -180,7 +180,7 @@ with the 1.0 version of `Error` they would get an `Err(..)` back.
     bound="NonExhaustiveVtable<E,S,I>:SharedStableAbi",
     bound="E: GetNonExhaustive<S>",
     bound="I: InterfaceBound",
-    extra_checks="<I as InterfaceBound>::extra_checks",
+    extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
     phantom_type_param="<E as GetNonExhaustive<S>>::NonExhaustive",
 )]
 pub struct NonExhaustive<E,S,I>{

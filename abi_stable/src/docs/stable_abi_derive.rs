@@ -100,13 +100,12 @@ Sibling means libraries loaded at runtime by the same library/binary
 
 For more information about tags,[look here](../../abi_stability/tagging/index.html)
 
-###  `#[sabi(extra_checks="<some_function>")]` 
+###  `#[sabi(extra_checks="<some_constant_expression>")]` 
 
 Adds an `ExtraChecks` trait object associated with the type,
 which allows encoding and checking extra properties about a type.
 
-`<some_function>` is an expression of this type: 
-`extern "C" fn()->ExtraChecksStaticRef`.
+`<some_constant_expression>` must be a constant that implements ExtraChecks .
 
 For examples of using this attribute
 [look here](../../abi_stability/trait.ExtraChecks.html#examples)
