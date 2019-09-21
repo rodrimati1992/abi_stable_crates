@@ -584,7 +584,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         // bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound",
         bound="I:InterfaceBound",
         bound="VTable<'borr,P,I>:SharedStableAbi",
-        extra_checks="<I as InterfaceBound>::extra_checks",
+        extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
     )]
     pub struct DynTrait<'borr,P,I,EV=()> 
     where

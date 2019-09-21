@@ -9,6 +9,7 @@ pub use crate::{
             UNSAFE_EXTERN_FN_LAYOUT,
             EXTERN_FN_LAYOUT,
         },
+        ExtraChecks_MV,StoredExtraChecks,
     },
     inline_storage::InlineStorage,
     nonexhaustive_enum::{
@@ -66,6 +67,7 @@ pub use crate::{
     type_level::{
         impl_enum::{Implemented,Unimplemented,ImplFrom},
         trait_marker,
+        unerasability::TU_Opaque,
     },
 };
 

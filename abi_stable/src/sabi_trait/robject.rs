@@ -90,7 +90,7 @@ using a `RObject::*_unerased` function.
     not_stableabi(V),
     bound="V:SharedStableAbi",
     bound="I:InterfaceBound",
-    extra_checks="<I as InterfaceBound>::extra_checks",
+    extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
 )]
 pub struct RObject<'lt,P,I,V>
 where

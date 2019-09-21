@@ -404,11 +404,7 @@ macro_rules! declare_meta_vtable {
 
             /// Describes which traits are implemented,
             /// stored in the layout of the type in StableAbi,
-            const EXTRA_CHECKS:&'static EnabledTraits;
-
-            extern "C" fn extra_checks()->ExtraChecksStaticRef{
-                ExtraChecksStaticRef::from_ptr(Self::EXTRA_CHECKS,TU_Opaque)
-            }
+            const EXTRA_CHECKS:EnabledTraits;
 
             $( 
                 /// Used by the `StableAbi` derive macro to determine whether the field 
@@ -434,7 +430,7 @@ macro_rules! declare_meta_vtable {
             $( I::$marker_trait:IsImplemented, )*
             $( I::$selector:IsImplemented, )*
         {
-            const EXTRA_CHECKS:&'static EnabledTraits=&EnabledTraits{
+            const EXTRA_CHECKS:EnabledTraits=EnabledTraits{
                 
                 // Auto traits have to be equivalent in every linked library,
                 // this is why this is an array,it must match exactly.

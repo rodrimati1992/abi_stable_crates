@@ -12,7 +12,7 @@ pub struct _private_TypeLayoutDerive {
     pub abi_consts:AbiConsts,
     pub data: GenericTLData,
     pub tag:Option<&'static Tag>,
-    pub extra_checks:Option<Constructor<ExtraChecksStaticRef>>,
+    pub extra_checks:Option<&'static ManuallyDrop<StoredExtraChecks>>,
 }
 
 #[allow(non_camel_case_types)]

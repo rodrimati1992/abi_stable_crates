@@ -11,7 +11,7 @@ To add extra checks to a type follow these steps:
     constructing an ExtraChecksStaticRef with `ExtraChecksStaticRef::from_ptr`
     with a `&'static TypeThatImplsExtraChecks`.
 
-- Apply the `#[sabi(extra_checks="the_function")]` attribute
+- Apply the `#[sabi(extra_checks="EXTRA_CHECKER_CONSTANT")]` attribute
     to the type that uses `#[derive(StableAbi)]`.
 
 # Examples
@@ -54,7 +54,7 @@ fn main(){
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(extra_checks="get_in_order_checker")]
+#[sabi(extra_checks="InOrderChecker")]
 struct Rectangle{
     x:u32,
     y:u32,
@@ -64,7 +64,7 @@ struct Rectangle{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(extra_checks="get_in_order_checker")]
+#[sabi(extra_checks="InOrderChecker")]
 struct Person{
     name:RString,
     surname:RString,
@@ -73,14 +73,6 @@ struct Person{
 
 
 /////////////////////////////////////////
-
-#[sabi_extern_fn]
-pub extern "C" fn get_in_order_checker()->ExtraChecksStaticRef{
-    ExtraChecksStaticRef::from_ptr(
-        &InOrderChecker,
-        TU_Opaque,
-    )
-}
 
 
 #[repr(C)]
@@ -223,7 +215,7 @@ fn main(){
     // (a supertrait of StableAbi).
     not_stableabi(C),
     bound="C:GetConstant",
-    extra_checks="Self::get_const_checker"
+    extra_checks="Self::CHECKER"
 )]
 struct WithConstant<C>{
     // UnsafeIgnoredType is equivalent to PhantomData,
@@ -241,16 +233,8 @@ impl<C> WithConstant<C>
 where 
     C:GetConstant
 {
-    const CHECKER:&'static ConstChecker=
-        &ConstChecker{number:C::NUMBER};
-
-    #[sabi_extern_fn]
-    pub fn get_const_checker()->ExtraChecksStaticRef{
-        ExtraChecksStaticRef::from_ptr(
-            Self::CHECKER,
-            TU_Opaque,
-        )
-    }
+    const CHECKER:ConstChecker=
+        ConstChecker{number:C::NUMBER};
 }
 
 
@@ -462,7 +446,7 @@ fn main(){
     // (a supertrait of StableAbi).
     not_stableabi(C),
     bound="C:GetConstant",
-    extra_checks="Self::get_const_checker"
+    extra_checks="Self::CHECKER"
 )]
 struct WithConstant<C>{
     // UnsafeIgnoredType is equivalent to PhantomData,
@@ -480,18 +464,11 @@ impl<C> WithConstant<C>
 where 
     C:GetConstant
 {
-    const CHECKER:&'static ConstChecker=
-        &ConstChecker{
+    const CHECKER:ConstChecker=
+        ConstChecker{
             chars:StaticStr::new(C::CHARS)
         };
 
-    #[sabi_extern_fn]
-    pub fn get_const_checker()->ExtraChecksStaticRef{
-        ExtraChecksStaticRef::from_ptr(
-            Self::CHECKER,
-            TU_Opaque,
-        )
-    }
 }
 
 
@@ -823,6 +800,9 @@ This returns:
 }
 
 
+
+/// The version of ExtraChecks that is stored in the type layout constant..
+pub type StoredExtraChecks=ExtraChecks_CTO<'static>;
 
 /// An ffi-safe equivalent of `&'static dyn ExtraChecks`.
 pub type ExtraChecksStaticRef=ExtraChecks_TO<&'static ()>;

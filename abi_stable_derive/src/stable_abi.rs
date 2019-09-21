@@ -175,10 +175,17 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     
     let extra_checks=
         match &config.extra_checks {
-            Some(extra_checks)=>quote!( Some(_sabi_reexports::Constructor(#extra_checks)) ),
+            Some(extra_checks)=>quote!({
+                Some(&std::mem::ManuallyDrop::new(
+                    _sabi_reexports::StoredExtraChecks::from_const(
+                        &#extra_checks,
+                        _sabi_reexports::TU_Opaque,
+                        _sabi_reexports::ExtraChecks_MV::VTABLE,
+                    )
+                ))
+            }),
             None=>quote!( None ),
         };
-
     
     // tokenizes the items for nonexhaustive enums outside of the module this generates.
     let nonexhaustive_items=tokenize_nonexhaustive_items(&module,ds,config,ctokens);

@@ -22,8 +22,8 @@ pub use self::{
 pub use self::{
     extra_checks::{
         TypeChecker,TypeCheckerMut,
-        ExtraChecks,ExtraChecks_TO,ForExtraChecksImplementor,
-        ExtraChecksBox,ExtraChecksStaticRef,ExtraChecksRef,
+        ExtraChecks,ExtraChecks_TO,ExtraChecks_MV,ForExtraChecksImplementor,
+        StoredExtraChecks,ExtraChecksBox,ExtraChecksStaticRef,ExtraChecksRef,
         ExtraChecksError,
     },
 };

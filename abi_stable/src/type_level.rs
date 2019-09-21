@@ -30,10 +30,12 @@ pub mod unerasability{
 
     /// Indicates that a type implements `Any`.
     #[allow(non_camel_case_types)]
+    #[derive(Copy,Clone)]
     pub struct TU_Unerasable;
 
     /// Indicates that a type does not implement `Any`.
     #[allow(non_camel_case_types)]
+    #[derive(Copy,Clone)]
     pub struct TU_Opaque;
     
 
