@@ -20,7 +20,7 @@ use core_extensions::{prelude::*, ResultLike};
 use crate::{
     abi_stability::SharedStableAbi,
     pointer_trait::{
-        TransmuteElement,OwnedPointer,
+        CanTransmuteElement,TransmuteElement,OwnedPointer,
         GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
     },
     marker_type::{ErasedObject,UnsafeIgnoredType}, 
@@ -462,7 +462,7 @@ assert_eq!(
 # Making pointers compatible with DynTrait
 
 To make pointers compatible with DynTrait,they must imlement the 
-`abi_stable::pointer_trait::{GetPointerKind,Deref,TransmuteElement}` traits 
+`abi_stable::pointer_trait::{GetPointerKind,Deref,CanTransmuteElement}` traits 
 as shown in the example.
 
 `GetPointerKind` should generally be implemented with `type Kind=PK_SmartPointer`.
@@ -514,7 +514,7 @@ use abi_stable::{
     std_types::RBox,
     erased_types::IteratorItem,
     pointer_trait::{
-        PK_SmartPointer,GetPointerKind,TransmuteElement
+        PK_SmartPointer,GetPointerKind,CanTransmuteElement
     },
     type_level::bools::True,
 };
@@ -551,12 +551,12 @@ unsafe impl<T> GetPointerKind for NewtypeBox<T>{
     type Kind=PK_SmartPointer;
 }
 
-unsafe impl<T,O> TransmuteElement<O> for NewtypeBox<T>
+unsafe impl<T,O> CanTransmuteElement<O> for NewtypeBox<T>
 where 
     // Using this to ensure that the pointer is safe to wrap,
     // while this is not necessary for `RBox<T>`,
     // it might be for some other pointer type.
-    RBox<T>:TransmuteElement<O,Kind=Self::Kind>
+    RBox<T>:CanTransmuteElement<O,Kind=Self::Kind>
 {
     type TransmutedPtr = NewtypeBox<O>;
 }
@@ -622,12 +622,12 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             T: ImplType,
             T::Interface:InterfaceBound,
             T: GetVtable<'static,T,P::TransmutedPtr,P,<T as ImplType>::Interface>,
-            P: Deref<Target = T>+TransmuteElement<()>+GetPointerKind,
+            P: Deref<Target = T>+CanTransmuteElement<()>+GetPointerKind,
             P::TransmutedPtr:GetPointerKind,
         {
             DynTrait {
                 object: unsafe{
-                    ManuallyDrop::new(object.transmute_element(<()>::T))
+                    ManuallyDrop::new(object.transmute_element::<()>())
                 },
                 vtable: T::_GET_INNER_VTABLE,
                 extra_value:(),
@@ -657,12 +657,12 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             I:InterfaceBound,
             T:'static,
             InterfaceFor<T,I,TU_Unerasable>: GetVtable<'static,T,P::TransmutedPtr,P,I>,
-            P: Deref<Target = T>+TransmuteElement<()>+GetPointerKind,
+            P: Deref<Target = T>+CanTransmuteElement<()>+GetPointerKind,
             P::TransmutedPtr:GetPointerKind,
         {
             DynTrait {
                 object: unsafe{
-                    ManuallyDrop::new(object.transmute_element(<()>::T))
+                    ManuallyDrop::new(object.transmute_element::<()>())
                 },
                 vtable: <InterfaceFor<T,I,TU_Unerasable>>::_GET_INNER_VTABLE,
                 extra_value:(),
@@ -699,12 +699,12 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             T:'borr,
             I:InterfaceBound,
             InterfaceFor<T,I,TU_Opaque>: GetVtable<'borr,T,P::TransmutedPtr,P,I>,
-            P: Deref<Target = T>+TransmuteElement<()>+GetPointerKind,
+            P: Deref<Target = T>+CanTransmuteElement<()>+GetPointerKind,
             P::TransmutedPtr:GetPointerKind,
         {
             DynTrait {
                 object: unsafe{
-                    ManuallyDrop::new(object.transmute_element(<()>::T))
+                    ManuallyDrop::new(object.transmute_element::<()>())
                 },
                 vtable: <InterfaceFor<T,I,TU_Opaque>>::_GET_INNER_VTABLE,
                 extra_value:(),
@@ -730,11 +730,11 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             I:InterfaceBound,
             InterfaceFor<OrigPtr::Target,I,Unerasability>: 
                 GetVtable<'borr,OrigPtr::Target,P,OrigPtr,I>,
-            OrigPtr: TransmuteElement<(),TransmutedPtr=P>,
+            OrigPtr: CanTransmuteElement<(),TransmutedPtr=P>,
         {
             DynTrait {
                 object: unsafe{
-                    ManuallyDrop::new(ptr.transmute_element(<()>::T))
+                    ManuallyDrop::new(ptr.transmute_element::<()>())
                 },
                 vtable: <InterfaceFor<OrigPtr::Target,I,Unerasability>>::_GET_INNER_VTABLE,
                 extra_value,
@@ -753,7 +753,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             I:InterfaceBound,
             InterfaceFor<OrigPtr::Target,I,Unerasability>: 
                 GetVtable<'borr,OrigPtr::Target,P,OrigPtr,I>,
-            OrigPtr: TransmuteElement<(),TransmutedPtr=P>,
+            OrigPtr: CanTransmuteElement<(),TransmutedPtr=P>,
         {
             Self::with_extra_value(ptr,extra_vtable)
         }
@@ -984,7 +984,7 @@ fn main(){
         /// otherwise it was not created from that T in the library that declared the opaque type.
         pub(super) fn sabi_check_same_destructor<A,T>(&self) -> Result<(), UneraseError<()>>
         where
-            P: TransmuteElement<T>,
+            P: CanTransmuteElement<T>,
             A: ImplType,
         {
             let t_info = A::INFO;
@@ -1017,14 +1017,14 @@ fn main(){
         ///
         pub fn into_unerased_impltype<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
         where
-            P: TransmuteElement<T>,
+            P: CanTransmuteElement<T>,
             P::Target:Sized,
             T: ImplType,
         {
             check_unerased!(self,self.sabi_check_same_destructor::<T,T>());
             unsafe { 
                 let this=ManuallyDrop::new(self);
-                Ok(ptr::read(&*this.object).transmute_element(T::T)) 
+                Ok(ptr::read(&*this.object).transmute_element::<T>()) 
             }
         }
 
@@ -1046,7 +1046,7 @@ fn main(){
         ///
         pub fn as_unerased_impltype<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
-            P: Deref + TransmuteElement<T>,
+            P: Deref + CanTransmuteElement<T>,
             T: ImplType,
         {
             check_unerased!(self,self.sabi_check_same_destructor::<T,T>());
@@ -1071,7 +1071,7 @@ fn main(){
         ///
         pub fn as_unerased_mut_impltype<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
-            P: DerefMut + TransmuteElement<T>,
+            P: DerefMut + CanTransmuteElement<T>,
             T: ImplType,
         {
             check_unerased!(self,self.sabi_check_same_destructor::<T,T>());
@@ -1098,7 +1098,7 @@ fn main(){
         pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
         where
             T:'static,
-            P: TransmuteElement<T>,
+            P: CanTransmuteElement<T>,
             P::Target:Sized,
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,TU_Unerasable>: ImplType,
@@ -1110,7 +1110,7 @@ fn main(){
             unsafe {
                 unsafe { 
                     let this=ManuallyDrop::new(self);
-                    Ok(ptr::read(&*this.object).transmute_element(T::T)) 
+                    Ok(ptr::read(&*this.object).transmute_element::<T>()) 
                 }
             }
         }
@@ -1134,7 +1134,7 @@ fn main(){
         pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
             T:'static,
-            P: Deref + TransmuteElement<T>,
+            P: Deref + CanTransmuteElement<T>,
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,TU_Unerasable>: ImplType,
         {
@@ -1163,7 +1163,7 @@ fn main(){
         ///
         pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
-            P: DerefMut + TransmuteElement<T>,
+            P: DerefMut + CanTransmuteElement<T>,
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,TU_Unerasable>: ImplType,
         {
@@ -1184,11 +1184,11 @@ fn main(){
         #[inline]
         pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
         where
-            P: Deref+ TransmuteElement<T>,
+            P: Deref+ CanTransmuteElement<T>,
             P::Target:Sized,
         {
             let this=ManuallyDrop::new(self);
-            ptr::read(&*this.object).transmute_element(T::T)
+            ptr::read(&*this.object).transmute_element::<T>()
         }
 
         /// Unwraps the `DynTrait<_>` into a reference to T,

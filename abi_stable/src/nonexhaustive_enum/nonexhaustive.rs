@@ -27,7 +27,7 @@ use crate::{
         ValidDiscriminant,EnumInfo,
         SerializeEnum,DeserializeEnum,
     },
-    pointer_trait::TransmuteElement,
+    pointer_trait::{CanTransmuteElement,TransmuteElement},
     type_level::{
         impl_enum::Implemented,
         trait_marker,
@@ -566,10 +566,10 @@ This panics if the storage has an alignment or size smaller than that of `F`.
     pub unsafe fn transmute_enum_ptr<P,F>(this:P)->P::TransmutedPtr
     where
         P:Deref<Target=Self>,
-        P:TransmuteElement<NonExhaustive<F,S,I>>
+        P:CanTransmuteElement<NonExhaustive<F,S,I>>
     {
         NonExhaustive::<F,S,I>::assert_fits_within_storage();
-        this.transmute_element(<NonExhaustive<F,S,I>>::T)
+        this.transmute_element::<NonExhaustive<F,S,I>>()
     }
 
     /// Gets a reference to the vtable of this `NonExhaustive<>`.

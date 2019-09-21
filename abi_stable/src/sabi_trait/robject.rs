@@ -16,7 +16,7 @@ use crate::{
     sabi_types::{MaybeCmp,RRef},
     std_types::{RBox,UTypeId},
     pointer_trait::{
-        TransmuteElement,
+        CanTransmuteElement,TransmuteElement,
         GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
     },
     type_level::{
@@ -264,13 +264,13 @@ These are the requirements for the caller:
         vtable:StaticRef<V>,
     )-> RObject<'lt,P,I,V>
     where 
-        OrigPtr:TransmuteElement<(),TransmutedPtr=P>,
+        OrigPtr:CanTransmuteElement<(),TransmutedPtr=P>,
         OrigPtr::Target:Sized+'lt,
         P:Deref<Target=()>,
     {
         RObject{
             vtable,
-            ptr:ManuallyDrop::new( ptr.transmute_element(<()>::T) ),
+            ptr:ManuallyDrop::new( ptr.transmute_element::<()>() ),
             _marker:PhantomData,
         }
     }
@@ -371,12 +371,12 @@ where
     pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
     where
         T:'static,
-        P: Deref<Target=()>+TransmuteElement<T>,
+        P: Deref<Target=()>+CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe {
             let this=ManuallyDrop::new(self);
-            Ok(ptr::read(&*this.ptr).transmute_element(T::T)) 
+            Ok(ptr::read(&*this.ptr).transmute_element::<T>()) 
         }
     }
 
@@ -397,7 +397,7 @@ where
     pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
     where
         T:'static,
-        P:Deref<Target=()>+TransmuteElement<T>,
+        P:Deref<Target=()>+CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe { 
@@ -422,7 +422,7 @@ where
     pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
     where
         T:'static,
-        P:DerefMut<Target=()>+TransmuteElement<T>,
+        P:DerefMut<Target=()>+CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe { 
@@ -440,10 +440,10 @@ where
     #[inline]
     pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
     where
-        P: Deref<Target=()> + TransmuteElement<T>,
+        P: Deref<Target=()> + CanTransmuteElement<T>,
     {
         let this=ManuallyDrop::new(self);
-        ptr::read(&*this.ptr).transmute_element(T::T)
+        ptr::read(&*this.ptr).transmute_element::<T>()
     }
 
     /// Unwraps the `RObject<_>` into a reference to T,

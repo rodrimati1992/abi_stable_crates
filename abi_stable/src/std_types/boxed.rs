@@ -16,7 +16,7 @@ use core_extensions::prelude::*;
 
 use crate::{
     pointer_trait::{
-        CallReferentDrop,Deallocate, TransmuteElement,
+        CallReferentDrop,Deallocate, CanTransmuteElement,
         GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
     traits::{IntoReprRust},
@@ -156,7 +156,7 @@ unsafe impl<T> GetPointerKind for RBox<T>{
     type Kind=PK_SmartPointer;
 }
 
-unsafe impl<T, O> TransmuteElement<O> for RBox<T> {
+unsafe impl<T, O> CanTransmuteElement<O> for RBox<T> {
     type TransmutedPtr = RBox<O>;
 }
 

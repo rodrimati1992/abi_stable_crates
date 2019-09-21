@@ -43,7 +43,7 @@ where
         V:'a,
     {
         extern_fn_panic_handling!{
-            let map=unsafe{ this.transmute_element(<BoxedHashMap<'a,K,V,S>>::T) };
+            let map=unsafe{ this.transmute_element::<BoxedHashMap<'a,K,V,S>>() };
             f( map )
         }
     }
