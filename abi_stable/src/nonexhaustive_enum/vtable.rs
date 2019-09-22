@@ -50,6 +50,7 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
     not_stableabi(E,S,I),
     missing_field(default),
     kind(Prefix(prefix_struct="NonExhaustiveVtable")),
+    with_field_indices,
     //debug_print,
 )]
 pub struct NonExhaustiveVtableVal<E,S,I>{

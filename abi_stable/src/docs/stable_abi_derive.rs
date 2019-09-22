@@ -271,6 +271,15 @@ name:StaticStr,
 ```
 adds the `StaticStr:Debug` bound to the `StableAbi` impl
 
+###  `#[sabi(with_field_indices)]` 
+
+This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
+
+Generates associated constants named `field_index_for_<field_name>` with 
+the index of each field in the prefix type.
+Those indices can then be passed to the `abi_stable::prefix_types::panic_on_missing_*` 
+functions to panic on a missing field.
+
 ###  `#[sabi(accessor_bound="ATrait")]` 
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
