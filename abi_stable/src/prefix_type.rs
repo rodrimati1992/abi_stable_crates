@@ -25,7 +25,7 @@ mod pt_metadata;
 pub use self::{
     accessible_fields::{FieldAccessibility,FieldConditionality,IsAccessible,IsConditional},
     empty_prefix::EmptyPrefixType,
-    layout::{PTStructLayout,PTStructLayoutParams},
+    layout::PTStructLayout,
 };
 
 pub(crate) use self::pt_metadata::PrefixTypeMetadata;
@@ -52,13 +52,6 @@ pub unsafe trait PrefixTypeTrait:Sized{
     /// A bit array,where the bit at the field index represents whether that 
     /// field is accessible.
     const PT_FIELD_ACCESSIBILITY:FieldAccessibility;
-
-    #[doc(hidden)]
-    // Whether each individual field in the prefix is conditional.
-    //
-    // This is checked in layout checking to ensure that 
-    // both sides agree on whether each field in the prefix is conditional,
-    const PT_COND_PREFIX_FIELDS:FieldConditionality;
 
     /**
 A type only accessible through a shared reference.
@@ -283,14 +276,14 @@ Found:
 \n",
         index=field_index,
         field_named=field_name,
-        struct_name=expected.name.as_str(),
+        struct_name=expected.mono_layout.name(),
         struct_generics=expected.generics.as_str(),
-        package=expected.package,
+        package=expected.mono_layout.item_info().package(),
         
-        expected_package_version =expected.package_version ,
+        expected_package_version =expected.mono_layout.item_info().version(),
         expected_field_count=expected.get_field_names().count(),
         
-        actual_package_version =actual.package_version ,
+        actual_package_version =actual.mono_layout.item_info().version() ,
         actual_field_count=actual.get_field_names().count(),
     );
 }

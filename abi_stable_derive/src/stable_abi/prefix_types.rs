@@ -5,6 +5,13 @@ Code generation for prefix-types.
 */
 
 
+use abi_stable_shared::const_utils::low_bit_mask_u64;
+
+use core_extensions::{
+    prelude::*,
+    matches,
+};
+
 use syn::{
     punctuated::Punctuated,
     Ident,
@@ -17,18 +24,11 @@ use quote::{ToTokens,quote_spanned};
 
 
 
-use core_extensions::{
-    prelude::*,
-    matches,
-};
-
-
-
-
 use crate::*;
 
 use crate::{
     datastructure::{DataStructure,Field,FieldMap,FieldIndex},
+    literals_constructors::rstr_tokenizer,
     to_token_fn::ToTokenFnMut,
     parse_utils::parse_str_as_ident,
 };
@@ -143,6 +143,10 @@ impl<'a> AccessorOrMaybe<'a>{
             _=>None,
         }
     }
+
+    pub(crate) fn is_maybe_accessor(&self)->bool{
+        matches!(AccessorOrMaybe::Maybe{..}= self )
+    }
 }
 
 
@@ -176,6 +180,7 @@ Returns a value which for a prefix-type .
 */
 pub(crate) fn prefix_type_tokenizer<'a>(
     module:&'a Ident,
+    mono_type_layout:&'a Ident,
     ds:&'a DataStructure<'a>,
     config:&'a StableAbiOptions<'a>,
     _ctokens:&'a CommonTokens<'a>,
@@ -210,8 +215,9 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         let prefix_bounds=&prefix.prefix_bounds;
 
         let stringified_deriving_name=deriving_name.to_string();
-
+        
         let stringified_generics=(&ty_generics).into_token_stream().to_string();
+        let stringified_generics_tokenizer=rstr_tokenizer(&stringified_generics);
 
         let is_ds_pub=matches!(Visibility::Public{..}=ds.vis);
 
@@ -455,29 +461,40 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             }
         }
 
+        let mut cond_field_indices=Vec::<usize>::new();
+        let mut enable_field_if=Vec::<&syn::Expr>::new();
+        let mut unconditional_bit_mask=0u64;
+        let mut conditional_bit_mask=0u64;
 
-        let conditional_fields=
-            struct_.fields.iter().enumerate()
-                .filter_map(|(i,field)|{
-                    let cond=prefix.fields[field].to_maybe_accessor()?.accessible_if?;
-                    Some((i,cond))
-                })
-                .collect::<Vec<(usize,&syn::Expr)>>();
+        for (index,field) in prefix.fields.iter() {
+            let field_i=index.pos;
+            match (|| field.to_maybe_accessor()?.accessible_if )() {
+                Some(cond)=>{
+                    cond_field_indices.push(field_i);
+                    enable_field_if.push(cond);
+                    conditional_bit_mask|=(1 as u64)<<field_i;
+                }
+                None=>{
+                    unconditional_bit_mask|=1u64<<field_i;
+                }
+            }
+        }
 
-        let disabled_field_indices=conditional_fields.iter().map(|&(field_i,_)| field_i );
+        let prefix_field_conditionality_mask=
+            conditional_bit_mask &low_bit_mask_u64(prefix.first_suffix_field.field_pos as u32);
 
-        let enable_field_if=conditional_fields.iter().map(|&(_,cond)| cond );
+        let cond_field_indices=cond_field_indices.iter();
+        let enable_field_if=enable_field_if.iter();
 
-        let str_field_names=struct_.fields
-            .iter()
-            .map(|x| x.ident().to_string() )
-            .collect::<Vec<String>>()
-            .join(";");
+        let mut str_field_names=String::new();
+        for field in &struct_.fields {
+            use std::fmt::Write;
+            writeln!(str_field_names,"{};",field.ident());
+        }
+        str_field_names.pop(); //Removing the last ';'
+        let str_field_names_tokenizer=rstr_tokenizer(&str_field_names);
         
         let conditional_enumerate=0usize..;
-        let is_prefix_field_conditional=struct_.fields.iter()
-            .take(prefix.first_suffix_field.field_pos)
-            .map(|f| prefix.fields[f].is_conditional() );
 
         let field_i_a=0u8..;
         let field_i_b=0u8..;
@@ -485,41 +502,26 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
         let mut pt_layout_ident=parse_str_as_ident(&format!("__sabi_PT_LAYOUT{}",deriving_name));
         pt_layout_ident.set_span(deriving_name.span());
 
+        let field_conditionality_ident=prefix.field_conditionality_ident;
+
         quote!(
 
             #[allow(non_upper_case_globals)]
             const #pt_layout_ident:&'static #module::__PTStructLayout ={
-                use #module::_sabi_reexports::renamed::{
-                    __PTStructLayout,__PTStructLayoutParams,
-                };
-
-                &__PTStructLayout::new(__PTStructLayoutParams{
-                    name:#stringified_deriving_name,
-                    generics:#stringified_generics,
-                    package: env!("CARGO_PKG_NAME"),
-                    package_version: #module::abi_stable::package_version_strings!(),
-                    file:file!(),
-                    line:line!(),
-                    field_names:#str_field_names,
-                })
+                &#module::_sabi_reexports::PTStructLayout::new(
+                    #stringified_generics_tokenizer,
+                    #module::#mono_type_layout,
+                    #str_field_names_tokenizer,
+                    #prefix_field_conditionality_mask,
+                )
             };
-        ).to_tokens(ts);
 
-        let field_conditionality_ident=prefix.field_conditionality_ident;
-
-        quote!(
             // This is so that the field conditionality is only computed once.
             const #field_conditionality_ident:#module::_sabi_reexports::FieldConditionality={
-                use #module::_sabi_reexports::{self,IsConditional as __IsConditional};
-                _sabi_reexports::FieldConditionality::with_field_count(0)
-                #( 
-                    .set_conditionality(
-                        #conditional_enumerate,
-                        __IsConditional::new( #is_prefix_field_conditional )
-                    )
-                )*
+                #module::_sabi_reexports::FieldConditionality::from_u64(
+                    #prefix_field_conditionality_mask
+                )
             };
-
 
             unsafe impl #impl_generics
                 #module::_sabi_reexports::PrefixTypeTrait 
@@ -531,35 +533,20 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 // Describes the accessibility of all the fields,
                 // used to initialize the `WithMetadata<Self>::_prefix_type_field_acc` field.
                 const PT_FIELD_ACCESSIBILITY:#module::_sabi_reexports::FieldAccessibility={
-                    use #module::_sabi_reexports::{self,IsAccessible as __IsAccessible};
-                    _sabi_reexports::FieldAccessibility::with_field_count(#field_count)
-                    #(
-                        .set_accessibility(
-                            #disabled_field_indices,
-                            __IsAccessible::new(#enable_field_if)
-                        )
-                    )*
+                    #module::_sabi_reexports::FieldAccessibility::from_u64(
+                        #unconditional_bit_mask
+                        #(
+                            |(((#enable_field_if)as u64) << #cond_field_indices)
+                        )*
+                    )
                 };
-                
-                // Describes whether a prefix field are conditional or not.
-                //
-                // "prefix field" is every field at and before the one with the 
-                // `#[sabi(last_prefix_field)]` attribute.
-                //
-                // A field is conditional if it has the 
-                // `#[sabi(accessible_if=" expression ")]` attribute on it.
-                const PT_COND_PREFIX_FIELDS:#module::_sabi_reexports::FieldConditionality=
-                    #field_conditionality_ident;
-
                 // A description of the struct used for error messages.
                 const PT_LAYOUT:&'static #module::__PTStructLayout =#pt_layout_ident;
 
                 // This is a struct whose only non-zero-sized field is `WithMetadata_<(),Self>`.
                 type Prefix=#prefix_struct #ty_generics;
             }
-        ).to_tokens(ts);
 
-        quote!(
             #[allow(non_upper_case_globals)]
             impl #impl_generics #prefix_struct #ty_generics 
             where 

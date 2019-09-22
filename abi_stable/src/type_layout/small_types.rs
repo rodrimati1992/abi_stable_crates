@@ -9,27 +9,58 @@ use std::{
 ////////////////////////////////////////////////////////////////////////////////
 
 /// The start and length of a slice into `TLFunctions`.
-#[repr(C)]
+#[repr(transparent)]
 #[derive(Copy,Clone,Debug,PartialEq,Eq,Ord,PartialOrd,StableAbi)]
 pub struct StartLen{
-    pub start:u16,
-    pub len:u16,
+    bits:u32
 }
+
+pub type StartLenRepr=u32;
 
 impl StartLen{
     /// Constructs a range.
+    #[inline]
     pub const fn new(start:u16,len:u16)->Self{
-        Self{start,len}
+        Self{
+            bits:(start as u32)|((len as u32) << 16)
+        }
+    }
+
+    #[inline]
+    pub const fn start(self)->u16{
+        self.bits as u16
+    }
+    #[inline]
+    pub const fn len(self)->u16{
+        (self.bits >> 16) as u16
+    }
+
+    #[inline]
+    pub const fn start_usize(self)->usize{
+        (self.bits&0xffff) as usize
+    }
+    #[inline]
+    pub const fn len_usize(self)->usize{
+        (self.bits >> 16) as usize
+    }
+    #[inline]
+    pub const fn end_usize(self)->usize{
+        self.start_usize()+self.len_usize()
     }
 
     /// Converts this range to a `std::ops::Range`.
     #[inline]
     pub const fn to_range(self)->Range<usize>{
-        self.start()..self.end()
+        self.start_usize() ..self.end_usize()
+    }
+
+    #[inline]
+    pub const fn from_u32(n:u32)->Self{
+        Self{bits:n}
     }
 
     /// An empty range.
-    pub const EMPTY:Self=Self{start:0,len:0};
+    pub const EMPTY:Self=Self::new(0,0);
 
     abi_stable_shared::declare_start_len_bit_methods!{}
 }

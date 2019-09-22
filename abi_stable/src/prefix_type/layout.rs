@@ -1,33 +1,30 @@
+use super::FieldConditionality;
+
 use crate::{
     sabi_types::{CmpIgnored,VersionStrings},
-    std_types::StaticStr,
+    std_types::RStr,
+    type_layout::MonoTypeLayout,
 };
+
 
 
 
 /// Represents the layout of a prefix-type,for use in error messages.
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[derive(Debug, Copy, Clone, StableAbi)]
+// #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 pub struct PTStructLayout {
-    pub name: StaticStr,
-    pub generics:CmpIgnored<StaticStr>,
-    pub package: StaticStr,
-    pub package_version: VersionStrings,
-    pub file:CmpIgnored<StaticStr>, // This is for the Debug string
-    pub line:CmpIgnored<u32>, // This is for the Debug string
-    pub field_names:StaticStr,
-}
-
-
-/// Parameters to construct a PTStructLayout.
-pub struct PTStructLayoutParams{
-    pub name: &'static str,
-    pub generics:&'static str,
-    pub package: &'static str,
-    pub package_version: VersionStrings,
-    pub file:&'static str, // This is for the Debug string
-    pub line:u32, // This is for the Debug string
-    pub field_names:&'static str,
+    pub generics:RStr<'static>,
+    pub mono_layout:&'static MonoTypeLayout,
+    pub field_names:RStr<'static>,
+    /// Describes whether prefix fields are conditional or not.
+    ///
+    /// "prefix field" is every field at and before the one with the 
+    /// `#[sabi(last_prefix_field)]` attribute.
+    ///
+    /// A field is conditional if it has the 
+    /// `#[sabi(accessible_if=" expression ")]` attribute on it.
+    pub prefix_field_conditionality:FieldConditionality,
 }
 
 
@@ -35,15 +32,18 @@ pub struct PTStructLayoutParams{
 
 
 impl PTStructLayout{
-    pub const fn new(params:PTStructLayoutParams)->Self{
+    pub const fn new(
+        generics:RStr<'static>,
+        mono_layout:&'static MonoTypeLayout,
+        field_names:RStr<'static>,
+        prefix_field_conditionality:u64,
+    )->Self{
         Self{
-            name:StaticStr::new(params.name),
-            generics:CmpIgnored::new(StaticStr::new(params.generics)),
-            package:StaticStr::new(params.package),
-            package_version:params.package_version,
-            file:CmpIgnored::new(StaticStr::new(params.file)),
-            line:CmpIgnored::new(params.line),
-            field_names:StaticStr::new(params.field_names),
+            generics,
+            mono_layout,
+            field_names,
+            prefix_field_conditionality:
+                FieldConditionality::from_u64(prefix_field_conditionality),
         }
     }
 

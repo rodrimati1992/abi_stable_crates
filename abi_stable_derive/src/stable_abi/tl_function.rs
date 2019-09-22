@@ -180,8 +180,7 @@ pub struct CompTLFunction{
 
 impl ToTokens for CompTLFunction {
     fn to_tokens(&self, ts: &mut TokenStream2) {
-        let name_start=self.name.start;
-        let name_len=self.name.len;
+        let name=self.name.to_u32();
         
         let bound_lifetimes_len=self.bound_lifetimes_len;
         let param_names_len=self.param_names_len;
@@ -192,7 +191,7 @@ impl ToTokens for CompTLFunction {
 
         quote!(
             __CompTLFunction::new(
-                __StartLen::new(#name_start,#name_len),
+                #name,
                 #bound_lifetimes_len,
                 #param_names_len,
                 #return_type_layout,

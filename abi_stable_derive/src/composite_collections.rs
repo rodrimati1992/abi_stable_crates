@@ -39,7 +39,7 @@ impl StartLen<u16>{
 
 impl<N> StartLen<N>{
     #[inline]
-    pub(crate) fn new(start:usize,len:usize)->Self
+    pub(crate) fn from_start_len(start:usize,len:usize)->Self
     where
         N:TryFrom<usize>,
         N::Error:Debug,
@@ -48,6 +48,11 @@ impl<N> StartLen<N>{
             start: N::try_from(start).unwrap(),
             len: N::try_from(len).unwrap(),
         }
+    }
+
+    #[inline]
+    pub const fn new(start:N,len:N)->Self{
+        Self{start,len}
     }
 
     #[allow(dead_code)]
@@ -73,6 +78,22 @@ impl StartLen<u16>{
         start:(1u16<<15)+1,
         len:(1u16<<15)+1,
     };
+
+    /// The start of this range.
+    #[inline]
+    pub const fn start(self)->usize{
+        self.start as usize
+    }
+
+    #[inline]
+    pub const fn len(self)->usize{
+        self.len as usize
+    }
+
+    /// Converts this StartLen to a u32.
+    pub const fn to_u32(self)->u32{
+        self.start as u32 | ((self.len as u32) << 16)
+    }
 
     pub fn check_ident_length(&self,span:Span)->Result<(),syn::Error>{
         if self.len > Self::IDENT_MAX_LEN {
@@ -142,7 +163,7 @@ where
     pub fn push_str(&mut self,s:&str)->StartLen<N>{
         let start=self.len();
         self.buffer.push_str(s);
-        StartLen::new(start,s.len())
+        StartLen::from_start_len(start,s.len())
     }
 
     pub fn push_display<D>(&mut self,s:&D)->StartLen<N>
@@ -151,7 +172,7 @@ where
         use std::fmt::Write;
         let start=self.len();
         let _=write!(self.buffer,"{}",s);
-        StartLen::new(start,self.len()-start)
+        StartLen::from_start_len(start,self.len()-start)
     }
 
     #[allow(dead_code)]
@@ -165,7 +186,7 @@ where
             self.buffer.push_str(s.borrow());
             self.buffer.push_str(separator);
         }
-        StartLen::new(start,self.len()-start)
+        StartLen::from_start_len(start,self.len()-start)
     }
 
     pub fn extend_with_display<I>(&mut self,separator:&str,iter:I)->StartLen<N>
@@ -179,7 +200,7 @@ where
             let _=write!(self.buffer,"{}",elem);
             self.buffer.push_str(separator);
         }
-        StartLen::new(start,self.len()-start)
+        StartLen::from_start_len(start,self.len()-start)
     }
 
     pub fn into_inner(self)->String{
@@ -238,7 +259,7 @@ where
     {
         let start=self.len();
         self.list.extend(iter);
-        StartLen::new(start,self.len()-start)
+        StartLen::from_start_len(start,self.len()-start)
     }
 
     pub fn into_inner(self)->Vec<T>{

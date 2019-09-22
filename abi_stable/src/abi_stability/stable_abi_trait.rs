@@ -271,6 +271,7 @@ where T:StableAbi
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("PhantomData"),
             ItemInfo::std_type_in(nul_str!("std::marker")),
             MonoTLData::EMPTY,
@@ -281,7 +282,7 @@ where T:StableAbi
         );
 
         make_shared_vars!{
-            let shared_vars={
+            let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts_shared=[T],
             };
@@ -308,6 +309,7 @@ unsafe impl SharedStableAbi for () {
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("()"),
             ItemInfo::primitive(),
             MonoTLData::EMPTY,
@@ -318,7 +320,7 @@ unsafe impl SharedStableAbi for () {
         );
 
         make_shared_vars!{
-            let shared_vars={};
+            let (mono_shared_vars,shared_vars)={};
         }
 
         &TypeLayout::from_std::<Self>(
@@ -351,6 +353,7 @@ where
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("&"),
             ItemInfo::primitive(),
             MonoTLData::Primitive(TLPrimitive::SharedRef),
@@ -361,7 +364,7 @@ where
         );
 
         make_shared_vars!{
-            let shared_vars={
+            let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts_shared=[T],
             };
@@ -394,6 +397,7 @@ where
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("&mut"),
             ItemInfo::primitive(),
             MonoTLData::Primitive(TLPrimitive::MutRef),
@@ -404,7 +408,7 @@ where
         );
 
         make_shared_vars!{
-            let shared_vars={
+            let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts_shared=[T],
             };
@@ -438,6 +442,7 @@ where
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("NonNull"),
             ItemInfo::std_type_in(nul_str!("std::ptr")),
             MonoTLData::struct_(rslice![ 
@@ -450,7 +455,7 @@ where
         );
 
         make_shared_vars!{
-            let shared_vars={
+            let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts=[T,*const T],
             };
@@ -482,6 +487,7 @@ where
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("AtomicPtr"),
             ItemInfo::std_type_in(nul_str!("std::sync::atomic")),
             MonoTLData::struct_(rslice![ 
@@ -494,7 +500,7 @@ where
         );
 
         make_shared_vars!{
-            let shared_vars={
+            let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts=[T,*mut T],
             };
@@ -525,6 +531,7 @@ where
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("*const"),
             ItemInfo::primitive(),
             MonoTLData::Primitive(TLPrimitive::ConstPtr),
@@ -535,7 +542,7 @@ where
         );
 
         make_shared_vars!{
-            let shared_vars={
+            let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts_shared=[T],
             };
@@ -567,6 +574,7 @@ where
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("*mut"),
             ItemInfo::primitive(),
             MonoTLData::Primitive(TLPrimitive::MutPtr),
@@ -577,7 +585,7 @@ where
         );
 
         make_shared_vars!{
-            let shared_vars={
+            let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts=[T],
             };
@@ -611,6 +619,7 @@ macro_rules! impl_stable_abi_array {
 
                 const S_LAYOUT: &'static TypeLayout = {
                     const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                        *mono_shared_vars,
                         rstr!("array"),
                         ItemInfo::primitive(),
                         MonoTLData::Primitive(TLPrimitive::Array{len:$size}),
@@ -621,7 +630,7 @@ macro_rules! impl_stable_abi_array {
                     );
 
                     make_shared_vars!{
-                        let shared_vars={
+                        let (mono_shared_vars,shared_vars)={
                             strings={ field0:"element", },
                             type_layouts=[T],
                             constants=[$size],
@@ -667,6 +676,7 @@ where
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("Option"),
             ItemInfo::std_type_in(nul_str!("std::option")),
             MonoTLData::Enum(MonoTLEnum::new(
@@ -683,7 +693,7 @@ where
         );
 
         make_shared_vars!{
-            let shared_vars={
+            let (mono_shared_vars,shared_vars)={
                 strings={
                     variant_names:"Some;None;",
                     field0:"0", 
@@ -720,6 +730,7 @@ macro_rules! impl_for_primitive_ints {
 
                 const S_LAYOUT: &'static TypeLayout = {
                     const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                        *mono_shared_vars,
                         rstr!($zeroable_name),
                         ItemInfo::primitive(),
                         MonoTLData::Primitive($tl_primitive),
@@ -730,7 +741,7 @@ macro_rules! impl_for_primitive_ints {
                     );
 
                     make_shared_vars!{
-                        let shared_vars={
+                        let (mono_shared_vars,shared_vars)={
                             type_layouts=[],
                         };
                     }
@@ -779,6 +790,7 @@ macro_rules! impl_for_concrete {
 
                 const S_LAYOUT: &'static TypeLayout = {
                     const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                        *mono_shared_vars,
                         rstr!($this_name),
                         ItemInfo::std_type_in(nul_str!($in_mod)),
                         MonoTLData::struct_(rslice![ 
@@ -791,7 +803,7 @@ macro_rules! impl_for_concrete {
                     );
 
                     make_shared_vars!{
-                        let shared_vars={
+                        let (mono_shared_vars,shared_vars)={
                             strings={ field0:"0" },
                             type_layouts=[$prim_repr],
                         };
@@ -888,6 +900,7 @@ mod rust_1_36_impls{
 
         const S_LAYOUT: &'static TypeLayout = {
             const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                *mono_shared_vars,
                 rstr!("MaybeUninit"),
                 ItemInfo::std_type_in(nul_str!("std::mem")),
                 MonoTLData::struct_(rslice![ 
@@ -902,7 +915,7 @@ mod rust_1_36_impls{
             );
 
             make_shared_vars!{
-                let shared_vars={
+                let (mono_shared_vars,shared_vars)={
                     strings={ field0:"value" },
                     type_layouts=[T],
                 };
@@ -946,6 +959,7 @@ macro_rules! impl_sabi_for_transparent {
 
             const S_LAYOUT: &'static TypeLayout = {
                 const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                    *mono_shared_vars,
                     rstr!($type_name),
                     ItemInfo::std_type_in(nul_str!($mod_path)),
                     MonoTLData::struct_(rslice![ 
@@ -958,7 +972,7 @@ macro_rules! impl_sabi_for_transparent {
                 );
 
                 make_shared_vars!{
-                    let shared_vars={
+                    let (mono_shared_vars,shared_vars)={
                         strings={ field0:"0" },
                         type_layouts=[P],
                     };
@@ -999,6 +1013,7 @@ macro_rules! impl_stableabi_for_unit_struct {
 
             const S_LAYOUT: &'static TypeLayout = {
                 const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                    *mono_shared_vars,
                     rstr!($type_name),
                     $item_info,
                     MonoTLData::struct_(rslice![]),
@@ -1009,7 +1024,7 @@ macro_rules! impl_stableabi_for_unit_struct {
                 );
 
                 make_shared_vars!{
-                    let shared_vars={};
+                    let (mono_shared_vars,shared_vars)={};
                 }
 
                 &TypeLayout::from_std::<Self>(
@@ -1040,6 +1055,7 @@ unsafe impl SharedStableAbi for core_extensions::Void {
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("Void"),
             ItemInfo::package_and_mod(
                 "core_extensions;0.0.0",
@@ -1053,7 +1069,7 @@ unsafe impl SharedStableAbi for core_extensions::Void {
         );
 
         make_shared_vars!{
-            let shared_vars={};
+            let (mono_shared_vars,shared_vars)={};
         }
 
         &TypeLayout::from_std::<Self>(
@@ -1072,23 +1088,24 @@ unsafe impl SharedStableAbi for core_extensions::Void {
 /////////////
 
 
-const MONO_TL_EXTERN_FN:&'static MonoTypeLayout=&MonoTypeLayout::new(
-    rstr!("AFunctionPointer"),
-    make_item_info!(),
-    MonoTLData::Opaque,
-    tl_genparams!(;;),
-    ReprAttr::C,
-    ModReflMode::Opaque,
-    rslice![],
-);
 
 
 /// The layout of `extern "C" fn()` and `unsafe extern "C" fn()`
 macro_rules! empty_extern_fn_layout{
     ($this:ty) => ({
         make_shared_vars!{
-            let shared_vars={};
+            let (mono_shared_vars,shared_vars)={};
         }
+        const MONO_TL_EXTERN_FN:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("AFunctionPointer"),
+            make_item_info!(),
+            MonoTLData::Opaque,
+            tl_genparams!(;;),
+            ReprAttr::C,
+            ModReflMode::Opaque,
+            rslice![],
+        );
 
         &TypeLayout::from_std::<Self>(
             shared_vars,
@@ -1149,6 +1166,7 @@ pub const EXTERN_FN_LAYOUT:TypeLayoutCtor=
 #[repr(transparent)]
 pub struct UnsafeOpaqueField<T>(T);
 
+
 unsafe impl<T> GetStaticEquivalent_ for UnsafeOpaqueField<T> {
     /// it is fine to use `()` because this type is treated as opaque anyway.
     type StaticEquivalent=();
@@ -1159,6 +1177,7 @@ unsafe impl<T> SharedStableAbi for UnsafeOpaqueField<T> {
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("OpaqueField"),
             make_item_info!(),
             MonoTLData::Opaque,
@@ -1169,7 +1188,7 @@ unsafe impl<T> SharedStableAbi for UnsafeOpaqueField<T> {
         );
 
         make_shared_vars!{
-            let shared_vars={};
+            let (mono_shared_vars,shared_vars)={};
         }
 
         &TypeLayout::from_std::<Self>(
@@ -1207,6 +1226,7 @@ where
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("SabiOpaqueField"),
             make_item_info!(),
             MonoTLData::Opaque,
@@ -1217,7 +1237,7 @@ where
         );
 
         make_shared_vars!{
-            let shared_vars={};
+            let (mono_shared_vars,shared_vars)={};
         }
 
         &TypeLayout::from_std::<Self>(

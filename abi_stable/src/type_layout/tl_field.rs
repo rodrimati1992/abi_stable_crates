@@ -336,9 +336,13 @@ mod tests{
         const U32_CTOR:TypeLayoutCtor=GetTypeLayoutCtor::<u32>::STABLE_ABI;
         const RSTRING_CTOR:TypeLayoutCtor=GetTypeLayoutCtor::<RString>::STABLE_ABI;
 
-        let vars=leak_value(SharedVars::new(
+        let mono_vars=leak_value(MonoSharedVars::new(
             rstr!("foo;bar; baz; "),
             rslice![],
+        ));
+
+        let vars=leak_value(SharedVars::new(
+            mono_vars,
             rslice![UNIT_CTOR,U32_CTOR,RSTRING_CTOR],
             rslice![],
         ));

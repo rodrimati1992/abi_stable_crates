@@ -26,11 +26,13 @@ impl TLFunctions {
     /// Constructs a TLFunctions.
     pub const fn new(
         functions:RSlice<'static,CompTLFunction>,
-        field_fn_ranges:RSlice<'static,StartLen>,
+        field_fn_ranges:RSlice<'static,StartLenRepr>,
     )->Self{
         Self{
             functions,
-            field_fn_ranges,
+            field_fn_ranges:unsafe{
+                field_fn_ranges.transmute_ref::<StartLen>()
+            },
         }
     }
 
@@ -79,7 +81,7 @@ pub struct CompTLFunction{
 impl CompTLFunction{
     /// Constructs a CompTLFunction.
     pub const fn new(
-        name:StartLen,
+        name:StartLenRepr,
         bound_lifetimes_len:u16,
         param_names_len:u16,
         return_type_layout:u16,
@@ -87,7 +89,7 @@ impl CompTLFunction{
         param_type_layouts:u64,
     )->Self{
         Self{
-            name,
+            name:StartLen::from_u32(name),
             bound_lifetimes_len,
             param_names_len,
             return_type_layout,
@@ -179,7 +181,7 @@ impl TLFunctionSlice{
 
     /// Gets a TLFunction at the `index`.This returns None if `index` is outside the slice.
     pub fn get(self,index:usize)->Option<TLFunction>{
-        self.functions?.get( self.fn_range.start()+index, self.shared_vars )
+        self.functions?.get( self.fn_range.start_usize()+index, self.shared_vars )
     }
 
     /// Gets a TLFunction at the `index`.
@@ -190,18 +192,18 @@ impl TLFunctionSlice{
     pub fn index(self,index:usize)->TLFunction{
         self.functions
             .expect("self.functions must be Some(..) to index a TLFunctionSlice")
-            .index( self.fn_range.start()+index, self.shared_vars )
+            .index( self.fn_range.start_usize()+index, self.shared_vars )
     }
 
     /// Gets the length of this slice.
     #[inline]
     pub fn len(self)->usize{
-        self.fn_range.len()
+        self.fn_range.len_usize()
     }
     /// Gets whether this slice is empty.
     #[inline]
     pub fn is_empty(self)->bool{
-        self.fn_range.len==0
+        self.fn_range.len()==0
     }
 }
 
@@ -229,7 +231,7 @@ impl Eq for TLFunctionSlice{}
 
 impl PartialEq for TLFunctionSlice{
     fn eq(&self,other:&Self)->bool{
-        self.fn_range.len==other.fn_range.len&&
+        self.fn_range.len()==other.fn_range.len()&&
         self.iter().eq(other.iter())
     }
 }

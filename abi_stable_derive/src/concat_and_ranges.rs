@@ -81,7 +81,7 @@ pub fn macro_impl(input: TokenStream2) -> Result<TokenStream2,syn::Error> {
         };
 
         #(
-            pub const #variable:StartLen= StartLen{ start:#starts, len:#lengths };
+            pub const #variable:StartLen= StartLen::new(#starts,#lengths);
         )*
     ))
 }

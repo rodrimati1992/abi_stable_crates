@@ -183,6 +183,9 @@ mod impls;
 #[macro_use]
 mod macros;
 
+#[macro_use]
+mod internal_macros;
+
 
 #[cfg(test)]
 #[macro_use]

@@ -117,6 +117,7 @@ unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
 
     const S_LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
             rstr!("UnsafeIgnoredType"),
             make_item_info!(),
             MonoTLData::struct_(rslice![]),
@@ -127,7 +128,7 @@ unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
         );
 
         make_shared_vars!{
-            let shared_vars={};
+            let (mono_shared_vars,shared_vars)={};
         }
 
         &TypeLayout::from_std::<Self>(

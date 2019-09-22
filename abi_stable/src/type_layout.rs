@@ -51,9 +51,11 @@ pub use self::{
     },
     shared_vars::{
         SharedVars,
+        MonoSharedVars,
     },
     small_types::{
         StartLen,
+        StartLenRepr,
         StartLenConverter,
         OptionU16,
         OptionU8,
@@ -463,6 +465,8 @@ impl Display for TypeLayout {
 #[derive(Copy, Clone,StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct MonoTypeLayout{
+    shared_vars:MonoSharedVars,
+
     /// The name of the type.
     name: *const u8,
 
@@ -492,6 +496,7 @@ pub struct MonoTypeLayout{
 
 impl MonoTypeLayout{
     pub const fn new(
+        shared_vars:MonoSharedVars,
         name: RStr<'static>,
         item_info:ItemInfo,
         data: MonoTLData,
@@ -501,6 +506,7 @@ impl MonoTypeLayout{
         phantom_fields:RSlice<'static,CompTLField>,
     )->Self{
         Self{
+            shared_vars,
             name    :name.as_ptr(),
             name_len:name.len() as u16,
             item_info:CmpIgnored::new(item_info),
@@ -526,6 +532,7 @@ impl MonoTypeLayout{
             generics: p.generics,
             repr_attr: p.repr_attr,
             mod_refl_mode: p.mod_refl_mode,
+            shared_vars: p.shared_vars,
         }
     }
 
@@ -536,15 +543,31 @@ impl MonoTypeLayout{
         }
     }
 
-    pub fn repr_attr(&self)->ReprAttr{
+    pub const fn repr_attr(&self)->ReprAttr{
         self.repr_attr
     }
 
-    pub fn mod_refl_mode(&self)->ModReflMode{
+    pub const fn mod_refl_mode(&self)->ModReflMode{
         self.mod_refl_mode
     }
 
-    pub fn item_info(&self)->&ItemInfo{
-        &self.item_info
+    pub const fn item_info(&self)->&ItemInfo{
+        &self.item_info.value
+    }
+
+    pub const fn shared_vars(&self)->&MonoSharedVars{
+        &self.shared_vars
+    }
+}
+
+
+impl Debug for MonoTypeLayout{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        f.debug_struct("MonoTypeLayout")
+        .field("name",&self.name())
+        .field("item_info",self.item_info())
+        .field("repr_attr",&self.repr_attr())
+        .field("mod_refl_mode",&self.mod_refl_mode())
+        .finish()
     }
 }

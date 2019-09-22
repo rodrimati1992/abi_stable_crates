@@ -28,7 +28,6 @@ pub use crate::{
         PrefixTypeTrait,
         WithMetadata_,
         PTStructLayout,
-        PTStructLayoutParams,
     },
     sabi_types::{
         Constructor,
@@ -63,6 +62,8 @@ pub use crate::{
         TLFunctions,
         TLNonExhaustive,
         TypeLayout,
+        SharedVars,
+        MonoSharedVars,
     },
     type_level::{
         impl_enum::{Implemented,Unimplemented,ImplFrom},
@@ -95,7 +96,6 @@ pub mod renamed {
         PrefixKind as __PrefixKind,
         WithMetadata_ as __WithMetadata_,
         PTStructLayout as __PTStructLayout,
-        PTStructLayoutParams as __PTStructLayoutParams,
         FieldAccessor as __FieldAccessor,
         ModReflMode as __ModReflMode,
         ReprAttr as __ReprAttr,

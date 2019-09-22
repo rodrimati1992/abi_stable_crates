@@ -102,6 +102,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     shared_vars.extract_errs()?;
 
     let module=Ident::new(&format!("_sabi_{}",name),Span::call_site());
+    let mono_type_layout=&Ident::new(&format!("_MONO_LAYOUT_{}",name),Span::call_site());
 
 
     let (_, _, where_clause) = generics.split_for_impl();
@@ -377,7 +378,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
     let extra_bounds       =&config.extra_bounds;
     
-    let prefix_type_tokenizer_=prefix_type_tokenizer(&module,&ds,config,ctokens)?;
+    let prefix_type_tokenizer_=
+        prefix_type_tokenizer(&module,&mono_type_layout,&ds,config,ctokens)?;
 
     let mod_refl_mode=match config.mod_refl_mode {
         ModReflMode::Module=>quote!( __ModReflMode::Module ),
@@ -413,6 +415,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
         GenParamsIn::with_after_types(&ds.generics,InWhat::ImplHeader,storage_opt);
 
     shared_vars.extract_errs()?;
+
+    let mono_shared_vars_tokenizer=shared_vars.mono_shared_vars_tokenizer();
+    let shared_vars_tokenizer=shared_vars.shared_vars_tokenizer(&mono_type_layout);
 
     // drop(_measure_time0);
     // let _measure_time1=PrintDurationOnDrop::new(abi_stable_shared::file_span!());
@@ -459,6 +464,21 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                 >;
             }
 
+            #[doc(hidden)]
+            pub(super) const #mono_type_layout:&'static _sabi_reexports::MonoTypeLayout=
+                &_sabi_reexports::MonoTypeLayout::from_derive(
+                    _sabi_reexports::_private_MonoTypeLayoutDerive{
+                        name: #stringified_name,
+                        item_info: #item_info_const,
+                        data: #mono_tl_data,
+                        generics: #generic_params_tokens,
+                        mod_refl_mode:#mod_refl_mode,
+                        repr_attr:#repr,
+                        phantom_fields:#phantom_fields,
+                        shared_vars: #mono_shared_vars_tokenizer,
+                    }
+                );
+
             unsafe impl <#generics_header> __SharedStableAbi for #impl_ty 
             where 
                 #(#where_clause_b,)*
@@ -474,24 +494,10 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                 type Kind=#associated_kind;
 
                 const S_LAYOUT: &'static _sabi_reexports::TypeLayout = {
-                    const _MONO_TYPE_LAYOUT_:_sabi_reexports::MonoTypeLayout=
-                        _sabi_reexports::MonoTypeLayout::from_derive(
-                            _sabi_reexports::_private_MonoTypeLayoutDerive{
-                                name: #stringified_name,
-                                item_info: #item_info_const,
-                                data: #mono_tl_data,
-                                generics: #generic_params_tokens,
-                                mod_refl_mode:#mod_refl_mode,
-                                repr_attr:#repr,
-                                phantom_fields:#phantom_fields,
-                            }
-                        );
-
-
                     &_sabi_reexports::TypeLayout::from_derive::<#size_align_for>(
                         _sabi_reexports::_private_TypeLayoutDerive {
-                            shared_vars:&#shared_vars,
-                            mono:&_MONO_TYPE_LAYOUT_,
+                            shared_vars: &#shared_vars_tokenizer,
+                            mono:#mono_type_layout,
                             abi_consts: Self::S_ABI_CONSTS,
                             data:#generic_tl_data,
                             tag:#tags,
@@ -641,7 +647,7 @@ fn tokenize_tl_functions<'a>(
 
     let functions=functions.into_inner();
 
-    let field_fn_ranges=field_fn_ranges.into_iter().map(|sl| sl.tokenizer(ct.as_ref()) );
+    let field_fn_ranges=field_fn_ranges.into_iter().map(|sl| sl.to_u32() );
 
     quote!(
         __TLFunctions::new(
