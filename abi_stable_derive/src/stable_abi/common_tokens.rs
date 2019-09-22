@@ -95,6 +95,7 @@ declare_common_tokens! {
         add=Add,
         bang=Bang,
         comma=Comma,
+        equal=Eq,
         semicolon=Semi,
         colon=Colon,
         colon2=Colon2,

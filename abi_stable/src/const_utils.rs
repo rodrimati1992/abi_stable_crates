@@ -11,6 +11,10 @@ use std::{
 
 use core_extensions::prelude::*;
 
+pub use abi_stable_shared::const_utils::{
+    low_bit_mask_u64,
+};
+
 
 //////////////////////////////////////////////////////////////////
 

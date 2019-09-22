@@ -26,6 +26,7 @@ pub struct _private_MonoTypeLayoutDerive {
     pub repr_attr:ReprAttr,
     pub mod_refl_mode:ModReflMode,
     pub phantom_fields:RSlice<'static,CompTLFieldRepr>,
+    pub shared_vars:MonoSharedVars,
 }
 
 
@@ -91,10 +92,8 @@ impl ItemInfo{
             mod_path:ModPath::inside(mod_path),
         }
     }
-}
 
 
-impl ItemInfo{
     pub fn package_and_version(&self)->(&'static str,&'static str){
         let pav=self.package_and_version.as_str();
         match pav.find(';') {
@@ -105,5 +104,13 @@ impl ItemInfo{
                 (&pav[..],"")
             }
         }
+    }
+
+    pub fn package(&self)->&'static str{
+        self.package_and_version().0
+    }
+
+    pub fn version(&self)->&'static str{
+        self.package_and_version().1
     }
 }

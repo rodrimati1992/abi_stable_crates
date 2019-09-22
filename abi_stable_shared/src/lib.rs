@@ -2,6 +2,8 @@
 #[macro_use]
 pub mod test_utils;
 
+pub mod const_utils;
+
 #[doc(hidden)]
 pub mod type_layout{
     pub mod small_types;

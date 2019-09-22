@@ -701,7 +701,7 @@ Constructs a `&'static SharedVars`
 */
 macro_rules! make_shared_vars{
     (
-        let $shared_vars:ident ={
+        let ($mono_shared_vars:ident,$shared_vars:ident) ={
             $(
                 strings={
                      $( $variable:ident : $string:literal ),* $(,)*
@@ -721,14 +721,19 @@ macro_rules! make_shared_vars{
             }
         }
         $( use _inner_multi_str_mod::{$($variable,)*}; )?
+
+        const $mono_shared_vars:&'static $crate::type_layout::MonoSharedVars=
+            &$crate::type_layout::MonoSharedVars::new(
+                _inner_multi_str_mod::CONCATENATED,
+                rslice![ $( $($lifetime_indices),* )? ],
+            );
         
         let $shared_vars={
             #[allow(unused_imports)]
             use $crate::abi_stability::stable_abi_trait::GetTypeLayoutCtor;
 
             &$crate::type_layout::SharedVars::new(
-                _inner_multi_str_mod::CONCATENATED,
-                rslice![ $( $($lifetime_indices),* )? ],
+                $mono_shared_vars,
                 rslice![ 
                     $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )? 
                     $( $( GetTypeLayoutCtor::<$ty_layout_shared>::SHARED_STABLE_ABI,)* )? 

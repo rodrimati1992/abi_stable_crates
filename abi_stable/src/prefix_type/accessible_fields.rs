@@ -1,5 +1,6 @@
 use crate::const_utils::{
     min_usize,
+    low_bit_mask_u64,
 };
 
 use std::{
@@ -39,9 +40,17 @@ impl<T> BoolArray<T>{
     /// Creates a BoolArray where the first `field_count` fields are accessible.
     #[inline]
     pub const fn with_field_count(field_count:usize)->Self{
-        let (n,overflowed)=1u64.overflowing_shl(field_count as u32);
         Self{
-            bits:n.wrapping_sub([1,2][overflowed as usize]),
+            bits:low_bit_mask_u64(field_count as u32),
+            _marker:PhantomData,
+        }
+    }
+
+    /// Creates a BoolArray from a u64.
+    #[inline]
+    pub const fn from_u64(bits:u64)->Self{
+        Self{
+            bits,
             _marker:PhantomData,
         }
     }

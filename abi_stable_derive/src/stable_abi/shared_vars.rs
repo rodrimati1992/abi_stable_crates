@@ -90,7 +90,7 @@ impl<'a> SharedVars<'a>{
             self.string_overflow_err(span);
             StartLen::DUMMY
         }else{
-            StartLen::new(start,len)
+            StartLen::from_start_len(start,len)
         }
     }
 
@@ -265,7 +265,7 @@ impl<'a> SharedVars<'a>{
             self.construct_type_overflow_err();
             StartLen::DUMMY
         }else{
-            StartLen::new(start,end-start)
+            StartLen::from_start_len(start,end-start)
         }
         
     }
@@ -303,7 +303,7 @@ impl<'a> SharedVars<'a>{
             self.construct_const_overflow_err();
             StartLen::DUMMY
         }else{
-            StartLen::new(start,end-start)
+            StartLen::from_start_len(start,end-start)
         }
     }
 
@@ -321,37 +321,56 @@ impl<'a> SharedVars<'a>{
     }
 
 
+    pub(crate) fn mono_shared_vars_tokenizer(&self)->impl ToTokens+'_{
+        ToTokenFnMut::new(move|ts|{
+            let ct=self.ctokens;
+            let lifetime_indices=self.lifetime_indices
+                .chunks(2)
+                .map(|chunk|{
+                    let first=chunk[0];
+                    let second=chunk.get(1).map_or(LifetimeIndex::NONE,|x|*x);
+                    LifetimeIndexPair::new(first,second).to_u8()
+                })
+                .piped(rslice_tokenizer);
+
+            let strings= self.strings.as_str().piped(rstr_tokenizer);
+
+            quote!(
+                abi_stable::type_layout::MonoSharedVars::new(
+                    #strings,
+                    #lifetime_indices,
+                )
+            ).to_tokens(ts);
+        })
+    }
+
+    pub(crate) fn shared_vars_tokenizer(&self,mono_type_layout:&'a syn::Ident)->impl ToTokens+'_{
+        ToTokenFnMut::new(move|ts|{
+            let ct=self.ctokens;
+            let type_layouts= self.type_layouts.iter()
+                .map(|&(layout_ctor,ty)| make_get_type_layout_tokenizer(ty,layout_ctor,ct) );
+
+            let constants=self.constants.iter();
+
+            quote!(
+                abi_stable::type_layout::SharedVars::new(
+                    #mono_type_layout.shared_vars(),
+                    abi_stable::_sabi_type_layouts!( #(#type_layouts,)* ),
+                    abi_stable::rslice![
+                        #(
+                            __ConstGeneric::new(&#constants,__GetConstGenericVTable::VTABLE),
+                        )*
+                    ],
+                )
+            ).to_tokens(ts);
+            
+        })
+    }
+
 }
 
 impl<'a> ToTokens for SharedVars<'a>{
     fn to_tokens(&self, ts: &mut TokenStream2) {
-        let ct=self.ctokens;
-        let lifetime_indices=self.lifetime_indices
-            .chunks(2)
-            .map(|chunk|{
-                let first=chunk[0];
-                let second=chunk.get(1).map_or(LifetimeIndex::NONE,|x|*x);
-                LifetimeIndexPair::new(first,second).to_u8()
-            })
-            .piped(rslice_tokenizer);
-
-        let strings= self.strings.as_str().piped(rstr_tokenizer);
-        let type_layouts= self.type_layouts.iter()
-            .map(|&(layout_ctor,ty)| make_get_type_layout_tokenizer(ty,layout_ctor,ct) )
-            .piped(rslice_tokenizer);
-
-        let constants=self.constants.iter()
-            .map(|param| quote!( __ConstGeneric::new(&#param,__GetConstGenericVTable::VTABLE) ) )
-            .piped(rslice_tokenizer);
-
-        quote!(
-            abi_stable::type_layout::SharedVars::new(
-                #strings,
-                #lifetime_indices,
-                #type_layouts,
-                #constants,
-            )
-        ).to_tokens(ts);
     }
 }
 
@@ -366,17 +385,17 @@ fn make_get_type_layout_tokenizer<'a,T:'a>(
 where T:ToTokens
 {
     ToTokenFnMut::new(move|ts|{
-        to_stream!{ts; 
-            ct.get_type_layout_ctor,
-            ct.colon2,
-            ct.lt,ty,ct.gt,
-            ct.colon2,
+        ty.to_tokens(ts);
+        let opt=match field_transparency {
+            LayoutConstructor::Regular=> None,
+            LayoutConstructor::SharedStableAbi=> Some(&ct.cap_shared_stable_abi),
+            LayoutConstructor::Opaque=> Some(&ct.cap_opaque_field),
+            LayoutConstructor::SabiOpaque=> Some(&ct.cap_sabi_opaque_field),
         };
-        match field_transparency {
-            LayoutConstructor::Regular=> &ct.cap_stable_abi,
-            LayoutConstructor::SharedStableAbi=> &ct.cap_shared_stable_abi,
-            LayoutConstructor::Opaque=> &ct.cap_opaque_field,
-            LayoutConstructor::SabiOpaque=> &ct.cap_sabi_opaque_field,
-        }.to_tokens(ts);
+
+        if let Some(assoc_const)=opt {
+            ct.equal.to_tokens(ts);
+            assoc_const.to_tokens(ts)
+        }
     })
 }

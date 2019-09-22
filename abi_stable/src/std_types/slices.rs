@@ -320,6 +320,18 @@ impl<'a, T> RSlice<'a, T> {
     {
         self.to_vec().into()
     }
+
+    /// Transmutes n `RSlice<'a,T>` to a `RSlice<'a,U>`
+    pub const unsafe fn transmute_ref<U>(self)->RSlice<'a,U>
+    where
+        U:'a
+    {
+        let len=self.len();
+        RSlice::from_raw_parts(
+            self.as_ptr() as *const T as *const U,
+            len,
+        )
+    }
 }
 
 unsafe impl<'a, T> Send for RSlice<'a, T> where &'a [T]: Send {}
