@@ -265,11 +265,11 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                 let struct_=&ds.variants[0];
                 let first_suffix_field=prefix.first_suffix_field.field_pos;
                 let fields=fields_tokenizer(ds,visited_fields,ct);
-                let field_conditionality_ident=prefix.field_conditionality_ident;
+                let prefix_field_conditionality_mask=prefix.prefix_field_conditionality_mask;
                 quote!(
                     _sabi_reexports::MonoTLData::prefix_type_derive(
                         #first_suffix_field,
-                        #field_conditionality_ident,
+                        #prefix_field_conditionality_mask,
                         #fields
                     )
                 )

@@ -287,14 +287,7 @@ If this a:
 
 */
     pub fn get_fields(&self)->Option<TLFields>{
-        let fields=match self.mono.data {
-            MonoTLData::Primitive{..}=>return None,
-            MonoTLData::Opaque=>return None,
-            MonoTLData::Struct{fields}=>fields,
-            MonoTLData::Union{fields}=>fields,
-            MonoTLData::Enum (tlenum)=>tlenum.fields,
-            MonoTLData::PrefixType(prefix)=>prefix.fields,
-        };
+        let fields=self.mono.get_fields()?;
         Some(fields.expand(self.shared_vars))
     }
 
@@ -557,6 +550,29 @@ impl MonoTypeLayout{
 
     pub const fn shared_vars(&self)->&MonoSharedVars{
         &self.shared_vars
+    }
+
+    pub fn get_fields(&self)->Option<CompTLFields>{
+        match self.data {
+            MonoTLData::Primitive{..}=>return None,
+            MonoTLData::Opaque=>return None,
+            MonoTLData::Struct{fields}=>Some(fields),
+            MonoTLData::Union{fields}=>Some(fields),
+            MonoTLData::Enum (tlenum)=>Some(tlenum.fields),
+            MonoTLData::PrefixType(prefix)=>Some(prefix.fields),
+        }
+    }
+
+    pub fn field_names(&self)->impl Iterator<Item=&'static str>+'static{
+        self.get_fields()
+            .unwrap_or(CompTLFields::EMPTY)
+            .field_names( &self.shared_vars )
+    }
+
+    pub fn get_field_name(&self,index:usize)->Option<&'static str>{
+        self.get_fields()
+            .unwrap_or(CompTLFields::EMPTY)
+            .get_field_name( index, &self.shared_vars )
     }
 }
 

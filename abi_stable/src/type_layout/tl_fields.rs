@@ -66,6 +66,24 @@ impl CompTLFields{
         }
     }
 
+    pub fn field_names(
+        &self,
+        shared_vars:&MonoSharedVars,
+    )->impl Iterator<Item=&'static str>+'static{
+        let fields=self.comp_fields();
+        let strings=shared_vars.strings();
+
+        fields.iter().map(move|field| field.name(strings) )
+    }
+
+    pub fn get_field_name(&self,index:usize,shared_vars:&MonoSharedVars)-> Option<&'static str> {
+        let strings=shared_vars.strings();
+
+        self.comp_fields()
+            .get(index)
+            .map(|f| f.name(strings) )
+    }
+
     /// The ammount of fields this represents
     pub fn len(&self)->usize{
         self.comp_fields_len as usize

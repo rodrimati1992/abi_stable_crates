@@ -100,12 +100,12 @@ impl MonoTLData {
     /// Constructs a `MonoTLData::PrefixType`
     pub const fn prefix_type_derive(
         first_suffix_field:usize,
-        conditional_prefix_fields:FieldConditionality,
+        conditional_prefix_fields:u64,
         fields: CompTLFields,
     )->Self{
         MonoTLData::PrefixType(MonoTLPrefixType{
             first_suffix_field:first_suffix_field as u8,
-            conditional_prefix_fields,
+            conditional_prefix_fields:FieldConditionality::from_u64(conditional_prefix_fields),
             fields,
         })
     }

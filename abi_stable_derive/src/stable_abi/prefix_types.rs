@@ -46,7 +46,58 @@ pub(crate) struct PrefixKind<'a>{
     pub(crate) prefix_bounds:Vec<WherePredicate>,
     pub(crate) fields:FieldMap<AccessorOrMaybe<'a>>,
     pub(crate) accessor_bounds:FieldMap<Vec<TypeParamBound>>,
-    pub(crate) field_conditionality_ident:&'a Ident,
+    pub(crate) cond_field_indices:Vec<usize>,
+    pub(crate) enable_field_if:Vec<&'a syn::Expr>,
+    pub(crate) unconditional_bit_mask:u64,
+    pub(crate) conditional_bit_mask:u64,
+    pub(crate) prefix_field_conditionality_mask:u64,
+}
+
+
+impl<'a> PrefixKind<'a>{
+    pub fn new(
+        first_suffix_field:FirstSuffixField,
+        prefix_struct:&'a Ident,
+        fields:FieldMap<AccessorOrMaybe<'a>>,
+        prefix_bounds:Vec<WherePredicate>,
+        accessor_bounds:FieldMap<Vec<TypeParamBound>>,
+    )->Self{
+        let mut cond_field_indices=Vec::<usize>::new();
+        let mut enable_field_if=Vec::<&syn::Expr>::new();
+        let mut unconditional_bit_mask=0u64;
+        let mut conditional_bit_mask=0u64;
+
+        for (index,field) in fields.iter() {
+            let field_i=index.pos;
+            match (|| field.to_maybe_accessor()?.accessible_if )() {
+                Some(cond)=>{
+                    cond_field_indices.push(field_i);
+                    enable_field_if.push(cond);
+                    conditional_bit_mask|=(1 as u64)<<field_i;
+                }
+                None=>{
+                    unconditional_bit_mask|=1u64<<field_i;
+                }
+            }
+        }
+
+        let prefix_field_conditionality_mask=
+            conditional_bit_mask &low_bit_mask_u64(first_suffix_field.field_pos as u32);
+
+
+        Self{
+            first_suffix_field,
+            prefix_struct,
+            prefix_bounds,
+            fields,
+            accessor_bounds,
+            cond_field_indices,
+            enable_field_if,
+            unconditional_bit_mask,
+            conditional_bit_mask,
+            prefix_field_conditionality_mask,
+        }
+    }
 }
 
 
@@ -137,7 +188,7 @@ impl<'a> AccessorOrMaybe<'a>{
     }
 
     /// Converts this to a MaybeAccessor,returning None if it is not the `Maybe` variant.
-    pub(crate) fn to_maybe_accessor(&self)->Option<MaybeAccessor>{
+    pub(crate) fn to_maybe_accessor(&self)->Option<MaybeAccessor<'a>>{
         match *self {
             AccessorOrMaybe::Maybe(x)=>Some(x),
             _=>None,
@@ -339,8 +390,8 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 };
             }
             
-            let field_name=field.ident();
-            {
+            if config.with_field_indices{
+                let field_name=field.ident();
                 let mut new_ident=parse_str_as_ident(&format!("field_index_for_{}",field_name));
                 new_ident.set_span(field_name.span());
                 field_index_for.push(new_ident);
@@ -461,38 +512,14 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             }
         }
 
-        let mut cond_field_indices=Vec::<usize>::new();
-        let mut enable_field_if=Vec::<&syn::Expr>::new();
-        let mut unconditional_bit_mask=0u64;
-        let mut conditional_bit_mask=0u64;
-
-        for (index,field) in prefix.fields.iter() {
-            let field_i=index.pos;
-            match (|| field.to_maybe_accessor()?.accessible_if )() {
-                Some(cond)=>{
-                    cond_field_indices.push(field_i);
-                    enable_field_if.push(cond);
-                    conditional_bit_mask|=(1 as u64)<<field_i;
-                }
-                None=>{
-                    unconditional_bit_mask|=1u64<<field_i;
-                }
-            }
-        }
-
-        let prefix_field_conditionality_mask=
-            conditional_bit_mask &low_bit_mask_u64(prefix.first_suffix_field.field_pos as u32);
+        let cond_field_indices=&prefix.cond_field_indices;
+        let enable_field_if=&prefix.enable_field_if;
+        let unconditional_bit_mask=&prefix.unconditional_bit_mask;
+        let conditional_bit_mask=&prefix.conditional_bit_mask;
+        let prefix_field_conditionality_mask=&prefix.prefix_field_conditionality_mask;
 
         let cond_field_indices=cond_field_indices.iter();
         let enable_field_if=enable_field_if.iter();
-
-        let mut str_field_names=String::new();
-        for field in &struct_.fields {
-            use std::fmt::Write;
-            writeln!(str_field_names,"{};",field.ident());
-        }
-        str_field_names.pop(); //Removing the last ';'
-        let str_field_names_tokenizer=rstr_tokenizer(&str_field_names);
         
         let conditional_enumerate=0usize..;
 
@@ -502,8 +529,6 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
         let mut pt_layout_ident=parse_str_as_ident(&format!("__sabi_PT_LAYOUT{}",deriving_name));
         pt_layout_ident.set_span(deriving_name.span());
 
-        let field_conditionality_ident=prefix.field_conditionality_ident;
-
         quote!(
 
             #[allow(non_upper_case_globals)]
@@ -511,15 +536,6 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 &#module::_sabi_reexports::PTStructLayout::new(
                     #stringified_generics_tokenizer,
                     #module::#mono_type_layout,
-                    #str_field_names_tokenizer,
-                    #prefix_field_conditionality_mask,
-                )
-            };
-
-            // This is so that the field conditionality is only computed once.
-            const #field_conditionality_ident:#module::_sabi_reexports::FieldConditionality={
-                #module::_sabi_reexports::FieldConditionality::from_u64(
-                    #prefix_field_conditionality_mask
                 )
             };
 

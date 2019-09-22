@@ -141,6 +141,7 @@ macro_rules! declare_meta_vtable {
         #[derive(StableAbi)]
         #[sabi(
             // debug_print,
+            with_field_indices,
             kind(Prefix(prefix_struct="VTable")),
             missing_field(panic),
             prefix_bound="I:InterfaceBound",

@@ -68,6 +68,7 @@ impl TLFunctions {
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct CompTLFunction{
     name:StartLen,
+    contiguous_strings_offset:u16,
     bound_lifetimes_len:u16,
     param_names_len:u16,
     /// Stores `!0` if the return type is `()`.
@@ -82,6 +83,7 @@ impl CompTLFunction{
     /// Constructs a CompTLFunction.
     pub const fn new(
         name:StartLenRepr,
+        contiguous_strings_offset:u16,
         bound_lifetimes_len:u16,
         param_names_len:u16,
         return_type_layout:u16,
@@ -90,6 +92,7 @@ impl CompTLFunction{
     )->Self{
         Self{
             name:StartLen::from_u32(name),
+            contiguous_strings_offset,
             bound_lifetimes_len,
             param_names_len,
             return_type_layout,
@@ -104,8 +107,9 @@ impl CompTLFunction{
         let lifetime_indices=shared_vars.lifetime_indices();
         let type_layouts=shared_vars.type_layouts();
 
-        let bound_lifetimes=
-            self.name.end()..self.name.end()+(self.bound_lifetimes_len as usize);
+        let cs_offset=self.contiguous_strings_offset as usize;
+
+        let bound_lifetimes=cs_offset..cs_offset+(self.bound_lifetimes_len as usize);
         let param_names=
             bound_lifetimes.end..bound_lifetimes.end+(self.param_names_len as usize);
 

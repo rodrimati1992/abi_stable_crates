@@ -131,7 +131,7 @@ where
 impl<'lt,P, I,V> CloneImpl<PK_Reference> for RObject<'lt,P,I,V>
 where
     P: Deref+Copy+GetPointerKind,
-    I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
+    I: InterfaceType,
 {
     fn clone_impl(&self) -> Self {
         Self{
@@ -151,15 +151,34 @@ RObject does not implement Clone if P==`&mut ()` :
 
 ```compile_fail
 use abi_stable::{
-    sabi_trait::prelude::*,
-    trait_object_test::*,
+    sabi_trait::{
+        doc_examples::ConstExample_TO,
+        TU_Opaque,
+    },
     std_types::*,
 };
 
-let mut object=RSomething_TO::<_,()>::from_value(RBox::new(10_u32),TU_Opaque);
-let borrow=object.reborrow_mut();
+let mut object=ConstExample_TO::from_value(10usize,TU_Opaque);
+let borrow=object.sabi_reborrow_mut();
 let _=borrow.clone();
 ```
+
+Here is the same example with `sabi_reborrow`
+
+```
+use abi_stable::{
+    sabi_trait::{
+        doc_examples::ConstExample_TO,
+        TU_Opaque,
+    },
+    std_types::*,
+};
+
+let mut object=ConstExample_TO::from_value(10usize,TU_Opaque);
+let borrow=object.sabi_reborrow();
+let _=borrow.clone();
+```
+
 
 */
 impl<'lt,P, I,V> Clone for RObject<'lt,P,I,V>

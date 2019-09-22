@@ -72,6 +72,7 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) phantom_const_params:Vec<&'a syn::Expr>,
 
     pub(crate) allow_type_macros:bool,
+    pub(crate) with_field_indices:bool,
     
 }
 
@@ -185,10 +186,10 @@ impl<'a> StableAbiOptions<'a> {
             }
             UncheckedStabilityKind::Value => StabilityKind::Value,
             UncheckedStabilityKind::Prefix(prefix)=>{
-                StabilityKind::Prefix(PrefixKind{
-                    first_suffix_field:this.first_suffix_field,
-                    prefix_struct:prefix.prefix_struct,
-                    fields:mem::replace(&mut this.prefix_kind_fields,FieldMap::empty())
+                StabilityKind::Prefix(PrefixKind::new(
+                    this.first_suffix_field,
+                    prefix.prefix_struct,
+                    mem::replace(&mut this.prefix_kind_fields,FieldMap::empty())
                         .map(|fi,pk_field|{
                             AccessorOrMaybe::new(
                                 fi,
@@ -197,13 +198,9 @@ impl<'a> StableAbiOptions<'a> {
                                 this.default_on_missing_fields.unwrap_or_default(),
                             ) 
                         }),
-                    prefix_bounds:this.prefix_bounds,
-                    accessor_bounds:this.accessor_bounds,
-                    field_conditionality_ident:{
-                        let x=format!("_{}__PT_FIELD_CONDITIONALITY",ds.name);
-                        arenas.alloc(Ident::new(&x,Span::call_site()))
-                    },
-                })
+                    this.prefix_bounds,
+                    this.accessor_bounds,
+                ))
             }
             UncheckedStabilityKind::NonExhaustive(nonexhaustive)=>{
                 let variant_constructor=this.variant_constructor;
@@ -287,6 +284,7 @@ impl<'a> StableAbiOptions<'a> {
             phantom_type_params: this.phantom_type_params,
             phantom_const_params: this.phantom_const_params,
             allow_type_macros: this.allow_type_macros,
+            with_field_indices: this.with_field_indices,
             mod_refl_mode,
         })
     }
@@ -335,6 +333,7 @@ struct StableAbiAttrs<'a> {
     mod_refl_mode:Option<ModReflMode<()>>,
 
     allow_type_macros:bool,
+    with_field_indices:bool,
 
     errors:LinearResult<()>,
 }
@@ -818,6 +817,8 @@ fn parse_sabi_attr<'a>(
                     .for_each(|(_,x)|*x=LayoutConstructor::SabiOpaque);
             }else if word=="unsafe_allow_type_macros" {
                 this.allow_type_macros=true;
+            }else if word=="with_field_indices" {
+                this.with_field_indices=true;
             }else{
                 return Err(make_err(&path));
             }

@@ -79,22 +79,26 @@ impl<'a> VisitedFieldMap<'a>{
             let functions=iterated_functions.iter().enumerate()
                 .map(|(fn_i,func)|{
                     let name_span=name.span();
-                    let name_start_len=if is_function {
-                        shared_vars.push_ident(&name)
+                    let name_start_len=if is_function||iterated_functions.len()==1 {
+                        comp_field.name_start_len()
                     }else{
                         shared_vars.push_str(&format!("fn_{}",fn_i),Some(name_span))
                     };
 
                     shared_vars.combine_err( name_start_len.check_ident_length(name_span) );
 
-                    let bound_lifetimes_len=shared_vars
-                        .extend_with_idents(",",func.named_bound_lts.iter().cloned())
-                        .len;
+                    let bound_lifetimes_start_len=shared_vars
+                        .extend_with_idents(",",func.named_bound_lts.iter().cloned());
 
                     let params_iter=func.params.iter()
-                        .map(|p| p.name.unwrap_or(&ctokens.underscore) );
+                        .map(|p|{
+                            match p.name {
+                                Some(pname) => (pname as &dyn std::fmt::Display,pname.span()),
+                                None => (&"" as &dyn std::fmt::Display,Span::call_site()),
+                            }
+                        });
                     let param_names_len=shared_vars
-                        .extend_with_idents(",",params_iter)
+                        .extend_with_display(",",params_iter)
                         .len;
 
                     
@@ -115,7 +119,8 @@ impl<'a> VisitedFieldMap<'a>{
                     
                     CompTLFunction{
                         name:name_start_len,
-                        bound_lifetimes_len,
+                        contiguous_strings_offset:bound_lifetimes_start_len.start,
+                        bound_lifetimes_len:bound_lifetimes_start_len.len,
                         param_names_len,
                         param_type_layouts,
                         paramret_lifetime_range,
@@ -169,6 +174,7 @@ pub struct VisitedField<'a>{
 #[derive(Copy,Clone,Debug,PartialEq,Eq,Ord,PartialOrd)]
 pub struct CompTLFunction{
     name:StartLen,
+    contiguous_strings_offset:u16,
     bound_lifetimes_len:u16,
     param_names_len:u16,
     /// Stores `!0` if the return type is `()`.
@@ -182,6 +188,7 @@ impl ToTokens for CompTLFunction {
     fn to_tokens(&self, ts: &mut TokenStream2) {
         let name=self.name.to_u32();
         
+        let contiguous_strings_offset=self.contiguous_strings_offset;
         let bound_lifetimes_len=self.bound_lifetimes_len;
         let param_names_len=self.param_names_len;
         let return_type_layout=self.return_type_layout;
@@ -192,6 +199,7 @@ impl ToTokens for CompTLFunction {
         quote!(
             __CompTLFunction::new(
                 #name,
+                #contiguous_strings_offset,
                 #bound_lifetimes_len,
                 #param_names_len,
                 #return_type_layout,
