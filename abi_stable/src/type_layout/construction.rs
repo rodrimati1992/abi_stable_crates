@@ -93,7 +93,7 @@ impl ItemInfo{
         }
     }
 
-
+    /// Gets the package name and an unparsed package version.
     pub fn package_and_version(&self)->(&'static str,&'static str){
         let pav=self.package_and_version.as_str();
         match pav.find(';') {
@@ -106,10 +106,12 @@ impl ItemInfo{
         }
     }
 
+    /// Gets the package name.
     pub fn package(&self)->&'static str{
         self.package_and_version().0
     }
 
+    /// Gets the unparsed package version.
     pub fn version(&self)->&'static str{
         self.package_and_version().1
     }

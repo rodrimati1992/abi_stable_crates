@@ -2,8 +2,6 @@
 Contains the replace_self_path function,and the ReplaceWith enum.
 */
 
-use arrayvec::ArrayVec;
-
 use syn::visit_mut::VisitMut;
 use syn::{Ident, TypePath,TraitItemType};
 
@@ -78,6 +76,7 @@ where
 {
     let mut replacer=SelfReplacer { 
         is_assoc_type,
+        buffer:Vec::with_capacity(2),
         replace_with, 
         errors:LinearResult::ok(()),
     };
@@ -89,6 +88,7 @@ where
 // This is only pub(crate) because it is used within the VisitMutWith trait.
 pub(crate)struct SelfReplacer<F> {
     is_assoc_type: F,
+    buffer:Vec<ReplaceWith>,
     replace_with:ReplaceWith,
     errors:LinearResult<()>,
 }
@@ -138,8 +138,10 @@ where
         if let Some(replace_assoc_with)= is_replaced{
             let mut prev_segments = mem::replace(segments, Default::default()).into_iter();
             
-            let replacements=[self.replace_with.clone(),replace_assoc_with];
-            for replace_with in ArrayVec::from(replacements) {
+            self.buffer.clear();
+            self.buffer.push(self.replace_with.clone());
+            self.buffer.push(replace_assoc_with);
+            for replace_with in self.buffer.drain(..) {
                 let prev_segment=prev_segments.next();
                 match replace_with {
                     ReplaceWith::Ident(ident)=>{

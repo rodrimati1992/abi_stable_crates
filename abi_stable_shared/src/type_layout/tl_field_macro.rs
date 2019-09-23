@@ -3,7 +3,8 @@
 macro_rules! declare_comp_tl_field {( 
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
-
+    
+    /// A TLField represented as a u64,expanded to a TLField by calling the expand method.
     #[repr(transparent)]
     #[derive(Debug, Copy, Clone)]
     $(#[ $extra_attrs ])*

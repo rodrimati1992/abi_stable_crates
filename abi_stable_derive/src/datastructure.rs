@@ -2,8 +2,6 @@ use crate::*;
 
 use std::fmt::Write;
 
-use arrayvec::ArrayString;
-
 use syn::{
     self, Attribute, Data, DeriveInput, Field as SynField, Fields as SynFields, Generics, Ident,
     Type, Visibility,
@@ -346,9 +344,7 @@ impl<'a> ToTokens for FieldIdent<'a> {
 
 impl<'a> FieldIdent<'a> {
     fn new_index(index: usize, span: Span) -> Self {
-        let mut buff = ArrayString::<[u8; 16]>::new();
-        let _ = write!(buff, "field_{}", index);
-        FieldIdent::Index(index, Ident::new(&buff, span))
+        FieldIdent::Index(index, Ident::new(&format!("field_{}", index), span))
     }
 }
 
