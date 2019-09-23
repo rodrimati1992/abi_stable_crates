@@ -24,13 +24,16 @@ macro_rules! declare_comp_tl_field {(
         const TYPE_LAYOUT_OFFSET:u32=Self::FIELD_ACCESSOR_OFFSET+CompFieldAccessor::BIT_SIZE;
         const TYPE_LAYOUT_SR_MASK:u64=TypeLayoutIndex::MASK as u64;
         
+        /// The maximum value of a type layout index.
         pub const TYPE_LAYOUT_MAX_VAL:usize=TypeLayoutIndex::MASK as usize;
 
         const IS_FUNCTION_OFFSET:u32=Self::TYPE_LAYOUT_OFFSET+TypeLayoutIndex::BIT_SIZE;
         const IS_FUNCTION_BIT_SIZE:u32=1;
 
+        /// The ammount of bits necessary to represent a CompTLField.
         pub const BIT_SIZE:u32=Self::IS_FUNCTION_OFFSET+Self::IS_FUNCTION_BIT_SIZE;
 
+        /// Constructs a CompTLField.
         #[inline]
         pub const fn new(
             name:StartLen,
@@ -53,28 +56,34 @@ macro_rules! declare_comp_tl_field {(
             CompTLField{bits0}
         }
 
+        /// Gets the range representing the name in the string slice of the type.
         #[inline]
         pub fn name_start_len(&self)->StartLen{
             StartLen::from_u26((self.bits0>>Self::NAME_OFFSET) as u32)
         }
 
+        /// Gets the index of the type layout of the field in
+        /// the TypeLayoutCotr slice for the type.
         #[inline]
         pub fn type_layout_index(&self)-> usize {
             ((self.bits0>>Self::TYPE_LAYOUT_OFFSET)&Self::TYPE_LAYOUT_SR_MASK)as usize
         }
 
+
         #[inline]
-        pub fn lifetime_indices_bits(&self)-> u32 {
+        fn lifetime_indices_bits(&self)-> u32 {
             (self.bits0>>Self::LIFETIME_INDICES_OFFSET)as u32
         }
 
+        /// Whether this field is a function.
+        /// This is only true if the type is a function poiter(not inside some other type).
         #[inline]
         pub fn is_function(&self)->bool{
             (self.bits0 & (1<<Self::IS_FUNCTION_OFFSET))!=0
         }
 
         #[inline]
-        pub const fn std_field(
+        pub(crate) const fn std_field(
             name:StartLen,
             lifetime_indices:LifetimeRange,
             layout: u16,

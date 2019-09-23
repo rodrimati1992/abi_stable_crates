@@ -75,7 +75,6 @@ pub use self::{
     tl_enums::{
         DiscriminantRepr,
         GenericTLEnum,
-        GetVariantNames,
         IncompatibleWithNonExhaustive,
         IsExhaustive,
         MonoTLEnum,
@@ -95,7 +94,6 @@ pub use self::{
         TLFieldsIterator,
     },
     tl_functions::{
-        GetParamNames,
         TLFunctionIter,
         TLFunctions,
         TLFunctionSlice,
@@ -223,10 +221,13 @@ impl TypeLayout {
         }
     }
 
+    /// Gets the SharedVars of this type,
+    /// containing the slices that many types inside TypeLayout contain ranges into.
     pub const fn shared_vars(&self)->&'static SharedVars{
         self.shared_vars
     }
 
+    /// Gets a type used to print the type(ie:`Foo<'a,'b,u32,RString,1,2>`)
     pub(crate) fn full_type(&self) -> FmtFullType {
         FmtFullType{
             name: self.mono.name(),
@@ -267,6 +268,7 @@ impl TypeLayout {
         self.item_info().mod_path
     }
 
+    /// Gets a trait object used to check extra properties about the type.
     #[inline]
     pub fn extra_checks(&self)->Option<ExtraChecksStaticRef>{
         self.extra_checks.value.map(|x| x.sabi_reborrow() )
@@ -300,11 +302,13 @@ If this a:
         matches!(GenericTLData::PrefixType{..}=self.data)
     }
 
+    /// Gets the name of the type.
     #[inline]
     pub fn name(&self)->&'static str{
         self.mono.name()
     }
 
+    /// Gets whether the type is a NonZero type,which can be wrapped inside an `Option`.
     #[inline]
     pub fn is_nonzero(&self)->bool{
         self.is_nonzero
@@ -337,38 +341,50 @@ If this a:
         self
     }
 
+    /// Gets the UTypeId for the type,
+    /// which is an ffi safe equivalent to a TypeId.
     #[inline]
     pub fn get_utypeid(&self)->UTypeId{
         self.type_id.get()
     }
 
+    /// Gets information about where a type was declared.
     #[inline]
     pub fn item_info(&self)->&ItemInfo{
         &self.mono.item_info()
     }
 
+    /// Gets the alignment of the type.
     #[inline]
     pub fn alignment(&self)->usize{
         1_usize << (self.alignment_power_of_two as u32)
     }
 
+    /// Gets the size of the type.
     #[inline]
     pub fn size(&self)->usize{
         self.size
     }
 
+    /// Gets the Tag associated with a type,
+    /// a JSON-like datastructure which is another way to 
+    /// check extra properties about a type.
     pub fn tag(&self)->&'static Tag{
         self.tag.unwrap_or(Tag::NULL)
     }
 
+    /// Gets the representation attribute of the type.
     pub fn repr_attr(&self)->ReprAttr{
         self.mono.repr_attr()
     }
 
+    /// Gets the representation attribute of the type.
     pub fn mod_refl_mode(&self)->ModReflMode{
         self.mono.mod_refl_mode()
     }
 
+    /// The interior of the type definition,
+    /// describing whether the type is a primitive/enum/struct/union and its contents.
     pub fn data(&self)-> TLData {
         self.mono.data
             .expand(self.data,self.shared_vars)
@@ -377,10 +393,13 @@ If this a:
             })
     }
 
+    /// The interior of the type definition,.
     pub fn data_discriminant(&self)-> TLDataDiscriminant {
         self.mono.data.as_discriminant()
     }
 
+    /// Gets the virtual fields that aren't part of th type definition,
+    /// but are checked as part of the type
     #[inline]
     pub fn phantom_fields(&self)->TLFields{
         unsafe{
@@ -392,10 +411,12 @@ If this a:
         }
     }
 
+    /// Gets the generic parameters of the type.
     pub fn generics(&self)->GenericParams{
         self.mono.generics.expand(self.shared_vars)
     }
 
+    /// Gets the parts of the type that don't change with generic parameters.
     pub fn mono_type_layout(&self)->&MonoTypeLayout{
         &self.mono
     }
@@ -492,7 +513,7 @@ pub struct MonoTypeLayout{
 
 
 impl MonoTypeLayout{
-    pub const fn new(
+    pub(crate) const fn new(
         shared_vars:MonoSharedVars,
         name: RStr<'static>,
         item_info:ItemInfo,
@@ -516,6 +537,7 @@ impl MonoTypeLayout{
         }
     }
 
+    #[doc(hidden)]
     pub const fn from_derive(p:_private_MonoTypeLayoutDerive)->Self{
         Self{
             name    : p.name.as_ptr(),
@@ -533,6 +555,7 @@ impl MonoTypeLayout{
         }
     }
 
+    /// Gets the name of the type.
     pub fn name(&self)->&'static str{
         unsafe{
             let slic=std::slice::from_raw_parts( self.name, self.name_len as usize );
@@ -540,22 +563,45 @@ impl MonoTypeLayout{
         }
     }
 
+    /// Gets the representation attribute of the type.
     pub const fn repr_attr(&self)->ReprAttr{
         self.repr_attr
     }
 
+    /// Gets the representation attribute of the type.
     pub const fn mod_refl_mode(&self)->ModReflMode{
         self.mod_refl_mode
     }
 
+    /// Gets information about where a type was declared.
     pub const fn item_info(&self)->&ItemInfo{
         &self.item_info.value
     }
 
+    /// Gets the SharedVars of this type,
+    /// containing the slices that many types inside TypeLayout contain ranges into.
     pub const fn shared_vars(&self)->&MonoSharedVars{
         &self.shared_vars
     }
 
+/**
+Gets the compressed versions of the fields of this type.
+
+# Return value
+
+If this a:
+
+- primitive or opaque type:
+    It returns `None`.
+
+- enum:
+    It returns `Some()` with all the fields in the order that they were declared,
+    ignoring variants.
+
+- structs/unions/prefix types:
+    It returns `Some()` with all the fields in the order that the were declared.
+
+*/
     pub fn get_fields(&self)->Option<CompTLFields>{
         match self.data {
             MonoTLData::Primitive{..}=>return None,
@@ -567,16 +613,19 @@ impl MonoTypeLayout{
         }
     }
 
-    pub fn field_names(&self)->impl Iterator<Item=&'static str>+'static{
+    /// Gets an iterator over all the named of the fields in the type.
+    pub fn field_names(&self)->impl ExactSizeIterator<Item=&'static str>+Clone+'static{
         self.get_fields()
             .unwrap_or(CompTLFields::EMPTY)
             .field_names( &self.shared_vars )
     }
 
-    pub fn get_field_name(&self,index:usize)->Option<&'static str>{
+    /// Gets the name of the `nth` field in the type.
+    /// Returns None if there is no `nth` field.
+    pub fn get_field_name(&self,nth:usize)->Option<&'static str>{
         self.get_fields()
             .unwrap_or(CompTLFields::EMPTY)
-            .get_field_name( index, &self.shared_vars )
+            .get_field_name( nth, &self.shared_vars )
     }
 }
 

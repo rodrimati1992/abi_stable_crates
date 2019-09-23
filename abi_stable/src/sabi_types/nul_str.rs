@@ -11,8 +11,7 @@ use std::{
 
 
 
-/// A utf8 null-terminated string.
-#[doc(hidden)]
+/// A utf8 null-terminated string slice.
 #[repr(transparent)]
 #[derive(Copy,Clone,StableAbi)]
 pub struct NulStr<'a>{
@@ -34,7 +33,7 @@ impl<'a> NulStr<'a>{
     /// 
     /// # Safety
     /// 
-    /// The &str must be nul terminated(a 0 byte).
+    /// `str` must be nul terminated(a 0 byte).
     pub const unsafe fn from_str(str: &'a str) -> Self{
         Self{
             ptr:str.as_ptr(),
@@ -54,14 +53,26 @@ impl<'a> NulStr<'a>{
         }
     }
 
-    pub fn as_str(self)->&'a str{
+    /// Converts this `NulStr<'a>` to a `&'a str`.
+    ///
+    /// # Performance
+    ///
+    /// This conversion requires traversing through the entire string to 
+    /// find the nul byte.
+    pub fn to_str(self)->&'a str{
         unsafe{
             let bytes=std::ffi::CStr::from_ptr(self.ptr as *const i8).to_bytes();
             std::str::from_utf8_unchecked(bytes)
         }
     }
 
-    pub fn as_rstr(self)->RStr<'a>{
+    /// Converts this `NulStr<'a>` to a `RStr<'a>`.
+    ///
+    /// # Performance
+    ///
+    /// This conversion requires traversing through the entire string to 
+    /// find the nul byte.
+    pub fn to_rstr(self)->RStr<'a>{
         self.as_str().into()
     }
 }
@@ -69,6 +80,7 @@ impl<'a> NulStr<'a>{
 
 impl<'a> PartialEq for NulStr<'a>{
     fn eq(&self,other:&Self)->bool{
+        self.ptr==other.ptr ||
         self.as_str()==other.as_str()
     }
 }

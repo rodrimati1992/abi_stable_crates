@@ -30,7 +30,7 @@ impl Display for LifetimeIndex{
 
 impl LifetimeRange {
     pub fn slicing(self,lifetime_indices:&[LifetimeIndexPair])->LifetimeArrayOrSlice<'_>{
-        let len=self.len();
+        let len=(self.len()+1)/2;
         if self.is_range() {
             let start=(self.bits&Self::START_MASK) as usize;
             let end  =start+len;
@@ -38,7 +38,7 @@ impl LifetimeRange {
             LifetimeArrayOrSlice::Slice(x)
         }else{
             LifetimeArrayOrSlice::Array(ArrayLen{
-                len:(len+1) as u16/2,
+                len:len as u16,
                 array: LifetimeIndexArray::from_u20(self.bits).to_array(),
             })
         }

@@ -128,7 +128,9 @@ impl TLEnum{
         self.field_count.len()
     }
     /// Returns an iterator over the names of the variants in this enum.
-    pub fn variant_names_iter(&self)->GetVariantNames{
+    pub fn variant_names_iter(
+        &self
+    )->impl ExactSizeIterator<Item=&'static str>+Clone+Debug+'static{
         GetVariantNames{
             split:self.variant_names.as_str().split(';'),
             length:self.field_count.len(),
@@ -459,8 +461,8 @@ impl TLNonExhaustive{
 
 
 /**
-An error produced when checking that the Storage of a nonexhaustive enum is 
-compatible with the enum.
+An error declaring that the Storage of a nonexhaustive enum is 
+not compatible with the enum.
 */
 #[repr(C)]
 #[derive(Debug,Clone,PartialEq,Eq,StableAbi)]
@@ -504,7 +506,7 @@ impl std::error::Error for IncompatibleWithNonExhaustive{}
 An iterator that yields the names of an enum's variants.
 */
 #[derive(Debug,Clone)]
-pub struct GetVariantNames{
+struct GetVariantNames{
     split:std::str::Split<'static,char>,
     length:usize,
     current:usize,

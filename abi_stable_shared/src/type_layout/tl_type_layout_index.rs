@@ -3,6 +3,7 @@
 macro_rules! declare_type_layout_index {( 
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
+    /// An index into the slice of `TypeLayoutCtor` for the type,
     #[repr(transparent)]
     #[derive(Debug, Copy, Clone)]
     $(#[$extra_attrs])*
@@ -12,23 +13,29 @@ macro_rules! declare_type_layout_index {(
 
     impl TypeLayoutIndex{
         const MASK:u16=0b11_1111_1111;
-        const BIT_SIZE:u32=10;
+        /// The ammount of bits required to represent a `TypeLayoutIndex`.
+        pub const BIT_SIZE:u32=10;
         
+        /// The maximum value of a `TypeLayoutIndex`.
         pub const MAX_VAL_U16:u16=Self::MASK;
+        
+        /// The maximum value of a `TypeLayoutIndex`.
         pub const MAX_VAL:usize=Self::MAX_VAL_U16 as usize;
 
+        /// Constructs this `TypeLayoutIndex` from its representation.
         #[inline]
         pub const fn from_u10(n:u16)->Self{
             Self{bits: n & Self::MASK }
         }
         
+        /// Converts this `TypeLayoutIndex` into its representation.
         #[inline]
         pub const fn to_u10(self)->u16{
             self.bits & Self::MASK
         }
 
         #[inline]
-        pub const fn mask_off(n:u16)->u16{
+        pub(crate) const fn mask_off(n:u16)->u16{
             n & Self::MASK
         }
 

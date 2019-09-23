@@ -4,8 +4,9 @@ macro_rules! declare_multi_tl_types {(
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
 
-    /// Encodes up to 4 u13 indices + u6 length inline,
-    /// using the last inline index as the start of a slice if the length is greater than 4.
+    /// A range of indices into the slice of `TypeLayoutCtor` for the type,
+    /// which can store up to 4 indices inline,
+    /// requiring additional `TypeLayoutCtor` to be stored contiguously in the slice.
     #[repr(C)]
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
     $(#[ $extra_attrs ])*
@@ -15,27 +16,29 @@ macro_rules! declare_multi_tl_types {(
     }
 
     impl TypeLayoutRange{
+        /// An empty `TypeLayoutRange`.
         pub const EMPTY:Self=Self{
             bits0:0,
             bits1:0,
         };
 
-        pub const LEN_MASK:u32=0b11_1111;
-        pub const INDEX_MASK:u32=0x1FFF;
-        pub const INDEX_BIT_SIZE:u32=13;
+        const LEN_MASK:u32=0b11_1111;
+        const INDEX_MASK:u32=0x1FFF;
+        const INDEX_BIT_SIZE:u32=13;
 
-        pub const LEN_BIT_SIZE:u32=6;
+        const LEN_BIT_SIZE:u32=6;
 
-        pub const INDEX_0_OFFSET:u32=Self::LEN_BIT_SIZE;
-        pub const INDEX_1_OFFSET:u32=Self::INDEX_0_OFFSET+Self::INDEX_BIT_SIZE;
+        const INDEX_0_OFFSET:u32=Self::LEN_BIT_SIZE;
+        const INDEX_1_OFFSET:u32=Self::INDEX_0_OFFSET+Self::INDEX_BIT_SIZE;
 
-        pub const INDEX_2_OFFSET:u32=0;
-        pub const INDEX_3_OFFSET:u32=Self::INDEX_BIT_SIZE;
+        const INDEX_2_OFFSET:u32=0;
+        const INDEX_3_OFFSET:u32=Self::INDEX_BIT_SIZE;
         
         fn size_assertions(){
             let _:[(); 32-(Self::LEN_BIT_SIZE+Self::INDEX_BIT_SIZE*2)as usize ];
         }
 
+        /// Constructs a TypeLayoutRange with 1 type layout index.
         #[inline]
         pub const fn with_1(index0:u16)->Self{
             Self{
@@ -44,6 +47,7 @@ macro_rules! declare_multi_tl_types {(
             }
         }
 
+        /// Constructs a TypeLayoutRange with 2 type layout indices.
         #[inline]
         pub const fn with_2(index0:u16,index1:u16)->Self{
             Self{
@@ -54,6 +58,7 @@ macro_rules! declare_multi_tl_types {(
             }
         }
         
+        /// Constructs a TypeLayoutRange with 3 type layout indices.
         #[inline]
         pub const fn with_3(index0:u16,index1:u16,index2:u16)->Self{
             Self{
@@ -65,17 +70,20 @@ macro_rules! declare_multi_tl_types {(
             }
         }
         
+        /// Constructs a TypeLayoutRange with 4 type layout indices.
         #[inline]
         pub const fn with_4(index0:u16,index1:u16,index2:u16,index3:u16)->Self{
             Self::with_more_than_4(4,index0,index1,index2,index3)
         }
         
         #[inline]
-        pub const fn with_up_to_4(mut len:usize,i0:u16,i1:u16,i2:u16,i3:u16)->Self{
+        const fn with_up_to_4(mut len:usize,i0:u16,i1:u16,i2:u16,i3:u16)->Self{
             let len=len & 0usize.wrapping_sub((len <= 4) as usize);
             Self::with_more_than_4(len,i0,i1,i2,i3)
         }
 
+        /// Constructs a TypeLayoutRange with more than 4 type layout indices,
+        /// in which the indices from `i3_plus` onwards are stored contiguously in the slice.
         #[inline]
         pub const fn with_more_than_4(len:usize,i0:u16,i1:u16,i2:u16,i3_plus:u16)->Self{
             Self{
@@ -88,6 +96,7 @@ macro_rules! declare_multi_tl_types {(
             }
         }
 
+        /// Constructs this `TypeLayoutRange` from its representation.
         #[inline]
         pub const fn from_u64(bits:u64)->Self{
             Self{
@@ -96,12 +105,14 @@ macro_rules! declare_multi_tl_types {(
             }
         }
 
+        /// Converts this `TypeLayoutRange` into its representation.
         #[inline]
         pub const fn to_u64(&self)->u64{
              (self.bits0 as u64)
             |((self.bits1 as u64) << 32)
         }
 
+        /// The ammount of indices in this range.
         #[inline]
         pub const fn len(&self)->usize{
             (self.bits0&Self::LEN_MASK) as usize

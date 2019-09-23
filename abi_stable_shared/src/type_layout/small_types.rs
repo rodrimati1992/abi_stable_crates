@@ -2,11 +2,12 @@
 #[macro_export]
 macro_rules! declare_start_len_bit_methods {() => (
 
+    /// The ammount of bits used to represent a StartLen
     pub const BIT_SIZE:u32=26;
-    pub const START_SR_MASK:u32=0xFFFF;
-    pub const LEN_SR_MASK:u32=0b11_1111_1111;
-    pub const IDENT_MAX_LEN:u16=Self::LEN_SR_MASK as u16;
-    pub const LEN_OFFSET:u32=16;
+    const START_SR_MASK:u32=0xFFFF;
+    const LEN_SR_MASK:u32=0b11_1111_1111;
+    pub(crate) const IDENT_MAX_LEN:u16=Self::LEN_SR_MASK as u16;
+    const LEN_OFFSET:u32=16;
 
     /// The exclusive end of this range.
     #[inline]

@@ -11,28 +11,39 @@ macro_rules! declare_comp_field_accessor {(
     $(#[ $extra_attrs ])*
     pub struct CompFieldAccessor(u8);
     
+    /// The type that CompFieldAccessor is represented as.
     pub type CompFieldAccessorRepr=u8;
 
     impl CompFieldAccessor{
+        /// Equivalent to the `FieldAccessor::Direct` variant.
         pub const DIRECT:Self=CompFieldAccessor(0);
+        /// Equivalent to the `FieldAccessor::Method` variant.
         pub const METHOD:Self=CompFieldAccessor(1);
+        /// Equivalent to the `FieldAccessor::MethodNamed` variant,
+        /// in which the name is stored within SharedVars after the field name.
         pub const METHOD_NAMED:Self=CompFieldAccessor(2);
+        /// Equivalent to the `FieldAccessor::MethodOption` variant.
         pub const METHOD_OPTION:Self=CompFieldAccessor(3);
+        /// Equivalent to the `FieldAccessor::Opaque` variant.
         pub const OPAQUE:Self=CompFieldAccessor(4);
     }
 
 
     impl CompFieldAccessor{
-        pub const MASK:u8=0b111;
+        const MASK:u8=0b111;
+        /// The ammount of bits used to represent a CompFieldAccessor.
         pub const BIT_SIZE:u32=3;
 
+        /// Converts this `CompFieldAccessor` into its representation.
         pub const fn to_u3(self)->u8{
             self.0&Self::MASK
         }
+        
+        /// Constructs this `CompFieldAccessor` from its representation.
         pub const fn from_u3(n:u8)->Self{
             CompFieldAccessor(n&Self::MASK)
         }
-        pub fn requires_payload(self)->bool{
+        pub(crate) fn requires_payload(self)->bool{
             core_extensions::matches!( Self::METHOD_NAMED= self )
         }
     }
