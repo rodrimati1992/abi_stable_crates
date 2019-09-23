@@ -73,7 +73,7 @@ impl CompTLFields{
     pub fn field_names(
         &self,
         shared_vars:&MonoSharedVars,
-    )->impl Iterator<Item=&'static str>+'static{
+    )->impl ExactSizeIterator<Item=&'static str>+Clone+'static{
         let fields=self.comp_fields();
         let strings=shared_vars.strings();
 

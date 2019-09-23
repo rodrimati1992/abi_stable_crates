@@ -173,6 +173,8 @@ impl MonoTLData {
 ///////////////////////////
 
 
+/// An error returned by MonoTLData::expand because 
+/// the GenericTLData it tried to combine itself with was a different variant.
 #[derive(Debug,Clone)]
 pub struct MismatchedTLDataVariant{
     nongeneric: TLDataDiscriminant,

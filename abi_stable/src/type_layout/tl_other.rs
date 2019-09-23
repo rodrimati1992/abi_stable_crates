@@ -121,6 +121,7 @@ impl CompGenericParams{
     }
 }
 
+/// The generic parameters of a type.
 #[derive(Copy,Clone,PartialEq,Eq)]
 pub struct GenericParams{
     /// The names of the lifetimes declared by a type.
@@ -138,15 +139,19 @@ impl GenericParams {
         self.lifetime.as_str().is_empty() && self.types.is_empty() && self.consts.is_empty()
     }
 
+    /// Gets an iterator over the names of the lifetime parameters of the type.
     pub fn lifetimes(&self)-> impl Iterator<Item=&'static str>+Clone+Send+Sync+'static {
         self.lifetime.as_str().split(',').filter(|x| !x.is_empty() )
     }
+    /// The ammount of the lifetime of the type.
     pub fn lifetime_count(&self)->usize{
         self.lifetime_count as usize
     }
+    /// The type parameters of the type.
     pub fn type_params(&self)->&'static [TypeLayoutCtor]{
         self.types
     }
+    /// The const parameters of the type.
     pub fn const_params(&self)->&'static [ConstGeneric]{
         self.consts
     }
@@ -255,8 +260,13 @@ pub struct FmtFullType {
 }
 
 impl FmtFullType{
+    /// The name of a type.
     pub fn name(&self)->&'static str{
         self.name
+    }
+    /// The generic parmaters of a type.
+    pub fn generics(&self)->GenericParams{
+        self.generics
     }
 }
 
