@@ -4,6 +4,8 @@ macro_rules! declare_comp_field_accessor {(
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
 
+
+    /// A compressed field accessor,represented as 3 bits inside of a CompTLField.
     #[repr(transparent)]
     #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     $(#[ $extra_attrs ])*

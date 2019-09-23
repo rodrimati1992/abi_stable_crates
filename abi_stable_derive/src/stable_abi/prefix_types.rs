@@ -337,7 +337,6 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
         let mut uncond_acc_docs=Vec::<String>::new();
         let mut cond_acc_docs=Vec::<String>::new();
-        let mut field_mask_idents=Vec::new();
         let mut field_index_for=Vec::new();
 
         // Creates the docs for the accessor functions.
@@ -397,11 +396,6 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 field_index_for.push(new_ident);
             }
             
-            let field_mask=format!("__AB_PTT_FIELD_{}_ACCESSIBILTIY_MASK",index);
-            let mut field_mask=syn::parse_str::<Ident>(&field_mask).expect("BUG");
-            field_mask.set_span(field.ident().span());
-            field_mask_idents.push(field_mask);
-
             match acc_on_missing {
                 AOM::Accessor =>{
                     uncond_acc_docs.push(acc_doc_buffer);
@@ -491,14 +485,12 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                         quote_spanned!(field_span=> val )
                     };
 
-                    let field_mask_ident=&field_mask_idents[field_i];
-
                     conditional_accessors.push(quote_spanned!{field_span=>
                         #vis fn #getter_name(&self)->#return_ty
                         #field_where_clause #( #accessor_bounds+ )*
                         {
                             let acc_bits=self.inner._prefix_type_field_acc.bits();
-                            let val=if (Self::#field_mask_ident & acc_bits)==0 {
+                            let val=if (1u64<<#field_i & Self::__SABI_PTT_FAM & acc_bits)==0 {
                                 #else_
                             }else{
                                 unsafe{
@@ -607,17 +599,11 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 // If the nth bit is:
                 //    0:the field is inaccessible.
                 //    1:the field is accessible.
-                const __AB_PTT_FIELD_ACCESSIBILTIY_MASK:u64=
+                const __SABI_PTT_FAM:u64=
                     <#deriving_name #ty_generics as 
                         #module::_sabi_reexports::PrefixTypeTrait 
                     >::PT_FIELD_ACCESSIBILITY.bits();
 
-                #(
-                    // The mask to get whether the field is accessible in the accessor method,
-                    // by doing `self._prefix_type_field_acc.bits() & Self::#field_mask_ident`.
-                    const #field_mask_idents:u64=
-                        (1<<#field_i_b) & Self::__AB_PTT_FIELD_ACCESSIBILTIY_MASK;
-                )*
 
                 /// Accessor to get the layout of the type,used for error messages.
                 #[inline(always)]

@@ -28,6 +28,7 @@ use crate::{
 
 mod construction;
 pub mod data_structures;
+mod iterators;
 mod shared_vars;
 mod small_types;
 mod printing;
@@ -42,6 +43,10 @@ mod tl_multi_tl;
 mod tl_other;
 mod tl_prefix;
 mod tl_reflection;
+
+pub(crate) use self::{
+    iterators::ChainOnce,
+};
 
 pub use self::{
     construction::{
@@ -90,10 +95,12 @@ pub use self::{
         TLFieldsIterator,
     },
     tl_functions::{
-        CompTLFunction,
+        GetParamNames,
         TLFunctionIter,
         TLFunctions,
         TLFunctionSlice,
+        CompTLFunction,
+        TLFunction,
     },
     tl_lifetimes::{
         LifetimeArrayOrSlice,
@@ -108,16 +115,13 @@ pub use self::{
         MultipleTypeLayouts,
     },
     tl_other::{
-        ChainOnce,
         CompGenericParams,
         CustomPrimitive,
         FmtFullType,
         GenericParams,
-        GetParamNames,
         ModPath,
         ReprAttr,
         TLFieldOrFunction,
-        TLFunction,
         TLPrimitive,
     },
     tl_prefix::{

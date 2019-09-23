@@ -5,6 +5,8 @@ use std::{
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// A pair of length and an array,
+/// which is treated as a slice of `0..self.len` in all its impls.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, StableAbi)]
 pub struct ArrayLen<A>{
@@ -41,12 +43,14 @@ where
 ////////////////////////////////////////////////////////////////////////////////
 
 
-pub trait ArrayTrait{
-    type Elem;
+mod array_trait{
+    pub trait ArrayTrait{
+        type Elem;
 
-    fn as_slice(&self)->&[Self::Elem];
+        fn as_slice(&self)->&[Self::Elem];
+    }
 }
-
+use self::array_trait::ArrayTrait;
 
 macro_rules! impl_stable_abi_array {
     ($($size:expr),*)=>{
@@ -63,8 +67,5 @@ macro_rules! impl_stable_abi_array {
 }
         
 impl_stable_abi_array! {
-    00,01,02,03,04,05,06,07,08,09,
-    10,11,12,13,14,15,16,17,18,19,
-    20,21,22,23,24,25,26,27,28,29,
-    30,31,32
+    00,01,02,03,04,05,06,07,08
 }

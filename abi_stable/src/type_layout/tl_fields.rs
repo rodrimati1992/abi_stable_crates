@@ -5,7 +5,8 @@ use std::{
     slice,
 };
 
-/// The layout of all field in a type definition.
+/// The layout of all compressed fields in a type definition,
+/// one can access the expanded fields by calling the expand method.
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
@@ -27,7 +28,7 @@ unsafe impl Send for CompTLFields {}
 impl CompTLFields{
     pub const EMPTY:Self=Self::from_fields(rslice![]);
 
-    /// Constructs a `TLFields`.
+    /// Constructs a `CompTLFields`.
     pub const fn new(
         comp_fields:RSlice<'static,CompTLFieldRepr>,
         functions:Option<&'static TLFunctions >,
@@ -42,7 +43,7 @@ impl CompTLFields{
         }
     }
 
-    /// Constructs a `TLFields` with only fields.
+    /// Constructs a `CompTLFields` with fields,and without functions.
     pub const fn from_fields(
         comp_fields:RSlice<'static,CompTLField>,
     )->Self{
@@ -54,18 +55,21 @@ impl CompTLFields{
         }
     }
 
+    /// Accesses a slice of all the compressed fields in this `CompTLFields`.
     pub fn comp_fields(&self)->&'static [CompTLField] {
         unsafe{
             slice::from_raw_parts(self.comp_fields,self.comp_fields_len as usize)
         }
     }
 
+    /// Accesses a slice of all the compressed fields in this `CompTLFields`.
     pub fn comp_fields_rslice(&self)->RSlice<'static,CompTLField> {
         unsafe{
             RSlice::from_raw_parts(self.comp_fields,self.comp_fields_len as usize)
         }
     }
 
+    /// Constructs an iterator over all the field names.
     pub fn field_names(
         &self,
         shared_vars:&MonoSharedVars,
@@ -76,6 +80,7 @@ impl CompTLFields{
         fields.iter().map(move|field| field.name(strings) )
     }
 
+    /// Gets the name of the nth field.
     pub fn get_field_name(&self,index:usize,shared_vars:&MonoSharedVars)-> Option<&'static str> {
         let strings=shared_vars.strings();
 
@@ -89,6 +94,7 @@ impl CompTLFields{
         self.comp_fields_len as usize
     }
     
+    /// Expands this into a TLFields,allowing access to expanded fields.
     pub fn expand(self,shared_vars:&'static SharedVars)->TLFields{
         TLFields{
             shared_vars,
@@ -117,6 +123,7 @@ pub struct TLFields {
 
 
 impl TLFields{
+    /// Constructs a TLFields from the compressed fields,without any functions.
     pub fn from_fields(
         comp_fields:&'static [CompTLField],
         shared_vars:&'static SharedVars,
@@ -138,13 +145,14 @@ impl TLFields{
         self.comp_fields.is_empty()
     }
 
+    /// Gets the ith expanded field.Returns None there is no nth field.
     pub fn get(&self,i:usize)->Option<TLField>{
         self.comp_fields.get(i)
             .map(|field| field.expand(i,self.functions,self.shared_vars) )
         
     }
 
-    /// Gets an iterator over the fields.
+    /// Gets an iterator over the expanded fields.
     pub fn iter(&self)->TLFieldsIterator{
         TLFieldsIterator{
             shared_vars:self.shared_vars,
@@ -153,7 +161,7 @@ impl TLFields{
         }
     }
     
-    /// Collects the fields into a `Vec<TLField>`.
+    /// Collects the expanded fields into a `Vec<TLField>`.
     pub fn to_vec(&self)->Vec<TLField>{
         self.iter().collect()
     }
