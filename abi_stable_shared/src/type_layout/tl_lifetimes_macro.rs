@@ -260,6 +260,7 @@ macro_rules! declare_tl_lifetime_types {(
         bits:$repr,
     }
 
+    /// The representation of a `LifetimeIndexPair`.
     pub type LifetimeIndexPairRepr=u8;
 
     impl LifetimeIndexPair{

@@ -602,7 +602,7 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
             #trait_backend::from_const(
                 ptr,
                 unerasability,
-                *vtable_for.dyntrait_vtable(),
+                vtable_for.dyntrait_vtable(),
                 vtable_for.robject_vtable(),
             )
         ),

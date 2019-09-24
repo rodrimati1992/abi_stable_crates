@@ -116,6 +116,7 @@ pub const fn max_usize(l:usize,r:usize)->usize{
     [l,r][ (l < r)as usize ]
 }
 
+/// The minimum and maximum of two `usize`s
 pub const fn min_max_usize(l:usize,r:usize)->(usize,usize){
     [(r,l),(l,r)][(l < r)as usize]
 }
@@ -124,6 +125,7 @@ pub const fn min_max_usize(l:usize,r:usize)->(usize,usize){
 
 //////////////////////////////////////
 
+/// Gets the absolute value of a usize subtraction.
 pub const fn abs_sub_usize(l:usize,r:usize)->usize{
     let (min,max)=min_max_usize(l,r);
     max-min
@@ -131,17 +133,19 @@ pub const fn abs_sub_usize(l:usize,r:usize)->usize{
 
 //////////////////////////////////////
 
-
+/// Saturating substraction of `usize`s.
 pub const fn saturating_sub_usize(l:usize,r:usize)->usize{
     let mask = -((r < l) as isize);
     l.wrapping_sub(r) & (mask as usize)
 }
 
+/// Saturating substraction of `u8`s.
 pub const fn saturating_sub_u8(l:u8,r:u8)->u8{
     let mask = -((r < l) as i8);
     l.wrapping_sub(r) & (mask as u8)
 }
 
+/// The base 2 logarithm of a usize.
 pub const fn log2_usize(n:usize)->u8{
     const USIZE_BITS:u8=(std::mem::size_of::<usize>()*8)as u8;
     saturating_sub_u8(USIZE_BITS-n.leading_zeros() as u8,1)as u8

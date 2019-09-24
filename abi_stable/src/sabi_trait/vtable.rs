@@ -11,27 +11,13 @@ use crate::{
     std_types::{UTypeId,RResult,RString,Tuple3},
 };
 
-/// Gets the vtable of a trait object.
-///
-/// # Safety
-///
-/// The vtable of the type implementing this trait must have
-/// `StaticRef<RObjectVtable<_Self,ErasedPtr,I>>` as its first declared field.
-pub unsafe trait GetVTable<IA,_Self,ErasedPtr,OrigPtr,Params>{
-    type VTable;
-    fn get_vtable()->StaticRef<Self::VTable>;
-}
-
-
 //////////////////////////////////////////////////////////////////////////////
 
-/// Gets an `RObjectVtable<_Self,ErasedPtr,TO>`,
+/// Gets an `RObjectVtable<_Self,ErasedPtr,TO>`(the vtable for RObject itself),
 /// which is stored as the first field of all generated trait object vtables.
 pub unsafe trait GetRObjectVTable<IA,_Self,ErasedPtr,OrigPtr>:Sized+InterfaceType{
     const ROBJECT_VTABLE:StaticRef<RObjectVtable<_Self,ErasedPtr,Self>>;
 }
-
-
 
 
 unsafe impl<IA,_Self,ErasedPtr,OrigPtr,I> 
@@ -48,9 +34,13 @@ where
 
 //////////////////////////////////////////////////////////////////////////////
 
+/// The `VTableTO` passed to `#[sabi_trait]`
+/// generated trait objects that have `RObject` as their backend.
 #[allow(non_camel_case_types)]
 pub type VTableTO_RO<T,OrigPtr,Unerasability,V>=VTableTO<T,OrigPtr,Unerasability,V,()>;
 
+/// The `VTableTO` passed to `#[sabi_trait]`
+/// generated trait objects that have `DynTrait` as their backend.
 #[allow(non_camel_case_types)]
 pub type VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>=
     VTableTO<
@@ -63,7 +53,10 @@ pub type VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>=
 
 
 
-/// This is used to safely pass the vtable to `#[sabi_trait]` generated trait objects.
+/// This is used to safely pass the vtable to `#[sabi_trait]` generated trait objects,
+/// using `<Trait>_CTO::from_const( &value, <Trait>_MV::VTABLE )`.
+///
+/// `<Trait>` is whatever the name of the trait that one is constructing the trait object for.
 pub struct VTableTO<_Self,OrigPtr,Unerasability,V,DT>{
     vtable:StaticRef<V>,
     for_dyn_trait:DT,
@@ -117,12 +110,20 @@ These are the requirements for the caller:
 
 
 impl<_Self,OrigPtr,Unerasability,V,DT> VTableTO<_Self,OrigPtr,Unerasability,V,DT>{
+    /// Gets the vtable that RObject is constructed with.
     pub const fn robject_vtable(&self)->StaticRef<V>{
         self.vtable
     }
-    
-    pub const fn dyntrait_vtable(&self)->&DT{
-        &self.for_dyn_trait
+}
+
+impl<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V> 
+    VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>
+{
+    /// Gets the vtable for DynTrait.
+    pub const fn dyntrait_vtable(
+        &self
+    )->VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability>{
+        self.for_dyn_trait
     }
 }
 

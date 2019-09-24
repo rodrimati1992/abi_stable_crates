@@ -115,7 +115,6 @@ pub use self::{
     },
     tl_other::{
         CompGenericParams,
-        CustomPrimitive,
         FmtFullType,
         GenericParams,
         ModPath,
@@ -379,8 +378,9 @@ If this a:
         self.mono.repr_attr()
     }
 
-    /// Gets the representation attribute of the type.
-    pub fn mod_refl_mode(&self)->ModReflMode{
+    /// Gets the `ModReflMode` for the type,
+    /// whether this is a module whose definition can be reflected on at runtime.
+    pub const fn mod_refl_mode(&self)->ModReflMode{
         self.mono.mod_refl_mode()
     }
 
@@ -418,7 +418,7 @@ If this a:
         self.mono.generics.expand(self.shared_vars)
     }
 
-    /// Gets the parts of the type that don't change with generic parameters.
+    /// Gets the parts of the type layout that don't change with generic parameters.
     pub fn mono_type_layout(&self)->&MonoTypeLayout{
         &self.mono
     }
@@ -570,7 +570,8 @@ impl MonoTypeLayout{
         self.repr_attr
     }
 
-    /// Gets the representation attribute of the type.
+    /// Gets the `ModReflMode` for the type,
+    /// whether this is a module whose definition can be reflected on at runtime.
     pub const fn mod_refl_mode(&self)->ModReflMode{
         self.mod_refl_mode
     }

@@ -80,9 +80,8 @@ impl Display for ModPath{
 /////////////////////////////////////////////////////
 
 
-/// Represents all the generic parameters of a type.
-/// 
-/// If the ammount of lifetimes change,the layouts are considered incompatible,
+/// The compressed generic parameters of a type,
+/// which can be expanded into a GenericParams by calling expand.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq,StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
@@ -97,6 +96,7 @@ pub struct CompGenericParams {
 }
 
 impl CompGenericParams{
+    /// Constructs a CompGenericParams.
     pub const fn new(
         lifetime: NulStr<'static>,
         lifetime_count:u8,
@@ -111,6 +111,7 @@ impl CompGenericParams{
         }
     }
 
+    /// Expands this `CompGenericParams` into a `GenericParams`.
     pub fn expand(self,shared_vars:&'static SharedVars)->GenericParams{
         GenericParams{
             lifetime: self.lifetime,
@@ -217,33 +218,6 @@ pub enum TLPrimitive{
     Array{
         len:usize,
     },
-    /// A "custom" primitive type.
-    Custom(&'static CustomPrimitive)
-}
-
-
-/// The properties of a custom primitive.
-#[repr(C)]
-#[derive(Debug, Copy, Clone, StableAbi)]
-#[sabi(unsafe_sabi_opaque_fields)]
-pub struct CustomPrimitive{
-    /// The printed type name of this primitive
-    pub typename:RStr<'static>,
-    /// The token before the generic parameters of this primitive.Eg:"<"
-    pub start_gen:RStr<'static>,
-    /// The token separating generic parameters for this primitive.Eg:", "
-    pub ty_sep:RStr<'static>,
-    /// The token after the generic parameters of this primitive.Eg:">"
-    pub end_gen:RStr<'static>,
-}
-
-
-impl Eq for CustomPrimitive{}
-
-impl PartialEq for CustomPrimitive{
-    fn eq(&self,other:&Self)->bool{
-        std::ptr::eq(self,other)
-    }
 }
 
 
@@ -251,7 +225,7 @@ impl PartialEq for CustomPrimitive{
 
 
 /// The typename and generics of the type this layout is associated to,
-/// used for printing types.
+/// used for printing types (eg: `RVec<u8>` ).
 #[derive(Copy,Clone,PartialEq,Eq)]
 pub struct FmtFullType {
     pub(super) name:&'static str,
@@ -285,15 +259,6 @@ impl Debug for FmtFullType {
             Some(TLP::ConstPtr) => ("*const", " ", "", " ", " "),
             Some(TLP::MutPtr) => ("*mut", " ", "", " ", " "),
             Some(TLP::Array{..}) => ("", "[", "", ";", "]"),
-            Some(TLP::Custom(c))=>{
-                (
-                    c.typename.as_str(),
-                    c.start_gen.as_str(),
-                    "",
-                    c.ty_sep.as_str(),
-                    c.end_gen.as_str(),
-                )
-            }
              Some(TLP::U8)|Some(TLP::I8)
             |Some(TLP::U16)|Some(TLP::I16)
             |Some(TLP::U32)|Some(TLP::I32)

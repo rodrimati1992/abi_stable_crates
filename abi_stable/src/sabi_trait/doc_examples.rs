@@ -1,3 +1,7 @@
+/*!
+Examples of `#[sabi_trait]` generated trait objects,for the documentation.
+*/
+
 use crate::sabi_trait;
 
 #[sabi_trait]

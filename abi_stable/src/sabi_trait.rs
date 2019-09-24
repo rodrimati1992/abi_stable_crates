@@ -33,7 +33,7 @@ pub mod reexports{
                     RObject,
                 },
                 vtable::{
-                    GetVTable,RObjectVtable,GetRObjectVTable,
+                    RObjectVtable,GetRObjectVTable,
                     VTableTO_DT,VTableTO_RO,VTableTO,
                 },
                 for_generated_code::{sabi_from_ref,sabi_from_mut},

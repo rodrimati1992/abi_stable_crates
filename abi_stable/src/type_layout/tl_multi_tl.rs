@@ -79,7 +79,7 @@ impl<'a> MultipleTypeLayouts<'a>{
     }
 }
 
-
+/// An iterator over a list of `TypeLayoutCtor`.
 #[derive(Clone,Debug)]
 pub struct MTLIterator<'a>{
     this:MultipleTypeLayouts<'a>,

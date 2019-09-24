@@ -43,7 +43,8 @@ abi_stable_shared::declare_comp_field_accessor!{
 
 
 impl CompFieldAccessor{
-
+    /// Expands this `CompFieldAccessor` into a FieldAccessor,
+    /// with the string from the SharedVars of the TypeLayout this is stored inside of.
     pub fn expand(self,string:&'static str)->Option<FieldAccessor>{
         Some(match self {
             Self::DIRECT=>

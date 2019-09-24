@@ -114,8 +114,8 @@ impl PrefixTypeMetadata{
         let min_field_count=o_fields.len().min(self.fields.len());
         
         for (field_i,(t_acc,o_acc)) in 
-            self.accessible_fields.iter_field_count(min_field_count)
-                .zip(other.accessible_fields.iter_field_count(min_field_count))
+            self.accessible_fields.iter_count(min_field_count)
+                .zip(other.accessible_fields.iter_count(min_field_count))
                 .enumerate() 
         {
             let o_field=o_fields.next().unwrap();

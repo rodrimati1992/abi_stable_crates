@@ -37,7 +37,7 @@ pub struct _private_MonoTypeLayoutDerive {
 pub struct ItemInfo{
     /// The package where the type was defined,and the version string.
     /// With the `package;version_number` format.
-    pub package_and_version:StaticStr,
+    package_and_version:StaticStr,
     /// The line in the file where the type was defined.
     pub line:u32,
     /// The full path to the module where the type was defined,

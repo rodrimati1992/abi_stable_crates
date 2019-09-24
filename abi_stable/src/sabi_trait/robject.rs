@@ -259,7 +259,7 @@ where
 
 Constructs an RObject from a pointer and an extra vtable.
 
-This is mostly intended to be called by `#[sabi_trait]` derived trait objects.
+This is mostly intended to be called by `#[sabi_trait]` generated trait objects.
 
 # Safety
 
@@ -301,8 +301,7 @@ impl<'borr,'a,I,V> RObject<'borr,RRef<'a,()>,I,V>{
 /**
 This function allows constructing an RObject in a constant/static.
 
-This is generally intended for `#[sabi_trait]`
-
+This is mostly intended for `#[sabi_trait] generated trait objects`
 
 # Safety
 

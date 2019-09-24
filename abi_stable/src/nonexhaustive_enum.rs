@@ -35,6 +35,12 @@ pub use self::{
         ValidDiscriminant,
         SerializeEnum,
         DeserializeEnum,
+    },
+};
+
+
+pub(crate) use self::{
+    traits::{
         GetSerializeEnumProxy,
         GetDeserializeEnumProxy,
     },

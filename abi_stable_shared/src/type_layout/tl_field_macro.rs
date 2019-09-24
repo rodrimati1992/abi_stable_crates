@@ -12,6 +12,7 @@ macro_rules! declare_comp_tl_field {(
         bits0:u64,
     }
 
+    /// The underlying representation of CompTLField.
     pub type CompTLFieldRepr=u64;
 
     impl CompTLField{
@@ -23,9 +24,6 @@ macro_rules! declare_comp_tl_field {(
         
         const TYPE_LAYOUT_OFFSET:u32=Self::FIELD_ACCESSOR_OFFSET+CompFieldAccessor::BIT_SIZE;
         const TYPE_LAYOUT_SR_MASK:u64=TypeLayoutIndex::MASK as u64;
-        
-        /// The maximum value of a type layout index.
-        pub const TYPE_LAYOUT_MAX_VAL:usize=TypeLayoutIndex::MASK as usize;
 
         const IS_FUNCTION_OFFSET:u32=Self::TYPE_LAYOUT_OFFSET+TypeLayoutIndex::BIT_SIZE;
         const IS_FUNCTION_BIT_SIZE:u32=1;
@@ -56,14 +54,16 @@ macro_rules! declare_comp_tl_field {(
             CompTLField{bits0}
         }
 
-        /// Gets the range representing the name in the string slice of the type.
+        /// Gets the range representing the name in the string slice 
+        /// of the SharedVars for the type layout that contains this.
         #[inline]
         pub fn name_start_len(&self)->StartLen{
             StartLen::from_u26((self.bits0>>Self::NAME_OFFSET) as u32)
         }
 
         /// Gets the index of the type layout of the field in
-        /// the TypeLayoutCotr slice for the type.
+        /// the TypeLayoutCtor slice
+        /// of the SharedVars for the type layout that contains this.
         #[inline]
         pub fn type_layout_index(&self)-> usize {
             ((self.bits0>>Self::TYPE_LAYOUT_OFFSET)&Self::TYPE_LAYOUT_SR_MASK)as usize

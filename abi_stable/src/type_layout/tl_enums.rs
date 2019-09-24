@@ -184,7 +184,7 @@ macro_rules! declare_tl_discriminants {
             $method:ident
         ))*
     ) => (
-        /// The discriminant of an enum variant.
+        /// The discriminants of an enum.
         #[repr(u8)]
         #[derive(Copy, Clone, StableAbi)]
         pub enum TLDiscriminants{
@@ -387,7 +387,7 @@ declare_tl_discriminants!{
 
 
 
-/// The discriminant of an enum variant.
+/// A discriminant of an enum variant.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
