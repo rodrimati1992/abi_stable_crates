@@ -122,7 +122,7 @@ unsafe impl<'a,T> GetPointerKind for &'a mut T{
 ///////////
 
 /**
-Transmutes the element type of this pointer..
+Whether the pointer can be transmuted to have `T` as the element type.
 
 # Safety for implementor
 
@@ -134,6 +134,15 @@ Implementors of this trait must ensure that:
 - The pointer type is either `!Drop`(no drop glue either),
     or it uses a vtable to Drop the referent and deallocate the memory correctly.
 
+*/
+pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
+    /// The type of the pointer after it's element type has been changed.
+    type TransmutedPtr: Deref<Target = T>;
+}
+
+/**
+An extension trait which allows transmuting pointers to point to a different type.
+
 # Safety for callers
 
 Callers must ensure that:
@@ -141,10 +150,6 @@ Callers must ensure that:
 - References to `T` are compatible with references to `Self::Target`.
 
 */
-pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
-    type TransmutedPtr: Deref<Target = T>;
-}
-
 pub trait TransmuteElement{
     /// Transmutes the element type of this pointer..
     ///

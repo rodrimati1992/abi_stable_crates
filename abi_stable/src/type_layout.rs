@@ -111,6 +111,7 @@ pub use self::{
     tl_multi_tl::{
         TypeLayoutRange,
         MultipleTypeLayouts,
+        MTLIterator,
     },
     tl_other::{
         CompGenericParams,
@@ -236,7 +237,7 @@ impl TypeLayout {
         }
     }
 
-    /// Gets the package of the type.
+    /// Gets the package and package version where the type was declared.
     pub fn package_and_version(&self)->(StaticStr,VersionStrings){
         let (package,version)=self.item_info().package_and_version();
 
@@ -246,7 +247,7 @@ impl TypeLayout {
         )
     }
 
-    /// Gets the package of the type.
+    /// Gets the package where the type was declared.
     pub fn package(&self)->StaticStr{
         let (package,_)=self.item_info().package_and_version();
         StaticStr::new(package)
@@ -393,7 +394,8 @@ If this a:
             })
     }
 
-    /// The interior of the type definition,.
+    /// Describes whether the type is a primitive/enum/struct/union,
+    /// every variant corresponds to a `TLData` variant of the same name.
     pub fn data_discriminant(&self)-> TLDataDiscriminant {
         self.mono.data.as_discriminant()
     }

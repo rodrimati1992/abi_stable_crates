@@ -23,7 +23,13 @@ mod layout;
 mod pt_metadata;
 
 pub use self::{
-    accessible_fields::{FieldAccessibility,FieldConditionality,IsAccessible,IsConditional},
+    accessible_fields::{
+        BoolArray,
+        FieldAccessibility,
+        FieldConditionality,
+        IsAccessible,
+        IsConditional,
+    },
     empty_prefix::EmptyPrefixType,
     layout::PTStructLayout,
 };

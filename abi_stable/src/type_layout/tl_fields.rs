@@ -145,7 +145,7 @@ impl TLFields{
         self.comp_fields.is_empty()
     }
 
-    /// Gets the ith expanded field.Returns None there is no nth field.
+    /// Gets the ith expanded field.Returns None there is no ith field.
     pub fn get(&self,i:usize)->Option<TLField>{
         self.comp_fields.get(i)
             .map(|field| field.expand(i,self.functions,self.shared_vars) )
@@ -216,10 +216,10 @@ An iterator over all the fields in a type definition.
 pub struct TLFieldsIterator {
     shared_vars:&'static SharedVars,
 
-    pub comp_fields:iter::Enumerate<slice::Iter<'static,CompTLField>>,
+    comp_fields:iter::Enumerate<slice::Iter<'static,CompTLField>>,
 
     /// All the function pointer types in the field.
-    pub functions:Option<&'static TLFunctions >,
+    functions:Option<&'static TLFunctions >,
 
 }
 

@@ -9,7 +9,8 @@ use std::{
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
+/// a few static slices that many types in the `type_layout` module contain ranges into,
+/// requiring this type to be passed as a parameter.
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct SharedVars{
@@ -40,20 +41,29 @@ impl SharedVars{
         }
     }
 
+    /// A string containing many strings that types in the `type_layout` 
+    /// module contain ranges into.
     #[inline]
     pub fn strings(&self)->&'static str{
         self.mono.strings()
     }
+    /// Many lifetimes that types in the `type_layout` module reference.
     #[inline]
     pub fn lifetime_indices(&self)->&'static [LifetimeIndexPair]{
         self.mono.lifetime_indices()
     }
+    /// Many `TypeLayoutCtor`s that types in the `type_layout` 
+    /// module reference.
+    ///
+    /// The `StableAbi` derive macro deduplicates identical looking types 
+    /// when constructing SharedVars.
     #[inline]
     pub fn type_layouts(&self)->&'static [TypeLayoutCtor]{
         unsafe{
             slice::from_raw_parts( self.type_layouts, self.type_layouts_len as usize )
         }
     }
+    /// Many constants that types in the `type_layout` module contain ranges into.
     #[inline]
     pub fn constants(&self)->&'static [ConstGeneric]{
         unsafe{
@@ -69,7 +79,8 @@ impl Debug for SharedVars{
 }
 
 
-
+/// a few static slices that many types in the `type_layout` module contain ranges into,
+/// requiring this type to be passed as a parameter.
 #[repr(C)]
 #[derive(StableAbi)]
 #[derive(Copy,Clone)]
@@ -108,6 +119,8 @@ impl MonoSharedVars{
         }
     }
 
+    /// A string containing many strings that types in the `type_layout` 
+    /// module contain ranges into.
     #[inline]
     pub fn strings(&self)->&'static str{
         unsafe{
@@ -116,6 +129,7 @@ impl MonoSharedVars{
         }
     }
 
+    /// Many lifetimes that types in the `type_layout` module reference.
     #[inline]
     pub fn lifetime_indices(&self)->&'static [LifetimeIndexPair]{
         unsafe{

@@ -48,32 +48,33 @@ impl TLField {
         }
     }
 
-    pub const fn set_field_accessor(mut self,field_accessor:FieldAccessor)->Self{
-        self.field_accessor=field_accessor;
-        self
-    }
-
-
+    /// Gets a printable version of the field type.
     pub fn full_type(&self)->FmtFullType{
         self.layout.get().full_type()
     }
 
-
+    /// Gets the name of the field
     pub fn name(&self)->&'static str{
         self.name.as_str()
     }
+    /// Gets the lifetimes that the field references.
     pub fn lifetime_indices(&self)->LifetimeArrayOrSlice<'static>{
         self.lifetime_indices
     }
+    /// Gets the layout of the field type
     pub fn layout(&self)->&'static TypeLayout{
         self.layout.get()
     }
+    /// Gets all the function pointer types in the field.
     pub fn function_range(&self)->TLFunctionSlice{
         self.function_range
     }
+    /// Gets whether the field is itself a function pointer.
     pub fn is_function(&self)->bool{
         self.is_function
     }
+    /// Gets the `FieldAccessor` for the type,
+    /// which describes whether a field is accessible,and how it is accessed.
     pub fn field_accessor(&self)->FieldAccessor{
         self.field_accessor
     }
@@ -256,11 +257,12 @@ abi_stable_shared::declare_type_layout_index!{
 
 impl CompTLField{
 
-
+    /// Gets the name of the field from `SharedVars`'s string slice.
     pub fn name(&self,strings:&'static str)->&'static str{
         &strings[self.name_start_len().to_range()]
     }
 
+    /// Gets the name of the field from `SharedVars`'s slice of lifetime indices.
     pub fn lifetime_indices(
         &self,
         indices:&'static [LifetimeIndexPair]
@@ -269,6 +271,8 @@ impl CompTLField{
         comp.slicing(indices)
     }
 
+    /// Gets the `FieldAccessor` for the type from `SharedVars`'s string slice,
+    /// which describes whether a field is accessible,and how it is accessed..
     pub fn field_accessor(&self,strings:&'static str)->FieldAccessor{
         let name_end=self.name_start_len().end();
         let comp=CompFieldAccessor::from_u3((self.bits0>>Self::FIELD_ACCESSOR_OFFSET) as u8);
@@ -280,18 +284,20 @@ impl CompTLField{
         comp.expand(accessor_payload).unwrap_or(FieldAccessor::Opaque)
     }
 
+    /// Gets the name of the field from `SharedVars`'s slice of `TypeLayoutCtor`.
     pub fn type_layout(&self,type_layouts:&'static [TypeLayoutCtor])-> TypeLayoutCtor {
         type_layouts[self.type_layout_index()]
     }
 
+    /// Expands this CompTLField into a TLField.
     pub fn expand(
         &self,
-        index:usize,
+        field_index:usize,
         functions:Option<&'static TLFunctions >,
         vars:&'static SharedVars,
     )->TLField{
         let strings=vars.strings();
-        let function_range=TLFunctionSlice::for_field(index,functions,vars);
+        let function_range=TLFunctionSlice::for_field(field_index,functions,vars);
 
         // println!(
         //     "field:{:b}\n\

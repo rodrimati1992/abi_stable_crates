@@ -15,7 +15,7 @@ abi_stable_shared::declare_multi_tl_types!{
 
 
 impl TypeLayoutRange{
-    pub fn to_array(&self)->[u16;4]{
+    pub(crate) fn to_array(&self)->[u16;4]{
         [
             ((self.bits0>>Self::INDEX_0_OFFSET)&Self::INDEX_MASK)as u16,
             ((self.bits0>>Self::INDEX_1_OFFSET)&Self::INDEX_MASK)as u16,
@@ -24,6 +24,7 @@ impl TypeLayoutRange{
         ]
     }
 
+    /// Expands this `TypeLayoutRange` into a `MultipleTypeLayouts<'a>`.
     pub fn expand<'a>(&self,type_layouts:&'a [TypeLayoutCtor])->MultipleTypeLayouts<'a>{
         let indices=self.to_array();
         let len=self.len();
@@ -54,6 +55,7 @@ impl TypeLayoutRange{
 ////////////////////////////////////////////////////////////////////////////////
 
 
+/// This stores multiple `TypeLayoutCtor`,some inline and some in a borrowed slice.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub struct MultipleTypeLayouts<'a>{
@@ -63,10 +65,12 @@ pub struct MultipleTypeLayouts<'a>{
 
 
 impl<'a> MultipleTypeLayouts<'a>{
+    /// The ammount of TypeLayoutCtor this contains.
     pub fn len(&self)->usize{
         self.first_4.len as usize+self.remaining.len()
     }
 
+    /// Gets an iterator over the TypeLayoutCtor this contains.
     pub fn iter(&self)->MTLIterator<'a> {
         MTLIterator{
             this:*self,
