@@ -26,6 +26,7 @@ unsafe impl Send for CompTLFields {}
 
 
 impl CompTLFields{
+    /// A `CompTLFields` with no fields.
     pub const EMPTY:Self=Self::from_fields(rslice![]);
 
     /// Constructs a `CompTLFields`.

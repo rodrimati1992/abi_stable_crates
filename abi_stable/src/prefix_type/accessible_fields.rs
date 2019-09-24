@@ -10,9 +10,7 @@ use std::{
 };
 
 
-/// Describes which prefix-type fields are accessible.
-///
-/// Each field is represented as a bit,where 0 is IsAccessible::No,and 1 s IsAccessible::Yes.
+/// An array of 64 binary enums.
 #[must_use="BoolArray is returned by value by every mutating method."]
 #[derive(StableAbi)]
 #[derive(PartialEq,Eq)]
@@ -32,16 +30,22 @@ impl<T> Clone for BoolArray<T>{
     }
 }
 
+/// An array with whether the ith field of a prefix-type 
+/// is accessible through its accessor method.
 pub type FieldAccessibility=BoolArray<IsAccessible>;
+
+/// An array with whether the ith field in the prefix of a prefix-type 
+/// is conditional,which means whether it has the
+/// `#[sabi(accessible_if=" expression ")]` attribute applied to it.
 pub type FieldConditionality=BoolArray<IsConditional>;
 
 
 impl<T> BoolArray<T>{
-    /// Creates a BoolArray where the first `field_count` fields are accessible.
+    /// Creates a BoolArray where the first `count` elements are truthy.
     #[inline]
-    pub const fn with_field_count(field_count:usize)->Self{
+    pub const fn with_count(count:usize)->Self{
         Self{
-            bits:low_bit_mask_u64(field_count as u32),
+            bits:low_bit_mask_u64(count as u32),
             _marker:PhantomData,
         }
     }
@@ -55,7 +59,7 @@ impl<T> BoolArray<T>{
         }
     }
 
-    /// Creates a BoolArray where no field is accessible.
+    /// Creates a BoolArray where all elements are falsy.
     #[inline]
     pub const fn empty()->Self{
         Self{
@@ -70,28 +74,31 @@ impl<T> BoolArray<T>{
         [0,1u64.wrapping_shl(index)][(index <= 63) as usize]
     }
 
-    /// Truncates self so that only the first `length` are accessible.
+    /// Truncates self so that only the first `length` elements are truthy.
     pub const fn truncated(mut self,length:usize)->Self{
-        let mask=Self::with_field_count(length).bits();
+        let mask=Self::with_count(length).bits();
         self.bits&=mask;
         self
     }
 
+    /// Converts this array to its underlying representation
     #[inline]
     pub const fn bits(self)->u64{
         self.bits
     }
 
-    pub const fn iter_field_count(self,field_count:usize)->BoolArrayIter<T>{
+    /// An iterator over the first `count` eleemtns of the array.
+    pub const fn iter_count(self,count:usize)->BoolArrayIter<T>{
         BoolArrayIter{
-            field_count:min_usize(64,field_count),
+            count:min_usize(64,count),
             bits:self.bits(),
             _marker:PhantomData,
         }
     }
 
-    pub fn is_compatible(self,other:Self,field_count:usize)->bool{
-        let all_accessible=Self::with_field_count(field_count);
+    /// Whether this array is equal to `other` up to the `count` element.
+    pub fn is_compatible(self,other:Self,count:usize)->bool{
+        let all_accessible=Self::with_count(count);
         let implication=(!self.bits|other.bits)&all_accessible.bits;
         println!(
             "self:{:b}\nother:{:b}\nall_accessible:{:b}\nimplication:{:b}", 
@@ -152,7 +159,7 @@ where
 {
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
         f.debug_list()
-         .entries(self.iter_field_count(64))
+         .entries(self.iter_count(64))
          .finish()
     }
 }
@@ -160,10 +167,12 @@ where
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
+/// A trait for enums with two variants where one is `truthy` and the other one is `falsy`.
 pub trait BooleanEnum:Debug{
+    /// The custom name of this type.
     const NAME:&'static str;
 
+    /// Constructs this type from a boolean
     fn from_bool(b:bool)->Self;
 }
 
@@ -179,11 +188,11 @@ pub enum IsAccessible{
 }
 
 impl IsAccessible{
-    /// Constructs an IsAccessible with a bool saying whether the field is accessible.
+    /// Constructs an IsAccessible with a bool saying whether this is accessible.
     pub const fn new(is_accessible:bool)->Self{
         [IsAccessible::No,IsAccessible::Yes][is_accessible as usize]
     }
-    /// Describes whether the field is accessible.
+    /// Describes whether this is accessible.
     pub const fn is_accessible(self)->bool{
         self as usize!=0
     }
@@ -211,11 +220,11 @@ pub enum IsConditional{
 }
 
 impl IsConditional{
-    /// Constructs an IsConditional with a bool saying whether the field is accessible.
+    /// Constructs an IsConditional with a bool saying this is conditional.
     pub const fn new(is_accessible:bool)->Self{
         [IsConditional::No,IsConditional::Yes][is_accessible as usize]
     }
-    /// Describes whether the field is accessible.
+    /// Describes whether this is conditional.
     pub const fn is_conditional(self)->bool{
         self as usize!=0
     }
@@ -236,7 +245,7 @@ impl BooleanEnum for IsConditional{
 
 #[derive(Debug,Clone)]
 pub struct BoolArrayIter<T>{
-    field_count:usize,
+    count:usize,
     bits:u64,
     _marker:PhantomData<T>,
 }
@@ -250,7 +259,7 @@ where
     fn next_inner<F>(&mut self,f:F)->Option<T>
     where F:FnOnce(&mut Self)->bool
     {
-        if self.field_count==0 {
+        if self.count==0 {
             None
         }else{
             Some(T::from_bool(f(self)))
@@ -265,7 +274,7 @@ where
 
     fn next(&mut self)->Option<T>{
         self.next_inner(|this|{
-            this.field_count-=1;
+            this.count-=1;
             let cond=(this.bits&1)!=0;
             this.bits>>=1;
             cond
@@ -285,8 +294,8 @@ where
 {
     fn next_back(&mut self)->Option<T>{
         self.next_inner(|this|{
-            this.field_count-=1;
-            (this.bits&(1<<this.field_count))!=0
+            this.count-=1;
+            (this.bits&(1<<this.count))!=0
         })
     }
 }
@@ -297,7 +306,7 @@ where
 {
     #[inline]
     fn len(&self)->usize{
-        self.field_count
+        self.count
     }
 }
 
@@ -313,9 +322,9 @@ mod tests{
     use super::*;
     
     #[test]
-    fn with_field_count(){
+    fn with_count(){
         for count in 0..=64 {
-            let accessibility=BoolArray::with_field_count(count);
+            let accessibility=BoolArray::with_count(count);
 
             for i in 0..64 {
                 assert_eq!(
@@ -331,7 +340,7 @@ mod tests{
     
     #[test]
     fn set_accessibility(){
-        let mut accessibility=BoolArray::with_field_count(8);
+        let mut accessibility=BoolArray::with_count(8);
         assert_eq!(0b_1111_1111,accessibility.bits());
         
         {
@@ -381,10 +390,10 @@ mod tests{
     
     #[test]
     fn iter_test(){
-        let iter=BoolArray::with_field_count(8)
+        let iter=BoolArray::with_count(8)
             .set_accessibility(1,IsAccessible::No)
             .set_accessibility(3,IsAccessible::No)
-            .iter_field_count(10)
+            .iter_count(10)
             .map(IsAccessible::is_accessible);
         
         let expected=vec![true,false,true,false,true,true,true,true,false,false];

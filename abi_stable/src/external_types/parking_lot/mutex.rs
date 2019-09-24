@@ -1,3 +1,5 @@
+//! Contains an ffi-safe equivalent of `parking_lot::Mutex`.
+
 use std::{
     cell::UnsafeCell,
     fmt::{self,Debug,Display},

@@ -12,7 +12,9 @@ These helper attributes are applied on the type declaration.
 
 ###  `#[sabi(phantom_field="name:type")]` 
 
-Adds a virtual field to the type layout constant.
+Adds a virtual field to the type layout constant,
+which is checked against the phantom field that was declared in the same order 
+for compatibility.
 
 ###  `#[sabi(phantom_type_param="type")]` 
 
@@ -22,7 +24,7 @@ which is checked for compatibility.
 ###  `#[sabi(phantom_const_param="constant expression")]` 
 
 Adds a virtual const parameter to the type layout constant,
-which is checked for equality.
+which is checked for equality with the vistual const parameter declared in the same order.
 
 ###  `#[sabi(not_stableabi(TypeParameter))]`  
 
@@ -42,7 +44,7 @@ The type parameter will be ignored when determining whether the type
 has already been checked,when loading a dynamic library,
 
 Don't use this if transmuting this type to have different type parameters,
-only changing `#[sabi(unsafe_unconstrained())]` one,
+only changing the `#[sabi(unsafe_unconstrained())]` one,
 would cause Undefined Behavior.
 
 This is only necessary if you are passing `TypeParameter` to `UnsafeIgnoredType`
@@ -51,21 +53,21 @@ This is only necessary if you are passing `TypeParameter` to `UnsafeIgnoredType`
 
 Adds a bound to the `StableAbi` impl.
 
+###  `#[sabi(bounds="Type:ATrait,Type2:OtherTrait")]` 
+
+Adds many bounds to the `StableAbi` impl.
+
 ###  `#[sabi(prefix_bound="Type:ATrait")]` 
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
-Adds a bound to the `PrefixTypeTrait` impl.
-
-###  `#[sabi(bounds="Type:ATrait,Type2:OtherTrait")]` 
-
-Adds many bounds to the `StableAbi` impl.
+Adds a bound to the `PrefixTypeTrait` impl (for the deriving type).
 
 ###  `#[sabi(prefix_bounds="Type:ATrait,Type2:OtherTrait")]` 
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
-Adds many bound to the `PrefixTypeTrait` impl.
+Adds many bound to the `PrefixTypeTrait` impl (for the deriving type).
 
 ### `#[sabi(unsafe_allow_type_macros)]`
 
@@ -98,7 +100,7 @@ or the parents of that one.
 Sibling means libraries loaded at runtime by the same library/binary 
 (or a parent of that one).
 
-For more information about tags,[look here](../../abi_stability/tagging/index.html)
+For more information about tags,[look here](../../type_layout/tagging/index.html)
 
 ###  `#[sabi(extra_checks="<some_constant_expression>")]` 
 
@@ -108,7 +110,7 @@ which allows encoding and checking extra properties about a type.
 `<some_constant_expression>` must be a constant that implements ExtraChecks .
 
 For examples of using this attribute
-[look here](../../abi_stability/trait.ExtraChecks.html#examples)
+[look here](../../abi_stability/extra_checks/index.html#examples)
 
 ###  `#[sabi(debug_print)]` 
 

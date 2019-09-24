@@ -47,6 +47,7 @@ impl LifetimeRange {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// Either an array of 3 `LifetimeIndexPair`,or a slice of `LifetimeIndexPair`.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum LifetimeArrayOrSlice<'a>{
@@ -56,11 +57,13 @@ pub enum LifetimeArrayOrSlice<'a>{
 
 
 impl<'a> LifetimeArrayOrSlice<'a>{
+    /// An empty `LifetimeArrayOrSlice`.
     pub const EMPTY:Self=LifetimeArrayOrSlice::Array(ArrayLen{
         len:0,
         array:[LifetimeIndexPair::NONE,LifetimeIndexPair::NONE,LifetimeIndexPair::NONE]
     });
 
+    /// Gets a slice of the `LifetimeIndexPair` this contains.
     pub fn as_slice(&self)->&[LifetimeIndexPair]{
         match self {
             LifetimeArrayOrSlice::Slice(slice)=>{

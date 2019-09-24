@@ -1,3 +1,4 @@
+//! Contains an ffi-safe wrapper for `parking_lot::Once`.
 use std::{
     any::Any,
     fmt::{self,Debug},

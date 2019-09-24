@@ -1196,7 +1196,7 @@ pub(crate) extern "C" fn check_layout_compatibility_for_ffi(
 Checks that the layout of `interface` is compatible with `implementation`,
 
 If this function is called within a dynamic library,
-it must be called at or after the function that exports its root module is called.
+it must be called during or after the function that exports its root module is called.
 
 **DO NOT** call this in the static initializer of a dynamic library,
 since this library relies on setting up its global state before

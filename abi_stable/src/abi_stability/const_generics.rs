@@ -36,6 +36,9 @@ unsafe impl Send for ConstGeneric{}
 unsafe impl Sync for ConstGeneric{}
 
 impl ConstGeneric{
+    /// Constructs a ConstGeneric from a reference and a vtable.
+    /// 
+    /// To construct the `vtable_for` parameter use `GetConstGenericVTable::VTABLE`.
     pub const fn new<T>(this:&'static T, vtable_for:ConstGenericVTableFor<T>)->Self{
         Self{
             ptr: this as *const T as *const ErasedObject,
@@ -43,6 +46,8 @@ impl ConstGeneric{
         }
     }
 
+    /// Compares this to another `ConstGeneric` for equality,
+    /// returning an error if the type layout of `self` and `other` is not compatible.
     pub fn is_equal(
         &self,
         other:&Self,
@@ -105,8 +110,7 @@ pub struct ConstGenericVTableVal{
 }
 
 /// A type that contains the vtable stored in the `ConstGeneric` constructed from a `T`.
-/// This is used as a workaround for `const fn` not allowing trait bounds,
-/// `GetConstGenericVTable` is the trait in this case .
+/// This is used as a workaround for `const fn` not allowing trait bounds.
 pub struct ConstGenericVTableFor<T>{
     vtable:StaticRef<ConstGenericVTable>,
     _marker:PhantomData<T>,
@@ -115,7 +119,8 @@ pub struct ConstGenericVTableFor<T>{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-
+/// This trait is used to construct the `vtable_for` parameter of 
+/// `ConstGeneric::new` with `GetConstGenericVTable::VTABLE`
 pub trait GetConstGenericVTable:Sized {
     #[doc(hidden)]
     const _VTABLE_STATIC: StaticRef<WithMetadata<ConstGenericVTableVal>> ;

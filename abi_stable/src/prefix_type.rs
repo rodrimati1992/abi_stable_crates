@@ -18,7 +18,6 @@ use core_extensions::SelfOps;
 
 
 mod accessible_fields;
-mod empty_prefix;
 mod layout;
 mod pt_metadata;
 
@@ -30,7 +29,6 @@ pub use self::{
         IsAccessible,
         IsConditional,
     },
-    empty_prefix::EmptyPrefixType,
     layout::PTStructLayout,
 };
 
@@ -39,7 +37,8 @@ pub(crate) use self::pt_metadata::PrefixTypeMetadata;
 
 /// For types deriving `StableAbi` with `#[sabi(kind(Prefix(..)))]`.
 pub unsafe trait PrefixTypeTrait:Sized{
-    /// Just the metadata of Self,for passing to `WithMetadata::new`,
+    /// The metadata of the prefix-type (a FieldAccessibility and a PTStructLayout),
+    /// for passing to `WithMetadata::new`,
     /// with `WithMetadata::new(PrefixTypeTrait::METADATA,value)`
     const METADATA:WithMetadataFor<Self,Self::Prefix>=WithMetadataFor{
         inner:WithMetadata_{
@@ -68,20 +67,19 @@ since their existence has to be checked at runtime.
 This is because multiple versions of the library may be loaded,
 where in some of them those fields don't exist.
 
-This is generally a struct whose only non-zero-sized field is `WithMetadata_<(),Self>`.
-
 ```
 
 */
     type Prefix;
 
-    /// Converts `self` to a `WithMetadata<Self>`,.
+    /// Converts `self` to a `WithMetadata<Self>`,
+    /// which is itself convertible to a reference to `Self::Prefix` with
+    /// the `as_prefix` methods.
     fn into_with_metadata(self)->WithMetadata<Self>{
         WithMetadata::new(Self::METADATA,self)
     }
     
-    /// Convers `Self` to its `WithMetadata<Self>`,
-    /// then leaks it and casts it to `&'a Self::Prefix`.
+    /// Convers `Self` to `&'a Self::Prefix`,leaking it in the process.
     fn leak_into_prefix<'a>(self)->&'a Self::Prefix
     where 
         Self:'a,
@@ -108,10 +106,11 @@ pub type WithMetadata<T>=
 #[repr(C,align(4))]
 pub struct WithMetadata_<T,P>{
     /// A bit array,where the bit at field index represents whether a field is accessible.
-    #[inline(doc)]
     pub _prefix_type_field_acc:FieldAccessibility,
-    #[inline(doc)]
+    /// Yhe basic layout of the prefix type.
     pub _prefix_type_layout:&'static PTStructLayout,
+    /// The original value of the prefix type,
+    /// which can be converted into a reference to P by calling the as_prefix methods.
     pub original:T,
     _marker:PhantomData<P>,
     // WithMetadata will never implement Copy or Clone.
@@ -123,6 +122,10 @@ pub struct WithMetadata_<T,P>{
 
 impl<T,P> WithMetadata_<T,P> {
     /// Constructs Self with `WithMetadata::new(PrefixTypeTrait::METADATA,value)`
+    ///
+    /// This takes in the `metadata:WithMetadataFor<T,P>` parameter as a 
+    /// workaround for `const fn` not allowing trait bounds,
+    /// which in case is `PrefixTypeTrait`.
     #[inline]
     pub const fn new(metadata:WithMetadataFor<T,P>,value:T)->Self{
         Self{
@@ -154,7 +157,7 @@ impl<T,P> WithMetadata_<T,P> {
     /// Converts this `*const WithMetadata<T,P>` to a `*const <prefix_struct>` type.
     /// Use this if you need to implement nested vtables at compile-time.
     #[inline]
-    pub const unsafe fn raw_as_prefix(this:*const Self)->*const P {
+    pub const fn raw_as_prefix(this:*const Self)->*const P {
         unsafe{
             this as *const Self as *const P
         }
@@ -169,6 +172,7 @@ impl<T,P> WithMetadata_<T,P> {
         }
     }
 
+    #[doc(hidden)]
     #[inline]
     pub unsafe fn into_full(this:*const Self)->*const T {
         unsafe{
@@ -183,11 +187,10 @@ impl<T,P> WithMetadata_<T,P> {
 ////////////////////////////////////////////////////////////////////////////////
 
 
-/// The prefix-type metadata for `T`.
+/// The prefix-type metadata for `T` (with a FieldAccessibility and a PTStructLayout).
 /// This is only constructed in PrefixTypeTrait::METADATA.
 ///
-/// `P` is guaranteed to be <T as PrefixTypeTrait>::Prefix,
-/// it is a type parameter to get around limitations of `const fn` as of Rust 1.34.
+/// This is used as a workaround for `const fn` not allowing trait bounds.
 #[repr(C)]
 pub struct WithMetadataFor<T,P>{
     inner:WithMetadata_<(),()>,

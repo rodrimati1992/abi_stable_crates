@@ -5,8 +5,8 @@ use super::*;
 
 
 
-/// The definition of
-/// vtables and modules that can be extended in minor versions.
+/// Properties of prefix types
+/// (vtables and modules) that don't change with generic parameters.
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 pub struct MonoTLPrefixType {
@@ -25,6 +25,7 @@ pub struct MonoTLPrefixType {
 
 
 impl MonoTLPrefixType{
+    /// Expands this into a `TLPrefixType`.
     pub fn expand(self,other:GenericTLPrefixType,shared_vars:&'static SharedVars)->TLPrefixType{
         TLPrefixType{
             first_suffix_field:self.first_suffix_field,
@@ -39,7 +40,8 @@ impl MonoTLPrefixType{
 /////////////////////////////////////////////////////
 
 
-/// The part of TLPrefixType that may depend on generic parameters.
+/// Properties of prefix types
+/// (vtables and modules) that depends on generic parameters.
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 pub struct GenericTLPrefixType {
@@ -50,7 +52,8 @@ pub struct GenericTLPrefixType {
 
 /////////////////////////////////////////////////////
 
-
+/// Properties of prefix types (vtables and modules),
+/// combining `MonoTLPrefixType` and `GenericTLPrefixType`.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub struct TLPrefixType {
@@ -84,7 +87,7 @@ impl Display for TLPrefixType {
         writeln!(f,"fields:\n{}",self.fields.to_string().left_padder(4))?;
         write!(f,"accessible_fields:\n    ")?;
         f.debug_list()
-         .entries(self.accessible_fields.iter_field_count(self.fields.len()))
+         .entries(self.accessible_fields.iter_count(self.fields.len()))
          .finish()?;
         Ok(())
     }

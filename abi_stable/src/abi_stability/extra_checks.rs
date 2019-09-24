@@ -7,12 +7,8 @@ To add extra checks to a type follow these steps:
 
 - Create some type and implement ExtraChecks for it,
 
-- Create an `extern "C" fn()->ExtraChecksStaticRef` function,
-    constructing an ExtraChecksStaticRef with `ExtraChecksStaticRef::from_ptr`
-    with a `&'static TypeThatImplsExtraChecks`.
-
-- Apply the `#[sabi(extra_checks="EXTRA_CHECKER_CONSTANT")]` attribute
-    to the type that uses `#[derive(StableAbi)]`.
+- Apply the `#[sabi(extra_checks="const expression that implements ExtraChecks")]
+    attribute to the type that uses `#[derive(StableAbi)]`.
 
 # Examples
 
@@ -416,10 +412,12 @@ const LAYOUT2:&'static TypeLayout= <WithConstant<V1_2> as StableAbi>::LAYOUT;
 
 
 fn main(){
-    // Compared LAYOUT0 to LAYOUT1B,stored LAYOUT0.extra_checks associated with both layouts.
+    // Compared LAYOUT0 to LAYOUT1B,
+    // then stored LAYOUT0.extra_checks as the ExtraChecks associated with both layouts.
     check_layout_compatibility(LAYOUT0,LAYOUT1B).unwrap();
 
-    // Compared LAYOUT1 to LAYOUT2,stored LAYOUT2.extra_checks associated with both layouts.
+    // Compared LAYOUT1 to LAYOUT2,
+    // then stored LAYOUT2.extra_checks as the ExtraChecks associated with both layouts.
     check_layout_compatibility(LAYOUT1,LAYOUT2).unwrap();
 
     // Compared LAYOUT0 to LAYOUT2:
@@ -697,7 +695,7 @@ pub unsafe trait TypeChecker:'static {
 
 
 
-/// An ffi-safe equivalent of &'b mut (dyn TypeChecker+'a)
+/// An ffi-safe equivalent of &'b mut dyn TypeChecker
 pub type TypeCheckerMut<'b>=
     TypeChecker_TO<&'b mut ()>;
 

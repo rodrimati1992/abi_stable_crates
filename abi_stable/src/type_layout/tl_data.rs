@@ -4,33 +4,20 @@ use super::*;
 ////////////////////////////////////////////////////////////////////////////////
 
 
-
-/// What kind of type this is.struct/enum/etc.
-///
-/// Unions are currently treated as structs.
+/// The parts of TLData that don't change based on generic parameters.
 #[repr(u8)]
 #[derive(Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum MonoTLData {
-    /// Types defined in the compiler.
     Primitive(TLPrimitive),
-    /// The type can't be inspected,and has no properties other than size/alignment.
-    ///
-    /// When translated to C,this would be a struct with a single array field
-    /// whose element type is the alignment in this layout,
-    /// with the same byte length as this layout .
     Opaque,
-    /// For structs.
     Struct { 
         fields: CompTLFields 
     },
-    /// For unions.
     Union { 
         fields: CompTLFields 
     },
-    /// For enums.
     Enum (MonoTLEnum),
-    /// vtables and modules that can be extended in minor versions.
     PrefixType(MonoTLPrefixType),
 }
 
@@ -230,7 +217,8 @@ pub enum GenericTLData {
 
 
 impl GenericTLData{
-
+    /// Converts this a TLDataDiscriminant,allowing one to query which discriminant this is
+    /// (without either copying MonoTLData or keeping a reference).
     pub fn as_discriminant(&self) -> TLDataDiscriminant {
         match self {
             GenericTLData::Primitive { .. } => TLDataDiscriminant::Primitive,
@@ -242,6 +230,7 @@ impl GenericTLData{
         }
     }
 
+    #[doc(hidden)]
     pub const fn prefix_type_derive(
         accessible_fields:FieldAccessibility,
     )->Self{
@@ -255,17 +244,29 @@ impl GenericTLData{
 
 /////////////////////////////////////////////////////
 
+/// The interior of the type definition,
+/// describing whether the type is a primitive/enum/struct/union and its contents.
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
 pub enum TLData{
+    /// Types defined in the compiler.
     Primitive(TLPrimitive),
+    /// The type can't be inspected,and has no properties other than size/alignment.
+    ///
+    /// When translated to C,this would be a struct with a single array field
+    /// whose element type is the alignment in this layout,
+    /// with the same byte length as this layout .
     Opaque,
+    /// For structs.
     Struct { 
         fields: TLFields 
     },
+    /// For unions.
     Union { 
         fields: TLFields 
     },
+    /// For enums.
     Enum(TLEnum),
+    /// vtables and modules that can be extended in minor versions.
     PrefixType(TLPrefixType),
 }
 
