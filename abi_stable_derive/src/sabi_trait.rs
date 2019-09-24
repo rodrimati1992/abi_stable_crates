@@ -548,8 +548,12 @@ Its possible values are `TU_Unerasable` and `TU_Opaque`.
     );
 
     let from_const_docs=format!(
-        "Constructs this trait from a constant of a type that implements `{trait_}`.",
-        trait_=trait_ident
+        "Constructs this trait from a constant of a type that implements `{trait_}`.\n\
+         \n\
+         You can construct the `vtable_for` parameter with `{make_vtable_ident}::VTABLE`.
+        ",
+        trait_=trait_ident,
+        make_vtable_ident=make_vtable_ident,
     );
     
     let vtable_generics=

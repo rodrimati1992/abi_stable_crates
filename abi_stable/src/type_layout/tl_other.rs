@@ -136,12 +136,12 @@ pub struct GenericParams{
 impl GenericParams {
     /// Whether this contains any generic parameters
     pub fn is_empty(&self) -> bool {
-        self.lifetime.as_str().is_empty() && self.types.is_empty() && self.consts.is_empty()
+        self.lifetime.to_str().is_empty() && self.types.is_empty() && self.consts.is_empty()
     }
 
     /// Gets an iterator over the names of the lifetime parameters of the type.
     pub fn lifetimes(&self)-> impl Iterator<Item=&'static str>+Clone+Send+Sync+'static {
-        self.lifetime.as_str().split(',').filter(|x| !x.is_empty() )
+        self.lifetime.to_str().split(',').filter(|x| !x.is_empty() )
     }
     /// The ammount of the lifetime of the type.
     pub fn lifetime_count(&self)->usize{

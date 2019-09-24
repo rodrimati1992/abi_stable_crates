@@ -12,7 +12,7 @@ use crate::{
 ///////////////////////////
 
 
-/// The layout of an enum,that doesn't depend on generic parameters.
+/// The parts of the layout of an enum,that don't depend on generic parameters.
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
@@ -33,7 +33,7 @@ unsafe impl Send for MonoTLEnum {}
 
 
 impl MonoTLEnum{
-    /// Constructs a `TLEnum`.
+    /// Constructs a `MonoTLEnum`.
     pub const fn new(
         variant_names:StartLen,
         field_count:RSlice<'static,u8>,
@@ -47,17 +47,19 @@ impl MonoTLEnum{
         }
     }
 
-    /// Returns the ammount of variants in the enum.
+    /// Gets the ammount of variants in the enum.
     pub fn variant_count(&self)->usize{
         self.field_count_len as usize
     }
 
+    /// Gets a slice with the ammount of fields for each variant in the enum.
     pub fn field_count(&self)->RSlice<'static,u8>{
         unsafe{
             RSlice::from_raw_parts( self.field_count, self.field_count_len as usize )
         }
     }
 
+    /// Expands this into a TLEnum,with all the properties of an enum definition.
     pub fn expand(self,other:GenericTLEnum,shared_vars:&'static SharedVars)->TLEnum{
         TLEnum{
             field_count:self.field_count(),
@@ -84,7 +86,7 @@ pub struct GenericTLEnum{
 
 
 impl GenericTLEnum{
-    /// Constructs a `TLData::Enum`.
+    /// Constructs a `GenericTLEnum`.
     pub const fn new(
         exhaustiveness:IsExhaustive,
         discriminants:TLDiscriminants,
@@ -191,8 +193,11 @@ macro_rules! declare_tl_discriminants {
                 // Storing the length and pointer like this so that the enum 
                 // is only 2 usize large.
                 $variant{
+                    #[doc(hidden)]
                     len:u16,
+                    #[doc(hidden)]
                     discriminants:*const $ty,
+                    the_fields_are_private:(),
                 },
             )*
         }
@@ -201,7 +206,7 @@ macro_rules! declare_tl_discriminants {
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
                 match *self {
                     $(
-                        TLDiscriminants::$variant{discriminants,len}=>unsafe{
+                        TLDiscriminants::$variant{discriminants,len,..}=>unsafe{
                             let slice=std::slice::from_raw_parts(discriminants,len as usize);
                             Debug::fmt(slice,f)
                         }
@@ -215,8 +220,8 @@ macro_rules! declare_tl_discriminants {
                 match (*self,*other) {
                     $(
                         (
-                            TLDiscriminants::$variant{discriminants: t_discr_ptr, len:t_len },
-                            TLDiscriminants::$variant{discriminants: o_discr_ptr, len:o_len }
+                            TLDiscriminants::$variant{discriminants: t_discr_ptr, len:t_len,..},
+                            TLDiscriminants::$variant{discriminants: o_discr_ptr, len:o_len,..}
                         )=>{
                             let t_discrs=unsafe{
                                 RSlice::from_raw_parts(t_discr_ptr,t_len as usize) 
@@ -242,6 +247,7 @@ macro_rules! declare_tl_discriminants {
                     TLDiscriminants::$variant{
                         len:arr.len() as u16,
                         discriminants:arr.as_ptr(),
+                        the_fields_are_private:(),
                     }
                 }
             )*
@@ -255,13 +261,23 @@ macro_rules! declare_tl_discriminants {
                 }
             }
 
+            /// Compares this TLDiscriminants with another,
+            ///
+            /// # Errors
+            /// 
+            /// This returns errors if:
+            ///
+            /// - The discriminant is of a different type
+            ///
+            /// - The value of the discriminants is different.
+            ///
             pub fn compare(&self,other:&Self)->Result<(),RVec<AbiInstability>>{
                 let mut errs=RVec::new();
                 match (*self,*other) {
                     $(
                         (
-                            TLDiscriminants::$variant{discriminants: t_discr_ptr, len:t_len },
-                            TLDiscriminants::$variant{discriminants: o_discr_ptr, len:o_len }
+                            TLDiscriminants::$variant{discriminants: t_discr_ptr, len:t_len,..},
+                            TLDiscriminants::$variant{discriminants: o_discr_ptr, len:o_len,..}
                         )=>{
                             let t_discrs=unsafe{
                                 RSlice::from_raw_parts(t_discr_ptr,t_len as usize) 
@@ -307,16 +323,66 @@ macro_rules! declare_tl_discriminants {
 
 
 declare_tl_discriminants!{
-    ( U8(u8) ,Signed  , from_u8_slice )
-    ( I8(i8) ,Unsigned, from_i8_slice )
-    ( U16(u16) ,Signed  , from_u16_slice )
-    ( I16(i16) ,Unsigned, from_i16_slice )
-    ( U32(u32) ,Signed  , from_u32_slice )
-    ( I32(i32) ,Unsigned, from_i32_slice )
-    ( U64(u64) ,Signed  , from_u64_slice )
-    ( I64(i64) ,Unsigned, from_i64_slice )
-    ( Usize(usize) ,Usize, from_usize_slice )
-    ( Isize(isize) ,Isize, from_isize_slice )
+    ( 
+        U8(u8) ,
+        Signed  , 
+        /// Constructs the variant from an `RSlice<'static,u8>`.
+        from_u8_slice
+    )
+    ( 
+        I8(i8) ,
+        Unsigned, 
+        /// Constructs the variant from an `RSlice<'static,i8>`.
+        from_i8_slice
+    )
+    ( 
+        U16(u16) ,
+        Signed  , 
+        /// Constructs the variant from an `RSlice<'static,u16>`.
+        from_u16_slice
+    )
+    ( 
+        I16(i16) ,
+        Unsigned, 
+        /// Constructs the variant from an `RSlice<'static,i16>`.
+        from_i16_slice
+    )
+    ( 
+        U32(u32) ,
+        Signed  , 
+        /// Constructs the variant from an `RSlice<'static,u32>`.
+        from_u32_slice
+    )
+    ( 
+        I32(i32) ,
+        Unsigned, 
+        /// Constructs the variant from an `RSlice<'static,i32>`.
+        from_i32_slice
+    )
+    ( 
+        U64(u64) ,
+        Signed  , 
+        /// Constructs the variant from an `RSlice<'static,u64>`.
+        from_u64_slice
+    )
+    ( 
+        I64(i64) ,
+        Unsigned, 
+        /// Constructs the variant from an `RSlice<'static,i64>`.
+        from_i64_slice
+    )
+    ( 
+        Usize(usize) ,
+        Usize, 
+        /// Constructs the variant from an `RSlice<'static,usize>`.
+        from_usize_slice
+    )
+    ( 
+        Isize(isize) ,
+        Isize, 
+        /// Constructs the variant from an `RSlice<'static,isize>`.
+        from_isize_slice
+    )
 }
 
 

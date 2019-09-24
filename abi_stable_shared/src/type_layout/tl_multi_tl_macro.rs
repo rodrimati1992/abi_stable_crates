@@ -4,9 +4,10 @@ macro_rules! declare_multi_tl_types {(
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
 
-    /// A range of indices into the slice of `TypeLayoutCtor` for the type,
+    /// A range of indices into the slice of `TypeLayoutCtor` in the SharedVars for the type,
     /// which can store up to 4 indices inline,
-    /// requiring additional `TypeLayoutCtor` to be stored contiguously in the slice.
+    /// requiring additional `TypeLayoutCtor` to be stored contiguously after the 
+    /// fourth one in the slice.
     #[repr(C)]
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
     $(#[ $extra_attrs ])*
@@ -112,7 +113,7 @@ macro_rules! declare_multi_tl_types {(
             |((self.bits1 as u64) << 32)
         }
 
-        /// The ammount of indices in this range.
+        /// The ammount of `TypeLayoutCtor` in this range.
         #[inline]
         pub const fn len(&self)->usize{
             (self.bits0&Self::LEN_MASK) as usize

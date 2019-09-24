@@ -126,14 +126,14 @@ impl FieldAccessibility{
 }
 
 impl FieldConditionality{
-    /// Queries whether the field at the `index` position is accessible.
+    /// Queries whether the field at the `index` position is conditional.
     #[inline]
     pub const fn is_conditional(self,index:usize)->bool{
         let bits=Self::index_to_bits(index);
         (self.bits&bits)!=0
     }
 
-    /// Sets the accessibility of a field based on `cond`,
+    /// Sets the conditionality of a field based on `cond`,
     /// on IsConditional::Yes the field becomes conditional,
     /// on IsConditional::No the field becomes unconditional.
     #[inline]

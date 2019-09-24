@@ -73,7 +73,7 @@ impl<'a> NulStr<'a>{
     /// This conversion requires traversing through the entire string to 
     /// find the nul byte.
     pub fn to_rstr(self)->RStr<'a>{
-        self.as_str().into()
+        self.to_str().into()
     }
 }
 
@@ -81,7 +81,7 @@ impl<'a> NulStr<'a>{
 impl<'a> PartialEq for NulStr<'a>{
     fn eq(&self,other:&Self)->bool{
         self.ptr==other.ptr ||
-        self.as_str()==other.as_str()
+        self.to_str()==other.to_str()
     }
 }
 
@@ -91,12 +91,12 @@ impl<'a> Eq for NulStr<'a>{}
 
 impl Display for NulStr<'_> {
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        Display::fmt(self.as_str(),f)
+        Display::fmt(self.to_str(),f)
     }
 }
 
 impl Debug for NulStr<'_> {
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        Debug::fmt(self.as_str(),f)
+        Debug::fmt(self.to_str(),f)
     }
 }

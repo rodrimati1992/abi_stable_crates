@@ -18,9 +18,9 @@ use std::{
 #[derive(Debug,Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLFunctions{
-    pub functions:RSlice<'static,CompTLFunction>,
+    functions:RSlice<'static,CompTLFunction>,
     /// The range of `CompTLFunction` that each field in TLFields owns.
-    pub field_fn_ranges:RSlice<'static,StartLen>,
+    field_fn_ranges:RSlice<'static,StartLen>,
 }
 
 
@@ -40,14 +40,14 @@ impl TLFunctions {
         }
     }
 
-    /// The the `nth` TLFunction in this `TLFunctions`.
+    /// Gets the `nth` TLFunction in this `TLFunctions`.
     /// Returns None if there is not `nth` TLFunction.
     pub fn get(&'static self,nth:usize,shared_vars:&'static SharedVars)->Option<TLFunction>{
         let func=self.functions.get(nth)?;
         Some(func.expand(shared_vars))
     }
 
-    /// The the `nth` TLFunction in this `TLFunctions`.
+    /// Gets the `nth` TLFunction in this `TLFunctions`.
     ///
     /// # Panics
     ///
@@ -258,7 +258,9 @@ pub struct TLFunction{
     /// A ';' separated list of all the parameter names.
     pub param_names: RStr<'static>,
 
+    /// All the type layouts of the parameters.
     pub param_type_layouts: MultipleTypeLayouts<'static>,
+    /// The lifetimes that the parameters and return types reference.
     pub paramret_lifetime_indices: LifetimeArrayOrSlice<'static>,
 
     /// The return value of the function.
