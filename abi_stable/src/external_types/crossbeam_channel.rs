@@ -28,6 +28,7 @@ use core_extensions::SelfOps;
 use crate::{
     marker_type::UnsafeIgnoredType,
     traits::{IntoReprRust,ErasedType},
+    sabi_types::StaticRef,
     std_types::{RResult,ROk,RErr,ROption,RDuration,RBox},
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
@@ -174,13 +175,13 @@ assert!( rx.recv().is_err() );
 #[derive(StableAbi)]
 pub struct RSender<T>{
     channel:RBox<ErasedSender<T>>,
-    vtable:*const VTable<T>,
+    vtable:StaticRef<VTable<T>>,
 }
 
 
 impl<T> RSender<T>{
     fn vtable<'a>(&self)->&'a VTable<T>{
-        unsafe{ &*self.vtable }
+        self.vtable.get()
     }
 
 /**
@@ -424,7 +425,7 @@ impl_from_rust_repr! {
         fn(this){
             Self{
                 channel:ErasedSender::from_unerased_value(this),
-                vtable:MakeVTable::<T>::VTABLE.as_prefix()
+                vtable: WithMetadata::as_prefix(MakeVTable::<T>::VTABLE)
             }
         }
     }
@@ -469,13 +470,13 @@ assert!( tx.send("").is_err() );
 #[derive(StableAbi)]
 pub struct RReceiver<T>{
     channel:RBox<ErasedReceiver<T>>,
-    vtable:*const VTable<T>,
+    vtable:StaticRef<VTable<T>>,
 }
 
 
 impl<T> RReceiver<T>{
     fn vtable<'a>(&self)->&'a VTable<T>{
-        unsafe{ &*self.vtable }
+        self.vtable.get()
     }
 
 /**
@@ -773,7 +774,7 @@ impl_from_rust_repr! {
         fn(this){
             Self{
                 channel:ErasedReceiver::from_unerased_value(this),
-                vtable:MakeVTable::<T>::VTABLE.as_prefix()
+                vtable:WithMetadata::as_prefix(MakeVTable::<T>::VTABLE)
             }
         }
     }
@@ -886,7 +887,11 @@ impl<'a,T:'a> MakeVTable<'a,T>{
     };
 
     // The VTABLE for this type in this executable/library
-    const VTABLE: &'a WithMetadata<VTableVal<T>> = 
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VALUE);
+    const VTABLE: StaticRef<WithMetadata<VTableVal<T>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::VALUE,
+        ))
+    };
 }
 

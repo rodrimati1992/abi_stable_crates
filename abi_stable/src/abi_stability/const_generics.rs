@@ -149,7 +149,7 @@ where
     };
 
     const VTABLE:ConstGenericVTableFor<Self>=ConstGenericVTableFor{
-        vtable: WithMetadata::staticref_as_prefix(Self::_VTABLE_STATIC),
+        vtable: WithMetadata::as_prefix(Self::_VTABLE_STATIC),
         _marker: PhantomData,
     };
 }

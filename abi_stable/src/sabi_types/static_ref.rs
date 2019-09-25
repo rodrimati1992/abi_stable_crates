@@ -25,7 +25,7 @@ even though they have `non-'static` type parameters.
 
 This defines a vtable,using a StaticRef as the pointer to the vtable.
 
-This example is not intended to be fully functional,
+This example is not intended to be practical,
 it's only to demonstrate a use for StaticRef.
 
 ```
@@ -79,7 +79,7 @@ mod vtable{
         };
 
         pub(super)fn vtable()->StaticRef<VTable<T>> {
-            WithMetadata::staticref_as_prefix(Self::VTABLE)
+            WithMetadata::as_prefix(Self::VTABLE)
         }
     }
 }

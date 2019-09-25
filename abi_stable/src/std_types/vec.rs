@@ -18,7 +18,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use core_extensions::prelude::*;
 
 use crate::{
-    sabi_types::Constructor,
+    sabi_types::{Constructor,StaticRef},
     std_types::{RSlice, RSliceMut,utypeid::{UTypeId,new_utypeid}},
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
@@ -75,7 +75,7 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
         buffer: *mut T,
         pub(super) length: usize,
         capacity: usize,
-        vtable: *const VecVTable<T>,
+        vtable: StaticRef<VecVTable<T>>,
         _marker: PhantomData<T>,
     }
 
@@ -83,16 +83,15 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
         #[allow(dead_code)]
         // Used to test functions that change behavior when the vtable changes
         pub(super) fn set_vtable_for_testing(mut self) -> Self {
-            self.vtable = VTableGetter::<T>::LIB_VTABLE_FOR_TESTING.as_prefix_raw();
+            self.vtable = WithMetadata::as_prefix(
+                VTableGetter::<T>::LIB_VTABLE_FOR_TESTING
+            );
             self
         }
 
         #[inline(always)]
-        pub(super) fn vtable<'a>(&self) -> &'a VecVTable<T>
-        where
-            T: 'a,
-        {
-            unsafe { &*self.vtable }
+        pub(super) fn vtable<'a>(&self) -> &'a VecVTable<T>{
+            self.vtable.get()
         }
 
         #[inline(always)]
@@ -150,7 +149,7 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
             fn(this){
                 let mut this=ManuallyDrop::new(this);
                 RVec {
-                    vtable: VTableGetter::<T>::LIB_VTABLE.as_prefix_raw(),
+                    vtable: WithMetadata::as_prefix( VTableGetter::<T>::LIB_VTABLE ),
                     buffer: this.as_mut_ptr(),
                     length: this.len(),
                     capacity: this.capacity(),
@@ -442,7 +441,7 @@ impl<T> RVec<T> {
 
         unsafe {
             let this_vtable =this.vtable();
-            let other_vtable=VTableGetter::LIB_VTABLE.as_prefix();
+            let other_vtable=WithMetadata::as_prefix(VTableGetter::LIB_VTABLE).get();
             if ::std::ptr::eq(this_vtable,other_vtable)||
                 this_vtable.type_id()==other_vtable.type_id()
             {
@@ -1273,18 +1272,23 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     };
 
     // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: &'a WithMetadata<VecVTableVal<T>> = 
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE);
+    const LIB_VTABLE: StaticRef<WithMetadata<VecVTableVal<T>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::DEFAULT_VTABLE,
+        ))
+    };
 
     // Used to test functions that change behavior based on the vtable being used
-    const LIB_VTABLE_FOR_TESTING: &'a WithMetadata<VecVTableVal<T>> = 
-        &WithMetadata::new(
+    const LIB_VTABLE_FOR_TESTING: StaticRef<WithMetadata<VecVTableVal<T>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
             PrefixTypeTrait::METADATA,
             VecVTableVal {
                 type_id:Constructor( new_utypeid::<RVec<i32>> ),
                 ..Self::DEFAULT_VTABLE
             }
-        );
+        ))
+    };
 
 }
 

@@ -1248,7 +1248,7 @@
           }
       "##,
       subcase: [
-        ( replacements: { "#name":"type" }, error_count: 2 ),
+        ( replacements: { "#name":"type" }, error_count: 1 ),
         ( replacements: { "#name":"typ" }, error_count: 0 ),
       ],
     ),

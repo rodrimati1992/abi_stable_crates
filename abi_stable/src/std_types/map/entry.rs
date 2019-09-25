@@ -292,7 +292,7 @@ where
 )]
 pub struct ROccupiedEntry<'a,K,V>{
     entry:&'a mut ErasedOccupiedEntry<K,V>,
-    vtable:*const OccupiedVTable<K,V>,
+    vtable:StaticRef<OccupiedVTable<K,V>>,
     _marker:UnsafeIgnoredType<OccupiedEntry<'a,K,V>>
 }
 
@@ -305,7 +305,7 @@ pub struct ROccupiedEntry<'a,K,V>{
 )]
 pub struct RVacantEntry<'a,K,V>{
     entry:&'a mut ErasedVacantEntry<K,V>,
-    vtable:*const VacantVTable<K,V>,
+    vtable:StaticRef<VacantVTable<K,V>>,
     _marker:UnsafeIgnoredType<VacantEntry<'a,K,V>>
 }
 
@@ -313,7 +313,7 @@ pub struct RVacantEntry<'a,K,V>{
 
 impl<'a,K,V> ROccupiedEntry<'a,K,V>{
     fn vtable<'b>(&self)->&'b OccupiedVTable<K,V>{
-        unsafe{ &*self.vtable }
+        self.vtable.get()
     }
 }
 
@@ -327,7 +327,7 @@ impl<'a,K,V> ROccupiedEntry<'a,K,V>{
         unsafe{ 
             Self{
                 entry:ErasedOccupiedEntry::from_unerased(entry),
-                vtable:(&*OccupiedVTable::VTABLE_REF).as_prefix_raw() ,
+                vtable:WithMetadata::as_prefix(OccupiedVTable::VTABLE_REF),
                 _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -527,7 +527,7 @@ impl<'a,K,V> Drop for ROccupiedEntry<'a,K,V>{
 
 impl<'a,K,V> RVacantEntry<'a,K,V>{
     fn vtable<'b>(&self)->&'b VacantVTable<K,V>{
-        unsafe{ &*self.vtable }
+        self.vtable.get()
     }
 }
 
@@ -544,7 +544,7 @@ impl<'a,K,V> RVacantEntry<'a,K,V>{
         unsafe{
             Self{
                 entry:ErasedVacantEntry::from_unerased(entry),
-                vtable:(&*VacantVTable::VTABLE_REF).as_prefix_raw(),
+                vtable:WithMetadata::as_prefix(VacantVTable::VTABLE_REF),
                 _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -678,8 +678,11 @@ pub struct OccupiedVTableVal<K,V>{
 
 
 impl<K,V> OccupiedVTable<K,V>{
-    const VTABLE_REF: *const WithMetadata<OccupiedVTableVal<K,V>> = {
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
+    const VTABLE_REF: StaticRef<WithMetadata<OccupiedVTableVal<K,V>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::VTABLE,
+        ))
     };
 
     const VTABLE:OccupiedVTableVal<K,V>=OccupiedVTableVal{
@@ -777,8 +780,11 @@ pub struct VacantVTableVal<K,V>{
 
 
 impl<K,V> VacantVTable<K,V>{
-    const VTABLE_REF: *const WithMetadata<VacantVTableVal<K,V>> = {
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
+    const VTABLE_REF: StaticRef<WithMetadata<VacantVTableVal<K,V>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::VTABLE,
+        ))
     };
 
     const VTABLE:VacantVTableVal<K,V>=VacantVTableVal{

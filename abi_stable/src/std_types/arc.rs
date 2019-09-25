@@ -17,9 +17,11 @@ use crate::{
         CallReferentDrop, CanTransmuteElement,
         GetPointerKind,PK_SmartPointer,
     },
-    sabi_types::Constructor,
+    prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::{Constructor,StaticRef},
     std_types::{RResult,utypeid::{UTypeId,new_utypeid}},
 };
+
 
 #[cfg(all(test,not(feature="only_new_tests")))]
 mod test;
@@ -81,10 +83,7 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
     #[repr(C)]
     pub struct RArc<T> {
         data: *const T,
-        // This is a pointer instead of a static reference only because
-        // the compiler complains that T doesn't live for the static lifetime,
-        // even though ArcVtable<T> doesn't contain any T.
-        vtable: *const ArcVtable<T>,
+        vtable: StaticRef<ArcVtable<T>>,
         _marker: PhantomData<T>,
     }
 
@@ -93,7 +92,7 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
             fn(this){
                 let out = RArc {
                     data: Arc::into_raw(this),
-                    vtable: VTableGetter::LIB_VTABLE.as_prefix_raw(),
+                    vtable: WithMetadata::as_prefix(VTableGetter::LIB_VTABLE),
                     _marker: Default::default(),
                 };
                 out
@@ -128,13 +127,15 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
 
         #[inline(always)]
         pub(crate) fn vtable<'a>(&self) -> &'a ArcVtable<T> {
-            unsafe { &*self.vtable }
+            self.vtable.get()
         }
 
         #[allow(dead_code)]
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
-            self.vtable = VTableGetter::LIB_VTABLE_FOR_TESTING.as_prefix_raw();
+            self.vtable = WithMetadata::as_prefix(
+                VTableGetter::LIB_VTABLE_FOR_TESTING
+            );
         }
     }
 }
@@ -185,7 +186,7 @@ impl<T> RArc<T> {
         T: Clone,
     {
         let this_vtable =this.vtable();
-        let other_vtable=VTableGetter::LIB_VTABLE.as_prefix();
+        let other_vtable=WithMetadata::as_prefix(VTableGetter::LIB_VTABLE).get();
         if ::std::ptr::eq(this_vtable,other_vtable)||
             this_vtable.type_id()==other_vtable.type_id()
         {
@@ -414,7 +415,6 @@ unsafe impl<T> Send for RArc<T> where T: Send + Sync {}
 
 mod vtable_mod {
     use super::*;
-    use crate::prefix_type::{PrefixTypeTrait,WithMetadata};
 
     pub(super) struct VTableGetter<'a, T>(&'a T);
 
@@ -430,20 +430,23 @@ mod vtable_mod {
         };
 
         // The VTABLE for this type in this executable/library
-        pub(super) const LIB_VTABLE: &'a WithMetadata<ArcVtableVal<T>> = {
-            &WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE)
+        pub(super) const LIB_VTABLE: StaticRef<WithMetadata<ArcVtableVal<T>>> = unsafe{
+            StaticRef::from_raw(&WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::DEFAULT_VTABLE
+            ))
         };
 
         #[allow(dead_code)]
         #[cfg(test)]
-        pub(super) const LIB_VTABLE_FOR_TESTING: &'a WithMetadata<ArcVtableVal<T>> = {
-            &WithMetadata::new(
+        pub(super) const LIB_VTABLE_FOR_TESTING: StaticRef<WithMetadata<ArcVtableVal<T>>> = unsafe{
+            StaticRef::from_raw(&WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 ArcVtableVal{
                     type_id:Constructor( new_utypeid::<RArc<i32>> ),
                     ..Self::DEFAULT_VTABLE
                 }
-            )
+            ))
         };
     }
 

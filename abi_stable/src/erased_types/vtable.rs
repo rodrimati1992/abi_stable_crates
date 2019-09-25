@@ -57,7 +57,7 @@ pub trait GetVtable<'borr,This,ErasedPtr,OrigPtr,I:InterfaceBound> {
             Self::TMP_VTABLE
         );
         let x=StaticRef::from_raw(x);
-        WithMetadata::staticref_as_prefix(x)
+        WithMetadata::as_prefix(x)
     };
 
 }

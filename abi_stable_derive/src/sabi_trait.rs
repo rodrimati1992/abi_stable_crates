@@ -1254,7 +1254,7 @@ fn vtable_impl<'a>(
 
             const VTABLE_INNER:__sabi_re::StaticRef<VTable<#vtable_generics>>=unsafe{
                 let __vtable=__sabi_re::StaticRef::from_raw(Self::TMP0);
-                __sabi_re::WithMetadata::staticref_as_prefix(__vtable)
+                __sabi_re::WithMetadata::as_prefix(__vtable)
                     .transmute_ref()
             };
 

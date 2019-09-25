@@ -6,28 +6,27 @@ This is mostly intended for **vtables** and **modules**.
 
 Prefix-types cannot directly be passed through ffi,
 instead they must be converted to the type declared with `prefix_struct="PrefixEquivalent"`,
-and then pass `&PrefixEquivalent` instead.
+and then pass `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` instead.
 
-To convert `T` to `&PrefixEquivalent` you an use one of:
+To convert `T` to `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` you an use one of:
 
 - `PrefixTypeTrait::leak_into_prefix`:<br>
     Which does the conversion directly,but leaks the value.
 
-- `prefix_type::WithMetadata::new` and then `WithMetadata::as_prefix`:<br>
-    Use this if you need a compiletime constant.
-    First create a `&'a WithMetadata<Self>` constant,
-    then use the `WithMetadata::as_prefix` method at runtime 
-    to cast it to `&PrefixEquivalent`.
+- `prefix_type::WithMetadata::new` and then `WithMetadata::ref_as_prefix`:<br>
+    Use this if you need a compiletime constant and the type has no generic parameters.
+    First create a `&'static WithMetadata<Self>` constant,
+    then use the `WithMetadata::ref_as_prefix` method at runtime 
+    to cast it to `&'static PrefixEquivalent`.
 
-- `prefix_type::WithMetadata::new` and then `WithMetadata::staticref_as_prefix`:<br>
+- `prefix_type::WithMetadata::new` and then `WithMetadata::as_prefix`:<br>
     Use this if you need a compiletime constant.
     First create a `StaticRef<WithMetadata<Self>>` constant using 
     the `StaticRef::from_raw` function,
-    then use the `WithMetadata::staticref_as_prefix` associated function at runtime 
-    to cast it to `StaticRef<PrefixEquivalent>`.
+    then use `WithMetadata::as_prefix` to cast it to `StaticRef<PrefixEquivalent>`.
 
 
-All fields on `&PrefixEquivalent` are accessed through accessor methods 
+All fields on `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` are accessed through accessor methods 
 with the same name as the fields.
 
 To ensure that libraries stay abi compatible,
@@ -129,7 +128,7 @@ impl<T> BoxLike<T>{
         
         Self{
             data:Box::into_raw(box_),
-            vtable:WithMetadata::staticref_as_prefix(BoxVtableVal::VTABLE),
+            vtable:WithMetadata::as_prefix(BoxVtableVal::VTABLE),
             _marker:PhantomData,
         }
     }

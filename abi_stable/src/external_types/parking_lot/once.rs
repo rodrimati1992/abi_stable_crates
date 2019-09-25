@@ -15,6 +15,7 @@ use super::{UnsafeOveralignedField,RAW_LOCK_SIZE};
 use crate::{
     utils::{transmute_mut_reference},
     prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::StaticRef,
     std_types::{RResult,ROk,RErr},
 };
 
@@ -82,7 +83,7 @@ assert_eq!(*MUTEX.lock(),1);
 #[derive(StableAbi)]
 pub struct ROnce{
     opaque_once:OpaqueOnce,
-    vtable:*const VTable,
+    vtable:StaticRef<VTable>,
 }
 
 impl ROnce{
@@ -109,7 +110,7 @@ impl ROnce{
     pub const fn new() -> ROnce{
         ROnce{
             opaque_once:OPAQUE_ONCE,
-            vtable:VTable::VTABLE.as_prefix_raw(),
+            vtable: WithMetadata::as_prefix(VTable::VTABLE),
         }
     }
 
@@ -129,11 +130,11 @@ impl ROnce{
     pub const NEW:Self=
         ROnce{
             opaque_once:OPAQUE_ONCE,
-            vtable:VTable::VTABLE.as_prefix_raw(),
+            vtable: WithMetadata::as_prefix(VTable::VTABLE),
         };
 
     fn vtable(&self)->&'static VTable{
-        unsafe{ &*self.vtable }
+        self.vtable.get()
     }
 
 /**
@@ -477,15 +478,16 @@ struct VTableVal{
 
 impl VTable{
     // The VTABLE for this type in this executable/library
-    const VTABLE: &'static WithMetadata<VTableVal> = 
-        &WithMetadata::new(
+    const VTABLE: StaticRef<WithMetadata<VTableVal>> = {
+        StaticRef::new(&WithMetadata::new(
             PrefixTypeTrait::METADATA,
             VTableVal{
                 state,
                 call_once,
                 call_once_force
             }
-        );
+        ))
+    };
 }
 
 

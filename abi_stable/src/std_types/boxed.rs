@@ -20,7 +20,7 @@ use crate::{
         GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
     traits::{IntoReprRust},
-    sabi_types::{Constructor,MovePtr},
+    sabi_types::{Constructor,MovePtr,StaticRef},
     std_types::utypeid::{UTypeId,new_utypeid},
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
@@ -73,7 +73,7 @@ enum Command{
     #[derive(StableAbi)]
     pub struct RBox<T> {
         data: *mut T,
-        vtable: *const BoxVtable<T>,
+        vtable: StaticRef<BoxVtable<T>>,
         _marker: PhantomData<T>,
     }
 
@@ -107,7 +107,7 @@ enum Command{
         pub fn from_box(p: Box<T>) -> RBox<T> {
             RBox {
                 data: Box::into_raw(p),
-                vtable: VTableGetter::<T>::LIB_VTABLE.as_prefix_raw(),
+                vtable: WithMetadata::as_prefix(VTableGetter::<T>::LIB_VTABLE),
                 _marker: PhantomData,
             }
         }
@@ -139,13 +139,15 @@ enum Command{
             self.data
         }
         pub(super) fn vtable<'a>(&self) -> &'a BoxVtable<T> {
-            unsafe { &*self.vtable }
+            self.vtable.get()
         }
 
         #[allow(dead_code)]
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
-            self.vtable = VTableGetter::<T>::LIB_VTABLE_FOR_TESTING.as_prefix_raw();
+            self.vtable = WithMetadata::as_prefix(
+                VTableGetter::<T>::LIB_VTABLE_FOR_TESTING
+            );
         }
     }
 }
@@ -183,7 +185,7 @@ impl<T> RBox<T> {
 
         unsafe {
             let this_vtable =this.vtable();
-            let other_vtable=VTableGetter::LIB_VTABLE.as_prefix();
+            let other_vtable=WithMetadata::as_prefix(VTableGetter::LIB_VTABLE).get();
             if ::std::ptr::eq(this_vtable,other_vtable)||
                 this_vtable.type_id()==other_vtable.type_id()
             {
@@ -355,19 +357,24 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     };
 
     // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: &'a WithMetadata<BoxVtableVal<T>> = 
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE);
+    const LIB_VTABLE: StaticRef<WithMetadata<BoxVtableVal<T>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::DEFAULT_VTABLE,
+        ))
+    };
 
     #[allow(dead_code)]
     #[cfg(test)]
-    const LIB_VTABLE_FOR_TESTING: &'a WithMetadata<BoxVtableVal<T>> = 
-        &WithMetadata::new(
+    const LIB_VTABLE_FOR_TESTING: StaticRef<WithMetadata<BoxVtableVal<T>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
             PrefixTypeTrait::METADATA,
             BoxVtableVal {
                 type_id:Constructor( new_utypeid::<RBox<i32>> ),
                 ..Self::DEFAULT_VTABLE
             }
-        );
+        ))
+    };
 }
 
 unsafe extern "C" fn destroy_box<T>(ptr: *mut T, call_drop: CallReferentDrop,dealloc:Deallocate) {

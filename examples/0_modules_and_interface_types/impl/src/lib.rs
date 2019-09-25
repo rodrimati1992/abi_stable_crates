@@ -56,7 +56,7 @@ fn instantiate_root_module()->&'static TextOpsMod{
             };
             static WITH_META:WithMetadata<DeserializerModVal>=
                 WithMetadata::new(PrefixTypeTrait::METADATA,MOD_);
-            WITH_META.as_prefix()
+            WITH_META.ref_as_prefix()
         },
         reverse_lines,
         remove_words,

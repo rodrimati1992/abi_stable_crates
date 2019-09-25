@@ -20,6 +20,7 @@ use crate::{
     StableAbi,
     marker_type::UnsyncUnsend,
     prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::StaticRef,
     std_types::*,
 };
 
@@ -77,7 +78,7 @@ assert_eq!(*MUTEX.lock(),200);
 pub struct RMutex<T>{
     raw_mutex:OpaqueMutex,
     data:UnsafeCell<T>,
-    vtable:*const VTable,
+    vtable:StaticRef<VTable>,
 }
 
 
@@ -118,13 +119,13 @@ impl<T> RMutex<T>{
         Self{
             raw_mutex:OPAQUE_MUTEX,
             data:UnsafeCell::new(value),
-            vtable:VTable::VTABLE.as_prefix_raw(),
+            vtable:WithMetadata::as_prefix(VTable::VTABLE),
         }
     }
 
     #[inline]
     fn vtable(&self)->&'static VTable{
-        unsafe{&*self.vtable}
+        self.vtable.get()
     }
 
     #[inline]
@@ -344,8 +345,8 @@ struct VTableVal{
 
 impl VTable{
     // The VTABLE for this type in this executable/library
-    const VTABLE: &'static WithMetadata<VTableVal> = 
-        &WithMetadata::new(
+    const VTABLE: StaticRef<WithMetadata<VTableVal>> = {
+        StaticRef::new(&WithMetadata::new(
             PrefixTypeTrait::METADATA,
             VTableVal{
                 lock,
@@ -353,7 +354,8 @@ impl VTable{
                 unlock,
                 try_lock_for,
             }
-        );
+        ))
+    };
 }
 
 

@@ -24,6 +24,7 @@ use crate::{
     marker_type::{ErasedObject,NotCopyNotClone,UnsafeIgnoredType},
     erased_types::trait_objects::HasherObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::StaticRef,
     std_types::*,
     traits::{IntoReprRust,ErasedType},
     utils::{transmute_reference,transmute_mut_reference},
@@ -114,7 +115,7 @@ for Tuple2(k,v) in map {
 )]
 pub struct RHashMap<K,V,S=RandomState>{
     map:RBox<ErasedMap<K,V,S>>,
-    vtable:*const VTable<K,V,S>,
+    vtable:StaticRef<VTable<K,V,S>>,
 }
 
 
@@ -257,9 +258,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         map.reserve(capacity);
         RHashMap{
             map,
-            vtable:unsafe{
-                (*VTable::VTABLE_REF).as_prefix_raw()
-            },
+            vtable:WithMetadata::as_prefix(VTable::VTABLE_REF),
         }
     }
 }
@@ -268,9 +267,7 @@ impl<K,V,S> RHashMap<K,V,S>{
 impl<K,V,S> RHashMap<K,V,S>{
 
     fn vtable<'a>(&self)->&'a VTable<K,V,S>{
-        unsafe{ 
-            &*self.vtable
-        }
+        self.vtable.get()
     }
 
 }
@@ -1122,8 +1119,11 @@ where
     K:Eq+Hash,
     S:BuildHasher,
 {
-    const VTABLE_REF: *const WithMetadata<VTableVal<K,V,S>> = {
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
+    const VTABLE_REF: StaticRef<WithMetadata<VTableVal<K,V,S>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::VTABLE,
+        ))
     };
 
     fn erased_map(hash_builder:S)->RBox<ErasedMap<K,V,S>>{
