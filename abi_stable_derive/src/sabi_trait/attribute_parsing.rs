@@ -25,6 +25,7 @@ use crate::{
 pub(crate) struct SabiTraitOptions<'a> {
     /// Whether the output of the proc-macro is printed with println.
     pub(crate) debug_print_trait:bool,
+    pub(crate) doc_hidden_attr:Option<&'a TokenStream2>,
     pub(crate) trait_definition:TraitDefinition<'a>,
 }
 
@@ -36,8 +37,15 @@ impl<'a> SabiTraitOptions<'a> {
         arenas: &'a Arenas,
         ctokens:&'a CommonTokens,
     ) -> Result<Self,syn::Error> {
+        let doc_hidden_attr=if this.is_hidden {
+            Some(arenas.alloc(quote!(#[doc(hidden)])))
+        }else{
+            None
+        };
+
         Ok(Self{
             debug_print_trait:this.debug_print_trait,
+            doc_hidden_attr,
             trait_definition:TraitDefinition::new(trait_,this,arenas,ctokens)?,
         })
     }
@@ -102,6 +110,8 @@ pub(super) struct SabiTraitAttrs<'a> {
     /// If true,doesn't use the default implementation of methods when 
     /// the vtable entry is absent.
     pub(super) disable_inherent_default:Vec<bool>,
+
+    pub(super) is_hidden:bool,
 
     pub(super) errors:LinearResult<()>,
 }
@@ -222,11 +232,23 @@ fn parse_attr_list<'a>(
         with_nested_meta("sabi", list.nested, |attr| {
             parse_sabi_trait_attr(this,pctx, attr, arenas)
         })?;
-    }else if let ParseContext::Method{..}=pctx {
+    } else if let ParseContext::Method{..}=pctx {
         this.methods_with_attrs
             .last_mut().unwrap()
             .attrs.other_attrs
             .push(Meta::List(list));
+    } else if list.path.equals_str("doc") {
+        with_nested_meta("doc", list.nested, |attr| {
+            match attr {
+                Meta::Path(ref path)=> {
+                    if path.equals_str("hidden") {
+                        this.is_hidden=true;
+                    }
+                }
+                _=>{}
+            }
+            Ok(())
+        })?;
     }
     Ok(())
 }

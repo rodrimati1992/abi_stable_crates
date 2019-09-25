@@ -86,6 +86,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let generics=ds.generics;
     let name=ds.name;
 
+    let doc_hidden_attr=config.doc_hidden_attr;
+
     // This has to come before the `VisitedFieldMap`.
     let generic_params_tokens=
         generic_params::GenericParams::new(ds,shared_vars,config,ctokens);
@@ -333,6 +335,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
         
 
         quote!{
+            #doc_hidden_attr
             pub struct #static_struct_name<
                 #(#lifetimes_a,)*
                 #(#type_params_a:?Sized,)*

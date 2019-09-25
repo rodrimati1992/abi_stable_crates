@@ -87,7 +87,7 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
     let vtable_trait_impl=&trait_def.replace_self(WhichItem::VtableImpl)?;
 
 
-    let generated_mod=&parse_str_as_ident(&format!("{}_module",trait_ident));
+    let generated_mod=&parse_str_as_ident(&format!("{}_trait",trait_ident));
     let trait_bounds=&parse_str_as_ident(&format!("{}_Bounds",trait_ident));
     let trait_to    =&parse_str_as_ident(&format!("{}_TO",trait_ident));
     let trait_backend=&parse_str_as_ident(&format!("{}_Backend",trait_ident));
@@ -131,20 +131,21 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
 
     impl_delegations::delegated_impls(tokenizer_params,&mut mod_contents);
 
+    let doc_hidden_attr=config.doc_hidden_attr;
+
     quote!(
+        #doc_hidden_attr
         #[doc(inline)]
         #vis use self::#generated_mod::{
             #trait_to,
-            #trait_bounds,
-            #trait_interface,
             #trait_ident,
-            #trait_backend,
             #make_vtable_ident,
             #trait_cto_ident,
         };
 
+        #doc_hidden_attr
         #[allow(explicit_outlives_requirements)]
-        mod #generated_mod{
+        #vis mod #generated_mod{
             #mod_contents
         }
     ).observe(|tokens|{
@@ -175,6 +176,7 @@ Outputs these items:
 */
 fn first_items<'a>(
     TokenizerParams{
+        config,
         ctokens,
         lt_tokens,
         trait_def,
@@ -188,6 +190,8 @@ fn first_items<'a>(
     mod_:&mut TokenStream2,
 ){
     let trait_ident=trait_def.name;
+
+    let doc_hidden_attr=config.doc_hidden_attr;
 
     let mut uto_params=trait_def.generics_tokenizer(
         InWhat::ItemDecl,
@@ -285,7 +289,6 @@ fn first_items<'a>(
         "{}: ::abi_stable::StableAbi",
         (&used_trait_object).into_token_stream()
     );
-    
     let trait_flags=&trait_def.trait_flags;
     let send_syncness=match (trait_flags.sync,trait_flags.send) {
         (false,false)=>"UnsyncUnsend",
@@ -294,32 +297,37 @@ fn first_items<'a>(
         (true ,true )=>"SyncSend",
     }.piped(parse_str_as_ident);
 
-    let trait_backend_docs=format!(
-        "An alias for the underlying implementation of `{}`.",
-        trait_to,
-    );
+    let mut trait_backend_docs=String::new();
 
-    let trait_interface_docs=format!(
-        "A marker type describing the traits that are required when constructing `{}`,\
-         and are then implemented by it,
-         by implementing InterfaceType.",
-        trait_to,
-    );
+    let mut trait_interface_docs=String::new();
+
+    let mut trait_to_docs=String::new();
     
-    let trait_to_docs=format!(
-        "\
-The trait object for [{Trait}](trait.{Trait}.html).
-
-There are extra methods on the `obj` field.
-",
-        Trait=trait_ident
-    );    
-    
-    let trait_cto_docs=format!(
-        "A type alias for the const-constructible `{trait_to}`.",
-        trait_to=trait_to
-    );
-
+    let mut trait_cto_docs=String::new();
+    if doc_hidden_attr.is_none() {
+        trait_backend_docs=format!(
+            "An alias for the underlying implementation of `{}`.",
+            trait_to,
+        );
+        trait_interface_docs=format!(
+            "A marker type describing the traits that are required when constructing `{}`,\
+             and are then implemented by it,
+             by implementing InterfaceType.",
+            trait_to,
+        );
+        trait_to_docs=format!(
+            "\
+            The trait object for [{Trait}](trait.{Trait}.html).\n\
+            \n\
+            There are extra methods on the `obj` field.\n
+            ",
+            Trait=trait_ident
+        );    
+        trait_cto_docs=format!(
+            "A type alias for the const-constructible `{trait_to}`.",
+            trait_to=trait_to
+        );
+    }
     let one_lt=&lt_tokens.one_lt;
 
     quote!(
@@ -329,8 +337,7 @@ There are extra methods on the `obj` field.
 
         use self::#trait_ident as __Trait;
 
-
-        #[doc=#trait_cto_docs]
+        #[doc=#trait_backend_docs]
         #submod_vis type #trait_backend<#uto_params>=
             __sabi_re::#object<
                 #one_lt
@@ -339,7 +346,6 @@ There are extra methods on the `obj` field.
                 #vtable_argument
             >;
 
-        
         #[doc=#trait_cto_docs]
         #submod_vis type #trait_cto_ident<#gen_params_header_rref>=
             #trait_to<#gen_params_use_to_rref>;
@@ -404,6 +410,9 @@ fn constructor_items<'a>(
         lt_tokens,trait_bounds,make_vtable_ident,
         ..
     }=params;
+
+    let doc_hidden_attr=params.config.doc_hidden_attr;
+
 
     let trait_params=totrait_def.generics_tokenizer(
         InWhat::ItemUse,
@@ -529,32 +538,40 @@ fn constructor_items<'a>(
             &lt_tokens.lt_rref,
         );
 
-    let shared_docs=format!(
+    let mut shared_docs=String::new();
+    let mut from_ptr_docs=String::new();
+    let mut from_value_docs=String::new();
+    let mut from_const_docs=String::new();
+
+    if doc_hidden_attr.is_none() {
+        shared_docs=format!(
+        "\n\
+            `unerasability` describes whether the trait object can be \
+            converted back into the original type or not.\n\
+            Its possible values are `TU_Unerasable` and `TU_Opaque`.\n\
         "
-`unerasability` describes whether the trait object can be \
-converted back into the original type or not.
-Its possible values are `TU_Unerasable` and `TU_Opaque`.
-"
-    );
+        );
 
-    let from_ptr_docs=format!(
-        "Constructs this trait object from a pointer to a type that implements `{trait_}`.",
-        trait_=trait_ident
-    );
+        from_ptr_docs=format!(
+            "Constructs this trait object from a pointer to a type that implements `{trait_}`.",
+            trait_=trait_ident
+        );
 
-    let from_value_docs=format!(
-        "Constructs this trait a type that implements `{trait_}`.",
-        trait_=trait_ident
-    );
+        from_value_docs=format!(
+            "Constructs this trait a type that implements `{trait_}`.",
+            trait_=trait_ident
+        );
 
-    let from_const_docs=format!(
-        "Constructs this trait from a constant of a type that implements `{trait_}`.\n\
-         \n\
-         You can construct the `vtable_for` parameter with `{make_vtable_ident}::VTABLE`.
-        ",
-        trait_=trait_ident,
-        make_vtable_ident=make_vtable_ident,
-    );
+        from_const_docs=format!(
+            "Constructs this trait from a constant of a type that implements `{trait_}`.\n\
+             \n\
+             You can construct the `vtable_for` parameter with `{make_vtable_ident}::VTABLE`.
+            ",
+            trait_=trait_ident,
+            make_vtable_ident=make_vtable_ident,
+        );
+
+    }
     
     let vtable_generics=
         totrait_def.generics_tokenizer(
@@ -1026,6 +1043,7 @@ fn declare_vtable<'a>(
     };
 
     quote!(
+        #[doc(hidden)]
         #[repr(transparent)]
         #[derive(abi_stable::StableAbi)]
         #[sabi(
@@ -1048,6 +1066,7 @@ fn declare_vtable<'a>(
         #( #[sabi(prefix_bound=#lifetime_bounds)] )*
         #[sabi(bound=#vtable_bound)]
         #(#[#derive_attrs])*
+        #[doc(hidden)]
         #submod_vis struct VTableInnerVal<#generics_decl>
         where
             _ErasedPtr:__GetPointerKind,
@@ -1074,7 +1093,7 @@ Outputs the vtable impl block with both:
 */
 fn vtable_impl<'a>(
     TokenizerParams{
-        ctokens,vtable_trait_impl,trait_interface,
+        config,ctokens,vtable_trait_impl,trait_interface,trait_cto_ident,
         trait_bounds,make_vtable_ident,submod_vis,lt_tokens,..
     }:TokenizerParams,
     mod_:&mut TokenStream2,
@@ -1191,8 +1210,20 @@ fn vtable_impl<'a>(
         WhichObject::RObject=>quote!(),
     };
 
+    let doc_hidden_attr=config.doc_hidden_attr;
+
+    let mut trait_mv_docs=String::new();
+
+    if doc_hidden_attr.is_none() {
+        trait_mv_docs=format!(
+            "A helper struct used to construct the vtable for {0},with `{1}::VTABLE`",
+            trait_cto_ident,
+            make_vtable_ident,
+        );
+    }
 
     quote!(
+        #[doc=#trait_mv_docs]
         #submod_vis struct #make_vtable_ident<#struct_decl_generics>(#dummy_struct_tys);
 
 

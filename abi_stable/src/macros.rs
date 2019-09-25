@@ -10,7 +10,7 @@ from the SharedVars of the TypeLayout where this is stored.
 
 `tl_genparams!( (<lifetime>),* ; <convertible_to_startlen>; <convertible_to_startlen> )`
 
-<convertible_to_startlen> is one of:
+`<convertible_to_startlen>` is one of:
 
 -``: No generic parameters of that kind.
 
