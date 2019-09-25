@@ -19,9 +19,11 @@ This defines an ExtraChecks which checks that fields are alphabetically sorted
 ```
 use abi_stable::{
     abi_stability::{
+        extra_checks::{
+            TypeCheckerMut,ExtraChecks,ExtraChecksStaticRef,
+            ForExtraChecksImplementor,ExtraChecksError,
+        },
         check_layout_compatibility,
-        TypeCheckerMut,ExtraChecks,ExtraChecksStaticRef,
-        ForExtraChecksImplementor,ExtraChecksError,
     },
     type_layout::TypeLayout,
     sabi_trait::prelude::TU_Opaque,
@@ -155,9 +157,11 @@ the same for both types.
 ```
 use abi_stable::{
     abi_stability::{
+        extra_checks::{
+            TypeCheckerMut,ExtraChecks,ExtraChecksStaticRef,
+            ForExtraChecksImplementor,ExtraChecksError,
+        },
         check_layout_compatibility,
-        TypeCheckerMut,ExtraChecks,ExtraChecksStaticRef,
-        ForExtraChecksImplementor,ExtraChecksError,
     },
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
@@ -388,10 +392,12 @@ The case that is not fine happens when the `ExtraChecks_TO::combine` method retu
 
 use abi_stable::{
     abi_stability::{
+        extra_checks::{
+            TypeCheckerMut,
+            ExtraChecks,ExtraChecksStaticRef,ExtraChecksRef,ExtraChecksBox,
+            ForExtraChecksImplementor,ExtraChecksError,
+        },
         check_layout_compatibility,
-        TypeCheckerMut,
-        ExtraChecks,ExtraChecksStaticRef,ExtraChecksRef,ExtraChecksBox,
-        ForExtraChecksImplementor,ExtraChecksError,
     },
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,

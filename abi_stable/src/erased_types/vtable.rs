@@ -24,7 +24,6 @@ use super::{
 
 use crate::{
     StableAbi,
-    abi_stability::ExtraChecksStaticRef,
     const_utils::Transmuter,
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},

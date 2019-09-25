@@ -24,7 +24,7 @@ macro_rules! declare_enabled_traits {
         use std::fmt::{self,Debug,Display};
 
         use crate::{
-            abi_stability::{
+            abi_stability::extra_checks::{
                 TypeCheckerMut,ExtraChecks,
                 ForExtraChecksImplementor,ExtraChecksError,
             },

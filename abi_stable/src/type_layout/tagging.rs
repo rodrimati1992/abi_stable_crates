@@ -222,7 +222,10 @@ use core_extensions::{
 
 use crate::{
     StableAbi,
-    abi_stability::{TypeCheckerMut,ExtraChecks,ForExtraChecksImplementor,ExtraChecksError},
+    abi_stability::extra_checks::{
+        TypeCheckerMut,
+        ExtraChecks,ForExtraChecksImplementor,ExtraChecksError,
+    },
     std_types::{StaticStr,RSlice,RBox,RCow,RVec,ROption,RSome,RNone,RResult},
     traits::IntoReprC,
     utils::FmtPadding,

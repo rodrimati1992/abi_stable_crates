@@ -1,6 +1,7 @@
 pub use crate::{
     abi_stability::{
         const_generics::{ConstGeneric,GetConstGenericVTable},
+        extra_checks::{ExtraChecks_MV,StoredExtraChecks},
         get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
         stable_abi_trait::{
             GetTypeLayoutCtor,  StableAbi,  SharedStableAbi,
@@ -9,7 +10,6 @@ pub use crate::{
             UNSAFE_EXTERN_FN_LAYOUT,
             EXTERN_FN_LAYOUT,
         },
-        ExtraChecks_MV,StoredExtraChecks,
     },
     inline_storage::InlineStorage,
     nonexhaustive_enum::{

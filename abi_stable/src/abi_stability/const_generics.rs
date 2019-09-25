@@ -1,7 +1,10 @@
 //! This module implements the trait object used to check const generics.
 
 use crate::{
-    abi_stability::{ExtraChecksError,TypeCheckerMut,check_layout_compatibility},
+    abi_stability::{
+        extra_checks::{ExtraChecksError,TypeCheckerMut},
+        check_layout_compatibility,
+    },
     erased_types::{
         c_functions::{adapt_std_fmt,debug_impl,partial_eq_impl},
         FormattingMode,
