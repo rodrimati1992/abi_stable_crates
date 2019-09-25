@@ -45,8 +45,10 @@ pub(super) mod many_params {
     #[derive(StableAbi)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
-        pub function_1: extern "C" fn(&mut u32,u64,RString,i8,u32,u32),
-        pub function_2: extern "C" fn((),(),()),
+        pub function_1: extern "C" fn(&mut u32,u64,RString,i8,u32,i64),
+        pub function_2: extern "C" fn((),i64,(),(),()),
+        pub function_3: extern "C" fn(u32,u64,i8,RString)->&'static mut u32,
+        pub function_4: extern "C" fn((),(),(),(),(),()),
     }
 }
 
@@ -198,13 +200,17 @@ fn assert_types(){
                 get_tlc::<()>(),
                 get_tlc::<i8>(),
                 get_tlc::<u32>(),
-                get_tlc::<u32>(),
+                get_tlc::<i64>(),
+                get_tlc::<()>(),
+                get_tlc::<()>(),
             ],
-            field_types:vec![0,0,0],
+            field_types:vec![0,0,0,0,0],
             functions:vec![
                 vec![ FnTest{ params:vec![] ,ret:1 } ],
                 vec![ FnTest{ params:vec![2,3,1,5,6,7] ,ret:!0} ],
-                vec![ FnTest{ params:vec![4,4,4] ,ret:!0 } ],
+                vec![ FnTest{ params:vec![4,7,4,4,4] ,ret:!0 } ],
+                vec![ FnTest{ params:vec![6,3,5,1] ,ret:2 } ],
+                vec![ FnTest{ params:vec![4,4,4,4,8,9] ,ret:!0 } ],
             ],
         },
     ];

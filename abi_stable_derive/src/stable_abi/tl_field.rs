@@ -4,6 +4,7 @@ use crate::{
 };
 
 use super::{
+    tl_multi_tl::TypeLayoutIndex,
     reflection::{CompFieldAccessor,FieldAccessor},
     shared_vars::SharedVars,
 };
@@ -90,21 +91,4 @@ impl ToTokens for CompTLField {
 }
 
 
-
-
-
-
-
-
-
-abi_stable_shared::declare_type_layout_index!{
-    attrs=[]
-}
-
-impl TypeLayoutIndex{
-    /// Used to recover from syn errors,
-    /// this value shouldn't be used in the layout constant since it's reserved
-    /// for errors.
-    pub const DUMMY:Self=Self::from_u10(!0);
-}
 

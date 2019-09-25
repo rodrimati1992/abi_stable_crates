@@ -246,15 +246,6 @@ abi_stable_shared::declare_comp_tl_field!{
 
 
 
-abi_stable_shared::declare_type_layout_index!{
-    attrs=[
-        derive(StableAbi),
-        sabi(unsafe_sabi_opaque_fields),
-    ]
-}
-
-
-
 impl CompTLField{
 
     /// Gets the name of the field from `SharedVars`'s string slice.

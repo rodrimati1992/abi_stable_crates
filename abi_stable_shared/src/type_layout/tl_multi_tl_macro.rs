@@ -23,77 +23,42 @@ macro_rules! declare_multi_tl_types {(
             bits1:0,
         };
 
-        const LEN_MASK:u32=0b11_1111;
-        const INDEX_MASK:u32=0x1FFF;
-        const INDEX_BIT_SIZE:u32=13;
+        const LEN_MASK:u32=0b11_1111_1111;
+        const INDEX_MASK:u32=0x3FF;
 
-        const LEN_BIT_SIZE:u32=6;
+        const LEN_BIT_SIZE:u32=10;
+
+        pub const STORED_INLINE:usize=5;
 
         const INDEX_0_OFFSET:u32=Self::LEN_BIT_SIZE;
-        const INDEX_1_OFFSET:u32=Self::INDEX_0_OFFSET+Self::INDEX_BIT_SIZE;
+        const INDEX_1_OFFSET:u32=Self::LEN_BIT_SIZE+TypeLayoutIndex::BIT_SIZE;
 
         const INDEX_2_OFFSET:u32=0;
-        const INDEX_3_OFFSET:u32=Self::INDEX_BIT_SIZE;
+        const INDEX_3_OFFSET:u32=TypeLayoutIndex::BIT_SIZE;
+        const INDEX_4_OFFSET:u32=TypeLayoutIndex::BIT_SIZE*2;
         
         fn size_assertions(){
-            let _:[(); 32-(Self::LEN_BIT_SIZE+Self::INDEX_BIT_SIZE*2)as usize ];
-        }
-
-        /// Constructs a TypeLayoutRange with 1 type layout index.
-        #[inline]
-        pub const fn with_1(index0:u16)->Self{
-            Self{
-                bits0:1|((index0 as u32)<<Self::INDEX_0_OFFSET),
-                bits1:0
-            }
-        }
-
-        /// Constructs a TypeLayoutRange with 2 type layout indices.
-        #[inline]
-        pub const fn with_2(index0:u16,index1:u16)->Self{
-            Self{
-                bits0:2
-                    |((index0 as u32 & Self::INDEX_MASK)<<Self::INDEX_0_OFFSET)
-                    |((index1 as u32 & Self::INDEX_MASK)<<Self::INDEX_1_OFFSET),
-                bits1:0
-            }
-        }
-        
-        /// Constructs a TypeLayoutRange with 3 type layout indices.
-        #[inline]
-        pub const fn with_3(index0:u16,index1:u16,index2:u16)->Self{
-            Self{
-                bits0:3
-                    |((index0 as u32 & Self::INDEX_MASK)<<Self::INDEX_0_OFFSET)
-                    |((index1 as u32 & Self::INDEX_MASK)<<Self::INDEX_1_OFFSET),
-                bits1:
-                    (index2 as u32 & Self::INDEX_MASK),
-            }
-        }
-        
-        /// Constructs a TypeLayoutRange with 4 type layout indices.
-        #[inline]
-        pub const fn with_4(index0:u16,index1:u16,index2:u16,index3:u16)->Self{
-            Self::with_more_than_4(4,index0,index1,index2,index3)
+            let _:[(); 32-(Self::LEN_BIT_SIZE+TypeLayoutIndex::BIT_SIZE*2)as usize ];
         }
         
         #[inline]
-        const fn with_up_to_4(mut len:usize,i0:u16,i1:u16,i2:u16,i3:u16)->Self{
-            let len=len & 0usize.wrapping_sub((len <= 4) as usize);
-            Self::with_more_than_4(len,i0,i1,i2,i3)
+        pub const fn with_up_to_5(mut len:usize,indices:[u16;5])->Self{
+            let len=len & 0usize.wrapping_sub((len <= Self::STORED_INLINE) as usize);
+            Self::with_more_than_5(len,indices)
         }
 
-        /// Constructs a TypeLayoutRange with more than 4 type layout indices,
-        /// in which the indices from `i3_plus` onwards are stored contiguously in the slice.
+        /// Constructs a TypeLayoutRange with more than Self::STORED_INLINE type layout indices,
+        /// in which the indices from `indices[4]` onwards are stored contiguously in the slice.
         #[inline]
-        pub const fn with_more_than_4(len:usize,i0:u16,i1:u16,i2:u16,i3_plus:u16)->Self{
+        pub const fn with_more_than_5(len:usize,indices:[u16;5])->Self{
             Self{
                 bits0:len as u32
-                    |((i0 as u32 & Self::INDEX_MASK)<<Self::INDEX_0_OFFSET)
-                    |((i1 as u32 & Self::INDEX_MASK)<<Self::INDEX_1_OFFSET),
+                    |((indices[0] as u32 & Self::INDEX_MASK)<<Self::INDEX_0_OFFSET)
+                    |((indices[1] as u32 & Self::INDEX_MASK)<<Self::INDEX_1_OFFSET),
                 bits1:
-                     ((i2 as u32 & Self::INDEX_MASK) << Self::INDEX_2_OFFSET)
-                    |((i3_plus as u32 & Self::INDEX_MASK) << Self::INDEX_3_OFFSET),
+                     ((indices[2] as u32 & Self::INDEX_MASK) << Self::INDEX_2_OFFSET)
+                    |((indices[3] as u32 & Self::INDEX_MASK) << Self::INDEX_3_OFFSET)
+                    |((indices[4] as u32 & Self::INDEX_MASK) << Self::INDEX_4_OFFSET),
             }
         }
 

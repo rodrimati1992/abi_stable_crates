@@ -4,6 +4,19 @@ use crate::{
     type_layout::data_structures::ArrayLen,
 };
 
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+abi_stable_shared::declare_type_layout_index!{
+    attrs=[
+        derive(StableAbi),
+        sabi(unsafe_sabi_opaque_fields),
+    ]
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 
 abi_stable_shared::declare_multi_tl_types!{
@@ -15,12 +28,13 @@ abi_stable_shared::declare_multi_tl_types!{
 
 
 impl TypeLayoutRange{
-    pub(crate) fn to_array(&self)->[u16;4]{
+    pub(crate) fn to_array(&self)->[u16;Self::STORED_INLINE]{
         [
             ((self.bits0>>Self::INDEX_0_OFFSET)&Self::INDEX_MASK)as u16,
             ((self.bits0>>Self::INDEX_1_OFFSET)&Self::INDEX_MASK)as u16,
             ((self.bits1>>Self::INDEX_2_OFFSET)&Self::INDEX_MASK)as u16,
             ((self.bits1>>Self::INDEX_3_OFFSET)&Self::INDEX_MASK)as u16,
+            ((self.bits1>>Self::INDEX_4_OFFSET)&Self::INDEX_MASK)as u16,
         ]
     }
 
@@ -29,25 +43,26 @@ impl TypeLayoutRange{
         let indices=self.to_array();
         let len=self.len();
 
-        let first_4=ArrayLen{
+        let first=ArrayLen{
             array:[
                 type_layouts[indices[0] as usize],
                 type_layouts[indices[1] as usize],
                 type_layouts[indices[2] as usize],
                 type_layouts[indices[3] as usize],
+                type_layouts[indices[4] as usize],
             ], 
-            len: len.min(4) as u16,
+            len: len.min(Self::STORED_INLINE) as u16,
         };
 
-        let remaining=if len <= 4 {
+        let remaining=if len <= Self::STORED_INLINE {
             RSlice::EMPTY
         }else{
-            let start_rem=(indices[3]+1)as usize;
-            let len_rem=len-4;
+            let start_rem=(indices[Self::STORED_INLINE-1]+1)as usize;
+            let len_rem=len-Self::STORED_INLINE;
             RSlice::from_slice(&type_layouts[start_rem..start_rem+len_rem])
         };
         
-        MultipleTypeLayouts{first_4,remaining}
+        MultipleTypeLayouts{first,remaining}
     }
 }
 
@@ -59,7 +74,7 @@ impl TypeLayoutRange{
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub struct MultipleTypeLayouts<'a>{
-    first_4:ArrayLen<[TypeLayoutCtor;4]>,
+    first:ArrayLen<[TypeLayoutCtor;TypeLayoutRange::STORED_INLINE]>,
     remaining:RSlice<'a,TypeLayoutCtor>,
 }
 
@@ -67,7 +82,7 @@ pub struct MultipleTypeLayouts<'a>{
 impl<'a> MultipleTypeLayouts<'a>{
     /// The ammount of TypeLayoutCtor this contains.
     pub fn len(&self)->usize{
-        self.first_4.len as usize+self.remaining.len()
+        self.first.len as usize+self.remaining.len()
     }
 
     /// Gets an iterator over the TypeLayoutCtor this contains.
@@ -92,10 +107,10 @@ impl<'a> Iterator for MTLIterator<'a>{
 
     fn next(&mut self)->Option<TypeLayoutCtor>{
         if self.index < self.this.len() {
-            let ret=if self.index < 4 {
-                self.this.first_4.array[self.index]
+            let ret=if self.index < TypeLayoutRange::STORED_INLINE {
+                self.this.first.array[self.index]
             }else{
-                self.this.remaining[self.index-4]
+                self.this.remaining[self.index-TypeLayoutRange::STORED_INLINE]
             };
             self.index+=1;
             Some(ret)
