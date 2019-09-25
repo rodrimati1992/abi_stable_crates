@@ -235,7 +235,6 @@ use abi_stable::{
         TypeInfo,
     },
     external_types::{RawValueRef,RawValueBox},
-    impl_InterfaceType,
     prefix_type::PrefixTypeTrait,
     type_level::bools::*,
     DynTrait,
@@ -510,7 +509,6 @@ use std::ops::{Deref, DerefMut};
 use abi_stable::{
     StableAbi,
     InterfaceType,
-    impl_InterfaceType,
     std_types::RBox,
     erased_types::IteratorItem,
     pointer_trait::{

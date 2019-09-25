@@ -3,9 +3,95 @@
 Use this when constructing a `abi_stable::type_layout::MonoTypeLayout`
 when manually implementing StableAbi.
 
-# Example 
+This stores indices and ranges for the type and/or const parameter taken 
+from the SharedVars of the TypeLayout where this is stored.
 
-TODO
+# Syntax
+
+`tl_genparams!( (<lifetime>),* ; <convertible_to_startlen>; <convertible_to_startlen> )`
+
+<convertible_to_startlen> is one of:
+
+-``: No generic parameters of that kind.
+
+-`i`: 
+    Takes the ith generic parameter
+    from the SharedVars slice of type or the one of const parameters.
+
+-`i..j`: 
+    Takes from i to j exclusive generic parameter
+    from the SharedVars slice of type or the one of const parameters.
+
+-`i..=j`: 
+    Takes from i to j inclusive generic parameter
+    from the SharedVars slice of type or the one of const parameters.
+
+-`x:StartLen`: 
+    Takes from x.start() to x.end() exclusive generic parameter
+    from the SharedVars slice of type or the one of const parameters.
+
+
+
+# Examples
+
+### No generic parameters:
+
+```
+use abi_stable::{
+    type_layout::CompGenericParams,
+    tl_genparams,
+};
+
+const PARAMS:CompGenericParams=tl_genparams!(;;);
+
+```
+
+### One lifetime,one type parameter,one const parameter
+
+```
+use abi_stable::{
+    type_layout::CompGenericParams,
+    tl_genparams,
+};
+
+const PARAMS:CompGenericParams=tl_genparams!('a;0;0);
+
+```
+
+### One lifetime,two type parameters,no const parameters
+
+```
+use abi_stable::{
+    type_layout::CompGenericParams,
+    tl_genparams,
+};
+
+const PARAMS:CompGenericParams=tl_genparams!('a;0..=1;);
+
+```
+
+### Four lifetimes,no type parameters,three const parameters
+
+```
+use abi_stable::{
+    type_layout::CompGenericParams,
+    tl_genparams,
+};
+
+const PARAMS:CompGenericParams=tl_genparams!('a,'b,'c,'d;;0..3);
+
+```
+
+### No lifetimes,two type parameters,no const parameters
+
+```
+use abi_stable::{
+    type_layout::{CompGenericParams,StartLen},
+    tl_genparams,
+};
+
+const PARAMS:CompGenericParams=tl_genparams!(;StartLen::new(0,2););
+
 ```
 
 
@@ -15,11 +101,10 @@ TODO
 macro_rules! tl_genparams {
     (count;  ) => ( 0 );
     (count; $v0:lifetime) => ( 1 );
-    (count; $v0:lifetime,$v1:lifetime) => ( 2 );
-    (count; $v0:lifetime,$v1:lifetime $(,$rem:lifetime)+) => ( 
-        2 + $crate::rslice!(@count; $($rem),* )
+    (count; $v0:lifetime,$v1:lifetime $(,$rem:lifetime)*) => ( 
+        2 + $crate::tl_genparams!(count; $($rem),* )
     );
-    ( $($lt:lifetime),*  ; $($ty:expr)? ; $($const_p:expr)? ) => ({
+    ( $($lt:lifetime),* $(,)? ; $($ty:expr)? ; $($const_p:expr)? ) => ({
         #[allow(unused_imports)]
         use $crate::{
             abi_stability::stable_abi_trait::SharedStableAbi,
@@ -28,12 +113,16 @@ macro_rules! tl_genparams {
 
         #[allow(unused_parens)]
         let ty_param_range=$crate::type_layout::StartLenConverter( ($($ty)?) ).to_start_len();
+        
+        #[allow(unused_parens)]
+        let const_param_range=
+            $crate::type_layout::StartLenConverter( ($($const_p)?) ).to_start_len();
 
         CompGenericParams::new(
             $crate::nul_str!($(stringify!($lt),",",)*),
             $crate::tl_genparams!(count; $($lt),* ),
             ty_param_range,
-            $crate::type_layout::StartLenConverter( ($($const_p)?) ).to_start_len(),
+            const_param_range,
         )
     })
 }
@@ -41,8 +130,37 @@ macro_rules! tl_genparams {
 
 ///////////////////////////////////////////////////////////////////////
 
+/**
+Equivalent to `?` for `RResult<_,_>`.
 
-/// Equivalent to `?` for `RResult<_,_>`.
+# Example
+
+Defining an extern function that returns a result.
+
+```
+use abi_stable::{
+    std_types::{RResult,ROk,RErr,RBoxError,RStr,Tuple3},
+    traits::IntoReprC,
+    rtry,
+    sabi_extern_fn,
+};
+
+
+#[sabi_extern_fn]
+fn parse_tuple(s:RStr<'_>)->RResult<Tuple3<u32,u32,u32>,RBoxError>{
+    let mut iter=s.split(',').map(|x|x.trim());
+    ROk(Tuple3(
+        rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
+        rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
+        rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
+    ))
+}
+
+
+
+```
+
+*/
 #[macro_export]
 macro_rules! rtry {
     ($expr:expr) => {{
@@ -666,7 +784,23 @@ macro_rules! rstr {
 }
 
 
-/// Constructs a NulStr from a string literal.
+/**
+Constructs a NulStr from a string literal.
+
+# Example
+
+```
+use abi_stable::{
+    sabi_types::NulStr,
+    nul_str,
+};
+
+assert_eq!( nul_str!("Huh?").to_str_with_nul(), "Huh?\0" );
+assert_eq!( nul_str!("Hello!").to_str_with_nul(), "Hello!\0" );
+
+
+```
+*/
 #[macro_export]
 macro_rules! nul_str {
     ( $($str:expr),* $(,)* ) => {unsafe{
@@ -679,7 +813,6 @@ macro_rules! nul_str {
 Constructs a RStr with the concatenation of the passed in strings,
 and variables with the range for the individual strings.
 */
-#[macro_export]
 macro_rules! multi_str {
     (
         $( #[$mod_attr:meta] )*
@@ -714,7 +847,7 @@ macro_rules! make_shared_vars{
         };
     )=>{
         
-        $crate::multi_str!{
+        multi_str!{
             #[allow(non_upper_case_globals)]
             mod _inner_multi_str_mod{
                 $( $( const $variable = $string; )* )?

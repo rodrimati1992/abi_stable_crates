@@ -166,9 +166,12 @@ pub use abi_stable_derive::{
 #[doc(inline)]
 pub use abi_stable_derive::{
     export_root_module,
-    impl_InterfaceType,
     sabi_trait,
     sabi_extern_fn,
+};
+
+use abi_stable_derive::{
+    impl_InterfaceType,
 };
 
 #[doc(hidden)]

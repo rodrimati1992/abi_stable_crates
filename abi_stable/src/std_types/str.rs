@@ -193,7 +193,7 @@ impl<'a> RStr<'a> {
         unsafe { str::from_utf8_unchecked(self.inner.as_slice()) }
     }
 
-    /// TODO
+    /// Gets a raw pointer to the start of the string slice.
     pub const fn as_ptr(&self) -> *const u8{
         self.inner.as_ptr()
     }

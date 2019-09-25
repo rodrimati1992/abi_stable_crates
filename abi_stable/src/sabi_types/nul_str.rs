@@ -53,7 +53,30 @@ impl<'a> NulStr<'a>{
         }
     }
 
-    /// Converts this `NulStr<'a>` to a `&'a str`.
+    /// Converts this `NulStr<'a>` to a `&'a str`,including the nul byte.
+    ///
+    /// # Performance
+    ///
+    /// This conversion requires traversing through the entire string to 
+    /// find the nul byte.
+    pub fn to_str_with_nul(&self)->&'a str{
+        unsafe{
+            let bytes=std::ffi::CStr::from_ptr(self.ptr as *const i8).to_bytes_with_nul();
+            std::str::from_utf8_unchecked(bytes)
+        }
+    }
+
+    /// Converts this `NulStr<'a>` to a `RStr<'a>`,including the nul byte.
+    ///
+    /// # Performance
+    ///
+    /// This conversion requires traversing through the entire string to 
+    /// find the nul byte.
+    pub fn to_rstr_with_nul(&self)->RStr<'a>{
+        self.to_str_with_nul().into()
+    }
+
+    /// Converts this `NulStr<'a>` to a `&'a str`,not including the nul byte.
     ///
     /// # Performance
     ///
@@ -66,7 +89,7 @@ impl<'a> NulStr<'a>{
         }
     }
 
-    /// Converts this `NulStr<'a>` to a `RStr<'a>`.
+    /// Converts this `NulStr<'a>` to a `RStr<'a>`,not including the nul byte.
     ///
     /// # Performance
     ///
