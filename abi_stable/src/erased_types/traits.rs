@@ -97,7 +97,6 @@ The value of every associated type can be.
 
 use abi_stable::{
     StableAbi,
-    impl_InterfaceType,
     erased_types::InterfaceType,
     type_level::bools::*,
 };

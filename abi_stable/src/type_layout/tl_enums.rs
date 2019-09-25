@@ -185,28 +185,31 @@ macro_rules! declare_tl_discriminants {
         ))*
     ) => (
         /// The discriminants of an enum.
+        #[repr(C)]
+        #[derive(Copy, Clone, StableAbi)]
+        pub struct TLDiscriminants{
+            inner:TLDiscrsInner,
+        }
+
         #[repr(u8)]
         #[derive(Copy, Clone, StableAbi)]
-        pub enum TLDiscriminants{
+        enum TLDiscrsInner{
             $(
                 $(#[$variant_attr])*
                 // Storing the length and pointer like this so that the enum 
                 // is only 2 usize large.
                 $variant{
-                    #[doc(hidden)]
                     len:u16,
-                    #[doc(hidden)]
                     discriminants:*const $ty,
-                    the_fields_are_private:(),
                 },
             )*
         }
 
         impl Debug for TLDiscriminants{
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-                match *self {
+                match self.inner {
                     $(
-                        TLDiscriminants::$variant{discriminants,len,..}=>unsafe{
+                        TLDiscrsInner::$variant{discriminants,len}=>unsafe{
                             let slice=std::slice::from_raw_parts(discriminants,len as usize);
                             Debug::fmt(slice,f)
                         }
@@ -217,11 +220,11 @@ macro_rules! declare_tl_discriminants {
 
         impl PartialEq for TLDiscriminants {
             fn eq(&self,other:&Self)->bool{
-                match (*self,*other) {
+                match (self.inner,other.inner) {
                     $(
                         (
-                            TLDiscriminants::$variant{discriminants: t_discr_ptr, len:t_len,..},
-                            TLDiscriminants::$variant{discriminants: o_discr_ptr, len:o_len,..}
+                            TLDiscrsInner::$variant{discriminants: t_discr_ptr, len:t_len },
+                            TLDiscrsInner::$variant{discriminants: o_discr_ptr, len:o_len }
                         )=>{
                             let t_discrs=unsafe{
                                 RSlice::from_raw_parts(t_discr_ptr,t_len as usize) 
@@ -244,19 +247,19 @@ macro_rules! declare_tl_discriminants {
             $(
                 $(#[$method_attr])*
                 pub const fn $method(arr:RSlice<'static,$ty>)->Self{
-                    TLDiscriminants::$variant{
+                    let inner=TLDiscrsInner::$variant{
                         len:arr.len() as u16,
                         discriminants:arr.as_ptr(),
-                        the_fields_are_private:(),
-                    }
+                    };
+                    TLDiscriminants{inner}
                 }
             )*
 
             /// Gets the type of a discriminant in this TLDiscriminants.
             pub fn discriminant_repr(&self)->DiscriminantRepr{
-                match self {
+                match self.inner {
                     $(
-                        TLDiscriminants::$variant{..}=>DiscriminantRepr::$variant,
+                        TLDiscrsInner::$variant{..}=>DiscriminantRepr::$variant,
                     )*
                 }
             }
@@ -273,11 +276,11 @@ macro_rules! declare_tl_discriminants {
             ///
             pub fn compare(&self,other:&Self)->Result<(),RVec<AbiInstability>>{
                 let mut errs=RVec::new();
-                match (*self,*other) {
+                match (self.inner,other.inner) {
                     $(
                         (
-                            TLDiscriminants::$variant{discriminants: t_discr_ptr, len:t_len,..},
-                            TLDiscriminants::$variant{discriminants: o_discr_ptr, len:o_len,..}
+                            TLDiscrsInner::$variant{discriminants: t_discr_ptr, len:t_len },
+                            TLDiscrsInner::$variant{discriminants: o_discr_ptr, len:o_len }
                         )=>{
                             let t_discrs=unsafe{
                                 RSlice::from_raw_parts(t_discr_ptr,t_len as usize) 

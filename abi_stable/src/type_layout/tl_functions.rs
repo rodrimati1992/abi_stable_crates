@@ -18,10 +18,16 @@ use std::{
 #[derive(Debug,Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLFunctions{
-    functions:RSlice<'static,CompTLFunction>,
+    functions:*const CompTLFunction,
     /// The range of `CompTLFunction` that each field in TLFields owns.
-    field_fn_ranges:RSlice<'static,StartLen>,
+    field_fn_ranges:*const StartLen,
+    
+    functions_len:u16,
+    field_fn_ranges_len:u16,
 }
+
+unsafe impl Sync for TLFunctions{}
+unsafe impl Send for TLFunctions{}
 
 
 
@@ -33,17 +39,31 @@ impl TLFunctions {
         field_fn_ranges:RSlice<'static,StartLenRepr>,
     )->Self{
         Self{
-            functions,
-            field_fn_ranges:unsafe{
-                field_fn_ranges.transmute_ref::<StartLen>()
-            },
+            functions:functions.as_ptr(),
+            functions_len:functions.len() as u16,
+            field_fn_ranges:field_fn_ranges.as_ptr() 
+                as *const StartLenRepr
+                as *const StartLen,
+            field_fn_ranges_len:field_fn_ranges.len() as u16,
+        }
+    }
+
+    fn functions(&self)->&'static [CompTLFunction]{
+        unsafe {
+            std::slice::from_raw_parts(self.functions,self.functions_len as usize)
+        }
+    }
+
+    fn field_fn_ranges(&self)->&'static [StartLen]{
+        unsafe {
+            std::slice::from_raw_parts(self.field_fn_ranges,self.field_fn_ranges_len as usize)
         }
     }
 
     /// Gets the `nth` TLFunction in this `TLFunctions`.
     /// Returns None if there is not `nth` TLFunction.
     pub fn get(&'static self,nth:usize,shared_vars:&'static SharedVars)->Option<TLFunction>{
-        let func=self.functions.get(nth)?;
+        let func=self.functions().get(nth)?;
         Some(func.expand(shared_vars))
     }
 
@@ -53,13 +73,13 @@ impl TLFunctions {
     ///
     /// This function panics if `nth` is out of bounds (`self.len() <= nth`)
     pub fn index(&'static self,nth:usize,shared_vars:&'static SharedVars)->TLFunction{
-        self.functions[nth].expand(shared_vars)
+        self.functions()[nth].expand(shared_vars)
     }
 
     /// Gets the amount of `TLFunction`s in this TLFunctions.
     #[inline]
     pub fn len(&'static self)->usize{
-        self.functions.len()
+        self.functions_len as usize
     }
 }
 
@@ -96,7 +116,7 @@ impl TLFunctionSlice{
         shared_vars:&'static SharedVars,
     )->Self{
         let fn_range=functions
-            .and_then(|fns| fns.field_fn_ranges.get(i).cloned() )
+            .and_then(|fns| fns.field_fn_ranges().get(i).cloned() )
             .unwrap_or(StartLen::EMPTY);
 
         Self{functions,fn_range,shared_vars}

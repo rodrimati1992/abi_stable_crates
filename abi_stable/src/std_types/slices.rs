@@ -185,7 +185,7 @@ where
             unsafe { ::std::slice::from_raw_parts(self.data, self.length) }
         }
 
-        /// TODO
+        /// Gets a raw pointer to the start of the slice.
         pub const fn as_ptr(&self) -> *const T{
             self.data
         }
