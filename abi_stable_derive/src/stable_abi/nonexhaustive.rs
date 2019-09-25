@@ -316,6 +316,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
             StabilityKind::NonExhaustive(x)=>x,
             _=>return,
         };
+        let doc_hidden_attr=config.doc_hidden_attr;
         let vis=ds.vis;
         let nonexhaustive_alias=this.nonexhaustive_alias;
         let nonexhaustive_marker=this.nonexhaustive_marker;
@@ -348,25 +349,30 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
         let type_generics_use=GenParamsIn::new(ds.generics,InWhat::ItemUse);
 
-        let storage_docs=format!(
-            "The InlineStorage for the NonExhaustive wrapped version of `{}<_>`.",
-            name
-        );
+        let mut storage_docs=String::new();
+        let mut alias_docs=String::new();
+        let mut marker_docs=String::new();
 
-        let alias_docs=format!(
-            "An alias for the NonExhaustive wrapped version of `{}<_>`.",
-            name
-        );
-
-        let marker_docs=format!(
-            "A marker type which implements StableAbi with the layout of {},\
-             used as a phantom field of NonExhaustive.",
-            name
-        );
+        if doc_hidden_attr.is_none() {
+            storage_docs=format!(
+                "The InlineStorage for the NonExhaustive wrapped version of `{}<_>`.",
+                name
+            );
+            alias_docs=format!(
+                "An alias for the NonExhaustive wrapped version of `{}<_>`.",
+                name
+            );
+            marker_docs=format!(
+                "A marker type which implements StableAbi with the layout of {},\
+                 used as a phantom field of NonExhaustive.",
+                name
+            );
+        }
 
         let default_interface=&this.default_interface;
 
         quote!(
+            #doc_hidden_attr
             #[doc=#storage_docs]
             #[repr(C)]
             #[derive(::abi_stable::StableAbi)]
@@ -377,6 +383,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
                 #aligner_field
             }
 
+            #doc_hidden_attr
             #[doc=#alias_docs]
             #vis type #nonexhaustive_alias<#type_generics_decl>=
                 #module::_sabi_reexports::NonExhaustive<
@@ -387,6 +394,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
             unsafe impl #module::_sabi_reexports::InlineStorage for #enum_storage{}
 
+            #doc_hidden_attr
             #[doc=#marker_docs]
             #vis struct #nonexhaustive_marker<T,S>(
                 std::marker::PhantomData<T>,
@@ -396,12 +404,17 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
 
         if let Some(BoundsTrait{ident,bounds})=&this.bounds_trait{
-            let trait_docs=format!(
-                "Acts as an alias for the traits that \
-                 were specified for `{}` in `traits(...)`.",
-                name
-            );
+            let mut trait_docs=String::new();
+
+            if doc_hidden_attr.is_none(){
+                trait_docs=format!(
+                    "Acts as an alias for the traits that \
+                     were specified for `{}` in `traits(...)`.",
+                    name
+                );
+            }
             quote!( 
+                #doc_hidden_attr
                 #[doc=#trait_docs]
                 #vis trait #ident:#(#bounds+)*{}
 

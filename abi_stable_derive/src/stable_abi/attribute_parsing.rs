@@ -63,6 +63,8 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) renamed_fields:FieldMap<Option<&'a Ident>>,
     pub(crate) changed_types:FieldMap<Option<&'a Type>>,
 
+    pub(crate) doc_hidden_attr:Option<&'a TokenStream2>,
+
     pub(crate) mod_refl_mode:ModReflMode<usize>,
 
     pub(crate) impl_interfacetype:Option<ImplInterfaceType>,
@@ -266,6 +268,12 @@ impl<'a> StableAbiOptions<'a> {
                 })
         );
 
+        let doc_hidden_attr=if this.is_hidden {
+            Some(arenas.alloc(quote!(#[doc(hidden)])))
+        }else{
+            None
+        };
+
         errors.into_result()?;
 
         Ok(StableAbiOptions {
@@ -286,6 +294,7 @@ impl<'a> StableAbiOptions<'a> {
             allow_type_macros: this.allow_type_macros,
             with_field_indices: this.with_field_indices,
             mod_refl_mode,
+            doc_hidden_attr,
         })
     }
 }
@@ -334,6 +343,7 @@ struct StableAbiAttrs<'a> {
 
     allow_type_macros:bool,
     with_field_indices:bool,
+    is_hidden:bool,
 
     errors:LinearResult<()>,
 }
@@ -473,6 +483,18 @@ fn parse_attr_list<'a>(
                 Err(make_err(&x))
             }
         }).combine_into_err(&mut this.errors);
+    } else if list.path.equals_str("doc") {
+        with_nested_meta("doc", list.nested, |attr| {
+            match attr {
+                Meta::Path(ref path)=> {
+                    if path.equals_str("hidden") {
+                        this.is_hidden=true;
+                    }
+                }
+                _=>{}
+            }
+            Ok(())
+        })?;
     } else if list.path.equals_str("sabi") {
         with_nested_meta("sabi", list.nested, |attr| {
             parse_sabi_attr(this,pctx, attr, arenas)

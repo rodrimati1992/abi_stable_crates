@@ -256,6 +256,8 @@ pub(crate) fn prefix_type_tokenizer<'a>(
             _=>return,
         };
 
+        let doc_hidden_attr=config.doc_hidden_attr;
+
         let deriving_name=ds.name;
         let (ref impl_generics,ref ty_generics,ref where_clause) = ds.generics.split_for_impl();
 
@@ -270,7 +272,7 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         let stringified_generics=(&ty_generics).into_token_stream().to_string();
         let stringified_generics_tokenizer=rstr_tokenizer(&stringified_generics);
 
-        let is_ds_pub=matches!(Visibility::Public{..}=ds.vis);
+        let is_ds_pub=matches!(Visibility::Public{..}=ds.vis)&&doc_hidden_attr.is_none();
 
         let prefix_struct_docs=if is_ds_pub {
             format!("\
@@ -321,7 +323,9 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
             let vis=ds.vis;
             let prefix_struct=prefix.prefix_struct;
             let generics=ds.generics;
+            
             quote!(
+                #doc_hidden_attr
                 #[doc=#prefix_struct_docs]
                 #[repr(transparent)]
                 #vis struct #prefix_struct #generics #where_clause {
