@@ -109,6 +109,7 @@ pub use self::{
         LifetimeRange,
     },
     tl_multi_tl::{
+        TypeLayoutIndex,
         TypeLayoutRange,
         MultipleTypeLayouts,
         MTLIterator,

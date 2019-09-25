@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     attribute_parsing::LayoutConstructor,
-    tl_field::TypeLayoutIndex,
+    tl_multi_tl::TypeLayoutIndex,
     CommonTokens,
 };
 
