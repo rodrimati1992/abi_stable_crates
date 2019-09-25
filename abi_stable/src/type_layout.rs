@@ -14,8 +14,8 @@ use core_extensions::{matches,StringExt};
 
 use crate::{
     abi_stability::{
+        extra_checks::{StoredExtraChecks,ExtraChecksStaticRef},
         stable_abi_trait::{TypeLayoutCtor,AbiConsts},
-        StoredExtraChecks,ExtraChecksStaticRef,
     },
     const_utils::log2_usize, 
     sabi_types::VersionStrings, 

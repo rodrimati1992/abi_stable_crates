@@ -20,10 +20,5 @@ pub use self::{
 
 #[doc(no_inline)]
 pub use self::{
-    extra_checks::{
-        TypeChecker,TypeCheckerMut,
-        ExtraChecks,ExtraChecks_TO,ExtraChecks_MV,ForExtraChecksImplementor,
-        StoredExtraChecks,ExtraChecksBox,ExtraChecksStaticRef,ExtraChecksRef,
-        ExtraChecksError,
-    },
+    extra_checks::{TypeChecker,ExtraChecks},
 };

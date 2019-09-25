@@ -15,9 +15,12 @@ use std::{
 
 use crate::{
     abi_stability::{
-        ExtraChecksBox,ExtraChecksRef,
-        TypeChecker,TypeCheckerMut,
-        ExtraChecksError,ConstGeneric,
+        extra_checks::{
+            ExtraChecksBox,ExtraChecksRef,
+            TypeChecker,TypeCheckerMut,
+            ExtraChecksError,
+        },
+        ConstGeneric,
     },
     sabi_types::{ParseVersionError, VersionStrings},
     prefix_type::{FieldAccessibility,FieldConditionality},

@@ -47,6 +47,7 @@ pub mod static_supertrait{
     pub trait Trait:'static {
         fn method(&self){}
     }
+    use self::Trait_trait::Trait_Bounds;
 
     pub struct Struct<'a>(&'a str);
 
@@ -87,6 +88,7 @@ pub mod nonstatic_supertrait{
     pub trait Trait<'a>:'a {
         fn method(&self){}
     }
+    use self::Trait_trait::Trait_Bounds;
 
     pub struct Struct<'a>(&'a str);
 
