@@ -29,12 +29,15 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
     const VTABLE_VAL:NonExhaustiveVtableVal<Self,S,I>;
     
     #[doc(hidden)]
-    const VTABLE_PTR: *const WithMetadata<NonExhaustiveVtableVal<Self,S,I>> = 
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE_VAL);
+    const VTABLE_PTR: StaticRef<WithMetadata<NonExhaustiveVtableVal<Self,S,I>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::VTABLE_VAL
+        ))
+    };
 
-    const VTABLE_REF:StaticRef<NonExhaustiveVtable<Self,S,I>>=unsafe{
-        let full=WithMetadata::raw_as_prefix(Self::VTABLE_PTR);
-        StaticRef::from_raw(full)
+    const VTABLE_REF:StaticRef<NonExhaustiveVtable<Self,S,I>>={
+        WithMetadata::as_prefix(Self::VTABLE_PTR)
     };
 }
 

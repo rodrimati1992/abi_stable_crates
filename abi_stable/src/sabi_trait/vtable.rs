@@ -27,7 +27,7 @@ where
 {
     const ROBJECT_VTABLE:StaticRef<RObjectVtable<_Self,ErasedPtr,Self>>={
         let prefix=GetRObjectVTableHelper::<IA,_Self,ErasedPtr,OrigPtr,I>::TMP_VTABLE;
-        WithMetadata::staticref_as_prefix(prefix)
+        WithMetadata::as_prefix(prefix)
     };
 }
 

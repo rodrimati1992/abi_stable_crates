@@ -85,9 +85,9 @@ where in some of them those fields don't exist.
         Self:'a,
         Self::Prefix:'a
     {
-        self.into_with_metadata()
-            .piped(leak_value)
-            .as_prefix()
+        let x=self.into_with_metadata();
+        let x=leak_value(x);
+        x.ref_as_prefix()
     }
 }
 
@@ -137,36 +137,26 @@ impl<T,P> WithMetadata_<T,P> {
         }
     }
 
+
     /// Converts this WithMetadata<T,P> to a `<prefix_struct>` type.
     #[inline]
-    pub fn as_prefix(&self)->&P {
+    pub fn ref_as_prefix(&self)->&P {
         unsafe{
             &*self.as_prefix_raw()
         }
     }
     
-    /// Converts this WithMetadata<T,P> to a `*const <prefix_struct>` type.
-    /// Use this if you need to implement nested vtables at compile-time.
     #[inline]
-    pub const fn as_prefix_raw(&self)->*const P {
+    const fn as_prefix_raw(&self)->*const P {
         unsafe{
             self as *const Self as *const P
-        }
-    }
-
-    /// Converts this `*const WithMetadata<T,P>` to a `*const <prefix_struct>` type.
-    /// Use this if you need to implement nested vtables at compile-time.
-    #[inline]
-    pub const fn raw_as_prefix(this:*const Self)->*const P {
-        unsafe{
-            this as *const Self as *const P
         }
     }
 
     /// Converts a `StaticRef<WithMetadata<T,P>>` to a `StaticRef< <prefix_struct> >` type.
     /// Use this if you need to implement nested vtables at compile-time.
     #[inline]
-    pub const fn staticref_as_prefix(this:StaticRef<Self>)->StaticRef<P> {
+    pub const fn as_prefix(this:StaticRef<Self>)->StaticRef<P> {
         unsafe{
             StaticRef::from_raw(this.get_raw() as *const P)
         }
