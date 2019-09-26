@@ -73,9 +73,20 @@ pub(crate) struct StableAbiOptions<'a> {
     pub(crate) phantom_type_params:Vec<&'a Type>,
     pub(crate) phantom_const_params:Vec<&'a syn::Expr>,
 
+    pub(crate) const_idents:ConstIdents,
+
     pub(crate) allow_type_macros:bool,
     pub(crate) with_field_indices:bool,
     
+}
+
+
+//////////////////////
+
+/// Identifiers of generated top-level constants.
+pub struct ConstIdents{
+    /// The identifier of a constant where the string in MonoSharedVars will be stored.
+    pub(crate) strings:Ident,
 }
 
 
@@ -274,6 +285,10 @@ impl<'a> StableAbiOptions<'a> {
             None
         };
 
+        let const_idents=ConstIdents{
+            strings: parse_str_as_ident(&format!("_SHARED_VARS_STRINGS_{}",ds.name)),
+        };
+
         errors.into_result()?;
 
         Ok(StableAbiOptions {
@@ -293,6 +308,7 @@ impl<'a> StableAbiOptions<'a> {
             phantom_const_params: this.phantom_const_params,
             allow_type_macros: this.allow_type_macros,
             with_field_indices: this.with_field_indices,
+            const_idents,
             mod_refl_mode,
             doc_hidden_attr,
         })
