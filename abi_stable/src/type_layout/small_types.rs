@@ -126,7 +126,7 @@ pub struct OptionU16(u16);
 
 impl OptionU16{
     /// Equivalent to Option::None
-    #[allow(non_uppercase_globals)]
+    #[allow(non_upper_case_globals)]
     pub const None:Self=OptionU16(!0);
 
     const MAX_VAL:u16=!0-1;
@@ -183,7 +183,7 @@ pub struct OptionU8(u8);
 
 impl OptionU8{
     /// Equivalent to Option::None
-    #[allow(non_uppercase_globals)]
+    #[allow(non_upper_case_globals)]
     pub const None:Self=OptionU8(!0);
     
     const MAX_VAL:u8=!0-1;

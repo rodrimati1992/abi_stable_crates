@@ -38,7 +38,6 @@ use crate::{
 };
 
 use core_extensions::{
-    SelfOps,
     utils::transmute_ignore_size,
 };
 

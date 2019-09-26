@@ -7,7 +7,6 @@ use super::*;
 
 use crate::{
     composite_collections::{SmallStartLen as StartLen},
-    datastructure::FieldMap,
     fn_pointer_extractor::TypeVisitor,
     lifetimes::LifetimeRange,
 };

@@ -27,13 +27,12 @@ use crate::{
     const_utils::Transmuter,
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
-    pointer_trait::{GetPointerKind,CanTransmuteElement,TransmuteElement},
+    pointer_trait::{GetPointerKind,CanTransmuteElement},
     sabi_types::StaticRef,
     std_types::{Tuple3,RSome,RNone,RIoError,RSeekFrom},
     type_level::{
         impl_enum::{Implemented,Unimplemented,IsImplemented},
         trait_marker,
-        unerasability::TU_Opaque,
     },
 };
 

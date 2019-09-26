@@ -7,7 +7,7 @@ use crate::{
         SmallStartLen as StartLen,
         SmallCompositeVec as CompositeVec,
     },
-    datastructure::{DataStructure,DataVariant,Field,FieldIndex},
+    datastructure::{DataStructure,DataVariant},
     gen_params_in::{GenParamsIn,InWhat},
     impl_interfacetype::impl_interfacetype_tokenizer,
     lifetimes::LifetimeIndex,
@@ -234,7 +234,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     
     match ( is_enum, prefix ) {
         (false,None)=>{
-            let struct_=&ds.variants[0];
             mono_tl_data={
                 let fields=fields_tokenizer(ds,visited_fields,ct);
                 match ds.data_variant {
@@ -276,7 +275,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             }
 
             mono_tl_data={
-                let struct_=&ds.variants[0];
                 let first_suffix_field=prefix.first_suffix_field.field_pos;
                 let fields=fields_tokenizer(ds,visited_fields,ct);
                 let prefix_field_conditionality_mask=prefix.prefix_field_conditionality_mask;
@@ -647,7 +645,7 @@ fn fields_tokenizer_inner<'a>(
 fn tokenize_tl_functions<'a>(
     ds:&'a DataStructure<'a>,
     visited_fields:&'a VisitedFieldMap<'a>,
-    ct:&'a CommonTokens<'a>,
+    _ct:&'a CommonTokens<'a>,
     ts:&mut TokenStream2,
 ){
     let mut functions=

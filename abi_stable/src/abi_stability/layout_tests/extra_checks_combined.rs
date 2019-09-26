@@ -6,7 +6,7 @@ use crate::{
         },
         extra_checks::{
             TypeCheckerMut,
-            ExtraChecks,ExtraChecksStaticRef,ExtraChecksBox,ExtraChecksRef,
+            ExtraChecks,ExtraChecksBox,ExtraChecksRef,
             StoredExtraChecks,ExtraChecks_MV,
             ForExtraChecksImplementor,ExtraChecksError,
         },
@@ -18,7 +18,6 @@ use crate::{
     sabi_trait::prelude::TU_Opaque,
     sabi_types::{Constructor,CmpIgnored},
     std_types::*,
-    sabi_extern_fn,
     utils::{self,leak_value},
     GetStaticEquivalent,
     StableAbi,
@@ -465,10 +464,6 @@ impl WithCyclicExtraChecker {
 #[test]
 fn test_cyclic_extra_checker() {
 
-    use crate::{
-        external_types::ROnce,
-    };
-
     let layout = <WithCyclicExtraChecker as StableAbi>::LAYOUT;
 
     let globals=CheckingGlobals::new();
@@ -576,8 +571,6 @@ fn test_local_extra_checker() {
         WithLocalExtraChecker::<RVec<()>,()>::LAYOUT,
         WithLocalExtraChecker::<ROnce,RVec<()>>::LAYOUT,
     ];
-
-    let layout = <WithCyclicExtraChecker as StableAbi>::LAYOUT;
 
     let globals=CheckingGlobals::new();
 

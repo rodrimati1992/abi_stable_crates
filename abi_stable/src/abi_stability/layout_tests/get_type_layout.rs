@@ -24,7 +24,6 @@ use crate::{
 use super::shared_types::{
     basic_enum,
     gen_basic,
-    gen_more_lts,
     enum_extra_fields_b,
     extra_variant,
     swapped_fields_first,

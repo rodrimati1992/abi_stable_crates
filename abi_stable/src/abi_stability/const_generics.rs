@@ -11,7 +11,7 @@ use crate::{
     },
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
-    std_types::{RBoxError,RString,RResult,ROk,RErr},
+    std_types::{RString,RResult,ROk,RErr},
     sabi_types::StaticRef,
     type_layout::TypeLayout,
     StableAbi,

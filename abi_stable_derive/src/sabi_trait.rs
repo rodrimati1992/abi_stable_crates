@@ -573,13 +573,6 @@ fn constructor_items<'a>(
 
     }
     
-    let vtable_generics=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::Underscore),
-            &ctokens.ts_unit_erasedptr,
-        );
-    
     let vtable_generics_rref=
         totrait_def.generics_tokenizer(
             InWhat::ItemUse,
@@ -975,15 +968,6 @@ fn declare_vtable<'a>(
             WithAssocTys::Yes(WhichSelf::NoSelf),
             &ctokens.ts_self_erasedptr,
         );
-
-    let impl_header_generics=
-        vtable_trait_decl.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_self_erasedptr,
-        );
-
-
 
 
     let derive_attrs=vtable_trait_decl.derive_attrs;

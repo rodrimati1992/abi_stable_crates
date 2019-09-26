@@ -5,7 +5,6 @@ use std::{
 };
 
 use crate::{
-    abi_stability::SharedStableAbi,
     pointer_trait::{CanTransmuteElement,GetPointerKind,PK_Reference},
 };
 

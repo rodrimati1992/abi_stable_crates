@@ -119,6 +119,7 @@ where
 
 #[test]
 fn test_compatibility(){
+    #[allow(unused_mut)]
     let mut list=vec![
         <one_phantom::Struct<i8> as StableAbi>::LAYOUT,
         <one_phantom::Struct<i16> as StableAbi>::LAYOUT,

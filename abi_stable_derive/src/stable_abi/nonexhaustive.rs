@@ -24,7 +24,7 @@ use crate::{
     datastructure::{DataStructure},
     gen_params_in::{GenParamsIn,InWhat},
     impl_interfacetype::{private_associated_type,TRAIT_LIST,UsableTrait},
-    literals_constructors::{rstr_tokenizer,rslice_tokenizer},
+    literals_constructors::rstr_tokenizer,
     parse_utils::{parse_str_as_ident,parse_str_as_path},
     set_span_visitor::SetSpanVisitor,
     to_token_fn::ToTokenFnMut,

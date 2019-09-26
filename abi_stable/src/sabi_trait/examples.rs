@@ -668,9 +668,6 @@ mod tests{
         assert_eq!(RFoo::get(tuple3_object),&300);
     }
 
-
-    struct MekeRSomethingCTO<'a,T>(&'a T);
-
     #[test]
     fn test_from_const(){
         const RS_U32:RSomething_CTO<'static,'static,(),u32>=

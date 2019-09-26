@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fmt::{self,Display},
     ops::Range,
     path::Path,
@@ -17,7 +16,7 @@ mod text_replacement;
 mod vec_from_map;
 
 use self::regex_wrapper::RegexWrapper;
-use self::vec_from_map::{deserialize_vec_pairs,VecFromMap};
+use self::vec_from_map::deserialize_vec_pairs;
 use self::text_replacement::replace_text;
 
 
