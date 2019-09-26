@@ -6,6 +6,7 @@ use std::{
     fmt::{self,Display,Debug},
 };
 
+#[allow(unused_imports)]
 use core_extensions::prelude::*;
 
 use super::{c_functions::*, *};

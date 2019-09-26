@@ -42,7 +42,6 @@ pub use self::{
 pub(crate) use self::{
     traits::{
         GetSerializeEnumProxy,
-        GetDeserializeEnumProxy,
     },
 };
 

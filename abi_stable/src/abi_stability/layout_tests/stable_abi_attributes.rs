@@ -80,7 +80,7 @@ struct PrefixType1Val {}
 #[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_struct="PrefixType2")))]
 struct PrefixType2Val {
-    a:u32,
+    _a:u32,
 }
 
 #[repr(C)]

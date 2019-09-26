@@ -97,8 +97,8 @@ mod lifetimes_four_params{
     use super::*;
     #[repr(C)]
     #[derive(StableAbi)]
-    // #[sabi(debug_print)]
-    pub struct Struct<'lt0,'lt1:'lt0>{
+    #[sabi(bound="'lt1:'lt0")]
+    pub struct Struct<'lt0,'lt1>{
         reference_a:&'static (),
         reference_b:&'lt0 (),
         reference_c:&'lt0 &'lt1 &'lt1 &'lt1 &'static &'static (),
@@ -162,8 +162,9 @@ mod nested_fn_pointer{
     use super::*;
     #[repr(C)]
     #[derive(StableAbi)]
+    #[sabi(bound="'lt1:'lt0")]
     // #[sabi(debug_print)]
-    pub struct Struct<'lt0,'lt1:'lt0>{
+    pub struct Struct<'lt0,'lt1>{
         funcs:Tuple2<
             Tuple2<
                 &'lt0 &'static (),
@@ -254,7 +255,7 @@ fn test_single_function_lifetime_ranges(){
             field_lt_indices:vec![vec![]],
         },
         LRTestParam{
-            layout:<lifetimes_four_params::Struct as StableAbi>::LAYOUT,
+            layout:<lifetimes_four_params::Struct<'_,'_> as StableAbi>::LAYOUT,
             shared_vars_lifetimes:vec![
                 LAP::new(LR0,LR1),
                 LAP::new(LR1,LR1),
@@ -272,7 +273,7 @@ fn test_single_function_lifetime_ranges(){
             ],
         },
         LRTestParam{
-            layout:<many_bound_lifetimes::Struct as StableAbi>::LAYOUT,
+            layout:<many_bound_lifetimes::Struct<'_,'_> as StableAbi>::LAYOUT,
             shared_vars_lifetimes:vec![
                 LAP::new(LRA,LRA),
                 LAP::new(LRA,LRA),
@@ -299,7 +300,7 @@ fn test_single_function_lifetime_ranges(){
             ],
         },
         LRTestParam{
-            layout:<many_bound_lifetimes_b::Struct as StableAbi>::LAYOUT,
+            layout:<many_bound_lifetimes_b::Struct<'_,'_> as StableAbi>::LAYOUT,
             shared_vars_lifetimes:vec![
                 LAP::new(LRA,LRA),
                 LAP::new(LRA,LRA),
@@ -328,7 +329,7 @@ fn test_single_function_lifetime_ranges(){
             ],
         },
         LRTestParam{
-            layout:<nested_fn_pointer::Struct as StableAbi>::LAYOUT,
+            layout:<nested_fn_pointer::Struct<'_,'_> as StableAbi>::LAYOUT,
             shared_vars_lifetimes:vec![
                 // funcs field lifetimes(outside function pointers)
                 LAP::new(LR0,LRS),

@@ -896,15 +896,6 @@ fn main(){
         }
 
         #[inline]
-        #[doc(hidden)]
-        pub(super) fn sabi_extra_vtable(&self)->EV
-        where
-            EV:Copy,
-        {
-            self.extra_value
-        }
-
-        #[inline]
         pub(super) fn sabi_vtable<'a>(&self) -> &'a VTable<'borr,P,I>{
             unsafe {
                 self.vtable.get()
@@ -1403,11 +1394,6 @@ let _=borrow.default();
     }
 
 }
-
-
-const PTR_FLAGS:usize=0b1111;
-const PTR_MASK:usize=!PTR_FLAGS;
-const PTR_FLAG_IS_BORROWED:usize=0b_0001;
 
 
 pub use self::priv_::DynTrait;

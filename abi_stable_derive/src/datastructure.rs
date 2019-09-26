@@ -1,7 +1,5 @@
 use crate::*;
 
-use std::fmt::Write;
-
 use syn::{
     self, Attribute, Data, DeriveInput, Field as SynField, Fields as SynFields, Generics, Ident,
     Type, Visibility,

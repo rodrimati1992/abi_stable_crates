@@ -577,7 +577,6 @@ fn different_alignment() {
 //////////////////////////////////////////////////////////
 
 pub(super) mod gen_more_lts_c {
-    use super::PhantomData;
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Generics<'a> {
@@ -587,7 +586,6 @@ pub(super) mod gen_more_lts_c {
 }
 
 pub(super) mod gen_more_lts_d {
-    use super::PhantomData;
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Generics<'a> {

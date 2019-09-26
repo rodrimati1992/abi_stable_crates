@@ -2,7 +2,7 @@ use crate::{
     arenas::Arenas,
     composite_collections::{SmallStartLen as StartLen},
     lifetimes::{LifetimeIndex,LifetimeIndexPair,LifetimeRange},
-    literals_constructors::{rslice_tokenizer,rstr_tokenizer},
+    literals_constructors::rslice_tokenizer,
     utils::{join_spans,LinearResult,SynResultExt},
     ToTokenFnMut,
 };
@@ -16,12 +16,11 @@ use super::{
 
 use core_extensions::SelfOps;
 
-use proc_macro2::{TokenStream as TokenStream2,Span};
+use proc_macro2::Span;
 
 use quote::{quote,ToTokens};
 
 use std::{
-    borrow::Borrow,
     collections::HashMap,
     fmt::Display,
 };
@@ -99,10 +98,6 @@ impl<'a> SharedVars<'a>{
         }else{
             StartLen::from_start_len(start,len)
         }
-    }
-
-    pub(crate) fn push_err(&mut self,e:syn::Error){
-        self.extra_errs.push_err(e);
     }
 
     pub(crate) fn combine_err(&mut self,r:Result<(),syn::Error>){
@@ -330,7 +325,6 @@ impl<'a> SharedVars<'a>{
 
     pub(crate) fn mono_shared_vars_tokenizer(&self)->impl ToTokens+'_{
         ToTokenFnMut::new(move|ts|{
-            let ct=self.ctokens;
             let lifetime_indices=self.lifetime_indices
                 .chunks(2)
                 .map(|chunk|{

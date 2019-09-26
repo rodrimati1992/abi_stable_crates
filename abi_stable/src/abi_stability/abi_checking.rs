@@ -77,7 +77,6 @@ struct CheckingUTypeId{
 
 impl CheckingUTypeId{
     fn new(this: &'static TypeLayout)->Self{
-        let layout=this;
         Self{
             type_id:this.get_utypeid(),
         }

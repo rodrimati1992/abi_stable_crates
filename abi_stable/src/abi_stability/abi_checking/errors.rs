@@ -114,7 +114,7 @@ impl fmt::Display for AbiInstabilityError {
         for err in &self.errs {
             let pair = match err {
                 AI::ReentrantLayoutCheckingCall => ("reentrant layout checking call", None),
-                AI::CyclicTypeChecking{interface,implementation} => {
+                AI::CyclicTypeChecking{interface,..} => {
                     extra_err=Some(format!("The type:\n{}",interface));
 
                     (

@@ -26,7 +26,7 @@ use quote::ToTokens;
 
 use crate::{
     common_tokens::FnPointerTokens,
-    lifetimes::{LifetimeIndex,LifetimeSet,LifetimeCounters},
+    lifetimes::{LifetimeIndex,LifetimeCounters},
     ignored_wrapper::Ignored,
     utils::{LinearResult,SynResultExt},
 };
@@ -588,8 +588,6 @@ impl<'a> Function<'a>{
         lifetime_counts:&LifetimeCounters,
         errors:&mut Result<(),syn::Error>
     ){
-        let mut return_lts=LifetimeSet::new();
-
         let first_bound_lt=self.first_bound_lt;
 
         let mut current_lt=first_bound_lt;

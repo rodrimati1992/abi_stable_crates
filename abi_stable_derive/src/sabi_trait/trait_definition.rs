@@ -605,6 +605,7 @@ impl<'a> GenericsTokenizer<'a>{
     pub fn skip_lifetimes(&mut self){
         self.gen_params_in.skip_lifetimes();
     }
+    #[allow(dead_code)]
     pub fn skip_consts(&mut self){
         self.gen_params_in.skip_consts();
     }

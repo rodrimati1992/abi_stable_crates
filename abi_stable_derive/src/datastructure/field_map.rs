@@ -78,6 +78,7 @@ impl<T> FieldMap<T>{
     }
 
     /// Whether the field index maps to a field.
+    #[allow(dead_code)]
     pub(crate) fn contains_index(&self,index:FieldIndex)->bool{
         self.fields
             .get(index.variant)

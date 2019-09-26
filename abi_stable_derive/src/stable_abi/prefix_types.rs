@@ -49,7 +49,6 @@ pub(crate) struct PrefixKind<'a>{
     pub(crate) cond_field_indices:Vec<usize>,
     pub(crate) enable_field_if:Vec<&'a syn::Expr>,
     pub(crate) unconditional_bit_mask:u64,
-    pub(crate) conditional_bit_mask:u64,
     pub(crate) prefix_field_conditionality_mask:u64,
 }
 
@@ -94,7 +93,6 @@ impl<'a> PrefixKind<'a>{
             cond_field_indices,
             enable_field_if,
             unconditional_bit_mask,
-            conditional_bit_mask,
             prefix_field_conditionality_mask,
         }
     }
@@ -183,6 +181,7 @@ impl<'a> AccessorOrMaybe<'a>{
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn is_conditional(&self)->bool{
         self.to_maybe_accessor().map_or(false,|x| x.accessible_if.is_some() )
     }
@@ -195,6 +194,7 @@ impl<'a> AccessorOrMaybe<'a>{
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn is_maybe_accessor(&self)->bool{
         matches!(AccessorOrMaybe::Maybe{..}= self )
     }
@@ -345,7 +345,7 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
 
         // Creates the docs for the accessor functions.
         // Creates the identifiers for constants associated with each field.
-        for (index,field) in struct_.fields.iter().enumerate() {
+        for field in struct_.fields.iter() {
             use std::fmt::Write;
             use self::{AccessorOrMaybe as AOM};
 
@@ -409,10 +409,6 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
                 }
             }
         }
-
-        
-
-        let field_count=struct_.fields.len();
 
         let mut unconditional_accessors=Vec::new();
         let mut conditional_accessors=Vec::new();
@@ -511,16 +507,11 @@ then use the `as_prefix` method at runtime to cast it to `&{name}{generics}`.
         let cond_field_indices=&prefix.cond_field_indices;
         let enable_field_if=&prefix.enable_field_if;
         let unconditional_bit_mask=&prefix.unconditional_bit_mask;
-        let conditional_bit_mask=&prefix.conditional_bit_mask;
-        let prefix_field_conditionality_mask=&prefix.prefix_field_conditionality_mask;
 
         let cond_field_indices=cond_field_indices.iter();
         let enable_field_if=enable_field_if.iter();
         
-        let conditional_enumerate=0usize..;
-
         let field_i_a=0u8..;
-        let field_i_b=0u8..;
 
         let mut pt_layout_ident=parse_str_as_ident(&format!("__sabi_PT_LAYOUT{}",deriving_name));
         pt_layout_ident.set_span(deriving_name.span());

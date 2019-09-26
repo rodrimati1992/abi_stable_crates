@@ -9,7 +9,7 @@ use std::{
 
 
 use crate::{
-    std_types::{RStr,RSlice,RBoxError},
+    std_types::{RStr,RBoxError},
     type_layout::StartLen,
     type_level::{
         impl_enum::{Implemented,Unimplemented},

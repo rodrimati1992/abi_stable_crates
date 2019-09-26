@@ -5,6 +5,7 @@ use std::{
     ops::{Deref,DerefMut},
 };
 
+#[allow(unused_imports)]
 use core_extensions::SelfOps;
 
 use crate::{
@@ -14,13 +15,12 @@ use crate::{
         InterfaceBound,
     },
     sabi_types::{MaybeCmp,RRef},
-    std_types::{RBox,UTypeId},
+    std_types::UTypeId,
     pointer_trait::{
         CanTransmuteElement,TransmuteElement,
         GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
     },
     type_level::{
-        unerasability::{TU_Unerasable,TU_Opaque},
         impl_enum::{Implemented,Unimplemented},
         trait_marker,
     },

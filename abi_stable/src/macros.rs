@@ -846,7 +846,6 @@ macro_rules! make_shared_vars{
             $( constants=[ $( $constants:expr ),* $(,)* ], )?
         };
     )=>{
-        
         multi_str!{
             #[allow(non_upper_case_globals)]
             mod _inner_multi_str_mod{
@@ -855,6 +854,7 @@ macro_rules! make_shared_vars{
         }
         $( use _inner_multi_str_mod::{$($variable,)*}; )?
 
+        #[allow(non_upper_case_globals)]
         const $mono_shared_vars:&'static $crate::type_layout::MonoSharedVars=
             &$crate::type_layout::MonoSharedVars::new(
                 _inner_multi_str_mod::CONCATENATED,
