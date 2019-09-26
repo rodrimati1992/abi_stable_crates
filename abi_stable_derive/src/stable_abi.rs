@@ -57,7 +57,7 @@ mod tests;
 use self::{
     attribute_parsing::{
         parse_attrs_for_stable_abi, StabilityKind, StableAbiOptions, ASTypeParamBound,
-        LayoutConstructor,
+        LayoutConstructor,ConstIdents,
     },
     common_tokens::CommonTokens,
     nonexhaustive::{tokenize_enum_info,tokenize_nonexhaustive_items},
@@ -82,7 +82,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let ctokens = &ctokens;
     let ds = &DataStructure::new(&mut data, arenas);
     let config = &parse_attrs_for_stable_abi(ds.attrs, ds, arenas)?;
-    let shared_vars=&mut SharedVars::new(arenas,ctokens);
+    let shared_vars=&mut SharedVars::new(arenas,&config.const_idents,ctokens);
     let generics=ds.generics;
     let name=ds.name;
 
@@ -189,12 +189,23 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             }),
             None=>quote!( None ),
         };
+
+    let variant_names_start_len=if is_enum {
+        let mut variant_names=String::new();
+        for variant in &ds.variants {
+            use std::fmt::Write;
+            let _=write!(variant_names,"{};",variant.name);
+        }
+        shared_vars.push_str(&variant_names,None)
+    }else{
+        StartLen::EMPTY
+    };
     
     // tokenizes the items for nonexhaustive enums outside of the module this generates.
     let nonexhaustive_items=tokenize_nonexhaustive_items(&module,ds,config,ctokens);
 
     // tokenizes the items for nonexhaustive enums inside of the module this generates.
-    let nonexhaustive_tokens=tokenize_enum_info(ds,config,ctokens)?;
+    let nonexhaustive_tokens=tokenize_enum_info(ds,variant_names_start_len,config,ctokens)?;
 
 
 
@@ -247,14 +258,15 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             };
         },
         (true,None)=>{
+            let vn_sl=variant_names_start_len;
             mono_tl_data={
                 let mono_enum_tokenizer=
-                    tokenize_mono_enum(ds,nonexh_opt,config,visited_fields,shared_vars);
+                    tokenize_mono_enum(ds,vn_sl,nonexh_opt,config,visited_fields,shared_vars);
                 quote!( _sabi_reexports::MonoTLData::Enum(#mono_enum_tokenizer) )
             };
             generic_tl_data={
                 let generic_enum_tokenizer=
-                    tokenize_generic_enum(ds,nonexh_opt,config,visited_fields,ct);
+                    tokenize_generic_enum(ds,vn_sl,nonexh_opt,config,visited_fields,ct);
                 quote!( _sabi_reexports::GenericTLData::Enum(#generic_enum_tokenizer) )
             };
         }
@@ -420,6 +432,10 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     shared_vars.extract_errs()?;
 
     let mono_shared_vars_tokenizer=shared_vars.mono_shared_vars_tokenizer();
+
+    let strings_const=&config.const_idents.strings;
+    let strings=shared_vars.strings().piped(rstr_tokenizer);
+
     let shared_vars_tokenizer=shared_vars.shared_vars_tokenizer(&mono_type_layout);
 
     // drop(_measure_time0);
@@ -432,6 +448,8 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
         const #item_info_const:abi_stable::type_layout::ItemInfo=
             abi_stable::make_item_info!();
+
+        const #strings_const: ::abi_stable::std_types::RStr<'static>=#strings;
 
         mod #module {
             use super::*;
@@ -523,21 +541,13 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 // Tokenizes a `MonoTLEnum{ .. }`
 fn tokenize_mono_enum<'a>(
     ds:&'a DataStructure<'a>,
+    variant_names_start_len:StartLen,
     _nonexhaustive_opt:Option<&'a nonexhaustive::NonExhaustive<'a>>,
     _config:&'a StableAbiOptions<'a>,
     visited_fields:&'a VisitedFieldMap<'a>,
     shared_vars:&mut SharedVars<'a>,
 )->impl ToTokens+'a{
     let ct=shared_vars.ctokens();
-
-    let variant_names_start_len={
-        let mut variant_names=String::new();
-        for variant in &ds.variants {
-            use std::fmt::Write;
-            let _=write!(variant_names,"{};",variant.name);
-        }
-        shared_vars.push_str(&variant_names,None)
-    };
 
     ToTokenFnMut::new(move|ts|{
         let variant_names_start_len=variant_names_start_len.tokenizer(ct.as_ref());
@@ -563,6 +573,7 @@ fn tokenize_mono_enum<'a>(
 // Tokenizes a `GenericTLEnum{ .. }`
 fn tokenize_generic_enum<'a>(
     ds:&'a DataStructure<'a>,
+    _variant_names_start_len:StartLen,
     nonexhaustive_opt:Option<&'a nonexhaustive::NonExhaustive<'a>>,
     config:&'a StableAbiOptions<'a>,
     _visited_fields:&'a VisitedFieldMap<'a>,

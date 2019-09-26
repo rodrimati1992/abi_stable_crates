@@ -11,6 +11,7 @@ use super::{
     attribute_parsing::LayoutConstructor,
     tl_multi_tl::TypeLayoutIndex,
     CommonTokens,
+    ConstIdents,
 };
 
 use core_extensions::SelfOps;
@@ -28,6 +29,7 @@ use std::{
 
 
 pub(crate) struct SharedVars<'a>{
+    const_idents:&'a ConstIdents,
     arenas:&'a Arenas,
     ctokens:&'a CommonTokens<'a>,
     strings: String,
@@ -43,8 +45,9 @@ pub(crate) struct SharedVars<'a>{
 }
 
 impl<'a> SharedVars<'a>{
-    pub(crate) fn new(arenas:&'a Arenas, ctokens:&'a CommonTokens)->Self{
+    pub(crate) fn new(arenas:&'a Arenas, const_idents:&'a ConstIdents,ctokens:&'a CommonTokens)->Self{
         Self{
+            const_idents,
             arenas,
             ctokens,
             strings: String::new(),
@@ -58,6 +61,10 @@ impl<'a> SharedVars<'a>{
             overflowed_constants:LinearResult::ok(()),
             extra_errs:LinearResult::ok(()),
         }
+    }
+
+    pub(crate) fn strings(&self)->&str{
+        &self.strings
     }
 
     pub(crate) fn arenas(&self)->&'a Arenas{
@@ -333,7 +340,7 @@ impl<'a> SharedVars<'a>{
                 })
                 .piped(rslice_tokenizer);
 
-            let strings= self.strings.as_str().piped(rstr_tokenizer);
+            let strings=&self.const_idents.strings;
 
             quote!(
                 abi_stable::type_layout::MonoSharedVars::new(
@@ -368,12 +375,6 @@ impl<'a> SharedVars<'a>{
     }
 
 }
-
-impl<'a> ToTokens for SharedVars<'a>{
-    fn to_tokens(&self, ts: &mut TokenStream2) {
-    }
-}
-
 
 
 #[must_use]

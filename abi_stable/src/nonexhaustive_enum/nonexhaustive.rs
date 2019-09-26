@@ -987,7 +987,7 @@ where
             f,
             "Could not unwrap NonExhaustive into '{}'.\n\
              Because its discriminant was {:?} .",
-            self.non_exhaustive.enum_info_().type_name,
+            self.non_exhaustive.enum_info_().type_name(),
             self.non_exhaustive.get_discriminant_(),
         )
     }
@@ -1001,7 +1001,7 @@ where
         f.debug_struct("UnwrapEnumError")
          .field("non_exhaustive",&"<opaque>")
          .field("discriminant",&self.non_exhaustive.get_discriminant_())
-         .field("enum",&self.non_exhaustive.enum_info_().type_name)
+         .field("enum_info",&self.non_exhaustive.enum_info_())
          .finish()
     }
 }

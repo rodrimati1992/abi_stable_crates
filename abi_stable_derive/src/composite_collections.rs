@@ -79,6 +79,11 @@ impl StartLen<u16>{
         len:(1u16<<15)+1,
     };
 
+    pub const EMPTY:Self=Self{
+        start:0,
+        len:0,
+    };
+
     /// The start of this range.
     #[inline]
     pub const fn start(self)->usize{
