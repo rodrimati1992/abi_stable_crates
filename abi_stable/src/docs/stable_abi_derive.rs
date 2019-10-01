@@ -12,17 +12,29 @@ These helper attributes are applied on the type declaration.
 
 ###  `#[sabi(phantom_field="name:type")]` 
 
-Adds a virtual field to the type layout constant.
+Adds a virtual field to the type layout constant,
+which is checked against the phantom field that was declared in the same order 
+for compatibility.
 
 ###  `#[sabi(phantom_type_param="type")]` 
 
 Adds a virtual type parameter to the type layout constant,
 which is checked for compatibility.
 
+###  `#[sabi(phantom_const_param="constant expression")]` 
+
+Adds a virtual const parameter to the type layout constant,
+which is checked for equality with the vistual const parameter declared in the same order.
+
 ###  `#[sabi(not_stableabi(TypeParameter))]`  
 
-Removes the implicit `TypeParameter:StableAbi` constraint,
-leaving a `TypeParameter:GetStaticEquivalent` constraint.
+Replaces the implicit `TypeParameter:StableAbi` constraint
+with a `TypeParameter:GetStaticEquivalent` constraint.
+
+###  `#[sabi(shared_stableabi(TypeParameter))]`  
+
+Replaces the implicit `TypeParameter:StableAbi` constraint
+with a `TypeParameter:SharedStableAbi` constraint.
 
 ###  `#[sabi(unsafe_unconstrained(TypeParameter))]`  
 
@@ -32,7 +44,7 @@ The type parameter will be ignored when determining whether the type
 has already been checked,when loading a dynamic library,
 
 Don't use this if transmuting this type to have different type parameters,
-only changing `#[sabi(unsafe_unconstrained())]` one,
+only changing the `#[sabi(unsafe_unconstrained())]` one,
 would cause Undefined Behavior.
 
 This is only necessary if you are passing `TypeParameter` to `UnsafeIgnoredType`
@@ -41,11 +53,32 @@ This is only necessary if you are passing `TypeParameter` to `UnsafeIgnoredType`
 
 Adds a bound to the `StableAbi` impl.
 
+###  `#[sabi(bounds="Type:ATrait,Type2:OtherTrait")]` 
+
+Adds many bounds to the `StableAbi` impl.
+
 ###  `#[sabi(prefix_bound="Type:ATrait")]` 
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
-Adds a bound to the `PrefixTypeTrait` impl.
+Adds a bound to the `PrefixTypeTrait` impl (for the deriving type).
+
+###  `#[sabi(prefix_bounds="Type:ATrait,Type2:OtherTrait")]` 
+
+This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
+
+Adds many bound to the `PrefixTypeTrait` impl (for the deriving type).
+
+### `#[sabi(unsafe_allow_type_macros)]`
+
+This allows type macros to be used alongside the StableAbi derive macro.
+
+The reason this is unsafe to enable them is because StableAbi cannot currently 
+analize the lifetimes within macros,
+which means that if any lifetime argument inside the macro invocation changes
+it won't be checked by the runtime type checker.
+
+A type macro is any macro that evaluates to a type.
 
 ###  `#[sabi(tag=" some_expr ")]` 
 
@@ -67,8 +100,17 @@ or the parents of that one.
 Sibling means libraries loaded at runtime by the same library/binary 
 (or a parent of that one).
 
-For more information about tags,[look here](../../abi_stability/tagging/index.html)
+For more information about tags,[look here](../../type_layout/tagging/index.html)
 
+###  `#[sabi(extra_checks="<some_constant_expression>")]` 
+
+Adds an `ExtraChecks` trait object associated with the type,
+which allows encoding and checking extra properties about a type.
+
+`<some_constant_expression>` must be a constant that implements ExtraChecks .
+
+For examples of using this attribute
+[look here](../../abi_stability/extra_checks/index.html#examples)
 
 ###  `#[sabi(debug_print)]` 
 
@@ -171,7 +213,22 @@ Examples:
 
 - `#[sabi(impl_InterfaceType(Clone,Debug,IoWrite,IoRead))]`
 
+###  `#[sabi(unsafe_opaque_fields]`
 
+Does not require any field to implement StableAbi,
+and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
+
+This is unsafe because the layout of their type won't be verified when loading the library,
+which causes Undefined Behavior if the type has a different layout.
+
+
+###  `#[sabi(unsafe_sabi_opaque_fields)]`
+
+Requires every field to implement StableAbi(unless overridden),
+but doesn't check their layout.
+
+This is unsafe because the layout of their type won't be verified when loading the library,
+which causes Undefined Behavior if the type has a different layout.
 
 # Field attributes
 
@@ -197,7 +254,35 @@ and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
 This is unsafe because the layout of the type won't be verified when loading the library,
 which causes Undefined Behavior if the type has a different layout.
 
-###  `#[sabi(field_bound="ATrait")]` 
+###  `#[sabi(unsafe_sabi_opaque_field)]`
+
+Requires the field to implement StableAbi(unless overridden),
+but doesn't check its layout.
+
+This is unsafe because the layout of the type won't be verified when loading the library,
+which causes Undefined Behavior if the type has a different layout.
+
+###  `#[sabi(bound="SomeBound")]` 
+
+Adds a `TheFieldType:SomeBound` constraint to the `StableAbi` impl.
+
+Eg: 
+```ignore
+#[sabi(bound="Debug")]
+name:StaticStr,
+```
+adds the `StaticStr:Debug` bound to the `StableAbi` impl
+
+###  `#[sabi(with_field_indices)]` 
+
+This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
+
+Generates associated constants named `field_index_for_<field_name>` with 
+the index of each field in the prefix type.
+Those indices can then be passed to the `abi_stable::prefix_types::panic_on_missing_*` 
+functions to panic on a missing field.
+
+###  `#[sabi(accessor_bound="ATrait")]` 
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 

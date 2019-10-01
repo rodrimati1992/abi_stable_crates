@@ -20,21 +20,21 @@ fn assert_distinct_elements(array:&[Tag]){
 
 
 
-const TAG_SET_EMPTY:Tag=Tag::set(&[]);
-const TAG_ARR_EMPTY:Tag=Tag::arr(&[]);
+const TAG_SET_EMPTY:Tag=Tag::set(rslice![]);
+const TAG_ARR_EMPTY:Tag=Tag::arr(rslice![]);
 
-const TAG_SET_0:Tag=Tag::set(&[Tag::bool_(false)]);
-const TAG_ARR_0:Tag=Tag::arr(&[Tag::bool_(false)]);
+const TAG_SET_0:Tag=Tag::set(rslice![Tag::bool_(false)]);
+const TAG_ARR_0:Tag=Tag::arr(rslice![Tag::bool_(false)]);
 
 
 
-const TAG_1_ORDER_0_VALUE:&'static [Tag]=&[
+const TAG_1_ORDER_0_VALUE:RSlice<'static,Tag>=rslice![
     Tag::bool_(false),
     Tag::bool_(true),
-    Tag::arr(&[Tag::uint(0),Tag::int(-100)]),
+    Tag::arr(rslice![Tag::uint(0),Tag::int(-100)]),
     Tag::int(-100),
     Tag::int(100),
-    Tag::set(&[ Tag::str("Cap'n Rogers"),Tag::str("ironman") ]),
+    Tag::set(rslice![ Tag::str("Cap'n Rogers"),Tag::str("ironman") ]),
     Tag::uint(!0),
     Tag::uint(100),
 ];
@@ -42,25 +42,25 @@ const TAG_SET_1_ORDER_0:Tag=Tag::set(TAG_1_ORDER_0_VALUE);
 const TAG_ARR_1_ORDER_0:Tag=Tag::arr(TAG_1_ORDER_0_VALUE);
 
 
-const TAG_1_ORDER_1_VALUE:&'static [Tag]=&[
+const TAG_1_ORDER_1_VALUE:RSlice<'static,Tag>=rslice![
     Tag::uint(!0),
     Tag::int(100),
     Tag::bool_(true),
-    Tag::set(&[ Tag::str("ironman"),Tag::str("Cap'n Rogers") ]),
+    Tag::set(rslice![ Tag::str("ironman"),Tag::str("Cap'n Rogers") ]),
     Tag::uint(100),
     Tag::int(-100),
     Tag::bool_(false),
-    Tag::arr(&[Tag::uint(0),Tag::int(-100)]),
+    Tag::arr(rslice![Tag::uint(0),Tag::int(-100)]),
 ];
 const TAG_SET_1_ORDER_1:Tag=Tag::set(TAG_1_ORDER_1_VALUE);
 const TAG_ARR_1_ORDER_1:Tag=Tag::arr(TAG_1_ORDER_1_VALUE);
 
-const TAG_2_VALUE:&'static [Tag]=&[
+const TAG_2_VALUE:RSlice<'static,Tag>=rslice![
     Tag::uint(!0),
     Tag::int(100),
-    Tag::arr(&[Tag::uint(0),Tag::int(-100)]),
+    Tag::arr(rslice![Tag::uint(0),Tag::int(-100)]),
     Tag::bool_(true),
-    Tag::set(&[ Tag::str("Cap'n Rogers"),Tag::str("ironman"),Tag::str("Fe-male") ]),
+    Tag::set(rslice![ Tag::str("Cap'n Rogers"),Tag::str("ironman"),Tag::str("Fe-male") ]),
     Tag::uint(100),
     Tag::int(-100),
     Tag::bool_(false),
@@ -71,7 +71,7 @@ const TAG_ARR_2:Tag=Tag::arr(TAG_2_VALUE);
 
 
 
-const TAG_MAP_EMPTY:Tag=Tag::map(&[]);
+const TAG_MAP_EMPTY:Tag=Tag::map(rslice![]);
 
 
 const TAG_MAP_0A:Tag=tag!({
@@ -247,9 +247,9 @@ fn check_different_same_variant(){
         Tag::int(0),
         Tag::uint(0),
         Tag::str(""),
-        Tag::arr(&[]),
-        Tag::set(&[]),
-        Tag::map(&[]),
+        Tag::arr(rslice![]),
+        Tag::set(rslice![]),
+        Tag::map(rslice![]),
     ]);
 }
 

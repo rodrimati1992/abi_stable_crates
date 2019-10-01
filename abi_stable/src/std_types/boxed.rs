@@ -16,11 +16,11 @@ use core_extensions::prelude::*;
 
 use crate::{
     pointer_trait::{
-        CallReferentDrop,Deallocate, TransmuteElement,
+        CallReferentDrop,Deallocate, CanTransmuteElement,
         GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
     traits::{IntoReprRust},
-    sabi_types::{MovePtr,ReturnValueEquality},
+    sabi_types::{Constructor,MovePtr,StaticRef},
     std_types::utypeid::{UTypeId,new_utypeid},
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
@@ -73,7 +73,7 @@ enum Command{
     #[derive(StableAbi)]
     pub struct RBox<T> {
         data: *mut T,
-        vtable: *const BoxVtable<T>,
+        vtable: StaticRef<BoxVtable<T>>,
         _marker: PhantomData<T>,
     }
 
@@ -107,7 +107,7 @@ enum Command{
         pub fn from_box(p: Box<T>) -> RBox<T> {
             RBox {
                 data: Box::into_raw(p),
-                vtable: VTableGetter::<T>::LIB_VTABLE.as_prefix_raw(),
+                vtable: WithMetadata::as_prefix(VTableGetter::<T>::LIB_VTABLE),
                 _marker: PhantomData,
             }
         }
@@ -132,20 +132,22 @@ enum Command{
         ///
         /// ```
         pub fn from_move_ptr(p: MovePtr<'_,T>) -> RBox<T> {
-            p.into_rbox()
+            MovePtr::into_rbox(p)
         }
 
         pub(super) fn data(&self) -> *mut T {
             self.data
         }
         pub(super) fn vtable<'a>(&self) -> &'a BoxVtable<T> {
-            unsafe { &*self.vtable }
+            self.vtable.get()
         }
 
         #[allow(dead_code)]
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
-            self.vtable = VTableGetter::<T>::LIB_VTABLE_FOR_TESTING.as_prefix_raw();
+            self.vtable = WithMetadata::as_prefix(
+                VTableGetter::<T>::LIB_VTABLE_FOR_TESTING
+            );
         }
     }
 }
@@ -156,7 +158,7 @@ unsafe impl<T> GetPointerKind for RBox<T>{
     type Kind=PK_SmartPointer;
 }
 
-unsafe impl<T, O> TransmuteElement<O> for RBox<T> {
+unsafe impl<T, O> CanTransmuteElement<O> for RBox<T> {
     type TransmutedPtr = RBox<O>;
 }
 
@@ -183,7 +185,7 @@ impl<T> RBox<T> {
 
         unsafe {
             let this_vtable =this.vtable();
-            let other_vtable=VTableGetter::LIB_VTABLE.as_prefix();
+            let other_vtable=WithMetadata::as_prefix(VTableGetter::LIB_VTABLE).get();
             if ::std::ptr::eq(this_vtable,other_vtable)||
                 this_vtable.type_id()==other_vtable.type_id()
             {
@@ -228,8 +230,6 @@ impl<T> DerefMut for RBox<T> {
 
 
 unsafe impl<T> OwnedPointer for RBox<T>{
-    type Target=T;
-
     #[inline]
     unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>{
         MovePtr::new(&mut **this)
@@ -343,7 +343,7 @@ impl<T> Drop for RBox<T> {
 #[sabi(kind(Prefix(prefix_struct="BoxVtable")))]
 #[sabi(missing_field(panic))]
 pub(crate) struct BoxVtableVal<T> {
-    type_id:ReturnValueEquality<UTypeId>,
+    type_id:Constructor<UTypeId>,
     #[sabi(last_prefix_field)]
     destructor: unsafe extern "C" fn(*mut T, CallReferentDrop,Deallocate),
 }
@@ -352,28 +352,29 @@ struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
     const DEFAULT_VTABLE:BoxVtableVal<T>=BoxVtableVal{
-        type_id:ReturnValueEquality{
-            function:new_utypeid::<RBox<()>>
-        },
+        type_id:Constructor( new_utypeid::<RBox<()>> ),
         destructor: destroy_box::<T>,
     };
 
     // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: &'a WithMetadata<BoxVtableVal<T>> = 
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE);
+    const LIB_VTABLE: StaticRef<WithMetadata<BoxVtableVal<T>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::DEFAULT_VTABLE,
+        ))
+    };
 
     #[allow(dead_code)]
     #[cfg(test)]
-    const LIB_VTABLE_FOR_TESTING: &'a WithMetadata<BoxVtableVal<T>> = 
-        &WithMetadata::new(
+    const LIB_VTABLE_FOR_TESTING: StaticRef<WithMetadata<BoxVtableVal<T>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
             PrefixTypeTrait::METADATA,
             BoxVtableVal {
-                type_id:ReturnValueEquality{
-                    function: new_utypeid::<RBox<i32>>
-                },
+                type_id:Constructor( new_utypeid::<RBox<i32>> ),
                 ..Self::DEFAULT_VTABLE
             }
-        );
+        ))
+    };
 }
 
 unsafe extern "C" fn destroy_box<T>(ptr: *mut T, call_drop: CallReferentDrop,dealloc:Deallocate) {

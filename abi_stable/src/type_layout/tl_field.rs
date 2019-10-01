@@ -3,84 +3,80 @@ use super::*;
 
 /// The layout of a field.
 #[repr(C)]
-#[derive(Copy, Clone,StableAbi)]
+#[derive(Debug, Copy, Clone, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLField {
     /// The field's name.
-    pub name: StaticStr,
+    name: RStr<'static>,
     /// Which lifetimes in the struct are referenced in the field type.
-    pub lifetime_indices: StaticSlice<LifetimeIndex>,
+    lifetime_indices: LifetimeArrayOrSlice<'static>,
     /// The layout of the field's type.
     ///
     /// This is a function pointer to avoid infinite recursion,
-    /// if you have a `&'static AbiInfo`s with the same address as one of its parent type,
+    /// if you have a `&'static TypeLayout`s with the same address as one of its parent type,
     /// you've encountered a cycle.
-    pub abi_info: GetAbiInfo,
+    layout: TypeLayoutCtor,
 
     /// The function pointer types within the field.
-    pub function_range:TLFunctionRange,
+    function_range:TLFunctionSlice,
 
     /// Whether this field is only a function pointer.
-    pub is_function:bool,
+    is_function:bool,
 
     /// How this field is accessed.
-    pub field_accessor:FieldAccessor,
-}
-
-
-/// Whether a field is accessible,and how it is accessed.
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
-pub enum FieldAccessor {
-    /// Accessible with `self.field_name`
-    Direct,
-    /// Accessible with `fn field_name(&self)->FieldType`
-    Method{
-        name:Option<&'static StaticStr>,
-    },
-    /// Accessible with `fn field_name(&self)->Option<FieldType>`
-    MethodOption,
-    /// This field is completely inaccessible.
-    Opaque,
-}
-
-
-impl FieldAccessor{
-    /// Constructs a FieldAccessor for a method named `name`.
-    pub const fn method_named(name:&'static StaticStr)->Self{
-        FieldAccessor::Method{
-            name:Some(name)
-        }
-    }
+    field_accessor:FieldAccessor,
 }
 
 
 ///////////////////////////
 
 impl TLField {
-    /// Constructs a field which does not contain function pointers.
+    
+    /// Constructs a field which does not contain function pointers,or lifetime indices.
     pub const fn new(
-        name: &'static str,
-        lifetime_indices: &'static [LifetimeIndex],
-        abi_info: GetAbiInfo,
+        name: RStr<'static>,
+        layout: TypeLayoutCtor,
+        vars:&'static SharedVars,
     ) -> Self {
         Self {
-            name: StaticStr::new(name),
-            lifetime_indices: StaticSlice::new(lifetime_indices),
-            abi_info,
-            function_range:TLFunctionRange::EMPTY,
+            name,
+            lifetime_indices:LifetimeArrayOrSlice::EMPTY,
+            layout,
+            function_range:TLFunctionSlice::empty(vars),
             is_function:false,
             field_accessor:FieldAccessor::Direct,
         }
     }
 
-    pub const fn set_field_accessor(mut self,field_accessor:FieldAccessor)->Self{
-        self.field_accessor=field_accessor;
-        self
+    /// Gets a printable version of the field type.
+    pub fn full_type(&self)->FmtFullType{
+        self.layout.get().full_type()
     }
 
-
-    pub fn full_type(&self)->FullType{
-        self.abi_info.get().layout.full_type
+    /// Gets the name of the field
+    pub fn name(&self)->&'static str{
+        self.name.as_str()
+    }
+    /// Gets the lifetimes that the field references.
+    pub fn lifetime_indices(&self)->LifetimeArrayOrSlice<'static>{
+        self.lifetime_indices
+    }
+    /// Gets the layout of the field type
+    pub fn layout(&self)->&'static TypeLayout{
+        self.layout.get()
+    }
+    /// Gets all the function pointer types in the field.
+    pub fn function_range(&self)->TLFunctionSlice{
+        self.function_range
+    }
+    /// Gets whether the field is itself a function pointer.
+    pub fn is_function(&self)->bool{
+        self.is_function
+    }
+    /// Gets the `FieldAccessor` for the type,
+    /// which describes whether a field is accessible,and how it is accessed.
+    pub fn field_accessor(&self)->FieldAccessor{
+        self.field_accessor
     }
 
 
@@ -100,7 +96,7 @@ impl TLField {
             visited_nodes=state.visited_nodes;
             state.recursion_depth+=1;
             state.visited_nodes+=1;
-            already_recursed = state.visited.replace(self.abi_info.get()).is_some();
+            already_recursed = state.visited.replace(self.layout.get()).is_some();
         });
 
         let _guard=if visited_nodes==0 { Some(ResetRecursion) }else{ None };
@@ -122,29 +118,16 @@ impl Eq for TLField{}
 impl PartialEq for TLField {
     fn eq(&self, other: &Self) -> bool {
         self.recursive(|_,this| {
-            let r = TLFieldShallow::new(*other, this.abi_info.is_some());
+            let r = TLFieldShallow::new(*other, this.layout.is_some());
             this == r
-        })
-    }
-}
-
-/// Need to avoid recursion somewhere,so I decided to stop at the field level.
-impl Debug for TLField {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.recursive(|_recursion_depth,x|{
-            // if recursion_depth>=5 {
-            //     writeln!(f,"<printing recursion limit>")
-            // }else{
-                fmt::Debug::fmt(&x, f)
-            // }
         })
     }
 }
 
 impl Display for TLField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let layout=self.abi_info.get().layout;
-        let (package,version)=layout.item_info.package_and_version();
+        let layout=self.layout.get();
+        let (package,version)=layout.item_info().package_and_version();
         writeln!(
             f,
             "field_name:{name}\n\
@@ -153,8 +136,8 @@ impl Display for TLField {
              package:'{package}' version:'{version}'",
             name =self.name,
             ty   =layout.full_type(),
-            size =layout.size,
-            align=layout.alignment,
+            size =layout.size(),
+            align=layout.alignment(),
             package=package,
             version=version,
         )?;
@@ -197,7 +180,7 @@ impl Drop for ResetRecursion{
 struct RecursionState{
     recursion_depth:usize,
     visited_nodes:u64,
-    visited:HashSet<*const AbiInfo>,
+    visited:HashSet<*const TypeLayout>,
 }
 
 
@@ -214,31 +197,35 @@ thread_local! {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 struct TLFieldShallow {
-    pub(crate) name: StaticStr,
-    pub(crate) full_type: FullType,
-    pub(crate) lifetime_indices: StaticSlice<LifetimeIndex>,
-    /// This is None if it already printed that AbiInfo
-    pub(crate) abi_info: Option<&'static AbiInfo>,
 
-    pub(crate) function_range:TLFunctionRange,
+    name: RStr<'static>,
 
-    pub(crate) is_function:bool,
+    full_type: FmtFullType,
 
-    pub(crate) field_accessor:FieldAccessor,
+    lifetime_indices: LifetimeArrayOrSlice<'static>,
+
+    /// This is None if it already printed that TypeLayout
+    layout: Option<&'static TypeLayout>,
+
+    function_range:TLFunctionSlice,
+
+    is_function:bool,
+
+    field_accessor:FieldAccessor,
 }
 
 impl TLFieldShallow {
-    fn new(field: TLField, include_abi_info: bool) -> Self {
-        let abi_info = field.abi_info.get();
+    fn new(field: TLField, include_type_layout: bool) -> Self {
+        let layout = field.layout.get();
         TLFieldShallow {
             name: field.name,
             lifetime_indices: field.lifetime_indices,
-            abi_info: if include_abi_info {
-                Some(abi_info)
+            layout: if include_type_layout {
+                Some(layout)
             } else {
                 None
             },
-            full_type: abi_info.layout.full_type,
+            full_type: layout.full_type(),
 
             function_range:field.function_range,
             is_function:field.is_function,
@@ -247,3 +234,143 @@ impl TLFieldShallow {
     }
 }
 
+
+////////////////////////////////////
+
+abi_stable_shared::declare_comp_tl_field!{
+    attrs=[ 
+        derive(StableAbi),
+        sabi(unsafe_sabi_opaque_fields),
+    ]
+}
+
+
+
+impl CompTLField{
+
+    /// Gets the name of the field from `SharedVars`'s string slice.
+    pub fn name(&self,strings:&'static str)->&'static str{
+        &strings[self.name_start_len().to_range()]
+    }
+
+    /// Gets the name of the field from `SharedVars`'s slice of lifetime indices.
+    pub fn lifetime_indices(
+        &self,
+        indices:&'static [LifetimeIndexPair]
+    )-> LifetimeArrayOrSlice<'static> {
+        let comp=LifetimeRange::from_u21(self.lifetime_indices_bits());
+        comp.slicing(indices)
+    }
+
+    /// Gets the `FieldAccessor` for the type from `SharedVars`'s string slice,
+    /// which describes whether a field is accessible,and how it is accessed..
+    pub fn field_accessor(&self,strings:&'static str)->FieldAccessor{
+        let name_end=self.name_start_len().end();
+        let comp=CompFieldAccessor::from_u3((self.bits0>>Self::FIELD_ACCESSOR_OFFSET) as u8);
+        let accessor_payload=if comp.requires_payload() {
+            strings[name_end..].split(';').next().unwrap_or("")
+        }else{
+            ""
+        };
+        comp.expand(accessor_payload).unwrap_or(FieldAccessor::Opaque)
+    }
+
+    /// Gets the name of the field from `SharedVars`'s slice of `TypeLayoutCtor`.
+    pub fn type_layout(&self,type_layouts:&'static [TypeLayoutCtor])-> TypeLayoutCtor {
+        type_layouts[self.type_layout_index()]
+    }
+
+    /// Expands this CompTLField into a TLField.
+    pub fn expand(
+        &self,
+        field_index:usize,
+        functions:Option<&'static TLFunctions >,
+        vars:&'static SharedVars,
+    )->TLField{
+        let strings=vars.strings();
+        let function_range=TLFunctionSlice::for_field(field_index,functions,vars);
+
+        // println!(
+        //     "field:{:b}\n\
+        //     name_start_len:{:?}\n\
+        //     lifetime_range:{:?} bits:{:b}\n\
+        //     type_layout_index:{}\n\
+        //     is_function:{}\n\
+        //     ",
+        //     self.bits0,
+        //     self.name_start_len(),
+        //     LifetimeRange::from_u21(self.lifetime_indices_bits()),
+        //     self.lifetime_indices_bits(),
+        //     self.type_layout_index(),
+        //     self.is_function(),
+        // );
+
+        TLField {
+            name:self.name(strings).into(),
+            lifetime_indices:self.lifetime_indices(vars.lifetime_indices()),
+            layout:self.type_layout(vars.type_layouts()),
+            function_range,
+            is_function:self.is_function(),
+            field_accessor:self.field_accessor(strings),
+        }
+    }
+}
+
+
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    use crate::{
+        abi_stability::stable_abi_trait::GetTypeLayoutCtor,
+        std_types::RString,
+        utils::leak_value,
+    };
+
+    #[test]
+    fn roundtrip(){
+        const UNIT_CTOR:TypeLayoutCtor=GetTypeLayoutCtor::<()>::STABLE_ABI;
+        const U32_CTOR:TypeLayoutCtor=GetTypeLayoutCtor::<u32>::STABLE_ABI;
+        const RSTRING_CTOR:TypeLayoutCtor=GetTypeLayoutCtor::<RString>::STABLE_ABI;
+
+        let mono_vars=leak_value(MonoSharedVars::new(
+            rstr!("foo;bar; baz; "),
+            rslice![],
+        ));
+
+        let vars=leak_value(SharedVars::new(
+            mono_vars,
+            rslice![UNIT_CTOR,U32_CTOR,RSTRING_CTOR],
+            rslice![],
+        ));
+
+        let mut arr=[LifetimeIndex::NONE;5];
+        arr[0]=LifetimeIndex::STATIC;
+        let lifetime_range=LifetimeRange::from_array(arr);
+
+        let field=CompTLField::new(
+            StartLen::new(9,3),
+            lifetime_range,
+            CompFieldAccessor::DIRECT,
+            TypeLayoutIndex::from_u10(2),
+            false,
+        );
+        
+        assert_eq!(
+            field.name(vars.strings()),
+            "baz",
+        );
+        assert_eq!(
+            field.lifetime_indices(vars.lifetime_indices()),
+            lifetime_range.slicing(vars.lifetime_indices()),
+        );
+        assert_eq!(
+            field.type_layout(vars.type_layouts()),
+            RSTRING_CTOR,
+        );
+        assert_eq!(
+            field.field_accessor(vars.strings()),
+            FieldAccessor::Direct,
+        );
+    }
+}

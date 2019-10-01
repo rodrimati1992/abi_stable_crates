@@ -1,3 +1,6 @@
+
+use super::*;
+
 use crate::{
     test_utils::{
         check_formatting_equivalence,
@@ -17,7 +20,8 @@ use crate::{
     },
 };
 
-use super::*;
+use core_extensions::SelfOps;
+
 
 use std::{
     cmp::{Ord, Ordering, PartialEq, PartialOrd},

@@ -81,7 +81,7 @@ version of abi_stable to be loaded successfully.
         Command::Modules{library_path,output_file,output_stdout,compact_json}=>{
             let lib_header=lib_header_from_path(library_path.as_ref()).unwrap();
 
-            let abi_info=lib_header.layout().unwrap_or_else(||{
+            let layout=lib_header.layout().unwrap_or_else(||{
                 println!(
                     "The dynamic library does not support reflection:\n    {}",
                     library_path.display(),
@@ -89,7 +89,7 @@ version of abi_stable to be loaded successfully.
                 std::process::exit(1);
             });
 
-            let root_mod=MRItem::from_abi_info(abi_info.get().layout);
+            let root_mod=MRItem::from_type_layout(layout);
 
             let ref json=if compact_json {
                 serde_json::to_string(&root_mod).unwrap()

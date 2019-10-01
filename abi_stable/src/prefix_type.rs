@@ -14,18 +14,23 @@ use crate::{
 };
 
 
+#[allow(unused_imports)]
 use core_extensions::SelfOps;
 
 
 mod accessible_fields;
-mod empty_prefix;
 mod layout;
 mod pt_metadata;
 
 pub use self::{
-    accessible_fields::{FieldAccessibility,IsAccessible},
-    empty_prefix::EmptyPrefixType,
-    layout::{PTStructLayout,PTStructLayoutParams},
+    accessible_fields::{
+        BoolArray,
+        FieldAccessibility,
+        FieldConditionality,
+        IsAccessible,
+        IsConditional,
+    },
+    layout::PTStructLayout,
 };
 
 pub(crate) use self::pt_metadata::PrefixTypeMetadata;
@@ -33,7 +38,8 @@ pub(crate) use self::pt_metadata::PrefixTypeMetadata;
 
 /// For types deriving `StableAbi` with `#[sabi(kind(Prefix(..)))]`.
 pub unsafe trait PrefixTypeTrait:Sized{
-    /// Just the metadata of Self,for passing to `WithMetadata::new`,
+    /// The metadata of the prefix-type (a FieldAccessibility and a PTStructLayout),
+    /// for passing to `WithMetadata::new`,
     /// with `WithMetadata::new(PrefixTypeTrait::METADATA,value)`
     const METADATA:WithMetadataFor<Self,Self::Prefix>=WithMetadataFor{
         inner:WithMetadata_{
@@ -53,13 +59,6 @@ pub unsafe trait PrefixTypeTrait:Sized{
     /// field is accessible.
     const PT_FIELD_ACCESSIBILITY:FieldAccessibility;
 
-    #[doc(hidden)]
-    // Whether each individual field in the prefix is conditional.
-    //
-    // This is checked in layout checking to ensure that 
-    // both sides agree on whether each field in the prefix is conditional,
-    const PT_COND_PREFIX_FIELDS:&'static [IsConditional];
-
     /**
 A type only accessible through a shared reference.
 
@@ -69,28 +68,25 @@ since their existence has to be checked at runtime.
 This is because multiple versions of the library may be loaded,
 where in some of them those fields don't exist.
 
-This is generally a struct whose only non-zero-sized field is `WithMetadata_<(),Self>`.
-
-```
-
 */
     type Prefix;
 
-    /// Converts `self` to a `WithMetadata<Self>`,.
+    /// Converts `self` to a `WithMetadata<Self>`,
+    /// which is itself convertible to a reference to `Self::Prefix` with
+    /// the `as_prefix` methods.
     fn into_with_metadata(self)->WithMetadata<Self>{
         WithMetadata::new(Self::METADATA,self)
     }
     
-    /// Convers `Self` to its `WithMetadata<Self>`,
-    /// then leaks it and casts it to `&'a Self::Prefix`.
+    /// Convers `Self` to `&'a Self::Prefix`,leaking it in the process.
     fn leak_into_prefix<'a>(self)->&'a Self::Prefix
     where 
         Self:'a,
         Self::Prefix:'a
     {
-        self.into_with_metadata()
-            .piped(leak_value)
-            .as_prefix()
+        let x=self.into_with_metadata();
+        let x=leak_value(x);
+        x.ref_as_prefix()
     }
 }
 
@@ -109,10 +105,11 @@ pub type WithMetadata<T>=
 #[repr(C,align(4))]
 pub struct WithMetadata_<T,P>{
     /// A bit array,where the bit at field index represents whether a field is accessible.
-    #[inline(doc)]
     pub _prefix_type_field_acc:FieldAccessibility,
-    #[inline(doc)]
+    /// Yhe basic layout of the prefix type.
     pub _prefix_type_layout:&'static PTStructLayout,
+    /// The original value of the prefix type,
+    /// which can be converted into a reference to P by calling the as_prefix methods.
     pub original:T,
     _marker:PhantomData<P>,
     // WithMetadata will never implement Copy or Clone.
@@ -124,6 +121,10 @@ pub struct WithMetadata_<T,P>{
 
 impl<T,P> WithMetadata_<T,P> {
     /// Constructs Self with `WithMetadata::new(PrefixTypeTrait::METADATA,value)`
+    ///
+    /// This takes in the `metadata:WithMetadataFor<T,P>` parameter as a 
+    /// workaround for `const fn` not allowing trait bounds,
+    /// which in case is `PrefixTypeTrait`.
     #[inline]
     pub const fn new(metadata:WithMetadataFor<T,P>,value:T)->Self{
         Self{
@@ -135,41 +136,32 @@ impl<T,P> WithMetadata_<T,P> {
         }
     }
 
+
     /// Converts this WithMetadata<T,P> to a `<prefix_struct>` type.
     #[inline]
-    pub fn as_prefix(&self)->&P {
+    pub fn ref_as_prefix(&self)->&P {
         unsafe{
             &*self.as_prefix_raw()
         }
     }
     
-    /// Converts this WithMetadata<T,P> to a `*const <prefix_struct>` type.
-    /// Use this if you need to implement nested vtables at compile-time.
     #[inline]
-    pub const fn as_prefix_raw(&self)->*const P {
+    const fn as_prefix_raw(&self)->*const P {
         unsafe{
             self as *const Self as *const P
-        }
-    }
-
-    /// Converts this `*const WithMetadata<T,P>` to a `*const <prefix_struct>` type.
-    /// Use this if you need to implement nested vtables at compile-time.
-    #[inline]
-    pub const unsafe fn raw_as_prefix(this:*const Self)->*const P {
-        unsafe{
-            this as *const Self as *const P
         }
     }
 
     /// Converts a `StaticRef<WithMetadata<T,P>>` to a `StaticRef< <prefix_struct> >` type.
     /// Use this if you need to implement nested vtables at compile-time.
     #[inline]
-    pub const fn staticref_as_prefix(this:StaticRef<Self>)->StaticRef<P> {
+    pub const fn as_prefix(this:StaticRef<Self>)->StaticRef<P> {
         unsafe{
             StaticRef::from_raw(this.get_raw() as *const P)
         }
     }
 
+    #[doc(hidden)]
     #[inline]
     pub unsafe fn into_full(this:*const Self)->*const T {
         unsafe{
@@ -184,41 +176,15 @@ impl<T,P> WithMetadata_<T,P> {
 ////////////////////////////////////////////////////////////////////////////////
 
 
-/// The prefix-type metadata for `T`.
+/// The prefix-type metadata for `T` (with a FieldAccessibility and a PTStructLayout).
 /// This is only constructed in PrefixTypeTrait::METADATA.
 ///
-/// `P` is guaranteed to be <T as PrefixTypeTrait>::Prefix,
-/// it is a type parameter to get around limitations of `const fn` as of Rust 1.34.
+/// This is used as a workaround for `const fn` not allowing trait bounds.
 #[repr(C)]
 pub struct WithMetadataFor<T,P>{
     inner:WithMetadata_<(),()>,
     _marker:PhantomData<(T,P)>
 }
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-
-
-/// Whether a field is conditional,
-/// whether it has a `#[sabi(accessible_if=" expression ")]` helper attribute or not.
-#[derive(StableAbi)]
-#[derive(Debug,Copy,Clone,PartialEq,Eq)]
-#[repr(u8)]
-pub enum IsConditional{
-    No=0,
-    Yes=1,
-}
-
-impl IsConditional{
-    pub const fn new(is_accessible:bool)->Self{
-        [IsConditional::No,IsConditional::Yes][is_accessible as usize]
-    }
-    pub const fn is_conditional(self)->bool{
-        self as usize!=0
-    }
-}
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -308,14 +274,14 @@ Found:
 \n",
         index=field_index,
         field_named=field_name,
-        struct_name=expected.name.as_str(),
+        struct_name=expected.mono_layout.name(),
         struct_generics=expected.generics.as_str(),
-        package=expected.package,
+        package=expected.mono_layout.item_info().package(),
         
-        expected_package_version =expected.package_version ,
+        expected_package_version =expected.mono_layout.item_info().version(),
         expected_field_count=expected.get_field_names().count(),
         
-        actual_package_version =actual.package_version ,
+        actual_package_version =actual.mono_layout.item_info().version() ,
         actual_field_count=actual.get_field_names().count(),
     );
 }

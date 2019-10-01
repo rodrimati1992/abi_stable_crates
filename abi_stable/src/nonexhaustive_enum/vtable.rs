@@ -6,19 +6,18 @@ use std::{
 
 use crate::{
     const_utils::Transmuter,
-    erased_types::{c_functions,trait_objects,InterfaceType,FormattingMode},
+    erased_types::{c_functions,trait_objects,InterfaceType,FormattingMode,InterfaceBound},
     marker_type::{ErasedObject,UnsafeIgnoredType},
     nonexhaustive_enum::{
         alt_c_functions,NonExhaustive,EnumInfo,GetEnumInfo,SerializeEnum,GetSerializeEnumProxy,
     },
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
     type_level::{
-        impl_enum::{Implemented,Unimplemented,IsImplemented},
+        impl_enum::{Implemented,Unimplemented},
         trait_marker,
     },
     sabi_types::{StaticRef},
     std_types::{ROption,RResult,RString,RCmpOrdering,RBoxError},
-    type_layout::Tag,
     inline_storage::InlineStorage,
     StableAbi,
 };
@@ -30,12 +29,15 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
     const VTABLE_VAL:NonExhaustiveVtableVal<Self,S,I>;
     
     #[doc(hidden)]
-    const VTABLE_PTR: *const WithMetadata<NonExhaustiveVtableVal<Self,S,I>> = 
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE_VAL);
+    const VTABLE_PTR: StaticRef<WithMetadata<NonExhaustiveVtableVal<Self,S,I>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::VTABLE_VAL
+        ))
+    };
 
-    const VTABLE_REF:StaticRef<NonExhaustiveVtable<Self,S,I>>=unsafe{
-        let full=WithMetadata::raw_as_prefix(Self::VTABLE_PTR);
-        StaticRef::from_raw(full)
+    const VTABLE_REF:StaticRef<NonExhaustiveVtable<Self,S,I>>={
+        WithMetadata::as_prefix(Self::VTABLE_PTR)
     };
 }
 
@@ -51,6 +53,7 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
     not_stableabi(E,S,I),
     missing_field(default),
     kind(Prefix(prefix_struct="NonExhaustiveVtable")),
+    with_field_indices,
     //debug_print,
 )]
 pub struct NonExhaustiveVtableVal<E,S,I>{
@@ -337,65 +340,3 @@ pub mod trait_bounds{
     }
 }
 
-macro_rules! declare_InterfaceBound {
-    (
-        auto_traits=[ $( $auto_trait:ident ),* $(,)* ]
-        required_traits=[ $( $required_traits:ident ),* $(,)* ]
-    ) => (
-
-        #[doc(hidden)]
-        #[allow(non_upper_case_globals)]
-        pub trait InterfaceBound:InterfaceType{
-            const TAG:Tag;
-            $(const $auto_trait:bool;)*
-            $(const $required_traits:bool;)*
-        }
-
-        #[allow(non_upper_case_globals)]
-        impl<I> InterfaceBound for I
-        where 
-            I:InterfaceType,
-            $(I::$auto_trait:IsImplemented,)*
-            $(I::$required_traits:IsImplemented,)*
-        {
-            const TAG:Tag={
-                const fn str_if(cond:bool,s:&'static str)->Tag{
-                    [ Tag::null(), Tag::str(s) ][cond as usize]
-                }
-
-                tag!{{
-                    "auto traits"=>tag![[
-                        $(  
-                            str_if(
-                                <I::$auto_trait as IsImplemented>::VALUE,
-                                stringify!($auto_trait)
-                            ),
-                        )*
-                    ]],
-                    "required traits"=>tag!{{
-                        $(  
-                            str_if(
-                                <I::$required_traits as IsImplemented>::VALUE,
-                                stringify!($required_traits)
-                            ),
-                        )*
-                    }}
-                }}
-            };
-
-            $(const $auto_trait:bool=<I::$auto_trait as IsImplemented>::VALUE;)*
-            $(const $required_traits:bool=<I::$required_traits as IsImplemented>::VALUE;)*
-        }
-    )
-}
-
-declare_InterfaceBound!{
-    auto_traits=[ Sync,Send ]
-    required_traits=[ 
-        Clone,
-        Debug,Display,
-        Serialize,Deserialize,
-        Eq,PartialEq,Ord,PartialOrd,
-        Hash,Error,
-    ]
-}

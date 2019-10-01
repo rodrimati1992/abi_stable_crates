@@ -91,24 +91,24 @@ impl WithName for JessiJames{
 // This checks that the two types aren't considered compatible.
 assert!(
     check_layout_compatibility(
-        <WithMarker<Mark> as StableAbi>::ABI_INFO,
-        <WithMarker<John> as StableAbi>::ABI_INFO,
+        <WithMarker<Mark> as StableAbi>::LAYOUT,
+        <WithMarker<John> as StableAbi>::LAYOUT,
     ).is_err()
 );
 
 // This checks that the two types aren't considered compatible.
 assert!(
     check_layout_compatibility(
-        <WithMarker<John> as StableAbi>::ABI_INFO,
-        <WithMarker<JessiJames> as StableAbi>::ABI_INFO,
+        <WithMarker<John> as StableAbi>::LAYOUT,
+        <WithMarker<JessiJames> as StableAbi>::LAYOUT,
     ).is_err()
 );
 
 // This checks that the two types aren't considered compatible.
 assert!(
     check_layout_compatibility(
-        <WithMarker<JessiJames> as StableAbi>::ABI_INFO,
-        <WithMarker<Mark> as StableAbi>::ABI_INFO,
+        <WithMarker<JessiJames> as StableAbi>::LAYOUT,
+        <WithMarker<Mark> as StableAbi>::LAYOUT,
     ).is_err()
 );
 

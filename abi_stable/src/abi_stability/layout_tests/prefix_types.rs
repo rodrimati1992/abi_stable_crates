@@ -13,12 +13,11 @@ use rand::{
 use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,CheckingGlobals,check_layout_compatibility_with_globals},
-        stable_abi_trait::AbiInfo,
-        AbiInfoWrapper, 
     },
     prefix_type::{PrefixTypeMetadata,PrefixTypeTrait},
     *,
     test_utils::must_panic,
+    type_layout::TypeLayout,
     type_level::bools::*,
     utils::transmute_reference,
 };
@@ -113,20 +112,20 @@ mod prefix3 {
 
 
 
-/// Dereferences the AbiInfo of a `&T` to the layout of `T`
-fn dereference_abi(abi:&'static AbiInfo)->&'static AbiInfo{
-    abi.layout.phantom_fields[0].abi_info.get()
+/// Dereferences the TypeLayout of a `&T` to the layout of `T`
+fn dereference_abi(abi:&'static TypeLayout)->&'static TypeLayout{
+    abi.phantom_fields().get(0).unwrap().layout()
 }
 
 
 
-static PREF_0:&'static AbiInfoWrapper = <&prefix0::Prefix>::ABI_INFO;
-static PREF_1:&'static AbiInfoWrapper = <&prefix1::Prefix>::ABI_INFO;
-static PREF_2:&'static AbiInfoWrapper = <&prefix2::Prefix>::ABI_INFO;
-static PREF_3:&'static AbiInfoWrapper = <&prefix3::Prefix>::ABI_INFO;
+static PREF_0:&'static TypeLayout = <&prefix0::Prefix>::LAYOUT;
+static PREF_1:&'static TypeLayout = <&prefix1::Prefix>::LAYOUT;
+static PREF_2:&'static TypeLayout = <&prefix2::Prefix>::LAYOUT;
+static PREF_3:&'static TypeLayout = <&prefix3::Prefix>::LAYOUT;
 
 
-fn new_list()->Vec<&'static AbiInfoWrapper>{
+fn new_list()->Vec<&'static TypeLayout>{
     vec![PREF_0, PREF_1, PREF_2, PREF_3]
 }
 
@@ -137,17 +136,16 @@ fn prefixes_test() {
     let mut rng=thread_rng();
 
     fn gen_elem_from(
-        abi_wrapper:&'static AbiInfoWrapper
-    )->(&'static AbiInfoWrapper,PrefixTypeMetadata){
-        let prefix=abi_wrapper.get()
+        abi_wrapper:&'static TypeLayout
+    )->(&'static TypeLayout,PrefixTypeMetadata){
+        let prefix=abi_wrapper
             .piped(dereference_abi)
-            .layout
             .piped(PrefixTypeMetadata::new);
         (abi_wrapper,prefix)
     }
 
     let mut gen_generation=|skip_first:usize|{
-        let mut ret=Vec::<(&'static AbiInfoWrapper,PrefixTypeMetadata)>::new();
+        let mut ret=Vec::<(&'static TypeLayout,PrefixTypeMetadata)>::new();
         for _ in 0..list.len() {
             let pushed=gen_elem_from(list.choose(&mut rng).unwrap().clone());
             ret.push(pushed);
@@ -185,8 +183,8 @@ fn prefixes_test() {
                 res.unwrap_or_else(|e| panic!("{:#?}",e) );
 
 
-                let deref_this=dereference_abi(this .get());
-                let deref_other=dereference_abi(other.get());
+                let deref_this=dereference_abi(this);
+                let deref_other=dereference_abi(other);
                 let t_id=deref_this.get_utypeid();
                 let o_id=deref_other.get_utypeid();
 
@@ -202,7 +200,7 @@ fn prefixes_test() {
                         pre.prefix_field_count, 
                     );
                     for (l_field,r_field) in 
-                        t_prefix.fields.get_fields().zip(pre.fields.get_fields()) 
+                        t_prefix.fields.iter().zip(pre.fields.iter()) 
                     {
                         assert_eq!(l_field,r_field);
                     }
@@ -235,7 +233,7 @@ fn prefixes_test() {
 
         // Asserting that the layout they all map to is the one with the most fields
         for this in list.iter().cloned() {
-            let id=dereference_abi(this.get()).get_utypeid();
+            let id=dereference_abi(this).get_utypeid();
 
             // The random sanpling did not include this type.
             let prefix=match prefix_type_map.get(&id) {
@@ -243,7 +241,7 @@ fn prefixes_test() {
                 None=>continue,
             };
 
-            for (l_field,r_field) in prefix.fields.get_fields().zip(max_prefix.fields.get_fields()) {
+            for (l_field,r_field) in prefix.fields.iter().zip(max_prefix.fields.iter()) {
                 assert_eq!(l_field,r_field);
             }
             assert_eq!(
@@ -257,14 +255,14 @@ fn prefixes_test() {
 
 fn check_interface_impl_pair(
     globals:&CheckingGlobals,
-    this :&'static AbiInfoWrapper,
-    other:&'static AbiInfoWrapper,
+    this :&'static TypeLayout,
+    other:&'static TypeLayout,
 ){
-    let deref_this=dereference_abi(this.get());
-    let deref_other=dereference_abi(other.get());
+    let deref_this=dereference_abi(this);
+    let deref_other=dereference_abi(other);
 
-    let t_prefix=PrefixTypeMetadata::new(deref_this.layout);
-    let o_prefix=PrefixTypeMetadata::new(deref_other.layout);
+    let t_prefix=PrefixTypeMetadata::new(deref_this);
+    let o_prefix=PrefixTypeMetadata::new(deref_other);
 
     if let Err(e)=check_layout_compatibility_with_globals(this,other,&globals) {
         if t_prefix.fields.len() <= o_prefix.fields.len() {
@@ -293,7 +291,7 @@ fn check_interface_impl_pair(
             pre.prefix_field_count, 
         );
         for (field_i,(l_field,r_field)) in 
-            t_prefix.fields.get_fields().zip(pre.fields.get_fields()).enumerate() 
+            t_prefix.fields.iter().zip(pre.fields.iter()).enumerate() 
         {
             if t_prefix.accessible_fields.is_accessible(field_i)
                 &&o_prefix.accessible_fields.is_accessible(field_i)
@@ -351,7 +349,7 @@ fn hierarchical_prefix_test(){
 #[cfg_attr(not(miri),test)]
 fn prefix_is_same_alignment(){
     let globals=CheckingGlobals::new();
-    let misaligned = <&prefix2_misaligned::Prefix>::ABI_INFO;
+    let misaligned = <&prefix2_misaligned::Prefix>::LAYOUT;
 
     for pref in vec![ PREF_0,PREF_1 ] {
         let errs = check_layout_compatibility_with_globals(pref, misaligned,&globals)
@@ -373,7 +371,7 @@ fn prefix_is_same_size(){
     let list=new_list();
 
     for pref in list.iter().cloned() {
-        let mismatched_prefix=<&prefix2_different_prefix::Prefix>::ABI_INFO;
+        let mismatched_prefix=<&prefix2_different_prefix::Prefix>::LAYOUT;
         let errs = check_layout_compatibility_with_globals(pref,mismatched_prefix ,&globals)
             .unwrap_err()
             .flatten_errors();
@@ -504,51 +502,51 @@ declare_enabled_fields!{
     }
 }
 
-static COND_FIELD_0_ALL:&'static AbiInfoWrapper = 
-    <&cond_fields_0::Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
+static COND_FIELD_0_ALL:&'static TypeLayout = 
+    <&cond_fields_0::Prefix<ACCESSIBLE_ALL>>::LAYOUT;
 
-static COND_FIELD_1_ALL:&'static AbiInfoWrapper = 
-    <&cond_fields_1::Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
+static COND_FIELD_1_ALL:&'static TypeLayout = 
+    <&cond_fields_1::Prefix<ACCESSIBLE_ALL>>::LAYOUT;
 
-static COND_FIELD_2_ALL:&'static AbiInfoWrapper = 
-    <&cond_fields_2::Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
+static COND_FIELD_2_ALL:&'static TypeLayout = 
+    <&cond_fields_2::Prefix<ACCESSIBLE_ALL>>::LAYOUT;
 
-static COND_FIELD_3_ALL:&'static AbiInfoWrapper = 
-    <&cond_fields_3::Prefix<ACCESSIBLE_ALL>>::ABI_INFO;
-
-
-static COND_FIELD_0_EXCEPT_0:&'static AbiInfoWrapper = 
-    <&cond_fields_0::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
-
-static COND_FIELD_1_EXCEPT_0:&'static AbiInfoWrapper = 
-    <&cond_fields_1::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
-
-static COND_FIELD_2_EXCEPT_0:&'static AbiInfoWrapper = 
-    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
-
-static COND_FIELD_3_EXCEPT_0:&'static AbiInfoWrapper = 
-    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::ABI_INFO;
+static COND_FIELD_3_ALL:&'static TypeLayout = 
+    <&cond_fields_3::Prefix<ACCESSIBLE_ALL>>::LAYOUT;
 
 
-static COND_FIELD_1_EXCEPT_1:&'static AbiInfoWrapper = 
-    <&cond_fields_1::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::ABI_INFO;
+static COND_FIELD_0_EXCEPT_0:&'static TypeLayout = 
+    <&cond_fields_0::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
-static COND_FIELD_2_EXCEPT_1:&'static AbiInfoWrapper = 
-    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::ABI_INFO;
+static COND_FIELD_1_EXCEPT_0:&'static TypeLayout = 
+    <&cond_fields_1::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
-static COND_FIELD_3_EXCEPT_1:&'static AbiInfoWrapper = 
-    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::ABI_INFO;
+static COND_FIELD_2_EXCEPT_0:&'static TypeLayout = 
+    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
-
-static COND_FIELD_2_EXCEPT_2:&'static AbiInfoWrapper = 
-    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_2>>::ABI_INFO;
-
-static COND_FIELD_3_EXCEPT_2:&'static AbiInfoWrapper = 
-    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_2>>::ABI_INFO;
+static COND_FIELD_3_EXCEPT_0:&'static TypeLayout = 
+    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
 
-static COND_FIELD_3_EXCEPT_3:&'static AbiInfoWrapper = 
-    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_3>>::ABI_INFO;
+static COND_FIELD_1_EXCEPT_1:&'static TypeLayout = 
+    <&cond_fields_1::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
+
+static COND_FIELD_2_EXCEPT_1:&'static TypeLayout = 
+    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
+
+static COND_FIELD_3_EXCEPT_1:&'static TypeLayout = 
+    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
+
+
+static COND_FIELD_2_EXCEPT_2:&'static TypeLayout = 
+    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_2>>::LAYOUT;
+
+static COND_FIELD_3_EXCEPT_2:&'static TypeLayout = 
+    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_2>>::LAYOUT;
+
+
+static COND_FIELD_3_EXCEPT_3:&'static TypeLayout = 
+    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_3>>::LAYOUT;
 
 
 
@@ -589,12 +587,12 @@ mod cond_fields_1 {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         #[sabi(last_prefix_field)]
         pub field0: T,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field1: U,
     }
 }
@@ -614,15 +612,15 @@ mod cond_fields_2 {
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         #[sabi(last_prefix_field)]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field0: T,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field1: U,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field2: V,
     }
 }
@@ -667,16 +665,16 @@ mod cond_fields_2_different_prefix {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field0: T,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_1 ")]
         #[sabi(last_prefix_field)]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field1: U,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field2: V,
     }
 }
@@ -697,19 +695,19 @@ mod cond_fields_3 {
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         #[sabi(last_prefix_field)]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field0: T,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field1: U,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field2: V,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_3 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field3: W,
     }
 }
@@ -729,19 +727,19 @@ mod cond_fields_3_uncond_prefix {
         pub _marker:UnsafeIgnoredType<(C,T,U,V,W)>,
         
         #[sabi(last_prefix_field)]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field0: T,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field1: U,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field2: V,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_3 ")]
-        #[sabi(field_bound="Copy")]
+        #[sabi(accessor_bound="Copy")]
         pub field3: W,
     }
 }
@@ -763,51 +761,51 @@ fn prefix_cond_field_test(){
 
     let mut valid_lists=vec![
         vec![
-            <&Prefix3<(F,F,F,F),ai32,ai32,ai32,ai32>>::ABI_INFO,
-            <&Prefix3<(T,F,F,F),i32 ,ai32,ai32,ai32>>::ABI_INFO,
-            <&Prefix3<(T,T,F,F),i32 ,i32 ,ai32,ai32>>::ABI_INFO,
-            <&Prefix3<(T,T,T,F),i32 ,i32 ,i32 ,ai32>>::ABI_INFO,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::ABI_INFO,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::ABI_INFO,
+            <&Prefix3<(F,F,F,F),ai32,ai32,ai32,ai32>>::LAYOUT,
+            <&Prefix3<(T,F,F,F),i32 ,ai32,ai32,ai32>>::LAYOUT,
+            <&Prefix3<(T,T,F,F),i32 ,i32 ,ai32,ai32>>::LAYOUT,
+            <&Prefix3<(T,T,T,F),i32 ,i32 ,i32 ,ai32>>::LAYOUT,
+            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
+            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
         ],
         vec![
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::ABI_INFO,
-            <&Prefix3<(F,T,T,T),ai32,i32 ,i32 ,i32 >>::ABI_INFO,
-            <&Prefix3<(F,F,T,T),ai32,ai32,i32 ,i32 >>::ABI_INFO,
-            <&Prefix3<(F,F,F,T),ai32,ai32,ai32,i32 >>::ABI_INFO,
-            <&Prefix3<(F,F,F,F),ai32,ai32,ai32,ai32>>::ABI_INFO,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::ABI_INFO,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::ABI_INFO,
+            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
+            <&Prefix3<(F,T,T,T),ai32,i32 ,i32 ,i32 >>::LAYOUT,
+            <&Prefix3<(F,F,T,T),ai32,ai32,i32 ,i32 >>::LAYOUT,
+            <&Prefix3<(F,F,F,T),ai32,ai32,ai32,i32 >>::LAYOUT,
+            <&Prefix3<(F,F,F,F),ai32,ai32,ai32,ai32>>::LAYOUT,
+            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
+            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
         ],
         vec![
-            <&Prefix2<(F,T,F,F),au32,i32 ,au32>>::ABI_INFO,
-            <&Prefix3<(T,F,T,T),i32 ,au32,i32 ,i32>>::ABI_INFO,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::ABI_INFO,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::ABI_INFO,
+            <&Prefix2<(F,T,F,F),au32,i32 ,au32>>::LAYOUT,
+            <&Prefix3<(T,F,T,T),i32 ,au32,i32 ,i32>>::LAYOUT,
+            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::LAYOUT,
+            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::LAYOUT,
         ],
     ];
 
 
     let invalid=vec![
         (
-            <&Prefix3<(T,F,T,F),i32 ,au32,i32 ,i32>>::ABI_INFO,
-            <&Prefix2<(F,T,F,F),au32,i32 ,au32>>::ABI_INFO,
+            <&Prefix3<(T,F,T,F),i32 ,au32,i32 ,i32>>::LAYOUT,
+            <&Prefix2<(F,T,F,F),au32,i32 ,au32>>::LAYOUT,
         ),
         (
-            <&Prefix2<(F,T,F,F),au32,i32 ,au32>>::ABI_INFO,
-            <&Prefix3<(T,T,T,T),i32 ,au32,i32 ,i32>>::ABI_INFO,
+            <&Prefix2<(F,T,F,F),au32,i32 ,au32>>::LAYOUT,
+            <&Prefix3<(T,T,T,T),i32 ,au32,i32 ,i32>>::LAYOUT,
         ),
         (
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::ABI_INFO,
-            <&Prefix3<(T,T,T,T),i32 ,au32,i32 ,i32>>::ABI_INFO,
+            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::LAYOUT,
+            <&Prefix3<(T,T,T,T),i32 ,au32,i32 ,i32>>::LAYOUT,
         ),
         (
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,au32,i32>>::ABI_INFO,
-            <&Prefix3<(F,F,T,F),i32 ,i32 ,i32 ,i32>>::ABI_INFO,
+            <&Prefix3<(T,T,T,T),i32 ,i32 ,au32,i32>>::LAYOUT,
+            <&Prefix3<(F,F,T,F),i32 ,i32 ,i32 ,i32>>::LAYOUT,
         ),
         (
-            <&Prefix3UncondPrefix<(T,T,T,T),i32 ,i32 ,au32,i32>>::ABI_INFO,
-            <&Prefix3            <(T,T,T,T),i32 ,i32 ,au32,i32>>::ABI_INFO,
+            <&Prefix3UncondPrefix<(T,T,T,T),i32 ,i32 ,au32,i32>>::LAYOUT,
+            <&Prefix3            <(T,T,T,T),i32 ,i32 ,au32,i32>>::LAYOUT,
         ),
     ];
 

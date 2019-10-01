@@ -109,10 +109,12 @@ where
     }
 
     impl<'a, T: 'a> RSlice<'a, T> {
+        const _EMPTY_SLICE: &'a [T] = &[];
+
         /// An empty slice.
         pub const EMPTY: Self = RSlice {
             data: {
-                let v: &[T] = &[];
+                let v: &[T] = Self::_EMPTY_SLICE;
                 v.as_ptr()
             },
             length: 0,
@@ -156,6 +158,18 @@ where
                 _marker: PhantomData,
             }
         }
+
+        #[doc(hidden)]
+        pub const unsafe fn from_raw_parts_with_lifetime(
+            slice:&'a [T],
+            len: usize,
+        ) -> Self {
+            Self {
+                data: slice.as_ptr(),
+                length: len,
+                _marker: PhantomData,
+            }
+        }
     }
     
     impl<'a, T> RSlice<'a, T> {
@@ -171,6 +185,11 @@ where
         /// ```
         pub fn as_slice(&self) -> &'a [T] {
             unsafe { ::std::slice::from_raw_parts(self.data, self.length) }
+        }
+
+        /// Gets a raw pointer to the start of the slice.
+        pub const fn as_ptr(&self) -> *const T{
+            self.data
         }
         
         /// The length (in elements) of this slice.
@@ -302,6 +321,18 @@ impl<'a, T> RSlice<'a, T> {
         T: Clone,
     {
         self.to_vec().into()
+    }
+
+    /// Transmutes n `RSlice<'a,T>` to a `RSlice<'a,U>`
+    pub const unsafe fn transmute_ref<U>(self)->RSlice<'a,U>
+    where
+        U:'a
+    {
+        let len=self.len();
+        RSlice::from_raw_parts(
+            self.as_ptr() as *const T as *const U,
+            len,
+        )
     }
 }
 

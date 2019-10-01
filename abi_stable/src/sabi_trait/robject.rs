@@ -1,26 +1,26 @@
-use super::{
-    *,
-    vtable::InterfaceBound,
-};
+use super::*;
     
 use std::{
     fmt,
     ops::{Deref,DerefMut},
 };
 
+#[allow(unused_imports)]
 use core_extensions::SelfOps;
 
 use crate::{
     abi_stability::SharedStableAbi,
-    erased_types::c_functions::adapt_std_fmt,
-    sabi_types::MaybeCmp,
-    std_types::{RBox,UTypeId},
+    erased_types::{
+        c_functions::adapt_std_fmt,
+        InterfaceBound,
+    },
+    sabi_types::{MaybeCmp,RRef},
+    std_types::UTypeId,
     pointer_trait::{
-        TransmuteElement,
-        GetPointerKind,PK_SmartPointer,PK_Reference,
+        CanTransmuteElement,TransmuteElement,
+        GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
     },
     type_level::{
-        unerasability::{TU_Unerasable,TU_Opaque},
         impl_enum::{Implemented,Unimplemented},
         trait_marker,
     },
@@ -73,11 +73,11 @@ These are the traits:
 within the same dynamic library/executable that constructed it,
 using these (fallible) conversion methods:
 
-- sabi_into_any_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
+- into_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
 
-- sabi_as_any_unerased:Unwraps into a `&T`.Requires `T:'static`.
+- as_unerased:Unwraps into a `&T`.Requires `T:'static`.
 
-- sabi_as_any_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
+- as_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
 
 `RObject` can only be converted back if it was created 
 using a `RObject::*_unerased` function.
@@ -90,116 +90,16 @@ using a `RObject::*_unerased` function.
     not_stableabi(V),
     bound="V:SharedStableAbi",
     bound="I:InterfaceBound",
-    tag="<I as InterfaceBound>::TAG",
+    extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
 )]
-pub struct RObject<'lt,P,I,V>{
+pub struct RObject<'lt,P,I,V>
+where
+    P:GetPointerKind
+{
     vtable:StaticRef<V>,
-    is_reborrowed:bool,
     ptr: ManuallyDrop<P>,
     _marker:PhantomData<Tuple2<&'lt (),I>>,
 }
-
-
-macro_rules! impl_from_ptr_method {
-    ( 
-        $( #[$attr:meta] )*
-        method_name=$method_name:ident,
-        requires_any=$requires_any:ty 
-    ) => (
-        $( #[$attr] )*
-        pub fn $method_name<'lt,OrigPtr,Params>(
-            ptr:OrigPtr,
-        )-> RObject<'lt,P,I,V>
-        where 
-            OrigPtr:TransmuteElement<(),TransmutedPtr=P>+'lt,
-            P:Deref<Target=()>,
-            OrigPtr::Target:Sized+'lt,
-            I:GetVTable<
-                $requires_any,
-                OrigPtr::Target,
-                OrigPtr::TransmutedPtr,
-                OrigPtr,
-                Params,
-                VTable=V
-            >,
-            I:GetRObjectVTable<$requires_any,OrigPtr::Target,OrigPtr::TransmutedPtr,OrigPtr>
-        {
-            RObject{
-                vtable:I::get_vtable(),
-                is_reborrowed:false,
-                ptr:unsafe{
-                    let ptr=TransmuteElement::<()>::transmute_element(ptr,PhantomData);
-                    ManuallyDrop::new(ptr)
-                },
-                _marker:PhantomData,
-            }
-        }
-
-    )
-}
-
-impl<P,I,V> RObject<'_,P,I,V>{
-    impl_from_ptr_method!{
-        /**
-Creates a trait object from a pointer to a type that must implement the 
-trait that `I` requires.
-
-The constructed trait object cannot be converted back to the original type.
-
-        */
-        method_name=from_ptr,
-        requires_any=TU_Opaque 
-    }
-    impl_from_ptr_method!{
-        /**
-Creates a trait object from a pointer to a type that must implement the 
-trait that `I` requires.
-
-The constructed trait object can be converted back to the original type with 
-the `sabi_*_unerased` methods (RObject reserves `sabi` as a prefix for its own methods).
-
-        */
-        method_name=from_ptr_unerasable,
-        requires_any=TU_Unerasable 
-    }
-}
-
-impl<I,V> RObject<'_,RBox<()>,I,V>{
-/**
-Creates a trait object from a type that must implement the trait that `I` requires.
-
-The constructed trait object cannot be converted back to the original type.
-*/
-    pub fn from_value<'lt,T,Params>(
-        value:T,
-    )-> RObject<'lt,RBox<()>,I,V>
-    where 
-        T:'lt,
-        I:GetVTable<TU_Opaque,T,RBox<()>,RBox<T>,Params,VTable=V>,
-        I:GetRObjectVTable<TU_Opaque,T,RBox<()>,RBox<T>>
-    {
-        Self::from_ptr::<_,Params>(RBox::new(value))
-    }
-
-/**
-Creates a trait object from a type that must implement the trait that `I` requires.
-
-The constructed trait object can be converted back to the original type with 
-the `sabi_*_unerased` methods (RObject reserves `sabi` as a prefix for its own methods).
-*/
-    pub fn from_value_unerasable<'lt,T,Params>(
-        value:T,
-    )-> RObject<'lt,RBox<()>,I,V>
-    where 
-        T:'lt,
-        I:GetVTable<TU_Unerasable,T,RBox<()>,RBox<T>,Params,VTable=V>,
-        I:GetRObjectVTable<TU_Unerasable,T,RBox<()>,RBox<T>>
-    {
-        Self::from_ptr_unerasable::<_,Params>(RBox::new(value))
-    }
-}
-
-
 
 mod clone_impl{
     pub trait CloneImpl<PtrKind>{
@@ -212,7 +112,7 @@ use self::clone_impl::CloneImpl;
 /// This impl is for smart pointers.
 impl<'lt,P, I,V> CloneImpl<PK_SmartPointer> for RObject<'lt,P,I,V>
 where
-    P: Deref,
+    P: Deref+GetPointerKind,
     I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone_impl(&self) -> Self {
@@ -221,7 +121,6 @@ where
         };
         Self{
             vtable:self.vtable,
-            is_reborrowed:self.is_reborrowed,
             ptr:ManuallyDrop::new(ptr),
             _marker:PhantomData,
         }
@@ -231,13 +130,12 @@ where
 /// This impl is for references.
 impl<'lt,P, I,V> CloneImpl<PK_Reference> for RObject<'lt,P,I,V>
 where
-    P: Deref+Copy,
-    I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
+    P: Deref+Copy+GetPointerKind,
+    I: InterfaceType,
 {
     fn clone_impl(&self) -> Self {
         Self{
             vtable:self.vtable,
-            is_reborrowed:self.is_reborrowed,
             ptr:ManuallyDrop::new(*self.ptr),
             _marker:PhantomData,
         }
@@ -253,15 +151,34 @@ RObject does not implement Clone if P==`&mut ()` :
 
 ```compile_fail
 use abi_stable::{
-    sabi_trait::prelude::*,
-    trait_object_test::*,
+    sabi_trait::{
+        doc_examples::ConstExample_TO,
+        TU_Opaque,
+    },
     std_types::*,
 };
 
-let mut object=RSomething_TO::<_,()>::from_value(RBox::new(10_u32),TU_Opaque);
-let borrow=object.reborrow_mut();
+let mut object=ConstExample_TO::from_value(10usize,TU_Opaque);
+let borrow=object.sabi_reborrow_mut();
 let _=borrow.clone();
 ```
+
+Here is the same example with `sabi_reborrow`
+
+```
+use abi_stable::{
+    sabi_trait::{
+        doc_examples::ConstExample_TO,
+        TU_Opaque,
+    },
+    std_types::*,
+};
+
+let mut object=ConstExample_TO::from_value(10usize,TU_Opaque);
+let borrow=object.sabi_reborrow();
+let _=borrow.clone();
+```
+
 
 */
 impl<'lt,P, I,V> Clone for RObject<'lt,P,I,V>
@@ -278,7 +195,7 @@ where
 
 impl<'lt,P,I,V> Debug for RObject<'lt,P,I,V> 
 where
-    P: Deref<Target=()>,
+    P: Deref<Target=()>+GetPointerKind,
     I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -293,23 +210,56 @@ where
 }
 
 
+impl<'lt,P,I,V> Display for RObject<'lt,P,I,V> 
+where
+    P: Deref<Target=()>+GetPointerKind,
+    I: InterfaceType<Display = Implemented<trait_marker::Display>>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        unsafe{
+            adapt_std_fmt::<ErasedObject>(
+                self.sabi_erased_ref(), 
+                self.sabi_robject_vtable()._sabi_display().unwrap(), 
+                f
+            )
+        }
+    }
+}
+
+impl<'lt,P, I,V> std::error::Error for RObject<'lt,P,I,V>
+where
+    P: Deref<Target=()>+GetPointerKind,
+    I: InterfaceBound<
+        Display=Implemented<trait_marker::Display>,
+        Debug=Implemented<trait_marker::Debug>,
+        Error=Implemented<trait_marker::Error>,
+    >,
+{}
+
+
+
 unsafe impl<'lt,P,I,V> Send for RObject<'lt,P,I,V> 
 where 
+    P:GetPointerKind,
     I:InterfaceType<Send = Implemented<trait_marker::Send>>,
 {}
 
 unsafe impl<'lt,P,I,V> Sync for RObject<'lt,P,I,V> 
-where 
+where
+    P:GetPointerKind,
     I:InterfaceType<Sync = Implemented<trait_marker::Sync>>,
 {}
 
 
-impl<'lt,P,I,V> RObject<'lt,P,I,V>{
+impl<'lt,P,I,V> RObject<'lt,P,I,V>
+where
+    P:GetPointerKind<Target=()>,
+{
 /**
 
 Constructs an RObject from a pointer and an extra vtable.
 
-This is mostly intended to be called by `#[sabi_trait]` derived trait objects.
+This is mostly intended to be called by `#[sabi_trait]` generated trait objects.
 
 # Safety
 
@@ -333,20 +283,76 @@ These are the requirements for the caller:
         vtable:StaticRef<V>,
     )-> RObject<'lt,P,I,V>
     where 
-        OrigPtr:TransmuteElement<(),TransmutedPtr=P>+'lt,
+        OrigPtr:CanTransmuteElement<(),TransmutedPtr=P>,
         OrigPtr::Target:Sized+'lt,
         P:Deref<Target=()>,
     {
         RObject{
             vtable,
-            is_reborrowed:false,
-            ptr:ManuallyDrop::new( ptr.transmute_element(<()>::T) ),
+            ptr:ManuallyDrop::new( ptr.transmute_element::<()>() ),
             _marker:PhantomData,
         }
     }
 }
 
-impl<'lt,P,I,V> RObject<'lt,P,I,V>{
+
+impl<'borr,'a,I,V> RObject<'borr,RRef<'a,()>,I,V>{
+
+/**
+This function allows constructing an RObject in a constant/static.
+
+This is mostly intended for `#[sabi_trait] generated trait objects`
+
+# Safety
+
+This has the same safety requirements as `RObject::with_vtable`
+
+# Example
+
+Because this is intended for `#[sabi_trait]` generated trait objects,
+this demonstrates how to construct one in a constant.
+
+```
+use abi_stable::sabi_trait::{
+    doc_examples::{ConstExample_CTO,ConstExample_MV},
+    prelude::TU_Opaque,
+};
+
+const EXAMPLE0:ConstExample_CTO<'static,'static>=
+    ConstExample_CTO::from_const(
+        &0usize,
+        TU_Opaque,
+        ConstExample_MV::VTABLE,
+    );
+
+
+```
+
+
+*/
+    pub const unsafe fn with_vtable_const<T,Unerasability>(
+        ptr: &'a T,
+        vtable:VTableTO_RO<T,RRef<'a,T>,Unerasability,V>,
+    )-> Self
+    where
+        T:'borr,
+    {
+        RObject{
+            vtable: vtable.robject_vtable(),
+            ptr:{
+                let x=RRef::new(ptr).transmute_ref::<()>();
+                ManuallyDrop::new(x)
+            },
+            _marker:PhantomData,
+        }
+    }
+}
+
+
+impl<'lt,P,I,V> RObject<'lt,P,I,V>
+where
+    P:GetPointerKind,
+{
     /// The uid in the vtable has to be the same as the one for T,
     /// otherwise it was not created from that T in the library that 
     /// declared the trait object.
@@ -380,15 +386,15 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn sabi_into_any_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
+    pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
     where
         T:'static,
-        P: Deref<Target=()>+TransmuteElement<T>,
+        P: Deref<Target=()>+CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe {
             let this=ManuallyDrop::new(self);
-            Ok(ptr::read(&*this.ptr).transmute_element(T::T)) 
+            Ok(ptr::read(&*this.ptr).transmute_element::<T>()) 
         }
     }
 
@@ -406,10 +412,10 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn sabi_as_any_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
+    pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
     where
         T:'static,
-        P:Deref<Target=()>+TransmuteElement<T>,
+        P:Deref<Target=()>+CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe { 
@@ -431,15 +437,61 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn sabi_as_any_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
+    pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
     where
         T:'static,
-        P:DerefMut<Target=()>+TransmuteElement<T>,
+        P:DerefMut<Target=()>+CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe { 
             Ok(transmute_mut_reference::<(),T>(&mut **self.ptr))
         }
+    }
+
+    /// Unwraps the `RObject<_>` into a pointer to T,
+    /// without checking whether `T` is the type that the RObject was constructed with.
+    ///
+    /// # Safety
+    ///
+    /// You must check that `T` is the type that RObject was constructed
+    /// with through other means.
+    #[inline]
+    pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
+    where
+        P: Deref<Target=()> + CanTransmuteElement<T>,
+    {
+        let this=ManuallyDrop::new(self);
+        ptr::read(&*this.ptr).transmute_element::<T>()
+    }
+
+    /// Unwraps the `RObject<_>` into a reference to T,
+    /// without checking whether `T` is the type that the RObject was constructed with.
+    ///
+    /// # Safety
+    ///
+    /// You must check that `T` is the type that RObject was constructed
+    /// with through other means.
+    #[inline]
+    pub unsafe fn unchecked_as_unerased<T>(&self) -> &T
+    where
+        P:Deref<Target=()>,
+    {
+        transmute_reference::<(),T>(&**self.ptr)
+    }
+
+    /// Unwraps the `RObject<_>` into a mutable reference to T,
+    /// without checking whether `T` is the type that the RObject was constructed with.
+    ///
+    /// # Safety
+    ///
+    /// You must check that `T` is the type that RObject was constructed
+    /// with through other means.
+    #[inline]
+    pub unsafe fn unchecked_as_unerased_mut<T>(&mut self) -> &mut T
+    where
+        P:DerefMut<Target=()>,
+    {
+        transmute_mut_reference::<(),T>(&mut **self.ptr)
     }
 
 }
@@ -466,8 +518,9 @@ for PrivStruct
 
 
 impl<'lt,P,I,V> RObject<'lt,P,I,V>
-where 
-    I:InterfaceType
+where
+    P:GetPointerKind,
+    I:InterfaceType,
 {
     /// Creates a shared reborrow of this RObject.
     ///
@@ -479,7 +532,6 @@ where
         // Reborrowing will break if I add extra functions that operate on `P`.
         RObject{
             vtable:self.vtable,
-            is_reborrowed:true,
             ptr:ManuallyDrop::new(&**self.ptr),
             _marker:PhantomData,
         }
@@ -499,7 +551,6 @@ where
         // Reborrowing will break if I add extra functions that operate on `P`.
         RObject {
             vtable: self.vtable,
-            is_reborrowed:true,
             ptr: ManuallyDrop::new(&mut **self.ptr),
             _marker:PhantomData,
         }
@@ -509,11 +560,13 @@ where
 
 
 
-impl<'lt,P,I,V> RObject<'lt,P,I,V>{
-
+impl<'lt,P,I,V> RObject<'lt,P,I,V>
+where
+    P:GetPointerKind,
+{
     #[inline]
-    pub fn sabi_et_vtable<'a>(&self)->&'a V{
-        self.vtable.get()
+    pub fn sabi_et_vtable(&self)->StaticRef<V>{
+        self.vtable
     }
 
     /// The vtable common to all `#[sabi_trait]` generated trait objects.
@@ -557,11 +610,14 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>{
     }
 }
 
-impl<P,I,V> Drop for RObject<'_,P,I,V>{
+impl<P,I,V> Drop for RObject<'_,P,I,V>
+where
+    P:GetPointerKind,
+{
     fn drop(&mut self){
         // This condition is necessary because if the RObject was reborrowed,
         // the destructor function would take a different pointer type.
-        if !self.is_reborrowed{
+        if <P as GetPointerKind>::KIND==PointerKind::SmartPointer {
             let destructor=self.sabi_robject_vtable()._sabi_drop();
             unsafe{
                 destructor(&mut self.ptr);

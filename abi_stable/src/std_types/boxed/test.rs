@@ -2,7 +2,10 @@ use super::*;
 
 use std::sync::Arc;
 
-use crate::test_utils::{must_panic};
+use crate::{
+    sabi_types::MovePtr,
+    test_utils::{must_panic},
+};
 
 use abi_stable_shared::file_span;
 
@@ -102,7 +105,7 @@ fn owned_pointer_trait(){
         OwnedPointer::with_move_ptr(cloned_arc,|move_ptr|{
             assert_eq!(Arc::strong_count(&move_ptr),2);
             
-            let moved_arc=move_ptr.into_inner();
+            let moved_arc=MovePtr::into_inner(move_ptr);
             assert_eq!(Arc::strong_count(&moved_arc),2);
         });
     }

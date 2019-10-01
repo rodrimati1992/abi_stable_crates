@@ -9,227 +9,51 @@ use core_extensions::{prelude::*,matches};
 
 use std::{
     borrow::Borrow,
-    collections::HashSet,
+    cell::Cell,
+    collections::hash_map::{HashMap,Entry},
 };
-// use std::collections::HashSet;
 
-use super::{AbiInfo, AbiInfoWrapper};
 use crate::{
+    abi_stability::{
+        extra_checks::{
+            ExtraChecksBox,ExtraChecksRef,
+            TypeChecker,TypeCheckerMut,
+            ExtraChecksError,
+        },
+        ConstGeneric,
+    },
     sabi_types::{ParseVersionError, VersionStrings},
-    prefix_type::{FieldAccessibility,IsConditional},
-    std_types::{RVec, StaticSlice, StaticStr,utypeid::UTypeId,RBoxError,RResult},
+    prefix_type::{FieldAccessibility,FieldConditionality},
+    sabi_types::CmpIgnored,
+    std_types::{
+        RArc,RBox,RVec,StaticStr,UTypeId,RBoxError,RResult,
+        RSome,RNone,ROk,RErr,
+    },
     traits::IntoReprC,
     type_layout::{
         TypeLayout, TLData, TLDataDiscriminant, TLField, 
-        FullType, ReprAttr, TLDiscriminant,TLPrimitive,
+        FmtFullType, ReprAttr, TLDiscriminant,TLPrimitive,
         TLEnum,IsExhaustive,IncompatibleWithNonExhaustive,TLNonExhaustive,
         TLFieldOrFunction, TLFunction,
         tagging::TagErrors,
     },
+    type_level::unerasability::TU_Opaque,
     utils::{max_by,min_max_by},
 };
 
-/// All the errors from checking the layout of every nested type in AbiInfo.
-#[derive(Clone, PartialEq)]
-#[repr(C)]
-pub struct AbiInstabilityErrors {
-    pub interface: &'static AbiInfo,
-    pub implementation: &'static AbiInfo,
-    pub errors: RVec<AbiInstabilityError>,
-    _priv:(),
-}
 
-/// All the shallow errors from checking an individual type.
-///
-/// Error that happen lower or higher on the stack are stored in separate
-///  `AbiInstabilityError`s.
-#[derive(Debug,Clone, PartialEq)]
-#[repr(C)]
-pub struct AbiInstabilityError {
-    pub stack_trace: RVec<ExpectedFound<TLFieldOrFunction>>,
-    pub errs: RVec<AbiInstability>,
-    pub index: usize,
-    _priv:(),
-}
+mod errors;
 
-/// An individual error from checking the layout of some type.
-#[derive(Debug, PartialEq,Clone)]
-pub enum AbiInstability {
-    IsPrefix(ExpectedFound<bool>),
-    NonZeroness(ExpectedFound<bool>),
-    Name(ExpectedFound<FullType>),
-    Package(ExpectedFound<StaticStr>),
-    PackageVersionParseError(ParseVersionError),
-    PackageVersion(ExpectedFound<VersionStrings>),
-    MismatchedPrefixSize(ExpectedFound<usize>),
-    Size(ExpectedFound<usize>),
-    Alignment(ExpectedFound<usize>),
-    GenericParamCount(ExpectedFound<FullType>),
-    TLDataDiscriminant(ExpectedFound<TLDataDiscriminant>),
-    MismatchedPrimitive(ExpectedFound<TLPrimitive>),
-    FieldCountMismatch(ExpectedFound<usize>),
-    FieldLifetimeMismatch(ExpectedFound<TLField>),
-    FnLifetimeMismatch(ExpectedFound<TLFunction>),
-    UnexpectedField(ExpectedFound<TLField>),
-    TooManyVariants(ExpectedFound<usize>),
-    MismatchedPrefixConditionality(ExpectedFound<StaticSlice<IsConditional>>),
-    MismatchedExhaustiveness(ExpectedFound<IsExhaustive>),
-    UnexpectedVariant(ExpectedFound<StaticStr>),
-    ReprAttr(ExpectedFound<ReprAttr>),
-    EnumDiscriminant(ExpectedFound<TLDiscriminant>),
-    IncompatibleWithNonExhaustive(IncompatibleWithNonExhaustive),
-    TagError{
-        err:TagErrors,
-    },
-}
+pub use self::errors::{
+    AbiInstability,
+    AbiInstability as AI,
+    ExtraCheckError,
+    AbiInstabilityErrors,
+    AbiInstabilityError,
+};
 
 
-
-use self::AbiInstability as AI;
-
-#[allow(dead_code)]
-impl AbiInstabilityErrors {
-    #[cfg(test)]
-    pub fn flatten_errors(&self) -> RVec<AbiInstability> {
-        self.flattened_errors()
-            .collect::<RVec<AbiInstability>>()
-    }
-
-    #[cfg(test)]
-    pub fn flattened_errors<'a>(&'a self) -> impl Iterator<Item=AbiInstability>+'a {
-        self.errors
-            .iter()
-            .flat_map(|x| &x.errs )
-            .cloned()
-    }
-}
-
-impl fmt::Debug for AbiInstabilityErrors {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(self,f)
-    }
-}
-impl fmt::Display for AbiInstabilityErrors {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
-            f,
-            "Compared <this>:\n{}\nTo <other>:\n{}\n",
-            self.interface.layout.to_string().left_padder(4),
-            self.implementation.layout.to_string().left_padder(4),
-        )?;
-        for err in &self.errors {
-            fmt::Display::fmt(err, f)?;
-        }
-        Ok(())
-    }
-}
-
-impl fmt::Display for AbiInstabilityError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut extra_err=None::<String>;
-
-        write!(f, "{} error(s)", self.errs.len())?;
-        if self.stack_trace.is_empty() {
-            writeln!(f,".")?;
-        }else{
-            writeln!(f,"inside:\n    <other>\n")?;
-        }
-        for field in &self.stack_trace {
-            writeln!(f, "{}\n", field.found.to_string().left_padder(4))?;
-        }
-        if let Some(ExpectedFound{expected,found}) = self.stack_trace.last() {
-            writeln!(
-                f, 
-                "Layout of expected type:\n{}\n\n\
-                 Layout of found type:\n{}\n", 
-                expected.formatted_layout().left_padder(4),
-                found.formatted_layout().left_padder(4),
-            )?;
-        }
-        writeln!(f)?;
-
-        for err in &self.errs {
-            let pair = match err {
-                AI::IsPrefix(v) => ("mismatched prefixness", v.debug_str()),
-                AI::NonZeroness(v) => ("mismatched non-zeroness", v.display_str()),
-                AI::Name(v) => ("mismatched type", v.display_str()),
-                AI::Package(v) => ("mismatched package", v.display_str()),
-                AI::PackageVersionParseError(v) => {
-                    let expected = "a valid version string".to_string();
-                    let found = format!("{:#?}", v);
-
-                    (
-                        "could not parse version string",
-                        Some(ExpectedFound { expected, found }),
-                    )
-                }
-                AI::PackageVersion(v) => ("incompatible package versions", v.display_str()),
-                AI::MismatchedPrefixSize(v) => 
-                    (
-                        "prefix-types have a different prefix", 
-                        v.display_str()
-                    ),
-                AI::Size(v) => ("incompatible type size", v.display_str()),
-                AI::Alignment(v) => ("incompatible type alignment", v.display_str()),
-                AI::GenericParamCount(v) => (
-                    "incompatible ammount of generic parameters",
-                    v.display_str(),
-                ),
-
-                AI::TLDataDiscriminant(v) => ("incompatible data ", v.debug_str()),
-                AI::MismatchedPrimitive(v) => ("incompatible primitive", v.debug_str()),
-                AI::FieldCountMismatch(v) => ("too many fields", v.display_str()),
-                AI::FnLifetimeMismatch(v) => {
-                    ("function pointers reference different lifetimes", v.display_str())
-                }
-                AI::FieldLifetimeMismatch(v) => {
-                    ("field references different lifetimes", v.display_str())
-                }
-                AI::UnexpectedField(v) => ("unexpected field", v.display_str()),
-                AI::TooManyVariants(v) => ("too many variants", v.display_str()),
-                AI::MismatchedPrefixConditionality(v)=>(
-                    "prefix fields differ in whether they are conditional",
-                    v.debug_str()
-                ),
-                AI::MismatchedExhaustiveness(v)=>(
-                    "enums differ in whether they are exhaustive",
-                    v.debug_str()
-                ),
-                AI::UnexpectedVariant(v) => ("unexpected variant", v.debug_str()),
-                AI::ReprAttr(v)=>("incompatible repr attributes",v.debug_str()),
-                AI::EnumDiscriminant(v)=>("different discriminants",v.debug_str()),
-                AI::IncompatibleWithNonExhaustive(e)=>{
-                    extra_err=Some(e.to_string());
-
-                    ("",None)
-                }
-                AI::TagError{err} => {
-                    extra_err=Some(err.to_string());
-
-                    ("", None)
-                },
-            };
-
-            let (error_msg, expected_err):(&'static str, Option<ExpectedFound<String>>)=pair;
-
-            if let Some(expected_err)=expected_err{
-                writeln!(
-                    f,
-                    "\nError:{}\nExpected:\n{}\nFound:\n{}",
-                    error_msg,
-                    expected_err.expected.left_padder(4),
-                    expected_err.found   .left_padder(4),
-                )?;
-            }
-            if let Some(extra_err)=&extra_err {
-                writeln!(f,"\nExtra:\n{}\n",extra_err.left_padder(4))?;
-            }
-        }
-        Ok(())
-    }
-}
-
-//////
+////////////////////////////////////////////////////////////////////////////////
 
 
 /// What is AbiChecker::check_fields being called with.
@@ -245,23 +69,28 @@ enum FieldContext{
 //////
 
 
-#[derive(Debug, PartialEq,Eq,Ord,PartialOrd,Hash)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq,Ord,PartialOrd,Hash)]
 #[repr(C)]
 struct CheckingUTypeId{
     type_id:UTypeId,
-    name:StaticStr,
-    package:StaticStr,
 }
 
 impl CheckingUTypeId{
-    fn new(this: &'static AbiInfo)->Self{
-        let layout=this.layout;
+    fn new(this: &'static TypeLayout)->Self{
         Self{
-            type_id:(this.type_id.function)(),
-            name:layout.name,
-            package:layout.package(),
+            type_id:this.get_utypeid(),
         }
     }
+}
+
+
+//////
+
+#[derive(Debug, PartialEq,Eq,Ord,PartialOrd,Hash)]
+pub enum CheckingState{
+    Checking{layer:u32},
+    Compatible,
+    Error,
 }
 
 
@@ -322,14 +151,12 @@ impl<T> ExpectedFound<T> {
 
 
 
-
-
 #[derive(Debug)]
 #[repr(C)]
 pub struct CheckedPrefixTypes{
-    this:&'static AbiInfo,
+    this:&'static TypeLayout,
     this_prefix:PrefixTypeMetadata,
-    other:&'static AbiInfo,
+    other:&'static TypeLayout,
     other_prefix:PrefixTypeMetadata,
 }
 
@@ -337,9 +164,18 @@ pub struct CheckedPrefixTypes{
 #[derive(Debug,Copy,Clone)]
 #[repr(C)]
 pub struct NonExhaustiveEnumWithContext{
-    abi_info:&'static AbiInfo,
-    enum_:&'static TLEnum,
+    layout:&'static TypeLayout,
+    enum_:TLEnum,
     nonexhaustive:&'static TLNonExhaustive,
+}
+
+
+#[derive(Debug,Clone)]
+#[repr(C)]
+pub struct ExtraChecksBoxWithContext{
+    t_lay:&'static TypeLayout,
+    o_lay:&'static TypeLayout,
+    extra_checks:ExtraChecksBox,
 }
 
 
@@ -355,11 +191,26 @@ pub struct CheckedNonExhaustiveEnums{
 
 struct AbiChecker {
     stack_trace: RVec<ExpectedFound<TLFieldOrFunction>>,
-    checked_prefix_types:RVec<CheckedPrefixTypes>,
-    checked_nonexhaustive_enums:RVec<CheckedNonExhaustiveEnums>,
+    checked_prefix_types: RVec<CheckedPrefixTypes>,
+    checked_nonexhaustive_enums: RVec<CheckedNonExhaustiveEnums>,
+    checked_extra_checks: RVec<ExtraChecksBoxWithContext>,
 
-    visited: HashSet<(CheckingUTypeId,CheckingUTypeId)>,
+    visited: HashMap<(CheckingUTypeId,CheckingUTypeId),CheckingState>,
+
     errors: RVec<AbiInstabilityError>,
+
+    /// Layer 0 is checking a type layout,
+    ///
+    /// Layer 1 is checking the type layout 
+    ///     of a const parameter/ExtraCheck,
+    ///
+    /// Layer 2 is checking the type layout 
+    ///     of a const parameter/ExtraCheck 
+    ///     of a const parameter/ExtraCheck,
+    ///
+    /// It is an error to attempt to check the layout of types that are 
+    /// in the middle of being checked in outer layers.
+    current_layer:u32,
 
     error_index: usize,
 }
@@ -372,9 +223,11 @@ impl AbiChecker {
             stack_trace: RVec::new(),
             checked_prefix_types:RVec::new(),
             checked_nonexhaustive_enums:RVec::new(),
+            checked_extra_checks:RVec::new(),
 
-            visited: HashSet::default(),
+            visited: HashMap::default(),
             errors: RVec::new(),
+            current_layer: 0,
             error_index: 0,
         }
     }
@@ -397,7 +250,9 @@ impl AbiChecker {
             return;
         }
         
-        let is_prefix= match &t_lay.data {
+        let t_data=t_lay.data();
+
+        let is_prefix= match &t_data {
             TLData::PrefixType{..}=>true,
             TLData::Enum(enum_)=>!enum_.exhaustiveness.is_exhaustive(),
             _=>false,
@@ -416,7 +271,7 @@ impl AbiChecker {
         }
         
         let acc_fields:Option<(FieldAccessibility,FieldAccessibility)>=
-            match (&t_lay.data,&o_lay.data) {
+            match (&t_data,&o_lay.data()) {
                 (TLData::PrefixType(t_prefix), TLData::PrefixType(o_prefix))=>
                     Some((t_prefix.accessible_fields, o_prefix.accessible_fields)),
                 _=>None,
@@ -426,13 +281,13 @@ impl AbiChecker {
         for (field_i,(this_f,other_f)) in t_fields.into_iter().zip(o_fields).enumerate() {
             let this_f=this_f.borrow();
             let other_f=other_f.borrow();
-            if this_f.name != other_f.name {
+            if this_f.name() != other_f.name() {
                 push_err(errs, this_f, other_f, |x| *x, AI::UnexpectedField);
                 continue;
             }
 
-            let t_field_abi=this_f.abi_info.get();
-            let o_field_abi=other_f.abi_info.get();
+            let t_field_abi=this_f.layout();
+            let o_field_abi=other_f.layout();
 
             let is_accessible=match (ctx,acc_fields) {
                 (FieldContext::Fields,Some((l,r))) => {
@@ -443,7 +298,7 @@ impl AbiChecker {
 
             if is_accessible {
 
-                if this_f.lifetime_indices != other_f.lifetime_indices {
+                if this_f.lifetime_indices() != other_f.lifetime_indices() {
                     push_err(errs, this_f, other_f, |x| *x, AI::FieldLifetimeMismatch);
                 }
 
@@ -454,7 +309,8 @@ impl AbiChecker {
 
                 let sf_ctx=FieldContext::Subfields;
 
-                for (t_func,o_func) in this_f.function_range.iter().zip(other_f.function_range) {
+                let func_ranges=this_f.function_range().iter().zip(other_f.function_range());
+                for (t_func,o_func) in func_ranges {
                     self.error_index += 1;
                     let errs_index = self.error_index;
                     let mut errs_ = RVec::<AbiInstability>::new();
@@ -491,7 +347,7 @@ impl AbiChecker {
                 }
 
 
-                self.check_inner(t_field_abi, o_field_abi);
+                let _=self.check_inner(t_field_abi, o_field_abi);
                 self.stack_trace.pop();
             }else{
                 self.stack_trace.push(ExpectedFound{
@@ -499,17 +355,17 @@ impl AbiChecker {
                     found:(*other_f).into(),
                 });
                 
-                let t_field_layout=&t_field_abi.layout;
-                let o_field_layout=&o_field_abi.layout;
-                if  t_field_layout.size!=o_field_layout.size {
-                    push_err(errs, t_field_layout, o_field_layout, |x| x.size, AI::Size);
+                let t_field_layout=&t_field_abi;
+                let o_field_layout=&o_field_abi;
+                if  t_field_layout.size()!=o_field_layout.size() {
+                    push_err(errs, t_field_layout, o_field_layout, |x| x.size(), AI::Size);
                 }
-                if t_field_layout.alignment != o_field_layout.alignment {
+                if t_field_layout.alignment() != o_field_layout.alignment() {
                     push_err(
                         errs, 
                         t_field_layout, 
                         o_field_layout, 
-                        |x| x.alignment, 
+                        |x| x.alignment(), 
                         AI::Alignment
                     );
                 }
@@ -519,22 +375,60 @@ impl AbiChecker {
         }
     }
 
-    fn check_inner(&mut self, this: &'static AbiInfo, other: &'static AbiInfo) {
+    fn check_inner(
+        &mut self, 
+        this: &'static TypeLayout, 
+        other: &'static TypeLayout
+    ) ->Result<(),()> {
         let t_cuti=CheckingUTypeId::new(this );
         let o_cuti=CheckingUTypeId::new(other);
-        if !self.visited.insert((t_cuti,o_cuti)) {
-            return;
-        }
+        let cuti_pair=(t_cuti,o_cuti);
 
         self.error_index += 1;
         let errs_index = self.error_index;
         let mut errs_ = RVec::<AbiInstability>::new();
-        let t_lay = &this.layout;
-        let o_lay = &other.layout;
+        let mut top_level_errs_ = RVec::<AbiInstabilityError>::new();
+        let t_lay = &this;
+        let o_lay = &other;
+
+        let start_errors=self.errors.len();
+        
+        match self.visited.entry(cuti_pair) {
+            Entry::Occupied(mut entry)=>{
+                match entry.get_mut() {
+                    CheckingState::Checking{layer}if self.current_layer==*layer =>{
+                        return Ok(())
+                    }
+                    cs@CheckingState::Checking{..}=>{
+                        *cs=CheckingState::Error;
+                        self.errors.push(AbiInstabilityError {
+                            stack_trace: self.stack_trace.clone(),
+                            errs: rvec![AbiInstability::CyclicTypeChecking{
+                                interface:this,
+                                implementation:other,
+                            }],
+                            index: errs_index,
+                            _priv:(),
+                        });
+                        return Err(());
+                    }
+                    CheckingState::Compatible=>{
+                        return Ok(());
+                    }
+                    CheckingState::Error=>{
+                        return Err(());
+                    }
+                }
+            }
+            Entry::Vacant(entry)=>{
+                entry.insert(CheckingState::Checking{layer:self.current_layer});
+            }
+        }
 
         (|| {
             let errs = &mut errs_;
-            if t_lay.name != o_lay.name {
+            let top_level_errs= &mut top_level_errs_;
+            if t_lay.name() != o_lay.name() {
                 push_err(errs, t_lay, o_lay, |x| x.full_type(), AI::Name);
                 return;
             }
@@ -545,15 +439,12 @@ impl AbiChecker {
                 return;
             }
 
-            if this.prefix_kind != other.prefix_kind {
-                push_err(errs, this, other, |x| x.prefix_kind, AI::IsPrefix);
-            }
-            if this.is_nonzero != other.is_nonzero {
-                push_err(errs, this, other, |x| x.is_nonzero, AI::NonZeroness);
+            if this.is_nonzero() != other.is_nonzero() {
+                push_err(errs, this, other, |x| x.is_nonzero(), AI::NonZeroness);
             }
 
-            if t_lay.repr_attr != o_lay.repr_attr {
-                push_err(errs, t_lay, o_lay, |x| x.repr_attr, AI::ReprAttr);
+            if t_lay.repr_attr() != o_lay.repr_attr() {
+                push_err(errs, t_lay, o_lay, |x| x.repr_attr(), AI::ReprAttr);
             }
 
             {
@@ -580,38 +471,50 @@ impl AbiChecker {
                 }
             }
             {
-                let t_gens = &t_lay.full_type.generics;
-                let o_gens = &o_lay.full_type.generics;
-                if t_gens.lifetime.len() != o_gens.lifetime.len()
-                    // || t_gens.type_.len() != o_gens.type_.len()
-                    // || t_gens.const_.len() != o_gens.const_.len()
+                let t_gens = t_lay.generics();
+                let o_gens = o_lay.generics();
+                
+                let t_consts=t_gens.const_params();
+                let o_consts=o_gens.const_params();
+                if t_gens.lifetime_count() != o_gens.lifetime_count()
+                    || t_gens.const_params().len() != o_gens.const_params().len()
                 {
-                    push_err(errs, t_lay, o_lay, |x| x.full_type, AI::GenericParamCount);
+                    push_err(errs, t_lay, o_lay, |x| x.full_type(), AI::GenericParamCount);
+                }
+
+                let mut ty_checker=TypeCheckerMut::from_ptr(&mut *self,TU_Opaque);
+                for (l,r) in t_consts.iter().zip(o_consts.iter()) {
+                    match l.is_equal(r,ty_checker.sabi_reborrow_mut()) {
+                        Ok(false)|Err(_)=>{
+                            push_err(errs, l, r, |x| *x, AI::MismatchedConstParam);
+                        }
+                        Ok(true)=>{}
+                    }
                 }
             }
 
             // Checking phantom fields
             self.check_fields(
                 errs,
-                this.layout,
-                other.layout,
+                this,
+                other,
                 FieldContext::PhantomFields,
-                this.layout.phantom_fields.as_slice().iter(),
-                other.layout.phantom_fields.as_slice().iter(),
+                this.phantom_fields().iter(),
+                other.phantom_fields().iter(),
             );
 
-            match (t_lay.size.cmp(&o_lay.size), this.prefix_kind) {
+            match (t_lay.size().cmp(&o_lay.size()), this.is_prefix_kind()) {
                 (Ordering::Greater, _) | (Ordering::Less, false) => {
-                    push_err(errs, t_lay, o_lay, |x| x.size, AI::Size);
+                    push_err(errs, t_lay, o_lay, |x| x.size(), AI::Size);
                 }
                 (Ordering::Equal, _) | (Ordering::Less, true) => {}
             }
-            if t_lay.alignment != o_lay.alignment {
-                push_err(errs, t_lay, o_lay, |x| x.alignment, AI::Alignment);
+            if t_lay.alignment() != o_lay.alignment() {
+                push_err(errs, t_lay, o_lay, |x| x.alignment(), AI::Alignment);
             }
 
-            let t_discr = t_lay.data.as_discriminant();
-            let o_discr = o_lay.data.as_discriminant();
+            let t_discr = t_lay.data_discriminant();
+            let o_discr = o_lay.data_discriminant();
             if t_discr != o_discr {
                 errs.push(AI::TLDataDiscriminant(ExpectedFound {
                     expected: t_discr,
@@ -619,15 +522,54 @@ impl AbiChecker {
                 }));
             }
 
-            let t_tag=t_lay.tag.to_checkable();
-            let o_tag=o_lay.tag.to_checkable();
+            let t_tag=t_lay.tag().to_checkable();
+            let o_tag=o_lay.tag().to_checkable();
             if let Err(tag_err)=t_tag.check_compatible(&o_tag) {
                 errs.push(AI::TagError{
                     err:tag_err,
                 });
             }
 
-            match (t_lay.data, o_lay.data) {
+            match (t_lay.extra_checks(),o_lay.extra_checks()) {
+                (None,_)=>{}
+                (Some(_),None)=>{
+                    errs.push(AI::NoneExtraChecks);
+                }
+                (Some(t_extra_checks),Some(o_extra_checks))=>{
+                    let mut ty_checker=TypeCheckerMut::from_ptr(&mut *self,TU_Opaque);
+
+                    let res=handle_extra_checks_ret(
+                        t_extra_checks.clone(),
+                        o_extra_checks.clone(),
+                        errs,
+                        top_level_errs,
+                        move||{
+                            let ty_checker_=ty_checker.sabi_reborrow_mut();
+                            rtry!( t_extra_checks.check_compatibility(t_lay,o_lay,ty_checker_) );
+                            
+                            let ty_checker_=ty_checker.sabi_reborrow_mut();
+                            let opt=rtry!( 
+                                t_extra_checks.combine(o_extra_checks,ty_checker_)
+                            );
+
+                            opt.map(|combined|{
+                                ExtraChecksBoxWithContext{
+                                    t_lay,
+                                    o_lay,
+                                    extra_checks:combined
+                                }
+                            })
+                            .piped(ROk)
+                        }
+                    );
+
+                    if let Ok(RSome(x))=res {
+                        self.checked_extra_checks.push(x);
+                    }
+                }
+            }
+
+            match (t_lay.data(), o_lay.data()) {
                 (TLData::Opaque{..}, _) => {
                     // No checks are necessary
                 }
@@ -645,11 +587,11 @@ impl AbiChecker {
                 (TLData::Struct { fields: t_fields }, TLData::Struct { fields: o_fields }) => {
                     self.check_fields(
                         errs, 
-                        this.layout,
-                        other.layout,
+                        this,
+                        other,
                         FieldContext::Fields, 
-                        t_fields.get_fields(), 
-                        o_fields.get_fields()
+                        t_fields.iter(), 
+                        o_fields.iter()
                     );
                 }
                 (TLData::Struct { .. }, _) => {}
@@ -657,11 +599,11 @@ impl AbiChecker {
                 (TLData::Union { fields: t_fields }, TLData::Union { fields: o_fields }) => {
                     self.check_fields(
                         errs, 
-                        this.layout,
-                        other.layout,
+                        this,
+                        other,
                         FieldContext::Fields, 
-                        t_fields.get_fields(), 
-                        o_fields.get_fields()
+                        t_fields.iter(), 
+                        o_fields.iter()
                     );
                 }
                 (TLData::Union { .. }, _) => {}
@@ -673,12 +615,12 @@ impl AbiChecker {
                     if let (Some(this_ne),Some(other_ne))=(t_as_ne,o_as_ne) {
                         self.checked_nonexhaustive_enums.push(CheckedNonExhaustiveEnums{
                             this:NonExhaustiveEnumWithContext{
-                                abi_info:this,
+                                layout:this,
                                 enum_:t_enum,
                                 nonexhaustive:this_ne,
                             },
                             other:NonExhaustiveEnumWithContext{
-                                abi_info:other,
+                                layout:other,
                                 enum_:o_enum,
                                 nonexhaustive:other_ne,
                             },
@@ -704,13 +646,26 @@ impl AbiChecker {
             }
         })();
 
-        if !errs_.is_empty() {
+        self.errors.extend(top_level_errs_);
+
+        let check_st=self.visited.get_mut(&cuti_pair).unwrap();
+        if errs_.is_empty() && 
+            self.errors.len()==start_errors && 
+            *check_st!=CheckingState::Error 
+        {
+            *check_st=CheckingState::Compatible;
+            Ok(())
+        }else{
+            *check_st=CheckingState::Error;
+
             self.errors.push(AbiInstabilityError {
                 stack_trace: self.stack_trace.clone(),
                 errs: errs_,
                 index: errs_index,
                 _priv:(),
             });
+
+            Err(())
         }
     }
 
@@ -718,8 +673,8 @@ impl AbiChecker {
     fn check_enum(
         &mut self,
         errs: &mut RVec<AbiInstability>,
-        this: &'static AbiInfo,other: &'static AbiInfo,
-        t_enum:&'static TLEnum,o_enum:&'static TLEnum,
+        this: &'static TypeLayout,other: &'static TypeLayout,
+        t_enum:TLEnum,o_enum:TLEnum,
     ){
         let TLEnum{ fields: t_fields,.. }=t_enum;
         let TLEnum{ fields: o_fields,.. }=o_enum;
@@ -732,10 +687,10 @@ impl AbiChecker {
 
         match (t_exhaus.as_nonexhaustive(),o_exhaus.as_nonexhaustive()) {
             (Some(this_ne),Some(other_ne))=>{
-                if let Err(e)=this_ne.check_compatible(this.layout){
+                if let Err(e)=this_ne.check_compatible(this){
                     errs.push(AI::IncompatibleWithNonExhaustive(e))
                 }
-                if let Err(e)=other_ne.check_compatible(other.layout){
+                if let Err(e)=other_ne.check_compatible(other){
                     errs.push(AI::IncompatibleWithNonExhaustive(e))
                 }
             }
@@ -794,11 +749,11 @@ impl AbiChecker {
 
         self.check_fields(
             errs, 
-            this.layout, 
-            other.layout, 
+            this, 
+            other, 
             FieldContext::Fields,
-            t_fields.get_fields(), 
-            o_fields.get_fields()
+            t_fields.iter(), 
+            o_fields.iter()
         );
     }
 
@@ -824,7 +779,7 @@ impl AbiChecker {
                 errs,
                 this,
                 other,
-                |x| StaticSlice::new(x.conditional_prefix_fields) ,
+                |x| x.conditional_prefix_fields,
                 AI::MismatchedPrefixConditionality
             );
         }
@@ -835,12 +790,13 @@ impl AbiChecker {
             this.layout,
             other.layout,
             FieldContext::Fields,
-            this.fields.get_fields(),
-            other.fields.get_fields()
+            this.fields.iter(),
+            other.fields.iter()
         );
     }
 
 
+    /// Combines the prefix types into a global map of prefix types.
     fn final_prefix_type_checks(
         &mut self,
         globals:&CheckingGlobals
@@ -852,7 +808,7 @@ impl AbiChecker {
         let mut prefix_type_map=globals.prefix_type_map.lock().unwrap();
 
         for pair in mem::replace(&mut self.checked_prefix_types,Default::default()) {
-            // let t_lay=pair.this_prefix.layout;
+            // let t_lay=pair.this_prefix;
             let errors_before=self.errors.len();
             let t_utid=pair.this .get_utypeid();
             let o_utid=pair.other.get_utypeid();
@@ -936,7 +892,7 @@ impl AbiChecker {
         }
     }
 
-
+    /// Combines the nonexhaustive enums into a global map of nonexhaustive enums.
     fn final_non_exhaustive_enum_checks(
         &mut self,
         globals:&CheckingGlobals
@@ -952,8 +908,8 @@ impl AbiChecker {
             let CheckedNonExhaustiveEnums{this,other}=pair;
             let errors_before=self.errors.len();
             
-            let t_utid=this .abi_info.get_utypeid();
-            let o_utid=other.abi_info.get_utypeid();
+            let t_utid=this .layout.get_utypeid();
+            let o_utid=other.layout.get_utypeid();
 
             let t_index=nonexhaustive_map.get_index(&t_utid);
             let mut o_index=nonexhaustive_map.get_index(&o_utid);
@@ -982,7 +938,7 @@ impl AbiChecker {
 
                     self.check_enum(
                         errs,
-                        min_nonexh.abi_info,max_nonexh.abi_info,
+                        min_nonexh.layout,max_nonexh.layout,
                         min_nonexh.enum_   ,max_nonexh.enum_   ,
                     );
 
@@ -1013,7 +969,7 @@ impl AbiChecker {
                     
                     self.check_enum(
                         errs,
-                        min_nonexh.abi_info,max_nonexh.abi_info,
+                        min_nonexh.layout,max_nonexh.layout,
                         min_nonexh.enum_   ,max_nonexh.enum_   ,
                     );
 
@@ -1036,8 +992,95 @@ impl AbiChecker {
         }
     }
 
-    
+    /// Combines the ExtraChecksBox into a global map.
+    fn final_extra_checks(
+        &mut self,
+        globals:&CheckingGlobals
+    )->Result<(),RVec<AbiInstabilityError>>{
+        self.error_index += 1;
 
+        let mut top_level_errs_ = RVec::<AbiInstabilityError>::new();
+
+        let mut errs_ = RVec::<AbiInstability>::new();
+        let errs =&mut errs_;
+        let top_level_errs =&mut top_level_errs_;
+
+        let mut extra_checker_map=globals.extra_checker_map.lock().unwrap();
+
+        for with_context in mem::replace(&mut self.checked_extra_checks,Default::default()) {
+            let ExtraChecksBoxWithContext{t_lay,o_lay,extra_checks}=with_context;
+
+            let errors_before=self.errors.len();
+            let type_checker=TypeCheckerMut::from_ptr(&mut *self,TU_Opaque);
+            let t_utid=t_lay.get_utypeid();
+            let o_utid=o_lay.get_utypeid();
+
+            let t_index=extra_checker_map.get_index(&t_utid);
+            let mut o_index=extra_checker_map.get_index(&o_utid);
+
+            if t_index==o_index{
+                o_index=None;
+            }
+
+            match (t_index,o_index) {
+                (None,None)=>{
+                    let i=extra_checker_map
+                        .get_or_insert(t_utid,extra_checks)
+                        .into_inner()
+                        .index;
+                    extra_checker_map.associate_key(o_utid,i);
+                }
+                (Some(im_index),None)|(None,Some(im_index))=>{
+                    let other_checks=extra_checker_map.get_mut_with_index(im_index).unwrap();
+
+                    combine_extra_checks(
+                        errs,
+                        top_level_errs,
+                        type_checker,
+                        other_checks,
+                        &[extra_checks.sabi_reborrow()]
+                    );
+
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
+
+                    extra_checker_map.associate_key(t_utid,im_index);
+                    extra_checker_map.associate_key(o_utid,im_index);
+
+                }
+                (Some(l_index),Some(r_index))=>{
+                    let (l_extra_checks,r_extra_checks)=
+                        extra_checker_map.get2_mut_with_index(l_index,r_index);
+                    let l_extra_checks=l_extra_checks.unwrap();
+                    let r_extra_checks=r_extra_checks.unwrap();
+
+                    combine_extra_checks(
+                        errs,
+                        top_level_errs,
+                        type_checker,
+                        l_extra_checks,
+                        &[ r_extra_checks.sabi_reborrow(), extra_checks.sabi_reborrow() ]
+                    );
+
+                    if !errs.is_empty() || errors_before!=self.errors.len() { break; }
+
+                    extra_checker_map.replace_with_index(r_index,l_index);
+
+                }
+            }
+        }
+
+        if errs_.is_empty() {
+            Ok(())
+        }else{
+            top_level_errs.push(AbiInstabilityError {
+                stack_trace: self.stack_trace.clone(),
+                errs: errs_,
+                index: self.error_index,
+                _priv:(),
+            });
+            Err(top_level_errs_)
+        }
+    }
 }
 
 
@@ -1052,8 +1095,8 @@ and the second must be actual layout.
 
 */
 pub(super) fn check_layout_compatibility(
-    interface: &'static AbiInfoWrapper,
-    implementation: &'static AbiInfoWrapper,
+    interface: &'static TypeLayout,
+    implementation: &'static TypeLayout,
 ) -> Result<(), AbiInstabilityErrors> {
     check_layout_compatibility_with_globals(
         interface,
@@ -1065,36 +1108,40 @@ pub(super) fn check_layout_compatibility(
 
 #[inline(never)]
 pub(super) fn check_layout_compatibility_with_globals(
-    interface: &'static AbiInfoWrapper,
-    implementation: &'static AbiInfoWrapper,
+    interface: &'static TypeLayout,
+    implementation: &'static TypeLayout,
     globals:&CheckingGlobals,
 ) -> Result<(), AbiInstabilityErrors> {
     let mut errors: RVec<AbiInstabilityError>;
 
-    let interface = interface.get();
-    let implementation = implementation.get();
-
-    if interface.prefix_kind || implementation.prefix_kind {
+    if interface.is_prefix_kind() || implementation.is_prefix_kind() {
+        let mut errs=RVec::with_capacity(1);
+        push_err(
+            &mut errs,
+            interface,
+            implementation,
+            |x| x.data_discriminant() ,
+            AI::TLDataDiscriminant
+        );
         errors = vec![AbiInstabilityError {
             stack_trace: vec![].into(),
-            errs: vec![AbiInstability::IsPrefix(ExpectedFound {
-                expected: false,
-                found: true,
-            })]
-            .into(),
+            errs,
             index: 0,
             _priv:(),
         }]
         .into();
     } else {
         let mut checker = AbiChecker::new();
-        checker.check_inner(interface, implementation);
+        let _=checker.check_inner(interface, implementation);
         if checker.errors.is_empty() {
             if let Err(e)=checker.final_prefix_type_checks(globals) {
                 checker.errors.push(e);
             }
             if let Err(e)=checker.final_non_exhaustive_enum_checks(globals) {
                 checker.errors.push(e);
+            }
+            if let Err(e)=checker.final_extra_checks(globals) {
+                checker.errors.extend(e);
             }
         }
         errors = checker.errors;
@@ -1117,14 +1164,32 @@ pub(super) fn check_layout_compatibility_with_globals(
 /**
 Checks that the layout of `interface` is compatible with `implementation`,
 */
-pub(crate) extern fn check_layout_compatibility_for_ffi(
-    interface: &'static AbiInfoWrapper,
-    implementation: &'static AbiInfoWrapper,
+pub(crate) extern "C" fn check_layout_compatibility_for_ffi(
+    interface: &'static TypeLayout,
+    implementation: &'static TypeLayout,
 ) -> RResult<(), RBoxError> {
     extern_fn_panic_handling!{
-        check_layout_compatibility(interface,implementation)
-            .map_err(RBoxError::from_fmt)
-            .into_c()
+        let mut is_already_inside=false;
+        INSIDE_LAYOUT_CHECKER.with(|inside|{
+            is_already_inside=inside.get();
+            inside.set(true);
+        });
+        let _guard=LayoutCheckerGuard;
+
+        if is_already_inside {
+            let errors = 
+                vec![AbiInstabilityError {
+                    stack_trace: vec![].into(),
+                    errs:vec![AbiInstability::ReentrantLayoutCheckingCall].into(),
+                    index: 0,
+                    _priv:(),
+                }].into_c();
+
+            Err(AbiInstabilityErrors{ interface, implementation, errors, _priv:() })
+        }else{
+            check_layout_compatibility(interface,implementation)
+        }.map_err(RBoxError::new)
+         .into_c()
     }
 }
 
@@ -1133,7 +1198,7 @@ pub(crate) extern fn check_layout_compatibility_for_ffi(
 Checks that the layout of `interface` is compatible with `implementation`,
 
 If this function is called within a dynamic library,
-it must be called at or after the function that exports its root module is called.
+it must be called during or after the function that exports its root module is called.
 
 **DO NOT** call this in the static initializer of a dynamic library,
 since this library relies on setting up its global state before
@@ -1147,9 +1212,9 @@ and the second must be actual layout.
 
 
 */
-pub extern fn exported_check_layout_compatibility(
-    interface: &'static AbiInfoWrapper,
-    implementation: &'static AbiInfoWrapper,
+pub extern "C" fn exported_check_layout_compatibility(
+    interface: &'static TypeLayout,
+    implementation: &'static TypeLayout,
 ) -> RResult<(), RBoxError> {
     extern_fn_panic_handling!{
         (crate::globals::initialized_globals().layout_checking)
@@ -1157,6 +1222,86 @@ pub extern fn exported_check_layout_compatibility(
     }
 }
 
+
+
+impl AbiChecker{
+    fn check_compatibility_inner(
+        &mut self,
+        interface:&'static TypeLayout,
+        implementation:&'static TypeLayout,
+    )->RResult<(),()>{
+        let error_count_before=self.errors.len();
+
+        self.current_layer+=1;
+        
+        let res=self.check_inner(interface,implementation);
+
+        self.current_layer-=1;
+
+        if error_count_before==self.errors.len() && res.is_ok() {
+            ROk(())
+        }else{
+            RErr(())
+        }
+    }
+}
+impl TypeChecker for AbiChecker{
+    fn check_compatibility(
+        &mut self,
+        interface:&'static TypeLayout,
+        implementation:&'static TypeLayout,
+    )->RResult<(), ExtraChecksError> {
+        self.check_compatibility_inner(interface,implementation)
+            .map_err(|_| ExtraChecksError::TypeChecker )
+    }
+
+    fn local_check_compatibility(
+        &mut self,
+        interface:&'static TypeLayout,
+        implementation:&'static TypeLayout,
+    )->RResult<(), ExtraChecksError> {
+        let error_count_before=self.errors.len();
+
+        dbg!(error_count_before);
+        println!(
+            "interface:{} implementation:{}", 
+            interface.full_type(),
+            implementation.full_type()
+        );
+        
+        self.check_compatibility_inner(interface,implementation)
+            .map_err(|_|{
+                AbiInstabilityErrors {
+                    interface,
+                    implementation,
+                    errors: self.errors.drain(error_count_before..).collect(),
+                    _priv:(),
+                }
+                .piped(RBoxError::new)
+                .piped(ExtraChecksError::TypeCheckerErrors)
+            })
+    }
+
+}
+
+
+///////////////////////////////////////////////
+
+
+thread_local!{
+    static INSIDE_LAYOUT_CHECKER:Cell<bool>=Cell::new(false);
+}
+
+
+struct LayoutCheckerGuard;
+
+impl Drop for LayoutCheckerGuard{
+    fn drop(&mut self){
+        INSIDE_LAYOUT_CHECKER.with(|inside|{
+            inside.set(false);
+        });
+    }
+}
 
 
 ///////////////////////////////////////////////
@@ -1174,6 +1319,7 @@ use crate::{
 pub struct CheckingGlobals{
     pub(crate) prefix_type_map:Mutex<MultiKeyMap<UTypeId,PrefixTypeMetadata>>,
     pub(crate) nonexhaustive_map:Mutex<MultiKeyMap<UTypeId,NonExhaustiveEnumWithContext>>,
+    pub(crate) extra_checker_map:Mutex<MultiKeyMap<UTypeId,ExtraChecksBox>>,
 }
 
 impl CheckingGlobals{
@@ -1181,6 +1327,7 @@ impl CheckingGlobals{
         CheckingGlobals{
             prefix_type_map:MultiKeyMap::new().piped(Mutex::new),
             nonexhaustive_map:MultiKeyMap::new().piped(Mutex::new),
+            extra_checker_map:MultiKeyMap::new().piped(Mutex::new),
         }
     }
 }
@@ -1209,4 +1356,81 @@ pub(crate) fn push_err<O, U, FG, VC>(
     let x = ExpectedFound::new(this, other, field_getter);
     let x = variant_constructor(x);
     errs.push(x);
+}
+
+
+fn handle_extra_checks_ret<F,R>(
+    expected_extra_checks:ExtraChecksRef<'_>,
+    found_extra_checks:ExtraChecksRef<'_>,
+    errs: &mut RVec<AbiInstability>,
+    top_level_errs: &mut RVec<AbiInstabilityError>,
+    f:F
+)->Result<R,()>
+where
+    F:FnOnce()->RResult<R, ExtraChecksError>
+{
+    let make_extra_check_error=move|e:RBoxError|->AbiInstability{
+        ExtraCheckError{
+            err: RArc::new(e),
+            expected_err: ExpectedFound{
+                expected:expected_extra_checks
+                    .piped(RBoxError::from_fmt)
+                    .piped(RArc::new),
+
+                found:found_extra_checks
+                    .piped(RBoxError::from_fmt)
+                    .piped(RArc::new),
+            }
+        }.piped(CmpIgnored::new)
+         .piped(AI::ExtraCheckError)
+    };
+    match f() {
+        ROk(x)=>{
+            Ok(x)
+        }
+        RErr(ExtraChecksError::TypeChecker)=>{
+            Err(())
+        }
+        RErr(ExtraChecksError::TypeCheckerErrors(e))=>{
+            match e.downcast::<AbiInstabilityErrors>() {
+                Ok(e)=>top_level_errs.extend(RBox::into_inner(e).errors),
+                Err(e)=>errs.push(make_extra_check_error(e)),
+            }
+            Err(())
+        }
+        RErr(ExtraChecksError::NoneExtraChecks)=>{
+            errs.push(AI::NoneExtraChecks);
+            Err(())
+        }
+        RErr(ExtraChecksError::ExtraChecks(e))=>{
+            errs.push(make_extra_check_error(e));
+            Err(())
+        }
+    }
+}
+
+fn combine_extra_checks(
+    errs: &mut RVec<AbiInstability>,
+    top_level_errs: &mut RVec<AbiInstabilityError>,
+    mut ty_checker:TypeCheckerMut<'_>,
+    extra_checks:&mut ExtraChecksBox,
+    slic:&[ExtraChecksRef<'_>]
+){
+    for other in slic {
+        let other_ref=other.sabi_reborrow();
+        let ty_checker=ty_checker.sabi_reborrow_mut();
+        let opt_ret=handle_extra_checks_ret(
+            extra_checks.sabi_reborrow(),
+            other.sabi_reborrow(),
+            errs,
+            top_level_errs,
+            || extra_checks.sabi_reborrow().combine( other_ref , ty_checker ) 
+        );
+
+        match opt_ret {
+            Ok(RSome(new))=>{ *extra_checks=new; },
+            Ok(RNone)=>{},
+            Err(_)=>break,
+        }
+    }
 }

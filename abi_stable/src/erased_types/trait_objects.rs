@@ -6,6 +6,7 @@ use std::{
     fmt::{self,Display,Debug},
 };
 
+#[allow(unused_imports)]
 use core_extensions::prelude::*;
 
 use super::{c_functions::*, *};
@@ -37,7 +38,7 @@ impl<'a> HasherObject<'a> {
         HasherObject {
             this: unsafe{
                 // The lifetime is tied to the input.
-                this.transmute_element(<ErasedObject>::T)
+                this.transmute_element::<ErasedObject>()
             },
             hash_slice:hash_slice_Hasher::<T>,
             finish:finish_Hasher::<T>,
@@ -85,7 +86,7 @@ impl DebugDisplayObject{
         DebugDisplayObject{
             this:unsafe{
                 // The lifetime here is 'static,so it's fine to erase the type.
-                RBox::new(value).transmute_element(<ErasedObject>::T)
+                RBox::new(value).transmute_element::<ErasedObject>()
             },
             display:display_impl::<T>,
             debug  :debug_impl::<T>,

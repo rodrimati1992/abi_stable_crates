@@ -3,7 +3,7 @@ Traits for pointers.
 */
 use std::{
     mem::ManuallyDrop,
-    ops::{Deref},
+    ops::{Deref,DerefMut},
 };
 
 use crate::sabi_types::MovePtr;
@@ -51,7 +51,7 @@ The valid kinds are:
 - SmartPointer: Any pointer type that's not a reference or a mutable reference.
 
 */
-pub unsafe trait GetPointerKind{
+pub unsafe trait GetPointerKind:Deref+Sized{
     type Kind:PointerKindVariant;
 
     const KIND:PointerKind=<Self::Kind as PointerKindVariant>::VALUE;
@@ -122,7 +122,7 @@ unsafe impl<'a,T> GetPointerKind for &'a mut T{
 ///////////
 
 /**
-Transmutes the element type of this pointer..
+Whether the pointer can be transmuted to have `T` as the element type.
 
 # Safety for implementor
 
@@ -134,6 +134,15 @@ Implementors of this trait must ensure that:
 - The pointer type is either `!Drop`(no drop glue either),
     or it uses a vtable to Drop the referent and deallocate the memory correctly.
 
+*/
+pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
+    /// The type of the pointer after it's element type has been changed.
+    type TransmutedPtr: Deref<Target = T>;
+}
+
+/**
+An extension trait which allows transmuting pointers to point to a different type.
+
 # Safety for callers
 
 Callers must ensure that:
@@ -141,9 +150,7 @@ Callers must ensure that:
 - References to `T` are compatible with references to `Self::Target`.
 
 */
-pub unsafe trait TransmuteElement<T>: Deref + GetPointerKind + Sized {
-    type TransmutedPtr: Deref<Target = T>;
-
+pub trait TransmuteElement{
     /// Transmutes the element type of this pointer..
     ///
     /// # Safety
@@ -163,32 +170,36 @@ pub unsafe trait TransmuteElement<T>: Deref + GetPointerKind + Sized {
     /// ```
     /// use abi_stable::{
     ///     pointer_trait::TransmuteElement,
-    ///     reexports::SelfOps,
     ///     std_types::RBox,
     /// };
     ///
     /// let signed:RBox<u32>=unsafe{
     ///     RBox::new(1_i32)
-    ///         .transmute_element(u32::T)
+    ///         .transmute_element::<u32>()
     /// };
     ///
     /// ```
-    unsafe fn transmute_element(self, _: VariantPhantom<T>) -> Self::TransmutedPtr 
-    where Self::Target:Sized
+    unsafe fn transmute_element<T>(self) -> <Self as CanTransmuteElement<T>>::TransmutedPtr 
+    where
+        Self:CanTransmuteElement<T>,
+        Self::Target:Sized,
     {
         transmute_ignore_size::<Self, Self::TransmutedPtr>(self)
     }
 }
 
+impl<This:?Sized> TransmuteElement for This{}
+
+
 ///////////
 
-unsafe impl<'a, T: 'a, O: 'a> TransmuteElement<O> for &'a T {
+unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a T {
     type TransmutedPtr = &'a O;
 }
 
 ///////////
 
-unsafe impl<'a, T: 'a, O: 'a> TransmuteElement<O> for &'a mut T {
+unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a mut T {
     type TransmutedPtr = &'a mut O;
 }
 
@@ -204,10 +215,7 @@ For owned pointers,allows extracting their contents separate from deallocating t
 - The pointer type is either `!Drop`(no drop glue either),
     or it uses a vtable to Drop the referent and deallocate the memory correctly.
 */
-pub unsafe trait OwnedPointer:Sized{
-    /// The type of the value this owns.
-    type Target;
-
+pub unsafe trait OwnedPointer:Sized+DerefMut+GetPointerKind{
     /// Gets a move pointer to the contents of this pointer.
     ///
     /// # Safety
@@ -215,7 +223,9 @@ pub unsafe trait OwnedPointer:Sized{
     /// This function logically moves the owned contents out of this pointer,
     /// the only safe thing that can be done with the pointer afterwads 
     /// is to call OwnedPointer::drop_allocation.
-    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>;
+    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>
+    where 
+        Self::Target:Sized;
 
     /// Deallocates the pointer without dropping its owned contents.
     ///
@@ -227,7 +237,8 @@ pub unsafe trait OwnedPointer:Sized{
     #[inline]
     fn with_move_ptr<F,R>(mut this:ManuallyDrop<Self>,f:F)->R
     where 
-        F:FnOnce(MovePtr<'_,Self::Target>)->R
+        F:FnOnce(MovePtr<'_,Self::Target>)->R,
+        Self::Target:Sized,
     {
         unsafe{
             let ret=f(Self::get_move_ptr(&mut this));
@@ -239,7 +250,8 @@ pub unsafe trait OwnedPointer:Sized{
     #[inline]
     fn in_move_ptr<F,R>(self,f:F)->R
     where 
-        F:FnOnce(MovePtr<'_,Self::Target>)->R
+        F:FnOnce(MovePtr<'_,Self::Target>)->R,
+        Self::Target:Sized,
     {
         unsafe{
             let mut this=ManuallyDrop::new(self);

@@ -56,7 +56,7 @@ fn instantiate_root_module()->&'static TextOpsMod{
             };
             static WITH_META:WithMetadata<DeserializerModVal>=
                 WithMetadata::new(PrefixTypeTrait::METADATA,MOD_);
-            WITH_META.as_prefix()
+            WITH_META.ref_as_prefix()
         },
         reverse_lines,
         remove_words,
@@ -88,10 +88,10 @@ impl ImplType for TextOperationState {
 }
 
 /// Defines how the type is serialized in DynTrait<_>.
-impl SerializeImplType for TextOperationState {
+impl<'a> SerializeImplType<'a> for TextOperationState {
     type Interface = TOState;
     
-    fn serialize_impl<'a>(&'a self) -> Result<RawValueBox, RBoxError> {
+    fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
     }
 }
@@ -139,9 +139,9 @@ impl ImplType for Command<'static> {
 }
 
 /// Defines how the type is serialized in DynTrait<_>.
-impl<'borr> SerializeImplType for Command<'borr> {
+impl<'borr,'a> SerializeImplType<'a> for Command<'borr> {
     type Interface = TOCommand;
-    fn serialize_impl<'a>(&'a self) -> Result<RawValueBox, RBoxError> {
+    fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
     }
 }
@@ -175,9 +175,9 @@ impl ImplType for ReturnValue {
 }
 
 /// Defines how the type is serialized in DynTrait<_>.
-impl SerializeImplType for ReturnValue {
+impl<'a> SerializeImplType<'a> for ReturnValue {
     type Interface = TOReturnValue;
-    fn serialize_impl<'a>(&'a self) -> Result<RawValueBox, RBoxError> {
+    fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
     }
 }
@@ -263,7 +263,7 @@ pub fn new() -> TOStateBox {
 /// Reverses order of the lines in `text`.
 #[sabi_extern_fn]
 pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
-    let this = this.sabi_as_unerased_mut::<TextOperationState>().unwrap();
+    let this = this.as_unerased_mut_impltype::<TextOperationState>().unwrap();
 
     this.processed_bytes+=text.len() as u64;
 
@@ -282,7 +282,7 @@ pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
 /// as well as the whitespace that comes after it.
 #[sabi_extern_fn]
 pub fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,'_>) -> RString{
-    let this = this.sabi_as_unerased_mut::<TextOperationState>().unwrap();
+    let this = this.as_unerased_mut_impltype::<TextOperationState>().unwrap();
 
     this.processed_bytes+=param.string.len() as u64;
 
@@ -309,7 +309,7 @@ pub fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,'_>) -> RSt
 /// that was processed in functions taking `&mut TOStateBox`.
 #[sabi_extern_fn]
 pub fn get_processed_bytes(this: &TOStateBox) -> u64 {
-    let this = this.sabi_as_unerased::<TextOperationState>().unwrap();
+    let this = this.as_unerased_impltype::<TextOperationState>().unwrap();
     this.processed_bytes
 }
 
@@ -350,7 +350,7 @@ pub fn run_command(
     this:&mut TOStateBox,
     command:TOCommandBox<'static>
 )->TOReturnValueArc{
-    let command = command.sabi_into_unerased::<Command<'static>>().unwrap()
+    let command = command.into_unerased_impltype::<Command<'static>>().unwrap()
         .piped(RBox::into_inner);
         
     run_command_inner(this,command)

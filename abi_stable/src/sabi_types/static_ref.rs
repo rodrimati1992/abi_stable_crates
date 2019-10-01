@@ -3,7 +3,11 @@ use std::{
     fmt::{self,Display},
 };
 
-use crate::abi_stability::SharedStableAbi;
+use crate::{
+    pointer_trait::{CanTransmuteElement,GetPointerKind,PK_Reference},
+};
+
+use super::RRef;
 
 
 /**
@@ -20,7 +24,7 @@ even though they have `non-'static` type parameters.
 
 This defines a vtable,using a StaticRef as the pointer to the vtable.
 
-This example is not intended to be fully functional,
+This example is not intended to be practical,
 it's only to demonstrate a use for StaticRef.
 
 ```
@@ -74,7 +78,7 @@ mod vtable{
         };
 
         pub(super)fn vtable()->StaticRef<VTable<T>> {
-            WithMetadata::staticref_as_prefix(Self::VTABLE)
+            WithMetadata::as_prefix(Self::VTABLE)
         }
     }
 }
@@ -94,10 +98,7 @@ unsafe fn drop_<T>(object:*mut T){
 */
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(
-    not_stableabi(T),
-    bound="T:SharedStableAbi",
-)]
+#[sabi(shared_stableabi(T))]
 pub struct StaticRef<T>{
     ref_:*const T,
 }
@@ -181,11 +182,11 @@ impl<T> StaticRef<T>{
     ///     const REF:&'static Option<T>=&None;
     ///
     ///     const STATIC:StaticRef<Option<T>>=
-    ///         StaticRef::from_ref(Self::REF);
+    ///         StaticRef::new(Self::REF);
     /// }
     ///
     /// ```
-    pub const fn from_ref(ref_:&'static T)->Self{
+    pub const fn new(ref_:&'static T)->Self{
         Self{ref_}
     }
 
@@ -242,7 +243,7 @@ impl<T> StaticRef<T>{
         self.ref_
     }
 
-    /// Transmutes this StaticRef<T> to a StaticRef<U>.
+    /// Transmutes this `StaticRef<T>` to a `StaticRef<U>`.
     ///
     /// # Safety
     ///
@@ -275,6 +276,26 @@ impl<T> StaticRef<T>{
             self.ref_ as *const U
         )
     }
+
+    /// Converts this `StaticRef<T>` to an `RRef<'a,T>`.
+    pub const fn to_rref<'a>(self)->RRef<'a,T>
+    where
+        T:'a,
+    {
+        unsafe{
+            RRef::from_raw(self.ref_)
+        }
+    }
+}
+
+impl<T> From<RRef<'static,T>> for StaticRef<T>
+where
+    T:'static,
+{
+    #[inline]
+    fn from(v:RRef<'static,T>)->Self{
+        v.to_staticref()
+    }
 }
 
 impl<T> Deref for StaticRef<T>{
@@ -285,3 +306,10 @@ impl<T> Deref for StaticRef<T>{
     }
 }
 
+unsafe impl<T> GetPointerKind for StaticRef<T>{
+    type Kind=PK_Reference;
+}
+
+unsafe impl<T,U> CanTransmuteElement<U> for StaticRef<T>{
+    type TransmutedPtr= StaticRef<U>;
+}

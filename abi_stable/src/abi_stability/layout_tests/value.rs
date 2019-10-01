@@ -8,7 +8,6 @@ use core_extensions::{matches, prelude::*};
 use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,check_layout_compatibility},
-        AbiInfoWrapper, 
     },
     external_types::{
         crossbeam_channel::{RReceiver,RSender},
@@ -16,12 +15,25 @@ use crate::{
     },
     marker_type::UnsafeIgnoredType,
     std_types::*,
-    type_layout::{Tag,TLData},
+    type_layout::{Tag,TLData,TypeLayout},
     *,
 };
 
+use super::shared_types::{
+    basic_enum,
+    gen_basic,
+    gen_more_lts,
+    enum_extra_fields_b,
+    extra_variant,
+    swapped_fields_first,
+    gen_more_lts_b,
+    mod_5,
+    mod_7,
+};
 
-mod union_1a {
+
+
+pub(super) mod union_1a {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -29,7 +41,7 @@ mod union_1a {
     }
 }
 
-mod union_1b {
+pub(super) mod union_1b {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -37,7 +49,7 @@ mod union_1b {
     }
 }
 
-mod union_2a {
+pub(super) mod union_2a {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -46,7 +58,7 @@ mod union_2a {
     }
 }
 
-mod union_2b {
+pub(super) mod union_2b {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -55,7 +67,7 @@ mod union_2b {
     }
 }
 
-mod union_3 {
+pub(super) mod union_3 {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -65,7 +77,7 @@ mod union_3 {
     }
 }
 
-mod union_4 {
+pub(super) mod union_4 {
     #[repr(C)]
     #[derive(StableAbi)]
     pub union Union {
@@ -76,7 +88,7 @@ mod union_4 {
     }
 }
 
-mod regular {
+pub(super) mod regular {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -87,7 +99,7 @@ mod regular {
     }
 }
 
-mod changed_name {
+pub(super) mod changed_name {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangleiiiiii {
@@ -98,7 +110,7 @@ mod changed_name {
     }
 }
 
-mod changed_field_name {
+pub(super) mod changed_field_name {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -110,18 +122,7 @@ mod changed_field_name {
     }
 }
 
-mod swapped_fields_first {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub struct Rectangle {
-        y: u32,
-        x: u32,
-        w: u16,
-        h: u32,
-    }
-}
-
-mod swapped_fields_last {
+pub(super) mod swapped_fields_last {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -132,7 +133,7 @@ mod swapped_fields_last {
     }
 }
 
-mod removed_field_first {
+pub(super) mod removed_field_first {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -142,7 +143,7 @@ mod removed_field_first {
     }
 }
 
-mod removed_field_last {
+pub(super) mod removed_field_last {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -152,7 +153,7 @@ mod removed_field_last {
     }
 }
 
-mod removed_all_fields {
+pub(super) mod removed_all_fields {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -162,7 +163,7 @@ mod removed_all_fields {
     }
 }
 
-mod changed_type_first {
+pub(super) mod changed_type_first {
     use super::shadowed;
 
     #[repr(C)]
@@ -175,7 +176,7 @@ mod changed_type_first {
     }
 }
 
-mod changed_type_last {
+pub(super) mod changed_type_last {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -186,7 +187,7 @@ mod changed_type_last {
     }
 }
 
-mod changed_alignment {
+pub(super) mod changed_alignment {
     #[repr(C, align(16))]
     #[derive(StableAbi)]
     pub struct Rectangle {
@@ -198,14 +199,14 @@ mod changed_alignment {
 }
 
 
-mod built_in {
+pub(super) mod built_in {
     pub use i32 as std_i32;
     pub use u32 as std_u32;
 }
 
 /// Types that have the same type-name and layout as built-in types.
 #[allow(non_camel_case_types)]
-mod shadowed {
+pub(super) mod shadowed {
     use super::built_in::*;
 
     #[repr(transparent)]
@@ -221,15 +222,15 @@ mod shadowed {
     }
 }
 
-fn assert_sane_abi_info(abi: &'static AbiInfoWrapper) {
-    assert_equal_abi_info(abi, abi);
+fn assert_sane_type_layout(layout: &'static TypeLayout) {
+    assert_equal_type_layout(layout, layout);
 }
 
-fn assert_equal_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static AbiInfoWrapper) {
+fn assert_equal_type_layout(interface: &'static TypeLayout, impl_: &'static TypeLayout) {
     assert_eq!(check_layout_compatibility(interface, impl_), Ok(()));
 }
 
-fn assert_different_abi_info(interface: &'static AbiInfoWrapper, impl_: &'static AbiInfoWrapper) {
+fn assert_different_type_layout(interface: &'static TypeLayout, impl_: &'static TypeLayout) {
     let res=check_layout_compatibility(interface, impl_);
     assert_ne!(
         res,
@@ -251,143 +252,149 @@ pub struct UnsafeOF{
 
 #[test]
 fn unsafe_opaque_fields(){
-    let layout=UnsafeOF::ABI_INFO.get().layout;
+    let layout=UnsafeOF::LAYOUT;
 
-    let fields=match layout.data {
-        TLData::Struct{fields}=>fields.get_fields().collect::<Vec<_>>(),
+    let fields=match layout.data() {
+        TLData::Struct{fields}=>fields.iter().collect::<Vec<_>>(),
         _=>unreachable!(),
     };
 
-    let field_0_ai=fields[0].abi_info.get().layout;
-    assert_eq!(field_0_ai.data, TLData::Opaque);
-    assert_eq!(field_0_ai.size, mem::size_of::<Vec<u8>>());
-    assert_eq!(field_0_ai.alignment, mem::align_of::<Vec<u8>>());
+    let field_0_ai=fields[0].layout();
+    assert_eq!(field_0_ai.data(), TLData::Opaque);
+    assert_eq!(field_0_ai.size(), mem::size_of::<Vec<u8>>());
+    assert_eq!(field_0_ai.alignment(), mem::align_of::<Vec<u8>>());
 }
 
 
 #[cfg_attr(not(miri),test)]
 fn same_different_abi_stability() {
     let must_be_equal = vec![
-        regular::Rectangle::ABI_INFO,
-        swapped_fields_first::Rectangle::ABI_INFO,
-        swapped_fields_last::Rectangle::ABI_INFO,
-        removed_field_first::Rectangle::ABI_INFO,
-        removed_field_last::Rectangle::ABI_INFO,
-        removed_all_fields::Rectangle::ABI_INFO,
-        changed_type_first::Rectangle::ABI_INFO,
-        changed_type_last::Rectangle::ABI_INFO,
-        shadowed::u32::ABI_INFO,
-        shadowed::i32::ABI_INFO,
+        regular::Rectangle::LAYOUT,
+        swapped_fields_first::Rectangle::LAYOUT,
+        swapped_fields_last::Rectangle::LAYOUT,
+        removed_field_first::Rectangle::LAYOUT,
+        removed_field_last::Rectangle::LAYOUT,
+        removed_all_fields::Rectangle::LAYOUT,
+        changed_type_first::Rectangle::LAYOUT,
+        changed_type_last::Rectangle::LAYOUT,
+        shadowed::u32::LAYOUT,
+        shadowed::i32::LAYOUT,
     ];
 
     for this in must_be_equal {
-        assert_sane_abi_info(this);
+        assert_sane_type_layout(this);
     }
 
     let list = vec![
-        <&mut ()>::ABI_INFO,
-        <&mut i32>::ABI_INFO,
-        <&()>::ABI_INFO,
-        <&i32>::ABI_INFO,
-        <&'static &'static ()>::ABI_INFO,
-        <&'static mut &'static ()>::ABI_INFO,
-        <&'static &'static mut ()>::ABI_INFO,
-        <atomic::AtomicPtr<()>>::ABI_INFO,
-        <atomic::AtomicPtr<i32>>::ABI_INFO,
-        <*const ()>::ABI_INFO,
-        <*const i32>::ABI_INFO,
-        <*mut ()>::ABI_INFO,
-        <*mut i32>::ABI_INFO,
-        <[(); 0]>::ABI_INFO,
-        <[(); 1]>::ABI_INFO,
-        <[(); 2]>::ABI_INFO,
-        <[(); 3]>::ABI_INFO,
-        <[u32; 3]>::ABI_INFO,
-        <i32>::ABI_INFO,
-        <u32>::ABI_INFO,
-        <bool>::ABI_INFO,
-        <atomic::AtomicBool>::ABI_INFO,
-        <atomic::AtomicIsize>::ABI_INFO,
-        <atomic::AtomicUsize>::ABI_INFO,
-        <num::NonZeroU32>::ABI_INFO,
-        <num::NonZeroU16>::ABI_INFO,
-        <ptr::NonNull<()>>::ABI_INFO,
-        <ptr::NonNull<i32>>::ABI_INFO,
-        <RHashMap<RString,RString>>::ABI_INFO,
-        <RHashMap<RString,i32>>::ABI_INFO,
-        <RHashMap<i32,RString>>::ABI_INFO,
-        <RHashMap<i32,i32>>::ABI_INFO,
-        <RVec<()>>::ABI_INFO,
-        <RVec<i32>>::ABI_INFO,
-        <RSlice<'_, ()>>::ABI_INFO,
-        <RSlice<'_, i32>>::ABI_INFO,
-        <RSliceMut<'_, ()>>::ABI_INFO,
-        <RSliceMut<'_, i32>>::ABI_INFO,
-        <Option<&()>>::ABI_INFO,
-        <Option<&u32>>::ABI_INFO,
-        <Option<extern "C" fn()>>::ABI_INFO,
-        <ROption<()>>::ABI_INFO,
-        <ROption<u32>>::ABI_INFO,
-        <RCow<'_, str>>::ABI_INFO,
-        <RCow<'_, [u32]>>::ABI_INFO,
-        <RArc<()>>::ABI_INFO,
-        <RArc<u32>>::ABI_INFO,
-        <RBox<()>>::ABI_INFO,
-        <RBox<u32>>::ABI_INFO,
-        <RBoxError>::ABI_INFO,
-        <SendRBoxError>::ABI_INFO,
-        <UnsyncRBoxError>::ABI_INFO,
-        <RCmpOrdering>::ABI_INFO,
-        <PhantomData<()>>::ABI_INFO,
-        <PhantomData<RString>>::ABI_INFO,
-        <RMutex<()>>::ABI_INFO,
-        <RMutex<RString>>::ABI_INFO,
-        <RRwLock<()>>::ABI_INFO,
-        <RRwLock<RString>>::ABI_INFO,
-        <RSender<()>>::ABI_INFO,
-        <RSender<RString>>::ABI_INFO,
-        <RReceiver<()>>::ABI_INFO,
-        <RReceiver<RString>>::ABI_INFO,
-        <ROnce>::ABI_INFO,
-        <mod_0::Mod>::ABI_INFO,
-        <mod_0b::Mod>::ABI_INFO,
-        <mod_1::Mod>::ABI_INFO,
-        <mod_2::Mod>::ABI_INFO,
-        <mod_3::Mod>::ABI_INFO,
-        <mod_4::Mod>::ABI_INFO,
-        <mod_5::Mod>::ABI_INFO,
-        <mod_6::Mod>::ABI_INFO,
-        <mod_6b::Mod>::ABI_INFO,
-        <mod_7::Mod>::ABI_INFO,
-        <Tagged<TAG_DEFAULT_1>>::ABI_INFO,
-        <Tagged<TAG_DEFAULT_2>>::ABI_INFO,
-        <Tagged<TAG_DEFAULT_3>>::ABI_INFO,
-        <Tagged<TAG_DEFAULT_4>>::ABI_INFO,
-        <Tagged<TAG_DEFAULT_5>>::ABI_INFO,
-        <Tagged<TAG_DEFAULT_6>>::ABI_INFO,
-        <union_1a::Union>::ABI_INFO,
-        <union_1b::Union>::ABI_INFO,
-        <union_2a::Union>::ABI_INFO,
-        <union_2b::Union>::ABI_INFO,
-        <union_3::Union>::ABI_INFO,
-        <union_4::Union>::ABI_INFO,
-        <enum_extra_fields_a::Enum>::ABI_INFO,
-        <enum_extra_fields_b::Enum>::ABI_INFO,
+        <&mut ()>::LAYOUT,
+        <&mut i32>::LAYOUT,
+        <&()>::LAYOUT,
+        <&i32>::LAYOUT,
+        <&'static &'static ()>::LAYOUT,
+        <&'static mut &'static ()>::LAYOUT,
+        <&'static &'static mut ()>::LAYOUT,
+        <atomic::AtomicPtr<()>>::LAYOUT,
+        <atomic::AtomicPtr<i32>>::LAYOUT,
+        <*const ()>::LAYOUT,
+        <*const i32>::LAYOUT,
+        <*mut ()>::LAYOUT,
+        <*mut i32>::LAYOUT,
+        <[(); 0]>::LAYOUT,
+        <[(); 1]>::LAYOUT,
+        <[(); 2]>::LAYOUT,
+        <[(); 3]>::LAYOUT,
+        <[u32; 3]>::LAYOUT,
+        <i32>::LAYOUT,
+        <u32>::LAYOUT,
+        <bool>::LAYOUT,
+        <atomic::AtomicBool>::LAYOUT,
+        <atomic::AtomicIsize>::LAYOUT,
+        <atomic::AtomicUsize>::LAYOUT,
+        <num::NonZeroU32>::LAYOUT,
+        <num::NonZeroU16>::LAYOUT,
+        <ptr::NonNull<()>>::LAYOUT,
+        <ptr::NonNull<i32>>::LAYOUT,
+        <RHashMap<RString,RString>>::LAYOUT,
+        <RHashMap<RString,i32>>::LAYOUT,
+        <RHashMap<i32,RString>>::LAYOUT,
+        <RHashMap<i32,i32>>::LAYOUT,
+        <RVec<()>>::LAYOUT,
+        <RVec<i32>>::LAYOUT,
+        <RSlice<'_, ()>>::LAYOUT,
+        <RSlice<'_, i32>>::LAYOUT,
+        <RSliceMut<'_, ()>>::LAYOUT,
+        <RSliceMut<'_, i32>>::LAYOUT,
+        <StaticSlice<()>>::LAYOUT,
+        <StaticSlice<i32>>::LAYOUT,
+        <StaticStr>::LAYOUT,
+        <Option<&()>>::LAYOUT,
+        <Option<&u32>>::LAYOUT,
+        <Option<extern "C" fn()>>::LAYOUT,
+        <ROption<()>>::LAYOUT,
+        <ROption<u32>>::LAYOUT,
+        <RCow<'_, str>>::LAYOUT,
+        <RCow<'_, [u32]>>::LAYOUT,
+        <RArc<()>>::LAYOUT,
+        <RArc<u32>>::LAYOUT,
+        <RBox<()>>::LAYOUT,
+        <RBox<u32>>::LAYOUT,
+        <RBoxError>::LAYOUT,
+        <SendRBoxError>::LAYOUT,
+        <UnsyncRBoxError>::LAYOUT,
+        <RCmpOrdering>::LAYOUT,
+        <PhantomData<()>>::LAYOUT,
+        <PhantomData<RString>>::LAYOUT,
+        <RMutex<()>>::LAYOUT,
+        <RMutex<RString>>::LAYOUT,
+        <RRwLock<()>>::LAYOUT,
+        <RRwLock<RString>>::LAYOUT,
+        <RSender<()>>::LAYOUT,
+        <RSender<RString>>::LAYOUT,
+        <RReceiver<()>>::LAYOUT,
+        <RReceiver<RString>>::LAYOUT,
+        <ROnce>::LAYOUT,
+        <mod_0::Mod>::LAYOUT,
+        <mod_0b::Mod>::LAYOUT,
+        <mod_1::Mod>::LAYOUT,
+        <mod_2::Mod>::LAYOUT,
+        <mod_3::Mod>::LAYOUT,
+        <mod_4::Mod>::LAYOUT,
+        <mod_5::Mod>::LAYOUT,
+        <mod_6::Mod>::LAYOUT,
+        <mod_6b::Mod>::LAYOUT,
+        <mod_7::Mod>::LAYOUT,
+        <Tagged<TAG_DEFAULT_1>>::LAYOUT,
+        <Tagged<TAG_DEFAULT_2>>::LAYOUT,
+        <Tagged<TAG_DEFAULT_3>>::LAYOUT,
+        <Tagged<TAG_DEFAULT_4>>::LAYOUT,
+        <Tagged<TAG_DEFAULT_5>>::LAYOUT,
+        <Tagged<TAG_DEFAULT_6>>::LAYOUT,
+        <union_1a::Union>::LAYOUT,
+        <union_1b::Union>::LAYOUT,
+        <union_2a::Union>::LAYOUT,
+        <union_2b::Union>::LAYOUT,
+        <union_3::Union>::LAYOUT,
+        <union_4::Union>::LAYOUT,
+        <enum_extra_fields_a::Enum>::LAYOUT,
+        <enum_extra_fields_b::Enum>::LAYOUT,
+        <gen_more_lts_b::Generics<'_>>::LAYOUT,
+        <gen_more_lts_c::Generics<'_>>::LAYOUT,
+        <gen_more_lts_d::Generics<'_>>::LAYOUT,
     ];
 
     let (_dur, ()) = core_extensions::measure_time::measure(|| {
         for (i, this) in list.iter().cloned().enumerate() {
             for (j, other) in list.iter().cloned().enumerate() {
                 if i == j {
-                    assert_equal_abi_info(this, other);
+                    assert_equal_type_layout(this, other);
                 } else {
-                    assert_different_abi_info(this, other);
+                    assert_different_type_layout(this, other);
                 }
             }
         }
 
-        for this in vec![<UnsafeIgnoredType<()>>::ABI_INFO, <UnsafeIgnoredType<RString>>::ABI_INFO] {
-            assert_equal_abi_info(<UnsafeIgnoredType<()>>::ABI_INFO, this)
+        for this in vec![<UnsafeIgnoredType<()>>::LAYOUT, <UnsafeIgnoredType<RString>>::LAYOUT] {
+            assert_equal_type_layout(<UnsafeIgnoredType<()>>::LAYOUT, this)
         }
     });
 
@@ -396,12 +403,43 @@ fn same_different_abi_stability() {
 
 
 
+#[cfg_attr(not(miri),test)]
+fn compare_references() {
+    let list = vec![
+        <&mut ()>::LAYOUT,
+        <&mut i32>::LAYOUT,
+        <&()>::LAYOUT,
+        <&i32>::LAYOUT,
+        <&'static &'static ()>::LAYOUT,
+        <&'static mut &'static ()>::LAYOUT,
+        <&'static &'static mut ()>::LAYOUT,
+    ];
+
+    let (_dur, ()) = core_extensions::measure_time::measure(|| {
+        for (i, this) in list.iter().cloned().enumerate() {
+            for (j, other) in list.iter().cloned().enumerate() {
+                if i == j {
+                    assert_equal_type_layout(this, other);
+                } else {
+                    assert_different_type_layout(this, other);
+                }
+            }
+        }
+
+        for this in vec![<UnsafeIgnoredType<()>>::LAYOUT, <UnsafeIgnoredType<RString>>::LAYOUT] {
+            assert_equal_type_layout(<UnsafeIgnoredType<()>>::LAYOUT, this)
+        }
+    });
+}
+
+
+
 // Uncomment this once I reimplement Prefix types.
 //
 // #[cfg_attr(not(miri),test)]
 // fn different_prefixity() {
-//     let regular = <&'static regular::Rectangle>::ABI_INFO;
-//     let other = <&'static prefixed::Rectangle>::ABI_INFO;
+//     let regular = <&'static regular::Rectangle>::LAYOUT;
+//     let other = <&'static prefixed::Rectangle>::LAYOUT;
 //     let errs = check_layout_compatibility(regular, other)
 //         .unwrap_err()
 //         .flatten_errors();
@@ -412,16 +450,15 @@ fn same_different_abi_stability() {
 
 #[cfg_attr(not(miri),test)]
 fn different_zeroness() {
-    const ZEROABLE_ABI: &'static AbiInfoWrapper = &{
-        let mut abi = *<&()>::ABI_INFO.get();
-        abi.is_nonzero = false;
-        unsafe { AbiInfoWrapper::new_unchecked(abi) }
+    const ZEROABLE_ABI: &'static TypeLayout = &{
+        <&()>::LAYOUT
+            ._set_is_nonzero(false)
     };
 
-    let non_zero = <&()>::ABI_INFO;
+    let non_zero = <&()>::LAYOUT;
 
-    assert!(non_zero.get().is_nonzero);
-    assert!(!ZEROABLE_ABI.get().is_nonzero);
+    assert!(non_zero.is_nonzero());
+    assert!(!ZEROABLE_ABI.is_nonzero());
 
     let errs = check_layout_compatibility(non_zero, ZEROABLE_ABI)
         .unwrap_err()
@@ -433,8 +470,8 @@ fn different_zeroness() {
 
 #[test]
 fn different_name() {
-    let regular = regular::Rectangle::ABI_INFO;
-    let other = changed_name::Rectangleiiiiii::ABI_INFO;
+    let regular = regular::Rectangle::LAYOUT;
+    let other = changed_name::Rectangleiiiiii::LAYOUT;
     let errs = check_layout_compatibility(regular, other)
         .unwrap_err()
         .flatten_errors();
@@ -446,17 +483,17 @@ fn different_name() {
 
 #[test]
 fn different_field_name() {
-    let regular = regular::Rectangle::ABI_INFO;
-    let other = changed_field_name::Rectangle::ABI_INFO;
+    let regular = regular::Rectangle::LAYOUT;
+    let other = changed_field_name::Rectangle::LAYOUT;
 
-    let fields=match other.get().layout.data {
-        TLData::Struct{fields}=>fields.get_fields().collect::<Vec<_>>(),
+    let fields=match other.data() {
+        TLData::Struct{fields}=>fields.iter().collect::<Vec<_>>(),
         _=>unreachable!(),
     };
 
-    assert_eq!(fields[0].name.as_str(),"x");
-    assert_eq!(fields[1].name.as_str(),"y");
-    assert_eq!(fields[2].name.as_str(),"w2");
+    assert_eq!(fields[0].name(),"x");
+    assert_eq!(fields[1].name(),"y");
+    assert_eq!(fields[2].name(),"w2");
 
     let errs = check_layout_compatibility(regular, other)
         .unwrap_err()
@@ -470,9 +507,9 @@ fn different_field_name() {
 
 #[cfg_attr(not(miri),test)]
 fn swapped_fields() {
-    let regular = regular::Rectangle::ABI_INFO;
-    let first = swapped_fields_first::Rectangle::ABI_INFO;
-    let last = swapped_fields_first::Rectangle::ABI_INFO;
+    let regular = regular::Rectangle::LAYOUT;
+    let first = swapped_fields_first::Rectangle::LAYOUT;
+    let last = swapped_fields_first::Rectangle::LAYOUT;
 
     for other in vec![first, last] {
         let errs = check_layout_compatibility(regular, other)
@@ -486,11 +523,11 @@ fn swapped_fields() {
 
 #[cfg_attr(not(miri),test)]
 fn removed_fields() {
-    let regular = regular::Rectangle::ABI_INFO;
+    let regular = regular::Rectangle::LAYOUT;
     let list = vec![
-        removed_field_first::Rectangle::ABI_INFO,
-        removed_field_last::Rectangle::ABI_INFO,
-        removed_all_fields::Rectangle::ABI_INFO,
+        removed_field_first::Rectangle::LAYOUT,
+        removed_field_last::Rectangle::LAYOUT,
+        removed_all_fields::Rectangle::LAYOUT,
     ];
 
     for other in list {
@@ -517,8 +554,8 @@ fn removed_fields() {
 
 #[cfg_attr(not(miri),test)]
 fn different_alignment() {
-    let regular = regular::Rectangle::ABI_INFO;
-    let other = changed_alignment::Rectangle::ABI_INFO;
+    let regular = regular::Rectangle::LAYOUT;
+    let other = changed_alignment::Rectangle::LAYOUT;
     let errs = check_layout_compatibility(regular, other)
         .unwrap_err()
         .flatten_errors();
@@ -539,30 +576,25 @@ fn different_alignment() {
 //// Generics
 //////////////////////////////////////////////////////////
 
-mod gen_basic {
-    use super::PhantomData;
+pub(super) mod gen_more_lts_c {
     #[repr(C)]
     #[derive(StableAbi)]
-    pub struct Generics<T: 'static> {
-        x: &'static T,
-        y: &'static T,
-        _marker: PhantomData<(T)>,
+    pub struct Generics<'a> {
+        x: &'static (),
+        y: &'a &'static &'static &'static &'static &'static &'static (),
     }
 }
 
-mod gen_more_lts {
-    use super::PhantomData;
+pub(super) mod gen_more_lts_d {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(bound = "T:'a")]
-    pub struct Generics<'a, T> {
-        x: &'a T,
-        y: &'a T,
-        _marker: PhantomData<(&'a T)>,
+    pub struct Generics<'a> {
+        x: &'static (),
+        y: &'a &'a &'a &'a &'static &'static &'static (),
     }
 }
 
-mod gen_more_tys {
+pub(super) mod gen_more_tys {
     use super::{PhantomData,Tuple2};
     #[repr(C)]
     #[derive(StableAbi)]
@@ -573,7 +605,7 @@ mod gen_more_tys {
     }
 }
 
-// mod gen_more_consts{
+// pub(super) mod gen_more_consts{
 // For when const-generics are usable
 // #[repr(C)]
 // #[derive(StableAbi)]
@@ -586,12 +618,12 @@ mod gen_more_tys {
 
 #[cfg_attr(not(miri),test)]
 fn different_generics() {
-    let regular = gen_basic::Generics::<()>::ABI_INFO;
+    let regular = gen_basic::Generics::<()>::LAYOUT;
 
     {
         let list = vec![
-            gen_more_lts::Generics::<()>::ABI_INFO,
-            // gen_more_tys::Generics::<(), ()>::ABI_INFO,
+            gen_more_lts::Generics::<()>::LAYOUT,
+            // gen_more_tys::Generics::<(), ()>::LAYOUT,
         ];
 
         for other in list {
@@ -605,7 +637,7 @@ fn different_generics() {
     }
 
     {
-        let list = vec![gen_more_lts::Generics::<()>::ABI_INFO];
+        let list = vec![gen_more_lts::Generics::<()>::LAYOUT];
 
         for other in list {
             let errs = check_layout_compatibility(regular, other)
@@ -622,16 +654,8 @@ fn different_generics() {
 ////    Enums
 //////////////////////////////////////////////////////////
 
-mod basic_enum {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub enum Enum {
-        Variant0,
-        Variant1 { a: u32 },
-    }
-}
 
-mod enum_extra_fields_a {
+pub(super) mod enum_extra_fields_a {
     #[repr(C)]
     #[derive(StableAbi)]
     pub enum Enum {
@@ -640,16 +664,7 @@ mod enum_extra_fields_a {
     }
 }
 
-mod enum_extra_fields_b {
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub enum Enum {
-        Variant0,
-        Variant1 { a: u32,b:u32,c:u32 },
-    }
-}
-
-mod misnamed_variant {
+pub(super) mod misnamed_variant {
     #[repr(C)]
     #[derive(StableAbi)]
     pub enum Enum {
@@ -658,23 +673,13 @@ mod misnamed_variant {
     }
 }
 
-mod extra_variant {
-    use crate::std_types::RString;
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub enum Enum {
-        Variant0,
-        Variant1 { a: u32 },
-        Variant3(RString),
-    }
-}
 
 #[cfg_attr(not(miri),test)]
 fn variant_mismatch() {
-    let regular = basic_enum::Enum::ABI_INFO;
+    let regular = basic_enum::Enum::LAYOUT;
 
     {
-        let other = misnamed_variant::Enum::ABI_INFO;
+        let other = misnamed_variant::Enum::LAYOUT;
         let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
@@ -684,7 +689,7 @@ fn variant_mismatch() {
     }
 
     {
-        let other = extra_variant::Enum::ABI_INFO;
+        let other = extra_variant::Enum::LAYOUT;
         let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
@@ -699,7 +704,7 @@ fn variant_mismatch() {
 //////////////////////////////////////////////////////////////////////////////
 ///  Modules,with function pointers
 
-mod mod_0 {
+pub(super) mod mod_0 {
     use crate::std_types::RString;
 
     #[repr(C)]
@@ -710,7 +715,7 @@ mod mod_0 {
     }
 }
 
-mod mod_0b {
+pub(super) mod mod_0b {
     use crate::std_types::RString;
 
     #[repr(C)]
@@ -722,7 +727,7 @@ mod mod_0b {
 }
 
 
-mod mod_1 {
+pub(super) mod mod_1 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -733,7 +738,7 @@ mod mod_1 {
 }
 
 
-mod mod_2 {
+pub(super) mod mod_2 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -744,7 +749,7 @@ mod mod_2 {
 }
 
 
-mod mod_3 {
+pub(super) mod mod_3 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -754,7 +759,7 @@ mod mod_3 {
     }
 }
 
-mod mod_4 {
+pub(super) mod mod_4 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -765,18 +770,7 @@ mod mod_4 {
 }
 
 
-mod mod_5 {
-    use crate::std_types::RString;
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn()->RString,
-        pub function_1: extern "C" fn(&mut u32,u64,RString),
-        pub function_2: extern "C" fn(&mut u32,u64,RString),
-    }
-}
-
-mod mod_6 {
+pub(super) mod mod_6 {
     use crate::std_types::RString;
     #[repr(C)]
     #[derive(StableAbi)]
@@ -786,7 +780,7 @@ mod mod_6 {
 }
 
 // Changing only the return type
-mod mod_6b {
+pub(super) mod mod_6b {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct Mod{
@@ -794,16 +788,6 @@ mod mod_6b {
     }
 }
 
-mod mod_7 {
-    use crate::std_types::RString;
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn()->RString,
-        pub function_1: extern "C" fn(&mut u32,u64,RString),
-        pub function_2: extern "C" fn((),(),()),
-    }
-}
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -814,6 +798,7 @@ mod mod_7 {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
+    not_stableabi(M),
     bound="M:ToTagConst",
     tag="<M as ToTagConst>::TAG",
 )]
@@ -830,7 +815,7 @@ macro_rules! declare_tags {
     ) => (
         $(
             #[repr(C)]
-            #[derive(StableAbi)]
+            #[derive(GetStaticEquivalent)]
             pub struct $marker_ty;
 
             impl ToTagConst for $marker_ty {
@@ -847,40 +832,40 @@ declare_tags!{
     const TAG_DEFAULT_2=Tag::int(0);
     const TAG_DEFAULT_3=Tag::uint(0);
     const TAG_DEFAULT_4=Tag::str("");
-    const TAG_DEFAULT_5=Tag::arr(&[]);
-    const TAG_DEFAULT_6=Tag::set(&[]);
+    const TAG_DEFAULT_5=Tag::arr(RSlice::EMPTY);
+    const TAG_DEFAULT_6=Tag::set(RSlice::EMPTY);
     
-    const TAG_EMPTY_SET=Tag::set(&[]);
+    const TAG_EMPTY_SET=Tag::set(RSlice::EMPTY);
     
-    const TAG_SET_A0=Tag::set(&[
+    const TAG_SET_A0=Tag::set(rslice![
         Tag::str("Sync"),
     ]);
-    const TAG_SET_A1=Tag::set(&[
+    const TAG_SET_A1=Tag::set(rslice![
         Tag::str("Send"),
     ]);
-    const TAG_SET_A2=Tag::set(&[
+    const TAG_SET_A2=Tag::set(rslice![
         Tag::str("Copy"),
     ]);
-    const TAG_SET_A3=Tag::set(&[
+    const TAG_SET_A3=Tag::set(rslice![
         Tag::str("Clone"),
     ]);
-    const TAG_SET_B0=Tag::set(&[
+    const TAG_SET_B0=Tag::set(rslice![
         Tag::str("Send"),
         Tag::str("Sync"),
     ]);
-    const TAG_SET_B1=Tag::set(&[
+    const TAG_SET_B1=Tag::set(rslice![
         Tag::str("Copy"),
         Tag::str("Clone"),
     ]);
 
-    const TAG_SET_C0=Tag::set(&[
+    const TAG_SET_C0=Tag::set(rslice![
         Tag::str("Send"),
         Tag::str("Sync"),
         Tag::str("Copy"),
         Tag::str("Clone"),
     ]);
 
-    const TAG_SET_C1=Tag::set(&[
+    const TAG_SET_C1=Tag::set(rslice![
         Tag::str("Debug"),
         Tag::str("Display"),
     ]);
@@ -888,7 +873,7 @@ declare_tags!{
 
 
 trait TaggedExt{
-    const GET_AI:&'static AbiInfoWrapper;
+    const GET_AI:&'static TypeLayout;
 }
 
 
@@ -896,8 +881,8 @@ impl<T> TaggedExt for T
 where 
     Tagged<T>:StableAbi,
 {
-    const GET_AI:&'static AbiInfoWrapper=
-        <Tagged<T> as StableAbi>::ABI_INFO;
+    const GET_AI:&'static TypeLayout=
+        <Tagged<T> as StableAbi>::LAYOUT;
 }
 
 

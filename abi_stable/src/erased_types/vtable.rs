@@ -16,7 +16,10 @@ use super::{
         IteratorFns,MakeIteratorFns,
         DoubleEndedIteratorFns,MakeDoubleEndedIteratorFns,
     },
-    traits::{IteratorItemOrDefault,SerializeImplType,GetSerializeProxyType},
+    traits::{
+        IteratorItemOrDefault,InterfaceFor,
+        SerializeImplType,GetSerializeProxyType,
+    },
 };
 
 use crate::{
@@ -24,9 +27,9 @@ use crate::{
     const_utils::Transmuter,
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
-    pointer_trait::GetPointerKind,
+    pointer_trait::{GetPointerKind,CanTransmuteElement},
+    sabi_types::StaticRef,
     std_types::{Tuple3,RSome,RNone,RIoError,RSeekFrom},
-    type_layout::Tag,
     type_level::{
         impl_enum::{Implemented,Unimplemented,IsImplemented},
         trait_marker,
@@ -40,29 +43,60 @@ use core_extensions::TypeIdentity;
 
 
 
-#[doc(hidden)]
 /// Returns the vtable used by DynTrait to do dynamic dispatch.
 pub trait GetVtable<'borr,This,ErasedPtr,OrigPtr,I:InterfaceBound> {
     
+    #[doc(hidden)]
     const TMP_VTABLE:VTableVal<'borr,ErasedPtr,I>;
 
-    const GET_VTABLE:*const WithMetadata<VTableVal<'borr,ErasedPtr,I>>=
-        &WithMetadata::new(
+    #[doc(hidden)]
+    const _GET_INNER_VTABLE:StaticRef<VTable<'borr,ErasedPtr,I>>=unsafe{
+        let x=&WithMetadata::new(
             PrefixTypeTrait::METADATA,
             Self::TMP_VTABLE
         );
+        let x=StaticRef::from_raw(x);
+        WithMetadata::as_prefix(x)
+    };
+
+}
 
 
-    /// Retrieves the VTable of the type.
-    fn get_vtable<'a>() -> &'a VTable<'borr,ErasedPtr,I>
-    where
-        This: 'a,
-    {
-        // I am just getting a vtable
-        unsafe { (*Self::GET_VTABLE).as_prefix() }
+/// This type allows passing the vtable for DynTrait to `from_const` with `VTableDT::GET`.
+#[repr(transparent)]
+pub struct VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>{
+    pub(super) vtable:StaticRef<VTable<'borr,ErasedPtr,I>>,
+    _for:PhantomData<extern "C" fn(T,OrigPtr,Unerasability)>
+}
+
+impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> Copy 
+    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+{}
+
+impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> Clone
+    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+{
+    fn clone(&self)->Self{
+        *self
     }
 }
 
+impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> 
+    VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+where
+    OrigPtr: CanTransmuteElement<(), Target=T, TransmutedPtr=ErasedPtr>,
+    ErasedPtr: GetPointerKind<Target=()>,
+    I: InterfaceBound,
+    InterfaceFor<T,I,Unerasability>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,
+{    
+    pub const GET:Self=Self{
+        vtable:<
+            InterfaceFor<T,I,Unerasability> as 
+            GetVtable<'borr,T,ErasedPtr,OrigPtr,I>
+        >::_GET_INNER_VTABLE,
+        _for:PhantomData,
+    };
+}
 
 
 macro_rules! declare_meta_vtable {
@@ -105,18 +139,19 @@ macro_rules! declare_meta_vtable {
         #[derive(StableAbi)]
         #[sabi(
             // debug_print,
+            with_field_indices,
             kind(Prefix(prefix_struct="VTable")),
             missing_field(panic),
             prefix_bound="I:InterfaceBound",
             bound="I:IteratorItemOrDefault<'borr>",
             bound="<I as IteratorItemOrDefault<'borr>>::Item:StableAbi",
-            bound="I:GetSerializeProxyType",
-            bound="<I as GetSerializeProxyType>::ProxyType:StableAbi",
+            bound="I:for<'s> GetSerializeProxyType<'s>",
+            bound="for<'s> <I as GetSerializeProxyType<'s>>::ProxyType:StableAbi",
             $($(bound=$struct_bound,)*)*
         )]
         pub struct VTableVal<'borr,$erased_ptr,$interf>{
             pub type_info:&'static TypeInfo,
-            _marker:PhantomData<extern fn()->Tuple3<$erased_ptr,$interf,&'borr()>>,
+            _marker:PhantomData<extern "C" fn()->Tuple3<$erased_ptr,$interf,&'borr()>>,
             pub drop_ptr:unsafe extern "C" fn(&mut $erased_ptr),
             $(
                 $( #[$field_attr] )*
@@ -174,25 +209,25 @@ macro_rules! declare_meta_vtable {
                 }
             }
 
-            pub fn serialize(&self)->UnerasedSerializeFn<I>
+            pub fn serialize<'s>(&self)->UnerasedSerializeFn<'s,I>
             where
                 I:InterfaceBound<Serialize=Implemented<trait_marker::Serialize>>,
-                I:GetSerializeProxyType,
+                I:GetSerializeProxyType<'s>,
             {
                 unsafe{
                     std::mem::transmute::<
                         unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>,
-                        UnerasedSerializeFn<I>,
+                        UnerasedSerializeFn<'s,I>,
                     >( self.erased_serialize() )
                 }
             }
         }
 
 
-        pub type UnerasedSerializeFn<I>=
+        pub type UnerasedSerializeFn<'s,I>=
             unsafe extern "C" fn(
-                &ErasedObject
-            )->RResult<<I as GetSerializeProxyType>::ProxyType,RBoxError>;
+                &'s ErasedObject
+            )->RResult<<I as GetSerializeProxyType<'s>>::ProxyType,RBoxError>;
 
 
         /// Returns the type of a vtable field.
@@ -368,8 +403,7 @@ macro_rules! declare_meta_vtable {
 
             /// Describes which traits are implemented,
             /// stored in the layout of the type in StableAbi,
-            /// using the `#[sabi(tag="<I as InterfaceBound>::TAG")]` helper attribute
-            const TAG:Tag;
+            const EXTRA_CHECKS:EnabledTraits;
 
             $( 
                 /// Used by the `StableAbi` derive macro to determine whether the field 
@@ -377,7 +411,15 @@ macro_rules! declare_meta_vtable {
                 const $selector:bool; 
             )*
 
-        }   
+        }
+
+        const fn if_u16(cond:bool,if_true:u16)->u16{
+            0_u16.wrapping_sub(cond as u16) & if_true
+        }
+
+        const fn if_u64(cond:bool,if_true:u64)->u64{
+            0_u64.wrapping_sub(cond as u64) & if_true
+        }
 
         #[allow(non_upper_case_globals)]
         impl<I> InterfaceBound for I
@@ -387,42 +429,35 @@ macro_rules! declare_meta_vtable {
             $( I::$marker_trait:IsImplemented, )*
             $( I::$selector:IsImplemented, )*
         {
-            const TAG:Tag={
-                const fn str_if(cond:bool,s:&'static str)->Tag{
-                    // nulls are stripped in Tag collection variants.
-                    //
-                    // I'm using null here because using Vec<_> in constants isn't possible.
-                    [ Tag::null(), Tag::str(s) ][cond as usize]
-                }
+            const EXTRA_CHECKS:EnabledTraits=EnabledTraits{
+                
+                // Auto traits have to be equivalent in every linked library,
+                // this is why this is an array,it must match exactly.
+                auto_traits:
+                    $(
+                        if_u16(
+                            <I::$auto_trait as IsImplemented>::VALUE,
+                            enabled_traits::auto_trait_mask::$auto_trait
+                        )|
+                    )*
+                    0,
 
-                tag!{{
-                    // Auto traits have to be equivalent in every linked library,
-                    // this is why this is an array,it must match exactly.
-                    "auto traits"=>tag![[
-                        $(
-                            str_if(
-                                <I::$auto_trait as IsImplemented>::VALUE,
-                                stringify!($auto_trait)
-                            ),
-                        )*
-                    ]],
-                    // These traits can be a superset of the interface in the loaded library,
-                    // that is why it uses a map.
-                    "required traits"=>tag!{{
-                        $(
-                            str_if(
-                                <I::$selector as IsImplemented>::VALUE,
-                                stringify!($selector)
-                            ),
-                        )*
-                        $(
-                            str_if(
-                                <I::$marker_trait as IsImplemented>::VALUE,
-                                stringify!($marker_trait)
-                            ),
-                        )*
-                    }}
-                }}
+                // These traits can be a superset of the interface in the loaded library,
+                // that is why it uses a map.
+                regular_traits:
+                    $(
+                        if_u64(
+                            <I::$marker_trait as IsImplemented>::VALUE,
+                            enabled_traits::regular_trait_mask::$marker_trait
+                        )|
+                    )*
+                    $(
+                        if_u64(
+                            <I::$selector as IsImplemented>::VALUE,
+                            enabled_traits::regular_trait_mask::$selector
+                        )|
+                    )*
+                    0,
             };
 
             $( 
@@ -441,15 +476,25 @@ macro_rules! declare_meta_vtable {
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
                 f.debug_struct("VTable")
                     .field("type_info",&self.type_info())
-                    // $(
-                    //     .field(
-                    //         stringify!($field),
-                    //         &format_args!("{:x}",self.$priv_field().map_or(0,|x|x as usize))
-                    //     )
-                    // )*
                     .finish()
             }
         }
+
+        use self::enabled_traits::*;
+
+        pub mod enabled_traits{
+            declare_enabled_traits!{
+                auto_traits[
+                    $($auto_trait,)*
+                ]
+
+                regular_traits[
+                    $($marker_trait,)*
+                    $($selector,)*
+                ]
+            }
+        }
+
 
     )
 }
@@ -531,9 +576,10 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(unsafe_change_type=r#"
+            for<'s>
             unsafe extern "C" fn(
-                &ErasedObject
-            )->RResult<<I as GetSerializeProxyType>::ProxyType,RBoxError>
+                &'s ErasedObject
+            )->RResult<<I as GetSerializeProxyType<'s>>::ProxyType,RBoxError>
         "#)]
         #[sabi(accessible_if="<I as InterfaceBound>::Serialize")]
         erased_serialize:unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>;
@@ -543,14 +589,14 @@ declare_meta_vtable! {
 
         impl[] VtableFieldValue<Serialize>
         where [ 
-            T:SerializeImplType<Interface=I>,
-            I:SerializeProxyType,
+            T:for<'s>SerializeImplType<'s,Interface=I>,
+            I:for<'s>SerializeProxyType<'s>,
         ]{
             unsafe{
                 Transmuter::<
                     unsafe extern "C" fn(
-                        &ErasedObject
-                    )->RResult<<I as SerializeProxyType>::Proxy,RBoxError>,
+                        &ErasedObject<T>
+                    )->RResult<<I as SerializeProxyType<'_>>::Proxy,RBoxError>,
                     unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>
                 >{
                     from:serialize_impl::<T,I>

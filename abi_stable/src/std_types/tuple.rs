@@ -144,3 +144,28 @@ declare_tuple! {
         D,
     ]
 }
+
+
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+
+    #[test]
+    fn value_macro(){
+        assert_eq!(rtuple!(), ());
+        assert_eq!(rtuple!(3), Tuple1(3));
+        assert_eq!(rtuple!(3,5), Tuple2(3,5));
+        assert_eq!(rtuple!(3,5,8), Tuple3(3,5,8));
+        assert_eq!(rtuple!(3,5,8,9), Tuple4(3,5,8,9));
+    }
+
+    #[test]
+    fn type_macro(){
+        let _:RTuple!()=();
+        let _:RTuple!(i32)=Tuple1(3);
+        let _:RTuple!(i32,i32,)=Tuple2(3,5);
+        let _:RTuple!(i32,i32,u32,)=Tuple3(3,5,8);
+        let _:RTuple!(i32,i32,u32,u32)=Tuple4(3,5,8,9);
+    }
+}

@@ -6,28 +6,27 @@ This is mostly intended for **vtables** and **modules**.
 
 Prefix-types cannot directly be passed through ffi,
 instead they must be converted to the type declared with `prefix_struct="PrefixEquivalent"`,
-and then pass `&PrefixEquivalent` instead.
+and then pass `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` instead.
 
-To convert `T` to `&PrefixEquivalent` you an use one of:
+To convert `T` to `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` you an use one of:
 
 - `PrefixTypeTrait::leak_into_prefix`:<br>
     Which does the conversion directly,but leaks the value.
 
-- `prefix_type::WithMetadata::new` and then `WithMetadata::as_prefix`:<br>
-    Use this if you need a compiletime constant.
-    First create a `&'a WithMetadata<Self>` constant,
-    then use the `WithMetadata::as_prefix` method at runtime 
-    to cast it to `&PrefixEquivalent`.
+- `prefix_type::WithMetadata::new` and then `WithMetadata::ref_as_prefix`:<br>
+    Use this if you need a compiletime constant and the type has no generic parameters.
+    First create a `&'static WithMetadata<Self>` constant,
+    then use the `WithMetadata::ref_as_prefix` method at runtime 
+    to cast it to `&'static PrefixEquivalent`.
 
-- `prefix_type::WithMetadata::new` and then `WithMetadata::staticref_as_prefix`:<br>
+- `prefix_type::WithMetadata::new` and then `WithMetadata::as_prefix`:<br>
     Use this if you need a compiletime constant.
     First create a `StaticRef<WithMetadata<Self>>` constant using 
     the `StaticRef::from_raw` function,
-    then use the `WithMetadata::staticref_as_prefix` associated function at runtime 
-    to cast it to `StaticRef<PrefixEquivalent>`.
+    then use `WithMetadata::as_prefix` to cast it to `StaticRef<PrefixEquivalent>`.
 
 
-All fields on `&PrefixEquivalent` are accessed through accessor methods 
+All fields on `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` are accessed through accessor methods 
 with the same name as the fields.
 
 To ensure that libraries stay abi compatible,
@@ -68,7 +67,7 @@ pub struct ModuleVal {
     pub lib_name:RStr<'static>,
 
     #[sabi(last_prefix_field)]
-    pub elapsed:extern fn()->RDuration,
+    pub elapsed:extern "C" fn()->RDuration,
 
     pub description:RStr<'static>,
 }
@@ -129,7 +128,7 @@ impl<T> BoxLike<T>{
         
         Self{
             data:Box::into_raw(box_),
-            vtable:WithMetadata::staticref_as_prefix(BoxVtableVal::VTABLE),
+            vtable:WithMetadata::as_prefix(BoxVtableVal::VTABLE),
             _marker:PhantomData,
         }
     }
@@ -261,29 +260,29 @@ pub struct PersonModVal {
     /// at which point it would be moved to the last field at the time.
     ///
     #[sabi(last_prefix_field)]
-    pub customer_for: extern fn(Id)->RDuration,
+    pub customer_for: extern "C" fn(Id)->RDuration,
 
     // The default behavior for the getter is to return an Option<FieldType>,
     // if the field exists it returns Some(_),
     // otherwise it returns None.
-    pub bike_count: extern fn(Id)->u32,
+    pub bike_count: extern "C" fn(Id)->u32,
 
     // The getter for this field panics if the field doesn't exist.
     #[sabi(missing_field(panic))]
-    pub visits: extern fn(Id)->u32,
+    pub visits: extern "C" fn(Id)->u32,
 
     // The getter for this field returns `default_score()` if the field doesn't exist.
     #[sabi(missing_field(with="default_score"))]
-    pub score: extern fn(Id)->u32,
+    pub score: extern "C" fn(Id)->u32,
     
     // The getter for this field returns `Default::default()` if the field doesn't exist.
     #[sabi(missing_field(default))]
-    pub visit_length: Option< extern fn(Id)->RDuration >,
+    pub visit_length: Option< extern "C" fn(Id)->RDuration >,
 
 }
 
-fn default_score()-> extern fn(Id)->u32 {
-    extern fn default(_:Id)->u32{
+fn default_score()-> extern "C" fn(Id)->u32 {
+    extern "C" fn default(_:Id)->u32{
         1000
     }
 
@@ -339,19 +338,19 @@ let module:&'static PersonMod=
 
 // Getting the value for every field of `module`.
 
-let customer_for: extern fn(Id)->RDuration = 
+let customer_for: extern "C" fn(Id)->RDuration = 
     module.customer_for();
 
-let bike_count: Option<extern fn(Id)->u32> = 
+let bike_count: Option<extern "C" fn(Id)->u32> = 
     module.bike_count();
 
-let visits: extern fn(Id)->u32=
+let visits: extern "C" fn(Id)->u32=
     module.visits();
 
-let score: extern fn(Id)->u32=
+let score: extern "C" fn(Id)->u32=
     module.score();
 
-let visit_length: Option<extern fn(Id)->RDuration> =
+let visit_length: Option<extern "C" fn(Id)->RDuration> =
     module.visit_length();
 
 # }

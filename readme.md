@@ -87,7 +87,6 @@ with comments for how to turn them into 3 separate crates.
 
 ```rust
 
-
 /////////////////////////////////////////////////////////////////////////////////
 //
 //                        Application (user crate) 
@@ -175,7 +174,6 @@ use abi_stable::{
     StableAbi,
     DynTrait,
     sabi_trait,
-    impl_InterfaceType,
     library::{LibraryError,RootModule},
     package_version_strings,
     std_types::{RBox,RString,RVec},
@@ -444,7 +442,7 @@ pub fn new_appender()->AppenderBox<u32>{
     /*
     What `TU_Opaque` does here is specify that the trait object cannot be unerased,
     disallowing the `Appender_TO` from being unwrapped back into an `RVec<u32>`
-    using the `trait_object.obj.sabi_*_unerased()` methods.
+    using the `trait_object.obj.*_unerased_*()` methods.
     
     To be able to unwrap a `#[sabi_trait]` trait object back into the type it 
     was constructed with,you must:
@@ -454,7 +452,7 @@ pub fn new_appender()->AppenderBox<u32>{
     - Pass `TU_Unerasable` instead of `TU_Opaque` to Appender_TO::{from_value,from_ptr}.
 
     - Unerase the trait object back into the original type with
-        `trait_object.obj.sabi_into_unerased::<RVec<u32>>().unwrap()` 
+        `trait_object.obj.into_unerased_impltype::<RVec<u32>>().unwrap()` 
         (or the other unerasure methods).
 
     Unerasing a trait object will fail in any of these conditions:
@@ -484,7 +482,7 @@ fn new_boxed_interface()->BoxedInterface<'static>{
 #[sabi_extern_fn]
 fn append_string(wrapped:&mut BoxedInterface<'_>,string:RString){
     wrapped
-        .sabi_as_unerased_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
+        .as_unerased_mut_impltype::<StringBuilder>() // Returns `Result<&mut StringBuilder,_>`
         .unwrap() // Returns `&mut StringBuilder`
         .append_string(string);
 }
@@ -506,9 +504,6 @@ impl<T> Appender for RVec<T>{
 
 
 }
-
-
-
 
 
 ```
@@ -614,6 +609,11 @@ These are default cargo features that enable optional crates :
     Depends on `crossbeam-channel`,
     wrapping channels from it for ffi in abi_stable::external_types::crossbeam_channel .
 
+- "serde_json":
+    Depends on `serde_json`,
+    providing ffi-safe equivalents of 
+    `&serde_json::value::RawValue` and `Box<serde_json::value::RawValue>`.
+
 
 To disable the default features use:
 ```
@@ -623,6 +623,25 @@ default-features=false
 features=[  ]
 ```
 enabling the features you need in the `features` array.
+
+
+### Manually enabled
+
+These are features to manually enabled support for newer language features,
+required until this library is updated to automatically detect them,
+every one of which has a `nightly_*` equivalent.
+
+Features:
+
+- `const_params`:Enables items in abi_stable that use const generics.
+
+### Nightly features
+
+The `all_nightly` feature enables all the `nightly_*` equivalents of the 
+manually enabled features.
+
+Every `nightly_*` feature enables both support from abi_stable,
+as well as the nightly feature flag in the compiler.
 
 # Tools
 

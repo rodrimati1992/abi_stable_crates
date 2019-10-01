@@ -41,6 +41,33 @@ where
 //////////////////////////////////////////////////////////////////
 
 
+/// A wrapper type which uses `T`'s Display formatter in its Debug impl
+#[repr(transparent)]
+#[derive(Copy,Clone,PartialEq,Eq,Ord,PartialOrd,Hash,StableAbi)]
+pub(crate) struct AlwaysDisplay<T>(pub T);
+
+impl<T> Display for AlwaysDisplay<T> 
+where
+    T:Display
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0,f)
+    }
+}
+
+
+impl<T> Debug for AlwaysDisplay<T> 
+where
+    T:Display
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0,f)
+    }
+}
+
+//////////////////////////////////////////////////////////////////
+
+
 #[derive(Clone)]
 pub(crate) struct Stringy{
     str:String

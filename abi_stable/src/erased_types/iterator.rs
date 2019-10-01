@@ -19,18 +19,18 @@ use crate::{
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct IteratorFns<Item>{
-    pub(super) next       :unsafe extern fn(&mut ErasedObject)->ROption<Item>,
+    pub(super) next       :unsafe extern "C" fn(&mut ErasedObject)->ROption<Item>,
     pub(super) extending_rvec:
-        unsafe extern fn(
+        unsafe extern "C" fn(
             &mut ErasedObject,
             &mut RVec<Item>,
             ROption<usize>
         ),
-    pub(super) size_hint  :unsafe extern fn(&    ErasedObject)-> Tuple2<usize, ROption<usize>>,    
-    pub(super) count      :unsafe extern fn(&mut ErasedObject)->usize,
-    pub(super) last       :unsafe extern fn(&mut ErasedObject)->ROption<Item>,
-    pub(super) nth        :unsafe extern fn(&mut ErasedObject,usize)->ROption<Item>,
-    pub(super) skip_eager :unsafe extern fn(&mut ErasedObject,usize),
+    pub(super) size_hint  :unsafe extern "C" fn(&    ErasedObject)-> Tuple2<usize, ROption<usize>>,    
+    pub(super) count      :unsafe extern "C" fn(&mut ErasedObject)->usize,
+    pub(super) last       :unsafe extern "C" fn(&mut ErasedObject)->ROption<Item>,
+    pub(super) nth        :unsafe extern "C" fn(&mut ErasedObject,usize)->ROption<Item>,
+    pub(super) skip_eager :unsafe extern "C" fn(&mut ErasedObject,usize),
 }
 
 
@@ -45,7 +45,7 @@ impl<Item> Clone for IteratorFns<Item>{
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-pub struct MakeIteratorFns<I>(PhantomData<unsafe extern fn()->I>);
+pub struct MakeIteratorFns<I>(PhantomData<unsafe extern "C" fn()->I>);
 
 impl<I> MakeIteratorFns<I>
 where I:Iterator
@@ -71,7 +71,7 @@ where I:Iterator
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-pub(super) unsafe extern fn next<I>(this:&mut ErasedObject)->ROption<I::Item>
+pub(super) unsafe extern "C" fn next<I>(this:&mut ErasedObject)->ROption<I::Item>
 where I:Iterator
 {
     extern_fn_panic_handling! {
@@ -80,7 +80,7 @@ where I:Iterator
     }
 }
 
-pub(super) unsafe extern fn extending_rvec<I>(
+pub(super) unsafe extern "C" fn extending_rvec<I>(
     this:&mut ErasedObject,
     vec:&mut RVec<I::Item>,
     taking:ROption<usize>,
@@ -96,7 +96,7 @@ pub(super) unsafe extern fn extending_rvec<I>(
     }
 }
 
-pub(super) unsafe extern fn size_hint<I>(this:&ErasedObject)-> Tuple2<usize, ROption<usize>>
+pub(super) unsafe extern "C" fn size_hint<I>(this:&ErasedObject)-> Tuple2<usize, ROption<usize>>
 where I:Iterator
 {
     extern_fn_panic_handling! {
@@ -107,7 +107,7 @@ where I:Iterator
     }
 }
 
-pub(super) unsafe extern fn count<I>(this:&mut ErasedObject)->usize
+pub(super) unsafe extern "C" fn count<I>(this:&mut ErasedObject)->usize
 where I:Iterator
 {
     extern_fn_panic_handling! {
@@ -116,7 +116,7 @@ where I:Iterator
     }
 }
 
-pub(super) unsafe extern fn last<I>(this:&mut ErasedObject)->ROption<I::Item>
+pub(super) unsafe extern "C" fn last<I>(this:&mut ErasedObject)->ROption<I::Item>
 where I:Iterator
 {
     extern_fn_panic_handling! {
@@ -125,7 +125,7 @@ where I:Iterator
     }
 }
 
-pub(super) unsafe extern fn nth<I>(this:&mut ErasedObject,at:usize)->ROption<I::Item>
+pub(super) unsafe extern "C" fn nth<I>(this:&mut ErasedObject,at:usize)->ROption<I::Item>
 where I:Iterator
 {
     extern_fn_panic_handling! {
@@ -134,7 +134,7 @@ where I:Iterator
     }
 }
 
-pub(super) unsafe extern fn skip_eager<I>(this:&mut ErasedObject,skipping:usize)
+pub(super) unsafe extern "C" fn skip_eager<I>(this:&mut ErasedObject,skipping:usize)
 where I:Iterator
 {
     extern_fn_panic_handling! {
@@ -157,14 +157,14 @@ where I:Iterator
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct DoubleEndedIteratorFns<Item>{
-    pub(super) next_back       :unsafe extern fn(&mut ErasedObject)->ROption<Item>,
+    pub(super) next_back       :unsafe extern "C" fn(&mut ErasedObject)->ROption<Item>,
     pub(super) extending_rvec_back:
-        unsafe extern fn(
+        unsafe extern "C" fn(
             &mut ErasedObject,
             &mut RVec<Item>,
             ROption<usize>
         ),
-    pub(super) nth_back:unsafe extern fn(&mut ErasedObject,usize)->ROption<Item>,
+    pub(super) nth_back:unsafe extern "C" fn(&mut ErasedObject,usize)->ROption<Item>,
 }
 
 
@@ -179,7 +179,7 @@ impl<Item> Clone for DoubleEndedIteratorFns<Item>{
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-pub struct MakeDoubleEndedIteratorFns<I>(PhantomData<unsafe extern fn()->I>);
+pub struct MakeDoubleEndedIteratorFns<I>(PhantomData<unsafe extern "C" fn()->I>);
 
 impl<I> MakeDoubleEndedIteratorFns<I>
 where I:DoubleEndedIterator
@@ -201,7 +201,7 @@ where I:DoubleEndedIterator
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-pub(super) unsafe extern fn next_back<I>(this:&mut ErasedObject)->ROption<I::Item>
+pub(super) unsafe extern "C" fn next_back<I>(this:&mut ErasedObject)->ROption<I::Item>
 where 
     I:DoubleEndedIterator
 {
@@ -211,7 +211,7 @@ where
     }
 }
 
-pub(super) unsafe extern fn extending_rvec_back<I>(
+pub(super) unsafe extern "C" fn extending_rvec_back<I>(
     this:&mut ErasedObject,
     vec:&mut RVec<I::Item>,
     taking:ROption<usize>
@@ -227,7 +227,7 @@ pub(super) unsafe extern fn extending_rvec_back<I>(
     }
 }
 
-pub(super) unsafe extern fn nth_back<I>(this:&mut ErasedObject,mut at:usize)->ROption<I::Item>
+pub(super) unsafe extern "C" fn nth_back<I>(this:&mut ErasedObject,mut at:usize)->ROption<I::Item>
 where 
     I:DoubleEndedIterator
 {

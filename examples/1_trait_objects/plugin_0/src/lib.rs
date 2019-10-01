@@ -94,9 +94,9 @@ fn run_command_inner(
         ProcessTextCmd::Rot13(text)=>{
             pub fn rot13(this:char)-> char{
                 match this{
-                    v@'a'...'z'=>
+                    v@'a'..='z'=>
                         ((((v as u8 - b'a')+13)%26)+b'a')as char,
-                    v@'A'...'Z'=>
+                    v@'A'..='Z'=>
                         ((((v as u8 - b'A')+13)%26)+b'A')as char,
                     v=>v
                 }

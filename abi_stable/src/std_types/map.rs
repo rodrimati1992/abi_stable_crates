@@ -24,6 +24,7 @@ use crate::{
     marker_type::{ErasedObject,NotCopyNotClone,UnsafeIgnoredType},
     erased_types::trait_objects::HasherObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::StaticRef,
     std_types::*,
     traits::{IntoReprRust,ErasedType},
     utils::{transmute_reference,transmute_mut_reference},
@@ -114,7 +115,7 @@ for Tuple2(k,v) in map {
 )]
 pub struct RHashMap<K,V,S=RandomState>{
     map:RBox<ErasedMap<K,V,S>>,
-    vtable:*const VTable<K,V,S>,
+    vtable:StaticRef<VTable<K,V,S>>,
 }
 
 
@@ -257,9 +258,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         map.reserve(capacity);
         RHashMap{
             map,
-            vtable:unsafe{
-                (*VTable::VTABLE_REF).as_prefix_raw()
-            },
+            vtable:WithMetadata::as_prefix(VTable::VTABLE_REF),
         }
     }
 }
@@ -268,9 +267,7 @@ impl<K,V,S> RHashMap<K,V,S>{
 impl<K,V,S> RHashMap<K,V,S>{
 
     fn vtable<'a>(&self)->&'a VTable<K,V,S>{
-        unsafe{ 
-            &*self.vtable
-        }
+        self.vtable.get()
     }
 
 }
@@ -1093,26 +1090,26 @@ mod serde{
 )]
 struct VTableVal<K,V,S>{
     ///
-    insert_elem:extern fn(&mut ErasedMap<K,V,S>,K,V)->ROption<V>,
+    insert_elem:extern "C" fn(&mut ErasedMap<K,V,S>,K,V)->ROption<V>,
     
-    get_elem:for<'a> extern fn(&'a ErasedMap<K,V,S>,MapQuery<'_,K>)->Option<&'a V>,
-    get_mut_elem:for<'a> extern fn(&'a mut ErasedMap<K,V,S>,MapQuery<'_,K>)->Option<&'a mut V>,
-    remove_entry:extern fn(&mut ErasedMap<K,V,S>,MapQuery<'_,K>)->ROption<Tuple2<K,V>>,
+    get_elem:for<'a> extern "C" fn(&'a ErasedMap<K,V,S>,MapQuery<'_,K>)->Option<&'a V>,
+    get_mut_elem:for<'a> extern "C" fn(&'a mut ErasedMap<K,V,S>,MapQuery<'_,K>)->Option<&'a mut V>,
+    remove_entry:extern "C" fn(&mut ErasedMap<K,V,S>,MapQuery<'_,K>)->ROption<Tuple2<K,V>>,
     
-    get_elem_p:for<'a> extern fn(&'a ErasedMap<K,V,S>,&K)->Option<&'a V>,
-    get_mut_elem_p:for<'a> extern fn(&'a mut ErasedMap<K,V,S>,&K)->Option<&'a mut V>,
-    remove_entry_p:extern fn(&mut ErasedMap<K,V,S>,&K)->ROption<Tuple2<K,V>>,
+    get_elem_p:for<'a> extern "C" fn(&'a ErasedMap<K,V,S>,&K)->Option<&'a V>,
+    get_mut_elem_p:for<'a> extern "C" fn(&'a mut ErasedMap<K,V,S>,&K)->Option<&'a mut V>,
+    remove_entry_p:extern "C" fn(&mut ErasedMap<K,V,S>,&K)->ROption<Tuple2<K,V>>,
     
-    reserve:extern fn(&mut ErasedMap<K,V,S>,usize),
-    clear_map:extern fn(&mut ErasedMap<K,V,S>),
-    len:extern fn(&ErasedMap<K,V,S>)->usize,
-    capacity:extern fn(&ErasedMap<K,V,S>)->usize,
-    iter    :extern fn(&ErasedMap<K,V,S>     )->Iter<'_,K,V>,
-    iter_mut:extern fn(&mut ErasedMap<K,V,S> )->IterMut<'_,K,V>,
-    drain   :extern fn(&mut ErasedMap<K,V,S> )->Drain<'_,K,V>,
-    iter_val:extern fn(RBox<ErasedMap<K,V,S>>)->IntoIter<K,V>,
+    reserve:extern "C" fn(&mut ErasedMap<K,V,S>,usize),
+    clear_map:extern "C" fn(&mut ErasedMap<K,V,S>),
+    len:extern "C" fn(&ErasedMap<K,V,S>)->usize,
+    capacity:extern "C" fn(&ErasedMap<K,V,S>)->usize,
+    iter    :extern "C" fn(&ErasedMap<K,V,S>     )->Iter<'_,K,V>,
+    iter_mut:extern "C" fn(&mut ErasedMap<K,V,S> )->IterMut<'_,K,V>,
+    drain   :extern "C" fn(&mut ErasedMap<K,V,S> )->Drain<'_,K,V>,
+    iter_val:extern "C" fn(RBox<ErasedMap<K,V,S>>)->IntoIter<K,V>,
     #[sabi(last_prefix_field)]
-    entry:extern fn(&mut ErasedMap<K,V,S>,K)->REntry<'_,K,V>,
+    entry:extern "C" fn(&mut ErasedMap<K,V,S>,K)->REntry<'_,K,V>,
 }
 
 
@@ -1122,8 +1119,11 @@ where
     K:Eq+Hash,
     S:BuildHasher,
 {
-    const VTABLE_REF: *const WithMetadata<VTableVal<K,V,S>> = {
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
+    const VTABLE_REF: StaticRef<WithMetadata<VTableVal<K,V,S>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::VTABLE,
+        ))
     };
 
     fn erased_map(hash_builder:S)->RBox<ErasedMap<K,V,S>>{

@@ -3,7 +3,6 @@ members=[
     "abi_stable",
     "abi_stable_shared",
     "abi_stable_derive",
-    "abi_stable_derive_lib",
     "examples/0_modules_and_interface_types/impl",
     "examples/0_modules_and_interface_types/interface",
     "examples/0_modules_and_interface_types/user",
@@ -18,4 +17,5 @@ members=[
     "testing/interface_0",
     "testing/user",
     "tools/*",
+    "playground/",
 ]

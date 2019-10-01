@@ -152,10 +152,10 @@ fn check_fields(
 ){
     for (field,expec_acc) in fields.iter().zip( accessors ) {
         assert_eq!(
-            field.field_accessor,
+            field.field_accessor(),
             *expec_acc,
             "field:{}\nfields:{:#?}",
-            field.name,
+            field.name(),
             fields
         );
     }
@@ -168,14 +168,14 @@ fn check_enum_accessors<T>(
 )where
     T:SharedStableAbi
 {
-    let layout=T::S_ABI_INFO.get().layout;
+    let layout=T::S_LAYOUT;
 
-    let mut fields=match layout.data {
-        TLData::Enum(enum_)=>enum_.fields.get_fields(),
+    let mut fields=match layout.data() {
+        TLData::Enum(enum_)=>enum_.fields.iter(),
         x=>panic!("layout.data must be TLData::Struct{{..}}:\n{:#?}",x)
     };
 
-    assert_eq!(layout.mod_refl_mode,mod_refl_mode);
+    assert_eq!(layout.mod_refl_mode(),mod_refl_mode);
     
     for expec_vari in accessors {
         let subfields=fields.by_ref().take(expec_vari.len()).collect::<Vec<_>>();
@@ -190,14 +190,14 @@ fn check_struct_accessors<T>(
 )where
     T:SharedStableAbi
 {
-    let layout=T::S_ABI_INFO.get().layout;
+    let layout=T::S_LAYOUT;
 
-    let fields=match layout.data {
-        TLData::Struct{fields}=>fields.get_field_vec(),
+    let fields=match layout.data() {
+        TLData::Struct{fields}=>fields.to_vec(),
         x=>panic!("layout.data must be TLData::Struct{{..}}:\n{:#?}",x)
     };
 
-    assert_eq!(layout.mod_refl_mode,mod_refl_mode);
+    assert_eq!(layout.mod_refl_mode(),mod_refl_mode);
 
     check_fields(&fields,accessors);
 }
@@ -209,14 +209,14 @@ fn check_prefix_accessors<T>(
 )where
     T:SharedStableAbi
 {
-    let layout=T::S_ABI_INFO.get().layout;
+    let layout=T::S_LAYOUT;
 
-    let fields=match &layout.data {
-        TLData::PrefixType(prefix)=>prefix.fields.get_field_vec(),
+    let fields=match layout.data() {
+        TLData::PrefixType(prefix)=>prefix.fields.to_vec(),
         x=>panic!("layout.data must be TLData::Struct{{..}}:\n{:#?}",x)
     };
 
-    assert_eq!(layout.mod_refl_mode,mod_refl_mode);
+    assert_eq!(layout.mod_refl_mode(),mod_refl_mode);
 
     check_fields(&fields,accessors);
 }
@@ -261,7 +261,7 @@ fn test_regular_pub_fields(){
         &[
             FieldAccessor::Direct,
             FieldAccessor::Direct,
-            {const FA:FieldAccessor=FieldAccessor::method_named(&StaticStr::new("what_the"));FA},
+            {const FA:FieldAccessor=FieldAccessor::method_named(rstr!("what_the"));FA},
         ]
     );
 }
@@ -299,7 +299,7 @@ fn test_regular_priv(){
         &[
             FieldAccessor::Opaque,
             FieldAccessor::Opaque,
-            {const FA:FieldAccessor=FieldAccessor::method_named(&StaticStr::new("hello"));FA},
+            {const FA:FieldAccessor=FieldAccessor::method_named(rstr!("hello"));FA},
         ]
     );
 }
@@ -313,11 +313,11 @@ fn test_prefix_pub_fields(){
     check_prefix_accessors::<PrefixPubFields>(
         ModReflMode::Module,
         &[
-            FieldAccessor::Method{name:None},
-            FieldAccessor::Method{name:None},
+            FieldAccessor::Method,
+            FieldAccessor::Method,
             FieldAccessor::MethodOption,
-            {const FA:FieldAccessor=FieldAccessor::method_named(&StaticStr::new("hello"));FA},
-            FieldAccessor::Method{name:None},
+            {const FA:FieldAccessor=FieldAccessor::method_named(rstr!("hello"));FA},
+            FieldAccessor::Method,
         ]
     );
 }
@@ -340,8 +340,8 @@ fn test_prefix_most_privacies(){
     check_prefix_accessors::<PrefixMostPrivacies>(
         ModReflMode::Module,
         &[
-            FieldAccessor::Method{name:None},
-            FieldAccessor::Method{name:None},
+            FieldAccessor::Method,
+            FieldAccessor::Method,
             FieldAccessor::MethodOption,
             FieldAccessor::MethodOption,
             FieldAccessor::Opaque,
