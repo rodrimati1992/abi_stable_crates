@@ -667,7 +667,7 @@ pub unsafe trait TypeChecker:'static {
     /// # Errors
     ///
     /// The errors detected in this method are always propagated,
-    /// to prevent the propagation of errors call the `is_compatible` method.
+    /// to prevent the propagation of errors call the `local_check_compatibility` method.
     ///
     fn check_compatibility(
         &mut self,
