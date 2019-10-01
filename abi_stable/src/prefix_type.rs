@@ -68,8 +68,6 @@ since their existence has to be checked at runtime.
 This is because multiple versions of the library may be loaded,
 where in some of them those fields don't exist.
 
-```
-
 */
     type Prefix;
 
