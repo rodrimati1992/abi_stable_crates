@@ -35,14 +35,13 @@ pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
 Allows implementing the InterfaceType trait,
 providing default values for associated types not specified in the impl block.
 
-For an example look at `abi_stable::erased_types::InterfaceType`.
-
 <b>
 This macro has been deprecated in favor of using the `#[sabi(impl_InterfaceType())]` 
 helper attribute of both `#[derive(StableAbi)]` and `#[derive(GetStaticEquivalent)]`
 </b>
 
 */
+#[doc(hidden)]
 #[proc_macro]
 #[allow(non_snake_case)]
 pub fn impl_InterfaceType(input: TokenStream1) -> TokenStream1 {
@@ -133,7 +132,9 @@ pub fn sabi_extern_fn(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
 }
 
 
-
+/**
+This macro is documented in `abi_stable::docs::sabi_trait_attribute` .
+*/
 #[proc_macro_attribute]
 pub fn sabi_trait(_attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     parse_or_compile_err( item, sabi_trait::derive_sabi_trait ).into()
@@ -148,7 +149,7 @@ pub fn concatenated_and_ranges( input: TokenStream1) -> TokenStream1 {
 
 
 /**
-This macro is documented in abi_stable::docs::get_static_equivalent
+This macro is documented in `abi_stable::docs::get_static_equivalent`
 */
 #[proc_macro_derive(GetStaticEquivalent, attributes(sabi))]
 pub fn derive_get_static_equivalent(input: TokenStream1) -> TokenStream1 {
