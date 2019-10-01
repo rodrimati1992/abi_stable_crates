@@ -109,6 +109,7 @@ impl Eq for ConstGeneric{}
 pub struct ConstGenericVTableVal{
     layout:&'static TypeLayout,
     partial_eq:unsafe extern "C" fn(&ErasedObject,&ErasedObject)->bool,
+    #[sabi(last_prefix_field)]
     debug:unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
 }
 
