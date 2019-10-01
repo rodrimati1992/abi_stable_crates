@@ -109,10 +109,12 @@ where
     }
 
     impl<'a, T: 'a> RSlice<'a, T> {
+        const _EMPTY_SLICE: &'a [T] = &[];
+
         /// An empty slice.
         pub const EMPTY: Self = RSlice {
             data: {
-                let v: &[T] = &[];
+                let v: &[T] = Self::_EMPTY_SLICE;
                 v.as_ptr()
             },
             length: 0,
