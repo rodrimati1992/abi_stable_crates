@@ -526,12 +526,6 @@ these checks are done purely to detect programming errors.
 
 # Planned features
 
-### 0.7
-
-Adding the ability to associate some value(that implements a trait defined in abi_stable) to type layouts,
-which defines how it's compatible with other instances,
-to allow the user to do extra type checks when loading a library.
-
 ### Eventually
 
 WASM support,with the same features as native dynamic libraries,
