@@ -11,7 +11,7 @@ attributes through ffi.
 #[doc(hidden)]
 pub mod doc_enums;
 
-#[cfg(test)]
+#[cfg(any(test,feature="nonexhaustive_examples"))]
 pub mod examples;
 
 pub mod nonexhaustive;
@@ -21,7 +21,7 @@ pub(crate) mod alt_c_functions;
 
 
 pub(crate) use self::{
-    vtable::{NonExhaustiveVtable,InterfaceBound},
+    vtable::{NonExhaustiveVtable},
 };
 
 
@@ -35,8 +35,13 @@ pub use self::{
         ValidDiscriminant,
         SerializeEnum,
         DeserializeEnum,
+    },
+};
+
+
+pub(crate) use self::{
+    traits::{
         GetSerializeEnumProxy,
-        GetDeserializeEnumProxy,
     },
 };
 

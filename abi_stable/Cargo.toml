@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable"
-version = "0.6.4"
+version = "0.7.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition="2018"
 license = "MIT/Apache-2.0"
@@ -24,41 +24,53 @@ travis-ci = { repository =  "rodrimati1992/abi_stable_crates/" }
 [features]
 default = ["channels","serde_json"]
 
-rust_1_34=[]
-
 rust_1_36=[]
+
+rust_1_38=["rust_1_36"]
+
+# Enables stuff that requires const generics,use this once const generics are stabilized.
+const_params=[]
+
+# Enables all nightly features.
+all_nightly=[
+    "nightly_const_params",
+]
+
+# Enables stuff that requires const generics(in nightly Rust).
+nightly_const_params=[]
 
 # Test features,only used internally.
 only_new_tests=[]
 sabi_trait_examples=[]
+nonexhaustive_examples=[]
 
 channels=["crossbeam-channel"]
 
 
 [dependencies]
-abi_stable_derive= {version="0.6.4",path="../abi_stable_derive"}
-abi_stable_shared= {version="0.6.4",path="../abi_stable_shared"}
-serde          = {version="1.0",features=["derive"]}
-serde_derive   = "1.0"
-core_extensions= { version="0.1"}
-libloading     = { version = "0.5.0" }
-parking_lot    = "0.7"
-lock_api       = "0.1"
-generational-arena = "0.2"
-crossbeam-channel = {version="0.3",optional=true}
-serde_json = {version="1.0",features=["raw_value"],optional=true}
+abi_stable_derive= {version="0.7.0",path="../abi_stable_derive"}
+abi_stable_shared= {version="0.7.0",path="../abi_stable_shared"}
+serde          = { version = "1.0.98", features = ["derive"] }
+serde_derive   = "1.0.98"
+core_extensions= "0.1.7"
+libloading     = "0.5.2"
+parking_lot    = "0.9.0"
+lock_api       = "0.3.1"
+generational-arena = "0.2.2"
+crossbeam-channel = { version = "0.3.9", optional = true }
+serde_json = { version = "1.0.40", features = ["raw_value"], optional = true }
 
 [dev-dependencies]
-bincode = "1.1"
-crossbeam-utils = "0.6"
-serde_json = {version="1.0",features=["raw_value"]}
-rand = "0.6"
-criterion = "0.2"
-hashbrown = "0.3"
-fnv = "1.0"
-skeptic = "0.13"
+bincode = "1.1.4"
+crossbeam-utils = "0.6.6"
+serde_json = { version = "1.0.40", features = ["raw_value"] }
+rand = "0.7.0"
+criterion = "0.2.11"
+hashbrown = "0.5.0"
+fnv = "1.0.6"
+skeptic = "0.13.4"
 
 
 [build-dependencies]
-rustc_version = "0.2"
-skeptic = "0.13"
+rustc_version = "0.2.3"
+skeptic = "0.13.4"

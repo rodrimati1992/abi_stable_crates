@@ -15,7 +15,7 @@ use core_extensions::{
     prelude::*,
 };
 
-use crate::std_types::RString;
+use crate::std_types::{RString,RStr};
 
 
 //////////////////////////////////////
@@ -204,56 +204,6 @@ impl_fmt_padding!{ RString }
 
 //////////////////////////////////////////////////////////////////////
 
-/// Newtype wrapper for functions which construct constants.
-///
-/// Declared to pass a function pointers to const fn.
-#[repr(C)]
-#[derive(StableAbi)]
-// #[sabi(debug_print)]
-pub struct Constructor<T>(pub extern fn()->T);
-
-impl<T> Copy for Constructor<T>{}
-
-impl<T> Clone for Constructor<T>{
-    fn clone(&self)->Self{
-        *self
-    }
-}
-
-//////////////////////////////////////////////////////////////////////
-
-/// Either the constructor for a value or the value itself
-#[repr(u8)]
-#[derive(StableAbi,Copy,Clone)]
-//#[sabi(debug_print)]
-pub enum ConstructorOrValue<T>{
-    /// This is an `extern fn()->T` which is used to construct a value of type `T`
-    Constructor(Constructor<T>),
-    /// A value of type `T`
-    Value(T)
-}
-
-impl<T> ConstructorOrValue<T>{
-    /// Gets the wrapped value,computing it from its constructor if this 
-    /// is the `Constructor` variant
-    pub fn get(&mut self)->&T{
-        match self {
-            ConstructorOrValue::Value(v)=>v,
-            &mut ConstructorOrValue::Constructor(func)=>{
-                let v=(func.0)();
-                *self=ConstructorOrValue::Value(v);
-                match self {
-                    ConstructorOrValue::Value(v)=>v,
-                    _=>unreachable!()
-                }
-            },
-        }
-    }
-}
-
-
-//////////////////////////////////////////////////////////////////////
-
 /// Takes the contents out of a `ManuallyDrop<T>`.
 ///
 /// # Safety
@@ -272,3 +222,17 @@ pub fn assert_fnonce<F,R>(_:&F)
 where
     F:FnOnce()->R
 {}
+
+//////////////////////////////////////////////////////////////////////
+
+#[cfg(not(any(rust_1_38,feature="rust_1_38")))]
+#[doc(hidden)]
+pub extern "C" fn get_type_name<T>()->RStr<'static>{
+    RStr::from("<unavailable>")
+}
+
+#[cfg(any(rust_1_38,feature="rust_1_38"))]
+#[doc(hidden)]
+pub extern "C" fn get_type_name<T>()->RStr<'static>{
+    RStr::from(std::any::type_name::<T>())
+}

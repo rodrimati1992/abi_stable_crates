@@ -292,7 +292,7 @@ where
 )]
 pub struct ROccupiedEntry<'a,K,V>{
     entry:&'a mut ErasedOccupiedEntry<K,V>,
-    vtable:*const OccupiedVTable<K,V>,
+    vtable:StaticRef<OccupiedVTable<K,V>>,
     _marker:UnsafeIgnoredType<OccupiedEntry<'a,K,V>>
 }
 
@@ -305,7 +305,7 @@ pub struct ROccupiedEntry<'a,K,V>{
 )]
 pub struct RVacantEntry<'a,K,V>{
     entry:&'a mut ErasedVacantEntry<K,V>,
-    vtable:*const VacantVTable<K,V>,
+    vtable:StaticRef<VacantVTable<K,V>>,
     _marker:UnsafeIgnoredType<VacantEntry<'a,K,V>>
 }
 
@@ -313,7 +313,7 @@ pub struct RVacantEntry<'a,K,V>{
 
 impl<'a,K,V> ROccupiedEntry<'a,K,V>{
     fn vtable<'b>(&self)->&'b OccupiedVTable<K,V>{
-        unsafe{ &*self.vtable }
+        self.vtable.get()
     }
 }
 
@@ -327,7 +327,7 @@ impl<'a,K,V> ROccupiedEntry<'a,K,V>{
         unsafe{ 
             Self{
                 entry:ErasedOccupiedEntry::from_unerased(entry),
-                vtable:(&*OccupiedVTable::VTABLE_REF).as_prefix_raw() ,
+                vtable:WithMetadata::as_prefix(OccupiedVTable::VTABLE_REF),
                 _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -527,7 +527,7 @@ impl<'a,K,V> Drop for ROccupiedEntry<'a,K,V>{
 
 impl<'a,K,V> RVacantEntry<'a,K,V>{
     fn vtable<'b>(&self)->&'b VacantVTable<K,V>{
-        unsafe{ &*self.vtable }
+        self.vtable.get()
     }
 }
 
@@ -544,7 +544,7 @@ impl<'a,K,V> RVacantEntry<'a,K,V>{
         unsafe{
             Self{
                 entry:ErasedVacantEntry::from_unerased(entry),
-                vtable:(&*VacantVTable::VTABLE_REF).as_prefix_raw(),
+                vtable:WithMetadata::as_prefix(VacantVTable::VTABLE_REF),
                 _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -667,19 +667,22 @@ impl<'a,K,V> Drop for RVacantEntry<'a,K,V>{
     missing_field(panic),
 )]
 pub struct OccupiedVTableVal<K,V>{
-    drop_entry:unsafe extern fn(&mut ErasedOccupiedEntry<K,V>),
-    key:extern fn(&ErasedOccupiedEntry<K,V>)->&K,
-    get_elem:extern fn(&ErasedOccupiedEntry<K,V>)->&V,
-    get_mut_elem:extern fn(&mut ErasedOccupiedEntry<K,V>)->&mut V,
-    into_mut_elem:extern fn(ROccupiedEntry<'_,K,V>)->&'_ mut V,
-    insert_elem:extern fn(&mut ErasedOccupiedEntry<K,V>,V)->V,
-    remove:extern fn(ROccupiedEntry<'_,K,V>)->V,
+    drop_entry:unsafe extern "C" fn(&mut ErasedOccupiedEntry<K,V>),
+    key:extern "C" fn(&ErasedOccupiedEntry<K,V>)->&K,
+    get_elem:extern "C" fn(&ErasedOccupiedEntry<K,V>)->&V,
+    get_mut_elem:extern "C" fn(&mut ErasedOccupiedEntry<K,V>)->&mut V,
+    into_mut_elem:extern "C" fn(ROccupiedEntry<'_,K,V>)->&'_ mut V,
+    insert_elem:extern "C" fn(&mut ErasedOccupiedEntry<K,V>,V)->V,
+    remove:extern "C" fn(ROccupiedEntry<'_,K,V>)->V,
 }
 
 
 impl<K,V> OccupiedVTable<K,V>{
-    const VTABLE_REF: *const WithMetadata<OccupiedVTableVal<K,V>> = {
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
+    const VTABLE_REF: StaticRef<WithMetadata<OccupiedVTableVal<K,V>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::VTABLE,
+        ))
     };
 
     const VTABLE:OccupiedVTableVal<K,V>=OccupiedVTableVal{
@@ -695,14 +698,14 @@ impl<K,V> OccupiedVTable<K,V>{
 
 
 impl<K,V> ErasedOccupiedEntry<K,V>{
-    unsafe extern fn drop_entry(&mut self){
+    unsafe extern "C" fn drop_entry(&mut self){
         extern_fn_panic_handling!{
             Self::run_as_unerased(self,|this|{
                 ManuallyDrop::drop(this);
             }) 
         }
     }
-    extern fn key(&self)->&K{
+    extern "C" fn key(&self)->&K{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 self,
@@ -710,7 +713,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern fn get_elem(&self)->&V{
+    extern "C" fn get_elem(&self)->&V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 self,
@@ -718,7 +721,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern fn get_mut_elem(&mut self)->&mut V{
+    extern "C" fn get_mut_elem(&mut self)->&mut V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 self,
@@ -726,7 +729,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern fn into_mut_elem(this:ROccupiedEntry<'_,K,V>)->&'_ mut V{
+    extern "C" fn into_mut_elem(this:ROccupiedEntry<'_,K,V>)->&'_ mut V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),
@@ -734,7 +737,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern fn insert_elem(&mut self,elem:V)->V{
+    extern "C" fn insert_elem(&mut self,elem:V)->V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 self,
@@ -742,7 +745,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern fn remove(this:ROccupiedEntry<'_,K,V>)->V{
+    extern "C" fn remove(this:ROccupiedEntry<'_,K,V>)->V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),
@@ -769,16 +772,19 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
     missing_field(panic),
 )]
 pub struct VacantVTableVal<K,V>{
-    drop_entry:unsafe extern fn(&mut ErasedVacantEntry<K,V>),
-    key:extern fn(&ErasedVacantEntry<K,V>)->&K,
-    into_key:extern fn(RVacantEntry<'_,K,V>)->K,
-    insert_elem:extern fn(RVacantEntry<'_,K,V>,V)->&'_ mut V,
+    drop_entry:unsafe extern "C" fn(&mut ErasedVacantEntry<K,V>),
+    key:extern "C" fn(&ErasedVacantEntry<K,V>)->&K,
+    into_key:extern "C" fn(RVacantEntry<'_,K,V>)->K,
+    insert_elem:extern "C" fn(RVacantEntry<'_,K,V>,V)->&'_ mut V,
 }
 
 
 impl<K,V> VacantVTable<K,V>{
-    const VTABLE_REF: *const WithMetadata<VacantVTableVal<K,V>> = {
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
+    const VTABLE_REF: StaticRef<WithMetadata<VacantVTableVal<K,V>>> = unsafe{
+        StaticRef::from_raw(&WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::VTABLE,
+        ))
     };
 
     const VTABLE:VacantVTableVal<K,V>=VacantVTableVal{
@@ -791,14 +797,14 @@ impl<K,V> VacantVTable<K,V>{
 
 
 impl<K,V> ErasedVacantEntry<K,V>{
-    unsafe extern fn drop_entry(&mut self){
+    unsafe extern "C" fn drop_entry(&mut self){
         extern_fn_panic_handling!{
             Self::run_as_unerased(self,|this|{
                 ManuallyDrop::drop(this);
             }) 
         }
     }
-    extern fn key(&self)->&K{
+    extern "C" fn key(&self)->&K{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 self,
@@ -806,7 +812,7 @@ impl<K,V> ErasedVacantEntry<K,V>{
             ) 
         }}
     }
-    extern fn into_key<'a>(this:RVacantEntry<'_,K,V>)->K{
+    extern "C" fn into_key<'a>(this:RVacantEntry<'_,K,V>)->K{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),
@@ -814,7 +820,7 @@ impl<K,V> ErasedVacantEntry<K,V>{
             )
         }}
     }
-    extern fn insert_elem(this:RVacantEntry<'_,K,V>,elem:V)->&'_ mut V{
+    extern "C" fn insert_elem(this:RVacantEntry<'_,K,V>,elem:V)->&'_ mut V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),

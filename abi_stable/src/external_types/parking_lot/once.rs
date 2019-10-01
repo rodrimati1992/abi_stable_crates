@@ -1,3 +1,4 @@
+//! Contains an ffi-safe wrapper for `parking_lot::Once`.
 use std::{
     any::Any,
     fmt::{self,Debug},
@@ -14,6 +15,7 @@ use super::{UnsafeOveralignedField,RAW_LOCK_SIZE};
 use crate::{
     utils::{transmute_mut_reference},
     prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::StaticRef,
     std_types::{RResult,ROk,RErr},
 };
 
@@ -27,7 +29,7 @@ type OpaqueOnce=
 const OM_PADDING:usize=RAW_LOCK_SIZE-mem::size_of::<PLOnce>();
 
 const OPAQUE_ONCE:OpaqueOnce=
-    OpaqueOnce::new(parking_lot::ONCE_INIT,[0u8;OM_PADDING]);
+    OpaqueOnce::new(parking_lot::Once::new(),[0u8;OM_PADDING]);
 
 #[allow(dead_code)]
 fn assert_mutex_size(){
@@ -81,7 +83,7 @@ assert_eq!(*MUTEX.lock(),1);
 #[derive(StableAbi)]
 pub struct ROnce{
     opaque_once:OpaqueOnce,
-    vtable:*const VTable,
+    vtable:StaticRef<VTable>,
 }
 
 impl ROnce{
@@ -108,7 +110,7 @@ impl ROnce{
     pub const fn new() -> ROnce{
         ROnce{
             opaque_once:OPAQUE_ONCE,
-            vtable:VTable::VTABLE.as_prefix_raw(),
+            vtable: WithMetadata::as_prefix(VTable::VTABLE),
         }
     }
 
@@ -128,11 +130,11 @@ impl ROnce{
     pub const NEW:Self=
         ROnce{
             opaque_once:OPAQUE_ONCE,
-            vtable:VTable::VTABLE.as_prefix_raw(),
+            vtable: WithMetadata::as_prefix(VTable::VTABLE),
         };
 
     fn vtable(&self)->&'static VTable{
-        unsafe{ &*self.vtable }
+        self.vtable.get()
     }
 
 /**
@@ -469,22 +471,23 @@ impl<F> Closure<F>{
 #[sabi(kind(Prefix(prefix_struct="VTable")))]
 #[sabi(missing_field(panic))]
 struct VTableVal{
-    state:extern fn(&OpaqueOnce)->ROnceState,
-    call_once:extern fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
-    call_once_force:extern fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
+    state:extern "C" fn(&OpaqueOnce)->ROnceState,
+    call_once:extern "C" fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
+    call_once_force:extern "C" fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
 }
 
 impl VTable{
     // The VTABLE for this type in this executable/library
-    const VTABLE: &'static WithMetadata<VTableVal> = 
-        &WithMetadata::new(
+    const VTABLE: StaticRef<WithMetadata<VTableVal>> = {
+        StaticRef::new(&WithMetadata::new(
             PrefixTypeTrait::METADATA,
             VTableVal{
                 state,
                 call_once,
                 call_once_force
             }
-        );
+        ))
+    };
 }
 
 
@@ -492,12 +495,12 @@ impl VTable{
 ///////////////////////////////////////////////////////////////////////////////
 
 
-extern fn state(this:&OpaqueOnce)->ROnceState{
+extern "C" fn state(this:&OpaqueOnce)->ROnceState{
     extern_fn_panic_handling!{
         this.value.state().into()
     }
 }
-extern fn call_once(
+extern "C" fn call_once(
     this:&OpaqueOnce,
     erased_closure:&mut ErasedClosure,
     runner:RunClosure,
@@ -508,7 +511,7 @@ extern fn call_once(
         });
     })
 }
-extern fn call_once_force(
+extern "C" fn call_once_force(
     this:&OpaqueOnce,
     erased_closure:&mut ErasedClosure,
     runner:RunClosure,

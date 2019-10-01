@@ -1,8 +1,7 @@
 use super::*;
 
 use crate::{
-    erased_types::{IteratorItem,InterfaceType},
-    type_level::bools::*,
+    erased_types::IteratorItem,
 };
 
 macro_rules! declare_iter_interface {

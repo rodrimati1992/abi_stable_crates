@@ -114,7 +114,7 @@ impl Name for Boor{
 
 ```rust
 use abi_stable::{
-    tag,
+    rslice,tag,
     type_layout::Tag,
 };
 
@@ -140,7 +140,7 @@ const STR_0_MACRO:Tag=tag!("Hello,World!");
 const STR_0_FN:Tag=Tag::str("Hello,World!");
 
 const ARR_0_MACRO:Tag=tag![[ 0,1,2,3 ]];
-const ARR_0_FN:Tag=Tag::arr(&[
+const ARR_0_FN:Tag=Tag::arr(rslice![
     Tag::int(0),
     Tag::int(1),
     Tag::int(2),
@@ -149,7 +149,7 @@ const ARR_0_FN:Tag=Tag::arr(&[
 
 
 const SET_0_MACRO:Tag=tag!{{ 0,1,2,3 }};
-const SET_0_FN:Tag=Tag::set(&[
+const SET_0_FN:Tag=Tag::set(rslice![
     Tag::int(0),
     Tag::int(1),
     Tag::int(2),
@@ -163,7 +163,7 @@ const MAP_0_MACRO:Tag=tag!{{
     2=>false,
     3=>100,
 }};
-const MAP_0_FN:Tag=Tag::map(&[
+const MAP_0_FN:Tag=Tag::map(rslice![
     Tag::kv( Tag::int(0), Tag::str("a")),
     Tag::kv( Tag::int(1), Tag::str("b")),
     Tag::kv( Tag::int(2), Tag::bool_(false)),
@@ -222,17 +222,14 @@ use core_extensions::{
 
 use crate::{
     StableAbi,
-    std_types::{
-        StaticStr,
-        StaticSlice,
-        RVec,
-        ROption,
-        RSome,
-        RNone,
-        RBox,
+    abi_stability::extra_checks::{
+        TypeCheckerMut,
+        ExtraChecks,ForExtraChecksImplementor,ExtraChecksError,
     },
+    std_types::{StaticStr,RSlice,RBox,RCow,RVec,ROption,RSome,RNone,RResult},
     traits::IntoReprC,
     utils::FmtPadding,
+    type_layout::TypeLayout,
 };
 
 
@@ -245,6 +242,7 @@ use crate::{
 /// For more information [look at the module-level documentation](./index.html)
 #[repr(C)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct Tag{
     variant:TagVariant,
 }
@@ -253,18 +251,20 @@ pub struct Tag{
 /// All the Tag variants.
 #[repr(u8)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum TagVariant{
     Primitive(Primitive),
     Ignored(&'static Tag),
-    Array(StaticSlice<Tag>),
-    Set(StaticSlice<Tag>),
-    Map(StaticSlice<KeyValue<Tag>>),
+    Array(RSlice<'static,Tag>),
+    Set(RSlice<'static,Tag>),
+    Map(RSlice<'static,KeyValue<Tag>>),
 }
 
 
 /// The primitive types of a variant,which do not contain other nested tags.
 #[repr(u8)]
 #[derive(Debug,Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum Primitive{
     Null,
     Bool(bool),
@@ -276,6 +276,7 @@ pub enum Primitive{
 /// A tag that can be checked for compatibility with another tag.
 #[repr(C)]
 #[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct CheckableTag{
     variant:CTVariant,
 }
@@ -283,6 +284,7 @@ pub struct CheckableTag{
 /// The possible variants of CheckableTag.
 #[repr(u8)]
 #[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum CTVariant{
     Primitive(Primitive),
     Ignored(RBox<CheckableTag>),
@@ -356,6 +358,8 @@ impl Tag{
         }
     }
 
+    pub const NULL:&'static Tag=&Tag::null();
+
     /// Constructs the Null variant.
     pub const fn null()->Self{
         Self::new(TagVariant::Primitive(Primitive::Null))
@@ -380,19 +384,24 @@ impl Tag{
         Self::new(TagVariant::Primitive(Primitive::String_(StaticStr::new(s))))
     }
 
+    /// Constructs the String_ variant.
+    pub const fn staticstr(s:StaticStr)->Self{
+        Self::new(TagVariant::Primitive(Primitive::String_(s)))
+    }
+
     /// Constructs the Ignored variant.
     pub const fn ignored(ignored:&'static Tag)->Self{
         Self::new(TagVariant::Ignored(ignored))
     }
 
     /// Constructs the Array variant.
-    pub const fn arr(s:&'static [Tag])->Self{
-        Self::new(TagVariant::Array(StaticSlice::new(s)))
+    pub const fn arr(s:RSlice<'static,Tag>)->Self{
+        Self::new(TagVariant::Array(s))
     }
 
     /// Constructs the Set variant.
-    pub const fn set(s:&'static [Tag])->Self{
-        Self::new(TagVariant::Set(StaticSlice::new(s)))
+    pub const fn set(s:RSlice<'static,Tag>)->Self{
+        Self::new(TagVariant::Set(s))
     }
 
     /// Constructs a KeyValue.
@@ -401,8 +410,8 @@ impl Tag{
     }
 
     /// Constructs the Map variant.
-    pub const fn map(s:&'static [KeyValue<Tag>])->Self{
-        Self::new(TagVariant::Map(StaticSlice::new(s)))
+    pub const fn map(s:RSlice<'static,KeyValue<Tag>>)->Self{
+        Self::new(TagVariant::Map(s))
     }
 }
 
@@ -664,6 +673,13 @@ impl FromLiteral<&'static str>{
     }
 }
 
+impl FromLiteral<StaticStr>{
+    /// Converts the wrapped `&'static str` into a Tag.
+    pub const fn to_tag(self)->Tag{
+        Tag::staticstr(self.0)
+    }
+}
+
 impl FromLiteral<i64>{
     /// Converts the wrapped `i64` into a Tag.
     pub const fn to_tag(self)->Tag{
@@ -823,6 +839,35 @@ impl Display for TagErrors {
     }
 }
 
+impl std::error::Error for TagErrors{}
+
+
+/////////////////////////////////////////////////////////////////
+
+
+impl ExtraChecks for Tag {
+    fn type_layout(&self)->&'static TypeLayout{
+        Self::LAYOUT
+    }
+
+    fn check_compatibility(
+        &self,
+        _layout_containing_self:&'static TypeLayout,
+        layout_containing_other:&'static TypeLayout,
+        checker:TypeCheckerMut<'_>,
+    )->RResult<(), ExtraChecksError> {
+        Self::downcast_with_layout(layout_containing_other,checker,|other,_|{
+            let t_tag=self.to_checkable();
+            let o_tag=other.to_checkable();
+            t_tag.check_compatible(&o_tag)
+        })
+    }
+
+    fn nested_type_layouts(&self)->RCow<'_,[&'static TypeLayout]>{
+        RCow::from_slice(&[])
+    }
+}
+
 
 /////////////////////////////////////////////////////////////////
 
@@ -899,6 +944,8 @@ impl Display for TagErrorVariant {
         Ok(())
     }
 }
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////////

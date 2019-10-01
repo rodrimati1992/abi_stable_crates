@@ -9,3 +9,4 @@ pub mod stable_abi_derive;
 pub mod sabi_extern_fn;
 pub mod sabi_trait_attribute;
 pub mod sabi_nonexhaustive;
+pub mod troubleshooting;

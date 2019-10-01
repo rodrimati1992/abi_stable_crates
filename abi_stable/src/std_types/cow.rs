@@ -522,6 +522,18 @@ where
     }
 }
 
+impl<'a,T> RCow<'a,[T]>
+where 
+    T:Clone
+{
+    /// For converting a `&'a [T]` to an `RCow<'a,[T]>`,
+    /// most useful when converting from `&'a [T;N]` because it coerces the array to a slice.
+    #[inline]
+    pub fn from_slice(this:&'a [T])->Self{
+        RCow::Borrowed(RSlice::from(this))
+    }
+}
+
 impl<'a,T> From<RSlice<'a,T>> for RCow<'a,[T]>
 where 
     T:Clone

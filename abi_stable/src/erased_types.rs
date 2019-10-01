@@ -18,11 +18,11 @@ use crate::{
         RBoxError, RCmpOrdering, RErr, ROk, ROption,RResult, RString,RStr,
         RSlice, RSliceMut
     },
-    type_level::{
-        //option::{Some_,None_,SomeTrait}
-        bools::True,
-    },
 };
+
+
+#[macro_use]
+mod enabled_traits_macro;
 
 pub(crate)mod c_functions;
 
@@ -45,7 +45,7 @@ pub mod traits;
 
 pub use self::{
     dyn_trait::{DynTrait, DynTraitBound},
-    vtable::{ GetVtable,InterfaceBound},
+    vtable::{ GetVtable,InterfaceBound,VTableDT,enabled_traits },
     traits::{
         ImplType, InterfaceType, 
         DeserializeDyn, 
@@ -54,6 +54,9 @@ pub use self::{
     },
     type_info::TypeInfo,
 };
+
+#[doc(no_inline)]
+pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
 
 
 /// The formatting mode for all std::fmt formatters.

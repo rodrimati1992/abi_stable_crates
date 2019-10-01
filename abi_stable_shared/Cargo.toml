@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable_shared"
-version = "0.6.4"
+version = "0.7.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
 description = "Implementation detail of abi_stable."

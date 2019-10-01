@@ -157,16 +157,17 @@ where
     }
 }
 
-pub(crate) unsafe extern "C" fn serialize_impl<T,I>(
-    this: &ErasedObject
-) -> RResult<<I as SerializeProxyType>::Proxy, RBoxError>
+pub(crate) unsafe extern "C" fn serialize_impl<'s,T,I>(
+    this: &'s ErasedObject<T>
+) -> RResult<<I as SerializeProxyType<'s>>::Proxy, RBoxError>
 where
-    T: SerializeImplType<Interface=I>,
-    I: SerializeProxyType,
+    T: for<'borr> SerializeImplType<'borr,Interface=I>,
+    I: for<'borr> SerializeProxyType<'borr>,
 {
     extern_fn_panic_handling! {
-        let this=transmute_reference::<ErasedObject,T>(this);
-        this.serialize_impl().into()
+        transmute_reference::<ErasedObject<T>,T>(this)
+            .serialize_impl()
+            .into_c()
     }
 }
 
@@ -260,7 +261,7 @@ where
 //////////////////////////////////////////////////////////////////////////////////////
 
 
-pub(super) unsafe extern fn write_str_fmt_write<T>(
+pub(super) unsafe extern "C" fn write_str_fmt_write<T>(
     this:&mut ErasedObject, 
     data:RStr<'_>
 ) -> RResult<(), ()>

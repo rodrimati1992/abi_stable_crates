@@ -23,17 +23,19 @@ pub mod bools{
 /// can be converted back into the concrete type they were constructed with.
 pub mod unerasability{
     use crate::{
-        sabi_types::{MaybeCmp,ReturnValueEquality},
+        sabi_types::{Constructor,MaybeCmp},
         std_types::utypeid::{UTypeId,no_utypeid,some_utypeid},
     };
 
 
     /// Indicates that a type implements `Any`.
     #[allow(non_camel_case_types)]
+    #[derive(Copy,Clone)]
     pub struct TU_Unerasable;
 
     /// Indicates that a type does not implement `Any`.
     #[allow(non_camel_case_types)]
+    #[derive(Copy,Clone)]
     pub struct TU_Opaque;
     
 
@@ -43,22 +45,18 @@ pub mod unerasability{
     /// Gets a function optionally returning the UTypeId of `T`.
     /// Whether the function returns `MaybeCmp::Just(typeid)` is determined by `Self`.
     pub trait GetUTID<T>{
-        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>;
+        const UID:Constructor<MaybeCmp<UTypeId>>;
     }
 
 
     impl<T> GetUTID<T> for TU_Unerasable
     where T:'static
     {
-        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>=ReturnValueEquality{
-            function:some_utypeid::<T>
-        };
+        const UID:Constructor<MaybeCmp<UTypeId>>=Constructor( some_utypeid::<T> );
     }
 
     impl<T> GetUTID<T> for TU_Opaque{
-        const UID:ReturnValueEquality<MaybeCmp<UTypeId>>=ReturnValueEquality{
-            function:no_utypeid
-        };
+        const UID:Constructor<MaybeCmp<UTypeId>>=Constructor( no_utypeid );
     }
 }
 

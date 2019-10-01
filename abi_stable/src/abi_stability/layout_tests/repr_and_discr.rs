@@ -2,8 +2,8 @@ use crate::{
     StableAbi,
     abi_stability::{
         abi_checking::{AbiInstability,check_layout_compatibility},
-        AbiInfoWrapper,
     },
+    type_layout::TypeLayout,
 };
 
 
@@ -134,7 +134,7 @@ declare_int_repr!{
 }
 
 
-fn check_imcompatible_with_others<F>(list:&[&'static AbiInfoWrapper],mut f:F)
+fn check_imcompatible_with_others<F>(list:&[&'static TypeLayout],mut f:F)
 where
     F:FnMut(&[AbiInstability])
 {
@@ -159,16 +159,16 @@ where
 #[test]
 fn check_discriminant_repr_enums(){
     let list=&[
-        <c_repr_a::What as StableAbi>::ABI_INFO,
-        <c_repr_b::What as StableAbi>::ABI_INFO,
-        <u8_repr_a::What as StableAbi>::ABI_INFO,
-        <u8_repr_b::What as StableAbi>::ABI_INFO,
-        <u16_repr_a::What as StableAbi>::ABI_INFO,
-        <usize_repr_a::What as StableAbi>::ABI_INFO,
-        <i8_repr_a::What as StableAbi>::ABI_INFO,
-        <i8_repr_b::What as StableAbi>::ABI_INFO,
-        <i16_repr_a::What as StableAbi>::ABI_INFO,
-        <isize_repr_a::What as StableAbi>::ABI_INFO,
+        <c_repr_a::What as StableAbi>::LAYOUT,
+        <c_repr_b::What as StableAbi>::LAYOUT,
+        <u8_repr_a::What as StableAbi>::LAYOUT,
+        <u8_repr_b::What as StableAbi>::LAYOUT,
+        <u16_repr_a::What as StableAbi>::LAYOUT,
+        <usize_repr_a::What as StableAbi>::LAYOUT,
+        <i8_repr_a::What as StableAbi>::LAYOUT,
+        <i8_repr_b::What as StableAbi>::LAYOUT,
+        <i16_repr_a::What as StableAbi>::LAYOUT,
+        <isize_repr_a::What as StableAbi>::LAYOUT,
     ];
 
     check_imcompatible_with_others(list,|errs|{

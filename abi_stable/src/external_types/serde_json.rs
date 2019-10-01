@@ -495,6 +495,30 @@ assert_eq!(
     pub fn get_rstr(&self)->RStr<'_>{
         self.get().into()
     }
+
+    /// Gets a RawValueRef<'_> borrowing from this RawValueBox.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::{RawValueBox,RawValueRef};
+    ///
+    /// const JSON:&'static str=r##"{"bugs":"life"}"##;
+    ///
+    /// let raw=serde_json::from_str::<RawValueBox>(JSON).unwrap();
+    ///
+    /// assert_eq!( 
+    ///     raw.get(), 
+    ///     RawValueRef::try_from_str(JSON).unwrap().get()
+    /// );
+    ///
+    /// ```
+    #[inline]
+    pub fn as_raw_value_ref(&self)->RawValueRef<'_>{
+        unsafe{
+            RawValueRef::from_str_unchecked(self.get()) 
+        }
+    }
 }
 
 

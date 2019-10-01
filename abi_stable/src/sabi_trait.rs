@@ -9,7 +9,10 @@ pub mod reexports{
         ops::{Deref as __DerefTrait,DerefMut as __DerefMutTrait},
     };
 
-    pub use crate::marker_type::ErasedObject as __ErasedObject;
+    pub use crate::{
+        marker_type::ErasedObject as __ErasedObject,
+        pointer_trait::GetPointerKind as __GetPointerKind,
+    };
 
 
     pub mod __sabi_re{
@@ -17,18 +20,22 @@ pub mod reexports{
             erased_types::{
                 DynTrait,
                 GetVtable,
+                VTableDT,
                 traits::InterfaceFor,
             },
             marker_type::{UnsafeIgnoredType,SyncSend,UnsyncUnsend,UnsyncSend,SyncUnsend},
-            pointer_trait::{TransmuteElement,OwnedPointer},
+            pointer_trait::{CanTransmuteElement,TransmuteElement,OwnedPointer},
             prefix_type::{PrefixTypeTrait,WithMetadata},
             traits::IntoInner,
-            sabi_types::{StaticRef,MovePtr},
+            sabi_types::{RRef,MovePtr,StaticRef},
             sabi_trait::{
                 robject::{
                     RObject,
                 },
-                vtable::{GetVTable,RObjectVtable,GetRObjectVTable},
+                vtable::{
+                    RObjectVtable,GetRObjectVTable,
+                    VTableTO_DT,VTableTO_RO,VTableTO,
+                },
                 for_generated_code::{sabi_from_ref,sabi_from_mut},
             },
             std_types::RBox,
@@ -53,15 +60,14 @@ pub mod prelude{
     pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
 }
 
+pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
+
 #[doc(hidden)]
 pub mod for_generated_code;
-#[cfg(any(
-    all(test,not(feature="only_new_tests")),
-    feature="sabi_trait_examples"
-))]
-
 #[cfg(any(test,feature="sabi_trait_examples"))]
 pub mod examples;
+
+pub mod doc_examples;
 
 /**
 Contains `RObject` and related items.
@@ -71,14 +77,15 @@ pub mod robject;
 #[doc(hidden)]
 pub mod vtable;
 
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(test)]
+// #[cfg(all(test,not(feature="only_new_tests")))]
 pub mod tests;
 
 #[cfg(all(test,not(feature="only_new_tests")))]
 pub mod test_supertraits;
 
 use std::{
-    fmt::Debug,
+    fmt::{Debug,Display},
     marker::PhantomData,
 };
 
@@ -87,13 +94,14 @@ use self::{
         *,
         __sabi_re::*,
     },
-    vtable::BaseVtable,
+    vtable::{BaseVtable},
 };
+
+pub use self::vtable::{VTableTO_DT,VTableTO_RO,VTableTO};
 
 use crate::{
     erased_types::{c_functions,InterfaceType},
     marker_type::ErasedObject,
     sabi_types::MaybeCmp,
     std_types::Tuple2,
-    type_layout::Tag,
 };

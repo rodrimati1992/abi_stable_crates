@@ -6,7 +6,7 @@ Traits for types wrapped in `DynTrait<_>`
 use std::{mem,marker::PhantomData};
 
 use crate::{
-    sabi_types::VersionStrings,
+    sabi_types::{Constructor,VersionStrings},
     std_types::{RBoxError, StaticStr},
 };
 
@@ -97,7 +97,6 @@ The value of every associated type can be.
 
 use abi_stable::{
     StableAbi,
-    impl_InterfaceType,
     erased_types::InterfaceType,
     type_level::bools::*,
 };
@@ -228,32 +227,33 @@ impl InterfaceType for FooInterface {
 /**
 Describes how this `implementation type` is serialized.
 */
-pub trait SerializeImplType{
-    type Interface:SerializeProxyType;
+pub trait SerializeImplType<'s>{
+    type Interface:SerializeProxyType<'s>;
 
     fn serialize_impl(
-        &self
-    ) -> Result<<Self::Interface as SerializeProxyType>::Proxy, RBoxError>;
+        &'s self
+    ) -> Result<<Self::Interface as SerializeProxyType<'s>>::Proxy, RBoxError>;
 }
 
 
 /**
 Gets the intermediate type an ImplType is converted into,to serialize it.
 */
-pub trait SerializeProxyType:InterfaceType{
+pub trait SerializeProxyType<'borr>:InterfaceType{
     /// The intermediate type an ImplType is converted into,to serialize it
-    type Proxy;
+    type Proxy:'borr;
 }
 
 #[doc(hidden)]
-pub trait GetSerializeProxyType:InterfaceType{
+pub trait GetSerializeProxyType<'borr>:InterfaceType{
     type ProxyType;
 }
 
-impl<I,PT> GetSerializeProxyType for I
+impl<'borr,I,PT> GetSerializeProxyType<'borr> for I
 where
     I:InterfaceType,
     I:GetSerializeProxyTypeHelper<
+        'borr,
         <I as InterfaceType>::Serialize,
         ProxyType=PT
     >,
@@ -262,18 +262,18 @@ where
 }
 
 #[doc(hidden)]
-pub trait GetSerializeProxyTypeHelper<IS>:InterfaceType{
+pub trait GetSerializeProxyTypeHelper<'borr,IS>:InterfaceType{
     type ProxyType;
 }
 
-impl<I> GetSerializeProxyTypeHelper<Implemented<trait_marker::Serialize>> for I
+impl<'borr,I> GetSerializeProxyTypeHelper<'borr,Implemented<trait_marker::Serialize>> for I
 where
-    I:SerializeProxyType,
+    I:SerializeProxyType<'borr>,
 {
-    type ProxyType=<I as SerializeProxyType>::Proxy;
+    type ProxyType=<I as SerializeProxyType<'borr>>::Proxy;
 }
 
-impl<I> GetSerializeProxyTypeHelper<Unimplemented<trait_marker::Serialize>> for I
+impl<'borr,I> GetSerializeProxyTypeHelper<'borr,Unimplemented<trait_marker::Serialize>> for I
 where
     I:InterfaceType,
 {
@@ -427,7 +427,7 @@ pub mod interface_for{
             size:mem::size_of::<T>(),
             alignment:mem::align_of::<T>(),
             _uid:<Unerasability as GetUTID<T>>::UID,
-            name:StaticStr::new("<erased>"),
+            type_name:Constructor(crate::utils::get_type_name::<T>),
             module:StaticStr::new("<unavailable>"),
             package:StaticStr::new("<unavailable>"),
             package_version:VersionStrings::new("99.99.99"),
@@ -435,7 +435,6 @@ pub mod interface_for{
         };
     }
 }
-
 
 
 

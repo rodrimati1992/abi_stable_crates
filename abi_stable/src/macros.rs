@@ -1,61 +1,96 @@
 
 /**
-Use this when constructing a `abi_stable::abi_stability::TypeLayoutParams`
-when manually implementing StableAbi,
-to more ergonomically initialize the generics field.
+Use this when constructing a `abi_stable::type_layout::MonoTypeLayout`
+when manually implementing StableAbi.
 
-# Example 
+This stores indices and ranges for the type and/or const parameter taken 
+from the SharedVars of the TypeLayout where this is stored.
 
-A type with lifetime type,and lifetime parameters:
+# Syntax
+
+`tl_genparams!( (<lifetime>),* ; <convertible_to_startlen>; <convertible_to_startlen> )`
+
+`<convertible_to_startlen>` is one of:
+
+-``: No generic parameters of that kind.
+
+-`i`: 
+    Takes the ith generic parameter
+    from the SharedVars slice of type or the one of const parameters.
+
+-`i..j`: 
+    Takes from i to j exclusive generic parameter
+    from the SharedVars slice of type or the one of const parameters.
+
+-`i..=j`: 
+    Takes from i to j inclusive generic parameter
+    from the SharedVars slice of type or the one of const parameters.
+
+-`x:StartLen`: 
+    Takes from x.start() to x.end() exclusive generic parameter
+    from the SharedVars slice of type or the one of const parameters.
+
+
+
+# Examples
+
+### No generic parameters:
 
 ```
 use abi_stable::{
+    type_layout::CompGenericParams,
     tl_genparams,
-    StableAbi,
-    type_layout::GenericParams
 };
 
-struct Reference<'a,'b,T,U>(&'a T,&'b U);
-
-impl<'a,'b,T,U> Reference<'a,'b,T,U>
-where
-    T:StableAbi,
-    U:StableAbi,
-{
-    const GENERICS:GenericParams=
-        tl_genparams!('a,'b ; T,U ; );
-}
-
+const PARAMS:CompGenericParams=tl_genparams!(;;);
 
 ```
 
-# Example
+### One lifetime,one type parameter,one const parameter
 
-A type with lifetime,type,and const parameters.
-
-Note that while this example won't compile until const parameters are usable,
-
-```ignore
+```
 use abi_stable::{
+    type_layout::CompGenericParams,
     tl_genparams,
-    StableAbi,
-    type_layout::GenericParams
 };
 
-struct ArrayReference<'a,'b,T,U,const SIZE_T:usize,const SIZE_U:usize>{
-    first:&'a [T;SIZE_T],
-    second:&'b [U;SIZE_U],
-}
+const PARAMS:CompGenericParams=tl_genparams!('a;0;0);
 
-impl<'a,'b,T,U,const SIZE_T:usize,const SIZE_U:usize> 
-    Reference<'a,'b,T,U,SIZE_T,SIZE_U>
-where
-    T:StableAbi,
-    U:StableAbi,
-{
-    const GENERICS:GenericParams=
-        tl_genparams!('a,'b ; T,U ; SIZE_T,SIZE_U );
-}
+```
+
+### One lifetime,two type parameters,no const parameters
+
+```
+use abi_stable::{
+    type_layout::CompGenericParams,
+    tl_genparams,
+};
+
+const PARAMS:CompGenericParams=tl_genparams!('a;0..=1;);
+
+```
+
+### Four lifetimes,no type parameters,three const parameters
+
+```
+use abi_stable::{
+    type_layout::CompGenericParams,
+    tl_genparams,
+};
+
+const PARAMS:CompGenericParams=tl_genparams!('a,'b,'c,'d;;0..3);
+
+```
+
+### No lifetimes,two type parameters,no const parameters
+
+```
+use abi_stable::{
+    type_layout::{CompGenericParams,StartLen},
+    tl_genparams,
+};
+
+const PARAMS:CompGenericParams=tl_genparams!(;StartLen::new(0,2););
 
 ```
 
@@ -64,29 +99,68 @@ where
 */
 #[macro_export]
 macro_rules! tl_genparams {
-    ( $($lt:lifetime),*  ; $($ty:ty),* $(,)*  ; $($const_p:expr),*  ) => ({
+    (count;  ) => ( 0 );
+    (count; $v0:lifetime) => ( 1 );
+    (count; $v0:lifetime,$v1:lifetime $(,$rem:lifetime)*) => ( 
+        2 + $crate::tl_genparams!(count; $($rem),* )
+    );
+    ( $($lt:lifetime),* $(,)? ; $($ty:expr)? ; $($const_p:expr)? ) => ({
         #[allow(unused_imports)]
         use $crate::{
             abi_stability::stable_abi_trait::SharedStableAbi,
-            type_layout::GenericParams,
-            std_types::StaticStr,
+            type_layout::CompGenericParams,
         };
 
-        GenericParams::new(
-            &[$( StaticStr::new( stringify!($lt) ) ,)*],
-            &[$( <$ty as SharedStableAbi>::S_LAYOUT ,)*],
-            &[$( StaticStr::new( stringify!($const_p) ) ,)*],
+        #[allow(unused_parens)]
+        let ty_param_range=$crate::type_layout::StartLenConverter( ($($ty)?) ).to_start_len();
+        
+        #[allow(unused_parens)]
+        let const_param_range=
+            $crate::type_layout::StartLenConverter( ($($const_p)?) ).to_start_len();
+
+        CompGenericParams::new(
+            $crate::nul_str!($(stringify!($lt),",",)*),
+            $crate::tl_genparams!(count; $($lt),* ),
+            ty_param_range,
+            const_param_range,
         )
     })
 }
 
 
-
-
 ///////////////////////////////////////////////////////////////////////
 
+/**
+Equivalent to `?` for `RResult<_,_>`.
 
-/// Equivalent to `?` for `RResult<_,_>`.
+# Example
+
+Defining an extern function that returns a result.
+
+```
+use abi_stable::{
+    std_types::{RResult,ROk,RErr,RBoxError,RStr,Tuple3},
+    traits::IntoReprC,
+    rtry,
+    sabi_extern_fn,
+};
+
+
+#[sabi_extern_fn]
+fn parse_tuple(s:RStr<'_>)->RResult<Tuple3<u32,u32,u32>,RBoxError>{
+    let mut iter=s.split(',').map(|x|x.trim());
+    ROk(Tuple3(
+        rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
+        rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
+        rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
+    ))
+}
+
+
+
+```
+
+*/
 #[macro_export]
 macro_rules! rtry {
     ($expr:expr) => {{
@@ -126,21 +200,6 @@ macro_rules! check_unerased {
 
 
 ///////////////////////////////////////////////////////////////////////
-
-
-macro_rules! make_rve_utypeid {
-    ($ty:ty) => (
-        $crate::sabi_types::ReturnValueEquality{
-            function:$crate::std_types::utypeid::new_utypeid::<$ty>
-        }
-    )
-}
-
-
-
-///////////////////////////////////////////////////////////////////////
-
-
 
 
 /**
@@ -289,17 +348,16 @@ macro_rules! impl_get_type_info {
             use std::mem;
             use $crate::{
                 erased_types::type_info::TypeInfo,
-                sabi_types::{ReturnValueEquality},
                 std_types::{StaticStr,utypeid::some_utypeid},
             };
 
+            $crate::impl_get_typename!{ let type_name= $type $([$($params)*])? }
+            
             &TypeInfo{
                 size:mem::size_of::<Self>(),
                 alignment:mem::align_of::<Self>(),
-                _uid:ReturnValueEquality{
-                    function:some_utypeid::<Self>
-                },
-                name:StaticStr::new(stringify!($type)),
+                _uid:$crate::sabi_types::Constructor( some_utypeid::<Self> ),
+                type_name,
                 module:StaticStr::new(module_path!()),
                 package:StaticStr::new(env!("CARGO_PKG_NAME")),
                 package_version:$crate::package_version_strings!(),
@@ -308,6 +366,37 @@ macro_rules! impl_get_type_info {
         }
     )
 }
+
+#[macro_export]
+#[cfg(not(any(rust_1_38,feature="rust_1_38")))]
+#[doc(hidden)]
+macro_rules! impl_get_typename{
+    (
+        let $type_name:ident = $type:ident $([$($params:tt)*])?
+    ) => (
+        let $type_name={
+            extern "C" fn __get_type_name()->$crate::std_types::RStr<'static>{
+                stringify!($type).into()
+            }
+
+            $crate::sabi_types::Constructor(__get_type_name)
+        };
+    )
+}
+
+#[macro_export]
+#[cfg(any(rust_1_38,feature="rust_1_38"))]
+#[doc(hidden)]
+macro_rules! impl_get_typename{
+    (
+        let $type_name:ident = $type:ident $([$($params:tt)*])?
+    ) => (
+        let $type_name=$crate::sabi_types::Constructor(
+            $crate::utils::get_type_name::<$type<$( $($params)* )? >>
+        );
+    )
+}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -365,14 +454,14 @@ macro_rules! tag {
     ([ $( $elem:expr ),* $(,)? ])=>{{
         use $crate::type_layout::tagging::{Tag,FromLiteral};
         
-        Tag::arr(&[
+        Tag::arr($crate::rslice![
             $( FromLiteral($elem).to_tag(), )*
         ])
     }};
     ({ $( $key:expr=>$value:expr ),* $(,)? })=>{{
         use $crate::type_layout::tagging::{FromLiteral,Tag};
 
-        Tag::map(&[
+        Tag::map($crate::rslice![
             $(
                 Tag::kv(
                     FromLiteral($key).to_tag(),
@@ -384,7 +473,7 @@ macro_rules! tag {
     ({ $( $key:expr ),* $(,)? })=>{{
         use $crate::type_layout::tagging::{Tag,FromLiteral};
 
-        Tag::set(&[
+        Tag::set($crate::rslice![
             $(
                 FromLiteral($key).to_tag(),
             )*
@@ -431,11 +520,369 @@ macro_rules! make_item_info {
                 env!("CARGO_PKG_VERSION")
             ),
             line!(),
-            $crate::type_layout::ModPath::inside(module_path!()),
+            $crate::type_layout::ModPath::inside($crate::nul_str!(module_path!())),
         )
     )
 }
 
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+
+/**
+Constructs an `RVec<_>` using the same syntax that the `std::vec` macro uses.
+
+# Example
+
+```
+
+use abi_stable::{
+    rvec,
+    std_types::RVec,  
+};
+
+assert_eq!(RVec::<u32>::new(), rvec![]);
+assert_eq!(RVec::from(vec![0]), rvec![0]);
+assert_eq!(RVec::from(vec![0,3]), rvec![0,3]);
+assert_eq!(RVec::from(vec![0,3,6]), rvec![0,3,6]);
+assert_eq!(RVec::from(vec![1;10]), rvec![1;10]);
+
+```
+*/
+#[macro_export]
+macro_rules! rvec {
+    ( $( $anything:tt )* ) => (
+        $crate::std_types::RVec::from(vec![ $($anything)* ])
+    )
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+/**
+Use this macro to construct a `Tuple*` with the values passed to the macro.
+
+# Example 
+
+```
+use abi_stable::{
+    rtuple,
+    std_types::{Tuple1,Tuple2,Tuple3,Tuple4},
+};
+
+assert_eq!(rtuple!(), ());
+
+assert_eq!(rtuple!(3), Tuple1(3));
+
+assert_eq!(rtuple!(3,5), Tuple2(3,5));
+
+assert_eq!(rtuple!(3,5,8), Tuple3(3,5,8));
+
+assert_eq!(rtuple!(3,5,8,9), Tuple4(3,5,8,9));
+
+```
+
+*/
+
+#[macro_export]
+macro_rules! rtuple {
+    () => (());
+    ($v0:expr $(,)* ) => (
+        $crate::std_types::Tuple1($v0)
+    );
+    ($v0:expr,$v1:expr $(,)* ) => (
+        $crate::std_types::Tuple2($v0,$v1)
+    );
+    ($v0:expr,$v1:expr,$v2:expr $(,)* ) => (
+        $crate::std_types::Tuple3($v0,$v1,$v2)
+    );
+    ($v0:expr,$v1:expr,$v2:expr,$v3:expr $(,)* ) => (
+        $crate::std_types::Tuple4($v0,$v1,$v2,$v3)
+    );
+}
+
+
+/**
+Use this macro to get the type of a `Tuple*` with the types passed to the macro.
+
+# Example 
+
+```
+use abi_stable::{
+    RTuple,
+    std_types::{Tuple1,Tuple2,Tuple3,Tuple4},
+};
+
+let tuple0:RTuple!()=();
+
+let tuple1:RTuple!(i32)=Tuple1(3);
+
+let tuple2:RTuple!(i32,i32,)=Tuple2(3,5);
+
+let tuple3:RTuple!(i32,i32,u32,)=Tuple3(3,5,8);
+
+let tuple4:RTuple!(i32,i32,u32,u32)=Tuple4(3,5,8,9);
+
+
+```
+
+*/
+#[macro_export]
+macro_rules! RTuple {
+    () => (
+        ()
+    );
+    ($v0:ty $(,)* ) => (
+        $crate::std_types::Tuple1<$v0>
+    );
+    ($v0:ty,$v1:ty $(,)* ) => (
+        $crate::std_types::Tuple2<$v0,$v1>
+    );
+    ($v0:ty,$v1:ty,$v2:ty $(,)* ) => (
+        $crate::std_types::Tuple3<$v0,$v1,$v2>
+    );
+    ($v0:ty,$v1:ty,$v2:ty,$v3:ty $(,)* ) => (
+        $crate::std_types::Tuple4<$v0,$v1,$v2,$v3>
+    );
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+/**
+A macro to construct `RSlice<'_,T>` constants.
+
+# Examples
+
+```
+use abi_stable::{
+    std_types::RSlice,
+    rslice,
+};
+
+const RSLICE_0:RSlice<'static,u8>=rslice![];
+const RSLICE_1:RSlice<'static,u8>=rslice![1];
+const RSLICE_2:RSlice<'static,u8>=rslice![1,2];
+const RSLICE_3:RSlice<'static,u8>=rslice![1,2,3];
+const RSLICE_4:RSlice<'static,u8>=rslice![1,2,3,5];
+const RSLICE_5:RSlice<'static,u8>=rslice![1,2,3,5,8];
+const RSLICE_6:RSlice<'static,u8>=rslice![1,2,3,5,8,13];
+
+assert_eq!( RSLICE_0.as_slice(), <&[u8]>::default() );
+assert_eq!( RSLICE_0.len(), 0 );
+
+assert_eq!( RSLICE_1.as_slice(), &[1] );
+assert_eq!( RSLICE_1.len(), 1 );
+
+assert_eq!( RSLICE_2.as_slice(), &[1,2] );
+assert_eq!( RSLICE_2.len(), 2 );
+
+assert_eq!( RSLICE_3.as_slice(), &[1,2,3] );
+assert_eq!( RSLICE_3.len(), 3 );
+
+assert_eq!( RSLICE_4.as_slice(), &[1,2,3,5] );
+assert_eq!( RSLICE_4.len(), 4 );
+
+assert_eq!( RSLICE_5.as_slice(), &[1,2,3,5,8] );
+assert_eq!( RSLICE_5.len(), 5 );
+
+assert_eq!( RSLICE_6.as_slice(), &[1,2,3,5,8,13] );
+assert_eq!( RSLICE_6.len(), 6 );
+
+
+```
+
+*/
+#[macro_export]
+macro_rules! rslice {
+    (@count;  ) => ( 0 );
+    (@count; $v0:expr) => ( 1 );
+    (@count; $v0:expr,$v1:expr) => ( 2 );
+    (@count; $v0:expr,$v1:expr,$v2:expr) => ( 3 );
+    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr) => ( 4 );
+    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr $(,$rem:expr)+) => ( 
+        4 + $crate::rslice!(@count; $($rem),* )
+    );
+    () => (
+        $crate::std_types::RSlice::EMPTY
+    );
+    ( $( $elem:expr ),* $(,)* ) => (
+        unsafe{
+            // This forces the length to be evaluated at compile-time.
+            const _RSLICE_LEN:usize=$crate::rslice!(@count; $($elem),* );
+            $crate::std_types::RSlice::from_raw_parts_with_lifetime(
+                &[ $($elem),* ],
+                _RSLICE_LEN,
+            )
+        }
+    );
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+
+/**
+A macro to construct `RStr<'static>` constants.
+
+# Examples
+
+```
+use abi_stable::{
+    std_types::RStr,
+    rstr,
+};
+
+const RSTR_0:RStr<'static>=rstr!("");
+const RSTR_1:RStr<'static>=rstr!("1");
+const RSTR_2:RStr<'static>=rstr!("12");
+const RSTR_3:RStr<'static>=rstr!("123");
+const RSTR_4:RStr<'static>=rstr!("1235");
+const RSTR_5:RStr<'static>=rstr!("12358");
+const RSTR_6:RStr<'static>=rstr!("1235813");
+
+assert_eq!( RSTR_0.as_str(), "" );
+assert_eq!( RSTR_0.len(), 0 );
+
+assert_eq!( RSTR_1.as_str(), "1" );
+assert_eq!( RSTR_1.len(), 1 );
+
+assert_eq!( RSTR_2.as_str(), "12" );
+assert_eq!( RSTR_2.len(), 2 );
+
+assert_eq!( RSTR_3.as_str(), "123" );
+assert_eq!( RSTR_3.len(), 3 );
+
+assert_eq!( RSTR_4.as_str(), "1235" );
+assert_eq!( RSTR_4.len(), 4 );
+
+assert_eq!( RSTR_5.as_str(), "12358" );
+assert_eq!( RSTR_5.len(), 5 );
+
+assert_eq!( RSTR_6.as_str(), "1235813" );
+assert_eq!( RSTR_6.len(), 7 );
+
+
+```
+
+*/
+#[macro_export]
+macro_rules! rstr {
+    ( $lit:literal ) => {unsafe{
+        mod string_module{
+            $crate::get_string_length!{$lit}
+        }
+
+        $crate::std_types::RStr::from_raw_parts(
+            $lit.as_ptr(),
+            string_module::LEN,
+        )
+    }}
+}
+
+
+/**
+Constructs a NulStr from a string literal.
+
+# Example
+
+```
+use abi_stable::{
+    sabi_types::NulStr,
+    nul_str,
+};
+
+assert_eq!( nul_str!("Huh?").to_str_with_nul(), "Huh?\0" );
+assert_eq!( nul_str!("Hello!").to_str_with_nul(), "Hello!\0" );
+
+
+```
+*/
+#[macro_export]
+macro_rules! nul_str {
+    ( $($str:expr),* $(,)* ) => {unsafe{
+        $crate::sabi_types::NulStr::from_str(concat!($($str,)* "\0"))
+    }}
+}
+
+
+/**
+Constructs a RStr with the concatenation of the passed in strings,
+and variables with the range for the individual strings.
+*/
+macro_rules! multi_str {
+    (
+        $( #[$mod_attr:meta] )*
+        mod $module:ident {
+            $( const $variable:ident=$string:literal; )*
+        }
+    ) => (
+        $( #[$mod_attr] )*
+        mod $module{
+            $crate::abi_stable_derive::concatenated_and_ranges!{
+                CONCATENATED( $($variable=$string),* )
+            }
+        }
+    )
+}
+
+/**
+Constructs a `&'static SharedVars`
+*/
+macro_rules! make_shared_vars{
+    (
+        let ($mono_shared_vars:ident,$shared_vars:ident) ={
+            $(
+                strings={
+                     $( $variable:ident : $string:literal ),* $(,)*
+                },
+            )?
+            $( lifetime_indices=[ $($lifetime_indices:expr),* $(,)* ], )?
+            $( type_layouts=[ $($ty_layout:ty),* $(,)* ], )?
+            $( type_layouts_shared=[ $($ty_layout_shared:ty),* $(,)* ], )?
+            $( constants=[ $( $constants:expr ),* $(,)* ], )?
+        };
+    )=>{
+        multi_str!{
+            #[allow(non_upper_case_globals)]
+            mod _inner_multi_str_mod{
+                $( $( const $variable = $string; )* )?
+            }
+        }
+        $( use _inner_multi_str_mod::{$($variable,)*}; )?
+
+        #[allow(non_upper_case_globals)]
+        const $mono_shared_vars:&'static $crate::type_layout::MonoSharedVars=
+            &$crate::type_layout::MonoSharedVars::new(
+                _inner_multi_str_mod::CONCATENATED,
+                rslice![ $( $($lifetime_indices),* )? ],
+            );
+        
+        let $shared_vars={
+            #[allow(unused_imports)]
+            use $crate::abi_stability::stable_abi_trait::GetTypeLayoutCtor;
+
+            &$crate::type_layout::SharedVars::new(
+                $mono_shared_vars,
+                rslice![ 
+                    $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )? 
+                    $( $( GetTypeLayoutCtor::<$ty_layout_shared>::SHARED_STABLE_ABI,)* )? 
+                ],
+                rslice![$( 
+                    $(
+                        $crate::abi_stability::ConstGeneric::new(
+                            &$constants,
+                            $crate::abi_stability::GetConstGenericVTable::VTABLE,
+                        )
+                    ),* 
+                )?],
+            )
+        };
+    }
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////

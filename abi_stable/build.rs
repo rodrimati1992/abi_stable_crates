@@ -1,17 +1,20 @@
-use rustc_version::{version, Version};
+use rustc_version::{Version, Channel};
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../readme.md");
 
-    let rver = version().unwrap();
+    let rver = rustc_version::version().unwrap();
 
-    if rver < Version::new(1, 33, 0) {
-        panic!("\n\n`abi_stable` requires a Rust version greater than or equal to 1.34\n\n");
-    }if Version::new(1, 34, 0) <= rver {
-        println!("cargo:rustc-cfg=rust_1_34");
-    }if Version::new(1, 36, 0) <= rver {
+    if Version::new(1, 36, 0) <= rver {
         println!("cargo:rustc-cfg=rust_1_36");
+    }
+    if Version::new(1, 38, 0) <= rver {
+        println!("cargo:rustc-cfg=rust_1_38");
+    }
+    let channel=rustc_version::version_meta().unwrap().channel;
+    if let Channel::Nightly=channel {
+        println!("cargo:rustc-cfg=nightly_rust");
     }
 
     // skeptic::generate_doc_tests(&["../readme.md"]);

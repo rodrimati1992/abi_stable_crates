@@ -4,78 +4,140 @@ use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,push_err},
     },
-    std_types::{StaticSlice,StaticStr,RVec,RString},
+    const_utils::log2_usize,
+    std_types::{RSlice,RVec,RString},
 };
 
 
 ///////////////////////////
 
 
-/// The layout of an enum.
+/// The parts of the layout of an enum,that don't depend on generic parameters.
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
-pub struct TLEnum{
-    /// A ';' separated list of all variant names
-    pub variant_names:StaticStr,
-    /// The exhaustiveness of this enum.
-    pub exhaustiveness:IsExhaustive,
-    /// All the fields of the enums,not separated by variant.
-    pub fields: TLFieldsOrSlice,
-    /// The discriminants of the variants in the enum.
-    pub discriminants:TLDiscriminants,
+#[derive(Copy, Clone, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
+pub struct MonoTLEnum{
     /// The ammount of fields of each variant.
-    pub field_count:StaticSlice<u8>,
+    field_count:*const u8,
+    field_count_len:u16,
+
+    /// A ';' separated list of all variant names
+    variant_names:StartLen,
+
+    /// All the fields of the enums,not separated by variant.
+    pub(super) fields: CompTLFields,
+}
+
+unsafe impl Sync for MonoTLEnum {}
+unsafe impl Send for MonoTLEnum {}
+
+
+impl MonoTLEnum{
+    /// Constructs a `MonoTLEnum`.
+    pub const fn new(
+        variant_names:StartLen,
+        field_count:RSlice<'static,u8>,
+        fields: CompTLFields,
+    ) -> Self {
+        Self {
+            field_count:field_count.as_ptr(),
+            field_count_len:field_count.len() as u16,
+            variant_names,
+            fields,
+        }
+    }
+
+    /// Gets the ammount of variants in the enum.
+    pub fn variant_count(&self)->usize{
+        self.field_count_len as usize
+    }
+
+    /// Gets a slice with the ammount of fields for each variant in the enum.
+    pub fn field_count(&self)->RSlice<'static,u8>{
+        unsafe{
+            RSlice::from_raw_parts( self.field_count, self.field_count_len as usize )
+        }
+    }
+
+    /// Expands this into a TLEnum,with all the properties of an enum definition.
+    pub fn expand(self,other:GenericTLEnum,shared_vars:&'static SharedVars)->TLEnum{
+        TLEnum{
+            field_count:self.field_count(),
+            variant_names:(&shared_vars.strings()[self.variant_names.to_range()]).into(),
+            fields:self.fields.expand(shared_vars),
+            exhaustiveness: other.exhaustiveness,
+            discriminants: other.discriminants,
+        }
+    }
+}
+
+///////////////////////////
+
+/// The layout of an enum,that might depend on generic parameters.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
+pub struct GenericTLEnum{
+    /// The exhaustiveness of this enum.
+    exhaustiveness: IsExhaustive,
+    /// The discriminants of the variants in the enum.
+    discriminants: TLDiscriminants,
 }
 
 
-impl TLEnum{
-    /// Constructs a `TLData::Enum`.
+impl GenericTLEnum{
+    /// Constructs a `GenericTLEnum`.
     pub const fn new(
-        variant_names:&'static str,
         exhaustiveness:IsExhaustive,
-        fields: &'static [TLField],
         discriminants:TLDiscriminants,
-        field_count:&'static [u8],
     ) -> Self {
-        TLEnum {
-            variant_names:StaticStr::new(variant_names),
+        Self {
             exhaustiveness,
-            fields:TLFieldsOrSlice::from_slice(fields),
             discriminants,
-            field_count:StaticSlice::new(field_count),
         }
     }
 
-    /// Constructs a `TLData::Enum`.
-    #[doc(hidden)]
-    pub const fn for_derive(
-        variant_names:&'static str,
-        exhaustiveness:IsExhaustive,
-        fields: TLFields,
-        discriminants:TLDiscriminants,
-        field_count:&'static [u8],
-    ) -> Self {
-        TLEnum {
-            variant_names:StaticStr::new(variant_names),
-            exhaustiveness,
-            fields:TLFieldsOrSlice::TLFields(fields),
-            discriminants,
-            field_count:StaticSlice::new(field_count),
-        }
+    pub const fn exhaustive(discriminants:TLDiscriminants)->Self{
+        Self::new(IsExhaustive::exhaustive(),discriminants)
     }
+}
 
+
+///////////////////////////
+
+/// Every property about an enum specifically.
+#[derive(Debug,Copy,Clone,PartialEq,Eq)]
+pub struct TLEnum{
+    /// The ammount of fields of each variant.
+    pub field_count:RSlice<'static,u8>,
+
+    /// A ';' separated list of all variant names
+    pub variant_names:RStr<'static>,
+
+    /// All the fields of the enums,not separated by variant.
+    pub fields: TLFields,
+
+    /// The exhaustiveness of this enum.
+    pub exhaustiveness: IsExhaustive,
+
+    /// The discriminants of the variants in the enum.
+    pub discriminants: TLDiscriminants,
+}
+
+impl TLEnum{
+    /// Returns the ammount of variants in the enum.
+    pub fn variant_count(&self)->usize{
+        self.field_count.len()
+    }
     /// Returns an iterator over the names of the variants in this enum.
-    pub fn variant_names_iter(&self)->GetVariantNames{
+    pub fn variant_names_iter(
+        &self
+    )->impl ExactSizeIterator<Item=&'static str>+Clone+Debug+'static{
         GetVariantNames{
             split:self.variant_names.as_str().split(';'),
             length:self.field_count.len(),
             current:0,
         }
-    }
-
-    /// Returns the ammount of variants in the enum.
-    pub fn variant_count(&self)->usize{
-        self.field_count.len()
     }
 
     /// Returns the enum with the (maximum,minimum) ammount of variants.
@@ -86,16 +148,21 @@ impl TLEnum{
             (other,self)
         }
     }
+
 }
 
 
 impl Display for TLEnum {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f,"variants:{:?}",self.variant_names)?;
-        writeln!(f,"exhaustiveness:{:?}",self.exhaustiveness)?;
-        writeln!(f,"fields(all variants combined):\n{}",self.fields.to_string().left_padder(4))?;
-        writeln!(f,"discriminants:{:?}",self.discriminants)?;
+        writeln!(
+            f,
+            "fields(all variants combined):\n{}",
+            self.fields.to_string().left_padder(4)
+        )?;
         writeln!(f,"field counts(per-variant):{:?}",self.field_count)?;
+        writeln!(f,"exhaustiveness:{:?}",self.exhaustiveness)?;
+        writeln!(f,"discriminants:{:?}",self.discriminants)?;
         Ok(())        
     }
 }
@@ -103,6 +170,8 @@ impl Display for TLEnum {
 
 
 ///////////////////////////
+
+
 
 
 macro_rules! declare_tl_discriminants {
@@ -115,41 +184,111 @@ macro_rules! declare_tl_discriminants {
             $method:ident
         ))*
     ) => (
-        /// The discriminant of an enum variant.
+        /// The discriminants of an enum.
+        #[repr(C)]
+        #[derive(Copy, Clone, StableAbi)]
+        pub struct TLDiscriminants{
+            inner:TLDiscrsInner,
+        }
+
         #[repr(u8)]
-        #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
-        pub enum TLDiscriminants{
+        #[derive(Copy, Clone, StableAbi)]
+        enum TLDiscrsInner{
             $(
                 $(#[$variant_attr])*
-                $variant(StaticSlice<$ty>),
+                // Storing the length and pointer like this so that the enum 
+                // is only 2 usize large.
+                $variant{
+                    len:u16,
+                    discriminants:*const $ty,
+                },
             )*
         }
 
+        impl Debug for TLDiscriminants{
+            fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+                match self.inner {
+                    $(
+                        TLDiscrsInner::$variant{discriminants,len}=>unsafe{
+                            let slice=std::slice::from_raw_parts(discriminants,len as usize);
+                            Debug::fmt(slice,f)
+                        }
+                    )*
+                }
+            }
+        }
+
+        impl PartialEq for TLDiscriminants {
+            fn eq(&self,other:&Self)->bool{
+                match (self.inner,other.inner) {
+                    $(
+                        (
+                            TLDiscrsInner::$variant{discriminants: t_discr_ptr, len:t_len },
+                            TLDiscrsInner::$variant{discriminants: o_discr_ptr, len:o_len }
+                        )=>{
+                            let t_discrs=unsafe{
+                                RSlice::from_raw_parts(t_discr_ptr,t_len as usize) 
+                            };
+                            let o_discrs=unsafe{
+                                RSlice::from_raw_parts(o_discr_ptr,o_len as usize) 
+                            };
+                            t_discrs==o_discrs
+                        }
+                    )*
+                    _=>false,
+                }
+            }
+        }
+
+        impl Eq for TLDiscriminants{}
+
         impl TLDiscriminants{
+
             $(
                 $(#[$method_attr])*
-                pub const fn $method(arr:&'static [$ty])->Self{
-                    TLDiscriminants::$variant(StaticSlice::new(arr))
+                pub const fn $method(arr:RSlice<'static,$ty>)->Self{
+                    let inner=TLDiscrsInner::$variant{
+                        len:arr.len() as u16,
+                        discriminants:arr.as_ptr(),
+                    };
+                    TLDiscriminants{inner}
                 }
             )*
 
             /// Gets the type of a discriminant in this TLDiscriminants.
             pub fn discriminant_repr(&self)->DiscriminantRepr{
-                match self {
+                match self.inner {
                     $(
-                        TLDiscriminants::$variant{..}=>DiscriminantRepr::$variant,
+                        TLDiscrsInner::$variant{..}=>DiscriminantRepr::$variant,
                     )*
                 }
             }
 
+            /// Compares this TLDiscriminants with another,
+            ///
+            /// # Errors
+            /// 
+            /// This returns errors if:
+            ///
+            /// - The discriminant is of a different type
+            ///
+            /// - The value of the discriminants is different.
+            ///
             pub fn compare(&self,other:&Self)->Result<(),RVec<AbiInstability>>{
                 let mut errs=RVec::new();
-                match (self,other) {
+                match (self.inner,other.inner) {
                     $(
                         (
-                            TLDiscriminants::$variant(t_discrs),
-                            TLDiscriminants::$variant(o_discrs)
+                            TLDiscrsInner::$variant{discriminants: t_discr_ptr, len:t_len },
+                            TLDiscrsInner::$variant{discriminants: o_discr_ptr, len:o_len }
                         )=>{
+                            let t_discrs=unsafe{
+                                RSlice::from_raw_parts(t_discr_ptr,t_len as usize) 
+                            };
+                            let o_discrs=unsafe{
+                                RSlice::from_raw_parts(o_discr_ptr,o_len as usize) 
+                            };
+
                             for (&t_discr,&o_discr) in 
                                 t_discrs.as_slice().iter().zip(o_discrs.as_slice())
                             {
@@ -187,23 +326,74 @@ macro_rules! declare_tl_discriminants {
 
 
 declare_tl_discriminants!{
-    ( U8(u8) ,Signed  , from_u8_slice )
-    ( I8(i8) ,Unsigned, from_i8_slice )
-    ( U16(u16) ,Signed  , from_u16_slice )
-    ( I16(i16) ,Unsigned, from_i16_slice )
-    ( U32(u32) ,Signed  , from_u32_slice )
-    ( I32(i32) ,Unsigned, from_i32_slice )
-    ( U64(u64) ,Signed  , from_u64_slice )
-    ( I64(i64) ,Unsigned, from_i64_slice )
-    ( Usize(usize) ,Usize, from_usize_slice )
-    ( Isize(isize) ,Isize, from_isize_slice )
+    ( 
+        U8(u8) ,
+        Signed  , 
+        /// Constructs the variant from an `RSlice<'static,u8>`.
+        from_u8_slice
+    )
+    ( 
+        I8(i8) ,
+        Unsigned, 
+        /// Constructs the variant from an `RSlice<'static,i8>`.
+        from_i8_slice
+    )
+    ( 
+        U16(u16) ,
+        Signed  , 
+        /// Constructs the variant from an `RSlice<'static,u16>`.
+        from_u16_slice
+    )
+    ( 
+        I16(i16) ,
+        Unsigned, 
+        /// Constructs the variant from an `RSlice<'static,i16>`.
+        from_i16_slice
+    )
+    ( 
+        U32(u32) ,
+        Signed  , 
+        /// Constructs the variant from an `RSlice<'static,u32>`.
+        from_u32_slice
+    )
+    ( 
+        I32(i32) ,
+        Unsigned, 
+        /// Constructs the variant from an `RSlice<'static,i32>`.
+        from_i32_slice
+    )
+    ( 
+        U64(u64) ,
+        Signed  , 
+        /// Constructs the variant from an `RSlice<'static,u64>`.
+        from_u64_slice
+    )
+    ( 
+        I64(i64) ,
+        Unsigned, 
+        /// Constructs the variant from an `RSlice<'static,i64>`.
+        from_i64_slice
+    )
+    ( 
+        Usize(usize) ,
+        Usize, 
+        /// Constructs the variant from an `RSlice<'static,usize>`.
+        from_usize_slice
+    )
+    ( 
+        Isize(isize) ,
+        Isize, 
+        /// Constructs the variant from an `RSlice<'static,isize>`.
+        from_isize_slice
+    )
 }
 
 
 
-/// The discriminant of an enum variant.
+/// A discriminant of an enum variant.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLDiscriminant{
     /// The assigned value of a discriminant in a `#[repr(isize)]` enum.
     Isize(isize),
@@ -221,6 +411,7 @@ pub enum TLDiscriminant{
 /// How the discriminant of an enum is represented.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub enum DiscriminantRepr {
     /// The type of the discriminant for a `#[repr(u8)]`enum
     U8,
@@ -254,6 +445,7 @@ pub enum DiscriminantRepr {
 /// Whether this enum is exhaustive,if it is,it can add variants in minor versions.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct IsExhaustive{
     value:Option<&'static TLNonExhaustive>,
 }
@@ -286,9 +478,10 @@ impl IsExhaustive{
 /// Properties exclusive to nonexhaustive enums.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct TLNonExhaustive{
     original_size:usize,
-    original_alignment:usize,
+    original_alignment_pow2:u8,
 }
 
 
@@ -297,25 +490,34 @@ impl TLNonExhaustive{
     pub const fn new<T>()->Self{
         Self{
             original_size:std::mem::size_of::<T>(),
-            original_alignment:std::mem::align_of::<T>(),
+            original_alignment_pow2:log2_usize(mem::align_of::<T>()),
         }
+    }
+
+    #[inline]
+    fn original_size(&self)->usize{
+        self.original_size
+    }
+    #[inline]
+    fn original_alignment(&self)->usize{
+        1_usize << (self.original_alignment_pow2 as u32)
     }
 
     /// Checks that `layout` is compatible with `self.size` and `self.alignment`,
     /// returning an error if it's not.
     pub fn check_compatible(&self,layout:&TypeLayout)->Result<(),IncompatibleWithNonExhaustive>{
         let err=
-            layout.size < self.original_size || 
-            layout.alignment < self.original_alignment;
+            layout.size() < self.original_size() || 
+            layout.alignment() < self.original_alignment();
 
         if err {
             Err(IncompatibleWithNonExhaustive{
-                full_type:layout.full_type.to_string().into(),
-                module_path:layout.item_info.mod_path,
-                type_size:self.original_size,
-                type_alignment:self.original_alignment,
-                storage_size:layout.size,
-                storage_alignment:layout.alignment,
+                full_type:layout.full_type().to_string().into(),
+                module_path:layout.mod_path(),
+                type_size:self.original_size(),
+                type_alignment:self.original_alignment(),
+                storage_size:layout.size(),
+                storage_alignment:layout.alignment(),
             })
         }else{
             Ok(())
@@ -328,11 +530,12 @@ impl TLNonExhaustive{
 
 
 /**
-An error produced when checking that the Storage of a nonexhaustive enum is 
-compatible with the enum.
+An error declaring that the Storage of a nonexhaustive enum is 
+not compatible with the enum.
 */
 #[repr(C)]
-#[derive(Debug,Clone,PartialEq, Eq,StableAbi)]
+#[derive(Debug,Clone,PartialEq,Eq,StableAbi)]
+#[sabi(unsafe_sabi_opaque_fields)]
 pub struct IncompatibleWithNonExhaustive{
     full_type:RString,
     module_path:ModPath,
@@ -362,6 +565,8 @@ impl Display for IncompatibleWithNonExhaustive{
     }
 }
 
+impl std::error::Error for IncompatibleWithNonExhaustive{}
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -370,7 +575,7 @@ impl Display for IncompatibleWithNonExhaustive{
 An iterator that yields the names of an enum's variants.
 */
 #[derive(Debug,Clone)]
-pub struct GetVariantNames{
+struct GetVariantNames{
     split:std::str::Split<'static,char>,
     length:usize,
     current:usize,

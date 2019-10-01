@@ -14,12 +14,14 @@ use core_extensions::prelude::*;
 use crate::{
     abi_stability::StableAbi,
     pointer_trait::{
-        CallReferentDrop, TransmuteElement,
+        CallReferentDrop, CanTransmuteElement,
         GetPointerKind,PK_SmartPointer,
     },
-    sabi_types::ReturnValueEquality,
+    prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::{Constructor,StaticRef},
     std_types::{RResult,utypeid::{UTypeId,new_utypeid}},
 };
+
 
 #[cfg(all(test,not(feature="only_new_tests")))]
 mod test;
@@ -81,10 +83,7 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
     #[repr(C)]
     pub struct RArc<T> {
         data: *const T,
-        // This is a pointer instead of a static reference only because
-        // the compiler complains that T doesn't live for the static lifetime,
-        // even though ArcVtable<T> doesn't contain any T.
-        vtable: *const ArcVtable<T>,
+        vtable: StaticRef<ArcVtable<T>>,
         _marker: PhantomData<T>,
     }
 
@@ -93,7 +92,7 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
             fn(this){
                 let out = RArc {
                     data: Arc::into_raw(this),
-                    vtable: VTableGetter::LIB_VTABLE.as_prefix_raw(),
+                    vtable: WithMetadata::as_prefix(VTableGetter::LIB_VTABLE),
                     _marker: Default::default(),
                 };
                 out
@@ -105,7 +104,7 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
         type Kind=PK_SmartPointer;
     }
 
-    unsafe impl<T, O> TransmuteElement<O> for RArc<T> {
+    unsafe impl<T, O> CanTransmuteElement<O> for RArc<T> {
         type TransmutedPtr = RArc<O>;
     }
 
@@ -128,13 +127,15 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
 
         #[inline(always)]
         pub(crate) fn vtable<'a>(&self) -> &'a ArcVtable<T> {
-            unsafe { &*self.vtable }
+            self.vtable.get()
         }
 
         #[allow(dead_code)]
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
-            self.vtable = VTableGetter::LIB_VTABLE_FOR_TESTING.as_prefix_raw();
+            self.vtable = WithMetadata::as_prefix(
+                VTableGetter::LIB_VTABLE_FOR_TESTING
+            );
         }
     }
 }
@@ -185,7 +186,7 @@ impl<T> RArc<T> {
         T: Clone,
     {
         let this_vtable =this.vtable();
-        let other_vtable=VTableGetter::LIB_VTABLE.as_prefix();
+        let other_vtable=WithMetadata::as_prefix(VTableGetter::LIB_VTABLE).get();
         if ::std::ptr::eq(this_vtable,other_vtable)||
             this_vtable.type_id()==other_vtable.type_id()
         {
@@ -216,7 +217,9 @@ impl<T> RArc<T> {
     #[inline]
     pub fn try_unwrap(this: Self) -> Result<T, Self>{
         let vtable = this.vtable();
-        (vtable.try_unwrap())(this).into_result()
+        unsafe{
+            (vtable.try_unwrap())(this).into_result()
+        }
     }
 
     /// Attempts to create a mutable reference to `T`,
@@ -239,7 +242,9 @@ impl<T> RArc<T> {
     #[inline]
     pub fn get_mut(this: &mut Self) -> Option<&mut T>{
         let vtable = this.vtable();
-        (vtable.get_mut())(this)
+        unsafe{
+            (vtable.get_mut())(this)
+        }
     }
 
     /// Makes a mutable reference to `T`,
@@ -287,6 +292,53 @@ impl<T> RArc<T> {
             }
         }
     }
+
+    /// Gets the number of RArc that point to the value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RArc;
+    /// 
+    /// let arc=RArc::new(0);
+    /// assert_eq!( RArc::strong_count(&arc), 1 );
+    ///
+    /// let clone=RArc::clone(&arc);
+    /// assert_eq!( RArc::strong_count(&arc), 2 );
+    ///
+    /// ```
+    pub fn strong_count(this:&Self)->usize{
+        let vtable = this.vtable();
+        unsafe{
+            vtable.strong_count()(this)
+        }
+    }
+
+    /// Gets the number of std::sync::Weak that point to the value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RArc;
+    /// 
+    /// use std::sync::Arc;
+    /// 
+    /// let rustarc=Arc::new(0);
+    /// let arc=RArc::from(rustarc.clone());
+    /// assert_eq!( RArc::weak_count(&arc), 0 );
+    /// 
+    /// let weak_0=Arc::downgrade(&rustarc);
+    /// assert_eq!( RArc::weak_count(&arc), 1 );
+    ///
+    /// let weak_1=Arc::downgrade(&rustarc);
+    /// assert_eq!( RArc::weak_count(&arc), 2 );
+    /// ```
+    pub fn weak_count(this:&Self)->usize{
+        let vtable = this.vtable();
+        unsafe{
+            vtable.weak_count()(this)
+        }
+    }
     
 }
 
@@ -321,7 +373,9 @@ where
 
 impl<T> Clone for RArc<T> {
     fn clone(&self) -> Self {
-        (self.vtable().clone())(self)
+        unsafe{
+            (self.vtable().clone())(self)
+        }
     }
 }
 
@@ -361,38 +415,38 @@ unsafe impl<T> Send for RArc<T> where T: Send + Sync {}
 
 mod vtable_mod {
     use super::*;
-    use crate::prefix_type::{PrefixTypeTrait,WithMetadata};
 
     pub(super) struct VTableGetter<'a, T>(&'a T);
 
     impl<'a, T: 'a> VTableGetter<'a, T> {
         const DEFAULT_VTABLE:ArcVtableVal<T>=ArcVtableVal {
-            type_id:ReturnValueEquality{
-                function:new_utypeid::<RArc<()>>
-            },
+            type_id:Constructor( new_utypeid::<RArc<()>> ),
             destructor: destructor_arc::<T>,
             clone: clone_arc::<T>,
             get_mut: get_mut_arc::<T>,
             try_unwrap: try_unwrap_arc::<T>,
+            strong_count: strong_count_arc::<T>,
+            weak_count: weak_count_arc::<T>,
         };
 
         // The VTABLE for this type in this executable/library
-        pub(super) const LIB_VTABLE: &'a WithMetadata<ArcVtableVal<T>> = {
-            &WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE)
+        pub(super) const LIB_VTABLE: StaticRef<WithMetadata<ArcVtableVal<T>>> = unsafe{
+            StaticRef::from_raw(&WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::DEFAULT_VTABLE
+            ))
         };
 
         #[allow(dead_code)]
         #[cfg(test)]
-        pub(super) const LIB_VTABLE_FOR_TESTING: &'a WithMetadata<ArcVtableVal<T>> = {
-            &WithMetadata::new(
+        pub(super) const LIB_VTABLE_FOR_TESTING: StaticRef<WithMetadata<ArcVtableVal<T>>> = unsafe{
+            StaticRef::from_raw(&WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 ArcVtableVal{
-                    type_id:ReturnValueEquality{
-                        function:new_utypeid::<RArc<i32>>
-                    },
+                    type_id:Constructor( new_utypeid::<RArc<i32>> ),
                     ..Self::DEFAULT_VTABLE
                 }
-            )
+            ))
         };
     }
 
@@ -401,39 +455,41 @@ mod vtable_mod {
     #[sabi(kind(Prefix(prefix_struct="ArcVtable")))]
     #[sabi(missing_field(panic))]
     pub struct ArcVtableVal<T> {
-        pub(super) type_id:ReturnValueEquality<UTypeId>,
+        pub(super) type_id:Constructor<UTypeId>,
         pub(super) destructor: unsafe extern "C" fn(*const T, CallReferentDrop),
-        pub(super) clone: extern "C" fn(&RArc<T>) -> RArc<T>,
-        pub(super) get_mut: extern "C" fn(&mut RArc<T>) -> Option<&mut T>,
+        pub(super) clone: unsafe extern "C" fn(&RArc<T>) -> RArc<T>,
+        pub(super) get_mut: unsafe extern "C" fn(&mut RArc<T>) -> Option<&mut T>,
+        pub(super) try_unwrap: unsafe extern "C" fn(RArc<T>) -> RResult<T, RArc<T>>,
+        pub(super) strong_count: unsafe extern "C" fn(&RArc<T>) -> usize,
         #[sabi(last_prefix_field)]
-        pub(super) try_unwrap:extern "C" fn(RArc<T>) -> RResult<T, RArc<T>>,
+        pub(super) weak_count:unsafe extern "C" fn(&RArc<T>) -> usize,
     }
 
-}
-use self::vtable_mod::{ArcVtable, VTableGetter};
-
-unsafe extern "C" fn destructor_arc<T>(this: *const T, call_drop: CallReferentDrop) {
-    extern_fn_panic_handling! {no_early_return;
-        if call_drop == CallReferentDrop::Yes {
-            drop(Arc::from_raw(this));
-        } else {
-            drop(Arc::from_raw(this as *const ManuallyDrop<T>));
+    unsafe extern "C" fn destructor_arc<T>(this: *const T, call_drop: CallReferentDrop) {
+        extern_fn_panic_handling! {no_early_return;
+            if call_drop == CallReferentDrop::Yes {
+                drop(Arc::from_raw(this));
+            } else {
+                drop(Arc::from_raw(this as *const ManuallyDrop<T>));
+            }
         }
     }
-}
 
-extern "C" fn clone_arc<T>(this: &RArc<T>) -> RArc<T> {
-    unsafe {
-        this.data()
-            .piped(|x| Arc::from_raw(x))
-            .piped(ManuallyDrop::new)
-            .piped(|x| Arc::clone(&x))
-            .into()
+    unsafe fn with_arc_ref<T,F,R>(this:&RArc<T>,f:F)->R
+    where
+        F:FnOnce(&Arc<T>)->R
+    {
+        let x=this.data();
+        let x=Arc::from_raw(x);
+        let x=ManuallyDrop::new(x);
+        f(&x)
     }
-}
 
-extern "C" fn get_mut_arc<'a,T>(this: &'a mut RArc<T>) -> Option<&'a mut T> {
-    unsafe {
+    unsafe extern "C" fn clone_arc<T>(this: &RArc<T>) -> RArc<T> {
+        with_arc_ref(this,|x| Arc::clone(&x).into() )
+    }
+
+    unsafe extern "C" fn get_mut_arc<'a,T>(this: &'a mut RArc<T>) -> Option<&'a mut T> {
         let arc=Arc::from_raw(this.data());
         let mut arc=ManuallyDrop::new(arc);
         // This is fine,since we are only touching the data afterwards,
@@ -441,14 +497,23 @@ extern "C" fn get_mut_arc<'a,T>(this: &'a mut RArc<T>) -> Option<&'a mut T> {
         let arc:&'a mut Arc<T>=&mut *(&mut *arc as *mut Arc<T>);
         Arc::get_mut(arc)
     }
-}
 
-extern "C" fn try_unwrap_arc<T>(this: RArc<T>) -> RResult<T, RArc<T>> {
-    unsafe {
+    unsafe extern "C" fn try_unwrap_arc<T>(this: RArc<T>) -> RResult<T, RArc<T>> {
         this.into_raw()
             .piped(|x| Arc::from_raw(x))
             .piped(Arc::try_unwrap)
             .map_err(RArc::from)
             .into()
     }
+
+    unsafe extern "C" fn strong_count_arc<T>(this: &RArc<T>) -> usize {
+        with_arc_ref(this,|x| Arc::strong_count(&x) )
+    }
+
+    unsafe extern "C" fn weak_count_arc<T>(this: &RArc<T>) -> usize {
+        with_arc_ref(this,|x| Arc::weak_count(&x) )
+    }
+
+
 }
+use self::vtable_mod::{ArcVtable, VTableGetter};

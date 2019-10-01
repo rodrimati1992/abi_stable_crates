@@ -52,7 +52,7 @@ use abi_stable::{
 
 fn move_rbox_to_box<T>(rbox:RBox<T>)->Box<T>{
     rbox.in_move_ptr(|move_ptr|{
-        move_ptr.into_box()
+        MovePtr::into_box(move_ptr)
     })
 }
 
@@ -145,6 +145,7 @@ impl<'a,T> MovePtr<'a,T>{
     /// ```
     /// use abi_stable::{
     ///     pointer_trait::OwnedPointer,
+    ///     sabi_types::MovePtr,
     ///     std_types::RBox,
     /// };
     /// 
@@ -152,13 +153,13 @@ impl<'a,T> MovePtr<'a,T>{
     /// let address_rbox=&*rbox as *const String as usize;
     ///
     /// rbox.in_move_ptr(|move_ptr|{
-    ///     assert_eq!( address_rbox, move_ptr.as_ptr() as usize );
+    ///     assert_eq!( address_rbox, MovePtr::as_ptr(&move_ptr) as usize );
     /// });
     /// 
     /// ```
     #[inline]
-    pub const fn as_ptr(&self)->*const T{
-        self.ptr
+    pub const fn as_ptr(this:&Self)->*const T{
+        this.ptr
     }
 
     /// Gets a raw pointer to the value being moved.
@@ -170,20 +171,21 @@ impl<'a,T> MovePtr<'a,T>{
     /// ```
     /// use abi_stable::{
     ///     pointer_trait::OwnedPointer,
+    ///     sabi_types::MovePtr,
     ///     std_types::RBox,
     /// };
     /// 
     /// let rbox=RBox::new(String::from("NOPE"));
     /// let address_rbox=&*rbox as *const String as usize;
     ///
-    /// rbox.in_move_ptr(|move_ptr|{
-    ///     assert_eq!( address_rbox, move_ptr.as_mut_ptr() as usize );
+    /// rbox.in_move_ptr(|mut move_ptr|{
+    ///     assert_eq!( address_rbox, MovePtr::as_mut_ptr(&mut move_ptr) as usize );
     /// });
     /// 
     /// ```
     #[inline]
-    pub const fn as_mut_ptr(&self)->*const T{
-        self.ptr
+    pub fn as_mut_ptr(this:&mut Self)->*mut T{
+        this.ptr
     }
 
     /// Converts this MovePtr into a raw pointer,
@@ -194,21 +196,22 @@ impl<'a,T> MovePtr<'a,T>{
     /// ```
     /// use abi_stable::{
     ///     pointer_trait::OwnedPointer,
+    ///     sabi_types::MovePtr,
     ///     std_types::RBox,
     /// };
     /// 
     /// let rbox=RBox::new(String::from("NOPE"));
     ///
     /// let string=rbox.in_move_ptr(|move_ptr|unsafe{
-    ///     move_ptr.into_raw().read()
+    ///     MovePtr::into_raw(move_ptr).read()
     /// });
     /// 
     /// assert_eq!(string,String::from("NOPE"));
     /// 
     /// ```
-    pub const fn into_raw(self)->*mut T{
-        let ptr=self.ptr;
-        ManuallyDrop::new(self);
+    pub const fn into_raw(this:Self)->*mut T{
+        let ptr=this.ptr;
+        ManuallyDrop::new(this);
         ptr
     }
 
@@ -219,23 +222,24 @@ impl<'a,T> MovePtr<'a,T>{
     /// ```
     /// use abi_stable::{
     ///     pointer_trait::OwnedPointer,
+    ///     sabi_types::MovePtr,
     ///     std_types::RBox,
     /// };
     /// 
     /// let rbox=RBox::new(String::from("WHAT!!!"));
     ///
     /// let boxed=rbox.in_move_ptr(|move_ptr|unsafe{
-    ///     move_ptr.into_box()
+    ///     MovePtr::into_box(move_ptr)
     /// });
     /// 
     /// assert_eq!(boxed,Box::new(String::from("WHAT!!!")));
     /// 
     /// ```
-    pub fn into_box(self)->Box<T>{
+    pub fn into_box(this:Self)->Box<T>{
         unsafe{
             let allocated=alloc::alloc(Layout::new::<T>()) as *mut T;
 
-            self.into_raw().copy_to_nonoverlapping(allocated,1);
+            Self::into_raw(this).copy_to_nonoverlapping(allocated,1);
 
             Box::from_raw(allocated)
         }
@@ -248,20 +252,21 @@ impl<'a,T> MovePtr<'a,T>{
     /// ```
     /// use abi_stable::{
     ///     pointer_trait::OwnedPointer,
+    ///     sabi_types::MovePtr,
     ///     std_types::RBox,
     /// };
     /// 
     /// let rbox=RBox::new(String::from("WHAT!!!"));
     ///
     /// let boxed=rbox.in_move_ptr(|move_ptr|unsafe{
-    ///     move_ptr.into_rbox()
+    ///     MovePtr::into_rbox(move_ptr)
     /// });
     /// 
     /// assert_eq!( boxed, RBox::new(String::from("WHAT!!!")) );
     /// 
     /// ```
-    pub fn into_rbox(self)->RBox<T>{
-        self.into_box().into()
+    pub fn into_rbox(this:Self)->RBox<T>{
+        Self::into_box(this).into()
     }
 
     /// Moves the value out of the reference
@@ -271,19 +276,20 @@ impl<'a,T> MovePtr<'a,T>{
     /// ```
     /// use abi_stable::{
     ///     pointer_trait::OwnedPointer,
+    ///     sabi_types::MovePtr,
     ///     std_types::RBox,
     /// };
     /// 
     /// let rbox=RBox::new(String::from("(The Wi)zard(of)oz"));
     ///
-    /// let string=rbox.in_move_ptr(|ptr| ptr.into_inner() );
+    /// let string=rbox.in_move_ptr(|ptr| MovePtr::into_inner(ptr) );
     /// 
     /// assert_eq!( string, String::from("(The Wi)zard(of)oz") );
     /// 
     /// ```
     #[inline]
-    pub fn into_inner(self)->T{
-        let this=ManuallyDrop::new(self);
+    pub fn into_inner(this:Self)->T{
+        let this=ManuallyDrop::new(this);
         unsafe{ 
             this.ptr.read()
         }
@@ -325,7 +331,7 @@ impl<'a,T> IntoInner for MovePtr<'a,T>{
     type Element=T;
     
     fn into_inner_(self)->T{
-        self.into_inner()
+        Self::into_inner(self)
     }
 }
 
@@ -355,7 +361,7 @@ mod test{
             let move_ptr=MovePtr::new(&mut *cloned_arc);
             assert_eq!(Arc::strong_count(&*move_ptr),2);
             
-            let moved_arc=move_ptr.into_inner();
+            let moved_arc=MovePtr::into_inner(move_ptr);
             assert_eq!(Arc::strong_count(&moved_arc),2);
         }
         assert_eq!(Arc::strong_count(&arc),1);

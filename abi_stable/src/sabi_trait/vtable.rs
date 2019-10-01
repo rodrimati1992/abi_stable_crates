@@ -1,34 +1,23 @@
 use super::*;
 
 use crate::{
-    erased_types::FormattingMode,
+    erased_types::{FormattingMode,InterfaceBound,VTableDT},
     type_level::{
         unerasability::{GetUTID},
-        impl_enum::{Implemented,Unimplemented,IsImplemented},
+        impl_enum::{Implemented,Unimplemented},
         trait_marker,
     },
-    sabi_types::ReturnValueEquality,
-    std_types::{UTypeId,RResult,RString},
+    sabi_types::Constructor,
+    std_types::{UTypeId,RResult,RString,Tuple3},
 };
 
-/// Gets the vtable of a trait object.
-///
-/// # Safety
-///
-/// The vtable of the type implementing this trait must have
-/// `StaticRef<RObjectVtable<_Self,ErasedPtr,I>>` as its first declared field.
-pub unsafe trait GetVTable<IA,_Self,ErasedPtr,OrigPtr,Params>{
-    type VTable;
-    fn get_vtable()->StaticRef<Self::VTable>;
-}
+//////////////////////////////////////////////////////////////////////////////
 
-/// Gets an `RObjectVtable<_Self,ErasedPtr,TO>`,
+/// Gets an `RObjectVtable<_Self,ErasedPtr,TO>`(the vtable for RObject itself),
 /// which is stored as the first field of all generated trait object vtables.
 pub unsafe trait GetRObjectVTable<IA,_Self,ErasedPtr,OrigPtr>:Sized+InterfaceType{
     const ROBJECT_VTABLE:StaticRef<RObjectVtable<_Self,ErasedPtr,Self>>;
 }
-
-
 
 
 unsafe impl<IA,_Self,ErasedPtr,OrigPtr,I> 
@@ -38,9 +27,133 @@ where
 {
     const ROBJECT_VTABLE:StaticRef<RObjectVtable<_Self,ErasedPtr,Self>>={
         let prefix=GetRObjectVTableHelper::<IA,_Self,ErasedPtr,OrigPtr,I>::TMP_VTABLE;
-        WithMetadata::staticref_as_prefix(prefix)
+        WithMetadata::as_prefix(prefix)
     };
 }
+
+
+//////////////////////////////////////////////////////////////////////////////
+
+/// The `VTableTO` passed to `#[sabi_trait]`
+/// generated trait objects that have `RObject` as their backend.
+#[allow(non_camel_case_types)]
+pub type VTableTO_RO<T,OrigPtr,Unerasability,V>=VTableTO<T,OrigPtr,Unerasability,V,()>;
+
+/// The `VTableTO` passed to `#[sabi_trait]`
+/// generated trait objects that have `DynTrait` as their backend.
+#[allow(non_camel_case_types)]
+pub type VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>=
+    VTableTO<
+        _Self,
+        OrigPtr,
+        Unerasability,
+        V,
+        VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability>
+    >;
+
+
+
+/// This is used to safely pass the vtable to `#[sabi_trait]` generated trait objects,
+/// using `<Trait>_CTO::from_const( &value, <Trait>_MV::VTABLE )`.
+///
+/// `<Trait>` is whatever the name of the trait that one is constructing the trait object for.
+pub struct VTableTO<_Self,OrigPtr,Unerasability,V,DT>{
+    vtable:StaticRef<V>,
+    for_dyn_trait:DT,
+    _for:PhantomData<Constructor<Tuple3<_Self,OrigPtr,Unerasability>>>,
+}
+
+impl<_Self,OrigPtr,Unerasability,V,DT> Copy for VTableTO<_Self,OrigPtr,Unerasability,V,DT>
+where DT:Copy
+{}
+
+impl<_Self,OrigPtr,Unerasability,V,DT> Clone for VTableTO<_Self,OrigPtr,Unerasability,V,DT>
+where DT:Copy
+{
+    fn clone(&self)->Self{
+        *self
+    }
+}
+
+
+impl<_Self,OrigPtr,Unerasability,V> VTableTO<_Self,OrigPtr,Unerasability,V,()>{
+
+/**
+Wraps an erased vtable.
+
+# Safety
+
+These are the requirements for the caller:
+
+- `OrigPtr` must be a pointer to the type that the vtable functions 
+    take as the first parameter.
+
+- The vtable must not come from a reborrowed RObject
+    (created using RObject::reborrow or RObject::reborrow_mut).
+
+- The vtable must be the `<SomeVTableName>` of a struct declared with 
+    `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_struct="<SomeVTableName>")))]`.
+
+- The vtable must have `StaticRef<RObjectVtable<..>>` 
+    as its first declared field
+*/
+    pub const unsafe fn for_robject(vtable:StaticRef<V>)->Self{
+        Self{
+            vtable,
+            for_dyn_trait:(),
+            _for:PhantomData
+        }
+    }
+
+
+}
+
+
+impl<_Self,OrigPtr,Unerasability,V,DT> VTableTO<_Self,OrigPtr,Unerasability,V,DT>{
+    /// Gets the vtable that RObject is constructed with.
+    pub const fn robject_vtable(&self)->StaticRef<V>{
+        self.vtable
+    }
+}
+
+impl<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V> 
+    VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>
+{
+    /// Gets the vtable for DynTrait.
+    pub const fn dyntrait_vtable(
+        &self
+    )->VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability>{
+        self.for_dyn_trait
+    }
+}
+
+impl<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V> 
+    VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>
+{
+
+/**
+Wraps an erased vtable,alongside the vtable for DynTrait.
+
+# Safety
+
+This has the same safety requirements as the 'for_robject' constructor
+*/
+    pub const unsafe fn for_dyntrait(
+        vtable:StaticRef<V>,
+        for_dyn_trait:VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability>,
+    )->Self{
+        Self{
+            vtable,
+            for_dyn_trait,
+            _for:PhantomData
+        }
+    }
+    
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+
 
 
 #[doc(hidden)]
@@ -55,6 +168,7 @@ where
     I::Send:RequiresSend<_Self,ErasedPtr,OrigPtr>,
     I::Clone:InitCloneField<_Self,ErasedPtr,OrigPtr>,
     I::Debug:InitDebugField<_Self,ErasedPtr,OrigPtr>,
+    I::Display:InitDisplayField<_Self,ErasedPtr,OrigPtr>,
     IA:GetUTID<_Self>,
 {
     const VTABLE_VAL:RObjectVtableVal<_Self,ErasedPtr,I>=
@@ -64,6 +178,7 @@ where
             _sabi_drop:c_functions::drop_pointer_impl::<OrigPtr,ErasedPtr>,
             _sabi_clone:<I::Clone as InitCloneField<_Self,ErasedPtr,OrigPtr>>::VALUE,
             _sabi_debug:<I::Debug as InitDebugField<_Self,ErasedPtr,OrigPtr>>::VALUE,
+            _sabi_display:<I::Display as InitDisplayField<_Self,ErasedPtr,OrigPtr>>::VALUE,
         };
 }
 
@@ -98,12 +213,15 @@ where
 pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
     pub _sabi_tys:PhantomData<extern "C" fn(_Self,ErasedPtr,I)>,
     
-    pub _sabi_type_id:ReturnValueEquality<MaybeCmp<UTypeId>>,
+    pub _sabi_type_id:Constructor<MaybeCmp<UTypeId>>,
 
     #[sabi(last_prefix_field)]
     pub _sabi_drop :unsafe extern "C" fn(this:&mut ErasedPtr),
     pub _sabi_clone:Option<unsafe extern "C" fn(this:&ErasedPtr)->ErasedPtr>,
     pub _sabi_debug:Option<
+        unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
+    >,
+    pub _sabi_display:Option<
         unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
     >,
 }
@@ -116,7 +234,7 @@ pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
 #[derive(StableAbi)]
 #[sabi(
     bound="I:InterfaceBound",
-    tag="<I as InterfaceBound>::TAG",
+    extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
     kind(Prefix(prefix_struct="BaseVtable")),
 )]
 pub(super)struct BaseVtableVal<_Self,ErasedPtr,I>{
@@ -205,64 +323,16 @@ pub mod trait_bounds{
         type=unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
         value=c_functions::debug_impl::<_Self>,
     }
+    declare_field_initalizer!{
+        type Display;
+        trait InitDisplayField[_Self,ErasedPtr,OrigPtr]
+        where [ _Self:Display ]
+        type=unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
+        value=c_functions::display_impl::<_Self>,
+    }
 
 
 
 
 }
 
-macro_rules! declare_InterfaceBound {
-    (
-        auto_traits=[ $( $auto_trait:ident ),* ]
-        required_traits=[ $( $required_traits:ident ),* ]
-    ) => (
-
-        #[allow(non_upper_case_globals)]
-        pub trait InterfaceBound:InterfaceType{
-            const TAG:Tag;
-            $(const $auto_trait:bool;)*
-            $(const $required_traits:bool;)*
-        }
-
-        #[allow(non_upper_case_globals)]
-        impl<I> InterfaceBound for I
-        where 
-            I:InterfaceType,
-            $(I::$auto_trait:IsImplemented,)*
-            $(I::$required_traits:IsImplemented,)*
-        {
-            const TAG:Tag={
-                const fn str_if(cond:bool,s:&'static str)->Tag{
-                    [ Tag::null(), Tag::str(s) ][cond as usize]
-                }
-
-                tag!{{
-                    "auto traits"=>tag![[
-                        $(  
-                            str_if(
-                                <I::$auto_trait as IsImplemented>::VALUE,
-                                stringify!($auto_trait)
-                            ),
-                        )*
-                    ]],
-                    "required traits"=>tag!{{
-                        $(  
-                            str_if(
-                                <I::$required_traits as IsImplemented>::VALUE,
-                                stringify!($required_traits)
-                            ),
-                        )*
-                    }}
-                }}
-            };
-
-            $(const $auto_trait:bool=<I::$auto_trait as IsImplemented>::VALUE;)*
-            $(const $required_traits:bool=<I::$required_traits as IsImplemented>::VALUE;)*
-        }
-    )
-}
-
-declare_InterfaceBound!{
-    auto_traits=[ Sync,Send ]
-    required_traits=[ Clone,Debug ]
-}

@@ -51,9 +51,11 @@ Currently this library has these features:
 
 For **examples** of using `abi_stable` you can look at the readme,
 or for the crates in the examples directory in the repository for this crate.
+This crate also has examples for most features on their own.
 
 To run the examples generally you'll have to build the `*_impl` crate,
 then run the `*_user` crate (all `*_user` crates should have a help message and a readme.md).
+
 
 # Glossary
 
@@ -109,6 +111,9 @@ These are the kinds of types passed through FFI:
 - [Unsafe code guidelines](./docs/unsafe_code_guidelines/index.html):<br>
     Describes how to write unsafe code ,relating to this library.
 
+- [Troubleshooting](./docs/troubleshooting/index.html):<br>
+    Some problems and their solutions.
+
 # Macros (derive and attribute)
 
 - [sabi_trait attribute macro](./docs/sabi_trait_attribute/index.html):<br>
@@ -126,11 +131,18 @@ These are the kinds of types passed through FFI:
     The method by which *vtables* and *modules* are implemented,
     allowing extending them in minor versions of a library.
 
+
 */
 
 #![allow(unused_unsafe)]
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
+
+// this only requires nightly features if it's in the nightly channel
+#![cfg_attr(
+    all(nightly_rust,feature="nightly_const_params"),
+    feature(const_generics)
+)]
 
 #[allow(unused_imports)]
 #[cfg(test)]
@@ -154,9 +166,17 @@ pub use abi_stable_derive::{
 #[doc(inline)]
 pub use abi_stable_derive::{
     export_root_module,
-    impl_InterfaceType,
     sabi_trait,
     sabi_extern_fn,
+};
+
+use abi_stable_derive::{
+    impl_InterfaceType,
+};
+
+#[doc(hidden)]
+pub use abi_stable_derive::{
+    get_string_length,
 };
 
 #[macro_use]
@@ -165,6 +185,9 @@ mod impls;
 
 #[macro_use]
 mod macros;
+
+#[macro_use]
+mod internal_macros;
 
 
 #[cfg(test)]
@@ -257,10 +280,10 @@ pub mod globals{
     use crate::{
         abi_stability::{
             abi_checking::{check_layout_compatibility_for_ffi},
-            stable_abi_trait::AbiInfoWrapper,
         },
         sabi_types::LateStaticRef,
         std_types::{RResult,RBoxError},
+        type_layout::TypeLayout,
         utils::leak_value,
     };
 
@@ -268,7 +291,7 @@ pub mod globals{
     #[derive(StableAbi)]
     pub struct Globals{
         pub layout_checking:
-            extern fn(&'static AbiInfoWrapper,&'static AbiInfoWrapper) -> RResult<(), RBoxError> ,
+            extern "C" fn(&'static TypeLayout,&'static TypeLayout) -> RResult<(), RBoxError> ,
     }
 
     impl Globals{
@@ -288,7 +311,7 @@ pub mod globals{
 
 
     #[inline(never)]
-    pub extern fn initialize_globals_with(globs:&'static Globals){
+    pub extern "C" fn initialize_globals_with(globs:&'static Globals){
         GLOBALS.init(|| globs );
     }
 }

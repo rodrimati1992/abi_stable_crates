@@ -5,8 +5,6 @@ Where the StableAbi trait is declared,as well as related types/traits.
 use core_extensions::type_level_bool::{Boolean, False, True};
 use std::{
     cell::{Cell,UnsafeCell},
-    cmp::{Eq,PartialEq},
-    fmt,
     marker::{PhantomData,PhantomPinned},
     mem::ManuallyDrop,
     num::{NonZeroU8,NonZeroU16,NonZeroU32,NonZeroU64,NonZeroUsize,Wrapping},
@@ -17,12 +15,14 @@ use std::{
 
 use crate::{
     abi_stability::get_static_equivalent::GetStaticEquivalent_,
-    std_types::{RNone, RSome, utypeid::UTypeId},
-    sabi_types::ReturnValueEquality,
+    sabi_types::Constructor,
+    std_types::utypeid::UTypeId,
     reflection::ModReflMode,
     type_layout::{
-        LifetimeIndex, TLData, TLField, TypeLayout, TypeLayoutParams,
-        ItemInfo,ReprAttr,TLPrimitive,TLEnum,TLDiscriminants,IsExhaustive,
+        LifetimeRange, 
+        MonoTLData, GenericTLData, TypeLayout, MonoTypeLayout,
+        ItemInfo,ReprAttr,TLPrimitive,TLDiscriminants,
+        GenericTLEnum, MonoTLEnum, CompTLField, CompTLFields, StartLen, DiscriminantRepr,
     },
 };
 
@@ -43,8 +43,7 @@ pub unsafe trait StableAbi:SharedStableAbi<Kind=ValueKind> {
     /// The layout of the type provided by implementors.
     const LAYOUT: &'static TypeLayout;
 
-    /// The layout of the type,derived from Self::LAYOUT and associated types.
-    const ABI_INFO: &'static AbiInfoWrapper;
+    const ABI_CONSTS: AbiConsts;
 }
 
 
@@ -55,8 +54,9 @@ This trait can be derived using ``.
 
 # Safety
 
-The layout of types implementing this trait can only change by 
-adding fields at the end,if it stores a `TLData::PrefixType` in `TypeLayout.data`,
+The layout specified in `S_LAYOUT` must be correct,
+otherwise type checking when loading a dynamic library would be unsound,
+and passing this into a dynamic library would be equivalent to transmuting it.
 
 # Caveats
 
@@ -82,7 +82,7 @@ Non-exhaustive list of std types that are NonZero:
 
 - &mut T (any T).
 
-- extern fn().
+- extern "C" fn().
 
 - std::ptr::NonNull
 
@@ -107,17 +107,11 @@ The kind of abi stability of this type,there are 2:
     /// The layout of the type provided by implementors.
     const S_LAYOUT: &'static TypeLayout;
 
-    /// The layout of the type,derived from Self::LAYOUT and associated types.
-    const S_ABI_INFO: &'static AbiInfoWrapper = {
-        let info = AbiInfo {
-            kind:<Self::Kind as TypeKindTrait>::VALUE,
-            prefix_kind: <Self::Kind as TypeKindTrait>::IS_PREFIX,
-            type_id:make_rve_utypeid!(Self::StaticEquivalent),
-            is_nonzero: <Self::IsNonZeroType as Boolean>::VALUE,
-            layout: Self::S_LAYOUT,
-        };
-
-        &AbiInfoWrapper::new(info)
+    const S_ABI_CONSTS: AbiConsts=AbiConsts {
+        type_id:Constructor(
+            crate::std_types::utypeid::new_utypeid::<Self::StaticEquivalent> 
+        ),
+        is_nonzero: <Self::IsNonZeroType as Boolean>::VALUE,
     };
 }
 
@@ -127,66 +121,30 @@ where
     This:SharedStableAbi<Kind=ValueKind>,
 {
     const LAYOUT: &'static TypeLayout=<This as SharedStableAbi>::S_LAYOUT;
-    const ABI_INFO: &'static AbiInfoWrapper=<This as SharedStableAbi>::S_ABI_INFO;
+
+    const ABI_CONSTS: AbiConsts=<This as SharedStableAbi>::S_ABI_CONSTS;
 }
 
 
 ///////////////////////
 
-/// Wraps a correctly constructed AbiInfo.
-#[derive(Debug, Copy, Clone, PartialEq)]
+/// Contains constants equivalent to the associated types in SharedStableAbi.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(C)]
 #[derive(StableAbi)]
-pub struct AbiInfoWrapper {
-    inner: AbiInfo,
-    _priv: (),
-}
-
-impl AbiInfoWrapper {
-    const fn new(inner: AbiInfo) -> Self {
-        Self { inner, _priv: () }
-    }
-    /// Unsafely constructs AbiInfoWrapper from any AbiInfo.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that the layout is that of the datatype this AbiInfo represents,
-    /// and that it stays consistent with it across time.
-    pub const unsafe fn new_unchecked(inner: AbiInfo) -> Self {
-        Self::new(inner)
-    }
-    /// Gets the wrapped AbiInfo.
-    pub const fn get(&self) -> &AbiInfo {
-        &self.inner
-    }
-}
-
-/// Describes the abi of some type.
-///
-/// # Safety
-///
-/// You must ensure that it describes the actual abi of the type.
-#[derive(Debug, Copy, Clone, PartialEq)]
-#[repr(C)]
-#[derive(StableAbi)]
-pub struct AbiInfo {
-    pub kind:TypeKind,
-    /// Whether this is a prefix,
-    pub prefix_kind: bool,
-    /// Equivalent to the UTypeId returned by the function in ReturnValueEquality.
-    pub type_id:ReturnValueEquality<UTypeId>,
+pub struct AbiConsts {
+    /// Equivalent to the UTypeId returned by the function in Constructor.
+    pub type_id:Constructor<UTypeId>,
+    
     /// Whether the type uses non-zero value optimization,
     /// if true then an Option<Self> implements StableAbi.
     pub is_nonzero: bool,
-    /// The layout of the type.
-    pub layout: &'static TypeLayout,
 }
 
-
-impl AbiInfo{
-    /// Gets the UTypeId for the `'static` equivalent of the type that created this AbiInfo.
-    pub fn get_utypeid(&self)->UTypeId{
-        (self.type_id.function)()
+impl AbiConsts{
+    #[inline]
+    pub fn get_type_id(&self)->UTypeId{
+        self.type_id.get()
     }
 }
 
@@ -239,121 +197,55 @@ impl TypeKindTrait for PrefixKind {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Gets for the AbiInfo of some type,wraps an `extern "C" fn() -> &'static AbiInfo`.
-#[derive(Copy, Clone)]
-#[repr(transparent)]
-#[derive(StableAbi)]
-// #[sabi(debug_print)]
-pub struct GetAbiInfo {
-    abi_info: extern "C" fn() -> &'static AbiInfo,
-}
+/// Gets for the TypeLayout of some type,wraps an `extern "C" fn() -> &'static TypeLayout`.
+pub type TypeLayoutCtor=Constructor<&'static TypeLayout>;
 
-impl fmt::Debug for GetAbiInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self.get(), f)
-    }
-}
-
-impl GetAbiInfo {
-    /// Gets the `&'static AbiInfo` of some type.
-    pub fn get(self) -> &'static AbiInfo {
-        (self.abi_info)()
-    }
-}
-
-impl Eq for GetAbiInfo{}
-
-impl PartialEq for GetAbiInfo{
-    fn eq(&self,other:&Self)->bool{
-        self.get()==other.get()
-    }
-}
-
-
-/// Constructs the GetAbiInfo for Self.
-///
-/// # Safety
-///
-/// Implementors must make sure that the AbiInfo actually describes the layout of the type.
-pub unsafe trait MakeGetAbiInfo<B> {
-    const CONST: GetAbiInfo;
-}
-
-unsafe impl<T> MakeGetAbiInfo<StableAbi_Bound> for T
-where
-    T: StableAbi,
-{
-    const CONST: GetAbiInfo = GetAbiInfo {
-        abi_info: get_abi_info::<T>,
-    };
-}
-
-unsafe impl<T> MakeGetAbiInfo<SharedStableAbi_Bound> for T
-where
-    T: SharedStableAbi,
-{
-    const CONST: GetAbiInfo = GetAbiInfo {
-        abi_info: get_ssa_abi_info::<T>,
-    };
-}
-
-unsafe impl<T> MakeGetAbiInfo<UnsafeOpaqueField_Bound> for T {
-    const CONST: GetAbiInfo = GetAbiInfo {
-        abi_info: get_abi_info::<UnsafeOpaqueField<T>>,
-    };
-}
+// pub unsafe trait GetTypeLayoutCtor<B> {
 
 
 #[doc(hidden)]
-pub struct MakeGetAbiInfoSA<T>(T);
+pub struct GetTypeLayoutCtor<T>(T);
 
-impl<T> MakeGetAbiInfoSA<T>
+impl<T> GetTypeLayoutCtor<T>
+where T: SharedStableAbi,
+{
+    pub const SHARED_STABLE_ABI:TypeLayoutCtor=Constructor (
+        get_ssa_type_layout::<T>,
+    );
+}
+
+impl<T> GetTypeLayoutCtor<T>
 where T: StableAbi,
 {
-    pub const STABLE_ABI:GetAbiInfo=GetAbiInfo {
-        abi_info: get_abi_info::<T>,
-    };
+    pub const STABLE_ABI:TypeLayoutCtor=Constructor (
+        get_type_layout::<T>,
+    );
+
+    pub const SABI_OPAQUE_FIELD:TypeLayoutCtor=Constructor (
+        get_type_layout::<SabiUnsafeOpaqueField<T>>,
+    );
 }
 
-
-#[doc(hidden)]
-pub struct MakeGetAbiInfoUF<T>(T);
-
-impl<T> MakeGetAbiInfoUF<T>{
-    pub const OPAQUE_FIELD:GetAbiInfo=GetAbiInfo {
-        abi_info: get_abi_info::<UnsafeOpaqueField<T>>,
-    };
+impl<T> GetTypeLayoutCtor<T>{
+    pub const OPAQUE_FIELD:TypeLayoutCtor=Constructor (
+        get_type_layout::<UnsafeOpaqueField<T>>,
+    );
 }
 
-
-/// Determines that MakeGetAbiInfo constructs the AbiInfo for a 
-/// type that implements StableAbi.
-#[allow(non_camel_case_types)]
-pub struct StableAbi_Bound;
-
-/// Determines that MakeGetAbiInfo constructs the AbiInfo for a 
-/// type that implements SharedStableAbi.
-#[allow(non_camel_case_types)]
-pub struct SharedStableAbi_Bound;
-
-/// Determines that MakeGetAbiInfo constructs the AbiInfo for any type (this is unsafe).
-#[allow(non_camel_case_types)]
-pub struct UnsafeOpaqueField_Bound;
-
-/// Retrieves the AbiInfo of `T:StableAbi`,
-pub extern "C" fn get_abi_info<T>() -> &'static AbiInfo
+/// Retrieves the TypeLayout of `T:StableAbi`,
+pub extern "C" fn get_type_layout<T>() -> &'static TypeLayout
 where
     T: StableAbi,
 {
-    T::ABI_INFO.get()
+    T::LAYOUT
 }
 
-/// Retrieves the AbiInfo of `T:SharedStableAbi`,
-pub extern "C" fn get_ssa_abi_info<T>() -> &'static AbiInfo
+/// Retrieves the TypeLayout of `T:SharedStableAbi`,
+pub extern "C" fn get_ssa_type_layout<T>() -> &'static TypeLayout
 where
     T: SharedStableAbi,
 {
-    T::S_ABI_INFO.get()
+    T::S_LAYOUT
 }
 
 
@@ -377,15 +269,34 @@ where T:StableAbi
     type Kind=ValueKind;
     type IsNonZeroType = False;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
-        "PhantomData",
-        RNone,
-        ItemInfo::std_type_in("std::marker"),
-        TLData::EMPTY,
-        ReprAttr::c(),
-        tl_genparams!(;;),
-        &[TLField::new("0",&[],<T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)],
-    );
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("PhantomData"),
+            ItemInfo::std_type_in(nul_str!("std::marker")),
+            MonoTLData::EMPTY,
+            tl_genparams!(;0;),
+            ReprAttr::C,
+            ModReflMode::Module,
+            rslice![CompTLField::std_field(field0,LifetimeRange::EMPTY,0)],
+        );
+
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={
+                strings={ field0:"0", },
+                type_layouts_shared=[T],
+            };
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Struct,
+        )
+    };
+
+
 }
 
 
@@ -396,14 +307,29 @@ unsafe impl SharedStableAbi for () {
     type Kind=ValueKind;
     type IsNonZeroType = False;
 
-    const S_LAYOUT: &'static TypeLayout =
-        &TypeLayout::from_std::<Self>(
-            "()", 
-            TLData::EMPTY,
-            ReprAttr::c(),
-            ItemInfo::primitive(), 
-            tl_genparams!(;;)
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("()"),
+            ItemInfo::primitive(),
+            MonoTLData::EMPTY,
+            tl_genparams!(;;),
+            ReprAttr::C,
+            ModReflMode::Module,
+            rslice![],
         );
+
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={};
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Struct,
+        )
+    };
 }
 
 
@@ -425,19 +351,32 @@ where
     type Kind=ValueKind;
     type IsNonZeroType = True;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
-        "&",
-        RSome(TLPrimitive::SharedRef),
-        ItemInfo::primitive(),
-        TLData::Primitive(TLPrimitive::SharedRef),
-        ReprAttr::Primitive,
-        tl_genparams!('a;T;),
-        &[TLField::new(
-            "0",
-            &[LifetimeIndex::Param(0)],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
-        )],
-    ).set_mod_refl_mode(ModReflMode::DelegateDeref{phantom_field_index:0});
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("&"),
+            ItemInfo::primitive(),
+            MonoTLData::Primitive(TLPrimitive::SharedRef),
+            tl_genparams!('a;0;),
+            ReprAttr::Primitive,
+            ModReflMode::DelegateDeref{layout_index:0},
+            rslice![CompTLField::std_field(field0,LifetimeRange::EMPTY,0)],
+        );
+
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={
+                strings={ field0:"0", },
+                type_layouts_shared=[T],
+            };
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Primitive,
+        )
+    };
 }
 
 
@@ -456,20 +395,34 @@ where
     type Kind=ValueKind;
     type IsNonZeroType = True;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
-        "&mut",
-        RSome(TLPrimitive::MutRef),
-        ItemInfo::primitive(),
-        TLData::Primitive(TLPrimitive::MutRef),
-        ReprAttr::Primitive,
-        tl_genparams!('a;T;),
-        &[TLField::new(
-            "0",
-            &[LifetimeIndex::Param(0)],
-            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
-        )],
-    );
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("&mut"),
+            ItemInfo::primitive(),
+            MonoTLData::Primitive(TLPrimitive::MutRef),
+            tl_genparams!('a;0;),
+            ReprAttr::Primitive,
+            ModReflMode::DelegateDeref{layout_index:0},
+            rslice![CompTLField::std_field(field0,LifetimeRange::EMPTY,0)],
+        );
+
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={
+                strings={ field0:"0", },
+                type_layouts_shared=[T],
+            };
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Primitive,
+        )
+    };
 }
+    
 
 
 unsafe impl<T> GetStaticEquivalent_ for NonNull<T>
@@ -487,21 +440,34 @@ where
     type Kind=ValueKind;
     type IsNonZeroType = True;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
-        "NonNull",
-        RNone,
-        ItemInfo::std_type_in("std::ptr"),
-        TLData::struct_(&[
-            TLField::new(
-                "0",
-                &[],
-                <*mut T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
-            )
-        ]),
-        ReprAttr::Transparent,
-        tl_genparams!(;T;),
-        &[],
-    );
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("NonNull"),
+            ItemInfo::std_type_in(nul_str!("std::ptr")),
+            MonoTLData::struct_(rslice![ 
+                CompTLField::std_field(field0,LifetimeRange::EMPTY,1) 
+            ]),
+            tl_genparams!(;0;),
+            ReprAttr::Transparent,
+            ModReflMode::Module,
+            rslice![],
+        );
+
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={
+                strings={ field0:"0", },
+                type_layouts=[T,*const T],
+            };
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Struct,
+        )
+    };
 }
 
 
@@ -519,21 +485,34 @@ where
     type Kind=ValueKind;
     type IsNonZeroType = False;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
-        "AtomicPtr",
-        RNone,
-        ItemInfo::std_type_in("std::sync::atomic"),
-        TLData::struct_(&[
-            TLField::new(
-                "0",
-                &[],
-                <*mut T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
-            )
-        ]),
-        ReprAttr::Transparent,
-        tl_genparams!(;T;),
-        &[],
-    );
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("AtomicPtr"),
+            ItemInfo::std_type_in(nul_str!("std::sync::atomic")),
+            MonoTLData::struct_(rslice![ 
+                CompTLField::std_field(field0,LifetimeRange::EMPTY,1) 
+            ]),
+            tl_genparams!(;0;),
+            ReprAttr::Transparent,
+            ModReflMode::Module,
+            rslice![],
+        );
+
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={
+                strings={ field0:"0", },
+                type_layouts=[T,*mut T],
+            };
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Struct,
+        )
+    };
 }
 
 unsafe impl<T> GetStaticEquivalent_ for *const T
@@ -550,19 +529,32 @@ where
     type Kind=ValueKind;
     type IsNonZeroType = False;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
-        "*const",
-        RSome(TLPrimitive::ConstPtr),
-        ItemInfo::primitive(),
-        TLData::Primitive(TLPrimitive::ConstPtr),
-        ReprAttr::Primitive,
-        tl_genparams!(;T;),
-        &[TLField::new(
-            "0",
-            &[],
-            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST,
-        )],
-    );
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("*const"),
+            ItemInfo::primitive(),
+            MonoTLData::Primitive(TLPrimitive::ConstPtr),
+            tl_genparams!(;0;),
+            ReprAttr::Primitive,
+            ModReflMode::Module,
+            rslice![ CompTLField::std_field(field0,LifetimeRange::EMPTY,0) ],
+        );
+
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={
+                strings={ field0:"0", },
+                type_layouts_shared=[T],
+            };
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Primitive,
+        )
+    };
 }
 
 
@@ -580,19 +572,32 @@ where
     type Kind=ValueKind;
     type IsNonZeroType = False;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
-        "*mut",
-        RSome(TLPrimitive::MutPtr),
-        ItemInfo::primitive(),
-        TLData::Primitive(TLPrimitive::MutPtr),
-        ReprAttr::Primitive,
-        tl_genparams!(;T;),
-        &[TLField::new(
-            "0",
-            &[],
-            <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
-        )],
-    );
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("*mut"),
+            ItemInfo::primitive(),
+            MonoTLData::Primitive(TLPrimitive::MutPtr),
+            tl_genparams!(;0;),
+            ReprAttr::Primitive,
+            ModReflMode::Module,
+            rslice![ CompTLField::std_field(field0,LifetimeRange::EMPTY,0) ],
+        );
+
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={
+                strings={ field0:"0", },
+                type_layouts=[T],
+            };
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Primitive,
+        )
+    };
 }
 
 /////////////
@@ -612,21 +617,33 @@ macro_rules! impl_stable_abi_array {
                 type Kind=ValueKind;
                 type IsNonZeroType=False;
 
-                const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std_full::<Self>(
-                    "array",
-                    RSome(TLPrimitive::Array{len:$size}),
-                    ItemInfo::primitive(),
-                    TLData::Primitive(TLPrimitive::Array{len:$size}),
-                    ReprAttr::Primitive,
-                    tl_genparams!(;T;$size),
-                    &[
-                        TLField::new(
-                            "element", 
-                            &[],
-                            <T as MakeGetAbiInfo<SharedStableAbi_Bound>>::CONST
-                        )
-                    ],
-                );
+                const S_LAYOUT: &'static TypeLayout = {
+                    const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                        *mono_shared_vars,
+                        rstr!("array"),
+                        ItemInfo::primitive(),
+                        MonoTLData::Primitive(TLPrimitive::Array{len:$size}),
+                        tl_genparams!(;0;0),
+                        ReprAttr::Primitive,
+                        ModReflMode::Module,
+                        rslice![ CompTLField::std_field(field0,LifetimeRange::EMPTY,0) ],
+                    );
+
+                    make_shared_vars!{
+                        let (mono_shared_vars,shared_vars)={
+                            strings={ field0:"element", },
+                            type_layouts=[T],
+                            constants=[$size],
+                        };
+                    }
+
+                    &TypeLayout::from_std::<Self>(
+                        shared_vars,
+                        MONO_TYPE_LAYOUT,
+                        Self::S_ABI_CONSTS,
+                        GenericTLData::Primitive,
+                    )
+                };
             }
         )*
     }
@@ -656,27 +673,44 @@ where
     type Kind=ValueKind;
     type IsNonZeroType = False;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std_full::<Self>(
-        "Option",
-        RNone,
-        ItemInfo::primitive(),
-        TLData::Enum(&TLEnum::new(
-            "Some;None;",
-            IsExhaustive::exhaustive(),
-            &[
-                TLField::new(
-                    "0",
-                    &[],
-                    <T as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
-                )
-            ],
-            TLDiscriminants::from_u8_slice(&[0,1]),
-            &[1,0]
-        )),
-        ReprAttr::OptionNonZero,
-        tl_genparams!(;T;),
-        &[],
-    );
+
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("Option"),
+            ItemInfo::std_type_in(nul_str!("std::option")),
+            MonoTLData::Enum(MonoTLEnum::new(
+                variant_names,
+                rslice![1,0],
+                CompTLFields::from_fields(rslice![
+                    CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
+                ])
+            )),
+            tl_genparams!(;0;),
+            ReprAttr::OptionNonZero,
+            ModReflMode::Module,
+            rslice![],
+        );
+
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={
+                strings={
+                    variant_names:"Some;None;",
+                    field0:"0", 
+                },
+                type_layouts=[T],
+            };
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Enum(GenericTLEnum::exhaustive(
+                TLDiscriminants::from_u8_slice(rslice![0,1])
+            )),
+        )
+    };
 }
 
 /////////////
@@ -684,7 +718,7 @@ where
 
 macro_rules! impl_for_primitive_ints {
     (
-        $( ($zeroable:ty,$tl_primitive:expr) ,)*
+        $( ($zeroable:ty,$zeroable_name:literal,$tl_primitive:expr) ,)*
     ) => (
         $(
             unsafe impl GetStaticEquivalent_ for $zeroable {
@@ -694,32 +728,48 @@ macro_rules! impl_for_primitive_ints {
                 type Kind=ValueKind;
                 type IsNonZeroType=False;
 
-                const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std_full::<Self>(
-                    stringify!($zeroable),
-                    RSome($tl_primitive),
-                    ItemInfo::primitive(),
-                    TLData::Primitive($tl_primitive),
-                    ReprAttr::Primitive,
-                    tl_genparams!(;;),
-                    &[],
-                );
+                const S_LAYOUT: &'static TypeLayout = {
+                    const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                        *mono_shared_vars,
+                        rstr!($zeroable_name),
+                        ItemInfo::primitive(),
+                        MonoTLData::Primitive($tl_primitive),
+                        tl_genparams!(;;),
+                        ReprAttr::Primitive,
+                        ModReflMode::Module,
+                        rslice![],
+                    );
+
+                    make_shared_vars!{
+                        let (mono_shared_vars,shared_vars)={
+                            type_layouts=[],
+                        };
+                    }
+
+                    &TypeLayout::from_std::<Self>(
+                        shared_vars,
+                        MONO_TYPE_LAYOUT,
+                        Self::S_ABI_CONSTS,
+                        GenericTLData::Primitive,
+                    )
+                };
             }
         )*
     )
 }
 
 impl_for_primitive_ints!{
-    (u8   ,TLPrimitive::U8),
-    (i8   ,TLPrimitive::I8),
-    (u16  ,TLPrimitive::U16),
-    (i16  ,TLPrimitive::I16),
-    (u32  ,TLPrimitive::U32),
-    (i32  ,TLPrimitive::I32),
-    (u64  ,TLPrimitive::U64),
-    (i64  ,TLPrimitive::I64),
-    (usize,TLPrimitive::Usize),
-    (isize,TLPrimitive::Isize),
-    (bool ,TLPrimitive::Bool),
+    (u8   ,"u8"   ,TLPrimitive::U8),
+    (i8   ,"i8"   ,TLPrimitive::I8),
+    (u16  ,"u16"  ,TLPrimitive::U16),
+    (i16  ,"i16"  ,TLPrimitive::I16),
+    (u32  ,"u32"  ,TLPrimitive::U32),
+    (i32  ,"i32"  ,TLPrimitive::I32),
+    (u64  ,"u64"  ,TLPrimitive::U64),
+    (i64  ,"i64"  ,TLPrimitive::I64),
+    (usize,"usize",TLPrimitive::Usize),
+    (isize,"isize",TLPrimitive::Isize),
+    (bool ,"bool" ,TLPrimitive::Bool),
 }
 
 
@@ -727,7 +777,7 @@ macro_rules! impl_for_concrete {
     (
         type IsNonZeroType=$zeroness:ty;
         [
-            $( ($this:ty,$prim_repr:ty,$in_mod:expr) ,)*
+            $( ($this:ty,$this_name:literal,$prim_repr:ty,$in_mod:expr) ,)*
         ]
     ) => (
         $(
@@ -738,19 +788,34 @@ macro_rules! impl_for_concrete {
                 type Kind=ValueKind;
                 type IsNonZeroType=$zeroness;
 
-                const S_LAYOUT:&'static TypeLayout=&TypeLayout::from_std::<Self>(
-                    stringify!($this),
-                    TLData::struct_(&[
-                        TLField::new(
-                            "0",
-                            &[],
-                            <$prim_repr as MakeGetAbiInfo<StableAbi_Bound>>::CONST,
-                        )
-                    ]),
-                    ReprAttr::Transparent,
-                    ItemInfo::std_type_in($in_mod),
-                    tl_genparams!(;;),
-                );
+                const S_LAYOUT: &'static TypeLayout = {
+                    const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                        *mono_shared_vars,
+                        rstr!($this_name),
+                        ItemInfo::std_type_in(nul_str!($in_mod)),
+                        MonoTLData::struct_(rslice![ 
+                            CompTLField::std_field(field0,LifetimeRange::EMPTY,0) 
+                        ]),
+                        tl_genparams!(;;),
+                        ReprAttr::Transparent,
+                        ModReflMode::Module,
+                        rslice![],
+                    );
+
+                    make_shared_vars!{
+                        let (mono_shared_vars,shared_vars)={
+                            strings={ field0:"0" },
+                            type_layouts=[$prim_repr],
+                        };
+                    }
+
+                    &TypeLayout::from_std::<Self>(
+                        shared_vars,
+                        MONO_TYPE_LAYOUT,
+                        Self::S_ABI_CONSTS,
+                        GenericTLData::Struct,
+                    )
+                };
             }
         )*
     )
@@ -761,26 +826,25 @@ macro_rules! impl_for_concrete {
 impl_for_concrete! {
     type IsNonZeroType=False;
     [
-        (AtomicBool ,bool,"std::sync::atomic"),
-        (AtomicIsize,isize,"std::sync::atomic"),
-        (AtomicUsize,usize,"std::sync::atomic"),
+        (AtomicBool ,"AtomicBool" ,bool,"std::sync::atomic"),
+        (AtomicIsize,"AtomicIsize",isize,"std::sync::atomic"),
+        (AtomicUsize,"AtomicUsize",usize,"std::sync::atomic"),
     ]
 }
 
 impl_for_concrete! {
     type IsNonZeroType=True;
     [
-        (NonZeroU8   ,u8,"std::num"),
-        (NonZeroU16  ,u16,"std::num"),
-        (NonZeroU32  ,u32,"std::num"),
-        (NonZeroU64  ,u64,"std::num"),
-        (NonZeroUsize,usize,"std::num"),
+        (NonZeroU8   ,"NonZeroU8"   ,u8,"std::num"),
+        (NonZeroU16  ,"NonZeroU16"  ,u16,"std::num"),
+        (NonZeroU32  ,"NonZeroU32"  ,u32,"std::num"),
+        (NonZeroU64  ,"NonZeroU64"  ,u64,"std::num"),
+        (NonZeroUsize,"NonZeroUsize",usize,"std::num"),
     ]
 }
 /////////////
 
 
-#[cfg(any(rust_1_34,feature="rust_1_34"))]
 mod rust_1_34_impls{
     use super::*;
     use std::sync::atomic::*;
@@ -789,36 +853,94 @@ mod rust_1_34_impls{
     impl_for_concrete! {
         type IsNonZeroType=False;
         [
-            (AtomicI8 ,i8,"std::sync::atomic"),
-            (AtomicI16,i16,"std::sync::atomic"),
-            (AtomicI32,i32,"std::sync::atomic"),
-            (AtomicI64,i64,"std::sync::atomic"),
-            (AtomicU8 ,u8,"std::sync::atomic"),
-            (AtomicU16,u16,"std::sync::atomic"),
-            (AtomicU32,u32,"std::sync::atomic"),
-            (AtomicU64,u64,"std::sync::atomic"),
+            (AtomicI8 ,"AtomicI8" ,i8,"std::sync::atomic"),
+            (AtomicI16,"AtomicI16",i16,"std::sync::atomic"),
+            (AtomicI32,"AtomicI32",i32,"std::sync::atomic"),
+            (AtomicI64,"AtomicI64",i64,"std::sync::atomic"),
+            (AtomicU8 ,"AtomicU8" ,u8,"std::sync::atomic"),
+            (AtomicU16,"AtomicU16",u16,"std::sync::atomic"),
+            (AtomicU32,"AtomicU32",u32,"std::sync::atomic"),
+            (AtomicU64,"AtomicU64",u64,"std::sync::atomic"),
         ]
     }
 
     impl_for_concrete! {
         type IsNonZeroType=True;
         [
-            (NonZeroI8   ,i8,"core::num"),
-            (NonZeroI16  ,i16,"core::num"),
-            (NonZeroI32  ,i32,"core::num"),
-            (NonZeroI64  ,i64,"core::num"),
-            (NonZeroIsize,isize,"core::num"),
+            (NonZeroI8   ,"NonZeroI8"   ,i8,"core::num"),
+            (NonZeroI16  ,"NonZeroI16"  ,i16,"core::num"),
+            (NonZeroI32  ,"NonZeroI32"  ,i32,"core::num"),
+            (NonZeroI64  ,"NonZeroI64"  ,i64,"core::num"),
+            (NonZeroIsize,"NonZeroIsize",isize,"core::num"),
         ]
     }
 }
 
+
+#[cfg(any(rust_1_36,feature="rust_1_36"))]
+mod rust_1_36_impls{
+    use super::*;
+    use std::mem::MaybeUninit;
+
+    unsafe impl<T> GetStaticEquivalent_ for MaybeUninit<T>
+    where
+        T:GetStaticEquivalent_
+    {
+        type StaticEquivalent=MaybeUninit<T::StaticEquivalent>;
+    }
+    unsafe impl<T> SharedStableAbi for MaybeUninit<T>
+    where
+        T:StableAbi
+    {
+        type Kind=ValueKind;
+
+        // MaybeUninit blocks layout optimizations.
+        type IsNonZeroType = False;
+
+
+        const S_LAYOUT: &'static TypeLayout = {
+            const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                *mono_shared_vars,
+                rstr!("MaybeUninit"),
+                ItemInfo::std_type_in(nul_str!("std::mem")),
+                MonoTLData::struct_(rslice![ 
+                    CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
+                ]),
+                tl_genparams!(;0;),
+                // Using `ReprAttr::Transparent` so that if I add C header file translation
+                // it will be translated to just `T`.
+                ReprAttr::Transparent,
+                ModReflMode::Opaque,
+                rslice![],
+            );
+
+            make_shared_vars!{
+                let (mono_shared_vars,shared_vars)={
+                    strings={ field0:"value" },
+                    type_layouts=[T],
+                };
+            }
+
+            &TypeLayout::from_std::<Self>(
+                shared_vars,
+                MONO_TYPE_LAYOUT,
+                Self::S_ABI_CONSTS,
+                GenericTLData::Struct,
+            )
+        };
+    }
+}
+
+
+
 /////////////
 
-macro_rules! impl_stableabi_for_repr_transparent {
+macro_rules! impl_sabi_for_transparent {
     (
         $type_constr:ident
         $(where[ $($where_clause:tt)* ])* ,
-        $item_info:expr
+        $type_name:literal,
+        $mod_path:expr
     ) => (
         unsafe impl<P> GetStaticEquivalent_ for $type_constr<P>
         where
@@ -835,31 +957,51 @@ macro_rules! impl_stableabi_for_repr_transparent {
             type Kind=ValueKind;
             type IsNonZeroType = P::IsNonZeroType;
 
-            const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std::<Self>(
-                stringify!($type_constr),
-                TLData::struct_(&[
-                    TLField::new("0",&[],<P as MakeGetAbiInfo<StableAbi_Bound>>::CONST,)
-                ]),
-                ReprAttr::Transparent,
-                $item_info,
-                tl_genparams!(;P;),
-            );
+            const S_LAYOUT: &'static TypeLayout = {
+                const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                    *mono_shared_vars,
+                    rstr!($type_name),
+                    ItemInfo::std_type_in(nul_str!($mod_path)),
+                    MonoTLData::struct_(rslice![ 
+                        CompTLField::std_field(field0,LifetimeRange::EMPTY,0) 
+                    ]),
+                    tl_genparams!(;0;),
+                    ReprAttr::Transparent,
+                    ModReflMode::Module,
+                    rslice![],
+                );
+
+                make_shared_vars!{
+                    let (mono_shared_vars,shared_vars)={
+                        strings={ field0:"0" },
+                        type_layouts=[P],
+                    };
+                }
+
+                &TypeLayout::from_std::<Self>(
+                    shared_vars,
+                    MONO_TYPE_LAYOUT,
+                    Self::S_ABI_CONSTS,
+                    GenericTLData::Struct,
+                )
+            };
         }
     )
 }
 
 
-impl_stableabi_for_repr_transparent!{ Wrapping ,ItemInfo::std_type_in("std::num") }
-impl_stableabi_for_repr_transparent!{ Pin         ,ItemInfo::std_type_in("std::pin") }
-impl_stableabi_for_repr_transparent!{ ManuallyDrop,ItemInfo::std_type_in("std::mem") }
-impl_stableabi_for_repr_transparent!{ Cell        ,ItemInfo::std_type_in("std::cell") }
-impl_stableabi_for_repr_transparent!{ UnsafeCell  ,ItemInfo::std_type_in("std::cell") }
+impl_sabi_for_transparent!{ Wrapping    ,"Wrapping"    ,"std::num" }
+impl_sabi_for_transparent!{ Pin         ,"Pin"         ,"std::pin" }
+impl_sabi_for_transparent!{ ManuallyDrop,"ManuallyDrop","std::mem" }
+impl_sabi_for_transparent!{ Cell        ,"Cell"        ,"std::cell" }
+impl_sabi_for_transparent!{ UnsafeCell  ,"UnsafeCell"  ,"std::cell" }
 
 /////////////
 
 macro_rules! impl_stableabi_for_unit_struct {
     (
         $type_constr:ident,
+        $type_name:literal,
         $item_info:expr
     ) => (
         unsafe impl GetStaticEquivalent_ for $type_constr{
@@ -869,19 +1011,37 @@ macro_rules! impl_stableabi_for_unit_struct {
             type Kind=ValueKind;
             type IsNonZeroType = False;
 
-            const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_std::<Self>(
-                stringify!($type_constr),
-                TLData::EMPTY,
-                ReprAttr::c(),
-                $item_info,
-                tl_genparams!(;;),
-            );
+            const S_LAYOUT: &'static TypeLayout = {
+                const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                    *mono_shared_vars,
+                    rstr!($type_name),
+                    $item_info,
+                    MonoTLData::struct_(rslice![]),
+                    tl_genparams!(;;),
+                    ReprAttr::C,
+                    ModReflMode::Module,
+                    rslice![],
+                );
+
+                make_shared_vars!{
+                    let (mono_shared_vars,shared_vars)={};
+                }
+
+                &TypeLayout::from_std::<Self>(
+                    shared_vars,
+                    MONO_TYPE_LAYOUT,
+                    Self::S_ABI_CONSTS,
+                    GenericTLData::Struct,
+                )
+            };
         }
     )
 }
 
 
-impl_stableabi_for_unit_struct!{ PhantomPinned,ItemInfo::std_type_in("std::marker") }
+impl_stableabi_for_unit_struct!{ 
+    PhantomPinned,"PhantomPinned",ItemInfo::std_type_in(nul_str!("std::marker"))
+}
 
 /////////////
 
@@ -893,36 +1053,67 @@ unsafe impl SharedStableAbi for core_extensions::Void {
     type Kind=ValueKind;
     type IsNonZeroType = False;
 
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("Void"),
+            ItemInfo::package_and_mod(
+                "core_extensions;0.0.0",
+                nul_str!("core_extensions"),
+            ),
+            MonoTLData::Enum(MonoTLEnum::new(StartLen::EMPTY,rslice![],CompTLFields::EMPTY)),
+            tl_genparams!(;;),
+            ReprAttr::Int(DiscriminantRepr::U8),
+            ModReflMode::Module,
+            rslice![],
+        );
 
-    const S_LAYOUT: &'static TypeLayout =
-        &TypeLayout::from_params::<Self>(TypeLayoutParams {
-            name: "Void",
-            item_info:ItemInfo::package_and_mod("core_extensions;0.0.0","core_extensions"),
-            data: TLData::Enum(&TLEnum::new(
-                "",
-                IsExhaustive::exhaustive(),
-                &[],
-                TLDiscriminants::from_u8_slice(&[]),
-                &[]
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={};
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Enum(GenericTLEnum::exhaustive(
+                TLDiscriminants::from_u8_slice(rslice![])
             )),
-            generics: tl_genparams!(;;),
-        });
+        )
+    };
 }
 
 
 
 /////////////
 
-/// The layout of `extern fn()` and `unsafe extern fn()`
+
+
+
+/// The layout of `extern "C" fn()` and `unsafe extern "C" fn()`
 macro_rules! empty_extern_fn_layout{
-    ($this:ty) => (
-        &TypeLayout::from_params::<extern "C" fn()>(TypeLayoutParams {
-            name: "AFunctionPointer",
-            item_info:make_item_info!(),
-            data: TLData::struct_(&[]),
-            generics: tl_genparams!(;;),
-        })
-    )
+    ($this:ty) => ({
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={};
+        }
+        const MONO_TL_EXTERN_FN:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("AFunctionPointer"),
+            make_item_info!(),
+            MonoTLData::Opaque,
+            tl_genparams!(;;),
+            ReprAttr::C,
+            ModReflMode::Opaque,
+            rslice![],
+        );
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TL_EXTERN_FN,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Opaque,
+        )
+    })
 }
 
 
@@ -953,16 +1144,18 @@ unsafe impl SharedStableAbi for unsafe extern "C" fn() {
 }
 
 
-/// The GetAbiInfo of an `unsafe extern fn()`
-pub const UNSAFE_EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<unsafe extern fn()>::STABLE_ABI;
+/// The TypeLayoutCtor of an `unsafe extern "C" fn()`
+pub const UNSAFE_EXTERN_FN_LAYOUT:TypeLayoutCtor=
+    GetTypeLayoutCtor::<unsafe extern "C" fn()>::STABLE_ABI;
 
-/// The GetAbiInfo of an `extern fn()`
-pub const EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<extern fn()>::STABLE_ABI;
+/// The TypeLayoutCtor of an `extern "C" fn()`
+pub const EXTERN_FN_LAYOUT:TypeLayoutCtor=
+    GetTypeLayoutCtor::<extern "C" fn()>::STABLE_ABI;
 
 
 /////////////
 
-/// Allows one to create the TypeLayout/AbiInfoWrapper for any type `T`,
+/// Allows one to create the TypeLayout/TypeLayout for any type `T`,
 /// by pretending that it is a primitive type.
 /// 
 /// Used by the StableAbi derive macro by fields marker as `#[sabi(unsafe_opaque_field)]`.
@@ -973,6 +1166,7 @@ pub const EXTERN_FN_ABI_INFO:GetAbiInfo=MakeGetAbiInfoSA::<extern fn()>::STABLE_
 #[repr(transparent)]
 pub struct UnsafeOpaqueField<T>(T);
 
+
 unsafe impl<T> GetStaticEquivalent_ for UnsafeOpaqueField<T> {
     /// it is fine to use `()` because this type is treated as opaque anyway.
     type StaticEquivalent=();
@@ -981,12 +1175,78 @@ unsafe impl<T> SharedStableAbi for UnsafeOpaqueField<T> {
     type Kind=ValueKind;
     type IsNonZeroType = False;
 
-    const S_LAYOUT: &'static TypeLayout = &TypeLayout::from_params::<Self>(TypeLayoutParams {
-        name: "OpaqueField",
-        item_info:make_item_info!(),
-        data: TLData::Opaque,
-        generics: tl_genparams!(;;),
-    });
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("OpaqueField"),
+            make_item_info!(),
+            MonoTLData::Opaque,
+            tl_genparams!(;;),
+            ReprAttr::C,
+            ModReflMode::Module,
+            rslice![],
+        );
+
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={};
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Opaque,
+        )
+    };
+}
+
+/////////////
+
+/// Allows one to ensure that a `T` implements `StableAbi` without storing it's layout,
+/// by pretending that it is a primitive type.
+/// 
+/// Used by the StableAbi derive macro by fields marker as `#[sabi(unsafe_sabi_opaque_field)]`.
+/// 
+/// # Safety
+/// 
+/// You must ensure that the layout of `T` is compatible through other means.
+#[repr(transparent)]
+pub struct SabiUnsafeOpaqueField<T>(T);
+
+unsafe impl<T> GetStaticEquivalent_ for SabiUnsafeOpaqueField<T> {
+    /// it is fine to use `()` because this type is treated as opaque anyway.
+    type StaticEquivalent=();
+}
+unsafe impl<T> SharedStableAbi for SabiUnsafeOpaqueField<T> 
+where
+    T:StableAbi
+{
+    type Kind=ValueKind;
+    type IsNonZeroType = False;
+
+    const S_LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("SabiOpaqueField"),
+            make_item_info!(),
+            MonoTLData::Opaque,
+            tl_genparams!(;;),
+            ReprAttr::C,
+            ModReflMode::Module,
+            rslice![],
+        );
+
+        make_shared_vars!{
+            let (mono_shared_vars,shared_vars)={};
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::S_ABI_CONSTS,
+            GenericTLData::Opaque,
+        )
+    };
 }
 
 /////////////

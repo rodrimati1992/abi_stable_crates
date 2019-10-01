@@ -17,10 +17,7 @@ use abi_stable::{
     package_version_strings,
     declare_root_module_statics,
     library::RootModule,
-    type_level::bools::*,
-    erased_types::{
-        InterfaceType,DeserializeDyn,SerializeProxyType,IteratorItem
-    },
+    erased_types::{DeserializeDyn,SerializeProxyType,IteratorItem},
     DynTrait,
     sabi_types::VersionStrings,
     std_types::{RBox, RStr, RString,RArc,RCow,RBoxError,RResult},
@@ -142,7 +139,7 @@ pub type TOStateBox = DynTrait<'static,RBox<()>,TOState>;
 /// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
 /// a RawValueBox containing the serialized data,
 /// then the returned RawValueBox is serialized.
-impl SerializeProxyType for TOState{
+impl<'a> SerializeProxyType<'a> for TOState{
     type Proxy=RawValueBox;
 }
 
@@ -189,7 +186,7 @@ impl<'a> IteratorItem<'a> for TOCommand{
 /// First <ConcreteType as DeserializeImplType>::serialize_impl returns 
 /// a RawValueBox containing the serialized data,
 /// then the returned RawValueBox is serialized.
-impl SerializeProxyType for TOCommand{
+impl<'a> SerializeProxyType<'a> for TOCommand{
     type Proxy=RawValueBox;
 }
 
@@ -228,7 +225,7 @@ pub type TOReturnValueArc = DynTrait<'static,RArc<()>,TOReturnValue>;
 /// First <ConcreteType as SerializeImplType>::serialize_impl returns 
 /// a RawValueBox containing the serialized data,
 /// then the returned RawValueBox is serialized.
-impl SerializeProxyType for TOReturnValue{
+impl<'a> SerializeProxyType<'a> for TOReturnValue{
     type Proxy=RawValueBox;
 }
 

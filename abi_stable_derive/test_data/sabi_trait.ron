@@ -1,0 +1,76 @@
+(
+  cases:[
+    (
+      name:"trait level attrs",
+      code:r##"
+          #[sabi(@attr)]
+          trait Foo{
+            fn hello(&self){}
+          }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@attr":"" }, 
+          find_all: [
+            regex(r#"impl *<[^>]+> *Foo[< >]+for Foo_TO"#),
+            not(str("DynTrait")),
+            regex(r#"RObject *<"#),
+            regex(r#"match[^{]+hello[( )]+\{"#),
+          ],
+          error_count: 0,
+        ),
+
+        ( 
+          replacements: { "@attr":"no_trait_impl" }, 
+          find_all: [not(regex(r#"impl *<[^>]+> *Foo[< >]+for Foo_TO"#))],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@attr":"no_default_fallback" }, 
+          find_all: [not(regex(r#"match[^\n]+hello\(\) *\{"#))],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@attr":"use_dyntrait" }, 
+          find_all: [not(regex(r#"RObject *<"#)),str("DynTrait")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@attr":"module_reflection(Module)" }, 
+          find_all: [
+            regex(r#"module_reflection +\( +Module[ \n)\]].*struct VTable"#),
+          ],
+          error_count: 0,
+        ),
+      ],
+    ),
+    (
+      name:"method level attrs",
+      code:r##"
+          trait Foo{
+            #[sabi(@attr)]
+            fn hello(&self){}
+            fn world(&mut self){ 4+5 }
+          }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@attr":"rename=\"no_dummy\"" }, 
+          find_all: [
+            regex(r#"no_dummy"[ \n)\]]+pub[( )a-z]*hello *:"#),
+          ],
+          error_count: 0,
+        ),        
+        ( 
+          replacements: { "@attr":"no_default_fallback" }, 
+          find_all: [
+            not(regex(r#"match[^{]+hello[( )]+\{"#)),
+            regex(r#"match[^{]+world[( )]+\{"#),
+            regex(r#"None[=>{ ]+4 +\+ +5"#),
+          ],
+          error_count: 0,
+        ),        
+      ]
+    ),
+  ]
+)

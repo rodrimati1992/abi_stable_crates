@@ -18,15 +18,16 @@ use crate::{
         trait_objects::{
             HasherObject,
         },
+        InterfaceBound,
     },
     inline_storage::ScratchSpace,
     marker_type::ErasedObject,
     nonexhaustive_enum::{
-        GetVTable,NonExhaustiveVtable,InterfaceBound,GetEnumInfo,GetNonExhaustive,
+        GetVTable,NonExhaustiveVtable,GetEnumInfo,GetNonExhaustive,
         ValidDiscriminant,EnumInfo,
         SerializeEnum,DeserializeEnum,
     },
-    pointer_trait::TransmuteElement,
+    pointer_trait::{CanTransmuteElement,TransmuteElement},
     type_level::{
         impl_enum::Implemented,
         trait_marker,
@@ -37,7 +38,6 @@ use crate::{
 };
 
 use core_extensions::{
-    SelfOps,
     utils::transmute_ignore_size,
 };
 
@@ -179,7 +179,7 @@ with the 1.0 version of `Error` they would get an `Err(..)` back.
     bound="NonExhaustiveVtable<E,S,I>:SharedStableAbi",
     bound="E: GetNonExhaustive<S>",
     bound="I: InterfaceBound",
-    tag="<I as InterfaceBound>::TAG",
+    extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
     phantom_type_param="<E as GetNonExhaustive<S>>::NonExhaustive",
 )]
 pub struct NonExhaustive<E,S,I>{
@@ -565,10 +565,10 @@ This panics if the storage has an alignment or size smaller than that of `F`.
     pub unsafe fn transmute_enum_ptr<P,F>(this:P)->P::TransmutedPtr
     where
         P:Deref<Target=Self>,
-        P:TransmuteElement<NonExhaustive<F,S,I>>
+        P:CanTransmuteElement<NonExhaustive<F,S,I>>
     {
         NonExhaustive::<F,S,I>::assert_fits_within_storage();
-        this.transmute_element(<NonExhaustive<F,S,I>>::T)
+        this.transmute_element::<NonExhaustive<F,S,I>>()
     }
 
     /// Gets a reference to the vtable of this `NonExhaustive<>`.
@@ -986,7 +986,7 @@ where
             f,
             "Could not unwrap NonExhaustive into '{}'.\n\
              Because its discriminant was {:?} .",
-            self.non_exhaustive.enum_info_().type_name,
+            self.non_exhaustive.enum_info_().type_name(),
             self.non_exhaustive.get_discriminant_(),
         )
     }
@@ -1000,7 +1000,7 @@ where
         f.debug_struct("UnwrapEnumError")
          .field("non_exhaustive",&"<opaque>")
          .field("discriminant",&self.non_exhaustive.get_discriminant_())
-         .field("enum",&self.non_exhaustive.enum_info_().type_name)
+         .field("enum_info",&self.non_exhaustive.enum_info_())
          .finish()
     }
 }
