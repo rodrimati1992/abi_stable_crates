@@ -234,6 +234,7 @@ impl TypeLayout {
             name: self.mono.name(),
             generics: self.generics(),
             primitive: self.mono.data.to_primitive(),
+            utypeid: self.get_utypeid(),
         }
     }
 
@@ -434,46 +435,6 @@ impl PartialEq for TypeLayout{
 
 
 impl Eq for TypeLayout{}
-
-
-impl Display for TypeLayout {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (package,version)=self.item_info().package_and_version();
-        writeln!(
-            f,
-            "--- Type Layout ---\n\
-             type:{ty}\n\
-             size:{size} align:{align}\n\
-             package:'{package}' version:'{version}'\n\
-             line:{line} mod:{mod_path}",
-            ty   =self.full_type(),
-            size =self.size(),
-            align=self.alignment(),
-            package=package,
-            version=version,
-            line=self.item_info().line,
-            mod_path=self.item_info().mod_path,
-        )?;
-        writeln!(f,"data:\n{}",self.data().to_string().left_padder(4))?;
-        let phantom_fields=self.phantom_fields();
-        if !phantom_fields.is_empty() {
-            writeln!(f,"Phantom fields:\n")?;
-            for field in phantom_fields {
-                write!(f,"{}",field.to_string().left_padder(4))?;
-            }
-        }
-        writeln!(f,"Tag:\n{}",self.tag().to_string().left_padder(4))?;
-        let extra_checks=
-            match self.extra_checks() {
-                Some(x)=>x.to_string(),
-                None=>"<nothing>".to_string(),
-            };
-        writeln!(f,"Extra checks:\n{}",extra_checks.left_padder(4))?;
-        writeln!(f,"Repr attribute:{:?}",self.repr_attr())?;
-        writeln!(f,"Module reflection mode:{:?}",self.mod_refl_mode())?;
-        Ok(())
-    }
-}
 
 
 ////////////////////////////////////////////////////////////////////////////////

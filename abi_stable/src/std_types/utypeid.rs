@@ -87,6 +87,11 @@ pub struct UTypeId {
     type_id_array: [u8; MAX_TYPE_ID_SIZE],
 }
 
+
+unsafe impl Send for UTypeId{}
+unsafe impl Sync for UTypeId{}
+
+
 impl UTypeId {
     /// Constructs UTypeId from a type that satisfies the `'static` bound.
     ///

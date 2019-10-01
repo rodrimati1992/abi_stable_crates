@@ -7,6 +7,12 @@ use std::{
 
 use core_extensions::SelfOps;
 
+
+#[cfg(test)]
+mod tests;
+
+
+
 /**
 A function which recursively traverses a type layout,
 calling `callback` for every `TypeLayout` it goes over.
@@ -61,7 +67,9 @@ struct RecursionState{
 
 struct DebugState{
     counter:Cell<usize>,
-    map:RefCell<HashMap<UTypeId,usize>>,
+    map:RefCell<HashMap<UTypeId,Option<usize>>>,
+    display_stack:RefCell<Vec<UTypeId>>,
+    full_type_stack:RefCell<Vec<UTypeId>>,
 }
 
 
@@ -69,6 +77,8 @@ thread_local!{
     static DEBUG_STATE:DebugState=DebugState{
         counter:Cell::new(0),
         map:RefCell::new(HashMap::new()),
+        display_stack:RefCell::new(Vec::new()),
+        full_type_stack:RefCell::new(Vec::new()),
     };
 }
 
@@ -86,7 +96,7 @@ impl Debug for TypeLayout{
         });
 
         if current_level>=1 {
-            let mut index=0;
+            let mut index=None;
             DEBUG_STATE.with(|state|{
                 index=*state.map.borrow().get(&self.get_utypeid()).expect(GET_ERR) ;
             });
@@ -107,7 +117,8 @@ impl Debug for TypeLayout{
                 
                 traverse_type_layouts(self,|this|{
                     map.entry(this.get_utypeid())
-                        .or_insert_with(||{ 
+                        .or_insert(None)
+                        .get_or_insert_with(||{ 
                             type_infos.push(this);
                             let index=i;
                             i+=1; 
@@ -148,6 +159,182 @@ impl Debug for TypeLayout{
 ////////////////
 
 
+const RECURSIVE_INDICATOR:&'static str="<{recursive}>";
+
+impl Display for TypeLayout {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut is_cyclic=false;
+
+        DEBUG_STATE.with(|state|{
+            let mut stack=state.display_stack.borrow_mut();
+            let tid=self.get_utypeid();
+            is_cyclic=stack.contains(&tid);
+            if !is_cyclic {
+                stack.push(tid);
+            }
+        });
+
+        if is_cyclic {
+            write!(f,"{}{}",self.name(),RECURSIVE_INDICATOR)?;
+        }else{
+            let _guard=DisplayGuard;
+
+            let (package,version)=self.item_info().package_and_version();
+            writeln!(
+                f,
+                "--- Type Layout ---\n\
+                 type:{ty}\n\
+                 size:{size} align:{align}\n\
+                 package:'{package}' version:'{version}'\n\
+                 line:{line} mod:{mod_path}",
+                ty   =self.full_type(),
+                size =self.size(),
+                align=self.alignment(),
+                package=package,
+                version=version,
+                line=self.item_info().line,
+                mod_path=self.item_info().mod_path,
+            )?;
+            writeln!(f,"data:\n{}",self.data().to_string().left_padder(4))?;
+            let phantom_fields=self.phantom_fields();
+            if !phantom_fields.is_empty() {
+                writeln!(f,"Phantom fields:\n")?;
+                for field in phantom_fields {
+                    write!(f,"{}",field.to_string().left_padder(4))?;
+                }
+            }
+            writeln!(f,"Tag:\n{}",self.tag().to_string().left_padder(4))?;
+            let extra_checks=
+                match self.extra_checks() {
+                    Some(x)=>x.to_string(),
+                    None=>"<nothing>".to_string(),
+                };
+            writeln!(f,"Extra checks:\n{}",extra_checks.left_padder(4))?;
+            writeln!(f,"Repr attribute:{:?}",self.repr_attr())?;
+            writeln!(f,"Module reflection mode:{:?}",self.mod_refl_mode())?;
+        }
+
+
+        Ok(())
+    }
+}
+
+
+struct DisplayGuard;
+
+impl Drop for DisplayGuard{
+    fn drop(&mut self){
+        DEBUG_STATE.with(|state|{
+            state.display_stack.borrow_mut().pop();
+        });
+    }
+}
+
+
+////////////////
+
+
+impl Display for FmtFullType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+impl Debug for FmtFullType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut is_cyclic=false;
+
+        DEBUG_STATE.with(|state|{
+            let mut stack=state.full_type_stack.borrow_mut();
+            let tid=self.utypeid;
+            is_cyclic=stack.contains(&tid);
+            if !is_cyclic {
+                stack.push(tid);
+            }
+        });
+
+        if is_cyclic {
+            write!(f,"{}{}",self.name,RECURSIVE_INDICATOR)?;
+        }else{
+            use self::TLPrimitive as TLP;
+
+            let _guard=FmtFullTypeGuard;
+
+            let (typename, start_gen, before_ty, ty_sep, end_gen) = match self.primitive {
+                Some(TLP::SharedRef) => ("&", "", " ", " ", " "),
+                Some(TLP::MutRef) => ("&", "", " mut ", " ", " "),
+                Some(TLP::ConstPtr) => ("*const", " ", "", " ", " "),
+                Some(TLP::MutPtr) => ("*mut", " ", "", " ", " "),
+                Some(TLP::Array{..}) => ("", "[", "", ";", "]"),
+                 Some(TLP::U8)|Some(TLP::I8)
+                |Some(TLP::U16)|Some(TLP::I16)
+                |Some(TLP::U32)|Some(TLP::I32)
+                |Some(TLP::U64)|Some(TLP::I64)
+                |Some(TLP::Usize)|Some(TLP::Isize)
+                |Some(TLP::Bool)
+                |None => (self.name, "<", "", ", ", ">"),
+            };
+
+            fmt::Display::fmt(typename, f)?;
+            let mut is_before_ty = true;
+            let generics = self.generics;
+            if !generics.is_empty() {
+                fmt::Display::fmt(start_gen, f)?;
+
+                let post_iter = |i: usize, len: usize, f: &mut Formatter<'_>| -> fmt::Result {
+                    if i+1 < len {
+                        fmt::Display::fmt(ty_sep, f)?;
+                    }
+                    Ok(())
+                };
+
+                let mut i=0;
+
+                let total_generics_len=
+                    generics.lifetime_count()+generics.types.len()+generics.consts.len();
+
+                for param in self.generics.lifetimes() {
+                    fmt::Display::fmt(param, &mut *f)?;
+                    post_iter(i,total_generics_len, &mut *f)?;
+                    i+=1;
+                }
+                for param in generics.types.iter().cloned() {
+                    let layout=param.get();
+                    if is_before_ty {
+                        fmt::Display::fmt(before_ty, &mut *f)?;
+                        is_before_ty = false;
+                    }
+                    fmt::Debug::fmt(&layout.full_type(), &mut *f)?;
+                    post_iter(i,total_generics_len, &mut *f)?;
+                    i+=1;
+                }
+                for param in generics.consts.iter() {
+                    fmt::Debug::fmt(param, &mut *f)?;
+                    post_iter(i,total_generics_len, &mut *f)?;
+                    i+=1;
+                }
+                fmt::Display::fmt(end_gen, f)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+
+struct FmtFullTypeGuard;
+
+impl Drop for FmtFullTypeGuard{
+    fn drop(&mut self){
+        DEBUG_STATE.with(|state|{
+            state.full_type_stack.borrow_mut().pop();
+        });
+    }
+}
+
+
+
+////////////////
+
+
 struct DecrementLevel;
 
 impl Drop for DecrementLevel{
@@ -170,7 +357,7 @@ impl Drop for DecrementLevel{
 
 #[derive(Debug)]
 struct TypeLayoutPointer{
-    key_in_map:usize,
+    key_in_map:Option<usize>,
     type_:FmtFullType,
 }
 

@@ -122,12 +122,12 @@ impl CompGenericParams{
 #[derive(Copy,Clone,PartialEq,Eq)]
 pub struct GenericParams{
     /// The names of the lifetimes declared by a type.
-    lifetime: NulStr<'static>,
+    pub(super) lifetime: NulStr<'static>,
     /// The type parameters of a type,getting them from the containing TypeLayout.
-    types: &'static [TypeLayoutCtor],
+    pub(super) types: &'static [TypeLayoutCtor],
     /// The const parameters of a type,getting them from the containing TypeLayout.
-    consts: &'static [ConstGeneric],
-    lifetime_count:u8,
+    pub(super) consts: &'static [ConstGeneric],
+    pub(super) lifetime_count:u8,
 }
 
 impl GenericParams {
@@ -227,6 +227,7 @@ pub struct FmtFullType {
     pub(super) name:&'static str,
     pub(super) generics:GenericParams,
     pub(super) primitive:Option<TLPrimitive>,
+    pub(super) utypeid:UTypeId,
 }
 
 impl FmtFullType{
@@ -237,74 +238,6 @@ impl FmtFullType{
     /// The generic parmaters of a type.
     pub fn generics(&self)->GenericParams{
         self.generics
-    }
-}
-
-impl Display for FmtFullType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Debug::fmt(self, f)
-    }
-}
-impl Debug for FmtFullType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::TLPrimitive as TLP;
-
-        let (typename, start_gen, before_ty, ty_sep, end_gen) = match self.primitive {
-            Some(TLP::SharedRef) => ("&", "", " ", " ", " "),
-            Some(TLP::MutRef) => ("&", "", " mut ", " ", " "),
-            Some(TLP::ConstPtr) => ("*const", " ", "", " ", " "),
-            Some(TLP::MutPtr) => ("*mut", " ", "", " ", " "),
-            Some(TLP::Array{..}) => ("", "[", "", ";", "]"),
-             Some(TLP::U8)|Some(TLP::I8)
-            |Some(TLP::U16)|Some(TLP::I16)
-            |Some(TLP::U32)|Some(TLP::I32)
-            |Some(TLP::U64)|Some(TLP::I64)
-            |Some(TLP::Usize)|Some(TLP::Isize)
-            |Some(TLP::Bool)
-            |None => (self.name, "<", "", ", ", ">"),
-        };
-
-        fmt::Display::fmt(typename, f)?;
-        let mut is_before_ty = true;
-        let generics = self.generics;
-        if !generics.is_empty() {
-            fmt::Display::fmt(start_gen, f)?;
-
-            let post_iter = |i: usize, len: usize, f: &mut Formatter<'_>| -> fmt::Result {
-                if i+1 < len {
-                    fmt::Display::fmt(ty_sep, f)?;
-                }
-                Ok(())
-            };
-
-            let mut i=0;
-
-            let total_generics_len=
-                generics.lifetime_count()+generics.types.len()+generics.consts.len();
-
-            for param in self.generics.lifetimes() {
-                fmt::Display::fmt(param, &mut *f)?;
-                post_iter(i,total_generics_len, &mut *f)?;
-                i+=1;
-            }
-            for param in generics.types.iter().cloned() {
-                let layout=param.get();
-                if is_before_ty {
-                    fmt::Display::fmt(before_ty, &mut *f)?;
-                    is_before_ty = false;
-                }
-                fmt::Debug::fmt(&layout.full_type(), &mut *f)?;
-                post_iter(i,total_generics_len, &mut *f)?;
-                i+=1;
-            }
-            for param in generics.consts.iter() {
-                fmt::Debug::fmt(param, &mut *f)?;
-                post_iter(i,total_generics_len, &mut *f)?;
-                i+=1;
-            }
-            fmt::Display::fmt(end_gen, f)?;
-        }
-        Ok(())
     }
 }
 

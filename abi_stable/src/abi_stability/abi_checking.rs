@@ -1268,7 +1268,6 @@ impl TypeChecker for AbiChecker{
             interface.full_type(),
             implementation.full_type()
         );
-        dbg!();
         
         self.check_compatibility_inner(interface,implementation)
             .map_err(|_|{
