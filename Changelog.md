@@ -1,6 +1,72 @@
-This is the changelog,summarising changes in each version.
+This is the changelog,summarising changes in each version(some minor changes may be ommited).
 
+# 0.7
 
+- Added `const fn` constructor functions for 
+    `#[sabi_trait]` generated trait objects/DynTrait/RObject.
+
+- Added `RRef<'a,T>` type,as a workaround to allow transmuting `&T` to `&()`.
+
+- Added StableAbi attributes:
+    `#[sabi(bounds=""]`:for adding multiple bounds to the StableAbi impl.
+    `#[sabi(prefix_bounds=""]`:for adding multiple bounds to the PrefixTypeTrait impl.
+    `#[sabi(sabi_opaque_fields]`:
+        To treat a field as opaque while still requiring it to impl StableAbi.
+    `#[sabi(sabi_opaque_fields]`:
+        To treat every field as opaque while still requiring them to impl StableAbi.
+    `#[sabi(shared_stableabi())]`:
+        replaces the default `T:StableAbi` bound with `T:SharedStableAbi`
+    `#[sabi(phantom_const_param="<expr>")]` :
+        This adds `<expr>` as a virtual const parameter,
+        that is checked for equality like every other const parameter.
+
+- Added ConstGeneric,to have proper const-generics support,
+    this allows any type that implements `Eq+Debug+StableAbi+'static` to be 
+    used as a const-parameter.
+
+- Added macros for constructing RVec/Tuple0-4/RStr/RSlice/NulStr
+
+- Added NulStr,a nul terminated utf8 string slice.
+
+- Rewrote how type layout constants are represented to be significantly smaller.
+    Most of the optimizations are described in the 
+    `ffdd68fef8d445d7d91972b0d751db80df887ec4` commit
+    (there were some tweaks after that commit,but it's mostly correct).
+
+- Now `#[sabi_trait]trait Trait:'static{}` allows the trait object
+    to be constructed from a non-'static reference to a `'static` type,
+    removing lifetime supertraits from `Trait` in the generated code.
+    Now generates a `Trait_Bound` trait with all the supertraits(including lifetimes).
+
+- Renamed `#[sabi(field_bound="")]` to `#[sabi(accessor_bound="")]`,
+    because it only adds a bound to the accessor methods of prefix types.
+
+- Merged the `abi_stable_derive_lib` crate into the `abi_stable_derive` crate.
+
+- Changed error reporting in proc macros to report as many errors as possible,
+    pointing at what the cause of the error is.
+
+- Added reborrowing support to `#[sabi_trait]` generated trait objects.
+
+- Changed TypeInfo to use `std::any::type_name` 
+    to print the type in error messages from 1.38 onwards.
+
+- Renamed DynTrait/RObject unerasure methods for the common case.
+
+- Split TransmuteElement into
+    the CanTransmuteElement marker trait and 
+    the TransmuteElement extension trait
+
+- Now forbidding type macros,they will be allowed once 
+    referenced lifetime can be detected inside macro invocations.
+
+- Added Debug and Display support in RObject.
+
+- Added a way to add extra checks to type layouts at load time with 
+    `#[sabi(extra_checks="")]`,passing a type that implements ExtraChecks.
+    Replaced uses of `#[sabi(tag="...")]` by DynTrait/RObject/NonExhaustive.
+
+- Made it possible to borrow from self in SerializeProxyType.
 
 # 0.6
 

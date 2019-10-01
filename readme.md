@@ -87,7 +87,6 @@ with comments for how to turn them into 3 separate crates.
 
 ```rust
 
-
 /////////////////////////////////////////////////////////////////////////////////
 //
 //                        Application (user crate) 
@@ -175,7 +174,6 @@ use abi_stable::{
     StableAbi,
     DynTrait,
     sabi_trait,
-    impl_InterfaceType,
     library::{LibraryError,RootModule},
     package_version_strings,
     std_types::{RBox,RString,RVec},
@@ -508,9 +506,6 @@ impl<T> Appender for RVec<T>{
 }
 
 
-
-
-
 ```
 
 
@@ -608,6 +603,11 @@ These are default cargo features that enable optional crates :
     Depends on `crossbeam-channel`,
     wrapping channels from it for ffi in abi_stable::external_types::crossbeam_channel .
 
+- "serde_json":
+    Depends on `serde_json`,
+    providing ffi-safe equivalents of 
+    `&serde_json::value::RawValue` and `Box<serde_json::value::RawValue>`.
+
 
 To disable the default features use:
 ```
@@ -617,6 +617,25 @@ default-features=false
 features=[  ]
 ```
 enabling the features you need in the `features` array.
+
+
+### Manually enabled
+
+These are features to manually enabled support for newer language features,
+required until this library is updated to automatically detect them,
+every one of which has a `nightly_*` equivalent.
+
+Features:
+
+- `const_params`:Enables items in abi_stable that use const generics.
+
+### Nightly features
+
+The `all_nightly` feature enables all the `nightly_*` equivalents of the 
+manually enabled features.
+
+Every `nightly_*` feature enables both support from abi_stable,
+as well as the nightly feature flag in the compiler.
 
 # Tools
 
