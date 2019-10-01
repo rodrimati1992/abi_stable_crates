@@ -8,6 +8,7 @@ use crate::sabi_trait;
 #[sabi_trait]
 #[sabi(use_dyn_trait)]
 pub trait ConstExample:Debug+Clone{
+    #[sabi(last_prefix_field)]
     fn next_number(&self,num:usize)->usize;
 }
 
