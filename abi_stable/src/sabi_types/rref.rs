@@ -131,7 +131,9 @@ impl<'a,T> RRef<'a,T>{
     /// struct GetPtr<'a,T>(&'a T);
     ///
     /// impl<'a,T:'a> GetPtr<'a,T>{
-    ///     const REFERENCE:RRef<'a,Option<T>>=RRef::new(&None);
+    ///     const NONE_REF:&'a Option<T>=&None;
+    ///
+    ///     const REFERENCE:RRef<'a,Option<T>>=RRef::new(Self::NONE_REF);
     ///
     ///     // This returns a reference that lives as long as T does
     ///     fn returns_ref()->&'a Option<String>{
@@ -162,8 +164,10 @@ impl<'a,T> RRef<'a,T>{
     /// struct GetPtr<'a,T>(&'a T);
     ///
     /// impl<'a,T:'a> GetPtr<'a,T>{
+    ///     const NONE_REF:&'a Option<T>=&None;
+    ///
     ///     const STATIC:RRef<'a,Option<T>>=
-    ///         RRef::new(&None);
+    ///         RRef::new(Self::NONE_REF);
     /// }
     ///
     /// let reference:*const Option<Infallible>=
