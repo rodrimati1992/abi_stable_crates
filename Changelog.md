@@ -2,6 +2,16 @@ This is the changelog,summarising changes in each version(some minor changes may
 
 # 0.7
 
+### 0.7.2
+
+Bug fix:
+
+This fixes the version number for abi_stable that is stored in dynamic libraries to 
+always be the same as `abi_stable`.
+Before this fix the version number was 0.6 which means that you'll have to recompile dynamic libraries of previous patch versions(the 0.7.0 and 0.7.1 versions are yanked because of this).
+
+### 0.7.0
+
 - Added `const fn` constructor functions for 
     `#[sabi_trait]` generated trait objects/DynTrait/RObject.
 

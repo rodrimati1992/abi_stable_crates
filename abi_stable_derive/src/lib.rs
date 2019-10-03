@@ -168,6 +168,22 @@ pub fn get_string_length(input: TokenStream1) -> TokenStream1 {
 }
 
 
+#[doc(hidden)]
+#[proc_macro]
+pub fn construct_abi_header(_: TokenStream1) -> TokenStream1 {
+    let abi_major=env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
+    let abi_minor=env!("CARGO_PKG_VERSION_MINOR").parse::<u32>().unwrap();
+    quote!(
+        pub const ABI_HEADER:AbiHeader=AbiHeader{
+            magic_string:*b"abi stable library for Rust     ",
+            abi_major:#abi_major,
+            abi_minor:#abi_minor,
+            _priv:(),
+        };
+    ).into()
+}
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 

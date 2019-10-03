@@ -291,11 +291,12 @@ pub struct AbiHeader{
 impl AbiHeader{
     /// The value of the AbiHeader stored in dynamic libraries that use this 
     /// version of abi_stable
-    pub const VALUE:AbiHeader=AbiHeader{
-        magic_string:*b"abi stable library for Rust     ",
-        abi_major:0,
-        abi_minor:6,
-        _priv:(),
+    pub const VALUE:AbiHeader={
+        mod value{
+            use super::*;
+            abi_stable_derive::construct_abi_header!{}
+        }
+        value::ABI_HEADER
     };
 }
 
