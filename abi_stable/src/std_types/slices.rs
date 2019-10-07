@@ -99,11 +99,7 @@ where
     impl_from_rust_repr! {
         impl['a, T] From<&'a [T]> for RSlice<'a, T> {
             fn(this){
-                RSlice {
-                    data: this.as_ptr(),
-                    length: this.len(),
-                    _marker: Default::default(),
-                }
+                Self::from_slice(this)
             }
         }
     }
@@ -251,30 +247,48 @@ impl<'a, T> RSlice<'a, T> {
     /// 
     ///
     /// ```
-    pub fn from_ref(ref_:&'a T)->Self{
+    pub const fn from_ref(ref_:&'a T)->Self{
         unsafe{
             Self::from_raw_parts(ref_,1)
         }
     }    
 
-    /// Converts a `&[T]` to an `RSlice<'_,T>`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RSlice;
-    ///
-    /// let empty:&[u8]=&[];
-    ///
-    /// assert_eq!(RSlice::<u8>::from_slice(&[]).as_slice(), empty);
-    /// assert_eq!(RSlice::from_slice(&[0]).as_slice()     , &[0][..]);
-    /// assert_eq!(RSlice::from_slice(&[0,1]).as_slice()   , &[0,1][..]);
-    /// 
-    /// ```
-    #[inline]
-    pub fn from_slice(slic:&'a [T])->Self{
-        slic.into()
+    with_shared_attrs!{
+        /**
+Converts a `&[T]` to an `RSlice<'_,T>`.
+
+# Example
+
+```
+use abi_stable::std_types::RSlice;
+
+let empty:&[u8]=&[];
+
+assert_eq!(RSlice::<u8>::from_slice(&[]).as_slice(), empty);
+assert_eq!(RSlice::from_slice(&[0]).as_slice()     , &[0][..]);
+assert_eq!(RSlice::from_slice(&[0,1]).as_slice()   , &[0,1][..]);
+
+```
+        */
+        #[inline]
+        (
+            ;
+            #[cfg(feature="rust_1_39")];
+            // <[T]>::len was stabilized in 1.39
+            pub const fn from_slice(slic:&'a [T])->Self{
+                unsafe{ RSlice::from_raw_parts(slic.as_ptr(),slic.len()) }
+            }
+        )
+        (
+            ;
+            #[cfg(not(feature="rust_1_39"))];
+            // <[T]>::len was stabilized in 1.39
+            pub fn from_slice(slic:&'a [T])->Self{
+                unsafe{ RSlice::from_raw_parts(slic.as_ptr(),slic.len()) }
+            }
+        )
     }
+
 
     /// Creates an `RSlice<'a,T>` with access to the `range` range of elements.
     ///

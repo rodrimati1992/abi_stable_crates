@@ -173,7 +173,7 @@ impl<'a> RStr<'a> {
     ///
     /// ```
     #[inline]
-    pub fn as_rslice(&self) -> RSlice<'a, u8> {
+    pub const fn as_rslice(&self) -> RSlice<'a, u8> {
         self.inner
     }
 
@@ -213,6 +213,22 @@ impl<'a> RStr<'a> {
     #[inline]
     pub const fn len(&self) -> usize {
         self.inner.len()
+    }
+
+    /// Queries whether this RStr is empty.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RStr;
+    ///
+    /// assert_eq!(RStr::from("").is_empty(),true);
+    /// assert_eq!(RStr::from("a").is_empty(),false);
+    /// assert_eq!(RStr::from("What").is_empty(),false);
+    ///
+    /// ```
+    pub const fn is_empty(&self)->bool{
+        self.inner.is_empty()
     }
 }
 
