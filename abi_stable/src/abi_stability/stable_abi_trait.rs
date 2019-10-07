@@ -877,7 +877,7 @@ mod rust_1_34_impls{
 }
 
 
-#[cfg(any(rust_1_36,feature="rust_1_36"))]
+#[cfg(any(feature="rust_1_36"))]
 mod rust_1_36_impls{
     use super::*;
     use std::mem::MaybeUninit;

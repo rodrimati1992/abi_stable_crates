@@ -17,3 +17,4 @@ macro_rules! _sabi_type_layouts {
         ]
     }};
 }
+
