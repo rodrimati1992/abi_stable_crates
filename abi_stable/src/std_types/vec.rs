@@ -143,6 +143,41 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
                 ret
             }
         }
+
+        /// Gets a raw pointer to the start of this RVec's buffer.
+        pub const fn as_ptr(&self) -> *const T{
+            self.buffer
+        }
+
+        /// Creates a new,empty `RVec<T>`.
+        ///
+        /// This function does not allocate.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RVec;
+        ///
+        /// let list=RVec::<u32>::new();
+        ///
+        /// ```
+        pub const fn new() -> Self {
+            Self::NEW
+        }
+
+        const NEW:Self={
+            // unsafety:
+            // While this implementation is correct,
+            // it would be better to do `RVec::from_vec(Vec::new())`
+            // when it's possible to call `Vec::{as_mut_ptr,capacity,len}` in const contexts.
+            RVec {
+                vtable: WithMetadata::as_prefix( VTableGetter::<T>::LIB_VTABLE ),
+                buffer: std::mem::align_of::<T>() as *mut T,
+                length: 0,
+                capacity: 0_usize.wrapping_sub((std::mem::size_of::<T>()==0)as usize),
+                _marker: PhantomData,
+            }
+        };
     }
     impl_from_rust_repr! {
         impl[T] From<Vec<T>> for RVec<T>{
@@ -153,7 +188,7 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
                     buffer: this.as_mut_ptr(),
                     length: this.len(),
                     capacity: this.capacity(),
-                    _marker: Default::default(),
+                    _marker: PhantomData,
                 }
             }
         }
@@ -164,21 +199,6 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
 pub use self::private::RVec;
 
 impl<T> RVec<T> {
-    /// Creates a new,empty `RVec<T>`.
-    ///
-    /// This function does not allocate.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RVec;
-    ///
-    /// let list=RVec::<u32>::new();
-    ///
-    /// ```
-    pub fn new() -> Self {
-        Vec::new().into()
-    }
 
     /// Creates a new,empty `RVec<T>`,with a capacity of `cap`.
     ///
@@ -298,8 +318,8 @@ impl<T> RVec<T> {
     /// assert_eq!(list.as_rslice(), RSlice::from_slice(&[0,1,2,3]));
     ///
     /// ```
-    pub fn as_rslice(&self) -> RSlice<'_, T> {
-        self.as_slice().into()
+    pub const fn as_rslice(&self) -> RSlice<'_, T> {
+        unsafe{ RSlice::from_raw_parts(self.as_ptr(),self.len()) }
     }
 
     /// Creates an `RSliceMut<'_,T>` with access to all the elements of the `RVec<T>`.
@@ -411,7 +431,7 @@ impl<T> RVec<T> {
     /// assert_eq!(list.is_empty(),false);
     ///
     /// ```
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.length == 0
     }
 

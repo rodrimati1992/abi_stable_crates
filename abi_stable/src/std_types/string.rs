@@ -73,9 +73,11 @@ impl RString {
     /// assert_eq!(&str[..],"");
     ///
     /// ```
-    pub fn new() -> Self {
-        String::new().into()
+    pub const fn new() -> Self {
+        Self::NEW
     }
+
+    const NEW:Self=Self{ inner:RVec::new() };
 
     /// Creates a new,
     /// empty RString with the capacity to push strings that add up to `cap` bytes.
@@ -152,8 +154,10 @@ impl RString {
     ///
     /// ```
     #[inline]
-    pub fn as_rstr(&self) -> RStr<'_> {
-        self.as_str().into()
+    pub const fn as_rstr(&self) -> RStr<'_> {
+        unsafe{
+            RStr::from_raw_parts(self.as_ptr(),self.len())
+        }
     }
 
     /// Returns the current length (in bytes) of the RString.
@@ -172,6 +176,12 @@ impl RString {
     pub const fn len(&self) -> usize {
         self.inner.len()
     }
+
+    /// Gets a raw pointer to the start of this RString's buffer.
+    pub const fn as_ptr(&self) -> *const u8{
+        self.inner.as_ptr()
+    }
+
 
     /// Returns the current capacity (in bytes) of the RString.
     ///
@@ -211,8 +221,8 @@ impl RString {
     ///
     /// ```
     #[inline]
-    pub unsafe fn from_utf8_unchecked(vec: RVec<u8>) -> Self{
-        RString { inner: vec.into() }
+    pub const unsafe fn from_utf8_unchecked(vec: RVec<u8>) -> Self{
+        RString { inner: vec }
     }
 
     /// Converts the `vec` vector of bytes to an RString.

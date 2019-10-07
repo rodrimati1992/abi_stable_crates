@@ -119,6 +119,17 @@ where
             self.data
         }
 
+        /// Gets a raw pointer to the start of the slice.
+        pub const fn as_ptr(&self) -> *const T{
+            self.data
+        }
+        
+        /// Gets a mutable raw pointer to the start of the slice.
+        pub const fn into_mut_ptr(self) -> *mut T{
+            self.data
+        }
+
+
         /// The length (in elements) of this slice.
         ///
         /// # Example
