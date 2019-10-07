@@ -113,26 +113,37 @@ impl<'a> RStr<'a> {
         }
     }
 
-    /// Converts `&'a str` to a `RStr<'a>`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RStr;
-    ///
-    /// assert_eq!(RStr::from_str("").as_str(), "");
-    /// assert_eq!(RStr::from_str("Hello").as_str(), "Hello");
-    /// assert_eq!(RStr::from_str("World").as_str(), "World");
-    ///
-    /// ```
-    #[inline]
-    pub fn from_str(s: &'a str) -> Self {
-        unsafe {
-            Self {
-                inner: s.as_bytes().into(),
+    with_shared_attrs!{
+        /// Converts `&'a str` to a `RStr<'a>`.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RStr;
+        ///
+        /// assert_eq!(RStr::from_str("").as_str(), "");
+        /// assert_eq!(RStr::from_str("Hello").as_str(), "Hello");
+        /// assert_eq!(RStr::from_str("World").as_str(), "World");
+        ///
+        /// ```
+        #[inline]
+        (
+            ;
+            #[cfg(feature="rust_1_39")];
+            pub const fn from_str(s: &'a str) -> Self {
+                unsafe{ Self::from_raw_parts( s.as_ptr(), s.len() ) }
             }
-        }
+        )
+        (
+            ;
+            #[cfg(not(feature="rust_1_39"))];
+            pub fn from_str(s: &'a str) -> Self {
+                unsafe{ Self::from_raw_parts( s.as_ptr(), s.len() ) }
+            }
+        )
+
     }
+
 
     /// For slicing `RStr`s.
     ///
