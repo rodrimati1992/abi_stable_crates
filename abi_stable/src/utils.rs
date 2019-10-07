@@ -225,13 +225,13 @@ where
 
 //////////////////////////////////////////////////////////////////////
 
-#[cfg(not(any(rust_1_38,feature="rust_1_38")))]
+#[cfg(not(feature="rust_1_38"))]
 #[doc(hidden)]
 pub extern "C" fn get_type_name<T>()->RStr<'static>{
     RStr::from("<unavailable>")
 }
 
-#[cfg(any(rust_1_38,feature="rust_1_38"))]
+#[cfg(feature="rust_1_38")]
 #[doc(hidden)]
 pub extern "C" fn get_type_name<T>()->RStr<'static>{
     RStr::from(std::any::type_name::<T>())

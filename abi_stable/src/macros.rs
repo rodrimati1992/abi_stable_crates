@@ -368,7 +368,7 @@ macro_rules! impl_get_type_info {
 }
 
 #[macro_export]
-#[cfg(not(any(rust_1_38,feature="rust_1_38")))]
+#[cfg(not(feature="rust_1_38"))]
 #[doc(hidden)]
 macro_rules! impl_get_typename{
     (
@@ -385,7 +385,7 @@ macro_rules! impl_get_typename{
 }
 
 #[macro_export]
-#[cfg(any(rust_1_38,feature="rust_1_38"))]
+#[cfg(feature="rust_1_38")]
 #[doc(hidden)]
 macro_rules! impl_get_typename{
     (

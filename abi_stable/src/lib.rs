@@ -315,4 +315,3 @@ pub mod globals{
         GLOBALS.init(|| globs );
     }
 }
-

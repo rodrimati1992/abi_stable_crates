@@ -128,10 +128,10 @@ pub mod alignment{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(not(any(rust_1_36,feature="rust_1_36")))]
+#[cfg(not(feature="rust_1_36"))]
 pub(crate) type UsedUninit<Inline>=std::mem::ManuallyDrop<Inline>;
 
-#[cfg(any(rust_1_36,feature="rust_1_36"))]
+#[cfg(feature="rust_1_36")]
 pub(crate) type UsedUninit<Inline>=std::mem::MaybeUninit<Inline>;
 
 
@@ -197,7 +197,7 @@ and that `Inline` si valid for all bitpatterns.
     }
 }
 
-#[cfg(not(any(rust_1_36,feature="rust_1_36")))]
+#[cfg(not(feature="rust_1_36"))]
 impl<Inline> ScratchSpace<Inline>{
 
 /**
@@ -213,7 +213,7 @@ You must ensure that `Inline` is valid for all bitpatterns,ie:it implements `Inl
     }
 }
 
-#[cfg(any(rust_1_36,feature="rust_1_36"))]
+#[cfg(feature="rust_1_36")]
 impl<Inline> ScratchSpace<Inline>{
 /**
 # Safety
