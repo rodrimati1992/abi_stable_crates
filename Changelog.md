@@ -2,6 +2,33 @@ This is the changelog,summarising changes in each version(some minor changes may
 
 # 0.7
 
+### 0.7.3
+
+This version constifies many functions,with some mentioned as requiring Rust 1.39 to be const.
+
+These are the constified functions:
+
+```text
+abi_stable::std_types::{
+    RSlice::from_ref,
+    RSlice::from_slice, //from Rust 1.39 onwards
+
+    RSliceMut::{as_ptr, into_mut_ptr},
+
+    RStr::from_str, //from Rust 1.39 onwards
+    RStr::{as_rslice, is_empty},
+
+    RString::{as_ptr, as_rstr, from_utf8_unchecked, new},
+
+    RVec::{as_ptr, as_rslice, is_empty, new},
+}
+```
+
+Now `rstr!()` won't require a literal argument from Rust 1.39 onwards,
+it can be any `&str`.
+
+
+
 ### 0.7.2
 
 Bug fix:
