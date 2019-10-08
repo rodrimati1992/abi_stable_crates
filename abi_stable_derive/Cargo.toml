@@ -17,6 +17,9 @@ include = [
 ]
 
 
+[features]
+rust_1_39=[]
+
 
 [dependencies]
 abi_stable_shared= {version="0.7.0",path="../abi_stable_shared"}
@@ -42,3 +45,7 @@ aho-corasick= "0.7"
 
 [lib]
 proc-macro = true
+
+
+[build-dependencies]
+rustc_version = "0.2"

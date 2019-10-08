@@ -28,7 +28,7 @@ rust_1_36=[]
 
 rust_1_38=["rust_1_36"]
 
-rust_1_39=["rust_1_38"]
+rust_1_39=["rust_1_38","abi_stable_derive/rust_1_39"]
 
 # Enables stuff that requires const generics,use this once const generics are stabilized.
 const_params=[]
@@ -74,5 +74,5 @@ skeptic = "0.13.4"
 
 
 [build-dependencies]
-rustc_version = "0.2.3"
+rustc_version = "0.2"
 skeptic = "0.13.4"
