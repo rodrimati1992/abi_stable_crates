@@ -30,14 +30,19 @@ where
         }
         let list=list.into_iter();
 
-        quote!(
-            unsafe{
-                abi_stable::std_types::RSlice::from_raw_parts_with_lifetime( 
-                    &[ #(#list)* ],
-                    #len
-                )
-            }
-        ).to_tokens(ts);
+        if cfg!(feature="rust_1_39") {
+            quote!( abi_stable::std_types::RSlice::from_slice(&[ #(#list)* ]) )
+        }else{
+            quote!(
+                unsafe{
+                    abi_stable::std_types::RSlice::from_raw_parts_with_lifetime( 
+                        &[ #(#list)* ],
+                        #len
+                    )
+                }
+            )
+        }.to_tokens(ts);
+
     })
 }
 
@@ -49,13 +54,18 @@ where
     ToTokenFnMut::new(move|ts|{
         let string=string.as_ref();
         let len=string.len();
-        quote!(
-            unsafe{
-                abi_stable::std_types::RStr::from_raw_parts( 
-                    #string.as_ptr(),
-                    #len
-                )
-            }
-        ).to_tokens(ts);
+
+        if cfg!(feature="rust_1_39") {
+            quote!( abi_stable::std_types::RStr::from_str(#string) )
+        }else{
+            quote!(
+                unsafe{
+                    abi_stable::std_types::RStr::from_raw_parts( 
+                        #string.as_ptr(),
+                        #len
+                    )
+                }
+            )
+        }.to_tokens(ts);
     })
 }

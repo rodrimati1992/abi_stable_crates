@@ -817,8 +817,8 @@ assert_eq!( RSTR_6.len(), 7 );
 */
 #[macro_export]
 macro_rules! rstr{
-    ( $str:expr ) => {
-        $crate::rstr_internal!($str)
+    ( $($str:tt)* ) => {
+        $crate::rstr_internal!( $($str)* )
     }
 }
 
