@@ -651,6 +651,45 @@ macro_rules! RTuple {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+#[cfg(feature="rust_1_39")]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! rslice_inner {
+    ( $( $elem:expr ),* ) => (
+        $crate::std_types::RSlice::from_slice(&[ $($elem),* ])
+    );
+}
+
+
+#[cfg(not(feature="rust_1_39"))]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! rslice_inner {
+    (@count;  ) => ( 0 );
+    (@count; $v0:expr) => ( 1 );
+    (@count; $v0:expr,$v1:expr) => ( 2 );
+    (@count; $v0:expr,$v1:expr,$v2:expr) => ( 3 );
+    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr) => ( 4 );
+    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr $(,$rem:expr)+) => ( 
+        4 + $crate::rslice_inner!(@count; $($rem),* )
+    );
+    () => (
+        $crate::std_types::RSlice::EMPTY
+    );
+    ( $( $elem:expr ),* $(,)* ) => (
+        unsafe{
+            // This forces the length to be evaluated at compile-time.
+            const _RSLICE_LEN:usize=$crate::rslice_inner!(@count; $($elem),* );
+            $crate::std_types::RSlice::from_raw_parts_with_lifetime(
+                &[ $($elem),* ],
+                _RSLICE_LEN,
+            )
+        }
+    );
+}
+
+
+
 /**
 A macro to construct `RSlice<'_,T>` constants.
 
@@ -697,32 +736,39 @@ assert_eq!( RSLICE_6.len(), 6 );
 */
 #[macro_export]
 macro_rules! rslice {
-    (@count;  ) => ( 0 );
-    (@count; $v0:expr) => ( 1 );
-    (@count; $v0:expr,$v1:expr) => ( 2 );
-    (@count; $v0:expr,$v1:expr,$v2:expr) => ( 3 );
-    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr) => ( 4 );
-    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr $(,$rem:expr)+) => ( 
-        4 + $crate::rslice!(@count; $($rem),* )
-    );
-    () => (
-        $crate::std_types::RSlice::EMPTY
-    );
-    ( $( $elem:expr ),* $(,)* ) => (
-        unsafe{
-            // This forces the length to be evaluated at compile-time.
-            const _RSLICE_LEN:usize=$crate::rslice!(@count; $($elem),* );
-            $crate::std_types::RSlice::from_raw_parts_with_lifetime(
-                &[ $($elem),* ],
-                _RSLICE_LEN,
-            )
-        }
-    );
+    ( $( $elem:expr ),* $(,)* ) => {
+        $crate::rslice_inner!( $($elem),* )
+    };
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////
 
+
+#[cfg(not(feature="rust_1_39"))]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! rstr_internal {
+    ( $lit:literal ) => {unsafe{
+        mod string_module{
+            $crate::get_string_length!{$lit}
+        }
+
+        $crate::std_types::RStr::from_raw_parts(
+            $lit.as_ptr(),
+            string_module::LEN,
+        )
+    }}
+}
+
+#[cfg(feature="rust_1_39")]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! rstr_internal {
+    ( $str:expr ) => {
+        $crate::std_types::RStr::from_str($str)
+    }
+}
 
 
 /**
@@ -770,17 +816,10 @@ assert_eq!( RSTR_6.len(), 7 );
 
 */
 #[macro_export]
-macro_rules! rstr {
-    ( $lit:literal ) => {unsafe{
-        mod string_module{
-            $crate::get_string_length!{$lit}
-        }
-
-        $crate::std_types::RStr::from_raw_parts(
-            $lit.as_ptr(),
-            string_module::LEN,
-        )
-    }}
+macro_rules! rstr{
+    ( $str:expr ) => {
+        $crate::rstr_internal!($str)
+    }
 }
 
 

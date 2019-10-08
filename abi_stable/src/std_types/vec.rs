@@ -1316,6 +1316,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
 #[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_struct="VecVTable")))]
 #[sabi(missing_field(panic))]
+// #[sabi(debug_print)]
 struct VecVTableVal<T> {
     type_id:Constructor<UTypeId>,
     destructor: extern "C" fn(&mut RVec<T>),
