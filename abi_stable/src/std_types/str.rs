@@ -116,6 +116,14 @@ impl<'a> RStr<'a> {
     with_shared_attrs!{
         /// Converts `&'a str` to a `RStr<'a>`.
         ///
+        /// # Constness
+        ///
+        /// This function is a `const fn` from Rust 1.39 onwards due to 
+        /// the stabilization of `str::len`.
+        ///
+        /// Before Rust 1.39 the only safe way to construct an `RStr<'static>`
+        /// constant is using `rstr!("...")` with a string literal argument.
+        ///
         /// # Example
         ///
         /// ```

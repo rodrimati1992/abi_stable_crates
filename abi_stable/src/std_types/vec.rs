@@ -118,6 +118,7 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
         /// assert_ne!(list.capacity(),0);
         ///
         /// ```
+        #[inline(always)]
         pub const fn capacity(&self) -> usize {
             self.capacity
         }
@@ -145,6 +146,7 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
         }
 
         /// Gets a raw pointer to the start of this RVec's buffer.
+        #[inline(always)]
         pub const fn as_ptr(&self) -> *const T{
             self.buffer
         }
@@ -223,10 +225,6 @@ impl<T> RVec<T> {
     /// ```
     pub fn with_capacity(cap: usize) -> Self {
         Vec::with_capacity(cap).into()
-    }
-
-    unsafe fn entire_buffer(&mut self) -> &mut [T] {
-        ::std::slice::from_raw_parts_mut(self.buffer_mut(), self.capacity())
     }
 
     /// Creates an `RSlice<'a,T>` with access to the `range` range of
@@ -355,6 +353,7 @@ impl<T> RVec<T> {
     /// assert_eq!(list.len(),2);
     ///
     /// ```
+    #[inline(always)]
     pub const fn len(&self) -> usize {
         self.length
     }
@@ -431,6 +430,7 @@ impl<T> RVec<T> {
     /// assert_eq!(list.is_empty(),false);
     ///
     /// ```
+    #[inline(always)]
     pub const fn is_empty(&self) -> bool {
         self.length == 0
     }
