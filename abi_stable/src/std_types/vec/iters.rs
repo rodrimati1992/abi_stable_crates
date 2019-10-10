@@ -1,8 +1,8 @@
 use super::*;
 
-use std::slice;
+use crate::utils::distance_from;
 
-use core_extensions::SliceExt;
+use std::slice;
 
 pub(super) struct RawValIter<T> {
     pub(super) start: *const T,
@@ -261,7 +261,8 @@ impl<'a, T> Drop for Drain<'a, T> {
         unsafe {
             let removed_start = self.removed_start;
             let removed_end = self.removed_start.offset(self.slice_len as isize);
-            let end_index = self.vec.entire_buffer().index_of(removed_start) + self.slice_len;
+            let end_index = 
+                distance_from(self.vec.as_ptr(),removed_start).unwrap_or(0)+self.slice_len;
             ptr::copy(removed_end, removed_start, self.len - end_index);
             self.vec.set_len(self.len - self.slice_len);
         }
