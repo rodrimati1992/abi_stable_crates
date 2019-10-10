@@ -257,6 +257,15 @@ impl<'a, T> RSlice<'a, T> {
         /**
 Converts a `&[T]` to an `RSlice<'_,T>`.
 
+
+# Constness
+
+This function is a `const fn` from Rust 1.39 onwards due to 
+the stabilization of `<[T]>::len`.
+
+Before Rust 1.39 the only safe way to construct an `RSlice`
+constant is using the `rslice` macro.
+
 # Example
 
 ```
