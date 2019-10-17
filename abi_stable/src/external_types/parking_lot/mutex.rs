@@ -27,18 +27,43 @@ use crate::{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-type OpaqueMutex=
-    UnsafeOveralignedField<RawMutex,[u8;OM_PADDING]>;
-
 const OM_PADDING:usize=RAW_LOCK_SIZE-mem::size_of::<RawMutex>();
 
-const OPAQUE_MUTEX:OpaqueMutex=
-    OpaqueMutex::new(<RawMutex as RawMutexTrait>::INIT,[0u8;OM_PADDING]);
+#[derive(StableAbi)]
+#[repr(C)]
+pub struct RRawMutex {
+    inner: UnsafeOveralignedField<RawMutex,[u8;OM_PADDING]>,
+}
+
+impl RRawMutex {
+    const fn new() -> Self {
+        Self {
+            inner: UnsafeOveralignedField::new(<RawMutex as RawMutexTrait>::INIT,[0u8;OM_PADDING]),
+        }
+    }
+}
+
+unsafe impl RawMutexTrait for RRawMutex {
+    type GuardMarker = <RawMutex as RawMutexTrait>::GuardMarker;
+    const INIT: Self = Self::new();
+
+    fn lock(&self) {
+        self.inner.value.lock()
+    }
+
+    fn try_lock(&self) -> bool {
+        self.inner.value.try_lock()
+    }
+
+    fn unlock(&self) {
+        self.inner.value.unlock()
+    }
+}
 
 #[allow(dead_code)]
 fn assert_mutex_size(){
-    let _assert_size:[();RAW_LOCK_SIZE-mem::size_of::<OpaqueMutex>()];
-    let _assert_size:[();mem::size_of::<OpaqueMutex>()-RAW_LOCK_SIZE];
+    let _assert_size:[();RAW_LOCK_SIZE-mem::size_of::<RRawMutex>()];
+    let _assert_size:[();mem::size_of::<RRawMutex>()-RAW_LOCK_SIZE];
 }
 
 /**
@@ -76,7 +101,7 @@ assert_eq!(*MUTEX.lock(),200);
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct RMutex<T>{
-    raw_mutex:OpaqueMutex,
+    raw_mutex:RRawMutex,
     data:UnsafeCell<T>,
     vtable:StaticRef<VTable>,
 }
@@ -117,7 +142,7 @@ impl<T> RMutex<T>{
     /// ```
     pub const fn new(value:T)->Self{
         Self{
-            raw_mutex:OPAQUE_MUTEX,
+            raw_mutex:RRawMutex::INIT,
             data:UnsafeCell::new(value),
             vtable:WithMetadata::as_prefix(VTable::VTABLE),
         }
@@ -336,11 +361,11 @@ impl<'a,T> Drop for RMutexGuard<'a, T> {
 #[sabi(kind(Prefix(prefix_struct="VTable")))]
 #[sabi(missing_field(panic))]
 struct VTableVal{
-    lock:extern "C" fn(this:&OpaqueMutex),
-    try_lock:extern "C" fn(this:&OpaqueMutex) -> bool,
-    unlock:extern "C" fn(this:&OpaqueMutex),
+    lock:extern "C" fn(this:&RRawMutex),
+    try_lock:extern "C" fn(this:&RRawMutex) -> bool,
+    unlock:extern "C" fn(this:&RRawMutex),
     #[sabi(last_prefix_field)]
-    try_lock_for:extern "C" fn(this:&OpaqueMutex, timeout: RDuration) -> bool,
+    try_lock_for:extern "C" fn(this:&RRawMutex, timeout: RDuration) -> bool,
 }
 
 impl VTable{
@@ -359,24 +384,24 @@ impl VTable{
 }
 
 
-extern "C" fn lock(this:&OpaqueMutex){
+extern "C" fn lock(this:&RRawMutex){
     extern_fn_panic_handling!{
-        this.value.lock();
+        this.inner.value.lock();
     }
 }
-extern "C" fn try_lock(this:&OpaqueMutex) -> bool{
+extern "C" fn try_lock(this:&RRawMutex) -> bool{
     extern_fn_panic_handling!{
-        this.value.try_lock()       
+        this.inner.value.try_lock()
     }
 }
-extern "C" fn unlock(this:&OpaqueMutex){
+extern "C" fn unlock(this:&RRawMutex){
     extern_fn_panic_handling!{
-        this.value.unlock();
+        this.inner.value.unlock();
     }
 }
-extern "C" fn try_lock_for(this:&OpaqueMutex, timeout: RDuration) -> bool{
+extern "C" fn try_lock_for(this:&RRawMutex, timeout: RDuration) -> bool{
     extern_fn_panic_handling!{
-        this.value.try_lock_for(timeout.into())
+        this.inner.value.try_lock_for(timeout.into())
     }
 }
 
