@@ -28,20 +28,68 @@ use crate::{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-type OpaqueRwLock=
-    UnsafeOveralignedField<RawRwLock,[u8;OM_PADDING]>;
-
 const OM_PADDING:usize=RAW_LOCK_SIZE-mem::size_of::<RawRwLock>();
-
-const OPAQUE_LOCK:OpaqueRwLock=
-    OpaqueRwLock::new(<RawRwLock as RawRwLockTrait>::INIT,[0u8;OM_PADDING]);
 
 #[allow(dead_code)]
 fn assert_lock_size(){
-    let _assert_size:[();RAW_LOCK_SIZE-mem::size_of::<OpaqueRwLock>()];
-    let _assert_size:[();mem::size_of::<OpaqueRwLock>()-RAW_LOCK_SIZE];
+    let _assert_size:[();RAW_LOCK_SIZE-mem::size_of::<RRawRwLock>()];
+    let _assert_size:[();mem::size_of::<RRawRwLock>()-RAW_LOCK_SIZE];
 }
 
+/**
+The equivalent of a [`parking_lot::RawRwLock`] with a stable ABI.
+
+[`parking_lot::RawRwLock`]: https://docs.rs/parking_lot/0.9.0/parking_lot/struct.RawRwLock.html
+*/
+#[derive(StableAbi)]
+#[repr(C)]
+pub struct RRawRwLock {
+    inner: UnsafeOveralignedField<RawRwLock,[u8;OM_PADDING]>,
+}
+
+impl RRawRwLock {
+    const fn new() -> Self {
+        Self {
+            inner: UnsafeOveralignedField::new(<RawRwLock as RawRwLockTrait>::INIT,[0u8;OM_PADDING]),
+        }
+    }
+}
+
+unsafe impl RawRwLockTrait for RRawRwLock {
+    const INIT: Self = Self::new();
+
+    type GuardMarker = <RawRwLock as RawRwLockTrait>::GuardMarker;
+
+    #[inline]
+    fn lock_exclusive(&self) {
+        self.inner.value.lock_exclusive()
+    }
+
+    #[inline]
+    fn try_lock_exclusive(&self) -> bool {
+        self.inner.value.try_lock_exclusive()
+    }
+
+    #[inline]
+    fn unlock_exclusive(&self) {
+        self.inner.value.unlock_exclusive()
+    }
+
+    #[inline]
+    fn lock_shared(&self) {
+        self.inner.value.lock_shared()
+    }
+
+    #[inline]
+    fn try_lock_shared(&self) -> bool {
+        self.inner.value.try_lock_shared()
+    }
+
+    #[inline]
+    fn unlock_shared(&self) {
+        self.inner.value.unlock_shared()
+    }
+}
 
 /**
 A read-write lock that allows dynamic mutable/shared borrows of shared data.
@@ -81,7 +129,7 @@ assert_eq!(*LOCK.read(),200);
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct RRwLock<T>{
-    raw_lock:OpaqueRwLock,
+    raw_lock:RRawRwLock,
     data:UnsafeCell<T>,
     vtable:StaticRef<VTable>,
 }
@@ -140,7 +188,7 @@ impl<T> RRwLock<T>{
     /// ```
     pub const fn new(value:T)->Self{
         Self{
-            raw_lock:OPAQUE_LOCK,
+            raw_lock:RRawRwLock::INIT,
             data:UnsafeCell::new(value),
             vtable: WithMetadata::as_prefix(VTable::VTABLE),
         }
@@ -494,16 +542,16 @@ impl<'a,T> Drop for RWriteGuard<'a, T> {
 #[sabi(kind(Prefix(prefix_struct="VTable")))]
 #[sabi(missing_field(panic))]
 struct VTableVal{
-    lock_shared:extern "C" fn(this:&OpaqueRwLock),
-    try_lock_shared:extern "C" fn(this:&OpaqueRwLock) -> bool,
-    try_lock_shared_for:extern "C" fn(this:&OpaqueRwLock, timeout: RDuration) -> bool,
-    unlock_shared:extern "C" fn(this:&OpaqueRwLock),
+    lock_shared:extern "C" fn(this:&RRawRwLock),
+    try_lock_shared:extern "C" fn(this:&RRawRwLock) -> bool,
+    try_lock_shared_for:extern "C" fn(this:&RRawRwLock, timeout: RDuration) -> bool,
+    unlock_shared:extern "C" fn(this:&RRawRwLock),
     
-    lock_exclusive:extern "C" fn(this:&OpaqueRwLock),
-    try_lock_exclusive:extern "C" fn(this:&OpaqueRwLock) -> bool,
+    lock_exclusive:extern "C" fn(this:&RRawRwLock),
+    try_lock_exclusive:extern "C" fn(this:&RRawRwLock) -> bool,
     #[sabi(last_prefix_field)]
-    try_lock_exclusive_for:extern "C" fn(this:&OpaqueRwLock, timeout: RDuration) -> bool,
-    unlock_exclusive:extern "C" fn(this:&OpaqueRwLock),
+    try_lock_exclusive_for:extern "C" fn(this:&RRawRwLock, timeout: RDuration) -> bool,
+    unlock_exclusive:extern "C" fn(this:&RRawRwLock),
 }
 
 impl VTable{
@@ -527,46 +575,46 @@ impl VTable{
 
 
 
-extern "C" fn lock_shared(this:&OpaqueRwLock){
+extern "C" fn lock_shared(this:&RRawRwLock){
     extern_fn_panic_handling!{
-        this.value.lock_shared();
+        this.lock_shared();
     }
 }
-extern "C" fn try_lock_shared(this:&OpaqueRwLock) -> bool{
+extern "C" fn try_lock_shared(this:&RRawRwLock) -> bool{
     extern_fn_panic_handling!{
-        this.value.try_lock_shared()       
+        this.try_lock_shared()       
     }
 }
-extern "C" fn try_lock_shared_for(this:&OpaqueRwLock, timeout: RDuration) -> bool{
+extern "C" fn try_lock_shared_for(this:&RRawRwLock, timeout: RDuration) -> bool{
     extern_fn_panic_handling!{
-        this.value.try_lock_shared_for(timeout.into())
+        this.inner.value.try_lock_shared_for(timeout.into())
     }
 }
-extern "C" fn unlock_shared(this:&OpaqueRwLock){
+extern "C" fn unlock_shared(this:&RRawRwLock){
     extern_fn_panic_handling!{
-        this.value.unlock_shared();
+        this.unlock_shared();
     }
 }
 
 
-extern "C" fn lock_exclusive(this:&OpaqueRwLock){
+extern "C" fn lock_exclusive(this:&RRawRwLock){
     extern_fn_panic_handling!{
-        this.value.lock_exclusive();
+        this.lock_exclusive();
     }
 }
-extern "C" fn try_lock_exclusive(this:&OpaqueRwLock) -> bool{
+extern "C" fn try_lock_exclusive(this:&RRawRwLock) -> bool{
     extern_fn_panic_handling!{
-        this.value.try_lock_exclusive()       
+        this.try_lock_exclusive()       
     }
 }
-extern "C" fn try_lock_exclusive_for(this:&OpaqueRwLock, timeout: RDuration) -> bool{
+extern "C" fn try_lock_exclusive_for(this:&RRawRwLock, timeout: RDuration) -> bool{
     extern_fn_panic_handling!{
-        this.value.try_lock_exclusive_for(timeout.into())
+        this.inner.value.try_lock_exclusive_for(timeout.into())
     }
 }
-extern "C" fn unlock_exclusive(this:&OpaqueRwLock){
+extern "C" fn unlock_exclusive(this:&RRawRwLock){
     extern_fn_panic_handling!{
-        this.value.unlock_exclusive();
+        this.unlock_exclusive();
     }
 }
 

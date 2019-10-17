@@ -8,8 +8,8 @@ pub mod mutex;
 pub mod rw_lock;
 
 pub use self::{
-    mutex::RMutex,
-    rw_lock::RRwLock,
+    mutex::{RMutex, RRawMutex},
+    rw_lock::{RRwLock, RRawRwLock},
     once::ROnce,
 };
 

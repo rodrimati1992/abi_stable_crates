@@ -29,6 +29,11 @@ use crate::{
 
 const OM_PADDING:usize=RAW_LOCK_SIZE-mem::size_of::<RawMutex>();
 
+/**
+The equivalent of a [`parking_lot::RawMutex`], but with a stable ABI.
+
+[`parking_lot::RawMutex`]: https://docs.rs/parking_lot/0.9/parking_lot/struct.RawMutex.html
+*/
 #[derive(StableAbi)]
 #[repr(C)]
 pub struct RRawMutex {
@@ -47,14 +52,17 @@ unsafe impl RawMutexTrait for RRawMutex {
     type GuardMarker = <RawMutex as RawMutexTrait>::GuardMarker;
     const INIT: Self = Self::new();
 
+    #[inline]
     fn lock(&self) {
         self.inner.value.lock()
     }
 
+    #[inline]
     fn try_lock(&self) -> bool {
         self.inner.value.try_lock()
     }
 
+    #[inline]
     fn unlock(&self) {
         self.inner.value.unlock()
     }
