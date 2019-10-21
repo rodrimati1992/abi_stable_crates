@@ -22,14 +22,15 @@ use syn::{
 
 use quote::{ToTokens,quote_spanned};
 
-
+use as_derive_utils::{
+    to_token_fn::ToTokenFnMut,
+};
 
 use crate::*;
 
 use crate::{
     datastructure::{DataStructure,Field,FieldMap,FieldIndex},
     literals_constructors::rstr_tokenizer,
-    to_token_fn::ToTokenFnMut,
     parse_utils::parse_str_as_ident,
 };
 

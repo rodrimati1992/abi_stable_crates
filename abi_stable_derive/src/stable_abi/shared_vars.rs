@@ -4,7 +4,6 @@ use crate::{
     lifetimes::{LifetimeIndex,LifetimeIndexPair,LifetimeRange},
     literals_constructors::rslice_tokenizer,
     utils::{join_spans,LinearResult,SynResultExt},
-    ToTokenFnMut,
 };
 
 use super::{
@@ -12,6 +11,10 @@ use super::{
     tl_multi_tl::TypeLayoutIndex,
     CommonTokens,
     ConstIdents,
+};
+
+use as_derive_utils::{
+    to_token_fn::ToTokenFnMut,
 };
 
 use core_extensions::SelfOps;

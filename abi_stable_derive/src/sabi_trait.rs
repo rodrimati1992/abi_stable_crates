@@ -3,8 +3,6 @@ use crate::{
     impl_interfacetype::private_associated_type,
     parse_utils::{parse_str_as_ident},
     my_visibility::{VisibilityKind,RelativeVis},
-    gen_params_in::{GenParamsIn,InWhat},
-    to_token_fn::ToTokenFnMut,
     workaround::token_stream_to_string,
 };
 
@@ -17,6 +15,12 @@ use proc_macro2::TokenStream as TokenStream2;
 use syn::{
     ItemTrait,
 };
+
+use as_derive_utils::{
+    gen_params_in::{GenParamsIn,InWhat},
+    to_token_fn::ToTokenFnMut,
+};
+
 
 mod attribute_parsing;
 mod common_tokens;

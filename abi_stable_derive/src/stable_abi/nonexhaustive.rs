@@ -13,6 +13,11 @@ use quote::{quote,ToTokens};
 
 use proc_macro2::{Span,TokenStream as TokenStream2};
 
+use as_derive_utils::{
+    gen_params_in::{GenParamsIn,InWhat},
+    to_token_fn::ToTokenFnMut,
+};
+
 use super::{
     attribute_parsing::{StabilityKind,StableAbiOptions},
     common_tokens::CommonTokens,
@@ -22,12 +27,10 @@ use super::{
 use crate::{
     arenas::{Arenas,AllocMethods},
     datastructure::{DataStructure},
-    gen_params_in::{GenParamsIn,InWhat},
     impl_interfacetype::{private_associated_type,TRAIT_LIST,UsableTrait},
     literals_constructors::rstr_tokenizer,
     parse_utils::{parse_str_as_ident,parse_str_as_path},
     set_span_visitor::SetSpanVisitor,
-    to_token_fn::ToTokenFnMut,
     utils::{LinearResult,SynResultExt},
 };
 
