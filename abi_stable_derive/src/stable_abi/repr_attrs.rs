@@ -3,10 +3,13 @@ use core_extensions::{matches,SelfOps};
 use proc_macro2::{TokenStream,Span};
 use quote::{quote,ToTokens};
 
+use as_derive_utils::{
+    to_token_fn::ToTokenFnMut,
+};
+
 use crate::{
     ignored_wrapper::Ignored,
     literals_constructors::rslice_tokenizer,
-    to_token_fn::ToTokenFnMut,
 };
 
 use super::common_tokens::CommonTokens;

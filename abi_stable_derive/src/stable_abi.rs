@@ -8,13 +8,15 @@ use crate::{
         SmallCompositeVec as CompositeVec,
     },
     datastructure::{DataStructure,DataVariant},
-    gen_params_in::{GenParamsIn,InWhat},
     impl_interfacetype::impl_interfacetype_tokenizer,
     lifetimes::LifetimeIndex,
     literals_constructors::{rslice_tokenizer,rstr_tokenizer},
-    to_token_fn::ToTokenFnMut,
 };
 
+use as_derive_utils::{
+    gen_params_in::{GenParamsIn,InWhat},
+    to_token_fn::ToTokenFnMut,
+};
 
 use syn::Ident;
 

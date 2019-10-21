@@ -4,7 +4,7 @@ use quote::ToTokens;
 use std::cell::RefCell;
 
 /// Used to more easily implement ToTokens.
-pub(crate) struct ToTokenFnMut<F> {
+pub struct ToTokenFnMut<F> {
     func: RefCell<F>,
 }
 
@@ -12,13 +12,13 @@ impl<F> ToTokenFnMut<F>
 where
     F: FnMut(&mut TokenStream),
 {
-    pub(crate) fn new(f: F) -> Self {
+    pub fn new(f: F) -> Self {
         Self {
             func: RefCell::new(f),
         }
     }
     #[allow(dead_code)]
-    pub(crate) fn boxed<'a>(f: F) -> Box<dyn ToTokens+'a> 
+    pub fn boxed<'a>(f: F) -> Box<dyn ToTokens+'a> 
     where
         F:'a,
     {
