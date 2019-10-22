@@ -2,6 +2,10 @@
 Functions for parsing many `syn` types.
 */
 
+use as_derive_utils::{
+    spanned_err,
+};
+
 use syn::{
     parse,
     punctuated::Punctuated,

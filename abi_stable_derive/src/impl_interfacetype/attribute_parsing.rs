@@ -2,6 +2,11 @@ use std::{
     collections::HashMap,
 };
 
+use as_derive_utils::{
+    spanned_err,
+    return_spanned_err,
+};
+
 use syn::{
     Meta, NestedMeta, Ident, 
     punctuated::Punctuated,

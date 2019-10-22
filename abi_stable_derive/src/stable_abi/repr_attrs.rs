@@ -5,6 +5,8 @@ use quote::{quote,ToTokens};
 
 use as_derive_utils::{
     to_token_fn::ToTokenFnMut,
+    syn_err,
+    return_syn_err,
 };
 
 use crate::{

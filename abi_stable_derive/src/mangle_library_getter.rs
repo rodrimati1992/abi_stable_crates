@@ -4,6 +4,10 @@ The implementation of the `#[export_root_module]` attribute.
 
 use super::*;
 
+use as_derive_utils::{
+    return_spanned_err,
+};
+
 use syn::Ident;
 
 use proc_macro2::Span;

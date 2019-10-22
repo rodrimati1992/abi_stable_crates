@@ -1,5 +1,9 @@
 use super::*;
 
+use as_derive_utils::{
+    return_spanned_err,
+};
+
 use proc_macro2::TokenStream as TokenStream2;
 
 use syn::{

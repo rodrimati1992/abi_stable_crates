@@ -4,6 +4,10 @@ Implementation details of the `#[sabi_extern_fn]` attribute.
 
 use std::mem;
 
+use as_derive_utils::{
+    return_spanned_err,
+};
+
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::{Span,TokenStream as TokenStream2,TokenTree};
 
