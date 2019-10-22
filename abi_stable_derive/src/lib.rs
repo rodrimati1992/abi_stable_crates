@@ -15,6 +15,7 @@ An implementation detail of abi_stable.
 
 extern crate proc_macro;
 
+
 /**
 
 
@@ -190,9 +191,6 @@ pub fn construct_abi_header(_: TokenStream1) -> TokenStream1 {
 
 
 #[macro_use]
-mod macros;
-
-#[macro_use]
 mod utils;
 
 mod arenas;
@@ -201,7 +199,6 @@ mod concat_and_ranges;
 mod common_tokens;
 mod composite_collections;
 mod constants;
-mod datastructure;
 mod fn_pointer_extractor;
 mod get_static_equivalent;
 mod ignored_wrapper;

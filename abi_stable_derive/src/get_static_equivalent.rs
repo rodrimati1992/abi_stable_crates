@@ -14,6 +14,7 @@ use syn::{
 use as_derive_utils::{
     gen_params_in::{GenParamsIn,InWhat},
     to_token_fn::ToTokenFnMut,
+    to_stream,
 };
 
 use crate::{

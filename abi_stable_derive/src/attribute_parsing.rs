@@ -1,3 +1,6 @@
+use as_derive_utils::{
+    return_spanned_err,
+};
 
 use syn::{
     Meta, NestedMeta,

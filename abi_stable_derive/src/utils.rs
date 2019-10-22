@@ -1,5 +1,4 @@
 use std::{
-    fmt::Display,
     mem::{self,ManuallyDrop},
     ops::{Deref,DerefMut},
     ptr,
@@ -9,17 +8,15 @@ use std::{
 use abi_stable_shared::test_utils::{FileSpan};
 
 use core_extensions::measure_time::MyDuration;
-use quote::{ToTokens};
-use proc_macro2::{Span,TokenStream as TokenStream2};
-use syn::spanned::Spanned;
 
-
-#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash)]
-pub struct NoTokens;
-
-impl ToTokens for NoTokens {
-    fn to_tokens(&self, _: &mut TokenStream2) {}
-}
+pub(crate) use as_derive_utils::utils::{
+    join_spans,
+    dummy_ident,
+    type_from_ident,
+    expr_from_ident,
+    expr_from_int,
+    uint_lit,
+};
 
 
 #[allow(dead_code)]
@@ -44,49 +41,6 @@ impl Drop for PrintDurationOnDrop{
         let dur:MyDuration=self.start.elapsed().into();
         println!("{}-{}:taken {} to run",span.file,span.line,dur);
     }
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-#[inline(never)]
-pub(crate) fn dummy_ident()->syn::Ident{
-    syn::Ident::new("DUMMY_IDENT",Span::call_site())
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-pub(crate) fn type_from_ident(ident: syn::Ident) -> syn::Type {
-    let path: syn::Path = ident.into();
-    let path = syn::TypePath { qself: None, path };
-    path.into()
-}
-
-pub(crate) fn expr_from_ident(ident:syn::Ident)->syn::Expr{
-    let x=syn::Path::from(ident);
-    let x=syn::ExprPath{
-        attrs:Vec::new(),
-        qself:None,
-        path:x,
-    };
-    syn::Expr::Path(x)
-}
-
-/// Used to tokenize an integer without a type suffix.
-pub(crate) fn expr_from_int(int:u64)->syn::Expr{
-    let x=proc_macro2::Literal::u64_unsuffixed(int);
-    let x=syn::LitInt::from(x);
-    let x=syn::Lit::Int(x);
-    let x=syn::ExprLit{attrs:Vec::new(),lit:x};
-    let x=syn::Expr::Lit(x);
-    x
-}
-
-/// Used to tokenize an integer without a type suffix.
-/// This one should be cheaper than `expr_from_int`.
-pub(crate) fn uint_lit(int:u64)->syn::LitInt{
-    let x=proc_macro2::Literal::u64_unsuffixed(int);
-    syn::LitInt::from(x)
 }
 
 
@@ -255,38 +209,6 @@ impl<T> SynResultExt for LinearResult<T>{
     fn combine_into_err<T2>(self,into:&mut Result<T2,syn::Error>){
         self.into_result().combine_into_err(into);
     }
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-
-pub(crate) fn spanned_err(tokens:&dyn ToTokens, display:&dyn Display)-> syn::Error {
-    syn::Error::new_spanned(tokens,display)
-}
-
-#[allow(dead_code)]
-pub(crate) fn syn_err(span:Span,display:&dyn Display)-> syn::Error {
-    syn::Error::new(span,display)
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-
-pub fn join_spans<I,T>(iter:I)->Span
-where
-    I:IntoIterator<Item=T>,
-    T:Spanned,
-{
-    let call_site=Span::call_site();
-    let mut iter=iter.into_iter();
-    let first:Span=match iter.next() {
-        Some(x)=>x.span(),
-        None=>return call_site,
-    };
-
-    iter.fold(first,|l,r| l.join(r.span()).unwrap_or(call_site) )
 }
 
 

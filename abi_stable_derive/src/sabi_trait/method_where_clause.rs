@@ -1,5 +1,7 @@
 use super::*;
 
+use as_derive_utils::spanned_err;
+
 use quote::ToTokens;
 
 use syn::{WhereClause,WherePredicate};

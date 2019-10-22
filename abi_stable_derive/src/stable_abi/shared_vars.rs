@@ -15,6 +15,7 @@ use super::{
 
 use as_derive_utils::{
     to_token_fn::ToTokenFnMut,
+    syn_err,
 };
 
 use core_extensions::SelfOps;
