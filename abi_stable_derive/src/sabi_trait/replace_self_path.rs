@@ -2,6 +2,10 @@
 Contains the replace_self_path function,and the ReplaceWith enum.
 */
 
+use as_derive_utils::{
+    spanned_err,
+};
+
 use syn::visit_mut::VisitMut;
 use syn::{Ident, TypePath,TraitItemType};
 

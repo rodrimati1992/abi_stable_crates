@@ -77,6 +77,8 @@ and loaded in the `user crate`.
 Types must implement StableAbi to be safely passed through the FFI boundary,
 which can be done using the StableAbi derive macro.
 
+[For how to evolve dynamically loaded libraries look here](./docs/library_evolution/index.html).
+
 These are the kinds of types passed through FFI:
 
 - Value kind:<br>
@@ -177,6 +179,7 @@ use abi_stable_derive::{
 #[doc(hidden)]
 pub use abi_stable_derive::{
     get_string_length,
+    get_root_module_static,
 };
 
 #[macro_use]
@@ -237,7 +240,6 @@ pub mod std_types;
 pub mod sabi_types;
 
 
-
 pub mod reflection;
 pub mod type_level;
 
@@ -255,6 +257,11 @@ pub static LIB_HEADER:library::AbiHeader=library::AbiHeader::VALUE;
 pub mod reexports{
     pub use core_extensions::SelfOps;
 }
+
+
+#[doc(hidden)]
+pub const ABI_STABLE_VERSION:sabi_types::VersionStrings=package_version_strings!();
+
 
 /*
 I am using this static as the `identity` of this dynamic library/executable,

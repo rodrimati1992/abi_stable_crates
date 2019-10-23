@@ -1,3 +1,10 @@
+use as_derive_utils::{
+    datastructure::{DataStructure, DataVariant, Field, FieldMap, TypeParamMap},
+    return_spanned_err,
+    spanned_err,
+    syn_err,
+};
+
 use syn::{
     Attribute, Ident, Meta, MetaList, MetaNameValue, NestedMeta, 
     Lit,WherePredicate,Type,
@@ -17,10 +24,11 @@ use proc_macro2::Span;
 
 use quote::ToTokens;
 
+use crate::*;
+
 use crate::{
     attribute_parsing::{with_nested_meta},
     impl_interfacetype::{ImplInterfaceType,parse_impl_interfacetype},
-    datastructure::{DataStructure, DataVariant, Field, FieldMap, TypeParamMap},
     parse_utils::{
         parse_str_as_ident,
         parse_str_as_type,
@@ -42,7 +50,6 @@ use super::{
     repr_attrs::{UncheckedReprAttr,UncheckedReprKind,DiscriminantRepr,ReprAttr,REPR_ERROR_MSG},
 };
 
-use crate::*;
 
 pub(crate) struct StableAbiOptions<'a> {
     pub(crate) debug_print:bool,

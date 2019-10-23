@@ -7,14 +7,19 @@ use crate::{
         SmallStartLen as StartLen,
         SmallCompositeVec as CompositeVec,
     },
-    datastructure::{DataStructure,DataVariant},
-    gen_params_in::{GenParamsIn,InWhat},
     impl_interfacetype::impl_interfacetype_tokenizer,
     lifetimes::LifetimeIndex,
     literals_constructors::{rslice_tokenizer,rstr_tokenizer},
-    to_token_fn::ToTokenFnMut,
 };
 
+use as_derive_utils::{
+    datastructure::{DataStructure,DataVariant},
+    gen_params_in::{GenParamsIn,InWhat},
+    to_token_fn::ToTokenFnMut,
+    return_syn_err,
+    return_spanned_err,
+    to_stream,
+};
 
 use syn::Ident;
 
@@ -80,7 +85,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let arenas = &arenas;
     let ctokens = CommonTokens::new(arenas);
     let ctokens = &ctokens;
-    let ds = &DataStructure::new(&mut data, arenas);
+    let ds = &DataStructure::new(&data);
     let config = &parse_attrs_for_stable_abi(ds.attrs, ds, arenas)?;
     let shared_vars=&mut SharedVars::new(arenas,&config.const_idents,ctokens);
     let generics=ds.generics;

@@ -15,6 +15,7 @@ An implementation detail of abi_stable.
 
 extern crate proc_macro;
 
+
 /**
 
 
@@ -183,14 +184,22 @@ pub fn construct_abi_header(_: TokenStream1) -> TokenStream1 {
     ).into()
 }
 
+/// This is used by testing/version_compatibility to access the exported static.
+#[doc(hidden)]
+#[proc_macro]
+pub fn get_root_module_static(_: TokenStream1) -> TokenStream1 {
+    let export_name=syn::Ident::new(
+        &abi_stable_shared::mangled_root_module_loader_name(),
+        proc_macro2::Span::call_site(),
+    );
+    quote!( crate::#export_name ).into()
+}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////
 
 
-
-#[macro_use]
-mod macros;
 
 #[macro_use]
 mod utils;
@@ -201,9 +210,7 @@ mod concat_and_ranges;
 mod common_tokens;
 mod composite_collections;
 mod constants;
-mod datastructure;
 mod fn_pointer_extractor;
-mod gen_params_in;
 mod get_static_equivalent;
 mod ignored_wrapper;
 mod impl_interfacetype;
@@ -214,7 +221,6 @@ mod my_visibility;
 mod parse_utils;
 mod sabi_extern_fn_impl;
 mod set_span_visitor;
-mod to_token_fn;
 mod workaround;
 
 #[cfg(test)]
@@ -245,7 +251,6 @@ use core_extensions::prelude::*;
 use crate::{
     arenas::{AllocMethods, Arenas},
     utils::PrintDurationOnDrop,
-    to_token_fn::ToTokenFnMut,
 };
 
 

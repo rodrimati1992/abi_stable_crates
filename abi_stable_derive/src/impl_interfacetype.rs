@@ -14,9 +14,12 @@ use quote::{ToTokens,quote,quote_spanned};
 
 use syn::Ident;
 
+use as_derive_utils::{
+    to_token_fn::ToTokenFnMut,
+};
+
 use crate::{
     parse_utils::parse_str_as_ident,
-    to_token_fn::ToTokenFnMut,
 };
 
 

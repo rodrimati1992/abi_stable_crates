@@ -24,7 +24,9 @@ Where this is used is determined by WhichItem:
 
 use super::*;
 
-use crate::to_token_fn::ToTokenFnMut;
+use as_derive_utils::{
+    to_token_fn::ToTokenFnMut,
+};
 
 #[derive(Debug,Copy,Clone)]
 pub struct MethodsTokenizer<'a>{

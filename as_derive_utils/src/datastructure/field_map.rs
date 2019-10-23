@@ -13,7 +13,7 @@ you must remember to replace the `FieldMap` using either `FieldMap::defaulted` o
 
 */
 #[derive(Default,Clone, Debug, PartialEq, Hash)]
-pub(crate) struct FieldMap<T> {
+pub struct FieldMap<T> {
     // The outer vec is the enum variant (if it's a struct/union it's a single element Vec),
     // the inner one is the field within a variant/struct/union.
     fields:Vec<Vec<T>>,
@@ -21,7 +21,7 @@ pub(crate) struct FieldMap<T> {
 
 impl<T> FieldMap<T>{
     /// Constructs an empty FieldMap.
-    pub(crate) fn empty()->Self{
+    pub fn empty()->Self{
         Self{
             fields:Vec::new(),
         }
@@ -29,7 +29,7 @@ impl<T> FieldMap<T>{
 
     /// Constructs an FieldMap which maps each field in the DataStructure 
     /// to the default value for `T`.
-    pub(crate) fn defaulted<'a>(ds:&'a DataStructure<'a>)->Self
+    pub fn defaulted<'a>(ds:&'a DataStructure<'a>)->Self
     where 
         T:Default
     {
@@ -38,7 +38,7 @@ impl<T> FieldMap<T>{
     
     /// Constructs an FieldMap which maps each field in the DataStructure to a value
     /// (obtained by mapping each individual field to `T` using a closure).
-    pub(crate) fn with<'a,F>(ds:&'a DataStructure<'a>,mut f:F)->Self
+    pub fn with<'a,F>(ds:&'a DataStructure<'a>,mut f:F)->Self
     where
         F:FnMut(&'a Field<'a>)->T
     {
@@ -53,7 +53,7 @@ impl<T> FieldMap<T>{
     }
 
     /// Maps each value in the map to another one,using a closure.
-    pub(crate) fn map<F,U>(self,mut f:F)->FieldMap<U>
+    pub fn map<F,U>(self,mut f:F)->FieldMap<U>
     where
         F:FnMut(FieldIndex,T)->U
     {
@@ -79,19 +79,18 @@ impl<T> FieldMap<T>{
 
     /// Whether the field index maps to a field.
     #[allow(dead_code)]
-    pub(crate) fn contains_index(&self,index:FieldIndex)->bool{
+    pub fn contains_index(&self,index:FieldIndex)->bool{
         self.fields
             .get(index.variant)
             .map_or(false,|variant| index.pos < variant.len() )
     }
 
     /// Add a new field to the map along with a value that it maps into.
-    pub(crate) fn insert(&mut self,field:&Field<'_>,value:T)->T{
+    pub fn insert(&mut self,field:&Field<'_>,value:T)->T{
         mem::replace(&mut self[field], value)
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn iter(&self)->impl Iterator<Item=(FieldIndex,&'_ T)>+'_ {
+    pub fn iter(&self)->impl Iterator<Item=(FieldIndex,&'_ T)>+Clone+'_ {
         self.fields
             .iter().enumerate()
             .flat_map(|(v_i,v)|{
@@ -103,7 +102,7 @@ impl<T> FieldMap<T>{
             })
     }
 
-    pub(crate) fn iter_mut(&mut self)->impl Iterator<Item=(FieldIndex,&'_ mut T)>+'_ {
+    pub fn iter_mut(&mut self)->impl Iterator<Item=(FieldIndex,&'_ mut T)>+'_ {
         self.fields
             .iter_mut().enumerate()
             .flat_map(|(v_i,v)|{
@@ -113,6 +112,10 @@ impl<T> FieldMap<T>{
                         ( index, f )
                     })
             })
+    }
+
+    pub fn values(&self)->impl Iterator<Item=&'_ T>+Clone+'_ {
+        self.fields.iter().flat_map(|v| v.iter() )
     }
 }
 

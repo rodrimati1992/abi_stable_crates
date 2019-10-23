@@ -11,11 +11,15 @@ use syn::{
     DeriveInput, Generics, Ident,
 };
 
-use crate::{
+use as_derive_utils::{
     gen_params_in::{GenParamsIn,InWhat},
+    to_token_fn::ToTokenFnMut,
+    to_stream,
+};
+
+use crate::{
     impl_interfacetype::impl_interfacetype_tokenizer,
     parse_utils::parse_str_as_ident,
-    to_token_fn::ToTokenFnMut,
 };
 
 

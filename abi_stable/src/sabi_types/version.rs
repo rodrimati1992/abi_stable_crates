@@ -173,7 +173,7 @@ impl VersionNumber {
     /// Whether the `self` version number is compatible with the
     /// library_implementor version number.
     ///
-    /// This uses the same semver rules as cargo:
+    /// This uses modified semver rules where:
     ///
     /// - For 0.y.z ,y is interpreted as a major version,
     ///     z is interpreted as the minor version,
@@ -203,6 +203,54 @@ impl VersionNumber {
             self.minor == library_implementor.minor && self.patch <= library_implementor.patch
         } else {
             self.major == library_implementor.major && self.minor <= library_implementor.minor
+        }
+    }
+    /// Whether the `self` version number is compatible with the
+    /// library version number.
+    ///
+    /// This uses the same semver rules as cargo:
+    ///
+    /// - For 0.y.z ,y is interpreted as a major version,
+    ///     z is interpreted as the minor version,
+    ///
+    /// - For x.y.z ,x>=1,y is interpreted as a minor version.
+    ///
+    /// - Libraries are compatible so long as they are the same
+    ///     major version irrespective of their minor version.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::sabi_types::VersionNumber;
+    ///
+    /// let v0_1_0=VersionNumber{major:0,minor:1,patch:0};
+    /// let v0_1_5=VersionNumber{major:0,minor:1,patch:5};
+    /// let v0_1_8=VersionNumber{major:0,minor:1,patch:8};
+    /// let v0_2_0=VersionNumber{major:0,minor:2,patch:0};
+    /// let v0_2_8=VersionNumber{major:0,minor:2,patch:8};
+    /// let v1_0_0=VersionNumber{major:1,minor:0,patch:0};
+    /// let v1_5_0=VersionNumber{major:1,minor:5,patch:0};
+    /// let v2_0_0=VersionNumber{major:2,minor:0,patch:0};
+    ///
+    /// fn is_compat_assert( l:VersionNumber, r:VersionNumber, are_they_compat:bool ){
+    ///     assert_eq!( l.is_loosely_compatible(r), are_they_compat );
+    ///     assert_eq!( r.is_loosely_compatible(l), are_they_compat );
+    /// }
+    ///
+    /// is_compat_assert( v0_1_0, v0_1_5, true );
+    /// is_compat_assert( v0_1_5, v0_1_8, true );
+    /// is_compat_assert( v1_0_0, v1_5_0, true );
+    /// is_compat_assert( v0_1_8, v0_2_0, false);
+    /// is_compat_assert( v0_2_8, v1_0_0, false);
+    /// is_compat_assert( v2_0_0, v1_0_0, false);
+    /// is_compat_assert( v2_0_0, v1_5_0, false);
+    ///
+    /// ```
+    pub fn is_loosely_compatible(self, library_implementor: VersionNumber) -> bool {
+        if self.major == 0 && library_implementor.major == 0 {
+            self.minor == library_implementor.minor
+        } else {
+            self.major == library_implementor.major
         }
     }
 }

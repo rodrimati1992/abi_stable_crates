@@ -11,6 +11,12 @@ use crate::{
     utils::{dummy_ident,LinearResult,SynResultExt},
 };
 
+use as_derive_utils::{
+    syn_err,
+    spanned_err,
+    return_spanned_err,
+};
+
 use std::{
     collections::{HashMap,HashSet},
     iter,

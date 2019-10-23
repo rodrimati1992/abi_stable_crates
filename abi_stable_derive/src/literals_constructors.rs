@@ -1,7 +1,7 @@
 //! This module contains helper types/functions to output 
 //! the literals and constructors for types that don't implement ToTokens.
 
-use crate::{
+use as_derive_utils::{
     to_token_fn::ToTokenFnMut,
 };
 

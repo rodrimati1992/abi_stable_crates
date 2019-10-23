@@ -14,6 +14,11 @@ use std::{
     ops::{Add,Range},
 };
 
+use as_derive_utils::{
+    to_stream,
+    return_syn_err,
+};
+
 use proc_macro2::{TokenStream as TokenStream2,Span};
 use quote::{ToTokens};
 

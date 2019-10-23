@@ -309,4 +309,37 @@ impl AbiHeader{
         self.abi_major    == other.abi_major   &&
         ( self.abi_major!=0 || self.abi_minor==other.abi_minor )
     }
+
+    /// Checks whether the abi_stable version of this AbiHeader is 
+    /// compatible with the one from where this function is called.
+    pub fn is_valid(&self)->bool{
+        self.is_compatible(&AbiHeader::VALUE)
+    }
+
+    /**
+Gets the LibHeader of a library.
+
+# Errors
+
+This will return these errors:
+
+- LibraryError::InvalidAbiHeader:
+If the abi_stable used by the library is not compatible.
+
+    */
+    pub fn upgrade(&self)->Result< &LibHeader , LibraryError>{
+        if !self.is_valid() {
+            return Err(LibraryError::InvalidAbiHeader(*self))
+        }
+
+        let lib_header=unsafe{
+            transmute_reference::<AbiHeader,LibHeader>(self)
+        };
+        
+        let globals=globals::initialized_globals();
+
+        lib_header.initialize_library_globals(globals);
+
+        Ok(lib_header)
+    }
 }
