@@ -37,7 +37,10 @@ It is not possible to add variants or fields to exhaustive enums.
 
 Exhaustive enums being ones that are declared like this:
 ```rust
-use abi_stable::StableAbi;
+use abi_stable::{
+    std_types::RString,
+    StableAbi,
+};
 
 #[repr(u8)]
 #[derive(StableAbi)]
@@ -81,10 +84,10 @@ use abi_stable::StableAbi;
 pub struct Direction(u8);
 
 impl Direction{
-    pub const LEFT :Self=Direction(0):
-    pub const RIGHT:Self=Direction(1):
-    pub const UP   :Self=Direction(2):
-    pub const DOWN :Self=Direction(3):
+    pub const LEFT :Self=Direction(0);
+    pub const RIGHT:Self=Direction(1);
+    pub const UP   :Self=Direction(2);
+    pub const DOWN :Self=Direction(3);
 }
 
 # fn main(){}

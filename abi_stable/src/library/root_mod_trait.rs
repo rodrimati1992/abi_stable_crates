@@ -236,6 +236,32 @@ pub unsafe fn lib_header_from_raw_library(
 )->Result< &'static LibHeader , LibraryError>
 {
     unsafe{
+        abi_header_from_raw_library(raw_library)?.upgrade()
+    }
+}
+
+
+/**
+Gets the AbiHeader of a library.
+
+# Errors
+
+This will return these errors:
+
+- LibraryError::GetSymbolError:
+If the root module was not exported.
+
+# Safety
+
+The AbiHeader is implicitly tied to the lifetime of the library,
+it will contain dangling `'static` references if the library is dropped before it does.
+
+*/
+pub unsafe fn abi_header_from_raw_library(
+    raw_library:&RawLibrary
+)->Result< &'static AbiHeader , LibraryError>
+{
+    unsafe{
         let mut mangled=mangled_root_module_loader_name();
         mangled.push('\0');
         let library_getter=
@@ -243,18 +269,7 @@ pub unsafe fn lib_header_from_raw_library(
 
         let header:&'static AbiHeader= *library_getter;
 
-        if !header.is_compatible(&AbiHeader::VALUE) {
-            return Err(LibraryError::InvalidAbiHeader(*header))
-        }
-
-        let lib_header=transmute_reference::<AbiHeader,LibHeader>(header);
-        
-        let globals=globals::initialized_globals();
-        
-        // This has to run before anything else.
-        lib_header.initialize_library_globals(globals);
-
-        Ok(lib_header)
+        Ok(header)
     }
 }
 
@@ -284,6 +299,36 @@ pub fn lib_header_from_path(path:&Path)->Result< &'static LibHeader , LibraryErr
     let raw_lib=RawLibrary::load_at(path)?;
 
     let library_getter=unsafe{ lib_header_from_raw_library(&raw_lib)? };
+
+    mem::forget(raw_lib);
+
+    Ok(library_getter)
+
+}
+
+
+/**
+Gets the AbiHeader of the library at the path.
+
+This leaks the underlying dynamic library,
+if you need to do this without leaking you'll need to use
+`lib_header_from_raw_library` instead.
+
+# Errors
+
+This will return these errors:
+
+- LibraryError::OpenError:
+If the dynamic library itself could not be loaded.
+
+- LibraryError::GetSymbolError:
+If the root module was not exported.
+
+*/
+pub fn abi_header_from_path(path:&Path)->Result< &'static AbiHeader , LibraryError> {
+    let raw_lib=RawLibrary::load_at(path)?;
+
+    let library_getter=unsafe{ abi_header_from_raw_library(&raw_lib)? };
 
     mem::forget(raw_lib);
 
