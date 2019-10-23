@@ -16,22 +16,22 @@ script:
   - rustup install nightly
 
   - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
-  - cargo +nightly build --release
+  - cargo +nightly build
 
   - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_0/"
-  - cargo +nightly build --release
+  - cargo +nightly build
 
   - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/plugin_1/"
-  - cargo +nightly build --release
+  - cargo +nightly build
 
   - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/implementation/"
-  - cargo +nightly build --release
+  - cargo +nightly build
 
   - cd "${TRAVIS_BUILD_DIR}/testing/impl_0/"
-  - cargo +nightly build --release
+  - cargo +nightly build
   
   - cd "${TRAVIS_BUILD_DIR}/testing/version_compatibility/impl_0"
-  - cargo +nightly build --release
+  - cargo +nightly build
 
   - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
   - cargo check
@@ -60,17 +60,17 @@ script:
   - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
   - cargo test
   - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/user/"
-  - cargo run --release -- run-tests
+  - cargo run -- run-tests
   
   - cd "${TRAVIS_BUILD_DIR}/examples/1_trait_objects/application/"
-  - cargo run --release
+  - cargo run
 
   - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/implementation/"
   - cargo test
   - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/user/"
-  - cargo run --release
+  - cargo run
   - cd "${TRAVIS_BUILD_DIR}/testing/user_0/"
-  - cargo run --release
+  - cargo run
 
   - cd "${TRAVIS_BUILD_DIR}/testing/version_compatibility/user_0"
-  - cargo run --release
+  - cargo run
