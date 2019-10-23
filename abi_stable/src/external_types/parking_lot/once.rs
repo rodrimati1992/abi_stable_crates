@@ -145,13 +145,15 @@ Gets the running state of this ROnce.
 ```
 use abi_stable::external_types::parking_lot::once::{ROnce,ROnceState};
 
+use std::panic::AssertUnwindSafe;
+
 let once=ROnce::new();
 
 assert_eq!(once.state(), ROnceState::New );
 
-let _=std::panic::catch_unwind(||{
+let _=std::panic::catch_unwind(AssertUnwindSafe(||{
     once.call_once(|| panic!() );
-});
+}));
 
 assert!( once.state().poisoned() );
 
@@ -316,11 +318,13 @@ Whether the ROnce is poisoned,requiring call_once_force to run.
 ```
 use abi_stable::external_types::ROnce;
 
+use std::panic::AssertUnwindSafe;
+
 let once=ROnce::new();
 
-let _=std::panic::catch_unwind(||{
+let _=std::panic::catch_unwind(AssertUnwindSafe(||{
     once.call_once(|| panic!() );
-});
+}));
 
 assert!(once.state().poisoned());
 
