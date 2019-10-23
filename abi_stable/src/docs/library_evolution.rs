@@ -123,6 +123,11 @@ ffi-safe trait objects.
 The potential dependence on global state is why `abi_stable` uses dynamic dispatch 
 for all the types it wraps in `abi_stable::external_types`
 
+# abi_stable specific
+
+If you add StableAbi types to abi_stable,make sure to add them to the list of types in
+`version_compatibility_interface::ManyTypes`
+(the crate is in testing/version_compatibility/interface/)
 
 
 */

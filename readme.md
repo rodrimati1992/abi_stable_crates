@@ -547,6 +547,9 @@ might get unloaded at any time.
 
 This is a way that users can structure their libraries to allow for dynamic linking.
 
+For how to evolve dynamically loaded libraries loaded using the safe API in abi_stable 
+[look here](https://docs.rs/abi_stable/*/abi_stable/docs/library_evolution/index.html).
+
 ### Interface crate
 
 A crate which declares:
