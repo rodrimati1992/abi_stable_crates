@@ -1,9 +1,4 @@
-use std::{
-    mem::{self,ManuallyDrop},
-    ops::{Deref,DerefMut},
-    ptr,
-    time::Instant,
-};
+use std::time::Instant;
 
 use abi_stable_shared::test_utils::{FileSpan};
 
@@ -15,7 +10,7 @@ pub(crate) use as_derive_utils::utils::{
     type_from_ident,
     expr_from_ident,
     expr_from_int,
-    take_manuallydrop,
+    //take_manuallydrop,
     uint_lit,
     LinearResult,
     SynPathExt,

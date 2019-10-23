@@ -451,7 +451,7 @@ impl AbiChecker {
                 let x = (|| {
                     let l = t_ver_str.parsed()?;
                     let r = o_ver_str.parsed()?;
-                    Ok(l.is_compatible(r))
+                    Ok(l.is_loosely_compatible(r))
                 })();
                 match x {
                     Ok(false) => {

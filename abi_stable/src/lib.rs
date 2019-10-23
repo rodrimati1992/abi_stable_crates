@@ -177,6 +177,7 @@ use abi_stable_derive::{
 #[doc(hidden)]
 pub use abi_stable_derive::{
     get_string_length,
+    get_root_module_static,
 };
 
 #[macro_use]
@@ -237,7 +238,6 @@ pub mod std_types;
 pub mod sabi_types;
 
 
-
 pub mod reflection;
 pub mod type_level;
 
@@ -255,6 +255,11 @@ pub static LIB_HEADER:library::AbiHeader=library::AbiHeader::VALUE;
 pub mod reexports{
     pub use core_extensions::SelfOps;
 }
+
+
+#[doc(hidden)]
+pub const ABI_STABLE_VERSION:sabi_types::VersionStrings=package_version_strings!();
+
 
 /*
 I am using this static as the `identity` of this dynamic library/executable,

@@ -184,6 +184,17 @@ pub fn construct_abi_header(_: TokenStream1) -> TokenStream1 {
     ).into()
 }
 
+/// This is used by testing/version_compatibility to access the exported static.
+#[doc(hidden)]
+#[proc_macro]
+pub fn get_root_module_static(_: TokenStream1) -> TokenStream1 {
+    let export_name=syn::Ident::new(
+        &abi_stable_shared::mangled_root_module_loader_name(),
+        proc_macro2::Span::call_site(),
+    );
+    quote!( crate::#export_name ).into()
+}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////
