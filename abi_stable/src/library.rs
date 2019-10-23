@@ -46,6 +46,8 @@ pub use self::{
         RootModule,
         lib_header_from_raw_library,
         lib_header_from_path,
+        abi_header_from_raw_library,
+        abi_header_from_path,
         RootModuleConsts,
         ErasedRootModuleConsts,
     },

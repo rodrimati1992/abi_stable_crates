@@ -15,7 +15,7 @@ you must remember to replace the `TypeParamMap` using either
 
 */
 #[derive(Default,Clone, Debug, PartialEq)]
-pub(crate) struct TypeParamMap<'a,T> {
+pub struct TypeParamMap<'a,T> {
     idents:Rc<Idents<'a>>,
     ty_params:Vec<T>,
 }
@@ -32,7 +32,7 @@ struct Idents<'a>{
 impl<'a,T> TypeParamMap<'a,T>{
     /// Constructs an TypeParamMap which maps each type parameter in the DataStructure 
     /// to the default value for `T`.
-    pub(crate) fn defaulted(ds:&'a DataStructure<'a>)->Self
+    pub fn defaulted(ds:&'a DataStructure<'a>)->Self
     where 
         T:Default
     {
@@ -42,7 +42,7 @@ impl<'a,T> TypeParamMap<'a,T>{
     /// Constructs an TypeParamMap which maps each type parameter 
     /// in the DataStructure to a value
     /// (obtained by mapping each individual type parameter to `T` using a closure).
-    pub(crate) fn with<F>(ds:&'a DataStructure<'a>,mut f:F)->Self
+    pub fn with<F>(ds:&'a DataStructure<'a>,mut f:F)->Self
     where
         F:FnMut(usize,&'a Ident)->T
     {
@@ -72,7 +72,7 @@ impl<'a,T> TypeParamMap<'a,T>{
     /// This operation is cheap,it only clones a reference counted pointer,
     /// and constructs a Vec of empty tuples(which is just a fancy counter).
     ///
-    pub(crate) fn clone_unit(&self)->TypeParamMap<'a,()>{
+    pub fn clone_unit(&self)->TypeParamMap<'a,()>{
         TypeParamMap{
             ty_params: vec![ () ; self.ty_params.len() ],
             idents: self.idents.clone(),
@@ -81,7 +81,7 @@ impl<'a,T> TypeParamMap<'a,T>{
 
 
     /// Maps each value in the map to another one,using a closure.
-    pub(crate) fn map<F,U>(self,mut f:F)->TypeParamMap<'a,U>
+    pub fn map<F,U>(self,mut f:F)->TypeParamMap<'a,U>
     where
         F:FnMut(usize,&'a Ident,T)->U
     {
@@ -95,25 +95,25 @@ impl<'a,T> TypeParamMap<'a,T>{
         }
     }
 
-    pub(crate) fn len(&self)->usize{
+    pub fn len(&self)->usize{
         self.ty_params.len()
     }
 
-    pub(crate) fn get_index(&self,ident:&Ident)->Result<usize,syn::Error>{
+    pub fn get_index(&self,ident:&Ident)->Result<usize,syn::Error>{
         match self.idents.map.get(ident) {
             Some(x)=>Ok(*x),
             None=>Err(spanned_err!(ident,"identifier for an invalid type parameter")),
         }
     }
 
-    pub(crate) fn get<I>(&self,index:I)->Result<&T,syn::Error>
+    pub fn get<I>(&self,index:I)->Result<&T,syn::Error>
     where
         Self:Getter<I,Elem=T>,
     {
         self.get_inner(index)
     }
 
-    pub(crate) fn get_mut<I>(&mut self,index:I)->Result<&mut T,syn::Error>
+    pub fn get_mut<I>(&mut self,index:I)->Result<&mut T,syn::Error>
     where
         Self:Getter<I,Elem=T>,
     {
@@ -121,11 +121,11 @@ impl<'a,T> TypeParamMap<'a,T>{
     }
 
     #[allow(dead_code)]
-    pub(crate) fn iter(&self)->impl Iterator<Item=(&'a Ident,&'_ T)>+'_ {
+    pub fn iter(&self)->impl Iterator<Item=(&'a Ident,&'_ T)>+'_ {
         self.idents.list.iter().cloned().zip(self.ty_params.iter())
     }
 
-    pub(crate) fn iter_mut(&mut self)->impl Iterator<Item=(&'a Ident,&'_ mut T)>+'_ {
+    pub fn iter_mut(&mut self)->impl Iterator<Item=(&'a Ident,&'_ mut T)>+'_ {
         self.idents.list.iter().cloned().zip(self.ty_params.iter_mut())
     }
 }

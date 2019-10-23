@@ -8,6 +8,10 @@ use std::{
     mem,
 };
 
+use as_derive_utils::{
+    spanned_err,
+    syn_err,
+};
 
 use core_extensions::prelude::*;
 

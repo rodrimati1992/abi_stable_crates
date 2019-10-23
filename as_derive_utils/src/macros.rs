@@ -1,5 +1,7 @@
 #![allow(unused_macros)]
 
+#[doc(hidden)]
+#[macro_export]
 macro_rules! to_stream {
     ( $stream:ident ; $($expr:expr),* $(,)* ) => {{
         // use quote::TokenStreamExt;
@@ -8,7 +10,8 @@ macro_rules! to_stream {
     }}
 }
 
-
+#[doc(hidden)]
+#[macro_export]
 macro_rules! spanned_err {
     ( $e:expr, $($fmt:tt)* ) => ({
         $crate::utils::spanned_err(
@@ -18,7 +21,8 @@ macro_rules! spanned_err {
     })
 }
 
-
+#[doc(hidden)]
+#[macro_export]
 macro_rules! return_spanned_err {
     ( $e:expr, $($fmt:tt)* ) => ({
         return Err($crate::utils::spanned_err(
@@ -28,6 +32,8 @@ macro_rules! return_spanned_err {
     })
 }
 
+#[doc(hidden)]
+#[macro_export]
 macro_rules! syn_err {
     ( $span:expr, $($fmt:tt)* ) => ({
         $crate::utils::syn_err(
@@ -37,7 +43,8 @@ macro_rules! syn_err {
     })
 }
 
-
+#[doc(hidden)]
+#[macro_export]
 macro_rules! return_syn_err {
     ( $span:expr, $($fmt:tt)* ) => ({
         return Err($crate::utils::syn_err(

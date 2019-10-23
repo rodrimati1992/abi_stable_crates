@@ -1,4 +1,4 @@
-/**
+/*!
 Contains the `GenParamsIn` type,for printing generic parameters.
 */
 
@@ -18,7 +18,7 @@ use crate::utils::NoTokens;
 ///
 /// One can also add stuff to be printed after lifetime/type parameters.
 #[derive(Debug, Copy, Clone)]
-pub(crate) struct GenParamsIn<'a,AL=NoTokens> {
+pub struct GenParamsIn<'a,AL=NoTokens> {
     pub generics: &'a Generics,
     /// Where the generic parameters are being printed.
     pub in_what: InWhat,

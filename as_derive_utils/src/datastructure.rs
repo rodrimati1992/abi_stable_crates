@@ -1,5 +1,3 @@
-use crate::*;
-
 use syn::{
     self, Attribute, Data, DeriveInput, Field as SynField, Fields as SynFields, Generics, Ident,
     Type, Visibility,
@@ -9,10 +7,15 @@ use quote::ToTokens;
 
 use proc_macro2::{Span, TokenStream};
 
+
+use std::fmt::{self,Display};
+
+
+
 mod field_map;
 mod type_param_map;
 
-pub(crate) use self::{
+pub use self::{
     field_map::FieldMap,
     type_param_map::TypeParamMap,
 
@@ -22,31 +25,28 @@ pub(crate) use self::{
 
 /// A type definition(enum,struct,union).
 #[derive(Clone, Debug, PartialEq, Hash)]
-pub(crate) struct DataStructure<'a> {
-    pub(crate) vis: &'a Visibility,
-    pub(crate) name: &'a Ident,
-    pub(crate) generics: &'a Generics,
-    pub(crate) lifetime_count: usize,
-    pub(crate) field_count: usize,
-    pub(crate) pub_field_count: usize,
+pub struct DataStructure<'a> {
+    pub vis: &'a Visibility,
+    pub name: &'a Ident,
+    pub generics: &'a Generics,
+    pub lifetime_count: usize,
+    pub field_count: usize,
+    pub pub_field_count: usize,
 
-    pub(crate) attrs: &'a [Attribute],
+    pub attrs: &'a [Attribute],
 
     /// Whether this is a struct/union/enum.
-    pub(crate) data_variant: DataVariant,
+    pub data_variant: DataVariant,
 
     /// The variants in the type definition.
     ///
     /// If it is a struct or a union this only has 1 element.
-    pub(crate) variants: Vec<Struct<'a>>,
+    pub variants: Vec<Struct<'a>>,
 }
 
 
 impl<'a> DataStructure<'a> {
-    pub(crate) fn new(
-        ast: &'a mut DeriveInput, 
-        _arenas: &'a Arenas,
-    ) -> Self {
+    pub fn new(ast: &'a DeriveInput) -> Self {
         let name = &ast.ident;
 
         let data_variant: DataVariant;
@@ -54,11 +54,11 @@ impl<'a> DataStructure<'a> {
         let mut variants = Vec::new();
 
 
-        match &mut ast.data {
+        match &ast.data {
             Data::Enum(enum_) => {
                 let override_vis=Some(&ast.vis);
 
-                for (variant,var) in (&mut enum_.variants).into_iter().enumerate() {
+                for (variant,var) in enum_.variants.iter().enumerate() {
                     variants.push(Struct::new(
                         StructParams{
                             discriminant:var.discriminant
@@ -69,7 +69,7 @@ impl<'a> DataStructure<'a> {
                             name:&var.ident,
                             override_vis:override_vis,
                         },
-                        &mut var.fields,
+                        &var.fields,
                     ));
                 }
                 data_variant = DataVariant::Enum;
@@ -85,7 +85,7 @@ impl<'a> DataStructure<'a> {
                         name:name,
                         override_vis:override_vis,
                     },
-                    &mut struct_.fields,
+                    &struct_.fields,
                 ));
                 data_variant = DataVariant::Struct;
             }
@@ -132,7 +132,7 @@ impl<'a> DataStructure<'a> {
         }
     }
 
-    pub(crate) fn has_public_fields(&self)->bool{
+    pub fn has_public_fields(&self)->bool{
         self.pub_field_count!=0
     }
 }
@@ -141,7 +141,7 @@ impl<'a> DataStructure<'a> {
 
 /// Whether the struct is tupled or not.
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub(crate) enum StructKind {
+pub enum StructKind {
     /// structs declared using the `struct Name( ... ) syntax.
     Tuple,
     /// structs declared using the `struct Name{ ... }` or `struct name;` syntaxes
@@ -149,7 +149,7 @@ pub(crate) enum StructKind {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub(crate) enum DataVariant {
+pub enum DataVariant {
     Struct,
     Enum,
     Union,
@@ -157,9 +157,9 @@ pub(crate) enum DataVariant {
 
 
 #[derive(Copy,Clone, Debug, PartialEq, Hash)]
-pub(crate) struct FieldIndex {
-    pub(crate) variant:usize,
-    pub(crate) pos:usize,
+pub struct FieldIndex {
+    pub variant:usize,
+    pub pos:usize,
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -176,29 +176,29 @@ struct StructParams<'a>{
 
 /// A struct/union or a variant of an enum.
 #[derive(Clone, Debug, PartialEq, Hash)]
-pub(crate) struct Struct<'a> {
+pub struct Struct<'a> {
     /// The attributes of this `Struct`.
     ///
     /// If this is a struct/union:these is the same as DataStructure.attrs.
     ///
     /// If this is an enum:these are the attributes on the variant.
-    pub(crate) attrs: &'a [Attribute],
+    pub attrs: &'a [Attribute],
     /// The name of this `Struct`.
     ///
     /// If this is a struct/union:these is the same as DataStructure.name.
     ///
     /// If this is an enum:this is the name of the variant.
-    pub(crate) name: &'a Ident,
-    pub(crate) kind: StructKind,
-    pub(crate) fields: Vec<Field<'a>>,
-    pub(crate) pub_field_count:usize,
+    pub name: &'a Ident,
+    pub kind: StructKind,
+    pub fields: Vec<Field<'a>>,
+    pub pub_field_count:usize,
     /// The value of this discriminant.
     ///
     /// If this is a Some(_):This is an enum with an explicit discriminant value.
     ///
     /// If this is an None:
     ///     This is either a struct/union or an enum variant without an explicit discriminant.
-    pub(crate) discriminant:Option<&'a syn::Expr>,
+    pub discriminant:Option<&'a syn::Expr>,
     _priv: (),
 }
 
@@ -260,13 +260,13 @@ impl<'a> Struct<'a> {
 /// Represent a struct field
 ///
 #[derive(Clone, Debug, PartialEq, Hash)]
-pub(crate) struct Field<'a> {
-    pub(crate) index:FieldIndex,
-    pub(crate) attrs: &'a [Attribute],
-    pub(crate) vis: &'a Visibility,
+pub struct Field<'a> {
+    pub index:FieldIndex,
+    pub attrs: &'a [Attribute],
+    pub vis: &'a Visibility,
     /// identifier for the field,which is either an index(in a tuple struct) or a name.
-    pub(crate) ident: FieldIdent<'a>,
-    pub(crate) ty: &'a Type,
+    pub ident: FieldIdent<'a>,
+    pub ty: &'a Type,
 }
 
 impl<'a> Field<'a> {
@@ -290,7 +290,7 @@ impl<'a> Field<'a> {
         }
     }
 
-    pub(crate) fn is_public(&self)->bool{
+    pub fn is_public(&self)->bool{
         match self.vis {
             Visibility::Public{..}=>true,
             _=>false,
@@ -298,7 +298,7 @@ impl<'a> Field<'a> {
     }
 
     /// Gets the identifier of this field as an `&Ident`.
-    pub(crate) fn ident(&self)->&Ident{
+    pub fn ident(&self)->&Ident{
         match &self.ident {
             FieldIdent::Index(_,ident)=>ident,
             FieldIdent::Named(ident)=>ident,
@@ -326,9 +326,18 @@ impl<'a> Field<'a> {
 //////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
-pub(crate) enum FieldIdent<'a> {
+pub enum FieldIdent<'a> {
     Index(usize, Ident),
     Named(&'a Ident),
+}
+
+impl<'a> Display for FieldIdent<'a>{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        match self {
+            FieldIdent::Index(x, ..) => Display::fmt(x,f),
+            FieldIdent::Named(x) => Display::fmt(x,f),
+        }
+    }
 }
 
 impl<'a> ToTokens for FieldIdent<'a> {

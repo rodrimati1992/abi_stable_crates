@@ -1,0 +1,28 @@
+[package]
+name = "as_derive_utils"
+version = "0.8.0"
+authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
+edition = "2018"
+description = "private derive utilities used by abi_stable and structural."
+license = "MIT/Apache-2.0"
+keywords = []
+categories = []
+repository = "https://github.com/rodrimati1992/abi_stable_crates/"
+include = [
+    "Cargo.toml", 
+    "src/**/*.rs", 
+    "../APACHE_license", 
+    "../MIT_license"
+]
+
+[dependencies]
+quote = "1.0"
+proc-macro2 = "1.0"
+
+[dependencies.syn]
+version = "1.0"
+features=["extra-traits"]
+
+[dependencies.core_extensions]
+default_features=false
+version="0.1"

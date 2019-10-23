@@ -4,10 +4,13 @@ For parsing the helper attributess for `#[derive(GetStaticEquivalent)]`.
 
 use std::marker::PhantomData;
 
+use as_derive_utils::{
+    return_spanned_err,
+};
+
 use syn::{
     Attribute, Meta, MetaList,
 };
-
 
 
 use crate::{

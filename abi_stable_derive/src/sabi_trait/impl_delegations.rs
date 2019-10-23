@@ -2,10 +2,11 @@ use proc_macro2::TokenStream as TokenStream2;
 
 use quote::{ToTokens, quote_spanned};
 
-
+use as_derive_utils::{
+    gen_params_in::InWhat,
+};
 
 use crate::{
-    gen_params_in::{InWhat},
     sabi_trait::{
         WhichSelf,
         WithAssocTys,

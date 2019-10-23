@@ -2,6 +2,18 @@ This is the changelog,summarising changes in each version(some minor changes may
 
 # 0.7
 
+### 0.7.4
+
+Added guidelines for how dynamic libraries can be evolved.
+
+Made version checking for types looser,so that types are cómpatible so long as it's the in the same  `x.*,*` or `0.y.*` version (ignoring `*`).
+
+Added functions to load the AbiHeader of a dynamic library,
+and to upgrade it to a LibHeader.
+
+Added `version_compatibility` crates to test that pull-requests to 
+abi_stable don't change the layout of types in an incompatible way.
+
 ### 0.7.3
 
 This version constifies many functions,with some mentioned as requiring Rust 1.39 to be const.
