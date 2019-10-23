@@ -77,6 +77,8 @@ and loaded in the `user crate`.
 Types must implement StableAbi to be safely passed through the FFI boundary,
 which can be done using the StableAbi derive macro.
 
+[For how to evolve dynamically loaded libraries look here](./docs/library_evolution/index.html).
+
 These are the kinds of types passed through FFI:
 
 - Value kind:<br>

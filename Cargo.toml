@@ -16,7 +16,10 @@ members=[
     "examples/2_nonexhaustive/user",
     "testing/impl_0",
     "testing/interface_0",
-    "testing/user",
+    "testing/user_0",
+    "testing/version_compatibility/interface",
+    "testing/version_compatibility/impl_0",
+    "testing/version_compatibility/user_0",
     "tools/*",
     "playground/",
 ]
