@@ -7,6 +7,11 @@ use quote::ToTokens;
 
 use proc_macro2::{Span, TokenStream};
 
+
+use std::fmt::{self,Display};
+
+
+
 mod field_map;
 mod type_param_map;
 
@@ -324,6 +329,15 @@ impl<'a> Field<'a> {
 pub enum FieldIdent<'a> {
     Index(usize, Ident),
     Named(&'a Ident),
+}
+
+impl<'a> Display for FieldIdent<'a>{
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+        match self {
+            FieldIdent::Index(x, ..) => Display::fmt(x,f),
+            FieldIdent::Named(x) => Display::fmt(x,f),
+        }
+    }
 }
 
 impl<'a> ToTokens for FieldIdent<'a> {

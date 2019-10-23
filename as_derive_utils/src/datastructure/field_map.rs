@@ -90,8 +90,7 @@ impl<T> FieldMap<T>{
         mem::replace(&mut self[field], value)
     }
 
-    #[allow(dead_code)]
-    pub fn iter(&self)->impl Iterator<Item=(FieldIndex,&'_ T)>+'_ {
+    pub fn iter(&self)->impl Iterator<Item=(FieldIndex,&'_ T)>+Clone+'_ {
         self.fields
             .iter().enumerate()
             .flat_map(|(v_i,v)|{
@@ -113,6 +112,10 @@ impl<T> FieldMap<T>{
                         ( index, f )
                     })
             })
+    }
+
+    pub fn values(&self)->impl Iterator<Item=&'_ T>+Clone+'_ {
+        self.fields.iter().flat_map(|v| v.iter() )
     }
 }
 
