@@ -18,9 +18,6 @@ use std::marker::PhantomData;
 pub fn get_library() -> &'static RootMod {
     RootModVal{
         _marker:PhantomData,
-        // TODO:Once the 0.7.4 version of abi_stable is uploaded,
-        // replace this with the commented out line bellow
-        abi_stable_version:VersionStrings::new("0.7.3"),
-        // abi_stable_version:abi_stable::ABI_STABLE_VERSION,
+        abi_stable_version:abi_stable::ABI_STABLE_VERSION,
     }.leak_into_prefix()
 }
