@@ -63,6 +63,9 @@ impl Tests{
     where
         F:FnMut(&str)->Result<TokenStream2,syn::Error>
     {
+        self.run_test_inner(&mut f);
+    }
+    fn run_test_inner(&self,f:&mut dyn FnMut(&str)->Result<TokenStream2,syn::Error> ){
         let mut had_err=false;
 
         let mut input=String::new();
