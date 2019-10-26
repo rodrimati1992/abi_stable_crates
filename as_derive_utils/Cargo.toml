@@ -1,6 +1,6 @@
 [package]
 name = "as_derive_utils"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
 description = "private derive utilities used by abi_stable and structural."
@@ -15,9 +15,17 @@ include = [
     "../MIT_license"
 ]
 
+[features]
+testing=["serde","ron","regex","aho-corasick"]
+
 [dependencies]
 quote = "1.0"
 proc-macro2 = "1.0"
+serde= {version="1.0",features=["derive","rc"],optional=true}
+ron= {version="0.5",optional=true}
+regex= {version="~1.2",optional=true}
+aho-corasick= {version="0.7",optional=true}
+
 
 [dependencies.syn]
 version = "1.0"

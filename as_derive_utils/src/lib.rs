@@ -22,3 +22,7 @@ pub mod utils;
 pub use crate::{
     to_token_fn::ToTokenFnMut,
 };
+
+#[cfg(feature="testing")]
+#[doc(hidden)]
+pub mod test_framework;

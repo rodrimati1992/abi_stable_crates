@@ -1,7 +1,8 @@
 use crate::{
     derive_sabi_trait_str as derive_sabi_trait,
-    test_framework::Tests,
 };
+
+use as_derive_utils::test_framework::Tests;
 
 
 #[test]

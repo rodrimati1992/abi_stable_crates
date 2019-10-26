@@ -226,9 +226,6 @@ mod workaround;
 #[cfg(test)]
 mod input_code_range_tests;
 
-#[cfg(test)]
-mod test_framework;
-
 #[doc(hidden)]
 pub(crate) mod stable_abi;
 
