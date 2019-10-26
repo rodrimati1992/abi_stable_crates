@@ -1,9 +1,10 @@
 use crate::{
     derive_stable_abi_from_str as derive_sabi,
-    test_framework::Tests,
 };
 
 use abi_stable_shared::{file_span,test_utils::{must_panic}};
+
+use as_derive_utils::test_framework::Tests;
 
 
 /// For testing that adding #[repr(C)] makes the derive macro not panic.

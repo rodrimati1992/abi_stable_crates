@@ -23,25 +23,20 @@ use self::text_replacement::replace_text;
 ////////////////////////////////////////////////////////////////////////////////
 
 
-type CompositeString=crate::composite_collections::CompositeString<usize>;
-
-
-////////////////////////////////////////////////////////////////////////////////
-
 #[derive(Debug,Clone,Deserialize)]
-pub(crate) struct Tests{
+pub struct Tests{
     cases:Vec<TestCase>,
 }
 
 #[derive(Debug,Clone,Deserialize)]
-pub(crate) struct TestCase{
+pub struct TestCase{
     name:String,
     code:String,
     subcase:Vec<Rc<Subcase>>,
 }
 
 #[derive(Debug,Clone,Deserialize)]
-pub(crate) struct Subcase{
+pub struct Subcase{
     #[serde(default)]
     #[serde(deserialize_with="deserialize_vec_pairs")]
     replacements:Vec<(String,String)>,
@@ -58,13 +53,13 @@ pub(crate) struct Subcase{
 }
 
 impl Tests{
-    pub(crate) fn load(text_case_name:&str)->Tests{
+    pub fn load(text_case_name:&str)->Tests{
         let path=Path::new("./test_data/").join(format!("{}.ron",text_case_name));
         let file=std::fs::read_to_string(path).unwrap();
         ron::de::from_str(&file).unwrap()
     }
 
-    pub(crate) fn run_test<F>(&self,mut f:F)
+    pub fn run_test<F>(&self,mut f:F)
     where
         F:FnMut(&str)->Result<TokenStream2,syn::Error>
     {
@@ -81,22 +76,22 @@ impl Tests{
             for subcase in &test_case.subcase {
                 replace_text(&test_case.code, &subcase.replacements, &mut input);
                 
-                let mut composite_strings=CompositeString::new();
+                let mut composite_strings=String::new();
 
                 let result=match f(&input) {
-                    Ok(x)=>Ok(composite_strings.push_display(&x).into_range()),
+                    Ok(x)=>Ok(write_display(&mut composite_strings,&x)),
                     Err(e)=>{
                         e.into_iter()
                             .map(|x|{
-                                let _=composite_strings.push_str("\0");
-                                composite_strings.push_display(&x).into_range()
+                                composite_strings.push_str("\0");
+                                write_display(&mut composite_strings,&x)
                             })
                             .collect::<Vec<Range<usize>>>()
                             .piped(Err)
                     },
                 };
 
-                let output=composite_strings.into_inner();
+                let output=composite_strings;
 
                 let error_count=match &result {
                     Ok(_) => 0,
@@ -143,6 +138,17 @@ impl Tests{
 }
 
 
+
+
+fn write_display<D>(string:&mut String,disp:&D)->std::ops::Range<usize>
+where
+    D:Display
+{
+    use std::fmt::Write;
+    let start=string.len();
+    let _=write!(string,"{}",disp);
+    start..string.len()
+}
 
 
 
@@ -199,13 +205,13 @@ impl Display for Matcher{
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug,Clone)]
-pub(crate) struct TestErrors{
+pub struct TestErrors{
     test_name:String,
     expected:Vec<TestErr>,
 }
 
 #[derive(Debug,Clone)]
-pub(crate) struct TestErr{
+pub struct TestErr{
     input:String,
     result:Result<Range<usize>,Vec<Range<usize>>>,
     output:String,
