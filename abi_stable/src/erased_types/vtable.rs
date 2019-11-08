@@ -155,14 +155,14 @@ macro_rules! declare_meta_vtable {
             pub drop_ptr:unsafe extern "C" fn(&mut $erased_ptr),
             $(
                 $( #[$field_attr] )*
-                $priv_field:$option_ty<($field_ty)>,
+                $priv_field:$option_ty<$field_ty>,
             )*
         }
 
 
         impl<'borr,$erased_ptr,$interf> VTable<'borr,$erased_ptr,$interf>{
             $(
-                pub fn $field(&self)->($field_ty)
+                pub fn $field(&self)->$field_ty
                 where
                     $interf:InterfaceBound<$selector=Implemented<trait_marker::$selector>>,
                 {

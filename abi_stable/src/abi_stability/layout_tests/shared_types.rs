@@ -30,7 +30,7 @@ pub(super) mod gen_basic {
     pub struct Generics<T: 'static> {
         x: &'static T,
         y: &'static T,
-        _marker: PhantomData<(T)>,
+        _marker: PhantomData<T>,
     }
 }
 
@@ -42,7 +42,7 @@ pub(super) mod gen_more_lts {
     pub struct Generics<'a, T> {
         x: &'a T,
         y: &'a T,
-        _marker: PhantomData<(&'a T)>,
+        _marker: PhantomData<&'a T>,
     }
 }
 
