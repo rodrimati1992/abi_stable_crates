@@ -136,6 +136,10 @@ These are the kinds of types passed through FFI:
 
 */
 
+// `improper_ctypes` is way too noisy of a lint,
+// every single warning was a false positive.
+// the true positives are caught by the StableAbi trait.
+#![allow(improper_ctypes)]
 #![allow(unused_unsafe)]
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
