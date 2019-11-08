@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 abi_stable={version="*",path="../../../abi_stable"}
 structopt = "0.2"
-core_extensions = "0.1"
+core_extensions={version="0.1",default_features=false,features=["std"]}
 serde_json = "1.0"
 
 [dependencies.example_0_interface]
