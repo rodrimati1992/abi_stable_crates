@@ -242,6 +242,34 @@ impl<M> RBoxError_<M> {
         .piped(Self::new_inner)
     }
 
+    /// Constructs an RBoxError from a type that only implements Debug,
+    /// storing the Debug message without storing the error value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RBoxError;
+    ///
+    /// let int_error="".parse::<u32>().unwrap_err();
+    ///
+    /// let debug_fmt=format!("{:#?}",int_error);
+    ///
+    /// let err=RBoxError::from_fmt(int_error);
+    ///
+    /// assert_eq!(debug_fmt,format!("{}",err));
+    /// assert_eq!(debug_fmt,format!("{:?}",err));
+    /// ```
+    pub fn from_debug<T>(value: T) -> Self
+    where
+        T: Debug,
+    {
+        DebugDisplay {
+            debug: format!("{:#?}", value),
+            display: format!("{:#?}", value),
+        }
+        .piped(Self::new_inner)
+    }
+
     fn new_inner<T>(value: T) -> Self
     where
         T: ErrorTrait + 'static,

@@ -18,18 +18,18 @@ use abi_stable_shared::mangled_root_module_loader_name;
 
 
 #[doc(hidden)]
-pub fn mangle_library_getter_attr(_attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
-    parse_or_compile_err( item, mangle_library_getter_inner ).into()
+pub fn export_root_module_attr(_attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
+    parse_or_compile_err( item, export_root_module_inner ).into()
 }
 
 #[cfg(test)]
-fn mangle_library_getter_str(item: &str)-> Result<TokenStream2,syn::Error> {
+fn export_root_module_str(item: &str)-> Result<TokenStream2,syn::Error> {
     syn::parse_str(item)
-        .and_then(mangle_library_getter_inner)
+        .and_then(export_root_module_inner)
 }
 
 
-fn mangle_library_getter_inner(mut input:ItemFn)->Result<TokenStream2,syn::Error>{
+fn export_root_module_inner(mut input:ItemFn)->Result<TokenStream2,syn::Error>{
     let vis=&input.vis;
 
     let unsafe_no_layout_constant_path=
@@ -149,7 +149,7 @@ mod tests{
         ];
 
         for (item,expected_const) in list {
-            let str_out=mangle_library_getter_str(item).unwrap().to_string()
+            let str_out=export_root_module_str(item).unwrap().to_string()
                 .chars()
                 .filter(|c|!c.is_whitespace())
                 .collect::<String>();
