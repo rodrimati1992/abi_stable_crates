@@ -35,12 +35,14 @@ use crate::{
 };
 
 
+pub mod c_abi_testing;
 mod lib_header;
 mod root_mod_trait;
 mod raw_library;
 
 
 pub use self::{
+    c_abi_testing::{CAbiTestingFns,C_ABI_TESTING_FNS},
     lib_header::{AbiHeader,LibHeader},
     root_mod_trait::{
         RootModule,
@@ -177,6 +179,12 @@ pub enum LibraryError {
     /// The type used to check that this is a compatible abi_stable
     /// is not the same.
     InvalidAbiHeader(AbiHeader),
+    /// When Rust changes how it implements the C abi,
+    /// most likely because of zero-sized types.
+    InvalidCAbi{
+        expected:RBoxError,
+        found:RBoxError,
+    },
     /// There could have been 0 or more errors in the function.
     Many(RVec<Self>),
 }
@@ -220,6 +228,19 @@ impl Display for LibraryError {
                  When this library expected:\n{:#?}",
                 found, AbiHeader::VALUE,
             ),
+            LibraryError::InvalidCAbi{expected,found}=>{
+                write!{
+                    f,
+                    "The C abi of the library is different than expected:\n\
+                     While running tests on the library:\n\
+                     {s}Found:\n{s}{s}{found}\n\
+                     {s}Expected:\n{s}{s}{expected}\n\
+                    ",
+                    s="    ",
+                    found=found,
+                    expected=expected,
+                }
+            },
             LibraryError::Many(list)=>{
                 for e in list {
                     Display::fmt(e,f)?;

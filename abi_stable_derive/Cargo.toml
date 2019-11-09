@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable_derive"
-version = "0.7.4"
+version = "0.8.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
 description = "Implementation detail of abi_stable."
@@ -22,7 +22,7 @@ rust_1_39=[]
 
 
 [dependencies]
-abi_stable_shared= {version="0.7.0",path="../abi_stable_shared"}
+abi_stable_shared= {version="0.8.0",path="../abi_stable_shared"}
 
 quote = "1.0"
 typed-arena = "~1.5"
