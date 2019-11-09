@@ -253,11 +253,10 @@ impl<M> RBoxError_<M> {
     /// let int_error="".parse::<u32>().unwrap_err();
     ///
     /// let debug_fmt=format!("{:#?}",int_error);
-    ///
-    /// let err=RBoxError::from_fmt(int_error);
+    /// let err=RBoxError::from_debug(int_error);
     ///
     /// assert_eq!(debug_fmt,format!("{}",err));
-    /// assert_eq!(debug_fmt,format!("{:?}",err));
+    /// assert_eq!(debug_fmt,format!("{:#?}",err));
     /// ```
     pub fn from_debug<T>(value: T) -> Self
     where
