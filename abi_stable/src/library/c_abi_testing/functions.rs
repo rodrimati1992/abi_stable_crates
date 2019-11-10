@@ -16,6 +16,14 @@ pub struct CAbiTestingFns{
     pub(crate) ret_triple_a:extern "C" fn(u64)->Tuple3<(),u16,u16>,
     pub(crate) ret_triple_b:extern "C" fn(u64)->Tuple3<u16,(),u16>,
     pub(crate) ret_triple_c:extern "C" fn(u64)->Tuple3<u16,u16,()>,
+    
+    pub(crate) take_2_pairs_a:extern "C" fn(Tuple2<(),u16>,Tuple2<(),u16>)->u64,
+    pub(crate) take_2_pairs_b:extern "C" fn(Tuple2<u16,()>,Tuple2<u16,()>)->u64,
+    pub(crate) ret_2_pairs_a:extern "C" fn(u64)->Tuple2<Tuple2<(),u16>,Tuple2<(),u16>>,
+    pub(crate) ret_2_pairs_b:extern "C" fn(u64)->Tuple2<Tuple2<u16,()>,Tuple2<u16,()>>,
+
+    pub(crate) mixed_units:extern "C" fn(u16,MyUnit,u16,MyUnit,u16,MyUnit,u16)->u64,
+    
 }
 
 /////////////////////////////////////
@@ -32,6 +40,11 @@ pub const C_ABI_TESTING_FNS:&'static CAbiTestingFns=&CAbiTestingFns{
     ret_triple_a,
     ret_triple_b,
     ret_triple_c,
+    take_2_pairs_a,
+    take_2_pairs_b,
+    ret_2_pairs_a,
+    ret_2_pairs_b,
+    mixed_units,
 };
 
 
@@ -81,4 +94,42 @@ pub(crate) extern "C" fn ret_triple_c(n:u64)->Tuple3<u16,u16,()>{
         (n>>16) as u16,
         (),
     )
+}
+
+
+pub(crate) extern "C" fn take_2_pairs_a(a:Tuple2<(),u16>,b:Tuple2<(),u16>)->u64{
+    ((a.1 as u64)<<16)+
+    ((b.1 as u64)<<48)
+}
+pub(crate) extern "C" fn take_2_pairs_b(a:Tuple2<u16,()>,b:Tuple2<u16,()>)->u64{
+    ((a.0 as u64))+
+    ((b.0 as u64)<<32)
+}
+pub(crate) extern "C" fn ret_2_pairs_a(n:u64)->Tuple2<Tuple2<(),u16>,Tuple2<(),u16>>{
+    Tuple2(
+        Tuple2((),(n>>16)as u16),
+        Tuple2((),(n>>48)as u16),
+    )
+}
+pub(crate) extern "C" fn ret_2_pairs_b(n:u64)->Tuple2<Tuple2<u16,()>,Tuple2<u16,()>>{
+    Tuple2(
+        Tuple2(n as u16,()),
+        Tuple2((n>>32)as u16,()),
+    )
+}
+
+
+pub(crate) extern "C" fn mixed_units(
+    a:u16,
+    _:MyUnit,
+    b:u16,
+    _:MyUnit,
+    c:u16,
+    _:MyUnit,
+    d:u16,
+)->u64{
+    (a as u64)|
+    ((b as u64)<<16)|
+    ((c as u64)<<32)|
+    ((d as u64)<<48)
 }
