@@ -305,6 +305,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
                 ));
                 return;
             },
+            Some(None) => {}
             None => {
                 self.vars.errors.push_err(spanned_err!(
                     func,
