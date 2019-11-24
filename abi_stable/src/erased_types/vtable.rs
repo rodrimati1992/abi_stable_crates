@@ -25,7 +25,7 @@ use super::{
 use crate::{
     StableAbi,
     const_utils::Transmuter,
-    marker_type::ErasedObject,
+    marker_type::{ErasedObject,NonOwningPhantom},
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
     pointer_trait::{GetPointerKind,CanTransmuteElement},
     sabi_types::StaticRef,
@@ -66,7 +66,7 @@ pub trait GetVtable<'borr,This,ErasedPtr,OrigPtr,I:InterfaceBound> {
 #[repr(transparent)]
 pub struct VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>{
     pub(super) vtable:StaticRef<VTable<'borr,ErasedPtr,I>>,
-    _for:PhantomData<extern "C" fn(T,OrigPtr,Unerasability)>
+    _for:NonOwningPhantom<(T,OrigPtr,Unerasability)>
 }
 
 impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> Copy 
@@ -94,7 +94,7 @@ where
             InterfaceFor<T,I,Unerasability> as 
             GetVtable<'borr,T,ErasedPtr,OrigPtr,I>
         >::_GET_INNER_VTABLE,
-        _for:PhantomData,
+        _for:NonOwningPhantom::NEW,
     };
 }
 

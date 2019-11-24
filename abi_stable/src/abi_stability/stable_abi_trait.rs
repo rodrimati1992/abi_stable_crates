@@ -24,6 +24,7 @@ use crate::{
         ItemInfo,ReprAttr,TLPrimitive,TLDiscriminants,
         GenericTLEnum, MonoTLEnum, CompTLField, CompTLFields, StartLen, DiscriminantRepr,
     },
+    std_types::RSlice,
 };
 
 
@@ -295,9 +296,259 @@ where T:StableAbi
             GenericTLData::Struct,
         )
     };
-
-
 }
+
+
+macro_rules! phantomdata_tuples {
+    (ignore; $($anything:tt)*)=>{ 1 };
+    ( 
+        $(($tuple_param:ident,$name_ident:ident=$name_str:literal))* 
+    )=>{
+        unsafe impl<$($tuple_param,)*> 
+            GetStaticEquivalent_ 
+        for PhantomData<($($tuple_param,)*)> 
+        where
+            $($tuple_param:GetStaticEquivalent_,)*
+        {
+            type StaticEquivalent=PhantomData<($($tuple_param::StaticEquivalent,)*)>;
+        }
+
+        unsafe impl<$($tuple_param,)*> 
+            SharedStableAbi
+        for PhantomData<($($tuple_param,)*)> 
+        where
+            $($tuple_param:StableAbi,)*
+        {
+            type Kind=ValueKind;
+            type IsNonZeroType = False;
+
+            const S_LAYOUT: &'static TypeLayout = {
+                const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                    *mono_shared_vars,
+                    rstr!("PhantomData"),
+                    ItemInfo::std_type_in(nul_str!("std::marker")),
+                    MonoTLData::EMPTY,
+                    tl_genparams!(;0..COUNT;),
+                    ReprAttr::C,
+                    ModReflMode::Module,
+                    unsafe{
+                        RSlice::from_raw_parts_with_lifetime(FIELDS,COUNT)
+                    }
+                );
+
+                const FIELDS:&'static [CompTLField;COUNT]={
+                    let mut i=0;
+                    $( 
+                        #[allow(non_snake_case)]
+                        let $tuple_param=
+                            CompTLField::std_field($name_ident,LifetimeRange::EMPTY,i);
+                        i+=1;
+                    )*
+                    &[$($tuple_param,)*]
+                };
+
+                const COUNT:usize=$(phantomdata_tuples!(ignore;$tuple_param)+)* 0;
+
+                make_shared_vars!{
+                    let (mono_shared_vars,shared_vars)={
+                        strings={ $($name_ident:$name_str,)* },
+                        type_layouts_shared=[$($tuple_param,)*],
+                    };
+                }
+
+                &TypeLayout::from_std::<Self>(
+                    shared_vars,
+                    MONO_TYPE_LAYOUT,
+                    Self::S_ABI_CONSTS,
+                    GenericTLData::Struct,
+                )
+            };
+        }
+    }
+}
+
+/*
+fn main(){
+    for i in 1..=16{
+        println!("phantomdata_tuples!{{");
+        for j in 0..i{
+            println!("    (T{0},p{0}=\"{0}\")",j);
+        }
+        println!("}}")
+    }
+}
+*/
+
+phantomdata_tuples!{
+    (T0,p0="0")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+    (T5,p5="5")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+    (T5,p5="5")
+    (T6,p6="6")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+    (T5,p5="5")
+    (T6,p6="6")
+    (T7,p7="7")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+    (T5,p5="5")
+    (T6,p6="6")
+    (T7,p7="7")
+    (T8,p8="8")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+    (T5,p5="5")
+    (T6,p6="6")
+    (T7,p7="7")
+    (T8,p8="8")
+    (T9,p9="9")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+    (T5,p5="5")
+    (T6,p6="6")
+    (T7,p7="7")
+    (T8,p8="8")
+    (T9,p9="9")
+    (T10,p10="10")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+    (T5,p5="5")
+    (T6,p6="6")
+    (T7,p7="7")
+    (T8,p8="8")
+    (T9,p9="9")
+    (T10,p10="10")
+    (T11,p11="11")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+    (T5,p5="5")
+    (T6,p6="6")
+    (T7,p7="7")
+    (T8,p8="8")
+    (T9,p9="9")
+    (T10,p10="10")
+    (T11,p11="11")
+    (T12,p12="12")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+    (T5,p5="5")
+    (T6,p6="6")
+    (T7,p7="7")
+    (T8,p8="8")
+    (T9,p9="9")
+    (T10,p10="10")
+    (T11,p11="11")
+    (T12,p12="12")
+    (T13,p13="13")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+    (T5,p5="5")
+    (T6,p6="6")
+    (T7,p7="7")
+    (T8,p8="8")
+    (T9,p9="9")
+    (T10,p10="10")
+    (T11,p11="11")
+    (T12,p12="12")
+    (T13,p13="13")
+    (T14,p14="14")
+}
+phantomdata_tuples!{
+    (T0,p0="0")
+    (T1,p1="1")
+    (T2,p2="2")
+    (T3,p3="3")
+    (T4,p4="4")
+    (T5,p5="5")
+    (T6,p6="6")
+    (T7,p7="7")
+    (T8,p8="8")
+    (T9,p9="9")
+    (T10,p10="10")
+    (T11,p11="11")
+    (T12,p12="12")
+    (T13,p13="13")
+    (T14,p14="14")
+    (T15,p15="15")
+}
+
+
 
 
 unsafe impl GetStaticEquivalent_ for () {
@@ -331,6 +582,8 @@ unsafe impl SharedStableAbi for () {
         )
     };
 }
+
+
 
 
 /////////////
