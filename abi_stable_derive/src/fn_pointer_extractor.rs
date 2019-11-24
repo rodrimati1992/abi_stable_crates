@@ -295,12 +295,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             .abi
             .as_ref()
             .map(|x| x.name.as_ref());
-        const ABI_ERR:&'static str="\
-            must write `extern \"C\" fn` for function pointer types,\
-             because there is a bug where `extern fn` \
-             anywhere in the type definition causes compilation errors to lose \
-             the locations of errors (called Spans)\
-        ";
+        const ABI_ERR:&'static str="must write `extern \"C\" fn` for function pointer types.";
         match abi {
             Some(Some(abi)) if *abi==ctokens.c_abi_lit => {}
             Some(Some(abi)) => {
@@ -308,10 +303,6 @@ impl<'a> VisitMut for TypeVisitor<'a> {
                     abi,
                     "Abi not supported for function pointers", 
                 ));
-                return;
-            },
-            Some(None)=>{
-                self.vars.errors.push_err(spanned_err!(func,"You {}", ABI_ERR));
                 return;
             },
             None => {
