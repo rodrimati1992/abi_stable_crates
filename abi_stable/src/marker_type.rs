@@ -61,6 +61,9 @@ pub struct ErasedObject<T=()>{
     _marker:PhantomData<extern "C" fn()->T>,
 }
 
+//////////////////////////////////////////////////////////////
+
+
 
 /**
 MarkerType which ignores its type parameter in its StableAbi implementation.
@@ -138,4 +141,58 @@ unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
             GenericTLData::Struct,
         )
     };
+}
+
+
+//////////////////////////////////////////////////////////////
+
+
+pub struct NonOwningPhantom<T:?Sized>{
+    _priv: [u8;0],
+    _marker: PhantomData<extern "C" fn()->T>
+}
+
+impl<T:?Sized> NonOwningPhantom<T>{
+    pub const DEFAULT:Self=Self{
+        _priv:[],
+        _marker:PhantomData,
+    };
+
+    pub const NEW:Self=Self{
+        _priv:[],
+        _marker:PhantomData,
+    };
+}
+
+impl<T:?Sized> Copy for NonOwningPhantom<T>{}
+
+impl<T:?Sized> Default for NonOwningPhantom<T>{
+    fn default()->Self{
+        Self::DEFAULT
+    }
+}
+
+impl<T:?Sized> Clone for NonOwningPhantom<T>{
+    fn clone(&self)->Self{
+        *self
+    }
+}
+
+unsafe impl<T:?Sized> GetStaticEquivalent_ for NonOwningPhantom<T> 
+where
+    PhantomData<T>:GetStaticEquivalent_
+{
+    type StaticEquivalent=GetStaticEquivalent<PhantomData<T>>;
+}
+
+unsafe impl<T:?Sized> SharedStableAbi for NonOwningPhantom<T> 
+where
+    PhantomData<T>:SharedStableAbi
+{
+    type IsNonZeroType = False;
+    type Kind=ValueKind;
+
+
+    const S_LAYOUT: &'static TypeLayout = 
+        <PhantomData<T> as SharedStableAbi>::S_LAYOUT;
 }
