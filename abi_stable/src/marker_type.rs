@@ -146,18 +146,22 @@ unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
 
 //////////////////////////////////////////////////////////////
 
-
+/// An ffi-safe equivalent of a `PhantomData<fn()->T>`
 pub struct NonOwningPhantom<T:?Sized>{
     _priv: [u8;0],
+    // The StableAbi layout for a `NonOwningPhantom<T>` is the same as `PhantomData<T>`,
+    // the type of this field is purely for variance.
     _marker: PhantomData<extern "C" fn()->T>
 }
 
 impl<T:?Sized> NonOwningPhantom<T>{
+    /// Constructs a `NonOwningPhantom`
     pub const DEFAULT:Self=Self{
         _priv:[],
         _marker:PhantomData,
     };
 
+    /// Constructs a `NonOwningPhantom`
     pub const NEW:Self=Self{
         _priv:[],
         _marker:PhantomData,
@@ -167,12 +171,14 @@ impl<T:?Sized> NonOwningPhantom<T>{
 impl<T:?Sized> Copy for NonOwningPhantom<T>{}
 
 impl<T:?Sized> Default for NonOwningPhantom<T>{
+    #[inline(always)]
     fn default()->Self{
         Self::DEFAULT
     }
 }
 
 impl<T:?Sized> Clone for NonOwningPhantom<T>{
+    #[inline(always)]
     fn clone(&self)->Self{
         *self
     }
