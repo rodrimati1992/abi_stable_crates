@@ -121,7 +121,7 @@ For a more detailed example look in the README in the repository for this crate.
 */
 #[proc_macro_attribute]
 pub fn export_root_module(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
-    crate::mangle_library_getter::mangle_library_getter_attr(attr,item)
+    crate::export_root_module_impl::export_root_module_attr(attr,item)
 }
 
 /**
@@ -216,7 +216,7 @@ mod ignored_wrapper;
 mod impl_interfacetype;
 mod lifetimes;
 mod literals_constructors;
-mod mangle_library_getter;
+mod export_root_module_impl;
 mod my_visibility;
 mod parse_utils;
 mod sabi_extern_fn_impl;

@@ -35,6 +35,7 @@ pub trait RootModule: Sized+SharedStableAbi+'static  {
             name:StaticStr::new(Self::NAME),
             version_strings:Self::VERSION_STRINGS,
             layout:IsLayoutChecked::Yes(<&Self>::S_LAYOUT),
+            c_abi_testing_fns:crate::library::c_abi_testing::C_ABI_TESTING_FNS,
             _priv:(),
         },
         _priv:PhantomData,
@@ -412,6 +413,12 @@ declare_root_module_consts!{
 
         method_docs="The (optional) type layout constant of the root module.",
         layout: IsLayoutChecked,
+
+        method_docs="\
+         Functions used to test that the C abi is the same in both the library 
+         and the loader\
+        ",
+        c_abi_testing_fns:&'static CAbiTestingFns,
     ]
 }
 

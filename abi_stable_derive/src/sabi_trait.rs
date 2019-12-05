@@ -360,11 +360,11 @@ fn first_items<'a>(
         #[repr(C)]
         #[derive(::abi_stable::StableAbi)]
         #submod_vis struct #trait_interface<#trait_interface_decl>(
-            ::std::marker::PhantomData<extern "C" fn(#dummy_struct_generics)>
+            __sabi_re::NonOwningPhantom<(#dummy_struct_generics)>
         );
 
         impl<#trait_interface_header> #trait_interface<#trait_interface_use> {
-            #submod_vis const NEW:Self=#trait_interface(::std::marker::PhantomData);
+            #submod_vis const NEW:Self=#trait_interface(__sabi_re::NonOwningPhantom::NEW);
         }
 
 
