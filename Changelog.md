@@ -1,5 +1,26 @@
 This is the changelog,summarising changes in each version(some minor changes may be ommited).
 
+# 0.8
+
+Added checks when loading dynamic libraries to ensure that Rust doesn't change how it represents 
+zero-sized types in the "C" ABI.
+This means that in some rare cases,it won't be possible to link dynamic libraries across a 
+certain Rust version because it changed how it represents zero-sized types in the "C" abi.
+
+Added RBoxError::from_debug for constructing an RBoxError from `Debug+!Display` types.
+
+Added impls of StableAbi for PhantomData of tuples.
+
+Added the `abi_stable::marker_type::NonOwningPhantom` marker type,
+which is a more convenient way to have a `PhantomData<extern "C"fn()->PhantomData<T>>` field
+PhantomData is returned from the function because of special case support 
+for PhantomData of tuples (eg:`PhantomData<(Foo,Bar)>`)
+(tuples don't have a stable abi,but because this is a 1-aligned zero sized type,
+it doesn't matter).
+
+Fixed potential soundness bug by replacing `PhantomData<extern "C" fn( $types )>` fields
+with `NonOwningPhantom<$types>`.
+
 # 0.7
 
 ### 0.7.4

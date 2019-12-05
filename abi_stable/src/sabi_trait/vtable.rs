@@ -2,6 +2,7 @@ use super::*;
 
 use crate::{
     erased_types::{FormattingMode,InterfaceBound,VTableDT},
+    marker_type::NonOwningPhantom,
     type_level::{
         unerasability::{GetUTID},
         impl_enum::{Implemented,Unimplemented},
@@ -173,7 +174,7 @@ where
 {
     const VTABLE_VAL:RObjectVtableVal<_Self,ErasedPtr,I>=
         RObjectVtableVal{
-            _sabi_tys:PhantomData,
+            _sabi_tys:NonOwningPhantom::NEW,
             _sabi_type_id:<IA as GetUTID<_Self>>::UID,
             _sabi_drop:c_functions::drop_pointer_impl::<OrigPtr,ErasedPtr>,
             _sabi_clone:<I::Clone as InitCloneField<_Self,ErasedPtr,OrigPtr>>::VALUE,
@@ -211,7 +212,7 @@ where
 #[sabi(kind(Prefix(prefix_struct="RObjectVtable")))]
 #[sabi(missing_field(default))]
 pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
-    pub _sabi_tys:PhantomData<extern "C" fn(_Self,ErasedPtr,I)>,
+    pub _sabi_tys:NonOwningPhantom<(_Self,ErasedPtr,I)>,
     
     pub _sabi_type_id:Constructor<MaybeCmp<UTypeId>>,
 
@@ -238,7 +239,7 @@ pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
     kind(Prefix(prefix_struct="BaseVtable")),
 )]
 pub(super)struct BaseVtableVal<_Self,ErasedPtr,I>{
-    pub _sabi_tys:PhantomData<unsafe extern "C" fn(_Self,ErasedPtr,I)>,
+    pub _sabi_tys:NonOwningPhantom<(_Self,ErasedPtr,I)>,
 
     #[sabi(last_prefix_field)]
     pub _sabi_vtable:StaticRef<RObjectVtable<_Self,ErasedPtr,I>>,

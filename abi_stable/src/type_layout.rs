@@ -549,6 +549,14 @@ impl MonoTypeLayout{
         &self.shared_vars
     }
 
+    /// Gets the SharedVars of this type,
+    /// containing the slices that many types inside TypeLayout contain ranges into.
+    /// 
+    /// This was defined as a workaround for an internal compiler error in nightly.
+    pub const fn shared_vars_static(&'static self)->&'static MonoSharedVars{
+        &self.shared_vars
+    }
+
 /**
 Gets the compressed versions of the fields of this type.
 

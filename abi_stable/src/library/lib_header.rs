@@ -326,6 +326,9 @@ This will return these errors:
 - LibraryError::InvalidAbiHeader:
 If the abi_stable used by the library is not compatible.
 
+- LibraryError::InvalidCAbi:
+If the C abi used by the library is not compatible.
+
     */
     pub fn upgrade(&self)->Result< &LibHeader , LibraryError>{
         if !self.is_valid() {
@@ -335,7 +338,10 @@ If the abi_stable used by the library is not compatible.
         let lib_header=unsafe{
             transmute_reference::<AbiHeader,LibHeader>(self)
         };
-        
+
+        let c_abi_testing_fns=lib_header.root_mod_consts().c_abi_testing_fns();
+        crate::library::c_abi_testing::run_tests(c_abi_testing_fns)?;
+
         let globals=globals::initialized_globals();
 
         lib_header.initialize_library_globals(globals);

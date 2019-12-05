@@ -23,7 +23,11 @@ pub mod reexports{
                 VTableDT,
                 traits::InterfaceFor,
             },
-            marker_type::{UnsafeIgnoredType,SyncSend,UnsyncUnsend,UnsyncSend,SyncUnsend},
+            marker_type::{
+                UnsafeIgnoredType,
+                SyncSend,UnsyncUnsend,UnsyncSend,SyncUnsend,
+                NonOwningPhantom,
+            },
             pointer_trait::{CanTransmuteElement,TransmuteElement,OwnedPointer},
             prefix_type::{PrefixTypeTrait,WithMetadata},
             traits::IntoInner,

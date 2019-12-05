@@ -359,7 +359,7 @@ impl<'a> SharedVars<'a>{
 
             quote!(
                 abi_stable::type_layout::SharedVars::new(
-                    #mono_type_layout.shared_vars(),
+                    #mono_type_layout.shared_vars_static(),
                     abi_stable::_sabi_type_layouts!( #(#type_layouts,)* ),
                     abi_stable::rslice![
                         #(

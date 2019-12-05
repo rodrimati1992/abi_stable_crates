@@ -12,6 +12,7 @@ pub use crate::{
         },
     },
     inline_storage::InlineStorage,
+    marker_type::NonOwningPhantom,
     nonexhaustive_enum::{
         assert_nonexhaustive,
         GetVTable as GetNonExhaustiveVTable,
