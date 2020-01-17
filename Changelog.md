@@ -2,6 +2,21 @@ This is the changelog,summarising changes in each version(some minor changes may
 
 # 0.8
 
+### 0.8.2
+
+Breaking Change(caused by soundness fix in rustc):
+
+[This unsoundness bug for all Cell-like std types](https://github.com/rust-lang/rust/issues/68206) is going to be solved by making UnsafeCell not propagate niches.
+
+In preparation for this change,this library will not propagate niches from T into `*Cell<T>`,
+this will cause runtime errors when loading libraries containing either `*Cell` type wrapping a type with non-zero optimizations (including references,and`NonZero*` types),
+and compile-time errors when putting `Option<Cell<NonZero>>` in ffi boundaries.
+
+Dynamic libraries built on a previous patch release might have to be built from scratch,
+if they contain the previously mentioned types in their API.
+
+### 0.8.0
+
 Added checks when loading dynamic libraries to ensure that Rust doesn't change how it represents 
 zero-sized types in the "C" ABI.
 This means that in some rare cases,it won't be possible to link dynamic libraries across a 

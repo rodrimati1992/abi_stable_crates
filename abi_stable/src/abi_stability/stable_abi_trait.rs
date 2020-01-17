@@ -1188,10 +1188,13 @@ mod rust_1_36_impls{
 
 /////////////
 
-macro_rules! impl_sabi_for_transparent {
+macro_rules! impl_sabi_for_newtype {
+    (@trans transparent)=>{ P::IsNonZeroType };
+    (@trans C)=>{ False };
     (
         $type_constr:ident
         $(where[ $($where_clause:tt)* ])* ,
+        $transparency:ident,
         $type_name:literal,
         $mod_path:expr
     ) => (
@@ -1208,7 +1211,7 @@ macro_rules! impl_sabi_for_transparent {
             $($($where_clause)*)*
         {
             type Kind=ValueKind;
-            type IsNonZeroType = P::IsNonZeroType;
+            type IsNonZeroType = impl_sabi_for_newtype!(@trans $transparency);
 
             const S_LAYOUT: &'static TypeLayout = {
                 const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
@@ -1243,11 +1246,12 @@ macro_rules! impl_sabi_for_transparent {
 }
 
 
-impl_sabi_for_transparent!{ Wrapping    ,"Wrapping"    ,"std::num" }
-impl_sabi_for_transparent!{ Pin         ,"Pin"         ,"std::pin" }
-impl_sabi_for_transparent!{ ManuallyDrop,"ManuallyDrop","std::mem" }
-impl_sabi_for_transparent!{ Cell        ,"Cell"        ,"std::cell" }
-impl_sabi_for_transparent!{ UnsafeCell  ,"UnsafeCell"  ,"std::cell" }
+impl_sabi_for_newtype!{ Wrapping    ,transparent,"Wrapping"    ,"std::num" }
+impl_sabi_for_newtype!{ Pin         ,transparent,"Pin"         ,"std::pin" }
+impl_sabi_for_newtype!{ ManuallyDrop,transparent,"ManuallyDrop","std::mem" }
+
+impl_sabi_for_newtype!{ Cell        ,C,"Cell"        ,"std::cell" }
+impl_sabi_for_newtype!{ UnsafeCell  ,C,"UnsafeCell"  ,"std::cell" }
 
 /////////////
 
