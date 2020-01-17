@@ -35,7 +35,7 @@ script:
   - cd "${TRAVIS_BUILD_DIR}/testing/version_compatibility/impl_0"
   - cargo +beta build
 
-  - cd "${TRAVIS_BUILD_DIR}/
+  - cd "${TRAVIS_BUILD_DIR}/"
   - rm Cargo.lock
 
   - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
