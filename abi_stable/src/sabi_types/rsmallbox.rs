@@ -228,7 +228,7 @@ assert!( RSmallBox::is_inline(&just_right) );
         #[inline]
         pub fn as_mut_ptr(this:&mut Self)->*mut T{
             if this.ptr.is_null() {
-                (&mut this.inline as *mut ScratchSpace<Inline> as *mut T)
+                &mut this.inline as *mut ScratchSpace<Inline> as *mut T
             }else{
                 this.ptr
             }
@@ -258,7 +258,7 @@ assert!( RSmallBox::is_inline(&just_right) );
         #[inline]
         pub fn as_ptr(this:&Self)->*const T{
             if this.ptr.is_null() {
-                (&this.inline as *const ScratchSpace<Inline> as *const T)
+                &this.inline as *const ScratchSpace<Inline> as *const T
             }else{
                 this.ptr
             }
