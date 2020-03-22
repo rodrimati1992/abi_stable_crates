@@ -1227,16 +1227,15 @@ fn vtable_impl<'a>(
             const TMP0: *const __sabi_re::WithMetadata<
                 VTableInnerVal<#withmetadata_generics>
             >={
-                let __vtable=VTableInnerVal{
-                    _sabi_tys: ::std::marker::PhantomData,
-                    _sabi_vtable:__sabi_re::GetRObjectVTable::ROBJECT_VTABLE,
-                    #(
-                        #method_names_a:Self::#method_names_b,
-                    )*
-                };
                 &__sabi_re::WithMetadata::new(
                     __sabi_re::PrefixTypeTrait::METADATA,
-                    __vtable
+                    VTableInnerVal{
+                        _sabi_tys: ::std::marker::PhantomData,
+                        _sabi_vtable:__sabi_re::GetRObjectVTable::ROBJECT_VTABLE,
+                        #(
+                            #method_names_a:Self::#method_names_b,
+                        )*
+                    }
                 )
             };
 

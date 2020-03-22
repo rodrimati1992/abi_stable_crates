@@ -49,7 +49,7 @@ pub const C_ABI_TESTING_FNS:&'static CAbiTestingFns=&CAbiTestingFns{
 
 
 pub(crate) extern "C" fn take_pair_a(pair:Tuple2<u16,()>)->u32{
-    (pair.0 as u32)
+    pair.0 as u32
 }
 pub(crate) extern "C" fn take_pair_b(pair:Tuple2<(),u16>)->u32{
     (pair.1 as u32)<<16
