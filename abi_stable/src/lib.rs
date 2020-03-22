@@ -141,6 +141,7 @@ These are the kinds of types passed through FFI:
 // the true positives are caught by the StableAbi trait.
 #![allow(improper_ctypes)]
 #![allow(unused_unsafe)]
+#![allow(non_camel_case_types)]
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
 
