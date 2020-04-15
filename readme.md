@@ -3,7 +3,7 @@
 
 [crates-io]: https://crates.io/crates/abi_stable
 
-[Documentation. This goes to 0.7 because that has working docs)](https://docs.rs/abi_stable/0.7)
+[Documentation.](https://docs.rs/abi_stable)
 
 For Rust-to-Rust ffi,
 with a focus on creating libraries loaded at program startup,
