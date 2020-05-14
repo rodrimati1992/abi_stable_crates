@@ -183,7 +183,6 @@ use abi_stable_derive::{
 
 #[doc(hidden)]
 pub use abi_stable_derive::{
-    get_string_length,
     get_root_module_static,
 };
 

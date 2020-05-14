@@ -24,11 +24,7 @@ travis-ci = { repository =  "rodrimati1992/abi_stable_crates/" }
 [features]
 default = ["channels","serde_json"]
 
-rust_1_36=[]
-
-rust_1_38=["rust_1_36"]
-
-rust_1_39=["rust_1_38","abi_stable_derive/rust_1_39"]
+rust_1_42=[]
 
 # Enables stuff that requires const generics,use this once const generics are stabilized.
 const_params=[]

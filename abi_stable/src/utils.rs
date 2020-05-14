@@ -6,7 +6,6 @@ use std::{
     cmp::Ord,
     fmt::{self,Debug,Display},
     mem::{self,ManuallyDrop},
-    ptr,
 };
 
 
@@ -211,9 +210,15 @@ impl_fmt_padding!{ RString }
 /// After this function is called `slot` will become uninitialized and 
 /// must not be read again.
 pub unsafe fn take_manuallydrop<T>(slot: &mut ManuallyDrop<T>) -> T {
-    ManuallyDrop::into_inner(ptr::read(slot))
+    #[cfg(feature = "rust_1_42")]
+    {
+        ManuallyDrop::take(slot)
+    }
+    #[cfg(not(feature = "rust_1_42"))]
+    {
+        ManuallyDrop::into_inner(std::ptr::read(slot))
+    }
 }
-
 
 
 #[doc(hidden)]
@@ -251,13 +256,6 @@ pub fn distance_from<T>(from:*const T,to:*const T)->Option<usize>{
 
 //////////////////////////////////////////////////////////////////////
 
-#[cfg(not(feature="rust_1_38"))]
-#[doc(hidden)]
-pub extern "C" fn get_type_name<T>()->RStr<'static>{
-    RStr::from("<unavailable>")
-}
-
-#[cfg(feature="rust_1_38")]
 #[doc(hidden)]
 pub extern "C" fn get_type_name<T>()->RStr<'static>{
     RStr::from(std::any::type_name::<T>())

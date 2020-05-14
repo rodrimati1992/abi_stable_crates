@@ -98,8 +98,14 @@ where
     pub struct RSliceMut<'a, T> {
         data: *mut T,
         length: usize,
-        _marker: PhantomData<&'a mut T>,
+        _marker: PhantomData<MutWorkaround<'a,T>>,
     }
+
+    /// Used as a workaround to make `from_raw_parts_mut` a const fn.
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(bound = "T:'a")]
+    struct MutWorkaround<'a,T>(&'a mut T);
 
     impl_from_rust_repr! {
         impl['a, T] From<&'a mut [T]> for RSliceMut<'a, T> {
@@ -196,7 +202,7 @@ where
         /// }
         ///
         /// ```
-        pub unsafe fn from_raw_parts_mut(ptr_: *mut T, len: usize) -> Self {
+        pub const unsafe fn from_raw_parts_mut(ptr_: *mut T, len: usize) -> Self {
             Self {
                 data: ptr_,
                 length: len,

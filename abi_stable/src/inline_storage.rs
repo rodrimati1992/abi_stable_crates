@@ -128,18 +128,11 @@ pub mod alignment{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(not(feature="rust_1_36"))]
-pub(crate) type UsedUninit<Inline>=std::mem::ManuallyDrop<Inline>;
-
-#[cfg(feature="rust_1_36")]
-pub(crate) type UsedUninit<Inline>=std::mem::MaybeUninit<Inline>;
-
-
 /// Used internally to avoid requiring Rust 1.36.0 .
 #[repr(transparent)]
 pub(crate) struct ScratchSpace<Inline>{
     #[allow(dead_code)]
-    storage:UsedUninit<Inline>,
+    storage:std::mem::MaybeUninit<Inline>,
 }
 
 impl<Inline> ScratchSpace<Inline>{
@@ -197,29 +190,10 @@ and that `Inline` si valid for all bitpatterns.
     }
 }
 
-#[cfg(not(feature="rust_1_36"))]
 impl<Inline> ScratchSpace<Inline>{
-
-/**
-# Safety
-
-You must ensure that `Inline` is valid for all bitpatterns,ie:it implements `InlineStorage`.
-*/
-    #[inline]
-    pub(crate) unsafe fn uninit_unbounded()->Self{
-        unsafe{
-            std::mem::uninitialized()
-        }
-    }
-}
-
-#[cfg(feature="rust_1_36")]
-impl<Inline> ScratchSpace<Inline>{
-/**
-# Safety
-
-You must ensure that `Inline` is valid for all bitpatterns,ie:it implements `InlineStorage`.
-*/
+    /// # Safety
+    /// 
+    /// You must ensure that `Inline` is valid for all bitpatterns,ie:it implements `InlineStorage`.
     #[inline]
     pub(crate) unsafe fn uninit_unbounded()->Self{
         unsafe{

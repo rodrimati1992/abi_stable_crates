@@ -253,49 +253,24 @@ impl<'a, T> RSlice<'a, T> {
         }
     }    
 
-    with_shared_attrs!{
-        /**
-Converts a `&[T]` to an `RSlice<'_,T>`.
-
-
-# Constness
-
-This function is a `const fn` from Rust 1.39 onwards due to 
-the stabilization of `<[T]>::len`.
-
-Before Rust 1.39 the only safe way to construct an `RSlice`
-constant is using the `rslice` macro.
-
-# Example
-
-```
-use abi_stable::std_types::RSlice;
-
-let empty:&[u8]=&[];
-
-assert_eq!(RSlice::<u8>::from_slice(&[]).as_slice(), empty);
-assert_eq!(RSlice::from_slice(&[0]).as_slice()     , &[0][..]);
-assert_eq!(RSlice::from_slice(&[0,1]).as_slice()   , &[0,1][..]);
-
-```
-        */
-        #[inline]
-        (
-            ;
-            #[cfg(feature="rust_1_39")];
-            // <[T]>::len was stabilized in 1.39
-            pub const fn from_slice(slic:&'a [T])->Self{
-                unsafe{ RSlice::from_raw_parts(slic.as_ptr(),slic.len()) }
-            }
-        )
-        (
-            ;
-            #[cfg(not(feature="rust_1_39"))];
-            // <[T]>::len was stabilized in 1.39
-            pub fn from_slice(slic:&'a [T])->Self{
-                unsafe{ RSlice::from_raw_parts(slic.as_ptr(),slic.len()) }
-            }
-        )
+    /// Converts a `&[T]` to an `RSlice<'_,T>`.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use abi_stable::std_types::RSlice;
+    /// 
+    /// let empty:&[u8]=&[];
+    /// 
+    /// assert_eq!(RSlice::<u8>::from_slice(&[]).as_slice(), empty);
+    /// assert_eq!(RSlice::from_slice(&[0]).as_slice()     , &[0][..]);
+    /// assert_eq!(RSlice::from_slice(&[0,1]).as_slice()   , &[0,1][..]);
+    /// 
+    /// ```
+    #[inline]
+    // <[T]>::len was stabilized in 1.39
+    pub const fn from_slice(slic:&'a [T])->Self{
+        unsafe{ RSlice::from_raw_parts(slic.as_ptr(),slic.len()) }
     }
 
 
