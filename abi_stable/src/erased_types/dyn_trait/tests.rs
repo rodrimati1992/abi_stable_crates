@@ -23,7 +23,7 @@ use crate::{
     traits::IntoReprC,
     StableAbi,
     std_types::{
-        RArc, RBox, RBoxError, RCow, RStr, RString,  StaticStr,
+        RArc, RBox, RBoxError, RCow, RStr, RString,
         RNone,RSome,ROption,
     },
 };

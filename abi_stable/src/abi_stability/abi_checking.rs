@@ -26,7 +26,7 @@ use crate::{
     prefix_type::{FieldAccessibility,FieldConditionality},
     sabi_types::CmpIgnored,
     std_types::{
-        RArc,RBox,RVec,StaticStr,UTypeId,RBoxError,RResult,
+        RArc,RBox,RStr,RVec,UTypeId,RBoxError,RResult,
         RSome,RNone,ROk,RErr,
     },
     traits::IntoReprC,
@@ -737,7 +737,7 @@ impl AbiChecker {
             }
 
             if t_name != o_name {
-                push_err(errs, t_name, o_name,StaticStr::new, AI::UnexpectedVariant);
+                push_err(errs, t_name, o_name,RStr::from_str, AI::UnexpectedVariant);
                 continue;
             }
         }

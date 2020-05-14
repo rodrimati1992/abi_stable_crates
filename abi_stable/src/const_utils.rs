@@ -2,7 +2,7 @@
 Utilities for const contexts.
 */
 
-use crate::std_types::StaticStr;
+use crate::std_types::RStr;
 
 use std::{
     marker::PhantomData,
@@ -21,14 +21,14 @@ pub use abi_stable_shared::const_utils::{
 // Used to test trait bounds in proc-macros.
 #[doc(hidden)]
 pub trait AssocStr{
-    const STR:StaticStr;
+    const STR:RStr<'static>;
 }
 
 macro_rules! impl_assoc_str {
     ( $($ty:ty),* ) => (
         $(
             impl AssocStr for $ty {
-                const STR:StaticStr=StaticStr::new(stringify!( $ty ));
+                const STR:RStr<'static>=RStr::from_str(stringify!( $ty ));
             }
         )*
     )

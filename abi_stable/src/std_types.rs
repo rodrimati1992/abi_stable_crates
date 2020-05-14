@@ -18,8 +18,6 @@ pub mod range;
 pub mod result;
 pub mod slice_mut;
 pub mod slices;
-pub mod static_slice;
-pub mod static_str;
 pub mod std_error;
 pub mod std_io;
 pub mod str;
@@ -63,6 +61,4 @@ pub use self::{
     tuple::{Tuple1,Tuple2, Tuple3, Tuple4},
     vec::RVec,
     utypeid::UTypeId,
-    static_str::StaticStr,
-    static_slice::StaticSlice,
 };

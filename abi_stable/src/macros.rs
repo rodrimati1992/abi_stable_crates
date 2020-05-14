@@ -348,7 +348,7 @@ macro_rules! impl_get_type_info {
             use std::mem;
             use $crate::{
                 erased_types::type_info::TypeInfo,
-                std_types::{StaticStr,utypeid::some_utypeid},
+                std_types::{RStr,utypeid::some_utypeid},
             };
 
             let type_name=$crate::sabi_types::Constructor(
@@ -360,8 +360,8 @@ macro_rules! impl_get_type_info {
                 alignment:mem::align_of::<Self>(),
                 _uid:$crate::sabi_types::Constructor( some_utypeid::<Self> ),
                 type_name,
-                module:StaticStr::new(module_path!()),
-                package:StaticStr::new(env!("CARGO_PKG_NAME")),
+                module:RStr::from_str(module_path!()),
+                package:RStr::from_str(env!("CARGO_PKG_NAME")),
                 package_version:$crate::package_version_strings!(),
                 _private_field:(),
             }

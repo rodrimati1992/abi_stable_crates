@@ -31,8 +31,8 @@ pub trait RootModule: Sized+SharedStableAbi+'static  {
     /// It can safely be used as a proxy for the associated constants of this trait.
     const CONSTANTS:RootModuleConsts<Self>=RootModuleConsts{
         inner:ErasedRootModuleConsts{
-            base_name:StaticStr::new(Self::BASE_NAME),
-            name:StaticStr::new(Self::NAME),
+            base_name:RStr::from_str(Self::BASE_NAME),
+            name:RStr::from_str(Self::NAME),
             version_strings:Self::VERSION_STRINGS,
             layout:IsLayoutChecked::Yes(<&Self>::S_LAYOUT),
             c_abi_testing_fns:crate::library::c_abi_testing::C_ABI_TESTING_FNS,
@@ -403,10 +403,10 @@ declare_root_module_consts!{
         method_docs="
          The name of the dynamic library,which is the same on all platforms.
          This is generally the name of the implementation crate.",
-        base_name: StaticStr,
+        base_name: RStr<'static>,
 
         method_docs="The name of the library used in error messages.",
-        name: StaticStr,
+        name: RStr<'static>,
 
         method_docs="The version number of the library this was created from.",
         version_strings: VersionStrings,

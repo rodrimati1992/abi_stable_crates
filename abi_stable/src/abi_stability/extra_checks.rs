@@ -27,7 +27,7 @@ use abi_stable::{
     },
     type_layout::TypeLayout,
     sabi_trait::prelude::TU_Opaque,
-    std_types::{RCow,RDuration,RResult,ROption,RString,StaticStr},
+    std_types::{RCow,RDuration,RResult,ROption,RStr,RString},
     sabi_extern_fn,
     StableAbi,
 };
@@ -166,7 +166,7 @@ use abi_stable::{
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
     sabi_trait::prelude::TU_Opaque,
-    std_types::{RCow,RDuration,RResult,RString,StaticStr},
+    std_types::{RCow,RDuration,RResult,RStr,RString},
     sabi_extern_fn,
     GetStaticEquivalent,
     StableAbi,
@@ -402,7 +402,7 @@ use abi_stable::{
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
     sabi_trait::prelude::TU_Opaque,
-    std_types::{RCow,RResult,ROption,RSome,StaticStr},
+    std_types::{RCow,RResult,ROption,RSome,RStr},
     sabi_extern_fn,
     GetStaticEquivalent,
     StableAbi,
@@ -470,7 +470,7 @@ where
 {
     const CHECKER:ConstChecker=
         ConstChecker{
-            chars:StaticStr::new(C::CHARS)
+            chars:RStr::from_str(C::CHARS)
         };
 
 }
@@ -525,7 +525,7 @@ mod constants{
 #[repr(C)]
 #[derive(Debug,Clone,StableAbi)]
 pub struct ConstChecker{
-    chars:StaticStr,
+    chars:RStr<'static>,
 }
 
 
@@ -592,8 +592,8 @@ impl ExtraChecks for ConstChecker {
 
 #[derive(Debug,Clone)]
 pub struct UnequalConstError{
-    expected:StaticStr,
-    found:StaticStr,
+    expected:RStr<'static>,
+    found:RStr<'static>,
 }
 
 impl Display for UnequalConstError{
