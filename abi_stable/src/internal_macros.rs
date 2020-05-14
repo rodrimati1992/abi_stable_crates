@@ -19,6 +19,7 @@ macro_rules! _sabi_type_layouts {
 }
 
 
+/*
 macro_rules! with_shared_attrs {
     (
         internal-0;
@@ -75,3 +76,4 @@ macro_rules! with_shared_attrs {
         }
     };
 }
+*/

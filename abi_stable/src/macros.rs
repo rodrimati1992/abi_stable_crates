@@ -351,7 +351,9 @@ macro_rules! impl_get_type_info {
                 std_types::{StaticStr,utypeid::some_utypeid},
             };
 
-            $crate::impl_get_typename!{ let type_name= $type $([$($params)*])? }
+            let type_name=$crate::sabi_types::Constructor(
+                $crate::utils::get_type_name::<$type<$( $($params)* )? >>
+            );
             
             &TypeInfo{
                 size:mem::size_of::<Self>(),
@@ -366,38 +368,6 @@ macro_rules! impl_get_type_info {
         }
     )
 }
-
-#[macro_export]
-#[cfg(not(feature="rust_1_38"))]
-#[doc(hidden)]
-macro_rules! impl_get_typename{
-    (
-        let $type_name:ident = $type:ident $([$($params:tt)*])?
-    ) => (
-        let $type_name={
-            extern "C" fn __get_type_name()->$crate::std_types::RStr<'static>{
-                stringify!($type).into()
-            }
-
-            $crate::sabi_types::Constructor(__get_type_name)
-        };
-    )
-}
-
-#[macro_export]
-#[cfg(feature="rust_1_38")]
-#[doc(hidden)]
-macro_rules! impl_get_typename{
-    (
-        let $type_name:ident = $type:ident $([$($params:tt)*])?
-    ) => (
-        let $type_name=$crate::sabi_types::Constructor(
-            $crate::utils::get_type_name::<$type<$( $($params)* )? >>
-        );
-    )
-}
-
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -651,45 +621,6 @@ macro_rules! RTuple {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(feature="rust_1_39")]
-#[macro_export]
-#[doc(hidden)]
-macro_rules! rslice_inner {
-    ( $( $elem:expr ),* ) => (
-        $crate::std_types::RSlice::from_slice(&[ $($elem),* ])
-    );
-}
-
-
-#[cfg(not(feature="rust_1_39"))]
-#[macro_export]
-#[doc(hidden)]
-macro_rules! rslice_inner {
-    (@count;  ) => ( 0 );
-    (@count; $v0:expr) => ( 1 );
-    (@count; $v0:expr,$v1:expr) => ( 2 );
-    (@count; $v0:expr,$v1:expr,$v2:expr) => ( 3 );
-    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr) => ( 4 );
-    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr $(,$rem:expr)+) => ( 
-        4 + $crate::rslice_inner!(@count; $($rem),* )
-    );
-    () => (
-        $crate::std_types::RSlice::EMPTY
-    );
-    ( $( $elem:expr ),* $(,)* ) => (
-        unsafe{
-            // This forces the length to be evaluated at compile-time.
-            const _RSLICE_LEN:usize=$crate::rslice_inner!(@count; $($elem),* );
-            $crate::std_types::RSlice::from_raw_parts_with_lifetime(
-                &[ $($elem),* ],
-                _RSLICE_LEN,
-            )
-        }
-    );
-}
-
-
-
 /**
 A macro to construct `RSlice<'_,T>` constants.
 
@@ -737,38 +668,12 @@ assert_eq!( RSLICE_6.len(), 6 );
 #[macro_export]
 macro_rules! rslice {
     ( $( $elem:expr ),* $(,)* ) => {
-        $crate::rslice_inner!( $($elem),* )
+        $crate::std_types::RSlice::from_slice(&[ $($elem),* ])
     };
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////
-
-
-#[cfg(not(feature="rust_1_39"))]
-#[macro_export]
-#[doc(hidden)]
-macro_rules! rstr_internal {
-    ( $lit:literal ) => {unsafe{
-        mod string_module{
-            $crate::get_string_length!{$lit}
-        }
-
-        $crate::std_types::RStr::from_raw_parts(
-            $lit.as_ptr(),
-            string_module::LEN,
-        )
-    }}
-}
-
-#[cfg(feature="rust_1_39")]
-#[macro_export]
-#[doc(hidden)]
-macro_rules! rstr_internal {
-    ( $str:expr ) => {
-        $crate::std_types::RStr::from_str($str)
-    }
-}
 
 
 /**
@@ -817,8 +722,8 @@ assert_eq!( RSTR_6.len(), 7 );
 */
 #[macro_export]
 macro_rules! rstr{
-    ( $($str:tt)* ) => {
-        $crate::rstr_internal!( $($str)* )
+    ( $str:expr ) => {
+        $crate::std_types::RStr::from_str($str)
     }
 }
 

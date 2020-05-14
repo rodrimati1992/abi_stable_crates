@@ -158,17 +158,6 @@ pub fn derive_get_static_equivalent(input: TokenStream1) -> TokenStream1 {
 }
 
 
-
-#[doc(hidden)]
-#[proc_macro]
-pub fn get_string_length(input: TokenStream1) -> TokenStream1 {
-    parse_or_compile_err(input,|lit:syn::LitStr|{
-        let len=lit.value().len();
-        Ok(quote!( pub(super) const LEN:usize=#len; ))
-    }).into()
-}
-
-
 #[doc(hidden)]
 #[proc_macro]
 pub fn construct_abi_header(_: TokenStream1) -> TokenStream1 {

@@ -113,45 +113,29 @@ impl<'a> RStr<'a> {
         }
     }
 
-    with_shared_attrs!{
-        /// Converts `&'a str` to a `RStr<'a>`.
-        ///
-        /// # Constness
-        ///
-        /// This function is a `const fn` from Rust 1.39 onwards due to 
-        /// the stabilization of `str::len`.
-        ///
-        /// Before Rust 1.39 the only safe way to construct an `RStr<'static>`
-        /// constant is using `rstr!("...")` with a string literal argument.
-        ///
-        /// # Example
-        ///
-        /// ```
-        /// use abi_stable::std_types::RStr;
-        ///
-        /// assert_eq!(RStr::from_str("").as_str(), "");
-        /// assert_eq!(RStr::from_str("Hello").as_str(), "Hello");
-        /// assert_eq!(RStr::from_str("World").as_str(), "World");
-        ///
-        /// ```
-        #[inline]
-        (
-            ;
-            #[cfg(feature="rust_1_39")];
-            pub const fn from_str(s: &'a str) -> Self {
-                unsafe{ Self::from_raw_parts( s.as_ptr(), s.len() ) }
-            }
-        )
-        (
-            ;
-            #[cfg(not(feature="rust_1_39"))];
-            pub fn from_str(s: &'a str) -> Self {
-                unsafe{ Self::from_raw_parts( s.as_ptr(), s.len() ) }
-            }
-        )
-
+    /// Converts `&'a str` to a `RStr<'a>`.
+    ///
+    /// # Constness
+    ///
+    /// This function is a `const fn` from Rust 1.39 onwards due to 
+    /// the stabilization of `str::len`.
+    ///
+    /// Before Rust 1.39 the only safe way to construct an `RStr<'static>`
+    /// constant is using `rstr!("...")` with a string literal argument.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RStr;
+    ///
+    /// assert_eq!(RStr::from_str("").as_str(), "");
+    /// assert_eq!(RStr::from_str("Hello").as_str(), "Hello");
+    /// assert_eq!(RStr::from_str("World").as_str(), "World");
+    ///
+    /// ```
+    pub const fn from_str(s: &'a str) -> Self {
+        unsafe{ Self::from_raw_parts( s.as_ptr(), s.len() ) }
     }
-
 
     /// For slicing `RStr`s.
     ///
