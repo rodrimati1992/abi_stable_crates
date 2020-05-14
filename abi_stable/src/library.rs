@@ -30,7 +30,7 @@ use crate::{
     marker_type::ErasedObject,
     type_layout::TypeLayout,
     sabi_types::{ LateStaticRef, ParseVersionError, VersionNumber, VersionStrings },
-    std_types::{RVec,RBoxError,StaticStr},
+    std_types::{RStr,RVec,RBoxError},
     utils::{transmute_reference},
 };
 

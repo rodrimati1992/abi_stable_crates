@@ -152,7 +152,7 @@ where
 {
     const CHECKER:ConstChecker=
         ConstChecker{
-            chars:StaticStr::new(C::CHARS)
+            chars:RStr::from_str(C::CHARS)
         };
 }
 
@@ -192,7 +192,7 @@ declare_consts!{
 #[repr(C)]
 #[derive(Debug,Clone,StableAbi)]
 pub struct ConstChecker{
-    chars:StaticStr,
+    chars:RStr<'static>,
 }
 
 
@@ -259,8 +259,8 @@ impl ExtraChecks for ConstChecker {
 
 #[derive(Debug,Clone)]
 pub struct UnequalConstError{
-    expected:StaticStr,
-    found:StaticStr,
+    expected:RStr<'static>,
+    found:RStr<'static>,
 }
 
 impl Display for UnequalConstError{

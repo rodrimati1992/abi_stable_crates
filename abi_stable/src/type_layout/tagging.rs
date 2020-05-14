@@ -226,7 +226,7 @@ use crate::{
         TypeCheckerMut,
         ExtraChecks,ForExtraChecksImplementor,ExtraChecksError,
     },
-    std_types::{StaticStr,RSlice,RBox,RCow,RVec,ROption,RSome,RNone,RResult},
+    std_types::{RSlice,RStr,RBox,RCow,RVec,ROption,RSome,RNone,RResult},
     traits::IntoReprC,
     utils::FmtPadding,
     type_layout::TypeLayout,
@@ -270,7 +270,7 @@ pub enum Primitive{
     Bool(bool),
     Int(i64),
     UInt(u64),
-    String_(StaticStr),
+    String_(RStr<'static>),
 }
 
 /// A tag that can be checked for compatibility with another tag.
@@ -381,11 +381,11 @@ impl Tag{
 
     /// Constructs the String_ variant.
     pub const fn str(s:&'static str)->Self{
-        Self::new(TagVariant::Primitive(Primitive::String_(StaticStr::new(s))))
+        Self::new(TagVariant::Primitive(Primitive::String_(RStr::from_str(s))))
     }
 
     /// Constructs the String_ variant.
-    pub const fn staticstr(s:StaticStr)->Self{
+    pub const fn rstr(s:RStr<'static>)->Self{
         Self::new(TagVariant::Primitive(Primitive::String_(s)))
     }
 
@@ -673,10 +673,10 @@ impl FromLiteral<&'static str>{
     }
 }
 
-impl FromLiteral<StaticStr>{
+impl FromLiteral<RStr<'static>>{
     /// Converts the wrapped `&'static str` into a Tag.
     pub const fn to_tag(self)->Tag{
-        Tag::staticstr(self.0)
+        Tag::rstr(self.0)
     }
 }
 

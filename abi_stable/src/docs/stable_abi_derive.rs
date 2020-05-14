@@ -269,9 +269,9 @@ Adds a `TheFieldType:SomeBound` constraint to the `StableAbi` impl.
 Eg: 
 ```ignore
 #[sabi(bound="Debug")]
-name:StaticStr,
+name:RStr<'static>,
 ```
-adds the `StaticStr:Debug` bound to the `StableAbi` impl
+adds the `RStr<'static>:Debug` bound to the `StableAbi` impl
 
 ###  `#[sabi(with_field_indices)]` 
 

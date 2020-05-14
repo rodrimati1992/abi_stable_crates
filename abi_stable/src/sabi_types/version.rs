@@ -10,7 +10,7 @@ use std::{
     num::ParseIntError,
 };
 
-use crate::std_types::StaticStr;
+use crate::std_types::RStr;
 
 /// The `<major>.<minor>.<patch>` version of a library,
 ///
@@ -49,7 +49,7 @@ use crate::std_types::StaticStr;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[repr(C)]
 pub struct VersionStrings {
-    pub version: StaticStr,
+    pub version: RStr<'static>,
 }
 
 /// The parsed (`<major>.<minor>.<patch>`) version number of a library.
@@ -104,7 +104,7 @@ impl VersionStrings {
     /// 
     /// ```
     pub const fn new(version:&'static str)->Self{
-        Self{version:StaticStr::new(version)}
+        Self{version:RStr::from_str(version)}
     }
 
     /// Attempts to convert a `VersionStrings` into a `VersionNumber`

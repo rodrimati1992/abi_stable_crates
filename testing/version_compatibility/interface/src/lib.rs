@@ -2,14 +2,11 @@
 #[cfg(feature="new")]
 extern crate new_abi_stable as abi_stable;
 
-#[cfg(feature="old")]
+#[cfg(not(feature="new"))]
 extern crate old_abi_stable as abi_stable;
 
-#[cfg(any(
-    not(any(feature="new",feature="old")),
-    all(feature="new",feature="old")
-))]
-compile_error!{"either the new or old feature has to be enabled"}
+#[cfg(all(feature="new",feature="old"))]
+compile_error!{"the new and old feature can't be enabled at the same time"}
 
 
 use std::marker::PhantomData;
@@ -75,9 +72,6 @@ mod many_types{
         RSlice<'static, i32>,
         RSliceMut<'static, ()>,
         RSliceMut<'static, i32>,
-        StaticSlice<()>,
-        StaticSlice<i32>,
-        StaticStr,
         Option<&'static ()>,
         Option<&'static u32>,
         Option<extern "C" fn()>,

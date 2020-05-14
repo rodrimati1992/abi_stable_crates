@@ -20,7 +20,7 @@ use crate::{
     const_utils::log2_usize, 
     sabi_types::VersionStrings, 
     sabi_types::{CmpIgnored,Constructor,NulStr},
-    std_types::{RStr,StaticStr,RSlice,UTypeId},
+    std_types::{RStr,RSlice,UTypeId},
     prefix_type::{FieldAccessibility,FieldConditionality},
     reflection::ModReflMode,
 };
@@ -239,19 +239,19 @@ impl TypeLayout {
     }
 
     /// Gets the package and package version where the type was declared.
-    pub fn package_and_version(&self)->(StaticStr,VersionStrings){
+    pub fn package_and_version(&self)->(RStr<'static>,VersionStrings){
         let (package,version)=self.item_info().package_and_version();
 
         (
-            StaticStr::new(package),
+            RStr::from_str(package),
             VersionStrings::new(version)
         )
     }
 
     /// Gets the package where the type was declared.
-    pub fn package(&self)->StaticStr{
+    pub fn package(&self)->RStr<'static>{
         let (package,_)=self.item_info().package_and_version();
-        StaticStr::new(package)
+        RStr::from_str(package)
     }
 
     /// Gets the package version for the package of type.
