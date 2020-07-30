@@ -50,7 +50,7 @@ channels=["crossbeam-channel"]
 
 
 [dependencies]
-abi_stable_derive= {version="0.8.3",path="../abi_stable_derive"}
+abi_stable_derive= {version="0.8.4",path="../abi_stable_derive"}
 abi_stable_shared= {version="0.8.0",path="../abi_stable_shared"}
 serde          = { version = "1.0.98", features = ["derive"] }
 serde_derive   = "1.0.98"
