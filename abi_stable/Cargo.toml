@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable"
-version = "0.8.3"
+version = "0.8.4"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition="2018"
 license = "MIT/Apache-2.0"
@@ -72,11 +72,7 @@ crossbeam-utils = "0.6.6"
 serde_json = { version = "1.0.40", features = ["raw_value"] }
 rand = "0.7.0"
 criterion = "0.2.11"
-hashbrown = "0.5.0"
 fnv = "1.0.6"
-skeptic = "0.13.4"
-
 
 [build-dependencies]
 rustc_version = "0.2"
-skeptic = "0.13.4"
