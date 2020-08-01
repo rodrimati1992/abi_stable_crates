@@ -6,6 +6,8 @@ This is the changelog,summarising changes in each version(some minor changes may
 
 - Fixed compilation error in the `as_derive_utils` crate (a "private" dependency of `abi_stable_derive`), caused by a single lifetimes error in the nightly and beta channels.
 
+- Removed the unused `skeptic` build dependency of `abi_stable`, since it was unused, and prevented compilation in Rust 1.34.0
+
 ### 0.8.2
 
 Breaking Change(caused by soundness fix in rustc):
