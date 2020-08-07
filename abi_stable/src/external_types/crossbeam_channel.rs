@@ -28,7 +28,6 @@ use core_extensions::SelfOps;
 use crate::{
     marker_type::UnsafeIgnoredType,
     traits::{IntoReprRust,ErasedType},
-    sabi_types::StaticRef,
     std_types::{RResult,ROk,RErr,ROption,RDuration,RBox},
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
@@ -175,13 +174,13 @@ assert!( rx.recv().is_err() );
 #[derive(StableAbi)]
 pub struct RSender<T>{
     channel:RBox<ErasedSender<T>>,
-    vtable:StaticRef<VTable<T>>,
+    vtable:VTable_Ref<T>,
 }
 
 
 impl<T> RSender<T>{
-    fn vtable<'a>(&self)->&'a VTable<T>{
-        self.vtable.get()
+    fn vtable(&self)->VTable_Ref<T>{
+        self.vtable
     }
 
 /**
@@ -425,7 +424,7 @@ impl_from_rust_repr! {
         fn(this){
             Self{
                 channel:ErasedSender::from_unerased_value(this),
-                vtable: WithMetadata::as_prefix(MakeVTable::<T>::VTABLE)
+                vtable: MakeVTable::<T>::VTABLE,
             }
         }
     }
@@ -470,13 +469,13 @@ assert!( tx.send("").is_err() );
 #[derive(StableAbi)]
 pub struct RReceiver<T>{
     channel:RBox<ErasedReceiver<T>>,
-    vtable:StaticRef<VTable<T>>,
+    vtable:VTable_Ref<T>,
 }
 
 
 impl<T> RReceiver<T>{
-    fn vtable<'a>(&self)->&'a VTable<T>{
-        self.vtable.get()
+    fn vtable(&self)->VTable_Ref<T>{
+        self.vtable
     }
 
 /**
@@ -774,7 +773,7 @@ impl_from_rust_repr! {
         fn(this){
             Self{
                 channel:ErasedReceiver::from_unerased_value(this),
-                vtable:WithMetadata::as_prefix(MakeVTable::<T>::VTABLE)
+                vtable:MakeVTable::<T>::VTABLE,
             }
         }
     }
@@ -824,10 +823,10 @@ unsafe impl<'a,T:'a> ErasedType<'a> for ErasedReceiver<T> {
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="VTable")))]
+#[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
 //#[sabi(debug_print)]
-struct VTableVal<T>{
+struct VTable<T>{
     send:extern "C" fn(this:&ErasedSender<T>,T) -> RResult<(),RSendError<T>>,
     try_send:extern "C" fn(this:&ErasedSender<T>,T) -> RResult<(),RTrySendError<T>>,
     send_timeout:
@@ -866,7 +865,7 @@ struct MakeVTable<'a,T>(&'a T);
 
 
 impl<'a,T:'a> MakeVTable<'a,T>{
-    const VALUE:VTableVal<T>=VTableVal{
+    const VALUE:VTable<T>=VTable{
         send:ErasedSender::send,
         try_send:ErasedSender::try_send,
         send_timeout:ErasedSender::send_timeout,
@@ -887,11 +886,13 @@ impl<'a,T:'a> MakeVTable<'a,T>{
     };
 
     // The VTABLE for this type in this executable/library
-    const VTABLE: StaticRef<WithMetadata<VTableVal<T>>> = unsafe{
-        StaticRef::from_raw(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VALUE,
-        ))
+    const VTABLE: VTable_Ref<T> = unsafe{
+        VTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::VALUE,
+            ).as_prefix()
+        )
     };
 }
 

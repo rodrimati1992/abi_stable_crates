@@ -18,7 +18,7 @@ use crate::{
         GetPointerKind,PK_SmartPointer,
     },
     prefix_type::{PrefixTypeTrait,WithMetadata},
-    sabi_types::{Constructor,StaticRef},
+    sabi_types::Constructor,
     std_types::{RResult,utypeid::{UTypeId,new_utypeid}},
 };
 
@@ -83,7 +83,7 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
     #[repr(C)]
     pub struct RArc<T> {
         data: *const T,
-        vtable: StaticRef<ArcVtable<T>>,
+        vtable: ArcVtable_Ref<T>,
         _marker: PhantomData<T>,
     }
 
@@ -92,7 +92,7 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
             fn(this){
                 let out = RArc {
                     data: Arc::into_raw(this),
-                    vtable: WithMetadata::as_prefix(VTableGetter::LIB_VTABLE),
+                    vtable: VTableGetter::LIB_VTABLE,
                     _marker: Default::default(),
                 };
                 out
@@ -126,16 +126,14 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
         }
 
         #[inline(always)]
-        pub(crate) fn vtable<'a>(&self) -> &'a ArcVtable<T> {
-            self.vtable.get()
+        pub(crate) fn vtable<'a>(&self) -> ArcVtable_Ref<T> {
+            self.vtable
         }
 
         #[allow(dead_code)]
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
-            self.vtable = WithMetadata::as_prefix(
-                VTableGetter::LIB_VTABLE_FOR_TESTING
-            );
+            self.vtable = VTableGetter::LIB_VTABLE_FOR_TESTING;
         }
     }
 }
@@ -186,8 +184,8 @@ impl<T> RArc<T> {
         T: Clone,
     {
         let this_vtable =this.vtable();
-        let other_vtable=WithMetadata::as_prefix(VTableGetter::LIB_VTABLE).get();
-        if ::std::ptr::eq(this_vtable,other_vtable)||
+        let other_vtable=VTableGetter::LIB_VTABLE;
+        if ::std::ptr::eq(this_vtable.0.as_ptr(), other_vtable.0.as_ptr())||
             this_vtable.type_id()==other_vtable.type_id()
         {
             unsafe { Arc::from_raw(this.into_raw()) }
@@ -419,7 +417,7 @@ mod vtable_mod {
     pub(super) struct VTableGetter<'a, T>(&'a T);
 
     impl<'a, T: 'a> VTableGetter<'a, T> {
-        const DEFAULT_VTABLE:ArcVtableVal<T>=ArcVtableVal {
+        const DEFAULT_VTABLE:ArcVtable<T>=ArcVtable {
             type_id:Constructor( new_utypeid::<RArc<()>> ),
             destructor: destructor_arc::<T>,
             clone: clone_arc::<T>,
@@ -430,31 +428,35 @@ mod vtable_mod {
         };
 
         // The VTABLE for this type in this executable/library
-        pub(super) const LIB_VTABLE: StaticRef<WithMetadata<ArcVtableVal<T>>> = unsafe{
-            StaticRef::from_raw(&WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                Self::DEFAULT_VTABLE
-            ))
+        pub(super) const LIB_VTABLE: ArcVtable_Ref<T> = unsafe{
+            ArcVtable_Ref(
+                WithMetadata::new(
+                    PrefixTypeTrait::METADATA,
+                    Self::DEFAULT_VTABLE
+                ).as_prefix()
+            )
         };
 
         #[allow(dead_code)]
         #[cfg(test)]
-        pub(super) const LIB_VTABLE_FOR_TESTING: StaticRef<WithMetadata<ArcVtableVal<T>>> = unsafe{
-            StaticRef::from_raw(&WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                ArcVtableVal{
-                    type_id:Constructor( new_utypeid::<RArc<i32>> ),
-                    ..Self::DEFAULT_VTABLE
-                }
-            ))
+        pub(super) const LIB_VTABLE_FOR_TESTING: ArcVtable_Ref<T> = unsafe{
+            ArcVtable_Ref(
+                WithMetadata::new(
+                    PrefixTypeTrait::METADATA,
+                    ArcVtable{
+                        type_id:Constructor( new_utypeid::<RArc<i32>> ),
+                        ..Self::DEFAULT_VTABLE
+                    }
+                ).as_prefix()
+            )
         };
     }
 
     #[derive(StableAbi)]
     #[repr(C)]
-    #[sabi(kind(Prefix(prefix_struct="ArcVtable")))]
+    #[sabi(kind(Prefix))]
     #[sabi(missing_field(panic))]
-    pub struct ArcVtableVal<T> {
+    pub struct ArcVtable<T> {
         pub(super) type_id:Constructor<UTypeId>,
         pub(super) destructor: unsafe extern "C" fn(*const T, CallReferentDrop),
         pub(super) clone: unsafe extern "C" fn(&RArc<T>) -> RArc<T>,
@@ -516,4 +518,4 @@ mod vtable_mod {
 
 
 }
-use self::vtable_mod::{ArcVtable, VTableGetter};
+use self::vtable_mod::{ArcVtable_Ref, VTableGetter};

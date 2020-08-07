@@ -19,7 +19,6 @@ use crate::{
     },
     marker_type::{SyncSend, UnsyncUnsend,UnsyncSend,ErasedObject},
     prefix_type::{PrefixTypeTrait,WithMetadata},
-    sabi_types::StaticRef,
     std_types::{
         RBox, RResult, RString,
         utypeid::{UTypeId,new_utypeid}
@@ -198,7 +197,7 @@ use abi_stable::std_types::{RBox,SendRBoxError};
 #[derive(StableAbi)]
 pub struct RBoxError_<M = SyncSend> {
     value: RBox<ErasedObject>,
-    vtable: StaticRef<RErrorVTable>,
+    vtable: RErrorVTable_Ref,
     _sync_send: PhantomData<M>,
 }
 
@@ -274,14 +273,11 @@ impl<M> RBoxError_<M> {
         T: ErrorTrait + 'static,
     {
         unsafe {
-            Self::new_with_vtable(
-                value,
-                WithMetadata::as_prefix(MakeRErrorVTable::<T>::LIB_VTABLE)
-            )
+            Self::new_with_vtable(value, MakeRErrorVTable::<T>::LIB_VTABLE)
         }
     }
 
-    fn new_with_vtable<T>(value: T,vtable:StaticRef<RErrorVTable>) -> Self{
+    fn new_with_vtable<T>(value: T, vtable: RErrorVTable_Ref) -> Self{
         unsafe {
             let value = value
                 .piped(RBox::new)
@@ -299,11 +295,11 @@ impl<M> RBoxError_<M> {
 impl<M> RBoxError_<M> {
     /// Returns the UTypeId of the error this wraps.
     pub fn type_id(&self)->UTypeId{
-        self.vtable.get().type_id()()
+        self.vtable.type_id()()
     }
 
     fn is_type<T:'static>(&self)->bool{
-        let self_id=self.vtable.get().type_id()();
+        let self_id=self.vtable.type_id()();
         let other_id=UTypeId::new::<T>();
         self_id==other_id
     }
@@ -472,7 +468,7 @@ impl<M> ErrorTrait for RBoxError_<M> {}
 impl<M> Display for RBoxError_<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe{
-            adapt_std_fmt(&*self.value, self.vtable.get().display(), f)
+            adapt_std_fmt(&*self.value, self.vtable.display(), f)
         }
     }
 }
@@ -480,7 +476,7 @@ impl<M> Display for RBoxError_<M> {
 impl<M> Debug for RBoxError_<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe{
-            adapt_std_fmt(&*self.value, self.vtable.get().debug(), f)
+            adapt_std_fmt(&*self.value, self.vtable.debug(), f)
         }
     }
 }
@@ -530,7 +526,7 @@ macro_rules! from_impls {
                     Err(e)=>{
                         Self::new_with_vtable::<$boxdyn>(
                             e,
-                            WithMetadata::as_prefix(MakeBoxedRErrorVTable::<$boxdyn>::LIB_VTABLE),
+                            MakeBoxedRErrorVTable::<$boxdyn>::LIB_VTABLE,
                         )
                     }
                 }
@@ -687,8 +683,8 @@ from_impls!{ Box<dyn ErrorTrait + 'static> , UnsyncUnsend }
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="RErrorVTable")))]
-struct RErrorVTableVal {
+#[sabi(kind(Prefix))]
+struct RErrorVTable {
     debug: unsafe extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
     display: unsafe extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
     #[sabi(last_prefix_field)]
@@ -703,17 +699,19 @@ struct MakeRErrorVTable<T>(T);
 impl<T> MakeRErrorVTable<T>
 where T:ErrorTrait+'static
 {
-    const VALUE:RErrorVTableVal=RErrorVTableVal{
+    const VALUE:RErrorVTable=RErrorVTable{
         debug: debug_impl::<T>,
         display: display_impl::<T>,
         type_id: new_utypeid::<T>,
     };
 
-    const LIB_VTABLE: StaticRef<WithMetadata<RErrorVTableVal>> = {
-        StaticRef::new(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VALUE,
-        ))
+    const LIB_VTABLE: RErrorVTable_Ref = unsafe{
+        RErrorVTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::VALUE,
+            ).as_prefix()
+        )
     };
 }
 
@@ -725,17 +723,19 @@ struct MakeBoxedRErrorVTable<T>(T);
 impl<T> MakeBoxedRErrorVTable<Box<T>>
 where T:?Sized+ErrorTrait+'static
 {
-    const VALUE:RErrorVTableVal=RErrorVTableVal{
+    const VALUE:RErrorVTable=RErrorVTable{
         debug: debug_impl::<Box<T>>,
         display: display_impl::<Box<T>>,
         type_id: new_utypeid::<Box<T>>,
     };
 
-    const LIB_VTABLE: StaticRef<WithMetadata<RErrorVTableVal>> = {
-        StaticRef::new(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VALUE,
-        ))
+    const LIB_VTABLE: RErrorVTable_Ref = unsafe{
+        RErrorVTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::VALUE,
+            ).as_prefix()
+        )
     };
 }
 

@@ -275,7 +275,7 @@ fn first_items<'a>(
         WhichObject::RObject=>quote!(RObject),
     };
     let vtable_argument=match trait_def.which_object {
-        WhichObject::DynTrait=>quote!(__sabi_re::StaticRef<VTable<#vtable_args>>),
+        WhichObject::DynTrait=>quote!(__sabi_re::PrefixRef<VTable<#vtable_args>>),
         WhichObject::RObject=>quote!(VTable<#vtable_args>),
     };
 
@@ -928,9 +928,11 @@ fn methods_impls<'a>(
             #impl_where_preds
         {
             #[inline]
-            fn sabi_vtable<'_vtable>(&self)->&'_vtable VTableInner<#generics_use1>{
+            fn sabi_vtable(
+                &self
+            )-> VTableInner_Ref<#generics_use1> {
                 unsafe{
-                    &*(self.obj.sabi_et_vtable().get_raw() as *const _ as *const _)
+                    VTableInner_Ref(self.obj.sabi_et_vtable().cast())
                 }
             }
 
@@ -999,17 +1001,15 @@ fn declare_vtable<'a>(
         );
 
     let robject_vtable=quote!(
-        __sabi_re::StaticRef<
-            __sabi_re::RObjectVtable<
-                _Self,
-                _ErasedPtr,
-                #trait_interface<#trait_interface_use>
-            >
+        __sabi_re::RObjectVtable_Ref<
+            _Self,
+            _ErasedPtr,
+            #trait_interface<#trait_interface_use>
         >
     );
 
     let real_vtable_ty=format!(
-        "__sabi_re::StaticRef<VTableInner<{}>>",
+        "VTableInner_Ref<{}>",
         generics_use1.into_token_stream(),
     );
     let inner_vtable_bound=format!("{}: ::abi_stable::StableAbi",real_vtable_ty);
@@ -1032,30 +1032,29 @@ fn declare_vtable<'a>(
 
     quote!(
         #[doc(hidden)]
-        #[repr(transparent)]
+        #[repr(C)]
         #[derive(abi_stable::StableAbi)]
         #[sabi(
             bounds=#bounds,
             bound=#inner_vtable_bound,
+            impl_prefix_stable_abi,
         )]
         #submod_vis struct VTable<#generics_decl_unbounded>{
             #[sabi(unsafe_change_type=#real_vtable_ty)]
-            inner:u64,
+            inner: [usize; 0],
 
-            _sabi_tys: ::std::marker::PhantomData<
-                extern "C" fn(#generics_use0)
-            >,
+            _sabi_tys: __sabi_re::NonOwningPhantom<(#generics_use0)>,
         }
         
         #[repr(C)]
         #[derive(abi_stable::StableAbi)]
-        #[sabi(kind(Prefix(prefix_struct="VTableInner")))]
+        #[sabi(kind(Prefix))]
         #[sabi(missing_field(panic))]
         #( #[sabi(prefix_bound=#lifetime_bounds)] )*
         #[sabi(bound=#vtable_bound)]
         #(#[#derive_attrs])*
         #[doc(hidden)]
-        #submod_vis struct VTableInnerVal<#generics_decl>
+        #submod_vis struct VTableInner<#generics_decl>
         where
             _ErasedPtr:__GetPointerKind,
         {
@@ -1225,11 +1224,11 @@ fn vtable_impl<'a>(
             #extra_constraints
         {
             const TMP0: *const __sabi_re::WithMetadata<
-                VTableInnerVal<#withmetadata_generics>
+                VTableInner<#withmetadata_generics>
             >={
                 &__sabi_re::WithMetadata::new(
                     __sabi_re::PrefixTypeTrait::METADATA,
-                    VTableInnerVal{
+                    VTableInner{
                         _sabi_tys: ::std::marker::PhantomData,
                         _sabi_vtable:__sabi_re::GetRObjectVTable::ROBJECT_VTABLE,
                         #(
@@ -1239,10 +1238,9 @@ fn vtable_impl<'a>(
                 )
             };
 
-            const VTABLE_INNER:__sabi_re::StaticRef<VTable<#vtable_generics>>=unsafe{
-                let __vtable=__sabi_re::StaticRef::from_raw(Self::TMP0);
-                __sabi_re::WithMetadata::as_prefix(__vtable)
-                    .transmute_ref()
+            const VTABLE_INNER: __sabi_re::PrefixRef<VTable<#vtable_generics> > =unsafe{
+                __sabi_re::WithMetadata::raw_as_prefix(Self::TMP0)
+                    .cast()
             };
 
             #const_vtable_item

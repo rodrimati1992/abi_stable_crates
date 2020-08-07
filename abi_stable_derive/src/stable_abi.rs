@@ -25,6 +25,8 @@ use syn::Ident;
 
 use proc_macro2::{TokenStream as TokenStream2,Span};
 
+use quote::TokenStreamExt;
+
 use core_extensions::{
     prelude::*,
     IteratorExt,
@@ -116,22 +118,27 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     let where_clause=(&where_clause.expect("BUG").predicates).into_iter();
     let where_clause_b=where_clause.clone();
 
-    // The value of the `SharedStableAbi::Kind` associated type.
-    let associated_kind = match config.kind {
-        StabilityKind::Value|StabilityKind::NonExhaustive{..} => 
-            &ctokens.value_kind,
-        StabilityKind::Prefix{..}=>
-            &ctokens.prefix_kind,
-    };
-
     let ty_generics=GenParamsIn::new(generics,InWhat::ItemUse);
 
-    // The type that implements SharedStableAbi
+    let impld_stable_abi_trait = match &config.kind {
+        StabilityKind::Value{impl_prefix_stable_abi: false} 
+        |StabilityKind::NonExhaustive{..} 
+        => {
+            Ident::new("StableAbi", Span::call_site())
+        }            
+        StabilityKind::Value{impl_prefix_stable_abi: true} 
+        |StabilityKind::Prefix{..}
+        =>{
+            Ident::new("PrefixStableAbi", Span::call_site())
+        }
+    };
+
+    // The type that implements StableAbi
     let impl_ty= match &config.kind {
-        StabilityKind::Value => 
+        StabilityKind::Value{..} => 
             quote!(#name <#ty_generics> ),
         StabilityKind::Prefix(prefix)=>{
-            let n=&prefix.prefix_struct;
+            let n=&prefix.prefix_fields_struct;
             quote!(#n <#ty_generics> )
         },
         StabilityKind::NonExhaustive(nonexhaustive)=>{
@@ -149,16 +156,16 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             quote!(__Storage)
         },
         StabilityKind::Prefix(prefix)=>{
-            let prefix_struct=prefix.prefix_struct;
+            let prefix_fields_struct=prefix.prefix_fields_struct;
 
             prefix_type_trait_bound=Some(quote!(
-                #name <#ty_generics>:_sabi_reexports::PrefixTypeTrait,
+                #name <#ty_generics>:__sabi_re::PrefixTypeTrait,
             ));
             prefix_bounds=&prefix.prefix_bounds;
 
-            quote!( __WithMetadata_<#name <#ty_generics>,#prefix_struct <#ty_generics>> )
+            quote!( #prefix_fields_struct <#ty_generics> )
         }
-        StabilityKind::Value=>quote!(Self),
+        StabilityKind::Value{..}=>quote!(Self),
     };
     
     let repr=config.repr;
@@ -185,10 +192,10 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
         match &config.extra_checks {
             Some(extra_checks)=>quote!({
                 Some(&std::mem::ManuallyDrop::new(
-                    _sabi_reexports::StoredExtraChecks::from_const(
+                    __sabi_re::StoredExtraChecks::from_const(
                         &#extra_checks,
-                        _sabi_reexports::TU_Opaque,
-                        _sabi_reexports::ExtraChecks_MV::VTABLE,
+                        __sabi_re::TU_Opaque,
+                        __sabi_re::ExtraChecks_MV::VTABLE,
                     )
                 ))
             }),
@@ -219,15 +226,15 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
         let is_opaque_field=visited_field.layout_ctor.is_opaque();
         if visited_field.comp_field.is_function() {
-            quote!( _sabi_reexports::True )
+            quote!( __sabi_re::True )
         }else if is_opaque_field {
-            quote!( _sabi_reexports::False )
+            quote!( __sabi_re::False )
         }else{
             let ty=visited_field.comp_field.type_(&shared_vars);
-            quote!( <#ty as __SharedStableAbi>::IsNonZeroType )
+            quote!( <#ty as __StableAbi>::IsNonZeroType )
         }
     }else{
-        quote!( _sabi_reexports::False )
+        quote!( __sabi_re::False )
     };
 
 
@@ -243,9 +250,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                 let fields=fields_tokenizer(ds,visited_fields,ct);
                 match ds.data_variant {
                     DataVariant::Struct=>
-                        quote!( _sabi_reexports::MonoTLData::derive_struct(#fields) ),
+                        quote!( __sabi_re::MonoTLData::derive_struct(#fields) ),
                     DataVariant::Union=>
-                        quote!( _sabi_reexports::MonoTLData::derive_union(#fields) ),
+                        quote!( __sabi_re::MonoTLData::derive_union(#fields) ),
                     DataVariant::Enum=>
                         unreachable!(),
                 }
@@ -253,9 +260,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             generic_tl_data={
                 match ds.data_variant {
                     DataVariant::Struct=>
-                        quote!( _sabi_reexports::GenericTLData::Struct ),
+                        quote!( __sabi_re::GenericTLData::Struct ),
                     DataVariant::Union=>
-                        quote!( _sabi_reexports::GenericTLData::Union ),
+                        quote!( __sabi_re::GenericTLData::Union ),
                     DataVariant::Enum=>
                         unreachable!(),
                 }
@@ -266,12 +273,12 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             mono_tl_data={
                 let mono_enum_tokenizer=
                     tokenize_mono_enum(ds,vn_sl,nonexh_opt,config,visited_fields,shared_vars);
-                quote!( _sabi_reexports::MonoTLData::Enum(#mono_enum_tokenizer) )
+                quote!( __sabi_re::MonoTLData::Enum(#mono_enum_tokenizer) )
             };
             generic_tl_data={
                 let generic_enum_tokenizer=
                     tokenize_generic_enum(ds,vn_sl,nonexh_opt,config,visited_fields,ct);
-                quote!( _sabi_reexports::GenericTLData::Enum(#generic_enum_tokenizer) )
+                quote!( __sabi_re::GenericTLData::Enum(#generic_enum_tokenizer) )
             };
         }
         (false,Some(prefix))=>{
@@ -284,7 +291,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                 let fields=fields_tokenizer(ds,visited_fields,ct);
                 let prefix_field_conditionality_mask=prefix.prefix_field_conditionality_mask;
                 quote!(
-                    _sabi_reexports::MonoTLData::prefix_type_derive(
+                    __sabi_re::MonoTLData::prefix_type_derive(
                         #first_suffix_field,
                         #prefix_field_conditionality_mask,
                         #fields
@@ -293,9 +300,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             };
             generic_tl_data={
                 quote!(
-                    _sabi_reexports::GenericTLData::prefix_type_derive(
+                    __sabi_re::GenericTLData::prefix_type_derive(
                         <#name <#ty_generics> as 
-                            _sabi_reexports::PrefixTypeTrait
+                            __sabi_re::PrefixTypeTrait
                         >::PT_FIELD_ACCESSIBILITY,
                     )
                 )
@@ -324,7 +331,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                 }
                  ASTypeParamBound::GetStaticEquivalent
                 |ASTypeParamBound::StableAbi
-                |ASTypeParamBound::SharedStableAbi
                 =>{
                     to_stream!(ts; ct.static_equivalent, ct.lt, ty_param, ct.gt);
                 }
@@ -374,7 +380,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
     let stringified_name=rstr_tokenizer(name.to_string());
 
-    let mut shared_stable_abi_bounded=Vec::new();
     let mut stable_abi_bounded=Vec::new();
     let mut static_equiv_bounded=Vec::new();
 
@@ -383,14 +388,12 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             ASTypeParamBound::NoBound=>None,
             ASTypeParamBound::GetStaticEquivalent=>Some(&mut static_equiv_bounded),
             ASTypeParamBound::StableAbi=>Some(&mut stable_abi_bounded),
-            ASTypeParamBound::SharedStableAbi=>Some(&mut shared_stable_abi_bounded),
         };
         if let Some(list)=list {
             list.push(ident);
         }
     }
 
-    let shared_stable_abi_bounded=&shared_stable_abi_bounded;
     let stable_abi_bounded=&stable_abi_bounded;
     let static_equiv_bounded=&static_equiv_bounded;
 
@@ -420,7 +423,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             CompTLField::from_expanded_std_field(
                 name,
                 std::iter::empty(),
-                shared_vars.push_type(LayoutConstructor::SharedStableAbi,*ty),
+                shared_vars.push_type(LayoutConstructor::Regular,*ty),
                 shared_vars,
             )
         })
@@ -444,6 +447,58 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
     // drop(_measure_time0);
     // let _measure_time1=PrintDurationOnDrop::new(abi_stable_shared::file_span!());
 
+    let shared_where_preds = quote!(
+        #(#where_clause_b,)*
+        #(#stable_abi_bounded:__StableAbi,)*
+        #(#static_equiv_bounded:__GetStaticEquivalent_,)*
+        #(#extra_bounds,)*
+        #(#prefix_bounds,)*
+        #prefix_type_trait_bound
+    );
+
+    let stable_abi_where_preds = shared_where_preds.clone().mutated(|ts|{
+        ts.append_all(quote!(
+            #(#phantom_field_tys:__StableAbi,)*
+        ))
+    });
+
+    let prefix_ref_impls = if let StabilityKind::Prefix(prefix) = &config.kind {
+        let prefix_ref = &prefix.prefix_ref;
+        let prefix_fields_struct = &prefix.prefix_fields_struct;
+        let lifetimes_s = lifetimes_s.clone();
+        
+        quote!(
+            unsafe impl<#generics_header> __sabi_re::GetStaticEquivalent_
+            for #prefix_ref <#ty_generics>
+            where
+                #shared_where_preds
+            {
+                type StaticEquivalent =
+                    __sabi_re::PrefixRef<
+                        #static_struct_name < 
+                            #(#lifetimes_s,)*
+                            #type_params_s
+                            #({#const_params_s}),* 
+                        >
+                    >;
+            }
+
+            unsafe impl<#generics_header> __sabi_re::StableAbi for #prefix_ref <#ty_generics>
+            where 
+                #stable_abi_where_preds
+            {
+                type IsNonZeroType = __sabi_re::True;
+
+                const LAYOUT: &'static __sabi_re::TypeLayout = 
+                    <__sabi_re::PrefixRef<#prefix_fields_struct <#ty_generics>>
+                        as __sabi_re::StableAbi
+                    >::LAYOUT;
+            }
+        )
+    }else{
+        TokenStream2::new()
+    };
+
     quote!(
         #prefix_type_tokenizer_
 
@@ -461,7 +516,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
             #[allow(unused_imports)]
             pub(super) use ::abi_stable::derive_macro_reexports::{
-                self as _sabi_reexports,
+                self as __sabi_re,
                 renamed::*,
             };
 
@@ -471,15 +526,11 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
             #interfacetype_tokenizer
 
+            #prefix_ref_impls
+
             unsafe impl <#generics_header> __GetStaticEquivalent_ for #impl_ty 
             where 
-                #(#where_clause,)*
-                #(#stable_abi_bounded:__StableAbi,)*
-                #(#shared_stable_abi_bounded:__SharedStableAbi,)*
-                #(#static_equiv_bounded:__GetStaticEquivalent_,)*
-                #(#extra_bounds,)*
-                #(#prefix_bounds,)*
-                #prefix_type_trait_bound
+                #shared_where_preds
             {
                 type StaticEquivalent=#static_struct_name < 
                     #(#lifetimes_s,)*
@@ -489,9 +540,9 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
             }
 
             #[doc(hidden)]
-            pub(super) const #mono_type_layout:&'static _sabi_reexports::MonoTypeLayout=
-                &_sabi_reexports::MonoTypeLayout::from_derive(
-                    _sabi_reexports::_private_MonoTypeLayoutDerive{
+            pub(super) const #mono_type_layout:&'static __sabi_re::MonoTypeLayout=
+                &__sabi_re::MonoTypeLayout::from_derive(
+                    __sabi_re::_private_MonoTypeLayoutDerive{
                         name: #stringified_name,
                         item_info: #item_info_const,
                         data: #mono_tl_data,
@@ -503,26 +554,19 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                     }
                 );
 
-            unsafe impl <#generics_header> __SharedStableAbi for #impl_ty 
+            unsafe impl <#generics_header> __sabi_re::#impld_stable_abi_trait for #impl_ty 
             where 
-                #(#where_clause_b,)*
-                #(#stable_abi_bounded:__StableAbi,)*
-                #(#shared_stable_abi_bounded:__SharedStableAbi,)*
-                #(#phantom_field_tys:__SharedStableAbi,)*
-                #(#static_equiv_bounded:__GetStaticEquivalent_,)*
-                #(#extra_bounds,)*
-                #(#prefix_bounds,)*
-                #prefix_type_trait_bound
+                #stable_abi_where_preds
+                
             {
                 type IsNonZeroType=#is_nonzero;
-                type Kind=#associated_kind;
 
-                const S_LAYOUT: &'static _sabi_reexports::TypeLayout = {
-                    &_sabi_reexports::TypeLayout::from_derive::<#size_align_for>(
-                        _sabi_reexports::_private_TypeLayoutDerive {
+                const LAYOUT: &'static __sabi_re::TypeLayout = {
+                    &__sabi_re::TypeLayout::from_derive::<#size_align_for>(
+                        __sabi_re::_private_TypeLayoutDerive {
                             shared_vars: &#shared_vars_tokenizer,
                             mono:#mono_type_layout,
-                            abi_consts: Self::S_ABI_CONSTS,
+                            abi_consts: Self::ABI_CONSTS,
                             data:#generic_tl_data,
                             tag:#tags,
                             extra_checks:#extra_checks,
@@ -564,7 +608,7 @@ fn tokenize_mono_enum<'a>(
         let fields=fields_tokenizer(ds,visited_fields,ct);
 
         quote!(
-            _sabi_reexports::MonoTLEnum::new(
+            __sabi_re::MonoTLEnum::new(
                 #variant_names_start_len,
                 abi_stable::rslice![#( #variant_lengths ),*],
                 #fields,
@@ -590,7 +634,7 @@ fn tokenize_generic_enum<'a>(
                 let ty_generics=GenParamsIn::new(ds.generics,InWhat::ItemUse);
                 // let (_, ty_generics,_) = ds.generics.split_for_impl();
                 quote!(nonexhaustive(
-                    &_sabi_reexports::TLNonExhaustive::new::< #name <#ty_generics> >()
+                    &__sabi_re::TLNonExhaustive::new::< #name <#ty_generics> >()
                 ))
             },
             None=>quote!(exhaustive()),
@@ -600,7 +644,7 @@ fn tokenize_generic_enum<'a>(
         let discriminants=config.repr.tokenize_discriminant_exprs(discriminants,ct);
 
         quote!(
-            _sabi_reexports::GenericTLEnum::new(
+            __sabi_re::GenericTLEnum::new(
                 __IsExhaustive::#is_exhaustive,
                 #discriminants,
             )

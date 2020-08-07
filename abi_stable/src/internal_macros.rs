@@ -1,9 +1,10 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! _sabi_type_layouts {
-    (internal; $ty:ty )=>{
+    (internal; $ty:ty )=>{{
+        // let _: <$ty as $crate::StableAbi>::IsNonZeroType;
         __GetTypeLayoutCtor::<$ty>::STABLE_ABI
-    };
+    }};
     (internal; $ty:ty=$assoc_const:ident )=>{
         __GetTypeLayoutCtor::<$ty>::$assoc_const
     };

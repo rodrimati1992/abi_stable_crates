@@ -12,7 +12,7 @@ at either the example in the readme for this crate,
 or the `example/example_*_interface` crates  in this crates' repository .
 
 */
-pub trait RootModule: Sized+SharedStableAbi+'static  {
+pub trait RootModule: Sized+StableAbi+'static  {
 
     /// The name of the dynamic library,which is the same on all platforms.
     /// This is generally the name of the `implementation crate`.
@@ -34,7 +34,7 @@ pub trait RootModule: Sized+SharedStableAbi+'static  {
             base_name:RStr::from_str(Self::BASE_NAME),
             name:RStr::from_str(Self::NAME),
             version_strings:Self::VERSION_STRINGS,
-            layout:IsLayoutChecked::Yes(<&Self>::S_LAYOUT),
+            layout:IsLayoutChecked::Yes(<Self>::LAYOUT),
             c_abi_testing_fns:crate::library::c_abi_testing::C_ABI_TESTING_FNS,
             _priv:(),
         },

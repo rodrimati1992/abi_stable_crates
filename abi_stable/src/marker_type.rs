@@ -113,12 +113,10 @@ impl<T:?Sized> Clone for UnsafeIgnoredType<T>{
 unsafe impl<T> GetStaticEquivalent_ for UnsafeIgnoredType<T> {
     type StaticEquivalent=();
 }
-unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
+unsafe impl<T> StableAbi for UnsafeIgnoredType<T> {
     type IsNonZeroType = False;
-    type Kind=ValueKind;
 
-
-    const S_LAYOUT: &'static TypeLayout = {
+    const LAYOUT: &'static TypeLayout = {
         const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("UnsafeIgnoredType"),
@@ -137,7 +135,7 @@ unsafe impl<T> SharedStableAbi for UnsafeIgnoredType<T> {
         &TypeLayout::from_std::<Self>(
             shared_vars,
             MONO_TYPE_LAYOUT,
-            Self::S_ABI_CONSTS,
+            Self::ABI_CONSTS,
             GenericTLData::Struct,
         )
     };
@@ -191,14 +189,13 @@ where
     type StaticEquivalent=GetStaticEquivalent<PhantomData<T>>;
 }
 
-unsafe impl<T:?Sized> SharedStableAbi for NonOwningPhantom<T> 
+unsafe impl<T:?Sized> StableAbi for NonOwningPhantom<T> 
 where
-    PhantomData<T>:SharedStableAbi
+    PhantomData<T>:StableAbi
 {
     type IsNonZeroType = False;
-    type Kind=ValueKind;
 
 
-    const S_LAYOUT: &'static TypeLayout = 
-        <PhantomData<T> as SharedStableAbi>::S_LAYOUT;
+    const LAYOUT: &'static TypeLayout = 
+        <PhantomData<T> as StableAbi>::LAYOUT;
 }

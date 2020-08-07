@@ -3,6 +3,7 @@ use super::*;
 use crate::{
     erased_types::{FormattingMode,InterfaceBound,VTableDT},
     marker_type::NonOwningPhantom,
+    prefix_type::PrefixRef,
     type_level::{
         unerasability::{GetUTID},
         impl_enum::{Implemented,Unimplemented},
@@ -14,10 +15,10 @@ use crate::{
 
 //////////////////////////////////////////////////////////////////////////////
 
-/// Gets an `RObjectVtable<_Self,ErasedPtr,TO>`(the vtable for RObject itself),
+/// Gets an `RObjectVtable_Ref<_Self,ErasedPtr,TO>`(the vtable for RObject itself),
 /// which is stored as the first field of all generated trait object vtables.
 pub unsafe trait GetRObjectVTable<IA,_Self,ErasedPtr,OrigPtr>:Sized+InterfaceType{
-    const ROBJECT_VTABLE:StaticRef<RObjectVtable<_Self,ErasedPtr,Self>>;
+    const ROBJECT_VTABLE:RObjectVtable_Ref<_Self,ErasedPtr,Self>;
 }
 
 
@@ -26,9 +27,8 @@ unsafe impl<IA,_Self,ErasedPtr,OrigPtr,I>
 where
     I:AreTraitsImpld<IA,_Self,ErasedPtr,OrigPtr>+InterfaceType,
 {
-    const ROBJECT_VTABLE:StaticRef<RObjectVtable<_Self,ErasedPtr,Self>>={
-        let prefix=GetRObjectVTableHelper::<IA,_Self,ErasedPtr,OrigPtr,I>::TMP_VTABLE;
-        WithMetadata::as_prefix(prefix)
+    const ROBJECT_VTABLE:RObjectVtable_Ref<_Self,ErasedPtr,Self>={
+        GetRObjectVTableHelper::<IA,_Self,ErasedPtr,OrigPtr,I>::TMP_VTABLE
     };
 }
 
@@ -59,7 +59,7 @@ pub type VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>=
 ///
 /// `<Trait>` is whatever the name of the trait that one is constructing the trait object for.
 pub struct VTableTO<_Self,OrigPtr,Unerasability,V,DT>{
-    vtable:StaticRef<V>,
+    vtable:PrefixRef<V>,
     for_dyn_trait:DT,
     _for:PhantomData<Constructor<Tuple3<_Self,OrigPtr,Unerasability>>>,
 }
@@ -93,12 +93,12 @@ These are the requirements for the caller:
     (created using RObject::reborrow or RObject::reborrow_mut).
 
 - The vtable must be the `<SomeVTableName>` of a struct declared with 
-    `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_struct="<SomeVTableName>")))]`.
+    `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_ref="<SomeVTableName>")))]`.
 
-- The vtable must have `StaticRef<RObjectVtable<..>>` 
+- The vtable must have `PrefixRef<RObjectVtable<..>>` 
     as its first declared field
 */
-    pub const unsafe fn for_robject(vtable:StaticRef<V>)->Self{
+    pub const unsafe fn for_robject(vtable:PrefixRef<V>)->Self{
         Self{
             vtable,
             for_dyn_trait:(),
@@ -112,7 +112,7 @@ These are the requirements for the caller:
 
 impl<_Self,OrigPtr,Unerasability,V,DT> VTableTO<_Self,OrigPtr,Unerasability,V,DT>{
     /// Gets the vtable that RObject is constructed with.
-    pub const fn robject_vtable(&self)->StaticRef<V>{
+    pub const fn robject_vtable(&self)->PrefixRef<V>{
         self.vtable
     }
 }
@@ -140,7 +140,7 @@ Wraps an erased vtable,alongside the vtable for DynTrait.
 This has the same safety requirements as the 'for_robject' constructor
 */
     pub const unsafe fn for_dyntrait(
-        vtable:StaticRef<V>,
+        vtable:PrefixRef<V>,
         for_dyn_trait:VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability>,
     )->Self{
         Self{
@@ -159,7 +159,7 @@ This has the same safety requirements as the 'for_robject' constructor
 
 #[doc(hidden)]
 pub trait AreTraitsImpld<IA,_Self,ErasedPtr,OrigPtr>:Sized {
-    const VTABLE_VAL:RObjectVtableVal<_Self,ErasedPtr,Self>;
+    const VTABLE_VAL:RObjectVtable<_Self,ErasedPtr,Self>;
 }
 
 impl<IA,_Self,ErasedPtr,OrigPtr,I> AreTraitsImpld<IA,_Self,ErasedPtr,OrigPtr> for I
@@ -172,8 +172,8 @@ where
     I::Display:InitDisplayField<_Self,ErasedPtr,OrigPtr>,
     IA:GetUTID<_Self>,
 {
-    const VTABLE_VAL:RObjectVtableVal<_Self,ErasedPtr,I>=
-        RObjectVtableVal{
+    const VTABLE_VAL:RObjectVtable<_Self,ErasedPtr,I>=
+        RObjectVtable{
             _sabi_tys:NonOwningPhantom::NEW,
             _sabi_type_id:<IA as GetUTID<_Self>>::UID,
             _sabi_drop:c_functions::drop_pointer_impl::<OrigPtr,ErasedPtr>,
@@ -192,14 +192,11 @@ impl<IA,_Self,ErasedPtr,OrigPtr,I>
 where 
     I:AreTraitsImpld<IA,_Self,ErasedPtr,OrigPtr>,
 {
-    const __TMP_0:*const WithMetadata<RObjectVtableVal<_Self,ErasedPtr,I>>={
-        &__sabi_re::WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            I::VTABLE_VAL,
+    const TMP_VTABLE: RObjectVtable_Ref<_Self,ErasedPtr,I> = unsafe{
+        RObjectVtable_Ref(
+            WithMetadata::new(PrefixTypeTrait::METADATA, I::VTABLE_VAL)
+                .as_prefix()
         )
-    };
-    const TMP_VTABLE:StaticRef<WithMetadata<RObjectVtableVal<_Self,ErasedPtr,I>>>=unsafe{
-        StaticRef::from_raw(Self::__TMP_0)
     };
 
 
@@ -209,9 +206,9 @@ where
 /// The vtable for RObject,which all  `#[trait_object]` derived trait objects contain.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="RObjectVtable")))]
+#[sabi(kind(Prefix))]
 #[sabi(missing_field(default))]
-pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
+pub struct RObjectVtable<_Self,ErasedPtr,I>{
     pub _sabi_tys:NonOwningPhantom<(_Self,ErasedPtr,I)>,
     
     pub _sabi_type_id:Constructor<MaybeCmp<UTypeId>>,
@@ -230,19 +227,19 @@ pub struct RObjectVtableVal<_Self,ErasedPtr,I>{
 
 
 /// The common prefix of all `#[trait_object]` derived vtables,
-/// with `RObjectVtable` as its first field.
+/// with `RObjectVtable_Ref` as its first field.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
     bound="I:InterfaceBound",
     extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
-    kind(Prefix(prefix_struct="BaseVtable")),
+    kind(Prefix),
 )]
-pub(super)struct BaseVtableVal<_Self,ErasedPtr,I>{
+pub(super)struct BaseVtable<_Self,ErasedPtr,I>{
     pub _sabi_tys:NonOwningPhantom<(_Self,ErasedPtr,I)>,
 
     #[sabi(last_prefix_field)]
-    pub _sabi_vtable:StaticRef<RObjectVtable<_Self,ErasedPtr,I>>,
+    pub _sabi_vtable: RObjectVtable_Ref<_Self,ErasedPtr,I>,
 }
 
 use self::trait_bounds::*;

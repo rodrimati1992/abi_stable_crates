@@ -29,7 +29,7 @@ impl<'a> GenericParams<'a>{
                 .map(|ty|{
                     let ty:&'a syn::Type=*ty;
                     shared_vars.borrow_mut()
-                        .push_type(LayoutConstructor::SharedStableAbi,ty) 
+                        .push_type(LayoutConstructor::Regular,ty) 
                         .to_u10()
                 });
 

@@ -107,7 +107,6 @@ macro_rules! tl_genparams {
     ( $($lt:lifetime),* $(,)? ; $($ty:expr)? ; $($const_p:expr)? ) => ({
         #[allow(unused_imports)]
         use $crate::{
-            abi_stability::stable_abi_trait::SharedStableAbi,
             type_layout::CompGenericParams,
         };
 
@@ -786,7 +785,7 @@ macro_rules! make_shared_vars{
             )?
             $( lifetime_indices=[ $($lifetime_indices:expr),* $(,)* ], )?
             $( type_layouts=[ $($ty_layout:ty),* $(,)* ], )?
-            $( type_layouts_shared=[ $($ty_layout_shared:ty),* $(,)* ], )?
+            $( prefix_type_layouts=[ $($prefix_ty_layout:ty),* $(,)* ], )?
             $( constants=[ $( $constants:expr ),* $(,)* ], )?
         };
     )=>{
@@ -813,7 +812,7 @@ macro_rules! make_shared_vars{
                 $mono_shared_vars,
                 rslice![ 
                     $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )? 
-                    $( $( GetTypeLayoutCtor::<$ty_layout_shared>::SHARED_STABLE_ABI,)* )? 
+                    $( $( GetTypeLayoutCtor::<$prefix_ty_layout>::PREFIX_STABLE_ABI,)* )? 
                 ],
                 rslice![$( 
                     $(

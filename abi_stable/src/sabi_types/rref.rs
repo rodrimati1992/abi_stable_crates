@@ -8,9 +8,6 @@ use crate::{
     pointer_trait::{CanTransmuteElement,GetPointerKind,PK_Reference},
 };
 
-use super::StaticRef;
-
-
 /**
 A StableAbi type equivalent to `&'a T`,
 defined as a workaround to allow casting from `&T` to `&U` inside a `const fn`
@@ -19,7 +16,6 @@ in stable Rust.
 #[repr(transparent)]
 #[derive(StableAbi)]
 #[sabi(
-    shared_stableabi(T),
     bound="T:'a",
 )]
 pub struct RRef<'a,T>{
@@ -251,44 +247,6 @@ impl<'a,T> RRef<'a,T>{
         RRef::from_raw(
             self.ref_ as *const U
         )
-    }
-
-    /// Converts this `RRef<'a,T>` to a `StaticRef<T>`.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that this reference lives for the entirety of the program,
-    ///
-    /// One example of when this is sound is with a vtable of a generic type,
-    /// which isn't necessarily `'static`,
-    /// even though it lives for the entirety of the program.
-    ///
-    pub const unsafe fn to_staticref_unchecked(self)->StaticRef<T>{
-        unsafe{
-            StaticRef::from_raw(self.ref_)
-        }
-    }
-}
-
-impl<T> RRef<'static,T>{
-    /// Converts this `RRef<'static,T>` to a `StaticRef<T>`.
-    pub const fn to_staticref(self)->StaticRef<T>
-    where
-        T:'static
-    {
-        unsafe{
-            StaticRef::from_raw(self.ref_)
-        }
-    }
-}
-
-impl<'a,T> From<StaticRef<T>> for RRef<'static,T>
-where
-    T:'a,
-{
-    #[inline]
-    fn from(v:StaticRef<T>)->Self{
-        v.to_rref()
     }
 }
 

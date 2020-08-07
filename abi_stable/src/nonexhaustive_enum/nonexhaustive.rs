@@ -12,7 +12,7 @@ use std::{
 };
 
 use crate::{
-    abi_stability::SharedStableAbi,
+    abi_stability::StableAbi,
     erased_types::{
         c_functions,
         trait_objects::{
@@ -23,7 +23,8 @@ use crate::{
     inline_storage::ScratchSpace,
     marker_type::ErasedObject,
     nonexhaustive_enum::{
-        GetVTable,NonExhaustiveVtable,GetEnumInfo,GetNonExhaustive,
+        vtable::NonExhaustiveVtable_Ref,
+        GetVTable,GetEnumInfo,GetNonExhaustive,
         ValidDiscriminant,EnumInfo,
         SerializeEnum,DeserializeEnum,
     },
@@ -32,7 +33,6 @@ use crate::{
         impl_enum::Implemented,
         trait_marker,
     },
-    sabi_types::{StaticRef},
     std_types::RBoxError,
     traits::IntoReprRust,
 };
@@ -176,7 +176,7 @@ with the 1.0 version of `Error` they would get an `Err(..)` back.
 #[sabi(
     //debug_print,
     not_stableabi(E,S,I),
-    bound="NonExhaustiveVtable<E,S,I>:SharedStableAbi",
+    bound="NonExhaustiveVtable_Ref<E,S,I>:StableAbi",
     bound="E: GetNonExhaustive<S>",
     bound="I: InterfaceBound",
     extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
@@ -186,7 +186,7 @@ pub struct NonExhaustive<E,S,I>{
     // This is an opaque field since we only care about its size and alignment
     #[sabi(unsafe_opaque_field)]
     fill:ScratchSpace<S>,
-    vtable:StaticRef<NonExhaustiveVtable<E,S,I>>,
+    vtable:NonExhaustiveVtable_Ref<E,S,I>,
     _marker:PhantomData<()>,
 }
 
@@ -285,7 +285,7 @@ This panics if the storage has an alignment or size smaller than that of `E`.
     }
     pub(super) unsafe fn with_vtable(
         value:E,
-        vtable:StaticRef<NonExhaustiveVtable<E,S,I>>
+        vtable:NonExhaustiveVtable_Ref<E,S,I>
     )->Self{
         Self::assert_fits_within_storage();
 
@@ -572,8 +572,8 @@ This panics if the storage has an alignment or size smaller than that of `F`.
     }
 
     /// Gets a reference to the vtable of this `NonExhaustive<>`.
-    pub(crate) fn vtable<'a>(&self)->&'a NonExhaustiveVtable<E,S,I>{
-        self.vtable.get()
+    pub(crate) fn vtable(&self)->NonExhaustiveVtable_Ref<E,S,I>{
+        self.vtable
     }
 
     fn sabi_erased_ref(&self)->&ErasedObject{

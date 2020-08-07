@@ -20,9 +20,7 @@ pub mod traits;
 pub(crate) mod alt_c_functions;
 
 
-pub(crate) use self::{
-    vtable::{NonExhaustiveVtable},
-};
+pub(crate) use self::vtable::NonExhaustiveVtable_Ref;
 
 
 pub use self::{

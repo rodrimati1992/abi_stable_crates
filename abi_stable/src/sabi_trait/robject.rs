@@ -9,7 +9,7 @@ use std::{
 use core_extensions::SelfOps;
 
 use crate::{
-    abi_stability::SharedStableAbi,
+    abi_stability::PrefixStableAbi,
     erased_types::{
         c_functions::adapt_std_fmt,
         InterfaceBound,
@@ -24,7 +24,9 @@ use crate::{
         impl_enum::{Implemented,Unimplemented},
         trait_marker,
     },
+    sabi_trait::vtable::{BaseVtable_Ref, BaseVtable_Prefix},
     utils::{transmute_reference,transmute_mut_reference},
+    StableAbi,
 };
 
 
@@ -88,7 +90,7 @@ using a `RObject::*_unerased` function.
 #[derive(StableAbi)]
 #[sabi(
     not_stableabi(V),
-    bound="V:SharedStableAbi",
+    bound="V:PrefixStableAbi",
     bound="I:InterfaceBound",
     extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
 )]
@@ -96,7 +98,7 @@ pub struct RObject<'lt,P,I,V>
 where
     P:GetPointerKind
 {
-    vtable:StaticRef<V>,
+    vtable:PrefixRef<V>,
     ptr: ManuallyDrop<P>,
     _marker:PhantomData<Tuple2<&'lt (),I>>,
 }
@@ -272,15 +274,15 @@ These are the requirements for the caller:
     (created using RObject::reborrow or RObject::reborrow_mut).
 
 - The vtable must be the `<SomeVTableName>` of a struct declared with 
-    `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_struct="<SomeVTableName>")))]`.
+    `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_ref="<SomeVTableName>")))]`.
 
-- The vtable must have `StaticRef<RObjectVtable<..>>` 
+- The vtable must have `RObjectVtable_Ref<..>` 
     as its first declared field
 
 */
     pub unsafe fn with_vtable<OrigPtr>(
         ptr:OrigPtr,
-        vtable:StaticRef<V>,
+        vtable:PrefixRef<V>,
     )-> RObject<'lt,P,I,V>
     where 
         OrigPtr:CanTransmuteElement<(),TransmutedPtr=P>,
@@ -565,16 +567,16 @@ where
     P:GetPointerKind,
 {
     #[inline]
-    pub fn sabi_et_vtable(&self)->StaticRef<V>{
+    pub fn sabi_et_vtable(&self)->PrefixRef<V>{
         self.vtable
     }
 
     /// The vtable common to all `#[sabi_trait]` generated trait objects.
     #[inline]
-    pub fn sabi_robject_vtable<'a>(&self)->&'a RObjectVtable<(),P,I>{
+    pub fn sabi_robject_vtable(&self)->RObjectVtable_Ref<(),P,I>{
         unsafe{ 
-            let vtable=&*(self.vtable.get() as *const V as *const BaseVtable<(),P,I>);
-            vtable._sabi_vtable().get()
+            BaseVtable_Ref(self.vtable.cast::<BaseVtable_Prefix<(),P,I>>())
+                ._sabi_vtable()
         }
     }
 

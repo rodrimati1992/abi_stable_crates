@@ -29,15 +29,15 @@ pub mod reexports{
                 NonOwningPhantom,
             },
             pointer_trait::{CanTransmuteElement,TransmuteElement,OwnedPointer},
-            prefix_type::{PrefixTypeTrait,WithMetadata},
+            prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
             traits::IntoInner,
-            sabi_types::{RRef,MovePtr,StaticRef},
+            sabi_types::{RRef,MovePtr},
             sabi_trait::{
                 robject::{
                     RObject,
                 },
                 vtable::{
-                    RObjectVtable,GetRObjectVTable,
+                    RObjectVtable_Ref, RObjectVtable, GetRObjectVTable,
                     VTableTO_DT,VTableTO_RO,VTableTO,
                 },
                 for_generated_code::{sabi_from_ref,sabi_from_mut},
@@ -93,13 +93,7 @@ use std::{
     marker::PhantomData,
 };
 
-use self::{
-    reexports::{
-        *,
-        __sabi_re::*,
-    },
-    vtable::{BaseVtable},
-};
+use self::reexports::{*, __sabi_re::*};
 
 pub use self::vtable::{VTableTO_DT,VTableTO_RO,VTableTO};
 
