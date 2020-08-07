@@ -220,14 +220,11 @@ pub mod traits;
 
 #[macro_use]
 pub mod abi_stability;
-// pub mod cabi_type;
-// pub mod as_proxy;
 #[macro_use]
 pub mod erased_types;
 pub mod external_types;
-// pub mod immovable_wrapper;
-#[macro_use]
-pub mod library;
+// #[macro_use]
+// pub mod library;
 pub mod marker_type;
 mod multikey_map;
 pub mod nonexhaustive_enum;
@@ -252,14 +249,15 @@ pub mod docs;
 pub mod sabi_trait;
 
 
-/// The header used to identify the version number of abi_stable
-/// that a dynamic libraries uses.
-pub static LIB_HEADER:library::AbiHeader=library::AbiHeader::VALUE;
+// /// The header used to identify the version number of abi_stable
+// /// that a dynamic libraries uses.
+// pub static LIB_HEADER:library::AbiHeader=library::AbiHeader::VALUE;
 
 
 /// Miscelaneous items re-exported from core_extensions.
 pub mod reexports{
     pub use core_extensions::SelfOps;
+    pub use core_extensions::type_level_bool::{True, False};
 }
 
 

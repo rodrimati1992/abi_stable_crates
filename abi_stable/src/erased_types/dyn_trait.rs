@@ -18,13 +18,14 @@ use serde::{de, ser, Deserialize, Deserializer};
 use core_extensions::{prelude::*, ResultLike};
 
 use crate::{
-    abi_stability::SharedStableAbi,
+    abi_stability::StableAbi,
     pointer_trait::{
         CanTransmuteElement,TransmuteElement,OwnedPointer,
         GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
     },
+    prefix_type::PrefixRef,
     marker_type::{ErasedObject,UnsafeIgnoredType}, 
-    sabi_types::{Constructor,MovePtr,RRef,StaticRef},
+    sabi_types::{Constructor,MovePtr,RRef},
     std_types::{RBox, RStr,RVec,RIoError},
     type_level::{
         unerasability::{TU_Unerasable,TU_Opaque},
@@ -40,7 +41,7 @@ use super::*;
 use super::{
     c_functions::adapt_std_fmt,
     trait_objects::*,
-    vtable::{GetVtable, VTable},
+    vtable::{GetVtable, VTable_Ref},
     traits::{InterfaceFor,DeserializeDyn,GetSerializeProxyType},
     IteratorItemOrDefault,
 };
@@ -235,7 +236,7 @@ use abi_stable::{
         TypeInfo,
     },
     external_types::{RawValueRef,RawValueBox},
-    prefix_type::PrefixTypeTrait,
+    prefix_type::{PrefixTypeTrait, WithMetadata},
     type_level::bools::*,
     DynTrait,
     std_types::{RBox, RStr,RBoxError,RResult,ROk,RErr},
@@ -266,28 +267,41 @@ impl<'borr> DeserializeDyn<'borr,FooInterfaceBox> for FooInterface {
     type Proxy = RawValueRef<'borr>;
 
     fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<FooInterfaceBox, RBoxError> {
-        get_module()
+        MODULE
             .deserialize_foo()(s.get_rstr())
             .into_result()
     }
 }
 
 
+// `#[sabi(kind(Prefix))]` declares this type as being a prefix-type,
+// generating both of these types:<br>
+// 
+//     - Module_Prefix`: A struct with the fields up to (and including) the field with the 
+//     `#[sabi(last_prefix_field)]` attribute.
+//     
+//     - Module_Ref`: An ffi-safe pointer to a `Module`,with methods to get `Module`'s fields.
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="Module")))]
+#[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
-pub struct ModuleVal{
+pub struct Module{
     #[sabi(last_prefix_field)]
     pub deserialize_foo:extern "C" fn(s:RStr<'_>)->RResult<FooInterfaceBox,RBoxError>,
 }
 
-
-# fn get_module()->&'static Module{
-#     ModuleVal{
-#         deserialize_foo,
-#     }.leak_into_prefix()
-# }
+const MODULE: Module_Ref = {
+    // This is how ffi-safe pointers to non-generic prefix types are constructed
+    // at compile-time.
+    Module_Ref(
+        WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Module{
+                deserialize_foo,
+            }
+        ).static_as_prefix()
+    )
+};
 
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -578,10 +592,8 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
-        // prefix_bound="I:InterfaceBound",
-        // bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound",
         bound="I:InterfaceBound",
-        bound="VTable<'borr,P,I>:SharedStableAbi",
+        bound="VTable_Ref<'borr,P,I>:StableAbi",
         extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
     )]
     pub struct DynTrait<'borr,P,I,EV=()> 
@@ -589,7 +601,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         P:GetPointerKind
     {
         pub(super) object: ManuallyDrop<P>,
-        vtable: StaticRef<VTable<'borr,P,I>>,
+        vtable: VTable_Ref<'borr,P,I>,
         extra_value:EV,
         _marker:PhantomData<Constructor<Tuple2<I,RStr<'borr>>>>,
         _marker2:UnsafeIgnoredType<Rc<()>>,
@@ -873,13 +885,13 @@ fn main(){
         }
     }
 
-    impl<'borr,P,I,EV> DynTrait<'borr,P,I,StaticRef<EV>>
+    impl<'borr,P,I,EV> DynTrait<'borr,P,I,PrefixRef<EV>>
     where
         P:GetPointerKind
     {
         /// A vtable used by `#[sabi_trait]` derived trait objects.
         #[inline]
-        pub fn sabi_et_vtable(&self)->StaticRef<EV>{
+        pub fn sabi_et_vtable(&self)->PrefixRef<EV>{
             self.extra_value
         }
     }
@@ -896,15 +908,13 @@ fn main(){
         }
 
         #[inline]
-        pub(super) fn sabi_vtable<'a>(&self) -> &'a VTable<'borr,P,I>{
-            unsafe {
-                self.vtable.get()
-            }
+        pub(super) fn sabi_vtable<'a>(&self) -> VTable_Ref<'borr,P,I> {
+            self.vtable
         }
 
         #[inline]
         pub(super)fn sabi_vtable_address(&self) -> usize {
-            self.vtable.get_raw() as usize
+            self.vtable.0.as_ptr() as usize
         }
 
         /// Returns the address of the wrapped object.
@@ -1253,7 +1263,7 @@ fn main(){
             // Reborrowing will break if I add extra functions that operate on `P`.
             DynTrait {
                 object: ManuallyDrop::new(&**self.object),
-                vtable: unsafe{ self.vtable.transmute_ref() },
+                vtable: unsafe{ VTable_Ref(self.vtable.0.cast()) },
                 extra_value:*self.sabi_extra_value(),
                 _marker:PhantomData,
                 _marker2:UnsafeIgnoredType::DEFAULT,
@@ -1278,7 +1288,7 @@ fn main(){
             // Reborrowing will break if I add extra functions that operate on `P`.
             DynTrait {
                 object: ManuallyDrop::new(&mut **self.object),
-                vtable: unsafe{ self.vtable.transmute_ref() },
+                vtable: unsafe{ VTable_Ref(self.vtable.0.cast()) },
                 extra_value,
                 _marker:PhantomData,
                 _marker2:UnsafeIgnoredType::DEFAULT,

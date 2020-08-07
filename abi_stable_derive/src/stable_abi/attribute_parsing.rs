@@ -46,7 +46,10 @@ use super::{
         UncheckedVariantConstructor,
     },
     reflection::{ModReflMode,FieldAccessor},
-    prefix_types::{PrefixKind,FirstSuffixField,OnMissingField,AccessorOrMaybe,PrefixKindField},
+    prefix_types::{
+        PrefixKind, PrefixKindCtor, FirstSuffixField, OnMissingField, AccessorOrMaybe, 
+        PrefixKindField,
+    },
     repr_attrs::{UncheckedReprAttr,UncheckedReprKind,DiscriminantRepr,ReprAttr,REPR_ERROR_MSG},
 };
 
@@ -104,7 +107,6 @@ pub(crate) enum ASTypeParamBound{
     NoBound,
     GetStaticEquivalent,
     StableAbi,
-    SharedStableAbi,
 }
 
 impl Default for ASTypeParamBound{
@@ -120,7 +122,6 @@ impl Default for ASTypeParamBound{
 #[derive(Debug,Clone,Copy,Eq,PartialEq,Hash)]
 pub(crate) enum LayoutConstructor{
     Regular,
-    SharedStableAbi,
     Opaque,
     SabiOpaque,
 }
@@ -140,8 +141,6 @@ impl From<ASTypeParamBound> for LayoutConstructor{
                 LayoutConstructor::Opaque,
             ASTypeParamBound::StableAbi=>
                 LayoutConstructor::Regular,
-            ASTypeParamBound::SharedStableAbi=>
-                LayoutConstructor::SharedStableAbi,
         }
     }
 }
@@ -157,7 +156,9 @@ impl Default for LayoutConstructor{
 
 
 pub(crate) enum StabilityKind<'a> {
-    Value,
+    Value{
+        impl_prefix_stable_abi: bool
+    },
     Prefix(PrefixKind<'a>),
     NonExhaustive(NonExhaustive<'a>),
 }
@@ -172,7 +173,7 @@ impl<'a> StabilityKind<'a>{
         match (is_public,self) {
             (false,_)=>
                 FieldAccessor::Opaque,
-            (true,StabilityKind::Value)|(true,StabilityKind::NonExhaustive{..})=>
+            (true,StabilityKind::Value{..})|(true,StabilityKind::NonExhaustive{..})=>
                 FieldAccessor::Direct,
             (true,StabilityKind::Prefix(prefix))=>
                 prefix.field_accessor(field),
@@ -202,14 +203,19 @@ impl<'a> StableAbiOptions<'a> {
                 // ).expect(concat!(file!(),"-",line!()));
                 // this.extra_bounds.push(accessor_bound);
 
-                StabilityKind::Value
+                StabilityKind::Value{impl_prefix_stable_abi: false}
             }
-            UncheckedStabilityKind::Value => StabilityKind::Value,
+            UncheckedStabilityKind::Value{impl_prefix_stable_abi} =>{
+                StabilityKind::Value{impl_prefix_stable_abi}
+            }
             UncheckedStabilityKind::Prefix(prefix)=>{
-                StabilityKind::Prefix(PrefixKind::new(
-                    this.first_suffix_field,
-                    prefix.prefix_struct,
-                    mem::replace(&mut this.prefix_kind_fields,FieldMap::empty())
+                PrefixKindCtor::<'a>{
+                    arenas,
+                    struct_name: ds.name,
+                    first_suffix_field: this.first_suffix_field,
+                    prefix_ref: prefix.prefix_ref,
+                    prefix_fields: prefix.prefix_fields,
+                    fields: mem::replace(&mut this.prefix_kind_fields,FieldMap::empty())
                         .map(|fi,pk_field|{
                             AccessorOrMaybe::new(
                                 fi,
@@ -218,9 +224,10 @@ impl<'a> StableAbiOptions<'a> {
                                 this.default_on_missing_fields.unwrap_or_default(),
                             ) 
                         }),
-                    this.prefix_bounds,
-                    this.accessor_bounds,
-                ))
+                    prefix_bounds: this.prefix_bounds,
+                    accessor_bounds: this.accessor_bounds,
+                }.make()
+                 .piped(StabilityKind::Prefix)
             }
             UncheckedStabilityKind::NonExhaustive(nonexhaustive)=>{
                 let variant_constructor=this.variant_constructor;
@@ -262,7 +269,7 @@ impl<'a> StableAbiOptions<'a> {
 
                 &[
                     "Self: ::std::ops::Deref",
-                    "<Self as ::std::ops::Deref>::Target:__SharedStableAbi",
+                    "<Self as ::std::ops::Deref>::Target: __StableAbi",
                 ].iter()
                  .map(|x| syn::parse_str::<WherePredicate>(x).expect("BUG") )
                  .extending(&mut this.extra_bounds);
@@ -374,19 +381,22 @@ struct StableAbiAttrs<'a> {
 
 #[derive(Clone)]
 enum UncheckedStabilityKind<'a> {
-    Value,
+    Value{
+        impl_prefix_stable_abi: bool
+    },
     Prefix(UncheckedPrefixKind<'a>),
     NonExhaustive(UncheckedNonExhaustive<'a>),
 }
 
 #[derive(Copy, Clone)]
 struct UncheckedPrefixKind<'a>{
-    prefix_struct:&'a Ident,
+    prefix_ref: Option<&'a Ident>,
+    prefix_fields: Option<&'a Ident>,
 }
 
 impl<'a> Default for UncheckedStabilityKind<'a>{
     fn default()->Self{
-        UncheckedStabilityKind::Value
+        UncheckedStabilityKind::Value{impl_prefix_stable_abi: false}
     }
 }
 
@@ -704,7 +714,17 @@ fn parse_sabi_attr<'a>(
                 with_nested_meta("kind", list.nested, |attr|{
                     match attr {
                         Meta::Path(ref path) if path.equals_str("Value") => {
-                            this.kind = UncheckedStabilityKind::Value;
+                            this.kind = UncheckedStabilityKind::Value{
+                                impl_prefix_stable_abi: false
+                            };
+                        }
+                        Meta::Path(ref path) if path.equals_str("Prefix") => {
+                            let prefix=parse_prefix_type_list(
+                                path.get_ident().unwrap(),
+                                &Punctuated::new(),
+                                arenas,
+                            )?;
+                            this.kind = UncheckedStabilityKind::Prefix(prefix);
                         }
                         Meta::List(ref list)=>{
                             let ident=match list.path.get_ident() {
@@ -785,27 +805,6 @@ fn parse_sabi_attr<'a>(
                     }
                     Ok(())
                 })?;
-            } else if ident == "shared_stableabi" {
-                fn nsabi_err(tokens:&dyn ToTokens)->syn::Error{
-                    spanned_err!(
-                        tokens,
-                        "invalid #[shared_stableabi(..)] attribute\
-                         (it must be the identifier of a type parameter)."
-                    )
-                }
-
-                with_nested_meta("shared_stableabi", list.nested, |attr|{
-                    match attr {
-                        Meta::Path(path)=>{
-                            let type_param=path.into_ident().map_err(|p| nsabi_err(&p) )?;
-
-                            *this.type_param_bounds.get_mut(&type_param)?=
-                                ASTypeParamBound::SharedStableAbi;
-                        }
-                        x => this.errors.push_err(nsabi_err(&x)),
-                    }
-                    Ok(())
-                })?;
             } else if ident == "unsafe_unconstrained" {
                 fn uu_err(tokens:&dyn ToTokens)->syn::Error{
                     spanned_err!(
@@ -864,6 +863,10 @@ fn parse_sabi_attr<'a>(
                 this.allow_type_macros=true;
             }else if word=="with_field_indices" {
                 this.with_field_indices=true;
+            }else if word=="impl_prefix_stable_abi" {
+                this.kind = UncheckedStabilityKind::Value{
+                    impl_prefix_stable_abi: true,
+                };
             }else{
                 return Err(make_err(&path));
             }
@@ -1000,32 +1003,48 @@ Valid Attributes:
 
 /// Parses the contents of #[sabi(kind(Prefix( ... )))]
 fn parse_prefix_type_list<'a>(
-    _name:&'a Ident,
+    _name:&Ident,
     list: &Punctuated<NestedMeta, Comma>, 
     arenas: &'a Arenas
 )-> Result<UncheckedPrefixKind<'a>,syn::Error> {
-    let mut iter=list.into_iter();
+    let mut prefix_ref = None;
+    let mut prefix_fields = None;
 
-    let prefix_struct=match iter.next() {
-        Some(NestedMeta::Meta(Meta::NameValue(MetaNameValue{
-            ref path,
-            lit:Lit::Str(ref type_str),
-            ..
-        })))
-        if path.equals_str("prefix_struct") =>{
-            let type_str=type_str.value();
-            parse_str_as_ident(&type_str)
-                .piped(|i| arenas.alloc(i) )
-        }
-        ref x => return_spanned_err!(
-            x,
-            "invalid #[sabi(kind(Prefix(  )))] attribute\
-             (it must be prefix_struct=\"NameOfPrefixStruct\" )."
+    fn make_err(tokens:&dyn ToTokens)->syn::Error {
+        spanned_err!(
+            tokens,
+            "invalid #[sabi(kind(Prefix(  )))] attribute it must be one of:\n\
+             - prefix_ref = \"NameOfPrefixPointerType\"\n\
+             - prefix_fields = \"NameOfPrefixFieldsStruct\"\n\
+            "
         )
+    }
+
+    for elem in list {
+        match elem {
+            NestedMeta::Meta(Meta::NameValue(MetaNameValue{
+                ref path,
+                lit:Lit::Str(ref type_str),
+                ..
+            })) => {
+                let type_str=type_str.value();
+                if path.equals_str("prefix_ref") {
+                    let ident = arenas.alloc(parse_str_as_ident(&type_str));
+                    prefix_ref = Some(ident);
+                }else if path.equals_str("prefix_fields") {
+                    let ident = arenas.alloc(parse_str_as_ident(&type_str));
+                    prefix_fields = Some(ident);
+                }else{
+                    return Err(make_err(path));
+                }
+            }
+            ref x => return Err(make_err(x)),
+        }
     };
-    
+
     Ok(UncheckedPrefixKind{
-        prefix_struct,
+        prefix_ref,
+        prefix_fields,
     })
 }
 

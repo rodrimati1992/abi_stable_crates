@@ -412,7 +412,7 @@ fn test_identity_extra_checker() {
 
     let globals=CheckingGlobals::new();
 
-    let (_dur, ()) = core_extensions::measure_time::measure(|| {
+    {
         for (i, this) in list.iter().cloned().enumerate() {
             for (j, other) in list.iter().cloned().enumerate() {
                 let res=check_layout_compatibility_with_globals(this, other, &globals);
@@ -440,7 +440,7 @@ fn test_identity_extra_checker() {
                 }
             }
         }
-    });
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////////

@@ -1,11 +1,11 @@
 /*!
 
 Prefix-types are types that derive StableAbi along with the 
-`#[sabi(kind(Prefix(prefix_struct="PrefixEquivalent")))]` helper attribute.
+`#[sabi(kind(Prefix(prefix_ref="PrefixEquivalent")))]` helper attribute.
 This is mostly intended for **vtables** and **modules**.
 
 Prefix-types cannot directly be passed through ffi,
-instead they must be converted to the type declared with `prefix_struct="PrefixEquivalent"`,
+instead they must be converted to the type declared with `prefix_ref="PrefixEquivalent"`,
 and then pass `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` instead.
 
 To convert `T` to `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` you an use one of:
@@ -61,7 +61,7 @@ use abi_stable::{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="Module")))]
+#[sabi(kind(Prefix(prefix_ref="Module")))]
 #[sabi(missing_field(panic))]
 pub struct ModuleVal {
     pub lib_name:RStr<'static>,
@@ -78,7 +78,7 @@ pub struct ModuleVal {
 
 In this example:
 
-- `#[sabi(kind(Prefix(prefix_struct="Module")))]` declares this type as being a prefix-type
+- `#[sabi(kind(Prefix(prefix_ref="Module")))]` declares this type as being a prefix-type
     with an ffi-safe equivalent called `Module` to which `ModuleVal` can be converted into.
 
 - `#[sabi(missing_field(panic))]` 
@@ -106,7 +106,7 @@ use abi_stable::{
     StableAbi,
     extern_fn_panic_handling,
     pointer_trait::{CallReferentDrop, TransmuteElement},
-    prefix_type::{PrefixTypeTrait,WithMetadata},
+    prefix_type::{PrefixTypeTrait, WithMetadata},
     sabi_types::StaticRef,
 };
 
@@ -116,7 +116,7 @@ use abi_stable::{
 pub struct BoxLike<T> {
     data: *mut T,
     
-    vtable: StaticRef<BoxVtable<T>>,
+    vtable: BoxVtable_Ref<T>,
 
     _marker: PhantomData<T>,
 }
@@ -128,13 +128,13 @@ impl<T> BoxLike<T>{
         
         Self{
             data:Box::into_raw(box_),
-            vtable:WithMetadata::as_prefix(BoxVtableVal::VTABLE),
+            vtable: BoxVtable::VTABLE,
             _marker:PhantomData,
         }
     }
 
-    fn vtable<'a>(&self)->&'a BoxVtable<T>{
-        self.vtable.get()
+    fn vtable(&self)-> BoxVtable_Ref<T>{
+        self.vtable
     }
 
     /// Extracts the value this owns.
@@ -182,10 +182,18 @@ impl<T> Drop for BoxLike<T>{
 }
 
 
+// `#[sabi(kind(Prefix))]` Declares this type as being a prefix-type,
+// generating both of these types:
+// 
+//     - BoxVTable_Prefix`: A struct with the fields up to (and including) the field with the 
+//     `#[sabi(last_prefix_field)]` attribute.
+// 
+//     - BoxVTable_Ref`: An ffi-safe pointer to a `Module`,with methods to get `Module`'s fields.
+// 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="BoxVtable")))]
-pub(crate) struct BoxVtableVal<T> {
+#[sabi(kind(Prefix))]
+pub(crate) struct BoxVtable<T> {
 
     /// The `#[sabi(last_prefix_field)]` attribute here means that this is 
     /// the last field in this struct that was defined in the 
@@ -202,16 +210,17 @@ pub(crate) struct BoxVtableVal<T> {
 }
 
 
-impl<T> BoxVtableVal<T>{
-    const TMP0:Self=Self{
-        destructor:destroy_box::<T>,
-    };
-
-    // This can't be a `&'static WithMetadata<Self>` because Rust will complain that 
-    // `T` does not live for the `'static` lifetime.
-    const VTABLE:StaticRef<WithMetadata<Self>>=unsafe{
-        StaticRef::from_raw(
-            &WithMetadata::new(PrefixTypeTrait::METADATA,Self::TMP0)
+// This is how ffi-safe pointers to generic prefix types are constructed
+// at compile-time.
+impl<T> BoxVtable<T>{
+    const VTABLE: BoxVtable_Ref<T> =unsafe{
+        BoxVtable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self{
+                    destructor:destroy_box::<T>,
+                },
+            ).as_prefix()
         )
     };
 }
@@ -240,14 +249,22 @@ use abi_stable::{
     StableAbi,
     sabi_extern_fn,
     std_types::RDuration,
-    prefix_type::PrefixTypeTrait,
+    prefix_type::{PrefixTypeTrait, WithMetadata},
 };
 
 
+// `#[sabi(kind(Prefix))]` Declares this type as being a prefix-type,
+// generating both of these types:
+// 
+//     - PersonMod_Prefix`: A struct with the fields up to (and including) the field with the 
+//     `#[sabi(last_prefix_field)]` attribute.
+// 
+//     - PersonMod_Ref`: An ffi-safe pointer to a `Module`,with methods to get `Module`'s fields.
+// 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="PersonMod")))]
-pub struct PersonModVal {
+#[sabi(kind(Prefix))]
+pub struct PersonMod {
 
     /// The `#[sabi(last_prefix_field)]` attribute here means that this is 
     /// the last field in this struct that was defined in the 
@@ -326,32 +343,37 @@ type Id=u32;
 
 # fn main(){
 
-let module:&'static PersonMod=
-    PersonModVal{
-        customer_for,
-        bike_count,
-        visits,
-        score,
-        visit_length:None,
-    }.leak_into_prefix();
+const MODULE: PersonMod_Ref ={
+    PersonMod_Ref(
+        WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            PersonMod{
+                customer_for,
+                bike_count,
+                visits,
+                score,
+                visit_length:None,
+            }
+        ).static_as_prefix()
+    )
+};
 
-
-// Getting the value for every field of `module`.
+// Getting the value for every field of `MODULE`.
 
 let customer_for: extern "C" fn(Id)->RDuration = 
-    module.customer_for();
+    MODULE.customer_for();
 
 let bike_count: Option<extern "C" fn(Id)->u32> = 
-    module.bike_count();
+    MODULE.bike_count();
 
 let visits: extern "C" fn(Id)->u32=
-    module.visits();
+    MODULE.visits();
 
 let score: extern "C" fn(Id)->u32=
-    module.score();
+    MODULE.score();
 
 let visit_length: Option<extern "C" fn(Id)->RDuration> =
-    module.visit_length();
+    MODULE.visit_length();
 
 # }
 

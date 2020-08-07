@@ -68,11 +68,7 @@ where
     for (l_i,l_abi) in list.iter().enumerate() {
         for (r_i,r_abi) in list.iter().enumerate() {
 
-            dbg!("inside");
-
             let res=check_layout_compatibility(l_abi,r_abi);
-
-            dbg!("outside");
 
             if l_i == r_i {
                 assert_eq!(res,Ok(()));

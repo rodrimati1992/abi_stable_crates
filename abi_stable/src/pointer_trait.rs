@@ -4,6 +4,7 @@ Traits for pointers.
 use std::{
     mem::ManuallyDrop,
     ops::{Deref,DerefMut},
+    ptr::NonNull,
 };
 
 use crate::sabi_types::MovePtr;
@@ -259,5 +260,40 @@ pub unsafe trait OwnedPointer:Sized+DerefMut+GetPointerKind{
             Self::drop_allocation(&mut this);
             ret
         }
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+/// Trait for non-owning pointers that are reference-like.
+pub unsafe trait NonNullPointer: Copy {
+    type Target;
+
+    /// Converts this pointer to a `NonNull`.
+    fn to_nonnull(self)->NonNull<Self::Target>;
+
+    /// Constructs this pointer from a `NonNull`.
+    /// 
+    /// # Safety 
+    /// 
+    /// `from` must come from a call to `NonNullPointer::to_nonnull`
+    /// on an instance of `Self`, with the same lifetime.
+    unsafe fn from_nonnull(from: NonNull<Self::Target>)->Self;
+}
+
+pub type NonNullPointerTarget<T> = <T as NonNullPointer>::Target;
+
+
+unsafe impl<'a, T> NonNullPointer for &'a T {
+    type Target = T;
+    
+    fn to_nonnull(self)->NonNull<Self::Target>{
+        NonNull::from(self)
+    }
+
+    unsafe fn from_nonnull(from: NonNull<Self::Target>)->Self {
+        &*(from.as_ptr() as *const T)
     }
 }

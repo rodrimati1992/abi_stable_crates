@@ -2,9 +2,8 @@ use std::ptr;
 
 use crate::{
     marker_type::ErasedObject,
-    nonexhaustive_enum::{NonExhaustive,NonExhaustiveVtable,GetEnumInfo,SerializeEnum},
+    nonexhaustive_enum::{NonExhaustive,NonExhaustiveVtable_Ref,GetEnumInfo,SerializeEnum},
     utils::{transmute_reference,transmute_mut_reference},
-    sabi_types::StaticRef,
     std_types::{ROption,RCmpOrdering,RSome,RResult,RBoxError},
     traits::IntoReprC,
 };
@@ -23,7 +22,7 @@ pub(crate) unsafe extern "C" fn drop_impl<E>(this: &mut ErasedObject){
 
 pub(crate) unsafe extern "C" fn clone_impl<E,F,I>(
     this: &ErasedObject,
-    vtable:StaticRef<NonExhaustiveVtable<E,F,I>>,
+    vtable:NonExhaustiveVtable_Ref<E,F,I>,
 ) -> NonExhaustive<E,F,I>
 where
     E: GetEnumInfo,

@@ -1,13 +1,15 @@
-use std::{
-    ops::{Deref},
-    fmt::{self,Display},
-};
 
 use crate::{
     pointer_trait::{CanTransmuteElement,GetPointerKind,PK_Reference},
 };
 
 use super::RRef;
+
+use std::{
+    ops::{Deref},
+    fmt::{self,Display},
+    ptr::NonNull,
+};
 
 
 /**
@@ -22,7 +24,7 @@ even though they have `non-'static` type parameters.
 
 # Example
 
-This defines a vtable,using a StaticRef as the pointer to the vtable.
+This defines a non-extensible vtable,using a StaticRef as the pointer to the vtable.
 
 This example is not intended to be practical,
 it's only to demonstrate a use for StaticRef.
@@ -50,14 +52,9 @@ pub struct BoxLike<T> {
     _marker: PhantomData<T>,
 }
 
-
-
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="VTable")))]
-#[sabi(missing_field(panic))]
-pub struct VTableVal<T>{
-    #[sabi(last_prefix_field)]
+pub struct VTable<T>{
     drop_:unsafe extern "C" fn(*mut T),
 }
 
@@ -65,21 +62,12 @@ pub struct VTableVal<T>{
 mod vtable{
     use super::*;
 
-    impl<T> VTableVal<T> {
-        const VALUE:Self=
-            Self{
+    impl<T> VTable<T> {
+        const VTABLE:StaticRef<Self>=unsafe{
+            StaticRef::from_raw(&Self{
                 drop_:drop_::<T>,
-            };
-
-        const VTABLE:StaticRef<WithMetadata<Self>>=unsafe{
-            StaticRef::from_raw(
-                &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VALUE)
-            )
+            })
         };
-
-        pub(super)fn vtable()->StaticRef<VTable<T>> {
-            WithMetadata::as_prefix(Self::VTABLE)
-        }
     }
 }
 
@@ -98,9 +86,8 @@ unsafe fn drop_<T>(object:*mut T){
 */
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(shared_stableabi(T))]
 pub struct StaticRef<T>{
-    ref_:*const T,
+    ref_: NonNull<T>,
 }
 
 impl<T> Display for StaticRef<T>
@@ -161,7 +148,9 @@ impl<T> StaticRef<T>{
     ///
     /// ```
     pub const unsafe fn from_raw(ref_:*const T)->Self{
-        Self{ref_}
+        Self{
+            ref_: unsafe{ NonNull::new_unchecked(ref_ as *mut T) },
+        }
     }
 
     /// Constructs this StaticRef from a static reference
@@ -187,7 +176,9 @@ impl<T> StaticRef<T>{
     ///
     /// ```
     pub const fn new(ref_:&'static T)->Self{
-        Self{ref_}
+        Self{
+            ref_: unsafe{ NonNull::new_unchecked(ref_ as *const T as *mut T) },
+        }
     }
 
     /// Gets access to the reference.
@@ -214,7 +205,7 @@ impl<T> StaticRef<T>{
     ///
     /// ```
     pub fn get<'a>(self)->&'a T{
-        unsafe{ &*self.ref_ }
+        unsafe{ &*(self.ref_.as_ptr() as *const T) }
     }
 
     /// Gets access to the referenced value,as a raw pointer.
@@ -240,7 +231,7 @@ impl<T> StaticRef<T>{
     ///
     /// ```
     pub const fn get_raw<'a>(self)->*const T{
-        self.ref_
+        self.ref_.as_ptr() as *const T
     }
 
     /// Transmutes this `StaticRef<T>` to a `StaticRef<U>`.
@@ -273,7 +264,7 @@ impl<T> StaticRef<T>{
     /// ```
     pub const unsafe fn transmute_ref<U>(self)->StaticRef<U>{
         StaticRef::from_raw(
-            self.ref_ as *const U
+            self.ref_.as_ptr() as *const T as *const U
         )
     }
 
@@ -283,7 +274,7 @@ impl<T> StaticRef<T>{
         T:'a,
     {
         unsafe{
-            RRef::from_raw(self.ref_)
+            RRef::from_raw(self.ref_.as_ptr())
         }
     }
 }
@@ -294,7 +285,7 @@ where
 {
     #[inline]
     fn from(v:RRef<'static,T>)->Self{
-        v.to_staticref()
+        StaticRef::new(v.get())
     }
 }
 

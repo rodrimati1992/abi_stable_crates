@@ -387,7 +387,6 @@ where T:ToTokens
         ty.to_tokens(ts);
         let opt=match field_transparency {
             LayoutConstructor::Regular=> None,
-            LayoutConstructor::SharedStableAbi=> Some(&ct.cap_shared_stable_abi),
             LayoutConstructor::Opaque=> Some(&ct.cap_opaque_field),
             LayoutConstructor::SabiOpaque=> Some(&ct.cap_sabi_opaque_field),
         };

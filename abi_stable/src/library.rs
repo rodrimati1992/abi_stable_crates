@@ -25,7 +25,7 @@ pub use abi_stable_shared::mangled_root_module_loader_name;
 
 
 use crate::{
-    abi_stability::stable_abi_trait::SharedStableAbi,
+    abi_stability::stable_abi_trait::StableAbi,
     globals::{self,Globals},
     marker_type::ErasedObject,
     type_layout::TypeLayout,

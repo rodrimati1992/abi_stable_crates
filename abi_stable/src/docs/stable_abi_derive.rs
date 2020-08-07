@@ -31,11 +31,6 @@ which is checked for equality with the vistual const parameter declared in the s
 Replaces the implicit `TypeParameter:StableAbi` constraint
 with a `TypeParameter:GetStaticEquivalent` constraint.
 
-###  `#[sabi(shared_stableabi(TypeParameter))]`  
-
-Replaces the implicit `TypeParameter:StableAbi` constraint
-with a `TypeParameter:SharedStableAbi` constraint.
-
 ###  `#[sabi(unsafe_unconstrained(TypeParameter))]`  
 
 Removes the implicit `TypeParameter:StableAbi` constraint.
@@ -119,7 +114,7 @@ Prints the generated code,stopping compilation.
 ###  `#[sabi(kind(Prefix( .. )))]` 
 Declares the struct as being a prefix-type.
 
-`#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`<br>
+`#[sabi(kind(Prefix(prefix_ref="NameOfPrefixStruct")))]`<br>
 Declares an ffi-safe equivalent of a vtable/module,
 that can be extended in semver compatible versions.<br>
 Uses "NameOfPrefixStruct" as the name of the prefix struct.<br>

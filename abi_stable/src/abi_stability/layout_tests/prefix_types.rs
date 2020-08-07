@@ -13,13 +13,13 @@ use rand::{
 use crate::{
     abi_stability::{
         abi_checking::{AbiInstability,CheckingGlobals,check_layout_compatibility_with_globals},
+        PrefixStableAbi,
     },
     prefix_type::{PrefixTypeMetadata,PrefixTypeTrait},
     *,
     test_utils::must_panic,
     type_layout::TypeLayout,
     type_level::bools::*,
-    utils::transmute_reference,
 };
 
 
@@ -34,8 +34,8 @@ mod prefix0 {
     #[repr(C)]
     #[derive(StableAbi)]
     // #[sabi(debug_print)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix")))]
-    pub struct PrefixVal {
+    #[sabi(kind(Prefix))]
+    pub struct Prefix {
         #[sabi(last_prefix_field)]
         pub field0: u8,
     }
@@ -47,10 +47,10 @@ mod prefix1 {
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
-        kind(Prefix(prefix_struct="Prefix")),
+        kind(Prefix),
         missing_field(with="custom_default::<_>"),
     )]
-    pub struct PrefixVal {
+    pub struct Prefix {
         #[sabi(last_prefix_field)]
         pub field0: u8,
         pub field1: u16,
@@ -60,9 +60,9 @@ mod prefix1 {
 mod prefix2 {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix")))]
+    #[sabi(kind(Prefix))]
     #[sabi(missing_field(default))]
-    pub struct PrefixVal {
+    pub struct Prefix {
         #[sabi(last_prefix_field)]
         pub field0: u8,
         pub field1: u16,
@@ -70,13 +70,13 @@ mod prefix2 {
     }
 }
 
-// PrefixVal types have to keep the same alignment when fields are added
+// Prefix types have to keep the same alignment when fields are added
 mod prefix2_misaligned {
     #[repr(C,align(16))]
     #[derive(StableAbi)]
     // #[sabi(debug_print)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix")))]
-    pub struct PrefixVal {
+    #[sabi(kind(Prefix))]
+    pub struct Prefix {
         #[sabi(last_prefix_field)]
         pub field0: u8,
         pub field1: u16,
@@ -87,8 +87,8 @@ mod prefix2_misaligned {
 mod prefix2_different_prefix {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix")))]
-    pub struct PrefixVal {
+    #[sabi(kind(Prefix))]
+    pub struct Prefix {
         pub field0: u8,
         #[sabi(last_prefix_field)]
         pub field1: u16,
@@ -99,9 +99,9 @@ mod prefix2_different_prefix {
 mod prefix3 {
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(kind(Prefix(prefix_struct="Prefix")))]
+    #[sabi(kind(Prefix))]
     #[sabi(missing_field(panic))]
-    pub struct PrefixVal {
+    pub struct Prefix {
         #[sabi(last_prefix_field)]
         pub field0: u8,
         pub field1: u16,
@@ -119,10 +119,10 @@ fn dereference_abi(abi:&'static TypeLayout)->&'static TypeLayout{
 
 
 
-static PREF_0:&'static TypeLayout = <&prefix0::Prefix>::LAYOUT;
-static PREF_1:&'static TypeLayout = <&prefix1::Prefix>::LAYOUT;
-static PREF_2:&'static TypeLayout = <&prefix2::Prefix>::LAYOUT;
-static PREF_3:&'static TypeLayout = <&prefix3::Prefix>::LAYOUT;
+static PREF_0:&'static TypeLayout = <prefix0::Prefix_Ref>::LAYOUT;
+static PREF_1:&'static TypeLayout = <prefix1::Prefix_Ref>::LAYOUT;
+static PREF_2:&'static TypeLayout = <prefix2::Prefix_Ref>::LAYOUT;
+static PREF_3:&'static TypeLayout = <prefix3::Prefix_Ref>::LAYOUT;
 
 
 fn new_list()->Vec<&'static TypeLayout>{
@@ -349,7 +349,7 @@ fn hierarchical_prefix_test(){
 #[cfg_attr(not(miri),test)]
 fn prefix_is_same_alignment(){
     let globals=CheckingGlobals::new();
-    let misaligned = <&prefix2_misaligned::Prefix>::LAYOUT;
+    let misaligned = <prefix2_misaligned::Prefix_Ref>::LAYOUT;
 
     for pref in vec![ PREF_0,PREF_1 ] {
         let errs = check_layout_compatibility_with_globals(pref, misaligned,&globals)
@@ -371,7 +371,7 @@ fn prefix_is_same_size(){
     let list=new_list();
 
     for pref in list.iter().cloned() {
-        let mismatched_prefix=<&prefix2_different_prefix::Prefix>::LAYOUT;
+        let mismatched_prefix=<prefix2_different_prefix::Prefix_Ref>::LAYOUT;
         let errs = check_layout_compatibility_with_globals(pref,mismatched_prefix ,&globals)
             .unwrap_err()
             .flatten_errors();
@@ -389,23 +389,23 @@ fn prefix_is_same_size(){
 #[cfg_attr(not(miri),test)]
 fn prefix_on_nonexistent_field() {
     let prefix0=
-        prefix0::PrefixVal{
+        prefix0::Prefix{
             field0:1,
         }.leak_into_prefix();
 
     {
-        let value1:&prefix1::Prefix=unsafe{ transmute_reference(prefix0) };
+        let value1:prefix1::Prefix_Ref=unsafe{ std::mem::transmute(prefix0) };
         assert_eq!(value1.field0(),1);
         assert_eq!(value1.field1(),custom_default::<u16>());
     }
     {
-        let value2:&prefix2::Prefix=unsafe{ transmute_reference(prefix0) };
+        let value2:prefix2::Prefix_Ref=unsafe{ std::mem::transmute(prefix0) };
         assert_eq!(value2.field0(),1);
         assert_eq!(value2.field1(),0);
         assert_eq!(value2.field2(),0);
     }
     {
-        let value3:&prefix3::Prefix=unsafe{ transmute_reference(prefix0) };
+        let value3:prefix3::Prefix_Ref=unsafe{ std::mem::transmute(prefix0) };
         assert_eq!(value3.field0(),1);
         must_panic(file_span!(),||value3.field1()).unwrap();
         must_panic(file_span!(),||value3.field2()).unwrap();
@@ -503,50 +503,50 @@ declare_enabled_fields!{
 }
 
 static COND_FIELD_0_ALL:&'static TypeLayout = 
-    <&cond_fields_0::Prefix<ACCESSIBLE_ALL>>::LAYOUT;
+    <cond_fields_0::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
 static COND_FIELD_1_ALL:&'static TypeLayout = 
-    <&cond_fields_1::Prefix<ACCESSIBLE_ALL>>::LAYOUT;
+    <cond_fields_1::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
 static COND_FIELD_2_ALL:&'static TypeLayout = 
-    <&cond_fields_2::Prefix<ACCESSIBLE_ALL>>::LAYOUT;
+    <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
 static COND_FIELD_3_ALL:&'static TypeLayout = 
-    <&cond_fields_3::Prefix<ACCESSIBLE_ALL>>::LAYOUT;
+    <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
 
 static COND_FIELD_0_EXCEPT_0:&'static TypeLayout = 
-    <&cond_fields_0::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
+    <cond_fields_0::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
 static COND_FIELD_1_EXCEPT_0:&'static TypeLayout = 
-    <&cond_fields_1::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
+    <cond_fields_1::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
 static COND_FIELD_2_EXCEPT_0:&'static TypeLayout = 
-    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
+    <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
 static COND_FIELD_3_EXCEPT_0:&'static TypeLayout = 
-    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
+    <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
 
 static COND_FIELD_1_EXCEPT_1:&'static TypeLayout = 
-    <&cond_fields_1::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
+    <cond_fields_1::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
 
 static COND_FIELD_2_EXCEPT_1:&'static TypeLayout = 
-    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
+    <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
 
 static COND_FIELD_3_EXCEPT_1:&'static TypeLayout = 
-    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
+    <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
 
 
 static COND_FIELD_2_EXCEPT_2:&'static TypeLayout = 
-    <&cond_fields_2::Prefix<ACCESSIBLE_ALL_EXCEPT_2>>::LAYOUT;
+    <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_2>>::LAYOUT;
 
 static COND_FIELD_3_EXCEPT_2:&'static TypeLayout = 
-    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_2>>::LAYOUT;
+    <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_2>>::LAYOUT;
 
 
 static COND_FIELD_3_EXCEPT_3:&'static TypeLayout = 
-    <&cond_fields_3::Prefix<ACCESSIBLE_ALL_EXCEPT_3>>::LAYOUT;
+    <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_3>>::LAYOUT;
 
 
 
@@ -560,11 +560,11 @@ mod cond_fields_0 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        kind(Prefix(prefix_struct="Prefix")),
+        kind(Prefix),
         prefix_bound="C:EnabledFields",
         unsafe_unconstrained(C),
     )]
-    pub struct PrefixVal<C> {
+    pub struct Prefix<C> {
         pub _marker:UnsafeIgnoredType<C>,
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
         #[sabi(last_prefix_field)]
@@ -579,11 +579,11 @@ mod cond_fields_1 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        kind(Prefix(prefix_struct="Prefix")),
+        kind(Prefix),
         prefix_bound="C:EnabledFields",
         unsafe_unconstrained(C),
     )]
-    pub struct PrefixVal<C,T=u8,U=u16> {
+    pub struct Prefix<C,T=u8,U=u16> {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
@@ -603,11 +603,11 @@ mod cond_fields_2 {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        kind(Prefix(prefix_struct="Prefix")),
+        kind(Prefix),
         prefix_bound="C:EnabledFields",
         unsafe_unconstrained(C),
     )]
-    pub struct PrefixVal<C,T=u8,U=u16,V=u32> {
+    pub struct Prefix<C,T=u8,U=u16,V=u32> {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
@@ -625,18 +625,18 @@ mod cond_fields_2 {
     }
 }
 
-// PrefixVal types have to keep the same alignment when fields are added
+// Prefix types have to keep the same alignment when fields are added
 mod cond_fields_2_misaligned {
     use crate::marker_type::UnsafeIgnoredType;
     use super::EnabledFields;
     #[repr(C,align(16))]
     #[derive(StableAbi)]
     #[sabi(
-        kind(Prefix(prefix_struct="Prefix")),
+        kind(Prefix),
         prefix_bound="C:EnabledFields",
         unsafe_unconstrained(C),
     )]
-    pub struct PrefixVal<C> {
+    pub struct Prefix<C> {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
@@ -657,11 +657,11 @@ mod cond_fields_2_different_prefix {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
-        kind(Prefix(prefix_struct="Prefix")),
+        kind(Prefix),
         prefix_bound="C:EnabledFields",
         unsafe_unconstrained(C),
     )]
-    pub struct PrefixVal<C,T=u8,U=u16,V=u32> {
+    pub struct Prefix<C,T=u8,U=u16,V=u32> {
         pub _marker:UnsafeIgnoredType<C>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
@@ -686,11 +686,11 @@ mod cond_fields_3 {
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
-        kind(Prefix(prefix_struct="Prefix")),
+        kind(Prefix),
         prefix_bound="C:EnabledFields",
         unsafe_unconstrained(C),
     )]
-    pub struct PrefixVal<C,T=u8,U=u16,V=u32,W=u64> {
+    pub struct Prefix<C,T=u8,U=u16,V=u32,W=u64> {
         pub _marker:UnsafeIgnoredType<(C,T,U,V,W)>,
         
         #[sabi(accessible_if=" <C as EnabledFields>::ENABLE_FIELD_0 ")]
@@ -719,11 +719,11 @@ mod cond_fields_3_uncond_prefix {
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
-        kind(Prefix(prefix_struct="Prefix")),
+        kind(Prefix),
         prefix_bound="C:EnabledFields",
         unsafe_unconstrained(C),
     )]
-    pub struct PrefixVal<C,T=u8,U=u16,V=u32,W=u64> {
+    pub struct Prefix<C,T=u8,U=u16,V=u32,W=u64> {
         pub _marker:UnsafeIgnoredType<(C,T,U,V,W)>,
         
         #[sabi(last_prefix_field)]
@@ -752,60 +752,60 @@ fn prefix_cond_field_test(){
 
     use crate::type_level::bools::{True as T,False as F};
 
-    use self::cond_fields_2::Prefix as Prefix2;
-    use self::cond_fields_3::Prefix as Prefix3;
-    use self::cond_fields_3_uncond_prefix::Prefix as Prefix3UncondPrefix;
+    use self::cond_fields_2::Prefix_Ref as Prefix2;
+    use self::cond_fields_3::Prefix_Ref as Prefix3;
+    use self::cond_fields_3_uncond_prefix::Prefix_Ref as Prefix3UncondPrefix;
 
     type au32=[u32;1];
     type ai32=[i32;1];
 
     let mut valid_lists=vec![
         vec![
-            <&Prefix3<(F,F,F,F),ai32,ai32,ai32,ai32>>::LAYOUT,
-            <&Prefix3<(T,F,F,F),i32 ,ai32,ai32,ai32>>::LAYOUT,
-            <&Prefix3<(T,T,F,F),i32 ,i32 ,ai32,ai32>>::LAYOUT,
-            <&Prefix3<(T,T,T,F),i32 ,i32 ,i32 ,ai32>>::LAYOUT,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
+            <Prefix3<(F,F,F,F),ai32,ai32,ai32,ai32>>::LAYOUT,
+            <Prefix3<(T,F,F,F),i32 ,ai32,ai32,ai32>>::LAYOUT,
+            <Prefix3<(T,T,F,F),i32 ,i32 ,ai32,ai32>>::LAYOUT,
+            <Prefix3<(T,T,T,F),i32 ,i32 ,i32 ,ai32>>::LAYOUT,
+            <Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
+            <Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
         ],
         vec![
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
-            <&Prefix3<(F,T,T,T),ai32,i32 ,i32 ,i32 >>::LAYOUT,
-            <&Prefix3<(F,F,T,T),ai32,ai32,i32 ,i32 >>::LAYOUT,
-            <&Prefix3<(F,F,F,T),ai32,ai32,ai32,i32 >>::LAYOUT,
-            <&Prefix3<(F,F,F,F),ai32,ai32,ai32,ai32>>::LAYOUT,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
+            <Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
+            <Prefix3<(F,T,T,T),ai32,i32 ,i32 ,i32 >>::LAYOUT,
+            <Prefix3<(F,F,T,T),ai32,ai32,i32 ,i32 >>::LAYOUT,
+            <Prefix3<(F,F,F,T),ai32,ai32,ai32,i32 >>::LAYOUT,
+            <Prefix3<(F,F,F,F),ai32,ai32,ai32,ai32>>::LAYOUT,
+            <Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
+            <Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32 >>::LAYOUT,
         ],
         vec![
-            <&Prefix2<(F,T,F,F),au32,i32 ,au32>>::LAYOUT,
-            <&Prefix3<(T,F,T,T),i32 ,au32,i32 ,i32>>::LAYOUT,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::LAYOUT,
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::LAYOUT,
+            <Prefix2<(F,T,F,F),au32,i32 ,au32>>::LAYOUT,
+            <Prefix3<(T,F,T,T),i32 ,au32,i32 ,i32>>::LAYOUT,
+            <Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::LAYOUT,
+            <Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::LAYOUT,
         ],
     ];
 
 
     let invalid=vec![
         (
-            <&Prefix3<(T,F,T,F),i32 ,au32,i32 ,i32>>::LAYOUT,
-            <&Prefix2<(F,T,F,F),au32,i32 ,au32>>::LAYOUT,
+            <Prefix3<(T,F,T,F),i32 ,au32,i32 ,i32>>::LAYOUT,
+            <Prefix2<(F,T,F,F),au32,i32 ,au32>>::LAYOUT,
         ),
         (
-            <&Prefix2<(F,T,F,F),au32,i32 ,au32>>::LAYOUT,
-            <&Prefix3<(T,T,T,T),i32 ,au32,i32 ,i32>>::LAYOUT,
+            <Prefix2<(F,T,F,F),au32,i32 ,au32>>::LAYOUT,
+            <Prefix3<(T,T,T,T),i32 ,au32,i32 ,i32>>::LAYOUT,
         ),
         (
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::LAYOUT,
-            <&Prefix3<(T,T,T,T),i32 ,au32,i32 ,i32>>::LAYOUT,
+            <Prefix3<(T,T,T,T),i32 ,i32 ,i32 ,i32>>::LAYOUT,
+            <Prefix3<(T,T,T,T),i32 ,au32,i32 ,i32>>::LAYOUT,
         ),
         (
-            <&Prefix3<(T,T,T,T),i32 ,i32 ,au32,i32>>::LAYOUT,
-            <&Prefix3<(F,F,T,F),i32 ,i32 ,i32 ,i32>>::LAYOUT,
+            <Prefix3<(T,T,T,T),i32 ,i32 ,au32,i32>>::LAYOUT,
+            <Prefix3<(F,F,T,F),i32 ,i32 ,i32 ,i32>>::LAYOUT,
         ),
         (
-            <&Prefix3UncondPrefix<(T,T,T,T),i32 ,i32 ,au32,i32>>::LAYOUT,
-            <&Prefix3            <(T,T,T,T),i32 ,i32 ,au32,i32>>::LAYOUT,
+            <Prefix3UncondPrefix<(T,T,T,T),i32 ,i32 ,au32,i32>>::LAYOUT,
+            <Prefix3            <(T,T,T,T),i32 ,i32 ,au32,i32>>::LAYOUT,
         ),
     ];
 
@@ -949,27 +949,27 @@ fn prefix_on_conditional_fields() {
     };
 
     
-    type Prefix1<AF>=cond_fields_1::Prefix<AF,i8,i32>;
-    type Prefix2<AF>=cond_fields_2::Prefix<AF,i8,i32,i32>;
-    type Prefix3<AF>=cond_fields_3::Prefix<AF,i8,i32,i32,i32>;
-    type Prefix3UncondPrefix<AF>=
-        cond_fields_3_uncond_prefix::Prefix<AF,i8,i32,i32,i32>;
+    type Prefix1_Ref<AF>=cond_fields_1::Prefix_Ref<AF,i8,i32>;
+    type Prefix2_Ref<AF>=cond_fields_2::Prefix_Ref<AF,i8,i32,i32>;
+    type Prefix3_Ref<AF>=cond_fields_3::Prefix_Ref<AF,i8,i32,i32,i32>;
+    type Prefix3UncondPrefix_Ref<AF>=
+        cond_fields_3_uncond_prefix::Prefix_Ref<AF,i8,i32,i32,i32>;
 
     {// Casting Prefix0 to Prefix1 with different field accessibilities
         let prefix0=
-            cond_fields_0::PrefixVal{
+            cond_fields_0::Prefix{
                 _marker:UnsafeIgnoredType::<(T,T,T,T)>::DEFAULT,
                 field0:1,
             }.leak_into_prefix();
 
         {// The field cannot be accessed even though it was initialized.
-            let value:&Prefix1<(F,F,F,F)>=unsafe{ transmute_reference(prefix0) };
+            let value:Prefix1_Ref<(F,F,F,F)>=unsafe{ std::mem::transmute(prefix0) };
 
             assert_eq!(value.field0(),None);
             assert_eq!(value.field1(),None);
         }
         {// The first field can be accessed.
-            let value:&Prefix1<(T,F,F,F)>=unsafe{ transmute_reference(prefix0) };
+            let value:Prefix1_Ref<(T,F,F,F)>=unsafe{ std::mem::transmute(prefix0) };
 
             assert_eq!(value.field0(),Some(1));
             assert_eq!(value.field1(),None);
@@ -978,7 +978,7 @@ fn prefix_on_conditional_fields() {
 
 
 
-    let prefix3=cond_fields_3::PrefixVal{
+    let prefix3=cond_fields_3::Prefix{
             _marker:UnsafeIgnoredType::<((T,T,T,T),_,_,_,_)>::DEFAULT,
             field0:1,
             field1:3,
@@ -988,35 +988,35 @@ fn prefix_on_conditional_fields() {
 
     {// Casting Prefix3 to Prefix2 with different field accessibilities	
         {
-            let value:&Prefix2<(F,F,F,F)>=unsafe{ transmute_reference(prefix3) };
+            let value:Prefix2_Ref<(F,F,F,F)>=unsafe{ std::mem::transmute(prefix3) };
 
             assert_eq!(value.field0(),None);
             assert_eq!(value.field1(),None);
             assert_eq!(value.field2(),None);
         }
         {
-            let value:&Prefix2<(T,F,F,F)>=unsafe{ transmute_reference(prefix3) };
+            let value:Prefix2_Ref<(T,F,F,F)>=unsafe{ std::mem::transmute(prefix3) };
 
             assert_eq!(value.field0(),Some(1));
             assert_eq!(value.field1(),None);
             assert_eq!(value.field2(),None);
         }
         {
-            let value:&Prefix2<(F,T,F,F)>=unsafe{ transmute_reference(prefix3) };
+            let value:Prefix2_Ref<(F,T,F,F)>=unsafe{ std::mem::transmute(prefix3) };
 
             assert_eq!(value.field0(),None);
             assert_eq!(value.field1(),Some(3));
             assert_eq!(value.field2(),None);
         }
         {
-            let value:&Prefix2<(F,F,T,F)>=unsafe{ transmute_reference(prefix3) };
+            let value:Prefix2_Ref<(F,F,T,F)>=unsafe{ std::mem::transmute(prefix3) };
 
             assert_eq!(value.field0(),None);
             assert_eq!(value.field1(),None);
             assert_eq!(value.field2(),Some(7));
         }
         {
-            let value:&Prefix2<(T,T,T,T)>=unsafe{ transmute_reference(prefix3) };
+            let value:Prefix2_Ref<(T,T,T,T)>=unsafe{ std::mem::transmute(prefix3) };
 
             assert_eq!(value.field0(),Some(1));
             assert_eq!(value.field1(),Some(3));
@@ -1026,7 +1026,7 @@ fn prefix_on_conditional_fields() {
 
     {// Casting Prefix3 to Prefix3UncondPrefix with different field accessibilities 
         {
-            let value:&Prefix3UncondPrefix<(F,F,F,F)>=unsafe{ transmute_reference(prefix3) };
+            let value:Prefix3UncondPrefix_Ref<(F,F,F,F)>=unsafe{ std::mem::transmute(prefix3) };
 
             assert_eq!(value.field0(),1);
             assert_eq!(value.field1(),None);
@@ -1034,7 +1034,7 @@ fn prefix_on_conditional_fields() {
             assert_eq!(value.field2(),None);
         }
         {
-            let value:&Prefix3UncondPrefix<(F,F,T,F)>=unsafe{ transmute_reference(prefix3) };
+            let value:Prefix3UncondPrefix_Ref<(F,F,T,F)>=unsafe{ std::mem::transmute(prefix3) };
 
             assert_eq!(value.field0(),1);
             assert_eq!(value.field1(),None);
@@ -1042,7 +1042,7 @@ fn prefix_on_conditional_fields() {
             assert_eq!(value.field3(),None);
         }
         {
-            let value:&Prefix3UncondPrefix<(T,T,T,T)>=unsafe{ transmute_reference(prefix3) };
+            let value:Prefix3UncondPrefix_Ref<(T,T,T,T)>=unsafe{ std::mem::transmute(prefix3) };
 
             assert_eq!(value.field0(),1);
             assert_eq!(value.field1(),Some(3));

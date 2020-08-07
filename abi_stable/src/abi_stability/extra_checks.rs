@@ -654,9 +654,9 @@ use core_extensions::SelfOps;
 /// are compatible with those of the binary/dynlib that loads them.
 ///
 #[sabi_trait]
-// #[sabi(no_trait_impl)]
-//#[sabi(debug_print_trait)]
-//#[sabi(debug_print)]
+#[sabi(no_trait_impl)]
+// #[sabi(debug_print_trait)]
+// #[sabi(debug_print)]
 pub unsafe trait TypeChecker:'static {
     /// Checks that `ìnterface` is compatible with `implementation.` 
     /// 
@@ -685,17 +685,8 @@ pub unsafe trait TypeChecker:'static {
         &mut self,
         interface:&'static TypeLayout,
         implementation:&'static TypeLayout,
-    )->RResult<(), ExtraChecksError>;
-
-    
+    )->RResult<(), ExtraChecksError>;  
 }
-
-
-
-
-
-
-
 
 
 
@@ -712,6 +703,8 @@ pub type TypeCheckerMut<'b>=
 /// for more details.
 #[sabi_trait]
 #[sabi(no_trait_impl)]
+// #[sabi(debug_print_trait)]
+// #[sabi(debug_print)]
 pub unsafe trait ExtraChecks:'static+Debug+Display+Clone{
     /// Gets the type layout of `Self`(the type that implements ExtraChecks)
     ///

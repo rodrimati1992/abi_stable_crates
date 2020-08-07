@@ -292,7 +292,7 @@ where
 )]
 pub struct ROccupiedEntry<'a,K,V>{
     entry:&'a mut ErasedOccupiedEntry<K,V>,
-    vtable:StaticRef<OccupiedVTable<K,V>>,
+    vtable:OccupiedVTable_Ref<K,V>,
     _marker:UnsafeIgnoredType<OccupiedEntry<'a,K,V>>
 }
 
@@ -305,15 +305,15 @@ pub struct ROccupiedEntry<'a,K,V>{
 )]
 pub struct RVacantEntry<'a,K,V>{
     entry:&'a mut ErasedVacantEntry<K,V>,
-    vtable:StaticRef<VacantVTable<K,V>>,
+    vtable:VacantVTable_Ref<K,V>,
     _marker:UnsafeIgnoredType<VacantEntry<'a,K,V>>
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a,K,V> ROccupiedEntry<'a,K,V>{
-    fn vtable<'b>(&self)->&'b OccupiedVTable<K,V>{
-        self.vtable.get()
+    fn vtable(&self)->OccupiedVTable_Ref<K,V>{
+        self.vtable
     }
 }
 
@@ -327,7 +327,7 @@ impl<'a,K,V> ROccupiedEntry<'a,K,V>{
         unsafe{ 
             Self{
                 entry:ErasedOccupiedEntry::from_unerased(entry),
-                vtable:WithMetadata::as_prefix(OccupiedVTable::VTABLE_REF),
+                vtable:OccupiedVTable::VTABLE_REF,
                 _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -526,8 +526,8 @@ impl<'a,K,V> Drop for ROccupiedEntry<'a,K,V>{
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a,K,V> RVacantEntry<'a,K,V>{
-    fn vtable<'b>(&self)->&'b VacantVTable<K,V>{
-        self.vtable.get()
+    fn vtable(&self)->VacantVTable_Ref<K,V>{
+        self.vtable
     }
 }
 
@@ -544,7 +544,7 @@ impl<'a,K,V> RVacantEntry<'a,K,V>{
         unsafe{
             Self{
                 entry:ErasedVacantEntry::from_unerased(entry),
-                vtable:WithMetadata::as_prefix(VacantVTable::VTABLE_REF),
+                vtable: VacantVTable::VTABLE_REF,
                 _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -663,10 +663,10 @@ impl<'a,K,V> Drop for RVacantEntry<'a,K,V>{
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    kind(Prefix(prefix_struct="OccupiedVTable")),
+    kind(Prefix),
     missing_field(panic),
 )]
-pub struct OccupiedVTableVal<K,V>{
+pub struct OccupiedVTable<K,V>{
     drop_entry:unsafe extern "C" fn(&mut ErasedOccupiedEntry<K,V>),
     key:extern "C" fn(&ErasedOccupiedEntry<K,V>)->&K,
     get_elem:extern "C" fn(&ErasedOccupiedEntry<K,V>)->&V,
@@ -678,14 +678,14 @@ pub struct OccupiedVTableVal<K,V>{
 
 
 impl<K,V> OccupiedVTable<K,V>{
-    const VTABLE_REF: StaticRef<WithMetadata<OccupiedVTableVal<K,V>>> = unsafe{
-        StaticRef::from_raw(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VTABLE,
-        ))
+    const VTABLE_REF: OccupiedVTable_Ref<K,V> = unsafe{
+        OccupiedVTable_Ref(
+            WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
+                .as_prefix()
+        )
     };
 
-    const VTABLE:OccupiedVTableVal<K,V>=OccupiedVTableVal{
+    const VTABLE:OccupiedVTable<K,V>=OccupiedVTable{
         drop_entry   :ErasedOccupiedEntry::drop_entry,
         key          :ErasedOccupiedEntry::key,
         get_elem     :ErasedOccupiedEntry::get_elem,
@@ -768,10 +768,10 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    kind(Prefix(prefix_struct="VacantVTable")),
+    kind(Prefix),
     missing_field(panic),
 )]
-pub struct VacantVTableVal<K,V>{
+pub struct VacantVTable<K,V>{
     drop_entry:unsafe extern "C" fn(&mut ErasedVacantEntry<K,V>),
     key:extern "C" fn(&ErasedVacantEntry<K,V>)->&K,
     into_key:extern "C" fn(RVacantEntry<'_,K,V>)->K,
@@ -780,14 +780,16 @@ pub struct VacantVTableVal<K,V>{
 
 
 impl<K,V> VacantVTable<K,V>{
-    const VTABLE_REF: StaticRef<WithMetadata<VacantVTableVal<K,V>>> = unsafe{
-        StaticRef::from_raw(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VTABLE,
-        ))
+    const VTABLE_REF: VacantVTable_Ref<K,V> = unsafe{
+        VacantVTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::VTABLE,
+            ).as_prefix()
+        )
     };
 
-    const VTABLE:VacantVTableVal<K,V>=VacantVTableVal{
+    const VTABLE:VacantVTable<K,V>=VacantVTable{
         drop_entry   :ErasedVacantEntry::drop_entry,
         key          :ErasedVacantEntry::key,
         into_key     :ErasedVacantEntry::into_key,

@@ -392,13 +392,13 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
             #doc_hidden_attr
             #[doc=#alias_docs]
             #vis type #nonexhaustive_alias<#type_generics_decl>=
-                #module::_sabi_reexports::NonExhaustive<
+                #module::__sabi_re::NonExhaustive<
                     #name<#type_generics_use>,
                     #enum_storage,
                     #default_interface,
                 >;
 
-            unsafe impl #module::_sabi_reexports::InlineStorage for #enum_storage{}
+            unsafe impl #module::__sabi_re::InlineStorage for #enum_storage{}
 
             #doc_hidden_attr
             #[doc=#marker_docs]
@@ -508,7 +508,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
                     quote!(#ident),
                 None => 
                     quote!( 
-                        #module::_sabi_reexports::GetNonExhaustiveVTable<
+                        #module::__sabi_re::GetNonExhaustiveVTable<
                             #enum_storage,
                             #default_interface,
                         > 
@@ -608,13 +608,13 @@ pub(crate) fn tokenize_enum_info<'a>(
 
         quote!(
 
-            unsafe impl #impl_generics _sabi_reexports::GetStaticEquivalent_ for #name #ty_generics 
+            unsafe impl #impl_generics __sabi_re::GetStaticEquivalent_ for #name #ty_generics 
             where
                 #nonexhaustive_marker <Self,#enum_storage> :
-                    _sabi_reexports::GetStaticEquivalent_,
+                    __sabi_re::GetStaticEquivalent_,
                 #preds
             {
-                type StaticEquivalent=_sabi_reexports::GetStaticEquivalent<
+                type StaticEquivalent=__sabi_re::GetStaticEquivalent<
                     #nonexhaustive_marker <Self,#enum_storage>
                 >;
             }
@@ -626,7 +626,7 @@ pub(crate) fn tokenize_enum_info<'a>(
                     #discriminant_tokens;
             }
 
-            unsafe impl #impl_generics _sabi_reexports::GetEnumInfo for #name #ty_generics 
+            unsafe impl #impl_generics __sabi_re::GetEnumInfo for #name #ty_generics 
             #where_clause
             {
                 type Discriminant=#discriminant_type;
@@ -635,8 +635,8 @@ pub(crate) fn tokenize_enum_info<'a>(
                 
                 type DefaultInterface=#default_interface;
 
-                const ENUM_INFO:&'static _sabi_reexports::EnumInfo=
-                    &_sabi_reexports::EnumInfo::_for_derive(
+                const ENUM_INFO:&'static __sabi_re::EnumInfo=
+                    &__sabi_re::EnumInfo::_for_derive(
                         #name_str,
                         #strings_const,
                         ::abi_stable::type_layout::StartLen::new(#vn_start,#vn_len),
@@ -659,7 +659,7 @@ pub(crate) fn tokenize_enum_info<'a>(
 
 
             unsafe impl<#generics_header> 
-                _sabi_reexports::GetNonExhaustive<__Storage> 
+                __sabi_re::GetNonExhaustive<__Storage> 
             for #name <#generics_use>
             #where_clause
             {
@@ -676,7 +676,7 @@ pub(crate) fn tokenize_enum_info<'a>(
             quote!(
                 #[test]
                 fn #tests_function(){
-                    use self::_sabi_reexports::assert_nonexhaustive;
+                    use self::__sabi_re::assert_nonexhaustive;
 
                     let storage_str=stringify!(#enum_storage);
                     #(

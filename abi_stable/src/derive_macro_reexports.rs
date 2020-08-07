@@ -4,15 +4,23 @@ pub use crate::{
         extra_checks::{ExtraChecks_MV,StoredExtraChecks},
         get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
         stable_abi_trait::{
-            GetTypeLayoutCtor,  StableAbi,  SharedStableAbi,
-            ValueKind,
-            PrefixKind,
+            GetTypeLayoutCtor,
+            StableAbi,
+            PrefixStableAbi,
             UNSAFE_EXTERN_FN_LAYOUT,
             EXTERN_FN_LAYOUT,
         },
     },
     inline_storage::InlineStorage,
-    marker_type::NonOwningPhantom,
+    marker_type::{
+        NonOwningPhantom,
+        NotCopyNotClone,
+        UnsafeIgnoredType,
+        UnsyncUnsend,
+        UnsyncSend,
+        SyncSend,
+        SyncUnsend,
+    },
     nonexhaustive_enum::{
         assert_nonexhaustive,
         GetVTable as GetNonExhaustiveVTable,
@@ -20,6 +28,7 @@ pub use crate::{
         NonExhaustive,
     },
     reflection::ModReflMode,
+    pointer_trait::{NonNullPointer, NonNullPointerTarget},
     prefix_type::{
         panic_on_missing_field_ty,
         FieldAccessibility,
@@ -28,6 +37,8 @@ pub use crate::{
         IsConditional,
         PrefixTypeTrait,
         WithMetadata_,
+        PrefixRef,
+        PrefixMetadata,
         PTStructLayout,
     },
     sabi_types::{
@@ -71,9 +82,15 @@ pub use crate::{
         trait_marker,
         unerasability::TU_Opaque,
     },
+    sabi_trait::vtable::{RObjectVtable_Ref, RObjectVtable},
 };
 
+pub use std::{
+    fmt::{Formatter, Debug, Result as FmtResult},
+    ptr::NonNull,
+};
 
+pub use repr_offset::offset_calc::next_field_offset;
 
 pub use core_extensions::type_level_bool::{False, True};
 
@@ -86,15 +103,12 @@ pub mod renamed {
         LifetimeIndex as __LifetimeIndex,
         GetTypeLayoutCtor as __GetTypeLayoutCtor, 
         StableAbi as __StableAbi,
-        SharedStableAbi as __SharedStableAbi,
         _private_TypeLayoutDerive as __private_TypeLayoutDerive,
         TLFunction as __TLFunction,
         TLFunctions as __TLFunctions,
         CompTLFields as __CompTLFields,
         CompTLFunction as __CompTLFunction,
         StartLen as __StartLen,
-        ValueKind  as __ValueKind,
-        PrefixKind as __PrefixKind,
         WithMetadata_ as __WithMetadata_,
         PTStructLayout as __PTStructLayout,
         FieldAccessor as __FieldAccessor,

@@ -199,7 +199,7 @@ If the version number of the library is incompatible.
             // This might also reduce the code in the library,
             // because it doesn't have to compile the layout checker for every library.
             (globals::initialized_globals().layout_checking)
-                (<&M>::S_LAYOUT, root_mod_layout)
+                (<&M>::LAYOUT, root_mod_layout)
                 .into_result()
                 .map_err(LibraryError::AbiInstability)?;
         }

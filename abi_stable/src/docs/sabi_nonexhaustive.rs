@@ -179,7 +179,7 @@ use abi_stable::{
     sabi_extern_fn,
     external_types::{RawValueBox,RawValueRef},
     nonexhaustive_enum::{NonExhaustive,SerializeEnum,DeserializeEnum},
-    prefix_type::PrefixTypeTrait,
+    prefix_type::{PrefixTypeTrait, WithMetadata},
     std_types::{RBoxError,RString,RStr,RResult,ROk,RErr},
     traits::IntoReprC,
 };
@@ -226,7 +226,7 @@ impl SerializeEnum<ValidTag_NE> for ValidTag_Interface {
     type Proxy=RawValueBox;
 
     fn serialize_enum(this:&ValidTag_NE) -> Result<RawValueBox, RBoxError>{
-        get_module()
+        MODULE
             .serialize_tag()(this)
             .into_result()
         
@@ -240,7 +240,7 @@ impl<'a> DeserializeEnum<'a,ValidTag_NE> for ValidTag_Interface{
     type Proxy=RawValueRef<'a>;
 
     fn deserialize_enum(s: RawValueRef<'a>) -> Result<ValidTag_NE, RBoxError>{
-        get_module()
+        MODULE
             .deserialize_tag()(s.get_rstr())
             .into_result()
     }
@@ -283,22 +283,25 @@ assert_eq!(
 
 # }
 
-/**
-In this struct:
-
-- `#[sabi(kind(Prefix(prefix_struct="Module")))]` declares this type as being a prefix-type
-    with an ffi-safe equivalent called `Module` to which `ModuleVal` can be converted into.
-
-- `#[sabi(missing_field(panic))]` 
-    makes the field accessors panic when attempting to 
-    access nonexistent fields instead of the default of returning an Option<FieldType>.
-
-*/
+// In this struct:
+// 
+// - `#[sabi(kind(Prefix))]`
+// Declares this type as being a prefix-type, generating both of these types:
+// 
+//     - Module_Prefix`: A struct with the fields up to (and including) the field with the 
+//     `#[sabi(last_prefix_field)]` attribute.
+// 
+//     - Module_Ref`: An ffi-safe pointer to a `Module`,with methods to get `Module`'s fields.
+// 
+// - `#[sabi(missing_field(panic))]` 
+//     makes the field accessors of `ModuleRef` panic when attempting to 
+//     access nonexistent fields instead of the default of returning an Option<FieldType>.
+// 
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="Module")))]
+#[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
-pub struct ModuleVal{
+pub struct Module{
     pub serialize_tag:extern "C" fn(&ValidTag_NE)->RResult<RawValueBox,RBoxError>,
     
     /// `#[sabi(last_prefix_field)]`means that it is the last field in the struct
@@ -309,14 +312,19 @@ pub struct ModuleVal{
     pub deserialize_tag:extern "C" fn(s:RStr<'_>)->RResult<ValidTag_NE,RBoxError>,
 }
 
-
-# fn get_module()->&'static Module{
-#     ModuleVal{
-#         serialize_tag,
-#         deserialize_tag,
-#     }.leak_into_prefix()
-# }
-
+const MODULE: Module_Ref = {
+    // This is how ffi-safe pointers to non-generic prefix types are constructed
+    // at compile-time.
+    Module_Ref(
+        WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Module{
+                serialize_tag,
+                deserialize_tag,
+            }
+        ).static_as_prefix()
+    )
+};
 
 /////////////////////////////////////////////////////////////////////////////////////////
 ////   In implementation crate (the one that gets compiled as a dynamic library)    /////

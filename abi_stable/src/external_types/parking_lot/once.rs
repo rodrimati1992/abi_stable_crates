@@ -15,7 +15,6 @@ use super::{UnsafeOveralignedField,RAW_LOCK_SIZE};
 use crate::{
     utils::{transmute_mut_reference},
     prefix_type::{PrefixTypeTrait,WithMetadata},
-    sabi_types::StaticRef,
     std_types::{RResult,ROk,RErr},
 };
 
@@ -83,7 +82,7 @@ assert_eq!(*MUTEX.lock(),1);
 #[derive(StableAbi)]
 pub struct ROnce{
     opaque_once:OpaqueOnce,
-    vtable:StaticRef<VTable>,
+    vtable: VTable_Ref,
 }
 
 impl ROnce{
@@ -110,7 +109,7 @@ impl ROnce{
     pub const fn new() -> ROnce{
         ROnce{
             opaque_once:OPAQUE_ONCE,
-            vtable: WithMetadata::as_prefix(VTable::VTABLE),
+            vtable: VTable::VTABLE,
         }
     }
 
@@ -130,11 +129,11 @@ impl ROnce{
     pub const NEW:Self=
         ROnce{
             opaque_once:OPAQUE_ONCE,
-            vtable: WithMetadata::as_prefix(VTable::VTABLE),
+            vtable: VTable::VTABLE,
         };
 
-    fn vtable(&self)->&'static VTable{
-        self.vtable.get()
+    fn vtable(&self)-> VTable_Ref{
+        self.vtable
     }
 
 /**
@@ -472,9 +471,9 @@ impl<F> Closure<F>{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="VTable")))]
+#[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
-struct VTableVal{
+struct VTable{
     state:extern "C" fn(&OpaqueOnce)->ROnceState,
     call_once:extern "C" fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
     call_once_force:extern "C" fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
@@ -482,15 +481,17 @@ struct VTableVal{
 
 impl VTable{
     // The VTABLE for this type in this executable/library
-    const VTABLE: StaticRef<WithMetadata<VTableVal>> = {
-        StaticRef::new(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            VTableVal{
-                state,
-                call_once,
-                call_once_force
-            }
-        ))
+    const VTABLE: VTable_Ref = {
+        VTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                VTable{
+                    state,
+                    call_once,
+                    call_once_force
+                }
+            ).static_as_prefix()
+        )
     };
 }
 
