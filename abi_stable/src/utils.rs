@@ -39,7 +39,6 @@ pub fn ffi_panic_message(info:&'static PanicInfo) -> ! {
     std::process::exit(1);
 }
 
-
 //////////////////////////////////
 
 
@@ -54,6 +53,23 @@ impl Drop for AbortBomb{
     }
 }
 
+
+//////////////////////////////////
+
+/// Helper type for transmuting between `Copy` types
+/// without adding any overhead in debug builds.
+/// 
+/// # Safety
+/// 
+/// Be aware that using this type is equivalent to using [`std::mem::transmute_copy`],
+/// which doesn't check that `T` and `U` have the same size.
+///
+/// [`std::mem::transmute_copy`]: https://doc.rust-lang.org/std/mem/fn.transmute_copy.html
+#[repr(C)]
+pub union Transmuter<T: Copy, U: Copy> {
+    pub from: T,
+    pub to: U,
+}
 
 //////////////////////////////////
 

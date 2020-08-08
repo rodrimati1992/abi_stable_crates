@@ -188,7 +188,8 @@ impl<T> Drop for BoxLike<T>{
 //     - BoxVTable_Prefix`: A struct with the fields up to (and including) the field with the 
 //     `#[sabi(last_prefix_field)]` attribute.
 // 
-//     - BoxVTable_Ref`: An ffi-safe pointer to a `Module`,with methods to get `Module`'s fields.
+//     - BoxVTable_Ref`: An ffi-safe pointer to a `BoxVtable`, with methods to get
+//     `BoxVtable`'s fields.
 // 
 #[repr(C)]
 #[derive(StableAbi)]
@@ -264,7 +265,8 @@ use abi_stable::{
 //     - PersonMod_Prefix`: A struct with the fields up to (and including) the field with the 
 //     `#[sabi(last_prefix_field)]` attribute.
 // 
-//     - PersonMod_Ref`: An ffi-safe pointer to a `Module`,with methods to get `Module`'s fields.
+//     - PersonMod_Ref`:
+//      An ffi-safe pointer to a `PersonMod`,with methods to get`PersonMod`'s fields.
 // 
 #[repr(C)]
 #[derive(StableAbi)]

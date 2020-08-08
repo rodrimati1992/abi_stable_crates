@@ -1332,7 +1332,7 @@ impl CheckingGlobals{
     }
 }
 
-static CHECKING_GLOBALS:LateStaticRef<CheckingGlobals>=LateStaticRef::new();
+static CHECKING_GLOBALS:LateStaticRef<&CheckingGlobals>=LateStaticRef::new();
 
 pub fn get_checking_globals()->&'static CheckingGlobals{
     CHECKING_GLOBALS.init(||{

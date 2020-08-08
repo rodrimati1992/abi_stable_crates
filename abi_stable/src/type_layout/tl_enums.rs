@@ -191,6 +191,9 @@ macro_rules! declare_tl_discriminants {
             inner:TLDiscrsInner,
         }
 
+        unsafe impl Sync for TLDiscriminants {}
+        unsafe impl Send for TLDiscriminants {}
+
         #[repr(u8)]
         #[derive(Copy, Clone, StableAbi)]
         enum TLDiscrsInner{

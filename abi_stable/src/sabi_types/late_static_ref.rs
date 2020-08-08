@@ -3,11 +3,15 @@ A late-initialized static reference.
 */
 
 use std::{
+    marker::PhantomData,
+    ptr::{self, NonNull},
     sync::atomic::{AtomicPtr,Ordering},
-    ptr,
 };
 
-use crate::external_types::RMutex;
+use crate::{
+    external_types::RMutex,
+    pointer_trait::{ImmutableRef, NonNullTarget},
+};
 
 /**
 A late-initialized static reference,with fallible initialization.
@@ -54,7 +58,7 @@ pub enum UserAction{
 
 
 fn load_module(file_path:&Path)->Result<&'static Config,RBoxError>{
-    static CONFIG:LateStaticRef<Config>=LateStaticRef::new();
+    static CONFIG:LateStaticRef<&Config>=LateStaticRef::new();
     
     CONFIG.try_init(||{
         let file=load_file(file_path).map_err(RBoxError::new)?;
@@ -82,12 +86,15 @@ fn load_module(file_path:&Path)->Result<&'static Config,RBoxError>{
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct LateStaticRef<T>{
-    pointer:AtomicPtr<T>,
+    pointer:AtomicPtr<()>,
     lock:RMutex<()>,
+    _marker: PhantomData<T>,
 }
 
 const LOCK:RMutex<()>=RMutex::new(());
 
+unsafe impl<T: Sync> Sync for LateStaticRef<T> {}
+unsafe impl<T: Send> Send for LateStaticRef<T> {}
 
 impl<T> LateStaticRef<T>{
     /// Constructs the late initialized static reference,
@@ -98,16 +105,19 @@ impl<T> LateStaticRef<T>{
     /// ```
     /// use abi_stable::sabi_types::LateStaticRef;
     ///
-    /// static LATE_REF:LateStaticRef<String>=LateStaticRef::new();
+    /// static LATE_REF:LateStaticRef<&String>=LateStaticRef::new();
     ///
     /// ```
     pub const fn new()->Self{
         Self{
-            lock:LOCK,
-            pointer:AtomicPtr::new(ptr::null_mut()),
+            lock: LOCK,
+            pointer: AtomicPtr::new(ptr::null_mut()),
+            _marker: PhantomData,
         }
     }
+}
 
+impl<T> LateStaticRef<&'static T>{
     /// Constructs the late initialized static reference,
     /// initialized with `value`.
     ///
@@ -116,17 +126,101 @@ impl<T> LateStaticRef<T>{
     /// ```
     /// use abi_stable::sabi_types::LateStaticRef;
     ///
-    /// static LATE_REF:LateStaticRef<&'static str>=
-    ///     LateStaticRef::initialized(&"Hello!");
+    /// static LATE_REF:LateStaticRef<&&str>=
+    ///     LateStaticRef::from_ref(&"Hello!");
     ///
     /// ```
-    pub const fn initialized(value:&'static T)->Self{
+    pub const fn from_ref(value:&'static T)->Self{
         Self{
-            lock:LOCK,
-            pointer:AtomicPtr::new(value as *const T as *mut T),
+            lock: LOCK,
+            pointer: AtomicPtr::new(value as *const T as *mut ()),
+            _marker: PhantomData,
         }
     }
+}
 
+impl<T: 'static> LateStaticRef<T> {
+    /// Initializes the late initialized static with a NonNull pointer.
+    ///
+    /// # Safety
+    ///
+    /// The passed in pointer must be valid for passing to 
+    /// [`<T as ImmutableRef>::from_nonnull`],
+    /// it must be a valid pointer to `U`,
+    /// and be valid to dereference for the rest of the program's lifetime.
+    ///
+    /// [`<T as ImmutableRef>::from_nonnull`]:
+    /// ../pointer_trait/trait.ImmutableRef.html#method.from_nonnull
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{
+    ///     StableAbi,
+    ///     pointer_trait::ImmutableRef,
+    ///     prefix_type::{PrefixTypeTrait, WithMetadata},
+    ///     sabi_types::LateStaticRef
+    /// };
+    ///
+    /// fn main(){
+    ///     assert_eq!(LATE_REF.get().unwrap().get_number()(), 100);
+    /// }
+    ///
+    /// pub static LATE_REF: LateStaticRef<PersonMod_Ref> = {
+    ///     // This is how you can construct a `LateStaticRef<Foo_Ref>`,
+    ///     //  from a `Foo_Ref` at compile-time.
+    ///     // 
+    ///     // If you don't need a `LateStaticRef` you can construct a `PersonMod_Ref` constant,
+    ///     // and use that.
+    ///     unsafe{
+    ///         LateStaticRef::from_custom(ImmutableRef::TARGET, MODULE.0.as_nonnull()) 
+    ///     }
+    /// };
+    ///
+    /// #[repr(C)]
+    /// #[derive(StableAbi)]
+    /// #[sabi(kind(Prefix))]
+    /// pub struct PersonMod {
+    ///     /// The `#[sabi(last_prefix_field)]` attribute here means that this is 
+    ///     /// the last field in this struct that was defined in the 
+    ///     /// first compatible version of the library.
+    ///     /// Moving this attribute is a braeking change.
+    ///     #[sabi(last_prefix_field)]
+    ///     pub get_number: extern "C" fn()->u32,
+    /// 
+    /// }
+    /// 
+    /// const MODULE: PersonMod_Ref = {
+    ///     PersonMod_Ref(
+    ///         WithMetadata::new(
+    ///             PrefixTypeTrait::METADATA,
+    ///             PersonMod{
+    ///                 get_number,
+    ///             }
+    ///         ).static_as_prefix()
+    ///     )
+    /// };
+    /// 
+    /// extern fn get_number()->u32{
+    ///     100
+    /// }
+    /// ```
+    pub const unsafe fn from_custom<U: 'static>(
+        _target: NonNullTarget<T, U>,
+        ptr: NonNull<U>,
+    )->Self{
+        Self{
+            lock: LOCK,
+            pointer: AtomicPtr::new(ptr.as_ptr() as *mut ()),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T> LateStaticRef<T> 
+where
+    T: ImmutableRef + 'static
+{
     /// Lazily initializes the reference with `initializer`,
     /// returning the reference if either it was already initialized,or
     /// if `initalizer` returned Ok(..).
@@ -145,10 +239,10 @@ impl<T> LateStaticRef<T>{
     ///     utils::leak_value,
     /// };
     ///
-    /// static LATE:LateStaticRef<String>=LateStaticRef::new();
+    /// static LATE:LateStaticRef<&String>=LateStaticRef::new();
     ///
-    /// static EARLY:LateStaticRef<&'static str>=
-    ///     LateStaticRef::initialized(&"Hello!");
+    /// static EARLY:LateStaticRef<&&str>=
+    ///     LateStaticRef::from_ref(&"Hello!");
     ///
     /// assert_eq!( LATE.try_init(|| Err("oh no!") ), Err("oh no!") );
     /// assert_eq!( 
@@ -164,8 +258,8 @@ impl<T> LateStaticRef<T>{
     ///
     ///
     /// ```
-    pub fn try_init<F,E>(&self,initializer:F)->Result<&'static T,E>
-    where F:FnOnce()->Result<&'static T,E>
+    pub fn try_init<F,E>(&self,initializer:F)->Result<T,E>
+    where F:FnOnce()->Result<T,E>
     {
         if let Some(pointer)=self.get() {
             return Ok(pointer);
@@ -179,7 +273,7 @@ impl<T> LateStaticRef<T>{
 
         let pointer=initializer()?;
 
-        self.pointer.store(pointer as *const T as *mut T,Ordering::Release);
+        self.pointer.store(pointer.to_raw_ptr() as *mut T::Target as *mut (), Ordering::Release);
 
         drop(guard_);
 
@@ -203,10 +297,10 @@ impl<T> LateStaticRef<T>{
     ///     utils::leak_value,
     /// };
     ///
-    /// static LATE:LateStaticRef<String>=LateStaticRef::new();
+    /// static LATE:LateStaticRef<&String>=LateStaticRef::new();
     ///
-    /// static EARLY:LateStaticRef<&'static str>=
-    ///     LateStaticRef::initialized(&"Hello!");
+    /// static EARLY:LateStaticRef<&&str>=
+    ///     LateStaticRef::from_ref(&"Hello!");
     ///
     /// let _=std::panic::catch_unwind(||{
     ///     LATE.init(|| panic!() );
@@ -218,17 +312,17 @@ impl<T> LateStaticRef<T>{
     ///
     /// ```
     #[inline]
-    pub fn init<F>(&self,initializer:F)->&'static T
-    where F:FnOnce()->&'static T
+    pub fn init<F>(&self,initializer:F)->T
+    where F:FnOnce()->T
     {
         self
-            .try_init(||->Result<&'static T,()>{ 
+            .try_init(||->Result<T, std::convert::Infallible>{ 
                 Ok(initializer()) 
             })
             .expect("bug:LateStaticRef::try_init should only return an Err if `initializer` does")
     }
 
-    /// Returns `Some(x:&'static T)` if the reference was initialized,otherwise returns None.
+    /// Returns `Some(x:T)` if the reference was initialized,otherwise returns None.
     ///
     /// # Example
     ///
@@ -238,10 +332,10 @@ impl<T> LateStaticRef<T>{
     ///     utils::leak_value,
     /// };
     ///
-    /// static LATE:LateStaticRef<String>=LateStaticRef::new();
+    /// static LATE:LateStaticRef<&String>=LateStaticRef::new();
     ///
-    /// static EARLY:LateStaticRef<&'static str>=
-    ///     LateStaticRef::initialized(&"Hello!");
+    /// static EARLY:LateStaticRef<&&str>=
+    ///     LateStaticRef::from_ref(&"Hello!");
     ///
     /// let _=std::panic::catch_unwind(||{
     ///     LATE.init(|| panic!() );
@@ -254,11 +348,9 @@ impl<T> LateStaticRef<T>{
     /// assert_eq!( EARLY.get(), Some(&"Hello!") );
     ///
     /// ```
-    pub fn get(&self)->Option<&'static T>{
+    pub fn get(&self)->Option<T>{
         unsafe{
-            self.pointer
-                .load(Ordering::Acquire)
-                .as_ref()
+            T::from_raw_ptr(self.pointer.load(Ordering::Acquire) as *mut T::Target)
         }
     }
 }
@@ -287,7 +379,7 @@ mod tests{
 
     #[test]
     fn test_init(){
-        let ptr=LateStaticRef::<u32>::new();
+        let ptr=LateStaticRef::<&u32>::new();
 
         assert_eq!(None,ptr.get() );
         
@@ -310,7 +402,7 @@ mod tests{
 
     #[test]
     fn test_try_init(){
-        let ptr=LateStaticRef::<u32>::new();
+        let ptr=LateStaticRef::<&u32>::new();
 
         assert_eq!(None,ptr.get() );
         
@@ -338,3 +430,5 @@ mod tests{
 
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////

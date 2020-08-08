@@ -1,6 +1,6 @@
 use crate::{
     abi_stability::{GetStaticEquivalent_, GetStaticEquivalent, PrefixStableAbi, StableAbi},
-    pointer_trait::NonNullPointer,
+    pointer_trait::ImmutableRef,
     prefix_type::{WithMetadata_, PrefixMetadata},
     reexports::True,
     reflection::ModReflMode,
@@ -94,6 +94,11 @@ impl<P> PrefixRef<P>{
         self.ptr.as_ptr()
     }
 
+    #[inline]
+    pub const fn as_nonnull(self)-> NonNull<WithMetadata_<P, P>> {
+        self.ptr
+    }
+
     pub const unsafe fn cast<T>(self)->PrefixRef<T>{
         PrefixRef{
             ptr: self.ptr.cast()
@@ -143,16 +148,6 @@ where
     };
 }
 
-unsafe impl<P> NonNullPointer for PrefixRef<P> {
+unsafe impl<P> ImmutableRef for PrefixRef<P> {
     type Target = WithMetadata_<P, P>;
-
-    #[inline(always)]
-    fn to_nonnull(self) -> NonNull<WithMetadata_<P, P>> {
-        self.ptr
-    }
-
-    #[inline(always)]
-    unsafe fn from_nonnull(ptr: NonNull<WithMetadata_<P, P>>)-> Self {
-        Self{ptr}
-    }
 }

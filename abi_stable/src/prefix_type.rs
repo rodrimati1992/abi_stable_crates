@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-    pointer_trait::NonNullPointer,
+    pointer_trait::ImmutableRef,
     marker_type::NotCopyNotClone,
     sabi_types::StaticRef,
 };
@@ -65,7 +65,7 @@ pub unsafe trait PrefixTypeTrait: Sized {
 
     type PrefixFields;
 
-    type PrefixRef: NonNullPointer<Target = WithMetadata_<Self::PrefixFields, Self::PrefixFields>>;
+    type PrefixRef: ImmutableRef<Target = WithMetadata_<Self::PrefixFields, Self::PrefixFields>>;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
