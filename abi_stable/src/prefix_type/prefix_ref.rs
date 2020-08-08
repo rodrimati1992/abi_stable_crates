@@ -4,6 +4,7 @@ use crate::{
     prefix_type::{WithMetadata_, PrefixMetadata},
     reexports::True,
     reflection::ModReflMode,
+    sabi_types::StaticRef,
     type_layout::{
         CompTLField, GenericTLData, LifetimeRange, MonoTLData, MonoTypeLayout, ReprAttr,
         TypeLayout,
@@ -51,12 +52,26 @@ impl<P> Debug for PrefixRef<P> {
 
 impl<P> PrefixRef<P>{
     #[inline]
-    pub const unsafe fn new<T>(ptr: *const WithMetadata_<T, P>) -> Self {
+    pub const unsafe fn from_raw<T>(ptr: *const WithMetadata_<T, P>) -> Self {
         Self{
             ptr: NonNull::new_unchecked(
                 ptr as *const WithMetadata_<P, P>
                     as *mut WithMetadata_<P, P>
             )
+        }
+    }
+
+    #[inline]
+    pub const fn from_staticref<T>(ptr: StaticRef<WithMetadata_<T, P>>) -> Self {
+        unsafe{
+            Self::from_raw(ptr.get_raw())
+        }
+    }
+
+    #[inline]
+    pub const fn from_ref<T>(ptr: &'static WithMetadata_<T, P>) -> Self {
+        unsafe{
+            Self::from_raw(ptr)
         }
     }
 
@@ -77,19 +92,6 @@ impl<P> PrefixRef<P>{
     #[inline]
     pub const fn as_ptr(self)-> *const WithMetadata_<P, P> {
         self.ptr.as_ptr()
-    }
-
-    /// 
-    /// # Safety
-    /// 
-    /// The pointer must come from `PrefixRef::as_ptr`.
-    #[inline]
-    pub const unsafe fn from_raw(ptr: *const WithMetadata_<P, P> )-> Self {
-        Self{
-            ptr: NonNull::new_unchecked(
-                ptr as *mut WithMetadata_<P, P>
-            )
-        }
     }
 
     pub const unsafe fn cast<T>(self)->PrefixRef<T>{

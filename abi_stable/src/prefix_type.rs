@@ -11,6 +11,7 @@ use std::{
 use crate::{
     pointer_trait::NonNullPointer,
     marker_type::NotCopyNotClone,
+    sabi_types::StaticRef,
 };
 
 #[allow(unused_imports)]
@@ -57,8 +58,8 @@ pub unsafe trait PrefixTypeTrait: Sized {
     /// Convers `Self` to `&'a Self::Prefix`,leaking it in the process.
     fn leak_into_prefix(self)->Self::PrefixRef{
         let x=WithMetadata::new(Self::METADATA, self);
-        let x=crate::utils::leak_value(x);
-        let x=unsafe{ PrefixRef::new(x) };
+        let x=StaticRef::leak_value(x);
+        let x=PrefixRef::from_staticref(x);
         Self::from_prefix_ref(x)
     }
 
@@ -107,7 +108,7 @@ impl<T, P> WithMetadata_<T, P> {
     /// TODO
     #[inline]
     pub const unsafe fn raw_as_prefix(this: *const Self) -> PrefixRef<P> {
-        PrefixRef::new(this)
+        PrefixRef::from_raw(this)
     }
 
     /// 
@@ -117,13 +118,18 @@ impl<T, P> WithMetadata_<T, P> {
     /// TODO
     #[inline]
     pub const unsafe fn as_prefix(&self) -> PrefixRef<P> {
-        PrefixRef::new(self)
+        PrefixRef::from_raw(self)
     }
 
     #[inline]
     pub const fn static_as_prefix(&'static self) -> PrefixRef<P> {
-        //Safety: TODO
-        unsafe{ PrefixRef::new(self) }
+        PrefixRef::from_ref(self) 
+    }
+}
+
+impl<T, P> StaticRef<WithMetadata_<T, P>>{
+    pub const fn as_prefix(self) -> PrefixRef<P> {
+        PrefixRef::from_staticref(self)
     }
 }
 

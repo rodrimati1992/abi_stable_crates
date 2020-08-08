@@ -86,6 +86,7 @@ pub use crate::{
 };
 
 pub use std::{
+    convert::identity,
     fmt::{Formatter, Debug, Result as FmtResult},
     ptr::NonNull,
 };

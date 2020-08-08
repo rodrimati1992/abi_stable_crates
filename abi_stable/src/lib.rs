@@ -237,6 +237,11 @@ pub mod inline_storage;
 
 #[doc(hidden)]
 pub mod derive_macro_reexports;
+
+// `pmr` is what I call "private" reexport for macros in newer crates.
+#[doc(hidden)]
+pub use self::derive_macro_reexports as pmr;
+
 pub mod std_types;
 pub mod sabi_types;
 

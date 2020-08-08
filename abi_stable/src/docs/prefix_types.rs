@@ -105,9 +105,9 @@ use std::{
 use abi_stable::{
     StableAbi,
     extern_fn_panic_handling,
+    staticref,
     pointer_trait::{CallReferentDrop, TransmuteElement},
     prefix_type::{PrefixTypeTrait, WithMetadata},
-    sabi_types::StaticRef,
 };
 
 /// An ffi-safe `Box<T>`
@@ -199,7 +199,7 @@ pub(crate) struct BoxVtable<T> {
     /// the last field in this struct that was defined in the 
     /// first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    /// requiring new fields to always be added bellow preexisting ones.
+    /// requiring new fields to always be added after it.
     /// 
     /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
     /// bumps its "major" version,
@@ -213,15 +213,20 @@ pub(crate) struct BoxVtable<T> {
 // This is how ffi-safe pointers to generic prefix types are constructed
 // at compile-time.
 impl<T> BoxVtable<T>{
-    const VTABLE: BoxVtable_Ref<T> =unsafe{
-        BoxVtable_Ref(
-            WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                Self{
-                    destructor:destroy_box::<T>,
-                },
-            ).as_prefix()
-        )
+    // This macro declares a `StaticRef<WithMetadata<BoxVtable<T>>>` constant.
+    //
+    // StaticRef represents a reference to data that lives forever,
+    // but is not necessarily `'static` according to the type system,
+    // eg: `BoxVtable<T>`.
+    staticref!(const VTABLE_VAL: WithMetadata<Self> = WithMetadata::new(
+        PrefixTypeTrait::METADATA,
+        Self{
+            destructor:destroy_box::<T>,
+        },
+    ));
+
+    const VTABLE: BoxVtable_Ref<T> = {
+        BoxVtable_Ref( Self::VTABLE_VAL.as_prefix() )
     };
 }
 
