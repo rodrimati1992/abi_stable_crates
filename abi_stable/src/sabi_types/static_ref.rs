@@ -3,8 +3,6 @@ use crate::{
     pointer_trait::{CanTransmuteElement,GetPointerKind,PK_Reference},
 };
 
-use super::RRef;
-
 use std::{
     ops::{Deref},
     fmt::{self,Display},
@@ -37,9 +35,18 @@ use abi_stable::{
     utils::transmute_mut_reference,
     StableAbi,
     sabi_extern_fn,
+    staticref,
 };
 
-use std::marker::PhantomData;
+use std::{
+    marker::PhantomData,
+    ops::Deref,
+};
+
+fn main(){
+    let boxed = BoxLike::new("foo".to_string());
+    assert_eq!(boxed.as_str(), "foo");
+}
 
 /// An ffi-safe `Box<T>`
 #[repr(C)]
@@ -52,34 +59,52 @@ pub struct BoxLike<T> {
     _marker: PhantomData<T>,
 }
 
+impl<T> BoxLike<T> {
+    pub fn new(value: T) -> Self {
+        Self{
+            data: Box::into_raw(Box::new(value)),
+            vtable: VTable::<T>::VTABLE,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T> Drop for BoxLike<T> {
+    fn drop(&mut self){
+        unsafe{
+            (self.vtable.drop_)(self.data);
+        }
+    }
+}
+
+impl<T> Deref for BoxLike<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        unsafe{
+            &*self.data
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct VTable<T>{
     drop_:unsafe extern "C" fn(*mut T),
 }
 
-
-mod vtable{
-    use super::*;
-
-    impl<T> VTable<T> {
-        const VTABLE:StaticRef<Self>=unsafe{
-            StaticRef::from_raw(&Self{
-                drop_:drop_::<T>,
-            })
-        };
-    }
+impl<T> VTable<T> {
+    // The `staticref` macro declares a `StaticRef<VTable<T>>` constant.
+    staticref!(const VTABLE: Self = Self{
+        drop_: drop_box::<T>,
+    });
 }
-
-
 
 
 #[sabi_extern_fn]
-unsafe fn drop_<T>(object:*mut T){
-    std::ptr::drop_in_place(object);
+unsafe fn drop_box<T>(object: *mut T){
+    drop(Box::from_raw(object));
 }
-
-# fn main(){}
 
 ```
 
@@ -181,6 +206,13 @@ impl<T> StaticRef<T>{
         }
     }
 
+    pub fn leak_value(val: T) -> Self {
+        // Safety: TODO
+        unsafe{
+            Self::from_raw(crate::utils::leak_value(val))
+        }
+    }
+
     /// Gets access to the reference.
     ///
     /// This returns `&'a T` instead of `&'static T` to support vtables of `non-'static` types.
@@ -266,26 +298,6 @@ impl<T> StaticRef<T>{
         StaticRef::from_raw(
             self.ref_.as_ptr() as *const T as *const U
         )
-    }
-
-    /// Converts this `StaticRef<T>` to an `RRef<'a,T>`.
-    pub const fn to_rref<'a>(self)->RRef<'a,T>
-    where
-        T:'a,
-    {
-        unsafe{
-            RRef::from_raw(self.ref_.as_ptr())
-        }
-    }
-}
-
-impl<T> From<RRef<'static,T>> for StaticRef<T>
-where
-    T:'static,
-{
-    #[inline]
-    fn from(v:RRef<'static,T>)->Self{
-        StaticRef::new(v.get())
     }
 }
 

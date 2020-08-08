@@ -226,7 +226,7 @@ impl SerializeEnum<ValidTag_NE> for ValidTag_Interface {
     type Proxy=RawValueBox;
 
     fn serialize_enum(this:&ValidTag_NE) -> Result<RawValueBox, RBoxError>{
-        MODULE
+        Module::VALUE
             .serialize_tag()(this)
             .into_result()
         
@@ -240,7 +240,7 @@ impl<'a> DeserializeEnum<'a,ValidTag_NE> for ValidTag_Interface{
     type Proxy=RawValueRef<'a>;
 
     fn deserialize_enum(s: RawValueRef<'a>) -> Result<ValidTag_NE, RBoxError>{
-        MODULE
+        Module::VALUE
             .deserialize_tag()(s.get_rstr())
             .into_result()
     }
@@ -312,19 +312,24 @@ pub struct Module{
     pub deserialize_tag:extern "C" fn(s:RStr<'_>)->RResult<ValidTag_NE,RBoxError>,
 }
 
-const MODULE: Module_Ref = {
-    // This is how ffi-safe pointers to non-generic prefix types are constructed
-    // at compile-time.
-    Module_Ref(
-        WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Module{
-                serialize_tag,
-                deserialize_tag,
-            }
-        ).static_as_prefix()
-    )
-};
+// This is how you can construct `Module` in a way that allows it to become generic later.
+impl Module {
+    // This macro declares a `StaticRef<WithMetadata<BoxVtable<T>>>` constant.
+    //
+    // StaticRef represents a reference to data that lives forever,
+    // but is not necessarily `'static` according to the type system.
+    // 
+    // StaticRef not necessary in this case, it's more useful with generic types..
+    abi_stable::staticref!(const TMP0: WithMetadata<Self> = WithMetadata::new(
+        PrefixTypeTrait::METADATA,
+        Self{
+            serialize_tag,
+            deserialize_tag,
+        },
+    ));
+
+    const VALUE: Module_Ref = Module_Ref( Self::TMP0.as_prefix() );
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 ////   In implementation crate (the one that gets compiled as a dynamic library)    /////

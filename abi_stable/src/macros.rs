@@ -831,6 +831,161 @@ macro_rules! make_shared_vars{
 ///////////////////////////////////////////////////////////////////////////////
 
 
+/// Allows declaring a [`StaticRef`] constant.
+/// 
+/// This macro is most useful when declaring an associated constant of non-`'static` types.
+///
+/// # Example
+///
+/// This example demonstrates how you can construct a pointer to a vtable,
+/// constructed at compile-time.
+///
+/// ```rust
+/// use abi_stable::{
+///     StableAbi,
+///     extern_fn_panic_handling,
+///     staticref,
+///     pointer_trait::CallReferentDrop,
+///     prefix_type::{PrefixTypeTrait, WithMetadata},
+/// };
+/// 
+/// use std::{
+///     mem::ManuallyDrop,
+///     ops::Deref,
+/// };
+/// 
+/// fn main(){
+///     let boxed = BoxLike::new(100);
+///    
+///     assert_eq!(*boxed, 100);
+///     assert_eq!(boxed.into_inner(), 100);
+/// }
+/// 
+/// /// An ffi-safe `Box<T>`
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// pub struct BoxLike<T> {
+///     data: *mut T,
+///     
+///     vtable: VTable_Ref<T>,
+/// 
+///     _marker: std::marker::PhantomData<T>,
+/// }
+/// 
+/// impl<T> BoxLike<T>{
+///     pub fn new(value: T) -> Self {
+///         let box_ = Box::new(value);
+///         
+///         Self{
+///             data: Box::into_raw(box_),
+///             vtable: VTable::VTABLE,
+///             _marker: std::marker::PhantomData,
+///         }
+///     }
+/// 
+///     /// Extracts the value this owns.
+///     pub fn into_inner(self) -> T{
+///         let this = ManuallyDrop::new(self);
+///         unsafe{
+///             // Must copy this before calling `self.vtable.destructor()`
+///             // because otherwise it would be reading from a dangling pointer.
+///             let ret = this.data.read();
+///             this.vtable.destructor()(this.data,CallReferentDrop::No);
+///             ret
+///         }
+///     }
+/// }
+/// 
+/// 
+/// impl<T> Drop for BoxLike<T>{
+///     fn drop(&mut self){
+///         unsafe{
+///             self.vtable.destructor()(self.data, CallReferentDrop::Yes)
+///         }
+///     }
+/// }
+/// 
+/// // `#[sabi(kind(Prefix))]` Declares this type as being a prefix-type,
+/// // generating both of these types:
+/// // 
+/// //     - VTable_Prefix`: A struct with the fields up to (and including) the field with the 
+/// //     `#[sabi(last_prefix_field)]` attribute.
+/// // 
+/// //     - VTable_Ref`: An ffi-safe pointer to `VTable`,with methods to get `VTable`'s fields.
+/// // 
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// #[sabi(kind(Prefix))]
+/// struct VTable<T>{
+///     #[sabi(last_prefix_field)]
+///     destructor: unsafe extern "C" fn(*mut T, CallReferentDrop),
+/// }
+/// 
+/// impl<T> VTable<T>{
+///    staticref!(const VTABLE_VAL: WithMetadata<Self> = WithMetadata::new(
+///        PrefixTypeTrait::METADATA,
+///        Self{
+///            destructor: destroy_box::<T>,
+///        },
+///    ));
+/// 
+///    const VTABLE: VTable_Ref<T> = {
+///        VTable_Ref( Self::VTABLE_VAL.as_prefix() )
+///    };
+/// } 
+/// 
+/// unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {
+///     extern_fn_panic_handling! {
+///         let mut box_ = Box::from_raw(v as *mut ManuallyDrop<T>);
+///         if call_drop == CallReferentDrop::Yes {
+///             ManuallyDrop::drop(&mut *box_);
+///         }
+///         drop(box_);
+///     }
+/// }
+/// 
+/// 
+/// impl<T> Deref for BoxLike<T> {
+///     type Target=T;
+/// 
+///     fn deref(&self)->&T{
+///         unsafe{
+///             &(*self.data)
+///         }
+///     }
+/// }
+/// ```
+///
+/// [`StaticRef`]: ./sabi_types/struct.StaticRef.html
+#[macro_export]
+macro_rules! staticref{
+    (
+        $(
+            $(#[$attr:meta])* $vis:vis const $name:ident : $ty:ty = $expr:expr
+        );*
+        $(;)?
+    )=>{
+        $(
+            $(#[$attr])* 
+            $vis const $name : $crate::sabi_types::StaticRef<$ty> = {
+                // Generating a random base36 string to avoid name collisions
+                const fn __sabi_mtuxotq5otc3ntu5mdq4ntgwmzi<T>(
+                    x: &T
+                ) -> $crate::sabi_types::StaticRef<T> {
+                    unsafe{
+                        $crate::sabi_types::StaticRef::from_raw(x)
+                    }
+                }
+
+                __sabi_mtuxotq5otc3ntu5mdq4ntgwmzi( &$crate::pmr::identity::<$ty>($expr) )
+            };
+        )*
+    };
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+
 #[allow(unused_macros)]
 macro_rules! delegate_interface_serde {
     (
