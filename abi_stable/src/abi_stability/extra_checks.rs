@@ -657,7 +657,7 @@ use core_extensions::SelfOps;
 #[sabi(no_trait_impl)]
 // #[sabi(debug_print_trait)]
 // #[sabi(debug_print)]
-pub unsafe trait TypeChecker:'static {
+pub unsafe trait TypeChecker:'static+Send+Sync{
     /// Checks that `ìnterface` is compatible with `implementation.` 
     /// 
     /// This is equivalent to `check_layout_compatibility`,
@@ -705,7 +705,7 @@ pub type TypeCheckerMut<'b>=
 #[sabi(no_trait_impl)]
 // #[sabi(debug_print_trait)]
 // #[sabi(debug_print)]
-pub unsafe trait ExtraChecks:'static+Debug+Display+Clone{
+pub unsafe trait ExtraChecks:'static+Debug+Display+Clone+Send+Sync{
     /// Gets the type layout of `Self`(the type that implements ExtraChecks)
     ///
     /// This is used to downcast the trait object in 

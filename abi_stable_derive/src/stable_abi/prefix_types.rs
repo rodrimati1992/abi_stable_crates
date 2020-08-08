@@ -680,7 +680,7 @@ TODO
                 )*
             }
 
-            unsafe impl #impl_generics __sabi_re::NonNullPointer for #prefix_ref #ty_generics 
+            unsafe impl #impl_generics __sabi_re::ImmutableRef for #prefix_ref #ty_generics 
             where
                 #(#where_preds_rl,)*
             {
@@ -688,18 +688,6 @@ TODO
                     #prefix_fields_struct #ty_generics,
                     #prefix_fields_struct #ty_generics,
                 >;
-
-                #[inline]
-                fn to_nonnull(self)->__sabi_re::NonNull<__sabi_re::NonNullPointerTarget<Self>> {
-                    self.0.to_nonnull()
-                }
-
-                #[inline]
-                unsafe fn from_nonnull(
-                    from: __sabi_re::NonNull<__sabi_re::NonNullPointerTarget<Self>>
-                )-> Self {
-                    Self(__sabi_re::NonNullPointer::from_nonnull(from))
-                }
             }
 
             // unsafe impl #impl_generics __sabi_re::GetStaticEquivalent_

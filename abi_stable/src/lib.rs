@@ -316,7 +316,7 @@ pub mod globals{
         }
     }
 
-    pub(crate)static GLOBALS:LateStaticRef<Globals>=LateStaticRef::new();
+    pub(crate)static GLOBALS:LateStaticRef<&Globals>=LateStaticRef::new();
 
     #[inline(never)]
     pub fn initialized_globals()->&'static Globals{

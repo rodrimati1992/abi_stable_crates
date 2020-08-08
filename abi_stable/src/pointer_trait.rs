@@ -7,7 +7,11 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::sabi_types::MovePtr;
+use crate::{
+    marker_type::NonOwningPhantom,
+    sabi_types::MovePtr,
+    utils::Transmuter,
+};
 
 #[allow(unused_imports)]
 use core_extensions::{prelude::*, utils::transmute_ignore_size};
@@ -267,33 +271,103 @@ pub unsafe trait OwnedPointer:Sized+DerefMut+GetPointerKind{
 ///////////////////////////////////////////////////////////////////////////////
 
 
-/// Trait for non-owning pointers that are reference-like.
-pub unsafe trait NonNullPointer: Copy {
+/// Trait for non-owning pointers that are shared-reference-like.
+///
+/// # Safety 
+///
+/// Implementors must only contain a non-null pointer [(*1)](#clarification1).
+/// For structs it means that they must be `#[repr(transparent)]` wrappers around 
+/// `&`/`&mut`/`NonNull`/`impl ImmutableRef`.
+///
+/// Implementors must not override any of the methods in this trait.
+/// 
+/// <span id="clarification1">(*1)</span>
+/// They can also contain any amount of zero-sized fields with an alignement of 1.
+//
+// # Implementation notes
+//
+// The default methods use `Transmuter` instead of:
+// - `std::mem::transmute` because the compiler doesn't know that the size of 
+//   `*const ()` and `Self` is the same
+// - `std::mem::transmute_copy`: incurrs function call overhead in unoptimized builds,
+// which is unnacceptable.
+//
+// These methods have been defined to compile to a couple of `mov`s in debug builds.
+pub unsafe trait ImmutableRef: Copy {
     type Target;
 
+    /// A marker type that can be used as a proof that the `T` in  `NonNullTarget<T, U>`
+    /// implements `ImmutableRef<Target = U>`.
+    const TARGET: NonNullTarget<Self, Self::Target> = NonNullTarget::new();
+
     /// Converts this pointer to a `NonNull`.
-    fn to_nonnull(self)->NonNull<Self::Target>;
+    #[inline(always)]
+    fn to_nonnull(self)->NonNull<Self::Target> {
+        unsafe{ Transmuter{from: self}.to }
+    }
 
     /// Constructs this pointer from a `NonNull`.
     /// 
     /// # Safety 
     /// 
-    /// `from` must come from a call to `NonNullPointer::to_nonnull`
-    /// on an instance of `Self`, with the same lifetime.
-    unsafe fn from_nonnull(from: NonNull<Self::Target>)->Self;
-}
-
-pub type NonNullPointerTarget<T> = <T as NonNullPointer>::Target;
-
-
-unsafe impl<'a, T> NonNullPointer for &'a T {
-    type Target = T;
-    
-    fn to_nonnull(self)->NonNull<Self::Target>{
-        NonNull::from(self)
+    /// `from` must be one of this:
+    ///
+    /// - A pointer from a call to `ImmutableRef::to_nonnull` or 
+    /// `ImmutableRef::to_raw_ptr` on an instance of `Self`,
+    /// with the same lifetime.
+    ///
+    /// - Valid to transmute to Self.
+    #[inline(always)]
+    unsafe fn from_nonnull(from: NonNull<Self::Target>)->Self{
+        unsafe{ Transmuter{from}.to }
     }
 
-    unsafe fn from_nonnull(from: NonNull<Self::Target>)->Self {
-        &*(from.as_ptr() as *const T)
+    /// Constructs this pointer from a `NonNull`.
+    #[inline(always)]
+    fn to_raw_ptr(self)->*const Self::Target {
+        unsafe{ Transmuter{from: self}.to }
+    }
+
+    /// Converts this pointer to a raw pointer.
+    /// 
+    /// # Safety
+    /// 
+    /// This has the same safety requirements as [`from_nonnull`](#method.from_nonnull)
+    #[inline(always)]
+    unsafe fn from_raw_ptr(from: *const Self::Target)-> Option<Self> {
+        unsafe{ Transmuter{from}.to }
+    }
+}
+
+pub type ImmutableRefTarget<T> = <T as ImmutableRef>::Target;
+
+
+unsafe impl<'a, T> ImmutableRef for &'a T {
+    type Target = T;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+/// A marker type that can be used as a proof that the `T` in  `NonNullTarget<T, U>`
+/// implements `ImmutableRef<Target = U>`.
+pub struct NonNullTarget<T, U>(NonOwningPhantom<fn()->(T, U)>);
+
+impl<T, U> Copy for NonNullTarget<T, U> {}
+impl<T, U> Clone for NonNullTarget<T, U> {
+    fn clone(&self)->Self{
+        *self
+    }
+}
+
+impl<T, U> NonNullTarget<T, U> {
+    // This function is private on purpose.
+    //
+    // This type is only supposed to be constructed in the default initializer for 
+    // `ImmutableRef::TARGET`.
+    #[inline(always)]
+    const fn new()->Self{
+        Self(NonOwningPhantom::DEFAULT)
     }
 }
