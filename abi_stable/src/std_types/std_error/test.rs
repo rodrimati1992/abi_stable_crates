@@ -135,3 +135,53 @@ fn casts_among_rboxerrors(){
     }
 }
 
+
+fn check_formatted_debug_display(str_err: &Stringy, rerr: &RBoxError) {
+    let as_dd = rerr.as_debug_display().unwrap();
+    assert_eq!(format!("{:#?}", str_err), as_dd.debug.as_str());
+    assert_eq!(format!("{:#}", str_err), as_dd.display.as_str());
+    assert_eq!(str_err.str, as_dd.display.as_str());
+
+    check_formatting_equivalence(&str_err,rerr);
+}
+
+#[test]
+fn to_formatted() {
+    let str_err=Stringy::new("hello\n\rworld");
+
+    {
+        let rerr = RBoxError::new(str_err.clone());
+
+        assert_eq!(rerr.as_debug_display(), None);
+
+        check_formatting_equivalence(&str_err,&rerr);
+        let rerr: RBoxError = rerr.to_formatted_error();
+        
+
+        check_formatted_debug_display(&str_err, &rerr);
+        check_formatted_debug_display(&str_err, &rerr.to_formatted_error());
+    }
+    
+}
+
+#[test]
+fn from_fmt_or_debug(){
+    let str_err=Stringy::new("hello\n\rworld");
+
+    {
+        let rerr = RBoxError::from_fmt(str_err.clone());
+
+        check_formatted_debug_display(&str_err, &rerr);
+        check_formatted_debug_display(&str_err, &rerr.to_formatted_error());
+    }
+    {
+        let rerr = RBoxError::from_debug(str_err.clone());
+
+        let as_dd = rerr.as_debug_display().unwrap();
+        assert_eq!(format!("{:#?}", str_err), as_dd.debug.as_str());
+        assert_eq!(format!("{:#?}", str_err), as_dd.display.as_str());
+
+        assert_eq!(format!("{:#?}", str_err), format!("{:#?}", rerr));
+        assert_eq!(format!("{:#?}", str_err), format!("{}", rerr));
+    }
+}

@@ -30,12 +30,15 @@ mod stable_abi_attributes;
 #[cfg(all(test,not(feature="only_new_tests")))]
 mod const_params;
 
-#[cfg(test)]
+// #[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod lifetime_indices_tests;
 
-#[cfg(test)]
+// #[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod get_type_layout;
 
 
-#[cfg(test)]
+// #[cfg(test)]
+#[cfg(all(test,not(feature="only_new_tests")))]
 mod shared_types;

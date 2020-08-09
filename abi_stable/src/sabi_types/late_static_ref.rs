@@ -10,6 +10,7 @@ use std::{
 
 use crate::{
     external_types::RMutex,
+    prefix_type::PrefixRef,
     pointer_trait::{ImmutableRef, NonNullTarget},
 };
 
@@ -139,8 +140,8 @@ impl<T> LateStaticRef<&'static T>{
     }
 }
 
-impl<T: 'static> LateStaticRef<T> {
-    /// Initializes the late initialized static with a NonNull pointer.
+impl<T: 'static> LateStaticRef<PrefixRef<T>> {
+    /// Constructs the late initialized static from a [`PrefixRef`].
     ///
     /// # Safety
     ///
@@ -173,7 +174,7 @@ impl<T: 'static> LateStaticRef<T> {
     ///     // If you don't need a `LateStaticRef` you can construct a `PersonMod_Ref` constant,
     ///     // and use that.
     ///     unsafe{
-    ///         LateStaticRef::from_custom(ImmutableRef::TARGET, MODULE.0.as_nonnull()) 
+    ///         LateStaticRef::from_prefixref(ImmutableRef::TARGET, MODULE.0.as_nonnull()) 
     ///     }
     /// };
     ///
@@ -205,6 +206,30 @@ impl<T: 'static> LateStaticRef<T> {
     ///     100
     /// }
     /// ```
+    /// 
+    /// [`PrefixRef`]: ../../prefix_type/struct.PrefixRef.html
+    pub const fn from_prefixref(ptr: PrefixRef<T>) -> Self {
+        Self{
+            lock: LOCK,
+            pointer: AtomicPtr::new(ptr.as_ptr() as *mut ()),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T: 'static> LateStaticRef<T> {
+    /// Constructs the late initialized static from a `NonNull` pointer.
+    ///
+    /// # Safety
+    ///
+    /// The passed in pointer must be valid for passing to 
+    /// [`<T as ImmutableRef>::from_nonnull`],
+    /// it must be a valid pointer to `U`,
+    /// and be valid to dereference for the rest of the program's lifetime.
+    ///
+    /// [`<T as ImmutableRef>::from_nonnull`]:
+    /// ../pointer_trait/trait.ImmutableRef.html#method.from_nonnull
+    ///
     pub const unsafe fn from_custom<U: 'static>(
         _target: NonNullTarget<T, U>,
         ptr: NonNull<U>,

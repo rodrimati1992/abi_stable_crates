@@ -12,6 +12,7 @@ use crate::{
     pointer_trait::ImmutableRef,
     marker_type::NotCopyNotClone,
     sabi_types::StaticRef,
+    utils::Transmuter,
 };
 
 #[allow(unused_imports)]
@@ -50,23 +51,60 @@ pub unsafe trait PrefixTypeTrait: Sized {
     /// field is accessible.
     const PT_FIELD_ACCESSIBILITY: FieldAccessibility;
 
-    /// 
-    fn from_prefix_ref(this: PrefixRef<Self::PrefixFields>)->Self::PrefixRef;
-    
-    fn to_prefix_ref(this: Self::PrefixRef)->PrefixRef<Self::PrefixFields>;
-
     /// Convers `Self` to `&'a Self::Prefix`,leaking it in the process.
     fn leak_into_prefix(self)->Self::PrefixRef{
         let x=WithMetadata::new(Self::METADATA, self);
         let x=StaticRef::leak_value(x);
         let x=PrefixRef::from_staticref(x);
-        Self::from_prefix_ref(x)
+        <Self::PrefixRef as PrefixRefTrait>::from_prefix_ref(x)
     }
 
     type PrefixFields;
 
-    type PrefixRef: ImmutableRef<Target = WithMetadata_<Self::PrefixFields, Self::PrefixFields>>;
+    type PrefixRef: PrefixRefTrait<
+        Target = WithMetadata_<Self::PrefixFields, Self::PrefixFields>,
+        PrefixFields = Self::PrefixFields,
+    >;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+/// 
+/// 
+/// # Safety
+/// 
+/// `Self` must either be `PrefixRef<Self::PrefixFields>`, 
+/// or a `#[repr(transparent)]` wrapper around one.
+pub unsafe trait PrefixRefTrait: Sized + ImmutableRef {
+    // The `GetWithMetadata<ForSelf = Self::Target>` bound
+    // is a hacky way to encode this type equality bound:
+    // `Self::Target == WithMetadata_<Self::PrefixFields, Self::PrefixFields>`
+    // (except that the compiler doesn't unify both types)
+    type PrefixFields: GetWithMetadata<ForSelf = Self::Target>;
+
+    #[inline]
+    fn from_prefix_ref(this: PrefixRef<Self::PrefixFields>)->Self {
+        unsafe{ Transmuter{from: this}.to }
+    }
+    
+    #[inline]
+    fn to_prefix_ref(self)->PrefixRef<Self::PrefixFields> {
+        unsafe{ Transmuter{from: self}.to }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+/// A helper trait for asserting that `WithMetadata_<Self, Self> == Foo`
+pub trait GetWithMetadata: Sized{
+    type ForSelf;
+}
+
+impl<T> GetWithMetadata for T {
+    type ForSelf = WithMetadata_<Self, Self>;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 

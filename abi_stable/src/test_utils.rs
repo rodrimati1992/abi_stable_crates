@@ -70,7 +70,7 @@ where
 
 #[derive(Clone)]
 pub(crate) struct Stringy{
-    str:String
+    pub str:String
 }
 
 impl Stringy{

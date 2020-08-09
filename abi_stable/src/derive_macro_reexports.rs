@@ -36,6 +36,7 @@ pub use crate::{
         IsAccessible,
         IsConditional,
         PrefixTypeTrait,
+        PrefixRefTrait,
         WithMetadata_,
         PrefixRef,
         PrefixMetadata,

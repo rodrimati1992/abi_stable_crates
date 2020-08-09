@@ -223,8 +223,8 @@ pub mod abi_stability;
 #[macro_use]
 pub mod erased_types;
 pub mod external_types;
-// #[macro_use]
-// pub mod library;
+#[macro_use]
+pub mod library;
 pub mod marker_type;
 mod multikey_map;
 pub mod nonexhaustive_enum;
@@ -254,9 +254,9 @@ pub mod docs;
 pub mod sabi_trait;
 
 
-// /// The header used to identify the version number of abi_stable
-// /// that a dynamic libraries uses.
-// pub static LIB_HEADER:library::AbiHeader=library::AbiHeader::VALUE;
+/// The header used to identify the version number of abi_stable
+/// that a dynamic libraries uses.
+pub static LIB_HEADER:library::AbiHeader=library::AbiHeader::VALUE;
 
 
 /// Miscelaneous items re-exported from core_extensions.
