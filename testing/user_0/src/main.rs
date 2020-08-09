@@ -12,7 +12,7 @@ use abi_stable::{
     library::RootModule,
 };
 
-use testing_interface_0::{TestingMod,PrefixTypeMod0,PrefixTypeMod1};
+use testing_interface_0::{TestingMod_Ref,PrefixTypeMod0_Ref,PrefixTypeMod1_Ref};
 
 
 
@@ -21,8 +21,8 @@ fn compute_library_path()->io::Result<PathBuf>{
     let debug_dir  ="../../target/debug/"  .as_ref_::<Path>().into_(PathBuf::T);
     let release_dir="../../target/release/".as_ref_::<Path>().into_(PathBuf::T);
 
-    let debug_path  =TestingMod::get_library_path(&debug_dir);
-    let release_path=TestingMod::get_library_path(&release_dir);
+    let debug_path  =TestingMod_Ref::get_library_path(&debug_dir);
+    let release_path=TestingMod_Ref::get_library_path(&release_dir);
 
     match (debug_path.exists(),release_path.exists()) {
         (false,false)=>debug_dir,
@@ -47,7 +47,7 @@ unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
 
 fn main()-> io::Result<()> {
     let library_path=compute_library_path().unwrap();
-    let mods=TestingMod::load_from_directory(&library_path)
+    let mods=TestingMod_Ref::load_from_directory(&library_path)
         .unwrap_or_else(|e| panic!("{}", e) );
     
     run_dynamic_library_tests(mods);
@@ -65,13 +65,13 @@ fn main()-> io::Result<()> {
 ///
 /// There is no way that I am aware to check at compile-time what allocator
 /// the type is using,so this is the best I can do while staying safe.
-pub fn run_dynamic_library_tests(mods:&'static TestingMod){
+pub fn run_dynamic_library_tests(mods: TestingMod_Ref){
     {
         let hw=mods.prefix_types_tests();
         let hw=unsafe{
             // This only works because I know that both structs have the same alignment,
             // if either struct alignment changed that conversion would be unsound.
-            transmute_reference::<PrefixTypeMod0,PrefixTypeMod1>(hw)
+            PrefixTypeMod1_Ref(hw.0.cast())
         };
 
         assert_eq!(hw.field_a(),123);

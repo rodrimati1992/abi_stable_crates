@@ -3,7 +3,7 @@ This is an example `interface crate`,
 where all publically available modules(structs of function pointers) and types are declared,
 
 To load the library and the modules together,
-call `<TextOpsMod as RootModule>::load_from_directory`,
+call `<TextOpsMod_Ref as RootModule>::load_from_directory`,
 which will load the dynamic library from a directory(folder),
 and all the modules inside of the library.
 
@@ -30,12 +30,12 @@ use abi_stable::{
 /// With all the functions/modules related to processing text.
 ///
 /// To load this module,
-/// call <TextOpsMod as RootModule>::load_from_directory(some_directory_path)
+/// call <TextOpsMod_Ref as RootModule>::load_from_directory(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="TextOpsMod")))]
+#[sabi(kind(Prefix(prefix_ref="TextOpsMod_Ref")))]
 #[sabi(missing_field(panic))]
-pub struct TextOpsModVal {
+pub struct TextOpsMod {
     /// Constructs TOStateBox,state that is passed to other functions in this module.
     pub new: extern "C" fn() -> TOStateBox,
 
@@ -53,7 +53,7 @@ at which point it would be moved to the last field at the time.
 
 */
     #[sabi(last_prefix_field)]    
-    pub deserializers:&'static DeserializerMod,
+    pub deserializers: DeserializerMod_Ref,
 
     /// Reverses the order of the lines.
     pub reverse_lines: extern "C" fn(&mut TOStateBox,RStr<'_>) -> RString,
@@ -70,8 +70,8 @@ at which point it would be moved to the last field at the time.
 }
 
 
-impl RootModule for TextOpsMod {
-    declare_root_module_statics!{TextOpsMod}
+impl RootModule for TextOpsMod_Ref {
+    declare_root_module_statics!{TextOpsMod_Ref}
     const BASE_NAME: &'static str = "text_operations";
     const NAME: &'static str = "text_operations";
     const VERSION_STRINGS: VersionStrings = package_version_strings!();
@@ -81,9 +81,9 @@ impl RootModule for TextOpsMod {
 /// A module for all deserialization functions.
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="DeserializerMod")))]
+#[sabi(kind(Prefix(prefix_ref="DeserializerMod_Ref")))]
 #[sabi(missing_field(panic))]
-pub struct DeserializerModVal {
+pub struct DeserializerMod {
     pub something: std::marker::PhantomData<()>,
 
     /**
@@ -132,7 +132,7 @@ and are then usable afterwards.
 #[sabi(impl_InterfaceType(Serialize,Deserialize,Debug,PartialEq))]
 pub struct TOState;
 
-/// The state passed to most functions in the TextOpsMod module.
+/// The state passed to most functions in the TextOpsMod_Ref module.
 pub type TOStateBox = DynTrait<'static,RBox<()>,TOState>;
 
 
@@ -153,7 +153,7 @@ impl<'borr> DeserializeDyn<'borr,TOStateBox> for TOState {
     type Proxy = RawValueRef<'borr>;
 
     fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<TOStateBox, RBoxError> {
-        TextOpsMod::get_module().unwrap()
+        TextOpsMod_Ref::get_module().unwrap()
             .deserializers()
             .deserialize_state()(s.get_rstr())
             .into_result()
@@ -173,7 +173,7 @@ and are then usable afterwards.
 #[sabi(impl_InterfaceType(Send,Sync,Debug,Serialize,Deserialize,PartialEq,Iterator))]
 pub struct TOCommand;
 
-/// A de/serializable opaque command enum,used in the TextOpsMod::run_command function.
+/// A de/serializable opaque command enum,used in the TextOpsMod_Ref::run_command function.
 pub type TOCommandBox<'borr> = DynTrait<'borr,RBox<()>,TOCommand>;
 
 /// This specifies the type Item type that `DynTrait<_,TOCommand>` 
@@ -197,7 +197,7 @@ impl<'borr> DeserializeDyn<'borr,TOCommandBox<'static>> for TOCommand {
     type Proxy = RawValueRef<'borr> ;
 
     fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<TOCommandBox<'static>, RBoxError> {
-        TextOpsMod::get_module().unwrap()
+        TextOpsMod_Ref::get_module().unwrap()
             .deserializers()
             .deserialize_command()(s.get_rstr())
             .into_result()
@@ -218,7 +218,7 @@ and are then usable afterwards.
 #[sabi(impl_InterfaceType(Sync,Send,Debug,Serialize,Deserialize,PartialEq))]
 pub struct TOReturnValue;
 
-/// A de/serializable opaque command enum,returned by the TextOpsMod::run_command function.
+/// A de/serializable opaque command enum,returned by the TextOpsMod_Ref::run_command function.
 pub type TOReturnValueArc = DynTrait<'static,RArc<()>,TOReturnValue>;
 
 
@@ -236,7 +236,7 @@ impl<'borr> DeserializeDyn<'borr,TOReturnValueArc> for TOReturnValue {
     type Proxy = RawValueRef<'borr>;
 
     fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<TOReturnValueArc, RBoxError> {
-        TextOpsMod::get_module().unwrap()
+        TextOpsMod_Ref::get_module().unwrap()
             .deserializers()
             .deserialize_return_value()(s.get_rstr())
             .into_result()
@@ -265,7 +265,7 @@ impl<'a> IteratorItem<'a> for CowStrIter{
 
 
 
-/// The parameters for the `TextOpsMod.remove_words` function.
+/// The parameters for the `TextOpsMod_Ref.remove_words` function.
 #[repr(C)]
 #[derive(StableAbi)] 
 pub struct RemoveWords<'a,'b>{

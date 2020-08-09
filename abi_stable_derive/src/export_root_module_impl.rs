@@ -74,25 +74,23 @@ fn export_root_module_inner(mut input:ItemFn)->Result<TokenStream2,syn::Error>{
             };
 
             pub extern "C" fn _sabi_erased_module(
-            )->&'static abi_stable::marker_type::ErasedObject {
+            )-> abi_stable::pmr::PrefixRef<::abi_stable::marker_type::ErasedPrefix> {
                 ::abi_stable::extern_fn_panic_handling!(
                     let ret:#ret_ty=#original_fn_ident();
-                    let _=abi_stable::library::RootModule::load_module_with(||{
+                    let _= ::abi_stable::library::RootModule::load_module_with(||{
                         Ok::<_,()>(ret)
                     });
                     unsafe{
-                        abi_stable::utils::transmute_reference(ret)
+                        ::abi_stable::pmr::PrefixRefTrait::to_prefix_ref(ret)
+                            .cast::<::abi_stable::marker_type::ErasedPrefix>()
                     }
                 )
             }
 
-            type __ReturnTy=#ret_ty;
-            type __ModuleTy=<__ReturnTy as std::ops::Deref>::Target;
-            
             unsafe{
-                __LibHeader::from_constructor::<__ModuleTy>(
+                __LibHeader::from_constructor(
                     abi_stable::sabi_types::Constructor(_sabi_erased_module),
-                    <__ModuleTy as abi_stable::library::RootModule>::#assoc_constant,
+                    <#ret_ty as ::abi_stable::library::RootModule>::#assoc_constant,
                 )
             }
         };

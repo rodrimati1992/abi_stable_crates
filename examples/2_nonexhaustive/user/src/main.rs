@@ -11,7 +11,7 @@ use abi_stable::{
     library::RootModule,
 };
 
-use example_2_interface::{ShopMod,Command_NE};
+use example_2_interface::{ShopMod_Ref,Command_NE};
 
 
 /// Returns the path the library will be loaded from.
@@ -19,8 +19,8 @@ fn compute_library_path()->io::Result<PathBuf>{
     let debug_dir  ="../../../target/debug/"  .as_ref_::<Path>().into_(PathBuf::T);
     let release_dir="../../../target/release/".as_ref_::<Path>().into_(PathBuf::T);
 
-    let debug_path  =ShopMod::get_library_path(&debug_dir);
-    let release_path=ShopMod::get_library_path(&release_dir);
+    let debug_path  =ShopMod_Ref::get_library_path(&debug_dir);
+    let release_path=ShopMod_Ref::get_library_path(&release_dir);
 
     match (debug_path.exists(),release_path.exists()) {
         (false,false)=>debug_dir,
@@ -41,7 +41,7 @@ fn compute_library_path()->io::Result<PathBuf>{
 
 fn main(){
     let library_path=compute_library_path().unwrap();
-    let mods=ShopMod::load_from_directory(&library_path)
+    let mods=ShopMod_Ref::load_from_directory(&library_path)
         .unwrap_or_else(|e| panic!("{}", e) );
 
     let config_path=match std::env::args_os().nth(1) {

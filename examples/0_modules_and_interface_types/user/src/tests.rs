@@ -19,7 +19,7 @@ use super::*;
 ///
 /// There is no way that I am aware to check at compile-time what allocator
 /// the type is using,so this is the best I can do while staying safe.
-pub fn run_dynamic_library_tests(mods:&'static TextOpsMod){
+pub fn run_dynamic_library_tests(mods:TextOpsMod_Ref){
     test_reverse_lines(mods);
     test_remove_words(mods);
     
@@ -31,7 +31,7 @@ pub fn run_dynamic_library_tests(mods:&'static TextOpsMod){
 }
 
 
-fn test_reverse_lines(mods:&'static TextOpsMod) {
+fn test_reverse_lines(mods:TextOpsMod_Ref) {
     let text_ops=mods;
 
     let mut state = text_ops.new()();
@@ -42,7 +42,7 @@ fn test_reverse_lines(mods:&'static TextOpsMod) {
 }
 
 
-fn test_remove_words(mods:&'static TextOpsMod) {
+fn test_remove_words(mods:TextOpsMod_Ref) {
     let text_ops=mods;
 
     let mut state = text_ops.new()();

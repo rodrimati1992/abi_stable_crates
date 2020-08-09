@@ -19,7 +19,7 @@ use example_1_interface::{
     ApplicationMut,
     CommandDescription,
     Error as AppError,
-    Plugin,PluginType,PluginId,PluginMod,PluginModVal,
+    Plugin,PluginType,PluginId,PluginMod,PluginMod_Ref,
     Plugin_TO,
     utils::process_command,
     WhichPlugin,
@@ -39,8 +39,8 @@ use serde_json::value::Value;
 ///
 /// This code isn't run until the layout of the type it returns is checked.
 #[export_root_module]
-fn instantiate_root_module()->&'static PluginMod{
-    PluginModVal {
+fn instantiate_root_module()->PluginMod_Ref{
+    PluginMod {
         new,
     }.leak_into_prefix()
 }

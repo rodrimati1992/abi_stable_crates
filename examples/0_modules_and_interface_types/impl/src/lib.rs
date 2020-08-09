@@ -13,8 +13,8 @@ use std::{
 
 use example_0_interface::{
     RemoveWords, CowStrIter,
-    TextOpsMod,TextOpsModVal,
-    DeserializerModVal,
+    TextOpsMod_Ref,TextOpsMod,
+    DeserializerMod, DeserializerMod_Ref,
     TOState, TOStateBox,TOCommand,TOReturnValue,TOCommandBox,TOReturnValueArc,
 };
 
@@ -42,21 +42,25 @@ use serde_json;
 /// This code isn't run until the layout of the type it returns is checked.
 #[export_root_module]
 // #[unsafe_no_layout_constant]
-fn instantiate_root_module()->&'static TextOpsMod{
-    TextOpsModVal {
+fn instantiate_root_module()->TextOpsMod_Ref{
+    TextOpsMod {
         new,
         deserializers:{
             // Another way to instantiate a module.
-            const MOD_:DeserializerModVal=DeserializerModVal{
+            const MOD_:DeserializerMod=DeserializerMod{
                 something:PhantomData,
                 deserialize_state,
                 deserialize_command,
                 deserialize_command_borrowing,
                 deserialize_return_value,
             };
-            static WITH_META:WithMetadata<DeserializerModVal>=
-                WithMetadata::new(PrefixTypeTrait::METADATA,MOD_);
-            WITH_META.ref_as_prefix()
+            static WITH_META: DeserializerMod_Ref ={
+                DeserializerMod_Ref(
+                    WithMetadata::new(PrefixTypeTrait::METADATA, MOD_)
+                        .static_as_prefix()
+                )
+            };
+            WITH_META
         },
         reverse_lines,
         remove_words,
@@ -371,7 +375,7 @@ mod tests{
     use serde_json::value::RawValue;
 
     fn setup(){
-        let _=TextOpsMod::load_module_with(|| Ok::<_,()>(instantiate_root_module()) );
+        let _=TextOpsMod_Ref::load_module_with(|| Ok::<_,()>(instantiate_root_module()) );
     }
 
     #[test]
