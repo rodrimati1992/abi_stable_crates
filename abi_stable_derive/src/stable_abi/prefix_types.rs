@@ -290,6 +290,7 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         let where_preds_e=where_preds.clone();
         let where_preds_f=where_preds.clone();
         let where_preds_rl=where_preds.clone();
+        let where_preds_r2=where_preds.clone();
         let prefix_bounds=&prefix.prefix_bounds;
 
         let stringified_deriving_name=deriving_name.to_string();
@@ -581,20 +582,6 @@ TODO
                 // A description of the struct used for error messages.
                 const PT_LAYOUT:&'static #module::__PTStructLayout =#pt_layout_ident;
 
-                #[inline]
-                fn from_prefix_ref(
-                    this: __sabi_re::PrefixRef<Self::PrefixFields>,
-                )->Self::PrefixRef{
-                    #prefix_ref(this)
-                }
-
-                #[inline]
-                fn to_prefix_ref(
-                    this: Self::PrefixRef,
-                )->__sabi_re::PrefixRef<Self::PrefixFields>{
-                    this.0
-                }
-
                 type PrefixFields = #prefix_fields_struct #ty_generics;
                 type PrefixRef = #prefix_ref #ty_generics;
             }
@@ -688,6 +675,13 @@ TODO
                     #prefix_fields_struct #ty_generics,
                     #prefix_fields_struct #ty_generics,
                 >;
+            }
+
+            unsafe impl #impl_generics __sabi_re::PrefixRefTrait for #prefix_ref #ty_generics 
+            where
+                #(#where_preds_r2,)*
+            {
+                type PrefixFields = #prefix_fields_struct #ty_generics;
             }
 
             // unsafe impl #impl_generics __sabi_re::GetStaticEquivalent_

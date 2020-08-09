@@ -27,7 +27,7 @@ pub use abi_stable_shared::mangled_root_module_loader_name;
 use crate::{
     abi_stability::stable_abi_trait::StableAbi,
     globals::{self,Globals},
-    marker_type::ErasedObject,
+    marker_type::ErasedPrefix,
     type_layout::TypeLayout,
     sabi_types::{ LateStaticRef, ParseVersionError, VersionNumber, VersionStrings },
     std_types::{RStr,RVec,RBoxError},
@@ -109,7 +109,7 @@ impl IsLayoutChecked{
 #[doc(hidden)]
 pub struct RootModuleStatics<M>{
     root_mod:LateStaticRef<M>,
-    raw_lib:LateStaticRef<RawLibrary>,
+    raw_lib:LateStaticRef<&'static RawLibrary>,
 }
 
 impl<M> RootModuleStatics<M>{
@@ -173,8 +173,7 @@ pub enum LibraryError {
     },
     /// The abi is incompatible.
     /// The error is opaque,since the error always comes from the main binary
-    /// (dynamic libraries can be loaded from other dynamic libraries),
-    /// and no approach for extensible enums is settled on yet.
+    /// (dynamic libraries can be loaded from other dynamic libraries).
     AbiInstability(RBoxError),
     /// The type used to check that this is a compatible abi_stable
     /// is not the same.

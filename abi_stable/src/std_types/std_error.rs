@@ -20,7 +20,7 @@ use crate::{
     marker_type::{SyncSend, UnsyncUnsend,UnsyncSend,ErasedObject},
     prefix_type::{PrefixTypeTrait,WithMetadata},
     std_types::{
-        RBox, RResult, RString,
+        RBox, ROption, RResult, RStr, RString,
         utypeid::{UTypeId,new_utypeid}
     },
     utils::{transmute_reference,transmute_mut_reference},
@@ -238,7 +238,7 @@ impl<M> RBoxError_<M> {
             debug: format!("{:#?}", value),
             display: format!("{:#}", value),
         }
-        .piped(Self::new_inner)
+        .piped(Self::from_debug_display)
     }
 
     /// Constructs an RBoxError from a type that only implements Debug,
@@ -265,7 +265,13 @@ impl<M> RBoxError_<M> {
             debug: format!("{:#?}", value),
             display: format!("{:#?}", value),
         }
-        .piped(Self::new_inner)
+        .piped(Self::from_debug_display)
+    }
+
+    fn from_debug_display(value: DebugDisplay) -> Self {
+        unsafe {
+            Self::new_with_vtable(value, MakeRErrorVTable::LIB_VTABLE_DEBUG_DISPLAY)
+        }
     }
 
     fn new_inner<T>(value: T) -> Self
@@ -288,6 +294,31 @@ impl<M> RBoxError_<M> {
                 vtable,
                 _sync_send: PhantomData,
             }
+        }
+    }
+}
+
+impl<M> RBoxError_<M>{
+    /// Converts this error to a formatted error 
+    /// 
+    /// This is used to decouple an `RBoxError` from the dynamic library that produced it,
+    /// in order to unload the dynamic library.
+    /// 
+    pub fn to_formatted_error<N>(self) -> RBoxError_<N> {
+        if let Some(dd) = self.as_debug_display() {
+            RBoxError_::from_debug_display(DebugDisplay{
+                debug: dd.debug.into(),
+                display: dd.display.into(),
+            })
+        } else {
+            RBoxError_::from_fmt(self)
+        }
+    }
+
+    fn as_debug_display(&self)->Option<DebugDisplayRef<'_>>{
+        unsafe{
+            self.vtable.as_debug_display()(&*self.value)
+                .into_option()
         }
     }
 }
@@ -687,6 +718,7 @@ from_impls!{ Box<dyn ErrorTrait + 'static> , UnsyncUnsend }
 struct RErrorVTable {
     debug: unsafe extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
     display: unsafe extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
+    as_debug_display: unsafe extern "C" fn(&ErasedObject) -> ROption<DebugDisplayRef<'_>>,
     #[sabi(last_prefix_field)]
     type_id: extern "C" fn()->UTypeId,
 }
@@ -702,15 +734,32 @@ where T:ErrorTrait+'static
     const VALUE:RErrorVTable=RErrorVTable{
         debug: debug_impl::<T>,
         display: display_impl::<T>,
+        as_debug_display: not_as_debug_display,
         type_id: new_utypeid::<T>,
     };
 
-    const LIB_VTABLE: RErrorVTable_Ref = unsafe{
+    const LIB_VTABLE: RErrorVTable_Ref = {
         RErrorVTable_Ref(
             WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 Self::VALUE,
-            ).as_prefix()
+            ).static_as_prefix()
+        )
+    };
+}
+
+impl MakeRErrorVTable<DebugDisplay> {
+    const LIB_VTABLE_DEBUG_DISPLAY: RErrorVTable_Ref = {
+        RErrorVTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                RErrorVTable{
+                    debug: debug_impl::<DebugDisplay>,
+                    display: display_impl::<DebugDisplay>,
+                    as_debug_display: as_debug_display,
+                    type_id: new_utypeid::<DebugDisplay>,
+                },
+            ).static_as_prefix()
         )
     };
 }
@@ -726,6 +775,7 @@ where T:?Sized+ErrorTrait+'static
     const VALUE:RErrorVTable=RErrorVTable{
         debug: debug_impl::<Box<T>>,
         display: display_impl::<Box<T>>,
+        as_debug_display: not_as_debug_display,
         type_id: new_utypeid::<Box<T>>,
     };
 
@@ -763,3 +813,28 @@ impl Debug for DebugDisplay {
 impl ErrorTrait for DebugDisplay {}
 
 ////////////////////////////////////////////////////////////////////////
+
+#[repr(C)]
+#[derive(Debug, StableAbi, PartialEq)]
+struct DebugDisplayRef<'a> {
+    debug: RStr<'a>,
+    display: RStr<'a>,
+}
+
+////////////////////////////////////////////////////////////////////////
+
+unsafe extern "C" fn as_debug_display(this: &ErasedObject) -> ROption<DebugDisplayRef<'_>> {
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_reference::<ErasedObject, DebugDisplay>(this) };
+        ROption::RSome(DebugDisplayRef{
+            debug: this.debug.as_str().into(),
+            display: this.display.as_str().into(),
+        })
+    }
+}
+
+unsafe extern "C" fn not_as_debug_display(_: &ErasedObject) -> ROption<DebugDisplayRef<'_>> {
+    ROption::RNone
+}
+
+

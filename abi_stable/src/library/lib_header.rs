@@ -1,6 +1,7 @@
 use super::*;
 
 use crate::{
+    prefix_type::{PrefixRef, PrefixRefTrait},
     sabi_types::Constructor,
 };
 
@@ -12,14 +13,14 @@ pub struct LibHeader {
     header:AbiHeader,
     root_mod_consts:ErasedRootModuleConsts,
     init_globals_with:InitGlobalsWith,
-    module:LateStaticRef<ErasedObject>,
-    constructor:Constructor<&'static ErasedObject>,
+    module:LateStaticRef<PrefixRef<ErasedPrefix>>,
+    constructor:Constructor<PrefixRef<ErasedPrefix>>,
 }
 
 impl LibHeader {
     /// Constructs a LibHeader from the root module loader.
     pub const unsafe fn from_constructor<M>(
-        constructor:Constructor<&'static ErasedObject>,
+        constructor:Constructor<PrefixRef<ErasedPrefix>>,
         root_mod_consts:RootModuleConsts<M>,
     )->Self
     {
@@ -33,16 +34,18 @@ impl LibHeader {
     }
 
     /// Constructs a LibHeader from the module.
-    pub fn from_module<T>(value:&'static T)->Self
+    pub fn from_module<T>(value:T)->Self
     where
         T: RootModule,
     {
-        let value=unsafe{ transmute_reference::<T,ErasedObject>(value) };
         Self {
             header:AbiHeader::VALUE,
             root_mod_consts: T::CONSTANTS.erased(),
             init_globals_with: INIT_GLOBALS_WITH,
-            module:LateStaticRef::initialized(value),
+            module: {
+                let erased = unsafe{ value.to_prefix_ref().cast::<ErasedPrefix>() }; 
+                LateStaticRef::from_prefixref(erased)
+            },
             constructor:GetAbortingConstructor::ABORTING_CONSTRUCTOR,
         }
     }
@@ -128,7 +131,7 @@ If the layout of the root module is not the expected one.
 
 
     */
-    pub fn init_root_module<M>(&self)-> Result<&'static M, LibraryError>
+    pub fn init_root_module<M>(&self)-> Result<M, LibraryError>
     where
         M: RootModule
     {
@@ -172,7 +175,7 @@ If the version number of the library is incompatible.
     */
     pub unsafe fn init_root_module_with_unchecked_layout<M>(
         &self
-    )-> Result<&'static M, LibraryError>
+    )-> Result<M, LibraryError>
     where
         M: RootModule
     {
@@ -184,7 +187,7 @@ If the version number of the library is incompatible.
     /// Gets the root module,first 
     /// checking that the layout of the `M` from the dynamic library is 
     /// compatible with the expected layout.
-    pub fn check_layout<M>(&self) -> Result<&'static M, LibraryError>
+    pub fn check_layout<M>(&self) -> Result<M, LibraryError>
     where
         M: RootModule,
     {
@@ -199,18 +202,23 @@ If the version number of the library is incompatible.
             // This might also reduce the code in the library,
             // because it doesn't have to compile the layout checker for every library.
             (globals::initialized_globals().layout_checking)
-                (<&M>::LAYOUT, root_mod_layout)
+                (<M>::LAYOUT, root_mod_layout)
                 .into_result()
-                .map_err(LibraryError::AbiInstability)?;
+                .map_err(|e|{
+                    // Fixes the bug where printing the error causes a segfault because it 
+                    // contains static references and function pointers into the unloaded library.
+                    let formatted = e.to_formatted_error();
+                    LibraryError::AbiInstability(formatted)
+                })?;
         }
         
         atomic::compiler_fence(atomic::Ordering::SeqCst);
         
-        let ret=unsafe{ 
-            let module=self.module.init(|| (self.constructor.0)() );
-            transmute_reference::<ErasedObject,M>(module)
+        let prefix_ref = unsafe{
+            self.module.init(|| (self.constructor.0)() )
+                .cast::<M::PrefixFields>()
         };
-        Ok(ret)
+        Ok(M::from_prefix_ref(prefix_ref))
     }
 
 
@@ -226,12 +234,14 @@ have been checked for layout compatibility.
 The caller must ensure that `M` has the expected layout.
 
 */
-    pub unsafe fn unchecked_layout<M>(&self)->&'static M{
-        let module=self.module.init(|| (self.constructor.0)() );
-        transmute_reference::<ErasedObject,M>(module)
+    pub unsafe fn unchecked_layout<M>(&self)->M
+    where
+        M: PrefixRefTrait,
+    {
+        self.module.init(|| (self.constructor.0)() )
+            .cast::<M::PrefixFields>()
+            .piped(M::from_prefix_ref)
     }
-
-
 }
 
 //////////////////////////////////////////////////////////////////////

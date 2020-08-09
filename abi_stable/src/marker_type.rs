@@ -5,6 +5,7 @@ Zero-sized types .
 use std::{cell::Cell,marker::PhantomData, rc::Rc};
 
 use crate::{
+    abi_stability::PrefixStableAbi,
     derive_macro_reexports::*,
     type_layout::{
         MonoTypeLayout, MonoTLData, ReprAttr, TypeLayout, GenericTLData,
@@ -59,6 +60,25 @@ pub struct NotCopyNotClone;
 pub struct ErasedObject<T=()>{
     _priv: [u8; 0],
     _marker:PhantomData<extern "C" fn()->T>,
+}
+
+//////////////////////////////////////////////////////////////
+
+
+/// Used by pointers to vtables/modules to signal that the type has been erased.
+///
+#[repr(C)]
+pub struct ErasedPrefix{
+    _priv: [u8; 0],
+}
+
+unsafe impl GetStaticEquivalent_ for ErasedPrefix {
+    type StaticEquivalent = ErasedPrefix;
+}
+
+unsafe impl PrefixStableAbi for ErasedPrefix {
+    type IsNonZeroType = False;
+    const LAYOUT: &'static TypeLayout = <ErasedObject as StableAbi>::LAYOUT;
 }
 
 //////////////////////////////////////////////////////////////

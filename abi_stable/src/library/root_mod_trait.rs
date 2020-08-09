@@ -1,6 +1,9 @@
 use super::*;
 
-use crate::utils::leak_value;
+use crate::{
+    prefix_type::PrefixRefTrait,
+    utils::leak_value,
+};
 
 
 /**
@@ -12,7 +15,7 @@ at either the example in the readme for this crate,
 or the `example/example_*_interface` crates  in this crates' repository .
 
 */
-pub trait RootModule: Sized+StableAbi+'static  {
+pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static  {
 
     /// The name of the dynamic library,which is the same on all platforms.
     /// This is generally the name of the `implementation crate`.
@@ -34,7 +37,7 @@ pub trait RootModule: Sized+StableAbi+'static  {
             base_name:RStr::from_str(Self::BASE_NAME),
             name:RStr::from_str(Self::NAME),
             version_strings:Self::VERSION_STRINGS,
-            layout:IsLayoutChecked::Yes(<Self>::LAYOUT),
+            layout:IsLayoutChecked::Yes(<Self as StableAbi>::LAYOUT),
             c_abi_testing_fns:crate::library::c_abi_testing::C_ABI_TESTING_FNS,
             _priv:(),
         },
@@ -61,7 +64,7 @@ pub trait RootModule: Sized+StableAbi+'static  {
 Gets the root module,returning None if the module is not yet loaded.
 */
     #[inline]
-    fn get_module()->Option<&'static Self>{
+    fn get_module()->Option<Self>{
         Self::root_module_statics().root_mod.get()
     }
 
@@ -95,9 +98,9 @@ this will return a reference to the already loaded root module,
 without calling the closure.
 
 */
-    fn load_module_with<F,E>(f:F)->Result<&'static Self,E>
+    fn load_module_with<F,E>(f:F)->Result<Self,E>
     where
-        F:FnOnce()->Result<&'static Self,E>
+        F:FnOnce()->Result<Self,E>
     {
         Self::root_module_statics().root_mod.try_init(f)
     }
@@ -142,7 +145,7 @@ If the version number of the library is incompatible.
 If the layout of the root module is not the expected one.
 
 */
-    fn load_from(where_:LibraryPath<'_>) -> Result<&'static Self, LibraryError>{
+    fn load_from(where_:LibraryPath<'_>) -> Result<Self, LibraryError>{
         let statics=Self::root_module_statics();
         statics.root_mod.try_init(||{
             let raw_library=load_raw_library::<Self>(where_)?;
@@ -170,7 +173,7 @@ this will return a reference to the already loaded root module.
 Warnings and Errors are detailed in `load_from`,
 
 */
-    fn load_from_directory(where_:&Path) -> Result<&'static Self, LibraryError>{
+    fn load_from_directory(where_:&Path) -> Result<Self, LibraryError>{
         Self::load_from(LibraryPath::Directory(where_))
     }
 
@@ -185,14 +188,14 @@ this will return a reference to the already loaded root module.
 Warnings and Errors are detailed in `load_from`,
 
 */
-    fn load_from_file(path_:&Path) -> Result<&'static Self, LibraryError>{
+    fn load_from_file(path_:&Path) -> Result<Self, LibraryError>{
         Self::load_from(LibraryPath::FullPath(path_))
     }
 
     /// Defines behavior that happens once the module is loaded.
     ///
     /// The default implementation does nothing.
-    fn initialization(self: &'static Self) -> Result<&'static Self, LibraryError> {
+    fn initialization(self) -> Result<Self, LibraryError> {
         Ok(self)
     }
 }
@@ -201,7 +204,7 @@ Warnings and Errors are detailed in `load_from`,
 /// Loads the raw library at `where_`
 fn load_raw_library<M>(where_:LibraryPath<'_>) -> Result<RawLibrary, LibraryError>
 where
-    M:RootModule
+    M: RootModule
 {
     let path=match where_ {
         LibraryPath::Directory(directory)=>{
