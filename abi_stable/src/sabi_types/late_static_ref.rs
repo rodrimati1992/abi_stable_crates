@@ -10,8 +10,8 @@ use std::{
 
 use crate::{
     external_types::RMutex,
-    prefix_type::PrefixRef,
-    pointer_trait::{ImmutableRef, NonNullTarget},
+    prefix_type::{PointsToPrefixFields, PrefixRef},
+    pointer_trait::{ImmutableRef, ImmutableRefTarget},
 };
 
 /**
@@ -140,7 +140,7 @@ impl<T> LateStaticRef<&'static T>{
     }
 }
 
-impl<T: 'static> LateStaticRef<PrefixRef<T>> {
+impl<T: 'static> LateStaticRef<T> {
     /// Constructs the late initialized static from a [`PrefixRef`].
     ///
     /// # Safety
@@ -159,7 +159,7 @@ impl<T: 'static> LateStaticRef<PrefixRef<T>> {
     /// use abi_stable::{
     ///     StableAbi,
     ///     pointer_trait::ImmutableRef,
-    ///     prefix_type::{PrefixTypeTrait, WithMetadata},
+    ///     prefix_type::{PrefixRefTrait, PrefixTypeTrait, WithMetadata},
     ///     sabi_types::LateStaticRef
     /// };
     ///
@@ -173,9 +173,7 @@ impl<T: 'static> LateStaticRef<PrefixRef<T>> {
     ///     // 
     ///     // If you don't need a `LateStaticRef` you can construct a `PersonMod_Ref` constant,
     ///     // and use that.
-    ///     unsafe{
-    ///         LateStaticRef::from_prefixref(ImmutableRef::TARGET, MODULE.0.as_nonnull()) 
-    ///     }
+    ///     LateStaticRef::from_prefixref(PrefixRefTrait::PREFIX_FIELDS, MODULE.0)
     /// };
     ///
     /// #[repr(C)]
@@ -208,7 +206,10 @@ impl<T: 'static> LateStaticRef<PrefixRef<T>> {
     /// ```
     /// 
     /// [`PrefixRef`]: ../../prefix_type/struct.PrefixRef.html
-    pub const fn from_prefixref(ptr: PrefixRef<T>) -> Self {
+    pub const fn from_prefixref<P>(_: PointsToPrefixFields<T, P>, ptr: PrefixRef<P>) -> Self 
+    where
+        P: 'static
+    {
         Self{
             lock: LOCK,
             pointer: AtomicPtr::new(ptr.as_ptr() as *mut ()),
@@ -230,8 +231,42 @@ impl<T: 'static> LateStaticRef<T> {
     /// [`<T as ImmutableRef>::from_nonnull`]:
     /// ../pointer_trait/trait.ImmutableRef.html#method.from_nonnull
     ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::{
+    ///     StableAbi,
+    ///     pointer_trait::ImmutableRef,
+    ///     sabi_types::LateStaticRef,
+    ///     utils::ref_as_nonnull,
+    /// };
+    /// 
+    /// use std::ptr::NonNull; 
+    /// 
+    /// #[derive(Copy, Clone)]
+    /// struct Foo<'a>(&'a u64);
+    /// 
+    /// impl<'a> Foo<'a> {
+    ///     const fn as_nonnull(self) -> NonNull<u64> {
+    ///         ref_as_nonnull(self.0)
+    ///     }
+    /// }
+    /// 
+    /// unsafe impl<'a> ImmutableRef for Foo<'a> {
+    ///     type Target = u64;
+    /// }
+    /// 
+    /// const MODULE: LateStaticRef<Foo<'static>> = {
+    ///     unsafe{
+    ///         LateStaticRef::from_custom(
+    ///             ImmutableRef::TARGET,
+    ///             Foo(&100).as_nonnull(),
+    ///         ) 
+    ///     }
+    /// };
+    /// ```
     pub const unsafe fn from_custom<U: 'static>(
-        _target: NonNullTarget<T, U>,
+        _target: ImmutableRefTarget<T, U>,
         ptr: NonNull<U>,
     )->Self{
         Self{

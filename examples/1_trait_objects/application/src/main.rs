@@ -22,7 +22,7 @@ use example_1_interface::{
     Application,
     Error as AppError,
     PluginId,
-    PluginMod,
+    PluginMod_Ref,
     PluginType,
     PluginResponse,
     WhichPlugin,
@@ -98,7 +98,7 @@ pub struct Config{
 /// A description of plugin instances that were instantiated and left to instantiate,
 /// as well as the root module of the plugin's dynamic library to instantiate the plugins.
 pub struct PluginModAndIndices{
-    root_module:&'static PluginMod,
+    root_module:PluginMod_Ref,
     to_be_instantiated:u64,
     indices:Vec<usize>,
 }
@@ -207,7 +207,7 @@ fn main()-> io::Result<()> {
 
         let res=(||{
             let header=lib_header_from_path(&library_path)?;
-            header.init_root_module::<PluginMod>()
+            header.init_root_module::<PluginMod_Ref>()
         })();
 
         let root_module=match res {

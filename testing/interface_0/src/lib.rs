@@ -6,7 +6,7 @@ where all publically available modules(structs of function pointers) and types a
 This crate is where extra tests which don't belong in examples go.
 
 To load the library and the modules together,
-call `<TestingMod as RootModule>::load_from_directory`,
+call `<TestingMod_Ref as RootModule>::load_from_directory`,
 which will load the dynamic library from a directory(folder),
 and then all the modules inside of the library.
 
@@ -24,8 +24,8 @@ use abi_stable::{
 
 
 
-impl RootModule for TestingMod {
-    abi_stable::declare_root_module_statics!{TestingMod}
+impl RootModule for TestingMod_Ref {
+    abi_stable::declare_root_module_statics!{TestingMod_Ref}
 
     const BASE_NAME: &'static str = "testing";
     const NAME: &'static str = "testing";
@@ -35,15 +35,15 @@ impl RootModule for TestingMod {
 
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="TestingMod")))]
+#[sabi(kind(Prefix(prefix_ref="TestingMod_Ref")))]
 #[sabi(missing_field(panic))]
-pub struct TestingModVal {
+pub struct TestingMod {
     #[sabi(last_prefix_field)]
     pub greeter:extern "C" fn(RStr<'_>),
     pub for_tests:extern "C" fn()->ForTests,
 
     /// An module used in prefix-type tests.
-    pub prefix_types_tests:&'static PrefixTypeMod0,
+    pub prefix_types_tests: PrefixTypeMod0_Ref,
 }
 
 
@@ -65,20 +65,20 @@ pub struct ForTests{
 }
 
 
-// Macro used to make sure that PrefixTypeMod0 and PrefixTypeMod1 
+// Macro used to make sure that PrefixTypeMod0_Ref and PrefixTypeMod1 
 // are changed in lockstep.
 macro_rules! declare_PrefixTypeMod {
     (
         $(#[$attr:meta])*
         struct $struct_ident:ident;
-        prefix_struct=$prefix:literal ;
+        prefix_ref=$prefix:literal ;
     
         $(extra_fields=[ $($extra_fields:tt)* ])?
     ) => (
         $(#[$attr])*
         #[repr(C)]
         #[derive(StableAbi)] 
-        #[sabi(kind(Prefix(prefix_struct=$prefix)))]
+        #[sabi(kind(Prefix(prefix_ref=$prefix)))]
         #[sabi(missing_field(option))]
         pub struct $struct_ident {
             #[sabi(last_prefix_field)]
@@ -90,13 +90,13 @@ macro_rules! declare_PrefixTypeMod {
 
 
 declare_PrefixTypeMod!{
-    struct PrefixTypeMod0Val;
-    prefix_struct="PrefixTypeMod0";
+    struct PrefixTypeMod0;
+    prefix_ref="PrefixTypeMod0_Ref";
 }
 
 declare_PrefixTypeMod!{
     /**
-    This is unsafely converted from PrefixTypeMod0 in tests to check that 
+    This is unsafely converted from PrefixTypeMod0_Ref in tests to check that 
     `prefix.field_a()==some_integer`,
     `prefix.field_b()==None`,
     `prefix.field_c()==None`.
@@ -104,8 +104,8 @@ declare_PrefixTypeMod!{
     This only works because I know that both structs have the same alignment,
     if either struct alignment changed that conversion would be unsound.
     */
-    struct PrefixTypeMod1Val;
-    prefix_struct="PrefixTypeMod1";
+    struct PrefixTypeMod1;
+    prefix_ref="PrefixTypeMod1_Ref";
     
     extra_fields=[
         pub field_b:u32,

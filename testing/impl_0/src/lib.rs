@@ -4,7 +4,7 @@ This crate is where extra tests which don't belong in examples go.
 */
 
 use testing_interface_0::{
-    TestingMod,TestingModVal,ForTests,PrefixTypeMod0Val,
+    TestingMod,TestingMod_Ref,ForTests,PrefixTypeMod0,
 };
 
 use abi_stable::{
@@ -25,11 +25,11 @@ use core_extensions::{SelfOps};
 /// LibHeader is used to check that the layout of `TextOpsMod` in this dynamic library
 /// is compatible with the layout of it in the binary that loads this library.
 #[export_root_module]
-pub fn get_library() -> &'static TestingMod {
-    TestingModVal{
+pub fn get_library() -> TestingMod_Ref {
+    TestingMod{
         greeter,
         for_tests,
-        prefix_types_tests:PrefixTypeMod0Val{
+        prefix_types_tests:PrefixTypeMod0{
             field_a:123,
         }.leak_into_prefix(),
     }.leak_into_prefix()

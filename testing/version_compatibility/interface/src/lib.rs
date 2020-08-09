@@ -1,17 +1,16 @@
 
-#[cfg(feature="new")]
+// #[cfg(feature="new")]
 extern crate new_abi_stable as abi_stable;
 
-#[cfg(not(feature="new"))]
-extern crate old_abi_stable as abi_stable;
+// #[cfg(not(feature="new"))]
+// extern crate old_abi_stable as abi_stable;
 
-#[cfg(all(feature="new",feature="old"))]
-compile_error!{"the new and old feature can't be enabled at the same time"}
+// #[cfg(all(feature="new",feature="old"))]
+// compile_error!{"the new and old feature can't be enabled at the same time"}
 
-
-use std::marker::PhantomData;
 
 use abi_stable::{
+    marker_type::NonOwningPhantom,
     sabi_types::VersionStrings,
     library::RootModule,
 };
@@ -105,15 +104,15 @@ pub use many_types::ManyTypes;
 
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="RootMod")))]
+#[sabi(kind(Prefix(prefix_ref="RootMod_Ref")))]
 #[sabi(missing_field(panic))]
-pub struct RootModVal{
+pub struct RootMod{
     pub abi_stable_version:VersionStrings,
-    pub _marker:PhantomData<many_types::ManyTypes>,
+    pub _marker:NonOwningPhantom<many_types::ManyTypes>,
 }
 
-impl RootModule for RootMod {
-    abi_stable::declare_root_module_statics!{RootMod}
+impl RootModule for RootMod_Ref {
+    abi_stable::declare_root_module_statics!{RootMod_Ref}
 
     const BASE_NAME: &'static str = "version_compatibility_impl";
     const NAME: &'static str = "version_compatibility_impl";

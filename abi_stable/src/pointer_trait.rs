@@ -296,9 +296,9 @@ pub unsafe trait OwnedPointer:Sized+DerefMut+GetPointerKind{
 pub unsafe trait ImmutableRef: Copy {
     type Target;
 
-    /// A marker type that can be used as a proof that the `T` in  `NonNullTarget<T, U>`
+    /// A marker type that can be used as a proof that the `T` in  `ImmutableRefTarget<T, U>`
     /// implements `ImmutableRef<Target = U>`.
-    const TARGET: NonNullTarget<Self, Self::Target> = NonNullTarget::new();
+    const TARGET: ImmutableRefTarget<Self, Self::Target> = ImmutableRefTarget::new();
 
     /// Converts this pointer to a `NonNull`.
     #[inline(always)]
@@ -339,7 +339,8 @@ pub unsafe trait ImmutableRef: Copy {
     }
 }
 
-pub type ImmutableRefTarget<T> = <T as ImmutableRef>::Target;
+/// Gets the `ImmutableRef::Target` associated type for `T`.
+pub type ImmutableRefOut<T> = <T as ImmutableRef>::Target;
 
 
 unsafe impl<'a, T> ImmutableRef for &'a T {
@@ -350,18 +351,18 @@ unsafe impl<'a, T> ImmutableRef for &'a T {
 ////////////////////////////////////////////////////////////////////////////////
 
 
-/// A marker type that can be used as a proof that the `T` in  `NonNullTarget<T, U>`
+/// A marker type that can be used as a proof that the `T` in  `ImmutableRefTarget<T, U>`
 /// implements `ImmutableRef<Target = U>`.
-pub struct NonNullTarget<T, U>(NonOwningPhantom<fn()->(T, U)>);
+pub struct ImmutableRefTarget<T, U>(NonOwningPhantom<(T, U)>);
 
-impl<T, U> Copy for NonNullTarget<T, U> {}
-impl<T, U> Clone for NonNullTarget<T, U> {
+impl<T, U> Copy for ImmutableRefTarget<T, U> {}
+impl<T, U> Clone for ImmutableRefTarget<T, U> {
     fn clone(&self)->Self{
         *self
     }
 }
 
-impl<T, U> NonNullTarget<T, U> {
+impl<T, U> ImmutableRefTarget<T, U> {
     // This function is private on purpose.
     //
     // This type is only supposed to be constructed in the default initializer for 

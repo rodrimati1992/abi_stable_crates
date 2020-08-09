@@ -119,7 +119,7 @@ impl SerializeEnum<Command_NE> for Command_Interface {
     type Proxy=RawValueBox;
 
     fn serialize_enum(this:&Command_NE) -> Result<RawValueBox, RBoxError>{
-        ShopMod::get_module().unwrap().serialize_command()(this).into_result()
+        ShopMod_Ref::get_module().unwrap().serialize_command()(this).into_result()
     }
 }
 
@@ -132,7 +132,7 @@ impl<'a> DeserializeEnum<'a,Command_NE> for Command_Interface{
     type Proxy=RawValueRef<'a>;
 
     fn deserialize_enum(s: RawValueRef<'a>) -> Result<Command_NE, RBoxError>{
-        ShopMod::get_module().unwrap().deserialize_command()(s.get_rstr()).into_result()
+        ShopMod_Ref::get_module().unwrap().deserialize_command()(s.get_rstr()).into_result()
     }
 }
 
@@ -278,7 +278,7 @@ impl SerializeEnum<ReturnVal_NE> for Command_Interface {
     type Proxy=RawValueBox;
 
     fn serialize_enum(this:&ReturnVal_NE) -> Result<RawValueBox, RBoxError>{
-        ShopMod::get_module().unwrap().serialize_ret_val()(this).into_result()
+        ShopMod_Ref::get_module().unwrap().serialize_ret_val()(this).into_result()
     }
 }
 
@@ -291,7 +291,7 @@ impl<'a> DeserializeEnum<'a,ReturnVal_NE> for Command_Interface{
     type Proxy=RawValueRef<'a>;
 
     fn deserialize_enum(s: RawValueRef<'a>) -> Result<ReturnVal_NE, RBoxError>{
-        ShopMod::get_module().unwrap().deserialize_ret_val()(s.get_rstr()).into_result()
+        ShopMod_Ref::get_module().unwrap().deserialize_ret_val()(s.get_rstr()).into_result()
     }
 }
 
@@ -417,13 +417,13 @@ fn examples_of_constructing_an_error(){
 The root module of the `shop` dynamic library.
 
 To load this module,
-call <ShopMod as RootModule>::load_from_directory(some_directory_path)
+call <ShopMod_Ref as RootModule>::load_from_directory(some_directory_path)
 */
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="ShopMod")))]
+#[sabi(kind(Prefix(prefix_ref="ShopMod_Ref")))]
 #[sabi(missing_field(panic))]
-pub struct ShopModVal {
+pub struct ShopMod {
     /// Constructs the `Shop_TO` trait object.
     pub new:extern "C" fn()->Shop_TO<'static,RBox<()>>,
 
@@ -455,8 +455,8 @@ at which point it would be moved to the last field at the time.
 }
 
 
-impl RootModule for ShopMod {
-    declare_root_module_statics!{ShopMod}
+impl RootModule for ShopMod_Ref {
+    declare_root_module_statics!{ShopMod_Ref}
 
     const BASE_NAME: &'static str = "shop";
     const NAME: &'static str = "shop";

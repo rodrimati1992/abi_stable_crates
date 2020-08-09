@@ -131,6 +131,9 @@ impl<M> RootModuleStatics<M>{
 /// Passing `Self` instead of `TypeOfSelf` won't work.
 #[macro_export]
 macro_rules! declare_root_module_statics {
+    ( ( $($stuff:tt)* ) ) => (
+        $carte::declare_root_module_statics!{$($stuff)*}
+    );
     ( $this:ty ) => (
         #[inline]
         fn root_module_statics()->&'static $crate::library::RootModuleStatics<$this>{
@@ -139,7 +142,10 @@ macro_rules! declare_root_module_statics {
 
             &_ROOT_MOD_STATICS
         }
-    )
+    );
+    ( Self ) => (
+        compile_error!("Don't use `Self`, write the full type name")
+    );
 }
 
 

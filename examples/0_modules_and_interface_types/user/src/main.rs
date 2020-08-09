@@ -15,7 +15,7 @@ use abi_stable::{
     library::RootModule,
 };
 
-use example_0_interface::{CowStrIter,TextOpsMod,RemoveWords,TOStateBox};
+use example_0_interface::{CowStrIter,TextOpsMod_Ref,RemoveWords,TOStateBox};
 
 
 mod tests;
@@ -25,8 +25,8 @@ fn compute_library_path()->io::Result<PathBuf>{
     let debug_dir  ="../../../target/debug/"  .as_ref_::<Path>().into_(PathBuf::T);
     let release_dir="../../../target/release/".as_ref_::<Path>().into_(PathBuf::T);
 
-    let debug_path  =TextOpsMod::get_library_path(&debug_dir);
-    let release_path=TextOpsMod::get_library_path(&release_dir);
+    let debug_path  =TextOpsMod_Ref::get_library_path(&debug_dir);
+    let release_path=TextOpsMod_Ref::get_library_path(&release_dir);
 
     match (debug_path.exists(),release_path.exists()) {
         (false,false)=>debug_dir,
@@ -158,7 +158,7 @@ Examples:
 
 fn main()-> io::Result<()> {
     let library_path=compute_library_path().unwrap();
-    let mods=TextOpsMod::load_from_directory(&library_path)
+    let mods=TextOpsMod_Ref::load_from_directory(&library_path)
         .unwrap_or_else(|e| panic!("{}", e) );
     
     let opts =  Command::clap()
@@ -190,7 +190,7 @@ fn main()-> io::Result<()> {
             tests::run_dynamic_library_tests(mods);
         }
         Command::JsonCommand{file}=>{
-            fn run_command(mods:&TextOpsMod,state:&mut TOStateBox,s:&str)->RString{
+            fn run_command(mods:TextOpsMod_Ref,state:&mut TOStateBox,s:&str)->RString{
                 let command=serde_json::from_str(s)
                     .unwrap_or_else(|e| panic!("\n{}\n",e) );
                 

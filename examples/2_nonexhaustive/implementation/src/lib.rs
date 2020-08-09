@@ -18,14 +18,14 @@ use abi_stable::{
 use core_extensions::SelfOps;
 
 use example_2_interface::{
-    Cents,Command,Command_NE,Error,ItemId,ReturnVal,ReturnVal_NE,Shop,Shop_TO,ShopMod,ShopModVal,
+    Cents,Command,Command_NE,Error,ItemId,ReturnVal,ReturnVal_NE,Shop,Shop_TO,ShopMod_Ref,ShopMod,
     ParamCreateItem,RetRenameItem,
 };
 
 
 #[export_root_module]
-fn instantiate_root_module()->&'static ShopMod{
-    ShopModVal {
+fn instantiate_root_module()->ShopMod_Ref{
+    ShopMod {
         new,
         deserialize_command,
         deserialize_ret_val,
@@ -231,7 +231,7 @@ mod tests{
     }
 
     fn setup(){
-        let _=ShopMod::load_module_with(|| Ok::<_,()>(instantiate_root_module()) );
+        let _=ShopMod_Ref::load_module_with(|| Ok::<_,()>(instantiate_root_module()) );
     }
 
     #[test]

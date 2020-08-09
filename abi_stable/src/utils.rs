@@ -6,6 +6,7 @@ use std::{
     cmp::Ord,
     fmt::{self,Debug,Display},
     mem::{self,ManuallyDrop},
+    ptr::NonNull,
 };
 
 
@@ -38,6 +39,28 @@ pub fn ffi_panic_message(info:&'static PanicInfo) -> ! {
     eprintln!("Aborting to handle the panic...\n");
     std::process::exit(1);
 }
+
+//////////////////////////////////
+
+
+/// Coverts a `&T` to a `NonNull<T>`. 
+/// 
+/// # Eaxmple
+/// 
+/// ```rust
+/// use abi_stable::utils::ref_as_nonnull;
+///
+/// use std::ptr::NonNull;
+/// 
+/// const NUMBER: NonNull<u64> = ref_as_nonnull(&100);
+/// 
+/// ```
+pub const fn ref_as_nonnull<T>(reference: &T) -> NonNull<T> {
+    unsafe{
+        NonNull::new_unchecked(reference as *const T as *mut T)
+    }
+}
+
 
 //////////////////////////////////
 
