@@ -212,7 +212,7 @@ impl<T: 'static> LateStaticRef<T> {
     {
         Self{
             lock: LOCK,
-            pointer: AtomicPtr::new(ptr.as_ptr() as *mut ()),
+            pointer: AtomicPtr::new(ptr.const_to_raw_ptr() as *mut ()),
             _marker: PhantomData,
         }
     }
