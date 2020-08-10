@@ -281,6 +281,33 @@
       ],
     ),
     (
+      name:"generated prefix type names",
+      code:r##"
+        #[repr(C)]
+        #[sabi(kind(Prefix(@p)))]
+        struct Foo{
+          x:u32,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@p":r#""# }, 
+          find_all: [regex(r#"struct *Foo_Prefix *\{"#), regex(r#"struct *Foo_Ref *\("#)],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p":r#"prefix_ref = "Hello" "# }, 
+          find_all: [regex(r#"struct *Foo_Prefix *\{"#), regex(r#"struct *Hello *\("#)],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p":r#"prefix_ref = "Hello", prefix_fields = "World" "# }, 
+          find_all: [regex(r#"struct *World *\{"#), regex(r#"struct *Hello *\("#)],
+          error_count: 0,
+        ),
+      ],
+    ),
+    (
       name:"prefix_bound",
       code:r##"
         #[repr(C)]

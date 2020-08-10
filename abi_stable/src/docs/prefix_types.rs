@@ -1,37 +1,36 @@
 /*!
 
 Prefix-types are types that derive StableAbi along with the 
-`#[sabi(kind(Prefix(prefix_ref="PrefixEquivalent")))]` helper attribute.
+`#[sabi(kind(Prefix(....)))]` helper attribute.
 This is mostly intended for **vtables** and **modules**.
 
 Prefix-types cannot directly be passed through ffi,
-instead they must be converted to the type declared with `prefix_ref="PrefixEquivalent"`,
-and then pass `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` instead.
+instead they must be converted to the type declared with `prefix_ref="Foo_Ref"`,
+and then pass that instead.
 
-To convert `T` to `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` you an use one of:
+To convert `Foo` to `Foo_Ref` you can use any of (non-exhaustive list):
 
 - `PrefixTypeTrait::leak_into_prefix`:<br>
     Which does the conversion directly,but leaks the value.
 
-- `prefix_type::WithMetadata::new` and then `WithMetadata::ref_as_prefix`:<br>
-    Use this if you need a compiletime constant and the type has no generic parameters.
-    First create a `&'static WithMetadata<Self>` constant,
-    then use the `WithMetadata::ref_as_prefix` method at runtime 
-    to cast it to `&'static PrefixEquivalent`.
-
-- `prefix_type::WithMetadata::new` and then `WithMetadata::as_prefix`:<br>
+- `prefix_type::WithMetadata::new`:
     Use this if you need a compiletime constant.
     First create a `StaticRef<WithMetadata<Self>>` constant using 
-    the `StaticRef::from_raw` function,
-    then use `WithMetadata::as_prefix` to cast it to `StaticRef<PrefixEquivalent>`.
+    the [`staticref`] macro,
+    then construct a `Foo_Ref` constant with `Foo_Ref(THE_STATICREF_CONSTANT.as_prefix())`.
+    For an example of this you can look at [example 2(at the bottom of the example)](#example2).
 
 
-All fields on `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` are accessed through accessor methods 
-with the same name as the fields.
+All the fields in the `DerivingType` can be accessed in `DerivingType_Ref` using
+accessor methods named the same as the fields.
+
+# Version compatibility
+
+### Adding fields
 
 To ensure that libraries stay abi compatible,
-the first minor version of the library must apply the `#[sabi(last_prefix_field)]` to some 
-field and every minor version after that must add fields at the end (never moving that attribute).
+the first minor version of the library must use the `#[sabi(last_prefix_field)]` attribute on some 
+field, and every minor version after that must add fields at the end (never moving that attribute).
 Changing the field that `#[sabi(last_prefix_field)]` is applied to is a breaking change.
 
 Getter methods for fields after the one to which `#[sabi(last_prefix_field)]` was applied to
@@ -40,6 +39,16 @@ will return `Option<FieldType>` by default,because those fields might not exist
 To override how to deal with nonexistent fields,
 use the `#[sabi(missing_field())]` attribute,
 applied to either the struct or the field.
+
+### Alignment 
+
+To ensure that users can define empty vtables/modules that can be extended in 
+semver compatible versions,
+this library forces the struct converted to ffi-safe form to have an alignment at 
+least that of usize.
+
+You must ensure that newer versions don't change the alignment of the struct,
+because that makes it ABI incompatible.
 
 # Grammar Reference
 
@@ -61,9 +70,9 @@ use abi_stable::{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref="Module")))]
+#[sabi(kind(Prefix(prefix_ref="Module_Ref")))]
 #[sabi(missing_field(panic))]
-pub struct ModuleVal {
+pub struct Module {
     pub lib_name:RStr<'static>,
 
     #[sabi(last_prefix_field)]
@@ -78,8 +87,8 @@ pub struct ModuleVal {
 
 In this example:
 
-- `#[sabi(kind(Prefix(prefix_ref="Module")))]` declares this type as being a prefix-type
-    with an ffi-safe equivalent called `Module` to which `ModuleVal` can be converted into.
+- `#[sabi(kind(Prefix(prefix_ref="Module_Ref")))]` declares this type as being a prefix-type
+    with an ffi-safe pointer called `Module_Ref` to which `Module` can be converted into.
 
 - `#[sabi(missing_field(panic))]` 
     makes the field accessors panic when attempting to 
@@ -90,9 +99,10 @@ In this example:
     (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
     requiring new fields to always be added bellow preexisting ones.
 
+<span id="example2"></span>
 ###  Example 2:Declaring a type with a VTable 
 
-Here is the implementation of a Box-like type,which uses a VTable that is itself a Prefix.
+Here is the implementation of a Box-like type,which uses a vtable that is a prefix type.
 
 ```
 
@@ -386,5 +396,17 @@ let visit_length: Option<extern "C" fn(Id)->RDuration> =
 
 
 ```
+
+
+
+
+
+
+
+
+
+[`staticref`]: ../../macro.staticref.html
+
+
 
 */

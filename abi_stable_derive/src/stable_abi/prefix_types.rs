@@ -328,6 +328,13 @@ TODO
             
             let prefix_field_iter = struct_.fields[..first_suffix_field].iter();
             // This uses `field_<NUMBER>` for tuple fields
+            let prefix_field_vis = prefix_field_iter.clone()
+                .map(|f|ToTokenFnMut::new(move|ts|{
+                    let vis = f.vis;
+                    if AccessorOrMaybe::Accessor == prefix.fields[f] {
+                        vis.to_tokens(ts);
+                    }
+                }));
             let prefix_field = prefix_field_iter.clone().map(|f| f.ident() );
             let prefix_field_ty = prefix_field_iter.clone().map(|f| f.ty );
 
@@ -353,7 +360,7 @@ TODO
                 #vis struct #prefix_fields_struct #generics 
                 #where_clause
                 {
-                    #(#prefix_field: #prefix_field_ty,)*
+                    #( #prefix_field_vis #prefix_field: #prefix_field_ty,)*
                     // Using this to ensure:
                     // - That all the generic arguments are used
                     // - That the struct has the same alignemnt as the deriving struct.
@@ -526,7 +533,7 @@ TODO
                                 #else_
                             }else{
                                 unsafe{
-                                    let ptr = (self.0.as_ptr() as *const u8)
+                                    let ptr = (self.0.to_raw_ptr() as *const u8)
                                         .offset(Self::#field_offset as isize)
                                         as *const #ty;
                                     *ptr

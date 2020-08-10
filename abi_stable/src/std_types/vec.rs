@@ -460,7 +460,7 @@ impl<T> RVec<T> {
         unsafe {
             let this_vtable =this.vtable();
             let other_vtable=VTableGetter::LIB_VTABLE;
-            if ::std::ptr::eq(this_vtable.0.as_ptr() ,other_vtable.0.as_ptr())||
+            if ::std::ptr::eq(this_vtable.0.to_raw_ptr() ,other_vtable.0.to_raw_ptr())||
                 this_vtable.type_id()==other_vtable.type_id()
             {
                 Vec::from_raw_parts(this.buffer_mut(), this.len(), this.capacity())

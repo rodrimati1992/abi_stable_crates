@@ -914,7 +914,7 @@ fn main(){
 
         #[inline]
         pub(super)fn sabi_vtable_address(&self) -> usize {
-            self.vtable.0.as_ptr() as usize
+            self.vtable.0.to_raw_ptr() as usize
         }
 
         /// Returns the address of the wrapped object.

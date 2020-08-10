@@ -47,8 +47,7 @@ pub unsafe trait PrefixTypeTrait: Sized {
     /// Describes the layout of the struct,exclusively for use in error messages.
     const PT_LAYOUT: &'static PTStructLayout;
 
-    /// A bit array,where the bit at the field index represents whether that
-    /// field is accessible.
+    /// A bit array,where each nth bit represents the nth field is accessible.
     const PT_FIELD_ACCESSIBILITY: FieldAccessibility;
 
     /// Convers `Self` to `&'a Self::Prefix`,leaking it in the process.
@@ -194,7 +193,6 @@ impl<T, P> StaticRef<WithMetadata_<T, P>>{
 /// The prefix-type metadata for `T` (with a FieldAccessibility and a PTStructLayout).
 /// This is only constructed in PrefixTypeTrait::METADATA.
 ///
-/// This is used as a workaround for `const fn` not allowing trait bounds.
 #[repr(C)]
 pub struct PrefixMetadata<T, P> {
     /// A bit array,where the bit at field index represents whether a field is accessible.
