@@ -101,5 +101,4 @@ use crate::{
     erased_types::{c_functions,InterfaceType},
     marker_type::ErasedObject,
     sabi_types::MaybeCmp,
-    std_types::Tuple2,
 };

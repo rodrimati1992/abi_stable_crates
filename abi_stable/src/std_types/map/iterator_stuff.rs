@@ -14,7 +14,7 @@ macro_rules! declare_iter_interface {
         $(#[$attr])*
         #[repr(C)]
         #[derive(StableAbi)]
-        pub struct $interface<$k,$v>(PhantomData<Tuple2<$k,$v>>);
+        pub struct $interface<$k,$v>(PhantomData<($k,$v)>);
 
         impl<$k,$v> $interface<$k,$v>{
             pub const NEW:Self=Self(PhantomData);
@@ -72,8 +72,7 @@ type IntoIterInner<'a,K,V>=
 #[derive(StableAbi)]
 pub struct IntoIter<K,V>{
     iter:IntoIterInner<'static,u32,u32>,
-    // _marker:PhantomData<Tuple2<K,V>>,
-    _marker:PhantomData<Tuple3<K,V,UnsafeIgnoredType<std::rc::Rc<()>>>>,
+    _marker:PhantomData<(K,V,UnsafeIgnoredType<std::rc::Rc<()>>)>,
 }
 
 

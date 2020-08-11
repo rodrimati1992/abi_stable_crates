@@ -6,7 +6,6 @@ as well as functions/modules within.
 use std::{
     fmt::{self, Display},
     io,
-    marker::PhantomData,
     mem,
     path::{Path,PathBuf},
     sync::atomic,

@@ -1058,9 +1058,7 @@ fn declare_vtable<'a>(
         where
             _ErasedPtr:__GetPointerKind,
         {
-            _sabi_tys: ::std::marker::PhantomData<
-                extern "C" fn(#generics_use0)
-            >,
+            _sabi_tys: __sabi_re::NonOwningPhantom<(#generics_use0)>,
 
             _sabi_vtable:#robject_vtable,
 
@@ -1229,7 +1227,7 @@ fn vtable_impl<'a>(
                 &__sabi_re::WithMetadata::new(
                     __sabi_re::PrefixTypeTrait::METADATA,
                     VTableInner{
-                        _sabi_tys: ::std::marker::PhantomData,
+                        _sabi_tys: __sabi_re::NonOwningPhantom::NEW,
                         _sabi_vtable:__sabi_re::GetRObjectVTable::ROBJECT_VTABLE,
                         #(
                             #method_names_a:Self::#method_names_b,

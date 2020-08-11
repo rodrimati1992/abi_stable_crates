@@ -93,7 +93,7 @@ When dropped this will unlock the mutex.
 #[must_use]
 pub struct RMutexGuard<'a, T> {
     rmutex: &'a RMutex<T>,
-    _marker: PhantomData<Tuple2<&'a mut T, UnsyncUnsend>>,
+    _marker: PhantomData<(&'a mut T, UnsyncUnsend)>,
 }
 
 

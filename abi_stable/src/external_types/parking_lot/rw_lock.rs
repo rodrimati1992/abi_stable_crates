@@ -99,7 +99,7 @@ When dropped this will unlock the rwlock.
 #[must_use]
 pub struct RReadGuard<'a, T> {
     rlock: &'a RRwLock<T>,
-    _marker: PhantomData<Tuple2<&'a T, UnsyncUnsend>>,
+    _marker: PhantomData<(&'a T, UnsyncUnsend)>,
 }
 
 
@@ -116,7 +116,7 @@ When dropped this will unlock the rwlock.
 #[must_use]
 pub struct RWriteGuard<'a, T> {
     rlock: &'a RRwLock<T>,
-    _marker: PhantomData<Tuple2<&'a mut T, UnsyncUnsend>>,
+    _marker: PhantomData<(&'a mut T, UnsyncUnsend)>,
 }
 
 

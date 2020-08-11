@@ -5,8 +5,8 @@ use std::{
 };
 
 use crate::{
-    const_utils::Transmuter,
     erased_types::{c_functions,trait_objects,InterfaceType,FormattingMode,InterfaceBound},
+    inline_storage::InlineStorage,
     marker_type::{ErasedObject,UnsafeIgnoredType},
     nonexhaustive_enum::{
         alt_c_functions,NonExhaustive,EnumInfo,GetEnumInfo,SerializeEnum,GetSerializeEnumProxy,
@@ -17,7 +17,7 @@ use crate::{
         trait_marker,
     },
     std_types::{ROption,RResult,RString,RCmpOrdering,RBoxError},
-    inline_storage::InlineStorage,
+    utils::Transmuter,
     StableAbi,
 };
 

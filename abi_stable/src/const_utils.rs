@@ -4,13 +4,6 @@ Utilities for const contexts.
 
 use crate::std_types::RStr;
 
-use std::{
-    marker::PhantomData,
-};
-
-
-use core_extensions::prelude::*;
-
 pub use abi_stable_shared::const_utils::{
     low_bit_mask_u64,
 };
@@ -155,20 +148,6 @@ pub const fn log2_usize(n:usize)->u8{
 
 //////////////////////////////////////
 
-
-/// Struct used to assert that its type parameters are the same type.
-pub struct AssertEq<L,R>
-where L:TypeIdentity<Type=R>
-{
-    _marker:PhantomData<(L,R)>
-}
-
-/// Allows transmuting between `From_:Copy` and `To:Copy`
-pub union Transmuter<From_:Copy,To:Copy>{
-    pub from:From_,
-    pub to:To,
-}
-
 /// Allows converting between `Copy` generic types that are the same concrete type 
 /// (using AssertEq to prove that they are).
 ///
@@ -179,9 +158,9 @@ pub union Transmuter<From_:Copy,To:Copy>{
 #[macro_export]
 macro_rules! type_identity {
     ($from:ty=>$to:ty; $expr:expr ) => {unsafe{
-        let _:$crate::const_utils::AssertEq<$from,$to>;
+        let _:$crate::pmr::AssertEq<$from,$to>;
 
-        $crate::const_utils::Transmuter::<$from,$to>{ from:$expr }
+        $crate::utils::Transmuter::<$from,$to>{ from:$expr }
             .to
     }}
 }

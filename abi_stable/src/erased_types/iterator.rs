@@ -1,14 +1,7 @@
-use std::{
-    marker::PhantomData,
-};
-
-
-
 use crate::{
-    const_utils::Transmuter,
     std_types::{RVec,ROption,RSome,RNone,Tuple2},
-    marker_type::ErasedObject,
-    utils::{transmute_reference,transmute_mut_reference},
+    marker_type::{ErasedObject, NonOwningPhantom},
+    utils::{Transmuter, transmute_reference,transmute_mut_reference},
     traits::IntoReprC,
 };
 
@@ -45,7 +38,7 @@ impl<Item> Clone for IteratorFns<Item>{
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-pub struct MakeIteratorFns<I>(PhantomData<unsafe extern "C" fn()->I>);
+pub struct MakeIteratorFns<I>(NonOwningPhantom<I>);
 
 impl<I> MakeIteratorFns<I>
 where I:Iterator
@@ -179,7 +172,7 @@ impl<Item> Clone for DoubleEndedIteratorFns<Item>{
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-pub struct MakeDoubleEndedIteratorFns<I>(PhantomData<unsafe extern "C" fn()->I>);
+pub struct MakeDoubleEndedIteratorFns<I>(NonOwningPhantom<I>);
 
 impl<I> MakeDoubleEndedIteratorFns<I>
 where I:DoubleEndedIterator

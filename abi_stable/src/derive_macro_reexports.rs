@@ -94,7 +94,10 @@ pub use std::{
 
 pub use repr_offset::offset_calc::next_field_offset;
 
-pub use core_extensions::type_level_bool::{False, True};
+pub use core_extensions::{
+    type_level_bool::{False, True},
+    type_asserts::AssertEq,
+};
 
 pub mod renamed {
     pub use super::{

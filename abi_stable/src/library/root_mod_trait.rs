@@ -1,6 +1,7 @@
 use super::*;
 
 use crate::{
+    marker_type::NonOwningPhantom,
     prefix_type::PrefixRefTrait,
     utils::leak_value,
 };
@@ -41,7 +42,7 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static  {
             c_abi_testing_fns:crate::library::c_abi_testing::C_ABI_TESTING_FNS,
             _priv:(),
         },
-        _priv:PhantomData,
+        _priv:NonOwningPhantom::NEW,
     };
 
     /// Like Self::CONSTANTS,
@@ -359,7 +360,7 @@ macro_rules! declare_root_module_consts {
         #[derive(StableAbi,Copy,Clone)]
         pub struct RootModuleConsts<M>{
             inner:ErasedRootModuleConsts,
-            _priv:PhantomData<extern "C" fn()->M>,
+            _priv:NonOwningPhantom<M>,
         }
 
 
