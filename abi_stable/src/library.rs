@@ -35,6 +35,7 @@ use crate::{
 
 
 pub mod c_abi_testing;
+pub mod development_utils;
 mod lib_header;
 mod root_mod_trait;
 mod raw_library;
@@ -184,7 +185,6 @@ pub enum LibraryError {
     /// is not the same.
     InvalidAbiHeader(AbiHeader),
     /// When Rust changes how it implements the C abi,
-    /// most likely because of zero-sized types.
     InvalidCAbi{
         expected:RBoxError,
         found:RBoxError,
