@@ -531,10 +531,7 @@ these checks are done purely to detect programming errors.
 
 # Planned features
 
-### Eventually
-
-WASM support,with the same features as native dynamic libraries,
-once WASM supports dynamic linking.
+None right now.
 
 # Not-currently-planned features
 
@@ -595,9 +592,7 @@ and loads the pre-compiled `implementation crate` dynamic library from some path
 
 # Minimum Rust version
 
-This crate support Rust back to 1.34
-(previously 1.33,but had to abandon it because of an impossible to 
-avoid internal compiler error related to associated types as types of associated constants),
+This crate support Rust back to 1.39.0 ,
 using a build script to automatically enable features from newer versions.
 
 # Cargo Features

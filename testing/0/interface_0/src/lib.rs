@@ -23,7 +23,6 @@ use abi_stable::{
 
 
 
-
 impl RootModule for TestingMod_Ref {
     abi_stable::declare_root_module_statics!{TestingMod_Ref}
 
@@ -46,6 +45,7 @@ pub struct TestingMod {
     pub prefix_types_tests: PrefixTypeMod0_Ref,
 }
 
+////////////////////////////////////////////////////
 
 /// This type is used in tests between the interface and user crates.
 #[repr(C)]
@@ -65,7 +65,7 @@ pub struct ForTests{
 }
 
 
-// Macro used to make sure that PrefixTypeMod0_Ref and PrefixTypeMod1 
+// Macro used to make sure that PrefixTypeMod0_Ref and PrefixTypeMod1_Ref
 // are changed in lockstep.
 macro_rules! declare_PrefixTypeMod {
     (
