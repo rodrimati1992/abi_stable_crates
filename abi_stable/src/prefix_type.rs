@@ -23,6 +23,9 @@ mod layout;
 mod pt_metadata;
 mod prefix_ref;
 
+#[cfg(test)]
+mod tests;
+
 pub use self::{
     accessible_fields::{
         BoolArray, FieldAccessibility, FieldConditionality, IsAccessible, IsConditional,

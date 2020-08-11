@@ -225,3 +225,46 @@ where P:crate::pointer_trait::GetPointerKind,
 trait NoTraitImplB{}
 
 impl<This:?Sized> NoTraitImplB for This{}
+
+
+
+/*////////////////////////////////////////////////////////////////////////////////
+Test that prefix methods can have a default impl.
+*/////////////////////////////////////////////////////////////////////////////////
+
+
+mod defaulted_prefix_method{
+    use super::*;
+    #[sabi_trait]
+    pub trait Trait{
+        #[sabi(last_prefix_field)]
+        fn apply(&self)->u32 {
+            3
+        }
+    }
+    
+    impl Trait for () {}
+    impl Trait for u32 {
+        fn apply(&self)->u32 {
+            *self + 5
+        }
+    }
+
+}
+
+#[test]
+fn defaulted_prefix_method_works(){
+    use defaulted_prefix_method::Trait_TO;
+    {
+        let obj = Trait_TO::from_value((), TU_Opaque);
+        assert_eq!(obj.apply(), 3);
+    }
+    {
+        let obj = Trait_TO::from_value(0u32, TU_Opaque);
+        assert_eq!(obj.apply(), 5);
+    }
+    {
+        let obj = Trait_TO::from_value(10u32, TU_Opaque);
+        assert_eq!(obj.apply(), 15);
+    }
+}
