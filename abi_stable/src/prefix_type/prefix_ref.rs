@@ -365,18 +365,15 @@ impl<P> PrefixRef<P>{
     /// 
     /// # Safety
     /// 
-    /// A least one of these rules must be followed:
+    /// This function is intended for casting the PrefixRef to `PrefixRef<U>`,
+    /// and then cast back to `PrefixRef<P>` to use it again.
     /// 
-    /// - 1:`T` must be compatible with `P` (the type parameter of this `PrefixRef`)
-    /// 
-    /// - 2: The prefix in the resulting PrefixRef must not be accessed.
-    /// This includes calling `prefix`, and reading the `value` field in the `WithMetadata`
+    /// The prefix in the returned `PrefixRef<U>` must only be accessed
+    /// when this `PrefixRef` was cosntructed with a `ẀithMetadata_<_, U>`.
+    /// access includes calling `prefix`, and reading the `value` field in the `WithMetadata`
     /// that this points to.
     /// 
-    /// Casting into `PrefixRef<U>` and back to `PrefixRef<P>` doesn't change the 
-    /// validity of the `PrefixRef` from before it was casted.
-    /// 
-    pub const unsafe fn cast<T>(self)->PrefixRef<T>{
+    pub const unsafe fn cast<U>(self)->PrefixRef<U>{
         PrefixRef{
             ptr: self.ptr.cast()
         }
