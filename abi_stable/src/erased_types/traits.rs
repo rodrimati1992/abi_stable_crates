@@ -3,9 +3,8 @@
 Traits for types wrapped in `DynTrait<_>`
 */
 
-use std::{mem,marker::PhantomData};
-
 use crate::{
+    marker_type::NonOwningPhantom,
     sabi_types::{Constructor,VersionStrings},
     std_types::{RBoxError, RStr},
 };
@@ -412,7 +411,7 @@ pub mod interface_for{
 
     /// Helper struct to get an `ImplType` implementation for any type.
     pub struct InterfaceFor<T,Interface,Unerasability>(
-        PhantomData<fn()->(T,Interface,Unerasability)>
+        NonOwningPhantom<(T,Interface,Unerasability)>
     );
 
     impl<T,Interface,Unerasability> ImplType for InterfaceFor<T,Interface,Unerasability>
@@ -424,8 +423,8 @@ pub mod interface_for{
         
         /// The `&'static TypeInfo` constant,used when unerasing `DynTrait`s into a type.
         const INFO:&'static TypeInfo=&TypeInfo{
-            size:mem::size_of::<T>(),
-            alignment:mem::align_of::<T>(),
+            size:std::mem::size_of::<T>(),
+            alignment:std::mem::align_of::<T>(),
             _uid:<Unerasability as GetUTID<T>>::UID,
             type_name:Constructor(crate::utils::get_type_name::<T>),
             module:RStr::from_str("<unavailable>"),

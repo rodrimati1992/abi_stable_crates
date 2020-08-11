@@ -6,7 +6,6 @@ use std::{
     fmt::{self,Write as fmtWrite},
     io,
     ops::DerefMut,
-    marker::PhantomData,
     mem::ManuallyDrop,
     ptr,
     rc::Rc,
@@ -24,8 +23,8 @@ use crate::{
         GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
     },
     prefix_type::PrefixRef,
-    marker_type::{ErasedObject,UnsafeIgnoredType}, 
-    sabi_types::{Constructor,MovePtr,RRef},
+    marker_type::{ErasedObject,NonOwningPhantom,UnsafeIgnoredType}, 
+    sabi_types::{MovePtr,RRef},
     std_types::{RBox, RStr,RVec,RIoError},
     type_level::{
         unerasability::{TU_Unerasable,TU_Opaque},
@@ -603,7 +602,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         pub(super) object: ManuallyDrop<P>,
         vtable: VTable_Ref<'borr,P,I>,
         extra_value:EV,
-        _marker:PhantomData<Constructor<Tuple2<I,RStr<'borr>>>>,
+        _marker:NonOwningPhantom<(I,RStr<'borr>)>,
         _marker2:UnsafeIgnoredType<Rc<()>>,
 
     }
@@ -641,7 +640,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: T::_GET_INNER_VTABLE,
                 extra_value:(),
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -676,7 +675,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: <InterfaceFor<T,I,TU_Unerasable>>::_GET_INNER_VTABLE,
                 extra_value:(),
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -718,7 +717,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: <InterfaceFor<T,I,TU_Opaque>>::_GET_INNER_VTABLE,
                 extra_value:(),
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -748,7 +747,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: <InterfaceFor<OrigPtr::Target,I,Unerasability>>::_GET_INNER_VTABLE,
                 extra_value,
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -855,7 +854,7 @@ fn main(){
                 },
                 vtable: vtable_for.vtable,
                 extra_value,
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -1265,7 +1264,7 @@ fn main(){
                 object: ManuallyDrop::new(&**self.object),
                 vtable: unsafe{ VTable_Ref(self.vtable.0.cast()) },
                 extra_value:*self.sabi_extra_value(),
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -1290,7 +1289,7 @@ fn main(){
                 object: ManuallyDrop::new(&mut **self.object),
                 vtable: unsafe{ VTable_Ref(self.vtable.0.cast()) },
                 extra_value,
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -1310,7 +1309,7 @@ fn main(){
                 object:ManuallyDrop::new(object),
                 vtable: self.vtable,
                 extra_value,
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }

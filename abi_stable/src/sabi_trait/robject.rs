@@ -100,7 +100,7 @@ where
 {
     vtable:PrefixRef<V>,
     ptr: ManuallyDrop<P>,
-    _marker:PhantomData<Tuple2<&'lt (),I>>,
+    _marker:PhantomData<(&'lt (),I)>,
 }
 
 mod clone_impl{

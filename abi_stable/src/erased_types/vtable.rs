@@ -24,15 +24,15 @@ use super::{
 
 use crate::{
     StableAbi,
-    const_utils::Transmuter,
     marker_type::{ErasedObject,NonOwningPhantom},
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
     pointer_trait::{GetPointerKind,CanTransmuteElement},
-    std_types::{Tuple3,RSome,RNone,RIoError,RSeekFrom},
+    std_types::{RSome,RNone,RIoError,RSeekFrom},
     type_level::{
         impl_enum::{Implemented,Unimplemented,IsImplemented},
         trait_marker,
     },
+    utils::Transmuter,
 };
 
 
@@ -152,7 +152,7 @@ macro_rules! declare_meta_vtable {
         )]
         pub struct VTable<'borr,$erased_ptr,$interf>{
             pub type_info:&'static TypeInfo,
-            _marker:PhantomData<extern "C" fn()->Tuple3<$erased_ptr,$interf,&'borr()>>,
+            _marker:NonOwningPhantom<($erased_ptr,$interf,&'borr())>,
             pub drop_ptr:unsafe extern "C" fn(&mut $erased_ptr),
             $(
                 $( #[$field_attr] )*
@@ -388,7 +388,7 @@ macro_rules! declare_meta_vtable {
                             >
                         >::FIELD,
                 )*
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
             };
 
         }

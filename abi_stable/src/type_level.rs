@@ -94,7 +94,7 @@ pub mod trait_marker{
 /// Type-level-enum representing whether a trait is implemented or not implemented.
 pub mod impl_enum{
 
-    use std::marker::PhantomData;
+    use crate::marker_type::NonOwningPhantom;
 
     use core_extensions::type_level_bool::{True,False};
 
@@ -143,10 +143,10 @@ pub mod impl_enum{
 
 
     /// Describes a trait being implemented.
-    pub struct Implemented<T:?Sized>(PhantomData<fn()->T>);
+    pub struct Implemented<T:?Sized>(NonOwningPhantom<T>);
 
     impl<T:?Sized> Implemented<T>{
-        pub const NEW:Implemented<T>=Implemented(PhantomData);
+        pub const NEW:Implemented<T>=Implemented(NonOwningPhantom::NEW);
     }
 
     impl<T> Sealed for Implemented<T>{}
@@ -157,10 +157,10 @@ pub mod impl_enum{
 
 
     /// Describes a trait being unimplemented.
-    pub struct Unimplemented<T:?Sized>(PhantomData<fn()->T>);
+    pub struct Unimplemented<T:?Sized>(NonOwningPhantom<T>);
 
     impl<T:?Sized> Unimplemented<T>{
-        pub const NEW:Unimplemented<T>=Unimplemented(PhantomData);
+        pub const NEW:Unimplemented<T>=Unimplemented(NonOwningPhantom::NEW);
     }
 
     impl<T> Sealed for Unimplemented<T>{}

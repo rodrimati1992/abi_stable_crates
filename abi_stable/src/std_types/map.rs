@@ -21,7 +21,7 @@ use core_extensions::prelude::*;
 use crate::{
     DynTrait,
     StableAbi,
-    marker_type::{ErasedObject,NotCopyNotClone,UnsafeIgnoredType},
+    marker_type::{ErasedObject,NonOwningPhantom,NotCopyNotClone,UnsafeIgnoredType},
     erased_types::trait_objects::HasherObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
     std_types::*,
@@ -150,7 +150,7 @@ pub type Drain<'a,K,V>=
     unsafe_unconstrained(S),
 )]
 struct ErasedMap<K,V,S>(
-    PhantomData<Tuple2<K,V>>,
+    PhantomData<(K,V)>,
     UnsafeIgnoredType<S>
 );
 
@@ -999,13 +999,13 @@ mod serde{
 
 
     struct RHashMapVisitor<K,V,S> {
-        marker: PhantomData<fn() -> RHashMap<K,V,S>>
+        _marker: NonOwningPhantom<RHashMap<K,V,S>>
     }
 
     impl<K,V,S> RHashMapVisitor<K,V,S> {
         fn new() -> Self {
             RHashMapVisitor {
-                marker: PhantomData
+                _marker: NonOwningPhantom::NEW
             }
         }
     }

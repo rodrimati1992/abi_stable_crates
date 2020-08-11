@@ -36,11 +36,11 @@ pub enum REntry<'a,K,V>{
 
 #[derive(StableAbi)]
 #[repr(C)]
-struct ErasedOccupiedEntry<K,V>(PhantomData<Tuple2<K,V>>);
+struct ErasedOccupiedEntry<K,V>(PhantomData<(K,V)>);
 
 #[derive(StableAbi)]
 #[repr(C)]
-struct ErasedVacantEntry  <K,V>(PhantomData<Tuple2<K,V>>);
+struct ErasedVacantEntry  <K,V>(PhantomData<(K,V)>);
 
 type UnerasedOccupiedEntry<'a,K,V>=
     ManuallyDrop<OccupiedEntry<'a,MapKey<K>,V>>;
