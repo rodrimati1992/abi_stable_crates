@@ -1,12 +1,16 @@
 //! A nul-terminated string,which is just a pointer to the string data,
 //! it doesn't know the length of the string.
 
-use crate::std_types::RStr;
+use crate::{
+    std_types::RStr,
+    utils::ref_as_nonnull,
+};
 
 use std::{
     cmp::{PartialEq,Eq},
     fmt::{self, Debug, Display},
     marker::PhantomData,
+    ptr::NonNull,
 };
 
 
@@ -15,7 +19,7 @@ use std::{
 #[repr(transparent)]
 #[derive(Copy,Clone,StableAbi)]
 pub struct NulStr<'a>{
-    ptr:*const u8,
+    ptr:NonNull<u8>,
     _marker:PhantomData<&'a u8>,
 }
 
@@ -25,7 +29,7 @@ unsafe impl Send for NulStr<'_>{}
 
 impl NulStr<'static>{
     /// An empty string.
-    pub const EMPTY:Self=NulStr{ptr:&0,_marker:PhantomData};
+    pub const EMPTY: Self = NulStr{ptr: ref_as_nonnull(&0), _marker: PhantomData};
 }
 
 impl<'a> NulStr<'a>{
@@ -36,7 +40,7 @@ impl<'a> NulStr<'a>{
     /// `str` must be nul terminated(a 0 byte).
     pub const unsafe fn from_str(str: &'a str) -> Self{
         Self{
-            ptr:str.as_ptr(),
+            ptr: NonNull::new_unchecked(str.as_ptr() as *mut u8),
             _marker:PhantomData,
         }
     }
@@ -48,7 +52,7 @@ impl<'a> NulStr<'a>{
     /// The pointer must point to a utf8 and nul terminated (a 0 byte) sequence of bytes.
     pub const unsafe fn from_ptr(ptr: *const u8) -> Self{
         Self{
-            ptr,
+            ptr: NonNull::new_unchecked(ptr as *mut u8),
             _marker:PhantomData,
         }
     }
@@ -61,7 +65,7 @@ impl<'a> NulStr<'a>{
     /// find the nul byte.
     pub fn to_str_with_nul(&self)->&'a str{
         unsafe{
-            let bytes=std::ffi::CStr::from_ptr(self.ptr as *const i8).to_bytes_with_nul();
+            let bytes=std::ffi::CStr::from_ptr(self.ptr.as_ptr() as *const i8).to_bytes_with_nul();
             std::str::from_utf8_unchecked(bytes)
         }
     }
@@ -84,7 +88,7 @@ impl<'a> NulStr<'a>{
     /// find the nul byte.
     pub fn to_str(self)->&'a str{
         unsafe{
-            let bytes=std::ffi::CStr::from_ptr(self.ptr as *const i8).to_bytes();
+            let bytes = std::ffi::CStr::from_ptr(self.ptr.as_ptr() as *const i8).to_bytes();
             std::str::from_utf8_unchecked(bytes)
         }
     }

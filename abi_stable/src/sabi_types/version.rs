@@ -47,7 +47,7 @@ use crate::std_types::RStr;
 ///
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
-#[repr(C)]
+#[repr(transparent)]
 pub struct VersionStrings {
     pub version: RStr<'static>,
 }

@@ -213,12 +213,12 @@ pub struct RObjectVtable<_Self,ErasedPtr,I>{
     
     pub _sabi_type_id:Constructor<MaybeCmp<UTypeId>>,
 
-    #[sabi(last_prefix_field)]
     pub _sabi_drop :unsafe extern "C" fn(this:&mut ErasedPtr),
     pub _sabi_clone:Option<unsafe extern "C" fn(this:&ErasedPtr)->ErasedPtr>,
     pub _sabi_debug:Option<
         unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
     >,
+    #[sabi(last_prefix_field)]
     pub _sabi_display:Option<
         unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
     >,

@@ -2,10 +2,12 @@ use std::{
     ops::{Deref},
     fmt::{self,Display},
     marker::PhantomData,
+    ptr::NonNull,
 };
 
 use crate::{
     pointer_trait::{CanTransmuteElement,GetPointerKind,PK_Reference},
+    utils::ref_as_nonnull,
 };
 
 /**
@@ -19,7 +21,7 @@ in stable Rust.
     bound="T:'a",
 )]
 pub struct RRef<'a,T>{
-    ref_:*const T,
+    ref_: NonNull<T>,
     _marker:PhantomData<&'a T>,
 }
 
@@ -85,7 +87,7 @@ impl<'a,T> RRef<'a,T>{
         T:'a,
     {
         Self{
-            ref_,
+            ref_: NonNull::new_unchecked(ref_ as *mut T),
             _marker:PhantomData,
         }
     }
@@ -109,7 +111,7 @@ impl<'a,T> RRef<'a,T>{
     /// ```
     pub const fn new(ref_:&'a T)->Self{
         Self{
-            ref_,
+            ref_: ref_as_nonnull(ref_),
             _marker:PhantomData,
         }
     }
@@ -146,7 +148,7 @@ impl<'a,T> RRef<'a,T>{
     ///
     /// ```
     pub fn get(self)->&'a T{
-        unsafe{ &*self.ref_ }
+        unsafe{ &*(self.ref_.as_ptr() as *const T) }
     }
 
     /// Gets access to the referenced value,as a raw pointer.
@@ -171,7 +173,7 @@ impl<'a,T> RRef<'a,T>{
     ///
     /// ```
     pub const fn get_raw(self)->*const T{
-        self.ref_
+        self.ref_.as_ptr() as *const T
     }
 
     /// Transmutes this `RRef<'a,T>` to a `RRef<'b,U>`.
@@ -206,7 +208,7 @@ impl<'a,T> RRef<'a,T>{
         U:'b,
     {
         RRef::from_raw(
-            self.ref_ as *const U
+            self.ref_.as_ptr() as *const U
         )
     }
 
@@ -245,7 +247,7 @@ impl<'a,T> RRef<'a,T>{
         U:'a,
     {
         RRef::from_raw(
-            self.ref_ as *const U
+            self.ref_.as_ptr() as *const U
         )
     }
 }
@@ -253,6 +255,7 @@ impl<'a,T> RRef<'a,T>{
 impl<'a,T> Deref for RRef<'a,T>{
     type Target=T;
 
+    #[inline(always)]
     fn deref(&self)->&T{
         self.get()
     }

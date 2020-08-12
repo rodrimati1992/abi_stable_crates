@@ -500,8 +500,8 @@ struct VTable{
     
     lock_exclusive:extern "C" fn(this:&OpaqueRwLock),
     try_lock_exclusive:extern "C" fn(this:&OpaqueRwLock) -> bool,
-    #[sabi(last_prefix_field)]
     try_lock_exclusive_for:extern "C" fn(this:&OpaqueRwLock, timeout: RDuration) -> bool,
+    #[sabi(last_prefix_field)]
     unlock_exclusive:extern "C" fn(this:&OpaqueRwLock),
 }
 
