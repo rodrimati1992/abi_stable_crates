@@ -846,7 +846,6 @@ struct VTable<T>{
         extern "C" fn(this:&ErasedReceiver<T>) -> RResult<T,RRecvError>,
     try_recv:
         extern "C" fn(this:&ErasedReceiver<T>) -> RResult<T,RTryRecvError>,
-    #[sabi(last_prefix_field)]
     recv_timeout:
         extern "C" fn(
             this:&ErasedReceiver<T>, 
@@ -856,6 +855,7 @@ struct VTable<T>{
     receiver_is_empty:extern "C" fn(this:&ErasedReceiver<T>) -> bool,
     receiver_is_full:extern "C" fn(this:&ErasedReceiver<T>) -> bool,
     receiver_len:extern "C" fn(this:&ErasedReceiver<T>) -> usize,
+    #[sabi(last_prefix_field)]
     receiver_capacity:extern "C" fn(this:&ErasedReceiver<T>) -> ROption<usize>,
 
 }
