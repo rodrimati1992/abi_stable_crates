@@ -172,10 +172,13 @@ pub use abi_stable_derive::{
 
 #[doc(inline)]
 pub use abi_stable_derive::{
-    export_root_module,
     sabi_trait,
     sabi_extern_fn,
 };
+
+/// Hello World!
+#[doc(inline)]
+pub use abi_stable_derive::export_root_module;
 
 use abi_stable_derive::{
     impl_InterfaceType,

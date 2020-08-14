@@ -1374,11 +1374,11 @@ where
             err: RArc::new(e),
             expected_err: ExpectedFound{
                 expected:expected_extra_checks
-                    .piped(RBoxError::from_fmt)
+                    .piped_ref(RBoxError::from_fmt)
                     .piped(RArc::new),
 
                 found:found_extra_checks
-                    .piped(RBoxError::from_fmt)
+                    .piped_ref(RBoxError::from_fmt)
                     .piped(RArc::new),
             }
         }.piped(CmpIgnored::new)

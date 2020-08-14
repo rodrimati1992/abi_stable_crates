@@ -14,7 +14,4 @@ fn main() {
     if let Channel::Nightly=channel {
         println!("cargo:rustc-cfg=feature=\"nightly_rust\"");
     }
-
-    // skeptic::generate_doc_tests(&["../readme.md"]);
-
 }

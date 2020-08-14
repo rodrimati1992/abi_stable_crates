@@ -67,8 +67,8 @@ This is applied to functions like this:
 use abi_stable::prefix_type::PrefixTypeTrait;
 
 #[export_root_module]
-pub fn get_hello_world_mod() -> &'static TextOperationsMod {
-    TextOperationsModVal{
+pub fn get_hello_world_mod() -> TextOperationsMod_Ref {
+    TextOperationsMod{
         reverse_string,
     }.leak_into_prefix()
 }
@@ -76,6 +76,21 @@ pub fn get_hello_world_mod() -> &'static TextOperationsMod {
 # fn main(){}
 
 ```
+
+# Return Type
+
+The return type of the annotated function can be one of:
+
+- Any type that implements `abi_stable::library::RootModule`
+
+- `Result<M, RBoxError>`, where `M` is any type that implements 
+`abi_stable::library::RootModule`
+
+- `RResult<M, RBoxError>`, where `M` is any type that implements 
+`abi_stable::library::RootModule`
+
+All those types are supported through the `abi_stable::library::IntoRootModuleResult` trait,
+which you can implement if you want to return some other type.
 
 # Generated code
 
@@ -110,7 +125,6 @@ doing a public release.
 It is strongly encouraged that this attribute is used conditionally,
 disabling it in Continuous Integration so that the 
 binary compatibility of a dynamic library is checked at some point before releasing it.
-
 
 # More examples
 

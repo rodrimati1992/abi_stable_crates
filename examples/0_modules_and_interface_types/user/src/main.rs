@@ -134,7 +134,7 @@ Examples:
 
 
 fn main()-> io::Result<()> {
-    let target: &std::path::Path = "../../target/".as_ref();
+    let target: &std::path::Path = "../../../target/".as_ref();
     let library_path=compute_library_path::<TextOpsMod_Ref>(target).unwrap();
 
     let mods=TextOpsMod_Ref::load_from_directory(&library_path)

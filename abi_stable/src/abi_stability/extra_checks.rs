@@ -666,7 +666,8 @@ pub unsafe trait TypeChecker:'static+Send+Sync{
     ///
     /// # Errors
     ///
-    /// The errors detected in this method are always propagated,
+    /// When calling the implementation of this trait used in `check_layout_compatibility`,
+    /// the errors detected in this method are always propagated by the free function,
     /// to prevent the propagation of errors call the `local_check_compatibility` method.
     ///
     fn check_compatibility(
