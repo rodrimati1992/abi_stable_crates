@@ -225,14 +225,14 @@ impl<M> RBoxError_<M> {
     /// let display_fmt=int_error.to_string();
     /// let debug_fmt=format!("{:#?}",int_error);
     ///
-    /// let err=RBoxError::from_fmt(int_error);
+    /// let err=RBoxError::from_fmt(&int_error);
     ///
     /// assert_eq!(display_fmt,err.to_string());
     /// assert_eq!(debug_fmt,format!("{:?}",err));
     /// ```
-    pub fn from_fmt<T>(value: T) -> Self
+    pub fn from_fmt<T>(value: &T) -> Self
     where
-        T: Display + Debug,
+        T: Display + Debug + ?Sized,
     {
         DebugDisplay {
             debug: format!("{:#?}", value),
@@ -257,9 +257,9 @@ impl<M> RBoxError_<M> {
     /// assert_eq!(debug_fmt,format!("{}",err));
     /// assert_eq!(debug_fmt,format!("{:#?}",err));
     /// ```
-    pub fn from_debug<T>(value: T) -> Self
+    pub fn from_debug<T>(value: &T) -> Self
     where
-        T: Debug,
+        T: Debug + ?Sized,
     {
         DebugDisplay {
             debug: format!("{:#?}", value),
@@ -304,7 +304,7 @@ impl<M> RBoxError_<M>{
     /// This is used to decouple an `RBoxError` from the dynamic library that produced it,
     /// in order to unload the dynamic library.
     /// 
-    pub fn to_formatted_error<N>(self) -> RBoxError_<N> {
+    pub fn to_formatted_error<N>(&self) -> RBoxError_<N> {
         if let Some(dd) = self.as_debug_display() {
             RBoxError_::from_debug_display(DebugDisplay{
                 debug: dd.debug.into(),

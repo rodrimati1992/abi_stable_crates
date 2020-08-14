@@ -169,13 +169,13 @@ fn from_fmt_or_debug(){
     let str_err=Stringy::new("hello\n\rworld");
 
     {
-        let rerr = RBoxError::from_fmt(str_err.clone());
+        let rerr = RBoxError::from_fmt(&str_err);
 
         check_formatted_debug_display(&str_err, &rerr);
         check_formatted_debug_display(&str_err, &rerr.to_formatted_error());
     }
     {
-        let rerr = RBoxError::from_debug(str_err.clone());
+        let rerr = RBoxError::from_debug(&str_err);
 
         let as_dd = rerr.as_debug_display().unwrap();
         assert_eq!(format!("{:#?}", str_err), as_dd.debug.as_str());

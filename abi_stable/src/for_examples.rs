@@ -1,4 +1,6 @@
 use crate::{
+    library::RootModule,
+    sabi_types::VersionStrings,
     std_types::{ROption, RStr},
     StableAbi,
 };
@@ -20,3 +22,12 @@ pub struct Module{
     pub second: RStr<'static>,
     pub third: usize,
 }
+
+
+impl RootModule for Module_Ref {
+    crate::declare_root_module_statics!{Module_Ref}
+    const BASE_NAME: &'static str = "example_root_module";
+    const NAME: &'static str = "example_root_module";
+    const VERSION_STRINGS: VersionStrings = crate::package_version_strings!();
+}
+

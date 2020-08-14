@@ -89,8 +89,9 @@ script:
   - cd "${TRAVIS_BUILD_DIR}/testing/user_0/"
   - cargo run
   - cd "${TRAVIS_BUILD_DIR}/testing/1 - loading errors/user_1/"
-  - env "RETURN_ERR=false" cargo run
-  - env "RETURN_ERR=true" cargo run
+  - env "RETURN=ok" cargo run
+  - env "RETURN=err" cargo run
+  - env "RETURN=panic" cargo run
 
 
   - cd "${TRAVIS_BUILD_DIR}/testing/version_compatibility/user_0"

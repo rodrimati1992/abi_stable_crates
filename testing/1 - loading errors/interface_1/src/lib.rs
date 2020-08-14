@@ -94,13 +94,40 @@ impl RootModule for NonAbiStableLib_Ref {
 #[derive(Debug)]
 pub struct EnvVars{
     /// Whether the dynamic library returns an error.
-    pub return_error: bool,
+    pub return_what: ReturnWhat,
+}
+
+#[derive(Debug)]
+pub enum ReturnWhat{
+    Ok,
+    Error,
+    Panic,
+}
+
+#[derive(Debug)]
+pub struct ParseReturnWhatError(String);
+
+impl std::str::FromStr for ReturnWhat {
+    type Err = ParseReturnWhatError;
+    
+    fn from_str(str: &str)->Result<Self, ParseReturnWhatError> {
+        let trimmed = str.trim();
+        if trimmed.starts_with("ok") {
+            Ok(ReturnWhat::Ok)
+        } else if trimmed.starts_with("error") {
+            Ok(ReturnWhat::Error)
+        } else if trimmed.starts_with("panic") {
+            Ok(ReturnWhat::Panic)
+        } else {
+            Err(ParseReturnWhatError(str.to_string()))
+        }
+    }
 }
 
 
 /// Returns the parameters passed through environment variables
 pub fn get_env_vars() -> EnvVars {
     EnvVars{
-        return_error: std::env::var("RETURN_ERR").unwrap().parse().unwrap(),
+        return_what: std::env::var("RETURN").unwrap().parse().unwrap(),
     }
 }

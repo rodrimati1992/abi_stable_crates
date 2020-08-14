@@ -7,8 +7,7 @@ cargo build
 cd ../non_abi_stable_lib
 cargo build
 cd ../user_1
-env "RETURN_ERR=true" cargo run
-env "RETURN_ERR=false" cargo run
+env "RETURN=ok" cargo run; env "RETURN=error" cargo run; env "RETURN=panic" cargo run
 
 
 ```

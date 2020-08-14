@@ -403,6 +403,7 @@ pub trait Dictionary:Debug+Clone{
         }
         fn insert(&mut self,key:RString,value:V)->ROption<V>{
             self.insert(key,value)
+                .into()
         }
     }
 

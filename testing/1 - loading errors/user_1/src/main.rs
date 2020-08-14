@@ -1,12 +1,14 @@
 use abi_stable::library::{
     development_utils::compute_library_path,
-    LibraryError, RootModule,
+    LibraryError, RootModule, RootModuleError,
 };
 
 use testing_interface_1::{
-    NonAbiStableLib_Ref, TestingMod_Ref, WithIncompatibleLayout_Ref,
+    NonAbiStableLib_Ref, ReturnWhat, TestingMod_Ref, WithIncompatibleLayout_Ref,
     get_env_vars,
 };
+
+use std::fmt;
 
 fn main() {
     let target: &std::path::Path = "../../../target/".as_ref();
@@ -64,13 +66,50 @@ fn main() {
         let library_path=compute_library_path::<TestingMod_Ref>(target).unwrap();
         let res=TestingMod_Ref::load_from_directory(&library_path);
 
-        if envars.return_error {
-            let err = res.err().expect("Expected the library to return an error");
-        }else{
-            let module = res.unwrap();
-            assert_eq!(module.a(), 5);
-            assert_eq!(module.b(), 8);
-            assert_eq!(module.c(), 13);
+        match envars.return_what {
+            ReturnWhat::Ok=>{
+                let module = res.unwrap();
+                assert_eq!(module.a(), 5);
+                assert_eq!(module.b(), 8);
+                assert_eq!(module.c(), 13);
+            }
+            ReturnWhat::Error|ReturnWhat::Panic=>{
+                let err = res.err().expect("Expected the library to return an error");
+
+                if let LibraryError::RootModule{err: rm_err, ..} = &err {
+
+                    assert!(
+                        core_extensions::matches!(
+                             (ReturnWhat::Error, RootModuleError::Returned{..})
+                            |(ReturnWhat::Panic, RootModuleError::Unwound{..})
+                            = (&envars.return_what, rm_err)
+                        ),
+                        "return_what: {:?}\nerror: {:?}",
+                        envars.return_what,
+                        rm_err,
+                    );
+
+                    print_error_sum(line!(), rm_err);
+                } else {
+                    panic!(
+                        "Expected a LibraryError::RootModule, found this instead:\n{:#?}",
+                        err,
+                    );
+                }
+                print_error_sum(line!(), err);
+            }
         }
+        println!(
+            "\n{S}{S}\n\nFinished successfully\n\n{S}{S}\n",
+            S="----------------------------------------",
+        );
     }
+}
+
+fn print_error_sum<E: fmt::Debug + fmt::Display>(line: u32, e: E) {
+    let formatted = format!("{0} {0:?}", e);
+    let sum = formatted.bytes()
+        .map(|x| x as u64 )
+        .sum::<u64>();
+    println!("{}: sum of bytes in the error: {}", line, sum);
 }

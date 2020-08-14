@@ -14,13 +14,13 @@ pub struct LibHeader {
     root_mod_consts:ErasedRootModuleConsts,
     init_globals_with:InitGlobalsWith,
     module:LateStaticRef<PrefixRef<ErasedPrefix>>,
-    constructor:Constructor<PrefixRef<ErasedPrefix>>,
+    constructor:Constructor<RootModuleResult>,
 }
 
 impl LibHeader {
     /// Constructs a LibHeader from the root module loader.
     pub const unsafe fn from_constructor<M>(
-        constructor:Constructor<PrefixRef<ErasedPrefix>>,
+        constructor:Constructor<RootModuleResult>,
         root_mod_consts:RootModuleConsts<M>,
     )->Self
     {
@@ -172,6 +172,10 @@ this can only happen if the version strings are manually constructed.
 - LibraryError::IncompatibleVersionNumber:
 If the version number of the library is incompatible.
 
+- `LibraryError::RootModule` :
+If the root module initializer returned an error or panicked.
+
+
     */
     pub unsafe fn init_root_module_with_unchecked_layout<M>(
         &self
@@ -180,7 +184,8 @@ If the version number of the library is incompatible.
         M: RootModule
     {
         self.check_version::<M>()?;
-        Ok(self.unchecked_layout())
+        self.unchecked_layout()
+            .map_err(RootModuleError::into_library_error::<M>)
     }
 
 
@@ -214,11 +219,10 @@ If the version number of the library is incompatible.
         
         atomic::compiler_fence(atomic::Ordering::SeqCst);
         
-        let prefix_ref = unsafe{
-            self.module.init(|| (self.constructor.0)() )
-                .cast::<M::PrefixFields>()
-        };
-        Ok(M::from_prefix_ref(prefix_ref))
+        unsafe{
+            self.unchecked_layout()
+                .map_err(RootModuleError::into_library_error::<M>)
+        }
     }
 
 
@@ -233,14 +237,26 @@ have been checked for layout compatibility.
 
 The caller must ensure that `M` has the expected layout.
 
+# Errors
+
+This function can return a `RootModuleError` 
+because the root module failed to initialize.
+
 */
-    pub unsafe fn unchecked_layout<M>(&self)->M
+    pub unsafe fn unchecked_layout<M>(&self)->Result<M, RootModuleError>
     where
         M: PrefixRefTrait,
     {
-        self.module.init(|| (self.constructor.0)() )
+        self.module.try_init(|| (self.constructor.0)().into_result() )
+            .map_err(|mut err|{
+                // Making sure that the error doesn't contain references into 
+                // the unloaded library.
+                err.reallocate();
+                err
+            })?
             .cast::<M::PrefixFields>()
             .piped(M::from_prefix_ref)
+            .piped(Ok)
     }
 }
 

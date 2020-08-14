@@ -145,6 +145,9 @@ If the version number of the library is incompatible.
 - LibraryError::AbiInstability:
 If the layout of the root module is not the expected one.
 
+- `LibraryError::RootModule` :
+If the root module initializer returned an error or panicked.
+
 */
     fn load_from(where_:LibraryPath<'_>) -> Result<Self, LibraryError>{
         let statics=Self::root_module_statics();
@@ -171,7 +174,7 @@ first loading the dynamic library if it wasn't already loaded.
 Once the root module is loaded,
 this will return a reference to the already loaded root module.
 
-Warnings and Errors are detailed in `load_from`,
+Warnings and Errors are detailed in [`load_from`](#method.load_from),
 
 */
     fn load_from_directory(where_:&Path) -> Result<Self, LibraryError>{
@@ -186,7 +189,7 @@ first loading the dynamic library if it wasn't already loaded.
 Once the root module is loaded,
 this will return a reference to the already loaded root module.
 
-Warnings and Errors are detailed in `load_from`,
+Warnings and Errors are detailed in [`load_from`](#method.load_from),
 
 */
     fn load_from_file(path_:&Path) -> Result<Self, LibraryError>{
