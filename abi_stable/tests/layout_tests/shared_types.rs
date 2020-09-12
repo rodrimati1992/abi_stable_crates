@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use core_extensions::{matches, prelude::*};
 
 #[allow(unused_imports)]
-use crate::{
+use abi_stable::{
     external_types::{
         RMutex,RRwLock,ROnce
     },
@@ -16,7 +16,7 @@ use crate::{
 
 pub(super) mod basic_enum {
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub enum Enum {
         Variant0,
         Variant1 { a: u32 },
@@ -26,7 +26,7 @@ pub(super) mod basic_enum {
 pub(super) mod gen_basic {
     use super::PhantomData;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Generics<T: 'static> {
         x: &'static T,
         y: &'static T,
@@ -37,7 +37,7 @@ pub(super) mod gen_basic {
 pub(super) mod gen_more_lts {
     use super::PhantomData;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(bound = "T:'a")]
     pub struct Generics<'a, T> {
         x: &'a T,
@@ -48,7 +48,7 @@ pub(super) mod gen_more_lts {
 
 pub(super) mod enum_extra_fields_b {
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub enum Enum {
         Variant0,
         Variant1 { a: u32,b:u32,c:u32 },
@@ -56,9 +56,9 @@ pub(super) mod enum_extra_fields_b {
 }
 
 pub(super) mod extra_variant {
-    use crate::std_types::RString;
+    use abi_stable::std_types::RString;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub enum Enum {
         Variant0,
         Variant1 { a: u32 },
@@ -69,7 +69,7 @@ pub(super) mod extra_variant {
 
 pub(super) mod swapped_fields_first {
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Rectangle {
         y: u32,
         x: u32,
@@ -81,7 +81,7 @@ pub(super) mod swapped_fields_first {
 
 pub(super) mod gen_more_lts_b {
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Generics<'a> {
         x: &'a (),
         y: &'static (),
@@ -92,7 +92,7 @@ pub(super) mod gen_more_lts_b {
 pub(super) mod mod_5 {
     use super::RString;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
         pub function_1: extern "C" fn(&mut u32,u64,RString),
@@ -104,7 +104,7 @@ pub(super) mod mod_5 {
 pub(super) mod mod_7 {
     use super::RString;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
         pub function_1: extern "C" fn(&mut u32,u64,RString),

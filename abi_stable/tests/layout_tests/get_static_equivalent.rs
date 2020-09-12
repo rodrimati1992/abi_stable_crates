@@ -1,4 +1,4 @@
-use crate::{
+use abi_stable::{
     abi_stability::{
         abi_checking::{check_layout_compatibility},
         get_static_equivalent::{GetStaticEquivalent_,Unsized},
@@ -11,7 +11,7 @@ use crate::{
 
 
 mod unit_type{
-    use crate::GetStaticEquivalent;
+    use abi_stable::GetStaticEquivalent;
     
     #[derive(GetStaticEquivalent)]
     pub(super) struct Struct;
@@ -23,7 +23,7 @@ mod unit_type{
 
 
 mod single_ty_param{
-    use crate::GetStaticEquivalent;
+    use abi_stable::GetStaticEquivalent;
     
     #[derive(GetStaticEquivalent)]
     pub(super) struct Struct<T>(T);
@@ -38,7 +38,7 @@ mod single_ty_param{
 
 
 mod single_lt_param{
-    use crate::GetStaticEquivalent;
+    use abi_stable::GetStaticEquivalent;
     
     #[derive(GetStaticEquivalent)]
     pub(super) struct Struct<'a>(&'a ());
@@ -50,7 +50,7 @@ mod single_lt_param{
 
 
 mod single_lt_ty_param{
-    use crate::GetStaticEquivalent;
+    use abi_stable::GetStaticEquivalent;
     
     #[derive(GetStaticEquivalent)]
     pub(super) struct Struct<'a,T>(&'a (),T);
@@ -66,7 +66,7 @@ mod single_lt_ty_param{
 
 
 mod sabi_with_0_ty_params{
-    use crate::StableAbi;
+    use abi_stable::StableAbi;
     
     #[repr(C)]
     #[derive(StableAbi)]
@@ -74,7 +74,7 @@ mod sabi_with_0_ty_params{
 }
 
 mod sabi_with_1_ty_params{
-    use crate::{StableAbi,marker_type::UnsafeIgnoredType};
+    use abi_stable::{StableAbi,marker_type::UnsafeIgnoredType,tag};
     use super::UniqueId;
     
     #[repr(C)]
@@ -90,7 +90,7 @@ mod sabi_with_1_ty_params{
 }
 
 mod sabi_with_2_ty_params{
-    use crate::{StableAbi,marker_type::UnsafeIgnoredType};
+    use abi_stable::{StableAbi,marker_type::UnsafeIgnoredType,tag};
     use super::UniqueId;
     
     #[repr(C)]

@@ -34,7 +34,8 @@ pub use self::{
     prefix_ref::PrefixRef,
 };
 
-pub(crate) use self::pt_metadata::PrefixTypeMetadata;
+#[doc(hidden)]
+pub use self::pt_metadata::__PrefixTypeMetadata;
 
 /// For types deriving `StableAbi` with `#[sabi(kind(Prefix(..)))]`.
 pub unsafe trait PrefixTypeTrait: Sized {

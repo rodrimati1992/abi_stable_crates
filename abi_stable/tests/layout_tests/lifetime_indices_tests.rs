@@ -2,9 +2,9 @@
 use core_extensions::{SelfOps,matches};
 
 #[allow(unused_imports)]
-use crate::std_types::{Tuple1,Tuple2,Tuple3,Tuple4};
+use abi_stable::std_types::{Tuple1,Tuple2,Tuple3,Tuple4};
 
-use crate::{
+use abi_stable::{
     std_types::{RStr,RSlice},
     type_layout::{
         LifetimeArrayOrSlice,
@@ -39,9 +39,8 @@ pub struct LRTestParam{
 
 
 mod loads_of_params{
-    use super::*;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Struct{
         func:for<'a> extern 
             fn(&'a u8,&u8,&u8,&u8,&u8,&u8,&u8,&u8,&u8,&u8,&u8,&u8,&u8,&u8)->&'a u8,
@@ -49,45 +48,40 @@ mod loads_of_params{
 }
 
 mod loads_of_lifetimes_single_param{
-    use super::*;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Struct{
         func:for<'a> extern "C" fn(&'a&&&&&u8)->&'a u8,
     }
 }
 
 mod four_lifetimes_single_param{
-    use super::*;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Struct{
         func:for<'a> extern "C" fn(&'a&&u8)->&'a u8,
     }
 }
 
 mod three_lifetimes_single_param{
-    use super::*;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Struct{
         func:for<'a> extern "C" fn(&'a&u8)->&'a u8,
     }
 }
 
 mod lifetimes_rep_a_single_param{
-    use super::*;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Struct{
         func:for<'a,'b> extern "C" fn(&'a&'a&'b&u8)->&'b u8,
     }
 }
 
 mod lifetimes_rep_b_single_param{
-    use super::*;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Struct{
         func:for<'a> extern "C" fn(&'a&'a u8),
     }
@@ -96,7 +90,7 @@ mod lifetimes_rep_b_single_param{
 mod lifetimes_four_params{
     use super::*;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(bound="'lt1:'lt0")]
     pub struct Struct<'lt0,'lt1>{
         reference_a:&'static (),
@@ -111,7 +105,7 @@ mod lifetimes_four_params{
 mod many_bound_lifetimes{
     use super::*;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     // #[sabi(debug_print)]
     pub struct Struct<'lt0,'lt1>{
         func_abba:for<'a,'b,'c,'d,'e,'f,'g,'h,'i,'j,'k,'l,'m,'n,'o> 
@@ -135,7 +129,7 @@ mod many_bound_lifetimes{
 mod many_bound_lifetimes_b{
     use super::*;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     // #[sabi(debug_print)]
     pub struct Struct<'lt0,'lt1>{
         func_abba:for<'a,'b,'c,'d,'e,'f,'g,'h,'i,'j,'k,'l,'m,'n,'o,'p> 
@@ -161,7 +155,7 @@ mod many_bound_lifetimes_b{
 mod nested_fn_pointer{
     use super::*;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(bound="'lt1:'lt0")]
     // #[sabi(debug_print)]
     pub struct Struct<'lt0,'lt1>{

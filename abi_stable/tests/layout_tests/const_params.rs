@@ -1,4 +1,4 @@
-use crate::{
+use abi_stable::{
     StableAbi,
     abi_stability::abi_checking::{AbiInstability,check_layout_compatibility},
     type_layout::TypeLayout,
@@ -9,14 +9,14 @@ mod with_const_generics;
 
 
 mod one_phantom{
-    use crate::{
+    use abi_stable::{
         const_utils::AssocStr,
         marker_type::UnsafeIgnoredType,
     };
     
 
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(
         bound="T:AssocStr",
         phantom_const_param="T::STR",
@@ -25,14 +25,14 @@ mod one_phantom{
 }
 
 mod one_phantom_u8{
-    use crate::{
+    use abi_stable::{
         const_utils::AssocInt,
         marker_type::UnsafeIgnoredType,
     };
     
 
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(
         bound="T:AssocInt",
         phantom_const_param="T::NUM",
@@ -41,7 +41,7 @@ mod one_phantom_u8{
 }
 
 mod two_phantom{
-    use crate::{
+    use abi_stable::{
         const_utils::AssocStr,
         marker_type::UnsafeIgnoredType,
         std_types::tuple::*,
@@ -49,7 +49,7 @@ mod two_phantom{
     
 
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(
         bound="T:AssocStr",
         bound="U:AssocStr",

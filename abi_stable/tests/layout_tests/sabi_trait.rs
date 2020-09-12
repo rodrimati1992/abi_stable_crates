@@ -1,4 +1,4 @@
-use crate::{
+use abi_stable::{
     sabi_trait,
     StableAbi,
     abi_stability::{

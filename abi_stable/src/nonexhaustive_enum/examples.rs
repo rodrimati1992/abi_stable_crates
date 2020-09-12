@@ -4,7 +4,7 @@ Example non-exhaustive enums,used in tests
 #![allow(dead_code)]
 
 
-pub(crate) mod command_one{
+pub mod command_one{
     use std::fmt::{self,Display};
 
     #[repr(u8)]
@@ -14,7 +14,7 @@ pub(crate) mod command_one{
         traits(Debug,PartialEq,Eq,Clone),
         assert_nonexhaustive="Foo",
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
     }
 
@@ -25,7 +25,7 @@ pub(crate) mod command_one{
     }
 }
 
-pub(crate) mod command_one_more_traits_1{
+pub mod command_one_more_traits_1{
     use std::fmt::{self,Display};
 
     #[repr(u8)]
@@ -35,7 +35,7 @@ pub(crate) mod command_one_more_traits_1{
         traits(Debug,PartialEq,Eq,Clone,Hash),
         assert_nonexhaustive("Foo"),
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
     }
 
@@ -46,7 +46,7 @@ pub(crate) mod command_one_more_traits_1{
     }
 }
 
-pub(crate) mod command_one_more_traits_2{
+pub mod command_one_more_traits_2{
     use std::fmt::{self,Display};
 
     #[repr(u8)]
@@ -55,7 +55,7 @@ pub(crate) mod command_one_more_traits_2{
         size=64,
         traits(Debug,PartialEq,Eq,PartialOrd,Clone,Hash)
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
     }
 
@@ -66,7 +66,7 @@ pub(crate) mod command_one_more_traits_2{
     }
 }
 
-pub(crate) mod command_one_more_traits_3{
+pub mod command_one_more_traits_3{
     use std::fmt::{self,Display};
 
     #[repr(u8)]
@@ -75,7 +75,7 @@ pub(crate) mod command_one_more_traits_3{
         size=64,
         traits(Debug,PartialEq,Eq,PartialOrd,Ord,Clone,Hash)
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
     }
 
@@ -86,7 +86,7 @@ pub(crate) mod command_one_more_traits_3{
     }
 }
 
-pub(crate) mod command_a{
+pub mod command_a{
     use std::fmt::{self,Display};
 
     #[repr(u8)]
@@ -95,7 +95,7 @@ pub(crate) mod command_a{
         size=64,
         traits(Debug,PartialEq,Eq,Clone)
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
         B(i8),
     }
@@ -107,12 +107,12 @@ pub(crate) mod command_a{
     }
 }
 
-pub(crate) mod command_a_exhaustive{
+pub mod command_a_exhaustive{
     use std::fmt::{self,Display};
 
     #[repr(u8)]
     #[derive(StableAbi,Hash,Debug,PartialEq,Eq,Clone)]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
         B(i8),
     }
@@ -124,7 +124,7 @@ pub(crate) mod command_a_exhaustive{
     }
 }
 
-pub(crate) mod command_b{
+pub mod command_b{
     use std::fmt::{self,Display};
 
     #[repr(u8)]
@@ -133,7 +133,7 @@ pub(crate) mod command_b{
         size=64,
         traits(Debug,PartialEq,Eq,Clone)
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
         B(i8),
         C,
@@ -146,7 +146,7 @@ pub(crate) mod command_b{
     }
 }
 
-pub(crate) mod command_c{
+pub mod command_c{
     use crate::std_types::RString;
 
     #[repr(u8)]
@@ -155,7 +155,7 @@ pub(crate) mod command_c{
         size=64,
         traits(Debug,PartialEq,Eq,Clone)
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
         B(i8),
         C,
@@ -166,7 +166,7 @@ pub(crate) mod command_c{
 
 }
 
-pub(crate) mod command_c_mismatched_field{
+pub mod command_c_mismatched_field{
     use crate::std_types::RVec;
 
     #[repr(u8)]
@@ -175,7 +175,7 @@ pub(crate) mod command_c_mismatched_field{
         size=64,
         traits(Debug,PartialEq,Eq,Clone)
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
         B(i8),
         C,
@@ -186,7 +186,7 @@ pub(crate) mod command_c_mismatched_field{
 
 }
 
-pub(crate) mod command_serde{
+pub mod command_serde{
     use std::fmt::{self,Display};
 
     use serde::{Serialize,Deserialize};
@@ -200,7 +200,7 @@ pub(crate) mod command_serde{
         traits(Debug,Display,PartialEq,Eq,Clone,Deserialize,Serialize)
     )))]
     // #[sabi(debug_print)]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
         B(i8),
         C,
@@ -228,14 +228,14 @@ pub(crate) mod command_serde{
     }
 }
 
-pub(crate) mod too_large{
+pub mod too_large{
     #[repr(u8)]
     #[derive(StableAbi,Hash,Debug,PartialEq,Eq,Clone)]
     #[sabi(kind(WithNonExhaustive(
         size=64,
         traits(Debug,PartialEq,Eq,Clone)
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
         B(i8),
         C([u16;32])
@@ -243,7 +243,7 @@ pub(crate) mod too_large{
 }
 
 
-pub(crate) mod generic_a{
+pub mod generic_a{
     use std::fmt::{self,Display};
 
     #[repr(u8)]
@@ -253,7 +253,7 @@ pub(crate) mod generic_a{
         traits(Debug,PartialEq,Eq,Ord,PartialOrd,Clone,Hash)
     )))]
     //#[sabi(debug_print)]
-    pub(crate) enum Foo<T>{
+    pub enum Foo<T>{
         A,
         B,
         C(T),
@@ -275,14 +275,14 @@ pub(crate) mod generic_a{
 }
 
 
-pub(crate) mod many_ranges_a{
+pub mod many_ranges_a{
     #[repr(u8)]
     #[derive(StableAbi,Debug,PartialEq,Eq,Clone)]
     #[sabi(kind(WithNonExhaustive(
         size=64,
         traits(Debug,PartialEq,Eq,Clone)
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
         B=40,
         C,
@@ -292,14 +292,14 @@ pub(crate) mod many_ranges_a{
     }
 }
 
-pub(crate) mod many_ranges_b{
+pub mod many_ranges_b{
     #[repr(u8)]
     #[derive(StableAbi,Debug,PartialEq,Eq,Clone)]
     #[sabi(kind(WithNonExhaustive(
         size=64,
         traits(Debug,PartialEq,Eq,Clone)
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
         B=40,
         C,
@@ -309,7 +309,7 @@ pub(crate) mod many_ranges_b{
 }
 
 
-pub(crate) mod command_h{
+pub mod command_h{
     use std::fmt::{self,Display};
 
     #[repr(u8)]
@@ -318,7 +318,7 @@ pub(crate) mod command_h{
         size=64,
         traits(Debug,PartialEq,Eq,Clone)
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A,
         B,
         C,
@@ -332,7 +332,7 @@ pub(crate) mod command_h{
 }
 
 
-pub(crate) mod command_h_mismatched_discriminant{
+pub mod command_h_mismatched_discriminant{
     use std::fmt::{self,Display};
 
     #[repr(u8)]
@@ -341,7 +341,7 @@ pub(crate) mod command_h_mismatched_discriminant{
         size=64,
         traits(Debug,PartialEq,Eq,Clone)
     )))]
-    pub(crate) enum Foo{
+    pub enum Foo{
         A=40,
         B,
         C,
@@ -358,7 +358,7 @@ pub(crate) mod command_h_mismatched_discriminant{
 
 
 
-pub(crate) mod codecs{
+pub mod codecs{
     use serde::{Serialize,Deserialize};
 
     use crate::{

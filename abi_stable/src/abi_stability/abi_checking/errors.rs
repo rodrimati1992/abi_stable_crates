@@ -50,13 +50,13 @@ use self::AbiInstability as AI;
 
 #[allow(dead_code)]
 impl AbiInstabilityErrors {
-    #[cfg(test)]
+    #[cfg(feature = "testing")]
     pub fn flatten_errors(&self) -> RVec<AbiInstability> {
         self.flattened_errors()
             .collect::<RVec<AbiInstability>>()
     }
 
-    #[cfg(test)]
+    #[cfg(feature = "testing")]
     pub fn flattened_errors<'a>(&'a self) -> impl Iterator<Item=AbiInstability>+'a {
         self.errors
             .iter()

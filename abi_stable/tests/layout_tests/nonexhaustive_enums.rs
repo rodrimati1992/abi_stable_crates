@@ -1,4 +1,4 @@
-use crate::{
+use abi_stable::{
     StableAbi,
     abi_stability::{
         abi_checking::{
@@ -33,7 +33,7 @@ use core_extensions::{matches,SelfOps};
 mod with_2_enums_a{
     use super::*;
     #[repr(C)]
-    #[derive(crate::StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Struct{
         a:command_a::Foo_NE,
         b:command_a::Foo_NE,
@@ -43,7 +43,7 @@ mod with_2_enums_a{
 mod with_2_enums_b{
     use super::*;
     #[repr(C)]
-    #[derive(crate::StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Struct{
         a:command_a::Foo_NE,
         b:command_b::Foo_NE,
@@ -53,7 +53,7 @@ mod with_2_enums_b{
 mod with_2_enums_c{
     use super::*;
     #[repr(C)]
-    #[derive(crate::StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Struct{
         a:command_a::Foo_NE,
         b:command_c::Foo_NE,
