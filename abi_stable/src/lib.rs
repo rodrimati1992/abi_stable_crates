@@ -140,6 +140,7 @@ These are the kinds of types passed through FFI:
 // every single warning was a false positive.
 // the true positives are caught by the StableAbi trait.
 #![allow(improper_ctypes)]
+#![allow(improper_ctypes_definitions)]
 #![allow(unused_unsafe)]
 #![allow(non_camel_case_types)]
 #![deny(unused_must_use)]

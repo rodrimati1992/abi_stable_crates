@@ -226,8 +226,8 @@ mod tests{
     use super::*;
 
     use crate::{
-        for_examples::{Module, Module_Prefix, Module_Ref},
-        prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
+        for_examples::{Module, Module_Ref},
+        prefix_type::{PrefixTypeTrait, WithMetadata},
         std_types::{RBox, RSome, RErr, ROk},
     };
 

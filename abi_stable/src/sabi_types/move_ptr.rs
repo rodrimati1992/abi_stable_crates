@@ -211,7 +211,7 @@ impl<'a,T> MovePtr<'a,T>{
     #[inline]
     pub const fn into_raw(this:Self)->*mut T{
         let ptr=this.ptr.as_ptr();
-        ManuallyDrop::new(this);
+        let _ = ManuallyDrop::new(this);
         ptr
     }
 

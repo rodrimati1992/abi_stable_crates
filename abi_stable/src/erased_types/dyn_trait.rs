@@ -846,7 +846,7 @@ fn main(){
         {
             // Must wrap unerasability in a ManuallyDrop because otherwise this 
             // errors with `constant functions cannot evaluate destructors`.
-            ManuallyDrop::new(unerasability);
+            let _ = ManuallyDrop::new(unerasability);
             DynTrait {
                 object: unsafe{
                     let x=RRef::new(ptr).transmute_ref::<()>();
