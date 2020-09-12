@@ -38,7 +38,8 @@ all_nightly=[
 nightly_const_params=[]
 
 # Test features,only used internally.
-only_new_tests=[]
+testing=[]
+only_new_tests=["testing"]
 sabi_trait_examples=[]
 nonexhaustive_examples=[]
 

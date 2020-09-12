@@ -5,7 +5,7 @@
 #[allow(unused_imports)]
 use core_extensions::{matches, prelude::*};
 
-use crate::{
+use abi_stable::{
     abi_stability::{
         abi_checking::{check_layout_compatibility},
     },
@@ -25,7 +25,7 @@ macro_rules! mod_iter_ty {
             use super::*;
 
             #[repr(C)]
-            #[derive(StableAbi)]
+            #[derive(abi_stable::StableAbi)]
             #[sabi(impl_InterfaceType(Send,Sync,Iterator))]
             pub struct Interface;
 
@@ -40,7 +40,7 @@ macro_rules! mod_iter_ty {
 
 mod no_iterator_interface{
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(impl_InterfaceType(Send,Sync))]
     pub struct Interface;
 }

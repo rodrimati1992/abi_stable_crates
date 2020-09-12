@@ -6,19 +6,22 @@ use std::{
 };
 
 #[allow(unused_imports)]
-pub(crate) use abi_stable_shared::test_utils::{
+pub use abi_stable_shared::test_utils::{
     FileSpan,
     ThreadError,
     ShouldHavePanickedAt,
     must_panic,
 };
 
+#[allow(unused_imports)]
+pub use abi_stable_shared::file_span;
+
 
 //////////////////////////////////////////////////////////////////
 
 
 /// Checks that `left` and `right` produce the exact same Display and Debug output.
-pub(crate) fn check_formatting_equivalence<T,U>(left:&T,right:&U)
+pub fn check_formatting_equivalence<T,U>(left:&T,right:&U)
 where 
     T:Debug+Display+?Sized,
     U:Debug+Display+?Sized,
@@ -30,7 +33,7 @@ where
 }
 
 /// Returns the address this dereferences to.
-pub(crate) fn deref_address<D>(ptr:&D)->usize
+pub fn deref_address<D>(ptr:&D)->usize
 where
     D: ::std::ops::Deref,
 {
@@ -44,7 +47,7 @@ where
 /// A wrapper type which uses `T`'s Display formatter in its Debug impl
 #[repr(transparent)]
 #[derive(Copy,Clone,PartialEq,Eq,Ord,PartialOrd,Hash,StableAbi)]
-pub(crate) struct AlwaysDisplay<T>(pub T);
+pub struct AlwaysDisplay<T>(pub T);
 
 impl<T> Display for AlwaysDisplay<T> 
 where
@@ -69,7 +72,7 @@ where
 
 
 #[derive(Clone)]
-pub(crate) struct Stringy{
+pub struct Stringy{
     pub str:String
 }
 

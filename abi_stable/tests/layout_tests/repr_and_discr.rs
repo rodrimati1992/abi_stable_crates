@@ -1,4 +1,4 @@
-use crate::{
+use abi_stable::{
     StableAbi,
     abi_stability::{
         abi_checking::{AbiInstability,check_layout_compatibility},
@@ -16,7 +16,7 @@ macro_rules! declare_int_repr {
         check=( $($variant:ident=$discr_value:expr),* $(,)* ) 
     ) => (
         mod $mod_ident{
-            use crate::StableAbi;
+            use abi_stable::StableAbi;
 
             #[repr($repr)]
             #[derive(StableAbi)]

@@ -229,7 +229,8 @@ impl TypeLayout {
     }
 
     /// Gets a type used to print the type(ie:`Foo<'a,'b,u32,RString,1,2>`)
-    pub(crate) fn full_type(&self) -> FmtFullType {
+    #[doc(hidden)]
+    pub fn full_type(&self) -> FmtFullType {
         FmtFullType{
             name: self.mono.name(),
             generics: self.generics(),
@@ -317,14 +318,14 @@ If this a:
     }
 
     #[doc(hidden)]
-    #[cfg(test)]
+    #[cfg(feature = "testing")]
     pub const fn _set_is_nonzero(mut self,is_nonzero:bool)->Self{
         self.is_nonzero=is_nonzero;
         self
     }
 
     #[doc(hidden)]
-    #[cfg(test)]
+    #[cfg(feature = "testing")]
     pub const fn _set_extra_checks(
         mut self,
         extra_checks:CmpIgnored<Option<&'static ManuallyDrop<StoredExtraChecks>>>
@@ -334,7 +335,7 @@ If this a:
     }
 
     #[doc(hidden)]
-    #[cfg(test)]
+    #[cfg(feature = "testing")]
     pub const fn _set_type_id(
         mut self,
         type_id:Constructor<UTypeId>,

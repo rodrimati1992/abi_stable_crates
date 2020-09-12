@@ -161,7 +161,8 @@ where
     }
 }
 
-pub(crate) fn min_max_by<T,F,K>(l:T,r:T,mut f:F)->(T,T)
+#[doc(hidden)]
+pub fn min_max_by<T,F,K>(l:T,r:T,mut f:F)->(T,T)
 where 
     F:FnMut(&T)->K,
     K:Ord,

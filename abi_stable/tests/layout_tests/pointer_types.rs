@@ -1,11 +1,11 @@
 // Types to test
-use crate::{
+use abi_stable::{
     for_examples::{Module_Ref, Module_Prefix},
     prefix_type::PrefixRef,
     sabi_types::{Constructor, MovePtr, RRef, NulStr, StaticRef},
 };
 
-use crate::{
+use abi_stable::{
     reexports::True,
     StableAbi,
 };

@@ -1,25 +1,26 @@
-use crate::{
+use abi_stable::{
     StableAbi,
     abi_stability::check_layout_compatibility,
     type_layout::{TypeLayout,TLData},
+    RTuple,tag,
 };
 
 
 /// Tests that `#[sabi(bound="")]` on a field works.
 #[repr(C)]
-#[derive(StableAbi)]
-#[sabi(tag="tag![ <T as crate::const_utils::AssocStr>::STR ]")]
+#[derive(abi_stable::StableAbi)]
+#[sabi(tag="tag![ <T as abi_stable::const_utils::AssocStr>::STR ]")]
 #[allow(dead_code)]
 pub struct FieldBound<T>{
-    #[sabi(bound="crate::const_utils::AssocStr")]
+    #[sabi(bound="abi_stable::const_utils::AssocStr")]
     pub value:T,
 }
 
 /// Tests that `#[sabi(bound="")]` on a type definition works.
 #[repr(C)]
-#[derive(StableAbi)]
-#[sabi(bound="T:crate::const_utils::AssocStr")]
-#[sabi(tag="tag![ <T as crate::const_utils::AssocStr>::STR ]")]
+#[derive(abi_stable::StableAbi)]
+#[sabi(bound="T:abi_stable::const_utils::AssocStr")]
+#[sabi(tag="tag![ <T as abi_stable::const_utils::AssocStr>::STR ]")]
 #[allow(dead_code)]
 pub struct TypeBound<T>{
     pub value:T,
@@ -28,7 +29,7 @@ pub struct TypeBound<T>{
 
 
 #[repr(C)]
-#[derive(StableAbi)]
+#[derive(abi_stable::StableAbi)]
 #[sabi(unsafe_opaque_fields)]
 pub struct UnsafeOpaqueFields0<T,U>{
     hello:T,
@@ -36,7 +37,7 @@ pub struct UnsafeOpaqueFields0<T,U>{
 }
 
 #[repr(C)]
-#[derive(StableAbi)]
+#[derive(abi_stable::StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct UnsafeSabiOpaqueFields0<T,U>{
     hello:T,
@@ -44,7 +45,7 @@ pub struct UnsafeSabiOpaqueFields0<T,U>{
 }
 
 #[repr(C)]
-#[derive(StableAbi)]
+#[derive(abi_stable::StableAbi)]
 pub struct UnsafeOpaqueField0<T,U>{
     hello:T,
     #[sabi(unsafe_opaque_field)]
@@ -52,7 +53,7 @@ pub struct UnsafeOpaqueField0<T,U>{
 }
     
 #[repr(C)]
-#[derive(StableAbi)]
+#[derive(abi_stable::StableAbi)]
 pub struct UnsafeSabiOpaqueField0<T,U>{
     hello:T,
     #[sabi(unsafe_sabi_opaque_field)]
@@ -61,7 +62,7 @@ pub struct UnsafeSabiOpaqueField0<T,U>{
 
     
 #[repr(C)]
-#[derive(StableAbi)]
+#[derive(abi_stable::StableAbi)]
 #[sabi(unsafe_allow_type_macros)]
 pub struct WithTypeMacro{
     type_:RTuple!((),(),()),

@@ -5,9 +5,9 @@ use std::marker::PhantomData;
 use core_extensions::SelfOps;
 
 #[allow(unused_imports)]
-use crate::std_types::{Tuple1,Tuple2,Tuple3,Tuple4};
+use abi_stable::std_types::{Tuple1,Tuple2,Tuple3,Tuple4};
 
-use crate::{
+use abi_stable::{
     abi_stability::{
         stable_abi_trait::{
             TypeLayoutCtor,
@@ -41,7 +41,7 @@ use super::shared_types::{
 pub(super) mod many_params {
     use super::RString;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     pub struct Mod{
         pub function_0: extern "C" fn()->RString,
         pub function_1: extern "C" fn(&mut u32,u64,RString,i8,u32,i64),

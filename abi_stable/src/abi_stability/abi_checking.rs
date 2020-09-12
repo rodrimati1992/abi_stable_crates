@@ -155,9 +155,9 @@ impl<T> ExpectedFound<T> {
 #[repr(C)]
 pub struct CheckedPrefixTypes{
     this:&'static TypeLayout,
-    this_prefix:PrefixTypeMetadata,
+    this_prefix:__PrefixTypeMetadata,
     other:&'static TypeLayout,
-    other_prefix:PrefixTypeMetadata,
+    other_prefix:__PrefixTypeMetadata,
 }
 
 
@@ -633,8 +633,8 @@ impl AbiChecker {
                     TLData::PrefixType (t_prefix),
                     TLData::PrefixType (o_prefix),
                 ) => {
-                    let this_prefix =PrefixTypeMetadata::with_prefix_layout(t_prefix,t_lay);
-                    let other_prefix=PrefixTypeMetadata::with_prefix_layout(o_prefix,o_lay);
+                    let this_prefix =__PrefixTypeMetadata::with_prefix_layout(t_prefix,t_lay);
+                    let other_prefix=__PrefixTypeMetadata::with_prefix_layout(o_prefix,o_lay);
 
                     self.check_prefix_types(errs,&this_prefix,&other_prefix);
 
@@ -761,8 +761,8 @@ impl AbiChecker {
     fn check_prefix_types(
         &mut self,
         errs: &mut RVec<AbiInstability>,
-        this: &PrefixTypeMetadata,
-        other: &PrefixTypeMetadata,
+        this: &__PrefixTypeMetadata,
+        other: &__PrefixTypeMetadata,
     ){
         if this.prefix_field_count != other.prefix_field_count {
             push_err(
@@ -1094,7 +1094,7 @@ the first parameter must be the expected layout,
 and the second must be actual layout.
 
 */
-pub(super) fn check_layout_compatibility(
+pub fn check_layout_compatibility(
     interface: &'static TypeLayout,
     implementation: &'static TypeLayout,
 ) -> Result<(), AbiInstabilityErrors> {
@@ -1107,7 +1107,7 @@ pub(super) fn check_layout_compatibility(
 
 
 #[inline(never)]
-pub(super) fn check_layout_compatibility_with_globals(
+pub fn check_layout_compatibility_with_globals(
     interface: &'static TypeLayout,
     implementation: &'static TypeLayout,
     globals:&CheckingGlobals,
@@ -1311,15 +1311,15 @@ use std::sync::Mutex;
 use crate::{
     sabi_types::LateStaticRef,
     multikey_map::MultiKeyMap,
-    prefix_type::PrefixTypeMetadata,
+    prefix_type::__PrefixTypeMetadata,
     utils::leak_value,
 };
 
 #[derive(Debug)]
 pub struct CheckingGlobals{
-    pub(crate) prefix_type_map:Mutex<MultiKeyMap<UTypeId,PrefixTypeMetadata>>,
-    pub(crate) nonexhaustive_map:Mutex<MultiKeyMap<UTypeId,NonExhaustiveEnumWithContext>>,
-    pub(crate) extra_checker_map:Mutex<MultiKeyMap<UTypeId,ExtraChecksBox>>,
+    pub prefix_type_map:Mutex<MultiKeyMap<UTypeId,__PrefixTypeMetadata>>,
+    pub nonexhaustive_map:Mutex<MultiKeyMap<UTypeId,NonExhaustiveEnumWithContext>>,
+    pub extra_checker_map:Mutex<MultiKeyMap<UTypeId,ExtraChecksBox>>,
 }
 
 impl CheckingGlobals{

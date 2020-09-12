@@ -11,7 +11,7 @@ attributes through ffi.
 #[doc(hidden)]
 pub mod doc_enums;
 
-#[cfg(any(test,feature="nonexhaustive_examples"))]
+#[cfg(any(feature = "testing",feature="nonexhaustive_examples"))]
 pub mod examples;
 
 pub mod nonexhaustive;

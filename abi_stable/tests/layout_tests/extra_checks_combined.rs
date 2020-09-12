@@ -1,4 +1,4 @@
-use crate::{
+use abi_stable::{
     abi_stability::{
         abi_checking::{
             AbiInstability,CheckingGlobals,
@@ -132,7 +132,7 @@ fn test_incompatible(){
 
 
 #[repr(C)]
-#[derive(StableAbi)]
+#[derive(abi_stable::StableAbi)]
 #[sabi(
     // Replaces the C:StableAbi constraint with `C:GetStaticEquivalent` 
     // (a supertrait of StableAbi).
@@ -330,7 +330,7 @@ impl ExtraChecks for IdentityChecker {
 
 
 #[repr(transparent)]
-#[derive(StableAbi)]
+#[derive(abi_stable::StableAbi)]
 struct Blah<T>(T);
 
 #[test]
@@ -363,12 +363,12 @@ fn test_identity_extra_checker() {
                 .piped(CmpIgnored::new)
             )
             ._set_type_id(Constructor(
-                crate::std_types::utypeid::new_utypeid::<Blah<T::StaticEquivalent>>
+                abi_stable::std_types::utypeid::new_utypeid::<Blah<T::StaticEquivalent>>
             ))
             .piped(leak_value)
     }
 
-    use crate::{
+    use abi_stable::{
         external_types::ROnce,
     };
 
@@ -449,7 +449,7 @@ fn test_identity_extra_checker() {
 
 
 #[repr(C)]
-#[derive(StableAbi)]
+#[derive(abi_stable::StableAbi)]
 #[sabi(extra_checks="Self::NEW")]
 struct WithCyclicExtraChecker;
 
@@ -489,7 +489,7 @@ fn test_cyclic_extra_checker() {
 
 
 #[repr(C)]
-#[derive(StableAbi)]
+#[derive(abi_stable::StableAbi)]
 #[sabi(extra_checks="Self::EXTRA_CHECKER")]
 struct WithLocalExtraChecker<C0,C1>{
     _marker:UnsafeIgnoredType<(C0,C1)>
@@ -560,7 +560,7 @@ impl ExtraChecks for LocalExtraChecker {
 #[test]
 fn test_local_extra_checker() {
 
-    use crate::{
+    use abi_stable::{
         external_types::ROnce,
     };
 

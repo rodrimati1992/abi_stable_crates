@@ -10,14 +10,13 @@ use rand::{
     seq::SliceRandom,
 };
 
-use crate::{
+use abi_stable::{
     abi_stability::{
         abi_checking::{AbiInstability,CheckingGlobals,check_layout_compatibility_with_globals},
-        PrefixStableAbi,
     },
-    prefix_type::{PrefixTypeMetadata,PrefixTypeTrait},
+    prefix_type::{__PrefixTypeMetadata,PrefixTypeTrait},
     *,
-    test_utils::must_panic,
+    test_utils::{file_span, must_panic},
     type_layout::TypeLayout,
     type_level::bools::*,
 };
@@ -32,7 +31,7 @@ where T:From<u8>
 
 mod prefix0 {
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     // #[sabi(debug_print)]
     #[sabi(kind(Prefix))]
     pub struct Prefix {
@@ -44,7 +43,7 @@ mod prefix0 {
 mod prefix1 {
     use super::custom_default;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(
         // debug_print,
         kind(Prefix),
@@ -59,7 +58,7 @@ mod prefix1 {
 
 mod prefix2 {
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(kind(Prefix))]
     #[sabi(missing_field(default))]
     pub struct Prefix {
@@ -73,7 +72,7 @@ mod prefix2 {
 // Prefix types have to keep the same alignment when fields are added
 mod prefix2_misaligned {
     #[repr(C,align(16))]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     // #[sabi(debug_print)]
     #[sabi(kind(Prefix))]
     pub struct Prefix {
@@ -86,7 +85,7 @@ mod prefix2_misaligned {
 
 mod prefix2_different_prefix {
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(kind(Prefix))]
     pub struct Prefix {
         pub field0: u8,
@@ -98,7 +97,7 @@ mod prefix2_different_prefix {
 
 mod prefix3 {
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(kind(Prefix))]
     #[sabi(missing_field(panic))]
     pub struct Prefix {
@@ -109,7 +108,6 @@ mod prefix3 {
         pub field3: u64,
     }
 }
-
 
 
 /// Dereferences the TypeLayout of a `&T` to the layout of `T`
@@ -137,15 +135,15 @@ fn prefixes_test() {
 
     fn gen_elem_from(
         abi_wrapper:&'static TypeLayout
-    )->(&'static TypeLayout,PrefixTypeMetadata){
+    )->(&'static TypeLayout,__PrefixTypeMetadata){
         let prefix=abi_wrapper
             .piped(dereference_abi)
-            .piped(PrefixTypeMetadata::new);
+            .piped(__PrefixTypeMetadata::new);
         (abi_wrapper,prefix)
     }
 
     let mut gen_generation=|skip_first:usize|{
-        let mut ret=Vec::<(&'static TypeLayout,PrefixTypeMetadata)>::new();
+        let mut ret=Vec::<(&'static TypeLayout,__PrefixTypeMetadata)>::new();
         for _ in 0..list.len() {
             let pushed=gen_elem_from(list.choose(&mut rng).unwrap().clone());
             ret.push(pushed);
@@ -227,7 +225,7 @@ fn prefixes_test() {
         let max_prefix=t_list.iter().zip(o_list.iter())
             .map(|((_,l_prefix),(_,r_prefix))| (l_prefix.clone(),r_prefix.clone()) )
             .filter(|(l,r)| l.fields.len() <= r.fields.len() )
-            .map(|(l,r)| PrefixTypeMetadata::max(l,r) )
+            .map(|(l,r)| __PrefixTypeMetadata::max(l,r) )
             .max_by_key(|prefix| prefix.fields.len() )
             .unwrap();
 
@@ -261,8 +259,8 @@ fn check_interface_impl_pair(
     let deref_this=dereference_abi(this);
     let deref_other=dereference_abi(other);
 
-    let t_prefix=PrefixTypeMetadata::new(deref_this);
-    let o_prefix=PrefixTypeMetadata::new(deref_other);
+    let t_prefix=__PrefixTypeMetadata::new(deref_this);
+    let o_prefix=__PrefixTypeMetadata::new(deref_other);
 
     if let Err(e)=check_layout_compatibility_with_globals(this,other,&globals) {
         if t_prefix.fields.len() <= o_prefix.fields.len() {
@@ -555,10 +553,10 @@ static COND_FIELD_3_EXCEPT_3:&'static TypeLayout =
 
 
 mod cond_fields_0 {
-    use crate::marker_type::UnsafeIgnoredType;
+    use abi_stable::marker_type::UnsafeIgnoredType;
     use super::EnabledFields;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
         prefix_bound="C:EnabledFields",
@@ -573,11 +571,11 @@ mod cond_fields_0 {
 }
 
 mod cond_fields_1 {
-    use crate::marker_type::UnsafeIgnoredType;
+    use abi_stable::marker_type::UnsafeIgnoredType;
     use super::EnabledFields;
     
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
         prefix_bound="C:EnabledFields",
@@ -598,10 +596,10 @@ mod cond_fields_1 {
 }
 
 mod cond_fields_2 {
-    use crate::marker_type::UnsafeIgnoredType;
+    use abi_stable::marker_type::UnsafeIgnoredType;
     use super::EnabledFields;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
         prefix_bound="C:EnabledFields",
@@ -627,10 +625,10 @@ mod cond_fields_2 {
 
 // Prefix types have to keep the same alignment when fields are added
 mod cond_fields_2_misaligned {
-    use crate::marker_type::UnsafeIgnoredType;
+    use abi_stable::marker_type::UnsafeIgnoredType;
     use super::EnabledFields;
     #[repr(C,align(16))]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
         prefix_bound="C:EnabledFields",
@@ -652,10 +650,10 @@ mod cond_fields_2_misaligned {
 }
 
 mod cond_fields_2_different_prefix {
-    use crate::marker_type::UnsafeIgnoredType;
+    use abi_stable::marker_type::UnsafeIgnoredType;
     use super::EnabledFields;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
         prefix_bound="C:EnabledFields",
@@ -680,10 +678,10 @@ mod cond_fields_2_different_prefix {
 }
 
 mod cond_fields_3 {
-    use crate::marker_type::UnsafeIgnoredType;
+    use abi_stable::marker_type::UnsafeIgnoredType;
     use super::EnabledFields;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(
         // debug_print,
         kind(Prefix),
@@ -713,10 +711,10 @@ mod cond_fields_3 {
 }
 
 mod cond_fields_3_uncond_prefix {
-    use crate::marker_type::UnsafeIgnoredType;
+    use abi_stable::marker_type::UnsafeIgnoredType;
     use super::EnabledFields;
     #[repr(C)]
-    #[derive(StableAbi)]
+    #[derive(abi_stable::StableAbi)]
     #[sabi(
         // debug_print,
         kind(Prefix),
@@ -750,7 +748,7 @@ mod cond_fields_3_uncond_prefix {
 fn prefix_cond_field_test(){
     let mut rng=thread_rng();
 
-    use crate::type_level::bools::{True as T,False as F};
+    use abi_stable::type_level::bools::{True as T,False as F};
 
     use self::cond_fields_2::Prefix_Ref as Prefix2;
     use self::cond_fields_3::Prefix_Ref as Prefix3;
@@ -943,7 +941,7 @@ fn hierarchical_prefix_cond_field_test(){
 #[test]
 fn prefix_on_conditional_fields() {
 
-    use crate::{
+    use abi_stable::{
         type_level::bools::{True as T,False as F},
         marker_type::UnsafeIgnoredType,
     };

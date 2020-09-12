@@ -205,9 +205,9 @@ mod macros;
 #[macro_use]
 mod test_macros;
 
-#[cfg(test)]
+#[cfg(feature = "testing")]
 #[macro_use]
-mod test_utils;
+pub mod test_utils;
 
 #[cfg(test)]
 mod misc_tests;
@@ -336,3 +336,8 @@ pub mod globals{
         GLOBALS.init(|| globs );
     }
 }
+
+
+#[cfg(all(test, not(feature = "testing")))]
+compile_error! { "tests must be run with the \"testing\" feature" }
+
