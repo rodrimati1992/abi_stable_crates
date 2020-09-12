@@ -621,7 +621,7 @@ fn constructor_items<'a>(
             )
         ),
         WhichObject::RObject=>quote!({
-            __sabi_re::ManuallyDrop::new(unerasability);
+            let _ = __sabi_re::ManuallyDrop::new(unerasability);
             #trait_backend::with_vtable_const(ptr,vtable_for)
         }),
     };

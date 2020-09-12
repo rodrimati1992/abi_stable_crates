@@ -50,7 +50,10 @@ use super::{
         PrefixKind, PrefixKindCtor, FirstSuffixField, OnMissingField, AccessorOrMaybe, 
         PrefixKindField,
     },
-    repr_attrs::{UncheckedReprAttr,UncheckedReprKind,DiscriminantRepr,ReprAttr,REPR_ERROR_MSG},
+    repr_attrs::{
+        DiscriminantRepr,ReprAttr,Repr,REPR_ERROR_MSG,
+        UncheckedReprAttr,UncheckedReprKind,
+    },
 };
 
 
@@ -237,22 +240,22 @@ impl<'a> StableAbiOptions<'a> {
             }
         };
 
-        match (repr,ds.data_variant) {
-            (ReprAttr::Transparent{..},DataVariant::Struct)=>{}
-            (ReprAttr::Transparent(span),_)=>{
+        match (repr.variant, ds.data_variant) {
+            (Repr::Transparent,DataVariant::Struct)=>{}
+            (Repr::Transparent,_)=>{
                 errors.push_err(syn_err!(
-                    *span,
+                    *repr.span,
                     "\nAbiStable does not suport non-struct #[repr(transparent)] types.\n"
                 ));
             }
-            (ReprAttr::Int{..},DataVariant::Enum)=>{}
-            (ReprAttr::Int(_,span),_)=>{
+            (Repr::Int{..},DataVariant::Enum)=>{}
+            (Repr::Int{..},_)=>{
                 errors.push_err(syn_err!(
-                    *span,
+                    *repr.span,
                     "AbiStable does not suport non-enum #[repr(<some_integer_type>)] types."
                 ));
             }
-            (ReprAttr::C{..},_)=>{}
+            (Repr::C{..},_)=>{}
         }
 
         let mod_refl_mode=match this.mod_refl_mode {
@@ -504,13 +507,26 @@ fn parse_attr_list<'a>(
                     this.repr.set_repr_kind(UncheckedReprKind::Transparent,span)
                 }else if let Some(dr)=DiscriminantRepr::from_ident(ident) {
                     this.repr.set_discriminant_repr(dr,span)
+                }else if ident=="packed" {
+                    this.repr.set_packed(None)
                 }else{
                     Err(make_err(ident))
                 }.combine_into_err(&mut this.errors);
                 Ok(())
             }
             Meta::List(ref list) if list.path.equals_str("align") => {
-                Ok(())
+                match list.nested.first() {
+                    Some(NestedMeta::Lit(Lit::Int(ref lit))) => {
+                        let alignment = lit.base10_parse().map_err(|_| make_err(list) )?;
+                        this.repr.set_aligned(alignment)
+                    }
+                    _=>return Err(make_err(list)),
+                }
+            }
+            Meta::NameValue(MetaNameValue{lit:Lit::Str(ref value),ref path,..})
+            if path.equals_str("packed") => {
+                let panicking = value.value().parse::<u32>().map_err(|_| make_err(value) )?;
+                this.repr.set_packed(Some(panicking))
             }
             x => {
                 Err(make_err(&x))

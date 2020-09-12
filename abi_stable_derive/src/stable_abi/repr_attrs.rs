@@ -20,6 +20,8 @@ use super::common_tokens::CommonTokens;
 /// Used to parse ReprAttr from attributes.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct UncheckedReprAttr{
+    is_aligned: Option<u32>,
+    is_packed: Option<u32>,
     repr_kind:Option<UncheckedReprKind>,
     repr_span:Ignored<Span>,
     discriminant_repr:Option<DiscriminantRepr>,
@@ -27,7 +29,9 @@ pub struct UncheckedReprAttr{
 
 impl Default for UncheckedReprAttr{
     fn default()->Self{
-        Self{
+        Self {
+            is_aligned: None,
+            is_packed: None,
             repr_kind:None,
             repr_span:Ignored::new(Span::call_site()),
             discriminant_repr:None,
@@ -67,11 +71,19 @@ pub enum DiscriminantRepr {
 /// This doesn't include `#[repr(align())]` since the alignment is 
 /// stored as part of TypeLayout anyway.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ReprAttr{
-    C(Option<DiscriminantRepr>,Ignored<Span>),
-    Transparent(Ignored<Span>),
+pub enum Repr{
+    C(Option<DiscriminantRepr>),
+    Transparent,
     /// Means that only `repr(IntegerType)` was used.
-    Int(DiscriminantRepr,Ignored<Span>),
+    Int(DiscriminantRepr),
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ReprAttr {
+    pub span: Ignored<Span>,
+    pub is_aligned: Option<u32>,
+    pub is_packed: Option<u32>,
+    pub variant: Repr,
 }
 
 
@@ -87,6 +99,14 @@ pub(crate) static REPR_ERROR_MSG:&str="\n\
 
 
 impl UncheckedReprAttr{
+    pub fn set_aligned(&mut self, alignment: u32)-> Result<(),syn::Error> {
+        self.is_aligned = Some(alignment);
+        Ok(())
+    }
+    pub fn set_packed(&mut self, packing: Option<u32>)-> Result<(),syn::Error> {
+        self.is_packed = packing.or(Some(1));
+        Ok(())
+    }
     pub fn set_repr_kind(
         &mut self,
         repr_kind:UncheckedReprKind,
@@ -161,15 +181,17 @@ impl DiscriminantRepr{
 impl ReprAttr{
     pub fn new(unchecked:UncheckedReprAttr)-> Result<Self,syn::Error> {
         let span=unchecked.repr_span;
+        let is_aligned=unchecked.is_aligned;
+        let is_packed=unchecked.is_packed;
         let ura:UncheckedReprKind=unchecked.repr_kind.ok_or_else(||{
             syn_err!(*span,"{}",REPR_ERROR_MSG)
         })?;
         let dr:Option<DiscriminantRepr>=unchecked.discriminant_repr;
-        Ok(match (ura,dr) {
+        let variant = match (ura,dr) {
             (UncheckedReprKind::C,x)=>
-                ReprAttr::C(x,span),
+                Repr::C(x),
             (UncheckedReprKind::Transparent,None)=>
-                ReprAttr::Transparent(span),
+                Repr::Transparent,
             (UncheckedReprKind::Transparent,Some(_))=>{
                 return_syn_err!(
                     *span,
@@ -179,19 +201,25 @@ impl ReprAttr{
             (UncheckedReprKind::Int,None)=>
                 panic!("Bug:(UncheckedReprKind::Int,None)"),
             (UncheckedReprKind::Int,Some(x))=>
-                ReprAttr::Int(x,span),
+                Repr::Int(x),
+        };
+        Ok(Self{
+            span,
+            variant,
+            is_aligned,
+            is_packed,
         })
     }
 
     /// Gets the type of the discriminant determined by this representation attribute.
     /// Returns None if the representation is `#[repr(transparent)]`.
     pub fn type_ident(&self)->Option<syn::Ident>{
-        let int_repr=match *self {
-            ReprAttr::C(None,_)=>
+        let int_repr=match self.variant {
+            Repr::C(None)=>
                 DiscriminantRepr::Isize,
-            ReprAttr::C(Some(int_repr),_)|ReprAttr::Int(int_repr,_)=>
+            Repr::C(Some(int_repr))|Repr::Int(int_repr)=>
                 int_repr,
-            ReprAttr::Transparent(_)=>
+            Repr::Transparent=>
                 return None,
         };
 
@@ -226,10 +254,10 @@ impl ReprAttr{
         let mut exprs=exprs.into_iter();
 
         ToTokenFnMut::new(move|ts|{
-            let int_repr=match self {
-                ReprAttr::C(x,_)=>x,
-                ReprAttr::Int(x,_)=>Some(x),
-                ReprAttr::Transparent(_)=>unreachable!(),
+            let int_repr=match self.variant {
+                Repr::C(x)=>x,
+                Repr::Int(x)=>Some(x),
+                Repr::Transparent=>unreachable!(),
             };
 
             match int_repr.unwrap_or(DiscriminantRepr::Isize) {
@@ -275,24 +303,19 @@ impl ReprAttr{
 #[allow(dead_code)]
 impl ReprAttr{
     pub fn span(self)->Span{
-        match self {
-            |ReprAttr::C(_,span)
-            |ReprAttr::Int(_,span)
-            |ReprAttr::Transparent(span)
-            =>*span
-        }
+        *self.span
     }
 
     pub fn is_repr_transparent(self)->bool{
-        matches!(ReprAttr::Transparent{..}=self)
+        matches!(Repr::Transparent{..}=self.variant)
     }
 
     pub fn is_repr_c(self)->bool{
-        matches!(ReprAttr::C{..}=self)
+        matches!(Repr::C{..}=self.variant)
     }
 
     pub fn is_repr_int(self)->bool{
-        matches!(ReprAttr::Int{..}=self)
+        matches!(Repr::Int{..}=self.variant)
     }
 }
 
@@ -359,18 +382,18 @@ fn tokenize_discriminant_exprs_inner<'a,I>(
 
 impl ToTokens for ReprAttr{
     fn to_tokens(&self, ts: &mut TokenStream) {
-        match *self {
-            ReprAttr::C(None,_)=>{
+        match self.variant {
+            Repr::C(None)=>{
                 quote!(__ReprAttr::C)
             }
-            ReprAttr::C(Some(int_repr),_)=>{
+            Repr::C(Some(int_repr))=>{
                 let int_repr=discr_repr_tokenizer(int_repr);
                 quote!(__ReprAttr::CAndInt(#int_repr))
             }
-            ReprAttr::Transparent(_)=>{
+            Repr::Transparent=>{
                 quote!(__ReprAttr::Transparent)
             }
-            ReprAttr::Int(int_repr,_)=>{
+            Repr::Int(int_repr)=>{
                 let int_repr=discr_repr_tokenizer(int_repr);
                 quote!(__ReprAttr::Int(#int_repr))
             }

@@ -252,14 +252,22 @@ pub(crate) fn prefix_type_tokenizer<'a>(
     config:&'a StableAbiOptions<'a>,
     _ctokens:&'a CommonTokens<'a>,
 )-> Result<impl ToTokens+'a,syn::Error> {
-    if matches!(StabilityKind::Prefix{..}=&config.kind) && 
-        ds.variants.get(0).map_or(false,|struct_| struct_.fields.len() > 64 )
-    {
-        return_spanned_err!(
-            ds.name,
-            "`#[sabi(kind(Prefix(..)))]` structs cannot have more than 64 fields."
-        );
+    if matches!(StabilityKind::Prefix{..}=&config.kind) {
+        if ds.variants.get(0).map_or(false,|struct_| struct_.fields.len() > 64 ) {
+            return_spanned_err!(
+                ds.name,
+                "`#[sabi(kind(Prefix(..)))]` structs cannot have more than 64 fields."
+            );
+        }
+        
+        if config.repr.is_packed.is_some() {
+            return_spanned_err!(
+                ds.name,
+                "`#[sabi(kind(Prefix(..)))]` structs cannot be `#[repr(C, packed)]`"
+            );
+        }
     }
+
 
     Ok(ToTokenFnMut::new(move|ts|{
         let struct_=match ds.variants.get(0) {
@@ -326,6 +334,13 @@ TODO
             let vis=ds.vis;
             let generics=ds.generics;
             
+            let alignemnt = if let Some(alignemnt) = config.repr.is_aligned {
+                let alignemnt = as_derive_utils::utils::uint_lit(alignemnt.into());
+                quote!(, align(#alignemnt))
+            } else {
+                quote!()
+            };
+
             let prefix_field_iter = struct_.fields[..first_suffix_field].iter();
             // This uses `field_<NUMBER>` for tuple fields
             let prefix_field_vis = prefix_field_iter.clone()
@@ -343,7 +358,7 @@ TODO
             quote!(
                 #doc_hidden_attr
                 #[doc=#prefix_ref_docs]
-                #[repr(C)]
+                #[repr(transparent)]
                 #vis struct #prefix_ref #generics (
                     #vis #module::__sabi_re::PrefixRef<
                         #prefix_fields_struct #ty_generics,
@@ -354,9 +369,7 @@ TODO
                 //     
                 // A field being in the prefix doesn't mean that it's 
                 // unconditionally accessible, it just means that it won't cause a SEGFAULT.
-                #[repr(C)]
-                //TODO: add support for #[repr(packed(...))]
-                //TODO: Document how the deriving type can't have `Self` in the definition.
+                #[repr(C #alignemnt)]
                 #vis struct #prefix_fields_struct #generics 
                 #where_clause
                 {
@@ -365,6 +378,8 @@ TODO
                     // - That all the generic arguments are used
                     // - That the struct has the same alignemnt as the deriving struct.
                     __sabi_pt_prefix_alignment: [#deriving_name #ty_generics  ;0],
+                    // Using this to ensure that the struct has at least the alignment of usize,
+                    // so that adding pointer fields is not an ABI breaking change.
                     __sabi_usize_alignment: [usize; 0],
                     __sabi_pt_unbounds: #module::__sabi_re::NotCopyNotClone,
                 }
