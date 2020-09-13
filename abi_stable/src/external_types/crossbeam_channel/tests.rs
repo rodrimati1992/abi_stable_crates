@@ -64,6 +64,8 @@ fn send_recv(){
 }
 
 
+// miri gets stuck in this test
+#[cfg(not(miri))]
 #[test]
 fn send_try_recv(){
     let (tx,rx)=bounded::<u32>(0);
@@ -104,6 +106,8 @@ fn send_try_recv(){
 }
 
 
+// miri gets stuck here
+#[cfg(not(miri))]
 #[test]
 fn try_send_recv(){
     let (tx,rx)=bounded::<u32>(0);
@@ -147,6 +151,7 @@ fn try_send_recv(){
 const MS:Duration=Duration::from_millis(1);
 
 
+// unsupported operation: `clock_gettime` not available when isolation is enabled
 #[test]
 fn timeout_send_recv(){
     let (tx,rx)=bounded::<u32>(0);

@@ -582,6 +582,12 @@ This panics if the storage has an alignment or size smaller than that of `F`.
         }
     }
 
+    fn as_erased_ref(&self)->&ErasedObject{
+        unsafe{
+            &*(self as *const Self as *const ErasedObject)
+        }
+    }
+
     fn sabi_erased_mut(&mut self)->&mut ErasedObject{
         unsafe{
             &mut *(&mut self.fill as *mut ScratchSpace<S> as *mut ErasedObject)
@@ -646,7 +652,7 @@ where
 {
     fn eq(&self, other: &NonExhaustive<E,S,I2>) -> bool {
         unsafe{
-            self.vtable().partial_eq()(self.sabi_erased_ref(), other.sabi_erased_ref())
+            self.vtable().partial_eq()(self.sabi_erased_ref(), other.as_erased_ref())
         }
     }
 }
@@ -659,7 +665,7 @@ where
 {
     fn cmp(&self, other: &Self) -> Ordering {
         unsafe{
-            self.vtable().cmp()(self.sabi_erased_ref(), other.sabi_erased_ref()).into()
+            self.vtable().cmp()(self.sabi_erased_ref(), other.as_erased_ref()).into()
         }
     }
 }
@@ -672,7 +678,7 @@ where
 {
     fn partial_cmp(&self, other: &NonExhaustive<E,S,I2>) -> Option<Ordering> {
         unsafe{
-            self.vtable().partial_cmp()(self.sabi_erased_ref(), other.sabi_erased_ref())
+            self.vtable().partial_cmp()(self.sabi_erased_ref(), other.as_erased_ref())
                 .map(IntoReprRust::into_rust)
                 .into()
         }
