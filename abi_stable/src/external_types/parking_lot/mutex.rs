@@ -427,6 +427,12 @@ mod tests{
         check_formatting_equivalence(&guard,str_);
     }
 
+    #[cfg(miri)]
+    const ITERS: usize = 10;
+    
+    #[cfg(not(miri))]
+    const ITERS: usize = 0x1000;
+
     #[test]
     fn lock(){
         static MUTEX:RMutex<usize>=RMutex::new(0);
@@ -434,14 +440,14 @@ mod tests{
         scoped_thread(|scope|{
             for _ in 0..8 {
                 scope.spawn(move|_|{
-                    for _ in 0..0x1000 {
+                    for _ in 0..ITERS {
                         *MUTEX.lock()+=1;
                     }
                 });
             }
         }).unwrap();
 
-        assert_eq!(*MUTEX.lock(),0x8000);
+        assert_eq!(*MUTEX.lock(),8 * ITERS);
     }
 
     #[test]
@@ -451,7 +457,7 @@ mod tests{
         scoped_thread(|scope|{
             for _ in 0..8 {
                 scope.spawn(move|_|{
-                    for _ in 0..0x1000 {
+                    for _ in 0..ITERS {
                         loop {
                             if let RSome(mut guard)=MUTEX.try_lock() {
                                 *guard+=1;
@@ -471,7 +477,7 @@ mod tests{
             thread::sleep(Duration::from_millis(100));
         }).unwrap();
 
-        assert_eq!(*MUTEX.lock(),0x8000);
+        assert_eq!(*MUTEX.lock(),8 * ITERS);
     }
 
     #[test]
@@ -481,8 +487,8 @@ mod tests{
         scoped_thread(|scope|{
             for _ in 0..8 {
                 scope.spawn(move|_|{
-                    for i in 0..0x1000 {
-                        let wait_for=RDuration::new(0,(i+1)*500_000);
+                    for i in 0..ITERS {
+                        let wait_for=RDuration::new(0,(i as u32 + 1)*500_000);
                         loop {
                             if let RSome(mut guard)=MUTEX.try_lock_for(wait_for) {
                                 *guard+=1;
@@ -504,7 +510,7 @@ mod tests{
         }).unwrap();
 
 
-        assert_eq!(*MUTEX.lock(),0x8000);
+        assert_eq!(*MUTEX.lock(),8 * ITERS);
     }
 
 }

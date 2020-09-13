@@ -15,6 +15,7 @@ use std::{
 use core_extensions::prelude::*;
 
 use crate::{
+    marker_type::NonOwningPhantom,
     pointer_trait::{
         CallReferentDrop,Deallocate, CanTransmuteElement,
         GetPointerKind,PK_SmartPointer,OwnedPointer,
@@ -191,7 +192,10 @@ impl<T> RBox<T> {
             } else {
                 let ret = Box::new(this.data().read());
                 // Just deallocating the Box<_>. without dropping the inner value
-                (this.vtable().destructor())(this.data(), CallReferentDrop::No,Deallocate::Yes);
+                (this.vtable().destructor())(
+                    this.data() as *mut (),
+                    CallReferentDrop::No,Deallocate::Yes
+                );
                 ret
             }
         }
@@ -237,7 +241,7 @@ unsafe impl<T> OwnedPointer for RBox<T>{
     unsafe fn drop_allocation(this:&mut ManuallyDrop<Self>){
         unsafe {
             let data: *mut T = this.data();
-            (this.vtable().destructor())(data, CallReferentDrop::No,Deallocate::Yes);
+            (this.vtable().destructor())(data as *mut (), CallReferentDrop::No,Deallocate::Yes);
         }
     }
 }
@@ -329,7 +333,7 @@ impl<T> Drop for RBox<T> {
     fn drop(&mut self) {
         unsafe {
             let data = self.data();
-            (RBox::vtable(self).destructor())(data, CallReferentDrop::Yes,Deallocate::Yes);
+            (RBox::vtable(self).destructor())(data as *mut (), CallReferentDrop::Yes,Deallocate::Yes);
         }
     }
 }
@@ -343,7 +347,8 @@ impl<T> Drop for RBox<T> {
 pub(crate) struct BoxVtable<T> {
     type_id:Constructor<UTypeId>,
     #[sabi(last_prefix_field)]
-    destructor: unsafe extern "C" fn(*mut T, CallReferentDrop,Deallocate),
+    destructor: unsafe extern "C" fn(*mut (), CallReferentDrop,Deallocate),
+    _marker: NonOwningPhantom<T>,
 }
 
 struct VTableGetter<'a, T>(&'a T);
@@ -352,6 +357,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     const DEFAULT_VTABLE:BoxVtable<T>=BoxVtable{
         type_id:Constructor( new_utypeid::<RBox<()>> ),
         destructor: destroy_box::<T>,
+        _marker: NonOwningPhantom::NEW,
     };
 
     // The VTABLE for this type in this executable/library
@@ -379,8 +385,9 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     };
 }
 
-unsafe extern "C" fn destroy_box<T>(ptr: *mut T, call_drop: CallReferentDrop,dealloc:Deallocate) {
+unsafe extern "C" fn destroy_box<T>(ptr: *mut (), call_drop: CallReferentDrop,dealloc:Deallocate) {
     extern_fn_panic_handling! {no_early_return;
+        let ptr = ptr as *mut T;
         if let CallReferentDrop::Yes=call_drop {
             ptr::drop_in_place(ptr);
         }
