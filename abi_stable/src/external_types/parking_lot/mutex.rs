@@ -170,8 +170,8 @@ impl<T> RMutex<T>{
     ///
     /// ```
     #[inline]
-    pub fn get_mut(&mut self)->RMutexGuard<'_,T>{
-        self.make_guard()
+    pub fn get_mut(&mut self)->&mut T{
+        unsafe{ &mut *self.data.get() }
     }
 
     /**
@@ -500,7 +500,7 @@ mod tests{
             }
         }).unwrap();
 
-
+        #[cfg(not(miri))]
         scoped_thread(|scope|{
             let _guard=MUTEX.lock();
             scope.spawn(move|_|{

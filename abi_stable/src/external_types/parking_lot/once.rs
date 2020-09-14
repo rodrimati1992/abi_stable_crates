@@ -45,10 +45,7 @@ A synchronization primitive for running global initialization once.
 # Example
 
 ```
-use abi_stable::{
-    external_types::{ROnce,RMutex},
-    utils::leak_value,
-};
+use abi_stable::external_types::{ROnce,RMutex};
 
 static MUTEX:RMutex<usize>=RMutex::new(0);
 

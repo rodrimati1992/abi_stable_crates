@@ -46,7 +46,7 @@ use serde::{ser,de,Serialize,Deserialize,Serializer,Deserializer};
 
 
 // #[cfg(test)]
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(all(test,not(miri),not(feature="only_new_tests")))]
 mod tests;
 
 
