@@ -345,6 +345,18 @@ pub type ImmutableRefOut<T> = <T as ImmutableRef>::Target;
 
 unsafe impl<'a, T> ImmutableRef for &'a T {
     type Target = T;
+
+    #[inline(always)]
+    #[cfg(miri)]
+    fn to_raw_ptr(self)->*const Self::Target {
+        self as _
+    }
+    
+    #[inline(always)]
+    #[cfg(miri)]
+    unsafe fn from_raw_ptr(from: *const Self::Target)-> Option<Self> {
+        std::mem::transmute(from)
+    }
 }
 
 

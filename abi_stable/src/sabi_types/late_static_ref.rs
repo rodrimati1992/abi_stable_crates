@@ -410,7 +410,7 @@ where
     /// ```
     pub fn get(&self)->Option<T>{
         unsafe{
-            T::from_raw_ptr(self.pointer.load(Ordering::Acquire) as *mut T::Target)
+            T::from_raw_ptr(self.pointer.load(Ordering::Acquire) as *const T::Target)
         }
     }
 }

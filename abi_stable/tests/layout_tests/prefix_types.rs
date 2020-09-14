@@ -14,7 +14,7 @@ use abi_stable::{
     abi_stability::{
         abi_checking::{AbiInstability,CheckingGlobals,check_layout_compatibility_with_globals},
     },
-    prefix_type::{__PrefixTypeMetadata,PrefixTypeTrait},
+    prefix_type::{__PrefixTypeMetadata,PrefixTypeTrait, WithMetadata},
     *,
     test_utils::{file_span, must_panic},
     type_layout::TypeLayout,
@@ -386,10 +386,15 @@ fn prefix_is_same_size(){
 
 #[cfg_attr(not(miri),test)]
 fn prefix_on_nonexistent_field() {
-    let prefix0=
+
+    pub const MOD_VAL: &WithMetadata<prefix0::Prefix> = &WithMetadata::new(
+        PrefixTypeTrait::METADATA,
         prefix0::Prefix{
             field0:1,
-        }.leak_into_prefix();
+        },
+    );
+
+    let prefix0 = MOD_VAL.static_as_prefix();
 
     {
         let value1:prefix1::Prefix_Ref=unsafe{ std::mem::transmute(prefix0) };
@@ -954,11 +959,16 @@ fn prefix_on_conditional_fields() {
         cond_fields_3_uncond_prefix::Prefix_Ref<AF,i8,i32,i32,i32>;
 
     {// Casting Prefix0 to Prefix1 with different field accessibilities
-        let prefix0=
-            cond_fields_0::Prefix{
-                _marker:UnsafeIgnoredType::<(T,T,T,T)>::DEFAULT,
-                field0:1,
-            }.leak_into_prefix();
+        pub const MOD_VAL: &WithMetadata<cond_fields_0::Prefix<(T,T,T,T)>> =
+            &WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                cond_fields_0::Prefix{
+                    _marker:UnsafeIgnoredType::DEFAULT,
+                    field0:1,
+                },
+            );
+
+        let prefix0 = MOD_VAL.static_as_prefix();
 
         {// The field cannot be accessed even though it was initialized.
             let value:Prefix1_Ref<(F,F,F,F)>=unsafe{ std::mem::transmute(prefix0) };
@@ -974,15 +984,19 @@ fn prefix_on_conditional_fields() {
         }
     }
 
+    pub const MOD_VAL_P3: &WithMetadata<cond_fields_3::Prefix<(T,T,T,T),i8,i32,i32,i32>> = 
+        &WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            cond_fields_3::Prefix{
+                _marker:UnsafeIgnoredType::DEFAULT,
+                field0:1,
+                field1:3,
+                field2:7,
+                field3:12,
+            },
+        );
 
-
-    let prefix3=cond_fields_3::Prefix{
-            _marker:UnsafeIgnoredType::<((T,T,T,T),_,_,_,_)>::DEFAULT,
-            field0:1,
-            field1:3,
-            field2:7,
-            field3:12,
-    }.leak_into_prefix();
+    let prefix3 = MOD_VAL_P3.static_as_prefix();
 
     {// Casting Prefix3 to Prefix2 with different field accessibilities	
         {

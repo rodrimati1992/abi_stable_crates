@@ -382,15 +382,11 @@ pub trait Dictionary{
 //////////////////////////////////////
 
 
-#[cfg(test)]
-// #[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(all(test,not(miri)))]
 mod tests{
     use super::*;
 
-    use crate::{
-        traits::IntoReprC,
-        utils::leak_value,
-    };
+    use crate::traits::IntoReprC;
 
     fn assert_sync_send_debug_clone<T:Sync+Send+Debug+Clone>(_:&T){}
 
@@ -652,10 +648,10 @@ mod tests{
 
     #[test]
     fn rfoo(){
-        let object       =leak_value(RFoo_TO::from_ptr(RBox::new(RArc::new(76)),TU_Opaque));
-        let tuple1_object=leak_value(RFoo_TO::from_ptr(RArc::new(Tuple1(100)),TU_Opaque));
-        let tuple2_object=leak_value(RFoo_TO::from_value(Tuple2(101u32,202_u32),TU_Opaque));
-        let tuple3_object=leak_value(RFoo_TO::from_value(Tuple3(11,22,300_u32),TU_Opaque));
+        let object        = &RFoo_TO::from_ptr(RBox::new(RArc::new(76)),TU_Opaque);
+        let tuple1_object = &RFoo_TO::from_ptr(RArc::new(Tuple1(100)),TU_Opaque);
+        let tuple2_object = &RFoo_TO::from_value(Tuple2(101u32,202_u32),TU_Opaque);
+        let tuple3_object = &RFoo_TO::from_value(Tuple3(11,22,300_u32),TU_Opaque);
 
         assert_eq!(object.get(),&76);
         assert_eq!(tuple1_object.get(),&100);
