@@ -158,16 +158,19 @@ where
 }
 
 pub(crate) unsafe extern "C" fn serialize_impl<'s,T,I>(
-    this: &'s ErasedObject<T>
+    this: &'s ErasedObject
 ) -> RResult<<I as SerializeProxyType<'s>>::Proxy, RBoxError>
 where
     T: for<'borr> SerializeImplType<'borr,Interface=I>,
     I: for<'borr> SerializeProxyType<'borr>,
 {
     extern_fn_panic_handling! {
-        transmute_reference::<ErasedObject<T>,T>(this)
+        let ret: RResult<<I as SerializeProxyType<'_>>::Proxy, RBoxError> = 
+            transmute_reference::<ErasedObject,T>(this)
             .serialize_impl()
-            .into_c()
+            .into_c();
+
+        core_extensions::utils::transmute_ignore_size(ret)
     }
 }
 

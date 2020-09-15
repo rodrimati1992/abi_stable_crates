@@ -176,6 +176,12 @@ impl<'a,T> RRef<'a,T>{
         self.ref_.as_ptr() as *const T
     }
 
+    /// Accesses the referenced value as a different type
+    #[inline]
+    pub unsafe fn cast_into_raw<U>(self)->*const U{
+        self.ref_.as_ptr() as *const T as *const U
+    }
+
     /// Transmutes this `RRef<'a,T>` to a `RRef<'b,U>`.
     ///
     /// # Safety

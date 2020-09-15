@@ -83,7 +83,9 @@ where
 }
 
 
+/// Takes too long
 #[test]
+#[cfg(not(miri))]
 fn test_compatibility(){
     #[allow(unused_mut)]
     let mut list=vec![

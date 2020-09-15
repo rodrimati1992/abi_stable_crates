@@ -28,6 +28,9 @@ use as_derive_utils::{
     to_token_fn::ToTokenFnMut,
 };
 
+use quote::TokenStreamExt;
+
+
 #[derive(Debug,Copy,Clone)]
 pub struct MethodsTokenizer<'a>{
     pub(crate) trait_def:&'a TraitDefinition<'a>,
@@ -88,6 +91,24 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         let method_name=method.name;
         let method_span=method_name.span();
 
+        let self_ty = if is_method {
+            quote_spanned!(method_span=> Self)
+        } else {
+            quote_spanned!(method_span=> _Self)
+        };
+
+        struct WriteLifetime<'a>(Option<&'a syn::Lifetime>);
+
+        impl ToTokens for WriteLifetime<'_> {
+            fn to_tokens(&self, ts: &mut TokenStream2) {
+                if let Some(lt) = self.0 {
+                    lt.to_tokens(ts)
+                } else {
+                    ts.append_all(quote!('_))
+                }
+            }
+        }
+
         let self_param=match (is_method,&method.self_param) {
             (true,SelfParam::ByRef{lifetime,is_mutable:false})=>{
                 quote_spanned!(method_span=> & #lifetime self)
@@ -99,13 +120,15 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 quote_spanned!(method_span=> self)
             }
             (false,SelfParam::ByRef{lifetime,is_mutable:false})=>{
-                quote_spanned!(method_span=> _self:& #lifetime __ErasedObject<_Self>)
+                let lifetime = WriteLifetime(*lifetime);
+                quote_spanned!(method_span=> _self: __sabi_re::RRef<#lifetime, ()>)
             }
             (false,SelfParam::ByRef{lifetime,is_mutable:true})=>{
-                quote_spanned!(method_span=> _self:& #lifetime mut __ErasedObject<_Self>)
+                let lifetime = WriteLifetime(*lifetime);
+                quote_spanned!(method_span=> _self: __sabi_re::RMut<#lifetime, ()>)
             }
             (false,SelfParam::ByVal)=>{
-                quote_spanned!(method_span=> _self:__sabi_re::MovePtr<'_,_Self>)
+                quote_spanned!(method_span=> _self:*mut ())
             }
         };
 
@@ -188,26 +211,29 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 method.semicolon.to_tokens(ts);
             }
             (WhichItem::TraitImpl,_)=>{
-                quote_spanned!(method_span=>{
+                ts.append_all(quote_spanned!(method_span=>{
                     self.#method_name(#(#param_names_c,)*)
-                }).to_tokens(ts);
+                }));
             }
             (WhichItem::TraitObjectImpl,_)=>{
                 let method_call=match &method.self_param {
                     SelfParam::ByRef{is_mutable:false,..}=>{
                         quote_spanned!(method_span=> 
-                            __method(self.obj.sabi_erased_ref(),#(#param_names_c,)*) 
+                            __method(self.obj.sabi_as_rref(),#(#param_names_c,)*) 
                         )
                     }
                     SelfParam::ByRef{is_mutable:true,..}=>{
                         quote_spanned!(method_span=> 
-                            __method(self.obj.sabi_erased_mut(),#(#param_names_c,)*) 
+                            __method(self.obj.sabi_as_rmut(),#(#param_names_c,)*) 
                         )
                     }
                     SelfParam::ByVal=>{
                         quote_spanned!(method_span=>
                             self.obj.sabi_with_value(
-                                move|_self|__method(_self,#(#param_names_c,)*)
+                                move|_self|__method(
+                                    __sabi_re::MovePtr::into_raw(_self) as *mut (),
+                                    #(#param_names_c,)*
+                                )
                             )
                         )
                     }
@@ -216,7 +242,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 match default_ {
                     Some(default_)=>{
                         let block=&default_.block;
-                        quote_spanned!(method_span=>
+                        ts.append_all(quote_spanned!(method_span=>
                                 #ptr_constraint
                             {
                                 match self.sabi_vtable().#method_name() {
@@ -233,10 +259,10 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                                     }
                                 }
                             }
-                        ).to_tokens(ts);
+                        ));
                     }
                     None=>{
-                        quote_spanned!(method_span=>
+                        ts.append_all(quote_spanned!(method_span=>
                                 #ptr_constraint
                             {
                                 let __method=self.sabi_vtable().#method_name();
@@ -244,7 +270,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                                     #method_call
                                 }
                             }
-                        ).to_tokens(ts);
+                        ));
                     }
                 }
             }
@@ -253,31 +279,47 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             
             }
             (WhichItem::VtableImpl,SelfParam::ByRef{is_mutable:false,..})=>{
-                quote_spanned!(method_span=>{
-                    __sabi_re::sabi_from_ref(
-                        _self,
-                        move|_self| 
-                            __Trait::#method_name(_self,#(#param_names_c,)*)
+                ts.append_all(quote_spanned!(method_span=>{
+                    // Motivation:
+                    // We need to use this transmute to return a borrow from `_self`,
+                    // without adding a `_Self: '_self` bound,
+                    // which causes compilation errors due to how HRTB are handled.
+                    // The correctness of the lifetime is guaranteed by the trait definition.
+                    __sabi_re::transmute_ignore_size(
+                        ::abi_stable::extern_fn_panic_handling!{no_early_return;
+                            __Trait::#method_name(
+                                &*_self.cast_into_raw::<#self_ty>(),
+                                #(#param_names_c,)*
+                            )
+                        }
                     )
-                }).to_tokens(ts);
+                }));
             }
             (WhichItem::VtableImpl,SelfParam::ByRef{is_mutable:true,..})=>{
-                quote_spanned!(method_span=>{
-                    __sabi_re::sabi_from_mut(
-                        _self,
-                        move|_self| 
-                            __Trait::#method_name(_self,#(#param_names_c,)*)
+                ts.append_all(quote_spanned!(method_span=>{
+                    // Motivation:
+                    // We need to use this transmute to return a borrow from `_self`,
+                    // without adding a `_Self: '_self` bound,
+                    // which causes compilation errors due to how HRTB are handled.
+                    // The correctness of the lifetime is guaranteed by the trait definition.
+                    __sabi_re::transmute_ignore_size(
+                        ::abi_stable::extern_fn_panic_handling!{no_early_return;
+                            __Trait::#method_name(
+                                &mut *_self.cast_into_raw::<#self_ty>(),
+                                #(#param_names_c,)*
+                            )
+                        }
                     )
-                }).to_tokens(ts);
+                }));
             }
             (WhichItem::VtableImpl,SelfParam::ByVal)=>{
-                quote_spanned!(method_span=>{
+                ts.append_all(quote_spanned!(method_span=>{
                     ::abi_stable::extern_fn_panic_handling!{no_early_return;
                         __Trait::#method_name(
-                            __sabi_re::MovePtr::into_inner(_self),#(#param_names_c,)*
+                            (_self as *mut #self_ty).read(),#(#param_names_c,)*
                         )
                     }
-                }).to_tokens(ts);
+                }));
             }
         }
     }

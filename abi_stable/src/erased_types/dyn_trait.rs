@@ -24,7 +24,7 @@ use crate::{
     },
     prefix_type::PrefixRef,
     marker_type::{ErasedObject,NonOwningPhantom,UnsafeIgnoredType}, 
-    sabi_types::{MovePtr,RRef},
+    sabi_types::{MovePtr,RRef,RMut},
     std_types::{RBox, RStr,RVec,RIoError},
     type_level::{
         unerasability::{TU_Unerasable,TU_Opaque},
@@ -953,6 +953,23 @@ fn main(){
             unsafe { self.sabi_object_as_mut() }
         }
 
+        pub fn sabi_as_rref(&self) -> RRef<'_, ()>
+        where
+            P: Deref,
+        {
+            unsafe {
+                std::mem::transmute(&**self.object as *const _ as *const ())
+            }
+        }
+
+        pub fn sabi_as_rmut(&mut self) -> RMut<'_, ()>
+        where
+            P: DerefMut,
+        {
+            unsafe {
+                std::mem::transmute(&mut **self.object as *mut _ as *mut ())
+            }
+        }
 
         #[inline]
         fn sabi_into_erased_ptr(self)->ManuallyDrop<P>{
@@ -969,8 +986,6 @@ fn main(){
         {
             OwnedPointer::with_move_ptr(self.sabi_into_erased_ptr(),f)
         }
-
-
     }
 
 

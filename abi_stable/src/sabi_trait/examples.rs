@@ -382,7 +382,7 @@ pub trait Dictionary{
 //////////////////////////////////////
 
 
-#[cfg(all(test,not(miri)))]
+#[cfg(all(test))]
 mod tests{
     use super::*;
 

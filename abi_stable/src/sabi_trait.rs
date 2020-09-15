@@ -15,6 +15,8 @@ pub mod reexports{
     };
 
 
+        
+
     pub mod __sabi_re{
         pub use abi_stable::{
             erased_types::{
@@ -31,7 +33,7 @@ pub mod reexports{
             pointer_trait::{CanTransmuteElement,TransmuteElement,OwnedPointer},
             prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
             traits::IntoInner,
-            sabi_types::{RRef,MovePtr},
+            sabi_types::{RRef,RMut,MovePtr},
             sabi_trait::{
                 robject::{
                     RObject,
@@ -44,6 +46,7 @@ pub mod reexports{
             },
             std_types::RBox,
             utils::{transmute_reference,transmute_mut_reference,take_manuallydrop},
+            extern_fn_panic_handling,
         };
 
         pub use core_extensions::{
@@ -81,10 +84,10 @@ pub mod robject;
 #[doc(hidden)]
 pub mod vtable;
 
-#[cfg(all(test,not(miri)))]
+#[cfg(all(test))]
 pub mod tests;
 
-#[cfg(all(test,not(miri),not(feature="only_new_tests")))]
+#[cfg(all(test,not(feature="only_new_tests")))]
 pub mod test_supertraits;
 
 use std::{
