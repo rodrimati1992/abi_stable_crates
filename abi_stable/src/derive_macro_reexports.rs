@@ -46,6 +46,8 @@ pub use crate::{
         Constructor,
         VersionStrings,
         MovePtr,
+        RRef,
+        RMut,
     },
     std_types::{
         utypeid::new_utypeid,
@@ -84,6 +86,7 @@ pub use crate::{
         unerasability::TU_Opaque,
     },
     sabi_trait::vtable::{RObjectVtable_Ref, RObjectVtable},
+    extern_fn_panic_handling,
 };
 
 pub use std::{
@@ -124,6 +127,8 @@ pub mod renamed {
         DiscriminantRepr as __DiscriminantRepr,
         RSome as __RSome,
         RNone as __RNone,
+        RRef as __RRef,
+        RMut as __RMut,
         UNSAFE_EXTERN_FN_LAYOUT as __UNSAFE_EXTERN_FN_LAYOUT,
         EXTERN_FN_LAYOUT as __EXTERN_FN_LAYOUT,
     };

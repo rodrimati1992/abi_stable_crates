@@ -256,7 +256,6 @@ fn deserialize_test() {
 // Unfortunately: miri doesn't like calling `extern fn(*const ErasedType)` that
 // were transmuted from `extern fn(*const ErasedType<T>)`
 #[test]
-#[cfg(not(miri))]
 fn serialize_test() {
 
     let concrete = new_foo();
@@ -615,7 +614,6 @@ mod borrowing{
         check_fmt(&foo,&wrapped);
     }
 
-    #[cfg(not(miri))]
     #[test]
     fn serialize(){
         let name="hello".to_string();

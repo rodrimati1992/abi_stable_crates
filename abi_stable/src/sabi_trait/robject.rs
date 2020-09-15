@@ -14,7 +14,7 @@ use crate::{
         c_functions::adapt_std_fmt,
         InterfaceBound,
     },
-    sabi_types::{MaybeCmp,RRef},
+    sabi_types::{MaybeCmp,RRef,RMut},
     std_types::UTypeId,
     pointer_trait::{
         CanTransmuteElement,TransmuteElement,
@@ -600,6 +600,24 @@ where
         P: __DerefMutTrait<Target=()>
     {
         unsafe{&mut *((&mut **self.ptr) as *mut () as *mut ErasedObject<()>)}
+    }
+
+    pub fn sabi_as_rref(&self) -> RRef<'_, ()>
+    where
+        P: __DerefTrait<Target=()>
+    {
+        unsafe {
+            std::mem::transmute(&**self.ptr as *const _ as *const ())
+        }
+    }
+
+    pub fn sabi_as_rmut(&mut self) -> RMut<'_, ()>
+    where
+        P: __DerefMutTrait<Target=()>
+    {
+        unsafe {
+            std::mem::transmute(&mut **self.ptr as *mut _ as *mut ())
+        }
     }
 
     #[inline]

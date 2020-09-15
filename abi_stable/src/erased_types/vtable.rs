@@ -596,7 +596,7 @@ declare_meta_vtable! {
             unsafe{
                 Transmuter::<
                     unsafe extern "C" fn(
-                        &ErasedObject<T>
+                        &ErasedObject
                     )->RResult<<I as SerializeProxyType<'_>>::Proxy,RBoxError>,
                     unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>
                 >{

@@ -11,6 +11,7 @@ mod maybe_cmp;
 pub mod move_ptr;
 mod static_ref;
 mod rref;
+mod rmut;
 pub mod version;
 pub mod rsmallbox;
 
@@ -23,6 +24,7 @@ pub use self::{
     maybe_cmp::MaybeCmp,
     move_ptr::MovePtr,
     rref::RRef,
+    rmut::RMut,
     rsmallbox::RSmallBox,
     late_static_ref::LateStaticRef,
     version::{VersionNumber,VersionStrings,ParseVersionError},
