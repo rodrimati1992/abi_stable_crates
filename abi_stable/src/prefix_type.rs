@@ -55,6 +55,12 @@ pub unsafe trait PrefixTypeTrait: Sized {
     const PT_FIELD_ACCESSIBILITY: FieldAccessibility;
 
     /// Convers `Self` to `&'a Self::Prefix`,leaking it in the process.
+    ///
+    /// # Warning 
+    ///
+    /// You must be careful when calling this function,
+    /// since this leak is ignored by [miri](https://github.com/rust-lang/miri) .
+    ///
     fn leak_into_prefix(self)->Self::PrefixRef{
         let x=WithMetadata::new(Self::METADATA, self);
         let x=StaticRef::leak_value(x);

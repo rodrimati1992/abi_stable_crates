@@ -67,10 +67,11 @@ mod_iter_ty!{
 }
 
 
+type BoxTrait<'a,I>=DynTrait<'a,RBox<()>,I>;
 
+#[cfg(not(miri))]
 #[test]
 fn check_subsets(){
-    type BoxTrait<'a,I>=DynTrait<'a,RBox<()>,I>;
 
     let pref_zero=<DynTrait<'_,RBox<()>,no_iterator_interface::Interface>>::LAYOUT;
 
@@ -106,3 +107,14 @@ fn check_subsets(){
         }
     }
 }
+
+#[cfg(miri)]
+#[test]
+fn check_subsets_for_miri(){
+    let pref_iter_0=<BoxTrait<'_,u8_interface::Interface>>::LAYOUT;
+    let pref_iter_1=<BoxTrait<'_,unit_interface::Interface>>::LAYOUT;
+
+    assert_eq!(check_layout_compatibility(pref_iter_0, pref_iter_0), Ok(()) );
+    assert_ne!(check_layout_compatibility(pref_iter_0, pref_iter_1), Ok(()) );
+}
+

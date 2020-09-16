@@ -1,4 +1,6 @@
 #![allow(non_camel_case_types)]
+#![cfg(miri, allow(unused_imports))]
+
 
 mod layout_tests {
 
@@ -9,21 +11,18 @@ mod layout_tests {
     #[cfg(all(test,not(feature="only_new_tests")))]
     mod erased_types;
 
-    #[cfg(test)]
+    #[cfg(all(test,not(feature="only_new_tests")))]
     mod pointer_types;
 
     #[cfg(all(test,not(feature="only_new_tests")))]
-    // #[cfg(test)]
     mod repr_and_discr;
 
     #[cfg(all(test,not(feature="only_new_tests")))]
     mod sabi_trait;
 
-    #[cfg(all(test,not(feature="only_new_tests")))]
     mod nonexhaustive_enums;
 
     #[cfg(all(test,not(feature="only_new_tests")))]
-    //#[cfg(test)]
     mod get_static_equivalent;
 
     #[cfg(all(test,not(feature="only_new_tests")))]
@@ -35,7 +34,6 @@ mod layout_tests {
     #[cfg(all(test,not(feature="only_new_tests")))]
     mod const_params;
 
-    // #[cfg(test)]
     #[cfg(all(test,not(feature="only_new_tests")))]
     mod lifetime_indices_tests;
 
@@ -44,7 +42,6 @@ mod layout_tests {
     mod get_type_layout;
 
 
-    // #[cfg(test)]
     #[cfg(all(test,not(feature="only_new_tests")))]
     mod shared_types;    
 }

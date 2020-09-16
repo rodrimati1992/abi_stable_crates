@@ -97,12 +97,23 @@ pub union Transmuter<T: Copy, U: Copy> {
 //////////////////////////////////
 
 /// Leaks `value` into the heap,and returns a reference to it.
+/// 
+/// # Warning
+/// 
+/// You must be careful when calling this function,
+/// since this leak is ignored by [miri](https://github.com/rust-lang/miri).
+/// 
 #[inline]
 pub fn leak_value<'a,T>(value:T)->&'a T
 where T:'a // T:'a is for the docs
 {
-    let x=Box::new(value);
-    Box::leak(x)
+    let x = Box::new(value);
+    let leaked: &'a T = Box::leak(x);
+    #[cfg(miri)]
+    unsafe{
+        crate::miri_static_root(leaked as *const T as *const u8);
+    }
+    leaked
 }
 
 

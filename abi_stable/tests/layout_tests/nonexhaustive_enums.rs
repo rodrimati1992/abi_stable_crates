@@ -2,7 +2,7 @@ use abi_stable::{
     StableAbi,
     abi_stability::{
         abi_checking::{
-            AbiInstability,AbiInstabilityErrors,check_layout_compatibility,
+            AbiInstability,AbiInstabilityErrors,
             check_layout_compatibility_with_globals,
             CheckingGlobals,
         },
@@ -61,6 +61,7 @@ mod with_2_enums_c{
 }
 
 
+#[cfg(not(miri))]
 fn check_subsets<F>(list:&[&'static TypeLayout],mut f:F)
 where
     F:FnMut(&[AbiInstability])
@@ -88,6 +89,7 @@ where
 
 
 
+#[cfg(not(miri))]
 #[test]
 fn check_enum_subsets(){
     let list=vec![
@@ -105,6 +107,19 @@ fn check_enum_subsets(){
     })
 }
 
+#[cfg(miri)]
+#[test]
+fn check_enum_subsets(){
+    let globals=CheckingGlobals::new();
+
+    let inter0 = <NonExhaustiveFor<command_a::Foo> as StableAbi>::LAYOUT;
+    let inter1 = <NonExhaustiveFor<command_b::Foo> as StableAbi>::LAYOUT;
+
+    assert_eq!(check_layout_compatibility_with_globals(inter0, inter1, &globals), Ok(()));
+    assert_ne!(check_layout_compatibility_with_globals(inter1, inter0, &globals), Ok(()));
+}
+
+
 // This test ensures that a struct with 2 nonexhaustive enums works as expected.
 //
 // This test is partly to ensure that a `NonExhaustive<>` produces different 
@@ -114,6 +129,7 @@ fn check_enum_subsets(){
 // This bug was caused by `#[sabi(unconstrained(T))]` 
 // causing the type parameter to be ignored when generating the UTypeId,
 // meaning that even if the type parameter changed the UTypeId wouldn't.
+#[cfg(not(miri))]
 #[test]
 fn check_2_enum_subsets(){
     let list=vec![
@@ -131,6 +147,21 @@ fn check_2_enum_subsets(){
     })
 }
 
+#[cfg(miri)]
+#[test]
+fn check_2_enum_subsets(){
+    let globals=CheckingGlobals::new();
+
+    let inter0 = <with_2_enums_a::Struct as StableAbi>::LAYOUT;
+    let inter1 = <with_2_enums_b::Struct as StableAbi>::LAYOUT;
+
+    assert_eq!(check_layout_compatibility_with_globals(inter0, inter1, &globals), Ok(()));
+    assert_ne!(check_layout_compatibility_with_globals(inter1, inter0, &globals), Ok(()));
+}
+
+
+
+#[cfg(not(miri))]
 #[test]
 fn check_impld_traits_subsets(){
     let list=vec![
@@ -149,14 +180,29 @@ fn check_impld_traits_subsets(){
     })
 }
 
+#[cfg(miri)]
+#[test]
+fn check_impld_traits_subsets(){
+    let globals=CheckingGlobals::new();
+
+    let inter0 = <NonExhaustiveFor<command_one::Foo> as StableAbi>::LAYOUT;
+    let inter1 = <NonExhaustiveFor<command_one_more_traits_1::Foo> as StableAbi>::LAYOUT;
+
+    assert_eq!(check_layout_compatibility_with_globals(inter0, inter1, &globals), Ok(()));
+    assert_ne!(check_layout_compatibility_with_globals(inter1, inter0, &globals), Ok(()));
+}
+
+
 
 #[test]
 fn exhaustiveness(){
+    let globals=CheckingGlobals::new();
+
     let unwrapped=<command_a_exhaustive::Foo as StableAbi>::LAYOUT;
     let wrapped=<NonExhaustiveFor<command_a::Foo> as StableAbi>::LAYOUT;
 
     for (l,r) in vec![ (unwrapped,wrapped), (wrapped,unwrapped) ] {
-        check_layout_compatibility(l,r)
+        check_layout_compatibility_with_globals(l, r, &globals)
             .unwrap_err()
             .flatten_errors()
             .iter()
@@ -167,11 +213,13 @@ fn exhaustiveness(){
 
 #[test]
 fn mismatched_discriminant(){
+    let globals=CheckingGlobals::new();
+
     let regular   =<NonExhaustiveFor<command_h::Foo> as StableAbi>::LAYOUT;
     let mismatched=
         <NonExhaustiveFor<command_h_mismatched_discriminant::Foo> as StableAbi>::LAYOUT;
     
-    check_layout_compatibility(regular,mismatched)
+    check_layout_compatibility_with_globals(regular, mismatched, &globals)
         .unwrap_err()
         .flatten_errors()
         .iter()
@@ -181,10 +229,14 @@ fn mismatched_discriminant(){
 
 #[test]
 fn check_storage_unstorable(){
+    let globals=CheckingGlobals::new();
+
     let abi_a=<NonExhaustiveFor<command_a::Foo> as StableAbi>::LAYOUT;
+    #[cfg(not(miri))]
     let abi_b=<NonExhaustiveFor<command_b::Foo> as StableAbi>::LAYOUT;
     let abi_large=<NonExhaustiveFor<too_large::Foo> as StableAbi>::LAYOUT;
 
+    #[cfg(not(miri))]
     let checks=vec![
         (abi_a,abi_large),
         (abi_b,abi_large),
@@ -193,8 +245,13 @@ fn check_storage_unstorable(){
         (abi_large,abi_b),
     ];
 
+    #[cfg(miri)]
+    let checks=vec![
+        (abi_a,abi_large),
+    ];
+
     for (l,r) in checks {
-        check_layout_compatibility(l,r)
+        check_layout_compatibility_with_globals(l, r, &globals)
             .unwrap_err()
             .flatten_errors()
             .iter()
@@ -229,6 +286,7 @@ fn incompatible_overlapping_variants(){
         assert!(found_mismatch,"errs:{:#?}",errs);
     }
 
+    #[cfg(not(miri))]
     {
         let globals=CheckingGlobals::new();
         check_layout_compatibility_with_globals(abi_a,abi_b,&globals).unwrap();
@@ -239,10 +297,13 @@ fn incompatible_overlapping_variants(){
     {
         let globals=CheckingGlobals::new();
         check_layout_compatibility_with_globals(abi_a,abi_b,&globals).unwrap();
+        
         check_layout_compatibility_with_globals(abi_b,abi_c_mf,&globals).unwrap();
+        
         check_layout_compatibility_with_globals(abi_b,abi_c,&globals)
             .piped(unwrap_the_err);
     }
+    #[cfg(not(miri))]
     {
         let globals=CheckingGlobals::new();
         check_layout_compatibility_with_globals(abi_one,abi_c,&globals).unwrap();

@@ -66,6 +66,7 @@ struct TypeTest{
     functions:Vec<Vec<FnTest>>,
 }
 
+#[cfg(not(miri))]
 fn get_tlc<T>()->TypeLayoutCtor
 where
     T:StableAbi
@@ -73,6 +74,7 @@ where
     GetTypeLayoutCtor::<T>::STABLE_ABI
 }
 
+#[cfg(not(miri))]
 #[test]
 fn assert_types(){
     let list=vec![
@@ -281,6 +283,7 @@ fn assert_types(){
 }
 
 
+#[cfg(not(miri))]
 fn type_layouts_fmt(iter:impl IntoIterator<Item=TypeLayoutCtor>)->Vec<String>{
     iter.into_iter()
         .map(|x|x.get().full_type().to_string())

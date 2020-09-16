@@ -76,6 +76,19 @@ where
                 // dbg!(l_abi.full_type(),r_abi.full_type());
                 let errs=res.unwrap_err().flatten_errors();
 
+                let mut had_some_err=false;
+                for err in &*errs {
+                    match err {
+                        AbiInstability::GenericParamCount{..}=>{
+                            had_some_err=true;
+                        }
+                        AbiInstability::MismatchedConstParam{..}=>{
+                            had_some_err=true;
+                        }
+                        _=>{}
+                    }
+                }
+                assert!(had_some_err,"\nerrors:{:#?}\n",errs);
                 f(&*errs);
             }
         }
@@ -138,20 +151,18 @@ fn test_compatibility(){
         ]);
     }
     
-    check_imcompatible_with_others(&list,|errs|{
-        let mut had_some_err=false;
-        for err in errs {
-            match err {
-                AbiInstability::GenericParamCount{..}=>{
-                    had_some_err=true;
-                }
-                AbiInstability::MismatchedConstParam{..}=>{
-                    had_some_err=true;
-                }
-                _=>{}
-            }
-        }
-        assert!(had_some_err,"\nerrors:{:#?}\n",errs);
-    });
+    check_imcompatible_with_others(&list,|_|());
 }
 
+
+
+#[test]
+fn test_compatibility_for_miri(){
+    let list = [
+        <two_phantom::Struct<i8 ,i8> as StableAbi>::LAYOUT,
+        <two_phantom::Struct<i16,i16> as StableAbi>::LAYOUT,
+        <two_phantom::Struct<i32,i32> as StableAbi>::LAYOUT,
+    ];
+    
+    check_imcompatible_with_others(&list,|_|());
+}

@@ -13,6 +13,7 @@ use abi_stable::{
         stable_abi_trait::get_type_layout,
     },
     const_utils::abs_sub_usize,
+    external_types::ROnce,
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
     sabi_trait::prelude::TU_Opaque,
@@ -33,6 +34,7 @@ use std::{
 use core_extensions::{matches,SelfOps};
 
 
+#[cfg(not(miri))]
 fn check_subsets<F>(list:&[&'static TypeLayout],mut f:F)
 where
     F:FnMut(&[AbiInstability])
@@ -69,15 +71,32 @@ const LAYOUT3B:&'static TypeLayout= <WithConstant<V1_3_Incompatible> as StableAb
 
 #[test]
 fn test_subsets(){
-    check_subsets(&[LAYOUT0,LAYOUT1,LAYOUT2,LAYOUT3],|errs|{
+    fn asserts(errs: &[AbiInstability]){
         assert!(
             errs
             .iter()
             .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err))
         );
-    });
+    }
+
+    #[cfg(not(miri))]
+    check_subsets(&[LAYOUT0,LAYOUT1,LAYOUT2,LAYOUT3],asserts);
+    
+    #[cfg(miri)]
+    {
+        let globals=CheckingGlobals::new();
+
+        assert_eq!(check_layout_compatibility_with_globals(LAYOUT0, LAYOUT0, &globals), Ok(()));
+        
+        asserts(
+            &check_layout_compatibility_with_globals(LAYOUT1, LAYOUT0, &globals)
+                .unwrap_err()
+                .flatten_errors()  
+        );
+    }
 }
 
+#[cfg(not(miri))]
 #[test]
 fn test_incompatible(){
     {
@@ -127,6 +146,14 @@ fn test_incompatible(){
 }
 
 
+#[cfg(miri)]
+#[test]
+fn test_incompatible(){
+    let globals=CheckingGlobals::new();
+
+    check_layout_compatibility_with_globals(LAYOUT0,LAYOUT1,&globals).unwrap();
+    check_layout_compatibility_with_globals(LAYOUT1,LAYOUT1B,&globals).unwrap_err();
+}
 
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -333,45 +360,43 @@ impl ExtraChecks for IdentityChecker {
 #[derive(abi_stable::StableAbi)]
 struct Blah<T>(T);
 
+
+struct WrapTypeLayout<T>(T);
+
+impl<T> WrapTypeLayout<T>
+where
+    T:StableAbi
+{
+    const EXTRA_CHECKS:&'static ManuallyDrop<StoredExtraChecks>=
+        &ManuallyDrop::new(StoredExtraChecks::from_const(
+            &IdentityChecker{ 
+                type_layout:Constructor(get_type_layout::<T>)
+            },
+            TU_Opaque,
+            ExtraChecks_MV::VTABLE,
+        ));
+}
+
+fn wrap_type_layout<T>()->&'static TypeLayout
+where
+    T:StableAbi
+{
+    <()>::LAYOUT.clone()
+        ._set_extra_checks(
+            WrapTypeLayout::<T>::EXTRA_CHECKS
+            .piped(Some)
+            .piped(CmpIgnored::new)
+        )
+        ._set_type_id(Constructor(
+            abi_stable::std_types::utypeid::new_utypeid::<Blah<T::StaticEquivalent>>
+        ))
+        .piped(leak_value)
+}
+
+
+#[cfg(not(miri))]
 #[test]
 fn test_identity_extra_checker() {
-
-    struct MakeExtraChecks<T>(T);
-
-    impl<T> MakeExtraChecks<T>
-    where
-        T:StableAbi
-    {
-        const NEW:&'static ManuallyDrop<StoredExtraChecks>=
-            &ManuallyDrop::new(StoredExtraChecks::from_const(
-                &IdentityChecker{ 
-                    type_layout:Constructor(get_type_layout::<T>)
-                },
-                TU_Opaque,
-                ExtraChecks_MV::VTABLE,
-            ));
-    }
-
-    fn wrap_type_layout<T>()->&'static TypeLayout
-    where
-        T:StableAbi
-    {
-        <()>::LAYOUT.clone()
-            ._set_extra_checks(
-                MakeExtraChecks::<T>::NEW
-                .piped(Some)
-                .piped(CmpIgnored::new)
-            )
-            ._set_type_id(Constructor(
-                abi_stable::std_types::utypeid::new_utypeid::<Blah<T::StaticEquivalent>>
-            ))
-            .piped(leak_value)
-    }
-
-    use abi_stable::{
-        external_types::ROnce,
-    };
-
     let list = vec![
         wrap_type_layout::<u32>(),
         wrap_type_layout::<[(); 0]>(),
@@ -442,6 +467,19 @@ fn test_identity_extra_checker() {
         }
     }
 }
+
+#[cfg(miri)]
+#[test]
+fn test_identity_extra_checker() {
+    let globals=CheckingGlobals::new();
+
+    let interf0=wrap_type_layout::<RHashMap<i32,RString>>();
+    let interf1=wrap_type_layout::<TypeLayout>();
+    
+    assert_eq!(check_layout_compatibility_with_globals(interf0, interf0, &globals), Ok(()));
+    assert_ne!(check_layout_compatibility_with_globals(interf0, interf1, &globals), Ok(()));
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
@@ -557,6 +595,7 @@ impl ExtraChecks for LocalExtraChecker {
 
 /// This is used to check that ExtraChecks that contain the type that they are checking 
 /// alway return an error.
+#[cfg(not(miri))]
 #[test]
 fn test_local_extra_checker() {
 
@@ -614,4 +653,22 @@ fn test_local_extra_checker() {
         }
     }
 }
+
+#[cfg(miri)]
+#[test]
+fn test_local_extra_checker() {
+    let globals=CheckingGlobals::new();
+    
+    let interf0=WithLocalExtraChecker::<i32,u32>::LAYOUT;
+    let interf1=WithLocalExtraChecker::<RString,i32>::LAYOUT;
+    let interf2=WithLocalExtraChecker::<(),RString>::LAYOUT;
+
+    assert_eq!(check_layout_compatibility_with_globals(interf0, interf1, &globals), Ok(()));
+    assert_ne!(check_layout_compatibility_with_globals(interf0, interf2, &globals), Ok(()));
+}
+
+
+
+
+
 
