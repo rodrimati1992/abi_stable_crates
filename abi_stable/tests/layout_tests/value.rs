@@ -266,7 +266,8 @@ fn unsafe_opaque_fields(){
 }
 
 
-#[cfg_attr(not(miri),test)]
+#[cfg(not(miri))]
+#[test]
 fn same_different_abi_stability() {
     let must_be_equal = vec![
         regular::Rectangle::LAYOUT,
@@ -408,6 +409,35 @@ fn same_different_abi_stability() {
 }
 
 
+#[cfg(miri)]
+#[test]
+fn same_different_abi_stability() {
+    let l0 = <&()>::LAYOUT;
+    let l1 = <&i32>::LAYOUT;
+    let l2 = <mod_4::Mod>::LAYOUT;
+    let l3 = <mod_5::Mod>::LAYOUT;
+    let l4 = <Tagged<TAG_DEFAULT_5>>::LAYOUT;
+    let l5 = <Tagged<TAG_DEFAULT_6>>::LAYOUT;
+    let l6 = <ROption<()>>::LAYOUT;
+    let l7 = <ROption<u32>>::LAYOUT;
+        
+
+    assert_equal_type_layout(l0, l0);
+    assert_different_type_layout(l0, l1);
+    assert_different_type_layout(l0, l2);
+
+    assert_equal_type_layout(l2, l2);
+    assert_different_type_layout(l3, l2);
+    assert_different_type_layout(l2, l4);
+
+    assert_equal_type_layout(l4, l4);
+    assert_different_type_layout(l4, l5);
+    assert_different_type_layout(l4, l2);
+
+    assert_equal_type_layout(l6, l6);
+    assert_different_type_layout(l6, l7);
+    assert_different_type_layout(l6, l4);
+}
 
 #[cfg_attr(not(miri),test)]
 fn compare_references() {
@@ -439,22 +469,7 @@ fn compare_references() {
 }
 
 
-
-// Uncomment this once I reimplement Prefix types.
-//
-// #[cfg_attr(not(miri),test)]
-// fn different_prefixity() {
-//     let regular = <&'static regular::Rectangle>::LAYOUT;
-//     let other = <&'static prefixed::Rectangle>::LAYOUT;
-//     let errs = check_layout_compatibility(regular, other)
-//         .unwrap_err()
-//         .flatten_errors();
-//     assert!(errs
-//         .iter()
-//         .any(|err| matches!(AbiInstability::IsPrefix{..}=err)));
-// }
-
-#[cfg_attr(not(miri),test)]
+#[cfg(test)]
 fn different_zeroness() {
     const ZEROABLE_ABI: &'static TypeLayout = &{
         <&()>::LAYOUT
@@ -511,7 +526,7 @@ fn different_field_name() {
 
 
 
-#[cfg_attr(not(miri),test)]
+#[test]
 fn swapped_fields() {
     let regular = regular::Rectangle::LAYOUT;
     let first = swapped_fields_first::Rectangle::LAYOUT;
@@ -527,7 +542,7 @@ fn swapped_fields() {
     }
 }
 
-#[cfg_attr(not(miri),test)]
+#[test]
 fn removed_fields() {
     let regular = regular::Rectangle::LAYOUT;
     let list = vec![
@@ -558,7 +573,7 @@ fn removed_fields() {
     }
 }
 
-#[cfg_attr(not(miri),test)]
+#[cfg(test)]
 fn different_alignment() {
     let regular = regular::Rectangle::LAYOUT;
     let other = changed_alignment::Rectangle::LAYOUT;
@@ -622,7 +637,7 @@ pub(super) mod gen_more_tys {
 // }
 // }
 
-#[cfg_attr(not(miri),test)]
+#[cfg(test)]
 fn different_generics() {
     let regular = gen_basic::Generics::<()>::LAYOUT;
 
@@ -680,7 +695,7 @@ pub(super) mod misnamed_variant {
 }
 
 
-#[cfg_attr(not(miri),test)]
+#[cfg(test)]
 fn variant_mismatch() {
     let regular = basic_enum::Enum::LAYOUT;
 
@@ -893,6 +908,7 @@ where
 
 
 
+#[cfg(not(miri))]
 #[test]
 fn test_tag_subsets(){
     let valid_subsets=vec![
@@ -924,6 +940,8 @@ fn test_tag_subsets(){
     }
 }
 
+
+#[cfg(not(miri))]
 #[test]
 fn test_tag_incompatible(){
     let incompatible_sets=vec![

@@ -15,6 +15,7 @@ use std::ptr::NonNull;
 const PTR_SIZE: usize = std::mem::size_of::<*const ()>();
 const PTR_ALIGN: usize = std::mem::align_of::<*const ()>();
 
+#[cfg(not(miri))]
 fn test_case<T>()
 where
     T: StableAbi<IsNonZeroType = True>,
@@ -30,6 +31,7 @@ where
 }
 
 
+#[cfg(not(miri))]
 #[test]
 fn test_nonnullable() {
     test_case::<Module_Ref>();

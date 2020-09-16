@@ -143,13 +143,17 @@ fn same_opaque_fields() {
 
 #[test]
 fn different_opaque_fields() {
-    let list = vec![
+    #[allow(unused_mut)]
+    let mut list=vec![
         UnsafeOpaqueFields0::<u32,u32>::LAYOUT,
         UnsafeOpaqueFields0::<u32,u64>::LAYOUT,
         
         UnsafeSabiOpaqueFields0::<u32,u32>::LAYOUT,
         UnsafeSabiOpaqueFields0::<u32,u64>::LAYOUT,
+    ];
 
+    #[cfg(not(miri))]
+    list.extend_from_slice(&[
         UnsafeOpaqueField0::<u32,u32>::LAYOUT,
         UnsafeOpaqueField0::<i32,u32>::LAYOUT,
         UnsafeOpaqueField0::<u32,u64>::LAYOUT,
@@ -157,20 +161,16 @@ fn different_opaque_fields() {
         UnsafeSabiOpaqueField0::<u32,u32>::LAYOUT,
         UnsafeSabiOpaqueField0::<i32,u32>::LAYOUT,
         UnsafeSabiOpaqueField0::<u32,u64>::LAYOUT,
-    ];
+    ]);
 
-    let (_dur, ()) = core_extensions::measure_time::measure(|| {
-        for (i, this) in list.iter().cloned().enumerate() {
-            for (j, other) in list.iter().cloned().enumerate() {
-                let res=check_layout_compatibility(this, other);
-                if i == j {
-                    res.unwrap();
-                } else {
-                    res.unwrap_err();
-                }
+    for (i, this) in list.iter().cloned().enumerate() {
+        for (j, other) in list.iter().cloned().enumerate() {
+            let res=check_layout_compatibility(this, other);
+            if i == j {
+                res.unwrap();
+            } else {
+                res.unwrap_err();
             }
         }
-    });
-
-    // println!("taken {} to check all listed layouts", dur);
+    }
 }

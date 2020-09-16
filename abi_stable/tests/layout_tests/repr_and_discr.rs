@@ -134,6 +134,7 @@ declare_int_repr!{
 }
 
 
+#[cfg(not(miri))]
 fn check_imcompatible_with_others<F>(list:&[&'static TypeLayout],mut f:F)
 where
     F:FnMut(&[AbiInstability])
@@ -156,6 +157,24 @@ where
 }
 
 
+fn assert_discr_error(errs: &[AbiInstability]) {
+    let mut had_some_err=false;
+    for err in errs {
+        match err {
+            AbiInstability::ReprAttr{..}=>{
+                had_some_err=true;
+            }
+            AbiInstability::EnumDiscriminant{..}=>{
+                had_some_err=true;
+            }
+            _=>{}
+        }
+    }
+    assert!(had_some_err,"\nerrors:{:#?}\n",errs);
+}
+
+
+#[cfg(not(miri))]
 #[test]
 fn check_discriminant_repr_enums(){
     let list=&[
@@ -171,27 +190,20 @@ fn check_discriminant_repr_enums(){
         <isize_repr_a::What as StableAbi>::LAYOUT,
     ];
 
-    check_imcompatible_with_others(list,|errs|{
-        let mut had_some_err=false;
-        for err in errs {
-            match err {
-                AbiInstability::ReprAttr{..}=>{
-                    had_some_err=true;
-                }
-                AbiInstability::EnumDiscriminant{..}=>{
-                    had_some_err=true;
-                }
-                _=>{}
-            }
-        }
-        assert!(had_some_err,"\nerrors:{:#?}\n",errs);
-    })
-
-
-
+    check_imcompatible_with_others(list,assert_discr_error)
 }
 
 
+#[cfg(miri)]
 #[test]
-fn check_discriminants(){
+fn check_discriminant_repr_enums(){
+    let l0 = <c_repr_a::What as StableAbi>::LAYOUT;
+    let l1 = <c_repr_b::What as StableAbi>::LAYOUT;
+    let l2 = <u8_repr_a::What as StableAbi>::LAYOUT;
+    
+    assert_eq!(check_layout_compatibility(l0, l0), Ok(()));
+    
+    assert_discr_error(&check_layout_compatibility(l0, l1).unwrap_err().flatten_errors());
+    
+    assert_discr_error(&check_layout_compatibility(l0, l2).unwrap_err().flatten_errors());
 }

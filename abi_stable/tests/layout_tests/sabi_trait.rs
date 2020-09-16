@@ -22,6 +22,18 @@ where
 {
     let globals=CheckingGlobals::new();
     
+    #[cfg(miri)]
+    {
+        assert_eq!(check_layout_compatibility_with_globals(&list[0], &list[0], &globals), Ok(()));
+        
+        f(
+            &check_layout_compatibility_with_globals(&list[1], &list[0], &globals)
+                .unwrap_err()
+                .flatten_errors()
+        );
+    }
+
+    #[cfg(not(miri))]
     for (l_i,l_abi) in list.iter().enumerate() {
         for (r_i,r_abi) in list.iter().enumerate() {
             let res=check_layout_compatibility_with_globals(l_abi,r_abi,&globals);
@@ -46,6 +58,14 @@ fn check_equality<F>(list:&[&'static TypeLayout],mut f:F)
 where
     F:FnMut(&[AbiInstability])
 {
+    #[cfg(miri)]
+    {
+        assert_eq!(check_layout_compatibility(&list[0], &list[0]), Ok(()));
+        
+        f(&check_layout_compatibility(&list[1], &list[0]).unwrap_err().flatten_errors());
+    }
+
+    #[cfg(not(miri))]
     for (l_i,l_abi) in list.iter().enumerate() {
         for (r_i,r_abi) in list.iter().enumerate() {
 

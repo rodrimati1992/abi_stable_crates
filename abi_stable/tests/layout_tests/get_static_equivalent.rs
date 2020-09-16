@@ -131,6 +131,7 @@ declare_uids!{
 }
 
 
+#[cfg(not(miri))]
 fn type_layout_of<T>()->&'static TypeLayout
 where
     T:StableAbi
@@ -139,6 +140,7 @@ where
 }
 
 
+#[cfg(not(miri))]
 fn get_list_inner<T,U>()->Vec<&'static TypeLayout>
 where
     T:GetStaticEquivalent_+UniqueId,
@@ -151,6 +153,7 @@ where
 }
 
 
+#[cfg(not(miri))]
 fn get_list<'a,T>(_:&'a T)->Vec<&'static TypeLayout>{
     type Ty0=unit_type::Struct;
     type Ty1<'a>=single_ty_param::Struct<&'a Unsized<str>>;
@@ -176,6 +179,7 @@ fn get_list<'a,T>(_:&'a T)->Vec<&'static TypeLayout>{
     ].into_iter().flatten().collect()
 }
 
+#[cfg(not(miri))]
 #[test]
 fn check_not_stableabi(){
     let hello=Vec::<u32>::new();

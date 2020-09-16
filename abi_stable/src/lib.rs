@@ -341,3 +341,14 @@ pub mod globals{
 #[cfg(all(test, not(feature = "testing")))]
 compile_error! { "tests must be run with the \"testing\" feature" }
 
+
+
+#[cfg(miri)]
+extern "Rust" {
+    /// Miri-provided extern function to mark the block `ptr` points to as a "root"
+    /// for some static memory. This memory and everything reachable by it is not
+    /// considered leaking even if it still exists when the program terminates.
+    ///
+    /// `ptr` has to point to the beginning of an allocated block.
+    fn miri_static_root(ptr: *const u8);
+}
