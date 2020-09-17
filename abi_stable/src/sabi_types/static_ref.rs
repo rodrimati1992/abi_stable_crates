@@ -206,6 +206,7 @@ impl<T> StaticRef<T>{
         }
     }
 
+    /// Creates a StaticRef by heap allocating and leaking `val`.
     pub fn leak_value(val: T) -> Self {
         // Safety: TODO
         unsafe{
@@ -316,3 +317,43 @@ unsafe impl<T> GetPointerKind for StaticRef<T>{
 unsafe impl<T,U> CanTransmuteElement<U> for StaticRef<T>{
     type TransmutedPtr= StaticRef<U>;
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn construction_test(){
+        unsafe{
+            let three: *const i32 = &3;
+            assert_eq!(*StaticRef::from_raw(three), 3);
+        }
+
+        assert_eq!(*StaticRef::new(&5), 5);
+        
+        assert_eq!(*StaticRef::leak_value(8), 8);
+    }
+
+    #[test]
+    fn access(){
+        let reference = StaticRef::new(&8);
+        
+        assert_eq!(*reference.get(), 8);
+        unsafe{
+            assert_eq!(*reference.get_raw(), 8);
+        }
+    }
+
+    #[test]
+    fn transmutes(){
+        let reference = StaticRef::new(&(!0u32));
+
+        unsafe{
+            assert_eq!(*reference.transmute_ref::<i32>(), -1);
+        }
+    }
+}
+
+

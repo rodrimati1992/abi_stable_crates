@@ -68,6 +68,14 @@ impl<'a,T> RMut<'a,T>{
         unsafe{ Self::from_raw(ref_) }
     }
 
+    /// Reborrows this `RMut`, with a shorter lifetime.
+    pub fn reborrow(&mut self) -> RMut<'_, T> {
+        RMut{
+            ref_: self.ref_,
+            _marker: PhantomData,
+        }
+    }
+
     /// Gets access to the reference.
     ///
     /// Use this to get a `&'a T`,
@@ -128,3 +136,59 @@ where
 {
     type TransmutedPtr= RMut<'a,U>;
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn construction_test(){
+        unsafe{
+            let zero: *mut i32 = &mut 3;
+            assert_eq!(*RMut::from_raw(zero), 3);
+        }
+
+        assert_eq!(*RMut::new(&mut 99), 99);
+    }
+
+    #[test]
+    fn access(){
+        let mut num = 5;
+        let mut mutref= RMut::new(&mut num);
+        
+        assert_eq!(*mutref, 5);
+        *mutref = 21;
+        assert_eq!(*mutref, 21);
+
+        assert_eq!(*mutref.reborrow().get(), 21);
+        
+        assert_eq!(*mutref.reborrow().get_mut(), 21);
+        *mutref.reborrow().get_mut() = 34;
+
+        unsafe{
+            let raw = mutref.reborrow().into_raw();
+            assert_eq!(*raw, 34);
+            *raw = 55;
+        }
+        assert_eq!(num, 55);
+    }
+
+    #[test]
+    fn transmutes(){
+        let mut num = !1;
+        let mutref= RMut::new(&mut num);
+
+        unsafe{
+            let ptr = mutref.cast_into_raw::<i32>();
+
+            assert_eq!(*ptr, -2);
+            *ptr = 55;
+        }
+
+        assert_eq!(num, 55);
+    }
+}
+
+

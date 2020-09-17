@@ -1,5 +1,5 @@
 #![allow(non_camel_case_types)]
-#![cfg(miri, allow(unused_imports))]
+#![cfg_attr(miri, allow(unused_imports))]
 
 
 mod layout_tests {
