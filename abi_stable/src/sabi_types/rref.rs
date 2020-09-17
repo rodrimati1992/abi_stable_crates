@@ -278,3 +278,42 @@ where
 {
     type TransmutedPtr= RRef<'a,U>;
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn construction_test(){
+        unsafe{
+            let three: *const i32 = &3;
+            assert_eq!(*RRef::from_raw(three), 3);
+        }
+
+        assert_eq!(*RRef::new(&5), 5);
+    }
+
+    #[test]
+    fn access(){
+        let reference = RRef::new(&8);
+        
+        assert_eq!(*reference.get(), 8);
+        unsafe{
+            assert_eq!(*reference.get_raw(), 8);
+        }
+    }
+
+    #[test]
+    fn transmutes(){
+        let reference = RRef::new(&(!0u32));
+
+        unsafe{
+            assert_eq!(*reference.cast_into_raw::<i32>(), -1);
+            assert_eq!(*reference.transmute::<i32>(), -1);
+            assert_eq!(*reference.transmute_ref::<i32>(), -1);
+        }
+    }
+}
+
+
