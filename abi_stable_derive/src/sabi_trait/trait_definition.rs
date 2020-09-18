@@ -3,6 +3,7 @@ use super::{
     attribute_parsing::{MethodWithAttrs,SabiTraitAttrs},
     impl_interfacetype::{TRAIT_LIST,TraitStruct,WhichTrait},
     replace_self_path::{self,ReplaceWith},
+    lifetime_unelider::BorrowKind,
     parse_utils::{parse_str_as_ident,parse_str_as_type,parse_str_as_trait_bound},
 };
 
@@ -409,6 +410,10 @@ pub(crate) struct TraitMethod<'a>{
     pub(crate) params: Vec<MethodParam<'a>>,
     /// The return type of this method,if None this returns `()`.
     pub(crate) output: Option<syn::Type>,
+    
+    /// Whether the return type borrows from self
+    pub(crate) return_borrow_kind: Option<BorrowKind>,
+    
     pub(crate) where_clause:MethodWhereClause<'a>,
     /// The default implementation of the method.
     pub(crate) default:Option<DefaultMethod<'a>>,
@@ -488,15 +493,20 @@ impl<'a> TraitMethod<'a>{
 
         let mut lifetimes:Vec<&'a syn::LifetimeDef>=decl.generics.lifetimes().collect();
 
+        let mut return_borrow_kind = None::<BorrowKind>;
+
         let output=match &decl.output {
             syn::ReturnType::Default=>None,
             syn::ReturnType::Type(_,ty)=>{
                 let mut ty:syn::Type=(**ty).clone();
                 if let SelfParam::ByRef{lifetime,..}=&mut self_param {
-                    LifetimeUnelider::new(ctokens,lifetime)
-                        .visit_type(&mut ty)
-                        .into_iter()
-                        .extending(&mut lifetimes);
+                    let visit_data = LifetimeUnelider::new(lifetime).visit_type(&mut ty);
+
+                    return_borrow_kind = visit_data.found_borrow_kind;
+
+                    if let Some(lt) = visit_data.additional_lifetime_def {
+                        lifetimes.push(lt);
+                    }
                 }
                 Some(ty)
             },
@@ -550,6 +560,7 @@ impl<'a> TraitMethod<'a>{
             self_param,
             params,
             output,
+            return_borrow_kind,
             where_clause,
             default,
             semicolon:mwa.item.semi_token.as_ref(),

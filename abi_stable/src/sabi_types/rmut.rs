@@ -7,7 +7,7 @@ use std::{
 
 use crate::pointer_trait::{CanTransmuteElement,GetPointerKind,PK_MutReference};
 
-/// A StableAbi type equivalent to `&'a mut T`,
+/// Equivalent to `&mut T`.
 #[repr(transparent)]
 #[derive(StableAbi)]
 #[sabi(
