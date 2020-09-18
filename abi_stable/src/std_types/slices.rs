@@ -268,7 +268,6 @@ impl<'a, T> RSlice<'a, T> {
     /// 
     /// ```
     #[inline]
-    // <[T]>::len was stabilized in 1.39
     pub const fn from_slice(slic:&'a [T])->Self{
         unsafe{ RSlice::from_raw_parts(slic.as_ptr(),slic.len()) }
     }

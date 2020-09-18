@@ -47,7 +47,7 @@ impl RawLibrary {
     pub fn load_at(full_path:&Path) -> Result<Self,LibraryError> {
         match LibLoadingLibrary::new(&full_path) {
             Ok(library)=>Ok(Self { path:full_path.to_owned(), library }),
-            Err(io)=>Err(LibraryError::OpenError{ path:full_path.to_owned(), io }),
+            Err(err)=>Err(LibraryError::OpenError{ path:full_path.to_owned(), err: Box::new(err) }),
         }
     }
 
@@ -72,7 +72,7 @@ impl RawLibrary {
                 Err(LibraryError::GetSymbolError{ 
                     library:self.path.clone(),
                     symbol, 
-                    io 
+                    err: Box::new(io),
                 })
             }
         }

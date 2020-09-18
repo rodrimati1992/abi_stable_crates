@@ -10,7 +10,7 @@ matrix:
     # - rust: stable
     - rust: beta
     - rust: nightly
-    - rust: 1.39.0
+    - rust: 1.40.0
     - rust: nightly  
       script:
         - cargo update -Z minimal-versions
