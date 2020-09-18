@@ -1,5 +1,97 @@
 This is the changelog,summarising changes in each version(some minor changes may be ommited).
 
+# 0.9
+
+# 0.9.0
+
+Rewrote how prefix types work. now they aren't by reference, 
+they use static-reference-like types generated for each prefix type
+(with a `_Ref` suffix by default).
+
+Now `#[repr(C, packed)]` prefix types are forbidden.
+
+Added a `PrefixRef` pointer type, which is what the `*_Ref` types wrap,
+used as the pointer to the prefix of every prefix type.
+
+Now the `#[sabi(kind(Prefix))]` takes two optional arguments, `prefix_ref` and `prefix_fields`,
+defaulting to `prefix_ref = "<DerivingType>_Ref"` and `prefix_fields = "<DerivingType>_Fields"`.
+
+Made the root_module_loader function(declared with the `#[export_root_module]` attribute)
+be able to return anything that implements the new `IntoRootModuleResult` trait,
+including `Result<_, RBoxError_>`.
+
+Declared the `RootModuleError` type and `LibraryError::RootModule` variant
+for the errors returned by root module loaders.
+
+Defined the `abi_stable::library::development_utils` module with helper items for use while
+developing a dynamic library.
+
+Made `Constructor`, `MovePtr`, `RRef`, `NulStr`, and `StaticRef`  use
+`NonNull` instead of a raw pointer, this allows `Option`s wrapping them to be ffi-safe.
+
+Split off `SharedStableAbi` trait from `StableAbi`, now there's `PrefixStableAbi` and `StableAbi`,
+both of which only have `GetStaticEquivalent_` in common.
+
+Renamed `WithMetadataFor` to `PrefixMedata`, and added accessors for its fields.
+
+Removed `PrefixTypeTrait::into_with_metadata` method,added `PrefixFields` and `PrefixRef` assoc types.
+
+Added `staticref` macro for declaring `StaticRef` consts,added `StaticRef::leak_value` constructor.
+
+Added `ImmutableRef` marker trait for reference-like types.
+
+Made `LateStaticRef` generic over the pointer it wraps, using the `ImmutableRef` trait.
+
+Renamed `LateStaticRef::<&T>::initialized` to `from_ref`.
+
+Added the `LateStaticRef::<PrefixRef<P>>::from_prefixref` constructor.
+
+Added `PrefixRefTrait` trait for ffi-safe pointers to prefixes.
+
+Added the `PointsToPrefixFields` marker type,
+and `PrefixRefTrait::PREFIX_FIELDS` associated constant to construct it,
+this type is required for calling `LateStaticRef::from_prefixref`.
+
+Made `RootModule` trait have an additional `PrefixRefTrait` supertrait.
+
+Added the `abi_stable::for_examples` module, with types used in documentation examples.
+
+Added `Send` + `Sync` supertraits to `TypeChecker` and `ExtraChecks`
+
+Defined the `RMut` type to rewrite how `#[sabi_trait]` passes the method receiver.
+
+Added `sabi_as_rref` and `sabi_as_rmut` methods to `RObject` and `DynTrait` to
+get `RRef` and `RMut` to the wrapped value.
+
+
+Made `abi_stable` testable with [`miri`](https://github.com/rust-lang/miri)
+
+Bumped the minimum supported Rust version to 1.40.0.
+
+Updated these public dependencies:
+- libloading to "0.6.3"
+- parking_lot to "0.11.0"
+- lock_api to "0.4.0"
+- crossbeam-channel to "0.4.4"
+
+
+Fixed an unsoundness bug where `LateStaticRef<T>` implemented `Send` + `Sync` even if `T` didn't.
+
+Fixed an unsoundness bug where the `RBpxErrpr` returned from checking the layout
+of a library could contain references into the unloaded library,
+by using a new `RBorError_::to_formatted_error` method to stringify the error.
+
+Changed `RBox::{from_fmt, from_debug, to_formatted_error}` to take references.
+
+Added check to the `declare_root_module_statics` macro to safeguard against passing `Self`.
+
+Fixed(?) the variance of type parameters in `#[sabi_trait]` generated trait object to be covariant.
+
+Fixed `RMutex::get_mut`, which caused a memory leak.
+
+Fixed `RRwLock::get_mut`, which caused a memory leak.
+
+
 # 0.8
 
 ### 0.8.2
