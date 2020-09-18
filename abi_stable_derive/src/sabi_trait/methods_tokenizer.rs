@@ -22,7 +22,10 @@ Where this is used is determined by WhichItem:
 
 */
 
-use super::*;
+use super::{
+    *,
+    lifetime_unelider::BorrowKind,
+};
 
 use as_derive_utils::{
     to_token_fn::ToTokenFnMut,
@@ -278,38 +281,42 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 quote_spanned!(method_span=> , ).to_tokens(ts);
             
             }
-            (WhichItem::VtableImpl,SelfParam::ByRef{is_mutable:false,..})=>{
+            (WhichItem::VtableImpl,SelfParam::ByRef{is_mutable,..})=>{
+
+                let mut_token = ToTokenFnMut::new(|ts|{
+                    if *is_mutable {
+                        syn::token::Mut{span: method_span}.to_tokens(ts);
+                    }
+                });
+
+                let transmute_ret = match method.return_borrow_kind {
+                    Some(BorrowKind::Reference)=>{
+                        quote_spanned!(method_span=> ::std::mem::transmute(ret) )
+                    }
+                    Some(BorrowKind::MutReference)=>{
+                        quote_spanned!(method_span=> ::std::mem::transmute(ret) )
+                    }
+                    Some(BorrowKind::Other)=>{
+                        // Motivation:
+                        // We need to use this transmute to return a borrow from `_self`,
+                        // without adding a `_Self: '_self` bound,
+                        // which causes compilation errors due to how HRTB are handled.
+                        // The correctness of the lifetime is guaranteed by the trait definition.
+                        quote_spanned!(method_span=> __sabi_re::transmute_ignore_size(ret) )
+                    }
+                    None=>quote_spanned!(method_span=> ret ),
+                };
+
+
                 ts.append_all(quote_spanned!(method_span=>{
-                    // Motivation:
-                    // We need to use this transmute to return a borrow from `_self`,
-                    // without adding a `_Self: '_self` bound,
-                    // which causes compilation errors due to how HRTB are handled.
-                    // The correctness of the lifetime is guaranteed by the trait definition.
-                    __sabi_re::transmute_ignore_size(
-                        ::abi_stable::extern_fn_panic_handling!{no_early_return;
-                            __Trait::#method_name(
-                                &*_self.cast_into_raw::<#self_ty>(),
-                                #(#param_names_c,)*
-                            )
-                        }
-                    )
-                }));
-            }
-            (WhichItem::VtableImpl,SelfParam::ByRef{is_mutable:true,..})=>{
-                ts.append_all(quote_spanned!(method_span=>{
-                    // Motivation:
-                    // We need to use this transmute to return a borrow from `_self`,
-                    // without adding a `_Self: '_self` bound,
-                    // which causes compilation errors due to how HRTB are handled.
-                    // The correctness of the lifetime is guaranteed by the trait definition.
-                    __sabi_re::transmute_ignore_size(
-                        ::abi_stable::extern_fn_panic_handling!{no_early_return;
-                            __Trait::#method_name(
-                                &mut *_self.cast_into_raw::<#self_ty>(),
-                                #(#param_names_c,)*
-                            )
-                        }
-                    )
+                    let ret = ::abi_stable::extern_fn_panic_handling!{no_early_return;
+                        __Trait::#method_name(
+                            &#mut_token *_self.cast_into_raw::<#self_ty>(),
+                            #(#param_names_c,)*
+                        )
+                    };
+
+                    #transmute_ret
                 }));
             }
             (WhichItem::VtableImpl,SelfParam::ByVal)=>{

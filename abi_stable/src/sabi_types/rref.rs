@@ -11,7 +11,7 @@ use crate::{
 };
 
 /**
-A StableAbi type equivalent to `&'a T`,
+Equivalent to `&'a T`,
 defined as a workaround to allow casting from `&T` to `&U` inside a `const fn`
 in stable Rust.
 */

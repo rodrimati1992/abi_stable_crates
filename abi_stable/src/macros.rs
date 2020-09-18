@@ -721,9 +721,11 @@ assert_eq!( RSTR_6.len(), 7 );
 */
 #[macro_export]
 macro_rules! rstr{
-    ( $str:expr ) => {
-        $crate::std_types::RStr::from_str($str)
-    }
+    ( $str:expr ) => ({
+        const __SABI_RSTR: $crate::std_types::RStr<'static> = 
+            $crate::std_types::RStr::from_str($str);
+        __SABI_RSTR
+    })
 }
 
 
