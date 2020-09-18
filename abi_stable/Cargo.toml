@@ -52,11 +52,11 @@ abi_stable_shared= {version="0.8.0",path="../abi_stable_shared"}
 serde          = { version = "1.0.98", features = ["derive"] }
 repr_offset = { version = "0.1", default_features = false }
 serde_derive   = "1.0.98"
-libloading     = "0.5.2"
-parking_lot    = "0.9.0"
-lock_api       = "0.3.1"
-generational-arena = "0.2.2"
-crossbeam-channel = { version = "0.3.9", optional = true }
+libloading     = "0.6.3"
+parking_lot    = "0.11.0"
+lock_api       = "0.4.0"
+generational-arena = "0.2.8"
+crossbeam-channel = { version = "0.4.4", optional = true }
 serde_json = { version = "1.0.40", features = ["raw_value"], optional = true }
 
 [dependencies.core_extensions]

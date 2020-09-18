@@ -592,7 +592,7 @@ and loads the pre-compiled `implementation crate` dynamic library from some path
 
 # Minimum Rust version
 
-This crate support Rust back to 1.39.0 ,
+This crate support Rust back to 1.40.0 ,
 using a build script to automatically enable features from newer versions.
 
 # Cargo Features

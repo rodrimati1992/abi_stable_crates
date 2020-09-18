@@ -373,7 +373,9 @@ extern "C" fn try_lock(this:&OpaqueMutex) -> bool{
 }
 extern "C" fn unlock(this:&OpaqueMutex){
     extern_fn_panic_handling!{
-        this.value.unlock();
+        unsafe{
+            this.value.unlock();
+        }
     }
 }
 extern "C" fn try_lock_for(this:&OpaqueMutex, timeout: RDuration) -> bool{

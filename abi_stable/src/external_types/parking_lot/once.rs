@@ -49,10 +49,7 @@ use abi_stable::external_types::{ROnce,RMutex};
 
 static MUTEX:RMutex<usize>=RMutex::new(0);
 
-// For some reason this is causing the compiler to panic (as of Rust 1.36).
-// static ONCE:ROnce=ROnce::new();
-
-static ONCE:ROnce=ROnce::NEW;
+static ONCE:ROnce=ROnce::new();
 
 let guards=
     std::iter::repeat_with(||{
@@ -85,23 +82,13 @@ pub struct ROnce{
 impl ROnce{
     /// Constructs an ROnce.
     ///
-    /// As of Rust 1.36 this can't be called in const contexts,
-    /// because is causes the compiler to panic.
-    ///
-    /// You can declare static like this:`static ONCE:ROnce=ROnce::NEW;`.
-    ///
     /// # Example
     ///
     /// ```
     /// use abi_stable::external_types::ROnce;
     ///
-    /// // For some reason this is causing the compiler to panic (as of Rust 1.36).
-    /// // static ONCE:ROnce=ROnce::new();
-    ///
-    /// static ONCE:ROnce=ROnce::NEW;
+    /// static ONCE: ROnce = ROnce::new();
     /// 
-    /// let once=ROnce::new();
-    ///
     /// ```
     pub const fn new() -> ROnce{
         ROnce{
@@ -116,9 +103,6 @@ impl ROnce{
     ///
     /// ```
     /// use abi_stable::external_types::ROnce;
-    ///
-    /// // For some reason this is causing the compiler to panic (as of Rust 1.36).
-    /// // static ONCE:ROnce=ROnce::new();
     ///
     /// static ONCE:ROnce=ROnce::NEW;
     ///

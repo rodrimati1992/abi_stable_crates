@@ -545,7 +545,9 @@ extern "C" fn try_lock_shared_for(this:&OpaqueRwLock, timeout: RDuration) -> boo
 }
 extern "C" fn unlock_shared(this:&OpaqueRwLock){
     extern_fn_panic_handling!{
-        this.value.unlock_shared();
+        unsafe{
+            this.value.unlock_shared();
+        }
     }
 }
 
@@ -567,7 +569,9 @@ extern "C" fn try_lock_exclusive_for(this:&OpaqueRwLock, timeout: RDuration) -> 
 }
 extern "C" fn unlock_exclusive(this:&OpaqueRwLock){
     extern_fn_panic_handling!{
-        this.value.unlock_exclusive();
+        unsafe{
+            this.value.unlock_exclusive();
+        }
     }
 }
 

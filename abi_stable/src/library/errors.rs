@@ -10,7 +10,6 @@ use crate::{
 
 use std::{
     fmt::{self, Display},
-    io,
     path::PathBuf,
 };
 
@@ -25,14 +24,14 @@ pub enum LibraryError {
     /// When a library can't be loaded, because it doesn't exist.
     OpenError{
         path:PathBuf,
-        io:io::Error,
+        err: Box<libloading::Error>,
     },
     /// When a function/static does not exist.
     GetSymbolError{
         library:PathBuf,
         /// The name of the function/static.Does not have to be utf-8.
         symbol:Vec<u8>,
-        io:io::Error,
+        err: Box<libloading::Error>,
     },
     /// The version string could not be parsed into a version number.
     ParseVersionError(ParseVersionError),
@@ -73,17 +72,17 @@ impl Display for LibraryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("\n")?;
         match self {
-            LibraryError::OpenError{path,io} => writeln!(
+            LibraryError::OpenError{path,err} => writeln!(
                 f,
                 "Could not open library at:\n\t{}\nbecause:\n\t{}",
-                path.display(),io
+                path.display(),err
             ),
-            LibraryError::GetSymbolError{library,symbol,io} => writeln!(
+            LibraryError::GetSymbolError{library,symbol,err} => writeln!(
                 f,
                 "Could load symbol:\n\t{}\nin library:\n\t{}\nbecause:\n\t{}",
                 String::from_utf8_lossy(symbol),
                 library.display(),
-                io
+                err
             ),
             LibraryError::ParseVersionError(x) => fmt::Display::fmt(x, f),
             LibraryError::IncompatibleVersionNumber {
