@@ -166,26 +166,28 @@ impl<T, P> WithMetadata_<T, P> {
         }
     }
 
-    /// 
+    /// Constructs a `PrefixRef` from `self`.
     /// 
     /// # Safety 
     /// 
-    /// TODO
+    /// You must enture that this `WithMetadata` lives for the entire program's lifetime.
     #[inline]
     pub const unsafe fn raw_as_prefix(this: *const Self) -> PrefixRef<P> {
         PrefixRef::from_raw(this)
     }
 
-    /// 
+    /// Constructs a `PrefixRef` from `self`.
     /// 
     /// # Safety 
     /// 
-    /// TODO
+    /// You must ensure that `self` lives for the entire program's lifetime.
     #[inline]
     pub const unsafe fn as_prefix(&self) -> PrefixRef<P> {
         PrefixRef::from_raw(self)
     }
 
+    /// Constructs a `PrefixRef` from `self`.
+    /// 
     #[inline]
     pub const fn static_as_prefix(&'static self) -> PrefixRef<P> {
         PrefixRef::from_ref(self) 
