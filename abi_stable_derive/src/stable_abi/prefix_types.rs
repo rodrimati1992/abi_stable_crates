@@ -310,16 +310,40 @@ pub(crate) fn prefix_type_tokenizer<'a>(
 
         let prefix_ref_docs=if is_ds_pub {
             format!("\
-This is the prefix of 
+This is the pointer to the prefix of 
 [{deriving_name}{generics}](./struct.{deriving_name}.html).
 
 **This is automatically generated documentation,by the StableAbi derive macro**.
 
 ### Creating a compiletime-constant
 
-TODO
+You can look at the docs in `abi_stable::docs::prefix_types` to see how you
+can construct and use this and similar types.<br>
+More specifically in the 
+[\"constructing a module\" example
+](https://docs.rs/abi_stable/*/abi_stable/docs/prefix_types/index.html#module_construction)
+or the
+[\"Constructing a vtable\" example
+](https://docs.rs/abi_stable/*/abi_stable/docs/prefix_types/index.html#vtable_construction)
+
                 ",
                 //prefix_name=prefix.prefix_ref,
+                deriving_name=stringified_deriving_name,
+                generics=stringified_generics,
+            )
+        }else{
+            String::new()
+        };
+
+        let prefix_fields_docs=if is_ds_pub {
+            format!("\
+This is the prefix fields of 
+[{deriving_name}{generics}](./struct.{deriving_name}.html),
+accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.prefix()`.
+
+**This is automatically generated documentation,by the StableAbi derive macro**.
+                ",
+                prefix_name=prefix.prefix_ref,
                 deriving_name=stringified_deriving_name,
                 generics=stringified_generics,
             )
@@ -365,6 +389,7 @@ TODO
                     >
                 )#where_clause;
 
+                #[doc=#prefix_fields_docs]
                 // A struct with all the prefix fields in the deriving type
                 //     
                 // A field being in the prefix doesn't mean that it's 

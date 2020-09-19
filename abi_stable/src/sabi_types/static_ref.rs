@@ -208,7 +208,7 @@ impl<T> StaticRef<T>{
 
     /// Creates a StaticRef by heap allocating and leaking `val`.
     pub fn leak_value(val: T) -> Self {
-        // Safety: TODO
+        // Safety: This is safe, because the value is a leaked heap allocation.
         unsafe{
             Self::from_raw(crate::utils::leak_value(val))
         }

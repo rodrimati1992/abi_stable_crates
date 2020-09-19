@@ -79,7 +79,7 @@ use abi_stable::{
     traits::IntoReprC,
 };
 
-#[sabi_extern_fn]
+#[sabi_extern_fn(no_early_return)]
 pub(crate) fn hello()->RVec<RStr<'static>>{
     vec![
         "hello".into(),

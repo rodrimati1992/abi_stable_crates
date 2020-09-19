@@ -13,12 +13,13 @@ To convert `Foo` to `Foo_Ref` you can use any of (non-exhaustive list):
 - `PrefixTypeTrait::leak_into_prefix`:<br>
     Which does the conversion directly,but leaks the value.
 
-- `prefix_type::WithMetadata::new`:
-    Use this if you need a compiletime constant.
+- `prefix_type::WithMetadata::new`:<br>
+    Use this if you need a compiletime constant.<br>
     First create a `StaticRef<WithMetadata<Self>>` constant using 
     the [`staticref`] macro,
-    then construct a `Foo_Ref` constant with `Foo_Ref(THE_STATICREF_CONSTANT.as_prefix())`.
-    For an example of this you can look at [example 2(at the bottom of the example)](#example2).
+    then construct a `Foo_Ref` constant with `Foo_Ref(THE_STATICREF_CONSTANT.as_prefix())`.<br>
+    There are two examples of this, 
+    [for modules](#module_construction),and [for vtables](#vtable_construction)
 
 
 All the fields in the `DerivingType` can be accessed in `DerivingType_Ref` using
@@ -98,6 +99,129 @@ In this example:
     that was defined in the first compatible version of the library
     (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
     requiring new fields to always be added bellow preexisting ones.
+
+<span id="module_construction"></span>
+### Constructing a module
+
+This example demonstrates how you can construct a module.
+
+For constructing a vtable, you can look at [the next example](#vtable_construction)
+
+```
+
+use abi_stable::{
+    prefix_type::{PrefixTypeTrait, WithMetadata},
+    std_types::{RDuration,RStr},
+    extern_fn_panic_handling, staticref,
+    StableAbi,
+};
+
+fn main(){
+    assert_eq!(MODULE_REF.lib_name().as_str(), "foo");
+
+    assert_eq!(MODULE_REF.elapsed()(1000), RDuration::from_secs(1));
+
+    assert_eq!(MODULE_REF.description().as_str(), "this is a module field");
+    
+}
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(kind(Prefix(prefix_ref="Module_Ref")))]
+#[sabi(missing_field(panic))]
+pub struct Module<T> {
+    pub lib_name:RStr<'static>,
+
+    #[sabi(last_prefix_field)]
+    pub elapsed:extern "C" fn(T)->RDuration,
+
+    pub description:RStr<'static>,
+}
+
+
+// This macro declares a `StaticRef<WithMetadata<Module<u64>>>` constant.
+staticref!(const MODULE_VAL: WithMetadata<Module<u64>> = WithMetadata::new(
+    PrefixTypeTrait::METADATA,
+    Module{
+        lib_name: RStr::from_str("foo"),
+        elapsed,
+        description: RStr::from_str("this is a module field"),
+    },
+));
+
+const MODULE_REF: Module_Ref<u64> = Module_Ref(MODULE_VAL.as_prefix());
+
+extern "C" fn elapsed(milliseconds: u64) -> RDuration {
+    extern_fn_panic_handling!{
+        RDuration::from_millis(milliseconds)
+    }
+}
+```
+
+<span id="vtable_construction"></span>
+### Constructing a vtable
+
+This eaxmple demonstrates how you can construct a vtable.
+
+```rust
+use abi_stable::{
+    marker_type::ErasedObject,
+    prefix_type::{PrefixTypeTrait, WithMetadata},
+    extern_fn_panic_handling, staticref,
+    StableAbi,
+};
+
+fn main(){   
+    unsafe {
+        let vtable = MakeVTable::<u64>::MAKE;
+        assert_eq!(
+            vtable.get_number()(&3u64 as *const u64 as *const ErasedObject),
+            12,
+        );
+    }
+    unsafe {
+        let vtable = MakeVTable::<u8>::MAKE;
+        assert_eq!(
+            vtable.get_number()(&128u8 as *const u8 as *const ErasedObject),
+            512,
+        );
+    }
+}
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(kind(Prefix(prefix_ref="VTable_Ref")))]
+#[sabi(missing_field(panic))]
+pub struct VTable {
+    #[sabi(last_prefix_field)]
+    pub get_number: unsafe extern "C" fn(*const ErasedObject)->u64,
+}
+
+
+// A dummy struct, used purely for its associated constants.
+struct MakeVTable<T>(T);
+
+impl<T> MakeVTable<T> 
+where
+    T: Copy + Into<u64>
+{
+    unsafe extern "C" fn get_number(this: *const ErasedObject) -> u64 {
+        extern_fn_panic_handling!{
+            (*this.cast::<T>()).into() * 4
+        }
+    }
+
+    // This macro declares a `StaticRef<WithMetadata<VTable>>` constant.
+    staticref!{pub const VAL: WithMetadata<VTable> = WithMetadata::new(
+        PrefixTypeTrait::METADATA,
+        VTable{get_number: Self::get_number},
+    )}
+
+    pub const MAKE: VTable_Ref = VTable_Ref(Self::VAL.as_prefix());
+}
+
+```
+
 
 <span id="example2"></span>
 ###  Example 2:Declaring a type with a VTable 
