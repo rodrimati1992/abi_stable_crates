@@ -75,6 +75,9 @@ Updated these public dependencies:
 - crossbeam-channel to "0.4.4"
 
 
+Fixed handling of `unsafe trait` in `#[sabi_trait]`,
+before this the `unsafe` was removed in the generated code.
+
 Fixed an unsoundness bug where `LateStaticRef<T>` implemented `Send` + `Sync` even if `T` didn't.
 
 Fixed an unsoundness bug where the `RBpxErrpr` returned from checking the layout

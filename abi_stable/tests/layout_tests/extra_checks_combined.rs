@@ -249,7 +249,7 @@ impl ConstChecker {
         }
     }
 }
-impl ExtraChecks for ConstChecker {
+unsafe impl ExtraChecks for ConstChecker {
     fn type_layout(&self)->&'static TypeLayout{
         <Self as StableAbi>::LAYOUT
     }
@@ -326,7 +326,7 @@ impl Display for IdentityChecker{
 }
 
 
-impl ExtraChecks for IdentityChecker {
+unsafe impl ExtraChecks for IdentityChecker {
     fn type_layout(&self)->&'static TypeLayout{
         <Self as StableAbi>::LAYOUT
     }
@@ -565,7 +565,7 @@ impl Display for LocalExtraChecker{
 }
 
 
-impl ExtraChecks for LocalExtraChecker {
+unsafe impl ExtraChecks for LocalExtraChecker {
     fn type_layout(&self)->&'static TypeLayout{
         <Self as StableAbi>::LAYOUT
     }
