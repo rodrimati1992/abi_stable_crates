@@ -46,7 +46,7 @@ fn test_size_methods(){
 
 
 #[test]
-#[cfg(not(all(miri, target_os = "windows"))))]
+#[cfg(not(all(miri, target_os = "windows")))]
 fn send_recv(){
     scoped_thread(|scope|{
         let (tx,rx)=bounded::<u32>(0);
@@ -154,7 +154,7 @@ const MS:Duration=Duration::from_millis(1);
 
 // unsupported operation: `clock_gettime` not available when isolation is enabled
 #[test]
-#[cfg(not(all(miri, target_os = "windows"))))]
+#[cfg(not(all(miri, target_os = "windows")))]
 fn timeout_send_recv(){
     let (tx,rx)=bounded::<u32>(0);
     
@@ -215,7 +215,7 @@ fn disconnected(){
 
 
 #[test]
-#[cfg(not(all(miri, target_os = "windows"))))]
+#[cfg(not(all(miri, target_os = "windows")))]
 fn iter(){
     let (tx,rx)=unbounded::<usize>();
 
@@ -241,7 +241,7 @@ fn iter(){
 
 
 #[test]
-#[cfg(not(all(miri, target_os = "windows"))))]
+#[cfg(not(all(miri, target_os = "windows")))]
 fn into_iter(){
     let (tx,rx)=unbounded::<usize>();
 
