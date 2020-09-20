@@ -8,7 +8,7 @@ To add extra checks to a type follow these steps:
 - Create some type and implement ExtraChecks for it,
 
 - Apply the `#[sabi(extra_checks="const expression that implements ExtraChecks")]
-    attribute to the type that uses `#[derive(StableAbi)]`.
+    attribute to a type that uses `#[derive(StableAbi)]`.
 
 # Examples
 

@@ -1,4 +1,4 @@
-//! Utilities for use while developing the code.
+//! Utilities for use while developing dynamic libraries.
 
 use std::{
     path::{Path,PathBuf},

@@ -937,7 +937,7 @@ fn main(){
             &mut *((&mut **self.object) as *mut P::Target as *mut T)
         }
         
-
+        /// Gets a reference pointing to the erased object.
         pub fn sabi_erased_ref(&self) -> &ErasedObject
         where
             P: Deref,
@@ -945,6 +945,7 @@ fn main(){
             unsafe { self.sabi_object_as() }
         }
 
+        /// Gets a mutable reference pointing to the erased object.
         #[inline]
         pub fn sabi_erased_mut(&mut self) -> &mut ErasedObject
         where
@@ -953,6 +954,7 @@ fn main(){
             unsafe { self.sabi_object_as_mut() }
         }
 
+        /// Gets an `RRef` pointing to the erased object.
         pub fn sabi_as_rref(&self) -> RRef<'_, ()>
         where
             P: Deref,
@@ -962,6 +964,7 @@ fn main(){
             }
         }
 
+        /// Gets an `RMut` pointing to the erased object.
         pub fn sabi_as_rmut(&mut self) -> RMut<'_, ()>
         where
             P: DerefMut,
@@ -977,7 +980,7 @@ fn main(){
             unsafe{ ptr::read(&mut this.object) }
         }
 
-
+        /// Calls the `f` callback with an `MovePtr` pointing to the erased object.
         #[inline]
         pub fn sabi_with_value<F,R>(self,f:F)->R
         where 
@@ -1268,6 +1271,8 @@ fn main(){
         /// 
         /// - DynTrait::default
         /// 
+        /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
+        /// 
         pub fn reborrow<'re>(&'re self)->DynTrait<'borr,&'re (),I,EV> 
         where
             P:Deref<Target=()>,
@@ -1291,6 +1296,8 @@ fn main(){
         /// - DynTrait::default
         /// 
         /// - DynTrait::clone
+        /// 
+        /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
         /// 
         pub fn reborrow_mut<'re>(&'re mut self)->DynTrait<'borr,&'re mut (),I,EV> 
         where
@@ -1316,6 +1323,7 @@ fn main(){
         P:GetPointerKind
     {
         /// Constructs a DynTrait<P,I> with a `P`,using the same vtable.
+        ///
         /// `P` must come from a function in the vtable,
         /// or come from a copy of `P:Copy+GetPointerKind<Kind=PK_Reference>`,
         /// to ensure that it is compatible with the functions in it.

@@ -61,7 +61,7 @@ impl<'a,T> RMut<'a,T>{
         }
     }
 
-    /// Constructs this RMut from a static reference
+    /// Constructs this RMut from a mutable reference
     ///
     #[inline]
     pub fn new(ref_:&'a mut T)->Self{

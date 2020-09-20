@@ -58,7 +58,7 @@ pub enum UserAction{
 }
 
 
-fn load_module(file_path:&Path)->Result<&'static Config,RBoxError>{
+fn load_config(file_path:&Path)->Result<&'static Config,RBoxError>{
     static CONFIG:LateStaticRef<&Config>=LateStaticRef::new();
     
     CONFIG.try_init(||{
@@ -142,16 +142,6 @@ impl<T> LateStaticRef<&'static T>{
 
 impl<T: 'static> LateStaticRef<T> {
     /// Constructs the late initialized static from a [`PrefixRef`].
-    ///
-    /// # Safety
-    ///
-    /// The passed in pointer must be valid for passing to 
-    /// [`<T as ImmutableRef>::from_nonnull`],
-    /// it must be a valid pointer to `U`,
-    /// and be valid to dereference for the rest of the program's lifetime.
-    ///
-    /// [`<T as ImmutableRef>::from_nonnull`]:
-    /// ../pointer_trait/trait.ImmutableRef.html#method.from_nonnull
     ///
     /// # Example
     ///

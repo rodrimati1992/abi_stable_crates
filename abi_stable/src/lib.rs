@@ -221,7 +221,6 @@ pub mod const_utils;
 #[macro_use]
 pub mod traits;
 
-/// Types used in documentation examples.
 pub mod for_examples;
 
 
