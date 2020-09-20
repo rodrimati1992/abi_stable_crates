@@ -797,12 +797,13 @@ fn trait_and_impl<'a>(
 
     let assoc_tys_a=trait_def.assoc_tys.values().map(|x| &x.assoc_ty );
     
+    let unsafety = trait_def.item.unsafety;
 
     let erased_ptr_bounds=trait_def.erased_ptr_preds();
 
     quote!(
         #( #[#other_attrs] )*
-        #submod_vis trait #trait_ident<
+        #submod_vis #unsafety trait #trait_ident<
             #gen_params_trait
         >: #( #super_traits_a + )*
         where 

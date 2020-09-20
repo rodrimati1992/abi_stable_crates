@@ -1245,7 +1245,8 @@ impl AbiChecker{
         }
     }
 }
-impl TypeChecker for AbiChecker{
+
+unsafe impl TypeChecker for AbiChecker{
     fn check_compatibility(
         &mut self,
         interface:&'static TypeLayout,

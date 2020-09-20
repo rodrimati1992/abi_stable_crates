@@ -845,7 +845,7 @@ impl std::error::Error for TagErrors{}
 /////////////////////////////////////////////////////////////////
 
 
-impl ExtraChecks for Tag {
+unsafe impl ExtraChecks for Tag {
     fn type_layout(&self)->&'static TypeLayout{
         Self::LAYOUT
     }

@@ -85,7 +85,7 @@ impl Display for InOrderChecker{
 }
 
 
-impl ExtraChecks for InOrderChecker {
+unsafe impl ExtraChecks for InOrderChecker {
     fn type_layout(&self)->&'static TypeLayout{
         <Self as StableAbi>::LAYOUT
     }
@@ -290,7 +290,7 @@ impl Display for ConstChecker{
 }
 
 
-impl ExtraChecks for ConstChecker {
+unsafe impl ExtraChecks for ConstChecker {
     fn type_layout(&self)->&'static TypeLayout{
         <Self as StableAbi>::LAYOUT
     }
@@ -555,7 +555,7 @@ impl ConstChecker {
         }
     }
 }
-impl ExtraChecks for ConstChecker {
+unsafe impl ExtraChecks for ConstChecker {
     fn type_layout(&self)->&'static TypeLayout{
         <Self as StableAbi>::LAYOUT
     }
