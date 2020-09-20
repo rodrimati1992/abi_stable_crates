@@ -92,6 +92,7 @@ with comments for how to turn them into 3 separate crates.
 
 ```rust
 
+
 /////////////////////////////////////////////////////////////////////////////////
 //
 //                        Application (user crate) 
@@ -102,12 +103,12 @@ use abi_stable::std_types::RVec;
 
 use interface_crate::{
     AppenderBox,Appender_TO,
-    ExampleLib,BoxedInterface,load_root_module_in_directory,
+    ExampleLib_Ref,BoxedInterface,load_root_module_in_directory,
 };
 
 fn main(){
     // The type annotation is for the reader
-    let library:&'static ExampleLib=
+    let library: ExampleLib_Ref=
         load_root_module_in_directory("./target/debug".as_ref())
             .unwrap_or_else(|e| panic!("{}",e) );
 
@@ -175,25 +176,23 @@ mod interface_crate{
 use std::path::Path;
 
 use abi_stable::{
-    InterfaceType,
     StableAbi,
     DynTrait,
     sabi_trait,
     library::{LibraryError,RootModule},
     package_version_strings,
     std_types::{RBox,RString,RVec},
-    type_level::bools::*,
     sabi_types::VersionStrings,
 };
 
 
 /**
 This struct is the root module,
-which must be converted to `&ExampleLib` to be passed through ffi.
+which must be converted to `ExampleLib_Ref` to be passed through ffi.
 
-The `#[sabi(kind(Prefix(prefix_struct="ExampleLib")))]` 
-attribute specifies that the ffi-safe 
-equivalent of `ExampleLibVal` is called `ExampleLib`.
+The `#[sabi(kind(Prefix(prefix_ref="ExampleLib_Ref")))]` 
+attribute specifies tells `StableAbi` to create an ffi-safe static refernce type
+for ExampleLib called `ExampleLib_Ref`.
 
 The `#[sabi(missing_field(panic))]` attribute specifies that trying to 
 access a field that doesn't exist
@@ -203,9 +202,9 @@ will panic with a message saying that the field is inaccessible.
 */
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="ExampleLib")))]
+#[sabi(kind(Prefix(prefix_ref="ExampleLib_Ref")))]
 #[sabi(missing_field(panic))]
-pub struct ExampleLibVal {
+pub struct ExampleLib {
     pub new_appender:extern "C" fn()->AppenderBox<u32>,
 
     pub new_boxed_interface: extern "C" fn()->BoxedInterface<'static>,
@@ -227,9 +226,9 @@ at which point it would be moved to the last field at the time.
 
 
 /// The RootModule trait defines how to load the root module of a library.
-impl RootModule for ExampleLib {
+impl RootModule for ExampleLib_Ref {
 
-    abi_stable::declare_root_module_statics!{ExampleLib}
+    abi_stable::declare_root_module_statics!{ExampleLib_Ref}
 
     const BASE_NAME: &'static str = "example_library";
     const NAME: &'static str = "example_library";
@@ -298,16 +297,16 @@ pub type AppenderBox<T>=Appender_TO<'static,RBox<()>,T>;
 ///
 /// This for the case where this example is copied into the 3 crates.
 /// 
-pub fn load_root_module_in_directory(directory:&Path) -> Result<&'static ExampleLib,LibraryError> {
-    ExampleLib::load_from_directory(directory)
+pub fn load_root_module_in_directory(directory:&Path) -> Result<ExampleLib_Ref,LibraryError> {
+    ExampleLib_Ref::load_from_directory(directory)
 }
 */
 
 /// This loads the root module
 ///
 /// This is for the case where this example is copied into a single crate
-pub fn load_root_module_in_directory(_:&Path) -> Result<&'static ExampleLib,LibraryError> {
-    ExampleLib::load_module_with(|| Ok(super::implementation::get_library()) )
+pub fn load_root_module_in_directory(_:&Path) -> Result<ExampleLib_Ref,LibraryError> {
+    ExampleLib_Ref::load_module_with(|| Ok(super::implementation::get_library()) )
 }
 
 //////////////////////////////////////////////////////////
@@ -363,8 +362,8 @@ use interface_crate::{
     AppenderBox,
     Appender_TO,
     BoxedInterface,
+    ExampleLib_Ref,
     ExampleLib,
-    ExampleLibVal,
     TheInterface,
 };
 
@@ -398,8 +397,8 @@ which has this extra metadata:
 
 */
 #[export_root_module]
-pub fn get_library() -> &'static ExampleLib {
-    ExampleLibVal{
+pub fn get_library() -> ExampleLib_Ref {
+    ExampleLib{
         new_appender,
         new_boxed_interface,
         append_string,
@@ -506,9 +505,6 @@ impl<T> Appender for RVec<T>{
     }
 }
 
-
-
-}
 
 
 ```
