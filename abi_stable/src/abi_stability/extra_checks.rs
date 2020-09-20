@@ -702,6 +702,15 @@ pub type TypeCheckerMut<'b>=
 /// Look at the 
 /// [module level documentation](./index.html)
 /// for more details.
+/// 
+/// # Safety
+/// 
+/// The `type_layout` method must be defined as `<Self as ::abi_stable::StableAbi>::LAYOUT`,
+/// or equivalent.
+/// 
+/// All of the methods must be deterministic,
+/// always returning the same value with the same arguments.
+/// 
 #[sabi_trait]
 #[sabi(no_trait_impl)]
 // #[sabi(debug_print_trait)]

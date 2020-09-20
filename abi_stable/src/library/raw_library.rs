@@ -1,5 +1,7 @@
 use super::*;
 
+use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
+
 
 
 /// A handle to any dynamically loaded library,
@@ -18,13 +20,6 @@ impl RawLibrary {
     )->PathBuf{
         let formatted:String;
 
-        let (prefix,extension) = match (cfg!(windows), cfg!(target_os="macos")) {
-            (false, false) => ("lib","so"),
-            (false, true) => ("lib","dylib"),
-            (true, false) => ("","dll"),
-            _ => unreachable!("system is both windows and mac"),
-        };
-        
         let is_64_bits =
             cfg!(any(x86_64, powerpc64, aarch64)) || ::std::mem::size_of::<usize>() == 8;
         let bits = if is_64_bits { "64" } else { "32" };
@@ -39,7 +34,7 @@ impl RawLibrary {
             }
         };
 
-        let name=format!("{}{}.{}",prefix, maybe_suffixed_name, extension);
+        let name=format!("{}{}{}", DLL_PREFIX, maybe_suffixed_name, DLL_SUFFIX);
         directory.join(name)
     }
 

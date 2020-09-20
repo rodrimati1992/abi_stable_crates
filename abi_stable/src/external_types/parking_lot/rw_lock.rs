@@ -625,6 +625,7 @@ mod tests{
     const EXPECTED:usize=64;
 
     #[test]
+    #[cfg(not(all(miri, target_os = "windows")))]
     fn regular_locking(){
         static LOCK:RRwLock<usize>=RRwLock::new(0);
 
@@ -647,6 +648,7 @@ mod tests{
     }
 
     #[test]
+    #[cfg(not(all(miri, target_os = "windows")))]
     fn try_lock__(){
         static LOCK:RRwLock<usize>=RRwLock::new(0);
 

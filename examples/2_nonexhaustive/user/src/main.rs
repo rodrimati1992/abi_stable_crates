@@ -15,7 +15,7 @@ use example_2_interface::{ShopMod_Ref,Command_NE};
 
 
 fn main(){
-    let target: &std::path::Path = "../../target/".as_ref();
+    let target: &std::path::Path = "../../../target/".as_ref();
     let library_path=compute_library_path::<ShopMod_Ref>(target).unwrap();
 
     let mods=ShopMod_Ref::load_from_directory(&library_path)

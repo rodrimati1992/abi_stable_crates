@@ -542,6 +542,7 @@ mod tests{
     use abi_stable_shared::{file_span,test_utils::{must_panic}};
 
     #[test]
+    #[cfg(not(all(miri, target_os = "windows")))]
     fn state(){
         {
             let once=ROnce::new();

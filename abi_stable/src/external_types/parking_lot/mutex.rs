@@ -436,6 +436,7 @@ mod tests{
     const ITERS: usize = 0x1000;
 
     #[test]
+    #[cfg(not(all(miri, target_os = "windows")))]
     fn lock(){
         static MUTEX:RMutex<usize>=RMutex::new(0);
 
@@ -453,6 +454,7 @@ mod tests{
     }
 
     #[test]
+    #[cfg(not(all(miri, target_os = "windows")))]
     fn try_lock(){
         static MUTEX:RMutex<usize>=RMutex::new(0);
 
@@ -483,6 +485,7 @@ mod tests{
     }
 
     #[test]
+    #[cfg(not(all(miri, target_os = "windows")))]
     fn try_lock_for(){
         static MUTEX:RMutex<usize>=RMutex::new(0);
 
