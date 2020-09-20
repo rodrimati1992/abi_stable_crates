@@ -90,7 +90,7 @@ script:
   - cargo test
   
   - cd "${TRAVIS_BUILD_DIR}/abi_stable"
-  - cargo test --features sabi_trait_examples
+  - cargo test --features "testing sabi_trait_examples"
   
   - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
   - cargo test

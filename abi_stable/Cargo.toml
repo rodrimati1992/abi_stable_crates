@@ -62,7 +62,7 @@ serde_json = { version = "1.0.40", features = ["raw_value"], optional = true }
 [dependencies.core_extensions]
 default_features=false
 features=["std"]
-version="0.1.8"
+version="0.1.17"
 
 [dev-dependencies]
 bincode = "1.1.4"
