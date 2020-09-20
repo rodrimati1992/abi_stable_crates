@@ -276,7 +276,7 @@ pub unsafe trait OwnedPointer:Sized+DerefMut+GetPointerKind{
 /// # Safety 
 ///
 /// Implementors must only contain a non-null pointer [(*1)](#clarification1).
-/// For structs it means that they must be `#[repr(transparent)]` wrappers around 
+/// Meaning that they must be `#[repr(transparent)]` wrappers around 
 /// `&`/`&mut`/`NonNull`/`impl ImmutableRef`.
 ///
 /// Implementors must not override any of the methods in this trait.

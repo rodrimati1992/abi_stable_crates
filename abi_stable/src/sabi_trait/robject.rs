@@ -526,6 +526,8 @@ where
 {
     /// Creates a shared reborrow of this RObject.
     ///
+    /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
+    ///
     pub fn reborrow<'re>(&'re self)->RObject<'lt,&'re (),I,V> 
     where
         P:Deref<Target=()>,
@@ -544,6 +546,8 @@ where
     /// The reborrowed RObject cannot use these methods:
     ///
     /// - RObject::clone
+    ///
+    /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
     /// 
     pub fn reborrow_mut<'re>(&'re mut self)->RObject<'lt,&'re mut (),I,V> 
     where
@@ -566,6 +570,7 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>
 where
     P:GetPointerKind,
 {
+    /// Gets the vtable.
     #[inline]
     pub fn sabi_et_vtable(&self)->PrefixRef<V>{
         self.vtable
@@ -586,6 +591,7 @@ where
         unsafe{ ptr::read(&mut __this.ptr) }
     }
 
+    /// Gets an `RRef` pointing to the erased object.
     #[inline]
     pub fn sabi_erased_ref(&self)->&ErasedObject<()>
     where
@@ -594,6 +600,7 @@ where
         unsafe{&*((&**self.ptr) as *const () as *const ErasedObject<()>)}
     }
     
+    /// Gets an `RMut` pointing to the erased object.
     #[inline]
     pub fn sabi_erased_mut(&mut self)->&mut ErasedObject<()>
     where
@@ -602,6 +609,7 @@ where
         unsafe{&mut *((&mut **self.ptr) as *mut () as *mut ErasedObject<()>)}
     }
 
+    /// Gets an `RRef` pointing to the erased object.
     pub fn sabi_as_rref(&self) -> RRef<'_, ()>
     where
         P: __DerefTrait<Target=()>
@@ -611,6 +619,7 @@ where
         }
     }
 
+    /// Gets an `RMut` pointing to the erased object.
     pub fn sabi_as_rmut(&mut self) -> RMut<'_, ()>
     where
         P: __DerefMutTrait<Target=()>
@@ -620,6 +629,7 @@ where
         }
     }
 
+    /// Calls the `f` callback with an `MovePtr` pointing to the erased object.
     #[inline]
     pub fn sabi_with_value<F,R>(self,f:F)->R
     where 

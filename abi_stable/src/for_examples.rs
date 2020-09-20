@@ -1,3 +1,5 @@
+//! Types used in documentation examples.
+
 use crate::{
     library::RootModule,
     sabi_types::VersionStrings,

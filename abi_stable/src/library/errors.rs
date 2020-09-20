@@ -138,6 +138,7 @@ impl ::std::error::Error for LibraryError {}
 //////////////////////////////////////////////////////////////////////
 
 
+/// The errors that a `#[export_root_module]` function can return.
 #[repr(u8)]
 #[derive(Debug, StableAbi)]
 pub enum RootModuleError{
@@ -189,8 +190,10 @@ impl ::std::error::Error for RootModuleError {}
 /// For converting the return value of a `#[export_root_module]` function
 /// to a `Result<(), RootModuleError>`.
 pub trait IntoRootModuleResult {
+    /// The module that is loaded in the success case.
     type Module: RootModule;
     
+    /// Performs the conversion
     fn into_root_module_result(self) -> Result<Self::Module, RootModuleError>;
 }
 
