@@ -17,6 +17,9 @@ matrix:
         - cd "${TRAVIS_BUILD_DIR}/abi_stable/"
         - cargo build
 
+        - cargo clean
+        - rm ../Cargo.lock
+        - cargo update
         - MIRI_NIGHTLY=nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)
         - echo "Installing latest nightly with Miri"
         - echo "$MIRI_NIGHTLY"
@@ -104,13 +107,13 @@ script:
   - cargo test
   - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/user/"
   - cargo run
-  - cd "${TRAVIS_BUILD_DIR}/testing/user_0/"
+  - cd "${TRAVIS_BUILD_DIR}/testing/0/user_0/"
   - cargo run
   - cd "${TRAVIS_BUILD_DIR}/testing/1 - loading errors/user_1/"
   - env "RETURN=ok" cargo run
-  - env "RETURN=err" cargo run
+  - env "RETURN=error" cargo run
   - env "RETURN=panic" cargo run
 
 
   - cd "${TRAVIS_BUILD_DIR}/testing/version_compatibility/user_0"
-  - cargo run
+  - cargo run --features run
