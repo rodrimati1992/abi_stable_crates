@@ -13,13 +13,7 @@ matrix:
     - rust: 1.40.0
     - rust: nightly  
       script:
-        - cargo update -Z minimal-versions
         - cd "${TRAVIS_BUILD_DIR}/abi_stable/"
-        - cargo build
-
-        - cargo clean
-        - rm ../Cargo.lock
-        - cargo update
         - MIRI_NIGHTLY=nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)
         - echo "Installing latest nightly with Miri"
         - echo "$MIRI_NIGHTLY"
@@ -29,6 +23,14 @@ matrix:
         - rustup component add miri
         - cargo miri setup
         - cargo miri test --features testing -- -Zmiri-disable-isolation
+
+        - cd "${TRAVIS_BUILD_DIR}"
+        - rm Cargo.lock
+        - cd "${TRAVIS_BUILD_DIR}/abi_stable/"
+        - cargo clean
+        - cargo update -Z minimal-versions
+        - cd "${TRAVIS_BUILD_DIR}/abi_stable/"
+        - cargo build
 
   allow_failures:
     - rust: nightly
