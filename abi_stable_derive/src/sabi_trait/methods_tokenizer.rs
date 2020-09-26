@@ -168,6 +168,10 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             &[] 
         };
 
+        if WhichItem::VtableImpl == which_item {
+            ts.append_all(quote_spanned!(method_span=> #[doc(hidden)] ));
+        }
+
         if WhichItem::VtableDecl==which_item {
             let optional_field=default_.as_ref().map(|_| &ctokens.missing_field_option );
             let derive_attrs=method.derive_attrs;

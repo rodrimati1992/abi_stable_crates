@@ -363,7 +363,7 @@ impl<'a> SharedVars<'a>{
                     abi_stable::_sabi_type_layouts!( #(#type_layouts,)* ),
                     abi_stable::rslice![
                         #(
-                            __ConstGeneric::new(&#constants,__GetConstGenericVTable::VTABLE),
+                            __ConstGeneric::new(&#constants,__ConstGenericVTableFor::NEW),
                         )*
                     ],
                 )

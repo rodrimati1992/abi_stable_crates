@@ -389,6 +389,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                     >
                 )#where_clause;
 
+                #doc_hidden_attr
                 #[doc=#prefix_fields_docs]
                 // A struct with all the prefix fields in the deriving type
                 //     

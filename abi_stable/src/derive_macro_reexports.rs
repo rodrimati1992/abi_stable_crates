@@ -1,6 +1,6 @@
 pub use crate::{
     abi_stability::{
-        const_generics::{ConstGeneric,GetConstGenericVTable},
+        const_generics::{ConstGeneric,ConstGenericVTableFor},
         extra_checks::{ExtraChecks_MV,StoredExtraChecks},
         get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
         stable_abi_trait::{
@@ -105,7 +105,7 @@ pub use core_extensions::{
 pub mod renamed {
     pub use super::{
         ConstGeneric as __ConstGeneric,
-        GetConstGenericVTable as __GetConstGenericVTable,
+        ConstGenericVTableFor as __ConstGenericVTableFor,
         GetStaticEquivalent_ as __GetStaticEquivalent_,
         GetStaticEquivalent as __GetStaticEquivalent,
         LifetimeIndex as __LifetimeIndex,

@@ -820,7 +820,7 @@ macro_rules! make_shared_vars{
                     $(
                         $crate::abi_stability::ConstGeneric::new(
                             &$constants,
-                            $crate::abi_stability::GetConstGenericVTable::VTABLE,
+                            $crate::abi_stability::ConstGenericVTableFor::NEW,
                         )
                     ),* 
                 )?],
