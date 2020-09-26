@@ -54,7 +54,7 @@ pub unsafe trait PrefixTypeTrait: Sized {
     /// A bit array,where each nth bit represents whether the nth field is accessible.
     const PT_FIELD_ACCESSIBILITY: FieldAccessibility;
 
-    /// Convers `Self` to `&'a Self::Prefix`,leaking it in the process.
+    /// Convers `Self` to `Self::PrefixRef`,leaking it in the process.
     ///
     /// # Warning 
     ///
@@ -95,6 +95,11 @@ pub unsafe trait PrefixTypeTrait: Sized {
 /// `Self` must either be `PrefixRef<Self::PrefixFields>`, 
 /// or a `#[repr(transparent)]` wrapper around one.
 pub unsafe trait PrefixRefTrait: Sized + ImmutableRef {
+    /// A struct that contains all the fields of some other struct
+    /// up to the field annotated with
+    /// `#[sabi(last_prefix_field)]` inclusive.
+    /// 
+    /// Those structs are usually named with a `_Prefix` suffix.
     // The `GetWithMetadata<ForSelf = Self::Target>` bound
     // is a hacky way to encode this type equality bound:
     // `Self::Target == WithMetadata_<Self::PrefixFields, Self::PrefixFields>`

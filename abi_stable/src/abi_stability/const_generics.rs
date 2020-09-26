@@ -40,7 +40,7 @@ unsafe impl Sync for ConstGeneric{}
 impl ConstGeneric{
     /// Constructs a ConstGeneric from a reference and a vtable.
     /// 
-    /// To construct the `vtable_for` parameter use `GetConstGenericVTable::VTABLE`.
+    /// To construct the `vtable_for` parameter use `ConstGenericVTableFor::NEW`.
     pub const fn new<T>(this:&'static T, vtable_for:ConstGenericVTableFor<T>)->Self{
         Self{
             ptr: this as *const T as *const ErasedObject,
@@ -100,14 +100,11 @@ impl Eq for ConstGeneric{}
 ///////////////////////////////////////////////////////////////////////////////
 
 
-#[doc(hidden)]
 #[repr(C)]
 #[derive(StableAbi)]
-// #[sabi(debug_print)]
 #[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
-// #[sabi(debug_print)]
-pub struct ConstGenericVTable{
+struct ConstGenericVTable{
     layout:&'static TypeLayout,
     partial_eq:unsafe extern "C" fn(&ErasedObject,&ErasedObject)->bool,
     #[sabi(last_prefix_field)]
@@ -122,23 +119,10 @@ pub struct ConstGenericVTableFor<T>{
 }
 
 
-///////////////////////////////////////////////////////////////////////////////
-
-/// This trait is used to construct the `vtable_for` parameter of 
-/// `ConstGeneric::new` with `GetConstGenericVTable::VTABLE`
-pub trait GetConstGenericVTable:Sized {
-    #[doc(hidden)]
-    const _VTABLE_STATIC: WithMetadata<ConstGenericVTable> ;
-    const VTABLE:ConstGenericVTableFor<Self>;
-}
-
-
-
-impl<This> GetConstGenericVTable for This
+impl<T> ConstGenericVTableFor<T> 
 where
-    This:StableAbi+Eq+PartialEq+Debug+Send+Sync
+    T: StableAbi + Eq + PartialEq + Debug + Send + Sync
 {
-    #[doc(hidden)]
     const _VTABLE_STATIC: WithMetadata<ConstGenericVTable> = {
         WithMetadata::new(
             PrefixTypeTrait::METADATA,
@@ -150,7 +134,8 @@ where
         )
     };
 
-    const VTABLE:ConstGenericVTableFor<Self>=ConstGenericVTableFor{
+    /// Constructs a `ConstGenericVTableFor`
+    pub const NEW:ConstGenericVTableFor<Self>=ConstGenericVTableFor{
         vtable: ConstGenericVTable_Ref(Self::_VTABLE_STATIC.static_as_prefix()),
         _marker: PhantomData,
     };

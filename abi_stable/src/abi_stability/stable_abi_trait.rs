@@ -61,15 +61,15 @@ An alternative for types where `IsNonZeroType=False`,you can use `ROption`.
 
 Non-exhaustive list of std types that are NonZero:
 
-- &T (any T).
+- `&T` (any T).
 
-- &mut T (any T).
+- `&mut T` (any T).
 
-- extern "C" fn().
+- `extern "C" fn()`.
 
-- std::ptr::NonNull
+- `std::ptr::NonNull`
 
-- std::num::NonZero* 
+- `std::num::NonZero*` 
 
     */
     type IsNonZeroType: Boolean;
@@ -77,6 +77,7 @@ Non-exhaustive list of std types that are NonZero:
     /// The layout of the type provided by implementors.
     const LAYOUT: &'static TypeLayout;
 
+    /// `const`-equivalents of the associated types.
     const ABI_CONSTS: AbiConsts=AbiConsts {
         type_id:Constructor(
             crate::std_types::utypeid::new_utypeid::<Self::StaticEquivalent> 
@@ -86,6 +87,8 @@ Non-exhaustive list of std types that are NonZero:
 }
 
 /// A type that only has a stable layout when a `PrefixRef` to it is used.
+/// 
+/// Types that implement this trait usually have a `_Prefix` suffix.
 pub unsafe trait PrefixStableAbi: GetStaticEquivalent_ {
     /// Whether this type has a single invalid bit-pattern.
     type IsNonZeroType: Boolean;
@@ -93,6 +96,7 @@ pub unsafe trait PrefixStableAbi: GetStaticEquivalent_ {
     /// The layout of the type, provided by implementors.
     const LAYOUT: &'static TypeLayout;
 
+    /// `const`-equivalents of the associated types.
     const ABI_CONSTS: AbiConsts=AbiConsts {
         type_id:Constructor(
             crate::std_types::utypeid::new_utypeid::<Self::StaticEquivalent> 
