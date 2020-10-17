@@ -3,7 +3,7 @@
 use crate::{
     library::RootModule,
     sabi_types::VersionStrings,
-    std_types::{ROption, RStr},
+    std_types::{ROption, RStr, RString},
     StableAbi,
 };
 
@@ -31,5 +31,24 @@ impl RootModule for Module_Ref {
     const BASE_NAME: &'static str = "example_root_module";
     const NAME: &'static str = "example_root_module";
     const VERSION_STRINGS: VersionStrings = crate::package_version_strings!();
+}
+
+
+#[repr(u8)]
+#[derive(StableAbi,Debug,Clone,PartialEq)]
+#[sabi(kind(WithNonExhaustive(
+    size="[usize;10]",
+    traits(Debug,Clone,PartialEq),
+)))]
+#[sabi(with_constructor)] 
+pub enum ValidTag{
+    #[doc(hidden)]
+    __NonExhaustive,
+    Foo,
+    Bar,
+    Tag{
+        name:RString,
+        tag:RString,
+    }
 }
 

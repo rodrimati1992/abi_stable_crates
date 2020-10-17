@@ -79,7 +79,7 @@ pub(crate) struct NonExhaustive<'a>{
     pub(crate) bounds_trait:Option<BoundsTrait<'a>>,
     /// The constructor functions generated for each variant,
     /// with the enum wrapped inside `NonExhaustive<>`
-    pub(crate) variant_constructor:Vec<Option<VariantConstructor<'a>>>,
+    pub(crate) ne_variants:Vec<NEVariant<'a>>,
 }
 
 /// The configuration required to generate a trait aliasing the constraints required when 
@@ -90,6 +90,17 @@ pub struct BoundsTrait<'a>{
     bounds:Vec<&'a syn::Path>,
 }
 
+#[derive(Clone)]
+pub struct UncheckedNEVariant {
+    pub(crate) constructor: Option<UncheckedVariantConstructor>,
+    pub(crate) is_hidden: bool,
+}
+
+#[derive(Clone)]
+pub struct NEVariant<'a> {
+    pub(crate) constructor: Option<VariantConstructor<'a>>,
+    pub(crate) is_hidden: bool,
+}
 
 /// How a NonExhaustive<Enum,...> is constructed
 #[derive(Clone)]
@@ -141,7 +152,7 @@ pub(crate) struct NewEnumInterface<'a>{
 impl<'a> NonExhaustive<'a>{
     pub fn new(
         mut unchecked:UncheckedNonExhaustive<'a>,
-        variant_constructor:Vec<Option<UncheckedVariantConstructor>>,
+        ne_variants:Vec<UncheckedNEVariant>,
         ds: &'a DataStructure<'a>,
         arenas: &'a Arenas,
     )-> Result<Self,syn::Error> {
@@ -232,27 +243,31 @@ impl<'a> NonExhaustive<'a>{
         };
 
 
-        let variant_constructor=variant_constructor.into_iter()
+        let ne_variants=ne_variants.into_iter()
             .zip(&ds.variants)
-            .map(|(vc,variant)|->Option<VariantConstructor>{
-                let vc=vc?;
-
-                match vc {
-                    UncheckedVariantConstructor::Regular=>{
-                        VariantConstructor::Regular
+            .map(|(vc,variant)|{
+                let constructor = match vc.constructor {
+                    Some(UncheckedVariantConstructor::Regular)=>{
+                        Some(VariantConstructor::Regular)
                     }
-                    UncheckedVariantConstructor::Boxed=>{
+                    Some(UncheckedVariantConstructor::Boxed)=>{
                         match variant.fields.first() {
                             Some(first_field) => 
-                                VariantConstructor::Boxed{
+                                Some(VariantConstructor::Boxed{
                                     referent:extract_first_type_param(first_field.ty),
                                     pointer:first_field.ty,
-                                },
+                                }),
                             None => 
-                                VariantConstructor::Regular,
+                                Some(VariantConstructor::Regular),
                         }                        
                     }
-                }.piped(Some)
+                    None => None,
+                };
+
+                NEVariant{
+                    constructor,
+                    is_hidden: vc.is_hidden,
+                }
             })
             .collect();
 
@@ -269,7 +284,7 @@ impl<'a> NonExhaustive<'a>{
             new_interface,
             assert_nonexh:unchecked.assert_nonexh,
             bounds_trait,
-            variant_constructor,
+            ne_variants,
         })
     }
 }
@@ -304,6 +319,18 @@ fn extract_first_type_param(ty:&syn::Type)->Option<&syn::Type>{
                 })
         }
         _=>None,
+    }
+}
+
+
+fn hide_docs_if<T, F>(opt: &Option<T>, func: F) -> String 
+where
+    F: FnOnce() -> String
+{
+    if opt.is_some() {
+        String::new()
+    } else {
+        func()
     }
 }
 
@@ -361,24 +388,25 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
         if doc_hidden_attr.is_none() {
             storage_docs=format!(
-                "The InlineStorage for the NonExhaustive wrapped version of `{}<_>`.",
-                name
+                "The default InlineStorage that `NonExhaustive` uses for \
+                 [`{E}`](./enum.{E}.html).",
+                E = name
             );
             alias_docs=format!(
-                "An alias for the NonExhaustive wrapped version of `{}<_>`.",
-                name
+                "An alias for `NonExhaustive` wrapping a [`{E}`](./enum.{E}.html).",
+                E = name
             );
             marker_docs=format!(
-                "A marker type which implements StableAbi with the layout of {},\
+                "A marker type which implements StableAbi with the layout of \
+                 [`{E}`](./enum.{E}.html),\
                  used as a phantom field of NonExhaustive.",
-                name
+                E = name
             );
         }
 
         let default_interface=&this.default_interface;
 
         quote!(
-            #doc_hidden_attr
             #[doc=#storage_docs]
             #[repr(C)]
             #[derive(::abi_stable::StableAbi)]
@@ -389,7 +417,6 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
                 #aligner_field
             }
 
-            #doc_hidden_attr
             #[doc=#alias_docs]
             #vis type #nonexhaustive_alias<#type_generics_decl>=
                 #module::__sabi_re::NonExhaustive<
@@ -400,7 +427,6 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
             unsafe impl #module::__sabi_re::InlineStorage for #enum_storage{}
 
-            #doc_hidden_attr
             #[doc=#marker_docs]
             #vis struct #nonexhaustive_marker<T,S>(
                 std::marker::PhantomData<T>,
@@ -410,17 +436,16 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
 
         if let Some(BoundsTrait{ident,bounds})=&this.bounds_trait{
-            let mut trait_docs=String::new();
+            let trait_docs=hide_docs_if(&doc_hidden_attr, ||{
+                format!(
+                    "An alias for the traits that \
+                    `NonExhaustive<{E},_,_>` requires to be constructed,\
+                    and implements afterwards.",
+                    E = name
+                )
+            });
 
-            if doc_hidden_attr.is_none(){
-                trait_docs=format!(
-                    "Acts as an alias for the traits that \
-                     were specified for `{}` in `traits(...)`.",
-                    name
-                );
-            }
             quote!( 
-                #doc_hidden_attr
                 #[doc=#trait_docs]
                 #vis trait #ident:#(#bounds+)*{}
 
@@ -432,12 +457,14 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
         }
 
         if let Some(new_interface)=this.new_interface{
-            let interface_docs=format!(
-                "Describes the traits required when constructing a \
-                 `NonExhaustive<>` from `{}`,and are usable with it,\
-                 by implementing `InterfaceType`.",
-                name
-            );
+            let interface_docs=hide_docs_if(&doc_hidden_attr, ||{ 
+                format!(
+                    "Describes the traits required when constructing a \
+                     `NonExhaustive<>` from [`{E}`](./enum.{E}.html),\
+                     by implementing `InterfaceType`.",
+                    E = name
+                )
+            });
 
             quote!( 
                 #[doc=#interface_docs]
@@ -447,24 +474,36 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
             ).to_tokens(ts);
         }
 
-        if this.variant_constructor.iter().any(|x| x.is_some() ) {
-            let constructors=this.variant_constructor
+        if this.ne_variants.iter().any(|x| x.constructor.is_some() ) {
+            let constructors=this.ne_variants
                 .iter()
                 .cloned()
                 .zip(&ds.variants)
                 .filter_map(|(vc,variant)|{
-                    let vc=vc?;
+                    let constructor=vc.constructor.as_ref()?;
                     let variant_ident=variant.name;
                     let mut method_name=parse_str_as_ident(&format!("{}_NE",variant.name));
                     method_name.set_span(variant.name.span());
 
-                    match vc {
+                    let method_docs = if vc.is_hidden {
+                        quote!(#[doc(hidden)])
+                    } else {
+                        let v_doc = format!(
+                            "Constructs the `{}::{}` variant inside a `NonExhaustive`.",
+                            ds.name,
+                            variant.name,
+                        );
+                        quote!(#[doc= #v_doc])
+                    };
+
+                    match constructor {
                         VariantConstructor::Regular=>{
                             let field_names_a=variant.fields.iter().map(|x|x.ident());
                             let field_names_b=field_names_a.clone();
                             let field_names_c=variant.fields.iter().map(|x|&x.ident);
                             let field_types=variant.fields.iter().map(|x|x.ty);
                             quote!{
+                                #method_docs
                                 #vis fn #method_name(
                                     #( #field_names_a : #field_types ,)*
                                 )->#nonexhaustive_alias<#type_generics_use> {
@@ -487,6 +526,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
                             });
                             
                             quote!{
+                                #method_docs
                                 #vis fn #method_name(
                                     value:#type_param,
                                 )->#nonexhaustive_alias<#type_generics_use> {

@@ -1,12 +1,10 @@
 /*!
 
-The `GetStaticEquivalent` derive macro allows implementing the `GetStaticEquivalent_` trait,
-allowing the type to be passed as a type parameter of a type deriving `StableAbi`,
-that used the `#[sabi(not_stableabi(TypeParameter))]` helper attribute.
+The `GetStaticEquivalent` macro derives the `GetStaticEquivalent_` trait.
 
-Be aware that if you use `#[sabi(not_stableabi(TypeParameter))]`,
-the type parameter won't be compared for compatibility,
-because it's not part of any field (type parameters are not compared).
+Implementing `GetStaticEquivalent` allows the type to be passed as a 
+type argument of a type deriving `StableAbi`,
+that used the `#[sabi(not_stableabi(TypeParameter))]` helper attribute.
 
 # Container Attributes
 
