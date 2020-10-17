@@ -327,7 +327,7 @@ fn first_items<'a>(
         trait_interface_docs=format!(
             "A marker type describing the traits that are required when constructing `{}`,\
              and are then implemented by it,
-             by implementing InterfaceType.",
+             by implementing the `InterfaceType` trait.",
             trait_to,
         );
         trait_to_docs=format!(
@@ -560,9 +560,9 @@ fn constructor_items<'a>(
 
     if doc_hidden_attr.is_none() {
         shared_docs=format!(
-        "<br>\
+        "<br><br>\
             `unerasability` describes whether the trait object can be \
-            converted back into the original type or not.\n\
+            converted back into the original type or not.<br>\n\
             Its possible values are `TU_Unerasable` and `TU_Opaque`.\n\
         "
         );
@@ -573,7 +573,7 @@ fn constructor_items<'a>(
         );
 
         from_value_docs=format!(
-            "Constructs this trait with a type that implements `{trait_}`.",
+            "Constructs this trait from a type that implements `{trait_}`.",
             trait_=trait_ident
         );
 
@@ -760,6 +760,7 @@ fn reborrow_methods_tokenizer<'a>(
 
 
         quote!(
+            /// Reborrows this trait object to a reference-based trait object.
             #submod_vis fn sabi_reborrow<'_sub>(&'_sub self)->#trait_to<#gen_params_use_ref>
             where
                 _ErasedPtr:std::ops::Deref<Target=()>
@@ -770,6 +771,7 @@ fn reborrow_methods_tokenizer<'a>(
                 #trait_to::from_sabi(x)
             }
 
+            /// Reborrows this trait object to a mutable-reference-based trait object.
             #submod_vis fn sabi_reborrow_mut<'_sub>(&'_sub mut self)->#trait_to<#gen_params_use_mut>
             where
                 _ErasedPtr:std::ops::DerefMut<Target=()>
