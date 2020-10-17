@@ -173,7 +173,7 @@ pub struct TypeLayout {
     /// A json-like data structure used to add extra checks.
     extra_checks:CmpIgnored<Option<&'static ManuallyDrop<StoredExtraChecks>>>,
 
-    /// Equivalent to the UTypeId returned by the function in Constructor.
+    /// A function to get the unique identifier for some type
     type_id:Constructor<UTypeId>,
 }
 

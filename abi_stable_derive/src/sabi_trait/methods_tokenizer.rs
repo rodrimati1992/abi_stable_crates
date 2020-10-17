@@ -175,6 +175,8 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         if WhichItem::VtableDecl==which_item {
             let optional_field=default_.as_ref().map(|_| &ctokens.missing_field_option );
             let derive_attrs=method.derive_attrs;
+
+
             quote_spanned!( method_span=>
                 #optional_field
                 #(#[#derive_attrs])*
@@ -186,6 +188,20 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                     ) #(-> #return_ty )*
             )
         }else{
+            let inherent_method_docs = ToTokenFnMut::new(|ts|{
+                if WhichItem::TraitObjectImpl != which_item { return }
+                let trait_name = trait_def.name;
+                let m_docs = format!(
+                    "This is the inherent equivalent of \
+                     [the trait method of the same name](./trait.{TN}.html#tymethod.{TM})\
+                    ",
+                    TN = trait_name,
+                    TM = method_name,
+                );
+
+                ts.append_all(quote!(#[doc = #m_docs]));
+            });
+
             let unsafety=match which_item {
                 WhichItem::VtableImpl=>Some(&ctokens.unsafe_),
                 _=>method.unsafety
@@ -193,6 +209,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
 
             quote_spanned!(method_span=>
                 #(#[#other_attrs])*
+                #inherent_method_docs
                 #vis #unsafety #abi fn #method_name #(< #(#lifetimes,)* >)* (
                     #self_param, 
                     #( #param_names_a:#param_ty ,)* 

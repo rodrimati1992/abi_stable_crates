@@ -113,7 +113,7 @@ pub unsafe trait PrefixStableAbi: GetStaticEquivalent_ {
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct AbiConsts {
-    /// Equivalent to the UTypeId returned by the function in Constructor.
+    /// A function to get the unique identifier for some type
     pub type_id:Constructor<UTypeId>,
     
     /// Whether the type uses non-zero value optimization,
@@ -122,6 +122,7 @@ pub struct AbiConsts {
 }
 
 impl AbiConsts{
+    /// Gets the `UTypeId` returned by the `type_id` field.
     #[inline]
     pub fn get_type_id(&self)->UTypeId{
         self.type_id.get()
@@ -130,7 +131,7 @@ impl AbiConsts{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Gets for the TypeLayout of some type,wraps an `extern "C" fn() -> &'static TypeLayout`.
+/// Getter for the TypeLayout of some type,wraps an `extern "C" fn() -> &'static TypeLayout`.
 pub type TypeLayoutCtor=Constructor<&'static TypeLayout>;
 
 // pub unsafe trait GetTypeLayoutCtor<B> {
@@ -147,7 +148,7 @@ where T: StableAbi,
     );
 
     pub const SABI_OPAQUE_FIELD:TypeLayoutCtor=Constructor (
-        get_type_layout::<SabiUnsafeOpaqueField<T>>,
+        get_type_layout::<UnsafeOpaqueField<T>>,
     );
 }
 
@@ -1368,12 +1369,10 @@ unsafe impl<T> StableAbi for UnsafeOpaqueField<T> {
     };
 }
 
-/////////////
-
-/// Allows one to ensure that a `T` implements `StableAbi` without storing it's layout,
-/// by pretending that it is a primitive type.
+/// Allows one to ensure that a `T` implements `StableAbi`,
+/// while storing an opaque layout instead of `<T as StableAbi>::LAYOUT`.
 /// 
-/// Used by the StableAbi derive macro by fields marker as `#[sabi(unsafe_sabi_opaque_field)]`.
+/// Used by the `StableAbi` derive macro by fields marker as `#[sabi(unsafe_sabi_opaque_field)]`.
 /// 
 /// # Safety
 /// 
@@ -1392,27 +1391,7 @@ where
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
-            *mono_shared_vars,
-            rstr!("SabiOpaqueField"),
-            make_item_info!(),
-            MonoTLData::Opaque,
-            tl_genparams!(;;),
-            ReprAttr::C,
-            ModReflMode::Module,
-            rslice![],
-        );
-
-        make_shared_vars!{
-            let (mono_shared_vars,shared_vars)={};
-        }
-
-        &TypeLayout::from_std::<Self>(
-            shared_vars,
-            MONO_TYPE_LAYOUT,
-            Self::ABI_CONSTS,
-            GenericTLData::Opaque,
-        )
+        <UnsafeOpaqueField<T>>::LAYOUT
     };
 }
 
