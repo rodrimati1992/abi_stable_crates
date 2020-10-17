@@ -43,7 +43,7 @@ use crate::{
 use super::{
     nonexhaustive::{
         UncheckedNonExhaustive,NonExhaustive,EnumInterface,IntOrType,
-        UncheckedVariantConstructor,
+        UncheckedVariantConstructor, UncheckedNEVariant,
     },
     reflection::{ModReflMode,FieldAccessor},
     prefix_types::{
@@ -233,9 +233,9 @@ impl<'a> StableAbiOptions<'a> {
                  .piped(StabilityKind::Prefix)
             }
             UncheckedStabilityKind::NonExhaustive(nonexhaustive)=>{
-                let variant_constructor=this.variant_constructor;
+                let ne_variants = this.ne_variants;
                 nonexhaustive
-                    .piped(|x| NonExhaustive::new(x,variant_constructor,ds,arenas) )?
+                    .piped(|x| NonExhaustive::new(x,ne_variants,ds,arenas) )?
                     .piped(StabilityKind::NonExhaustive)
             }
         };
@@ -357,7 +357,7 @@ struct StableAbiAttrs<'a> {
 
     layout_ctor:FieldMap<LayoutConstructor>,
 
-    variant_constructor:Vec<Option<UncheckedVariantConstructor>>,
+    ne_variants:Vec<UncheckedNEVariant>,
 
     override_field_accessor:FieldMap<Option<FieldAccessor<'a>>>,
     
@@ -436,7 +436,13 @@ where
     this.override_field_accessor=FieldMap::defaulted(ds);
     this.accessor_bounds=FieldMap::defaulted(ds);
     this.changed_types=FieldMap::defaulted(ds);
-    this.variant_constructor.resize(ds.variants.len(),None);
+    this.ne_variants.resize(
+        ds.variants.len(),
+        UncheckedNEVariant{
+            constructor: None,
+            is_hidden: false,
+        },
+    );
     
     this.type_param_bounds=TypeParamMap::defaulted(ds);
 
@@ -533,17 +539,30 @@ fn parse_attr_list<'a>(
             }
         }).combine_into_err(&mut this.errors);
     } else if list.path.equals_str("doc") {
-        with_nested_meta("doc", list.nested, |attr| {
+        let mut is_hidden = false;
+        let res = with_nested_meta("doc", list.nested, |attr| {
             match attr {
                 Meta::Path(ref path)=> {
                     if path.equals_str("hidden") {
-                        this.is_hidden=true;
+                        is_hidden=true;
                     }
                 }
                 _=>{}
             }
             Ok(())
-        })?;
+        });
+
+        match pctx {
+            ParseContext::TypeAttr{..} => {
+                this.is_hidden = is_hidden;
+            }
+            ParseContext::Variant{variant_index,..} => {
+                this.ne_variants[variant_index].is_hidden = is_hidden;
+
+            }
+            ParseContext::Field{..} => {}
+        }
+        res?
     } else if list.path.equals_str("sabi") {
         with_nested_meta("sabi", list.nested, |attr| {
             parse_sabi_attr(this,pctx, attr, arenas)
@@ -862,11 +881,11 @@ fn parse_sabi_attr<'a>(
             let word=path.get_ident().ok_or_else(|| make_err(&path) )?;
 
             if word == "with_constructor" {
-                this.variant_constructor.iter_mut()
-                    .for_each(|x|*x=Some(UncheckedVariantConstructor::Regular));
+                this.ne_variants.iter_mut()
+                    .for_each(|x|x.constructor=Some(UncheckedVariantConstructor::Regular));
             }else if word=="with_boxed_constructor" {
-                this.variant_constructor.iter_mut()
-                    .for_each(|x|*x=Some(UncheckedVariantConstructor::Boxed));
+                this.ne_variants.iter_mut()
+                    .for_each(|x|x.constructor=Some(UncheckedVariantConstructor::Boxed));
             }else if word=="unsafe_opaque_fields" {
                 this.layout_ctor
                     .iter_mut()
@@ -891,9 +910,11 @@ fn parse_sabi_attr<'a>(
             let word=path.get_ident().ok_or_else(|| make_err(&path) )?;
             
             if word=="with_constructor" {
-                this.variant_constructor[variant_index]=Some(UncheckedVariantConstructor::Regular);
+                this.ne_variants[variant_index].constructor=
+                    Some(UncheckedVariantConstructor::Regular);
             }else if word=="with_boxed_constructor" {
-                this.variant_constructor[variant_index]=Some(UncheckedVariantConstructor::Boxed);
+                this.ne_variants[variant_index].constructor=
+                    Some(UncheckedVariantConstructor::Boxed);
             }else{
                 return Err(make_err(&path));
             }

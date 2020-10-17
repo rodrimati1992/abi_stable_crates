@@ -89,6 +89,12 @@ Non-exhaustive list of std types that are NonZero:
 /// A type that only has a stable layout when a `PrefixRef` to it is used.
 /// 
 /// Types that implement this trait usually have a `_Prefix` suffix.
+/// 
+/// # Safety
+/// 
+/// This trait can only be implemented by the `StableAbi` derive
+/// on types that also use the `#[sabi(kind(Prefix))]` attribute,
+/// implementing the trait for a macro generated type.
 pub unsafe trait PrefixStableAbi: GetStaticEquivalent_ {
     /// Whether this type has a single invalid bit-pattern.
     type IsNonZeroType: Boolean;
@@ -166,7 +172,7 @@ impl<T> GetTypeLayoutCtor<T>{
     );
 }
 
-/// Retrieves the TypeLayout of `T:StableAbi`,
+/// Retrieves the TypeLayout of `T: StableAbi`,
 pub extern "C" fn get_type_layout<T>() -> &'static TypeLayout
 where
     T: StableAbi,
@@ -174,7 +180,7 @@ where
     T::LAYOUT
 }
 
-/// Retrieves the TypeLayout of a prefix fields struct,
+/// Retrieves the TypeLayout of `T: PrefixStableAbi`,
 pub extern "C" fn get_prefix_field_type_layout<T>() -> &'static TypeLayout
 where
     T: PrefixStableAbi,
@@ -1325,7 +1331,7 @@ pub const EXTERN_FN_LAYOUT:TypeLayoutCtor=
 
 /////////////
 
-/// Allows one to create the TypeLayout/TypeLayout for any type `T`,
+/// Allows one to create the `TypeLayout` for any type `T`,
 /// by pretending that it is a primitive type.
 /// 
 /// Used by the StableAbi derive macro by fields marker as `#[sabi(unsafe_opaque_field)]`.

@@ -809,7 +809,7 @@ This returns:
 
 
 
-/// The version of ExtraChecks that is stored in the type layout constant..
+/// The version of `ExtraChecks` that is stored in `TypeLayout`.
 pub type StoredExtraChecks=ExtraChecks_CTO<'static>;
 
 /// An ffi-safe equivalent of `&'static dyn ExtraChecks`.
@@ -827,13 +827,14 @@ pub type ExtraChecksBox=ExtraChecks_TO<RBox<()>>;
 pub trait ForExtraChecksImplementor:StableAbi+ExtraChecks{
 
 /**
-Allows one to access the unerased type of the ExtraChecks trait object 
-within `layout_containing_other`.
+Accesses the `ExtraChecks` field in `layout_containing_other`, unerased into `Self`.
+
+If the closure returns an `ExtraChecksError`,it'll be returned unmodified and unwrapped.
 
 # Returns
 
 - ROk(_): 
-    If `other` could be unerased to `Self`,and `f` did not return any errors.
+    If `other` was unerased to `Self`,and `f` did not return any errors.
 
 - RErr(ExtraChecksError::NoneExtraChecks): 
     If`layout_containing_other` does not contain an ExtraChecks trait object.
@@ -863,7 +864,7 @@ within `layout_containing_other`.
     }
 
 /**
-Allows one to access the unerased type of the `other` trait object .
+Allows one to access `other` unerased into `Self`.
 
 If the closure returns an `ExtraChecksError`,it'll be returned unmodified and unwrapped.
 

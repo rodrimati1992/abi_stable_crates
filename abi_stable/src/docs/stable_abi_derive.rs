@@ -166,9 +166,9 @@ and won't be usable afterwards.
 
 <span id="InterfaceType_traits"> These are the traits you can specify: </span>
 
-- Send:Changing this to require/unrequire in minor versions,is an abi breaking change.
+- Send:Changing this to require/unrequire in minor versions is an abi breaking change.
 
-- Sync:Changing this to require/unrequire in minor versions,is an abi breaking change.
+- Sync:Changing this to require/unrequire in minor versions is an abi breaking change.
 
 - Clone
 

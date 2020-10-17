@@ -12,7 +12,9 @@ that export the root module
 
 # Semver in/compatible changes
 
-These are the changes to pre-existing data structures that are allowed/disallowed in semver compatible versions (0.y.z < 0.y+1.0 , x.y.z < x+1.0.0).
+These are the changes to pre-existing data structures that are 
+allowed/disallowed in semver compatible versions
+(0.y.z < 0.(y+1).0 , x.y.z < (x+1).0.0).
 
 It is never allowed to remove fields or variants in newer versions of a library.
 
@@ -26,7 +28,7 @@ field names are part of the ABI of a type.
 
 ### Structs
 
-It's only valid way to add fields to structs if they are 
+It's only valid to add fields to structs if they are 
 [prefix types(vtables or modules)](../prefix_types/index.html)),
 and only after the last field.
 

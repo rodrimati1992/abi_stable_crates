@@ -20,8 +20,7 @@ These are the items relevant to nonexhaustive enums:
 `Enum`: this is the annotated enum,which does not derive `StableAbi`,
 requiring it to be wrapped in a `NonExhaustive<>` to be passed through ffi.
 
-`Enum_NE`(generated): 
-    A type alias for the deriving type wrapped in a `NonExhaustive<>`.
+`Enum_NE`(generated): A type alias for `NonExhaustive<Enum,_,_>`.
 
 `Enum_NEMarker`(generated):
 A marker type which implements StableAbi with the layout of `Enum`,
@@ -35,7 +34,8 @@ Acts as an alias for the traits that were specified in the `traits(...)` paramet
 This is only created if the `traits(...)` parameter is specified.
 
 `Enum_Interface`(generated):
-Describes the traits required when constructing a `NonExhaustive<>` and usable with it afterwards
+Describes the traits required when constructing a `NonExhaustive<Enum,_,_>`
+and usable with it afterwards
 (this is a type that implements InterfaceType).
 
 # Parameters

@@ -1215,7 +1215,7 @@ fn vtable_impl<'a>(
 
     if doc_hidden_attr.is_none() {
         trait_mv_docs=format!(
-            "A helper struct used to construct the vtable for {0},with `{1}::VTABLE`",
+            "A helper struct for constructing the vtable for `{0}`,with `{1}::VTABLE`",
             trait_cto_ident,
             make_vtable_ident,
         );
