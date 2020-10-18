@@ -101,7 +101,7 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
             self.buffer
         }
 
-        /// This returns the ammount of elements this RVec can store without reallocating.
+        /// This returns the amount of elements this RVec can store without reallocating.
         ///
         /// # Example
         ///
@@ -333,7 +333,7 @@ impl<T> RVec<T> {
         self.as_mut_slice().into()
     }
 
-    /// Returns the ammount of elements of the `RVec<T>`.
+    /// Returns the amount of elements of the `RVec<T>`.
     ///
     /// # Example
     ///

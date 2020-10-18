@@ -87,7 +87,7 @@ pub struct RRwLock<T>{
 
 
 /**
-A read guard,which allows shared access to the data inside the rwlock.
+A read guard,which allows shared access to the data inside the `RRwLock`.
 
 There can be many of these for the same RRwLock at any given time.
 
@@ -104,7 +104,7 @@ pub struct RReadGuard<'a, T> {
 
 
 /**
-A write guard,which allows mutable access to the data inside the rwlock.
+A write guard,which allows mutable access to the data inside the `RRwLock`.
 
 There can be only of these for the same RRwLock at any given time.
 

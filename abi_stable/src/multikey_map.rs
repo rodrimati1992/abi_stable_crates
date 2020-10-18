@@ -140,13 +140,13 @@ where K:Hash+Eq
     }
 
     #[allow(dead_code)]
-    /// The ammount of keys associated with values.
+    /// The amount of keys associated with values.
     pub fn key_len(&self)->usize{
         self.map.len()
     }
 
     #[allow(dead_code)]
-    /// The ammount of values.
+    /// The amount of values.
     pub fn value_len(&self)->usize{
         self.arena.len()
     }

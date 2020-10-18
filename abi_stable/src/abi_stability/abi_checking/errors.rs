@@ -145,7 +145,7 @@ impl fmt::Display for AbiInstabilityError {
                 AI::Size(v) => ("incompatible type size", v.display_str()),
                 AI::Alignment(v) => ("incompatible type alignment", v.display_str()),
                 AI::GenericParamCount(v) => (
-                    "incompatible ammount of generic parameters",
+                    "incompatible amount of generic parameters",
                     v.display_str(),
                 ),
 

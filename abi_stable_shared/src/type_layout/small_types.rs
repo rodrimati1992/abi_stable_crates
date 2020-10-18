@@ -2,7 +2,7 @@
 #[macro_export]
 macro_rules! declare_start_len_bit_methods {() => (
 
-    /// The ammount of bits used to represent a StartLen
+    /// The amount of bits used to represent a StartLen
     pub const BIT_SIZE:u32=26;
     const START_SR_MASK:u32=0xFFFF;
     const LEN_SR_MASK:u32=0b11_1111_1111;

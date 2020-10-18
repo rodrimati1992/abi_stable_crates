@@ -28,7 +28,7 @@ macro_rules! declare_comp_tl_field {(
         const IS_FUNCTION_OFFSET:u32=Self::TYPE_LAYOUT_OFFSET+TypeLayoutIndex::BIT_SIZE;
         const IS_FUNCTION_BIT_SIZE:u32=1;
 
-        /// The ammount of bits necessary to represent a CompTLField.
+        /// The amount of bits necessary to represent a CompTLField.
         pub const BIT_SIZE:u32=Self::IS_FUNCTION_OFFSET+Self::IS_FUNCTION_BIT_SIZE;
 
         /// Constructs a CompTLField.

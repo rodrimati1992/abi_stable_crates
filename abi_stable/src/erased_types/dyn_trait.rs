@@ -2015,11 +2015,11 @@ where
         }
     }
 
-    fn consume(&mut self, ammount:usize ){
+    fn consume(&mut self, amount:usize ){
         unsafe{
             let vtable = self.sabi_vtable().io_bufread();
 
-            (vtable.consume)(self.sabi_erased_mut(),ammount)
+            (vtable.consume)(self.sabi_erased_mut(),amount)
         }
     }
 

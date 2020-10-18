@@ -471,14 +471,14 @@ where R:BufRead
 
 pub(super) unsafe extern "C" fn io_BufRead_consume<R>(
     this:&mut ErasedObject, 
-    ammount: usize
+    amount: usize
 )where 
     R:BufRead
 {
     extern_fn_panic_handling! {
         let this=transmute_mut_reference::<ErasedObject,R>(this);
 
-        this.consume(ammount)
+        this.consume(amount)
     }
 }
 

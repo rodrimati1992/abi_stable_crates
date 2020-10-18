@@ -82,7 +82,7 @@ pub struct RMutex<T>{
 
 
 /**
-A mutex guard,which allows mutable access to the data inside the mutex.
+A mutex guard,which allows mutable access to the data inside an `RMutex`.
 
 When dropped this will unlock the mutex.
 
@@ -205,9 +205,10 @@ assert_eq!(*MUTEX.lock(),5);
         self.make_guard()
     }
     /**
-Attemps to acquire a mutex.
+Attemps to acquire a mutex guard.
 
-Returns the mutex guard if the mutex can be immediately acquired,otherwise returns RNone.
+Returns the mutex guard if the mutex can be immediately acquired,
+otherwise returns `RNone`.
 
 # Example
 
@@ -235,9 +236,9 @@ assert_eq!(*guard,0);
     }
     
 /**
-Attempts to acquire a mutex for the timeout duration.
+Attempts to acquire a mutex guard for the `timeout` duration.
 
-Once the timeout is reached,this will return None,
+Once the timeout is reached,this will return `RNone`,
 otherwise it will return the mutex guard.
 
 

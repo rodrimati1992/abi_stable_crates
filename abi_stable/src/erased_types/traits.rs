@@ -21,8 +21,8 @@ use crate::type_level::{
 /**
 An `implementation type`,
 with an associated `interface type` which describes the traits that 
-must be implemented when constructing a `DynTrait` from Self,
-using the `from_value` and `from_ptr` constructors,
+must be implemented when constructing a `DynTrait` from `Self`,
+using the `DynTrait::from_value` and `DynTrait::from_ptr` constructors,
 so as to pass an opaque type across ffi.
 
 To initialize `INFO` you can use the `impl_get_type_info` macro.
@@ -32,10 +32,12 @@ To initialize `INFO` you can use the `impl_get_type_info` macro.
 Users of this trait can't enforce that they are the only ones with the same interface,
 therefore they should handle the `Err(..)`s returned
 from the `DynTrait::*_unerased` functions whenever
-the convert back and forth between `Self` and `Self::Interface`.
+they convert back and forth between `Self` and `Self::Interface`.
 
 */
 pub trait ImplType: Sized  {
+    /// Describes the traits that must be implemented when constructing a
+    /// `DynTrait` from `Self`.
     type Interface: InterfaceType;
 
     /// Information about the type for debugging purposes.
@@ -80,8 +82,7 @@ declare_InterfaceType!{
 
 /**
 Defines the usable/required traits when creating a 
-`DynTrait<Pointer<()>,ThisInterfaceType>`
-from a type that implements `ImplType<Interface= ThisInterfaceType >` .
+`DynTrait<Pointer<()>, ThisInterfaceType>`.
 
 This trait can only be implemented using the
 `#[derive(StableAbi)]` and the `impl_InterfaceType` macro,
@@ -90,9 +91,9 @@ so that adding associated types is not a breaking change.
 
 The value of every associated type can be.
 
-- `Implemented<_>`,the trait would be required by and usable in `DynTrait`.
+- `Implemented<_>`,the trait would be required by, and be usable in `DynTrait`.
 
-- `Unimplemented<_>`,the trait would not be required by and not usable in `DynTrait`.
+- `Unimplemented<_>`,the trait would not be required by, and not be usable in `DynTrait`.
 
 # Example
 
@@ -228,9 +229,15 @@ impl InterfaceType for FooInterface {
 
 
 /**
-Describes how this `implementation type` is serialized.
+Describes how a type is serialized by [`DynTrait`].
+
+[`DynTrait`]: ./struct.DynTrait.html
 */
-pub trait SerializeImplType<'s>{
+pub trait SerializeImplType<'s> {
+    /// An [`InterfaceType`] implementor which determines the 
+    /// intermediate type through which this is serialized.
+    ///
+    /// [`InterfaceType`]: ./trait.InterfaceType.html
     type Interface:SerializeProxyType<'s>;
 
     fn serialize_impl(
@@ -240,10 +247,13 @@ pub trait SerializeImplType<'s>{
 
 
 /**
-Gets the intermediate type an ImplType is converted into,to serialize it.
+Determines the intermediate type a [`SerializeImplType`] implementor is converted into,
+and is then serialized.
+
+[`SerializeImplType`]: ./trait.SerializeImplType.html
 */
 pub trait SerializeProxyType<'borr>:InterfaceType{
-    /// The intermediate type an ImplType is converted into,to serialize it
+    /// The intermediate type.
     type Proxy:'borr;
 }
 
@@ -352,20 +362,22 @@ where
 /////////////////////////////////////////////////////////////////////
 
 
-/// The way to specify the expected Iterator::Item type for an InterfaceType.
+/// The way to specify the expected `Iterator::Item` type for an `InterfaceType`.
 ///
 /// This is a separate trait to allow iterators that yield borrowed elements.
 pub trait IteratorItem<'a>:InterfaceType{
+    /// The iterator item type.
     type Item;
 }
 
 
 
-/// Gets the Item type of an Iterator.
+/// Gets the expected `Iterator::Item` type for an `InterfaceType`,
+/// defaulting to `()` if it doesn't require `Iterator` to be implemented.
 ///
-/// Used by `DynTrait`'s vtable to give its iter a default type,
-/// when `I:InterfaceType<Iterator=Implemented<_>>`.
+/// Used by `DynTrait`'s vtable to give its iterator methods a defaulted return type.
 pub trait IteratorItemOrDefault<'borr>:InterfaceType{
+    /// The iterator item type.
     type Item;
 }
 

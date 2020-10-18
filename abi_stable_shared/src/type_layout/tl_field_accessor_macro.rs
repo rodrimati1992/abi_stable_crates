@@ -31,7 +31,7 @@ macro_rules! declare_comp_field_accessor {(
 
     impl CompFieldAccessor{
         const MASK:u8=0b111;
-        /// The ammount of bits used to represent a CompFieldAccessor.
+        /// The amount of bits used to represent a CompFieldAccessor.
         pub const BIT_SIZE:u32=3;
 
         /// Converts this `CompFieldAccessor` into its representation.

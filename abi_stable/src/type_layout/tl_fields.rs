@@ -90,7 +90,7 @@ impl CompTLFields{
             .map(|f| f.name(strings) )
     }
 
-    /// The ammount of fields this represents
+    /// The amount of fields this represents
     pub fn len(&self)->usize{
         self.comp_fields_len as usize
     }
@@ -136,7 +136,7 @@ impl TLFields{
         }
     }
 	
-    /// The ammount of fields this represents
+    /// The amount of fields this represents
     pub fn len(&self)->usize{
         self.comp_fields.len()
     }

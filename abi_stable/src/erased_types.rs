@@ -50,7 +50,7 @@ pub use self::{
         GetVWInterface,
         UneraseError,
     },
-    vtable::{ GetVtable,InterfaceBound,VTableDT },
+    vtable::{ InterfaceBound,VTableDT },
     traits::{
         ImplType, InterfaceType, 
         DeserializeDyn, 
@@ -59,6 +59,9 @@ pub use self::{
     },
     type_info::TypeInfo,
 };
+
+#[doc(hidden)]
+pub use self::vtable::GetVtable;
 
 #[doc(no_inline)]
 pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};

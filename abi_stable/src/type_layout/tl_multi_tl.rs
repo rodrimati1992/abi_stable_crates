@@ -80,7 +80,7 @@ pub struct MultipleTypeLayouts<'a>{
 
 
 impl<'a> MultipleTypeLayouts<'a>{
-    /// The ammount of TypeLayoutCtor this contains.
+    /// The amount of TypeLayoutCtor this contains.
     pub fn len(&self)->usize{
         self.first.len as usize+self.remaining.len()
     }
