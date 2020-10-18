@@ -109,7 +109,7 @@ pub fn bounded<T>(capacity:usize) -> (RSender<T>, RReceiver<T>) {
 }
 
 /**
-Creates a channel which can hold an unbounded ammount elements in its internal queue.
+Creates a channel which can hold an unbounded amount elements in its internal queue.
 
 # Example
 
@@ -337,7 +337,7 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
         vtable.sender_is_full()(&*self.channel)
     }
 
-    /// Returns the ammount of values in the channel queue.
+    /// Returns the amount of values in the channel queue.
     ///
     /// # Example
     ///
@@ -364,7 +364,7 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
         vtable.sender_len()(&*self.channel)
     }
 
-    /// Returns the ammount of values the channel queue can hold.
+    /// Returns the amount of values the channel queue can hold.
     /// 
     /// This returns None if the channel is unbounded.
     ///
@@ -637,7 +637,7 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
         vtable.receiver_is_full()(&*self.channel)
     }
 
-    /// Returns the ammount of values in the channel queue.
+    /// Returns the amount of values in the channel queue.
     ///
     /// # Example
     ///
@@ -664,7 +664,7 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
         vtable.receiver_len()(&*self.channel)
     }
 
-    /// Returns the ammount of values the channel queue can hold.
+    /// Returns the amount of values the channel queue can hold.
     /// 
     /// This returns None if the channel is unbounded.
     ///

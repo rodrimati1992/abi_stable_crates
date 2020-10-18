@@ -34,6 +34,7 @@ impl RootModule for Module_Ref {
 }
 
 
+/// For demonstrating ffi-safe non-exhaustive enums.
 #[repr(u8)]
 #[derive(StableAbi,Debug,Clone,PartialEq)]
 #[sabi(kind(WithNonExhaustive(

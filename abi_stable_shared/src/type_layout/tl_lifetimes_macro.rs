@@ -174,7 +174,7 @@ macro_rules! declare_tl_lifetime_types {(
         const MASK: u32 = 0x1F_FF_FF;
         const START_MASK: u32 = 0b1_1111_1111_1111;
 
-        /// The ammount of bits used to represent a LifetimeRnage.
+        /// The amount of bits used to represent a LifetimeRnage.
         pub const BIT_SIZE:u32=21;
 
         /// The maximum value for the start of a range.
@@ -218,7 +218,7 @@ macro_rules! declare_tl_lifetime_types {(
             ((self.bits >> Self::RANGE_LEN_OFFSET) & Self::LEN_SR_MASK) as usize * 2
         }
 
-        /// The ammount of lifetime indices this spans.
+        /// The amount of lifetime indices this spans.
         #[inline]
         pub fn len(self) -> usize {
             if self.is_range() {

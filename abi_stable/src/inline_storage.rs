@@ -79,9 +79,7 @@ macro_rules! declare_alignments {
             #[doc=$docs]
             #[repr(C)]
             #[repr(align($alignment))]
-            pub struct $aligner<Inline>{
-                inline:Inline,
-            }
+            pub struct $aligner<Inline>(pub Inline);
             
             unsafe impl<Inline> InlineStorage for $aligner<Inline>
             where
@@ -114,9 +112,7 @@ pub mod alignment{
     #[cfg_attr(target_pointer_width="64",repr(C,align(8)))]
     #[cfg_attr(target_pointer_width="32",repr(C,align(4)))]
     #[cfg_attr(target_pointer_width="16",repr(C,align(2)))]
-    pub struct AlignToUsize<Inline>{
-        inline:Inline,
-    }
+    pub struct AlignToUsize<Inline>(pub Inline);
 
     unsafe impl<Inline> InlineStorage for AlignToUsize<Inline>
     where

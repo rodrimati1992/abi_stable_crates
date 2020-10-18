@@ -618,7 +618,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         vtable.clear_map()(&mut *self.map);
     }
 
-    /// Returns the ammount of entries in the map.
+    /// Returns the amount of entries in the map.
     ///
     /// # Example
     ///
@@ -639,7 +639,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         vtable.len()(&*self.map)
     }
 
-    /// Returns the capacity of the map,the ammount of elements it can store without reallocating.
+    /// Returns the capacity of the map,the amount of elements it can store without reallocating.
     ///
     /// Note that this is a lower bound,since hash maps don't necessarily have an exact capacity.
     ///

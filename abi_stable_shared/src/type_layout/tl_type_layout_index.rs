@@ -13,7 +13,7 @@ macro_rules! declare_type_layout_index {(
 
     impl TypeLayoutIndex{
         pub(crate) const MASK:u16=0b11_1111_1111;
-        /// The ammount of bits required to represent a `TypeLayoutIndex`.
+        /// The amount of bits required to represent a `TypeLayoutIndex`.
         pub const BIT_SIZE:u32=10;
         
         /// The maximum value of a `TypeLayoutIndex`.

@@ -17,7 +17,7 @@ use crate::{
 #[derive(Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct MonoTLEnum{
-    /// The ammount of fields of each variant.
+    /// The amount of fields of each variant.
     field_count:*const u8,
     field_count_len:u16,
 
@@ -47,12 +47,12 @@ impl MonoTLEnum{
         }
     }
 
-    /// Gets the ammount of variants in the enum.
+    /// Gets the amount of variants in the enum.
     pub fn variant_count(&self)->usize{
         self.field_count_len as usize
     }
 
-    /// Gets a slice with the ammount of fields for each variant in the enum.
+    /// Gets a slice with the amount of fields for each variant in the enum.
     pub fn field_count(&self)->RSlice<'static,u8>{
         unsafe{
             RSlice::from_raw_parts( self.field_count, self.field_count_len as usize )
@@ -108,7 +108,7 @@ impl GenericTLEnum{
 /// Every property about an enum specifically.
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
 pub struct TLEnum{
-    /// The ammount of fields of each variant.
+    /// The amount of fields of each variant.
     pub field_count:RSlice<'static,u8>,
 
     /// A ';' separated list of all variant names
@@ -125,7 +125,7 @@ pub struct TLEnum{
 }
 
 impl TLEnum{
-    /// Returns the ammount of variants in the enum.
+    /// Returns the amount of variants in the enum.
     pub fn variant_count(&self)->usize{
         self.field_count.len()
     }
@@ -140,7 +140,7 @@ impl TLEnum{
         }
     }
 
-    /// Returns the enum with the (maximum,minimum) ammount of variants.
+    /// Returns the enum with the (maximum,minimum) amount of variants.
     pub fn max_min<'a>(&'a self,other:&'a TLEnum)->(&'a TLEnum,&'a TLEnum){
         if self.variant_count() < other.variant_count() {
             (self,other)

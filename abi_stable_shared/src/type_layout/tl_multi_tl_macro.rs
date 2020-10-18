@@ -78,7 +78,7 @@ macro_rules! declare_multi_tl_types {(
             |((self.bits1 as u64) << 32)
         }
 
-        /// The ammount of `TypeLayoutCtor` in this range.
+        /// The amount of `TypeLayoutCtor` in this range.
         #[inline]
         pub const fn len(&self)->usize{
             (self.bits0&Self::LEN_MASK) as usize

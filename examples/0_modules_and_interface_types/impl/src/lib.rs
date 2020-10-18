@@ -309,7 +309,7 @@ pub fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,'_>) -> RSt
     buffer.into()
 }
 
-/// Returns the ammount of text (in bytes) 
+/// Returns the amount of text (in bytes) 
 /// that was processed in functions taking `&mut TOStateBox`.
 #[sabi_extern_fn]
 pub fn get_processed_bytes(this: &TOStateBox) -> u64 {

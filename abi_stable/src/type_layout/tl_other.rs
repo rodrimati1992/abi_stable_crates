@@ -140,7 +140,7 @@ impl GenericParams {
     pub fn lifetimes(&self)-> impl Iterator<Item=&'static str>+Clone+Send+Sync+'static {
         self.lifetime.to_str().split(',').filter(|x| !x.is_empty() )
     }
-    /// The ammount of the lifetime of the type.
+    /// The amount of the lifetime of the type.
     pub fn lifetime_count(&self)->usize{
         self.lifetime_count as usize
     }

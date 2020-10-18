@@ -254,8 +254,8 @@ pub(super) fn delegated_impls<'a>(
                     std::io::BufRead::fill_buf(&mut self.obj)
                 }
 
-                fn consume(&mut self, ammount:usize ){
-                    std::io::BufRead::consume(&mut self.obj,ammount)
+                fn consume(&mut self, amount:usize ){
+                    std::io::BufRead::consume(&mut self.obj,amount)
                 }
             }
         ).to_tokens(mod_);

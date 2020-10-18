@@ -24,7 +24,7 @@ use core_extensions::SelfOps;
 #[doc(hidden)]
 #[derive(Debug,Clone)]
 pub struct __PrefixTypeMetadata{
-    /// This is the ammount of fields on the prefix of the struct,
+    /// This is the amount of fields on the prefix of the struct,
     /// which is always the same for the same type,regardless of which library it comes from.
     pub prefix_field_count:u8,
 

@@ -62,7 +62,7 @@ at which point it would be moved to the last field at the time.
     pub remove_words: 
         extern "C" fn(&mut TOStateBox,param:RemoveWords<'_,'_>) -> RString,
     
-    /// Gets the ammount (in bytes) of text that was processed
+    /// Gets the amount (in bytes) of text that was processed
     pub get_processed_bytes: extern "C" fn(&TOStateBox) -> u64,
  
     pub run_command: 

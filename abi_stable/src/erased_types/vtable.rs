@@ -397,7 +397,7 @@ macro_rules! declare_meta_vtable {
 
 
 
-        /// Trait used to capture all the bounds of DynTrait<_>.
+        /// Associated constant equivalents of the associated types in `InterfaceType`.
         #[allow(non_upper_case_globals)]
         pub trait InterfaceBound:InterfaceType {
             #[doc(hidden)]
@@ -405,12 +405,13 @@ macro_rules! declare_meta_vtable {
             const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>;
 
             /// Describes which traits are implemented,
-            /// stored in the layout of the type in StableAbi,
+            /// stored in the `TypeLayout` for `DynTrait`,
+            #[doc(hidden)]
             const EXTRA_CHECKS:EnabledTraits;
 
             $( 
-                /// Used by the `StableAbi` derive macro to determine whether the field 
-                /// this is associated with is disabled.
+                /// Whether the trait is required,
+                /// and is usable by a `DynTrait` parameterized with this `InterfaceType`.
                 const $selector:bool; 
             )*
 
@@ -432,6 +433,7 @@ macro_rules! declare_meta_vtable {
             $( I::$marker_trait:IsImplemented, )*
             $( I::$selector:IsImplemented, )*
         {
+            #[doc(hidden)]
             const EXTRA_CHECKS:EnabledTraits=EnabledTraits{
                 
                 // Auto traits have to be equivalent in every linked library,
