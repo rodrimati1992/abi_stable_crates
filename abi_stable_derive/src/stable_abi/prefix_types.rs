@@ -693,7 +693,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 )*
 
                 // The accessibility of all fields,
-                // used bellow to initialize the mask for each individual field.
+                // used below to initialize the mask for each individual field.
                 //
                 // If the nth bit is:
                 //    0:the field is inaccessible.

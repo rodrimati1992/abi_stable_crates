@@ -330,9 +330,9 @@ where T:'static+Send+Sync
 {
     type Interface=();
     
-    // You have to write the full type (eg: impl_get_type_info!{ Bar['a,T,U] } ) ,
+    // You have to write the full type (eg: impl_get_type_info!{ Bar<'a,T,U> } ) ,
     // never write Self.
-    const INFO:&'static TypeInfo=impl_get_type_info! { Foo[T] };
+    const INFO:&'static TypeInfo=impl_get_type_info! { Foo<T> };
 }
 
 ```
@@ -340,9 +340,7 @@ where T:'static+Send+Sync
 */
 #[macro_export]
 macro_rules! impl_get_type_info {
-    (
-        $type:ident $([$($params:tt)*])?
-    ) => (
+    ($type:ty) => (
         {
             use std::mem;
             use $crate::{
@@ -350,9 +348,7 @@ macro_rules! impl_get_type_info {
                 std_types::{RStr,utypeid::some_utypeid},
             };
 
-            let type_name=$crate::sabi_types::Constructor(
-                $crate::utils::get_type_name::<$type<$( $($params)* )? >>
-            );
+            let type_name=$crate::sabi_types::Constructor($crate::utils::get_type_name::<$type>);
             
             &TypeInfo{
                 size:mem::size_of::<Self>(),

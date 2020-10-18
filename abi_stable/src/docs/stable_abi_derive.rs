@@ -339,8 +339,8 @@ The function can return either a reference or a value.
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
-Determines what happens in the accessor method for a field,when the field is missing,
-the default is that it returns an `Option<FieldType>`,
+Determines what happens in the accessor method for a field,when the field is missing.
+The default is that it returns an `Option<FieldType>`,
 returning None if the field is absent,Some(field_value) if it's present.
 
 If the attribute is on the struct,it's applied to all fields(this is overridable)

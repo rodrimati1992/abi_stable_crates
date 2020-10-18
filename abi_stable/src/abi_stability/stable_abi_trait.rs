@@ -273,6 +273,7 @@ macro_rules! phantomdata_tuples {
                     }
                 );
 
+                #[allow(unused_assignments)]
                 const FIELDS:&'static [CompTLField;COUNT]={
                     let mut i=0;
                     $( 
@@ -815,7 +816,7 @@ macro_rules! impl_stable_abi_array {
                         let (mono_shared_vars,shared_vars)={
                             strings={ field0:"element", },
                             type_layouts=[T],
-                            constants=[$size],
+                            constants=[$size as usize],
                         };
                     }
 

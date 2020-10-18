@@ -127,15 +127,15 @@ where
         WithMetadata::new(
             PrefixTypeTrait::METADATA,
             ConstGenericVTable{
-                layout: <Self as StableAbi>::LAYOUT,
-                partial_eq: partial_eq_impl::<Self>,
-                debug: debug_impl::<Self>,
+                layout: <T as StableAbi>::LAYOUT,
+                partial_eq: partial_eq_impl::<T>,
+                debug: debug_impl::<T>,
             }
         )
     };
 
     /// Constructs a `ConstGenericVTableFor`
-    pub const NEW:ConstGenericVTableFor<Self>=ConstGenericVTableFor{
+    pub const NEW:ConstGenericVTableFor<T>=ConstGenericVTableFor{
         vtable: ConstGenericVTable_Ref(Self::_VTABLE_STATIC.static_as_prefix()),
         _marker: PhantomData,
     };

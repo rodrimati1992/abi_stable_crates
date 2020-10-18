@@ -71,31 +71,31 @@ It generally looks like `DynTrait<'borrow,Pointer<()>,Interface>`,where:
 - `Interface` is an `InterfaceType`,which describes what traits are 
     required when constructing the `DynTrait<_>` and which ones it implements.
 
-`trait InterfaceType` allows describing which traits are required 
+The `InterfaceType` trait allows describing which traits are required 
 when constructing a `DynTrait<_>`,and which ones it implements.
 
 ###  Construction 
 
 To construct a `DynTrait<_>` one can use these associated functions:
     
-- from_value:
+- `from_value`:
     Can be constructed from the value directly.
     Requires a value that implements ImplType.
     
-- from_ptr:
+- `from_ptr`:
     Can be constructed from a pointer of a value.
     Requires a value that implements ImplType.
     
-- from_any_value:
+- `from_any_value`:
     Can be constructed from the value directly.Requires a `'static` value.
     
-- from_any_ptr
+- `from_any_ptr`
     Can be constructed from a pointer of a value.Requires a `'static` value.
 
-- from_borrowing_value:
+- `from_borrowing_value`:
     Can be constructed from the value directly.Cannot unerase the DynTrait afterwards.
     
-- from_borrowing_ptr
+- `from_borrowing_ptr`
     Can be constructed from a pointer of a value.Cannot unerase the DynTrait afterwards.
 
 DynTrait uses the impls of the value in methods,
@@ -105,7 +105,7 @@ which means that the pointer itself does not have to implement those traits,
 
 `DynTrait<'borrow,Pointer<()>,Interface>` 
 can be used as a trait object for any combination of 
-the traits listed bellow.
+the traits listed below.
 
 These are the traits:
 
@@ -2072,7 +2072,7 @@ mod sealed {
 }
 use self::sealed::Sealed;
 
-/// For accessing the Interface of a `DynTrait<Pointer<()>,Interface>`.
+/// For getting the `Interface` type parameter in `DynTrait<Pointer<()>,Interface>`.
 pub trait DynTraitBound<'borr>: Sealed {
     type Interface: InterfaceType;
 }
@@ -2086,7 +2086,7 @@ where
 }
 
 
-/// For accessing the `Interface` in a `DynTrait<Pointer<()>,Interface>`.
+/// For getting the `Interface` type parameter in `DynTrait<Pointer<()>,Interface>`.
 pub type GetVWInterface<'borr,This>=
     <This as DynTraitBound<'borr>>::Interface;
 

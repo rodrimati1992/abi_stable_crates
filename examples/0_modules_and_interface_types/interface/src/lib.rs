@@ -45,7 +45,7 @@ The `deserializers` submodule.
 The `#[sabi(last_prefix_field)]` attribute here means that this is the last field in this struct
 that was defined in the first compatible version of the library
 (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-requiring new fields to always be added bellow preexisting ones.
+requiring new fields to always be added below preexisting ones.
 
 The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
 bumps its "major" version,
@@ -93,7 +93,7 @@ The implementation for how TOStateBox is going to be deserialized.
 The `#[sabi(last_prefix_field)]` attribute here means that this is the last field in this struct
 that was defined in the first compatible version of the library
 (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-requiring new fields to always be added bellow preexisting ones.
+requiring new fields to always be added below preexisting ones.
 
 The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
 bumps its "major" version,

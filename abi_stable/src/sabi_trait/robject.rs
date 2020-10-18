@@ -57,7 +57,7 @@ you can call one of these methods:
 
 `RObject<'borrow,Pointer<()>,Interface,VTable>` 
 can be used as a trait object for any combination of 
-the traits listed bellow.
+the traits listed below.
 
 These are the traits:
 

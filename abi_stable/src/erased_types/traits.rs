@@ -34,11 +34,15 @@ therefore they should handle the `Err(..)`s returned
 from the `DynTrait::*_unerased` functions whenever
 the convert back and forth between `Self` and `Self::Interface`.
 
-
 */
 pub trait ImplType: Sized  {
     type Interface: InterfaceType;
 
+    /// Information about the type for debugging purposes.
+    ///
+    /// You can use the [`impl_get_type_info`] macro to initialize this.
+    /// 
+    /// [`impl_get_type_info`]: ../macro.impl_get_type_info.html
     const INFO: &'static TypeInfo;
 }
 

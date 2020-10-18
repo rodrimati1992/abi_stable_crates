@@ -15,7 +15,7 @@ By default these are the supertraits that `#[sabi_trait]` traits can have:
 
 - Display
 
-- std::error::Error:Written as `Error`: The Error` methods aren't delegated to,
+- std::error::Error:Written as `Error`: The `Error` methods aren't delegated to,
 it uses the default implementation,
 
 - Clone
@@ -56,8 +56,7 @@ allowing these supertraits:
 
 ### Supertrait Extensibility
 
-The properties described bellow are checked when abi_stable loads a dynamic library
-(in both the RootModule trait and LibHeader).
+The properties described below are checked when `abi_stable` loads a dynamic library.
 
 Traits can add non-marker supertraits in minor versions without breaking ABI compatibility,
 with the (non-ABI related) caveats described in the extensibility section.
@@ -111,16 +110,17 @@ The ffi-safe trait object.
 <br>
 
 This only implements `Trait` if all the methods are callable,
-with these trait bounds for each method:
+when the wrapped pointer type implements traits for these methods:
 
-- `&self`: `Pointer:Deref<Target=()>`.
-- `&mut self`: `Pointer:DerefMut<Target=()>`.
-- `self`: `Pointer:OwnedPointer<Target=()>`.
+- `&self` method: requires `Deref<Target=()>`.
+- `&mut self` method: requires `DerefMut<Target=()>`.
+- `self` method: requires `OwnedPointer<Target=()>`.
 
 <br>
 
 `Trait_TO` also has inherent method equivalents of the trait methods,
-only requiring the trait bounds for `Pointer` on each method when they are called.
+only requiring the pointer to implement the trait in the individual methods
+(instead of putting those bounds in the impl block itself).
 
 <br>
 
@@ -336,9 +336,10 @@ Trait objects generated using this attribute have similar restrictions to built-
 
 Answer: There are 3 possible reasons
 
-- 1: Because the trait has a 'static supertrait bound.
+- 1: Because the trait has a `'static` supertrait bound.
 
-- 2: Because the trait has one of the comparison traits (Eq/PartialEq/Ord/PartialOrd)
+- 2: Because the trait has one of the comparison traits
+(`Eq`/`PartialEq`/`Ord`/`PartialOrd`)
 as supertraits.
 This requires the type to be `'static` because comparing trait objects requires 
 constructing a `std::any::TypeId`,which itself requires `'static` to be constructed.
@@ -374,7 +375,7 @@ pub trait Dictionary:Debug+Clone{
     /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last method 
     /// that was defined in the first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    /// requiring new methods to always be added bellow preexisting ones.
+    /// requiring new methods to always be added below preexisting ones.
     /// 
     /// The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library 
     /// bumps its "major" version,
