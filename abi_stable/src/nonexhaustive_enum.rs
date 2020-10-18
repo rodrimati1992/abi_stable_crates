@@ -16,7 +16,7 @@ pub mod examples;
 
 pub mod nonexhaustive;
 pub(crate) mod vtable;
-pub mod traits;
+pub(crate) mod traits;
 pub(crate) mod alt_c_functions;
 
 

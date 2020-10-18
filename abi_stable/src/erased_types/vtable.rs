@@ -61,7 +61,8 @@ pub trait GetVtable<'borr,This,ErasedPtr,OrigPtr,I:InterfaceBound> {
 }
 
 
-/// This type allows passing the vtable for DynTrait to `from_const` with `VTableDT::GET`.
+/// A helper type for constructing a `DynTrait` at compile-time,
+/// by passing `VTableDT::GET` to `DynTrait::from_const`.
 #[repr(transparent)]
 pub struct VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>{
     pub(super) vtable:VTable_Ref<'borr,ErasedPtr,I>,
@@ -88,6 +89,7 @@ where
     I: InterfaceBound,
     InterfaceFor<T,I,Unerasability>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,
 {    
+    /// Constructs a `VTableDT`.
     pub const GET:Self=Self{
         vtable:<
             InterfaceFor<T,I,Unerasability> as 

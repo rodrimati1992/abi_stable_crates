@@ -26,26 +26,31 @@ mod enabled_traits_macro;
 
 pub(crate)mod c_functions;
 
-/// `impl InterfaceType`s used in examples.
+/// Types that implement `InterfaceType`, used in examples.
 pub mod interfaces;
 
 pub mod trait_objects;
 
-pub mod type_info;
+pub(crate) mod type_info;
 
 pub(crate) mod iterator;
 
-pub mod dyn_trait;
+pub(crate) mod dyn_trait;
 
 #[macro_use]
 pub(crate) mod vtable;
 
-pub mod traits;
+pub(crate) mod traits;
 
 
 pub use self::{
-    dyn_trait::{DynTrait, DynTraitBound},
-    vtable::{ GetVtable,InterfaceBound,VTableDT,enabled_traits },
+    dyn_trait::{
+        DynTrait,
+        DynTraitBound,
+        GetVWInterface,
+        UneraseError,
+    },
+    vtable::{ GetVtable,InterfaceBound,VTableDT },
     traits::{
         ImplType, InterfaceType, 
         DeserializeDyn, 
@@ -66,6 +71,7 @@ pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
 /// For Debug,"{:?}" is Default_ "{:#?}" is Alternate
 ///
 /// etc.
+#[doc(hidden)]
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, StableAbi)]
 pub enum FormattingMode {

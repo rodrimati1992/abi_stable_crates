@@ -25,7 +25,7 @@ to be combined can fail if the representative version of the trait objects
 are incompatible with those of the library,
 even if both the library and the binary are otherwise compatible.
 
-The graphs bellow uses the `LIBRARY( ExtraChecks trait object )` format,
+The graphs below uses the `LIBRARY( ExtraChecks trait object )` format,
 where the trait object is compatible only if the one in the binary 
 is a prefix of the string in the library,
 and all the libraries have a prefix of the same string.
@@ -477,7 +477,7 @@ fn main(){
 
     
     ////////////
-    // None of the lines bellow are compatible because their 
+    // None of the lines below are compatible because their 
     // `GetConstant::NUMBER` associated constant isn't the same value.
     check_layout_compatibility(const0,const1).unwrap_err();
     check_layout_compatibility(const0,const2).unwrap_err();

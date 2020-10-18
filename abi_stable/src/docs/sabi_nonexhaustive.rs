@@ -2,8 +2,7 @@
 
 Using the `#[sabi(kind(WithNonExhaustive(...)))]` helper attribute for 
 [`#[derive(StableAbi)]`](../stable_abi_derive/index.html) allows you to store the enum
-in 
-[`NonExhaustive<>`](../../nonexhaustive_enum/nonexhaustive/struct.NonExhaustive.html),
+in `NonExhaustive`,
 using it as a non-exhaustive enum across ffi.
 
 The enum can then be wrapped in a 
@@ -36,7 +35,7 @@ This is only created if the `traits(...)` parameter is specified.
 `Enum_Interface`(generated):
 Describes the traits required when constructing a `NonExhaustive<Enum,_,_>`
 and usable with it afterwards
-(this is a type that implements InterfaceType).
+(this is a type that implements [`InterfaceType`]).
 
 # Parameters
 
@@ -89,9 +88,9 @@ All the traits are optional.
 
 These are the valid traits:
 
-- Send
+- Send: Required by default, must be unrequired with `Send = false`
 
-- Sync
+- Sync: Required by default, must be unrequired with `Sync = false`
 
 - Clone
 
@@ -99,9 +98,9 @@ These are the valid traits:
 
 - Display
 
-- Serialize: serde::Serialize.Look bellow for clarifications on how to use serde.
+- Serialize: serde::Serialize.Look below for clarifications on how to use serde.
 
-- Deserialize: serde::Deserialize.Look bellow for clarifications on how to use serde.
+- Deserialize: serde::Deserialize.Look below for clarifications on how to use serde.
 
 - Eq
 
@@ -117,10 +116,10 @@ These are the valid traits:
 
 ### Interface (optional parameter)
 
-This is like `traits(..)` in that it allows specifying which traits are 
+This allows using a pre-existing to specify which traits are 
 required when constructing `NonExhaustive<>` from this enum and are then usable with it.
-The difference is that this allows one to specify a pre-existing InterfaceType,
-instead of generating a new one (that is `Enum_Interface`).
+
+The type describes which traits are required using the [`InterfaceType`] trait.
 
 Syntax:`interface="type"`
 
@@ -161,8 +160,8 @@ Example:`assert_nonexhaustive("Foo<u8>","Foo<RVec<()>>")`<br>
 # `serde` support
 
 `NonExhaustive<Enum,Storage,Interface>` only implements serde::{Serialize,Deserialize} 
-if Interface allows them in its InterfaceType implementation,
-and also implements the SerializeEnum and DeserializeEnum traits.
+if Interface allows them in its [`InterfaceType`] implementation,
+and also implements the [`SerializeEnum`] and [`DeserializeEnum`] traits.
 
 ### Defining a (de)serializable nonexhaustive enum.
 
@@ -307,7 +306,7 @@ pub struct Module{
     /// `#[sabi(last_prefix_field)]`means that it is the last field in the struct
     /// that was defined in the first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    /// requiring new fields to always be added bellow preexisting ones.
+    /// requiring new fields to always be added below preexisting ones.
     #[sabi(last_prefix_field)]
     pub deserialize_tag:extern "C" fn(s:RStr<'_>)->RResult<ValidTag_NE,RBoxError>,
 }
@@ -779,5 +778,11 @@ let groupid_1=GroupId(0);
 }
 
 ```
+
+
+
+[`InterfaceType`]: ../../trait.InterfaceType.html
+[`SerializeEnum`]: ../../nonexhaustive_enum/trait.SerializeEnum.html
+[`DeserializeEnum`]: ../../nonexhaustive_enum/trait.DeserializeEnum.html
 
 */

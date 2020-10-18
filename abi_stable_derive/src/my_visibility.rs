@@ -84,7 +84,7 @@ impl<'a> VisibilityKind<'a> {
     ///
     /// nesting==0 means the module deriving this trait
     ///
-    /// nesting==1 means the module bellow that.
+    /// nesting==1 means the module below that.
     pub(crate) fn submodule_level(self, nesting: u8) -> RelativeVis<'a> {
         RelativeVis {
             visibility_kind: self,
