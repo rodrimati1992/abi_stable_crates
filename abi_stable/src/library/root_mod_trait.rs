@@ -25,7 +25,7 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static  {
     /// The name of the library used in error messages.
     const NAME: &'static str;
 
-    /// The version number of the library of `Self:RootModule`.
+    /// The version number of the library that this is a root module of.
     /// 
     /// Initialize this with ` package_version_strings!() `
     const VERSION_STRINGS: VersionStrings;
@@ -45,7 +45,7 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static  {
         _priv:NonOwningPhantom::NEW,
     };
 
-    /// Like Self::CONSTANTS,
+    /// Like `Self::CONSTANTS`,
     /// except without including the type layout constant for the root module.
     const CONSTANTS_NO_ABI_INFO:RootModuleConsts<Self>={
         let mut consts=Self::CONSTANTS;
@@ -95,7 +95,7 @@ Loads the root module,with a closure which either
 returns the root module or an error.
 
 If the root module was already loaded,
-this will return a reference to the already loaded root module,
+this will return the already loaded root module,
 without calling the closure.
 
 */
@@ -111,7 +111,7 @@ Loads this module from the path specified by `where_`,
 first loading the dynamic library if it wasn't already loaded.
 
 Once the root module is loaded,
-this will return a reference to the already loaded root module.
+this will return the already loaded root module.
 
 # Warning
 
@@ -126,23 +126,23 @@ calling the root module loader.
 
 This will return these errors:
 
-- LibraryError::OpenError:
+- `LibraryError::OpenError`:
 If the dynamic library itself could not be loaded.
 
-- LibraryError::GetSymbolError:
+- `LibraryError::GetSymbolError`:
 If the root module was not exported.
 
-- LibraryError::InvalidAbiHeader:
+- `LibraryError::InvalidAbiHeader`:
 If the abi_stable version used by the library is not compatible.
 
-- LibraryError::ParseVersionError:
+- `LibraryError::ParseVersionError`:
 If the version strings in the library can't be parsed as version numbers,
 this can only happen if the version strings are manually constructed.
 
-- LibraryError::IncompatibleVersionNumber:
+- `LibraryError::IncompatibleVersionNumber`:
 If the version number of the library is incompatible.
 
-- LibraryError::AbiInstability:
+- `LibraryError::AbiInstability`:
 If the layout of the root module is not the expected one.
 
 - `LibraryError::RootModule` :
@@ -172,7 +172,7 @@ Loads this module from the directory specified by `where_`,
 first loading the dynamic library if it wasn't already loaded.
 
 Once the root module is loaded,
-this will return a reference to the already loaded root module.
+this will return the already loaded root module.
 
 Warnings and Errors are detailed in [`load_from`](#method.load_from),
 
@@ -187,7 +187,7 @@ Loads this module from the file at `path_`,
 first loading the dynamic library if it wasn't already loaded.
 
 Once the root module is loaded,
-this will return a reference to the already loaded root module.
+this will return the already loaded root module.
 
 Warnings and Errors are detailed in [`load_from`](#method.load_from),
 
@@ -227,10 +227,10 @@ Gets the LibHeader of a library.
 
 This will return these errors:
 
-- LibraryError::GetSymbolError:
+- `LibraryError::GetSymbolError`:
 If the root module was not exported.
 
-- LibraryError::InvalidAbiHeader:
+- `LibraryError::InvalidAbiHeader`:
 If the abi_stable used by the library is not compatible.
 
 # Safety
@@ -256,7 +256,7 @@ Gets the AbiHeader of a library.
 
 This will return these errors:
 
-- LibraryError::GetSymbolError:
+- `LibraryError::GetSymbolError`:
 If the root module was not exported.
 
 # Safety
@@ -293,13 +293,13 @@ if you need to do this without leaking you'll need to use
 
 This will return these errors:
 
-- LibraryError::OpenError:
+- `LibraryError::OpenError`:
 If the dynamic library itself could not be loaded.
 
-- LibraryError::GetSymbolError:
+- `LibraryError::GetSymbolError`:
 If the root module was not exported.
 
-- LibraryError::InvalidAbiHeader:
+- `LibraryError::InvalidAbiHeader`:
 If the abi_stable version used by the library is not compatible.
 
 */
@@ -326,10 +326,10 @@ if you need to do this without leaking you'll need to use
 
 This will return these errors:
 
-- LibraryError::OpenError:
+- `LibraryError::OpenError`:
 If the dynamic library itself could not be loaded.
 
-- LibraryError::GetSymbolError:
+- `LibraryError::GetSymbolError`:
 If the root module was not exported.
 
 */
@@ -357,8 +357,13 @@ macro_rules! declare_root_module_consts {
             ),* $(,)*
         ]
     ) => (
-        /// Encapsulates all the important constants of `RootModule` for `M`,
+        /// All the constants of the [`RootModule`] trait for `M`,
         /// used mostly to construct a `LibHeader` with `LibHeader::from_constructor`.
+        /// 
+        /// This is constructed with [`RootModule::CONSTANTS`].
+        /// 
+        /// [`RootModule`]: ./trait.RootModule.html
+        /// [`RootModule::CONSTANTS`]: ./trait.RootModule.html#associatedconstant.CONSTANTS
         #[repr(C)]
         #[derive(StableAbi,Copy,Clone)]
         pub struct RootModuleConsts<M>{
@@ -367,7 +372,9 @@ macro_rules! declare_root_module_consts {
         }
 
 
-        /// Encapsulates all the important constants of `RootModule` for some erased type.
+        /// All the constants of the [`RootModule`] trait for some erased type.
+        ///
+        /// [`RootModule`]: ./trait.RootModule.html
         #[repr(C)]
         #[derive(StableAbi,Copy,Clone)]
         pub struct ErasedRootModuleConsts{

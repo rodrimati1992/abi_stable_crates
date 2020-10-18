@@ -42,8 +42,10 @@ mod root_mod_trait;
 mod raw_library;
 
 
+#[doc(no_inline)]
+pub use self::c_abi_testing::{CAbiTestingFns,C_ABI_TESTING_FNS};
+
 pub use self::{
-    c_abi_testing::{CAbiTestingFns,C_ABI_TESTING_FNS},
     errors::{IntoRootModuleResult, LibraryError, RootModuleError},
     lib_header::{AbiHeader,LibHeader},
     root_mod_trait::{
@@ -65,10 +67,10 @@ pub use self::{
 /// What naming convention to expect when loading a library from a directory.
 #[derive(Debug,Copy,Clone,PartialEq,Eq,Ord,PartialOrd,Hash)]
 pub enum LibrarySuffix{
-    /// Loads a dynamic library at `<folder>/<base_name>.extension`
+    /// Loads a dynamic library at `<folder>/<name>.extension`
     NoSuffix,
     
-    /// Loads a dynamic library at `<folder>/<base_name>-<pointer_size>.<extension>`
+    /// Loads a dynamic library at `<folder>/<name>-<pointer_size>.<extension>`
     Suffix,
 }
 
@@ -78,7 +80,9 @@ pub enum LibrarySuffix{
 /// The path a library is loaded from.
 #[derive(Debug,Copy,Clone,PartialEq,Eq,Ord,PartialOrd,Hash)]
 pub enum LibraryPath<'a>{
+    /// The full path to the dynamic library.
     FullPath(&'a Path),
+    /// The path to the directory that contains the dynamic library.
     Directory(&'a Path),
 }
 
@@ -106,9 +110,8 @@ impl IsLayoutChecked{
 
 //////////////////////////////////////////////////////////////////////
 
-/// A type alias for the return type of the function that wraps the
-/// `#[export_root_module]` annotated function.
-#[doc(hidden)]
+/// The return type of the function that the
+/// `#[export_root_module]` attribute outputs.
 pub type RootModuleResult = RResult<PrefixRef<ErasedPrefix>, RootModuleError>;
 
 //////////////////////////////////////////////////////////////////////

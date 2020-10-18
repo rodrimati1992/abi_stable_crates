@@ -2,6 +2,7 @@ use super::*;
 
 /////////////////////////////////////
 
+/// Functions used to test that the C abi is the same in both the library and the loader.
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct CAbiTestingFns{
