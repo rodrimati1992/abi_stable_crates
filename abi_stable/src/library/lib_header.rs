@@ -7,6 +7,10 @@ use crate::{
 
 /// Used to check the layout of modules returned by module-loading functions
 /// exported by dynamic libraries.
+/// 
+/// Module-loading functions are declared with the [`export_root_module`] attribute.
+///
+/// [`export_root_module`]: ../attr.export_root_module.html
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct LibHeader {
@@ -19,11 +23,11 @@ pub struct LibHeader {
 
 impl LibHeader {
     /// Constructs a LibHeader from the root module loader.
+    /// 
     pub const unsafe fn from_constructor<M>(
         constructor:Constructor<RootModuleResult>,
         root_mod_consts:RootModuleConsts<M>,
-    )->Self
-    {
+    ) -> Self {
         Self {
             header:AbiHeader::VALUE,
             root_mod_consts:root_mod_consts.erased(),
@@ -116,18 +120,20 @@ calling the root module loader.
 
 # Errors
 
-This will return these errors:
+This returns these errors:
 
-- LibraryError::ParseVersionError:
+- `LibraryError::ParseVersionError`:
 If the version strings in the library can't be parsed as version numbers,
 this can only happen if the version strings are manually constructed.
 
-- LibraryError::IncompatibleVersionNumber:
+- `LibraryError::IncompatibleVersionNumber`:
 If the version number of the library is incompatible.
 
-- LibraryError::AbiInstability:
+- `LibraryError::AbiInstability`:
 If the layout of the root module is not the expected one.
 
+- `LibraryError::RootModule` :
+If the root module initializer returned an error or panicked.
 
 
     */
@@ -163,13 +169,13 @@ The caller must ensure that `M` has the expected layout.
 
 # Errors
 
-This will return these errors:
+This returns these errors:
 
-- LibraryError::ParseVersionError:
+- `LibraryError::ParseVersionError`:
 If the version strings in the library can't be parsed as version numbers,
 this can only happen if the version strings are manually constructed.
 
-- LibraryError::IncompatibleVersionNumber:
+- `LibraryError::IncompatibleVersionNumber`:
 If the version number of the library is incompatible.
 
 - `LibraryError::RootModule` :
@@ -192,6 +198,17 @@ If the root module initializer returned an error or panicked.
     /// Gets the root module,first 
     /// checking that the layout of the `M` from the dynamic library is 
     /// compatible with the expected layout.
+    ///     
+    /// # Errors
+    /// 
+    /// This returns these errors:
+    /// 
+    /// - `LibraryError::AbiInstability`:
+    /// If the layout of the root module is not the expected one.
+    /// 
+    /// - `LibraryError::RootModule` :
+    /// If the root module initializer returned an error or panicked.
+    /// 
     pub fn check_layout<M>(&self) -> Result<M, LibraryError>
     where
         M: RootModule,
@@ -347,12 +364,12 @@ Gets the LibHeader of a library.
 
 # Errors
 
-This will return these errors:
+This returns these errors:
 
-- LibraryError::InvalidAbiHeader:
+- `LibraryError::InvalidAbiHeader`:
 If the abi_stable used by the library is not compatible.
 
-- LibraryError::InvalidCAbi:
+- `LibraryError::InvalidCAbi`:
 If the C abi used by the library is not compatible.
 
     */

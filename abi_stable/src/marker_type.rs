@@ -13,39 +13,61 @@ use crate::{
 };
 
 
+/////////////////
 
-/// Marker type used to mark a type as being Send+Sync.
+/// Marker type used to mark a type as being `Send + Sync`.
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct SyncSend;
 
-/// Marker type used to mark a type as being !Send+!Sync.
+/////////////////
+
+/// Marker type used to mark a type as being `!Send + !Sync`.
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct UnsyncUnsend {
     _marker: UnsafeIgnoredType<Rc<()>>,
 }
 
-/// Marker type used to mark a type as being Send+!Sync.
+impl UnsyncUnsend {
+    /// Constructs a `UnsyncUnsend`
+    pub const NEW: Self = Self { _marker: UnsafeIgnoredType::NEW };
+}
+
+/////////////////
+
+/// Marker type used to mark a type as being `Send + !Sync`.
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct UnsyncSend {
     _marker: UnsafeIgnoredType<Cell<()>>,
 }
 
+impl UnsyncSend {
+    /// Constructs a `UnsyncSend`
+    pub const NEW: Self = Self { _marker: UnsafeIgnoredType::NEW };
+}
 
-/// Marker type used to mark a type as being !Send+Sync.
+/////////////////
+
+/// Marker type used to mark a type as being `!Send + Sync`.
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct SyncUnsend {
     _marker: UnsyncUnsend,
 }
 
+impl SyncUnsend {
+    /// Constructs a `SyncUnsend`
+    pub const NEW: Self = Self { _marker: UnsyncUnsend::NEW };
+}
+
 unsafe impl Sync for SyncUnsend{}
 
+/////////////////
 
 /// Zero-sized marker type used to signal that even though a type 
-/// could implement Copy and Clone,
+/// could implement `Copy` and `Clone`,
 /// it is semantically an error to do so.
 #[repr(C)]
 #[derive(StableAbi)]
@@ -86,14 +108,17 @@ unsafe impl PrefixStableAbi for ErasedPrefix {
 
 
 /**
-MarkerType which ignores its type parameter in its StableAbi implementation.
+MarkerType which ignores its type parameter in its [`StableAbi`] implementation.
 
 # Safety
 
 `Unsafe` is part of its name,
-because users could inadvertently violate memory safety
+because users can violate memory safety
 if they depend on the value of the type parameter passed to `UnsafeIgnoredType` for safety,
-since the other side could choose any other type parameter.
+since the type parameter is ignored when type checking dynamic libraries.
+
+
+[`StableAbi`]: ../trait.StableAbi.html
 
 */
 #[repr(C)]
@@ -103,11 +128,13 @@ pub struct UnsafeIgnoredType<T:?Sized> {
 }
 
 impl<T:?Sized> UnsafeIgnoredType<T>{
+    /// Constructs an `UnsafeIgnoredType`.
     pub const DEFAULT:Self=Self{
         _priv:[],
         _inner:PhantomData,
     };
 
+    /// Constructs an `UnsafeIgnoredType`.
     pub const NEW:Self=Self{
         _priv:[],
         _inner:PhantomData,
