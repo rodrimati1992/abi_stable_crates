@@ -1,10 +1,9 @@
 
 /**
-Use this when constructing a `abi_stable::type_layout::MonoTypeLayout`
-when manually implementing StableAbi.
+Use this when constructing a [`MonoTypeLayout`] when manually implementing StableAbi.
 
 This stores indices and ranges for the type and/or const parameter taken 
-from the SharedVars of the TypeLayout where this is stored.
+from the [`SharedVars`] stored in the same [`TypeLayout`] where this is stored.
 
 # Syntax
 
@@ -12,23 +11,19 @@ from the SharedVars of the TypeLayout where this is stored.
 
 `<convertible_to_startlen>` is one of:
 
--``: No generic parameters of that kind.
+-` `: No generic parameters of that kind.
 
 -`i`: 
-    Takes the ith generic parameter
-    from the SharedVars slice of type or the one of const parameters.
+    Takes the ith type or const parameter(indexed separately).
 
 -`i..j`: 
-    Takes from i to j exclusive generic parameter
-    from the SharedVars slice of type or the one of const parameters.
+    Takes from i to j (exclusive) type or const parameter(indexed separately).
 
 -`i..=j`: 
-    Takes from i to j inclusive generic parameter
-    from the SharedVars slice of type or the one of const parameters.
+    Takes from i to j (inclusive) type or const parameter(indexed separately).
 
 -`x:StartLen`: 
-    Takes from x.start() to x.end() exclusive generic parameter
-    from the SharedVars slice of type or the one of const parameters.
+    Takes from x.start() to x.end() (exclusive) type or const parameter(indexed separately).
 
 
 
@@ -94,7 +89,9 @@ const PARAMS:CompGenericParams=tl_genparams!(;StartLen::new(0,2););
 
 ```
 
-
+[`MonoTypeLayout`]: ./type_layout/struct.MonoTypeLayout.html
+[`TypeLayout`]: ./type_layout/struct.TypeLayout.html
+[`SharedVars`]: ./type_layout/struct.SharedVars.html
 
 */
 #[macro_export]
@@ -130,7 +127,7 @@ macro_rules! tl_genparams {
 ///////////////////////////////////////////////////////////////////////
 
 /**
-Equivalent to `?` for `RResult<_,_>`.
+Equivalent to `?` for [`RResult`].
 
 # Example
 
@@ -159,6 +156,8 @@ fn parse_tuple(s:RStr<'_>)->RResult<Tuple3<u32,u32,u32>,RBoxError>{
 
 ```
 
+[`RResult`]: ./std_types/enum.RResult.html
+
 */
 #[macro_export]
 macro_rules! rtry {
@@ -171,7 +170,9 @@ macro_rules! rtry {
     }};
 }
 
-/// Equivalent to `?` for `ROption<_>`.
+/// Equivalent to `?` for [`ROption`].
+/// 
+/// [`ROption`]: ./std_types/enum.ROption.html
 #[macro_export]
 macro_rules! rtry_opt {
     ($expr:expr) => {{
@@ -306,9 +307,10 @@ macro_rules! extern_fn_panic_handling {
 
 /**
 
-Constructs the abi_stable::erased_types::TypeInfo for some type.
+Constructs the [`TypeInfo`] for some type.
 
-It's necessary for the type to be `'static` because this uses UTypeId.
+It's necessary for the type to be `'static` because 
+[`TypeInfo`] stores a private function that returns the  [`UTypeId`] of that type.
 
 # Example
 
@@ -335,7 +337,11 @@ where T:'static+Send+Sync
     const INFO:&'static TypeInfo=impl_get_type_info! { Foo<T> };
 }
 
+
 ```
+
+[`TypeInfo`]: ./erased_types/struct.TypeInfo.html
+[`UTypeId`]: ./std_types/struct.UTypeId.html
 
 */
 #[macro_export]
@@ -369,7 +375,7 @@ macro_rules! impl_get_type_info {
 
 
 /**
-Constructs a abi_stable::abi_stability::Tag,
+Constructs a [`Tag`],
 a dynamically typed value for users to check extra properties about their types 
 when doing runtime type checking.
 
@@ -412,6 +418,8 @@ struct Value<T>{
 
 
 ```
+
+[`Tag`]: ./type_layout/tagging/struct.Tag.html
 
 */
 #[macro_export]
@@ -472,8 +480,9 @@ macro_rules! assert_matches {
 
 
 /**
-Constructs a abi_stable::type_layout::ItemInfo,
-with information about the place where it's called.
+Constructs an [`ItemInfo`], with information about the place where it's called.
+
+[`ItemInfo`]: ./type_layout/struct.ItemInfo.html
 */
 #[macro_export]
 macro_rules! make_item_info {
@@ -496,7 +505,7 @@ macro_rules! make_item_info {
 
 
 /**
-Constructs an `RVec<_>` using the same syntax that the `std::vec` macro uses.
+Constructs an [`RVec`] using the same syntax that the `std::vec` macro uses.
 
 # Example
 
@@ -514,6 +523,9 @@ assert_eq!(RVec::from(vec![0,3,6]), rvec![0,3,6]);
 assert_eq!(RVec::from(vec![1;10]), rvec![1;10]);
 
 ```
+
+[`RVec`]: ./std_types/struct.RVec.html
+
 */
 #[macro_export]
 macro_rules! rvec {
@@ -527,7 +539,8 @@ macro_rules! rvec {
 
 
 /**
-Use this macro to construct a `Tuple*` with the values passed to the macro.
+Use this macro to construct a `abi_stable::std_types::Tuple*`
+with the values passed to the macro.
 
 # Example 
 
@@ -617,7 +630,7 @@ macro_rules! RTuple {
 ///////////////////////////////////////////////////////////////////////////////
 
 /**
-A macro to construct `RSlice<'_,T>` constants.
+A macro to construct [`RSlice`] constants.
 
 # Examples
 
@@ -659,6 +672,8 @@ assert_eq!( RSLICE_6.len(), 6 );
 
 ```
 
+[`RSlice`]: ./std_types/struct.RSlice.html
+
 */
 #[macro_export]
 macro_rules! rslice {
@@ -672,7 +687,7 @@ macro_rules! rslice {
 
 
 /**
-A macro to construct `RStr<'static>` constants.
+A macro to construct [`RStr`] constants.
 
 # Examples
 
@@ -711,8 +726,9 @@ assert_eq!( RSTR_5.len(), 5 );
 assert_eq!( RSTR_6.as_str(), "1235813" );
 assert_eq!( RSTR_6.len(), 7 );
 
-
 ```
+
+[`RStr`]: ./std_types/struct.RStr.html
 
 */
 #[macro_export]
@@ -726,7 +742,9 @@ macro_rules! rstr{
 
 
 /**
-Constructs a NulStr from a string literal.
+Constructs a [`NulStr`] from a string literal.
+
+[`NulStr`]: ./sabi_types/struct.NulStr.html
 
 # Example
 

@@ -177,7 +177,6 @@ pub use abi_stable_derive::{
     sabi_extern_fn,
 };
 
-/// Hello World!
 #[doc(inline)]
 pub use abi_stable_derive::export_root_module;
 
