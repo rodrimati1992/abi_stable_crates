@@ -275,8 +275,10 @@ impl fmt::Display for VersionStrings {
 ////////////////////////////////////////////////////////////////////////////////
 
 
-/// Instantiates a `abi_stable::version::VersionStrings` with the 
+/// Instantiates a [`VersionStrings`] with the 
 /// major.minor.patch version of the library where it is invoked.
+///
+/// [`VersionStrings`]: ./sabi_types/version/struct.VersionStrings.html
 #[macro_export]
 macro_rules! package_version_strings {
     () => {{

@@ -148,8 +148,7 @@ pub const fn log2_usize(n:usize)->u8{
 
 //////////////////////////////////////
 
-/// Allows converting between `Copy` generic types that are the same concrete type 
-/// (using AssertEq to prove that they are).
+/// Allows converting between `Copy` generic types that are the same concrete type.
 ///
 /// # Safety
 ///
