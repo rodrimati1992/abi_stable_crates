@@ -87,7 +87,7 @@ impl<T> BoolArray<T>{
         self.bits
     }
 
-    /// An iterator over the first `count` eleemtns of the array.
+    /// An iterator over the first `count` elements of the array.
     pub const fn iter_count(self,count:usize)->BoolArrayIter<T>{
         BoolArrayIter{
             count:min_usize(64,count),

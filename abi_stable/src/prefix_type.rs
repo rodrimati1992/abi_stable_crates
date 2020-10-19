@@ -28,7 +28,8 @@ mod tests;
 
 pub use self::{
     accessible_fields::{
-        BoolArray, FieldAccessibility, FieldConditionality, IsAccessible, IsConditional,
+        BoolArray, BoolArrayIter,
+        FieldAccessibility, FieldConditionality, IsAccessible, IsConditional,
     },
     layout::PTStructLayout,
     prefix_ref::PrefixRef,
@@ -87,8 +88,11 @@ pub unsafe trait PrefixTypeTrait: Sized {
 ////////////////////////////////////////////////////////////////////////////////
 
 
-/// Marker trait for pointers to prefix field structs
-/// (generally prefix field structs are named with a `_Prefix` suffix).
+/// Marker trait for pointers to prefix field structs.
+///
+/// Generally prefix field structs are named with a `_Prefix` suffix,
+/// and have all the fields of some other struct up to the
+/// one with a `#[sabi(last_prefix_field)]` attribute.
 /// 
 /// # Safety
 /// 
@@ -106,7 +110,9 @@ pub unsafe trait PrefixRefTrait: Sized + ImmutableRef {
     // (except that the compiler doesn't unify both types)
     type PrefixFields: GetWithMetadata<ForSelf = Self::Target>;
 
-    /// A type used to prove the `This: PrefixRefTrait<PrefixFields = PrefixFields>` bound.
+    /// A type used to prove that the `This` type parameter in
+    /// `PointsToPrefixFields<This, PF>` implements
+    /// `PrefixRefTrait<PrefixFields = PF>`.
     const PREFIX_FIELDS: PointsToPrefixFields<Self, Self::PrefixFields> =
         PointsToPrefixFields::new();
 
@@ -228,7 +234,7 @@ impl<T, P> WithMetadata_<T, P> {
         }
     }
 
-    /// Constructs a `PrefixRef` from `self`.
+    /// Constructs a `PrefixRef` from `this`.
     /// 
     /// # Safety 
     /// 
@@ -325,7 +331,7 @@ impl<T, P> StaticRef<WithMetadata_<T, P>>{
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/// The prefix-type metadata for `T` (with a FieldAccessibility and a PTStructLayout).
+/// The prefix-type metadata for `T`.
 ///
 /// [`PrefixTypeTrait::METADATA`]: trait.PrefixTypeTrait.html#associatedconstant.METADATA
 #[repr(C)]
@@ -427,7 +433,7 @@ where
 /// Used to panic with an error message informing the user that a field
 /// is expected to be on `expected` when it's not.
 #[inline(never)]
-pub fn panic_on_missing_field_val(
+fn panic_on_missing_field_val(
     field_index: usize,
     field_name: &'static str,
     expected: &'static PTStructLayout,

@@ -711,19 +711,14 @@ pub(crate) fn tokenize_enum_info<'a>(
 
         if !this.assert_nonexh.is_empty() {
             let tests_function=parse_str_as_ident(&format!("{}_storage_assertions",name));
-            let assertionsa=this.assert_nonexh.iter().cloned();
-            let assertionsb=this.assert_nonexh.iter().cloned();
+            let assertions=this.assert_nonexh.iter().cloned();
             quote!(
                 #[test]
                 fn #tests_function(){
                     use self::__sabi_re::assert_nonexhaustive;
 
-                    let storage_str=stringify!(#enum_storage);
                     #(
-                        assert_nonexhaustive::<#assertionsa>(
-                            stringify!(#assertionsb),
-                            storage_str
-                        );
+                        assert_nonexhaustive::<#assertions>();
                     )*
                 }
             ).to_tokens(ts);
