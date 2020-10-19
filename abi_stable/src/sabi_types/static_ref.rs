@@ -24,9 +24,6 @@ even though they have `non-'static` type parameters.
 
 This defines a non-extensible vtable,using a StaticRef as the pointer to the vtable.
 
-This example is not intended to be practical,
-it's only to demonstrate a use for StaticRef.
-
 ```
 use abi_stable::{
     marker_type::ErasedObject,
@@ -154,7 +151,7 @@ impl<T> StaticRef<T>{
     ///
     /// # Safety
     ///
-    /// You must ensure that the raw pointer is valid for the lifetime of `T`.
+    /// You must ensure that the raw pointer is valid for the entire program's lifetime.
     ///
     /// # Example
     ///
@@ -263,7 +260,7 @@ impl<T> StaticRef<T>{
     ///     GetPtr::<Infallible>::STATIC.get_raw();
     ///
     /// ```
-    pub const fn get_raw<'a>(self)->*const T{
+    pub const fn get_raw(self)->*const T{
         self.ref_.as_ptr() as *const T
     }
 

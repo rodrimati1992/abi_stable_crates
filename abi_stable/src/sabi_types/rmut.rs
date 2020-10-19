@@ -48,7 +48,8 @@ impl<'a,T> RMut<'a,T>{
     ///
     /// # Safety
     ///
-    /// You must ensure that the raw pointer is valid for the `'a` lifetime.
+    /// You must ensure that the raw pointer is valid for the `'a` lifetime,
+    /// and that this is the only active pointer to that value.
     ///
     #[inline]
     pub unsafe fn from_raw(ref_:*mut T)->Self

@@ -92,7 +92,7 @@ impl<'a,T> RRef<'a,T>{
         }
     }
 
-    /// Constructs this RRef from a static reference
+    /// Constructs this RRef from a reference.
     ///
     /// # Example
     ///
@@ -176,7 +176,7 @@ impl<'a,T> RRef<'a,T>{
         self.ref_.as_ptr() as *const T
     }
 
-    /// Accesses the referenced value as a different type
+    /// Accesses the referenced value as a casted raw pointer.
     #[inline]
     pub unsafe fn cast_into_raw<U>(self)->*const U{
         self.ref_.as_ptr() as *const T as *const U

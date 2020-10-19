@@ -4,11 +4,11 @@ ffi-safe types that aren't wrappers for other types.
 
 
 mod constructor;
-pub mod ignored_wrapper;
+mod ignored_wrapper;
 mod late_static_ref;
 mod nul_str;
 mod maybe_cmp;
-pub mod move_ptr;
+mod move_ptr;
 mod static_ref;
 mod rref;
 mod rmut;

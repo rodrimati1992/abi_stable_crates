@@ -20,8 +20,7 @@ use crate::{
 A move pointer,which allows moving the value from the reference,
 consuming it in the process.
 
-if MovePtr::into_inner isn't called,
-this drops the referenced value when its dropped
+If `MovePtr::into_inner` isn't called, this drops the referenced value when its dropped
 
 # Safety
 
@@ -109,7 +108,7 @@ pub struct MovePtr<'a,T>{
 
 
 impl<'a,T> MovePtr<'a,T>{
-    /// Constructs this more pointer from a mutable reference,
+    /// Constructs this move pointer from a mutable reference,
     /// moving the value out of the reference.
     ///
     /// # Safety 
@@ -188,7 +187,8 @@ impl<'a,T> MovePtr<'a,T>{
     }
 
     /// Converts this MovePtr into a raw pointer,
-    /// which must be moved from before the pointed to value is deallocated.
+    /// which must be moved from before the pointed to value is deallocated,
+    /// otherwise the value will be leaked.
     ///
     /// # Example
     ///
@@ -345,7 +345,9 @@ impl<'a,T> Drop for MovePtr<'a,T>{
     }
 }
 
+impl<'a, T: Send> Send for MovePtr<'a,T> {}
 
+impl<'a, T: Sync> Sync for MovePtr<'a,T> {}
 
 //#[cfg(test)]
 #[cfg(all(test,not(feature="only_new_tests")))]
