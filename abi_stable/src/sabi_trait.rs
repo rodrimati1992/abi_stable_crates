@@ -76,10 +76,7 @@ pub mod examples;
 
 pub mod doc_examples;
 
-/**
-Contains `RObject` and related items.
-*/
-pub mod robject;
+mod robject;
 
 #[doc(hidden)]
 pub mod vtable;
@@ -97,7 +94,10 @@ use std::{
 
 use self::reexports::{*, __sabi_re::*};
 
-pub use self::vtable::{VTableTO_DT,VTableTO_RO,VTableTO};
+pub use self::{
+    vtable::{VTableTO_DT,VTableTO_RO,VTableTO},
+    robject::{RObject, UneraseError, ReborrowBounds},
+};
 
 use crate::{
     erased_types::{c_functions,InterfaceType},

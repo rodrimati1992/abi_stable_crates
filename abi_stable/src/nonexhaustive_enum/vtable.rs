@@ -27,6 +27,7 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
     #[doc(hidden)]
     const VTABLE_VAL:NonExhaustiveVtable<Self,S,I>;
 
+    #[doc(hidden)]
     const VTABLE_REF:NonExhaustiveVtable_Ref<Self,S,I> = unsafe{
         NonExhaustiveVtable_Ref(
             WithMetadata::new(

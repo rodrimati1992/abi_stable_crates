@@ -38,20 +38,8 @@ generated trait objects.
 
 # Construction
 
-To construct an `RObject<_>` directly (not as part of a trait object) 
-you can call one of these methods:
-
-- from_ptr
-    Can be constructed from a pointer of a value.Cannot unerase the RObject afterwards.
-
-- from_ptr_unerasable:
-    Can be constructed from a pointer of a value.Requires a `'static` value.
-
-- from_value:
-    Can be constructed from the value directly.Cannot unerase the RObject afterwards.
-
-- from_value_unerasable
-    Can be constructed from the value directly.Requires a `'static` value.
+`RObject<_>` is how `#[sabi_trait]`-based ffi-safe trait objects are implemented,
+and there's no way to construct it separate from those.
 
 # Trait object
 
@@ -61,28 +49,31 @@ the traits listed below.
 
 These are the traits:
 
-- Send
+- `Send`
 
-- Sync
+- `Sync`
 
-- Debug
+- `Debug`
 
-- Clone
+- `Display`
+
+- `Error`
+
+- `Clone`
 
 # Deconstruction
 
-`RObject<_>` can then be unwrapped into a concrete type,
+`RObject<_>` can be unwrapped into a concrete type,
 within the same dynamic library/executable that constructed it,
 using these (fallible) conversion methods:
 
-- into_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
+- `into_unerased`: Unwraps into a pointer to `T`.Requires `T: 'static`.
 
-- as_unerased:Unwraps into a `&T`.Requires `T:'static`.
+- `as_unerased`: Unwraps into a `&T`.Requires `T: 'static`.
 
-- as_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
+- `as_unerased_mut`: Unwraps into a `&mut T`.Requires `T: 'static`.
 
-`RObject` can only be converted back if it was created 
-using a `RObject::*_unerased` function.
+`RObject` can only be converted back if the trait object was constructed to allow it.
 
 
 */
@@ -270,14 +261,13 @@ These are the requirements for the caller:
 - `P` must be a pointer to the type that the vtable functions 
     take as the first parameter.
 
-- The vtable must not come from a reborrowed RObject
-    (created using RObject::reborrow or RObject::reborrow_mut).
+- The vtable must not come from a reborrowed `RObject`
+    (created using `RObject::reborrow` or `RObject::reborrow_mut`).
 
-- The vtable must be the `<SomeVTableName>` of a struct declared with 
-    `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_ref="<SomeVTableName>")))]`.
+- The vtable must be the `SomeVTableName` of a struct declared with 
+    `#[derive(StableAbi)] #[sabi(kind(Prefix(prefix_ref="SomeVTableName")))]`.
 
-- The vtable must have `RObjectVtable_Ref<..>` 
-    as its first declared field
+- The vtable must have `RObjectVtable_Ref` as its first declared field
 
 */
     pub unsafe fn with_vtable<OrigPtr>(
@@ -384,7 +374,8 @@ where
     /// - It is called in a dynamic library/binary outside
     /// the one from which this RObject was constructed.
     ///
-    /// - The RObject was constructed using the `from_(value|ptr)` method
+    /// - The trait object wrapping this `RObject` was constructed with a 
+    /// `TU_Unerasable` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
@@ -410,7 +401,8 @@ where
     /// - It is called in a dynamic library/binary outside
     /// the one from which this RObject was constructed.
     ///
-    /// - The RObject was constructed using the `from_(value|ptr)` method
+    /// - The trait object wrapping this `RObject` was constructed with a 
+    /// `TU_Unerasable` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
@@ -435,7 +427,8 @@ where
     /// - It is called in a dynamic library/binary outside
     /// the one from which this RObject was constructed.
     ///
-    /// - The RObject was constructed using the `frfrom_(value|ptr)_*` method
+    /// - The trait object wrapping this `RObject` was constructed with a 
+    /// `TU_Unerasable` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///

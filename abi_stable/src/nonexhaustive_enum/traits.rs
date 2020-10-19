@@ -20,17 +20,15 @@ use crate::{
 
 
 /**
-Gets the type with the type layout of Self when it's stored in `NonExhaustive<>`.
+Gets the type whose type layout is used to represent this enum in `NonExhaustive<>`.
 
 # Safety
 
 `Self::NonExhaustive` must describe the layout of this enum,
-with the size and alignment of `Storage`,
-storing the size and alignment of this enum in the 
-`TypeLayout.data.TLData::Enum.exhaustiveness.IsExhaustive::nonexhaustive` field .
+with the size and alignment of `Storage`.
 */
 pub unsafe trait GetNonExhaustive<Storage>:GetEnumInfo{
-    /// This is the marker type used as the layout of Self in `NonExhaustive<>`
+    /// The type whose type layout is used to represent this enum.
     type NonExhaustive;
 }
 
@@ -41,10 +39,7 @@ Describes the discriminant of an enum,and its valid values.
 
 # Safety
 
-This must be an enum with a `#[repr(C)]` or `#[repr(SomeIntegerType)]` attribute.
-
-The type of the discriminant must match `Self::NonExhaustive`.
-
+This must be an enum with a `#[repr(C)]` or `#[repr(SomeInteFgerType)]` attribute.
 
 */
 pub unsafe trait GetEnumInfo:Sized{
@@ -66,8 +61,6 @@ pub unsafe trait GetEnumInfo:Sized{
     
     /// The values of the discriminants of each variant.
     ///
-    /// This is a function instead of an associated constant because 
-    /// it breaks in Rust 1.34 otherwise .
     fn discriminants()->&'static [Self::Discriminant];
 
     /// Whether `discriminant` is one of the valid discriminants for this enum in this context.
@@ -106,7 +99,7 @@ mod _enum_info{
             }
         }
         
-        /// The name of a type,eg:`Vec` for a `Vec<u8>`.
+        /// The name of a type,eg:`Foo` for a `Foo<u8>`.
         pub fn type_name(&self)->&'static str{
             self.type_name.as_str()
         }
@@ -185,7 +178,9 @@ impl_valid_discriminant!{u8,i8,u16,i16,u32,i32,u64,i64,usize,isize}
 Describes how some enum is serialized.
 
 This is generally implemented by the interface of an enum
-(Enum_Interface,that implement InterfaceType).
+(`Enum_Interface` for `Enum`),which also implements [`InterfaceType`]).
+
+[`InterfaceType`]: ../trait.InterfaceType.html
 */
 pub trait SerializeEnum<NE>{
     /// The intermediate type the `NE` is converted into,to serialize it.
@@ -249,8 +244,9 @@ so that the implementation can be delegated
 to the `implementation crate`.
 
 This is generally implemented by the interface of an enum
-(Enum_Interface,that implement InterfaceType).
+(`Enum_Interface` for `Enum`),which also implements [`InterfaceType`]).
 
+[`InterfaceType`]: ../trait.InterfaceType.html
 */
 pub trait DeserializeEnum<'borr,NE> {
     /// The intermediate type the `NE` is converted from,to deserialize it.

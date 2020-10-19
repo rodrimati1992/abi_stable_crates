@@ -61,7 +61,7 @@ This type allows adding variants to enums it wraps in ABI compatible versions of
 
 ###  `E` 
 
-This is the enums that this was constructed from,
+This is the enum that this was constructed from,
 and can be unwrapped back into if it's one of the valid variants in this context.
 
 ###  `S` 
@@ -352,8 +352,8 @@ not valid in this context.
 
 # Example
 
-This shows NonExhaustive<enum> some of which can and cannot be unwrapped.
-That enum come from a newer version of the library than this has an interface for.
+This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
+That enum comes from a newer version of the library than this knows.
 
 ```
 use abi_stable::nonexhaustive_enum::{
@@ -391,8 +391,8 @@ not valid in this context.
 
 # Example
 
-This shows NonExhaustive<enum> some of which can and cannot be unwrapped.
-That enum come from a newer version of the library than this has an interface for.
+This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
+That enum comes from a newer version of the library than this knows.
 
 ```
 use abi_stable::nonexhaustive_enum::{
@@ -439,8 +439,8 @@ not valid in this context.
 
 # Example
 
-This shows NonExhaustive<enum> some of which can and cannot be unwrapped.
-That enum come from a newer version of the library than this has an interface for.
+This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
+That enum comes from a newer version of the library than this knows.
 
 ```
 use abi_stable::nonexhaustive_enum::{
@@ -470,7 +470,7 @@ assert_eq!(new_c().into_enum().ok()  ,None);
 Returns whether the discriminant of this enum is valid in this context.
 
 The only way for it to be invalid is if the dynamic library is a 
-newer version than the interface this has a dependency.
+newer version than this knows.
 */
     #[inline]
     pub fn is_valid_discriminant(&self)->bool{
@@ -846,8 +846,13 @@ impl<E,S,I> Drop for NonExhaustive<E,S,I>{
 
 /// Used to abstract over the reference-ness of `NonExhaustive<>` inside UnwrapEnumError.
 pub trait NonExhaustiveSharedOps{
+    /// The type of the discriminant of the wrapped enum.
     type Discriminant:ValidDiscriminant;
+
+    /// Gets the discriminant of the wrapped enum.
     fn get_discriminant_(&self)->Self::Discriminant;
+    
+    /// Gets miscelaneous information about the wrapped enum
     fn enum_info_(&self)->&'static EnumInfo;
 }
 
@@ -864,8 +869,7 @@ impl<E> DiscrAndEnumInfo<E>{
     pub fn new(discr:E,enum_info:&'static EnumInfo)->Self{
         Self{discr,enum_info}
     }
-    /// The value of a discriminant that wasn't valid in this context
-    /// (it is of a variant declared in a newer version of a dynamic library),
+    /// The value of the enum discriminant,
     pub fn discr(&self)->E
     where
         E:ValidDiscriminant
@@ -952,7 +956,7 @@ pub struct UnwrapEnumError<N>{
 
 
 impl<N> UnwrapEnumError<N>{
-    /// Extracts the `NonExhaustive<>`,to handle the failure to unwrap it.
+    /// Gets the `non_exhaustive` field.
     #[must_use]
     pub fn into_inner(self)->N{
         self.non_exhaustive
