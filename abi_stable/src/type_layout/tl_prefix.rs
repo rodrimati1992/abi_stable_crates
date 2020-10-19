@@ -15,7 +15,7 @@ pub struct MonoTLPrefixType {
     /// the one to which `#[sabi(last_prefix_field)]` was applied to
     pub first_suffix_field:u8,
     /// Which fields in the prefix 
-    /// (what comes at and before `#[sabi(last_prefix_field)]`)
+    /// (the ones up to the one with the `#[sabi(last_prefix_field)]` attribute)
     /// are conditionally accessible 
     /// (with the `#[sabi(accessible_if=" expression ")]` attribute).
     pub conditional_prefix_fields:FieldConditionality,
@@ -62,7 +62,7 @@ pub struct TLPrefixType {
     /// the one to which `#[sabi(last_prefix_field)]` was applied to
     pub first_suffix_field:u8,
     /// Which fields in the prefix 
-    /// (what comes at and before `#[sabi(last_prefix_field)]`)
+    /// (the ones up to the one with the `#[sabi(last_prefix_field)]` attribute)
     /// are conditionally accessible 
     /// (with the `#[sabi(accessible_if=" expression ")]` attribute).
     pub conditional_prefix_fields:FieldConditionality,

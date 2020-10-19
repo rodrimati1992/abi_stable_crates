@@ -20,7 +20,8 @@ macro_rules! declare_comp_field_accessor {(
         /// Equivalent to the `FieldAccessor::Method` variant.
         pub const METHOD:Self=CompFieldAccessor(1);
         /// Equivalent to the `FieldAccessor::MethodNamed` variant,
-        /// in which the name is stored within SharedVars after the field name.
+        /// in which the name is stored within SharedVars after the 
+        /// name of the field this is an accessor for.
         pub const METHOD_NAMED:Self=CompFieldAccessor(2);
         /// Equivalent to the `FieldAccessor::MethodOption` variant.
         pub const METHOD_OPTION:Self=CompFieldAccessor(3);

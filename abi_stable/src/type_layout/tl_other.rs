@@ -23,8 +23,7 @@ pub enum ReprAttr{
     Primitive,
     /// A struct whose fields are laid out like C,
     C,
-    /// A struct whose fields are laid out like C,
-    /// with the type of the discriminant of an enum.
+    /// An enum with a `#[repr(C, IntegerType)]` attribute.
     CAndInt(DiscriminantRepr),
     /// A type with the same size,alignment and function ABI as
     /// its only non-zero-sized field.
@@ -77,7 +76,7 @@ impl Display for ModPath{
 
 
 /// The compressed generic parameters of a type,
-/// which can be expanded into a GenericParams by calling expand.
+/// which can be expanded into a `GenericParams` by calling `expand`.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq,StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
@@ -140,7 +139,7 @@ impl GenericParams {
     pub fn lifetimes(&self)-> impl Iterator<Item=&'static str>+Clone+Send+Sync+'static {
         self.lifetime.to_str().split(',').filter(|x| !x.is_empty() )
     }
-    /// The amount of the lifetime of the type.
+    /// The amount of lifetimes of the type.
     pub fn lifetime_count(&self)->usize{
         self.lifetime_count as usize
     }

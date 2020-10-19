@@ -4,7 +4,8 @@ macro_rules! declare_comp_tl_field {(
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
     
-    /// A TLField represented as a u64,expanded to a TLField by calling the expand method.
+    /// A `TLField` represented as a `u64`,
+    /// expadable to a `TLField` by calling the `expand` method.
     #[repr(transparent)]
     #[derive(Debug, Copy, Clone)]
     $(#[ $extra_attrs ])*
@@ -12,7 +13,7 @@ macro_rules! declare_comp_tl_field {(
         bits0:u64,
     }
 
-    /// The underlying representation of CompTLField.
+    /// The underlying representation of `CompTLField`.
     pub type CompTLFieldRepr=u64;
 
     impl CompTLField{
@@ -54,16 +55,16 @@ macro_rules! declare_comp_tl_field {(
             CompTLField{bits0}
         }
 
-        /// Gets the range representing the name in the string slice 
-        /// of the SharedVars for the type layout that contains this.
+        /// Gets the range representing the name in the string slice field inside
+        /// the `SharedVars` field of the `TypeLayout` that contains this.
         #[inline]
         pub fn name_start_len(&self)->StartLen{
             StartLen::from_u26((self.bits0>>Self::NAME_OFFSET) as u32)
         }
 
         /// Gets the index of the type layout of the field in
-        /// the TypeLayoutCtor slice
-        /// of the SharedVars for the type layout that contains this.
+        /// the `TypeLayoutCtor` slice inside
+        /// the `SharedVars` field of the `TypeLayout` that contains this.
         #[inline]
         pub fn type_layout_index(&self)-> usize {
             ((self.bits0>>Self::TYPE_LAYOUT_OFFSET)&Self::TYPE_LAYOUT_SR_MASK)as usize
@@ -76,7 +77,7 @@ macro_rules! declare_comp_tl_field {(
         }
 
         /// Whether this field is a function.
-        /// This is only true if the type is a function poiter(not inside some other type).
+        /// This is only true if the type is a function pointer(not inside some other type).
         #[inline]
         pub fn is_function(&self)->bool{
             (self.bits0 & (1<<Self::IS_FUNCTION_OFFSET))!=0

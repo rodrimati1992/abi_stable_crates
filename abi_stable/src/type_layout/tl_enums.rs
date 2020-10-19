@@ -97,6 +97,7 @@ impl GenericTLEnum{
         }
     }
 
+    /// Constructs a `GenericTLEnum` for an exhaustive enum.
     pub const fn exhaustive(discriminants:TLDiscriminants)->Self{
         Self::new(IsExhaustive::exhaustive(),discriminants)
     }
@@ -140,7 +141,8 @@ impl TLEnum{
         }
     }
 
-    /// Returns the enum with the (maximum,minimum) amount of variants.
+    /// Returns `self` and `other` sorted in a `(maximum,minimum)` pair,
+    /// based on the amount of variants.
     pub fn max_min<'a>(&'a self,other:&'a TLEnum)->(&'a TLEnum,&'a TLEnum){
         if self.variant_count() < other.variant_count() {
             (self,other)
@@ -258,7 +260,7 @@ macro_rules! declare_tl_discriminants {
                 }
             )*
 
-            /// Gets the type of a discriminant in this TLDiscriminants.
+            /// Gets the type of the discriminant in this `TLDiscriminants`.
             pub fn discriminant_repr(&self)->DiscriminantRepr{
                 match self.inner {
                     $(
@@ -267,7 +269,7 @@ macro_rules! declare_tl_discriminants {
                 }
             }
 
-            /// Compares this TLDiscriminants with another,
+            /// Compares this `TLDiscriminants` with another,
             ///
             /// # Errors
             /// 
@@ -275,7 +277,7 @@ macro_rules! declare_tl_discriminants {
             ///
             /// - The discriminant is of a different type
             ///
-            /// - The value of the discriminants is different.
+            /// - The value of the discriminants are different.
             ///
             pub fn compare(&self,other:&Self)->Result<(),RVec<AbiInstability>>{
                 let mut errs=RVec::new();
@@ -489,7 +491,7 @@ pub struct TLNonExhaustive{
 
 
 impl TLNonExhaustive{
-    /// Constructs the TLNonExhaustive from the size and alignment of `T`
+    /// Constructs a `TLNonExhaustive` from the size and alignment of `T`
     pub const fn new<T>()->Self{
         Self{
             original_size:std::mem::size_of::<T>(),

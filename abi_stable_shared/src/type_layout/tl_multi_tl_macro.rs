@@ -4,8 +4,8 @@ macro_rules! declare_multi_tl_types {(
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
 
-    /// A range of indices into the slice of `TypeLayoutCtor` in the SharedVars for the type,
-    /// which can store up to 4 indices inline,
+    /// A range of indices into a slice of `TypeLayoutCtor` 
+    /// which can store up to five indices inline,
     /// requiring additional `TypeLayoutCtor` to be stored contiguously after the 
     /// fourth one in the slice.
     #[repr(C)]
@@ -28,6 +28,7 @@ macro_rules! declare_multi_tl_types {(
 
         const LEN_BIT_SIZE:u32=10;
 
+        /// How many indices can be stored inline.
         pub const STORED_INLINE:usize=5;
 
         const INDEX_0_OFFSET:u32=Self::LEN_BIT_SIZE;
@@ -41,14 +42,17 @@ macro_rules! declare_multi_tl_types {(
             let _:[(); 32-(Self::LEN_BIT_SIZE+TypeLayoutIndex::BIT_SIZE*2)as usize ];
         }
         
+        /// Constructs a `TypeLayoutRange` with up to five type layout indices.
         #[inline]
         pub const fn with_up_to_5(mut len:usize,indices:[u16;5])->Self{
             let len=len & 0usize.wrapping_sub((len <= Self::STORED_INLINE) as usize);
             Self::with_more_than_5(len,indices)
         }
 
-        /// Constructs a TypeLayoutRange with more than Self::STORED_INLINE type layout indices,
-        /// in which the indices from `indices[4]` onwards are stored contiguously in the slice.
+        /// Constructs a `TypeLayoutRange` with more 
+        /// than five type layout indices,
+        /// in which the indices from `indices[4]` onwards are
+        /// stored contiguously in the slice.
         #[inline]
         pub const fn with_more_than_5(len:usize,indices:[u16;5])->Self{
             Self{

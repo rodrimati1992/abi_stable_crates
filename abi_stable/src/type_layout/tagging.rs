@@ -2,12 +2,6 @@
 Tag is a dynamically typed data structure used to encode extra properties 
 about a type in its layout constant.
 
-Some usecases for this:
-
-- Encoding the traits that the interface in DynTrait requires.
-
-- Check the marker traits implemented by any type,using specialization.
-
 # Comparison semantics
 
 Tags don't use strict equality when doing layout checking ,
@@ -22,7 +16,7 @@ for each variant **in the interface**:
     They must be strictly equal.
 
 - Arrays:
-    They must have the same length.
+    They must have the same length, and have elements that compare equal.
 
 - Sets/Maps:
     The set/map in the interface must be a subset of the implementation,
@@ -469,6 +463,8 @@ where I:IntoIterator<Item= (CheckableTag,CheckableTag) >
 
 
 impl CheckableTag{
+    /// Checks that this `CheckableTag` is compatible with another one,
+    /// returning `Ok` if it is compatible, `Err` if it was not.
     pub fn check_compatible(&self,other:&Self)->Result<(),TagErrors>{
         use self::CTVariant as CTV;
 
@@ -611,7 +607,8 @@ impl<T> KeyValue<T>{
     pub const fn new(key:T,value:T)->Self{
         Self{ key,value }
     }
-    /// Transforms the `KeyValue<T>` to `KeyValue<U>` using `f`.
+    /// Transforms the `KeyValue<T>` to `KeyValue<U>`,
+    /// using `f` to convert `T` to `U`.
     pub fn map<F,U>(self,mut f:F)->KeyValue<U>
     where F:FnMut(T)->U
     {
@@ -621,12 +618,12 @@ impl<T> KeyValue<T>{
         }
     }
 
-    /// Converts the KeyValue into a pair.
+    /// Converts the KeyValue into a `(key, value)` pair.
     pub fn into_pair(self)->(T,T){
         (self.key,self.value)
     }
 
-    /// Casts a &KeyValue into a pair of references.
+    /// Casts a &KeyValue into a `(key, value)` pair of references.
     pub fn as_pair(&self)->(&T,&T){
         (
             &self.key,
@@ -634,7 +631,7 @@ impl<T> KeyValue<T>{
         )
     }
 
-    /// Converts a pair into a KeyValue.
+    /// Converts a `(key, value)` pair into a KeyValue.
     pub fn from_pair((key,value):(T,T))->Self{
         Self{ key,value }
     }
@@ -674,7 +671,7 @@ impl FromLiteral<&'static str>{
 }
 
 impl FromLiteral<RStr<'static>>{
-    /// Converts the wrapped `&'static str` into a Tag.
+    /// Converts the wrapped `RStr<'static>` into a Tag.
     pub const fn to_tag(self)->Tag{
         Tag::rstr(self.0)
     }
@@ -874,7 +871,7 @@ unsafe impl ExtraChecks for Tag {
 
 #[repr(u8)]
 #[derive(Debug,Clone,PartialEq,StableAbi)]
-pub enum TagErrorVariant{
+pub(crate) enum TagErrorVariant{
     MismatchedDiscriminant,
     MismatchedValue,
     MismatchedArrayLength{

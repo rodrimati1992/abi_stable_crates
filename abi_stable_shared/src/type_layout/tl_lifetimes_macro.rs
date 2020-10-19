@@ -27,6 +27,7 @@ macro_rules! declare_tl_lifetime_types {(
         pub const STATIC: Self = LifetimeIndex{bits:2};
 
         const START_OF_LIFETIMES:$repr=3;
+        /// The maximum number of lifetime parameters.
         pub const MAX_LIFETIME_PARAM:$repr=15-Self::START_OF_LIFETIMES;
 
         /// Constructs a LifetimeIndex to the nth lifetime parameter of a type.
@@ -97,6 +98,7 @@ macro_rules! declare_tl_lifetime_types {(
     }
 
     impl LifetimeIndexArray {
+        /// An array with no lifetimes.
         pub const EMPTY: Self = Self { bits: 0 };
 
         /// Constructs this LifetimeIndexArray from an array.
@@ -260,7 +262,7 @@ macro_rules! declare_tl_lifetime_types {(
         bits:$repr,
     }
 
-    /// The representation of a `LifetimeIndexPair`.
+    /// The representation of `LifetimeIndexPair`.
     pub type LifetimeIndexPairRepr=u8;
 
     impl LifetimeIndexPair{
