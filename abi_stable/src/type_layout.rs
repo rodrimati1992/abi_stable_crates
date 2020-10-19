@@ -222,7 +222,7 @@ impl TypeLayout {
         }
     }
 
-    /// Gets the SharedVars of this type,
+    /// Gets the SharedVars of the type,
     /// containing the slices that many types inside TypeLayout contain ranges into.
     pub const fn shared_vars(&self)->&'static SharedVars{
         self.shared_vars
@@ -255,13 +255,13 @@ impl TypeLayout {
         RStr::from_str(package)
     }
 
-    /// Gets the package version for the package of type.
+    /// Gets the package version for the package where the type was declared.
     pub fn package_version(&self)->VersionStrings{
         let (_,version)=self.item_info().package_and_version();
         VersionStrings::new(version)
     }
 
-    /// Gets in which line the type was defined.
+    /// Gets which line the type was defined in.
     pub fn line(&self)->u32{
         self.item_info().line
     }
@@ -278,7 +278,7 @@ impl TypeLayout {
     }
 
 /**
-Gets the fields of this type.
+Gets the fields of the type.
 
 # Return value
 
@@ -292,7 +292,7 @@ If this a:
     ignoring variants.
 
 - structs/unions/prefix types:
-    It returns `Some()` with all the fields in the order that the were declared.
+    It returns `Some()` with all the fields in the order that they were declared.
 
 */
     pub fn get_fields(&self)->Option<TLFields>{
@@ -311,7 +311,8 @@ If this a:
         self.mono.name()
     }
 
-    /// Gets whether the type is a NonZero type,which can be wrapped inside an `Option`.
+    /// Gets whether the type is a NonZero type,
+    /// which can be put in an `Option` while being ffi-safe.
     #[inline]
     pub fn is_nonzero(&self)->bool{
         self.is_nonzero
@@ -344,8 +345,8 @@ If this a:
         self
     }
 
-    /// Gets the UTypeId for the type,
-    /// which is an ffi safe equivalent to a TypeId.
+    /// Gets the `UTypeId` for the type,
+    /// which is an ffi safe equivalent of `TypeId`.
     #[inline]
     pub fn get_utypeid(&self)->UTypeId{
         self.type_id.get()
@@ -369,7 +370,7 @@ If this a:
         self.size
     }
 
-    /// Gets the Tag associated with a type,
+    /// Gets the `Tag` associated with a type,
     /// a JSON-like datastructure which is another way to 
     /// check extra properties about a type.
     pub fn tag(&self)->&'static Tag{
@@ -442,8 +443,6 @@ impl Eq for TypeLayout{}
 
 
 /// The data in the type layout that does not depend on generic parameters.
-///
-/// This is stored in a static for every type that derives StableAbi.
 #[repr(C)]
 #[derive(Copy, Clone,StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
@@ -467,10 +466,10 @@ pub struct MonoTypeLayout{
     phantom_fields: *const CompTLField,
     phantom_fields_len: u8,
 
-    /// The representation attribute(s) of this type.
+    /// The representation attribute(s) of the type.
     repr_attr:ReprAttr,
 
-    /// How this type is treated when interpreted as a module.
+    /// How the type is treated when interpreted as a module.
     mod_refl_mode:ModReflMode,
     
     name_len: u16,
@@ -544,13 +543,13 @@ impl MonoTypeLayout{
         &self.item_info.value
     }
 
-    /// Gets the SharedVars of this type,
+    /// Gets the SharedVars of the type,
     /// containing the slices that many types inside TypeLayout contain ranges into.
     pub const fn shared_vars(&self)->&MonoSharedVars{
         &self.shared_vars
     }
 
-    /// Gets the SharedVars of this type,
+    /// Gets the SharedVars of the type,
     /// containing the slices that many types inside TypeLayout contain ranges into.
     /// 
     /// This was defined as a workaround for an internal compiler error in nightly.
@@ -559,7 +558,7 @@ impl MonoTypeLayout{
     }
 
 /**
-Gets the compressed versions of the fields of this type.
+Gets the compressed versions of the fields of the type.
 
 # Return value
 
@@ -573,7 +572,7 @@ If this a:
     ignoring variants.
 
 - structs/unions/prefix types:
-    It returns `Some()` with all the fields in the order that the were declared.
+    It returns `Some()` with all the fields in the order that they were declared.
 
 */
     pub fn get_fields(&self)->Option<CompTLFields>{
@@ -587,7 +586,7 @@ If this a:
         }
     }
 
-    /// Gets an iterator over all the named of the fields in the type.
+    /// Gets an iterator over all the names of the fields in the type.
     pub fn field_names(&self)->impl ExactSizeIterator<Item=&'static str>+Clone+'static{
         self.get_fields()
             .unwrap_or(CompTLFields::EMPTY)
@@ -595,7 +594,7 @@ If this a:
     }
 
     /// Gets the name of the `nth` field in the type.
-    /// Returns None if there is no `nth` field.
+    /// Returns `None` if there is no `nth` field.
     pub fn get_field_name(&self,nth:usize)->Option<&'static str>{
         self.get_fields()
             .unwrap_or(CompTLFields::EMPTY)

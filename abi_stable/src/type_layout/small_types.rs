@@ -15,7 +15,7 @@ pub struct StartLen{
     bits:u32
 }
 
-/// The internal representation of StartLen.
+/// The internal representation of `StartLen`.
 pub type StartLenRepr=u32;
 
 impl StartLen{
@@ -60,7 +60,7 @@ impl StartLen{
         self.start_usize() ..self.end_usize()
     }
 
-    /// Constructs this StartLen from its internal representation.
+    /// Constructs this `StartLen` from its internal representation.
     #[inline]
     pub const fn from_u32(n:StartLenRepr)->Self{
         Self{bits:n}
@@ -74,25 +74,25 @@ impl StartLen{
 
 
 
-/// Used to convert the stuff passed to the `tl_genparams` macro to a `StartLen`.
+/// Used to convert the arguments passed to the `tl_genparams` macro to a `StartLen`.
 pub struct StartLenConverter<T>(pub T);
 
 impl StartLenConverter<()>{
-    /// Constructs an empty StartLen.
+    /// Constructs an empty `StartLen`.
     pub const fn to_start_len(self)->StartLen{
         StartLen::EMPTY
     }
 }
 
 impl StartLenConverter<usize>{
-    /// Constructs a StartLen from 0 to `self.0` exclusive.
+    /// Constructs a `StartLen` from `0` to `self.0` exclusive.
     pub const fn to_start_len(self)->StartLen{
         StartLen::new(self.0 as u16,1)
     }
 }
 
 impl StartLenConverter<Range<usize>>{
-    /// Constructs a StartLen from the exclusive range.
+    /// Constructs a `StartLen` from the `Range`.
     pub const fn to_start_len(self)->StartLen{
         let start=self.0.start as u16;
         let len=(self.0.end-self.0.start) as u16;
@@ -101,7 +101,7 @@ impl StartLenConverter<Range<usize>>{
 }
 
 impl StartLenConverter<RangeInclusive<usize>>{
-    /// Constructs a StartLen from the inclusive range.
+    /// Constructs a `StartLen` from the `RangeInclusive`.
     pub const fn to_start_len(self)->StartLen{
         let start=*self.0.start();
         let end=*self.0.end()+1;
@@ -110,7 +110,7 @@ impl StartLenConverter<RangeInclusive<usize>>{
 }
 
 impl StartLenConverter<StartLen>{
-    /// Unwraps this back into a StartLen.
+    /// Unwraps this back into a `StartLen`.
     pub const fn to_start_len(self)->StartLen{
         self.0
     }

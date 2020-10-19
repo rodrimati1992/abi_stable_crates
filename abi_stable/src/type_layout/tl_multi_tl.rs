@@ -80,12 +80,12 @@ pub struct MultipleTypeLayouts<'a>{
 
 
 impl<'a> MultipleTypeLayouts<'a>{
-    /// The amount of TypeLayoutCtor this contains.
+    /// The amount of `TypeLayoutCtor` this contains.
     pub fn len(&self)->usize{
         self.first.len as usize+self.remaining.len()
     }
 
-    /// Gets an iterator over the TypeLayoutCtor this contains.
+    /// Gets an iterator over the `TypeLayoutCtor` this contains.
     pub fn iter(&self)->MTLIterator<'a> {
         MTLIterator{
             this:*self,

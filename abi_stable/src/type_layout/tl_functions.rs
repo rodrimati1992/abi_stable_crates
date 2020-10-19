@@ -60,23 +60,24 @@ impl TLFunctions {
         }
     }
 
-    /// Gets the `nth` TLFunction in this `TLFunctions`.
+    /// Gets the `nth` `TLFunction` in this `TLFunctions`.
     /// Returns None if there is not `nth` TLFunction.
     pub fn get(&'static self,nth:usize,shared_vars:&'static SharedVars)->Option<TLFunction>{
         let func=self.functions().get(nth)?;
         Some(func.expand(shared_vars))
     }
 
-    /// Gets the `nth` TLFunction in this `TLFunctions`.
+    /// Gets the `nth` `TLFunction` in this `TLFunctions`.
     ///
     /// # Panics
     ///
-    /// This function panics if `nth` is out of bounds (`self.len() <= nth`)
+    /// This function panics if `nth` is out of bounds
+    /// (when `nth` is greater than or equal to `self.len()`)
     pub fn index(&'static self,nth:usize,shared_vars:&'static SharedVars)->TLFunction{
         self.functions()[nth].expand(shared_vars)
     }
 
-    /// Gets the amount of `TLFunction`s in this TLFunctions.
+    /// Gets the amount of `TLFunction` in this `TLFunctions`.
     #[inline]
     pub fn len(&'static self)->usize{
         self.functions_len as usize
@@ -87,7 +88,7 @@ impl TLFunctions {
 ///////////////////////////////////////////////////////////////////////////////
 
 /**
-A slice of functions from a TLFunctions.
+A slice of functions from a `TLFunctions`.
 */
 #[repr(C)]
 #[derive(Copy,Clone,StableAbi)]
@@ -109,7 +110,7 @@ impl TLFunctionSlice{
         }
     }
 
-    /// Constructs the TLFunctionSlice for the function pointers in the `i`th field.
+    /// Constructs the `TLFunctionSlice` for the function pointers in the `i`th field.
     pub fn for_field(
         i:usize,
         functions:Option<&'static TLFunctions>,
@@ -132,16 +133,17 @@ impl TLFunctionSlice{
         TLFunctionIter::new(self.fn_range,self.functions,self.shared_vars)
     }
 
-    /// Gets a TLFunction at the `index`.This returns None if `index` is outside the slice.
+    /// Gets a `TLFunction` at the `index`.
+    /// This returns `None` if `index` is outside the slice.
     pub fn get(self,index:usize)->Option<TLFunction>{
         self.functions?.get( self.fn_range.start_usize()+index, self.shared_vars )
     }
 
-    /// Gets a TLFunction at the `index`.
+    /// Gets a `TLFunction` at the `index`.
     ///
     /// # Panic
     ///
-    /// This panics if the TLFunction is outside the slice.
+    /// This panics if the `TLFunction` is outside the slice.
     pub fn index(self,index:usize)->TLFunction{
         self.functions
             .expect("self.functions must be Some(..) to index a TLFunctionSlice")
@@ -192,8 +194,8 @@ impl PartialEq for TLFunctionSlice{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// A compressed version of a function pointer type,
-/// which can be expanded into a TLFunction by calling the expand method.
+/// A compressed version of `TLFunction`,
+/// which can be expanded into a `TLFunction` by calling the `expand` method.
 #[repr(C)]
 #[derive(Copy,Clone,Debug,PartialEq,Eq,Ord,PartialOrd,StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
@@ -272,7 +274,8 @@ pub struct TLFunction{
     /// The name of the field this is used inside of.
     pub name: RStr<'static>,
     
-    /// The named lifetime parameters of the function itself,separated by ';'.
+    /// The named lifetime parameters of the function itself (declared in `for<>`),
+    /// separated by ';'.
     pub bound_lifetimes: RStr<'static>,
 
     /// A ';' separated list of all the parameter names.
@@ -283,10 +286,7 @@ pub struct TLFunction{
     /// The lifetimes that the parameters and return types reference.
     pub paramret_lifetime_indices: LifetimeArrayOrSlice<'static>,
 
-    /// The return value of the function.
-    /// 
-    /// Lifetime indices inside mention lifetimes of the function after 
-    /// the ones from the deriving type
+    /// The return type of the function.
     pub return_type_layout:Option<TypeLayoutCtor>,
 
 }

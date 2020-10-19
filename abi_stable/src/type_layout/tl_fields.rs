@@ -108,7 +108,7 @@ impl CompTLFields{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// The layout of all field in a type definition.
+/// The layout of all the fields in a type definition.
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 pub struct TLFields {
