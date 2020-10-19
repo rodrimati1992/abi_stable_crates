@@ -109,6 +109,8 @@ impl VersionStrings {
 
     /// Attempts to convert a `VersionStrings` into a `VersionNumber`
     /// 
+    /// # Errors
+    /// 
     /// This returns a `ParseVersionError` if the string is not correctly formatted.
     /// 
     /// # Example
@@ -131,6 +133,8 @@ impl VersionStrings {
 
 impl VersionNumber {
     /// Attempts to convert a `VersionStrings` into a `VersionNumber`
+    /// 
+    /// # Errors
     /// 
     /// This returns a `ParseVersionError` if the string is not correctly formatted.
     /// 
@@ -171,7 +175,7 @@ impl VersionNumber {
     }
 
     /// Whether the `self` version number is compatible with the
-    /// library_implementor version number.
+    /// `library_implementor` version number.
     ///
     /// This uses modified semver rules where:
     ///
@@ -304,6 +308,7 @@ impl ParseVersionError {
         }
     }
 
+    /// Gets back the `VersionStrings` that could not be parsed into a `VersionNumber`.
     pub fn version_strings(&self) -> VersionStrings {
         self.version_strings
     }

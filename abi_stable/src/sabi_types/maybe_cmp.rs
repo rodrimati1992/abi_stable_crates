@@ -3,7 +3,7 @@ use std::{
 };
 
 /**
-An Option-like type which only compares equal if it contains a value.
+An Option-like type which only compares equal if it contains a value(the `Just` variant).
 
 # Example
 

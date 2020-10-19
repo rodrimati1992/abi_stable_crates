@@ -19,7 +19,7 @@ A late-initialized static reference,with fallible initialization.
 
 As opposed to `Once`,
 this allows initialization of its static reference to happen fallibly,
-by returning a `Result<_,_>` from the try_init function,
+by returning a `Result<_,_>` from the `try_init` function,
 or by panicking inside either initialization function.
 
 On `Err(_)` and panics,one can try initialializing the static reference again.
@@ -98,8 +98,7 @@ unsafe impl<T: Sync> Sync for LateStaticRef<T> {}
 unsafe impl<T: Send> Send for LateStaticRef<T> {}
 
 impl<T> LateStaticRef<T>{
-    /// Constructs the late initialized static reference,
-    /// in an uninitialized state.
+    /// Constructs the `LateStaticRef` in an uninitialized state.
     ///
     /// # Example
     ///
@@ -119,8 +118,7 @@ impl<T> LateStaticRef<T>{
 }
 
 impl<T> LateStaticRef<&'static T>{
-    /// Constructs the late initialized static reference,
-    /// initialized with `value`.
+    /// Constructs `LateStaticRef`, initialized with `value`.
     ///
     /// # Example
     ///
@@ -141,7 +139,7 @@ impl<T> LateStaticRef<&'static T>{
 }
 
 impl<T: 'static> LateStaticRef<T> {
-    /// Constructs the late initialized static from a [`PrefixRef`].
+    /// Constructs `LateStaticRef` from a [`PrefixRef`].
     ///
     /// # Example
     ///
@@ -209,7 +207,7 @@ impl<T: 'static> LateStaticRef<T> {
 }
 
 impl<T: 'static> LateStaticRef<T> {
-    /// Constructs the late initialized static from a `NonNull` pointer.
+    /// Constructs `LateStaticRef` from a `NonNull` pointer.
     ///
     /// # Safety
     ///
@@ -271,12 +269,12 @@ impl<T> LateStaticRef<T>
 where
     T: ImmutableRef + 'static
 {
-    /// Lazily initializes the reference with `initializer`,
-    /// returning the reference if either it was already initialized,or
+    /// Lazily initializes the `LateStaticRef` with `initializer`,
+    /// returning the `T` if either it was already initialized,or
     /// if `initalizer` returned Ok(..).
     ///
     /// If `initializer` returns an `Err(...)` this returns the error and 
-    /// allows the reference to be initializer later.
+    /// allows the `LateStaticRef` to be initializer later.
     ///
     /// If `initializer` panics,the panic is propagated,
     /// and the reference can be initalized later.
@@ -332,9 +330,9 @@ where
     }
 
 
-    /// Lazily initializes the reference with `initializer`,
-    /// returning the reference if either it was already initialized,or
-    /// once `initalizer` returns the reference.
+    /// Lazily initializes the `LateStaticRef` with `initializer`,
+    /// returning the `T` if either it was already initialized,
+    /// or `initalizer` returns it without panicking.
     ///
     /// If `initializer` panics,the panic is propagated,
     /// and the reference can be initalized later.
@@ -372,7 +370,7 @@ where
             .expect("bug:LateStaticRef::try_init should only return an Err if `initializer` does")
     }
 
-    /// Returns `Some(x:T)` if the reference was initialized,otherwise returns None.
+    /// Returns `Some(x:T)` if the `LateStaticRef` was initialized, otherwise returns `None`.
     ///
     /// # Example
     ///
