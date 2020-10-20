@@ -11,46 +11,46 @@ By default these are the supertraits that `#[sabi_trait]` traits can have:
 
 - lifetimes:It can be a lifetime declared by the trait,or `'static`.
 
-- Debug
+- `Debug`
 
-- Display
+- `Display`
 
-- std::error::Error:Written as `Error`: The `Error` methods aren't delegated to,
+- `std::error::Error`: Written as `Error`: The `Error` methods aren't delegated to,
 it uses the default implementation,
 
-- Clone
+- `Clone`
 
-- Send
+- `Send`
 
-- Sync
+- `Sync`
 
 To be able to have more supertraits you must use the `#[sabi(use_dyntrait)]` helper attribute,
 which changes the underlying implementation from `RObject<_>` to `DynTrait<_>`,
 allowing these supertraits:
 
-- Iterator:requires the Item type to be specified.
+- `Iterator`: requires the Item type to be specified.
 
-- DoubleEndedIterator:requires the Item type to be specified.
+- `DoubleEndedIterator`: requires the Item type to be specified.
 
-- std::fmt::Write:Written as `FmtWrite`
+- `std::fmt::Write`: Written as `FmtWrite`
 
-- std::io::Write:Written as `IoWrite`
+- `std::io::Write`: Written as `IoWrite`
 
-- std::io::Seek:Written as `IoSeek`
+- `std::io::Seek`: Written as `IoSeek`
 
-- std::io::Read:Written as `IoRead`
+- `std::io::Read`: Written as `IoRead`
 
-- std::io::BufRead:Written as `IoBufRead`
+- `std::io::BufRead`: Written as `IoBufRead`
 
-- Eq 
+- `Eq`
 
-- PartialEq 
+- `PartialEq`
 
-- Ord 
+- `Ord`
 
-- PartialOrd 
+- `PartialOrd`
 
-- Hash 
+- `Hash`
 
 
 

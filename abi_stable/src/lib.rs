@@ -19,47 +19,43 @@ These are some usecases for this library:
 
 Currently this library has these features:
 
-- Features the [`#[sabi_trait]`](./docs/sabi_trait_attribute/index.html)
-    attribute,for creating ffi-safe trait objects.
+- Features the [`sabi_trait`] attribute macro, for creating ffi-safe trait objects.
 
-- [ffi-safe equivalent of some trait objects](./erased_types/dyn_trait/struct.DynTrait.html) 
-    for any combination of them.
+- Ffi-safe equivalent of some trait objects with [`DynTrait`].
 
 - Provides ffi-safe alternatives/wrappers for many standard library types,
-    in the [`std_types`](./std_types/index.html) module.
+    in the [`std_types`] module.
 
-- Provides ffi-safe wrappers for some crates,
-    in the [`external_types`](./external_types/index.html) module.
+- Provides ffi-safe wrappers for some types defined in external crates,
+    in the [`external_types`] module.
 
-- Provides the [`StableAbi`](./abi_stability/stable_abi_trait/trait.StableAbi.html) 
-    trait for asserting that types are ffi-safe.
+- Provides the [`StableAbi`] trait for asserting that types are ffi-safe.
 
-- [Features for building extensible modules and vtables](./docs/prefix_types/index.html),
-    without breaking ABI compatibility.
+- The [prefix types] feature for building extensible modules and vtables,
+without breaking ABI compatibility.
 
-- [Supports ffi-safe nonexhaustive enums](./docs/sabi_nonexhaustive/index.html),
-    wrapped in [`NonExhaustive<>`](./nonexhaustive_enum/nonexhaustive/struct.NonExhaustive.html).
+- Supports ffi-safe [nonexhaustive enums], wrapped in [`NonExhaustive`].
 
 - Checking at load-time that the types in the dynamic library have the expected layout,
     allowing for semver compatible changes while checking the layout of types.
 
-- Provides the [`StableAbi` derive macro](./docs/stable_abi_derive/index.html)
+- Provides the [`StableAbi` derive] macro
     to both assert that the type is ffi compatible,
     and to get the layout of the type at load-time to check that it is still compatible.
 
 # Examples
 
-For **examples** of using `abi_stable` you can look at the readme,
+For **examples** of using `abi_stable` you can look at [the readme],
 or for the crates in the examples directory in the repository for this crate.
-This crate also has examples for most features on their own.
+This crate also has examples in the docs for most features.
 
-To run the examples generally you'll have to build the `*_impl` crate,
+To run the example crates you'll generally have to build the `*_impl` crate,
 then run the `*_user` crate (all `*_user` crates should have a help message and a readme.md).
 
 
 # Glossary
 
-`interface crate`:the crate that declares the public functions and types that 
+`interface crate`:the crate that declares the public functions, types, and traits that 
 are necessary to load the library at runtime.
 
 `ìmplementation crate`:A crate that implements all the functions in the interface crate.
@@ -68,71 +64,86 @@ are necessary to load the library at runtime.
 loads 1 or more `ìmplementation crate`s for it.
 
 `module`:refers to a struct of function pointers and other static values.
-The root module implement the RootModule trait.
+The root module implement the [`RootModule`] trait.
 These are declared in the `interface crate`,exported in the `implementation crate`,
 and loaded in the `user crate`.
 
 # Rust-to-Rust FFI types.
 
-Types must implement StableAbi to be safely passed through the FFI boundary,
-which can be done using the StableAbi derive macro.
+Types must implement [`StableAbi`] to be safely passed through the FFI boundary,
+which can be done using the [`StableAbi` derive] macro.
 
-[For how to evolve dynamically loaded libraries look here](./docs/library_evolution/index.html).
+For how to evolve dynamically loaded libraries you can look at the [library_evolution] module.
 
 These are the kinds of types passed through FFI:
 
 - Value kind:<br>
-    The layout of types passed by value must not change in a minor version.
     This is the default kind when deriving StableAbi.
+    The layout of these types must not change in a minor versions.
 
-- [Nonexhaustive enums](./docs/sabi_nonexhaustive/index.html):<br>
-    Enums wrapped inside 
-    [`NonExhaustive<>`](./nonexhaustive_enum/nonexhaustive/struct.NonExhaustive.html),
+- [Nonexhaustive enums] :<br>
+    Enums wrapped inside [`NonExhaustive`],
     which can add variants in minor versions of the library.
 
+- [Trait objects] :<br>
+    Trait object-like types generated using the [`sabi_trait`] attribute macro,
+    which erase the type of the value they wrap,implements the methods of the trait,
+    and can only be unwrapped back to the original type in the dynamic library/binary 
+    that created it.
+
 - Opaque kind:<br>
-    Types wrapped in `DynTrait<SomePointer<()>,Interface>`,
+    Types wrapped in [`DynTrait`],
     whose layout can change in any version of the library,
     and can only be unwrapped back to the original type in the dynamic library/binary 
     that created it.
 
-- [Trait objects](./docs/sabi_trait_attribute/index.html):<br>
-    Trait object-like types generated using `#[sabi_trait]`,
-    which erase the type of the value they wrap,implements the methods of the trait,
-    and can be unwrapped back to the original type in the dynamic library/binary 
-    that created it (if it was constructed to be unerasable and implements Any).
-
-- [Prefix kind](./docs/prefix_types/index.html):<br>
-    Types only accessible through shared references,
+- [Prefix types] :<br>
+    Types only accessible through some custom pointer types,
     most commonly vtables and modules,
-    which can be extended in minor versions while staying ABI compatible.
+    which can be extended in minor versions while staying ABI compatible,
     by adding fields at the end.
 
 # Extra documentation
 
-- [Unsafe code guidelines](./docs/unsafe_code_guidelines/index.html):<br>
+- [Unsafe code guidelines] :<br>
     Describes how to write unsafe code ,relating to this library.
 
-- [Troubleshooting](./docs/troubleshooting/index.html):<br>
+- [Troubleshooting] :<br>
     Some problems and their solutions.
 
 # Macros (derive and attribute)
 
-- [sabi_trait attribute macro](./docs/sabi_trait_attribute/index.html):<br>
+- [`sabi_trait`] attribute macro:<br>
     For generating ffi-safe trait objects.
 
-- [StableAbi derive macro](./docs/stable_abi_derive/index.html):<br>
+- [`StableAbi` derive] :<br>
     For asserting abi-stability of a type,
     and obtaining the layout of the type at runtime.
 
-- [Nonexhaustive enums](./docs/sabi_nonexhaustive/index.html):<br>
+- [Nonexhaustive enums] :<br>
     Details for how to declare nonexhaustive enums.
 
-- [Prefix-types (using the StableAbi derive macro)
-  ](./docs/prefix_types/index.html):<br>
+- [Prefix types] \(using the StableAbi derive macro):<br>
     The method by which *vtables* and *modules* are implemented,
     allowing extending them in minor versions of a library.
 
+[`std_types`]: ./std_types/index.html
+[`external_types`]: ./external_types/index.html
+[prefix types]: ./docs/prefix_types/index.html
+[Prefix types]: ./docs/prefix_types/index.html
+[nonexhaustive enums]: ./docs/sabi_nonexhaustive/index.html
+[Nonexhaustive enums]: ./docs/sabi_nonexhaustive/index.html
+[library_evolution]: ./docs/library_evolution/index.html
+[`NonExhaustive`]: ./nonexhaustive_enum/struct.NonExhaustive.html
+[the readme]: https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md
+[`RootModule`]: ./library/trait.RootModule.html
+[`StableAbi`]: ./abi_stability/stable_abi_trait/trait.StableAbi.html
+[`sabi_trait`]: ./docs/sabi_trait_attribute/index.html
+[Trait objects]: ./docs/sabi_trait_attribute/index.html
+[`StableAbi` derive]: ./docs/stable_abi_derive/index.html
+[`DynTrait`]: ./struct.DynTrait.html
+[Troubleshooting]: ./docs/troubleshooting/index.html
+[Unsafe code guidelines]: ./docs/unsafe_code_guidelines/index.html
 
 */
 
