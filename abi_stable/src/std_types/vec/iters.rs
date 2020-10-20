@@ -9,6 +9,9 @@ pub(super) struct RawValIter<T> {
     pub(super) end: *const T,
 }
 
+unsafe impl<T: Send> Send for RawValIter<T> {}
+unsafe impl<T: Sync> Sync for RawValIter<T> {}
+
 impl<T> RawValIter<T> {
     /// # Safety
     ///
@@ -91,7 +94,7 @@ impl<T> DoubleEndedIterator for RawValIter<T> {
 
 ///////////////////////////////////////////////////
 
-/// An Iterator created by `<RVec<T> as IntoIterator>::into_iter`,
+/// An Iterator returned by `<RVec<T> as IntoIterator>::into_iter`,
 /// which yields all the elements from the `RVec<T>`,
 /// consuming it in the process.
 pub struct IntoIter<T> {

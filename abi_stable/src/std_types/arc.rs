@@ -30,7 +30,7 @@ mod private {
     use super::*;
 
 /**    
-Ffi-safe version of ::std::sync::Arc<_>
+Ffi-safe version of `std::sync::Arc`
 
 # Example
 
@@ -155,12 +155,12 @@ impl<T> RArc<T> {
         Arc::new(this).into()
     }
 
-    /// Converts this into an `Arc<T>`
+    /// Converts this `RArc<T>` into an `Arc<T>`
     ///
     /// # Allocators
     ///
-    /// The reason `RArc<T>` cannot always be converted to an `Arc<T>` is 
-    /// because their allocators might be different.
+    /// `RArc<T>` cannot always be converted to an `Arc<T>`,
+    /// because their allocators *might* be different.
     ///
     /// # When is T cloned
     ///
@@ -197,7 +197,7 @@ impl<T> RArc<T> {
     }
 
     /// Attempts to unwrap this `RArc<T>` into a `T`,
-    /// returns Err(self) if the `RArc<T>`s strong count is greater than 1.
+    /// returns `Err(self)` if the `RArc<T>`'s strong count is greater than 1.
     ///
     /// # Example
     ///
@@ -221,7 +221,7 @@ impl<T> RArc<T> {
     }
 
     /// Attempts to create a mutable reference to `T`,
-    /// failing if `RArc<T>`s strong count is greater than 1.
+    /// failing if the `RArc<T>`'s strong count is greater than 1.
     ///
     /// # Example
     ///
@@ -245,9 +245,11 @@ impl<T> RArc<T> {
         }
     }
 
-    /// Makes a mutable reference to `T`,
-    /// if there are other `RArc<T>`s pointing to the same value,
-    /// then `T` is cloned to ensure unique ownership of the value.
+    /// Makes a mutable reference to `T`.
+    ///
+    /// If there are other `RArc<T>`s pointing to the same value,
+    /// then `T` is cloned into a new `RArc<T>` to ensure unique ownership of the value.
+    /// 
     ///
     /// # Postconditions
     ///
@@ -291,7 +293,7 @@ impl<T> RArc<T> {
         }
     }
 
-    /// Gets the number of RArc that point to the value.
+    /// Gets the number of `RArc` that point to the value.
     ///
     /// # Example
     ///
@@ -312,7 +314,7 @@ impl<T> RArc<T> {
         }
     }
 
-    /// Gets the number of std::sync::Weak that point to the value.
+    /// Gets the number of `std::sync::Weak` that point to the value.
     ///
     /// # Example
     ///

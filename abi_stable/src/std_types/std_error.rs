@@ -1,7 +1,3 @@
-/*! 
-Ffi-safe version of 
-`Box<::std::error::Error+'static>` with all combinations of `Send` and `Sync`.
-*/
 use std::{
     error::Error as ErrorTrait,
     fmt::{self, Debug, Display},
@@ -31,15 +27,8 @@ use crate::{
 mod test;
 
 /**
-Ffi-safe version of `Box<::std::error::Error+'static>` 
-whose `Send+Sync`ness is determined by the `M` type parameter.
-
-It cannot be converted back to `Box<::std::error::Error>`,
-requiring wrapping `RBoxError_<_>` itself to be wrapped in a `Box<_>`.
-
-Unwrapping a `Box<Error+?Send+?Sync+'static>` back to
-`RBoxError_<_>` does not incurr an allocation.
-
+Ffi-safe version of `Box<dyn std::error::Error + 'static>` 
+whose `Send + Sync`ness is determined by the `M` type parameter.
 
 # Examples
 
@@ -201,14 +190,77 @@ pub struct RBoxError_<M = SyncSend> {
     _sync_send: PhantomData<M>,
 }
 
-/// Ffi safe equivalent to Box<::std::error::Error>.
+/// Ffi safe equivalent to `Box<dyn std::error::Error>`.
 pub type UnsyncRBoxError = RBoxError_<UnsyncUnsend>;
 
-/// Ffi safe equivalent to Box<::std::error::Error+Send>.
+/// Ffi safe equivalent to `Box<dyn std::error::Error + Send>`.
 pub type SendRBoxError = RBoxError_<UnsyncSend>;
 
-/// Ffi safe equivalent to Box<::std::error::Error+Send+Sync>.
+/// Ffi safe equivalent to `Box<dyn std::error::Error + Send + Sync>`.
 pub type RBoxError = RBoxError_<SyncSend>;
+
+
+impl RBoxError_<SyncSend> {
+    /// Constructs a `Send + Sync` `RBoxError_` from an error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RBoxError;
+    ///
+    /// let str_err=String::from_utf8(vec![255]).unwrap_err();
+    ///
+    /// let err=RBoxError::new(str_err);
+    /// ```
+    pub fn new<T>(value: T) -> Self
+    where
+        T: ErrorTrait + Send + Sync + 'static,
+    {
+        Self::new_inner(value)
+    }
+}
+
+
+impl RBoxError_<UnsyncSend> {
+    /// Constructs a `Send + !Sync` `RBoxError_` from an error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::SendRBoxError;
+    ///
+    /// let str_err=String::from_utf16(&[0xD834]).unwrap_err() ;
+    ///
+    /// let err=SendRBoxError::new(str_err);
+    /// ```
+    pub fn new<T>(value: T) -> Self
+    where
+        T: ErrorTrait + Send + 'static,
+    {
+        Self::new_inner(value)
+    }
+}
+
+
+impl RBoxError_<UnsyncUnsend> {
+    /// Constructs a `!Send + !Sync` `RBoxError_` from an error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::UnsyncRBoxError;
+    ///
+    /// let str_err=std::str::from_utf8(&[255]).unwrap_err() ;
+    ///
+    /// let err=UnsyncRBoxError::new(str_err);
+    /// ```
+    pub fn new<T>(value: T) -> Self
+    where
+        T: ErrorTrait + 'static,
+    {
+        Self::new_inner(value)
+    }
+}
 
 
 impl<M> RBoxError_<M> {
@@ -324,7 +376,7 @@ impl<M> RBoxError_<M>{
 }
 
 impl<M> RBoxError_<M> {
-    /// Returns the UTypeId of the error this wraps.
+    /// Returns the `UTypeId` of the error this wraps.
     pub fn type_id(&self)->UTypeId{
         self.vtable.type_id()()
     }
@@ -431,68 +483,6 @@ impl RBoxError_<SyncSend>{
 }
 
 
-impl RBoxError_<SyncSend> {
-    /// Constructs an RBoxError from an error.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RBoxError;
-    ///
-    /// let str_err=String::from_utf8(vec![255]).unwrap_err();
-    ///
-    /// let err=RBoxError::new(str_err);
-    /// ```
-    pub fn new<T>(value: T) -> Self
-    where
-        T: ErrorTrait + Send + Sync + 'static,
-    {
-        Self::new_inner(value)
-    }
-}
-
-
-impl RBoxError_<UnsyncSend> {
-    /// Constructs an RBoxError from an error.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::SendRBoxError;
-    ///
-    /// let str_err=String::from_utf16(&[0xD834]).unwrap_err() ;
-    ///
-    /// let err=SendRBoxError::new(str_err);
-    /// ```
-    pub fn new<T>(value: T) -> Self
-    where
-        T: ErrorTrait + Send + 'static,
-    {
-        Self::new_inner(value)
-    }
-}
-
-
-impl RBoxError_<UnsyncUnsend> {
-    /// Constructs an RBoxError from an error.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::UnsyncRBoxError;
-    ///
-    /// let str_err=std::str::from_utf8(&[255]).unwrap_err() ;
-    ///
-    /// let err=UnsyncRBoxError::new(str_err);
-    /// ```
-    pub fn new<T>(value: T) -> Self
-    where
-        T: ErrorTrait + 'static,
-    {
-        Self::new_inner(value)
-    }
-}
-
 
 impl<M> ErrorTrait for RBoxError_<M> {}
 
@@ -516,9 +506,13 @@ impl<M> Debug for RBoxError_<M> {
 
 
 macro_rules! from_impls {
-    ($boxdyn:ty,$marker:ty) => (
+    (
+        $first_docs:expr,
+        $boxdyn:ty,
+        $marker:ty,
+    ) => (
         impl From<$boxdyn> for RBoxError_<$marker>{
-            /// Converts a Box<dyn Error> to an RBoxError_<_>.
+            #[doc = $first_docs]
             ///
             /// # Behavior 
             ///
@@ -533,14 +527,14 @@ macro_rules! from_impls {
         }
 
         impl RBoxError_<$marker>{
-            /// Converts a Box<dyn Error> to an RBoxError_<_>.
+            #[doc = $first_docs]
             ///
             /// `RBoxError::from_box( RBoxError::into_box( err ) )` 
             /// is a no-op with respect to the heap address of the RBoxError_<_>.
             ///
             /// # Behavior 
             ///
-            /// If the contents of the Box<_> is an erased `RBoxError_<_>`
+            /// If the contents of the `Box<_>` is an erased `RBoxError_<_>`
             /// it will be returned directly,
             /// otherwise the `Box<_>` will be converted into an `RBoxError_<_>`
             /// using `RBoxError_::new`.
@@ -570,9 +564,9 @@ macro_rules! from_impls {
             ///
             /// # Behavior 
             ///
-            /// If the contents of the RBoxError_<_> is an erased `Box<dyn Error + ... >`
+            /// If the contents of the `RBoxError_<_>` is an erased `Box<dyn Error + ... >`
             /// it will be returned directly,
-            /// otherwise the RBoxError_<_> will be converted into an `Box<dyn Error + ... >`
+            /// otherwise the `RBoxError_<_>` will be converted into an `Box<dyn Error + ... >`
             /// using `Box::new`.
             ///
             /// # Example
@@ -592,14 +586,18 @@ macro_rules! from_impls {
 
             /// Converts this `RBoxError_<_>` to an `RBox<T>`.
             ///
-            /// If this downcasts to a type other than `Box<dyn Error + ... >`,
-            /// and this `RBoxError_<_>` was constructed from one,
-            /// this will downcast the `Box<dyn Error + ... >` into `T`.
+            /// If was constructed from a `Box<dyn Error + ... >`,
+            /// and this is being casted to another type,
+            /// it'll first downcast to `Box<dyn Error + ... >`,
+            /// then it'll downcast the `Box<dyn Error + ... >` into `RBox<T>`.
             ///
             /// # Errors
             ///
-            /// This returns `Err(self)` under the same conditions where `DynTrait<_>`
-            /// cannot be unerased.
+            /// This returns `Err(self)` in any of these cases:
+            ///
+            /// - The `RBoxError_` wasn't constructed in the current dynamic library.
+            ///
+            /// - The `RBoxError_` was constructed with a different type than `T`.
             ///
             /// # Example
             ///
@@ -627,16 +625,20 @@ macro_rules! from_impls {
                 }
             }
 
-            /// Converts this `&RBoxError_<_>` to an `Option<&T>`.
+            /// Converts this `&RBoxError_<_>` to a `&T`.
             ///
-            /// If this downcasts to a type other than `Box<dyn Error + ... >`,
-            /// and this `RBoxError_<_>` was constructed from one,
-            /// this will downcast the `Box<dyn Error + ... >` into `T`.
+            /// If was constructed from a `Box<dyn Error + ... >`,
+            /// and this is being casted to another type,
+            /// it'll first downcast to `&dyn Error + ... `,
+            /// then it'll downcast the `&dyn Error + ... ` into `&T`.
             ///
             /// # Errors
             ///
-            /// This returns `None` under the same conditions where `DynTrait<_>`
-            /// cannot be unerased.
+            /// This returns `None` in any of these cases:
+            ///
+            /// - The `RBoxError_` wasn't constructed in the current dynamic library.
+            ///
+            /// - The `RBoxError_` was constructed with a different type than `T`.
             ///
             /// # Example
             ///
@@ -663,16 +665,20 @@ macro_rules! from_impls {
                 }
             }
 
-            /// Converts this `&mut RBoxError_<_>` to an `Option<&mut T>`.
+            /// Converts this `&mut RBoxError_<_>` to a `&mut T`.
             ///
-            /// If this downcasts to a type other than `Box<dyn Error + ... >`,
-            /// and this `RBoxError_<_>` was constructed from one,
-            /// this will downcast the `Box<dyn Error + ... >` into `T`.
+            /// If was constructed from a `Box<dyn Error + ... >`,
+            /// and this is being casted to another type,
+            /// it'll first downcast to `&mut dyn Error + ... `,
+            /// then it'll downcast the `&mut dyn Error + ... ` into `&mut T`.
             ///
             /// # Errors
             ///
-            /// This returns `None` under the same conditions where `DynTrait<_>`
-            /// cannot be unerased.
+            /// This returns `None` in any of these cases:
+            ///
+            /// - The `RBoxError_` wasn't constructed in the current dynamic library.
+            ///
+            /// - The `RBoxError_` was constructed with a different type than `T`.
             ///
             /// # Example
             ///
@@ -704,9 +710,21 @@ macro_rules! from_impls {
 }
 
 
-from_impls!{ Box<dyn ErrorTrait + Send + Sync + 'static> , SyncSend }
-from_impls!{ Box<dyn ErrorTrait + Send + 'static> , UnsyncSend }
-from_impls!{ Box<dyn ErrorTrait + 'static> , UnsyncUnsend }
+from_impls!{
+    "Converts a `Box<dyn Error + Send + Sync>` to a `Send + Sync` `RBoxError_`.",
+    Box<dyn ErrorTrait + Send + Sync + 'static> ,
+    SyncSend,
+}
+from_impls!{
+    "Converts a `Box<dyn Error + Send>` to a `Send + !Sync` `RBoxError_`.",
+    Box<dyn ErrorTrait + Send + 'static> ,
+    UnsyncSend,
+}
+from_impls!{
+    "Converts a `Box<dyn Error>` to a `!Send + !Sync` `RBoxError_`.",
+    Box<dyn ErrorTrait + 'static> ,
+    UnsyncUnsend,
+}
 
 
 

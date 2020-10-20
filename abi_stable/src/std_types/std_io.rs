@@ -121,7 +121,9 @@ impl_error_kind!{
 ///////////////////////////////////////////////////////////////////////////
 
 
-/// Ffi-safe equivalent of `std::io::SeekFrom`.
+/// Ffi-safe equivalent of [`std::io::SeekFrom`].
+///
+/// [`std::io::SeekFrom`]: https://doc.rust-lang.org/std/io/enum.SeekFrom.html
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[repr(u8)]
 #[derive(StableAbi)]
@@ -243,7 +245,7 @@ impl From<ErrorKind> for RIoError{
 }
 
 impl RIoError {
-    /// Constructs an RIoError from an error and a `std::io::ErrorKind`.
+    /// Constructs an `RIoError` from an error and a `std::io::ErrorKind`.
     ///
     /// # Example
     ///
@@ -263,8 +265,8 @@ impl RIoError {
         }
     }
 
-    /// Constructs an RIoError from a type convertible into a
-    /// `Box<dyn ErrorTrait+Send+Sync+'static>` and a `std::io::ErrorKind`.
+    /// Constructs an `RIoError` from a type convertible into a
+    /// `Box<dyn std::error::Error + Send + Sync + 'static>`, and a `std::io::ErrorKind`.
     ///
     /// # Example
     ///
@@ -284,7 +286,7 @@ impl RIoError {
         Self::with_box(kind,error.into())
     }
 
-    /// Constructs an RIoError from a `std::io::ErrorKind`.
+    /// Constructs an `RIoError` from a `std::io::ErrorKind`.
     ///
     /// # Example
     ///
@@ -301,8 +303,8 @@ impl RIoError {
         }
     }
 
-    /// Constructs an RIoError from a 
-    /// `Box<dyn ErrorTrait+Send+Sync+'static>` and a `std::io::ErrorKind`.
+    /// Constructs an `RIoError` from a 
+    /// `Box<dyn std::error::Error + Send + Sync + 'static>` and a `std::io::ErrorKind`.
     ///
     /// # Example
     ///
@@ -321,7 +323,7 @@ impl RIoError {
         }
     }
 
-    /// Constructs an RIoError from an `RBoxError` and a `std::io::ErrorKind`.
+    /// Constructs an `RIoError` from an `RBoxError` and a `std::io::ErrorKind`.
     ///
     /// # Example
     ///
@@ -360,7 +362,7 @@ impl RIoError {
 
 
     /// Gets the internal error,
-    /// returning None if this was constructed with `RIoError::from_kind`.
+    /// returning `None` if this was constructed with `RIoError::from_kind`.
     ///
     /// # Example
     ///
@@ -385,7 +387,7 @@ impl RIoError {
     }
     
     /// Gets the internal error,
-    /// returning None if this was constructed with `RIoError::from_kind`.
+    /// returning `None` if this was constructed with `RIoError::from_kind`.
     ///
     /// # Example
     ///
@@ -409,7 +411,7 @@ impl RIoError {
     }
 
     /// Converts this into the internal error,
-    /// returning None if this was constructed with `RIoError::from_kind`.
+    /// returning `None` if this was constructed with `RIoError::from_kind`.
     ///
     /// # Example
     ///

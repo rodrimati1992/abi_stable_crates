@@ -6,7 +6,7 @@ Contains the ffi-safe equivalent of `std::cmp::Ordering`.
 use std::cmp::Ordering;
 
 /**
-Ffi-safe equivalent of ::std::cmp::Ordering.
+Ffi-safe equivalent of `std::cmp::Ordering`.
 
 # Example
 
@@ -29,7 +29,6 @@ where
     l.cmp(&r)
      .into()
 }
-
 
 ```
 */

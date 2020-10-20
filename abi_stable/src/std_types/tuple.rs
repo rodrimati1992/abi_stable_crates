@@ -72,7 +72,7 @@ declare_tuple! {
 
 declare_tuple! {
     struct_attrs[
-        /// An ffi safe 1 element tuple.
+        /// An ffi safe 2 element tuple.
     ]
 
     into_tuple_attrs[
@@ -96,7 +96,7 @@ declare_tuple! {
 
 declare_tuple! {
     struct_attrs[
-        /// An ffi safe 1 element tuple.
+        /// An ffi safe 3 element tuple.
     ]
 
     into_tuple_attrs[
@@ -121,7 +121,7 @@ declare_tuple! {
 
 declare_tuple! {
     struct_attrs[
-        /// An ffi safe 1 element tuple.
+        /// An ffi safe 4 element tuple.
     ]
 
     into_tuple_attrs[

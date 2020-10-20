@@ -28,13 +28,13 @@ not yet guaranteed.
 
 # Lifetime problems
 
-Because RSliceMut dereferences into a mutable slice,you can call slice method on it.
+Because `RSliceMut` dereferences into a mutable slice,you can call slice methods on it.
 
 If you call a slice method that returns a borrow into the slice,
-it will have the lifetime of the `let slice:RSliceMut<'a,[T]>` variable instead of the `'a` 
+it will have the lifetime of the `let slice: RSliceMut<'a,[T]>` variable instead of the `'a` 
 lifetime that it's parameterized over.
 
-To get a slice with the same lifetime as an RSliceMut,
+To get a slice with the same lifetime as an `RSliceMut`,
 one must use one of the `RSliceMut::{into_slice,into_slice_mut}` methods.
 
 
@@ -131,6 +131,11 @@ where
         }
         
         /// Gets a mutable raw pointer to the start of the slice.
+        pub fn as_mut_ptr(&mut self) -> *mut T{
+            self.data
+        }
+        
+        /// Gets a mutable raw pointer to the start of the slice.
         pub const fn into_mut_ptr(self) -> *mut T{
             self.data
         }
@@ -178,13 +183,13 @@ where
         ///
         /// Callers must ensure that:
         ///
-        /// - ptr_ points to valid memory,
+        /// - `ptr_` points to valid memory,
         ///
-        /// - `ptr_ .. ptr+len` range is àccessible memory.
+        /// - `ptr_ .. ptr+len` range is accessible memory.
         ///
-        /// - ptr_ is aligned to `T`.
+        /// - `ptr_` is aligned to `T`.
         ///
-        /// - the data ptr_ points to must be valid for the lifetime of this `RSlice<'a,T>`
+        /// - the data `ptr_` points to must be valid for the lifetime of this `RSlice<'a,T>`
         ///
         /// # Examples
         ///
@@ -260,10 +265,10 @@ impl<'a, T> RSliceMut<'a, T> {
         slic.into()
     }
 
-    /// Creates an `RSlice<'a,T>` with access to the `range` range of elements.
+    /// Creates an `RSlice<'b,T>` with access to the `range` range of elements.
     ///
     /// This is an inherent method instead of an implementation of the
-    /// ::std::ops::Index trait because it does not return a reference.
+    /// `std::ops::Index` trait because it does not return a reference.
     ///
     /// # Example
     ///
@@ -279,7 +284,7 @@ impl<'a, T> RSliceMut<'a, T> {
     /// assert_eq!(slic.slice(1..3),RSlice::from_slice(&[1,2]));
     ///
     /// ```
-    pub fn slice<I>(&self, i: I) -> RSlice<'_, T>
+    pub fn slice<'b, I>(&'b self, i: I) -> RSlice<'b, T>
     where
         [T]: Index<I, Output = [T]>,
     {
@@ -289,7 +294,7 @@ impl<'a, T> RSliceMut<'a, T> {
     /// Creates an `RSliceMut<'a,T>` with access to the `range` range of elements.
     ///
     /// This is an inherent method instead of an implementation of the
-    /// ::std::ops::IndexMut trait because it does not return a reference.
+    /// `std::ops::IndexMut` trait because it does not return a reference.
     ///
     /// # Example
     ///
@@ -422,25 +427,6 @@ impl<'a, T> RSliceMut<'a, T> {
     ///
     /// ```
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        unsafe { self.as_mut_slice_unbounded_lifetime() }
-    }
-
-    /// Creates a `&'a mut [T]` with access to all the elements of this slice.
-    ///
-    /// This is different to `as_mut_slice` in that the returned lifetime of 
-    /// this function is larger.
-    ///
-    /// This will be deprecated in 0.7.0.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RSliceMut;
-    ///
-    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0,1,2,3]).into_slice_mut(), &mut [0,1,2,3]);
-    ///
-    /// ```
-    pub fn into_slice_mut(mut self) -> &'a mut [T] {
         unsafe { self.as_mut_slice_unbounded_lifetime() }
     }
 
