@@ -27,13 +27,13 @@ not yet guaranteed.
 
 # Lifetime problems
 
-Because RSlice dereferences into a slice,you can call slice method on it.
+Because `RSlice` dereferences into a slice,you can call slice methods on it.
 
 If you call a slice method that returns a borrow into the slice,
-it will have the lifetime of the `let slice:RSlice<'a,[T]>` variable instead of the `'a` 
+it will have the lifetime of the `let slice: RSlice<'a,[T]>` variable instead of the `'a` 
 lifetime that it's parameterized over.
 
-To get a slice with the same lifetime as an RSlice,
+To get a slice with the same lifetime as an `RSlice`,
 one must use the `RSlice::as_slice` method.
 
 
@@ -124,13 +124,13 @@ where
         ///
         /// Callers must ensure that:
         ///
-        /// - ptr_ points to valid memory,
+        /// - `ptr_` points to valid memory,
         ///
-        /// - `ptr_ .. ptr+len` range is àccessible memory.
+        /// - `ptr_ .. ptr+len` range is accessible memory.
         ///
-        /// - ptr_ is aligned to `T`.
+        /// - `ptr_` is aligned to `T`.
         ///
-        /// - the data ptr_ points to must be valid for the lifetime of this `RSlice<'a,T>`
+        /// - The data `ptr_` points to must be valid for the `'a` lifetime.
         ///
         /// # Examples
         ///
@@ -276,7 +276,7 @@ impl<'a, T> RSlice<'a, T> {
     /// Creates an `RSlice<'a,T>` with access to the `range` range of elements.
     ///
     /// This is an inherent method instead of an implementation of the
-    /// ::std::ops::Index trait because it does not return a reference.
+    /// `std::ops::Index` trait because it does not return a reference.
     ///
     /// # Example
     ///
@@ -321,6 +321,13 @@ impl<'a, T> RSlice<'a, T> {
     }
 
     /// Transmutes n `RSlice<'a,T>` to a `RSlice<'a,U>`
+    ///
+    /// # Safety
+    ///
+    /// This has the same safety requirements as calling [`std::mem::transmute`] to 
+    /// transmute a `&'a [T]` to a `&'a [U]`.
+    ///
+    /// [`std::mem::transmute`]: https://doc.rust-lang.org/std/mem/fn.transmute.html
     pub const unsafe fn transmute_ref<U>(self)->RSlice<'a,U>
     where
         U:'a

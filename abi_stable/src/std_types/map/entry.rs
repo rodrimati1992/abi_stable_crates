@@ -283,7 +283,7 @@ where
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-/// A handle into an occupied entry in a map,always a variant of an REntry.
+/// A handle into an occupied entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -296,7 +296,7 @@ pub struct ROccupiedEntry<'a,K,V>{
     _marker:UnsafeIgnoredType<OccupiedEntry<'a,K,V>>
 }
 
-/// A handle into a vacant entry in a map,always a variant of an REntry.
+/// A handle into a vacant entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -333,7 +333,7 @@ impl<'a,K,V> ROccupiedEntry<'a,K,V>{
         }
     }
 
-    /// Gets the key of the entry.
+    /// Gets a reference to the key of the entry.
     ///
     /// # Example
     ///
@@ -413,7 +413,8 @@ impl<'a,K,V> ROccupiedEntry<'a,K,V>{
     }
 
     /// Gets a mutable reference to the value in the entry,
-    /// that borrows with the lifetime of the map instead of from this `ROccupiedEntry`.
+    /// that borrows with the lifetime of the map instead of 
+    /// borrowing from this `ROccupiedEntry`.
     ///
     /// # Example
     ///
@@ -550,7 +551,7 @@ impl<'a,K,V> RVacantEntry<'a,K,V>{
         }
     }
 
-    /// Gets the key of the entry.
+    /// Gets a reference to the key of the entry.
     ///
     /// # Example
     ///
@@ -577,7 +578,7 @@ impl<'a,K,V> RVacantEntry<'a,K,V>{
         vtable.key()(self.entry)
     }
 
-    /// Gets back the key that was passed to RHashMap::entry.
+    /// Gets back the key that was passed to `RHashMap::entry`.
     ///
     /// # Example
     ///

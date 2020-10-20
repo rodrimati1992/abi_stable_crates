@@ -29,11 +29,11 @@ mod tests;
 pub use self::iters::{Drain, IntoIter};
 
 /**
-Ffi-safe equivalent of ::std::string::String
+Ffi-safe equivalent of `std::string::String`.
 
 # Example
 
-This defines a function returning the last word of an RString.
+This defines a function returning the last word of an `RString`.
 
 ```
 use abi_stable::{
@@ -80,7 +80,7 @@ impl RString {
     const NEW:Self=Self{ inner:RVec::new() };
 
     /// Creates a new,
-    /// empty RString with the capacity to push strings that add up to `cap` bytes.
+    /// empty RString with the capacity for `cap` bytes without reallocating.
     ///
     /// # Example
     ///
@@ -100,7 +100,7 @@ impl RString {
     /// For slicing into `RStr`s.
     ///
     /// This is an inherent method instead of an implementation of the
-    /// ::std::ops::Index trait because it does not return a reference.
+    /// `std::ops::Index` trait because it does not return a reference.
     ///
     /// # Example
     ///
@@ -225,11 +225,11 @@ impl RString {
         RString { inner: vec }
     }
 
-    /// Converts the `vec` vector of bytes to an RString.
+    /// Converts the `vec` vector of bytes to an `RString`.
     ///
     /// # Errors
     ///
-    /// This will return a `Err(FromUtf8Error{..})` if `vec` was not valid utf-8.
+    /// This returns a `Err(FromUtf8Error{..})` if `vec` is not valid utf-8.
     ///
     /// # Examples
     ///
@@ -258,12 +258,12 @@ impl RString {
     }
 
 
-    /// Decodes a utf-16 encoded `&[u16]` to an RString.
+    /// Decodes a utf-16 encoded `&[u16]` to an `RString`.
     ///
     /// # Errors
     ///
-    /// This will return a `Err(::std::string::FromUtf16Error{..})` 
-    /// if `vec` was not valid utf-8.
+    /// This returns a `Err(::std::string::FromUtf16Error{..})` 
+    /// if `vec` is not valid utf-8.
     ///
     /// # Example
     ///
@@ -299,7 +299,7 @@ impl RString {
         self.inner
     }
 
-    /// Converts this RString to a String.
+    /// Converts this `RString` to a `String`.
     ///
     /// # Allocation
     ///
@@ -388,7 +388,7 @@ impl RString {
         self.inner.reserve_exact(additional);
     }
 
-    /// Appends the `ch` char at the end of this RString.
+    /// Appends `ch` at the end of this RString.
     ///
     /// # Example
     ///
@@ -411,7 +411,7 @@ impl RString {
         }
     }
 
-    /// Appends the `s` &str at the end of this RString.
+    /// Appends `str` at the end of this RString.
     ///
     /// # Example
     ///
@@ -426,13 +426,13 @@ impl RString {
     /// assert_eq!(str.as_str(),"green frog");
     ///
     /// ```
-    pub fn push_str(&mut self, s: &str) {
-        self.inner.extend_from_copy_slice(s.as_bytes());
+    pub fn push_str(&mut self, str: &str) {
+        self.inner.extend_from_copy_slice(str.as_bytes());
     }
 
     /// Removes the last character,
-    /// returns Some(_) if this RString is not empty,
-    /// otherwise returns None.
+    /// returns `Some(_)` if this `RString` is not empty,
+    /// otherwise returns `None`.
     ///
     /// # Example
     ///
@@ -499,7 +499,7 @@ impl RString {
         ch
     }
 
-    /// Insert the `ch` character at the `ìnx` byte position.
+    /// Insert the `ch` character at the `ìdx` byte position.
     ///
     /// # Panics
     /// 
@@ -529,7 +529,7 @@ impl RString {
         self.insert_str(idx, str_);
     }
 
-    /// Insert the `s` string at the `ìnx` byte position.
+    /// Insert the `string` at the `ìdx` byte position.
     ///
     /// # Panics
     /// 
@@ -812,7 +812,7 @@ removing the characters in that range in the process.
 # Panic
 
 Panics if the start or end of the range are not on a on a char boundary, 
-or if it is out of bounds.
+or if either are out of bounds.
 
 # Example
 
@@ -913,7 +913,7 @@ impl<'a> FromIterator<&'a char> for RString {
 
 //////////////////////////////////////////////////////
 
-/// Error that happens when attempting to convert an `RVec<u8>` into an RString.
+/// Error that happens when attempting to convert an `RVec<u8>` into an `RString`.
 ///
 /// # Example
 ///
@@ -932,7 +932,7 @@ pub struct FromUtf8Error {
 }
 
 impl FromUtf8Error{
-    /// Unwraps this error into the bytes that were attempted to convert into an RString.
+    /// Unwraps this error into the bytes that failed to be converted into an `RString`.
     ///
     /// # Example
     ///
@@ -949,7 +949,7 @@ impl FromUtf8Error{
     pub fn into_bytes(self)->RVec<u8>{
         self.bytes
     }
-    /// Gets access to bytes that were attempted to convert into an RString.
+    /// Gets access to the bytes that failed to be converted into an `RString`.
     ///
     /// # Example
     ///

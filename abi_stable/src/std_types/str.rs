@@ -48,6 +48,7 @@ pub struct RStr<'a> {
 }
 
 impl<'a> RStr<'a> {
+    /// An empty `RStr`.
     pub const EMPTY: Self = RStr {
         inner: RSlice::EMPTY,
     };
@@ -85,11 +86,11 @@ impl<'a> RStr<'a> {
     ///
     /// Callers must ensure that:
     ///
-    /// - ptr_ points to valid memory,
+    /// - `ptr_` points to valid memory,
     ///
     /// - `ptr_ .. ptr+len` range is accessible memory,and is valid utf-8.
     ///
-    /// - the data ptr_ points to must be valid for the lifetime of this `RStr<'a>`
+    /// - The data that `ptr_` points to must be valid for the lifetime of this `RStr<'a>`
     ///
     /// # Examples
     ///
@@ -132,7 +133,7 @@ impl<'a> RStr<'a> {
     /// For slicing `RStr`s.
     ///
     /// This is an inherent method instead of an implementation of the
-    /// ::std::ops::Index trait because it does not return a reference.
+    /// `std::ops::Index` trait because it does not return a reference.
     ///
     /// # Example
     ///

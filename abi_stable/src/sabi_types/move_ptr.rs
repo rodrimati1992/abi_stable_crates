@@ -345,9 +345,9 @@ impl<'a,T> Drop for MovePtr<'a,T>{
     }
 }
 
-impl<'a, T: Send> Send for MovePtr<'a,T> {}
+unsafe impl<'a, T: Send> Send for MovePtr<'a,T> {}
 
-impl<'a, T: Sync> Sync for MovePtr<'a,T> {}
+unsafe impl<'a, T: Sync> Sync for MovePtr<'a,T> {}
 
 //#[cfg(test)]
 #[cfg(all(test,not(feature="only_new_tests")))]

@@ -80,6 +80,36 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
     }
 
     impl<T> RVec<T> {
+        /// Creates a new,empty `RVec<T>`.
+        ///
+        /// This function does not allocate.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RVec;
+        ///
+        /// let list=RVec::<u32>::new();
+        ///
+        /// ```
+        pub const fn new() -> Self {
+            Self::NEW
+        }
+
+        const NEW:Self={
+            // unsafety:
+            // While this implementation is correct,
+            // it would be better to do `RVec::from_vec(Vec::new())`
+            // when it's possible to call `Vec::{as_mut_ptr,capacity,len}` in const contexts.
+            RVec {
+                vtable: VTableGetter::<T>::LIB_VTABLE,
+                buffer: std::mem::align_of::<T>() as *mut T,
+                length: 0,
+                capacity: 0_usize.wrapping_sub((std::mem::size_of::<T>()==0)as usize),
+                _marker: PhantomData,
+            }
+        };
+
         #[allow(dead_code)]
         // Used to test functions that change behavior when the vtable changes
         pub(super) fn set_vtable_for_testing(mut self) -> Self {
@@ -148,36 +178,6 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
         pub const fn as_ptr(&self) -> *const T{
             self.buffer
         }
-
-        /// Creates a new,empty `RVec<T>`.
-        ///
-        /// This function does not allocate.
-        ///
-        /// # Example
-        ///
-        /// ```
-        /// use abi_stable::std_types::RVec;
-        ///
-        /// let list=RVec::<u32>::new();
-        ///
-        /// ```
-        pub const fn new() -> Self {
-            Self::NEW
-        }
-
-        const NEW:Self={
-            // unsafety:
-            // While this implementation is correct,
-            // it would be better to do `RVec::from_vec(Vec::new())`
-            // when it's possible to call `Vec::{as_mut_ptr,capacity,len}` in const contexts.
-            RVec {
-                vtable: VTableGetter::<T>::LIB_VTABLE,
-                buffer: std::mem::align_of::<T>() as *mut T,
-                length: 0,
-                capacity: 0_usize.wrapping_sub((std::mem::size_of::<T>()==0)as usize),
-                _marker: PhantomData,
-            }
-        };
     }
     impl_from_rust_repr! {
         impl[T] From<Vec<T>> for RVec<T>{
@@ -202,7 +202,7 @@ impl<T> RVec<T> {
 
     /// Creates a new,empty `RVec<T>`,with a capacity of `cap`.
     ///
-    /// This function does not allocate if `cap`==0.
+    /// This function does not allocate if `cap == 0`.
     ///
     /// # Example
     ///
@@ -362,7 +362,7 @@ impl<T> RVec<T> {
     ///
     /// `new_len` must be less than or equal to `self.capacity()`.
     ///
-    /// The elements at old_len..new_len must be initialized.
+    /// The elements betweem the old length and the new length must be initialized.
     ///
     /// # Example
     ///
@@ -388,7 +388,7 @@ impl<T> RVec<T> {
         self.length = new_len;
     }
 
-    /// Shrinks the capacity of the RString to match its length.
+    /// Shrinks the capacity of the `RVec` to match its length.
     ///
     /// # Example
     ///
@@ -433,7 +433,7 @@ impl<T> RVec<T> {
         self.length == 0
     }
 
-    /// Returns a `Vec<T>`,consuming `self`.
+    /// Converts this `RVec<T>` into a `Vec<T>`.
     ///
     /// # Allocation
     ///
@@ -497,7 +497,7 @@ impl<T> RVec<T> {
         self.as_slice().to_vec()
     }
 
-    /// Clones a `&[T]` into a new RVec.
+    /// Clones a `&[T]` into a new `RVec<T>`.
     ///
     /// This function was defined to aid type inference,
     /// because eg:`&[0,1]` is a `&[i32;2]` not a `&[i32]`.
@@ -524,7 +524,7 @@ impl<T> RVec<T> {
     ///
     /// # Panics
     ///
-    /// Panics if self.len() < index.
+    /// Panics if `self.len() < index`.
     ///
     /// # Example
     ///
@@ -566,7 +566,7 @@ impl<T> RVec<T> {
     }
 
     /// Attemps to remove the element at `index` position,
-    /// returns None if self.len() <= index.
+    /// returns `None` if `self.len() <= index`.
     ///
     /// # Example
     ///
@@ -602,7 +602,7 @@ impl<T> RVec<T> {
     ///
     /// # Panic
     ///
-    /// Panics if self.len() <= index.
+    /// Panics if `self.len() <= index`.
     ///
     /// # Example
     ///
@@ -633,7 +633,7 @@ impl<T> RVec<T> {
     ///
     /// # Panic
     ///
-    /// Panics if self.len() <= index.
+    /// Panics if `self.len() <= index`.
     ///
     /// # Example
     ///
@@ -693,7 +693,7 @@ impl<T> RVec<T> {
     }
 
     /// Attempts to remove the last element,
-    /// returns None if the `RVec<T>` is empty.
+    /// returns `None` if the `RVec<T>` is empty.
     ///
     /// # Example
     ///
@@ -726,7 +726,7 @@ impl<T> RVec<T> {
     }
 
     /// Truncates the `RVec<T>` to `to` length.
-    /// Does nothing if self.len() <= to.
+    /// Does nothing if `self.len() <= to`.
     ///
     /// Note:this has no effect on the capacity of the `RVec<T>`.
     ///
@@ -887,8 +887,7 @@ where
     T: Clone,
 {
     /// Resizes the `RVec<T>` to `new_len` length.
-    /// if new_len is larger than the current length,
-    /// the `RVec<T>` is extended with clones of `value`
+    /// extending the `RVec<T>` with clones of `value`
     /// to reach the new length.
     ///
     /// # Example

@@ -57,7 +57,7 @@ pub use self::{
 /**
 
 An ffi-safe hashmap,which wraps `std::collections::HashMap<K,V,S>`,
-only requiring the `K:Eq+Hash` bounds when constructing it.
+only requiring the `K: Eq + Hash` bounds when constructing it.
 
 Most of the API in `HashMap` is implemented here,including the Entry API.
 
@@ -127,17 +127,17 @@ struct BoxedHashMap<'a,K,V,S>{
 }
 
 /// An RHashMap iterator,
-/// implementing `Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
+/// implementing `Iterator<Item= Tuple2< &K, &V > > + !Send + !Sync + Clone`
 pub type Iter<'a,K,V>=
     DynTrait<'a,RBox<()>,RefIterInterface<K,V>>;
 
 /// An RHashMap iterator,
-/// implementing `Iterator<Item= Tuple2< &K, &mut V > >+!Send+!Sync`
+/// implementing `Iterator<Item= Tuple2< &K, &mut V > > + !Send + !Sync`
 pub type IterMut<'a,K,V>=
     DynTrait<'a,RBox<()>,MutIterInterface<K,V>>;
 
 /// An RHashMap iterator,
-/// implementing `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
+/// implementing `Iterator<Item= Tuple2< K, V > > + !Send + !Sync`
 pub type Drain<'a,K,V>=
     DynTrait<'a,RBox<()>,ValIterInterface<K,V>>;
 
@@ -296,6 +296,8 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Returns a reference to the value associated with the key.
     ///
+    /// Returns a `None` if there is no entry for the key.
+    ///
     /// # Example
     ///
     /// ```
@@ -320,6 +322,8 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Returns a mutable reference to the value associated with the key.
     ///
+    /// Returns a `None` if there is no entry for the key.
+    ///
     /// # Example
     ///
     /// ```
@@ -343,7 +347,6 @@ impl<K,V,S> RHashMap<K,V,S>{
     }
 
     /// Removes the value associated with the key.
-    /// Returns a mutable reference to the value associated with the key.
     ///
     /// # Example
     ///
@@ -414,6 +417,8 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Returns a reference to the value associated with the key.
     ///
+    /// Returns a `None` if there is no entry for the key.
+    ///
     /// # Example
     ///
     /// ```
@@ -433,6 +438,8 @@ impl<K,V,S> RHashMap<K,V,S>{
     }
 
     /// Returns a mutable reference to the value associated with the key.
+    ///
+    /// Returns a `None` if there is no entry for the key.
     ///
     /// # Example
     ///
@@ -678,7 +685,8 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Iterates over the entries in the map,with references to the values in the map.
     ///
-    /// This returns an `Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
+    /// This returns a type that implements
+    /// `Iterator<Item= Tuple2< &K, &V > > + !Send + !Sync + Clone`
     ///
     /// # Example
     ///
@@ -703,7 +711,8 @@ impl<K,V,S> RHashMap<K,V,S>{
     
     /// Iterates over the entries in the map,with mutable references to the values in the map.
     ///
-    /// This returns an `Iterator<Item= Tuple2< &K, &mut V > >+!Send+!Sync`
+    /// This returns a type that implements
+    /// `Iterator<Item= Tuple2< &K, &mut V > > + !Send + !Sync`
     ///
     /// # Example
     ///
@@ -728,7 +737,7 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Clears the map,returning an iterator over all the entries that were removed.
     /// 
-    /// This returns an `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
+    /// This returns a type that implements `Iterator<Item= Tuple2< K, V > > + !Send + !Sync`
     ///
     /// # Example
     ///
@@ -796,7 +805,7 @@ impl<K,V,S> IntoIterator for RHashMap<K,V,S>{
 }
 
 
-/// This returns an `Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
+/// This returns an `Iterator<Item= Tuple2< &K, &V > > + !Send + !Sync + Clone`
 impl<'a,K,V,S> IntoIterator for &'a RHashMap<K,V,S>{
     type Item=Tuple2<&'a K,&'a V>;
     type IntoIter=Iter<'a,K,V>;
@@ -807,7 +816,8 @@ impl<'a,K,V,S> IntoIterator for &'a RHashMap<K,V,S>{
 }
 
 
-/// This returns an `Iterator<Item= Tuple2< &K, &mut V > >+!Send+!Sync`
+/// This returns a type that implements
+/// `Iterator<Item= Tuple2< &K, &mut V > > + !Send + !Sync`
 impl<'a,K,V,S> IntoIterator for &'a mut RHashMap<K,V,S>{
     type Item=Tuple2<&'a K,&'a mut V>;
     type IntoIter=IterMut<'a,K,V>;

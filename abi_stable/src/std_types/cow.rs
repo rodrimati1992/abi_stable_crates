@@ -30,8 +30,12 @@ mod tests;
 ///
 /// All the methods in this trait convert the parameter to the return type.
 pub trait BorrowOwned<'a>: 'a + ToOwned {
+    /// The owned type, stored in `RCow::Owned`
     type ROwned;
+    
+    /// The borrowed type, stored in `RCow::Borrowed`
     type RBorrowed: 'a + Copy ;
+
     fn r_borrow(this: &'a Self::ROwned) -> Self::RBorrowed;
     fn r_to_owned(this: Self::RBorrowed) -> Self::ROwned;
     fn deref_borrowed(this: &Self::RBorrowed) -> &Self;
@@ -163,13 +167,13 @@ where
 ////////////////////////////////////////////////////////////////////
 
 /**
-Ffi-safe equivalent of ::std::borrow::Cow.
+Ffi-safe equivalent of `std::borrow::Cow`.
 
 The most common examples of this type are:
 
-- `RCow<'_,str>`: contains an RStr<'_> or an RString.
+- `RCow<'_,str>`: contains an `RStr<'_>` or an `RString`.
 
-- `RCow<'_,[T]>`: contains an RSlice<'_,T> or an RVec<T>.
+- `RCow<'_,[T]>`: contains an `RSlice<'_,T>` or an `RVec<T>`.
 
 - `RCow<'_,T>`: contains a `&T` or a `T`.
 
@@ -225,7 +229,7 @@ impl<'a, B> RCow<'a, B>
 where
     B: BorrowOwned<'a>+?Sized,
 {
-    /// Get a mutable reference to the owner form of RCow,
+    /// Get a mutable reference to the owned form of RCow,
     /// converting to the owned form if it is currently the borrowed form.
     ///
     /// # Examples
@@ -749,7 +753,7 @@ where
 }
 
 /**
-A helper type,to deserialize a RCow<'a,[u8]> which borrows from the deserializer.
+A helper type,to deserialize an `RCow<'a,[u8]>` which borrows from the deserializer.
 
 # Example
 
@@ -778,13 +782,14 @@ assert!( deserialized_slice.cow.is_borrowed() );
 #[derive(Deserialize)]
 #[serde(transparent)]
 pub struct BorrowingRCowU8Slice<'a>{
+    /// The deserialized `Cow`.
     #[serde(borrow,deserialize_with="deserialize_borrowed_bytes")]
     pub cow:RCow<'a,[u8]>
 }
 
 
 /**
-A helper type,to deserialize a RCow<'a,str> which borrows from the deserializer.
+A helper type,to deserialize a `RCow<'a,str>` which borrows from the deserializer.
 
 # Example
 
@@ -813,6 +818,7 @@ assert!( deserialized_slice.cow.is_borrowed() );
 #[derive(Deserialize)]
 #[serde(transparent)]
 pub struct BorrowingRCowStr<'a>{
+    /// The deserialized `Cow`.
     #[serde(borrow,deserialize_with="deserialize_borrowed_str")]
     pub cow:RCow<'a,str>
 }

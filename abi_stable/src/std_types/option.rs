@@ -9,11 +9,10 @@ use core_extensions::matches;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 
-/// Ffi-safe equivalent of the `Option<_>` type.
+/// Ffi-safe equivalent of the `std::option::Option` type.
 ///
-/// `Option<_>` is also ffi-safe for NonNull/NonZero types,and references.
+/// `Option` is also ffi-safe for NonNull/NonZero types,and references.
 ///
-/// Use ROption<_> when `Option<_>` would not be viable.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[repr(u8)]
 #[derive(StableAbi)]
@@ -150,7 +149,7 @@ impl<T> ROption<T> {
     /// 
     /// # Panics
     /// 
-    /// Panics if `self` is `RNone` with the `msg` message.
+    /// Panics if `self` is `RNone`, with the `msg` message.
     ///
     /// # Example
     ///
@@ -285,7 +284,7 @@ impl<T> ROption<T> {
     }
 
     /// Transforms (and returns) the contained value with the `f` closure,
-    /// or returns `default`.
+    /// or returns `default` if `self` is `RNone`.
     ///
     /// # Example
     ///
@@ -308,7 +307,7 @@ impl<T> ROption<T> {
     }
 
     /// Transforms (and returns) the contained value with the `f` closure,
-    /// or returns the value `default` returns when called.
+    /// or returns `otherwise()` if `self` is `RNone`..
     ///
     /// # Example
     ///
@@ -320,18 +319,18 @@ impl<T> ROption<T> {
     ///
     /// ```
     #[inline]
-    pub fn map_or_else<U, D, F>(self, default: D, f: F) -> U
+    pub fn map_or_else<U, D, F>(self, otherwise: D, f: F) -> U
     where
         D: FnOnce() -> U,
         F: FnOnce(T) -> U,
     {
         match self {
             RSome(t) => f(t),
-            RNone => default(),
+            RNone => otherwise(),
         }
     }
 
-    /// Returns `self` if `preficate(&self)` is true,otherwise returns `RNone`.
+    /// Returns `self` if `predicate(&self)` is true,otherwise returns `RNone`.
     ///
     /// # Example
     ///
@@ -356,7 +355,7 @@ impl<T> ROption<T> {
         RNone
     }
 
-    /// Returns `self` if it is RNone,otherwise returns `optb`.
+    /// Returns `self` if it is `RNone`,otherwise returns `optb`.
     ///
     /// # Example
     ///
@@ -377,27 +376,27 @@ impl<T> ROption<T> {
         }
     }
 
-    /// Returns `self` if it is RNone, 
-    /// otherwise calls `optb` with the value of `RSome`.
+    /// Returns `self` if it is `RNone`, 
+    /// otherwise returns the result of calling `f` with the value in `RSome`.
     ///
     /// # Example
     ///
     /// ```
     /// # use abi_stable::std_types::*; 
     ///
-    /// assert_eq!(RSome(10).and_then(||RSome(20)),RSome(20));
-    /// assert_eq!(RSome(10).and_then(||RNone    ),RNone);
-    /// assert_eq!(RNone::<u32>.and_then(||RSome(20)),RNone);
-    /// assert_eq!(RNone::<u32>.and_then(||RNone    ),RNone);
+    /// assert_eq!(RSome(10).and_then(|x|RSome(x * 2)),RSome(20));
+    /// assert_eq!(RSome(10).and_then(|_|RNone::<u32>),RNone);
+    /// assert_eq!(RNone::<u32>.and_then(|x|RSome(x * 2)),RNone);
+    /// assert_eq!(RNone::<u32>.and_then(|_|RNone::<u32>),RNone);
     ///
     /// ```
     #[inline]
-    pub fn and_then<F>(self, f: F) -> ROption<T>
+    pub fn and_then<F, U>(self, f: F) -> ROption<U>
     where
-        F: FnOnce() -> ROption<T>,
+        F: FnOnce(T) -> ROption<U>,
     {
         match self {
-            RSome(_) => f(),
+            RSome(x) => f(x),
             RNone => self,
         }
     }
@@ -448,8 +447,8 @@ impl<T> ROption<T> {
         }
     }
 
-    /// Returns RNone if both values are either `RNone` or `RSome`,
-    /// otherwise returns `RSome` from either one.
+    /// Returns `RNone` if both values are `RNone` or `RSome`,
+    /// otherwise returns the value that is an`RSome`.
     ///
     /// # Example
     ///
@@ -471,7 +470,7 @@ impl<T> ROption<T> {
         }
     }
 
-    /// Sets this ROption to `RSome(value)` if it was RNone.
+    /// Sets this ROption to `RSome(value)` if it was `RNone`.
     /// Returns a mutable reference to the inserted/pre-existing `RSome`.
     ///
     /// # Example
@@ -497,7 +496,7 @@ impl<T> ROption<T> {
         }
     }
 
-    /// Sets this ROption to `RSome(func())` if it was RNone.
+    /// Sets this `ROption` to `RSome(func())` if it was `RNone`.
     /// Returns a mutable reference to the inserted/pre-existing `RSome`.
     ///
     /// # Example
@@ -579,7 +578,7 @@ impl<T> ROption<T> {
     
 
 impl<T> ROption<&T>{
-    /// Converts an `Option<&T>` to a `Option<T>` by cloning its contents.
+    /// Converts an `ROption<&T>` to an `ROption<T>` by cloning its contents.
     ///
     /// # Example
     ///
@@ -601,7 +600,7 @@ impl<T> ROption<&T>{
         }
     }
 
-    /// Converts an `Option<&T>` to a `Option<T>` by Copy-ing its contents.
+    /// Converts an `ROption<&T>` to an `ROption<T>` by Copy-ing its contents.
     ///
     /// # Example
     ///
@@ -625,7 +624,7 @@ impl<T> ROption<&T>{
 }
 
 impl<T> ROption<&mut T>{
-    /// Converts an `Option<&mut T>` to a `Option<T>` by cloning its contents.
+    /// Converts an `ROption<&mut T>` to a `ROption<T>` by cloning its contents.
     ///
     /// # Example
     ///
@@ -647,7 +646,7 @@ impl<T> ROption<&mut T>{
         }
     }
 
-    /// Converts an `Option<&mut T>` to a `Option<T>` by Copy-ing its contents.
+    /// Converts an `ROption<&mut T>` to a `ROption<T>` by Copy-ing its contents.
     ///
     /// # Example
     ///
@@ -671,7 +670,7 @@ impl<T> ROption<&mut T>{
 }
 
 
-/// The default value is RNone.
+/// The default value is `RNone`.
 impl<T> Default for ROption<T> {
     fn default()->Self{
         RNone

@@ -34,7 +34,7 @@ mod private {
     use super::*;
 
     /**
-Ffi-safe equivalent of Box<_>.
+Ffi-safe equivalent of `std::box::Box`.
 
 # Example
 
