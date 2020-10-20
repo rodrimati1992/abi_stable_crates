@@ -6,7 +6,7 @@ in `NonExhaustive`,
 using it as a non-exhaustive enum across ffi.
 
 The enum can then be wrapped in a 
-[`NonExhaustive<>`](../../nonexhaustive_enum/nonexhaustive/struct.NonExhaustive.html),
+[`NonExhaustive<>`](../../nonexhaustive_enum/struct.NonExhaustive.html),
 but can only be converted back into it if the discriminant is valid in that context.
 
 Nonexhaustive enums can safely add variants in minor versions,

@@ -540,6 +540,6 @@ For examples of using both `#[derive(GetStaticEquivalent)]` and `#[not_stableabi
 
 
 
-[`NonExhaustive`]: ../../nonexhaustive_enum/nonexhaustive/struct.NonExhaustive.html
+[`NonExhaustive`]: ../../nonexhaustive_enum/struct.NonExhaustive.html
 
 */
