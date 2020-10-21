@@ -1144,8 +1144,7 @@ where
                 entry:None,
             };
             let boxed=RBox::new(boxed);
-            let boxed=mem::transmute::<RBox<_>,RBox<ErasedMap<K,V,S>>>(boxed);
-            boxed
+            mem::transmute::<RBox<_>,RBox<ErasedMap<K,V,S>>>(boxed)
         }
     }
 

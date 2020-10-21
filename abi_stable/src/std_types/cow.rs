@@ -384,7 +384,7 @@ where
 {
     fn clone(&self) -> Self {
         match self {
-            Borrowed(x) => Borrowed(x.clone()),
+            Borrowed(x) => Borrowed(*x),
             Owned(x) => Owned((*x).clone()),
         }
     }

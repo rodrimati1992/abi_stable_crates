@@ -54,13 +54,6 @@ impl<'a> RStr<'a> {
     };
 }
 
-impl RStr<'static> {
-    #[doc(hidden)]
-    pub const fn _private_from_raw_parts(ptr_: *const u8, len: usize) -> Self {
-        unsafe { Self::from_raw_parts(ptr_, len) }
-    }
-}
-
 impl<'a> RStr<'a> {
     /// Constructs an empty `RStr<'a>`.
     ///

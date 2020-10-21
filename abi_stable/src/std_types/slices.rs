@@ -363,7 +363,7 @@ impl<'a, T> IntoIterator for RSlice<'a, T> {
     type IntoIter = ::std::slice::Iter<'a, T>;
 
     fn into_iter(self) -> ::std::slice::Iter<'a, T> {
-        self.as_slice().into_iter()
+        self.as_slice().iter()
     }
 }
 

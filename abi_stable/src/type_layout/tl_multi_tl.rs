@@ -85,6 +85,11 @@ impl<'a> MultipleTypeLayouts<'a>{
         self.first.len as usize+self.remaining.len()
     }
 
+    /// Whether this is empty.
+    pub fn is_empty(&self)->bool{
+        self.len() == 0
+    }
+
     /// Gets an iterator over the `TypeLayoutCtor` this contains.
     pub fn iter(&self)->MTLIterator<'a> {
         MTLIterator{

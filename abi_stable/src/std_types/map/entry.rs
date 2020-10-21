@@ -437,7 +437,7 @@ impl<'a,K,V> ROccupiedEntry<'a,K,V>{
     pub fn into_mut(self)->&'a mut V{
         let vtable=self.vtable();
 
-        vtable.into_mut_elem()(self)
+        vtable.fn_into_mut_elem()(self)
     }
 
     /// Replaces the current value of the entry with `value`,returning the previous value.
@@ -602,7 +602,7 @@ impl<'a,K,V> RVacantEntry<'a,K,V>{
     pub fn into_key(self) -> K {
         let vtable=self.vtable();
 
-        vtable.into_key()(self)
+        vtable.fn_into_key()(self)
     }
 
     /// Sets the value of the entry,returning a mutable reference to it.
@@ -672,7 +672,7 @@ pub struct OccupiedVTable<K,V>{
     key:extern "C" fn(&ErasedOccupiedEntry<K,V>)->&K,
     get_elem:extern "C" fn(&ErasedOccupiedEntry<K,V>)->&V,
     get_mut_elem:extern "C" fn(&mut ErasedOccupiedEntry<K,V>)->&mut V,
-    into_mut_elem:extern "C" fn(ROccupiedEntry<'_,K,V>)->&'_ mut V,
+    fn_into_mut_elem:extern "C" fn(ROccupiedEntry<'_,K,V>)->&'_ mut V,
     insert_elem:extern "C" fn(&mut ErasedOccupiedEntry<K,V>,V)->V,
     remove:extern "C" fn(ROccupiedEntry<'_,K,V>)->V,
 }
@@ -691,7 +691,7 @@ impl<K,V> OccupiedVTable<K,V>{
         key          :ErasedOccupiedEntry::key,
         get_elem     :ErasedOccupiedEntry::get_elem,
         get_mut_elem :ErasedOccupiedEntry::get_mut_elem,
-        into_mut_elem:ErasedOccupiedEntry::into_mut_elem,
+        fn_into_mut_elem:ErasedOccupiedEntry::fn_into_mut_elem,
         insert_elem  :ErasedOccupiedEntry::insert_elem,
         remove       :ErasedOccupiedEntry::remove,
     };
@@ -730,7 +730,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern "C" fn into_mut_elem(this:ROccupiedEntry<'_,K,V>)->&'_ mut V{
+    extern "C" fn fn_into_mut_elem(this:ROccupiedEntry<'_,K,V>)->&'_ mut V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),
@@ -775,7 +775,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
 pub struct VacantVTable<K,V>{
     drop_entry:unsafe extern "C" fn(&mut ErasedVacantEntry<K,V>),
     key:extern "C" fn(&ErasedVacantEntry<K,V>)->&K,
-    into_key:extern "C" fn(RVacantEntry<'_,K,V>)->K,
+    fn_into_key:extern "C" fn(RVacantEntry<'_,K,V>)->K,
     insert_elem:extern "C" fn(RVacantEntry<'_,K,V>,V)->&'_ mut V,
 }
 
@@ -793,7 +793,7 @@ impl<K,V> VacantVTable<K,V>{
     const VTABLE:VacantVTable<K,V>=VacantVTable{
         drop_entry   :ErasedVacantEntry::drop_entry,
         key          :ErasedVacantEntry::key,
-        into_key     :ErasedVacantEntry::into_key,
+        fn_into_key     :ErasedVacantEntry::fn_into_key,
         insert_elem :ErasedVacantEntry::insert_elem,
     };
 }
@@ -815,7 +815,7 @@ impl<K,V> ErasedVacantEntry<K,V>{
             ) 
         }}
     }
-    extern "C" fn into_key<'a>(this:RVacantEntry<'_,K,V>)->K{
+    extern "C" fn fn_into_key(this:RVacantEntry<'_,K,V>)->K{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),

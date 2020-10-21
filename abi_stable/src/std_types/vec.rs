@@ -242,6 +242,7 @@ impl<T> RVec<T> {
     ///
     /// ```
     #[inline]
+    #[allow(clippy::needless_lifetimes)]
     pub fn slice<'a, I>(&'a self, range: I) -> RSlice<'a, T>
     where
         [T]: Index<I, Output = [T]>,
@@ -266,6 +267,7 @@ impl<T> RVec<T> {
     ///
     /// ```
     #[inline]
+    #[allow(clippy::needless_lifetimes)]
     pub fn slice_mut<'a, I>(&'a mut self, i: I) -> RSliceMut<'a, T>
     where
         [T]: IndexMut<I, Output = [T]>,
@@ -1158,7 +1160,7 @@ use abi_stable::std_types::{RSlice,RVec};
 
 
     */
-    pub fn drain<'a, I>(&'a mut self, index: I) -> Drain<'a, T>
+    pub fn drain<I>(&mut self, index: I) -> Drain<'_, T>
     where
         [T]: IndexMut<I, Output = [T]>,
     {

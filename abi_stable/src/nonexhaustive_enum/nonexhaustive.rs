@@ -7,7 +7,7 @@ use std::{
     fmt::{self,Debug,Display},
     hash::{Hash,Hasher},
     marker::PhantomData,
-    mem::{self,ManuallyDrop},
+    mem::ManuallyDrop,
     ops::Deref,
 };
 
@@ -524,7 +524,7 @@ This panics if the storage has an alignment or size smaller than that of `F`.
 */
     pub unsafe fn transmute_enum_ref<F>(&self)->&NonExhaustive<F,S,I>{
         NonExhaustive::<F,S,I>::assert_fits_within_storage();
-        mem::transmute(self)
+        &*(self as *const Self as *const _)
     }
 
 
@@ -543,7 +543,7 @@ This panics if the storage has an alignment or size smaller than that of `F`.
 */
     pub unsafe fn transmute_enum_mut<F>(&mut self)->&mut NonExhaustive<F,S,I>{
         NonExhaustive::<F,S,I>::assert_fits_within_storage();
-        mem::transmute(self)
+        &mut *(self as *mut Self as *mut _)
     }
 
 /**

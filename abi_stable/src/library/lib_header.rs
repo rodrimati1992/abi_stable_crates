@@ -24,6 +24,10 @@ pub struct LibHeader {
 impl LibHeader {
     /// Constructs a LibHeader from the root module loader.
     /// 
+    /// # Safety
+    /// 
+    /// The `PrefixRef<ErasedPrefix>` returned by the function that 
+    /// `constructor ` wraps must be have been transmuted from a `PrefixRef<M>`.
     pub const unsafe fn from_constructor<M>(
         constructor:Constructor<RootModuleResult>,
         root_mod_consts:RootModuleConsts<M>,

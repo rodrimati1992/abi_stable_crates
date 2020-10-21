@@ -38,6 +38,11 @@ impl StartLen{
         (self.bits >> 16) as u16
     }
 
+    /// Whether the range is empty.
+    pub const fn is_empty(self) -> bool {
+        self.len() == 0
+    }
+
     /// Gets the start of the range as a usize.
     #[inline]
     pub const fn start_usize(self)->usize{
@@ -77,6 +82,7 @@ impl StartLen{
 /// Used to convert the arguments passed to the `tl_genparams` macro to a `StartLen`.
 pub struct StartLenConverter<T>(pub T);
 
+#[allow(clippy::wrong_self_convention)]
 impl StartLenConverter<()>{
     /// Constructs an empty `StartLen`.
     pub const fn to_start_len(self)->StartLen{
@@ -84,6 +90,7 @@ impl StartLenConverter<()>{
     }
 }
 
+#[allow(clippy::wrong_self_convention)]
 impl StartLenConverter<usize>{
     /// Constructs a `StartLen` from `0` to `self.0` exclusive.
     pub const fn to_start_len(self)->StartLen{
@@ -91,6 +98,7 @@ impl StartLenConverter<usize>{
     }
 }
 
+#[allow(clippy::wrong_self_convention)]
 impl StartLenConverter<Range<usize>>{
     /// Constructs a `StartLen` from the `Range`.
     pub const fn to_start_len(self)->StartLen{
@@ -100,6 +108,7 @@ impl StartLenConverter<Range<usize>>{
     }
 }
 
+#[allow(clippy::wrong_self_convention)]
 impl StartLenConverter<RangeInclusive<usize>>{
     /// Constructs a `StartLen` from the `RangeInclusive`.
     pub const fn to_start_len(self)->StartLen{
@@ -109,6 +118,7 @@ impl StartLenConverter<RangeInclusive<usize>>{
     }
 }
 
+#[allow(clippy::wrong_self_convention)]
 impl StartLenConverter<StartLen>{
     /// Unwraps this back into a `StartLen`.
     pub const fn to_start_len(self)->StartLen{

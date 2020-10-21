@@ -178,7 +178,7 @@ impl<'a,T> RRef<'a,T>{
 
     /// Accesses the referenced value as a casted raw pointer.
     #[inline]
-    pub unsafe fn cast_into_raw<U>(self)->*const U{
+    pub const fn cast_into_raw<U>(self)->*const U{
         self.ref_.as_ptr() as *const T as *const U
     }
 
