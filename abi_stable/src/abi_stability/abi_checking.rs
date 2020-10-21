@@ -807,7 +807,7 @@ impl AbiChecker {
 
         let mut prefix_type_map=globals.prefix_type_map.lock().unwrap();
 
-        for pair in mem::replace(&mut self.checked_prefix_types,Default::default()) {
+        for pair in mem::take(&mut self.checked_prefix_types) {
             // let t_lay=pair.this_prefix;
             let errors_before=self.errors.len();
             let t_utid=pair.this .get_utypeid();
@@ -904,7 +904,7 @@ impl AbiChecker {
         let mut nonexhaustive_map=globals.nonexhaustive_map.lock().unwrap();
 
 
-        for pair in mem::replace(&mut self.checked_nonexhaustive_enums,Default::default()) {
+        for pair in mem::take(&mut self.checked_nonexhaustive_enums) {
             let CheckedNonExhaustiveEnums{this,other}=pair;
             let errors_before=self.errors.len();
             
@@ -1007,7 +1007,7 @@ impl AbiChecker {
 
         let mut extra_checker_map=globals.extra_checker_map.lock().unwrap();
 
-        for with_context in mem::replace(&mut self.checked_extra_checks,Default::default()) {
+        for with_context in mem::take(&mut self.checked_extra_checks) {
             let ExtraChecksBoxWithContext{t_lay,o_lay,extra_checks}=with_context;
 
             let errors_before=self.errors.len();
@@ -1153,8 +1153,8 @@ pub fn check_layout_compatibility_with_globals(
     } else {
         errors.sort_by_key(|x| x.index);
         Err(AbiInstabilityErrors {
-            interface: interface,
-            implementation: implementation,
+            interface,
+            implementation,
             errors,
             _priv:()
         })
@@ -1323,6 +1323,7 @@ pub struct CheckingGlobals{
     pub extra_checker_map:Mutex<MultiKeyMap<UTypeId,ExtraChecksBox>>,
 }
 
+#[allow(clippy::new_without_default)]
 impl CheckingGlobals{
     pub fn new()->Self{
         CheckingGlobals{

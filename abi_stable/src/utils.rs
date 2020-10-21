@@ -125,6 +125,7 @@ where T:'a // T:'a is for the docs
 /// This has the same safety concerns that `std::mem::transmute` has,including that
 /// `T` has to have an alignment and be compatible with `U`.
 #[inline]
+#[allow(clippy::needless_lifetimes)]
 pub unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
     &*(ref_ as *const _ as *const U)
 }
@@ -138,6 +139,7 @@ pub unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
 /// This has the same safety concerns that `std::mem::transmute` has,including that
 /// `T` has to have an alignment and be compatible with `U`.
 #[inline]
+#[allow(clippy::needless_lifetimes)]
 pub unsafe fn transmute_mut_reference<'a,T,U>(ref_:&'a mut T)->&'a mut U{
     &mut *(ref_ as *mut _ as *mut U)
 }

@@ -44,7 +44,7 @@ mod two_phantom{
     use abi_stable::{
         const_utils::AssocStr,
         marker_type::UnsafeIgnoredType,
-        std_types::tuple::*,
+        std_types::*,
     };
     
 

@@ -295,7 +295,7 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             .abi
             .as_ref()
             .map(|x| x.name.as_ref());
-        const ABI_ERR:&'static str="must write `extern \"C\" fn` for function pointer types.";
+        const ABI_ERR:&str="must write `extern \"C\" fn` for function pointer types.";
         match abi {
             Some(Some(abi)) if *abi==ctokens.c_abi_lit => {}
             Some(Some(abi)) => {
@@ -386,15 +386,17 @@ impl<'a> VisitMut for TypeVisitor<'a> {
             visit_param_ret(&mut current_function,arg_name, ty, ParamOrReturn::Param);
         }
 
-        match mem::replace(&mut func.output, syn::ReturnType::Default) {
+        let tmp = match mem::replace(&mut func.output, syn::ReturnType::Default) {
             syn::ReturnType::Default => None,
             syn::ReturnType::Type(_, ty) => Some(arenas.alloc_mut(*ty)),
+        };
+        if let Some(ty) = tmp {
+            visit_param_ret(&mut current_function,None, ty, ParamOrReturn::Return);
         }
-        .map(|ty| visit_param_ret(&mut current_function,None, ty, ParamOrReturn::Return));
 
         let mut current=current_function.current;
         current.anonimize_lifetimes(&current_function.lifetime_counts,&mut self.vars.errors);
-        while let Some(_)=func.inputs.pop() {}
+        while func.inputs.pop().is_some() {}
         self.vars.fn_info.functions.push(current);
     }
 

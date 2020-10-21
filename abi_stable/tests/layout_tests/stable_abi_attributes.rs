@@ -81,7 +81,7 @@ fn is_sabi_opaque_fields(){
         ),
         (
             UnsafeSabiOpaqueFields0::<u32,u32>::LAYOUT,
-            vec![Some("SabiOpaqueField"),Some("SabiOpaqueField")]
+            vec![Some("OpaqueField"),Some("OpaqueField")]
         ),
         (
             UnsafeOpaqueField0::<u32,u32>::LAYOUT,
@@ -89,7 +89,7 @@ fn is_sabi_opaque_fields(){
         ),
         (
             UnsafeSabiOpaqueField0::<u32,u32>::LAYOUT,
-            vec![None,Some("SabiOpaqueField")]
+            vec![None,Some("OpaqueField")]
         ),
     ];
 

@@ -1173,7 +1173,7 @@ use abi_stable::std_types::{RSlice,RVec};
             Drain {
                 removed_start,
                 slice_len,
-                iter: iter,
+                iter,
                 vec: self,
                 len: old_length,
             }
@@ -1190,7 +1190,7 @@ impl<T> IntoIterator for RVec<T> {
         unsafe {
             let iter = RawValIter::new(&self);
             IntoIter {
-                iter: iter,
+                iter,
                 _buf: ManuallyDrop::new(self),
             }
         }

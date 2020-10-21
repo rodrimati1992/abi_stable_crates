@@ -42,9 +42,8 @@ impl RootModule for Module_Ref {
     traits(Debug,Clone,PartialEq),
 )))]
 #[sabi(with_constructor)] 
+#[non_exhaustive]
 pub enum ValidTag{
-    #[doc(hidden)]
-    __NonExhaustive,
     Foo,
     Bar,
     Tag{

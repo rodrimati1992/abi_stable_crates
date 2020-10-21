@@ -99,6 +99,10 @@ impl<'a,T> TypeParamMap<'a,T>{
         self.ty_params.len()
     }
 
+    pub fn is_empty(&self)->bool{
+        self.ty_params.is_empty()
+    }
+
     pub fn get_index(&self,ident:&Ident)->Result<usize,syn::Error>{
         match self.idents.map.get(ident) {
             Some(x)=>Ok(*x),

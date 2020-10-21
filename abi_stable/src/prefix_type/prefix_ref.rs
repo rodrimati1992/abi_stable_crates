@@ -394,7 +394,7 @@ where
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("PrefixRef"),
             make_item_info!(),

@@ -676,6 +676,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
         quote!( const _: () = {
             use #module::__sabi_re;
 
+            #[allow(clippy::ptr_offset_with_cast)]
             #[allow(non_upper_case_globals)]
             impl #impl_generics #prefix_ref #ty_generics
             where 

@@ -164,7 +164,7 @@ unsafe impl<T> StableAbi for UnsafeIgnoredType<T> {
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("UnsafeIgnoredType"),
             make_item_info!(),

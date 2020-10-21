@@ -189,7 +189,7 @@ Outputs these items:
     The ffi-safe trait object for the trait.
 
 */
-fn first_items<'a>(
+fn first_items(
     TokenizerParams{
         config,
         ctokens,
@@ -416,8 +416,8 @@ fn first_items<'a>(
 
 
 /// Outputs the trait object constructors.
-fn constructor_items<'a>(
-    params:TokenizerParams<'a>,
+fn constructor_items(
+    params:TokenizerParams<'_>,
     mod_:&mut TokenStream2,
 ){
     let TokenizerParams{
@@ -559,13 +559,12 @@ fn constructor_items<'a>(
     let mut from_const_docs=String::new();
 
     if doc_hidden_attr.is_none() {
-        shared_docs=format!(
-        "<br><br>\
+        shared_docs="\
+            <br><br>\
             `unerasability` describes whether the trait object can be \
             converted back into the original type or not.<br>\n\
             Its possible values are `TU_Unerasable` and `TU_Opaque`.\n\
-        "
-        );
+        ".to_string();
 
         from_ptr_docs=format!(
             "Constructs this trait object from a pointer to a type that implements `{trait_}`.",
@@ -733,9 +732,9 @@ fn constructor_items<'a>(
 
 
 /// Returns a tokenizer for the reborrowing methods
-fn reborrow_methods_tokenizer<'a>(
-    TokenizerParams{totrait_def,submod_vis,trait_to,lt_tokens,..}:TokenizerParams<'a>,
-)->impl ToTokens+'a{
+fn reborrow_methods_tokenizer(
+    TokenizerParams{totrait_def,submod_vis,trait_to,lt_tokens,..}:TokenizerParams<'_>,
+)->impl ToTokens + '_{
     ToTokenFnMut::new(move|ts|{
         let traits=totrait_def.trait_flags;
         // If the trait object doesn't have both Sync+Send as supertraits or neither,
@@ -788,7 +787,7 @@ fn reborrow_methods_tokenizer<'a>(
 
 /// Outputs the annotated trait (as modified by the proc-macro)
 /// and an implementation of the trait for the generated trait object.
-fn trait_and_impl<'a>(
+fn trait_and_impl(
     TokenizerParams{
         ctokens,submod_vis,trait_def,trait_to,lt_tokens,
         trait_ident,trait_bounds,..
@@ -902,7 +901,7 @@ fn trait_and_impl<'a>(
 
 /// An inherent implementation of the generated trait object,
 /// which mirrors the trait definition.
-fn methods_impls<'a>(
+fn methods_impls(
     param:TokenizerParams,
     mod_:&mut TokenStream2,
 )-> Result<(),syn::Error> {
@@ -958,7 +957,7 @@ fn methods_impls<'a>(
 }
 
 /// Outputs the vtable struct.
-fn declare_vtable<'a>(
+fn declare_vtable(
     TokenizerParams{ctokens,vtable_trait_decl,submod_vis,trait_interface,..}:TokenizerParams,
     mod_:&mut TokenStream2,
 ){
@@ -971,7 +970,7 @@ fn declare_vtable<'a>(
             &ctokens.ts_self_erasedptr,
         );    
 
-    let mut generics_decl_unbounded=generics_decl.clone();
+    let mut generics_decl_unbounded=generics_decl;
     generics_decl_unbounded.set_no_bounds();
 
     let mut generics_use0=
@@ -1090,7 +1089,7 @@ Outputs the vtable impl block with both:
 - The methods that the vtable is constructed with.
 
 */
-fn vtable_impl<'a>(
+fn vtable_impl(
     TokenizerParams{
         config,ctokens,vtable_trait_impl,trait_interface,trait_cto_ident,
         trait_bounds,make_vtable_ident,submod_vis,lt_tokens,..

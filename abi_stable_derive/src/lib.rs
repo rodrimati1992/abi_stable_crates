@@ -12,6 +12,7 @@ An implementation detail of abi_stable.
 #![deny(unused_doc_comments)]
 #![deny(unconditional_recursion)]
 
+#![allow(clippy::suspicious_assignment_formatting)]
 
 extern crate proc_macro;
 

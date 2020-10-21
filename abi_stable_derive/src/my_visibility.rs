@@ -39,10 +39,10 @@ pub enum VisibilityKind<'a> {
 impl<'a> VisibilityKind<'a> {
     pub fn new(vis: &'a Visibility) -> Self {
         match vis {
-            &Visibility::Public { .. } => VisibilityKind::Public,
-            &Visibility::Crate { .. } => VisibilityKind::Crate,
-            &Visibility::Inherited { .. } => VisibilityKind::Private,
-            &Visibility::Restricted(ref restricted) => {
+            Visibility::Public { .. } => VisibilityKind::Public,
+            Visibility::Crate { .. } => VisibilityKind::Crate,
+            Visibility::Inherited { .. } => VisibilityKind::Private,
+            Visibility::Restricted(restricted) => {
                 let path = &restricted.path;
                 let is_global = restricted.path.leading_colon.is_some();
                 let path_seg_0 = path.segments.first();

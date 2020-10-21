@@ -397,7 +397,7 @@ impl<T> ROption<T> {
     {
         match self {
             RSome(x) => f(x),
-            RNone => self,
+            RNone => RNone,
         }
     }
 

@@ -58,7 +58,7 @@ declare_tuple! {
         /// # Example
         /// 
         /// ```
-        /// use abi_stable::std_types::tuple::*;
+        /// use abi_stable::std_types::*;
         /// 
         /// assert_eq!( Tuple1(1).into_tuple(), (1,) );
         /// 
@@ -81,7 +81,7 @@ declare_tuple! {
         /// # Example
         /// 
         /// ```
-        /// use abi_stable::std_types::tuple::*;
+        /// use abi_stable::std_types::*;
         /// 
         /// assert_eq!( Tuple2(1,2).into_tuple(), (1,2) );
         /// 
@@ -105,7 +105,7 @@ declare_tuple! {
         /// # Example
         /// 
         /// ```
-        /// use abi_stable::std_types::tuple::*;
+        /// use abi_stable::std_types::*;
         /// 
         /// assert_eq!( Tuple3(1,2,3).into_tuple(), (1,2,3) );
         /// 
@@ -130,7 +130,7 @@ declare_tuple! {
         /// # Example
         /// 
         /// ```
-        /// use abi_stable::std_types::tuple::*;
+        /// use abi_stable::std_types::*;
         /// 
         /// assert_eq!( Tuple4(1,2,3,4).into_tuple(), (1,2,3,4) );
         /// 
