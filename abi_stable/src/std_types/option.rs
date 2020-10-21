@@ -485,9 +485,8 @@ impl<T> ROption<T> {
     /// ```
     #[inline]
     pub fn get_or_insert(&mut self, value: T) -> &mut T {
-        match *self {
-            RNone => *self = RSome(value),
-            _ => (),
+        if self.is_rnone() {
+            *self = RSome(value);
         }
 
         match *self {
@@ -514,9 +513,8 @@ impl<T> ROption<T> {
     where
         F: FnOnce() -> T,
     {
-        match *self {
-            RNone => *self = RSome(func()),
-            _ => (),
+        if self.is_rnone() {
+            *self = RSome(func());
         }
 
         match *self {

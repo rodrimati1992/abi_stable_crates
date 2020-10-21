@@ -656,6 +656,7 @@ where T:Display+TagTrait
 /// Used to convert many types to `Tag`.
 pub struct FromLiteral<T>(pub T);
 
+#[allow(clippy::wrong_self_convention)]
 impl FromLiteral<bool>{
     /// Converts the wrapped `bool` into a Tag.
     pub const fn to_tag(self)->Tag{
@@ -663,6 +664,7 @@ impl FromLiteral<bool>{
     }
 }
 
+#[allow(clippy::wrong_self_convention)]
 impl FromLiteral<&'static str>{
     /// Converts the wrapped `&'static str` into a Tag.
     pub const fn to_tag(self)->Tag{
@@ -670,6 +672,7 @@ impl FromLiteral<&'static str>{
     }
 }
 
+#[allow(clippy::wrong_self_convention)]
 impl FromLiteral<RStr<'static>>{
     /// Converts the wrapped `RStr<'static>` into a Tag.
     pub const fn to_tag(self)->Tag{
@@ -677,6 +680,7 @@ impl FromLiteral<RStr<'static>>{
     }
 }
 
+#[allow(clippy::wrong_self_convention)]
 impl FromLiteral<i64>{
     /// Converts the wrapped `i64` into a Tag.
     pub const fn to_tag(self)->Tag{
@@ -684,6 +688,7 @@ impl FromLiteral<i64>{
     }
 }
 
+#[allow(clippy::wrong_self_convention)]
 impl FromLiteral<Tag>{
     /// Converts the wrapped `Tag` into a Tag.
     pub const fn to_tag(self)->Tag{

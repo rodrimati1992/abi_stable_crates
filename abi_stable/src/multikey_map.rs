@@ -61,6 +61,7 @@ pub enum InsertionTime<T>{
 impl<K,T> MultiKeyMap<K,T>
 where K:Hash+Eq
 {
+    #[allow(clippy::new_without_default)]
     pub fn new()->Self{
         Self{
             map:HashMap::default(),
@@ -262,7 +263,6 @@ where K:Hash+Eq
                 let key_ind=slot.keys.iter().position(|x| *x==key ).unwrap();
                 slot.keys.swap_remove(key_ind);
                 if slot.keys.is_empty() {
-                    drop(slot);
                     self.arena.remove(index_before.index).unwrap()
                         .value
                         .piped(Some)

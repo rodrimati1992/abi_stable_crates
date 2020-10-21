@@ -599,6 +599,6 @@ unsafe fn into_ref_rawvalue(x:&str)->&RawValue{
     //
     // - transmuting from &ReprTransparentNewtype to &str
     //
-    mem::transmute::<&str,&RawValue>(x)
+    &*(x as *const str as *const RawValue)
 }
 

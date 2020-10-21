@@ -20,6 +20,7 @@ assert_ne!( MaybeCmp::<u32>::Nothing, MaybeCmp::Nothing );
 ```
 
 */
+#[allow(clippy::derive_hash_xor_eq)]
 #[derive(Debug, Copy, Clone, Hash)]
 #[repr(u8)]
 #[derive(StableAbi)]
@@ -42,7 +43,7 @@ where
 {
     fn eq(&self, other: &Self) -> bool {
         match (self,other) {
-            (MaybeCmp::Just(l),MaybeCmp::Just(r))=>l==r,
+            (MaybeCmp::Just(l),MaybeCmp::Just(r))=> l == r,
             _=>false,
         }
     }

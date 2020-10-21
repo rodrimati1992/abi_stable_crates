@@ -94,6 +94,11 @@ impl CompTLFields{
     pub fn len(&self)->usize{
         self.comp_fields_len as usize
     }
+
+    /// Whether there are no fields.
+    pub fn is_empty(&self) -> bool {
+        self.comp_fields_len == 0
+    }
     
     /// Expands this into a TLFields,allowing access to expanded fields.
     pub fn expand(self,shared_vars:&'static SharedVars)->TLFields{

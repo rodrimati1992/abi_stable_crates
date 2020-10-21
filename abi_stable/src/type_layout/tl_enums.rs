@@ -605,8 +605,7 @@ impl Iterator for GetVariantNames{
         (len,Some(len))
     }
     fn count(self) -> usize {
-        let len=self.length-self.current;
-        len
+        self.length-self.current
     }
 }
 

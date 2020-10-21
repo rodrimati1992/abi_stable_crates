@@ -426,7 +426,7 @@ impl<F> Closure<F>{
     }
 
     #[inline]
-    fn run_call<'a,M>(this:&mut ErasedClosure,state:ROnceState,method:M)->RResult<(),()>
+    fn run_call<M>(this:&mut ErasedClosure,state:ROnceState,method:M)->RResult<(),()>
     where
         M: FnOnce(F,ROnceState),
     {

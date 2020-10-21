@@ -907,7 +907,7 @@ fn main(){
         }
 
         #[inline]
-        pub(super) fn sabi_vtable<'a>(&self) -> VTable_Ref<'borr,P,I> {
+        pub(super) fn sabi_vtable(&self) -> VTable_Ref<'borr,P,I> {
             self.vtable
         }
 
@@ -976,8 +976,8 @@ fn main(){
 
         #[inline]
         fn sabi_into_erased_ptr(self)->ManuallyDrop<P>{
-            let mut this= ManuallyDrop::new(self);
-            unsafe{ ptr::read(&mut this.object) }
+            let this= ManuallyDrop::new(self);
+            unsafe{ ptr::read(&this.object) }
         }
 
         /// Calls the `f` callback with an `MovePtr` pointing to the erased object.
@@ -1388,6 +1388,8 @@ let _=borrow.default();
 
         /// It serializes a `DynTrait<_>` into a string by using 
         /// `<ConcreteType as SerializeImplType>::serialize_impl`.
+        // I'm using the lifetime in the where clause, clippy <_<
+        #[allow(clippy::needless_lifetimes)]
         pub fn serialize_into_proxy<'a>(&'a self) -> Result<I::ProxyType, RBoxError>
         where
             P: Deref,

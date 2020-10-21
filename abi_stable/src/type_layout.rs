@@ -476,6 +476,7 @@ pub struct MonoTypeLayout{
 }
 
 
+#[allow(clippy::too_many_arguments)]
 impl MonoTypeLayout{
     pub(crate) const fn new(
         shared_vars:MonoSharedVars,
@@ -577,8 +578,8 @@ If this a:
 */
     pub fn get_fields(&self)->Option<CompTLFields>{
         match self.data {
-            MonoTLData::Primitive{..}=>return None,
-            MonoTLData::Opaque=>return None,
+            MonoTLData::Primitive{..}=>None,
+            MonoTLData::Opaque=>None,
             MonoTLData::Struct{fields}=>Some(fields),
             MonoTLData::Union{fields}=>Some(fields),
             MonoTLData::Enum (tlenum)=>Some(tlenum.fields),

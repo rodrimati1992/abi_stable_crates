@@ -6,7 +6,6 @@ use std::{
     borrow::{Cow,Borrow},
     fmt::{self, Display, Formatter},
     iter::{FromIterator, FusedIterator},
-    mem,
     marker::PhantomData,
     ops::{Deref, Index, Range},
     str::{from_utf8, from_utf8_unchecked, Chars,FromStr, Utf8Error},
@@ -116,6 +115,7 @@ impl RString {
     ///
     /// ```
     #[inline]
+    #[allow(clippy::needless_lifetimes)]
     pub fn slice<'a, I>(&'a self, i: I) -> RStr<'a>
     where
         str: Index<I, Output = str>,
@@ -177,6 +177,23 @@ impl RString {
         self.inner.len()
     }
 
+    /// Returns whether the RString is empty.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// assert_eq!(RString::from("").is_empty(), true);
+    /// assert_eq!(RString::from("a").is_empty(), false);
+    /// assert_eq!(RString::from("Regular").is_empty(), false);
+    ///
+    /// ```
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
     /// Gets a raw pointer to the start of this RString's buffer.
     pub const fn as_ptr(&self) -> *const u8{
         self.inner.as_ptr()
@@ -207,6 +224,12 @@ impl RString {
     }
 
     /// An unchecked conversion from a `RVec<u8>` to an `RString`.
+    ///
+    /// # Safety
+    ///
+    /// This has the same safety requirements as 
+    /// [`String::from_utf8_unchecked`
+    /// ](https://doc.rust-lang.org/std/string/struct.String.html#method.from_utf8_unchecked).
     ///
     /// # Examples
     ///
@@ -330,6 +353,7 @@ impl RString {
     /// assert_eq!(RString::from("world").to_string(), String::from("world"));
     ///
     /// ```
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         self.as_str().to_string()
     }
@@ -882,7 +906,7 @@ impl IntoIterator for RString {
     fn into_iter(self) -> IntoIter {
         unsafe {
             // Make sure that the buffer is not deallocated as long as the iterator is accessible.
-            let text = mem::transmute::<&str, &'static str>(&self);
+            let text: &'static str = &*(&*self as *const str);
             unsafe {
                 IntoIter {
                     iter: text.chars(),

@@ -90,12 +90,11 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
     impl_from_rust_repr! {
         impl[T] From<Arc<T>> for RArc<T> {
             fn(this){
-                let out = RArc {
+                RArc {
                     data: Arc::into_raw(this),
                     vtable: VTableGetter::LIB_VTABLE,
                     _marker: Default::default(),
-                };
-                out
+                }
             }
         }
     }
@@ -126,7 +125,7 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
         }
 
         #[inline(always)]
-        pub(crate) fn vtable<'a>(&self) -> ArcVtable_Ref<T> {
+        pub(crate) fn vtable(&self) -> ArcVtable_Ref<T> {
             self.vtable
         }
 
@@ -274,7 +273,7 @@ impl<T> RArc<T> {
     ///
     /// ```
     #[inline]
-    pub fn make_mut<'a>(this: &'a mut Self) -> &'a mut T 
+    pub fn make_mut(this: &mut Self) -> &mut T 
     where T:Clone
     {
         // Workaround for non-lexical lifetimes not being smart enough 
@@ -374,7 +373,7 @@ where
 impl<T> Clone for RArc<T> {
     fn clone(&self) -> Self {
         unsafe{
-            (self.vtable().clone())(self)
+            (self.vtable().clone_())(self)
         }
     }
 }
@@ -396,7 +395,7 @@ impl<T> Drop for RArc<T> {
         // actually support ?Sized types.
         unsafe {
             let vtable = self.vtable();
-            (vtable.destructor())((self.data() as *const T).into(), CallReferentDrop::Yes);
+            (vtable.destructor())(self.data() as *const T, CallReferentDrop::Yes);
         }
     }
 }
@@ -422,7 +421,7 @@ mod vtable_mod {
         const DEFAULT_VTABLE:ArcVtable<T>=ArcVtable {
             type_id:Constructor( new_utypeid::<RArc<()>> ),
             destructor: destructor_arc::<T>,
-            clone: clone_arc::<T>,
+            clone_: clone_arc::<T>,
             get_mut: get_mut_arc::<T>,
             try_unwrap: try_unwrap_arc::<T>,
             strong_count: strong_count_arc::<T>,
@@ -461,7 +460,7 @@ mod vtable_mod {
     pub struct ArcVtable<T> {
         pub(super) type_id:Constructor<UTypeId>,
         pub(super) destructor: unsafe extern "C" fn(*const T, CallReferentDrop),
-        pub(super) clone: unsafe extern "C" fn(&RArc<T>) -> RArc<T>,
+        pub(super) clone_: unsafe extern "C" fn(&RArc<T>) -> RArc<T>,
         pub(super) get_mut: unsafe extern "C" fn(&mut RArc<T>) -> Option<&mut T>,
         pub(super) try_unwrap: unsafe extern "C" fn(RArc<T>) -> RResult<T, RArc<T>>,
         pub(super) strong_count: unsafe extern "C" fn(&RArc<T>) -> usize,

@@ -245,6 +245,10 @@ pub unsafe trait OwnedPointer:Sized+DerefMut+GetPointerKind{
     /// Note that if `Self::get_move_ptr` has not been called this will 
     /// leak the values owned by the referent of the pointer. 
     ///
+    /// # Safety
+    ///
+    /// The allocation managed by `this` must never be accessed again.
+    ///
     unsafe fn drop_allocation(this:&mut ManuallyDrop<Self>);
 
     #[inline]

@@ -21,6 +21,9 @@ impl<A> ArrayLen<A> {
     pub const fn len(&self)->usize{
         self.len as usize
     }
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
+    }
 }
 
 

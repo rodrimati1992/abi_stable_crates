@@ -395,6 +395,7 @@ assert!( RSmallBox::is_inline(&just_right) );
         /// assert_eq!( RSmallBox::into_inner(rbox), vec![0,1,2] );
         ///
         /// ```
+        #[allow(clippy::redundant_closure)]
         pub fn into_inner(this:Self)->T{
             Self::with_move_ptr(
                 ManuallyDrop::new(this),
@@ -412,7 +413,6 @@ assert!( RSmallBox::is_inline(&just_right) );
         }
     }
 
-
     /// Converts an RBox into an RSmallBox,currently this allocates.
     impl<T,Inline> From<RBox<T>> for RSmallBox<T,Inline>
     where
@@ -428,6 +428,7 @@ assert!( RSmallBox::is_inline(&just_right) );
 
 
     /// Converts a RSmallBox into an RBox,currently this allocates.
+    #[allow(clippy::redundant_closure)]
     impl<T,Inline> Into<RBox<T>> for RSmallBox<T,Inline>
     where
         Inline:InlineStorage

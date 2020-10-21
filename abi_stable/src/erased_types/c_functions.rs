@@ -32,7 +32,7 @@ pub(crate) unsafe fn adapt_std_fmt<T>(
         FormattingMode::Default_
     };
 
-    function(value.into(), mode, &mut buf)
+    function(value, mode, &mut buf)
         .into_rust()
         .map_err(|_| fmt::Error)?;
 
@@ -453,7 +453,7 @@ where
     };
 }
 
-pub(super) unsafe extern "C" fn io_BufRead_fill_buf<'a,R>(
+pub(super) unsafe extern "C" fn io_BufRead_fill_buf<R>(
     this:&mut ErasedObject,
 ) -> RResult<RSlice<'_,u8>,RIoError>
 where R:BufRead

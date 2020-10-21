@@ -180,7 +180,7 @@ where
         }
     });
     // We turn an unwinding panic into an error value
-    let flattened: TheResult = res.unwrap_or_else(|_|Err(RootModuleError::Unwound));
+    let flattened: TheResult = res.unwrap_or(Err(RootModuleError::Unwound));
     RootModuleResult::from(flattened)
 }
 

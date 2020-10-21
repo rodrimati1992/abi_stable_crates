@@ -60,12 +60,12 @@ impl<'a> HasherObject<'a> {
 impl<'a> Hasher for HasherObject<'a>{
     fn finish(&self) -> u64 {
         unsafe{
-            (self.finish)((&*self.this).into())
+            (self.finish)(&*self.this)
         }
     }
     fn write(&mut self, bytes: &[u8]) {
         unsafe{
-            (self.hash_slice)((&mut *self.this).into(), bytes.into())
+            (self.hash_slice)(&mut *self.this, bytes.into())
         }
     }
 }

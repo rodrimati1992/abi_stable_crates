@@ -284,6 +284,7 @@ impl<'a, T> RSliceMut<'a, T> {
     /// assert_eq!(slic.slice(1..3),RSlice::from_slice(&[1,2]));
     ///
     /// ```
+    #[allow(clippy::needless_lifetimes)]
     pub fn slice<'b, I>(&'b self, i: I) -> RSlice<'b, T>
     where
         [T]: Index<I, Output = [T]>,
@@ -310,6 +311,7 @@ impl<'a, T> RSliceMut<'a, T> {
     /// assert_eq!(slic.slice_mut(1..3),RSliceMut::from_mut_slice(&mut[1,2]));
     ///
     /// ```
+    #[allow(clippy::needless_lifetimes)]
     pub fn slice_mut<'b, I>(&'b mut self, i: I) -> RSliceMut<'b, T>
     where
         [T]: IndexMut<I, Output = [T]>,
@@ -463,7 +465,7 @@ impl<'a, T> IntoIterator for RSliceMut<'a, T> {
     type IntoIter = ::std::slice::IterMut<'a, T>;
 
     fn into_iter(self) -> ::std::slice::IterMut<'a, T> {
-        self.into_mut_slice().into_iter()
+        self.into_mut_slice().iter_mut()
     }
 }
 
@@ -544,7 +546,7 @@ where
 impl<'a> Write for RSliceMut<'a, u8> {
     #[inline]
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
-        let mut this = mem::replace(self, Self::default()).into_mut_slice();
+        let mut this = mem::take(self).into_mut_slice();
         let ret = this.write(data);
         *self = this.into();
         ret
@@ -552,7 +554,7 @@ impl<'a> Write for RSliceMut<'a, u8> {
 
     #[inline]
     fn write_all(&mut self, data: &[u8]) -> io::Result<()> {
-        let mut this = mem::replace(self, Self::default()).into_mut_slice();
+        let mut this = mem::take(self).into_mut_slice();
         let ret = this.write_all(data);
         *self = this.into();
         ret

@@ -76,7 +76,7 @@ impl<K> Hash for MapKey<K>
 where 
     K:Hash
 {
-    fn hash<'a,H>(&'a self,hasher:&mut H)
+    fn hash<H>(&self,hasher:&mut H)
     where
         H:Hasher
     {

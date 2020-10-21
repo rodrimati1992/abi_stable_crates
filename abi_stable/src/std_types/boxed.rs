@@ -139,7 +139,7 @@ enum Command{
         pub(super) fn data(&self) -> *mut T {
             self.data
         }
-        pub(super) fn vtable<'a>(&self) -> BoxVtable_Ref<T> {
+        pub(super) fn vtable(&self) -> BoxVtable_Ref<T> {
             self.vtable
         }
 

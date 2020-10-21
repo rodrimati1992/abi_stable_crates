@@ -82,6 +82,11 @@ impl TLFunctions {
     pub fn len(&'static self)->usize{
         self.functions_len as usize
     }
+
+    /// Whether this is empty.
+    pub fn is_empty(&'static self) -> bool{
+        self.functions_len == 0
+    }
 }
 
 
@@ -465,8 +470,7 @@ impl Iterator for GetParamNames{
         (len,Some(len))
     }
     fn count(self) -> usize {
-        let len=self.length-self.current;
-        len
+        self.length-self.current
     }
 }
 
