@@ -45,7 +45,7 @@ without breaking ABI compatibility.
 
 # Examples
 
-For **examples** of using `abi_stable` you can look at [the readme],
+For **examples** of using `abi_stable` you can look at [the readme example],
 or for the crates in the examples directory in the repository for this crate.
 This crate also has examples in the docs for most features.
 
@@ -135,7 +135,10 @@ These are the kinds of types passed through FFI:
 [Nonexhaustive enums]: ./docs/sabi_nonexhaustive/index.html
 [library_evolution]: ./docs/library_evolution/index.html
 [`NonExhaustive`]: ./nonexhaustive_enum/struct.NonExhaustive.html
-[the readme]: https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md
+
+[the readme example]:
+https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_example
+
 [`RootModule`]: ./library/trait.RootModule.html
 [`StableAbi`]: ./abi_stability/stable_abi_trait/trait.StableAbi.html
 [`sabi_trait`]: ./docs/sabi_trait_attribute/index.html
@@ -156,6 +159,14 @@ These are the kinds of types passed through FFI:
 #![allow(non_camel_case_types)]
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
+
+#![allow(clippy::needless_doctest_main)]
+#![allow(clippy::redundant_closure_call)]
+#![allow(clippy::suspicious_assignment_formatting)]
+#![allow(clippy::zero_prefixed_literal)]
+// This lint is telling me to use `#[non_exhaustive]` for structs that will never change,
+// that is very silly.
+#![allow(clippy::manual_non_exhaustive)]
 
 // this only requires nightly features if it's in the nightly channel
 #![cfg_attr(

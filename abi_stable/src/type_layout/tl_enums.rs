@@ -614,7 +614,7 @@ impl Iterator for GetVariantNames{
 impl std::iter::ExactSizeIterator for GetVariantNames{}
 
 
-static VARIANT_INDEX: [&'static str; 68] = [
+static VARIANT_INDEX: [&str; 68] = [
     "Variant0", "Variant1", "Variant2", "Variant3", 
     "Variant4", "Variant5", "Variant6", "Variant7", 
     "Variant8", "Variant9", "Variant10", "Variant11", 

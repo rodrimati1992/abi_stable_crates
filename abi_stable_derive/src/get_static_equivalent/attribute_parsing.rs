@@ -39,11 +39,8 @@ where
     let mut this=GetStaticEquivAttrs::default();
 
     for attr in attrs {
-        match attr.parse_meta()? {
-            Meta::List(list) => {
-                parse_attr_list(&mut this,list)?;
-            }
-            _ => {}
+        if let Meta::List(list) = attr.parse_meta()? {
+            parse_attr_list(&mut this,list)?;
         }
     }
 
@@ -51,8 +48,8 @@ where
 }
 
 // Helper function of `parse_attrs_for_get_static_equiv`.
-fn parse_attr_list<'a>(
-    this: &mut GetStaticEquivAttrs<'a>,
+fn parse_attr_list(
+    this: &mut GetStaticEquivAttrs<'_>,
     list: MetaList, 
 )-> Result<(),syn::Error> {
     if list.path.equals_str("sabi") {
@@ -64,8 +61,8 @@ fn parse_attr_list<'a>(
 }
 
 // Helper function of `parse_attrs_for_get_static_equiv`.
-fn parse_gse_attr<'a>(
-    this: &mut GetStaticEquivAttrs<'a>,
+fn parse_gse_attr(
+    this: &mut GetStaticEquivAttrs<'_>,
     attr: Meta, 
 )-> Result<(),syn::Error> {
     match attr {

@@ -62,7 +62,7 @@ impl<'a> VisitedFieldMap<'a>{
             let field_accessor=config.override_field_accessor[field]
                 .unwrap_or_else(|| config.kind.field_accessor(config.mod_refl_mode,field) );
             
-            let name=config.renamed_fields[field].unwrap_or(field.ident());
+            let name=config.renamed_fields[field].unwrap_or_else(||field.ident());
 
             let comp_field=CompTLField::from_expanded(
                 name,

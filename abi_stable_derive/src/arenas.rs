@@ -1,3 +1,5 @@
+#![allow(clippy::mut_from_ref)]
+
 use std::fmt;
 
 use typed_arena::Arena;

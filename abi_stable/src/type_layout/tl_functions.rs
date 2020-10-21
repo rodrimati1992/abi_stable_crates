@@ -474,7 +474,7 @@ impl Iterator for GetParamNames{
 impl std::iter::ExactSizeIterator for GetParamNames{}
 
 
-static PARAM_INDEX: [&'static str; 64] = [
+static PARAM_INDEX: [&str; 64] = [
     "param_0", "param_1", "param_2", "param_3", "param_4", "param_5", "param_6", "param_7",
     "param_8", "param_9", "param_10", "param_11", "param_12", "param_13", "param_14", "param_15",
     "param_16", "param_17", "param_18", "param_19", "param_20", "param_21", "param_22", "param_23",

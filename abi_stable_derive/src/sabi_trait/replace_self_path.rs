@@ -140,7 +140,7 @@ where
         let is_replaced=(self.is_assoc_type)(&segments[1].ident);
         // println!("is_replaced:{:?}",is_replaced );
         if let Some(replace_assoc_with)= is_replaced{
-            let mut prev_segments = mem::replace(segments, Default::default()).into_iter();
+            let mut prev_segments = mem::take(segments).into_iter();
             
             self.buffer.clear();
             self.buffer.push(self.replace_with.clone());

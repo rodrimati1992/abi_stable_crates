@@ -209,7 +209,7 @@ where T:StableAbi
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("PhantomData"),
             ItemInfo::std_type_in(nul_str!("std::marker")),
@@ -260,7 +260,7 @@ macro_rules! phantomdata_tuples {
             type IsNonZeroType = False;
 
             const LAYOUT: &'static TypeLayout = {
-                const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                     *mono_shared_vars,
                     rstr!("PhantomData"),
                     ItemInfo::std_type_in(nul_str!("std::marker")),
@@ -496,7 +496,7 @@ unsafe impl StableAbi for () {
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("()"),
             ItemInfo::primitive(),
@@ -541,7 +541,7 @@ where
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("&"),
             ItemInfo::primitive(),
@@ -584,7 +584,7 @@ where
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("&mut"),
             ItemInfo::primitive(),
@@ -628,7 +628,7 @@ where
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("NonNull"),
             ItemInfo::std_type_in(nul_str!("std::ptr")),
@@ -672,7 +672,7 @@ where
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("AtomicPtr"),
             ItemInfo::std_type_in(nul_str!("std::sync::atomic")),
@@ -715,7 +715,7 @@ where
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("*const"),
             ItemInfo::primitive(),
@@ -757,7 +757,7 @@ where
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("*mut"),
             ItemInfo::primitive(),
@@ -801,7 +801,7 @@ macro_rules! impl_stable_abi_array {
                 type IsNonZeroType=False;
 
                 const LAYOUT: &'static TypeLayout = {
-                    const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                    const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                         *mono_shared_vars,
                         rstr!("array"),
                         ItemInfo::primitive(),
@@ -857,7 +857,7 @@ where
 
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("Option"),
             ItemInfo::std_type_in(nul_str!("std::option")),
@@ -910,7 +910,7 @@ macro_rules! impl_for_primitive_ints {
                 type IsNonZeroType=False;
 
                 const LAYOUT: &'static TypeLayout = {
-                    const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                    const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                         *mono_shared_vars,
                         rstr!($zeroable_name),
                         ItemInfo::primitive(),
@@ -969,7 +969,7 @@ macro_rules! impl_for_concrete {
                 type IsNonZeroType=$zeroness;
 
                 const LAYOUT: &'static TypeLayout = {
-                    const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                    const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                         *mono_shared_vars,
                         rstr!($this_name),
                         ItemInfo::std_type_in(nul_str!($in_mod)),
@@ -1077,7 +1077,7 @@ mod rust_1_36_impls{
 
 
         const LAYOUT: &'static TypeLayout = {
-            const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+            const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                 *mono_shared_vars,
                 rstr!("MaybeUninit"),
                 ItemInfo::std_type_in(nul_str!("std::mem")),
@@ -1138,7 +1138,7 @@ macro_rules! impl_sabi_for_newtype {
             type IsNonZeroType = impl_sabi_for_newtype!(@trans $transparency);
 
             const LAYOUT: &'static TypeLayout = {
-                const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                     *mono_shared_vars,
                     rstr!($type_name),
                     ItemInfo::std_type_in(nul_str!($mod_path)),
@@ -1192,7 +1192,7 @@ macro_rules! impl_stableabi_for_unit_struct {
             type IsNonZeroType = False;
 
             const LAYOUT: &'static TypeLayout = {
-                const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+                const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                     *mono_shared_vars,
                     rstr!($type_name),
                     $item_info,
@@ -1233,7 +1233,7 @@ unsafe impl StableAbi for core_extensions::Void {
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("Void"),
             ItemInfo::package_and_mod(
@@ -1352,7 +1352,7 @@ unsafe impl<T> StableAbi for UnsafeOpaqueField<T> {
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("OpaqueField"),
             make_item_info!(),

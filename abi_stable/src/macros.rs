@@ -162,7 +162,7 @@ fn parse_tuple(s:RStr<'_>)->RResult<Tuple3<u32,u32,u32>,RBoxError>{
 #[macro_export]
 macro_rules! rtry {
     ($expr:expr) => {{
-        use $crate::std_types::result::{RErr, ROk};
+        use $crate::std_types::{RErr, ROk};
         match $expr.into() {
             ROk(x) => x,
             RErr(x) => return RErr(From::from(x)),
@@ -350,7 +350,7 @@ macro_rules! impl_get_type_info {
         {
             use std::mem;
             use $crate::{
-                erased_types::type_info::TypeInfo,
+                erased_types::TypeInfo,
                 std_types::{RStr,utypeid::some_utypeid},
             };
 

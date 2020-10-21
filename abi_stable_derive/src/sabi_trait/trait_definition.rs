@@ -789,8 +789,8 @@ where
                             WhichObject::DynTrait|WhichObject::RObject => {}
                         }
 
-                        fn set_impld<'a>(
-                            wtrait:&mut TraitImplness<'a>,
+                        fn set_impld(
+                            wtrait:&mut TraitImplness<'_>,
                             span:Span,
                         ){
                             wtrait.is_implemented=true;
@@ -997,11 +997,8 @@ fn extract_deserialize_lifetime<'a>(
     };
 
     for gen_arg in &angle_brackets.args {
-        match gen_arg {
-            GenericArgument::Lifetime(lt) =>{
-                return Ok(arenas.alloc(lt.clone()));
-            }
-            _=>{}
+        if let GenericArgument::Lifetime(lt) = gen_arg {
+            return Ok(arenas.alloc(lt.clone()));
         }
     }
     Err(spanned_err!(last_path_component,"Expected a lifetime parameter inside"))

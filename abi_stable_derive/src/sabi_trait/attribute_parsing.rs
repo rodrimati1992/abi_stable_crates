@@ -239,13 +239,10 @@ fn parse_attr_list<'a>(
             .push(Meta::List(list));
     } else if list.path.equals_str("doc") {
         with_nested_meta("doc", list.nested, |attr| {
-            match attr {
-                Meta::Path(ref path)=> {
-                    if path.equals_str("hidden") {
-                        this.is_hidden=true;
-                    }
+            if let Meta::Path(ref path) = attr {
+                if path.equals_str("hidden") {
+                    this.is_hidden = true;
                 }
-                _=>{}
             }
             Ok(())
         })?;
@@ -324,7 +321,7 @@ fn wrap_attrs_in_sabi_list<A>(attrs:&mut A)
 where
     A:Default+Extend<Meta>+IntoIterator<Item=Meta>,
 {
-    let older_attrs=mem::replace(attrs,Default::default());
+    let older_attrs=mem::take(attrs);
 
     let list=Meta::List(MetaList{
         path:parse_str_as_path("sabi").expect("BUG"),

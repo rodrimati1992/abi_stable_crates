@@ -774,7 +774,7 @@ impl MakeRErrorVTable<DebugDisplay> {
                 RErrorVTable{
                     debug: debug_impl::<DebugDisplay>,
                     display: display_impl::<DebugDisplay>,
-                    as_debug_display: as_debug_display,
+                    as_debug_display,
                     type_id: new_utypeid::<DebugDisplay>,
                 },
             ).static_as_prefix()

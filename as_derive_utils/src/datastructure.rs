@@ -3,6 +3,8 @@ use syn::{
     Type, Visibility,
 };
 
+use core_extensions::matches;
+
 use quote::ToTokens;
 
 use proc_macro2::{Span, TokenStream};
@@ -64,10 +66,10 @@ impl<'a> DataStructure<'a> {
                             discriminant:var.discriminant
                                 .as_ref()
                                 .map(|(_,v)| v ),
-                            variant:variant,
+                            variant,
                             attrs:&var.attrs,
                             name:&var.ident,
-                            override_vis:override_vis,
+                            override_vis,
                         },
                         &var.fields,
                     ));
@@ -82,8 +84,8 @@ impl<'a> DataStructure<'a> {
                         discriminant:None,
                         variant:0,
                         attrs:&[],
-                        name:name,
-                        override_vis:override_vis,
+                        name,
+                        override_vis,
                     },
                     &struct_.fields,
                 ));
@@ -100,8 +102,8 @@ impl<'a> DataStructure<'a> {
                         discriminant:None,
                         variant:0,
                         attrs:&[], 
-                        name:name, 
-                        override_vis:override_vis,
+                        name, 
+                        override_vis,
                     },
                     sk, 
                     fields,
@@ -291,10 +293,7 @@ impl<'a> Field<'a> {
     }
 
     pub fn is_public(&self)->bool{
-        match self.vis {
-            Visibility::Public{..}=>true,
-            _=>false,
-        }
+        matches!(Visibility::Public{..} = self.vis)
     }
 
     /// Gets the identifier of this field as an `&Ident`.

@@ -30,7 +30,7 @@ pub struct CAbiTestingFns{
 /////////////////////////////////////
 
 /// Functions used to test that the C abi is the same in both the library and the loader.
-pub const C_ABI_TESTING_FNS:&'static CAbiTestingFns=&CAbiTestingFns{
+pub const C_ABI_TESTING_FNS:&CAbiTestingFns=&CAbiTestingFns{
     take_pair_a,
     take_pair_b,
     ret_pair_a,
@@ -68,11 +68,11 @@ pub(crate) extern "C" fn take_triple_a(triple:Tuple3<(),u16,u16>)->u64{
     ((triple.2 as u64)<<32)
 }
 pub(crate) extern "C" fn take_triple_b(triple:Tuple3<u16,(),u16>)->u64{
-    ((triple.0 as u64))+
+    (triple.0 as u64)+
     ((triple.2 as u64)<<32)
 }
 pub(crate) extern "C" fn take_triple_c(triple:Tuple3<u16,u16,()>)->u64{
-    ((triple.0 as u64))+
+    (triple.0 as u64)+
     ((triple.1 as u64)<<16)
 }
 pub(crate) extern "C" fn ret_triple_a(n:u64)->Tuple3<(),u16,u16>{
@@ -103,7 +103,7 @@ pub(crate) extern "C" fn take_2_pairs_a(a:Tuple2<(),u16>,b:Tuple2<(),u16>)->u64{
     ((b.1 as u64)<<48)
 }
 pub(crate) extern "C" fn take_2_pairs_b(a:Tuple2<u16,()>,b:Tuple2<u16,()>)->u64{
-    ((a.0 as u64))+
+    (a.0 as u64)+
     ((b.0 as u64)<<32)
 }
 pub(crate) extern "C" fn ret_2_pairs_a(n:u64)->Tuple2<Tuple2<(),u16>,Tuple2<(),u16>>{

@@ -35,7 +35,7 @@ it will have the lifetime of the `let slice: RSliceMut<'a,[T]>` variable instead
 lifetime that it's parameterized over.
 
 To get a slice with the same lifetime as an `RSliceMut`,
-one must use one of the `RSliceMut::{into_slice,into_slice_mut}` methods.
+one must use one of the `RSliceMut::{into_slice,into_mut_slice}` methods.
 
 
 Example of what would not work:
@@ -47,7 +47,7 @@ fn into_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a [T] {
     &*slic
 }
 
-fn into_slice_mut<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
+fn into_mut_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
     &mut *slic
 }
 ```
@@ -61,8 +61,8 @@ fn into_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a [T] {
     slic.into_slice()
 }
 
-fn into_slice_mut<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
-    slic.into_slice_mut()
+fn into_mut_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
+    slic.into_mut_slice()
 }
 ```
 
@@ -85,7 +85,7 @@ where
 {
     slice_.iter()
         .position(|x| x==element )
-        .map(|i| &mut slice_.into_slice_mut()[i] )
+        .map(|i| &mut slice_.into_mut_slice()[i] )
 }
 
 
@@ -463,7 +463,7 @@ impl<'a, T> IntoIterator for RSliceMut<'a, T> {
     type IntoIter = ::std::slice::IterMut<'a, T>;
 
     fn into_iter(self) -> ::std::slice::IterMut<'a, T> {
-        self.into_slice_mut().into_iter()
+        self.into_mut_slice().into_iter()
     }
 }
 
@@ -486,7 +486,7 @@ impl<'a, T> DerefMut for RSliceMut<'a, T> {
 impl_into_rust_repr! {
     impl['a, T] Into<&'a mut [T]> for RSliceMut<'a, T> {
         fn(this){
-            this.into_slice_mut()
+            this.into_mut_slice()
         }
     }
 }
@@ -544,7 +544,7 @@ where
 impl<'a> Write for RSliceMut<'a, u8> {
     #[inline]
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
-        let mut this = mem::replace(self, Self::default()).into_slice_mut();
+        let mut this = mem::replace(self, Self::default()).into_mut_slice();
         let ret = this.write(data);
         *self = this.into();
         ret
@@ -552,7 +552,7 @@ impl<'a> Write for RSliceMut<'a, u8> {
 
     #[inline]
     fn write_all(&mut self, data: &[u8]) -> io::Result<()> {
-        let mut this = mem::replace(self, Self::default()).into_slice_mut();
+        let mut this = mem::replace(self, Self::default()).into_mut_slice();
         let ret = this.write_all(data);
         *self = this.into();
         ret

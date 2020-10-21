@@ -270,7 +270,7 @@ impl<'a> StableAbiOptions<'a> {
                 let dt=arenas.alloc(parse_str_as_ident("deref_target"));
                 phantom_fields.push((dt,field_ty));
 
-                &[
+                [
                     "Self: ::std::ops::Deref",
                     "<Self as ::std::ops::Deref>::Target: __StableAbi",
                 ].iter()
@@ -526,7 +526,7 @@ fn parse_attr_list<'a>(
                         let alignment = lit.base10_parse().map_err(|_| make_err(list) )?;
                         this.repr.set_aligned(alignment)
                     }
-                    _=>return Err(make_err(list)),
+                    _=>Err(make_err(list)),
                 }
             }
             Meta::NameValue(MetaNameValue{lit:Lit::Str(ref value),ref path,..})
@@ -541,13 +541,10 @@ fn parse_attr_list<'a>(
     } else if list.path.equals_str("doc") {
         let mut is_hidden = false;
         let res = with_nested_meta("doc", list.nested, |attr| {
-            match attr {
-                Meta::Path(ref path)=> {
-                    if path.equals_str("hidden") {
-                        is_hidden=true;
-                    }
+            if let Meta::Path(ref path) = attr {
+                if path.equals_str("hidden") {
+                    is_hidden = true;
                 }
-                _=>{}
             }
             Ok(())
         });
@@ -595,7 +592,7 @@ fn parse_sabi_attr<'a>(
                 let field_pos=field_index+1;
                 this.first_suffix_field=FirstSuffixField{field_pos};
             }else{
-                return Err(make_err(&path))?;
+                return Err(make_err(&path));
             }
         }
         (
@@ -624,7 +621,7 @@ fn parse_sabi_attr<'a>(
                 let preds=where_predicate_from(field.ty.clone(), bounds);
                 this.extra_bounds.push(preds);
             }else{
-                return Err(make_err(&path))?;
+                return Err(make_err(&path));
             }
         }
         (ParseContext::Field{field,..}, Meta::List(list)) => {
@@ -962,7 +959,7 @@ fn parse_missing_field<'a>(
     list: &Punctuated<NestedMeta, Comma>, 
     arenas: &'a Arenas
 )-> Result<OnMissingField<'a>,syn::Error> {
-    const ATTRIBUTE_MSG:&'static str="
+    const ATTRIBUTE_MSG:&str="
 
 Valid Attributes:
 

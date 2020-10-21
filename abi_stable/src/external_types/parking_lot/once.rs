@@ -492,7 +492,7 @@ extern "C" fn call_once(
     runner:RunClosure,
 )->RResult<(),()>{
     call_with_closure(||{
-        this.value.call_once(||->(){
+        this.value.call_once(||{
             (runner.func)(erased_closure,ROnceState::New).unwrap();
         });
     })
@@ -503,7 +503,7 @@ extern "C" fn call_once_force(
     runner:RunClosure,
 )->RResult<(),()>{
     call_with_closure(||{
-        this.value.call_once_force(|state|->(){
+        this.value.call_once_force(|state|{
             (runner.func)(erased_closure,state.into()).unwrap();
         });
     })

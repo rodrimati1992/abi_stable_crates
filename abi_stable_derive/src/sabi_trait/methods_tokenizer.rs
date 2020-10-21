@@ -150,7 +150,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         let param_names_c=param_names_a.clone();
         let param_names_d=param_names_a.clone();
         let param_names_e=method.params.iter().map(|x| x.pattern );
-        let return_ty=(&method.output).into_iter();
+        let return_ty=method.output.iter();
         
         let self_is_sized_bound=Some(&ctokens.self_sized)
             .filter(|_| is_method&&method.self_param==SelfParam::ByVal );
@@ -208,6 +208,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             };
 
             quote_spanned!(method_span=>
+                #[allow(clippy::let_and_return)]
                 #(#[#other_attrs])*
                 #inherent_method_docs
                 #vis #unsafety #abi fn #method_name #(< #(#lifetimes,)* >)* (

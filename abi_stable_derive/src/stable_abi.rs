@@ -221,7 +221,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
 
 
-    let is_nonzero=if is_transparent && visited_fields.map.len()!=0 {
+    let is_nonzero=if is_transparent && !visited_fields.map.is_empty() {
         let visited_field=&visited_fields.map[0];
 
         let is_opaque_field=visited_field.layout_ctor.is_opaque();

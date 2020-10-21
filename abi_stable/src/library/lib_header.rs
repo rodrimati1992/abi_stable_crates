@@ -33,7 +33,7 @@ impl LibHeader {
             root_mod_consts:root_mod_consts.erased(),
             init_globals_with: INIT_GLOBALS_WITH,
             module:LateStaticRef::new(),
-            constructor:constructor,
+            constructor,
         }
     }
 

@@ -112,10 +112,9 @@ impl Display for LibraryError {
                     f,
                     "The C abi of the library is different than expected:\n\
                      While running tests on the library:\n\
-                     {s}Found:\n{s}{s}{found}\n\
-                     {s}Expected:\n{s}{s}{expected}\n\
+                         Found:\n        {found}\n\
+                         Expected:\n        {expected}\n\
                     ",
-                    s="    ",
                     found=found,
                     expected=expected,
                 }
