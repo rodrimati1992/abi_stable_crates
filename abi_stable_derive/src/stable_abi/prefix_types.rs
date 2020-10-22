@@ -634,7 +634,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 type PrefixRef = #prefix_ref #ty_generics;
             }
 
-            #[allow(non_upper_case_globals)]
+            #[allow(non_upper_case_globals, clippy::needless_lifetimes, clippy::new_ret_no_self)]
             impl #impl_generics #prefix_ref #ty_generics
             where 
                 #(#where_preds_b,)*
@@ -676,8 +676,12 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
         quote!( const _: () = {
             use #module::__sabi_re;
 
-            #[allow(clippy::ptr_offset_with_cast)]
-            #[allow(non_upper_case_globals)]
+            #[allow(
+                clippy::ptr_offset_with_cast,
+                clippy::needless_lifetimes,
+                clippy::new_ret_no_self,
+                non_upper_case_globals,
+            )]
             impl #impl_generics #prefix_ref #ty_generics
             where 
                 #(#where_preds_c,)*
