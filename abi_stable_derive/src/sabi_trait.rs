@@ -815,6 +815,7 @@ fn trait_and_impl(
 
     quote!(
         #( #[#other_attrs] )*
+        #[allow(clippy::needless_lifetimes, clippy::new_ret_no_self)]
         #submod_vis #unsafety trait #trait_ident<
             #gen_params_trait
         >: #( #super_traits_a + )*
@@ -883,6 +884,7 @@ fn trait_and_impl(
         let assoc_ty_named_b=assoc_ty_named_a.clone();
 
         quote!(
+            #[allow(clippy::needless_lifetimes, clippy::new_ret_no_self)]
             impl<#gen_params_header> #trait_ident<#gen_params_use_trait> 
             for #trait_to<#gen_params_use_to>
             where
@@ -934,6 +936,7 @@ fn methods_impls(
     let methods_tokenizer_def=totrait_def.methods_tokenizer(WhichItem::TraitObjectImpl);
 
     quote!(
+        #[allow(clippy::needless_lifetimes, clippy::new_ret_no_self)]
         impl<#gen_params_header> #trait_to<#gen_params_use_to>
         where 
             _ErasedPtr:__GetPointerKind,
