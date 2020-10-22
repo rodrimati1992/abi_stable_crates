@@ -32,7 +32,6 @@ use abi_stable::{
 use core_extensions::{SelfOps,StringExt};
 
 use serde::{Serialize,Deserialize};
-use serde_json;
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -201,7 +200,7 @@ where
     }
 }
 
-fn serialize_json<'a, T>(value: &'a T) -> Result<RawValueBox, RBoxError>
+fn serialize_json<T>(value: &T) -> Result<RawValueBox, RBoxError>
 where
     T: serde::Serialize,
 {
@@ -233,9 +232,9 @@ pub fn deserialize_command(
 
 /// Defines how a TOCommandBox is deserialized from json.
 #[sabi_extern_fn]
-pub fn deserialize_command_borrowing<'borr>(
-    s:RStr<'borr>
-) -> RResult<TOCommandBox<'borr>, RBoxError>{
+pub fn deserialize_command_borrowing(
+    s:RStr<'_>
+) -> RResult<TOCommandBox<'_>, RBoxError>{
     deserialize_json::<Command>(s)
         .map(RBox::new)
         .map(|x|DynTrait::from_borrowing_ptr(x,TOCommand))
@@ -285,7 +284,9 @@ pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
 /// Removes the words in `param.words` from `param.string`,
 /// as well as the whitespace that comes after it.
 #[sabi_extern_fn]
-pub fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,'_>) -> RString{
+// How is a `&mut ()` not ffi-safe?????
+#[allow(improper_ctypes_definitions)]
+pub fn remove_words(this: &mut TOStateBox, param: RemoveWords<'_,'_>) -> RString{
     let this = this.as_unerased_mut_impltype::<TextOperationState>().unwrap();
 
     this.processed_bytes+=param.string.len() as u64;
@@ -349,6 +350,8 @@ fn run_command_inner(this:&mut TOStateBox,command:Command)->ReturnValue{
 
 
 /// An interpreter for text operation commands
+// How is a `*mut ()` not ffi-safe?????
+#[allow(improper_ctypes_definitions)]
 #[sabi_extern_fn]
 pub fn run_command(
     this:&mut TOStateBox,

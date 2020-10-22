@@ -382,7 +382,7 @@ when doing runtime type checking.
 Note that this macro is not recursive,
 you need to invoke it every time you construct an array/map/set inside of the macro.
 
-For more examples look in the [tagging module](./abi_stability/tagging/index.html)
+For more examples look in the [tagging module](./type_layout/tagging/index.html)
 
 # Example
 

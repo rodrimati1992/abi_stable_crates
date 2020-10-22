@@ -147,10 +147,10 @@ impl Shop for ShopState{
                 }
                 ReturnVal::Many{list:ret}
             }
-            Ok(Command::__NonExhaustive)=>{
+            Ok(x)=>{
                 return 
                     Error::InvalidCommand{
-                        cmd:RBox::new(NonExhaustive::new(Command::__NonExhaustive))
+                        cmd:RBox::new(NonExhaustive::new(x))
                     }.piped(NonExhaustive::new)
                     .piped(RErr);
             }
@@ -170,13 +170,13 @@ impl Shop for ShopState{
 
 #[sabi_extern_fn]
 fn deserialize_command(s:RStr<'_>)->RResult<Command_NE,RBoxError>{
-    deserialize_json::<Command>(s.into())
+    deserialize_json::<Command>(s)
         .map(NonExhaustiveFor::new)
 }
 
 #[sabi_extern_fn]
 fn deserialize_ret_val(s:RStr<'_>)->RResult<ReturnVal_NE,RBoxError>{
-    deserialize_json::<ReturnVal>(s.into())
+    deserialize_json::<ReturnVal>(s)
         .map(NonExhaustiveFor::new)
 }
 
@@ -208,7 +208,7 @@ where
     }
 }
 
-fn serialize_json<'a, T>(value: &'a T) -> RResult<RawValueBox, RBoxError>
+fn serialize_json<T>(value: &T) -> RResult<RawValueBox, RBoxError>
 where
     T: serde::Serialize,
 {

@@ -1,6 +1,6 @@
 use std::{
     fs,
-    path::{Path,PathBuf},
+    path::PathBuf,
     io::{self,BufRead,Write,Read},
 };
 
@@ -121,7 +121,7 @@ Examples:
 */
     #[structopt(name = "json-command")]
     #[structopt(author="_")]
-    JsonCommand{
+    Json{
         /// The file to load the json command from.
         file:Option<PathBuf>
     },
@@ -168,7 +168,7 @@ fn main()-> io::Result<()> {
         Command::RunTests=>{
             tests::run_dynamic_library_tests(mods);
         }
-        Command::JsonCommand{file}=>{
+        Command::Json{file}=>{
             fn run_command(mods:TextOpsMod_Ref,state:&mut TOStateBox,s:&str)->RString{
                 let command=serde_json::from_str(s)
                     .unwrap_or_else(|e| panic!("\n{}\n",e) );

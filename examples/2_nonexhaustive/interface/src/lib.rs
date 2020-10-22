@@ -37,6 +37,7 @@ The parameters of `Shop::run_command`.
 
 Every variant of this enum corresponds to a variant of `ReturnVal`.
 */
+#[non_exhaustive]
 #[repr(u8)]
 #[derive(StableAbi,Debug,Clone,PartialEq,Deserialize,Serialize)]
 #[sabi(kind(WithNonExhaustive(
@@ -45,10 +46,6 @@ Every variant of this enum corresponds to a variant of `ReturnVal`.
     assert_nonexhaustive="Command",
 )))]
 pub enum Command{
-    #[doc(hidden)]
-    #[sabi(with_constructor)]
-    __NonExhaustive,
-
     /**
 `#[sabi(with_boxed_constructor)]` tells the `StableAbi` derive macro to 
 generate the `fn CreateItem_NE(ParamCreateItem)->ReturnVal_NE` associated function.
@@ -193,6 +190,7 @@ The return value of `Shop::run_command`.
 
 Every variant of this enum corresponds to a variant of `Command`.
 */
+#[non_exhaustive]
 #[repr(u8)]
 #[derive(StableAbi,Debug,Clone,PartialEq,Deserialize,Serialize)]
 #[sabi(kind(WithNonExhaustive(
@@ -201,8 +199,6 @@ Every variant of this enum corresponds to a variant of `Command`.
     assert_nonexhaustive="ReturnVal",
 )))]
 pub enum ReturnVal{
-    #[doc(hidden)]
-    __NonExhaustive,
     CreateItem{
         count:u32,
         id:ItemId,
@@ -349,6 +345,7 @@ fn examples_of_constructing_a_returnval(){
 ///////////////////////////////////////////////////////////////////////////////
 
 
+#[non_exhaustive]
 #[repr(u8)]
 #[derive(StableAbi,Debug,Clone,PartialEq)]
 #[sabi(kind(WithNonExhaustive(
@@ -357,8 +354,6 @@ fn examples_of_constructing_a_returnval(){
 )))]
 #[sabi(with_constructor)]
 pub enum Error{
-    #[doc(hidden)]
-    __NonExhaustive,
     ItemAlreadyExists{
         id:ItemId,
         name:RString,

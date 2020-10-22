@@ -1,3 +1,5 @@
+#![allow(clippy::print_literal)]
+
 use abi_stable::library::{
     development_utils::compute_library_path,
     LibraryError, RootModule, RootModuleError,

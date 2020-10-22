@@ -33,7 +33,7 @@ pub fn get_library() -> Result<TestingMod_Ref, RBoxError> {
             Ok(ret)
         }
         ReturnWhat::Error=>{
-            return Err(RBoxError::from_fmt("What the ....?"))
+            Err(RBoxError::from_fmt("What the ....?"))
         }
         ReturnWhat::Panic=>{
             panic!()

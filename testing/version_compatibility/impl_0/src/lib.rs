@@ -9,9 +9,7 @@ use abi_stable::{
     export_root_module,
     marker_type::NonOwningPhantom,
     prefix_type::PrefixTypeTrait,
-    sabi_types::VersionStrings,
 };
-use std::marker::PhantomData;
 
 ///////////////////////////////////////////////////////////////////////////////////
 

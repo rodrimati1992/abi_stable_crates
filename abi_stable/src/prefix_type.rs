@@ -76,7 +76,7 @@ pub unsafe trait PrefixTypeTrait: Sized {
     type PrefixFields;
 
     /// A pointer to `Self::PrefixFields`,
-    /// generally wraps a [`PrefixRef<Self::PrefixFields>`](./struct.PrefixRef.html)
+    /// generally wraps a `PrefixRef<Self::PrefixFields>`.
     /// 
     /// Those pointer types are usually named with a `_Ref` suffix.
     type PrefixRef: PrefixRefTrait<

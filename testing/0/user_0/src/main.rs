@@ -1,5 +1,4 @@
 use std::{
-    path::{Path,PathBuf},
     io,
     sync::Arc,
 };
@@ -12,7 +11,7 @@ use abi_stable::{
     library::{development_utils::compute_library_path, RootModule},
 };
 
-use testing_interface_0::{TestingMod_Ref,PrefixTypeMod0_Ref,PrefixTypeMod1_Ref};
+use testing_interface_0::{TestingMod_Ref, PrefixTypeMod1_Ref};
 
 
 fn main()-> io::Result<()> {
