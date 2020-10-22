@@ -1,7 +1,7 @@
 /*!
 
 Using the `#[sabi(kind(WithNonExhaustive(...)))]` helper attribute for 
-[`#[derive(StableAbi)]`](../stable_abi_derive/index.html) allows you to store the enum
+`#[derive(StableAbi)]` allows you to store the enum
 in `NonExhaustive`,
 using it as a non-exhaustive enum across ffi.
 

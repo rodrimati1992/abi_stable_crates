@@ -42,9 +42,7 @@ pub trait ImplType: Sized  {
 
     /// Information about the type for debugging purposes.
     ///
-    /// You can use the [`impl_get_type_info`] macro to initialize this.
-    /// 
-    /// [`impl_get_type_info`]: ../macro.impl_get_type_info.html
+    /// You can use the `impl_get_type_info` macro to initialize this.
     const INFO: &'static TypeInfo;
 }
 

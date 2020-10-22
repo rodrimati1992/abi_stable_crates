@@ -580,8 +580,8 @@ where
 
     #[inline]
     fn sabi_into_erased_ptr(self)->ManuallyDrop<P>{
-        let mut __this= ManuallyDrop::new(self);
-        unsafe{ ptr::read(&mut __this.ptr) }
+        let __this= ManuallyDrop::new(self);
+        unsafe{ ptr::read(&__this.ptr) }
     }
 
     /// Gets an `RRef` pointing to the erased object.

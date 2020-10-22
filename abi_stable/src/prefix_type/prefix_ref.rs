@@ -218,7 +218,7 @@ impl<P> PrefixRef<P>{
     /// 
     /// ```
     /// 
-    /// [`StaticRef`]: ../../sabi_types/struct.StaticRef.html
+    /// [`StaticRef`]: ../sabi_types/struct.StaticRef.html
     #[inline]
     pub const fn from_staticref<T>(ptr: StaticRef<WithMetadata_<T, P>>) -> Self {
         unsafe{

@@ -91,7 +91,7 @@ version of abi_stable to be loaded successfully.
 
             let root_mod=MRItem::from_type_layout(layout);
 
-            let ref json=if compact_json {
+            let json=&if compact_json {
                 serde_json::to_string(&root_mod).unwrap()
             }else{
                 serde_json::to_string_pretty(&root_mod).unwrap()

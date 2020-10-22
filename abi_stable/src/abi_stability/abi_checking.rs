@@ -278,7 +278,7 @@ impl AbiChecker {
             };
 
 
-        for (field_i,(this_f,other_f)) in t_fields.into_iter().zip(o_fields).enumerate() {
+        for (field_i,(this_f,other_f)) in t_fields.zip(o_fields).enumerate() {
             let this_f=this_f.borrow();
             let other_f=other_f.borrow();
             if this_f.name() != other_f.name() {

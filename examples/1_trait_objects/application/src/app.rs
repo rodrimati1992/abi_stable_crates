@@ -62,7 +62,7 @@ impl TheApplication{
             let response=PluginResponse::owned_response(from,response);
             let state=Application_TO::from_ptr(&mut self.state,TU_Opaque);
             if let RSome(res)=self.plugins[to]
-                .handle_response(response.into(),state)
+                .handle_response(response, state)
                 .into_result()?
             {
                 print_response(&res.plugin_id,&res.response);

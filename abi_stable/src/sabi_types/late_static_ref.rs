@@ -193,7 +193,7 @@ impl<T: 'static> LateStaticRef<T> {
     /// }
     /// ```
     /// 
-    /// [`PrefixRef`]: ../../prefix_type/struct.PrefixRef.html
+    /// [`PrefixRef`]: ../prefix_type/struct.PrefixRef.html
     pub const fn from_prefixref<P>(_: PointsToPrefixFields<T, P>, ptr: PrefixRef<P>) -> Self 
     where
         P: 'static
