@@ -72,11 +72,12 @@ Made `abi_stable` testable with [`miri`](https://github.com/rust-lang/miri)
 Bumped the minimum supported Rust version to 1.40.0.
 
 Updated these public dependencies:
-- core_extensions to "0.1.17"
-- libloading to "0.6.3"
+- core_extensions to "0.1.18"
+- libloading to "0.6.4"
 - parking_lot to "0.11.0"
-- lock_api to "0.4.0"
-- crossbeam-channel to "0.4.4"
+- lock_api to "0.4.1"
+- crossbeam-channel to "0.5.0"
+- serde and serde_derive to "1.0.117"
 
 Fixed the lack of `# Unsafe` docs for some unsafe traits.
 

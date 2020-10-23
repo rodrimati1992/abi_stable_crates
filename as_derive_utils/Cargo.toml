@@ -19,21 +19,21 @@ include = [
 testing=["bitflags", "serde", "serde_derive","ron","regex","aho-corasick"]
 
 [dependencies]
-quote = "1.0"
-proc-macro2 = "1.0"
-serde= {version="1.0.99",features=["derive","rc"],optional=true}
-ron= {version="0.5.1",optional=true}
-regex= {version="~1.2",optional=true}
-aho-corasick= {version="0.7",optional=true}
+quote = "1.0.7"
+proc-macro2 = "1.0.24"
+serde= { version = "1.0.117", features = ["derive","rc"], optional = true }
+ron= { version = "0.6.2", optional = true }
+regex= { version = "1.4.1", optional = true }
+aho-corasick= { version = "0.7.14", optional = true }
 
 # Used purely to work around minimum-version bug in ron and serde
-serde_derive= {version="1.0.99",optional=true}
-bitflags = {version="1.2.1",optional=true}
+serde_derive= { version = "1.0.117", optional = true }
+bitflags = { version = "1.2.1", optional = true }
 
 [dependencies.syn]
-version = "1.0.5"
+version = "1.0.46"
 features=["extra-traits"]
 
 [dependencies.core_extensions]
 default_features=false
-version="0.1"
+version= "0.1.18"
