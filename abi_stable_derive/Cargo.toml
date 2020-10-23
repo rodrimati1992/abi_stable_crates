@@ -22,17 +22,17 @@ include = [
 [dependencies]
 abi_stable_shared= {version="0.8.0",path="../abi_stable_shared"}
 
-quote = "1.0"
-typed-arena = "~1.5"
-proc-macro2 = "1.0"
+quote = "1.0.7"
+typed-arena = "2.0.1"
+proc-macro2 = "1.0.24"
 
 [dependencies.core_extensions]
 default_features=false
 features=["std"]
-version="0.1.17"
+version= "0.1.18"
 
 [dependencies.syn]
-version = "1.0"
+version = "1.0.46"
 features=["full","extra-traits","visit","visit-mut"]
 
 
@@ -55,4 +55,4 @@ proc-macro = true
 
 
 [build-dependencies]
-rustc_version = "0.2"
+rustc_version = "0.2.3"
