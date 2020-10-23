@@ -6,7 +6,10 @@ This is the changelog,summarising changes in each version(some minor changes may
 
 Rewrote how prefix types work. now they aren't by reference, 
 they use static-reference-like types generated for each prefix type
-(with a `_Ref` suffix by default).
+(those types have a `_Ref` suffix by default).
+
+Flattened many module hierarchies in abi_stable,
+leaving many of those items only exposed where they used to be reexported.
 
 Now `#[repr(C, packed)]` prefix types are forbidden.
 
@@ -69,11 +72,32 @@ Made `abi_stable` testable with [`miri`](https://github.com/rust-lang/miri)
 Bumped the minimum supported Rust version to 1.40.0.
 
 Updated these public dependencies:
+- core_extensions to "0.1.17"
 - libloading to "0.6.3"
 - parking_lot to "0.11.0"
 - lock_api to "0.4.0"
 - crossbeam-channel to "0.4.4"
 
+Fixed the lack of `# Unsafe` docs for some unsafe traits.
+
+Made (small) improvements to all of the documentation.
+
+Added docs to the module that `#[sabi_trait]` generates,
+and hid methods in `*_MV` types (they were not supposed to be public).
+
+Added generated docs for nonexhaustive enums, unhid the generated items,
+and made the generated constructors `#[doc(hidden)}` when the variants are.
+
+Removed parameters of `assert_nonexhaustive`, using `std::any::type_name` internally instead.
+
+Hid `nonexhaustive_enum::GetVTable::VTABLE_REF`
+
+
+Changed `impl_get_type_info` macro to take a `:ty` parameter.
+
+Made the fields in `InlineStorage` types public.
+
+Added associated constants to construct some types in `abi_stable::marker_type`.
 
 Fixed handling of `unsafe trait` in `#[sabi_trait]`,
 before this the `unsafe` was removed in the generated code.
@@ -83,6 +107,7 @@ Fixed an unsoundness bug where `LateStaticRef<T>` implemented `Send` + `Sync` ev
 Fixed an unsoundness bug where the `RBpxErrpr` returned from checking the layout
 of a library could contain references into the unloaded library,
 by using a new `RBorError_::to_formatted_error` method to stringify the error.
+
 
 Changed `RBox::{from_fmt, from_debug, to_formatted_error}` to take references.
 
@@ -94,6 +119,19 @@ Fixed `RMutex::get_mut`, which caused a memory leak.
 
 Fixed `RRwLock::get_mut`, which caused a memory leak.
 
+Fixed exporting of `abi_stable::prefix_type::BoolArrayIter`, before this it was not shown in the docs.
+
+Made `MovePtr<T>` implement `Send` and/or `Sync` when `T` does.
+
+Added `RSliceMut::as_mut_ptr` method
+    
+Removed the `RSliceMut::into_slice_mut` method (it was marked for deprecation)
+
+Implemented Send and Sync for the RString and RVec iterators.
+
+Made `prefix_type::panic_on_missing_field_val` private
+
+Made `TagErrorVariant` private.
 
 # 0.8
 
@@ -117,9 +155,9 @@ zero-sized types in the "C" ABI.
 This means that in some rare cases,it won't be possible to link dynamic libraries across a 
 certain Rust version because it changed how it represents zero-sized types in the "C" abi.
 
-Added RBoxError::from_debug for constructing an RBoxError from `Debug+!Display` types.
+Added `RBoxError::from_debug` for constructing an `RBoxError` from `Debug + !Display` types.
 
-Added impls of StableAbi for PhantomData of tuples.
+Added impls of `StableAbi` for `PhantomData` of tuples.
 
 Added the `abi_stable::marker_type::NonOwningPhantom` marker type,
 which is a more convenient way to have a `PhantomData<extern "C"fn()->PhantomData<T>>` field
