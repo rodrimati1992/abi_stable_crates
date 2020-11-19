@@ -69,7 +69,7 @@ get `RRef` and `RMut` to the wrapped value.
 
 Made `abi_stable` testable with [`miri`](https://github.com/rust-lang/miri)
 
-Bumped the minimum supported Rust version to 1.40.0.
+Bumped the minimum supported Rust version to 1.41.0.
 
 Updated these public dependencies:
 - core_extensions to "0.1.18"
@@ -109,6 +109,7 @@ Fixed an unsoundness bug where the `RBpxErrpr` returned from checking the layout
 of a library could contain references into the unloaded library,
 by using a new `RBorError_::to_formatted_error` method to stringify the error.
 
+Added minimal support for pinning RBox.
 
 Changed `RBox::{from_fmt, from_debug, to_formatted_error}` to take references.
 

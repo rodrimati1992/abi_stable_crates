@@ -5,9 +5,10 @@ Contains the ffi-safe equivalent of `std::boxed::Box`.
 
 use std::{
     borrow::{Borrow,BorrowMut},
-    marker::PhantomData, 
+    marker::{PhantomData, Unpin}, 
     mem::ManuallyDrop, 
     ops::DerefMut,
+    pin::Pin,
     ptr,
 };
 
@@ -288,6 +289,15 @@ impl_from_rust_repr! {
     }
 }
 
+impl<T> From<RBox<T>> for Pin<RBox<T>> {
+    fn from(boxed: RBox<T>) -> Pin<RBox<T>> {
+        // safety: this is the same as what Box does.
+        unsafe{
+            Pin::new_unchecked(boxed)
+        }
+    }
+}
+
 /////////////////////////////////////////////////////////////////
 
 impl<T> IntoReprRust for RBox<T> {
@@ -326,6 +336,7 @@ shared_impls! {pointer
 
 unsafe impl<T: Send> Send for RBox<T> {}
 unsafe impl<T: Sync> Sync for RBox<T> {}
+impl<T> Unpin for RBox<T> {}
 
 ///////////////////////////////////////////////////////////////
 

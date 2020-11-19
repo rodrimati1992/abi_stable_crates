@@ -10,7 +10,7 @@ matrix:
     # - rust: stable
     - rust: beta
     - rust: nightly
-    - rust: 1.40.0
+    - rust: 1.41.0
     - rust: nightly  
       script:
         - cd "${TRAVIS_BUILD_DIR}/abi_stable/"
