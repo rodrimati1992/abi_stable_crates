@@ -586,13 +586,13 @@ and loads the pre-compiled `implementation crate` dynamic library from some path
 
 # Minimum Rust version
 
-This crate support Rust back to 1.40.0 ,
+This crate support Rust back to 1.41.0 ,
 using a build script to automatically enable features from newer versions.
 
 # Cargo Features
 
 If it becomes possible to disable build scripts,
-you can manually enable support for Rust past 1.40.0 features with the `rust_*_*` cargo features.
+you can manually enable support for Rust past 1.41.0 features with the `rust_*_*` cargo features.
 
 These are default cargo features that enable optional crates :
 
