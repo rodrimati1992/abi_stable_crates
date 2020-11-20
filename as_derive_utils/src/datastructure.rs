@@ -296,8 +296,22 @@ impl<'a> Field<'a> {
         matches!(Visibility::Public{..} = self.vis)
     }
 
-    /// Gets the identifier of this field as an `&Ident`.
-    pub fn ident(&self)->&Ident{
+    /// Gets the identifier of this field usable for the variable in a pattern.
+    ///
+    /// You can match on a single field struct (tupled or braced) like this:
+    ///
+    /// ```rust
+    /// use as_derive_utils::datastructure::Struct;
+    ///
+    /// fn example(struct_: Struct<'_>) -> proc_macro2::TokenStream {
+    ///     let field = &struct_.field[0];
+    ///     let field_name = &field.ident;
+    ///     let variable = field.pat_ident();
+    ///    
+    ///     quote::quote!( let Foo{#field_name: #variable} = bar; )
+    /// }
+    /// ```
+    pub fn pat_ident(&self)->&Ident{
         match &self.ident {
             FieldIdent::Index(_,ident)=>ident,
             FieldIdent::Named(ident)=>ident,

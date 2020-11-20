@@ -374,7 +374,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                         vis.to_tokens(ts);
                     }
                 }));
-            let prefix_field = prefix_field_iter.clone().map(|f| f.ident() );
+            let prefix_field = prefix_field_iter.clone().map(|f| f.pat_ident() );
             let prefix_field_ty = prefix_field_iter.clone().map(|f| f.ty );
 
             let (_, ty_generics, where_clause) = generics.split_for_impl();
@@ -420,7 +420,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
         let mut field_index_for=Vec::new();
         let offset_consts: &[syn::Ident] = &struct_.fields.iter()
             .map(|f|{
-                parse_str_as_ident(&format!("__sabi_offset_for_{}", f.ident())) 
+                parse_str_as_ident(&format!("__sabi_offset_for_{}", f.pat_ident())) 
             })
             .collect::<Vec<Ident>>();
 
@@ -438,7 +438,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                     acc_doc_buffer,
                     "Accessor method for the `{deriving_name}::{field_name}` field.",
                     deriving_name=deriving_name,
-                    field_name=field.ident(),
+                    field_name=field.pat_ident(),
                 );
 
 
@@ -476,7 +476,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
             }
             
             if config.with_field_indices{
-                let field_name=field.ident();
+                let field_name=field.pat_ident();
                 let mut new_ident=parse_str_as_ident(&format!("field_index_for_{}",field_name));
                 new_ident.set_span(field_name.span());
                 field_index_for.push(new_ident);
@@ -499,11 +499,11 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
         for (field_i,field)in struct_.fields.iter().enumerate() {
             use std::fmt::Write;
             accessor_buffer.clear();
-            write!(accessor_buffer,"{}",field.ident()).drop_();
+            write!(accessor_buffer,"{}",field.pat_ident()).drop_();
             let vis=field.vis;
             let mut getter_name=syn::parse_str::<Ident>(&*accessor_buffer).expect("BUG");
-            getter_name.set_span(field.ident().span());
-            let field_name=field.ident();
+            getter_name.set_span(field.pat_ident().span());
+            let field_name=field.pat_ident();
             let field_span=field_name.span();
             let ty=field.ty;
 
