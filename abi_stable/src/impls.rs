@@ -11,7 +11,7 @@ macro_rules! shared_impls {
             use super::*;
 
             use std::{
-                fmt::{self,Display},
+                fmt::{self,Display, Pointer as PointerFmt},
                 ops::Deref,
             };
 
@@ -36,6 +36,15 @@ macro_rules! shared_impls {
             {
                 fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
                     Display::fmt(&**self,f)
+                }
+            }
+
+            impl<$($lt,)* $($ty,)* $($($ex_ty,)*)?> PointerFmt
+                for $tconst<$($lt,)* $($ty,)* $($($ex_ty,)*)?>
+            {
+                fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+                    let ptr: *const _ = &**self;
+                    PointerFmt::fmt(&ptr, f)
                 }
             }
 

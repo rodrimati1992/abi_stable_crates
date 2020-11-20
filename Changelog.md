@@ -93,9 +93,9 @@ Removed parameters of `assert_nonexhaustive`, using `std::any::type_name` intern
 
 Hid `nonexhaustive_enum::GetVTable::VTABLE_REF`
 
-Added minimal support for pinning RBox.
+Added support for pinning RBox.
 
-Added iterator impls,Future impl,Error impl to RBox.
+Added std::iter::\*,Future,Hasher,Error,std::io::\*, and std::fmt::Pointer impls for RBox.
 
 Changed `impl_get_type_info` macro to take a `:ty` parameter.
 
