@@ -498,7 +498,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
                     match constructor {
                         VariantConstructor::Regular=>{
-                            let field_names_a=variant.fields.iter().map(|x|x.ident());
+                            let field_names_a=variant.fields.iter().map(|x|x.pat_ident());
                             let field_names_b=field_names_a.clone();
                             let field_names_c=variant.fields.iter().map(|x|&x.ident);
                             let field_types=variant.fields.iter().map(|x|x.ty);

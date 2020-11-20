@@ -93,6 +93,9 @@ Removed parameters of `assert_nonexhaustive`, using `std::any::type_name` intern
 
 Hid `nonexhaustive_enum::GetVTable::VTABLE_REF`
 
+Added minimal support for pinning RBox.
+
+Added iterator impls,Future impl,Error impl to RBox.
 
 Changed `impl_get_type_info` macro to take a `:ty` parameter.
 
@@ -108,8 +111,6 @@ Fixed an unsoundness bug where `LateStaticRef<T>` implemented `Send` + `Sync` ev
 Fixed an unsoundness bug where the `RBpxErrpr` returned from checking the layout
 of a library could contain references into the unloaded library,
 by using a new `RBorError_::to_formatted_error` method to stringify the error.
-
-Added minimal support for pinning RBox.
 
 Changed `RBox::{from_fmt, from_debug, to_formatted_error}` to take references.
 

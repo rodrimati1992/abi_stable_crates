@@ -5,11 +5,15 @@ Contains the ffi-safe equivalent of `std::boxed::Box`.
 
 use std::{
     borrow::{Borrow,BorrowMut},
+    error::Error as StdError,
+    future::Future,
+    iter::FusedIterator,
     marker::{PhantomData, Unpin}, 
     mem::ManuallyDrop, 
     ops::DerefMut,
     pin::Pin,
     ptr,
+    task::{Context, Poll},
 };
 
 #[allow(unused_imports)]
@@ -94,6 +98,13 @@ enum Command{
         pub fn new(value: T) -> Self {
             Box::new(value).piped(RBox::from_box)
         }
+
+        /// Constructs a `Pin<RBox<T>>`.
+        ///
+        pub fn pin(value: T) -> Pin<RBox<T>> {
+            RBox::new(value).into_pin()
+        }
+
         /// Converts a `Box<T>` to an `RBox<T>`,reusing its heap allocation.
         ///
         /// # Example 
@@ -201,6 +212,7 @@ impl<T> RBox<T> {
             }
         }
     }
+
     /// Unwraps this `Box<T>` into the value it owns on the heap.
     ///
     /// # Example
@@ -218,6 +230,15 @@ impl<T> RBox<T> {
             let value = this.data().read();
             Self::drop_allocation(&mut ManuallyDrop::new(this));
             value
+        }
+    }
+
+    /// Wraps this `RBox` in a `Pin`
+    ///
+    pub fn into_pin(self) -> Pin<RBox<T>> {
+        // safety: this is the same as what Box does.
+        unsafe {
+            Pin::new_unchecked(self)
         }
     }
 }
@@ -291,10 +312,7 @@ impl_from_rust_repr! {
 
 impl<T> From<RBox<T>> for Pin<RBox<T>> {
     fn from(boxed: RBox<T>) -> Pin<RBox<T>> {
-        // safety: this is the same as what Box does.
-        unsafe{
-            Pin::new_unchecked(boxed)
-        }
+        boxed.into_pin()
     }
 }
 
@@ -340,11 +358,94 @@ impl<T> Unpin for RBox<T> {}
 
 ///////////////////////////////////////////////////////////////
 
+impl<I> Iterator for RBox<I> 
+where
+    I: Iterator
+{
+    type Item = I::Item;
+    fn next(&mut self) -> Option<I::Item> {
+        (**self).next()
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (**self).size_hint()
+    }
+    fn nth(&mut self, n: usize) -> Option<I::Item> {
+        (**self).nth(n)
+    }
+    fn last(self) -> Option<I::Item> {
+        RBox::into_inner(self).last()
+    }
+}
+
+impl<I> DoubleEndedIterator for RBox<I> 
+where
+    I: DoubleEndedIterator
+{
+    fn next_back(&mut self) -> Option<I::Item> {
+        (**self).next_back()
+    }
+    fn nth_back(&mut self, n: usize) -> Option<I::Item> {
+        (**self).nth_back(n)
+    }
+}
+
+impl<I> ExactSizeIterator for RBox<I> 
+where
+    I: ExactSizeIterator
+{
+    fn len(&self) -> usize {
+        (**self).len()
+    }
+}
+
+impl<I> FusedIterator for RBox<I> 
+where
+    I: FusedIterator
+{}
+
+
+///////////////////////////////////////////////////////////////
+
+impl<F> Future for RBox<F> 
+where
+    F: Future + Unpin
+{
+    type Output = F::Output;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        F::poll(Pin::new(&mut *self), cx)
+    }
+}
+
+///////////////////////////////////////////////////////////////
+
+impl<T> StdError for RBox<T> 
+where
+    T: StdError
+{
+    #[allow(deprecated, deprecated_in_future)]
+    fn description(&self) -> &str {
+        StdError::description(&**self)
+    }
+
+    #[allow(deprecated)]
+    fn cause(&self) -> Option<&dyn StdError> {
+        StdError::cause(&**self)
+    }
+
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        StdError::source(&**self)
+    }
+}
+
+///////////////////////////////////////////////////////////////
+
 impl<T> Drop for RBox<T> {
     fn drop(&mut self) {
         unsafe {
             let data = self.data();
-            (RBox::vtable(self).destructor())(data as *mut (), CallReferentDrop::Yes,Deallocate::Yes);
+            let dstr = RBox::vtable(self).destructor();
+            dstr(data as *mut (), CallReferentDrop::Yes,Deallocate::Yes);
         }
     }
 }
