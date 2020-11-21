@@ -118,4 +118,4 @@ script:
 
 
   - cd "${TRAVIS_BUILD_DIR}/testing/version_compatibility/user_0"
-  - cargo run --features run
+  - cargo run
