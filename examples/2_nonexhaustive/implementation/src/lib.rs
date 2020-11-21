@@ -18,14 +18,14 @@ use abi_stable::{
 use core_extensions::SelfOps;
 
 use example_2_interface::{
-    Cents,Command,Command_NE,Error,ItemId,ReturnVal,ReturnVal_NE,Shop,Shop_TO,ShopMod,ShopModVal,
+    Cents,Command,Command_NE,Error,ItemId,ReturnVal,ReturnVal_NE,Shop,Shop_TO,ShopMod_Ref,ShopMod,
     ParamCreateItem,RetRenameItem,
 };
 
 
 #[export_root_module]
-fn instantiate_root_module()->&'static ShopMod{
-    ShopModVal {
+fn instantiate_root_module()->ShopMod_Ref{
+    ShopMod {
         new,
         deserialize_command,
         deserialize_ret_val,
@@ -147,10 +147,10 @@ impl Shop for ShopState{
                 }
                 ReturnVal::Many{list:ret}
             }
-            Ok(Command::__NonExhaustive)=>{
+            Ok(x)=>{
                 return 
                     Error::InvalidCommand{
-                        cmd:RBox::new(NonExhaustive::new(Command::__NonExhaustive))
+                        cmd:RBox::new(NonExhaustive::new(x))
                     }.piped(NonExhaustive::new)
                     .piped(RErr);
             }
@@ -170,13 +170,13 @@ impl Shop for ShopState{
 
 #[sabi_extern_fn]
 fn deserialize_command(s:RStr<'_>)->RResult<Command_NE,RBoxError>{
-    deserialize_json::<Command>(s.into())
+    deserialize_json::<Command>(s)
         .map(NonExhaustiveFor::new)
 }
 
 #[sabi_extern_fn]
 fn deserialize_ret_val(s:RStr<'_>)->RResult<ReturnVal_NE,RBoxError>{
-    deserialize_json::<ReturnVal>(s.into())
+    deserialize_json::<ReturnVal>(s)
         .map(NonExhaustiveFor::new)
 }
 
@@ -208,7 +208,7 @@ where
     }
 }
 
-fn serialize_json<'a, T>(value: &'a T) -> RResult<RawValueBox, RBoxError>
+fn serialize_json<T>(value: &T) -> RResult<RawValueBox, RBoxError>
 where
     T: serde::Serialize,
 {
@@ -231,7 +231,7 @@ mod tests{
     }
 
     fn setup(){
-        let _=ShopMod::load_module_with(|| Ok::<_,()>(instantiate_root_module()) );
+        let _=ShopMod_Ref::load_module_with(|| Ok::<_,()>(instantiate_root_module()) );
     }
 
     #[test]

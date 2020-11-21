@@ -324,7 +324,6 @@ mod tests{
     use crate::{
         abi_stability::stable_abi_trait::GetTypeLayoutCtor,
         std_types::RString,
-        utils::leak_value,
     };
 
     #[test]
@@ -333,16 +332,18 @@ mod tests{
         const U32_CTOR:TypeLayoutCtor=GetTypeLayoutCtor::<u32>::STABLE_ABI;
         const RSTRING_CTOR:TypeLayoutCtor=GetTypeLayoutCtor::<RString>::STABLE_ABI;
 
-        let mono_vars=leak_value(MonoSharedVars::new(
+        const MONO_VARS: &MonoSharedVars = &MonoSharedVars::new(
             rstr!("foo;bar; baz; "),
             rslice![],
-        ));
+        );
 
-        let vars=leak_value(SharedVars::new(
-            mono_vars,
+        const VARS: &SharedVars = &SharedVars::new(
+            MONO_VARS,
             rslice![UNIT_CTOR,U32_CTOR,RSTRING_CTOR],
             rslice![],
-        ));
+        );
+
+        let vars = VARS;
 
         let mut arr=[LifetimeIndex::NONE;5];
         arr[0]=LifetimeIndex::STATIC;

@@ -27,13 +27,13 @@ not yet guaranteed.
 
 # Lifetime problems
 
-Because RSlice dereferences into a slice,you can call slice method on it.
+Because `RSlice` dereferences into a slice,you can call slice methods on it.
 
 If you call a slice method that returns a borrow into the slice,
-it will have the lifetime of the `let slice:RSlice<'a,[T]>` variable instead of the `'a` 
+it will have the lifetime of the `let slice: RSlice<'a,[T]>` variable instead of the `'a` 
 lifetime that it's parameterized over.
 
-To get a slice with the same lifetime as an RSlice,
+To get a slice with the same lifetime as an `RSlice`,
 one must use the `RSlice::as_slice` method.
 
 
@@ -124,13 +124,13 @@ where
         ///
         /// Callers must ensure that:
         ///
-        /// - ptr_ points to valid memory,
+        /// - `ptr_` points to valid memory,
         ///
-        /// - `ptr_ .. ptr+len` range is àccessible memory.
+        /// - `ptr_ .. ptr+len` range is accessible memory.
         ///
-        /// - ptr_ is aligned to `T`.
+        /// - `ptr_` is aligned to `T`.
         ///
-        /// - the data ptr_ points to must be valid for the lifetime of this `RSlice<'a,T>`
+        /// - The data `ptr_` points to must be valid for the `'a` lifetime.
         ///
         /// # Examples
         ///
@@ -253,56 +253,30 @@ impl<'a, T> RSlice<'a, T> {
         }
     }    
 
-    with_shared_attrs!{
-        /**
-Converts a `&[T]` to an `RSlice<'_,T>`.
-
-
-# Constness
-
-This function is a `const fn` from Rust 1.39 onwards due to 
-the stabilization of `<[T]>::len`.
-
-Before Rust 1.39 the only safe way to construct an `RSlice`
-constant is using the `rslice` macro.
-
-# Example
-
-```
-use abi_stable::std_types::RSlice;
-
-let empty:&[u8]=&[];
-
-assert_eq!(RSlice::<u8>::from_slice(&[]).as_slice(), empty);
-assert_eq!(RSlice::from_slice(&[0]).as_slice()     , &[0][..]);
-assert_eq!(RSlice::from_slice(&[0,1]).as_slice()   , &[0,1][..]);
-
-```
-        */
-        #[inline]
-        (
-            ;
-            #[cfg(feature="rust_1_39")];
-            // <[T]>::len was stabilized in 1.39
-            pub const fn from_slice(slic:&'a [T])->Self{
-                unsafe{ RSlice::from_raw_parts(slic.as_ptr(),slic.len()) }
-            }
-        )
-        (
-            ;
-            #[cfg(not(feature="rust_1_39"))];
-            // <[T]>::len was stabilized in 1.39
-            pub fn from_slice(slic:&'a [T])->Self{
-                unsafe{ RSlice::from_raw_parts(slic.as_ptr(),slic.len()) }
-            }
-        )
+    /// Converts a `&[T]` to an `RSlice<'_,T>`.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use abi_stable::std_types::RSlice;
+    /// 
+    /// let empty:&[u8]=&[];
+    /// 
+    /// assert_eq!(RSlice::<u8>::from_slice(&[]).as_slice(), empty);
+    /// assert_eq!(RSlice::from_slice(&[0]).as_slice()     , &[0][..]);
+    /// assert_eq!(RSlice::from_slice(&[0,1]).as_slice()   , &[0,1][..]);
+    /// 
+    /// ```
+    #[inline]
+    pub const fn from_slice(slic:&'a [T])->Self{
+        unsafe{ RSlice::from_raw_parts(slic.as_ptr(),slic.len()) }
     }
 
 
     /// Creates an `RSlice<'a,T>` with access to the `range` range of elements.
     ///
     /// This is an inherent method instead of an implementation of the
-    /// ::std::ops::Index trait because it does not return a reference.
+    /// `std::ops::Index` trait because it does not return a reference.
     ///
     /// # Example
     ///
@@ -347,6 +321,13 @@ assert_eq!(RSlice::from_slice(&[0,1]).as_slice()   , &[0,1][..]);
     }
 
     /// Transmutes n `RSlice<'a,T>` to a `RSlice<'a,U>`
+    ///
+    /// # Safety
+    ///
+    /// This has the same safety requirements as calling [`std::mem::transmute`] to 
+    /// transmute a `&'a [T]` to a `&'a [U]`.
+    ///
+    /// [`std::mem::transmute`]: https://doc.rust-lang.org/std/mem/fn.transmute.html
     pub const unsafe fn transmute_ref<U>(self)->RSlice<'a,U>
     where
         U:'a
@@ -382,7 +363,7 @@ impl<'a, T> IntoIterator for RSlice<'a, T> {
     type IntoIter = ::std::slice::Iter<'a, T>;
 
     fn into_iter(self) -> ::std::slice::Iter<'a, T> {
-        self.as_slice().into_iter()
+        self.as_slice().iter()
     }
 }
 

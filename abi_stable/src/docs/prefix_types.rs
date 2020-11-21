@@ -1,37 +1,37 @@
 /*!
 
 Prefix-types are types that derive StableAbi along with the 
-`#[sabi(kind(Prefix(prefix_struct="PrefixEquivalent")))]` helper attribute.
+`#[sabi(kind(Prefix(....)))]` helper attribute.
 This is mostly intended for **vtables** and **modules**.
 
 Prefix-types cannot directly be passed through ffi,
-instead they must be converted to the type declared with `prefix_struct="PrefixEquivalent"`,
-and then pass `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` instead.
+instead they must be converted to the type declared with `prefix_ref="Foo_Ref"`,
+and then pass that instead.
 
-To convert `T` to `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` you an use one of:
+To convert `Foo` to `Foo_Ref` you can use any of (non-exhaustive list):
 
 - `PrefixTypeTrait::leak_into_prefix`:<br>
     Which does the conversion directly,but leaks the value.
 
-- `prefix_type::WithMetadata::new` and then `WithMetadata::ref_as_prefix`:<br>
-    Use this if you need a compiletime constant and the type has no generic parameters.
-    First create a `&'static WithMetadata<Self>` constant,
-    then use the `WithMetadata::ref_as_prefix` method at runtime 
-    to cast it to `&'static PrefixEquivalent`.
-
-- `prefix_type::WithMetadata::new` and then `WithMetadata::as_prefix`:<br>
-    Use this if you need a compiletime constant.
+- `prefix_type::WithMetadata::new`:<br>
+    Use this if you need a compiletime constant.<br>
     First create a `StaticRef<WithMetadata<Self>>` constant using 
-    the `StaticRef::from_raw` function,
-    then use `WithMetadata::as_prefix` to cast it to `StaticRef<PrefixEquivalent>`.
+    the [`staticref`] macro,
+    then construct a `Foo_Ref` constant with `Foo_Ref(THE_STATICREF_CONSTANT.as_prefix())`.<br>
+    There are two examples of this, 
+    [for modules](#module_construction),and [for vtables](#vtable_construction)
 
 
-All fields on `&PrefixEquivalent`/`StaticRef<PrefixEquivalent>` are accessed through accessor methods 
-with the same name as the fields.
+All the fields in the `DerivingType` can be accessed in `DerivingType_Ref` using
+accessor methods named the same as the fields.
+
+# Version compatibility
+
+### Adding fields
 
 To ensure that libraries stay abi compatible,
-the first minor version of the library must apply the `#[sabi(last_prefix_field)]` to some 
-field and every minor version after that must add fields at the end (never moving that attribute).
+the first minor version of the library must use the `#[sabi(last_prefix_field)]` attribute on some 
+field, and every minor version after that must add fields at the end (never moving that attribute).
 Changing the field that `#[sabi(last_prefix_field)]` is applied to is a breaking change.
 
 Getter methods for fields after the one to which `#[sabi(last_prefix_field)]` was applied to
@@ -40,6 +40,16 @@ will return `Option<FieldType>` by default,because those fields might not exist
 To override how to deal with nonexistent fields,
 use the `#[sabi(missing_field())]` attribute,
 applied to either the struct or the field.
+
+### Alignment 
+
+To ensure that users can define empty vtables/modules that can be extended in 
+semver compatible versions,
+this library forces the struct converted to ffi-safe form to have an alignment at 
+least that of usize.
+
+You must ensure that newer versions don't change the alignment of the struct,
+because that makes it ABI incompatible.
 
 # Grammar Reference
 
@@ -61,9 +71,9 @@ use abi_stable::{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="Module")))]
+#[sabi(kind(Prefix(prefix_ref="Module_Ref")))]
 #[sabi(missing_field(panic))]
-pub struct ModuleVal {
+pub struct Module {
     pub lib_name:RStr<'static>,
 
     #[sabi(last_prefix_field)]
@@ -78,8 +88,8 @@ pub struct ModuleVal {
 
 In this example:
 
-- `#[sabi(kind(Prefix(prefix_struct="Module")))]` declares this type as being a prefix-type
-    with an ffi-safe equivalent called `Module` to which `ModuleVal` can be converted into.
+- `#[sabi(kind(Prefix(prefix_ref="Module_Ref")))]` declares this type as being a prefix-type
+    with an ffi-safe pointer called `Module_Ref` to which `Module` can be converted into.
 
 - `#[sabi(missing_field(panic))]` 
     makes the field accessors panic when attempting to 
@@ -88,11 +98,135 @@ In this example:
 - `#[sabi(last_prefix_field)]`means that it is the last field in the struct
     that was defined in the first compatible version of the library
     (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    requiring new fields to always be added bellow preexisting ones.
+    requiring new fields to always be added below preexisting ones.
 
+<span id="module_construction"></span>
+### Constructing a module
+
+This example demonstrates how you can construct a module.
+
+For constructing a vtable, you can look at [the next example](#vtable_construction)
+
+```
+
+use abi_stable::{
+    prefix_type::{PrefixTypeTrait, WithMetadata},
+    std_types::{RDuration,RStr},
+    extern_fn_panic_handling, staticref,
+    StableAbi,
+};
+
+fn main(){
+    assert_eq!(MODULE_REF.lib_name().as_str(), "foo");
+
+    assert_eq!(MODULE_REF.elapsed()(1000), RDuration::from_secs(1));
+
+    assert_eq!(MODULE_REF.description().as_str(), "this is a module field");
+    
+}
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(kind(Prefix(prefix_ref="Module_Ref")))]
+#[sabi(missing_field(panic))]
+pub struct Module<T> {
+    pub lib_name:RStr<'static>,
+
+    #[sabi(last_prefix_field)]
+    pub elapsed:extern "C" fn(T)->RDuration,
+
+    pub description:RStr<'static>,
+}
+
+
+// This macro declares a `StaticRef<WithMetadata<Module<u64>>>` constant.
+staticref!(const MODULE_VAL: WithMetadata<Module<u64>> = WithMetadata::new(
+    PrefixTypeTrait::METADATA,
+    Module{
+        lib_name: RStr::from_str("foo"),
+        elapsed,
+        description: RStr::from_str("this is a module field"),
+    },
+));
+
+const MODULE_REF: Module_Ref<u64> = Module_Ref(MODULE_VAL.as_prefix());
+
+extern "C" fn elapsed(milliseconds: u64) -> RDuration {
+    extern_fn_panic_handling!{
+        RDuration::from_millis(milliseconds)
+    }
+}
+```
+
+<span id="vtable_construction"></span>
+### Constructing a vtable
+
+This eaxmple demonstrates how you can construct a vtable.
+
+```rust
+use abi_stable::{
+    marker_type::ErasedObject,
+    prefix_type::{PrefixTypeTrait, WithMetadata},
+    extern_fn_panic_handling, staticref,
+    StableAbi,
+};
+
+fn main(){   
+    unsafe {
+        let vtable = MakeVTable::<u64>::MAKE;
+        assert_eq!(
+            vtable.get_number()(&3u64 as *const u64 as *const ErasedObject),
+            12,
+        );
+    }
+    unsafe {
+        let vtable = MakeVTable::<u8>::MAKE;
+        assert_eq!(
+            vtable.get_number()(&128u8 as *const u8 as *const ErasedObject),
+            512,
+        );
+    }
+}
+
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(kind(Prefix(prefix_ref="VTable_Ref")))]
+#[sabi(missing_field(panic))]
+pub struct VTable {
+    #[sabi(last_prefix_field)]
+    pub get_number: unsafe extern "C" fn(*const ErasedObject)->u64,
+}
+
+
+// A dummy struct, used purely for its associated constants.
+struct MakeVTable<T>(T);
+
+impl<T> MakeVTable<T> 
+where
+    T: Copy + Into<u64>
+{
+    unsafe extern "C" fn get_number(this: *const ErasedObject) -> u64 {
+        extern_fn_panic_handling!{
+            (*this.cast::<T>()).into() * 4
+        }
+    }
+
+    // This macro declares a `StaticRef<WithMetadata<VTable>>` constant.
+    staticref!{pub const VAL: WithMetadata<VTable> = WithMetadata::new(
+        PrefixTypeTrait::METADATA,
+        VTable{get_number: Self::get_number},
+    )}
+
+    pub const MAKE: VTable_Ref = VTable_Ref(Self::VAL.as_prefix());
+}
+
+```
+
+
+<span id="example2"></span>
 ###  Example 2:Declaring a type with a VTable 
 
-Here is the implementation of a Box-like type,which uses a VTable that is itself a Prefix.
+Here is the implementation of a Box-like type,which uses a vtable that is a prefix type.
 
 ```
 
@@ -105,9 +239,9 @@ use std::{
 use abi_stable::{
     StableAbi,
     extern_fn_panic_handling,
+    staticref,
     pointer_trait::{CallReferentDrop, TransmuteElement},
-    prefix_type::{PrefixTypeTrait,WithMetadata},
-    sabi_types::StaticRef,
+    prefix_type::{PrefixTypeTrait, WithMetadata},
 };
 
 /// An ffi-safe `Box<T>`
@@ -116,7 +250,7 @@ use abi_stable::{
 pub struct BoxLike<T> {
     data: *mut T,
     
-    vtable: StaticRef<BoxVtable<T>>,
+    vtable: BoxVtable_Ref<T>,
 
     _marker: PhantomData<T>,
 }
@@ -128,13 +262,13 @@ impl<T> BoxLike<T>{
         
         Self{
             data:Box::into_raw(box_),
-            vtable:WithMetadata::as_prefix(BoxVtableVal::VTABLE),
+            vtable: BoxVtable::VTABLE,
             _marker:PhantomData,
         }
     }
 
-    fn vtable<'a>(&self)->&'a BoxVtable<T>{
-        self.vtable.get()
+    fn vtable(&self)-> BoxVtable_Ref<T>{
+        self.vtable
     }
 
     /// Extracts the value this owns.
@@ -182,16 +316,25 @@ impl<T> Drop for BoxLike<T>{
 }
 
 
+// `#[sabi(kind(Prefix))]` Declares this type as being a prefix-type,
+// generating both of these types:
+// 
+//     - BoxVTable_Prefix`: A struct with the fields up to (and including) the field with the 
+//     `#[sabi(last_prefix_field)]` attribute.
+// 
+//     - BoxVTable_Ref`: An ffi-safe pointer to a `BoxVtable`, with methods to get
+//     `BoxVtable`'s fields.
+// 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="BoxVtable")))]
-pub(crate) struct BoxVtableVal<T> {
+#[sabi(kind(Prefix))]
+pub(crate) struct BoxVtable<T> {
 
     /// The `#[sabi(last_prefix_field)]` attribute here means that this is 
     /// the last field in this struct that was defined in the 
     /// first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    /// requiring new fields to always be added bellow preexisting ones.
+    /// requiring new fields to always be added after it.
     /// 
     /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
     /// bumps its "major" version,
@@ -202,17 +345,23 @@ pub(crate) struct BoxVtableVal<T> {
 }
 
 
-impl<T> BoxVtableVal<T>{
-    const TMP0:Self=Self{
-        destructor:destroy_box::<T>,
-    };
+// This is how ffi-safe pointers to generic prefix types are constructed
+// at compile-time.
+impl<T> BoxVtable<T>{
+    // This macro declares a `StaticRef<WithMetadata<BoxVtable<T>>>` constant.
+    //
+    // StaticRef represents a reference to data that lives forever,
+    // but is not necessarily `'static` according to the type system,
+    // eg: `BoxVtable<T>`.
+    staticref!(const VTABLE_VAL: WithMetadata<Self> = WithMetadata::new(
+        PrefixTypeTrait::METADATA,
+        Self{
+            destructor:destroy_box::<T>,
+        },
+    ));
 
-    // This can't be a `&'static WithMetadata<Self>` because Rust will complain that 
-    // `T` does not live for the `'static` lifetime.
-    const VTABLE:StaticRef<WithMetadata<Self>>=unsafe{
-        StaticRef::from_raw(
-            &WithMetadata::new(PrefixTypeTrait::METADATA,Self::TMP0)
-        )
+    const VTABLE: BoxVtable_Ref<T> = {
+        BoxVtable_Ref( Self::VTABLE_VAL.as_prefix() )
     };
 }
 
@@ -240,20 +389,29 @@ use abi_stable::{
     StableAbi,
     sabi_extern_fn,
     std_types::RDuration,
-    prefix_type::PrefixTypeTrait,
+    prefix_type::{PrefixTypeTrait, WithMetadata},
 };
 
 
+// `#[sabi(kind(Prefix))]` Declares this type as being a prefix-type,
+// generating both of these types:
+// 
+//     - PersonMod_Prefix`: A struct with the fields up to (and including) the field with the 
+//     `#[sabi(last_prefix_field)]` attribute.
+// 
+//     - PersonMod_Ref`:
+//      An ffi-safe pointer to a `PersonMod`,with methods to get`PersonMod`'s fields.
+// 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="PersonMod")))]
-pub struct PersonModVal {
+#[sabi(kind(Prefix))]
+pub struct PersonMod {
 
     /// The `#[sabi(last_prefix_field)]` attribute here means that this is 
     /// the last field in this struct that was defined in the 
     /// first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    /// requiring new fields to always be added bellow preexisting ones.
+    /// requiring new fields to always be added below preexisting ones.
     /// 
     /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
     /// bumps its "major" version,
@@ -326,36 +484,53 @@ type Id=u32;
 
 # fn main(){
 
-let module:&'static PersonMod=
-    PersonModVal{
-        customer_for,
-        bike_count,
-        visits,
-        score,
-        visit_length:None,
-    }.leak_into_prefix();
+const MODULE: PersonMod_Ref ={
+    PersonMod_Ref(
+        WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            PersonMod{
+                customer_for,
+                bike_count,
+                visits,
+                score,
+                visit_length:None,
+            }
+        ).static_as_prefix()
+    )
+};
 
-
-// Getting the value for every field of `module`.
+// Getting the value for every field of `MODULE`.
 
 let customer_for: extern "C" fn(Id)->RDuration = 
-    module.customer_for();
+    MODULE.customer_for();
 
 let bike_count: Option<extern "C" fn(Id)->u32> = 
-    module.bike_count();
+    MODULE.bike_count();
 
 let visits: extern "C" fn(Id)->u32=
-    module.visits();
+    MODULE.visits();
 
 let score: extern "C" fn(Id)->u32=
-    module.score();
+    MODULE.score();
 
 let visit_length: Option<extern "C" fn(Id)->RDuration> =
-    module.visit_length();
+    MODULE.visit_length();
 
 # }
 
 
 ```
+
+
+
+
+
+
+
+
+
+[`staticref`]: ../../macro.staticref.html
+
+
 
 */

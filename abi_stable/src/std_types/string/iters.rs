@@ -3,12 +3,15 @@ use super::*;
 /////////////////////////////////////////////////////////////////////////////
 
 /// An Iterator created by `<RString as IntoIterator>::into_iter`,
-/// which yields all the characters from the RString,
+/// which yields all the characters from the `RString`,
 /// consuming it in the process.
 pub struct IntoIter {
     pub(super) _buf: RString,
     pub(super) iter: Chars<'static>,
 }
+
+unsafe impl Send for IntoIter {}
+unsafe impl Sync for IntoIter {}
 
 impl IntoIter {
     /// Returns a string slice over the remainder of the string that is being iterated over.

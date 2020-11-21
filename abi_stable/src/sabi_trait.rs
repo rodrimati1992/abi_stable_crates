@@ -15,6 +15,8 @@ pub mod reexports{
     };
 
 
+        
+
     pub mod __sabi_re{
         pub use abi_stable::{
             erased_types::{
@@ -29,21 +31,22 @@ pub mod reexports{
                 NonOwningPhantom,
             },
             pointer_trait::{CanTransmuteElement,TransmuteElement,OwnedPointer},
-            prefix_type::{PrefixTypeTrait,WithMetadata},
+            prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
             traits::IntoInner,
-            sabi_types::{RRef,MovePtr,StaticRef},
+            sabi_types::{RRef,RMut,MovePtr},
             sabi_trait::{
                 robject::{
                     RObject,
                 },
                 vtable::{
-                    RObjectVtable,GetRObjectVTable,
+                    RObjectVtable_Ref, RObjectVtable, GetRObjectVTable,
                     VTableTO_DT,VTableTO_RO,VTableTO,
                 },
                 for_generated_code::{sabi_from_ref,sabi_from_mut},
             },
             std_types::RBox,
             utils::{transmute_reference,transmute_mut_reference,take_manuallydrop},
+            extern_fn_panic_handling,
         };
 
         pub use core_extensions::{
@@ -73,16 +76,12 @@ pub mod examples;
 
 pub mod doc_examples;
 
-/**
-Contains `RObject` and related items.
-*/
-pub mod robject;
+mod robject;
 
 #[doc(hidden)]
 pub mod vtable;
 
 #[cfg(test)]
-// #[cfg(all(test,not(feature="only_new_tests")))]
 pub mod tests;
 
 #[cfg(all(test,not(feature="only_new_tests")))]
@@ -93,19 +92,15 @@ use std::{
     marker::PhantomData,
 };
 
-use self::{
-    reexports::{
-        *,
-        __sabi_re::*,
-    },
-    vtable::{BaseVtable},
-};
+use self::reexports::{*, __sabi_re::*};
 
-pub use self::vtable::{VTableTO_DT,VTableTO_RO,VTableTO};
+pub use self::{
+    vtable::{VTableTO_DT,VTableTO_RO,VTableTO},
+    robject::{RObject, UneraseError, ReborrowBounds},
+};
 
 use crate::{
     erased_types::{c_functions,InterfaceType},
     marker_type::ErasedObject,
     sabi_types::MaybeCmp,
-    std_types::Tuple2,
 };

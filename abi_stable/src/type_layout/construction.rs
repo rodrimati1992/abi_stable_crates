@@ -37,7 +37,7 @@ pub struct _private_MonoTypeLayoutDerive {
 pub struct ItemInfo{
     /// The package where the type was defined,and the version string.
     /// With the `package;version_number` format.
-    package_and_version:StaticStr,
+    package_and_version:RStr<'static>,
     /// The line in the file where the type was defined.
     pub line:u32,
     /// The full path to the module where the type was defined,
@@ -53,7 +53,7 @@ impl ItemInfo{
         mod_path:ModPath,
     )->Self{
         Self{
-            package_and_version:StaticStr::new(package_and_version),
+            package_and_version:RStr::from_str(package_and_version),
             line,
             mod_path,
         }
@@ -62,7 +62,7 @@ impl ItemInfo{
     /// Constructs an ItemInfo for a std primitive
     pub const fn primitive()->Self{
         Self{
-            package_and_version: StaticStr::new("std;1.0.0"),
+            package_and_version: RStr::from_str("std;1.0.0"),
             line:0,
             mod_path:ModPath::PRELUDE,
         }
@@ -71,7 +71,7 @@ impl ItemInfo{
     /// Constructs an ItemInfo for an std type with a path.
     pub const fn std_type_in(mod_path:NulStr<'static>)->Self{
         Self{
-            package_and_version: StaticStr::new("std;1.0.0"),
+            package_and_version: RStr::from_str("std;1.0.0"),
             line:0,
             mod_path:ModPath::inside(mod_path),
         }
@@ -87,7 +87,7 @@ impl ItemInfo{
         mod_path:NulStr<'static>
     )->Self{
         Self{
-            package_and_version:StaticStr::new(package_and_version),
+            package_and_version:RStr::from_str(package_and_version),
             line:0,
             mod_path:ModPath::inside(mod_path),
         }

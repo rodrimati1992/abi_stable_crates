@@ -1,13 +1,13 @@
-use std::{
-    ops::{Deref},
-    fmt::{self,Display},
-};
 
 use crate::{
     pointer_trait::{CanTransmuteElement,GetPointerKind,PK_Reference},
 };
 
-use super::RRef;
+use std::{
+    ops::{Deref},
+    fmt::{self,Display},
+    ptr::NonNull,
+};
 
 
 /**
@@ -22,10 +22,7 @@ even though they have `non-'static` type parameters.
 
 # Example
 
-This defines a vtable,using a StaticRef as the pointer to the vtable.
-
-This example is not intended to be practical,
-it's only to demonstrate a use for StaticRef.
+This defines a non-extensible vtable,using a StaticRef as the pointer to the vtable.
 
 ```
 use abi_stable::{
@@ -35,9 +32,18 @@ use abi_stable::{
     utils::transmute_mut_reference,
     StableAbi,
     sabi_extern_fn,
+    staticref,
 };
 
-use std::marker::PhantomData;
+use std::{
+    marker::PhantomData,
+    ops::Deref,
+};
+
+fn main(){
+    let boxed = BoxLike::new("foo".to_string());
+    assert_eq!(boxed.as_str(), "foo");
+}
 
 /// An ffi-safe `Box<T>`
 #[repr(C)]
@@ -50,57 +56,60 @@ pub struct BoxLike<T> {
     _marker: PhantomData<T>,
 }
 
-
-
-#[repr(C)]
-#[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="VTable")))]
-#[sabi(missing_field(panic))]
-pub struct VTableVal<T>{
-    #[sabi(last_prefix_field)]
-    drop_:unsafe extern "C" fn(*mut T),
-}
-
-
-mod vtable{
-    use super::*;
-
-    impl<T> VTableVal<T> {
-        const VALUE:Self=
-            Self{
-                drop_:drop_::<T>,
-            };
-
-        const VTABLE:StaticRef<WithMetadata<Self>>=unsafe{
-            StaticRef::from_raw(
-                &WithMetadata::new(PrefixTypeTrait::METADATA,Self::VALUE)
-            )
-        };
-
-        pub(super)fn vtable()->StaticRef<VTable<T>> {
-            WithMetadata::as_prefix(Self::VTABLE)
+impl<T> BoxLike<T> {
+    pub fn new(value: T) -> Self {
+        Self{
+            data: Box::into_raw(Box::new(value)),
+            vtable: VTable::<T>::VTABLE,
+            _marker: PhantomData,
         }
     }
 }
 
+impl<T> Drop for BoxLike<T> {
+    fn drop(&mut self){
+        unsafe{
+            (self.vtable.drop_)(self.data);
+        }
+    }
+}
 
+impl<T> Deref for BoxLike<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        unsafe{
+            &*self.data
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct VTable<T>{
+    drop_:unsafe extern "C" fn(*mut T),
+}
+
+impl<T> VTable<T> {
+    // The `staticref` macro declares a `StaticRef<VTable<T>>` constant.
+    staticref!(const VTABLE: Self = Self{
+        drop_: drop_box::<T>,
+    });
+}
 
 
 #[sabi_extern_fn]
-unsafe fn drop_<T>(object:*mut T){
-    std::ptr::drop_in_place(object);
+unsafe fn drop_box<T>(object: *mut T){
+    drop(Box::from_raw(object));
 }
-
-# fn main(){}
 
 ```
 
 */
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(shared_stableabi(T))]
 pub struct StaticRef<T>{
-    ref_:*const T,
+    ref_: NonNull<T>,
 }
 
 impl<T> Display for StaticRef<T>
@@ -142,7 +151,7 @@ impl<T> StaticRef<T>{
     ///
     /// # Safety
     ///
-    /// You must ensure that the raw pointer is valid for the lifetime of `T`.
+    /// You must ensure that the raw pointer is valid for the entire program's lifetime.
     ///
     /// # Example
     ///
@@ -161,7 +170,9 @@ impl<T> StaticRef<T>{
     ///
     /// ```
     pub const unsafe fn from_raw(ref_:*const T)->Self{
-        Self{ref_}
+        Self{
+            ref_: unsafe{ NonNull::new_unchecked(ref_ as *mut T) },
+        }
     }
 
     /// Constructs this StaticRef from a static reference
@@ -187,7 +198,17 @@ impl<T> StaticRef<T>{
     ///
     /// ```
     pub const fn new(ref_:&'static T)->Self{
-        Self{ref_}
+        Self{
+            ref_: unsafe{ NonNull::new_unchecked(ref_ as *const T as *mut T) },
+        }
+    }
+
+    /// Creates a StaticRef by heap allocating and leaking `val`.
+    pub fn leak_value(val: T) -> Self {
+        // Safety: This is safe, because the value is a leaked heap allocation.
+        unsafe{
+            Self::from_raw(crate::utils::leak_value(val))
+        }
     }
 
     /// Gets access to the reference.
@@ -214,7 +235,7 @@ impl<T> StaticRef<T>{
     ///
     /// ```
     pub fn get<'a>(self)->&'a T{
-        unsafe{ &*self.ref_ }
+        unsafe{ &*(self.ref_.as_ptr() as *const T) }
     }
 
     /// Gets access to the referenced value,as a raw pointer.
@@ -239,8 +260,8 @@ impl<T> StaticRef<T>{
     ///     GetPtr::<Infallible>::STATIC.get_raw();
     ///
     /// ```
-    pub const fn get_raw<'a>(self)->*const T{
-        self.ref_
+    pub const fn get_raw(self)->*const T{
+        self.ref_.as_ptr() as *const T
     }
 
     /// Transmutes this `StaticRef<T>` to a `StaticRef<U>`.
@@ -273,28 +294,8 @@ impl<T> StaticRef<T>{
     /// ```
     pub const unsafe fn transmute_ref<U>(self)->StaticRef<U>{
         StaticRef::from_raw(
-            self.ref_ as *const U
+            self.ref_.as_ptr() as *const T as *const U
         )
-    }
-
-    /// Converts this `StaticRef<T>` to an `RRef<'a,T>`.
-    pub const fn to_rref<'a>(self)->RRef<'a,T>
-    where
-        T:'a,
-    {
-        unsafe{
-            RRef::from_raw(self.ref_)
-        }
-    }
-}
-
-impl<T> From<RRef<'static,T>> for StaticRef<T>
-where
-    T:'static,
-{
-    #[inline]
-    fn from(v:RRef<'static,T>)->Self{
-        v.to_staticref()
     }
 }
 
@@ -313,3 +314,43 @@ unsafe impl<T> GetPointerKind for StaticRef<T>{
 unsafe impl<T,U> CanTransmuteElement<U> for StaticRef<T>{
     type TransmutedPtr= StaticRef<U>;
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn construction_test(){
+        unsafe{
+            let three: *const i32 = &3;
+            assert_eq!(*StaticRef::from_raw(three), 3);
+        }
+
+        assert_eq!(*StaticRef::new(&5), 5);
+        
+        assert_eq!(*StaticRef::leak_value(8), 8);
+    }
+
+    #[test]
+    fn access(){
+        let reference = StaticRef::new(&8);
+        
+        assert_eq!(*reference.get(), 8);
+        unsafe{
+            assert_eq!(*reference.get_raw(), 8);
+        }
+    }
+
+    #[test]
+    fn transmutes(){
+        let reference = StaticRef::new(&(!0u32));
+
+        unsafe{
+            assert_eq!(*reference.transmute_ref::<i32>(), -1);
+        }
+    }
+}
+
+

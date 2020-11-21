@@ -1,3 +1,4 @@
+#![allow(clippy::manual_non_exhaustive)]
 
 #[doc(hidden)]
 #[macro_use]

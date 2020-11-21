@@ -1,17 +1,40 @@
 language: rust
 
 os: 
-  - osx
   - linux
+  - osx
+  - windows
 
 matrix:
   include:
     # - rust: stable
     - rust: beta
     - rust: nightly
-    - rust: 1.34.0
+    - rust: 1.41.0
+    - rust: nightly  
+      script:
+        - cd "${TRAVIS_BUILD_DIR}/abi_stable/"
+        - MIRI_NIGHTLY=nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)
+        - echo "Installing latest nightly with Miri"
+        - echo "$MIRI_NIGHTLY"
+        - rustup set profile minimal
+        - rustup default "$MIRI_NIGHTLY"
+        - rustup override set "$MIRI_NIGHTLY"
+        - rustup component add miri
+        - cargo miri setup
+        - env "MIRIFLAGS=-Zmiri-disable-isolation" cargo miri test --features testing
+
+        - cd "${TRAVIS_BUILD_DIR}"
+        - rm Cargo.lock
+        - cd "${TRAVIS_BUILD_DIR}/abi_stable/"
+        - cargo clean
+        - cargo update -Z minimal-versions
+        - cd "${TRAVIS_BUILD_DIR}/abi_stable/"
+        - cargo build
+
   allow_failures:
     - rust: nightly
+
 
 script:
   
@@ -29,7 +52,13 @@ script:
   - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/implementation/"
   - cargo +beta build
 
-  - cd "${TRAVIS_BUILD_DIR}/testing/impl_0/"
+  - cd "${TRAVIS_BUILD_DIR}/testing/0/impl_0/"
+  - cargo +beta build
+  
+  - cd "${TRAVIS_BUILD_DIR}/testing/1 - loading errors/impl_1/"
+  - cargo +beta build
+  
+  - cd "${TRAVIS_BUILD_DIR}/testing/1 - loading errors/non_abi_stable_lib/"
   - cargo +beta build
   
   - cd "${TRAVIS_BUILD_DIR}/testing/version_compatibility/impl_0"
@@ -50,7 +79,13 @@ script:
   - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/implementation/"
   - cargo check
 
-  - cd "${TRAVIS_BUILD_DIR}/testing/impl_0/"
+  - cd "${TRAVIS_BUILD_DIR}/testing/0/impl_0/"
+  - cargo check
+
+  - cd "${TRAVIS_BUILD_DIR}/testing/1 - loading errors/impl_1/"
+  - cargo check
+
+  - cd "${TRAVIS_BUILD_DIR}/testing/1 - loading errors/non_abi_stable_lib/"
   - cargo check
 
   - cd "${TRAVIS_BUILD_DIR}/abi_stable"
@@ -60,7 +95,7 @@ script:
   - cargo test
   
   - cd "${TRAVIS_BUILD_DIR}/abi_stable"
-  - cargo test --features sabi_trait_examples
+  - cargo test --features "testing sabi_trait_examples"
   
   - cd "${TRAVIS_BUILD_DIR}/examples/0_modules_and_interface_types/impl/"
   - cargo test
@@ -74,8 +109,13 @@ script:
   - cargo test
   - cd "${TRAVIS_BUILD_DIR}/examples/2_nonexhaustive/user/"
   - cargo run
-  - cd "${TRAVIS_BUILD_DIR}/testing/user_0/"
+  - cd "${TRAVIS_BUILD_DIR}/testing/0/user_0/"
   - cargo run
+  - cd "${TRAVIS_BUILD_DIR}/testing/1 - loading errors/user_1/"
+  - env "RETURN=ok" cargo run
+  - env "RETURN=error" cargo run
+  - env "RETURN=panic" cargo run
+
 
   - cd "${TRAVIS_BUILD_DIR}/testing/version_compatibility/user_0"
-  - cargo run
+  - cargo run --features run

@@ -48,16 +48,10 @@ pub struct RStr<'a> {
 }
 
 impl<'a> RStr<'a> {
+    /// An empty `RStr`.
     pub const EMPTY: Self = RStr {
         inner: RSlice::EMPTY,
     };
-}
-
-impl RStr<'static> {
-    #[doc(hidden)]
-    pub const fn _private_from_raw_parts(ptr_: *const u8, len: usize) -> Self {
-        unsafe { Self::from_raw_parts(ptr_, len) }
-    }
 }
 
 impl<'a> RStr<'a> {
@@ -85,11 +79,11 @@ impl<'a> RStr<'a> {
     ///
     /// Callers must ensure that:
     ///
-    /// - ptr_ points to valid memory,
+    /// - `ptr_` points to valid memory,
     ///
     /// - `ptr_ .. ptr+len` range is accessible memory,and is valid utf-8.
     ///
-    /// - the data ptr_ points to must be valid for the lifetime of this `RStr<'a>`
+    /// - The data that `ptr_` points to must be valid for the lifetime of this `RStr<'a>`
     ///
     /// # Examples
     ///
@@ -113,50 +107,26 @@ impl<'a> RStr<'a> {
         }
     }
 
-    with_shared_attrs!{
-        /// Converts `&'a str` to a `RStr<'a>`.
-        ///
-        /// # Constness
-        ///
-        /// This function is a `const fn` from Rust 1.39 onwards due to 
-        /// the stabilization of `str::len`.
-        ///
-        /// Before Rust 1.39 the only safe way to construct an `RStr<'static>`
-        /// constant is using `rstr!("...")` with a string literal argument.
-        ///
-        /// # Example
-        ///
-        /// ```
-        /// use abi_stable::std_types::RStr;
-        ///
-        /// assert_eq!(RStr::from_str("").as_str(), "");
-        /// assert_eq!(RStr::from_str("Hello").as_str(), "Hello");
-        /// assert_eq!(RStr::from_str("World").as_str(), "World");
-        ///
-        /// ```
-        #[inline]
-        (
-            ;
-            #[cfg(feature="rust_1_39")];
-            pub const fn from_str(s: &'a str) -> Self {
-                unsafe{ Self::from_raw_parts( s.as_ptr(), s.len() ) }
-            }
-        )
-        (
-            ;
-            #[cfg(not(feature="rust_1_39"))];
-            pub fn from_str(s: &'a str) -> Self {
-                unsafe{ Self::from_raw_parts( s.as_ptr(), s.len() ) }
-            }
-        )
-
+    /// Converts `&'a str` to a `RStr<'a>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RStr;
+    ///
+    /// assert_eq!(RStr::from_str("").as_str(), "");
+    /// assert_eq!(RStr::from_str("Hello").as_str(), "Hello");
+    /// assert_eq!(RStr::from_str("World").as_str(), "World");
+    ///
+    /// ```
+    pub const fn from_str(s: &'a str) -> Self {
+        unsafe{ Self::from_raw_parts( s.as_ptr(), s.len() ) }
     }
-
 
     /// For slicing `RStr`s.
     ///
     /// This is an inherent method instead of an implementation of the
-    /// ::std::ops::Index trait because it does not return a reference.
+    /// `std::ops::Index` trait because it does not return a reference.
     ///
     /// # Example
     ///

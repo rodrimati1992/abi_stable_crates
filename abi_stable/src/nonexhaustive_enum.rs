@@ -11,22 +11,25 @@ attributes through ffi.
 #[doc(hidden)]
 pub mod doc_enums;
 
-#[cfg(any(test,feature="nonexhaustive_examples"))]
+#[cfg(any(feature = "testing",feature="nonexhaustive_examples"))]
 pub mod examples;
 
-pub mod nonexhaustive;
+pub(crate) mod nonexhaustive;
 pub(crate) mod vtable;
-pub mod traits;
+pub(crate) mod traits;
 pub(crate) mod alt_c_functions;
 
 
-pub(crate) use self::{
-    vtable::{NonExhaustiveVtable},
-};
+pub(crate) use self::vtable::NonExhaustiveVtable_Ref;
 
 
 pub use self::{
-    nonexhaustive::{NonExhaustive,NonExhaustiveFor,NonExhaustiveWI,NonExhaustiveWS},
+    nonexhaustive::{
+        DiscrAndEnumInfo,
+        NonExhaustive,NonExhaustiveFor,NonExhaustiveWI,NonExhaustiveWS,
+        NonExhaustiveSharedOps,
+        UnwrapEnumError,
+    },
     vtable::GetVTable,
     traits::{
         GetNonExhaustive,
@@ -49,9 +52,8 @@ pub(crate) use self::{
 
 /////////////////////////////////////////////////////////////
 
-
-
-pub fn assert_nonexhaustive<T>(type_:&'static str,storage_:&'static str)
+/// Asserts that the size and alignment of an enum are valid for its default storage.
+pub fn assert_nonexhaustive<T>()
 where
     T:GetEnumInfo,
     T:GetVTable<
@@ -70,10 +72,10 @@ where
     }
 
     let lay=TypeAndStorageLayout{
-        type_,
+        type_: std::any::type_name::<T>(),
         type_size:std::mem::size_of::<T>(),
         type_alignment:std::mem::align_of::<T>(),
-        storage_,
+        storage_: std::any::type_name::<<T as GetEnumInfo>::DefaultStorage>(),
         storage_size:std::mem::size_of::<T::DefaultStorage>(),
         storage_alignment:std::mem::align_of::<T::DefaultStorage>(),
     };

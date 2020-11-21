@@ -86,7 +86,7 @@ impl Tests{
                     Err(e)=>{
                         e.into_iter()
                             .map(|x|{
-                                composite_strings.push_str("\0");
+                                composite_strings.push('\0');
                                 write_display(&mut composite_strings,&x)
                             })
                             .collect::<Vec<Range<usize>>>()
@@ -223,10 +223,14 @@ pub struct TestErr{
     subcase:Rc<Subcase>,
 }
 
+macro_rules! dashes {
+    () => ("--------------------");
+}
+const DASHES: &str = concat!(dashes!(), dashes!(), dashes!(), dashes!());
 
 impl Display for TestErrors{
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        writeln!(f,"{0}{0}{0}{0}","--------------------")?;
+        f.write_str(DASHES)?;
         writeln!(f,"These cases from test '{}' failed:\n",self.test_name)?;
 
         for test in &self.expected {

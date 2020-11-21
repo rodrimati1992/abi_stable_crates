@@ -16,12 +16,12 @@ use crate::{
 
 /// Generates the code that delegates the implementation of the traits 
 /// to the wrapped DynTrait or RObject.
-pub(super) fn delegated_impls<'a>(
+pub(super) fn delegated_impls(
     TokenizerParams{
         arenas:_,ctokens,totrait_def,trait_to,trait_backend,trait_interface,
         lt_tokens,
         ..
-    }:TokenizerParams<'a>,
+    }:TokenizerParams<'_>,
     mod_:&mut TokenStream2,
 ){
     let where_preds=&totrait_def.where_preds;
@@ -254,8 +254,8 @@ pub(super) fn delegated_impls<'a>(
                     std::io::BufRead::fill_buf(&mut self.obj)
                 }
 
-                fn consume(&mut self, ammount:usize ){
-                    std::io::BufRead::consume(&mut self.obj,ammount)
+                fn consume(&mut self, amount:usize ){
+                    std::io::BufRead::consume(&mut self.obj,amount)
                 }
             }
         ).to_tokens(mod_);

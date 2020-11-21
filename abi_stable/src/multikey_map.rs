@@ -24,7 +24,7 @@ use core_extensions::{
 /// Every key maps to a value,which is stored at an index.
 /// Indices can be used as a proxy for the value.
 #[derive(Clone)]
-pub(crate) struct MultiKeyMap<K,T>{
+pub struct MultiKeyMap<K,T>{
     map:HashMap<K,MapIndex>,
     arena:Arena<MapValue<K,T>>,
 }
@@ -37,22 +37,22 @@ struct MapValue<K,T>{
 
 #[repr(transparent)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
-pub(crate) struct MapIndex{
+pub struct MapIndex{
     index:ArenaIndex,
 }
 
 
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
-pub(crate) struct IndexValue<T>{
-    pub(crate) index:MapIndex,
-    pub(crate) value:T,
+pub struct IndexValue<T>{
+    pub index:MapIndex,
+    pub value:T,
 }
 
 
 /// When the element was inserted,now or before the method call.
 #[must_use="call `.into_inner()` to unwrap into the inner value."]
 #[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord,Hash)]
-pub(crate) enum InsertionTime<T>{
+pub enum InsertionTime<T>{
     Now(T),
     Before(T),
 }
@@ -61,14 +61,15 @@ pub(crate) enum InsertionTime<T>{
 impl<K,T> MultiKeyMap<K,T>
 where K:Hash+Eq
 {
-    pub(crate) fn new()->Self{
+    #[allow(clippy::new_without_default)]
+    pub fn new()->Self{
         Self{
             map:HashMap::default(),
             arena:Arena::new(),
         }
     }
 
-    pub(crate) fn get<Q>(&self,key:&Q)->Option<&T>
+    pub fn get<Q>(&self,key:&Q)->Option<&T>
     where
         K: Borrow<Q>,
         Q: Hash + Eq+?Sized, 
@@ -77,7 +78,7 @@ where K:Hash+Eq
         self.get_with_index(i)
     }
 
-    pub(crate) fn get_mut<Q>(&mut self,key:&Q)->Option<&mut T>
+    pub fn get_mut<Q>(&mut self,key:&Q)->Option<&mut T>
     where
         K: Borrow<Q>,
         Q: Hash + Eq+?Sized, 
@@ -87,7 +88,7 @@ where K:Hash+Eq
     }
 
     #[allow(dead_code)]
-    pub(crate) fn get2_mut<Q>(&mut self,key0:&Q,key1:&Q)->(Option<&mut T>,Option<&mut T>)
+    pub fn get2_mut<Q>(&mut self,key0:&Q,key1:&Q)->(Option<&mut T>,Option<&mut T>)
     where
         K: Borrow<Q>,
         Q: Hash + Eq+?Sized, 
@@ -107,7 +108,7 @@ where K:Hash+Eq
         }
     }
 
-    pub(crate) fn get_index<Q>(&self,key:&Q)->Option<MapIndex>
+    pub fn get_index<Q>(&self,key:&Q)->Option<MapIndex>
     where
         K: Borrow<Q>,
         Q: Hash + Eq+?Sized, 
@@ -115,15 +116,15 @@ where K:Hash+Eq
         self.map.get(key).cloned()
     }
 
-    pub(crate) fn get_with_index(&self,i:MapIndex)->Option<&T>{
+    pub fn get_with_index(&self,i:MapIndex)->Option<&T>{
         self.arena.get(i.index).map(|x| &x.value )
     }
 
-    pub(crate) fn get_mut_with_index(&mut self,i:MapIndex)->Option<&mut T>{
+    pub fn get_mut_with_index(&mut self,i:MapIndex)->Option<&mut T>{
         self.arena.get_mut(i.index).map(|x| &mut x.value )
     }
     
-    pub(crate) fn get2_mut_with_index(
+    pub fn get2_mut_with_index(
         &mut self,
         i0:MapIndex,
         i1:MapIndex
@@ -134,20 +135,20 @@ where K:Hash+Eq
     }
 
     #[allow(dead_code)]
-    pub(crate) fn replace_index(&mut self,replace:MapIndex,with:T)->Option<T>{
+    pub fn replace_index(&mut self,replace:MapIndex,with:T)->Option<T>{
         self.get_mut_with_index(replace)
             .map(|x| mem::replace(x,with) )
     }
 
     #[allow(dead_code)]
-    /// The ammount of keys associated with values.
-    pub(crate) fn key_len(&self)->usize{
+    /// The amount of keys associated with values.
+    pub fn key_len(&self)->usize{
         self.map.len()
     }
 
     #[allow(dead_code)]
-    /// The ammount of values.
-    pub(crate) fn value_len(&self)->usize{
+    /// The amount of values.
+    pub fn value_len(&self)->usize{
         self.arena.len()
     }
 
@@ -167,7 +168,7 @@ where K:Hash+Eq
     modifying the collection.
 
     */
-    pub(crate) fn replace_with_index(&mut self,replace:MapIndex,with:MapIndex)->Option<T>{
+    pub fn replace_with_index(&mut self,replace:MapIndex,with:MapIndex)->Option<T>{
         if replace==with ||
             !self.arena.contains(replace.index) ||
             !self.arena.contains(with.index)
@@ -183,7 +184,7 @@ where K:Hash+Eq
         Some(mem::replace(&mut replaced.value,with_.value))
     }
 
-    pub(crate) fn get_or_insert(&mut self,key:K,value:T)-> InsertionTime<IndexValue<&mut T>>
+    pub fn get_or_insert(&mut self,key:K,value:T)-> InsertionTime<IndexValue<&mut T>>
     where 
         K:Clone
     {
@@ -217,7 +218,7 @@ where K:Hash+Eq
     /// # Panic
     ///
     /// Panics if the index is invalid.
-    pub(crate) fn associate_key(&mut self,key:K,index:MapIndex)
+    pub fn associate_key(&mut self,key:K,index:MapIndex)
     where K:Clone
     {
         let value=match self.arena.get_mut(index.index) {
@@ -248,7 +249,7 @@ where K:Hash+Eq
     /// If `key` was associated with a value,and it was the only key for that value,
     /// the index for the value will be invalidated.
     #[allow(dead_code)]
-    pub(crate) fn associate_key_forced(&mut self,key:K,index:MapIndex)->Option<T>
+    pub fn associate_key_forced(&mut self,key:K,index:MapIndex)->Option<T>
     where K:Clone+::std::fmt::Debug
     {
         if !self.arena.contains(index.index) {
@@ -262,7 +263,6 @@ where K:Hash+Eq
                 let key_ind=slot.keys.iter().position(|x| *x==key ).unwrap();
                 slot.keys.swap_remove(key_ind);
                 if slot.keys.is_empty() {
-                    drop(slot);
                     self.arena.remove(index_before.index).unwrap()
                         .value
                         .piped(Some)
@@ -375,19 +375,19 @@ impl MapIndex{
 
 
 impl<T> InsertionTime<T>{
-    pub(crate) fn into_inner(self)->T{
+    pub fn into_inner(self)->T{
         match self{
              InsertionTime::Before(v)
             |InsertionTime::Now(v)=>v,
         }
     }
     #[allow(dead_code)]
-    pub(crate) fn split(self)->(T,InsertionTime<()>){
+    pub fn split(self)->(T,InsertionTime<()>){
         let discr=self.discriminant();
         (self.into_inner(),discr)
     }
     #[allow(dead_code)]
-    pub(crate) fn map<F,U>(self,f:F)->InsertionTime<U>
+    pub fn map<F,U>(self,f:F)->InsertionTime<U>
     where F:FnOnce(T)->U
     {
         match self{
@@ -396,7 +396,7 @@ impl<T> InsertionTime<T>{
         }
     }
     #[allow(dead_code)]
-    pub(crate) fn discriminant(&self)->InsertionTime<()>{
+    pub fn discriminant(&self)->InsertionTime<()>{
         match self{
             InsertionTime::Before{..}=>InsertionTime::Before(()),
             InsertionTime::Now{..}=>InsertionTime::Now(()),

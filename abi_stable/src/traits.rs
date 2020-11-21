@@ -14,17 +14,25 @@ use crate::pointer_trait::{CanTransmuteElement,TransmuteElement};
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-/// Converts a #[repr(Rust)] type into its #[repr(C)] equivalent.
+/// Converts a `#[repr(Rust)]` type into its `#[repr(C)]` equivalent.
+/// 
+/// `#[repr(Rust)]` is the default representation for data types.
 pub trait IntoReprC {
+    /// The `#[repr(C)]` equivalent.
     type ReprC;
 
+    /// Performs the conversion
     fn into_c(self) -> Self::ReprC;
 }
 
-/// Converts a #[repr(C)] type into its #[repr(Rust)] equivalent.
+/// Converts a `#[repr(C)]` type into its `#[repr(Rust)]` equivalent.
+///
+/// `#[repr(Rust)]` is the default representation for data types.
 pub trait IntoReprRust {
+    /// The `#[repr(Rust)]` equivalent.
     type ReprRust;
 
+    /// Performs the conversion
     fn into_rust(self) -> Self::ReprRust;
 }
 

@@ -69,7 +69,7 @@ impl<N> StartLen<N>{
     }
 
     #[inline]
-    pub(crate) fn tokenizer<'a>(self,ctokens:&'a StartLenTokens)->StartLenTokenizer<'a,N>{
+    pub(crate) fn tokenizer(self,ctokens:&StartLenTokens)->StartLenTokenizer<'_,N>{
         StartLenTokenizer{
             start:self.start,
             len:self.len,

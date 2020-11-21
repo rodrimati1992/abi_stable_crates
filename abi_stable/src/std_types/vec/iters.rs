@@ -9,6 +9,9 @@ pub(super) struct RawValIter<T> {
     pub(super) end: *const T,
 }
 
+unsafe impl<T: Send> Send for RawValIter<T> {}
+unsafe impl<T: Sync> Sync for RawValIter<T> {}
+
 impl<T> RawValIter<T> {
     /// # Safety
     ///
@@ -18,7 +21,7 @@ impl<T> RawValIter<T> {
             start: slice.as_ptr(),
             end: if mem::size_of::<T>() == 0 {
                 ((slice.as_ptr() as usize) + slice.len()) as *const _
-            } else if slice.len() == 0 {
+            } else if slice.is_empty() {
                 slice.as_ptr()
             } else {
                 slice.as_ptr().offset(slice.len() as isize)
@@ -91,7 +94,7 @@ impl<T> DoubleEndedIterator for RawValIter<T> {
 
 ///////////////////////////////////////////////////
 
-/// An Iterator created by `<RVec<T> as IntoIterator>::into_iter`,
+/// An Iterator returned by `<RVec<T> as IntoIterator>::into_iter`,
 /// which yields all the elements from the `RVec<T>`,
 /// consuming it in the process.
 pub struct IntoIter<T> {

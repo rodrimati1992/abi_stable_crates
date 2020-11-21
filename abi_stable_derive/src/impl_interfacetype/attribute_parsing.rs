@@ -27,7 +27,7 @@ pub(crate) struct ImplInterfaceType{
 }
 
 /// Parses the `#[sabi(impl_InterfaceType())]` helper attribute.
-pub(crate) fn parse_impl_interfacetype<'a>(
+pub(crate) fn parse_impl_interfacetype(
     list: &Punctuated<NestedMeta, Comma>
 )-> Result<ImplInterfaceType,syn::Error> {
     let trait_map=TRAIT_LIST.iter()

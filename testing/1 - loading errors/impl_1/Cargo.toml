@@ -1,0 +1,16 @@
+[package]
+name = "testing_impl_1"
+version = "0.1.0"
+authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+abi_stable={version="*",path="../../../abi_stable"}
+
+[dependencies.testing_interface_1]
+version="0.1"
+path="../interface_1"
+
+[lib]
+name = "testing_1_loading_errors"
+crate-type = ["cdylib",'rlib']

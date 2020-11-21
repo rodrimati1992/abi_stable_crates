@@ -1,13 +1,12 @@
 /*!
 
 Using the `#[sabi(kind(WithNonExhaustive(...)))]` helper attribute for 
-[`#[derive(StableAbi)]`](../stable_abi_derive/index.html) allows you to store the enum
-in 
-[`NonExhaustive<>`](../../nonexhaustive_enum/nonexhaustive/struct.NonExhaustive.html),
+`#[derive(StableAbi)]` allows you to store the enum
+in `NonExhaustive`,
 using it as a non-exhaustive enum across ffi.
 
 The enum can then be wrapped in a 
-[`NonExhaustive<>`](../../nonexhaustive_enum/nonexhaustive/struct.NonExhaustive.html),
+[`NonExhaustive<>`](../../nonexhaustive_enum/struct.NonExhaustive.html),
 but can only be converted back into it if the discriminant is valid in that context.
 
 Nonexhaustive enums can safely add variants in minor versions,
@@ -20,8 +19,7 @@ These are the items relevant to nonexhaustive enums:
 `Enum`: this is the annotated enum,which does not derive `StableAbi`,
 requiring it to be wrapped in a `NonExhaustive<>` to be passed through ffi.
 
-`Enum_NE`(generated): 
-    A type alias for the deriving type wrapped in a `NonExhaustive<>`.
+`Enum_NE`(generated): A type alias for `NonExhaustive<Enum,_,_>`.
 
 `Enum_NEMarker`(generated):
 A marker type which implements StableAbi with the layout of `Enum`,
@@ -35,8 +33,9 @@ Acts as an alias for the traits that were specified in the `traits(...)` paramet
 This is only created if the `traits(...)` parameter is specified.
 
 `Enum_Interface`(generated):
-Describes the traits required when constructing a `NonExhaustive<>` and usable with it afterwards
-(this is a type that implements InterfaceType).
+Describes the traits required when constructing a `NonExhaustive<Enum,_,_>`
+and usable with it afterwards
+(this is a type that implements [`InterfaceType`]).
 
 # Parameters
 
@@ -89,9 +88,9 @@ All the traits are optional.
 
 These are the valid traits:
 
-- Send
+- Send: Required by default, must be unrequired with `Send = false`
 
-- Sync
+- Sync: Required by default, must be unrequired with `Sync = false`
 
 - Clone
 
@@ -99,9 +98,9 @@ These are the valid traits:
 
 - Display
 
-- Serialize: serde::Serialize.Look bellow for clarifications on how to use serde.
+- Serialize: serde::Serialize.Look below for clarifications on how to use serde.
 
-- Deserialize: serde::Deserialize.Look bellow for clarifications on how to use serde.
+- Deserialize: serde::Deserialize.Look below for clarifications on how to use serde.
 
 - Eq
 
@@ -117,10 +116,10 @@ These are the valid traits:
 
 ### Interface (optional parameter)
 
-This is like `traits(..)` in that it allows specifying which traits are 
+This allows using a pre-existing to specify which traits are 
 required when constructing `NonExhaustive<>` from this enum and are then usable with it.
-The difference is that this allows one to specify a pre-existing InterfaceType,
-instead of generating a new one (that is `Enum_Interface`).
+
+The type describes which traits are required using the [`InterfaceType`] trait.
 
 Syntax:`interface="type"`
 
@@ -161,8 +160,8 @@ Example:`assert_nonexhaustive("Foo<u8>","Foo<RVec<()>>")`<br>
 # `serde` support
 
 `NonExhaustive<Enum,Storage,Interface>` only implements serde::{Serialize,Deserialize} 
-if Interface allows them in its InterfaceType implementation,
-and also implements the SerializeEnum and DeserializeEnum traits.
+if Interface allows them in its [`InterfaceType`] implementation,
+and also implements the [`SerializeEnum`] and [`DeserializeEnum`] traits.
 
 ### Defining a (de)serializable nonexhaustive enum.
 
@@ -179,7 +178,7 @@ use abi_stable::{
     sabi_extern_fn,
     external_types::{RawValueBox,RawValueRef},
     nonexhaustive_enum::{NonExhaustive,SerializeEnum,DeserializeEnum},
-    prefix_type::PrefixTypeTrait,
+    prefix_type::{PrefixTypeTrait, WithMetadata},
     std_types::{RBoxError,RString,RStr,RResult,ROk,RErr},
     traits::IntoReprC,
 };
@@ -226,7 +225,7 @@ impl SerializeEnum<ValidTag_NE> for ValidTag_Interface {
     type Proxy=RawValueBox;
 
     fn serialize_enum(this:&ValidTag_NE) -> Result<RawValueBox, RBoxError>{
-        get_module()
+        Module::VALUE
             .serialize_tag()(this)
             .into_result()
         
@@ -240,7 +239,7 @@ impl<'a> DeserializeEnum<'a,ValidTag_NE> for ValidTag_Interface{
     type Proxy=RawValueRef<'a>;
 
     fn deserialize_enum(s: RawValueRef<'a>) -> Result<ValidTag_NE, RBoxError>{
-        get_module()
+        Module::VALUE
             .deserialize_tag()(s.get_rstr())
             .into_result()
     }
@@ -283,40 +282,53 @@ assert_eq!(
 
 # }
 
-/**
-In this struct:
-
-- `#[sabi(kind(Prefix(prefix_struct="Module")))]` declares this type as being a prefix-type
-    with an ffi-safe equivalent called `Module` to which `ModuleVal` can be converted into.
-
-- `#[sabi(missing_field(panic))]` 
-    makes the field accessors panic when attempting to 
-    access nonexistent fields instead of the default of returning an Option<FieldType>.
-
-*/
+// In this struct:
+// 
+// - `#[sabi(kind(Prefix))]`
+// Declares this type as being a prefix-type, generating both of these types:
+// 
+//     - Module_Prefix`: A struct with the fields up to (and including) the field with the 
+//     `#[sabi(last_prefix_field)]` attribute.
+// 
+//     - Module_Ref`: An ffi-safe pointer to a `Module`,with methods to get `Module`'s fields.
+// 
+// - `#[sabi(missing_field(panic))]` 
+//     makes the field accessors of `ModuleRef` panic when attempting to 
+//     access nonexistent fields instead of the default of returning an Option<FieldType>.
+// 
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="Module")))]
+#[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
-pub struct ModuleVal{
+pub struct Module{
     pub serialize_tag:extern "C" fn(&ValidTag_NE)->RResult<RawValueBox,RBoxError>,
     
     /// `#[sabi(last_prefix_field)]`means that it is the last field in the struct
     /// that was defined in the first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    /// requiring new fields to always be added bellow preexisting ones.
+    /// requiring new fields to always be added below preexisting ones.
     #[sabi(last_prefix_field)]
     pub deserialize_tag:extern "C" fn(s:RStr<'_>)->RResult<ValidTag_NE,RBoxError>,
 }
 
+// This is how you can construct `Module` in a way that allows it to become generic later.
+impl Module {
+    // This macro declares a `StaticRef<WithMetadata<BoxVtable<T>>>` constant.
+    //
+    // StaticRef represents a reference to data that lives forever,
+    // but is not necessarily `'static` according to the type system.
+    // 
+    // StaticRef not necessary in this case, it's more useful with generic types..
+    abi_stable::staticref!(const TMP0: WithMetadata<Self> = WithMetadata::new(
+        PrefixTypeTrait::METADATA,
+        Self{
+            serialize_tag,
+            deserialize_tag,
+        },
+    ));
 
-# fn get_module()->&'static Module{
-#     ModuleVal{
-#         serialize_tag,
-#         deserialize_tag,
-#     }.leak_into_prefix()
-# }
-
+    const VALUE: Module_Ref = Module_Ref( Self::TMP0.as_prefix() );
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 ////   In implementation crate (the one that gets compiled as a dynamic library)    /////
@@ -766,5 +778,11 @@ let groupid_1=GroupId(0);
 }
 
 ```
+
+
+
+[`InterfaceType`]: ../../trait.InterfaceType.html
+[`SerializeEnum`]: ../../nonexhaustive_enum/trait.SerializeEnum.html
+[`DeserializeEnum`]: ../../nonexhaustive_enum/trait.DeserializeEnum.html
 
 */

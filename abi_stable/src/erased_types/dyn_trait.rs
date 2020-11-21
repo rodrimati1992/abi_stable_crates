@@ -6,7 +6,6 @@ use std::{
     fmt::{self,Write as fmtWrite},
     io,
     ops::DerefMut,
-    marker::PhantomData,
     mem::ManuallyDrop,
     ptr,
     rc::Rc,
@@ -18,13 +17,14 @@ use serde::{de, ser, Deserialize, Deserializer};
 use core_extensions::{prelude::*, ResultLike};
 
 use crate::{
-    abi_stability::SharedStableAbi,
+    abi_stability::StableAbi,
     pointer_trait::{
         CanTransmuteElement,TransmuteElement,OwnedPointer,
         GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
     },
-    marker_type::{ErasedObject,UnsafeIgnoredType}, 
-    sabi_types::{Constructor,MovePtr,RRef,StaticRef},
+    prefix_type::PrefixRef,
+    marker_type::{ErasedObject,NonOwningPhantom,UnsafeIgnoredType}, 
+    sabi_types::{MovePtr,RRef,RMut},
     std_types::{RBox, RStr,RVec,RIoError},
     type_level::{
         unerasability::{TU_Unerasable,TU_Opaque},
@@ -40,7 +40,7 @@ use super::*;
 use super::{
     c_functions::adapt_std_fmt,
     trait_objects::*,
-    vtable::{GetVtable, VTable},
+    vtable::{GetVtable, VTable_Ref},
     traits::{InterfaceFor,DeserializeDyn,GetSerializeProxyType},
     IteratorItemOrDefault,
 };
@@ -71,31 +71,31 @@ It generally looks like `DynTrait<'borrow,Pointer<()>,Interface>`,where:
 - `Interface` is an `InterfaceType`,which describes what traits are 
     required when constructing the `DynTrait<_>` and which ones it implements.
 
-`trait InterfaceType` allows describing which traits are required 
+The `InterfaceType` trait allows describing which traits are required 
 when constructing a `DynTrait<_>`,and which ones it implements.
 
 ###  Construction 
 
 To construct a `DynTrait<_>` one can use these associated functions:
     
-- from_value:
+- `from_value`:
     Can be constructed from the value directly.
     Requires a value that implements ImplType.
     
-- from_ptr:
+- `from_ptr`:
     Can be constructed from a pointer of a value.
     Requires a value that implements ImplType.
     
-- from_any_value:
+- `from_any_value`:
     Can be constructed from the value directly.Requires a `'static` value.
     
-- from_any_ptr
+- `from_any_ptr`
     Can be constructed from a pointer of a value.Requires a `'static` value.
 
-- from_borrowing_value:
+- `from_borrowing_value`:
     Can be constructed from the value directly.Cannot unerase the DynTrait afterwards.
     
-- from_borrowing_ptr
+- `from_borrowing_ptr`
     Can be constructed from a pointer of a value.Cannot unerase the DynTrait afterwards.
 
 DynTrait uses the impls of the value in methods,
@@ -105,7 +105,7 @@ which means that the pointer itself does not have to implement those traits,
 
 `DynTrait<'borrow,Pointer<()>,Interface>` 
 can be used as a trait object for any combination of 
-the traits listed bellow.
+the traits listed below.
 
 These are the traits:
 
@@ -235,7 +235,7 @@ use abi_stable::{
         TypeInfo,
     },
     external_types::{RawValueRef,RawValueBox},
-    prefix_type::PrefixTypeTrait,
+    prefix_type::{PrefixTypeTrait, WithMetadata},
     type_level::bools::*,
     DynTrait,
     std_types::{RBox, RStr,RBoxError,RResult,ROk,RErr},
@@ -266,28 +266,41 @@ impl<'borr> DeserializeDyn<'borr,FooInterfaceBox> for FooInterface {
     type Proxy = RawValueRef<'borr>;
 
     fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<FooInterfaceBox, RBoxError> {
-        get_module()
+        MODULE
             .deserialize_foo()(s.get_rstr())
             .into_result()
     }
 }
 
 
+// `#[sabi(kind(Prefix))]` declares this type as being a prefix-type,
+// generating both of these types:<br>
+// 
+//     - Module_Prefix`: A struct with the fields up to (and including) the field with the 
+//     `#[sabi(last_prefix_field)]` attribute.
+//     
+//     - Module_Ref`: An ffi-safe pointer to a `Module`,with methods to get `Module`'s fields.
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="Module")))]
+#[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
-pub struct ModuleVal{
+pub struct Module{
     #[sabi(last_prefix_field)]
     pub deserialize_foo:extern "C" fn(s:RStr<'_>)->RResult<FooInterfaceBox,RBoxError>,
 }
 
-
-# fn get_module()->&'static Module{
-#     ModuleVal{
-#         deserialize_foo,
-#     }.leak_into_prefix()
-# }
+const MODULE: Module_Ref = {
+    // This is how ffi-safe pointers to non-generic prefix types are constructed
+    // at compile-time.
+    Module_Ref(
+        WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Module{
+                deserialize_foo,
+            }
+        ).static_as_prefix()
+    )
+};
 
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -578,10 +591,8 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
-        // prefix_bound="I:InterfaceBound",
-        // bound="<I as SharedStableAbi>::StaticEquivalent:InterfaceBound",
         bound="I:InterfaceBound",
-        bound="VTable<'borr,P,I>:SharedStableAbi",
+        bound="VTable_Ref<'borr,P,I>:StableAbi",
         extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
     )]
     pub struct DynTrait<'borr,P,I,EV=()> 
@@ -589,9 +600,9 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
         P:GetPointerKind
     {
         pub(super) object: ManuallyDrop<P>,
-        vtable: StaticRef<VTable<'borr,P,I>>,
+        vtable: VTable_Ref<'borr,P,I>,
         extra_value:EV,
-        _marker:PhantomData<Constructor<Tuple2<I,RStr<'borr>>>>,
+        _marker:NonOwningPhantom<(I,RStr<'borr>)>,
         _marker2:UnsafeIgnoredType<Rc<()>>,
 
     }
@@ -629,7 +640,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: T::_GET_INNER_VTABLE,
                 extra_value:(),
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -664,7 +675,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: <InterfaceFor<T,I,TU_Unerasable>>::_GET_INNER_VTABLE,
                 extra_value:(),
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -706,7 +717,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: <InterfaceFor<T,I,TU_Opaque>>::_GET_INNER_VTABLE,
                 extra_value:(),
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -736,7 +747,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
                 },
                 vtable: <InterfaceFor<OrigPtr::Target,I,Unerasability>>::_GET_INNER_VTABLE,
                 extra_value,
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -835,7 +846,7 @@ fn main(){
         {
             // Must wrap unerasability in a ManuallyDrop because otherwise this 
             // errors with `constant functions cannot evaluate destructors`.
-            ManuallyDrop::new(unerasability);
+            let _ = ManuallyDrop::new(unerasability);
             DynTrait {
                 object: unsafe{
                     let x=RRef::new(ptr).transmute_ref::<()>();
@@ -843,7 +854,7 @@ fn main(){
                 },
                 vtable: vtable_for.vtable,
                 extra_value,
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -873,13 +884,13 @@ fn main(){
         }
     }
 
-    impl<'borr,P,I,EV> DynTrait<'borr,P,I,StaticRef<EV>>
+    impl<'borr,P,I,EV> DynTrait<'borr,P,I,PrefixRef<EV>>
     where
         P:GetPointerKind
     {
         /// A vtable used by `#[sabi_trait]` derived trait objects.
         #[inline]
-        pub fn sabi_et_vtable(&self)->StaticRef<EV>{
+        pub fn sabi_et_vtable(&self)->PrefixRef<EV>{
             self.extra_value
         }
     }
@@ -896,15 +907,13 @@ fn main(){
         }
 
         #[inline]
-        pub(super) fn sabi_vtable<'a>(&self) -> &'a VTable<'borr,P,I>{
-            unsafe {
-                self.vtable.get()
-            }
+        pub(super) fn sabi_vtable(&self) -> VTable_Ref<'borr,P,I> {
+            self.vtable
         }
 
         #[inline]
         pub(super)fn sabi_vtable_address(&self) -> usize {
-            self.vtable.get_raw() as usize
+            self.vtable.0.to_raw_ptr() as usize
         }
 
         /// Returns the address of the wrapped object.
@@ -928,7 +937,7 @@ fn main(){
             &mut *((&mut **self.object) as *mut P::Target as *mut T)
         }
         
-
+        /// Gets a reference pointing to the erased object.
         pub fn sabi_erased_ref(&self) -> &ErasedObject
         where
             P: Deref,
@@ -936,6 +945,7 @@ fn main(){
             unsafe { self.sabi_object_as() }
         }
 
+        /// Gets a mutable reference pointing to the erased object.
         #[inline]
         pub fn sabi_erased_mut(&mut self) -> &mut ErasedObject
         where
@@ -944,14 +954,33 @@ fn main(){
             unsafe { self.sabi_object_as_mut() }
         }
 
+        /// Gets an `RRef` pointing to the erased object.
+        pub fn sabi_as_rref(&self) -> RRef<'_, ()>
+        where
+            P: Deref,
+        {
+            unsafe {
+                std::mem::transmute(&**self.object as *const _ as *const ())
+            }
+        }
+
+        /// Gets an `RMut` pointing to the erased object.
+        pub fn sabi_as_rmut(&mut self) -> RMut<'_, ()>
+        where
+            P: DerefMut,
+        {
+            unsafe {
+                std::mem::transmute(&mut **self.object as *mut _ as *mut ())
+            }
+        }
 
         #[inline]
         fn sabi_into_erased_ptr(self)->ManuallyDrop<P>{
-            let mut this= ManuallyDrop::new(self);
-            unsafe{ ptr::read(&mut this.object) }
+            let this= ManuallyDrop::new(self);
+            unsafe{ ptr::read(&this.object) }
         }
 
-
+        /// Calls the `f` callback with an `MovePtr` pointing to the erased object.
         #[inline]
         pub fn sabi_with_value<F,R>(self,f:F)->R
         where 
@@ -960,8 +989,6 @@ fn main(){
         {
             OwnedPointer::with_move_ptr(self.sabi_into_erased_ptr(),f)
         }
-
-
     }
 
 
@@ -1244,6 +1271,8 @@ fn main(){
         /// 
         /// - DynTrait::default
         /// 
+        /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
+        /// 
         pub fn reborrow<'re>(&'re self)->DynTrait<'borr,&'re (),I,EV> 
         where
             P:Deref<Target=()>,
@@ -1253,9 +1282,9 @@ fn main(){
             // Reborrowing will break if I add extra functions that operate on `P`.
             DynTrait {
                 object: ManuallyDrop::new(&**self.object),
-                vtable: unsafe{ self.vtable.transmute_ref() },
+                vtable: unsafe{ VTable_Ref(self.vtable.0.cast()) },
                 extra_value:*self.sabi_extra_value(),
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -1268,6 +1297,8 @@ fn main(){
         /// 
         /// - DynTrait::clone
         /// 
+        /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
+        /// 
         pub fn reborrow_mut<'re>(&'re mut self)->DynTrait<'borr,&'re mut (),I,EV> 
         where
             P:DerefMut<Target=()>,
@@ -1278,9 +1309,9 @@ fn main(){
             // Reborrowing will break if I add extra functions that operate on `P`.
             DynTrait {
                 object: ManuallyDrop::new(&mut **self.object),
-                vtable: unsafe{ self.vtable.transmute_ref() },
+                vtable: unsafe{ VTable_Ref(self.vtable.0.cast()) },
                 extra_value,
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -1292,6 +1323,7 @@ fn main(){
         P:GetPointerKind
     {
         /// Constructs a DynTrait<P,I> with a `P`,using the same vtable.
+        ///
         /// `P` must come from a function in the vtable,
         /// or come from a copy of `P:Copy+GetPointerKind<Kind=PK_Reference>`,
         /// to ensure that it is compatible with the functions in it.
@@ -1300,7 +1332,7 @@ fn main(){
                 object:ManuallyDrop::new(object),
                 vtable: self.vtable,
                 extra_value,
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
             }
         }
@@ -1356,6 +1388,8 @@ let _=borrow.default();
 
         /// It serializes a `DynTrait<_>` into a string by using 
         /// `<ConcreteType as SerializeImplType>::serialize_impl`.
+        // I'm using the lifetime in the where clause, clippy <_<
+        #[allow(clippy::needless_lifetimes)]
         pub fn serialize_into_proxy<'a>(&'a self) -> Result<I::ProxyType, RBoxError>
         where
             P: Deref,
@@ -1983,11 +2017,11 @@ where
         }
     }
 
-    fn consume(&mut self, ammount:usize ){
+    fn consume(&mut self, amount:usize ){
         unsafe{
             let vtable = self.sabi_vtable().io_bufread();
 
-            (vtable.consume)(self.sabi_erased_mut(),ammount)
+            (vtable.consume)(self.sabi_erased_mut(),amount)
         }
     }
 
@@ -2040,7 +2074,7 @@ mod sealed {
 }
 use self::sealed::Sealed;
 
-/// For accessing the Interface of a `DynTrait<Pointer<()>,Interface>`.
+/// For getting the `Interface` type parameter in `DynTrait<Pointer<()>,Interface>`.
 pub trait DynTraitBound<'borr>: Sealed {
     type Interface: InterfaceType;
 }
@@ -2054,7 +2088,7 @@ where
 }
 
 
-/// For accessing the `Interface` in a `DynTrait<Pointer<()>,Interface>`.
+/// For getting the `Interface` type parameter in `DynTrait<Pointer<()>,Interface>`.
 pub type GetVWInterface<'borr,This>=
     <This as DynTraitBound<'borr>>::Interface;
 

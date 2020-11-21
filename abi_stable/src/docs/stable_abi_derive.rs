@@ -6,6 +6,11 @@ The StableAbi derive macro allows one to implement the StableAbi trait to :
 
 - Produce the layout of the type at runtime to check it against the loaded library.
 
+# Caveats 
+
+Due to how this macro is implemented, using `Self` in bounds doesn't work,
+you must use the full type name and generic arguments.
+
 # Container Attributes
 
 These helper attributes are applied on the type declaration.
@@ -30,11 +35,6 @@ which is checked for equality with the vistual const parameter declared in the s
 
 Replaces the implicit `TypeParameter:StableAbi` constraint
 with a `TypeParameter:GetStaticEquivalent` constraint.
-
-###  `#[sabi(shared_stableabi(TypeParameter))]`  
-
-Replaces the implicit `TypeParameter:StableAbi` constraint
-with a `TypeParameter:SharedStableAbi` constraint.
 
 ###  `#[sabi(unsafe_unconstrained(TypeParameter))]`  
 
@@ -119,15 +119,23 @@ Prints the generated code,stopping compilation.
 ###  `#[sabi(kind(Prefix( .. )))]` 
 Declares the struct as being a prefix-type.
 
-`#[sabi(kind(Prefix(prefix_struct="NameOfPrefixStruct")))]`<br>
-Declares an ffi-safe equivalent of a vtable/module,
+Arguments (what goes inside `#[sabi(kind(Prefix(   <here>   )))]`):
+
+- `prefix_ref = "<Identifier>")` (optional: defaults to `<DerivingType>_Ref`):
+Declares an ffi-safe pointer to a vtable/module,
 that can be extended in semver compatible versions.<br>
-Uses "NameOfPrefixStruct" as the name of the prefix struct.<br>
+Uses "<Identifier>" as the name of the prefix struct.<br>
 For more details on prefix-types [look here](../prefix_types/index.html)
 
-`#[sabi(kind(WithNonExhaustive(...)))]`<br>
+- `prefix_fields = "<Identifier>")` (optional: defaults to `<DerivingType>_Prefix`):<be>
+Declares a struct with all the field in the deriving type up to(and including)
+the field with the `#[sabi(last_prefix_field)]` attribute,
+named "<Identifier>".
+
+###  `#[sabi(kind(WithNonExhaustive( .. ))]` 
+
 Declares this enum as being nonexhaustive,
-generating items and impls necessary to wrap this enum in a `NonExhaustive<>`
+generating items and impls necessary to wrap this enum in the [`NonExhaustive`] type
 to pass it through ffi.
 For more details on nonexhaustive enums [look here](../sabi_nonexhaustive/index.html)
 
@@ -158,9 +166,9 @@ and won't be usable afterwards.
 
 <span id="InterfaceType_traits"> These are the traits you can specify: </span>
 
-- Send:Changing this to require/unrequire in minor versions,is an abi breaking change.
+- Send:Changing this to require/unrequire in minor versions is an abi breaking change.
 
-- Sync:Changing this to require/unrequire in minor versions,is an abi breaking change.
+- Sync:Changing this to require/unrequire in minor versions is an abi breaking change.
 
 - Clone
 
@@ -269,9 +277,9 @@ Adds a `TheFieldType:SomeBound` constraint to the `StableAbi` impl.
 Eg: 
 ```ignore
 #[sabi(bound="Debug")]
-name:StaticStr,
+name:RStr<'static>,
 ```
-adds the `StaticStr:Debug` bound to the `StableAbi` impl
+adds the `RStr<'static>:Debug` bound to the `StableAbi` impl
 
 ###  `#[sabi(with_field_indices)]` 
 
@@ -313,6 +321,9 @@ If this attribute is apllied to prefix fields,
 it will only be compatible with other types if they agree on 
 which accessors are conditional for prefix fields.
 
+Prefix fields with this attribute are made private in the generated
+`<DerivingType>_Prefix` struct, without this attribute they keep the visibility.
+
 To do `#[sabi(accessible_if="<TypeParameter as Trait>::CONSTANT")]` you can use the 
 `#[sabi(prefix_bound="TypeParameter:Trait")]` helper attribute.
 
@@ -328,8 +339,8 @@ The function can return either a reference or a value.
 
 This is only valid for Prefix types,declared with `#[sabi(kind(Prefix(..)))]`.
 
-Determines what happens in the accessor method for a field,when the field is missing,
-the default is that it returns an `Option<FieldType>`,
+Determines what happens in the accessor method for a field,when the field is missing.
+The default is that it returns an `Option<FieldType>`,
 returning None if the field is absent,Some(field_value) if it's present.
 
 If the attribute is on the struct,it's applied to all fields(this is overridable)
@@ -524,5 +535,11 @@ For examples of nonexhaustive enums
 
 For examples of using both `#[derive(GetStaticEquivalent)]` and `#[not_stableabi()]`
 [look here](../get_static_equivalent/index.html#examples).
+
+
+
+
+
+[`NonExhaustive`]: ../../nonexhaustive_enum/struct.NonExhaustive.html
 
 */

@@ -1,7 +1,3 @@
-/*! 
-Ffi-safe version of 
-`Box<::std::error::Error+'static>` with all combinations of `Send` and `Sync`.
-*/
 use std::{
     error::Error as ErrorTrait,
     fmt::{self, Debug, Display},
@@ -19,9 +15,8 @@ use crate::{
     },
     marker_type::{SyncSend, UnsyncUnsend,UnsyncSend,ErasedObject},
     prefix_type::{PrefixTypeTrait,WithMetadata},
-    sabi_types::StaticRef,
     std_types::{
-        RBox, RResult, RString,
+        RBox, ROption, RResult, RStr, RString,
         utypeid::{UTypeId,new_utypeid}
     },
     utils::{transmute_reference,transmute_mut_reference},
@@ -32,15 +27,8 @@ use crate::{
 mod test;
 
 /**
-Ffi-safe version of `Box<::std::error::Error+'static>` 
-whose `Send+Sync`ness is determined by the `M` type parameter.
-
-It cannot be converted back to `Box<::std::error::Error>`,
-requiring wrapping `RBoxError_<_>` itself to be wrapped in a `Box<_>`.
-
-Unwrapping a `Box<Error+?Send+?Sync+'static>` back to
-`RBoxError_<_>` does not incurr an allocation.
-
+Ffi-safe version of `Box<dyn std::error::Error + 'static>` 
+whose `Send + Sync`ness is determined by the `M` type parameter.
 
 # Examples
 
@@ -198,18 +186,81 @@ use abi_stable::std_types::{RBox,SendRBoxError};
 #[derive(StableAbi)]
 pub struct RBoxError_<M = SyncSend> {
     value: RBox<ErasedObject>,
-    vtable: StaticRef<RErrorVTable>,
+    vtable: RErrorVTable_Ref,
     _sync_send: PhantomData<M>,
 }
 
-/// Ffi safe equivalent to Box<::std::error::Error>.
+/// Ffi safe equivalent to `Box<dyn std::error::Error>`.
 pub type UnsyncRBoxError = RBoxError_<UnsyncUnsend>;
 
-/// Ffi safe equivalent to Box<::std::error::Error+Send>.
+/// Ffi safe equivalent to `Box<dyn std::error::Error + Send>`.
 pub type SendRBoxError = RBoxError_<UnsyncSend>;
 
-/// Ffi safe equivalent to Box<::std::error::Error+Send+Sync>.
+/// Ffi safe equivalent to `Box<dyn std::error::Error + Send + Sync>`.
 pub type RBoxError = RBoxError_<SyncSend>;
+
+
+impl RBoxError_<SyncSend> {
+    /// Constructs a `Send + Sync` `RBoxError_` from an error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RBoxError;
+    ///
+    /// let str_err=String::from_utf8(vec![255]).unwrap_err();
+    ///
+    /// let err=RBoxError::new(str_err);
+    /// ```
+    pub fn new<T>(value: T) -> Self
+    where
+        T: ErrorTrait + Send + Sync + 'static,
+    {
+        Self::new_inner(value)
+    }
+}
+
+
+impl RBoxError_<UnsyncSend> {
+    /// Constructs a `Send + !Sync` `RBoxError_` from an error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::SendRBoxError;
+    ///
+    /// let str_err=String::from_utf16(&[0xD834]).unwrap_err() ;
+    ///
+    /// let err=SendRBoxError::new(str_err);
+    /// ```
+    pub fn new<T>(value: T) -> Self
+    where
+        T: ErrorTrait + Send + 'static,
+    {
+        Self::new_inner(value)
+    }
+}
+
+
+impl RBoxError_<UnsyncUnsend> {
+    /// Constructs a `!Send + !Sync` `RBoxError_` from an error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::UnsyncRBoxError;
+    ///
+    /// let str_err=std::str::from_utf8(&[255]).unwrap_err() ;
+    ///
+    /// let err=UnsyncRBoxError::new(str_err);
+    /// ```
+    pub fn new<T>(value: T) -> Self
+    where
+        T: ErrorTrait + 'static,
+    {
+        Self::new_inner(value)
+    }
+}
 
 
 impl<M> RBoxError_<M> {
@@ -226,20 +277,20 @@ impl<M> RBoxError_<M> {
     /// let display_fmt=int_error.to_string();
     /// let debug_fmt=format!("{:#?}",int_error);
     ///
-    /// let err=RBoxError::from_fmt(int_error);
+    /// let err=RBoxError::from_fmt(&int_error);
     ///
     /// assert_eq!(display_fmt,err.to_string());
     /// assert_eq!(debug_fmt,format!("{:?}",err));
     /// ```
-    pub fn from_fmt<T>(value: T) -> Self
+    pub fn from_fmt<T>(value: &T) -> Self
     where
-        T: Display + Debug,
+        T: Display + Debug + ?Sized,
     {
         DebugDisplay {
             debug: format!("{:#?}", value),
             display: format!("{:#}", value),
         }
-        .piped(Self::new_inner)
+        .piped(Self::from_debug_display)
     }
 
     /// Constructs an RBoxError from a type that only implements Debug,
@@ -253,20 +304,26 @@ impl<M> RBoxError_<M> {
     /// let int_error="".parse::<u32>().unwrap_err();
     ///
     /// let debug_fmt=format!("{:#?}",int_error);
-    /// let err=RBoxError::from_debug(int_error);
+    /// let err=RBoxError::from_debug(&int_error);
     ///
     /// assert_eq!(debug_fmt,format!("{}",err));
     /// assert_eq!(debug_fmt,format!("{:#?}",err));
     /// ```
-    pub fn from_debug<T>(value: T) -> Self
+    pub fn from_debug<T>(value: &T) -> Self
     where
-        T: Debug,
+        T: Debug + ?Sized,
     {
         DebugDisplay {
             debug: format!("{:#?}", value),
             display: format!("{:#?}", value),
         }
-        .piped(Self::new_inner)
+        .piped(Self::from_debug_display)
+    }
+
+    fn from_debug_display(value: DebugDisplay) -> Self {
+        unsafe {
+            Self::new_with_vtable(value, MakeRErrorVTable::LIB_VTABLE_DEBUG_DISPLAY)
+        }
     }
 
     fn new_inner<T>(value: T) -> Self
@@ -274,14 +331,11 @@ impl<M> RBoxError_<M> {
         T: ErrorTrait + 'static,
     {
         unsafe {
-            Self::new_with_vtable(
-                value,
-                WithMetadata::as_prefix(MakeRErrorVTable::<T>::LIB_VTABLE)
-            )
+            Self::new_with_vtable(value, MakeRErrorVTable::<T>::LIB_VTABLE)
         }
     }
 
-    fn new_with_vtable<T>(value: T,vtable:StaticRef<RErrorVTable>) -> Self{
+    fn new_with_vtable<T>(value: T, vtable: RErrorVTable_Ref) -> Self{
         unsafe {
             let value = value
                 .piped(RBox::new)
@@ -296,14 +350,39 @@ impl<M> RBoxError_<M> {
     }
 }
 
+impl<M> RBoxError_<M>{
+    /// Converts this error to a formatted error 
+    /// 
+    /// This is used to decouple an `RBoxError` from the dynamic library that produced it,
+    /// in order to unload the dynamic library.
+    /// 
+    pub fn to_formatted_error<N>(&self) -> RBoxError_<N> {
+        if let Some(dd) = self.as_debug_display() {
+            RBoxError_::from_debug_display(DebugDisplay{
+                debug: dd.debug.into(),
+                display: dd.display.into(),
+            })
+        } else {
+            RBoxError_::from_fmt(self)
+        }
+    }
+
+    fn as_debug_display(&self)->Option<DebugDisplayRef<'_>>{
+        unsafe{
+            self.vtable.as_debug_display()(&*self.value)
+                .into_option()
+        }
+    }
+}
+
 impl<M> RBoxError_<M> {
-    /// Returns the UTypeId of the error this wraps.
+    /// Returns the `UTypeId` of the error this wraps.
     pub fn type_id(&self)->UTypeId{
-        self.vtable.get().type_id()()
+        self.vtable.type_id()()
     }
 
     fn is_type<T:'static>(&self)->bool{
-        let self_id=self.vtable.get().type_id()();
+        let self_id=self.vtable.type_id()();
         let other_id=UTypeId::new::<T>();
         self_id==other_id
     }
@@ -404,75 +483,13 @@ impl RBoxError_<SyncSend>{
 }
 
 
-impl RBoxError_<SyncSend> {
-    /// Constructs an RBoxError from an error.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RBoxError;
-    ///
-    /// let str_err=String::from_utf8(vec![255]).unwrap_err();
-    ///
-    /// let err=RBoxError::new(str_err);
-    /// ```
-    pub fn new<T>(value: T) -> Self
-    where
-        T: ErrorTrait + Send + Sync + 'static,
-    {
-        Self::new_inner(value)
-    }
-}
-
-
-impl RBoxError_<UnsyncSend> {
-    /// Constructs an RBoxError from an error.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::SendRBoxError;
-    ///
-    /// let str_err=String::from_utf16(&[0xD834]).unwrap_err() ;
-    ///
-    /// let err=SendRBoxError::new(str_err);
-    /// ```
-    pub fn new<T>(value: T) -> Self
-    where
-        T: ErrorTrait + Send + 'static,
-    {
-        Self::new_inner(value)
-    }
-}
-
-
-impl RBoxError_<UnsyncUnsend> {
-    /// Constructs an RBoxError from an error.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::UnsyncRBoxError;
-    ///
-    /// let str_err=std::str::from_utf8(&[255]).unwrap_err() ;
-    ///
-    /// let err=UnsyncRBoxError::new(str_err);
-    /// ```
-    pub fn new<T>(value: T) -> Self
-    where
-        T: ErrorTrait + 'static,
-    {
-        Self::new_inner(value)
-    }
-}
-
 
 impl<M> ErrorTrait for RBoxError_<M> {}
 
 impl<M> Display for RBoxError_<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe{
-            adapt_std_fmt(&*self.value, self.vtable.get().display(), f)
+            adapt_std_fmt(&*self.value, self.vtable.display(), f)
         }
     }
 }
@@ -480,7 +497,7 @@ impl<M> Display for RBoxError_<M> {
 impl<M> Debug for RBoxError_<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe{
-            adapt_std_fmt(&*self.value, self.vtable.get().debug(), f)
+            adapt_std_fmt(&*self.value, self.vtable.debug(), f)
         }
     }
 }
@@ -489,9 +506,13 @@ impl<M> Debug for RBoxError_<M> {
 
 
 macro_rules! from_impls {
-    ($boxdyn:ty,$marker:ty) => (
+    (
+        $first_docs:expr,
+        $boxdyn:ty,
+        $marker:ty,
+    ) => (
         impl From<$boxdyn> for RBoxError_<$marker>{
-            /// Converts a Box<dyn Error> to an RBoxError_<_>.
+            #[doc = $first_docs]
             ///
             /// # Behavior 
             ///
@@ -506,14 +527,14 @@ macro_rules! from_impls {
         }
 
         impl RBoxError_<$marker>{
-            /// Converts a Box<dyn Error> to an RBoxError_<_>.
+            #[doc = $first_docs]
             ///
             /// `RBoxError::from_box( RBoxError::into_box( err ) )` 
             /// is a no-op with respect to the heap address of the RBoxError_<_>.
             ///
             /// # Behavior 
             ///
-            /// If the contents of the Box<_> is an erased `RBoxError_<_>`
+            /// If the contents of the `Box<_>` is an erased `RBoxError_<_>`
             /// it will be returned directly,
             /// otherwise the `Box<_>` will be converted into an `RBoxError_<_>`
             /// using `RBoxError_::new`.
@@ -530,7 +551,7 @@ macro_rules! from_impls {
                     Err(e)=>{
                         Self::new_with_vtable::<$boxdyn>(
                             e,
-                            WithMetadata::as_prefix(MakeBoxedRErrorVTable::<$boxdyn>::LIB_VTABLE),
+                            MakeBoxedRErrorVTable::<$boxdyn>::LIB_VTABLE,
                         )
                     }
                 }
@@ -543,9 +564,9 @@ macro_rules! from_impls {
             ///
             /// # Behavior 
             ///
-            /// If the contents of the RBoxError_<_> is an erased `Box<dyn Error + ... >`
+            /// If the contents of the `RBoxError_<_>` is an erased `Box<dyn Error + ... >`
             /// it will be returned directly,
-            /// otherwise the RBoxError_<_> will be converted into an `Box<dyn Error + ... >`
+            /// otherwise the `RBoxError_<_>` will be converted into an `Box<dyn Error + ... >`
             /// using `Box::new`.
             ///
             /// # Example
@@ -565,14 +586,18 @@ macro_rules! from_impls {
 
             /// Converts this `RBoxError_<_>` to an `RBox<T>`.
             ///
-            /// If this downcasts to a type other than `Box<dyn Error + ... >`,
-            /// and this `RBoxError_<_>` was constructed from one,
-            /// this will downcast the `Box<dyn Error + ... >` into `T`.
+            /// If was constructed from a `Box<dyn Error + ... >`,
+            /// and this is being casted to another type,
+            /// it'll first downcast to `Box<dyn Error + ... >`,
+            /// then it'll downcast the `Box<dyn Error + ... >` into `RBox<T>`.
             ///
             /// # Errors
             ///
-            /// This returns `Err(self)` under the same conditions where `DynTrait<_>`
-            /// cannot be unerased.
+            /// This returns `Err(self)` in any of these cases:
+            ///
+            /// - The `RBoxError_` wasn't constructed in the current dynamic library.
+            ///
+            /// - The `RBoxError_` was constructed with a different type than `T`.
             ///
             /// # Example
             ///
@@ -600,16 +625,20 @@ macro_rules! from_impls {
                 }
             }
 
-            /// Converts this `&RBoxError_<_>` to an `Option<&T>`.
+            /// Converts this `&RBoxError_<_>` to a `&T`.
             ///
-            /// If this downcasts to a type other than `Box<dyn Error + ... >`,
-            /// and this `RBoxError_<_>` was constructed from one,
-            /// this will downcast the `Box<dyn Error + ... >` into `T`.
+            /// If was constructed from a `Box<dyn Error + ... >`,
+            /// and this is being casted to another type,
+            /// it'll first downcast to `&dyn Error + ... `,
+            /// then it'll downcast the `&dyn Error + ... ` into `&T`.
             ///
             /// # Errors
             ///
-            /// This returns `None` under the same conditions where `DynTrait<_>`
-            /// cannot be unerased.
+            /// This returns `None` in any of these cases:
+            ///
+            /// - The `RBoxError_` wasn't constructed in the current dynamic library.
+            ///
+            /// - The `RBoxError_` was constructed with a different type than `T`.
             ///
             /// # Example
             ///
@@ -636,16 +665,20 @@ macro_rules! from_impls {
                 }
             }
 
-            /// Converts this `&mut RBoxError_<_>` to an `Option<&mut T>`.
+            /// Converts this `&mut RBoxError_<_>` to a `&mut T`.
             ///
-            /// If this downcasts to a type other than `Box<dyn Error + ... >`,
-            /// and this `RBoxError_<_>` was constructed from one,
-            /// this will downcast the `Box<dyn Error + ... >` into `T`.
+            /// If was constructed from a `Box<dyn Error + ... >`,
+            /// and this is being casted to another type,
+            /// it'll first downcast to `&mut dyn Error + ... `,
+            /// then it'll downcast the `&mut dyn Error + ... ` into `&mut T`.
             ///
             /// # Errors
             ///
-            /// This returns `None` under the same conditions where `DynTrait<_>`
-            /// cannot be unerased.
+            /// This returns `None` in any of these cases:
+            ///
+            /// - The `RBoxError_` wasn't constructed in the current dynamic library.
+            ///
+            /// - The `RBoxError_` was constructed with a different type than `T`.
             ///
             /// # Example
             ///
@@ -677,9 +710,21 @@ macro_rules! from_impls {
 }
 
 
-from_impls!{ Box<dyn ErrorTrait + Send + Sync + 'static> , SyncSend }
-from_impls!{ Box<dyn ErrorTrait + Send + 'static> , UnsyncSend }
-from_impls!{ Box<dyn ErrorTrait + 'static> , UnsyncUnsend }
+from_impls!{
+    "Converts a `Box<dyn Error + Send + Sync>` to a `Send + Sync` `RBoxError_`.",
+    Box<dyn ErrorTrait + Send + Sync + 'static> ,
+    SyncSend,
+}
+from_impls!{
+    "Converts a `Box<dyn Error + Send>` to a `Send + !Sync` `RBoxError_`.",
+    Box<dyn ErrorTrait + Send + 'static> ,
+    UnsyncSend,
+}
+from_impls!{
+    "Converts a `Box<dyn Error>` to a `!Send + !Sync` `RBoxError_`.",
+    Box<dyn ErrorTrait + 'static> ,
+    UnsyncUnsend,
+}
 
 
 
@@ -687,10 +732,11 @@ from_impls!{ Box<dyn ErrorTrait + 'static> , UnsyncUnsend }
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="RErrorVTable")))]
-struct RErrorVTableVal {
+#[sabi(kind(Prefix))]
+struct RErrorVTable {
     debug: unsafe extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
     display: unsafe extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
+    as_debug_display: unsafe extern "C" fn(&ErasedObject) -> ROption<DebugDisplayRef<'_>>,
     #[sabi(last_prefix_field)]
     type_id: extern "C" fn()->UTypeId,
 }
@@ -703,17 +749,36 @@ struct MakeRErrorVTable<T>(T);
 impl<T> MakeRErrorVTable<T>
 where T:ErrorTrait+'static
 {
-    const VALUE:RErrorVTableVal=RErrorVTableVal{
+    const VALUE:RErrorVTable=RErrorVTable{
         debug: debug_impl::<T>,
         display: display_impl::<T>,
+        as_debug_display: not_as_debug_display,
         type_id: new_utypeid::<T>,
     };
 
-    const LIB_VTABLE: StaticRef<WithMetadata<RErrorVTableVal>> = {
-        StaticRef::new(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VALUE,
-        ))
+    const LIB_VTABLE: RErrorVTable_Ref = {
+        RErrorVTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::VALUE,
+            ).static_as_prefix()
+        )
+    };
+}
+
+impl MakeRErrorVTable<DebugDisplay> {
+    const LIB_VTABLE_DEBUG_DISPLAY: RErrorVTable_Ref = {
+        RErrorVTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                RErrorVTable{
+                    debug: debug_impl::<DebugDisplay>,
+                    display: display_impl::<DebugDisplay>,
+                    as_debug_display,
+                    type_id: new_utypeid::<DebugDisplay>,
+                },
+            ).static_as_prefix()
+        )
     };
 }
 
@@ -725,17 +790,20 @@ struct MakeBoxedRErrorVTable<T>(T);
 impl<T> MakeBoxedRErrorVTable<Box<T>>
 where T:?Sized+ErrorTrait+'static
 {
-    const VALUE:RErrorVTableVal=RErrorVTableVal{
+    const VALUE:RErrorVTable=RErrorVTable{
         debug: debug_impl::<Box<T>>,
         display: display_impl::<Box<T>>,
+        as_debug_display: not_as_debug_display,
         type_id: new_utypeid::<Box<T>>,
     };
 
-    const LIB_VTABLE: StaticRef<WithMetadata<RErrorVTableVal>> = {
-        StaticRef::new(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VALUE,
-        ))
+    const LIB_VTABLE: RErrorVTable_Ref = unsafe{
+        RErrorVTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::VALUE,
+            ).as_prefix()
+        )
     };
 }
 
@@ -763,3 +831,28 @@ impl Debug for DebugDisplay {
 impl ErrorTrait for DebugDisplay {}
 
 ////////////////////////////////////////////////////////////////////////
+
+#[repr(C)]
+#[derive(Debug, StableAbi, PartialEq)]
+struct DebugDisplayRef<'a> {
+    debug: RStr<'a>,
+    display: RStr<'a>,
+}
+
+////////////////////////////////////////////////////////////////////////
+
+unsafe extern "C" fn as_debug_display(this: &ErasedObject) -> ROption<DebugDisplayRef<'_>> {
+    extern_fn_panic_handling! {
+        let this=unsafe{ transmute_reference::<ErasedObject, DebugDisplay>(this) };
+        ROption::RSome(DebugDisplayRef{
+            debug: this.debug.as_str().into(),
+            display: this.display.as_str().into(),
+        })
+    }
+}
+
+unsafe extern "C" fn not_as_debug_display(_: &ErasedObject) -> ROption<DebugDisplayRef<'_>> {
+    ROption::RNone
+}
+
+

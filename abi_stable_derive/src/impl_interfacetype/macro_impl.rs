@@ -53,25 +53,22 @@ pub fn the_macro(mut impl_:ItemImpl)->Result<TokenStream2,syn::Error>{
     // either `Implemented<trait_marker::AssocTyName>`
     // or `Unimplemented<trait_marker::AssocTyName>` 
     for item in &mut impl_.items {
-        match item {
-            ImplItem::Type(assoc_ty)=>{
-                assert_ne!(
-                    assoc_ty.ident,
-                    "define_this_in_the_impl_InterfaceType_macro",
-                    "you are not supposed to define\n\t\
-                     the 'define_this_in_the_impl_InterfaceType_macro' associated type yourself"
-                );
-                default_map.remove(&assoc_ty.ident);
+        if let ImplItem::Type(assoc_ty) = item {
+            assert_ne!(
+                assoc_ty.ident,
+                "define_this_in_the_impl_InterfaceType_macro",
+                "you are not supposed to define\n\t\
+                 the 'define_this_in_the_impl_InterfaceType_macro' associated type yourself"
+            );
+            default_map.remove(&assoc_ty.ident);
 
-                let old_ty=&assoc_ty.ty;
-                let name=&assoc_ty.ident;
-                let span=name.span();
+            let old_ty=&assoc_ty.ty;
+            let name=&assoc_ty.ident;
+            let span=name.span();
 
-                assoc_ty.ty=syn::Type::Verbatim(
-                    quote_spanned!(span=> ImplFrom<#old_ty, trait_marker::#name> )
-                );
-            }
-            _=>{}
+            assoc_ty.ty=syn::Type::Verbatim(
+                quote_spanned!(span=> ImplFrom<#old_ty, trait_marker::#name> )
+            );
         }
     }
 

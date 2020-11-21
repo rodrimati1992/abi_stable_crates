@@ -143,8 +143,8 @@ impl<T, E> RResult<T, E> {
         self.into()
     }
 
-    /// Converts the `RResult<T,E>` to a `RResult<U,E>` by transforming the value in ROk
-    /// using the `op` closure.
+    /// Converts the `RResult<T,E>` to a `RResult<U,E>` by transforming the value in 
+    /// `ROk` using the `op` closure.
     ///
     /// # Example
     ///
@@ -166,8 +166,8 @@ impl<T, E> RResult<T, E> {
         }
     }
 
-    /// Converts the `RResult<T,E>` to a `RResult<U,F>` by transforming the value in RErr
-    /// using the `op` closure.
+    /// Converts the `RResult<T,E>` to a `RResult<U,F>` by 
+    /// transforming the value in `RErr` using the `op` closure.
     ///
     /// # Example
     ///
@@ -190,7 +190,7 @@ impl<T, E> RResult<T, E> {
     }
 
     /// Converts the `RResult<T,E>` to a `U` by 
-    /// transforming the value in ROk using the `with_ok` closure,
+    /// transforming the value in `ROk` using the `with_ok` closure,
     /// otherwise transforming the value in RErr using the `with_err` closure,
     ///
     /// # Example
@@ -211,8 +211,8 @@ impl<T, E> RResult<T, E> {
         self.map(with_ok).unwrap_or_else(with_err)
     }
 
-    /// Calls the `op` closure with the value of ROk,
-    /// otherwise returning the RErr unmodified.
+    /// Returns the result of calling the `op` closure with the value in `ROk`,
+    /// otherwise returning the `RErr` unmodified.
     ///
     /// # Example
     ///
@@ -248,8 +248,8 @@ impl<T, E> RResult<T, E> {
         }
     }
 
-    /// Calls the `op` closure with the value of RErr,
-    /// otherwise returning the ROk unmodified.
+    /// Returns the result of calling the `op` closure with the value in `RErr`,
+    /// otherwise returning the `ROk` unmodified.
     ///
     /// # Example
     ///
@@ -273,11 +273,11 @@ impl<T, E> RResult<T, E> {
         }
     }
 
-    /// Unwraps `self`, returning the value in Ok.
+    /// Unwraps `self`, returning the value in `ROk`.
     ///
     /// # Panic
     ///
-    /// Panics if `self` is an `Err(_)` with an error message 
+    /// Panics with an error message if `self` is an `RErr`,
     /// using `E`s Debug implementation.
     ///
     /// # Example
@@ -302,11 +302,11 @@ impl<T, E> RResult<T, E> {
         self.into_result().unwrap()
     }
 
-    /// Unwraps `self`, returning the value in Ok.
+    /// Unwraps `self`, returning the value in `ROk`.
     ///
     /// # Panic
     ///
-    /// Panics if `self` is an `Err(_)` with an error message 
+    /// Panics with an error message if `self` is an `RErr`,
     /// using `E`s Debug implementation,
     /// as well as `message`.
     ///
@@ -332,11 +332,11 @@ impl<T, E> RResult<T, E> {
         self.into_result().expect(message)
     }
 
-    /// Unwraps `self`, returning the value in Err.
+    /// Unwraps `self`, returning the value in `RErr`.
     ///
     /// # Panic
     ///
-    /// Panics if `self` is an `Ok(_)` with an error message 
+    /// Panics with an error message if `self` is an `ROk`,
     /// using `T`s Debug implementation.
     ///
     /// # Example
@@ -361,11 +361,11 @@ impl<T, E> RResult<T, E> {
         self.into_result().unwrap_err()
     }
 
-    /// Unwraps `self`, returning the value in Err.
+    /// Unwraps `self`, returning the value in `RErr`.
     ///
     /// # Panic
     ///
-    /// Panics if `self` is an `Ok(_)` with an error message 
+    /// Panics with an error message if `self` is an `ROk`,
     /// using `T`s Debug implementation,
     /// as well as `message`.
     ///
@@ -391,7 +391,7 @@ impl<T, E> RResult<T, E> {
         self.into_result().expect_err(message)
     }
 
-    /// Returns the value in the `RResult<T,E>`,or `def` if `self` is `RErr`.
+    /// Returns the value in `ROk`,or `def` if `self` is `RErr`.
     ///
     /// # Example
     ///
@@ -410,7 +410,7 @@ impl<T, E> RResult<T, E> {
         }
     }
 
-    /// Returns the value in the `RResult<T,E>`,
+    /// Returns the value in `ROk`,
     /// or calls `def` with the error in `RErr`.
     ///
     /// # Example
@@ -433,7 +433,7 @@ impl<T, E> RResult<T, E> {
         }
     }
 
-    /// Returns the value in the `RResult<T,E>`,
+    /// Returns the value in `ROk`,
     /// or returns `T::default()` it `self` is an `RErr`.
     ///
     /// # Example
@@ -456,7 +456,8 @@ impl<T, E> RResult<T, E> {
         }
     }
 
-    /// Converts from RResult<T, E> to ROption<T>,ROk maps to RSome,RErr maps to RNone.
+    /// Converts from `RResult<T, E>` to `ROption<T>`,
+    /// `ROk` maps to `RSome`,`RErr` maps to `RNone`.
     ///
     /// # Example
     ///
@@ -476,7 +477,8 @@ impl<T, E> RResult<T, E> {
     }
 
 
-    /// Converts from RResult<T, E> to ROption<T>,ROk maps to RNone,RErr maps to RSome.
+    /// Converts from `RResult<T, E>` to `ROption<T>`,
+    /// `ROk` maps to `RNone`,`RErr` maps to `RSome`.
     ///
     /// # Example
     ///

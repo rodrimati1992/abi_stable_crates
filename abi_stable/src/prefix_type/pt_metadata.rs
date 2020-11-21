@@ -21,9 +21,10 @@ use super::{
 use core_extensions::SelfOps;
 
 
+#[doc(hidden)]
 #[derive(Debug,Clone)]
-pub(crate) struct PrefixTypeMetadata{
-    /// This is the ammount of fields on the prefix of the struct,
+pub struct __PrefixTypeMetadata{
+    /// This is the amount of fields on the prefix of the struct,
     /// which is always the same for the same type,regardless of which library it comes from.
     pub prefix_field_count:u8,
 
@@ -31,22 +32,22 @@ pub(crate) struct PrefixTypeMetadata{
 
     pub conditional_prefix_fields:FieldConditionality,
 
-    pub fields:InitialFieldsOrMut,
+    pub fields:__InitialFieldsOrMut,
 
     /// The layout of the struct,for error messages.
     pub layout:&'static TypeLayout,
 }
 
 
-impl PrefixTypeMetadata{
+impl __PrefixTypeMetadata{
     #[allow(dead_code)]
-    #[cfg(test)]
-    pub(crate) fn new(layout:&'static TypeLayout)->Self{
+    #[cfg(feature = "testing")]
+    pub fn new(layout:&'static TypeLayout)->Self{
         match layout.data() {
             TLData::PrefixType(prefix)=>
                 Self::with_prefix_layout(prefix,layout),
             _=>panic!(
-                "Attempting to construct a PrefixTypeMetadata from a \
+                "Attempting to construct a __PrefixTypeMetadata from a \
                  TypeLayout of a non-prefix-type.\n\
                  Type:{}\nDataVariant:{:?}\nPackage:{}",
                  layout.full_type(),
@@ -58,7 +59,7 @@ impl PrefixTypeMetadata{
 
     pub(crate) fn with_prefix_layout(prefix:TLPrefixType,layout:&'static TypeLayout)->Self{
         Self{
-            fields:InitialFieldsOrMut::from(prefix.fields),
+            fields:__InitialFieldsOrMut::from(prefix.fields),
             accessible_fields:prefix.accessible_fields,
             conditional_prefix_fields:prefix.conditional_prefix_fields,
             prefix_field_count:prefix.first_suffix_field,
@@ -78,8 +79,8 @@ impl PrefixTypeMetadata{
     /// 
     /// The prefixes must already have been checked for compatibility.
     #[allow(dead_code)]
-    #[cfg(test)]
-    pub(crate) fn max(self,other:Self)->Self{
+    #[cfg(feature = "testing")]
+    pub fn max(self,other:Self)->Self{
         if self.fields.len() < other.fields.len() {
             other
         }else{
@@ -144,29 +145,30 @@ impl PrefixTypeMetadata{
 /////////////////////////////////////////////////////////////////////////////////
 
 
+#[doc(hidden)]
 #[derive(Debug,Clone)]
-pub(crate) enum InitialFieldsOrMut{
+pub enum __InitialFieldsOrMut{
     TLFields(TLFields),
     Mutable(Vec<TLField>),
 }
 
 
-impl From<TLFields> for InitialFieldsOrMut{
+impl From<TLFields> for __InitialFieldsOrMut{
     fn from(this:TLFields)->Self{
-        InitialFieldsOrMut::TLFields(this)
+        __InitialFieldsOrMut::TLFields(this)
     }
 }
 
 
-impl InitialFieldsOrMut{
+impl __InitialFieldsOrMut{
     pub fn to_mut(&mut self)->&mut Vec<TLField>{
         match self {
-            InitialFieldsOrMut::Mutable(x)=>x,
+            __InitialFieldsOrMut::Mutable(x)=>x,
             this=>{
                 let list=this.iter().map(Cow::into_owned).collect::<Vec<TLField>>();
-                *this=InitialFieldsOrMut::Mutable(list);
+                *this=__InitialFieldsOrMut::Mutable(list);
                 match this {
-                    InitialFieldsOrMut::Mutable(x)=>x,
+                    __InitialFieldsOrMut::Mutable(x)=>x,
                     _=>unreachable!()
                 }
             }
@@ -174,14 +176,14 @@ impl InitialFieldsOrMut{
     }
     pub fn iter(&self)->IFOMIter<'_>{
         match self {
-            InitialFieldsOrMut::TLFields(x)=>IFOMIter::TLFields(x.iter()),
-            InitialFieldsOrMut::Mutable(x)=>IFOMIter::Slice(x.iter()),
+            __InitialFieldsOrMut::TLFields(x)=>IFOMIter::TLFields(x.iter()),
+            __InitialFieldsOrMut::Mutable(x)=>IFOMIter::Slice(x.iter()),
         }
     }
     pub fn len(&self)->usize{
         match self {
-            InitialFieldsOrMut::TLFields(x)=>x.len(),
-            InitialFieldsOrMut::Mutable(x)=>x.len(),
+            __InitialFieldsOrMut::TLFields(x)=>x.len(),
+            __InitialFieldsOrMut::Mutable(x)=>x.len(),
         }
     }
 }

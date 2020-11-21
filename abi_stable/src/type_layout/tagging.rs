@@ -2,12 +2,6 @@
 Tag is a dynamically typed data structure used to encode extra properties 
 about a type in its layout constant.
 
-Some usecases for this:
-
-- Encoding the traits that the interface in DynTrait requires.
-
-- Check the marker traits implemented by any type,using specialization.
-
 # Comparison semantics
 
 Tags don't use strict equality when doing layout checking ,
@@ -22,7 +16,7 @@ for each variant **in the interface**:
     They must be strictly equal.
 
 - Arrays:
-    They must have the same length.
+    They must have the same length, and have elements that compare equal.
 
 - Sets/Maps:
     The set/map in the interface must be a subset of the implementation,
@@ -226,7 +220,7 @@ use crate::{
         TypeCheckerMut,
         ExtraChecks,ForExtraChecksImplementor,ExtraChecksError,
     },
-    std_types::{StaticStr,RSlice,RBox,RCow,RVec,ROption,RSome,RNone,RResult},
+    std_types::{RSlice,RStr,RBox,RCow,RVec,ROption,RSome,RNone,RResult},
     traits::IntoReprC,
     utils::FmtPadding,
     type_layout::TypeLayout,
@@ -270,7 +264,7 @@ pub enum Primitive{
     Bool(bool),
     Int(i64),
     UInt(u64),
-    String_(StaticStr),
+    String_(RStr<'static>),
 }
 
 /// A tag that can be checked for compatibility with another tag.
@@ -381,11 +375,11 @@ impl Tag{
 
     /// Constructs the String_ variant.
     pub const fn str(s:&'static str)->Self{
-        Self::new(TagVariant::Primitive(Primitive::String_(StaticStr::new(s))))
+        Self::new(TagVariant::Primitive(Primitive::String_(RStr::from_str(s))))
     }
 
     /// Constructs the String_ variant.
-    pub const fn staticstr(s:StaticStr)->Self{
+    pub const fn rstr(s:RStr<'static>)->Self{
         Self::new(TagVariant::Primitive(Primitive::String_(s)))
     }
 
@@ -469,6 +463,8 @@ where I:IntoIterator<Item= (CheckableTag,CheckableTag) >
 
 
 impl CheckableTag{
+    /// Checks that this `CheckableTag` is compatible with another one,
+    /// returning `Ok` if it is compatible, `Err` if it was not.
     pub fn check_compatible(&self,other:&Self)->Result<(),TagErrors>{
         use self::CTVariant as CTV;
 
@@ -611,7 +607,8 @@ impl<T> KeyValue<T>{
     pub const fn new(key:T,value:T)->Self{
         Self{ key,value }
     }
-    /// Transforms the `KeyValue<T>` to `KeyValue<U>` using `f`.
+    /// Transforms the `KeyValue<T>` to `KeyValue<U>`,
+    /// using `f` to convert `T` to `U`.
     pub fn map<F,U>(self,mut f:F)->KeyValue<U>
     where F:FnMut(T)->U
     {
@@ -621,12 +618,12 @@ impl<T> KeyValue<T>{
         }
     }
 
-    /// Converts the KeyValue into a pair.
+    /// Converts the KeyValue into a `(key, value)` pair.
     pub fn into_pair(self)->(T,T){
         (self.key,self.value)
     }
 
-    /// Casts a &KeyValue into a pair of references.
+    /// Casts a &KeyValue into a `(key, value)` pair of references.
     pub fn as_pair(&self)->(&T,&T){
         (
             &self.key,
@@ -634,7 +631,7 @@ impl<T> KeyValue<T>{
         )
     }
 
-    /// Converts a pair into a KeyValue.
+    /// Converts a `(key, value)` pair into a KeyValue.
     pub fn from_pair((key,value):(T,T))->Self{
         Self{ key,value }
     }
@@ -659,6 +656,7 @@ where T:Display+TagTrait
 /// Used to convert many types to `Tag`.
 pub struct FromLiteral<T>(pub T);
 
+#[allow(clippy::wrong_self_convention)]
 impl FromLiteral<bool>{
     /// Converts the wrapped `bool` into a Tag.
     pub const fn to_tag(self)->Tag{
@@ -666,6 +664,7 @@ impl FromLiteral<bool>{
     }
 }
 
+#[allow(clippy::wrong_self_convention)]
 impl FromLiteral<&'static str>{
     /// Converts the wrapped `&'static str` into a Tag.
     pub const fn to_tag(self)->Tag{
@@ -673,13 +672,15 @@ impl FromLiteral<&'static str>{
     }
 }
 
-impl FromLiteral<StaticStr>{
-    /// Converts the wrapped `&'static str` into a Tag.
+#[allow(clippy::wrong_self_convention)]
+impl FromLiteral<RStr<'static>>{
+    /// Converts the wrapped `RStr<'static>` into a Tag.
     pub const fn to_tag(self)->Tag{
-        Tag::staticstr(self.0)
+        Tag::rstr(self.0)
     }
 }
 
+#[allow(clippy::wrong_self_convention)]
 impl FromLiteral<i64>{
     /// Converts the wrapped `i64` into a Tag.
     pub const fn to_tag(self)->Tag{
@@ -687,6 +688,7 @@ impl FromLiteral<i64>{
     }
 }
 
+#[allow(clippy::wrong_self_convention)]
 impl FromLiteral<Tag>{
     /// Converts the wrapped `Tag` into a Tag.
     pub const fn to_tag(self)->Tag{
@@ -845,7 +847,7 @@ impl std::error::Error for TagErrors{}
 /////////////////////////////////////////////////////////////////
 
 
-impl ExtraChecks for Tag {
+unsafe impl ExtraChecks for Tag {
     fn type_layout(&self)->&'static TypeLayout{
         Self::LAYOUT
     }
@@ -874,7 +876,7 @@ impl ExtraChecks for Tag {
 
 #[repr(u8)]
 #[derive(Debug,Clone,PartialEq,StableAbi)]
-pub enum TagErrorVariant{
+pub(crate) enum TagErrorVariant{
     MismatchedDiscriminant,
     MismatchedValue,
     MismatchedArrayLength{

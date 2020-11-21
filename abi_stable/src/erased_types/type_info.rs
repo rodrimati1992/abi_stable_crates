@@ -6,7 +6,7 @@ use std::fmt;
 
 use crate::{
     sabi_types::{Constructor,MaybeCmp,VersionStrings},
-    std_types::{RStr,StaticStr,utypeid::UTypeId},
+    std_types::{RStr,utypeid::UTypeId},
 };
 
 
@@ -20,8 +20,8 @@ pub struct TypeInfo {
     #[doc(hidden)]
     pub _uid: Constructor<MaybeCmp<UTypeId>>,
     pub type_name: Constructor<RStr<'static>>,
-    pub module: StaticStr,
-    pub package: StaticStr,
+    pub module: RStr<'static>,
+    pub package: RStr<'static>,
     pub package_version: VersionStrings,
     #[doc(hidden)]
     pub _private_field: (),

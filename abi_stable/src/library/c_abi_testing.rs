@@ -34,8 +34,8 @@ where
     T:std::fmt::Debug
 {
     LibraryError::InvalidCAbi{
-        expected:RBoxError::from_debug(expected),
-        found   :RBoxError::from_debug(found   ),
+        expected:RBoxError::from_debug(&expected),
+        found   :RBoxError::from_debug(&found   ),
     }
 }
 

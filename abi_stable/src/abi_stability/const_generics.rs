@@ -12,7 +12,6 @@ use crate::{
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
     std_types::{RString,RResult,ROk,RErr},
-    sabi_types::StaticRef,
     type_layout::TypeLayout,
     StableAbi,
 };
@@ -32,7 +31,7 @@ use std::{
 #[derive(Copy,Clone,StableAbi)]
 pub struct ConstGeneric{
     ptr:*const ErasedObject,
-    vtable:StaticRef<ConstGenericVTable>,
+    vtable: ConstGenericVTable_Ref,
 }
 
 unsafe impl Send for ConstGeneric{}
@@ -41,7 +40,7 @@ unsafe impl Sync for ConstGeneric{}
 impl ConstGeneric{
     /// Constructs a ConstGeneric from a reference and a vtable.
     /// 
-    /// To construct the `vtable_for` parameter use `GetConstGenericVTable::VTABLE`.
+    /// To construct the `vtable_for` parameter use `ConstGenericVTableFor::NEW`.
     pub const fn new<T>(this:&'static T, vtable_for:ConstGenericVTableFor<T>)->Self{
         Self{
             ptr: this as *const T as *const ErasedObject,
@@ -101,12 +100,11 @@ impl Eq for ConstGeneric{}
 ///////////////////////////////////////////////////////////////////////////////
 
 
-#[doc(hidden)]
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="ConstGenericVTable")))]
+#[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
-pub struct ConstGenericVTableVal{
+struct ConstGenericVTable{
     layout:&'static TypeLayout,
     partial_eq:unsafe extern "C" fn(&ErasedObject,&ErasedObject)->bool,
     #[sabi(last_prefix_field)]
@@ -116,41 +114,29 @@ pub struct ConstGenericVTableVal{
 /// A type that contains the vtable stored in the `ConstGeneric` constructed from a `T`.
 /// This is used as a workaround for `const fn` not allowing trait bounds.
 pub struct ConstGenericVTableFor<T>{
-    vtable:StaticRef<ConstGenericVTable>,
+    vtable:ConstGenericVTable_Ref,
     _marker:PhantomData<T>,
 }
 
 
-///////////////////////////////////////////////////////////////////////////////
-
-/// This trait is used to construct the `vtable_for` parameter of 
-/// `ConstGeneric::new` with `GetConstGenericVTable::VTABLE`
-pub trait GetConstGenericVTable:Sized {
-    #[doc(hidden)]
-    const _VTABLE_STATIC: StaticRef<WithMetadata<ConstGenericVTableVal>> ;
-    const VTABLE:ConstGenericVTableFor<Self>;
-}
-
-
-
-impl<This> GetConstGenericVTable for This
+impl<T> ConstGenericVTableFor<T> 
 where
-    This:StableAbi+Eq+PartialEq+Debug+Send+Sync
+    T: StableAbi + Eq + PartialEq + Debug + Send + Sync
 {
-    #[doc(hidden)]
-    const _VTABLE_STATIC: StaticRef<WithMetadata<ConstGenericVTableVal>> = {
-        StaticRef::new(&WithMetadata::new(
+    const _VTABLE_STATIC: WithMetadata<ConstGenericVTable> = {
+        WithMetadata::new(
             PrefixTypeTrait::METADATA,
-            ConstGenericVTableVal{
-                layout: <Self as StableAbi>::LAYOUT,
-                partial_eq: partial_eq_impl::<Self>,
-                debug: debug_impl::<Self>,
+            ConstGenericVTable{
+                layout: <T as StableAbi>::LAYOUT,
+                partial_eq: partial_eq_impl::<T>,
+                debug: debug_impl::<T>,
             }
-        ))
+        )
     };
 
-    const VTABLE:ConstGenericVTableFor<Self>=ConstGenericVTableFor{
-        vtable: WithMetadata::as_prefix(Self::_VTABLE_STATIC),
+    /// Constructs a `ConstGenericVTableFor`
+    pub const NEW:ConstGenericVTableFor<T>=ConstGenericVTableFor{
+        vtable: ConstGenericVTable_Ref(Self::_VTABLE_STATIC.static_as_prefix()),
         _marker: PhantomData,
     };
 }

@@ -20,7 +20,6 @@ use crate::{
     StableAbi,
     marker_type::UnsyncUnsend,
     prefix_type::{PrefixTypeTrait,WithMetadata},
-    sabi_types::StaticRef,
     std_types::*,
 };
 
@@ -78,12 +77,12 @@ assert_eq!(*MUTEX.lock(),200);
 pub struct RMutex<T>{
     raw_mutex:OpaqueMutex,
     data:UnsafeCell<T>,
-    vtable:StaticRef<VTable>,
+    vtable:VTable_Ref,
 }
 
 
 /**
-A mutex guard,which allows mutable access to the data inside the mutex.
+A mutex guard,which allows mutable access to the data inside an `RMutex`.
 
 When dropped this will unlock the mutex.
 
@@ -94,7 +93,7 @@ When dropped this will unlock the mutex.
 #[must_use]
 pub struct RMutexGuard<'a, T> {
     rmutex: &'a RMutex<T>,
-    _marker: PhantomData<Tuple2<&'a mut T, UnsyncUnsend>>,
+    _marker: PhantomData<(&'a mut T, UnsyncUnsend)>,
 }
 
 
@@ -119,13 +118,13 @@ impl<T> RMutex<T>{
         Self{
             raw_mutex:OPAQUE_MUTEX,
             data:UnsafeCell::new(value),
-            vtable:WithMetadata::as_prefix(VTable::VTABLE),
+            vtable:VTable::VTABLE,
         }
     }
 
     #[inline]
-    fn vtable(&self)->&'static VTable{
-        self.vtable.get()
+    fn vtable(&self)->VTable_Ref{
+        self.vtable
     }
 
     #[inline]
@@ -171,8 +170,8 @@ impl<T> RMutex<T>{
     ///
     /// ```
     #[inline]
-    pub fn get_mut(&mut self)->RMutexGuard<'_,T>{
-        self.make_guard()
+    pub fn get_mut(&mut self)->&mut T{
+        unsafe{ &mut *self.data.get() }
     }
 
     /**
@@ -206,9 +205,10 @@ assert_eq!(*MUTEX.lock(),5);
         self.make_guard()
     }
     /**
-Attemps to acquire a mutex.
+Attemps to acquire a mutex guard.
 
-Returns the mutex guard if the mutex can be immediately acquired,otherwise returns RNone.
+Returns the mutex guard if the mutex can be immediately acquired,
+otherwise returns `RNone`.
 
 # Example
 
@@ -236,9 +236,9 @@ assert_eq!(*guard,0);
     }
     
 /**
-Attempts to acquire a mutex for the timeout duration.
+Attempts to acquire a mutex guard for the `timeout` duration.
 
-Once the timeout is reached,this will return None,
+Once the timeout is reached,this will return `RNone`,
 otherwise it will return the mutex guard.
 
 
@@ -333,9 +333,9 @@ impl<'a,T> Drop for RMutexGuard<'a, T> {
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="VTable")))]
+#[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
-struct VTableVal{
+struct VTable{
     lock:extern "C" fn(this:&OpaqueMutex),
     try_lock:extern "C" fn(this:&OpaqueMutex) -> bool,
     unlock:extern "C" fn(this:&OpaqueMutex),
@@ -344,17 +344,20 @@ struct VTableVal{
 }
 
 impl VTable{
-    // The VTABLE for this type in this executable/library
-    const VTABLE: StaticRef<WithMetadata<VTableVal>> = {
-        StaticRef::new(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            VTableVal{
+    const _TMP0: WithMetadata<VTable> = 
+        WithMetadata::new(
+            PrefixTypeTrait::METADATA, 
+            VTable{
                 lock,
                 try_lock,
                 unlock,
                 try_lock_for,
             }
-        ))
+        );
+
+    // The VTABLE for this type in this executable/library
+    const VTABLE: VTable_Ref = {
+        VTable_Ref(Self::_TMP0.static_as_prefix())
     };
 }
 
@@ -371,7 +374,9 @@ extern "C" fn try_lock(this:&OpaqueMutex) -> bool{
 }
 extern "C" fn unlock(this:&OpaqueMutex){
     extern_fn_panic_handling!{
-        this.value.unlock();
+        unsafe{
+            this.value.unlock();
+        }
     }
 }
 extern "C" fn try_lock_for(this:&OpaqueMutex, timeout: RDuration) -> bool{
@@ -425,31 +430,39 @@ mod tests{
         check_formatting_equivalence(&guard,str_);
     }
 
+    #[cfg(miri)]
+    const ITERS: usize = 10;
+    
+    #[cfg(not(miri))]
+    const ITERS: usize = 0x1000;
+
     #[test]
+    #[cfg(not(all(miri, target_os = "windows")))]
     fn lock(){
         static MUTEX:RMutex<usize>=RMutex::new(0);
 
         scoped_thread(|scope|{
             for _ in 0..8 {
                 scope.spawn(move|_|{
-                    for _ in 0..0x1000 {
+                    for _ in 0..ITERS {
                         *MUTEX.lock()+=1;
                     }
                 });
             }
         }).unwrap();
 
-        assert_eq!(*MUTEX.lock(),0x8000);
+        assert_eq!(*MUTEX.lock(),8 * ITERS);
     }
 
     #[test]
+    #[cfg(not(all(miri, target_os = "windows")))]
     fn try_lock(){
         static MUTEX:RMutex<usize>=RMutex::new(0);
 
         scoped_thread(|scope|{
             for _ in 0..8 {
                 scope.spawn(move|_|{
-                    for _ in 0..0x1000 {
+                    for _ in 0..ITERS {
                         loop {
                             if let RSome(mut guard)=MUTEX.try_lock() {
                                 *guard+=1;
@@ -469,18 +482,19 @@ mod tests{
             thread::sleep(Duration::from_millis(100));
         }).unwrap();
 
-        assert_eq!(*MUTEX.lock(),0x8000);
+        assert_eq!(*MUTEX.lock(),8 * ITERS);
     }
 
     #[test]
+    #[cfg(not(all(miri, target_os = "windows")))]
     fn try_lock_for(){
         static MUTEX:RMutex<usize>=RMutex::new(0);
 
         scoped_thread(|scope|{
             for _ in 0..8 {
                 scope.spawn(move|_|{
-                    for i in 0..0x1000 {
-                        let wait_for=RDuration::new(0,(i+1)*500_000);
+                    for i in 0..ITERS {
+                        let wait_for=RDuration::new(0,(i as u32 + 1)*500_000);
                         loop {
                             if let RSome(mut guard)=MUTEX.try_lock_for(wait_for) {
                                 *guard+=1;
@@ -492,7 +506,7 @@ mod tests{
             }
         }).unwrap();
 
-
+        #[cfg(not(miri))]
         scoped_thread(|scope|{
             let _guard=MUTEX.lock();
             scope.spawn(move|_|{
@@ -502,7 +516,7 @@ mod tests{
         }).unwrap();
 
 
-        assert_eq!(*MUTEX.lock(),0x8000);
+        assert_eq!(*MUTEX.lock(),8 * ITERS);
     }
 
 }

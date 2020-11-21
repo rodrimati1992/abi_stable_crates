@@ -131,7 +131,7 @@ where
         })
     }
 
-    pub(super)extern "C" fn iter_val<'a>(this:RBox<ErasedMap<K,V,S>>)->IntoIter<K,V>{
+    pub(super)extern "C" fn iter_val(this:RBox<ErasedMap<K,V,S>>)->IntoIter<K,V>{
         Self::run_val(this,|this|{
             let iter=this.piped(RBox::into_inner).map.into_iter().map(map_iter_val);
             let iter=DynTrait::from_borrowing_value(iter,ValIterInterface::NEW);

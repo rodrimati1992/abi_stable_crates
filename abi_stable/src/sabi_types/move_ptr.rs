@@ -8,8 +8,7 @@ use std::{
     fmt::{self,Display},
     marker::PhantomData,
     mem::ManuallyDrop,
-    ptr,
-    
+    ptr::{self, NonNull},
 };
 
 use crate::{
@@ -21,8 +20,7 @@ use crate::{
 A move pointer,which allows moving the value from the reference,
 consuming it in the process.
 
-if MovePtr::into_inner isn't called,
-this drops the referenced value when its dropped
+If `MovePtr::into_inner` isn't called, this drops the referenced value when its dropped
 
 # Safety
 
@@ -104,13 +102,13 @@ assert_eq!( second_rbox, RBox::new(0x100) );
 #[derive(StableAbi)]
 #[sabi(bound="T:'a")]
 pub struct MovePtr<'a,T>{
-    ptr:*mut T,
-    _marker:PhantomData<&'a mut T>,
+    ptr: NonNull<T>,
+    _marker: PhantomData<&'a mut T>,
 }
 
 
 impl<'a,T> MovePtr<'a,T>{
-    /// Constructs this more pointer from a mutable reference,
+    /// Constructs this move pointer from a mutable reference,
     /// moving the value out of the reference.
     ///
     /// # Safety 
@@ -131,9 +129,9 @@ impl<'a,T> MovePtr<'a,T>{
     /// drop(moveptr); // moveptr drops the String here.
     /// ```
     #[inline]
-    pub unsafe fn new(ptr:&'a mut T)->Self{
+    pub unsafe fn new(ptr: &'a mut T)->Self{
         Self{
-            ptr,
+            ptr: NonNull::new_unchecked(ptr),
             _marker:PhantomData,
         }
     }
@@ -157,9 +155,9 @@ impl<'a,T> MovePtr<'a,T>{
     /// });
     /// 
     /// ```
-    #[inline]
+    #[inline(always)]
     pub const fn as_ptr(this:&Self)->*const T{
-        this.ptr
+        this.ptr.as_ptr()
     }
 
     /// Gets a raw pointer to the value being moved.
@@ -183,13 +181,14 @@ impl<'a,T> MovePtr<'a,T>{
     /// });
     /// 
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn as_mut_ptr(this:&mut Self)->*mut T{
-        this.ptr
+        this.ptr.as_ptr()
     }
 
     /// Converts this MovePtr into a raw pointer,
-    /// which must be moved from before the pointed to value is deallocated.
+    /// which must be moved from before the pointed to value is deallocated,
+    /// otherwise the value will be leaked.
     ///
     /// # Example
     ///
@@ -209,9 +208,10 @@ impl<'a,T> MovePtr<'a,T>{
     /// assert_eq!(string,String::from("NOPE"));
     /// 
     /// ```
+    #[inline]
     pub const fn into_raw(this:Self)->*mut T{
-        let ptr=this.ptr;
-        ManuallyDrop::new(this);
+        let ptr=this.ptr.as_ptr();
+        let _ = ManuallyDrop::new(this);
         ptr
     }
 
@@ -235,6 +235,7 @@ impl<'a,T> MovePtr<'a,T>{
     /// assert_eq!(boxed,Box::new(String::from("WHAT!!!")));
     /// 
     /// ```
+    #[inline]
     pub fn into_box(this:Self)->Box<T>{
         unsafe{
             let allocated=alloc::alloc(Layout::new::<T>()) as *mut T;
@@ -265,6 +266,7 @@ impl<'a,T> MovePtr<'a,T>{
     /// assert_eq!( boxed, RBox::new(String::from("WHAT!!!")) );
     /// 
     /// ```
+    #[inline]
     pub fn into_rbox(this:Self)->RBox<T>{
         Self::into_box(this).into()
     }
@@ -291,7 +293,7 @@ impl<'a,T> MovePtr<'a,T>{
     pub fn into_inner(this:Self)->T{
         let this=ManuallyDrop::new(this);
         unsafe{ 
-            this.ptr.read()
+            this.ptr.as_ptr().read()
         }
     }
 }
@@ -317,13 +319,13 @@ impl<'a,T> Deref for MovePtr<'a,T>{
     type Target=T;
 
     fn deref(&self)->&T{
-        unsafe{ &*self.ptr }
+        unsafe{ &*(self.ptr.as_ptr() as *const _) }
     }
 }
 
 impl<'a,T> DerefMut for MovePtr<'a,T>{
     fn deref_mut(&mut self)->&mut T{
-        unsafe{ &mut *self.ptr }
+        unsafe{ &mut *self.ptr.as_ptr() }
     }
 }
 
@@ -338,12 +340,14 @@ impl<'a,T> IntoInner for MovePtr<'a,T>{
 impl<'a,T> Drop for MovePtr<'a,T>{
     fn drop(&mut self){
         unsafe{
-            ptr::drop_in_place(self.ptr);
+            ptr::drop_in_place(self.ptr.as_ptr());
         }
     }
 }
 
+unsafe impl<'a, T: Send> Send for MovePtr<'a,T> {}
 
+unsafe impl<'a, T: Sync> Sync for MovePtr<'a,T> {}
 
 //#[cfg(test)]
 #[cfg(all(test,not(feature="only_new_tests")))]
