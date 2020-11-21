@@ -1,18 +1,26 @@
 pub use crate::{
     abi_stability::{
-        const_generics::{ConstGeneric,GetConstGenericVTable},
+        const_generics::{ConstGeneric,ConstGenericVTableFor},
         extra_checks::{ExtraChecks_MV,StoredExtraChecks},
         get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
         stable_abi_trait::{
-            GetTypeLayoutCtor,  StableAbi,  SharedStableAbi,
-            ValueKind,
-            PrefixKind,
+            GetTypeLayoutCtor,
+            StableAbi,
+            PrefixStableAbi,
             UNSAFE_EXTERN_FN_LAYOUT,
             EXTERN_FN_LAYOUT,
         },
     },
     inline_storage::InlineStorage,
-    marker_type::NonOwningPhantom,
+    marker_type::{
+        NonOwningPhantom,
+        NotCopyNotClone,
+        UnsafeIgnoredType,
+        UnsyncUnsend,
+        UnsyncSend,
+        SyncSend,
+        SyncUnsend,
+    },
     nonexhaustive_enum::{
         assert_nonexhaustive,
         GetVTable as GetNonExhaustiveVTable,
@@ -20,6 +28,7 @@ pub use crate::{
         NonExhaustive,
     },
     reflection::ModReflMode,
+    pointer_trait::{ImmutableRef, ImmutableRefTarget},
     prefix_type::{
         panic_on_missing_field_ty,
         FieldAccessibility,
@@ -27,13 +36,18 @@ pub use crate::{
         IsAccessible,
         IsConditional,
         PrefixTypeTrait,
+        PrefixRefTrait,
         WithMetadata_,
+        PrefixRef,
+        PrefixMetadata,
         PTStructLayout,
     },
     sabi_types::{
         Constructor,
         VersionStrings,
         MovePtr,
+        RRef,
+        RMut,
     },
     std_types::{
         utypeid::new_utypeid,
@@ -71,30 +85,38 @@ pub use crate::{
         trait_marker,
         unerasability::TU_Opaque,
     },
+    sabi_trait::vtable::{RObjectVtable_Ref, RObjectVtable},
+    extern_fn_panic_handling,
 };
 
+pub use std::{
+    convert::identity,
+    fmt::{Formatter, Debug, Result as FmtResult},
+    ptr::NonNull,
+};
 
+pub use repr_offset::offset_calc::next_field_offset;
 
-pub use core_extensions::type_level_bool::{False, True};
+pub use core_extensions::{
+    type_level_bool::{False, True},
+    type_asserts::AssertEq,
+};
 
 pub mod renamed {
     pub use super::{
         ConstGeneric as __ConstGeneric,
-        GetConstGenericVTable as __GetConstGenericVTable,
+        ConstGenericVTableFor as __ConstGenericVTableFor,
         GetStaticEquivalent_ as __GetStaticEquivalent_,
         GetStaticEquivalent as __GetStaticEquivalent,
         LifetimeIndex as __LifetimeIndex,
         GetTypeLayoutCtor as __GetTypeLayoutCtor, 
         StableAbi as __StableAbi,
-        SharedStableAbi as __SharedStableAbi,
         _private_TypeLayoutDerive as __private_TypeLayoutDerive,
         TLFunction as __TLFunction,
         TLFunctions as __TLFunctions,
         CompTLFields as __CompTLFields,
         CompTLFunction as __CompTLFunction,
         StartLen as __StartLen,
-        ValueKind  as __ValueKind,
-        PrefixKind as __PrefixKind,
         WithMetadata_ as __WithMetadata_,
         PTStructLayout as __PTStructLayout,
         FieldAccessor as __FieldAccessor,
@@ -105,6 +127,8 @@ pub mod renamed {
         DiscriminantRepr as __DiscriminantRepr,
         RSome as __RSome,
         RNone as __RNone,
+        RRef as __RRef,
+        RMut as __RMut,
         UNSAFE_EXTERN_FN_LAYOUT as __UNSAFE_EXTERN_FN_LAYOUT,
         EXTERN_FN_LAYOUT as __EXTERN_FN_LAYOUT,
     };

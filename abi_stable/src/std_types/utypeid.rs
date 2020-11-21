@@ -1,5 +1,5 @@
 /*!
-An ffi-safe equivalent of ::std::any::TypeId.
+An ffi-safe equivalent of `std::any::TypeId`.
 
 No types coming from different dynamic libraries compare equal.
 */
@@ -18,7 +18,7 @@ use crate::{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// `extern "C" fn` version of UTypeId::new.
+/// `extern "C" fn` version of `UTypeId::new`.
 ///
 /// # Example
 ///
@@ -62,9 +62,10 @@ pub extern "C" fn no_utypeid() -> MaybeCmp<UTypeId>{
 }
 
 
-/// A TypeId that can compare types across dynamic libraries.
+/// An ffi-safe equivalent of `std::any::TypeId` that
+/// can compare types across dynamic libraries.
 ///
-/// No UTypeId constructed in different dynamic libraries compare equal.
+/// No `UTypeId` constructed in different dynamic libraries compare equal.
 ///
 /// # Example
 ///
@@ -93,7 +94,7 @@ unsafe impl Sync for UTypeId{}
 
 
 impl UTypeId {
-    /// Constructs UTypeId from a type that satisfies the `'static` bound.
+    /// Constructs `UTypeId` from a type that satisfies the `'static` bound.
     ///
     /// # Example
     ///

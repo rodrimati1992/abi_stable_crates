@@ -1,0 +1,11 @@
+[package]
+name = "non_abi_stable_lib"
+version = "0.1.0"
+authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+
+[lib]
+name = "non_abi_stable_lib"
+crate-type = ["cdylib",'rlib']

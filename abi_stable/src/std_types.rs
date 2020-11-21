@@ -7,25 +7,22 @@ the [external_types module](../external_types/index.html)
 
 */
 
-pub mod arc;
-pub mod boxed;
-pub mod cmp_ordering;
+pub(crate) mod arc;
+pub(crate) mod boxed;
+pub(crate) mod cmp_ordering;
 pub mod cow;
-//pub mod old_cow;
-pub mod option;
+pub(crate) mod option;
 pub mod map;
-pub mod range;
-pub mod result;
-pub mod slice_mut;
-pub mod slices;
-pub mod static_slice;
-pub mod static_str;
-pub mod std_error;
-pub mod std_io;
-pub mod str;
+pub(crate) mod range;
+pub(crate) mod result;
+pub(crate) mod slice_mut;
+pub(crate) mod slices;
+pub(crate) mod std_error;
+pub(crate) mod std_io;
+pub(crate) mod str;
 pub mod string;
-pub mod time;
-pub mod tuple;
+pub(crate) mod time;
+pub(crate) mod tuple;
 pub mod utypeid;
 pub mod vec;
 
@@ -55,7 +52,7 @@ pub use self::{
     result::{RErr, ROk, RResult},
     slice_mut::RSliceMut,
     slices::RSlice,
-    std_error::{RBoxError,SendRBoxError, UnsyncRBoxError},
+    std_error::{RBoxError, RBoxError_,SendRBoxError, UnsyncRBoxError},
     std_io::{RIoError,RSeekFrom, RIoErrorKind},
     str::RStr,
     string::RString,
@@ -63,6 +60,4 @@ pub use self::{
     tuple::{Tuple1,Tuple2, Tuple3, Tuple4},
     vec::RVec,
     utypeid::UTypeId,
-    static_str::StaticStr,
-    static_slice::StaticSlice,
 };

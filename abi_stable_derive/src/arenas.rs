@@ -1,3 +1,5 @@
+#![allow(clippy::mut_from_ref)]
+
 use std::fmt;
 
 use typed_arena::Arena;
@@ -72,7 +74,7 @@ declare_arenas! {
     fields_named: syn::FieldsNamed,
     types: syn::Type,
     // metalists: syn::MetaList,
-    // visibilities: syn::Visibility,
+    lifetime_defs: syn::LifetimeDef,
     tokenstream: proc_macro2::TokenStream,
     meta_attr: syn::Meta,
     expr: syn::Expr,

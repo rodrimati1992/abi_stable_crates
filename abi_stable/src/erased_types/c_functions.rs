@@ -32,7 +32,7 @@ pub(crate) unsafe fn adapt_std_fmt<T>(
         FormattingMode::Default_
     };
 
-    function(value.into(), mode, &mut buf)
+    function(value, mode, &mut buf)
         .into_rust()
         .map_err(|_| fmt::Error)?;
 
@@ -158,16 +158,19 @@ where
 }
 
 pub(crate) unsafe extern "C" fn serialize_impl<'s,T,I>(
-    this: &'s ErasedObject<T>
+    this: &'s ErasedObject
 ) -> RResult<<I as SerializeProxyType<'s>>::Proxy, RBoxError>
 where
     T: for<'borr> SerializeImplType<'borr,Interface=I>,
     I: for<'borr> SerializeProxyType<'borr>,
 {
     extern_fn_panic_handling! {
-        transmute_reference::<ErasedObject<T>,T>(this)
+        let ret: RResult<<I as SerializeProxyType<'_>>::Proxy, RBoxError> = 
+            transmute_reference::<ErasedObject,T>(this)
             .serialize_impl()
-            .into_c()
+            .into_c();
+
+        core_extensions::utils::transmute_ignore_size(ret)
     }
 }
 
@@ -450,7 +453,7 @@ where
     };
 }
 
-pub(super) unsafe extern "C" fn io_BufRead_fill_buf<'a,R>(
+pub(super) unsafe extern "C" fn io_BufRead_fill_buf<R>(
     this:&mut ErasedObject,
 ) -> RResult<RSlice<'_,u8>,RIoError>
 where R:BufRead
@@ -468,14 +471,14 @@ where R:BufRead
 
 pub(super) unsafe extern "C" fn io_BufRead_consume<R>(
     this:&mut ErasedObject, 
-    ammount: usize
+    amount: usize
 )where 
     R:BufRead
 {
     extern_fn_panic_handling! {
         let this=transmute_mut_reference::<ErasedObject,R>(this);
 
-        this.consume(ammount)
+        this.consume(amount)
     }
 }
 

@@ -37,6 +37,7 @@ The parameters of `Shop::run_command`.
 
 Every variant of this enum corresponds to a variant of `ReturnVal`.
 */
+#[non_exhaustive]
 #[repr(u8)]
 #[derive(StableAbi,Debug,Clone,PartialEq,Deserialize,Serialize)]
 #[sabi(kind(WithNonExhaustive(
@@ -45,10 +46,6 @@ Every variant of this enum corresponds to a variant of `ReturnVal`.
     assert_nonexhaustive="Command",
 )))]
 pub enum Command{
-    #[doc(hidden)]
-    #[sabi(with_constructor)]
-    __NonExhaustive,
-
     /**
 `#[sabi(with_boxed_constructor)]` tells the `StableAbi` derive macro to 
 generate the `fn CreateItem_NE(ParamCreateItem)->ReturnVal_NE` associated function.
@@ -119,7 +116,7 @@ impl SerializeEnum<Command_NE> for Command_Interface {
     type Proxy=RawValueBox;
 
     fn serialize_enum(this:&Command_NE) -> Result<RawValueBox, RBoxError>{
-        ShopMod::get_module().unwrap().serialize_command()(this).into_result()
+        ShopMod_Ref::get_module().unwrap().serialize_command()(this).into_result()
     }
 }
 
@@ -132,7 +129,7 @@ impl<'a> DeserializeEnum<'a,Command_NE> for Command_Interface{
     type Proxy=RawValueRef<'a>;
 
     fn deserialize_enum(s: RawValueRef<'a>) -> Result<Command_NE, RBoxError>{
-        ShopMod::get_module().unwrap().deserialize_command()(s.get_rstr()).into_result()
+        ShopMod_Ref::get_module().unwrap().deserialize_command()(s.get_rstr()).into_result()
     }
 }
 
@@ -193,6 +190,7 @@ The return value of `Shop::run_command`.
 
 Every variant of this enum corresponds to a variant of `Command`.
 */
+#[non_exhaustive]
 #[repr(u8)]
 #[derive(StableAbi,Debug,Clone,PartialEq,Deserialize,Serialize)]
 #[sabi(kind(WithNonExhaustive(
@@ -201,8 +199,6 @@ Every variant of this enum corresponds to a variant of `Command`.
     assert_nonexhaustive="ReturnVal",
 )))]
 pub enum ReturnVal{
-    #[doc(hidden)]
-    __NonExhaustive,
     CreateItem{
         count:u32,
         id:ItemId,
@@ -278,7 +274,7 @@ impl SerializeEnum<ReturnVal_NE> for Command_Interface {
     type Proxy=RawValueBox;
 
     fn serialize_enum(this:&ReturnVal_NE) -> Result<RawValueBox, RBoxError>{
-        ShopMod::get_module().unwrap().serialize_ret_val()(this).into_result()
+        ShopMod_Ref::get_module().unwrap().serialize_ret_val()(this).into_result()
     }
 }
 
@@ -291,7 +287,7 @@ impl<'a> DeserializeEnum<'a,ReturnVal_NE> for Command_Interface{
     type Proxy=RawValueRef<'a>;
 
     fn deserialize_enum(s: RawValueRef<'a>) -> Result<ReturnVal_NE, RBoxError>{
-        ShopMod::get_module().unwrap().deserialize_ret_val()(s.get_rstr()).into_result()
+        ShopMod_Ref::get_module().unwrap().deserialize_ret_val()(s.get_rstr()).into_result()
     }
 }
 
@@ -349,6 +345,7 @@ fn examples_of_constructing_a_returnval(){
 ///////////////////////////////////////////////////////////////////////////////
 
 
+#[non_exhaustive]
 #[repr(u8)]
 #[derive(StableAbi,Debug,Clone,PartialEq)]
 #[sabi(kind(WithNonExhaustive(
@@ -357,8 +354,6 @@ fn examples_of_constructing_a_returnval(){
 )))]
 #[sabi(with_constructor)]
 pub enum Error{
-    #[doc(hidden)]
-    __NonExhaustive,
     ItemAlreadyExists{
         id:ItemId,
         name:RString,
@@ -417,13 +412,13 @@ fn examples_of_constructing_an_error(){
 The root module of the `shop` dynamic library.
 
 To load this module,
-call <ShopMod as RootModule>::load_from_directory(some_directory_path)
+call <ShopMod_Ref as RootModule>::load_from_directory(some_directory_path)
 */
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="ShopMod")))]
+#[sabi(kind(Prefix(prefix_ref="ShopMod_Ref")))]
 #[sabi(missing_field(panic))]
-pub struct ShopModVal {
+pub struct ShopMod {
     /// Constructs the `Shop_TO` trait object.
     pub new:extern "C" fn()->Shop_TO<'static,RBox<()>>,
 
@@ -443,7 +438,7 @@ Serializes a `ReturnVal_NE`.
 The `#[sabi(last_prefix_field)]` attribute here means that this is the last field in this struct
 that was defined in the first compatible version of the library
 (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-requiring new fields to always be added bellow preexisting ones.
+requiring new fields to always be added below preexisting ones.
 
 The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
 bumps its "major" version,
@@ -455,8 +450,8 @@ at which point it would be moved to the last field at the time.
 }
 
 
-impl RootModule for ShopMod {
-    declare_root_module_statics!{ShopMod}
+impl RootModule for ShopMod_Ref {
+    declare_root_module_statics!{ShopMod_Ref}
 
     const BASE_NAME: &'static str = "shop";
     const NAME: &'static str = "shop";
@@ -477,7 +472,7 @@ Runs the `cmd` command.
 The `#[sabi(last_prefix_field)]` attribute here means that this is the last method 
 that was defined in the first compatible version of the library
 (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-requiring new methods to always be added bellow preexisting ones.
+requiring new methods to always be added below preexisting ones.
 
 The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library 
 bumps its "major" version,

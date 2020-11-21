@@ -21,10 +21,9 @@ use core_extensions::prelude::*;
 use crate::{
     DynTrait,
     StableAbi,
-    marker_type::{ErasedObject,NotCopyNotClone,UnsafeIgnoredType},
+    marker_type::{ErasedObject,NonOwningPhantom,NotCopyNotClone,UnsafeIgnoredType},
     erased_types::trait_objects::HasherObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
-    sabi_types::StaticRef,
     std_types::*,
     traits::{IntoReprRust,ErasedType},
     utils::{transmute_reference,transmute_mut_reference},
@@ -58,7 +57,7 @@ pub use self::{
 /**
 
 An ffi-safe hashmap,which wraps `std::collections::HashMap<K,V,S>`,
-only requiring the `K:Eq+Hash` bounds when constructing it.
+only requiring the `K: Eq + Hash` bounds when constructing it.
 
 Most of the API in `HashMap` is implemented here,including the Entry API.
 
@@ -115,7 +114,7 @@ for Tuple2(k,v) in map {
 )]
 pub struct RHashMap<K,V,S=RandomState>{
     map:RBox<ErasedMap<K,V,S>>,
-    vtable:StaticRef<VTable<K,V,S>>,
+    vtable:VTable_Ref<K,V,S>,
 }
 
 
@@ -128,17 +127,17 @@ struct BoxedHashMap<'a,K,V,S>{
 }
 
 /// An RHashMap iterator,
-/// implementing `Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
+/// implementing `Iterator<Item= Tuple2< &K, &V > > + !Send + !Sync + Clone`
 pub type Iter<'a,K,V>=
     DynTrait<'a,RBox<()>,RefIterInterface<K,V>>;
 
 /// An RHashMap iterator,
-/// implementing `Iterator<Item= Tuple2< &K, &mut V > >+!Send+!Sync`
+/// implementing `Iterator<Item= Tuple2< &K, &mut V > > + !Send + !Sync`
 pub type IterMut<'a,K,V>=
     DynTrait<'a,RBox<()>,MutIterInterface<K,V>>;
 
 /// An RHashMap iterator,
-/// implementing `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
+/// implementing `Iterator<Item= Tuple2< K, V > > + !Send + !Sync`
 pub type Drain<'a,K,V>=
     DynTrait<'a,RBox<()>,ValIterInterface<K,V>>;
 
@@ -151,7 +150,7 @@ pub type Drain<'a,K,V>=
     unsafe_unconstrained(S),
 )]
 struct ErasedMap<K,V,S>(
-    PhantomData<Tuple2<K,V>>,
+    PhantomData<(K,V)>,
     UnsafeIgnoredType<S>
 );
 
@@ -258,7 +257,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         map.reserve(capacity);
         RHashMap{
             map,
-            vtable:WithMetadata::as_prefix(VTable::VTABLE_REF),
+            vtable:VTable::VTABLE_REF,
         }
     }
 }
@@ -266,8 +265,8 @@ impl<K,V,S> RHashMap<K,V,S>{
 
 impl<K,V,S> RHashMap<K,V,S>{
 
-    fn vtable<'a>(&self)->&'a VTable<K,V,S>{
-        self.vtable.get()
+    fn vtable(&self)->VTable_Ref<K,V,S>{
+        self.vtable
     }
 
 }
@@ -297,6 +296,8 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Returns a reference to the value associated with the key.
     ///
+    /// Returns a `None` if there is no entry for the key.
+    ///
     /// # Example
     ///
     /// ```
@@ -321,6 +322,8 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Returns a mutable reference to the value associated with the key.
     ///
+    /// Returns a `None` if there is no entry for the key.
+    ///
     /// # Example
     ///
     /// ```
@@ -344,7 +347,6 @@ impl<K,V,S> RHashMap<K,V,S>{
     }
 
     /// Removes the value associated with the key.
-    /// Returns a mutable reference to the value associated with the key.
     ///
     /// # Example
     ///
@@ -415,6 +417,8 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Returns a reference to the value associated with the key.
     ///
+    /// Returns a `None` if there is no entry for the key.
+    ///
     /// # Example
     ///
     /// ```
@@ -434,6 +438,8 @@ impl<K,V,S> RHashMap<K,V,S>{
     }
 
     /// Returns a mutable reference to the value associated with the key.
+    ///
+    /// Returns a `None` if there is no entry for the key.
     ///
     /// # Example
     ///
@@ -619,7 +625,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         vtable.clear_map()(&mut *self.map);
     }
 
-    /// Returns the ammount of entries in the map.
+    /// Returns the amount of entries in the map.
     ///
     /// # Example
     ///
@@ -640,7 +646,7 @@ impl<K,V,S> RHashMap<K,V,S>{
         vtable.len()(&*self.map)
     }
 
-    /// Returns the capacity of the map,the ammount of elements it can store without reallocating.
+    /// Returns the capacity of the map,the amount of elements it can store without reallocating.
     ///
     /// Note that this is a lower bound,since hash maps don't necessarily have an exact capacity.
     ///
@@ -679,7 +685,8 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Iterates over the entries in the map,with references to the values in the map.
     ///
-    /// This returns an `Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
+    /// This returns a type that implements
+    /// `Iterator<Item= Tuple2< &K, &V > > + !Send + !Sync + Clone`
     ///
     /// # Example
     ///
@@ -704,7 +711,8 @@ impl<K,V,S> RHashMap<K,V,S>{
     
     /// Iterates over the entries in the map,with mutable references to the values in the map.
     ///
-    /// This returns an `Iterator<Item= Tuple2< &K, &mut V > >+!Send+!Sync`
+    /// This returns a type that implements
+    /// `Iterator<Item= Tuple2< &K, &mut V > > + !Send + !Sync`
     ///
     /// # Example
     ///
@@ -729,7 +737,7 @@ impl<K,V,S> RHashMap<K,V,S>{
 
     /// Clears the map,returning an iterator over all the entries that were removed.
     /// 
-    /// This returns an `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
+    /// This returns a type that implements `Iterator<Item= Tuple2< K, V > > + !Send + !Sync`
     ///
     /// # Example
     ///
@@ -797,7 +805,7 @@ impl<K,V,S> IntoIterator for RHashMap<K,V,S>{
 }
 
 
-/// This returns an `Iterator<Item= Tuple2< &K, &V > >+!Send+!Sync+Clone`
+/// This returns an `Iterator<Item= Tuple2< &K, &V > > + !Send + !Sync + Clone`
 impl<'a,K,V,S> IntoIterator for &'a RHashMap<K,V,S>{
     type Item=Tuple2<&'a K,&'a V>;
     type IntoIter=Iter<'a,K,V>;
@@ -808,7 +816,8 @@ impl<'a,K,V,S> IntoIterator for &'a RHashMap<K,V,S>{
 }
 
 
-/// This returns an `Iterator<Item= Tuple2< &K, &mut V > >+!Send+!Sync`
+/// This returns a type that implements
+/// `Iterator<Item= Tuple2< &K, &mut V > > + !Send + !Sync`
 impl<'a,K,V,S> IntoIterator for &'a mut RHashMap<K,V,S>{
     type Item=Tuple2<&'a K,&'a mut V>;
     type IntoIter=IterMut<'a,K,V>;
@@ -1000,13 +1009,13 @@ mod serde{
 
 
     struct RHashMapVisitor<K,V,S> {
-        marker: PhantomData<fn() -> RHashMap<K,V,S>>
+        _marker: NonOwningPhantom<RHashMap<K,V,S>>
     }
 
     impl<K,V,S> RHashMapVisitor<K,V,S> {
         fn new() -> Self {
             RHashMapVisitor {
-                marker: PhantomData
+                _marker: NonOwningPhantom::NEW
             }
         }
     }
@@ -1082,13 +1091,13 @@ mod serde{
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    kind(Prefix(prefix_struct="VTable")),
+    kind(Prefix),
     missing_field(panic),
     // The hasher doesn't matter
     unsafe_unconstrained(S),
     //debug_print,
 )]
-struct VTableVal<K,V,S>{
+struct VTable<K,V,S>{
     ///
     insert_elem:extern "C" fn(&mut ErasedMap<K,V,S>,K,V)->ROption<V>,
     
@@ -1119,11 +1128,12 @@ where
     K:Eq+Hash,
     S:BuildHasher,
 {
-    const VTABLE_REF: StaticRef<WithMetadata<VTableVal<K,V,S>>> = unsafe{
-        StaticRef::from_raw(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VTABLE,
-        ))
+    const VTABLE_VAL: WithMetadata<VTable<K,V,S>> = {
+        WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
+    };
+
+    const VTABLE_REF: VTable_Ref<K,V,S> = unsafe{
+        VTable_Ref(Self::VTABLE_VAL.as_prefix())
     };
 
     fn erased_map(hash_builder:S)->RBox<ErasedMap<K,V,S>>{
@@ -1134,13 +1144,12 @@ where
                 entry:None,
             };
             let boxed=RBox::new(boxed);
-            let boxed=mem::transmute::<RBox<_>,RBox<ErasedMap<K,V,S>>>(boxed);
-            boxed
+            mem::transmute::<RBox<_>,RBox<ErasedMap<K,V,S>>>(boxed)
         }
     }
 
 
-    const VTABLE:VTableVal<K,V,S>=VTableVal{
+    const VTABLE:VTable<K,V,S>=VTable{
         insert_elem :ErasedMap::insert_elem,
 
         get_elem    :ErasedMap::get_elem,

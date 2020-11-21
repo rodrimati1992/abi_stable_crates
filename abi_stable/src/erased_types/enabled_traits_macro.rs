@@ -99,7 +99,7 @@ macro_rules! declare_enabled_traits {
         }
 
 
-        impl ExtraChecks for EnabledTraits {
+        unsafe impl ExtraChecks for EnabledTraits {
             fn type_layout(&self)->&'static TypeLayout{
                 <Self as StableAbi>::LAYOUT
             }

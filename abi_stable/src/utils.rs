@@ -6,7 +6,7 @@ use std::{
     cmp::Ord,
     fmt::{self,Debug,Display},
     mem::{self,ManuallyDrop},
-    ptr,
+    ptr::NonNull,
 };
 
 
@@ -40,6 +40,27 @@ pub fn ffi_panic_message(info:&'static PanicInfo) -> ! {
     std::process::exit(1);
 }
 
+//////////////////////////////////
+
+
+/// Coverts a `&T` to a `NonNull<T>`. 
+/// 
+/// # Eaxmple
+/// 
+/// ```rust
+/// use abi_stable::utils::ref_as_nonnull;
+///
+/// use std::ptr::NonNull;
+/// 
+/// const NUMBER: NonNull<u64> = ref_as_nonnull(&100);
+/// 
+/// ```
+pub const fn ref_as_nonnull<T>(reference: &T) -> NonNull<T> {
+    unsafe{
+        NonNull::new_unchecked(reference as *const T as *mut T)
+    }
+}
+
 
 //////////////////////////////////
 
@@ -58,13 +79,41 @@ impl Drop for AbortBomb{
 
 //////////////////////////////////
 
+/// Helper type for transmuting between `Copy` types
+/// without adding any overhead in debug builds.
+/// 
+/// # Safety
+/// 
+/// Be aware that using this type is equivalent to using [`std::mem::transmute_copy`],
+/// which doesn't check that `T` and `U` have the same size.
+///
+/// [`std::mem::transmute_copy`]: https://doc.rust-lang.org/std/mem/fn.transmute_copy.html
+#[repr(C)]
+pub union Transmuter<T: Copy, U: Copy> {
+    pub from: T,
+    pub to: U,
+}
+
+//////////////////////////////////
+
 /// Leaks `value` into the heap,and returns a reference to it.
+/// 
+/// # Warning
+/// 
+/// You must be careful when calling this function,
+/// since this leak is ignored by [miri](https://github.com/rust-lang/miri).
+/// 
 #[inline]
 pub fn leak_value<'a,T>(value:T)->&'a T
 where T:'a // T:'a is for the docs
 {
-    let x=Box::new(value);
-    Box::leak(x)
+    let x = Box::new(value);
+    let leaked: &'a T = Box::leak(x);
+    #[cfg(miri)]
+    unsafe{
+        crate::miri_static_root(leaked as *const T as *const u8);
+    }
+    leaked
 }
 
 
@@ -76,6 +125,7 @@ where T:'a // T:'a is for the docs
 /// This has the same safety concerns that `std::mem::transmute` has,including that
 /// `T` has to have an alignment and be compatible with `U`.
 #[inline]
+#[allow(clippy::needless_lifetimes)]
 pub unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
     &*(ref_ as *const _ as *const U)
 }
@@ -89,6 +139,7 @@ pub unsafe fn transmute_reference<T,U>(ref_:&T)->&U{
 /// This has the same safety concerns that `std::mem::transmute` has,including that
 /// `T` has to have an alignment and be compatible with `U`.
 #[inline]
+#[allow(clippy::needless_lifetimes)]
 pub unsafe fn transmute_mut_reference<'a,T,U>(ref_:&'a mut T)->&'a mut U{
     &mut *(ref_ as *mut _ as *mut U)
 }
@@ -123,7 +174,8 @@ where
     }
 }
 
-pub(crate) fn min_max_by<T,F,K>(l:T,r:T,mut f:F)->(T,T)
+#[doc(hidden)]
+pub fn min_max_by<T,F,K>(l:T,r:T,mut f:F)->(T,T)
 where 
     F:FnMut(&T)->K,
     K:Ord,
@@ -211,9 +263,15 @@ impl_fmt_padding!{ RString }
 /// After this function is called `slot` will become uninitialized and 
 /// must not be read again.
 pub unsafe fn take_manuallydrop<T>(slot: &mut ManuallyDrop<T>) -> T {
-    ManuallyDrop::into_inner(ptr::read(slot))
+    #[cfg(feature = "rust_1_42")]
+    {
+        ManuallyDrop::take(slot)
+    }
+    #[cfg(not(feature = "rust_1_42"))]
+    {
+        ManuallyDrop::into_inner(std::ptr::read(slot))
+    }
 }
-
 
 
 #[doc(hidden)]
@@ -251,13 +309,6 @@ pub fn distance_from<T>(from:*const T,to:*const T)->Option<usize>{
 
 //////////////////////////////////////////////////////////////////////
 
-#[cfg(not(feature="rust_1_38"))]
-#[doc(hidden)]
-pub extern "C" fn get_type_name<T>()->RStr<'static>{
-    RStr::from("<unavailable>")
-}
-
-#[cfg(feature="rust_1_38")]
 #[doc(hidden)]
 pub extern "C" fn get_type_name<T>()->RStr<'static>{
     RStr::from(std::any::type_name::<T>())

@@ -17,7 +17,7 @@ use crate::{
 #[derive(Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct MonoTLEnum{
-    /// The ammount of fields of each variant.
+    /// The amount of fields of each variant.
     field_count:*const u8,
     field_count_len:u16,
 
@@ -47,12 +47,12 @@ impl MonoTLEnum{
         }
     }
 
-    /// Gets the ammount of variants in the enum.
+    /// Gets the amount of variants in the enum.
     pub fn variant_count(&self)->usize{
         self.field_count_len as usize
     }
 
-    /// Gets a slice with the ammount of fields for each variant in the enum.
+    /// Gets a slice with the amount of fields for each variant in the enum.
     pub fn field_count(&self)->RSlice<'static,u8>{
         unsafe{
             RSlice::from_raw_parts( self.field_count, self.field_count_len as usize )
@@ -97,6 +97,7 @@ impl GenericTLEnum{
         }
     }
 
+    /// Constructs a `GenericTLEnum` for an exhaustive enum.
     pub const fn exhaustive(discriminants:TLDiscriminants)->Self{
         Self::new(IsExhaustive::exhaustive(),discriminants)
     }
@@ -108,7 +109,7 @@ impl GenericTLEnum{
 /// Every property about an enum specifically.
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
 pub struct TLEnum{
-    /// The ammount of fields of each variant.
+    /// The amount of fields of each variant.
     pub field_count:RSlice<'static,u8>,
 
     /// A ';' separated list of all variant names
@@ -125,7 +126,7 @@ pub struct TLEnum{
 }
 
 impl TLEnum{
-    /// Returns the ammount of variants in the enum.
+    /// Returns the amount of variants in the enum.
     pub fn variant_count(&self)->usize{
         self.field_count.len()
     }
@@ -140,7 +141,8 @@ impl TLEnum{
         }
     }
 
-    /// Returns the enum with the (maximum,minimum) ammount of variants.
+    /// Returns `self` and `other` sorted in a `(maximum,minimum)` pair,
+    /// based on the amount of variants.
     pub fn max_min<'a>(&'a self,other:&'a TLEnum)->(&'a TLEnum,&'a TLEnum){
         if self.variant_count() < other.variant_count() {
             (self,other)
@@ -190,6 +192,9 @@ macro_rules! declare_tl_discriminants {
         pub struct TLDiscriminants{
             inner:TLDiscrsInner,
         }
+
+        unsafe impl Sync for TLDiscriminants {}
+        unsafe impl Send for TLDiscriminants {}
 
         #[repr(u8)]
         #[derive(Copy, Clone, StableAbi)]
@@ -255,7 +260,7 @@ macro_rules! declare_tl_discriminants {
                 }
             )*
 
-            /// Gets the type of a discriminant in this TLDiscriminants.
+            /// Gets the type of the discriminant in this `TLDiscriminants`.
             pub fn discriminant_repr(&self)->DiscriminantRepr{
                 match self.inner {
                     $(
@@ -264,7 +269,7 @@ macro_rules! declare_tl_discriminants {
                 }
             }
 
-            /// Compares this TLDiscriminants with another,
+            /// Compares this `TLDiscriminants` with another,
             ///
             /// # Errors
             /// 
@@ -272,7 +277,7 @@ macro_rules! declare_tl_discriminants {
             ///
             /// - The discriminant is of a different type
             ///
-            /// - The value of the discriminants is different.
+            /// - The value of the discriminants are different.
             ///
             pub fn compare(&self,other:&Self)->Result<(),RVec<AbiInstability>>{
                 let mut errs=RVec::new();
@@ -486,7 +491,7 @@ pub struct TLNonExhaustive{
 
 
 impl TLNonExhaustive{
-    /// Constructs the TLNonExhaustive from the size and alignment of `T`
+    /// Constructs a `TLNonExhaustive` from the size and alignment of `T`
     pub const fn new<T>()->Self{
         Self{
             original_size:std::mem::size_of::<T>(),
@@ -600,8 +605,7 @@ impl Iterator for GetVariantNames{
         (len,Some(len))
     }
     fn count(self) -> usize {
-        let len=self.length-self.current;
-        len
+        self.length-self.current
     }
 }
 
@@ -609,7 +613,7 @@ impl Iterator for GetVariantNames{
 impl std::iter::ExactSizeIterator for GetVariantNames{}
 
 
-static VARIANT_INDEX: [&'static str; 68] = [
+static VARIANT_INDEX: [&str; 68] = [
     "Variant0", "Variant1", "Variant2", "Variant3", 
     "Variant4", "Variant5", "Variant6", "Variant7", 
     "Variant8", "Variant9", "Variant10", "Variant11", 

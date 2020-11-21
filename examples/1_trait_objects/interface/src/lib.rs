@@ -3,7 +3,7 @@ This is an example `interface crate`,
 where all publically available modules(structs of function pointers) and types are declared,
 
 To load the library and the modules together,
-call `<PluginMod as RootModule>::load_from_directory`,
+call `<PluginMod_Ref as RootModule>::load_from_directory`,
 which will load the dynamic library from a directory(folder),
 and all the modules inside of the library.
 
@@ -131,14 +131,14 @@ Closes the plugin,
 
 This does not unload the dynamic library of this plugin,
 you can instantiate another instance of this plugin with 
-`PluginMod::get_module().new()(application_handle)`.
+`PluginMod_Ref::get_module().new()(application_handle)`.
 
 
 
 The `#[sabi(last_prefix_field)]` attribute here means that this is the last method 
 that was defined in the first compatible version of the library
 (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-requiring new methods to always be added bellow preexisting ones.
+requiring new methods to always be added below preexisting ones.
 
 The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library 
 bumps its "major" version,
@@ -157,9 +157,9 @@ at which point it would be moved to the last method at the time.
 /// call <PluginMod as RootModule>::load_from_directory(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_struct="PluginMod")))]
+#[sabi(kind(Prefix(prefix_ref="PluginMod_Ref")))]
 #[sabi(missing_field(panic))]
-pub struct PluginModVal {
+pub struct PluginMod {
 /**
 Constructs the plugin.
 
@@ -167,7 +167,7 @@ Constructs the plugin.
 The `#[sabi(last_prefix_field)]` attribute here means that this is the last field in this struct
 that was defined in the first compatible version of the library
 (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-requiring new fields to always be added bellow preexisting ones.
+requiring new fields to always be added below preexisting ones.
 
 The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
 bumps its "major" version,
@@ -179,8 +179,8 @@ at which point it would be moved to the last field at the time.
 }
 
 
-impl RootModule for PluginMod {
-    declare_root_module_statics!{PluginMod}
+impl RootModule for PluginMod_Ref {
+    declare_root_module_statics!{PluginMod_Ref}
     const BASE_NAME: &'static str = "plugin";
     const NAME: &'static str = "plugin";
     const VERSION_STRINGS: VersionStrings = package_version_strings!();
@@ -217,7 +217,7 @@ Gets the `PluginId`s of the plugins specified by `which_plugin`.
 The `#[sabi(last_prefix_field)]` attribute here means that this is the last method 
 that was defined in the first compatible version of the library
 (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-requiring new methods to always be added bellow preexisting ones.
+requiring new methods to always be added below preexisting ones.
 
 The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library 
 bumps its "major" version,

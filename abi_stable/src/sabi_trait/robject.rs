@@ -9,12 +9,12 @@ use std::{
 use core_extensions::SelfOps;
 
 use crate::{
-    abi_stability::SharedStableAbi,
+    abi_stability::PrefixStableAbi,
     erased_types::{
         c_functions::adapt_std_fmt,
         InterfaceBound,
     },
-    sabi_types::{MaybeCmp,RRef},
+    sabi_types::{MaybeCmp,RRef,RMut},
     std_types::UTypeId,
     pointer_trait::{
         CanTransmuteElement,TransmuteElement,
@@ -24,7 +24,9 @@ use crate::{
         impl_enum::{Implemented,Unimplemented},
         trait_marker,
     },
+    sabi_trait::vtable::{BaseVtable_Ref, BaseVtable_Prefix},
     utils::{transmute_reference,transmute_mut_reference},
+    StableAbi,
 };
 
 
@@ -36,51 +38,42 @@ generated trait objects.
 
 # Construction
 
-To construct an `RObject<_>` directly (not as part of a trait object) 
-you can call one of these methods:
-
-- from_ptr
-    Can be constructed from a pointer of a value.Cannot unerase the RObject afterwards.
-
-- from_ptr_unerasable:
-    Can be constructed from a pointer of a value.Requires a `'static` value.
-
-- from_value:
-    Can be constructed from the value directly.Cannot unerase the RObject afterwards.
-
-- from_value_unerasable
-    Can be constructed from the value directly.Requires a `'static` value.
+`RObject<_>` is how `#[sabi_trait]`-based ffi-safe trait objects are implemented,
+and there's no way to construct it separate from those.
 
 # Trait object
 
 `RObject<'borrow,Pointer<()>,Interface,VTable>` 
 can be used as a trait object for any combination of 
-the traits listed bellow.
+the traits listed below.
 
 These are the traits:
 
-- Send
+- `Send`
 
-- Sync
+- `Sync`
 
-- Debug
+- `Debug`
 
-- Clone
+- `Display`
+
+- `Error`
+
+- `Clone`
 
 # Deconstruction
 
-`RObject<_>` can then be unwrapped into a concrete type,
+`RObject<_>` can be unwrapped into a concrete type,
 within the same dynamic library/executable that constructed it,
 using these (fallible) conversion methods:
 
-- into_unerased:Unwraps into a pointer to `T`.Requires `T:'static`.
+- `into_unerased`: Unwraps into a pointer to `T`.Requires `T: 'static`.
 
-- as_unerased:Unwraps into a `&T`.Requires `T:'static`.
+- `as_unerased`: Unwraps into a `&T`.Requires `T: 'static`.
 
-- as_unerased_mut:Unwraps into a `&mut T`.Requires `T:'static`.
+- `as_unerased_mut`: Unwraps into a `&mut T`.Requires `T: 'static`.
 
-`RObject` can only be converted back if it was created 
-using a `RObject::*_unerased` function.
+`RObject` can only be converted back if the trait object was constructed to allow it.
 
 
 */
@@ -88,7 +81,7 @@ using a `RObject::*_unerased` function.
 #[derive(StableAbi)]
 #[sabi(
     not_stableabi(V),
-    bound="V:SharedStableAbi",
+    bound="V:PrefixStableAbi",
     bound="I:InterfaceBound",
     extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
 )]
@@ -96,9 +89,9 @@ pub struct RObject<'lt,P,I,V>
 where
     P:GetPointerKind
 {
-    vtable:StaticRef<V>,
+    vtable:PrefixRef<V>,
     ptr: ManuallyDrop<P>,
-    _marker:PhantomData<Tuple2<&'lt (),I>>,
+    _marker:PhantomData<(&'lt (),I)>,
 }
 
 mod clone_impl{
@@ -268,19 +261,18 @@ These are the requirements for the caller:
 - `P` must be a pointer to the type that the vtable functions 
     take as the first parameter.
 
-- The vtable must not come from a reborrowed RObject
-    (created using RObject::reborrow or RObject::reborrow_mut).
+- The vtable must not come from a reborrowed `RObject`
+    (created using `RObject::reborrow` or `RObject::reborrow_mut`).
 
-- The vtable must be the `<SomeVTableName>` of a struct declared with 
-    `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_struct="<SomeVTableName>")))]`.
+- The vtable must be the `SomeVTableName` of a struct declared with 
+    `#[derive(StableAbi)] #[sabi(kind(Prefix(prefix_ref="SomeVTableName")))]`.
 
-- The vtable must have `StaticRef<RObjectVtable<..>>` 
-    as its first declared field
+- The vtable must have `RObjectVtable_Ref` as its first declared field
 
 */
     pub unsafe fn with_vtable<OrigPtr>(
         ptr:OrigPtr,
-        vtable:StaticRef<V>,
+        vtable:PrefixRef<V>,
     )-> RObject<'lt,P,I,V>
     where 
         OrigPtr:CanTransmuteElement<(),TransmutedPtr=P>,
@@ -382,7 +374,8 @@ where
     /// - It is called in a dynamic library/binary outside
     /// the one from which this RObject was constructed.
     ///
-    /// - The RObject was constructed using the `from_(value|ptr)` method
+    /// - The trait object wrapping this `RObject` was constructed with a 
+    /// `TU_Unerasable` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
@@ -408,7 +401,8 @@ where
     /// - It is called in a dynamic library/binary outside
     /// the one from which this RObject was constructed.
     ///
-    /// - The RObject was constructed using the `from_(value|ptr)` method
+    /// - The trait object wrapping this `RObject` was constructed with a 
+    /// `TU_Unerasable` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
@@ -433,7 +427,8 @@ where
     /// - It is called in a dynamic library/binary outside
     /// the one from which this RObject was constructed.
     ///
-    /// - The RObject was constructed using the `frfrom_(value|ptr)_*` method
+    /// - The trait object wrapping this `RObject` was constructed with a 
+    /// `TU_Unerasable` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
@@ -524,6 +519,8 @@ where
 {
     /// Creates a shared reborrow of this RObject.
     ///
+    /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
+    ///
     pub fn reborrow<'re>(&'re self)->RObject<'lt,&'re (),I,V> 
     where
         P:Deref<Target=()>,
@@ -542,6 +539,8 @@ where
     /// The reborrowed RObject cannot use these methods:
     ///
     /// - RObject::clone
+    ///
+    /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
     /// 
     pub fn reborrow_mut<'re>(&'re mut self)->RObject<'lt,&'re mut (),I,V> 
     where
@@ -564,26 +563,28 @@ impl<'lt,P,I,V> RObject<'lt,P,I,V>
 where
     P:GetPointerKind,
 {
+    /// Gets the vtable.
     #[inline]
-    pub fn sabi_et_vtable(&self)->StaticRef<V>{
+    pub fn sabi_et_vtable(&self)->PrefixRef<V>{
         self.vtable
     }
 
     /// The vtable common to all `#[sabi_trait]` generated trait objects.
     #[inline]
-    pub fn sabi_robject_vtable<'a>(&self)->&'a RObjectVtable<(),P,I>{
+    pub fn sabi_robject_vtable(&self)->RObjectVtable_Ref<(),P,I>{
         unsafe{ 
-            let vtable=&*(self.vtable.get() as *const V as *const BaseVtable<(),P,I>);
-            vtable._sabi_vtable().get()
+            BaseVtable_Ref(self.vtable.cast::<BaseVtable_Prefix<(),P,I>>())
+                ._sabi_vtable()
         }
     }
 
     #[inline]
     fn sabi_into_erased_ptr(self)->ManuallyDrop<P>{
-        let mut __this= ManuallyDrop::new(self);
-        unsafe{ ptr::read(&mut __this.ptr) }
+        let __this= ManuallyDrop::new(self);
+        unsafe{ ptr::read(&__this.ptr) }
     }
 
+    /// Gets an `RRef` pointing to the erased object.
     #[inline]
     pub fn sabi_erased_ref(&self)->&ErasedObject<()>
     where
@@ -592,6 +593,7 @@ where
         unsafe{&*((&**self.ptr) as *const () as *const ErasedObject<()>)}
     }
     
+    /// Gets an `RMut` pointing to the erased object.
     #[inline]
     pub fn sabi_erased_mut(&mut self)->&mut ErasedObject<()>
     where
@@ -600,6 +602,27 @@ where
         unsafe{&mut *((&mut **self.ptr) as *mut () as *mut ErasedObject<()>)}
     }
 
+    /// Gets an `RRef` pointing to the erased object.
+    pub fn sabi_as_rref(&self) -> RRef<'_, ()>
+    where
+        P: __DerefTrait<Target=()>
+    {
+        unsafe {
+            std::mem::transmute(&**self.ptr as *const _ as *const ())
+        }
+    }
+
+    /// Gets an `RMut` pointing to the erased object.
+    pub fn sabi_as_rmut(&mut self) -> RMut<'_, ()>
+    where
+        P: __DerefMutTrait<Target=()>
+    {
+        unsafe {
+            std::mem::transmute(&mut **self.ptr as *mut _ as *mut ())
+        }
+    }
+
+    /// Calls the `f` callback with an `MovePtr` pointing to the erased object.
     #[inline]
     pub fn sabi_with_value<F,R>(self,f:F)->R
     where 

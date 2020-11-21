@@ -2,7 +2,7 @@
 
 This document describes what changes are valid/invalid for a library using `abi_stable`,
 
-Note that all of these only applies to types that implement `StableAbi`/`SharedStableAbi`,
+Note that all of these only applies to types that implement `StableAbi`,
 and are checked when loading the dynamic libraries using 
 the functions in `abi_stable::library::RootModule`.
 Those dynamic libraries use the `export_root_module` attribute on some function 
@@ -12,7 +12,9 @@ that export the root module
 
 # Semver in/compatible changes
 
-These are the changes to pre-existing data structures that are allowed/disallowed in semver compatible versions (0.y.z < 0.y+1.0 , x.y.z < x+1.0.0).
+These are the changes to pre-existing data structures that are 
+allowed/disallowed in semver compatible versions
+(0.y.z < 0.(y+1).0 , x.y.z < (x+1).0.0).
 
 It is never allowed to remove fields or variants in newer versions of a library.
 
@@ -26,7 +28,7 @@ field names are part of the ABI of a type.
 
 ### Structs
 
-It's only valid way to add fields to structs if they are 
+It's only valid to add fields to structs if they are 
 [prefix types(vtables or modules)](../prefix_types/index.html)),
 and only after the last field.
 
@@ -116,9 +118,6 @@ since they might not guarantee any of these properties:
 - Their dependence on global state,
     which could cause undefined behavior if passed between dynamic libraries,
     or just be unpredictable.
-
-The potential change of layout is why crossbeam channels are implemented as
-ffi-safe trait objects.
 
 The potential dependence on global state is why `abi_stable` uses dynamic dispatch 
 for all the types it wraps in `abi_stable::external_types`

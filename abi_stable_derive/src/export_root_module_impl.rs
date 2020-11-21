@@ -67,32 +67,17 @@ fn export_root_module_inner(mut input:ItemFn)->Result<TokenStream2,syn::Error>{
         #input
 
         #[no_mangle]
-        #vis static #export_name:abi_stable::library::LibHeader={
-            use abi_stable::{
-                library::{LibHeader as __LibHeader},
-                StableAbi,
-            };
+        #vis static #export_name: ::abi_stable::library::LibHeader={
 
-            pub extern "C" fn _sabi_erased_module(
-            )->&'static abi_stable::marker_type::ErasedObject {
-                ::abi_stable::extern_fn_panic_handling!(
-                    let ret:#ret_ty=#original_fn_ident();
-                    let _=abi_stable::library::RootModule::load_module_with(||{
-                        Ok::<_,()>(ret)
-                    });
-                    unsafe{
-                        abi_stable::utils::transmute_reference(ret)
-                    }
-                )
+            pub extern "C" fn _sabi_erased_module()-> ::abi_stable::library::RootModuleResult {
+                ::abi_stable::library::__call_root_module_loader(#original_fn_ident)
             }
 
-            type __ReturnTy=#ret_ty;
-            type __ModuleTy=<__ReturnTy as std::ops::Deref>::Target;
-            
+            type __SABI_Module = <#ret_ty as ::abi_stable::library::IntoRootModuleResult>::Module;
             unsafe{
-                __LibHeader::from_constructor::<__ModuleTy>(
+                ::abi_stable::library::LibHeader::from_constructor(
                     abi_stable::sabi_types::Constructor(_sabi_erased_module),
-                    <__ModuleTy as abi_stable::library::RootModule>::#assoc_constant,
+                    <__SABI_Module as ::abi_stable::library::RootModule>::#assoc_constant,
                 )
             }
         };

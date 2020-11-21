@@ -163,7 +163,7 @@ impl<'a> SharedVars<'a>{
             self.overflowed_strings.push_err(syn_err!(
                 span.unwrap_or_else(Span::call_site),
                 "Cannot have more than 64 kylobytes of identifiers in the type combined.
-                 This ammount is approximate since it stores separators after some identifiers.\
+                 This amount is approximate since it stores separators after some identifiers.\
                 ",
             ));
         }
@@ -211,7 +211,7 @@ impl<'a> SharedVars<'a>{
             self.overflowed_lifetime_indices.push_err(syn_err!(
                 Span::call_site(),
                 "Cannot have more than {} lifetimes arguments within a type definition.\n\
-                 The ammount is approximate,\n
+                 The amount is approximate,\n
                  since this stores 5 or fewer lifetimes in fields/function pointers inline,
                  and those don't contribute to the lifetime arguments limit.",
                 LifetimeRange::MAX_START*2,
@@ -363,7 +363,7 @@ impl<'a> SharedVars<'a>{
                     abi_stable::_sabi_type_layouts!( #(#type_layouts,)* ),
                     abi_stable::rslice![
                         #(
-                            __ConstGeneric::new(&#constants,__GetConstGenericVTable::VTABLE),
+                            __ConstGeneric::new(&#constants,__ConstGenericVTableFor::NEW),
                         )*
                     ],
                 )
@@ -387,7 +387,6 @@ where T:ToTokens
         ty.to_tokens(ts);
         let opt=match field_transparency {
             LayoutConstructor::Regular=> None,
-            LayoutConstructor::SharedStableAbi=> Some(&ct.cap_shared_stable_abi),
             LayoutConstructor::Opaque=> Some(&ct.cap_opaque_field),
             LayoutConstructor::SabiOpaque=> Some(&ct.cap_sabi_opaque_field),
         };

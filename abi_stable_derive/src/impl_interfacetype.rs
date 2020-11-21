@@ -171,6 +171,8 @@ macro_rules! usable_traits {
                 }
             }
 
+            // Bad clippy, you're bad.
+            #[allow(clippy::wrong_self_convention)]
             pub fn to_vec(self)->Vec<T>{
                 vec![
                     $( self.$field ,)*

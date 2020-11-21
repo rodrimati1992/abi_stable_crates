@@ -5,8 +5,8 @@ use std::{
 };
 
 use crate::{
-    const_utils::Transmuter,
     erased_types::{c_functions,trait_objects,InterfaceType,FormattingMode,InterfaceBound},
+    inline_storage::InlineStorage,
     marker_type::{ErasedObject,UnsafeIgnoredType},
     nonexhaustive_enum::{
         alt_c_functions,NonExhaustive,EnumInfo,GetEnumInfo,SerializeEnum,GetSerializeEnumProxy,
@@ -16,9 +16,8 @@ use crate::{
         impl_enum::{Implemented,Unimplemented},
         trait_marker,
     },
-    sabi_types::{StaticRef},
     std_types::{ROption,RResult,RString,RCmpOrdering,RBoxError},
-    inline_storage::InlineStorage,
+    utils::Transmuter,
     StableAbi,
 };
 
@@ -26,18 +25,16 @@ use crate::{
 /// Gets the vtable of `NonExhaustive<Self,S,I>`.
 pub unsafe trait GetVTable<S,I>:GetEnumInfo{
     #[doc(hidden)]
-    const VTABLE_VAL:NonExhaustiveVtableVal<Self,S,I>;
-    
-    #[doc(hidden)]
-    const VTABLE_PTR: StaticRef<WithMetadata<NonExhaustiveVtableVal<Self,S,I>>> = unsafe{
-        StaticRef::from_raw(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VTABLE_VAL
-        ))
-    };
+    const VTABLE_VAL:NonExhaustiveVtable<Self,S,I>;
 
-    const VTABLE_REF:StaticRef<NonExhaustiveVtable<Self,S,I>>={
-        WithMetadata::as_prefix(Self::VTABLE_PTR)
+    #[doc(hidden)]
+    const VTABLE_REF:NonExhaustiveVtable_Ref<Self,S,I> = unsafe{
+        NonExhaustiveVtable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::VTABLE_VAL
+            ).as_prefix()
+        )
     };
 }
 
@@ -52,11 +49,11 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
     bound="<I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType: StableAbi",
     not_stableabi(E,S,I),
     missing_field(default),
-    kind(Prefix(prefix_struct="NonExhaustiveVtable")),
+    kind(Prefix),
     with_field_indices,
     //debug_print,
 )]
-pub struct NonExhaustiveVtableVal<E,S,I>{
+pub struct NonExhaustiveVtable<E,S,I>{
     pub(crate) _sabi_tys:UnsafeIgnoredType<(E,S,I)>,
     
     pub enum_info:&'static EnumInfo,
@@ -67,7 +64,7 @@ pub struct NonExhaustiveVtableVal<E,S,I>{
     pub(crate) _sabi_clone:Option<
         unsafe extern "C" fn(
             &ErasedObject,
-            StaticRef<NonExhaustiveVtable<E,S,I>>,
+            NonExhaustiveVtable_Ref<E,S,I>,
         )->NonExhaustive<E,S,I>
     >,
 
@@ -122,8 +119,8 @@ where
     I::Hash:InitHashField<E,S,I>,
 {
     #[doc(hidden)]
-    const VTABLE_VAL:NonExhaustiveVtableVal<E,S,I>=
-        NonExhaustiveVtableVal{
+    const VTABLE_VAL:NonExhaustiveVtable<E,S,I>=
+        NonExhaustiveVtable{
             _sabi_tys:UnsafeIgnoredType::DEFAULT,
             enum_info:E::ENUM_INFO,
             _sabi_drop:alt_c_functions::drop_impl::<E>,
@@ -146,8 +143,8 @@ type UnerasedSerializeFn<E,S,I>=
     )->RResult< <I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType, RBoxError>;
 
 
-impl<E,S,I> NonExhaustiveVtable<E,S,I>{
-    pub fn serialize(&self)->UnerasedSerializeFn<E,S,I>
+impl<E,S,I> NonExhaustiveVtable_Ref<E,S,I>{
+    pub fn serialize(self)->UnerasedSerializeFn<E,S,I>
     where
         I:InterfaceBound<Serialize=Implemented<trait_marker::Serialize>>,
         I:GetSerializeEnumProxy<NonExhaustive<E,S,I>>,
@@ -221,15 +218,15 @@ pub mod trait_bounds{
                 const VALUE:Option<$field_ty>=Some($field_value);
             }
 
-            impl<E,S,$interf> NonExhaustiveVtable<E,S,$interf>{
-                pub fn $field(&self)->$field_ty
+            impl<E,S,$interf> NonExhaustiveVtable_Ref<E,S,$interf>{
+                pub fn $field(self)->$field_ty
                 where
                     $interf:InterfaceType<$selector=Implemented<trait_marker::$selector>>,
                 {
                     match self.$priv_field().into() {
                         Some(v)=>v,
                         None=>panic_on_missing_fieldname::<
-                            NonExhaustiveVtableVal<E,S,$interf>,
+                            NonExhaustiveVtable<E,S,$interf>,
                         >(
                             Self::$field_index,
                             self._prefix_type_layout(),
@@ -261,7 +258,7 @@ pub mod trait_bounds{
         _sabi_clone,clone_: 
             unsafe extern "C" fn(
                 &ErasedObject,
-                StaticRef<NonExhaustiveVtable<E,S,I>>
+                NonExhaustiveVtable_Ref<E,S,I>
             )->NonExhaustive<E,S,I>;
         field_index=field_index_for__sabi_clone;
         value=alt_c_functions::clone_impl::<E,S,I>,

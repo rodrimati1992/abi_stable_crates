@@ -2,28 +2,26 @@ use std::{
     ops::{Deref},
     fmt::{self,Display},
     marker::PhantomData,
+    ptr::NonNull,
 };
 
 use crate::{
     pointer_trait::{CanTransmuteElement,GetPointerKind,PK_Reference},
+    utils::ref_as_nonnull,
 };
 
-use super::StaticRef;
-
-
 /**
-A StableAbi type equivalent to `&'a T`,
+Equivalent to `&'a T`,
 defined as a workaround to allow casting from `&T` to `&U` inside a `const fn`
 in stable Rust.
 */
 #[repr(transparent)]
 #[derive(StableAbi)]
 #[sabi(
-    shared_stableabi(T),
     bound="T:'a",
 )]
 pub struct RRef<'a,T>{
-    ref_:*const T,
+    ref_: NonNull<T>,
     _marker:PhantomData<&'a T>,
 }
 
@@ -89,12 +87,12 @@ impl<'a,T> RRef<'a,T>{
         T:'a,
     {
         Self{
-            ref_,
+            ref_: NonNull::new_unchecked(ref_ as *mut T),
             _marker:PhantomData,
         }
     }
 
-    /// Constructs this RRef from a static reference
+    /// Constructs this RRef from a reference.
     ///
     /// # Example
     ///
@@ -113,7 +111,7 @@ impl<'a,T> RRef<'a,T>{
     /// ```
     pub const fn new(ref_:&'a T)->Self{
         Self{
-            ref_,
+            ref_: ref_as_nonnull(ref_),
             _marker:PhantomData,
         }
     }
@@ -150,7 +148,7 @@ impl<'a,T> RRef<'a,T>{
     ///
     /// ```
     pub fn get(self)->&'a T{
-        unsafe{ &*self.ref_ }
+        unsafe{ &*(self.ref_.as_ptr() as *const T) }
     }
 
     /// Gets access to the referenced value,as a raw pointer.
@@ -175,7 +173,13 @@ impl<'a,T> RRef<'a,T>{
     ///
     /// ```
     pub const fn get_raw(self)->*const T{
-        self.ref_
+        self.ref_.as_ptr() as *const T
+    }
+
+    /// Accesses the referenced value as a casted raw pointer.
+    #[inline]
+    pub const fn cast_into_raw<U>(self)->*const U{
+        self.ref_.as_ptr() as *const T as *const U
     }
 
     /// Transmutes this `RRef<'a,T>` to a `RRef<'b,U>`.
@@ -210,7 +214,7 @@ impl<'a,T> RRef<'a,T>{
         U:'b,
     {
         RRef::from_raw(
-            self.ref_ as *const U
+            self.ref_.as_ptr() as *const U
         )
     }
 
@@ -249,52 +253,15 @@ impl<'a,T> RRef<'a,T>{
         U:'a,
     {
         RRef::from_raw(
-            self.ref_ as *const U
+            self.ref_.as_ptr() as *const U
         )
-    }
-
-    /// Converts this `RRef<'a,T>` to a `StaticRef<T>`.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that this reference lives for the entirety of the program,
-    ///
-    /// One example of when this is sound is with a vtable of a generic type,
-    /// which isn't necessarily `'static`,
-    /// even though it lives for the entirety of the program.
-    ///
-    pub const unsafe fn to_staticref_unchecked(self)->StaticRef<T>{
-        unsafe{
-            StaticRef::from_raw(self.ref_)
-        }
-    }
-}
-
-impl<T> RRef<'static,T>{
-    /// Converts this `RRef<'static,T>` to a `StaticRef<T>`.
-    pub const fn to_staticref(self)->StaticRef<T>
-    where
-        T:'static
-    {
-        unsafe{
-            StaticRef::from_raw(self.ref_)
-        }
-    }
-}
-
-impl<'a,T> From<StaticRef<T>> for RRef<'static,T>
-where
-    T:'a,
-{
-    #[inline]
-    fn from(v:StaticRef<T>)->Self{
-        v.to_rref()
     }
 }
 
 impl<'a,T> Deref for RRef<'a,T>{
     type Target=T;
 
+    #[inline(always)]
     fn deref(&self)->&T{
         self.get()
     }
@@ -311,3 +278,42 @@ where
 {
     type TransmutedPtr= RRef<'a,U>;
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn construction_test(){
+        unsafe{
+            let three: *const i32 = &3;
+            assert_eq!(*RRef::from_raw(three), 3);
+        }
+
+        assert_eq!(*RRef::new(&5), 5);
+    }
+
+    #[test]
+    fn access(){
+        let reference = RRef::new(&8);
+        
+        assert_eq!(*reference.get(), 8);
+        unsafe{
+            assert_eq!(*reference.get_raw(), 8);
+        }
+    }
+
+    #[test]
+    fn transmutes(){
+        let reference = RRef::new(&(!0u32));
+
+        unsafe{
+            assert_eq!(*reference.cast_into_raw::<i32>(), -1);
+            assert_eq!(*reference.transmute::<i32>(), -1);
+            assert_eq!(*reference.transmute_ref::<i32>(), -1);
+        }
+    }
+}
+
+

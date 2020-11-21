@@ -90,9 +90,14 @@ impl CompTLFields{
             .map(|f| f.name(strings) )
     }
 
-    /// The ammount of fields this represents
+    /// The amount of fields this represents
     pub fn len(&self)->usize{
         self.comp_fields_len as usize
+    }
+
+    /// Whether there are no fields.
+    pub fn is_empty(&self) -> bool {
+        self.comp_fields_len == 0
     }
     
     /// Expands this into a TLFields,allowing access to expanded fields.
@@ -108,7 +113,7 @@ impl CompTLFields{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// The layout of all field in a type definition.
+/// The layout of all the fields in a type definition.
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 pub struct TLFields {
@@ -136,7 +141,7 @@ impl TLFields{
         }
     }
 	
-    /// The ammount of fields this represents
+    /// The amount of fields this represents
     pub fn len(&self)->usize{
         self.comp_fields.len()
     }

@@ -29,6 +29,7 @@ impl Display for LifetimeIndex{
 ////////////////////////////////////////////////////////////////////////////////
 
 impl LifetimeRange {
+    /// Expands this `LifetimeRange` into a `LifetimeArrayOrSlice`
     pub fn slicing(self,lifetime_indices:&[LifetimeIndexPair])->LifetimeArrayOrSlice<'_>{
         let len=(self.len()+1)/2;
         if self.is_range() {

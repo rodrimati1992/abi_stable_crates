@@ -18,7 +18,7 @@ use crate::{
         GetPointerKind,PK_SmartPointer,
     },
     prefix_type::{PrefixTypeTrait,WithMetadata},
-    sabi_types::{Constructor,StaticRef},
+    sabi_types::Constructor,
     std_types::{RResult,utypeid::{UTypeId,new_utypeid}},
 };
 
@@ -30,7 +30,7 @@ mod private {
     use super::*;
 
 /**    
-Ffi-safe version of ::std::sync::Arc<_>
+Ffi-safe version of `std::sync::Arc`
 
 # Example
 
@@ -83,19 +83,18 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
     #[repr(C)]
     pub struct RArc<T> {
         data: *const T,
-        vtable: StaticRef<ArcVtable<T>>,
+        vtable: ArcVtable_Ref<T>,
         _marker: PhantomData<T>,
     }
 
     impl_from_rust_repr! {
         impl[T] From<Arc<T>> for RArc<T> {
             fn(this){
-                let out = RArc {
+                RArc {
                     data: Arc::into_raw(this),
-                    vtable: WithMetadata::as_prefix(VTableGetter::LIB_VTABLE),
+                    vtable: VTableGetter::LIB_VTABLE,
                     _marker: Default::default(),
-                };
-                out
+                }
             }
         }
     }
@@ -126,16 +125,14 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
         }
 
         #[inline(always)]
-        pub(crate) fn vtable<'a>(&self) -> &'a ArcVtable<T> {
-            self.vtable.get()
+        pub(crate) fn vtable(&self) -> ArcVtable_Ref<T> {
+            self.vtable
         }
 
         #[allow(dead_code)]
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
-            self.vtable = WithMetadata::as_prefix(
-                VTableGetter::LIB_VTABLE_FOR_TESTING
-            );
+            self.vtable = VTableGetter::LIB_VTABLE_FOR_TESTING;
         }
     }
 }
@@ -157,12 +154,12 @@ impl<T> RArc<T> {
         Arc::new(this).into()
     }
 
-    /// Converts this into an `Arc<T>`
+    /// Converts this `RArc<T>` into an `Arc<T>`
     ///
     /// # Allocators
     ///
-    /// The reason `RArc<T>` cannot always be converted to an `Arc<T>` is 
-    /// because their allocators might be different.
+    /// `RArc<T>` cannot always be converted to an `Arc<T>`,
+    /// because their allocators *might* be different.
     ///
     /// # When is T cloned
     ///
@@ -186,8 +183,8 @@ impl<T> RArc<T> {
         T: Clone,
     {
         let this_vtable =this.vtable();
-        let other_vtable=WithMetadata::as_prefix(VTableGetter::LIB_VTABLE).get();
-        if ::std::ptr::eq(this_vtable,other_vtable)||
+        let other_vtable=VTableGetter::LIB_VTABLE;
+        if ::std::ptr::eq(this_vtable.0.to_raw_ptr(), other_vtable.0.to_raw_ptr())||
             this_vtable.type_id()==other_vtable.type_id()
         {
             unsafe { Arc::from_raw(this.into_raw()) }
@@ -199,7 +196,7 @@ impl<T> RArc<T> {
     }
 
     /// Attempts to unwrap this `RArc<T>` into a `T`,
-    /// returns Err(self) if the `RArc<T>`s strong count is greater than 1.
+    /// returns `Err(self)` if the `RArc<T>`'s strong count is greater than 1.
     ///
     /// # Example
     ///
@@ -223,7 +220,7 @@ impl<T> RArc<T> {
     }
 
     /// Attempts to create a mutable reference to `T`,
-    /// failing if `RArc<T>`s strong count is greater than 1.
+    /// failing if the `RArc<T>`'s strong count is greater than 1.
     ///
     /// # Example
     ///
@@ -247,9 +244,11 @@ impl<T> RArc<T> {
         }
     }
 
-    /// Makes a mutable reference to `T`,
-    /// if there are other `RArc<T>`s pointing to the same value,
-    /// then `T` is cloned to ensure unique ownership of the value.
+    /// Makes a mutable reference to `T`.
+    ///
+    /// If there are other `RArc<T>`s pointing to the same value,
+    /// then `T` is cloned into a new `RArc<T>` to ensure unique ownership of the value.
+    /// 
     ///
     /// # Postconditions
     ///
@@ -274,7 +273,7 @@ impl<T> RArc<T> {
     ///
     /// ```
     #[inline]
-    pub fn make_mut<'a>(this: &'a mut Self) -> &'a mut T 
+    pub fn make_mut(this: &mut Self) -> &mut T 
     where T:Clone
     {
         // Workaround for non-lexical lifetimes not being smart enough 
@@ -293,7 +292,7 @@ impl<T> RArc<T> {
         }
     }
 
-    /// Gets the number of RArc that point to the value.
+    /// Gets the number of `RArc` that point to the value.
     ///
     /// # Example
     ///
@@ -314,7 +313,7 @@ impl<T> RArc<T> {
         }
     }
 
-    /// Gets the number of std::sync::Weak that point to the value.
+    /// Gets the number of `std::sync::Weak` that point to the value.
     ///
     /// # Example
     ///
@@ -374,7 +373,7 @@ where
 impl<T> Clone for RArc<T> {
     fn clone(&self) -> Self {
         unsafe{
-            (self.vtable().clone())(self)
+            (self.vtable().clone_())(self)
         }
     }
 }
@@ -396,7 +395,7 @@ impl<T> Drop for RArc<T> {
         // actually support ?Sized types.
         unsafe {
             let vtable = self.vtable();
-            (vtable.destructor())((self.data() as *const T).into(), CallReferentDrop::Yes);
+            (vtable.destructor())(self.data() as *const T, CallReferentDrop::Yes);
         }
     }
 }
@@ -419,10 +418,10 @@ mod vtable_mod {
     pub(super) struct VTableGetter<'a, T>(&'a T);
 
     impl<'a, T: 'a> VTableGetter<'a, T> {
-        const DEFAULT_VTABLE:ArcVtableVal<T>=ArcVtableVal {
+        const DEFAULT_VTABLE:ArcVtable<T>=ArcVtable {
             type_id:Constructor( new_utypeid::<RArc<()>> ),
             destructor: destructor_arc::<T>,
-            clone: clone_arc::<T>,
+            clone_: clone_arc::<T>,
             get_mut: get_mut_arc::<T>,
             try_unwrap: try_unwrap_arc::<T>,
             strong_count: strong_count_arc::<T>,
@@ -430,34 +429,38 @@ mod vtable_mod {
         };
 
         // The VTABLE for this type in this executable/library
-        pub(super) const LIB_VTABLE: StaticRef<WithMetadata<ArcVtableVal<T>>> = unsafe{
-            StaticRef::from_raw(&WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                Self::DEFAULT_VTABLE
-            ))
+        pub(super) const LIB_VTABLE: ArcVtable_Ref<T> = unsafe{
+            ArcVtable_Ref(
+                WithMetadata::new(
+                    PrefixTypeTrait::METADATA,
+                    Self::DEFAULT_VTABLE
+                ).as_prefix()
+            )
         };
 
         #[allow(dead_code)]
         #[cfg(test)]
-        pub(super) const LIB_VTABLE_FOR_TESTING: StaticRef<WithMetadata<ArcVtableVal<T>>> = unsafe{
-            StaticRef::from_raw(&WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                ArcVtableVal{
-                    type_id:Constructor( new_utypeid::<RArc<i32>> ),
-                    ..Self::DEFAULT_VTABLE
-                }
-            ))
+        pub(super) const LIB_VTABLE_FOR_TESTING: ArcVtable_Ref<T> = unsafe{
+            ArcVtable_Ref(
+                WithMetadata::new(
+                    PrefixTypeTrait::METADATA,
+                    ArcVtable{
+                        type_id:Constructor( new_utypeid::<RArc<i32>> ),
+                        ..Self::DEFAULT_VTABLE
+                    }
+                ).as_prefix()
+            )
         };
     }
 
     #[derive(StableAbi)]
     #[repr(C)]
-    #[sabi(kind(Prefix(prefix_struct="ArcVtable")))]
+    #[sabi(kind(Prefix))]
     #[sabi(missing_field(panic))]
-    pub struct ArcVtableVal<T> {
+    pub struct ArcVtable<T> {
         pub(super) type_id:Constructor<UTypeId>,
         pub(super) destructor: unsafe extern "C" fn(*const T, CallReferentDrop),
-        pub(super) clone: unsafe extern "C" fn(&RArc<T>) -> RArc<T>,
+        pub(super) clone_: unsafe extern "C" fn(&RArc<T>) -> RArc<T>,
         pub(super) get_mut: unsafe extern "C" fn(&mut RArc<T>) -> Option<&mut T>,
         pub(super) try_unwrap: unsafe extern "C" fn(RArc<T>) -> RResult<T, RArc<T>>,
         pub(super) strong_count: unsafe extern "C" fn(&RArc<T>) -> usize,
@@ -516,4 +519,4 @@ mod vtable_mod {
 
 
 }
-use self::vtable_mod::{ArcVtable, VTableGetter};
+use self::vtable_mod::{ArcVtable_Ref, VTableGetter};

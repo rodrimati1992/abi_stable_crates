@@ -26,7 +26,7 @@ use crate::{
     prefix_type::{FieldAccessibility,FieldConditionality},
     sabi_types::CmpIgnored,
     std_types::{
-        RArc,RBox,RVec,StaticStr,UTypeId,RBoxError,RResult,
+        RArc,RBox,RStr,RVec,UTypeId,RBoxError,RResult,
         RSome,RNone,ROk,RErr,
     },
     traits::IntoReprC,
@@ -155,9 +155,9 @@ impl<T> ExpectedFound<T> {
 #[repr(C)]
 pub struct CheckedPrefixTypes{
     this:&'static TypeLayout,
-    this_prefix:PrefixTypeMetadata,
+    this_prefix:__PrefixTypeMetadata,
     other:&'static TypeLayout,
-    other_prefix:PrefixTypeMetadata,
+    other_prefix:__PrefixTypeMetadata,
 }
 
 
@@ -278,7 +278,7 @@ impl AbiChecker {
             };
 
 
-        for (field_i,(this_f,other_f)) in t_fields.into_iter().zip(o_fields).enumerate() {
+        for (field_i,(this_f,other_f)) in t_fields.zip(o_fields).enumerate() {
             let this_f=this_f.borrow();
             let other_f=other_f.borrow();
             if this_f.name() != other_f.name() {
@@ -633,8 +633,8 @@ impl AbiChecker {
                     TLData::PrefixType (t_prefix),
                     TLData::PrefixType (o_prefix),
                 ) => {
-                    let this_prefix =PrefixTypeMetadata::with_prefix_layout(t_prefix,t_lay);
-                    let other_prefix=PrefixTypeMetadata::with_prefix_layout(o_prefix,o_lay);
+                    let this_prefix =__PrefixTypeMetadata::with_prefix_layout(t_prefix,t_lay);
+                    let other_prefix=__PrefixTypeMetadata::with_prefix_layout(o_prefix,o_lay);
 
                     self.check_prefix_types(errs,&this_prefix,&other_prefix);
 
@@ -737,7 +737,7 @@ impl AbiChecker {
             }
 
             if t_name != o_name {
-                push_err(errs, t_name, o_name,StaticStr::new, AI::UnexpectedVariant);
+                push_err(errs, t_name, o_name,RStr::from_str, AI::UnexpectedVariant);
                 continue;
             }
         }
@@ -761,8 +761,8 @@ impl AbiChecker {
     fn check_prefix_types(
         &mut self,
         errs: &mut RVec<AbiInstability>,
-        this: &PrefixTypeMetadata,
-        other: &PrefixTypeMetadata,
+        this: &__PrefixTypeMetadata,
+        other: &__PrefixTypeMetadata,
     ){
         if this.prefix_field_count != other.prefix_field_count {
             push_err(
@@ -807,7 +807,7 @@ impl AbiChecker {
 
         let mut prefix_type_map=globals.prefix_type_map.lock().unwrap();
 
-        for pair in mem::replace(&mut self.checked_prefix_types,Default::default()) {
+        for pair in mem::take(&mut self.checked_prefix_types) {
             // let t_lay=pair.this_prefix;
             let errors_before=self.errors.len();
             let t_utid=pair.this .get_utypeid();
@@ -904,7 +904,7 @@ impl AbiChecker {
         let mut nonexhaustive_map=globals.nonexhaustive_map.lock().unwrap();
 
 
-        for pair in mem::replace(&mut self.checked_nonexhaustive_enums,Default::default()) {
+        for pair in mem::take(&mut self.checked_nonexhaustive_enums) {
             let CheckedNonExhaustiveEnums{this,other}=pair;
             let errors_before=self.errors.len();
             
@@ -1007,7 +1007,7 @@ impl AbiChecker {
 
         let mut extra_checker_map=globals.extra_checker_map.lock().unwrap();
 
-        for with_context in mem::replace(&mut self.checked_extra_checks,Default::default()) {
+        for with_context in mem::take(&mut self.checked_extra_checks) {
             let ExtraChecksBoxWithContext{t_lay,o_lay,extra_checks}=with_context;
 
             let errors_before=self.errors.len();
@@ -1094,7 +1094,7 @@ the first parameter must be the expected layout,
 and the second must be actual layout.
 
 */
-pub(super) fn check_layout_compatibility(
+pub fn check_layout_compatibility(
     interface: &'static TypeLayout,
     implementation: &'static TypeLayout,
 ) -> Result<(), AbiInstabilityErrors> {
@@ -1107,7 +1107,7 @@ pub(super) fn check_layout_compatibility(
 
 
 #[inline(never)]
-pub(super) fn check_layout_compatibility_with_globals(
+pub fn check_layout_compatibility_with_globals(
     interface: &'static TypeLayout,
     implementation: &'static TypeLayout,
     globals:&CheckingGlobals,
@@ -1153,8 +1153,8 @@ pub(super) fn check_layout_compatibility_with_globals(
     } else {
         errors.sort_by_key(|x| x.index);
         Err(AbiInstabilityErrors {
-            interface: interface,
-            implementation: implementation,
+            interface,
+            implementation,
             errors,
             _priv:()
         })
@@ -1245,7 +1245,8 @@ impl AbiChecker{
         }
     }
 }
-impl TypeChecker for AbiChecker{
+
+unsafe impl TypeChecker for AbiChecker{
     fn check_compatibility(
         &mut self,
         interface:&'static TypeLayout,
@@ -1311,17 +1312,18 @@ use std::sync::Mutex;
 use crate::{
     sabi_types::LateStaticRef,
     multikey_map::MultiKeyMap,
-    prefix_type::PrefixTypeMetadata,
+    prefix_type::__PrefixTypeMetadata,
     utils::leak_value,
 };
 
 #[derive(Debug)]
 pub struct CheckingGlobals{
-    pub(crate) prefix_type_map:Mutex<MultiKeyMap<UTypeId,PrefixTypeMetadata>>,
-    pub(crate) nonexhaustive_map:Mutex<MultiKeyMap<UTypeId,NonExhaustiveEnumWithContext>>,
-    pub(crate) extra_checker_map:Mutex<MultiKeyMap<UTypeId,ExtraChecksBox>>,
+    pub prefix_type_map:Mutex<MultiKeyMap<UTypeId,__PrefixTypeMetadata>>,
+    pub nonexhaustive_map:Mutex<MultiKeyMap<UTypeId,NonExhaustiveEnumWithContext>>,
+    pub extra_checker_map:Mutex<MultiKeyMap<UTypeId,ExtraChecksBox>>,
 }
 
+#[allow(clippy::new_without_default)]
 impl CheckingGlobals{
     pub fn new()->Self{
         CheckingGlobals{
@@ -1332,7 +1334,7 @@ impl CheckingGlobals{
     }
 }
 
-static CHECKING_GLOBALS:LateStaticRef<CheckingGlobals>=LateStaticRef::new();
+static CHECKING_GLOBALS:LateStaticRef<&CheckingGlobals>=LateStaticRef::new();
 
 pub fn get_checking_globals()->&'static CheckingGlobals{
     CHECKING_GLOBALS.init(||{
@@ -1374,11 +1376,11 @@ where
             err: RArc::new(e),
             expected_err: ExpectedFound{
                 expected:expected_extra_checks
-                    .piped(RBoxError::from_fmt)
+                    .piped_ref(RBoxError::from_fmt)
                     .piped(RArc::new),
 
                 found:found_extra_checks
-                    .piped(RBoxError::from_fmt)
+                    .piped_ref(RBoxError::from_fmt)
                     .piped(RArc::new),
             }
         }.piped(CmpIgnored::new)

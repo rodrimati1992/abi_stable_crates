@@ -23,7 +23,7 @@ use crate::{
     traits::IntoReprC,
     StableAbi,
     std_types::{
-        RArc, RBox, RBoxError, RCow, RStr, RString,  StaticStr,
+        RArc, RBox, RBoxError, RCow, RStr, RString,
         RNone,RSome,ROption,
     },
 };
@@ -61,7 +61,7 @@ where
     T: 'static,
 {
     type Interface = FooInterface;
-    const INFO:&'static crate::erased_types::TypeInfo=impl_get_type_info! { Foo[T] };
+    const INFO:&'static crate::erased_types::TypeInfo=impl_get_type_info! { Foo<T> };
 }
 
 impl<'s,T> SerializeImplType<'s> for Foo<T>
@@ -253,6 +253,8 @@ fn deserialize_test() {
 }
 
 
+// Unfortunately: miri doesn't like calling `extern fn(*const ErasedType)` that
+// were transmuted from `extern fn(*const ErasedType<T>)`
 #[test]
 fn serialize_test() {
 
@@ -538,7 +540,7 @@ mod borrowing{
 
     impl ImplType for Foo<'static>{
         type Interface = FooInterface;
-        const INFO:&'static crate::erased_types::TypeInfo=impl_get_type_info! { Foo['static] };
+        const INFO:&'static crate::erased_types::TypeInfo=impl_get_type_info! { Foo<'static> };
     }
 
     impl<'a,'s> SerializeImplType<'s> for Foo<'a>{

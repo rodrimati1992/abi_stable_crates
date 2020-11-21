@@ -38,7 +38,7 @@
         ( 
           replacements: { "@attr":"module_reflection(Module)" }, 
           find_all: [
-            regex(r#"module_reflection +\( +Module[ \n)\]].*struct VTable"#),
+            regex(r#"module_reflection *\( *Module[ \n)\]].*struct +VTable"#),
           ],
           error_count: 0,
         ),

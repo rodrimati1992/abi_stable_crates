@@ -9,8 +9,7 @@ because Rust allows changing the allocator when building a dynamic library/binar
 
 The way this library handles allocation is by creating a vtable (virtual dispatch table)
 for each type that directly allocates/deallocates (ie:`RVec`,`RBox`),
-stored as a `&'static VTable`/`*const VTable`/`StaticRef<VTable>` 
-field in the constructor for the type.
+and storing a pointer to the vtable as a field in the type.
 Any method that needs it calls vtable functions to do the allocation/deallocation.
 
 # Relating to global constructors in dynamic libraries

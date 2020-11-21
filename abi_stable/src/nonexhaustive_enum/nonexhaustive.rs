@@ -7,12 +7,12 @@ use std::{
     fmt::{self,Debug,Display},
     hash::{Hash,Hasher},
     marker::PhantomData,
-    mem::{self,ManuallyDrop},
+    mem::ManuallyDrop,
     ops::Deref,
 };
 
 use crate::{
-    abi_stability::SharedStableAbi,
+    abi_stability::StableAbi,
     erased_types::{
         c_functions,
         trait_objects::{
@@ -23,7 +23,8 @@ use crate::{
     inline_storage::ScratchSpace,
     marker_type::ErasedObject,
     nonexhaustive_enum::{
-        GetVTable,NonExhaustiveVtable,GetEnumInfo,GetNonExhaustive,
+        vtable::NonExhaustiveVtable_Ref,
+        GetVTable,GetEnumInfo,GetNonExhaustive,
         ValidDiscriminant,EnumInfo,
         SerializeEnum,DeserializeEnum,
     },
@@ -32,7 +33,6 @@ use crate::{
         impl_enum::Implemented,
         trait_marker,
     },
-    sabi_types::{StaticRef},
     std_types::RBoxError,
     traits::IntoReprRust,
 };
@@ -61,7 +61,7 @@ This type allows adding variants to enums it wraps in ABI compatible versions of
 
 ###  `E` 
 
-This is the enums that this was constructed from,
+This is the enum that this was constructed from,
 and can be unwrapped back into if it's one of the valid variants in this context.
 
 ###  `S` 
@@ -176,7 +176,7 @@ with the 1.0 version of `Error` they would get an `Err(..)` back.
 #[sabi(
     //debug_print,
     not_stableabi(E,S,I),
-    bound="NonExhaustiveVtable<E,S,I>:SharedStableAbi",
+    bound="NonExhaustiveVtable_Ref<E,S,I>:StableAbi",
     bound="E: GetNonExhaustive<S>",
     bound="I: InterfaceBound",
     extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
@@ -186,7 +186,7 @@ pub struct NonExhaustive<E,S,I>{
     // This is an opaque field since we only care about its size and alignment
     #[sabi(unsafe_opaque_field)]
     fill:ScratchSpace<S>,
-    vtable:StaticRef<NonExhaustiveVtable<E,S,I>>,
+    vtable:NonExhaustiveVtable_Ref<E,S,I>,
     _marker:PhantomData<()>,
 }
 
@@ -285,7 +285,7 @@ This panics if the storage has an alignment or size smaller than that of `E`.
     }
     pub(super) unsafe fn with_vtable(
         value:E,
-        vtable:StaticRef<NonExhaustiveVtable<E,S,I>>
+        vtable:NonExhaustiveVtable_Ref<E,S,I>
     )->Self{
         Self::assert_fits_within_storage();
 
@@ -352,8 +352,8 @@ not valid in this context.
 
 # Example
 
-This shows NonExhaustive<enum> some of which can and cannot be unwrapped.
-That enum come from a newer version of the library than this has an interface for.
+This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
+That enum comes from a newer version of the library than this knows.
 
 ```
 use abi_stable::nonexhaustive_enum::{
@@ -391,8 +391,8 @@ not valid in this context.
 
 # Example
 
-This shows NonExhaustive<enum> some of which can and cannot be unwrapped.
-That enum come from a newer version of the library than this has an interface for.
+This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
+That enum comes from a newer version of the library than this knows.
 
 ```
 use abi_stable::nonexhaustive_enum::{
@@ -439,8 +439,8 @@ not valid in this context.
 
 # Example
 
-This shows NonExhaustive<enum> some of which can and cannot be unwrapped.
-That enum come from a newer version of the library than this has an interface for.
+This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
+That enum comes from a newer version of the library than this knows.
 
 ```
 use abi_stable::nonexhaustive_enum::{
@@ -470,7 +470,7 @@ assert_eq!(new_c().into_enum().ok()  ,None);
 Returns whether the discriminant of this enum is valid in this context.
 
 The only way for it to be invalid is if the dynamic library is a 
-newer version than the interface this has a dependency.
+newer version than this knows.
 */
     #[inline]
     pub fn is_valid_discriminant(&self)->bool{
@@ -524,7 +524,7 @@ This panics if the storage has an alignment or size smaller than that of `F`.
 */
     pub unsafe fn transmute_enum_ref<F>(&self)->&NonExhaustive<F,S,I>{
         NonExhaustive::<F,S,I>::assert_fits_within_storage();
-        mem::transmute(self)
+        &*(self as *const Self as *const _)
     }
 
 
@@ -543,7 +543,7 @@ This panics if the storage has an alignment or size smaller than that of `F`.
 */
     pub unsafe fn transmute_enum_mut<F>(&mut self)->&mut NonExhaustive<F,S,I>{
         NonExhaustive::<F,S,I>::assert_fits_within_storage();
-        mem::transmute(self)
+        &mut *(self as *mut Self as *mut _)
     }
 
 /**
@@ -572,13 +572,19 @@ This panics if the storage has an alignment or size smaller than that of `F`.
     }
 
     /// Gets a reference to the vtable of this `NonExhaustive<>`.
-    pub(crate) fn vtable<'a>(&self)->&'a NonExhaustiveVtable<E,S,I>{
-        self.vtable.get()
+    pub(crate) fn vtable(&self)->NonExhaustiveVtable_Ref<E,S,I>{
+        self.vtable
     }
 
     fn sabi_erased_ref(&self)->&ErasedObject{
         unsafe{
             &*(&self.fill as *const ScratchSpace<S> as *const ErasedObject)
+        }
+    }
+
+    fn as_erased_ref(&self)->&ErasedObject{
+        unsafe{
+            &*(self as *const Self as *const ErasedObject)
         }
     }
 
@@ -646,7 +652,7 @@ where
 {
     fn eq(&self, other: &NonExhaustive<E,S,I2>) -> bool {
         unsafe{
-            self.vtable().partial_eq()(self.sabi_erased_ref(), other.sabi_erased_ref())
+            self.vtable().partial_eq()(self.sabi_erased_ref(), other.as_erased_ref())
         }
     }
 }
@@ -659,7 +665,7 @@ where
 {
     fn cmp(&self, other: &Self) -> Ordering {
         unsafe{
-            self.vtable().cmp()(self.sabi_erased_ref(), other.sabi_erased_ref()).into()
+            self.vtable().cmp()(self.sabi_erased_ref(), other.as_erased_ref()).into()
         }
     }
 }
@@ -672,7 +678,7 @@ where
 {
     fn partial_cmp(&self, other: &NonExhaustive<E,S,I2>) -> Option<Ordering> {
         unsafe{
-            self.vtable().partial_cmp()(self.sabi_erased_ref(), other.sabi_erased_ref())
+            self.vtable().partial_cmp()(self.sabi_erased_ref(), other.as_erased_ref())
                 .map(IntoReprRust::into_rust)
                 .into()
         }
@@ -840,8 +846,13 @@ impl<E,S,I> Drop for NonExhaustive<E,S,I>{
 
 /// Used to abstract over the reference-ness of `NonExhaustive<>` inside UnwrapEnumError.
 pub trait NonExhaustiveSharedOps{
+    /// The type of the discriminant of the wrapped enum.
     type Discriminant:ValidDiscriminant;
+
+    /// Gets the discriminant of the wrapped enum.
     fn get_discriminant_(&self)->Self::Discriminant;
+    
+    /// Gets miscelaneous information about the wrapped enum
     fn enum_info_(&self)->&'static EnumInfo;
 }
 
@@ -858,8 +869,7 @@ impl<E> DiscrAndEnumInfo<E>{
     pub fn new(discr:E,enum_info:&'static EnumInfo)->Self{
         Self{discr,enum_info}
     }
-    /// The value of a discriminant that wasn't valid in this context
-    /// (it is of a variant declared in a newer version of a dynamic library),
+    /// The value of the enum discriminant,
     pub fn discr(&self)->E
     where
         E:ValidDiscriminant
@@ -946,7 +956,7 @@ pub struct UnwrapEnumError<N>{
 
 
 impl<N> UnwrapEnumError<N>{
-    /// Extracts the `NonExhaustive<>`,to handle the failure to unwrap it.
+    /// Gets the `non_exhaustive` field.
     #[must_use]
     pub fn into_inner(self)->N{
         self.non_exhaustive

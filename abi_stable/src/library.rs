@@ -4,9 +4,7 @@ as well as functions/modules within.
 */
 
 use std::{
-    fmt::{self, Display},
-    io,
-    marker::PhantomData,
+    convert::Infallible,
     mem,
     path::{Path,PathBuf},
     sync::atomic,
@@ -25,24 +23,30 @@ pub use abi_stable_shared::mangled_root_module_loader_name;
 
 
 use crate::{
-    abi_stability::stable_abi_trait::SharedStableAbi,
+    abi_stability::stable_abi_trait::StableAbi,
     globals::{self,Globals},
-    marker_type::ErasedObject,
+    marker_type::ErasedPrefix,
+    prefix_type::{PrefixRef, PrefixRefTrait},
     type_layout::TypeLayout,
-    sabi_types::{ LateStaticRef, ParseVersionError, VersionNumber, VersionStrings },
-    std_types::{RVec,RBoxError,StaticStr},
+    sabi_types::{ LateStaticRef, VersionNumber, VersionStrings },
+    std_types::{RResult, RStr},
     utils::{transmute_reference},
 };
 
 
 pub mod c_abi_testing;
+pub mod development_utils;
 mod lib_header;
+mod errors;
 mod root_mod_trait;
 mod raw_library;
 
 
+#[doc(no_inline)]
+pub use self::c_abi_testing::{CAbiTestingFns,C_ABI_TESTING_FNS};
+
 pub use self::{
-    c_abi_testing::{CAbiTestingFns,C_ABI_TESTING_FNS},
+    errors::{IntoRootModuleResult, LibraryError, RootModuleError},
     lib_header::{AbiHeader,LibHeader},
     root_mod_trait::{
         RootModule,
@@ -63,10 +67,10 @@ pub use self::{
 /// What naming convention to expect when loading a library from a directory.
 #[derive(Debug,Copy,Clone,PartialEq,Eq,Ord,PartialOrd,Hash)]
 pub enum LibrarySuffix{
-    /// Loads a dynamic library at `<folder>/<base_name>.extension`
+    /// Loads a dynamic library at `<folder>/<name>.extension`
     NoSuffix,
     
-    /// Loads a dynamic library at `<folder>/<base_name>-<pointer_size>.<extension>`
+    /// Loads a dynamic library at `<folder>/<name>-<pointer_size>.<extension>`
     Suffix,
 }
 
@@ -76,7 +80,9 @@ pub enum LibrarySuffix{
 /// The path a library is loaded from.
 #[derive(Debug,Copy,Clone,PartialEq,Eq,Ord,PartialOrd,Hash)]
 pub enum LibraryPath<'a>{
+    /// The full path to the dynamic library.
     FullPath(&'a Path),
+    /// The path to the directory that contains the dynamic library.
     Directory(&'a Path),
 }
 
@@ -104,12 +110,18 @@ impl IsLayoutChecked{
 
 //////////////////////////////////////////////////////////////////////
 
+/// The return type of the function that the
+/// `#[export_root_module]` attribute outputs.
+pub type RootModuleResult = RResult<PrefixRef<ErasedPrefix>, RootModuleError>;
+
+//////////////////////////////////////////////////////////////////////
+
 
 /// The static variables declared for some `RootModule` implementor.
 #[doc(hidden)]
 pub struct RootModuleStatics<M>{
     root_mod:LateStaticRef<M>,
-    raw_lib:LateStaticRef<RawLibrary>,
+    raw_lib:LateStaticRef<&'static RawLibrary>,
 }
 
 impl<M> RootModuleStatics<M>{
@@ -131,6 +143,9 @@ impl<M> RootModuleStatics<M>{
 /// Passing `Self` instead of `TypeOfSelf` won't work.
 #[macro_export]
 macro_rules! declare_root_module_statics {
+    ( ( $($stuff:tt)* ) ) => (
+        $carte::declare_root_module_statics!{$($stuff)*}
+    );
     ( $this:ty ) => (
         #[inline]
         fn root_module_statics()->&'static $crate::library::RootModuleStatics<$this>{
@@ -139,118 +154,33 @@ macro_rules! declare_root_module_statics {
 
             &_ROOT_MOD_STATICS
         }
-    )
+    );
+    ( Self ) => (
+        compile_error!("Don't use `Self`, write the full type name")
+    );
 }
-
-
 
 //////////////////////////////////////////////////////////////////////
 
 
-/// All the possible errors that could happen when loading a library,
-/// or a module.
-#[derive(Debug)]
-pub enum LibraryError {
-    /// When a library can't be loaded, because it doesn't exist.
-    OpenError{
-        path:PathBuf,
-        io:io::Error,
-    },
-    /// When a function/static does not exist.
-    GetSymbolError{
-        library:PathBuf,
-        /// The name of the function/static.Does not have to be utf-8.
-        symbol:Vec<u8>,
-        io:io::Error,
-    },
-    /// The version string could not be parsed into a version number.
-    ParseVersionError(ParseVersionError),
-    /// The version numbers of the library was incompatible.
-    IncompatibleVersionNumber {
-        library_name: &'static str,
-        expected_version: VersionNumber,
-        actual_version: VersionNumber,
-    },
-    /// The abi is incompatible.
-    /// The error is opaque,since the error always comes from the main binary
-    /// (dynamic libraries can be loaded from other dynamic libraries),
-    /// and no approach for extensible enums is settled on yet.
-    AbiInstability(RBoxError),
-    /// The type used to check that this is a compatible abi_stable
-    /// is not the same.
-    InvalidAbiHeader(AbiHeader),
-    /// When Rust changes how it implements the C abi,
-    /// most likely because of zero-sized types.
-    InvalidCAbi{
-        expected:RBoxError,
-        found:RBoxError,
-    },
-    /// There could have been 0 or more errors in the function.
-    Many(RVec<Self>),
+#[doc(hidden)]
+pub fn __call_root_module_loader<T>(function: fn()->T ) -> RootModuleResult
+where
+    T: IntoRootModuleResult
+{
+    type TheResult = Result<PrefixRef<ErasedPrefix>, RootModuleError>;
+    let res = ::std::panic::catch_unwind(||-> TheResult {
+        let ret: T::Module = function().into_root_module_result()?;
+
+        let _= <T::Module as RootModule>::load_module_with(|| Ok::<_,Infallible>(ret) );
+        unsafe{
+            ret.to_prefix_ref()
+                .cast::<ErasedPrefix>()
+                .piped(Ok)
+        }
+    });
+    // We turn an unwinding panic into an error value
+    let flattened: TheResult = res.unwrap_or(Err(RootModuleError::Unwound));
+    RootModuleResult::from(flattened)
 }
 
-impl From<ParseVersionError> for LibraryError {
-    fn from(v: ParseVersionError) -> LibraryError {
-        LibraryError::ParseVersionError(v)
-    }
-}
-
-impl Display for LibraryError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("\n")?;
-        match self {
-            LibraryError::OpenError{path,io} => writeln!(
-                f,
-                "Could not open library at:\n\t{}\nbecause:\n\t{}",
-                path.display(),io
-            ),
-            LibraryError::GetSymbolError{library,symbol,io} => writeln!(
-                f,
-                "Could load symbol:\n\t{}\nin library:\n\t{}\nbecause:\n\t{}",
-                String::from_utf8_lossy(symbol),
-                library.display(),
-                io
-            ),
-            LibraryError::ParseVersionError(x) => fmt::Display::fmt(x, f),
-            LibraryError::IncompatibleVersionNumber {
-                library_name,
-                expected_version,
-                actual_version,
-            } => writeln!(
-                f,
-                "\n'{}' library version mismatch:\nuser:{}\nlibrary:{}",
-                library_name, expected_version, actual_version,
-            ),
-            LibraryError::AbiInstability(x) => fmt::Display::fmt(x, f),
-            LibraryError::InvalidAbiHeader(found) => write!(
-                f,
-                "The abi of the library was:\n{:#?}\n\
-                 When this library expected:\n{:#?}",
-                found, AbiHeader::VALUE,
-            ),
-            LibraryError::InvalidCAbi{expected,found}=>{
-                write!{
-                    f,
-                    "The C abi of the library is different than expected:\n\
-                     While running tests on the library:\n\
-                     {s}Found:\n{s}{s}{found}\n\
-                     {s}Expected:\n{s}{s}{expected}\n\
-                    ",
-                    s="    ",
-                    found=found,
-                    expected=expected,
-                }
-            },
-            LibraryError::Many(list)=>{
-                for e in list {
-                    Display::fmt(e,f)?;
-                }
-                Ok(())
-            }
-        }?;
-        f.write_str("\n")?;
-        Ok(())
-    }
-}
-
-impl ::std::error::Error for LibraryError {}

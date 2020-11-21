@@ -4,7 +4,7 @@ Contains ffi-safe equivalent of `std::time::Duration`.
 
 use std::time::Duration;
 
-/// Ffi-safe equivalent of ::std::time::Duration .
+/// Ffi-safe equivalent of `std::time::Duration` .
 ///
 /// # Example
 ///
@@ -136,7 +136,7 @@ impl RDuration {
         self.subsec_nanos
     }
 
-    /// The amount of seconds pf this RDuration.
+    /// The amount of seconds of this RDuration.
     ///
     /// # Example
     ///
@@ -151,7 +151,7 @@ impl RDuration {
         self.seconds
     }
 
-    /// The amount of seconds pf this RDuration.
+    /// The amount of seconds of this RDuration.
     ///
     /// # Example
     ///

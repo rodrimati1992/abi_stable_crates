@@ -79,9 +79,7 @@ macro_rules! declare_alignments {
             #[doc=$docs]
             #[repr(C)]
             #[repr(align($alignment))]
-            pub struct $aligner<Inline>{
-                inline:Inline,
-            }
+            pub struct $aligner<Inline>(pub Inline);
             
             unsafe impl<Inline> InlineStorage for $aligner<Inline>
             where
@@ -114,9 +112,7 @@ pub mod alignment{
     #[cfg_attr(target_pointer_width="64",repr(C,align(8)))]
     #[cfg_attr(target_pointer_width="32",repr(C,align(4)))]
     #[cfg_attr(target_pointer_width="16",repr(C,align(2)))]
-    pub struct AlignToUsize<Inline>{
-        inline:Inline,
-    }
+    pub struct AlignToUsize<Inline>(pub Inline);
 
     unsafe impl<Inline> InlineStorage for AlignToUsize<Inline>
     where
@@ -128,18 +124,11 @@ pub mod alignment{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(not(feature="rust_1_36"))]
-pub(crate) type UsedUninit<Inline>=std::mem::ManuallyDrop<Inline>;
-
-#[cfg(feature="rust_1_36")]
-pub(crate) type UsedUninit<Inline>=std::mem::MaybeUninit<Inline>;
-
-
 /// Used internally to avoid requiring Rust 1.36.0 .
 #[repr(transparent)]
 pub(crate) struct ScratchSpace<Inline>{
     #[allow(dead_code)]
-    storage:UsedUninit<Inline>,
+    storage:std::mem::MaybeUninit<Inline>,
 }
 
 impl<Inline> ScratchSpace<Inline>{
@@ -197,29 +186,10 @@ and that `Inline` si valid for all bitpatterns.
     }
 }
 
-#[cfg(not(feature="rust_1_36"))]
 impl<Inline> ScratchSpace<Inline>{
-
-/**
-# Safety
-
-You must ensure that `Inline` is valid for all bitpatterns,ie:it implements `InlineStorage`.
-*/
-    #[inline]
-    pub(crate) unsafe fn uninit_unbounded()->Self{
-        unsafe{
-            std::mem::uninitialized()
-        }
-    }
-}
-
-#[cfg(feature="rust_1_36")]
-impl<Inline> ScratchSpace<Inline>{
-/**
-# Safety
-
-You must ensure that `Inline` is valid for all bitpatterns,ie:it implements `InlineStorage`.
-*/
+    /// # Safety
+    /// 
+    /// You must ensure that `Inline` is valid for all bitpatterns,ie:it implements `InlineStorage`.
     #[inline]
     pub(crate) unsafe fn uninit_unbounded()->Self{
         unsafe{

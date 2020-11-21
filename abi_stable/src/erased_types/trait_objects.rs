@@ -22,6 +22,7 @@ use crate::{
 /////////////////////////////////////////////////////////////
 
 
+/// An ffi-safe equivalent of `&mut dyn std::hash::Hasher`.
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct HasherObject<'a> {
@@ -31,6 +32,7 @@ pub struct HasherObject<'a> {
 }
 
 impl<'a> HasherObject<'a> {
+    /// Constructs a `HasherObject`.
     pub fn new<T:'a>(this: &'a mut T) -> HasherObject<'a>
     where
         T:Hasher
@@ -45,6 +47,7 @@ impl<'a> HasherObject<'a> {
         }
     }
 
+    /// Reborrows this `HasherObject` with a smaller lifetime.
     pub fn as_mut<'b:'a>(&'b mut self)->HasherObject<'b>{
         Self{
             this:&mut self.this,
@@ -57,12 +60,12 @@ impl<'a> HasherObject<'a> {
 impl<'a> Hasher for HasherObject<'a>{
     fn finish(&self) -> u64 {
         unsafe{
-            (self.finish)((&*self.this).into())
+            (self.finish)(&*self.this)
         }
     }
     fn write(&mut self, bytes: &[u8]) {
         unsafe{
-            (self.hash_slice)((&mut *self.this).into(), bytes.into())
+            (self.hash_slice)(&mut *self.this, bytes.into())
         }
     }
 }
@@ -70,6 +73,8 @@ impl<'a> Hasher for HasherObject<'a>{
 //////////////
 
 
+/// An ffi-safe equivalent of `Box<dyn Debug + Display>`
+/// (if `dyn Debug + Display` was possible).
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct DebugDisplayObject{
@@ -80,7 +85,8 @@ pub struct DebugDisplayObject{
 
 
 impl DebugDisplayObject{
-    pub fn new<T>(value:T)->DebugDisplayObject
+    /// Constructs this `DebugDisplayObject`.
+    pub fn new<T>(value: T)->DebugDisplayObject
     where T:Display+Debug+'static
     {
         DebugDisplayObject{
@@ -93,6 +99,7 @@ impl DebugDisplayObject{
         }
     }
 
+    /// Constructs a `DebugDisplayObject`.which doesn't output anything.
     pub fn no_output()->DebugDisplayObject{
         Self::new(NoFmt)
     }

@@ -24,6 +24,7 @@ pub enum MonoTLData {
 
 
 impl MonoTLData {
+    /// Teh `MonoTLData` for an empty struct.
     pub const EMPTY:Self=
         MonoTLData::Struct {
             fields: CompTLFields::EMPTY,
@@ -97,8 +98,8 @@ impl MonoTLData {
         })
     }
 
-    /// Converts this a TLDataDiscriminant,allowing one to query which discriminant this is
-    /// (without either copying MonoTLData or keeping a reference).
+    /// Converts this into a `TLDataDiscriminant`,
+    /// allowing one to query which discriminant this is.
     pub fn as_discriminant(&self) -> TLDataDiscriminant {
         match self {
             MonoTLData::Primitive { .. } => TLDataDiscriminant::Primitive,
@@ -117,6 +118,12 @@ impl MonoTLData {
         }
     }
 
+    /// Expands this `MonoTLData`.
+    ///
+    /// # Errors
+    ///
+    /// This returns a `MismatchedTLDataVariant` if `self` and `generic` 
+    /// are variant of different names.
     pub fn expand(
         self,
         generic:GenericTLData,
@@ -160,8 +167,8 @@ impl MonoTLData {
 ///////////////////////////
 
 
-/// An error returned by MonoTLData::expand because 
-/// the GenericTLData it tried to combine itself with was a different variant.
+/// An error returned by `MonoTLData::expand` because 
+/// the `GenericTLData` it tried to combine itself with was a different variant.
 #[derive(Debug,Clone)]
 pub struct MismatchedTLDataVariant{
     nongeneric: TLDataDiscriminant,
@@ -217,8 +224,8 @@ pub enum GenericTLData {
 
 
 impl GenericTLData{
-    /// Converts this a TLDataDiscriminant,allowing one to query which discriminant this is
-    /// (without either copying MonoTLData or keeping a reference).
+    /// Converts this into a `TLDataDiscriminant`,
+    /// allowing one to query which discriminant this is.
     pub fn as_discriminant(&self) -> TLDataDiscriminant {
         match self {
             GenericTLData::Primitive { .. } => TLDataDiscriminant::Primitive,

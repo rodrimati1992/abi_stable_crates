@@ -3,6 +3,8 @@ use syn::{
     Type, Visibility,
 };
 
+use core_extensions::matches;
+
 use quote::ToTokens;
 
 use proc_macro2::{Span, TokenStream};
@@ -64,10 +66,10 @@ impl<'a> DataStructure<'a> {
                             discriminant:var.discriminant
                                 .as_ref()
                                 .map(|(_,v)| v ),
-                            variant:variant,
+                            variant,
                             attrs:&var.attrs,
                             name:&var.ident,
-                            override_vis:override_vis,
+                            override_vis,
                         },
                         &var.fields,
                     ));
@@ -82,8 +84,8 @@ impl<'a> DataStructure<'a> {
                         discriminant:None,
                         variant:0,
                         attrs:&[],
-                        name:name,
-                        override_vis:override_vis,
+                        name,
+                        override_vis,
                     },
                     &struct_.fields,
                 ));
@@ -100,8 +102,8 @@ impl<'a> DataStructure<'a> {
                         discriminant:None,
                         variant:0,
                         attrs:&[], 
-                        name:name, 
-                        override_vis:override_vis,
+                        name, 
+                        override_vis,
                     },
                     sk, 
                     fields,
@@ -291,14 +293,25 @@ impl<'a> Field<'a> {
     }
 
     pub fn is_public(&self)->bool{
-        match self.vis {
-            Visibility::Public{..}=>true,
-            _=>false,
-        }
+        matches!(Visibility::Public{..} = self.vis)
     }
 
-    /// Gets the identifier of this field as an `&Ident`.
-    pub fn ident(&self)->&Ident{
+    /// Gets the identifier of this field usable for the variable in a pattern.
+    ///
+    /// You can match on a single field struct (tupled or braced) like this:
+    ///
+    /// ```rust
+    /// use as_derive_utils::datastructure::Struct;
+    ///
+    /// fn example(struct_: Struct<'_>) -> proc_macro2::TokenStream {
+    ///     let field = &struct_.field[0];
+    ///     let field_name = &field.ident;
+    ///     let variable = field.pat_ident();
+    ///    
+    ///     quote::quote!( let Foo{#field_name: #variable} = bar; )
+    /// }
+    /// ```
+    pub fn pat_ident(&self)->&Ident{
         match &self.ident {
             FieldIdent::Index(_,ident)=>ident,
             FieldIdent::Named(ident)=>ident,

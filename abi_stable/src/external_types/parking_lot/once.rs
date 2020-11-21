@@ -15,7 +15,6 @@ use super::{UnsafeOveralignedField,RAW_LOCK_SIZE};
 use crate::{
     utils::{transmute_mut_reference},
     prefix_type::{PrefixTypeTrait,WithMetadata},
-    sabi_types::StaticRef,
     std_types::{RResult,ROk,RErr},
 };
 
@@ -46,17 +45,11 @@ A synchronization primitive for running global initialization once.
 # Example
 
 ```
-use abi_stable::{
-    external_types::{ROnce,RMutex},
-    utils::leak_value,
-};
+use abi_stable::external_types::{ROnce,RMutex};
 
 static MUTEX:RMutex<usize>=RMutex::new(0);
 
-// For some reason this is causing the compiler to panic (as of Rust 1.36).
-// static ONCE:ROnce=ROnce::new();
-
-static ONCE:ROnce=ROnce::NEW;
+static ONCE:ROnce=ROnce::new();
 
 let guards=
     std::iter::repeat_with(||{
@@ -83,34 +76,24 @@ assert_eq!(*MUTEX.lock(),1);
 #[derive(StableAbi)]
 pub struct ROnce{
     opaque_once:OpaqueOnce,
-    vtable:StaticRef<VTable>,
+    vtable: VTable_Ref,
 }
 
 impl ROnce{
     /// Constructs an ROnce.
-    ///
-    /// As of Rust 1.36 this can't be called in const contexts,
-    /// because is causes the compiler to panic.
-    ///
-    /// You can declare static like this:`static ONCE:ROnce=ROnce::NEW;`.
     ///
     /// # Example
     ///
     /// ```
     /// use abi_stable::external_types::ROnce;
     ///
-    /// // For some reason this is causing the compiler to panic (as of Rust 1.36).
-    /// // static ONCE:ROnce=ROnce::new();
-    ///
-    /// static ONCE:ROnce=ROnce::NEW;
+    /// static ONCE: ROnce = ROnce::new();
     /// 
-    /// let once=ROnce::new();
-    ///
     /// ```
     pub const fn new() -> ROnce{
         ROnce{
             opaque_once:OPAQUE_ONCE,
-            vtable: WithMetadata::as_prefix(VTable::VTABLE),
+            vtable: VTable::VTABLE,
         }
     }
 
@@ -121,20 +104,17 @@ impl ROnce{
     /// ```
     /// use abi_stable::external_types::ROnce;
     ///
-    /// // For some reason this is causing the compiler to panic (as of Rust 1.36).
-    /// // static ONCE:ROnce=ROnce::new();
-    ///
     /// static ONCE:ROnce=ROnce::NEW;
     ///
     /// ```
     pub const NEW:Self=
         ROnce{
             opaque_once:OPAQUE_ONCE,
-            vtable: WithMetadata::as_prefix(VTable::VTABLE),
+            vtable: VTable::VTABLE,
         };
 
-    fn vtable(&self)->&'static VTable{
-        self.vtable.get()
+    fn vtable(&self)-> VTable_Ref{
+        self.vtable
     }
 
 /**
@@ -446,7 +426,7 @@ impl<F> Closure<F>{
     }
 
     #[inline]
-    fn run_call<'a,M>(this:&mut ErasedClosure,state:ROnceState,method:M)->RResult<(),()>
+    fn run_call<M>(this:&mut ErasedClosure,state:ROnceState,method:M)->RResult<(),()>
     where
         M: FnOnce(F,ROnceState),
     {
@@ -472,9 +452,9 @@ impl<F> Closure<F>{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="VTable")))]
+#[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
-struct VTableVal{
+struct VTable{
     state:extern "C" fn(&OpaqueOnce)->ROnceState,
     call_once:extern "C" fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
     call_once_force:extern "C" fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
@@ -482,15 +462,17 @@ struct VTableVal{
 
 impl VTable{
     // The VTABLE for this type in this executable/library
-    const VTABLE: StaticRef<WithMetadata<VTableVal>> = {
-        StaticRef::new(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            VTableVal{
-                state,
-                call_once,
-                call_once_force
-            }
-        ))
+    const VTABLE: VTable_Ref = {
+        VTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                VTable{
+                    state,
+                    call_once,
+                    call_once_force
+                }
+            ).static_as_prefix()
+        )
     };
 }
 
@@ -510,7 +492,7 @@ extern "C" fn call_once(
     runner:RunClosure,
 )->RResult<(),()>{
     call_with_closure(||{
-        this.value.call_once(||->(){
+        this.value.call_once(||{
             (runner.func)(erased_closure,ROnceState::New).unwrap();
         });
     })
@@ -521,7 +503,7 @@ extern "C" fn call_once_force(
     runner:RunClosure,
 )->RResult<(),()>{
     call_with_closure(||{
-        this.value.call_once_force(|state|->(){
+        this.value.call_once_force(|state|{
             (runner.func)(erased_closure,state.into()).unwrap();
         });
     })
@@ -560,6 +542,7 @@ mod tests{
     use abi_stable_shared::{file_span,test_utils::{must_panic}};
 
     #[test]
+    #[cfg(not(all(miri, target_os = "windows")))]
     fn state(){
         {
             let once=ROnce::new();

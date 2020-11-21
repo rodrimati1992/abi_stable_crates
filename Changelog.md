@@ -1,5 +1,141 @@
 This is the changelog,summarising changes in each version(some minor changes may be ommited).
 
+# 0.9
+
+# 0.9.0
+
+Rewrote how prefix types work. now they aren't by reference, 
+they use static-reference-like types generated for each prefix type
+(those types have a `_Ref` suffix by default).
+
+Flattened many module hierarchies in abi_stable,
+leaving many of those items only exposed where they used to be reexported.
+
+Now `#[repr(C, packed)]` prefix types are forbidden.
+
+Added a `PrefixRef` pointer type, which is what the `*_Ref` types wrap,
+used as the pointer to the prefix of every prefix type.
+
+Now the `#[sabi(kind(Prefix))]` takes two optional arguments, `prefix_ref` and `prefix_fields`,
+defaulting to `prefix_ref = "<DerivingType>_Ref"` and `prefix_fields = "<DerivingType>_Fields"`.
+
+Made the root_module_loader function(declared with the `#[export_root_module]` attribute)
+be able to return anything that implements the new `IntoRootModuleResult` trait,
+including `Result<_, RBoxError_>`.
+
+Declared the `RootModuleError` type and `LibraryError::RootModule` variant
+for the errors returned by root module loaders.
+
+Defined the `abi_stable::library::development_utils` module with helper items for use while
+developing a dynamic library.
+
+Made `Constructor`, `MovePtr`, `RRef`, `NulStr`, and `StaticRef`  use
+`NonNull` instead of a raw pointer, this allows `Option`s wrapping them to be ffi-safe.
+
+Split off `SharedStableAbi` trait from `StableAbi`, now there's `PrefixStableAbi` and `StableAbi`,
+both of which only have `GetStaticEquivalent_` in common.
+
+Renamed `WithMetadataFor` to `PrefixMedata`, and added accessors for its fields.
+
+Removed `PrefixTypeTrait::into_with_metadata` method,added `PrefixFields` and `PrefixRef` assoc types.
+
+Added `staticref` macro for declaring `StaticRef` consts,added `StaticRef::leak_value` constructor.
+
+Added `ImmutableRef` marker trait for reference-like types.
+
+Made `LateStaticRef` generic over the pointer it wraps, using the `ImmutableRef` trait.
+
+Renamed `LateStaticRef::<&T>::initialized` to `from_ref`.
+
+Added the `LateStaticRef::<PrefixRef<P>>::from_prefixref` constructor.
+
+Added `PrefixRefTrait` trait for ffi-safe pointers to prefixes.
+
+Added the `PointsToPrefixFields` marker type,
+and `PrefixRefTrait::PREFIX_FIELDS` associated constant to construct it,
+this type is required for calling `LateStaticRef::from_prefixref`.
+
+Made `RootModule` trait have an additional `PrefixRefTrait` supertrait.
+
+Added the `abi_stable::for_examples` module, with types used in documentation examples.
+
+Added `Send` + `Sync` supertraits to `TypeChecker` and `ExtraChecks`
+
+Defined the `RMut` type to rewrite how `#[sabi_trait]` passes the method receiver.
+
+Added `sabi_as_rref` and `sabi_as_rmut` methods to `RObject` and `DynTrait` to
+get `RRef` and `RMut` to the wrapped value.
+
+
+Made `abi_stable` testable with [`miri`](https://github.com/rust-lang/miri)
+
+Bumped the minimum supported Rust version to 1.41.0.
+
+Updated these public dependencies:
+- core_extensions to "0.1.18"
+- libloading to "0.6.4"
+- parking_lot to "0.11.0"
+- lock_api to "0.4.1"
+- crossbeam-channel to "0.5.0"
+- serde and serde_derive to "1.0.117"
+
+Fixed the lack of `# Unsafe` docs for some unsafe traits.
+
+Made (small) improvements to all of the documentation.
+
+Added docs to the module that `#[sabi_trait]` generates,
+and hid methods in `*_MV` types (they were not supposed to be public).
+
+Added generated docs for nonexhaustive enums, unhid the generated items,
+and made the generated constructors `#[doc(hidden)}` when the variants are.
+
+Removed parameters of `assert_nonexhaustive`, using `std::any::type_name` internally instead.
+
+Hid `nonexhaustive_enum::GetVTable::VTABLE_REF`
+
+Added support for pinning RBox.
+
+Added std::iter::\*,Future,Hasher,Error,std::io::\*, and std::fmt::Pointer impls for RBox.
+
+Changed `impl_get_type_info` macro to take a `:ty` parameter.
+
+Made the fields in `InlineStorage` types public.
+
+Added associated constants to construct some types in `abi_stable::marker_type`.
+
+Fixed handling of `unsafe trait` in `#[sabi_trait]`,
+before this the `unsafe` was removed in the generated code.
+
+Fixed an unsoundness bug where `LateStaticRef<T>` implemented `Send` + `Sync` even if `T` didn't.
+
+Fixed an unsoundness bug where the `RBpxErrpr` returned from checking the layout
+of a library could contain references into the unloaded library,
+by using a new `RBorError_::to_formatted_error` method to stringify the error.
+
+Changed `RBox::{from_fmt, from_debug, to_formatted_error}` to take references.
+
+Added check to the `declare_root_module_statics` macro to safeguard against passing `Self`.
+
+Fixed(?) the variance of type parameters in `#[sabi_trait]` generated trait object to be covariant.
+
+Fixed `RMutex::get_mut`, which caused a memory leak.
+
+Fixed `RRwLock::get_mut`, which caused a memory leak.
+
+Fixed exporting of `abi_stable::prefix_type::BoolArrayIter`, before this it was not shown in the docs.
+
+Made `MovePtr<T>` implement `Send` and/or `Sync` when `T` does.
+
+Added `RSliceMut::as_mut_ptr` method
+    
+Removed the `RSliceMut::into_slice_mut` method (it was marked for deprecation)
+
+Implemented Send and Sync for the RString and RVec iterators.
+
+Made `prefix_type::panic_on_missing_field_val` private
+
+Made `TagErrorVariant` private.
+
 # 0.8
 
 ### 0.8.3
@@ -28,9 +164,9 @@ zero-sized types in the "C" ABI.
 This means that in some rare cases,it won't be possible to link dynamic libraries across a 
 certain Rust version because it changed how it represents zero-sized types in the "C" abi.
 
-Added RBoxError::from_debug for constructing an RBoxError from `Debug+!Display` types.
+Added `RBoxError::from_debug` for constructing an `RBoxError` from `Debug + !Display` types.
 
-Added impls of StableAbi for PhantomData of tuples.
+Added impls of `StableAbi` for `PhantomData` of tuples.
 
 Added the `abi_stable::marker_type::NonOwningPhantom` marker type,
 which is a more convenient way to have a `PhantomData<extern "C"fn()->PhantomData<T>>` field

@@ -1,6 +1,10 @@
 use super::*;
 
-use crate::utils::leak_value;
+use crate::{
+    marker_type::NonOwningPhantom,
+    prefix_type::PrefixRefTrait,
+    utils::leak_value,
+};
 
 
 /**
@@ -12,7 +16,7 @@ at either the example in the readme for this crate,
 or the `example/example_*_interface` crates  in this crates' repository .
 
 */
-pub trait RootModule: Sized+SharedStableAbi+'static  {
+pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static  {
 
     /// The name of the dynamic library,which is the same on all platforms.
     /// This is generally the name of the `implementation crate`.
@@ -21,7 +25,7 @@ pub trait RootModule: Sized+SharedStableAbi+'static  {
     /// The name of the library used in error messages.
     const NAME: &'static str;
 
-    /// The version number of the library of `Self:RootModule`.
+    /// The version number of the library that this is a root module of.
     /// 
     /// Initialize this with ` package_version_strings!() `
     const VERSION_STRINGS: VersionStrings;
@@ -31,17 +35,17 @@ pub trait RootModule: Sized+SharedStableAbi+'static  {
     /// It can safely be used as a proxy for the associated constants of this trait.
     const CONSTANTS:RootModuleConsts<Self>=RootModuleConsts{
         inner:ErasedRootModuleConsts{
-            base_name:StaticStr::new(Self::BASE_NAME),
-            name:StaticStr::new(Self::NAME),
+            base_name:RStr::from_str(Self::BASE_NAME),
+            name:RStr::from_str(Self::NAME),
             version_strings:Self::VERSION_STRINGS,
-            layout:IsLayoutChecked::Yes(<&Self>::S_LAYOUT),
+            layout:IsLayoutChecked::Yes(<Self as StableAbi>::LAYOUT),
             c_abi_testing_fns:crate::library::c_abi_testing::C_ABI_TESTING_FNS,
             _priv:(),
         },
-        _priv:PhantomData,
+        _priv:NonOwningPhantom::NEW,
     };
 
-    /// Like Self::CONSTANTS,
+    /// Like `Self::CONSTANTS`,
     /// except without including the type layout constant for the root module.
     const CONSTANTS_NO_ABI_INFO:RootModuleConsts<Self>={
         let mut consts=Self::CONSTANTS;
@@ -61,7 +65,7 @@ pub trait RootModule: Sized+SharedStableAbi+'static  {
 Gets the root module,returning None if the module is not yet loaded.
 */
     #[inline]
-    fn get_module()->Option<&'static Self>{
+    fn get_module()->Option<Self>{
         Self::root_module_statics().root_mod.get()
     }
 
@@ -91,13 +95,13 @@ Loads the root module,with a closure which either
 returns the root module or an error.
 
 If the root module was already loaded,
-this will return a reference to the already loaded root module,
+this will return the already loaded root module,
 without calling the closure.
 
 */
-    fn load_module_with<F,E>(f:F)->Result<&'static Self,E>
+    fn load_module_with<F,E>(f:F)->Result<Self,E>
     where
-        F:FnOnce()->Result<&'static Self,E>
+        F:FnOnce()->Result<Self,E>
     {
         Self::root_module_statics().root_mod.try_init(f)
     }
@@ -107,7 +111,7 @@ Loads this module from the path specified by `where_`,
 first loading the dynamic library if it wasn't already loaded.
 
 Once the root module is loaded,
-this will return a reference to the already loaded root module.
+this will return the already loaded root module.
 
 # Warning
 
@@ -122,27 +126,30 @@ calling the root module loader.
 
 This will return these errors:
 
-- LibraryError::OpenError:
+- `LibraryError::OpenError`:
 If the dynamic library itself could not be loaded.
 
-- LibraryError::GetSymbolError:
+- `LibraryError::GetSymbolError`:
 If the root module was not exported.
 
-- LibraryError::InvalidAbiHeader:
+- `LibraryError::InvalidAbiHeader`:
 If the abi_stable version used by the library is not compatible.
 
-- LibraryError::ParseVersionError:
+- `LibraryError::ParseVersionError`:
 If the version strings in the library can't be parsed as version numbers,
 this can only happen if the version strings are manually constructed.
 
-- LibraryError::IncompatibleVersionNumber:
+- `LibraryError::IncompatibleVersionNumber`:
 If the version number of the library is incompatible.
 
-- LibraryError::AbiInstability:
+- `LibraryError::AbiInstability`:
 If the layout of the root module is not the expected one.
 
+- `LibraryError::RootModule` :
+If the root module initializer returned an error or panicked.
+
 */
-    fn load_from(where_:LibraryPath<'_>) -> Result<&'static Self, LibraryError>{
+    fn load_from(where_:LibraryPath<'_>) -> Result<Self, LibraryError>{
         let statics=Self::root_module_statics();
         statics.root_mod.try_init(||{
             let raw_library=load_raw_library::<Self>(where_)?;
@@ -165,12 +172,12 @@ Loads this module from the directory specified by `where_`,
 first loading the dynamic library if it wasn't already loaded.
 
 Once the root module is loaded,
-this will return a reference to the already loaded root module.
+this will return the already loaded root module.
 
-Warnings and Errors are detailed in `load_from`,
+Warnings and Errors are detailed in [`load_from`](#method.load_from),
 
 */
-    fn load_from_directory(where_:&Path) -> Result<&'static Self, LibraryError>{
+    fn load_from_directory(where_:&Path) -> Result<Self, LibraryError>{
         Self::load_from(LibraryPath::Directory(where_))
     }
 
@@ -180,19 +187,19 @@ Loads this module from the file at `path_`,
 first loading the dynamic library if it wasn't already loaded.
 
 Once the root module is loaded,
-this will return a reference to the already loaded root module.
+this will return the already loaded root module.
 
-Warnings and Errors are detailed in `load_from`,
+Warnings and Errors are detailed in [`load_from`](#method.load_from),
 
 */
-    fn load_from_file(path_:&Path) -> Result<&'static Self, LibraryError>{
+    fn load_from_file(path_:&Path) -> Result<Self, LibraryError>{
         Self::load_from(LibraryPath::FullPath(path_))
     }
 
     /// Defines behavior that happens once the module is loaded.
     ///
     /// The default implementation does nothing.
-    fn initialization(self: &'static Self) -> Result<&'static Self, LibraryError> {
+    fn initialization(self) -> Result<Self, LibraryError> {
         Ok(self)
     }
 }
@@ -201,7 +208,7 @@ Warnings and Errors are detailed in `load_from`,
 /// Loads the raw library at `where_`
 fn load_raw_library<M>(where_:LibraryPath<'_>) -> Result<RawLibrary, LibraryError>
 where
-    M:RootModule
+    M: RootModule
 {
     let path=match where_ {
         LibraryPath::Directory(directory)=>{
@@ -220,10 +227,10 @@ Gets the LibHeader of a library.
 
 This will return these errors:
 
-- LibraryError::GetSymbolError:
+- `LibraryError::GetSymbolError`:
 If the root module was not exported.
 
-- LibraryError::InvalidAbiHeader:
+- `LibraryError::InvalidAbiHeader`:
 If the abi_stable used by the library is not compatible.
 
 # Safety
@@ -249,7 +256,7 @@ Gets the AbiHeader of a library.
 
 This will return these errors:
 
-- LibraryError::GetSymbolError:
+- `LibraryError::GetSymbolError`:
 If the root module was not exported.
 
 # Safety
@@ -286,13 +293,13 @@ if you need to do this without leaking you'll need to use
 
 This will return these errors:
 
-- LibraryError::OpenError:
+- `LibraryError::OpenError`:
 If the dynamic library itself could not be loaded.
 
-- LibraryError::GetSymbolError:
+- `LibraryError::GetSymbolError`:
 If the root module was not exported.
 
-- LibraryError::InvalidAbiHeader:
+- `LibraryError::InvalidAbiHeader`:
 If the abi_stable version used by the library is not compatible.
 
 */
@@ -319,10 +326,10 @@ if you need to do this without leaking you'll need to use
 
 This will return these errors:
 
-- LibraryError::OpenError:
+- `LibraryError::OpenError`:
 If the dynamic library itself could not be loaded.
 
-- LibraryError::GetSymbolError:
+- `LibraryError::GetSymbolError`:
 If the root module was not exported.
 
 */
@@ -350,17 +357,24 @@ macro_rules! declare_root_module_consts {
             ),* $(,)*
         ]
     ) => (
-        /// Encapsulates all the important constants of `RootModule` for `M`,
+        /// All the constants of the [`RootModule`] trait for `M`,
         /// used mostly to construct a `LibHeader` with `LibHeader::from_constructor`.
+        /// 
+        /// This is constructed with [`RootModule::CONSTANTS`].
+        /// 
+        /// [`RootModule`]: ./trait.RootModule.html
+        /// [`RootModule::CONSTANTS`]: ./trait.RootModule.html#associatedconstant.CONSTANTS
         #[repr(C)]
         #[derive(StableAbi,Copy,Clone)]
         pub struct RootModuleConsts<M>{
             inner:ErasedRootModuleConsts,
-            _priv:PhantomData<extern "C" fn()->M>,
+            _priv:NonOwningPhantom<M>,
         }
 
 
-        /// Encapsulates all the important constants of `RootModule` for some erased type.
+        /// All the constants of the [`RootModule`] trait for some erased type.
+        ///
+        /// [`RootModule`]: ./trait.RootModule.html
         #[repr(C)]
         #[derive(StableAbi,Copy,Clone)]
         pub struct ErasedRootModuleConsts{
@@ -403,10 +417,10 @@ declare_root_module_consts!{
         method_docs="
          The name of the dynamic library,which is the same on all platforms.
          This is generally the name of the implementation crate.",
-        base_name: StaticStr,
+        base_name: RStr<'static>,
 
         method_docs="The name of the library used in error messages.",
-        name: StaticStr,
+        name: RStr<'static>,
 
         method_docs="The version number of the library this was created from.",
         version_strings: VersionStrings,

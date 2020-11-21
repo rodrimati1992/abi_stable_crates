@@ -10,7 +10,7 @@ use std::{
     num::ParseIntError,
 };
 
-use crate::std_types::StaticStr;
+use crate::std_types::RStr;
 
 /// The `<major>.<minor>.<patch>` version of a library,
 ///
@@ -47,9 +47,9 @@ use crate::std_types::StaticStr;
 ///
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
-#[repr(C)]
+#[repr(transparent)]
 pub struct VersionStrings {
-    pub version: StaticStr,
+    pub version: RStr<'static>,
 }
 
 /// The parsed (`<major>.<minor>.<patch>`) version number of a library.
@@ -104,10 +104,12 @@ impl VersionStrings {
     /// 
     /// ```
     pub const fn new(version:&'static str)->Self{
-        Self{version:StaticStr::new(version)}
+        Self{version:RStr::from_str(version)}
     }
 
     /// Attempts to convert a `VersionStrings` into a `VersionNumber`
+    /// 
+    /// # Errors
     /// 
     /// This returns a `ParseVersionError` if the string is not correctly formatted.
     /// 
@@ -131,6 +133,8 @@ impl VersionStrings {
 
 impl VersionNumber {
     /// Attempts to convert a `VersionStrings` into a `VersionNumber`
+    /// 
+    /// # Errors
     /// 
     /// This returns a `ParseVersionError` if the string is not correctly formatted.
     /// 
@@ -171,7 +175,7 @@ impl VersionNumber {
     }
 
     /// Whether the `self` version number is compatible with the
-    /// library_implementor version number.
+    /// `library_implementor` version number.
     ///
     /// This uses modified semver rules where:
     ///
@@ -271,8 +275,10 @@ impl fmt::Display for VersionStrings {
 ////////////////////////////////////////////////////////////////////////////////
 
 
-/// Instantiates a `abi_stable::version::VersionStrings` with the 
+/// Instantiates a [`VersionStrings`] with the 
 /// major.minor.patch version of the library where it is invoked.
+///
+/// [`VersionStrings`]: ./sabi_types/version/struct.VersionStrings.html
 #[macro_export]
 macro_rules! package_version_strings {
     () => {{
@@ -304,6 +310,7 @@ impl ParseVersionError {
         }
     }
 
+    /// Gets back the `VersionStrings` that could not be parsed into a `VersionNumber`.
     pub fn version_strings(&self) -> VersionStrings {
         self.version_strings
     }

@@ -1,10 +1,9 @@
 
 /**
-Use this when constructing a `abi_stable::type_layout::MonoTypeLayout`
-when manually implementing StableAbi.
+Use this when constructing a [`MonoTypeLayout`] when manually implementing StableAbi.
 
 This stores indices and ranges for the type and/or const parameter taken 
-from the SharedVars of the TypeLayout where this is stored.
+from the [`SharedVars`] stored in the same [`TypeLayout`] where this is stored.
 
 # Syntax
 
@@ -12,23 +11,19 @@ from the SharedVars of the TypeLayout where this is stored.
 
 `<convertible_to_startlen>` is one of:
 
--``: No generic parameters of that kind.
+-` `: No generic parameters of that kind.
 
 -`i`: 
-    Takes the ith generic parameter
-    from the SharedVars slice of type or the one of const parameters.
+    Takes the ith type or const parameter(indexed separately).
 
 -`i..j`: 
-    Takes from i to j exclusive generic parameter
-    from the SharedVars slice of type or the one of const parameters.
+    Takes from i to j (exclusive) type or const parameter(indexed separately).
 
 -`i..=j`: 
-    Takes from i to j inclusive generic parameter
-    from the SharedVars slice of type or the one of const parameters.
+    Takes from i to j (inclusive) type or const parameter(indexed separately).
 
 -`x:StartLen`: 
-    Takes from x.start() to x.end() exclusive generic parameter
-    from the SharedVars slice of type or the one of const parameters.
+    Takes from x.start() to x.end() (exclusive) type or const parameter(indexed separately).
 
 
 
@@ -94,7 +89,9 @@ const PARAMS:CompGenericParams=tl_genparams!(;StartLen::new(0,2););
 
 ```
 
-
+[`MonoTypeLayout`]: ./type_layout/struct.MonoTypeLayout.html
+[`TypeLayout`]: ./type_layout/struct.TypeLayout.html
+[`SharedVars`]: ./type_layout/struct.SharedVars.html
 
 */
 #[macro_export]
@@ -107,7 +104,6 @@ macro_rules! tl_genparams {
     ( $($lt:lifetime),* $(,)? ; $($ty:expr)? ; $($const_p:expr)? ) => ({
         #[allow(unused_imports)]
         use $crate::{
-            abi_stability::stable_abi_trait::SharedStableAbi,
             type_layout::CompGenericParams,
         };
 
@@ -131,7 +127,7 @@ macro_rules! tl_genparams {
 ///////////////////////////////////////////////////////////////////////
 
 /**
-Equivalent to `?` for `RResult<_,_>`.
+Equivalent to `?` for [`RResult`].
 
 # Example
 
@@ -160,11 +156,13 @@ fn parse_tuple(s:RStr<'_>)->RResult<Tuple3<u32,u32,u32>,RBoxError>{
 
 ```
 
+[`RResult`]: ./std_types/enum.RResult.html
+
 */
 #[macro_export]
 macro_rules! rtry {
     ($expr:expr) => {{
-        use $crate::std_types::result::{RErr, ROk};
+        use $crate::std_types::{RErr, ROk};
         match $expr.into() {
             ROk(x) => x,
             RErr(x) => return RErr(From::from(x)),
@@ -172,7 +170,9 @@ macro_rules! rtry {
     }};
 }
 
-/// Equivalent to `?` for `ROption<_>`.
+/// Equivalent to `?` for [`ROption`].
+/// 
+/// [`ROption`]: ./std_types/enum.ROption.html
 #[macro_export]
 macro_rules! rtry_opt {
     ($expr:expr) => {{
@@ -307,9 +307,10 @@ macro_rules! extern_fn_panic_handling {
 
 /**
 
-Constructs the abi_stable::erased_types::TypeInfo for some type.
+Constructs the [`TypeInfo`] for some type.
 
-It's necessary for the type to be `'static` because this uses UTypeId.
+It's necessary for the type to be `'static` because 
+[`TypeInfo`] stores a private function that returns the  [`UTypeId`] of that type.
 
 # Example
 
@@ -331,35 +332,37 @@ where T:'static+Send+Sync
 {
     type Interface=();
     
-    // You have to write the full type (eg: impl_get_type_info!{ Bar['a,T,U] } ) ,
+    // You have to write the full type (eg: impl_get_type_info!{ Bar<'a,T,U> } ) ,
     // never write Self.
-    const INFO:&'static TypeInfo=impl_get_type_info! { Foo[T] };
+    const INFO:&'static TypeInfo=impl_get_type_info! { Foo<T> };
 }
 
+
 ```
+
+[`TypeInfo`]: ./erased_types/struct.TypeInfo.html
+[`UTypeId`]: ./std_types/struct.UTypeId.html
 
 */
 #[macro_export]
 macro_rules! impl_get_type_info {
-    (
-        $type:ident $([$($params:tt)*])?
-    ) => (
+    ($type:ty) => (
         {
             use std::mem;
             use $crate::{
-                erased_types::type_info::TypeInfo,
-                std_types::{StaticStr,utypeid::some_utypeid},
+                erased_types::TypeInfo,
+                std_types::{RStr,utypeid::some_utypeid},
             };
 
-            $crate::impl_get_typename!{ let type_name= $type $([$($params)*])? }
+            let type_name=$crate::sabi_types::Constructor($crate::utils::get_type_name::<$type>);
             
             &TypeInfo{
                 size:mem::size_of::<Self>(),
                 alignment:mem::align_of::<Self>(),
                 _uid:$crate::sabi_types::Constructor( some_utypeid::<Self> ),
                 type_name,
-                module:StaticStr::new(module_path!()),
-                package:StaticStr::new(env!("CARGO_PKG_NAME")),
+                module:RStr::from_str(module_path!()),
+                package:RStr::from_str(env!("CARGO_PKG_NAME")),
                 package_version:$crate::package_version_strings!(),
                 _private_field:(),
             }
@@ -367,51 +370,19 @@ macro_rules! impl_get_type_info {
     )
 }
 
-#[macro_export]
-#[cfg(not(feature="rust_1_38"))]
-#[doc(hidden)]
-macro_rules! impl_get_typename{
-    (
-        let $type_name:ident = $type:ident $([$($params:tt)*])?
-    ) => (
-        let $type_name={
-            extern "C" fn __get_type_name()->$crate::std_types::RStr<'static>{
-                stringify!($type).into()
-            }
-
-            $crate::sabi_types::Constructor(__get_type_name)
-        };
-    )
-}
-
-#[macro_export]
-#[cfg(feature="rust_1_38")]
-#[doc(hidden)]
-macro_rules! impl_get_typename{
-    (
-        let $type_name:ident = $type:ident $([$($params:tt)*])?
-    ) => (
-        let $type_name=$crate::sabi_types::Constructor(
-            $crate::utils::get_type_name::<$type<$( $($params)* )? >>
-        );
-    )
-}
-
-
-
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 
 
 /**
-Constructs a abi_stable::abi_stability::Tag,
+Constructs a [`Tag`],
 a dynamically typed value for users to check extra properties about their types 
 when doing runtime type checking.
 
 Note that this macro is not recursive,
 you need to invoke it every time you construct an array/map/set inside of the macro.
 
-For more examples look in the [tagging module](./abi_stability/tagging/index.html)
+For more examples look in the [tagging module](./type_layout/tagging/index.html)
 
 # Example
 
@@ -447,6 +418,8 @@ struct Value<T>{
 
 
 ```
+
+[`Tag`]: ./type_layout/tagging/struct.Tag.html
 
 */
 #[macro_export]
@@ -507,8 +480,9 @@ macro_rules! assert_matches {
 
 
 /**
-Constructs a abi_stable::type_layout::ItemInfo,
-with information about the place where it's called.
+Constructs an [`ItemInfo`], with information about the place where it's called.
+
+[`ItemInfo`]: ./type_layout/struct.ItemInfo.html
 */
 #[macro_export]
 macro_rules! make_item_info {
@@ -531,7 +505,7 @@ macro_rules! make_item_info {
 
 
 /**
-Constructs an `RVec<_>` using the same syntax that the `std::vec` macro uses.
+Constructs an [`RVec`] using the same syntax that the `std::vec` macro uses.
 
 # Example
 
@@ -549,6 +523,9 @@ assert_eq!(RVec::from(vec![0,3,6]), rvec![0,3,6]);
 assert_eq!(RVec::from(vec![1;10]), rvec![1;10]);
 
 ```
+
+[`RVec`]: ./std_types/struct.RVec.html
+
 */
 #[macro_export]
 macro_rules! rvec {
@@ -562,7 +539,8 @@ macro_rules! rvec {
 
 
 /**
-Use this macro to construct a `Tuple*` with the values passed to the macro.
+Use this macro to construct a `abi_stable::std_types::Tuple*`
+with the values passed to the macro.
 
 # Example 
 
@@ -651,47 +629,8 @@ macro_rules! RTuple {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(feature="rust_1_39")]
-#[macro_export]
-#[doc(hidden)]
-macro_rules! rslice_inner {
-    ( $( $elem:expr ),* ) => (
-        $crate::std_types::RSlice::from_slice(&[ $($elem),* ])
-    );
-}
-
-
-#[cfg(not(feature="rust_1_39"))]
-#[macro_export]
-#[doc(hidden)]
-macro_rules! rslice_inner {
-    (@count;  ) => ( 0 );
-    (@count; $v0:expr) => ( 1 );
-    (@count; $v0:expr,$v1:expr) => ( 2 );
-    (@count; $v0:expr,$v1:expr,$v2:expr) => ( 3 );
-    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr) => ( 4 );
-    (@count; $v0:expr,$v1:expr,$v2:expr,$v3:expr $(,$rem:expr)+) => ( 
-        4 + $crate::rslice_inner!(@count; $($rem),* )
-    );
-    () => (
-        $crate::std_types::RSlice::EMPTY
-    );
-    ( $( $elem:expr ),* $(,)* ) => (
-        unsafe{
-            // This forces the length to be evaluated at compile-time.
-            const _RSLICE_LEN:usize=$crate::rslice_inner!(@count; $($elem),* );
-            $crate::std_types::RSlice::from_raw_parts_with_lifetime(
-                &[ $($elem),* ],
-                _RSLICE_LEN,
-            )
-        }
-    );
-}
-
-
-
 /**
-A macro to construct `RSlice<'_,T>` constants.
+A macro to construct [`RSlice`] constants.
 
 # Examples
 
@@ -733,11 +672,13 @@ assert_eq!( RSLICE_6.len(), 6 );
 
 ```
 
+[`RSlice`]: ./std_types/struct.RSlice.html
+
 */
 #[macro_export]
 macro_rules! rslice {
     ( $( $elem:expr ),* $(,)* ) => {
-        $crate::rslice_inner!( $($elem),* )
+        $crate::std_types::RSlice::from_slice(&[ $($elem),* ])
     };
 }
 
@@ -745,34 +686,8 @@ macro_rules! rslice {
 ///////////////////////////////////////////////////////////////////////////////
 
 
-#[cfg(not(feature="rust_1_39"))]
-#[macro_export]
-#[doc(hidden)]
-macro_rules! rstr_internal {
-    ( $lit:literal ) => {unsafe{
-        mod string_module{
-            $crate::get_string_length!{$lit}
-        }
-
-        $crate::std_types::RStr::from_raw_parts(
-            $lit.as_ptr(),
-            string_module::LEN,
-        )
-    }}
-}
-
-#[cfg(feature="rust_1_39")]
-#[macro_export]
-#[doc(hidden)]
-macro_rules! rstr_internal {
-    ( $str:expr ) => {
-        $crate::std_types::RStr::from_str($str)
-    }
-}
-
-
 /**
-A macro to construct `RStr<'static>` constants.
+A macro to construct [`RStr`] constants.
 
 # Examples
 
@@ -811,20 +726,25 @@ assert_eq!( RSTR_5.len(), 5 );
 assert_eq!( RSTR_6.as_str(), "1235813" );
 assert_eq!( RSTR_6.len(), 7 );
 
-
 ```
+
+[`RStr`]: ./std_types/struct.RStr.html
 
 */
 #[macro_export]
 macro_rules! rstr{
-    ( $($str:tt)* ) => {
-        $crate::rstr_internal!( $($str)* )
-    }
+    ( $str:expr ) => ({
+        const __SABI_RSTR: $crate::std_types::RStr<'static> = 
+            $crate::std_types::RStr::from_str($str);
+        __SABI_RSTR
+    })
 }
 
 
 /**
-Constructs a NulStr from a string literal.
+Constructs a [`NulStr`] from a string literal.
+
+[`NulStr`]: ./sabi_types/struct.NulStr.html
 
 # Example
 
@@ -881,7 +801,7 @@ macro_rules! make_shared_vars{
             )?
             $( lifetime_indices=[ $($lifetime_indices:expr),* $(,)* ], )?
             $( type_layouts=[ $($ty_layout:ty),* $(,)* ], )?
-            $( type_layouts_shared=[ $($ty_layout_shared:ty),* $(,)* ], )?
+            $( prefix_type_layouts=[ $($prefix_ty_layout:ty),* $(,)* ], )?
             $( constants=[ $( $constants:expr ),* $(,)* ], )?
         };
     )=>{
@@ -908,13 +828,13 @@ macro_rules! make_shared_vars{
                 $mono_shared_vars,
                 rslice![ 
                     $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )? 
-                    $( $( GetTypeLayoutCtor::<$ty_layout_shared>::SHARED_STABLE_ABI,)* )? 
+                    $( $( GetTypeLayoutCtor::<$prefix_ty_layout>::PREFIX_STABLE_ABI,)* )? 
                 ],
                 rslice![$( 
                     $(
                         $crate::abi_stability::ConstGeneric::new(
                             &$constants,
-                            $crate::abi_stability::GetConstGenericVTable::VTABLE,
+                            $crate::abi_stability::ConstGenericVTableFor::NEW,
                         )
                     ),* 
                 )?],
@@ -923,6 +843,161 @@ macro_rules! make_shared_vars{
     }
 }
 
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+/// Allows declaring a [`StaticRef`] constant.
+/// 
+/// This macro is most useful when declaring an associated constant of non-`'static` types.
+///
+/// # Example
+///
+/// This example demonstrates how you can construct a pointer to a vtable,
+/// constructed at compile-time.
+///
+/// ```rust
+/// use abi_stable::{
+///     StableAbi,
+///     extern_fn_panic_handling,
+///     staticref,
+///     pointer_trait::CallReferentDrop,
+///     prefix_type::{PrefixTypeTrait, WithMetadata},
+/// };
+/// 
+/// use std::{
+///     mem::ManuallyDrop,
+///     ops::Deref,
+/// };
+/// 
+/// fn main(){
+///     let boxed = BoxLike::new(100);
+///    
+///     assert_eq!(*boxed, 100);
+///     assert_eq!(boxed.into_inner(), 100);
+/// }
+/// 
+/// /// An ffi-safe `Box<T>`
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// pub struct BoxLike<T> {
+///     data: *mut T,
+///     
+///     vtable: VTable_Ref<T>,
+/// 
+///     _marker: std::marker::PhantomData<T>,
+/// }
+/// 
+/// impl<T> BoxLike<T>{
+///     pub fn new(value: T) -> Self {
+///         let box_ = Box::new(value);
+///         
+///         Self{
+///             data: Box::into_raw(box_),
+///             vtable: VTable::VTABLE,
+///             _marker: std::marker::PhantomData,
+///         }
+///     }
+/// 
+///     /// Extracts the value this owns.
+///     pub fn into_inner(self) -> T{
+///         let this = ManuallyDrop::new(self);
+///         unsafe{
+///             // Must copy this before calling `self.vtable.destructor()`
+///             // because otherwise it would be reading from a dangling pointer.
+///             let ret = this.data.read();
+///             this.vtable.destructor()(this.data,CallReferentDrop::No);
+///             ret
+///         }
+///     }
+/// }
+/// 
+/// 
+/// impl<T> Drop for BoxLike<T>{
+///     fn drop(&mut self){
+///         unsafe{
+///             self.vtable.destructor()(self.data, CallReferentDrop::Yes)
+///         }
+///     }
+/// }
+/// 
+/// // `#[sabi(kind(Prefix))]` Declares this type as being a prefix-type,
+/// // generating both of these types:
+/// // 
+/// //     - VTable_Prefix`: A struct with the fields up to (and including) the field with the 
+/// //     `#[sabi(last_prefix_field)]` attribute.
+/// // 
+/// //     - VTable_Ref`: An ffi-safe pointer to `VTable`,with methods to get `VTable`'s fields.
+/// // 
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// #[sabi(kind(Prefix))]
+/// struct VTable<T>{
+///     #[sabi(last_prefix_field)]
+///     destructor: unsafe extern "C" fn(*mut T, CallReferentDrop),
+/// }
+/// 
+/// impl<T> VTable<T>{
+///    staticref!(const VTABLE_VAL: WithMetadata<Self> = WithMetadata::new(
+///        PrefixTypeTrait::METADATA,
+///        Self{
+///            destructor: destroy_box::<T>,
+///        },
+///    ));
+/// 
+///    const VTABLE: VTable_Ref<T> = {
+///        VTable_Ref( Self::VTABLE_VAL.as_prefix() )
+///    };
+/// } 
+/// 
+/// unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {
+///     extern_fn_panic_handling! {
+///         let mut box_ = Box::from_raw(v as *mut ManuallyDrop<T>);
+///         if call_drop == CallReferentDrop::Yes {
+///             ManuallyDrop::drop(&mut *box_);
+///         }
+///         drop(box_);
+///     }
+/// }
+/// 
+/// 
+/// impl<T> Deref for BoxLike<T> {
+///     type Target=T;
+/// 
+///     fn deref(&self)->&T{
+///         unsafe{
+///             &(*self.data)
+///         }
+///     }
+/// }
+/// ```
+///
+/// [`StaticRef`]: ./sabi_types/struct.StaticRef.html
+#[macro_export]
+macro_rules! staticref{
+    (
+        $(
+            $(#[$attr:meta])* $vis:vis const $name:ident : $ty:ty = $expr:expr
+        );*
+        $(;)?
+    )=>{
+        $(
+            $(#[$attr])* 
+            $vis const $name : $crate::sabi_types::StaticRef<$ty> = {
+                // Generating a random base36 string to avoid name collisions
+                const fn __sabi_mtuxotq5otc3ntu5mdq4ntgwmzi<T>(
+                    x: &T
+                ) -> $crate::sabi_types::StaticRef<T> {
+                    unsafe{
+                        $crate::sabi_types::StaticRef::from_raw(x)
+                    }
+                }
+
+                __sabi_mtuxotq5otc3ntu5mdq4ntgwmzi( &$crate::pmr::identity::<$ty>($expr) )
+            };
+        )*
+    };
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 

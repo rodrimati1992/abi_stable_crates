@@ -13,8 +13,8 @@ use std::{
 
 use example_0_interface::{
     RemoveWords, CowStrIter,
-    TextOpsMod,TextOpsModVal,
-    DeserializerModVal,
+    TextOpsMod_Ref,TextOpsMod,
+    DeserializerMod, DeserializerMod_Ref,
     TOState, TOStateBox,TOCommand,TOReturnValue,TOCommandBox,TOReturnValueArc,
 };
 
@@ -32,7 +32,6 @@ use abi_stable::{
 use core_extensions::{SelfOps,StringExt};
 
 use serde::{Serialize,Deserialize};
-use serde_json;
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -42,21 +41,25 @@ use serde_json;
 /// This code isn't run until the layout of the type it returns is checked.
 #[export_root_module]
 // #[unsafe_no_layout_constant]
-fn instantiate_root_module()->&'static TextOpsMod{
-    TextOpsModVal {
+fn instantiate_root_module()->TextOpsMod_Ref{
+    TextOpsMod {
         new,
         deserializers:{
             // Another way to instantiate a module.
-            const MOD_:DeserializerModVal=DeserializerModVal{
+            const MOD_:DeserializerMod=DeserializerMod{
                 something:PhantomData,
                 deserialize_state,
                 deserialize_command,
                 deserialize_command_borrowing,
                 deserialize_return_value,
             };
-            static WITH_META:WithMetadata<DeserializerModVal>=
-                WithMetadata::new(PrefixTypeTrait::METADATA,MOD_);
-            WITH_META.ref_as_prefix()
+            static WITH_META: DeserializerMod_Ref ={
+                DeserializerMod_Ref(
+                    WithMetadata::new(PrefixTypeTrait::METADATA, MOD_)
+                        .static_as_prefix()
+                )
+            };
+            WITH_META
         },
         reverse_lines,
         remove_words,
@@ -197,7 +200,7 @@ where
     }
 }
 
-fn serialize_json<'a, T>(value: &'a T) -> Result<RawValueBox, RBoxError>
+fn serialize_json<T>(value: &T) -> Result<RawValueBox, RBoxError>
 where
     T: serde::Serialize,
 {
@@ -229,9 +232,9 @@ pub fn deserialize_command(
 
 /// Defines how a TOCommandBox is deserialized from json.
 #[sabi_extern_fn]
-pub fn deserialize_command_borrowing<'borr>(
-    s:RStr<'borr>
-) -> RResult<TOCommandBox<'borr>, RBoxError>{
+pub fn deserialize_command_borrowing(
+    s:RStr<'_>
+) -> RResult<TOCommandBox<'_>, RBoxError>{
     deserialize_json::<Command>(s)
         .map(RBox::new)
         .map(|x|DynTrait::from_borrowing_ptr(x,TOCommand))
@@ -281,7 +284,9 @@ pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
 /// Removes the words in `param.words` from `param.string`,
 /// as well as the whitespace that comes after it.
 #[sabi_extern_fn]
-pub fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,'_>) -> RString{
+// How is a `&mut ()` not ffi-safe?????
+#[allow(improper_ctypes_definitions)]
+pub fn remove_words(this: &mut TOStateBox, param: RemoveWords<'_,'_>) -> RString{
     let this = this.as_unerased_mut_impltype::<TextOperationState>().unwrap();
 
     this.processed_bytes+=param.string.len() as u64;
@@ -305,7 +310,7 @@ pub fn remove_words<'w>(this: &mut TOStateBox, param: RemoveWords<'w,'_>) -> RSt
     buffer.into()
 }
 
-/// Returns the ammount of text (in bytes) 
+/// Returns the amount of text (in bytes) 
 /// that was processed in functions taking `&mut TOStateBox`.
 #[sabi_extern_fn]
 pub fn get_processed_bytes(this: &TOStateBox) -> u64 {
@@ -345,6 +350,8 @@ fn run_command_inner(this:&mut TOStateBox,command:Command)->ReturnValue{
 
 
 /// An interpreter for text operation commands
+// How is a `*mut ()` not ffi-safe?????
+#[allow(improper_ctypes_definitions)]
 #[sabi_extern_fn]
 pub fn run_command(
     this:&mut TOStateBox,
@@ -371,7 +378,7 @@ mod tests{
     use serde_json::value::RawValue;
 
     fn setup(){
-        let _=TextOpsMod::load_module_with(|| Ok::<_,()>(instantiate_root_module()) );
+        let _=TextOpsMod_Ref::load_module_with(|| Ok::<_,()>(instantiate_root_module()) );
     }
 
     #[test]

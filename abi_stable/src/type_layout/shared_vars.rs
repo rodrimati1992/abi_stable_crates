@@ -9,7 +9,7 @@ use std::{
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/// a few static slices that many types in the `type_layout` module contain ranges into,
+/// A few static slices that many types in the `type_layout` module contain ranges into,
 /// requiring this type to be passed as a parameter.
 #[repr(C)]
 #[derive(StableAbi)]
@@ -25,6 +25,7 @@ unsafe impl Sync for SharedVars {}
 unsafe impl Send for SharedVars {}
 
 impl SharedVars{
+    /// Constructs a `SharedVars`.
     pub const fn new(
         mono: &'static MonoSharedVars,
         type_layouts: RSlice<'static,TypeLayoutCtor>,
@@ -42,7 +43,7 @@ impl SharedVars{
     }
 
     /// A string containing many strings that types in the `type_layout` 
-    /// module contain ranges into.
+    /// module store substrings inside of.
     #[inline]
     pub fn strings(&self)->&'static str{
         self.mono.strings()
@@ -79,7 +80,7 @@ impl Debug for SharedVars{
 }
 
 
-/// a few static slices that many types in the `type_layout` module contain ranges into,
+/// A few static slices that many types in the `type_layout` module contain ranges into,
 /// requiring this type to be passed as a parameter.
 #[repr(C)]
 #[derive(StableAbi)]
@@ -104,6 +105,7 @@ pub struct MonoSharedVars{
 }
 
 impl MonoSharedVars{
+    /// Constructs a `MonoSharedVars`.
     pub const fn new(
         strings: RStr<'static>,
         lifetime_indices: RSlice<'static,LifetimeIndexPairRepr>,
@@ -119,8 +121,7 @@ impl MonoSharedVars{
         }
     }
 
-    /// A string containing many strings that types in the `type_layout` 
-    /// module contain ranges into.
+    /// A string that types in the `type_layout` module store substrings inside of.
     #[inline]
     pub fn strings(&self)->&'static str{
         unsafe{

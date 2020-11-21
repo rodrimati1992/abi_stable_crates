@@ -1,3 +1,5 @@
+//! Helper types for type_layout types.
+
 use std::{
     cmp::{PartialEq,Eq},
 };
@@ -15,8 +17,12 @@ pub struct ArrayLen<A>{
 }
 
 impl<A> ArrayLen<A> {
-    pub fn len(&self)->usize{
+    /// The `len` field  casted to usize.
+    pub const fn len(&self)->usize{
         self.len as usize
+    }
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
     }
 }
 

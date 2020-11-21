@@ -4,9 +4,14 @@ Traits for pointers.
 use std::{
     mem::ManuallyDrop,
     ops::{Deref,DerefMut},
+    ptr::NonNull,
 };
 
-use crate::sabi_types::MovePtr;
+use crate::{
+    marker_type::NonOwningPhantom,
+    sabi_types::MovePtr,
+    utils::Transmuter,
+};
 
 #[allow(unused_imports)]
 use core_extensions::{prelude::*, utils::transmute_ignore_size};
@@ -52,8 +57,10 @@ The valid kinds are:
 
 */
 pub unsafe trait GetPointerKind:Deref+Sized{
+    /// The kind of the pointer.
     type Kind:PointerKindVariant;
 
+    /// The kind of the pointer.
     const KIND:PointerKind=<Self::Kind as PointerKindVariant>::VALUE;
 }
 
@@ -122,7 +129,7 @@ unsafe impl<'a,T> GetPointerKind for &'a mut T{
 ///////////
 
 /**
-Whether the pointer can be transmuted to have `T` as the element type.
+Whether the pointer can be transmuted to have `T` as the referent type.
 
 # Safety for implementor
 
@@ -141,7 +148,7 @@ pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
 }
 
 /**
-An extension trait which allows transmuting pointers to point to a different type.
+Allows transmuting pointers to point to a different type.
 
 # Safety for callers
 
@@ -162,7 +169,7 @@ pub trait TransmuteElement{
     ///
     /// It is undefined behavior to create unaligned references ,
     /// therefore transmuting from `&u8` to `&u16` is UB
-    /// if the caller does not ensure that the reference was a multiple of 2.
+    /// if the caller does not ensure that the reference is aligned to a multiple of 2 address.
     ///
     /// 
     /// # Example
@@ -210,10 +217,16 @@ unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a mut T {
 /**
 For owned pointers,allows extracting their contents separate from deallocating them.
 
-# Safety for implementor
+# Safety
 
-- The pointer type is either `!Drop`(no drop glue either),
-    or it uses a vtable to Drop the referent and deallocate the memory correctly.
+Implementors must:
+
+- Be implemented such that `get_move_ptr` can be called before `drop_allocation`.
+
+- Not override `with_move_ptr`
+
+- Not override `in_move_ptr`
+
 */
 pub unsafe trait OwnedPointer:Sized+DerefMut+GetPointerKind{
     /// Gets a move pointer to the contents of this pointer.
@@ -231,6 +244,10 @@ pub unsafe trait OwnedPointer:Sized+DerefMut+GetPointerKind{
     ///
     /// Note that if `Self::get_move_ptr` has not been called this will 
     /// leak the values owned by the referent of the pointer. 
+    ///
+    /// # Safety
+    ///
+    /// The allocation managed by `this` must never be accessed again.
     ///
     unsafe fn drop_allocation(this:&mut ManuallyDrop<Self>);
 
@@ -259,5 +276,123 @@ pub unsafe trait OwnedPointer:Sized+DerefMut+GetPointerKind{
             Self::drop_allocation(&mut this);
             ret
         }
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+/// Trait for non-owning pointers that are shared-reference-like.
+///
+/// # Safety 
+///
+/// Implementors must only contain a non-null pointer [(*1)](#clarification1).
+/// Meaning that they must be `#[repr(transparent)]` wrappers around 
+/// `&`/`NonNull`/`impl ImmutableRef`.
+///
+/// <span id="clarification1">(*1)</span>
+/// They can also contain any amount of zero-sized fields with an alignement of 1.
+//
+// # Implementation notes
+//
+// The default methods use `Transmuter` instead of:
+// - `std::mem::transmute` because the compiler doesn't know that the size of 
+//   `*const ()` and `Self` is the same
+// - `std::mem::transmute_copy`: incurrs function call overhead in unoptimized builds,
+// which is unnacceptable.
+//
+// These methods have been defined to compile to a couple of `mov`s in debug builds.
+pub unsafe trait ImmutableRef: Copy {
+    /// The referent of the pointer, what it points to.
+    type Target;
+
+    /// A marker type that can be used as a proof that the `T` type parameter of
+    /// `ImmutableRefTarget<T, U>` implements `ImmutableRef<Target = U>`.
+    const TARGET: ImmutableRefTarget<Self, Self::Target> = ImmutableRefTarget::new();
+
+    /// Converts this pointer to a `NonNull`.
+    #[inline(always)]
+    fn to_nonnull(self)->NonNull<Self::Target> {
+        unsafe{ Transmuter{from: self}.to }
+    }
+
+    /// Constructs this pointer from a `NonNull`.
+    /// 
+    /// # Safety 
+    /// 
+    /// `from` must be one of these:
+    ///
+    /// - A pointer from a call to `ImmutableRef::to_nonnull` or 
+    /// `ImmutableRef::to_raw_ptr` on an instance of `Self`,
+    /// with the same lifetime.
+    ///
+    /// - Valid to transmute to Self.
+    #[inline(always)]
+    unsafe fn from_nonnull(from: NonNull<Self::Target>)->Self{
+        unsafe{ Transmuter{from}.to }
+    }
+
+    /// Converts this pointer to a raw pointer.
+    #[inline(always)]
+    fn to_raw_ptr(self)->*const Self::Target {
+        unsafe{ Transmuter{from: self}.to }
+    }
+
+    /// Constructs this pointer from a raw pointer.
+    /// 
+    /// # Safety
+    /// 
+    /// This has the same safety requirements as [`from_nonnull`](#method.from_nonnull)
+    #[inline(always)]
+    unsafe fn from_raw_ptr(from: *const Self::Target)-> Option<Self> {
+        unsafe{ Transmuter{from}.to }
+    }
+}
+
+/// Gets the `ImmutableRef::Target` associated type for `T`.
+pub type ImmutableRefOut<T> = <T as ImmutableRef>::Target;
+
+
+unsafe impl<'a, T> ImmutableRef for &'a T {
+    type Target = T;
+
+    #[inline(always)]
+    #[cfg(miri)]
+    fn to_raw_ptr(self)->*const Self::Target {
+        self as _
+    }
+    
+    #[inline(always)]
+    #[cfg(miri)]
+    unsafe fn from_raw_ptr(from: *const Self::Target)-> Option<Self> {
+        std::mem::transmute(from)
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+/// A marker type that can be used as a proof that the `T` type parameter of
+/// `ImmutableRefTarget<T, U>`
+/// implements `ImmutableRef<Target = U>`.
+pub struct ImmutableRefTarget<T, U>(NonOwningPhantom<(T, U)>);
+
+impl<T, U> Copy for ImmutableRefTarget<T, U> {}
+impl<T, U> Clone for ImmutableRefTarget<T, U> {
+    fn clone(&self)->Self{
+        *self
+    }
+}
+
+impl<T, U> ImmutableRefTarget<T, U> {
+    // This function is private on purpose.
+    //
+    // This type is only supposed to be constructed in the default initializer for 
+    // `ImmutableRef::TARGET`.
+    #[inline(always)]
+    const fn new()->Self{
+        Self(NonOwningPhantom::DEFAULT)
     }
 }

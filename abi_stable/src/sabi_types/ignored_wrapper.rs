@@ -13,11 +13,9 @@ use std::{
 Wrapper type used to ignore its contents in comparisons.
 
 Use this if you want to derive trait while ignoring the contents of fields in the 
-PartialEq/Eq/PartialOrd/Ord/Hash traits.
+`PartialEq`/`Eq`/`PartialOrd`/`Ord`/`Hash` traits.
 
-It also:
-
-- replaces the hash of T with the hash of `()`.
+It also replaces the hash of T with the hash of `()`.
 
 # Example
 

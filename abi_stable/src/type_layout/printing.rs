@@ -82,7 +82,7 @@ thread_local!{
     };
 }
 
-const GET_ERR:&'static str=
+const GET_ERR:&str=
     "Expected DEBUG_STATE.map to contain the UTypeId of all recursive `TypeLayout`s";
 
 impl Debug for TypeLayout{
@@ -159,7 +159,7 @@ impl Debug for TypeLayout{
 ////////////////
 
 
-const RECURSIVE_INDICATOR:&'static str="<{recursive}>";
+const RECURSIVE_INDICATOR:&str="<{recursive}>";
 
 impl Display for TypeLayout {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

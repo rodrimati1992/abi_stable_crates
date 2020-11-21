@@ -11,7 +11,7 @@ pub enum AbiInstability {
     },
     NonZeroness(ExpectedFound<bool>),
     Name(ExpectedFound<FmtFullType>),
-    Package(ExpectedFound<StaticStr>),
+    Package(ExpectedFound<RStr<'static>>),
     PackageVersionParseError(ParseVersionError),
     PackageVersion(ExpectedFound<VersionStrings>),
     MismatchedPrefixSize(ExpectedFound<u8>),
@@ -28,7 +28,7 @@ pub enum AbiInstability {
     MismatchedPrefixConditionality(ExpectedFound<FieldConditionality>),
     MismatchedExhaustiveness(ExpectedFound<IsExhaustive>),
     MismatchedConstParam(ExpectedFound<ConstGeneric>),
-    UnexpectedVariant(ExpectedFound<StaticStr>),
+    UnexpectedVariant(ExpectedFound<RStr<'static>>),
     ReprAttr(ExpectedFound<ReprAttr>),
     EnumDiscriminant(ExpectedFound<TLDiscriminant>),
     IncompatibleWithNonExhaustive(IncompatibleWithNonExhaustive),
@@ -50,13 +50,13 @@ use self::AbiInstability as AI;
 
 #[allow(dead_code)]
 impl AbiInstabilityErrors {
-    #[cfg(test)]
+    #[cfg(feature = "testing")]
     pub fn flatten_errors(&self) -> RVec<AbiInstability> {
         self.flattened_errors()
             .collect::<RVec<AbiInstability>>()
     }
 
-    #[cfg(test)]
+    #[cfg(feature = "testing")]
     pub fn flattened_errors<'a>(&'a self) -> impl Iterator<Item=AbiInstability>+'a {
         self.errors
             .iter()
@@ -145,7 +145,7 @@ impl fmt::Display for AbiInstabilityError {
                 AI::Size(v) => ("incompatible type size", v.display_str()),
                 AI::Alignment(v) => ("incompatible type alignment", v.display_str()),
                 AI::GenericParamCount(v) => (
-                    "incompatible ammount of generic parameters",
+                    "incompatible amount of generic parameters",
                     v.display_str(),
                 ),
 

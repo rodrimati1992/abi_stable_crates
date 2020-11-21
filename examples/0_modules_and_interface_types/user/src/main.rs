@@ -1,6 +1,6 @@
 use std::{
     fs,
-    path::{Path,PathBuf},
+    path::PathBuf,
     io::{self,BufRead,Write,Read},
 };
 
@@ -12,36 +12,13 @@ use structopt::StructOpt;
 use abi_stable::{
     std_types::{RString,RCow},
     DynTrait,
-    library::RootModule,
+    library::{development_utils::compute_library_path, RootModule},
 };
 
-use example_0_interface::{CowStrIter,TextOpsMod,RemoveWords,TOStateBox};
+use example_0_interface::{CowStrIter,TextOpsMod_Ref,RemoveWords,TOStateBox};
 
 
 mod tests;
-
-/// Returns the path the library will be loaded from.
-fn compute_library_path()->io::Result<PathBuf>{
-    let debug_dir  ="../../../target/debug/"  .as_ref_::<Path>().into_(PathBuf::T);
-    let release_dir="../../../target/release/".as_ref_::<Path>().into_(PathBuf::T);
-
-    let debug_path  =TextOpsMod::get_library_path(&debug_dir);
-    let release_path=TextOpsMod::get_library_path(&release_dir);
-
-    match (debug_path.exists(),release_path.exists()) {
-        (false,false)=>debug_dir,
-        (true,false)=>debug_dir,
-        (false,true)=>release_dir,
-        (true,true)=>{
-            if debug_path.metadata()?.modified()? < release_path.metadata()?.modified()? {
-                release_dir
-            }else{
-                debug_dir
-            }
-        }
-    }.piped(Ok)
-}
-
 
 /// Processes stdin,outputting the transformed line to stdout.
 fn process_stdin<F>(mut f:F)->io::Result<()>
@@ -144,7 +121,7 @@ Examples:
 */
     #[structopt(name = "json-command")]
     #[structopt(author="_")]
-    JsonCommand{
+    Json{
         /// The file to load the json command from.
         file:Option<PathBuf>
     },
@@ -157,8 +134,10 @@ Examples:
 
 
 fn main()-> io::Result<()> {
-    let library_path=compute_library_path().unwrap();
-    let mods=TextOpsMod::load_from_directory(&library_path)
+    let target: &std::path::Path = "../../../target/".as_ref();
+    let library_path=compute_library_path::<TextOpsMod_Ref>(target).unwrap();
+
+    let mods=TextOpsMod_Ref::load_from_directory(&library_path)
         .unwrap_or_else(|e| panic!("{}", e) );
     
     let opts =  Command::clap()
@@ -189,8 +168,8 @@ fn main()-> io::Result<()> {
         Command::RunTests=>{
             tests::run_dynamic_library_tests(mods);
         }
-        Command::JsonCommand{file}=>{
-            fn run_command(mods:&TextOpsMod,state:&mut TOStateBox,s:&str)->RString{
+        Command::Json{file}=>{
+            fn run_command(mods:TextOpsMod_Ref,state:&mut TOStateBox,s:&str)->RString{
                 let command=serde_json::from_str(s)
                     .unwrap_or_else(|e| panic!("\n{}\n",e) );
                 

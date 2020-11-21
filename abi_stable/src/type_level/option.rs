@@ -1,13 +1,12 @@
-use std::{
-    fmt::{self,Debug},
-    marker::PhantomData,
-};
+use crate::marker_type::NonOwningPhantom;
+
+use std::fmt::{self,Debug};
 
 
 /// Type-level equivalent of the `Option::None` variant.
 #[derive(Debug,Copy,Clone)]
 pub struct None_;
-pub struct Some_<T>(PhantomData<fn()->T>);
+pub struct Some_<T>(NonOwningPhantom<T>);
 
 
 ///////////////////////////////////////////////////////////////
@@ -27,7 +26,7 @@ impl None_{
 
 /// Type-level equivalent of the `Option::Some` variant.
 impl<T> Some_<T>{
-    pub const NEW:Self=Some_(PhantomData);
+    pub const NEW:Self=Some_(NonOwningPhantom::NEW);
 
     pub const fn new()->Self{
         Self::NEW

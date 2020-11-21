@@ -18,7 +18,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use core_extensions::prelude::*;
 
 use crate::{
-    sabi_types::{Constructor,StaticRef},
+    sabi_types::Constructor,
     std_types::{RSlice, RSliceMut,utypeid::{UTypeId,new_utypeid}},
     prefix_type::{PrefixTypeTrait,WithMetadata},
 };
@@ -75,23 +75,51 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
         buffer: *mut T,
         pub(super) length: usize,
         capacity: usize,
-        vtable: StaticRef<VecVTable<T>>,
+        vtable: VecVTable_Ref<T>,
         _marker: PhantomData<T>,
     }
 
     impl<T> RVec<T> {
+        /// Creates a new,empty `RVec<T>`.
+        ///
+        /// This function does not allocate.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RVec;
+        ///
+        /// let list=RVec::<u32>::new();
+        ///
+        /// ```
+        pub const fn new() -> Self {
+            Self::NEW
+        }
+
+        const NEW:Self={
+            // unsafety:
+            // While this implementation is correct,
+            // it would be better to do `RVec::from_vec(Vec::new())`
+            // when it's possible to call `Vec::{as_mut_ptr,capacity,len}` in const contexts.
+            RVec {
+                vtable: VTableGetter::<T>::LIB_VTABLE,
+                buffer: std::mem::align_of::<T>() as *mut T,
+                length: 0,
+                capacity: 0_usize.wrapping_sub((std::mem::size_of::<T>()==0)as usize),
+                _marker: PhantomData,
+            }
+        };
+
         #[allow(dead_code)]
         // Used to test functions that change behavior when the vtable changes
         pub(super) fn set_vtable_for_testing(mut self) -> Self {
-            self.vtable = WithMetadata::as_prefix(
-                VTableGetter::<T>::LIB_VTABLE_FOR_TESTING
-            );
+            self.vtable = VTableGetter::<T>::LIB_VTABLE_FOR_TESTING;
             self
         }
 
         #[inline(always)]
-        pub(super) fn vtable<'a>(&self) -> &'a VecVTable<T>{
-            self.vtable.get()
+        pub(super) fn vtable(&self) -> VecVTable_Ref<T>{
+            self.vtable
         }
 
         #[inline(always)]
@@ -103,7 +131,7 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
             self.buffer
         }
 
-        /// This returns the ammount of elements this RVec can store without reallocating.
+        /// This returns the amount of elements this RVec can store without reallocating.
         ///
         /// # Example
         ///
@@ -150,43 +178,13 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
         pub const fn as_ptr(&self) -> *const T{
             self.buffer
         }
-
-        /// Creates a new,empty `RVec<T>`.
-        ///
-        /// This function does not allocate.
-        ///
-        /// # Example
-        ///
-        /// ```
-        /// use abi_stable::std_types::RVec;
-        ///
-        /// let list=RVec::<u32>::new();
-        ///
-        /// ```
-        pub const fn new() -> Self {
-            Self::NEW
-        }
-
-        const NEW:Self={
-            // unsafety:
-            // While this implementation is correct,
-            // it would be better to do `RVec::from_vec(Vec::new())`
-            // when it's possible to call `Vec::{as_mut_ptr,capacity,len}` in const contexts.
-            RVec {
-                vtable: WithMetadata::as_prefix( VTableGetter::<T>::LIB_VTABLE ),
-                buffer: std::mem::align_of::<T>() as *mut T,
-                length: 0,
-                capacity: 0_usize.wrapping_sub((std::mem::size_of::<T>()==0)as usize),
-                _marker: PhantomData,
-            }
-        };
     }
     impl_from_rust_repr! {
         impl[T] From<Vec<T>> for RVec<T>{
             fn(this){
                 let mut this=ManuallyDrop::new(this);
                 RVec {
-                    vtable: WithMetadata::as_prefix( VTableGetter::<T>::LIB_VTABLE ),
+                    vtable: VTableGetter::<T>::LIB_VTABLE,
                     buffer: this.as_mut_ptr(),
                     length: this.len(),
                     capacity: this.capacity(),
@@ -204,7 +202,7 @@ impl<T> RVec<T> {
 
     /// Creates a new,empty `RVec<T>`,with a capacity of `cap`.
     ///
-    /// This function does not allocate if `cap`==0.
+    /// This function does not allocate if `cap == 0`.
     ///
     /// # Example
     ///
@@ -244,6 +242,7 @@ impl<T> RVec<T> {
     ///
     /// ```
     #[inline]
+    #[allow(clippy::needless_lifetimes)]
     pub fn slice<'a, I>(&'a self, range: I) -> RSlice<'a, T>
     where
         [T]: Index<I, Output = [T]>,
@@ -268,6 +267,7 @@ impl<T> RVec<T> {
     ///
     /// ```
     #[inline]
+    #[allow(clippy::needless_lifetimes)]
     pub fn slice_mut<'a, I>(&'a mut self, i: I) -> RSliceMut<'a, T>
     where
         [T]: IndexMut<I, Output = [T]>,
@@ -335,7 +335,7 @@ impl<T> RVec<T> {
         self.as_mut_slice().into()
     }
 
-    /// Returns the ammount of elements of the `RVec<T>`.
+    /// Returns the amount of elements of the `RVec<T>`.
     ///
     /// # Example
     ///
@@ -364,7 +364,7 @@ impl<T> RVec<T> {
     ///
     /// `new_len` must be less than or equal to `self.capacity()`.
     ///
-    /// The elements at old_len..new_len must be initialized.
+    /// The elements betweem the old length and the new length must be initialized.
     ///
     /// # Example
     ///
@@ -390,7 +390,7 @@ impl<T> RVec<T> {
         self.length = new_len;
     }
 
-    /// Shrinks the capacity of the RString to match its length.
+    /// Shrinks the capacity of the `RVec` to match its length.
     ///
     /// # Example
     ///
@@ -435,7 +435,7 @@ impl<T> RVec<T> {
         self.length == 0
     }
 
-    /// Returns a `Vec<T>`,consuming `self`.
+    /// Converts this `RVec<T>` into a `Vec<T>`.
     ///
     /// # Allocation
     ///
@@ -461,8 +461,8 @@ impl<T> RVec<T> {
 
         unsafe {
             let this_vtable =this.vtable();
-            let other_vtable=WithMetadata::as_prefix(VTableGetter::LIB_VTABLE).get();
-            if ::std::ptr::eq(this_vtable,other_vtable)||
+            let other_vtable=VTableGetter::LIB_VTABLE;
+            if ::std::ptr::eq(this_vtable.0.to_raw_ptr() ,other_vtable.0.to_raw_ptr())||
                 this_vtable.type_id()==other_vtable.type_id()
             {
                 Vec::from_raw_parts(this.buffer_mut(), this.len(), this.capacity())
@@ -499,7 +499,7 @@ impl<T> RVec<T> {
         self.as_slice().to_vec()
     }
 
-    /// Clones a `&[T]` into a new RVec.
+    /// Clones a `&[T]` into a new `RVec<T>`.
     ///
     /// This function was defined to aid type inference,
     /// because eg:`&[0,1]` is a `&[i32;2]` not a `&[i32]`.
@@ -526,7 +526,7 @@ impl<T> RVec<T> {
     ///
     /// # Panics
     ///
-    /// Panics if self.len() < index.
+    /// Panics if `self.len() < index`.
     ///
     /// # Example
     ///
@@ -568,7 +568,7 @@ impl<T> RVec<T> {
     }
 
     /// Attemps to remove the element at `index` position,
-    /// returns None if self.len() <= index.
+    /// returns `None` if `self.len() <= index`.
     ///
     /// # Example
     ///
@@ -604,7 +604,7 @@ impl<T> RVec<T> {
     ///
     /// # Panic
     ///
-    /// Panics if self.len() <= index.
+    /// Panics if `self.len() <= index`.
     ///
     /// # Example
     ///
@@ -635,7 +635,7 @@ impl<T> RVec<T> {
     ///
     /// # Panic
     ///
-    /// Panics if self.len() <= index.
+    /// Panics if `self.len() <= index`.
     ///
     /// # Example
     ///
@@ -695,7 +695,7 @@ impl<T> RVec<T> {
     }
 
     /// Attempts to remove the last element,
-    /// returns None if the `RVec<T>` is empty.
+    /// returns `None` if the `RVec<T>` is empty.
     ///
     /// # Example
     ///
@@ -728,7 +728,7 @@ impl<T> RVec<T> {
     }
 
     /// Truncates the `RVec<T>` to `to` length.
-    /// Does nothing if self.len() <= to.
+    /// Does nothing if `self.len() <= to`.
     ///
     /// Note:this has no effect on the capacity of the `RVec<T>`.
     ///
@@ -889,8 +889,7 @@ where
     T: Clone,
 {
     /// Resizes the `RVec<T>` to `new_len` length.
-    /// if new_len is larger than the current length,
-    /// the `RVec<T>` is extended with clones of `value`
+    /// extending the `RVec<T>` with clones of `value`
     /// to reach the new length.
     ///
     /// # Example
@@ -1161,7 +1160,7 @@ use abi_stable::std_types::{RSlice,RVec};
 
 
     */
-    pub fn drain<'a, I>(&'a mut self, index: I) -> Drain<'a, T>
+    pub fn drain<I>(&mut self, index: I) -> Drain<'_, T>
     where
         [T]: IndexMut<I, Output = [T]>,
     {
@@ -1176,7 +1175,7 @@ use abi_stable::std_types::{RSlice,RVec};
             Drain {
                 removed_start,
                 slice_len,
-                iter: iter,
+                iter,
                 vec: self,
                 len: old_length,
             }
@@ -1193,7 +1192,7 @@ impl<T> IntoIterator for RVec<T> {
         unsafe {
             let iter = RawValIter::new(&self);
             IntoIter {
-                iter: iter,
+                iter,
                 _buf: ManuallyDrop::new(self),
             }
         }
@@ -1284,7 +1283,7 @@ enum Exactness {
 struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
-    const DEFAULT_VTABLE:VecVTableVal<T>=VecVTableVal{
+    const DEFAULT_VTABLE:VecVTable<T>=VecVTable{
         type_id:Constructor( new_utypeid::<RVec<()>> ),
         destructor: destructor_vec,
         grow_capacity_to: grow_capacity_to_vec,
@@ -1292,32 +1291,36 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     };
 
     // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: StaticRef<WithMetadata<VecVTableVal<T>>> = unsafe{
-        StaticRef::from_raw(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::DEFAULT_VTABLE,
-        ))
+    const LIB_VTABLE: VecVTable_Ref<T> = unsafe{
+        VecVTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::DEFAULT_VTABLE,
+            ).as_prefix()
+        )
     };
 
     // Used to test functions that change behavior based on the vtable being used
-    const LIB_VTABLE_FOR_TESTING: StaticRef<WithMetadata<VecVTableVal<T>>> = unsafe{
-        StaticRef::from_raw(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            VecVTableVal {
-                type_id:Constructor( new_utypeid::<RVec<i32>> ),
-                ..Self::DEFAULT_VTABLE
-            }
-        ))
+    const LIB_VTABLE_FOR_TESTING: VecVTable_Ref<T> = unsafe{
+        VecVTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                VecVTable {
+                    type_id:Constructor( new_utypeid::<RVec<i32>> ),
+                    ..Self::DEFAULT_VTABLE
+                }
+            ).as_prefix()
+        )
     };
 
 }
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_struct="VecVTable")))]
+#[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
 // #[sabi(debug_print)]
-struct VecVTableVal<T> {
+struct VecVTable<T> {
     type_id:Constructor<UTypeId>,
     destructor: extern "C" fn(&mut RVec<T>),
     grow_capacity_to: extern "C" fn(&mut RVec<T>, usize, Exactness),

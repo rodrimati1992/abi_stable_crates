@@ -1,48 +1,59 @@
 use super::*;
 
 use crate::{
+    prefix_type::{PrefixRef, PrefixRefTrait},
     sabi_types::Constructor,
 };
 
 /// Used to check the layout of modules returned by module-loading functions
 /// exported by dynamic libraries.
+/// 
+/// Module-loading functions are declared with the [`export_root_module`] attribute.
+///
+/// [`export_root_module`]: ../attr.export_root_module.html
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct LibHeader {
     header:AbiHeader,
     root_mod_consts:ErasedRootModuleConsts,
     init_globals_with:InitGlobalsWith,
-    module:LateStaticRef<ErasedObject>,
-    constructor:Constructor<&'static ErasedObject>,
+    module:LateStaticRef<PrefixRef<ErasedPrefix>>,
+    constructor:Constructor<RootModuleResult>,
 }
 
 impl LibHeader {
     /// Constructs a LibHeader from the root module loader.
+    /// 
+    /// # Safety
+    /// 
+    /// The `PrefixRef<ErasedPrefix>` returned by the function that 
+    /// `constructor ` wraps must be have been transmuted from a `PrefixRef<M>`.
     pub const unsafe fn from_constructor<M>(
-        constructor:Constructor<&'static ErasedObject>,
+        constructor:Constructor<RootModuleResult>,
         root_mod_consts:RootModuleConsts<M>,
-    )->Self
-    {
+    ) -> Self {
         Self {
             header:AbiHeader::VALUE,
             root_mod_consts:root_mod_consts.erased(),
             init_globals_with: INIT_GLOBALS_WITH,
             module:LateStaticRef::new(),
-            constructor:constructor,
+            constructor,
         }
     }
 
     /// Constructs a LibHeader from the module.
-    pub fn from_module<T>(value:&'static T)->Self
+    pub fn from_module<T>(value:T)->Self
     where
         T: RootModule,
     {
-        let value=unsafe{ transmute_reference::<T,ErasedObject>(value) };
         Self {
             header:AbiHeader::VALUE,
             root_mod_consts: T::CONSTANTS.erased(),
             init_globals_with: INIT_GLOBALS_WITH,
-            module:LateStaticRef::initialized(value),
+            module: {
+                let erased = unsafe{ value.to_prefix_ref().cast::<ErasedPrefix>() }; 
+                LateStaticRef::from_prefixref(PrefixRefTrait::PREFIX_FIELDS, erased)
+            },
             constructor:GetAbortingConstructor::ABORTING_CONSTRUCTOR,
         }
     }
@@ -113,22 +124,24 @@ calling the root module loader.
 
 # Errors
 
-This will return these errors:
+This returns these errors:
 
-- LibraryError::ParseVersionError:
+- `LibraryError::ParseVersionError`:
 If the version strings in the library can't be parsed as version numbers,
 this can only happen if the version strings are manually constructed.
 
-- LibraryError::IncompatibleVersionNumber:
+- `LibraryError::IncompatibleVersionNumber`:
 If the version number of the library is incompatible.
 
-- LibraryError::AbiInstability:
+- `LibraryError::AbiInstability`:
 If the layout of the root module is not the expected one.
 
+- `LibraryError::RootModule` :
+If the root module initializer returned an error or panicked.
 
 
     */
-    pub fn init_root_module<M>(&self)-> Result<&'static M, LibraryError>
+    pub fn init_root_module<M>(&self)-> Result<M, LibraryError>
     where
         M: RootModule
     {
@@ -160,31 +173,47 @@ The caller must ensure that `M` has the expected layout.
 
 # Errors
 
-This will return these errors:
+This returns these errors:
 
-- LibraryError::ParseVersionError:
+- `LibraryError::ParseVersionError`:
 If the version strings in the library can't be parsed as version numbers,
 this can only happen if the version strings are manually constructed.
 
-- LibraryError::IncompatibleVersionNumber:
+- `LibraryError::IncompatibleVersionNumber`:
 If the version number of the library is incompatible.
+
+- `LibraryError::RootModule` :
+If the root module initializer returned an error or panicked.
+
 
     */
     pub unsafe fn init_root_module_with_unchecked_layout<M>(
         &self
-    )-> Result<&'static M, LibraryError>
+    )-> Result<M, LibraryError>
     where
         M: RootModule
     {
         self.check_version::<M>()?;
-        Ok(self.unchecked_layout())
+        self.unchecked_layout()
+            .map_err(RootModuleError::into_library_error::<M>)
     }
 
 
     /// Gets the root module,first 
     /// checking that the layout of the `M` from the dynamic library is 
     /// compatible with the expected layout.
-    pub fn check_layout<M>(&self) -> Result<&'static M, LibraryError>
+    ///     
+    /// # Errors
+    /// 
+    /// This returns these errors:
+    /// 
+    /// - `LibraryError::AbiInstability`:
+    /// If the layout of the root module is not the expected one.
+    /// 
+    /// - `LibraryError::RootModule` :
+    /// If the root module initializer returned an error or panicked.
+    /// 
+    pub fn check_layout<M>(&self) -> Result<M, LibraryError>
     where
         M: RootModule,
     {
@@ -199,18 +228,22 @@ If the version number of the library is incompatible.
             // This might also reduce the code in the library,
             // because it doesn't have to compile the layout checker for every library.
             (globals::initialized_globals().layout_checking)
-                (<&M>::S_LAYOUT, root_mod_layout)
+                (<M>::LAYOUT, root_mod_layout)
                 .into_result()
-                .map_err(LibraryError::AbiInstability)?;
+                .map_err(|e|{
+                    // Fixes the bug where printing the error causes a segfault because it 
+                    // contains static references and function pointers into the unloaded library.
+                    let formatted = e.to_formatted_error();
+                    LibraryError::AbiInstability(formatted)
+                })?;
         }
         
         atomic::compiler_fence(atomic::Ordering::SeqCst);
         
-        let ret=unsafe{ 
-            let module=self.module.init(|| (self.constructor.0)() );
-            transmute_reference::<ErasedObject,M>(module)
-        };
-        Ok(ret)
+        unsafe{
+            self.unchecked_layout()
+                .map_err(RootModuleError::into_library_error::<M>)
+        }
     }
 
 
@@ -225,13 +258,27 @@ have been checked for layout compatibility.
 
 The caller must ensure that `M` has the expected layout.
 
+# Errors
+
+This function can return a `RootModuleError` 
+because the root module failed to initialize.
+
 */
-    pub unsafe fn unchecked_layout<M>(&self)->&'static M{
-        let module=self.module.init(|| (self.constructor.0)() );
-        transmute_reference::<ErasedObject,M>(module)
+    pub unsafe fn unchecked_layout<M>(&self)->Result<M, RootModuleError>
+    where
+        M: PrefixRefTrait,
+    {
+        self.module.try_init(|| (self.constructor.0)().into_result() )
+            .map_err(|mut err|{
+                // Making sure that the error doesn't contain references into 
+                // the unloaded library.
+                err.reallocate();
+                err
+            })?
+            .cast::<M::PrefixFields>()
+            .piped(M::from_prefix_ref)
+            .piped(Ok)
     }
-
-
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -321,12 +368,12 @@ Gets the LibHeader of a library.
 
 # Errors
 
-This will return these errors:
+This returns these errors:
 
-- LibraryError::InvalidAbiHeader:
+- `LibraryError::InvalidAbiHeader`:
 If the abi_stable used by the library is not compatible.
 
-- LibraryError::InvalidCAbi:
+- `LibraryError::InvalidCAbi`:
 If the C abi used by the library is not compatible.
 
     */

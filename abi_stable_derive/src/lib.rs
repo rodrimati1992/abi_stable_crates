@@ -12,6 +12,7 @@ An implementation detail of abi_stable.
 #![deny(unused_doc_comments)]
 #![deny(unconditional_recursion)]
 
+#![allow(clippy::suspicious_assignment_formatting)]
 
 extern crate proc_macro;
 
@@ -67,8 +68,8 @@ This is applied to functions like this:
 use abi_stable::prefix_type::PrefixTypeTrait;
 
 #[export_root_module]
-pub fn get_hello_world_mod() -> &'static TextOperationsMod {
-    TextOperationsModVal{
+pub fn get_hello_world_mod() -> TextOperationsMod_Ref {
+    TextOperationsMod{
         reverse_string,
     }.leak_into_prefix()
 }
@@ -76,6 +77,21 @@ pub fn get_hello_world_mod() -> &'static TextOperationsMod {
 # fn main(){}
 
 ```
+
+# Return Type
+
+The return type of the annotated function can be one of:
+
+- Any type that implements `abi_stable::library::RootModule`
+
+- `Result<M, RBoxError>`, where `M` is any type that implements 
+`abi_stable::library::RootModule`
+
+- `RResult<M, RBoxError>`, where `M` is any type that implements 
+`abi_stable::library::RootModule`
+
+All those types are supported through the `abi_stable::library::IntoRootModuleResult` trait,
+which you can implement if you want to return some other type.
 
 # Generated code
 
@@ -110,7 +126,6 @@ doing a public release.
 It is strongly encouraged that this attribute is used conditionally,
 disabling it in Continuous Integration so that the 
 binary compatibility of a dynamic library is checked at some point before releasing it.
-
 
 # More examples
 
@@ -155,17 +170,6 @@ This macro is documented in `abi_stable::docs::get_static_equivalent`
 #[proc_macro_derive(GetStaticEquivalent, attributes(sabi))]
 pub fn derive_get_static_equivalent(input: TokenStream1) -> TokenStream1 {
     parse_or_compile_err( input, get_static_equivalent::derive ).into()
-}
-
-
-
-#[doc(hidden)]
-#[proc_macro]
-pub fn get_string_length(input: TokenStream1) -> TokenStream1 {
-    parse_or_compile_err(input,|lit:syn::LitStr|{
-        let len=lit.value().len();
-        Ok(quote!( pub(super) const LEN:usize=#len; ))
-    }).into()
 }
 
 

@@ -268,8 +268,7 @@ pub fn expr_from_int(int:u64)->syn::Expr{
     let x=syn::LitInt::from(x);
     let x=syn::Lit::Int(x);
     let x=syn::ExprLit{attrs:Vec::new(),lit:x};
-    let x=syn::Expr::Lit(x);
-    x
+    syn::Expr::Lit(x)
 }
 
 /// Used to tokenize an integer without a type suffix.

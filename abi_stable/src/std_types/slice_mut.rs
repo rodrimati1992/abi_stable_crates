@@ -28,14 +28,14 @@ not yet guaranteed.
 
 # Lifetime problems
 
-Because RSliceMut dereferences into a mutable slice,you can call slice method on it.
+Because `RSliceMut` dereferences into a mutable slice,you can call slice methods on it.
 
 If you call a slice method that returns a borrow into the slice,
-it will have the lifetime of the `let slice:RSliceMut<'a,[T]>` variable instead of the `'a` 
+it will have the lifetime of the `let slice: RSliceMut<'a,[T]>` variable instead of the `'a` 
 lifetime that it's parameterized over.
 
-To get a slice with the same lifetime as an RSliceMut,
-one must use one of the `RSliceMut::{into_slice,into_slice_mut}` methods.
+To get a slice with the same lifetime as an `RSliceMut`,
+one must use one of the `RSliceMut::{into_slice,into_mut_slice}` methods.
 
 
 Example of what would not work:
@@ -47,7 +47,7 @@ fn into_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a [T] {
     &*slic
 }
 
-fn into_slice_mut<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
+fn into_mut_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
     &mut *slic
 }
 ```
@@ -61,8 +61,8 @@ fn into_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a [T] {
     slic.into_slice()
 }
 
-fn into_slice_mut<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
-    slic.into_slice_mut()
+fn into_mut_slice<'a,T>(slic:RSliceMut<'a,T>)->&'a mut [T] {
+    slic.into_mut_slice()
 }
 ```
 
@@ -85,7 +85,7 @@ where
 {
     slice_.iter()
         .position(|x| x==element )
-        .map(|i| &mut slice_.into_slice_mut()[i] )
+        .map(|i| &mut slice_.into_mut_slice()[i] )
 }
 
 
@@ -98,8 +98,14 @@ where
     pub struct RSliceMut<'a, T> {
         data: *mut T,
         length: usize,
-        _marker: PhantomData<&'a mut T>,
+        _marker: PhantomData<MutWorkaround<'a,T>>,
     }
+
+    /// Used as a workaround to make `from_raw_parts_mut` a const fn.
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(bound = "T:'a")]
+    struct MutWorkaround<'a,T>(&'a mut T);
 
     impl_from_rust_repr! {
         impl['a, T] From<&'a mut [T]> for RSliceMut<'a, T> {
@@ -121,6 +127,11 @@ where
 
         /// Gets a raw pointer to the start of the slice.
         pub const fn as_ptr(&self) -> *const T{
+            self.data
+        }
+        
+        /// Gets a mutable raw pointer to the start of the slice.
+        pub fn as_mut_ptr(&mut self) -> *mut T{
             self.data
         }
         
@@ -172,13 +183,13 @@ where
         ///
         /// Callers must ensure that:
         ///
-        /// - ptr_ points to valid memory,
+        /// - `ptr_` points to valid memory,
         ///
-        /// - `ptr_ .. ptr+len` range is àccessible memory.
+        /// - `ptr_ .. ptr+len` range is accessible memory.
         ///
-        /// - ptr_ is aligned to `T`.
+        /// - `ptr_` is aligned to `T`.
         ///
-        /// - the data ptr_ points to must be valid for the lifetime of this `RSlice<'a,T>`
+        /// - the data `ptr_` points to must be valid for the lifetime of this `RSlice<'a,T>`
         ///
         /// # Examples
         ///
@@ -196,7 +207,7 @@ where
         /// }
         ///
         /// ```
-        pub unsafe fn from_raw_parts_mut(ptr_: *mut T, len: usize) -> Self {
+        pub const unsafe fn from_raw_parts_mut(ptr_: *mut T, len: usize) -> Self {
             Self {
                 data: ptr_,
                 length: len,
@@ -254,10 +265,10 @@ impl<'a, T> RSliceMut<'a, T> {
         slic.into()
     }
 
-    /// Creates an `RSlice<'a,T>` with access to the `range` range of elements.
+    /// Creates an `RSlice<'b,T>` with access to the `range` range of elements.
     ///
     /// This is an inherent method instead of an implementation of the
-    /// ::std::ops::Index trait because it does not return a reference.
+    /// `std::ops::Index` trait because it does not return a reference.
     ///
     /// # Example
     ///
@@ -273,7 +284,8 @@ impl<'a, T> RSliceMut<'a, T> {
     /// assert_eq!(slic.slice(1..3),RSlice::from_slice(&[1,2]));
     ///
     /// ```
-    pub fn slice<I>(&self, i: I) -> RSlice<'_, T>
+    #[allow(clippy::needless_lifetimes)]
+    pub fn slice<'b, I>(&'b self, i: I) -> RSlice<'b, T>
     where
         [T]: Index<I, Output = [T]>,
     {
@@ -283,7 +295,7 @@ impl<'a, T> RSliceMut<'a, T> {
     /// Creates an `RSliceMut<'a,T>` with access to the `range` range of elements.
     ///
     /// This is an inherent method instead of an implementation of the
-    /// ::std::ops::IndexMut trait because it does not return a reference.
+    /// `std::ops::IndexMut` trait because it does not return a reference.
     ///
     /// # Example
     ///
@@ -299,6 +311,7 @@ impl<'a, T> RSliceMut<'a, T> {
     /// assert_eq!(slic.slice_mut(1..3),RSliceMut::from_mut_slice(&mut[1,2]));
     ///
     /// ```
+    #[allow(clippy::needless_lifetimes)]
     pub fn slice_mut<'b, I>(&'b mut self, i: I) -> RSliceMut<'b, T>
     where
         [T]: IndexMut<I, Output = [T]>,
@@ -424,25 +437,6 @@ impl<'a, T> RSliceMut<'a, T> {
     /// This is different to `as_mut_slice` in that the returned lifetime of 
     /// this function is larger.
     ///
-    /// This will be deprecated in 0.7.0.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RSliceMut;
-    ///
-    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0,1,2,3]).into_slice_mut(), &mut [0,1,2,3]);
-    ///
-    /// ```
-    pub fn into_slice_mut(mut self) -> &'a mut [T] {
-        unsafe { self.as_mut_slice_unbounded_lifetime() }
-    }
-
-    /// Creates a `&'a mut [T]` with access to all the elements of this slice.
-    ///
-    /// This is different to `as_mut_slice` in that the returned lifetime of 
-    /// this function is larger.
-    ///
     /// # Example
     ///
     /// ```
@@ -471,7 +465,7 @@ impl<'a, T> IntoIterator for RSliceMut<'a, T> {
     type IntoIter = ::std::slice::IterMut<'a, T>;
 
     fn into_iter(self) -> ::std::slice::IterMut<'a, T> {
-        self.into_slice_mut().into_iter()
+        self.into_mut_slice().iter_mut()
     }
 }
 
@@ -494,7 +488,7 @@ impl<'a, T> DerefMut for RSliceMut<'a, T> {
 impl_into_rust_repr! {
     impl['a, T] Into<&'a mut [T]> for RSliceMut<'a, T> {
         fn(this){
-            this.into_slice_mut()
+            this.into_mut_slice()
         }
     }
 }
@@ -552,7 +546,7 @@ where
 impl<'a> Write for RSliceMut<'a, u8> {
     #[inline]
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
-        let mut this = mem::replace(self, Self::default()).into_slice_mut();
+        let mut this = mem::take(self).into_mut_slice();
         let ret = this.write(data);
         *self = this.into();
         ret
@@ -560,7 +554,7 @@ impl<'a> Write for RSliceMut<'a, u8> {
 
     #[inline]
     fn write_all(&mut self, data: &[u8]) -> io::Result<()> {
-        let mut this = mem::replace(self, Self::default()).into_slice_mut();
+        let mut this = mem::take(self).into_mut_slice();
         let ret = this.write_all(data);
         *self = this.into();
         ret

@@ -4,7 +4,7 @@ Tests the fields related to reflection generated in the StableAbi derive macro.
 
 
 use crate::{
-    abi_stability::{SharedStableAbi},
+    abi_stability::{PrefixStableAbi, StableAbi},
     reflection::ModReflMode,
     type_layout::{TLData,FieldAccessor,TLField},
     std_types::*,
@@ -78,10 +78,10 @@ pub struct RegularPriv {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    kind(Prefix(prefix_struct="PrefixPubFields")),
+    kind(Prefix),
     missing_field(panic),
 )]
-pub struct PrefPubFieldsValue {
+pub struct PrefixPubFields {
     #[sabi(last_prefix_field)]
     pub field0: u8,
     pub field1: u8,
@@ -97,11 +97,11 @@ pub struct PrefPubFieldsValue {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    kind(Prefix(prefix_struct="PrefixPubFieldsOpaque")),
+    kind(Prefix),
     missing_field(panic),
     module_reflection(Opaque),
 )]
-pub struct PrefixPubFieldsOpaqueValue {
+pub struct PrefixPubFieldsOpaque {
     #[sabi(last_prefix_field)]
     pub field0: u8,
     #[sabi(missing_field(panic))]
@@ -113,8 +113,8 @@ pub struct PrefixPubFieldsOpaqueValue {
 mod some_prefixes{
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(kind(Prefix(prefix_struct="PrefixMostPrivacies")))]
-    pub struct PrefMostPrivaciesValue {
+    #[sabi(kind(Prefix))]
+    pub struct PrefMostPrivacies {
         pub field0: u8,
         #[sabi(last_prefix_field)]
         pub field1: u8,
@@ -128,8 +128,8 @@ mod some_prefixes{
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(kind(Prefix(prefix_struct="PrefixPriv")))]
-    pub struct PrefPrivValue {
+    #[sabi(kind(Prefix))]
+    pub struct PrefPriv {
         field0: u8,
         pub(super) field1: u16,
         #[sabi(last_prefix_field)]
@@ -166,9 +166,9 @@ fn check_enum_accessors<T>(
     mod_refl_mode:ModReflMode,
     accessors:&[&[FieldAccessor]],
 )where
-    T:SharedStableAbi
+    T:StableAbi
 {
-    let layout=T::S_LAYOUT;
+    let layout=T::LAYOUT;
 
     let mut fields=match layout.data() {
         TLData::Enum(enum_)=>enum_.fields.iter(),
@@ -188,9 +188,9 @@ fn check_struct_accessors<T>(
     mod_refl_mode:ModReflMode,
     accessors:&[FieldAccessor],
 )where
-    T:SharedStableAbi
+    T:StableAbi
 {
-    let layout=T::S_LAYOUT;
+    let layout=T::LAYOUT;
 
     let fields=match layout.data() {
         TLData::Struct{fields}=>fields.to_vec(),
@@ -207,9 +207,9 @@ fn check_prefix_accessors<T>(
     mod_refl_mode:ModReflMode,
     accessors:&[FieldAccessor],
 )where
-    T:SharedStableAbi
+    T:PrefixStableAbi
 {
-    let layout=T::S_LAYOUT;
+    let layout=T::LAYOUT;
 
     let fields=match layout.data() {
         TLData::PrefixType(prefix)=>prefix.fields.to_vec(),
@@ -310,7 +310,7 @@ fn test_regular_priv(){
 
 #[test]
 fn test_prefix_pub_fields(){
-    check_prefix_accessors::<PrefixPubFields>(
+    check_prefix_accessors::<PrefixPubFields_Prefix>(
         ModReflMode::Module,
         &[
             FieldAccessor::Method,
@@ -325,7 +325,7 @@ fn test_prefix_pub_fields(){
 
 #[test]
 fn test_prefix_pub_fields_opaque(){
-    check_prefix_accessors::<PrefixPubFieldsOpaque>(
+    check_prefix_accessors::<PrefixPubFieldsOpaque_Prefix>(
         ModReflMode::Opaque,
         &[
             FieldAccessor::Opaque,
@@ -337,7 +337,7 @@ fn test_prefix_pub_fields_opaque(){
 
 #[test]
 fn test_prefix_most_privacies(){
-    check_prefix_accessors::<PrefixMostPrivacies>(
+    check_prefix_accessors::<PrefMostPrivacies_Prefix>(
         ModReflMode::Module,
         &[
             FieldAccessor::Method,
@@ -353,7 +353,7 @@ fn test_prefix_most_privacies(){
 
 #[test]
 fn test_prefix_priv(){
-    check_prefix_accessors::<PrefixPriv>(
+    check_prefix_accessors::<PrefPriv_Prefix>(
         ModReflMode::Opaque,
         &[
             FieldAccessor::Opaque,

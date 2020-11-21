@@ -42,7 +42,8 @@ A box type which stores small values inline as an optimization.
 
 # Inline storage
 
-Inline is the storage space on the stack (as in inline with the RSmallBox struct)
+The `Inline` type parameter
+is the storage space on the stack (as in inline with the `RSmallBox` struct)
 where small values get stored,instead of storing them on the heap.
 
 It has to have an alignment greater than or equal to the value being stored,
@@ -249,8 +250,8 @@ assert!( RSmallBox::is_inline(&just_right) );
         ///     .piped(RVec::from)
         ///     .piped(RSmallBox::<_,[usize;2]>::new);
         /// 
-        /// let generations_addr=&mut generations as *mut RSmallBox<_,_> as usize;
-        /// let heap_addr=RSmallBox::as_ptr(&mut generations) as usize;
+        /// let generations_addr=&generations as *const RSmallBox<_,_> as usize;
+        /// let heap_addr=RSmallBox::as_ptr(&generations) as usize;
         /// 
         /// assert_ne!(generations_addr,heap_addr);
         ///
@@ -264,7 +265,7 @@ assert!( RSmallBox::is_inline(&just_right) );
             }
         }
 
-        /// Constructs this RSmallBox from a MovePtr.
+        /// Constructs this `RSmallBox` from a `MovePtr`.
         ///
         /// # Example
         ///
@@ -314,7 +315,7 @@ assert!( RSmallBox::is_inline(&just_right) );
             }
         }
 
-        /// Converts this RSmallBox into another one with a differnet inline size.
+        /// Converts this `RSmallBox` into another one with a differnet inline size.
         ///
         /// # Example
         ///
@@ -394,6 +395,7 @@ assert!( RSmallBox::is_inline(&just_right) );
         /// assert_eq!( RSmallBox::into_inner(rbox), vec![0,1,2] );
         ///
         /// ```
+        #[allow(clippy::redundant_closure)]
         pub fn into_inner(this:Self)->T{
             Self::with_move_ptr(
                 ManuallyDrop::new(this),
@@ -411,7 +413,6 @@ assert!( RSmallBox::is_inline(&just_right) );
         }
     }
 
-
     /// Converts an RBox into an RSmallBox,currently this allocates.
     impl<T,Inline> From<RBox<T>> for RSmallBox<T,Inline>
     where
@@ -427,6 +428,7 @@ assert!( RSmallBox::is_inline(&just_right) );
 
 
     /// Converts a RSmallBox into an RBox,currently this allocates.
+    #[allow(clippy::redundant_closure)]
     impl<T,Inline> Into<RBox<T>> for RSmallBox<T,Inline>
     where
         Inline:InlineStorage

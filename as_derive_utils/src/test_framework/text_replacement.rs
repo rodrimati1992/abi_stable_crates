@@ -20,7 +20,7 @@ impl From<Match> for MatchMine{
 }
 
 
-pub fn replace_text(text: &str, map: &Vec<(String,String)>, buffer:&mut String){
+pub fn replace_text(text: &str, map: &[(String,String)], buffer:&mut String){
     let find_automata=AhoCorasick::new(map.iter().map(|(k,_)| k.as_bytes() ));
 
     buffer.clear();

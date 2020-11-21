@@ -36,11 +36,11 @@ pub enum REntry<'a,K,V>{
 
 #[derive(StableAbi)]
 #[repr(C)]
-struct ErasedOccupiedEntry<K,V>(PhantomData<Tuple2<K,V>>);
+struct ErasedOccupiedEntry<K,V>(PhantomData<(K,V)>);
 
 #[derive(StableAbi)]
 #[repr(C)]
-struct ErasedVacantEntry  <K,V>(PhantomData<Tuple2<K,V>>);
+struct ErasedVacantEntry  <K,V>(PhantomData<(K,V)>);
 
 type UnerasedOccupiedEntry<'a,K,V>=
     ManuallyDrop<OccupiedEntry<'a,MapKey<K>,V>>;
@@ -283,7 +283,7 @@ where
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-/// A handle into an occupied entry in a map,always a variant of an REntry.
+/// A handle into an occupied entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -292,11 +292,11 @@ where
 )]
 pub struct ROccupiedEntry<'a,K,V>{
     entry:&'a mut ErasedOccupiedEntry<K,V>,
-    vtable:StaticRef<OccupiedVTable<K,V>>,
+    vtable:OccupiedVTable_Ref<K,V>,
     _marker:UnsafeIgnoredType<OccupiedEntry<'a,K,V>>
 }
 
-/// A handle into a vacant entry in a map,always a variant of an REntry.
+/// A handle into a vacant entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -305,15 +305,15 @@ pub struct ROccupiedEntry<'a,K,V>{
 )]
 pub struct RVacantEntry<'a,K,V>{
     entry:&'a mut ErasedVacantEntry<K,V>,
-    vtable:StaticRef<VacantVTable<K,V>>,
+    vtable:VacantVTable_Ref<K,V>,
     _marker:UnsafeIgnoredType<VacantEntry<'a,K,V>>
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a,K,V> ROccupiedEntry<'a,K,V>{
-    fn vtable<'b>(&self)->&'b OccupiedVTable<K,V>{
-        self.vtable.get()
+    fn vtable(&self)->OccupiedVTable_Ref<K,V>{
+        self.vtable
     }
 }
 
@@ -327,13 +327,13 @@ impl<'a,K,V> ROccupiedEntry<'a,K,V>{
         unsafe{ 
             Self{
                 entry:ErasedOccupiedEntry::from_unerased(entry),
-                vtable:WithMetadata::as_prefix(OccupiedVTable::VTABLE_REF),
+                vtable:OccupiedVTable::VTABLE_REF,
                 _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
     }
 
-    /// Gets the key of the entry.
+    /// Gets a reference to the key of the entry.
     ///
     /// # Example
     ///
@@ -413,7 +413,8 @@ impl<'a,K,V> ROccupiedEntry<'a,K,V>{
     }
 
     /// Gets a mutable reference to the value in the entry,
-    /// that borrows with the lifetime of the map instead of from this `ROccupiedEntry`.
+    /// that borrows with the lifetime of the map instead of 
+    /// borrowing from this `ROccupiedEntry`.
     ///
     /// # Example
     ///
@@ -436,7 +437,7 @@ impl<'a,K,V> ROccupiedEntry<'a,K,V>{
     pub fn into_mut(self)->&'a mut V{
         let vtable=self.vtable();
 
-        vtable.into_mut_elem()(self)
+        vtable.fn_into_mut_elem()(self)
     }
 
     /// Replaces the current value of the entry with `value`,returning the previous value.
@@ -526,8 +527,8 @@ impl<'a,K,V> Drop for ROccupiedEntry<'a,K,V>{
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a,K,V> RVacantEntry<'a,K,V>{
-    fn vtable<'b>(&self)->&'b VacantVTable<K,V>{
-        self.vtable.get()
+    fn vtable(&self)->VacantVTable_Ref<K,V>{
+        self.vtable
     }
 }
 
@@ -544,13 +545,13 @@ impl<'a,K,V> RVacantEntry<'a,K,V>{
         unsafe{
             Self{
                 entry:ErasedVacantEntry::from_unerased(entry),
-                vtable:WithMetadata::as_prefix(VacantVTable::VTABLE_REF),
+                vtable: VacantVTable::VTABLE_REF,
                 _marker:UnsafeIgnoredType::DEFAULT,
             }
         }
     }
 
-    /// Gets the key of the entry.
+    /// Gets a reference to the key of the entry.
     ///
     /// # Example
     ///
@@ -577,7 +578,7 @@ impl<'a,K,V> RVacantEntry<'a,K,V>{
         vtable.key()(self.entry)
     }
 
-    /// Gets back the key that was passed to RHashMap::entry.
+    /// Gets back the key that was passed to `RHashMap::entry`.
     ///
     /// # Example
     ///
@@ -601,7 +602,7 @@ impl<'a,K,V> RVacantEntry<'a,K,V>{
     pub fn into_key(self) -> K {
         let vtable=self.vtable();
 
-        vtable.into_key()(self)
+        vtable.fn_into_key()(self)
     }
 
     /// Sets the value of the entry,returning a mutable reference to it.
@@ -663,34 +664,34 @@ impl<'a,K,V> Drop for RVacantEntry<'a,K,V>{
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    kind(Prefix(prefix_struct="OccupiedVTable")),
+    kind(Prefix),
     missing_field(panic),
 )]
-pub struct OccupiedVTableVal<K,V>{
+pub struct OccupiedVTable<K,V>{
     drop_entry:unsafe extern "C" fn(&mut ErasedOccupiedEntry<K,V>),
     key:extern "C" fn(&ErasedOccupiedEntry<K,V>)->&K,
     get_elem:extern "C" fn(&ErasedOccupiedEntry<K,V>)->&V,
     get_mut_elem:extern "C" fn(&mut ErasedOccupiedEntry<K,V>)->&mut V,
-    into_mut_elem:extern "C" fn(ROccupiedEntry<'_,K,V>)->&'_ mut V,
+    fn_into_mut_elem:extern "C" fn(ROccupiedEntry<'_,K,V>)->&'_ mut V,
     insert_elem:extern "C" fn(&mut ErasedOccupiedEntry<K,V>,V)->V,
     remove:extern "C" fn(ROccupiedEntry<'_,K,V>)->V,
 }
 
 
 impl<K,V> OccupiedVTable<K,V>{
-    const VTABLE_REF: StaticRef<WithMetadata<OccupiedVTableVal<K,V>>> = unsafe{
-        StaticRef::from_raw(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VTABLE,
-        ))
+    const VTABLE_REF: OccupiedVTable_Ref<K,V> = unsafe{
+        OccupiedVTable_Ref(
+            WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
+                .as_prefix()
+        )
     };
 
-    const VTABLE:OccupiedVTableVal<K,V>=OccupiedVTableVal{
+    const VTABLE:OccupiedVTable<K,V>=OccupiedVTable{
         drop_entry   :ErasedOccupiedEntry::drop_entry,
         key          :ErasedOccupiedEntry::key,
         get_elem     :ErasedOccupiedEntry::get_elem,
         get_mut_elem :ErasedOccupiedEntry::get_mut_elem,
-        into_mut_elem:ErasedOccupiedEntry::into_mut_elem,
+        fn_into_mut_elem:ErasedOccupiedEntry::fn_into_mut_elem,
         insert_elem  :ErasedOccupiedEntry::insert_elem,
         remove       :ErasedOccupiedEntry::remove,
     };
@@ -729,7 +730,7 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
             )
         }}
     }
-    extern "C" fn into_mut_elem(this:ROccupiedEntry<'_,K,V>)->&'_ mut V{
+    extern "C" fn fn_into_mut_elem(this:ROccupiedEntry<'_,K,V>)->&'_ mut V{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),
@@ -768,29 +769,31 @@ impl<K,V> ErasedOccupiedEntry<K,V>{
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
-    kind(Prefix(prefix_struct="VacantVTable")),
+    kind(Prefix),
     missing_field(panic),
 )]
-pub struct VacantVTableVal<K,V>{
+pub struct VacantVTable<K,V>{
     drop_entry:unsafe extern "C" fn(&mut ErasedVacantEntry<K,V>),
     key:extern "C" fn(&ErasedVacantEntry<K,V>)->&K,
-    into_key:extern "C" fn(RVacantEntry<'_,K,V>)->K,
+    fn_into_key:extern "C" fn(RVacantEntry<'_,K,V>)->K,
     insert_elem:extern "C" fn(RVacantEntry<'_,K,V>,V)->&'_ mut V,
 }
 
 
 impl<K,V> VacantVTable<K,V>{
-    const VTABLE_REF: StaticRef<WithMetadata<VacantVTableVal<K,V>>> = unsafe{
-        StaticRef::from_raw(&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VTABLE,
-        ))
+    const VTABLE_REF: VacantVTable_Ref<K,V> = unsafe{
+        VacantVTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::VTABLE,
+            ).as_prefix()
+        )
     };
 
-    const VTABLE:VacantVTableVal<K,V>=VacantVTableVal{
+    const VTABLE:VacantVTable<K,V>=VacantVTable{
         drop_entry   :ErasedVacantEntry::drop_entry,
         key          :ErasedVacantEntry::key,
-        into_key     :ErasedVacantEntry::into_key,
+        fn_into_key     :ErasedVacantEntry::fn_into_key,
         insert_elem :ErasedVacantEntry::insert_elem,
     };
 }
@@ -812,7 +815,7 @@ impl<K,V> ErasedVacantEntry<K,V>{
             ) 
         }}
     }
-    extern "C" fn into_key<'a>(this:RVacantEntry<'_,K,V>)->K{
+    extern "C" fn fn_into_key(this:RVacantEntry<'_,K,V>)->K{
         unsafe{extern_fn_panic_handling!{
             Self::run_as_unerased(
                 this.into_inner(),

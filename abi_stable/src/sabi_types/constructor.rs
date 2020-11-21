@@ -5,7 +5,10 @@ use std::{
 
 
 /**
-Newtype wrapper to pass function pointers to const fn.
+Newtype wrapper to pass function pointers to `const fn`.
+
+A workaround for it not being possible to get a function pointer within a `const fn`,
+since it's possible to pass structs that happen to have function pointer fields.
 
 Every impl of this type delegates the impl to the return value of the wrapped function
 (which it calls every time),don't use those impls if the function is likely expensive.

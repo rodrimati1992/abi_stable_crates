@@ -208,24 +208,6 @@
       ],
     ),
     (
-      name:"shared_stableabi",
-      code:r##"
-        #[repr(C)]
-        #[sabi(shared_stableabi@p1)]
-        #[sabi(shared_stableabi@p2)]
-        enum Foo<T,U,V>{
-          Bar(T,U,V),
-        }
-      "##,
-      subcase: [
-        ( replacements: { "@p1":r#"(X)"#, "@p2":r#"(Y)"# }, error_count: 2 ),
-        ( replacements: { "@p1":r#"T"#, "@p2":r#"U"# }, error_count: 2 ),
-        ( replacements: { "@p1":r#"T"#, "@p2":r#"="U""# }, error_count: 2 ),
-        ( replacements: { "@p1":r#"(T)"#, "@p2":r#"="U""# }, error_count: 1 ),
-        ( replacements: { "@p1":r#"(T)"#, "@p2":r#"(U)"# }, error_count: 0 ),
-      ],
-    ),
-    (
       name:"unsafe_unconstrained",
       code:r##"
         #[repr(C)]
@@ -299,12 +281,39 @@
       ],
     ),
     (
+      name:"generated prefix type names",
+      code:r##"
+        #[repr(C)]
+        #[sabi(kind(Prefix(@p)))]
+        struct Foo{
+          x:u32,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@p":r#""# }, 
+          find_all: [regex(r#"struct *Foo_Prefix *\{"#), regex(r#"struct *Foo_Ref *\("#)],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p":r#"prefix_ref = "Hello" "# }, 
+          find_all: [regex(r#"struct *Foo_Prefix *\{"#), regex(r#"struct *Hello *\("#)],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p":r#"prefix_ref = "Hello", prefix_fields = "World" "# }, 
+          find_all: [regex(r#"struct *World *\{"#), regex(r#"struct *Hello *\("#)],
+          error_count: 0,
+        ),
+      ],
+    ),
+    (
       name:"prefix_bound",
       code:r##"
         #[repr(C)]
         #[sabi(prefix_bound@p1)]
         #[sabi(prefix_bound@p2)]
-        #[sabi(kind(Prefix(prefix_struct="VecVTable")))]
+        #[sabi(kind(Prefix(prefix_ref="VecVTable")))]
         struct Foo{
           x:u32,
         }
@@ -581,7 +590,7 @@
       name:"prefix type field bound",
       code:r##"
         #[repr(C)]
-        #[sabi(kind(Prefix(prefix_struct="VecVTable")))]
+        #[sabi(kind(Prefix(prefix_ref="VecVTable")))]
         struct Foo{
           #[sabi(accessor_bound@b1)]
           hello:Vec
@@ -622,7 +631,7 @@
         ),
         ( 
           replacements: { 
-            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@a1":r#"kind(Prefix(prefix_ref="AAAA"))"#,
             "@b1":r#"last_prefix_field"# 
           },
           error_count: 0
@@ -650,21 +659,21 @@
         ),
         ( 
           replacements: { 
-            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@a1":r#"kind(Prefix(prefix_ref="AAAA"))"#,
             "@b1":r#" ="true&&false" "# 
           },
           error_count: 0
         ),
         ( 
           replacements: { 
-            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@a1":r#"kind(Prefix(prefix_ref="AAAA"))"#,
             "@b1":r#" ="<TypeParameter as Trait>::CONSTANT" "# 
           },
           error_count: 0
         ),
         ( 
           replacements: { 
-            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@a1":r#"kind(Prefix(prefix_ref="AAAA"))"#,
             "@b1":r#" ="" "# 
           },
           find_all: [str("expression")],
@@ -672,7 +681,7 @@
         ),
         ( 
           replacements: {
-            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@a1":r#"kind(Prefix(prefix_ref="AAAA"))"#,
             "@b1":r#"()"# 
           },
           find_all: [str("attribute")],
@@ -680,7 +689,7 @@
         ),
         ( 
           replacements: {
-            "@a1":r#"kind(Prefix(prefix_struct="AAAA"))"#,
+            "@a1":r#"kind(Prefix(prefix_ref="AAAA"))"#,
             "@b1":r#""# 
           },
           find_all: [str("attribute")],
@@ -747,7 +756,7 @@
       name:"missing_field prefix",
       code:r##"
         #[repr(C)]
-        #[sabi(kind(Prefix(prefix_struct="AAAA")))]
+        #[sabi(kind(Prefix(prefix_ref="AAAA")))]
         #[sabi(@a1)]
         struct Foo{
           #[sabi(missing_field@b1)]

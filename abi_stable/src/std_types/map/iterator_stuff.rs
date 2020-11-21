@@ -14,9 +14,10 @@ macro_rules! declare_iter_interface {
         $(#[$attr])*
         #[repr(C)]
         #[derive(StableAbi)]
-        pub struct $interface<$k,$v>(PhantomData<Tuple2<$k,$v>>);
+        pub struct $interface<$k,$v>(PhantomData<($k,$v)>);
 
         impl<$k,$v> $interface<$k,$v>{
+            /// Constructs this type.
             pub const NEW:Self=Self(PhantomData);
         }
 
@@ -30,7 +31,7 @@ macro_rules! declare_iter_interface {
 
 declare_iter_interface!{
     K=>V;
-    /// The InterfaceType of the `Iter` RHashMap iterator.
+    /// The `InterfaceType` of the `Iter` iterator for `RHashMap`.
     #[sabi(impl_InterfaceType(Iterator,Clone))]
     interface=RefIterInterface;
     type Item=Tuple2<&'a K,&'a V>;
@@ -39,7 +40,7 @@ declare_iter_interface!{
 
 declare_iter_interface!{
     K=>V;
-    /// The InterfaceType of the `IterMut` RHashMap iterator.
+    /// The `InterfaceType` of the `IterMut` iterator for `RHashMap`.
     #[sabi(impl_InterfaceType(Iterator))]
     interface=MutIterInterface;
     type Item=Tuple2<&'a K,&'a mut V>;
@@ -48,7 +49,7 @@ declare_iter_interface!{
 
 declare_iter_interface!{
     K=>V;
-    /// The InterfaceType of the `Drain` RHashMap iterator.
+    /// The `InterfaceType` of the `Drain` iterator for `RHashMap`.
     #[sabi(impl_InterfaceType(Iterator))]
     interface=ValIterInterface;
     type Item=Tuple2<K,V>;
@@ -64,16 +65,15 @@ type IntoIterInner<'a,K,V>=
 
 
 
-/// An iterator that yields all the entries of an RHashMap,
+/// An iterator that yields all the entries of an `RHashMap`,
 /// deallocating the hashmap afterwards.
 ///
-/// This is an `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
+/// This implements `Iterator<Item= Tuple2< K, V > > + !Send + !Sync`
 #[repr(transparent)]
 #[derive(StableAbi)]
 pub struct IntoIter<K,V>{
     iter:IntoIterInner<'static,u32,u32>,
-    // _marker:PhantomData<Tuple2<K,V>>,
-    _marker:PhantomData<Tuple3<K,V,UnsafeIgnoredType<std::rc::Rc<()>>>>,
+    _marker:PhantomData<(K,V,UnsafeIgnoredType<std::rc::Rc<()>>)>,
 }
 
 

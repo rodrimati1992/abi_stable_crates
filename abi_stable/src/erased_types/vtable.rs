@@ -24,16 +24,15 @@ use super::{
 
 use crate::{
     StableAbi,
-    const_utils::Transmuter,
     marker_type::{ErasedObject,NonOwningPhantom},
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
     pointer_trait::{GetPointerKind,CanTransmuteElement},
-    sabi_types::StaticRef,
-    std_types::{Tuple3,RSome,RNone,RIoError,RSeekFrom},
+    std_types::{RSome,RNone,RIoError,RSeekFrom},
     type_level::{
         impl_enum::{Implemented,Unimplemented,IsImplemented},
         trait_marker,
     },
+    utils::Transmuter,
 };
 
 
@@ -47,25 +46,26 @@ use core_extensions::TypeIdentity;
 pub trait GetVtable<'borr,This,ErasedPtr,OrigPtr,I:InterfaceBound> {
     
     #[doc(hidden)]
-    const TMP_VTABLE:VTableVal<'borr,ErasedPtr,I>;
+    const TMP_VTABLE:VTable<'borr,ErasedPtr,I>;
 
     #[doc(hidden)]
-    const _GET_INNER_VTABLE:StaticRef<VTable<'borr,ErasedPtr,I>>=unsafe{
-        let x=&WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::TMP_VTABLE
-        );
-        let x=StaticRef::from_raw(x);
-        WithMetadata::as_prefix(x)
+    const _GET_INNER_VTABLE:VTable_Ref<'borr,ErasedPtr,I>=unsafe{
+        VTable_Ref(
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                Self::TMP_VTABLE
+            ).as_prefix()
+        )
     };
 
 }
 
 
-/// This type allows passing the vtable for DynTrait to `from_const` with `VTableDT::GET`.
+/// A helper type for constructing a `DynTrait` at compile-time,
+/// by passing `VTableDT::GET` to `DynTrait::from_const`.
 #[repr(transparent)]
 pub struct VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>{
-    pub(super) vtable:StaticRef<VTable<'borr,ErasedPtr,I>>,
+    pub(super) vtable:VTable_Ref<'borr,ErasedPtr,I>,
     _for:NonOwningPhantom<(T,OrigPtr,Unerasability)>
 }
 
@@ -89,6 +89,7 @@ where
     I: InterfaceBound,
     InterfaceFor<T,I,Unerasability>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,
 {    
+    /// Constructs a `VTableDT`.
     pub const GET:Self=Self{
         vtable:<
             InterfaceFor<T,I,Unerasability> as 
@@ -140,18 +141,20 @@ macro_rules! declare_meta_vtable {
         #[sabi(
             // debug_print,
             with_field_indices,
-            kind(Prefix(prefix_struct="VTable")),
+            kind(Prefix),
             missing_field(panic),
             prefix_bound="I:InterfaceBound",
             bound="I:IteratorItemOrDefault<'borr>",
             bound="<I as IteratorItemOrDefault<'borr>>::Item:StableAbi",
-            bound="I:for<'s> GetSerializeProxyType<'s>",
-            bound="for<'s> <I as GetSerializeProxyType<'s>>::ProxyType:StableAbi",
+            bound="I: GetSerializeProxyType<'borr>",
+            bound="<I as GetSerializeProxyType<'borr>>::ProxyType:StableAbi",
+            // bound="I:for<'s> GetSerializeProxyType<'s>",
+            // bound="for<'s> <I as GetSerializeProxyType<'s>>::ProxyType:StableAbi",
             $($(bound=$struct_bound,)*)*
         )]
-        pub struct VTableVal<'borr,$erased_ptr,$interf>{
+        pub struct VTable<'borr,$erased_ptr,$interf>{
             pub type_info:&'static TypeInfo,
-            _marker:PhantomData<extern "C" fn()->Tuple3<$erased_ptr,$interf,&'borr()>>,
+            _marker:NonOwningPhantom<($erased_ptr,$interf,&'borr())>,
             pub drop_ptr:unsafe extern "C" fn(&mut $erased_ptr),
             $(
                 $( #[$field_attr] )*
@@ -160,7 +163,7 @@ macro_rules! declare_meta_vtable {
         }
 
 
-        impl<'borr,$erased_ptr,$interf> VTable<'borr,$erased_ptr,$interf>{
+        impl<'borr,$erased_ptr,$interf> VTable_Ref<'borr,$erased_ptr,$interf>{
             $(
                 pub fn $field(&self)->$field_ty
                 where
@@ -169,7 +172,7 @@ macro_rules! declare_meta_vtable {
                     match self.$priv_field().into() {
                         Some(v)=>v,
                         None=>panic_on_missing_fieldname::<
-                            VTableVal<'borr,$erased_ptr,$interf>,
+                            VTable<'borr,$erased_ptr,$interf>,
                         >(
                             Self::$field_index,
                             self._prefix_type_layout(),
@@ -364,7 +367,7 @@ macro_rules! declare_meta_vtable {
                 >,
             )*
         {
-            const TMP_VTABLE:VTableVal<'borr,$erased_ptr,$interf>=VTableVal{
+            const TMP_VTABLE:VTable<'borr,$erased_ptr,$interf>=VTable{
                 type_info:This::INFO,
                 drop_ptr:drop_pointer_impl::<$orig_ptr,$erased_ptr>,
                 $(
@@ -387,14 +390,14 @@ macro_rules! declare_meta_vtable {
                             >
                         >::FIELD,
                 )*
-                _marker:PhantomData,
+                _marker:NonOwningPhantom::NEW,
             };
 
         }
 
 
 
-        /// Trait used to capture all the bounds of DynTrait<_>.
+        /// Associated constant equivalents of the associated types in `InterfaceType`.
         #[allow(non_upper_case_globals)]
         pub trait InterfaceBound:InterfaceType {
             #[doc(hidden)]
@@ -402,12 +405,13 @@ macro_rules! declare_meta_vtable {
             const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>;
 
             /// Describes which traits are implemented,
-            /// stored in the layout of the type in StableAbi,
+            /// stored in the `TypeLayout` for `DynTrait`,
+            #[doc(hidden)]
             const EXTRA_CHECKS:EnabledTraits;
 
             $( 
-                /// Used by the `StableAbi` derive macro to determine whether the field 
-                /// this is associated with is disabled.
+                /// Whether the trait is required,
+                /// and is usable by a `DynTrait` parameterized with this `InterfaceType`.
                 const $selector:bool; 
             )*
 
@@ -429,6 +433,7 @@ macro_rules! declare_meta_vtable {
             $( I::$marker_trait:IsImplemented, )*
             $( I::$selector:IsImplemented, )*
         {
+            #[doc(hidden)]
             const EXTRA_CHECKS:EnabledTraits=EnabledTraits{
                 
                 // Auto traits have to be equivalent in every linked library,
@@ -469,12 +474,12 @@ macro_rules! declare_meta_vtable {
         }
 
 
-        impl<'borr,$erased_ptr,$interf> Debug for VTable<'borr,$erased_ptr,$interf> 
+        impl<'borr,$erased_ptr,$interf> Debug for VTable_Ref<'borr,$erased_ptr,$interf> 
         where
             $interf:InterfaceBound,
         {
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
-                f.debug_struct("VTable")
+                f.debug_struct("VTable_Ref")
                     .field("type_info",&self.type_info())
                     .finish()
             }
@@ -595,7 +600,7 @@ declare_meta_vtable! {
             unsafe{
                 Transmuter::<
                     unsafe extern "C" fn(
-                        &ErasedObject<T>
+                        &ErasedObject
                     )->RResult<<I as SerializeProxyType<'_>>::Proxy,RBoxError>,
                     unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>
                 >{
