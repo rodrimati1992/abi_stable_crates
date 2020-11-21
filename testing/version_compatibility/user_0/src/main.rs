@@ -37,32 +37,35 @@ fn compute_library_dir()->io::Result<PathBuf>{
 
 
 fn main()-> io::Result<()> {
-    if cfg!(not(feature = "run")) {
-        panic!(r#"Please compile this with --feature run "#);
-    }
-
     let library_dir=compute_library_dir().unwrap();
 
     (||->Result<(),LibraryError>{
         let header=abi_header_from_path(&RootMod_Ref::get_library_path(&library_dir))?;
 
+        println!("header: {:?}", header);
+        println!();
         println!("Executable's AbiHeader {:?}", AbiHeader::VALUE);
+        println!();
         println!("Executable's abi_stable version {:?}", abi_stable::ABI_STABLE_VERSION);
-
         println!();
 
         if header.is_valid() {
             let lib_header=header.upgrade()?;
-            
-            println!("Loaded AbiHeader {:?}", header);
 
             unsafe{
                 let root=lib_header.init_root_module_with_unchecked_layout::<RootMod_Ref>()?;
                 println!("Loaded abi_stable version {:?}", root.abi_stable_version());
+                println!();
             }
 
 
             lib_header.check_layout::<RootMod_Ref>()?;
+            println!("\
+                The types in abi_stable on crates.io are compatible with those on \
+                the \"local\" repository\
+            ");
+        } else {
+            println!("The abi_stable on crates.io isn't semver compatible with this one");
         }
         Ok(())
     })().unwrap_or_else(|e| panic!("{}", e) );
