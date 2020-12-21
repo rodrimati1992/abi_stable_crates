@@ -165,7 +165,7 @@ fn truncate() {
 
 #[test]
 fn retain(){
-    let orig = vec![2, 3, 4 , 5, 6,7,8];
+    let orig = vec![2, 3, 4, 5, 6, 7, 8];
     let copy = orig.clone().into_(RVec::T);
     {
         let mut copy=copy.clone();
@@ -235,7 +235,7 @@ fn retain(){
                 true
             });
         }).unwrap();
-        assert_eq!(&copy[..], <&[i32]>::default());
+        assert_eq!(&copy[..], &orig[..]);
     }
 }
 
@@ -398,3 +398,55 @@ fn rvec_macro(){
     assert_eq!(RVec::from(vec![0,3,6]), rvec![0,3,6]);
     assert_eq!(RVec::from(vec![1;10]), rvec![1;10]);
 }
+
+// Adapted from Vec tests 
+// (from rustc 1.50.0-nightly (eb4fc71dc 2020-12-17))
+#[test]
+fn retain_panic() {
+    use std::rc::Rc;
+    use std::sync::Mutex;
+    use std::panic::AssertUnwindSafe;
+
+    struct Check {
+        index: usize,
+        drop_counts: Rc<Mutex<RVec<usize>>>,
+    }
+
+    impl Drop for Check {
+        fn drop(&mut self) {
+            self.drop_counts.lock().unwrap()[self.index] += 1;
+            println!("drop: {}", self.index);
+        }
+    }
+
+    let check_count = 10;
+    let drop_counts = Rc::new(Mutex::new(rvec![0_usize; check_count]));
+    let mut data: RVec<Check> = (0..check_count)
+        .map(|index| Check { index, drop_counts: Rc::clone(&drop_counts) })
+        .collect();
+
+    let _ = std::panic::catch_unwind(AssertUnwindSafe(move || {
+        let filter = |c: &Check| {
+            if c.index == 2 {
+                panic!("panic at index: {}", c.index);
+            }
+            // Verify that if the filter could panic again on another element
+            // that it would not cause a double panic and all elements of the
+            // vec would still be dropped exactly once.
+            if c.index == 4 {
+                panic!("panic at index: {}", c.index);
+            }
+            c.index < 6
+        };
+        data.retain(filter);
+    }));
+
+    let drop_counts = drop_counts.lock().unwrap();
+    assert_eq!(check_count, drop_counts.len());
+
+    for (index, count) in drop_counts.iter().cloned().enumerate() {
+        assert_eq!(1, count, "unexpected drop count at index: {} (count: {})", index, count);
+    }
+}
+
+

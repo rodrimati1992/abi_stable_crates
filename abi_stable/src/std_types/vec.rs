@@ -812,6 +812,7 @@ impl<T> RVec<T> {
             del: 0,
             old_len,
             pred: |x| !pred(x),
+            panic_flag: false,
         };
     }
 

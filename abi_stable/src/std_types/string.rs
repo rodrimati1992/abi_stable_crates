@@ -22,7 +22,8 @@ use crate::std_types::{RStr, RVec};
 
 mod iters;
 
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(test)]
+// #[cfg(all(test,not(feature="only_new_tests")))]
 mod tests;
 
 pub use self::iters::{Drain, IntoIter};
@@ -643,10 +644,12 @@ impl RString {
         let mut del_bytes = 0;
         let mut idx = 0;
 
+        unsafe {
+            self.inner.set_len(0);
+        }
+
         while idx < len {
-            let ch = unsafe {
-                self.get_unchecked(idx..len).chars().next().unwrap()
-            };
+            let ch = unsafe { self.get_unchecked(idx..len).chars().next().unwrap() };
             let ch_len = ch.len_utf8();
 
             if !pred(ch) {
@@ -656,16 +659,17 @@ impl RString {
                     ptr::copy(
                         self.inner.as_ptr().add(idx),
                         self.inner.as_mut_ptr().add(idx - del_bytes),
-                        ch_len
+                        ch_len,
                     );
                 }
             }
 
+            // Point idx to the next char
             idx += ch_len;
         }
 
-        if del_bytes > 0 {
-            unsafe { self.inner.set_len(len - del_bytes); }
+        unsafe {
+            self.inner.set_len(len - del_bytes);
         }
     }
 
