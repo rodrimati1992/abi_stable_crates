@@ -2,6 +2,10 @@ This is the changelog,summarising changes in each version(some minor changes may
 
 # 0.9
 
+# 0.9.1
+
+Fixed a memory safety bug in RString::retain and RVec::retain.
+
 # 0.9.0
 
 Rewrote how prefix types work. now they aren't by reference, 
