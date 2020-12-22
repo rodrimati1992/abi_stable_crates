@@ -201,7 +201,23 @@ fn retain(){
 
         assert_eq!(&*rstr, &*string);
     }
-
+    {
+        // Copied from:
+        // https://github.com/rust-lang/rust/blob/48c4afbf9c29880dd946067d1c9aee1e7f75834a/library/alloc/tests/string.rs#L383    
+        let mut s = RString::from("0è0");
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut count = 0;
+            s.retain(|_| {
+                count += 1;
+                match count {
+                    1 => false,
+                    2 => true,
+                    _ => panic!(),
+                }
+            });
+        }));
+        assert!(std::str::from_utf8(s.as_bytes()).is_ok());
+    }
 }
 
 
