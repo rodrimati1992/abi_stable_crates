@@ -1,22 +1,28 @@
 name: Rust
 
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: [push, pull_request]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
+    runs-on: [ubuntu-latest, windows-latest, macos-latest]
 
-    runs-on: ubuntu-latest
+    strategy:
+      matrix: 
+        rust: [stable, beta, nightly, 1.41.0]
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+    - name: ci-all-versions
+      run: ${{ github.action_path }}/default_ci_actions.sh
+
+  nightly-tests:
+    runs-on: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: ci-nighly
+      run: ${{ github.action_path }}/nightly_ci_actions.sh
+        
