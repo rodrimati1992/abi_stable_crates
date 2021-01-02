@@ -7,11 +7,12 @@ env:
 
 jobs:
   build:
-    runs-on: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     strategy:
-      matrix: 
+      matrix:
         rust: [stable, beta, nightly, 1.41.0]
+        os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
     - uses: actions/checkout@v2
