@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: ci-all-versions
-      run: $GITHUB_WORKSPACE/stuff(default_ci_actions.sh
+      run: $GITHUB_WORKSPACE/stuff/default_ci_actions.sh
 
   nightly-tests:
     runs-on: [ubuntu-latest, windows-latest, macos-latest]
@@ -25,5 +25,5 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: ci-nighly
-      run: $GITHUB_WORKSPACE/stuff(nightly_ci_actions.sh
+      run: $GITHUB_WORKSPACE/stuff/nightly_ci_actions.sh
         
