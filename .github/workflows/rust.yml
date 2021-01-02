@@ -10,6 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      max-parallel: 2
       matrix:
         rust: [stable, beta, nightly, 1.41.0]
         os: [ubuntu-latest, windows-latest, macOS-latest]
@@ -23,88 +24,91 @@ jobs:
 
         env CARGO_BUILD_JOBS=1
 
-        cd "${GITHUB_WORKSPACE}/examples/0_modules_and_interface_types/impl/"
+        cd "${{github.workspace}}/examples/0_modules_and_interface_types/impl/"
         cargo +beta build
 
-        cd "${GITHUB_WORKSPACE}/examples/1_trait_objects/plugin_0/"
+        cd "${{github.workspace}}/examples/1_trait_objects/plugin_0/"
         cargo +beta build
 
-        cd "${GITHUB_WORKSPACE}/examples/1_trait_objects/plugin_1/"
+        cd "${{github.workspace}}/examples/1_trait_objects/plugin_1/"
         cargo +beta build
 
-        cd "${GITHUB_WORKSPACE}/examples/2_nonexhaustive/implementation/"
+        cd "${{github.workspace}}/examples/2_nonexhaustive/implementation/"
         cargo +beta build
 
-        cd "${GITHUB_WORKSPACE}/testing/0/impl_0/"
+        cd "${{github.workspace}}/testing/0/impl_0/"
         cargo +beta build
 
-        cd "${GITHUB_WORKSPACE}/testing/1 - loading errors/impl_1/"
+        cd "${{github.workspace}}/testing/1 - loading errors/impl_1/"
         cargo +beta build
 
-        cd "${GITHUB_WORKSPACE}/testing/1 - loading errors/non_abi_stable_lib/"
+        cd "${{github.workspace}}/testing/1 - loading errors/non_abi_stable_lib/"
         cargo +beta build
 
-        cd "${GITHUB_WORKSPACE}/testing/version_compatibility/impl_0"
+        cd "${{github.workspace}}/testing/version_compatibility/impl_0"
         cargo +beta build
 
-        cd "${GITHUB_WORKSPACE}/"
+        cd "${{github.workspace}}/"
         rm Cargo.lock
 
-        cd "${GITHUB_WORKSPACE}/examples/0_modules_and_interface_types/impl/"
+        cd "${{github.workspace}}/examples/0_modules_and_interface_types/impl/"
         cargo check
 
-        cd "${GITHUB_WORKSPACE}/examples/1_trait_objects/plugin_0/"
+        cd "${{github.workspace}}/examples/1_trait_objects/plugin_0/"
         cargo check
 
-        cd "${GITHUB_WORKSPACE}/examples/1_trait_objects/plugin_1/"
+        cd "${{github.workspace}}/examples/1_trait_objects/plugin_1/"
         cargo check
 
-        cd "${GITHUB_WORKSPACE}/examples/2_nonexhaustive/implementation/"
+        cd "${{github.workspace}}/examples/2_nonexhaustive/implementation/"
         cargo check
 
-        cd "${GITHUB_WORKSPACE}/testing/0/impl_0/"
+        cd "${{github.workspace}}/testing/0/impl_0/"
         cargo check
 
-        cd "${GITHUB_WORKSPACE}/testing/1 - loading errors/impl_1/"
+        cd "${{github.workspace}}/testing/1 - loading errors/impl_1/"
         cargo check
 
-        cd "${GITHUB_WORKSPACE}/testing/1 - loading errors/non_abi_stable_lib/"
+        cd "${{github.workspace}}/testing/1 - loading errors/non_abi_stable_lib/"
         cargo check
 
-        cd "${GITHUB_WORKSPACE}/abi_stable"
+        cd "${{github.workspace}}/abi_stable"
         cargo check --no-default-features
 
-        cd "${GITHUB_WORKSPACE}/abi_stable_derive"
+        cd "${{github.workspace}}/abi_stable_derive"
         cargo test
 
-        cd "${GITHUB_WORKSPACE}/abi_stable"
+        cd "${{github.workspace}}/abi_stable"
         cargo test --features "testing sabi_trait_examples"
 
-        cd "${GITHUB_WORKSPACE}/examples/0_modules_and_interface_types/impl/"
+        cd "${{github.workspace}}/examples/0_modules_and_interface_types/impl/"
         cargo test
-        cd "${GITHUB_WORKSPACE}/examples/0_modules_and_interface_types/user/"
+        cd "${{github.workspace}}/examples/0_modules_and_interface_types/user/"
         cargo run -- run-tests
 
-        cd "${GITHUB_WORKSPACE}/examples/1_trait_objects/application/"
+        cd "${{github.workspace}}/examples/1_trait_objects/application/"
         cargo run
 
-        cd "${GITHUB_WORKSPACE}/examples/2_nonexhaustive/implementation/"
+        cd "${{github.workspace}}/examples/2_nonexhaustive/implementation/"
         cargo test
-        cd "${GITHUB_WORKSPACE}/examples/2_nonexhaustive/user/"
+        cd "${{github.workspace}}/examples/2_nonexhaustive/user/"
         cargo run
-        cd "${GITHUB_WORKSPACE}/testing/0/user_0/"
+        cd "${{github.workspace}}/testing/0/user_0/"
         cargo run
-        cd "${GITHUB_WORKSPACE}/testing/1 - loading errors/user_1/"
+        cd "${{github.workspace}}/testing/1 - loading errors/user_1/"
         env "RETURN=ok" cargo run
         env "RETURN=error" cargo run
         env "RETURN=panic" cargo run
 
-        cd "${GITHUB_WORKSPACE}/testing/version_compatibility/user_0"
+        cd "${{github.workspace}}/testing/version_compatibility/user_0"
         cargo run
 
 
   nightly-tests:
     runs-on: [ubuntu-latest, windows-latest, macos-latest]
+
+    strategy:
+      max-parallel: 2
 
     steps:
     - uses: actions/checkout@v2
@@ -114,7 +118,7 @@ jobs:
         
         rustup override set nightly
 
-        cd "${GITHUB_WORKSPACE}/abi_stable/"
+        cd "${{github.workspace}}/abi_stable/"
         MIRI_NIGHTLY=nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)
         echo "Installing latest nightly with Miri"
         echo "$MIRI_NIGHTLY"
@@ -125,12 +129,12 @@ jobs:
         cargo miri setup
         env "MIRIFLAGS=-Zmiri-disable-isolation" cargo miri test --features testing
 
-        cd "${GITHUB_WORKSPACE}"
+        cd "${{github.workspace}}"
         rm Cargo.lock
-        cd "${GITHUB_WORKSPACE}/abi_stable/"
+        cd "${{github.workspace}}/abi_stable/"
         cargo clean
         cargo update -Z minimal-versions
-        cd "${GITHUB_WORKSPACE}/abi_stable/"
+        cd "${{github.workspace}}/abi_stable/"
         cargo build
 
         
