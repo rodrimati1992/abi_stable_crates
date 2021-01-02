@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
-      max-parallel: 2
+      max-parallel: 3
       matrix:
         rust: [stable, beta, nightly, 1.41.0]
         os: [ubuntu-latest, windows-latest, macOS-latest]
@@ -103,16 +103,9 @@ jobs:
         cd "${{github.workspace}}/testing/version_compatibility/user_0"
         cargo run
 
-
-  nightly-tests:
-    runs-on: [ubuntu-latest, windows-latest, macos-latest]
-
-    strategy:
-      max-parallel: 2
-
-    steps:
     - uses: actions/checkout@v2
     - name: ci-nighly
+      if: ${{ matrix.rust == 'nightly' }}
       run: |
         env CARGO_BUILD_JOBS=1
         
