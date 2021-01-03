@@ -105,7 +105,7 @@ jobs:
 
     - uses: actions/checkout@v2
     - name: ci-nighly
-      if: ${{ matrix.rust == 'nightly' && runner.os == "Linux" }}
+      if: ${{ matrix.rust == 'nightly' && runner.os == 'Linux' }}
       run: |
         env CARGO_BUILD_JOBS=1
         
