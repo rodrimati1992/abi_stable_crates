@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
-      max-parallel: 3
+      max-parallel: 2
       matrix:
         rust: [stable, beta, nightly, 1.41.0]
         os: [ubuntu-latest, windows-latest, macOS-latest]
@@ -105,7 +105,7 @@ jobs:
 
     - uses: actions/checkout@v2
     - name: ci-nighly
-      if: ${{ matrix.rust == 'nightly' }}
+      if: ${{ matrix.rust == 'nightly' && runner.os == "Linux" }}
       run: |
         env CARGO_BUILD_JOBS=1
         
