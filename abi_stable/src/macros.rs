@@ -1003,12 +1003,16 @@ macro_rules! staticref{
     )=>{
         $(
             $crate::pmr::paste!{
+                #[allow(unused_parens)]
                 #[doc(hidden)]
-                const [<__STATICREF_INIT_ $name>]: $ty = $expr;
+                // No idea why I need parentheses around the type
+                const [<__STATICREF_INIT_ $name>] : ($ty) = $expr;
              
+                #[allow(unused_parens)]
                 $(#[$attr])* 
-                $vis const $name : $crate::sabi_types::StaticRef<$ty> = unsafe{
-                    $crate::sabi_types::StaticRef::from_raw(&Self::[<__STATICREF_INIT_ $name>])
+                // No idea why I need parentheses around the type
+                $vis const $name : ($crate::sabi_types::StaticRef<$ty>) = unsafe{
+                    $crate::sabi_types::StaticRef::from_raw(& Self::[<__STATICREF_INIT_ $name>] )
                 };
             }
         )*
