@@ -634,19 +634,22 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
         BoxVtable_Ref(Self::WM_DEFAULT.as_prefix())
     };
 
-    #[allow(dead_code)]
     #[cfg(test)]
-    const LIB_VTABLE_FOR_TESTING: BoxVtable_Ref<T> = unsafe{
-        BoxVtable_Ref(
+    staticref!{
+        const WM_FOR_TESTING: WithMetadata<BoxVtable<T>> = 
             WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 BoxVtable {
                     type_id:Constructor( new_utypeid::<RBox<i32>> ),
                     ..Self::DEFAULT_VTABLE
                 },
-            ).as_prefix()
-        )
-    };
+            )
+    }
+
+    #[allow(dead_code)]
+    #[cfg(test)]
+    const LIB_VTABLE_FOR_TESTING: BoxVtable_Ref<T> =
+        BoxVtable_Ref(Self::WM_FOR_TESTING.as_prefix());
 }
 
 unsafe extern "C" fn destroy_box<T>(ptr: *mut (), call_drop: CallReferentDrop,dealloc:Deallocate) {

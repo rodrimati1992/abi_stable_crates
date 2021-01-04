@@ -178,14 +178,15 @@ impl<T: 'static> LateStaticRef<T> {
     /// }
     /// 
     /// const MODULE: PersonMod_Ref = {
-    ///     PersonMod_Ref(
-    ///         WithMetadata::new(
-    ///             PrefixTypeTrait::METADATA,
-    ///             PersonMod{
-    ///                 get_number,
-    ///             }
-    ///         ).static_as_prefix()
-    ///     )
+    ///
+    ///     const S: &WithMetadata<PersonMod> = &WithMetadata::new(
+    ///         PrefixTypeTrait::METADATA,
+    ///         PersonMod{
+    ///             get_number,
+    ///         }
+    ///     );
+    ///
+    ///     PersonMod_Ref(S.static_as_prefix())
     /// };
     /// 
     /// extern fn get_number()->u32{

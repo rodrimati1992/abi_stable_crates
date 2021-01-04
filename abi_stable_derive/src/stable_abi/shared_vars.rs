@@ -373,7 +373,7 @@ impl<'a> SharedVars<'a>{
                 )*];
 
                 const __SABI_CONST_PARAMS_B: &'static [__ConstGeneric] = &[
-                    #({
+                    #(unsafe{
                         let cp = Self::__SABI_CONST_PARAMS_A[#consts_i];
                         __ConstGeneric::from_erased(
                             &cp.value as *const _ as *const (),

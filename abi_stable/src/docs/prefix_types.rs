@@ -486,20 +486,18 @@ type Id=u32;
 
 # fn main(){
 
-const MODULE: PersonMod_Ref ={
-    PersonMod_Ref(
-        WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            PersonMod{
-                customer_for,
-                bike_count,
-                visits,
-                score,
-                visit_length:None,
-            }
-        ).static_as_prefix()
-    )
-};
+const _MODULE_WM_: &WithMetadata<PersonMod> = &WithMetadata::new(
+    PrefixTypeTrait::METADATA,
+    PersonMod{
+        customer_for,
+        bike_count,
+        visits,
+        score,
+        visit_length:None,
+    }
+);
+
+const MODULE: PersonMod_Ref = PersonMod_Ref(_MODULE_WM_.static_as_prefix());
 
 // Getting the value for every field of `MODULE`.
 

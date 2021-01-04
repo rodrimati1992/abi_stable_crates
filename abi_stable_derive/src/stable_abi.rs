@@ -181,11 +181,19 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
         _=>None,
     };
 
+    let tags_const;
+    let tags_arg;
     // tokenizes the `Tag` data structure associated with this type.
-    let tags=match &config.tags {
-        Some(tag)=>quote!( Some(&#tag) ),
-        None=>quote!( None ),
-    };
+    match &config.tags {
+        Some(tag)=>{
+            tags_const = quote!( const __SABI_TAG: &'static __sabi_re::Tag = &#tag; );
+            tags_arg = quote!( Some(Self::__SABI_TAG) );
+        }
+        None=>{
+            tags_const = TokenStream2::new();
+            tags_arg = quote!( None );
+        }
+    }
 
     
     let extra_checks_const;
@@ -575,6 +583,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
 
                 #extra_checks_const
 
+                #tags_const
             }
 
             unsafe impl <#generics_header> __sabi_re::#impld_stable_abi_trait for #impl_ty 
@@ -591,7 +600,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                             mono:#mono_type_layout,
                             abi_consts: Self::ABI_CONSTS,
                             data:#generic_tl_data,
-                            tag:#tags,
+                            tag: #tags_arg,
                             extra_checks: #extra_checks_arg,
                         }
                     )
