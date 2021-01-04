@@ -756,28 +756,35 @@ where T:ErrorTrait+'static
         type_id: new_utypeid::<T>,
     };
 
+    const VALUE_MD: &'static WithMetadata<RErrorVTable> = 
+        &WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            Self::VALUE,
+        );
+
     const LIB_VTABLE: RErrorVTable_Ref = {
         RErrorVTable_Ref(
-            WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                Self::VALUE,
-            ).static_as_prefix()
+            Self::VALUE_MD.static_as_prefix()
         )
     };
 }
 
 impl MakeRErrorVTable<DebugDisplay> {
+    const WM_DEBUG_DISPLAY: &'static WithMetadata<RErrorVTable> = {
+        &WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            RErrorVTable{
+                debug: debug_impl::<DebugDisplay>,
+                display: display_impl::<DebugDisplay>,
+                as_debug_display,
+                type_id: new_utypeid::<DebugDisplay>,
+            },
+        )
+    };
+
     const LIB_VTABLE_DEBUG_DISPLAY: RErrorVTable_Ref = {
         RErrorVTable_Ref(
-            WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                RErrorVTable{
-                    debug: debug_impl::<DebugDisplay>,
-                    display: display_impl::<DebugDisplay>,
-                    as_debug_display,
-                    type_id: new_utypeid::<DebugDisplay>,
-                },
-            ).static_as_prefix()
+            Self::WM_DEBUG_DISPLAY.static_as_prefix()
         )
     };
 }

@@ -5,6 +5,7 @@ use crate::{
     reexports::True,
     reflection::ModReflMode,
     sabi_types::StaticRef,
+    std_types::RSlice,
     type_layout::{
         CompTLField, GenericTLData, LifetimeRange, MonoTLData, MonoTypeLayout, ReprAttr,
         TypeLayout,
@@ -402,7 +403,10 @@ where
             tl_genparams!('a;0;),
             ReprAttr::Transparent,
             ModReflMode::DelegateDeref{layout_index:0},
-            rslice![CompTLField::std_field(field0,LifetimeRange::EMPTY,0)],
+            {
+                const S: &[CompTLField] = &[CompTLField::std_field(field0,LifetimeRange::EMPTY,0)];
+                RSlice::from_slice(S)
+            },
         );
 
         make_shared_vars!{

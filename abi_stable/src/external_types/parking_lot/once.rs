@@ -463,16 +463,16 @@ struct VTable{
 impl VTable{
     // The VTABLE for this type in this executable/library
     const VTABLE: VTable_Ref = {
-        VTable_Ref(
-            WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                VTable{
-                    state,
-                    call_once,
-                    call_once_force
-                }
-            ).static_as_prefix()
-        )
+        const S: &WithMetadata<VTable> = &WithMetadata::new(
+            PrefixTypeTrait::METADATA,
+            VTable{
+                state,
+                call_once,
+                call_once_force
+            }
+        );
+
+        VTable_Ref(S.static_as_prefix())
     };
 }
 
