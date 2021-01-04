@@ -530,6 +530,15 @@ impl TLNonExhaustive{
     }
 }
 
+
+#[doc(hidden)]
+pub struct MakeTLNonExhaustive<T>(T);
+
+impl<T> MakeTLNonExhaustive<T> {
+    pub const NEW: TLNonExhaustive = TLNonExhaustive::new::<T>();
+}
+
+
 ////////////////////////////
 
 

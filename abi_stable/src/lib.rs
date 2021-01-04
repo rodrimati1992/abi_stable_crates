@@ -336,6 +336,7 @@ pub mod globals{
 
     #[repr(C)]
     #[derive(StableAbi)]
+    // #[sabi(debug_print)]
     pub struct Globals{
         pub layout_checking:
             extern "C" fn(&'static TypeLayout,&'static TypeLayout) -> RResult<(), RBoxError> ,

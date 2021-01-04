@@ -1,6 +1,6 @@
 pub use crate::{
     abi_stability::{
-        const_generics::{ConstGeneric,ConstGenericVTableFor},
+        const_generics::{ConstGeneric,ConstGenericVTableFor, ConstGenericErasureHack},
         extra_checks::{ExtraChecks_MV,StoredExtraChecks},
         get_static_equivalent::{GetStaticEquivalent_,GetStaticEquivalent},
         stable_abi_trait::{
@@ -52,6 +52,7 @@ pub use crate::{
     std_types::{
         utypeid::new_utypeid,
         RSome,RNone,
+        RSlice,
     },
     type_layout::{
         _private_MonoTypeLayoutDerive,
@@ -78,6 +79,7 @@ pub use crate::{
         TLNonExhaustive,
         TypeLayout,
         SharedVars,
+        MakeTLNonExhaustive,
         MonoSharedVars,
     },
     type_level::{
@@ -92,6 +94,8 @@ pub use crate::{
 pub use std::{
     convert::identity,
     fmt::{Formatter, Debug, Result as FmtResult},
+    mem::ManuallyDrop,
+    option::Option,
     ptr::NonNull,
 };
 

@@ -82,6 +82,7 @@ pub use self::{
         TLDiscriminants,
         TLEnum,
         TLNonExhaustive,
+        MakeTLNonExhaustive,
     },
     tl_field::{
         CompTLField,
