@@ -804,14 +804,10 @@ where T:?Sized+ErrorTrait+'static
         type_id: new_utypeid::<Box<T>>,
     };
 
-    const LIB_VTABLE: RErrorVTable_Ref = unsafe{
-        RErrorVTable_Ref(
-            WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                Self::VALUE,
-            ).as_prefix()
-        )
-    };
+    const WM_VTABLE: &'static WithMetadata<RErrorVTable> = 
+        &WithMetadata::new(PrefixTypeTrait::METADATA, Self::VALUE);
+
+    const LIB_VTABLE: RErrorVTable_Ref = RErrorVTable_Ref(Self::WM_VTABLE.static_as_prefix());
 }
 
 ////////////////////////////////////////////////////////////////////////

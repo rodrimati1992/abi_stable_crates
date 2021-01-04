@@ -191,17 +191,16 @@ pub type WithMetadata<T, P = <T as PrefixTypeTrait>::PrefixFields> =
 ///     staticref,
 /// };
 /// 
-/// // The `staticref` invocation here declares a `StaticRef<WithMetadata<Module>>` constant.
-/// staticref!{const WITH_META: WithMetadata<Module> = WithMetadata::new(
+/// const WITH_META: &WithMetadata<Module> = &WithMetadata::new(
 ///     PrefixTypeTrait::METADATA,
 ///     Module {
 ///         first: RSome(66),
 ///         second: RStr::from_str("lore"),
 ///         third: 333,
 ///     },
-/// )}
+/// );
 /// 
-/// const MOD: Module_Ref = Module_Ref(WITH_META.as_prefix());
+/// const MOD: Module_Ref = Module_Ref(WITH_META.static_as_prefix());
 /// 
 /// assert_eq!(MOD.first(), RSome(66));
 /// assert_eq!(MOD.second().as_str(), "lore");
@@ -309,16 +308,16 @@ impl<T, P> StaticRef<WithMetadata_<T, P>>{
     /// };
     /// 
     /// // The `staticref` invocation here declares a `StaticRef<WithMetadata<Module>>` constant.
-    /// staticref!{const WITH_META: WithMetadata<Module> = WithMetadata::new(
+    /// const WITH_META: &WithMetadata<Module> = &WithMetadata::new(
     ///     PrefixTypeTrait::METADATA,
     ///     Module {
     ///         first: RNone,
     ///         second: RStr::from_str("hello"),
     ///         third: 100,
     ///     },
-    /// )}
+    /// );
     /// 
-    /// const MOD: Module_Ref = Module_Ref(WITH_META.as_prefix());
+    /// const MOD: Module_Ref = Module_Ref(WITH_META.static_as_prefix());
     /// 
     /// assert_eq!(MOD.first(), RNone);
     /// assert_eq!(MOD.second().as_str(), "hello");

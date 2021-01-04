@@ -624,14 +624,14 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
         _marker: NonOwningPhantom::NEW,
     };
 
+    staticref!{
+        const WM_DEFAULT: WithMetadata<BoxVtable<T>> = 
+            WithMetadata::new(PrefixTypeTrait::METADATA, Self::DEFAULT_VTABLE);
+    }
+
     // The VTABLE for this type in this executable/library
     const LIB_VTABLE: BoxVtable_Ref<T> = unsafe{
-        BoxVtable_Ref(
-            WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                Self::DEFAULT_VTABLE,
-            ).as_prefix()
-        )
+        BoxVtable_Ref(Self::WM_DEFAULT.as_prefix())
     };
 
     #[allow(dead_code)]
