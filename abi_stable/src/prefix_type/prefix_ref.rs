@@ -158,7 +158,7 @@ impl<P> PrefixRef<P>{
     ///     rstr,
     /// };
     /// 
-    /// const MOD_WM: *const WithMetadata<Module> = {
+    /// const MOD_WM: &WithMetadata<Module> = {
     ///     &WithMetadata::new(PrefixTypeTrait::METADATA, Module{
     ///         first: RSome(3),
     ///         second: rstr!("hello"),
@@ -202,15 +202,20 @@ impl<P> PrefixRef<P>{
     ///     rstr, staticref,
     /// };
     /// 
-    /// const MOD_WM: &WithMetadata<Module> = {
-    ///     &WithMetadata::new(PrefixTypeTrait::METADATA, Module{
-    ///         first: RNone,
-    ///         second: rstr!("world"),
-    ///         third: 13,
-    ///     })
-    /// };
+    /// struct Foo {}
+    /// 
+    /// impl Foo {
+    ///     // This macro declares a `StaticRef` pointing to the assigned `WithMetadata`.
+    ///     staticref!{const MOD_WM: WithMetadata<Module> = 
+    ///         WithMetadata::new(PrefixTypeTrait::METADATA, Module{
+    ///             first: RNone,
+    ///             second: rstr!("world"),
+    ///             third: 13,
+    ///         })
+    ///     }
+    /// }
     ///
-    /// const PREFIX: PrefixRef<Module_Prefix> = PrefixRef::from_staticref(MOD_WM);
+    /// const PREFIX: PrefixRef<Module_Prefix> = PrefixRef::from_staticref(Foo::MOD_WM);
     /// 
     /// const MODULE: Module_Ref = Module_Ref(PREFIX);
     /// 

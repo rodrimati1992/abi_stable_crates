@@ -370,12 +370,6 @@ fn same_different_abi_stability() {
         <mod_6::Mod>::LAYOUT,
         <mod_6b::Mod>::LAYOUT,
         <mod_7::Mod>::LAYOUT,
-        <Tagged<TAG_DEFAULT_1>>::LAYOUT,
-        <Tagged<TAG_DEFAULT_2>>::LAYOUT,
-        <Tagged<TAG_DEFAULT_3>>::LAYOUT,
-        <Tagged<TAG_DEFAULT_4>>::LAYOUT,
-        <Tagged<TAG_DEFAULT_5>>::LAYOUT,
-        <Tagged<TAG_DEFAULT_6>>::LAYOUT,
         <union_1a::Union>::LAYOUT,
         <union_1b::Union>::LAYOUT,
         <union_2a::Union>::LAYOUT,
@@ -388,6 +382,18 @@ fn same_different_abi_stability() {
         <gen_more_lts_c::Generics<'_>>::LAYOUT,
         <gen_more_lts_d::Generics<'_>>::LAYOUT,
     ];
+
+    #[cfg(not(feature = "no_fn_promotion"))]
+    {
+        list.extend(vec![
+            <Tagged<tagging_items::TAG_DEFAULT_1>>::LAYOUT,
+            <Tagged<tagging_items::TAG_DEFAULT_2>>::LAYOUT,
+            <Tagged<tagging_items::TAG_DEFAULT_3>>::LAYOUT,
+            <Tagged<tagging_items::TAG_DEFAULT_4>>::LAYOUT,
+            <Tagged<tagging_items::TAG_DEFAULT_5>>::LAYOUT,
+            <Tagged<tagging_items::TAG_DEFAULT_6>>::LAYOUT,
+        ]);
+    }
 
     let (_dur, ()) = core_extensions::measure_time::measure(|| {
         for (i, this) in list.iter().cloned().enumerate() {
@@ -416,8 +422,6 @@ fn same_different_abi_stability() {
     let l1 = <&i32>::LAYOUT;
     let l2 = <mod_4::Mod>::LAYOUT;
     let l3 = <mod_5::Mod>::LAYOUT;
-    let l4 = <Tagged<TAG_DEFAULT_5>>::LAYOUT;
-    let l5 = <Tagged<TAG_DEFAULT_6>>::LAYOUT;
     let l6 = <ROption<()>>::LAYOUT;
     let l7 = <ROption<u32>>::LAYOUT;
         
@@ -428,15 +432,22 @@ fn same_different_abi_stability() {
 
     assert_equal_type_layout(l2, l2);
     assert_different_type_layout(l3, l2);
-    assert_different_type_layout(l2, l4);
 
-    assert_equal_type_layout(l4, l4);
-    assert_different_type_layout(l4, l5);
-    assert_different_type_layout(l4, l2);
+    #[cfg(not(feature = "no_fn_promotion"))]
+    {
+        let l4 = <Tagged<TAG_DEFAULT_5>>::LAYOUT;
+        let l5 = <Tagged<TAG_DEFAULT_6>>::LAYOUT;
 
-    assert_equal_type_layout(l6, l6);
-    assert_different_type_layout(l6, l7);
-    assert_different_type_layout(l6, l4);
+        assert_different_type_layout(l2, l4);
+
+        assert_equal_type_layout(l4, l4);
+        assert_different_type_layout(l4, l5);
+        assert_different_type_layout(l4, l2);
+
+        assert_equal_type_layout(l6, l6);
+        assert_different_type_layout(l6, l7);
+        assert_different_type_layout(l6, l4);
+    }
 }
 
 #[cfg_attr(not(miri),test)]
@@ -816,160 +827,164 @@ pub(super) mod mod_6b {
 //////////////////////////////////////////////////////////////////////////////
 
 
-#[repr(C)]
-#[derive(abi_stable::StableAbi)]
-#[sabi(
-    not_stableabi(M),
-    bound="M:ToTagConst",
-    tag="<M as ToTagConst>::TAG",
-)]
-pub struct Tagged<M>(UnsafeIgnoredType<M>);
+#[cfg(not(feature = "no_fn_promotion"))]
+mod tagging_items {
+
+    #[repr(C)]
+    #[derive(abi_stable::StableAbi)]
+    #[sabi(
+        not_stableabi(M),
+        bound="M:ToTagConst",
+        tag="<M as ToTagConst>::TAG",
+    )]
+    pub struct Tagged<M>(UnsafeIgnoredType<M>);
 
 
-pub trait ToTagConst{
-    const TAG:Tag;
-}
+    pub trait ToTagConst{
+        const TAG:Tag;
+    }
 
-macro_rules! declare_tags {
-    (
-        $(const $marker_ty:ident = $tag:expr;)*
-    ) => (
-        $(
-            #[repr(C)]
-            #[derive(GetStaticEquivalent)]
-            pub struct $marker_ty;
+    macro_rules! declare_tags {
+        (
+            $(const $marker_ty:ident = $tag:expr;)*
+        ) => (
+            $(
+                #[repr(C)]
+                #[derive(GetStaticEquivalent)]
+                pub struct $marker_ty;
 
-            impl ToTagConst for $marker_ty {
-                const TAG:Tag=$tag;
-            }
-        )*
-    )
-}
-
-
-declare_tags!{
-    const TAG_DEFAULT_0=Tag::null();
-    const TAG_DEFAULT_1=Tag::bool_(false);
-    const TAG_DEFAULT_2=Tag::int(0);
-    const TAG_DEFAULT_3=Tag::uint(0);
-    const TAG_DEFAULT_4=Tag::str("");
-    const TAG_DEFAULT_5=Tag::arr(RSlice::EMPTY);
-    const TAG_DEFAULT_6=Tag::set(RSlice::EMPTY);
-    
-    const TAG_EMPTY_SET=Tag::set(RSlice::EMPTY);
-    
-    const TAG_SET_A0=Tag::set(rslice![
-        Tag::str("Sync"),
-    ]);
-    const TAG_SET_A1=Tag::set(rslice![
-        Tag::str("Send"),
-    ]);
-    const TAG_SET_A2=Tag::set(rslice![
-        Tag::str("Copy"),
-    ]);
-    const TAG_SET_A3=Tag::set(rslice![
-        Tag::str("Clone"),
-    ]);
-    const TAG_SET_B0=Tag::set(rslice![
-        Tag::str("Send"),
-        Tag::str("Sync"),
-    ]);
-    const TAG_SET_B1=Tag::set(rslice![
-        Tag::str("Copy"),
-        Tag::str("Clone"),
-    ]);
-
-    const TAG_SET_C0=Tag::set(rslice![
-        Tag::str("Send"),
-        Tag::str("Sync"),
-        Tag::str("Copy"),
-        Tag::str("Clone"),
-    ]);
-
-    const TAG_SET_C1=Tag::set(rslice![
-        Tag::str("Debug"),
-        Tag::str("Display"),
-    ]);
-}
+                impl ToTagConst for $marker_ty {
+                    const TAG:Tag=$tag;
+                }
+            )*
+        )
+    }
 
 
-trait TaggedExt{
-    const GET_AI:&'static TypeLayout;
-}
+    declare_tags!{
+        const TAG_DEFAULT_0=Tag::null();
+        const TAG_DEFAULT_1=Tag::bool_(false);
+        const TAG_DEFAULT_2=Tag::int(0);
+        const TAG_DEFAULT_3=Tag::uint(0);
+        const TAG_DEFAULT_4=Tag::str("");
+        const TAG_DEFAULT_5=Tag::arr(RSlice::EMPTY);
+        const TAG_DEFAULT_6=Tag::set(RSlice::EMPTY);
+        
+        const TAG_EMPTY_SET=Tag::set(RSlice::EMPTY);
+        
+        const TAG_SET_A0=Tag::set(rslice![
+            Tag::str("Sync"),
+        ]);
+        const TAG_SET_A1=Tag::set(rslice![
+            Tag::str("Send"),
+        ]);
+        const TAG_SET_A2=Tag::set(rslice![
+            Tag::str("Copy"),
+        ]);
+        const TAG_SET_A3=Tag::set(rslice![
+            Tag::str("Clone"),
+        ]);
+        const TAG_SET_B0=Tag::set(rslice![
+            Tag::str("Send"),
+            Tag::str("Sync"),
+        ]);
+        const TAG_SET_B1=Tag::set(rslice![
+            Tag::str("Copy"),
+            Tag::str("Clone"),
+        ]);
+
+        const TAG_SET_C0=Tag::set(rslice![
+            Tag::str("Send"),
+            Tag::str("Sync"),
+            Tag::str("Copy"),
+            Tag::str("Clone"),
+        ]);
+
+        const TAG_SET_C1=Tag::set(rslice![
+            Tag::str("Debug"),
+            Tag::str("Display"),
+        ]);
+    }
 
 
-impl<T> TaggedExt for T
-where 
-    Tagged<T>:StableAbi,
-{
-    const GET_AI:&'static TypeLayout=
-        <Tagged<T> as StableAbi>::LAYOUT;
-}
+    trait TaggedExt{
+        const GET_AI:&'static TypeLayout;
+    }
+
+
+    impl<T> TaggedExt for T
+    where 
+        Tagged<T>:StableAbi,
+    {
+        const GET_AI:&'static TypeLayout=
+            <Tagged<T> as StableAbi>::LAYOUT;
+    }
 
 
 
-#[cfg(not(miri))]
-#[test]
-fn test_tag_subsets(){
-    let valid_subsets=vec![
-        vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A0::GET_AI, TAG_SET_B0::GET_AI, TAG_SET_C0::GET_AI],
-        vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A1::GET_AI, TAG_SET_B0::GET_AI, TAG_SET_C0::GET_AI],
-        vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A2::GET_AI, TAG_SET_B1::GET_AI, TAG_SET_C0::GET_AI],
-        vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A3::GET_AI, TAG_SET_B1::GET_AI, TAG_SET_C0::GET_AI],
-    ];
+    #[cfg(not(miri))]
+    #[test]
+    fn test_tag_subsets(){
+        let valid_subsets=vec![
+            vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A0::GET_AI, TAG_SET_B0::GET_AI, TAG_SET_C0::GET_AI],
+            vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A1::GET_AI, TAG_SET_B0::GET_AI, TAG_SET_C0::GET_AI],
+            vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A2::GET_AI, TAG_SET_B1::GET_AI, TAG_SET_C0::GET_AI],
+            vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A3::GET_AI, TAG_SET_B1::GET_AI, TAG_SET_C0::GET_AI],
+        ];
 
 
-    for subset in &valid_subsets {
-        for (l_i,l_abi) in subset.iter().enumerate() {
-            for (r_i,r_abi) in subset.iter().enumerate() {
+        for subset in &valid_subsets {
+            for (l_i,l_abi) in subset.iter().enumerate() {
+                for (r_i,r_abi) in subset.iter().enumerate() {
 
-                let res=check_layout_compatibility(l_abi,r_abi);
+                    let res=check_layout_compatibility(l_abi,r_abi);
 
-                if l_i <= r_i {
-                    assert_eq!(res,Ok(()));
-                }else{
-                    let errs=res.unwrap_err().flatten_errors();
-                    assert!(
-                        errs
-                        .iter()
-                        .any(|err| matches!(AbiInstability::TagError{..}=err) )
-                    );
+                    if l_i <= r_i {
+                        assert_eq!(res,Ok(()));
+                    }else{
+                        let errs=res.unwrap_err().flatten_errors();
+                        assert!(
+                            errs
+                            .iter()
+                            .any(|err| matches!(AbiInstability::TagError{..}=err) )
+                        );
+                    }
                 }
             }
         }
     }
-}
 
 
-#[cfg(not(miri))]
-#[test]
-fn test_tag_incompatible(){
-    let incompatible_sets=vec![
-        vec![
-            TAG_SET_A0::GET_AI,
-            TAG_SET_A1::GET_AI,
-            TAG_SET_A2::GET_AI,
-            TAG_SET_A3::GET_AI,
-            TAG_SET_C1::GET_AI,
-        ],
-        vec![TAG_SET_B0::GET_AI, TAG_SET_B1::GET_AI],
-        vec![TAG_SET_C0::GET_AI, TAG_SET_C1::GET_AI],
-    ];
+    #[cfg(not(miri))]
+    #[test]
+    fn test_tag_incompatible(){
+        let incompatible_sets=vec![
+            vec![
+                TAG_SET_A0::GET_AI,
+                TAG_SET_A1::GET_AI,
+                TAG_SET_A2::GET_AI,
+                TAG_SET_A3::GET_AI,
+                TAG_SET_C1::GET_AI,
+            ],
+            vec![TAG_SET_B0::GET_AI, TAG_SET_B1::GET_AI],
+            vec![TAG_SET_C0::GET_AI, TAG_SET_C1::GET_AI],
+        ];
 
-    for subset in &incompatible_sets {
-        for (l_i,l_abi) in subset.iter().enumerate() {
-            for (r_i,r_abi) in subset.iter().enumerate() {
-                let res=check_layout_compatibility(l_abi,r_abi);
+        for subset in &incompatible_sets {
+            for (l_i,l_abi) in subset.iter().enumerate() {
+                for (r_i,r_abi) in subset.iter().enumerate() {
+                    let res=check_layout_compatibility(l_abi,r_abi);
 
-                if l_i == r_i {
-                    assert_eq!(res,Ok(()));
-                }else{
-                    let errs=res.unwrap_err().flatten_errors();
-                    assert!(
-                        errs
-                        .iter()
-                        .any(|err| matches!(AbiInstability::TagError{..}=err) )
-                    );
+                    if l_i == r_i {
+                        assert_eq!(res,Ok(()));
+                    }else{
+                        let errs=res.unwrap_err().flatten_errors();
+                        assert!(
+                            errs
+                            .iter()
+                            .any(|err| matches!(AbiInstability::TagError{..}=err) )
+                        );
+                    }
                 }
             }
         }

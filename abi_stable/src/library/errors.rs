@@ -234,20 +234,15 @@ mod tests{
 
     use std::fmt::Error as FmtError;
 
-    const MOD_VAL: Module = Module {
+    const MOD_WM: &WithMetadata<Module> = &WithMetadata::new(PrefixTypeTrait::METADATA, Module {
         first: RSome(5),
         second: rstr!(""),
         third: 13,
-    };
+    });
 
     // `const PREFIX` can have different address every time it's used,
     // to fix that I made it a static
-    static PREFIX: Module_Ref = {
-        Module_Ref(
-            WithMetadata::new(PrefixTypeTrait::METADATA, MOD_VAL)
-                .static_as_prefix()
-        )
-    };
+    static PREFIX: Module_Ref = Module_Ref(MOD_WM.static_as_prefix());
 
     #[test]
     fn into_root_module_result_test() {

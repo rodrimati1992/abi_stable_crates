@@ -43,6 +43,10 @@ only_new_tests=["testing"]
 sabi_trait_examples=[]
 nonexhaustive_examples=[]
 
+# For disabling tests that break with the reduced promotion in
+# https://github.com/rust-lang/rust/pull/80243#event-4161720040
+no_fn_promotion = []
+
 channels=["crossbeam-channel"]
 
 

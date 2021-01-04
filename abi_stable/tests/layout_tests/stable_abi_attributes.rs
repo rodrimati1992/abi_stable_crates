@@ -7,6 +7,7 @@ use abi_stable::{
 
 
 /// Tests that `#[sabi(bound="")]` on a field works.
+#[cfg(not(feature = "no_fn_promotion"))]
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
 #[sabi(tag="tag![ <T as abi_stable::const_utils::AssocStr>::STR ]")]
@@ -17,6 +18,7 @@ pub struct FieldBound<T>{
 }
 
 /// Tests that `#[sabi(bound="")]` on a type definition works.
+#[cfg(not(feature = "no_fn_promotion"))]
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
 #[sabi(bound="T:abi_stable::const_utils::AssocStr")]

@@ -5,10 +5,6 @@ extern crate new_abi_stable as abi_stable;
 #[cfg(not(feature="new"))]
 extern crate old_abi_stable as abi_stable;
 
-#[cfg(all(feature="new",feature="old"))]
-compile_error!{"the new and old feature can't be enabled at the same time"}
-
-
 use abi_stable::{
     marker_type::NonOwningPhantom,
     sabi_types::VersionStrings,

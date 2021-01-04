@@ -396,7 +396,10 @@ In real code this should be written in a
 way that keeps the tags and the type bounds in sync.
 
 
-```
+*/
+#[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
+#[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
+/**
 use abi_stable::{
     tag,
     type_layout::Tag,

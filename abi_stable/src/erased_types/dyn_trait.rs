@@ -289,17 +289,17 @@ pub struct Module{
     pub deserialize_foo:extern "C" fn(s:RStr<'_>)->RResult<FooInterfaceBox,RBoxError>,
 }
 
+// This is how ffi-safe pointers to non-generic prefix types are constructed
+// at compile-time.
 const MODULE: Module_Ref = {
-    // This is how ffi-safe pointers to non-generic prefix types are constructed
-    // at compile-time.
-    Module_Ref(
-        WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Module{
-                deserialize_foo,
-            }
-        ).static_as_prefix()
-    )
+    const S: &WithMetadata<Module> = &WithMetadata::new(
+        PrefixTypeTrait::METADATA,
+        Module{
+            deserialize_foo,
+        }
+    );
+
+    Module_Ref(S.static_as_prefix())
 };
 
 
