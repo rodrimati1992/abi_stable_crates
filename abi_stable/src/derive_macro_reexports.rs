@@ -106,6 +106,8 @@ pub use core_extensions::{
     type_asserts::AssertEq,
 };
 
+pub use paste::paste;
+
 pub mod renamed {
     pub use super::{
         ConstGeneric as __ConstGeneric,

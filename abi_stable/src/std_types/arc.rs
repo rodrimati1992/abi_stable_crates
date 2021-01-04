@@ -427,29 +427,30 @@ mod vtable_mod {
             strong_count: strong_count_arc::<T>,
             weak_count: weak_count_arc::<T>,
         };
+        staticref!{
+            const WM_DEFAULT: WithMetadata<ArcVtable<T>>=
+                WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE)
+        }
 
         // The VTABLE for this type in this executable/library
         pub(super) const LIB_VTABLE: ArcVtable_Ref<T> = unsafe{
-            ArcVtable_Ref(
-                WithMetadata::new(
-                    PrefixTypeTrait::METADATA,
-                    Self::DEFAULT_VTABLE
-                ).as_prefix()
-            )
+            ArcVtable_Ref(Self::WM_DEFAULT.as_prefix())
         };
 
-        #[allow(dead_code)]
+        #[cfg(test)]
+        staticref!{const WM_FOR_TESTING: WithMetadata<ArcVtable<T>>=
+            WithMetadata::new(
+                PrefixTypeTrait::METADATA,
+                ArcVtable{
+                    type_id:Constructor( new_utypeid::<RArc<i32>> ),
+                    ..Self::DEFAULT_VTABLE
+                }
+            )
+        }
+
         #[cfg(test)]
         pub(super) const LIB_VTABLE_FOR_TESTING: ArcVtable_Ref<T> = unsafe{
-            ArcVtable_Ref(
-                WithMetadata::new(
-                    PrefixTypeTrait::METADATA,
-                    ArcVtable{
-                        type_id:Constructor( new_utypeid::<RArc<i32>> ),
-                        ..Self::DEFAULT_VTABLE
-                    }
-                ).as_prefix()
-            )
+            ArcVtable_Ref(Self::WM_FOR_TESTING.as_prefix())
         };
     }
 

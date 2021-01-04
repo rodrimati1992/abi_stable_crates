@@ -138,18 +138,20 @@ pub struct Module<T> {
     pub description:RStr<'static>,
 }
 
+impl Module<u64> {
+    // This macro declares a `StaticRef<WithMetadata<Module<u64>>>` constant.
+    staticref!(const MODULE_VAL: WithMetadata<Module<u64>> = WithMetadata::new(
+        PrefixTypeTrait::METADATA,
+        Module{
+            lib_name: RStr::from_str("foo"),
+            elapsed,
+            description: RStr::from_str("this is a module field"),
+        },
+    ));    
+}
 
-// This macro declares a `StaticRef<WithMetadata<Module<u64>>>` constant.
-staticref!(const MODULE_VAL: WithMetadata<Module<u64>> = WithMetadata::new(
-    PrefixTypeTrait::METADATA,
-    Module{
-        lib_name: RStr::from_str("foo"),
-        elapsed,
-        description: RStr::from_str("this is a module field"),
-    },
-));
 
-const MODULE_REF: Module_Ref<u64> = Module_Ref(MODULE_VAL.as_prefix());
+const MODULE_REF: Module_Ref<u64> = Module_Ref(Module::MODULE_VAL.as_prefix());
 
 extern "C" fn elapsed(milliseconds: u64) -> RDuration {
     extern_fn_panic_handling!{

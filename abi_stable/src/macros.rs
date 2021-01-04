@@ -866,7 +866,7 @@ macro_rules! make_shared_vars{
 
 /// Allows declaring a [`StaticRef`] constant.
 /// 
-/// This macro is most useful when declaring an associated constant of non-`'static` types.
+/// This macro is for declaring associated constant of non-`'static` types.
 ///
 /// # Example
 ///
@@ -999,19 +999,15 @@ macro_rules! staticref{
         $(;)?
     )=>{
         $(
-            $(#[$attr])* 
-            $vis const $name : $crate::sabi_types::StaticRef<$ty> = {
-                // Generating a random base36 string to avoid name collisions
-                const fn __sabi_mtuxotq5otc3ntu5mdq4ntgwmzi<T>(
-                    x: &T
-                ) -> $crate::sabi_types::StaticRef<T> {
-                    unsafe{
-                        $crate::sabi_types::StaticRef::from_raw(x)
-                    }
-                }
-
-                __sabi_mtuxotq5otc3ntu5mdq4ntgwmzi( &$crate::pmr::identity::<$ty>($expr) )
-            };
+            $crate::pmr::paste!{
+                #[doc(hidden)]
+                const [<__STATICREF_INIT_ $name>]: $ty = $expr;
+             
+                $(#[$attr])* 
+                $vis const $name : $crate::sabi_types::StaticRef<$ty> = unsafe{
+                    $crate::sabi_types::StaticRef::from_raw(&Self::[<__STATICREF_INIT_ $name>])
+                };
+            }
         )*
     };
 }

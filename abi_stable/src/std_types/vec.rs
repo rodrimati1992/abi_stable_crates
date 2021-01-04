@@ -1291,15 +1291,13 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
         shrink_to_fit: shrink_to_fit_vec,
     };
 
+    staticref!{
+        const WM_DEFAULT: WithMetadata<VecVTable<T>> = 
+            WithMetadata::new(PrefixTypeTrait::METADATA, Self::DEFAULT_VTABLE);
+    }
+
     // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: VecVTable_Ref<T> = unsafe{
-        VecVTable_Ref(
-            WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                Self::DEFAULT_VTABLE,
-            ).as_prefix()
-        )
-    };
+    const LIB_VTABLE: VecVTable_Ref<T> = VecVTable_Ref(Self::WM_DEFAULT.as_prefix());
 
     // Used to test functions that change behavior based on the vtable being used
     const LIB_VTABLE_FOR_TESTING: VecVTable_Ref<T> = unsafe{
