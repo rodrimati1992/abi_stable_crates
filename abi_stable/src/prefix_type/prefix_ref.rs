@@ -406,6 +406,9 @@ where
         );
 
         make_shared_vars!{
+            impl[P] PrefixRef<P>
+            where [P: PrefixStableAbi];
+
             let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 prefix_type_layouts=[P],

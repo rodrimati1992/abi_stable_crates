@@ -793,6 +793,9 @@ Constructs a `&'static SharedVars`
 */
 macro_rules! make_shared_vars{
     (
+        impl[$($impl_gen:tt)*] $type:ty
+        $(where[$($where_clause:tt)*])?;
+
         let ($mono_shared_vars:ident,$shared_vars:ident) ={
             $(
                 strings={
@@ -802,7 +805,7 @@ macro_rules! make_shared_vars{
             $( lifetime_indices=[ $($lifetime_indices:expr),* $(,)* ], )?
             $( type_layouts=[ $($ty_layout:ty),* $(,)* ], )?
             $( prefix_type_layouts=[ $($prefix_ty_layout:ty),* $(,)* ], )?
-            $( constants=[ $( $constants:expr ),* $(,)* ], )?
+            $( constant=[ $const_ty:ty => $constants:expr  ], )?
         };
     )=>{
         multi_str!{
@@ -820,6 +823,26 @@ macro_rules! make_shared_vars{
                 rslice![ $( $($lifetime_indices),* )? ],
             );
         
+        struct __ACPromoted<T>(T);
+
+        impl<$($impl_gen)*> __ACPromoted<$type> 
+        where $($($where_clause)*)?
+        {
+            $( const CONST_PARAM_UNERASED: &'static $const_ty = &$constants; )?
+            const CONST_PARAM: &'static [$crate::abi_stability::ConstGeneric] = {
+                &[
+                    $(ignoring!(
+                        ($constants)
+                        $crate::abi_stability::ConstGeneric::new(
+                            Self::CONST_PARAM_UNERASED,
+                            $crate::abi_stability::ConstGenericVTableFor::NEW,
+                        )
+                    ),)?
+                ]
+            };
+            
+        }
+
         let $shared_vars={
             #[allow(unused_imports)]
             use $crate::abi_stability::stable_abi_trait::GetTypeLayoutCtor;
@@ -830,14 +853,7 @@ macro_rules! make_shared_vars{
                     $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )? 
                     $( $( GetTypeLayoutCtor::<$prefix_ty_layout>::PREFIX_STABLE_ABI,)* )? 
                 ],
-                rslice![$( 
-                    $(
-                        $crate::abi_stability::ConstGeneric::new(
-                            &$constants,
-                            $crate::abi_stability::ConstGenericVTableFor::NEW,
-                        )
-                    ),* 
-                )?],
+                $crate::std_types::RSlice::from_slice(__ACPromoted::<Self>::CONST_PARAM),
             )
         };
     }
@@ -998,6 +1014,14 @@ macro_rules! staticref{
         )*
     };
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+macro_rules! ignoring {
+    (($($ignore:tt)*) $($passed:tt)* ) => {$($passed)*};
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 

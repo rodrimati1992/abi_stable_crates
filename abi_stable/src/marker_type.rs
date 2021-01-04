@@ -176,6 +176,8 @@ unsafe impl<T> StableAbi for UnsafeIgnoredType<T> {
         );
 
         make_shared_vars!{
+            impl[T] UnsafeIgnoredType<T>;
+
             let (mono_shared_vars,shared_vars)={};
         }
 
