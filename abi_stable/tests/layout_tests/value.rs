@@ -286,7 +286,8 @@ fn same_different_abi_stability() {
         assert_sane_type_layout(this);
     }
 
-    let list = vec![
+    #[allow(unused_mut)]
+    let mut list = vec![
         <&mut ()>::LAYOUT,
         <&mut i32>::LAYOUT,
         <&()>::LAYOUT,
@@ -385,6 +386,7 @@ fn same_different_abi_stability() {
 
     #[cfg(not(feature = "no_fn_promotion"))]
     {
+        use tagging_items::*;
         list.extend(vec![
             <Tagged<tagging_items::TAG_DEFAULT_1>>::LAYOUT,
             <Tagged<tagging_items::TAG_DEFAULT_2>>::LAYOUT,
@@ -435,6 +437,7 @@ fn same_different_abi_stability() {
 
     #[cfg(not(feature = "no_fn_promotion"))]
     {
+        use tagging_items::*;
         let l4 = <Tagged<TAG_DEFAULT_5>>::LAYOUT;
         let l5 = <Tagged<TAG_DEFAULT_6>>::LAYOUT;
 
@@ -829,6 +832,8 @@ pub(super) mod mod_6b {
 
 #[cfg(not(feature = "no_fn_promotion"))]
 mod tagging_items {
+    use super::*;
+    use core_extensions::matches;
 
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
