@@ -34,11 +34,12 @@ all_nightly=[
     "nightly_const_params",
 ]
 
-# Enables stuff that requires const generics(in nightly Rust).
-nightly_const_params=[]
+# Enables the `#![feature(min_const_generics)]` attribute in 
+nightly_const_params=["const_params"]
 
 # Test features,only used internally.
 testing=[]
+test_const_params = []
 only_new_tests=["testing"]
 sabi_trait_examples=[]
 nonexhaustive_examples=[]

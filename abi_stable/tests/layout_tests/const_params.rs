@@ -4,7 +4,7 @@ use abi_stable::{
     type_layout::TypeLayout,
 };
 
-#[cfg(any(feature="const_params",all(nightly_rust,feature="nightly_const_params")))]
+#[cfg(feature="const_params")]
 mod with_const_generics;
 
 
@@ -120,7 +120,7 @@ fn test_compatibility(){
         <two_phantom::Struct<i8,i64> as StableAbi>::LAYOUT,
     ];
 
-    #[cfg(any(feature="const_params",all(nightly_rust,feature="nightly_const_params")))]
+    #[cfg(feature="const_params")]
     {
         use self::with_const_generics::{
             single_integer,

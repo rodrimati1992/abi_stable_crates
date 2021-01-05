@@ -174,10 +174,11 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 
 #![deny(clippy::missing_safety_doc)]
 
-// this only requires nightly features if it's in the nightly channel
+// Left here for nightly Rust users before this got stabilized.
+// Necessary for array impls of all sizes.
 #![cfg_attr(
-    all(nightly_rust,feature="nightly_const_params"),
-    feature(const_generics)
+    feature="nightly_const_params",
+    feature(min_const_generics)
 )]
 
 #[allow(unused_imports)]
