@@ -839,6 +839,70 @@ where
 
 /////////////
 
+#[cfg(feature = "const_params")]
+macro_rules! impl_stable_abi_array {
+    ()=>{
+        unsafe impl<T, const N: usize> GetStaticEquivalent_ for [T; N]
+        where T:GetStaticEquivalent_
+        {
+            type StaticEquivalent=[T::StaticEquivalent; N];
+        }
+
+        unsafe impl<T, const N: usize> StableAbi for [T; N]
+        where T:StableAbi
+        {
+            type IsNonZeroType=False;
+
+            const LAYOUT: &'static TypeLayout = {
+                // Used to get constants for [T; N]  where T doesn't matter
+                struct ArrayMonoConsts<const N: usize>;
+
+                impl<const N: usize> ArrayMonoConsts<N> {
+                    const MONO_TYPE_LAYOUT: &'static MonoTypeLayout = &MonoTypeLayout::new(
+                        *mono_shared_vars,
+                        rstr!("array"),
+                        ItemInfo::primitive(),
+                        MonoTLData::Primitive(TLPrimitive::Array{len:N}),
+                        tl_genparams!(;0;0),
+                        ReprAttr::Primitive,
+                        ModReflMode::Module,
+                        {
+                            const S: &[CompTLField] = &[
+                                CompTLField::std_field(field0, LifetimeRange::EMPTY, 0),
+                            ];
+                            RSlice::from_slice(S)
+                        },
+                    );
+                }
+
+                make_shared_vars!{
+                    impl[T, const N: usize] [T; N]
+                    where[T: StableAbi];
+
+                    let (mono_shared_vars,shared_vars)={
+                        strings={ field0:"element", },
+                        type_layouts=[T],
+                        constant=[usize => N],
+                    };
+                }
+
+                &TypeLayout::from_std::<Self>(
+                    shared_vars,
+                    ArrayMonoConsts::<N>::MONO_TYPE_LAYOUT,
+                    Self::ABI_CONSTS,
+                    GenericTLData::Primitive,
+                )
+            };
+        }
+    }
+}
+
+#[cfg(feature = "const_params")]
+impl_stable_abi_array!{}
+
+/////////////
+
+#[cfg(not(feature = "const_params"))]
 macro_rules! impl_stable_abi_array {
     ($($size:expr),*)=>{
         $(
@@ -893,6 +957,7 @@ macro_rules! impl_stable_abi_array {
     }
 }
 
+#[cfg(not(feature = "const_params"))]
 impl_stable_abi_array! {
     00,01,02,03,04,05,06,07,08,09,
     10,11,12,13,14,15,16,17,18,19,
