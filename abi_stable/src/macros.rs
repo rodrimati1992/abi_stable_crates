@@ -867,9 +867,14 @@ macro_rules! make_shared_vars{
 ///////////////////////////////////////////////////////////////////////////////
 
 
-/// Allows declaring a [`StaticRef`] constant.
+/// Allows declaring a [`StaticRef`] associated `const`ant.
 /// 
-/// This macro is for declaring associated constant of non-`'static` types.
+/// This macro is for declaring inherent associated constant of non-`'static` types.
+///
+/// # Breaking changes
+/// 
+/// This macro may be changed to produce compiler-errors when it's used to
+/// declare a non-associated `const`, or a constant in a trait implementation.
 ///
 /// # Example
 ///
@@ -1002,19 +1007,19 @@ macro_rules! staticref{
         $(;)?
     )=>{
         $(
-            $crate::pmr::paste!{
-                #[allow(unused_parens)]
-                #[doc(hidden)]
-                // No idea why I need parentheses around the type
-                const [<__STATICREF_INIT_ $name>] : ($ty) = $expr;
-             
-                #[allow(unused_parens)]
-                $(#[$attr])* 
-                // No idea why I need parentheses around the type
-                $vis const $name : ($crate::sabi_types::StaticRef<$ty>) = unsafe{
-                    $crate::sabi_types::StaticRef::from_raw(& Self::[<__STATICREF_INIT_ $name>] )
-                };
-            }
+            $(#[$attr])* 
+            $vis const $name : $crate::sabi_types::StaticRef<$ty> = {
+                // Generating a random base36 string to avoid name collisions
+                const fn __sabi_mtuxotq5otc3ntu5mdq4ntgwmzi<T>(
+                    x: &T
+                ) -> $crate::sabi_types::StaticRef<T> {
+                    unsafe{
+                        $crate::sabi_types::StaticRef::from_raw(x)
+                    }
+                }
+
+                __sabi_mtuxotq5otc3ntu5mdq4ntgwmzi( &$crate::pmr::identity::<$ty>($expr) )
+            };
         )*
     };
 }
