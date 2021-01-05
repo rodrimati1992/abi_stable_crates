@@ -396,6 +396,18 @@ fn same_different_abi_stability() {
             <Tagged<tagging_items::TAG_DEFAULT_6>>::LAYOUT,
         ]);
     }
+    #[cfg(feature = "const_params")]
+    {
+        list.extend(vec![
+            <[u8; 0]>::LAYOUT,
+            <[u8; 1]>::LAYOUT,
+            <[u8; 31]>::LAYOUT,
+            <[u8; 32]>::LAYOUT,
+            <[u8; 41]>::LAYOUT,
+            <[u8; 42]>::LAYOUT,
+        ]);
+    }
+
 
     let (_dur, ()) = core_extensions::measure_time::measure(|| {
         for (i, this) in list.iter().cloned().enumerate() {
