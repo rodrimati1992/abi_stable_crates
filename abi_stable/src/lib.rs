@@ -72,7 +72,7 @@ These are default cargo features that enable optional crates :
 
 
 To disable the default features use:
-```
+```text
 [dependencies.abi_stable]
 version = "<current_version>"
 default-features = false
