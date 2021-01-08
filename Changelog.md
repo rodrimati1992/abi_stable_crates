@@ -2,9 +2,20 @@ This is the changelog,summarising changes in each version(some minor changes may
 
 # 0.9
 
+# 0.9.2
+
+Added impls of StableAbi for arrays of all sizes, conditional on the "const_params" feature.
+
+Made abi_stable more resilient to changes in how static promotion works.
+
+Documented that staticref only supports declaring inherent associated constants,
+but doesn't stop compiling anywhere else yet.
+
+Moved continuous integration testing to github.
+
 # 0.9.1
 
-Fixed a memory safety bug in RString::retain and RVec::retain.
+Fixed a memory safety bug in `RString::retain` and `RVec::retain`.
 
 # 0.9.0
 

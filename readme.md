@@ -612,20 +612,22 @@ To disable the default features use:
 [dependencies.abi_stable]
 version = "<current_version>"
 default-features = false
-features = o[  ]
+features = [  ]
 ```
 enabling the features you need in the `features` array.
 
 
 ### Manually enabled
 
-These are features to manually enabled support for newer language features,
-required until this library is updated to automatically detect them,
-every one of which has a `nightly_*` equivalent.
+These are features to manually enable support for newer language features,
+required until this library is updated to automatically detect them.
 
 Features:
 
-- `const_params`: Enables items in abi_stable that use const generics.
+- "const_params": Enables impls which require using const generics, including implementing StableAbi for arrays of all lengths, requires a Rust version where const generics are stable.
+
+- "nightly_const_params": Enables impls which require using const generics, including implementing StableAbi for arrays of all lengths, needed for nightly Rust versions where const generics are unstable.
+
 
 ### Nightly features
 

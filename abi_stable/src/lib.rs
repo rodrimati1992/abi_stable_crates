@@ -53,6 +53,51 @@ To run the example crates you'll generally have to build the `*_impl` crate,
 then run the `*_user` crate (all `*_user` crates should have a help message and a readme.md).
 
 
+# Cargo Features
+
+If it becomes possible to disable build scripts,
+you can manually enable support for Rust past 1.41.0 features with the `rust_*_*` cargo features.
+
+These are default cargo features that enable optional crates :
+
+- "channels":
+    Depends on `crossbeam-channel`,
+    wrapping channels from it for ffi in `abi_stable::external_types::crossbeam_channel` .
+
+- "serde_json":
+    Depends on `serde_json`,
+    providing ffi-safe equivalents of 
+    `&serde_json::value::RawValue` and `Box<serde_json::value::RawValue>`,
+    in `abi_stable::external_types::serde_json` .
+
+
+To disable the default features use:
+```
+[dependencies.abi_stable]
+version = "<current_version>"
+default-features = false
+features = [  ]
+```
+enabling the features you need in the `features` array.
+
+### Manually enabled
+
+These are features to manually enable support for newer language features,
+required until this library is updated to automatically detect them,
+every one of which has a `nightly_*` equivalent.
+
+Features:
+
+- "const_params":
+Enables impls which require using const generics,
+including implementing StableAbi for arrays of all lengths, requires a Rust version
+where const generics are stable.
+
+- "nightly_const_params":
+Enables impls which require using const generics, 
+including implementing StableAbi for arrays of all lengths, needed for 
+nightly Rust versions where const generics are unstable.
+
 # Glossary
 
 `interface crate`:the crate that declares the public functions, types, and traits that 
