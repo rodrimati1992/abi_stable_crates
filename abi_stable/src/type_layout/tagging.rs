@@ -47,9 +47,10 @@ This emulates a `const NAME:&'static str` parameter,
 which is checked as being the same between the interface and implementation.
 
 */
-#[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
-#[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
+// #[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
+// #[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
 /**
+```rust
 use abi_stable::{tag,StableAbi,marker_type::UnsafeIgnoredType};
 
 

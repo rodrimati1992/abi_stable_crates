@@ -49,6 +49,12 @@ impl ConstGeneric{
     }
 
     /// Constructs a ConstGeneric from an erased reference and a vtable.
+    ///
+    /// # Safety
+    ///
+    /// `this` must point to an object that lives for the `'static` lifetime,
+    /// and `vtable` must be a `ConstGenericVTableFor::<T>::NEW` 
+    /// (where `T` is the unerased type of `this`)
     pub const unsafe fn from_erased(this: *const (), vtable: ConstGenericVTable_Ref)->Self{
         Self{
             ptr: this as *const ErasedObject,
@@ -107,7 +113,8 @@ impl Eq for ConstGeneric{}
 
 ///////////////////////////////////////////////////////////////////////////////
 
-
+/// The vtable of `ConstGeneric`,
+/// only constructible with `ConstGenericVTableFor::<T>::new.erased()`
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(kind(Prefix))]
@@ -167,6 +174,7 @@ pub struct ConstGenericErasureHack<T: ?Sized>{
 }
 
 
+#[doc(hidden)]
 impl<T> ConstGenericErasureHack<T> {
     pub const fn new(vtable: ConstGenericVTableFor<T>, value: T) -> Self {
         Self {
