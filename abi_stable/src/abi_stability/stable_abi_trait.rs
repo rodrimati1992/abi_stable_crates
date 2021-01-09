@@ -842,12 +842,18 @@ where
 #[cfg(feature = "const_params")]
 macro_rules! impl_stable_abi_array {
     ()=>{
+        /// When the "const_params" feature is disabled,
+        /// this trait is implemented for arrays of up to 32 elements.
+        #[cfg_attr(feature = "docsrs", doc(cfg(feature = "const_params")))]
         unsafe impl<T, const N: usize> GetStaticEquivalent_ for [T; N]
         where T:GetStaticEquivalent_
         {
             type StaticEquivalent=[T::StaticEquivalent; N];
         }
 
+        /// When the "const_params" feature is disabled,
+        /// this trait is implemented for arrays of up to 32 elements.
+        #[cfg_attr(feature = "docsrs", doc(cfg(feature = "const_params")))]
         unsafe impl<T, const N: usize> StableAbi for [T; N]
         where T:StableAbi
         {
