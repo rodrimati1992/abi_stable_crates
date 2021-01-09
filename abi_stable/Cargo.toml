@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable"
-version = "0.9.2"
+version = "0.9.3"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition="2018"
 license = "MIT/Apache-2.0"
@@ -48,6 +48,8 @@ nonexhaustive_examples=[]
 # https://github.com/rust-lang/rust/pull/80243#event-4161720040
 no_fn_promotion = []
 
+docsrs = []
+
 channels=["crossbeam-channel"]
 
 
@@ -81,3 +83,6 @@ fnv = "1.0.7"
 
 [build-dependencies]
 rustc_version = "0.2.3"
+
+[package.metadata.docs.rs]
+features = ["docsrs", "const_params"]
