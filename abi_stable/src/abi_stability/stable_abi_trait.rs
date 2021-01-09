@@ -217,10 +217,16 @@ where T:StableAbi
             tl_genparams!(;0;),
             ReprAttr::C,
             ModReflMode::Module,
-            rslice![CompTLField::std_field(field0,LifetimeRange::EMPTY,0)],
+            {
+                const S: &[CompTLField] = &[CompTLField::std_field(field0,LifetimeRange::EMPTY,0)];
+                RSlice::from_slice(S)
+            },
         );
 
         make_shared_vars!{
+            impl[T] PhantomData<T>
+            where[T: StableAbi];
+
             let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts=[T],
@@ -288,6 +294,11 @@ macro_rules! phantomdata_tuples {
                 const COUNT:usize=$(phantomdata_tuples!(ignore;$tuple_param)+)* 0;
 
                 make_shared_vars!{
+                    impl[$($tuple_param,)*] PhantomData<($($tuple_param,)*)> 
+                    where[
+                        $($tuple_param:StableAbi,)*
+                    ];
+
                     let (mono_shared_vars,shared_vars)={
                         strings={ $($name_ident:$name_str,)* },
                         type_layouts=[$($tuple_param,)*],
@@ -504,10 +515,12 @@ unsafe impl StableAbi for () {
             tl_genparams!(;;),
             ReprAttr::C,
             ModReflMode::Module,
-            rslice![],
+            RSlice::EMPTY,
         );
 
         make_shared_vars!{
+            impl[] ();
+
             let (mono_shared_vars,shared_vars)={};
         }
 
@@ -549,10 +562,16 @@ where
             tl_genparams!('a;0;),
             ReprAttr::Primitive,
             ModReflMode::DelegateDeref{layout_index:0},
-            rslice![CompTLField::std_field(field0,LifetimeRange::EMPTY,0)],
+            {
+                const S: &[CompTLField] = &[CompTLField::std_field(field0,LifetimeRange::EMPTY,0)];
+                RSlice::from_slice(S)
+            },
         );
 
         make_shared_vars!{
+            impl['a, T] &'a T
+            where[ T: 'a + StableAbi];
+
             let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts=[T],
@@ -592,10 +611,16 @@ where
             tl_genparams!('a;0;),
             ReprAttr::Primitive,
             ModReflMode::DelegateDeref{layout_index:0},
-            rslice![CompTLField::std_field(field0,LifetimeRange::EMPTY,0)],
+            {
+                const S: &[CompTLField] = &[CompTLField::std_field(field0,LifetimeRange::EMPTY,0)];
+                RSlice::from_slice(S)
+            },
         );
 
         make_shared_vars!{
+            impl['a, T] &'a mut T
+            where[ T: 'a + StableAbi];
+
             let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts=[T],
@@ -632,16 +657,22 @@ where
             *mono_shared_vars,
             rstr!("NonNull"),
             ItemInfo::std_type_in(nul_str!("std::ptr")),
-            MonoTLData::struct_(rslice![ 
-                CompTLField::std_field(field0,LifetimeRange::EMPTY,1) 
-            ]),
+            {
+                const S: &[CompTLField] = &[ 
+                    CompTLField::std_field(field0,LifetimeRange::EMPTY,1) 
+                ];
+                MonoTLData::struct_(RSlice::from_slice(S))
+            },
             tl_genparams!(;0;),
             ReprAttr::Transparent,
             ModReflMode::Module,
-            rslice![],
+            RSlice::EMPTY,
         );
 
         make_shared_vars!{
+            impl[T] NonNull<T>
+            where[ T: StableAbi];
+
             let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts=[T,*const T],
@@ -676,16 +707,22 @@ where
             *mono_shared_vars,
             rstr!("AtomicPtr"),
             ItemInfo::std_type_in(nul_str!("std::sync::atomic")),
-            MonoTLData::struct_(rslice![ 
-                CompTLField::std_field(field0,LifetimeRange::EMPTY,1) 
-            ]),
+            {
+                const S: &[CompTLField] = &[ 
+                    CompTLField::std_field(field0,LifetimeRange::EMPTY,1) 
+                ];
+                MonoTLData::struct_(RSlice::from_slice(S))
+            },
             tl_genparams!(;0;),
             ReprAttr::Transparent,
             ModReflMode::Module,
-            rslice![],
+            RSlice::EMPTY,
         );
 
         make_shared_vars!{
+            impl[T] AtomicPtr<T>
+            where[T: StableAbi];
+
             let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts=[T,*mut T],
@@ -723,10 +760,18 @@ where
             tl_genparams!(;0;),
             ReprAttr::Primitive,
             ModReflMode::Module,
-            rslice![ CompTLField::std_field(field0,LifetimeRange::EMPTY,0) ],
+            {
+                const S: &[CompTLField] = &[
+                    CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
+                ];
+                RSlice::from_slice(S)
+            },
         );
 
         make_shared_vars!{
+            impl[T] *const T
+            where[T: StableAbi];
+
             let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts=[T],
@@ -765,10 +810,18 @@ where
             tl_genparams!(;0;),
             ReprAttr::Primitive,
             ModReflMode::Module,
-            rslice![ CompTLField::std_field(field0,LifetimeRange::EMPTY,0) ],
+            {
+                const S: &[CompTLField] = &[
+                    CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
+                ];
+                RSlice::from_slice(S)
+            },
         );
 
         make_shared_vars!{
+            impl[T] *mut T
+            where[T: StableAbi];
+
             let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 type_layouts=[T],
@@ -786,6 +839,70 @@ where
 
 /////////////
 
+#[cfg(feature = "const_params")]
+macro_rules! impl_stable_abi_array {
+    ()=>{
+        unsafe impl<T, const N: usize> GetStaticEquivalent_ for [T; N]
+        where T:GetStaticEquivalent_
+        {
+            type StaticEquivalent=[T::StaticEquivalent; N];
+        }
+
+        unsafe impl<T, const N: usize> StableAbi for [T; N]
+        where T:StableAbi
+        {
+            type IsNonZeroType=False;
+
+            const LAYOUT: &'static TypeLayout = {
+                // Used to get constants for [T; N]  where T doesn't matter
+                struct ArrayMonoConsts<const N: usize>;
+
+                impl<const N: usize> ArrayMonoConsts<N> {
+                    const MONO_TYPE_LAYOUT: &'static MonoTypeLayout = &MonoTypeLayout::new(
+                        *mono_shared_vars,
+                        rstr!("array"),
+                        ItemInfo::primitive(),
+                        MonoTLData::Primitive(TLPrimitive::Array{len:N}),
+                        tl_genparams!(;0;0),
+                        ReprAttr::Primitive,
+                        ModReflMode::Module,
+                        {
+                            const S: &[CompTLField] = &[
+                                CompTLField::std_field(field0, LifetimeRange::EMPTY, 0),
+                            ];
+                            RSlice::from_slice(S)
+                        },
+                    );
+                }
+
+                make_shared_vars!{
+                    impl[T, const N: usize] [T; N]
+                    where[T: StableAbi];
+
+                    let (mono_shared_vars,shared_vars)={
+                        strings={ field0:"element", },
+                        type_layouts=[T],
+                        constant=[usize => N],
+                    };
+                }
+
+                &TypeLayout::from_std::<Self>(
+                    shared_vars,
+                    ArrayMonoConsts::<N>::MONO_TYPE_LAYOUT,
+                    Self::ABI_CONSTS,
+                    GenericTLData::Primitive,
+                )
+            };
+        }
+    }
+}
+
+#[cfg(feature = "const_params")]
+impl_stable_abi_array!{}
+
+/////////////
+
+#[cfg(not(feature = "const_params"))]
 macro_rules! impl_stable_abi_array {
     ($($size:expr),*)=>{
         $(
@@ -809,14 +926,22 @@ macro_rules! impl_stable_abi_array {
                         tl_genparams!(;0;0),
                         ReprAttr::Primitive,
                         ModReflMode::Module,
-                        rslice![ CompTLField::std_field(field0,LifetimeRange::EMPTY,0) ],
+                        {
+                            const S: &[CompTLField] = &[
+                                CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
+                            ];
+                            RSlice::from_slice(S)
+                        },
                     );
 
                     make_shared_vars!{
+                        impl[T] [T; $size]
+                        where[T: StableAbi];
+
                         let (mono_shared_vars,shared_vars)={
                             strings={ field0:"element", },
                             type_layouts=[T],
-                            constants=[$size as usize],
+                            constant=[usize => $size as usize],
                         };
                     }
 
@@ -832,6 +957,7 @@ macro_rules! impl_stable_abi_array {
     }
 }
 
+#[cfg(not(feature = "const_params"))]
 impl_stable_abi_array! {
     00,01,02,03,04,05,06,07,08,09,
     10,11,12,13,14,15,16,17,18,19,
@@ -864,17 +990,23 @@ where
             MonoTLData::Enum(MonoTLEnum::new(
                 variant_names,
                 rslice![1,0],
-                CompTLFields::from_fields(rslice![
-                    CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
-                ])
+                {
+                    const S: &[CompTLField] = &[
+                        CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
+                    ];
+                    CompTLFields::from_fields(RSlice::from_slice(S))
+                },
             )),
             tl_genparams!(;0;),
             ReprAttr::OptionNonZero,
             ModReflMode::Module,
-            rslice![],
+            RSlice::EMPTY,
         );
 
         make_shared_vars!{
+            impl[T] Option<T>
+            where [ T: StableAbi<IsNonZeroType = True>, ];
+
             let (mono_shared_vars,shared_vars)={
                 strings={
                     variant_names:"Some;None;",
@@ -900,28 +1032,30 @@ where
 
 macro_rules! impl_for_primitive_ints {
     (
-        $( ($zeroable:ty,$zeroable_name:literal,$tl_primitive:expr) ,)*
+        $( ($type:ty,$type_name:literal,$tl_primitive:expr) ,)*
     ) => (
         $(
-            unsafe impl GetStaticEquivalent_ for $zeroable {
+            unsafe impl GetStaticEquivalent_ for $type {
                 type StaticEquivalent=Self;
             }
-            unsafe impl StableAbi for $zeroable {
+            unsafe impl StableAbi for $type {
                 type IsNonZeroType=False;
 
                 const LAYOUT: &'static TypeLayout = {
                     const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                         *mono_shared_vars,
-                        rstr!($zeroable_name),
+                        rstr!($type_name),
                         ItemInfo::primitive(),
                         MonoTLData::Primitive($tl_primitive),
                         tl_genparams!(;;),
                         ReprAttr::Primitive,
                         ModReflMode::Module,
-                        rslice![],
+                        RSlice::EMPTY,
                     );
 
                     make_shared_vars!{
+                        impl[] $type;
+
                         let (mono_shared_vars,shared_vars)={
                             type_layouts=[],
                         };
@@ -973,16 +1107,21 @@ macro_rules! impl_for_concrete {
                         *mono_shared_vars,
                         rstr!($this_name),
                         ItemInfo::std_type_in(nul_str!($in_mod)),
-                        MonoTLData::struct_(rslice![ 
-                            CompTLField::std_field(field0,LifetimeRange::EMPTY,0) 
-                        ]),
+                        {
+                            const S: &[CompTLField] = &[
+                                CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
+                            ];
+                            MonoTLData::struct_(RSlice::from_slice(S))
+                        },
                         tl_genparams!(;;),
                         ReprAttr::Transparent,
                         ModReflMode::Module,
-                        rslice![],
+                        RSlice::EMPTY,
                     );
 
                     make_shared_vars!{
+                        impl[] $this;
+
                         let (mono_shared_vars,shared_vars)={
                             strings={ field0:"0" },
                             type_layouts=[$prim_repr],
@@ -1081,18 +1220,24 @@ mod rust_1_36_impls{
                 *mono_shared_vars,
                 rstr!("MaybeUninit"),
                 ItemInfo::std_type_in(nul_str!("std::mem")),
-                MonoTLData::struct_(rslice![ 
-                    CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
-                ]),
+                {
+                    const S: &[CompTLField] = &[
+                        CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
+                    ];
+                    MonoTLData::struct_(RSlice::from_slice(S))
+                },
                 tl_genparams!(;0;),
                 // Using `ReprAttr::Transparent` so that if I add C header file translation
                 // it will be translated to just `T`.
                 ReprAttr::Transparent,
                 ModReflMode::Opaque,
-                rslice![],
+                RSlice::EMPTY,
             );
 
             make_shared_vars!{
+                impl[T] MaybeUninit<T>
+                where [T: StableAbi];
+
                 let (mono_shared_vars,shared_vars)={
                     strings={ field0:"value" },
                     type_layouts=[T],
@@ -1142,16 +1287,25 @@ macro_rules! impl_sabi_for_newtype {
                     *mono_shared_vars,
                     rstr!($type_name),
                     ItemInfo::std_type_in(nul_str!($mod_path)),
-                    MonoTLData::struct_(rslice![ 
-                        CompTLField::std_field(field0,LifetimeRange::EMPTY,0) 
-                    ]),
+                    {
+                        const S: &[CompTLField] = &[
+                            CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
+                        ];
+                        MonoTLData::struct_(RSlice::from_slice(S))
+                    },
                     tl_genparams!(;0;),
                     ReprAttr::Transparent,
                     ModReflMode::Module,
-                    rslice![],
+                    RSlice::EMPTY,
                 );
 
                 make_shared_vars!{
+                    impl[P]  $type_constr<P>
+                    where [
+                        P: StableAbi,
+                        $($($where_clause)*)*
+                    ];
+
                     let (mono_shared_vars,shared_vars)={
                         strings={ field0:"0" },
                         type_layouts=[P],
@@ -1196,14 +1350,16 @@ macro_rules! impl_stableabi_for_unit_struct {
                     *mono_shared_vars,
                     rstr!($type_name),
                     $item_info,
-                    MonoTLData::struct_(rslice![]),
+                    MonoTLData::struct_(RSlice::EMPTY),
                     tl_genparams!(;;),
                     ReprAttr::C,
                     ModReflMode::Module,
-                    rslice![],
+                    RSlice::EMPTY,
                 );
 
                 make_shared_vars!{
+                    impl[] $type_constr;
+
                     let (mono_shared_vars,shared_vars)={};
                 }
 
@@ -1240,14 +1396,16 @@ unsafe impl StableAbi for core_extensions::Void {
                 "core_extensions;0.0.0",
                 nul_str!("core_extensions"),
             ),
-            MonoTLData::Enum(MonoTLEnum::new(StartLen::EMPTY,rslice![],CompTLFields::EMPTY)),
+            MonoTLData::Enum(MonoTLEnum::new(StartLen::EMPTY,RSlice::EMPTY,CompTLFields::EMPTY)),
             tl_genparams!(;;),
             ReprAttr::Int(DiscriminantRepr::U8),
             ModReflMode::Module,
-            rslice![],
+            RSlice::EMPTY,
         );
 
         make_shared_vars!{
+            impl[] core_extensions::Void;
+
             let (mono_shared_vars,shared_vars)={};
         }
 
@@ -1256,7 +1414,7 @@ unsafe impl StableAbi for core_extensions::Void {
             MONO_TYPE_LAYOUT,
             Self::ABI_CONSTS,
             GenericTLData::Enum(GenericTLEnum::exhaustive(
-                TLDiscriminants::from_u8_slice(rslice![])
+                TLDiscriminants::from_u8_slice(RSlice::EMPTY)
             )),
         )
     };
@@ -1273,6 +1431,8 @@ unsafe impl StableAbi for core_extensions::Void {
 macro_rules! empty_extern_fn_layout{
     ($this:ty) => ({
         make_shared_vars!{
+            impl[] $this;
+
             let (mono_shared_vars,shared_vars)={};
         }
         const MONO_TL_EXTERN_FN:&'static MonoTypeLayout=&MonoTypeLayout::new(
@@ -1283,7 +1443,7 @@ macro_rules! empty_extern_fn_layout{
             tl_genparams!(;;),
             ReprAttr::C,
             ModReflMode::Opaque,
-            rslice![],
+            RSlice::EMPTY,
         );
 
         &TypeLayout::from_std::<Self>(
@@ -1305,7 +1465,7 @@ unsafe impl GetStaticEquivalent_ for extern "C" fn() {
 unsafe impl StableAbi for extern "C" fn() {
     type IsNonZeroType = True;
 
-    const LAYOUT: &'static TypeLayout = empty_extern_fn_layout!(Self);
+    const LAYOUT: &'static TypeLayout = empty_extern_fn_layout!(extern "C" fn());
 }
 
 /// This is the only function type that implements StableAbi
@@ -1317,7 +1477,7 @@ unsafe impl GetStaticEquivalent_ for unsafe extern "C" fn() {
 unsafe impl StableAbi for unsafe extern "C" fn() {
     type IsNonZeroType = True;
 
-    const LAYOUT: &'static TypeLayout = empty_extern_fn_layout!(Self);
+    const LAYOUT: &'static TypeLayout = empty_extern_fn_layout!(unsafe extern "C" fn());
 }
 
 
@@ -1360,10 +1520,12 @@ unsafe impl<T> StableAbi for UnsafeOpaqueField<T> {
             tl_genparams!(;;),
             ReprAttr::C,
             ModReflMode::Module,
-            rslice![],
+            RSlice::EMPTY,
         );
 
         make_shared_vars!{
+            impl[T] UnsafeOpaqueField<T>;
+
             let (mono_shared_vars,shared_vars)={};
         }
 

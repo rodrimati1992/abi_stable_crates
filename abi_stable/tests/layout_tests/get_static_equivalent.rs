@@ -73,6 +73,7 @@ mod sabi_with_0_ty_params{
     pub(super) struct Struct;
 }
 
+#[cfg(not(feature = "no_fn_promotion"))]
 mod sabi_with_1_ty_params{
     use abi_stable::{StableAbi,marker_type::UnsafeIgnoredType,tag};
     use super::UniqueId;
@@ -89,6 +90,7 @@ mod sabi_with_1_ty_params{
     }
 }
 
+#[cfg(not(feature = "no_fn_promotion"))]
 mod sabi_with_2_ty_params{
     use abi_stable::{StableAbi,marker_type::UnsafeIgnoredType,tag};
     use super::UniqueId;
@@ -140,6 +142,7 @@ where
 }
 
 
+#[cfg(not(feature = "no_fn_promotion"))]
 #[cfg(not(miri))]
 fn get_list_inner<T,U>()->Vec<&'static TypeLayout>
 where
@@ -152,7 +155,7 @@ where
     ]
 }
 
-
+#[cfg(not(feature = "no_fn_promotion"))]
 #[cfg(not(miri))]
 fn get_list<'a,T>(_:&'a T)->Vec<&'static TypeLayout>{
     type Ty0=unit_type::Struct;
@@ -179,6 +182,7 @@ fn get_list<'a,T>(_:&'a T)->Vec<&'static TypeLayout>{
     ].into_iter().flatten().collect()
 }
 
+#[cfg(not(feature = "no_fn_promotion"))]
 #[cfg(not(miri))]
 #[test]
 fn check_not_stableabi(){

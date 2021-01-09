@@ -885,14 +885,12 @@ impl<'a,T:'a> MakeVTable<'a,T>{
         receiver_capacity:ErasedReceiver::capacity,
     };
 
+    staticref!{
+        const WM_VALUE: WithMetadata<VTable<T>> =
+            WithMetadata::new(PrefixTypeTrait::METADATA, Self::VALUE)
+    }
+
     // The VTABLE for this type in this executable/library
-    const VTABLE: VTable_Ref<T> = unsafe{
-        VTable_Ref(
-            WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                Self::VALUE,
-            ).as_prefix()
-        )
-    };
+    const VTABLE: VTable_Ref<T> = VTable_Ref(Self::WM_VALUE.as_prefix());
 }
 

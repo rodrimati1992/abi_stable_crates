@@ -46,7 +46,11 @@ struct UnitType;
 This emulates a `const NAME:&'static str` parameter,
 which is checked as being the same between the interface and implementation.
 
-```
+*/
+// #[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
+// #[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
+/**
+```rust
 use abi_stable::{tag,StableAbi,marker_type::UnsafeIgnoredType};
 
 
@@ -106,7 +110,10 @@ impl Name for Boor{
 
 ###  Declaring each variant. 
 
-```rust
+*/
+#[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
+#[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
+/**
 use abi_stable::{
     rslice,tag,
     type_layout::Tag,
@@ -171,7 +178,10 @@ const MAP_0_FN:Tag=Tag::map(rslice![
 ###  Creating a complex data structure. 
 
 
-```rust
+*/
+#[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
+#[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
+/**
 use abi_stable::{
     tag,
     type_layout::Tag,
@@ -954,5 +964,5 @@ impl Display for TagErrorVariant {
 
 
 
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(all(test,not(feature="only_new_tests"), not(feature = "no_fn_promotion")))]
 mod test;
