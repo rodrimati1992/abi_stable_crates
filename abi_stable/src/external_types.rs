@@ -7,17 +7,13 @@ The modules here are named after the crates whose types are being wrapped.
 */
 
 #[cfg(feature="crossbeam-channel")]
+#[cfg_attr(feature = "docsrs", doc(cfg(feature = "channels")))]
 pub mod crossbeam_channel;
-
-#[cfg(not(feature="crossbeam-channel"))]
-/// This is disabled,
-/// enable the "channels" feature to get ffi-safe wrappers for crossbeam channels.
-pub mod crossbeam_channel{}
-
 
 pub mod parking_lot;
 
 #[cfg(feature="serde_json")]
+#[cfg_attr(feature = "docsrs", doc(cfg(feature = "serde_json")))]
 pub mod serde_json;
 
 

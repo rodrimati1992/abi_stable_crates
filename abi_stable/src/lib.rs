@@ -226,6 +226,8 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
     feature(min_const_generics)
 )]
 
+#![cfg_attr(feature = "docsrs", feature(doc_cfg))]
+
 #[allow(unused_imports)]
 #[cfg(test)]
 use abi_stable_shared::file_span;
