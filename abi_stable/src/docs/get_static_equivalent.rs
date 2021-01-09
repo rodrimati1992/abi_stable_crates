@@ -34,7 +34,10 @@ and won't be usable afterwards.
 This example demonstrates how one can have a type parameter,
 and use the value of an associated constant as the identity of the type.
 
-```
+*/
+#![cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
+#![cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
+/*!
 use std::marker::PhantomData;
 
 use abi_stable::{

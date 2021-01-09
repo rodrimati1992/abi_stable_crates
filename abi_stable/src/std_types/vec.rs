@@ -1291,28 +1291,28 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
         shrink_to_fit: shrink_to_fit_vec,
     };
 
-    // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: VecVTable_Ref<T> = unsafe{
-        VecVTable_Ref(
-            WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                Self::DEFAULT_VTABLE,
-            ).as_prefix()
-        )
-    };
+    staticref!{
+        const WM_DEFAULT: WithMetadata<VecVTable<T>> = 
+            WithMetadata::new(PrefixTypeTrait::METADATA, Self::DEFAULT_VTABLE);
+    }
 
-    // Used to test functions that change behavior based on the vtable being used
-    const LIB_VTABLE_FOR_TESTING: VecVTable_Ref<T> = unsafe{
-        VecVTable_Ref(
+    // The VTABLE for this type in this executable/library
+    const LIB_VTABLE: VecVTable_Ref<T> = VecVTable_Ref(Self::WM_DEFAULT.as_prefix());
+
+    staticref!{
+        const WM_FOR_TESTING: WithMetadata<VecVTable<T>> = 
             WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 VecVTable {
                     type_id:Constructor( new_utypeid::<RVec<i32>> ),
                     ..Self::DEFAULT_VTABLE
                 }
-            ).as_prefix()
-        )
-    };
+            )
+    }
+
+    // Used to test functions that change behavior based on the vtable being used
+    const LIB_VTABLE_FOR_TESTING: VecVTable_Ref<T> = 
+        VecVTable_Ref(Self::WM_FOR_TESTING.as_prefix());
 
 }
 

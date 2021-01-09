@@ -53,13 +53,11 @@ fn instantiate_root_module()->TextOpsMod_Ref{
                 deserialize_command_borrowing,
                 deserialize_return_value,
             };
-            static WITH_META: DeserializerMod_Ref ={
-                DeserializerMod_Ref(
-                    WithMetadata::new(PrefixTypeTrait::METADATA, MOD_)
-                        .static_as_prefix()
-                )
-            };
-            WITH_META
+
+            const S: WithMetadata<DeserializerMod> =
+                WithMetadata::new(PrefixTypeTrait::METADATA, MOD_);
+
+            DeserializerMod_Ref(S.static_as_prefix())
         },
         reverse_lines,
         remove_words,

@@ -165,7 +165,7 @@ impl VersionNumber {
                 .map_err(|x| ParseVersionError::new(vn, "minor", x))?,
             patch: iter.next()
                 .unwrap_or("")
-                .split_while(|x| '0' <= x && x <= '9')
+                .split_while(|x| ('0'..='9').contains(&x))
                 .find(|x| x.key)
                 .map_or("0", |x| x.str)
                 .parse()

@@ -192,11 +192,13 @@ impl<IA,_Self,ErasedPtr,OrigPtr,I>
 where 
     I:AreTraitsImpld<IA,_Self,ErasedPtr,OrigPtr>,
 {
+    staticref!{
+        const TMP_WM: WithMetadata<RObjectVtable<_Self,ErasedPtr,I>> =
+            WithMetadata::new(PrefixTypeTrait::METADATA, I::VTABLE_VAL);
+    }
+
     const TMP_VTABLE: RObjectVtable_Ref<_Self,ErasedPtr,I> = unsafe{
-        RObjectVtable_Ref(
-            WithMetadata::new(PrefixTypeTrait::METADATA, I::VTABLE_VAL)
-                .as_prefix()
-        )
+        RObjectVtable_Ref(Self::TMP_WM.as_prefix())
     };
 
 

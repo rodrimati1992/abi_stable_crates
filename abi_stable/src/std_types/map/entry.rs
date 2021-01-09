@@ -679,12 +679,12 @@ pub struct OccupiedVTable<K,V>{
 
 
 impl<K,V> OccupiedVTable<K,V>{
-    const VTABLE_REF: OccupiedVTable_Ref<K,V> = unsafe{
-        OccupiedVTable_Ref(
-            WithMetadata::new(PrefixTypeTrait::METADATA,Self::VTABLE)
-                .as_prefix()
-        )
-    };
+    const VTABLE_REF: OccupiedVTable_Ref<K,V> = OccupiedVTable_Ref(Self::WM_VTABLE.as_prefix());
+
+    staticref!{
+        const WM_VTABLE: WithMetadata<OccupiedVTable<K,V>> = 
+            WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
+    }
 
     const VTABLE:OccupiedVTable<K,V>=OccupiedVTable{
         drop_entry   :ErasedOccupiedEntry::drop_entry,
@@ -781,14 +781,12 @@ pub struct VacantVTable<K,V>{
 
 
 impl<K,V> VacantVTable<K,V>{
-    const VTABLE_REF: VacantVTable_Ref<K,V> = unsafe{
-        VacantVTable_Ref(
-            WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                Self::VTABLE,
-            ).as_prefix()
-        )
-    };
+    const VTABLE_REF: VacantVTable_Ref<K,V> = VacantVTable_Ref(Self::WM_VTABLE.as_prefix());
+
+    staticref!{
+        const WM_VTABLE: WithMetadata<VacantVTable<K,V>> = 
+            WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
+    }
 
     const VTABLE:VacantVTable<K,V>=VacantVTable{
         drop_entry   :ErasedVacantEntry::drop_entry,

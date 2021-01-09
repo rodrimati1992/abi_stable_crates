@@ -27,14 +27,16 @@ pub unsafe trait GetVTable<S,I>:GetEnumInfo{
     #[doc(hidden)]
     const VTABLE_VAL:NonExhaustiveVtable<Self,S,I>;
 
+    staticref!{
+        #[doc(hidden)]
+        const VTABLE_WM: WithMetadata<NonExhaustiveVtable<Self,S,I>> = 
+            WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE_VAL)
+    }
+
+
     #[doc(hidden)]
     const VTABLE_REF:NonExhaustiveVtable_Ref<Self,S,I> = unsafe{
-        NonExhaustiveVtable_Ref(
-            WithMetadata::new(
-                PrefixTypeTrait::METADATA,
-                Self::VTABLE_VAL
-            ).as_prefix()
-        )
+        NonExhaustiveVtable_Ref(Self::VTABLE_WM.as_prefix())
     };
 }
 

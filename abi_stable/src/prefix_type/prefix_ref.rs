@@ -5,6 +5,7 @@ use crate::{
     reexports::True,
     reflection::ModReflMode,
     sabi_types::StaticRef,
+    std_types::RSlice,
     type_layout::{
         CompTLField, GenericTLData, LifetimeRange, MonoTLData, MonoTypeLayout, ReprAttr,
         TypeLayout,
@@ -75,20 +76,27 @@ use std::{
 /// // This is a way that PrefixRef can be constructed in statics
 /// 
 /// const PREFIX_A: PrefixRef<Module_Prefix> = {
-///     WithMetadata::new(PrefixTypeTrait::METADATA, MOD_VAL)
-///         .static_as_prefix()
+///     const S: &WithMetadata<Module> =
+///         &WithMetadata::new(PrefixTypeTrait::METADATA, MOD_VAL);
+///
+///     S.static_as_prefix()
 /// };
 /// 
 /// /////////////////////////////////////////
 /// // Second way to construct a PrefixRef
 /// // This is a way that PrefixRef can be constructed in associated constants,
 /// 
-/// // This macro declares a `StaticRef` pointing to the assigned `WithMetadata`.
-/// staticref!(const MOD_WM: WithMetadata<Module> = {
-///     WithMetadata::new(PrefixTypeTrait::METADATA, MOD_VAL)
-/// });
+/// struct WithAssoc;
+/// 
+/// impl WithAssoc {
+///     // This macro declares a `StaticRef` pointing to the assigned `WithMetadata`.
+///     staticref!(const MOD_WM: WithMetadata<Module> = {
+///         WithMetadata::new(PrefixTypeTrait::METADATA, MOD_VAL)
+///     });
+/// }
+/// 
 ///
-/// const PREFIX_B: PrefixRef<Module_Prefix> = MOD_WM.as_prefix();
+/// const PREFIX_B: PrefixRef<Module_Prefix> = WithAssoc::MOD_WM.as_prefix();
 ///
 /// 
 /// /////////////////////////////////////////
@@ -150,7 +158,7 @@ impl<P> PrefixRef<P>{
     ///     rstr,
     /// };
     /// 
-    /// const MOD_WM: *const WithMetadata<Module> = {
+    /// const MOD_WM: &WithMetadata<Module> = {
     ///     &WithMetadata::new(PrefixTypeTrait::METADATA, Module{
     ///         first: RSome(3),
     ///         second: rstr!("hello"),
@@ -194,16 +202,20 @@ impl<P> PrefixRef<P>{
     ///     rstr, staticref,
     /// };
     /// 
-    /// // This macro invocation declares a `StaticRef<WithMetadata<Module>>` constant
-    /// staticref!(const MOD_WM: WithMetadata<Module> = {
-    ///     WithMetadata::new(PrefixTypeTrait::METADATA, Module{
-    ///         first: RNone,
-    ///         second: rstr!("world"),
-    ///         third: 13,
-    ///     })
-    /// });
+    /// struct Foo {}
+    /// 
+    /// impl Foo {
+    ///     // This macro declares a `StaticRef` pointing to the assigned `WithMetadata`.
+    ///     staticref!{const MOD_WM: WithMetadata<Module> = 
+    ///         WithMetadata::new(PrefixTypeTrait::METADATA, Module{
+    ///             first: RNone,
+    ///             second: rstr!("world"),
+    ///             third: 13,
+    ///         })
+    ///     }
+    /// }
     ///
-    /// const PREFIX: PrefixRef<Module_Prefix> = PrefixRef::from_staticref(MOD_WM);
+    /// const PREFIX: PrefixRef<Module_Prefix> = PrefixRef::from_staticref(Foo::MOD_WM);
     /// 
     /// const MODULE: Module_Ref = Module_Ref(PREFIX);
     /// 
@@ -402,10 +414,16 @@ where
             tl_genparams!('a;0;),
             ReprAttr::Transparent,
             ModReflMode::DelegateDeref{layout_index:0},
-            rslice![CompTLField::std_field(field0,LifetimeRange::EMPTY,0)],
+            {
+                const S: &[CompTLField] = &[CompTLField::std_field(field0,LifetimeRange::EMPTY,0)];
+                RSlice::from_slice(S)
+            },
         );
 
         make_shared_vars!{
+            impl[P] PrefixRef<P>
+            where [P: PrefixStableAbi];
+
             let (mono_shared_vars,shared_vars)={
                 strings={ field0:"0", },
                 prefix_type_layouts=[P],

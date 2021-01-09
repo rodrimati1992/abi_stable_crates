@@ -396,7 +396,10 @@ In real code this should be written in a
 way that keeps the tags and the type bounds in sync.
 
 
-```
+*/
+#[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
+#[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
+/**
 use abi_stable::{
     tag,
     type_layout::Tag,
@@ -793,6 +796,9 @@ Constructs a `&'static SharedVars`
 */
 macro_rules! make_shared_vars{
     (
+        impl[$($impl_gen:tt)*] $type:ty
+        $(where[$($where_clause:tt)*])?;
+
         let ($mono_shared_vars:ident,$shared_vars:ident) ={
             $(
                 strings={
@@ -802,7 +808,7 @@ macro_rules! make_shared_vars{
             $( lifetime_indices=[ $($lifetime_indices:expr),* $(,)* ], )?
             $( type_layouts=[ $($ty_layout:ty),* $(,)* ], )?
             $( prefix_type_layouts=[ $($prefix_ty_layout:ty),* $(,)* ], )?
-            $( constants=[ $( $constants:expr ),* $(,)* ], )?
+            $( constant=[ $const_ty:ty => $constants:expr  ], )?
         };
     )=>{
         multi_str!{
@@ -820,26 +826,40 @@ macro_rules! make_shared_vars{
                 rslice![ $( $($lifetime_indices),* )? ],
             );
         
-        let $shared_vars={
-            #[allow(unused_imports)]
-            use $crate::abi_stability::stable_abi_trait::GetTypeLayoutCtor;
+        struct __ACPromoted<T>(T);
 
-            &$crate::type_layout::SharedVars::new(
-                $mono_shared_vars,
-                rslice![ 
-                    $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )? 
-                    $( $( GetTypeLayoutCtor::<$prefix_ty_layout>::PREFIX_STABLE_ABI,)* )? 
-                ],
-                rslice![$( 
-                    $(
+        impl<$($impl_gen)*> __ACPromoted<$type> 
+        where $($($where_clause)*)?
+        {
+            $( const CONST_PARAM_UNERASED: &'static $const_ty = &$constants; )?
+            const CONST_PARAM: &'static [$crate::abi_stability::ConstGeneric] = {
+                &[
+                    $(ignoring!(
+                        ($constants)
                         $crate::abi_stability::ConstGeneric::new(
-                            &$constants,
+                            Self::CONST_PARAM_UNERASED,
                             $crate::abi_stability::ConstGenericVTableFor::NEW,
                         )
-                    ),* 
-                )?],
-            )
-        };
+                    ),)?
+                ]
+            };
+
+            const SHARED_VARS: &'static $crate::type_layout::SharedVars = {
+                #[allow(unused_imports)]
+                use $crate::abi_stability::stable_abi_trait::GetTypeLayoutCtor;
+
+                &$crate::type_layout::SharedVars::new(
+                    $mono_shared_vars,
+                    rslice![ 
+                        $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )? 
+                        $( $( GetTypeLayoutCtor::<$prefix_ty_layout>::PREFIX_STABLE_ABI,)* )? 
+                    ],
+                    $crate::std_types::RSlice::from_slice(Self::CONST_PARAM),
+                )
+            };
+        }
+
+        let $shared_vars=__ACPromoted::<Self>::SHARED_VARS;
     }
 }
 
@@ -847,9 +867,14 @@ macro_rules! make_shared_vars{
 ///////////////////////////////////////////////////////////////////////////////
 
 
-/// Allows declaring a [`StaticRef`] constant.
+/// Allows declaring a [`StaticRef`] associated `const`ant.
 /// 
-/// This macro is most useful when declaring an associated constant of non-`'static` types.
+/// This macro is for declaring inherent associated constant of non-`'static` types.
+///
+/// # Breaking changes
+/// 
+/// This macro may be changed to produce compiler-errors when it's used to
+/// declare a non-associated `const`, or a constant in a trait implementation.
 ///
 /// # Example
 ///
@@ -998,6 +1023,14 @@ macro_rules! staticref{
         )*
     };
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+macro_rules! ignoring {
+    (($($ignore:tt)*) $($passed:tt)* ) => {$($passed)*};
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 

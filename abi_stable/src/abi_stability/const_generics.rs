@@ -48,6 +48,20 @@ impl ConstGeneric{
         }
     }
 
+    /// Constructs a ConstGeneric from an erased reference and a vtable.
+    ///
+    /// # Safety
+    ///
+    /// `this` must point to an object that lives for the `'static` lifetime,
+    /// and `vtable` must be a `ConstGenericVTableFor::<T>::NEW` 
+    /// (where `T` is the unerased type of `this`)
+    pub const unsafe fn from_erased(this: *const (), vtable: ConstGenericVTable_Ref)->Self{
+        Self{
+            ptr: this as *const ErasedObject,
+            vtable,
+        }
+    }
+
     /// Compares this to another `ConstGeneric` for equality,
     /// returning an error if the type layout of `self` and `other` is not compatible.
     pub fn is_equal(
@@ -99,12 +113,13 @@ impl Eq for ConstGeneric{}
 
 ///////////////////////////////////////////////////////////////////////////////
 
-
+/// The vtable of `ConstGeneric`,
+/// only constructible with `ConstGenericVTableFor::<T>::new.erased()`
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
-struct ConstGenericVTable{
+pub struct ConstGenericVTable {
     layout:&'static TypeLayout,
     partial_eq:unsafe extern "C" fn(&ErasedObject,&ErasedObject)->bool,
     #[sabi(last_prefix_field)]
@@ -119,9 +134,19 @@ pub struct ConstGenericVTableFor<T>{
 }
 
 
+impl<T> ConstGenericVTableFor<T> {
+    /// Allows inferring `T` by passing a reference to it.
+    pub const fn infer_type(&self, _: &T) {}
+
+    /// Extracts the vtable for the erased type.
+    pub const fn erased(&self) -> ConstGenericVTable_Ref {
+        self.vtable
+    }
+}
+
 impl<T> ConstGenericVTableFor<T> 
 where
-    T: StableAbi + Eq + PartialEq + Debug + Send + Sync
+    T: StableAbi + Eq + PartialEq + Debug + Send + Sync + 'static
 {
     const _VTABLE_STATIC: WithMetadata<ConstGenericVTable> = {
         WithMetadata::new(
@@ -140,3 +165,22 @@ where
         _marker: PhantomData,
     };
 }
+
+
+#[doc(hidden)]
+pub struct ConstGenericErasureHack<T: ?Sized>{
+    pub vtable: ConstGenericVTable_Ref,
+    pub value: T,
+}
+
+
+#[doc(hidden)]
+impl<T> ConstGenericErasureHack<T> {
+    pub const fn new(vtable: ConstGenericVTableFor<T>, value: T) -> Self {
+        Self {
+            vtable: vtable.erased(),
+            value,
+        }
+    }
+}
+

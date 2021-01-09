@@ -181,26 +181,47 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
         _=>None,
     };
 
+    let tags_const;
+    let tags_arg;
     // tokenizes the `Tag` data structure associated with this type.
-    let tags=match &config.tags {
-        Some(tag)=>quote!( Some(&#tag) ),
-        None=>quote!( None ),
-    };
+    match &config.tags {
+        Some(tag)=>{
+            tags_const = quote!( const __SABI_TAG: &'static __sabi_re::Tag = &#tag; );
+            tags_arg = quote!( Some(Self::__SABI_TAG) );
+        }
+        None=>{
+            tags_const = TokenStream2::new();
+            tags_arg = quote!( None );
+        }
+    }
 
     
-    let extra_checks=
-        match &config.extra_checks {
-            Some(extra_checks)=>quote!({
-                Some(&std::mem::ManuallyDrop::new(
-                    __sabi_re::StoredExtraChecks::from_const(
-                        &#extra_checks,
-                        __sabi_re::TU_Opaque,
-                        __sabi_re::ExtraChecks_MV::VTABLE,
-                    )
-                ))
-            }),
-            None=>quote!( None ),
-        };
+    let extra_checks_const;
+    let extra_checks_arg;
+    match &config.extra_checks {
+        Some(extra_checks)=> {
+            extra_checks_const = quote!(
+                const __SABI_EXTRA_CHECKS: 
+                    &'static ::std::mem::ManuallyDrop<__sabi_re::StoredExtraChecks>
+                =
+                    &std::mem::ManuallyDrop::new(
+                        __sabi_re::StoredExtraChecks::from_const(
+                            &#extra_checks,
+                            __sabi_re::TU_Opaque,
+                            __sabi_re::ExtraChecks_MV::VTABLE,
+                        )
+                    );
+            );
+
+            extra_checks_arg = quote!(
+                Some(Self::__SABI_EXTRA_CHECKS)
+            );
+        }
+        None=>{
+            extra_checks_const = TokenStream2::new();
+            extra_checks_arg = quote!( None );
+        }
+    };
 
     let variant_names_start_len=if is_enum {
         let mut variant_names=String::new();
@@ -554,6 +575,17 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                     }
                 );
 
+            impl <#generics_header> #impl_ty 
+            where 
+                #stable_abi_where_preds
+            {
+                #shared_vars_tokenizer
+
+                #extra_checks_const
+
+                #tags_const
+            }
+
             unsafe impl <#generics_header> __sabi_re::#impld_stable_abi_trait for #impl_ty 
             where 
                 #stable_abi_where_preds
@@ -564,12 +596,12 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                 const LAYOUT: &'static __sabi_re::TypeLayout = {
                     &__sabi_re::TypeLayout::from_derive::<#size_align_for>(
                         __sabi_re::_private_TypeLayoutDerive {
-                            shared_vars: &#shared_vars_tokenizer,
+                            shared_vars: Self::__SABI_SHARED_VARS,
                             mono:#mono_type_layout,
                             abi_consts: Self::ABI_CONSTS,
                             data:#generic_tl_data,
-                            tag:#tags,
-                            extra_checks:#extra_checks,
+                            tag: #tags_arg,
+                            extra_checks: #extra_checks_arg,
                         }
                     )
                 };
@@ -634,7 +666,7 @@ fn tokenize_generic_enum<'a>(
                 let ty_generics=GenParamsIn::new(ds.generics,InWhat::ItemUse);
                 // let (_, ty_generics,_) = ds.generics.split_for_impl();
                 quote!(nonexhaustive(
-                    &__sabi_re::TLNonExhaustive::new::< #name <#ty_generics> >()
+                    &__sabi_re::MakeTLNonExhaustive::< #name <#ty_generics> >::NEW
                 ))
             },
             None=>quote!(exhaustive()),
@@ -710,12 +742,14 @@ fn tokenize_tl_functions<'a>(
 
     let field_fn_ranges=field_fn_ranges.into_iter().map(|sl| sl.to_u32() );
 
-    quote!(
-        __TLFunctions::new(
-            abi_stable::rslice![#(#functions),*],
+    quote!({
+        const TLF_A: &[__CompTLFunction] = &[#(#functions),*];
+        const TLF_B: __TLFunctions = __TLFunctions::new(
+            __sabi_re::RSlice::from_slice(TLF_A),
             abi_stable::rslice![#(#field_fn_ranges),*],
-        )
-    ).to_tokens(ts);
+        );
+        TLF_B
+    }).to_tokens(ts);
 
 }
 

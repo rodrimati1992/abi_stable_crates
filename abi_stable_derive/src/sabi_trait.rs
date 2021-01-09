@@ -1237,10 +1237,10 @@ fn vtable_impl(
                 __sabi_re::GetRObjectVTable<IA,_Self,_ErasedPtr,_OrigPtr>,
             #extra_constraints
         {
-            const TMP0: *const __sabi_re::WithMetadata<
+            const TMP0: __sabi_re::WithMetadata<
                 VTableInner<#withmetadata_generics>
             >={
-                &__sabi_re::WithMetadata::new(
+                __sabi_re::WithMetadata::new(
                     __sabi_re::PrefixTypeTrait::METADATA,
                     VTableInner{
                         _sabi_tys: __sabi_re::NonOwningPhantom::NEW,
@@ -1253,7 +1253,7 @@ fn vtable_impl(
             };
 
             const VTABLE_INNER: __sabi_re::PrefixRef<VTable<#vtable_generics> > =unsafe{
-                __sabi_re::WithMetadata::raw_as_prefix(Self::TMP0)
+                __sabi_re::WithMetadata::raw_as_prefix(&Self::TMP0)
                     .cast()
             };
 
