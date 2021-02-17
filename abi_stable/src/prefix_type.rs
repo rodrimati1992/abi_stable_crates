@@ -9,6 +9,7 @@ use std::{
 };
 
 use crate::{
+    inline_storage::alignment::AlignToUsize,
     pointer_trait::ImmutableRef,
     marker_type::{NotCopyNotClone, NonOwningPhantom},
     sabi_types::StaticRef,
@@ -210,10 +211,8 @@ pub type WithMetadata<T, P = <T as PrefixTypeTrait>::PrefixFields> =
 #[repr(C)]
 pub struct WithMetadata_<T, P> {
     pub metadata: PrefixMetadata<T, P>,
-    // Forces value to be aligned to at least a usize.
-    _alignment: [usize; 0],
     /// The wrapped value.
-    pub value: T,
+    pub value: AlignToUsize<T>,
     unbounds: NotCopyNotClone,
 }
 
@@ -227,8 +226,7 @@ impl<T, P> WithMetadata_<T, P> {
     pub const fn new(metadata: PrefixMetadata<T, P>, value: T) -> Self {
         Self {
             metadata,
-            _alignment: [],
-            value,
+            value: AlignToUsize(value),
             unbounds: NotCopyNotClone,
         }
     }

@@ -353,7 +353,7 @@ impl<P> PrefixRef<P>{
     #[inline]
     pub fn prefix<'a>(self)-> &'a P {
         unsafe{
-            &(*self.ptr.as_ptr()).value
+            &(*self.ptr.as_ptr()).value.0
         }
     }
 
