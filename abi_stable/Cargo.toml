@@ -46,7 +46,9 @@ nonexhaustive_examples=[]
 
 # For disabling tests that break with the reduced promotion in
 # https://github.com/rust-lang/rust/pull/80243#event-4161720040
-no_fn_promotion = []
+no_fn_promotion = ["no_tagging_doctest"]
+
+no_tagging_doctest = []
 
 docsrs = []
 
