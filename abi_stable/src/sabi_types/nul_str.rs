@@ -65,7 +65,7 @@ impl<'a> NulStr<'a>{
     /// find the nul byte.
     pub fn to_str_with_nul(&self)->&'a str{
         unsafe{
-            let bytes=std::ffi::CStr::from_ptr(self.ptr.as_ptr() as *const i8).to_bytes_with_nul();
+            let bytes=std::ffi::CStr::from_ptr(self.ptr.as_ptr() as *const _).to_bytes_with_nul();
             std::str::from_utf8_unchecked(bytes)
         }
     }
@@ -88,7 +88,7 @@ impl<'a> NulStr<'a>{
     /// find the nul byte.
     pub fn to_str(self)->&'a str{
         unsafe{
-            let bytes = std::ffi::CStr::from_ptr(self.ptr.as_ptr() as *const i8).to_bytes();
+            let bytes = std::ffi::CStr::from_ptr(self.ptr.as_ptr() as *const _).to_bytes();
             std::str::from_utf8_unchecked(bytes)
         }
     }
