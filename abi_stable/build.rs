@@ -6,7 +6,7 @@ fn main() {
 
     let rver = rustc_version::version().unwrap();
 
-    if Version::new(1, 42, 0) <= rver {
+    if Version::new(1, 42, 0) <= rver { 
         println!("cargo:rustc-cfg=rust_1_42");
     }
 
