@@ -677,4 +677,4 @@ Unless you explicitly state otherwise, any contribution intentionally submitted 
 [Unsafe code guidelines]: https://docs.rs/abi_stable/*/abi_stable/docs/unsafe_code_guidelines/index.html
 
 [`InterfaceType`]: https://docs.rs/abi_stable/*/abi_stable/trait.InterfaceType.html
-[`export_root_module`]: https://docs.rs/abi_stable/*/abi_stable/attr.export_root_module.html
+[`export_root_module`]: https://docs.rs/abi_stable/*/abi_stable/attr.export_root_module.html  
