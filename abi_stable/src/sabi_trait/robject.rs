@@ -2,7 +2,6 @@ use super::*;
     
 use std::{
     fmt,
-    ops::{Deref,DerefMut},
 };
 
 #[allow(unused_imports)]
@@ -17,6 +16,7 @@ use crate::{
     sabi_types::{MaybeCmp,RRef,RMut},
     std_types::UTypeId,
     pointer_trait::{
+        AsPtr, AsMutPtr,
         CanTransmuteElement,TransmuteElement,
         GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
     },
@@ -25,7 +25,6 @@ use crate::{
         trait_marker,
     },
     sabi_trait::vtable::{BaseVtable_Ref, BaseVtable_Prefix},
-    utils::{transmute_reference,transmute_mut_reference},
     StableAbi,
 };
 
@@ -87,7 +86,7 @@ using these (fallible) conversion methods:
 )]
 pub struct RObject<'lt,P,I,V>
 where
-    P:GetPointerKind
+    P: GetPointerKind
 {
     vtable:PrefixRef<V>,
     ptr: ManuallyDrop<P>,
@@ -105,12 +104,12 @@ use self::clone_impl::CloneImpl;
 /// This impl is for smart pointers.
 impl<'lt,P, I,V> CloneImpl<PK_SmartPointer> for RObject<'lt,P,I,V>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone_impl(&self) -> Self {
         let ptr=unsafe{
-            self.sabi_robject_vtable()._sabi_clone().unwrap()(&self.ptr)
+            self.sabi_robject_vtable()._sabi_clone().unwrap()(RRef::new(&self.ptr))
         };
         Self{
             vtable:self.vtable,
@@ -123,7 +122,7 @@ where
 /// This impl is for references.
 impl<'lt,P, I,V> CloneImpl<PK_Reference> for RObject<'lt,P,I,V>
 where
-    P: Deref+Copy+GetPointerKind,
+    P: AsPtr+Copy,
     I: InterfaceType,
 {
     fn clone_impl(&self) -> Self {
@@ -176,7 +175,7 @@ let _=borrow.clone();
 */
 impl<'lt,P, I,V> Clone for RObject<'lt,P,I,V>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceType,
     Self:CloneImpl<<P as GetPointerKind>::Kind>,
 {
@@ -188,7 +187,7 @@ where
 
 impl<'lt,P,I,V> Debug for RObject<'lt,P,I,V> 
 where
-    P: Deref<Target=()>+GetPointerKind,
+    P: AsPtr<Target=()>+AsPtr,
     I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -205,7 +204,7 @@ where
 
 impl<'lt,P,I,V> Display for RObject<'lt,P,I,V> 
 where
-    P: Deref<Target=()>+GetPointerKind,
+    P: AsPtr<Target = ()>,
     I: InterfaceType<Display = Implemented<trait_marker::Display>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -221,7 +220,7 @@ where
 
 impl<'lt,P, I,V> std::error::Error for RObject<'lt,P,I,V>
 where
-    P: Deref<Target=()>+GetPointerKind,
+    P: AsPtr<Target=()>,
     I: InterfaceBound<
         Display=Implemented<trait_marker::Display>,
         Debug=Implemented<trait_marker::Debug>,
@@ -246,7 +245,7 @@ where
 
 impl<'lt,P,I,V> RObject<'lt,P,I,V>
 where
-    P:GetPointerKind<Target=()>,
+    P:AsPtr<Target=()>,
 {
 /**
 
@@ -277,7 +276,7 @@ These are the requirements for the caller:
     where 
         OrigPtr:CanTransmuteElement<(),TransmutedPtr=P>,
         OrigPtr::Target:Sized+'lt,
-        P:Deref<Target=()>,
+        P:AsPtr<Target=()>,
     {
         RObject{
             vtable,
@@ -382,7 +381,7 @@ where
     pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
     where
         T:'static,
-        P: Deref<Target=()>+CanTransmuteElement<T>,
+        P: AsPtr<Target=()> + CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe {
@@ -409,11 +408,11 @@ where
     pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
     where
         T:'static,
-        P:Deref<Target=()>+CanTransmuteElement<T>,
+        P:AsPtr<Target=()>+CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe { 
-            Ok(transmute_reference::<(),T>(&**self.ptr))
+            Ok(&*(self.ptr.as_ptr() as *const T))
         }
     }
 
@@ -435,11 +434,11 @@ where
     pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
     where
         T:'static,
-        P:DerefMut<Target=()>+CanTransmuteElement<T>,
+        P:AsMutPtr<Target=()>+CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe { 
-            Ok(transmute_mut_reference::<(),T>(&mut **self.ptr))
+            Ok(&mut *(self.ptr.as_mut_ptr() as *mut T))
         }
     }
 
@@ -453,7 +452,7 @@ where
     #[inline]
     pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
     where
-        P: Deref<Target=()> + CanTransmuteElement<T>,
+        P: AsPtr<Target=()> + CanTransmuteElement<T>,
     {
         let this=ManuallyDrop::new(self);
         ptr::read(&*this.ptr).transmute_element::<T>()
@@ -469,9 +468,9 @@ where
     #[inline]
     pub unsafe fn unchecked_as_unerased<T>(&self) -> &T
     where
-        P:Deref<Target=()>,
+        P:AsPtr<Target=()>,
     {
-        transmute_reference::<(),T>(&**self.ptr)
+        &*(self.ptr.as_ptr() as *const T)
     }
 
     /// Unwraps the `RObject<_>` into a mutable reference to T,
@@ -484,9 +483,9 @@ where
     #[inline]
     pub unsafe fn unchecked_as_unerased_mut<T>(&mut self) -> &mut T
     where
-        P:DerefMut<Target=()>,
+        P:AsMutPtr<Target=()>,
     {
-        transmute_mut_reference::<(),T>(&mut **self.ptr)
+        &mut *(self.ptr.as_mut_ptr() as *mut T)
     }
 
 }
@@ -521,15 +520,15 @@ where
     ///
     /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
     ///
-    pub fn reborrow<'re>(&'re self)->RObject<'lt,&'re (),I,V> 
+    pub fn reborrow<'re>(&'re self)->RObject<'lt, RRef<'re, ()>,I,V> 
     where
-        P:Deref<Target=()>,
+        P:AsPtr<Target=()>,
         PrivStruct:ReborrowBounds<I::Send,I::Sync>,
     {
         // Reborrowing will break if I add extra functions that operate on `P`.
         RObject{
             vtable:self.vtable,
-            ptr:ManuallyDrop::new(&**self.ptr),
+            ptr:ManuallyDrop::new(self.ptr.as_rref()),
             _marker:PhantomData,
         }
     }
@@ -542,15 +541,15 @@ where
     ///
     /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
     /// 
-    pub fn reborrow_mut<'re>(&'re mut self)->RObject<'lt,&'re mut (),I,V> 
+    pub fn reborrow_mut<'re>(&'re mut self)->RObject<'lt,RMut<'re, ()>,I,V> 
     where
-        P:DerefMut<Target=()>,
+        P:AsMutPtr<Target=()>,
         PrivStruct:ReborrowBounds<I::Send,I::Sync>,
     {
         // Reborrowing will break if I add extra functions that operate on `P`.
         RObject {
             vtable: self.vtable,
-            ptr: ManuallyDrop::new(&mut **self.ptr),
+            ptr: ManuallyDrop::new(self.ptr.as_rmut()),
             _marker:PhantomData,
         }
     }
@@ -585,41 +584,36 @@ where
     }
 
     /// Gets an `RRef` pointing to the erased object.
-    #[inline]
-    pub fn sabi_erased_ref(&self)->&ErasedObject<()>
+    pub fn sabi_erased_ref(&self) -> RRef<'_, ErasedObject<()>>
     where
-        P: __DerefTrait<Target=()>
+        P: AsPtr<Target=()>
     {
-        unsafe{&*((&**self.ptr) as *const () as *const ErasedObject<()>)}
+        unsafe{ RRef::from_raw(self.ptr.as_ptr() as *const _) }
     }
-    
+
     /// Gets an `RMut` pointing to the erased object.
-    #[inline]
-    pub fn sabi_erased_mut(&mut self)->&mut ErasedObject<()>
+    pub fn sabi_erased_mut(&mut self) -> RMut<'_, ErasedObject<()>>
     where
-        P: __DerefMutTrait<Target=()>
+        P: AsMutPtr<Target=()>
     {
-        unsafe{&mut *((&mut **self.ptr) as *mut () as *mut ErasedObject<()>)}
+        unsafe{ RMut::from_raw(self.ptr.as_mut_ptr() as *mut _) }
     }
+
 
     /// Gets an `RRef` pointing to the erased object.
     pub fn sabi_as_rref(&self) -> RRef<'_, ()>
     where
-        P: __DerefTrait<Target=()>
+        P: AsPtr<Target=()>
     {
-        unsafe {
-            std::mem::transmute(&**self.ptr as *const _ as *const ())
-        }
+        self.ptr.as_rref()
     }
 
     /// Gets an `RMut` pointing to the erased object.
     pub fn sabi_as_rmut(&mut self) -> RMut<'_, ()>
     where
-        P: __DerefMutTrait<Target=()>
+        P: AsMutPtr<Target=()>
     {
-        unsafe {
-            std::mem::transmute(&mut **self.ptr as *mut _ as *mut ())
-        }
+        self.ptr.as_rmut()
     }
 
     /// Calls the `f` callback with an `MovePtr` pointing to the erased object.
@@ -643,7 +637,7 @@ where
         if <P as GetPointerKind>::KIND==PointerKind::SmartPointer {
             let destructor=self.sabi_robject_vtable()._sabi_drop();
             unsafe{
-                destructor(&mut self.ptr);
+                destructor(RMut::<P>::new(&mut self.ptr));
             }
         }
     }

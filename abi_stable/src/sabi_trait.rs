@@ -30,7 +30,7 @@ pub mod reexports{
                 SyncSend,UnsyncUnsend,UnsyncSend,SyncUnsend,
                 NonOwningPhantom,
             },
-            pointer_trait::{CanTransmuteElement,TransmuteElement,OwnedPointer},
+            pointer_trait::{AsPtr, AsMutPtr, CanTransmuteElement,TransmuteElement,OwnedPointer},
             prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
             traits::IntoInner,
             sabi_types::{RRef,RMut,MovePtr},
@@ -56,7 +56,7 @@ pub mod reexports{
 
         pub use std::{
             marker::PhantomData,
-            mem::ManuallyDrop,
+            mem::{ManuallyDrop, transmute},
             ptr,
         };
     }

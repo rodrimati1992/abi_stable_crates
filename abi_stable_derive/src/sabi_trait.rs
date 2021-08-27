@@ -653,7 +653,7 @@ fn constructor_items(
                     #trait_bounds<#trait_params #( #assoc_tys_a= #assoc_tys_b, )* >+
                     Sized
                     #plus_lt,
-                _ErasedPtr:std::ops::Deref<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<Target=()>,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
                         Unerasability,_OrigPtr::Target,_ErasedPtr,_OrigPtr
@@ -747,14 +747,14 @@ fn reborrow_methods_tokenizer(
             totrait_def.generics_tokenizer(
                 InWhat::ItemUse,
                 WithAssocTys::Yes(WhichSelf::NoSelf),
-                &lt_tokens.lt_ref,
+                &lt_tokens.lt_rref,
             );
 
         let gen_params_use_mut=
             totrait_def.generics_tokenizer(
                 InWhat::ItemUse,
                 WithAssocTys::Yes(WhichSelf::NoSelf),
-                &lt_tokens.lt_mut,
+                &lt_tokens.lt_rmut,
             );
 
 
@@ -762,22 +762,22 @@ fn reborrow_methods_tokenizer(
             /// Reborrows this trait object to a reference-based trait object.
             #submod_vis fn sabi_reborrow<'_sub>(&'_sub self)->#trait_to<#gen_params_use_ref>
             where
-                _ErasedPtr:std::ops::Deref<Target=()>
+                _ErasedPtr: __sabi_re::AsPtr<Target=()>
             {
                 let x=self.obj.reborrow();
                 // This is transmuting the pointer type parameter of the vtable.
-                let x=unsafe{ std::mem::transmute(x) };
+                let x=unsafe{ __sabi_re::transmute(x) };
                 #trait_to::from_sabi(x)
             }
 
             /// Reborrows this trait object to a mutable-reference-based trait object.
             #submod_vis fn sabi_reborrow_mut<'_sub>(&'_sub mut self)->#trait_to<#gen_params_use_mut>
             where
-                _ErasedPtr:std::ops::DerefMut<Target=()>
+                _ErasedPtr: __sabi_re::AsMutPtr<Target=()>
             {
                 let x=self.obj.reborrow_mut();
                 // This is transmuting the pointer type parameter of the vtable.
-                let x=unsafe{ std::mem::transmute(x) };
+                let x=unsafe{ __sabi_re::transmute(x) };
                 #trait_to::from_sabi(x)
             }
         ).to_tokens(ts);

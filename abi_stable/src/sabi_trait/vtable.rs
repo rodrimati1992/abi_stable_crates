@@ -215,14 +215,14 @@ pub struct RObjectVtable<_Self,ErasedPtr,I>{
     
     pub _sabi_type_id:Constructor<MaybeCmp<UTypeId>>,
 
-    pub _sabi_drop :unsafe extern "C" fn(this:&mut ErasedPtr),
-    pub _sabi_clone:Option<unsafe extern "C" fn(this:&ErasedPtr)->ErasedPtr>,
+    pub _sabi_drop :unsafe extern "C" fn(this:RMut<'_, ErasedPtr>),
+    pub _sabi_clone:Option<unsafe extern "C" fn(this:RRef<'_, ErasedPtr>)->ErasedPtr>,
     pub _sabi_debug:Option<
-        unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
+        unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>
     >,
     #[sabi(last_prefix_field)]
     pub _sabi_display:Option<
-        unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
+        unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>
     >,
 }
 
@@ -313,21 +313,21 @@ pub mod trait_bounds{
         type Clone;
         trait InitCloneField[_Self,ErasedPtr,OrigPtr]
         where [ OrigPtr:Clone ]
-        type=unsafe extern "C" fn(this:&ErasedPtr)->ErasedPtr,
+        type=unsafe extern "C" fn(this:RRef<'_, ErasedPtr>)->ErasedPtr,
         value=c_functions::clone_pointer_impl::<OrigPtr,ErasedPtr>,
     }
     declare_field_initalizer!{
         type Debug;
         trait InitDebugField[_Self,ErasedPtr,OrigPtr]
         where [ _Self:Debug ]
-        type=unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
+        type=unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>,
         value=c_functions::debug_impl::<_Self>,
     }
     declare_field_initalizer!{
         type Display;
         trait InitDisplayField[_Self,ErasedPtr,OrigPtr]
         where [ _Self:Display ]
-        type=unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
+        type=unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>,
         value=c_functions::display_impl::<_Self>,
     }
 

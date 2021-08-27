@@ -5,7 +5,10 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::pointer_trait::{CanTransmuteElement,GetPointerKind,PK_MutReference};
+use crate::{
+    sabi_types::RRef,
+    pointer_trait::{AsPtr, AsMutPtr, CanTransmuteElement,GetPointerKind,PK_MutReference},
+};
 
 /// Equivalent to `&mut T`.
 #[repr(transparent)]
@@ -109,6 +112,35 @@ impl<'a,T> RMut<'a,T>{
     pub fn cast_into_raw<U>(self)->*mut U{
         self.ref_.as_ptr() as *mut U
     }
+
+
+    /// Transmutes this `RRefMut<'a,T>` to a `RRefMut<'a,U>`.
+    ///
+    #[inline(always)]
+    pub unsafe fn transmute_ref_mut<U>(self)->RMut<'a,U>
+    where
+        U:'a,
+    {
+        RMut::from_raw(
+            self.ref_.as_ptr() as *mut U
+        )
+    }
+
+    /// Converts this `RMut<'a, T>` to an RRef<'a, T>
+    #[inline(always)]
+    pub fn into_rref(self) -> RRef<'a, T> {
+        unsafe{
+            RRef::from_raw(self.ref_.as_ptr())
+        }
+    }
+
+    /// Reborrows this `RMut<'a, T>` into an RRef<'a, T>
+    #[inline(always)]
+    pub fn as_rref<'r>(&'r self) -> RRef<'r, T> {
+        unsafe{
+            RRef::from_raw(self.ref_.as_ptr())
+        }
+    }
 }
 
 impl<'a,T> Deref for RMut<'a,T>{
@@ -127,6 +159,19 @@ impl<'a,T> DerefMut for RMut<'a,T>{
     }
 }
 
+unsafe impl<'a, T> AsPtr for RMut<'a, T> {
+    fn as_ptr(&self) -> *const T {
+        self.ref_.as_ptr() as *const T
+    }
+}
+
+unsafe impl<'a, T> AsMutPtr for RMut<'a, T> {
+    fn as_mut_ptr(&mut self) -> *mut T {
+        self.ref_.as_ptr()
+    }
+}
+
+
 unsafe impl<'a,T> GetPointerKind for RMut<'a,T>{
     type Kind=PK_MutReference;
 }
@@ -136,6 +181,11 @@ where
     U:'a,
 {
     type TransmutedPtr= RMut<'a,U>;
+
+    #[inline(always)]
+    unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
+        self.transmute_ref_mut()
+    }
 }
 
 

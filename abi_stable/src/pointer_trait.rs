@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     marker_type::NonOwningPhantom,
-    sabi_types::MovePtr,
+    sabi_types::{MovePtr, RRef, RMut},
     utils::Transmuter,
 };
 
@@ -129,7 +129,7 @@ unsafe impl<'a,T> GetPointerKind for &'a mut T{
 ///////////
 
 /**
-Whether the pointer can be transmuted to have `T` as the referent type.
+Whether the pointer can be transmuted to an equivalent pointer with `T` as the referent type.
 
 # Safety for implementor
 
@@ -144,7 +144,37 @@ Implementors of this trait must ensure that:
 */
 pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
     /// The type of the pointer after it's element type has been changed.
-    type TransmutedPtr: Deref<Target = T>;
+    type TransmutedPtr: AsPtr<Target = T>;
+
+    /// Transmutes the element type of this pointer..
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that it is valid to convert from a pointer to `Self::Referent`
+    /// to a pointer to `T` .
+    ///
+    /// For example:
+    ///
+    /// It is undefined behavior to create unaligned references ,
+    /// therefore transmuting from `&u8` to `&u16` is UB
+    /// if the caller does not ensure that the reference is aligned to a multiple of 2 address.
+    ///
+    /// 
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{
+    ///     pointer_trait::TransmuteElement,
+    ///     std_types::RBox,
+    /// };
+    ///
+    /// let signed:RBox<u32>=unsafe{
+    ///     RBox::new(1_i32)
+    ///         .transmute_element::<u32>()
+    /// };
+    ///
+    /// ```
+    unsafe fn transmute_element_(self) -> Self::TransmutedPtr;
 }
 
 /**
@@ -191,7 +221,7 @@ pub trait TransmuteElement{
         Self:CanTransmuteElement<T>,
         Self::Target:Sized,
     {
-        transmute_ignore_size::<Self, Self::TransmutedPtr>(self)
+        self.transmute_element_()
     }
 }
 
@@ -201,15 +231,76 @@ impl<This:?Sized> TransmuteElement for This{}
 ///////////
 
 unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a T {
-    type TransmutedPtr = &'a O;
+    type TransmutedPtr = RRef<'a, O>;
+
+    unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
+        RRef::from_raw(self as *const T as *const O)
+    }
 }
 
 ///////////
 
 unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a mut T {
-    type TransmutedPtr = &'a mut O;
+    type TransmutedPtr = RMut<'a, O>;
+
+
+    unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
+        RMut::from_raw(self as *mut T as *mut O)
+    }
 }
 
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+/// For getting a const raw pointer to the value that this points to.
+/// 
+/// # Safety
+/// 
+/// The implementor of this trait must return a pointer to the same data as
+/// `Deref::deref`, without constructing a `&Self::Target` in `as_ptr`
+/// (or any function it calls),
+/// 
+/// The implementor of this trait must not override the defaulted methods.
+/// 
+pub unsafe trait AsPtr: GetPointerKind /* Deref is implied by GetPointerKind */ {
+    /// Gets a const raw pointer to the value that this points to.
+    fn as_ptr(&self) -> *const Self::Target;
+
+    /// Converts this pointer to an `RRef`.
+    #[inline(always)]
+    fn as_rref(&self) -> RRef<'_, Self::Target> 
+    where
+        Self::Target: Sized,
+    {
+        unsafe{ RRef::from_raw(self.as_ptr()) }
+    }
+}
+
+/// For getting a mutable raw pointer to the value that this points to.
+/// 
+/// # Safety
+/// 
+/// The implementor of this trait must return a pointer to the same data as
+/// `DerefMut::deref_mut`,
+/// without constructing a `&mut Self::Target` in `as_mut_ptr`
+/// (or any function it calls).
+/// 
+/// The implementor of this trait must not override the defaulted methods.
+/// 
+pub unsafe trait AsMutPtr: AsPtr + DerefMut {
+    /// Gets a mutable raw pointer to the value that this points to.
+    fn as_mut_ptr(&mut self) -> *mut Self::Target;
+
+    /// Converts this pointer to an `RRef`.
+    #[inline(always)]
+    fn as_rmut(&mut self) -> RMut<'_, Self::Target> 
+    where
+        Self::Target: Sized,
+    {
+        unsafe{ RMut::from_raw(self.as_mut_ptr()) }
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -228,7 +319,7 @@ Implementors must:
 - Not override `in_move_ptr`
 
 */
-pub unsafe trait OwnedPointer:Sized+DerefMut+GetPointerKind{
+pub unsafe trait OwnedPointer:Sized+AsMutPtr+GetPointerKind{
     /// Gets a move pointer to the contents of this pointer.
     ///
     /// # Safety

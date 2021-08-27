@@ -95,9 +95,9 @@ declare_common_tokens! {
         vtable_typarams="_Self,_ErasedPtr,",
         
         ptr_ref_bound=
-            "_ErasedPtr: __GetPointerKind<Target=()>,",
+            "_ErasedPtr: __sabi_re::AsPtr<Target=()>,",
         ptr_mut_bound=
-            "_ErasedPtr: __GetPointerKind+__DerefMutTrait<Target=()>,",
+            "_ErasedPtr: __sabi_re::AsMutPtr<Target=()>,",
         ptr_ref_val_bound=
             "_ErasedPtr: __sabi_re::OwnedPointer<Target=()>,",
         ptr_mut_val_bound=
@@ -232,6 +232,7 @@ declare_lifetime_tokens!{
         lt_erasedptr="_ErasedPtr,",
         lt_rbox="__sabi_re::RBox<()>,",
         lt_rref="__sabi_re::RRef<'_sub,()>,",
+        lt_rmut="__sabi_re::RMut<'_sub,()>,",
         lt_ref="&'_sub(),",
         lt_mut="&'_sub mut (),",
         lt_sub_lt="'_sub,",

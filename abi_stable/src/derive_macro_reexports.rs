@@ -28,7 +28,7 @@ pub use crate::{
         NonExhaustive,
     },
     reflection::ModReflMode,
-    pointer_trait::{ImmutableRef, ImmutableRefTarget},
+    pointer_trait::{AsPtr, AsMutPtr, ImmutableRef, ImmutableRefTarget},
     prefix_type::{
         panic_on_missing_field_ty,
         FieldAccessibility,

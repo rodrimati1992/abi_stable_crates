@@ -635,6 +635,7 @@ impl std::error::Error for UnequalConstError{}
 
 
 use crate::{
+    sabi_types::{RRef, RMut},
     std_types::{RBox,RBoxError,RCow,RResult,ROption,RNone,ROk},
     type_layout::TypeLayout,
     traits::IntoReprC,
@@ -696,7 +697,7 @@ pub unsafe trait TypeChecker:'static+Send+Sync{
 
 /// An ffi-safe equivalent of &'b mut dyn TypeChecker
 pub type TypeCheckerMut<'b>=
-    TypeChecker_TO<&'b mut ()>;
+    TypeChecker_TO<RMut<'b, ()>>;
 
 /// Allows defining extra checks for a type.
 ///
@@ -813,10 +814,10 @@ This returns:
 pub type StoredExtraChecks=ExtraChecks_CTO<'static>;
 
 /// An ffi-safe equivalent of `&'static dyn ExtraChecks`.
-pub type ExtraChecksStaticRef=ExtraChecks_TO<&'static ()>;
+pub type ExtraChecksStaticRef=ExtraChecks_TO<RRef<'static, ()>>;
 
 /// An ffi-safe equivalent of `&'a dyn ExtraChecks`.
-pub type ExtraChecksRef<'a>=ExtraChecks_TO<&'a ()>;
+pub type ExtraChecksRef<'a>=ExtraChecks_TO<RRef<'a, ()>>;
 
 /// An ffi-safe equivalent of `Box<dyn ExtraChecks>`.
 pub type ExtraChecksBox=ExtraChecks_TO<RBox<()>>;
@@ -894,7 +895,7 @@ If the closure returns an `ExtraChecksError`,it'll be returned unmodified and un
         rtry!( checker.check_compatibility(<Self as StableAbi>::LAYOUT,other.type_layout()) );
         let other_ue=unsafe{ other.obj.unchecked_into_unerased::<Self>() };
 
-        f(other_ue,checker)
+        f(other_ue.get(),checker)
             .map_err(|e|{
                 match RBoxError::new(e).downcast::<ExtraChecksError>() {
                     Ok(x)=>x.piped(RBox::into_inner),

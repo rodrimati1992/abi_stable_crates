@@ -1,7 +1,8 @@
 use crate::{
+    sabi_types::{RRef, RMut},
     std_types::{RVec,ROption,RSome,RNone,Tuple2},
     marker_type::{ErasedObject, NonOwningPhantom},
-    utils::{Transmuter, transmute_reference,transmute_mut_reference},
+    utils::Transmuter,
     traits::IntoReprC,
 };
 
@@ -12,18 +13,18 @@ use crate::{
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct IteratorFns<Item>{
-    pub(super) next       :unsafe extern "C" fn(&mut ErasedObject)->ROption<Item>,
+    pub(super) next       :unsafe extern "C" fn( RMut<'_, ErasedObject>)->ROption<Item>,
     pub(super) extending_rvec:
         unsafe extern "C" fn(
-            &mut ErasedObject,
+             RMut<'_, ErasedObject>,
             &mut RVec<Item>,
             ROption<usize>
         ),
-    pub(super) size_hint  :unsafe extern "C" fn(&    ErasedObject)-> Tuple2<usize, ROption<usize>>,    
-    pub(super) count      :unsafe extern "C" fn(&mut ErasedObject)->usize,
-    pub(super) last       :unsafe extern "C" fn(&mut ErasedObject)->ROption<Item>,
-    pub(super) nth        :unsafe extern "C" fn(&mut ErasedObject,usize)->ROption<Item>,
-    pub(super) skip_eager :unsafe extern "C" fn(&mut ErasedObject,usize),
+    pub(super) size_hint  :unsafe extern "C" fn(RRef<'_, ErasedObject>)-> Tuple2<usize, ROption<usize>>,    
+    pub(super) count      :unsafe extern "C" fn( RMut<'_, ErasedObject>)->usize,
+    pub(super) last       :unsafe extern "C" fn( RMut<'_, ErasedObject>)->ROption<Item>,
+    pub(super) nth        :unsafe extern "C" fn( RMut<'_, ErasedObject>,usize)->ROption<Item>,
+    pub(super) skip_eager :unsafe extern "C" fn( RMut<'_, ErasedObject>,usize),
 }
 
 
@@ -64,24 +65,24 @@ where I:Iterator
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-pub(super) unsafe extern "C" fn next<I>(this:&mut ErasedObject)->ROption<I::Item>
+pub(super) unsafe extern "C" fn next<I>(this: RMut<'_, ErasedObject>)->ROption<I::Item>
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,I>(this);
+        let this = &mut *this.cast_into_raw::<I>();
         this.next().into_c()
     }
 }
 
 pub(super) unsafe extern "C" fn extending_rvec<I>(
-    this:&mut ErasedObject,
+    this: RMut<'_, ErasedObject>,
     vec:&mut RVec<I::Item>,
     taking:ROption<usize>,
 )where 
     I:Iterator
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,I>(this);
+        let this = &mut *this.cast_into_raw::<I>();
 
         vec.extend(
             this.take(taking.unwrap_or(!0))
@@ -89,49 +90,49 @@ pub(super) unsafe extern "C" fn extending_rvec<I>(
     }
 }
 
-pub(super) unsafe extern "C" fn size_hint<I>(this:&ErasedObject)-> Tuple2<usize, ROption<usize>>
+pub(super) unsafe extern "C" fn size_hint<I>(this:RRef<'_, ErasedObject>)-> Tuple2<usize, ROption<usize>>
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this=transmute_reference::<ErasedObject,I>(this);
+        let this = &*this.cast_into_raw::<I>();
         let (l,r)=this.size_hint();
 
         Tuple2(l,r.into_c())
     }
 }
 
-pub(super) unsafe extern "C" fn count<I>(this:&mut ErasedObject)->usize
+pub(super) unsafe extern "C" fn count<I>(this: RMut<'_, ErasedObject>)->usize
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,I>(this);
+        let this = &mut *this.cast_into_raw::<I>();
         this.count()
     }
 }
 
-pub(super) unsafe extern "C" fn last<I>(this:&mut ErasedObject)->ROption<I::Item>
+pub(super) unsafe extern "C" fn last<I>(this: RMut<'_, ErasedObject>)->ROption<I::Item>
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,I>(this);
+        let this = &mut *this.cast_into_raw::<I>();
         this.last().into_c()
     }
 }
 
-pub(super) unsafe extern "C" fn nth<I>(this:&mut ErasedObject,at:usize)->ROption<I::Item>
+pub(super) unsafe extern "C" fn nth<I>(this: RMut<'_, ErasedObject>,at:usize)->ROption<I::Item>
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,I>(this);
+        let this = &mut *this.cast_into_raw::<I>();
         this.nth(at).into_c()
     }
 }
 
-pub(super) unsafe extern "C" fn skip_eager<I>(this:&mut ErasedObject,skipping:usize)
+pub(super) unsafe extern "C" fn skip_eager<I>(this: RMut<'_, ErasedObject>,skipping:usize)
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,I>(this);
+        let this = &mut *this.cast_into_raw::<I>();
 
         if skipping!=0 {
             let _=this.nth(skipping-1);
@@ -150,14 +151,14 @@ where I:Iterator
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct DoubleEndedIteratorFns<Item>{
-    pub(super) next_back       :unsafe extern "C" fn(&mut ErasedObject)->ROption<Item>,
+    pub(super) next_back       :unsafe extern "C" fn( RMut<'_, ErasedObject>)->ROption<Item>,
     pub(super) extending_rvec_back:
         unsafe extern "C" fn(
-            &mut ErasedObject,
+             RMut<'_, ErasedObject>,
             &mut RVec<Item>,
             ROption<usize>
         ),
-    pub(super) nth_back:unsafe extern "C" fn(&mut ErasedObject,usize)->ROption<Item>,
+    pub(super) nth_back:unsafe extern "C" fn( RMut<'_, ErasedObject>,usize)->ROption<Item>,
 }
 
 
@@ -194,25 +195,25 @@ where I:DoubleEndedIterator
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-pub(super) unsafe extern "C" fn next_back<I>(this:&mut ErasedObject)->ROption<I::Item>
+pub(super) unsafe extern "C" fn next_back<I>(this: RMut<'_, ErasedObject>)->ROption<I::Item>
 where 
     I:DoubleEndedIterator
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,I>(this);
+        let this = &mut *this.cast_into_raw::<I>();
         this.next_back().into_c()
     }
 }
 
 pub(super) unsafe extern "C" fn extending_rvec_back<I>(
-    this:&mut ErasedObject,
+    this: RMut<'_, ErasedObject>,
     vec:&mut RVec<I::Item>,
     taking:ROption<usize>
 )where 
     I:DoubleEndedIterator
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,I>(this);
+        let this = &mut *this.cast_into_raw::<I>();
 
         vec.extend(
             this.rev().take(taking.unwrap_or(!0))
@@ -220,12 +221,12 @@ pub(super) unsafe extern "C" fn extending_rvec_back<I>(
     }
 }
 
-pub(super) unsafe extern "C" fn nth_back<I>(this:&mut ErasedObject,mut at:usize)->ROption<I::Item>
+pub(super) unsafe extern "C" fn nth_back<I>(this: RMut<'_, ErasedObject>,mut at:usize)->ROption<I::Item>
 where 
     I:DoubleEndedIterator
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,I>(this);
+        let this = &mut *this.cast_into_raw::<I>();
         for x in this.rev() {
             if at == 0 { 
                 return RSome(x) 

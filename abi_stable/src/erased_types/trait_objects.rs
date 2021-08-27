@@ -13,8 +13,9 @@ use super::{c_functions::*, *};
 
 use crate::{
     marker_type::ErasedObject,
+    sabi_types::{RRef, RMut},
     std_types::RBox,
-    pointer_trait::TransmuteElement,
+    pointer_trait::{AsPtr, TransmuteElement},
 };
 
 
@@ -26,9 +27,9 @@ use crate::{
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct HasherObject<'a> {
-    this:&'a mut ErasedObject,
-    hash_slice: unsafe extern "C" fn(&mut ErasedObject, RSlice<'_, u8>) ,
-    finish: unsafe extern "C" fn(&ErasedObject) -> u64 ,
+    this: RMut<'a, ErasedObject>,
+    hash_slice: unsafe extern "C" fn(RMut<'_, ErasedObject>, RSlice<'_, u8>) ,
+    finish: unsafe extern "C" fn(RRef<'_, ErasedObject>) -> u64 ,
 }
 
 impl<'a> HasherObject<'a> {
@@ -50,7 +51,7 @@ impl<'a> HasherObject<'a> {
     /// Reborrows this `HasherObject` with a smaller lifetime.
     pub fn as_mut<'b:'a>(&'b mut self)->HasherObject<'b>{
         Self{
-            this:&mut self.this,
+            this: self.this.reborrow(),
             hash_slice:self.hash_slice,
             finish:self.finish,
         }
@@ -60,12 +61,12 @@ impl<'a> HasherObject<'a> {
 impl<'a> Hasher for HasherObject<'a>{
     fn finish(&self) -> u64 {
         unsafe{
-            (self.finish)(&*self.this)
+            (self.finish)(self.this.as_rref())
         }
     }
     fn write(&mut self, bytes: &[u8]) {
         unsafe{
-            (self.hash_slice)(&mut *self.this, bytes.into())
+            (self.hash_slice)(self.this.reborrow(), bytes.into())
         }
     }
 }
@@ -79,8 +80,8 @@ impl<'a> Hasher for HasherObject<'a>{
 #[derive(StableAbi)]
 pub struct DebugDisplayObject{
     this:RBox<ErasedObject>,
-    display:unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
-    debug  :unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
+    display:unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>,
+    debug  :unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>,
 }
 
 
@@ -109,7 +110,7 @@ impl DebugDisplayObject{
 impl Display for DebugDisplayObject{
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
         unsafe{
-            adapt_std_fmt::<ErasedObject>(&*self.this, self.display , f)
+            adapt_std_fmt::<ErasedObject>(self.this.as_rref(), self.display , f)
         }
     }
 }
@@ -118,7 +119,7 @@ impl Display for DebugDisplayObject{
 impl Debug for DebugDisplayObject{
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
         unsafe{
-            adapt_std_fmt::<ErasedObject>(&*self.this, self.debug , f)
+            adapt_std_fmt::<ErasedObject>(self.this.as_rref(), self.debug , f)
         }
     }
 }
