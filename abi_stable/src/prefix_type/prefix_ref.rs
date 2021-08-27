@@ -180,7 +180,7 @@ impl<P> PrefixRef<P>{
     /// assert_eq!(MODULE.third(), Some(8)); 
     /// 
     /// ```
-    #[inline]
+    #[inline(always)]
     pub const unsafe fn from_raw<T>(ptr: *const WithMetadata_<T, P>) -> Self {
         Self{
             ptr: NonNull::new_unchecked(

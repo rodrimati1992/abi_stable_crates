@@ -344,6 +344,7 @@ pub static LIB_HEADER:library::AbiHeader=library::AbiHeader::VALUE;
 pub mod reexports{
     pub use core_extensions::SelfOps;
     pub use core_extensions::type_level_bool::{True, False};
+    pub use core_extensions::utils::transmute_ignore_size;
 }
 
 

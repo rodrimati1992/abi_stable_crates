@@ -271,7 +271,7 @@ fn parse_sabi_trait_attr<'a>(
                 this.attrs.derive_attrs.push(attr);
             }
         }
-    };
+    }
 
     match (pctx, attr) {
         (_, Meta::Path(path)) => {

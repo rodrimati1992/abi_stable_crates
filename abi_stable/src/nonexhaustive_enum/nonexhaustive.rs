@@ -33,6 +33,7 @@ use crate::{
         impl_enum::Implemented,
         trait_marker,
     },
+    sabi_types::{RRef, RMut},
     std_types::RBoxError,
     traits::IntoReprRust,
 };
@@ -576,21 +577,21 @@ This panics if the storage has an alignment or size smaller than that of `F`.
         self.vtable
     }
 
-    fn sabi_erased_ref(&self)->&ErasedObject{
+    fn sabi_erased_ref(&self)->RRef<'_, ErasedObject>{
         unsafe{
-            &*(&self.fill as *const ScratchSpace<S> as *const ErasedObject)
+            RRef::from_raw(&self.fill as *const ScratchSpace<S> as *const ErasedObject)
         }
     }
 
-    fn as_erased_ref(&self)->&ErasedObject{
+    fn as_erased_ref(&self)->RRef<'_, ErasedObject>{
         unsafe{
-            &*(self as *const Self as *const ErasedObject)
+            RRef::from_raw(self as *const Self as *const ErasedObject)
         }
     }
 
-    fn sabi_erased_mut(&mut self)->&mut ErasedObject{
+    fn sabi_erased_mut(&mut self)->RMut<'_, ErasedObject>{
         unsafe{
-            &mut *(&mut self.fill as *mut ScratchSpace<S> as *mut ErasedObject)
+            RMut::from_raw(&mut self.fill as *mut ScratchSpace<S> as *mut ErasedObject)
         }
     }
 }

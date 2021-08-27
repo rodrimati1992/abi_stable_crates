@@ -30,6 +30,8 @@ use crate::{
     traits::{IntoReprRust,ErasedType},
     std_types::{RResult,ROk,RErr,ROption,RDuration,RBox},
     prefix_type::{PrefixTypeTrait,WithMetadata},
+    pointer_trait::AsPtr,
+    sabi_types::RRef,
 };
 
 
@@ -208,7 +210,7 @@ assert!( tx.send(0).is_err() );
     pub fn send(&self,value:T) -> Result<(),SendError<T>>{
         let vtable=self.vtable();
 
-        vtable.send()(&*self.channel,value)
+        vtable.send()(self.channel.as_rref(),value)
             .piped(result_from)
     }
 
@@ -244,7 +246,7 @@ assert!( tx.try_send(false).unwrap_err().is_disconnected() );
     pub fn try_send(&self,value:T) -> Result<(),TrySendError<T>>{
         let vtable=self.vtable();
 
-        vtable.try_send()(&*self.channel,value)
+        vtable.try_send()(self.channel.as_rref(),value)
             .piped(result_from)
     }
 
@@ -282,7 +284,7 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     pub fn send_timeout(&self,value:T,timeout:Duration) -> Result<(),SendTimeoutError<T>>{
         let vtable=self.vtable();
 
-        vtable.send_timeout()(&*self.channel,value,timeout.into())
+        vtable.send_timeout()(self.channel.as_rref(),value,timeout.into())
             .piped(result_from)
     }
 
@@ -306,7 +308,7 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     pub fn is_empty(&self) -> bool{
         let vtable=self.vtable();
 
-        vtable.sender_is_empty()(&*self.channel)
+        vtable.sender_is_empty()(self.channel.as_rref())
     }
 
     /// Returns true if the channel queue is full.
@@ -334,7 +336,7 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     pub fn is_full(&self) -> bool{
         let vtable=self.vtable();
 
-        vtable.sender_is_full()(&*self.channel)
+        vtable.sender_is_full()(self.channel.as_rref())
     }
 
     /// Returns the amount of values in the channel queue.
@@ -361,7 +363,7 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     pub fn len(&self) -> usize{
         let vtable=self.vtable();
         
-        vtable.sender_len()(&*self.channel)
+        vtable.sender_len()(self.channel.as_rref())
     }
 
     /// Returns the amount of values the channel queue can hold.
@@ -386,7 +388,7 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     pub fn capacity(&self) -> Option<usize>{
         let vtable=self.vtable();
         
-        vtable.sender_capacity()(&*self.channel)
+        vtable.sender_capacity()(self.channel.as_rref())
             .into_rust()
     }
 
@@ -401,7 +403,7 @@ impl<T> Clone for RSender<T>{
         let vtable=self.vtable();
 
         Self{
-            channel:vtable.clone_sender()(&*self.channel),
+            channel:vtable.clone_sender()(self.channel.as_rref()),
             vtable:self.vtable,
         }
     }
@@ -504,7 +506,7 @@ assert!( rx.recv().is_err() );
     pub fn recv(&self) -> Result<T,RecvError>{
         let vtable=self.vtable();
 
-        vtable.recv()(&*self.channel)
+        vtable.recv()(self.channel.as_rref())
             .piped(result_from)
     }
 
@@ -541,7 +543,7 @@ assert!( rx.try_recv().is_err() );
     pub fn try_recv(&self) -> Result<T,TryRecvError>{
         let vtable=self.vtable();
 
-        vtable.try_recv()(&*self.channel)
+        vtable.try_recv()(self.channel.as_rref())
             .piped(result_from)
     }
 
@@ -582,7 +584,7 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     pub fn recv_timeout(&self,timeout:Duration) -> Result<T,RecvTimeoutError>{
         let vtable=self.vtable();
 
-        vtable.recv_timeout()(&*self.channel,timeout.into())
+        vtable.recv_timeout()(self.channel.as_rref(),timeout.into())
             .piped(result_from)
     }
 
@@ -606,7 +608,7 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     pub fn is_empty(&self) -> bool{
         let vtable=self.vtable();
 
-        vtable.receiver_is_empty()(&*self.channel)
+        vtable.receiver_is_empty()(self.channel.as_rref())
     }
 
     /// Returns true if the channel queue is full.
@@ -634,7 +636,7 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     pub fn is_full(&self) -> bool{
         let vtable=self.vtable();
 
-        vtable.receiver_is_full()(&*self.channel)
+        vtable.receiver_is_full()(self.channel.as_rref())
     }
 
     /// Returns the amount of values in the channel queue.
@@ -661,7 +663,7 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     pub fn len(&self) -> usize{
         let vtable=self.vtable();
         
-        vtable.receiver_len()(&*self.channel)
+        vtable.receiver_len()(self.channel.as_rref())
     }
 
     /// Returns the amount of values the channel queue can hold.
@@ -686,7 +688,7 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     pub fn capacity(&self) -> Option<usize>{
         let vtable=self.vtable();
         
-        vtable.receiver_capacity()(&*self.channel)
+        vtable.receiver_capacity()(self.channel.as_rref())
             .into_rust()
     }
 
@@ -751,7 +753,7 @@ impl<T> Clone for RReceiver<T>{
         let vtable=self.vtable();
 
         Self{
-            channel:vtable.clone_receiver()(&*self.channel),
+            channel:vtable.clone_receiver()(self.channel.as_rref()),
             vtable:self.vtable,
         }
     }
@@ -803,7 +805,7 @@ struct ErasedSender<T>(
     UnsafeIgnoredType<Sender<T>>,
 );
 
-unsafe impl<'a,T:'a> ErasedType<'a> for ErasedSender<T> {
+unsafe impl<T> ErasedType<'_> for ErasedSender<T> {
     type Unerased=Sender<T>;
 }
 
@@ -814,7 +816,7 @@ struct ErasedReceiver<T>(
     UnsafeIgnoredType<Receiver<T>>,
 );
 
-unsafe impl<'a,T:'a> ErasedType<'a> for ErasedReceiver<T> {
+unsafe impl<T> ErasedType<'_> for ErasedReceiver<T> {
     type Unerased=Receiver<T>;
 }
 
@@ -827,37 +829,36 @@ unsafe impl<'a,T:'a> ErasedType<'a> for ErasedReceiver<T> {
 #[sabi(missing_field(panic))]
 //#[sabi(debug_print)]
 struct VTable<T>{
-    send:extern "C" fn(this:&ErasedSender<T>,T) -> RResult<(),RSendError<T>>,
-    try_send:extern "C" fn(this:&ErasedSender<T>,T) -> RResult<(),RTrySendError<T>>,
+    send:extern "C" fn(this: RRef<'_, ErasedSender<T>>,T) -> RResult<(),RSendError<T>>,
+    try_send:extern "C" fn(this: RRef<'_, ErasedSender<T>>,T) -> RResult<(),RTrySendError<T>>,
     send_timeout:
         extern "C" fn(
-            this:&ErasedSender<T>,
+            this: RRef<'_, ErasedSender<T>>,
             value:T,
             timeout:RDuration
         ) -> RResult<(),RSendTimeoutError<T>>,
-    clone_sender:extern "C" fn(this:&ErasedSender<T>) -> RBox<ErasedSender<T>>,
-    sender_is_empty:extern "C" fn(this:&ErasedSender<T>) -> bool,
-    sender_is_full:extern "C" fn(this:&ErasedSender<T>) -> bool,
-    sender_len:extern "C" fn(this:&ErasedSender<T>) -> usize,
-    sender_capacity:extern "C" fn(this:&ErasedSender<T>) -> ROption<usize>,
+    clone_sender:extern "C" fn(this: RRef<'_, ErasedSender<T>>) -> RBox<ErasedSender<T>>,
+    sender_is_empty:extern "C" fn(this: RRef<'_, ErasedSender<T>>) -> bool,
+    sender_is_full:extern "C" fn(this: RRef<'_, ErasedSender<T>>) -> bool,
+    sender_len:extern "C" fn(this: RRef<'_, ErasedSender<T>>) -> usize,
+    sender_capacity:extern "C" fn(this: RRef<'_, ErasedSender<T>>) -> ROption<usize>,
 
     
     recv:
-        extern "C" fn(this:&ErasedReceiver<T>) -> RResult<T,RRecvError>,
+        extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> RResult<T,RRecvError>,
     try_recv:
-        extern "C" fn(this:&ErasedReceiver<T>) -> RResult<T,RTryRecvError>,
+        extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> RResult<T,RTryRecvError>,
     recv_timeout:
         extern "C" fn(
-            this:&ErasedReceiver<T>, 
+            this: RRef<'_, ErasedReceiver<T>>, 
             timeout: RDuration
         ) -> RResult<T,RRecvTimeoutError>,
-    clone_receiver:extern "C" fn(this:&ErasedReceiver<T>) -> RBox<ErasedReceiver<T>>,
-    receiver_is_empty:extern "C" fn(this:&ErasedReceiver<T>) -> bool,
-    receiver_is_full:extern "C" fn(this:&ErasedReceiver<T>) -> bool,
-    receiver_len:extern "C" fn(this:&ErasedReceiver<T>) -> usize,
+    clone_receiver:extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> RBox<ErasedReceiver<T>>,
+    receiver_is_empty:extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> bool,
+    receiver_is_full:extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> bool,
+    receiver_len:extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> usize,
     #[sabi(last_prefix_field)]
-    receiver_capacity:extern "C" fn(this:&ErasedReceiver<T>) -> ROption<usize>,
-
+    receiver_capacity:extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> ROption<usize>,
 }
 
 

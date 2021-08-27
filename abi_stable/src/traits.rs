@@ -7,7 +7,10 @@ use std::ops::Deref;
 #[allow(unused_imports)]
 use core_extensions::prelude::*;
 
-use crate::pointer_trait::{CanTransmuteElement,TransmuteElement};
+use crate::{
+    pointer_trait::{CanTransmuteElement,TransmuteElement},
+    sabi_types::{RRef, RMut},
+};
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -140,13 +143,21 @@ pub(crate) unsafe trait ErasedType<'a>:Sized{
 
 
     #[inline]
-    unsafe fn run_as_unerased<P,F,R>(p:P,func:F)->R
+    unsafe fn run_as_unerased<'b, F,R>(p: RRef<'b, Self>,func:F)->R
     where 
-        P:Deref<Target=Self>,
-        P:CanTransmuteElement<Self::Unerased>,
-        F:FnOnce(P::TransmutedPtr)->R,
+        Self::Unerased: 'b,
+        F:FnOnce(&'b Self::Unerased)->R,
     {
-        func(Self::into_unerased(p))
+        func(&*p.cast_into_raw::<Self::Unerased>())
+    }
+
+    #[inline]
+    unsafe fn run_as_unerased_mut<'b, F, R>(p: RMut<'b, Self>,func:F)->R
+    where 
+        Self::Unerased: 'b,
+        F:FnOnce(&'b mut Self::Unerased)->R,
+    {
+        func(&mut *p.cast_into_raw())
     }
 
 

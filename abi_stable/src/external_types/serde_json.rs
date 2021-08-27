@@ -5,7 +5,6 @@ Ffi-safe equivalents of `serde_json` types.
 use std::{
     convert::{TryFrom,TryInto},
     fmt::{self,Debug,Display},
-    mem,
 };
 
 use serde::{Deserialize,Serialize,Deserializer,Serializer};
@@ -582,23 +581,17 @@ impl<'de> Deserialize<'de> for RawValueBox{
 
 
 fn from_boxed_rawvalue(x:Box<RawValue>)->Box<str>{
-    // This would become Undefined Behavior in either of these cases:
-    //
-    // - serde_json somehow changes RawValue to be more than a newtype wrapper around `str`
-    //
-    // - transmuting from Box<ReprTransparentNewtype> to Box<str>
-    //
-    unsafe{ mem::transmute::<Box<RawValue>,Box<str>>(x) }
+    // This would become Undefined Behavior if 
+    // serde_json somehow changes RawValue to not be a transparent wrapper around `str`
+    unsafe{
+        Box::from_raw(Box::into_raw(x) as *mut str)
+    }
 }
 
 
 unsafe fn into_ref_rawvalue(x:&str)->&RawValue{
-    // This would become Undefined Behavior in either of these cases:
-    //
-    // - serde_json somehow changes RawValue to be more than a newtype wrapper around `str`
-    //
-    // - transmuting from &ReprTransparentNewtype to &str
-    //
+    // This would become Undefined Behavior if 
+    // serde_json somehow changes RawValue to not be a transparent wrapper around `str`
     &*(x as *const str as *const RawValue)
 }
 

@@ -5,7 +5,6 @@ Contains the `DynTrait` type,and related traits/type aliases.
 use std::{
     fmt::{self,Write as fmtWrite},
     io,
-    ops::DerefMut,
     mem::ManuallyDrop,
     ptr,
     rc::Rc,
@@ -19,6 +18,7 @@ use core_extensions::{prelude::*, ResultLike};
 use crate::{
     abi_stability::StableAbi,
     pointer_trait::{
+        AsPtr, AsMutPtr,
         CanTransmuteElement,TransmuteElement,OwnedPointer,
         GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
     },
@@ -567,9 +567,15 @@ where
     // Using this to ensure that the pointer is safe to wrap,
     // while this is not necessary for `RBox<T>`,
     // it might be for some other pointer type.
-    RBox<T>:CanTransmuteElement<O,Kind=Self::Kind>
+    RBox<T>: CanTransmuteElement<O,Kind=Self::Kind>
 {
     type TransmutedPtr = NewtypeBox<O>;
+
+    unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
+        // Using this instead of `std::mem::transmute`,
+        // because the std one doesn't understand the size of generic types
+        abi_stable::reexports::transmute_ignore_size::<Self, Self::TransmutedPtr>(self)
+    }
 }
 
 /////////////////////////////////////////
@@ -587,6 +593,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
 
     
     */
+    
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
@@ -607,7 +614,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
 
     }
 
-    impl DynTrait<'static,&'static (),()> {
+    impl DynTrait<'static,RRef<'static, ()>,()> {
         /// Constructs the `DynTrait<_>` from a `T:ImplType`.
         ///
         /// Use this whenever possible instead of `from_any_value`,
@@ -631,7 +638,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             T: ImplType,
             T::Interface:InterfaceBound,
             T: GetVtable<'static,T,P::TransmutedPtr,P,<T as ImplType>::Interface>,
-            P: Deref<Target = T>+CanTransmuteElement<()>+GetPointerKind,
+            P: AsPtr<Target = T>+CanTransmuteElement<()>+GetPointerKind,
             P::TransmutedPtr:GetPointerKind,
         {
             DynTrait {
@@ -666,7 +673,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             I:InterfaceBound,
             T:'static,
             InterfaceFor<T,I,TU_Unerasable>: GetVtable<'static,T,P::TransmutedPtr,P,I>,
-            P: Deref<Target = T>+CanTransmuteElement<()>+GetPointerKind,
+            P: AsPtr<Target = T>+CanTransmuteElement<()>+GetPointerKind,
             P::TransmutedPtr:GetPointerKind,
         {
             DynTrait {
@@ -708,7 +715,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             T:'borr,
             I:InterfaceBound,
             InterfaceFor<T,I,TU_Opaque>: GetVtable<'borr,T,P::TransmutedPtr,P,I>,
-            P: Deref<Target = T>+CanTransmuteElement<()>+GetPointerKind,
+            P: AsPtr<Target = T>+CanTransmuteElement<()>+GetPointerKind,
             P::TransmutedPtr:GetPointerKind,
         {
             DynTrait {
@@ -727,7 +734,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
 
     impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV>
     where
-        P:GetPointerKind<Target=()>
+        P:AsPtr<Target=()>
     {
         /// Constructs an DynTrait from an erased pointer and an extra value.
         pub fn with_extra_value<OrigPtr,Unerasability>(
@@ -849,7 +856,7 @@ fn main(){
             let _ = ManuallyDrop::new(unerasability);
             DynTrait {
                 object: unsafe{
-                    let x=RRef::new(ptr).transmute_ref::<()>();
+                    let x = RRef::from_raw(ptr as *const T as *const ());
                     ManuallyDrop::new(x)
                 },
                 vtable: vtable_for.vtable,
@@ -919,58 +926,74 @@ fn main(){
         /// Returns the address of the wrapped object.
         pub fn sabi_object_address(&self) -> usize
         where
-            P: Deref,
+            P: AsPtr,
         {
-            self.sabi_erased_ref() as *const ErasedObject as usize
+            self.object.as_ptr() as *const () as usize
         }
 
+        // Safety: Only call this in unerasure functions
         unsafe fn sabi_object_as<T>(&self) -> &T
         where
-            P: Deref,
+            P: AsPtr,
         {
-            &*((&**self.object) as *const P::Target as *const T)
+            &*(self.object.as_ptr() as *const P::Target as *const T)
         }
+
+        // Safety: Only call this in unerasure functions
         unsafe fn sabi_object_as_mut<T>(&mut self) -> &mut T
         where
-            P: DerefMut,
+            P: AsMutPtr,
         {
-            &mut *((&mut **self.object) as *mut P::Target as *mut T)
+            &mut *(self.object.as_mut_ptr() as *mut P::Target as *mut T)
         }
         
         /// Gets a reference pointing to the erased object.
-        pub fn sabi_erased_ref(&self) -> &ErasedObject
+        pub fn sabi_erased_ref(&self) -> RRef<'_, ErasedObject>
         where
-            P: Deref,
+            P: AsPtr,
         {
-            unsafe { self.sabi_object_as() }
+            unsafe {
+                RRef::from_raw(self.object.as_ptr() as *const ErasedObject)
+            }
+        }
+        
+        pub(super) unsafe fn sabi_erased_ref_unbounded_lifetime<'a>(&self) -> RRef<'a, ErasedObject>
+        where
+            P: AsPtr,
+        {
+            unsafe {
+                RRef::from_raw(self.object.as_ptr() as *const ErasedObject)
+            }
         }
 
         /// Gets a mutable reference pointing to the erased object.
         #[inline]
-        pub fn sabi_erased_mut(&mut self) -> &mut ErasedObject
+        pub fn sabi_erased_mut(&mut self) -> RMut<'_, ErasedObject>
         where
-            P: DerefMut,
+            P: AsMutPtr,
         {
-            unsafe { self.sabi_object_as_mut() }
+            unsafe {
+                RMut::from_raw(self.object.as_mut_ptr() as *mut ErasedObject)
+            }
         }
 
         /// Gets an `RRef` pointing to the erased object.
         pub fn sabi_as_rref(&self) -> RRef<'_, ()>
         where
-            P: Deref,
+            P: AsPtr,
         {
             unsafe {
-                std::mem::transmute(&**self.object as *const _ as *const ())
+                RRef::from_raw(self.object.as_ptr() as *const ())
             }
         }
 
         /// Gets an `RMut` pointing to the erased object.
         pub fn sabi_as_rmut(&mut self) -> RMut<'_, ()>
         where
-            P: DerefMut,
+            P: AsMutPtr,
         {
             unsafe {
-                std::mem::transmute(&mut **self.object as *mut _ as *mut ())
+                RMut::from_raw(self.object.as_mut_ptr() as *mut ())
             }
         }
 
@@ -1062,7 +1085,7 @@ fn main(){
         ///
         pub fn as_unerased_impltype<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
-            P: Deref + CanTransmuteElement<T>,
+            P: AsPtr + CanTransmuteElement<T>,
             T: ImplType,
         {
             check_unerased!(self,self.sabi_check_same_destructor::<T,T>());
@@ -1087,7 +1110,7 @@ fn main(){
         ///
         pub fn as_unerased_mut_impltype<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
-            P: DerefMut + CanTransmuteElement<T>,
+            P: AsMutPtr + CanTransmuteElement<T>,
             T: ImplType,
         {
             check_unerased!(self,self.sabi_check_same_destructor::<T,T>());
@@ -1150,7 +1173,7 @@ fn main(){
         pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
             T:'static,
-            P: Deref + CanTransmuteElement<T>,
+            P: AsPtr + CanTransmuteElement<T>,
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,TU_Unerasable>: ImplType,
         {
@@ -1179,7 +1202,7 @@ fn main(){
         ///
         pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
-            P: DerefMut + CanTransmuteElement<T>,
+            P: AsMutPtr + CanTransmuteElement<T>,
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,TU_Unerasable>: ImplType,
         {
@@ -1200,7 +1223,7 @@ fn main(){
         #[inline]
         pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
         where
-            P: Deref+ CanTransmuteElement<T>,
+            P: AsPtr+ CanTransmuteElement<T>,
             P::Target:Sized,
         {
             let this=ManuallyDrop::new(self);
@@ -1217,7 +1240,7 @@ fn main(){
         #[inline]
         pub unsafe fn unchecked_as_unerased<T>(&self) -> &T
         where
-            P: Deref
+            P: AsPtr
         {
             self.sabi_object_as()
         }
@@ -1232,7 +1255,7 @@ fn main(){
         #[inline]
         pub unsafe fn unchecked_as_unerased_mut<T>(&mut self) -> &mut T
         where
-            P: DerefMut
+            P: AsMutPtr
         {
             self.sabi_object_as_mut()
         }
@@ -1273,15 +1296,15 @@ fn main(){
         /// 
         /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
         /// 
-        pub fn reborrow<'re>(&'re self)->DynTrait<'borr,&'re (),I,EV> 
+        pub fn reborrow<'re>(&'re self)->DynTrait<'borr,RRef<'re, ()>,I,EV> 
         where
-            P:Deref<Target=()>,
+            P:AsPtr<Target=()>,
             PrivStruct:ReborrowBounds<I::Send,I::Sync>,
             EV:Copy,
         {
             // Reborrowing will break if I add extra functions that operate on `P`.
             DynTrait {
-                object: ManuallyDrop::new(&**self.object),
+                object: ManuallyDrop::new(self.object.as_rref()),
                 vtable: unsafe{ VTable_Ref(self.vtable.0.cast()) },
                 extra_value:*self.sabi_extra_value(),
                 _marker:NonOwningPhantom::NEW,
@@ -1299,16 +1322,16 @@ fn main(){
         /// 
         /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
         /// 
-        pub fn reborrow_mut<'re>(&'re mut self)->DynTrait<'borr,&'re mut (),I,EV> 
+        pub fn reborrow_mut<'re>(&'re mut self)->DynTrait<'borr,RMut<'re, ()>,I,EV> 
         where
-            P:DerefMut<Target=()>,
+            P:AsMutPtr<Target=()>,
             PrivStruct:ReborrowBounds<I::Send,I::Sync>,
             EV:Copy,
         {
             let extra_value=*self.sabi_extra_value();
             // Reborrowing will break if I add extra functions that operate on `P`.
             DynTrait {
-                object: ManuallyDrop::new(&mut **self.object),
+                object: ManuallyDrop::new(self.object.as_rmut()),
                 vtable: unsafe{ VTable_Ref(self.vtable.0.cast()) },
                 extra_value,
                 _marker:NonOwningPhantom::NEW,
@@ -1320,7 +1343,7 @@ fn main(){
 
     impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV> 
     where
-        P:GetPointerKind
+        P:AsPtr
     {
         /// Constructs a DynTrait<P,I> with a `P`,using the same vtable.
         ///
@@ -1342,7 +1365,7 @@ fn main(){
     where 
         I:InterfaceBound+'borr,
         EV:'borr,
-        P:GetPointerKind,
+        P:AsPtr,
     {
 
 /**
@@ -1376,7 +1399,7 @@ let _=borrow.default();
  */
         pub fn default(&self) -> Self
         where
-            P: Deref + GetPointerKind<Kind=PK_SmartPointer>,
+            P: AsPtr + GetPointerKind<Kind=PK_SmartPointer>,
             I: InterfaceType<Default = Implemented<trait_marker::Default>>,
             EV:Copy,
         {
@@ -1392,7 +1415,7 @@ let _=borrow.default();
         #[allow(clippy::needless_lifetimes)]
         pub fn serialize_into_proxy<'a>(&'a self) -> Result<I::ProxyType, RBoxError>
         where
-            P: Deref,
+            P: AsPtr,
             I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
             I: GetSerializeProxyType<'a>
         {
@@ -1404,7 +1427,7 @@ let _=borrow.default();
         /// `<I as DeserializeDyn<'borr,Self>>::deserialize_dyn`.
         pub fn deserialize_from_proxy<'de>(proxy:I::Proxy) -> Result<Self, RBoxError>
         where
-            P: 'borr+Deref,
+            P: 'borr+AsPtr,
             I: DeserializeDyn<'de,Self>,
 
         {
@@ -1414,14 +1437,14 @@ let _=borrow.default();
 
     impl<'borr,P,I,EV> Drop for DynTrait<'borr,P,I,EV>
     where
-        P:GetPointerKind
+        P: GetPointerKind
     {
         fn drop(&mut self){
             unsafe{
                 let vtable=self.sabi_vtable();
 
                 if <P as GetPointerKind>::KIND==PointerKind::SmartPointer {
-                    vtable.drop_ptr()(&mut *self.object);
+                    vtable.drop_ptr()(RMut::<P>::new(&mut self.object));
                 }
             }
         }
@@ -1447,14 +1470,14 @@ use self::clone_impl::CloneImpl;
 /// This impl is for smart pointers.
 impl<'borr,P, I,EV> CloneImpl<PK_SmartPointer> for DynTrait<'borr,P,I,EV>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceBound<Clone = Implemented<trait_marker::Clone>>+'borr,
     EV:Copy+'borr,
 {
     fn clone_impl(&self) -> Self {
         unsafe{
             let vtable = self.sabi_vtable();
-            let new = vtable.clone_ptr()(&*self.object);
+            let new = vtable.clone_ptr()(RRef::<P>::new(&*self.object));
             self.from_new_ptr(new,*self.sabi_extra_value())
         }
     }
@@ -1463,7 +1486,7 @@ where
 /// This impl is for references.
 impl<'borr,P, I,EV> CloneImpl<PK_Reference> for DynTrait<'borr,P,I,EV>
 where
-    P: Deref+GetPointerKind+Copy,
+    P: AsPtr+Copy,
     I: InterfaceBound<Clone = Implemented<trait_marker::Clone>>+'borr,
     EV:Copy+'borr,
 {
@@ -1494,7 +1517,7 @@ let _=borrow.clone();
 */
 impl<'borr,P, I,EV> Clone for DynTrait<'borr,P,I,EV>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceBound,
     Self:CloneImpl<<P as GetPointerKind>::Kind>,
 {
@@ -1508,7 +1531,7 @@ where
 
 impl<'borr,P, I,EV> Display for DynTrait<'borr,P,I,EV>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceBound<Display = Implemented<trait_marker::Display>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1524,7 +1547,7 @@ where
 
 impl<'borr,P, I,EV> Debug for DynTrait<'borr,P,I,EV>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceBound<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1540,7 +1563,7 @@ where
 
 impl<'borr,P, I,EV> std::error::Error for DynTrait<'borr,P,I,EV>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceBound<
         Display=Implemented<trait_marker::Display>,
         Debug=Implemented<trait_marker::Debug>,
@@ -1558,7 +1581,7 @@ then it serializes the string.
 */
 impl<'borr,P, I,EV> Serialize for DynTrait<'borr,P,I,EV>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
     I: GetSerializeProxyType<'borr>,
     I::ProxyType:Serialize,
@@ -1568,7 +1591,7 @@ where
         S: Serializer,
     {
         unsafe{
-            self.sabi_vtable().serialize()(&*(self.sabi_erased_ref() as *const ErasedObject))
+            self.sabi_vtable().serialize()(self.sabi_erased_ref_unbounded_lifetime())
                 .into_result()
                 .map_err(ser::Error::custom)?
                 .serialize(serializer)
@@ -1581,7 +1604,7 @@ where
 impl<'de,'borr:'de, P, I,EV> Deserialize<'de> for DynTrait<'borr,P,I,EV>
 where
     EV: 'borr,
-    P: Deref+GetPointerKind+'borr,
+    P: AsPtr+'borr,
     I: InterfaceBound+'borr,
     I: DeserializeDyn<'de,Self>,
     <I as DeserializeDyn<'de,Self>>::Proxy:Deserialize<'de>,
@@ -1598,15 +1621,15 @@ where
 impl<P, I,EV> Eq for DynTrait<'static,P,I,EV>
 where
     Self: PartialEq,
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceBound<Eq = Implemented<trait_marker::Eq>>,
 {
 }
 
 impl<P, P2, I,EV,EV2> PartialEq<DynTrait<'static,P2,I,EV2>> for DynTrait<'static,P,I,EV>
 where
-    P: Deref+GetPointerKind,
-    P2: Deref+GetPointerKind,
+    P: AsPtr,
+    P2: AsPtr,
     I: InterfaceBound<PartialEq = Implemented<trait_marker::PartialEq>>,
 {
     fn eq(&self, other: &DynTrait<'static,P2,I,EV2>) -> bool {
@@ -1623,7 +1646,7 @@ where
 
 impl<P, I,EV> Ord for DynTrait<'static,P,I,EV>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceBound<Ord = Implemented<trait_marker::Ord>>,
     Self: PartialOrd + Eq,
 {
@@ -1641,8 +1664,8 @@ where
 
 impl<P, P2, I,EV,EV2> PartialOrd<DynTrait<'static,P2,I,EV2>> for DynTrait<'static,P,I,EV>
 where
-    P: Deref+GetPointerKind,
-    P2: Deref+GetPointerKind,
+    P: AsPtr,
+    P2: AsPtr,
     I: InterfaceBound<PartialOrd = Implemented<trait_marker::PartialOrd>>,
     Self: PartialEq<DynTrait<'static,P2,I,EV2>>,
 {
@@ -1662,7 +1685,7 @@ where
 
 impl<'borr,P, I,EV> Hash for DynTrait<'borr,P,I,EV>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceBound<Hash = Implemented<trait_marker::Hash>>,
 {
     fn hash<H>(&self, state: &mut H)
@@ -1681,7 +1704,7 @@ where
 
 impl<'borr,P, I,Item,EV> Iterator for DynTrait<'borr,P,I,EV>
 where
-    P: DerefMut+GetPointerKind,
+    P: AsMutPtr,
     I: IteratorItemOrDefault<'borr,Item=Item>,
     I: InterfaceBound<Iterator = Implemented<trait_marker::Iterator>>,
     Item:'borr,
@@ -1728,7 +1751,7 @@ where
 
 impl<'borr,P, I,Item,EV> DynTrait<'borr,P,I,EV>
 where
-    P: DerefMut+GetPointerKind,
+    P: AsMutPtr,
     I: IteratorItemOrDefault<'borr,Item=Item>,
     I: InterfaceBound<Iterator = Implemented<trait_marker::Iterator>>,
     Item:'borr,
@@ -1832,7 +1855,7 @@ assert_eq!( wrapped.next(),Some(7));
 impl<'borr,P, I,Item,EV> DoubleEndedIterator for DynTrait<'borr,P,I,EV>
 where
     Self:Iterator<Item=Item>,
-    P: DerefMut+GetPointerKind,
+    P: AsMutPtr,
     I: IteratorItemOrDefault<'borr,Item=Item>,
     I: InterfaceBound<DoubleEndedIterator = Implemented<trait_marker::DoubleEndedIterator>>,
     Item:'borr,
@@ -1850,7 +1873,7 @@ where
 impl<'borr,P, I,Item,EV> DynTrait<'borr,P,I,EV>
 where
     Self:Iterator<Item=Item>,
-    P: DerefMut+GetPointerKind,
+    P: AsMutPtr,
     I: IteratorItemOrDefault<'borr,Item=Item>,
     I: InterfaceBound<DoubleEndedIterator = Implemented<trait_marker::DoubleEndedIterator>>,
     Item:'borr,
@@ -1907,7 +1930,7 @@ assert_eq!(
 
 impl<'borr,P,I,EV> fmtWrite for DynTrait<'borr,P,I,EV>
 where
-    P: DerefMut+GetPointerKind,
+    P: AsMutPtr,
     I: InterfaceBound<FmtWrite = Implemented<trait_marker::FmtWrite>>,
 {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error>{
@@ -1944,7 +1967,7 @@ where
 
 impl<'borr,P,I,EV> io::Write for DynTrait<'borr,P,I,EV>
 where
-    P: DerefMut+GetPointerKind,
+    P: AsMutPtr,
     I: InterfaceBound<IoWrite = Implemented<trait_marker::IoWrite>>,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize>{
@@ -1976,7 +1999,7 @@ where
 
 impl<'borr,P,I,EV> io::Read for DynTrait<'borr,P,I,EV>
 where
-    P: DerefMut+GetPointerKind,
+    P: AsMutPtr,
     I: InterfaceBound<IoRead = Implemented<trait_marker::IoRead>>,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>{
@@ -2003,7 +2026,7 @@ where
 
 impl<'borr,P,I,EV> io::BufRead for DynTrait<'borr,P,I,EV>
 where
-    P: DerefMut+GetPointerKind,
+    P: AsMutPtr,
     I: InterfaceBound<
         IoRead = Implemented<trait_marker::IoRead>,
         IoBufRead = Implemented<trait_marker::IoBufRead>
@@ -2032,7 +2055,7 @@ where
 
 impl<'borr,P,I,EV> io::Seek for DynTrait<'borr,P,I,EV>
 where
-    P: DerefMut+GetPointerKind,
+    P: AsMutPtr,
     I: InterfaceBound<IoSeek = Implemented<trait_marker::IoSeek>>,
 {
     fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64>{
@@ -2081,7 +2104,7 @@ pub trait DynTraitBound<'borr>: Sealed {
 
 impl<'borr,P, I,EV> DynTraitBound<'borr> for DynTrait<'borr,P,I,EV>
 where
-    P: Deref+GetPointerKind,
+    P: GetPointerKind,
     I: InterfaceBound,
 {
     type Interface = I;

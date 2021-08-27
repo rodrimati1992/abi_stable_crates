@@ -77,7 +77,7 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header> std::fmt::Debug
             for #trait_to<#gen_params_use_to>
             where
-                _ErasedPtr:__GetPointerKind<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<Target=()>,
                 #(#where_preds,)*
             {
                 #[inline]
@@ -94,7 +94,7 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header> std::fmt::Display
             for #trait_to<#gen_params_use_to>
             where
-                _ErasedPtr:__GetPointerKind<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<Target=()>,
                 #(#where_preds,)*
             {
                 #[inline]
@@ -111,7 +111,7 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header> std::error::Error
             for #trait_to<#gen_params_use_to>
             where
-                _ErasedPtr:__GetPointerKind<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<Target=()>,
                 #(#where_preds,)*
             {}
         ).to_tokens(mod_);
@@ -124,7 +124,7 @@ pub(super) fn delegated_impls(
             for #trait_to<#gen_params_use_to>
             where
                 #trait_backend<#gen_params_use_to>:Clone,
-                _ErasedPtr:__GetPointerKind<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<Target=()>,
                 #(#where_preds,)*
             {
                 #[inline]
@@ -144,7 +144,7 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header> std::hash::Hash
             for #trait_to<#gen_params_use_to>
             where
-                _ErasedPtr:__GetPointerKind<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<Target=()>,
                 #(#where_preds,)*
             {
                 #[inline]
@@ -188,7 +188,7 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header> std::fmt::Write
             for #trait_to<#gen_params_use_to>
             where
-                _ErasedPtr:__GetPointerKind+__DerefMutTrait<Target=()>,
+                _ErasedPtr:__sabi_re::AsMutPtr<Target=()>,
                 #(#where_preds,)*
             {
                 #[inline]
@@ -205,7 +205,7 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header> std::io::Write
             for #trait_to<#gen_params_use_to>
             where
-                _ErasedPtr:__GetPointerKind+__DerefMutTrait<Target=()>,
+                _ErasedPtr:__sabi_re::AsMutPtr<Target=()>,
                 #(#where_preds,)*
             {
                 fn write(&mut self, buf: &[u8]) -> std::io::Result<usize>{
@@ -227,7 +227,7 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header> std::io::Read
             for #trait_to<#gen_params_use_to>
             where
-                _ErasedPtr:__GetPointerKind+__DerefMutTrait<Target=()>,
+                _ErasedPtr:__sabi_re::AsMutPtr<Target=()>,
                 #(#where_preds,)*
             {
                 fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize>{
@@ -247,7 +247,7 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header> std::io::BufRead
             for #trait_to<#gen_params_use_to>
             where
-                _ErasedPtr:__GetPointerKind+__DerefMutTrait<Target=()>,
+                _ErasedPtr:__sabi_re::AsMutPtr<Target=()>,
                 #(#where_preds,)*
             {
                 fn fill_buf(&mut self) -> std::io::Result<&[u8]>{
@@ -267,7 +267,7 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header> std::io::Seek
             for #trait_to<#gen_params_use_to>
             where
-                _ErasedPtr:__GetPointerKind+__DerefMutTrait<Target=()>,
+                _ErasedPtr:__sabi_re::AsMutPtr<Target=()>,
                 #(#where_preds,)*
             {
                 fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64>{
@@ -297,7 +297,7 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header> std::cmp::Eq
             for #trait_to<#gen_params_use_to_static>
             where
-                _ErasedPtr:__GetPointerKind<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<Target=()>,
                 #(#where_preds,)*
             {}
         ).to_tokens(mod_);
@@ -309,8 +309,8 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header_and2> std::cmp::PartialEq<#trait_to<#gen_params_use_2>>
             for #trait_to<#gen_params_use_to_static>
             where
-                _ErasedPtr:__GetPointerKind<Target=()>,
-                _ErasedPtr2:__GetPointerKind<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<Target=()>,
+                _ErasedPtr2:__sabi_re::AsPtr<Target=()>,
                 #(#where_preds,)*
             {
                 fn eq(&self,other:&#trait_to<#gen_params_use_2>)->bool{
@@ -330,7 +330,7 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header> std::cmp::Ord
             for #trait_to<#gen_params_use_to_static>
             where
-                _ErasedPtr:__GetPointerKind<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<Target=()>,
                 #(#where_preds,)*
             {
                 fn cmp(&self,other:&Self)->std::cmp::Ordering{
@@ -349,8 +349,8 @@ pub(super) fn delegated_impls(
             impl<#gen_params_header_and2> std::cmp::PartialOrd<#trait_to<#gen_params_use_2>>
             for #trait_to<#gen_params_use_to_static>
             where
-                _ErasedPtr:__GetPointerKind<Target=()>,
-                _ErasedPtr2:__GetPointerKind<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<Target=()>,
+                _ErasedPtr2:__sabi_re::AsPtr<Target=()>,
                 #(#where_preds,)*
             {
                 fn partial_cmp(
@@ -394,7 +394,7 @@ pub(super) fn delegated_impls(
     //         impl<#gen_params_header> #deserialize_path for #trait_to<#gen_params_use_to>
     //         where
     //             #trait_backend<#gen_params_use_to>: #deserialize_path,
-    //             _ErasedPtr:__GetPointerKind<Target=()>,
+    //             _ErasedPtr:__sabi_re::AsPtr<Target=()>,
     //             #(#where_preds,)*
     //         {
     //             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -414,7 +414,7 @@ pub(super) fn delegated_impls(
     //         impl<#gen_params_header> ::serde::Serialize for #trait_to<#gen_params_use_to>
     //         where
     //             #trait_backend<#gen_params_use_to>: ::serde::Serialize,
-    //             _ErasedPtr:__GetPointerKind<Target=()>,
+    //             _ErasedPtr:__sabi_re::AsPtr<Target=()>,
     //             #(#where_preds,)*
     //         {
     //             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

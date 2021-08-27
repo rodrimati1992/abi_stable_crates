@@ -6,15 +6,12 @@ use std::{
 };
 
 use crate::{
-    pointer_trait::{CanTransmuteElement,GetPointerKind,PK_Reference},
+    pointer_trait::{AsPtr, CanTransmuteElement,GetPointerKind,PK_Reference},
     utils::ref_as_nonnull,
 };
 
-/**
-Equivalent to `&'a T`,
-defined as a workaround to allow casting from `&T` to `&U` inside a `const fn`
-in stable Rust.
-*/
+/// Equivalent to `&'a T`,
+/// which allows a few more operations without causing Undefined Behavior.
 #[repr(transparent)]
 #[derive(StableAbi)]
 #[sabi(
@@ -147,6 +144,7 @@ impl<'a,T> RRef<'a,T>{
     /// }
     ///
     /// ```
+    #[inline(always)]
     pub fn get(self)->&'a T{
         unsafe{ &*(self.ref_.as_ptr() as *const T) }
     }
@@ -256,6 +254,7 @@ impl<'a,T> RRef<'a,T>{
             self.ref_.as_ptr() as *const U
         )
     }
+
 }
 
 impl<'a,T> Deref for RRef<'a,T>{
@@ -277,6 +276,18 @@ where
     U:'a,
 {
     type TransmutedPtr= RRef<'a,U>;
+
+    #[inline(always)]
+    unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
+        self.transmute()
+    }
+}
+
+unsafe impl<T> AsPtr for RRef<'_, T> {
+    #[inline(always)]
+    fn as_ptr(&self) -> *const T {
+        self.ref_.as_ptr() as *const T
+    }
 }
 
 

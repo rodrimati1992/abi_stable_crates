@@ -1,6 +1,6 @@
 
 use crate::{
-    pointer_trait::{CanTransmuteElement,GetPointerKind,PK_Reference},
+    pointer_trait::{AsPtr, CanTransmuteElement,GetPointerKind,PK_Reference},
 };
 
 use std::{
@@ -307,12 +307,23 @@ impl<T> Deref for StaticRef<T>{
     }
 }
 
+unsafe impl<T> AsPtr for StaticRef<T> {
+    fn as_ptr(&self) -> *const T {
+        self.ref_.as_ptr() as *const T
+    }
+}
+
 unsafe impl<T> GetPointerKind for StaticRef<T>{
     type Kind=PK_Reference;
 }
 
 unsafe impl<T,U> CanTransmuteElement<U> for StaticRef<T>{
     type TransmutedPtr= StaticRef<U>;
+
+    #[inline(always)]
+    unsafe fn transmute_element_(self) -> StaticRef<U> {
+        self.transmute_ref()
+    }
 }
 
 
