@@ -256,6 +256,9 @@ pub use abi_stable_derive::{
 #[doc(inline)]
 pub use abi_stable_derive::export_root_module;
 
+#[doc(no_inline)]
+pub use abi_stable::sabi_types::{RRef, RMut};
+
 use abi_stable_derive::{
     impl_InterfaceType,
 };

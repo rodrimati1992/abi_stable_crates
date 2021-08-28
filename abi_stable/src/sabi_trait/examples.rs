@@ -386,7 +386,10 @@ pub trait Dictionary{
 mod tests{
     use super::*;
 
-    use crate::traits::IntoReprC;
+    use crate::{
+        sabi_types::{RRef, RMut},
+        traits::IntoReprC,
+    };
 
     fn assert_sync_send_debug_clone<T:Sync+Send+Debug+Clone>(_:&T){}
 
@@ -443,7 +446,7 @@ mod tests{
                     let _=object.obj.into_unerased::<i8>().unwrap_err().into_inner();
                 }
 
-                fn create_from_ref<'a,T>(value:&'a T)->$typename<'a,&'a(),(),T::Element>
+                fn create_from_ref<'a,T>(value:&'a T)->$typename<'a,RRef<'a, ()>,(),T::Element>
                 where
                     T:$traitname<()>+'a
                 {
@@ -572,7 +575,7 @@ mod tests{
         for _ in 0..10{
             assert_eq!(
                 object.obj.reborrow().into_unerased::<RArc<u32>>().unwrap(),
-                &RArc::new(107)
+                RRef::new(&RArc::new(107))
             );
         }
         assert_eq!(Arc::strong_count(&arc), 3);
@@ -581,7 +584,7 @@ mod tests{
         for _ in 0..10{
             assert_eq!(
                 object.obj.reborrow_mut().into_unerased::<RArc<u32>>().unwrap(),
-                &mut RArc::new(107)
+                RMut::new(&mut RArc::new(107))
             );
         }
 

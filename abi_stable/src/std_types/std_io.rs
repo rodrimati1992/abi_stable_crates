@@ -174,7 +174,7 @@ use abi_stable::{
     erased_types::interfaces::IoWriteInterface,
     std_types::{RIoError,RResult,ROk},
     traits::IntoReprC,
-    DynTrait,
+    DynTrait, RMut,
     sabi_extern_fn,
     rtry,
 };
@@ -183,8 +183,8 @@ use std::io::Write;
 
 #[sabi_extern_fn]
 pub fn write_slice_twice(
-    mut write:DynTrait<&mut (),IoWriteInterface>,
-    slice:&[u8],
+    mut write: DynTrait<RMut<'_, ()>,IoWriteInterface>,
+    slice: &[u8],
 )->RResult<(),RIoError>{
     rtry!( write.write_all(slice).into_c() );
     rtry!( write.write_all(slice).into_c() );
