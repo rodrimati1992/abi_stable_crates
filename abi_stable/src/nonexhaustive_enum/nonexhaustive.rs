@@ -767,7 +767,7 @@ where
         Z: Serializer,
     {
         unsafe{
-            self.vtable().serialize()(self.sabi_erased_ref())
+            self.vtable().serialize()(self.as_erased_ref())
                 .into_result()
                 .map_err(ser::Error::custom)?
                 .serialize(serializer)

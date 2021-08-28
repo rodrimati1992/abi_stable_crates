@@ -238,11 +238,17 @@ impl<'a,T> MovePtr<'a,T>{
     #[inline]
     pub fn into_box(this:Self)->Box<T>{
         unsafe{
-            let allocated=alloc::alloc(Layout::new::<T>()) as *mut T;
+            let raw = Self::into_raw(this);
 
-            Self::into_raw(this).copy_to_nonoverlapping(allocated,1);
+            if std::mem::size_of::<T>() == 0 {
+                Box::from_raw(raw)
+            } else {
+                let allocated=alloc::alloc(Layout::new::<T>()) as *mut T;
 
-            Box::from_raw(allocated)
+                raw.copy_to_nonoverlapping(allocated,1);
+
+                Box::from_raw(allocated)
+            }
         }
     }
 
