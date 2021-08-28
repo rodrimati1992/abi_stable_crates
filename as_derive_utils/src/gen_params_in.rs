@@ -128,13 +128,13 @@ impl<'a,AL> GenParamsIn<'a,AL>{
     /// Queries whether bounds are printed.
     pub fn outputs_bounds(&self)->bool{
         self.with_bounds && 
-        matches!(InWhat::ImplHeader|InWhat::ItemDecl=self.in_what)
+        matches!(self.in_what, InWhat::ImplHeader|InWhat::ItemDecl)
     }
 
     /// Queries whether all types have a `?Sized` bound.
     pub fn are_types_unsized(&self)->bool{
         self.unsized_types&&
-        matches!(InWhat::ItemDecl|InWhat::ImplHeader=self.in_what)
+        matches!(self.in_what, InWhat::ItemDecl|InWhat::ImplHeader)
     }
 }
 

@@ -466,10 +466,10 @@ macro_rules! tag {
 
 #[allow(unused_macros)]
 macro_rules! assert_matches {
-    ( $(|)* $pat:pat $(| $prev_pat:pat)*  =$expr:expr)=>{{
+    ( $(|)? $($pat:pat)|*  =$expr:expr)=>{{
         let ref value=$expr;
         assert!(
-            core_extensions::matches!($pat $(| $prev_pat)* = *value), 
+            core_extensions::matches!(*value, $($pat)|* ), 
             "pattern did not match the value:\n\t\
              {:?}
             ",

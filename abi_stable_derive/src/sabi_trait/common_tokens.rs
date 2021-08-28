@@ -194,7 +194,7 @@ macro_rules! declare_lifetime_tokens {
 
         impl LifetimeTokens{
             pub(crate) fn new(is_it:IsStaticTrait)->Self{
-                let is_static=matches!(IsStaticTrait::Yes=is_it);
+                let is_static=matches!(is_it, IsStaticTrait::Yes);
                 let lt=if is_static { "" }else{ "'lt," };
                 let static_lt=if is_static { "" }else{ "'static," };
                 let one_lt=if is_static { "'static," }else{ "'lt," };

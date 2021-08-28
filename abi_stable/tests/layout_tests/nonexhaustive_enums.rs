@@ -102,7 +102,7 @@ fn check_enum_subsets(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::TooManyVariants{..}=err))
+            .any(|err| matches!(err, AbiInstability::TooManyVariants{..}))
         );
     })
 }
@@ -142,7 +142,7 @@ fn check_2_enum_subsets(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::TooManyVariants{..}=err))
+            .any(|err| matches!(err, AbiInstability::TooManyVariants{..}))
         );
     })
 }
@@ -175,7 +175,7 @@ fn check_impld_traits_subsets(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err))
+            .any(|err| matches!(err, AbiInstability::ExtraCheckError{..}))
         );
     })
 }
@@ -206,7 +206,7 @@ fn exhaustiveness(){
             .unwrap_err()
             .flatten_errors()
             .iter()
-            .any(|err| matches!(AbiInstability::MismatchedExhaustiveness{..}=err));
+            .any(|err| matches!(err, AbiInstability::MismatchedExhaustiveness{..}));
     }
 }
 
@@ -223,7 +223,7 @@ fn mismatched_discriminant(){
         .unwrap_err()
         .flatten_errors()
         .iter()
-        .any(|err| matches!(AbiInstability::EnumDiscriminant{..}=err));
+        .any(|err| matches!(err, AbiInstability::EnumDiscriminant{..}));
 }
 
 
@@ -255,7 +255,7 @@ fn check_storage_unstorable(){
             .unwrap_err()
             .flatten_errors()
             .iter()
-            .any(|err| matches!(AbiInstability::IncompatibleWithNonExhaustive{..}=err));
+            .any(|err| matches!(err, AbiInstability::IncompatibleWithNonExhaustive{..}));
     }
 }
 

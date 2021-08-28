@@ -213,10 +213,10 @@ impl<'a> TraitDefinition<'a>{
         }
 
         let has_mut_methods=methods.iter()
-            .any(|m| matches!(SelfParam::ByRef{is_mutable:true,..}= &m.self_param) );
+            .any(|m| matches!(&m.self_param, SelfParam::ByRef{is_mutable:true,..}) );
 
         let has_val_methods=methods.iter()
-            .any(|m| matches!(SelfParam::ByVal= &m.self_param) );
+            .any(|m| matches!(&m.self_param, SelfParam::ByVal) );
         
 
         let ts_fq_self={

@@ -14,7 +14,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 
 /// All the possible errors that could happen when loading a library,

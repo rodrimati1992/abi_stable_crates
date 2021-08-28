@@ -11,7 +11,7 @@ use syn::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::{
     attribute_parsing::with_nested_meta,

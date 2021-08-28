@@ -5,7 +5,7 @@ Where miscellaneous traits reside.
 use std::ops::Deref;
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::{
     pointer_trait::{CanTransmuteElement,TransmuteElement},

@@ -12,7 +12,8 @@ use std::{
 
 use core_extensions::{
     strings::LeftPadder,
-    prelude::*,
+    TypeIdentity,
+    StringExt,
 };
 
 use crate::std_types::{RString,RStr};
@@ -214,7 +215,7 @@ macro_rules! impl_fmt_padding {
             where T:Display
             {
                 use std::fmt::Write;
-                let this=self.into_type_mut();
+                let this=self.as_type_mut();
 
                 this.clear();
 
@@ -231,7 +232,7 @@ macro_rules! impl_fmt_padding {
             where T:Debug
             {
                 use std::fmt::Write;
-                let this=self.into_type_mut();
+                let this=self.as_type_mut();
 
                 this.clear();
 

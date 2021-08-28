@@ -13,7 +13,7 @@ use std::{
 use serde::{Serialize, Serializer};
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::std_types::{RSlice, RVec};
 

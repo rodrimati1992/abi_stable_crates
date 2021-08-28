@@ -28,7 +28,7 @@ use proc_macro2::{TokenStream as TokenStream2,Span};
 use quote::TokenStreamExt;
 
 use core_extensions::{
-    prelude::*,
+    SelfOps,
     IteratorExt,
 };
 

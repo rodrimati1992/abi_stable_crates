@@ -91,7 +91,7 @@ impl WhichPlugin{
             .filter(|s| !s.is_empty() )
             .ok_or_else(|| WhichPluginError(full_str.into()) )?
             .to_string()
-            .into_(RCow::<'static,str>::T);
+            .into_::<RCow<'static,str>>();
         let selector=splitted.get(1).map_or("",|x|*x);
 
         match selector {

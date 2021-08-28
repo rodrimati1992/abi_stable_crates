@@ -11,7 +11,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use libloading::{
     Library as LibLoadingLibrary,

@@ -303,7 +303,7 @@ If this a:
 
     /// Whether this is a prefix-type(module or vtable).
     pub fn is_prefix_kind(&self)->bool{
-        matches!(GenericTLData::PrefixType{..}=self.data)
+        matches!(self.data, GenericTLData::PrefixType{..})
     }
 
     /// Gets the name of the type.
