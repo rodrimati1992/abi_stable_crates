@@ -467,8 +467,8 @@ fn to_any_test(){
     to_unerased!( wrapped ; as_unerased_mut ; &mut new_foo() );
     
     {
-        to_unerased!( wrapped.reborrow_mut() ; into_unerased_impltype     ; &mut new_foo() );
-        to_unerased!( wrapped.reborrow_mut() ; into_unerased ; &mut new_foo() );
+        to_unerased!(wrapped.reborrow_mut(); into_unerased_impltype; RMut::new(&mut new_foo()));
+        to_unerased!(wrapped.reborrow_mut() ; into_unerased ; RMut::new(&mut new_foo()));
         
         to_unerased!( wrapped.reborrow_mut() ; as_unerased_impltype     ; &new_foo() );
         to_unerased!( wrapped.reborrow_mut() ; as_unerased ; &new_foo() );
@@ -477,8 +477,8 @@ fn to_any_test(){
         to_unerased!( wrapped.reborrow_mut() ; as_unerased_mut ; &mut new_foo() );
     }    
     {
-        to_unerased!( wrapped.reborrow() ; into_unerased_impltype     ; &new_foo() );
-        to_unerased!( wrapped.reborrow() ; into_unerased ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; into_unerased_impltype; RRef::new(&new_foo()) );
+        to_unerased!( wrapped.reborrow() ; into_unerased ; RRef::new(&new_foo()) );
         
         to_unerased!( wrapped.reborrow() ; as_unerased_impltype     ; &new_foo() );
         to_unerased!( wrapped.reborrow() ; as_unerased ; &new_foo() );

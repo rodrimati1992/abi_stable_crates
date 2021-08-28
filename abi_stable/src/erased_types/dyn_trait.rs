@@ -6,6 +6,7 @@ use std::{
     fmt::{self,Write as fmtWrite},
     io,
     mem::ManuallyDrop,
+    ops::Deref,
     ptr,
     rc::Rc,
 };
@@ -389,17 +390,17 @@ it simply uses the values' implementation of PartialEq.
 
 ```
 use abi_stable::{
-    DynTrait,
+    DynTrait, RRef, RMut,
     erased_types::interfaces::PartialEqInterface,
     std_types::RArc,
 };
 
 {
-    let left:DynTrait<'static,&(),PartialEqInterface>=
+    let left:DynTrait<'static, RRef<'_, ()>,PartialEqInterface>=
         DynTrait::from_any_ptr(&100,PartialEqInterface);
     
     let mut n100=100;
-    let right:DynTrait<'static,&mut (),PartialEqInterface>=
+    let right:DynTrait<'static, RMut<'_, ()>,PartialEqInterface>=
         DynTrait::from_any_ptr(&mut n100,PartialEqInterface);
 
     assert_eq!(left,right);
@@ -422,7 +423,7 @@ This is an example of using the `write!()` macro with DynTrait.
 
 ```
 use abi_stable::{
-    DynTrait,
+    DynTrait, RMut,
     erased_types::interfaces::FmtWriteInterface,
 };
 
@@ -430,7 +431,7 @@ use std::fmt::Write;
 
 let mut buffer=String::new();
 
-let mut wrapped:DynTrait<'static,&mut (),FmtWriteInterface>=
+let mut wrapped:DynTrait<'static,RMut<'_, ()>,FmtWriteInterface>=
     DynTrait::from_any_ptr(&mut buffer,FmtWriteInterface);
 
 write!(wrapped,"Foo").unwrap();
@@ -525,6 +526,7 @@ use abi_stable::{
     std_types::RBox,
     erased_types::IteratorItem,
     pointer_trait::{
+        AsPtr, AsMutPtr,
         PK_SmartPointer,GetPointerKind,CanTransmuteElement
     },
     type_level::bools::True,
@@ -560,6 +562,20 @@ impl<T> DerefMut for NewtypeBox<T>{
 
 unsafe impl<T> GetPointerKind for NewtypeBox<T>{
     type Kind=PK_SmartPointer;
+}
+
+// safety: Does not create an intermediate &T
+unsafe impl<T> AsPtr for NewtypeBox<T> {
+    fn as_ptr(&self) -> *const T {
+        self.box_.as_ptr()
+    }
+}
+
+// safety: Does not create an intermediate &mut T
+unsafe impl<T> AsMutPtr for NewtypeBox<T> {
+    fn as_mut_ptr(&mut self) -> *mut T {
+        self.box_.as_mut_ptr()
+    }
 }
 
 unsafe impl<T,O> CanTransmuteElement<O> for NewtypeBox<T>
@@ -673,7 +689,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             I:InterfaceBound,
             T:'static,
             InterfaceFor<T,I,TU_Unerasable>: GetVtable<'static,T,P::TransmutedPtr,P,I>,
-            P: AsPtr<Target = T>+CanTransmuteElement<()>+GetPointerKind,
+            P: Deref<Target = T>+CanTransmuteElement<()>+GetPointerKind,
             P::TransmutedPtr:GetPointerKind,
         {
             DynTrait {
@@ -715,7 +731,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             T:'borr,
             I:InterfaceBound,
             InterfaceFor<T,I,TU_Opaque>: GetVtable<'borr,T,P::TransmutedPtr,P,I>,
-            P: AsPtr<Target = T>+CanTransmuteElement<()>+GetPointerKind,
+            P: Deref<Target = T>+CanTransmuteElement<()>+GetPointerKind,
             P::TransmutedPtr:GetPointerKind,
         {
             DynTrait {
