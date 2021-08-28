@@ -19,7 +19,7 @@ use abi_stable::{
     library::RootModule,
     erased_types::{DeserializeDyn,SerializeProxyType,IteratorItem},
     DynTrait,
-    sabi_types::VersionStrings,
+    sabi_types::{VersionStrings, RMut},
     std_types::{RBox, RStr, RString,RArc,RCow,RBoxError,RResult},
 };
 
@@ -276,7 +276,7 @@ pub struct RemoveWords<'a,'b>{
     /// An iterator over `RCow<'a,str>`,
     /// constructed from a `&'b mut impl Iterator<RCow<'a,str>>`
     /// with `DynTrait::from_borrowing_ptr(iter,CowStrIter)`.
-    pub words:DynTrait<'a,&'b mut (),CowStrIter>,
+    pub words:DynTrait<'a, RMut<'b, ()>,CowStrIter>,
 }
 
 
