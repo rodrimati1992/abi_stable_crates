@@ -75,7 +75,7 @@ fn test_subsets(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err))
+            .any(|err| matches!(err, AbiInstability::ExtraCheckError{..}))
         );
     }
 
@@ -343,7 +343,7 @@ unsafe impl ExtraChecks for IdentityChecker {
             ty_checker.check_compatibility(t_lay,o_lay).into_result()
         }).observe(|res|{
             assert!(
-                matches!(ROk(_)|RErr(ExtraChecksError::TypeChecker)=res),
+                matches!(res, ROk(_)|RErr(ExtraChecksError::TypeChecker)),
                 "It isn't either ROk or an RErr(TypeChecker):\n{:?}",
                 res
             )
@@ -457,7 +457,7 @@ fn test_identity_extra_checker() {
                         .unwrap_err()
                         .flatten_errors()
                         .into_iter()
-                        .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err) );
+                        .any(|err| matches!(err, AbiInstability::ExtraCheckError{..}) );
 
                     assert!(!found_extra_checks_error);
                     
@@ -514,7 +514,7 @@ fn test_cyclic_extra_checker() {
         .unwrap_err()
         .flatten_errors()
         .into_iter()
-        .any(|err| matches!(AbiInstability::CyclicTypeChecking{..}=err) );
+        .any(|err| matches!(err, AbiInstability::CyclicTypeChecking{..}) );
 
     assert!(found_extra_checks_error);
 }

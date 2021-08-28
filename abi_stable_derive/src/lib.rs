@@ -246,7 +246,7 @@ use syn::{DeriveInput,ItemFn};
 use quote::{quote, ToTokens, quote_spanned};
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 #[allow(unused_imports)]
 use crate::{

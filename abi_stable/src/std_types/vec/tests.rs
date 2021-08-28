@@ -5,7 +5,7 @@ use abi_stable_shared::file_span;
 use std::{iter,sync::Arc};
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::{
     test_utils::{must_panic, ShouldHavePanickedAt},
@@ -166,7 +166,7 @@ fn truncate() {
 #[test]
 fn retain(){
     let orig = vec![2, 3, 4, 5, 6, 7, 8];
-    let copy = orig.clone().into_(RVec::T);
+    let copy = orig.clone().piped(RVec::from);
     {
         let mut copy=copy.clone();
         copy.retain(|&v| v%2==0 );

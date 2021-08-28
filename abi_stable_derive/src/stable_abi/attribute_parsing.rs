@@ -131,7 +131,7 @@ pub(crate) enum LayoutConstructor{
 
 impl LayoutConstructor{
     pub(crate) fn is_opaque(self)->bool{
-        matches!(LayoutConstructor::Opaque{..}= self )
+        matches!(self, LayoutConstructor::Opaque{..})
     }
 }
 

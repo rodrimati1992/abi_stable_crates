@@ -16,7 +16,7 @@ use std::{
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[allow(unused_imports)]
-use core_extensions::{prelude::*, SliceExt};
+use core_extensions::{SelfOps, SliceExt, StringExt};
 
 use crate::std_types::{RStr, RVec};
 

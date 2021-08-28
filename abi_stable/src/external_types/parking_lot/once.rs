@@ -312,7 +312,7 @@ assert!(once.state().poisoned());
 
     */
     pub fn poisoned(&self) -> bool{
-        matches!( ROnceState::Poisoned=self )
+        matches!(self, ROnceState::Poisoned)
     }
 
 /**    
@@ -333,7 +333,7 @@ assert!(once.state().done());
 
 */
     pub fn done(&self) -> bool{
-        matches!( ROnceState::Done=self )
+        matches!(self, ROnceState::Done)
     }
 }
 

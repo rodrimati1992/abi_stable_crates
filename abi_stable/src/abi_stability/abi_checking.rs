@@ -5,7 +5,10 @@ Functions and types related to the layout checking.
 use std::{cmp::Ordering, fmt,mem};
 
 #[allow(unused_imports)]
-use core_extensions::{prelude::*,matches};
+use core_extensions::{
+    matches,
+    SelfOps,
+};
 
 use std::{
     borrow::Borrow,

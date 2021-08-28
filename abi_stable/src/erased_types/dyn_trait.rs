@@ -13,9 +13,6 @@ use std::{
 
 use serde::{de, ser, Deserialize, Deserializer};
 
-#[allow(unused_imports)]
-use core_extensions::{prelude::*, ResultLike};
-
 use crate::{
     abi_stability::StableAbi,
     pointer_trait::{

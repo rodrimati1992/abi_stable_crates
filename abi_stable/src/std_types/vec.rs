@@ -15,7 +15,7 @@ use std::{
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::{
     sabi_types::Constructor,

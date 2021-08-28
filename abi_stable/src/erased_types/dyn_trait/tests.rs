@@ -29,7 +29,7 @@ use crate::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 /// It doesn't need to be `#[repr(C)]` because  DynTrait puts it behind a pointer,
 /// and is only interacted with through regular Rust functions.

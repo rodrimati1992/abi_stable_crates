@@ -215,7 +215,7 @@ use std::{
 
 use core_extensions::{
     matches,
-    prelude::*,
+    SelfOps
 };
 
 use crate::{
@@ -502,7 +502,7 @@ impl CheckableTag{
             return Err(err_with_variant(TagErrorVariant::MismatchedDiscriminant))
         }
 
-        let is_map=matches!(CTV::Map{..}=self.variant);
+        let is_map=matches!(self.variant, CTV::Map{..});
         
         match (&self.variant,&other.variant) {
             (CTV::Primitive(l),CTV::Primitive(r))=>{

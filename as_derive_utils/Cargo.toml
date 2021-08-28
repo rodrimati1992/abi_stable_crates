@@ -1,6 +1,6 @@
 [package]
 name = "as_derive_utils"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
 description = "private derive utilities used by abi_stable and structural."
@@ -36,4 +36,5 @@ features=["extra-traits"]
 
 [dependencies.core_extensions]
 default_features=false
-version= "0.1.18"
+features=["std", "self_ops", "type_level_bool"]
+version= "1.4.2"

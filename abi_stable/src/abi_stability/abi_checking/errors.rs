@@ -1,5 +1,7 @@
 use super::*;
 
+use core_extensions::StringExt;
+
 
 /// An individual error from checking the layout of some type.
 #[derive(Debug, PartialEq,Clone)]

@@ -417,7 +417,7 @@ fn test_single_function_lifetime_ranges(){
             assert_eq!(
                 lifetime_indices.len()<=2 || 
                 lifetime_indices.len()==3 && lifetime_indices[2].second()==LRN ,
-                matches!(LifetimeArrayOrSlice::Array{..}=lifetime_indices),
+                matches!(lifetime_indices, LifetimeArrayOrSlice::Array{..}),
             );
         }
     }

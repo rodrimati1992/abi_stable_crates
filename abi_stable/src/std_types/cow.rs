@@ -8,7 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[allow(unused_imports)]
 use core_extensions::{
-    prelude::*,
+    SelfOps,
     matches,
 };
 
@@ -323,7 +323,7 @@ where
     /// 
     /// ```
     pub fn is_borrowed(&self)->bool{
-        matches!( Borrowed{..}=self )
+        matches!(self, Borrowed{..})
     }
 
     /// Whether this is an owning RCow.
@@ -341,7 +341,7 @@ where
     /// 
     /// ```
     pub fn is_owned(&self)->bool{
-        matches!( Owned{..}=self )
+        matches!(self, Owned{..})
     }
 }
 

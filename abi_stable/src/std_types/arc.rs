@@ -9,7 +9,7 @@ use std::{
     sync::Arc,
 };
 
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::{
     abi_stability::StableAbi,

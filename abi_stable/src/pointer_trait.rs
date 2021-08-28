@@ -14,7 +14,7 @@ use crate::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::{prelude::*, utils::transmute_ignore_size};
+use core_extensions::utils::transmute_ignore_size;
 
 ///
 /// Determines whether the referent of a pointer is dropped when the

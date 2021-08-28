@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use quote::{ToTokens,quote,quote_spanned};
 

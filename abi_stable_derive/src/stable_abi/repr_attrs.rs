@@ -307,15 +307,15 @@ impl ReprAttr{
     }
 
     pub fn is_repr_transparent(self)->bool{
-        matches!(Repr::Transparent{..}=self.variant)
+        matches!(self.variant, Repr::Transparent{..})
     }
 
     pub fn is_repr_c(self)->bool{
-        matches!(Repr::C{..}=self.variant)
+        matches!(self.variant, Repr::C{..})
     }
 
     pub fn is_repr_int(self)->bool{
-        matches!(Repr::Int{..}=self.variant)
+        matches!(self.variant, Repr::Int{..})
     }
 }
 
