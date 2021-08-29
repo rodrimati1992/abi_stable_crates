@@ -16,15 +16,15 @@ impl<T> RawValIter<T> {
     /// # Safety
     ///
     /// Must remember to keep the underlying allocation alive.
-    pub(super) unsafe fn new(slice: &[T]) -> Self {
+    pub(super) unsafe fn new(start: *mut T, len: usize) -> Self {
         RawValIter {
-            start: slice.as_ptr(),
+            start,
             end: if mem::size_of::<T>() == 0 {
-                ((slice.as_ptr() as usize) + slice.len()) as *const _
-            } else if slice.is_empty() {
-                slice.as_ptr()
+                (start as usize + len) as *const _
+            } else if len == 0 {
+                start
             } else {
-                slice.as_ptr().offset(slice.len() as isize)
+                start.add(len)
             },
         }
     }
@@ -179,7 +179,9 @@ impl<T> Drop for IntoIter<T> {
 /// which removes and yields all the elements in a range from the `RVec<T>`.
 #[repr(C)]
 pub struct Drain<'a, T> {
-    pub(super) vec: &'a mut RVec<T>,
+    // pub(super) vec: &'a mut RVec<T>,
+    pub(super) allocation_start: *mut T,
+    pub(super) vec_len: &'a mut usize,
     pub(super) iter: RawValIter<T>,
     pub(super) len: usize,
     pub(super) removed_start: *mut T,
@@ -265,9 +267,9 @@ impl<'a, T> Drop for Drain<'a, T> {
             let removed_start = self.removed_start;
             let removed_end = self.removed_start.offset(self.slice_len as isize);
             let end_index = 
-                distance_from(self.vec.as_ptr(),removed_start).unwrap_or(0)+self.slice_len;
+                distance_from(self.allocation_start, removed_start).unwrap_or(0)+self.slice_len;
             ptr::copy(removed_end, removed_start, self.len - end_index);
-            self.vec.set_len(self.len - self.slice_len);
+            *self.vec_len = self.len - self.slice_len;
         }
     }
 }
@@ -283,7 +285,9 @@ impl<'a, T> Drop for Drain<'a, T> {
 pub(crate) struct DrainFilter<'a, T, F>
     where F: FnMut(&mut T) -> bool,
 {
-    pub(super) vec: &'a mut RVec<T>,
+    // pub(super) vec: &'a mut RVec<T>,
+    pub(super) allocation_start: *mut T,
+    pub(super) vec_len: &'a mut usize,
     pub(super) idx: usize,
     pub(super) del: usize,
     pub(super) old_len: usize,
@@ -303,7 +307,7 @@ where
         unsafe {
             while self.idx < self.old_len {
                 let i = self.idx;
-                let v = slice::from_raw_parts_mut(self.vec.as_mut_ptr(), self.old_len);
+                let v = slice::from_raw_parts_mut(self.allocation_start, self.old_len);
                 self.panic_flag = true;
                 let drained = (self.pred)(&mut v[i]);
                 self.panic_flag = false;
@@ -357,13 +361,13 @@ where
                         // elements and tell the vec that they still exist. The backshift
                         // is required to prevent a double-drop of the last successfully
                         // drained item prior to a panic in the predicate.
-                        let ptr = self.drain.vec.as_mut_ptr();
+                        let ptr = self.drain.allocation_start;
                         let src = ptr.add(self.drain.idx);
                         let dst = src.sub(self.drain.del);
                         let tail_len = self.drain.old_len - self.drain.idx;
                         src.copy_to(dst, tail_len);
                     }
-                    self.drain.vec.set_len(self.drain.old_len - self.drain.del);
+                    *self.drain.vec_len = self.drain.old_len - self.drain.del;
                 }
             }
         }

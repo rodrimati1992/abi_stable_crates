@@ -29,7 +29,6 @@ use abi_stable::{
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
     sabi_types::StaticRef,
-    utils::transmute_mut_reference,
     StableAbi,
     sabi_extern_fn,
     staticref,

@@ -383,7 +383,7 @@ If the C abi used by the library is not compatible.
         }
 
         let lib_header=unsafe{
-            transmute_reference::<AbiHeader,LibHeader>(self)
+            crate::utils::transmute_reference::<AbiHeader,LibHeader>(self)
         };
 
         let c_abi_testing_fns=lib_header.root_mod_consts().c_abi_testing_fns();

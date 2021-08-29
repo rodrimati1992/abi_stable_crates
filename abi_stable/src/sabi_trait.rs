@@ -42,10 +42,9 @@ pub mod reexports{
                     RObjectVtable_Ref, RObjectVtable, GetRObjectVTable,
                     VTableTO_DT,VTableTO_RO,VTableTO,
                 },
-                for_generated_code::{sabi_from_ref,sabi_from_mut},
             },
             std_types::RBox,
-            utils::{transmute_reference,transmute_mut_reference,take_manuallydrop},
+            utils::take_manuallydrop,
             extern_fn_panic_handling,
         };
 
@@ -69,8 +68,6 @@ pub mod prelude{
 
 pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
 
-#[doc(hidden)]
-pub mod for_generated_code;
 #[cfg(any(test,feature="sabi_trait_examples"))]
 pub mod examples;
 

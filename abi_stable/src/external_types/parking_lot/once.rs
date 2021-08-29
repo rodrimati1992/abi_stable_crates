@@ -13,7 +13,6 @@ use parking_lot::{Once as PLOnce,OnceState};
 use super::{UnsafeOveralignedField,RAW_LOCK_SIZE};
 
 use crate::{
-    utils::{transmute_mut_reference},
     prefix_type::{PrefixTypeTrait,WithMetadata},
     sabi_types::RMut,
     std_types::{RResult,ROk,RErr},

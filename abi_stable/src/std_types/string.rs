@@ -514,9 +514,10 @@ impl RString {
         let next = idx + ch.len_utf8();
         let len = self.len();
         unsafe {
+            let ptr = self.inner.as_mut_ptr();
             ptr::copy(
-                self.inner.as_ptr().add(next),
-                self.inner.as_mut_ptr().add(idx),
+                ptr.add(next),
+                ptr.add(idx),
                 len - next
             );
             self.inner.set_len(len - (next - idx));
@@ -588,15 +589,14 @@ impl RString {
     }
 
     unsafe fn insert_bytes(&mut self, idx: usize, bytes: &[u8]) {
-        // literal copy-paste of std,so if this is wrong std is wrong.
-        
         let len = self.len();
         let amt = bytes.len();
         self.inner.reserve(amt);
-
+        
+        let ptr = self.inner.as_mut_ptr();
         ptr::copy(
-            self.inner.as_ptr().add(idx),
-            self.inner.as_mut_ptr().add(idx + amt),
+            ptr.add(idx),
+            ptr.add(idx + amt),
             len - idx,
         );
         ptr::copy(
@@ -638,8 +638,6 @@ impl RString {
     pub fn retain<F>(&mut self, mut pred: F)
     where F: FnMut(char) -> bool
     {
-        // literal copy-paste of std,so if this is wrong std is wrong.
-        
         let len = self.len();
         let mut del_bytes = 0;
         let mut idx = 0;
@@ -648,8 +646,15 @@ impl RString {
             self.inner.set_len(0);
         }
 
+        let mut start = self.inner.as_mut_ptr();
+
         while idx < len {
-            let ch = unsafe { self.get_unchecked(idx..len).chars().next().unwrap() };
+            let curr = unsafe{ start.add(idx) };
+
+            let ch = unsafe {
+                RStr::from_raw_parts(curr, len - idx)
+                    .chars().next().unwrap()
+            };
             let ch_len = ch.len_utf8();
 
             if !pred(ch) {
@@ -657,8 +662,8 @@ impl RString {
             } else if del_bytes > 0 {
                 unsafe {
                     ptr::copy(
-                        self.inner.as_ptr().add(idx),
-                        self.inner.as_mut_ptr().add(idx - del_bytes),
+                        curr,
+                        curr.sub(del_bytes),
                         ch_len,
                     );
                 }
