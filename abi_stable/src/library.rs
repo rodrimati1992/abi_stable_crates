@@ -30,7 +30,6 @@ use crate::{
     type_layout::TypeLayout,
     sabi_types::{ LateStaticRef, VersionNumber, VersionStrings },
     std_types::{RResult, RStr},
-    utils::{transmute_reference},
 };
 
 

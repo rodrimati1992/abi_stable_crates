@@ -2,6 +2,7 @@ use super::*;
 
 use crate::{
     erased_types::IteratorItem,
+    utils::{transmute_reference, transmute_mut_reference},
 };
 
 macro_rules! declare_iter_interface {

@@ -15,7 +15,7 @@ use std::{
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use core_extensions::SelfOps;
+use core_extensions::{SelfOps, SliceExt};
 
 use crate::{
     sabi_types::Constructor,
@@ -72,7 +72,7 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
     #[derive(StableAbi)]
     // #[sabi(debug_print)]
     pub struct RVec<T> {
-        buffer: *mut T,
+        pub(super) buffer: *mut T,
         pub(super) length: usize,
         capacity: usize,
         vtable: VecVTable_Ref<T>,
@@ -176,6 +176,11 @@ pub fn partition_evenness(numbers:RSlice<'_,u32>)->Partitioned{
         /// Gets a raw pointer to the start of this RVec's buffer.
         #[inline(always)]
         pub const fn as_ptr(&self) -> *const T{
+            self.buffer
+        }
+        /// Gets a mutable raw pointer to the start of this RVec's buffer.
+        #[inline(always)]
+        pub fn as_mut_ptr(&mut self) -> *mut T{
             self.buffer
         }
     }
@@ -302,7 +307,8 @@ impl<T> RVec<T> {
     ///
     /// ```
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        unsafe { ::std::slice::from_raw_parts_mut(self.buffer_mut(), self.len()) }
+        let len = self.len();
+        unsafe { ::std::slice::from_raw_parts_mut(self.buffer_mut(), len) }
     }
 
     /// Creates an `RSlice<'_,T>` with access to all the elements of the `RVec<T>`.
@@ -807,7 +813,8 @@ impl<T> RVec<T> {
             self.set_len(0); 
         }
         DrainFilter {
-            vec: self,
+            vec_len: &mut self.length,
+            allocation_start: self.buffer,
             idx: 0,
             del: 0,
             old_len,
@@ -820,9 +827,9 @@ impl<T> RVec<T> {
         let old_length = self.length;
         self.length = to;
         unsafe {
-            for elem in self.get_unchecked_mut(to..old_length) {
-                ptr::drop_in_place(elem);
-            }
+            ptr::drop_in_place(
+                std::slice::from_raw_parts_mut(self.buffer.add(to), old_length - to)
+            )
         }
     }
 
@@ -1166,10 +1173,13 @@ use abi_stable::std_types::{RSlice,RVec};
         [T]: IndexMut<I, Output = [T]>,
     {
         unsafe {
-            let slic_ = &mut self[index];
-            let removed_start = slic_.as_mut_ptr();
-            let slice_len = slic_.len();
-            let iter = RawValIter::new(slic_);
+            let slice = &self[index];
+            let slice_len = slice.len();
+            let slic_start = self.offset_of_slice(slice);
+
+            let allocation_start = self.buffer;
+            let removed_start = allocation_start.add(slic_start);
+            let iter = RawValIter::new(removed_start, slice_len);
             let old_length = self.length;
             self.length = 0;
 
@@ -1177,7 +1187,8 @@ use abi_stable::std_types::{RSlice,RVec};
                 removed_start,
                 slice_len,
                 iter,
-                vec: self,
+                vec_len: &mut self.length,
+                allocation_start,
                 len: old_length,
             }
         }
@@ -1191,11 +1202,11 @@ impl<T> IntoIterator for RVec<T> {
 
     fn into_iter(self) -> IntoIter<T> {
         unsafe {
-            let iter = RawValIter::new(&self);
-            IntoIter {
-                iter,
-                _buf: ManuallyDrop::new(self),
-            }
+            let _buf = ManuallyDrop::new(self);
+            let len = _buf.length;
+            let ptr = _buf.buffer;
+            let iter = RawValIter::new(ptr, len);
+            IntoIter {iter, _buf}
         }
     }
 }
