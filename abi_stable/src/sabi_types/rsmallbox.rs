@@ -449,6 +449,8 @@ assert!( RSmallBox::is_inline(&just_right) );
 
 unsafe impl<T,Inline> GetPointerKind for RSmallBox<T,Inline>{
     type Kind=PK_SmartPointer;
+
+    type PtrTarget = T;
 }
 
 impl<T,Inline> Deref for RSmallBox<T,Inline>{
@@ -568,7 +570,7 @@ where
 
 unsafe impl<T,Inline> OwnedPointer for RSmallBox<T,Inline>{
     #[inline]
-    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>{
+    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_, T>{
         MovePtr::new(&mut **this)
     }
 

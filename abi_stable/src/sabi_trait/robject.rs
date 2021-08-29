@@ -187,7 +187,7 @@ where
 
 impl<'lt,P,I,V> Debug for RObject<'lt,P,I,V> 
 where
-    P: AsPtr<Target=()>+AsPtr,
+    P: AsPtr<PtrTarget=()>+AsPtr,
     I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -204,7 +204,7 @@ where
 
 impl<'lt,P,I,V> Display for RObject<'lt,P,I,V> 
 where
-    P: AsPtr<Target = ()>,
+    P: AsPtr<PtrTarget = ()>,
     I: InterfaceType<Display = Implemented<trait_marker::Display>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -220,7 +220,7 @@ where
 
 impl<'lt,P, I,V> std::error::Error for RObject<'lt,P,I,V>
 where
-    P: AsPtr<Target=()>,
+    P: AsPtr<PtrTarget=()>,
     I: InterfaceBound<
         Display=Implemented<trait_marker::Display>,
         Debug=Implemented<trait_marker::Debug>,
@@ -245,7 +245,7 @@ where
 
 impl<'lt,P,I,V> RObject<'lt,P,I,V>
 where
-    P:AsPtr<Target=()>,
+    P:AsPtr<PtrTarget=()>,
 {
 /**
 
@@ -274,9 +274,9 @@ These are the requirements for the caller:
         vtable:PrefixRef<V>,
     )-> RObject<'lt,P,I,V>
     where 
-        OrigPtr:CanTransmuteElement<(),TransmutedPtr=P>,
-        OrigPtr::Target:Sized+'lt,
-        P:AsPtr<Target=()>,
+        OrigPtr: Deref + CanTransmuteElement<(),TransmutedPtr=P>,
+        OrigPtr::Target: Sized+'lt,
+        P:AsPtr<PtrTarget=()>,
     {
         RObject{
             vtable,
@@ -381,7 +381,7 @@ where
     pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
     where
         T:'static,
-        P: AsPtr<Target=()> + CanTransmuteElement<T>,
+        P: AsPtr<PtrTarget=()> + CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe {
@@ -408,7 +408,7 @@ where
     pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
     where
         T:'static,
-        P:AsPtr<Target=()>+CanTransmuteElement<T>,
+        P:AsPtr<PtrTarget=()>+CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe { 
@@ -434,7 +434,7 @@ where
     pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
     where
         T:'static,
-        P:AsMutPtr<Target=()>+CanTransmuteElement<T>,
+        P:AsMutPtr<PtrTarget=()>+CanTransmuteElement<T>,
     {
         check_unerased!(self,self.sabi_check_same_utypeid::<T>());
         unsafe { 
@@ -452,7 +452,7 @@ where
     #[inline]
     pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
     where
-        P: AsPtr<Target=()> + CanTransmuteElement<T>,
+        P: AsPtr<PtrTarget=()> + CanTransmuteElement<T>,
     {
         let this=ManuallyDrop::new(self);
         ptr::read(&*this.ptr).transmute_element::<T>()
@@ -468,7 +468,7 @@ where
     #[inline]
     pub unsafe fn unchecked_as_unerased<T>(&self) -> &T
     where
-        P:AsPtr<Target=()>,
+        P:AsPtr<PtrTarget=()>,
     {
         &*(self.ptr.as_ptr() as *const T)
     }
@@ -483,7 +483,7 @@ where
     #[inline]
     pub unsafe fn unchecked_as_unerased_mut<T>(&mut self) -> &mut T
     where
-        P:AsMutPtr<Target=()>,
+        P:AsMutPtr<PtrTarget=()>,
     {
         &mut *(self.ptr.as_mut_ptr() as *mut T)
     }
@@ -522,7 +522,7 @@ where
     ///
     pub fn reborrow<'re>(&'re self)->RObject<'lt, RRef<'re, ()>,I,V> 
     where
-        P:AsPtr<Target=()>,
+        P:AsPtr<PtrTarget=()>,
         PrivStruct:ReborrowBounds<I::Send,I::Sync>,
     {
         // Reborrowing will break if I add extra functions that operate on `P`.
@@ -543,7 +543,7 @@ where
     /// 
     pub fn reborrow_mut<'re>(&'re mut self)->RObject<'lt,RMut<'re, ()>,I,V> 
     where
-        P:AsMutPtr<Target=()>,
+        P:AsMutPtr<PtrTarget=()>,
         PrivStruct:ReborrowBounds<I::Send,I::Sync>,
     {
         // Reborrowing will break if I add extra functions that operate on `P`.
@@ -586,7 +586,7 @@ where
     /// Gets an `RRef` pointing to the erased object.
     pub fn sabi_erased_ref(&self) -> RRef<'_, ErasedObject<()>>
     where
-        P: AsPtr<Target=()>
+        P: AsPtr<PtrTarget=()>
     {
         unsafe{ RRef::from_raw(self.ptr.as_ptr() as *const _) }
     }
@@ -594,7 +594,7 @@ where
     /// Gets an `RMut` pointing to the erased object.
     pub fn sabi_erased_mut(&mut self) -> RMut<'_, ErasedObject<()>>
     where
-        P: AsMutPtr<Target=()>
+        P: AsMutPtr<PtrTarget=()>
     {
         unsafe{ RMut::from_raw(self.ptr.as_mut_ptr() as *mut _) }
     }
@@ -603,7 +603,7 @@ where
     /// Gets an `RRef` pointing to the erased object.
     pub fn sabi_as_rref(&self) -> RRef<'_, ()>
     where
-        P: AsPtr<Target=()>
+        P: AsPtr<PtrTarget=()>
     {
         self.ptr.as_rref()
     }
@@ -611,7 +611,7 @@ where
     /// Gets an `RMut` pointing to the erased object.
     pub fn sabi_as_rmut(&mut self) -> RMut<'_, ()>
     where
-        P: AsMutPtr<Target=()>
+        P: AsMutPtr<PtrTarget=()>
     {
         self.ptr.as_rmut()
     }
@@ -620,8 +620,8 @@ where
     #[inline]
     pub fn sabi_with_value<F,R>(self,f:F)->R
     where 
-        P: OwnedPointer<Target=()>,
-        F:FnOnce(MovePtr<'_,()>)->R,
+        P: OwnedPointer<PtrTarget=()>,
+        F: FnOnce(MovePtr<'_,()>)->R,
     {
         OwnedPointer::with_move_ptr(self.sabi_into_erased_ptr(),f)
     }

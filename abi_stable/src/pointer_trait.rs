@@ -44,24 +44,30 @@ pub enum Deallocate{
 ///////////
 
 
-/**
-What kind of pointer this is.
-
-The valid kinds are:
-
-- Reference:a `&T`,or a `Copy` wrapper struct containing a `&T`
-
-- MutReference:a `&mut T`,or a non-`Drop` wrapper struct containing a `&mut T`
-
-- SmartPointer: Any pointer type that's not a reference or a mutable reference.
-
-*/
-pub unsafe trait GetPointerKind:Deref+Sized{
+/// What kind of pointer this is.
+/// 
+/// The valid kinds are:
+/// 
+/// - Reference:a `&T`,or a `Copy` wrapper struct containing a `&T`
+/// 
+/// - MutReference:a `&mut T`,or a non-`Drop` wrapper struct containing a `&mut T`
+/// 
+/// - SmartPointer: Any pointer type that's not a reference or a mutable reference.
+/// 
+/// 
+pub unsafe trait GetPointerKind: Sized {
     /// The kind of the pointer.
-    type Kind:PointerKindVariant;
+    type Kind: PointerKindVariant;
+
+    /// What this pointer points to,
+    /// if the type implements `std::ops::Deref` it must be the same as
+    /// `<Self as Deref>::Target`.
+    /// 
+    /// This is here so that pointers don't *have to* implement `Deref`.
+    type PtrTarget;
 
     /// The kind of the pointer.
-    const KIND:PointerKind=<Self::Kind as PointerKindVariant>::VALUE;
+    const KIND: PointerKind = <Self::Kind as PointerKindVariant>::VALUE;
 }
 
 /// A type-level equivalent of a PointerKind variant.
@@ -118,10 +124,12 @@ impl PointerKindVariant for PK_SmartPointer{
 
 unsafe impl<'a,T> GetPointerKind for &'a T{
     type Kind=PK_Reference;
+    type PtrTarget = T;
 }
 
 unsafe impl<'a,T> GetPointerKind for &'a mut T{
     type Kind=PK_MutReference;
+    type PtrTarget = T;
 }
 
 
@@ -144,7 +152,7 @@ Implementors of this trait must ensure that:
 */
 pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
     /// The type of the pointer after it's element type has been changed.
-    type TransmutedPtr: AsPtr<Target = T>;
+    type TransmutedPtr: AsPtr<PtrTarget = T>;
 
     /// Transmutes the element type of this pointer..
     ///
@@ -177,23 +185,14 @@ pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr;
 }
 
-/**
-Allows transmuting pointers to point to a different type.
-
-# Safety for callers
-
-Callers must ensure that:
-
-- References to `T` are compatible with references to `Self::Target`.
-
-*/
+/// Allows transmuting pointers to point to a different type.
 pub trait TransmuteElement{
     /// Transmutes the element type of this pointer..
     ///
     /// # Safety
     ///
     /// Callers must ensure that it is valid to convert from a pointer to `Self::Referent`
-    /// to a pointer to `T` .
+    /// to a pointer to `T`, and then use the pointed-to data.
     ///
     /// For example:
     ///
@@ -218,8 +217,7 @@ pub trait TransmuteElement{
     /// ```
     unsafe fn transmute_element<T>(self) -> <Self as CanTransmuteElement<T>>::TransmutedPtr 
     where
-        Self:CanTransmuteElement<T>,
-        Self::Target:Sized,
+        Self: CanTransmuteElement<T>,
     {
         self.transmute_element_()
     }
@@ -263,16 +261,13 @@ unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a mut T {
 /// 
 /// The implementor of this trait must not override the defaulted methods.
 /// 
-pub unsafe trait AsPtr: GetPointerKind /* Deref is implied by GetPointerKind */ {
+pub unsafe trait AsPtr: GetPointerKind {
     /// Gets a const raw pointer to the value that this points to.
-    fn as_ptr(&self) -> *const Self::Target;
+    fn as_ptr(&self) -> *const Self::PtrTarget;
 
     /// Converts this pointer to an `RRef`.
     #[inline(always)]
-    fn as_rref(&self) -> RRef<'_, Self::Target> 
-    where
-        Self::Target: Sized,
-    {
+    fn as_rref(&self) -> RRef<'_, Self::PtrTarget> {
         unsafe{ RRef::from_raw(self.as_ptr()) }
     }
 }
@@ -288,16 +283,13 @@ pub unsafe trait AsPtr: GetPointerKind /* Deref is implied by GetPointerKind */ 
 /// 
 /// The implementor of this trait must not override the defaulted methods.
 /// 
-pub unsafe trait AsMutPtr: AsPtr + DerefMut {
+pub unsafe trait AsMutPtr: AsPtr {
     /// Gets a mutable raw pointer to the value that this points to.
-    fn as_mut_ptr(&mut self) -> *mut Self::Target;
+    fn as_mut_ptr(&mut self) -> *mut Self::PtrTarget;
 
     /// Converts this pointer to an `RRef`.
     #[inline(always)]
-    fn as_rmut(&mut self) -> RMut<'_, Self::Target> 
-    where
-        Self::Target: Sized,
-    {
+    fn as_rmut(&mut self) -> RMut<'_, Self::PtrTarget> {
         unsafe{ RMut::from_raw(self.as_mut_ptr()) }
     }
 }
@@ -319,7 +311,7 @@ Implementors must:
 - Not override `in_move_ptr`
 
 */
-pub unsafe trait OwnedPointer:Sized+AsMutPtr+GetPointerKind{
+pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// Gets a move pointer to the contents of this pointer.
     ///
     /// # Safety
@@ -327,9 +319,7 @@ pub unsafe trait OwnedPointer:Sized+AsMutPtr+GetPointerKind{
     /// This function logically moves the owned contents out of this pointer,
     /// the only safe thing that can be done with the pointer afterwads 
     /// is to call OwnedPointer::drop_allocation.
-    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>
-    where 
-        Self::Target:Sized;
+    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::PtrTarget>;
 
     /// Deallocates the pointer without dropping its owned contents.
     ///
@@ -345,8 +335,7 @@ pub unsafe trait OwnedPointer:Sized+AsMutPtr+GetPointerKind{
     #[inline]
     fn with_move_ptr<F,R>(mut this:ManuallyDrop<Self>,f:F)->R
     where 
-        F:FnOnce(MovePtr<'_,Self::Target>)->R,
-        Self::Target:Sized,
+        F:FnOnce(MovePtr<'_,Self::PtrTarget>)->R,
     {
         unsafe{
             let ret=f(Self::get_move_ptr(&mut this));
@@ -358,8 +347,7 @@ pub unsafe trait OwnedPointer:Sized+AsMutPtr+GetPointerKind{
     #[inline]
     fn in_move_ptr<F,R>(self,f:F)->R
     where 
-        F:FnOnce(MovePtr<'_,Self::Target>)->R,
-        Self::Target:Sized,
+        F:FnOnce(MovePtr<'_, Self::PtrTarget>)->R,
     {
         unsafe{
             let mut this=ManuallyDrop::new(self);

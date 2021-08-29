@@ -648,12 +648,14 @@ fn constructor_items(
                 unerasability:Unerasability,
             )->Self
             where
-                _OrigPtr:__sabi_re::CanTransmuteElement<(),TransmutedPtr=_ErasedPtr> #plus_lt,
+                _OrigPtr:
+                    __sabi_re::Deref +
+                    __sabi_re::CanTransmuteElement<(),TransmutedPtr=_ErasedPtr> #plus_lt,
                 _OrigPtr::Target:
                     #trait_bounds<#trait_params #( #assoc_tys_a= #assoc_tys_b, )* >+
                     Sized
                     #plus_lt,
-                _ErasedPtr:__sabi_re::AsPtr<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<PtrTarget=()>,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
                         Unerasability,_OrigPtr::Target,_ErasedPtr,_OrigPtr
@@ -762,7 +764,7 @@ fn reborrow_methods_tokenizer(
             /// Reborrows this trait object to a reference-based trait object.
             #submod_vis fn sabi_reborrow<'_sub>(&'_sub self)->#trait_to<#gen_params_use_ref>
             where
-                _ErasedPtr: __sabi_re::AsPtr<Target=()>
+                _ErasedPtr: __sabi_re::AsPtr<PtrTarget=()>
             {
                 let x=self.obj.reborrow();
                 // This is transmuting the pointer type parameter of the vtable.
@@ -773,7 +775,7 @@ fn reborrow_methods_tokenizer(
             /// Reborrows this trait object to a mutable-reference-based trait object.
             #submod_vis fn sabi_reborrow_mut<'_sub>(&'_sub mut self)->#trait_to<#gen_params_use_mut>
             where
-                _ErasedPtr: __sabi_re::AsMutPtr<Target=()>
+                _ErasedPtr: __sabi_re::AsMutPtr<PtrTarget=()>
             {
                 let x=self.obj.reborrow_mut();
                 // This is transmuting the pointer type parameter of the vtable.
@@ -1231,8 +1233,10 @@ fn vtable_impl(
         impl<#impl_header_generics> #make_vtable_ident<#makevtable_generics>
         where 
             _Self:#trait_bounds<#trait_generics>,
-            _OrigPtr:__sabi_re::CanTransmuteElement<(),Target=_Self,TransmutedPtr=_ErasedPtr>,
-            _ErasedPtr:__GetPointerKind<Target=()>,
+            _OrigPtr:
+                __sabi_re::Deref<Target = _Self> +
+                __sabi_re::CanTransmuteElement<(),TransmutedPtr=_ErasedPtr>,
+            _ErasedPtr:__GetPointerKind<PtrTarget=()>,
             #trait_interface<#trait_interface_use>:
                 __sabi_re::GetRObjectVTable<IA,_Self,_ErasedPtr,_OrigPtr>,
             #extra_constraints

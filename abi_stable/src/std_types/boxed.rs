@@ -190,6 +190,8 @@ pub use self::private::RBox;
 
 unsafe impl<T> GetPointerKind for RBox<T>{
     type Kind=PK_SmartPointer;
+
+    type PtrTarget = T;
 }
 
 unsafe impl<T, O> CanTransmuteElement<O> for RBox<T> {
@@ -282,7 +284,7 @@ impl<T> DerefMut for RBox<T> {
 
 unsafe impl<T> OwnedPointer for RBox<T>{
     #[inline]
-    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>{
+    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_, T>{
         MovePtr::from_raw(this.data_mut())
     }
 

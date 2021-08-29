@@ -101,6 +101,8 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
 
     unsafe impl<T> GetPointerKind for RArc<T>{
         type Kind=PK_SmartPointer;
+
+        type PtrTarget = T;
     }
 
     unsafe impl<T> AsPtr for RArc<T> {

@@ -314,6 +314,8 @@ unsafe impl<T> AsPtr for StaticRef<T> {
 
 unsafe impl<T> GetPointerKind for StaticRef<T>{
     type Kind=PK_Reference;
+
+    type PtrTarget = T;
 }
 
 unsafe impl<T,U> CanTransmuteElement<U> for StaticRef<T>{

@@ -56,6 +56,7 @@ pub mod reexports{
         pub use std::{
             marker::PhantomData,
             mem::{ManuallyDrop, transmute},
+            ops::Deref,
             ptr,
         };
     }

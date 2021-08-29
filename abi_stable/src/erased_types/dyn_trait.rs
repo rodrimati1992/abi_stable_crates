@@ -559,6 +559,7 @@ impl<T> DerefMut for NewtypeBox<T>{
 
 unsafe impl<T> GetPointerKind for NewtypeBox<T>{
     type Kind=PK_SmartPointer;
+    type Target=T;
 }
 
 // safety: Does not create an intermediate &T
@@ -651,7 +652,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             T: ImplType,
             T::Interface:InterfaceBound,
             T: GetVtable<'static,T,P::TransmutedPtr,P,<T as ImplType>::Interface>,
-            P: AsPtr<Target = T>+CanTransmuteElement<()>+GetPointerKind,
+            P: AsPtr<PtrTarget = T>+CanTransmuteElement<()>+GetPointerKind,
             P::TransmutedPtr:GetPointerKind,
         {
             DynTrait {
@@ -747,7 +748,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
 
     impl<'borr,P,I,EV> DynTrait<'borr,P,I,EV>
     where
-        P:AsPtr<Target=()>
+        P:AsPtr<PtrTarget=()>
     {
         /// Constructs an DynTrait from an erased pointer and an extra value.
         pub fn with_extra_value<OrigPtr,Unerasability>(
@@ -755,6 +756,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             extra_value:EV,
         )-> DynTrait<'borr,P,I,EV>
         where
+            OrigPtr: Deref,
             OrigPtr::Target:Sized+'borr,
             I:InterfaceBound,
             InterfaceFor<OrigPtr::Target,I,Unerasability>: 
@@ -778,6 +780,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             extra_vtable:EV,
         )-> DynTrait<'borr,P,I,EV>
         where
+            OrigPtr: Deref,
             OrigPtr::Target:Sized+'borr,
             I:InterfaceBound,
             InterfaceFor<OrigPtr::Target,I,Unerasability>: 
@@ -949,7 +952,7 @@ fn main(){
         where
             P: AsPtr,
         {
-            &*(self.object.as_ptr() as *const P::Target as *const T)
+            &*(self.object.as_ptr() as *const P::PtrTarget as *const T)
         }
 
         // Safety: Only call this in unerasure functions
@@ -957,7 +960,7 @@ fn main(){
         where
             P: AsMutPtr,
         {
-            &mut *(self.object.as_mut_ptr() as *mut P::Target as *mut T)
+            &mut *(self.object.as_mut_ptr() as *mut P::PtrTarget as *mut T)
         }
         
         /// Gets a reference pointing to the erased object.
@@ -1020,7 +1023,7 @@ fn main(){
         #[inline]
         pub fn sabi_with_value<F,R>(self,f:F)->R
         where 
-            P: OwnedPointer<Target=()>,
+            P: OwnedPointer<PtrTarget=()>,
             F:FnOnce(MovePtr<'_,()>)->R,
         {
             OwnedPointer::with_move_ptr(self.sabi_into_erased_ptr(),f)
@@ -1070,7 +1073,6 @@ fn main(){
         pub fn into_unerased_impltype<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
         where
             P: CanTransmuteElement<T>,
-            P::Target:Sized,
             T: ImplType,
         {
             check_unerased!(self,self.sabi_check_same_destructor::<T,T>());
@@ -1151,7 +1153,6 @@ fn main(){
         where
             T:'static,
             P: CanTransmuteElement<T>,
-            P::Target:Sized,
             Self:DynTraitBound<'borr>,
             InterfaceFor<T,I,TU_Unerasable>: ImplType,
         {
@@ -1237,7 +1238,6 @@ fn main(){
         pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
         where
             P: AsPtr+ CanTransmuteElement<T>,
-            P::Target:Sized,
         {
             let this=ManuallyDrop::new(self);
             ptr::read(&*this.object).transmute_element::<T>()
@@ -1311,7 +1311,7 @@ fn main(){
         /// 
         pub fn reborrow<'re>(&'re self)->DynTrait<'borr,RRef<'re, ()>,I,EV> 
         where
-            P:AsPtr<Target=()>,
+            P:AsPtr<PtrTarget=()>,
             PrivStruct:ReborrowBounds<I::Send,I::Sync>,
             EV:Copy,
         {
@@ -1337,7 +1337,7 @@ fn main(){
         /// 
         pub fn reborrow_mut<'re>(&'re mut self)->DynTrait<'borr,RMut<'re, ()>,I,EV> 
         where
-            P:AsMutPtr<Target=()>,
+            P:AsMutPtr<PtrTarget=()>,
             PrivStruct:ReborrowBounds<I::Send,I::Sync>,
             EV:Copy,
         {
