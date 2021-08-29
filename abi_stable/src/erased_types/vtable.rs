@@ -7,6 +7,7 @@ use std::{
     fmt::{self, Debug,Write as FmtWrite},
     io,
     marker::PhantomData,
+    ops::Deref,
 };
 
 use super::{
@@ -87,8 +88,8 @@ impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> Clone
 impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> 
     VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
 where
-    OrigPtr: CanTransmuteElement<(), Target=T, TransmutedPtr=ErasedPtr>,
-    ErasedPtr: GetPointerKind<Target=()>,
+    OrigPtr: Deref<Target = T> + CanTransmuteElement<(), TransmutedPtr=ErasedPtr>,
+    ErasedPtr: GetPointerKind<PtrTarget=()>,
     I: InterfaceBound,
     InterfaceFor<T,I,Unerasability>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,
 {    

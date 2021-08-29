@@ -174,6 +174,8 @@ unsafe impl<'a, T> AsMutPtr for RMut<'a, T> {
 
 unsafe impl<'a,T> GetPointerKind for RMut<'a,T>{
     type Kind=PK_MutReference;
+
+    type PtrTarget = T;
 }
 
 unsafe impl<'a,T,U> CanTransmuteElement<U> for RMut<'a,T>

@@ -112,8 +112,8 @@ The ffi-safe trait object.
 This only implements `Trait` if all the methods are callable,
 when the wrapped pointer type implements traits for these methods:
 
-- `&self` method: requires `Deref<Target=()>`.
-- `&mut self` method: requires `DerefMut<Target=()>`.
+- `&self` method: requires `AsPtr<PtrTarget=()>`.
+- `&mut self` method: requires `AsMutPtr<PtrTarget=()>`.
 - `self` method: requires `OwnedPointer<Target=()>`.
 
 <br>
@@ -448,7 +448,7 @@ pub trait Dictionary:Debug+Clone{
         assert_eq!(object.get("world".into()),Some(&10));
         
         // Can't call these methods on `Dictionary_TO<RArc<()>,..>`
-        // because `RArc<_>` doesn't implement DerefMut.
+        // because `RArc<_>` doesn't implement AsMutPtr.
         //
         // assert_eq!(Dictionary::get(&object,"hello"),Some(&100));
         //

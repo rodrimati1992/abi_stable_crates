@@ -269,6 +269,8 @@ impl<'a,T> Deref for RRef<'a,T>{
 
 unsafe impl<'a,T> GetPointerKind for RRef<'a,T>{
     type Kind=PK_Reference;
+
+    type PtrTarget = T;
 }
 
 unsafe impl<'a,T,U> CanTransmuteElement<U> for RRef<'a,T>
