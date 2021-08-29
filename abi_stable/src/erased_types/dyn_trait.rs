@@ -1307,7 +1307,7 @@ fn main(){
         /// 
         /// - DynTrait::default
         /// 
-        /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
+        /// This is only callable if `DynTrait` is either `Send + Sync` or `!Send + !Sync`.
         /// 
         pub fn reborrow<'re>(&'re self)->DynTrait<'borr,RRef<'re, ()>,I,EV> 
         where
@@ -1333,7 +1333,7 @@ fn main(){
         /// 
         /// - DynTrait::clone
         /// 
-        /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
+        /// This is only callable if `DynTrait` is either `Send + Sync` or `!Send + !Sync`.
         /// 
         pub fn reborrow_mut<'re>(&'re mut self)->DynTrait<'borr,RMut<'re, ()>,I,EV> 
         where

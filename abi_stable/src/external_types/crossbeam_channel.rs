@@ -31,7 +31,7 @@ use crate::{
     std_types::{RResult,ROk,RErr,ROption,RDuration,RBox},
     prefix_type::{PrefixTypeTrait,WithMetadata},
     pointer_trait::AsPtr,
-    sabi_types::RRef,
+    sabi_types::{RRef, RMut},
 };
 
 
@@ -39,7 +39,7 @@ mod errors;
 mod extern_fns;
 mod iteration;
 
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(all(test,not(feature="test_miri_track_raw")))]
 mod tests;
 
 use self::{

@@ -75,7 +75,7 @@ let _=RSomething_TO::<_,(),PhantomData<SyncUnsend>>::from_value(ptr,TU_Opaque);
 
 */
 #[sabi_trait]
-//#[sabi(debug_print_trait)]
+// #[sabi(debug_print_trait)]
 pub trait RSomething<T>:Send+Sync+Clone+Debug{
     type Element:Debug;
 

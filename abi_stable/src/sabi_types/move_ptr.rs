@@ -136,6 +136,20 @@ impl<'a,T> MovePtr<'a,T>{
         }
     }
 
+    /// Constructs this move pointer from a raw pointer,
+    /// moving the value out of it.
+    ///
+    /// # Safety 
+    ///
+    /// Callers must ensure that the value the pointer points at is never read again.
+    ///
+    pub unsafe fn from_raw(ptr: *mut T)->Self{
+        Self{
+            ptr: NonNull::new_unchecked(ptr),
+            _marker:PhantomData,
+        }
+    }
+
     /// Gets a raw pointer to the value being moved.
     ///
     /// # Example
@@ -209,9 +223,9 @@ impl<'a,T> MovePtr<'a,T>{
     /// 
     /// ```
     #[inline]
-    pub const fn into_raw(this:Self)->*mut T{
-        let ptr=this.ptr.as_ptr();
-        let _ = ManuallyDrop::new(this);
+    pub fn into_raw(this:Self)->*mut T{
+        let this = ManuallyDrop::new(this);
+        let ptr = this.ptr.as_ptr();
         ptr
     }
 
