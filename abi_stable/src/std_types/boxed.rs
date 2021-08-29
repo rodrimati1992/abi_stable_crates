@@ -155,6 +155,10 @@ enum Command{
         pub(super) fn data(&self) -> *mut T {
             self.data
         }
+        #[inline(always)]
+        pub(super) fn data_mut(&mut self) -> *mut T {
+            self.data
+        }
 
         #[inline(always)]
         pub(super) fn vtable(&self) -> BoxVtable_Ref<T> {
@@ -279,7 +283,7 @@ impl<T> DerefMut for RBox<T> {
 unsafe impl<T> OwnedPointer for RBox<T>{
     #[inline]
     unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>{
-        MovePtr::new(&mut **this)
+        MovePtr::from_raw(this.data_mut())
     }
 
     #[inline]

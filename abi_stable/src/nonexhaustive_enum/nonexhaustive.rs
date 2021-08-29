@@ -732,7 +732,7 @@ impl<E,S,I> NonExhaustive<E,S,I>{
         I: SerializeEnum<NonExhaustive<E,S,I>>,
     {
         unsafe{
-            self.vtable().serialize()(self.sabi_erased_ref()).into_result()
+            self.vtable().serialize()(self.as_erased_ref()).into_result()
         }
     }
 
