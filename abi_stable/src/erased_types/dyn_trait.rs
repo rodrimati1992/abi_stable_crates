@@ -6,7 +6,6 @@ use std::{
     fmt::{self,Write as fmtWrite},
     io,
     mem::ManuallyDrop,
-    ops::Deref,
     ptr,
     rc::Rc,
 };
@@ -558,8 +557,8 @@ impl<T> DerefMut for NewtypeBox<T>{
 }
 
 unsafe impl<T> GetPointerKind for NewtypeBox<T>{
-    type Kind=PK_SmartPointer;
-    type Target=T;
+    type Kind = PK_SmartPointer;
+    type PtrTarget = T;
 }
 
 // safety: Does not create an intermediate &T
@@ -687,7 +686,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             I:InterfaceBound,
             T:'static,
             InterfaceFor<T,I,TU_Unerasable>: GetVtable<'static,T,P::TransmutedPtr,P,I>,
-            P: Deref<Target = T>+CanTransmuteElement<()>+GetPointerKind,
+            P: CanTransmuteElement<(), PtrTarget = T>+GetPointerKind,
             P::TransmutedPtr:GetPointerKind,
         {
             DynTrait {
@@ -729,7 +728,7 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             T:'borr,
             I:InterfaceBound,
             InterfaceFor<T,I,TU_Opaque>: GetVtable<'borr,T,P::TransmutedPtr,P,I>,
-            P: Deref<Target = T>+CanTransmuteElement<()>+GetPointerKind,
+            P: CanTransmuteElement<(), PtrTarget = T>+GetPointerKind,
             P::TransmutedPtr:GetPointerKind,
         {
             DynTrait {
@@ -756,18 +755,18 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             extra_value:EV,
         )-> DynTrait<'borr,P,I,EV>
         where
-            OrigPtr: Deref,
-            OrigPtr::Target:Sized+'borr,
+            OrigPtr: GetPointerKind,
+            OrigPtr::PtrTarget: 'borr,
             I:InterfaceBound,
-            InterfaceFor<OrigPtr::Target,I,Unerasability>: 
-                GetVtable<'borr,OrigPtr::Target,P,OrigPtr,I>,
+            InterfaceFor<OrigPtr::PtrTarget,I,Unerasability>: 
+                GetVtable<'borr,OrigPtr::PtrTarget,P,OrigPtr,I>,
             OrigPtr: CanTransmuteElement<(),TransmutedPtr=P>,
         {
             DynTrait {
                 object: unsafe{
                     ManuallyDrop::new(ptr.transmute_element::<()>())
                 },
-                vtable: <InterfaceFor<OrigPtr::Target,I,Unerasability>>::_GET_INNER_VTABLE,
+                vtable: <InterfaceFor<OrigPtr::PtrTarget,I,Unerasability>>::_GET_INNER_VTABLE,
                 extra_value,
                 _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
@@ -780,11 +779,11 @@ impl<'a> IteratorItem<'a> for IteratorInterface{
             extra_vtable:EV,
         )-> DynTrait<'borr,P,I,EV>
         where
-            OrigPtr: Deref,
-            OrigPtr::Target:Sized+'borr,
+            OrigPtr: GetPointerKind,
+            OrigPtr::PtrTarget: 'borr,
             I:InterfaceBound,
-            InterfaceFor<OrigPtr::Target,I,Unerasability>: 
-                GetVtable<'borr,OrigPtr::Target,P,OrigPtr,I>,
+            InterfaceFor<OrigPtr::PtrTarget,I,Unerasability>: 
+                GetVtable<'borr,OrigPtr::PtrTarget,P,OrigPtr,I>,
             OrigPtr: CanTransmuteElement<(),TransmutedPtr=P>,
         {
             Self::with_extra_value(ptr,extra_vtable)

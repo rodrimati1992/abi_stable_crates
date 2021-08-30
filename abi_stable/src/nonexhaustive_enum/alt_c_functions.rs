@@ -14,7 +14,7 @@ use crate::{
 
 pub(crate) unsafe extern "C" fn drop_impl<E>(this: RMut<'_, ErasedObject>){
     extern_fn_panic_handling! {
-        let this=&mut *this.cast_into_raw::<E>();
+        let this = this.transmute_into_mut::<E>();
         ptr::drop_in_place(this);
     }
 }
@@ -29,7 +29,7 @@ where
     E: Clone,
 {
     extern_fn_panic_handling! {
-        let this=&*this.cast_into_raw::<E>();
+        let this = this.transmute_into_ref::<E>();
         let clone=this.clone();
         NonExhaustive::with_vtable(clone,vtable)
     }
@@ -44,8 +44,8 @@ where
     E: GetEnumInfo+PartialEq,
 {
     extern_fn_panic_handling! {
-        let this=&*this.cast_into_raw::<E>();
-        let other=&*other.cast_into_raw::<NonExhaustive<E,F,I>>();
+        let this = this.transmute_into_ref::<E>();
+        let other = other.transmute_into_ref::<NonExhaustive<E,F,I>>();
         match other.as_enum() {
             Ok(other)=>this==other,
             Err(_)=>false,
@@ -61,8 +61,8 @@ where
     E: GetEnumInfo+Ord,
 {
     extern_fn_panic_handling! {
-        let this=&*this.cast_into_raw::<E>();
-        let other=&*other.cast_into_raw::<NonExhaustive<E,F,I>>();
+        let this = this.transmute_into_ref::<E>();
+        let other = other.transmute_into_ref::<NonExhaustive<E,F,I>>();
         
         match other.as_enum() {
             Ok(other)=>this.cmp(other).into_c(),
@@ -79,8 +79,8 @@ where
     E: GetEnumInfo+PartialOrd,
 {
     extern_fn_panic_handling! {
-        let this=&*this.cast_into_raw::<E>();
-        let other=&*other.cast_into_raw::<NonExhaustive<E,F,I>>();
+        let this = this.transmute_into_ref::<E>();
+        let other = other.transmute_into_ref::<NonExhaustive<E,F,I>>();
         
         match other.as_enum() {
             Ok(other)=>this.partial_cmp(other).map(IntoReprC::into_c).into_c(),
@@ -97,7 +97,7 @@ where
     I: SerializeEnum<NE>,
 {
     extern_fn_panic_handling! {
-        let this=&*this.cast_into_raw::<NE>();
+        let this = this.transmute_into_ref::<NE>();
         I::serialize_enum(this).into()
     }
 }

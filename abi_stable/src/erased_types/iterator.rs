@@ -69,7 +69,7 @@ pub(super) unsafe extern "C" fn next<I>(this: RMut<'_, ErasedObject>)->ROption<I
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this = &mut *this.cast_into_raw::<I>();
+        let this = this.transmute_into_mut::<I>();
         this.next().into_c()
     }
 }
@@ -82,7 +82,7 @@ pub(super) unsafe extern "C" fn extending_rvec<I>(
     I:Iterator
 {
     extern_fn_panic_handling! {
-        let this = &mut *this.cast_into_raw::<I>();
+        let this = this.transmute_into_mut::<I>();
 
         vec.extend(
             this.take(taking.unwrap_or(!0))
@@ -94,7 +94,7 @@ pub(super) unsafe extern "C" fn size_hint<I>(this:RRef<'_, ErasedObject>)-> Tupl
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this = &*this.cast_into_raw::<I>();
+        let this = this.transmute_into_ref::<I>();
         let (l,r)=this.size_hint();
 
         Tuple2(l,r.into_c())
@@ -105,7 +105,7 @@ pub(super) unsafe extern "C" fn count<I>(this: RMut<'_, ErasedObject>)->usize
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this = &mut *this.cast_into_raw::<I>();
+        let this = this.transmute_into_mut::<I>();
         this.count()
     }
 }
@@ -114,7 +114,7 @@ pub(super) unsafe extern "C" fn last<I>(this: RMut<'_, ErasedObject>)->ROption<I
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this = &mut *this.cast_into_raw::<I>();
+        let this = this.transmute_into_mut::<I>();
         this.last().into_c()
     }
 }
@@ -123,7 +123,7 @@ pub(super) unsafe extern "C" fn nth<I>(this: RMut<'_, ErasedObject>,at:usize)->R
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this = &mut *this.cast_into_raw::<I>();
+        let this = this.transmute_into_mut::<I>();
         this.nth(at).into_c()
     }
 }
@@ -132,7 +132,7 @@ pub(super) unsafe extern "C" fn skip_eager<I>(this: RMut<'_, ErasedObject>,skipp
 where I:Iterator
 {
     extern_fn_panic_handling! {
-        let this = &mut *this.cast_into_raw::<I>();
+        let this = this.transmute_into_mut::<I>();
 
         if skipping!=0 {
             let _=this.nth(skipping-1);
@@ -200,7 +200,7 @@ where
     I:DoubleEndedIterator
 {
     extern_fn_panic_handling! {
-        let this = &mut *this.cast_into_raw::<I>();
+        let this = this.transmute_into_mut::<I>();
         this.next_back().into_c()
     }
 }
@@ -213,7 +213,7 @@ pub(super) unsafe extern "C" fn extending_rvec_back<I>(
     I:DoubleEndedIterator
 {
     extern_fn_panic_handling! {
-        let this = &mut *this.cast_into_raw::<I>();
+        let this = this.transmute_into_mut::<I>();
 
         vec.extend(
             this.rev().take(taking.unwrap_or(!0))
@@ -226,7 +226,7 @@ where
     I:DoubleEndedIterator
 {
     extern_fn_panic_handling! {
-        let this = &mut *this.cast_into_raw::<I>();
+        let this = this.transmute_into_mut::<I>();
         for x in this.rev() {
             if at == 0 { 
                 return RSome(x) 

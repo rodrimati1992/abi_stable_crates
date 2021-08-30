@@ -274,8 +274,8 @@ These are the requirements for the caller:
         vtable:PrefixRef<V>,
     )-> RObject<'lt,P,I,V>
     where 
-        OrigPtr: Deref + CanTransmuteElement<(),TransmutedPtr=P>,
-        OrigPtr::Target: Sized+'lt,
+        OrigPtr: CanTransmuteElement<(),TransmutedPtr=P>,
+        OrigPtr::PtrTarget: Sized+'lt,
         P:AsPtr<PtrTarget=()>,
     {
         RObject{
@@ -331,7 +331,7 @@ const EXAMPLE0:ConstExample_CTO<'static,'static>=
         RObject{
             vtable: vtable.robject_vtable(),
             ptr:{
-                let x=RRef::new(ptr).transmute_ref::<()>();
+                let x=RRef::new(ptr).transmute::<()>();
                 ManuallyDrop::new(x)
             },
             _marker:PhantomData,

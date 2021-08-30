@@ -16,7 +16,7 @@ where
     where F:FnOnce(&'a BoxedHashMap<'a,K,V,S>)->R
     {
         extern_fn_panic_handling!{
-            let map = unsafe{ &*this.cast_into_raw::<BoxedHashMap<'a,K,V,S>>() };
+            let map = unsafe{ this.transmute_into_ref::<BoxedHashMap<'a,K,V,S>>() };
             f(map)
         }
     }
@@ -25,7 +25,7 @@ where
     where F:FnOnce(&'a mut BoxedHashMap<'a,K,V,S>)->R
     {
         extern_fn_panic_handling!{
-            let map = unsafe{ &mut *this.cast_into_raw::<BoxedHashMap<'a,K,V,S>>() };
+            let map = unsafe{ this.transmute_into_mut::<BoxedHashMap<'a,K,V,S>>() };
             f(map)
         }
     }

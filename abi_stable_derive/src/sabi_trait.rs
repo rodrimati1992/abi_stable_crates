@@ -465,13 +465,13 @@ fn constructor_items(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
             __sabi_re::InterfaceFor<
-                _OrigPtr::Target,
+                _OrigPtr::PtrTarget,
                 #trait_interface<#trait_interface_use>,
                 Unerasability
             >: 
                 __sabi_re::GetVtable<
                     #one_lt
-                    _OrigPtr::Target,
+                    _OrigPtr::PtrTarget,
                     _OrigPtr::TransmutedPtr,
                     _OrigPtr,
                     #trait_interface<#trait_interface_use>,
@@ -649,16 +649,15 @@ fn constructor_items(
             )->Self
             where
                 _OrigPtr:
-                    __sabi_re::Deref +
                     __sabi_re::CanTransmuteElement<(),TransmutedPtr=_ErasedPtr> #plus_lt,
-                _OrigPtr::Target:
+                _OrigPtr::PtrTarget:
                     #trait_bounds<#trait_params #( #assoc_tys_a= #assoc_tys_b, )* >+
                     Sized
                     #plus_lt,
                 _ErasedPtr:__sabi_re::AsPtr<PtrTarget=()>,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
-                        Unerasability,_OrigPtr::Target,_ErasedPtr,_OrigPtr
+                        Unerasability,_OrigPtr::PtrTarget,_ErasedPtr,_OrigPtr
                     >,
                 #extra_constraints_ptr
             {
@@ -1234,8 +1233,7 @@ fn vtable_impl(
         where 
             _Self:#trait_bounds<#trait_generics>,
             _OrigPtr:
-                __sabi_re::Deref<Target = _Self> +
-                __sabi_re::CanTransmuteElement<(),TransmutedPtr=_ErasedPtr>,
+                __sabi_re::CanTransmuteElement<(), PtrTarget = _Self, TransmutedPtr = _ErasedPtr>,
             _ErasedPtr:__GetPointerKind<PtrTarget=()>,
             #trait_interface<#trait_interface_use>:
                 __sabi_re::GetRObjectVTable<IA,_Self,_ErasedPtr,_OrigPtr>,

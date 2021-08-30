@@ -43,7 +43,7 @@ pub(crate) unsafe fn adapt_std_fmt<T>(
 
 pub(crate) unsafe extern "C" fn drop_pointer_impl<OrigP,ErasedPtr>(this: RMut<'_, ErasedPtr>){
     extern_fn_panic_handling! {
-        let this=&mut *this.cast_into_raw::<OrigP>();
+        let this=this.transmute_into_mut::<OrigP>();
         ptr::drop_in_place(this);
     }
 }
@@ -56,7 +56,7 @@ where
     OrigP: Clone,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ &*this.cast_into_raw::<OrigP>() };
+        let this=unsafe{ this.transmute_into_ref::<OrigP>() };
         let clone=this.clone();
         transmute_ignore_size(clone)
     }
@@ -120,7 +120,7 @@ where
 {
     extern_fn_panic_handling! {
         use std::fmt::Write;
-        let this=unsafe{ &*this.cast_into_raw::<T>() };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
 
         let res = match mode {
             FormattingMode::Default_ => write!(buf, "{}", this),
@@ -144,7 +144,7 @@ where
     extern_fn_panic_handling! {
         use std::fmt::Write;
 
-        let this=unsafe{ &*this.cast_into_raw::<T>() };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
 
         let res = match mode {
             FormattingMode::Default_ => write!(buf, "{:?}", this),
@@ -166,7 +166,8 @@ where
 {
     extern_fn_panic_handling! {
         let ret: RResult<<I as SerializeProxyType<'_>>::Proxy, RBoxError> = 
-            (&*this.cast_into_raw::<T>())
+            this
+            .transmute_into_ref::<T>()
             .serialize_impl()
             .into_c();
 
@@ -182,8 +183,8 @@ where
     T: PartialEq,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ &*this.cast_into_raw::<T>() };
-        let other=unsafe{ &*other.cast_into_raw::<T>() };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
+        let other=unsafe{ other.transmute_into_ref::<T>() };
         this == other
     }
 }
@@ -196,8 +197,8 @@ where
     T: Ord,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ &*this.cast_into_raw::<T>() };
-        let other=unsafe{ &*other.cast_into_raw::<T>() };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
+        let other=unsafe{ other.transmute_into_ref::<T>() };
         this.cmp(other).into_c()
     }
 }
@@ -210,8 +211,8 @@ where
     T: PartialOrd,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ &*this.cast_into_raw::<T>() };
-        let other=unsafe{ &*other.cast_into_raw::<T>() };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
+        let other=unsafe{ other.transmute_into_ref::<T>() };
 
         this.partial_cmp(other).map(IntoReprC::into_c).into_c()
     }
@@ -227,7 +228,7 @@ pub(crate) unsafe extern "C" fn hash_Hash<T>(
     T: Hash,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ &*this.cast_into_raw::<T>() };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
 
         this.hash(&mut state);
     }
@@ -244,7 +245,7 @@ where
     T: Hasher,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ &mut *this.cast_into_raw::<T>() };
+        let this=unsafe{ this.transmute_into_mut::<T>() };
         this.write(slic_.into());
     }
 }
@@ -253,7 +254,7 @@ where
     T: Hasher,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ &*this.cast_into_raw::<T>() };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
 
         this.finish()
     }
@@ -271,7 +272,7 @@ pub(super) unsafe extern "C" fn write_str_fmt_write<T>(
 where T:fmt::Write,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ &mut *this.cast_into_raw::<T>() };
+        let this=unsafe{ this.transmute_into_mut::<T>() };
         match fmt::Write::write_str(this,data.as_str()) {
             Ok(())=>ROk(()),
             Err(_)=>RErr(()),
@@ -342,7 +343,7 @@ pub(super) unsafe extern "C" fn io_Write_write<W>(
 where W:IoWrite
 {
     extern_fn_panic_handling! {
-        let this=&mut *this.cast_into_raw::<W>();
+        let this=this.transmute_into_mut::<W>();
 
         convert_io_result(this.write(buf.into()))
     }
@@ -355,7 +356,7 @@ pub(super) unsafe extern "C" fn io_Write_write_all<W>(
 where W:IoWrite
 {
     extern_fn_panic_handling! {
-        let this=&mut *this.cast_into_raw::<W>();
+        let this=this.transmute_into_mut::<W>();
 
         convert_io_result(this.write_all(buf.into()))
     }
@@ -365,7 +366,7 @@ pub(super) unsafe extern "C" fn io_Write_flush<W>( this:RMut<'_, ErasedObject> )
 where W:IoWrite
 {
     extern_fn_panic_handling! {
-        let this=&mut *this.cast_into_raw::<W>();
+        let this=this.transmute_into_mut::<W>();
 
         convert_io_result(this.flush())
     }
@@ -407,7 +408,7 @@ pub(super) unsafe extern "C" fn io_Read_read<R>(
 where R:Read
 {
     extern_fn_panic_handling! {
-        let this=&mut *this.cast_into_raw::<R>();
+        let this=this.transmute_into_mut::<R>();
 
         convert_io_result(this.read(buf.into()))
     }
@@ -421,7 +422,7 @@ pub(super) unsafe extern "C" fn io_Read_read_exact<R>(
 where R:Read
 {
     extern_fn_panic_handling! {
-        let this=&mut *this.cast_into_raw::<R>();
+        let this=this.transmute_into_mut::<R>();
 
         convert_io_result(this.read_exact(buf.into()))
     }
@@ -459,7 +460,7 @@ pub(super) unsafe extern "C" fn io_BufRead_fill_buf<R>(
 where R:BufRead
 {
     extern_fn_panic_handling! {
-        let this=&mut *this.cast_into_raw::<R>();
+        let this=this.transmute_into_mut::<R>();
 
         mem::transmute::<
             RResult<RSlice<'_,u8>,RIoError>,
@@ -476,7 +477,7 @@ pub(super) unsafe extern "C" fn io_BufRead_consume<R>(
     R:BufRead
 {
     extern_fn_panic_handling! {
-        let this=&mut *this.cast_into_raw::<R>();
+        let this=this.transmute_into_mut::<R>();
 
         this.consume(amount)
     }
@@ -494,7 +495,7 @@ where
     S:io::Seek
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ &mut *this.cast_into_raw::<S>() };
+        let this=unsafe{ this.transmute_into_mut::<S>() };
 
         convert_io_result(this.seek(seek_from.into()))
     }
