@@ -256,10 +256,10 @@ impl<T> StaticRef<T>{
     /// }
     ///
     /// let reference:*const Option<Infallible>=
-    ///     GetPtr::<Infallible>::STATIC.get_raw();
+    ///     GetPtr::<Infallible>::STATIC.as_ptr();
     ///
     /// ```
-    pub const fn get_raw(self)->*const T{
+    pub const fn as_ptr(self)->*const T{
         self.ref_.as_ptr() as *const T
     }
 
@@ -287,11 +287,11 @@ impl<T> StaticRef<T>{
     ///
     /// let reference:StaticRef<Option<[();0xFFF_FFFF]>>=unsafe{
     ///     GetPtr::<()>::STATIC
-    ///         .transmute_ref::<Option<[();0xFFF_FFFF]>>()
+    ///         .transmute::<Option<[();0xFFF_FFFF]>>()
     /// };
     ///
     /// ```
-    pub const unsafe fn transmute_ref<U>(self)->StaticRef<U>{
+    pub const unsafe fn transmute<U>(self)->StaticRef<U>{
         StaticRef::from_raw(
             self.ref_.as_ptr() as *const T as *const U
         )
@@ -323,7 +323,7 @@ unsafe impl<T,U> CanTransmuteElement<U> for StaticRef<T>{
 
     #[inline(always)]
     unsafe fn transmute_element_(self) -> StaticRef<U> {
-        self.transmute_ref()
+        self.transmute()
     }
 }
 
@@ -351,7 +351,7 @@ mod tests {
         
         assert_eq!(*reference.get(), 8);
         unsafe{
-            assert_eq!(*reference.get_raw(), 8);
+            assert_eq!(*reference.as_ptr(), 8);
         }
     }
 
@@ -360,7 +360,7 @@ mod tests {
         let reference = StaticRef::new(&(!0u32));
 
         unsafe{
-            assert_eq!(*reference.transmute_ref::<i32>(), -1);
+            assert_eq!(*reference.transmute::<i32>(), -1);
         }
     }
 }

@@ -21,7 +21,7 @@ impl<'a,K> MapQuery<'a,K>{
             _marker: NotCopyNotClone,
             is_equal: is_equal::<K,Q>,
             hash    : hash::<Q>,
-            query: unsafe{ RRef::new(query).transmute_ref() },
+            query: unsafe{ RRef::new(query).transmute() },
         }
     }
 
@@ -66,7 +66,7 @@ where
     Q:Eq+?Sized,
 {
     extern_fn_panic_handling!{
-        let query = unsafe{ &*query.cast_into_raw::<&Q>() };
+        let query = unsafe{ query.transmute_into_ref::<&Q>() };
         key.borrow()==*query
     }
 }
@@ -77,7 +77,7 @@ where
     Q:Hash+?Sized,
 {
     extern_fn_panic_handling!{
-        let query = unsafe{ &*query.cast_into_raw::<&Q>() };
+        let query = unsafe{ query.transmute_into_ref::<&Q>() };
         query.hash(&mut hasher);
     }
 }

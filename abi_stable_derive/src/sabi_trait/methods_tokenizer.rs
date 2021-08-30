@@ -333,7 +333,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 ts.append_all(quote_spanned!(method_span=>{
                     let ret = ::abi_stable::extern_fn_panic_handling!{no_early_return;
                         __Trait::#method_name(
-                            &#mut_token *_self.cast_into_raw::<#self_ty>(),
+                            &#mut_token *_self.transmute_into_raw::<#self_ty>(),
                             #(#param_names_c,)*
                         )
                     };

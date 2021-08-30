@@ -102,7 +102,7 @@ pub(crate) struct TraitDefinition<'a>{
     pub(crate) disable_trait_impl:bool,
     /// Whether this has `'static` as a supertrait syntactically.
     pub(crate) is_static:IsStaticTrait,
-    /// A TokenStream with the equivalent of `<Pointer::Target as Trait>::`
+    /// A TokenStream with the equivalent of `<Pointer::PtrTarget as Trait>::`
     pub(crate) ts_fq_self:&'a TokenStream2,
     pub(crate) ctokens:&'a CommonTokens,
     pub(crate) arenas:&'a Arenas,
@@ -221,7 +221,7 @@ impl<'a> TraitDefinition<'a>{
 
         let ts_fq_self={
             let (_,generics_params,_)=trait_.generics.split_for_impl();
-            quote!( <_OrigPtr::Target as __Trait #generics_params >:: )
+            quote!( <_OrigPtr::PtrTarget as __Trait #generics_params >:: )
         };
 
         errors.into_result()?;

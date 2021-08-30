@@ -863,7 +863,7 @@ unsafe extern "C" fn as_debug_display(
     this: RRef<'_, ErasedObject>,
 ) -> ROption<DebugDisplayRef<'_>> {
     extern_fn_panic_handling! {
-        let this=unsafe{ &*this.cast_into_raw::<DebugDisplay>() };
+        let this=unsafe{ this.transmute_into_ref::<DebugDisplay>() };
         ROption::RSome(DebugDisplayRef{
             debug: this.debug.as_str().into(),
             display: this.display.as_str().into(),

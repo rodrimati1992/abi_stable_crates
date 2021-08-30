@@ -328,7 +328,7 @@ impl<'a, T> RSlice<'a, T> {
     /// transmute a `&'a [T]` to a `&'a [U]`.
     ///
     /// [`std::mem::transmute`]: https://doc.rust-lang.org/std/mem/fn.transmute.html
-    pub const unsafe fn transmute_ref<U>(self)->RSlice<'a,U>
+    pub const unsafe fn transmute<U>(self)->RSlice<'a,U>
     where
         U:'a
     {

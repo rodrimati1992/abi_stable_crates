@@ -234,7 +234,7 @@ impl<P> PrefixRef<P>{
     #[inline]
     pub const fn from_staticref<T>(ptr: StaticRef<WithMetadata_<T, P>>) -> Self {
         unsafe{
-            Self::from_raw(ptr.get_raw())
+            Self::from_raw(ptr.as_ptr())
         }
     }
 

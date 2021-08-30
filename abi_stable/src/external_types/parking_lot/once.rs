@@ -187,7 +187,7 @@ assert_eq!(counter,1);
         let res = unsafe{
             self.vtable().call_once()(
                 &self.opaque_once,
-                RMut::new(&mut closure).transmute_ref_mut::<ErasedClosure>(),
+                RMut::new(&mut closure).transmute::<ErasedClosure>(),
                 func
             )
         };
@@ -242,7 +242,7 @@ assert_eq!(counter,6);
         let res= unsafe{
             self.vtable().call_once_force()(
                 &self.opaque_once,
-                RMut::new(&mut closure).transmute_ref_mut::<ErasedClosure>(),
+                RMut::new(&mut closure).transmute::<ErasedClosure>(),
                 func
             )
         };
@@ -434,7 +434,7 @@ impl<F> Closure<F>{
     where
         M: FnOnce(F,ROnceState),
     {
-        let mut this = this.transmute_ref_mut::<Self>();
+        let mut this = this.transmute_into_mut::<Self>();
         let res=panic::catch_unwind(AssertUnwindSafe(||{
             let closure=this.closure.take().unwrap();
             method(closure,state);

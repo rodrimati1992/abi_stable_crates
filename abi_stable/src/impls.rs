@@ -93,6 +93,7 @@ macro_rules! shared_impls {
             $(constrained[$($c_ty:ty),* $(,)*])?
             $(where [ $($where_:tt)* ])? ,
         original_type=$original:ident,
+        $(deref_approach=$deref:tt,)?
     ) => {
         mod $mod_{
             use std::{
@@ -110,7 +111,7 @@ macro_rules! shared_impls {
                 $($($where_)*)?
             {
                 fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-                    Debug::fmt(&**self,f)
+                    Debug::fmt(si_deref!($($deref)? self),f)
                 }
             }
 
@@ -131,8 +132,8 @@ macro_rules! shared_impls {
                 $($($where_)*)?
             {
                 fn eq(&self, other: &Self) -> bool{
-                    ::std::ptr::eq(&**self,&**other)||
-                    (&**self)==(&**other)
+                    ::std::ptr::eq(si_deref!($($deref)? self),si_deref!($($deref)? other))||
+                    si_deref!($($deref)? self) == si_deref!($($deref)? other)
                 }
             }
 
@@ -145,10 +146,10 @@ macro_rules! shared_impls {
                 $($($where_)*)?
             {
                 fn cmp(&self, other: &Self) -> Ordering{
-                    if ::std::ptr::eq(&**self,&**other) {
+                    if ::std::ptr::eq(si_deref!($($deref)? self),si_deref!($($deref)? other)) {
                         return Ordering::Equal;
                     }
-                    (&**self).cmp(&**other)
+                    si_deref!($($deref)? self).cmp(si_deref!($($deref)? other))
                 }
             }
 
@@ -161,10 +162,10 @@ macro_rules! shared_impls {
                 $($($where_)*)?
             {
                 fn partial_cmp(&self, other: &Self) -> Option<Ordering>{
-                    if ::std::ptr::eq(&**self,&**other) {
+                    if ::std::ptr::eq(si_deref!($($deref)? self),si_deref!($($deref)? other)) {
                         return Some(Ordering::Equal);
                     }
-                    (&**self).partial_cmp(&**other)
+                    si_deref!($($deref)? self).partial_cmp(si_deref!($($deref)? other))
                 }
             }
 
@@ -180,9 +181,22 @@ macro_rules! shared_impls {
                 where
                     H: Hasher
                 {
-                    (&**self).hash(state)
+                    si_deref!($($deref)? self).hash(state)
                 }
             }
         }
+    };
+}
+
+
+macro_rules! si_deref {
+    ($self:ident) => {
+        &**$self
+    };
+    (double_deref $self:ident) => {
+        &**$self
+    };
+    ((method = $method:ident) $self:ident) => {
+        $self.$method()
     };
 }

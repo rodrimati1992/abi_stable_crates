@@ -1,5 +1,4 @@
 use std::{
-    ops::{Deref, DerefMut},
     fmt::{self,Display},
     marker::PhantomData,
     ptr::NonNull,
@@ -26,7 +25,7 @@ where
     T:Display
 {
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        Display::fmt(&**self,f)
+        Display::fmt(self.get(),f)
     }
 }
 
@@ -43,10 +42,24 @@ shared_impls! {
     mod=static_ref_impls
     new_type=RMut['a][T],
     original_type=AAAA,
+    deref_approach=(method = get),
 }
 
 
 impl<'a,T> RMut<'a,T>{
+
+    /// Constructs this RMut from a mutable reference
+    ///
+    #[inline(always)]
+    pub fn new(ref_:&'a mut T)->Self{
+        unsafe{
+            Self{
+                ref_: NonNull::new_unchecked(ref_),
+                _marker:PhantomData,
+            }
+        }
+    }
+
     /// Constructs this RMut from a raw pointer.
     ///
     /// # Safety
@@ -54,7 +67,7 @@ impl<'a,T> RMut<'a,T>{
     /// You must ensure that the raw pointer is valid for the `'a` lifetime,
     /// and that this is the only active pointer to that value.
     ///
-    #[inline]
+    #[inline(always)]
     pub unsafe fn from_raw(ref_:*mut T)->Self
     where
         T:'a,
@@ -65,14 +78,8 @@ impl<'a,T> RMut<'a,T>{
         }
     }
 
-    /// Constructs this RMut from a mutable reference
-    ///
-    #[inline]
-    pub fn new(ref_:&'a mut T)->Self{
-        unsafe{ Self::from_raw(ref_) }
-    }
-
     /// Reborrows this `RMut`, with a shorter lifetime.
+    #[inline(always)]
     pub fn reborrow(&mut self) -> RMut<'_, T> {
         RMut{
             ref_: self.ref_,
@@ -80,58 +87,98 @@ impl<'a,T> RMut<'a,T>{
         }
     }
 
-    /// Gets access to the reference.
+    /// Reborrows this `RMut` into a shared reference.
     ///
-    /// Use this to get a `&'a T`,
-    /// instead of a reference borrowing from the pointer.
-    ///
-    #[inline]
-    pub fn get(self)->&'a T{
+    #[inline(always)]
+    pub fn get(&self)->&T{
         unsafe{ &*(self.ref_.as_ptr() as *const T) }
     }
 
-    /// Gets access to the mutable reference.
+    /// Copies the value that this `RMut` points to.
     ///
-    /// Use this to get a `&'a mut T`,
-    /// instead of a reference borrowing from the pointer.
+    #[inline(always)]
+    pub fn get_copy(&self) -> T
+    where
+        T: Copy
+    {
+        unsafe{ *(self.ref_.as_ptr() as *const T) }
+    }
+
+    /// Converts this `RMut<'a, T>` into a `&'a T`
     ///
-    #[inline]
-    pub fn get_mut(self)->&'a mut T{
+    #[inline(always)]
+    pub fn into_ref(self) -> &'a T{
+        unsafe{ &*(self.ref_.as_ptr() as *const T) }
+    }
+
+    /// Reborrows this `RMut` into a mutable reference.
+    ///
+    #[inline(always)]
+    pub fn get_mut(&mut self)->&mut T{
         unsafe{ &mut *self.ref_.as_ptr() }
     }
 
-    /// Gets access to the referenced value,as a raw pointer.
+    /// Converts this `RMut<'a, T>` into a `&'a mut T`
+    ///
+    #[inline(always)]
+    pub fn into_mut(self)->&'a mut T{
+        unsafe{ &mut *self.ref_.as_ptr() }
+    }
+
+    /// Reborrows this `RMut` as a const raw pointer.
     ///
     #[inline]
-    pub fn into_raw(self)->*mut T{
+    pub fn as_ptr(&self)->*const T{
+        self.ref_.as_ptr()
+    }
+
+    /// Reborrows this `RMut` as a const raw pointer.
+    ///
+    #[inline]
+    pub fn as_mut_ptr(&mut self)->*mut T{
+        self.ref_.as_ptr()
+    }
+
+    /// Converts this `RMut<'a, T>` into a `*mut T`
+    ///
+    #[inline]
+    pub fn into_raw(self)->*const T{
+        self.ref_.as_ptr()
+    }
+
+    /// Converts this `RMut<'a, T>` into a `*mut T`
+    ///
+    #[inline]
+    pub fn into_raw_mut(self)->*mut T{
         self.ref_.as_ptr()
     }
 
     /// Accesses the referenced value as a casted raw pointer.
-    #[inline]
-    pub fn cast_into_raw<U>(self)->*mut U{
+    #[inline(always)]
+    pub fn transmute_into_raw<U>(self)->*mut U{
         self.ref_.as_ptr() as *mut U
     }
 
+    /// Transmutes this `RRefMut<'a,T>` to a `&'a mut U`.
+    ///
+    #[inline(always)]
+    pub unsafe fn transmute_into_mut<U>(self)->&'a mut U
+    where
+        U:'a,
+    {
+        &mut *(self.ref_.as_ptr() as *mut U)
+    }
 
     /// Transmutes this `RRefMut<'a,T>` to a `RRefMut<'a,U>`.
     ///
     #[inline(always)]
-    pub unsafe fn transmute_ref_mut<U>(self)->RMut<'a,U>
+    pub unsafe fn transmute<U>(self)->RMut<'a,U>
     where
         U:'a,
     {
         RMut::from_raw(
             self.ref_.as_ptr() as *mut U
         )
-    }
-
-    /// Converts this `RMut<'a, T>` to an RRef<'a, T>
-    #[inline(always)]
-    pub fn into_rref(self) -> RRef<'a, T> {
-        unsafe{
-            RRef::from_raw(self.ref_.as_ptr())
-        }
     }
 
     /// Reborrows this `RMut<'a, T>` into an RRef<'a, T>
@@ -141,33 +188,32 @@ impl<'a,T> RMut<'a,T>{
             RRef::from_raw(self.ref_.as_ptr())
         }
     }
-}
 
-impl<'a,T> Deref for RMut<'a,T>{
-    type Target=T;
-
+    /// Converts this `RMut<'a, T>` to an RRef<'a, T>
     #[inline(always)]
-    fn deref(&self)->&T{
-        unsafe{ &*(self.ref_.as_ptr() as *const T) }
-    }
-}
-
-impl<'a,T> DerefMut for RMut<'a,T>{
-    #[inline(always)]
-    fn deref_mut(&mut self)->&mut T{
-        unsafe{ &mut *self.ref_.as_ptr() }
+    pub fn into_rref(self) -> RRef<'a, T> {
+        unsafe{
+            RRef::from_raw(self.ref_.as_ptr())
+        }
     }
 }
 
 unsafe impl<'a, T> AsPtr for RMut<'a, T> {
+    #[inline(always)]
     fn as_ptr(&self) -> *const T {
         self.ref_.as_ptr() as *const T
     }
 }
 
 unsafe impl<'a, T> AsMutPtr for RMut<'a, T> {
+    #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut T {
         self.ref_.as_ptr()
+    }
+
+    #[inline(always)]
+    fn as_rmut(&mut self) -> RMut<'_, T> {
+        self.reborrow()
     }
 }
 
@@ -186,7 +232,7 @@ where
 
     #[inline(always)]
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-        self.transmute_ref_mut()
+        self.transmute()
     }
 }
 
@@ -200,10 +246,10 @@ mod tests {
     fn construction_test(){
         unsafe{
             let zero: *mut i32 = &mut 3;
-            assert_eq!(*RMut::from_raw(zero), 3);
+            assert_eq!(RMut::from_raw(zero).get_copy(), 3);
         }
 
-        assert_eq!(*RMut::new(&mut 99), 99);
+        assert_eq!(RMut::new(&mut 99).get_copy(), 99);
     }
 
     #[test]
@@ -211,17 +257,17 @@ mod tests {
         let mut num = 5;
         let mut mutref= RMut::new(&mut num);
         
-        assert_eq!(*mutref, 5);
-        *mutref = 21;
-        assert_eq!(*mutref, 21);
+        assert_eq!(*mutref.get_mut(), 5);
+        *mutref.get_mut() = 21;
+        assert_eq!(*mutref.get_mut(), 21);
 
-        assert_eq!(*mutref.reborrow().get(), 21);
+        assert_eq!(*mutref.get(), 21);
         
-        assert_eq!(*mutref.reborrow().get_mut(), 21);
+        assert_eq!(*mutref.get_mut(), 21);
         *mutref.reborrow().get_mut() = 34;
 
         unsafe{
-            let raw = mutref.reborrow().into_raw();
+            let raw = mutref.reborrow().into_raw_mut();
             assert_eq!(*raw, 34);
             *raw = 55;
         }
@@ -234,7 +280,7 @@ mod tests {
         let mutref= RMut::new(&mut num);
 
         unsafe{
-            let ptr = mutref.cast_into_raw::<i32>();
+            let ptr = mutref.transmute_into_raw::<i32>();
 
             assert_eq!(*ptr, -2);
             *ptr = 55;

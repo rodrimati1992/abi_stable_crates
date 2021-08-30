@@ -114,7 +114,7 @@ declare_common_tokens! {
         ts_self_colon2 ="Self::",
         ts_uself_colon2="_Self::",
 
-        ts_make_vtable_args="Unerasability,_OrigPtr::Target,_OrigPtr::TransmutedPtr,_OrigPtr,",
+        ts_make_vtable_args="Unerasability,_OrigPtr::PtrTarget,_OrigPtr::TransmutedPtr,_OrigPtr,",
         ts_erasedptr_and2="_ErasedPtr,_ErasedPtr2,",
         ts_erasedptr="_ErasedPtr,",
         ts_self_erasedptr="_Self,_ErasedPtr,",

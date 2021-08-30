@@ -1,5 +1,4 @@
 use std::{
-    ops::{Deref},
     fmt::{self,Display},
     marker::PhantomData,
     ptr::NonNull,
@@ -27,7 +26,7 @@ where
     T:Display
 {
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        Display::fmt(&**self,f)
+        Display::fmt(self.get(), f)
     }
 }
 
@@ -53,6 +52,7 @@ shared_impls! {
     mod=static_ref_impls
     new_type=RRef['a][T],
     original_type=AAAA,
+    deref_approach=(method = get),
 }
 
 
@@ -79,6 +79,7 @@ impl<'a,T> RRef<'a,T>{
     /// }
     ///
     /// ```
+    #[inline(always)]
     pub const unsafe fn from_raw(ref_:*const T)->Self
     where
         T:'a,
@@ -106,6 +107,7 @@ impl<'a,T> RRef<'a,T>{
     /// }
     ///
     /// ```
+    #[inline(always)]
     pub const fn new(ref_:&'a T)->Self{
         Self{
             ref_: ref_as_nonnull(ref_),
@@ -113,10 +115,7 @@ impl<'a,T> RRef<'a,T>{
         }
     }
 
-    /// Gets access to the reference.
-    ///
-    /// Use this to get a `&'a T`,
-    /// instead of a reference borrowing from the pointer.
+    /// Casts this to an equivalent reference.
     ///
     /// # Example
     ///
@@ -145,11 +144,20 @@ impl<'a,T> RRef<'a,T>{
     ///
     /// ```
     #[inline(always)]
-    pub fn get(self)->&'a T{
+    pub fn get(self) -> &'a T{
         unsafe{ &*(self.ref_.as_ptr() as *const T) }
     }
 
-    /// Gets access to the referenced value,as a raw pointer.
+    /// Copies the value that this points to.
+    #[inline(always)]
+    pub fn get_copy(self) -> T 
+    where 
+        T: Copy
+    {
+        unsafe{ *(self.ref_.as_ptr() as *const T) }
+    }
+
+    /// Casts this to an equivalent raw pointer.
     ///
     /// # Example
     ///
@@ -160,60 +168,19 @@ impl<'a,T> RRef<'a,T>{
     /// struct GetPtr<'a,T>(&'a T);
     ///
     /// impl<'a,T:'a> GetPtr<'a,T>{
-    ///     const NONE_REF:&'a Option<T>=&None;
+    ///     const NONE_REF: &'a Option<T> = &None;
     ///
-    ///     const STATIC:RRef<'a,Option<T>>=
+    ///     const STATIC: RRef<'a,Option<T>> =
     ///         RRef::new(Self::NONE_REF);
     /// }
     ///
-    /// let reference:*const Option<Infallible>=
-    ///     GetPtr::<Infallible>::STATIC.get_raw();
+    /// let reference: *const Option<Infallible>=
+    ///     GetPtr::<Infallible>::STATIC.as_ptr();
     ///
     /// ```
-    pub const fn get_raw(self)->*const T{
+    #[inline(always)]
+    pub const fn as_ptr(self) -> *const T{
         self.ref_.as_ptr() as *const T
-    }
-
-    /// Accesses the referenced value as a casted raw pointer.
-    #[inline]
-    pub const fn cast_into_raw<U>(self)->*const U{
-        self.ref_.as_ptr() as *const T as *const U
-    }
-
-    /// Transmutes this `RRef<'a,T>` to a `RRef<'b,U>`.
-    ///
-    /// # Safety
-    ///
-    /// This has the same safety problems that transmuting `&'a T` to `&'b U` has.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::sabi_types::RRef;
-    ///
-    /// struct GetPtr<'a,T>(&'a T);
-    ///
-    /// impl<'a,T:'a> GetPtr<'a,T>{
-    ///     const PTR:*const Option<T>=&None;
-    ///
-    ///     const STATIC:RRef<'a,Option<T>>=unsafe{
-    ///         RRef::from_raw(Self::PTR)
-    ///     };
-    /// }
-    ///
-    /// let reference:RRef<'static,Option<[();0xFFF_FFFF]>>=unsafe{
-    ///     GetPtr::<()>::STATIC
-    ///         .transmute::<'static,Option<[();0xFFF_FFFF]>>()
-    /// };
-    ///
-    /// ```
-    pub const unsafe fn transmute<'b,U>(self)->RRef<'b,U>
-    where
-        U:'b,
-    {
-        RRef::from_raw(
-            self.ref_.as_ptr() as *const U
-        )
     }
 
     /// Transmutes this `RRef<'a,T>` to a `RRef<'a,U>`.
@@ -242,11 +209,12 @@ impl<'a,T> RRef<'a,T>{
     ///
     /// let reference:RRef<'static,[();0xFFF_FFFF]>=unsafe{
     ///     GetPtr::<'static,()>::STATIC
-    ///         .transmute_ref::<[();0xFFF_FFFF]>()
+    ///         .transmute::<[();0xFFF_FFFF]>()
     /// };
     ///
     /// ```
-    pub const unsafe fn transmute_ref<U>(self)->RRef<'a,U>
+    #[inline(always)]
+    pub const unsafe fn transmute<U>(self)->RRef<'a,U>
     where
         U:'a,
     {
@@ -255,17 +223,22 @@ impl<'a,T> RRef<'a,T>{
         )
     }
 
-}
-
-impl<'a,T> Deref for RRef<'a,T>{
-    type Target=T;
-
+    /// Transmutes this to a raw pointer pointing to a different type.
     #[inline(always)]
-    fn deref(&self)->&T{
-        self.get()
+    pub const fn transmute_into_raw<U>(self)->*const U{
+        self.ref_.as_ptr() as *const T as *const U
     }
-}
 
+    /// Transmutes this to a reference pointing to a different type.
+    #[inline(always)]
+    pub unsafe fn transmute_into_ref<U>(self) -> &'a U 
+    where
+        U: 'a
+    {
+        &*(self.ref_.as_ptr() as *const T as *const U)
+    }
+
+}
 
 unsafe impl<'a,T> GetPointerKind for RRef<'a,T>{
     type Kind=PK_Reference;
@@ -277,7 +250,7 @@ unsafe impl<'a,T,U> CanTransmuteElement<U> for RRef<'a,T>
 where
     U:'a,
 {
-    type TransmutedPtr= RRef<'a,U>;
+    type TransmutedPtr = RRef<'a,U>;
 
     #[inline(always)]
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
@@ -290,6 +263,11 @@ unsafe impl<T> AsPtr for RRef<'_, T> {
     fn as_ptr(&self) -> *const T {
         self.ref_.as_ptr() as *const T
     }
+
+    #[inline(always)]
+    fn as_rref(&self) -> RRef<'_, T> {
+        *self
+    }
 }
 
 
@@ -301,10 +279,10 @@ mod tests {
     fn construction_test(){
         unsafe{
             let three: *const i32 = &3;
-            assert_eq!(*RRef::from_raw(three), 3);
+            assert_eq!(RRef::from_raw(three).get_copy(), 3);
         }
 
-        assert_eq!(*RRef::new(&5), 5);
+        assert_eq!(RRef::new(&5).get_copy(), 5);
     }
 
     #[test]
@@ -313,7 +291,7 @@ mod tests {
         
         assert_eq!(*reference.get(), 8);
         unsafe{
-            assert_eq!(*reference.get_raw(), 8);
+            assert_eq!(*reference.as_ptr(), 8);
         }
     }
 
@@ -322,9 +300,8 @@ mod tests {
         let reference = RRef::new(&(!0u32));
 
         unsafe{
-            assert_eq!(*reference.cast_into_raw::<i32>(), -1);
-            assert_eq!(*reference.transmute::<i32>(), -1);
-            assert_eq!(*reference.transmute_ref::<i32>(), -1);
+            assert_eq!(*reference.transmute_into_raw::<i32>(), -1);
+            assert_eq!(reference.transmute::<i32>().get_copy(), -1);
         }
     }
 }

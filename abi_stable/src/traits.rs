@@ -126,8 +126,7 @@ pub(crate) unsafe trait ErasedType<'a>:Sized{
     #[inline]
     unsafe fn from_unerased<P>(p:P)->P::TransmutedPtr
     where 
-        P:Deref<Target=Self::Unerased>,
-        P:CanTransmuteElement<Self>
+        P: CanTransmuteElement<Self, PtrTarget = Self::Unerased>
     {
         p.transmute_element::<Self>()
     }
@@ -135,8 +134,7 @@ pub(crate) unsafe trait ErasedType<'a>:Sized{
     #[inline]
     unsafe fn into_unerased<P>(p:P)->P::TransmutedPtr
     where 
-        P:Deref<Target=Self>,
-        P:CanTransmuteElement<Self::Unerased>,
+        P: CanTransmuteElement<Self::Unerased, PtrTarget = Self>,
     {
         p.transmute_element::<Self::Unerased>()
     }
@@ -148,7 +146,7 @@ pub(crate) unsafe trait ErasedType<'a>:Sized{
         Self::Unerased: 'b,
         F:FnOnce(&'b Self::Unerased)->R,
     {
-        func(&*p.cast_into_raw::<Self::Unerased>())
+        func(p.transmute_into_ref::<Self::Unerased>())
     }
 
     #[inline]
@@ -157,7 +155,7 @@ pub(crate) unsafe trait ErasedType<'a>:Sized{
         Self::Unerased: 'b,
         F:FnOnce(&'b mut Self::Unerased)->R,
     {
-        func(&mut *p.cast_into_raw())
+        func(p.transmute_into_mut())
     }
 
 
