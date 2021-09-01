@@ -372,6 +372,9 @@ pub use crate::{
     erased_types::{DynTrait,ImplType, InterfaceType},
 };
 
+#[doc(no_inline)]
+pub use crate::erased_types::InterfaceBound;
+
 
 
 #[doc(hidden)]
