@@ -2311,7 +2311,7 @@ where
 Clone is implemented for references and smart pointers,
 using `GetPointerKind` to decide whether `P` is a smart pointer or a reference.
 
-DynTrait does not implement Clone if P ==`&mut ()` :
+DynTrait does not implement Clone if P ==`RMut<'_, ()>` :
 
 ```compile_fail
 # use abi_stable::{
