@@ -644,6 +644,10 @@ unsafe impl<'a, T> AsPtr for RMut<'a, T> {
     fn as_ptr(&self) -> *const T {
         self.ref_.as_ptr() as *const T
     }
+    #[inline(always)]
+    fn as_rref(&self) -> RRef<'_, T> {
+        unsafe{ RRef::from_raw(self.ref_.as_ptr() as *const T) }
+    }
 }
 
 unsafe impl<'a, T> AsMutPtr for RMut<'a, T> {

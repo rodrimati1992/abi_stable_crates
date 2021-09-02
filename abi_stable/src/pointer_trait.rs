@@ -3,7 +3,6 @@ Traits for pointers.
 */
 use std::{
     mem::ManuallyDrop,
-    ops::{Deref,DerefMut},
     ptr::NonNull,
 };
 

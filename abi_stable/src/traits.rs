@@ -2,8 +2,6 @@
 Where miscellaneous traits reside.
 */
 
-use std::ops::Deref;
-
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
 

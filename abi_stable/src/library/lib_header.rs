@@ -2,7 +2,7 @@ use super::*;
 
 use crate::{
     prefix_type::{PrefixRef, PrefixRefTrait},
-    sabi_types::Constructor,
+    sabi_types::{Constructor, RRef},
 };
 
 /// Used to check the layout of modules returned by module-loading functions
@@ -317,6 +317,20 @@ const INIT_GLOBALS_WITH:InitGlobalsWith=
 
 //////////////////////////////////////////////////////////////////////
 
+#[repr(transparent)]
+#[derive(Debug, StableAbi, Copy, Clone)]
+pub struct AbiHeaderRef(pub(super) RRef<'static, AbiHeader>);
+
+impl std::ops::Deref for AbiHeaderRef {
+    type Target = AbiHeader;
+
+    fn deref(&self) -> &AbiHeader{
+        self.0.get()
+    }
+}
+
+
+
 /**
 Represents the abi_stable version used by a compiled dynamic library,
 which if incompatible would produce a `LibraryError::InvalidAbiHeader`
@@ -324,7 +338,7 @@ which if incompatible would produce a `LibraryError::InvalidAbiHeader`
 */
 #[repr(C)]
 #[derive(Debug,StableAbi,Copy,Clone)]
-pub struct AbiHeader{
+pub struct AbiHeader {
     /// A magic string used to check that this is actually abi_stable.
     pub magic_string:[u8;32],
     /// The major abi version of abi_stable
@@ -335,7 +349,7 @@ pub struct AbiHeader{
 }
 
 
-impl AbiHeader{
+impl AbiHeader {
     /// The value of the AbiHeader stored in dynamic libraries that use this 
     /// version of abi_stable
     pub const VALUE:AbiHeader={
@@ -349,7 +363,7 @@ impl AbiHeader{
 
 
 
-impl AbiHeader{
+impl AbiHeader {
     /// Checks whether this AbiHeader is compatible with `other`.
     pub fn is_compatible(&self,other:&Self)->bool{
         self.magic_string == other.magic_string&&
@@ -362,31 +376,28 @@ impl AbiHeader{
     pub fn is_valid(&self)->bool{
         self.is_compatible(&AbiHeader::VALUE)
     }
+}
 
-    /**
-Gets the LibHeader of a library.
-
-# Errors
-
-This returns these errors:
-
-- `LibraryError::InvalidAbiHeader`:
-If the abi_stable used by the library is not compatible.
-
-- `LibraryError::InvalidCAbi`:
-If the C abi used by the library is not compatible.
-
-    */
-    pub fn upgrade(&self)->Result< &LibHeader , LibraryError>{
+impl AbiHeaderRef {
+    /// Gets the LibHeader of a library.
+    /// 
+    /// # Errors
+    /// 
+    /// This returns these errors:
+    /// 
+    /// - `LibraryError::InvalidAbiHeader`:
+    /// If the abi_stable used by the library is not compatible.
+    /// 
+    /// - `LibraryError::InvalidCAbi`:
+    /// If the C abi used by the library is not compatible.
+    pub fn upgrade(self) -> Result<&'static LibHeader, LibraryError>{
         if !self.is_valid() {
             return Err(LibraryError::InvalidAbiHeader(*self))
         }
 
-        let lib_header=unsafe{
-            crate::utils::transmute_reference::<AbiHeader,LibHeader>(self)
-        };
+        let lib_header: &'static LibHeader = unsafe{ self.0.transmute_into_ref() };
 
-        let c_abi_testing_fns=lib_header.root_mod_consts().c_abi_testing_fns();
+        let c_abi_testing_fns = lib_header.root_mod_consts().c_abi_testing_fns();
         crate::library::c_abi_testing::run_tests(c_abi_testing_fns)?;
 
         let globals=globals::initialized_globals();

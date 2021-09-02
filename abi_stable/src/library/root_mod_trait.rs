@@ -241,7 +241,7 @@ it will contain dangling `'static` references if the library is dropped before i
 */
 pub unsafe fn lib_header_from_raw_library(
     raw_library:&RawLibrary
-)->Result< &'static LibHeader , LibraryError>
+)->Result<&'static LibHeader, LibraryError>
 {
     unsafe{
         abi_header_from_raw_library(raw_library)?.upgrade()
@@ -250,7 +250,7 @@ pub unsafe fn lib_header_from_raw_library(
 
 
 /**
-Gets the AbiHeader of a library.
+Gets the AbiHeaderRef of a library.
 
 # Errors
 
@@ -261,21 +261,19 @@ If the root module was not exported.
 
 # Safety
 
-The AbiHeader is implicitly tied to the lifetime of the library,
+The AbiHeaderRef is implicitly tied to the lifetime of the library,
 it will contain dangling `'static` references if the library is dropped before it does.
 
 */
 pub unsafe fn abi_header_from_raw_library(
     raw_library:&RawLibrary
-)->Result< &'static AbiHeader , LibraryError>
+)->Result<AbiHeaderRef , LibraryError>
 {
     unsafe{
-        let mut mangled=mangled_root_module_loader_name();
+        let mut mangled = mangled_root_module_loader_name();
         mangled.push('\0');
-        let library_getter=
-            raw_library.get::<&'static AbiHeader>(mangled.as_bytes())?;
 
-        let header:&'static AbiHeader= *library_getter;
+        let header: AbiHeaderRef = *raw_library.get::<AbiHeaderRef>(mangled.as_bytes())?;
 
         Ok(header)
     }
@@ -303,10 +301,10 @@ If the root module was not exported.
 If the abi_stable version used by the library is not compatible.
 
 */
-pub fn lib_header_from_path(path:&Path)->Result< &'static LibHeader , LibraryError> {
+pub fn lib_header_from_path(path:&Path)->Result<&'static LibHeader, LibraryError> {
     let raw_lib=RawLibrary::load_at(path)?;
 
-    let library_getter=unsafe{ lib_header_from_raw_library(&raw_lib)? };
+    let library_getter = unsafe{ lib_header_from_raw_library(&raw_lib)? };
 
     mem::forget(raw_lib);
 
@@ -316,7 +314,7 @@ pub fn lib_header_from_path(path:&Path)->Result< &'static LibHeader , LibraryErr
 
 
 /**
-Gets the AbiHeader of the library at the path.
+Gets the AbiHeaderRef of the library at the path.
 
 This leaks the underlying dynamic library,
 if you need to do this without leaking you'll need to use
@@ -333,10 +331,10 @@ If the dynamic library itself could not be loaded.
 If the root module was not exported.
 
 */
-pub fn abi_header_from_path(path:&Path)->Result< &'static AbiHeader , LibraryError> {
-    let raw_lib=RawLibrary::load_at(path)?;
+pub fn abi_header_from_path(path:&Path)->Result<AbiHeaderRef, LibraryError> {
+    let raw_lib = RawLibrary::load_at(path)?;
 
-    let library_getter=unsafe{ abi_header_from_raw_library(&raw_lib)? };
+    let library_getter = unsafe{ abi_header_from_raw_library(&raw_lib)? };
 
     mem::forget(raw_lib);
 

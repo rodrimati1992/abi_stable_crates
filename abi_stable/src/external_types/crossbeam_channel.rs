@@ -31,7 +31,7 @@ use crate::{
     std_types::{RResult,ROk,RErr,ROption,RDuration,RBox},
     prefix_type::{PrefixTypeTrait,WithMetadata},
     pointer_trait::AsPtr,
-    sabi_types::{RRef, RMut},
+    sabi_types::RRef,
 };
 
 

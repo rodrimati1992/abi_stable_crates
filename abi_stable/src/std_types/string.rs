@@ -646,7 +646,7 @@ impl RString {
             self.inner.set_len(0);
         }
 
-        let mut start = self.inner.as_mut_ptr();
+        let start = self.inner.as_mut_ptr();
 
         while idx < len {
             let curr = unsafe{ start.add(idx) };
