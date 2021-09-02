@@ -239,6 +239,19 @@ impl<'a> Deref for RStr<'a> {
     }
 }
 
+
+deref_coerced_impl_cmp_traits!{
+    RStr<'_>;
+    coerce_to = str,
+    [
+        String,
+        str,
+        &str,
+        std::borrow::Cow<'_, str>,
+        crate::std_types::RCow<'_, str>,
+    ]
+}
+
 ////////////////////////////////
 
 impl<'a> Into<Cow<'a, str>> for RStr<'a> {

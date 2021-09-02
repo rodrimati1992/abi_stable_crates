@@ -709,6 +709,22 @@ impl Default for RString {
 
 ////////////////////
 
+deref_coerced_impl_cmp_traits!{
+    RString;
+    coerce_to = str,
+    [   
+        String,
+        str,
+        &str,
+        RStr<'_>,
+        std::borrow::Cow<'_, str>,
+        crate::std_types::RCow<'_, str>,
+    ]
+}
+
+
+////////////////////
+
 impl_into_rust_repr! {
     impl Into<String> for RString {
         fn(this){

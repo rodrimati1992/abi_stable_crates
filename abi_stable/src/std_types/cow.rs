@@ -429,6 +429,28 @@ where
 
 ////////////////////////////
 
+
+slice_like_impl_cmp_traits!{
+    RCow<'_, [T]>,
+    where[T: Clone, U: Clone];
+    Vec<U>,
+    [U],
+    &[U],
+    Cow<'_, [U]>,
+}
+
+deref_coerced_impl_cmp_traits!{
+    RCow<'_, str>;
+    coerce_to = str,
+    [
+        String,
+        str,
+        &str,
+        Cow<'_, str>,
+    ]
+}
+
+
 shared_impls! {
     mod=slice_impls
     new_type=RCow['a][] 

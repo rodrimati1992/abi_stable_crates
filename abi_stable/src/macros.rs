@@ -1,3 +1,6 @@
+#[macro_use]
+mod internal;
+
 
 /**
 Use this when constructing a [`MonoTypeLayout`] when manually implementing StableAbi.

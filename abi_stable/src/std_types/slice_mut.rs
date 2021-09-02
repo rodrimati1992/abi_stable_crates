@@ -469,6 +469,22 @@ impl<'a, T> IntoIterator for RSliceMut<'a, T> {
     }
 }
 
+slice_like_impl_cmp_traits!{
+    RSliceMut<'_, T>,
+    where[];
+    Vec<U>,
+    [U],
+    &[U],
+    RSlice<'_, U>,
+}
+
+slice_like_impl_cmp_traits!{
+    RSliceMut<'_, T>,
+    where[T: Clone, U: Clone];
+    std::borrow::Cow<'_, [U]>,
+    crate::std_types::RCow<'_, [U]>,
+}
+
 impl<'a, T> Deref for RSliceMut<'a, T> {
     type Target = [T];
 
