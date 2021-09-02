@@ -40,28 +40,28 @@ macro_rules! deref_coerced_impl_cmp_traits {
 
 macro_rules! slice_like_impl_cmp_traits {
     (
-        $Self:ty,
+        impl $impl_params:tt $Self:ty,
         where $where:tt;
         $($Rhs:ty),* $(,)?
     ) => {
         $(
             slice_like_impl_cmp_traits!{
                 @inner
-                $Self,
+                impl $impl_params $Self,
                 where $where;
                 $Rhs
             }
         )*
     };
     (@inner
-        $Self:ty,
+        impl[$($impl_params:tt)*] $Self:ty,
         where[$($where:tt)*];
         $Rhs:ty
     ) => {
         const _: () = {
             use std::cmp::{PartialEq, PartialOrd, Ordering};
 
-            impl<T: PartialEq<U>, U> PartialEq<$Rhs> for $Self 
+            impl<T: PartialEq<U>, U, $($impl_params)*> PartialEq<$Rhs> for $Self 
             where $($where)* 
             {
                 fn eq(&self, other: &$Rhs) -> bool {
@@ -69,7 +69,7 @@ macro_rules! slice_like_impl_cmp_traits {
                 }
             }
 
-            impl<T, U> PartialOrd<$Rhs> for $Self 
+            impl<T, U, $($impl_params)*> PartialOrd<$Rhs> for $Self 
             where
                 T: PartialOrd<U>,
                 [T]: PartialOrd<[U]>,
@@ -80,7 +80,7 @@ macro_rules! slice_like_impl_cmp_traits {
                 }
             }
 
-            impl<U: PartialEq<T>, T> PartialEq<$Self> for $Rhs 
+            impl<U: PartialEq<T>, T, $($impl_params)*> PartialEq<$Self> for $Rhs 
             where $($where)* 
             {
                 fn eq(&self, other: &$Self) -> bool {
@@ -88,7 +88,7 @@ macro_rules! slice_like_impl_cmp_traits {
                 }
             }
 
-            impl<U, T> PartialOrd<$Self> for $Rhs 
+            impl<U, T, $($impl_params)*> PartialOrd<$Self> for $Rhs 
             where
                 U: PartialOrd<T>,
                 [U]: PartialOrd<[T]>,

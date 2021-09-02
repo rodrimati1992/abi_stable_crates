@@ -431,11 +431,22 @@ where
 
 
 slice_like_impl_cmp_traits!{
-    RCow<'_, [T]>,
-    where[T: Clone, U: Clone];
+    impl[] RCow<'_, [T]>,
+    where[T: Clone];
     Vec<U>,
     [U],
     &[U],
+}
+
+slice_like_impl_cmp_traits!{
+    impl[const N: usize] RCow<'_, [T]>,
+    where[T: Clone];
+    [U; N],
+}
+
+slice_like_impl_cmp_traits!{
+    impl[] RCow<'_, [T]>,
+    where[T: Clone, U: Clone];
     Cow<'_, [U]>,
 }
 

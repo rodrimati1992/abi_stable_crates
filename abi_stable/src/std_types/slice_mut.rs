@@ -470,7 +470,7 @@ impl<'a, T> IntoIterator for RSliceMut<'a, T> {
 }
 
 slice_like_impl_cmp_traits!{
-    RSliceMut<'_, T>,
+    impl[] RSliceMut<'_, T>,
     where[];
     Vec<U>,
     [U],
@@ -479,7 +479,13 @@ slice_like_impl_cmp_traits!{
 }
 
 slice_like_impl_cmp_traits!{
-    RSliceMut<'_, T>,
+    impl[const N: usize] RSliceMut<'_, T>,
+    where[];
+    [U; N],
+}
+
+slice_like_impl_cmp_traits!{
+    impl[] RSliceMut<'_, T>,
     where[T: Clone, U: Clone];
     std::borrow::Cow<'_, [U]>,
     crate::std_types::RCow<'_, [U]>,
