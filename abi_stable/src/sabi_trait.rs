@@ -90,7 +90,7 @@ use std::{
     marker::PhantomData,
 };
 
-use self::reexports::{*, __sabi_re::*};
+use self::reexports::__sabi_re::*;
 
 pub use self::{
     vtable::{VTableTO_DT,VTableTO_RO,VTableTO},

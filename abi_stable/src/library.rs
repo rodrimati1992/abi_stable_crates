@@ -46,7 +46,7 @@ pub use self::c_abi_testing::{CAbiTestingFns,C_ABI_TESTING_FNS};
 
 pub use self::{
     errors::{IntoRootModuleResult, LibraryError, RootModuleError},
-    lib_header::{AbiHeader,LibHeader},
+    lib_header::{AbiHeader, AbiHeaderRef, LibHeader},
     root_mod_trait::{
         RootModule,
         lib_header_from_raw_library,
