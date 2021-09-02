@@ -77,7 +77,7 @@ fn mutated() {
 
 #[test]
 fn with_move_ptr_runs(){
-    let rbox=ManuallyDrop::new(RBox::new(()));
+    let rbox = ManuallyDrop::new(RBox::new(rvec![3]));
     
     must_panic(file_span!(),||{
         OwnedPointer::with_move_ptr(rbox,|_|{
@@ -86,7 +86,7 @@ fn with_move_ptr_runs(){
     }).unwrap();
 
 
-    let rbox=ManuallyDrop::new(RBox::new(()));
+    let rbox = ManuallyDrop::new(RBox::new(rvec![5]));
     assert_eq!(
         OwnedPointer::with_move_ptr(rbox,|_|10),
         10
