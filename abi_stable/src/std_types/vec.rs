@@ -1053,7 +1053,7 @@ impl<T> BorrowMut<[T]> for RVec<T> {
 }
 
 slice_like_impl_cmp_traits!{
-    RVec<T>,
+    impl[] RVec<T>,
     where[];
     Vec<U>,
     [U],
@@ -1063,7 +1063,13 @@ slice_like_impl_cmp_traits!{
 }
 
 slice_like_impl_cmp_traits!{
-    RVec<T>,
+    impl[const N: usize] RVec<T>,
+    where[];
+    [U; N],
+}
+
+slice_like_impl_cmp_traits!{
+    impl[] RVec<T>,
     where[T: Clone, U: Clone];
     std::borrow::Cow<'_, [U]>,
     crate::std_types::RCow<'_, [U]>,

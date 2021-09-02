@@ -284,12 +284,12 @@ impl<T> DerefMut for RBox<T> {
 
 unsafe impl<T> OwnedPointer for RBox<T>{
     #[inline]
-    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_, T>{
+    unsafe fn get_move_ptr(this: &mut ManuallyDrop<Self>) -> MovePtr<'_, T>{
         MovePtr::from_raw(this.data_mut())
     }
 
     #[inline]
-    unsafe fn drop_allocation(this:&mut ManuallyDrop<Self>){
+    unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>){
         unsafe {
             let data: *mut T = this.data();
             (this.vtable().destructor())(data as *mut (), CallReferentDrop::No,Deallocate::Yes);

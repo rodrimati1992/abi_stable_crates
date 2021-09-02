@@ -13,24 +13,25 @@ use std::{
 
 use crate::{
     traits::IntoInner,
+    sabi_types::RMut,
     std_types::RBox,
 };
 
 /**
-A move pointer,which allows moving the value from the reference,
+A move pointer, which allows moving the value from the reference,
 consuming it in the process.
 
-If `MovePtr::into_inner` isn't called, this drops the referenced value when its dropped
+If `MovePtr::into_inner` isn't called, this drops the referenced value when it's dropped
 
 # Safety
 
-This is unsafe to construct since the user must ensure that the value 
-being referenced is not read again,even when being dropped.
+This is unsafe to construct since the user must ensure that the 
+original owner of the value never accesses it again.
 
 # Motivation
 
-MovePtr was created as a way to pass self by value to ffi-safe trait object methods,
-since one can't simply pass self by value(because the type is erased).
+`MovePtr` was created as a way to pass `self` by value to ffi-safe trait object methods,
+since one can't simply pass `self` by value(because the type is erased).
 
 # Examples
 
@@ -68,30 +69,33 @@ assert_eq!(
 
 ### Using the (unsafe) `MovePtr::new`
 
-This is (sort of) how `RBox<T>` implements moving the T it owns out of its allocation
+This is (sort of) how `RBox<T>` implements moving the `T` it owns out of its allocation
 
 This is basically what `OwnedPointer::{with_move_ptr,in_move_ptr}` do.
 
 ```
 use abi_stable::{
-    pointer_trait::OwnedPointer,
+    pointer_trait::{AsMutPtr, OwnedPointer},
     sabi_types::MovePtr,
     std_types::RBox,
 };
 
 use std::mem::ManuallyDrop;
 
-let rbox=RBox::new(0x100);
+let rbox = RBox::new(0x100);
 
 let second_rbox;
+
 unsafe{ 
-    let mut rbox=ManuallyDrop::new(rbox);
-    let move_ptr=unsafe{ MovePtr::new( &mut **rbox ) };
-    second_rbox=RBox::from_move_ptr(move_ptr);
+    let mut rbox = ManuallyDrop::new(rbox);
+    
+    let move_ptr = unsafe{ MovePtr::from_rmut(rbox.as_rmut()) };
+    second_rbox = RBox::from_move_ptr(move_ptr);
+    
     OwnedPointer::drop_allocation(&mut rbox); 
 }
 
-assert_eq!( second_rbox, RBox::new(0x100) );
+assert_eq!(second_rbox, RBox::new(0x100));
 
 
 
@@ -113,7 +117,8 @@ impl<'a,T> MovePtr<'a,T>{
     ///
     /// # Safety 
     ///
-    /// Callers must ensure that the value the reference points at is never read again.
+    /// Callers must ensure that the original owner of the value won't 
+    /// access the moved-out value anymore.
     ///
     /// # Example
     ///
@@ -122,9 +127,9 @@ impl<'a,T> MovePtr<'a,T>{
     /// 
     /// use std::mem::ManuallyDrop;
     /// 
-    /// let mut manual=ManuallyDrop::new(String::from("hello"));
+    /// let mut manual = ManuallyDrop::new(String::from("hello"));
     /// 
-    /// let moveptr=unsafe{ MovePtr::new(&mut *manual) };
+    /// let moveptr = unsafe{ MovePtr::new(&mut *manual) };
     ///
     /// drop(moveptr); // moveptr drops the String here.
     /// ```
@@ -136,13 +141,81 @@ impl<'a,T> MovePtr<'a,T>{
         }
     }
 
+    /// Constructs this move pointer from an `RMut`,
+    /// moving the value out of the reference.
+    ///
+    /// # Safety 
+    ///
+    /// Callers must ensure that the original owner of the value won't 
+    /// access the moved-out value anymore.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{
+    ///     sabi_types::MovePtr,
+    ///     std_types::RString,
+    ///     pointer_trait::AsMutPtr,
+    ///     utils::manuallydrop_as_rmut,
+    /// };
+    /// 
+    /// use std::mem::ManuallyDrop;
+    /// 
+    /// 
+    /// let mut mdrop = ManuallyDrop::new(RString::from("hello"));
+    /// 
+    /// // safety: `mdrop` is never accessed again
+    /// let moveptr = unsafe{ MovePtr::from_rmut(manuallydrop_as_rmut(&mut mdrop)) };
+    /// assert_eq!(*moveptr, "hello");
+    ///
+    /// let string: RString = MovePtr::into_inner(moveptr);
+    /// assert_eq!(string, "hello");
+    /// 
+    /// ```
+    #[inline]
+    pub unsafe fn from_rmut(ptr: RMut<'a, T>)->Self{
+        Self {
+            ptr: NonNull::new_unchecked(ptr.into_raw()),
+            _marker:PhantomData,
+        }
+    }
+
     /// Constructs this move pointer from a raw pointer,
     /// moving the value out of it.
     ///
     /// # Safety 
     ///
-    /// Callers must ensure that the value the pointer points at is never read again.
+    /// Callers must ensure that the original owner of the value won't 
+    /// access the moved-out value anymore.
     ///
+    /// Because this takes a mutable pointer, the lifetime of this `MovePtr` is unbounded.
+    /// You must ensure that it's not used for longer than the lifetime of the 
+    /// pointed-to value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{
+    ///     sabi_types::MovePtr,
+    ///     std_types::RVec,
+    ///     pointer_trait::AsMutPtr,
+    ///     utils::manuallydrop_as_raw_mut,
+    ///     rvec,
+    /// };
+    /// 
+    /// use std::mem::ManuallyDrop;
+    /// 
+    /// 
+    /// let mut mdrop = ManuallyDrop::new(rvec![3, 5, 8]);
+    /// 
+    /// // safety: `mdrop` is never accessed again
+    /// let moveptr = unsafe{ MovePtr::from_raw(manuallydrop_as_raw_mut(&mut mdrop)) };
+    /// assert_eq!(*moveptr, [3, 5, 8]);
+    ///
+    /// let vector: RVec<u8> = MovePtr::into_inner(moveptr);
+    /// assert_eq!(vector, [3, 5, 8]);
+    /// 
+    /// ```
     pub unsafe fn from_raw(ptr: *mut T)->Self{
         Self{
             ptr: NonNull::new_unchecked(ptr),
@@ -431,5 +504,22 @@ mod test{
             assert_eq!(Arc::strong_count(&*move_ptr),2);
         }
         assert_eq!(Arc::strong_count(&arc),1);
+    }
+
+    #[test]
+    fn take_mutable_reference(){
+        unsafe{
+            let mut val = 3u32;
+            let mut mutref = ManuallyDrop::new(&mut val);
+            
+            let mut move_ptr = MovePtr::<&mut u32>::new(&mut *mutref);
+            assert_eq!(**move_ptr, 3);
+
+            **move_ptr += 2;
+            assert_eq!(**move_ptr, 5);
+
+            let moved_mut: &mut u32 = MovePtr::into_inner(move_ptr);
+            assert_eq!(*moved_mut, 5);
+        }
     }
 }
