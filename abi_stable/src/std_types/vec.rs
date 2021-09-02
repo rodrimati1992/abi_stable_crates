@@ -1052,6 +1052,23 @@ impl<T> BorrowMut<[T]> for RVec<T> {
     }
 }
 
+slice_like_impl_cmp_traits!{
+    RVec<T>,
+    where[];
+    Vec<U>,
+    [U],
+    &[U],
+    RSlice<'_, U>,
+    RSliceMut<'_, U>,
+}
+
+slice_like_impl_cmp_traits!{
+    RVec<T>,
+    where[T: Clone, U: Clone];
+    std::borrow::Cow<'_, [U]>,
+    crate::std_types::RCow<'_, [U]>,
+}
+
 shared_impls! {
     mod=buffer_impls
     new_type=RVec[][T],
