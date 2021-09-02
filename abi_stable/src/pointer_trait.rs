@@ -142,11 +142,17 @@ Whether the pointer can be transmuted to an equivalent pointer with `T` as the r
 
 Implementors of this trait must ensure that:
 
-- The memory layout of this
-    type is the same regardless of the type of the referent .
+- The memory layout of this 
+type is the same regardless of the type of the referent.
 
 - The pointer type is either `!Drop`(no drop glue either),
-    or it uses a vtable to Drop the referent and deallocate the memory correctly.
+or it uses a vtable to Drop the referent and deallocate the memory correctly.
+
+- `transmute_element_` must return a pointer to the same allocation as `self`,
+at the same offset,
+and with no reduced provenance
+(the range of addresses that are valid to dereference with pointers
+derived from the returned pointer).
 
 */
 pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
@@ -190,7 +196,7 @@ pub trait TransmuteElement{
     ///
     /// # Safety
     ///
-    /// Callers must ensure that it is valid to convert from a pointer to `Self::Referent`
+    /// Callers must ensure that it is valid to convert from a pointer to `Self::PtrTarget`
     /// to a pointer to `T`, and then use the pointed-to data.
     ///
     /// For example:
@@ -214,6 +220,7 @@ pub trait TransmuteElement{
     /// };
     ///
     /// ```
+    #[inline(always)]
     unsafe fn transmute_element<T>(self) -> <Self as CanTransmuteElement<T>>::TransmutedPtr 
     where
         Self: CanTransmuteElement<T>,
@@ -296,20 +303,123 @@ pub unsafe trait AsMutPtr: AsPtr {
 ///////////////////////////////////////////////////////////////////////////////
 
 
-/**
-For owned pointers,allows extracting their contents separate from deallocating them.
-
-# Safety
-
-Implementors must:
-
-- Be implemented such that `get_move_ptr` can be called before `drop_allocation`.
-
-- Not override `with_move_ptr`
-
-- Not override `in_move_ptr`
-
-*/
+/// For owned pointers, allows extracting their contents separate from deallocating them.
+/// 
+/// # Safety
+/// 
+/// Implementors must:
+/// 
+/// - Implement this trait such that `get_move_ptr` can be called before `drop_allocation`.
+/// 
+/// - Not override `with_move_ptr`
+/// 
+/// - Not override `in_move_ptr`
+/// 
+/// # Example
+/// 
+/// Implementing this trait for a Box-like type.
+/// 
+/// ```rust
+/// use abi_stable::{
+///     pointer_trait::{
+///         CallReferentDrop, PK_SmartPointer,
+///         GetPointerKind, AsPtr, AsMutPtr, OwnedPointer,
+///     },
+///     sabi_types::MovePtr,
+///     std_types::RString,
+///     StableAbi,
+/// };
+/// 
+/// use std::{
+///     alloc::{self, Layout},
+///     marker::PhantomData,
+///     mem::ManuallyDrop,
+/// };
+/// 
+/// 
+/// fn main(){
+///     let this = BoxLike::new(RString::from("12345"));
+///     
+///     let string: RString = this.in_move_ptr(|x: MovePtr<'_, RString>|{
+///         MovePtr::into_inner(x)
+///     });
+/// 
+///     assert_eq!(string, "12345");
+/// }
+/// 
+/// 
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// pub struct BoxLike<T> {
+///     ptr: *mut T,
+///     
+///     dropper: unsafe extern "C" fn(*mut T, CallReferentDrop),
+/// 
+///     _marker: PhantomData<T>,
+/// }
+/// 
+/// 
+/// impl<T> BoxLike<T>{
+///     pub fn new(value:T)->Self{
+///         let box_ = Box::new(value);
+///         
+///         Self{
+///             ptr: Box::into_raw(box_),
+///             dropper: destroy_box::<T>,
+///             _marker:PhantomData,
+///         }
+///     }
+/// }
+/// 
+/// unsafe impl<T> GetPointerKind for BoxLike<T> {
+///     type PtrTarget = T;
+///     type Kind = PK_SmartPointer;
+/// }
+/// 
+/// unsafe impl<T> AsPtr for BoxLike<T> {
+///     fn as_ptr(&self) -> *const T {
+///         self.ptr
+///     }
+/// }
+/// 
+/// unsafe impl<T> AsMutPtr for BoxLike<T> {
+///     fn as_mut_ptr(&mut self) -> *mut T {
+///         self.ptr
+///     }
+/// }
+///
+/// unsafe impl<T> OwnedPointer for BoxLike<T> {
+///     unsafe fn get_move_ptr(this: &mut ManuallyDrop<Self>) -> MovePtr<'_,Self::PtrTarget>{
+///         MovePtr::from_raw(this.ptr)
+///     }
+///     
+///     unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>) {
+///         unsafe{
+///             (this.dropper)(this.ptr, CallReferentDrop::No)
+///         }
+///     }
+/// }
+/// 
+/// impl<T> Drop for BoxLike<T>{
+///     fn drop(&mut self){
+///         unsafe{
+///             (self.dropper)(self.ptr, CallReferentDrop::Yes)
+///         }
+///     }
+/// }
+/// 
+/// unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {
+///     abi_stable::extern_fn_panic_handling! {
+///         let mut box_ = Box::from_raw(v as *mut ManuallyDrop<T>);
+///         if call_drop == CallReferentDrop::Yes {
+///             ManuallyDrop::drop(&mut *box_);
+///         }
+///         drop(box_);
+///     }
+/// }
+/// 
+/// 
+/// ```
 pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// Gets a move pointer to the contents of this pointer.
     ///
@@ -317,8 +427,37 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     ///
     /// This function logically moves the owned contents out of this pointer,
     /// the only safe thing that can be done with the pointer afterwads 
-    /// is to call OwnedPointer::drop_allocation.
-    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::PtrTarget>;
+    /// is to call `OwnedPointer::drop_allocation`.
+    ///
+    /// <span id="get_move_ptr-example"></span>
+    /// # Example
+    /// 
+    /// ```rust
+    /// use abi_stable::{
+    ///     pointer_trait::OwnedPointer,
+    ///     sabi_types::MovePtr,
+    ///     std_types::{RBox, RVec},
+    ///     rvec, StableAbi,
+    /// };
+    ///
+    /// use std::mem::ManuallyDrop;
+    ///
+    /// let mut this = ManuallyDrop::new(RBox::new(rvec![3, 5, 8]));
+    ///
+    /// // safety:
+    /// // this is only called once,
+    /// // and the `RVec` is never accessed again through the `RBox`.
+    /// let moveptr: MovePtr<'_, RVec<u8>> = unsafe { OwnedPointer::get_move_ptr(&mut this) };
+    /// 
+    /// let vector: RVec<u8> = MovePtr::into_inner(moveptr);
+    /// 
+    /// // safety: this is only called once, after all uses of `this`
+    /// unsafe{ OwnedPointer::drop_allocation(&mut this); }
+    /// 
+    /// assert_eq!(vector, [3, 5, 8]);
+    ///
+    /// ```
+    unsafe fn get_move_ptr(this: &mut ManuallyDrop<Self>) -> MovePtr<'_, Self::PtrTarget>;
 
     /// Deallocates the pointer without dropping its owned contents.
     ///
@@ -327,32 +466,105 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     ///
     /// # Safety
     ///
-    /// The allocation managed by `this` must never be accessed again.
+    /// This method must only be called once,
+    /// since it'll deallocate whatever memory this pointer owns.
     ///
-    unsafe fn drop_allocation(this:&mut ManuallyDrop<Self>);
+    /// # Example
+    /// 
+    /// [`get_move_ptr` has an example](#get_move_ptr-example) that uses both that function
+    /// and this one.
+    unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>);
 
+    /// Runs a callback with the contents of this pointer, and then deallocates it.
+    /// 
+    /// The pointer is deallocated even in the case that `func` panics
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// use abi_stable::{
+    ///     pointer_trait::OwnedPointer,
+    ///     sabi_types::MovePtr,
+    ///     std_types::{RBox, RCow},
+    /// };
+    ///
+    /// use std::mem::ManuallyDrop;
+    ///
+    /// let this = ManuallyDrop::new(RBox::new(RCow::from_slice(&[13, 21, 34])));
+    ///
+    /// let cow: RCow<'static, [u8]> = OwnedPointer::with_move_ptr(this, |moveptr|{
+    ///     MovePtr::into_inner(moveptr)
+    /// });
+    /// 
+    /// assert_eq!(cow, [13, 21, 34]);
+    ///
+    /// ```
     #[inline]
-    fn with_move_ptr<F,R>(mut this:ManuallyDrop<Self>,f:F)->R
+    fn with_move_ptr<F, R>(mut this: ManuallyDrop<Self>, func:F)->R
     where 
-        F:FnOnce(MovePtr<'_,Self::PtrTarget>)->R,
+        F: FnOnce(MovePtr<'_,Self::PtrTarget>) ->R,
     {
         unsafe{
-            let ret=f(Self::get_move_ptr(&mut this));
-            Self::drop_allocation(&mut this);
-            ret
+            let guard = DropAllocationMutGuard(&mut this);
+            func(Self::get_move_ptr(guard.0))
         }
     }
 
+    /// Runs a callback with the contents of this pointer, and then deallocates it.
+    /// 
+    /// The pointer is deallocated even in the case that `func` panics
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// use abi_stable::{
+    ///     pointer_trait::OwnedPointer,
+    ///     sabi_types::MovePtr,
+    ///     std_types::{RBox, RCow},
+    /// };
+    ///
+    /// let this = RBox::new(Foo(41));
+    ///
+    /// let cow: Foo = this.in_move_ptr(|moveptr| MovePtr::into_inner(moveptr) );
+    /// 
+    /// assert_eq!(cow, Foo(41));
+    ///
+    ///
+    /// #[derive(Debug, PartialEq)]
+    /// struct Foo(u32);
+    ///
+    ///
+    /// ```
     #[inline]
-    fn in_move_ptr<F,R>(self,f:F)->R
+    fn in_move_ptr<F, R>(self, func:F)->R
     where 
-        F:FnOnce(MovePtr<'_, Self::PtrTarget>)->R,
+        F: FnOnce(MovePtr<'_, Self::PtrTarget>) -> R,
     {
         unsafe{
-            let mut this=ManuallyDrop::new(self);
-            let ret=f(Self::get_move_ptr(&mut this));
-            Self::drop_allocation(&mut this);
-            ret
+            let mut guard = DropAllocationGuard(ManuallyDrop::new(self));
+            func(Self::get_move_ptr(&mut guard.0))
+        }
+    }
+}
+
+struct DropAllocationGuard<T: OwnedPointer>(ManuallyDrop<T>);
+
+impl<T: OwnedPointer> Drop for DropAllocationGuard<T> {
+    #[inline(always)]
+    fn drop(&mut self) {
+        unsafe{
+            T::drop_allocation(&mut self.0)
+        }
+    }
+}
+
+struct DropAllocationMutGuard<'a, T: OwnedPointer>(&'a mut ManuallyDrop<T>);
+
+impl<T: OwnedPointer> Drop for DropAllocationMutGuard<'_, T> {
+    #[inline(always)]
+    fn drop(&mut self) {
+        unsafe{
+            T::drop_allocation(self.0)
         }
     }
 }
