@@ -769,7 +769,7 @@ where
     /// };
     /// 
     /// let mut to: Doer_TO<'_, RBox<()>> =
-    ///     Doer_TO::from_value(0usize, TU_Opaque);
+    ///     Doer_TO::from_value(2usize, TU_Opaque);
     /// 
     /// // `#[sabi_trait]` trait objects have an equivalent `sabi_reborrow_mut` method,
     /// // which delegate to this method.

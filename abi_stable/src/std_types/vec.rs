@@ -659,7 +659,7 @@ impl<T> RVec<T> {
     /// assert_eq!( list.as_slice(), &["foo".into_c(), "geo".into(), "baz".into()] );
     ///
     /// assert_eq!( list.swap_remove(0), "foo".into_c() );
-    /// assert_eq!( list.as_slice(), &["baz".into(), "geo".into()] );
+    /// assert_eq!( list.as_slice(), &["baz".to_string(), "geo".into()] );
     ///
     /// ```
     pub fn swap_remove(&mut self, index: usize) -> T {

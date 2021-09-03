@@ -135,26 +135,86 @@ unsafe impl<'a,T> GetPointerKind for &'a mut T{
 
 ///////////
 
-/**
-Whether the pointer can be transmuted to an equivalent pointer with `T` as the referent type.
 
-# Safety for implementor
-
-Implementors of this trait must ensure that:
-
-- The memory layout of this 
-type is the same regardless of the type of the referent.
-
-- The pointer type is either `!Drop`(no drop glue either),
-or it uses a vtable to Drop the referent and deallocate the memory correctly.
-
-- `transmute_element_` must return a pointer to the same allocation as `self`,
-at the same offset,
-and with no reduced provenance
-(the range of addresses that are valid to dereference with pointers
-derived from the returned pointer).
-
-*/
+/// Whether the pointer can be transmuted to an equivalent pointer with `T` as the referent type.
+/// 
+/// # Safety for implementor
+/// 
+/// Implementors of this trait must ensure that:
+/// 
+/// - The memory layout of this 
+/// type is the same regardless of the type of the referent.
+/// 
+/// - The pointer type is either `!Drop`(no drop glue either),
+/// or it uses a vtable to Drop the referent and deallocate the memory correctly.
+/// 
+/// - `transmute_element_` must return a pointer to the same allocation as `self`,
+/// at the same offset,
+/// and with no reduced provenance
+/// (the range of addresses that are valid to dereference with pointers
+/// derived from the returned pointer).
+/// 
+/// # Example
+/// 
+/// ```rust
+/// use abi_stable::{
+///     pointer_trait::{
+///         PK_Reference,
+///         AsPtr, CanTransmuteElement, GetPointerKind, TransmuteElement,
+///     },
+///     sabi_types::StaticRef,
+///     std_types::{Tuple2, Tuple4},
+/// };
+/// 
+/// fn main() {
+///     let reff = FooRef::new(&Tuple4::<u8, u16, u32, u64>(3, 5, 8, 13));
+///     
+///     // safety: `Tuple2<u8, u16>` is a compatible prefix of `Tuple4<u8, u16, u32, u64>`
+///     let smaller = unsafe{ reff.transmute_element::<Tuple2<u8, u16>>() };
+///     assert_eq!(smaller.get(), &Tuple2(3u8, 5u16));
+/// }
+/// 
+/// 
+/// #[derive(Debug, Copy, Clone)]
+/// #[repr(transparent)]
+/// struct FooRef<T>(StaticRef<T>);
+/// 
+/// impl<T: 'static> FooRef<T> {
+///     pub const fn new(reff: &'static T) -> Self {
+///         Self(StaticRef::new(reff))
+///     }
+///     pub fn get(self) -> &'static T {
+///         self.0.get()
+///     }
+/// }
+/// 
+/// unsafe impl<T: 'static> GetPointerKind for FooRef<T> {
+///     type PtrTarget = T;
+///     type Kind = PK_Reference;
+/// }
+/// 
+/// unsafe impl<T, U> CanTransmuteElement<U> for FooRef<T> 
+/// where
+///     T: 'static,
+///     U: 'static,
+/// {
+///     type TransmutedPtr = FooRef<U>;
+///     
+///     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
+///         FooRef(self.0.transmute_element_())
+///     }
+/// }
+/// 
+/// unsafe impl<T: 'static> AsPtr for FooRef<T> {
+///     fn as_ptr(&self) -> *const T {
+///         self.0.as_ptr()
+///     }
+/// }
+/// 
+/// 
+/// 
+/// 
+/// ```
 pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
     /// The type of the pointer after it's element type has been changed.
     type TransmutedPtr: AsPtr<PtrTarget = T>;
@@ -267,6 +327,62 @@ unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a mut T {
 /// 
 /// The implementor of this trait must not override the defaulted methods.
 /// 
+/// # Example
+/// 
+/// ```rust
+/// use abi_stable::{
+///     erased_types::interfaces::DebugDefEqInterface,
+///     pointer_trait::{
+///         PK_Reference,
+///         AsPtr, CanTransmuteElement, GetPointerKind, TransmuteElement,
+///     },
+///     sabi_types::StaticRef,
+///     DynTrait,
+/// };
+/// 
+/// fn main() {
+///     let reff: DynTrait<BarRef<()>, DebugDefEqInterface> =
+///         DynTrait::from_any_ptr(BarRef::new(&1234i32), DebugDefEqInterface);
+///     
+///     assert_eq!(format!("{:?}", reff), "1234");
+/// }
+/// 
+/// 
+/// #[derive(Debug, Copy, Clone)]
+/// #[repr(transparent)]
+/// struct BarRef<T>(StaticRef<T>);
+/// 
+/// impl<T: 'static> BarRef<T> {
+///     pub const fn new(reff: &'static T) -> Self {
+///         Self(StaticRef::new(reff))
+///     }
+/// }
+/// 
+/// unsafe impl<T: 'static> GetPointerKind for BarRef<T> {
+///     type PtrTarget = T;
+///     type Kind = PK_Reference;
+/// }
+/// 
+/// unsafe impl<T, U> CanTransmuteElement<U> for BarRef<T> 
+/// where
+///     T: 'static,
+///     U: 'static,
+/// {
+///     type TransmutedPtr = BarRef<U>;
+///     
+///     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
+///         BarRef(self.0.transmute_element_())
+///     }
+/// }
+/// 
+/// unsafe impl<T: 'static> AsPtr for BarRef<T> {
+///     fn as_ptr(&self) -> *const T {
+///         self.0.as_ptr()
+///     }
+/// }
+/// 
+/// 
+/// ```
 pub unsafe trait AsPtr: GetPointerKind {
     /// Gets a const raw pointer to the value that this points to.
     fn as_ptr(&self) -> *const Self::PtrTarget;
@@ -289,6 +405,67 @@ pub unsafe trait AsPtr: GetPointerKind {
 /// 
 /// The implementor of this trait must not override the defaulted methods.
 /// 
+/// # Example
+/// 
+/// ```rust
+/// use abi_stable::{
+///     erased_types::interfaces::DEIteratorInterface,
+///     pointer_trait::{
+///         PK_MutReference,
+///         AsPtr, AsMutPtr, CanTransmuteElement, GetPointerKind, TransmuteElement,
+///     },
+///     sabi_types::RMut,
+///     DynTrait,
+/// };
+/// 
+/// fn main() {
+///     let mut iter = 0..=5;
+///     let reff: DynTrait<QuxMut<()>, DEIteratorInterface<_>> =
+///         DynTrait::from_any_ptr(QuxMut::new(&mut iter), DEIteratorInterface::NEW);
+///     
+///     assert_eq!(reff.collect::<Vec<u32>>(), [0, 1, 2, 3, 4, 5]);
+/// 
+///     assert_eq!(iter.next(), None);
+/// }
+/// 
+/// 
+/// #[derive(Debug)]
+/// #[repr(transparent)]
+/// struct QuxMut<'a, T>(RMut<'a, T>);
+/// 
+/// impl<'a, T> QuxMut<'a, T> {
+///     pub fn new(reff: &'a mut T) -> Self {
+///         Self(RMut::new(reff))
+///     }
+/// }
+/// 
+/// unsafe impl<T> GetPointerKind for QuxMut<'_, T> {
+///     type PtrTarget = T;
+///     type Kind = PK_MutReference;
+/// }
+/// 
+/// unsafe impl<'a, T: 'a, U: 'a> CanTransmuteElement<U> for QuxMut<'a, T> {
+///     type TransmutedPtr = QuxMut<'a, U>;
+///     
+///     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
+///         QuxMut(self.0.transmute_element_())
+///     }
+/// }
+/// 
+/// unsafe impl<T> AsPtr for QuxMut<'_, T> {
+///     fn as_ptr(&self) -> *const T {
+///         self.0.as_ptr()
+///     }
+/// }
+/// 
+/// unsafe impl<T> AsMutPtr for QuxMut<'_, T> {
+///     fn as_mut_ptr(&mut self) -> *mut T {
+///         self.0.as_mut_ptr()
+///     }
+/// }
+/// 
+/// 
+/// ```
 pub unsafe trait AsMutPtr: AsPtr {
     /// Gets a mutable raw pointer to the value that this points to.
     fn as_mut_ptr(&mut self) -> *mut Self::PtrTarget;
