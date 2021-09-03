@@ -186,9 +186,9 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 
 [`RootModule`]: ./library/trait.RootModule.html
 [`StableAbi`]: ./abi_stability/stable_abi_trait/trait.StableAbi.html
-[`sabi_trait`]: ./docs/sabi_trait_attribute/index.html
-[Trait objects]: ./docs/sabi_trait_attribute/index.html
-[`StableAbi` derive]: ./docs/stable_abi_derive/index.html
+[`sabi_trait`]: ./attr.sabi_trait.html
+[Trait objects]: ./attr.sabi_trait.html
+[`StableAbi` derive]: ./derive.StableAbi.html
 [`DynTrait`]: ./struct.DynTrait.html
 [Troubleshooting]: ./docs/troubleshooting/index.html
 [Unsafe code guidelines]: ./docs/unsafe_code_guidelines/index.html
@@ -241,20 +241,12 @@ extern crate abi_stable_derive;
 extern crate self as abi_stable;
 
 
-#[doc(inline)]
-pub use abi_stable_derive::{
-    StableAbi,
-    GetStaticEquivalent,
-};
+include!{"./proc_macro_reexports/get_static_equivalent.rs"}
+include!{"./proc_macro_reexports/export_root_module.rs"}
+include!{"./proc_macro_reexports/sabi_extern_fn.rs"}
+include!{"./proc_macro_reexports/sabi_trait_attribute.rs"}
+include!{"./proc_macro_reexports/stable_abi_derive.rs"}
 
-#[doc(inline)]
-pub use abi_stable_derive::{
-    sabi_trait,
-    sabi_extern_fn,
-};
-
-#[doc(inline)]
-pub use abi_stable_derive::export_root_module;
 
 #[doc(no_inline)]
 pub use abi_stable::sabi_types::{RRef, RMut};

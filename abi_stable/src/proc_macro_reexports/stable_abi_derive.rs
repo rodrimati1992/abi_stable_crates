@@ -1,4 +1,4 @@
-/*!
+/**
 
 The StableAbi derive macro allows one to implement the StableAbi trait to :
 
@@ -100,7 +100,7 @@ or the parents of that one.
 Sibling means libraries loaded at runtime by the same library/binary 
 (or a parent of that one).
 
-For more information about tags,[look here](../../type_layout/tagging/index.html)
+For more information about tags,[look here](./type_layout/tagging/index.html)
 
 ###  `#[sabi(extra_checks="<some_constant_expression>")]` 
 
@@ -110,7 +110,7 @@ which allows encoding and checking extra properties about a type.
 `<some_constant_expression>` must be a constant that implements ExtraChecks .
 
 For examples of using this attribute
-[look here](../../abi_stability/extra_checks/index.html#examples)
+[look here](./abi_stability/extra_checks/index.html#examples)
 
 ###  `#[sabi(debug_print)]` 
 
@@ -125,7 +125,7 @@ Arguments (what goes inside `#[sabi(kind(Prefix(   <here>   )))]`):
 Declares an ffi-safe pointer to a vtable/module,
 that can be extended in semver compatible versions.<br>
 Uses "<Identifier>" as the name of the prefix struct.<br>
-For more details on prefix-types [look here](../prefix_types/index.html)
+For more details on prefix-types [look here](../docs/prefix_types/index.html)
 
 - `prefix_fields = "<Identifier>")` (optional: defaults to `<DerivingType>_Prefix`):<be>
 Declares a struct with all the field in the deriving type up to(and including)
@@ -137,7 +137,7 @@ named "<Identifier>".
 Declares this enum as being nonexhaustive,
 generating items and impls necessary to wrap this enum in the [`NonExhaustive`] type
 to pass it through ffi.
-For more details on nonexhaustive enums [look here](../sabi_nonexhaustive/index.html)
+For more details on nonexhaustive enums [look here](../docs/sabi_nonexhaustive/index.html)
 
 ###  `#[sabi(module_reflection(...))]`  
 
@@ -501,7 +501,7 @@ pub struct Wrapper<T>{
 ###  On a `#[repr(u8)]` enum.
 
 This enum cannot add variants in minor versions,
-for that you have to use [nonexhaustive enums](../sabi_nonexhaustive/index.html).
+for that you have to use [nonexhaustive enums](../docs/sabi_nonexhaustive/index.html).
 
 ```
 use abi_stable::{
@@ -523,23 +523,25 @@ pub enum Command{
 
 ###  Prefix-types 
 
-For examples of Prefix-types [look here](../prefix_types/index.html#examples).
+For examples of Prefix-types [look here](../docs/prefix_types/index.html#examples).
 
 ###  Nonexhaustive-enums 
 
 For examples of nonexhaustive enums 
 [look here for the first example
-](../sabi_nonexhaustive/index.html#defining-a-deserializable-nonexhaustive-enum).
+](../docs/sabi_nonexhaustive/index.html#defining-a-deserializable-nonexhaustive-enum).
 
 ### Examples of `#[not_stableabi()]`
 
 For examples of using both `#[derive(GetStaticEquivalent)]` and `#[not_stableabi()]`
-[look here](../get_static_equivalent/index.html#examples).
+[look here](./derive.GetStaticEquivalent.html#examples).
 
 
 
 
 
-[`NonExhaustive`]: ../../nonexhaustive_enum/struct.NonExhaustive.html
+[`NonExhaustive`]: ./nonexhaustive_enum/struct.NonExhaustive.html
 
 */
+#[doc(inline)]
+pub use abi_stable_derive::StableAbi;

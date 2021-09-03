@@ -1,4 +1,4 @@
-/*!
+/**
 
 This attribute generates an ffi-safe trait object on the trait it's applied to.
 
@@ -276,7 +276,7 @@ To pass attributes to the generated vtable you can use the `#[sabi(  )]` attribu
 that are valid for `#[derive(StableAbi)]`.
 
 [Here is the documentation for the derive macro.
-](../stable_abi_derive/index.html)
+](./derive.StableAbi.html)
 
 # Trait attributes.
 
@@ -550,3 +550,5 @@ assert!( ! IS_CARD.contains(&'B') );
 
 
 */
+#[doc(inline)]
+pub use abi_stable_derive::sabi_trait;
