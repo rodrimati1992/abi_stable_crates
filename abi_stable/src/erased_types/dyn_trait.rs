@@ -782,7 +782,7 @@ mod priv_ {
         /// };
         /// 
         /// 
-        /// // DebugInterface is `Debug + Display + Sync + Send`
+        /// // DebugDisplayInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RBox<()>, DebugDisplayInterface> = 
         ///     DynTrait::from_any_value(3u8, DebugDisplayInterface);
         /// 
@@ -885,7 +885,7 @@ mod priv_ {
         /// };
         /// 
         /// 
-        /// // DebugInterface is `Debug + Display + Sync + Send`
+        /// // DebugDisplayInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RBox<()>, DebugDisplayInterface> = 
         ///     DynTrait::from_borrowing_value(3u8, DebugDisplayInterface);
         /// 
@@ -1006,7 +1006,7 @@ mod priv_ {
         /// };
         /// 
         /// 
-        /// // DebugInterface is `Debug + Display + Sync + Send`
+        /// // DebugDisplayInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RRef<()>, DebugDisplayInterface, usize> = 
         ///     DynTrait::with_extra_value::<_, TU_Opaque>(&55u8, 100usize);
         /// 
@@ -1196,7 +1196,6 @@ mod priv_ {
         /// };
         /// 
         /// 
-        /// // DebugInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RRef<()>, (), char> = 
         ///     DynTrait::with_extra_value::<_, TU_Opaque>(&55u8, 'Z');
         /// 
@@ -1230,7 +1229,6 @@ mod priv_ {
         /// 
         /// let reff = &55u8;
         /// 
-        /// // DebugInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RRef<()>, ()> = 
         ///     DynTrait::from_any_ptr(reff, ());
         /// 
@@ -1271,7 +1269,6 @@ mod priv_ {
         /// };
         /// 
         /// 
-        /// // DebugInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RBox<()>, ()> = 
         ///     DynTrait::from_any_value(66u8, ());
         /// 
@@ -1308,7 +1305,6 @@ mod priv_ {
         /// };
         /// 
         /// 
-        /// // DebugInterface is `Debug + Display + Sync + Send`
         /// let mut to: DynTrait<'static, RBox<()>, ()> = 
         ///     DynTrait::from_any_value("hello", ());
         /// 
@@ -1337,7 +1333,6 @@ mod priv_ {
         /// };
         /// 
         /// 
-        /// // DebugInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RBox<()>, ()> = 
         ///     DynTrait::from_any_value(66u8, ());
         /// 
@@ -1365,7 +1360,6 @@ mod priv_ {
         /// };
         /// 
         /// 
-        /// // DebugInterface is `Debug + Display + Sync + Send`
         /// let mut to: DynTrait<'static, RBox<()>, ()> = 
         ///     DynTrait::from_any_value("hello", ());
         /// 
@@ -1400,7 +1394,6 @@ mod priv_ {
         /// };
         /// 
         /// 
-        /// // DebugInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RBox<()>, ()> = 
         ///     DynTrait::from_any_value(RVec::<u8>::from_slice(b"foobarbaz"), ());
         /// 
