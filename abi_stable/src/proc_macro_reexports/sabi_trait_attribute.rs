@@ -93,34 +93,36 @@ This is the module inside of which all the items are generated.
 
 These are the items reexported from the module:
 
-- `Trait`:The trait itself.
+- [`Trait`](#trait):The trait itself.
 
-- `Trait_TO`:The trait object for the trait.
+- [`Trait_TO`](#trait_to):The trait object for the trait.
 
-- `Trait_MV`:
+- [`Trait_MV`](#trait_mv):
     A helper type used to construct the vtable for the trait object in constants.
 
-- `Trait_CTO`:A type alias for the trait object which is constructible in constants.
+- [`Trait_CTO`](#trait_cto):
+A type alias for the trait object which is constructible in constants.
 
 
 ###  Trait_TO 
 
 The ffi-safe trait object.
 
+[Its inherent methods are documented here.
+](./docs/sabi_trait_inherent/index.html#methods)
+
+`Trait_TO` has inherent method equivalents of the trait methods,
+only requiring the wrapped pointer to implement the trait in the individual methods
+(instead of putting those bounds in the impl block itself).
+
 <br>
 
 This only implements `Trait` if all the methods are callable,
 when the wrapped pointer type implements traits for these methods:
 
-- `&self` method: requires `AsPtr<PtrTarget=()>`.
-- `&mut self` method: requires `AsMutPtr<PtrTarget=()>`.
-- `self` method: requires `OwnedPointer<Target=()>`.
-
-<br>
-
-`Trait_TO` also has inherent method equivalents of the trait methods,
-only requiring the pointer to implement the trait in the individual methods
-(instead of putting those bounds in the impl block itself).
+- `&self` method: requires `AsPtr<PtrTarget = ()>`.
+- `&mut self` method: requires `AsMutPtr<PtrTarget = ()>`.
+- `self` method: requires `OwnedPointer<PtrTarget = ()>`.
 
 <br>
 
@@ -144,8 +146,8 @@ then it doesn't have this lifetime parameter.
 - `trait_assoc_type_n`: The associated types of the trait.
 
 
-A trait defined like this:`trait Foo<'a,T,U>{ type Hello; type World; }`,
-has this trait object:`Foo_TO<'a,'lt,Pointer,T,U,Hello,World>`.
+A trait defined like this:`trait Foo<'a, T, U>{ type Hello; type World; }`,
+has this trait object:`Foo_TO<'a, 'lt, Pointer, T, U, Hello, World>`.
 
 <br>
 
@@ -196,62 +198,6 @@ Example: `Trait_CTO<'lt, 'r, u8, u64, 10, AssocFoo>`
 ###  Trait_MV
 
 A helper type used to construct the vtable of the trait object.
-
-###  Trait_TO::from_ptr 
-
-A constructor for the trait object,which takes a pointer to a value that implements the trait.
-
-Generally it is called like this
-`Trait_TO::from_ptr( pointer,<Unerasability> )`.<br>
-or like this(if you don't want to write the type of the returned trait object):<br>
-`Trait_TO::<_,TraitParam0, TraitParam1>::from_ptr( pointer,<Unerasability> )`.
-
-Where `<Unerasability>` can be either:
-
--`TU_Unerasable`:
-    Which allows the trait object to be unerased,requires that the value implements any.
-
-.`TU_Opaque`:Which does not allow the trait object to be unerased.
-
-Where `TraitParam*` are the type parameters of the trait.
-
-###  Trait_TO::from_value 
-
-A constructor for the trait object,which takes a value that implements the trait.
-
-This is equivalent to calling `Trait_TO::from_ptr` with `RBox::new(value)`.
-
-###  Trait_TO::from_sabi 
-
-Constructs the trait object from its underlying implementation,
-either `RObject` or `DynTrait` depending on whether the
-`#[sabi(use_dyntrait)]` helper attribute was used.
-
-###  Trait_TO::from_const
-
-Constructs the trait object from a reference to a constant value,
-eg:`Trait_CTO::from_const(&value,<Unerasability>,Trait_MV::VTABLE)`.
-
-Where `<Unerasability>` can be either:
-
--`TU_Unerasable`:
-    Which allows the trait object to be unerased,requires that the value implements any.
-
-.`TU_Opaque`:Which does not allow the trait object to be unerased.
-
-
-### Trait_TO::sabi_reborrow
-
-Reborrows the trait object,going from `&Trait_TO<'lt,SomePtr<()>>` to `Trait_TO<'lt,&()>`.
-
-This is only generated if the trait has both or neither Send and Sync as supertraits.
-
-### Trait_TO::sabi_reborrow_mut
-
-Reborrows the trait object mutably,
-going from `&mut Trait_TO<'lt,SomePtr<()>>` to `Trait_TO<'lt,&mut ()>`.
-
-This is only generated if the trait has both or neither Send and Sync as supertraits.
 
 ###  Trait 
 
