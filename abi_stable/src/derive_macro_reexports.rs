@@ -85,7 +85,7 @@ pub use crate::{
     type_level::{
         impl_enum::{Implemented,Unimplemented,ImplFrom},
         trait_marker,
-        unerasability::TU_Opaque,
+        downcasting::TD_Opaque,
     },
     sabi_trait::vtable::{RObjectVtable_Ref, RObjectVtable},
     extern_fn_panic_handling,

@@ -290,7 +290,7 @@ as supertraits.
 This requires the type to be `'static` because comparing trait objects requires 
 constructing a `std::any::TypeId`,which itself requires `'static` to be constructed.
 
-- 3: Because you passed `TU_Unerasable` to the constructor function,
+- 3: Because you passed `TD_CanDowncast` to the constructor function,
 which requires constructing a `std::any::TypeId`
 (to unerase the trait object back into the value),
 which itself requires `'static` to be constructed.
@@ -361,10 +361,10 @@ pub trait Dictionary:Debug+Clone{
     {
         // This type annotation is for the reader
         //
-        // You can unerase trait objects constructed with `TU_Unerasable` 
-        // (as opposed to `TU_Opaque`,which can't be unerased).
+        // You can unerase trait objects constructed with `TD_CanDowncast` 
+        // (as opposed to `TD_Opaque`,which can't be unerased).
         let mut object:Dictionary_TO<'_,RBox<()>,u32>=
-            Dictionary_TO::from_value(map.clone(),TU_Unerasable);
+            Dictionary_TO::from_value(map.clone(),TD_CanDowncast);
 
         assert_eq!(Dictionary::get(&object,"hello".into()),Some(&100));
         assert_eq!(object.get("hello".into()),Some(&100)); // Inherent method call
@@ -374,7 +374,7 @@ pub trait Dictionary:Debug+Clone{
 
         object.insert("what".into(),99); // Inherent method call
 
-        // You can only unerase a trait object if it was constructed with `TU_Unerasable`
+        // You can only unerase a trait object if it was constructed with `TD_CanDowncast`
         // and it's being unerased into a type that implements `std::any::Any`.
         let map:RBox<HashMap<RString,u32>>=object.obj.into_unerased().unwrap();
 
@@ -386,10 +386,10 @@ pub trait Dictionary:Debug+Clone{
         let arc=RArc::new(map.clone());
         // This type annotation is for the reader
         //
-        // You can unerase trait objects constructed with `TU_Unerasable` 
-        // (as opposed to `TU_Opaque`,which can't be unerased).
+        // You can unerase trait objects constructed with `TD_CanDowncast` 
+        // (as opposed to `TD_Opaque`,which can't be unerased).
         let object:Dictionary_TO<'_,RArc<()>,u32>=
-            Dictionary_TO::from_ptr(arc,TU_Unerasable);
+            Dictionary_TO::from_ptr(arc,TD_CanDowncast);
 
         assert_eq!(object.get("world".into()),Some(&10));
         
@@ -422,12 +422,12 @@ pub trait Dictionary:Debug+Clone{
 
     // This type annotation is for the reader
     let object:Dictionary_TO<'_,RBox<()>,RString>=
-        Dictionary_TO::from_value( () ,TU_Opaque);
+        Dictionary_TO::from_value( () ,TD_Opaque);
 
     assert_eq!(object.get("hello".into()),None);
     assert_eq!(object.get("world".into()),None);
 
-    // Cannot unerase trait objects created with `TU_Opaque`.
+    // Cannot unerase trait objects created with `TD_Opaque`.
     assert_eq!(object.obj.into_unerased::<()>().ok(),None);
 }
 
@@ -443,7 +443,7 @@ This shows how one can construct a `#[sabi_trait]` generated trait object in a c
 ```rust
 
 use abi_stable::{
-    sabi_trait::TU_Opaque,
+    sabi_trait::TD_Opaque,
     sabi_trait,
 
 };
@@ -472,7 +472,7 @@ const CARDS:&'static [char]=&['A','2','3','4','5','6','7','8','9','J','Q','K'];
 static IS_CARD:StaticSet_CTO<'static,'static,char>=
     StaticSet_CTO::from_const(
         &CARDS,
-        TU_Opaque,
+        TD_Opaque,
         StaticSet_MV::VTABLE,
     );
 

@@ -16,7 +16,7 @@ use abi_stable::{
     external_types::ROnce,
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     sabi_types::{Constructor,CmpIgnored},
     std_types::*,
     utils::{self,leak_value},
@@ -277,7 +277,7 @@ unsafe impl ExtraChecks for ConstChecker {
         Self::downcast_with_object(other,checker,|other,_|{
             let (min,max)=utils::min_max_by(self,other,|x|x.chars.len());
             min.check_compatible_inner(max)
-                .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TU_Opaque) ) )
+                .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TD_Opaque) ) )
         })
     }
 }
@@ -372,7 +372,7 @@ where
             &IdentityChecker{ 
                 type_layout:Constructor(get_type_layout::<T>)
             },
-            TU_Opaque,
+            TD_Opaque,
             ExtraChecks_MV::VTABLE,
         ));
 }

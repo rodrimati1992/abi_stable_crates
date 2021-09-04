@@ -147,12 +147,12 @@ RObject does not implement Clone if P==`&mut ()` :
 use abi_stable::{
     sabi_trait::{
         doc_examples::ConstExample_TO,
-        TU_Opaque,
+        TD_Opaque,
     },
     std_types::*,
 };
 
-let mut object=ConstExample_TO::from_value(10usize, TU_Opaque);
+let mut object=ConstExample_TO::from_value(10usize, TD_Opaque);
 let borrow=object.sabi_reborrow_mut();
 let _=borrow.clone();
 ```
@@ -163,12 +163,12 @@ Here is the same example with `sabi_reborrow`
 use abi_stable::{
     sabi_trait::{
         doc_examples::ConstExample_TO,
-        TU_Opaque,
+        TD_Opaque,
     },
     std_types::*,
 };
 
-let mut object=ConstExample_TO::from_value(10usize, TU_Opaque);
+let mut object=ConstExample_TO::from_value(10usize, TD_Opaque);
 let borrow=object.sabi_reborrow();
 let _=borrow.clone();
 ```
@@ -308,13 +308,13 @@ this demonstrates how to construct one in a constant.
 ```
 use abi_stable::sabi_trait::{
     doc_examples::{ConstExample_CTO, ConstExample_MV},
-    prelude::TU_Opaque,
+    prelude::TD_Opaque,
 };
 
 const EXAMPLE0:ConstExample_CTO<'static,'static>=
     ConstExample_CTO::from_const(
         &0usize,
-        TU_Opaque,
+        TD_Opaque,
         ConstExample_MV::VTABLE,
     );
 
@@ -323,9 +323,9 @@ const EXAMPLE0:ConstExample_CTO<'static,'static>=
 
 
 */
-    pub const unsafe fn with_vtable_const<T, Unerasability>(
+    pub const unsafe fn with_vtable_const<T, Downcasting>(
         ptr: &'a T,
-        vtable:VTableTO_RO<T, RRef<'a, T>, Unerasability, V>,
+        vtable:VTableTO_RO<T, RRef<'a, T>, Downcasting, V>,
     )-> Self
     where
         T:'borr,
@@ -376,7 +376,7 @@ where
     /// the one from which this RObject was constructed.
     ///
     /// - The trait object wrapping this `RObject` was constructed with a 
-    /// `TU_Unerasable` argument.
+    /// `TD_CanDowncast` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
@@ -386,10 +386,10 @@ where
     /// use abi_stable::{
     ///     sabi_trait::doc_examples::Doer_TO,
     ///     std_types::RBox,
-    ///     type_level::unerasability::TU_Unerasable,
+    ///     type_level::downcasting::TD_CanDowncast,
     /// };
     ///
-    /// let to = ||Doer_TO::from_value(5usize, TU_Unerasable);
+    /// let to = ||Doer_TO::from_value(5usize, TD_CanDowncast);
     ///
     /// // `to.obj` is an RObject
     /// assert_eq!(to().obj.into_unerased::<usize>().ok(), Some(RBox::new(5usize)));
@@ -419,7 +419,7 @@ where
     /// the one from which this RObject was constructed.
     ///
     /// - The trait object wrapping this `RObject` was constructed with a 
-    /// `TU_Unerasable` argument.
+    /// `TD_CanDowncast` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
@@ -429,13 +429,13 @@ where
     /// use abi_stable::{
     ///     sabi_trait::doc_examples::Doer_TO,
     ///     std_types::RArc,
-    ///     type_level::unerasability::TU_Unerasable,
+    ///     type_level::downcasting::TD_CanDowncast,
     ///     RRef, RMut,
     /// };
     ///
     /// {
     ///     let to: Doer_TO<'_, RArc<()>> =
-    ///         Doer_TO::from_ptr(RArc::new(8usize), TU_Unerasable);
+    ///         Doer_TO::from_ptr(RArc::new(8usize), TD_CanDowncast);
     ///    
     ///     // `to.obj` is an RObject
     ///     assert_eq!(to.obj.as_unerased::<usize>().ok(), Some(&8usize));
@@ -446,7 +446,7 @@ where
     ///     // use `RRef<'_, ()>` instead of `&'_ ()` 
     ///     // since `&T` can't soundly be transmuted back and forth into `&()`
     ///     let to: Doer_TO<'_, RRef<'_, ()>> =
-    ///         Doer_TO::from_ptr(&13usize, TU_Unerasable);
+    ///         Doer_TO::from_ptr(&13usize, TD_CanDowncast);
     ///    
     ///     assert_eq!(to.obj.as_unerased::<usize>().ok(), Some(&13usize));
     ///     assert_eq!(to.obj.as_unerased::<u8>().ok(), None);
@@ -457,7 +457,7 @@ where
     ///     // use `RMut<'_, ()>` instead of `&'_ mut ()` 
     ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
     ///     let to: Doer_TO<'_, RMut<'_, ()>> =
-    ///         Doer_TO::from_ptr(mmut, TU_Unerasable);
+    ///         Doer_TO::from_ptr(mmut, TD_CanDowncast);
     ///    
     ///     assert_eq!(to.obj.as_unerased::<usize>().ok(), Some(&21usize));
     ///     assert_eq!(to.obj.as_unerased::<u8>().ok(), None);
@@ -486,7 +486,7 @@ where
     /// the one from which this RObject was constructed.
     ///
     /// - The trait object wrapping this `RObject` was constructed with a 
-    /// `TU_Unerasable` argument.
+    /// `TD_CanDowncast` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
@@ -497,13 +497,13 @@ where
     /// use abi_stable::{
     ///     sabi_trait::doc_examples::Doer_TO,
     ///     std_types::RBox,
-    ///     type_level::unerasability::TU_Unerasable,
+    ///     type_level::downcasting::TD_CanDowncast,
     ///     RRef, RMut,
     /// };
     ///
     /// {
     ///     let mut to: Doer_TO<'_, RBox<()>> =
-    ///         Doer_TO::from_value(34usize, TU_Unerasable);
+    ///         Doer_TO::from_value(34usize, TD_CanDowncast);
     ///    
     ///     // `to.obj` is an RObject
     ///     assert_eq!(to.obj.as_unerased_mut::<usize>().ok(), Some(&mut 34usize));
@@ -515,7 +515,7 @@ where
     ///     // use `RMut<'_, ()>` instead of `&'_ mut ()` 
     ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
     ///     let mut to: Doer_TO<'_, RMut<'_, ()>> =
-    ///         Doer_TO::from_ptr(mmut, TU_Unerasable);
+    ///         Doer_TO::from_ptr(mmut, TD_CanDowncast);
     ///    
     ///     assert_eq!(to.obj.as_unerased_mut::<usize>().ok(), Some(&mut 55usize));
     ///     assert_eq!(to.obj.as_unerased_mut::<u8>().ok(), None);
@@ -547,10 +547,10 @@ where
     /// use abi_stable::{
     ///     sabi_trait::doc_examples::Doer_TO,
     ///     std_types::RBox,
-    ///     type_level::unerasability::TU_Opaque,
+    ///     type_level::downcasting::TD_Opaque,
     /// };
     ///
-    /// let to = ||Doer_TO::from_value(5usize, TU_Opaque);
+    /// let to = ||Doer_TO::from_value(5usize, TD_Opaque);
     /// 
     /// unsafe{
     ///     // `to.obj` is an RObject
@@ -580,13 +580,13 @@ where
     /// use abi_stable::{
     ///     sabi_trait::doc_examples::Doer_TO,
     ///     std_types::RArc,
-    ///     type_level::unerasability::TU_Opaque,
+    ///     type_level::downcasting::TD_Opaque,
     ///     RRef, RMut,
     /// };
     ///
     /// {
     ///     let to: Doer_TO<'_, RArc<()>> =
-    ///         Doer_TO::from_ptr(RArc::new(8usize), TU_Opaque);
+    ///         Doer_TO::from_ptr(RArc::new(8usize), TD_Opaque);
     ///    
     ///     unsafe {
     ///         // `to.obj` is an RObject
@@ -598,7 +598,7 @@ where
     ///     // use `RRef<'_, ()>` instead of `&'_ ()` 
     ///     // since `&T` can't soundly be transmuted back and forth into `&()`
     ///     let to: Doer_TO<'_, RRef<'_, ()>> =
-    ///         Doer_TO::from_ptr(&13usize, TU_Opaque);
+    ///         Doer_TO::from_ptr(&13usize, TD_Opaque);
     ///    
     ///     unsafe {
     ///         assert_eq!(to.obj.unchecked_as_unerased::<usize>(), &13usize);
@@ -610,7 +610,7 @@ where
     ///     // use `RMut<'_, ()>` instead of `&'_ mut ()` 
     ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
     ///     let to: Doer_TO<'_, RMut<'_, ()>> =
-    ///         Doer_TO::from_ptr(mmut, TU_Opaque);
+    ///         Doer_TO::from_ptr(mmut, TD_Opaque);
     ///    
     ///     unsafe {
     ///         assert_eq!(to.obj.unchecked_as_unerased::<usize>(), &21usize);
@@ -640,13 +640,13 @@ where
     /// use abi_stable::{
     ///     sabi_trait::doc_examples::Doer_TO,
     ///     std_types::RBox,
-    ///     type_level::unerasability::TU_Opaque,
+    ///     type_level::downcasting::TD_Opaque,
     ///     RRef, RMut,
     /// };
     ///
     /// {
     ///     let mut to: Doer_TO<'_, RBox<()>> =
-    ///         Doer_TO::from_value(34usize, TU_Opaque);
+    ///         Doer_TO::from_value(34usize, TD_Opaque);
     ///    
     ///     unsafe {
     ///         // `to.obj` is an RObject
@@ -659,7 +659,7 @@ where
     ///     // use `RMut<'_, ()>` instead of `&'_ mut ()` 
     ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
     ///     let mut to: Doer_TO<'_, RMut<'_, ()>> =
-    ///         Doer_TO::from_ptr(mmut, TU_Opaque);
+    ///         Doer_TO::from_ptr(mmut, TD_Opaque);
     ///    
     ///     unsafe {
     ///         assert_eq!(to.obj.unchecked_as_unerased_mut::<usize>(), &mut 55usize);
@@ -713,12 +713,12 @@ where
     /// use abi_stable::{
     ///     sabi_trait::doc_examples::Doer_TO,
     ///     std_types::RBox,
-    ///     type_level::unerasability::TU_Opaque,
+    ///     type_level::downcasting::TD_Opaque,
     ///     RRef, RMut,
     /// };
     /// 
     /// let mut to: Doer_TO<'_, RBox<()>> =
-    ///     Doer_TO::from_value(13usize, TU_Opaque);
+    ///     Doer_TO::from_value(13usize, TD_Opaque);
     /// 
     /// // `to.obj` is an RObject
     /// assert_eq!(debug_string(to.obj.reborrow()), "13");
@@ -764,12 +764,12 @@ where
     /// use abi_stable::{
     ///     sabi_trait::doc_examples::{Doer, Doer_TO},
     ///     std_types::RBox,
-    ///     type_level::unerasability::TU_Opaque,
+    ///     type_level::downcasting::TD_Opaque,
     ///     RRef, RMut,
     /// };
     /// 
     /// let mut to: Doer_TO<'_, RBox<()>> =
-    ///     Doer_TO::from_value(2usize, TU_Opaque);
+    ///     Doer_TO::from_value(2usize, TD_Opaque);
     /// 
     /// // `#[sabi_trait]` trait objects have an equivalent `sabi_reborrow_mut` method,
     /// // which delegate to this method.

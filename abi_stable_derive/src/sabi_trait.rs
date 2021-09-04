@@ -447,8 +447,8 @@ fn constructor_items(
     );
     make_vtable_args.skip_lifetimes();
     
-    let fn_unerasability_arg=match totrait_def.which_object {
-        WhichObject::DynTrait=>quote!(Unerasability),
+    let fn_can_it_downcast_arg=match totrait_def.which_object {
+        WhichObject::DynTrait=>quote!(Downcasting),
         WhichObject::RObject=>quote!(),
     };
 
@@ -467,7 +467,7 @@ fn constructor_items(
             __sabi_re::InterfaceFor<
                 _OrigPtr::PtrTarget,
                 #trait_interface<#trait_interface_use>,
-                Unerasability
+                Downcasting
             >: 
                 __sabi_re::GetVtable<
                     #one_lt
@@ -485,7 +485,7 @@ fn constructor_items(
         WhichObject::DynTrait=>quote!(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
-            __sabi_re::InterfaceFor<_Self,#trait_interface<#trait_interface_use>,Unerasability>: 
+            __sabi_re::InterfaceFor<_Self,#trait_interface<#trait_interface_use>,Downcasting>: 
                 __sabi_re::GetVtable<
                     #one_lt
                     _Self,
@@ -561,9 +561,9 @@ fn constructor_items(
     if doc_hidden_attr.is_none() {
         shared_docs="\
             <br><br>\
-            `unerasability` describes whether the trait object can be \
+            `can_it_downcast` describes whether the trait object can be \
             converted back into the original type or not.<br>\n\
-            Its possible values are `TU_Unerasable` and `TU_Opaque`.\n\
+            Its possible values are `TD_CanDowncast` and `TD_Opaque`.\n\
         ".to_string();
 
         from_ptr_docs=format!(
@@ -621,7 +621,7 @@ fn constructor_items(
                 __sabi_re::RRef<'_sub,()>,
                 __sabi_re::RRef<'_sub,_Self>,
                 #trait_interface<#trait_interface_use>,
-                Unerasability,
+                Downcasting,
                 VTable<#vtable_generics_rref>,
             >
         ),
@@ -629,7 +629,7 @@ fn constructor_items(
             __sabi_re::VTableTO_RO<
                 _Self,
                 __sabi_re::RRef<'_sub,_Self>,
-                Unerasability,
+                Downcasting,
                 VTable<#vtable_generics_rref>,
             >
         ),
@@ -639,13 +639,13 @@ fn constructor_items(
         WhichObject::DynTrait=>quote!(
             #trait_backend::from_const(
                 ptr,
-                unerasability,
+                can_it_downcast,
                 vtable_for.dyntrait_vtable(),
                 vtable_for.robject_vtable(),
             )
         ),
         WhichObject::RObject=>quote!({
-            let _ = __sabi_re::ManuallyDrop::new(unerasability);
+            let _ = __sabi_re::ManuallyDrop::new(can_it_downcast);
             #trait_backend::with_vtable_const(ptr,vtable_for)
         }),
     };
@@ -657,9 +657,9 @@ fn constructor_items(
         {
             #[doc=#from_ptr_docs]
             #[doc=#shared_docs]
-            #submod_vis fn from_ptr<_OrigPtr,Unerasability>(
+            #submod_vis fn from_ptr<_OrigPtr,Downcasting>(
                 ptr:_OrigPtr,
-                unerasability:Unerasability,
+                can_it_downcast:Downcasting,
             )->Self
             where
                 _OrigPtr:
@@ -671,14 +671,14 @@ fn constructor_items(
                 _ErasedPtr:__sabi_re::AsPtr<PtrTarget=()>,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
-                        Unerasability,_OrigPtr::PtrTarget,_ErasedPtr,_OrigPtr
+                        Downcasting,_OrigPtr::PtrTarget,_ErasedPtr,_OrigPtr
                     >,
                 #extra_constraints_ptr
             {
-                let _unerasability=unerasability;
+                let _can_it_downcast=can_it_downcast;
                 unsafe{
                     Self{
-                        obj:#trait_backend::with_vtable::<_,#fn_unerasability_arg>(
+                        obj:#trait_backend::with_vtable::<_,#fn_can_it_downcast_arg>(
                             ptr,
                             #make_vtable_ident::<#make_vtable_args>::VTABLE_INNER
                         ),
@@ -705,9 +705,9 @@ fn constructor_items(
         impl<#gen_params_header_rbox> #trait_to<#gen_params_use_to_rbox> {
             #[doc=#from_value_docs]
             #[doc=#shared_docs]
-            #submod_vis fn from_value<_Self,Unerasability>(
+            #submod_vis fn from_value<_Self,Downcasting>(
                 ptr:_Self,
-                unerasability:Unerasability,
+                can_it_downcast:Downcasting,
             )->Self
             where
                 _Self:
@@ -715,23 +715,23 @@ fn constructor_items(
                     #plus_lt,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
-                        Unerasability,_Self,__sabi_re::RBox<()>,__sabi_re::RBox<_Self>
+                        Downcasting,_Self,__sabi_re::RBox<()>,__sabi_re::RBox<_Self>
                     >,
                 #extra_constraints_value
             {
                 Self::from_ptr::<
                     __sabi_re::RBox<_Self>,
-                    Unerasability
-                >(__sabi_re::RBox::new(ptr),unerasability)
+                    Downcasting
+                >(__sabi_re::RBox::new(ptr),can_it_downcast)
             }
         }
 
         impl<#gen_params_header_rref> #trait_to<#gen_params_use_to_rref>{
             #[doc=#from_const_docs]
             #[doc=#shared_docs]
-            #submod_vis const fn from_const<_Self,Unerasability>(
+            #submod_vis const fn from_const<_Self,Downcasting>(
                 ptr:&'_sub _Self,
-                unerasability:Unerasability,
+                can_it_downcast:Downcasting,
                 vtable_for:#vtable_type,
             )->Self
             where

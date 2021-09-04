@@ -207,7 +207,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2,syn::Error> {
                     &std::mem::ManuallyDrop::new(
                         __sabi_re::StoredExtraChecks::from_const(
                             &#extra_checks,
-                            __sabi_re::TU_Opaque,
+                            __sabi_re::TD_Opaque,
                             __sabi_re::ExtraChecks_MV::VTABLE,
                         )
                     );

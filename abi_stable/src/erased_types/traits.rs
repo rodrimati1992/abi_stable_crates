@@ -421,17 +421,17 @@ pub use self::interface_for::InterfaceFor;
 pub mod interface_for{
     use super::*;
 
-    use crate::type_level::unerasability::GetUTID;
+    use crate::type_level::downcasting::GetUTID;
 
     /// Helper struct to get an `ImplType` implementation for any type.
-    pub struct InterfaceFor<T,Interface,Unerasability>(
-        NonOwningPhantom<(T,Interface,Unerasability)>
+    pub struct InterfaceFor<T,Interface,Downcasting>(
+        NonOwningPhantom<(T,Interface,Downcasting)>
     );
 
-    impl<T,Interface,Unerasability> ImplType for InterfaceFor<T,Interface,Unerasability>
+    impl<T,Interface,Downcasting> ImplType for InterfaceFor<T,Interface,Downcasting>
     where 
         Interface:InterfaceType,
-        Unerasability:GetUTID<T>,
+        Downcasting:GetUTID<T>,
     {
         type Interface=Interface;
         
@@ -439,7 +439,7 @@ pub mod interface_for{
         const INFO:&'static TypeInfo=&TypeInfo{
             size:std::mem::size_of::<T>(),
             alignment:std::mem::align_of::<T>(),
-            _uid:<Unerasability as GetUTID<T>>::UID,
+            _uid:<Downcasting as GetUTID<T>>::UID,
             type_name:Constructor(crate::utils::get_type_name::<T>),
             module:RStr::from_str("<unavailable>"),
             package:RStr::from_str("<unavailable>"),

@@ -63,7 +63,7 @@ pub use self::{
 pub use self::vtable::GetVtable;
 
 #[doc(no_inline)]
-pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
+pub use crate::type_level::downcasting::{TD_CanDowncast,TD_Opaque};
 
 
 /// The formatting mode for all std::fmt formatters.

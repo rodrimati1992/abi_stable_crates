@@ -30,7 +30,7 @@ use crate::{
     sabi_types::{RRef, RMut},
     std_types::{RSome,RNone,RIoError,RSeekFrom},
     type_level::{
-        impl_enum::{Implemented,Unimplemented,IsImplemented},
+        impl_enum::{Implemented,Unimplemented,Implementability},
         trait_marker,
     },
     utils::Transmuter,
@@ -67,35 +67,35 @@ pub trait GetVtable<'borr,This,ErasedPtr,OrigPtr,I:InterfaceBound> {
 /// A helper type for constructing a `DynTrait` at compile-time,
 /// by passing `VTableDT::GET` to `DynTrait::from_const`.
 #[repr(transparent)]
-pub struct VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>{
+pub struct VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>{
     pub(super) vtable:VTable_Ref<'borr,ErasedPtr,I>,
-    _for:NonOwningPhantom<(T,OrigPtr,Unerasability)>
+    _for:NonOwningPhantom<(T,OrigPtr,Downcasting)>
 }
 
-impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> Copy 
-    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+impl<'borr,T,ErasedPtr,OrigPtr,I,Downcasting> Copy 
+    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>
 {}
 
-impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> Clone
-    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+impl<'borr,T,ErasedPtr,OrigPtr,I,Downcasting> Clone
+    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>
 {
     fn clone(&self)->Self{
         *self
     }
 }
 
-impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> 
-    VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+impl<'borr,T,ErasedPtr,OrigPtr,I,Downcasting> 
+    VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>
 where
     OrigPtr: CanTransmuteElement<(), PtrTarget = T, TransmutedPtr=ErasedPtr>,
     ErasedPtr: GetPointerKind<PtrTarget=()>,
     I: InterfaceBound,
-    InterfaceFor<T,I,Unerasability>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,
+    InterfaceFor<T,I,Downcasting>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,
 {    
     /// Constructs a `VTableDT`.
     pub const GET:Self=Self{
         vtable:<
-            InterfaceFor<T,I,Unerasability> as 
+            InterfaceFor<T,I,Downcasting> as 
             GetVtable<'borr,T,ErasedPtr,OrigPtr,I>
         >::_GET_INNER_VTABLE,
         _for:NonOwningPhantom::NEW,
@@ -432,9 +432,9 @@ macro_rules! declare_meta_vtable {
         impl<I> InterfaceBound for I
         where 
             I:InterfaceType,
-            $( I::$auto_trait:IsImplemented, )*
-            $( I::$marker_trait:IsImplemented, )*
-            $( I::$selector:IsImplemented, )*
+            $( I::$auto_trait:Implementability, )*
+            $( I::$marker_trait:Implementability, )*
+            $( I::$selector:Implementability, )*
         {
             #[doc(hidden)]
             const EXTRA_CHECKS:EnabledTraits=EnabledTraits{
@@ -444,7 +444,7 @@ macro_rules! declare_meta_vtable {
                 auto_traits:
                     $(
                         if_u16(
-                            <I::$auto_trait as IsImplemented>::VALUE,
+                            <I::$auto_trait as Implementability>::IS_IMPLD,
                             enabled_traits::auto_trait_mask::$auto_trait
                         )|
                     )*
@@ -455,13 +455,13 @@ macro_rules! declare_meta_vtable {
                 regular_traits:
                     $(
                         if_u64(
-                            <I::$marker_trait as IsImplemented>::VALUE,
+                            <I::$marker_trait as Implementability>::IS_IMPLD,
                             enabled_traits::regular_trait_mask::$marker_trait
                         )|
                     )*
                     $(
                         if_u64(
-                            <I::$selector as IsImplemented>::VALUE,
+                            <I::$selector as Implementability>::IS_IMPLD,
                             enabled_traits::regular_trait_mask::$selector
                         )|
                     )*
@@ -469,7 +469,7 @@ macro_rules! declare_meta_vtable {
             };
 
             $( 
-                const $selector:bool=<I::$selector as IsImplemented>::VALUE;
+                const $selector:bool=<I::$selector as Implementability>::IS_IMPLD;
             )*
             
             const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>=
