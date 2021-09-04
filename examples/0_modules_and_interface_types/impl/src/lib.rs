@@ -264,7 +264,7 @@ pub fn new() -> TOStateBox {
 /// Reverses order of the lines in `text`.
 #[sabi_extern_fn]
 pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
-    let this = this.as_unerased_mut_impltype::<TextOperationState>().unwrap();
+    let this = this.downcast_as_mut_impltype::<TextOperationState>().unwrap();
 
     this.processed_bytes+=text.len() as u64;
 
@@ -285,7 +285,7 @@ pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
 // How is a `&mut ()` not ffi-safe?????
 #[allow(improper_ctypes_definitions)]
 pub fn remove_words(this: &mut TOStateBox, param: RemoveWords<'_,'_>) -> RString{
-    let this = this.as_unerased_mut_impltype::<TextOperationState>().unwrap();
+    let this = this.downcast_as_mut_impltype::<TextOperationState>().unwrap();
 
     this.processed_bytes+=param.string.len() as u64;
 
@@ -312,7 +312,7 @@ pub fn remove_words(this: &mut TOStateBox, param: RemoveWords<'_,'_>) -> RString
 /// that was processed in functions taking `&mut TOStateBox`.
 #[sabi_extern_fn]
 pub fn get_processed_bytes(this: &TOStateBox) -> u64 {
-    let this = this.as_unerased_impltype::<TextOperationState>().unwrap();
+    let this = this.downcast_as_impltype::<TextOperationState>().unwrap();
     this.processed_bytes
 }
 
@@ -355,7 +355,7 @@ pub fn run_command(
     this:&mut TOStateBox,
     command:TOCommandBox<'static>
 )->TOReturnValueArc{
-    let command = command.into_unerased_impltype::<Command<'static>>().unwrap()
+    let command = command.downcast_into_impltype::<Command<'static>>().unwrap()
         .piped(RBox::into_inner);
         
     run_command_inner(this,command)

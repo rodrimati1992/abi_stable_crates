@@ -24,9 +24,9 @@ use crate::{
 /// let mut object: Action_TO<'static, RBox<()>> =
 ///     Action_TO::from_value(100_usize, TD_CanDowncast);
 /// 
-/// assert_eq!(object.obj.as_unerased::<u8>().ok(), None);
-/// assert_eq!(object.obj.as_unerased::<char>().ok(), None);
-/// assert_eq!(object.obj.as_unerased::<usize>().ok(), Some(&100_usize));
+/// assert_eq!(object.obj.downcast_as::<u8>().ok(), None);
+/// assert_eq!(object.obj.downcast_as::<char>().ok(), None);
+/// assert_eq!(object.obj.downcast_as::<usize>().ok(), Some(&100_usize));
 /// 
 /// ```
 #[allow(non_camel_case_types)]
@@ -53,13 +53,13 @@ pub struct TD_CanDowncast;
 /// let mut object: Action_TO<'static, RBox<()>> =
 ///     Action_TO::from_value(100_usize, TD_Opaque);
 /// 
-/// assert_eq!(object.obj.as_unerased::<u8>().ok(), None);
+/// assert_eq!(object.obj.downcast_as::<u8>().ok(), None);
 /// 
-/// assert_eq!(object.obj.as_unerased::<char>().ok(), None);
+/// assert_eq!(object.obj.downcast_as::<char>().ok(), None);
 /// 
 /// // Because `Action_TO::from-value` was passed `TD_Opaque`,
-/// // the trait object can't be unerased
-/// assert_eq!(object.obj.as_unerased::<usize>().ok(), None);
+/// // the trait object can't be downcasted
+/// assert_eq!(object.obj.downcast_as::<usize>().ok(), None);
 /// 
 /// ```
 #[allow(non_camel_case_types)]

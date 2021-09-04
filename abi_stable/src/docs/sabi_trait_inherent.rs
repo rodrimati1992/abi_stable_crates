@@ -258,11 +258,11 @@ fn try_unerase<P, T>(
 ) -> Result<P::TransmutedPtr, Action_TO<'static, P>>
 where
     T: 'static,
-    // This bound is required to call `into_unerased` on the `obj: RObject<…>` field
+    // This bound is required to call `downcast_into` on the `obj: RObject<…>` field
     P: OwnedPointer<PtrTarget = ()> + CanTransmuteElement<T>,
 {
     object.obj
-        .into_unerased()
+        .downcast_into()
         .map_err(|e| Action_TO::from_sabi(e.into_inner()))
 }
 

@@ -86,7 +86,7 @@ This is a full example,demonstrating:
 
 - [`DynTrait`]:
 An ffi-safe multi-trait object for a selection of traits,
-which can also be unerased back into the concrete type.
+which can also be downcast back into the concrete type.
 
 - `interface crates`(defined in the Architecture section below).
 
@@ -440,9 +440,9 @@ impl StringBuilder{
 #[sabi_extern_fn]
 pub fn new_appender() -> AppenderBox<u32>{
     /*
-    What `TD_Opaque` does here is specify that the trait object cannot be unerased,
+    What `TD_Opaque` does here is specify that the trait object cannot be downcasted,
     disallowing the `Appender_TO` from being unwrapped back into an `RVec<u32>`
-    using the `trait_object.obj.*_unerased_*()` methods.
+    using the `trait_object.obj.*_downcast_*()` methods.
     
     To be able to unwrap a `#[sabi_trait]` trait object back into the type it 
     was constructed with,you must:
@@ -453,7 +453,7 @@ pub fn new_appender() -> AppenderBox<u32>{
     - Pass `TD_CanDowncast` instead of `TD_Opaque` to Appender_TO::{from_value,from_ptr}.
 
     - Unerase the trait object back into the original type with
-        `trait_object.obj.into_unerased_impltype::<RVec<u32>>().unwrap()` 
+        `trait_object.obj.downcast_into_impltype::<RVec<u32>>().unwrap()` 
         (or the other unerasure methods).
 
     Unerasing a trait object will fail in any of these conditions:
@@ -483,7 +483,7 @@ fn new_boxed_interface() -> BoxedInterface<'static>{
 #[sabi_extern_fn]
 fn append_string(wrapped: &mut BoxedInterface<'_>, string: RString){
     wrapped
-        .as_unerased_mut_impltype::<StringBuilder>() // Returns `Result<&mut StringBuilder, _>`
+        .downcast_as_mut_impltype::<StringBuilder>() // Returns `Result<&mut StringBuilder, _>`
         .unwrap() // Returns `&mut StringBuilder`
         .append_string(string);
 }

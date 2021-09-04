@@ -154,17 +154,17 @@ has this trait object:`Foo_TO<'a, 'lt, Pointer, T, U, Hello, World>`.
 One can access the underlying implementation of the trait object through the `obj` field,
 allowing one to call these methods(a nonexhaustive list):
 
-- into_unerased_impltype(only DynTrait)
+- downcast_into_impltype(only DynTrait)
 
-- as_unerased_impltype(only DynTrait)
+- downcast_as_impltype(only DynTrait)
 
-- as_unerased_mut_impltype(only DynTrait)
+- downcast_as_mut_impltype(only DynTrait)
 
-- into_unerased
+- downcast_into
 
-- as_unerased
+- downcast_as
 
-- as_unerased_mut
+- downcast_as_mut
 
 To reconstruct `Trait_TO` from its underlying implementation,
 you can use the `Trait_TO::from_sabi` associated function.
@@ -376,7 +376,7 @@ pub trait Dictionary:Debug+Clone{
 
         // You can only unerase a trait object if it was constructed with `TD_CanDowncast`
         // and it's being unerased into a type that implements `std::any::Any`.
-        let map:RBox<HashMap<RString,u32>>=object.obj.into_unerased().unwrap();
+        let map:RBox<HashMap<RString,u32>>=object.obj.downcast_into().unwrap();
 
         assert_eq!(map.get("hello".into()), Some(&100));
         assert_eq!(map.get("world".into()), Some(&10));
@@ -402,7 +402,7 @@ pub trait Dictionary:Debug+Clone{
         // Dictionary::insert(&mut object,"what".into(),99);
         
 
-        let map:RArc<HashMap<RString,u32>>=object.obj.into_unerased().unwrap();
+        let map:RArc<HashMap<RString,u32>>=object.obj.downcast_into().unwrap();
         assert_eq!(map.get("hello".into()), Some(&100));
         assert_eq!(map.get("world".into()), Some(&10));
     }
@@ -428,7 +428,7 @@ pub trait Dictionary:Debug+Clone{
     assert_eq!(object.get("world".into()),None);
 
     // Cannot unerase trait objects created with `TD_Opaque`.
-    assert_eq!(object.obj.into_unerased::<()>().ok(),None);
+    assert_eq!(object.obj.downcast_into::<()>().ok(),None);
 }
 
 # }
