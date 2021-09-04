@@ -154,28 +154,28 @@ mod priv_ {
     /// within the same dynamic library/executable that constructed it,
     /// using these (fallible) conversion methods:
     /// 
-    /// - [`into_unerased_impltype`](#method.into_unerased_impltype):
+    /// - [`downcast_into_impltype`](#method.downcast_into_impltype):
     ///     Unwraps into a pointer to `T`.
     ///     Where `DynTrait<P<()>, Interface>`'s 
     ///         Interface must equal `<T as ImplType>::Interface`
     /// 
-    /// - [`as_unerased_impltype`](#method.as_unerased_impltype):
+    /// - [`downcast_as_impltype`](#method.downcast_as_impltype):
     ///     Unwraps into a `&T`.
     ///     Where `DynTrait<P<()>, Interface>`'s 
     ///         Interface must equal `<T as ImplType>::Interface`
     /// 
-    /// - [`as_unerased_mut_impltype`](#method.as_unerased_mut_impltype):
+    /// - [`downcast_as_mut_impltype`](#method.downcast_as_mut_impltype):
     ///     Unwraps into a `&mut T`.
     ///     Where `DynTrait<P<()>, Interface>`'s 
     ///         Interface must equal `<T as ImplType>::Interface`
     /// 
-    /// - [`into_unerased`](#method.into_unerased):
+    /// - [`downcast_into`](#method.downcast_into):
     /// Unwraps into a pointer to `T`.Requires `T:'static`.
     /// 
-    /// - [`as_unerased`](#method.as_unerased):
+    /// - [`downcast_as`](#method.downcast_as):
     /// Unwraps into a `&T`.Requires `T:'static`.
     /// 
-    /// - [`as_unerased_mut`](#method.as_unerased_mut):
+    /// - [`downcast_as_mut`](#method.downcast_as_mut):
     /// Unwraps into a `&mut T`.Requires `T:'static`.
     /// 
     /// 
@@ -895,7 +895,7 @@ mod priv_ {
         ///
         /// // `DynTrait`s constructed using the `from_borrowing_*` constructors
         /// // can't be unerased.
-        /// assert_eq!(to.as_unerased::<u8>().ok(), None);
+        /// assert_eq!(to.downcast_as::<u8>().ok(), None);
         ///
         /// ```
         pub fn from_borrowing_value<'borr, T, I>(
@@ -1471,11 +1471,11 @@ mod priv_ {
         ///     }
         /// 
         ///     assert_eq!(
-        ///         to().into_unerased_impltype::<Foo<u8>>().ok(),
+        ///         to().downcast_into_impltype::<Foo<u8>>().ok(),
         ///         Some(RBox::new(Foo(b'A'))),
         ///     );
         ///     assert_eq!(
-        ///         to().into_unerased_impltype::<Foo<u16>>().ok(),
+        ///         to().downcast_into_impltype::<Foo<u16>>().ok(),
         ///         None,
         ///     );
         /// }
@@ -1485,11 +1485,11 @@ mod priv_ {
         ///     }
         /// 
         ///     assert_eq!(
-        ///         to().into_unerased_impltype::<Foo<u8>>().ok(),
+        ///         to().downcast_into_impltype::<Foo<u8>>().ok(),
         ///         Some(RArc::new(Foo(b'B'))),
         ///     );
         ///     assert_eq!(
-        ///         to().into_unerased_impltype::<Foo<u16>>().ok(),
+        ///         to().downcast_into_impltype::<Foo<u16>>().ok(),
         ///         None,
         ///     );
         /// }
@@ -1514,7 +1514,7 @@ mod priv_ {
         ///
         ///
         /// ```
-        pub fn into_unerased_impltype<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
+        pub fn downcast_into_impltype<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
         where
             P: CanTransmuteElement<T>,
             T: ImplType,
@@ -1558,8 +1558,8 @@ mod priv_ {
         ///     let to: DynTrait<'static, RRef<'_, ()>, FooInterface> = 
         ///         DynTrait::from_ptr(&Foo(9u8));
         /// 
-        ///     assert_eq!(to.as_unerased_impltype::<Foo<u8>>().ok(), Some(&Foo(9u8)));
-        ///     assert_eq!(to.as_unerased_impltype::<Foo<u16>>().ok(), None);
+        ///     assert_eq!(to.downcast_as_impltype::<Foo<u8>>().ok(), Some(&Foo(9u8)));
+        ///     assert_eq!(to.downcast_as_impltype::<Foo<u16>>().ok(), None);
         /// }
         /// {
         ///     let mut val = Foo(7u8);
@@ -1567,15 +1567,15 @@ mod priv_ {
         ///     let to: DynTrait<'static, RMut<'_, ()>, FooInterface> = 
         ///         DynTrait::from_ptr(&mut val);
         /// 
-        ///     assert_eq!(to.as_unerased_impltype::<Foo<u8>>().ok(), Some(&Foo(7)));
-        ///     assert_eq!(to.as_unerased_impltype::<Foo<u16>>().ok(), None);
+        ///     assert_eq!(to.downcast_as_impltype::<Foo<u8>>().ok(), Some(&Foo(7)));
+        ///     assert_eq!(to.downcast_as_impltype::<Foo<u16>>().ok(), None);
         /// }
         /// {
         ///     let to: DynTrait<'static, RArc<()>, FooInterface> = 
         ///         DynTrait::from_ptr(RArc::new(Foo(1u8)));
         /// 
-        ///     assert_eq!(to.as_unerased_impltype::<Foo<u8>>().ok(), Some(&Foo(1u8)));
-        ///     assert_eq!(to.as_unerased_impltype::<Foo<u16>>().ok(), None);
+        ///     assert_eq!(to.downcast_as_impltype::<Foo<u8>>().ok(), Some(&Foo(1u8)));
+        ///     assert_eq!(to.downcast_as_impltype::<Foo<u16>>().ok(), None);
         /// }
         ///
         /// # }
@@ -1599,7 +1599,7 @@ mod priv_ {
         ///
         ///
         /// ```
-        pub fn as_unerased_impltype<T>(&self) -> Result<&T, UneraseError<&Self>>
+        pub fn downcast_as_impltype<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
             P: AsPtr + CanTransmuteElement<T>,
             T: ImplType,
@@ -1641,15 +1641,15 @@ mod priv_ {
         ///     let mut to: DynTrait<'static, RMut<'_, ()>, FooInterface> = 
         ///         DynTrait::from_ptr(&mut val);
         /// 
-        ///     assert_eq!(to.as_unerased_mut_impltype::<Foo<u8>>().ok(), Some(&mut Foo(7)));
-        ///     assert_eq!(to.as_unerased_mut_impltype::<Foo<u16>>().ok(), None);
+        ///     assert_eq!(to.downcast_as_mut_impltype::<Foo<u8>>().ok(), Some(&mut Foo(7)));
+        ///     assert_eq!(to.downcast_as_mut_impltype::<Foo<u16>>().ok(), None);
         /// }
         /// {
         ///     let mut to: DynTrait<'static, RBox<()>, FooInterface> = 
         ///         DynTrait::from_ptr(RBox::new(Foo(1u8)));
         /// 
-        ///     assert_eq!(to.as_unerased_mut_impltype::<Foo<u8>>().ok(), Some(&mut Foo(1u8)));
-        ///     assert_eq!(to.as_unerased_mut_impltype::<Foo<u16>>().ok(), None);
+        ///     assert_eq!(to.downcast_as_mut_impltype::<Foo<u8>>().ok(), Some(&mut Foo(1u8)));
+        ///     assert_eq!(to.downcast_as_mut_impltype::<Foo<u16>>().ok(), None);
         /// }
         ///
         /// # }
@@ -1673,7 +1673,7 @@ mod priv_ {
         ///
         ///
         /// ```
-        pub fn as_unerased_mut_impltype<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
+        pub fn downcast_as_mut_impltype<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
             P: AsMutPtr + CanTransmuteElement<T>,
             T: ImplType,
@@ -1686,7 +1686,7 @@ mod priv_ {
         /// Unwraps the `DynTrait<_>` into a pointer of 
         /// the concrete type that it was constructed with.
         ///
-        /// T is required to not borrow anything.
+        /// `T` is required to not borrow anything.
         ///
         /// # Errors
         ///
@@ -1713,20 +1713,20 @@ mod priv_ {
         ///         DynTrait::from_any_value(b'A', ())
         ///     }
         /// 
-        ///     assert_eq!(to().into_unerased::<u8>().ok(), Some(RBox::new(b'A')));
-        ///     assert_eq!(to().into_unerased::<u16>().ok(), None);
+        ///     assert_eq!(to().downcast_into::<u8>().ok(), Some(RBox::new(b'A')));
+        ///     assert_eq!(to().downcast_into::<u16>().ok(), None);
         /// }
         /// {
         ///     fn to() -> DynTrait<'static, RArc<()>, ()> {
         ///         DynTrait::from_any_ptr(RArc::new(b'B'), ())
         ///     }
         /// 
-        ///     assert_eq!(to().into_unerased::<u8>().ok(), Some(RArc::new(b'B')));
-        ///     assert_eq!(to().into_unerased::<u16>().ok(), None);
+        ///     assert_eq!(to().downcast_into::<u8>().ok(), Some(RArc::new(b'B')));
+        ///     assert_eq!(to().downcast_into::<u16>().ok(), None);
         /// }
         ///
         /// ```
-        pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
+        pub fn downcast_into<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
         where
             T:'static,
             P: CanTransmuteElement<T>,
@@ -1748,7 +1748,7 @@ mod priv_ {
         /// Unwraps the `DynTrait<_>` into a reference of 
         /// the concrete type that it was constructed with.
         ///
-        /// T is required to not borrow anything.
+        /// `T` is required to not borrow anything.
         ///
         /// # Errors
         ///
@@ -1774,8 +1774,8 @@ mod priv_ {
         ///     let to: DynTrait<'static, RRef<'_, ()>, ()> = 
         ///         DynTrait::from_any_ptr(&9u8, ());
         /// 
-        ///     assert_eq!(to.as_unerased::<u8>().ok(), Some(&9u8));
-        ///     assert_eq!(to.as_unerased::<u16>().ok(), None);
+        ///     assert_eq!(to.downcast_as::<u8>().ok(), Some(&9u8));
+        ///     assert_eq!(to.downcast_as::<u16>().ok(), None);
         /// }
         /// {
         ///     let mut val = 7u8;
@@ -1783,19 +1783,19 @@ mod priv_ {
         ///     let to: DynTrait<'static, RMut<'_, ()>, ()> = 
         ///         DynTrait::from_any_ptr(&mut val, ());
         /// 
-        ///     assert_eq!(to.as_unerased::<u8>().ok(), Some(&7));
-        ///     assert_eq!(to.as_unerased::<u16>().ok(), None);
+        ///     assert_eq!(to.downcast_as::<u8>().ok(), Some(&7));
+        ///     assert_eq!(to.downcast_as::<u16>().ok(), None);
         /// }
         /// {
         ///     let to: DynTrait<'static, RArc<()>, ()> = 
         ///         DynTrait::from_any_ptr(RArc::new(1u8), ());
         /// 
-        ///     assert_eq!(to.as_unerased::<u8>().ok(), Some(&1u8));
-        ///     assert_eq!(to.as_unerased::<u16>().ok(), None);
+        ///     assert_eq!(to.downcast_as::<u8>().ok(), Some(&1u8));
+        ///     assert_eq!(to.downcast_as::<u16>().ok(), None);
         /// }
         /// 
         /// ```
-        pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
+        pub fn downcast_as<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
             T:'static,
             P: AsPtr + CanTransmuteElement<T>,
@@ -1812,7 +1812,7 @@ mod priv_ {
         /// Unwraps the `DynTrait<_>` into a mutable reference of 
         /// the concrete type that it was constructed with.
         ///
-        /// T is required to not borrow anything.
+        /// `T` is required to not borrow anything.
         ///
         /// # Errors
         ///
@@ -1839,20 +1839,20 @@ mod priv_ {
         ///     let mut to: DynTrait<'static, RMut<'_, ()>, ()> = 
         ///         DynTrait::from_any_ptr(&mut val, ());
         /// 
-        ///     assert_eq!(to.as_unerased_mut::<u8>().ok(), Some(&mut 7));
-        ///     assert_eq!(to.as_unerased_mut::<u16>().ok(), None);
+        ///     assert_eq!(to.downcast_as_mut::<u8>().ok(), Some(&mut 7));
+        ///     assert_eq!(to.downcast_as_mut::<u16>().ok(), None);
         /// }
         /// {
         ///     let mut to: DynTrait<'static, RBox<()>, ()> = 
         ///         DynTrait::from_any_ptr(RBox::new(1u8), ());
         /// 
-        ///     assert_eq!(to.as_unerased_mut::<u8>().ok(), Some(&mut 1u8));
-        ///     assert_eq!(to.as_unerased_mut::<u16>().ok(), None);
+        ///     assert_eq!(to.downcast_as_mut::<u8>().ok(), Some(&mut 1u8));
+        ///     assert_eq!(to.downcast_as_mut::<u16>().ok(), None);
         /// }
         ///
         ///
         /// ```
-        pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
+        pub fn downcast_as_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
             P: AsMutPtr + CanTransmuteElement<T>,
             Self: DynTraitBound<'borr>,
@@ -1886,19 +1886,19 @@ mod priv_ {
         ///         DynTrait::from_any_value(b'A', ())
         ///     }
         /// 
-        ///     assert_eq!(to().unchecked_into_unerased::<u8>(), RBox::new(b'A'));
+        ///     assert_eq!(to().unchecked_downcast_into::<u8>(), RBox::new(b'A'));
         /// }
         /// unsafe {
         ///     fn to() -> DynTrait<'static, RArc<()>, ()> {
         ///         DynTrait::from_any_ptr(RArc::new(b'B'), ())
         ///     }
         /// 
-        ///     assert_eq!(to().unchecked_into_unerased::<u8>(), RArc::new(b'B'));
+        ///     assert_eq!(to().unchecked_downcast_into::<u8>(), RArc::new(b'B'));
         /// }
         ///
         /// ```
         #[inline]
-        pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
+        pub unsafe fn unchecked_downcast_into<T>(self) -> P::TransmutedPtr
         where
             P: AsPtr+ CanTransmuteElement<T>,
         {
@@ -1926,7 +1926,7 @@ mod priv_ {
         ///     let to: DynTrait<'static, RRef<'_, ()>, ()> = 
         ///         DynTrait::from_any_ptr(&9u8, ());
         /// 
-        ///     assert_eq!(to.unchecked_as_unerased::<u8>(), &9u8);
+        ///     assert_eq!(to.unchecked_downcast_as::<u8>(), &9u8);
         /// }
         /// unsafe {
         ///     let mut val = 7u8;
@@ -1934,18 +1934,18 @@ mod priv_ {
         ///     let to: DynTrait<'static, RMut<'_, ()>, ()> = 
         ///         DynTrait::from_any_ptr(&mut val, ());
         /// 
-        ///     assert_eq!(to.unchecked_as_unerased::<u8>(), &7);
+        ///     assert_eq!(to.unchecked_downcast_as::<u8>(), &7);
         /// }
         /// unsafe {
         ///     let to: DynTrait<'static, RArc<()>, ()> = 
         ///         DynTrait::from_any_ptr(RArc::new(1u8), ());
         /// 
-        ///     assert_eq!(to.unchecked_as_unerased::<u8>(), &1u8);
+        ///     assert_eq!(to.unchecked_downcast_as::<u8>(), &1u8);
         /// }
         /// 
         /// ```
         #[inline]
-        pub unsafe fn unchecked_as_unerased<T>(&self) -> &T
+        pub unsafe fn unchecked_downcast_as<T>(&self) -> &T
         where
             P: AsPtr
         {
@@ -1974,19 +1974,19 @@ mod priv_ {
         ///     let mut to: DynTrait<'static, RMut<'_, ()>, ()> = 
         ///         DynTrait::from_any_ptr(&mut val, ());
         /// 
-        ///     assert_eq!(to.unchecked_as_unerased_mut::<u8>(), &mut 7);
+        ///     assert_eq!(to.unchecked_downcast_as_mut::<u8>(), &mut 7);
         /// }
         /// unsafe {
         ///     let mut to: DynTrait<'static, RBox<()>, ()> = 
         ///         DynTrait::from_any_ptr(RBox::new(1u8), ());
         /// 
-        ///     assert_eq!(to.unchecked_as_unerased_mut::<u8>(), &mut 1u8);
+        ///     assert_eq!(to.unchecked_downcast_as_mut::<u8>(), &mut 1u8);
         /// }
         ///
         ///
         /// ```
         #[inline]
-        pub unsafe fn unchecked_as_unerased_mut<T>(&mut self) -> &mut T
+        pub unsafe fn unchecked_downcast_as_mut<T>(&mut self) -> &mut T
         where
             P: AsMutPtr
         {

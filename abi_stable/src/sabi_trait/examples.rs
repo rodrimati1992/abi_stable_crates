@@ -413,37 +413,37 @@ mod tests{
                 assert_sync_send_debug_clone(&erased);
 
                 fn assertions_unerased(mut object:$typename<'_,RBox<()>,(),u32>){
-                    assert_eq!(object.obj.as_unerased::<u32>().ok(),Some(&100));
-                    assert_eq!(object.obj.as_unerased::<i8>().ok(),None::<&i8>);
-                    assert_eq!(object.obj.as_unerased_mut::<u32>().ok(),Some(&mut 100));
-                    assert_eq!(object.obj.as_unerased_mut::<i8>().ok(),None::<&mut i8>);
-                    object=object.obj.into_unerased::<i8>()
+                    assert_eq!(object.obj.downcast_as::<u32>().ok(),Some(&100));
+                    assert_eq!(object.obj.downcast_as::<i8>().ok(),None::<&i8>);
+                    assert_eq!(object.obj.downcast_as_mut::<u32>().ok(),Some(&mut 100));
+                    assert_eq!(object.obj.downcast_as_mut::<i8>().ok(),None::<&mut i8>);
+                    object=object.obj.downcast_into::<i8>()
                         .unwrap_err()
                         .into_inner()
                         .piped($typename::from_sabi);
-                    assert_eq!(object.obj.into_unerased::<u32>().ok(),Some(RBox::new(100)));
+                    assert_eq!(object.obj.downcast_into::<u32>().ok(),Some(RBox::new(100)));
                 }
 
                 fn assertions_unerased_arc(mut object:$typename<'_,RArc<()>,(),u32>){
-                    assert_eq!(object.obj.as_unerased::<u32>().ok(),Some(&100));
-                    assert_eq!(object.obj.as_unerased::<i8>().ok(),None::<&i8>);
-                    object=object.obj.into_unerased::<i8>()
+                    assert_eq!(object.obj.downcast_as::<u32>().ok(),Some(&100));
+                    assert_eq!(object.obj.downcast_as::<i8>().ok(),None::<&i8>);
+                    object=object.obj.downcast_into::<i8>()
                         .unwrap_err()
                         .into_inner()
                         .piped($typename::from_sabi);
-                    assert_eq!(object.obj.into_unerased::<u32>().ok(),Some(RArc::new(100)));
+                    assert_eq!(object.obj.downcast_into::<u32>().ok(),Some(RArc::new(100)));
                 }
 
                 fn assertions_erased(mut object:$typename<'_,RBox<()>,(),u32>){
-                    assert_eq!(object.obj.as_unerased::<u32>().ok(),None);
-                    assert_eq!(object.obj.as_unerased::<i8>().ok(),None);
-                    assert_eq!(object.obj.as_unerased_mut::<u32>().ok(),None);
-                    assert_eq!(object.obj.as_unerased_mut::<i8>().ok(),None);
-                    object=object.obj.into_unerased::<u32>()
+                    assert_eq!(object.obj.downcast_as::<u32>().ok(),None);
+                    assert_eq!(object.obj.downcast_as::<i8>().ok(),None);
+                    assert_eq!(object.obj.downcast_as_mut::<u32>().ok(),None);
+                    assert_eq!(object.obj.downcast_as_mut::<i8>().ok(),None);
+                    object=object.obj.downcast_into::<u32>()
                         .unwrap_err()
                         .into_inner()
                         .piped($typename::from_sabi);
-                    let _=object.obj.into_unerased::<i8>().unwrap_err().into_inner();
+                    let _=object.obj.downcast_into::<i8>().unwrap_err().into_inner();
                 }
 
                 fn create_from_ref<'a,T>(value:&'a T)->$typename<'a,RRef<'a, ()>,(),T::Element>
@@ -532,29 +532,29 @@ mod tests{
         assert_eq!(Arc::strong_count(&arc), 4);
 
         assert_eq!(
-            **object.obj.as_unerased::<RArc<u32>>().unwrap(),
+            **object.obj.downcast_as::<RArc<u32>>().unwrap(),
             107
         );
         assert_eq!(
-            **object.obj.as_unerased_mut::<RArc<u32>>().unwrap(),
+            **object.obj.downcast_as_mut::<RArc<u32>>().unwrap(),
             107
         );
         
         assert_eq!(Arc::strong_count(&arc), 4);
-        object=object.obj.into_unerased::<u32>()
+        object=object.obj.downcast_into::<u32>()
             .unwrap_err()
             .into_inner()
             .piped(EmptyTrait_TO::from_sabi);
         assert_eq!(Arc::strong_count(&arc), 4);
         
         assert_eq!(
-            object.obj.into_unerased::<RArc<u32>>().unwrap(),
+            object.obj.downcast_into::<RArc<u32>>().unwrap(),
             RBox::new(RArc::new(107))
         );
         
         assert_eq!(Arc::strong_count(&arc), 3);
 
-        erased.obj.into_unerased::<u32>().unwrap_err();
+        erased.obj.downcast_into::<u32>().unwrap_err();
         
         assert_eq!(Arc::strong_count(&arc), 2);
                
@@ -574,7 +574,7 @@ mod tests{
         
         for _ in 0..10{
             assert_eq!(
-                object.obj.reborrow().into_unerased::<RArc<u32>>().unwrap(),
+                object.obj.reborrow().downcast_into::<RArc<u32>>().unwrap(),
                 RRef::new(&RArc::new(107))
             );
         }
@@ -583,7 +583,7 @@ mod tests{
         
         for _ in 0..10{
             assert_eq!(
-                object.obj.reborrow_mut().into_unerased::<RArc<u32>>().unwrap(),
+                object.obj.reborrow_mut().downcast_into::<RArc<u32>>().unwrap(),
                 RMut::new(&mut RArc::new(107))
             );
         }

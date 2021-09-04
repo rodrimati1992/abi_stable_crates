@@ -21,7 +21,7 @@ macro_rules! shared_fns {
             {
                 extern_fn_panic_handling!{
                     unsafe{
-                        f(Self::into_unerased(this).get())
+                        f(Self::downcast_into(this).get())
                     }
                 }
             }

@@ -63,13 +63,13 @@ use crate::{
 /// within the same dynamic library/executable that constructed it,
 /// using these (fallible) conversion methods:
 /// 
-/// - [`into_unerased`](#method.into_unerased):
+/// - [`downcast_into`](#method.downcast_into):
 /// Unwraps into a pointer to `T`.Requires `T: 'static`.
 /// 
-/// - [`as_unerased`](#method.as_unerased):
+/// - [`downcast_as`](#method.downcast_as):
 /// Unwraps into a `&T`.Requires `T: 'static`.
 /// 
-/// - [`as_unerased_mut`](#method.as_unerased_mut):
+/// - [`downcast_as_mut`](#method.downcast_as_mut):
 /// Unwraps into a `&mut T`.Requires `T: 'static`.
 /// 
 /// `RObject` can only be converted back if the trait object was constructed to allow it.
@@ -392,11 +392,11 @@ where
     /// let to = ||Doer_TO::from_value(5usize, TD_CanDowncast);
     ///
     /// // `to.obj` is an RObject
-    /// assert_eq!(to().obj.into_unerased::<usize>().ok(), Some(RBox::new(5usize)));
-    /// assert_eq!(to().obj.into_unerased::<u8>().ok(), None);
+    /// assert_eq!(to().obj.downcast_into::<usize>().ok(), Some(RBox::new(5usize)));
+    /// assert_eq!(to().obj.downcast_into::<u8>().ok(), None);
     ///
     /// ```
-    pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
+    pub fn downcast_into<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
     where
         T:'static,
         P: AsPtr<PtrTarget=()> + CanTransmuteElement<T>,
@@ -438,8 +438,8 @@ where
     ///         Doer_TO::from_ptr(RArc::new(8usize), TD_CanDowncast);
     ///    
     ///     // `to.obj` is an RObject
-    ///     assert_eq!(to.obj.as_unerased::<usize>().ok(), Some(&8usize));
-    ///     assert_eq!(to.obj.as_unerased::<u8>().ok(), None);
+    ///     assert_eq!(to.obj.downcast_as::<usize>().ok(), Some(&8usize));
+    ///     assert_eq!(to.obj.downcast_as::<u8>().ok(), None);
     /// }
     /// {
     ///     // `#[sabi_trait]` trait objects constructed from `&`
@@ -448,8 +448,8 @@ where
     ///     let to: Doer_TO<'_, RRef<'_, ()>> =
     ///         Doer_TO::from_ptr(&13usize, TD_CanDowncast);
     ///    
-    ///     assert_eq!(to.obj.as_unerased::<usize>().ok(), Some(&13usize));
-    ///     assert_eq!(to.obj.as_unerased::<u8>().ok(), None);
+    ///     assert_eq!(to.obj.downcast_as::<usize>().ok(), Some(&13usize));
+    ///     assert_eq!(to.obj.downcast_as::<u8>().ok(), None);
     /// }
     /// {
     ///     let mmut = &mut 21usize;
@@ -459,12 +459,12 @@ where
     ///     let to: Doer_TO<'_, RMut<'_, ()>> =
     ///         Doer_TO::from_ptr(mmut, TD_CanDowncast);
     ///    
-    ///     assert_eq!(to.obj.as_unerased::<usize>().ok(), Some(&21usize));
-    ///     assert_eq!(to.obj.as_unerased::<u8>().ok(), None);
+    ///     assert_eq!(to.obj.downcast_as::<usize>().ok(), Some(&21usize));
+    ///     assert_eq!(to.obj.downcast_as::<u8>().ok(), None);
     /// }
     ///
     /// ```
-    pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
+    pub fn downcast_as<T>(&self) -> Result<&T, UneraseError<&Self>>
     where
         T:'static,
         P:AsPtr<PtrTarget=()>+CanTransmuteElement<T>,
@@ -506,8 +506,8 @@ where
     ///         Doer_TO::from_value(34usize, TD_CanDowncast);
     ///    
     ///     // `to.obj` is an RObject
-    ///     assert_eq!(to.obj.as_unerased_mut::<usize>().ok(), Some(&mut 34usize));
-    ///     assert_eq!(to.obj.as_unerased_mut::<u8>().ok(), None);
+    ///     assert_eq!(to.obj.downcast_as_mut::<usize>().ok(), Some(&mut 34usize));
+    ///     assert_eq!(to.obj.downcast_as_mut::<u8>().ok(), None);
     /// }
     /// {
     ///     let mmut = &mut 55usize;
@@ -517,12 +517,12 @@ where
     ///     let mut to: Doer_TO<'_, RMut<'_, ()>> =
     ///         Doer_TO::from_ptr(mmut, TD_CanDowncast);
     ///    
-    ///     assert_eq!(to.obj.as_unerased_mut::<usize>().ok(), Some(&mut 55usize));
-    ///     assert_eq!(to.obj.as_unerased_mut::<u8>().ok(), None);
+    ///     assert_eq!(to.obj.downcast_as_mut::<usize>().ok(), Some(&mut 55usize));
+    ///     assert_eq!(to.obj.downcast_as_mut::<u8>().ok(), None);
     /// }
     ///
     /// ```
-    pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
+    pub fn downcast_as_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
     where
         T:'static,
         P:AsMutPtr<PtrTarget=()>+CanTransmuteElement<T>,
@@ -554,11 +554,11 @@ where
     /// 
     /// unsafe{
     ///     // `to.obj` is an RObject
-    ///     assert_eq!(to().obj.unchecked_into_unerased::<usize>(), RBox::new(5usize));
+    ///     assert_eq!(to().obj.unchecked_downcast_into::<usize>(), RBox::new(5usize));
     /// }
     /// ```
     #[inline]
-    pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
+    pub unsafe fn unchecked_downcast_into<T>(self) -> P::TransmutedPtr
     where
         P: AsPtr<PtrTarget=()> + CanTransmuteElement<T>,
     {
@@ -590,7 +590,7 @@ where
     ///    
     ///     unsafe {
     ///         // `to.obj` is an RObject
-    ///         assert_eq!(to.obj.unchecked_as_unerased::<usize>(), &8usize);
+    ///         assert_eq!(to.obj.unchecked_downcast_as::<usize>(), &8usize);
     ///     }
     /// }
     /// {
@@ -601,7 +601,7 @@ where
     ///         Doer_TO::from_ptr(&13usize, TD_Opaque);
     ///    
     ///     unsafe {
-    ///         assert_eq!(to.obj.unchecked_as_unerased::<usize>(), &13usize);
+    ///         assert_eq!(to.obj.unchecked_downcast_as::<usize>(), &13usize);
     ///     }
     /// }
     /// {
@@ -613,13 +613,13 @@ where
     ///         Doer_TO::from_ptr(mmut, TD_Opaque);
     ///    
     ///     unsafe {
-    ///         assert_eq!(to.obj.unchecked_as_unerased::<usize>(), &21usize);
+    ///         assert_eq!(to.obj.unchecked_downcast_as::<usize>(), &21usize);
     ///     }
     /// }
     ///
     /// ```
     #[inline]
-    pub unsafe fn unchecked_as_unerased<T>(&self) -> &T
+    pub unsafe fn unchecked_downcast_as<T>(&self) -> &T
     where
         P:AsPtr<PtrTarget=()>,
     {
@@ -650,7 +650,7 @@ where
     ///    
     ///     unsafe {
     ///         // `to.obj` is an RObject
-    ///         assert_eq!(to.obj.unchecked_as_unerased_mut::<usize>(), &mut 34usize);
+    ///         assert_eq!(to.obj.unchecked_downcast_as_mut::<usize>(), &mut 34usize);
     ///     }
     /// }
     /// {
@@ -662,13 +662,13 @@ where
     ///         Doer_TO::from_ptr(mmut, TD_Opaque);
     ///    
     ///     unsafe {
-    ///         assert_eq!(to.obj.unchecked_as_unerased_mut::<usize>(), &mut 55usize);
+    ///         assert_eq!(to.obj.unchecked_downcast_as_mut::<usize>(), &mut 55usize);
     ///     }
     /// }
     ///
     /// ```
     #[inline]
-    pub unsafe fn unchecked_as_unerased_mut<T>(&mut self) -> &mut T
+    pub unsafe fn unchecked_downcast_as_mut<T>(&mut self) -> &mut T
     where
         P:AsMutPtr<PtrTarget=()>,
     {
@@ -894,8 +894,8 @@ where
 
 //////////////////////////////////////////////////////////////////
 
-/// Error for `RObject<_>` being unerased into the wrong type
-/// with one of the `*unerased*` methods.
+/// Error for `RObject<_>` being downcasted into the wrong type
+/// with one of the `*downcast*` methods.
 #[derive(Copy, Clone)]
 pub struct UneraseError<T> {
     robject:T,

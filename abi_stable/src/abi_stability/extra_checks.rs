@@ -828,14 +828,14 @@ pub type ExtraChecksBox=ExtraChecks_TO<RBox<()>>;
 pub trait ForExtraChecksImplementor:StableAbi+ExtraChecks{
 
 /**
-Accesses the `ExtraChecks` field in `layout_containing_other`, unerased into `Self`.
+Accesses the `ExtraChecks` field in `layout_containing_other`, downcasted into `Self`.
 
 If the closure returns an `ExtraChecksError`,it'll be returned unmodified and unwrapped.
 
 # Returns
 
 - ROk(_): 
-    If `other` was unerased to `Self`,and `f` did not return any errors.
+    If `other` was downcasted to `Self`,and `f` did not return any errors.
 
 - RErr(ExtraChecksError::NoneExtraChecks): 
     If`layout_containing_other` does not contain an ExtraChecks trait object.
@@ -865,14 +865,14 @@ If the closure returns an `ExtraChecksError`,it'll be returned unmodified and un
     }
 
 /**
-Allows one to access `other` unerased into `Self`.
+Allows one to access `other` downcast into `Self`.
 
 If the closure returns an `ExtraChecksError`,it'll be returned unmodified and unwrapped.
 
 # Returns
 
 - ROk(_): 
-    If `other` could be unerased to `Self`,and `f` did not return any errors.
+    If `other` could be downcasted to `Self`,and `f` did not return any errors.
 
 - RErr(ExtraChecksError::TypeChecker): 
     If there is an error while type checking.
@@ -891,9 +891,9 @@ If the closure returns an `ExtraChecksError`,it'll be returned unmodified and un
         E:Send+Sync+ErrorTrait+'static,
     {
         // This checks that the layouts of `this` and `other` are compatible,
-        // so that calling the `unchecked_into_unerased` method is sound.
+        // so that calling the `unchecked_downcast_into` method is sound.
         rtry!( checker.check_compatibility(<Self as StableAbi>::LAYOUT,other.type_layout()) );
-        let other_ue=unsafe{ other.obj.unchecked_into_unerased::<Self>() };
+        let other_ue=unsafe{ other.obj.unchecked_downcast_into::<Self>() };
 
         f(other_ue.get(),checker)
             .map_err(|e|{

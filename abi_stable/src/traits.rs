@@ -130,7 +130,7 @@ pub(crate) unsafe trait ErasedType<'a>:Sized{
     }
 
     #[inline]
-    unsafe fn into_unerased<P>(p:P)->P::TransmutedPtr
+    unsafe fn downcast_into<P>(p:P)->P::TransmutedPtr
     where 
         P: CanTransmuteElement<Self::Unerased, PtrTarget = Self>,
     {
@@ -139,7 +139,7 @@ pub(crate) unsafe trait ErasedType<'a>:Sized{
 
 
     #[inline]
-    unsafe fn run_as_unerased<'b, F,R>(p: RRef<'b, Self>,func:F)->R
+    unsafe fn run_downcast_as<'b, F,R>(p: RRef<'b, Self>,func:F)->R
     where 
         Self::Unerased: 'b,
         F:FnOnce(&'b Self::Unerased)->R,
@@ -148,7 +148,7 @@ pub(crate) unsafe trait ErasedType<'a>:Sized{
     }
 
     #[inline]
-    unsafe fn run_as_unerased_mut<'b, F, R>(p: RMut<'b, Self>,func:F)->R
+    unsafe fn run_downcast_as_mut<'b, F, R>(p: RMut<'b, Self>,func:F)->R
     where 
         Self::Unerased: 'b,
         F:FnOnce(&'b mut Self::Unerased)->R,
