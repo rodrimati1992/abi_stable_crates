@@ -47,3 +47,42 @@ impl Doer for usize{
 #[sabi_trait]
 #[doc(hidden)]
 pub trait DocHiddenTrait{}
+
+
+//////////////////////////////////////////
+
+
+/// The trait used in examples of `#[sabi_trait]` trait object methods,
+/// [here](../../docs/sabi_trait_inherent/index.html)
+#[abi_stable::sabi_trait]
+pub trait Action: Debug {
+    /// Gets the current value of `self`.
+    fn get(&self) -> usize;
+    
+    /// Adds `val` into `self`, returning the new value.
+    fn add_mut(&mut self, val: usize) -> usize;
+
+    /// Adds `val` into `self`, returning the new value.
+    #[sabi(last_prefix_field)]
+    fn add_into(self, val: usize) -> usize;
+}
+
+
+impl Action for usize {
+    fn get(&self) -> usize {
+        *self
+    }
+    fn add_mut(&mut self, val: usize) -> usize {
+        *self += val;
+        *self
+    }
+    fn add_into(mut self, val: usize) -> usize {
+        self += val;
+        self
+    }
+}
+
+
+
+
+

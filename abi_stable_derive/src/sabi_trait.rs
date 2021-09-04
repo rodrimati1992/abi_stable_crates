@@ -567,19 +567,33 @@ fn constructor_items(
         ".to_string();
 
         from_ptr_docs=format!(
-            "Constructs this trait object from a pointer to a type that implements `{trait_}`.",
+            "Constructs this trait object from a pointer to a type that implements `{trait_}`.\n\
+             \n\
+             This method is automatically generated,\n\
+             for more documentation you can look at\n\
+             [`abi_stable::docs::sabi_trait_inherent#from_ptr-method`]\n\
+            ",
             trait_=trait_ident
         );
 
         from_value_docs=format!(
-            "Constructs this trait from a type that implements `{trait_}`.",
+            "Constructs this trait from a type that implements `{trait_}`.\n\
+             \n\
+             This method is automatically generated,\n\
+             for more documentation you can look at\n\
+             [`abi_stable::docs::sabi_trait_inherent#from_value-method`]\n\
+            ",
             trait_=trait_ident
         );
 
         from_const_docs=format!(
             "Constructs this trait from a constant of a type that implements `{trait_}`.\n\
              \n\
-             You can construct the `vtable_for` parameter with `{make_vtable_ident}::VTABLE`.
+             This method is automatically generated,\n\
+             for more documentation you can look at\n\
+             [`abi_stable::docs::sabi_trait_inherent#from_const-method`]\n\
+              \n\
+             You can construct the `vtable_for` parameter with `{make_vtable_ident}::VTABLE`.\n\
             ",
             trait_=trait_ident,
             make_vtable_ident=make_vtable_ident,
@@ -649,7 +663,7 @@ fn constructor_items(
             )->Self
             where
                 _OrigPtr:
-                    __sabi_re::CanTransmuteElement<(),TransmutedPtr=_ErasedPtr> #plus_lt,
+                    __sabi_re::CanTransmuteElement<(),TransmutedPtr=_ErasedPtr>,
                 _OrigPtr::PtrTarget:
                     #trait_bounds<#trait_params #( #assoc_tys_a= #assoc_tys_b, )* >+
                     Sized
@@ -674,6 +688,10 @@ fn constructor_items(
             }
 
             /// Constructs this trait object from its underlying implementation.
+            /// 
+            /// This method is automatically generated,
+            /// for more documentation you can look at
+            /// [`abi_stable::docs::sabi_trait_inherent#from_sabi-method`]
             #submod_vis fn from_sabi(obj:#trait_backend<#uto_params_use>)->Self{
                 Self{
                     obj,
@@ -761,6 +779,10 @@ fn reborrow_methods_tokenizer(
 
         quote!(
             /// Reborrows this trait object to a reference-based trait object.
+            /// 
+            /// This method is automatically generated,
+            /// for more documentation you can look at
+            /// [`abi_stable::docs::sabi_trait_inherent#sabi_reborrow-method`]
             #submod_vis fn sabi_reborrow<'_sub>(&'_sub self)->#trait_to<#gen_params_use_ref>
             where
                 _ErasedPtr: __sabi_re::AsPtr<PtrTarget=()>
@@ -772,6 +794,10 @@ fn reborrow_methods_tokenizer(
             }
 
             /// Reborrows this trait object to a mutable-reference-based trait object.
+            /// 
+            /// This method is automatically generated,
+            /// for more documentation you can look at
+            /// [`abi_stable::docs::sabi_trait_inherent#sabi_reborrow_mut-method`]
             #submod_vis fn sabi_reborrow_mut<'_sub>(&'_sub mut self)->#trait_to<#gen_params_use_mut>
             where
                 _ErasedPtr: __sabi_re::AsMutPtr<PtrTarget=()>
