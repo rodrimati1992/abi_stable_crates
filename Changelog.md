@@ -1,5 +1,129 @@
 This is the changelog,summarising changes in each version(some minor changes may be ommited).
 
+# 0.10
+
+### 0.10.0
+
+Fixed soundness of the code under the Stacked Borrows model, by replacing uses of type-erased `&` and `&mut`s in trait objects and vtables with `RRef` and `RMut`. 
+
+Added `AsPtr` and `AsMutPtr` traits. implemented for all erasable pointer types.
+
+Reexported `crate::erased_types::InterfaceBound` in root module
+
+Unimplemented `Deref` for `RRef`
+    
+Unimplemented `Deref` and `DerefMut` for `RMut`
+
+Replaced all `Deref` and `DerefMut` bounds in trait object types with `GetPointerKind`/`AsPtr`/`AsMutPtr`.
+
+Removed `RRef::transmute` which turns `RRef<'a, T>` into `RRef<'b, U>`
+    
+Renamed `RRef`:
+- `get_raw`: to `as_ptr`
+- `transmute_ref`: to `transmute`
+- `cast_into_raw`: to `transmute_into_raw`
+
+Added these RRef methods:
+- `get_copy`
+- `transmute_into_ref`
+
+Renamed `RMut`:
+- `get`: to `into_ref`,
+- `get_mut`: to `into_mut`,
+- `into_raw`: to `into_raw_mut`,
+- `cast_into_raw`: to `transmute_into_raw`,
+
+Added these RMut methods:
+- `get`: this only borrows the `RMut`
+- `get_copy`: this only borrows the `RMut`
+- `get_mut`: this only borrows the `RMut`
+- `as_ptr`
+- `as_mut_ptr`
+- `into_raw`
+- `transmute`
+- `transmute_into_raw`
+- `transmute_into_mut`
+- `as_rref`
+
+Added these functions to `MovePtr`:
+- `from_raw`
+- `from_rmut`
+- `transmute`
+    
+Changes to `GetPointerKind`:
+- Removed Deref supertrait 
+- Added `PtrTarget` associated type for the same purpose as `Deref::Target`
+
+Changes to `CanTransmuteElement`:
+- Added `transmute_element_` method
+- Changed impls for references to return `RRef` and `RMut`
+- Changed `TransmutedPtr` bound to `AsPtr<PtrTarget = T>`
+
+Added these InterfaceTypes in `abi_stable::erased_types::interfaces`
+- DEIteratorCloneInterface
+- DebugDefEqInterface
+
+Added these `#[sabi_trait] pub trait`s in  in `abi_stable::erased_types::doc_examples`:
+- `Doer`
+- `Action`: used in examples of shared inherent functions of `#[sabi_trait]` trait objects.
+
+Moved docs for proc macros from `abi_stable::docs` to the item docs.
+
+Added `abi_stable::docs::sabi_trait_inherent` with documentation for the shared methods of `#[sabi_trait]` trait objects. This module is linked in generated code to avoid generating too much code. 
+
+Added many impls to compare between std and/or abi_stable types in both directions to:
+- `RVec`
+- `RSlice`
+- `RSliceMut`
+- `RStr`
+- `RString`
+- `RCow`
+
+Added the `abi_stable::utils::{manuallydrop_as_rmut, manuallydrop_as_raw_mut}` utility functions.
+
+Renamed `abi_stable::type_level::unerasability` module to downcasting, moving it to a separate file.
+
+Renamed `TU_Opaque` to `TD_Opaque` and `TU_Unerase` to `TD_CanDowncast`.
+
+Renamed `IsImplemented` trait to `Implementability` and its `VALUE` associated constant to `IS_IMPLD`.
+
+Renamed all `*unerase*` methods to `*downcast*`.
+
+Made `with_move_ptr` and `in_move_ptr` panic-safe by using guard types that deallocate the pointer on drop (even if a panic happens in the passed-in closure).
+
+Fixed the potential soundness bug where pointers to serde_json::RawValue could change the order of the length and data pointers when transmuted to point to str.
+
+Fixed unsoundness in, discovered by passing `-Zmiri-track-raw-pointers` flag to miri:
+- `MovePtr::into_box`: which did zero-sized allocations for zero sized types.
+- `NonExhaustive::serialize`: which was creating a reference which is only valid for the `ScratchSpace` field, but the entire NonExhaustive needed to be accessed.
+- `ROnce`
+- `NonExhaustive::serialize_into_proxy`
+- `RBox::get_move_ptr`
+- `RString::insert`
+- `RString::remove`
+- `RString::retain`
+- `RVec::drain`
+- `RVec::retain`
+- `RVec::truncate`
+
+Might not be UB, but fixed anyway:
+- `RVec::as_mut_slice`
+- `<RVec as IntoIterator>::into_iter`
+
+Fixed unsoundness when loading library due to transmute from `&'static AbiHeader` to `&'static LibHeader`, by adding a `AbiHeaderRef` pointer, and loading it instead of `&'static AbiHeader`.
+
+Moved the `upgrade` method from `AbiHeader` to `AbiHeaderRef`
+
+
+Bumped dependency versions(only listing the braking ones):
+- `core_extensions`: 1.4
+- `libloading`: 0.7
+- `repr_offset`: 0.2
+
+
+
+
+
 # 0.9
 
 # 0.9.2
