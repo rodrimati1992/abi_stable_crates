@@ -64,7 +64,7 @@ use abi_stable::{
     },
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     std_types::{RCow,RResult,ROption,RSome,RStr},
     sabi_extern_fn,
     GetStaticEquivalent,
@@ -246,7 +246,7 @@ unsafe impl ExtraChecks for ConstChecker {
         Self::downcast_with_object(other,checker,|other,_|{
             let (min,max)=min_max_by(self,other,|x|x.chars.len());
             min.check_compatible_inner(max)
-                .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TU_Opaque) ) )
+                .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TD_Opaque) ) )
         })
     }
 }
@@ -309,7 +309,7 @@ use abi_stable::{
         check_layout_compatibility,
     },
     type_layout::TypeLayout,
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     std_types::{RCow,RDuration,RResult,ROption,RStr,RString},
     sabi_extern_fn,
     StableAbi,
@@ -448,7 +448,7 @@ use abi_stable::{
     },
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     std_types::{RCow,RDuration,RResult,RStr,RString},
     sabi_extern_fn,
     GetStaticEquivalent,

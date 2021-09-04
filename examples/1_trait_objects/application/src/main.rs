@@ -9,7 +9,7 @@ use std::{
 use abi_stable::{
     external_types::crossbeam_channel::{self,RSender,RReceiver},
     std_types::{RString,RStr,RResult,RVec,ROk,RErr,RSome},
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     library::{RawLibrary,LibraryError,LibrarySuffix,lib_header_from_path},
 };
 

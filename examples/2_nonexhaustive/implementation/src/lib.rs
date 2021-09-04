@@ -7,7 +7,7 @@ use abi_stable::{
     external_types::RawValueBox,
     nonexhaustive_enum::{NonExhaustiveFor,NonExhaustive},
     prefix_type::PrefixTypeTrait,
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     std_types::{RBox,RBoxError,RResult,RStr,RString,ROk,RErr,RVec},
     export_root_module,
     sabi_extern_fn,
@@ -42,7 +42,7 @@ pub fn new()->Shop_TO<'static,RBox<()>>{
             items_map:HashMap::default(),
             items:Vec::new(),
         },
-        TU_Opaque
+        TD_Opaque
     )
 }
 

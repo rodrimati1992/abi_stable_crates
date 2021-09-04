@@ -21,54 +21,7 @@ pub mod bools{
 /// Type-level enum representing whether a 
 /// `DynTrait`/`RObject`/`#[sabi_trait]`-generated trait object
 /// can be converted back into the concrete type they were constructed with.
-pub mod unerasability{
-    use crate::{
-        sabi_types::{Constructor,MaybeCmp},
-        std_types::utypeid::{UTypeId,no_utypeid,some_utypeid},
-    };
-
-
-    /// Indicates that a type implements `Any`.
-    ///
-    /// A trait object wrapping that type can be unerased back into taht type.
-    #[allow(non_camel_case_types)]
-    #[derive(Copy,Clone)]
-    pub struct TU_Unerasable;
-
-    /// Indicates that a type does not implement `Any`,
-    ///
-    /// A trait object wrapping that type can't be unerased.
-    #[allow(non_camel_case_types)]
-    #[derive(Copy,Clone)]
-    pub struct TU_Opaque;
-    
-
-
-
-
-    /// Gets a function optionally returning the `UTypeId` of `T`.
-    ///
-    /// Whether the function returns `MaybeCmp::Just(typeid)` is determined by implementors:
-    /// 
-    /// - `TU_Unerasable`: the function always returns `MaybeCmp::Just(typeid)`.
-    /// 
-    /// - `TU_Opaque`: the function always returns `MaybeCmp::Nothing`.
-    pub trait GetUTID<T> {
-        /// A struct wrapping the function.
-        const UID:Constructor<MaybeCmp<UTypeId>>;
-    }
-
-
-    impl<T> GetUTID<T> for TU_Unerasable
-    where T:'static
-    {
-        const UID:Constructor<MaybeCmp<UTypeId>>=Constructor( some_utypeid::<T> );
-    }
-
-    impl<T> GetUTID<T> for TU_Opaque{
-        const UID:Constructor<MaybeCmp<UTypeId>>=Constructor( no_utypeid );
-    }
-}
+pub mod downcasting;
 
 
 /// Marker types representing traits.
@@ -131,9 +84,9 @@ pub mod impl_enum{
     use self::sealed::Sealed;
 
     /// Queries whether this type is `Implemented<T>`
-    pub trait IsImplemented:Sealed{
+    pub trait Implementability:Sealed{
         /// Whether the trait represented by the type parameter must be implemented.
-        const VALUE:bool;
+        const IS_IMPLD:bool;
     }
     
 
@@ -188,8 +141,8 @@ pub mod impl_enum{
     }
 
     impl<T> Sealed for Implemented<T>{}
-    impl<T> IsImplemented for Implemented<T>{
-        const VALUE:bool=true;
+    impl<T> Implementability for Implemented<T>{
+        const IS_IMPLD:bool=true;
     }
 
 
@@ -205,7 +158,7 @@ pub mod impl_enum{
     }
 
     impl<T> Sealed for Unimplemented<T>{}
-    impl<T> IsImplemented for Unimplemented<T>{
-        const VALUE:bool=false;
+    impl<T> Implementability for Unimplemented<T>{
+        const IS_IMPLD:bool=false;
     }
 }

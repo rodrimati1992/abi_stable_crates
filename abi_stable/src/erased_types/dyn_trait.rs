@@ -24,7 +24,7 @@ use crate::{
     sabi_types::{MovePtr, RRef, RMut},
     std_types::{RBox, RStr, RVec, RIoError},
     type_level::{
-        unerasability::{TU_Unerasable, TU_Opaque},
+        downcasting::{TD_CanDowncast, TD_Opaque},
         impl_enum::{Implemented, Unimplemented},
         trait_marker,
     },
@@ -794,7 +794,7 @@ mod priv_ {
         where
             T:'static,
             I: InterfaceBound,
-            InterfaceFor<T, I, TU_Unerasable> : GetVtable<'static, T, RBox<()>, RBox<T>, I>,
+            InterfaceFor<T, I, TD_CanDowncast> : GetVtable<'static, T, RBox<()>, RBox<T>, I>,
         {
             let object = RBox::new(object);
             DynTrait::from_any_ptr(object, interface)
@@ -857,14 +857,14 @@ mod priv_ {
         where
             I: InterfaceBound,
             T:'static,
-            InterfaceFor<T, I, TU_Unerasable>: GetVtable<'static, T, P::TransmutedPtr, P, I>,
+            InterfaceFor<T, I, TD_CanDowncast>: GetVtable<'static, T, P::TransmutedPtr, P, I>,
             P: GetPointerKind<PtrTarget = T> + CanTransmuteElement<()>,
         {
             DynTrait {
                 object: unsafe{
                     ManuallyDrop::new(object.transmute_element::<()>())
                 },
-                vtable: <InterfaceFor<T, I, TU_Unerasable>>::_GET_INNER_VTABLE,
+                vtable: <InterfaceFor<T, I, TD_CanDowncast>>::_GET_INNER_VTABLE,
                 extra_value:(),
                 _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
@@ -905,7 +905,7 @@ mod priv_ {
         where
             T:'borr,
             I: InterfaceBound,
-            InterfaceFor<T, I, TU_Opaque> : GetVtable<'borr, T, RBox<()>, RBox<T>, I>,
+            InterfaceFor<T, I, TD_Opaque> : GetVtable<'borr, T, RBox<()>, RBox<T>, I>,
         {
             let object = RBox::new(object);
             DynTrait::from_borrowing_ptr(object, interface)
@@ -971,14 +971,14 @@ mod priv_ {
         where
             T:'borr,
             I: InterfaceBound,
-            InterfaceFor<T, I, TU_Opaque>: GetVtable<'borr, T, P::TransmutedPtr, P, I>,
+            InterfaceFor<T, I, TD_Opaque>: GetVtable<'borr, T, P::TransmutedPtr, P, I>,
             P: GetPointerKind<PtrTarget = T> + CanTransmuteElement<()>,
         {
             DynTrait {
                 object: unsafe{
                     ManuallyDrop::new(object.transmute_element::<()>())
                 },
-                vtable: <InterfaceFor<T, I, TU_Opaque>>::_GET_INNER_VTABLE,
+                vtable: <InterfaceFor<T, I, TD_Opaque>>::_GET_INNER_VTABLE,
                 extra_value:(),
                 _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
@@ -1000,7 +1000,7 @@ mod priv_ {
         /// use abi_stable::{
         ///     erased_types::{
         ///         interfaces::DebugDisplayInterface,
-        ///         TU_Opaque,
+        ///         TD_Opaque,
         ///     },
         ///     DynTrait, RRef,
         /// };
@@ -1008,7 +1008,7 @@ mod priv_ {
         /// 
         /// // DebugDisplayInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RRef<()>, DebugDisplayInterface, usize> = 
-        ///     DynTrait::with_extra_value::<_, TU_Opaque>(&55u8, 100usize);
+        ///     DynTrait::with_extra_value::<_, TD_Opaque>(&55u8, 100usize);
         /// 
         /// assert_eq!(format!("{}", to), "55");
         /// assert_eq!(format!("{:?}", to), "55");
@@ -1016,7 +1016,7 @@ mod priv_ {
         /// assert_eq!(to.sabi_extra_value(), &100);
         ///
         /// ```
-        pub fn with_extra_value<OrigPtr, Unerasability>(
+        pub fn with_extra_value<OrigPtr, Downcasting>(
             ptr: OrigPtr,
             extra_value: EV,
         )-> DynTrait<'borr, P, I, EV>
@@ -1024,7 +1024,7 @@ mod priv_ {
             OrigPtr: GetPointerKind,
             OrigPtr::PtrTarget: 'borr,
             I: InterfaceBound,
-            InterfaceFor<OrigPtr::PtrTarget, I, Unerasability>: 
+            InterfaceFor<OrigPtr::PtrTarget, I, Downcasting>: 
                 GetVtable<'borr, OrigPtr::PtrTarget, P, OrigPtr, I>,
             OrigPtr: CanTransmuteElement<(), TransmutedPtr = P>,
         {
@@ -1032,7 +1032,7 @@ mod priv_ {
                 object: unsafe{
                     ManuallyDrop::new(ptr.transmute_element::<()>())
                 },
-                vtable: <InterfaceFor<OrigPtr::PtrTarget, I, Unerasability>>::_GET_INNER_VTABLE,
+                vtable: <InterfaceFor<OrigPtr::PtrTarget, I, Downcasting>>::_GET_INNER_VTABLE,
                 extra_value,
                 _marker:NonOwningPhantom::NEW,
                 _marker2:UnsafeIgnoredType::DEFAULT,
@@ -1040,7 +1040,7 @@ mod priv_ {
         }
 
         #[doc(hidden)]
-        pub fn with_vtable<OrigPtr, Unerasability>(
+        pub fn with_vtable<OrigPtr, Downcasting>(
             ptr:OrigPtr,
             extra_vtable:EV,
         )-> DynTrait<'borr, P, I, EV>
@@ -1048,7 +1048,7 @@ mod priv_ {
             OrigPtr: GetPointerKind,
             OrigPtr::PtrTarget: 'borr,
             I: InterfaceBound,
-            InterfaceFor<OrigPtr::PtrTarget, I, Unerasability>: 
+            InterfaceFor<OrigPtr::PtrTarget, I, Downcasting>: 
                 GetVtable<'borr, OrigPtr::PtrTarget, P, OrigPtr, I>,
             OrigPtr: CanTransmuteElement<(), TransmutedPtr = P>,
         {
@@ -1070,12 +1070,12 @@ mod priv_ {
         /// 
         /// <br>
         /// 
-        /// `unerasability` can be either:
+        /// `can_it_downcast` can be either:
         /// 
-        /// - `TU_Unerasable`:
+        /// - [`TD_CanDowncast`]:
         ///     Which allows the trait object to be unerased, requires that the value implements any.
         /// 
-        /// - `TU_Opaque`:
+        /// - [`TD_Opaque`]:
         ///     Which does not allow the trait object to be unerased.
         /// 
         /// <br>
@@ -1098,7 +1098,7 @@ mod priv_ {
         /// use abi_stable::{
         ///     erased_types::{
         ///         interfaces::DebugDisplayInterface,
-        ///         DynTrait, TU_Opaque, VTableDT,
+        ///         DynTrait, TD_Opaque, VTableDT,
         ///     },
         ///     sabi_types::RRef,
         /// };
@@ -1108,7 +1108,7 @@ mod priv_ {
         /// static DYN: DynTrait<'static, RRef<'static,()>, DebugDisplayInterface,()> =
         ///     DynTrait::from_const(
         ///         &STRING,
-        ///         TU_Opaque,
+        ///         TD_Opaque,
         ///         VTableDT::GET,
         ///         (),
         ///     );
@@ -1120,18 +1120,20 @@ mod priv_ {
         /// 
         /// ```
         /// 
-        pub const fn from_const<T, Unerasability>(
+        /// [`TD_CanDowncast`]: ./type_level/unersability/struct.TD_CanDowncast.html
+        /// [`TD_Opaque`]: ./type_level/unersability/struct.TD_Opaque.html
+        pub const fn from_const<T, Downcasting>(
             ptr:&'a T,
-            unerasability:Unerasability,
-            vtable_for:VTableDT<'borr, T, RRef<'a,()>, RRef<'a, T>, I, Unerasability>,
+            can_it_downcast:Downcasting,
+            vtable_for:VTableDT<'borr, T, RRef<'a,()>, RRef<'a, T>, I, Downcasting>,
             extra_value:EV,
         )-> Self
         where
             T:'borr,
         {
-            // Must wrap unerasability in a ManuallyDrop because otherwise this 
+            // Must wrap can_it_downcast in a ManuallyDrop because otherwise this 
             // errors with `constant functions cannot evaluate destructors`.
-            let _ = ManuallyDrop::new(unerasability);
+            let _ = ManuallyDrop::new(can_it_downcast);
             DynTrait {
                 object: unsafe{
                     let x = RRef::from_raw(ptr as *const T as *const ());
@@ -1191,13 +1193,13 @@ mod priv_ {
         ///
         /// ```rust
         /// use abi_stable::{
-        ///     erased_types::TU_Opaque,
+        ///     erased_types::TD_Opaque,
         ///     DynTrait, RRef,
         /// };
         /// 
         /// 
         /// let to: DynTrait<'static, RRef<()>, (), char> = 
-        ///     DynTrait::with_extra_value::<_, TU_Opaque>(&55u8, 'Z');
+        ///     DynTrait::with_extra_value::<_, TD_Opaque>(&55u8, 'Z');
         /// 
         /// assert_eq!(to.sabi_extra_value(), &'Z');
         ///
@@ -1223,7 +1225,7 @@ mod priv_ {
         ///
         /// ```rust
         /// use abi_stable::{
-        ///     erased_types::TU_Opaque,
+        ///     erased_types::TD_Opaque,
         ///     DynTrait, RRef,
         /// };
         /// 
@@ -1729,11 +1731,11 @@ mod priv_ {
             T:'static,
             P: CanTransmuteElement<T>,
             Self: DynTraitBound<'borr>,
-            InterfaceFor<T, I, TU_Unerasable>: ImplType,
+            InterfaceFor<T, I, TD_CanDowncast>: ImplType,
         {
             check_unerased!(
                 self,
-                self.sabi_check_same_destructor::<InterfaceFor<T, I, TU_Unerasable>, T>()
+                self.sabi_check_same_destructor::<InterfaceFor<T, I, TD_CanDowncast>, T>()
             );
             unsafe {
                 unsafe { 
@@ -1798,11 +1800,11 @@ mod priv_ {
             T:'static,
             P: AsPtr + CanTransmuteElement<T>,
             Self: DynTraitBound<'borr>,
-            InterfaceFor<T, I, TU_Unerasable>: ImplType,
+            InterfaceFor<T, I, TD_CanDowncast>: ImplType,
         {
             check_unerased!(
                 self,
-                self.sabi_check_same_destructor::<InterfaceFor<T, I, TU_Unerasable>, T>()
+                self.sabi_check_same_destructor::<InterfaceFor<T, I, TD_CanDowncast>, T>()
             );
             unsafe { Ok(self.sabi_object_as()) }
         }
@@ -1854,11 +1856,11 @@ mod priv_ {
         where
             P: AsMutPtr + CanTransmuteElement<T>,
             Self: DynTraitBound<'borr>,
-            InterfaceFor<T, I, TU_Unerasable>: ImplType,
+            InterfaceFor<T, I, TD_CanDowncast>: ImplType,
         {
             check_unerased!(
                 self,
-                self.sabi_check_same_destructor::<InterfaceFor<T, I, TU_Unerasable>, T>()
+                self.sabi_check_same_destructor::<InterfaceFor<T, I, TD_CanDowncast>, T>()
             );
             unsafe { Ok(self.sabi_object_as_mut()) }
         }

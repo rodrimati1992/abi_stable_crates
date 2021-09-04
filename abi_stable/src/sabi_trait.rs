@@ -64,10 +64,10 @@ pub mod reexports{
 
 /// A prelude for modules using `#[sabi_trait]` generated traits/trait objects.
 pub mod prelude{
-    pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
+    pub use crate::type_level::downcasting::{TD_CanDowncast,TD_Opaque};
 }
 
-pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
+pub use crate::type_level::downcasting::{TD_CanDowncast,TD_Opaque};
 
 #[cfg(any(test,feature="sabi_trait_examples"))]
 pub mod examples;

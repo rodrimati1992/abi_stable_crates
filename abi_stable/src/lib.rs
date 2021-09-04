@@ -426,3 +426,4 @@ extern "Rust" {
     /// `ptr` has to point to the beginning of an allocated block.
     fn miri_static_root(ptr: *const u8);
 }
+

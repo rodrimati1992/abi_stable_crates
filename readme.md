@@ -370,7 +370,7 @@ use abi_stable::{
     sabi_extern_fn,
     impl_get_type_info,
     prefix_type::PrefixTypeTrait,
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     std_types::{RString, RVec},
 };
 
@@ -440,7 +440,7 @@ impl StringBuilder{
 #[sabi_extern_fn]
 pub fn new_appender() -> AppenderBox<u32>{
     /*
-    What `TU_Opaque` does here is specify that the trait object cannot be unerased,
+    What `TD_Opaque` does here is specify that the trait object cannot be unerased,
     disallowing the `Appender_TO` from being unwrapped back into an `RVec<u32>`
     using the `trait_object.obj.*_unerased_*()` methods.
     
@@ -450,7 +450,7 @@ pub fn new_appender() -> AppenderBox<u32>{
     - Have a type that implements `std::anu::Any`
     (it requires that the type doesn't borrow anything).
 
-    - Pass `TU_Unerasable` instead of `TU_Opaque` to Appender_TO::{from_value,from_ptr}.
+    - Pass `TD_CanDowncast` instead of `TD_Opaque` to Appender_TO::{from_value,from_ptr}.
 
     - Unerase the trait object back into the original type with
         `trait_object.obj.into_unerased_impltype::<RVec<u32>>().unwrap()` 
@@ -462,10 +462,10 @@ pub fn new_appender() -> AppenderBox<u32>{
     
     - It's not the same type.
 
-    - It was constructed with `TU_Opaque`.
+    - It was constructed with `TD_Opaque`.
 
     */
-    Appender_TO::from_value(RVec::new(),TU_Opaque)
+    Appender_TO::from_value(RVec::new(),TD_Opaque)
 }
 
 
