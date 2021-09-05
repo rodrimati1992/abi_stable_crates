@@ -22,6 +22,8 @@ mod stable_abi_impls;
 #[derive(StableAbi)]
 pub struct SyncSend;
 
+const _: () = zst_assert!{SyncSend};
+
 /////////////////
 
 /// Marker type used to mark a type as being `!Send + !Sync`.
@@ -77,6 +79,8 @@ unsafe impl Sync for SyncUnsend{}
 #[derive(StableAbi)]
 // #[sabi(debug_print)]
 pub struct NotCopyNotClone;
+
+const _: () = zst_assert!{NotCopyNotClone};
 
 //////////////////////////////////////////////////////////////
 
@@ -152,8 +156,7 @@ mod _sabi_erasedobject {
     {
         type IsNonZeroType = __sabi_re::False;
         const LAYOUT: &'static __sabi_re::TypeLayout = {
-            ["Expected this to be Zero-sized"][(std::mem::size_of::<Self>() != 0) as usize];
-            ["Expected this to be 1 aligned"][(std::mem::align_of::<Self>() != 1) as usize];
+            zst_assert!{Self}
 
             &__sabi_re::TypeLayout::from_derive::<Self>(__sabi_re::_private_TypeLayoutDerive {
                 shared_vars: Self::__SABI_SHARED_VARS,
@@ -178,8 +181,7 @@ pub struct ErasedPrefix{
     _priv: PhantomData<u8>,
 }
 
-const _: [(); 0] = [(); std::mem::size_of::<ErasedPrefix>()];
-const _: [(); 1] = [(); std::mem::align_of::<ErasedPrefix>()];
+const _: () = zst_assert!(ErasedPrefix);
 
 unsafe impl GetStaticEquivalent_ for ErasedPrefix {
     type StaticEquivalent = ErasedPrefix;
@@ -264,8 +266,7 @@ unsafe impl<T> StableAbi for UnsafeIgnoredType<T> {
             let (mono_shared_vars,shared_vars)={};
         }
 
-        ["Expected this to be Zero-sized"][(std::mem::size_of::<Self>() != 0) as usize];
-        ["Expected this to be 1 aligned"][(std::mem::align_of::<Self>() != 1) as usize];
+        zst_assert!(Self);
 
         &TypeLayout::from_std::<Self>(
             shared_vars,
@@ -328,6 +329,8 @@ where
     type IsNonZeroType = False;
 
 
-    const LAYOUT: &'static TypeLayout = 
-        <PhantomData<T> as StableAbi>::LAYOUT;
+    const LAYOUT: &'static TypeLayout = {
+        zst_assert!(Self);        
+        <PhantomData<T> as StableAbi>::LAYOUT
+    };
 }

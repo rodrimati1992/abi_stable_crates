@@ -101,3 +101,26 @@ macro_rules! slice_like_impl_cmp_traits {
         };
     };
 }
+
+
+
+
+macro_rules! zst_assert {
+    ($Self:ty) => ({
+        ["Expected this to be Zero-sized"][(std::mem::size_of::<$Self>() != 0) as usize];
+        ["Expected this to be 1 aligned"][(std::mem::align_of::<$Self>() != 1) as usize];
+
+        ["Expected Tuple1<Self> to be Zero-sized"]
+        [(std::mem::size_of::<crate::std_types::Tuple1<$Self>>() != 0) as usize];
+
+        ["Expected Tuple1<Self> to be 1 aligned"]
+        [(std::mem::align_of::<crate::std_types::Tuple1<$Self>>() != 1) as usize];
+
+
+        ["Expected Tuple1<Self, Self> to be Zero-sized"]
+        [(std::mem::size_of::<crate::std_types::Tuple2<$Self, $Self>>() != 0) as usize];
+
+        ["Expected Tuple1<Self, Self> to be 1 aligned"]
+        [(std::mem::align_of::<crate::std_types::Tuple2<$Self, $Self>>() != 1) as usize];
+    });
+}
