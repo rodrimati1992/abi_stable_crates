@@ -210,10 +210,10 @@ impl<'a,T> MovePtr<'a,T>{
     /// 
     /// // safety: `mdrop` is never accessed again
     /// let moveptr = unsafe{ MovePtr::from_raw(manuallydrop_as_raw_mut(&mut mdrop)) };
-    /// assert_eq!(*moveptr, [3, 5, 8]);
+    /// assert_eq!(moveptr[..], [3, 5, 8]);
     ///
     /// let vector: RVec<u8> = MovePtr::into_inner(moveptr);
-    /// assert_eq!(vector, [3, 5, 8]);
+    /// assert_eq!(vector[..], [3, 5, 8]);
     /// 
     /// ```
     pub unsafe fn from_raw(ptr: *mut T)->Self{

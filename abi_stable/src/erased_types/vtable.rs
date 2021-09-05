@@ -26,7 +26,7 @@ use crate::{
     StableAbi,
     marker_type::{ErasedObject,NonOwningPhantom},
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
-    pointer_trait::{GetPointerKind,CanTransmuteElement},
+    pointer_trait::{AsPtr, GetPointerKind,CanTransmuteElement},
     sabi_types::{RRef, RMut},
     std_types::{RSome,RNone,RIoError,RSeekFrom},
     type_level::{
@@ -88,7 +88,7 @@ impl<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>
     VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>
 where
     OrigPtr: CanTransmuteElement<(), PtrTarget = T, TransmutedPtr=ErasedPtr>,
-    ErasedPtr: GetPointerKind<PtrTarget=()>,
+    ErasedPtr: AsPtr<PtrTarget=()>,
     I: InterfaceBound,
     InterfaceFor<T,I,Downcasting>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,
 {    

@@ -1062,6 +1062,7 @@ slice_like_impl_cmp_traits!{
     RSliceMut<'_, U>,
 }
 
+#[cfg(feature = "const_params")]
 slice_like_impl_cmp_traits!{
     impl[const N: usize] RVec<T>,
     where[];

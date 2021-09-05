@@ -631,7 +631,7 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// // safety: this is only called once, after all uses of `this`
     /// unsafe{ OwnedPointer::drop_allocation(&mut this); }
     /// 
-    /// assert_eq!(vector, [3, 5, 8]);
+    /// assert_eq!(vector[..], [3, 5, 8]);
     ///
     /// ```
     unsafe fn get_move_ptr(this: &mut ManuallyDrop<Self>) -> MovePtr<'_, Self::PtrTarget>;
@@ -673,7 +673,7 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     ///     MovePtr::into_inner(moveptr)
     /// });
     /// 
-    /// assert_eq!(cow, [13, 21, 34]);
+    /// assert_eq!(cow[..], [13, 21, 34]);
     ///
     /// ```
     #[inline]

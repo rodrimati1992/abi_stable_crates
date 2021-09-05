@@ -438,6 +438,7 @@ slice_like_impl_cmp_traits!{
     &[U],
 }
 
+#[cfg(feature = "const_params")]
 slice_like_impl_cmp_traits!{
     impl[const N: usize] RCow<'_, [T]>,
     where[T: Clone];

@@ -653,7 +653,7 @@ fn constructor_items(
     quote!(
         impl<#gen_params_header> #trait_to<#gen_params_use_to> 
         where
-            _ErasedPtr:__GetPointerKind,
+            _ErasedPtr: __sabi_re::AsPtr<PtrTarget = ()>,
         {
             #[doc=#from_ptr_docs]
             #[doc=#shared_docs]
@@ -966,7 +966,7 @@ fn methods_impls(
         #[allow(clippy::needless_lifetimes, clippy::new_ret_no_self)]
         impl<#gen_params_header> #trait_to<#gen_params_use_to>
         where 
-            _ErasedPtr:__GetPointerKind,
+            _ErasedPtr: __sabi_re::AsPtr<PtrTarget = ()>,
             Self:#( #super_traits_a + )* Sized ,
             #impl_where_preds
         {
@@ -1260,7 +1260,7 @@ fn vtable_impl(
             _Self:#trait_bounds<#trait_generics>,
             _OrigPtr:
                 __sabi_re::CanTransmuteElement<(), PtrTarget = _Self, TransmutedPtr = _ErasedPtr>,
-            _ErasedPtr:__GetPointerKind<PtrTarget=()>,
+            _ErasedPtr:__sabi_re::AsPtr<PtrTarget=()>,
             #trait_interface<#trait_interface_use>:
                 __sabi_re::GetRObjectVTable<IA,_Self,_ErasedPtr,_OrigPtr>,
             #extra_constraints
