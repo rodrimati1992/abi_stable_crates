@@ -52,8 +52,7 @@ macro_rules! monomorphic_marker_type {
         unsafe impl __sabi_re::StableAbi for $name {
             type IsNonZeroType = __sabi_re::False;
             const LAYOUT: &'static __sabi_re::TypeLayout = {
-                ["Expected this to be Zero-sized"][(std::mem::size_of::<Self>() != 0) as usize];
-                ["Expected this to be 1 aligned"][(std::mem::align_of::<Self>() != 1) as usize];
+                zst_assert!{Self}
 
                 &__sabi_re::TypeLayout::from_derive::<Self>(__sabi_re::_private_TypeLayoutDerive {
                     shared_vars: Self::__SABI_SHARED_VARS,
@@ -67,3 +66,9 @@ macro_rules! monomorphic_marker_type {
         }
     };
 }
+
+
+
+
+
+
