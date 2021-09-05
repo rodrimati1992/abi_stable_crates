@@ -16,7 +16,7 @@ include = [
 ]
 
 [features]
-testing=["bitflags", "serde", "serde_derive","ron","regex","aho-corasick"]
+testing=["serde", "serde_derive","ron","regex","aho-corasick"]
 
 [dependencies]
 quote = "1.0.7"
@@ -28,7 +28,6 @@ aho-corasick= { version = "0.7.14", optional = true }
 
 # Used purely to work around minimum-version bug in ron and serde
 serde_derive= { version = "1.0.117", optional = true }
-bitflags = { version = "1.2.1", optional = true }
 
 [dependencies.syn]
 version = "1.0.46"

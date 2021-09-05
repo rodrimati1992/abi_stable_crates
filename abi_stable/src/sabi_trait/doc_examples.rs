@@ -55,6 +55,7 @@ pub trait DocHiddenTrait{}
 /// The trait used in examples of `#[sabi_trait]` trait object methods,
 /// [here](../../docs/sabi_trait_inherent/index.html)
 #[abi_stable::sabi_trait]
+// #[sabi(debug_print_trait)]
 pub trait Action: Debug {
     /// Gets the current value of `self`.
     fn get(&self) -> usize;

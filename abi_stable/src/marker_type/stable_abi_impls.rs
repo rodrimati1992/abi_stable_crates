@@ -1,4 +1,4 @@
-// Delete this once the abi_stable version number isn't 0.9
+// Only used by non-unit zero-sized types
 //
 macro_rules! monomorphic_marker_type {
     ($name:ident, $field:ty) => {

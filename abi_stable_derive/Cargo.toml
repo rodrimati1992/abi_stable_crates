@@ -28,7 +28,7 @@ proc-macro2 = "1.0.24"
 
 [dependencies.core_extensions]
 default_features=false
-features=["std", "self_ops", "slices", "type_level_bool"]
+features=["std", "iterators", "self_ops", "slices", "type_level_bool"]
 version= "1.4.2"
 
 [dependencies.syn]

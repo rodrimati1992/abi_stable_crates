@@ -566,14 +566,18 @@ mod tests{
             static ONCE:ROnce=ROnce::new();
 
             scoped_thread(|scope|{
-                scope.spawn(|_|{
-                    ONCE.call_once(||{
-                        thread::sleep(Duration::from_millis(500));
+                let (tx_start, rx_start) = std::sync::mpsc::channel();
+                let (tx_end, rx_end) = std::sync::mpsc::channel();
+                scope.spawn(move|_|{
+                    ONCE.call_once(|| {
+                        tx_start.send(()).unwrap();
+                        rx_end.recv().unwrap();
                     })
                 });
-                scope.spawn(|_|{
-                    thread::sleep(Duration::from_millis(5));
+                scope.spawn(move|_|{
+                    rx_start.recv().unwrap();
                     assert_eq!(ONCE.state(), ROnceState::InProgress);
+                    tx_end.send(()).unwrap();
                 });
             }).unwrap();
             assert_eq!(ONCE.state(), ROnceState::Done);
