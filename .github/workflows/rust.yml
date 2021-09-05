@@ -1,6 +1,6 @@
 name: Rust
 
-on: [push, pull_request]
+on: [pull_request]
 
 env:
   CARGO_TERM_COLOR: always
@@ -120,8 +120,8 @@ jobs:
         rustup override set "$MIRI_NIGHTLY"
         rustup component add miri
         cargo miri setup
-        env "MIRIFLAGS=-Zmiri-disable-isolation" cargo miri test --features testing
-        # env MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-track-raw-pointers" cargo miri test --features testing
+        # env "MIRIFLAGS=-Zmiri-disable-isolation" cargo miri test --features testing
+        env MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-track-raw-pointers" cargo miri test --features testing
 
         cd "${{github.workspace}}"
         rm Cargo.lock
