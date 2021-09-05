@@ -45,8 +45,8 @@ jobs:
         cd "${{github.workspace}}/testing/1 - loading errors/non_abi_stable_lib/"
         cargo +beta build
 
-        cd "${{github.workspace}}/testing/version_compatibility/impl_0"
-        cargo +beta build
+        # cd "${{github.workspace}}/testing/version_compatibility/impl_0"
+        # cargo +beta build
 
         cd "${{github.workspace}}/"
         rm Cargo.lock
@@ -100,8 +100,8 @@ jobs:
         env "RETURN=error" cargo run
         env "RETURN=panic" cargo run
 
-        cd "${{github.workspace}}/testing/version_compatibility/user_0"
-        cargo run
+        # cd "${{github.workspace}}/testing/version_compatibility/user_0"
+        # cargo run
 
     - uses: actions/checkout@v2
     - name: ci-nighly
