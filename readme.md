@@ -608,18 +608,9 @@ required until this library is updated to automatically detect them.
 
 Features:
 
-- "const_params": Enables impls which require using const generics, including implementing StableAbi for arrays of all lengths, requires a Rust version where const generics are stable.
-
-- "nightly_const_params": Enables impls which require using const generics, including implementing StableAbi for arrays of all lengths, needed for nightly Rust versions where const generics are unstable.
-
-
-### Nightly features
-
-The `all_nightly` feature enables all the `nightly_*` equivalents of the 
-manually enabled features.
-
-Every `nightly_*` feature enables both support from abi_stable,
-as well as the nightly feature flag in the compiler.
+- "rust_1_51": Enables impls which require using const generics,
+including implementing StableAbi for arrays of all lengths,
+requires Rust Rust 1.51.0 or higher.
 
 # Tools
 

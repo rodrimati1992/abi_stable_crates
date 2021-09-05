@@ -106,6 +106,10 @@ Fixed unsoundness in, discovered by passing `-Zmiri-track-raw-pointers` flag to 
 - `RVec::retain`
 - `RVec::truncate`
 
+Added `"rust_1_51"` feature to enable const generics support.
+
+Removed `"nightly_const_params"` and `"all_nightly"` features, since const generics have been stable for a while now.
+
 Might not be UB, but fixed anyway:
 - `RVec::as_mut_slice`
 - `<RVec as IntoIterator>::into_iter`
