@@ -26,20 +26,15 @@ default = ["channels","serde_json"]
 
 rust_1_42=[]
 
-# Enables stuff that requires const generics,use this once const generics are stabilized.
-const_params=[]
+rust_1_51=["rust_1_42", "const_params"]
 
-# Enables all nightly features.
-all_nightly=[
-    "nightly_const_params",
-]
+const_params=["rust_1_42"]
 
 # Enables the `#![feature(min_const_generics)]` attribute in 
 nightly_const_params=["const_params"]
 
-# Test features,only used internally.
+# internal features
 testing=[]
-test_const_params = []
 test_miri_track_raw = ["testing"]
 only_new_tests=["testing"]
 sabi_trait_examples=[]

@@ -88,15 +88,10 @@ every one of which has a `nightly_*` equivalent.
 
 Features:
 
-- "const_params":
+- "rust_1_51_0":
 Enables impls which require using const generics,
-including implementing StableAbi for arrays of all lengths, requires a Rust version
-where const generics are stable.
-
-- "nightly_const_params":
-Enables impls which require using const generics, 
-including implementing StableAbi for arrays of all lengths, needed for 
-nightly Rust versions where const generics are unstable.
+including implementing StableAbi for arrays of all lengths,
+requires Rust Rust 1.51.0 or higher.
 
 # Glossary
 
@@ -219,12 +214,6 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 
 #![deny(clippy::missing_safety_doc)]
 
-// Left here for nightly Rust users before this got stabilized.
-// Necessary for array impls of all sizes.
-#![cfg_attr(
-    feature="nightly_const_params",
-    feature(min_const_generics)
-)]
 
 #![cfg_attr(feature = "docsrs", feature(doc_cfg))]
 
