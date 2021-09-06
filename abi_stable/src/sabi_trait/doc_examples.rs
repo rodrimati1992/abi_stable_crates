@@ -53,7 +53,7 @@ pub trait DocHiddenTrait{}
 
 
 /// The trait used in examples of `#[sabi_trait]` trait object methods,
-/// [here](../../docs/sabi_trait_inherent/index.html)
+/// in [`abi_stable::docs::sabi_trait_inherent`]
 #[abi_stable::sabi_trait]
 // #[sabi(debug_print_trait)]
 pub trait Action: Debug {

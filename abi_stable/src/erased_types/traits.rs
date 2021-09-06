@@ -229,7 +229,7 @@ impl InterfaceType for FooInterface {
 /**
 Describes how a type is serialized by [`DynTrait`].
 
-[`DynTrait`]: ./struct.DynTrait.html
+[`DynTrait`]: ../struct.DynTrait.html
 */
 pub trait SerializeImplType<'s> {
     /// An [`InterfaceType`] implementor which determines the 
