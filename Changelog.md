@@ -2,6 +2,11 @@ This is the changelog,summarising changes in each version(some minor changes may
 
 # 0.10
 
+### 0.10.1
+
+Fixed support for building in ARM, from this pull request: https://github.com/rodrimati1992/abi_stable_crates/pull/50
+(if this causes other problems with ARM please create an issue!)
+
 ### 0.10.0
 
 Fixed soundness of the code under the Stacked Borrows model, by replacing uses of type-erased `&` and `&mut`s in trait objects and vtables with `RRef` and `RMut`. 
