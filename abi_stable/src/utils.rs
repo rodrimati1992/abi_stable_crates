@@ -12,10 +12,14 @@ use std::{
 
 use core_extensions::{
     strings::LeftPadder,
-    prelude::*,
+    TypeIdentity,
+    StringExt,
 };
 
-use crate::std_types::{RString,RStr};
+use crate::{
+    sabi_types::RMut,
+    std_types::{RString,RStr}
+};
 
 
 //////////////////////////////////////
@@ -58,6 +62,20 @@ pub fn ffi_panic_message(info:&'static PanicInfo) -> ! {
 pub const fn ref_as_nonnull<T>(reference: &T) -> NonNull<T> {
     unsafe{
         NonNull::new_unchecked(reference as *const T as *mut T)
+    }
+}
+
+/// Casts a `&'a mut ManuallyDrop<T>` to `RMut<'a, T>`
+pub fn manuallydrop_as_rmut<T>(this: &mut ManuallyDrop<T>) -> RMut<'_, T> {
+    unsafe{
+        RMut::new(this).transmute()
+    }
+}
+
+/// Casts a `&'a mut ManuallyDrop<T>` to `*mut T`
+pub fn manuallydrop_as_raw_mut<T>(this: &mut ManuallyDrop<T>) -> *mut T {
+    unsafe{
+        this as *mut ManuallyDrop<T> as *mut T
     }
 }
 
@@ -214,7 +232,7 @@ macro_rules! impl_fmt_padding {
             where T:Display
             {
                 use std::fmt::Write;
-                let this=self.into_type_mut();
+                let this=self.as_type_mut();
 
                 this.clear();
 
@@ -231,7 +249,7 @@ macro_rules! impl_fmt_padding {
             where T:Debug
             {
                 use std::fmt::Write;
-                let this=self.into_type_mut();
+                let this=self.as_type_mut();
 
                 this.clear();
 

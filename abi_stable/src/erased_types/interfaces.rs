@@ -15,6 +15,23 @@ pub struct CloneInterface;
 #[sabi(impl_InterfaceType(Send,Sync,Debug,Clone,Eq))]
 pub struct CloneEqInterface;
 
+//////////////////////////////////////////////
+
+/// Implements `InterfaceType`, requiring `Send + Sync + Debug + Clone + DoubleEndedIterator`
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Send,Sync,Debug,Clone,DoubleEndedIterator))]
+pub struct DEIteratorCloneInterface<T>(PhantomData<T>);
+
+impl<T> DEIteratorCloneInterface<T>{
+    pub const NEW:Self=Self(PhantomData);
+}
+
+impl<'a,T:'a> IteratorItem<'a> for DEIteratorCloneInterface<T>{
+    type Item=T;
+}
+
+
 
 //////////////////////////////////////////////
 
@@ -24,6 +41,14 @@ pub struct CloneEqInterface;
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Send,Sync,Default))]
 pub struct DefaultInterface;
+
+//////////////////////////////////////////////
+
+/// Implements `InterfaceType`, requiring `Send + Sync + Debug + Eq + Default`
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Send,Sync,Debug,Eq,Default))]
+pub struct DebugDefEqInterface;
 
 
 //////////////////////////////////////////////

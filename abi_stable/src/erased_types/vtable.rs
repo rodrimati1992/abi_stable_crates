@@ -26,10 +26,11 @@ use crate::{
     StableAbi,
     marker_type::{ErasedObject,NonOwningPhantom},
     prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
-    pointer_trait::{GetPointerKind,CanTransmuteElement},
+    pointer_trait::{AsPtr, GetPointerKind,CanTransmuteElement},
+    sabi_types::{RRef, RMut},
     std_types::{RSome,RNone,RIoError,RSeekFrom},
     type_level::{
-        impl_enum::{Implemented,Unimplemented,IsImplemented},
+        impl_enum::{Implemented,Unimplemented,Implementability},
         trait_marker,
     },
     utils::Transmuter,
@@ -66,35 +67,35 @@ pub trait GetVtable<'borr,This,ErasedPtr,OrigPtr,I:InterfaceBound> {
 /// A helper type for constructing a `DynTrait` at compile-time,
 /// by passing `VTableDT::GET` to `DynTrait::from_const`.
 #[repr(transparent)]
-pub struct VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>{
+pub struct VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>{
     pub(super) vtable:VTable_Ref<'borr,ErasedPtr,I>,
-    _for:NonOwningPhantom<(T,OrigPtr,Unerasability)>
+    _for:NonOwningPhantom<(T,OrigPtr,Downcasting)>
 }
 
-impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> Copy 
-    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+impl<'borr,T,ErasedPtr,OrigPtr,I,Downcasting> Copy 
+    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>
 {}
 
-impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> Clone
-    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+impl<'borr,T,ErasedPtr,OrigPtr,I,Downcasting> Clone
+    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>
 {
     fn clone(&self)->Self{
         *self
     }
 }
 
-impl<'borr,T,ErasedPtr,OrigPtr,I,Unerasability> 
-    VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Unerasability>
+impl<'borr,T,ErasedPtr,OrigPtr,I,Downcasting> 
+    VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>
 where
-    OrigPtr: CanTransmuteElement<(), Target=T, TransmutedPtr=ErasedPtr>,
-    ErasedPtr: GetPointerKind<Target=()>,
+    OrigPtr: CanTransmuteElement<(), PtrTarget = T, TransmutedPtr=ErasedPtr>,
+    ErasedPtr: AsPtr<PtrTarget=()>,
     I: InterfaceBound,
-    InterfaceFor<T,I,Unerasability>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,
+    InterfaceFor<T,I,Downcasting>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,
 {    
     /// Constructs a `VTableDT`.
     pub const GET:Self=Self{
         vtable:<
-            InterfaceFor<T,I,Unerasability> as 
+            InterfaceFor<T,I,Downcasting> as 
             GetVtable<'borr,T,ErasedPtr,OrigPtr,I>
         >::_GET_INNER_VTABLE,
         _for:NonOwningPhantom::NEW,
@@ -157,7 +158,7 @@ macro_rules! declare_meta_vtable {
         pub struct VTable<'borr,$erased_ptr,$interf>{
             pub type_info:&'static TypeInfo,
             _marker:NonOwningPhantom<($erased_ptr,$interf,&'borr())>,
-            pub drop_ptr:unsafe extern "C" fn(&mut $erased_ptr),
+            pub drop_ptr:unsafe extern "C" fn(RMut<'_, $erased_ptr>),
             $(
                 $( #[$field_attr] )*
                 $priv_field:$option_ty<$field_ty>,
@@ -221,7 +222,7 @@ macro_rules! declare_meta_vtable {
             {
                 unsafe{
                     std::mem::transmute::<
-                        unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>,
+                        unsafe extern "C" fn(RRef<'_, ErasedObject>)->RResult<ErasedObject,RBoxError>,
                         UnerasedSerializeFn<'s,I>,
                     >( self.erased_serialize() )
                 }
@@ -231,7 +232,7 @@ macro_rules! declare_meta_vtable {
 
         pub type UnerasedSerializeFn<'s,I>=
             unsafe extern "C" fn(
-                &'s ErasedObject
+                RRef<'s, ErasedObject>
             )->RResult<<I as GetSerializeProxyType<'s>>::ProxyType,RBoxError>;
 
 
@@ -431,9 +432,9 @@ macro_rules! declare_meta_vtable {
         impl<I> InterfaceBound for I
         where 
             I:InterfaceType,
-            $( I::$auto_trait:IsImplemented, )*
-            $( I::$marker_trait:IsImplemented, )*
-            $( I::$selector:IsImplemented, )*
+            $( I::$auto_trait:Implementability, )*
+            $( I::$marker_trait:Implementability, )*
+            $( I::$selector:Implementability, )*
         {
             #[doc(hidden)]
             const EXTRA_CHECKS:EnabledTraits=EnabledTraits{
@@ -443,7 +444,7 @@ macro_rules! declare_meta_vtable {
                 auto_traits:
                     $(
                         if_u16(
-                            <I::$auto_trait as IsImplemented>::VALUE,
+                            <I::$auto_trait as Implementability>::IS_IMPLD,
                             enabled_traits::auto_trait_mask::$auto_trait
                         )|
                     )*
@@ -454,13 +455,13 @@ macro_rules! declare_meta_vtable {
                 regular_traits:
                     $(
                         if_u64(
-                            <I::$marker_trait as IsImplemented>::VALUE,
+                            <I::$marker_trait as Implementability>::IS_IMPLD,
                             enabled_traits::regular_trait_mask::$marker_trait
                         )|
                     )*
                     $(
                         if_u64(
-                            <I::$selector as IsImplemented>::VALUE,
+                            <I::$selector as Implementability>::IS_IMPLD,
                             enabled_traits::regular_trait_mask::$selector
                         )|
                     )*
@@ -468,7 +469,7 @@ macro_rules! declare_meta_vtable {
             };
 
             $( 
-                const $selector:bool=<I::$selector as IsImplemented>::VALUE;
+                const $selector:bool=<I::$selector as Implementability>::IS_IMPLD;
             )*
             
             const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>=
@@ -529,7 +530,7 @@ declare_meta_vtable! {
 
     [
         #[sabi(accessible_if="<I as InterfaceBound>::Clone")]
-        clone_ptr:    unsafe extern "C" fn(&ErasedPtr)->ErasedPtr;
+        clone_ptr:    unsafe extern "C" fn(RRef<'_, ErasedPtr>)->ErasedPtr;
         priv _clone_ptr;
         option=Option,Some,None;
         field_index=field_index_for__clone_ptr;
@@ -557,7 +558,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::Display")]
-        display:unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
+        display:unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>;
         priv _display;
         option=Option,Some,None;
         field_index=field_index_for__display;
@@ -570,7 +571,7 @@ declare_meta_vtable! {
     ]
     [
     #[sabi(accessible_if="<I as InterfaceBound>::Debug")]
-        debug:unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>;
+        debug:unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>;
         priv _debug;
         option=Option,Some,None;
         field_index=field_index_for__debug;
@@ -585,11 +586,11 @@ declare_meta_vtable! {
         #[sabi(unsafe_change_type=r#"
             for<'s>
             unsafe extern "C" fn(
-                &'s ErasedObject
+                RRef<'s, ErasedObject>
             )->RResult<<I as GetSerializeProxyType<'s>>::ProxyType,RBoxError>
         "#)]
         #[sabi(accessible_if="<I as InterfaceBound>::Serialize")]
-        erased_serialize:unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>;
+        erased_serialize:unsafe extern "C" fn(RRef<'_, ErasedObject>)->RResult<ErasedObject,RBoxError>;
         priv priv_serialize;
         option=Option,Some,None;
         field_index=field_index_for_priv_serialize;
@@ -602,9 +603,9 @@ declare_meta_vtable! {
             unsafe{
                 Transmuter::<
                     unsafe extern "C" fn(
-                        &ErasedObject
+                        RRef<'_, ErasedObject>
                     )->RResult<<I as SerializeProxyType<'_>>::Proxy,RBoxError>,
-                    unsafe extern "C" fn(&ErasedObject)->RResult<ErasedObject,RBoxError>
+                    unsafe extern "C" fn(RRef<'_, ErasedObject>)->RResult<ErasedObject,RBoxError>
                 >{
                     from:serialize_impl::<T,I>
                 }.to
@@ -613,7 +614,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::PartialEq")]
-        partial_eq: unsafe extern "C" fn(&ErasedObject,&ErasedObject)->bool;
+        partial_eq: unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->bool;
         priv _partial_eq;
         option=Option,Some,None;
         field_index=field_index_for__partial_eq;
@@ -626,7 +627,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::Ord")]
-        cmp:        unsafe extern "C" fn(&ErasedObject,&ErasedObject)->RCmpOrdering;
+        cmp:        unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->RCmpOrdering;
         priv _cmp;
         option=Option,Some,None;
         field_index=field_index_for__cmp;
@@ -639,7 +640,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::PartialOrd")]
-        partial_cmp:unsafe extern "C" fn(&ErasedObject,&ErasedObject)->ROption<RCmpOrdering>;
+        partial_cmp:unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->ROption<RCmpOrdering>;
         priv _partial_cmp;
         option=Option,Some,None;
         field_index=field_index_for__partial_cmp;
@@ -652,7 +653,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::Hash")]
-        hash:unsafe extern "C" fn(&ErasedObject,trait_objects::HasherObject<'_>);
+        hash:unsafe extern "C" fn(RRef<'_, ErasedObject>,trait_objects::HasherObject<'_>);
         priv _hash;
         option=Option,Some,None;
         field_index=field_index_for__hash;
@@ -703,7 +704,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(accessible_if="<I as InterfaceBound>::FmtWrite")]
-        fmt_write_str:unsafe extern "C" fn(&mut ErasedObject,RStr<'_>)->RResult<(),()>;
+        fmt_write_str:unsafe extern "C" fn(RMut<'_, ErasedObject>,RStr<'_>)->RResult<(),()>;
         priv _fmt_write_str;
         option=Option,Some,None;
         field_index=field_index_for__fmt_write_str;
@@ -758,7 +759,7 @@ declare_meta_vtable! {
     [
         #[sabi(last_prefix_field)]
         #[sabi(accessible_if="<I as InterfaceBound>::IoSeek")]
-        io_seek:unsafe extern "C" fn(&mut ErasedObject,RSeekFrom)->RResult<u64,RIoError>;
+        io_seek:unsafe extern "C" fn(RMut<'_, ErasedObject>,RSeekFrom)->RResult<u64,RIoError>;
         priv _io_seek;
         option=Option,Some,None;
         field_index=field_index_for__io_seek;

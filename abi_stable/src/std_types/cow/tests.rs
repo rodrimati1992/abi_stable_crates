@@ -65,7 +65,7 @@ fn to_mut(){
         let mut value=RCow::<str>::Borrowed("what".into_c());
         assert_eq!(&*value, "what");
         
-        *value.to_mut()="the".into_(RString::T);
+        *value.to_mut()="the".piped(RString::from);
         assert_eq!(&*value, "the");
     }
     {
@@ -111,7 +111,7 @@ fn deserialize(){
 
     {// Borrowed string
         let json=r##" "what the hell" "##;
-        let str_borr="what the hell".into_(RStr::T);
+        let str_borr="what the hell".piped(RStr::from);
 
         let what:BorrowingRCowStr<'_>=serde_json::from_str(json).unwrap();
 
@@ -122,7 +122,7 @@ fn deserialize(){
     }
     {// Owned string
         let json=r##" "what \nthe hell" "##;
-        let str_owned="what \nthe hell".into_(RString::T);
+        let str_owned="what \nthe hell".piped(RString::from);
 
         let what:RCow<'_,str>=serde_json::from_str(json).unwrap();
 

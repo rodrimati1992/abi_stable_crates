@@ -2,6 +2,7 @@ use super::*;
 
 use crate::{
     pointer_trait::TransmuteElement,
+    sabi_types::{RRef, RMut},
     traits::IntoReprC,
 };
 
@@ -11,28 +12,21 @@ where
     K:Hash+Eq,
     S:BuildHasher,
 {
-    pub(super) unsafe fn as_hashmap(&self)->&BoxedHashMap<'_,K,V,S>{
-        transmute_reference(self)
-    }
-    pub(super) unsafe fn as_mut_hashmap(&mut self)->&mut BoxedHashMap<'_,K,V,S>{
-        transmute_mut_reference(self)
-    }
-
-    fn run<'a,F,R>(&'a self,f:F)->R
+    fn run<'a,F,R>(this: RRef<'a, Self>,f:F)->R
     where F:FnOnce(&'a BoxedHashMap<'a,K,V,S>)->R
     {
         extern_fn_panic_handling!{
-            let map=unsafe{ self.as_hashmap() };
-            f( map )
+            let map = unsafe{ this.transmute_into_ref::<BoxedHashMap<'a,K,V,S>>() };
+            f(map)
         }
     }
     
-    fn run_mut<'a,F,R>(&'a mut self,f:F)->R
+    fn run_mut<'a,F,R>(this: RMut<'a, Self>,f:F)->R
     where F:FnOnce(&'a mut BoxedHashMap<'a,K,V,S>)->R
     {
         extern_fn_panic_handling!{
-            let map=unsafe{ self.as_mut_hashmap() };
-            f( map )
+            let map = unsafe{ this.transmute_into_mut::<BoxedHashMap<'a,K,V,S>>() };
+            f(map)
         }
     }
 
@@ -43,32 +37,32 @@ where
         V:'a,
     {
         extern_fn_panic_handling!{
-            let map=unsafe{ this.transmute_element::<BoxedHashMap<'a,K,V,S>>() };
+            let map = unsafe{ this.transmute_element::<BoxedHashMap<'a,K,V,S>>() };
             f( map )
         }
     }
 
-    pub(super)extern "C" fn insert_elem(&mut self,key:K,value:V)->ROption<V>{
-        self.run_mut(|this|{
+    pub(super)extern "C" fn insert_elem(this: RMut<'_, Self>,key:K,value:V)->ROption<V>{
+        Self::run_mut(this, |this|{
             this.map.insert(MapKey::Value(key),value)
                 .into_c()
         })
     }
 
-    pub(super)extern "C" fn get_elem(&self,key:MapQuery<'_,K>)->Option<&V>{
-        self.run(|this|unsafe{ 
+    pub(super)extern "C" fn get_elem<'a>(this: RRef<'a, Self>, key:MapQuery<'_,K>)->Option<&'a V>{
+        Self::run(this, |this|unsafe{ 
             this.map.get(&key.as_mapkey()) 
         })
     }    
 
-    pub(super)extern "C" fn get_mut_elem(&mut self,key:MapQuery<'_,K>)->Option<&mut V>{
-        self.run_mut(|this|unsafe{ 
+    pub(super)extern "C" fn get_mut_elem<'a>(this: RMut<'a, Self>,key:MapQuery<'_,K>)->Option<&'a mut V>{
+        Self::run_mut(this, |this|unsafe{ 
             this.map.get_mut(&key.as_mapkey()) 
         })
     }
 
-    pub(super)extern "C" fn remove_entry(&mut self,key:MapQuery<'_,K>)->ROption<Tuple2<K,V>>{
-        self.run_mut(|this|{
+    pub(super)extern "C" fn remove_entry(this: RMut<'_, Self>,key:MapQuery<'_,K>)->ROption<Tuple2<K,V>>{
+        Self::run_mut(this, |this|{
             match this.map.remove_entry(unsafe{ &key.as_mapkey() }) {
                 Some(x)=>RSome(Tuple2(x.0.into_inner(),x.1)),
                 None=>RNone,
@@ -76,16 +70,16 @@ where
         })
     }
 
-    pub(super)extern "C" fn get_elem_p(&self,key:&K)->Option<&V>{
-        self.run(|this| this.map.get(key) )
+    pub(super)extern "C" fn get_elem_p<'a>(this: RRef<'a, Self>, key:&K)->Option<&'a V>{
+        Self::run(this, |this| this.map.get(key) )
     }    
 
-    pub(super)extern "C" fn get_mut_elem_p(&mut self,key:&K)->Option<&mut V>{
-        self.run_mut(|this| this.map.get_mut(key) )
+    pub(super)extern "C" fn get_mut_elem_p<'a>(this: RMut<'a, Self>,key:&K)->Option<&'a mut V>{
+        Self::run_mut(this, |this| this.map.get_mut(key) )
     }
 
-    pub(super)extern "C" fn remove_entry_p(&mut self,key:&K)->ROption<Tuple2<K,V>>{
-        self.run_mut(|this|{
+    pub(super)extern "C" fn remove_entry_p(this: RMut<'_, Self>,key:&K)->ROption<Tuple2<K,V>>{
+        Self::run_mut(this, |this|{
             match this.map.remove_entry( key ) {
                 Some(x)=>RSome(Tuple2(x.0.into_inner(),x.1)),
                 None=>RNone,
@@ -94,38 +88,38 @@ where
     }
 
 
-    pub(super)extern "C" fn reserve(&mut self,reserved:usize){
-        self.run_mut(|this| this.map.reserve(reserved) )
+    pub(super)extern "C" fn reserve(this: RMut<'_, Self>,reserved:usize){
+        Self::run_mut(this, |this| this.map.reserve(reserved) )
     }
 
-    pub(super)extern "C" fn clear_map(&mut self){
-        self.run_mut(|this| this.map.clear() )
+    pub(super)extern "C" fn clear_map(this: RMut<'_, Self>){
+        Self::run_mut(this, |this| this.map.clear() )
     }
 
-    pub(super)extern "C" fn len(&self)->usize{
-        self.run(|this| this.map.len() )
+    pub(super)extern "C" fn len(this: RRef<'_, Self>)->usize{
+        Self::run(this, |this| this.map.len() )
     }
 
-    pub(super)extern "C" fn capacity(&self)->usize{
-        self.run(|this| this.map.capacity() )
+    pub(super)extern "C" fn capacity(this: RRef<'_, Self>)->usize{
+        Self::run(this, |this| this.map.capacity() )
     }
 
-    pub(super)extern "C" fn iter     (&self)->Iter<'_,K,V>{
-        self.run(|this|{
+    pub(super)extern "C" fn iter     (this: RRef<'_, Self>)->Iter<'_,K,V>{
+        Self::run(this, |this|{
             let iter=this.map.iter().map(map_iter_ref);
             DynTrait::from_borrowing_value(iter,RefIterInterface::NEW)
         })
     }
 
-    pub(super)extern "C" fn iter_mut (&mut self)->IterMut<'_,K,V>{
-        self.run_mut(|this|{
+    pub(super)extern "C" fn iter_mut (this: RMut<'_, Self>)->IterMut<'_,K,V>{
+        Self::run_mut(this, |this|{
             let iter=this.map.iter_mut().map(map_iter_ref);
             DynTrait::from_borrowing_value(iter,MutIterInterface::NEW)
         })
     }
 
-    pub(super)extern "C" fn drain    (&mut self)->Drain<'_,K,V>{
-        self.run_mut(|this|{
+    pub(super)extern "C" fn drain    (this: RMut<'_, Self>)->Drain<'_,K,V>{
+        Self::run_mut(this, |this|{
             let iter=this.map.drain().map(map_iter_val);
             DynTrait::from_borrowing_value(iter,ValIterInterface::NEW)
         })
@@ -139,8 +133,8 @@ where
         })
     }
 
-    pub(super)extern "C" fn entry(&mut self,key:K)->REntry<'_,K,V>{
-        self.run_mut(|this|{
+    pub(super)extern "C" fn entry(this: RMut<'_, Self>,key:K)->REntry<'_,K,V>{
+        Self::run_mut(this, |this|{
             this.entry=None;
             let map=&mut this.map;
             let entry_mut=this.entry

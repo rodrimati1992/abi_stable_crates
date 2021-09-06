@@ -18,7 +18,7 @@ use std::{
 
 use crate::{
     sabi_trait,
-    type_level::unerasability::{TU_Opaque,TU_Unerasable},
+    type_level::downcasting::{TD_Opaque,TD_CanDowncast},
 };
 
 
@@ -35,7 +35,7 @@ pub mod no_supertraits{
     impl Trait for Struct{}
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
     }
 }
@@ -54,7 +54,7 @@ pub mod static_supertrait{
     impl Trait for Struct<'_>{}
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct(""),TU_Unerasable);
+        let object=Trait_TO::from_value(Struct(""),TD_CanDowncast);
         object.method();
     }
 
@@ -96,7 +96,7 @@ pub mod nonstatic_supertrait{
     impl<'a,T> Trait<'a> for Option<T>{}
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct(""),TU_Unerasable);
+        let object=Trait_TO::from_value(Struct(""),TD_CanDowncast);
         object.method();
     }
 
@@ -124,7 +124,7 @@ pub mod nonstatic_supertrait{
         pub const CONST:Trait_CTO<'a,'a,'b>=
             Trait_CTO::from_const(
                 &Self::NONE,
-                TU_Opaque,
+                TD_Opaque,
                 Trait_MV::VTABLE,
             );
         pub fn get_const(_:&'a T)->Trait_CTO<'a,'a,'b>{
@@ -167,7 +167,7 @@ pub mod only_clone{
     impl Trait for Struct{}
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         let _=object.clone();
     }
@@ -193,7 +193,7 @@ pub mod only_display{
     impl Trait for Struct{}
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         format!("{}",object);
     }
@@ -213,7 +213,7 @@ pub mod only_debug{
     impl Trait for Struct{}
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         format!("{:?}",object);
     }
@@ -245,7 +245,7 @@ pub mod only_debug{
 //     {}
 
 //     fn test_constructible(){
-//         let object=Trait_TO::from_value(Struct,TU_Unerasable);
+//         let object=Trait_TO::from_value(Struct,TD_CanDowncast);
 //         object.method();
 //         assert_bound(&object);
 //     }
@@ -281,7 +281,7 @@ pub mod only_debug{
 //     {}
 
 //     fn test_constructible(){
-//         let object=Trait_TO::from_value(Struct,TU_Unerasable);
+//         let object=Trait_TO::from_value(Struct,TD_CanDowncast);
 //         object.method();
 //         assert_bound(&object);
 //     }
@@ -308,7 +308,7 @@ pub mod only_partial_eq{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -334,7 +334,7 @@ pub mod only_eq{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -360,7 +360,7 @@ pub mod only_partial_ord{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -386,7 +386,7 @@ pub mod only_ord{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -412,7 +412,7 @@ pub mod only_hash{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -444,7 +444,7 @@ pub mod only_iterator_a{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct(&0),TU_Unerasable);
+        let object=Trait_TO::from_value(Struct(&0),TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -476,7 +476,7 @@ pub mod only_iterator_b{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -514,7 +514,7 @@ pub mod only_de_iterator{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -549,7 +549,7 @@ pub mod only_error{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -580,7 +580,7 @@ pub mod only_fmt_write{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -614,7 +614,7 @@ pub mod only_io_write{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -645,7 +645,7 @@ pub mod only_io_read{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -684,7 +684,7 @@ pub mod only_io_bufread{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -715,7 +715,7 @@ pub mod only_io_seek{
     {}    
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -813,7 +813,7 @@ pub mod every_trait{
     {}
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -915,7 +915,7 @@ pub mod every_trait_static{
     {}
 
     fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TU_Unerasable);
+        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
@@ -1016,7 +1016,7 @@ pub mod every_trait_nonstatic{
 
         let string=String::new();
         let value=Struct(&string);
-        let object=Trait_TO::from_ptr(RBox::new(value),TU_Opaque);
+        let object=Trait_TO::from_ptr(RBox::new(value),TD_Opaque);
         object.method();
         assert_bound(&object);
 
@@ -1033,7 +1033,7 @@ pub mod every_trait_nonstatic{
     const CONST_A:Trait_CTO<'static,'static,'static>=
         Trait_CTO::from_const(
             &Struct(""),
-            TU_Opaque,
+            TD_Opaque,
             Trait_MV::VTABLE,
         );
 
@@ -1041,7 +1041,7 @@ pub mod every_trait_nonstatic{
     where
         T:'borr+'a+Trait<'a>
     {
-        Trait_CTO::from_const(ref_,TU_Opaque,Trait_MV::VTABLE)
+        Trait_CTO::from_const(ref_,TD_Opaque,Trait_MV::VTABLE)
     }
 
 }

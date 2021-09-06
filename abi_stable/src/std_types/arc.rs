@@ -9,12 +9,12 @@ use std::{
     sync::Arc,
 };
 
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::{
     abi_stability::StableAbi,
     pointer_trait::{
-        CallReferentDrop, CanTransmuteElement,
+        AsPtr, CallReferentDrop, CanTransmuteElement,
         GetPointerKind,PK_SmartPointer,
     },
     prefix_type::{PrefixTypeTrait,WithMetadata},
@@ -101,10 +101,22 @@ assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
 
     unsafe impl<T> GetPointerKind for RArc<T>{
         type Kind=PK_SmartPointer;
+
+        type PtrTarget = T;
+    }
+
+    unsafe impl<T> AsPtr for RArc<T> {
+        fn as_ptr(&self) -> *const T {
+            self.data
+        }
     }
 
     unsafe impl<T, O> CanTransmuteElement<O> for RArc<T> {
         type TransmutedPtr = RArc<O>;
+
+        unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
+            core_extensions::utils::transmute_ignore_size(self)
+        }
     }
 
     impl<T> RArc<T> {

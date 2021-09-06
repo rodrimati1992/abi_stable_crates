@@ -15,8 +15,8 @@ use version_compatibility_interface::RootMod_Ref;
 
 /// Returns the path the library will be loaded from.
 fn compute_library_dir()->io::Result<PathBuf>{
-    let debug_dir  ="../../../target/debug/"  .as_ref_::<Path>().into_(PathBuf::T);
-    let release_dir="../../../target/release/".as_ref_::<Path>().into_(PathBuf::T);
+    let debug_dir  ="../../../target/debug/"  .as_ref_::<Path>().into_::<PathBuf>();
+    let release_dir="../../../target/release/".as_ref_::<Path>().into_::<PathBuf>();
 
     let debug_path  =RootMod_Ref::get_library_path(&debug_dir);
     let release_path=RootMod_Ref::get_library_path(&release_dir);

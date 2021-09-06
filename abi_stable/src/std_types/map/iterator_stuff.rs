@@ -2,6 +2,7 @@ use super::*;
 
 use crate::{
     erased_types::IteratorItem,
+    utils::{transmute_reference, transmute_mut_reference},
 };
 
 macro_rules! declare_iter_interface {
@@ -11,9 +12,9 @@ macro_rules! declare_iter_interface {
         interface=$interface:ident;
         type Item=$item:ty;
     ) => (
-        $(#[$attr])*
         #[repr(C)]
         #[derive(StableAbi)]
+        $(#[$attr])*
         pub struct $interface<$k,$v>(PhantomData<($k,$v)>);
 
         impl<$k,$v> $interface<$k,$v>{

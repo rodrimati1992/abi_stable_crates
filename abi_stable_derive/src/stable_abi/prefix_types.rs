@@ -8,7 +8,7 @@ Code generation for prefix-types.
 use abi_stable_shared::const_utils::low_bit_mask_u64;
 
 use core_extensions::{
-    prelude::*,
+    SelfOps,
     matches,
 };
 
@@ -212,7 +212,7 @@ impl<'a> AccessorOrMaybe<'a>{
 
     #[allow(dead_code)]
     pub(crate) fn is_maybe_accessor(&self)->bool{
-        matches!(AccessorOrMaybe::Maybe{..}= self )
+        matches!(self, AccessorOrMaybe::Maybe{..})
     }
 }
 
@@ -252,7 +252,7 @@ pub(crate) fn prefix_type_tokenizer<'a>(
     config:&'a StableAbiOptions<'a>,
     _ctokens:&'a CommonTokens<'a>,
 )-> Result<impl ToTokens+'a,syn::Error> {
-    if matches!(StabilityKind::Prefix{..}=&config.kind) {
+    if matches!(config.kind, StabilityKind::Prefix{..}) {
         if ds.variants.get(0).map_or(false,|struct_| struct_.fields.len() > 64 ) {
             return_spanned_err!(
                 ds.name,
@@ -306,7 +306,7 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         let stringified_generics=(&ty_generics).into_token_stream().to_string();
         let stringified_generics_tokenizer=rstr_tokenizer(&stringified_generics);
 
-        let is_ds_pub=matches!(Visibility::Public{..}=ds.vis)&&doc_hidden_attr.is_none();
+        let is_ds_pub=matches!(ds.vis, Visibility::Public{..}) && doc_hidden_attr.is_none();
 
         let prefix_ref_docs=if is_ds_pub {
             format!("\

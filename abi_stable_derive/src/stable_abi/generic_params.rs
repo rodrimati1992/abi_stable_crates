@@ -42,7 +42,7 @@ impl<'a> GenericParams<'a>{
                         arenas.alloc(x)
                     };
 
-                    let layout_ctor=bounds.into_(LayoutConstructor::T);
+                    let layout_ctor=bounds.into_::<LayoutConstructor>();
                     shared_vars.borrow_mut().push_type(layout_ctor,type_).to_u10()
                 });
 

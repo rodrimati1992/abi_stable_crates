@@ -30,6 +30,8 @@ use crate::{
     traits::{IntoReprRust,ErasedType},
     std_types::{RResult,ROk,RErr,ROption,RDuration,RBox},
     prefix_type::{PrefixTypeTrait,WithMetadata},
+    pointer_trait::AsPtr,
+    sabi_types::RRef,
 };
 
 
@@ -37,7 +39,7 @@ mod errors;
 mod extern_fns;
 mod iteration;
 
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(all(test,not(feature="test_miri_track_raw")))]
 mod tests;
 
 use self::{
@@ -61,7 +63,8 @@ pub use self::{
 ///
 /// # Example
 ///
-/// ```
+#[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+#[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
 /// use abi_stable::external_types::crossbeam_channel as mpmc;
 ///
 /// let rx=mpmc::never::<()>();
@@ -73,67 +76,67 @@ pub fn never<T>() -> RReceiver<T>{
     crossbeam_channel::never::<T>().into()
 }
 
-/**
-Creates a channel which can hold up to `capacity` elements in its internal queue.
 
-If `capacity==0`,the value must be sent to a receiver in the middle of a `recv` call.
-
-# Panics
-
-Panics if `capacity >= usize::max_value() / 4`.
-
-# Example
-
-```
-use abi_stable::external_types::crossbeam_channel as mpmc;
-
-let (tx,rx)=mpmc::bounded::<u32>(3);
-
-std::thread::spawn(move||{
-    tx.send(10).unwrap();
-    tx.send(11).unwrap();
-    tx.send(12).unwrap();
-});
-
-assert_eq!( rx.recv().unwrap(), 10 );
-assert_eq!( rx.recv().unwrap(), 11 );
-assert_eq!( rx.recv().unwrap(), 12 );
-assert!( rx.try_recv().is_err() );
-
-```
-
-*/
+/// Creates a channel which can hold up to `capacity` elements in its internal queue.
+/// 
+/// If `capacity==0`,the value must be sent to a receiver in the middle of a `recv` call.
+/// 
+/// # Panics
+/// 
+/// Panics if `capacity >= usize::max_value() / 4`.
+/// 
+/// # Example
+/// 
+#[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+#[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
+/// use abi_stable::external_types::crossbeam_channel as mpmc;
+/// 
+/// let (tx,rx)=mpmc::bounded::<u32>(3);
+/// 
+/// std::thread::spawn(move||{
+///     tx.send(10).unwrap();
+///     tx.send(11).unwrap();
+///     tx.send(12).unwrap();
+/// });
+/// 
+/// assert_eq!( rx.recv().unwrap(), 10 );
+/// assert_eq!( rx.recv().unwrap(), 11 );
+/// assert_eq!( rx.recv().unwrap(), 12 );
+/// assert!( rx.try_recv().is_err() );
+/// 
+/// ```
+/// 
 pub fn bounded<T>(capacity:usize) -> (RSender<T>, RReceiver<T>) {
     let (tx,rx)=crossbeam_channel::bounded::<T>(capacity);
     ( tx.into(), rx.into() )
 }
 
-/**
-Creates a channel which can hold an unbounded amount elements in its internal queue.
-
-# Example
-
-```
-use abi_stable::external_types::crossbeam_channel as mpmc;
-
-let (tx,rx)=mpmc::unbounded::<&'static str>();
-
-let join_guard=std::thread::spawn(move||{
-    assert_eq!( rx.recv().unwrap(), "foo" );
-    assert_eq!( rx.recv().unwrap(), "bar" );
-    assert_eq!( rx.recv().unwrap(), "baz" );
-    assert!( rx.try_recv().is_err() );
-});
-
-tx.send("foo").unwrap();
-tx.send("bar").unwrap();
-tx.send("baz").unwrap();
-
-join_guard.join().unwrap();
-
-```
-
-*/
+/// Creates a channel which can hold an unbounded amount elements in its internal queue.
+/// 
+/// # Example
+/// 
+#[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+#[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
+/// use abi_stable::external_types::crossbeam_channel as mpmc;
+/// 
+/// let (tx,rx)=mpmc::unbounded::<&'static str>();
+/// 
+/// let join_guard=std::thread::spawn(move||{
+///     assert_eq!( rx.recv().unwrap(), "foo" );
+///     assert_eq!( rx.recv().unwrap(), "bar" );
+///     assert_eq!( rx.recv().unwrap(), "baz" );
+///     assert!( rx.try_recv().is_err() );
+/// });
+/// 
+/// tx.send("foo").unwrap();
+/// tx.send("bar").unwrap();
+/// tx.send("baz").unwrap();
+/// 
+/// join_guard.join().unwrap();
+/// 
+/// ```
+/// 
+/// 
 pub fn unbounded<T>() -> (RSender<T>, RReceiver<T>) {
     let (tx,rx)=crossbeam_channel::unbounded::<T>();
     ( tx.into(), rx.into() )
@@ -143,33 +146,33 @@ pub fn unbounded<T>() -> (RSender<T>, RReceiver<T>) {
 ///////////////////////////////////////////////////////////////////////////////
 
 
-/**
-The sender end of a channel,
-which can be either bounded or unbounded.
-
-# Example
-
-```
-use abi_stable::external_types::crossbeam_channel as mpmc;
-
-let (tx,rx)=mpmc::bounded::<&'static str>(1024);
-
-std::thread::spawn(move||{
-    for _ in 0..4{
-        tx.send("Are we there yet.").unwrap();
-    }
-});
-
-assert_eq!(rx.recv().unwrap(),"Are we there yet.");
-assert_eq!(rx.recv().unwrap(),"Are we there yet.");
-assert_eq!(rx.recv().unwrap(),"Are we there yet.");
-assert_eq!(rx.recv().unwrap(),"Are we there yet.");
-assert!( rx.recv().is_err() );
-
-
-```
-
-*/
+/// The sender end of a channel,
+/// which can be either bounded or unbounded.
+/// 
+/// # Example
+/// 
+#[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+#[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
+/// use abi_stable::external_types::crossbeam_channel as mpmc;
+/// 
+/// let (tx,rx)=mpmc::bounded::<&'static str>(1024);
+/// 
+/// std::thread::spawn(move||{
+///     for _ in 0..4{
+///         tx.send("Are we there yet.").unwrap();
+///     }
+/// });
+/// 
+/// assert_eq!(rx.recv().unwrap(),"Are we there yet.");
+/// assert_eq!(rx.recv().unwrap(),"Are we there yet.");
+/// assert_eq!(rx.recv().unwrap(),"Are we there yet.");
+/// assert_eq!(rx.recv().unwrap(),"Are we there yet.");
+/// assert!( rx.recv().is_err() );
+/// 
+/// 
+/// ```
+/// 
+/// 
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct RSender<T>{
@@ -183,106 +186,106 @@ impl<T> RSender<T>{
         self.vtable
     }
 
-/**
-Blocks until `value` is either sent,or the the other end is disconnected.
 
-If the channel queue is full,this will block to send `value`.
-
-If the channel is disconnected,this will return an error with `value`.
-
-# Example
-
-```
-use abi_stable::external_types::crossbeam_channel as mpmc;
-
-let (tx,rx)=mpmc::bounded::<u32>(3);
-
-tx.send(1057).unwrap();
-
-drop(rx);
-assert!( tx.send(0).is_err() );
-
-```
-
-*/
+    /// Blocks until `value` is either sent,or the the other end is disconnected.
+    /// 
+    /// If the channel queue is full,this will block to send `value`.
+    /// 
+    /// If the channel is disconnected,this will return an error with `value`.
+    /// 
+    /// # Example
+    /// 
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
+    /// use abi_stable::external_types::crossbeam_channel as mpmc;
+    /// 
+    /// let (tx,rx)=mpmc::bounded::<u32>(3);
+    /// 
+    /// tx.send(1057).unwrap();
+    /// 
+    /// drop(rx);
+    /// assert!( tx.send(0).is_err() );
+    /// 
+    /// ```
+    /// 
     pub fn send(&self,value:T) -> Result<(),SendError<T>>{
         let vtable=self.vtable();
 
-        vtable.send()(&*self.channel,value)
+        vtable.send()(self.channel.as_rref(),value)
             .piped(result_from)
     }
 
 
-/**
-Immediately sends `value`,or returns with an error.
-
-An error will be returned in these 2 conditions:
-
-- the channel is full.
-
-- the channel has been disconnected.
-
-If the channel has a capacity of 0,it will only send `value` if 
-the other end is calling `recv`.
-
-# Example
-
-```
-use abi_stable::external_types::crossbeam_channel as mpmc;
-
-let (tx,rx)=mpmc::bounded::<bool>(1);
-
-tx.try_send(true).unwrap();
-assert!( tx.try_send(true).unwrap_err().is_full() );
-
-drop(rx);
-assert!( tx.try_send(false).unwrap_err().is_disconnected() );
-
-```
-
-*/
+    /// Immediately sends `value`,or returns with an error.
+    /// 
+    /// An error will be returned in these 2 conditions:
+    /// 
+    /// - the channel is full.
+    /// 
+    /// - the channel has been disconnected.
+    /// 
+    /// If the channel has a capacity of 0,it will only send `value` if 
+    /// the other end is calling `recv`.
+    /// 
+    /// # Example
+    /// 
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
+    /// use abi_stable::external_types::crossbeam_channel as mpmc;
+    /// 
+    /// let (tx,rx)=mpmc::bounded::<bool>(1);
+    /// 
+    /// tx.try_send(true).unwrap();
+    /// assert!( tx.try_send(true).unwrap_err().is_full() );
+    /// 
+    /// drop(rx);
+    /// assert!( tx.try_send(false).unwrap_err().is_disconnected() );
+    /// 
+    /// ```
+    /// 
+    /// 
     pub fn try_send(&self,value:T) -> Result<(),TrySendError<T>>{
         let vtable=self.vtable();
 
-        vtable.try_send()(&*self.channel,value)
+        vtable.try_send()(self.channel.as_rref(),value)
             .piped(result_from)
     }
 
-/**
-Blocks until a timeout to send `value`.
-
-An error will be returned in these 2 conditions:
-
-- the value could not be sent before the timeout.
-
-- the channel has been disconnected.
-
-If the channel has a capacity of 0,it will only send `value` if 
-the other end calls `recv` before the timeout.
-
-# Example
-
-```
-use abi_stable::external_types::crossbeam_channel as mpmc;
-
-use std::time::Duration;
-
-let (tx,rx)=mpmc::bounded::<()>(1);
-
-let timeout=Duration::from_millis(1);
-
-tx.send_timeout((),timeout).unwrap();
-assert!( tx.send_timeout((),timeout).unwrap_err().is_timeout() );
-
-drop(rx);
-assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
-
-```
-*/
+    /// Blocks until a timeout to send `value`.
+    /// 
+    /// An error will be returned in these 2 conditions:
+    /// 
+    /// - the value could not be sent before the timeout.
+    /// 
+    /// - the channel has been disconnected.
+    /// 
+    /// If the channel has a capacity of 0,it will only send `value` if 
+    /// the other end calls `recv` before the timeout.
+    /// 
+    /// # Example
+    /// 
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
+    /// use abi_stable::external_types::crossbeam_channel as mpmc;
+    /// 
+    /// use std::time::Duration;
+    /// 
+    /// let (tx,rx)=mpmc::bounded::<()>(1);
+    /// 
+    /// let timeout=Duration::from_millis(1);
+    /// 
+    /// tx.send_timeout((),timeout).unwrap();
+    /// assert!( tx.send_timeout((),timeout).unwrap_err().is_timeout() );
+    /// 
+    /// drop(rx);
+    /// assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
+    /// 
+    /// ```
+    /// 
     pub fn send_timeout(&self,value:T,timeout:Duration) -> Result<(),SendTimeoutError<T>>{
         let vtable=self.vtable();
 
-        vtable.send_timeout()(&*self.channel,value,timeout.into())
+        vtable.send_timeout()(self.channel.as_rref(),value,timeout.into())
             .piped(result_from)
     }
 
@@ -290,7 +293,8 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
     /// use abi_stable::external_types::crossbeam_channel as mpmc;
     ///
     /// let (tx,rx)=mpmc::bounded::<()>(1);
@@ -306,7 +310,7 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     pub fn is_empty(&self) -> bool{
         let vtable=self.vtable();
 
-        vtable.sender_is_empty()(&*self.channel)
+        vtable.sender_is_empty()(self.channel.as_rref())
     }
 
     /// Returns true if the channel queue is full.
@@ -315,7 +319,8 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
     /// use abi_stable::external_types::crossbeam_channel as mpmc;
     ///
     /// let (tx,rx)=mpmc::bounded::<()>(2);
@@ -334,14 +339,15 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     pub fn is_full(&self) -> bool{
         let vtable=self.vtable();
 
-        vtable.sender_is_full()(&*self.channel)
+        vtable.sender_is_full()(self.channel.as_rref())
     }
 
     /// Returns the amount of values in the channel queue.
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
     /// use abi_stable::external_types::crossbeam_channel as mpmc;
     ///
     /// let (tx,rx)=mpmc::bounded::<()>(2);
@@ -361,7 +367,7 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     pub fn len(&self) -> usize{
         let vtable=self.vtable();
         
-        vtable.sender_len()(&*self.channel)
+        vtable.sender_len()(self.channel.as_rref())
     }
 
     /// Returns the amount of values the channel queue can hold.
@@ -370,7 +376,8 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
     /// use abi_stable::external_types::crossbeam_channel as mpmc;
     ///
     /// {
@@ -386,7 +393,7 @@ assert!( tx.send_timeout((),timeout).unwrap_err().is_disconnected() );
     pub fn capacity(&self) -> Option<usize>{
         let vtable=self.vtable();
         
-        vtable.sender_capacity()(&*self.channel)
+        vtable.sender_capacity()(self.channel.as_rref())
             .into_rust()
     }
 
@@ -401,7 +408,7 @@ impl<T> Clone for RSender<T>{
         let vtable=self.vtable();
 
         Self{
-            channel:vtable.clone_sender()(&*self.channel),
+            channel:vtable.clone_sender()(self.channel.as_rref()),
             vtable:self.vtable,
         }
     }
@@ -434,37 +441,36 @@ impl_from_rust_repr! {
 ///////////////////////////////////////////////////////////////////////////////
 
 
-/**
-The receiver end of a channel,
-which can be either bounded or unbounded.
-
-# Examples
-
-```
-use abi_stable::external_types::crossbeam_channel as mpmc;
-
-let (tx,rx)=mpmc::unbounded::<&'static str>();
-
-let join_guard=std::thread::spawn(move||{
-    assert_eq!(rx.recv().unwrap(),"PING");
-    assert_eq!(rx.recv().unwrap(),"PING");
-    assert_eq!(rx.recv().unwrap(),"PING");
-    assert_eq!(rx.recv().unwrap(),"PING");
-    assert!( rx.try_recv().unwrap_err().is_empty() );
-});
-
-for _ in 0..4{
-    tx.send("PING").unwrap();
-}
-
-join_guard.join().unwrap();
-
-assert!( tx.send("").is_err() );
-
-
-```
-
-*/
+/// The receiver end of a channel,
+/// which can be either bounded or unbounded.
+/// 
+/// # Examples
+/// 
+#[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+#[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
+/// use abi_stable::external_types::crossbeam_channel as mpmc;
+/// 
+/// let (tx,rx)=mpmc::unbounded::<&'static str>();
+/// 
+/// let join_guard=std::thread::spawn(move||{
+///     assert_eq!(rx.recv().unwrap(),"PING");
+///     assert_eq!(rx.recv().unwrap(),"PING");
+///     assert_eq!(rx.recv().unwrap(),"PING");
+///     assert_eq!(rx.recv().unwrap(),"PING");
+///     assert!( rx.try_recv().unwrap_err().is_empty() );
+/// });
+/// 
+/// for _ in 0..4{
+///     tx.send("PING").unwrap();
+/// }
+/// 
+/// join_guard.join().unwrap();
+/// 
+/// assert!( tx.send("").is_err() );
+/// 
+/// 
+/// ```
+/// 
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct RReceiver<T>{
@@ -478,111 +484,111 @@ impl<T> RReceiver<T>{
         self.vtable
     }
 
-/**
-Blocks until a value is either received,or the the other end is disconnected.
-
-If the channel queue is empty,this will block to receive a value.
-
-This will return an error if the channel is disconnected.
-
-
-# Example
-
-```
-use abi_stable::external_types::crossbeam_channel as mpmc;
-
-let (tx,rx)=mpmc::bounded::<&'static str>(3);
-
-tx.send("J__e H____y").unwrap();
-assert_eq!( rx.recv().unwrap(), "J__e H____y" );
-
-drop(tx);
-assert!( rx.recv().is_err() );
-
-```
-*/
+    /// Blocks until a value is either received,or the the other end is disconnected.
+    /// 
+    /// If the channel queue is empty,this will block to receive a value.
+    /// 
+    /// This will return an error if the channel is disconnected.
+    /// 
+    /// 
+    /// # Example
+    /// 
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
+    /// use abi_stable::external_types::crossbeam_channel as mpmc;
+    /// 
+    /// let (tx,rx)=mpmc::bounded::<&'static str>(3);
+    /// 
+    /// tx.send("J__e H____y").unwrap();
+    /// assert_eq!( rx.recv().unwrap(), "J__e H____y" );
+    /// 
+    /// drop(tx);
+    /// assert!( rx.recv().is_err() );
+    /// 
+    /// ```
+    /// 
     pub fn recv(&self) -> Result<T,RecvError>{
         let vtable=self.vtable();
 
-        vtable.recv()(&*self.channel)
+        vtable.recv()(self.channel.as_rref())
             .piped(result_from)
     }
 
-/**
-Immediately receives a value,or returns with an error.
-
-An error will be returned in these 2 conditions:
-
-- the channel is empty.
-
-- the channel has been disconnected.
-
-If the channel has a capacity of 0,it will only receive a value if 
-the other end is calling `send`.
-
-
-# Example
-
-```
-use abi_stable::external_types::crossbeam_channel as mpmc;
-
-let (tx,rx)=mpmc::bounded::<&'static str>(3);
-
-assert!( rx.try_recv().is_err() );
-
-tx.send("D__e S_____r").unwrap();
-assert_eq!( rx.try_recv().unwrap(), "D__e S_____r" );
-
-drop(tx);
-assert!( rx.try_recv().is_err() );
-
-```
-*/
+    /// Immediately receives a value,or returns with an error.
+    /// 
+    /// An error will be returned in these 2 conditions:
+    /// 
+    /// - the channel is empty.
+    /// 
+    /// - the channel has been disconnected.
+    /// 
+    /// If the channel has a capacity of 0,it will only receive a value if 
+    /// the other end is calling `send`.
+    /// 
+    /// 
+    /// # Example
+    /// 
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
+    /// use abi_stable::external_types::crossbeam_channel as mpmc;
+    /// 
+    /// let (tx,rx)=mpmc::bounded::<&'static str>(3);
+    /// 
+    /// assert!( rx.try_recv().is_err() );
+    /// 
+    /// tx.send("D__e S_____r").unwrap();
+    /// assert_eq!( rx.try_recv().unwrap(), "D__e S_____r" );
+    /// 
+    /// drop(tx);
+    /// assert!( rx.try_recv().is_err() );
+    /// 
+    /// ```
     pub fn try_recv(&self) -> Result<T,TryRecvError>{
         let vtable=self.vtable();
 
-        vtable.try_recv()(&*self.channel)
+        vtable.try_recv()(self.channel.as_rref())
             .piped(result_from)
     }
 
-/**
-Blocks until a timeout to receive a value.
 
-An error will be returned in these 2 conditions:
-
-- A value could not be received before the timeout.
-
-- the channel has been disconnected.
-
-If the channel has a capacity of 0,it will only receive a value if 
-the other end calls `send` before the timeout.
-
-
-# Example
-
-```
-use abi_stable::external_types::crossbeam_channel as mpmc;
-
-use std::time::Duration;
-
-let (tx,rx)=mpmc::bounded::<&'static str>(3);
-
-let timeout=Duration::from_millis(1);
-
-assert!( rx.recv_timeout(timeout).unwrap_err().is_timeout() );
-
-tx.send("D__e S_____r").unwrap();
-assert_eq!( rx.recv_timeout(timeout).unwrap(), "D__e S_____r" );
-
-drop(tx);
-assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
-
-```
-*/
+    /// Blocks until a timeout to receive a value.
+    /// 
+    /// An error will be returned in these 2 conditions:
+    /// 
+    /// - A value could not be received before the timeout.
+    /// 
+    /// - the channel has been disconnected.
+    /// 
+    /// If the channel has a capacity of 0,it will only receive a value if 
+    /// the other end calls `send` before the timeout.
+    /// 
+    /// 
+    /// # Example
+    /// 
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
+    /// use abi_stable::external_types::crossbeam_channel as mpmc;
+    /// 
+    /// use std::time::Duration;
+    /// 
+    /// let (tx,rx)=mpmc::bounded::<&'static str>(3);
+    /// 
+    /// let timeout=Duration::from_millis(1);
+    /// 
+    /// assert!( rx.recv_timeout(timeout).unwrap_err().is_timeout() );
+    /// 
+    /// tx.send("D__e S_____r").unwrap();
+    /// assert_eq!( rx.recv_timeout(timeout).unwrap(), "D__e S_____r" );
+    /// 
+    /// drop(tx);
+    /// assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
+    /// 
+    /// ```
+    /// 
     pub fn recv_timeout(&self,timeout:Duration) -> Result<T,RecvTimeoutError>{
         let vtable=self.vtable();
 
-        vtable.recv_timeout()(&*self.channel,timeout.into())
+        vtable.recv_timeout()(self.channel.as_rref(),timeout.into())
             .piped(result_from)
     }
 
@@ -590,7 +596,8 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
     /// use abi_stable::external_types::crossbeam_channel as mpmc;
     ///
     /// let (tx,rx)=mpmc::bounded::<()>(1);
@@ -606,7 +613,7 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     pub fn is_empty(&self) -> bool{
         let vtable=self.vtable();
 
-        vtable.receiver_is_empty()(&*self.channel)
+        vtable.receiver_is_empty()(self.channel.as_rref())
     }
 
     /// Returns true if the channel queue is full.
@@ -615,7 +622,8 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
     /// use abi_stable::external_types::crossbeam_channel as mpmc;
     ///
     /// let (tx,rx)=mpmc::bounded::<()>(2);
@@ -634,14 +642,15 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     pub fn is_full(&self) -> bool{
         let vtable=self.vtable();
 
-        vtable.receiver_is_full()(&*self.channel)
+        vtable.receiver_is_full()(self.channel.as_rref())
     }
 
     /// Returns the amount of values in the channel queue.
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
     /// use abi_stable::external_types::crossbeam_channel as mpmc;
     ///
     /// let (tx,rx)=mpmc::bounded::<()>(2);
@@ -661,7 +670,7 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     pub fn len(&self) -> usize{
         let vtable=self.vtable();
         
-        vtable.receiver_len()(&*self.channel)
+        vtable.receiver_len()(self.channel.as_rref())
     }
 
     /// Returns the amount of values the channel queue can hold.
@@ -670,7 +679,8 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
     /// use abi_stable::external_types::crossbeam_channel as mpmc;
     ///
     /// {
@@ -686,7 +696,7 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     pub fn capacity(&self) -> Option<usize>{
         let vtable=self.vtable();
         
-        vtable.receiver_capacity()(&*self.channel)
+        vtable.receiver_capacity()(self.channel.as_rref())
             .into_rust()
     }
 
@@ -694,7 +704,8 @@ assert!( rx.recv_timeout(timeout).unwrap_err().is_disconnected() );
     ///
     /// # Example
     /// 
-    /// ```
+    #[cfg_attr(not(feature = "test_miri_track_raw"), doc = "```rust")]
+    #[cfg_attr(feature = "test_miri_track_raw", doc = "```ignore")]
     /// use abi_stable::external_types::crossbeam_channel as mpmc;
     /// 
     /// use std::thread;
@@ -751,7 +762,7 @@ impl<T> Clone for RReceiver<T>{
         let vtable=self.vtable();
 
         Self{
-            channel:vtable.clone_receiver()(&*self.channel),
+            channel:vtable.clone_receiver()(self.channel.as_rref()),
             vtable:self.vtable,
         }
     }
@@ -803,7 +814,7 @@ struct ErasedSender<T>(
     UnsafeIgnoredType<Sender<T>>,
 );
 
-unsafe impl<'a,T:'a> ErasedType<'a> for ErasedSender<T> {
+unsafe impl<T> ErasedType<'_> for ErasedSender<T> {
     type Unerased=Sender<T>;
 }
 
@@ -814,7 +825,7 @@ struct ErasedReceiver<T>(
     UnsafeIgnoredType<Receiver<T>>,
 );
 
-unsafe impl<'a,T:'a> ErasedType<'a> for ErasedReceiver<T> {
+unsafe impl<T> ErasedType<'_> for ErasedReceiver<T> {
     type Unerased=Receiver<T>;
 }
 
@@ -827,37 +838,36 @@ unsafe impl<'a,T:'a> ErasedType<'a> for ErasedReceiver<T> {
 #[sabi(missing_field(panic))]
 //#[sabi(debug_print)]
 struct VTable<T>{
-    send:extern "C" fn(this:&ErasedSender<T>,T) -> RResult<(),RSendError<T>>,
-    try_send:extern "C" fn(this:&ErasedSender<T>,T) -> RResult<(),RTrySendError<T>>,
+    send:extern "C" fn(this: RRef<'_, ErasedSender<T>>,T) -> RResult<(),RSendError<T>>,
+    try_send:extern "C" fn(this: RRef<'_, ErasedSender<T>>,T) -> RResult<(),RTrySendError<T>>,
     send_timeout:
         extern "C" fn(
-            this:&ErasedSender<T>,
+            this: RRef<'_, ErasedSender<T>>,
             value:T,
             timeout:RDuration
         ) -> RResult<(),RSendTimeoutError<T>>,
-    clone_sender:extern "C" fn(this:&ErasedSender<T>) -> RBox<ErasedSender<T>>,
-    sender_is_empty:extern "C" fn(this:&ErasedSender<T>) -> bool,
-    sender_is_full:extern "C" fn(this:&ErasedSender<T>) -> bool,
-    sender_len:extern "C" fn(this:&ErasedSender<T>) -> usize,
-    sender_capacity:extern "C" fn(this:&ErasedSender<T>) -> ROption<usize>,
+    clone_sender:extern "C" fn(this: RRef<'_, ErasedSender<T>>) -> RBox<ErasedSender<T>>,
+    sender_is_empty:extern "C" fn(this: RRef<'_, ErasedSender<T>>) -> bool,
+    sender_is_full:extern "C" fn(this: RRef<'_, ErasedSender<T>>) -> bool,
+    sender_len:extern "C" fn(this: RRef<'_, ErasedSender<T>>) -> usize,
+    sender_capacity:extern "C" fn(this: RRef<'_, ErasedSender<T>>) -> ROption<usize>,
 
     
     recv:
-        extern "C" fn(this:&ErasedReceiver<T>) -> RResult<T,RRecvError>,
+        extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> RResult<T,RRecvError>,
     try_recv:
-        extern "C" fn(this:&ErasedReceiver<T>) -> RResult<T,RTryRecvError>,
+        extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> RResult<T,RTryRecvError>,
     recv_timeout:
         extern "C" fn(
-            this:&ErasedReceiver<T>, 
+            this: RRef<'_, ErasedReceiver<T>>, 
             timeout: RDuration
         ) -> RResult<T,RRecvTimeoutError>,
-    clone_receiver:extern "C" fn(this:&ErasedReceiver<T>) -> RBox<ErasedReceiver<T>>,
-    receiver_is_empty:extern "C" fn(this:&ErasedReceiver<T>) -> bool,
-    receiver_is_full:extern "C" fn(this:&ErasedReceiver<T>) -> bool,
-    receiver_len:extern "C" fn(this:&ErasedReceiver<T>) -> usize,
+    clone_receiver:extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> RBox<ErasedReceiver<T>>,
+    receiver_is_empty:extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> bool,
+    receiver_is_full:extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> bool,
+    receiver_len:extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> usize,
     #[sabi(last_prefix_field)]
-    receiver_capacity:extern "C" fn(this:&ErasedReceiver<T>) -> ROption<usize>,
-
+    receiver_capacity:extern "C" fn(this: RRef<'_, ErasedReceiver<T>>) -> ROption<usize>,
 }
 
 

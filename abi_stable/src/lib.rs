@@ -88,15 +88,10 @@ every one of which has a `nightly_*` equivalent.
 
 Features:
 
-- "const_params":
+- "rust_1_51_0":
 Enables impls which require using const generics,
-including implementing StableAbi for arrays of all lengths, requires a Rust version
-where const generics are stable.
-
-- "nightly_const_params":
-Enables impls which require using const generics, 
-including implementing StableAbi for arrays of all lengths, needed for 
-nightly Rust versions where const generics are unstable.
+including implementing StableAbi for arrays of all lengths,
+requires Rust Rust 1.51.0 or higher.
 
 # Glossary
 
@@ -186,9 +181,9 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 
 [`RootModule`]: ./library/trait.RootModule.html
 [`StableAbi`]: ./abi_stability/stable_abi_trait/trait.StableAbi.html
-[`sabi_trait`]: ./docs/sabi_trait_attribute/index.html
-[Trait objects]: ./docs/sabi_trait_attribute/index.html
-[`StableAbi` derive]: ./docs/stable_abi_derive/index.html
+[`sabi_trait`]: ./attr.sabi_trait.html
+[Trait objects]: ./attr.sabi_trait.html
+[`StableAbi` derive]: ./derive.StableAbi.html
 [`DynTrait`]: ./struct.DynTrait.html
 [Troubleshooting]: ./docs/troubleshooting/index.html
 [Unsafe code guidelines]: ./docs/unsafe_code_guidelines/index.html
@@ -219,12 +214,6 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 
 #![deny(clippy::missing_safety_doc)]
 
-// Left here for nightly Rust users before this got stabilized.
-// Necessary for array impls of all sizes.
-#![cfg_attr(
-    feature="nightly_const_params",
-    feature(min_const_generics)
-)]
 
 #![cfg_attr(feature = "docsrs", feature(doc_cfg))]
 
@@ -241,20 +230,15 @@ extern crate abi_stable_derive;
 extern crate self as abi_stable;
 
 
-#[doc(inline)]
-pub use abi_stable_derive::{
-    StableAbi,
-    GetStaticEquivalent,
-};
+include!{"./proc_macro_reexports/get_static_equivalent.rs"}
+include!{"./proc_macro_reexports/export_root_module.rs"}
+include!{"./proc_macro_reexports/sabi_extern_fn.rs"}
+include!{"./proc_macro_reexports/sabi_trait_attribute.rs"}
+include!{"./proc_macro_reexports/stable_abi_derive.rs"}
 
-#[doc(inline)]
-pub use abi_stable_derive::{
-    sabi_trait,
-    sabi_extern_fn,
-};
 
-#[doc(inline)]
-pub use abi_stable_derive::export_root_module;
+#[doc(no_inline)]
+pub use abi_stable::sabi_types::{RRef, RMut};
 
 use abi_stable_derive::{
     impl_InterfaceType,
@@ -344,6 +328,7 @@ pub static LIB_HEADER:library::AbiHeader=library::AbiHeader::VALUE;
 pub mod reexports{
     pub use core_extensions::SelfOps;
     pub use core_extensions::type_level_bool::{True, False};
+    pub use core_extensions::utils::transmute_ignore_size;
 }
 
 
@@ -367,6 +352,9 @@ pub use crate::{
     abi_stability::StableAbi,
     erased_types::{DynTrait,ImplType, InterfaceType},
 };
+
+#[doc(no_inline)]
+pub use crate::erased_types::InterfaceBound;
 
 
 
@@ -427,3 +415,4 @@ extern "Rust" {
     /// `ptr` has to point to the beginning of an allocated block.
     fn miri_static_root(ptr: *const u8);
 }
+

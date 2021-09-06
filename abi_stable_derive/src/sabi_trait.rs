@@ -447,8 +447,8 @@ fn constructor_items(
     );
     make_vtable_args.skip_lifetimes();
     
-    let fn_unerasability_arg=match totrait_def.which_object {
-        WhichObject::DynTrait=>quote!(Unerasability),
+    let fn_can_it_downcast_arg=match totrait_def.which_object {
+        WhichObject::DynTrait=>quote!(Downcasting),
         WhichObject::RObject=>quote!(),
     };
 
@@ -465,13 +465,13 @@ fn constructor_items(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
             __sabi_re::InterfaceFor<
-                _OrigPtr::Target,
+                _OrigPtr::PtrTarget,
                 #trait_interface<#trait_interface_use>,
-                Unerasability
+                Downcasting
             >: 
                 __sabi_re::GetVtable<
                     #one_lt
-                    _OrigPtr::Target,
+                    _OrigPtr::PtrTarget,
                     _OrigPtr::TransmutedPtr,
                     _OrigPtr,
                     #trait_interface<#trait_interface_use>,
@@ -485,7 +485,7 @@ fn constructor_items(
         WhichObject::DynTrait=>quote!(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
-            __sabi_re::InterfaceFor<_Self,#trait_interface<#trait_interface_use>,Unerasability>: 
+            __sabi_re::InterfaceFor<_Self,#trait_interface<#trait_interface_use>,Downcasting>: 
                 __sabi_re::GetVtable<
                     #one_lt
                     _Self,
@@ -561,25 +561,39 @@ fn constructor_items(
     if doc_hidden_attr.is_none() {
         shared_docs="\
             <br><br>\
-            `unerasability` describes whether the trait object can be \
+            `can_it_downcast` describes whether the trait object can be \
             converted back into the original type or not.<br>\n\
-            Its possible values are `TU_Unerasable` and `TU_Opaque`.\n\
+            Its possible values are `TD_CanDowncast` and `TD_Opaque`.\n\
         ".to_string();
 
         from_ptr_docs=format!(
-            "Constructs this trait object from a pointer to a type that implements `{trait_}`.",
+            "Constructs this trait object from a pointer to a type that implements `{trait_}`.\n\
+             \n\
+             This method is automatically generated,\n\
+             for more documentation you can look at\n\
+             [`abi_stable::docs::sabi_trait_inherent#from_ptr-method`]\n\
+            ",
             trait_=trait_ident
         );
 
         from_value_docs=format!(
-            "Constructs this trait from a type that implements `{trait_}`.",
+            "Constructs this trait from a type that implements `{trait_}`.\n\
+             \n\
+             This method is automatically generated,\n\
+             for more documentation you can look at\n\
+             [`abi_stable::docs::sabi_trait_inherent#from_value-method`]\n\
+            ",
             trait_=trait_ident
         );
 
         from_const_docs=format!(
             "Constructs this trait from a constant of a type that implements `{trait_}`.\n\
              \n\
-             You can construct the `vtable_for` parameter with `{make_vtable_ident}::VTABLE`.
+             This method is automatically generated,\n\
+             for more documentation you can look at\n\
+             [`abi_stable::docs::sabi_trait_inherent#from_const-method`]\n\
+              \n\
+             You can construct the `vtable_for` parameter with `{make_vtable_ident}::VTABLE`.\n\
             ",
             trait_=trait_ident,
             make_vtable_ident=make_vtable_ident,
@@ -607,7 +621,7 @@ fn constructor_items(
                 __sabi_re::RRef<'_sub,()>,
                 __sabi_re::RRef<'_sub,_Self>,
                 #trait_interface<#trait_interface_use>,
-                Unerasability,
+                Downcasting,
                 VTable<#vtable_generics_rref>,
             >
         ),
@@ -615,7 +629,7 @@ fn constructor_items(
             __sabi_re::VTableTO_RO<
                 _Self,
                 __sabi_re::RRef<'_sub,_Self>,
-                Unerasability,
+                Downcasting,
                 VTable<#vtable_generics_rref>,
             >
         ),
@@ -625,13 +639,13 @@ fn constructor_items(
         WhichObject::DynTrait=>quote!(
             #trait_backend::from_const(
                 ptr,
-                unerasability,
+                can_it_downcast,
                 vtable_for.dyntrait_vtable(),
                 vtable_for.robject_vtable(),
             )
         ),
         WhichObject::RObject=>quote!({
-            let _ = __sabi_re::ManuallyDrop::new(unerasability);
+            let _ = __sabi_re::ManuallyDrop::new(can_it_downcast);
             #trait_backend::with_vtable_const(ptr,vtable_for)
         }),
     };
@@ -639,31 +653,32 @@ fn constructor_items(
     quote!(
         impl<#gen_params_header> #trait_to<#gen_params_use_to> 
         where
-            _ErasedPtr:__GetPointerKind,
+            _ErasedPtr: __sabi_re::AsPtr<PtrTarget = ()>,
         {
             #[doc=#from_ptr_docs]
             #[doc=#shared_docs]
-            #submod_vis fn from_ptr<_OrigPtr,Unerasability>(
+            #submod_vis fn from_ptr<_OrigPtr,Downcasting>(
                 ptr:_OrigPtr,
-                unerasability:Unerasability,
+                can_it_downcast:Downcasting,
             )->Self
             where
-                _OrigPtr:__sabi_re::CanTransmuteElement<(),TransmutedPtr=_ErasedPtr> #plus_lt,
-                _OrigPtr::Target:
+                _OrigPtr:
+                    __sabi_re::CanTransmuteElement<(),TransmutedPtr=_ErasedPtr>,
+                _OrigPtr::PtrTarget:
                     #trait_bounds<#trait_params #( #assoc_tys_a= #assoc_tys_b, )* >+
                     Sized
                     #plus_lt,
-                _ErasedPtr:std::ops::Deref<Target=()>,
+                _ErasedPtr:__sabi_re::AsPtr<PtrTarget=()>,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
-                        Unerasability,_OrigPtr::Target,_ErasedPtr,_OrigPtr
+                        Downcasting,_OrigPtr::PtrTarget,_ErasedPtr,_OrigPtr
                     >,
                 #extra_constraints_ptr
             {
-                let _unerasability=unerasability;
+                let _can_it_downcast=can_it_downcast;
                 unsafe{
                     Self{
-                        obj:#trait_backend::with_vtable::<_,#fn_unerasability_arg>(
+                        obj:#trait_backend::with_vtable::<_,#fn_can_it_downcast_arg>(
                             ptr,
                             #make_vtable_ident::<#make_vtable_args>::VTABLE_INNER
                         ),
@@ -673,6 +688,10 @@ fn constructor_items(
             }
 
             /// Constructs this trait object from its underlying implementation.
+            /// 
+            /// This method is automatically generated,
+            /// for more documentation you can look at
+            /// [`abi_stable::docs::sabi_trait_inherent#from_sabi-method`]
             #submod_vis fn from_sabi(obj:#trait_backend<#uto_params_use>)->Self{
                 Self{
                     obj,
@@ -686,9 +705,9 @@ fn constructor_items(
         impl<#gen_params_header_rbox> #trait_to<#gen_params_use_to_rbox> {
             #[doc=#from_value_docs]
             #[doc=#shared_docs]
-            #submod_vis fn from_value<_Self,Unerasability>(
+            #submod_vis fn from_value<_Self,Downcasting>(
                 ptr:_Self,
-                unerasability:Unerasability,
+                can_it_downcast:Downcasting,
             )->Self
             where
                 _Self:
@@ -696,23 +715,23 @@ fn constructor_items(
                     #plus_lt,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
-                        Unerasability,_Self,__sabi_re::RBox<()>,__sabi_re::RBox<_Self>
+                        Downcasting,_Self,__sabi_re::RBox<()>,__sabi_re::RBox<_Self>
                     >,
                 #extra_constraints_value
             {
                 Self::from_ptr::<
                     __sabi_re::RBox<_Self>,
-                    Unerasability
-                >(__sabi_re::RBox::new(ptr),unerasability)
+                    Downcasting
+                >(__sabi_re::RBox::new(ptr),can_it_downcast)
             }
         }
 
         impl<#gen_params_header_rref> #trait_to<#gen_params_use_to_rref>{
             #[doc=#from_const_docs]
             #[doc=#shared_docs]
-            #submod_vis const fn from_const<_Self,Unerasability>(
+            #submod_vis const fn from_const<_Self,Downcasting>(
                 ptr:&'_sub _Self,
-                unerasability:Unerasability,
+                can_it_downcast:Downcasting,
                 vtable_for:#vtable_type,
             )->Self
             where
@@ -747,37 +766,45 @@ fn reborrow_methods_tokenizer(
             totrait_def.generics_tokenizer(
                 InWhat::ItemUse,
                 WithAssocTys::Yes(WhichSelf::NoSelf),
-                &lt_tokens.lt_ref,
+                &lt_tokens.lt_rref,
             );
 
         let gen_params_use_mut=
             totrait_def.generics_tokenizer(
                 InWhat::ItemUse,
                 WithAssocTys::Yes(WhichSelf::NoSelf),
-                &lt_tokens.lt_mut,
+                &lt_tokens.lt_rmut,
             );
 
 
         quote!(
             /// Reborrows this trait object to a reference-based trait object.
+            /// 
+            /// This method is automatically generated,
+            /// for more documentation you can look at
+            /// [`abi_stable::docs::sabi_trait_inherent#sabi_reborrow-method`]
             #submod_vis fn sabi_reborrow<'_sub>(&'_sub self)->#trait_to<#gen_params_use_ref>
             where
-                _ErasedPtr:std::ops::Deref<Target=()>
+                _ErasedPtr: __sabi_re::AsPtr<PtrTarget=()>
             {
                 let x=self.obj.reborrow();
                 // This is transmuting the pointer type parameter of the vtable.
-                let x=unsafe{ std::mem::transmute(x) };
+                let x=unsafe{ __sabi_re::transmute(x) };
                 #trait_to::from_sabi(x)
             }
 
             /// Reborrows this trait object to a mutable-reference-based trait object.
+            /// 
+            /// This method is automatically generated,
+            /// for more documentation you can look at
+            /// [`abi_stable::docs::sabi_trait_inherent#sabi_reborrow_mut-method`]
             #submod_vis fn sabi_reborrow_mut<'_sub>(&'_sub mut self)->#trait_to<#gen_params_use_mut>
             where
-                _ErasedPtr:std::ops::DerefMut<Target=()>
+                _ErasedPtr: __sabi_re::AsMutPtr<PtrTarget=()>
             {
                 let x=self.obj.reborrow_mut();
                 // This is transmuting the pointer type parameter of the vtable.
-                let x=unsafe{ std::mem::transmute(x) };
+                let x=unsafe{ __sabi_re::transmute(x) };
                 #trait_to::from_sabi(x)
             }
         ).to_tokens(ts);
@@ -939,7 +966,7 @@ fn methods_impls(
         #[allow(clippy::needless_lifetimes, clippy::new_ret_no_self)]
         impl<#gen_params_header> #trait_to<#gen_params_use_to>
         where 
-            _ErasedPtr:__GetPointerKind,
+            _ErasedPtr: __sabi_re::AsPtr<PtrTarget = ()>,
             Self:#( #super_traits_a + )* Sized ,
             #impl_where_preds
         {
@@ -1231,8 +1258,9 @@ fn vtable_impl(
         impl<#impl_header_generics> #make_vtable_ident<#makevtable_generics>
         where 
             _Self:#trait_bounds<#trait_generics>,
-            _OrigPtr:__sabi_re::CanTransmuteElement<(),Target=_Self,TransmutedPtr=_ErasedPtr>,
-            _ErasedPtr:__GetPointerKind<Target=()>,
+            _OrigPtr:
+                __sabi_re::CanTransmuteElement<(), PtrTarget = _Self, TransmutedPtr = _ErasedPtr>,
+            _ErasedPtr:__sabi_re::AsPtr<PtrTarget=()>,
             #trait_interface<#trait_interface_use>:
                 __sabi_re::GetRObjectVTable<IA,_Self,_ErasedPtr,_OrigPtr>,
             #extra_constraints

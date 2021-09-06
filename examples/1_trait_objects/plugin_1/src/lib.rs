@@ -10,7 +10,7 @@ use abi_stable::{
     sabi_extern_fn,
     external_types::crossbeam_channel::RSender,
     prefix_type::PrefixTypeTrait,
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     std_types::{RStr,RVec, RString,RResult,ROk},
 };
 
@@ -54,7 +54,7 @@ pub fn new(_sender:RSender<AsyncCommand>,plugin_id:PluginId) -> RResult<PluginTy
     let this=CommandUtils{
         plugin_id,
     };
-    ROk(Plugin_TO::from_value(this,TU_Opaque))
+    ROk(Plugin_TO::from_value(this,TD_Opaque))
 }
 
 

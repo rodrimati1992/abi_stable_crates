@@ -95,15 +95,15 @@ declare_common_tokens! {
         vtable_typarams="_Self,_ErasedPtr,",
         
         ptr_ref_bound=
-            "_ErasedPtr: __GetPointerKind<Target=()>,",
+            "_ErasedPtr: __sabi_re::AsPtr<PtrTarget=()>,",
         ptr_mut_bound=
-            "_ErasedPtr: __GetPointerKind+__DerefMutTrait<Target=()>,",
+            "_ErasedPtr: __sabi_re::AsMutPtr<PtrTarget=()>,",
         ptr_ref_val_bound=
-            "_ErasedPtr: __sabi_re::OwnedPointer<Target=()>,",
+            "_ErasedPtr: __sabi_re::OwnedPointer<PtrTarget=()>,",
         ptr_mut_val_bound=
-            "_ErasedPtr: __sabi_re::OwnedPointer<Target=()>,",
+            "_ErasedPtr: __sabi_re::OwnedPointer<PtrTarget=()>,",
         ptr_val_bound=
-            "_ErasedPtr: __sabi_re::OwnedPointer<Target=()>,",
+            "_ErasedPtr: __sabi_re::OwnedPointer<PtrTarget=()>,",
 
         empty_ts="",
         ts_empty="",
@@ -114,7 +114,7 @@ declare_common_tokens! {
         ts_self_colon2 ="Self::",
         ts_uself_colon2="_Self::",
 
-        ts_make_vtable_args="Unerasability,_OrigPtr::Target,_OrigPtr::TransmutedPtr,_OrigPtr,",
+        ts_make_vtable_args="Downcasting,_OrigPtr::PtrTarget,_OrigPtr::TransmutedPtr,_OrigPtr,",
         ts_erasedptr_and2="_ErasedPtr,_ErasedPtr2,",
         ts_erasedptr="_ErasedPtr,",
         ts_self_erasedptr="_Self,_ErasedPtr,",
@@ -194,7 +194,7 @@ macro_rules! declare_lifetime_tokens {
 
         impl LifetimeTokens{
             pub(crate) fn new(is_it:IsStaticTrait)->Self{
-                let is_static=matches!(IsStaticTrait::Yes=is_it);
+                let is_static=matches!(is_it, IsStaticTrait::Yes);
                 let lt=if is_static { "" }else{ "'lt," };
                 let static_lt=if is_static { "" }else{ "'static," };
                 let one_lt=if is_static { "'static," }else{ "'lt," };
@@ -232,6 +232,7 @@ declare_lifetime_tokens!{
         lt_erasedptr="_ErasedPtr,",
         lt_rbox="__sabi_re::RBox<()>,",
         lt_rref="__sabi_re::RRef<'_sub,()>,",
+        lt_rmut="__sabi_re::RMut<'_sub,()>,",
         lt_ref="&'_sub(),",
         lt_mut="&'_sub mut (),",
         lt_sub_lt="'_sub,",

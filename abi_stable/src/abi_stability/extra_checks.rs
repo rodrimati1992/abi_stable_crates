@@ -64,7 +64,7 @@ use abi_stable::{
     },
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     std_types::{RCow,RResult,ROption,RSome,RStr},
     sabi_extern_fn,
     GetStaticEquivalent,
@@ -246,7 +246,7 @@ unsafe impl ExtraChecks for ConstChecker {
         Self::downcast_with_object(other,checker,|other,_|{
             let (min,max)=min_max_by(self,other,|x|x.chars.len());
             min.check_compatible_inner(max)
-                .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TU_Opaque) ) )
+                .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TD_Opaque) ) )
         })
     }
 }
@@ -309,7 +309,7 @@ use abi_stable::{
         check_layout_compatibility,
     },
     type_layout::TypeLayout,
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     std_types::{RCow,RDuration,RResult,ROption,RStr,RString},
     sabi_extern_fn,
     StableAbi,
@@ -448,7 +448,7 @@ use abi_stable::{
     },
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     std_types::{RCow,RDuration,RResult,RStr,RString},
     sabi_extern_fn,
     GetStaticEquivalent,
@@ -635,6 +635,7 @@ impl std::error::Error for UnequalConstError{}
 
 
 use crate::{
+    sabi_types::{RRef, RMut},
     std_types::{RBox,RBoxError,RCow,RResult,ROption,RNone,ROk},
     type_layout::TypeLayout,
     traits::IntoReprC,
@@ -696,7 +697,7 @@ pub unsafe trait TypeChecker:'static+Send+Sync{
 
 /// An ffi-safe equivalent of &'b mut dyn TypeChecker
 pub type TypeCheckerMut<'b>=
-    TypeChecker_TO<&'b mut ()>;
+    TypeChecker_TO<RMut<'b, ()>>;
 
 /// Allows defining extra checks for a type.
 ///
@@ -813,10 +814,10 @@ This returns:
 pub type StoredExtraChecks=ExtraChecks_CTO<'static>;
 
 /// An ffi-safe equivalent of `&'static dyn ExtraChecks`.
-pub type ExtraChecksStaticRef=ExtraChecks_TO<&'static ()>;
+pub type ExtraChecksStaticRef=ExtraChecks_TO<RRef<'static, ()>>;
 
 /// An ffi-safe equivalent of `&'a dyn ExtraChecks`.
-pub type ExtraChecksRef<'a>=ExtraChecks_TO<&'a ()>;
+pub type ExtraChecksRef<'a>=ExtraChecks_TO<RRef<'a, ()>>;
 
 /// An ffi-safe equivalent of `Box<dyn ExtraChecks>`.
 pub type ExtraChecksBox=ExtraChecks_TO<RBox<()>>;
@@ -827,14 +828,14 @@ pub type ExtraChecksBox=ExtraChecks_TO<RBox<()>>;
 pub trait ForExtraChecksImplementor:StableAbi+ExtraChecks{
 
 /**
-Accesses the `ExtraChecks` field in `layout_containing_other`, unerased into `Self`.
+Accesses the `ExtraChecks` field in `layout_containing_other`, downcasted into `Self`.
 
 If the closure returns an `ExtraChecksError`,it'll be returned unmodified and unwrapped.
 
 # Returns
 
 - ROk(_): 
-    If `other` was unerased to `Self`,and `f` did not return any errors.
+    If `other` was downcasted to `Self`,and `f` did not return any errors.
 
 - RErr(ExtraChecksError::NoneExtraChecks): 
     If`layout_containing_other` does not contain an ExtraChecks trait object.
@@ -864,14 +865,14 @@ If the closure returns an `ExtraChecksError`,it'll be returned unmodified and un
     }
 
 /**
-Allows one to access `other` unerased into `Self`.
+Allows one to access `other` downcast into `Self`.
 
 If the closure returns an `ExtraChecksError`,it'll be returned unmodified and unwrapped.
 
 # Returns
 
 - ROk(_): 
-    If `other` could be unerased to `Self`,and `f` did not return any errors.
+    If `other` could be downcasted to `Self`,and `f` did not return any errors.
 
 - RErr(ExtraChecksError::TypeChecker): 
     If there is an error while type checking.
@@ -890,11 +891,11 @@ If the closure returns an `ExtraChecksError`,it'll be returned unmodified and un
         E:Send+Sync+ErrorTrait+'static,
     {
         // This checks that the layouts of `this` and `other` are compatible,
-        // so that calling the `unchecked_into_unerased` method is sound.
+        // so that calling the `unchecked_downcast_into` method is sound.
         rtry!( checker.check_compatibility(<Self as StableAbi>::LAYOUT,other.type_layout()) );
-        let other_ue=unsafe{ other.obj.unchecked_into_unerased::<Self>() };
+        let other_ue=unsafe{ other.obj.unchecked_downcast_into::<Self>() };
 
-        f(other_ue,checker)
+        f(other_ue.get(),checker)
             .map_err(|e|{
                 match RBoxError::new(e).downcast::<ExtraChecksError>() {
                     Ok(x)=>x.piped(RBox::into_inner),

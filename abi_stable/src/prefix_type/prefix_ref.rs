@@ -180,7 +180,7 @@ impl<P> PrefixRef<P>{
     /// assert_eq!(MODULE.third(), Some(8)); 
     /// 
     /// ```
-    #[inline]
+    #[inline(always)]
     pub const unsafe fn from_raw<T>(ptr: *const WithMetadata_<T, P>) -> Self {
         Self{
             ptr: NonNull::new_unchecked(
@@ -234,7 +234,7 @@ impl<P> PrefixRef<P>{
     #[inline]
     pub const fn from_staticref<T>(ptr: StaticRef<WithMetadata_<T, P>>) -> Self {
         unsafe{
-            Self::from_raw(ptr.get_raw())
+            Self::from_raw(ptr.as_ptr())
         }
     }
 
@@ -353,7 +353,7 @@ impl<P> PrefixRef<P>{
     #[inline]
     pub fn prefix<'a>(self)-> &'a P {
         unsafe{
-            &(*self.ptr.as_ptr()).value
+            &(*self.ptr.as_ptr()).value.0
         }
     }
 

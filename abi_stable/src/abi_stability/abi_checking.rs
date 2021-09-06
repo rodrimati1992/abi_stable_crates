@@ -5,7 +5,10 @@ Functions and types related to the layout checking.
 use std::{cmp::Ordering, fmt,mem};
 
 #[allow(unused_imports)]
-use core_extensions::{prelude::*,matches};
+use core_extensions::{
+    matches,
+    SelfOps,
+};
 
 use std::{
     borrow::Borrow,
@@ -37,7 +40,7 @@ use crate::{
         TLFieldOrFunction, TLFunction,
         tagging::TagErrors,
     },
-    type_level::unerasability::TU_Opaque,
+    type_level::downcasting::TD_Opaque,
     utils::{max_by,min_max_by},
 };
 
@@ -482,7 +485,7 @@ impl AbiChecker {
                     push_err(errs, t_lay, o_lay, |x| x.full_type(), AI::GenericParamCount);
                 }
 
-                let mut ty_checker=TypeCheckerMut::from_ptr(&mut *self,TU_Opaque);
+                let mut ty_checker=TypeCheckerMut::from_ptr(&mut *self,TD_Opaque);
                 for (l,r) in t_consts.iter().zip(o_consts.iter()) {
                     match l.is_equal(r,ty_checker.sabi_reborrow_mut()) {
                         Ok(false)|Err(_)=>{
@@ -536,7 +539,7 @@ impl AbiChecker {
                     errs.push(AI::NoneExtraChecks);
                 }
                 (Some(t_extra_checks),Some(o_extra_checks))=>{
-                    let mut ty_checker=TypeCheckerMut::from_ptr(&mut *self,TU_Opaque);
+                    let mut ty_checker=TypeCheckerMut::from_ptr(&mut *self,TD_Opaque);
 
                     let res=handle_extra_checks_ret(
                         t_extra_checks.clone(),
@@ -1011,7 +1014,7 @@ impl AbiChecker {
             let ExtraChecksBoxWithContext{t_lay,o_lay,extra_checks}=with_context;
 
             let errors_before=self.errors.len();
-            let type_checker=TypeCheckerMut::from_ptr(&mut *self,TU_Opaque);
+            let type_checker=TypeCheckerMut::from_ptr(&mut *self,TD_Opaque);
             let t_utid=t_lay.get_utypeid();
             let o_utid=o_lay.get_utypeid();
 

@@ -1,4 +1,4 @@
-/*!
+/**
 
 This attribute generates an ffi-safe trait object on the trait it's applied to.
 
@@ -93,34 +93,36 @@ This is the module inside of which all the items are generated.
 
 These are the items reexported from the module:
 
-- `Trait`:The trait itself.
+- [`Trait`](#trait):The trait itself.
 
-- `Trait_TO`:The trait object for the trait.
+- [`Trait_TO`](#trait_to):The trait object for the trait.
 
-- `Trait_MV`:
+- [`Trait_MV`](#trait_mv):
     A helper type used to construct the vtable for the trait object in constants.
 
-- `Trait_CTO`:A type alias for the trait object which is constructible in constants.
+- [`Trait_CTO`](#trait_cto):
+A type alias for the trait object which is constructible in constants.
 
 
 ###  Trait_TO 
 
 The ffi-safe trait object.
 
+[Its inherent methods are documented here.
+](./docs/sabi_trait_inherent/index.html#methods)
+
+`Trait_TO` has inherent method equivalents of the trait methods,
+only requiring the wrapped pointer to implement the trait in the individual methods
+(instead of putting those bounds in the impl block itself).
+
 <br>
 
 This only implements `Trait` if all the methods are callable,
 when the wrapped pointer type implements traits for these methods:
 
-- `&self` method: requires `Deref<Target=()>`.
-- `&mut self` method: requires `DerefMut<Target=()>`.
-- `self` method: requires `OwnedPointer<Target=()>`.
-
-<br>
-
-`Trait_TO` also has inherent method equivalents of the trait methods,
-only requiring the pointer to implement the trait in the individual methods
-(instead of putting those bounds in the impl block itself).
+- `&self` method: requires `AsPtr<PtrTarget = ()>`.
+- `&mut self` method: requires `AsMutPtr<PtrTarget = ()>`.
+- `self` method: requires `OwnedPointer<PtrTarget = ()>`.
 
 <br>
 
@@ -144,25 +146,25 @@ then it doesn't have this lifetime parameter.
 - `trait_assoc_type_n`: The associated types of the trait.
 
 
-A trait defined like this:`trait Foo<'a,T,U>{ type Hello; type World; }`,
-has this trait object:`Foo_TO<'a,'lt,Pointer,T,U,Hello,World>`.
+A trait defined like this:`trait Foo<'a, T, U>{ type Hello; type World; }`,
+has this trait object:`Foo_TO<'a, 'lt, Pointer, T, U, Hello, World>`.
 
 <br>
 
 One can access the underlying implementation of the trait object through the `obj` field,
 allowing one to call these methods(a nonexhaustive list):
 
-- into_unerased_impltype(only DynTrait)
+- downcast_into_impltype(only DynTrait)
 
-- as_unerased_impltype(only DynTrait)
+- downcast_as_impltype(only DynTrait)
 
-- as_unerased_mut_impltype(only DynTrait)
+- downcast_as_mut_impltype(only DynTrait)
 
-- into_unerased
+- downcast_into
 
-- as_unerased
+- downcast_as
 
-- as_unerased_mut
+- downcast_as_mut
 
 To reconstruct `Trait_TO` from its underlying implementation,
 you can use the `Trait_TO::from_sabi` associated function.
@@ -197,62 +199,6 @@ Example: `Trait_CTO<'lt, 'r, u8, u64, 10, AssocFoo>`
 
 A helper type used to construct the vtable of the trait object.
 
-###  Trait_TO::from_ptr 
-
-A constructor for the trait object,which takes a pointer to a value that implements the trait.
-
-Generally it is called like this
-`Trait_TO::from_ptr( pointer,<Unerasability> )`.<br>
-or like this(if you don't want to write the type of the returned trait object):<br>
-`Trait_TO::<_,TraitParam0, TraitParam1>::from_ptr( pointer,<Unerasability> )`.
-
-Where `<Unerasability>` can be either:
-
--`TU_Unerasable`:
-    Which allows the trait object to be unerased,requires that the value implements any.
-
-.`TU_Opaque`:Which does not allow the trait object to be unerased.
-
-Where `TraitParam*` are the type parameters of the trait.
-
-###  Trait_TO::from_value 
-
-A constructor for the trait object,which takes a value that implements the trait.
-
-This is equivalent to calling `Trait_TO::from_ptr` with `RBox::new(value)`.
-
-###  Trait_TO::from_sabi 
-
-Constructs the trait object from its underlying implementation,
-either `RObject` or `DynTrait` depending on whether the
-`#[sabi(use_dyntrait)]` helper attribute was used.
-
-###  Trait_TO::from_const
-
-Constructs the trait object from a reference to a constant value,
-eg:`Trait_CTO::from_const(&value,<Unerasability>,Trait_MV::VTABLE)`.
-
-Where `<Unerasability>` can be either:
-
--`TU_Unerasable`:
-    Which allows the trait object to be unerased,requires that the value implements any.
-
-.`TU_Opaque`:Which does not allow the trait object to be unerased.
-
-
-### Trait_TO::sabi_reborrow
-
-Reborrows the trait object,going from `&Trait_TO<'lt,SomePtr<()>>` to `Trait_TO<'lt,&()>`.
-
-This is only generated if the trait has both or neither Send and Sync as supertraits.
-
-### Trait_TO::sabi_reborrow_mut
-
-Reborrows the trait object mutably,
-going from `&mut Trait_TO<'lt,SomePtr<()>>` to `Trait_TO<'lt,&mut ()>`.
-
-This is only generated if the trait has both or neither Send and Sync as supertraits.
-
 ###  Trait 
 
 The trait is defined similarly to how it is before being transformed by the 
@@ -276,7 +222,7 @@ To pass attributes to the generated vtable you can use the `#[sabi(  )]` attribu
 that are valid for `#[derive(StableAbi)]`.
 
 [Here is the documentation for the derive macro.
-](../stable_abi_derive/index.html)
+](./derive.StableAbi.html)
 
 # Trait attributes.
 
@@ -344,7 +290,7 @@ as supertraits.
 This requires the type to be `'static` because comparing trait objects requires 
 constructing a `std::any::TypeId`,which itself requires `'static` to be constructed.
 
-- 3: Because you passed `TU_Unerasable` to the constructor function,
+- 3: Because you passed `TD_CanDowncast` to the constructor function,
 which requires constructing a `std::any::TypeId`
 (to unerase the trait object back into the value),
 which itself requires `'static` to be constructed.
@@ -415,10 +361,10 @@ pub trait Dictionary:Debug+Clone{
     {
         // This type annotation is for the reader
         //
-        // You can unerase trait objects constructed with `TU_Unerasable` 
-        // (as opposed to `TU_Opaque`,which can't be unerased).
+        // You can unerase trait objects constructed with `TD_CanDowncast` 
+        // (as opposed to `TD_Opaque`,which can't be unerased).
         let mut object:Dictionary_TO<'_,RBox<()>,u32>=
-            Dictionary_TO::from_value(map.clone(),TU_Unerasable);
+            Dictionary_TO::from_value(map.clone(),TD_CanDowncast);
 
         assert_eq!(Dictionary::get(&object,"hello".into()),Some(&100));
         assert_eq!(object.get("hello".into()),Some(&100)); // Inherent method call
@@ -428,9 +374,9 @@ pub trait Dictionary:Debug+Clone{
 
         object.insert("what".into(),99); // Inherent method call
 
-        // You can only unerase a trait object if it was constructed with `TU_Unerasable`
+        // You can only unerase a trait object if it was constructed with `TD_CanDowncast`
         // and it's being unerased into a type that implements `std::any::Any`.
-        let map:RBox<HashMap<RString,u32>>=object.obj.into_unerased().unwrap();
+        let map:RBox<HashMap<RString,u32>>=object.obj.downcast_into().unwrap();
 
         assert_eq!(map.get("hello".into()), Some(&100));
         assert_eq!(map.get("world".into()), Some(&10));
@@ -440,15 +386,15 @@ pub trait Dictionary:Debug+Clone{
         let arc=RArc::new(map.clone());
         // This type annotation is for the reader
         //
-        // You can unerase trait objects constructed with `TU_Unerasable` 
-        // (as opposed to `TU_Opaque`,which can't be unerased).
+        // You can unerase trait objects constructed with `TD_CanDowncast` 
+        // (as opposed to `TD_Opaque`,which can't be unerased).
         let object:Dictionary_TO<'_,RArc<()>,u32>=
-            Dictionary_TO::from_ptr(arc,TU_Unerasable);
+            Dictionary_TO::from_ptr(arc,TD_CanDowncast);
 
         assert_eq!(object.get("world".into()),Some(&10));
         
         // Can't call these methods on `Dictionary_TO<RArc<()>,..>`
-        // because `RArc<_>` doesn't implement DerefMut.
+        // because `RArc<_>` doesn't implement AsMutPtr.
         //
         // assert_eq!(Dictionary::get(&object,"hello"),Some(&100));
         //
@@ -456,7 +402,7 @@ pub trait Dictionary:Debug+Clone{
         // Dictionary::insert(&mut object,"what".into(),99);
         
 
-        let map:RArc<HashMap<RString,u32>>=object.obj.into_unerased().unwrap();
+        let map:RArc<HashMap<RString,u32>>=object.obj.downcast_into().unwrap();
         assert_eq!(map.get("hello".into()), Some(&100));
         assert_eq!(map.get("world".into()), Some(&10));
     }
@@ -476,13 +422,13 @@ pub trait Dictionary:Debug+Clone{
 
     // This type annotation is for the reader
     let object:Dictionary_TO<'_,RBox<()>,RString>=
-        Dictionary_TO::from_value( () ,TU_Opaque);
+        Dictionary_TO::from_value( () ,TD_Opaque);
 
     assert_eq!(object.get("hello".into()),None);
     assert_eq!(object.get("world".into()),None);
 
-    // Cannot unerase trait objects created with `TU_Opaque`.
-    assert_eq!(object.obj.into_unerased::<()>().ok(),None);
+    // Cannot unerase trait objects created with `TD_Opaque`.
+    assert_eq!(object.obj.downcast_into::<()>().ok(),None);
 }
 
 # }
@@ -497,7 +443,7 @@ This shows how one can construct a `#[sabi_trait]` generated trait object in a c
 ```rust
 
 use abi_stable::{
-    sabi_trait::TU_Opaque,
+    sabi_trait::TD_Opaque,
     sabi_trait,
 
 };
@@ -526,7 +472,7 @@ const CARDS:&'static [char]=&['A','2','3','4','5','6','7','8','9','J','Q','K'];
 static IS_CARD:StaticSet_CTO<'static,'static,char>=
     StaticSet_CTO::from_const(
         &CARDS,
-        TU_Opaque,
+        TD_Opaque,
         StaticSet_MV::VTABLE,
     );
 
@@ -550,3 +496,5 @@ assert!( ! IS_CARD.contains(&'B') );
 
 
 */
+#[doc(inline)]
+pub use abi_stable_derive::sabi_trait;

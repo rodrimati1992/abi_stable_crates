@@ -13,7 +13,7 @@ use std::{
 use serde::{Serialize, Serializer};
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::std_types::{RSlice, RVec};
 
@@ -467,6 +467,29 @@ impl<'a, T> IntoIterator for RSliceMut<'a, T> {
     fn into_iter(self) -> ::std::slice::IterMut<'a, T> {
         self.into_mut_slice().iter_mut()
     }
+}
+
+slice_like_impl_cmp_traits!{
+    impl[] RSliceMut<'_, T>,
+    where[];
+    Vec<U>,
+    [U],
+    &[U],
+    RSlice<'_, U>,
+}
+
+#[cfg(feature = "const_params")]
+slice_like_impl_cmp_traits!{
+    impl[const N: usize] RSliceMut<'_, T>,
+    where[];
+    [U; N],
+}
+
+slice_like_impl_cmp_traits!{
+    impl[] RSliceMut<'_, T>,
+    where[T: Clone, U: Clone];
+    std::borrow::Cow<'_, [U]>,
+    crate::std_types::RCow<'_, [U]>,
 }
 
 impl<'a, T> Deref for RSliceMut<'a, T> {

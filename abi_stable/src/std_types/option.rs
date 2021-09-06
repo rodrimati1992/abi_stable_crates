@@ -76,7 +76,7 @@ impl<T> ROption<T> {
     /// ```
     #[inline]
     pub fn is_rsome(&self)->bool{
-        matches!( RSome{..}=self )
+        matches!(self, RSome{..})
     }
 
     /// Returns whether `self` is an `RNone`
@@ -92,7 +92,7 @@ impl<T> ROption<T> {
     /// ```
     #[inline]
     pub fn is_rnone(&self)->bool{
-        matches!( RNone{..}=self )
+        matches!(self, RNone{..})
     }
 
     
@@ -109,7 +109,7 @@ impl<T> ROption<T> {
     /// ```
     #[inline]
     pub fn is_some(&self)->bool{
-        matches!( RSome{..}=self )
+        matches!(self, RSome{..})
     }
 
     /// Returns whether `self` is an `RNone`
@@ -125,7 +125,7 @@ impl<T> ROption<T> {
     /// ```
     #[inline]
     pub fn is_none(&self)->bool{
-        matches!( RNone{..}=self )
+        matches!(self, RNone{..})
     }
 
 

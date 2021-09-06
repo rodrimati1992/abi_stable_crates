@@ -3,7 +3,10 @@
 
 
 #[allow(unused_imports)]
-use core_extensions::{matches, prelude::*};
+use core_extensions::{
+    matches,
+    SelfOps,
+};
 
 use rand::{
     thread_rng,
@@ -215,7 +218,7 @@ fn prefixes_test() {
                 let errs = res.unwrap_err().flatten_errors();
                 assert!(
                     errs.iter()
-                        .any(|err| matches!(AbiInstability::FieldCountMismatch{..}=err)),
+                        .any(|err| matches!(err, AbiInstability::FieldCountMismatch{..})),
                 );
             }
         }
@@ -357,7 +360,7 @@ fn prefix_is_same_alignment(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::Alignment{..}=err))
+            .any(|err| matches!(err, AbiInstability::Alignment{..}))
         );
     }
 }
@@ -377,7 +380,7 @@ fn prefix_is_same_size(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::MismatchedPrefixSize{..}=err))
+            .any(|err| matches!(err, AbiInstability::MismatchedPrefixSize{..}))
         );
     }
 }
@@ -859,9 +862,9 @@ fn prefix_cond_field_test(){
                 .iter()
                 .any(|e|{
                     inc_on_err([
-                        matches!(AbiInstability::FieldCountMismatch{..}=e),
-                        matches!(AbiInstability::Name{..}=e),
-                        matches!(AbiInstability::MismatchedPrefixConditionality{..}=e),
+                        matches!(e, AbiInstability::FieldCountMismatch{..}),
+                        matches!(e, AbiInstability::Name{..}),
+                        matches!(e, AbiInstability::MismatchedPrefixConditionality{..}),
                     ])
                 }),
             );

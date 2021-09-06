@@ -10,7 +10,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -328,7 +328,7 @@ impl<'a, T> RSlice<'a, T> {
     /// transmute a `&'a [T]` to a `&'a [U]`.
     ///
     /// [`std::mem::transmute`]: https://doc.rust-lang.org/std/mem/fn.transmute.html
-    pub const unsafe fn transmute_ref<U>(self)->RSlice<'a,U>
+    pub const unsafe fn transmute<U>(self)->RSlice<'a,U>
     where
         U:'a
     {
@@ -365,6 +365,28 @@ impl<'a, T> IntoIterator for RSlice<'a, T> {
     fn into_iter(self) -> ::std::slice::Iter<'a, T> {
         self.as_slice().iter()
     }
+}
+
+slice_like_impl_cmp_traits!{
+    impl[] RSlice<'_, T>,
+    where[];
+    Vec<U>,
+    [U],
+    &[U],
+}
+
+#[cfg(feature = "const_params")]
+slice_like_impl_cmp_traits!{
+    impl[const N: usize] RSlice<'_, T>,
+    where[];
+    [U; N],
+}
+
+slice_like_impl_cmp_traits!{
+    impl[] RSlice<'_, T>,
+    where[T: Clone, U: Clone];
+    std::borrow::Cow<'_, [U]>,
+    crate::std_types::RCow<'_, [U]>,
 }
 
 impl<'a, T: 'a> Deref for RSlice<'a, T> {

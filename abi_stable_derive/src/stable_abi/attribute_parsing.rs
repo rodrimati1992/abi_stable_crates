@@ -131,7 +131,7 @@ pub(crate) enum LayoutConstructor{
 
 impl LayoutConstructor{
     pub(crate) fn is_opaque(self)->bool{
-        matches!(LayoutConstructor::Opaque{..}= self )
+        matches!(self, LayoutConstructor::Opaque{..})
     }
 }
 
@@ -263,7 +263,9 @@ impl<'a> StableAbiOptions<'a> {
             Some(ModReflMode::Opaque)=>ModReflMode::Opaque,
             Some(ModReflMode::DelegateDeref(()))=>{
                 let index=phantom_fields.len();
-                let field_ty=syn::parse_str::<Type>("<Self as ::std::op::Deref>::Target")
+                let field_ty = syn::parse_str::<Type>(
+                        "<Self as __sabi_re::GetPointerKind >::PtrTarget"
+                    )
                     .expect("BUG")
                     .piped(|x| arenas.alloc(x) );
 
@@ -271,8 +273,8 @@ impl<'a> StableAbiOptions<'a> {
                 phantom_fields.push((dt,field_ty));
 
                 [
-                    "Self: ::std::ops::Deref",
-                    "<Self as ::std::ops::Deref>::Target: __StableAbi",
+                    "Self: __sabi_re::GetPointerKind",
+                    "<Self as __sabi_re::GetPointerKind>::Target: __StableAbi",
                 ].iter()
                  .map(|x| syn::parse_str::<WherePredicate>(x).expect("BUG") )
                  .extending(&mut this.extra_bounds);

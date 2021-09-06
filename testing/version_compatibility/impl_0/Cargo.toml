@@ -5,8 +5,8 @@ authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-# abi_stable={path="../../../abi_stable",package="abi_stable"}
-abi_stable={version="*"}
+abi_stable={path="../../../abi_stable",package="abi_stable"}
+# abi_stable={version="*"}
 
 [dependencies.version_compatibility_interface]
 version="0.1"

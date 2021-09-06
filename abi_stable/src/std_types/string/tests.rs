@@ -6,7 +6,7 @@ use abi_stable_shared::file_span;
 
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::{SelfOps, SliceExt};
 
 static TEST_STR: &str =
     "hello_world.cáscara.ñ.🎊🍕👏😊😀😄😉😉😛😮🙁🙂💔👻😎.";
@@ -18,14 +18,14 @@ fn from_to_string(){
     let orig_cap=orig_owned.capacity();
     
     // Converted to an RString
-    let copy=orig.into_(RString::T);
+    let copy=orig.into_::<RString>();
 
     assert_eq!(&orig[..],&copy[..]);
 
     assert_eq!(copy.capacity(),orig_cap);
 
     // Converted back to the original
-    let orig_back=copy.into_(String::T);
+    let orig_back=copy.into_::<String>();
 
     assert_eq!(&orig_back[..],orig);
     assert_eq!(orig_back.capacity(),orig_cap);
@@ -54,7 +54,7 @@ fn push() {
 fn insert_str(){
     // '💔' is 4 bytes long
     let test_str="💔love💔is💔";
-    let rstr=test_str.into_(RString::T);
+    let rstr=test_str.into_::<RString>();
     
     {
         let mut rstr=rstr.clone();
@@ -95,7 +95,7 @@ fn remove(){
     // '💔' is 4 bytes long
     let test_str="💔love💔is💔💔love💔is💔";
     let test_str_nohearts=test_str.chars().filter(|&c| c!='💔' ).collect::<String>();
-    let mut rstr=test_str.into_(RString::T);
+    let mut rstr=test_str.into_::<RString>();
     
     must_panic(file_span!(),|| rstr.remove(1) ).unwrap();
     must_panic(file_span!(),|| rstr.remove(9) ).unwrap();
@@ -148,7 +148,7 @@ fn push_str() {
     let iter = TEST_STR.split_while(|c| c == '.').map(|v| v.str);
 
     for s in iter {
-        let end = s.offset_inside_of(TEST_STR) + s.len();
+        let end = TEST_STR.offset_of_slice(s) + s.len();
         rstr.push_str(s);
         assert_eq!(&*rstr, &TEST_STR[..end]);
     }
@@ -158,7 +158,7 @@ fn push_str() {
 #[test]
 fn retain(){
     let retain_test_str="abcd💔01💔efg💔23";
-    let rstr = retain_test_str.into_(RString::T);
+    let rstr = retain_test_str.into_::<RString>();
     
     {
         let mut rstr=rstr.clone();
@@ -226,7 +226,7 @@ fn into_iter() {
     static TEST_STR: &str =
         "hello_world.cáscara.ñ.🎊🍕👏😊😀😄😉😉😛😮🙁🙂💔👻😎.";
 
-    let rstr = TEST_STR.into_(RString::T);
+    let rstr = TEST_STR.into_::<RString>();
 
     assert_eq!(&*rstr, TEST_STR);
     assert_eq!(&*rstr.clone().into_iter().collect::<String>(), TEST_STR);
@@ -264,7 +264,7 @@ fn into_iter() {
 
 #[test]
 fn drain() {
-    let mut rstr = TEST_STR.into_(RString::T);
+    let mut rstr = TEST_STR.into_::<RString>();
     let rstr_cap=rstr.capacity();
     
     // Using this to test that trying to drain in the middle of a character does not work

@@ -3,11 +3,11 @@ use super::*;
 /// A trait object used in method that access map entries without replacing them.
 #[derive(StableAbi)]
 #[repr(C)]
-pub struct MapQuery<'a,K>{
+pub struct MapQuery<'a, K>{
     _marker:NotCopyNotClone,
-    is_equal:extern "C" fn(&K,&ErasedObject)->bool,
-    hash    :extern "C" fn(&ErasedObject,HasherObject<'_>),
-    query:&'a ErasedObject,
+    is_equal:extern "C" fn(&K, RRef<'_, ErasedObject>)->bool,
+    hash    :extern "C" fn(RRef<'_, ErasedObject>,HasherObject<'_>),
+    query: RRef<'a, ErasedObject>,
 }
 
 impl<'a,K> MapQuery<'a,K>{
@@ -18,10 +18,10 @@ impl<'a,K> MapQuery<'a,K>{
         Q:Hash + Eq + 'a+?Sized,
     {
         MapQuery{
-            _marker:NotCopyNotClone,
-            is_equal:is_equal::<K,Q>,
-            hash    :hash::<Q>,
-            query:unsafe{ transmute_reference(query) },
+            _marker: NotCopyNotClone,
+            is_equal: is_equal::<K,Q>,
+            hash    : hash::<Q>,
+            query: unsafe{ RRef::new(query).transmute() },
         }
     }
 
@@ -32,7 +32,7 @@ impl<'a,K> MapQuery<'a,K>{
     
     #[inline]
     pub(super) unsafe fn as_static(&self)->&MapQuery<'static,K>{
-        transmute_reference(self)
+        crate::utils::transmute_reference(self)
     }
 }
 
@@ -55,29 +55,29 @@ impl<'a,K> Hash for MapQuery<'a,K>{
     where
         H: Hasher,
     {
-        (self.hash)(&self.query,HasherObject::new(hasher))
+        (self.hash)(self.query, HasherObject::new(hasher))
     }
 }
 
 
-extern "C" fn is_equal<K,Q>(key:&K,query:&ErasedObject)->bool
+extern "C" fn is_equal<K,Q>(key:&K,query:RRef<'_, ErasedObject>)->bool
 where
     K:Borrow<Q>,
     Q:Eq+?Sized,
 {
     extern_fn_panic_handling!{
-        let query =unsafe{ transmute_reference::<ErasedObject,&Q>(query) };
+        let query = unsafe{ query.transmute_into_ref::<&Q>() };
         key.borrow()==*query
     }
 }
 
 
-extern "C" fn hash<Q>(query:&ErasedObject,mut hasher:HasherObject<'_>)
+extern "C" fn hash<Q>(query:RRef<'_, ErasedObject>,mut hasher:HasherObject<'_>)
 where
     Q:Hash+?Sized,
 {
     extern_fn_panic_handling!{
-        let query =unsafe{ transmute_reference::<ErasedObject,&Q>(query) };
+        let query = unsafe{ query.transmute_into_ref::<&Q>() };
         query.hash(&mut hasher);
     }
 }

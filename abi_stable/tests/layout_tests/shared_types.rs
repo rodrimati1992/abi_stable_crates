@@ -3,7 +3,7 @@
 use std::marker::PhantomData;
 
 #[allow(unused_imports)]
-use core_extensions::{matches, prelude::*};
+use core_extensions::matches;
 
 #[allow(unused_imports)]
 use abi_stable::{

@@ -4,7 +4,7 @@ use std::{
     ops::{Deref},
 };
 
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 use regex::Regex;
 use serde::de::{Deserialize,Deserializer,Error as deError};
 

@@ -24,7 +24,7 @@ fn main() {
             .err()
             .unwrap();
         assert!(
-            core_extensions::matches!( LibraryError::OpenError{..} = err ),
+            core_extensions::matches!(err, LibraryError::OpenError{..}),
             "{:?}",
             err,
         );
@@ -35,7 +35,7 @@ fn main() {
             compute_library_path::<WithIncompatibleLayout_Ref>(target).unwrap();
         let err = NonAbiStableLib_Ref::load_from_directory(&library_path).err().unwrap();
         assert!(
-            core_extensions::matches!( LibraryError::GetSymbolError{..} = err ),
+            core_extensions::matches!(err, LibraryError::GetSymbolError{..}),
             "{:?}",
             err,
         );
@@ -50,7 +50,7 @@ fn main() {
             .unwrap();
 
         assert!(
-            core_extensions::matches!( LibraryError::AbiInstability(_) = err ),
+            core_extensions::matches!(err, LibraryError::AbiInstability(_)),
             "{:#}",
             err,
         );
@@ -82,9 +82,9 @@ fn main() {
 
                     assert!(
                         core_extensions::matches!(
-                             (ReturnWhat::Error, RootModuleError::Returned{..})
+                            (&envars.return_what, rm_err),
+                            |(ReturnWhat::Error, RootModuleError::Returned{..})
                             |(ReturnWhat::Panic, RootModuleError::Unwound{..})
-                            = (&envars.return_what, rm_err)
                         ),
                         "return_what: {:?}\nerror: {:?}",
                         envars.return_what,

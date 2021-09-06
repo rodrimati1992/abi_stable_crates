@@ -293,7 +293,7 @@ impl<'a> Field<'a> {
     }
 
     pub fn is_public(&self)->bool{
-        matches!(Visibility::Public{..} = self.vis)
+        matches!(self.vis, Visibility::Public{..})
     }
 
     /// Gets the identifier of this field usable for the variable in a pattern.

@@ -19,11 +19,12 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::{
     marker_type::NonOwningPhantom,
     pointer_trait::{
+        AsPtr, AsMutPtr,
         CallReferentDrop,Deallocate, CanTransmuteElement,
         GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
@@ -150,9 +151,16 @@ enum Command{
             MovePtr::into_rbox(p)
         }
 
+        #[inline(always)]
         pub(super) fn data(&self) -> *mut T {
             self.data
         }
+        #[inline(always)]
+        pub(super) fn data_mut(&mut self) -> *mut T {
+            self.data
+        }
+
+        #[inline(always)]
         pub(super) fn vtable(&self) -> BoxVtable_Ref<T> {
             self.vtable
         }
@@ -163,16 +171,35 @@ enum Command{
             self.vtable = VTableGetter::<T>::LIB_VTABLE_FOR_TESTING;
         }
     }
+
+    unsafe impl<T> AsPtr for RBox<T> {
+        #[inline(always)]
+        fn as_ptr(&self) -> *const T {
+            self.data
+        }
+    }
+    unsafe impl<T> AsMutPtr for RBox<T> {
+        #[inline(always)]
+        fn as_mut_ptr(&mut self) -> *mut T {
+            self.data
+        }
+    }
 }
 
 pub use self::private::RBox;
 
 unsafe impl<T> GetPointerKind for RBox<T>{
     type Kind=PK_SmartPointer;
+
+    type PtrTarget = T;
 }
 
 unsafe impl<T, O> CanTransmuteElement<O> for RBox<T> {
     type TransmutedPtr = RBox<O>;
+
+    unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
+        core_extensions::utils::transmute_ignore_size(self)
+    }
 }
 
 impl<T> RBox<T> {
@@ -257,12 +284,12 @@ impl<T> DerefMut for RBox<T> {
 
 unsafe impl<T> OwnedPointer for RBox<T>{
     #[inline]
-    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>{
-        MovePtr::new(&mut **this)
+    unsafe fn get_move_ptr(this: &mut ManuallyDrop<Self>) -> MovePtr<'_, T>{
+        MovePtr::from_raw(this.data_mut())
     }
 
     #[inline]
-    unsafe fn drop_allocation(this:&mut ManuallyDrop<Self>){
+    unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>){
         unsafe {
             let data: *mut T = this.data();
             (this.vtable().destructor())(data as *mut (), CallReferentDrop::No,Deallocate::Yes);

@@ -16,7 +16,7 @@ use abi_stable::{
     external_types::ROnce,
     marker_type::UnsafeIgnoredType,
     type_layout::TypeLayout,
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     sabi_types::{Constructor,CmpIgnored},
     std_types::*,
     utils::{self,leak_value},
@@ -75,7 +75,7 @@ fn test_subsets(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err))
+            .any(|err| matches!(err, AbiInstability::ExtraCheckError{..}))
         );
     }
 
@@ -277,7 +277,7 @@ unsafe impl ExtraChecks for ConstChecker {
         Self::downcast_with_object(other,checker,|other,_|{
             let (min,max)=utils::min_max_by(self,other,|x|x.chars.len());
             min.check_compatible_inner(max)
-                .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TU_Opaque) ) )
+                .map(|_| RSome( ExtraChecksBox::from_value(max.clone(),TD_Opaque) ) )
         })
     }
 }
@@ -343,7 +343,7 @@ unsafe impl ExtraChecks for IdentityChecker {
             ty_checker.check_compatibility(t_lay,o_lay).into_result()
         }).observe(|res|{
             assert!(
-                matches!(ROk(_)|RErr(ExtraChecksError::TypeChecker)=res),
+                matches!(res, ROk(_)|RErr(ExtraChecksError::TypeChecker)),
                 "It isn't either ROk or an RErr(TypeChecker):\n{:?}",
                 res
             )
@@ -372,7 +372,7 @@ where
             &IdentityChecker{ 
                 type_layout:Constructor(get_type_layout::<T>)
             },
-            TU_Opaque,
+            TD_Opaque,
             ExtraChecks_MV::VTABLE,
         ));
 }
@@ -457,7 +457,7 @@ fn test_identity_extra_checker() {
                         .unwrap_err()
                         .flatten_errors()
                         .into_iter()
-                        .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err) );
+                        .any(|err| matches!(err, AbiInstability::ExtraCheckError{..}) );
 
                     assert!(!found_extra_checks_error);
                     
@@ -514,7 +514,7 @@ fn test_cyclic_extra_checker() {
         .unwrap_err()
         .flatten_errors()
         .into_iter()
-        .any(|err| matches!(AbiInstability::CyclicTypeChecking{..}=err) );
+        .any(|err| matches!(err, AbiInstability::CyclicTypeChecking{..}) );
 
     assert!(found_extra_checks_error);
 }

@@ -1,5 +1,4 @@
 #![allow(non_camel_case_types)]
-#![cfg_attr(feature = "nightly_const_params", feature(const_generics))]
 #![cfg_attr(miri, allow(unused_imports))]
 
 

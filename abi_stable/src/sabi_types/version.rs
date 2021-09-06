@@ -2,7 +2,7 @@
 Types representing the version number of a library.
 */
 
-use core_extensions::prelude::*;
+use core_extensions::{SelfOps, StringExt};
 
 use std::{
     error,

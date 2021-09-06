@@ -102,7 +102,7 @@ fn downcasting_tests(){
 
     unsafe{
         use self::method_disabled_one_default::*;
-        let empty=empty::Trait_TO::from_value((),TU_Opaque);
+        let empty=empty::Trait_TO::from_value((),TD_Opaque);
         let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
         assert_eq!(object.first_method(), 0xf000);
         assert_eq!(object.last_method(), 0xfAAA);
@@ -110,27 +110,27 @@ fn downcasting_tests(){
     }
     unsafe{
         use self::method_disabled_all_default::*;
-        let empty=empty::Trait_TO::from_value((),TU_Opaque);
+        let empty=empty::Trait_TO::from_value((),TD_Opaque);
         let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
         must_panic(file_span!(),|| object.first_method() ).unwrap();
         must_panic(file_span!(),|| object.last_method() ).unwrap();
     }
     unsafe{
         use self::method_no_default::*;
-        let empty=empty::Trait_TO::from_value((),TU_Opaque);
+        let empty=empty::Trait_TO::from_value((),TD_Opaque);
         let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
         must_panic(file_span!(),|| object.apply(2,5) ).unwrap();
     }
     unsafe{
         use self::method_default::*;
-        let empty=empty::Trait_TO::from_value((),TU_Opaque);
+        let empty=empty::Trait_TO::from_value((),TD_Opaque);
         let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
         assert_eq!(object.apply(2,5),21);
     }
     
 
     {
-        let no_default=method_no_default::Trait_TO::from_value((),TU_Opaque);
+        let no_default=method_no_default::Trait_TO::from_value((),TD_Opaque);
         {
             assert_eq!(no_default.apply(2,5), 14);
         }
@@ -141,7 +141,7 @@ fn downcasting_tests(){
         }
     }
     {
-        let with_default=method_default::Trait_TO::from_value(True,TU_Opaque);
+        let with_default=method_default::Trait_TO::from_value(True,TD_Opaque);
         {
             assert_eq!(with_default.apply(2,5), 28);
         }
@@ -195,9 +195,9 @@ impl DefaultMethodPair for C{
 
 #[test]
 fn default_methods(){
-    let a=DefaultMethodPair_TO::from_value(A,TU_Opaque);
-    let b=DefaultMethodPair_TO::from_value(B,TU_Opaque);
-    let c=DefaultMethodPair_TO::from_value(C,TU_Opaque);
+    let a=DefaultMethodPair_TO::from_value(A,TD_Opaque);
+    let b=DefaultMethodPair_TO::from_value(B,TD_Opaque);
+    let c=DefaultMethodPair_TO::from_value(C,TD_Opaque);
 
     assert_eq!(a.foo(1), 101);
     assert_eq!(b.foo(1), 211);
@@ -256,15 +256,15 @@ mod defaulted_prefix_method{
 fn defaulted_prefix_method_works(){
     use defaulted_prefix_method::Trait_TO;
     {
-        let obj = Trait_TO::from_value((), TU_Opaque);
+        let obj = Trait_TO::from_value((), TD_Opaque);
         assert_eq!(obj.apply(), 3);
     }
     {
-        let obj = Trait_TO::from_value(0u32, TU_Opaque);
+        let obj = Trait_TO::from_value(0u32, TD_Opaque);
         assert_eq!(obj.apply(), 5);
     }
     {
-        let obj = Trait_TO::from_value(10u32, TU_Opaque);
+        let obj = Trait_TO::from_value(10u32, TD_Opaque);
         assert_eq!(obj.apply(), 15);
     }
 }
@@ -308,7 +308,7 @@ impl BorrowKinds for u32{
 
 #[test]
 fn borrow_kinds(){
-    let mut obj = BorrowKinds_TO::from_value(3u32, TU_Opaque);
+    let mut obj = BorrowKinds_TO::from_value(3u32, TD_Opaque);
 
     assert_eq!(obj.ref_borrow_a(), &true);
     assert_eq!(obj.ref_borrow_b().as_str(), "foo");

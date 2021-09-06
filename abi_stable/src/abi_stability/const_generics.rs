@@ -11,6 +11,7 @@ use crate::{
     },
     marker_type::ErasedObject,
     prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::RRef,
     std_types::{RString,RResult,ROk,RErr},
     type_layout::TypeLayout,
     StableAbi,
@@ -30,7 +31,7 @@ use std::{
 #[repr(C)]
 #[derive(Copy,Clone,StableAbi)]
 pub struct ConstGeneric{
-    ptr:*const ErasedObject,
+    ptr: RRef<'static, ErasedObject>,
     vtable: ConstGenericVTable_Ref,
 }
 
@@ -43,7 +44,7 @@ impl ConstGeneric{
     /// To construct the `vtable_for` parameter use `ConstGenericVTableFor::NEW`.
     pub const fn new<T>(this:&'static T, vtable_for:ConstGenericVTableFor<T>)->Self{
         Self{
-            ptr: this as *const T as *const ErasedObject,
+            ptr: unsafe{ RRef::from_raw(this as *const T as *const ErasedObject) },
             vtable: vtable_for.vtable,
         }
     }
@@ -57,7 +58,7 @@ impl ConstGeneric{
     /// (where `T` is the unerased type of `this`)
     pub const unsafe fn from_erased(this: *const (), vtable: ConstGenericVTable_Ref)->Self{
         Self{
-            ptr: this as *const ErasedObject,
+            ptr: RRef::from_raw(this as *const ErasedObject),
             vtable,
         }
     }
@@ -71,7 +72,7 @@ impl ConstGeneric{
     )->Result<bool,ExtraChecksError> {
         match checker.check_compatibility(self.vtable.layout(),other.vtable.layout()) {
             ROk(_)=>unsafe{
-                Ok(self.vtable.partial_eq()( &*self.ptr, &*other.ptr ))
+                Ok(self.vtable.partial_eq()( self.ptr, other.ptr ))
             },
             RErr(e)=>{
                 Err(e)
@@ -84,7 +85,7 @@ impl Debug for ConstGeneric{
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
         unsafe{
             adapt_std_fmt::<ErasedObject>(
-                &*self.ptr,
+                self.ptr,
                 self.vtable.debug(),
                 f
             )
@@ -101,7 +102,7 @@ impl PartialEq for ConstGeneric{
             false
         }else{
             unsafe{
-                self.vtable.partial_eq()( &*self.ptr, &*other.ptr )
+                self.vtable.partial_eq()( self.ptr, other.ptr )
             }
         }
     }
@@ -121,9 +122,9 @@ impl Eq for ConstGeneric{}
 #[sabi(missing_field(panic))]
 pub struct ConstGenericVTable {
     layout:&'static TypeLayout,
-    partial_eq:unsafe extern "C" fn(&ErasedObject,&ErasedObject)->bool,
+    partial_eq:unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->bool,
     #[sabi(last_prefix_field)]
-    debug:unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
+    debug:unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>,
 }
 
 /// A type that contains the vtable stored in the `ConstGeneric` constructed from a `T`.

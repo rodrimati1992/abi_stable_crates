@@ -14,9 +14,7 @@ use generational_arena::{
     Index as ArenaIndex,
 };
 
-use core_extensions::{
-    prelude::*,
-};
+use core_extensions::SelfOps;
 
 
 /// A Map that maps multiple keys to the same value.

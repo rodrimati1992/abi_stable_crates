@@ -1,6 +1,9 @@
-/*!
+/**
 
-The `sabi_extern_fn` attribute macro is syntactic sugar to transform this:
+The `sabi_extern_fn` attribute macro allows defining `extern "C"` function that
+aborting  on unwind instead of causing undefined behavior.
+
+This macro is syntactic sugar to transform  this:
 ```ignore
 <visibility> fn function_name( <params> )-> <return type> {
     <code here>
@@ -16,7 +19,7 @@ into this:
 ```
 
 What this attribute does is to give the function abort on unwind semantics
-(only when it unwinds outside of the function).
+(only when the unwinds doesn't stop inside the function).
 A user can still use `std::panic::catch_unwind` inside the function to 
 catch panics and handle them appropriately.
 
@@ -98,3 +101,5 @@ assert_eq!(
 
 
 */
+#[doc(inline)]
+pub use abi_stable_derive::sabi_extern_fn;
