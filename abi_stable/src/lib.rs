@@ -350,7 +350,11 @@ static EXECUTABLE_IDENTITY: AtomicUsize = AtomicUsize::new(1);
 #[doc(inline)]
 pub use crate::{
     abi_stability::StableAbi,
-    erased_types::{DynTrait,ImplType, InterfaceType},
+    erased_types::{
+        dyn_trait::DynTrait,
+        ImplType,
+        InterfaceType,
+    },
 };
 
 #[doc(no_inline)]
