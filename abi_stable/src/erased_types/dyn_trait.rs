@@ -1120,8 +1120,8 @@ mod priv_ {
         /// 
         /// ```
         /// 
-        /// [`TD_CanDowncast`]: ./type_level/unersability/struct.TD_CanDowncast.html
-        /// [`TD_Opaque`]: ./type_level/unersability/struct.TD_Opaque.html
+        /// [`TD_CanDowncast`]: ./type_level/downcasting/struct.TD_CanDowncast.html
+        /// [`TD_Opaque`]: ./type_level/downcasting/struct.TD_Opaque.html
         pub const fn from_const<T, Downcasting>(
             ptr:&'a T,
             can_it_downcast:Downcasting,

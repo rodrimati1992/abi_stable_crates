@@ -390,9 +390,9 @@ where
 
 [`RObject`]: ../../sabi_trait/struct.RObject.html
 
-[`DynTrait`]: ../struct.DynTrait.html
+[`DynTrait`]: ../../struct.DynTrait.html
 
-[`RBox`]: ../std_types/struct.RObject.html
+[`RBox`]: ../../std_types/struct.RBox.html
 
 [`Action_TO`]: ../../sabi_trait/doc_examples/struct.Action_TO.html
 

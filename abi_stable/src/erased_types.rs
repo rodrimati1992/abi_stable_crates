@@ -41,10 +41,11 @@ pub(crate) mod vtable;
 
 pub(crate) mod traits;
 
+#[doc(no_inline)]
+pub use crate::DynTrait;
 
 pub use self::{
     dyn_trait::{
-        DynTrait,
         DynTraitBound,
         GetVWInterface,
         UneraseError,
