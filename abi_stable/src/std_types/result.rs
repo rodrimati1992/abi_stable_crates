@@ -75,7 +75,7 @@ impl<T, E> RResult<T, E> {
     /// ```
     #[inline]
     pub fn is_rok(&self)->bool{
-        matches!{ ROk{..}=self }
+        matches!{self, ROk{..}}
     }
 
     /// Returns whether `self` is an `ROk`
@@ -91,7 +91,7 @@ impl<T, E> RResult<T, E> {
     /// ```
     #[inline]
     pub fn is_ok(&self)->bool{
-        matches!{ ROk{..}=self }
+        matches!{self, ROk{..}}
     }
 
     /// Returns whether `self` is an `RErr`
@@ -107,7 +107,7 @@ impl<T, E> RResult<T, E> {
     /// ```
     #[inline]
     pub fn is_rerr(&self)->bool{
-        matches!{ RErr{..}=self }
+        matches!{self, RErr{..}}
     }
 
     /// Returns whether `self` is an `RErr`
@@ -123,7 +123,7 @@ impl<T, E> RResult<T, E> {
     /// ```
     #[inline]
     pub fn is_err(&self)->bool{
-        matches!{ RErr{..}=self }
+        matches!{self, RErr{..}}
     }
 
 

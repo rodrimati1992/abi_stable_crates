@@ -150,7 +150,7 @@ impl<'a> From<&'a TLFunction> for MRFunction{
     fn from(this:&'a TLFunction)->Self{
         Self{
             params:this.get_params().map(MRNameType::from).collect::<Vec<_>>(),
-            returns:this.get_return().into_(MRNameType::T),
+            returns:this.get_return().into_::<MRNameType>(),
         }
     }
 }

@@ -5,7 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use core_extensions::prelude::*;
+use core_extensions::{SelfOps, StringExt};
 
 use proc_macro2::TokenStream as TokenStream2;
 

@@ -67,7 +67,7 @@ fn export_root_module_inner(mut input:ItemFn)->Result<TokenStream2,syn::Error>{
         #input
 
         #[no_mangle]
-        #vis static #export_name: ::abi_stable::library::LibHeader={
+        #vis static #export_name: ::abi_stable::library::LibHeader = {
 
             pub extern "C" fn _sabi_erased_module()-> ::abi_stable::library::RootModuleResult {
                 ::abi_stable::library::__call_root_module_loader(#original_fn_ident)
@@ -76,7 +76,7 @@ fn export_root_module_inner(mut input:ItemFn)->Result<TokenStream2,syn::Error>{
             type __SABI_Module = <#ret_ty as ::abi_stable::library::IntoRootModuleResult>::Module;
             unsafe{
                 ::abi_stable::library::LibHeader::from_constructor(
-                    abi_stable::sabi_types::Constructor(_sabi_erased_module),
+                    ::abi_stable::sabi_types::Constructor(_sabi_erased_module),
                     <__SABI_Module as ::abi_stable::library::RootModule>::#assoc_constant,
                 )
             }

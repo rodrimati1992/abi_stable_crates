@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable"
-version = "0.9.3"
+version = "0.10.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition="2018"
 license = "MIT/Apache-2.0"
@@ -26,27 +26,25 @@ default = ["channels","serde_json"]
 
 rust_1_42=[]
 
-# Enables stuff that requires const generics,use this once const generics are stabilized.
-const_params=[]
+rust_1_51=["rust_1_42", "const_params"]
 
-# Enables all nightly features.
-all_nightly=[
-    "nightly_const_params",
-]
+const_params=["rust_1_42"]
 
 # Enables the `#![feature(min_const_generics)]` attribute in 
 nightly_const_params=["const_params"]
 
-# Test features,only used internally.
+# internal features
 testing=[]
-test_const_params = []
+test_miri_track_raw = ["testing"]
 only_new_tests=["testing"]
 sabi_trait_examples=[]
 nonexhaustive_examples=[]
 
 # For disabling tests that break with the reduced promotion in
 # https://github.com/rust-lang/rust/pull/80243#event-4161720040
-no_fn_promotion = []
+no_fn_promotion = ["no_tagging_doctest"]
+
+no_tagging_doctest = []
 
 docsrs = []
 
@@ -54,35 +52,40 @@ channels=["crossbeam-channel"]
 
 
 [dependencies]
-abi_stable_derive= {version="0.9.2",path="../abi_stable_derive"}
-abi_stable_shared= {version="0.9.0",path="../abi_stable_shared"}
-serde          = { version = "1.0.117", features = ["derive"] }
-repr_offset = { version = "0.1.1", default_features = false }
-serde_derive   = "1.0.117"
-libloading     = "0.6.4"
-parking_lot    = "0.11.0"
-lock_api       = "0.4.1"
+abi_stable_derive= {version="0.10.0",path="../abi_stable_derive"}
+abi_stable_shared= {version="0.10.0",path="../abi_stable_shared"}
+serde          = { version = "1.0.127", features = ["derive"] }
+repr_offset = { version = "0.2.1", default_features = false }
+serde_derive   = "1.0.127"
+libloading     = "0.7.0"
+parking_lot    = "0.11.1"
+lock_api       = "0.4.4"
 generational-arena = "0.2.8"
-crossbeam-channel = { version = "0.5.0", optional = true }
-serde_json = { version = "1.0.59", features = ["raw_value"], optional = true }
+crossbeam-channel = { version = "0.5.1", optional = true }
+serde_json = { version = "1.0.66", features = ["raw_value"], optional = true }
 
 [dependencies.core_extensions]
 default_features=false
-features=["std"]
-version= "0.1.18"
+features=[
+    "std",
+    "iterators",
+    "self_ops",
+    "type_asserts", "type_identity", "type_level_bool",
+    "void",
+]
+version= "1.4.2"
 
 [dev-dependencies]
-bincode = "1.3.1"
-crossbeam-utils = "0.8.0"
-serde_json = { version = "1.0.59", features = ["raw_value"] }
-rand = "0.7.3"
-criterion = "0.3.3"
-hashbrown = "0.9.1"
+bincode = "1.3.3"
+crossbeam-utils = "0.8.5"
+serde_json = { version = "1.0.66", features = ["raw_value"] }
+rand = "0.8.4"
+hashbrown = "0.11.2"
 fnv = "1.0.7"
 
 
 [build-dependencies]
-rustc_version = "0.2.3"
+rustc_version = "0.4.0"
 
 [package.metadata.docs.rs]
 features = ["docsrs", "const_params"]

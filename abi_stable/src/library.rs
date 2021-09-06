@@ -11,7 +11,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use libloading::{
     Library as LibLoadingLibrary,
@@ -30,7 +30,6 @@ use crate::{
     type_layout::TypeLayout,
     sabi_types::{ LateStaticRef, VersionNumber, VersionStrings },
     std_types::{RResult, RStr},
-    utils::{transmute_reference},
 };
 
 
@@ -47,7 +46,7 @@ pub use self::c_abi_testing::{CAbiTestingFns,C_ABI_TESTING_FNS};
 
 pub use self::{
     errors::{IntoRootModuleResult, LibraryError, RootModuleError},
-    lib_header::{AbiHeader,LibHeader},
+    lib_header::{AbiHeader, AbiHeaderRef, LibHeader},
     root_mod_trait::{
         RootModule,
         lib_header_from_raw_library,

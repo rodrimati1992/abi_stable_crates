@@ -3,7 +3,7 @@
 use std::{marker::PhantomData,mem, num, ptr, sync::atomic};
 
 #[allow(unused_imports)]
-use core_extensions::{matches, prelude::*};
+use core_extensions::matches;
 
 use abi_stable::{
     abi_stability::{
@@ -512,7 +512,7 @@ fn different_zeroness() {
         .flatten_errors();
     assert!(errs
         .iter()
-        .any(|err| matches!(AbiInstability::NonZeroness{..}=err)));
+        .any(|err| matches!(err, AbiInstability::NonZeroness{..})));
 }
 
 #[test]
@@ -524,7 +524,7 @@ fn different_name() {
         .flatten_errors();
     assert!(errs
         .iter()
-        .any(|err| matches!(AbiInstability::Name{..}=err)));
+        .any(|err| matches!(err, AbiInstability::Name{..})));
 }
 
 
@@ -547,7 +547,7 @@ fn different_field_name() {
         .flatten_errors();
     assert!(errs
         .iter()
-        .any(|err| matches!(AbiInstability::UnexpectedField{..}=err)));
+        .any(|err| matches!(err, AbiInstability::UnexpectedField{..})));
 }
 
 
@@ -564,7 +564,7 @@ fn swapped_fields() {
             .flatten_errors();
         assert!(errs
             .iter()
-            .any(|x| matches!(AbiInstability::UnexpectedField{..}=x)))
+            .any(|x| matches!(x, AbiInstability::UnexpectedField{..})))
     }
 }
 
@@ -679,7 +679,7 @@ fn different_generics() {
                 .flatten_errors();
             assert!(errs
                 .iter()
-                .any(|err| matches!(AbiInstability::GenericParamCount{..}=err)));
+                .any(|err| matches!(err, AbiInstability::GenericParamCount{..})));
         }
     }
 
@@ -692,7 +692,7 @@ fn different_generics() {
                 .flatten_errors();
             assert!(errs
                 .iter()
-                .any(|err| matches!(AbiInstability::FieldLifetimeMismatch{..}=err)));
+                .any(|err| matches!(err, AbiInstability::FieldLifetimeMismatch{..})));
         }
     }
 }
@@ -732,7 +732,7 @@ fn variant_mismatch() {
             .flatten_errors();
         assert!(errs
             .iter()
-            .any(|err| matches!(AbiInstability::UnexpectedVariant{..}=err)));
+            .any(|err| matches!(err, AbiInstability::UnexpectedVariant{..})));
     }
 
     {
@@ -742,7 +742,7 @@ fn variant_mismatch() {
             .flatten_errors();
         assert!(errs
             .iter()
-            .any(|err| matches!(AbiInstability::TooManyVariants{..}=err)));
+            .any(|err| matches!(err, AbiInstability::TooManyVariants{..})));
     }
 }
 
@@ -963,7 +963,7 @@ mod tagging_items {
                         assert!(
                             errs
                             .iter()
-                            .any(|err| matches!(AbiInstability::TagError{..}=err) )
+                            .any(|err| matches!(err, AbiInstability::TagError{..}) )
                         );
                     }
                 }
@@ -999,7 +999,7 @@ mod tagging_items {
                         assert!(
                             errs
                             .iter()
-                            .any(|err| matches!(AbiInstability::TagError{..}=err) )
+                            .any(|err| matches!(err, AbiInstability::TagError{..}) )
                         );
                     }
                 }

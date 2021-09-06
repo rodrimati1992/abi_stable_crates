@@ -12,7 +12,7 @@ use syn::{
     Visibility,
 };
 
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use std::cmp::{Ordering, PartialOrd};
 

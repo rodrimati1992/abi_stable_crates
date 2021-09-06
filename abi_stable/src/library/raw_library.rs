@@ -40,7 +40,8 @@ impl RawLibrary {
 
     /// Loads the dynamic library at the `full_path` path.
     pub fn load_at(full_path:&Path) -> Result<Self,LibraryError> {
-        match LibLoadingLibrary::new(&full_path) {
+        // safety: not my problem if libraries have problematic static initializers
+        match unsafe{ LibLoadingLibrary::new(&full_path) } {
             Ok(library)=>Ok(Self { path:full_path.to_owned(), library }),
             Err(err)=>Err(LibraryError::OpenError{ path:full_path.to_owned(), err: Box::new(err) }),
         }

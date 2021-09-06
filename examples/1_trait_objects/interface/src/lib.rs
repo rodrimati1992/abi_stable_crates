@@ -16,7 +16,7 @@ use abi_stable::{
     package_version_strings,
     declare_root_module_statics,
     library::RootModule,
-    sabi_types::VersionStrings,
+    sabi_types::{VersionStrings, RMut},
     external_types::{
         crossbeam_channel::RSender,
     },
@@ -192,7 +192,7 @@ impl RootModule for PluginMod_Ref {
 
 
 /// A mutable reference to the application implementation.
-pub type ApplicationMut<'a>=Application_TO<'a,&'a mut ()>;
+pub type ApplicationMut<'a>=Application_TO<'a, RMut<'a, ()>>;
 
 
 #[sabi_trait]

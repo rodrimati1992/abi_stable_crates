@@ -51,106 +51,17 @@ pub fn impl_InterfaceType(input: TokenStream1) -> TokenStream1 {
 }
 
 
-
-
-
-/**
-
-This attribute is used for functions which export a module in an `implementation crate`.
-
-When applied it creates a mangled function which calls the annotated function,
-as well as check its type signature.
-
-This is applied to functions like this:
-
-```ignore
-
-use abi_stable::prefix_type::PrefixTypeTrait;
-
-#[export_root_module]
-pub fn get_hello_world_mod() -> TextOperationsMod_Ref {
-    TextOperationsMod{
-        reverse_string,
-    }.leak_into_prefix()
-}
-
-# fn main(){}
-
-```
-
-# Return Type
-
-The return type of the annotated function can be one of:
-
-- Any type that implements `abi_stable::library::RootModule`
-
-- `Result<M, RBoxError>`, where `M` is any type that implements 
-`abi_stable::library::RootModule`
-
-- `RResult<M, RBoxError>`, where `M` is any type that implements 
-`abi_stable::library::RootModule`
-
-All those types are supported through the `abi_stable::library::IntoRootModuleResult` trait,
-which you can implement if you want to return some other type.
-
-# Generated code
-
-Exporting the root module creates a 
-`static THE_NAME_USED_FOR_ALL_ROOT_MODULES:LibHeader= ... ;` 
-with these things:
-
-- The abi_stable version number used by the dynamic library.
-
-- A constant describing the layout of the exported root module,and every type it references.
-
-- A lazily initialized reference to the root module.
-
-- The constructor function of the root module.
-
-The name used for root modules is the one returned by 
-`abi_stable::library::mangled_root_module_loader_name`.
-Because there can't be multiple root modules for a library,
-that function returns a constant.
-
-
-# Remove type layout constant
-
-One can avoid generating the type layout constant for the exported root module by using the
-`#[unsafe_no_layout_constant]` attribute,
-with the downside that if the layout changes(in an incompatible way)
-it could be Undefined Behavior.
-
-This attribute is useful if one wants to minimize the size of the dynamic library when 
-doing a public release.
-
-It is strongly encouraged that this attribute is used conditionally,
-disabling it in Continuous Integration so that the 
-binary compatibility of a dynamic library is checked at some point before releasing it.
-
-# More examples
-
-For a more detailed example look in the README in the repository for this crate.
-
-
-
-*/
 #[proc_macro_attribute]
 pub fn export_root_module(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     crate::export_root_module_impl::export_root_module_attr(attr,item)
 }
 
-/**
-This macro is documented in abi_stable::docs::sabi_extern_fn
-*/
 #[proc_macro_attribute]
 pub fn sabi_extern_fn(attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     crate::sabi_extern_fn_impl::sabi_extern_fn(attr,item)
 }
 
 
-/**
-This macro is documented in `abi_stable::docs::sabi_trait_attribute` .
-*/
 #[proc_macro_attribute]
 pub fn sabi_trait(_attr: TokenStream1, item: TokenStream1) -> TokenStream1 {
     parse_or_compile_err( item, sabi_trait::derive_sabi_trait ).into()
@@ -164,9 +75,6 @@ pub fn concatenated_and_ranges( input: TokenStream1) -> TokenStream1 {
 }
 
 
-/**
-This macro is documented in `abi_stable::docs::get_static_equivalent`
-*/
 #[proc_macro_derive(GetStaticEquivalent, attributes(sabi))]
 pub fn derive_get_static_equivalent(input: TokenStream1) -> TokenStream1 {
     parse_or_compile_err( input, get_static_equivalent::derive ).into()
@@ -246,7 +154,7 @@ use syn::{DeriveInput,ItemFn};
 use quote::{quote, ToTokens, quote_spanned};
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 #[allow(unused_imports)]
 use crate::{

@@ -1,215 +1,209 @@
-/*!
-Tag is a dynamically typed data structure used to encode extra properties 
-about a type in its layout constant.
+//! Tag is a dynamically typed data structure used to encode extra properties 
+//! about a type in its layout constant.
+//! 
+//! # Comparison semantics
+//! 
+//! Tags don't use strict equality when doing layout checking ,
+//! here is an exhaustive list on what is considered compatible 
+//! for each variant **in the interface**:
+//! 
+//! - Null:
+//!     A Tag which is compatible with any other one.
+//!     Note that Nulls are stripped from arrays,set,and map keys.
+//! 
+//! - Integers/bools/strings:
+//!     They must be strictly equal.
+//! 
+//! - Arrays:
+//!     They must have the same length, and have elements that compare equal.
+//! 
+//! - Sets/Maps:
+//!     The set/map in the interface must be a subset of the implementation,
+//! 
+//! # Examples
+//! 
+//! 
+//! ###  Declaring a unit type with a tag. 
+//! 
+#![cfg_attr(not(feature = "no_tagging_doctest"), doc = "```rust")]
+#![cfg_attr(feature = "no_tagging_doctest", doc = "```ignore")]
+//! 
+//! use abi_stable::{tag,StableAbi};
+//! 
+//! #[repr(C)]
+//! #[derive(StableAbi)]
+//! #[sabi( tag = r##" tag!("WAT") "## )]
+//! struct UnitType;
+//! 
+//! 
+//! # fn main(){}
+//! 
+//! 
+//! ```
+//! 
+//! ###  Emulating const generics for strings 
+//! 
+//! This emulates a `const NAME:&'static str` parameter,
+//! which is checked as being the same between the interface and implementation.
+//! 
+//! 
+#![cfg_attr(not(feature = "no_tagging_doctest"), doc = "```rust")]
+#![cfg_attr(feature = "no_tagging_doctest", doc = "```ignore")]
+//! use abi_stable::{tag,StableAbi,marker_type::UnsafeIgnoredType};
+//! 
+//! 
+//! trait Name{
+//!     const NAME:&'static str;
+//! }
+//! 
+//! ///
+//! /// The layout of `StringParameterized<S>` is determined by `<S as Name>::NAME`,
+//! /// allowing the interface crate to have a different `S` 
+//! /// type parameter than the implementation crate,
+//! /// so long as they have the same associated `&'static str`.
+//! ///
+//! /// StringParameterized<Foo> has the "same" layout as StringParameterized<Bar>.
+//! ///
+//! /// StringParameterized<Foo> has a "different" layout to StringParameterized<Boor>.
+//! ///
+//! #[repr(C)]
+//! #[derive(StableAbi)]
+//! #[sabi( 
+//!     bound="S:Name",
+//!     tag = r##" tag!( S::NAME ) "## ,
+//! )]
+//! struct StringParameterized<S>{
+//!     _marker:UnsafeIgnoredType<S>
+//! }
+//! 
+//! #[repr(C)]
+//! #[derive(StableAbi)]
+//! struct Foo;
+//! 
+//! impl Name for Foo{
+//!     const NAME:&'static str="Hello, World!";
+//! }
+//! 
+//! 
+//! #[repr(C)]
+//! #[derive(StableAbi)]
+//! struct Bar;
+//! 
+//! impl Name for Bar{
+//!     const NAME:&'static str="Hello, Helloooooo!";
+//! }
+//! 
+//! 
+//! #[repr(C)]
+//! #[derive(StableAbi)]
+//! struct Boor;
+//! 
+//! impl Name for Boor{
+//!     const NAME:&'static str="This is a different string!";
+//! }
+//! 
+//! # fn main(){}
+//! 
+//! ```
+//! 
+//! ###  Declaring each variant. 
+//! 
+#![cfg_attr(not(feature = "no_tagging_doctest"), doc = "```rust")]
+#![cfg_attr(feature = "no_tagging_doctest", doc = "```ignore")]
+//! use abi_stable::{
+//!     rslice,tag,
+//!     type_layout::Tag,
+//! };
+//! 
+//! const NULL:Tag=Tag::null();
+//! 
+//! 
+//! const BOOL_MACRO:Tag=tag!( false );
+//! const BOOL_FN   :Tag=Tag::bool_(false);
+//! 
+//! 
+//! const INT_MACRO_0:Tag=tag!(  100 );
+//! const INT_FN_0   :Tag=Tag::int(100);
+//! 
+//! const INT_MACRO_1:Tag=tag!( -100 );
+//! const INT_FN_1   :Tag=Tag::int(-100);
+//! 
+//! 
+//! // This can only be declared using the function for now.
+//! const UINT:Tag=Tag::uint(100);
+//! 
+//! 
+//! const STR_0_MACRO:Tag=tag!("Hello,World!");
+//! const STR_0_FN:Tag=Tag::str("Hello,World!");
+//! 
+//! const ARR_0_MACRO:Tag=tag![[ 0,1,2,3 ]];
+//! const ARR_0_FN:Tag=Tag::arr(rslice![
+//!     Tag::int(0),
+//!     Tag::int(1),
+//!     Tag::int(2),
+//!     Tag::int(3),
+//! ]);
+//! 
+//! 
+//! const SET_0_MACRO:Tag=tag!{{ 0,1,2,3 }};
+//! const SET_0_FN:Tag=Tag::set(rslice![
+//!     Tag::int(0),
+//!     Tag::int(1),
+//!     Tag::int(2),
+//!     Tag::int(3),
+//! ]);
+//! 
+//! 
+//! const MAP_0_MACRO:Tag=tag!{{
+//!     0=>"a",
+//!     1=>"b",
+//!     2=>false,
+//!     3=>100,
+//! }};
+//! const MAP_0_FN:Tag=Tag::map(rslice![
+//!     Tag::kv( Tag::int(0), Tag::str("a")),
+//!     Tag::kv( Tag::int(1), Tag::str("b")),
+//!     Tag::kv( Tag::int(2), Tag::bool_(false)),
+//!     Tag::kv( Tag::int(3), Tag::int(100)),
+//! ]);
+//! 
+//! # fn main(){}
+//! 
+//! ```
+//! 
+//! ###  Creating a complex data structure. 
+//! 
+//! 
+#![cfg_attr(not(feature = "no_tagging_doctest"), doc = "```rust")]
+#![cfg_attr(feature = "no_tagging_doctest", doc = "```ignore")]
+//! use abi_stable::{
+//!     tag,
+//!     type_layout::Tag,
+//! };
+//! 
+//! const TAG:Tag=tag!{{
+//!     // This must match exactly,
+//!     // adding required traits on the interface or the implementation
+//!     // would be a breaking change.
+//!     "required"=>tag![[
+//!         "Copy",
+//!     ]],
+//!     
+//!     "requires at least"=>tag!{{
+//!         "Debug",
+//!         "Display",
+//!     }},
+//! 
+//! 
+//!     "maps"=>tag!{{
+//!         0=>"Zero",
+//!         1=>"One",
+//!     }}
+//! }};
+//! 
+//! 
+//! ```
 
-# Comparison semantics
-
-Tags don't use strict equality when doing layout checking ,
-here is an exhaustive list on what is considered compatible 
-for each variant **in the interface**:
-
-- Null:
-    A Tag which is compatible with any other one.
-    Note that Nulls are stripped from arrays,set,and map keys.
-
-- Integers/bools/strings:
-    They must be strictly equal.
-
-- Arrays:
-    They must have the same length, and have elements that compare equal.
-
-- Sets/Maps:
-    The set/map in the interface must be a subset of the implementation,
-
-# Examples
-
-
-###  Declaring a unit type with a tag. 
-
-```
-
-use abi_stable::{tag,StableAbi};
-
-#[repr(C)]
-#[derive(StableAbi)]
-#[sabi( tag = r##" tag!("WAT") "## )]
-struct UnitType;
-
-
-# fn main(){}
-
-
-```
-
-###  Emulating const generics for strings 
-
-This emulates a `const NAME:&'static str` parameter,
-which is checked as being the same between the interface and implementation.
-
-*/
-// #[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
-// #[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
-/**
-```rust
-use abi_stable::{tag,StableAbi,marker_type::UnsafeIgnoredType};
-
-
-trait Name{
-    const NAME:&'static str;
-}
-
-///
-/// The layout of `StringParameterized<S>` is determined by `<S as Name>::NAME`,
-/// allowing the interface crate to have a different `S` 
-/// type parameter than the implementation crate,
-/// so long as they have the same associated `&'static str`.
-///
-/// StringParameterized<Foo> has the "same" layout as StringParameterized<Bar>.
-///
-/// StringParameterized<Foo> has a "different" layout to StringParameterized<Boor>.
-///
-#[repr(C)]
-#[derive(StableAbi)]
-#[sabi( 
-    bound="S:Name",
-    tag = r##" tag!( S::NAME ) "## ,
-)]
-struct StringParameterized<S>{
-    _marker:UnsafeIgnoredType<S>
-}
-
-#[repr(C)]
-#[derive(StableAbi)]
-struct Foo;
-
-impl Name for Foo{
-    const NAME:&'static str="Hello, World!";
-}
-
-
-#[repr(C)]
-#[derive(StableAbi)]
-struct Bar;
-
-impl Name for Bar{
-    const NAME:&'static str="Hello, Helloooooo!";
-}
-
-
-#[repr(C)]
-#[derive(StableAbi)]
-struct Boor;
-
-impl Name for Boor{
-    const NAME:&'static str="This is a different string!";
-}
-
-# fn main(){}
-
-```
-
-###  Declaring each variant. 
-
-*/
-#[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
-#[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
-/**
-use abi_stable::{
-    rslice,tag,
-    type_layout::Tag,
-};
-
-const NULL:Tag=Tag::null();
-
-
-const BOOL_MACRO:Tag=tag!( false );
-const BOOL_FN   :Tag=Tag::bool_(false);
-
-
-const INT_MACRO_0:Tag=tag!(  100 );
-const INT_FN_0   :Tag=Tag::int(100);
-
-const INT_MACRO_1:Tag=tag!( -100 );
-const INT_FN_1   :Tag=Tag::int(-100);
-
-
-// This can only be declared using the function for now.
-const UINT:Tag=Tag::uint(100);
-
-
-const STR_0_MACRO:Tag=tag!("Hello,World!");
-const STR_0_FN:Tag=Tag::str("Hello,World!");
-
-const ARR_0_MACRO:Tag=tag![[ 0,1,2,3 ]];
-const ARR_0_FN:Tag=Tag::arr(rslice![
-    Tag::int(0),
-    Tag::int(1),
-    Tag::int(2),
-    Tag::int(3),
-]);
-
-
-const SET_0_MACRO:Tag=tag!{{ 0,1,2,3 }};
-const SET_0_FN:Tag=Tag::set(rslice![
-    Tag::int(0),
-    Tag::int(1),
-    Tag::int(2),
-    Tag::int(3),
-]);
-
-
-const MAP_0_MACRO:Tag=tag!{{
-    0=>"a",
-    1=>"b",
-    2=>false,
-    3=>100,
-}};
-const MAP_0_FN:Tag=Tag::map(rslice![
-    Tag::kv( Tag::int(0), Tag::str("a")),
-    Tag::kv( Tag::int(1), Tag::str("b")),
-    Tag::kv( Tag::int(2), Tag::bool_(false)),
-    Tag::kv( Tag::int(3), Tag::int(100)),
-]);
-
-# fn main(){}
-
-```
-
-###  Creating a complex data structure. 
-
-
-*/
-#[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
-#[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
-/**
-use abi_stable::{
-    tag,
-    type_layout::Tag,
-};
-
-const TAG:Tag=tag!{{
-    // This must match exactly,
-    // adding required traits on the interface or the implementation
-    // would be a breaking change.
-    "required"=>tag![[
-        "Copy",
-    ]],
-    
-    "requires at least"=>tag!{{
-        "Debug",
-        "Display",
-    }},
-
-
-    "maps"=>tag!{{
-        0=>"Zero",
-        1=>"One",
-    }}
-}};
-
-
-```
-*/
 
 
 use std::{
@@ -221,7 +215,7 @@ use std::{
 
 use core_extensions::{
     matches,
-    prelude::*,
+    SelfOps
 };
 
 use crate::{
@@ -508,7 +502,7 @@ impl CheckableTag{
             return Err(err_with_variant(TagErrorVariant::MismatchedDiscriminant))
         }
 
-        let is_map=matches!(CTV::Map{..}=self.variant);
+        let is_map=matches!(self.variant, CTV::Map{..});
         
         match (&self.variant,&other.variant) {
             (CTV::Primitive(l),CTV::Primitive(r))=>{

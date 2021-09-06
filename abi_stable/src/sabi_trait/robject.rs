@@ -2,7 +2,6 @@ use super::*;
     
 use std::{
     fmt,
-    ops::{Deref,DerefMut},
 };
 
 #[allow(unused_imports)]
@@ -14,69 +13,71 @@ use crate::{
         c_functions::adapt_std_fmt,
         InterfaceBound,
     },
-    sabi_types::{MaybeCmp,RRef,RMut},
+    sabi_types::{MaybeCmp, RRef, RMut},
     std_types::UTypeId,
     pointer_trait::{
-        CanTransmuteElement,TransmuteElement,
-        GetPointerKind,PK_SmartPointer,PK_Reference,PointerKind,
+        AsPtr, AsMutPtr,
+        CanTransmuteElement, TransmuteElement,
+        GetPointerKind, PK_SmartPointer, PK_Reference, PointerKind,
     },
     type_level::{
-        impl_enum::{Implemented,Unimplemented},
+        impl_enum::{Implemented, Unimplemented},
         trait_marker,
     },
     sabi_trait::vtable::{BaseVtable_Ref, BaseVtable_Prefix},
-    utils::{transmute_reference,transmute_mut_reference},
     StableAbi,
 };
 
 
-/**
-`RObject` implements ffi-safe trait objects,for a minimal selection of traits.
-
-The main use of `RObject<_>` is as the default backend for `#[sabi_trait]` 
-generated trait objects.
-
-# Construction
-
-`RObject<_>` is how `#[sabi_trait]`-based ffi-safe trait objects are implemented,
-and there's no way to construct it separate from those.
-
-# Trait object
-
-`RObject<'borrow,Pointer<()>,Interface,VTable>` 
-can be used as a trait object for any combination of 
-the traits listed below.
-
-These are the traits:
-
-- `Send`
-
-- `Sync`
-
-- `Debug`
-
-- `Display`
-
-- `Error`
-
-- `Clone`
-
-# Deconstruction
-
-`RObject<_>` can be unwrapped into a concrete type,
-within the same dynamic library/executable that constructed it,
-using these (fallible) conversion methods:
-
-- `into_unerased`: Unwraps into a pointer to `T`.Requires `T: 'static`.
-
-- `as_unerased`: Unwraps into a `&T`.Requires `T: 'static`.
-
-- `as_unerased_mut`: Unwraps into a `&mut T`.Requires `T: 'static`.
-
-`RObject` can only be converted back if the trait object was constructed to allow it.
-
-
-*/
+/// `RObject` implements ffi-safe trait objects, for a minimal selection of traits.
+/// 
+/// The main use of `RObject<_>` is as the default backend for `#[sabi_trait]` 
+/// generated trait objects.
+/// 
+/// # Construction
+/// 
+/// `RObject<_>` is how `#[sabi_trait]`-based ffi-safe trait objects are implemented,
+/// and there's no way to construct it separate from those.
+/// 
+/// # Trait object
+/// 
+/// `RObject<'borrow, Pointer<()>, Interface, VTable>` 
+/// can be used as a trait object for any combination of 
+/// the traits listed below:
+/// 
+/// - `Send`
+/// 
+/// - `Sync`
+/// 
+/// - `Debug`
+/// 
+/// - `Display`
+/// 
+/// - `Error`
+/// 
+/// - `Clone`
+/// 
+/// # Deconstruction
+/// 
+/// `RObject<_>` can be unwrapped into a concrete type,
+/// within the same dynamic library/executable that constructed it,
+/// using these (fallible) conversion methods:
+/// 
+/// - [`downcast_into`](#method.downcast_into):
+/// Unwraps into a pointer to `T`.Requires `T: 'static`.
+/// 
+/// - [`downcast_as`](#method.downcast_as):
+/// Unwraps into a `&T`.Requires `T: 'static`.
+/// 
+/// - [`downcast_as_mut`](#method.downcast_as_mut):
+/// Unwraps into a `&mut T`.Requires `T: 'static`.
+/// 
+/// `RObject` can only be converted back if the trait object was constructed to allow it.
+/// 
+/// 
+/// 
+/// 
+/// 
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
@@ -85,13 +86,13 @@ using these (fallible) conversion methods:
     bound="I:InterfaceBound",
     extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
 )]
-pub struct RObject<'lt,P,I,V>
+pub struct RObject<'lt, P, I, V>
 where
-    P:GetPointerKind
+    P: GetPointerKind
 {
     vtable:PrefixRef<V>,
     ptr: ManuallyDrop<P>,
-    _marker:PhantomData<(&'lt (),I)>,
+    _marker:PhantomData<(&'lt (), I)>,
 }
 
 mod clone_impl{
@@ -103,14 +104,14 @@ use self::clone_impl::CloneImpl;
 
 
 /// This impl is for smart pointers.
-impl<'lt,P, I,V> CloneImpl<PK_SmartPointer> for RObject<'lt,P,I,V>
+impl<'lt, P, I, V> CloneImpl<PK_SmartPointer> for RObject<'lt, P, I, V>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone_impl(&self) -> Self {
         let ptr=unsafe{
-            self.sabi_robject_vtable()._sabi_clone().unwrap()(&self.ptr)
+            self.sabi_robject_vtable()._sabi_clone().unwrap()(RRef::new(&self.ptr))
         };
         Self{
             vtable:self.vtable,
@@ -121,9 +122,9 @@ where
 }
 
 /// This impl is for references.
-impl<'lt,P, I,V> CloneImpl<PK_Reference> for RObject<'lt,P,I,V>
+impl<'lt, P, I, V> CloneImpl<PK_Reference> for RObject<'lt, P, I, V>
 where
-    P: Deref+Copy+GetPointerKind,
+    P: AsPtr+Copy,
     I: InterfaceType,
 {
     fn clone_impl(&self) -> Self {
@@ -146,12 +147,12 @@ RObject does not implement Clone if P==`&mut ()` :
 use abi_stable::{
     sabi_trait::{
         doc_examples::ConstExample_TO,
-        TU_Opaque,
+        TD_Opaque,
     },
     std_types::*,
 };
 
-let mut object=ConstExample_TO::from_value(10usize,TU_Opaque);
+let mut object=ConstExample_TO::from_value(10usize, TD_Opaque);
 let borrow=object.sabi_reborrow_mut();
 let _=borrow.clone();
 ```
@@ -162,21 +163,21 @@ Here is the same example with `sabi_reborrow`
 use abi_stable::{
     sabi_trait::{
         doc_examples::ConstExample_TO,
-        TU_Opaque,
+        TD_Opaque,
     },
     std_types::*,
 };
 
-let mut object=ConstExample_TO::from_value(10usize,TU_Opaque);
+let mut object=ConstExample_TO::from_value(10usize, TD_Opaque);
 let borrow=object.sabi_reborrow();
 let _=borrow.clone();
 ```
 
 
 */
-impl<'lt,P, I,V> Clone for RObject<'lt,P,I,V>
+impl<'lt, P, I, V> Clone for RObject<'lt, P, I, V>
 where
-    P: Deref+GetPointerKind,
+    P: AsPtr,
     I: InterfaceType,
     Self:CloneImpl<<P as GetPointerKind>::Kind>,
 {
@@ -186,9 +187,9 @@ where
 }
 
 
-impl<'lt,P,I,V> Debug for RObject<'lt,P,I,V> 
+impl<'lt, P, I, V> Debug for RObject<'lt, P, I, V> 
 where
-    P: Deref<Target=()>+GetPointerKind,
+    P: AsPtr<PtrTarget=()>+AsPtr,
     I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -203,9 +204,9 @@ where
 }
 
 
-impl<'lt,P,I,V> Display for RObject<'lt,P,I,V> 
+impl<'lt, P, I, V> Display for RObject<'lt, P, I, V> 
 where
-    P: Deref<Target=()>+GetPointerKind,
+    P: AsPtr<PtrTarget = ()>,
     I: InterfaceType<Display = Implemented<trait_marker::Display>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -219,9 +220,9 @@ where
     }
 }
 
-impl<'lt,P, I,V> std::error::Error for RObject<'lt,P,I,V>
+impl<'lt, P, I, V> std::error::Error for RObject<'lt, P, I, V>
 where
-    P: Deref<Target=()>+GetPointerKind,
+    P: AsPtr<PtrTarget=()>,
     I: InterfaceBound<
         Display=Implemented<trait_marker::Display>,
         Debug=Implemented<trait_marker::Debug>,
@@ -231,22 +232,22 @@ where
 
 
 
-unsafe impl<'lt,P,I,V> Send for RObject<'lt,P,I,V> 
+unsafe impl<'lt, P, I, V> Send for RObject<'lt, P, I, V> 
 where 
     P:GetPointerKind,
     I:InterfaceType<Send = Implemented<trait_marker::Send>>,
 {}
 
-unsafe impl<'lt,P,I,V> Sync for RObject<'lt,P,I,V> 
+unsafe impl<'lt, P, I, V> Sync for RObject<'lt, P, I, V> 
 where
     P:GetPointerKind,
     I:InterfaceType<Sync = Implemented<trait_marker::Sync>>,
 {}
 
 
-impl<'lt,P,I,V> RObject<'lt,P,I,V>
+impl<'lt, P, I, V> RObject<'lt, P, I, V>
 where
-    P:GetPointerKind<Target=()>,
+    P:AsPtr<PtrTarget=()>,
 {
 /**
 
@@ -273,11 +274,11 @@ These are the requirements for the caller:
     pub unsafe fn with_vtable<OrigPtr>(
         ptr:OrigPtr,
         vtable:PrefixRef<V>,
-    )-> RObject<'lt,P,I,V>
+    )-> RObject<'lt, P, I, V>
     where 
-        OrigPtr:CanTransmuteElement<(),TransmutedPtr=P>,
-        OrigPtr::Target:Sized+'lt,
-        P:Deref<Target=()>,
+        OrigPtr: CanTransmuteElement<(), TransmutedPtr=P>,
+        OrigPtr::PtrTarget: Sized+'lt,
+        P:AsPtr<PtrTarget=()>,
     {
         RObject{
             vtable,
@@ -288,7 +289,7 @@ These are the requirements for the caller:
 }
 
 
-impl<'borr,'a,I,V> RObject<'borr,RRef<'a,()>,I,V>{
+impl<'borr,'a, I, V> RObject<'borr, RRef<'a,()>, I, V>{
 
 /**
 This function allows constructing an RObject in a constant/static.
@@ -306,14 +307,14 @@ this demonstrates how to construct one in a constant.
 
 ```
 use abi_stable::sabi_trait::{
-    doc_examples::{ConstExample_CTO,ConstExample_MV},
-    prelude::TU_Opaque,
+    doc_examples::{ConstExample_CTO, ConstExample_MV},
+    prelude::TD_Opaque,
 };
 
 const EXAMPLE0:ConstExample_CTO<'static,'static>=
     ConstExample_CTO::from_const(
         &0usize,
-        TU_Opaque,
+        TD_Opaque,
         ConstExample_MV::VTABLE,
     );
 
@@ -322,9 +323,9 @@ const EXAMPLE0:ConstExample_CTO<'static,'static>=
 
 
 */
-    pub const unsafe fn with_vtable_const<T,Unerasability>(
+    pub const unsafe fn with_vtable_const<T, Downcasting>(
         ptr: &'a T,
-        vtable:VTableTO_RO<T,RRef<'a,T>,Unerasability,V>,
+        vtable:VTableTO_RO<T, RRef<'a, T>, Downcasting, V>,
     )-> Self
     where
         T:'borr,
@@ -332,7 +333,7 @@ const EXAMPLE0:ConstExample_CTO<'static,'static>=
         RObject{
             vtable: vtable.robject_vtable(),
             ptr:{
-                let x=RRef::new(ptr).transmute_ref::<()>();
+                let x=RRef::new(ptr).transmute::<()>();
                 ManuallyDrop::new(x)
             },
             _marker:PhantomData,
@@ -341,7 +342,7 @@ const EXAMPLE0:ConstExample_CTO<'static,'static>=
 }
 
 
-impl<'lt,P,I,V> RObject<'lt,P,I,V>
+impl<'lt, P, I, V> RObject<'lt, P, I, V>
 where
     P:GetPointerKind,
 {
@@ -375,16 +376,32 @@ where
     /// the one from which this RObject was constructed.
     ///
     /// - The trait object wrapping this `RObject` was constructed with a 
-    /// `TU_Unerasable` argument.
+    /// `TD_CanDowncast` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn into_unerased<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
+    /// # Example
+    ///
+    /// ```rust 
+    /// use abi_stable::{
+    ///     sabi_trait::doc_examples::Doer_TO,
+    ///     std_types::RBox,
+    ///     type_level::downcasting::TD_CanDowncast,
+    /// };
+    ///
+    /// let to = ||Doer_TO::from_value(5usize, TD_CanDowncast);
+    ///
+    /// // `to.obj` is an RObject
+    /// assert_eq!(to().obj.downcast_into::<usize>().ok(), Some(RBox::new(5usize)));
+    /// assert_eq!(to().obj.downcast_into::<u8>().ok(), None);
+    ///
+    /// ```
+    pub fn downcast_into<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
     where
         T:'static,
-        P: Deref<Target=()>+CanTransmuteElement<T>,
+        P: AsPtr<PtrTarget=()> + CanTransmuteElement<T>,
     {
-        check_unerased!(self,self.sabi_check_same_utypeid::<T>());
+        check_unerased!(self, self.sabi_check_same_utypeid::<T>());
         unsafe {
             let this=ManuallyDrop::new(self);
             Ok(ptr::read(&*this.ptr).transmute_element::<T>()) 
@@ -402,18 +419,59 @@ where
     /// the one from which this RObject was constructed.
     ///
     /// - The trait object wrapping this `RObject` was constructed with a 
-    /// `TU_Unerasable` argument.
+    /// `TD_CanDowncast` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn as_unerased<T>(&self) -> Result<&T, UneraseError<&Self>>
+    /// # Example
+    ///
+    /// ```rust 
+    /// use abi_stable::{
+    ///     sabi_trait::doc_examples::Doer_TO,
+    ///     std_types::RArc,
+    ///     type_level::downcasting::TD_CanDowncast,
+    ///     RRef, RMut,
+    /// };
+    ///
+    /// {
+    ///     let to: Doer_TO<'_, RArc<()>> =
+    ///         Doer_TO::from_ptr(RArc::new(8usize), TD_CanDowncast);
+    ///    
+    ///     // `to.obj` is an RObject
+    ///     assert_eq!(to.obj.downcast_as::<usize>().ok(), Some(&8usize));
+    ///     assert_eq!(to.obj.downcast_as::<u8>().ok(), None);
+    /// }
+    /// {
+    ///     // `#[sabi_trait]` trait objects constructed from `&`
+    ///     // use `RRef<'_, ()>` instead of `&'_ ()` 
+    ///     // since `&T` can't soundly be transmuted back and forth into `&()`
+    ///     let to: Doer_TO<'_, RRef<'_, ()>> =
+    ///         Doer_TO::from_ptr(&13usize, TD_CanDowncast);
+    ///    
+    ///     assert_eq!(to.obj.downcast_as::<usize>().ok(), Some(&13usize));
+    ///     assert_eq!(to.obj.downcast_as::<u8>().ok(), None);
+    /// }
+    /// {
+    ///     let mmut = &mut 21usize;
+    ///     // `#[sabi_trait]` trait objects constructed from `&mut` 
+    ///     // use `RMut<'_, ()>` instead of `&'_ mut ()` 
+    ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
+    ///     let to: Doer_TO<'_, RMut<'_, ()>> =
+    ///         Doer_TO::from_ptr(mmut, TD_CanDowncast);
+    ///    
+    ///     assert_eq!(to.obj.downcast_as::<usize>().ok(), Some(&21usize));
+    ///     assert_eq!(to.obj.downcast_as::<u8>().ok(), None);
+    /// }
+    ///
+    /// ```
+    pub fn downcast_as<T>(&self) -> Result<&T, UneraseError<&Self>>
     where
         T:'static,
-        P:Deref<Target=()>+CanTransmuteElement<T>,
+        P:AsPtr<PtrTarget=()>+CanTransmuteElement<T>,
     {
-        check_unerased!(self,self.sabi_check_same_utypeid::<T>());
+        check_unerased!(self, self.sabi_check_same_utypeid::<T>());
         unsafe { 
-            Ok(transmute_reference::<(),T>(&**self.ptr))
+            Ok(&*(self.ptr.as_ptr() as *const T))
         }
     }
 
@@ -428,18 +486,50 @@ where
     /// the one from which this RObject was constructed.
     ///
     /// - The trait object wrapping this `RObject` was constructed with a 
-    /// `TU_Unerasable` argument.
+    /// `TD_CanDowncast` argument.
     ///
     /// - `T` is not the concrete type this `RObject<_>` was constructed with.
     ///
-    pub fn as_unerased_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
+    ///
+    /// # Example
+    ///
+    /// ```rust 
+    /// use abi_stable::{
+    ///     sabi_trait::doc_examples::Doer_TO,
+    ///     std_types::RBox,
+    ///     type_level::downcasting::TD_CanDowncast,
+    ///     RRef, RMut,
+    /// };
+    ///
+    /// {
+    ///     let mut to: Doer_TO<'_, RBox<()>> =
+    ///         Doer_TO::from_value(34usize, TD_CanDowncast);
+    ///    
+    ///     // `to.obj` is an RObject
+    ///     assert_eq!(to.obj.downcast_as_mut::<usize>().ok(), Some(&mut 34usize));
+    ///     assert_eq!(to.obj.downcast_as_mut::<u8>().ok(), None);
+    /// }
+    /// {
+    ///     let mmut = &mut 55usize;
+    ///     // `#[sabi_trait]` trait objects constructed from `&mut` 
+    ///     // use `RMut<'_, ()>` instead of `&'_ mut ()` 
+    ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
+    ///     let mut to: Doer_TO<'_, RMut<'_, ()>> =
+    ///         Doer_TO::from_ptr(mmut, TD_CanDowncast);
+    ///    
+    ///     assert_eq!(to.obj.downcast_as_mut::<usize>().ok(), Some(&mut 55usize));
+    ///     assert_eq!(to.obj.downcast_as_mut::<u8>().ok(), None);
+    /// }
+    ///
+    /// ```
+    pub fn downcast_as_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
     where
         T:'static,
-        P:DerefMut<Target=()>+CanTransmuteElement<T>,
+        P:AsMutPtr<PtrTarget=()>+CanTransmuteElement<T>,
     {
-        check_unerased!(self,self.sabi_check_same_utypeid::<T>());
+        check_unerased!(self, self.sabi_check_same_utypeid::<T>());
         unsafe { 
-            Ok(transmute_mut_reference::<(),T>(&mut **self.ptr))
+            Ok(&mut *(self.ptr.as_mut_ptr() as *mut T))
         }
     }
 
@@ -450,10 +540,27 @@ where
     ///
     /// You must check that `T` is the type that RObject was constructed
     /// with through other means.
+    ///
+    /// # Example
+    ///
+    /// ```rust 
+    /// use abi_stable::{
+    ///     sabi_trait::doc_examples::Doer_TO,
+    ///     std_types::RBox,
+    ///     type_level::downcasting::TD_Opaque,
+    /// };
+    ///
+    /// let to = ||Doer_TO::from_value(5usize, TD_Opaque);
+    /// 
+    /// unsafe{
+    ///     // `to.obj` is an RObject
+    ///     assert_eq!(to().obj.unchecked_downcast_into::<usize>(), RBox::new(5usize));
+    /// }
+    /// ```
     #[inline]
-    pub unsafe fn unchecked_into_unerased<T>(self) -> P::TransmutedPtr
+    pub unsafe fn unchecked_downcast_into<T>(self) -> P::TransmutedPtr
     where
-        P: Deref<Target=()> + CanTransmuteElement<T>,
+        P: AsPtr<PtrTarget=()> + CanTransmuteElement<T>,
     {
         let this=ManuallyDrop::new(self);
         ptr::read(&*this.ptr).transmute_element::<T>()
@@ -466,12 +573,57 @@ where
     ///
     /// You must check that `T` is the type that RObject was constructed
     /// with through other means.
+    ///
+    /// # Example
+    ///
+    /// ```rust 
+    /// use abi_stable::{
+    ///     sabi_trait::doc_examples::Doer_TO,
+    ///     std_types::RArc,
+    ///     type_level::downcasting::TD_Opaque,
+    ///     RRef, RMut,
+    /// };
+    ///
+    /// {
+    ///     let to: Doer_TO<'_, RArc<()>> =
+    ///         Doer_TO::from_ptr(RArc::new(8usize), TD_Opaque);
+    ///    
+    ///     unsafe {
+    ///         // `to.obj` is an RObject
+    ///         assert_eq!(to.obj.unchecked_downcast_as::<usize>(), &8usize);
+    ///     }
+    /// }
+    /// {
+    ///     // `#[sabi_trait]` trait objects constructed from `&`
+    ///     // use `RRef<'_, ()>` instead of `&'_ ()` 
+    ///     // since `&T` can't soundly be transmuted back and forth into `&()`
+    ///     let to: Doer_TO<'_, RRef<'_, ()>> =
+    ///         Doer_TO::from_ptr(&13usize, TD_Opaque);
+    ///    
+    ///     unsafe {
+    ///         assert_eq!(to.obj.unchecked_downcast_as::<usize>(), &13usize);
+    ///     }
+    /// }
+    /// {
+    ///     let mmut = &mut 21usize;
+    ///     // `#[sabi_trait]` trait objects constructed from `&mut` 
+    ///     // use `RMut<'_, ()>` instead of `&'_ mut ()` 
+    ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
+    ///     let to: Doer_TO<'_, RMut<'_, ()>> =
+    ///         Doer_TO::from_ptr(mmut, TD_Opaque);
+    ///    
+    ///     unsafe {
+    ///         assert_eq!(to.obj.unchecked_downcast_as::<usize>(), &21usize);
+    ///     }
+    /// }
+    ///
+    /// ```
     #[inline]
-    pub unsafe fn unchecked_as_unerased<T>(&self) -> &T
+    pub unsafe fn unchecked_downcast_as<T>(&self) -> &T
     where
-        P:Deref<Target=()>,
+        P:AsPtr<PtrTarget=()>,
     {
-        transmute_reference::<(),T>(&**self.ptr)
+        &*(self.ptr.as_ptr() as *const T)
     }
 
     /// Unwraps the `RObject<_>` into a mutable reference to T,
@@ -481,12 +633,46 @@ where
     ///
     /// You must check that `T` is the type that RObject was constructed
     /// with through other means.
+    ///
+    /// # Example
+    ///
+    /// ```rust 
+    /// use abi_stable::{
+    ///     sabi_trait::doc_examples::Doer_TO,
+    ///     std_types::RBox,
+    ///     type_level::downcasting::TD_Opaque,
+    ///     RRef, RMut,
+    /// };
+    ///
+    /// {
+    ///     let mut to: Doer_TO<'_, RBox<()>> =
+    ///         Doer_TO::from_value(34usize, TD_Opaque);
+    ///    
+    ///     unsafe {
+    ///         // `to.obj` is an RObject
+    ///         assert_eq!(to.obj.unchecked_downcast_as_mut::<usize>(), &mut 34usize);
+    ///     }
+    /// }
+    /// {
+    ///     let mmut = &mut 55usize;
+    ///     // `#[sabi_trait]` trait objects constructed from `&mut` 
+    ///     // use `RMut<'_, ()>` instead of `&'_ mut ()` 
+    ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
+    ///     let mut to: Doer_TO<'_, RMut<'_, ()>> =
+    ///         Doer_TO::from_ptr(mmut, TD_Opaque);
+    ///    
+    ///     unsafe {
+    ///         assert_eq!(to.obj.unchecked_downcast_as_mut::<usize>(), &mut 55usize);
+    ///     }
+    /// }
+    ///
+    /// ```
     #[inline]
-    pub unsafe fn unchecked_as_unerased_mut<T>(&mut self) -> &mut T
+    pub unsafe fn unchecked_downcast_as_mut<T>(&mut self) -> &mut T
     where
-        P:DerefMut<Target=()>,
+        P:AsMutPtr<PtrTarget=()>,
     {
-        transmute_mut_reference::<(),T>(&mut **self.ptr)
+        &mut *(self.ptr.as_mut_ptr() as *mut T)
     }
 
 }
@@ -500,19 +686,19 @@ use self::private_struct::PrivStruct;
 
 /// This is used to make sure that reborrowing does not change 
 /// the Send-ness or Sync-ness of the pointer.
-pub trait ReborrowBounds<SendNess,SyncNess>{}
+pub trait ReborrowBounds<SendNess, SyncNess>{}
 
-// If it's reborrowing,it must have either both Sync+Send or neither.
-impl ReborrowBounds<Unimplemented<trait_marker::Send>,Unimplemented<trait_marker::Sync>> 
+// If it's reborrowing, it must have either both Sync+Send or neither.
+impl ReborrowBounds<Unimplemented<trait_marker::Send>, Unimplemented<trait_marker::Sync>> 
 for PrivStruct 
 {}
 
-impl ReborrowBounds<Implemented<trait_marker::Send>,Implemented<trait_marker::Sync>> 
+impl ReborrowBounds<Implemented<trait_marker::Send>, Implemented<trait_marker::Sync>> 
 for PrivStruct 
 {}
 
 
-impl<'lt,P,I,V> RObject<'lt,P,I,V>
+impl<'lt, P, I, V> RObject<'lt, P, I, V>
 where
     P:GetPointerKind,
     I:InterfaceType,
@@ -521,15 +707,45 @@ where
     ///
     /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
     ///
-    pub fn reborrow<'re>(&'re self)->RObject<'lt,&'re (),I,V> 
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::{
+    ///     sabi_trait::doc_examples::Doer_TO,
+    ///     std_types::RBox,
+    ///     type_level::downcasting::TD_Opaque,
+    ///     RRef, RMut,
+    /// };
+    /// 
+    /// let mut to: Doer_TO<'_, RBox<()>> =
+    ///     Doer_TO::from_value(13usize, TD_Opaque);
+    /// 
+    /// // `to.obj` is an RObject
+    /// assert_eq!(debug_string(to.obj.reborrow()), "13");
+    /// assert_eq!(debug_string(to.obj.reborrow()), "13");
+    /// 
+    /// // `#[sabi_trait]` trait objects have an equivalent `sabi_reborrow` method.
+    /// assert_eq!(debug_string(to.sabi_reborrow()), "13");
+    /// assert_eq!(debug_string(to.sabi_reborrow()), "13");
+    /// 
+    /// 
+    /// fn debug_string<T>(to: T) -> String 
+    /// where
+    ///     T: std::fmt::Debug
+    /// {
+    ///     format!("{:?}", to)
+    /// }
+    ///
+    /// ```
+    pub fn reborrow<'re>(&'re self)->RObject<'lt, RRef<'re, ()>, I, V> 
     where
-        P:Deref<Target=()>,
-        PrivStruct:ReborrowBounds<I::Send,I::Sync>,
+        P:AsPtr<PtrTarget=()>,
+        PrivStruct:ReborrowBounds<I::Send, I::Sync>,
     {
         // Reborrowing will break if I add extra functions that operate on `P`.
         RObject{
             vtable:self.vtable,
-            ptr:ManuallyDrop::new(&**self.ptr),
+            ptr:ManuallyDrop::new(self.ptr.as_rref()),
             _marker:PhantomData,
         }
     }
@@ -541,16 +757,44 @@ where
     /// - RObject::clone
     ///
     /// This is only callable if `RObject` is either `Send + Sync` or `!Send + !Sync`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::{
+    ///     sabi_trait::doc_examples::{Doer, Doer_TO},
+    ///     std_types::RBox,
+    ///     type_level::downcasting::TD_Opaque,
+    ///     RRef, RMut,
+    /// };
     /// 
-    pub fn reborrow_mut<'re>(&'re mut self)->RObject<'lt,&'re mut (),I,V> 
+    /// let mut to: Doer_TO<'_, RBox<()>> =
+    ///     Doer_TO::from_value(2usize, TD_Opaque);
+    /// 
+    /// // `#[sabi_trait]` trait objects have an equivalent `sabi_reborrow_mut` method,
+    /// // which delegate to this method.
+    /// assert_eq!(increment(to.sabi_reborrow_mut()).value(), 3);
+    /// assert_eq!(increment(to.sabi_reborrow_mut()).value(), 4);
+    /// 
+    /// 
+    /// fn increment<T>(mut to: T) -> T
+    /// where
+    ///     T: Doer
+    /// {
+    ///     to.add_into(1);
+    ///     to
+    /// }
+    ///
+    /// ```
+    pub fn reborrow_mut<'re>(&'re mut self)->RObject<'lt, RMut<'re, ()>, I, V> 
     where
-        P:DerefMut<Target=()>,
-        PrivStruct:ReborrowBounds<I::Send,I::Sync>,
+        P:AsMutPtr<PtrTarget=()>,
+        PrivStruct:ReborrowBounds<I::Send, I::Sync>,
     {
         // Reborrowing will break if I add extra functions that operate on `P`.
         RObject {
             vtable: self.vtable,
-            ptr: ManuallyDrop::new(&mut **self.ptr),
+            ptr: ManuallyDrop::new(self.ptr.as_rmut()),
             _marker:PhantomData,
         }
     }
@@ -559,7 +803,7 @@ where
 
 
 
-impl<'lt,P,I,V> RObject<'lt,P,I,V>
+impl<'lt, P, I, V> RObject<'lt, P, I, V>
 where
     P:GetPointerKind,
 {
@@ -571,9 +815,9 @@ where
 
     /// The vtable common to all `#[sabi_trait]` generated trait objects.
     #[inline]
-    pub fn sabi_robject_vtable(&self)->RObjectVtable_Ref<(),P,I>{
+    pub fn sabi_robject_vtable(&self)->RObjectVtable_Ref<(), P, I>{
         unsafe{ 
-            BaseVtable_Ref(self.vtable.cast::<BaseVtable_Prefix<(),P,I>>())
+            BaseVtable_Ref(self.vtable.cast::<BaseVtable_Prefix<(), P, I>>())
                 ._sabi_vtable()
         }
     }
@@ -585,55 +829,50 @@ where
     }
 
     /// Gets an `RRef` pointing to the erased object.
-    #[inline]
-    pub fn sabi_erased_ref(&self)->&ErasedObject<()>
+    pub fn sabi_erased_ref(&self) -> RRef<'_, ErasedObject<()>>
     where
-        P: __DerefTrait<Target=()>
+        P: AsPtr<PtrTarget=()>
     {
-        unsafe{&*((&**self.ptr) as *const () as *const ErasedObject<()>)}
+        unsafe{ RRef::from_raw(self.ptr.as_ptr() as *const _) }
     }
-    
+
     /// Gets an `RMut` pointing to the erased object.
-    #[inline]
-    pub fn sabi_erased_mut(&mut self)->&mut ErasedObject<()>
+    pub fn sabi_erased_mut(&mut self) -> RMut<'_, ErasedObject<()>>
     where
-        P: __DerefMutTrait<Target=()>
+        P: AsMutPtr<PtrTarget=()>
     {
-        unsafe{&mut *((&mut **self.ptr) as *mut () as *mut ErasedObject<()>)}
+        unsafe{ RMut::from_raw(self.ptr.as_mut_ptr() as *mut _) }
     }
+
 
     /// Gets an `RRef` pointing to the erased object.
     pub fn sabi_as_rref(&self) -> RRef<'_, ()>
     where
-        P: __DerefTrait<Target=()>
+        P: AsPtr<PtrTarget=()>
     {
-        unsafe {
-            std::mem::transmute(&**self.ptr as *const _ as *const ())
-        }
+        self.ptr.as_rref()
     }
 
     /// Gets an `RMut` pointing to the erased object.
     pub fn sabi_as_rmut(&mut self) -> RMut<'_, ()>
     where
-        P: __DerefMutTrait<Target=()>
+        P: AsMutPtr<PtrTarget=()>
     {
-        unsafe {
-            std::mem::transmute(&mut **self.ptr as *mut _ as *mut ())
-        }
+        self.ptr.as_rmut()
     }
 
     /// Calls the `f` callback with an `MovePtr` pointing to the erased object.
     #[inline]
-    pub fn sabi_with_value<F,R>(self,f:F)->R
+    pub fn sabi_with_value<F, R>(self, f:F)->R
     where 
-        P: OwnedPointer<Target=()>,
-        F:FnOnce(MovePtr<'_,()>)->R,
+        P: OwnedPointer<PtrTarget=()>,
+        F: FnOnce(MovePtr<'_,()>)->R,
     {
-        OwnedPointer::with_move_ptr(self.sabi_into_erased_ptr(),f)
+        OwnedPointer::with_move_ptr(self.sabi_into_erased_ptr(), f)
     }
 }
 
-impl<P,I,V> Drop for RObject<'_,P,I,V>
+impl<P, I, V> Drop for RObject<'_, P, I, V>
 where
     P:GetPointerKind,
 {
@@ -643,7 +882,7 @@ where
         if <P as GetPointerKind>::KIND==PointerKind::SmartPointer {
             let destructor=self.sabi_robject_vtable()._sabi_drop();
             unsafe{
-                destructor(&mut self.ptr);
+                destructor(RMut::<P>::new(&mut self.ptr));
             }
         }
     }
@@ -655,8 +894,8 @@ where
 
 //////////////////////////////////////////////////////////////////
 
-/// Error for `RObject<_>` being unerased into the wrong type
-/// with one of the `*unerased*` methods.
+/// Error for `RObject<_>` being downcasted into the wrong type
+/// with one of the `*downcast*` methods.
 #[derive(Copy, Clone)]
 pub struct UneraseError<T> {
     robject:T,
@@ -666,7 +905,7 @@ pub struct UneraseError<T> {
 
 
 impl<T> UneraseError<T>{
-    fn map<F,U>(self,f:F)->UneraseError<U>
+    fn map<F, U>(self, f:F)->UneraseError<U>
     where F:FnOnce(T)->U
     {
         UneraseError{
@@ -676,7 +915,7 @@ impl<T> UneraseError<T>{
         }
     }
 
-    /// Extracts the RObject,to handle the failure to unerase it.
+    /// Extracts the RObject, to handle the failure to unerase it.
     #[must_use]
     pub fn into_inner(self)->T{
         self.robject

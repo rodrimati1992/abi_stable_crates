@@ -18,8 +18,72 @@ impl ConstExample for usize{
     }
 }
 
+/// An example trait object that uses `RObject` as a backend.
+#[sabi_trait]
+pub trait Doer: Debug {
+    fn value(&self)->usize;
+
+    fn do_it(&self, num: usize)->usize;
+
+    #[sabi(last_prefix_field)]
+    fn add_into(&mut self, num: usize);
+}
+
+impl Doer for usize{
+    fn value(&self)->usize{
+        *self
+    }
+
+    fn do_it(&self,num:usize)->usize{
+        self + num
+    }
+    fn add_into(&mut self, num: usize) {
+        *self += num;
+    }
+}
+
 
 
 #[sabi_trait]
 #[doc(hidden)]
 pub trait DocHiddenTrait{}
+
+
+//////////////////////////////////////////
+
+
+/// The trait used in examples of `#[sabi_trait]` trait object methods,
+/// [here](../../docs/sabi_trait_inherent/index.html)
+#[abi_stable::sabi_trait]
+// #[sabi(debug_print_trait)]
+pub trait Action: Debug {
+    /// Gets the current value of `self`.
+    fn get(&self) -> usize;
+    
+    /// Adds `val` into `self`, returning the new value.
+    fn add_mut(&mut self, val: usize) -> usize;
+
+    /// Adds `val` into `self`, returning the new value.
+    #[sabi(last_prefix_field)]
+    fn add_into(self, val: usize) -> usize;
+}
+
+
+impl Action for usize {
+    fn get(&self) -> usize {
+        *self
+    }
+    fn add_mut(&mut self, val: usize) -> usize {
+        *self += val;
+        *self
+    }
+    fn add_into(mut self, val: usize) -> usize {
+        self += val;
+        self
+    }
+}
+
+
+
+
+

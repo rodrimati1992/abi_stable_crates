@@ -2,8 +2,6 @@ use std::time::Instant;
 
 use abi_stable_shared::test_utils::{FileSpan};
 
-use core_extensions::measure_time::MyDuration;
-
 pub(crate) use as_derive_utils::utils::{
     join_spans,
     dummy_ident,
@@ -36,9 +34,9 @@ impl PrintDurationOnDrop{
 
 impl Drop for PrintDurationOnDrop{
     fn drop(&mut self){
-        let span=self.file_span;
-        let dur:MyDuration=self.start.elapsed().into();
-        println!("{}-{}:taken {} to run",span.file,span.line,dur);
+        let span = self.file_span;
+        let dur = self.start.elapsed();
+        println!("{}-{}:taken {:?} to run",span.file,span.line,dur);
     }
 }
 

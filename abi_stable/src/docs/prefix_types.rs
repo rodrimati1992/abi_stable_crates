@@ -54,7 +54,7 @@ because that makes it ABI incompatible.
 # Grammar Reference
 
 For the grammar reference,you can look at the documentation for 
-[`#[derive(StableAbi)]`](../stable_abi_derive/index.html).
+[`#[derive(StableAbi)]`](../../derive.StableAbi.html).
 
 # Examples
 

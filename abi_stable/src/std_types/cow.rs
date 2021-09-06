@@ -8,7 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[allow(unused_imports)]
 use core_extensions::{
-    prelude::*,
+    SelfOps,
     matches,
 };
 
@@ -323,7 +323,7 @@ where
     /// 
     /// ```
     pub fn is_borrowed(&self)->bool{
-        matches!( Borrowed{..}=self )
+        matches!(self, Borrowed{..})
     }
 
     /// Whether this is an owning RCow.
@@ -341,7 +341,7 @@ where
     /// 
     /// ```
     pub fn is_owned(&self)->bool{
-        matches!( Owned{..}=self )
+        matches!(self, Owned{..})
     }
 }
 
@@ -428,6 +428,40 @@ where
 }
 
 ////////////////////////////
+
+
+slice_like_impl_cmp_traits!{
+    impl[] RCow<'_, [T]>,
+    where[T: Clone];
+    Vec<U>,
+    [U],
+    &[U],
+}
+
+#[cfg(feature = "const_params")]
+slice_like_impl_cmp_traits!{
+    impl[const N: usize] RCow<'_, [T]>,
+    where[T: Clone];
+    [U; N],
+}
+
+slice_like_impl_cmp_traits!{
+    impl[] RCow<'_, [T]>,
+    where[T: Clone, U: Clone];
+    Cow<'_, [U]>,
+}
+
+deref_coerced_impl_cmp_traits!{
+    RCow<'_, str>;
+    coerce_to = str,
+    [
+        String,
+        str,
+        &str,
+        Cow<'_, str>,
+    ]
+}
+
 
 shared_impls! {
     mod=slice_impls

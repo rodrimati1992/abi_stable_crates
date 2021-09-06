@@ -9,7 +9,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::{
     traits::{IntoReprC,IntoReprRust}, 
@@ -174,7 +174,7 @@ use abi_stable::{
     erased_types::interfaces::IoWriteInterface,
     std_types::{RIoError,RResult,ROk},
     traits::IntoReprC,
-    DynTrait,
+    DynTrait, RMut,
     sabi_extern_fn,
     rtry,
 };
@@ -183,8 +183,8 @@ use std::io::Write;
 
 #[sabi_extern_fn]
 pub fn write_slice_twice(
-    mut write:DynTrait<&mut (),IoWriteInterface>,
-    slice:&[u8],
+    mut write: DynTrait<RMut<'_, ()>,IoWriteInterface>,
+    slice: &[u8],
 )->RResult<(),RIoError>{
     rtry!( write.write_all(slice).into_c() );
     rtry!( write.write_all(slice).into_c() );
@@ -217,7 +217,7 @@ impl_from_rust_repr! {
 impl_into_rust_repr! {
     impl Into<ioError> for RIoError {
         fn(this){
-            let kind=this.kind().into_(ErrorKind::T);
+            let kind=this.kind().into_::<ErrorKind>();
             match this.into_inner() {
                 Some(e)=>ioError::new(kind,RBoxError::into_box(e)),
                 None=>ioError::from(kind),
@@ -475,7 +475,7 @@ mod error_kind_tests{
             ]
         {
             assert_eq!(RIoErrorKind::from(from) , to);
-            assert_eq!(to.into_(ErrorKind::T) , from);
+            assert_eq!(to.into_::<ErrorKind>() , from);
         }
     }
 }

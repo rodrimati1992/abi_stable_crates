@@ -10,7 +10,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -237,6 +237,19 @@ impl<'a> Deref for RStr<'a> {
     fn deref(&self) -> &Self::Target {
         self.as_str()
     }
+}
+
+
+deref_coerced_impl_cmp_traits!{
+    RStr<'_>;
+    coerce_to = str,
+    [
+        String,
+        str,
+        &str,
+        std::borrow::Cow<'_, str>,
+        crate::std_types::RCow<'_, str>,
+    ]
 }
 
 ////////////////////////////////

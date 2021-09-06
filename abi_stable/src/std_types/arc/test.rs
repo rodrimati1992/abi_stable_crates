@@ -60,7 +60,7 @@ fn into_raw() {
 
 #[test]
 fn get_mut(){
-    let mut conv=Arc::new(200).into_(RArc::T);
+    let mut conv=Arc::new(200).piped(RArc::from);
 
     {
         let _conv_clone=conv.clone();
@@ -78,7 +78,7 @@ fn make_mut(){
     let mut arc = Arc::new(ValueAndDod{
         value:'a',
         dod:dod.clone(),
-    }).into_(RArc::T);
+    }).piped(RArc::from);
 
     {
         assert_eq!(dod.count(),2);

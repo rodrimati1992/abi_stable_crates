@@ -175,7 +175,7 @@ fn adding_methods_at_the_end(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::FieldCountMismatch{..}=err))
+            .any(|err| matches!(err, AbiInstability::FieldCountMismatch{..}))
         );        
     });
 }
@@ -193,7 +193,7 @@ fn adding_supertraits(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err))
+            .any(|err| matches!(err, AbiInstability::ExtraCheckError{..}))
         );        
     });
 }
@@ -211,7 +211,7 @@ fn incompatible_supertraits(){
         assert!(
             errs
             .iter()
-            .any(|err| matches!(AbiInstability::ExtraCheckError{..}=err))
+            .any(|err| matches!(err, AbiInstability::ExtraCheckError{..}))
         );        
     });
 }

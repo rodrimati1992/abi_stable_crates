@@ -520,7 +520,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
                                 match referent {
                                     Some(x) => x.to_tokens(ts),
                                     None => 
-                                        quote!( <#pointer as ::std::ops::Deref>::Target )
+                                        quote!( <#pointer as __sabi_re::GetPointerKind>::PtrTarget )
                                             .to_tokens(ts),
                                 }
                             });

@@ -30,7 +30,7 @@ pub mod reexports{
                 SyncSend,UnsyncUnsend,UnsyncSend,SyncUnsend,
                 NonOwningPhantom,
             },
-            pointer_trait::{CanTransmuteElement,TransmuteElement,OwnedPointer},
+            pointer_trait::{AsPtr, AsMutPtr, CanTransmuteElement,TransmuteElement,OwnedPointer},
             prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
             traits::IntoInner,
             sabi_types::{RRef,RMut,MovePtr},
@@ -42,10 +42,9 @@ pub mod reexports{
                     RObjectVtable_Ref, RObjectVtable, GetRObjectVTable,
                     VTableTO_DT,VTableTO_RO,VTableTO,
                 },
-                for_generated_code::{sabi_from_ref,sabi_from_mut},
             },
             std_types::RBox,
-            utils::{transmute_reference,transmute_mut_reference,take_manuallydrop},
+            utils::take_manuallydrop,
             extern_fn_panic_handling,
         };
 
@@ -56,7 +55,8 @@ pub mod reexports{
 
         pub use std::{
             marker::PhantomData,
-            mem::ManuallyDrop,
+            mem::{ManuallyDrop, transmute},
+            ops::Deref,
             ptr,
         };
     }
@@ -64,13 +64,11 @@ pub mod reexports{
 
 /// A prelude for modules using `#[sabi_trait]` generated traits/trait objects.
 pub mod prelude{
-    pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
+    pub use crate::type_level::downcasting::{TD_CanDowncast,TD_Opaque};
 }
 
-pub use crate::type_level::unerasability::{TU_Unerasable,TU_Opaque};
+pub use crate::type_level::downcasting::{TD_CanDowncast,TD_Opaque};
 
-#[doc(hidden)]
-pub mod for_generated_code;
 #[cfg(any(test,feature="sabi_trait_examples"))]
 pub mod examples;
 
@@ -92,7 +90,7 @@ use std::{
     marker::PhantomData,
 };
 
-use self::reexports::{*, __sabi_re::*};
+use self::reexports::__sabi_re::*;
 
 pub use self::{
     vtable::{VTableTO_DT,VTableTO_RO,VTableTO},

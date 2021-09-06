@@ -9,7 +9,7 @@ use std::{
 use abi_stable::{
     external_types::crossbeam_channel::{self,RSender,RReceiver},
     std_types::{RString,RStr,RResult,RVec,ROk,RErr,RSome},
-    sabi_trait::prelude::TU_Opaque,
+    sabi_trait::prelude::TD_Opaque,
     library::{RawLibrary,LibraryError,LibrarySuffix,lib_header_from_path},
 };
 
@@ -45,8 +45,8 @@ use crate::{
 
 /// Returns the path the plugin will be loaded from.
 fn compute_plugin_path(base_name:&str)->io::Result<PathBuf>{
-    let debug_dir  ="../../../target/debug/"  .as_ref_::<Path>().into_(PathBuf::T);
-    let release_dir="../../../target/release/".as_ref_::<Path>().into_(PathBuf::T);
+    let debug_dir  ="../../../target/debug/"  .as_ref_::<Path>().into_::<PathBuf>();
+    let release_dir="../../../target/release/".as_ref_::<Path>().into_::<PathBuf>();
 
     let debug_path=
         RawLibrary::path_in_directory(&debug_dir  ,base_name,LibrarySuffix::NoSuffix);
@@ -220,7 +220,7 @@ fn main()-> io::Result<()> {
 
         loaded_libraries.push(name_key.clone());
 
-        state.id_map.insert(name_key.into_(RString::T),PluginModAndIndices{
+        state.id_map.insert(name_key.into_::<RString>(),PluginModAndIndices{
             root_module,
             to_be_instantiated:instances,
             indices:Vec::with_capacity(instances as usize),

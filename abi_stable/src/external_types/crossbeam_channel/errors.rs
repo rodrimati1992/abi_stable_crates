@@ -118,10 +118,10 @@ impl<T> RTrySendError<T>{
         }
     }
     pub fn is_full(&self) -> bool{
-        matches!(RTrySendError::Full{..}=self)
+        matches!(self, RTrySendError::Full{..})
     }
     pub fn is_disconnected(&self) -> bool{
-        matches!(RTrySendError::Disconnected{..}=self)
+        matches!(self, RTrySendError::Disconnected{..})
     }
 }
 
@@ -260,10 +260,10 @@ impl<T> RSendTimeoutError<T>{
         }
     }
     pub fn is_timeout(&self) -> bool{
-        matches!(RSendTimeoutError::Timeout{..}=self)
+        matches!(self, RSendTimeoutError::Timeout{..})
     }
     pub fn is_disconnected(&self) -> bool{
-        matches!(RSendTimeoutError::Disconnected{..}=self)
+        matches!(self, RSendTimeoutError::Disconnected{..})
     }
 }
 
@@ -338,10 +338,10 @@ pub enum RRecvTimeoutError {
 
 impl RRecvTimeoutError{
     pub fn is_timeout(&self) -> bool{
-        matches!(RRecvTimeoutError::Timeout{..}=self)
+        matches!(self, RRecvTimeoutError::Timeout{..})
     }
     pub fn is_disconnected(&self) -> bool{
-        matches!(RRecvTimeoutError::Disconnected{..}=self)
+        matches!(self, RRecvTimeoutError::Disconnected{..})
     }
 }
 

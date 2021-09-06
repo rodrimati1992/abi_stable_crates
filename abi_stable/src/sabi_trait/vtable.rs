@@ -5,7 +5,7 @@ use crate::{
     marker_type::NonOwningPhantom,
     prefix_type::PrefixRef,
     type_level::{
-        unerasability::{GetUTID},
+        downcasting::{GetUTID},
         impl_enum::{Implemented,Unimplemented},
         trait_marker,
     },
@@ -38,18 +38,18 @@ where
 /// The `VTableTO` passed to `#[sabi_trait]`
 /// generated trait objects that have `RObject` as their backend.
 #[allow(non_camel_case_types)]
-pub type VTableTO_RO<T,OrigPtr,Unerasability,V>=VTableTO<T,OrigPtr,Unerasability,V,()>;
+pub type VTableTO_RO<T,OrigPtr,Downcasting,V>=VTableTO<T,OrigPtr,Downcasting,V,()>;
 
 /// The `VTableTO` passed to `#[sabi_trait]`
 /// generated trait objects that have `DynTrait` as their backend.
 #[allow(non_camel_case_types)]
-pub type VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>=
+pub type VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Downcasting,V>=
     VTableTO<
         _Self,
         OrigPtr,
-        Unerasability,
+        Downcasting,
         V,
-        VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability>
+        VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Downcasting>
     >;
 
 
@@ -58,17 +58,17 @@ pub type VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>=
 /// using `<Trait>_CTO::from_const( &value, <Trait>_MV::VTABLE )`.
 ///
 /// `<Trait>` is whatever the name of the trait that one is constructing the trait object for.
-pub struct VTableTO<_Self,OrigPtr,Unerasability,V,DT>{
+pub struct VTableTO<_Self,OrigPtr,Downcasting,V,DT>{
     vtable:PrefixRef<V>,
     for_dyn_trait:DT,
-    _for:PhantomData<Constructor<Tuple3<_Self,OrigPtr,Unerasability>>>,
+    _for:PhantomData<Constructor<Tuple3<_Self,OrigPtr,Downcasting>>>,
 }
 
-impl<_Self,OrigPtr,Unerasability,V,DT> Copy for VTableTO<_Self,OrigPtr,Unerasability,V,DT>
+impl<_Self,OrigPtr,Downcasting,V,DT> Copy for VTableTO<_Self,OrigPtr,Downcasting,V,DT>
 where DT:Copy
 {}
 
-impl<_Self,OrigPtr,Unerasability,V,DT> Clone for VTableTO<_Self,OrigPtr,Unerasability,V,DT>
+impl<_Self,OrigPtr,Downcasting,V,DT> Clone for VTableTO<_Self,OrigPtr,Downcasting,V,DT>
 where DT:Copy
 {
     fn clone(&self)->Self{
@@ -77,7 +77,7 @@ where DT:Copy
 }
 
 
-impl<_Self,OrigPtr,Unerasability,V> VTableTO<_Self,OrigPtr,Unerasability,V,()>{
+impl<_Self,OrigPtr,Downcasting,V> VTableTO<_Self,OrigPtr,Downcasting,V,()>{
 
 /**
 Wraps an erased vtable.
@@ -110,26 +110,26 @@ These are the requirements for the caller:
 }
 
 
-impl<_Self,OrigPtr,Unerasability,V,DT> VTableTO<_Self,OrigPtr,Unerasability,V,DT>{
+impl<_Self,OrigPtr,Downcasting,V,DT> VTableTO<_Self,OrigPtr,Downcasting,V,DT>{
     /// Gets the vtable that RObject is constructed with.
     pub const fn robject_vtable(&self)->PrefixRef<V>{
         self.vtable
     }
 }
 
-impl<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V> 
-    VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>
+impl<'borr,_Self,ErasedPtr,OrigPtr,I,Downcasting,V> 
+    VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Downcasting,V>
 {
     /// Gets the vtable for DynTrait.
     pub const fn dyntrait_vtable(
         &self
-    )->VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability>{
+    )->VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Downcasting>{
         self.for_dyn_trait
     }
 }
 
-impl<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V> 
-    VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability,V>
+impl<'borr,_Self,ErasedPtr,OrigPtr,I,Downcasting,V> 
+    VTableTO_DT<'borr,_Self,ErasedPtr,OrigPtr,I,Downcasting,V>
 {
 
 /**
@@ -141,7 +141,7 @@ This has the same safety requirements as the 'for_robject' constructor
 */
     pub const unsafe fn for_dyntrait(
         vtable:PrefixRef<V>,
-        for_dyn_trait:VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Unerasability>,
+        for_dyn_trait:VTableDT<'borr,_Self,ErasedPtr,OrigPtr,I,Downcasting>,
     )->Self{
         Self{
             vtable,
@@ -215,14 +215,14 @@ pub struct RObjectVtable<_Self,ErasedPtr,I>{
     
     pub _sabi_type_id:Constructor<MaybeCmp<UTypeId>>,
 
-    pub _sabi_drop :unsafe extern "C" fn(this:&mut ErasedPtr),
-    pub _sabi_clone:Option<unsafe extern "C" fn(this:&ErasedPtr)->ErasedPtr>,
+    pub _sabi_drop :unsafe extern "C" fn(this:RMut<'_, ErasedPtr>),
+    pub _sabi_clone:Option<unsafe extern "C" fn(this:RRef<'_, ErasedPtr>)->ErasedPtr>,
     pub _sabi_debug:Option<
-        unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
+        unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>
     >,
     #[sabi(last_prefix_field)]
     pub _sabi_display:Option<
-        unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>
+        unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>
     >,
 }
 
@@ -313,21 +313,21 @@ pub mod trait_bounds{
         type Clone;
         trait InitCloneField[_Self,ErasedPtr,OrigPtr]
         where [ OrigPtr:Clone ]
-        type=unsafe extern "C" fn(this:&ErasedPtr)->ErasedPtr,
+        type=unsafe extern "C" fn(this:RRef<'_, ErasedPtr>)->ErasedPtr,
         value=c_functions::clone_pointer_impl::<OrigPtr,ErasedPtr>,
     }
     declare_field_initalizer!{
         type Debug;
         trait InitDebugField[_Self,ErasedPtr,OrigPtr]
         where [ _Self:Debug ]
-        type=unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
+        type=unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>,
         value=c_functions::debug_impl::<_Self>,
     }
     declare_field_initalizer!{
         type Display;
         trait InitDisplayField[_Self,ErasedPtr,OrigPtr]
         where [ _Self:Display ]
-        type=unsafe extern "C" fn(&ErasedObject,FormattingMode,&mut RString)->RResult<(),()>,
+        type=unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>,
         value=c_functions::display_impl::<_Self>,
     }
 

@@ -1,4 +1,4 @@
-/*!
+/**
 
 The `GetStaticEquivalent` macro derives the `GetStaticEquivalent_` trait.
 
@@ -23,7 +23,7 @@ If a trait is not specified,
 it will not be required when constructing DynTrait/NonExhaustive,
 and won't be usable afterwards.
 
-<a href="../stable_abi_derive/index.html#InterfaceType_traits">
+<a href="./derive.StableAbi.html#InterfaceType_traits">
     The list of valid traits is here 
 </a>
 
@@ -35,9 +35,9 @@ This example demonstrates how one can have a type parameter,
 and use the value of an associated constant as the identity of the type.
 
 */
-#![cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
-#![cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
-/*!
+#[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
+#[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
+/**
 use std::marker::PhantomData;
 
 use abi_stable::{
@@ -147,3 +147,6 @@ where
 
 
 */
+
+#[doc(inline)]
+pub use abi_stable_derive::GetStaticEquivalent;

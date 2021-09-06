@@ -514,13 +514,13 @@ fn entry_or_insert(){
 
     assert_eq!(
         *map.entry("12".into()).or_insert("100".into()),
-        "100".into_(RString::T)
+        "100".into_::<RString>()
     );
     assert_is_occupied(&mut map,"12".into(),"100".into());
     
     assert_eq!(
         *map.entry("12".into()).or_insert("105".into()), 
-        "100".into_(RString::T)
+        "100".into_::<RString>()
     );
     assert_is_occupied(&mut map,"12".into(),"100".into());
 
@@ -535,13 +535,13 @@ fn entry_or_insert_with(){
 
     assert_eq!(
         *map.entry("12".into()).or_insert_with(||"100".into()),
-        "100".into_(RString::T)
+        "100".into_::<RString>()
     );
     assert_is_occupied(&mut map,"12".into(),"100".into());
     
     assert_eq!(
         *map.entry("12".into()).or_insert_with(||unreachable!()), 
-        "100".into_(RString::T)
+        "100".into_::<RString>()
     );
     assert_is_occupied(&mut map,"12".into(),"100".into());
 }
@@ -562,7 +562,7 @@ fn entry_and_modify(){
         *map.entry("12".into())
             .and_modify(|_| unreachable!() )
             .or_insert_with(||"100".into()),
-        "100".into_(RString::T)
+        "100".into_::<RString>()
     );
     assert_is_occupied(&mut map,"12".into(),"100".into());
     
@@ -570,7 +570,7 @@ fn entry_and_modify(){
         *map.entry("12".into())
             .and_modify(|v| *v="what".into() )
             .or_insert_with(||unreachable!()), 
-        "what".into_(RString::T)
+        "what".into_::<RString>()
     );
     assert_is_occupied(&mut map,"12".into(),"what".into());
 }
@@ -587,13 +587,13 @@ fn entry_or_default(){
         *map.entry("12".into())
             .and_modify(|_| unreachable!() )
             .or_default(),
-        "".into_(RString::T)
+        "".into_::<RString>()
     );
 
     assert_eq!(
         *map.entry("12".into())
             .and_modify(|v| *v="hello".into() )
             .or_default(),
-        "hello".into_(RString::T)
+        "hello".into_::<RString>()
     );
 }

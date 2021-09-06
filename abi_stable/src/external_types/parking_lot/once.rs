@@ -13,8 +13,8 @@ use parking_lot::{Once as PLOnce,OnceState};
 use super::{UnsafeOveralignedField,RAW_LOCK_SIZE};
 
 use crate::{
-    utils::{transmute_mut_reference},
     prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::RMut,
     std_types::{RResult,ROk,RErr},
 };
 
@@ -144,7 +144,7 @@ assert!( once.state().done() );
 ```
 */
     pub fn state(&self) -> ROnceState{
-        self.vtable().state()(&self.opaque_once)
+        unsafe{ self.vtable().state()(&self.opaque_once) }
     }
 
 /**
@@ -184,11 +184,13 @@ assert_eq!(counter,1);
     {
         let mut closure=Closure::without_state(f);
         let func=closure.func;
-        let res=self.vtable().call_once()(
-            &self.opaque_once,
-            unsafe{ transmute_mut_reference::<Closure<_>,ErasedClosure>(&mut closure) },
-            func
-        );
+        let res = unsafe{
+            self.vtable().call_once()(
+                &self.opaque_once,
+                RMut::new(&mut closure).transmute::<ErasedClosure>(),
+                func
+            )
+        };
         if let Err(e)=closure.panic {
             panic::resume_unwind(e);
         }
@@ -237,11 +239,13 @@ assert_eq!(counter,6);
     {
         let mut closure=Closure::with_state(f);
         let func=closure.func;
-        let res=self.vtable().call_once_force()(
-            &self.opaque_once,
-            unsafe{ transmute_mut_reference::<Closure<_>,ErasedClosure>(&mut closure) },
-            func
-        );
+        let res= unsafe{
+            self.vtable().call_once_force()(
+                &self.opaque_once,
+                RMut::new(&mut closure).transmute::<ErasedClosure>(),
+                func
+            )
+        };
         if let Err(e)=closure.panic {
             panic::resume_unwind(e);
         }
@@ -312,7 +316,7 @@ assert!(once.state().poisoned());
 
     */
     pub fn poisoned(&self) -> bool{
-        matches!( ROnceState::Poisoned=self )
+        matches!(self, ROnceState::Poisoned)
     }
 
 /**    
@@ -333,7 +337,7 @@ assert!(once.state().done());
 
 */
     pub fn done(&self) -> bool{
-        matches!( ROnceState::Done=self )
+        matches!(self, ROnceState::Done)
     }
 }
 
@@ -381,7 +385,7 @@ struct Closure<F>{
 #[derive(StableAbi,Copy,Clone)]
 #[repr(transparent)]
 struct RunClosure{
-    func:extern "C" fn(&mut ErasedClosure,ROnceState)->RResult<(),()>,
+    func: unsafe extern "C" fn(RMut<'_, ErasedClosure>,ROnceState)->RResult<(),()>,
 }
 
 
@@ -411,14 +415,14 @@ impl<F> Closure<F>{
         }
     }
 
-    extern "C" fn run_call_once(this:&mut ErasedClosure,state:ROnceState)->RResult<(),()>
+    unsafe extern "C" fn run_call_once(this:RMut<'_, ErasedClosure>,state:ROnceState)->RResult<(),()>
     where
         F: FnOnce(),
     {
         Self::run_call(this,state,|f,_| f() )
     }
 
-    extern "C" fn run_call_once_forced(this:&mut ErasedClosure,state:ROnceState)->RResult<(),()>
+    unsafe extern "C" fn run_call_once_forced(this:RMut<'_, ErasedClosure>,state:ROnceState)->RResult<(),()>
     where
         F: FnOnce(ROnceState),
     {
@@ -426,11 +430,11 @@ impl<F> Closure<F>{
     }
 
     #[inline]
-    fn run_call<M>(this:&mut ErasedClosure,state:ROnceState,method:M)->RResult<(),()>
+    unsafe fn run_call<M>(this:RMut<'_, ErasedClosure>,state:ROnceState,method:M)->RResult<(),()>
     where
         M: FnOnce(F,ROnceState),
     {
-        let this=unsafe{ transmute_mut_reference::<ErasedClosure,Self>(this) };
+        let mut this = this.transmute_into_mut::<Self>();
         let res=panic::catch_unwind(AssertUnwindSafe(||{
             let closure=this.closure.take().unwrap();
             method(closure,state);
@@ -455,9 +459,9 @@ impl<F> Closure<F>{
 #[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
 struct VTable{
-    state:extern "C" fn(&OpaqueOnce)->ROnceState,
-    call_once:extern "C" fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
-    call_once_force:extern "C" fn(&OpaqueOnce,&mut ErasedClosure,RunClosure)->RResult<(),()>,
+    state: unsafe extern "C" fn(&OpaqueOnce)->ROnceState,
+    call_once: unsafe extern "C" fn(&OpaqueOnce,RMut<'_, ErasedClosure>,RunClosure)->RResult<(),()>,
+    call_once_force: unsafe extern "C" fn(&OpaqueOnce,RMut<'_, ErasedClosure>,RunClosure)->RResult<(),()>,
 }
 
 impl VTable{
@@ -481,14 +485,14 @@ impl VTable{
 ///////////////////////////////////////////////////////////////////////////////
 
 
-extern "C" fn state(this:&OpaqueOnce)->ROnceState{
+unsafe extern "C" fn state(this:&OpaqueOnce)->ROnceState{
     extern_fn_panic_handling!{
         this.value.state().into()
     }
 }
-extern "C" fn call_once(
+unsafe extern "C" fn call_once(
     this:&OpaqueOnce,
-    erased_closure:&mut ErasedClosure,
+    erased_closure:RMut<'_, ErasedClosure>,
     runner:RunClosure,
 )->RResult<(),()>{
     call_with_closure(||{
@@ -497,9 +501,9 @@ extern "C" fn call_once(
         });
     })
 }
-extern "C" fn call_once_force(
+unsafe extern "C" fn call_once_force(
     this:&OpaqueOnce,
-    erased_closure:&mut ErasedClosure,
+    erased_closure:RMut<'_, ErasedClosure>,
     runner:RunClosure,
 )->RResult<(),()>{
     call_with_closure(||{
@@ -562,14 +566,18 @@ mod tests{
             static ONCE:ROnce=ROnce::new();
 
             scoped_thread(|scope|{
-                scope.spawn(|_|{
-                    ONCE.call_once(||{
-                        thread::sleep(Duration::from_millis(500));
+                let (tx_start, rx_start) = std::sync::mpsc::channel();
+                let (tx_end, rx_end) = std::sync::mpsc::channel();
+                scope.spawn(move|_|{
+                    ONCE.call_once(|| {
+                        tx_start.send(()).unwrap();
+                        rx_end.recv().unwrap();
                     })
                 });
-                scope.spawn(|_|{
-                    thread::sleep(Duration::from_millis(5));
+                scope.spawn(move|_|{
+                    rx_start.recv().unwrap();
                     assert_eq!(ONCE.state(), ROnceState::InProgress);
+                    tx_end.send(()).unwrap();
                 });
             }).unwrap();
             assert_eq!(ONCE.state(), ROnceState::Done);

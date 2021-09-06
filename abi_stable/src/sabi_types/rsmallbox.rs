@@ -4,7 +4,7 @@ Contains the `RSmallBox<_>` type.
 
 use crate::{
     pointer_trait::{
-        CallReferentDrop,Deallocate,CanTransmuteElement,
+        AsPtr, AsMutPtr, CallReferentDrop,Deallocate,CanTransmuteElement,
         GetPointerKind,PK_SmartPointer,OwnedPointer,
     },
     sabi_types::MovePtr,
@@ -449,6 +449,8 @@ assert!( RSmallBox::is_inline(&just_right) );
 
 unsafe impl<T,Inline> GetPointerKind for RSmallBox<T,Inline>{
     type Kind=PK_SmartPointer;
+
+    type PtrTarget = T;
 }
 
 impl<T,Inline> Deref for RSmallBox<T,Inline>{
@@ -466,6 +468,18 @@ impl<T,Inline> DerefMut for RSmallBox<T,Inline>{
         unsafe{
             &mut *Self::as_mut_ptr(self)
         }
+    }
+}
+
+unsafe impl<T, Inline> AsPtr for RSmallBox<T, Inline> {
+    fn as_ptr(&self) -> *const T {
+        Self::as_ptr(self)
+    }
+}
+
+unsafe impl<T, Inline> AsMutPtr for RSmallBox<T, Inline> {
+    fn as_mut_ptr(&mut self) -> *mut T {
+        Self::as_mut_ptr(self)
     }
 }
 
@@ -512,6 +526,10 @@ shared_impls! {
 
 unsafe impl<T, O, Inline> CanTransmuteElement<O> for RSmallBox<T,Inline> {
     type TransmutedPtr = RSmallBox<O,Inline>;
+
+    unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
+        core_extensions::utils::transmute_ignore_size(self)
+    }
 }
 
 unsafe impl<T: Send,Inline> Send for RSmallBox<T,Inline> {}
@@ -552,7 +570,7 @@ where
 
 unsafe impl<T,Inline> OwnedPointer for RSmallBox<T,Inline>{
     #[inline]
-    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_,Self::Target>{
+    unsafe fn get_move_ptr(this:&mut ManuallyDrop<Self>)->MovePtr<'_, T>{
         MovePtr::new(&mut **this)
     }
 

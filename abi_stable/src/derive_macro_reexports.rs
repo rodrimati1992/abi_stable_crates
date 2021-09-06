@@ -28,7 +28,7 @@ pub use crate::{
         NonExhaustive,
     },
     reflection::ModReflMode,
-    pointer_trait::{ImmutableRef, ImmutableRefTarget},
+    pointer_trait::{AsPtr, AsMutPtr, ImmutableRef, ImmutableRefTarget},
     prefix_type::{
         panic_on_missing_field_ty,
         FieldAccessibility,
@@ -85,7 +85,7 @@ pub use crate::{
     type_level::{
         impl_enum::{Implemented,Unimplemented,ImplFrom},
         trait_marker,
-        unerasability::TU_Opaque,
+        downcasting::TD_Opaque,
     },
     sabi_trait::vtable::{RObjectVtable_Ref, RObjectVtable},
     extern_fn_panic_handling,

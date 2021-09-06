@@ -209,6 +209,8 @@ where T:StableAbi
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
+        zst_assert!(Self);
+
         const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("PhantomData"),
@@ -266,6 +268,8 @@ macro_rules! phantomdata_tuples {
             type IsNonZeroType = False;
 
             const LAYOUT: &'static TypeLayout = {
+                zst_assert!(Self);
+
                 const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                     *mono_shared_vars,
                     rstr!("PhantomData"),

@@ -13,7 +13,7 @@ use as_derive_utils::{
     syn_err,
 };
 
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use syn::{
     punctuated::Punctuated,

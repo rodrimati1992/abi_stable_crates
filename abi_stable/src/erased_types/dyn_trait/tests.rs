@@ -29,7 +29,7 @@ use crate::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 /// It doesn't need to be `#[repr(C)]` because  DynTrait puts it behind a pointer,
 /// and is only interacted with through regular Rust functions.
@@ -149,7 +149,7 @@ fn default_test(){
     {
         assert_eq!(wrapped,wrapped_expected);
         assert_eq!(
-            wrapped.as_unerased_impltype::<Foo<String>>().unwrap(),
+            wrapped.downcast_as_impltype::<Foo<String>>().unwrap(),
             &concrete
         );
         assert_ne!(wrapped,new_wrapped());
@@ -164,7 +164,7 @@ fn default_test(){
         // assert_eq!(reborrow.default(),wrapped_expected.reborrow());
 
         assert_eq!(
-            reborrow.as_unerased_impltype::<Foo<String>>().unwrap(),
+            reborrow.downcast_as_impltype::<Foo<String>>().unwrap(),
             &concrete
         );
         assert_ne!(reborrow,new_wrapped());
@@ -242,12 +242,12 @@ fn deserialize_test() {
     );
     
     assert_eq!(
-        wrapped.as_unerased_impltype::<Foo<String>>().unwrap(), 
+        wrapped.downcast_as_impltype::<Foo<String>>().unwrap(), 
         &concrete,
     );
 
     assert_eq!(
-        wrapped2.as_unerased_impltype::<Foo<String>>().unwrap(), 
+        wrapped2.downcast_as_impltype::<Foo<String>>().unwrap(), 
         &concrete
     );
 }
@@ -457,31 +457,31 @@ fn to_any_test(){
         )
     }
 
-    to_unerased!( wrapped.clone() ; into_unerased_impltype     ; RBox::new(new_foo()) );
-    to_unerased!( wrapped.clone() ; into_unerased ; RBox::new(new_foo()) );
+    to_unerased!( wrapped.clone() ; downcast_into_impltype     ; RBox::new(new_foo()) );
+    to_unerased!( wrapped.clone() ; downcast_into ; RBox::new(new_foo()) );
     
-    to_unerased!( wrapped ; as_unerased_impltype     ; &new_foo() );
-    to_unerased!( wrapped ; as_unerased ; &new_foo() );
+    to_unerased!( wrapped ; downcast_as_impltype     ; &new_foo() );
+    to_unerased!( wrapped ; downcast_as ; &new_foo() );
     
-    to_unerased!( wrapped ; as_unerased_mut_impltype ; &mut new_foo() );
-    to_unerased!( wrapped ; as_unerased_mut ; &mut new_foo() );
+    to_unerased!( wrapped ; downcast_as_mut_impltype ; &mut new_foo() );
+    to_unerased!( wrapped ; downcast_as_mut ; &mut new_foo() );
     
     {
-        to_unerased!( wrapped.reborrow_mut() ; into_unerased_impltype     ; &mut new_foo() );
-        to_unerased!( wrapped.reborrow_mut() ; into_unerased ; &mut new_foo() );
+        to_unerased!(wrapped.reborrow_mut(); downcast_into_impltype; RMut::new(&mut new_foo()));
+        to_unerased!(wrapped.reborrow_mut() ; downcast_into ; RMut::new(&mut new_foo()));
         
-        to_unerased!( wrapped.reborrow_mut() ; as_unerased_impltype     ; &new_foo() );
-        to_unerased!( wrapped.reborrow_mut() ; as_unerased ; &new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; downcast_as_impltype     ; &new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; downcast_as ; &new_foo() );
         
-        to_unerased!( wrapped.reborrow_mut() ; as_unerased_mut_impltype ; &mut new_foo() );
-        to_unerased!( wrapped.reborrow_mut() ; as_unerased_mut ; &mut new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; downcast_as_mut_impltype ; &mut new_foo() );
+        to_unerased!( wrapped.reborrow_mut() ; downcast_as_mut ; &mut new_foo() );
     }    
     {
-        to_unerased!( wrapped.reborrow() ; into_unerased_impltype     ; &new_foo() );
-        to_unerased!( wrapped.reborrow() ; into_unerased ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; downcast_into_impltype; RRef::new(&new_foo()) );
+        to_unerased!( wrapped.reborrow() ; downcast_into ; RRef::new(&new_foo()) );
         
-        to_unerased!( wrapped.reborrow() ; as_unerased_impltype     ; &new_foo() );
-        to_unerased!( wrapped.reborrow() ; as_unerased ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; downcast_as_impltype     ; &new_foo() );
+        to_unerased!( wrapped.reborrow() ; downcast_as ; &new_foo() );
     }
 }
 
@@ -922,13 +922,13 @@ mod borrowing{
 
         to_unerased!( 
             DynTrait::from_borrowing_value(value.clone(),());
-            into_unerased,
+            downcast_into,
         );
         
         to_unerased!( 
             DynTrait::from_borrowing_value(value.clone(),());
-            as_unerased,
-            as_unerased_mut,
+            downcast_as,
+            downcast_as_mut,
         );
         
 

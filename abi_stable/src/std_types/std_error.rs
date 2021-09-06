@@ -6,7 +6,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::{
     erased_types::{
@@ -14,12 +14,14 @@ use crate::{
         FormattingMode,
     },
     marker_type::{SyncSend, UnsyncUnsend,UnsyncSend,ErasedObject},
+    pointer_trait::{AsPtr, AsMutPtr},
     prefix_type::{PrefixTypeTrait,WithMetadata},
+    sabi_types::RRef,
     std_types::{
         RBox, ROption, RResult, RStr, RString,
         utypeid::{UTypeId,new_utypeid}
     },
-    utils::{transmute_reference,transmute_mut_reference},
+    utils::transmute_reference,
 };
 
 #[cfg(test)]
@@ -369,7 +371,7 @@ impl<M> RBoxError_<M>{
 
     fn as_debug_display(&self)->Option<DebugDisplayRef<'_>>{
         unsafe{
-            self.vtable.as_debug_display()(&*self.value)
+            self.vtable.as_debug_display()(self.value.as_rref())
                 .into_option()
         }
     }
@@ -389,7 +391,7 @@ impl<M> RBoxError_<M> {
 
     /// The address of the `Box<_>` this wraps
     pub fn heap_address(&self)->usize{
-        (&*self.value)as *const _ as usize
+        (self.value.as_ptr())as *const _ as usize
     }
 
     /// Casts this `&RBoxError_<_>` to `&UnsyncRBoxError`.
@@ -409,7 +411,7 @@ impl<M> RBoxError_<M> {
     /// ```
     pub fn as_unsync(&self)->&UnsyncRBoxError{
         unsafe{
-            transmute_reference::<RBoxError_<M>,UnsyncRBoxError>(&self)
+            transmute_reference::<RBoxError_<M>,UnsyncRBoxError>(self)
         }
     }
 
@@ -455,7 +457,7 @@ impl RBoxError_<SyncSend>{
     /// ```
     pub fn as_send(&self)->&SendRBoxError{
         unsafe{
-            transmute_reference::<RBoxError_<SyncSend>,SendRBoxError>(&self)
+            transmute_reference::<RBoxError_<SyncSend>,SendRBoxError>(self)
         }
     }
 
@@ -489,7 +491,7 @@ impl<M> ErrorTrait for RBoxError_<M> {}
 impl<M> Display for RBoxError_<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe{
-            adapt_std_fmt(&*self.value, self.vtable.display(), f)
+            adapt_std_fmt(self.value.as_rref(), self.vtable.display(), f)
         }
     }
 }
@@ -497,7 +499,7 @@ impl<M> Display for RBoxError_<M> {
 impl<M> Debug for RBoxError_<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe{
-            adapt_std_fmt(&*self.value, self.vtable.debug(), f)
+            adapt_std_fmt(self.value.as_rref(), self.vtable.debug(), f)
         }
     }
 }
@@ -652,12 +654,12 @@ macro_rules! from_impls {
                 match (self.is_type::<T>(),self.is_type::<$boxdyn>()) {
                     (true,_)=>{
                         unsafe{
-                            Some(transmute_reference::<ErasedObject,T>(&*self.value))
+                            Some(&*(self.value.as_ptr() as *const T))
                         }
                     }
                     (false,true)=>{
                         unsafe{
-                            let ref_box=transmute_reference::<ErasedObject,$boxdyn>(&*self.value);
+                            let ref_box=&*(self.value.as_ptr() as *const $boxdyn);
                             (&**ref_box).downcast_ref::<T>()
                         }
                     }
@@ -692,13 +694,12 @@ macro_rules! from_impls {
                 match (self.is_type::<T>(),self.is_type::<$boxdyn>()) {
                     (true,_)=>{
                         unsafe{
-                            Some(transmute_mut_reference::<ErasedObject,T>(&mut *self.value))
+                            Some(&mut *(self.value.as_mut_ptr() as *mut T))
                         }
                     }
                     (false,true)=>{
                         unsafe{
-                            let mut_box=
-                                transmute_mut_reference::<ErasedObject,$boxdyn>(&mut *self.value);
+                            let mut_box = &mut *(self.value.as_mut_ptr() as *mut $boxdyn);
                             (&mut **mut_box).downcast_mut::<T>()
                         }
                     }
@@ -734,9 +735,23 @@ from_impls!{
 #[derive(StableAbi)]
 #[sabi(kind(Prefix))]
 struct RErrorVTable {
-    debug: unsafe extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
-    display: unsafe extern "C" fn(&ErasedObject, FormattingMode, &mut RString) -> RResult<(), ()>,
-    as_debug_display: unsafe extern "C" fn(&ErasedObject) -> ROption<DebugDisplayRef<'_>>,
+    debug: 
+        unsafe extern "C" fn(
+            RRef<'_, ErasedObject>,
+            FormattingMode,
+            &mut RString,
+        ) -> RResult<(), ()>,
+
+    display: 
+        unsafe extern "C" fn(
+            RRef<'_, ErasedObject>,
+            FormattingMode,
+            &mut RString,
+        ) -> RResult<(), ()>,
+
+    as_debug_display: 
+        unsafe extern "C" fn(RRef<'_, ErasedObject>) -> ROption<DebugDisplayRef<'_>>,
+
     #[sabi(last_prefix_field)]
     type_id: extern "C" fn()->UTypeId,
 }
@@ -844,9 +859,11 @@ struct DebugDisplayRef<'a> {
 
 ////////////////////////////////////////////////////////////////////////
 
-unsafe extern "C" fn as_debug_display(this: &ErasedObject) -> ROption<DebugDisplayRef<'_>> {
+unsafe extern "C" fn as_debug_display(
+    this: RRef<'_, ErasedObject>,
+) -> ROption<DebugDisplayRef<'_>> {
     extern_fn_panic_handling! {
-        let this=unsafe{ transmute_reference::<ErasedObject, DebugDisplay>(this) };
+        let this=unsafe{ this.transmute_into_ref::<DebugDisplay>() };
         ROption::RSome(DebugDisplayRef{
             debug: this.debug.as_str().into(),
             display: this.display.as_str().into(),
@@ -854,7 +871,9 @@ unsafe extern "C" fn as_debug_display(this: &ErasedObject) -> ROption<DebugDispl
     }
 }
 
-unsafe extern "C" fn not_as_debug_display(_: &ErasedObject) -> ROption<DebugDisplayRef<'_>> {
+unsafe extern "C" fn not_as_debug_display(
+    _: RRef<'_, ErasedObject>,
+) -> ROption<DebugDisplayRef<'_>> {
     ROption::RNone
 }
 

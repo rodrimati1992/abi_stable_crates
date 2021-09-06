@@ -11,7 +11,7 @@ use syn::{
 };
 
 #[allow(unused_imports)]
-use core_extensions::prelude::*;
+use core_extensions::SelfOps;
 
 use crate::{
     attribute_parsing::with_nested_meta,
@@ -271,7 +271,7 @@ fn parse_sabi_trait_attr<'a>(
                 this.attrs.derive_attrs.push(attr);
             }
         }
-    };
+    }
 
     match (pctx, attr) {
         (_, Meta::Path(path)) => {

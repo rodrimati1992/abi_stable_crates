@@ -23,6 +23,8 @@ mod many_types{
             crossbeam_channel::{RReceiver,RSender},
             RMutex,RRwLock,ROnce
         },
+        marker_type,
+        prefix_type::PrefixRef,
         std_types::*,
     };
 
@@ -93,6 +95,17 @@ mod many_types{
         RReceiver<()>,
         RReceiver<RString>,
         ROnce,
+        marker_type::SyncSend,
+        marker_type::UnsyncUnsend,
+        marker_type::UnsyncSend,
+        marker_type::SyncUnsend,
+        marker_type::NotCopyNotClone,
+        marker_type::ErasedObject<u32>,
+        marker_type::ErasedObject<RString>,
+        PrefixRef<marker_type::ErasedPrefix>,
+        marker_type::UnsafeIgnoredType<u32>,
+        marker_type::NonOwningPhantom<u32>,
+        marker_type::NonOwningPhantom<RString>,
     );    
 }
 

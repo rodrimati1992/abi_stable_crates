@@ -11,7 +11,7 @@ use super::*;
 
 use crate::{
     marker_type::ErasedObject,
-    utils::{transmute_reference,transmute_mut_reference},
+    sabi_types::{RRef, RMut},
     std_types::{
         RIoError,RSeekFrom,
     },
@@ -21,8 +21,8 @@ use crate::{
 use core_extensions::utils::transmute_ignore_size;
 
 pub(crate) unsafe fn adapt_std_fmt<T>(
-    value: &T,
-    function: unsafe extern "C" fn(&T, FormattingMode, &mut RString) -> RResult<(), ()>,
+    value: RRef<'_, T>,
+    function: unsafe extern "C" fn(RRef<'_, T>, FormattingMode, &mut RString) -> RResult<(), ()>,
     formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     let mut buf = RString::new();
@@ -41,22 +41,22 @@ pub(crate) unsafe fn adapt_std_fmt<T>(
 
 
 
-pub(crate) unsafe extern "C" fn drop_pointer_impl<OrigP,ErasedPtr>(this: &mut ErasedPtr){
+pub(crate) unsafe extern "C" fn drop_pointer_impl<OrigP,ErasedPtr>(this: RMut<'_, ErasedPtr>){
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedPtr,OrigP>(this);
+        let this=this.transmute_into_mut::<OrigP>();
         ptr::drop_in_place(this);
     }
 }
 
 
 pub(crate) unsafe extern "C" fn clone_pointer_impl<OrigP,ErasedPtr>(
-    this: &ErasedPtr
+    this: RRef<'_, ErasedPtr>
 ) -> ErasedPtr
 where
     OrigP: Clone,
 {
     extern_fn_panic_handling! {
-        let this=transmute_reference::<ErasedPtr,OrigP>(this);
+        let this=unsafe{ this.transmute_into_ref::<OrigP>() };
         let clone=this.clone();
         transmute_ignore_size(clone)
     }
@@ -111,7 +111,7 @@ where
 /////////////
 
 pub(crate) unsafe extern "C" fn display_impl<T>(
-    this: &ErasedObject,
+    this: RRef<'_, ErasedObject>,
     mode: FormattingMode,
     buf: &mut RString,
 ) -> RResult<(), ()>
@@ -120,7 +120,7 @@ where
 {
     extern_fn_panic_handling! {
         use std::fmt::Write;
-        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
 
         let res = match mode {
             FormattingMode::Default_ => write!(buf, "{}", this),
@@ -134,7 +134,7 @@ where
 }
 
 pub(crate) unsafe extern "C" fn debug_impl<T>(
-    this: &ErasedObject,
+    this: RRef<'_, ErasedObject>,
     mode: FormattingMode,
     buf: &mut RString,
 ) -> RResult<(), ()>
@@ -144,7 +144,7 @@ where
     extern_fn_panic_handling! {
         use std::fmt::Write;
 
-        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
 
         let res = match mode {
             FormattingMode::Default_ => write!(buf, "{:?}", this),
@@ -158,7 +158,7 @@ where
 }
 
 pub(crate) unsafe extern "C" fn serialize_impl<'s,T,I>(
-    this: &'s ErasedObject
+    this: RRef<'s, ErasedObject>
 ) -> RResult<<I as SerializeProxyType<'s>>::Proxy, RBoxError>
 where
     T: for<'borr> SerializeImplType<'borr,Interface=I>,
@@ -166,7 +166,8 @@ where
 {
     extern_fn_panic_handling! {
         let ret: RResult<<I as SerializeProxyType<'_>>::Proxy, RBoxError> = 
-            transmute_reference::<ErasedObject,T>(this)
+            this
+            .transmute_into_ref::<T>()
             .serialize_impl()
             .into_c();
 
@@ -175,43 +176,43 @@ where
 }
 
 pub(crate) unsafe extern "C" fn partial_eq_impl<T>(
-    this: &ErasedObject,
-    other: &ErasedObject
+    this: RRef<'_, ErasedObject>,
+    other: RRef<'_, ErasedObject>
 ) -> bool
 where
     T: PartialEq,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
-        let other=unsafe{ transmute_reference::<ErasedObject,T>(other) };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
+        let other=unsafe{ other.transmute_into_ref::<T>() };
         this == other
     }
 }
 
 pub(crate) unsafe extern "C" fn cmp_ord<T>(
-    this: &ErasedObject,
-    other: &ErasedObject,
+    this: RRef<'_, ErasedObject>,
+    other: RRef<'_, ErasedObject>,
 ) -> RCmpOrdering
 where
     T: Ord,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
-        let other=unsafe{ transmute_reference::<ErasedObject,T>(other) };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
+        let other=unsafe{ other.transmute_into_ref::<T>() };
         this.cmp(other).into_c()
     }
 }
 
 pub(crate) unsafe extern "C" fn partial_cmp_ord<T>(
-    this: &ErasedObject, 
-    other: &ErasedObject,
+    this: RRef<'_, ErasedObject>, 
+    other: RRef<'_, ErasedObject>,
 ) -> ROption<RCmpOrdering>
 where
     T: PartialOrd,
 {
     extern_fn_panic_handling! {
-        let this =unsafe{ transmute_reference::<ErasedObject,T>(this) };
-        let other=unsafe{ transmute_reference::<ErasedObject,T>(other) };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
+        let other=unsafe{ other.transmute_into_ref::<T>() };
 
         this.partial_cmp(other).map(IntoReprC::into_c).into_c()
     }
@@ -221,13 +222,13 @@ where
 // Hash
 
 pub(crate) unsafe extern "C" fn hash_Hash<T>(
-    this: &ErasedObject,
+    this: RRef<'_, ErasedObject>,
     mut state: trait_objects::HasherObject<'_>,
 ) where
     T: Hash,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
 
         this.hash(&mut state);
     }
@@ -237,23 +238,23 @@ pub(crate) unsafe extern "C" fn hash_Hash<T>(
 // Hasher
 
 pub(crate) unsafe extern "C" fn hash_slice_Hasher<T>(
-    this: &mut ErasedObject,
+    this: RMut<'_, ErasedObject>,
     slic_: RSlice<'_, u8>,
 )
 where
     T: Hasher,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ transmute_mut_reference::<ErasedObject,T>(this) };
+        let this=unsafe{ this.transmute_into_mut::<T>() };
         this.write(slic_.into());
     }
 }
-pub(crate) unsafe extern "C" fn finish_Hasher<T>(this: &ErasedObject) -> u64
+pub(crate) unsafe extern "C" fn finish_Hasher<T>(this: RRef<'_, ErasedObject>) -> u64
 where
     T: Hasher,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ transmute_reference::<ErasedObject,T>(this) };
+        let this=unsafe{ this.transmute_into_ref::<T>() };
 
         this.finish()
     }
@@ -265,13 +266,13 @@ where
 
 
 pub(super) unsafe extern "C" fn write_str_fmt_write<T>(
-    this:&mut ErasedObject, 
+    this:RMut<'_, ErasedObject>, 
     data:RStr<'_>
 ) -> RResult<(), ()>
 where T:fmt::Write,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ transmute_mut_reference::<ErasedObject,T>(this) };
+        let this=unsafe{ this.transmute_into_mut::<T>() };
         match fmt::Write::write_str(this,data.as_str()) {
             Ok(())=>ROk(()),
             Err(_)=>RErr(()),
@@ -307,17 +308,17 @@ where
 pub struct IoWriteFns{
     pub(super) write:
         unsafe extern "C" fn (
-            &mut ErasedObject,
+            RMut<'_, ErasedObject>,
             buf: RSlice<'_,u8>
         ) -> RResult<usize,RIoError>,
 
     pub(super) write_all:
         unsafe extern "C" fn (
-            &mut ErasedObject,
+            RMut<'_, ErasedObject>,
             buf: RSlice<'_,u8>
         ) -> RResult<(),RIoError>,
 
-    pub(super) flush:unsafe extern "C" fn (&mut ErasedObject) -> RResult<(),RIoError>,
+    pub(super) flush:unsafe extern "C" fn (RMut<'_, ErasedObject>) -> RResult<(),RIoError>,
 }
 
 
@@ -336,36 +337,36 @@ where
 
 
 pub(super) unsafe extern "C" fn io_Write_write<W>(
-    this:&mut ErasedObject, 
+    this:RMut<'_, ErasedObject>, 
     buf: RSlice<'_,u8>
 ) -> RResult<usize,RIoError>
 where W:IoWrite
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,W>(this);
+        let this=this.transmute_into_mut::<W>();
 
         convert_io_result(this.write(buf.into()))
     }
 }
 
 pub(super) unsafe extern "C" fn io_Write_write_all<W>(
-    this:&mut ErasedObject, 
+    this:RMut<'_, ErasedObject>, 
     buf: RSlice<'_,u8>
 ) -> RResult<(),RIoError>
 where W:IoWrite
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,W>(this);
+        let this=this.transmute_into_mut::<W>();
 
         convert_io_result(this.write_all(buf.into()))
     }
 }
 
-pub(super) unsafe extern "C" fn io_Write_flush<W>( this:&mut ErasedObject ) -> RResult<(),RIoError>
+pub(super) unsafe extern "C" fn io_Write_flush<W>( this:RMut<'_, ErasedObject> ) -> RResult<(),RIoError>
 where W:IoWrite
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,W>(this);
+        let this=this.transmute_into_mut::<W>();
 
         convert_io_result(this.flush())
     }
@@ -380,10 +381,10 @@ where W:IoWrite
 #[derive(Copy,Clone)]
 pub struct IoReadFns{
     pub(super) read:
-        unsafe extern "C" fn(&mut ErasedObject,RSliceMut<'_,u8>) -> RResult<usize,RIoError>,
+        unsafe extern "C" fn(RMut<'_, ErasedObject>,RSliceMut<'_,u8>) -> RResult<usize,RIoError>,
 
     pub(super) read_exact:
-        unsafe extern "C" fn(&mut ErasedObject,RSliceMut<'_,u8>) -> RResult<(),RIoError>,
+        unsafe extern "C" fn(RMut<'_, ErasedObject>,RSliceMut<'_,u8>) -> RResult<(),RIoError>,
 }
 
 
@@ -401,13 +402,13 @@ where
 
 
 pub(super) unsafe extern "C" fn io_Read_read<R>(
-    this:&mut ErasedObject, 
+    this:RMut<'_, ErasedObject>, 
     buf: RSliceMut<'_,u8>
 ) -> RResult<usize,RIoError>
 where R:Read
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,R>(this);
+        let this=this.transmute_into_mut::<R>();
 
         convert_io_result(this.read(buf.into()))
     }
@@ -415,13 +416,13 @@ where R:Read
 
 
 pub(super) unsafe extern "C" fn io_Read_read_exact<R>(
-    this:&mut ErasedObject, 
+    this:RMut<'_, ErasedObject>, 
     buf: RSliceMut<'_,u8>
 ) -> RResult<(),RIoError>
 where R:Read
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,R>(this);
+        let this=this.transmute_into_mut::<R>();
 
         convert_io_result(this.read_exact(buf.into()))
     }
@@ -435,9 +436,9 @@ where R:Read
 #[derive(Copy,Clone)]
 pub struct IoBufReadFns{
     pub(super) fill_buf:
-        unsafe extern "C" fn(&mut ErasedObject) -> RResult<RSlice<'_,u8>,RIoError>,
+        unsafe extern "C" fn(RMut<'_, ErasedObject>) -> RResult<RSlice<'_,u8>,RIoError>,
 
-    pub(super) consume:unsafe extern "C" fn(&mut ErasedObject,usize)
+    pub(super) consume:unsafe extern "C" fn(RMut<'_, ErasedObject>,usize)
 }
 
 
@@ -454,12 +455,12 @@ where
 }
 
 pub(super) unsafe extern "C" fn io_BufRead_fill_buf<R>(
-    this:&mut ErasedObject,
+    this:RMut<'_, ErasedObject>,
 ) -> RResult<RSlice<'_,u8>,RIoError>
 where R:BufRead
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,R>(this);
+        let this=this.transmute_into_mut::<R>();
 
         mem::transmute::<
             RResult<RSlice<'_,u8>,RIoError>,
@@ -470,13 +471,13 @@ where R:BufRead
 
 
 pub(super) unsafe extern "C" fn io_BufRead_consume<R>(
-    this:&mut ErasedObject, 
+    this:RMut<'_, ErasedObject>, 
     amount: usize
 )where 
     R:BufRead
 {
     extern_fn_panic_handling! {
-        let this=transmute_mut_reference::<ErasedObject,R>(this);
+        let this=this.transmute_into_mut::<R>();
 
         this.consume(amount)
     }
@@ -487,14 +488,14 @@ pub(super) unsafe extern "C" fn io_BufRead_consume<R>(
 
 
 pub(super) unsafe extern "C" fn io_Seek_seek<S>(
-    this:&mut ErasedObject,
+    this:RMut<'_, ErasedObject>,
     seek_from:RSeekFrom,
 ) -> RResult<u64,RIoError>
 where 
     S:io::Seek
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ transmute_mut_reference::<ErasedObject,S>(this) };
+        let this=unsafe{ this.transmute_into_mut::<S>() };
 
         convert_io_result(this.seek(seek_from.into()))
     }
