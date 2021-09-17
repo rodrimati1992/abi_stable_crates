@@ -1,6 +1,6 @@
 [package]
 name = "as_derive_utils"
-version = "0.10.0"
+version = "0.10.2"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
 description = "private derive utilities used by abi_stable and structural."
@@ -11,8 +11,8 @@ repository = "https://github.com/rodrimati1992/abi_stable_crates/"
 include = [
     "Cargo.toml", 
     "src/**/*.rs", 
-    "../APACHE_license", 
-    "../MIT_license"
+    "APACHE_license", 
+    "MIT_license"
 ]
 
 [features]
