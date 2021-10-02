@@ -111,6 +111,8 @@ jobs:
         
         rustup override set nightly
 
+        cargo fmt -- --check
+
         cd "${{github.workspace}}/abi_stable/"
         MIRI_NIGHTLY=nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)
         echo "Installing latest nightly with Miri"
