@@ -8,22 +8,19 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-
 use serde::{Serialize, Serializer};
 
 use crate::{
-    traits::{IntoReprC, IntoReprRust},
     std_types::{
-        RBoxError, RCmpOrdering, RErr, ROk, ROption,RResult, RString,RStr,
-        RSlice, RSliceMut
+        RBoxError, RCmpOrdering, RErr, ROk, ROption, RResult, RSlice, RSliceMut, RStr, RString,
     },
+    traits::{IntoReprC, IntoReprRust},
 };
-
 
 #[macro_use]
 mod enabled_traits_macro;
 
-pub(crate)mod c_functions;
+pub(crate) mod c_functions;
 
 /// Types that implement `InterfaceType`, used in examples.
 pub mod interfaces;
@@ -45,27 +42,20 @@ pub(crate) mod traits;
 pub use crate::DynTrait;
 
 pub use self::{
-    dyn_trait::{
-        DynTraitBound,
-        GetVWInterface,
-        UneraseError,
-    },
-    vtable::{ InterfaceBound,VTableDT },
+    dyn_trait::{DynTraitBound, GetVWInterface, UneraseError},
     traits::{
-        ImplType, InterfaceType, 
-        DeserializeDyn, 
-        SerializeImplType, SerializeProxyType, 
-        IteratorItem,IteratorItemOrDefault,
+        DeserializeDyn, ImplType, InterfaceType, IteratorItem, IteratorItemOrDefault,
+        SerializeImplType, SerializeProxyType,
     },
     type_info::TypeInfo,
+    vtable::{InterfaceBound, VTableDT},
 };
 
 #[doc(hidden)]
 pub use self::vtable::GetVtable;
 
 #[doc(no_inline)]
-pub use crate::type_level::downcasting::{TD_CanDowncast,TD_Opaque};
-
+pub use crate::type_level::downcasting::{TD_CanDowncast, TD_Opaque};
 
 /// The formatting mode for all std::fmt formatters.
 ///

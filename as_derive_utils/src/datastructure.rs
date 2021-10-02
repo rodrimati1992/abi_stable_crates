@@ -9,19 +9,12 @@ use quote::ToTokens;
 
 use proc_macro2::{Span, TokenStream};
 
-
-use std::fmt::{self,Display};
-
-
+use std::fmt::{self, Display};
 
 mod field_map;
 mod type_param_map;
 
-pub use self::{
-    field_map::FieldMap,
-    type_param_map::TypeParamMap,
-
-};
+pub use self::{field_map::FieldMap, type_param_map::TypeParamMap};
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -46,7 +39,6 @@ pub struct DataStructure<'a> {
     pub variants: Vec<Struct<'a>>,
 }
 
-
 impl<'a> DataStructure<'a> {
     pub fn new(ast: &'a DeriveInput) -> Self {
         let name = &ast.ident;
@@ -55,20 +47,17 @@ impl<'a> DataStructure<'a> {
 
         let mut variants = Vec::new();
 
-
         match &ast.data {
             Data::Enum(enum_) => {
-                let override_vis=Some(&ast.vis);
+                let override_vis = Some(&ast.vis);
 
-                for (variant,var) in enum_.variants.iter().enumerate() {
+                for (variant, var) in enum_.variants.iter().enumerate() {
                     variants.push(Struct::new(
-                        StructParams{
-                            discriminant:var.discriminant
-                                .as_ref()
-                                .map(|(_,v)| v ),
+                        StructParams {
+                            discriminant: var.discriminant.as_ref().map(|(_, v)| v),
                             variant,
-                            attrs:&var.attrs,
-                            name:&var.ident,
+                            attrs: &var.attrs,
+                            name: &var.ident,
                             override_vis,
                         },
                         &var.fields,
@@ -77,13 +66,13 @@ impl<'a> DataStructure<'a> {
                 data_variant = DataVariant::Enum;
             }
             Data::Struct(struct_) => {
-                let override_vis=None;
+                let override_vis = None;
 
                 variants.push(Struct::new(
-                    StructParams{
-                        discriminant:None,
-                        variant:0,
-                        attrs:&[],
+                    StructParams {
+                        discriminant: None,
+                        variant: 0,
+                        attrs: &[],
                         name,
                         override_vis,
                     },
@@ -93,19 +82,19 @@ impl<'a> DataStructure<'a> {
             }
 
             Data::Union(union_) => {
-                let override_vis=None;
+                let override_vis = None;
 
                 let fields = Some(&union_.fields.named);
                 let sk = StructKind::Braced;
                 let vari = Struct::with_fields(
-                    StructParams{
-                        discriminant:None,
-                        variant:0,
-                        attrs:&[], 
-                        name, 
+                    StructParams {
+                        discriminant: None,
+                        variant: 0,
+                        attrs: &[],
+                        name,
                         override_vis,
                     },
-                    sk, 
+                    sk,
                     fields,
                 );
                 variants.push(vari);
@@ -113,12 +102,12 @@ impl<'a> DataStructure<'a> {
             }
         }
 
-        let mut field_count=0;
-        let mut pub_field_count=0;
+        let mut field_count = 0;
+        let mut pub_field_count = 0;
 
         for vari in &variants {
-            field_count+=vari.fields.len();
-            pub_field_count+=vari.pub_field_count;
+            field_count += vari.fields.len();
+            pub_field_count += vari.pub_field_count;
         }
 
         Self {
@@ -126,7 +115,7 @@ impl<'a> DataStructure<'a> {
             name,
             attrs: &ast.attrs,
             generics: &ast.generics,
-            lifetime_count:ast.generics.lifetimes().count(),
+            lifetime_count: ast.generics.lifetimes().count(),
             data_variant,
             variants,
             field_count,
@@ -134,8 +123,8 @@ impl<'a> DataStructure<'a> {
         }
     }
 
-    pub fn has_public_fields(&self)->bool{
-        self.pub_field_count!=0
+    pub fn has_public_fields(&self) -> bool {
+        self.pub_field_count != 0
     }
 }
 
@@ -157,23 +146,21 @@ pub enum DataVariant {
     Union,
 }
 
-
-#[derive(Copy,Clone, Debug, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub struct FieldIndex {
-    pub variant:usize,
-    pub pos:usize,
+    pub variant: usize,
+    pub pos: usize,
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-
-#[derive(Copy,Clone)]
-struct StructParams<'a>{
-    discriminant:Option<&'a syn::Expr>,
-    variant:usize,
+#[derive(Copy, Clone)]
+struct StructParams<'a> {
+    discriminant: Option<&'a syn::Expr>,
+    variant: usize,
     attrs: &'a [Attribute],
     name: &'a Ident,
-    override_vis:Option<&'a Visibility>,
+    override_vis: Option<&'a Visibility>,
 }
 
 /// A struct/union or a variant of an enum.
@@ -193,22 +180,19 @@ pub struct Struct<'a> {
     pub name: &'a Ident,
     pub kind: StructKind,
     pub fields: Vec<Field<'a>>,
-    pub pub_field_count:usize,
+    pub pub_field_count: usize,
     /// The value of this discriminant.
     ///
     /// If this is a Some(_):This is an enum with an explicit discriminant value.
     ///
     /// If this is an None:
     ///     This is either a struct/union or an enum variant without an explicit discriminant.
-    pub discriminant:Option<&'a syn::Expr>,
+    pub discriminant: Option<&'a syn::Expr>,
     _priv: (),
 }
 
 impl<'a> Struct<'a> {
-    fn new(
-        p:StructParams<'a>,
-        fields: &'a SynFields,
-    ) -> Self {
+    fn new(p: StructParams<'a>, fields: &'a SynFields) -> Self {
         let kind = match *fields {
             SynFields::Named { .. } => StructKind::Braced,
             SynFields::Unnamed { .. } => StructKind::Tuple,
@@ -223,39 +207,34 @@ impl<'a> Struct<'a> {
         Self::with_fields(p, kind, fields)
     }
 
-    fn with_fields<I>(
-        p:StructParams<'a>,
-        kind: StructKind,
-        fields: Option<I>,
-    ) -> Self
+    fn with_fields<I>(p: StructParams<'a>, kind: StructKind, fields: Option<I>) -> Self
     where
         I: IntoIterator<Item = &'a SynField>,
     {
-        let fields=match fields {
+        let fields = match fields {
             Some(x) => Field::from_iter(p, x),
             None => Vec::new(),
         };
 
-        let mut pub_field_count=0usize;
+        let mut pub_field_count = 0usize;
 
         for field in &fields {
             if field.is_public() {
-                pub_field_count+=1;
+                pub_field_count += 1;
             }
         }
 
         Self {
-            discriminant:p.discriminant,
-            attrs:p.attrs,
-            name:p.name,
+            discriminant: p.discriminant,
+            attrs: p.attrs,
+            name: p.name,
             kind,
             pub_field_count,
             fields,
             _priv: (),
         }
     }
-
-    }
+}
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -263,7 +242,7 @@ impl<'a> Struct<'a> {
 ///
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct Field<'a> {
-    pub index:FieldIndex,
+    pub index: FieldIndex,
     pub attrs: &'a [Attribute],
     pub vis: &'a Visibility,
     /// identifier for the field,which is either an index(in a tuple struct) or a name.
@@ -276,7 +255,7 @@ impl<'a> Field<'a> {
         index: FieldIndex,
         field: &'a SynField,
         span: Span,
-        override_vis:Option<&'a Visibility>,
+        override_vis: Option<&'a Visibility>,
     ) -> Self {
         let ident = match field.ident.as_ref() {
             Some(ident) => FieldIdent::Named(ident),
@@ -292,8 +271,8 @@ impl<'a> Field<'a> {
         }
     }
 
-    pub fn is_public(&self)->bool{
-        matches!(self.vis, Visibility::Public{..})
+    pub fn is_public(&self) -> bool {
+        matches!(self.vis, Visibility::Public { .. })
     }
 
     /// Gets the identifier of this field usable for the variable in a pattern.
@@ -311,26 +290,26 @@ impl<'a> Field<'a> {
     ///     quote::quote!( let Foo{#field_name: #variable} = bar; )
     /// }
     /// ```
-    pub fn pat_ident(&self)->&Ident{
+    pub fn pat_ident(&self) -> &Ident {
         match &self.ident {
-            FieldIdent::Index(_,ident)=>ident,
-            FieldIdent::Named(ident)=>ident,
+            FieldIdent::Index(_, ident) => ident,
+            FieldIdent::Named(ident) => ident,
         }
     }
 
-    fn from_iter<I>(
-        p:StructParams<'a>,
-        fields: I, 
-    ) -> Vec<Self>
+    fn from_iter<I>(p: StructParams<'a>, fields: I) -> Vec<Self>
     where
         I: IntoIterator<Item = &'a SynField>,
     {
         fields
             .into_iter()
             .enumerate()
-            .map(|(pos, f)|{ 
-                let fi=FieldIndex{variant:p.variant,pos};
-                Field::new(fi, f, p.name.span(),p.override_vis)
+            .map(|(pos, f)| {
+                let fi = FieldIndex {
+                    variant: p.variant,
+                    pos,
+                };
+                Field::new(fi, f, p.name.span(), p.override_vis)
             })
             .collect()
     }
@@ -344,11 +323,11 @@ pub enum FieldIdent<'a> {
     Named(&'a Ident),
 }
 
-impl<'a> Display for FieldIdent<'a>{
-    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+impl<'a> Display for FieldIdent<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FieldIdent::Index(x, ..) => Display::fmt(x,f),
-            FieldIdent::Named(x) => Display::fmt(x,f),
+            FieldIdent::Index(x, ..) => Display::fmt(x, f),
+            FieldIdent::Named(x) => Display::fmt(x, f),
         }
     }
 }
@@ -367,4 +346,3 @@ impl<'a> FieldIdent<'a> {
         FieldIdent::Index(index, Ident::new(&format!("field_{}", index), span))
     }
 }
-

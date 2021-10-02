@@ -2,14 +2,12 @@
 Zero-sized types .
 */
 
-use std::{cell::Cell,marker::PhantomData, rc::Rc};
+use std::{cell::Cell, marker::PhantomData, rc::Rc};
 
 use crate::{
     abi_stability::PrefixStableAbi,
     derive_macro_reexports::*,
-    type_layout::{
-        MonoTypeLayout, MonoTLData, ReprAttr, TypeLayout, GenericTLData,
-    }
+    type_layout::{GenericTLData, MonoTLData, MonoTypeLayout, ReprAttr, TypeLayout},
 };
 
 #[macro_use]
@@ -22,7 +20,7 @@ mod stable_abi_impls;
 #[derive(StableAbi)]
 pub struct SyncSend;
 
-const _: () = zst_assert!{SyncSend};
+const _: () = zst_assert! {SyncSend};
 
 /////////////////
 
@@ -31,13 +29,14 @@ pub struct UnsyncUnsend {
     _marker: UnsafeIgnoredType<Rc<()>>,
 }
 
-monomorphic_marker_type!{UnsyncUnsend, UnsafeIgnoredType<Rc<()>>}
+monomorphic_marker_type! {UnsyncUnsend, UnsafeIgnoredType<Rc<()>>}
 
 impl UnsyncUnsend {
     /// Constructs a `UnsyncUnsend`
-    pub const NEW: Self = Self { _marker: UnsafeIgnoredType::NEW };
+    pub const NEW: Self = Self {
+        _marker: UnsafeIgnoredType::NEW,
+    };
 }
-
 
 /////////////////
 
@@ -46,11 +45,13 @@ pub struct UnsyncSend {
     _marker: UnsafeIgnoredType<Cell<()>>,
 }
 
-monomorphic_marker_type!{UnsyncSend, UnsafeIgnoredType<Cell<()>>}
+monomorphic_marker_type! {UnsyncSend, UnsafeIgnoredType<Cell<()>>}
 
 impl UnsyncSend {
     /// Constructs a `UnsyncSend`
-    pub const NEW: Self = Self { _marker: UnsafeIgnoredType::NEW };
+    pub const NEW: Self = Self {
+        _marker: UnsafeIgnoredType::NEW,
+    };
 }
 
 /////////////////
@@ -61,18 +62,20 @@ pub struct SyncUnsend {
     _marker: UnsyncUnsend,
 }
 
-monomorphic_marker_type!{SyncUnsend, UnsyncUnsend}
+monomorphic_marker_type! {SyncUnsend, UnsyncUnsend}
 
 impl SyncUnsend {
     /// Constructs a `SyncUnsend`
-    pub const NEW: Self = Self { _marker: UnsyncUnsend::NEW };
+    pub const NEW: Self = Self {
+        _marker: UnsyncUnsend::NEW,
+    };
 }
 
-unsafe impl Sync for SyncUnsend{}
+unsafe impl Sync for SyncUnsend {}
 
 /////////////////
 
-/// Zero-sized marker type used to signal that even though a type 
+/// Zero-sized marker type used to signal that even though a type
 /// could implement `Copy` and `Clone`,
 /// it is semantically an error to do so.
 #[repr(C)]
@@ -80,14 +83,13 @@ unsafe impl Sync for SyncUnsend{}
 // #[sabi(debug_print)]
 pub struct NotCopyNotClone;
 
-const _: () = zst_assert!{NotCopyNotClone};
+const _: () = zst_assert! {NotCopyNotClone};
 
 //////////////////////////////////////////////////////////////
 
-
 /// Used by vtables/pointers to signal that the type has been erased.
 ///
-pub struct ErasedObject<T = ()>{
+pub struct ErasedObject<T = ()> {
     _marker: NonOwningPhantom<T>,
 }
 
@@ -123,7 +125,7 @@ mod _sabi_erasedobject {
                 None,
             )),
             generics: abi_stable ::tl_genparams !(
-                ; 
+                ;
                 __StartLen :: new(0u16, 0u16) ;
                 __StartLen :: new(0u16, 0u16)
             ),
@@ -156,7 +158,7 @@ mod _sabi_erasedobject {
     {
         type IsNonZeroType = __sabi_re::False;
         const LAYOUT: &'static __sabi_re::TypeLayout = {
-            zst_assert!{Self}
+            zst_assert! {Self}
 
             &__sabi_re::TypeLayout::from_derive::<Self>(__sabi_re::_private_TypeLayoutDerive {
                 shared_vars: Self::__SABI_SHARED_VARS,
@@ -170,14 +172,11 @@ mod _sabi_erasedobject {
     }
 }
 
-
-
 //////////////////////////////////////////////////////////////
-
 
 /// Used by pointers to vtables/modules to signal that the type has been erased.
 ///
-pub struct ErasedPrefix{
+pub struct ErasedPrefix {
     _priv: PhantomData<u8>,
 }
 
@@ -194,8 +193,6 @@ unsafe impl PrefixStableAbi for ErasedPrefix {
 
 //////////////////////////////////////////////////////////////
 
-
-
 /**
 MarkerType which ignores its type parameter in its [`StableAbi`] implementation.
 
@@ -210,46 +207,44 @@ since the type parameter is ignored when type checking dynamic libraries.
 [`StableAbi`]: ../trait.StableAbi.html
 
 */
-pub struct UnsafeIgnoredType<T:?Sized> {
+pub struct UnsafeIgnoredType<T: ?Sized> {
     _inner: PhantomData<T>,
 }
 
-impl<T:?Sized> UnsafeIgnoredType<T>{
+impl<T: ?Sized> UnsafeIgnoredType<T> {
     /// Constructs an `UnsafeIgnoredType`.
-    pub const DEFAULT:Self=Self{
-        _inner:PhantomData,
+    pub const DEFAULT: Self = Self {
+        _inner: PhantomData,
     };
 
     /// Constructs an `UnsafeIgnoredType`.
-    pub const NEW:Self=Self{
-        _inner:PhantomData,
+    pub const NEW: Self = Self {
+        _inner: PhantomData,
     };
 }
 
-impl<T:?Sized> Copy for UnsafeIgnoredType<T>{}
+impl<T: ?Sized> Copy for UnsafeIgnoredType<T> {}
 
-impl<T:?Sized> Default for UnsafeIgnoredType<T>{
-    fn default()->Self{
+impl<T: ?Sized> Default for UnsafeIgnoredType<T> {
+    fn default() -> Self {
         Self::DEFAULT
     }
 }
 
-impl<T:?Sized> Clone for UnsafeIgnoredType<T>{
-    fn clone(&self)->Self{
+impl<T: ?Sized> Clone for UnsafeIgnoredType<T> {
+    fn clone(&self) -> Self {
         *self
     }
 }
 
-
-
 unsafe impl<T> GetStaticEquivalent_ for UnsafeIgnoredType<T> {
-    type StaticEquivalent=();
+    type StaticEquivalent = ();
 }
 unsafe impl<T> StableAbi for UnsafeIgnoredType<T> {
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("UnsafeIgnoredType"),
             make_item_info!(),
@@ -260,7 +255,7 @@ unsafe impl<T> StableAbi for UnsafeIgnoredType<T> {
             rslice![],
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl[T] UnsafeIgnoredType<T>;
 
             let (mono_shared_vars,shared_vars)={};
@@ -277,60 +272,58 @@ unsafe impl<T> StableAbi for UnsafeIgnoredType<T> {
     };
 }
 
-
 //////////////////////////////////////////////////////////////
 
 /// An ffi-safe equivalent of a `PhantomData<fn()->T>`
-pub struct NonOwningPhantom<T:?Sized>{
+pub struct NonOwningPhantom<T: ?Sized> {
     // The StableAbi layout for a `NonOwningPhantom<T>` is the same as `PhantomData<T>`,
     // the type of this field is purely for variance.
-    _marker: PhantomData<extern "C" fn()->T>
+    _marker: PhantomData<extern "C" fn() -> T>,
 }
 
-impl<T:?Sized> NonOwningPhantom<T>{
+impl<T: ?Sized> NonOwningPhantom<T> {
     /// Constructs a `NonOwningPhantom`
-    pub const DEFAULT:Self=Self{
-        _marker:PhantomData,
+    pub const DEFAULT: Self = Self {
+        _marker: PhantomData,
     };
 
     /// Constructs a `NonOwningPhantom`
-    pub const NEW:Self=Self{
-        _marker:PhantomData,
+    pub const NEW: Self = Self {
+        _marker: PhantomData,
     };
 }
 
-impl<T:?Sized> Copy for NonOwningPhantom<T>{}
+impl<T: ?Sized> Copy for NonOwningPhantom<T> {}
 
-impl<T:?Sized> Default for NonOwningPhantom<T>{
+impl<T: ?Sized> Default for NonOwningPhantom<T> {
     #[inline(always)]
-    fn default()->Self{
+    fn default() -> Self {
         Self::DEFAULT
     }
 }
 
-impl<T:?Sized> Clone for NonOwningPhantom<T>{
+impl<T: ?Sized> Clone for NonOwningPhantom<T> {
     #[inline(always)]
-    fn clone(&self)->Self{
+    fn clone(&self) -> Self {
         *self
     }
 }
 
-unsafe impl<T:?Sized> GetStaticEquivalent_ for NonOwningPhantom<T> 
+unsafe impl<T: ?Sized> GetStaticEquivalent_ for NonOwningPhantom<T>
 where
-    PhantomData<T>:GetStaticEquivalent_
+    PhantomData<T>: GetStaticEquivalent_,
 {
-    type StaticEquivalent=GetStaticEquivalent<PhantomData<T>>;
+    type StaticEquivalent = GetStaticEquivalent<PhantomData<T>>;
 }
 
-unsafe impl<T:?Sized> StableAbi for NonOwningPhantom<T> 
+unsafe impl<T: ?Sized> StableAbi for NonOwningPhantom<T>
 where
-    PhantomData<T>:StableAbi
+    PhantomData<T>: StableAbi,
 {
     type IsNonZeroType = False;
 
-
     const LAYOUT: &'static TypeLayout = {
-        zst_assert!(Self);        
+        zst_assert!(Self);
         <PhantomData<T> as StableAbi>::LAYOUT
     };
 }

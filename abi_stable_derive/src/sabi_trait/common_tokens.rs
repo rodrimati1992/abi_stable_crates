@@ -1,10 +1,10 @@
 /*!
 This module defines the CommonTokens type,
-used to pass constants of type from `syn` to 
+used to pass constants of type from `syn` to
 many functions in the `abi_stable_derive_lib::sabi_trait` module.
 */
 
-use proc_macro2::{Span,TokenStream};
+use proc_macro2::{Span, TokenStream};
 
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 
@@ -93,7 +93,7 @@ declare_common_tokens! {
         self_sized="Self:Sized,",
         makevtable_typarams="IA,_Self,_ErasedPtr,_OrigPtr,",
         vtable_typarams="_Self,_ErasedPtr,",
-        
+
         ptr_ref_bound=
             "_ErasedPtr: __sabi_re::AsPtr<PtrTarget=()>,",
         ptr_mut_bound=
@@ -161,9 +161,7 @@ declare_common_tokens! {
     ]
 }
 
-
 ////////////////////////////////////////////////////////
-
 
 macro_rules! declare_lifetime_tokens {
     (
@@ -226,7 +224,7 @@ macro_rules! declare_lifetime_tokens {
     )
 }
 
-declare_lifetime_tokens!{
+declare_lifetime_tokens! {
     lifetime_tokens=[
         lt="",
         lt_erasedptr="_ErasedPtr,",
@@ -245,4 +243,3 @@ declare_lifetime_tokens!{
         staticlt_erasedptr="_ErasedPtr,",
     ]
 }
-

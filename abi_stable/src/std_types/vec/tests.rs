@@ -2,7 +2,7 @@ use super::*;
 
 use abi_stable_shared::file_span;
 
-use std::{iter,sync::Arc};
+use std::{iter, sync::Arc};
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
@@ -26,7 +26,7 @@ fn vec_drain() {
         ($range:expr,$after_drain:expr) => {
             let range = $range;
             {
-                let after_drain:Vec<u8>=$after_drain;
+                let after_drain: Vec<u8> = $after_drain;
                 let mut list = list.clone();
                 let list_2 = list.drain(range.clone()).collect::<Vec<_>>();
                 assert_eq!(&*list_2, &original[range.clone()], "");
@@ -128,7 +128,7 @@ fn push_pop() {
     assert_eq!(&*list, &[10]);
 
     assert_eq!(list.pop(), Some(10));
-    assert_eq!(&*list, <&[u32]>::default() );
+    assert_eq!(&*list, <&[u32]>::default());
 
     assert_eq!(list.pop(), None);
 }
@@ -164,77 +164,62 @@ fn truncate() {
 }
 
 #[test]
-fn retain(){
+fn retain() {
     let orig = vec![2, 3, 4, 5, 6, 7, 8];
     let copy = orig.clone().piped(RVec::from);
     {
-        let mut copy=copy.clone();
-        copy.retain(|&v| v%2==0 );
-        assert_eq!(
-            &*copy, 
-            &[2,4,6,8][..]
-        );
+        let mut copy = copy.clone();
+        copy.retain(|&v| v % 2 == 0);
+        assert_eq!(&*copy, &[2, 4, 6, 8][..]);
     }
     {
-        let mut copy=copy.clone();
-        copy.retain(|&v| v%2==1 );
-        assert_eq!(
-            &*copy, 
-            &[3,5,7][..]
-        );
+        let mut copy = copy.clone();
+        copy.retain(|&v| v % 2 == 1);
+        assert_eq!(&*copy, &[3, 5, 7][..]);
     }
     {
-        let mut copy=copy.clone();
-        copy.retain(|_| true );
-        assert_eq!(
-            &*copy, 
-            &*orig
-        );
+        let mut copy = copy.clone();
+        copy.retain(|_| true);
+        assert_eq!(&*copy, &*orig);
     }
     {
-        let mut copy=copy.clone();
-        copy.retain(|_| false );
-        assert_eq!(
-            &*copy,
-            <&[i32]>::default()
-        );
+        let mut copy = copy.clone();
+        copy.retain(|_| false);
+        assert_eq!(&*copy, <&[i32]>::default());
     }
     {
-        let mut copy=copy.clone();
-        let mut i=0;
-        copy.retain(|_|{
-            let cond=i%2==0;
-            i+=1;
+        let mut copy = copy.clone();
+        let mut i = 0;
+        copy.retain(|_| {
+            let cond = i % 2 == 0;
+            i += 1;
             cond
         });
-        assert_eq!(
-            &*copy, 
-            &[2,4,6,8][..]
-        );
+        assert_eq!(&*copy, &[2, 4, 6, 8][..]);
     }
     {
-        let mut copy=copy.clone();
-        let mut i=0;
-        copy.retain(|_|{
-            let cond=i%3==0;
-            i+=1;
+        let mut copy = copy.clone();
+        let mut i = 0;
+        copy.retain(|_| {
+            let cond = i % 3 == 0;
+            i += 1;
             cond
         });
-        assert_eq!(
-            &*copy, 
-            &[2,5,8][..]
-        );
+        assert_eq!(&*copy, &[2, 5, 8][..]);
     }
     {
-        let mut copy=copy.clone();
-        let mut i=0;
-        must_panic(file_span!(), ||{
-            copy.retain(|_|{
-                i+=1;
-                if i==4 {panic!()}
+        let mut copy = copy.clone();
+        let mut i = 0;
+        must_panic(file_span!(), || {
+            copy.retain(|_| {
+                i += 1;
+                if i == 4 {
+                    panic!()
+                }
                 true
             });
-        }).unwrap();
+        })
+        .unwrap();
         assert_eq!(&copy[..], &orig[..]);
     }
 }
@@ -327,16 +312,18 @@ fn into_iter() {
 }
 
 #[test]
-fn into_iter_as_str(){
+fn into_iter_as_str() {
     let mut orig = vec![10, 11, 12, 13];
     let mut iter = orig.clone().into_c().into_iter();
-    let mut i=0;
+    let mut i = 0;
 
     loop {
-        assert_eq!(&orig[i..],iter.as_slice());
-        assert_eq!(&mut orig[i..],iter.as_mut_slice());
-        i+=1;
-        if iter.next().is_none() {break;}
+        assert_eq!(&orig[i..], iter.as_slice());
+        assert_eq!(&mut orig[i..], iter.as_mut_slice());
+        i += 1;
+        if iter.next().is_none() {
+            break;
+        }
     }
 }
 
@@ -391,21 +378,21 @@ fn into_vec() {
 }
 
 #[test]
-fn rvec_macro(){
+fn rvec_macro() {
     assert_eq!(RVec::<u32>::new(), rvec![]);
     assert_eq!(RVec::from(vec![0]), rvec![0]);
-    assert_eq!(RVec::from(vec![0,3]), rvec![0,3]);
-    assert_eq!(RVec::from(vec![0,3,6]), rvec![0,3,6]);
-    assert_eq!(RVec::from(vec![1;10]), rvec![1;10]);
+    assert_eq!(RVec::from(vec![0, 3]), rvec![0, 3]);
+    assert_eq!(RVec::from(vec![0, 3, 6]), rvec![0, 3, 6]);
+    assert_eq!(RVec::from(vec![1; 10]), rvec![1;10]);
 }
 
-// Adapted from Vec tests 
+// Adapted from Vec tests
 // (from rustc 1.50.0-nightly (eb4fc71dc 2020-12-17))
 #[test]
 fn retain_panic() {
+    use std::panic::AssertUnwindSafe;
     use std::rc::Rc;
     use std::sync::Mutex;
-    use std::panic::AssertUnwindSafe;
 
     struct Check {
         index: usize,
@@ -422,7 +409,10 @@ fn retain_panic() {
     let check_count = 10;
     let drop_counts = Rc::new(Mutex::new(rvec![0_usize; check_count]));
     let mut data: RVec<Check> = (0..check_count)
-        .map(|index| Check { index, drop_counts: Rc::clone(&drop_counts) })
+        .map(|index| Check {
+            index,
+            drop_counts: Rc::clone(&drop_counts),
+        })
         .collect();
 
     let _ = std::panic::catch_unwind(AssertUnwindSafe(move || {
@@ -445,8 +435,10 @@ fn retain_panic() {
     assert_eq!(check_count, drop_counts.len());
 
     for (index, count) in drop_counts.iter().cloned().enumerate() {
-        assert_eq!(1, count, "unexpected drop count at index: {} (count: {})", index, count);
+        assert_eq!(
+            1, count,
+            "unexpected drop count at index: {} (count: {})",
+            index, count
+        );
     }
 }
-
-

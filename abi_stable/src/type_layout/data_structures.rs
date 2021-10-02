@@ -1,9 +1,6 @@
 //! Helper types for type_layout types.
 
-use std::{
-    cmp::{PartialEq,Eq},
-};
-
+use std::cmp::{Eq, PartialEq};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -11,14 +8,14 @@ use std::{
 /// which is treated as a slice of `0..self.len` in all its impls.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, StableAbi)]
-pub struct ArrayLen<A>{
-    pub len:u16,
-    pub array:A,
+pub struct ArrayLen<A> {
+    pub len: u16,
+    pub array: A,
 }
 
 impl<A> ArrayLen<A> {
     /// The `len` field  casted to usize.
-    pub const fn len(&self)->usize{
+    pub const fn len(&self) -> usize {
         self.len as usize
     }
     pub const fn is_empty(&self) -> bool {
@@ -26,34 +23,32 @@ impl<A> ArrayLen<A> {
     }
 }
 
-
-impl<A,T> PartialEq for ArrayLen<A>
+impl<A, T> PartialEq for ArrayLen<A>
 where
-    A:ArrayTrait<Elem=T>,
-    T:PartialEq,
+    A: ArrayTrait<Elem = T>,
+    T: PartialEq,
 {
-    fn eq(&self,other:&Self)->bool{
-        let t_slice=&self.array.as_slice()[..self.len as usize];
-        let o_slice=&other.array.as_slice()[..other.len as usize];
-        t_slice==o_slice
+    fn eq(&self, other: &Self) -> bool {
+        let t_slice = &self.array.as_slice()[..self.len as usize];
+        let o_slice = &other.array.as_slice()[..other.len as usize];
+        t_slice == o_slice
     }
 }
 
-
-impl<A,T> Eq for ArrayLen<A>
+impl<A, T> Eq for ArrayLen<A>
 where
-    A:ArrayTrait<Elem=T>,
-    T:Eq,
-{}
+    A: ArrayTrait<Elem = T>,
+    T: Eq,
+{
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
-mod array_trait{
-    pub trait ArrayTrait{
+mod array_trait {
+    pub trait ArrayTrait {
         type Elem;
 
-        fn as_slice(&self)->&[Self::Elem];
+        fn as_slice(&self) -> &[Self::Elem];
     }
 }
 use self::array_trait::ArrayTrait;
@@ -71,7 +66,7 @@ macro_rules! impl_stable_abi_array {
         )*
     }
 }
-        
+
 impl_stable_abi_array! {
     00,01,02,03,04,05,06,07,08
 }

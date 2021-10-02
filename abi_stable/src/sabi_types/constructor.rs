@@ -1,8 +1,7 @@
 use std::{
-    cmp::{Eq,Ord,PartialEq,PartialOrd,Ordering},
-    fmt::{self,Debug,Display},
+    cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},
+    fmt::{self, Debug, Display},
 };
-
 
 /**
 Newtype wrapper to pass function pointers to `const fn`.
@@ -62,19 +61,19 @@ assert_ne!(C,D);
 #[repr(transparent)]
 #[derive(StableAbi)]
 // #[sabi(debug_print)]
-pub struct Constructor<T>(pub extern "C" fn()->T);
+pub struct Constructor<T>(pub extern "C" fn() -> T);
 
-impl<T> Copy for Constructor<T>{}
+impl<T> Copy for Constructor<T> {}
 
-impl<T> Clone for Constructor<T>{
-    fn clone(&self)->Self{
+impl<T> Clone for Constructor<T> {
+    fn clone(&self) -> Self {
         *self
     }
 }
 
 impl<T> Debug for Constructor<T>
 where
-    T:Debug
+    T: Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Debug::fmt(&self.get(), f)
@@ -83,7 +82,7 @@ where
 
 impl<T> Display for Constructor<T>
 where
-    T:Display
+    T: Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Display::fmt(&self.get(), f)
@@ -97,69 +96,62 @@ impl<T> Constructor<T> {
     }
 }
 
-impl<T> Eq for Constructor<T>
-where
-    T:Eq
-{}
+impl<T> Eq for Constructor<T> where T: Eq {}
 
 impl<T> PartialEq for Constructor<T>
 where
-    T:PartialEq
+    T: PartialEq,
 {
-    fn eq(&self,other:&Self)->bool{
-        self.get()==other.get()
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
     }
 }
 
 impl<T> Ord for Constructor<T>
 where
-    T:Ord
+    T: Ord,
 {
-    fn cmp(&self,other:&Self)->Ordering{
+    fn cmp(&self, other: &Self) -> Ordering {
         self.get().cmp(&other.get())
     }
 }
 
 impl<T> PartialOrd for Constructor<T>
 where
-    T:PartialOrd
+    T: PartialOrd,
 {
-    fn partial_cmp(&self,other:&Self)->Option<Ordering>{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.get().partial_cmp(&other.get())
     }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
-
-
 
 /// Either the constructor for a value or the value itself
 #[repr(u8)]
-#[derive(StableAbi,Copy,Clone)]
+#[derive(StableAbi, Copy, Clone)]
 //#[sabi(debug_print)]
-pub enum ConstructorOrValue<T>{
+pub enum ConstructorOrValue<T> {
     /// This is an `extern "C" fn()->T` which is used to construct a value of type `T`
     Constructor(Constructor<T>),
     /// A value of type `T`
-    Value(T)
+    Value(T),
 }
 
-impl<T> ConstructorOrValue<T>{
-    /// Gets the wrapped value,computing it from its constructor if this 
+impl<T> ConstructorOrValue<T> {
+    /// Gets the wrapped value,computing it from its constructor if this
     /// is the `Constructor` variant
-    pub fn get(&mut self)->&T{
+    pub fn get(&mut self) -> &T {
         match self {
-            ConstructorOrValue::Value(v)=>v,
-            &mut ConstructorOrValue::Constructor(func)=>{
-                let v=(func.0)();
-                *self=ConstructorOrValue::Value(v);
+            ConstructorOrValue::Value(v) => v,
+            &mut ConstructorOrValue::Constructor(func) => {
+                let v = (func.0)();
+                *self = ConstructorOrValue::Value(v);
                 match self {
-                    ConstructorOrValue::Value(v)=>v,
-                    _=>unreachable!()
+                    ConstructorOrValue::Value(v) => v,
+                    _ => unreachable!(),
                 }
-            },
+            }
         }
     }
 }
-

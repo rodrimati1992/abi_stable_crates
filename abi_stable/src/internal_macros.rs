@@ -10,15 +10,14 @@ macro_rules! _sabi_type_layouts {
     };
     (
         $( $ty:ty $( = $assoc_const:ident )? ,)*
-    ) => {{        
+    ) => {{
         $crate::rslice![
-            $( 
-                $crate::_sabi_type_layouts!(internal; $ty $( = $assoc_const )? ), 
+            $(
+                $crate::_sabi_type_layouts!(internal; $ty $( = $assoc_const )? ),
             )*
         ]
     }};
 }
-
 
 /*
 macro_rules! with_shared_attrs {

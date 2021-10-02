@@ -20,10 +20,8 @@ pub mod datastructure;
 pub mod utils;
 
 #[doc(hidden)]
-pub use crate::{
-    to_token_fn::ToTokenFnMut,
-};
+pub use crate::to_token_fn::ToTokenFnMut;
 
-#[cfg(feature="testing")]
+#[cfg(feature = "testing")]
 #[doc(hidden)]
 pub mod test_framework;

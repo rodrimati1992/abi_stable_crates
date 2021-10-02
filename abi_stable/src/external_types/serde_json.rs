@@ -3,17 +3,14 @@ Ffi-safe equivalents of `serde_json` types.
 */
 
 use std::{
-    convert::{TryFrom,TryInto},
-    fmt::{self,Debug,Display},
+    convert::{TryFrom, TryInto},
+    fmt::{self, Debug, Display},
 };
 
-use serde::{Deserialize,Serialize,Deserializer,Serializer};
-use serde_json::{
-    error::Error as JsonError,
-    value::RawValue,
-};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::{error::Error as JsonError, value::RawValue};
 
-use crate::std_types::{RStr,RString};
+use crate::std_types::{RStr, RString};
 
 /**
 An ffi-safe equivalent of `&serde_json::value::RawValue`
@@ -89,77 +86,73 @@ assert_eq!(pair.second.get(),r##"{"hello":"world"}"##);
 ```
 */
 #[repr(transparent)]
-#[derive(StableAbi,Copy,Clone)]
-pub struct RawValueRef<'a>{
-    ref_:RStr<'a>,
+#[derive(StableAbi, Copy, Clone)]
+pub struct RawValueRef<'a> {
+    ref_: RStr<'a>,
 }
 
+impl<'a> RawValueRef<'a> {
+    /**
+    Converts a `&str` to a `RawValueRef<'a>` without checking whether it is valid JSON.
 
-impl<'a> RawValueRef<'a>{
-/**
-Converts a `&str` to a `RawValueRef<'a>` without checking whether it is valid JSON.
+    # Safety
 
-# Safety
+    `input` must be valid JSON and contain no leading or trailing whitespace.
 
-`input` must be valid JSON and contain no leading or trailing whitespace.
+    # Example
 
-# Example
+    ```
+    use abi_stable::external_types::RawValueRef;
 
-```
-use abi_stable::external_types::RawValueRef;
+    const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
 
-const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
+    let value=unsafe{ RawValueRef::from_str_unchecked(JSON) };
 
-let value=unsafe{ RawValueRef::from_str_unchecked(JSON) };
+    assert_eq!(
+        serde_json::to_string(&value).unwrap().as_str(),
+        JSON
+    );
+    ```
 
-assert_eq!(
-    serde_json::to_string(&value).unwrap().as_str(),
-    JSON
-);
-```
-
-*/
-    pub unsafe fn from_str_unchecked(input:&'a str)->RawValueRef<'a>{
-        Self{
-            ref_:RStr::from(input),
+    */
+    pub unsafe fn from_str_unchecked(input: &'a str) -> RawValueRef<'a> {
+        Self {
+            ref_: RStr::from(input),
         }
     }
 
-/**
-Converts a `RStr<'a>` to a `RawValueRef<'a>` without checking whether it is valid JSON.
+    /**
+    Converts a `RStr<'a>` to a `RawValueRef<'a>` without checking whether it is valid JSON.
 
-# Safety
+    # Safety
 
-`input` must be valid JSON and contain no leading or trailing whitespace.
-
-
-# Example
-
-```
-use abi_stable::{
-    external_types::RawValueRef,
-    std_types::RStr,
-};
-
-const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
-
-let json_rstr=RStr::from(JSON);
-let value=unsafe{ RawValueRef::from_rstr_unchecked(json_rstr) };
-
-assert_eq!(
-    serde_json::to_string(&value).unwrap().as_str(),
-    JSON
-);
-```
+    `input` must be valid JSON and contain no leading or trailing whitespace.
 
 
-*/
-    pub unsafe fn from_rstr_unchecked(input:RStr<'a>)->RawValueRef<'a>{
-        Self{
-            ref_:input,
-        }
+    # Example
+
+    ```
+    use abi_stable::{
+        external_types::RawValueRef,
+        std_types::RStr,
+    };
+
+    const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
+
+    let json_rstr=RStr::from(JSON);
+    let value=unsafe{ RawValueRef::from_rstr_unchecked(json_rstr) };
+
+    assert_eq!(
+        serde_json::to_string(&value).unwrap().as_str(),
+        JSON
+    );
+    ```
+
+
+    */
+    pub unsafe fn from_rstr_unchecked(input: RStr<'a>) -> RawValueRef<'a> {
+        Self { ref_: input }
     }
-
 
     /// Attempts to convert a `&'a str` into a `RawValueRef<'a>`.
     ///
@@ -181,7 +174,7 @@ assert_eq!(
     ///
     /// ```
     #[inline]
-    pub fn try_from_str(input:&'a str)->Result<Self,JsonError>{
+    pub fn try_from_str(input: &'a str) -> Result<Self, JsonError> {
         input.try_into()
     }
 
@@ -200,7 +193,7 @@ assert_eq!(
     ///
     /// ```
     #[inline]
-    pub fn get(&self)->&'a str{
+    pub fn get(&self) -> &'a str {
         self.ref_.as_str()
     }
 
@@ -222,64 +215,53 @@ assert_eq!(
     ///
     /// ```
     #[inline]
-    pub fn get_rstr(&self)->RStr<'a>{
+    pub fn get_rstr(&self) -> RStr<'a> {
         self.get().into()
     }
-
 }
 
-
-impl<'a> Debug for RawValueRef<'a>{
-    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        Debug::fmt(&self.ref_,f)
+impl<'a> Debug for RawValueRef<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&self.ref_, f)
     }
 }
 
-
-impl<'a> Display for RawValueRef<'a>{
-    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        Display::fmt(&self.ref_,f)
+impl<'a> Display for RawValueRef<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.ref_, f)
     }
 }
 
-
-impl<'a> From<&'a RawValue> for RawValueRef<'a>{
-    fn from(v:&'a RawValue)->Self{
-        Self{
-            ref_:v.get().into(),
+impl<'a> From<&'a RawValue> for RawValueRef<'a> {
+    fn from(v: &'a RawValue) -> Self {
+        Self {
+            ref_: v.get().into(),
         }
     }
 }
 
-
-impl<'a> TryFrom<&'a str> for RawValueRef<'a>{
-    type Error=JsonError;
-    fn try_from(v:&'a str)->Result<Self,JsonError>{
-        serde_json::from_str::<&'a RawValue>(v)
-            .map(Self::from)
+impl<'a> TryFrom<&'a str> for RawValueRef<'a> {
+    type Error = JsonError;
+    fn try_from(v: &'a str) -> Result<Self, JsonError> {
+        serde_json::from_str::<&'a RawValue>(v).map(Self::from)
     }
 }
 
-
-impl<'a> Serialize for RawValueRef<'a>{
+impl<'a> Serialize for RawValueRef<'a> {
     fn serialize<Z>(&self, serializer: Z) -> Result<Z::Ok, Z::Error>
     where
         Z: Serializer,
     {
-        unsafe{
-            into_ref_rawvalue(self.ref_.as_str()).serialize(serializer)
-        }
+        unsafe { into_ref_rawvalue(self.ref_.as_str()).serialize(serializer) }
     }
 }
 
-
-impl<'de: 'a, 'a> Deserialize<'de> for RawValueRef<'a>{
+impl<'de: 'a, 'a> Deserialize<'de> for RawValueRef<'a> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        <&'a RawValue>::deserialize(deserializer)
-            .map(Self::from)
+        <&'a RawValue>::deserialize(deserializer).map(Self::from)
     }
 }
 
@@ -356,78 +338,75 @@ assert_eq!(pair.second.get(),r##""How many apples?"}"##);
 
 */
 #[repr(transparent)]
-#[derive(StableAbi,Clone)]
-pub struct RawValueBox{
-    string:RString,
+#[derive(StableAbi, Clone)]
+pub struct RawValueBox {
+    string: RString,
 }
 
+impl RawValueBox {
+    /**
+    Converts a `String` to an `RawValueBox` without checking whether it is valid JSON.
 
-impl RawValueBox{
-/**
-Converts a `String` to an `RawValueBox` without checking whether it is valid JSON.
+    # Safety
 
-# Safety
-
-`input` must be valid JSON and contain no leading or trailing whitespace.
+    `input` must be valid JSON and contain no leading or trailing whitespace.
 
 
-# Example
+    # Example
 
-```
-use abi_stable::external_types::RawValueBox;
+    ```
+    use abi_stable::external_types::RawValueBox;
 
-const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
+    const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
 
-let value=unsafe{ RawValueBox::from_string_unchecked(JSON.to_string()) };
+    let value=unsafe{ RawValueBox::from_string_unchecked(JSON.to_string()) };
 
-assert_eq!(
-    serde_json::to_string(&value).unwrap().as_str(),
-    JSON
-);
-```
+    assert_eq!(
+        serde_json::to_string(&value).unwrap().as_str(),
+        JSON
+    );
+    ```
 
-*/
+    */
     #[inline]
-    pub unsafe fn from_string_unchecked(input:String)->RawValueBox{
-        Self{
-            string:input.into()
+    pub unsafe fn from_string_unchecked(input: String) -> RawValueBox {
+        Self {
+            string: input.into(),
         }
     }
 
-/**
-Converts an `RString` to an `RawValueBox` without checking whether it is valid JSON.
+    /**
+    Converts an `RString` to an `RawValueBox` without checking whether it is valid JSON.
 
-# Safety
+    # Safety
 
-`input` must be valid JSON and contain no leading or trailing whitespace.
-
-
-# Example
-
-```
-use abi_stable::{
-    external_types::RawValueBox,
-    std_types::RString,
-};
-
-const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
-
-let json_rstring=RString::from(JSON);
-let value=unsafe{ RawValueBox::from_rstring_unchecked(json_rstring) };
-
-assert_eq!(
-    serde_json::to_string(&value).unwrap().as_str(),
-    JSON
-);
-```
+    `input` must be valid JSON and contain no leading or trailing whitespace.
 
 
-*/
+    # Example
+
+    ```
+    use abi_stable::{
+        external_types::RawValueBox,
+        std_types::RString,
+    };
+
+    const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
+
+    let json_rstring=RString::from(JSON);
+    let value=unsafe{ RawValueBox::from_rstring_unchecked(json_rstring) };
+
+    assert_eq!(
+        serde_json::to_string(&value).unwrap().as_str(),
+        JSON
+    );
+    ```
+
+
+    */
     #[inline]
-    pub unsafe fn from_rstring_unchecked(input:RString)->RawValueBox{
-        Self{
-            string:input
-        }
+    pub unsafe fn from_rstring_unchecked(input: RString) -> RawValueBox {
+        Self { string: input }
     }
 
     /// Attempts to convert a `String` into a `RawValueBox`.
@@ -450,7 +429,7 @@ assert_eq!(
     ///
     /// ```
     #[inline]
-    pub fn try_from_string(input:String)->Result<Self,JsonError>{
+    pub fn try_from_string(input: String) -> Result<Self, JsonError> {
         input.try_into()
     }
 
@@ -469,10 +448,10 @@ assert_eq!(
     ///
     /// ```
     #[inline]
-    pub fn get(&self)->&str{
+    pub fn get(&self) -> &str {
         self.string.as_str()
     }
-    
+
     /// Gets the json being serialized,as a `RStr<'a>`.
     ///
     /// # Example
@@ -491,7 +470,7 @@ assert_eq!(
     ///
     /// ```
     #[inline]
-    pub fn get_rstr(&self)->RStr<'_>{
+    pub fn get_rstr(&self) -> RStr<'_> {
         self.get().into()
     }
 
@@ -506,92 +485,74 @@ assert_eq!(
     ///
     /// let raw=serde_json::from_str::<RawValueBox>(JSON).unwrap();
     ///
-    /// assert_eq!( 
-    ///     raw.get(), 
+    /// assert_eq!(
+    ///     raw.get(),
     ///     RawValueRef::try_from_str(JSON).unwrap().get()
     /// );
     ///
     /// ```
     #[inline]
-    pub fn as_raw_value_ref(&self)->RawValueRef<'_>{
-        unsafe{
-            RawValueRef::from_str_unchecked(self.get()) 
+    pub fn as_raw_value_ref(&self) -> RawValueRef<'_> {
+        unsafe { RawValueRef::from_str_unchecked(self.get()) }
+    }
+}
+
+impl Debug for RawValueBox {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&self.string, f)
+    }
+}
+
+impl Display for RawValueBox {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.string, f)
+    }
+}
+
+impl From<Box<RawValue>> for RawValueBox {
+    fn from(v: Box<RawValue>) -> Self {
+        let string: String = from_boxed_rawvalue(v).into();
+        Self {
+            string: string.into(),
         }
     }
 }
 
-
-impl Debug for RawValueBox{
-    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        Debug::fmt(&self.string,f)
+impl TryFrom<String> for RawValueBox {
+    type Error = JsonError;
+    fn try_from(v: String) -> Result<Self, JsonError> {
+        RawValue::from_string(v).map(Self::from)
     }
 }
 
-
-impl Display for RawValueBox{
-    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        Display::fmt(&self.string,f)
-    }
-}
-
-
-impl From<Box<RawValue>> for RawValueBox{
-    fn from(v:Box<RawValue>)->Self{
-        let string:String=from_boxed_rawvalue(v).into();
-        Self{
-            string:string.into()
-        }
-    }
-}
-
-
-impl TryFrom<String> for RawValueBox{
-    type Error=JsonError;
-    fn try_from(v:String)->Result<Self,JsonError>{
-        RawValue::from_string(v)
-            .map(Self::from)
-    }
-}
-
-
-impl Serialize for RawValueBox{
+impl Serialize for RawValueBox {
     fn serialize<Z>(&self, serializer: Z) -> Result<Z::Ok, Z::Error>
     where
         Z: Serializer,
     {
-        unsafe{
-            into_ref_rawvalue(&self.string).serialize(serializer)
-        }
+        unsafe { into_ref_rawvalue(&self.string).serialize(serializer) }
     }
 }
 
-
-impl<'de> Deserialize<'de> for RawValueBox{
+impl<'de> Deserialize<'de> for RawValueBox {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        <Box<RawValue>>::deserialize(deserializer)
-            .map(Self::from)
+        <Box<RawValue>>::deserialize(deserializer).map(Self::from)
     }
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
-
-fn from_boxed_rawvalue(x:Box<RawValue>)->Box<str>{
-    // This would become Undefined Behavior if 
+fn from_boxed_rawvalue(x: Box<RawValue>) -> Box<str> {
+    // This would become Undefined Behavior if
     // serde_json somehow changes RawValue to not be a transparent wrapper around `str`
-    unsafe{
-        Box::from_raw(Box::into_raw(x) as *mut str)
-    }
+    unsafe { Box::from_raw(Box::into_raw(x) as *mut str) }
 }
 
-
-unsafe fn into_ref_rawvalue(x:&str)->&RawValue{
-    // This would become Undefined Behavior if 
+unsafe fn into_ref_rawvalue(x: &str) -> &RawValue {
+    // This would become Undefined Behavior if
     // serde_json somehow changes RawValue to not be a transparent wrapper around `str`
     &*(x as *const str as *const RawValue)
 }
-

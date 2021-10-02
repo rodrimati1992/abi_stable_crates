@@ -4,10 +4,10 @@ Where the StableAbi trait is declared,as well as related types/traits.
 
 use core_extensions::type_level_bool::{Boolean, False, True};
 use std::{
-    cell::{Cell,UnsafeCell},
-    marker::{PhantomData,PhantomPinned},
+    cell::{Cell, UnsafeCell},
+    marker::{PhantomData, PhantomPinned},
     mem::ManuallyDrop,
-    num::{NonZeroU8,NonZeroU16,NonZeroU32,NonZeroU64,NonZeroUsize,Wrapping},
+    num::{NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize, Wrapping},
     pin::Pin,
     ptr::NonNull,
     sync::atomic::{AtomicBool, AtomicIsize, AtomicPtr, AtomicUsize},
@@ -15,18 +15,16 @@ use std::{
 
 use crate::{
     abi_stability::get_static_equivalent::GetStaticEquivalent_,
+    reflection::ModReflMode,
     sabi_types::Constructor,
     std_types::utypeid::UTypeId,
-    reflection::ModReflMode,
-    type_layout::{
-        LifetimeRange, 
-        MonoTLData, GenericTLData, TypeLayout, MonoTypeLayout,
-        ItemInfo,ReprAttr,TLPrimitive,TLDiscriminants,
-        GenericTLEnum, MonoTLEnum, CompTLField, CompTLFields, StartLen, DiscriminantRepr,
-    },
     std_types::RSlice,
+    type_layout::{
+        CompTLField, CompTLFields, DiscriminantRepr, GenericTLData, GenericTLEnum, ItemInfo,
+        LifetimeRange, MonoTLData, MonoTLEnum, MonoTypeLayout, ReprAttr, StartLen, TLDiscriminants,
+        TLPrimitive, TypeLayout,
+    },
 };
-
 
 ///////////////////////
 
@@ -44,73 +42,68 @@ and passing this into a dynamic library would be equivalent to transmuting it.
 # Caveats
 
 This trait cannot be directly implemented for functions that take lifetime parameters,
-because of that,`#[derive(StableAbi)]` detects the presence of `extern fn` types 
+because of that,`#[derive(StableAbi)]` detects the presence of `extern fn` types
 in type definitions.
 
 */
-pub unsafe trait StableAbi:GetStaticEquivalent_ {
+pub unsafe trait StableAbi: GetStaticEquivalent_ {
     /**
-Whether this type has a single invalid bit-pattern.
+    Whether this type has a single invalid bit-pattern.
 
-Possible values:True/False
+    Possible values:True/False
 
-Some standard library types have a single value that is invalid for them eg:0,null.
-these types are the only ones which can be stored in a `Option<_>` that implements StableAbi.
+    Some standard library types have a single value that is invalid for them eg:0,null.
+    these types are the only ones which can be stored in a `Option<_>` that implements StableAbi.
 
-An alternative for types where `IsNonZeroType=False`,you can use `ROption`.
+    An alternative for types where `IsNonZeroType=False`,you can use `ROption`.
 
-Non-exhaustive list of std types that are NonZero:
+    Non-exhaustive list of std types that are NonZero:
 
-- `&T` (any T).
+    - `&T` (any T).
 
-- `&mut T` (any T).
+    - `&mut T` (any T).
 
-- `extern "C" fn()`.
+    - `extern "C" fn()`.
 
-- `std::ptr::NonNull`
+    - `std::ptr::NonNull`
 
-- `std::num::NonZero*` 
+    - `std::num::NonZero*`
 
-    */
+        */
     type IsNonZeroType: Boolean;
 
     /// The layout of the type provided by implementors.
     const LAYOUT: &'static TypeLayout;
 
     /// `const`-equivalents of the associated types.
-    const ABI_CONSTS: AbiConsts=AbiConsts {
-        type_id:Constructor(
-            crate::std_types::utypeid::new_utypeid::<Self::StaticEquivalent> 
-        ),
+    const ABI_CONSTS: AbiConsts = AbiConsts {
+        type_id: Constructor(crate::std_types::utypeid::new_utypeid::<Self::StaticEquivalent>),
         is_nonzero: <Self::IsNonZeroType as Boolean>::VALUE,
     };
 }
 
 /// A type that only has a stable layout when a `PrefixRef` to it is used.
-/// 
+///
 /// Types that implement this trait usually have a `_Prefix` suffix.
-/// 
+///
 /// # Safety
-/// 
+///
 /// This trait can only be implemented by the `StableAbi` derive
 /// on types that also use the `#[sabi(kind(Prefix))]` attribute,
 /// implementing the trait for a macro generated type.
 pub unsafe trait PrefixStableAbi: GetStaticEquivalent_ {
     /// Whether this type has a single invalid bit-pattern.
     type IsNonZeroType: Boolean;
-    
+
     /// The layout of the type, provided by implementors.
     const LAYOUT: &'static TypeLayout;
 
     /// `const`-equivalents of the associated types.
-    const ABI_CONSTS: AbiConsts=AbiConsts {
-        type_id:Constructor(
-            crate::std_types::utypeid::new_utypeid::<Self::StaticEquivalent> 
-        ),
+    const ABI_CONSTS: AbiConsts = AbiConsts {
+        type_id: Constructor(crate::std_types::utypeid::new_utypeid::<Self::StaticEquivalent>),
         is_nonzero: <Self::IsNonZeroType as Boolean>::VALUE,
     };
 }
-
 
 ///////////////////////
 
@@ -120,17 +113,17 @@ pub unsafe trait PrefixStableAbi: GetStaticEquivalent_ {
 #[derive(StableAbi)]
 pub struct AbiConsts {
     /// A function to get the unique identifier for some type
-    pub type_id:Constructor<UTypeId>,
-    
+    pub type_id: Constructor<UTypeId>,
+
     /// Whether the type uses non-zero value optimization,
     /// if true then an Option<Self> implements StableAbi.
     pub is_nonzero: bool,
 }
 
-impl AbiConsts{
+impl AbiConsts {
     /// Gets the `UTypeId` returned by the `type_id` field.
     #[inline]
-    pub fn get_type_id(&self)->UTypeId{
+    pub fn get_type_id(&self) -> UTypeId {
         self.type_id.get()
     }
 }
@@ -138,38 +131,32 @@ impl AbiConsts{
 ///////////////////////////////////////////////////////////////////////////////
 
 /// Getter for the TypeLayout of some type,wraps an `extern "C" fn() -> &'static TypeLayout`.
-pub type TypeLayoutCtor=Constructor<&'static TypeLayout>;
+pub type TypeLayoutCtor = Constructor<&'static TypeLayout>;
 
 // pub unsafe trait GetTypeLayoutCtor<B> {
-
 
 #[doc(hidden)]
 pub struct GetTypeLayoutCtor<T>(T);
 
 impl<T> GetTypeLayoutCtor<T>
-where T: StableAbi,
+where
+    T: StableAbi,
 {
-    pub const STABLE_ABI:TypeLayoutCtor=Constructor (
-        get_type_layout::<T>,
-    );
+    pub const STABLE_ABI: TypeLayoutCtor = Constructor(get_type_layout::<T>);
 
-    pub const SABI_OPAQUE_FIELD:TypeLayoutCtor=Constructor (
-        get_type_layout::<UnsafeOpaqueField<T>>,
-    );
+    pub const SABI_OPAQUE_FIELD: TypeLayoutCtor =
+        Constructor(get_type_layout::<UnsafeOpaqueField<T>>);
 }
 
 impl<T> GetTypeLayoutCtor<T>
-where T: PrefixStableAbi,
+where
+    T: PrefixStableAbi,
 {
-    pub const PREFIX_STABLE_ABI:TypeLayoutCtor=Constructor (
-        get_prefix_field_type_layout::<T>,
-    );
+    pub const PREFIX_STABLE_ABI: TypeLayoutCtor = Constructor(get_prefix_field_type_layout::<T>);
 }
 
-impl<T> GetTypeLayoutCtor<T>{
-    pub const OPAQUE_FIELD:TypeLayoutCtor=Constructor (
-        get_type_layout::<UnsafeOpaqueField<T>>,
-    );
+impl<T> GetTypeLayoutCtor<T> {
+    pub const OPAQUE_FIELD: TypeLayoutCtor = Constructor(get_type_layout::<UnsafeOpaqueField<T>>);
 }
 
 /// Retrieves the TypeLayout of `T: StableAbi`,
@@ -188,7 +175,6 @@ where
     <T as PrefixStableAbi>::LAYOUT
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 
 /////////////////////////////////////////////////////////////////////////////
@@ -197,21 +183,23 @@ where
 
 ///////////////////////////////////////////////////////////////////////////////
 
-unsafe impl<T> GetStaticEquivalent_ for PhantomData<T> 
-where T:GetStaticEquivalent_
+unsafe impl<T> GetStaticEquivalent_ for PhantomData<T>
+where
+    T: GetStaticEquivalent_,
 {
-    type StaticEquivalent=PhantomData<T::StaticEquivalent>;
+    type StaticEquivalent = PhantomData<T::StaticEquivalent>;
 }
 
-unsafe impl<T> StableAbi for PhantomData<T> 
-where T:StableAbi
+unsafe impl<T> StableAbi for PhantomData<T>
+where
+    T: StableAbi,
 {
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
         zst_assert!(Self);
 
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("PhantomData"),
             ItemInfo::std_type_in(nul_str!("std::marker")),
@@ -220,12 +208,13 @@ where T:StableAbi
             ReprAttr::C,
             ModReflMode::Module,
             {
-                const S: &[CompTLField] = &[CompTLField::std_field(field0,LifetimeRange::EMPTY,0)];
+                const S: &[CompTLField] =
+                    &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 0)];
                 RSlice::from_slice(S)
             },
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl[T] PhantomData<T>
             where[T: StableAbi];
 
@@ -244,24 +233,23 @@ where T:StableAbi
     };
 }
 
-
 macro_rules! phantomdata_tuples {
     (ignore; $($anything:tt)*)=>{ 1 };
-    ( 
-        $(($tuple_param:ident,$name_ident:ident=$name_str:literal))* 
+    (
+        $(($tuple_param:ident,$name_ident:ident=$name_str:literal))*
     )=>{
-        unsafe impl<$($tuple_param,)*> 
-            GetStaticEquivalent_ 
-        for PhantomData<($($tuple_param,)*)> 
+        unsafe impl<$($tuple_param,)*>
+            GetStaticEquivalent_
+        for PhantomData<($($tuple_param,)*)>
         where
             $($tuple_param:GetStaticEquivalent_,)*
         {
             type StaticEquivalent=PhantomData<($($tuple_param::StaticEquivalent,)*)>;
         }
 
-        unsafe impl<$($tuple_param,)*> 
+        unsafe impl<$($tuple_param,)*>
             StableAbi
-        for PhantomData<($($tuple_param,)*)> 
+        for PhantomData<($($tuple_param,)*)>
         where
             $($tuple_param:StableAbi,)*
         {
@@ -286,7 +274,7 @@ macro_rules! phantomdata_tuples {
                 #[allow(unused_assignments)]
                 const FIELDS:&'static [CompTLField;COUNT]={
                     let mut i=0;
-                    $( 
+                    $(
                         #[allow(non_snake_case)]
                         let $tuple_param=
                             CompTLField::std_field($name_ident,LifetimeRange::EMPTY,i);
@@ -298,7 +286,7 @@ macro_rules! phantomdata_tuples {
                 const COUNT:usize=$(phantomdata_tuples!(ignore;$tuple_param)+)* 0;
 
                 make_shared_vars!{
-                    impl[$($tuple_param,)*] PhantomData<($($tuple_param,)*)> 
+                    impl[$($tuple_param,)*] PhantomData<($($tuple_param,)*)>
                     where[
                         $($tuple_param:StableAbi,)*
                     ];
@@ -332,32 +320,32 @@ fn main(){
 }
 */
 
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
     (T3,p3="3")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
     (T3,p3="3")
     (T4,p4="4")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
@@ -365,7 +353,7 @@ phantomdata_tuples!{
     (T4,p4="4")
     (T5,p5="5")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
@@ -374,7 +362,7 @@ phantomdata_tuples!{
     (T5,p5="5")
     (T6,p6="6")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
@@ -384,7 +372,7 @@ phantomdata_tuples!{
     (T6,p6="6")
     (T7,p7="7")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
@@ -395,7 +383,7 @@ phantomdata_tuples!{
     (T7,p7="7")
     (T8,p8="8")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
@@ -407,7 +395,7 @@ phantomdata_tuples!{
     (T8,p8="8")
     (T9,p9="9")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
@@ -420,7 +408,7 @@ phantomdata_tuples!{
     (T9,p9="9")
     (T10,p10="10")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
@@ -434,7 +422,7 @@ phantomdata_tuples!{
     (T10,p10="10")
     (T11,p11="11")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
@@ -449,7 +437,7 @@ phantomdata_tuples!{
     (T11,p11="11")
     (T12,p12="12")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
@@ -465,7 +453,7 @@ phantomdata_tuples!{
     (T12,p12="12")
     (T13,p13="13")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
@@ -482,7 +470,7 @@ phantomdata_tuples!{
     (T13,p13="13")
     (T14,p14="14")
 }
-phantomdata_tuples!{
+phantomdata_tuples! {
     (T0,p0="0")
     (T1,p1="1")
     (T2,p2="2")
@@ -501,17 +489,14 @@ phantomdata_tuples!{
     (T15,p15="15")
 }
 
-
-
-
 unsafe impl GetStaticEquivalent_ for () {
-    type StaticEquivalent=();
+    type StaticEquivalent = ();
 }
 unsafe impl StableAbi for () {
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("()"),
             ItemInfo::primitive(),
@@ -522,7 +507,7 @@ unsafe impl StableAbi for () {
             RSlice::EMPTY,
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl[] ();
 
             let (mono_shared_vars,shared_vars)={};
@@ -537,17 +522,13 @@ unsafe impl StableAbi for () {
     };
 }
 
-
-
-
 /////////////
-
 
 unsafe impl<'a, T> GetStaticEquivalent_ for &'a T
 where
     T: 'a + GetStaticEquivalent_,
 {
-    type StaticEquivalent=&'static T::StaticEquivalent;
+    type StaticEquivalent = &'static T::StaticEquivalent;
 }
 
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
@@ -558,21 +539,22 @@ where
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("&"),
             ItemInfo::primitive(),
             MonoTLData::Primitive(TLPrimitive::SharedRef),
             tl_genparams!('a;0;),
             ReprAttr::Primitive,
-            ModReflMode::DelegateDeref{layout_index:0},
+            ModReflMode::DelegateDeref { layout_index: 0 },
             {
-                const S: &[CompTLField] = &[CompTLField::std_field(field0,LifetimeRange::EMPTY,0)];
+                const S: &[CompTLField] =
+                    &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 0)];
                 RSlice::from_slice(S)
             },
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl['a, T] &'a T
             where[ T: 'a + StableAbi];
 
@@ -591,12 +573,11 @@ where
     };
 }
 
-
 unsafe impl<'a, T> GetStaticEquivalent_ for &'a mut T
 where
     T: 'a + GetStaticEquivalent_,
 {
-    type StaticEquivalent=&'static mut T::StaticEquivalent;
+    type StaticEquivalent = &'static mut T::StaticEquivalent;
 }
 
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
@@ -607,21 +588,22 @@ where
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("&mut"),
             ItemInfo::primitive(),
             MonoTLData::Primitive(TLPrimitive::MutRef),
             tl_genparams!('a;0;),
             ReprAttr::Primitive,
-            ModReflMode::DelegateDeref{layout_index:0},
+            ModReflMode::DelegateDeref { layout_index: 0 },
             {
-                const S: &[CompTLField] = &[CompTLField::std_field(field0,LifetimeRange::EMPTY,0)];
+                const S: &[CompTLField] =
+                    &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 0)];
                 RSlice::from_slice(S)
             },
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl['a, T] &'a mut T
             where[ T: 'a + StableAbi];
 
@@ -639,14 +621,12 @@ where
         )
     };
 }
-    
-
 
 unsafe impl<T> GetStaticEquivalent_ for NonNull<T>
 where
     T: GetStaticEquivalent_,
 {
-    type StaticEquivalent=NonNull<T::StaticEquivalent>;
+    type StaticEquivalent = NonNull<T::StaticEquivalent>;
 }
 
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
@@ -657,14 +637,13 @@ where
     type IsNonZeroType = True;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("NonNull"),
             ItemInfo::std_type_in(nul_str!("std::ptr")),
             {
-                const S: &[CompTLField] = &[ 
-                    CompTLField::std_field(field0,LifetimeRange::EMPTY,1) 
-                ];
+                const S: &[CompTLField] =
+                    &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 1)];
                 MonoTLData::struct_(RSlice::from_slice(S))
             },
             tl_genparams!(;0;),
@@ -673,7 +652,7 @@ where
             RSlice::EMPTY,
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl[T] NonNull<T>
             where[ T: StableAbi];
 
@@ -692,12 +671,11 @@ where
     };
 }
 
-
 unsafe impl<T> GetStaticEquivalent_ for AtomicPtr<T>
 where
     T: GetStaticEquivalent_,
 {
-    type StaticEquivalent=AtomicPtr<T::StaticEquivalent>;
+    type StaticEquivalent = AtomicPtr<T::StaticEquivalent>;
 }
 
 unsafe impl<T> StableAbi for AtomicPtr<T>
@@ -707,14 +685,13 @@ where
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("AtomicPtr"),
             ItemInfo::std_type_in(nul_str!("std::sync::atomic")),
             {
-                const S: &[CompTLField] = &[ 
-                    CompTLField::std_field(field0,LifetimeRange::EMPTY,1) 
-                ];
+                const S: &[CompTLField] =
+                    &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 1)];
                 MonoTLData::struct_(RSlice::from_slice(S))
             },
             tl_genparams!(;0;),
@@ -723,7 +700,7 @@ where
             RSlice::EMPTY,
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl[T] AtomicPtr<T>
             where[T: StableAbi];
 
@@ -746,7 +723,7 @@ unsafe impl<T> GetStaticEquivalent_ for *const T
 where
     T: GetStaticEquivalent_,
 {
-    type StaticEquivalent=*const T::StaticEquivalent;
+    type StaticEquivalent = *const T::StaticEquivalent;
 }
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<T> StableAbi for *const T
@@ -756,7 +733,7 @@ where
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("*const"),
             ItemInfo::primitive(),
@@ -765,14 +742,13 @@ where
             ReprAttr::Primitive,
             ModReflMode::Module,
             {
-                const S: &[CompTLField] = &[
-                    CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
-                ];
+                const S: &[CompTLField] =
+                    &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 0)];
                 RSlice::from_slice(S)
             },
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl[T] *const T
             where[T: StableAbi];
 
@@ -791,12 +767,11 @@ where
     };
 }
 
-
 unsafe impl<T> GetStaticEquivalent_ for *mut T
 where
     T: GetStaticEquivalent_,
 {
-    type StaticEquivalent=*mut T::StaticEquivalent;
+    type StaticEquivalent = *mut T::StaticEquivalent;
 }
 // Does not allow ?Sized types because the DST fat pointer does not have a stable layout.
 unsafe impl<T> StableAbi for *mut T
@@ -806,7 +781,7 @@ where
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("*mut"),
             ItemInfo::primitive(),
@@ -815,14 +790,13 @@ where
             ReprAttr::Primitive,
             ModReflMode::Module,
             {
-                const S: &[CompTLField] = &[
-                    CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
-                ];
+                const S: &[CompTLField] =
+                    &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 0)];
                 RSlice::from_slice(S)
             },
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl[T] *mut T
             where[T: StableAbi];
 
@@ -845,23 +819,25 @@ where
 
 #[cfg(feature = "const_params")]
 macro_rules! impl_stable_abi_array {
-    ()=>{
+    () => {
         /// When the "const_params" feature is disabled,
         /// this trait is implemented for arrays of up to 32 elements.
         #[cfg_attr(feature = "docsrs", doc(cfg(feature = "const_params")))]
         unsafe impl<T, const N: usize> GetStaticEquivalent_ for [T; N]
-        where T:GetStaticEquivalent_
+        where
+            T: GetStaticEquivalent_,
         {
-            type StaticEquivalent=[T::StaticEquivalent; N];
+            type StaticEquivalent = [T::StaticEquivalent; N];
         }
 
         /// When the "const_params" feature is disabled,
         /// this trait is implemented for arrays of up to 32 elements.
         #[cfg_attr(feature = "docsrs", doc(cfg(feature = "const_params")))]
         unsafe impl<T, const N: usize> StableAbi for [T; N]
-        where T:StableAbi
+        where
+            T: StableAbi,
         {
-            type IsNonZeroType=False;
+            type IsNonZeroType = False;
 
             const LAYOUT: &'static TypeLayout = {
                 // Used to get constants for [T; N]  where T doesn't matter
@@ -872,20 +848,19 @@ macro_rules! impl_stable_abi_array {
                         *mono_shared_vars,
                         rstr!("array"),
                         ItemInfo::primitive(),
-                        MonoTLData::Primitive(TLPrimitive::Array{len:N}),
+                        MonoTLData::Primitive(TLPrimitive::Array { len: N }),
                         tl_genparams!(;0;0),
                         ReprAttr::Primitive,
                         ModReflMode::Module,
                         {
-                            const S: &[CompTLField] = &[
-                                CompTLField::std_field(field0, LifetimeRange::EMPTY, 0),
-                            ];
+                            const S: &[CompTLField] =
+                                &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 0)];
                             RSlice::from_slice(S)
                         },
                     );
                 }
 
-                make_shared_vars!{
+                make_shared_vars! {
                     impl[T, const N: usize] [T; N]
                     where[T: StableAbi];
 
@@ -904,11 +879,11 @@ macro_rules! impl_stable_abi_array {
                 )
             };
         }
-    }
+    };
 }
 
 #[cfg(feature = "const_params")]
-impl_stable_abi_array!{}
+impl_stable_abi_array! {}
 
 /////////////
 
@@ -981,7 +956,7 @@ unsafe impl<T> GetStaticEquivalent_ for Option<T>
 where
     T: GetStaticEquivalent_,
 {
-    type StaticEquivalent=Option<T::StaticEquivalent>;
+    type StaticEquivalent = Option<T::StaticEquivalent>;
 }
 /// Implementing abi stability for Option<T> is fine if
 /// T is a NonZero primitive type.
@@ -991,36 +966,30 @@ where
 {
     type IsNonZeroType = False;
 
-
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("Option"),
             ItemInfo::std_type_in(nul_str!("std::option")),
-            MonoTLData::Enum(MonoTLEnum::new(
-                variant_names,
-                rslice![1,0],
-                {
-                    const S: &[CompTLField] = &[
-                        CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
-                    ];
-                    CompTLFields::from_fields(RSlice::from_slice(S))
-                },
-            )),
+            MonoTLData::Enum(MonoTLEnum::new(variant_names, rslice![1, 0], {
+                const S: &[CompTLField] =
+                    &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 0)];
+                CompTLFields::from_fields(RSlice::from_slice(S))
+            })),
             tl_genparams!(;0;),
             ReprAttr::OptionNonZero,
             ModReflMode::Module,
             RSlice::EMPTY,
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl[T] Option<T>
             where [ T: StableAbi<IsNonZeroType = True>, ];
 
             let (mono_shared_vars,shared_vars)={
                 strings={
                     variant_names:"Some;None;",
-                    field0:"0", 
+                    field0:"0",
                 },
                 type_layouts=[T],
             };
@@ -1030,15 +999,14 @@ where
             shared_vars,
             MONO_TYPE_LAYOUT,
             Self::ABI_CONSTS,
-            GenericTLData::Enum(GenericTLEnum::exhaustive(
-                TLDiscriminants::from_u8_slice(rslice![0,1])
-            )),
+            GenericTLData::Enum(GenericTLEnum::exhaustive(TLDiscriminants::from_u8_slice(
+                rslice![0, 1],
+            ))),
         )
     };
 }
 
 /////////////
-
 
 macro_rules! impl_for_primitive_ints {
     (
@@ -1083,7 +1051,7 @@ macro_rules! impl_for_primitive_ints {
     )
 }
 
-impl_for_primitive_ints!{
+impl_for_primitive_ints! {
     (u8   ,"u8"   ,TLPrimitive::U8),
     (i8   ,"i8"   ,TLPrimitive::I8),
     (u16  ,"u16"  ,TLPrimitive::U16),
@@ -1096,7 +1064,6 @@ impl_for_primitive_ints!{
     (isize,"isize",TLPrimitive::Isize),
     (bool ,"bool" ,TLPrimitive::Bool),
 }
-
 
 macro_rules! impl_for_concrete {
     (
@@ -1150,8 +1117,6 @@ macro_rules! impl_for_concrete {
     )
 }
 
-
-
 impl_for_concrete! {
     type IsNonZeroType=False;
     [
@@ -1173,11 +1138,10 @@ impl_for_concrete! {
 }
 /////////////
 
-
-mod rust_1_34_impls{
+mod rust_1_34_impls {
     use super::*;
-    use std::sync::atomic::*;
     use core::num::*;
+    use std::sync::atomic::*;
 
     impl_for_concrete! {
         type IsNonZeroType=False;
@@ -1205,35 +1169,31 @@ mod rust_1_34_impls{
     }
 }
 
-
-mod rust_1_36_impls{
+mod rust_1_36_impls {
     use super::*;
     use std::mem::MaybeUninit;
 
     unsafe impl<T> GetStaticEquivalent_ for MaybeUninit<T>
     where
-        T:GetStaticEquivalent_
+        T: GetStaticEquivalent_,
     {
-        type StaticEquivalent=MaybeUninit<T::StaticEquivalent>;
+        type StaticEquivalent = MaybeUninit<T::StaticEquivalent>;
     }
     unsafe impl<T> StableAbi for MaybeUninit<T>
     where
-        T:StableAbi
+        T: StableAbi,
     {
-
         // MaybeUninit blocks layout optimizations.
         type IsNonZeroType = False;
 
-
         const LAYOUT: &'static TypeLayout = {
-            const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+            const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
                 *mono_shared_vars,
                 rstr!("MaybeUninit"),
                 ItemInfo::std_type_in(nul_str!("std::mem")),
                 {
-                    const S: &[CompTLField] = &[
-                        CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
-                    ];
+                    const S: &[CompTLField] =
+                        &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 0)];
                     MonoTLData::struct_(RSlice::from_slice(S))
                 },
                 tl_genparams!(;0;),
@@ -1244,7 +1204,7 @@ mod rust_1_36_impls{
                 RSlice::EMPTY,
             );
 
-            make_shared_vars!{
+            make_shared_vars! {
                 impl[T] MaybeUninit<T>
                 where [T: StableAbi];
 
@@ -1263,8 +1223,6 @@ mod rust_1_36_impls{
         };
     }
 }
-
-
 
 /////////////
 
@@ -1333,13 +1291,12 @@ macro_rules! impl_sabi_for_newtype {
     )
 }
 
+impl_sabi_for_newtype! { Wrapping    ,transparent,"Wrapping"    ,"std::num" }
+impl_sabi_for_newtype! { Pin         ,transparent,"Pin"         ,"std::pin" }
+impl_sabi_for_newtype! { ManuallyDrop,transparent,"ManuallyDrop","std::mem" }
 
-impl_sabi_for_newtype!{ Wrapping    ,transparent,"Wrapping"    ,"std::num" }
-impl_sabi_for_newtype!{ Pin         ,transparent,"Pin"         ,"std::pin" }
-impl_sabi_for_newtype!{ ManuallyDrop,transparent,"ManuallyDrop","std::mem" }
-
-impl_sabi_for_newtype!{ Cell        ,C,"Cell"        ,"std::cell" }
-impl_sabi_for_newtype!{ UnsafeCell  ,C,"UnsafeCell"  ,"std::cell" }
+impl_sabi_for_newtype! { Cell        ,C,"Cell"        ,"std::cell" }
+impl_sabi_for_newtype! { UnsafeCell  ,C,"UnsafeCell"  ,"std::cell" }
 
 /////////////
 
@@ -1348,15 +1305,15 @@ macro_rules! impl_stableabi_for_unit_struct {
         $type_constr:ident,
         $type_name:literal,
         $item_info:expr
-    ) => (
-        unsafe impl GetStaticEquivalent_ for $type_constr{
-            type StaticEquivalent=$type_constr;
+    ) => {
+        unsafe impl GetStaticEquivalent_ for $type_constr {
+            type StaticEquivalent = $type_constr;
         }
-        unsafe impl StableAbi for $type_constr{
+        unsafe impl StableAbi for $type_constr {
             type IsNonZeroType = False;
 
             const LAYOUT: &'static TypeLayout = {
-                const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+                const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
                     *mono_shared_vars,
                     rstr!($type_name),
                     $item_info,
@@ -1367,7 +1324,7 @@ macro_rules! impl_stableabi_for_unit_struct {
                     RSlice::EMPTY,
                 );
 
-                make_shared_vars!{
+                make_shared_vars! {
                     impl[] $type_constr;
 
                     let (mono_shared_vars,shared_vars)={};
@@ -1381,39 +1338,38 @@ macro_rules! impl_stableabi_for_unit_struct {
                 )
             };
         }
-    )
+    };
 }
 
-
-impl_stableabi_for_unit_struct!{ 
+impl_stableabi_for_unit_struct! {
     PhantomPinned,"PhantomPinned",ItemInfo::std_type_in(nul_str!("std::marker"))
 }
 
 /////////////
 
-
 unsafe impl GetStaticEquivalent_ for core_extensions::Void {
-    type StaticEquivalent=Self;
+    type StaticEquivalent = Self;
 }
 unsafe impl StableAbi for core_extensions::Void {
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("Void"),
-            ItemInfo::package_and_mod(
-                "core_extensions;0.0.0",
-                nul_str!("core_extensions"),
-            ),
-            MonoTLData::Enum(MonoTLEnum::new(StartLen::EMPTY,RSlice::EMPTY,CompTLFields::EMPTY)),
+            ItemInfo::package_and_mod("core_extensions;0.0.0", nul_str!("core_extensions")),
+            MonoTLData::Enum(MonoTLEnum::new(
+                StartLen::EMPTY,
+                RSlice::EMPTY,
+                CompTLFields::EMPTY,
+            )),
             tl_genparams!(;;),
             ReprAttr::Int(DiscriminantRepr::U8),
             ModReflMode::Module,
             RSlice::EMPTY,
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl[] core_extensions::Void;
 
             let (mono_shared_vars,shared_vars)={};
@@ -1423,34 +1379,29 @@ unsafe impl StableAbi for core_extensions::Void {
             shared_vars,
             MONO_TYPE_LAYOUT,
             Self::ABI_CONSTS,
-            GenericTLData::Enum(GenericTLEnum::exhaustive(
-                TLDiscriminants::from_u8_slice(RSlice::EMPTY)
-            )),
+            GenericTLData::Enum(GenericTLEnum::exhaustive(TLDiscriminants::from_u8_slice(
+                RSlice::EMPTY,
+            ))),
         )
     };
 }
 
-
-
 /////////////
 
-
-
-
 /// The layout of `extern "C" fn()` and `unsafe extern "C" fn()`
-macro_rules! empty_extern_fn_layout{
-    ($this:ty) => ({
-        make_shared_vars!{
+macro_rules! empty_extern_fn_layout {
+    ($this:ty) => {{
+        make_shared_vars! {
             impl[] $this;
 
             let (mono_shared_vars,shared_vars)={};
         }
-        const MONO_TL_EXTERN_FN:&'static MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TL_EXTERN_FN: &'static MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("AFunctionPointer"),
             make_item_info!(),
             MonoTLData::Opaque,
-            tl_genparams!(;;),
+        tl_genparams!(;;),
             ReprAttr::C,
             ModReflMode::Opaque,
             RSlice::EMPTY,
@@ -1462,15 +1413,14 @@ macro_rules! empty_extern_fn_layout{
             Self::ABI_CONSTS,
             GenericTLData::Opaque,
         )
-    })
+    }};
 }
-
 
 /// This is the only function type that implements StableAbi
 /// so as to make it more obvious that functions involving lifetimes
 /// cannot implement this trait directly (because of higher ranked trait bounds).
 unsafe impl GetStaticEquivalent_ for extern "C" fn() {
-    type StaticEquivalent=Self;
+    type StaticEquivalent = Self;
 }
 unsafe impl StableAbi for extern "C" fn() {
     type IsNonZeroType = True;
@@ -1482,7 +1432,7 @@ unsafe impl StableAbi for extern "C" fn() {
 /// so as to make it more obvious that functions involving lifetimes
 /// cannot implement this trait directly (because of higher ranked trait bounds).
 unsafe impl GetStaticEquivalent_ for unsafe extern "C" fn() {
-    type StaticEquivalent=Self;
+    type StaticEquivalent = Self;
 }
 unsafe impl StableAbi for unsafe extern "C" fn() {
     type IsNonZeroType = True;
@@ -1490,39 +1440,35 @@ unsafe impl StableAbi for unsafe extern "C" fn() {
     const LAYOUT: &'static TypeLayout = empty_extern_fn_layout!(unsafe extern "C" fn());
 }
 
-
 /// The TypeLayoutCtor of an `unsafe extern "C" fn()`
-pub const UNSAFE_EXTERN_FN_LAYOUT:TypeLayoutCtor=
+pub const UNSAFE_EXTERN_FN_LAYOUT: TypeLayoutCtor =
     GetTypeLayoutCtor::<unsafe extern "C" fn()>::STABLE_ABI;
 
 /// The TypeLayoutCtor of an `extern "C" fn()`
-pub const EXTERN_FN_LAYOUT:TypeLayoutCtor=
-    GetTypeLayoutCtor::<extern "C" fn()>::STABLE_ABI;
-
+pub const EXTERN_FN_LAYOUT: TypeLayoutCtor = GetTypeLayoutCtor::<extern "C" fn()>::STABLE_ABI;
 
 /////////////
 
 /// Allows one to create the `TypeLayout` for any type `T`,
 /// by pretending that it is a primitive type.
-/// 
+///
 /// Used by the StableAbi derive macro by fields marker as `#[sabi(unsafe_opaque_field)]`.
-/// 
+///
 /// # Safety
-/// 
+///
 /// You must ensure that the layout of `T` is compatible through other means.
 #[repr(transparent)]
 pub struct UnsafeOpaqueField<T>(T);
 
-
 unsafe impl<T> GetStaticEquivalent_ for UnsafeOpaqueField<T> {
     /// it is fine to use `()` because this type is treated as opaque anyway.
-    type StaticEquivalent=();
+    type StaticEquivalent = ();
 }
 unsafe impl<T> StableAbi for UnsafeOpaqueField<T> {
     type IsNonZeroType = False;
 
     const LAYOUT: &'static TypeLayout = {
-        const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("OpaqueField"),
             make_item_info!(),
@@ -1533,7 +1479,7 @@ unsafe impl<T> StableAbi for UnsafeOpaqueField<T> {
             RSlice::EMPTY,
         );
 
-        make_shared_vars!{
+        make_shared_vars! {
             impl[T] UnsafeOpaqueField<T>;
 
             let (mono_shared_vars,shared_vars)={};
@@ -1550,28 +1496,26 @@ unsafe impl<T> StableAbi for UnsafeOpaqueField<T> {
 
 /// Allows one to ensure that a `T` implements `StableAbi`,
 /// while storing an opaque layout instead of `<T as StableAbi>::LAYOUT`.
-/// 
+///
 /// Used by the `StableAbi` derive macro by fields marker as `#[sabi(unsafe_sabi_opaque_field)]`.
-/// 
+///
 /// # Safety
-/// 
+///
 /// You must ensure that the layout of `T` is compatible through other means.
 #[repr(transparent)]
 pub struct SabiUnsafeOpaqueField<T>(T);
 
 unsafe impl<T> GetStaticEquivalent_ for SabiUnsafeOpaqueField<T> {
     /// it is fine to use `()` because this type is treated as opaque anyway.
-    type StaticEquivalent=();
+    type StaticEquivalent = ();
 }
-unsafe impl<T> StableAbi for SabiUnsafeOpaqueField<T> 
+unsafe impl<T> StableAbi for SabiUnsafeOpaqueField<T>
 where
-    T:StableAbi
+    T: StableAbi,
 {
     type IsNonZeroType = False;
 
-    const LAYOUT: &'static TypeLayout = {
-        <UnsafeOpaqueField<T>>::LAYOUT
-    };
+    const LAYOUT: &'static TypeLayout = { <UnsafeOpaqueField<T>>::LAYOUT };
 }
 
 /////////////

@@ -14,8 +14,7 @@ Implementors must:
 - Not implement Drop,and have no drop glue.
 
 */
-pub unsafe trait InlineStorage{}
-
+pub unsafe trait InlineStorage {}
 
 macro_rules! impl_for_arrays {
     ( ty=$ty:ty , len[ $($len:expr),* $(,)* ] ) => (
@@ -25,8 +24,7 @@ macro_rules! impl_for_arrays {
     )
 }
 
-
-impl_for_arrays!{
+impl_for_arrays! {
     ty=u8,
     len[
         0,1,2,3,4,5,6,7,8,9,
@@ -39,7 +37,7 @@ impl_for_arrays!{
     ]
 }
 
-impl_for_arrays!{
+impl_for_arrays! {
     ty=u32,
     len[
         0,1,2,3,4,5,6,7,8,9,
@@ -50,7 +48,7 @@ impl_for_arrays!{
     ]
 }
 
-impl_for_arrays!{
+impl_for_arrays! {
     ty=u64,
     len[
         0,1,2,3,4,5,6,7,8,9,
@@ -59,7 +57,7 @@ impl_for_arrays!{
     ]
 }
 
-impl_for_arrays!{
+impl_for_arrays! {
     ty=usize,
     len[
         0,1,2,3,4,5,6,7,8,9,
@@ -70,7 +68,6 @@ impl_for_arrays!{
     ]
 }
 
-
 macro_rules! declare_alignments {
     (
         $(( $docs:expr, $aligner:ident, $alignment:expr ),)*
@@ -80,7 +77,7 @@ macro_rules! declare_alignments {
             #[repr(C)]
             #[repr(align($alignment))]
             pub struct $aligner<Inline>(pub Inline);
-            
+
             unsafe impl<Inline> InlineStorage for $aligner<Inline>
             where
                 Inline:InlineStorage,
@@ -89,12 +86,11 @@ macro_rules! declare_alignments {
     )
 }
 
-
 /// Helper types related to the alignemnt of inline storage.
-pub mod alignment{
+pub mod alignment {
     use super::*;
-    
-    declare_alignments!{
+
+    declare_alignments! {
         ( "Aligns its contents to an address at a multiple of 1 bytes.",AlignTo1,1 ),
         ( "Aligns its contents to an address at a multiple of 2 bytes.",AlignTo2,2 ),
         ( "Aligns its contents to an address at a multiple of 4 bytes.",AlignTo4,4 ),
@@ -105,99 +101,91 @@ pub mod alignment{
         ( "Aligns its contents to an address at a multiple of 128 bytes.",AlignTo128,128 ),
     }
 
-    /// Aligns its contents to an address to an address at 
+    /// Aligns its contents to an address to an address at
     /// a multiple of the size of a pointer.
     #[repr(C)]
     #[derive(Copy, Clone)]
-    #[cfg_attr(target_pointer_width="128",repr(C,align(16)))]
-    #[cfg_attr(target_pointer_width="64",repr(C,align(8)))]
-    #[cfg_attr(target_pointer_width="32",repr(C,align(4)))]
-    #[cfg_attr(target_pointer_width="16",repr(C,align(2)))]
+    #[cfg_attr(target_pointer_width = "128", repr(C, align(16)))]
+    #[cfg_attr(target_pointer_width = "64", repr(C, align(8)))]
+    #[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
+    #[cfg_attr(target_pointer_width = "16", repr(C, align(2)))]
     pub struct AlignToUsize<Inline>(pub Inline);
 
-    unsafe impl<Inline> InlineStorage for AlignToUsize<Inline>
-    where
-        Inline:InlineStorage,
-    {}
+    unsafe impl<Inline> InlineStorage for AlignToUsize<Inline> where Inline: InlineStorage {}
 }
-
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
 /// Used internally to avoid requiring Rust 1.36.0 .
 #[repr(transparent)]
-pub(crate) struct ScratchSpace<Inline>{
+pub(crate) struct ScratchSpace<Inline> {
     #[allow(dead_code)]
-    storage:std::mem::MaybeUninit<Inline>,
+    storage: std::mem::MaybeUninit<Inline>,
 }
 
-impl<Inline> ScratchSpace<Inline>{
+impl<Inline> ScratchSpace<Inline> {
     #[inline]
     #[allow(dead_code)]
-    pub(crate) fn new<T>(value:T)->Self
+    pub(crate) fn new<T>(value: T) -> Self
     where
-        Inline:InlineStorage
+        Inline: InlineStorage,
     {
         Self::assert_fits_within_storage::<T>();
-        unsafe{
-            Self::new_unchecked(value)
-        }
+        unsafe { Self::new_unchecked(value) }
     }
 
-/**
-# Safety
+    /**
+    # Safety
 
-You must ensure that `T` has a compatible size/alignement with `Inline`,
-and that `Inline` si valid for all bitpatterns.
-*/
+    You must ensure that `T` has a compatible size/alignement with `Inline`,
+    and that `Inline` si valid for all bitpatterns.
+    */
     #[inline]
     #[allow(dead_code)]
-    pub(crate) unsafe fn new_unchecked<T>(value:T)->Self{
-        let mut this=Self::uninit_unbounded();
+    pub(crate) unsafe fn new_unchecked<T>(value: T) -> Self {
+        let mut this = Self::uninit_unbounded();
         (&mut this as *mut Self as *mut T).write(value);
         this
     }
     #[inline]
-    pub(crate) fn uninit()->Self
+    pub(crate) fn uninit() -> Self
     where
-        Inline:InlineStorage
+        Inline: InlineStorage,
     {
-        unsafe{
-            Self::uninit_unbounded()
-        }
+        unsafe { Self::uninit_unbounded() }
     }
 
     /// Asserts that `T` fits within `Inline`,with the correct alignment and size.
-    fn assert_fits_within_storage<T>(){
-        let align_val=std::mem::align_of::<T>();
-        let align_storage=std::mem::align_of::<Inline>();
+    fn assert_fits_within_storage<T>() {
+        let align_val = std::mem::align_of::<T>();
+        let align_storage = std::mem::align_of::<Inline>();
         assert!(
             align_val <= align_storage,
             "The alignment of the storage is lower than the value:\n\t{} < {}",
-            align_storage,align_val,
+            align_storage,
+            align_val,
         );
-        let size_val=std::mem::size_of::<T>();
-        let size_storage=std::mem::size_of::<Inline>();
+        let size_val = std::mem::size_of::<T>();
+        let size_storage = std::mem::size_of::<Inline>();
         assert!(
             size_val <= size_storage,
             "The size of the storage is smaller than the value:\n\t{} < {}",
-            size_storage,size_val,
+            size_storage,
+            size_val,
         );
     }
 }
 
-impl<Inline> ScratchSpace<Inline>{
+impl<Inline> ScratchSpace<Inline> {
     /// # Safety
-    /// 
+    ///
     /// You must ensure that `Inline` is valid for all bitpatterns,ie:it implements `InlineStorage`.
     #[inline]
-    pub(crate) unsafe fn uninit_unbounded()->Self{
-        unsafe{
-            Self{
-                storage:std::mem::MaybeUninit::uninit()
+    pub(crate) unsafe fn uninit_unbounded() -> Self {
+        unsafe {
+            Self {
+                storage: std::mem::MaybeUninit::uninit(),
             }
         }
     }
 }
-

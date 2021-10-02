@@ -1,221 +1,218 @@
 // This pub module only tests that the code inside compiles
-#![allow(dead_code)] 
+#![allow(dead_code)]
 
 use std::{
-    cmp::{Eq,PartialEq,Ord,PartialOrd},
+    cmp::{Eq, Ord, PartialEq, PartialOrd},
     error::Error as ErrorTrait,
-    fmt::{self,Display,Debug,Write as FmtWriteTrait},
+    fmt::{self, Debug, Display, Write as FmtWriteTrait},
     io::{
-        self,
+        self, BufRead as IoBufReadTrait, Read as IoReadTrait, Seek as IoSeekTrait,
         Write as IoWriteTrait,
-        Read as IoReadTrait,
-        BufRead as IoBufReadTrait,
-        Seek as IoSeekTrait,
     },
 };
 
-
-
 use crate::{
     sabi_trait,
-    type_level::downcasting::{TD_Opaque,TD_CanDowncast},
+    type_level::downcasting::{TD_CanDowncast, TD_Opaque},
 };
 
-
-pub mod no_supertraits{
+pub mod no_supertraits {
     use super::*;
 
     #[sabi_trait]
-    pub trait Trait{
-        fn method(&self){}
+    pub trait Trait {
+        fn method(&self) {}
     }
 
     pub struct Struct;
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
     }
 }
 
-pub mod static_supertrait{
+pub mod static_supertrait {
     use super::*;
 
     #[sabi_trait]
-    pub trait Trait:'static {
-        fn method(&self){}
+    pub trait Trait: 'static {
+        fn method(&self) {}
     }
     use self::Trait_trait::Trait_Bounds;
 
     pub struct Struct<'a>(&'a str);
 
-    impl Trait for Struct<'_>{}
+    impl Trait for Struct<'_> {}
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct(""),TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct(""), TD_CanDowncast);
         object.method();
     }
 
     // Testing that Trait_Bounds has 'static as a supertrait,
-    trait Dummy{
+    trait Dummy {
         fn dummy<T>()
-        where T:Trait_Bounds;
+        where
+            T: Trait_Bounds;
     }
-    impl Dummy for (){
+    impl Dummy for () {
         fn dummy<T>()
-        where T:Trait_Bounds+'static
-        {}
+        where
+            T: Trait_Bounds + 'static,
+        {
+        }
     }
-    
 
     // Testing that Trait does not have 'static as a supertrait.
-    fn assert_trait_inner<T>(_:T)
-    where T:Trait
-    {}
-    fn assert_trait(){
-        let mut a=String::new();
+    fn assert_trait_inner<T>(_: T)
+    where
+        T: Trait,
+    {
+    }
+    fn assert_trait() {
+        let mut a = String::new();
         a.push_str("w");
         assert_trait_inner(Struct(&a));
     }
 }
 
-pub mod nonstatic_supertrait{
+pub mod nonstatic_supertrait {
     use super::*;
 
     #[sabi_trait]
-    pub trait Trait<'a>:'a {
-        fn method(&self){}
+    pub trait Trait<'a>: 'a {
+        fn method(&self) {}
     }
     use self::Trait_trait::Trait_Bounds;
 
     pub struct Struct<'a>(&'a str);
 
-    impl<'a,'b> Trait<'a> for Struct<'b>{}
-    impl<'a,T> Trait<'a> for Option<T>{}
+    impl<'a, 'b> Trait<'a> for Struct<'b> {}
+    impl<'a, T> Trait<'a> for Option<T> {}
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct(""),TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct(""), TD_CanDowncast);
         object.method();
     }
 
     // Testing that Trait_Bounds has 'a as a supertrait,
-    trait Dummy{
-        fn dummy<'a,T>()
-        where T:Trait_Bounds<'a>;
+    trait Dummy {
+        fn dummy<'a, T>()
+        where
+            T: Trait_Bounds<'a>;
     }
-    impl Dummy for (){
-        fn dummy<'a,T>()
-        where T:Trait_Bounds<'a>+'a
-        {}
+    impl Dummy for () {
+        fn dummy<'a, T>()
+        where
+            T: Trait_Bounds<'a> + 'a,
+        {
+        }
     }
-    
 
-    struct MakeBorrowedCTO<'a,'b,T>(&'b (),&'a (),T);
+    struct MakeBorrowedCTO<'a, 'b, T>(&'b (), &'a (), T);
 
-    impl<'a,'b,T> MakeBorrowedCTO<'a,'b,T>
+    impl<'a, 'b, T> MakeBorrowedCTO<'a, 'b, T>
     where
-        T:'a,
-        'a:'b,
+        T: 'a,
+        'a: 'b,
     {
-        pub const NONE:Option<&'a T>=None;
+        pub const NONE: Option<&'a T> = None;
 
-        pub const CONST:Trait_CTO<'a,'a,'b>=
-            Trait_CTO::from_const(
-                &Self::NONE,
-                TD_Opaque,
-                Trait_MV::VTABLE,
-            );
-        pub fn get_const(_:&'a T)->Trait_CTO<'a,'a,'b>{
+        pub const CONST: Trait_CTO<'a, 'a, 'b> =
+            Trait_CTO::from_const(&Self::NONE, TD_Opaque, Trait_MV::VTABLE);
+        pub fn get_const(_: &'a T) -> Trait_CTO<'a, 'a, 'b> {
             Self::CONST
         }
     }
 
-
     // Testing that Trait does not have 'a as a supertrait.
-    fn assert_trait_inner<'a,T>(_:T)
-    where T:Trait<'a>
-    {}
-    fn assert_trait(){
-        let mut a=String::new();
+    fn assert_trait_inner<'a, T>(_: T)
+    where
+        T: Trait<'a>,
+    {
+    }
+    fn assert_trait() {
+        let mut a = String::new();
         a.push_str("w");
         assert_trait_inner(Struct(&a));
 
         {
-            let a=0usize;
+            let a = 0usize;
             MakeBorrowedCTO::get_const(&a).method();
         }
         {
-            let a=String::new();
+            let a = String::new();
             MakeBorrowedCTO::get_const(&a).method();
         }
     }
 }
 
-pub mod only_clone{
+pub mod only_clone {
     use super::*;
 
     #[sabi_trait]
-    pub trait Trait:Clone{
-        fn method(&self){}
+    pub trait Trait: Clone {
+        fn method(&self) {}
     }
 
     #[derive(Clone)]
     pub struct Struct;
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
-        let _=object.clone();
+        let _ = object.clone();
     }
 }
 
-pub mod only_display{
+pub mod only_display {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait:Display{
-        fn method(&self){}
+    pub trait Trait: Display {
+        fn method(&self) {}
     }
 
     pub struct Struct;
 
-    impl Display for Struct{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-            Display::fmt("What!?",f)
+    impl Display for Struct {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            Display::fmt("What!?", f)
         }
     }
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
-        format!("{}",object);
+        format!("{}", object);
     }
 }
 
-pub mod only_debug{
+pub mod only_debug {
     use super::*;
 
     #[sabi_trait]
-    pub trait Trait:Debug{
-        fn method(&self){}
+    pub trait Trait: Debug {
+        fn method(&self) {}
     }
 
     #[derive(Debug)]
     pub struct Struct;
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
-        format!("{:?}",object);
+        format!("{:?}", object);
     }
 }
 
@@ -287,650 +284,691 @@ pub mod only_debug{
 //     }
 // }
 
-pub mod only_partial_eq{
+pub mod only_partial_eq {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
     // #[sabi(debug_print_trait)]
-    pub trait Trait:PartialEq{
-        fn method(&self){}
+    pub trait Trait: PartialEq {
+        fn method(&self) {}
     }
 
     #[derive(PartialEq)]
     pub struct Struct;
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+PartialEq
-    {}    
+        T: Trait + PartialEq,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_eq{
+pub mod only_eq {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait:Eq{
-        fn method(&self){}
+    pub trait Trait: Eq {
+        fn method(&self) {}
     }
 
-    #[derive(Eq,PartialEq)]
+    #[derive(Eq, PartialEq)]
     pub struct Struct;
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+Eq
-    {}    
+        T: Trait + Eq,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_partial_ord{
+pub mod only_partial_ord {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait:PartialOrd{
-        fn method(&self){}
+    pub trait Trait: PartialOrd {
+        fn method(&self) {}
     }
 
-    #[derive(PartialEq,PartialOrd)]
+    #[derive(PartialEq, PartialOrd)]
     pub struct Struct;
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+PartialOrd
-    {}    
+        T: Trait + PartialOrd,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_ord{
+pub mod only_ord {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait:Ord{
-        fn method(&self){}
+    pub trait Trait: Ord {
+        fn method(&self) {}
     }
 
-    #[derive(PartialEq,PartialOrd,Eq,Ord)]
+    #[derive(PartialEq, PartialOrd, Eq, Ord)]
     pub struct Struct;
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+Ord
-    {}    
+        T: Trait + Ord,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_hash{
+pub mod only_hash {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait:Hash{
-        fn method(&self){}
+    pub trait Trait: Hash {
+        fn method(&self) {}
     }
 
     #[derive(Hash)]
     pub struct Struct;
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+std::hash::Hash
-    {}    
+        T: Trait + std::hash::Hash,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_iterator_a{
+pub mod only_iterator_a {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait<'a,T:'a>:Iterator<Item=&'a T>{
-        fn method(&self){}
+    pub trait Trait<'a, T: 'a>: Iterator<Item = &'a T> {
+        fn method(&self) {}
     }
 
-    pub struct Struct<'a,T>(&'a T);
+    pub struct Struct<'a, T>(&'a T);
 
-    impl<'a,T> Trait<'a,T> for Struct<'a,T>{}
+    impl<'a, T> Trait<'a, T> for Struct<'a, T> {}
 
-    impl<'a,T> Iterator for Struct<'a,T>{
-        type Item=&'a T;
-        fn next(&mut self)->Option<&'a T>{
+    impl<'a, T> Iterator for Struct<'a, T> {
+        type Item = &'a T;
+        fn next(&mut self) -> Option<&'a T> {
             None
         }
     }
 
-    fn assert_bound<'a,T:'a>(_:&T)
+    fn assert_bound<'a, T: 'a>(_: &T)
     where
-        T:Trait<'a,i32>+Iterator<Item=&'a i32>
-    {}    
+        T: Trait<'a, i32> + Iterator<Item = &'a i32>,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct(&0),TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct(&0), TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_iterator_b{
+pub mod only_iterator_b {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait<T:'static>:Iterator<Item=&'static T>{
-        fn method(&self){}
+    pub trait Trait<T: 'static>: Iterator<Item = &'static T> {
+        fn method(&self) {}
     }
 
     pub struct Struct;
 
-    impl Trait<i32> for Struct{}
+    impl Trait<i32> for Struct {}
 
-    impl Iterator for Struct{
-        type Item=&'static i32;
-        fn next(&mut self)->Option<&'static i32>{
+    impl Iterator for Struct {
+        type Item = &'static i32;
+        fn next(&mut self) -> Option<&'static i32> {
             None
         }
     }
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait<i32>+Iterator<Item=&'static i32>
-    {}    
+        T: Trait<i32> + Iterator<Item = &'static i32>,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_de_iterator{
+pub mod only_de_iterator {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait<T:'static>:DoubleEndedIterator<Item=&'static T>{
-        fn method(&self){}
+    pub trait Trait<T: 'static>: DoubleEndedIterator<Item = &'static T> {
+        fn method(&self) {}
     }
 
     pub struct Struct;
 
-    impl Trait<i32> for Struct{}
+    impl Trait<i32> for Struct {}
 
-    impl Iterator for Struct{
-        type Item=&'static i32;
-        fn next(&mut self)->Option<&'static i32>{
+    impl Iterator for Struct {
+        type Item = &'static i32;
+        fn next(&mut self) -> Option<&'static i32> {
             None
         }
     }
 
-    impl DoubleEndedIterator for Struct{
-        fn next_back(&mut self)->Option<&'static i32>{
+    impl DoubleEndedIterator for Struct {
+        fn next_back(&mut self) -> Option<&'static i32> {
             None
         }
     }
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait<i32>+DoubleEndedIterator<Item=&'static i32>
-    {}    
+        T: Trait<i32> + DoubleEndedIterator<Item = &'static i32>,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-
-pub mod only_error{
+pub mod only_error {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait:Error{
-        fn method(&self){}
+    pub trait Trait: Error {
+        fn method(&self) {}
     }
 
     #[derive(Debug)]
     pub struct Struct;
 
-    impl Display for Struct{
-        fn fmt(&self,_:&mut fmt::Formatter<'_>)->fmt::Result{
+    impl Display for Struct {
+        fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
             Ok(())
         }
     }
 
-    impl ErrorTrait for Struct{}
+    impl ErrorTrait for Struct {}
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+ErrorTrait
-    {}    
+        T: Trait + ErrorTrait,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_fmt_write{
+pub mod only_fmt_write {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait:FmtWrite{
-        fn method(&self){}
+    pub trait Trait: FmtWrite {
+        fn method(&self) {}
     }
 
     pub struct Struct;
 
-    impl FmtWriteTrait for Struct{
-        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error>{
+    impl FmtWriteTrait for Struct {
+        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error> {
             Ok(())
         }
     }
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+FmtWriteTrait
-    {}    
+        T: Trait + FmtWriteTrait,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_io_write{
+pub mod only_io_write {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait:IoWrite{
-        fn method(&self){}
+    pub trait Trait: IoWrite {
+        fn method(&self) {}
     }
 
     pub struct Struct;
 
-    impl IoWriteTrait for Struct{
-        fn write(&mut self, _buf: &[u8]) -> io::Result<usize>{
+    impl IoWriteTrait for Struct {
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
             Ok(0)
         }
-        fn flush(&mut self) -> io::Result<()>{
+        fn flush(&mut self) -> io::Result<()> {
             Ok(())
         }
     }
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+IoWriteTrait
-    {}    
+        T: Trait + IoWriteTrait,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_io_read{
+pub mod only_io_read {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait:IoRead{
-        fn method(&self){}
+    pub trait Trait: IoRead {
+        fn method(&self) {}
     }
 
     pub struct Struct;
 
-    impl IoReadTrait for Struct{
-        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize>{
+    impl IoReadTrait for Struct {
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
             Ok(0)
         }
     }
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+IoReadTrait
-    {}    
+        T: Trait + IoReadTrait,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_io_bufread{
+pub mod only_io_bufread {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait:IoBufRead{
-        fn method(&self){}
+    pub trait Trait: IoBufRead {
+        fn method(&self) {}
     }
 
     pub struct Struct;
 
-    impl IoReadTrait for Struct{
-        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize>{
+    impl IoReadTrait for Struct {
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
             Ok(0)
         }
     }
 
-    impl IoBufReadTrait for Struct{    
-        fn fill_buf(&mut self) -> io::Result<&[u8]>{
+    impl IoBufReadTrait for Struct {
+        fn fill_buf(&mut self) -> io::Result<&[u8]> {
             Ok(&[])
         }
-        fn consume(&mut self, _amt: usize){}
-
+        fn consume(&mut self, _amt: usize) {}
     }
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+IoBufReadTrait
-    {}    
+        T: Trait + IoBufReadTrait,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-pub mod only_io_seek{
+pub mod only_io_seek {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
-    pub trait Trait:IoSeek{
-        fn method(&self){}
+    pub trait Trait: IoSeek {
+        fn method(&self) {}
     }
 
     pub struct Struct;
 
-    impl IoSeekTrait for Struct{    
-        fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64>{
+    impl IoSeekTrait for Struct {
+        fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64> {
             Ok(0)
         }
     }
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+IoSeekTrait
-    {}    
+        T: Trait + IoSeekTrait,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-
-pub mod every_trait{
+pub mod every_trait {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
     pub trait Trait:
-        Clone+
-        Iterator+DoubleEndedIterator<Item=&'static ()>+
-        Display+Debug+Error+
-        PartialEq+Eq+PartialOrd+Ord+
-        Hash+
-        FmtWrite+IoWrite+IoRead+IoBufRead+IoSeek
+        Clone
+        + Iterator
+        + DoubleEndedIterator<Item = &'static ()>
+        + Display
+        + Debug
+        + Error
+        + PartialEq
+        + Eq
+        + PartialOrd
+        + Ord
+        + Hash
+        + FmtWrite
+        + IoWrite
+        + IoRead
+        + IoBufRead
+        + IoSeek
     {
-        fn method(&self){}
+        fn method(&self) {}
     }
-    #[derive(Debug,Clone,PartialEq,PartialOrd,Eq,Ord,Hash)]
+    #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
     pub struct Struct;
 
-    impl Display for Struct{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-            Display::fmt("What!?",f)
+    impl Display for Struct {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            Display::fmt("What!?", f)
         }
     }
 
-    impl Iterator for Struct{
-        type Item=&'static ();
-        fn next(&mut self)->Option<&'static ()>{
+    impl Iterator for Struct {
+        type Item = &'static ();
+        fn next(&mut self) -> Option<&'static ()> {
             None
         }
     }
 
-    impl DoubleEndedIterator for Struct{
-        fn next_back(&mut self)->Option<&'static ()>{
+    impl DoubleEndedIterator for Struct {
+        fn next_back(&mut self) -> Option<&'static ()> {
             None
         }
     }
 
-    impl ErrorTrait for Struct{}
+    impl ErrorTrait for Struct {}
 
-    impl FmtWriteTrait for Struct{
-        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error>{
+    impl FmtWriteTrait for Struct {
+        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error> {
             Ok(())
         }
     }
 
-    impl IoWriteTrait for Struct{
-        fn write(&mut self, _buf: &[u8]) -> io::Result<usize>{
+    impl IoWriteTrait for Struct {
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
             Ok(0)
         }
-        fn flush(&mut self) -> io::Result<()>{
+        fn flush(&mut self) -> io::Result<()> {
             Ok(())
         }
     }
 
-    impl IoReadTrait for Struct{
-        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize>{
+    impl IoReadTrait for Struct {
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
             Ok(0)
         }
     }
 
-    impl IoBufReadTrait for Struct{    
-        fn fill_buf(&mut self) -> io::Result<&[u8]>{
+    impl IoBufReadTrait for Struct {
+        fn fill_buf(&mut self) -> io::Result<&[u8]> {
             Ok(&[])
         }
-        fn consume(&mut self, _amt: usize){}
+        fn consume(&mut self, _amt: usize) {}
     }
 
-    impl IoSeekTrait for Struct{    
-        fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64>{
+    impl IoSeekTrait for Struct {
+        fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64> {
             Ok(0)
         }
     }
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+
-            Clone+
-            Iterator+DoubleEndedIterator<Item=&'static ()>+
-            Display+Debug+ErrorTrait+
-            PartialEq+Eq+PartialOrd+Ord+
-            std::hash::Hash+
-            FmtWriteTrait+IoWriteTrait+IoReadTrait+IoBufReadTrait+IoSeekTrait
-    {}
+        T: Trait
+            + Clone
+            + Iterator
+            + DoubleEndedIterator<Item = &'static ()>
+            + Display
+            + Debug
+            + ErrorTrait
+            + PartialEq
+            + Eq
+            + PartialOrd
+            + Ord
+            + std::hash::Hash
+            + FmtWriteTrait
+            + IoWriteTrait
+            + IoReadTrait
+            + IoBufReadTrait
+            + IoSeekTrait,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
-
 }
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-
-
-pub mod every_trait_static{
+pub mod every_trait_static {
     use super::*;
 
     #[sabi_trait]
     #[sabi(use_dyntrait)]
     pub trait Trait:
-        'static+
-        Clone+
-        Iterator+DoubleEndedIterator<Item=&'static ()>+
-        Display+Debug+Error+
-        PartialEq+Eq+PartialOrd+Ord+
-        Hash+
-        FmtWrite+IoWrite+IoRead+IoBufRead+IoSeek
+        'static
+        + Clone
+        + Iterator
+        + DoubleEndedIterator<Item = &'static ()>
+        + Display
+        + Debug
+        + Error
+        + PartialEq
+        + Eq
+        + PartialOrd
+        + Ord
+        + Hash
+        + FmtWrite
+        + IoWrite
+        + IoRead
+        + IoBufRead
+        + IoSeek
     {
-        fn method(&self){}
+        fn method(&self) {}
     }
-    #[derive(Debug,Clone,PartialEq,PartialOrd,Eq,Ord,Hash)]
+    #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
     pub struct Struct;
 
-    impl Display for Struct{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-            Display::fmt("What!?",f)
+    impl Display for Struct {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            Display::fmt("What!?", f)
         }
     }
 
-    impl Iterator for Struct{
-        type Item=&'static ();
-        fn next(&mut self)->Option<&'static ()>{
+    impl Iterator for Struct {
+        type Item = &'static ();
+        fn next(&mut self) -> Option<&'static ()> {
             None
         }
     }
 
-    impl DoubleEndedIterator for Struct{
-        fn next_back(&mut self)->Option<&'static ()>{
+    impl DoubleEndedIterator for Struct {
+        fn next_back(&mut self) -> Option<&'static ()> {
             None
         }
     }
 
-    impl ErrorTrait for Struct{}
+    impl ErrorTrait for Struct {}
 
-    impl FmtWriteTrait for Struct{
-        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error>{
+    impl FmtWriteTrait for Struct {
+        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error> {
             Ok(())
         }
     }
 
-    impl IoWriteTrait for Struct{
-        fn write(&mut self, _buf: &[u8]) -> io::Result<usize>{
+    impl IoWriteTrait for Struct {
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
             Ok(0)
         }
-        fn flush(&mut self) -> io::Result<()>{
+        fn flush(&mut self) -> io::Result<()> {
             Ok(())
         }
     }
 
-    impl IoReadTrait for Struct{
-        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize>{
+    impl IoReadTrait for Struct {
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
             Ok(0)
         }
     }
 
-    impl IoBufReadTrait for Struct{    
-        fn fill_buf(&mut self) -> io::Result<&[u8]>{
+    impl IoBufReadTrait for Struct {
+        fn fill_buf(&mut self) -> io::Result<&[u8]> {
             Ok(&[])
         }
-        fn consume(&mut self, _amt: usize){}
+        fn consume(&mut self, _amt: usize) {}
     }
 
-    impl IoSeekTrait for Struct{    
-        fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64>{
+    impl IoSeekTrait for Struct {
+        fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64> {
             Ok(0)
         }
     }
 
-    impl Trait for Struct{}
+    impl Trait for Struct {}
 
-    fn assert_bound<T>(_:&T)
+    fn assert_bound<T>(_: &T)
     where
-        T:Trait+
-            Clone+
-            Iterator+DoubleEndedIterator<Item=&'static ()>+
-            Display+Debug+ErrorTrait+
-            PartialEq+Eq+PartialOrd+Ord+
-            std::hash::Hash+
-            FmtWriteTrait+IoWriteTrait+IoReadTrait+IoBufReadTrait+IoSeekTrait
-    {}
+        T: Trait
+            + Clone
+            + Iterator
+            + DoubleEndedIterator<Item = &'static ()>
+            + Display
+            + Debug
+            + ErrorTrait
+            + PartialEq
+            + Eq
+            + PartialOrd
+            + Ord
+            + std::hash::Hash
+            + FmtWriteTrait
+            + IoWriteTrait
+            + IoReadTrait
+            + IoBufReadTrait
+            + IoSeekTrait,
+    {
+    }
 
-    fn test_constructible(){
-        let object=Trait_TO::from_value(Struct,TD_CanDowncast);
+    fn test_constructible() {
+        let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
         assert_bound(&object);
     }
-
 }
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-
-
-
-pub mod every_trait_nonstatic{
+pub mod every_trait_nonstatic {
     use super::*;
 
     #[sabi_trait]
@@ -946,102 +984,97 @@ pub mod every_trait_nonstatic{
     {
         fn method(&self){}
     }
-    #[derive(Debug,Clone,PartialEq,PartialOrd,Eq,Ord,Hash)]
+    #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
     pub struct Struct<'a>(&'a str);
 
-    impl Display for Struct<'_>{
-        fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-            Display::fmt("What!?",f)
+    impl Display for Struct<'_> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            Display::fmt("What!?", f)
         }
     }
 
-    impl Iterator for Struct<'_>{
-        type Item=&'static ();
-        fn next(&mut self)->Option<&'static ()>{
+    impl Iterator for Struct<'_> {
+        type Item = &'static ();
+        fn next(&mut self) -> Option<&'static ()> {
             None
         }
     }
 
-    impl DoubleEndedIterator for Struct<'_>{
-        fn next_back(&mut self)->Option<&'static ()>{
+    impl DoubleEndedIterator for Struct<'_> {
+        fn next_back(&mut self) -> Option<&'static ()> {
             None
         }
     }
 
-    impl ErrorTrait for Struct<'_>{}
+    impl ErrorTrait for Struct<'_> {}
 
-    impl FmtWriteTrait for Struct<'_>{
-        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error>{
+    impl FmtWriteTrait for Struct<'_> {
+        fn write_str(&mut self, _: &str) -> Result<(), fmt::Error> {
             Ok(())
         }
     }
 
-    impl IoWriteTrait for Struct<'_>{
-        fn write(&mut self, _buf: &[u8]) -> io::Result<usize>{
+    impl IoWriteTrait for Struct<'_> {
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
             Ok(0)
         }
-        fn flush(&mut self) -> io::Result<()>{
+        fn flush(&mut self) -> io::Result<()> {
             Ok(())
         }
     }
 
-    impl IoReadTrait for Struct<'_>{
-        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize>{
+    impl IoReadTrait for Struct<'_> {
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
             Ok(0)
         }
     }
 
-    impl IoBufReadTrait for Struct<'_>{    
-        fn fill_buf(&mut self) -> io::Result<&[u8]>{
+    impl IoBufReadTrait for Struct<'_> {
+        fn fill_buf(&mut self) -> io::Result<&[u8]> {
             Ok(&[])
         }
-        fn consume(&mut self, _amt: usize){}
+        fn consume(&mut self, _amt: usize) {}
     }
 
-    impl IoSeekTrait for Struct<'_>{    
-        fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64>{
+    impl IoSeekTrait for Struct<'_> {
+        fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64> {
             Ok(0)
         }
     }
 
-    impl<'a> Trait<'a> for Struct<'a>{}
+    impl<'a> Trait<'a> for Struct<'a> {}
 
-    fn assert_bound<'a,T>(_:&T)
+    fn assert_bound<'a, T>(_: &T)
     where
-        T:Trait<'a>
-    {}
+        T: Trait<'a>,
+    {
+    }
 
-    fn test_constructible(){
+    fn test_constructible() {
         use crate::std_types::RBox;
 
-        let string=String::new();
-        let value=Struct(&string);
-        let object=Trait_TO::from_ptr(RBox::new(value),TD_Opaque);
+        let string = String::new();
+        let value = Struct(&string);
+        let object = Trait_TO::from_ptr(RBox::new(value), TD_Opaque);
         object.method();
         assert_bound(&object);
 
         {
-            let value=Struct(&string);
+            let value = Struct(&string);
             constructs_const_a(&value);
 
-            let value=Struct("");
+            let value = Struct("");
             constructs_const_a(&value);
         }
-
     }
 
-    const CONST_A:Trait_CTO<'static,'static,'static>=
-        Trait_CTO::from_const(
-            &Struct(""),
-            TD_Opaque,
-            Trait_MV::VTABLE,
-        );
+    const CONST_A: Trait_CTO<'static, 'static, 'static> =
+        Trait_CTO::from_const(&Struct(""), TD_Opaque, Trait_MV::VTABLE);
 
-    fn constructs_const_a<'a,'b,'borr,T>(ref_:&'b T)->Trait_CTO<'a,'borr,'b>
+    fn constructs_const_a<'a, 'b, 'borr, T>(ref_: &'b T) -> Trait_CTO<'a, 'borr, 'b>
     where
-        T:'borr+'a+Trait<'a>
+        T: 'borr + 'a + Trait<'a>,
     {
-        Trait_CTO::from_const(ref_,TD_Opaque,Trait_MV::VTABLE)
+        Trait_CTO::from_const(ref_, TD_Opaque, Trait_MV::VTABLE)
     }
-
 }

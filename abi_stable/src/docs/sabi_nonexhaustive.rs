@@ -1,18 +1,18 @@
 /*!
 
-Using the `#[sabi(kind(WithNonExhaustive(...)))]` helper attribute for 
+Using the `#[sabi(kind(WithNonExhaustive(...)))]` helper attribute for
 `#[derive(StableAbi)]` allows you to store the enum
 in `NonExhaustive`,
 using it as a non-exhaustive enum across ffi.
 
-The enum can then be wrapped in a 
+The enum can then be wrapped in a
 [`NonExhaustive<>`](../../nonexhaustive_enum/struct.NonExhaustive.html),
 but can only be converted back into it if the discriminant is valid in that context.
 
 Nonexhaustive enums can safely add variants in minor versions,
 giving library authors some flexibility in their design.
 
-# Items 
+# Items
 
 These are the items relevant to nonexhaustive enums:
 
@@ -39,7 +39,7 @@ and usable with it afterwards
 
 # Parameters
 
-These are the required and optional parameters for the 
+These are the required and optional parameters for the
 `#[sabi(kind(WithNonExhaustive(...)))]` helper attribute.
 
 ### Specifying alignment (optional parameter)
@@ -71,7 +71,7 @@ It is a bad idea to use `Enum` since its size is allowed to change.<br>
 
 ### Traits (optional parameter)
 
-Specifies the traits required when constructing NonExhaustive from this enum and 
+Specifies the traits required when constructing NonExhaustive from this enum and
 usable after constructing it.
 
 If neither this parameter nor interface are specified,
@@ -116,7 +116,7 @@ These are the valid traits:
 
 ### Interface (optional parameter)
 
-This allows using a pre-existing to specify which traits are 
+This allows using a pre-existing to specify which traits are
 required when constructing `NonExhaustive<>` from this enum and are then usable with it.
 
 The type describes which traits are required using the [`InterfaceType`] trait.
@@ -135,7 +135,7 @@ This means that only Debug/PartialEq are usable/required.<br>
 Example3:`interface="CloneEqInterface"`.
 This means that only Debug/Clone/Eq/PartialEq are usable/required.<br>
 
-The `*Interface` types from the examples come from the 
+The `*Interface` types from the examples come from the
 `abi_stable::erased_types::interfaces` module.
 
 
@@ -159,7 +159,7 @@ Example:`assert_nonexhaustive("Foo<u8>","Foo<RVec<()>>")`<br>
 
 # `serde` support
 
-`NonExhaustive<Enum,Storage,Interface>` only implements serde::{Serialize,Deserialize} 
+`NonExhaustive<Enum,Storage,Interface>` only implements serde::{Serialize,Deserialize}
 if Interface allows them in its [`InterfaceType`] implementation,
 and also implements the [`SerializeEnum`] and [`DeserializeEnum`] traits.
 
@@ -167,7 +167,7 @@ and also implements the [`SerializeEnum`] and [`DeserializeEnum`] traits.
 
 This defines a nonexhaustive enum and demonstrates how it is (de)serialized.
 
-For a more realistic example you can look at the 
+For a more realistic example you can look at the
 "examples/2_nonexhaustive/interface" crate in the repository for this crate.
 
 ```
@@ -196,7 +196,7 @@ use serde::{Deserialize,Serialize};
 )))]
 // The `#[sabi(with_constructor)]` helper attribute here generates constructor functions
 // that look take the fields of the variant as parameters and return a `ValidTag_NE`.
-#[sabi(with_constructor)] 
+#[sabi(with_constructor)]
 pub enum ValidTag{
     #[doc(hidden)]
     __NonExhaustive,
@@ -228,7 +228,7 @@ impl SerializeEnum<ValidTag_NE> for ValidTag_Interface {
         Module::VALUE
             .serialize_tag()(this)
             .into_result()
-        
+
     }
 }
 
@@ -283,26 +283,26 @@ assert_eq!(
 # }
 
 // In this struct:
-// 
+//
 // - `#[sabi(kind(Prefix))]`
 // Declares this type as being a prefix-type, generating both of these types:
-// 
-//     - Module_Prefix`: A struct with the fields up to (and including) the field with the 
+//
+//     - Module_Prefix`: A struct with the fields up to (and including) the field with the
 //     `#[sabi(last_prefix_field)]` attribute.
-// 
+//
 //     - Module_Ref`: An ffi-safe pointer to a `Module`,with methods to get `Module`'s fields.
-// 
-// - `#[sabi(missing_field(panic))]` 
-//     makes the field accessors of `ModuleRef` panic when attempting to 
+//
+// - `#[sabi(missing_field(panic))]`
+//     makes the field accessors of `ModuleRef` panic when attempting to
 //     access nonexistent fields instead of the default of returning an Option<FieldType>.
-// 
+//
 #[repr(C)]
-#[derive(StableAbi)] 
+#[derive(StableAbi)]
 #[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
 pub struct Module{
     pub serialize_tag:extern "C" fn(&ValidTag_NE)->RResult<RawValueBox,RBoxError>,
-    
+
     /// `#[sabi(last_prefix_field)]`means that it is the last field in the struct
     /// that was defined in the first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
@@ -317,7 +317,7 @@ impl Module {
     //
     // StaticRef represents a reference to data that lives forever,
     // but is not necessarily `'static` according to the type system.
-    // 
+    //
     // StaticRef not necessary in this case, it's more useful with generic types..
     abi_stable::staticref!(const TMP0: WithMetadata<Self> = WithMetadata::new(
         PrefixTypeTrait::METADATA,
@@ -337,7 +337,7 @@ impl Module {
 #[sabi_extern_fn]
 pub fn serialize_tag(enum_:&ValidTag_NE)->RResult<RawValueBox,RBoxError>{
     let enum_=rtry!( enum_.as_enum().into_c() );
-    
+
     match serde_json::to_string(&enum_) {
         Ok(v)=>{
             RawValueBox::try_from_string(v)
@@ -396,13 +396,13 @@ pub enum Message<T>{
 
     #[sabi(with_boxed_constructor)]
     Custom(RBox<T>),
-    
+
     ////////////////////////////////////////
     // Available since 1.1
     ////////////////////////////////////////
     #[sabi(with_boxed_constructor)]
     SaysThankYou(RBox<SaysThankYou>)
-    
+
 }
 
 
@@ -430,8 +430,8 @@ pub struct SaysThankYou{
 }
 
 # fn main(){
- 
-// Constructing Message::Custom wrapped in a NonExhaustive 
+
+// Constructing Message::Custom wrapped in a NonExhaustive
 {
     let custom_message:Message_NE<RString>=
         Message::Custom_NE("Hello".into());
@@ -446,7 +446,7 @@ pub struct SaysThankYou{
 }
 
 
-// Constructing Message::SaysThankYou wrapped in a NonExhaustive 
+// Constructing Message::SaysThankYou wrapped in a NonExhaustive
 // This variant is only available since 1.1
 {
     let says_thank_you:Message_NE<RString>=
@@ -591,9 +591,9 @@ Say that we want to define a "private" enum
 used internally to send information between instances of the same library,
 of potentially different (compatible) versions.
 
-If one of the variants from newer versions are sent into a library/binary 
+If one of the variants from newer versions are sent into a library/binary
 that has a previous version of `Event`,
-`Event_NE` (an alias for NonExhaustive wrapping an Event) 
+`Event_NE` (an alias for NonExhaustive wrapping an Event)
 won't be convertible back into `Event`.
 
 ```
@@ -636,7 +636,7 @@ pub enum Event{
     RemovedInstance{
         object_id:ObjectId,
     },
-    
+
     /////////////////
     // Added in 1.1
     /////////////////
@@ -652,7 +652,7 @@ pub enum Event{
         object_id:ObjectId,
         group_id:GroupId,
     },
-    
+
     /////////////////
     // Added in 1.2
     /////////////////

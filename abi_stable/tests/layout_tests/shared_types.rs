@@ -7,12 +7,9 @@ use core_extensions::matches;
 
 #[allow(unused_imports)]
 use abi_stable::{
-    external_types::{
-        RMutex,RRwLock,ROnce
-    },
+    external_types::{RMutex, ROnce, RRwLock},
     std_types::*,
 };
-
 
 pub(super) mod basic_enum {
     #[repr(C)]
@@ -51,7 +48,7 @@ pub(super) mod enum_extra_fields_b {
     #[derive(abi_stable::StableAbi)]
     pub enum Enum {
         Variant0,
-        Variant1 { a: u32,b:u32,c:u32 },
+        Variant1 { a: u32, b: u32, c: u32 },
     }
 }
 
@@ -66,7 +63,6 @@ pub(super) mod extra_variant {
     }
 }
 
-
 pub(super) mod swapped_fields_first {
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
@@ -78,7 +74,6 @@ pub(super) mod swapped_fields_first {
     }
 }
 
-
 pub(super) mod gen_more_lts_b {
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
@@ -88,26 +83,24 @@ pub(super) mod gen_more_lts_b {
     }
 }
 
-
 pub(super) mod mod_5 {
     use super::RString;
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn()->RString,
-        pub function_1: extern "C" fn(&mut u32,u64,RString),
-        pub function_2: extern "C" fn(&mut u32,u64,RString),
+    pub struct Mod {
+        pub function_0: extern "C" fn() -> RString,
+        pub function_1: extern "C" fn(&mut u32, u64, RString),
+        pub function_2: extern "C" fn(&mut u32, u64, RString),
     }
 }
-
 
 pub(super) mod mod_7 {
     use super::RString;
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn()->RString,
-        pub function_1: extern "C" fn(&mut u32,u64,RString),
-        pub function_2: extern "C" fn((),(),()),
+    pub struct Mod {
+        pub function_0: extern "C" fn() -> RString,
+        pub function_1: extern "C" fn(&mut u32, u64, RString),
+        pub function_2: extern "C" fn((), (), ()),
     }
 }

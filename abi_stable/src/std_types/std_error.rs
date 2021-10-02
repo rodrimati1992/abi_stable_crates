@@ -13,13 +13,13 @@ use crate::{
         c_functions::{adapt_std_fmt, debug_impl, display_impl},
         FormattingMode,
     },
-    marker_type::{SyncSend, UnsyncUnsend,UnsyncSend,ErasedObject},
-    pointer_trait::{AsPtr, AsMutPtr},
-    prefix_type::{PrefixTypeTrait,WithMetadata},
+    marker_type::{ErasedObject, SyncSend, UnsyncSend, UnsyncUnsend},
+    pointer_trait::{AsMutPtr, AsPtr},
+    prefix_type::{PrefixTypeTrait, WithMetadata},
     sabi_types::RRef,
     std_types::{
+        utypeid::{new_utypeid, UTypeId},
         RBox, ROption, RResult, RStr, RString,
-        utypeid::{UTypeId,new_utypeid}
     },
     utils::transmute_reference,
 };
@@ -29,7 +29,7 @@ use crate::{
 mod test;
 
 /**
-Ffi-safe version of `Box<dyn std::error::Error + 'static>` 
+Ffi-safe version of `Box<dyn std::error::Error + 'static>`
 whose `Send + Sync`ness is determined by the `M` type parameter.
 
 # Examples
@@ -79,7 +79,7 @@ use abi_stable::std_types::{RBox,RBoxError};
     let dyn_err:Box<std::error::Error+Send+Sync+'static>=
         Box::new(parse_err.clone());
     let err=RBoxError::from_box(dyn_err);
-    
+
     assert_eq!( err.downcast::<ParseIntError>().unwrap(), RBox::new(parse_err) );
 }
 
@@ -87,7 +87,7 @@ use abi_stable::std_types::{RBox,RBoxError};
 {
     let parse_err="".parse::<f32>().unwrap_err();
     let err=RBoxError::new(parse_err.clone());
-    
+
     assert_eq!( err.downcast::<ParseFloatError>().unwrap(), RBox::new(parse_err) );
 }
 
@@ -96,7 +96,7 @@ use abi_stable::std_types::{RBox,RBoxError};
 {
     let parse_err="".parse::<f32>().unwrap_err();
     let err=RBoxError::new(parse_err);
-    
+
     assert!( err.downcast::<ParseIntError>().is_err() );
 }
 
@@ -120,7 +120,7 @@ use abi_stable::std_types::{RBox,UnsyncRBoxError};
     let dyn_err:Box<std::error::Error+'static>=
         Box::new(int_err.clone());
     let err=UnsyncRBoxError::from_box(dyn_err);
-    
+
     assert_eq!( err.downcast_ref::<TryFromIntError>().unwrap(), &int_err );
 }
 
@@ -128,7 +128,7 @@ use abi_stable::std_types::{RBox,UnsyncRBoxError};
 {
     let utf8_err=std::str::from_utf8(&[255]).unwrap_err();
     let err=UnsyncRBoxError::new(utf8_err.clone());
-    
+
     assert_eq!( err.downcast_ref::<Utf8Error>().unwrap(), &utf8_err );
 }
 
@@ -137,7 +137,7 @@ use abi_stable::std_types::{RBox,UnsyncRBoxError};
 {
     let utf8_err=std::str::from_utf8(&[255]).unwrap_err();
     let err=UnsyncRBoxError::new(utf8_err);
-    
+
     assert!( err.downcast_ref::<TryFromIntError>().is_none() );
 }
 
@@ -148,7 +148,7 @@ use abi_stable::std_types::{RBox,UnsyncRBoxError};
 
 ```
 use std::string::{FromUtf8Error,FromUtf16Error};
-    
+
 use abi_stable::std_types::{RBox,SendRBoxError};
 
 // Constructing a `SendRBoxError` from a `Box<dyn Error>`,
@@ -158,7 +158,7 @@ use abi_stable::std_types::{RBox,SendRBoxError};
     let dyn_err:Box<std::error::Error+Send+'static>=
         Box::new(str_err());
     let mut err=SendRBoxError::from_box(dyn_err);
-    
+
     assert!( err.downcast_ref::<FromUtf8Error>().is_some() ,"part A");
 }
 
@@ -166,7 +166,7 @@ use abi_stable::std_types::{RBox,SendRBoxError};
 {
     let str_err=|| String::from_utf8(vec![255]).unwrap_err() ;
     let mut err=SendRBoxError::new(str_err());
-    
+
     assert!( err.downcast_ref::<FromUtf8Error>().is_some() ,"part B");
 }
 
@@ -175,7 +175,7 @@ use abi_stable::std_types::{RBox,SendRBoxError};
 {
     let str_err=|| String::from_utf16(&[0xD834]).unwrap_err() ;
     let mut err=SendRBoxError::new(str_err());
-    
+
     assert!( err.downcast_ref::<FromUtf8Error>().is_none() ,"part C");
 }
 
@@ -201,7 +201,6 @@ pub type SendRBoxError = RBoxError_<UnsyncSend>;
 /// Ffi safe equivalent to `Box<dyn std::error::Error + Send + Sync>`.
 pub type RBoxError = RBoxError_<SyncSend>;
 
-
 impl RBoxError_<SyncSend> {
     /// Constructs a `Send + Sync` `RBoxError_` from an error.
     ///
@@ -221,7 +220,6 @@ impl RBoxError_<SyncSend> {
         Self::new_inner(value)
     }
 }
-
 
 impl RBoxError_<UnsyncSend> {
     /// Constructs a `Send + !Sync` `RBoxError_` from an error.
@@ -243,7 +241,6 @@ impl RBoxError_<UnsyncSend> {
     }
 }
 
-
 impl RBoxError_<UnsyncUnsend> {
     /// Constructs a `!Send + !Sync` `RBoxError_` from an error.
     ///
@@ -263,7 +260,6 @@ impl RBoxError_<UnsyncUnsend> {
         Self::new_inner(value)
     }
 }
-
 
 impl<M> RBoxError_<M> {
     /// Constructs an RBoxError from an error,
@@ -323,21 +319,17 @@ impl<M> RBoxError_<M> {
     }
 
     fn from_debug_display(value: DebugDisplay) -> Self {
-        unsafe {
-            Self::new_with_vtable(value, MakeRErrorVTable::LIB_VTABLE_DEBUG_DISPLAY)
-        }
+        unsafe { Self::new_with_vtable(value, MakeRErrorVTable::LIB_VTABLE_DEBUG_DISPLAY) }
     }
 
     fn new_inner<T>(value: T) -> Self
     where
         T: ErrorTrait + 'static,
     {
-        unsafe {
-            Self::new_with_vtable(value, MakeRErrorVTable::<T>::LIB_VTABLE)
-        }
+        unsafe { Self::new_with_vtable(value, MakeRErrorVTable::<T>::LIB_VTABLE) }
     }
 
-    fn new_with_vtable<T>(value: T, vtable: RErrorVTable_Ref) -> Self{
+    fn new_with_vtable<T>(value: T, vtable: RErrorVTable_Ref) -> Self {
         unsafe {
             let value = value
                 .piped(RBox::new)
@@ -352,15 +344,15 @@ impl<M> RBoxError_<M> {
     }
 }
 
-impl<M> RBoxError_<M>{
-    /// Converts this error to a formatted error 
-    /// 
+impl<M> RBoxError_<M> {
+    /// Converts this error to a formatted error
+    ///
     /// This is used to decouple an `RBoxError` from the dynamic library that produced it,
     /// in order to unload the dynamic library.
-    /// 
+    ///
     pub fn to_formatted_error<N>(&self) -> RBoxError_<N> {
         if let Some(dd) = self.as_debug_display() {
-            RBoxError_::from_debug_display(DebugDisplay{
+            RBoxError_::from_debug_display(DebugDisplay {
                 debug: dd.debug.into(),
                 display: dd.display.into(),
             })
@@ -369,29 +361,26 @@ impl<M> RBoxError_<M>{
         }
     }
 
-    fn as_debug_display(&self)->Option<DebugDisplayRef<'_>>{
-        unsafe{
-            self.vtable.as_debug_display()(self.value.as_rref())
-                .into_option()
-        }
+    fn as_debug_display(&self) -> Option<DebugDisplayRef<'_>> {
+        unsafe { self.vtable.as_debug_display()(self.value.as_rref()).into_option() }
     }
 }
 
 impl<M> RBoxError_<M> {
     /// Returns the `UTypeId` of the error this wraps.
-    pub fn type_id(&self)->UTypeId{
+    pub fn type_id(&self) -> UTypeId {
         self.vtable.type_id()()
     }
 
-    fn is_type<T:'static>(&self)->bool{
-        let self_id=self.vtable.type_id()();
-        let other_id=UTypeId::new::<T>();
-        self_id==other_id
+    fn is_type<T: 'static>(&self) -> bool {
+        let self_id = self.vtable.type_id()();
+        let other_id = UTypeId::new::<T>();
+        self_id == other_id
     }
 
     /// The address of the `Box<_>` this wraps
-    pub fn heap_address(&self)->usize{
-        (self.value.as_ptr())as *const _ as usize
+    pub fn heap_address(&self) -> usize {
+        (self.value.as_ptr()) as *const _ as usize
     }
 
     /// Casts this `&RBoxError_<_>` to `&UnsyncRBoxError`.
@@ -409,10 +398,8 @@ impl<M> RBoxError_<M> {
     /// let unsync_err:&UnsyncRBoxError=err.as_unsync();
     ///
     /// ```
-    pub fn as_unsync(&self)->&UnsyncRBoxError{
-        unsafe{
-            transmute_reference::<RBoxError_<M>,UnsyncRBoxError>(self)
-        }
+    pub fn as_unsync(&self) -> &UnsyncRBoxError {
+        unsafe { transmute_reference::<RBoxError_<M>, UnsyncRBoxError>(self) }
     }
 
     /// Converts this `RBoxError_<_>` to `UnsyncRBoxError`.
@@ -430,15 +417,12 @@ impl<M> RBoxError_<M> {
     /// let unsync_err:UnsyncRBoxError=err.into_unsync();
     ///
     /// ```
-    pub fn into_unsync(self)->UnsyncRBoxError{
-        unsafe{
-            mem::transmute::<RBoxError_<M>,UnsyncRBoxError>(self)
-        }
+    pub fn into_unsync(self) -> UnsyncRBoxError {
+        unsafe { mem::transmute::<RBoxError_<M>, UnsyncRBoxError>(self) }
     }
 }
 
-
-impl RBoxError_<SyncSend>{
+impl RBoxError_<SyncSend> {
     /// Casts this `&RBoxError_<_>` to `&SendRBoxError`.
     ///
     /// # Example
@@ -455,10 +439,8 @@ impl RBoxError_<SyncSend>{
     /// let unsync_err:&SendRBoxError=err.as_send();
     ///
     /// ```
-    pub fn as_send(&self)->&SendRBoxError{
-        unsafe{
-            transmute_reference::<RBoxError_<SyncSend>,SendRBoxError>(self)
-        }
+    pub fn as_send(&self) -> &SendRBoxError {
+        unsafe { transmute_reference::<RBoxError_<SyncSend>, SendRBoxError>(self) }
     }
 
     /// Converts this `RBoxError_<_>` to `SendRBoxError`.
@@ -477,64 +459,55 @@ impl RBoxError_<SyncSend>{
     /// let unsync_err:SendRBoxError=err.into_send();
     ///
     /// ```
-    pub fn into_send(self)->SendRBoxError{
-        unsafe{
-            mem::transmute::<RBoxError_<SyncSend>,SendRBoxError>(self)
-        }
+    pub fn into_send(self) -> SendRBoxError {
+        unsafe { mem::transmute::<RBoxError_<SyncSend>, SendRBoxError>(self) }
     }
 }
-
-
 
 impl<M> ErrorTrait for RBoxError_<M> {}
 
 impl<M> Display for RBoxError_<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        unsafe{
-            adapt_std_fmt(self.value.as_rref(), self.vtable.display(), f)
-        }
+        unsafe { adapt_std_fmt(self.value.as_rref(), self.vtable.display(), f) }
     }
 }
 
 impl<M> Debug for RBoxError_<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        unsafe{
-            adapt_std_fmt(self.value.as_rref(), self.vtable.debug(), f)
-        }
+        unsafe { adapt_std_fmt(self.value.as_rref(), self.vtable.debug(), f) }
     }
 }
 
 ////////////////////////////////////////////////////////////////////////
-
 
 macro_rules! from_impls {
     (
         $first_docs:expr,
         $boxdyn:ty,
         $marker:ty,
-    ) => (
-        impl From<$boxdyn> for RBoxError_<$marker>{
+    ) => {
+        impl From<$boxdyn> for RBoxError_<$marker> {
             #[doc = $first_docs]
             ///
-            /// # Behavior 
+            /// # Behavior
             ///
             /// If the contents of the Box<_> is an erased `RBoxError_<_>`
             /// it will be returned directly,
             /// otherwise the `Box<_>` will be converted into an `RBoxError_<_>`
             /// using `RBoxError_::new`.
             ///
-            fn from(this:$boxdyn)->RBoxError_<$marker>{
+            fn from(this: $boxdyn) -> RBoxError_<$marker> {
                 Self::from_box(this)
             }
         }
 
-        impl RBoxError_<$marker>{
+        impl RBoxError_<$marker> {
             #[doc = $first_docs]
             ///
-            /// `RBoxError::from_box( RBoxError::into_box( err ) )` 
+            /// `RBoxError::from_box( RBoxError::into_box( err ) )`
             /// is a no-op with respect to the heap address of the RBoxError_<_>.
             ///
-            /// # Behavior 
+            /// # Behavior
             ///
             /// If the contents of the `Box<_>` is an erased `RBoxError_<_>`
             /// it will be returned directly,
@@ -545,26 +518,22 @@ macro_rules! from_impls {
             ///
             /// For an example of converting back and forth to a `Box<dyn Error>`
             /// [here is the example](#from_to_conversion).
-            pub fn from_box(this:$boxdyn)->Self{
+            pub fn from_box(this: $boxdyn) -> Self {
                 match this.downcast::<Self>() {
-                    Ok(e)=>{
-                        *e
-                    }
-                    Err(e)=>{
-                        Self::new_with_vtable::<$boxdyn>(
-                            e,
-                            MakeBoxedRErrorVTable::<$boxdyn>::LIB_VTABLE,
-                        )
-                    }
+                    Ok(e) => *e,
+                    Err(e) => Self::new_with_vtable::<$boxdyn>(
+                        e,
+                        MakeBoxedRErrorVTable::<$boxdyn>::LIB_VTABLE,
+                    ),
                 }
             }
 
             /// Converts an `RBoxError_<_>` to a `Box<dyn Error>`.
             ///
-            /// `RBoxError::from_box( RBoxError::into_box( err ) )` 
+            /// `RBoxError::from_box( RBoxError::into_box( err ) )`
             /// is a no-op with respect to the heap address of the RBoxError_<_>.
             ///
-            /// # Behavior 
+            /// # Behavior
             ///
             /// If the contents of the `RBoxError_<_>` is an erased `Box<dyn Error + ... >`
             /// it will be returned directly,
@@ -575,13 +544,13 @@ macro_rules! from_impls {
             ///
             /// For an example of converting back and forth to a `Box<dyn Error>`
             /// [here is the example](#from_to_conversion).
-            pub fn into_box(self)->$boxdyn{
+            pub fn into_box(self) -> $boxdyn {
                 if self.is_type::<$boxdyn>() {
-                    unsafe{
-                        let box_=mem::transmute::<RBox<ErasedObject>, RBox<$boxdyn>>(self.value);
+                    unsafe {
+                        let box_ = mem::transmute::<RBox<ErasedObject>, RBox<$boxdyn>>(self.value);
                         RBox::into_inner(box_)
                     }
-                }else{
+                } else {
                     Box::new(self)
                 }
             }
@@ -603,27 +572,23 @@ macro_rules! from_impls {
             ///
             /// # Example
             ///
-            /// Look at the type level documentation for 
+            /// Look at the type level documentation for
             /// [the example](#downcasting-by-value).
             ///
-            pub fn downcast<T>(self)->Result<RBox<T>,Self>
+            pub fn downcast<T>(self) -> Result<RBox<T>, Self>
             where
-                T:ErrorTrait+'static
+                T: ErrorTrait + 'static,
             {
-                match (self.is_type::<T>(),self.is_type::<$boxdyn>()) {
-                    (true,_)=>{
-                        unsafe{
-                            Ok(mem::transmute::<RBox<ErasedObject>, RBox<T>>(self.value))
-                        }
-                    }
-                    (false,true) if self.downcast_ref::<T>().is_some() =>{
-                        unsafe{
-                            let x=mem::transmute::<RBox<ErasedObject>,RBox<$boxdyn>>(self.value);
-                            let x=RBox::into_inner(x);
-                            Ok(RBox::from_box(x.downcast::<T>().unwrap()))
-                        }
-                    }
-                    (false,_)=>Err(self),
+                match (self.is_type::<T>(), self.is_type::<$boxdyn>()) {
+                    (true, _) => unsafe {
+                        Ok(mem::transmute::<RBox<ErasedObject>, RBox<T>>(self.value))
+                    },
+                    (false, true) if self.downcast_ref::<T>().is_some() => unsafe {
+                        let x = mem::transmute::<RBox<ErasedObject>, RBox<$boxdyn>>(self.value);
+                        let x = RBox::into_inner(x);
+                        Ok(RBox::from_box(x.downcast::<T>().unwrap()))
+                    },
+                    (false, _) => Err(self),
                 }
             }
 
@@ -647,23 +612,17 @@ macro_rules! from_impls {
             /// Look at the type level documentation for the example.
             /// [the example](#downcasting-by-reference).
             ///
-            pub fn downcast_ref<T>(&self)->Option<&T>
+            pub fn downcast_ref<T>(&self) -> Option<&T>
             where
-                T:ErrorTrait+'static
+                T: ErrorTrait + 'static,
             {
-                match (self.is_type::<T>(),self.is_type::<$boxdyn>()) {
-                    (true,_)=>{
-                        unsafe{
-                            Some(&*(self.value.as_ptr() as *const T))
-                        }
-                    }
-                    (false,true)=>{
-                        unsafe{
-                            let ref_box=&*(self.value.as_ptr() as *const $boxdyn);
-                            (&**ref_box).downcast_ref::<T>()
-                        }
-                    }
-                    (false,false)=>None,
+                match (self.is_type::<T>(), self.is_type::<$boxdyn>()) {
+                    (true, _) => unsafe { Some(&*(self.value.as_ptr() as *const T)) },
+                    (false, true) => unsafe {
+                        let ref_box = &*(self.value.as_ptr() as *const $boxdyn);
+                        (&**ref_box).downcast_ref::<T>()
+                    },
+                    (false, false) => None,
                 }
             }
 
@@ -687,47 +646,38 @@ macro_rules! from_impls {
             /// Look at the type level documentation for the example.
             /// [the example](#downcasting-by-mutable-reference).
             ///
-            pub fn downcast_mut<T>(&mut self)->Option<&mut T>
+            pub fn downcast_mut<T>(&mut self) -> Option<&mut T>
             where
-                T:ErrorTrait+'static
+                T: ErrorTrait + 'static,
             {
-                match (self.is_type::<T>(),self.is_type::<$boxdyn>()) {
-                    (true,_)=>{
-                        unsafe{
-                            Some(&mut *(self.value.as_mut_ptr() as *mut T))
-                        }
-                    }
-                    (false,true)=>{
-                        unsafe{
-                            let mut_box = &mut *(self.value.as_mut_ptr() as *mut $boxdyn);
-                            (&mut **mut_box).downcast_mut::<T>()
-                        }
-                    }
-                    (false,false)=>None,
+                match (self.is_type::<T>(), self.is_type::<$boxdyn>()) {
+                    (true, _) => unsafe { Some(&mut *(self.value.as_mut_ptr() as *mut T)) },
+                    (false, true) => unsafe {
+                        let mut_box = &mut *(self.value.as_mut_ptr() as *mut $boxdyn);
+                        (&mut **mut_box).downcast_mut::<T>()
+                    },
+                    (false, false) => None,
                 }
             }
         }
-    )
+    };
 }
 
-
-from_impls!{
+from_impls! {
     "Converts a `Box<dyn Error + Send + Sync>` to a `Send + Sync` `RBoxError_`.",
     Box<dyn ErrorTrait + Send + Sync + 'static> ,
     SyncSend,
 }
-from_impls!{
+from_impls! {
     "Converts a `Box<dyn Error + Send>` to a `Send + !Sync` `RBoxError_`.",
     Box<dyn ErrorTrait + Send + 'static> ,
     UnsyncSend,
 }
-from_impls!{
+from_impls! {
     "Converts a `Box<dyn Error>` to a `!Send + !Sync` `RBoxError_`.",
     Box<dyn ErrorTrait + 'static> ,
     UnsyncUnsend,
 }
-
-
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -735,60 +685,50 @@ from_impls!{
 #[derive(StableAbi)]
 #[sabi(kind(Prefix))]
 struct RErrorVTable {
-    debug: 
-        unsafe extern "C" fn(
-            RRef<'_, ErasedObject>,
-            FormattingMode,
-            &mut RString,
-        ) -> RResult<(), ()>,
+    debug: unsafe extern "C" fn(
+        RRef<'_, ErasedObject>,
+        FormattingMode,
+        &mut RString,
+    ) -> RResult<(), ()>,
 
-    display: 
-        unsafe extern "C" fn(
-            RRef<'_, ErasedObject>,
-            FormattingMode,
-            &mut RString,
-        ) -> RResult<(), ()>,
+    display: unsafe extern "C" fn(
+        RRef<'_, ErasedObject>,
+        FormattingMode,
+        &mut RString,
+    ) -> RResult<(), ()>,
 
-    as_debug_display: 
-        unsafe extern "C" fn(RRef<'_, ErasedObject>) -> ROption<DebugDisplayRef<'_>>,
+    as_debug_display: unsafe extern "C" fn(RRef<'_, ErasedObject>) -> ROption<DebugDisplayRef<'_>>,
 
     #[sabi(last_prefix_field)]
-    type_id: extern "C" fn()->UTypeId,
+    type_id: extern "C" fn() -> UTypeId,
 }
 
 ///////////////////
 
 struct MakeRErrorVTable<T>(T);
 
-
 impl<T> MakeRErrorVTable<T>
-where T:ErrorTrait+'static
+where
+    T: ErrorTrait + 'static,
 {
-    const VALUE:RErrorVTable=RErrorVTable{
+    const VALUE: RErrorVTable = RErrorVTable {
         debug: debug_impl::<T>,
         display: display_impl::<T>,
         as_debug_display: not_as_debug_display,
         type_id: new_utypeid::<T>,
     };
 
-    const VALUE_MD: &'static WithMetadata<RErrorVTable> = 
-        &WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            Self::VALUE,
-        );
+    const VALUE_MD: &'static WithMetadata<RErrorVTable> =
+        &WithMetadata::new(PrefixTypeTrait::METADATA, Self::VALUE);
 
-    const LIB_VTABLE: RErrorVTable_Ref = {
-        RErrorVTable_Ref(
-            Self::VALUE_MD.static_as_prefix()
-        )
-    };
+    const LIB_VTABLE: RErrorVTable_Ref = { RErrorVTable_Ref(Self::VALUE_MD.static_as_prefix()) };
 }
 
 impl MakeRErrorVTable<DebugDisplay> {
     const WM_DEBUG_DISPLAY: &'static WithMetadata<RErrorVTable> = {
         &WithMetadata::new(
             PrefixTypeTrait::METADATA,
-            RErrorVTable{
+            RErrorVTable {
                 debug: debug_impl::<DebugDisplay>,
                 display: display_impl::<DebugDisplay>,
                 as_debug_display,
@@ -797,29 +737,26 @@ impl MakeRErrorVTable<DebugDisplay> {
         )
     };
 
-    const LIB_VTABLE_DEBUG_DISPLAY: RErrorVTable_Ref = {
-        RErrorVTable_Ref(
-            Self::WM_DEBUG_DISPLAY.static_as_prefix()
-        )
-    };
+    const LIB_VTABLE_DEBUG_DISPLAY: RErrorVTable_Ref =
+        { RErrorVTable_Ref(Self::WM_DEBUG_DISPLAY.static_as_prefix()) };
 }
 
 ///////////////////
 
 struct MakeBoxedRErrorVTable<T>(T);
 
-
 impl<T> MakeBoxedRErrorVTable<Box<T>>
-where T:?Sized+ErrorTrait+'static
+where
+    T: ?Sized + ErrorTrait + 'static,
 {
-    const VALUE:RErrorVTable=RErrorVTable{
+    const VALUE: RErrorVTable = RErrorVTable {
         debug: debug_impl::<Box<T>>,
         display: display_impl::<Box<T>>,
         as_debug_display: not_as_debug_display,
         type_id: new_utypeid::<Box<T>>,
     };
 
-    const WM_VTABLE: &'static WithMetadata<RErrorVTable> = 
+    const WM_VTABLE: &'static WithMetadata<RErrorVTable> =
         &WithMetadata::new(PrefixTypeTrait::METADATA, Self::VALUE);
 
     const LIB_VTABLE: RErrorVTable_Ref = RErrorVTable_Ref(Self::WM_VTABLE.static_as_prefix());
@@ -876,5 +813,3 @@ unsafe extern "C" fn not_as_debug_display(
 ) -> ROption<DebugDisplayRef<'_>> {
     ROption::RNone
 }
-
-

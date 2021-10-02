@@ -28,7 +28,7 @@ macro_rules! check_roundtrip {
 }
 
 macro_rules! anon_struct {
-    ( 
+    (
         $($fname:ident : $fval:expr),*
         $(,)*
     ) => {{

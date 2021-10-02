@@ -89,42 +89,44 @@ pub struct VersionNumber {
 }
 
 impl VersionStrings {
-    /// Constructs a VersionStrings from a string with the 
+    /// Constructs a VersionStrings from a string with the
     /// "major.minor.patch" format,where each one is a valid number.
-    /// 
+    ///
     /// This does not check whether the string is correctly formatted,
     /// that check is done inside `VersionStrings::parsed`/`VersionNumber::new`.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// use abi_stable::sabi_types::VersionStrings;
-    /// 
+    ///
     /// static VERSION:VersionStrings=VersionStrings::new("0.1.2");
-    /// 
+    ///
     /// ```
-    pub const fn new(version:&'static str)->Self{
-        Self{version:RStr::from_str(version)}
+    pub const fn new(version: &'static str) -> Self {
+        Self {
+            version: RStr::from_str(version),
+        }
     }
 
     /// Attempts to convert a `VersionStrings` into a `VersionNumber`
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// This returns a `ParseVersionError` if the string is not correctly formatted.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// use abi_stable::sabi_types::{VersionNumber,VersionStrings};
-    /// 
+    ///
     /// static VERSION:VersionStrings=VersionStrings::new("0.1.2");
-    /// 
+    ///
     /// assert_eq!( VERSION.parsed(), Ok(VersionNumber{major:0,minor:1,patch:2}) );
     ///
     /// let err_version=VersionStrings::new("0.a.2.b");
     /// assert!( err_version.parsed().is_err() );
-    /// 
+    ///
     /// ```
     pub fn parsed(self) -> Result<VersionNumber, ParseVersionError> {
         VersionNumber::new(self)
@@ -133,37 +135,40 @@ impl VersionStrings {
 
 impl VersionNumber {
     /// Attempts to convert a `VersionStrings` into a `VersionNumber`
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// This returns a `ParseVersionError` if the string is not correctly formatted.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// use abi_stable::sabi_types::{VersionNumber,VersionStrings};
-    /// 
+    ///
     /// static VERSION:VersionStrings=VersionStrings::new("10.5.20");
-    /// 
+    ///
     /// assert_eq!( VersionNumber::new(VERSION), Ok(VersionNumber{major:10,minor:5,patch:20}) );
     ///
     /// let err_version=VersionStrings::new("not a version number");
     /// assert!( VersionNumber::new(err_version).is_err() );
-    /// 
+    ///
     /// ```
     pub fn new(vn: VersionStrings) -> Result<Self, ParseVersionError> {
-        let mut iter=vn.version.splitn(3,'.');
+        let mut iter = vn.version.splitn(3, '.');
 
         VersionNumber {
-            major: iter.next()
+            major: iter
+                .next()
                 .unwrap_or("")
                 .parse()
                 .map_err(|x| ParseVersionError::new(vn, "major", x))?,
-            minor: iter.next()
+            minor: iter
+                .next()
                 .unwrap_or("")
                 .parse()
                 .map_err(|x| ParseVersionError::new(vn, "minor", x))?,
-            patch: iter.next()
+            patch: iter
+                .next()
                 .unwrap_or("")
                 .split_while(|x| ('0'..='9').contains(&x))
                 .find(|x| x.key)
@@ -267,15 +272,14 @@ impl fmt::Display for VersionNumber {
 
 impl fmt::Display for VersionStrings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.version,f)
+        fmt::Display::fmt(&self.version, f)
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-
-/// Instantiates a [`VersionStrings`] with the 
+/// Instantiates a [`VersionStrings`] with the
 /// major.minor.patch version of the library where it is invoked.
 ///
 /// [`VersionStrings`]: ./sabi_types/version/struct.VersionStrings.html
