@@ -93,7 +93,7 @@ impl VersionStrings {
     /// "major.minor.patch" format,where each one is a valid number.
     /// 
     /// This does not check whether the string is correctly formatted,
-    /// that check is done inside `VersionStrings::parsed`/`VersionNumber::new`.
+    /// that check is done inside `VersionStrings::parsed`.
     /// 
     /// # Example
     /// 
