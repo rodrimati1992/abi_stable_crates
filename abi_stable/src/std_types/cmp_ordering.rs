@@ -2,7 +2,6 @@
 Contains the ffi-safe equivalent of `std::cmp::Ordering`.
 */
 
-
 use std::cmp::Ordering;
 
 /**
@@ -41,7 +40,7 @@ pub enum RCmpOrdering {
     Greater,
 }
 
-impl RCmpOrdering{
+impl RCmpOrdering {
     /// Converts this `RCmpOrdering` into a `std::cmp::Ordering`;
     ///
     /// # Example
@@ -49,7 +48,7 @@ impl RCmpOrdering{
     /// ```
     /// use abi_stable::std_types::RCmpOrdering;
     /// use std::cmp::Ordering;
-    /// 
+    ///
     ///
     /// assert_eq!( RCmpOrdering::Less.into_ordering(), Ordering::Less );
     /// assert_eq!( RCmpOrdering::Equal.into_ordering(), Ordering::Equal );
@@ -57,7 +56,7 @@ impl RCmpOrdering{
     ///
     /// ```
     #[inline]
-    pub fn into_ordering(self)->Ordering{
+    pub fn into_ordering(self) -> Ordering {
         self.into()
     }
 }

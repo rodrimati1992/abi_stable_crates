@@ -1,12 +1,12 @@
 use std::{
-    cmp::{Eq,PartialEq},
-    hash::{Hash,Hasher},
-    ops::{Deref},
+    cmp::{Eq, PartialEq},
+    hash::{Hash, Hasher},
+    ops::Deref,
 };
 
 use core_extensions::SelfOps;
 use regex::Regex;
-use serde::de::{Deserialize,Deserializer,Error as deError};
+use serde::de::{Deserialize, Deserializer, Error as deError};
 
 #[derive(Clone, Debug)]
 pub struct RegexWrapper(pub Regex);
@@ -16,7 +16,6 @@ impl From<Regex> for RegexWrapper {
         RegexWrapper(t)
     }
 }
-
 
 impl Hash for RegexWrapper {
     #[inline]
@@ -35,7 +34,7 @@ impl PartialEq for RegexWrapper {
 
 impl Deref for RegexWrapper {
     type Target = Regex;
-    
+
     #[inline]
     fn deref(&self) -> &Self::Target {
         &self.0

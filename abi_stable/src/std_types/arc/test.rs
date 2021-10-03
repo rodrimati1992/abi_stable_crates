@@ -2,20 +2,26 @@ use super::*;
 
 use std::cell::Cell;
 
-fn refaddr<'a,T>(ref_:&'a T)->usize{
+fn refaddr<'a, T>(ref_: &'a T) -> usize {
     ref_ as *const T as usize
 }
 
 #[test]
 fn to_from_arc() {
     let orig_a = Arc::new(1000);
-    let a_addr = (&*orig_a) as *const _ as usize ;
+    let a_addr = (&*orig_a) as *const _ as usize;
     let mut reprc_a = orig_a.clone().piped(RArc::from);
 
     assert_eq!(a_addr, refaddr(&*reprc_a));
 
-    assert_eq!(a_addr, reprc_a.clone().piped(|a| refaddr(&*a) ));
-    assert_eq!(a_addr, reprc_a.clone().piped(RArc::into_arc).piped(|a| refaddr(&*a) ) );
+    assert_eq!(a_addr, reprc_a.clone().piped(|a| refaddr(&*a)));
+    assert_eq!(
+        a_addr,
+        reprc_a
+            .clone()
+            .piped(RArc::into_arc)
+            .piped(|a| refaddr(&*a))
+    );
 
     reprc_a.set_vtable_for_testing();
 
@@ -57,72 +63,69 @@ fn into_raw() {
     assert_eq!(Arc::strong_count(&orig_a), 1);
 }
 
-
 #[test]
-fn get_mut(){
-    let mut conv=Arc::new(200).piped(RArc::from);
+fn get_mut() {
+    let mut conv = Arc::new(200).piped(RArc::from);
 
     {
-        let _conv_clone=conv.clone();
-        assert_eq!(RArc::get_mut(&mut conv),None);
+        let _conv_clone = conv.clone();
+        assert_eq!(RArc::get_mut(&mut conv), None);
     }
-    assert_eq!(RArc::get_mut(&mut conv),Some(&mut 200));
+    assert_eq!(RArc::get_mut(&mut conv), Some(&mut 200));
 }
-
 
 #[test]
-fn make_mut(){
-    let count=Cell::new(1);
-    let dod=DecrementOnDrop(&count);
+fn make_mut() {
+    let count = Cell::new(1);
+    let dod = DecrementOnDrop(&count);
 
-    let mut arc = Arc::new(ValueAndDod{
-        value:'a',
-        dod:dod.clone(),
-    }).piped(RArc::from);
+    let mut arc = Arc::new(ValueAndDod {
+        value: 'a',
+        dod: dod.clone(),
+    })
+    .piped(RArc::from);
 
     {
-        assert_eq!(dod.count(),2);
-        let arc_clone=arc.clone();
+        assert_eq!(dod.count(), 2);
+        let arc_clone = arc.clone();
 
-        let mutref=RArc::make_mut(&mut arc);
-        assert_eq!(dod.count(),3);
-        mutref.value='c';
+        let mutref = RArc::make_mut(&mut arc);
+        assert_eq!(dod.count(), 3);
+        mutref.value = 'c';
 
-        assert_eq!(arc_clone.value,'a');
+        assert_eq!(arc_clone.value, 'a');
     }
-    assert_eq!(dod.count(),2);
-    assert_eq!(arc.value,'c');
+    assert_eq!(dod.count(), 2);
+    assert_eq!(arc.value, 'c');
 }
-
-
 
 /////////////////////////////////////////
 
 #[derive(Clone)]
-struct ValueAndDod<'a,T>{
-    value:T,
-    dod:DecrementOnDrop<'a>,
+struct ValueAndDod<'a, T> {
+    value: T,
+    dod: DecrementOnDrop<'a>,
 }
 
 /////////////////////////////////////////
 
 struct DecrementOnDrop<'a>(&'a Cell<u32>);
 
-impl<'a> DecrementOnDrop<'a>{
-    fn count(&self)->u32{
+impl<'a> DecrementOnDrop<'a> {
+    fn count(&self) -> u32 {
         self.0.get()
     }
 }
 
-impl<'a> Clone for DecrementOnDrop<'a>{
-    fn clone(&self)->Self{
-        self.0.set(self.0.get()+1);
+impl<'a> Clone for DecrementOnDrop<'a> {
+    fn clone(&self) -> Self {
+        self.0.set(self.0.get() + 1);
         DecrementOnDrop(self.0)
     }
 }
 
-impl<'a> Drop for DecrementOnDrop<'a>{
-    fn drop(&mut self){
-        self.0.set(self.0.get()-1);
+impl<'a> Drop for DecrementOnDrop<'a> {
+    fn drop(&mut self) {
+        self.0.set(self.0.get() - 1);
     }
 }

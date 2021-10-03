@@ -2,13 +2,9 @@ use super::*;
 
 use std::sync::Arc;
 
-use crate::{
-    sabi_types::MovePtr,
-    test_utils::{must_panic},
-};
+use crate::{sabi_types::MovePtr, test_utils::must_panic};
 
 use abi_stable_shared::file_span;
-
 
 #[test]
 fn new_and_drop() {
@@ -74,54 +70,42 @@ fn mutated() {
     assert_eq!(*a, 1337);
 }
 
-
 #[test]
-fn with_move_ptr_runs(){
+fn with_move_ptr_runs() {
     let rbox = ManuallyDrop::new(RBox::new(rvec![3]));
-    
-    must_panic(file_span!(),||{
-        OwnedPointer::with_move_ptr(rbox,|_|{
+
+    must_panic(file_span!(), || {
+        OwnedPointer::with_move_ptr(rbox, |_| {
             panic!();
         });
-    }).unwrap();
-
+    })
+    .unwrap();
 
     let rbox = ManuallyDrop::new(RBox::new(rvec![5]));
-    assert_eq!(
-        OwnedPointer::with_move_ptr(rbox,|_|10),
-        10
-    );
+    assert_eq!(OwnedPointer::with_move_ptr(rbox, |_| 10), 10);
 }
 
 #[test]
-fn owned_pointer_trait(){
-    let arc=Arc::new(10);
+fn owned_pointer_trait() {
+    let arc = Arc::new(10);
 
+    unsafe {
+        let cloned_arc = ManuallyDrop::new(RBox::new(arc.clone()));
 
+        OwnedPointer::with_move_ptr(cloned_arc, |move_ptr| {
+            assert_eq!(Arc::strong_count(&move_ptr), 2);
 
-    unsafe{
-        let cloned_arc=ManuallyDrop::new(RBox::new(arc.clone()));
-        
-        OwnedPointer::with_move_ptr(cloned_arc,|move_ptr|{
-            assert_eq!(Arc::strong_count(&move_ptr),2);
-            
-            let moved_arc=MovePtr::into_inner(move_ptr);
-            assert_eq!(Arc::strong_count(&moved_arc),2);
+            let moved_arc = MovePtr::into_inner(move_ptr);
+            assert_eq!(Arc::strong_count(&moved_arc), 2);
         });
     }
-    assert_eq!(Arc::strong_count(&arc),1);
-    unsafe{
-        let cloned_arc=ManuallyDrop::new(RBox::new(arc.clone()));
-        
-        OwnedPointer::with_move_ptr(cloned_arc,|move_ptr|{
-            assert_eq!(Arc::strong_count(&move_ptr),2);
+    assert_eq!(Arc::strong_count(&arc), 1);
+    unsafe {
+        let cloned_arc = ManuallyDrop::new(RBox::new(arc.clone()));
+
+        OwnedPointer::with_move_ptr(cloned_arc, |move_ptr| {
+            assert_eq!(Arc::strong_count(&move_ptr), 2);
         });
     }
-    assert_eq!(Arc::strong_count(&arc),1);
+    assert_eq!(Arc::strong_count(&arc), 1);
 }
-
-
-
-
-
-

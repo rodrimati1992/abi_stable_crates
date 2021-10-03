@@ -5,10 +5,9 @@ Contains TypeInfo,metadata for a type.
 use std::fmt;
 
 use crate::{
-    sabi_types::{Constructor,MaybeCmp,VersionStrings},
-    std_types::{RStr,utypeid::UTypeId},
+    sabi_types::{Constructor, MaybeCmp, VersionStrings},
+    std_types::{utypeid::UTypeId, RStr},
 };
-
 
 /// Metadata stored in the vtable of `DynTrait<_>`
 #[derive(Debug, Eq, PartialEq)]
@@ -30,7 +29,7 @@ pub struct TypeInfo {
 impl TypeInfo {
     /// Whether the `self` is the TypeInfo for the same type as `other`
     pub fn is_compatible(&self, other: &Self) -> bool {
-        self._uid==other._uid
+        self._uid == other._uid
     }
 }
 
@@ -44,16 +43,14 @@ impl fmt::Display for TypeInfo {
              package:'{package}'\n\
              package_version:{package_version}\n\
              ",
-            ty=self.type_name,
-            size=self.size, 
-            alignment=self.alignment, 
-            module=self.module, 
-            package=self.package, 
-            package_version=self.package_version
+            ty = self.type_name,
+            size = self.size,
+            alignment = self.alignment,
+            module = self.module,
+            package = self.package,
+            package_version = self.package_version
         )
     }
 }
 
-
 ////////////////////////////////////////////
-

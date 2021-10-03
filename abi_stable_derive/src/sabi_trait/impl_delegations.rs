@@ -1,34 +1,30 @@
 use proc_macro2::TokenStream as TokenStream2;
 
-use quote::{ToTokens, quote_spanned};
+use quote::{quote_spanned, ToTokens};
 
-use as_derive_utils::{
-    gen_params_in::InWhat,
-};
+use as_derive_utils::gen_params_in::InWhat;
 
-use crate::{
-    sabi_trait::{
-        WhichSelf,
-        WithAssocTys,
-        TokenizerParams,
-    },
-};
+use crate::sabi_trait::{TokenizerParams, WhichSelf, WithAssocTys};
 
-/// Generates the code that delegates the implementation of the traits 
+/// Generates the code that delegates the implementation of the traits
 /// to the wrapped DynTrait or RObject.
 pub(super) fn delegated_impls(
-    TokenizerParams{
-        arenas:_,ctokens,totrait_def,trait_to,trait_backend,trait_interface,
+    TokenizerParams {
+        arenas: _,
+        ctokens,
+        totrait_def,
+        trait_to,
+        trait_backend,
+        trait_interface,
         lt_tokens,
         ..
-    }:TokenizerParams<'_>,
-    mod_:&mut TokenStream2,
-){
-    let where_preds=&totrait_def.where_preds;
+    }: TokenizerParams<'_>,
+    mod_: &mut TokenStream2,
+) {
+    let where_preds = &totrait_def.where_preds;
 
-    let impls=totrait_def.trait_flags;
-    let spans=&totrait_def.trait_spans;
-
+    let impls = totrait_def.trait_flags;
+    let spans = &totrait_def.trait_spans;
 
     // let gen_params_deser_header=
     //     totrait_def.generics_tokenizer(
@@ -37,41 +33,37 @@ pub(super) fn delegated_impls(
     //         &lt_tokens.lt_de_erasedptr,
     //     );
 
-    let gen_params_header=
-        totrait_def.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt_erasedptr,
-        );
-    let gen_params_use_to=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt_erasedptr,
-        );
+    let gen_params_header = totrait_def.generics_tokenizer(
+        InWhat::ImplHeader,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt_erasedptr,
+    );
+    let gen_params_use_to = totrait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt_erasedptr,
+    );
 
-    let gen_params_use_to_static=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.staticlt_erasedptr,
-        );
+    let gen_params_use_to_static = totrait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.staticlt_erasedptr,
+    );
 
-    let trait_interface_header=totrait_def.generics_tokenizer(
+    let trait_interface_header = totrait_def.generics_tokenizer(
         InWhat::ImplHeader,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &lt_tokens.lt,
     );
 
-    let trait_interface_use=totrait_def.generics_tokenizer(
+    let trait_interface_use = totrait_def.generics_tokenizer(
         InWhat::ItemUse,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &ctokens.ts_empty,
     );
 
-
     if impls.debug {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.debug=>
             impl<#gen_params_header> std::fmt::Debug
@@ -85,10 +77,11 @@ pub(super) fn delegated_impls(
                     std::fmt::Debug::fmt(&self.obj,f)
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.display {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.display=>
             impl<#gen_params_header> std::fmt::Display
@@ -102,10 +95,11 @@ pub(super) fn delegated_impls(
                     std::fmt::Display::fmt(&self.obj,f)
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.error {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.error=>
             impl<#gen_params_header> std::error::Error
@@ -114,10 +108,11 @@ pub(super) fn delegated_impls(
                 _ErasedPtr:__sabi_re::AsPtr<PtrTarget=()>,
                 #(#where_preds,)*
             {}
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.clone {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.clone=>
             impl<#gen_params_header> std::clone::Clone
@@ -135,10 +130,11 @@ pub(super) fn delegated_impls(
                     }
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.hash {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.hash=>
             impl<#gen_params_header> std::hash::Hash
@@ -155,10 +151,11 @@ pub(super) fn delegated_impls(
                     std::hash::Hash::hash(&self.obj,state)
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.send {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.send=>
             unsafe impl<#gen_params_header> std::marker::Send
@@ -167,10 +164,11 @@ pub(super) fn delegated_impls(
                 _ErasedPtr:__GetPointerKind,
                 #(#where_preds,)*
             {}
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.sync {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.sync=>
             unsafe impl<#gen_params_header> std::marker::Sync
@@ -179,10 +177,11 @@ pub(super) fn delegated_impls(
                 _ErasedPtr:__GetPointerKind,
                 #(#where_preds,)*
             {}
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.fmt_write {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.fmt_write=>
             impl<#gen_params_header> std::fmt::Write
@@ -196,10 +195,11 @@ pub(super) fn delegated_impls(
                     std::fmt::Write::write_str(&mut self.obj,s)
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.io_write {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.io_write=>
             impl<#gen_params_header> std::io::Write
@@ -218,10 +218,11 @@ pub(super) fn delegated_impls(
                     std::io::Write::write_all(&mut self.obj,buf)
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.io_read {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.io_read=>
             impl<#gen_params_header> std::io::Read
@@ -238,10 +239,11 @@ pub(super) fn delegated_impls(
                     std::io::Read::read_exact(&mut self.obj,buf)
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.io_buf_read {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.io_buf_read=>
             impl<#gen_params_header> std::io::BufRead
@@ -258,10 +260,11 @@ pub(super) fn delegated_impls(
                     std::io::BufRead::consume(&mut self.obj,amount)
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.io_seek {
-        let where_preds=where_preds.into_iter();
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.io_seek=>
             impl<#gen_params_header> std::io::Seek
@@ -274,24 +277,23 @@ pub(super) fn delegated_impls(
                     std::io::Seek::seek(&mut self.obj,pos)
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
 
-    let gen_params_header_and2=
-        totrait_def.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_erasedptr_and2,
-        );
-    let gen_params_use_2=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.staticlt_erasedptr2,
-        );
+    let gen_params_header_and2 = totrait_def.generics_tokenizer(
+        InWhat::ImplHeader,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &ctokens.ts_erasedptr_and2,
+    );
+    let gen_params_use_2 = totrait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.staticlt_erasedptr2,
+    );
 
-    if impls.eq{
-        let where_preds=where_preds.into_iter();
+    if impls.eq {
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.eq=>
             impl<#gen_params_header> std::cmp::Eq
@@ -300,10 +302,11 @@ pub(super) fn delegated_impls(
                 _ErasedPtr:__sabi_re::AsPtr<PtrTarget=()>,
                 #(#where_preds,)*
             {}
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
-    if impls.partial_eq{
-        let where_preds=where_preds.into_iter();
+    if impls.partial_eq {
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.partial_eq=>
             impl<#gen_params_header_and2> std::cmp::PartialEq<#trait_to<#gen_params_use_2>>
@@ -320,11 +323,11 @@ pub(super) fn delegated_impls(
                     )
                 }
             }
-        ).to_tokens(mod_);
-
+        )
+        .to_tokens(mod_);
     }
-    if impls.ord{
-        let where_preds=where_preds.into_iter();
+    if impls.ord {
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.ord=>
             impl<#gen_params_header> std::cmp::Ord
@@ -340,10 +343,11 @@ pub(super) fn delegated_impls(
                     )
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
-    if impls.partial_ord{
-        let where_preds=where_preds.into_iter();
+    if impls.partial_ord {
+        let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.partial_ord=>
             impl<#gen_params_header_and2> std::cmp::PartialOrd<#trait_to<#gen_params_use_2>>
@@ -363,7 +367,8 @@ pub(super) fn delegated_impls(
                     )
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
 
     // if let Some(deserialize_bound)=&totrait_def.deserialize_bound {
@@ -407,9 +412,9 @@ pub(super) fn delegated_impls(
     //         }
     //     ).to_tokens(mod_);
     // }
-    
+
     // if impls.serialize{
-        
+
     //     quote!(
     //         impl<#gen_params_header> ::serde::Serialize for #trait_to<#gen_params_use_to>
     //         where
@@ -427,8 +432,8 @@ pub(super) fn delegated_impls(
     //     ).to_tokens(mod_);
     // }
 
-    if let Some(iter_item)=&totrait_def.iterator_item {
-        let one_lt=&lt_tokens.one_lt;
+    if let Some(iter_item) = &totrait_def.iterator_item {
+        let one_lt = &lt_tokens.one_lt;
         quote_spanned!(spans.iterator=>
             impl<#trait_interface_header>
                 abi_stable::erased_types::IteratorItem<#one_lt>
@@ -438,7 +443,8 @@ pub(super) fn delegated_impls(
             {
                 type Item=#iter_item;
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.iterator {
         quote_spanned!(spans.iterator=>
@@ -469,11 +475,12 @@ pub(super) fn delegated_impls(
                     self.obj.last()
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
     if impls.double_ended_iterator {
         quote_spanned!(spans.double_ended_iterator=>
-            impl<#gen_params_header> std::iter::DoubleEndedIterator 
+            impl<#gen_params_header> std::iter::DoubleEndedIterator
             for #trait_to<#gen_params_use_to>
             where
                 _ErasedPtr:__GetPointerKind,
@@ -483,8 +490,7 @@ pub(super) fn delegated_impls(
                     self.obj.next_back()
                 }
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
-
-
 }

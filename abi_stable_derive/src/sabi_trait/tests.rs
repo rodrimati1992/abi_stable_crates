@@ -1,14 +1,10 @@
-use crate::{
-    derive_sabi_trait_str as derive_sabi_trait,
-};
+use crate::derive_sabi_trait_str as derive_sabi_trait;
 
 use as_derive_utils::test_framework::Tests;
 
-
 #[test]
-fn must_not_pass(){
-
-    let list=vec![
+fn must_not_pass() {
+    let list = vec![
         "
             trait Foo {
                 fn foo();
@@ -34,7 +30,7 @@ fn must_not_pass(){
             trait Bar {
                 const X: usize;
             }
-        "
+        ",
     ];
     for elem in list {
         if derive_sabi_trait(elem).is_ok() {
@@ -44,13 +40,13 @@ fn must_not_pass(){
 }
 
 #[test]
-fn sabi_trait_test_cases(){
+fn sabi_trait_test_cases() {
     Tests::load("sabi_trait").run_test(derive_sabi_trait);
 }
 
 #[test]
-fn must_pass(){
-    let list=vec![
+fn must_pass() {
+    let list = vec![
         "
             trait ConstBaz<const N:usize> {
                 fn baz(self);

@@ -1,6 +1,6 @@
 #[doc(hidden)]
 #[macro_export]
-macro_rules! declare_comp_field_accessor {( 
+macro_rules! declare_comp_field_accessor {(
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
 
@@ -10,7 +10,7 @@ macro_rules! declare_comp_field_accessor {(
     #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     $(#[ $extra_attrs ])*
     pub struct CompFieldAccessor(u8);
-    
+
     /// The type that CompFieldAccessor is represented as.
     pub type CompFieldAccessorRepr=u8;
 
@@ -20,7 +20,7 @@ macro_rules! declare_comp_field_accessor {(
         /// Equivalent to the `FieldAccessor::Method` variant.
         pub const METHOD:Self=CompFieldAccessor(1);
         /// Equivalent to the `FieldAccessor::MethodNamed` variant,
-        /// in which the name is stored within SharedVars after the 
+        /// in which the name is stored within SharedVars after the
         /// name of the field this is an accessor for.
         pub const METHOD_NAMED:Self=CompFieldAccessor(2);
         /// Equivalent to the `FieldAccessor::MethodOption` variant.
@@ -39,7 +39,7 @@ macro_rules! declare_comp_field_accessor {(
         pub const fn to_u3(self)->u8{
             self.0&Self::MASK
         }
-        
+
         /// Constructs this `CompFieldAccessor` from its representation.
         pub const fn from_u3(n:u8)->Self{
             CompFieldAccessor(n&Self::MASK)

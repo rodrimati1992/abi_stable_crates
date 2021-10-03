@@ -1,173 +1,163 @@
 use abi_stable::{
-    StableAbi,
     abi_stability::check_layout_compatibility,
-    type_layout::{TypeLayout,TLData},
-    RTuple,tag,
+    tag,
+    type_layout::{TLData, TypeLayout},
+    RTuple, StableAbi,
 };
-
 
 /// Tests that `#[sabi(bound="")]` on a field works.
 #[cfg(not(feature = "no_fn_promotion"))]
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(tag="tag![ <T as abi_stable::const_utils::AssocStr>::STR ]")]
+#[sabi(tag = "tag![ <T as abi_stable::const_utils::AssocStr>::STR ]")]
 #[allow(dead_code)]
-pub struct FieldBound<T>{
-    #[sabi(bound="abi_stable::const_utils::AssocStr")]
-    pub value:T,
+pub struct FieldBound<T> {
+    #[sabi(bound = "abi_stable::const_utils::AssocStr")]
+    pub value: T,
 }
 
 /// Tests that `#[sabi(bound="")]` on a type definition works.
 #[cfg(not(feature = "no_fn_promotion"))]
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(bound="T:abi_stable::const_utils::AssocStr")]
-#[sabi(tag="tag![ <T as abi_stable::const_utils::AssocStr>::STR ]")]
+#[sabi(bound = "T:abi_stable::const_utils::AssocStr")]
+#[sabi(tag = "tag![ <T as abi_stable::const_utils::AssocStr>::STR ]")]
 #[allow(dead_code)]
-pub struct TypeBound<T>{
-    pub value:T,
+pub struct TypeBound<T> {
+    pub value: T,
 }
-
-
 
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
 #[sabi(unsafe_opaque_fields)]
-pub struct UnsafeOpaqueFields0<T,U>{
-    hello:T,
-    world:U,
+pub struct UnsafeOpaqueFields0<T, U> {
+    hello: T,
+    world: U,
 }
 
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
-pub struct UnsafeSabiOpaqueFields0<T,U>{
-    hello:T,
-    world:U,
+pub struct UnsafeSabiOpaqueFields0<T, U> {
+    hello: T,
+    world: U,
 }
 
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-pub struct UnsafeOpaqueField0<T,U>{
-    hello:T,
+pub struct UnsafeOpaqueField0<T, U> {
+    hello: T,
     #[sabi(unsafe_opaque_field)]
-    world:U,
-}
-    
-#[repr(C)]
-#[derive(abi_stable::StableAbi)]
-pub struct UnsafeSabiOpaqueField0<T,U>{
-    hello:T,
-    #[sabi(unsafe_sabi_opaque_field)]
-    world:U,
+    world: U,
 }
 
-    
+#[repr(C)]
+#[derive(abi_stable::StableAbi)]
+pub struct UnsafeSabiOpaqueField0<T, U> {
+    hello: T,
+    #[sabi(unsafe_sabi_opaque_field)]
+    world: U,
+}
+
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
 #[sabi(unsafe_allow_type_macros)]
-pub struct WithTypeMacro{
-    type_:RTuple!((),(),()),
+pub struct WithTypeMacro {
+    type_: RTuple!((), (), ()),
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
 #[test]
-fn is_sabi_opaque_fields(){
-    let list:Vec<(&'static TypeLayout,Vec<Option<&'static str>>)>=vec![
+fn is_sabi_opaque_fields() {
+    let list: Vec<(&'static TypeLayout, Vec<Option<&'static str>>)> = vec![
         (
-            UnsafeOpaqueFields0::<u32,u32>::LAYOUT,
-            vec![Some("OpaqueField"),Some("OpaqueField")]
+            UnsafeOpaqueFields0::<u32, u32>::LAYOUT,
+            vec![Some("OpaqueField"), Some("OpaqueField")],
         ),
         (
-            UnsafeSabiOpaqueFields0::<u32,u32>::LAYOUT,
-            vec![Some("OpaqueField"),Some("OpaqueField")]
+            UnsafeSabiOpaqueFields0::<u32, u32>::LAYOUT,
+            vec![Some("OpaqueField"), Some("OpaqueField")],
         ),
         (
-            UnsafeOpaqueField0::<u32,u32>::LAYOUT,
-            vec![None,Some("OpaqueField")]
+            UnsafeOpaqueField0::<u32, u32>::LAYOUT,
+            vec![None, Some("OpaqueField")],
         ),
         (
-            UnsafeSabiOpaqueField0::<u32,u32>::LAYOUT,
-            vec![None,Some("OpaqueField")]
+            UnsafeSabiOpaqueField0::<u32, u32>::LAYOUT,
+            vec![None, Some("OpaqueField")],
         ),
     ];
 
-    for (layout,field_typenames) in list {
-        let fields=match layout.data() {
-            TLData::Struct{fields}=>fields,
-            _=>unreachable!()
+    for (layout, field_typenames) in list {
+        let fields = match layout.data() {
+            TLData::Struct { fields } => fields,
+            _ => unreachable!(),
         };
 
-        for (field,field_typename) in fields.into_iter().zip(field_typenames) {
-            if let Some(typename)=field_typename {
-                assert_eq!( field.layout().name(), typename );
+        for (field, field_typename) in fields.into_iter().zip(field_typenames) {
+            if let Some(typename) = field_typename {
+                assert_eq!(field.layout().name(), typename);
             }
         }
     }
 }
 
-
 #[test]
 fn same_opaque_fields() {
-    let lists=vec![
+    let lists = vec![
         vec![
-            UnsafeOpaqueFields0::<u32,u32>::LAYOUT,
-            UnsafeOpaqueFields0::<u32,i32>::LAYOUT,
-            UnsafeOpaqueFields0::<i32,u32>::LAYOUT,
-            UnsafeOpaqueFields0::<i32,i32>::LAYOUT,
+            UnsafeOpaqueFields0::<u32, u32>::LAYOUT,
+            UnsafeOpaqueFields0::<u32, i32>::LAYOUT,
+            UnsafeOpaqueFields0::<i32, u32>::LAYOUT,
+            UnsafeOpaqueFields0::<i32, i32>::LAYOUT,
         ],
         vec![
-            UnsafeSabiOpaqueFields0::<u32,u32>::LAYOUT,
-            UnsafeSabiOpaqueFields0::<u32,i32>::LAYOUT,
-            UnsafeSabiOpaqueFields0::<i32,u32>::LAYOUT,
-            UnsafeSabiOpaqueFields0::<i32,i32>::LAYOUT,
+            UnsafeSabiOpaqueFields0::<u32, u32>::LAYOUT,
+            UnsafeSabiOpaqueFields0::<u32, i32>::LAYOUT,
+            UnsafeSabiOpaqueFields0::<i32, u32>::LAYOUT,
+            UnsafeSabiOpaqueFields0::<i32, i32>::LAYOUT,
         ],
         vec![
-            UnsafeOpaqueField0::<u32,u32>::LAYOUT,
-            UnsafeOpaqueField0::<u32,i32>::LAYOUT,
+            UnsafeOpaqueField0::<u32, u32>::LAYOUT,
+            UnsafeOpaqueField0::<u32, i32>::LAYOUT,
         ],
         vec![
-            UnsafeSabiOpaqueField0::<u32,u32>::LAYOUT,
-            UnsafeSabiOpaqueField0::<u32,i32>::LAYOUT,
+            UnsafeSabiOpaqueField0::<u32, u32>::LAYOUT,
+            UnsafeSabiOpaqueField0::<u32, i32>::LAYOUT,
         ],
     ];
 
     for list in lists {
         for window in list.windows(2) {
-            check_layout_compatibility( window[0], window[1] ).unwrap();
+            check_layout_compatibility(window[0], window[1]).unwrap();
         }
     }
 }
 
-
 #[test]
 fn different_opaque_fields() {
     #[allow(unused_mut)]
-    let mut list=vec![
-        UnsafeOpaqueFields0::<u32,u32>::LAYOUT,
-        UnsafeOpaqueFields0::<u32,u64>::LAYOUT,
-        
-        UnsafeSabiOpaqueFields0::<u32,u32>::LAYOUT,
-        UnsafeSabiOpaqueFields0::<u32,u64>::LAYOUT,
+    let mut list = vec![
+        UnsafeOpaqueFields0::<u32, u32>::LAYOUT,
+        UnsafeOpaqueFields0::<u32, u64>::LAYOUT,
+        UnsafeSabiOpaqueFields0::<u32, u32>::LAYOUT,
+        UnsafeSabiOpaqueFields0::<u32, u64>::LAYOUT,
     ];
 
     #[cfg(not(miri))]
     list.extend_from_slice(&[
-        UnsafeOpaqueField0::<u32,u32>::LAYOUT,
-        UnsafeOpaqueField0::<i32,u32>::LAYOUT,
-        UnsafeOpaqueField0::<u32,u64>::LAYOUT,
-
-        UnsafeSabiOpaqueField0::<u32,u32>::LAYOUT,
-        UnsafeSabiOpaqueField0::<i32,u32>::LAYOUT,
-        UnsafeSabiOpaqueField0::<u32,u64>::LAYOUT,
+        UnsafeOpaqueField0::<u32, u32>::LAYOUT,
+        UnsafeOpaqueField0::<i32, u32>::LAYOUT,
+        UnsafeOpaqueField0::<u32, u64>::LAYOUT,
+        UnsafeSabiOpaqueField0::<u32, u32>::LAYOUT,
+        UnsafeSabiOpaqueField0::<i32, u32>::LAYOUT,
+        UnsafeSabiOpaqueField0::<u32, u64>::LAYOUT,
     ]);
 
     for (i, this) in list.iter().cloned().enumerate() {
         for (j, other) in list.iter().cloned().enumerate() {
-            let res=check_layout_compatibility(this, other);
+            let res = check_layout_compatibility(this, other);
             if i == j {
                 res.unwrap();
             } else {

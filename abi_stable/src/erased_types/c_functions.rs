@@ -2,20 +2,17 @@
 
 use std::{
     fmt,
-    io::{self,Write as IoWrite,Read,BufRead},
-    ptr,
-    mem,
+    io::{self, BufRead, Read, Write as IoWrite},
+    mem, ptr,
 };
 
 use super::*;
 
 use crate::{
     marker_type::ErasedObject,
-    sabi_types::{RRef, RMut},
-    std_types::{
-        RIoError,RSeekFrom,
-    },
-    pointer_trait::{GetPointerKind,PK_SmartPointer,PK_Reference,PK_MutReference},
+    pointer_trait::{GetPointerKind, PK_MutReference, PK_Reference, PK_SmartPointer},
+    sabi_types::{RMut, RRef},
+    std_types::{RIoError, RSeekFrom},
 };
 
 use core_extensions::utils::transmute_ignore_size;
@@ -39,18 +36,15 @@ pub(crate) unsafe fn adapt_std_fmt<T>(
     fmt::Display::fmt(&*buf, formatter)
 }
 
-
-
-pub(crate) unsafe extern "C" fn drop_pointer_impl<OrigP,ErasedPtr>(this: RMut<'_, ErasedPtr>){
+pub(crate) unsafe extern "C" fn drop_pointer_impl<OrigP, ErasedPtr>(this: RMut<'_, ErasedPtr>) {
     extern_fn_panic_handling! {
         let this=this.transmute_into_mut::<OrigP>();
         ptr::drop_in_place(this);
     }
 }
 
-
-pub(crate) unsafe extern "C" fn clone_pointer_impl<OrigP,ErasedPtr>(
-    this: RRef<'_, ErasedPtr>
+pub(crate) unsafe extern "C" fn clone_pointer_impl<OrigP, ErasedPtr>(
+    this: RRef<'_, ErasedPtr>,
 ) -> ErasedPtr
 where
     OrigP: Clone,
@@ -62,7 +56,6 @@ where
     }
 }
 
-
 ////////////////////////////////////////////////////
 
 /*
@@ -71,42 +64,40 @@ only requiring `std::default::Default` for `PK_SmartPointer`
 because it is the only one for which `DynTrait::default` can be called.
 */
 
-pub trait DefaultImpl<PtrKind>{
-    fn default_impl()->Self;    
+pub trait DefaultImpl<PtrKind> {
+    fn default_impl() -> Self;
 }
 
 impl<This> DefaultImpl<PK_SmartPointer> for This
-where 
-    Self:Default
+where
+    Self: Default,
 {
-    fn default_impl()->Self{
+    fn default_impl() -> Self {
         Default::default()
     }
 }
 
-impl<This> DefaultImpl<PK_Reference> for This{
-    fn default_impl()->Self{
+impl<This> DefaultImpl<PK_Reference> for This {
+    fn default_impl() -> Self {
         unreachable!("This should not be called in DynTrait::default")
     }
 }
 
-impl<This> DefaultImpl<PK_MutReference> for This{
-    fn default_impl()->Self{
+impl<This> DefaultImpl<PK_MutReference> for This {
+    fn default_impl() -> Self {
         unreachable!("This should not be called in DynTrait::default")
     }
 }
 
-
-pub(crate) unsafe extern "C" fn default_pointer_impl<OrigP,ErasedPtr>() -> ErasedPtr
+pub(crate) unsafe extern "C" fn default_pointer_impl<OrigP, ErasedPtr>() -> ErasedPtr
 where
-    OrigP:GetPointerKind,
-    OrigP:DefaultImpl<<OrigP as GetPointerKind>::Kind>,
+    OrigP: GetPointerKind,
+    OrigP: DefaultImpl<<OrigP as GetPointerKind>::Kind>,
 {
     extern_fn_panic_handling! {
         transmute_ignore_size( OrigP::default_impl() )
     }
 }
-
 
 /////////////
 
@@ -157,15 +148,15 @@ where
     }
 }
 
-pub(crate) unsafe extern "C" fn serialize_impl<'s,T,I>(
-    this: RRef<'s, ErasedObject>
+pub(crate) unsafe extern "C" fn serialize_impl<'s, T, I>(
+    this: RRef<'s, ErasedObject>,
 ) -> RResult<<I as SerializeProxyType<'s>>::Proxy, RBoxError>
 where
-    T: for<'borr> SerializeImplType<'borr,Interface=I>,
+    T: for<'borr> SerializeImplType<'borr, Interface = I>,
     I: for<'borr> SerializeProxyType<'borr>,
 {
     extern_fn_panic_handling! {
-        let ret: RResult<<I as SerializeProxyType<'_>>::Proxy, RBoxError> = 
+        let ret: RResult<<I as SerializeProxyType<'_>>::Proxy, RBoxError> =
             this
             .transmute_into_ref::<T>()
             .serialize_impl()
@@ -177,7 +168,7 @@ where
 
 pub(crate) unsafe extern "C" fn partial_eq_impl<T>(
     this: RRef<'_, ErasedObject>,
-    other: RRef<'_, ErasedObject>
+    other: RRef<'_, ErasedObject>,
 ) -> bool
 where
     T: PartialEq,
@@ -204,7 +195,7 @@ where
 }
 
 pub(crate) unsafe extern "C" fn partial_cmp_ord<T>(
-    this: RRef<'_, ErasedObject>, 
+    this: RRef<'_, ErasedObject>,
     other: RRef<'_, ErasedObject>,
 ) -> ROption<RCmpOrdering>
 where
@@ -240,8 +231,7 @@ pub(crate) unsafe extern "C" fn hash_Hash<T>(
 pub(crate) unsafe extern "C" fn hash_slice_Hasher<T>(
     this: RMut<'_, ErasedObject>,
     slic_: RSlice<'_, u8>,
-)
-where
+) where
     T: Hasher,
 {
     extern_fn_panic_handling! {
@@ -264,12 +254,12 @@ where
 ////                        fmt
 //////////////////////////////////////////////////////////////////////////////////////
 
-
 pub(super) unsafe extern "C" fn write_str_fmt_write<T>(
-    this:RMut<'_, ErasedObject>, 
-    data:RStr<'_>
+    this: RMut<'_, ErasedObject>,
+    data: RStr<'_>,
 ) -> RResult<(), ()>
-where T:fmt::Write,
+where
+    T: fmt::Write,
 {
     extern_fn_panic_handling! {
         let this=unsafe{ this.transmute_into_mut::<T>() };
@@ -280,67 +270,56 @@ where T:fmt::Write,
     }
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////////
 ////                         io
 //////////////////////////////////////////////////////////////////////////////////////
 
-
-
 #[inline]
-fn convert_io_result<T,U>(res:io::Result<T>)->RResult<U,RIoError>
+fn convert_io_result<T, U>(res: io::Result<T>) -> RResult<U, RIoError>
 where
-    T:Into<U>
+    T: Into<U>,
 {
     match res {
-        Ok(v)=>ROk(v.into()),
-        Err(e)=>RErr(RIoError::from(e)),
+        Ok(v) => ROk(v.into()),
+        Err(e) => RErr(RIoError::from(e)),
     }
 }
 
-
 ///////////////////////////
 
-
 #[repr(C)]
-#[derive(StableAbi)]
-#[derive(Copy,Clone)]
-pub struct IoWriteFns{
-    pub(super) write:
-        unsafe extern "C" fn (
-            RMut<'_, ErasedObject>,
-            buf: RSlice<'_,u8>
-        ) -> RResult<usize,RIoError>,
+#[derive(StableAbi, Copy, Clone)]
+pub struct IoWriteFns {
+    pub(super) write: unsafe extern "C" fn(
+        RMut<'_, ErasedObject>,
+        buf: RSlice<'_, u8>,
+    ) -> RResult<usize, RIoError>,
 
     pub(super) write_all:
-        unsafe extern "C" fn (
-            RMut<'_, ErasedObject>,
-            buf: RSlice<'_,u8>
-        ) -> RResult<(),RIoError>,
+        unsafe extern "C" fn(RMut<'_, ErasedObject>, buf: RSlice<'_, u8>) -> RResult<(), RIoError>,
 
-    pub(super) flush:unsafe extern "C" fn (RMut<'_, ErasedObject>) -> RResult<(),RIoError>,
+    pub(super) flush: unsafe extern "C" fn(RMut<'_, ErasedObject>) -> RResult<(), RIoError>,
 }
-
 
 pub(super) struct MakeIoWriteFns<W>(W);
 
 impl<W> MakeIoWriteFns<W>
 where
-    W:IoWrite
+    W: IoWrite,
 {
-    pub(super) const NEW:IoWriteFns=IoWriteFns{
-        write:io_Write_write::<W>,
-        write_all:io_Write_write_all::<W>,
-        flush:io_Write_flush::<W>,
+    pub(super) const NEW: IoWriteFns = IoWriteFns {
+        write: io_Write_write::<W>,
+        write_all: io_Write_write_all::<W>,
+        flush: io_Write_flush::<W>,
     };
 }
 
-
 pub(super) unsafe extern "C" fn io_Write_write<W>(
-    this:RMut<'_, ErasedObject>, 
-    buf: RSlice<'_,u8>
-) -> RResult<usize,RIoError>
-where W:IoWrite
+    this: RMut<'_, ErasedObject>,
+    buf: RSlice<'_, u8>,
+) -> RResult<usize, RIoError>
+where
+    W: IoWrite,
 {
     extern_fn_panic_handling! {
         let this=this.transmute_into_mut::<W>();
@@ -350,10 +329,11 @@ where W:IoWrite
 }
 
 pub(super) unsafe extern "C" fn io_Write_write_all<W>(
-    this:RMut<'_, ErasedObject>, 
-    buf: RSlice<'_,u8>
-) -> RResult<(),RIoError>
-where W:IoWrite
+    this: RMut<'_, ErasedObject>,
+    buf: RSlice<'_, u8>,
+) -> RResult<(), RIoError>
+where
+    W: IoWrite,
 {
     extern_fn_panic_handling! {
         let this=this.transmute_into_mut::<W>();
@@ -362,8 +342,11 @@ where W:IoWrite
     }
 }
 
-pub(super) unsafe extern "C" fn io_Write_flush<W>( this:RMut<'_, ErasedObject> ) -> RResult<(),RIoError>
-where W:IoWrite
+pub(super) unsafe extern "C" fn io_Write_flush<W>(
+    this: RMut<'_, ErasedObject>,
+) -> RResult<(), RIoError>
+where
+    W: IoWrite,
 {
     extern_fn_panic_handling! {
         let this=this.transmute_into_mut::<W>();
@@ -372,40 +355,36 @@ where W:IoWrite
     }
 }
 
-
 ///////////////////////////
 
-
 #[repr(C)]
-#[derive(StableAbi)]
-#[derive(Copy,Clone)]
-pub struct IoReadFns{
+#[derive(StableAbi, Copy, Clone)]
+pub struct IoReadFns {
     pub(super) read:
-        unsafe extern "C" fn(RMut<'_, ErasedObject>,RSliceMut<'_,u8>) -> RResult<usize,RIoError>,
+        unsafe extern "C" fn(RMut<'_, ErasedObject>, RSliceMut<'_, u8>) -> RResult<usize, RIoError>,
 
     pub(super) read_exact:
-        unsafe extern "C" fn(RMut<'_, ErasedObject>,RSliceMut<'_,u8>) -> RResult<(),RIoError>,
+        unsafe extern "C" fn(RMut<'_, ErasedObject>, RSliceMut<'_, u8>) -> RResult<(), RIoError>,
 }
-
 
 pub(super) struct MakeIoReadFns<W>(W);
 
 impl<W> MakeIoReadFns<W>
 where
-    W:io::Read
+    W: io::Read,
 {
-    pub(super) const NEW:IoReadFns=IoReadFns{
-        read:io_Read_read::<W>,
-        read_exact:io_Read_read_exact::<W>,
+    pub(super) const NEW: IoReadFns = IoReadFns {
+        read: io_Read_read::<W>,
+        read_exact: io_Read_read_exact::<W>,
     };
 }
 
-
 pub(super) unsafe extern "C" fn io_Read_read<R>(
-    this:RMut<'_, ErasedObject>, 
-    buf: RSliceMut<'_,u8>
-) -> RResult<usize,RIoError>
-where R:Read
+    this: RMut<'_, ErasedObject>,
+    buf: RSliceMut<'_, u8>,
+) -> RResult<usize, RIoError>
+where
+    R: Read,
 {
     extern_fn_panic_handling! {
         let this=this.transmute_into_mut::<R>();
@@ -414,12 +393,12 @@ where R:Read
     }
 }
 
-
 pub(super) unsafe extern "C" fn io_Read_read_exact<R>(
-    this:RMut<'_, ErasedObject>, 
-    buf: RSliceMut<'_,u8>
-) -> RResult<(),RIoError>
-where R:Read
+    this: RMut<'_, ErasedObject>,
+    buf: RSliceMut<'_, u8>,
+) -> RResult<(), RIoError>
+where
+    R: Read,
 {
     extern_fn_panic_handling! {
         let this=this.transmute_into_mut::<R>();
@@ -430,34 +409,32 @@ where R:Read
 
 ///////////////////////////
 
-
 #[repr(C)]
-#[derive(StableAbi)]
-#[derive(Copy,Clone)]
-pub struct IoBufReadFns{
+#[derive(StableAbi, Copy, Clone)]
+pub struct IoBufReadFns {
     pub(super) fill_buf:
-        unsafe extern "C" fn(RMut<'_, ErasedObject>) -> RResult<RSlice<'_,u8>,RIoError>,
+        unsafe extern "C" fn(RMut<'_, ErasedObject>) -> RResult<RSlice<'_, u8>, RIoError>,
 
-    pub(super) consume:unsafe extern "C" fn(RMut<'_, ErasedObject>,usize)
+    pub(super) consume: unsafe extern "C" fn(RMut<'_, ErasedObject>, usize),
 }
-
 
 pub(super) struct MakeIoBufReadFns<W>(W);
 
 impl<W> MakeIoBufReadFns<W>
 where
-    W:io::BufRead
+    W: io::BufRead,
 {
-    pub(super) const NEW:IoBufReadFns=IoBufReadFns{
-        fill_buf:io_BufRead_fill_buf::<W>,
-        consume:io_BufRead_consume::<W>,
+    pub(super) const NEW: IoBufReadFns = IoBufReadFns {
+        fill_buf: io_BufRead_fill_buf::<W>,
+        consume: io_BufRead_consume::<W>,
     };
 }
 
 pub(super) unsafe extern "C" fn io_BufRead_fill_buf<R>(
-    this:RMut<'_, ErasedObject>,
-) -> RResult<RSlice<'_,u8>,RIoError>
-where R:BufRead
+    this: RMut<'_, ErasedObject>,
+) -> RResult<RSlice<'_, u8>, RIoError>
+where
+    R: BufRead,
 {
     extern_fn_panic_handling! {
         let this=this.transmute_into_mut::<R>();
@@ -469,12 +446,9 @@ where R:BufRead
     }
 }
 
-
-pub(super) unsafe extern "C" fn io_BufRead_consume<R>(
-    this:RMut<'_, ErasedObject>, 
-    amount: usize
-)where 
-    R:BufRead
+pub(super) unsafe extern "C" fn io_BufRead_consume<R>(this: RMut<'_, ErasedObject>, amount: usize)
+where
+    R: BufRead,
 {
     extern_fn_panic_handling! {
         let this=this.transmute_into_mut::<R>();
@@ -483,16 +457,14 @@ pub(super) unsafe extern "C" fn io_BufRead_consume<R>(
     }
 }
 
-
 ///////////////////////////
 
-
 pub(super) unsafe extern "C" fn io_Seek_seek<S>(
-    this:RMut<'_, ErasedObject>,
-    seek_from:RSeekFrom,
-) -> RResult<u64,RIoError>
-where 
-    S:io::Seek
+    this: RMut<'_, ErasedObject>,
+    seek_from: RSeekFrom,
+) -> RResult<u64, RIoError>
+where
+    S: io::Seek,
 {
     extern_fn_panic_handling! {
         let this=unsafe{ this.transmute_into_mut::<S>() };

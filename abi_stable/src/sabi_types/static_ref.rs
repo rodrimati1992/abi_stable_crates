@@ -1,18 +1,14 @@
-
-use crate::{
-    pointer_trait::{AsPtr, CanTransmuteElement,GetPointerKind,PK_Reference},
-};
+use crate::pointer_trait::{AsPtr, CanTransmuteElement, GetPointerKind, PK_Reference};
 
 use std::{
-    ops::{Deref},
-    fmt::{self,Display},
+    fmt::{self, Display},
+    ops::Deref,
     ptr::NonNull,
 };
 
-
 /**
 A wrapper type for vtable static references,
-and other constants that have `non-'static` generic parameters 
+and other constants that have `non-'static` generic parameters
 but are safe to reference for the lifetime of `T`.
 
 # Purpose
@@ -49,7 +45,7 @@ fn main(){
 #[derive(StableAbi)]
 pub struct BoxLike<T> {
     data: *mut T,
-    
+
     vtable: StaticRef<VTable<T>>,
 
     _marker: PhantomData<T>,
@@ -107,36 +103,30 @@ unsafe fn drop_box<T>(object: *mut T){
 */
 #[repr(transparent)]
 #[derive(StableAbi)]
-pub struct StaticRef<T>{
+pub struct StaticRef<T> {
     ref_: NonNull<T>,
 }
 
 impl<T> Display for StaticRef<T>
 where
-    T:Display
+    T: Display,
 {
-    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-        Display::fmt(&**self,f)
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&**self, f)
     }
 }
 
-
-impl<T> Clone for StaticRef<T>{
-    fn clone(&self)->Self{
+impl<T> Clone for StaticRef<T> {
+    fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T> Copy for StaticRef<T>{}
+impl<T> Copy for StaticRef<T> {}
 
-unsafe impl<'a,T:'a> Sync for StaticRef<T>
-where &'a T:Sync
-{}
+unsafe impl<'a, T: 'a> Sync for StaticRef<T> where &'a T: Sync {}
 
-unsafe impl<'a,T:'a> Send for StaticRef<T>
-where &'a T:Send
-{}
-
+unsafe impl<'a, T: 'a> Send for StaticRef<T> where &'a T: Send {}
 
 shared_impls! {
     mod=static_ref_impls
@@ -144,8 +134,7 @@ shared_impls! {
     original_type=AAAA,
 }
 
-
-impl<T> StaticRef<T>{
+impl<T> StaticRef<T> {
     /// Constructs this StaticRef from a raw pointer.
     ///
     /// # Safety
@@ -168,9 +157,9 @@ impl<T> StaticRef<T>{
     /// }
     ///
     /// ```
-    pub const unsafe fn from_raw(ref_:*const T)->Self{
-        Self{
-            ref_: unsafe{ NonNull::new_unchecked(ref_ as *mut T) },
+    pub const unsafe fn from_raw(ref_: *const T) -> Self {
+        Self {
+            ref_: unsafe { NonNull::new_unchecked(ref_ as *mut T) },
         }
     }
 
@@ -196,18 +185,16 @@ impl<T> StaticRef<T>{
     /// }
     ///
     /// ```
-    pub const fn new(ref_:&'static T)->Self{
-        Self{
-            ref_: unsafe{ NonNull::new_unchecked(ref_ as *const T as *mut T) },
+    pub const fn new(ref_: &'static T) -> Self {
+        Self {
+            ref_: unsafe { NonNull::new_unchecked(ref_ as *const T as *mut T) },
         }
     }
 
     /// Creates a StaticRef by heap allocating and leaking `val`.
     pub fn leak_value(val: T) -> Self {
         // Safety: This is safe, because the value is a leaked heap allocation.
-        unsafe{
-            Self::from_raw(crate::utils::leak_value(val))
-        }
+        unsafe { Self::from_raw(crate::utils::leak_value(val)) }
     }
 
     /// Gets access to the reference.
@@ -233,8 +220,8 @@ impl<T> StaticRef<T>{
     ///     GetPtr::<String>::STATIC.get();
     ///
     /// ```
-    pub fn get<'a>(self)->&'a T{
-        unsafe{ &*(self.ref_.as_ptr() as *const T) }
+    pub fn get<'a>(self) -> &'a T {
+        unsafe { &*(self.ref_.as_ptr() as *const T) }
     }
 
     /// Gets access to the referenced value,as a raw pointer.
@@ -259,7 +246,7 @@ impl<T> StaticRef<T>{
     ///     GetPtr::<Infallible>::STATIC.as_ptr();
     ///
     /// ```
-    pub const fn as_ptr(self)->*const T{
+    pub const fn as_ptr(self) -> *const T {
         self.ref_.as_ptr() as *const T
     }
 
@@ -291,17 +278,15 @@ impl<T> StaticRef<T>{
     /// };
     ///
     /// ```
-    pub const unsafe fn transmute<U>(self)->StaticRef<U>{
-        StaticRef::from_raw(
-            self.ref_.as_ptr() as *const T as *const U
-        )
+    pub const unsafe fn transmute<U>(self) -> StaticRef<U> {
+        StaticRef::from_raw(self.ref_.as_ptr() as *const T as *const U)
     }
 }
 
-impl<T> Deref for StaticRef<T>{
-    type Target=T;
+impl<T> Deref for StaticRef<T> {
+    type Target = T;
 
-    fn deref(&self)->&T{
+    fn deref(&self) -> &T {
         self.get()
     }
 }
@@ -312,14 +297,14 @@ unsafe impl<T> AsPtr for StaticRef<T> {
     }
 }
 
-unsafe impl<T> GetPointerKind for StaticRef<T>{
-    type Kind=PK_Reference;
+unsafe impl<T> GetPointerKind for StaticRef<T> {
+    type Kind = PK_Reference;
 
     type PtrTarget = T;
 }
 
-unsafe impl<T,U> CanTransmuteElement<U> for StaticRef<T>{
-    type TransmutedPtr= StaticRef<U>;
+unsafe impl<T, U> CanTransmuteElement<U> for StaticRef<T> {
+    type TransmutedPtr = StaticRef<U>;
 
     #[inline(always)]
     unsafe fn transmute_element_(self) -> StaticRef<U> {
@@ -327,42 +312,38 @@ unsafe impl<T,U> CanTransmuteElement<U> for StaticRef<T>{
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn construction_test(){
-        unsafe{
+    fn construction_test() {
+        unsafe {
             let three: *const i32 = &3;
             assert_eq!(*StaticRef::from_raw(three), 3);
         }
 
         assert_eq!(*StaticRef::new(&5), 5);
-        
+
         assert_eq!(*StaticRef::leak_value(8), 8);
     }
 
     #[test]
-    fn access(){
+    fn access() {
         let reference = StaticRef::new(&8);
-        
+
         assert_eq!(*reference.get(), 8);
-        unsafe{
+        unsafe {
             assert_eq!(*reference.as_ptr(), 8);
         }
     }
 
     #[test]
-    fn transmutes(){
+    fn transmutes() {
         let reference = StaticRef::new(&(!0u32));
 
-        unsafe{
+        unsafe {
             assert_eq!(*reference.transmute::<i32>(), -1);
         }
     }
 }
-
-

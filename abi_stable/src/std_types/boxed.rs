@@ -2,16 +2,15 @@
 Contains the ffi-safe equivalent of `std::boxed::Box`.
 */
 
-
 use std::{
-    borrow::{Borrow,BorrowMut},
+    borrow::{Borrow, BorrowMut},
     error::Error as StdError,
     future::Future,
     hash::Hasher,
-    iter::FusedIterator,
     io::{self, BufRead, IoSlice, IoSliceMut, Read, Seek, Write},
-    marker::{PhantomData, Unpin}, 
-    mem::ManuallyDrop, 
+    iter::FusedIterator,
+    marker::{PhantomData, Unpin},
+    mem::ManuallyDrop,
     ops::DerefMut,
     pin::Pin,
     ptr,
@@ -24,60 +23,59 @@ use core_extensions::SelfOps;
 use crate::{
     marker_type::NonOwningPhantom,
     pointer_trait::{
-        AsPtr, AsMutPtr,
-        CallReferentDrop,Deallocate, CanTransmuteElement,
-        GetPointerKind,PK_SmartPointer,OwnedPointer,
+        AsMutPtr, AsPtr, CallReferentDrop, CanTransmuteElement, Deallocate, GetPointerKind,
+        OwnedPointer, PK_SmartPointer,
     },
-    traits::{IntoReprRust},
-    sabi_types::{Constructor,MovePtr},
-    std_types::utypeid::{UTypeId,new_utypeid},
-    prefix_type::{PrefixTypeTrait,WithMetadata},
+    prefix_type::{PrefixTypeTrait, WithMetadata},
+    sabi_types::{Constructor, MovePtr},
+    std_types::utypeid::{new_utypeid, UTypeId},
+    traits::IntoReprRust,
 };
 
 // #[cfg(test)]
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(all(test, not(feature = "only_new_tests")))]
 mod test;
 
 mod private {
     use super::*;
 
     /**
-Ffi-safe equivalent of `std::box::Box`.
+    Ffi-safe equivalent of `std::box::Box`.
 
-# Example
+    # Example
 
-Declaring a recursive datatype.
+    Declaring a recursive datatype.
 
-```
-use abi_stable::{
-    std_types::{RBox,RString},
-    StableAbi,
-};
+    ```
+    use abi_stable::{
+        std_types::{RBox,RString},
+        StableAbi,
+    };
 
-#[repr(u8)]
-#[derive(StableAbi)]
-enum Command{
-    SendProduct{
-        id:u64,
-    },
-    GoProtest{
-        cause:RString,
-        place:RString,
-    },
-    SendComplaint{
-        cause:RString,
-        website:RString,
-    },
-    WithMetadata{
-        command:RBox<Command>,
-        metadata:RString,
-    },
-}
+    #[repr(u8)]
+    #[derive(StableAbi)]
+    enum Command{
+        SendProduct{
+            id:u64,
+        },
+        GoProtest{
+            cause:RString,
+            place:RString,
+        },
+        SendComplaint{
+            cause:RString,
+            website:RString,
+        },
+        WithMetadata{
+            command:RBox<Command>,
+            metadata:RString,
+        },
+    }
 
 
-```
+    ```
 
-    */
+        */
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct RBox<T> {
@@ -89,7 +87,7 @@ enum Command{
     impl<T> RBox<T> {
         /// Constucts an `RBox<T>` from a value.
         ///
-        /// # Example 
+        /// # Example
         ///
         /// ```
         /// use abi_stable::std_types::RBox;
@@ -110,7 +108,7 @@ enum Command{
 
         /// Converts a `Box<T>` to an `RBox<T>`,reusing its heap allocation.
         ///
-        /// # Example 
+        /// # Example
         ///
         /// ```
         /// use abi_stable::std_types::RBox;
@@ -134,7 +132,7 @@ enum Command{
         ///
         /// ```
         /// use std::mem::ManuallyDrop;
-        /// 
+        ///
         /// use abi_stable::{
         ///     pointer_trait::OwnedPointer,
         ///     sabi_types::RSmallBox,
@@ -143,11 +141,11 @@ enum Command{
         ///
         /// let b=RSmallBox::<_,[u8;1]>::new(77u8);
         /// let rbox:RBox<_>=b.in_move_ptr(|x| RBox::from_move_ptr(x) );
-        /// 
+        ///
         /// assert_eq!(*rbox,77);
         ///
         /// ```
-        pub fn from_move_ptr(p: MovePtr<'_,T>) -> RBox<T> {
+        pub fn from_move_ptr(p: MovePtr<'_, T>) -> RBox<T> {
             MovePtr::into_rbox(p)
         }
 
@@ -188,8 +186,8 @@ enum Command{
 
 pub use self::private::RBox;
 
-unsafe impl<T> GetPointerKind for RBox<T>{
-    type Kind=PK_SmartPointer;
+unsafe impl<T> GetPointerKind for RBox<T> {
+    type Kind = PK_SmartPointer;
 
     type PtrTarget = T;
 }
@@ -224,10 +222,10 @@ impl<T> RBox<T> {
         let this = ManuallyDrop::new(this);
 
         unsafe {
-            let this_vtable =this.vtable();
-            let other_vtable= VTableGetter::LIB_VTABLE;
-            if ::std::ptr::eq(this_vtable.0.to_raw_ptr(), other_vtable.0.to_raw_ptr())||
-                this_vtable.type_id()==other_vtable.type_id()
+            let this_vtable = this.vtable();
+            let other_vtable = VTableGetter::LIB_VTABLE;
+            if ::std::ptr::eq(this_vtable.0.to_raw_ptr(), other_vtable.0.to_raw_ptr())
+                || this_vtable.type_id() == other_vtable.type_id()
             {
                 Box::from_raw(this.data())
             } else {
@@ -235,7 +233,8 @@ impl<T> RBox<T> {
                 // Just deallocating the Box<_>. without dropping the inner value
                 (this.vtable().destructor())(
                     this.data() as *mut (),
-                    CallReferentDrop::No,Deallocate::Yes
+                    CallReferentDrop::No,
+                    Deallocate::Yes,
                 );
                 ret
             }
@@ -266,9 +265,7 @@ impl<T> RBox<T> {
     ///
     pub fn into_pin(self) -> Pin<RBox<T>> {
         // safety: this is the same as what Box does.
-        unsafe {
-            Pin::new_unchecked(self)
-        }
+        unsafe { Pin::new_unchecked(self) }
     }
 }
 
@@ -280,54 +277,46 @@ impl<T> DerefMut for RBox<T> {
 
 /////////////////////////////////////////////////////////////////
 
-
-
-unsafe impl<T> OwnedPointer for RBox<T>{
+unsafe impl<T> OwnedPointer for RBox<T> {
     #[inline]
-    unsafe fn get_move_ptr(this: &mut ManuallyDrop<Self>) -> MovePtr<'_, T>{
+    unsafe fn get_move_ptr(this: &mut ManuallyDrop<Self>) -> MovePtr<'_, T> {
         MovePtr::from_raw(this.data_mut())
     }
 
     #[inline]
-    unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>){
+    unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>) {
         unsafe {
             let data: *mut T = this.data();
-            (this.vtable().destructor())(data as *mut (), CallReferentDrop::No,Deallocate::Yes);
+            (this.vtable().destructor())(data as *mut (), CallReferentDrop::No, Deallocate::Yes);
         }
     }
 }
 
-
 /////////////////////////////////////////////////////////////////
 
-
-impl<T> Borrow<T> for RBox<T>{
-    fn borrow(&self)->&T{
+impl<T> Borrow<T> for RBox<T> {
+    fn borrow(&self) -> &T {
         self
     }
 }
 
-
-impl<T> BorrowMut<T> for RBox<T>{
-    fn borrow_mut(&mut self)->&mut T{
+impl<T> BorrowMut<T> for RBox<T> {
+    fn borrow_mut(&mut self) -> &mut T {
         self
     }
 }
 
-
-impl<T> AsRef<T> for RBox<T>{
-    fn as_ref(&self)->&T{
+impl<T> AsRef<T> for RBox<T> {
+    fn as_ref(&self) -> &T {
         self
     }
 }
 
-
-impl<T> AsMut<T> for RBox<T>{
-    fn as_mut(&mut self)->&mut T{
+impl<T> AsMut<T> for RBox<T> {
+    fn as_mut(&mut self) -> &mut T {
         self
     }
 }
-
 
 /////////////////////////////////////////////////////////////////
 
@@ -387,9 +376,9 @@ impl<T> Unpin for RBox<T> {}
 
 ///////////////////////////////////////////////////////////////
 
-impl<I> Iterator for RBox<I> 
+impl<I> Iterator for RBox<I>
 where
-    I: Iterator
+    I: Iterator,
 {
     type Item = I::Item;
     fn next(&mut self) -> Option<I::Item> {
@@ -406,9 +395,9 @@ where
     }
 }
 
-impl<I> DoubleEndedIterator for RBox<I> 
+impl<I> DoubleEndedIterator for RBox<I>
 where
-    I: DoubleEndedIterator
+    I: DoubleEndedIterator,
 {
     fn next_back(&mut self) -> Option<I::Item> {
         (**self).next_back()
@@ -418,26 +407,22 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for RBox<I> 
+impl<I> ExactSizeIterator for RBox<I>
 where
-    I: ExactSizeIterator
+    I: ExactSizeIterator,
 {
     fn len(&self) -> usize {
         (**self).len()
     }
 }
 
-impl<I> FusedIterator for RBox<I> 
-where
-    I: FusedIterator
-{}
-
+impl<I> FusedIterator for RBox<I> where I: FusedIterator {}
 
 ///////////////////////////////////////////////////////////////
 
-impl<F> Future for RBox<F> 
+impl<F> Future for RBox<F>
 where
-    F: Future + Unpin
+    F: Future + Unpin,
 {
     type Output = F::Output;
 
@@ -448,9 +433,9 @@ where
 
 ///////////////////////////////////////////////////////////////
 
-impl<T> StdError for RBox<T> 
+impl<T> StdError for RBox<T>
 where
-    T: StdError
+    T: StdError,
 {
     #[allow(deprecated, deprecated_in_future)]
     fn description(&self) -> &str {
@@ -469,11 +454,9 @@ where
 
 ///////////////////////////////////////////////////////////////
 
-
-
-impl<T> Read for RBox<T> 
+impl<T> Read for RBox<T>
 where
-    T: Read
+    T: Read,
 {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -501,9 +484,9 @@ where
     }
 }
 
-impl<T> Write for RBox<T> 
+impl<T> Write for RBox<T>
 where
-    T: Write
+    T: Write,
 {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -531,9 +514,9 @@ where
     }
 }
 
-impl<T> Seek for RBox<T> 
+impl<T> Seek for RBox<T>
 where
-    T: Seek
+    T: Seek,
 {
     #[inline]
     fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
@@ -541,9 +524,9 @@ where
     }
 }
 
-impl<T> BufRead for RBox<T> 
+impl<T> BufRead for RBox<T>
 where
-    T: BufRead
+    T: BufRead,
 {
     #[inline]
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
@@ -568,8 +551,7 @@ where
 
 ///////////////////////////////////////////////////////////////
 
-
-impl<T> Hasher for RBox<T> 
+impl<T> Hasher for RBox<T>
 where
     T: Hasher,
 {
@@ -624,7 +606,7 @@ impl<T> Drop for RBox<T> {
         unsafe {
             let data = self.data();
             let dstr = RBox::vtable(self).destructor();
-            dstr(data as *mut (), CallReferentDrop::Yes,Deallocate::Yes);
+            dstr(data as *mut (), CallReferentDrop::Yes, Deallocate::Yes);
         }
     }
 }
@@ -636,34 +618,32 @@ impl<T> Drop for RBox<T> {
 #[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
 pub(crate) struct BoxVtable<T> {
-    type_id:Constructor<UTypeId>,
+    type_id: Constructor<UTypeId>,
     #[sabi(last_prefix_field)]
-    destructor: unsafe extern "C" fn(*mut (), CallReferentDrop,Deallocate),
+    destructor: unsafe extern "C" fn(*mut (), CallReferentDrop, Deallocate),
     _marker: NonOwningPhantom<T>,
 }
 
 struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
-    const DEFAULT_VTABLE:BoxVtable<T>=BoxVtable{
-        type_id:Constructor( new_utypeid::<RBox<()>> ),
+    const DEFAULT_VTABLE: BoxVtable<T> = BoxVtable {
+        type_id: Constructor(new_utypeid::<RBox<()>>),
         destructor: destroy_box::<T>,
         _marker: NonOwningPhantom::NEW,
     };
 
-    staticref!{
-        const WM_DEFAULT: WithMetadata<BoxVtable<T>> = 
+    staticref! {
+        const WM_DEFAULT: WithMetadata<BoxVtable<T>> =
             WithMetadata::new(PrefixTypeTrait::METADATA, Self::DEFAULT_VTABLE);
     }
 
     // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: BoxVtable_Ref<T> = unsafe{
-        BoxVtable_Ref(Self::WM_DEFAULT.as_prefix())
-    };
+    const LIB_VTABLE: BoxVtable_Ref<T> = unsafe { BoxVtable_Ref(Self::WM_DEFAULT.as_prefix()) };
 
     #[cfg(test)]
-    staticref!{
-        const WM_FOR_TESTING: WithMetadata<BoxVtable<T>> = 
+    staticref! {
+        const WM_FOR_TESTING: WithMetadata<BoxVtable<T>> =
             WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 BoxVtable {
@@ -679,7 +659,11 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
         BoxVtable_Ref(Self::WM_FOR_TESTING.as_prefix());
 }
 
-unsafe extern "C" fn destroy_box<T>(ptr: *mut (), call_drop: CallReferentDrop,dealloc:Deallocate) {
+unsafe extern "C" fn destroy_box<T>(
+    ptr: *mut (),
+    call_drop: CallReferentDrop,
+    dealloc: Deallocate,
+) {
     extern_fn_panic_handling! {no_early_return;
         let ptr = ptr as *mut T;
         if let CallReferentDrop::Yes=call_drop {

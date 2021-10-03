@@ -1,14 +1,11 @@
 /*!
 Traits for pointers.
 */
-use std::{
-    mem::ManuallyDrop,
-    ptr::NonNull,
-};
+use std::{mem::ManuallyDrop, ptr::NonNull};
 
 use crate::{
     marker_type::NonOwningPhantom,
-    sabi_types::{MovePtr, RRef, RMut},
+    sabi_types::{MovePtr, RMut, RRef},
     utils::Transmuter,
 };
 
@@ -30,30 +27,27 @@ pub enum CallReferentDrop {
     No,
 }
 
-
 /// Determines whether the pointer is deallocated.
 #[repr(u8)]
-#[derive(Debug,Clone,Copy,PartialEq,Eq,StableAbi)]
-pub enum Deallocate{
+#[derive(Debug, Clone, Copy, PartialEq, Eq, StableAbi)]
+pub enum Deallocate {
     No,
     Yes,
 }
 
-
 ///////////
 
-
 /// What kind of pointer this is.
-/// 
+///
 /// The valid kinds are:
-/// 
+///
 /// - Reference:a `&T`,or a `Copy` wrapper struct containing a `&T`
-/// 
+///
 /// - MutReference:a `&mut T`,or a non-`Drop` wrapper struct containing a `&mut T`
-/// 
+///
 /// - SmartPointer: Any pointer type that's not a reference or a mutable reference.
-/// 
-/// 
+///
+///
 pub unsafe trait GetPointerKind: Sized {
     /// The kind of the pointer.
     type Kind: PointerKindVariant;
@@ -61,7 +55,7 @@ pub unsafe trait GetPointerKind: Sized {
     /// What this pointer points to,
     /// if the type implements `std::ops::Deref` it must be the same as
     /// `<Self as Deref>::Target`.
-    /// 
+    ///
     /// This is here so that pointers don't *have to* implement `Deref`.
     type PtrTarget;
 
@@ -70,27 +64,26 @@ pub unsafe trait GetPointerKind: Sized {
 }
 
 /// A type-level equivalent of a PointerKind variant.
-pub trait PointerKindVariant:Sealed{
+pub trait PointerKindVariant: Sealed {
     /// The value of the PointerKind variant Self is equivalent to.
-    const VALUE:PointerKind;
+    const VALUE: PointerKind;
 }
 
 use self::sealed::Sealed;
-mod sealed{
-    pub trait Sealed{}
+mod sealed {
+    pub trait Sealed {}
 }
 
-
 /// Describes the kind of a pointer.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash,StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, StableAbi)]
 #[repr(u8)]
-pub enum PointerKind{
+pub enum PointerKind {
     /// a `&T`,or a `Copy` wrapper struct containing a `&T`
     Reference,
     /// a `&mut T`,or a non-`Drop` wrapper struct containing a `&mut T`
     MutReference,
     /// Any pointer type that's not a reference or a mutable reference.
-    SmartPointer
+    SmartPointer,
 }
 
 /// The type-level equivalent of `PointerKind::Reference`.
@@ -105,57 +98,54 @@ pub struct PK_MutReference;
 #[allow(non_camel_case_types)]
 pub struct PK_SmartPointer;
 
-impl Sealed for PK_Reference{}
-impl Sealed for PK_MutReference{}
-impl Sealed for PK_SmartPointer{}
+impl Sealed for PK_Reference {}
+impl Sealed for PK_MutReference {}
+impl Sealed for PK_SmartPointer {}
 
-impl PointerKindVariant for PK_Reference{
-    const VALUE:PointerKind=PointerKind::Reference;
+impl PointerKindVariant for PK_Reference {
+    const VALUE: PointerKind = PointerKind::Reference;
 }
 
-impl PointerKindVariant for PK_MutReference{
-    const VALUE:PointerKind=PointerKind::MutReference;
+impl PointerKindVariant for PK_MutReference {
+    const VALUE: PointerKind = PointerKind::MutReference;
 }
 
-impl PointerKindVariant for PK_SmartPointer{
-    const VALUE:PointerKind=PointerKind::SmartPointer;
+impl PointerKindVariant for PK_SmartPointer {
+    const VALUE: PointerKind = PointerKind::SmartPointer;
 }
 
-unsafe impl<'a,T> GetPointerKind for &'a T{
-    type Kind=PK_Reference;
+unsafe impl<'a, T> GetPointerKind for &'a T {
+    type Kind = PK_Reference;
     type PtrTarget = T;
 }
 
-unsafe impl<'a,T> GetPointerKind for &'a mut T{
-    type Kind=PK_MutReference;
+unsafe impl<'a, T> GetPointerKind for &'a mut T {
+    type Kind = PK_MutReference;
     type PtrTarget = T;
 }
-
-
 
 ///////////
 
-
 /// Whether the pointer can be transmuted to an equivalent pointer with `T` as the referent type.
-/// 
+///
 /// # Safety for implementor
-/// 
+///
 /// Implementors of this trait must ensure that:
-/// 
-/// - The memory layout of this 
+///
+/// - The memory layout of this
 /// type is the same regardless of the type of the referent.
-/// 
+///
 /// - The pointer type is either `!Drop`(no drop glue either),
 /// or it uses a vtable to Drop the referent and deallocate the memory correctly.
-/// 
+///
 /// - `transmute_element_` must return a pointer to the same allocation as `self`,
 /// at the same offset,
 /// and with no reduced provenance
 /// (the range of addresses that are valid to dereference with pointers
 /// derived from the returned pointer).
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust
 /// use abi_stable::{
 ///     pointer_trait::{
@@ -165,7 +155,7 @@ unsafe impl<'a,T> GetPointerKind for &'a mut T{
 ///     sabi_types::StaticRef,
 ///     std_types::{Tuple2, Tuple4},
 /// };
-/// 
+///
 /// fn main() {
 ///     let reff = FooRef::new(&Tuple4::<u8, u16, u32, u64>(3, 5, 8, 13));
 ///     
@@ -173,12 +163,12 @@ unsafe impl<'a,T> GetPointerKind for &'a mut T{
 ///     let smaller = unsafe{ reff.transmute_element::<Tuple2<u8, u16>>() };
 ///     assert_eq!(smaller.get(), &Tuple2(3u8, 5u16));
 /// }
-/// 
-/// 
+///
+///
 /// #[derive(Debug, Copy, Clone)]
 /// #[repr(transparent)]
 /// struct FooRef<T>(StaticRef<T>);
-/// 
+///
 /// impl<T: 'static> FooRef<T> {
 ///     pub const fn new(reff: &'static T) -> Self {
 ///         Self(StaticRef::new(reff))
@@ -187,13 +177,13 @@ unsafe impl<'a,T> GetPointerKind for &'a mut T{
 ///         self.0.get()
 ///     }
 /// }
-/// 
+///
 /// unsafe impl<T: 'static> GetPointerKind for FooRef<T> {
 ///     type PtrTarget = T;
 ///     type Kind = PK_Reference;
 /// }
-/// 
-/// unsafe impl<T, U> CanTransmuteElement<U> for FooRef<T> 
+///
+/// unsafe impl<T, U> CanTransmuteElement<U> for FooRef<T>
 /// where
 ///     T: 'static,
 ///     U: 'static,
@@ -204,16 +194,16 @@ unsafe impl<'a,T> GetPointerKind for &'a mut T{
 ///         FooRef(self.0.transmute_element_())
 ///     }
 /// }
-/// 
+///
 /// unsafe impl<T: 'static> AsPtr for FooRef<T> {
 ///     fn as_ptr(&self) -> *const T {
 ///         self.0.as_ptr()
 ///     }
 /// }
-/// 
-/// 
-/// 
-/// 
+///
+///
+///
+///
 /// ```
 pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
     /// The type of the pointer after it's element type has been changed.
@@ -232,7 +222,7 @@ pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
     /// therefore transmuting from `&u8` to `&u16` is UB
     /// if the caller does not ensure that the reference is aligned to a multiple of 2 address.
     ///
-    /// 
+    ///
     /// # Example
     ///
     /// ```
@@ -251,7 +241,7 @@ pub unsafe trait CanTransmuteElement<T>: GetPointerKind {
 }
 
 /// Allows transmuting pointers to point to a different type.
-pub trait TransmuteElement{
+pub trait TransmuteElement {
     /// Transmutes the element type of this pointer..
     ///
     /// # Safety
@@ -265,7 +255,7 @@ pub trait TransmuteElement{
     /// therefore transmuting from `&u8` to `&u16` is UB
     /// if the caller does not ensure that the reference is aligned to a multiple of 2 address.
     ///
-    /// 
+    ///
     /// # Example
     ///
     /// ```
@@ -281,7 +271,7 @@ pub trait TransmuteElement{
     ///
     /// ```
     #[inline(always)]
-    unsafe fn transmute_element<T>(self) -> <Self as CanTransmuteElement<T>>::TransmutedPtr 
+    unsafe fn transmute_element<T>(self) -> <Self as CanTransmuteElement<T>>::TransmutedPtr
     where
         Self: CanTransmuteElement<T>,
     {
@@ -289,8 +279,7 @@ pub trait TransmuteElement{
     }
 }
 
-impl<This:?Sized> TransmuteElement for This{}
-
+impl<This: ?Sized> TransmuteElement for This {}
 
 ///////////
 
@@ -307,28 +296,25 @@ unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a T {
 unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a mut T {
     type TransmutedPtr = RMut<'a, O>;
 
-
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
         RMut::from_raw(self as *mut T as *mut O)
     }
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 
-
 /// For getting a const raw pointer to the value that this points to.
-/// 
+///
 /// # Safety
-/// 
+///
 /// The implementor of this trait must return a pointer to the same data as
 /// `Deref::deref`, without constructing a `&Self::Target` in `as_ptr`
 /// (or any function it calls),
-/// 
+///
 /// The implementor of this trait must not override the defaulted methods.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust
 /// use abi_stable::{
 ///     erased_types::interfaces::DebugDefEqInterface,
@@ -339,31 +325,31 @@ unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a mut T {
 ///     sabi_types::StaticRef,
 ///     DynTrait,
 /// };
-/// 
+///
 /// fn main() {
 ///     let reff: DynTrait<BarRef<()>, DebugDefEqInterface> =
 ///         DynTrait::from_any_ptr(BarRef::new(&1234i32), DebugDefEqInterface);
 ///     
 ///     assert_eq!(format!("{:?}", reff), "1234");
 /// }
-/// 
-/// 
+///
+///
 /// #[derive(Debug, Copy, Clone)]
 /// #[repr(transparent)]
 /// struct BarRef<T>(StaticRef<T>);
-/// 
+///
 /// impl<T: 'static> BarRef<T> {
 ///     pub const fn new(reff: &'static T) -> Self {
 ///         Self(StaticRef::new(reff))
 ///     }
 /// }
-/// 
+///
 /// unsafe impl<T: 'static> GetPointerKind for BarRef<T> {
 ///     type PtrTarget = T;
 ///     type Kind = PK_Reference;
 /// }
-/// 
-/// unsafe impl<T, U> CanTransmuteElement<U> for BarRef<T> 
+///
+/// unsafe impl<T, U> CanTransmuteElement<U> for BarRef<T>
 /// where
 ///     T: 'static,
 ///     U: 'static,
@@ -374,14 +360,14 @@ unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a mut T {
 ///         BarRef(self.0.transmute_element_())
 ///     }
 /// }
-/// 
+///
 /// unsafe impl<T: 'static> AsPtr for BarRef<T> {
 ///     fn as_ptr(&self) -> *const T {
 ///         self.0.as_ptr()
 ///     }
 /// }
-/// 
-/// 
+///
+///
 /// ```
 pub unsafe trait AsPtr: GetPointerKind {
     /// Gets a const raw pointer to the value that this points to.
@@ -390,23 +376,23 @@ pub unsafe trait AsPtr: GetPointerKind {
     /// Converts this pointer to an `RRef`.
     #[inline(always)]
     fn as_rref(&self) -> RRef<'_, Self::PtrTarget> {
-        unsafe{ RRef::from_raw(self.as_ptr()) }
+        unsafe { RRef::from_raw(self.as_ptr()) }
     }
 }
 
 /// For getting a mutable raw pointer to the value that this points to.
-/// 
+///
 /// # Safety
-/// 
+///
 /// The implementor of this trait must return a pointer to the same data as
 /// `DerefMut::deref_mut`,
 /// without constructing a `&mut Self::Target` in `as_mut_ptr`
 /// (or any function it calls).
-/// 
+///
 /// The implementor of this trait must not override the defaulted methods.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust
 /// use abi_stable::{
 ///     erased_types::interfaces::DEIteratorInterface,
@@ -417,33 +403,33 @@ pub unsafe trait AsPtr: GetPointerKind {
 ///     sabi_types::RMut,
 ///     DynTrait,
 /// };
-/// 
+///
 /// fn main() {
 ///     let mut iter = 0..=5;
 ///     let reff: DynTrait<QuxMut<()>, DEIteratorInterface<_>> =
 ///         DynTrait::from_any_ptr(QuxMut::new(&mut iter), DEIteratorInterface::NEW);
 ///     
 ///     assert_eq!(reff.collect::<Vec<u32>>(), [0, 1, 2, 3, 4, 5]);
-/// 
+///
 ///     assert_eq!(iter.next(), None);
 /// }
-/// 
-/// 
+///
+///
 /// #[derive(Debug)]
 /// #[repr(transparent)]
 /// struct QuxMut<'a, T>(RMut<'a, T>);
-/// 
+///
 /// impl<'a, T> QuxMut<'a, T> {
 ///     pub fn new(reff: &'a mut T) -> Self {
 ///         Self(RMut::new(reff))
 ///     }
 /// }
-/// 
+///
 /// unsafe impl<T> GetPointerKind for QuxMut<'_, T> {
 ///     type PtrTarget = T;
 ///     type Kind = PK_MutReference;
 /// }
-/// 
+///
 /// unsafe impl<'a, T: 'a, U: 'a> CanTransmuteElement<U> for QuxMut<'a, T> {
 ///     type TransmutedPtr = QuxMut<'a, U>;
 ///     
@@ -451,20 +437,20 @@ pub unsafe trait AsPtr: GetPointerKind {
 ///         QuxMut(self.0.transmute_element_())
 ///     }
 /// }
-/// 
+///
 /// unsafe impl<T> AsPtr for QuxMut<'_, T> {
 ///     fn as_ptr(&self) -> *const T {
 ///         self.0.as_ptr()
 ///     }
 /// }
-/// 
+///
 /// unsafe impl<T> AsMutPtr for QuxMut<'_, T> {
 ///     fn as_mut_ptr(&mut self) -> *mut T {
 ///         self.0.as_mut_ptr()
 ///     }
 /// }
-/// 
-/// 
+///
+///
 /// ```
 pub unsafe trait AsMutPtr: AsPtr {
     /// Gets a mutable raw pointer to the value that this points to.
@@ -473,29 +459,28 @@ pub unsafe trait AsMutPtr: AsPtr {
     /// Converts this pointer to an `RRef`.
     #[inline(always)]
     fn as_rmut(&mut self) -> RMut<'_, Self::PtrTarget> {
-        unsafe{ RMut::from_raw(self.as_mut_ptr()) }
+        unsafe { RMut::from_raw(self.as_mut_ptr()) }
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-
 /// For owned pointers, allows extracting their contents separate from deallocating them.
-/// 
+///
 /// # Safety
-/// 
+///
 /// Implementors must:
-/// 
+///
 /// - Implement this trait such that `get_move_ptr` can be called before `drop_allocation`.
-/// 
+///
 /// - Not override `with_move_ptr`
-/// 
+///
 /// - Not override `in_move_ptr`
-/// 
+///
 /// # Example
-/// 
+///
 /// Implementing this trait for a Box-like type.
-/// 
+///
 /// ```rust
 /// use abi_stable::{
 ///     pointer_trait::{
@@ -506,36 +491,36 @@ pub unsafe trait AsMutPtr: AsPtr {
 ///     std_types::RString,
 ///     StableAbi,
 /// };
-/// 
+///
 /// use std::{
 ///     alloc::{self, Layout},
 ///     marker::PhantomData,
 ///     mem::ManuallyDrop,
 /// };
-/// 
-/// 
+///
+///
 /// fn main(){
 ///     let this = BoxLike::new(RString::from("12345"));
 ///     
 ///     let string: RString = this.in_move_ptr(|x: MovePtr<'_, RString>|{
 ///         MovePtr::into_inner(x)
 ///     });
-/// 
+///
 ///     assert_eq!(string, "12345");
 /// }
-/// 
-/// 
+///
+///
 /// #[repr(C)]
 /// #[derive(StableAbi)]
 /// pub struct BoxLike<T> {
 ///     ptr: *mut T,
 ///     
 ///     dropper: unsafe extern "C" fn(*mut T, CallReferentDrop),
-/// 
+///
 ///     _marker: PhantomData<T>,
 /// }
-/// 
-/// 
+///
+///
 /// impl<T> BoxLike<T>{
 ///     pub fn new(value:T)->Self{
 ///         let box_ = Box::new(value);
@@ -547,18 +532,18 @@ pub unsafe trait AsMutPtr: AsPtr {
 ///         }
 ///     }
 /// }
-/// 
+///
 /// unsafe impl<T> GetPointerKind for BoxLike<T> {
 ///     type PtrTarget = T;
 ///     type Kind = PK_SmartPointer;
 /// }
-/// 
+///
 /// unsafe impl<T> AsPtr for BoxLike<T> {
 ///     fn as_ptr(&self) -> *const T {
 ///         self.ptr
 ///     }
 /// }
-/// 
+///
 /// unsafe impl<T> AsMutPtr for BoxLike<T> {
 ///     fn as_mut_ptr(&mut self) -> *mut T {
 ///         self.ptr
@@ -576,7 +561,7 @@ pub unsafe trait AsMutPtr: AsPtr {
 ///         }
 ///     }
 /// }
-/// 
+///
 /// impl<T> Drop for BoxLike<T>{
 ///     fn drop(&mut self){
 ///         unsafe{
@@ -584,7 +569,7 @@ pub unsafe trait AsMutPtr: AsPtr {
 ///         }
 ///     }
 /// }
-/// 
+///
 /// unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {
 ///     abi_stable::extern_fn_panic_handling! {
 ///         let mut box_ = Box::from_raw(v as *mut ManuallyDrop<T>);
@@ -594,8 +579,8 @@ pub unsafe trait AsMutPtr: AsPtr {
 ///         drop(box_);
 ///     }
 /// }
-/// 
-/// 
+///
+///
 /// ```
 pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// Gets a move pointer to the contents of this pointer.
@@ -603,12 +588,12 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// # Safety
     ///
     /// This function logically moves the owned contents out of this pointer,
-    /// the only safe thing that can be done with the pointer afterwads 
+    /// the only safe thing that can be done with the pointer afterwads
     /// is to call `OwnedPointer::drop_allocation`.
     ///
     /// <span id="get_move_ptr-example"></span>
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// use abi_stable::{
     ///     pointer_trait::OwnedPointer,
@@ -625,12 +610,12 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// // this is only called once,
     /// // and the `RVec` is never accessed again through the `RBox`.
     /// let moveptr: MovePtr<'_, RVec<u8>> = unsafe { OwnedPointer::get_move_ptr(&mut this) };
-    /// 
+    ///
     /// let vector: RVec<u8> = MovePtr::into_inner(moveptr);
-    /// 
+    ///
     /// // safety: this is only called once, after all uses of `this`
     /// unsafe{ OwnedPointer::drop_allocation(&mut this); }
-    /// 
+    ///
     /// assert_eq!(vector[..], [3, 5, 8]);
     ///
     /// ```
@@ -638,8 +623,8 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
 
     /// Deallocates the pointer without dropping its owned contents.
     ///
-    /// Note that if `Self::get_move_ptr` has not been called this will 
-    /// leak the values owned by the referent of the pointer. 
+    /// Note that if `Self::get_move_ptr` has not been called this will
+    /// leak the values owned by the referent of the pointer.
     ///
     /// # Safety
     ///
@@ -647,17 +632,17 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// since it'll deallocate whatever memory this pointer owns.
     ///
     /// # Example
-    /// 
+    ///
     /// [`get_move_ptr` has an example](#get_move_ptr-example) that uses both that function
     /// and this one.
     unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>);
 
     /// Runs a callback with the contents of this pointer, and then deallocates it.
-    /// 
+    ///
     /// The pointer is deallocated even in the case that `func` panics
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// use abi_stable::{
     ///     pointer_trait::OwnedPointer,
@@ -672,27 +657,27 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// let cow: RCow<'static, [u8]> = OwnedPointer::with_move_ptr(this, |moveptr|{
     ///     MovePtr::into_inner(moveptr)
     /// });
-    /// 
+    ///
     /// assert_eq!(cow[..], [13, 21, 34]);
     ///
     /// ```
     #[inline]
-    fn with_move_ptr<F, R>(mut this: ManuallyDrop<Self>, func:F)->R
-    where 
-        F: FnOnce(MovePtr<'_,Self::PtrTarget>) ->R,
+    fn with_move_ptr<F, R>(mut this: ManuallyDrop<Self>, func: F) -> R
+    where
+        F: FnOnce(MovePtr<'_, Self::PtrTarget>) -> R,
     {
-        unsafe{
+        unsafe {
             let guard = DropAllocationMutGuard(&mut this);
             func(Self::get_move_ptr(guard.0))
         }
     }
 
     /// Runs a callback with the contents of this pointer, and then deallocates it.
-    /// 
+    ///
     /// The pointer is deallocated even in the case that `func` panics
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// use abi_stable::{
     ///     pointer_trait::OwnedPointer,
@@ -703,7 +688,7 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// let this = RBox::new(Foo(41));
     ///
     /// let cow: Foo = this.in_move_ptr(|moveptr| MovePtr::into_inner(moveptr) );
-    /// 
+    ///
     /// assert_eq!(cow, Foo(41));
     ///
     ///
@@ -713,11 +698,11 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     ///
     /// ```
     #[inline]
-    fn in_move_ptr<F, R>(self, func:F)->R
-    where 
+    fn in_move_ptr<F, R>(self, func: F) -> R
+    where
         F: FnOnce(MovePtr<'_, Self::PtrTarget>) -> R,
     {
-        unsafe{
+        unsafe {
             let mut guard = DropAllocationGuard(ManuallyDrop::new(self));
             func(Self::get_move_ptr(&mut guard.0))
         }
@@ -729,9 +714,7 @@ struct DropAllocationGuard<T: OwnedPointer>(ManuallyDrop<T>);
 impl<T: OwnedPointer> Drop for DropAllocationGuard<T> {
     #[inline(always)]
     fn drop(&mut self) {
-        unsafe{
-            T::drop_allocation(&mut self.0)
-        }
+        unsafe { T::drop_allocation(&mut self.0) }
     }
 }
 
@@ -740,22 +723,18 @@ struct DropAllocationMutGuard<'a, T: OwnedPointer>(&'a mut ManuallyDrop<T>);
 impl<T: OwnedPointer> Drop for DropAllocationMutGuard<'_, T> {
     #[inline(always)]
     fn drop(&mut self) {
-        unsafe{
-            T::drop_allocation(self.0)
-        }
+        unsafe { T::drop_allocation(self.0) }
     }
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-
 
 /// Trait for non-owning pointers that are shared-reference-like.
 ///
-/// # Safety 
+/// # Safety
 ///
 /// Implementors must only contain a non-null pointer [(*1)](#clarification1).
-/// Meaning that they must be `#[repr(transparent)]` wrappers around 
+/// Meaning that they must be `#[repr(transparent)]` wrappers around
 /// `&`/`NonNull`/`impl ImmutableRef`.
 ///
 /// <span id="clarification1">(*1)</span>
@@ -764,7 +743,7 @@ impl<T: OwnedPointer> Drop for DropAllocationMutGuard<'_, T> {
 // # Implementation notes
 //
 // The default methods use `Transmuter` instead of:
-// - `std::mem::transmute` because the compiler doesn't know that the size of 
+// - `std::mem::transmute` because the compiler doesn't know that the size of
 //   `*const ()` and `Self` is the same
 // - `std::mem::transmute_copy`: incurrs function call overhead in unoptimized builds,
 // which is unnacceptable.
@@ -780,66 +759,63 @@ pub unsafe trait ImmutableRef: Copy {
 
     /// Converts this pointer to a `NonNull`.
     #[inline(always)]
-    fn to_nonnull(self)->NonNull<Self::Target> {
-        unsafe{ Transmuter{from: self}.to }
+    fn to_nonnull(self) -> NonNull<Self::Target> {
+        unsafe { Transmuter { from: self }.to }
     }
 
     /// Constructs this pointer from a `NonNull`.
-    /// 
-    /// # Safety 
-    /// 
+    ///
+    /// # Safety
+    ///
     /// `from` must be one of these:
     ///
-    /// - A pointer from a call to `ImmutableRef::to_nonnull` or 
+    /// - A pointer from a call to `ImmutableRef::to_nonnull` or
     /// `ImmutableRef::to_raw_ptr` on an instance of `Self`,
     /// with the same lifetime.
     ///
     /// - Valid to transmute to Self.
     #[inline(always)]
-    unsafe fn from_nonnull(from: NonNull<Self::Target>)->Self{
-        unsafe{ Transmuter{from}.to }
+    unsafe fn from_nonnull(from: NonNull<Self::Target>) -> Self {
+        unsafe { Transmuter { from }.to }
     }
 
     /// Converts this pointer to a raw pointer.
     #[inline(always)]
-    fn to_raw_ptr(self)->*const Self::Target {
-        unsafe{ Transmuter{from: self}.to }
+    fn to_raw_ptr(self) -> *const Self::Target {
+        unsafe { Transmuter { from: self }.to }
     }
 
     /// Constructs this pointer from a raw pointer.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// This has the same safety requirements as [`from_nonnull`](#method.from_nonnull)
     #[inline(always)]
-    unsafe fn from_raw_ptr(from: *const Self::Target)-> Option<Self> {
-        unsafe{ Transmuter{from}.to }
+    unsafe fn from_raw_ptr(from: *const Self::Target) -> Option<Self> {
+        unsafe { Transmuter { from }.to }
     }
 }
 
 /// Gets the `ImmutableRef::Target` associated type for `T`.
 pub type ImmutableRefOut<T> = <T as ImmutableRef>::Target;
 
-
 unsafe impl<'a, T> ImmutableRef for &'a T {
     type Target = T;
 
     #[inline(always)]
     #[cfg(miri)]
-    fn to_raw_ptr(self)->*const Self::Target {
+    fn to_raw_ptr(self) -> *const Self::Target {
         self as _
     }
-    
+
     #[inline(always)]
     #[cfg(miri)]
-    unsafe fn from_raw_ptr(from: *const Self::Target)-> Option<Self> {
+    unsafe fn from_raw_ptr(from: *const Self::Target) -> Option<Self> {
         std::mem::transmute(from)
     }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
-
 
 /// A marker type that can be used as a proof that the `T` type parameter of
 /// `ImmutableRefTarget<T, U>`
@@ -848,7 +824,7 @@ pub struct ImmutableRefTarget<T, U>(NonOwningPhantom<(T, U)>);
 
 impl<T, U> Copy for ImmutableRefTarget<T, U> {}
 impl<T, U> Clone for ImmutableRefTarget<T, U> {
-    fn clone(&self)->Self{
+    fn clone(&self) -> Self {
         *self
     }
 }
@@ -856,10 +832,10 @@ impl<T, U> Clone for ImmutableRefTarget<T, U> {
 impl<T, U> ImmutableRefTarget<T, U> {
     // This function is private on purpose.
     //
-    // This type is only supposed to be constructed in the default initializer for 
+    // This type is only supposed to be constructed in the default initializer for
     // `ImmutableRef::TARGET`.
     #[inline(always)]
-    const fn new()->Self{
+    const fn new() -> Self {
         Self(NonOwningPhantom::DEFAULT)
     }
 }

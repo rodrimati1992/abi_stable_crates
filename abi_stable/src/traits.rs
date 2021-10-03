@@ -6,17 +6,16 @@ Where miscellaneous traits reside.
 use core_extensions::SelfOps;
 
 use crate::{
-    pointer_trait::{CanTransmuteElement,TransmuteElement},
-    sabi_types::{RRef, RMut},
+    pointer_trait::{CanTransmuteElement, TransmuteElement},
+    sabi_types::{RMut, RRef},
 };
-
 
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
 /// Converts a `#[repr(Rust)]` type into its `#[repr(C)]` equivalent.
-/// 
+///
 /// `#[repr(Rust)]` is the default representation for data types.
 pub trait IntoReprC {
     /// The `#[repr(C)]` equivalent.
@@ -111,70 +110,57 @@ macro_rules! impl_into_rust_repr {
     )
 }
 
-
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-
-
-pub(crate) unsafe trait ErasedType<'a>:Sized{
+pub(crate) unsafe trait ErasedType<'a>: Sized {
     type Unerased;
 
     #[inline]
-    unsafe fn from_unerased<P>(p:P)->P::TransmutedPtr
-    where 
-        P: CanTransmuteElement<Self, PtrTarget = Self::Unerased>
+    unsafe fn from_unerased<P>(p: P) -> P::TransmutedPtr
+    where
+        P: CanTransmuteElement<Self, PtrTarget = Self::Unerased>,
     {
         p.transmute_element::<Self>()
     }
 
     #[inline]
-    unsafe fn downcast_into<P>(p:P)->P::TransmutedPtr
-    where 
+    unsafe fn downcast_into<P>(p: P) -> P::TransmutedPtr
+    where
         P: CanTransmuteElement<Self::Unerased, PtrTarget = Self>,
     {
         p.transmute_element::<Self::Unerased>()
     }
 
-
     #[inline]
-    unsafe fn run_downcast_as<'b, F,R>(p: RRef<'b, Self>,func:F)->R
-    where 
+    unsafe fn run_downcast_as<'b, F, R>(p: RRef<'b, Self>, func: F) -> R
+    where
         Self::Unerased: 'b,
-        F:FnOnce(&'b Self::Unerased)->R,
+        F: FnOnce(&'b Self::Unerased) -> R,
     {
         func(p.transmute_into_ref::<Self::Unerased>())
     }
 
     #[inline]
-    unsafe fn run_downcast_as_mut<'b, F, R>(p: RMut<'b, Self>,func:F)->R
-    where 
+    unsafe fn run_downcast_as_mut<'b, F, R>(p: RMut<'b, Self>, func: F) -> R
+    where
         Self::Unerased: 'b,
-        F:FnOnce(&'b mut Self::Unerased)->R,
+        F: FnOnce(&'b mut Self::Unerased) -> R,
     {
         func(p.transmute_into_mut())
     }
-
-
 }
-
-
 
 ///////////////////////////////////////////////////////////////////////////
 
 /// Unwraps a type into its owned value.
-pub trait IntoInner{
+pub trait IntoInner {
     /// The type of the value this owns.
     type Element;
 
     /// Unwraps this type into its owned value.
-    fn into_inner_(self)->Self::Element;
+    fn into_inner_(self) -> Self::Element;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////
-
-
-
-

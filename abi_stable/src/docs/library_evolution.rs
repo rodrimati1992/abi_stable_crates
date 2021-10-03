@@ -3,16 +3,16 @@
 This document describes what changes are valid/invalid for a library using `abi_stable`,
 
 Note that all of these only applies to types that implement `StableAbi`,
-and are checked when loading the dynamic libraries using 
+and are checked when loading the dynamic libraries using
 the functions in `abi_stable::library::RootModule`.
-Those dynamic libraries use the `export_root_module` attribute on some function 
-that export the root module 
+Those dynamic libraries use the `export_root_module` attribute on some function
+that export the root module
 ([a struct of function pointers and other nested modules](../prefix_types/index.html)).
 
 
 # Semver in/compatible changes
 
-These are the changes to pre-existing data structures that are 
+These are the changes to pre-existing data structures that are
 allowed/disallowed in semver compatible versions
 (0.y.z < 0.(y+1).0 , x.y.z < (x+1).0.0).
 
@@ -28,7 +28,7 @@ field names are part of the ABI of a type.
 
 ### Structs
 
-It's only valid to add fields to structs if they are 
+It's only valid to add fields to structs if they are
 [prefix types(vtables or modules)](../prefix_types/index.html)),
 and only after the last field.
 
@@ -66,7 +66,7 @@ It's possible to add variants with either:
 - Field-less enums implemented as a struct wrapping an integer,
     with associated constants as the variants.
 
-- [Enums which use the 
+- [Enums which use the
     `#[sabi(kind(WithNonExhaustive())]` attribute
     ](../sabi_nonexhaustive/index.html),
     wrapped inside `NonExhaustive<>`.
@@ -99,7 +99,7 @@ impl Direction{
 
 ### Unions
 
-It's not possible to add fields to unions,this is not currently possible 
+It's not possible to add fields to unions,this is not currently possible
 because the original author of`abi_stable` didn't see any need for it
 (if you need it create an issue for it).
 
@@ -119,7 +119,7 @@ since they might not guarantee any of these properties:
     which could cause undefined behavior if passed between dynamic libraries,
     or just be unpredictable.
 
-The potential dependence on global state is why `abi_stable` uses dynamic dispatch 
+The potential dependence on global state is why `abi_stable` uses dynamic dispatch
 for all the types it wraps in `abi_stable::external_types`
 
 # abi_stable specific

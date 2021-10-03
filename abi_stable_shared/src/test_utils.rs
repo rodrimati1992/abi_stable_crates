@@ -3,8 +3,7 @@ use std::{
     panic::{catch_unwind, AssertUnwindSafe},
 };
 
-
-#[derive(Debug, Clone,Copy,Eq,PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct FileSpan {
     pub file: &'static str,
     pub line: u32,

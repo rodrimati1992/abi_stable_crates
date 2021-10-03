@@ -26,9 +26,7 @@ impl<'a, T> Debug for RIter<'a, T> {
     }
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-
 
 /// An iterator which receives the values sent through the channel,
 /// blocking until a value is received.

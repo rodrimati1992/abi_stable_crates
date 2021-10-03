@@ -1,171 +1,161 @@
-use std::{
-    mem,
-};
+use std::mem;
 
 use crate::{
-    *,
-    std_types::{RBox, RStr},
     sabi_trait::prelude::*,
+    std_types::{RBox, RStr},
     type_level::bools::*,
+    *,
 };
 
-use abi_stable_shared::{file_span,test_utils::{must_panic}};
+use abi_stable_shared::{file_span, test_utils::must_panic};
 
-
-mod empty{
+mod empty {
     use super::*;
     #[sabi_trait]
-    pub trait Trait{}
+    pub trait Trait {}
 
     impl Trait for () {}
 
     impl Trait for True {}
 }
 
-mod method_no_default{
+mod method_no_default {
     use super::*;
     #[sabi_trait]
-    pub trait Trait{
-        fn apply(&self,l:u32,r:u32)->u32;
+    pub trait Trait {
+        fn apply(&self, l: u32, r: u32) -> u32;
     }
-    
+
     impl Trait for () {
-        fn apply(&self,l:u32,r:u32)->u32{
-            (l+r)*2
+        fn apply(&self, l: u32, r: u32) -> u32 {
+            (l + r) * 2
         }
     }
 }
 
-mod method_disabled_one_default{
+mod method_disabled_one_default {
     use super::*;
-    
+
     #[sabi_trait]
-    pub trait Trait{
-        fn first_method(&self)->u32{
+    pub trait Trait {
+        fn first_method(&self) -> u32 {
             0xf000
         }
         #[sabi(no_default_fallback)]
-        fn apply(&self,l:u32,r:u32)->u32{
-            (l+r)*3
+        fn apply(&self, l: u32, r: u32) -> u32 {
+            (l + r) * 3
         }
-        fn last_method(&self)->u32{
+        fn last_method(&self) -> u32 {
             0xfAAA
         }
     }
-    
+
     impl Trait for () {
-        fn apply(&self,l:u32,r:u32)->u32{
-            (l+r)*4
+        fn apply(&self, l: u32, r: u32) -> u32 {
+            (l + r) * 4
         }
     }
 }
 
-mod method_disabled_all_default{
+mod method_disabled_all_default {
     use super::*;
-    
+
     #[sabi_trait]
     #[sabi(no_default_fallback)]
-    pub trait Trait{
-        fn first_method(&self)->u32{
+    pub trait Trait {
+        fn first_method(&self) -> u32 {
             0xf000
         }
-        fn last_method(&self)->u32{
+        fn last_method(&self) -> u32 {
             0xfAAA
         }
     }
-    
+
     impl Trait for () {}
 }
 
-mod method_default{
+mod method_default {
     use super::*;
     #[sabi_trait]
-    pub trait Trait{
-        fn apply(&self,l:u32,r:u32)->u32{
-            (l+r)*3
+    pub trait Trait {
+        fn apply(&self, l: u32, r: u32) -> u32 {
+            (l + r) * 3
         }
     }
 
     impl Trait for () {}
 
     impl Trait for True {
-        fn apply(&self,l:u32,r:u32)->u32{
-            (l+r)*4
+        fn apply(&self, l: u32, r: u32) -> u32 {
+            (l + r) * 4
         }
     }
 }
-
 
 #[test]
-fn downcasting_tests(){
-
-
-    unsafe{
+fn downcasting_tests() {
+    unsafe {
         use self::method_disabled_one_default::*;
-        let empty=empty::Trait_TO::from_value((),TD_Opaque);
-        let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
+        let empty = empty::Trait_TO::from_value((), TD_Opaque);
+        let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
         assert_eq!(object.first_method(), 0xf000);
         assert_eq!(object.last_method(), 0xfAAA);
-        must_panic(file_span!(),|| object.apply(2,5) ).unwrap();
+        must_panic(file_span!(), || object.apply(2, 5)).unwrap();
     }
-    unsafe{
+    unsafe {
         use self::method_disabled_all_default::*;
-        let empty=empty::Trait_TO::from_value((),TD_Opaque);
-        let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
-        must_panic(file_span!(),|| object.first_method() ).unwrap();
-        must_panic(file_span!(),|| object.last_method() ).unwrap();
+        let empty = empty::Trait_TO::from_value((), TD_Opaque);
+        let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
+        must_panic(file_span!(), || object.first_method()).unwrap();
+        must_panic(file_span!(), || object.last_method()).unwrap();
     }
-    unsafe{
+    unsafe {
         use self::method_no_default::*;
-        let empty=empty::Trait_TO::from_value((),TD_Opaque);
-        let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
-        must_panic(file_span!(),|| object.apply(2,5) ).unwrap();
+        let empty = empty::Trait_TO::from_value((), TD_Opaque);
+        let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
+        must_panic(file_span!(), || object.apply(2, 5)).unwrap();
     }
-    unsafe{
+    unsafe {
         use self::method_default::*;
-        let empty=empty::Trait_TO::from_value((),TD_Opaque);
-        let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(empty);
-        assert_eq!(object.apply(2,5),21);
+        let empty = empty::Trait_TO::from_value((), TD_Opaque);
+        let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
+        assert_eq!(object.apply(2, 5), 21);
     }
-    
 
     {
-        let no_default=method_no_default::Trait_TO::from_value((),TD_Opaque);
+        let no_default = method_no_default::Trait_TO::from_value((), TD_Opaque);
         {
-            assert_eq!(no_default.apply(2,5), 14);
+            assert_eq!(no_default.apply(2, 5), 14);
         }
-        unsafe{            
+        unsafe {
             use self::method_default::*;
-            let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(no_default);
-            assert_eq!(object.apply(2,5), 14);
+            let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(no_default);
+            assert_eq!(object.apply(2, 5), 14);
         }
     }
     {
-        let with_default=method_default::Trait_TO::from_value(True,TD_Opaque);
+        let with_default = method_default::Trait_TO::from_value(True, TD_Opaque);
         {
-            assert_eq!(with_default.apply(2,5), 28);
+            assert_eq!(with_default.apply(2, 5), 28);
         }
-        unsafe{
+        unsafe {
             use self::method_no_default::*;
-            let object=mem::transmute::<_,Trait_TO<'_,RBox<()>>>(with_default);
-            assert_eq!(object.apply(2,5), 28);
+            let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(with_default);
+            assert_eq!(object.apply(2, 5), 28);
         }
     }
 }
 
-
-
-
 #[sabi_trait]
-trait DefaultMethodPair{
-    fn foo(&self,x:u32)->u32{
-        self.bar(x+10)
+trait DefaultMethodPair {
+    fn foo(&self, x: u32) -> u32 {
+        self.bar(x + 10)
     }
-    fn bar(&self,y:u32)->u32{
-        self.baz(y+20)
+    fn bar(&self, y: u32) -> u32 {
+        self.baz(y + 20)
     }
-    fn baz(&self,z:u32)->u32{
-        z+40
+    fn baz(&self, z: u32) -> u32 {
+        z + 40
     }
 }
 
@@ -173,38 +163,34 @@ struct A;
 struct B;
 struct C;
 
-
-impl DefaultMethodPair for A{
-    fn foo(&self,x:u32)->u32{
-        x+100
+impl DefaultMethodPair for A {
+    fn foo(&self, x: u32) -> u32 {
+        x + 100
     }
 }
 
-impl DefaultMethodPair for B{
-    fn bar(&self,y:u32)->u32{
-        y+200
+impl DefaultMethodPair for B {
+    fn bar(&self, y: u32) -> u32 {
+        y + 200
     }
 }
 
-impl DefaultMethodPair for C{
-    fn baz(&self,z:u32)->u32{
-        z+300
+impl DefaultMethodPair for C {
+    fn baz(&self, z: u32) -> u32 {
+        z + 300
     }
 }
-
 
 #[test]
-fn default_methods(){
-    let a=DefaultMethodPair_TO::from_value(A,TD_Opaque);
-    let b=DefaultMethodPair_TO::from_value(B,TD_Opaque);
-    let c=DefaultMethodPair_TO::from_value(C,TD_Opaque);
+fn default_methods() {
+    let a = DefaultMethodPair_TO::from_value(A, TD_Opaque);
+    let b = DefaultMethodPair_TO::from_value(B, TD_Opaque);
+    let c = DefaultMethodPair_TO::from_value(C, TD_Opaque);
 
     assert_eq!(a.foo(1), 101);
     assert_eq!(b.foo(1), 211);
     assert_eq!(c.foo(1), 331);
 }
-
-
 
 /*////////////////////////////////////////////////////////////////////////////////
 Test that #[sabi(no_trait_impl)] disables the trait impl for the trait object.
@@ -212,48 +198,40 @@ Test that #[sabi(no_trait_impl)] disables the trait impl for the trait object.
 
 #[sabi_trait]
 #[sabi(no_trait_impl)]
-trait NoTraitImplA{}
+trait NoTraitImplA {}
 
-impl<P> NoTraitImplA for NoTraitImplA_TO<'_,P>
-where P:crate::pointer_trait::GetPointerKind,
-{}
-
-
+impl<P> NoTraitImplA for NoTraitImplA_TO<'_, P> where P: crate::pointer_trait::GetPointerKind {}
 
 #[sabi_trait]
 #[sabi(no_trait_impl)]
-trait NoTraitImplB{}
+trait NoTraitImplB {}
 
-impl<This:?Sized> NoTraitImplB for This{}
-
-
+impl<This: ?Sized> NoTraitImplB for This {}
 
 /*////////////////////////////////////////////////////////////////////////////////
 Test that prefix methods can have a default impl.
 */////////////////////////////////////////////////////////////////////////////////
 
-
-mod defaulted_prefix_method{
+mod defaulted_prefix_method {
     use super::*;
     #[sabi_trait]
-    pub trait Trait{
+    pub trait Trait {
         #[sabi(last_prefix_field)]
-        fn apply(&self)->u32 {
+        fn apply(&self) -> u32 {
             3
         }
     }
-    
+
     impl Trait for () {}
     impl Trait for u32 {
-        fn apply(&self)->u32 {
+        fn apply(&self) -> u32 {
             *self + 5
         }
     }
-
 }
 
 #[test]
-fn defaulted_prefix_method_works(){
+fn defaulted_prefix_method_works() {
     use defaulted_prefix_method::Trait_TO;
     {
         let obj = Trait_TO::from_value((), TD_Opaque);
@@ -269,11 +247,9 @@ fn defaulted_prefix_method_works(){
     }
 }
 
-
 /*////////////////////////////////////////////////////////////////////////////////
 Test all the kinds of borrows in return types.
 */////////////////////////////////////////////////////////////////////////////////
-
 
 #[sabi_trait]
 trait BorrowKinds {
@@ -299,15 +275,14 @@ trait BorrowKinds {
     }
 }
 
-impl BorrowKinds for u32{
+impl BorrowKinds for u32 {
     fn mut_borrow(&mut self) -> &mut u32 {
         self
     }
 }
 
-
 #[test]
-fn borrow_kinds(){
+fn borrow_kinds() {
     let mut obj = BorrowKinds_TO::from_value(3u32, TD_Opaque);
 
     assert_eq!(obj.ref_borrow_a(), &true);
@@ -316,5 +291,4 @@ fn borrow_kinds(){
     assert_eq!(obj.non_self_borrow().as_str(), "baz");
     assert_eq!(*obj.mut_borrow(), 3);
     assert_eq!(obj.not_borrow(), 89);
-
 }

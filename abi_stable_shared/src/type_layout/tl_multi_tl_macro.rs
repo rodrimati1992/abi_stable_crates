@@ -1,12 +1,12 @@
 #[doc(hidden)]
 #[macro_export]
-macro_rules! declare_multi_tl_types {( 
+macro_rules! declare_multi_tl_types {(
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
 
-    /// A range of indices into a slice of `TypeLayoutCtor` 
+    /// A range of indices into a slice of `TypeLayoutCtor`
     /// which can store up to five indices inline,
-    /// requiring additional `TypeLayoutCtor` to be stored contiguously after the 
+    /// requiring additional `TypeLayoutCtor` to be stored contiguously after the
     /// fourth one in the slice.
     #[repr(C)]
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
@@ -37,11 +37,11 @@ macro_rules! declare_multi_tl_types {(
         const INDEX_2_OFFSET:u32=0;
         const INDEX_3_OFFSET:u32=TypeLayoutIndex::BIT_SIZE;
         const INDEX_4_OFFSET:u32=TypeLayoutIndex::BIT_SIZE*2;
-        
+
         fn size_assertions(){
             let _:[(); 32-(Self::LEN_BIT_SIZE+TypeLayoutIndex::BIT_SIZE*2)as usize ];
         }
-        
+
         /// Constructs a `TypeLayoutRange` with up to five type layout indices.
         #[inline]
         pub const fn with_up_to_5(mut len:usize,indices:[u16;5])->Self{
@@ -49,7 +49,7 @@ macro_rules! declare_multi_tl_types {(
             Self::with_more_than_5(len,indices)
         }
 
-        /// Constructs a `TypeLayoutRange` with more 
+        /// Constructs a `TypeLayoutRange` with more
         /// than five type layout indices,
         /// in which the indices from `indices[4]` onwards are
         /// stored contiguously in the slice.
@@ -93,4 +93,3 @@ macro_rules! declare_multi_tl_types {(
     ///////////////////////////////////////////////////////////////////////////////
 
 )}
-
