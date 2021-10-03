@@ -3,14 +3,14 @@ Contains an ffi-safe equivalent of `std::string::String`.
 */
 
 use std::{
-    borrow::{Cow,Borrow},
+    borrow::{Borrow, Cow},
     fmt::{self, Display, Formatter},
     iter::{FromIterator, FusedIterator},
     marker::PhantomData,
     ops::{Deref, Index, Range},
-    str::{from_utf8, from_utf8_unchecked, Chars,FromStr, Utf8Error},
-    string::FromUtf16Error,
     ptr,
+    str::{from_utf8, from_utf8_unchecked, Chars, FromStr, Utf8Error},
+    string::FromUtf16Error,
 };
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -69,7 +69,7 @@ impl RString {
     /// use abi_stable::std_types::RString;
     ///
     /// let str=RString::new();
-    /// 
+    ///
     /// assert_eq!(&str[..],"");
     ///
     /// ```
@@ -77,7 +77,7 @@ impl RString {
         Self::NEW
     }
 
-    const NEW:Self=Self{ inner:RVec::new() };
+    const NEW: Self = Self { inner: RVec::new() };
 
     /// Creates a new,
     /// empty RString with the capacity for `cap` bytes without reallocating.
@@ -88,12 +88,12 @@ impl RString {
     /// use abi_stable::std_types::RString;
     ///
     /// let str=RString::with_capacity(10);
-    /// 
+    ///
     /// assert_eq!(&str[..],"");
     /// assert_eq!(str.capacity(),10);
     ///
     /// ```
-    pub fn with_capacity(cap:usize) -> Self {
+    pub fn with_capacity(cap: usize) -> Self {
         String::with_capacity(cap).into()
     }
 
@@ -108,7 +108,7 @@ impl RString {
     /// use abi_stable::std_types::{RStr,RString};
     ///
     /// let str=RString::from("What is that.");
-    /// 
+    ///
     /// assert_eq!(str.slice(..),RStr::from("What is that."));
     /// assert_eq!(str.slice(..4),RStr::from("What"));
     /// assert_eq!(str.slice(4..),RStr::from(" is that."));
@@ -156,9 +156,7 @@ impl RString {
     /// ```
     #[inline]
     pub const fn as_rstr(&self) -> RStr<'_> {
-        unsafe{
-            RStr::from_raw_parts(self.as_ptr(),self.len())
-        }
+        unsafe { RStr::from_raw_parts(self.as_ptr(), self.len()) }
     }
 
     /// Returns the current length (in bytes) of the RString.
@@ -196,10 +194,9 @@ impl RString {
     }
 
     /// Gets a raw pointer to the start of this RString's buffer.
-    pub const fn as_ptr(&self) -> *const u8{
+    pub const fn as_ptr(&self) -> *const u8 {
         self.inner.as_ptr()
     }
-
 
     /// Returns the current capacity (in bytes) of the RString.
     ///
@@ -228,7 +225,7 @@ impl RString {
     ///
     /// # Safety
     ///
-    /// This has the same safety requirements as 
+    /// This has the same safety requirements as
     /// [`String::from_utf8_unchecked`
     /// ](https://doc.rust-lang.org/std/string/struct.String.html#method.from_utf8_unchecked).
     ///
@@ -245,7 +242,7 @@ impl RString {
     ///
     /// ```
     #[inline]
-    pub const unsafe fn from_utf8_unchecked(vec: RVec<u8>) -> Self{
+    pub const unsafe fn from_utf8_unchecked(vec: RVec<u8>) -> Self {
         RString { inner: vec }
     }
 
@@ -281,19 +278,18 @@ impl RString {
         }
     }
 
-
     /// Decodes a utf-16 encoded `&[u16]` to an `RString`.
     ///
     /// # Errors
     ///
-    /// This returns a `Err(::std::string::FromUtf16Error{..})` 
+    /// This returns a `Err(::std::string::FromUtf16Error{..})`
     /// if `vec` is not valid utf-8.
     ///
     /// # Example
     ///
     /// ```
     /// use abi_stable::std_types::RString;
-    /// 
+    ///
     /// let str="What the 😈.";
     /// let str_utf16=str.encode_utf16().collect::<Vec<u16>>();
     ///
@@ -306,7 +302,7 @@ impl RString {
         String::from_utf16(s).map(From::from)
     }
 
-    /// Cheap conversion of this `RString` to a `RVec<u8>` 
+    /// Cheap conversion of this `RString` to a `RVec<u8>`
     ///
     /// # Example
     ///
@@ -358,7 +354,7 @@ impl RString {
     pub fn to_string(&self) -> String {
         self.as_str().to_string()
     }
-    
+
     /// Reserves `àdditional` additional capacity for any extra string data.
     /// This may reserve more than necessary for the additional capacity.
     ///
@@ -395,7 +391,7 @@ impl RString {
     }
 
     /// Reserves `àdditional` additional capacity for any extra string data.
-    /// 
+    ///
     /// Prefer using `reserve` for most situations.
     ///
     /// # Example
@@ -472,7 +468,7 @@ impl RString {
     /// assert_eq!(str.pop(),None);
     ///
     /// ```
-    pub fn pop(&mut self)->Option<char>{
+    pub fn pop(&mut self) -> Option<char> {
         // literal copy-paste of std,so if this is wrong std is wrong.
 
         let ch = self.chars().rev().next()?;
@@ -484,9 +480,9 @@ impl RString {
     }
 
     /// Removes and returns the character starting at the `idx` byte position,
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// Panics if the index is out of bounds or if it is not on a char boundary.
     ///
     /// # Example
@@ -503,7 +499,7 @@ impl RString {
     /// assert_eq!(str.as_str(),"Gallo");
     ///
     /// ```
-    pub fn remove(&mut self,idx:usize)->char{
+    pub fn remove(&mut self, idx: usize) -> char {
         // literal copy-paste of std,so if this is wrong std is wrong.
 
         let ch = match self[idx..].chars().next() {
@@ -515,11 +511,7 @@ impl RString {
         let len = self.len();
         unsafe {
             let ptr = self.inner.as_mut_ptr();
-            ptr::copy(
-                ptr.add(next),
-                ptr.add(idx),
-                len - next
-            );
+            ptr::copy(ptr.add(next), ptr.add(idx), len - next);
             self.inner.set_len(len - (next - idx));
         }
         ch
@@ -528,7 +520,7 @@ impl RString {
     /// Insert the `ch` character at the `ìdx` byte position.
     ///
     /// # Panics
-    /// 
+    ///
     /// Panics if the index is out of bounds or if it is not on a char boundary.
     ///
     /// # Example
@@ -558,7 +550,7 @@ impl RString {
     /// Insert the `string` at the `ìdx` byte position.
     ///
     /// # Panics
-    /// 
+    ///
     /// Panics if the index is out of bounds or if it is not on a char boundary.
     ///
     /// # Example
@@ -580,7 +572,7 @@ impl RString {
     /// ```
     pub fn insert_str(&mut self, idx: usize, string: &str) {
         // literal copy-paste of std,so if this is wrong std is wrong.
-        
+
         assert!(self.is_char_boundary(idx));
 
         unsafe {
@@ -592,24 +584,16 @@ impl RString {
         let len = self.len();
         let amt = bytes.len();
         self.inner.reserve(amt);
-        
+
         let ptr = self.inner.as_mut_ptr();
-        ptr::copy(
-            ptr.add(idx),
-            ptr.add(idx + amt),
-            len - idx,
-        );
-        ptr::copy(
-            bytes.as_ptr(),
-            self.inner.as_mut_ptr().add(idx),
-            amt,
-        );
+        ptr::copy(ptr.add(idx), ptr.add(idx + amt), len - idx);
+        ptr::copy(bytes.as_ptr(), self.inner.as_mut_ptr().add(idx), amt);
         self.inner.set_len(len + amt);
     }
 
     /// Retains only the characters that satisfy the `pred` predicate
     ///
-    /// This means that a character will be removed if `pred(that_character)` 
+    /// This means that a character will be removed if `pred(that_character)`
     /// returns false.
     ///
     /// # Example
@@ -636,7 +620,8 @@ impl RString {
     /// ```
     #[inline]
     pub fn retain<F>(&mut self, mut pred: F)
-    where F: FnMut(char) -> bool
+    where
+        F: FnMut(char) -> bool,
     {
         let len = self.len();
         let mut del_bytes = 0;
@@ -649,11 +634,13 @@ impl RString {
         let start = self.inner.as_mut_ptr();
 
         while idx < len {
-            let curr = unsafe{ start.add(idx) };
+            let curr = unsafe { start.add(idx) };
 
             let ch = unsafe {
                 RStr::from_raw_parts(curr, len - idx)
-                    .chars().next().unwrap()
+                    .chars()
+                    .next()
+                    .unwrap()
             };
             let ch_len = ch.len_utf8();
 
@@ -661,11 +648,7 @@ impl RString {
                 del_bytes += ch_len;
             } else if del_bytes > 0 {
                 unsafe {
-                    ptr::copy(
-                        curr,
-                        curr.sub(del_bytes),
-                        ch_len,
-                    );
+                    ptr::copy(curr, curr.sub(del_bytes), ch_len);
                 }
             }
 
@@ -688,16 +671,15 @@ impl RString {
     /// let mut str=RString::from("Nurse");
     ///
     /// assert_eq!(str.as_str(),"Nurse");
-    /// 
+    ///
     /// str.clear();
-    /// 
+    ///
     /// assert_eq!(str.as_str(),"");
     ///
     /// ```
-    pub fn clear(&mut self){
+    pub fn clear(&mut self) {
         self.inner.clear();
     }
-
 }
 
 /// Returns an empty RString
@@ -709,10 +691,10 @@ impl Default for RString {
 
 ////////////////////
 
-deref_coerced_impl_cmp_traits!{
+deref_coerced_impl_cmp_traits! {
     RString;
     coerce_to = str,
-    [   
+    [
         String,
         str,
         &str,
@@ -721,7 +703,6 @@ deref_coerced_impl_cmp_traits!{
         crate::std_types::RCow<'_, str>,
     ]
 }
-
 
 ////////////////////
 
@@ -763,7 +744,6 @@ impl<'a> From<Cow<'a, str>> for RString {
 
 ////////////////////
 
-
 impl FromStr for RString {
     type Err = <String as FromStr>::Err;
 
@@ -772,31 +752,27 @@ impl FromStr for RString {
     }
 }
 
-
 ////////////////////
 
-
-impl Borrow<str> for RString{
-    fn borrow(&self)->&str{
+impl Borrow<str> for RString {
+    fn borrow(&self) -> &str {
         self
     }
 }
 
-impl AsRef<str> for RString{
-    fn as_ref(&self)->&str{
+impl AsRef<str> for RString {
+    fn as_ref(&self) -> &str {
         self
     }
 }
 
-impl AsRef<[u8]> for RString{
-    fn as_ref(&self)->&[u8]{
+impl AsRef<[u8]> for RString {
+    fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
-
 ////////////////////
-
 
 impl Deref for RString {
     type Target = str;
@@ -855,57 +831,57 @@ impl Serialize for RString {
 
 impl RString {
     /**
-Creates an iterator that yields the chars in the `range`,
-removing the characters in that range in the process.
+    Creates an iterator that yields the chars in the `range`,
+    removing the characters in that range in the process.
 
-# Panic
+    # Panic
 
-Panics if the start or end of the range are not on a on a char boundary, 
-or if either are out of bounds.
+    Panics if the start or end of the range are not on a on a char boundary,
+    or if either are out of bounds.
 
-# Example
+    # Example
 
-```
-use abi_stable::std_types::RString;
+    ```
+    use abi_stable::std_types::RString;
 
-let orig="Not a single way";
+    let orig="Not a single way";
 
-{
-    let mut str=RString::from(orig);
-    assert_eq!(
-        str.drain(..).collect::<String>(),
-        orig,
-    );
-    assert_eq!(str.as_str(),"");
-}
-{
-    let mut str=RString::from(orig);
-    assert_eq!(
-        str.drain(..4).collect::<String>(),
-        "Not ",
-    );
-    assert_eq!(str.as_str(),"a single way");
-}
-{
-    let mut str=RString::from(orig);
-    assert_eq!(
-        str.drain(4..).collect::<String>(),
-        "a single way",
-    );
-    assert_eq!(str.as_str(),"Not ");
-}
-{
-    let mut str=RString::from(orig);
-    assert_eq!(
-        str.drain(4..13).collect::<String>(),
-        "a single ",
-    );
-    assert_eq!(str.as_str(),"Not way");
-}
+    {
+        let mut str=RString::from(orig);
+        assert_eq!(
+            str.drain(..).collect::<String>(),
+            orig,
+        );
+        assert_eq!(str.as_str(),"");
+    }
+    {
+        let mut str=RString::from(orig);
+        assert_eq!(
+            str.drain(..4).collect::<String>(),
+            "Not ",
+        );
+        assert_eq!(str.as_str(),"a single way");
+    }
+    {
+        let mut str=RString::from(orig);
+        assert_eq!(
+            str.drain(4..).collect::<String>(),
+            "a single way",
+        );
+        assert_eq!(str.as_str(),"Not ");
+    }
+    {
+        let mut str=RString::from(orig);
+        assert_eq!(
+            str.drain(4..13).collect::<String>(),
+            "a single ",
+        );
+        assert_eq!(str.as_str(),"Not way");
+    }
 
-```
+    ```
 
-    */
+        */
     pub fn drain<I>(&mut self, range: I) -> Drain<'_>
     where
         str: Index<I, Output = str>,
@@ -918,7 +894,7 @@ let orig="Not a single way";
             string,
             removed: start..end,
             iter: slic_.chars(),
-            variance:PhantomData,
+            variance: PhantomData,
         }
     }
 }
@@ -980,7 +956,7 @@ pub struct FromUtf8Error {
     error: Utf8Error,
 }
 
-impl FromUtf8Error{
+impl FromUtf8Error {
     /// Unwraps this error into the bytes that failed to be converted into an `RString`.
     ///
     /// # Example
@@ -995,7 +971,7 @@ impl FromUtf8Error{
     /// assert_eq!( err.into_bytes(), bytes );
     ///
     /// ```
-    pub fn into_bytes(self)->RVec<u8>{
+    pub fn into_bytes(self) -> RVec<u8> {
         self.bytes
     }
     /// Gets access to the bytes that failed to be converted into an `RString`.
@@ -1012,7 +988,7 @@ impl FromUtf8Error{
     /// assert_eq!( err.as_bytes(), &bytes[..] );
     ///
     /// ```
-    pub fn as_bytes(&self)->&[u8]{
+    pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
     }
 
@@ -1028,7 +1004,7 @@ impl FromUtf8Error{
     /// assert_eq!( err.error().valid_up_to(), 2 );
     ///
     /// ```
-    pub fn error(&self)->Utf8Error{
+    pub fn error(&self) -> Utf8Error {
         self.error
     }
 }
@@ -1039,4 +1015,4 @@ impl fmt::Display for FromUtf8Error {
     }
 }
 
-impl std::error::Error for FromUtf8Error{}
+impl std::error::Error for FromUtf8Error {}

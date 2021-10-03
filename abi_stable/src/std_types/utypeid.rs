@@ -11,10 +11,7 @@ use std::{
     sync::atomic::AtomicUsize,
 };
 
-use crate::{
-    EXECUTABLE_IDENTITY,
-    sabi_types::MaybeCmp,
-};
+use crate::{sabi_types::MaybeCmp, EXECUTABLE_IDENTITY};
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -46,7 +43,6 @@ where
     UTypeId::new::<T>()
 }
 
-
 #[doc(hidden)]
 pub extern "C" fn some_utypeid<T>() -> MaybeCmp<UTypeId>
 where
@@ -55,12 +51,10 @@ where
     MaybeCmp::Just(UTypeId::new::<T>())
 }
 
-
 #[doc(hidden)]
-pub extern "C" fn no_utypeid() -> MaybeCmp<UTypeId>{
+pub extern "C" fn no_utypeid() -> MaybeCmp<UTypeId> {
     MaybeCmp::Nothing
 }
-
 
 /// An ffi-safe equivalent of `std::any::TypeId` that
 /// can compare types across dynamic libraries.
@@ -88,10 +82,8 @@ pub struct UTypeId {
     type_id_array: [u8; MAX_TYPE_ID_SIZE],
 }
 
-
-unsafe impl Send for UTypeId{}
-unsafe impl Sync for UTypeId{}
-
+unsafe impl Send for UTypeId {}
+unsafe impl Sync for UTypeId {}
 
 impl UTypeId {
     /// Constructs `UTypeId` from a type that satisfies the `'static` bound.
@@ -179,4 +171,3 @@ impl Hasher for TypeIdHasher {
         0
     }
 }
-

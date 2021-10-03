@@ -1,14 +1,11 @@
 // Types to test
 use abi_stable::{
-    for_examples::{Module_Ref, Module_Prefix},
+    for_examples::{Module_Prefix, Module_Ref},
     prefix_type::PrefixRef,
-    sabi_types::{Constructor, MovePtr, RRef, NulStr, StaticRef},
+    sabi_types::{Constructor, MovePtr, NulStr, RRef, StaticRef},
 };
 
-use abi_stable::{
-    reexports::True,
-    StableAbi,
-};
+use abi_stable::{reexports::True, StableAbi};
 
 use std::ptr::NonNull;
 
@@ -30,17 +27,16 @@ where
     assert_eq!(std::mem::align_of::<Option<T>>(), PTR_ALIGN, "{}", name);
 }
 
-
 #[cfg(not(miri))]
 #[test]
 fn test_nonnullable() {
     test_case::<Module_Ref>();
-    
+
     test_case::<PrefixRef<Module_Prefix>>();
-    
+
     test_case::<Constructor<u8>>();
-    test_case::<MovePtr<'_,u8>>();
-    test_case::<RRef<'_,u8>>();
+    test_case::<MovePtr<'_, u8>>();
+    test_case::<RRef<'_, u8>>();
     test_case::<NulStr<'_>>();
     test_case::<StaticRef<u8>>();
 

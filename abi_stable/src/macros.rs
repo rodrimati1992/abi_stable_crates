@@ -1,11 +1,10 @@
 #[macro_use]
 mod internal;
 
-
 /**
 Use this when constructing a [`MonoTypeLayout`] when manually implementing StableAbi.
 
-This stores indices and ranges for the type and/or const parameter taken 
+This stores indices and ranges for the type and/or const parameter taken
 from the [`SharedVars`] stored in the same [`TypeLayout`] where this is stored.
 
 # Syntax
@@ -16,16 +15,16 @@ from the [`SharedVars`] stored in the same [`TypeLayout`] where this is stored.
 
 -` `: No generic parameters of that kind.
 
--`i`: 
+-`i`:
     Takes the ith type or const parameter(indexed separately).
 
--`i..j`: 
+-`i..j`:
     Takes from i to j (exclusive) type or const parameter(indexed separately).
 
--`i..=j`: 
+-`i..=j`:
     Takes from i to j (inclusive) type or const parameter(indexed separately).
 
--`x:StartLen`: 
+-`x:StartLen`:
     Takes from x.start() to x.end() (exclusive) type or const parameter(indexed separately).
 
 
@@ -101,7 +100,7 @@ const PARAMS:CompGenericParams=tl_genparams!(;StartLen::new(0,2););
 macro_rules! tl_genparams {
     (count;  ) => ( 0 );
     (count; $v0:lifetime) => ( 1 );
-    (count; $v0:lifetime,$v1:lifetime $(,$rem:lifetime)*) => ( 
+    (count; $v0:lifetime,$v1:lifetime $(,$rem:lifetime)*) => (
         2 + $crate::tl_genparams!(count; $($rem),* )
     );
     ( $($lt:lifetime),* $(,)? ; $($ty:expr)? ; $($const_p:expr)? ) => ({
@@ -112,7 +111,7 @@ macro_rules! tl_genparams {
 
         #[allow(unused_parens)]
         let ty_param_range=$crate::type_layout::StartLenConverter( ($($ty)?) ).to_start_len();
-        
+
         #[allow(unused_parens)]
         let const_param_range=
             $crate::type_layout::StartLenConverter( ($($const_p)?) ).to_start_len();
@@ -125,7 +124,6 @@ macro_rules! tl_genparams {
         )
     })
 }
-
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -174,7 +172,7 @@ macro_rules! rtry {
 }
 
 /// Equivalent to `?` for [`ROption`].
-/// 
+///
 /// [`ROption`]: ./std_types/enum.ROption.html
 #[macro_export]
 macro_rules! rtry_opt {
@@ -187,23 +185,19 @@ macro_rules! rtry_opt {
     }};
 }
 
-
-
 ///////////////////////////////////////////////////////////////////////
 
 macro_rules! check_unerased {
     (
         $this:ident,$res:expr
-    ) => (
-        if let Err(e)=$res {
-            return Err( e.map(move|_| $this ) );
+    ) => {
+        if let Err(e) = $res {
+            return Err(e.map(move |_| $this));
         }
-    )
+    };
 }
 
-
 ///////////////////////////////////////////////////////////////////////
-
 
 /**
 Use this to make sure that you handle panics inside `extern fn` correctly.
@@ -214,15 +208,15 @@ It does not prevent functions inside from using `::std::panic::catch_unwind` to 
 
 # Early returns
 
-This macro by default wraps the passed code in a closure so that any 
+This macro by default wraps the passed code in a closure so that any
 early returns that happen inside don't interfere with the macro generated code.
 
-If you don't have an early return (a `return`/`continue`/`break`) 
-in the code passed to this macro you can use 
+If you don't have an early return (a `return`/`continue`/`break`)
+in the code passed to this macro you can use
 `extern_fn_panic_handling!{no_early_return; <code here> }`,
 which *might* be cheaper(this has not been tested yet).
 
-# Example 
+# Example
 
 ```
 use std::fmt;
@@ -288,7 +282,7 @@ macro_rules! extern_fn_panic_handling {
         };
 
         ::std::mem::forget(aborter_guard);
-        
+
         res
     });
     ( $($fn_contents:tt)* ) => (
@@ -303,16 +297,13 @@ macro_rules! extern_fn_panic_handling {
     )
 }
 
-
 ///////////////////////////////////////////////////////////////////////
-
-
 
 /**
 
 Constructs the [`TypeInfo`] for some type.
 
-It's necessary for the type to be `'static` because 
+It's necessary for the type to be `'static` because
 [`TypeInfo`] stores a private function that returns the  [`UTypeId`] of that type.
 
 # Example
@@ -334,7 +325,7 @@ impl<T> ImplType for Foo<T>
 where T:'static+Send+Sync
 {
     type Interface=();
-    
+
     // You have to write the full type (eg: impl_get_type_info!{ Bar<'a,T,U> } ) ,
     // never write Self.
     const INFO:&'static TypeInfo=impl_get_type_info! { Foo<T> };
@@ -349,37 +340,33 @@ where T:'static+Send+Sync
 */
 #[macro_export]
 macro_rules! impl_get_type_info {
-    ($type:ty) => (
-        {
-            use std::mem;
-            use $crate::{
-                erased_types::TypeInfo,
-                std_types::{RStr,utypeid::some_utypeid},
-            };
+    ($type:ty) => {{
+        use std::mem;
+        use $crate::{
+            erased_types::TypeInfo,
+            std_types::{utypeid::some_utypeid, RStr},
+        };
 
-            let type_name=$crate::sabi_types::Constructor($crate::utils::get_type_name::<$type>);
-            
-            &TypeInfo{
-                size:mem::size_of::<Self>(),
-                alignment:mem::align_of::<Self>(),
-                _uid:$crate::sabi_types::Constructor( some_utypeid::<Self> ),
-                type_name,
-                module:RStr::from_str(module_path!()),
-                package:RStr::from_str(env!("CARGO_PKG_NAME")),
-                package_version:$crate::package_version_strings!(),
-                _private_field:(),
-            }
+        let type_name = $crate::sabi_types::Constructor($crate::utils::get_type_name::<$type>);
+
+        &TypeInfo {
+            size: mem::size_of::<Self>(),
+            alignment: mem::align_of::<Self>(),
+            _uid: $crate::sabi_types::Constructor(some_utypeid::<Self>),
+            type_name,
+            module: RStr::from_str(module_path!()),
+            package: RStr::from_str(env!("CARGO_PKG_NAME")),
+            package_version: $crate::package_version_strings!(),
+            _private_field: (),
         }
-    )
+    }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-
-
 /**
 Constructs a [`Tag`],
-a dynamically typed value for users to check extra properties about their types 
+a dynamically typed value for users to check extra properties about their types
 when doing runtime type checking.
 
 Note that this macro is not recursive,
@@ -395,7 +382,7 @@ so that if this changes it can be reported as an error.
 This will cause an error if the binary and dynamic library disagree about the values inside
 the "required traits" map entry .
 
-In real code this should be written in a 
+In real code this should be written in a
 way that keeps the tags and the type bounds in sync.
 
 
@@ -432,7 +419,7 @@ struct Value<T>{
 macro_rules! tag {
     ([ $( $elem:expr ),* $(,)? ])=>{{
         use $crate::type_layout::tagging::{Tag,FromLiteral};
-        
+
         Tag::arr($crate::rslice![
             $( FromLiteral($elem).to_tag(), )*
         ])
@@ -463,16 +450,14 @@ macro_rules! tag {
     }};
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-
 
 #[allow(unused_macros)]
 macro_rules! assert_matches {
     ( $(|)? $($pat:pat)|*  =$expr:expr)=>{{
         let ref value=$expr;
         assert!(
-            core_extensions::matches!(*value, $($pat)|* ), 
+            core_extensions::matches!(*value, $($pat)|* ),
             "pattern did not match the value:\n\t\
              {:?}
             ",
@@ -481,9 +466,7 @@ macro_rules! assert_matches {
     }};
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-
 
 /**
 Constructs an [`ItemInfo`], with information about the place where it's called.
@@ -492,23 +475,16 @@ Constructs an [`ItemInfo`], with information about the place where it's called.
 */
 #[macro_export]
 macro_rules! make_item_info {
-    () => (
+    () => {
         $crate::type_layout::ItemInfo::new(
-            concat!(
-                env!("CARGO_PKG_NAME"),
-                ";",
-                env!("CARGO_PKG_VERSION")
-            ),
+            concat!(env!("CARGO_PKG_NAME"), ";", env!("CARGO_PKG_VERSION")),
             line!(),
             $crate::type_layout::ModPath::inside($crate::nul_str!(module_path!())),
         )
-    )
+    };
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-
-
 
 /**
 Constructs an [`RVec`] using the same syntax that the `std::vec` macro uses.
@@ -519,7 +495,7 @@ Constructs an [`RVec`] using the same syntax that the `std::vec` macro uses.
 
 use abi_stable::{
     rvec,
-    std_types::RVec,  
+    std_types::RVec,
 };
 
 assert_eq!(RVec::<u32>::new(), rvec![]);
@@ -540,15 +516,13 @@ macro_rules! rvec {
     )
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-
 
 /**
 Use this macro to construct a `abi_stable::std_types::Tuple*`
 with the values passed to the macro.
 
-# Example 
+# Example
 
 ```
 use abi_stable::{
@@ -572,26 +546,27 @@ assert_eq!(rtuple!(3,5,8,9), Tuple4(3,5,8,9));
 
 #[macro_export]
 macro_rules! rtuple {
-    () => (());
-    ($v0:expr $(,)* ) => (
+    () => {
+        ()
+    };
+    ($v0:expr $(,)* ) => {
         $crate::std_types::Tuple1($v0)
-    );
-    ($v0:expr,$v1:expr $(,)* ) => (
-        $crate::std_types::Tuple2($v0,$v1)
-    );
-    ($v0:expr,$v1:expr,$v2:expr $(,)* ) => (
-        $crate::std_types::Tuple3($v0,$v1,$v2)
-    );
-    ($v0:expr,$v1:expr,$v2:expr,$v3:expr $(,)* ) => (
-        $crate::std_types::Tuple4($v0,$v1,$v2,$v3)
-    );
+    };
+    ($v0:expr,$v1:expr $(,)* ) => {
+        $crate::std_types::Tuple2($v0, $v1)
+    };
+    ($v0:expr,$v1:expr,$v2:expr $(,)* ) => {
+        $crate::std_types::Tuple3($v0, $v1, $v2)
+    };
+    ($v0:expr,$v1:expr,$v2:expr,$v3:expr $(,)* ) => {
+        $crate::std_types::Tuple4($v0, $v1, $v2, $v3)
+    };
 }
-
 
 /**
 Use this macro to get the type of a `Tuple*` with the types passed to the macro.
 
-# Example 
+# Example
 
 ```
 use abi_stable::{
@@ -631,7 +606,6 @@ macro_rules! RTuple {
         $crate::std_types::Tuple4<$v0,$v1,$v2,$v3>
     );
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -688,9 +662,7 @@ macro_rules! rslice {
     };
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-
 
 /**
 A macro to construct [`RStr`] constants.
@@ -738,14 +710,13 @@ assert_eq!( RSTR_6.len(), 7 );
 
 */
 #[macro_export]
-macro_rules! rstr{
-    ( $str:expr ) => ({
-        const __SABI_RSTR: $crate::std_types::RStr<'static> = 
+macro_rules! rstr {
+    ( $str:expr ) => {{
+        const __SABI_RSTR: $crate::std_types::RStr<'static> =
             $crate::std_types::RStr::from_str($str);
         __SABI_RSTR
-    })
+    }};
 }
-
 
 /**
 Constructs a [`NulStr`] from a string literal.
@@ -772,7 +743,6 @@ macro_rules! nul_str {
         $crate::sabi_types::NulStr::from_str(concat!($($str,)* "\0"))
     }}
 }
-
 
 /**
 Constructs a RStr with the concatenation of the passed in strings,
@@ -828,10 +798,10 @@ macro_rules! make_shared_vars{
                 _inner_multi_str_mod::CONCATENATED,
                 rslice![ $( $($lifetime_indices),* )? ],
             );
-        
+
         struct __ACPromoted<T>(T);
 
-        impl<$($impl_gen)*> __ACPromoted<$type> 
+        impl<$($impl_gen)*> __ACPromoted<$type>
         where $($($where_clause)*)?
         {
             $( const CONST_PARAM_UNERASED: &'static $const_ty = &$constants; )?
@@ -853,9 +823,9 @@ macro_rules! make_shared_vars{
 
                 &$crate::type_layout::SharedVars::new(
                     $mono_shared_vars,
-                    rslice![ 
-                        $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )? 
-                        $( $( GetTypeLayoutCtor::<$prefix_ty_layout>::PREFIX_STABLE_ABI,)* )? 
+                    rslice![
+                        $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )?
+                        $( $( GetTypeLayoutCtor::<$prefix_ty_layout>::PREFIX_STABLE_ABI,)* )?
                     ],
                     $crate::std_types::RSlice::from_slice(Self::CONST_PARAM),
                 )
@@ -866,16 +836,14 @@ macro_rules! make_shared_vars{
     }
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 
-
 /// Allows declaring a [`StaticRef`] associated `const`ant.
-/// 
+///
 /// This macro is for declaring inherent associated constant of non-`'static` types.
 ///
 /// # Breaking changes
-/// 
+///
 /// This macro may be changed to produce compiler-errors when it's used to
 /// declare a non-associated `const`, or a constant in a trait implementation.
 ///
@@ -892,19 +860,19 @@ macro_rules! make_shared_vars{
 ///     pointer_trait::CallReferentDrop,
 ///     prefix_type::{PrefixTypeTrait, WithMetadata},
 /// };
-/// 
+///
 /// use std::{
 ///     mem::ManuallyDrop,
 ///     ops::Deref,
 /// };
-/// 
+///
 /// fn main(){
 ///     let boxed = BoxLike::new(100);
 ///    
 ///     assert_eq!(*boxed, 100);
 ///     assert_eq!(boxed.into_inner(), 100);
 /// }
-/// 
+///
 /// /// An ffi-safe `Box<T>`
 /// #[repr(C)]
 /// #[derive(StableAbi)]
@@ -912,10 +880,10 @@ macro_rules! make_shared_vars{
 ///     data: *mut T,
 ///     
 ///     vtable: VTable_Ref<T>,
-/// 
+///
 ///     _marker: std::marker::PhantomData<T>,
 /// }
-/// 
+///
 /// impl<T> BoxLike<T>{
 ///     pub fn new(value: T) -> Self {
 ///         let box_ = Box::new(value);
@@ -926,7 +894,7 @@ macro_rules! make_shared_vars{
 ///             _marker: std::marker::PhantomData,
 ///         }
 ///     }
-/// 
+///
 ///     /// Extracts the value this owns.
 ///     pub fn into_inner(self) -> T{
 ///         let this = ManuallyDrop::new(self);
@@ -939,8 +907,8 @@ macro_rules! make_shared_vars{
 ///         }
 ///     }
 /// }
-/// 
-/// 
+///
+///
 /// impl<T> Drop for BoxLike<T>{
 ///     fn drop(&mut self){
 ///         unsafe{
@@ -948,15 +916,15 @@ macro_rules! make_shared_vars{
 ///         }
 ///     }
 /// }
-/// 
+///
 /// // `#[sabi(kind(Prefix))]` Declares this type as being a prefix-type,
 /// // generating both of these types:
-/// // 
-/// //     - VTable_Prefix`: A struct with the fields up to (and including) the field with the 
+/// //
+/// //     - VTable_Prefix`: A struct with the fields up to (and including) the field with the
 /// //     `#[sabi(last_prefix_field)]` attribute.
-/// // 
+/// //
 /// //     - VTable_Ref`: An ffi-safe pointer to `VTable`,with methods to get `VTable`'s fields.
-/// // 
+/// //
 /// #[repr(C)]
 /// #[derive(StableAbi)]
 /// #[sabi(kind(Prefix))]
@@ -964,7 +932,7 @@ macro_rules! make_shared_vars{
 ///     #[sabi(last_prefix_field)]
 ///     destructor: unsafe extern "C" fn(*mut T, CallReferentDrop),
 /// }
-/// 
+///
 /// impl<T> VTable<T>{
 ///    staticref!(const VTABLE_VAL: WithMetadata<Self> = WithMetadata::new(
 ///        PrefixTypeTrait::METADATA,
@@ -972,12 +940,12 @@ macro_rules! make_shared_vars{
 ///            destructor: destroy_box::<T>,
 ///        },
 ///    ));
-/// 
+///
 ///    const VTABLE: VTable_Ref<T> = {
 ///        VTable_Ref( Self::VTABLE_VAL.as_prefix() )
 ///    };
-/// } 
-/// 
+/// }
+///
 /// unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {
 ///     extern_fn_panic_handling! {
 ///         let mut box_ = Box::from_raw(v as *mut ManuallyDrop<T>);
@@ -987,11 +955,11 @@ macro_rules! make_shared_vars{
 ///         drop(box_);
 ///     }
 /// }
-/// 
-/// 
+///
+///
 /// impl<T> Deref for BoxLike<T> {
 ///     type Target=T;
-/// 
+///
 ///     fn deref(&self)->&T{
 ///         unsafe{
 ///             &(*self.data)
@@ -1010,7 +978,7 @@ macro_rules! staticref{
         $(;)?
     )=>{
         $(
-            $(#[$attr])* 
+            $(#[$attr])*
             $vis const $name : $crate::sabi_types::StaticRef<$ty> = {
                 // Generating a random base36 string to avoid name collisions
                 const fn __sabi_mtuxotq5otc3ntu5mdq4ntgwmzi<T>(
@@ -1029,14 +997,11 @@ macro_rules! staticref{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-
 macro_rules! ignoring {
     (($($ignore:tt)*) $($passed:tt)* ) => {$($passed)*};
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-
 
 #[allow(unused_macros)]
 macro_rules! delegate_interface_serde {
@@ -1062,11 +1027,11 @@ macro_rules! delegate_interface_serde {
             }
         }
 
-        impl<$lt,$($impl_header)* S,I> 
+        impl<$lt,$($impl_header)* S,I>
             $crate::nonexhaustive_enum::DeserializeEnum<
                 $lt,
                 $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>
-            > 
+            >
         for $interf
         where
             $this:$crate::nonexhaustive_enum::GetEnumInfo+$lt,
@@ -1091,7 +1056,7 @@ macro_rules! delegate_interface_serde {
                     $crate::std_types::RBoxError
                 >
             {
-                <$delegates_to as 
+                <$delegates_to as
                     $crate::nonexhaustive_enum::DeserializeEnum<
                         $crate::nonexhaustive_enum::NonExhaustive<$this,S,I>
                     >
@@ -1100,5 +1065,3 @@ macro_rules! delegate_interface_serde {
         }
     )
 }
-
-

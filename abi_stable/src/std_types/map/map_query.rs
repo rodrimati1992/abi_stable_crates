@@ -3,25 +3,25 @@ use super::*;
 /// A trait object used in method that access map entries without replacing them.
 #[derive(StableAbi)]
 #[repr(C)]
-pub struct MapQuery<'a, K>{
-    _marker:NotCopyNotClone,
-    is_equal:extern "C" fn(&K, RRef<'_, ErasedObject>)->bool,
-    hash    :extern "C" fn(RRef<'_, ErasedObject>,HasherObject<'_>),
+pub struct MapQuery<'a, K> {
+    _marker: NotCopyNotClone,
+    is_equal: extern "C" fn(&K, RRef<'_, ErasedObject>) -> bool,
+    hash: extern "C" fn(RRef<'_, ErasedObject>, HasherObject<'_>),
     query: RRef<'a, ErasedObject>,
 }
 
-impl<'a,K> MapQuery<'a,K>{
+impl<'a, K> MapQuery<'a, K> {
     #[inline]
-    pub(super) fn new<Q>(query:&'a &'a Q)->Self
-    where 
-        K:Borrow<Q>,
-        Q:Hash + Eq + 'a+?Sized,
+    pub(super) fn new<Q>(query: &'a &'a Q) -> Self
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq + 'a + ?Sized,
     {
-        MapQuery{
+        MapQuery {
             _marker: NotCopyNotClone,
-            is_equal: is_equal::<K,Q>,
-            hash    : hash::<Q>,
-            query: unsafe{ RRef::new(query).transmute() },
+            is_equal: is_equal::<K, Q>,
+            hash: hash::<Q>,
+            query: unsafe { RRef::new(query).transmute() },
         }
     }
 
@@ -29,29 +29,28 @@ impl<'a,K> MapQuery<'a,K>{
     // pub(super) unsafe fn to_static(self)->MapQuery<'static,K>{
     //     mem::transmute::<MapQuery<'a,K>,MapQuery<'static,K>>(self)
     // }
-    
+
     #[inline]
-    pub(super) unsafe fn as_static(&self)->&MapQuery<'static,K>{
+    pub(super) unsafe fn as_static(&self) -> &MapQuery<'static, K> {
         crate::utils::transmute_reference(self)
     }
 }
 
-impl<'a,K> MapQuery<'a,K>{
+impl<'a, K> MapQuery<'a, K> {
     #[inline]
-    pub(super) fn is_equal(&self,other:&K)->bool{
-        (self.is_equal)(other,self.query)
+    pub(super) fn is_equal(&self, other: &K) -> bool {
+        (self.is_equal)(other, self.query)
     }
 
     #[inline]
-    pub(super) unsafe fn as_mapkey(&self)->MapKey<K>{
+    pub(super) unsafe fn as_mapkey(&self) -> MapKey<K> {
         MapKey::Query(NonNull::from(self.as_static()))
     }
 }
 
-
-impl<'a,K> Hash for MapQuery<'a,K>{
+impl<'a, K> Hash for MapQuery<'a, K> {
     #[inline]
-    fn hash<H>(&self,hasher:&mut H)
+    fn hash<H>(&self, hasher: &mut H)
     where
         H: Hasher,
     {
@@ -59,24 +58,22 @@ impl<'a,K> Hash for MapQuery<'a,K>{
     }
 }
 
-
-extern "C" fn is_equal<K,Q>(key:&K,query:RRef<'_, ErasedObject>)->bool
+extern "C" fn is_equal<K, Q>(key: &K, query: RRef<'_, ErasedObject>) -> bool
 where
-    K:Borrow<Q>,
-    Q:Eq+?Sized,
+    K: Borrow<Q>,
+    Q: Eq + ?Sized,
 {
-    extern_fn_panic_handling!{
+    extern_fn_panic_handling! {
         let query = unsafe{ query.transmute_into_ref::<&Q>() };
         key.borrow()==*query
     }
 }
 
-
-extern "C" fn hash<Q>(query:RRef<'_, ErasedObject>,mut hasher:HasherObject<'_>)
+extern "C" fn hash<Q>(query: RRef<'_, ErasedObject>, mut hasher: HasherObject<'_>)
 where
-    Q:Hash+?Sized,
+    Q: Hash + ?Sized,
 {
-    extern_fn_panic_handling!{
+    extern_fn_panic_handling! {
         let query = unsafe{ query.transmute_into_ref::<&Q>() };
         query.hash(&mut hasher);
     }

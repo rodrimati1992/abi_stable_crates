@@ -1,196 +1,184 @@
 use std::{
     fmt::Display,
-    ops::{Deref,DerefMut},
-    mem::{self,ManuallyDrop},
+    mem::{self, ManuallyDrop},
+    ops::{Deref, DerefMut},
     ptr,
 };
 
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::ToTokens;
-use proc_macro2::{
-    TokenStream as TokenStream2,
-    Span,
-};
 use syn::spanned::Spanned;
-
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NoTokens;
 
 impl ToTokens for NoTokens {
     fn to_tokens(&self, _: &mut TokenStream2) {}
 }
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 
-
-pub trait SynPathExt{
-    fn equals_str(&self,s:&str)->bool;
-    fn equals_ident(&self,s:&syn::Ident)->bool;
-    fn into_ident(self)->Result<syn::Ident,Self>
-    where Self:Sized;
+pub trait SynPathExt {
+    fn equals_str(&self, s: &str) -> bool;
+    fn equals_ident(&self, s: &syn::Ident) -> bool;
+    fn into_ident(self) -> Result<syn::Ident, Self>
+    where
+        Self: Sized;
 }
 
-impl SynPathExt for syn::Path{
-    fn equals_str(&self,s:&str)->bool{
+impl SynPathExt for syn::Path {
+    fn equals_str(&self, s: &str) -> bool {
         match self.get_ident() {
-            Some(ident)=>ident==s,
-            None=>false,
+            Some(ident) => ident == s,
+            None => false,
         }
     }
-    fn equals_ident(&self,s:&syn::Ident)->bool{
-        self.get_ident()==Some(s)
+    fn equals_ident(&self, s: &syn::Ident) -> bool {
+        self.get_ident() == Some(s)
     }
-    fn into_ident(mut self)->Result<syn::Ident,Self>{
-        if self.segments.len()==1 {
+    fn into_ident(mut self) -> Result<syn::Ident, Self> {
+        if self.segments.len() == 1 {
             Ok(self.segments.pop().expect("TEST BUG").into_value().ident)
-        }else{
+        } else {
             Err(self)
         }
     }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
-
-pub trait SynResultExt{
-    fn push_err(&mut self,err:syn::Error);
-    fn combine_err<T>(&mut self,res:Result<T,syn::Error>);
-    fn combine_into_err<T>(self,into:&mut Result<T,syn::Error>);
+pub trait SynResultExt {
+    fn push_err(&mut self, err: syn::Error);
+    fn combine_err<T>(&mut self, res: Result<T, syn::Error>);
+    fn combine_into_err<T>(self, into: &mut Result<T, syn::Error>);
 }
 
-impl<T> SynResultExt for Result<T,syn::Error>{
-    fn push_err(&mut self,err:syn::Error){
+impl<T> SynResultExt for Result<T, syn::Error> {
+    fn push_err(&mut self, err: syn::Error) {
         match self {
-            this@Ok(_)=>*this=Err(err),
-            Err(e)=>e.combine(err),
+            this @ Ok(_) => *this = Err(err),
+            Err(e) => e.combine(err),
         }
     }
 
-    fn combine_err<T2>(&mut self,res:Result<T2,syn::Error>) {
-        if let Err(err)=res {
+    fn combine_err<T2>(&mut self, res: Result<T2, syn::Error>) {
+        if let Err(err) = res {
             self.push_err(err);
         }
     }
 
-    fn combine_into_err<T2>(self,into:&mut Result<T2,syn::Error>){
+    fn combine_into_err<T2>(self, into: &mut Result<T2, syn::Error>) {
         into.combine_err(self);
     }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
-
 
 /// A result wrapper which panics if it's the error variant is not handled,
 /// by calling `.into_result()`.
-#[derive(Debug,Clone)]
-pub struct LinearResult<T>{
-    errors:ManuallyDrop<Result<T,syn::Error>>,
+#[derive(Debug, Clone)]
+pub struct LinearResult<T> {
+    errors: ManuallyDrop<Result<T, syn::Error>>,
 }
 
-impl<T> Drop for LinearResult<T>{
-    fn drop(&mut self){
-        let res=unsafe{ take_manuallydrop(&mut self.errors) };
+impl<T> Drop for LinearResult<T> {
+    fn drop(&mut self) {
+        let res = unsafe { take_manuallydrop(&mut self.errors) };
         res.expect("Expected LinearResult to be handled");
     }
 }
 
-impl<T> LinearResult<T>{
+impl<T> LinearResult<T> {
     #[inline]
-    pub fn new(res:Result<T,syn::Error>)->Self{
-        Self{
-            errors:ManuallyDrop::new(res),
+    pub fn new(res: Result<T, syn::Error>) -> Self {
+        Self {
+            errors: ManuallyDrop::new(res),
         }
     }
 
     #[inline]
-    pub fn ok(value:T)->Self{
+    pub fn ok(value: T) -> Self {
         Self::new(Ok(value))
     }
 }
 
 impl<T> Default for LinearResult<T>
 where
-    T:Default
+    T: Default,
 {
-    fn default()->Self{
+    fn default() -> Self {
         Self::new(Ok(T::default()))
     }
 }
 
-impl<T> From<Result<T,syn::Error>> for LinearResult<T>{
+impl<T> From<Result<T, syn::Error>> for LinearResult<T> {
     #[inline]
-    fn from(res:Result<T,syn::Error>)->Self{
+    fn from(res: Result<T, syn::Error>) -> Self {
         Self::new(res)
     }
 }
 
-impl<T> Deref for LinearResult<T>{
-    type Target=Result<T,syn::Error>;
+impl<T> Deref for LinearResult<T> {
+    type Target = Result<T, syn::Error>;
 
-    fn deref(&self)->&Result<T,syn::Error>{
+    fn deref(&self) -> &Result<T, syn::Error> {
         &self.errors
     }
 }
 
-impl<T> DerefMut for LinearResult<T>{
-    fn deref_mut(&mut self)->&mut Result<T,syn::Error>{
+impl<T> DerefMut for LinearResult<T> {
+    fn deref_mut(&mut self) -> &mut Result<T, syn::Error> {
         &mut self.errors
     }
 }
 
-
-impl<T> Into<Result<T,syn::Error>> for LinearResult<T>{
+impl<T> Into<Result<T, syn::Error>> for LinearResult<T> {
     #[inline]
-    fn into(self)->Result<T,syn::Error>{
+    fn into(self) -> Result<T, syn::Error> {
         self.into_result()
     }
 }
 
 #[allow(dead_code)]
-impl<T> LinearResult<T>{
+impl<T> LinearResult<T> {
     #[inline]
-    pub fn into_result(self)->Result<T,syn::Error>{
-        let mut this=ManuallyDrop::new(self);
-        unsafe{ take_manuallydrop(&mut this.errors) }
+    pub fn into_result(self) -> Result<T, syn::Error> {
+        let mut this = ManuallyDrop::new(self);
+        unsafe { take_manuallydrop(&mut this.errors) }
     }
 
     #[inline]
-    pub fn take(&mut self)->Result<T,syn::Error>
+    pub fn take(&mut self) -> Result<T, syn::Error>
     where
-        T:Default
+        T: Default,
     {
         self.replace(Ok(Default::default()))
     }
 
     #[inline]
-    pub fn replace(&mut self,other:Result<T,syn::Error>)->Result<T,syn::Error>{
-        mem::replace(&mut *self.errors,other)
+    pub fn replace(&mut self, other: Result<T, syn::Error>) -> Result<T, syn::Error> {
+        mem::replace(&mut *self.errors, other)
     }
 }
 
-impl<T> SynResultExt for LinearResult<T>{
+impl<T> SynResultExt for LinearResult<T> {
     #[inline]
-    fn push_err(&mut self,err:syn::Error){
+    fn push_err(&mut self, err: syn::Error) {
         self.errors.push_err(err);
     }
 
     #[inline]
-    fn combine_err<T2>(&mut self,res:Result<T2,syn::Error>) {
+    fn combine_err<T2>(&mut self, res: Result<T2, syn::Error>) {
         self.errors.combine_err(res);
     }
 
     #[inline]
-    fn combine_into_err<T2>(self,into:&mut Result<T2,syn::Error>){
+    fn combine_into_err<T2>(self, into: &mut Result<T2, syn::Error>) {
         self.into_result().combine_into_err(into);
     }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -198,50 +186,45 @@ impl<T> SynResultExt for LinearResult<T>{
 ///
 /// # Safety
 ///
-/// After this function is called `slot` will become uninitialized and 
+/// After this function is called `slot` will become uninitialized and
 /// must not be read again.
 pub unsafe fn take_manuallydrop<T>(slot: &mut ManuallyDrop<T>) -> T {
     ManuallyDrop::into_inner(ptr::read(slot))
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
-
-pub fn spanned_err(tokens:&dyn ToTokens, display:&dyn Display)-> syn::Error {
-    syn::Error::new_spanned(tokens,display)
+pub fn spanned_err(tokens: &dyn ToTokens, display: &dyn Display) -> syn::Error {
+    syn::Error::new_spanned(tokens, display)
 }
 
 #[allow(dead_code)]
-pub fn syn_err(span:Span,display:&dyn Display)-> syn::Error {
-    syn::Error::new(span,display)
+pub fn syn_err(span: Span, display: &dyn Display) -> syn::Error {
+    syn::Error::new(span, display)
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
-pub fn join_spans<I,T>(iter:I)->Span
+pub fn join_spans<I, T>(iter: I) -> Span
 where
-    I:IntoIterator<Item=T>,
-    T:Spanned,
+    I: IntoIterator<Item = T>,
+    T: Spanned,
 {
-    let call_site=Span::call_site();
-    let mut iter=iter.into_iter();
-    let first:Span=match iter.next() {
-        Some(x)=>x.span(),
-        None=>return call_site,
+    let call_site = Span::call_site();
+    let mut iter = iter.into_iter();
+    let first: Span = match iter.next() {
+        Some(x) => x.span(),
+        None => return call_site,
     };
 
-    iter.fold(first,|l,r| l.join(r.span()).unwrap_or(call_site) )
+    iter.fold(first, |l, r| l.join(r.span()).unwrap_or(call_site))
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 
 #[inline(never)]
-pub fn dummy_ident()->syn::Ident{
-    syn::Ident::new("DUMMY_IDENT",Span::call_site())
+pub fn dummy_ident() -> syn::Ident {
+    syn::Ident::new("DUMMY_IDENT", Span::call_site())
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -252,30 +235,31 @@ pub fn type_from_ident(ident: syn::Ident) -> syn::Type {
     path.into()
 }
 
-pub fn expr_from_ident(ident:syn::Ident)->syn::Expr{
-    let x=syn::Path::from(ident);
-    let x=syn::ExprPath{
-        attrs:Vec::new(),
-        qself:None,
-        path:x,
+pub fn expr_from_ident(ident: syn::Ident) -> syn::Expr {
+    let x = syn::Path::from(ident);
+    let x = syn::ExprPath {
+        attrs: Vec::new(),
+        qself: None,
+        path: x,
     };
     syn::Expr::Path(x)
 }
 
 /// Used to tokenize an integer without a type suffix.
-pub fn expr_from_int(int:u64)->syn::Expr{
-    let x=proc_macro2::Literal::u64_unsuffixed(int);
-    let x=syn::LitInt::from(x);
-    let x=syn::Lit::Int(x);
-    let x=syn::ExprLit{attrs:Vec::new(),lit:x};
+pub fn expr_from_int(int: u64) -> syn::Expr {
+    let x = proc_macro2::Literal::u64_unsuffixed(int);
+    let x = syn::LitInt::from(x);
+    let x = syn::Lit::Int(x);
+    let x = syn::ExprLit {
+        attrs: Vec::new(),
+        lit: x,
+    };
     syn::Expr::Lit(x)
 }
 
 /// Used to tokenize an integer without a type suffix.
 /// This one should be cheaper than `expr_from_int`.
-pub fn uint_lit(int:u64)->syn::LitInt{
-    let x=proc_macro2::Literal::u64_unsuffixed(int);
+pub fn uint_lit(int: u64) -> syn::LitInt {
+    let x = proc_macro2::Literal::u64_unsuffixed(int);
     syn::LitInt::from(x)
 }
-
-

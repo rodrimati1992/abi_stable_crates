@@ -1,24 +1,21 @@
-use std::{
-    fmt,
-    marker::PhantomData,
-};
+use std::{fmt, marker::PhantomData};
 
-use serde::de::{Deserialize, Deserializer, Visitor, MapAccess};
-
+use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
 
 /// Used to deserialize a list of key-value pairs from a json object.
-#[derive(Clone,Debug)]
-pub struct VecFromMap<K,V>{
-    pub vec:Vec<(K,V)>,
+#[derive(Clone, Debug)]
+pub struct VecFromMap<K, V> {
+    pub vec: Vec<(K, V)>,
 }
 
-
 struct VecFromMapVisitor<K, V> {
-    marker: PhantomData<(K, V)>
+    marker: PhantomData<(K, V)>,
 }
 
 impl<K, V> VecFromMapVisitor<K, V> {
-    const NEW:Self=Self{marker:PhantomData};
+    const NEW: Self = Self {
+        marker: PhantomData,
+    };
 }
 
 impl<'de, K, V> Visitor<'de> for VecFromMapVisitor<K, V>
@@ -36,14 +33,14 @@ where
     where
         M: MapAccess<'de>,
     {
-        let cap=access.size_hint().unwrap_or(0);
-        let mut vec = Vec::<(K,V)>::with_capacity(cap);
+        let cap = access.size_hint().unwrap_or(0);
+        let mut vec = Vec::<(K, V)>::with_capacity(cap);
 
         while let Some(pair) = access.next_entry()? {
             vec.push(pair);
         }
 
-        Ok(VecFromMap{vec})
+        Ok(VecFromMap { vec })
     }
 }
 

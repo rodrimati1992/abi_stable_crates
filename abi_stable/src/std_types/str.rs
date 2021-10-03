@@ -3,7 +3,7 @@ Contains an ffi-safe equivalent of `&'a str`.
 */
 
 use std::{
-    borrow::{Cow,Borrow},
+    borrow::{Borrow, Cow},
     fmt::{self, Display},
     ops::{Deref, Index},
     str,
@@ -120,7 +120,7 @@ impl<'a> RStr<'a> {
     ///
     /// ```
     pub const fn from_str(s: &'a str) -> Self {
-        unsafe{ Self::from_raw_parts( s.as_ptr(), s.len() ) }
+        unsafe { Self::from_raw_parts(s.as_ptr(), s.len()) }
     }
 
     /// For slicing `RStr`s.
@@ -183,7 +183,7 @@ impl<'a> RStr<'a> {
     }
 
     /// Gets a raw pointer to the start of the string slice.
-    pub const fn as_ptr(&self) -> *const u8{
+    pub const fn as_ptr(&self) -> *const u8 {
         self.inner.as_ptr()
     }
 
@@ -216,7 +216,7 @@ impl<'a> RStr<'a> {
     /// assert_eq!(RStr::from("What").is_empty(),false);
     ///
     /// ```
-    pub const fn is_empty(&self)->bool{
+    pub const fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 }
@@ -239,8 +239,7 @@ impl<'a> Deref for RStr<'a> {
     }
 }
 
-
-deref_coerced_impl_cmp_traits!{
+deref_coerced_impl_cmp_traits! {
     RStr<'_>;
     coerce_to = str,
     [
@@ -292,20 +291,20 @@ impl_from_rust_repr! {
 
 ////////////////////////////////
 
-impl<'a> Borrow<str> for RStr<'a>{
-    fn borrow(&self)->&str{
+impl<'a> Borrow<str> for RStr<'a> {
+    fn borrow(&self) -> &str {
         self
     }
 }
 
-impl AsRef<str> for RStr<'_>{
-    fn as_ref(&self)->&str{
+impl AsRef<str> for RStr<'_> {
+    fn as_ref(&self) -> &str {
         self
     }
 }
 
-impl AsRef<[u8]> for RStr<'_>{
-    fn as_ref(&self)->&[u8]{
+impl AsRef<[u8]> for RStr<'_> {
+    fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
@@ -348,7 +347,7 @@ shared_impls! {
 ////////////////////////////////////////////////////
 
 //#[cfg(test)]
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(all(test, not(feature = "only_new_tests")))]
 mod test {
     use super::*;
 

@@ -1,6 +1,6 @@
 /*!
 
-Prefix-types are types that derive StableAbi along with the 
+Prefix-types are types that derive StableAbi along with the
 `#[sabi(kind(Prefix(....)))]` helper attribute.
 This is mostly intended for **vtables** and **modules**.
 
@@ -15,10 +15,10 @@ To convert `Foo` to `Foo_Ref` you can use any of (non-exhaustive list):
 
 - `prefix_type::WithMetadata::new`:<br>
     Use this if you need a compiletime constant.<br>
-    First create a `StaticRef<WithMetadata<Self>>` constant using 
+    First create a `StaticRef<WithMetadata<Self>>` constant using
     the [`staticref`] macro,
     then construct a `Foo_Ref` constant with `Foo_Ref(THE_STATICREF_CONSTANT.as_prefix())`.<br>
-    There are two examples of this, 
+    There are two examples of this,
     [for modules](#module_construction),and [for vtables](#vtable_construction)
 
 
@@ -30,22 +30,22 @@ accessor methods named the same as the fields.
 ### Adding fields
 
 To ensure that libraries stay abi compatible,
-the first minor version of the library must use the `#[sabi(last_prefix_field)]` attribute on some 
+the first minor version of the library must use the `#[sabi(last_prefix_field)]` attribute on some
 field, and every minor version after that must add fields at the end (never moving that attribute).
 Changing the field that `#[sabi(last_prefix_field)]` is applied to is a breaking change.
 
 Getter methods for fields after the one to which `#[sabi(last_prefix_field)]` was applied to
-will return `Option<FieldType>` by default,because those fields might not exist 
+will return `Option<FieldType>` by default,because those fields might not exist
 (the struct might come from a previous version of the library).
 To override how to deal with nonexistent fields,
 use the `#[sabi(missing_field())]` attribute,
 applied to either the struct or the field.
 
-### Alignment 
+### Alignment
 
-To ensure that users can define empty vtables/modules that can be extended in 
+To ensure that users can define empty vtables/modules that can be extended in
 semver compatible versions,
-this library forces the struct converted to ffi-safe form to have an alignment at 
+this library forces the struct converted to ffi-safe form to have an alignment at
 least that of usize.
 
 You must ensure that newer versions don't change the alignment of the struct,
@@ -53,12 +53,12 @@ because that makes it ABI incompatible.
 
 # Grammar Reference
 
-For the grammar reference,you can look at the documentation for 
+For the grammar reference,you can look at the documentation for
 [`#[derive(StableAbi)]`](../../derive.StableAbi.html).
 
 # Examples
 
-###  Example 1 
+###  Example 1
 
 Declaring a Prefix-type.
 
@@ -91,8 +91,8 @@ In this example:
 - `#[sabi(kind(Prefix(prefix_ref="Module_Ref")))]` declares this type as being a prefix-type
     with an ffi-safe pointer called `Module_Ref` to which `Module` can be converted into.
 
-- `#[sabi(missing_field(panic))]` 
-    makes the field accessors panic when attempting to 
+- `#[sabi(missing_field(panic))]`
+    makes the field accessors panic when attempting to
     access nonexistent fields instead of the default of returning an Option<FieldType>.
 
 - `#[sabi(last_prefix_field)]`means that it is the last field in the struct
@@ -122,7 +122,7 @@ fn main(){
     assert_eq!(MODULE_REF.elapsed()(1000), RDuration::from_secs(1));
 
     assert_eq!(MODULE_REF.description().as_str(), "this is a module field");
-    
+
 }
 
 #[repr(C)]
@@ -147,7 +147,7 @@ impl Module<u64> {
             elapsed,
             description: RStr::from_str("this is a module field"),
         },
-    ));    
+    ));
 }
 
 
@@ -173,7 +173,7 @@ use abi_stable::{
     StableAbi,
 };
 
-fn main(){   
+fn main(){
     unsafe {
         let vtable = MakeVTable::<u64>::MAKE;
         assert_eq!(
@@ -203,7 +203,7 @@ pub struct VTable {
 // A dummy struct, used purely for its associated constants.
 struct MakeVTable<T>(T);
 
-impl<T> MakeVTable<T> 
+impl<T> MakeVTable<T>
 where
     T: Copy + Into<u64>
 {
@@ -226,7 +226,7 @@ where
 
 
 <span id="example2"></span>
-###  Example 2:Declaring a type with a VTable 
+###  Example 2:Declaring a type with a VTable
 
 Here is the implementation of a Box-like type,which uses a vtable that is a prefix type.
 
@@ -251,7 +251,7 @@ use abi_stable::{
 #[derive(StableAbi)]
 pub struct BoxLike<T> {
     data: *mut T,
-    
+
     vtable: BoxVtable_Ref<T>,
 
     _marker: PhantomData<T>,
@@ -261,7 +261,7 @@ pub struct BoxLike<T> {
 impl<T> BoxLike<T>{
     pub fn new(value:T)->Self{
         let box_=Box::new(value);
-        
+
         Self{
             data:Box::into_raw(box_),
             vtable: BoxVtable::VTABLE,
@@ -320,25 +320,25 @@ impl<T> Drop for BoxLike<T>{
 
 // `#[sabi(kind(Prefix))]` Declares this type as being a prefix-type,
 // generating both of these types:
-// 
-//     - BoxVTable_Prefix`: A struct with the fields up to (and including) the field with the 
+//
+//     - BoxVTable_Prefix`: A struct with the fields up to (and including) the field with the
 //     `#[sabi(last_prefix_field)]` attribute.
-// 
+//
 //     - BoxVTable_Ref`: An ffi-safe pointer to a `BoxVtable`, with methods to get
 //     `BoxVtable`'s fields.
-// 
+//
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(kind(Prefix))]
 pub(crate) struct BoxVtable<T> {
 
-    /// The `#[sabi(last_prefix_field)]` attribute here means that this is 
-    /// the last field in this struct that was defined in the 
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is
+    /// the last field in this struct that was defined in the
     /// first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
     /// requiring new fields to always be added after it.
-    /// 
-    /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library
     /// bumps its "major" version,
     /// at which point it would be moved to the last field at the time.
     ///
@@ -382,7 +382,7 @@ unsafe extern "C" fn destroy_box<T>(v: *mut T, call_drop: CallReferentDrop) {
 ```
 
 
-###  Example 3:module 
+###  Example 3:module
 
 This declares,initializes,and uses a module.
 
@@ -397,25 +397,25 @@ use abi_stable::{
 
 // `#[sabi(kind(Prefix))]` Declares this type as being a prefix-type,
 // generating both of these types:
-// 
-//     - PersonMod_Prefix`: A struct with the fields up to (and including) the field with the 
+//
+//     - PersonMod_Prefix`: A struct with the fields up to (and including) the field with the
 //     `#[sabi(last_prefix_field)]` attribute.
-// 
+//
 //     - PersonMod_Ref`:
 //      An ffi-safe pointer to a `PersonMod`,with methods to get`PersonMod`'s fields.
-// 
+//
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(kind(Prefix))]
 pub struct PersonMod {
 
-    /// The `#[sabi(last_prefix_field)]` attribute here means that this is 
-    /// the last field in this struct that was defined in the 
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is
+    /// the last field in this struct that was defined in the
     /// first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
     /// requiring new fields to always be added below preexisting ones.
-    /// 
-    /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library 
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library
     /// bumps its "major" version,
     /// at which point it would be moved to the last field at the time.
     ///
@@ -434,7 +434,7 @@ pub struct PersonMod {
     // The getter for this field returns `default_score()` if the field doesn't exist.
     #[sabi(missing_field(with="default_score"))]
     pub score: extern "C" fn(Id)->u32,
-    
+
     // The getter for this field returns `Default::default()` if the field doesn't exist.
     #[sabi(missing_field(default))]
     pub visit_length: Option< extern "C" fn(Id)->RDuration >,
@@ -461,7 +461,7 @@ type Id=u32;
 #   fn customer_for(id:Id)->RDuration{
 #       VARS[id as usize].0
 #   }
-# 
+#
 #   #[sabi_extern_fn]
 #   fn bike_count(id:Id)->u32{
 #       VARS[id as usize].1
@@ -501,10 +501,10 @@ const MODULE: PersonMod_Ref = PersonMod_Ref(_MODULE_WM_.static_as_prefix());
 
 // Getting the value for every field of `MODULE`.
 
-let customer_for: extern "C" fn(Id)->RDuration = 
+let customer_for: extern "C" fn(Id)->RDuration =
     MODULE.customer_for();
 
-let bike_count: Option<extern "C" fn(Id)->u32> = 
+let bike_count: Option<extern "C" fn(Id)->u32> =
     MODULE.bike_count();
 
 let visits: extern "C" fn(Id)->u32=

@@ -81,4 +81,3 @@ declare_arenas! {
     strings: String,
     paths: syn::Path,
 }
-

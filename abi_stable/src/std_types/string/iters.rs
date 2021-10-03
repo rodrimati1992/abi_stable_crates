@@ -67,7 +67,7 @@ pub struct Drain<'a> {
     pub(super) string: *mut RString,
     pub(super) removed: Range<usize>,
     pub(super) iter: Chars<'a>,
-    pub(super) variance:PhantomData<&'a mut [char]>,
+    pub(super) variance: PhantomData<&'a mut [char]>,
 }
 
 impl<'a> fmt::Debug for Drain<'a> {

@@ -1,6 +1,6 @@
 #[doc(hidden)]
 #[macro_export]
-macro_rules! declare_type_layout_index {( 
+macro_rules! declare_type_layout_index {(
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
     /// An index for a slice of `TypeLayoutCtor`.
@@ -15,10 +15,10 @@ macro_rules! declare_type_layout_index {(
         pub(crate) const MASK:u16=0b11_1111_1111;
         /// The amount of bits required to represent a `TypeLayoutIndex`.
         pub const BIT_SIZE:u32=10;
-        
+
         /// The maximum value of a `TypeLayoutIndex`.
         pub const MAX_VAL_U16:u16=Self::MASK;
-        
+
         /// The maximum value of a `TypeLayoutIndex`.
         pub const MAX_VAL:usize=Self::MAX_VAL_U16 as usize;
 
@@ -27,7 +27,7 @@ macro_rules! declare_type_layout_index {(
         pub const fn from_u10(n:u16)->Self{
             Self{bits: n & Self::MASK }
         }
-        
+
         /// Converts this `TypeLayoutIndex` into its representation.
         #[inline]
         pub const fn to_u10(self)->u16{
@@ -41,7 +41,7 @@ macro_rules! declare_type_layout_index {(
 
 
     }
-    
+
     mod type_layout_index_impls{
         use super::*;
         use std::fmt::{self,Display};
@@ -53,6 +53,6 @@ macro_rules! declare_type_layout_index {(
             }
         }
     }
-    
+
 
 )}

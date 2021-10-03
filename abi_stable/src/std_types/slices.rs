@@ -14,78 +14,78 @@ use core_extensions::SelfOps;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::std_types::{RVec};
+use crate::std_types::RVec;
 
 mod private {
     use super::*;
 
-/**
-Ffi-safe equivalent of `&'a [T]`
+    /**
+    Ffi-safe equivalent of `&'a [T]`
 
-As of the writing this documentation the abi stability of `&[T]` is 
-not yet guaranteed.
+    As of the writing this documentation the abi stability of `&[T]` is
+    not yet guaranteed.
 
-# Lifetime problems
+    # Lifetime problems
 
-Because `RSlice` dereferences into a slice,you can call slice methods on it.
+    Because `RSlice` dereferences into a slice,you can call slice methods on it.
 
-If you call a slice method that returns a borrow into the slice,
-it will have the lifetime of the `let slice: RSlice<'a,[T]>` variable instead of the `'a` 
-lifetime that it's parameterized over.
+    If you call a slice method that returns a borrow into the slice,
+    it will have the lifetime of the `let slice: RSlice<'a,[T]>` variable instead of the `'a`
+    lifetime that it's parameterized over.
 
-To get a slice with the same lifetime as an `RSlice`,
-one must use the `RSlice::as_slice` method.
-
-
-Example of what would not work:
-
-```compile_fail
-use abi_stable::std_types::RSlice;
-
-fn into_slice<'a,T>(slic:RSlice<'a,T>)->&'a [T] {
-    &*slic
-}
-```
-
-Example of what would work:
-
-```
-use abi_stable::std_types::RSlice;
-
-fn into_slice<'a,T>(slic:RSlice<'a,T>)->&'a [T] {
-    slic.as_slice()
-}
-```
+    To get a slice with the same lifetime as an `RSlice`,
+    one must use the `RSlice::as_slice` method.
 
 
+    Example of what would not work:
 
-# Example
+    ```compile_fail
+    use abi_stable::std_types::RSlice;
 
-Defining an extern fn that returns a reference to 
-the first element that compares equal to a parameter.
+    fn into_slice<'a,T>(slic:RSlice<'a,T>)->&'a [T] {
+        &*slic
+    }
+    ```
 
-```
-use abi_stable::{
-    std_types::RSlice,
-    sabi_extern_fn,
-};
+    Example of what would work:
 
-#[sabi_extern_fn]
-pub fn find_first_mut<'a,T>(slice_:RSlice<'a,T>,element:&T)->Option<&'a T>
-where
-    T:std::cmp::PartialEq
-{
-    slice_.iter()
-        .position(|x| x==element )
-        .map(|i| &slice_.as_slice()[i] )
-}
+    ```
+    use abi_stable::std_types::RSlice;
 
-
-```
+    fn into_slice<'a,T>(slic:RSlice<'a,T>)->&'a [T] {
+        slic.as_slice()
+    }
+    ```
 
 
 
-*/
+    # Example
+
+    Defining an extern fn that returns a reference to
+    the first element that compares equal to a parameter.
+
+    ```
+    use abi_stable::{
+        std_types::RSlice,
+        sabi_extern_fn,
+    };
+
+    #[sabi_extern_fn]
+    pub fn find_first_mut<'a,T>(slice_:RSlice<'a,T>,element:&T)->Option<&'a T>
+    where
+        T:std::cmp::PartialEq
+    {
+        slice_.iter()
+            .position(|x| x==element )
+            .map(|i| &slice_.as_slice()[i] )
+    }
+
+
+    ```
+
+
+
+    */
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(bound = "T:'a")]
@@ -156,10 +156,7 @@ where
         }
 
         #[doc(hidden)]
-        pub const unsafe fn from_raw_parts_with_lifetime(
-            slice:&'a [T],
-            len: usize,
-        ) -> Self {
+        pub const unsafe fn from_raw_parts_with_lifetime(slice: &'a [T], len: usize) -> Self {
             Self {
                 data: slice.as_ptr(),
                 length: len,
@@ -167,7 +164,7 @@ where
             }
         }
     }
-    
+
     impl<'a, T> RSlice<'a, T> {
         /// Creates an `&'a [T]` with access to all the elements of this slice.
         ///
@@ -184,10 +181,10 @@ where
         }
 
         /// Gets a raw pointer to the start of the slice.
-        pub const fn as_ptr(&self) -> *const T{
+        pub const fn as_ptr(&self) -> *const T {
             self.data
         }
-        
+
         /// The length (in elements) of this slice.
         ///
         /// # Example
@@ -204,7 +201,7 @@ where
         pub const fn len(&self) -> usize {
             self.length
         }
-        
+
         /// Whether this slice is empty.
         ///
         /// # Example
@@ -219,7 +216,7 @@ where
         /// ```
         #[inline]
         pub const fn is_empty(&self) -> bool {
-            self.length==0
+            self.length == 0
         }
     }
 }
@@ -244,34 +241,31 @@ impl<'a, T> RSlice<'a, T> {
     /// assert_eq!(RSlice::from_ref(&0), RSlice::from_slice(&[0]) );
     /// assert_eq!(RSlice::from_ref(&1), RSlice::from_slice(&[1]) );
     /// assert_eq!(RSlice::from_ref(&2), RSlice::from_slice(&[2]) );
-    /// 
+    ///
     ///
     /// ```
-    pub const fn from_ref(ref_:&'a T)->Self{
-        unsafe{
-            Self::from_raw_parts(ref_,1)
-        }
-    }    
+    pub const fn from_ref(ref_: &'a T) -> Self {
+        unsafe { Self::from_raw_parts(ref_, 1) }
+    }
 
     /// Converts a `&[T]` to an `RSlice<'_,T>`.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// use abi_stable::std_types::RSlice;
-    /// 
+    ///
     /// let empty:&[u8]=&[];
-    /// 
+    ///
     /// assert_eq!(RSlice::<u8>::from_slice(&[]).as_slice(), empty);
     /// assert_eq!(RSlice::from_slice(&[0]).as_slice()     , &[0][..]);
     /// assert_eq!(RSlice::from_slice(&[0,1]).as_slice()   , &[0,1][..]);
-    /// 
+    ///
     /// ```
     #[inline]
-    pub const fn from_slice(slic:&'a [T])->Self{
-        unsafe{ RSlice::from_raw_parts(slic.as_ptr(),slic.len()) }
+    pub const fn from_slice(slic: &'a [T]) -> Self {
+        unsafe { RSlice::from_raw_parts(slic.as_ptr(), slic.len()) }
     }
-
 
     /// Creates an `RSlice<'a,T>` with access to the `range` range of elements.
     ///
@@ -324,19 +318,16 @@ impl<'a, T> RSlice<'a, T> {
     ///
     /// # Safety
     ///
-    /// This has the same safety requirements as calling [`std::mem::transmute`] to 
+    /// This has the same safety requirements as calling [`std::mem::transmute`] to
     /// transmute a `&'a [T]` to a `&'a [U]`.
     ///
     /// [`std::mem::transmute`]: https://doc.rust-lang.org/std/mem/fn.transmute.html
-    pub const unsafe fn transmute<U>(self)->RSlice<'a,U>
+    pub const unsafe fn transmute<U>(self) -> RSlice<'a, U>
     where
-        U:'a
+        U: 'a,
     {
-        let len=self.len();
-        RSlice::from_raw_parts(
-            self.as_ptr() as *const T as *const U,
-            len,
-        )
+        let len = self.len();
+        RSlice::from_raw_parts(self.as_ptr() as *const T as *const U, len)
     }
 }
 
@@ -367,7 +358,7 @@ impl<'a, T> IntoIterator for RSlice<'a, T> {
     }
 }
 
-slice_like_impl_cmp_traits!{
+slice_like_impl_cmp_traits! {
     impl[] RSlice<'_, T>,
     where[];
     Vec<U>,
@@ -376,13 +367,13 @@ slice_like_impl_cmp_traits!{
 }
 
 #[cfg(feature = "const_params")]
-slice_like_impl_cmp_traits!{
+slice_like_impl_cmp_traits! {
     impl[const N: usize] RSlice<'_, T>,
     where[];
     [U; N],
 }
 
-slice_like_impl_cmp_traits!{
+slice_like_impl_cmp_traits! {
     impl[] RSlice<'_, T>,
     where[T: Clone, U: Clone];
     std::borrow::Cow<'_, [U]>,
@@ -407,20 +398,17 @@ impl_into_rust_repr! {
 
 ////////////////////
 
-
-impl<'a,T:'a> Borrow<[T]> for RSlice<'a,T>{
-    fn borrow(&self)->&[T]{
+impl<'a, T: 'a> Borrow<[T]> for RSlice<'a, T> {
+    fn borrow(&self) -> &[T] {
         self
     }
 }
 
-
-impl<'a,T:'a> AsRef<[T]> for RSlice<'a,T>{
-    fn as_ref(&self)->&[T]{
+impl<'a, T: 'a> AsRef<[T]> for RSlice<'a, T> {
+    fn as_ref(&self) -> &[T] {
         self
     }
 }
-
 
 ///////////////////
 
@@ -502,7 +490,7 @@ shared_impls! {
 ////////////////////////////////////////////////////////////////////////////////
 
 //#[cfg(test)]
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(all(test, not(feature = "only_new_tests")))]
 mod test {
     use super::*;
 

@@ -1,16 +1,10 @@
-use abi_stable::{
-    std_types::RCow,
-    DynTrait,
-};
+use abi_stable::{std_types::RCow, DynTrait};
 
-use example_0_interface::{
-    CowStrIter,
-};
-
+use example_0_interface::CowStrIter;
 
 use super::*;
 
-/// This tests that a type coming from a dynamic library 
+/// This tests that a type coming from a dynamic library
 /// cannot be converted back to its std-library equivalent
 /// while reusing the heap allocation.
 ///
@@ -19,48 +13,51 @@ use super::*;
 ///
 /// There is no way that I am aware to check at compile-time what allocator
 /// the type is using,so this is the best I can do while staying safe.
-pub fn run_dynamic_library_tests(mods:TextOpsMod_Ref){
+pub fn run_dynamic_library_tests(mods: TextOpsMod_Ref) {
     test_reverse_lines(mods);
     test_remove_words(mods);
-    
+
     println!();
     println!(".-------------------------.");
     println!("|     tests succeeded!    |");
     println!("'-------------------------'");
-
 }
 
-
-fn test_reverse_lines(mods:TextOpsMod_Ref) {
-    let text_ops=mods;
+fn test_reverse_lines(mods: TextOpsMod_Ref) {
+    let text_ops = mods;
 
     let mut state = text_ops.new()();
     assert_eq!(
-        &* text_ops.reverse_lines()(&mut state, "hello\nbig\nworld".into()),
+        &*text_ops.reverse_lines()(&mut state, "hello\nbig\nworld".into()),
         "world\nbig\nhello\n"
     );
 }
 
-
-fn test_remove_words(mods:TextOpsMod_Ref) {
-    let text_ops=mods;
+fn test_remove_words(mods: TextOpsMod_Ref) {
+    let text_ops = mods;
 
     let mut state = text_ops.new()();
     {
-        let words = &mut vec!["burrito", "like","a"].into_iter().map(RCow::from);
-        
+        let words = &mut vec!["burrito", "like", "a"].into_iter().map(RCow::from);
+
         let param = RemoveWords {
             string: "Monads are like a burrito wrapper.".into(),
-            words: DynTrait::from_borrowing_ptr(words,CowStrIter),
+            words: DynTrait::from_borrowing_ptr(words, CowStrIter),
         };
-        assert_eq!(&*text_ops.remove_words()(&mut state, param), "Monads are wrapper.");
+        assert_eq!(
+            &*text_ops.remove_words()(&mut state, param),
+            "Monads are wrapper."
+        );
     }
     {
-        let words = &mut vec!["largest","is"].into_iter().map(RCow::from);
+        let words = &mut vec!["largest", "is"].into_iter().map(RCow::from);
         let param = RemoveWords {
             string: "The   largest planet  is    jupiter.".into(),
-            words: DynTrait::from_borrowing_ptr(words,CowStrIter),
+            words: DynTrait::from_borrowing_ptr(words, CowStrIter),
         };
-        assert_eq!(&*text_ops.remove_words()(&mut state, param), "The   planet  jupiter.");
+        assert_eq!(
+            &*text_ops.remove_words()(&mut state, param),
+            "The   planet  jupiter."
+        );
     }
 }

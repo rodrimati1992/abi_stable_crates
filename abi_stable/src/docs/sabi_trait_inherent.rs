@@ -11,7 +11,7 @@ annotated with the [`sabi_trait`] attribute macro".
 pub trait Action: Debug {
     /// Gets the current value of `self`.
     fn get(&self) -> usize;
-    
+
     /// Adds `val` into `self`, returning the new value.
     fn add_mut(&mut self, val: usize) -> usize;
 
@@ -50,12 +50,12 @@ impl<'lt, ErasedPtr, …> Trait_TO<'lt, ErasedPtr, …> {
     pub fn from_ptr<Ptr, Downcasting>(
         pointer: Ptr,
         can_it_downcast: Downcasting
-    ) -> Self 
+    ) -> Self
 ```
 
 Constructs `<trait>_TO` from a pointer to a type that implements `<trait>`
 
-The `can_it_downcast` parameter describes whether the trait object can be 
+The `can_it_downcast` parameter describes whether the trait object can be
 converted back into the original type or not.<br>
 Its possible values are [`TD_CanDowncast`] and [`TD_Opaque`].
 
@@ -89,7 +89,7 @@ use abi_stable::{
 // From a reference
 {
     // `Action_TO`s constructed from `&` are `Action_TO<'_, RRef<'_, ()>>`
-    // since `&T` can't soundly be transmuted back and forth into `&()`    
+    // since `&T` can't soundly be transmuted back and forth into `&()`
     let object: Action_TO<'static, RRef<'static, ()>> =
         Action_TO::from_ptr(&20_usize, TD_CanDowncast);
 
@@ -101,7 +101,7 @@ use abi_stable::{
     let mut val = 30_usize;
 
     // `Action_TO`s constructed from `&mut` are `Action_TO<'_, RMut<'_, ()>>`
-    // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`    
+    // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
     let mut object: Action_TO<'static, RMut<'_, ()>> =
         Action_TO::from_ptr(&mut val, TD_CanDowncast);
 
@@ -132,13 +132,13 @@ impl<'lt, …> Trait_TO<'lt, RBox<()>, …> {
     pub fn from_value<_OrigPtr, Downcasting>(
         pointer: _OrigPtr,
         can_it_downcast: Downcasting
-    ) -> Self 
+    ) -> Self
 ```
 
 Constructs `<trait>_TO` from a type that implements `<trait>`,
 wrapping that value in an [`RBox`].
 
-The `can_it_downcast` parameter describes whether the trait object can be 
+The `can_it_downcast` parameter describes whether the trait object can be
 converted back into the original type or not.<br>
 Its possible values are [`TD_CanDowncast`] and [`TD_Opaque`].
 
@@ -176,13 +176,13 @@ impl<'lt, 'sub, …> Trait_TO<'lt, RRef<'sub, ()>, …> {
         pointer: &'sub T,
         can_it_downcast: Downcasting,
         vtable_for: …,
-    ) -> Self 
+    ) -> Self
 ```
 
 Const-constructs `<trait>_TO` from a constant that
 implements `<trait>`,
 
-The `can_it_downcast` parameter describes whether the trait object can be 
+The `can_it_downcast` parameter describes whether the trait object can be
 converted back into the original type or not.<br>
 Its possible values are [`TD_CanDowncast`] and [`TD_Opaque`].
 
@@ -199,7 +199,7 @@ use abi_stable::{
     type_level::downcasting::TD_CanDowncast,
 };
 
-const TO: Action_CTO<'_, '_> = 
+const TO: Action_CTO<'_, '_> =
     Action_TO::from_const(
         &200,
         TD_CanDowncast,
@@ -215,7 +215,7 @@ assert_eq!(TO.get(), 200);
 
 ```text
 impl<'lt, ErasedPtr, …> Trait_TO<'lt, ErasedPtr, …> {
-    pub fn from_sabi(obj: Trait_Backend<'lt, ErasedPtr, …>) -> Self 
+    pub fn from_sabi(obj: Trait_Backend<'lt, ErasedPtr, …>) -> Self
 ```
 
 Constructs `<trait>_TO` from the backend trait object type,
@@ -241,7 +241,7 @@ use abi_stable::{
     type_level::downcasting::TD_CanDowncast,
 };
 
-let mut object: Action_TO<'static, RBox<()>> = 
+let mut object: Action_TO<'static, RBox<()>> =
     Action_TO::from_value(700, TD_CanDowncast);
 
 
@@ -362,7 +362,7 @@ assert_eq!(add_mut(object.sabi_reborrow_mut(), 10), 416);
 assert_eq!(add_mut(object, 20), 436);
 
 
-fn add_mut<P>(mut x: Action_TO<'_, P>, how_much: usize) -> usize 
+fn add_mut<P>(mut x: Action_TO<'_, P>, how_much: usize) -> usize
 where
     // Needed for calling mutable methods on `Action_TO`
     P: AsMutPtr<PtrTarget = ()>
