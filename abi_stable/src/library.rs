@@ -143,7 +143,7 @@ impl<M> RootModuleStatics<M>{
 #[macro_export]
 macro_rules! declare_root_module_statics {
     ( ( $($stuff:tt)* ) ) => (
-        $carte::declare_root_module_statics!{$($stuff)*}
+        $crate::declare_root_module_statics!{$($stuff)*}
     );
     ( $this:ty ) => (
         #[inline]
