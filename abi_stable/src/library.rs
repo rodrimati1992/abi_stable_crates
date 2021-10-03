@@ -110,13 +110,14 @@ impl IsLayoutChecked{
 //////////////////////////////////////////////////////////////////////
 
 /// The return type of the function that the
-/// `#[export_root_module]` attribute outputs.
+/// [`#[export_root_module]`](../attr.export_root_module.html) attribute outputs.
 pub type RootModuleResult = RResult<PrefixRef<ErasedPrefix>, RootModuleError>;
 
 //////////////////////////////////////////////////////////////////////
 
 
-/// The static variables declared for some `RootModule` implementor.
+/// The static variables declared for some [`RootModule`] implementor.
+/// [`RootModule`]: ./trait.RootModule.html
 #[doc(hidden)]
 pub struct RootModuleStatics<M>{
     root_mod:LateStaticRef<M>,
@@ -135,15 +136,87 @@ impl<M> RootModuleStatics<M>{
 }
 
 
-/// Implements the `RootModule::root_module_statics` associated function.
+/// Implements the [`RootModule::root_module_statics`] associated function.
 ///
 /// To define the associated function use:
 /// `abi_stable::declare_root_module_statics!{TypeOfSelf}`.
 /// Passing `Self` instead of `TypeOfSelf` won't work.
+/// 
+/// # Example
+/// 
+/// ```rust
+/// use abi_stable::{
+///     library::RootModule,
+///     sabi_types::VersionStrings,
+///     StableAbi,
+/// };
+/// 
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+/// pub struct Module{
+///     pub first: u8,
+///     #[sabi(last_prefix_field)]
+///     pub second: u16,
+///     pub third: u32,
+/// }
+/// impl RootModule for Module_Ref {
+///     abi_stable::declare_root_module_statics!{Module_Ref}
+///     const BASE_NAME: &'static str = "example_root_module";
+///     const NAME: &'static str = "example_root_module";
+///     const VERSION_STRINGS: VersionStrings = abi_stable::package_version_strings!();
+/// }
+/// 
+/// # fn main(){}
+/// ```
+/// 
+#[cfg_attr(doctest, doc = r###"
+
+```rust
+struct Foo;
+impl Foo {
+    abi_stable::declare_root_module_statics!{Foo}
+}
+```
+
+```rust
+struct Foo;
+impl Foo {
+    abi_stable::declare_root_module_statics!{(Foo)}
+}
+```
+
+```compile_fail
+struct Foo;
+impl Foo {
+    abi_stable::declare_root_module_statics!{Self}
+}
+```
+
+```compile_fail
+struct Foo;
+impl Foo {
+    abi_stable::declare_root_module_statics!{(Self)}
+}
+```
+
+```compile_fail
+struct Foo;
+impl Foo {
+    abi_stable::declare_root_module_statics!{((Self))}
+}
+```
+
+"###)]
+/// [`RootModule::root_module_statics`]:
+/// ./library/trait.RootModule.html#tymethod.root_module_statics
 #[macro_export]
 macro_rules! declare_root_module_statics {
     ( ( $($stuff:tt)* ) ) => (
         $crate::declare_root_module_statics!{$($stuff)*}
+    );
+    ( Self ) => (
+        compile_error!{"Don't use `Self`, write the full type name"}
     );
     ( $this:ty ) => (
         #[inline]
@@ -153,9 +226,6 @@ macro_rules! declare_root_module_statics {
 
             &_ROOT_MOD_STATICS
         }
-    );
-    ( Self ) => (
-        compile_error!("Don't use `Self`, write the full type name")
     );
 }
 

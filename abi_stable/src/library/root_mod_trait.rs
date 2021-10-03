@@ -7,15 +7,46 @@ use crate::{
 };
 
 
-/**
-The root module of a dynamic library,
-which may contain other modules,function pointers,and static references.
-
-For an example of a type implementing this trait you can look 
-at either the example in the readme for this crate,
-or the `example/example_*_interface` crates  in this crates' repository .
-
-*/
+/// The root module of a dynamic library,
+/// which may contain other modules,function pointers,and static references.
+/// 
+/// 
+/// # Examples
+/// 
+/// For a more in-context example of a type implementing this trait you can look 
+/// at either the example in the readme for this crate,
+/// or the `example/example_*_interface` crates  in this crates' repository .
+/// 
+/// ### Basic
+/// 
+/// ```rust
+/// use abi_stable::{
+///     library::RootModule,
+///     sabi_types::VersionStrings,
+///     StableAbi,
+/// };
+/// 
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+/// pub struct Module{
+///     pub first: u8,
+///     // The `#[sabi(last_prefix_field)]` attribute here means that this is 
+///     // the last field in this module that was defined in the 
+///     // first compatible version of the library,
+///     #[sabi(last_prefix_field)]
+///     pub second: u16,
+///     pub third: u32,
+/// }
+/// impl RootModule for Module_Ref {
+///     abi_stable::declare_root_module_statics!{Module_Ref}
+///     const BASE_NAME: &'static str = "example_root_module";
+///     const NAME: &'static str = "example_root_module";
+///     const VERSION_STRINGS: VersionStrings = abi_stable::package_version_strings!();
+/// }
+/// 
+/// # fn main(){}
+/// ```
 pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static  {
 
     /// The name of the dynamic library,which is the same on all platforms.
@@ -27,7 +58,8 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static  {
 
     /// The version number of the library that this is a root module of.
     /// 
-    /// Initialize this with ` package_version_strings!() `
+    /// Initialize this with 
+    /// [`package_version_strings!()`](../macro.package_version_strings.html)
     const VERSION_STRINGS: VersionStrings;
 
     /// All the constants of this trait and supertraits.
@@ -56,7 +88,8 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static  {
     /// Gets the statics for Self.
     ///
     /// To define this associated function use:
-    /// `abi_stable::declare_root_module_statics!{TypeOfSelf}`.
+    /// [`abi_stable::declare_root_module_statics!{TypeOfSelf}`
+    /// ](../macro.declare_root_module_statics.html).
     /// Passing `Self` instead of `TypeOfSelf` won't work.
     ///
     fn root_module_statics()->&'static RootModuleStatics<Self>;
