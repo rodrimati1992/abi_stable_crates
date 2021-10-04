@@ -303,6 +303,12 @@ const INIT_GLOBALS_WITH: InitGlobalsWith = InitGlobalsWith(crate::globals::initi
 
 //////////////////////////////////////////////////////////////////////
 
+/// A handle to the [`AbiHeader`] of a library.
+///
+/// This can be dereferenced into the `AbiHeader`,
+/// and [fallibly upgraded](#method.upgrade) into a `&'static LibHeader`.
+///
+/// [`AbiHeader`]: ./struct.AbiHeader.html
 #[repr(transparent)]
 #[derive(Debug, StableAbi, Copy, Clone)]
 pub struct AbiHeaderRef(pub(super) RRef<'static, AbiHeader>);
@@ -315,11 +321,10 @@ impl std::ops::Deref for AbiHeaderRef {
     }
 }
 
-/**
-Represents the abi_stable version used by a compiled dynamic library,
-which if incompatible would produce a `LibraryError::InvalidAbiHeader`
-
-*/
+/// Represents the abi_stable version used by a compiled dynamic library,
+/// which if incompatible would produce a [`LibraryError::InvalidAbiHeader`]
+///
+/// [`LibraryError::InvalidAbiHeader`]: ./enum.LibraryError.html#variant.InvalidAbiHeader
 #[repr(C)]
 #[derive(Debug, StableAbi, Copy, Clone)]
 pub struct AbiHeader {

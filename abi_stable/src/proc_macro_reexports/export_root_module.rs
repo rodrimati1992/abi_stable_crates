@@ -71,7 +71,7 @@ with these things:
 - The constructor function of the root module.
 
 The name used for root modules is the one returned by 
-`abi_stable::library::mangled_root_module_loader_name`.
+`abi_stable::library::ROOT_MODULE_LOADER_NAME`.
 Because there can't be multiple root modules for a library,
 that function returns a constant.
 
