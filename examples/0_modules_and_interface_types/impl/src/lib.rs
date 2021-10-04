@@ -5,7 +5,12 @@ It exports the root module(a struct of function pointers) required by the
 
 */
 
-use std::{borrow::Cow, collections::HashSet, marker::PhantomData};
+use std::{
+    borrow::Cow,
+    collections::HashSet,
+    marker::PhantomData,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
 use example_0_interface::{
     CowStrIter, DeserializerMod, DeserializerMod_Ref, RemoveWords, TOCommand, TOCommandBox,
@@ -55,6 +60,7 @@ fn instantiate_root_module() -> TextOpsMod_Ref {
         reverse_lines,
         remove_words,
         get_processed_bytes,
+        set_initial_processed_bytes,
         run_command,
     }
     .leak_into_prefix()
@@ -223,11 +229,15 @@ pub fn deserialize_return_value(s: RStr<'_>) -> RResult<TOReturnValueArc, RBoxEr
 
 //////////////////////////////////////////////////////////////////////////////////////
 
+static INITIAL_PROCESSED_BYTES: AtomicU64 = AtomicU64::new(0);
+
 /// Constructs a TextOperationState and erases it by wrapping it into a
 /// `DynTrait<Box<()>,TOState>`.
 #[sabi_extern_fn]
 pub fn new() -> TOStateBox {
-    let this = TextOperationState { processed_bytes: 0 };
+    let this = TextOperationState {
+        processed_bytes: INITIAL_PROCESSED_BYTES.load(Ordering::SeqCst),
+    };
     DynTrait::from_value(this)
 }
 
@@ -290,6 +300,11 @@ pub fn remove_words(this: &mut TOStateBox, param: RemoveWords<'_, '_>) -> RStrin
 pub fn get_processed_bytes(this: &TOStateBox) -> u64 {
     let this = this.downcast_as_impltype::<TextOperationState>().unwrap();
     this.processed_bytes
+}
+
+#[sabi_extern_fn]
+pub fn set_initial_processed_bytes(n: u64) {
+    INITIAL_PROCESSED_BYTES.store(n, Ordering::SeqCst);
 }
 
 fn run_command_inner(this: &mut TOStateBox, command: Command) -> ReturnValue {

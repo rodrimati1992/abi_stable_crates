@@ -225,6 +225,9 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static {
 
     /// Defines behavior that happens once the module is loaded.
     ///
+    /// This is ran in the `RootModule::load*` associated functions
+    /// after the root module has succesfully been loaded.
+    ///
     /// The default implementation does nothing.
     fn initialization(self) -> Result<Self, LibraryError> {
         Ok(self)
