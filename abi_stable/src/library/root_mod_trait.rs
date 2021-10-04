@@ -291,9 +291,7 @@ pub unsafe fn abi_header_from_raw_library(
     raw_library: &RawLibrary,
 ) -> Result<AbiHeaderRef, LibraryError> {
     unsafe {
-        let mut mangled = mangled_root_module_loader_name();
-        mangled.push('\0');
-
+        let mangled = ROOT_MODULE_LOADER_NAME_WITH_NUL;
         let header: AbiHeaderRef = *raw_library.get::<AbiHeaderRef>(mangled.as_bytes())?;
 
         Ok(header)

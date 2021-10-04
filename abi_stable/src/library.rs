@@ -15,14 +15,12 @@ use core_extensions::SelfOps;
 
 use libloading::{Library as LibLoadingLibrary, Symbol as LLSymbol};
 
-pub use abi_stable_shared::mangled_root_module_loader_name;
-
 use crate::{
     abi_stability::stable_abi_trait::StableAbi,
     globals::{self, Globals},
     marker_type::ErasedPrefix,
     prefix_type::{PrefixRef, PrefixRefTrait},
-    sabi_types::{LateStaticRef, VersionNumber, VersionStrings},
+    sabi_types::{LateStaticRef, NulStr, VersionNumber, VersionStrings},
     std_types::{RResult, RStr},
     type_layout::TypeLayout,
 };
@@ -31,6 +29,7 @@ pub mod c_abi_testing;
 pub mod development_utils;
 mod errors;
 mod lib_header;
+mod library_tests;
 mod raw_library;
 mod root_mod_trait;
 
@@ -211,6 +210,44 @@ macro_rules! declare_root_module_statics {
         }
     );
 }
+
+//////////////////////////////////////////////////////////////////////
+
+#[deprecated(
+    since = "0.10.3",
+    note = "Use the ROOT_MODULE_LOADER_NAME constant instead"
+)]
+/// Gets the name of the static that contains the LibHeader of an abi_stable library.
+pub fn mangled_root_module_loader_name() -> String {
+    abi_stable_shared::mangled_root_module_loader_name()
+}
+
+abi_stable_derive::__const_mangled_root_module_loader_name! {}
+
+/// The name of the `static` that contains the [`AbiHeader`] of an abi_stable library.
+///
+/// You can get a handle to that [`AbiHeader`] using
+/// [abi_header_from_path](fn.abi_header_from_path.html) or
+/// [abi_header_from_raw_library](fn.abi_header_from_raw_library.html).
+///
+/// If you need a nul-terminated string,
+/// you can use [`ROOT_MODULE_LOADER_NAME_WITH_NUL`] instead.
+///
+/// [`LibHeader`]: ./struct.LibHeader.html
+/// [`ROOT_MODULE_LOADER_NAME_WITH_NUL`]: ./constant.ROOT_MODULE_LOADER_NAME_WITH_NUL.html
+pub const ROOT_MODULE_LOADER_NAME: &str = PRIV_MANGLED_ROOT_MODULE_LOADER_NAME;
+
+/// A nul-terminated equivalent of [`ROOT_MODULE_LOADER_NAME`].
+///
+/// [`ROOT_MODULE_LOADER_NAME`]: ./constant.ROOT_MODULE_LOADER_NAME.html
+pub const ROOT_MODULE_LOADER_NAME_WITH_NUL: &str = PRIV_MANGLED_ROOT_MODULE_LOADER_NAME_NUL;
+
+/// A [`NulStr`] equivalent of [`ROOT_MODULE_LOADER_NAME`].
+///
+/// [`ROOT_MODULE_LOADER_NAME`]: ./constant.ROOT_MODULE_LOADER_NAME.html
+/// [`NulStr`]: ../sabi_types/struct.NulStr.html
+pub const ROOT_MODULE_LOADER_NAME_NULSTR: NulStr<'_> =
+    unsafe { NulStr::from_str(PRIV_MANGLED_ROOT_MODULE_LOADER_NAME_NUL) };
 
 //////////////////////////////////////////////////////////////////////
 

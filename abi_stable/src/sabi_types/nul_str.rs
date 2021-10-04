@@ -10,7 +10,20 @@ use std::{
     ptr::NonNull,
 };
 
-/// A utf8 null-terminated string slice.
+/// A utf8 nul-terminated immutable borrowed string.
+///
+/// For the purpose of passing `NulStr`s to C,
+/// this has the same ABI as a `std::ptr::NonNull<u8>`,
+/// and an `Option<NulStr<'_>>` has the same ABI as `*const u8`.
+///
+/// # Safety
+///
+/// `NulStr` has these safety requirement:
+/// - the string must be valid to read for the `'a` lifetime
+/// - the string must be utf8 encoded
+/// - the string must be nul terminated and not contain interior nul bytes
+/// - the string must not be mutated while this is alive
+/// (the same semantics as `&` references)
 #[repr(transparent)]
 #[derive(Copy, Clone, StableAbi)]
 pub struct NulStr<'a> {
@@ -46,12 +59,17 @@ impl<'a> NulStr<'a> {
     ///
     /// # Safety
     ///
-    /// The pointer must point to a utf8 and nul terminated (a 0 byte) sequence of bytes.
+    /// [The same as the type-level safety docs](#safety)
     pub const unsafe fn from_ptr(ptr: *const u8) -> Self {
         Self {
             ptr: NonNull::new_unchecked(ptr as *mut u8),
             _marker: PhantomData,
         }
+    }
+
+    /// Gets a pointer to the start of this nul-terminated string.
+    pub const fn as_ptr(self) -> *const std::os::raw::c_char {
+        self.ptr.as_ptr() as _
     }
 
     /// Converts this `NulStr<'a>` to a `&'a str`,including the nul byte.

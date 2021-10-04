@@ -98,6 +98,19 @@ pub fn get_root_module_static(_: TokenStream1) -> TokenStream1 {
     quote!( crate::#export_name ).into()
 }
 
+#[doc(hidden)]
+#[proc_macro]
+pub fn __const_mangled_root_module_loader_name(_: TokenStream1) -> TokenStream1 {
+    let name = abi_stable_shared::mangled_root_module_loader_name();
+    let name_nulled = format!("{}\0", name);
+
+    quote!(
+        const PRIV_MANGLED_ROOT_MODULE_LOADER_NAME: &str = #name;
+        const PRIV_MANGLED_ROOT_MODULE_LOADER_NAME_NUL: &str = #name_nulled;
+    )
+    .into()
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 #[macro_use]
@@ -108,7 +121,6 @@ mod attribute_parsing;
 mod common_tokens;
 mod composite_collections;
 mod concat_and_ranges;
-mod constants;
 mod export_root_module_impl;
 mod fn_pointer_extractor;
 mod get_static_equivalent;
