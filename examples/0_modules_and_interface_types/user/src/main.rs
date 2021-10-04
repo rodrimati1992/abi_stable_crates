@@ -137,6 +137,15 @@ fn main() -> io::Result<()> {
 
     let mut state = mods.new()();
 
+    // Ensuring that `RootModule::initialization` is actually ran
+    {
+        assert_eq!(mods.get_processed_bytes()(&state), 10);
+
+        mods.set_initial_processed_bytes()(4000);
+        let mut state = mods.new()();
+        assert_eq!(mods.get_processed_bytes()(&state), 4000);
+    }
+
     match opts {
         Command::ReverseLineOrder => {
             let mut buffer = String::new();

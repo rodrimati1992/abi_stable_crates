@@ -75,6 +75,9 @@ where
 }
 
 /// Gets the name of the static that contains the LibHeader of an abi_stable library.
+///
+/// This does not have a trailing `'\0'`,
+/// you need to append it to pass the name to C APIs.
 pub fn mangled_root_module_loader_name() -> String {
     mangle_ident("lib_header", "root module loader")
 }

@@ -14,7 +14,7 @@ use abi_stable::{
     declare_root_module_statics,
     erased_types::{DeserializeDyn, IteratorItem, SerializeProxyType},
     external_types::{RawValueBox, RawValueRef},
-    library::RootModule,
+    library::{LibraryError, RootModule},
     package_version_strings,
     sabi_types::{RMut, VersionStrings},
     std_types::{RArc, RBox, RBoxError, RCow, RResult, RStr, RString},
@@ -61,6 +61,9 @@ pub struct TextOpsMod {
 
     pub run_command:
         extern "C" fn(&mut TOStateBox, command: TOCommandBox<'static>) -> TOReturnValueArc,
+
+    /// Sets the initial amount (in bytes) of text that was processed
+    pub set_initial_processed_bytes: extern "C" fn(u64),
 }
 
 impl RootModule for TextOpsMod_Ref {
@@ -68,6 +71,11 @@ impl RootModule for TextOpsMod_Ref {
     const BASE_NAME: &'static str = "text_operations";
     const NAME: &'static str = "text_operations";
     const VERSION_STRINGS: VersionStrings = package_version_strings!();
+
+    fn initialization(self) -> Result<Self, LibraryError> {
+        self.set_initial_processed_bytes()(10);
+        Ok(self)
+    }
 }
 
 /// A module for all deserialization functions.

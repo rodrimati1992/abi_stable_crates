@@ -9,9 +9,14 @@ use example_2_interface::{Command_NE, ShopMod_Ref};
 
 fn main() {
     let target: &std::path::Path = "../../../target/".as_ref();
-    let library_path = compute_library_path::<ShopMod_Ref>(target).unwrap();
+    let library_dir = compute_library_path::<ShopMod_Ref>(target).unwrap();
 
-    let mods = ShopMod_Ref::load_from_directory(&library_path).unwrap_or_else(|e| panic!("{}", e));
+    // The typical way you'd load the root module
+    // let mods = ShopMod_Ref::load_from_directory(&library_dir).unwrap_or_else(|e| panic!("{}", e));
+
+    // Another way to load the root module
+    let library_file = ShopMod_Ref::get_library_path(&library_dir);
+    let mods = ShopMod_Ref::load_from_file(&library_file).unwrap_or_else(|e| panic!("{}", e));
 
     let config_path = match std::env::args_os().nth(1) {
         Some(os) => PathBuf::from(os),
