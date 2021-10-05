@@ -1,6 +1,9 @@
 //! A nul-terminated string,which is just a pointer to the string data,
 //! it doesn't know the length of the string.
 
+#[cfg(test)]
+mod tests;
+
 use crate::{std_types::RStr, utils::ref_as_nonnull};
 
 use std::{
@@ -121,7 +124,7 @@ impl<'a> NulStr<'a> {
         match Self::try_from_str(s) {
             Ok(x) => x,
             Err(NulStrError::InnerNul { pos }) => [/* encountered nul byte at `pos` */][pos],
-            Err(_) => [/* unreachable */][s.len()],
+            Err(NulStrError::NoNulTerminator) => [/* there no nul-terminator */][s.len()],
         }
     }
 
@@ -138,8 +141,8 @@ impl<'a> NulStr<'a> {
     }
 
     /// Gets a pointer to the start of this nul-terminated string.
-    pub const fn as_ptr(self) -> *const std::os::raw::c_char {
-        self.ptr.as_ptr() as _
+    pub const fn as_ptr(self) -> *const u8 {
+        self.ptr.as_ptr()
     }
 
     /// Converts this `NulStr<'a>` to a `&'a str`,including the nul byte.
@@ -186,6 +189,30 @@ impl<'a> NulStr<'a> {
     /// find the nul byte.
     pub fn to_rstr(self) -> RStr<'a> {
         self.to_str().into()
+    }
+}
+
+impl<'a> PartialEq<NulStr<'a>> for &str {
+    fn eq(&self, other: &NulStr<'a>) -> bool {
+        self.as_ptr() == other.as_ptr() || *self == other.to_str()
+    }
+}
+
+impl<'a> PartialEq<&str> for NulStr<'a> {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_ptr() == other.as_ptr() || self.to_str() == *other
+    }
+}
+
+impl<'a> PartialEq<NulStr<'a>> for str {
+    fn eq(&self, other: &NulStr<'a>) -> bool {
+        self.as_ptr() == other.as_ptr() || self == other.to_str()
+    }
+}
+
+impl<'a> PartialEq<str> for NulStr<'a> {
+    fn eq(&self, other: &str) -> bool {
+        self.as_ptr() == other.as_ptr() || self.to_str() == other
     }
 }
 

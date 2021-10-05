@@ -45,9 +45,11 @@ macro_rules! nul_str {
 /// [`NulStr`]: ./sabi_types/struct.NulStr.html
 #[macro_export]
 macro_rules! nulstr_trunc {
-    ($str:expr $(,)*) => {
-        $crate::sabi_types::NulStr::from_str($crate::pmr::concat!($str, "\0"))
-    };
+    ($str:expr $(,)*) => {{
+        const __STR_NHPMWYD3NJA: $crate::sabi_types::NulStr<'_> =
+            $crate::sabi_types::NulStr::from_str($crate::pmr::concat!($str, "\0"));
+        __STR_NHPMWYD3NJA
+    }};
 }
 
 /// Constructs a [`NulStr`] from a string literal.
@@ -78,13 +80,9 @@ macro_rules! nulstr_trunc {
 #[cfg_attr(feature = "docsrs", doc(cfg(feature = "rust_1_46")))]
 macro_rules! nulstr {
     ($str:expr $(,)*) => {{
-        const __STR_NHPMWYD3NJA: &$crate::pmr::str = $crate::pmr::concat!($str, "\0");
+        const __STR_NHPMWYD3NJA: $crate::sabi_types::NulStr<'_> =
+            $crate::sabi_types::NulStr::__try_from_str_unwrapping($crate::pmr::concat!($str, "\0"));
 
-        {
-            use $crate::sabi_types::NulStr;
-            const _CHECK: NulStr<'_> = NulStr::__try_from_str_unwrapping(__STR_NHPMWYD3NJA);
-
-            _CHECK
-        }
+        __STR_NHPMWYD3NJA
     }};
 }
