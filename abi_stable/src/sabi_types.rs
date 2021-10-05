@@ -20,7 +20,7 @@ pub use self::{
     late_static_ref::LateStaticRef,
     maybe_cmp::MaybeCmp,
     move_ptr::MovePtr,
-    nul_str::NulStr,
+    nul_str::{NulStr, NulStrError},
     rmut::RMut,
     rref::RRef,
     rsmallbox::RSmallBox,

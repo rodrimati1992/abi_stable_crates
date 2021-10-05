@@ -45,10 +45,10 @@ pub struct ModPath(NulStr<'static>);
 
 impl ModPath {
     /// An item without a path
-    pub const NO_PATH: Self = ModPath(nul_str!("<no path>"));
+    pub const NO_PATH: Self = ModPath(nulstr_trunc!("<no path>"));
 
     /// An item in the prelude.
-    pub const PRELUDE: Self = ModPath(nul_str!("<prelude>"));
+    pub const PRELUDE: Self = ModPath(nulstr_trunc!("<prelude>"));
 
     /// Constructs a ModPath from a string with a module path.
     pub const fn inside(path: NulStr<'static>) -> Self {

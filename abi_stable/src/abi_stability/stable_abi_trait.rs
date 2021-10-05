@@ -201,7 +201,7 @@ where
         const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("PhantomData"),
-            ItemInfo::std_type_in(nul_str!("std::marker")),
+            ItemInfo::std_type_in(nulstr_trunc!("std::marker")),
             MonoTLData::EMPTY,
             tl_genparams!(;0;),
             ReprAttr::C,
@@ -260,7 +260,7 @@ macro_rules! phantomdata_tuples {
                 const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                     *mono_shared_vars,
                     rstr!("PhantomData"),
-                    ItemInfo::std_type_in(nul_str!("std::marker")),
+                    ItemInfo::std_type_in(nulstr_trunc!("std::marker")),
                     MonoTLData::EMPTY,
                     tl_genparams!(;0..COUNT;),
                     ReprAttr::C,
@@ -639,7 +639,7 @@ where
         const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("NonNull"),
-            ItemInfo::std_type_in(nul_str!("std::ptr")),
+            ItemInfo::std_type_in(nulstr_trunc!("std::ptr")),
             {
                 const S: &[CompTLField] =
                     &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 1)];
@@ -687,7 +687,7 @@ where
         const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("AtomicPtr"),
-            ItemInfo::std_type_in(nul_str!("std::sync::atomic")),
+            ItemInfo::std_type_in(nulstr_trunc!("std::sync::atomic")),
             {
                 const S: &[CompTLField] =
                     &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 1)];
@@ -969,7 +969,7 @@ where
         const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("Option"),
-            ItemInfo::std_type_in(nul_str!("std::option")),
+            ItemInfo::std_type_in(nulstr_trunc!("std::option")),
             MonoTLData::Enum(MonoTLEnum::new(variant_names, rslice![1, 0], {
                 const S: &[CompTLField] =
                     &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 0)];
@@ -1082,7 +1082,7 @@ macro_rules! impl_for_concrete {
                     const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                         *mono_shared_vars,
                         rstr!($this_name),
-                        ItemInfo::std_type_in(nul_str!($in_mod)),
+                        ItemInfo::std_type_in(nulstr_trunc!($in_mod)),
                         {
                             const S: &[CompTLField] = &[
                                 CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
@@ -1189,7 +1189,7 @@ mod rust_1_36_impls {
             const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
                 *mono_shared_vars,
                 rstr!("MaybeUninit"),
-                ItemInfo::std_type_in(nul_str!("std::mem")),
+                ItemInfo::std_type_in(nulstr_trunc!("std::mem")),
                 {
                     const S: &[CompTLField] =
                         &[CompTLField::std_field(field0, LifetimeRange::EMPTY, 0)];
@@ -1253,7 +1253,7 @@ macro_rules! impl_sabi_for_newtype {
                 const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
                     *mono_shared_vars,
                     rstr!($type_name),
-                    ItemInfo::std_type_in(nul_str!($mod_path)),
+                    ItemInfo::std_type_in(nulstr_trunc!($mod_path)),
                     {
                         const S: &[CompTLField] = &[
                             CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
@@ -1341,7 +1341,7 @@ macro_rules! impl_stableabi_for_unit_struct {
 }
 
 impl_stableabi_for_unit_struct! {
-    PhantomPinned,"PhantomPinned",ItemInfo::std_type_in(nul_str!("std::marker"))
+    PhantomPinned,"PhantomPinned",ItemInfo::std_type_in(nulstr_trunc!("std::marker"))
 }
 
 /////////////
@@ -1356,7 +1356,7 @@ unsafe impl StableAbi for core_extensions::Void {
         const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
             *mono_shared_vars,
             rstr!("Void"),
-            ItemInfo::package_and_mod("core_extensions;0.0.0", nul_str!("core_extensions")),
+            ItemInfo::package_and_mod("core_extensions;0.0.0", nulstr_trunc!("core_extensions")),
             MonoTLData::Enum(MonoTLEnum::new(
                 StartLen::EMPTY,
                 RSlice::EMPTY,

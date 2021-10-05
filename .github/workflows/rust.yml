@@ -16,6 +16,10 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
+    - name: enable-rust-stable
+      if: matrix.rust == 'stable' || matrix.rust == 'beta' || matrix.rust == 'nightly'
+      run: echo "rustv=rust_1_51" >> $GITHUB_ENV
+
     - uses: actions/checkout@v2
     - name: ci-all-versions
       run: |
@@ -79,7 +83,7 @@ jobs:
         cargo test
 
         cd "${{github.workspace}}/abi_stable"
-        cargo test --features "testing"
+        cargo test --features "${{ env.rustv }} testing"
 
         cd "${{github.workspace}}/examples/0_modules_and_interface_types/impl/"
         cargo test
