@@ -50,6 +50,10 @@ pub use std::{
     ptr::NonNull,
 };
 
+pub use str;
+
+pub use std::concat;
+
 pub use repr_offset::offset_calc::next_field_offset;
 
 pub use core_extensions::{

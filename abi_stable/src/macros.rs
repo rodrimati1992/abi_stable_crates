@@ -1,6 +1,9 @@
 #[macro_use]
 mod internal;
 
+#[macro_use]
+mod nul_str_macros;
+
 /**
 Use this when constructing a [`MonoTypeLayout`] when manually implementing StableAbi.
 
@@ -117,7 +120,7 @@ macro_rules! tl_genparams {
             $crate::type_layout::StartLenConverter( ($($const_p)?) ).to_start_len();
 
         CompGenericParams::new(
-            $crate::nul_str!($(stringify!($lt),",",)*),
+            $crate::nulstr_trunc!($crate::pmr::concat!($(stringify!($lt),",",)*)),
             $crate::tl_genparams!(count; $($lt),* ),
             ty_param_range,
             const_param_range,
@@ -479,7 +482,7 @@ macro_rules! make_item_info {
         $crate::type_layout::ItemInfo::new(
             concat!(env!("CARGO_PKG_NAME"), ";", env!("CARGO_PKG_VERSION")),
             line!(),
-            $crate::type_layout::ModPath::inside($crate::nul_str!(module_path!())),
+            $crate::type_layout::ModPath::inside($crate::nulstr_trunc!(module_path!())),
         )
     };
 }
@@ -716,32 +719,6 @@ macro_rules! rstr {
             $crate::std_types::RStr::from_str($str);
         __SABI_RSTR
     }};
-}
-
-/**
-Constructs a [`NulStr`] from a string literal.
-
-[`NulStr`]: ./sabi_types/struct.NulStr.html
-
-# Example
-
-```
-use abi_stable::{
-    sabi_types::NulStr,
-    nul_str,
-};
-
-assert_eq!( nul_str!("Huh?").to_str_with_nul(), "Huh?\0" );
-assert_eq!( nul_str!("Hello!").to_str_with_nul(), "Hello!\0" );
-
-
-```
-*/
-#[macro_export]
-macro_rules! nul_str {
-    ( $($str:expr),* $(,)* ) => {unsafe{
-        $crate::sabi_types::NulStr::from_str(concat!($($str,)* "\0"))
-    }}
 }
 
 /**

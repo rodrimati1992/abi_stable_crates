@@ -119,3 +119,29 @@ macro_rules! zst_assert {
             [(std::mem::align_of::<crate::std_types::Tuple2<$Self, $Self>>() != 1) as usize];
     }};
 }
+
+///////////////////////////////////////////////////////////////////////////////7
+
+#[cfg(feature = "rust_1_46")]
+macro_rules! const_fn_if_1_46 {
+    (
+        $(#[$attr:meta])*
+        $vis:vis $(unsafe $(@$unsafe:tt@)?)? fn $($rem:tt)*
+    ) => {
+        $(#[$attr])*
+        $vis const $(unsafe $(@$unsafe@)?)? fn $($rem)*
+    };
+}
+
+#[cfg(not(feature = "rust_1_46"))]
+macro_rules! const_fn_if_1_46 {
+    (
+        $(#[$attr:meta])*
+        $vis:vis $(unsafe $(@$unsafe:tt@)?)? fn $($rem:tt)*
+    ) => {
+        $(#[$attr])*
+        $vis $(unsafe $(@$unsafe@)?)? fn $($rem)*
+    };
+}
+
+///////////////////////////////////////////////////////////////////////////////7
