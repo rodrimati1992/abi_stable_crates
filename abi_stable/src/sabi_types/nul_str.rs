@@ -24,9 +24,45 @@ use std::{
 /// `NulStr` has these safety requirement:
 /// - the string must be valid to read for the `'a` lifetime
 /// - the string must be utf8 encoded
-/// - the string must be nul terminated and not contain interior nul bytes
+/// - the string must be nul terminated
 /// - the string must not be mutated while this is alive
 /// (the same semantics as `&` references)
+///
+/// # Example
+///
+/// ### Passing to extern function
+///
+/// You can pass `NulStr` to C functions expecting a nul-terminated string.
+///
+/// ```rust
+/// use abi_stable::sabi_types::NulStr;
+///
+/// extern "C" {
+///     // the signature in the C side is `uint64_t add_digits(const char*)`
+///     fn add_digits(_: NulStr<'_>) -> u64;
+/// }
+/// # #[export_name = "add_digits"]
+/// # pub extern "C" fn add_digits___(str: NulStr<'_>) -> u64 {
+/// #    str.to_str().bytes()
+/// #    .filter_map(|x|{
+/// #        match x {
+/// #            b'0'..=b'9' => Some(u64::from(x - b'0')),
+/// #            _ => None,
+/// #        }
+/// #    })
+/// #    .sum()
+/// # }
+///
+/// # fn main() {
+/// const FOO: NulStr<'_> = NulStr::from_str("1.2.3\0");
+/// const BAR: NulStr<'_> = NulStr::from_str("12|34\0");
+/// const QUX: NulStr<'_> = NulStr::from_str("123_abcd_45\0");
+///
+/// assert_eq!(unsafe{ add_digits(FOO) }, 6);
+/// assert_eq!(unsafe{ add_digits(BAR) }, 10);
+/// assert_eq!(unsafe{ add_digits(QUX) }, 15);
+/// # }
+/// ```
 #[repr(transparent)]
 #[derive(Copy, Clone, StableAbi)]
 pub struct NulStr<'a> {
@@ -53,6 +89,26 @@ impl<'a> NulStr<'a> {
     /// # Panics
     ///
     /// This panics when the string does not end with `'\0'`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::NulStr;
+    ///
+    /// const FOO: NulStr<'_> = NulStr::from_str("foo\0");
+    /// // `NulStr`s can be compared with `str`s
+    /// assert_eq!(FOO, "foo");
+    ///
+    /// const BAR: NulStr<'_> = NulStr::from_str("bar\0");
+    /// assert_eq!(BAR, "bar");
+    ///
+    /// const HEWWO: NulStr<'_> = NulStr::from_str("Hello, world!\0");
+    /// assert_eq!(HEWWO, "Hello, world!");
+    ///
+    /// const TRUNCATED: NulStr<'_> = NulStr::from_str("baz\0world!\0");
+    /// assert_eq!(TRUNCATED, "baz");
+    ///
+    /// ```
     pub const fn from_str(str: &'a str) -> Self {
         let this = unsafe {
             Self {
@@ -86,7 +142,8 @@ impl<'a> NulStr<'a> {
         /// ```rust
         /// use abi_stable::sabi_types::{NulStr, NulStrError};
         ///
-        /// assert_eq!(NulStr::try_from_str("hello\0").unwrap().to_str(), "hello");
+        /// // `NulStr`s can be compared with `str`s
+        /// assert_eq!(NulStr::try_from_str("hello\0").unwrap(), "hello");
         ///
         /// assert_eq!(
         ///     NulStr::try_from_str("hello\0world\0"),
@@ -133,6 +190,30 @@ impl<'a> NulStr<'a> {
     /// # Safety
     ///
     /// [The same as the type-level safety docs](#safety)
+    ///
+    /// # Correctness
+    ///
+    /// If the string contains interior nuls,
+    /// the first nul will be considered the string terminator.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::NulStr;
+    ///
+    /// const FOO: NulStr<'_> = unsafe{ NulStr::from_ptr("foo\0".as_ptr()) };
+    /// assert_eq!(FOO, "foo");
+    ///
+    /// const BAR: NulStr<'_> = unsafe{ NulStr::from_ptr("bar\0".as_ptr()) };
+    /// assert_eq!(BAR, "bar");
+    ///
+    /// const HEWWO: NulStr<'_> = unsafe{ NulStr::from_ptr("Hello, world!\0".as_ptr()) };
+    /// assert_eq!(HEWWO, "Hello, world!");
+    ///
+    /// const TRUNCATED: NulStr<'_> = unsafe{ NulStr::from_ptr("baz\0world!\0".as_ptr()) };
+    /// assert_eq!(TRUNCATED, "baz");
+    ///
+    /// ```
     pub const unsafe fn from_ptr(ptr: *const u8) -> Self {
         Self {
             ptr: NonNull::new_unchecked(ptr as *mut u8),
@@ -141,6 +222,17 @@ impl<'a> NulStr<'a> {
     }
 
     /// Gets a pointer to the start of this nul-terminated string.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::NulStr;
+    ///
+    /// let foo_str = "foo\0";
+    /// let foo = NulStr::from_str(foo_str);
+    /// assert_eq!(foo.as_ptr(), foo_str.as_ptr());
+    ///
+    /// ```
     pub const fn as_ptr(self) -> *const u8 {
         self.ptr.as_ptr()
     }
@@ -151,6 +243,18 @@ impl<'a> NulStr<'a> {
     ///
     /// This conversion requires traversing through the entire string to
     /// find the nul byte.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::NulStr;
+    ///
+    /// const FOO: NulStr<'_> = NulStr::from_str("foo bar\0");
+    /// let foo: &str = FOO.to_str_with_nul();
+    /// assert_eq!(&foo[..3], "foo");
+    /// assert_eq!(&foo[4..], "bar\0");
+    ///
+    /// ```
     pub fn to_str_with_nul(&self) -> &'a str {
         unsafe {
             let bytes = std::ffi::CStr::from_ptr(self.ptr.as_ptr() as *const _).to_bytes_with_nul();
@@ -164,6 +268,19 @@ impl<'a> NulStr<'a> {
     ///
     /// This conversion requires traversing through the entire string to
     /// find the nul byte.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::NulStr;
+    /// use abi_stable::std_types::RStr;
+    ///
+    /// const BAZ: NulStr<'_> = NulStr::from_str("baz qux\0");
+    /// let baz: RStr<'_> = BAZ.to_rstr_with_nul();
+    /// assert_eq!(&baz[..3], "baz");
+    /// assert_eq!(&baz[4..], "qux\0");
+    ///
+    /// ```
     pub fn to_rstr_with_nul(&self) -> RStr<'a> {
         self.to_str_with_nul().into()
     }
@@ -174,6 +291,18 @@ impl<'a> NulStr<'a> {
     ///
     /// This conversion requires traversing through the entire string to
     /// find the nul byte.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::NulStr;
+    ///
+    /// const FOO: NulStr<'_> = NulStr::from_str("foo bar\0");
+    /// let foo: &str = FOO.to_str();
+    /// assert_eq!(&foo[..3], "foo");
+    /// assert_eq!(&foo[4..], "bar");
+    ///
+    /// ```
     pub fn to_str(self) -> &'a str {
         unsafe {
             let bytes = std::ffi::CStr::from_ptr(self.ptr.as_ptr() as *const _).to_bytes();
@@ -187,6 +316,19 @@ impl<'a> NulStr<'a> {
     ///
     /// This conversion requires traversing through the entire string to
     /// find the nul byte.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::NulStr;
+    /// use abi_stable::std_types::RStr;
+    ///
+    /// const BAZ: NulStr<'_> = NulStr::from_str("baz qux\0");
+    /// let baz: RStr<'_> = BAZ.to_rstr();
+    /// assert_eq!(&baz[..3], "baz");
+    /// assert_eq!(&baz[4..], "qux");
+    ///
+    /// ```
     pub fn to_rstr(self) -> RStr<'a> {
         self.to_str().into()
     }
