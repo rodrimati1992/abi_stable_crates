@@ -2,6 +2,8 @@ use crate::sabi_types::{NulStr, NulStrError};
 
 use abi_stable_shared::{file_span, test_utils::must_panic};
 
+use std::cmp::{Ord, Ordering, PartialOrd};
+
 fn from_str_with_constructor(func: fn(&str) -> NulStr<'_>) {
     let pairs = [("fob\0", "fob"), ("fo\0", "fo"), ("f\0", "f"), ("\0", "")];
     for (strwn, str) in pairs.iter().copied() {
@@ -67,7 +69,7 @@ fn nulstr_try_from_str_tests() {
 }
 
 #[test]
-fn nulstr_eq_test() {
+fn nulstr_cmp_test() {
     let strings = [
         "\0", "f\0", "fo\0", "foc\0", "foca\0", "focal\0", "foo\0", "fooo\0", "foooo\0", "bar\0",
         "barr\0", "barrr\0", "baz\0", "bazz\0", "bazzz\0",
@@ -78,6 +80,9 @@ fn nulstr_eq_test() {
 
     for &(leftwn, left) in &strings {
         assert_eq!(left, left);
+
+        assert_eq!(left.cmp(&left), Ordering::Equal);
+        assert_eq!(left.partial_cmp(&left), Some(Ordering::Equal));
 
         {
             let x = leftwn.trim_end_matches('\0');
@@ -95,6 +100,11 @@ fn nulstr_eq_test() {
         assert_eq!(left, left_copy);
         assert_eq!(left_copy, left);
 
+        assert_eq!(left.cmp(&left_copy), Ordering::Equal);
+        assert_eq!(left_copy.cmp(&left), Ordering::Equal);
+        assert_eq!(left.partial_cmp(&left_copy), Some(Ordering::Equal));
+        assert_eq!(left_copy.partial_cmp(&left), Some(Ordering::Equal));
+
         for &(_, right) in &strings {
             assert_eq!(
                 left == right,
@@ -102,6 +112,12 @@ fn nulstr_eq_test() {
                 "\n left: {:?}\nright: {:?}\n",
                 left,
                 right,
+            );
+
+            assert_eq!(left.cmp(&right), left.to_str().cmp(right.to_str()));
+            assert_eq!(
+                left.partial_cmp(&right),
+                left.to_str().partial_cmp(right.to_str())
             );
         }
     }
