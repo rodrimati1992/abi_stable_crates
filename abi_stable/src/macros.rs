@@ -130,46 +130,42 @@ macro_rules! tl_genparams {
 
 ///////////////////////////////////////////////////////////////////////
 
-/**
-Equivalent to `?` for [`RResult`].
-
-# Example
-
-Defining an extern function that returns a result.
-
-```
-use abi_stable::{
-    std_types::{RResult,ROk,RErr,RBoxError,RStr,Tuple3},
-    traits::IntoReprC,
-    rtry,
-    sabi_extern_fn,
-};
-
-
-#[sabi_extern_fn]
-fn parse_tuple(s:RStr<'_>)->RResult<Tuple3<u32,u32,u32>,RBoxError>{
-    let mut iter=s.split(',').map(|x|x.trim());
-    ROk(Tuple3(
-        rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
-        rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
-        rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
-    ))
-}
-
-
-
-```
-
-[`RResult`]: ./std_types/enum.RResult.html
-
-*/
+/// Equivalent to `?` for [`RResult`].
+///
+/// # Example
+///
+/// Defining an extern function that returns a result.
+///
+/// ```
+/// use abi_stable::{
+///     std_types::{RResult, ROk, RErr, RBoxError, RStr, Tuple3},
+///     traits::IntoReprC,
+///     rtry,
+///     sabi_extern_fn,
+/// };
+///
+///
+/// #[sabi_extern_fn]
+/// fn parse_tuple(s: RStr<'_>) -> RResult<Tuple3<u32, u32, u32>, RBoxError>{
+///     let mut iter = s.split(',').map(|x| x.trim());
+///     ROk(Tuple3(
+///         rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
+///         rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
+///         rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
+///     ))
+/// }
+///
+///
+///
+/// ```
+///
+/// [`RResult`]: ./std_types/enum.RResult.html
 #[macro_export]
 macro_rules! rtry {
     ($expr:expr) => {{
-        use $crate::std_types::{RErr, ROk};
         match $expr.into() {
-            ROk(x) => x,
-            RErr(x) => return RErr(From::from(x)),
+            $crate::pmr::ROk(x) => x,
+            $crate::pmr::RErr(x) => return $crate::pmr::RErr($crate::pmr::From::from(x)),
         }
     }};
 }
@@ -180,10 +176,9 @@ macro_rules! rtry {
 #[macro_export]
 macro_rules! rtry_opt {
     ($expr:expr) => {{
-        use $crate::std_types::option::{RNone, RSome};
         match $expr.into() {
-            RSome(x) => x,
-            RNone => return RNone,
+            $crate::pmr::RSome(x) => x,
+            $crate::pmr::RNone => return $crate::pmr::RNone,
         }
     }};
 }
@@ -202,85 +197,84 @@ macro_rules! check_unerased {
 
 ///////////////////////////////////////////////////////////////////////
 
-/**
-Use this to make sure that you handle panics inside `extern fn` correctly.
-
-This macro causes an abort if a panic reaches this point.
-
-It does not prevent functions inside from using `::std::panic::catch_unwind` to catch the panic.
-
-# Early returns
-
-This macro by default wraps the passed code in a closure so that any
-early returns that happen inside don't interfere with the macro generated code.
-
-If you don't have an early return (a `return`/`continue`/`break`)
-in the code passed to this macro you can use
-`extern_fn_panic_handling!{no_early_return; <code here> }`,
-which *might* be cheaper(this has not been tested yet).
-
-# Example
-
-```
-use std::fmt;
-
-use abi_stable::{
-    extern_fn_panic_handling,
-    std_types::RString,
-};
-
-
-pub extern "C" fn print_debug<T>(this: &T,buf: &mut RString)
-where
-    T: fmt::Debug,
-{
-    extern_fn_panic_handling! {
-        use std::fmt::Write;
-
-        println!("{:?}",this);
-    }
-}
-```
-
-# Example, no_early_return
-
-
-```
-use std::fmt;
-
-use abi_stable::{
-    extern_fn_panic_handling,
-    std_types::RString,
-};
-
-
-pub extern "C" fn print_debug<T>(this: &T,buf: &mut RString)
-where
-    T: fmt::Debug,
-{
-    extern_fn_panic_handling!{no_early_return;
-        use std::fmt::Write;
-
-        println!("{:?}",this);
-    }
-}
-
-```
-
-
-*/
+/// Use this to make sure that you handle panics inside `extern fn` correctly.
+///
+/// This macro causes an abort if a panic reaches this point.
+///
+/// It does not prevent functions inside from using `::std::panic::catch_unwind`
+/// to catch the panic.
+///
+/// # Early returns
+///
+/// This macro by default wraps the passed code in a closure so that any
+/// early returns that happen inside don't interfere with the macro generated code.
+///
+/// If you don't have an early return (a `return`/`continue`/`break`)
+/// in the code passed to this macro you can use
+/// `extern_fn_panic_handling!{no_early_return; <code here> }`,
+/// which *might* be cheaper(this has not been tested yet).
+///
+/// # Example
+///
+/// ```
+/// use std::fmt;
+///
+/// use abi_stable::{
+///     extern_fn_panic_handling,
+///     std_types::RString,
+/// };
+///
+///
+/// pub extern "C" fn print_debug<T>(this: &T,buf: &mut RString)
+/// where
+///     T: fmt::Debug,
+/// {
+///     extern_fn_panic_handling! {
+///         use std::fmt::Write;
+///
+///         println!("{:?}",this);
+///     }
+/// }
+/// ```
+///
+/// # Example, no_early_return
+///
+///
+/// ```
+/// use std::fmt;
+///
+/// use abi_stable::{
+///     extern_fn_panic_handling,
+///     std_types::RString,
+/// };
+///
+///
+/// pub extern "C" fn print_debug<T>(this: &T,buf: &mut RString)
+/// where
+///     T: fmt::Debug,
+/// {
+///     extern_fn_panic_handling!{no_early_return;
+///         use std::fmt::Write;
+///
+///         println!("{:?}",this);
+///     }
+/// }
+///
+/// ```
+///
+///
 #[macro_export]
 macro_rules! extern_fn_panic_handling {
     (no_early_return; $($fn_contents:tt)* ) => ({
-        let aborter_guard={
+        let aborter_guard = {
             use $crate::utils::{AbortBomb,PanicInfo};
             #[allow(dead_code)]
-            const BOMB:AbortBomb=AbortBomb{
-                fuse:&PanicInfo{file:file!(),line:line!()}
+            const BOMB:AbortBomb = AbortBomb{
+                fuse: &PanicInfo{file:file!(),line:line!()}
             };
             BOMB
         };
-        let res={
+        let res = {
             $($fn_contents)*
         };
 
@@ -291,7 +285,7 @@ macro_rules! extern_fn_panic_handling {
     ( $($fn_contents:tt)* ) => (
         $crate::extern_fn_panic_handling!{
             no_early_return;
-            let a=$crate::marker_type::NotCopyNotClone;
+            let a = $crate::marker_type::NotCopyNotClone;
             (move||{
                 drop(a);
                 $($fn_contents)*
@@ -302,45 +296,40 @@ macro_rules! extern_fn_panic_handling {
 
 ///////////////////////////////////////////////////////////////////////
 
-/**
-
-Constructs the [`TypeInfo`] for some type.
-
-It's necessary for the type to be `'static` because
-[`TypeInfo`] stores a private function that returns the  [`UTypeId`] of that type.
-
-# Example
-
-```
-use abi_stable::{
-    impl_get_type_info,
-    erased_types::{TypeInfo,ImplType},
-};
-
-#[derive(Default, Clone, Debug)]
-struct Foo<T> {
-    l: u32,
-    r: u32,
-    name: T,
-}
-
-impl<T> ImplType for Foo<T>
-where T:'static+Send+Sync
-{
-    type Interface=();
-
-    // You have to write the full type (eg: impl_get_type_info!{ Bar<'a,T,U> } ) ,
-    // never write Self.
-    const INFO:&'static TypeInfo=impl_get_type_info! { Foo<T> };
-}
-
-
-```
-
-[`TypeInfo`]: ./erased_types/struct.TypeInfo.html
-[`UTypeId`]: ./std_types/struct.UTypeId.html
-
-*/
+/// Constructs the [`TypeInfo`] for some type.
+///
+/// It's necessary for the type to be `'static` because
+/// [`TypeInfo`] stores a private function that returns the  [`UTypeId`] of that type.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::{
+///     impl_get_type_info,
+///     erased_types::{TypeInfo,ImplType},
+/// };
+///
+/// #[derive(Default, Clone, Debug)]
+/// struct Foo<T> {
+///     l: u32,
+///     r: u32,
+///     name: T,
+/// }
+///
+/// impl<T> ImplType for Foo<T>
+/// where T: 'static + Send + Sync
+/// {
+///     type Interface = ();
+///
+///     const INFO: &'static TypeInfo = impl_get_type_info! { Foo<T> };
+/// }
+///
+///
+/// ```
+///
+/// [`TypeInfo`]: ./erased_types/struct.TypeInfo.html
+/// [`UTypeId`]: ./std_types/struct.UTypeId.html
+///
 #[macro_export]
 macro_rules! impl_get_type_info {
     ($type:ty) => {{

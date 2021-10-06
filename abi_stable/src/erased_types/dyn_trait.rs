@@ -84,10 +84,10 @@ mod priv_ {
     ///     Can be constructed from a pointer of a value.Requires a `'static` value.
     ///
     /// - [`from_borrowing_value`](#method.from_borrowing_value):
-    ///     Can be constructed from the value directly.Cannot unerase the DynTrait afterwards.
+    ///     Can be constructed from the value directly.Cannot downcast the DynTrait afterwards.
     ///     
     /// - [`from_borrowing_ptr`](#method.from_borrowing_ptr)
-    ///     Can be constructed from a pointer of a value.Cannot unerase the DynTrait afterwards.
+    ///     Can be constructed from a pointer of a value.Cannot downcast the DynTrait afterwards.
     ///
     /// DynTrait uses the impls of the value in methods,
     /// which means that the pointer itself does not have to implement those traits,
@@ -214,7 +214,7 @@ mod priv_ {
     ///
     /// To be able to serialize and deserialize a DynTrait,
     /// the interface it uses must implement [`SerializeProxyType`] and [`DeserializeDyn`],
-    /// and the implementation type must implement `SerializeImplType`.
+    /// and the implementation type must implement [`SerializeImplType`].
     ///
     /// For a more realistic example you can look at the
     /// "examples/0_modules_and_interface_types" crates in the repository for this crate.
@@ -288,7 +288,7 @@ mod priv_ {
     /// #[sabi(missing_field(panic))]
     /// pub struct Module{
     ///     #[sabi(last_prefix_field)]
-    ///     pub deserialize_foo:extern "C" fn(s:RStr<'_>)->RResult<FooInterfaceBox, RBoxError>,
+    ///     pub deserialize_foo: extern "C" fn(s: RStr<'_>) -> RResult<FooInterfaceBox, RBoxError>,
     /// }
     ///
     /// // This is how ffi-safe pointers to non-generic prefix types are constructed
@@ -312,7 +312,7 @@ mod priv_ {
     ///
     /// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     /// pub struct Foo{
-    ///     name:String,
+    ///     name: String,
     /// }
     ///
     /// impl ImplType for Foo {
@@ -336,7 +336,7 @@ mod priv_ {
     /// }
     ///
     /// #[sabi_extern_fn]
-    /// pub fn deserialize_foo(s:RStr<'_>)->RResult<FooInterfaceBox, RBoxError>{
+    /// pub fn deserialize_foo(s: RStr<'_>) -> RResult<FooInterfaceBox, RBoxError>{
     ///     match serde_json::from_str::<Foo>(s.into()) {
     ///         Ok(x) => ROk(DynTrait::from_value(x)),
     ///         Err(e) => RErr(RBoxError::new(e)),
@@ -482,20 +482,22 @@ mod priv_ {
     /// # Making pointers compatible with DynTrait
     ///
     /// To make pointers compatible with DynTrait, they must imlement the
-    /// `abi_stable::pointer_trait::{GetPointerKind, AsPtr, AsMutPtr, CanTransmuteElement}`
+    /// `abi_stable::pointer_trait::{`
+    /// [`GetPointerKind`]`, `[`AsPtr`]`, `[`AsMutPtr`]`, `[`CanTransmuteElement`]`}`
     /// traits as shown in the example.
     ///
-    /// `GetPointerKind` should generally be implemented with `type Kind = PK_SmartPointer`.
+    /// [`GetPointerKind`] should generally be implemented with
+    /// `type Kind = `[`PK_SmartPointer`].
     /// The exception is in the case that it is a `#[repr(transparent)]`
     /// wrapper around a [`RRef`]/[`RMut`]/`*const T`/`*mut T`/[`NonNull`],
-    /// in which case it should implement `GetPointerKind<Kind = PK_Reference>`
+    /// in which case it should implement [`GetPointerKind`]`<Kind = `[`PK_Reference`]`>`
     /// (when it has shared reference semantics)
-    /// or `GetPointerKind<Kind = PK_MutReference>`
+    /// or [`GetPointerKind`]`<Kind = `[`PK_MutReference`]`>`
     /// (when it has mutable reference semantics).
     ///
     /// ###  Example
     ///
-    /// This is an example of a newtype wrapping an `RBox<T>`,
+    /// This is an example of a newtype wrapping an [`RBox`],
     /// demonstrating that the pointer type doesn't have to implement
     /// the traits in the [`InterfaceType`], it's the value it points to.
     ///
@@ -556,11 +558,11 @@ mod priv_ {
     /// #[repr(transparent)]
     /// #[derive(Default, Clone, StableAbi)]
     /// pub struct NewtypeBox<T>{
-    ///     box_:RBox<T>,
+    ///     box_: RBox<T>,
     /// }
     ///
     /// impl<T> NewtypeBox<T>{
-    ///     pub fn new(value:T)->Self{
+    ///     pub fn new(value: T) -> Self{
     ///         Self{
     ///             box_: RBox::new(value)
     ///         }
@@ -606,13 +608,23 @@ mod priv_ {
     /// [`NonNull`]: https://doc.rust-lang.org/std/ptr/struct.NonNull.html
     /// [`SerializeProxyType`]: ./erased_types/trait.SerializeProxyType.html
     /// [`DeserializeDyn`]: ./erased_types/trait.DeserializeDyn.html
+    /// [`AsMutPtr`]: ./pointer_trait/trait.AsMutPtr.html
+    /// [`CanTransmuteElement`]: ./pointer_trait/trait.CanTransmuteElement.html
+    /// [`GetPointerKind`]: ./pointer_trait/trait.GetPointerKind.html
+    /// [`RRef`]: ./sabi_types/struct.RRef.html
+    /// [`RMut`]: ./sabi_types/struct.RMut.html
+    /// [`RBox`]: ./std_types/struct.RBox.html
+    /// [`PK_Reference`]: ./pointer_trait/struct.PK_Reference.html
+    /// [`PK_MutReference`]: ./pointer_trait/struct.PK_MutReference.html
+    /// [`PK_SmartPointer`]: ./pointer_trait/struct.PK_SmartPointer.html
+    /// [`SerializeImplType`]: ./erased_types/trait.SerializeImplType.html
     ///
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
         bound ="I: InterfaceBound",
-        bound ="VTable_Ref<'borr, P, I>:StableAbi",
+        bound ="VTable_Ref<'borr, P, I>: StableAbi",
         extra_checks ="<I as InterfaceBound>::EXTRA_CHECKS",
     )]
     pub struct DynTrait<'borr, P, I, EV = ()>
@@ -627,9 +639,9 @@ mod priv_ {
     }
 
     impl DynTrait<'static, RRef<'static, ()>, ()> {
-        /// Constructs the `DynTrait<_>` from a `T:ImplType`.
+        /// Constructs the `DynTrait<_>` from a `T: ImplType`.
         ///
-        /// Use this whenever possible instead of `from_any_value`,
+        /// Use this whenever possible instead of [`from_any_value`](#method.from_any_value),
         /// because it produces better error messages when unerasing the `DynTrait<_>`
         ///
         /// # Example
@@ -677,9 +689,9 @@ mod priv_ {
             DynTrait::from_ptr(object)
         }
 
-        /// Constructs the `DynTrait<_>` from a pointer to a `T:ImplType`.
+        /// Constructs the `DynTrait<_>` from a pointer to a `T: ImplType`.
         ///
-        /// Use this whenever possible instead of `from_any_ptr`,
+        /// Use this whenever possible instead of [`from_any_ptr`](#method.from_any_ptr),
         /// because it produces better error messages when unerasing the `DynTrait<_>`
         ///
         /// # Example
@@ -864,7 +876,7 @@ mod priv_ {
 
         /// Constructs the `DynTrait<_>` from a value with a `'borr` borrow.
         ///
-        /// Cannot unerase the DynTrait afterwards.
+        /// Cannot downcast the DynTrait afterwards.
         ///
         /// # Example
         ///
@@ -885,7 +897,7 @@ mod priv_ {
         ///
         ///
         /// // `DynTrait`s constructed using the `from_borrowing_*` constructors
-        /// // can't be unerased.
+        /// // can't be downcasted.
         /// assert_eq!(to.downcast_as::<u8>().ok(), None);
         ///
         /// ```
@@ -905,7 +917,7 @@ mod priv_ {
         /// Constructs the `DynTrait<_>` from a pointer to the erased type
         /// with a `'borr` borrow.
         ///
-        /// Cannot unerase the DynTrait afterwards.
+        /// Cannot downcast the DynTrait afterwards.
         ///
         /// # Example
         ///
@@ -1057,10 +1069,10 @@ mod priv_ {
         /// `can_it_downcast` can be either:
         ///
         /// - [`TD_CanDowncast`]:
-        ///     Which allows the trait object to be unerased, requires that the value implements any.
+        ///     Which allows the trait object to be downcasted, requires that the value implements any.
         ///
         /// - [`TD_Opaque`]:
-        ///     Which does not allow the trait object to be unerased.
+        ///     Which does not allow the trait object to be downcasted.
         ///
         /// <br>
         ///
@@ -2109,7 +2121,7 @@ mod priv_ {
         /// Constructs a DynTrait<P, I> with a `P`, using the same vtable.
         ///
         /// `P` must come from a function in the vtable,
-        /// or come from a copy of `P:Copy+GetPointerKind<Kind = PK_Reference>`,
+        /// or come from a copy of `P: Copy+GetPointerKind<Kind = PK_Reference>`,
         /// to ensure that it is compatible with the functions in it.
         pub(super) fn from_new_ptr(&self, object: P, extra_value: EV) -> Self {
             Self {
@@ -2862,8 +2874,8 @@ pub type GetVWInterface<'borr, This> = <This as DynTraitBound<'borr>>::Interface
 
 //////////////////////////////////////////////////////////////////
 
-/// Error for `DynTrait<_>` being unerased into the wrong type
-/// with one of the `*unerased*` methods.
+/// Error for `DynTrait<_>` being downcasted into the wrong type
+/// with one of the `*downcasted*` methods.
 #[derive(Copy, Clone)]
 pub struct UneraseError<T> {
     dyn_trait: T,
@@ -2883,7 +2895,7 @@ impl<T> UneraseError<T> {
         }
     }
 
-    /// Extracts the DynTrait, to handle the failure to unerase it.
+    /// Extracts the DynTrait, to handle the failure to downcast it.
     #[must_use]
     pub fn into_inner(self) -> T {
         self.dyn_trait

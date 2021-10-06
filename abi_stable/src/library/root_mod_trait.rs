@@ -200,11 +200,14 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static {
                 Ok(leak_value(raw_library))
             })?;
 
-            items_
-                .as_ref()
-                .unwrap()
-                .init_root_module_with_unchecked_layout::<Self>()?
-                .initialization()
+            // safety: the layout was checked in the closure above,
+            unsafe {
+                items_
+                    .as_ref()
+                    .unwrap()
+                    .init_root_module_with_unchecked_layout::<Self>()?
+                    .initialization()
+            }
         })
     }
 

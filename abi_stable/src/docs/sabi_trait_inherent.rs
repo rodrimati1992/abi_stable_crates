@@ -245,15 +245,15 @@ let mut object: Action_TO<'static, RBox<()>> =
     Action_TO::from_value(700, TD_CanDowncast);
 
 
-object = try_unerase::<_, u32>(object).unwrap_err();
+object = try_downcast::<_, u32>(object).unwrap_err();
 
-object = try_unerase::<_, String>(object).unwrap_err();
+object = try_downcast::<_, String>(object).unwrap_err();
 
-assert_eq!(*try_unerase::<_, usize>(object).unwrap(), 700);
+assert_eq!(*try_downcast::<_, usize>(object).unwrap(), 700);
 
 
 
-fn try_unerase<P, T>(
+fn try_downcast<P, T>(
     object: Action_TO<'static, P>,
 ) -> Result<P::TransmutedPtr, Action_TO<'static, P>>
 where
