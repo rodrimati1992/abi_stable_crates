@@ -1,9 +1,6 @@
 /**
 This attribute is used for functions which export a module in an `implementation crate`.
 
-When applied it creates a mangled function which calls the annotated function,
-as well as check its type signature.
-
 This is applied to functions like this:
 
 ```rust
@@ -53,28 +50,30 @@ The return type of the annotated function can be one of:
 - `RResult<M, RBoxError>`, where `M` is any type that implements 
 `abi_stable::library::RootModule`
 
-All those types are supported through the `abi_stable::library::IntoRootModuleResult` trait,
+All those types are supported through the [`IntoRootModuleResult`] trait,
 which you can implement if you want to return some other type.
 
 # Generated code
 
 Exporting the root module creates a 
-`static THE_NAME_USED_FOR_ALL_ROOT_MODULES:LibHeader= ... ;` 
+`static THE_NAME_USED_FOR_ALL_ROOT_MODULES: `[`LibHeader`]` = ... ;` 
 with these things:
 
-- The abi_stable version number used by the dynamic library.
+- The version of `abi_stable` used.
 
-- A constant describing the layout of the exported root module,and every type it references.
+- A `#[no_mangle]` function that wraps the annotated root-module constructor function,
+converting the return value to [`RootModuleResult`](./library/type.RootModuleResult.html).
 
-- A lazily initialized reference to the root module.
+- The type layout of the root module,
+for checking that the types are compatible with whatever loads that library.
 
-- The constructor function of the root module.
+- The version number of the library.
 
-The name used for root modules is the one returned by 
-`abi_stable::library::ROOT_MODULE_LOADER_NAME`.
-Because there can't be multiple root modules for a library,
-that function returns a constant.
+- A [`LateStaticRef`] of the root module.
 
+
+The name used for generated static is the value of 
+[`abi_stable::library::ROOT_MODULE_LOADER_NAME`](./library/constant.ROOT_MODULE_LOADER_NAME.html).
 
 # Remove type layout constant
 
@@ -86,14 +85,19 @@ it could be Undefined Behavior.
 This attribute is useful if one wants to minimize the size of the dynamic library when 
 doing a public release.
 
-It is strongly encouraged that this attribute is used conditionally,
-disabling it in Continuous Integration so that the 
+This attribute should not be used unconditionally,
+it should be disabled in Continuous Integration so that the 
 binary compatibility of a dynamic library is checked at some point before releasing it.
 
 # More examples
 
 For a more detailed example look in the README in the repository for this crate.
 
+
+
+[`IntoRootModuleResult`]: ./library/trait.IntoRootModuleResult.html
+[`LateStaticRef`]: ./sabi_types/struct.LateStaticRef.html
+[`LibHeader`]: ./library/struct.LibHeader.html
 
 */
 #[doc(inline)]

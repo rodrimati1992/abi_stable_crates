@@ -191,8 +191,7 @@ impl LibHeader {
             .map_err(RootModuleError::into_library_error::<M>)
     }
 
-    /// Gets the root module,first
-    /// checking that the layout of the `M` from the dynamic library is
+    /// Checks that the layout of the `M` root module from the dynamic library is
     /// compatible with the expected layout.
     ///     
     /// # Errors
@@ -205,7 +204,7 @@ impl LibHeader {
     /// - `LibraryError::RootModule` :
     /// If the root module initializer returned an error or panicked.
     ///
-    pub fn check_layout<M>(&self) -> Result<M, LibraryError>
+    pub fn ensure_layout<M>(&self) -> Result<(), LibraryError>
     where
         M: RootModule,
     {
@@ -230,6 +229,29 @@ impl LibHeader {
         }
 
         atomic::compiler_fence(atomic::Ordering::SeqCst);
+
+        Ok(())
+    }
+
+    /// Gets the root module,first
+    /// checking that the layout of the `M` from the dynamic library is
+    /// compatible with the expected layout.
+    ///     
+    /// # Errors
+    ///
+    /// This returns these errors:
+    ///
+    /// - `LibraryError::AbiInstability`:
+    /// If the layout of the root module is not the expected one.
+    ///
+    /// - `LibraryError::RootModule` :
+    /// If the root module initializer returned an error or panicked.
+    ///
+    pub fn check_layout<M>(&self) -> Result<M, LibraryError>
+    where
+        M: RootModule,
+    {
+        self.ensure_layout::<M>()?;
 
         unsafe {
             self.unchecked_layout()

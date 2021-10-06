@@ -143,7 +143,8 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static {
     # Warning
 
     If this function is called within a dynamic library,
-    it must be called at or after the function that exports its root module is called.
+    it must be called either within the root module loader function or
+    after that function has been called.
 
     **DO NOT** call this in the static initializer of a dynamic library,
     since this library relies on setting up its global state before
@@ -179,17 +180,31 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static {
     fn load_from(where_: LibraryPath<'_>) -> Result<Self, LibraryError> {
         let statics = Self::root_module_statics();
         statics.root_mod.try_init(|| {
-            let raw_library = load_raw_library::<Self>(where_)?;
-            let items = unsafe { lib_header_from_raw_library(&raw_library)? };
+            let mut items_ = None;
+            statics.raw_lib.try_init(|| -> Result<_, LibraryError> {
+                let raw_library = load_raw_library::<Self>(where_)?;
+                let items = unsafe { lib_header_from_raw_library(&raw_library)? };
 
-            let root_mod = items.init_root_module::<Self>()?.initialization()?;
+                items.ensure_layout::<Self>()?;
+                items_ = Some(items);
 
-            // Important,If I don't leak the library after sucessfully loading the root module
-            // it would cause any use of the module to be a use after free.
-            let raw_lib = leak_value(raw_library);
-            statics.raw_lib.init(|| raw_lib);
+                // if the library isn't leaked
+                // it would cause any use of the module to be a use after free.
+                //
+                // By leaking the library after type checking,
+                // but before calling the root module loader,
+                // this allows the root module loader to do anything that'd prevent
+                // sound library unloading.
+                // Nothing that can be done about static initializers that prevent
+                // library unloading though <_<.
+                Ok(leak_value(raw_library))
+            })?;
 
-            Ok(root_mod)
+            items_
+                .as_ref()
+                .unwrap()
+                .init_root_module_with_unchecked_layout::<Self>()?
+                .initialization()
         })
     }
 

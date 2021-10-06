@@ -21,7 +21,8 @@ macro_rules! nul_str {
     })
 }
 
-/// Constructs a [`NulStr`] from a string literal.
+/// Constructs a [`NulStr`] from a string literal,
+/// truncating the string on internal nul bytes.
 ///
 /// # Correctness
 ///
