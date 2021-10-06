@@ -193,7 +193,7 @@ impl ::std::error::Error for RootModuleError {}
 //////////////////////////////////////////////////////////////////////
 
 /// For converting the return value of a `#[export_root_module]` function
-/// to a `Result<(), RootModuleError>`.
+/// to a `Result<_, RootModuleError>`.
 pub trait IntoRootModuleResult {
     /// The module that is loaded in the success case.
     type Module: RootModule;

@@ -1,7 +1,30 @@
-/*!
-Traits and types related to loading an abi_stable dynamic library,
-as well as functions/modules within.
-*/
+//! Traits and types related to loading an abi_stable dynamic library,
+//! as well as functions/modules within.
+//!
+//! # Loading the root module
+//!
+//! When you use the [`RootModule`]`::load_from*` associated functions,
+//! the root module of a library is loaded in this order:
+//! 1. A [`RawLibrary`] is loaded
+//! 2. An [`AbiHeaderRef`] handle to the static that contains the root module is obtained.
+//! 3. The [`AbiHeaderRef`] checks that the abi_stable version used by that library is
+//! compatible with the loader's, upgrading to a [`&'static LibHeader`] on success.
+//! 4. The [`LibHeader`] checks that the layout of the types in the root module
+//! (and everything it references) are compatible with the loader's
+//! 5. The library is leaked so that the root module loader can
+//! do anything incompatible with library unloading.
+//! 6. The [root module](./trait.RootModule.html)
+//! is loaded using the function from the loaded library
+//! that was annotated with [`#[export_root_module]`](../attr.export_root_module.html).
+//! 7. [`RootModule::initialize`] is called on the root module.
+//!
+//! All steps (except for step 5) can return errors.
+//!
+//! [`RawLibrary`]: ./struct.RawLibrary.html
+//! [`AbiHeaderRef`]: ./struct.AbiHeaderRef.html
+//! [`RootModule`]: ./trait.RootModule.html
+//! [`RootModule::initialize`]: ./trait.RootModule.html#method.initialization
+//! [`&'static LibHeader`]: ./struct.LibHeader.html
 
 use std::{
     convert::Infallible,
@@ -105,9 +128,13 @@ pub struct RootModuleStatics<M> {
 }
 
 impl<M> RootModuleStatics<M> {
+    ///
+    /// # Safety
+    ///
+    /// This must only be called from the `abi_stable::declare_root_module_statics` macro.
     #[doc(hidden)]
     #[inline]
-    pub const fn _private_new() -> Self {
+    pub const unsafe fn __private_new() -> Self {
         Self {
             root_mod: LateStaticRef::new(),
             raw_lib: LateStaticRef::new(),
@@ -203,8 +230,9 @@ macro_rules! declare_root_module_statics {
     ( $this:ty ) => (
         #[inline]
         fn root_module_statics()->&'static $crate::library::RootModuleStatics<$this>{
-            static _ROOT_MOD_STATICS:$crate::library::RootModuleStatics<$this>=
-                $crate::library::RootModuleStatics::_private_new();
+            static _ROOT_MOD_STATICS:$crate::library::RootModuleStatics<$this>= unsafe{
+                $crate::library::RootModuleStatics::__private_new()
+            };
 
             &_ROOT_MOD_STATICS
         }
@@ -224,17 +252,18 @@ pub fn mangled_root_module_loader_name() -> String {
 
 abi_stable_derive::__const_mangled_root_module_loader_name! {}
 
-/// The name of the `static` that contains the [`AbiHeader`] of an abi_stable library.
+/// The name of the `static` that contains the [`LibHeader`] of an abi_stable library.
 ///
-/// You can get a handle to that [`AbiHeader`] using
-/// [abi_header_from_path](fn.abi_header_from_path.html) or
-/// [abi_header_from_raw_library](fn.abi_header_from_raw_library.html).
-///
-/// If you need a nul-terminated string,
-/// you can use [`ROOT_MODULE_LOADER_NAME_WITH_NUL`] instead.
+/// There's also these alternatives to this constant:
+/// - [`ROOT_MODULE_LOADER_NAME_WITH_NUL`]: this constant concatenated with `"\0"`
+/// - [`ROOT_MODULE_LOADER_NAME_NULSTR`]: a [`NulStr`] equivalent of this constant
 ///
 /// [`LibHeader`]: ./struct.LibHeader.html
+/// [`AbiHeaderRef`]: ./struct.AbiHeaderRef.html
+/// [`AbiHeaderRef::upgrade`]: ./struct.AbiHeaderRef.html#method.upgrade
 /// [`ROOT_MODULE_LOADER_NAME_WITH_NUL`]: ./constant.ROOT_MODULE_LOADER_NAME_WITH_NUL.html
+/// [`ROOT_MODULE_LOADER_NAME_NULSTR`]: ./constant.ROOT_MODULE_LOADER_NAME_NULSTR.html
+/// [`NulStr`]: ../sabi_types/struct.NulStr.html
 pub const ROOT_MODULE_LOADER_NAME: &str = PRIV_MANGLED_ROOT_MODULE_LOADER_NAME;
 
 /// A nul-terminated equivalent of [`ROOT_MODULE_LOADER_NAME`].
