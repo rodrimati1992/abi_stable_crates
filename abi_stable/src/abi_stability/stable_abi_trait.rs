@@ -27,48 +27,48 @@ use crate::{
 
 ///////////////////////
 
-/**
-Represents a type whose layout is stable.
-
-This trait can be derived using `#[derive(StableAbi)]`.
-
-# Safety
-
-The layout specified in `LAYOUT` must be correct,
-otherwise type checking when loading a dynamic library would be unsound,
-and passing this into a dynamic library would be equivalent to transmuting it.
-
-# Caveats
-
-This trait cannot be directly implemented for functions that take lifetime parameters,
-because of that,`#[derive(StableAbi)]` detects the presence of `extern fn` types
-in type definitions.
-
-*/
+/// Represents a type whose layout is stable.
+///
+/// This trait can be derived using
+/// [`#[derive(StableAbi)]`](./derive.StableAbi.html).
+///
+/// # Safety
+///
+/// The layout specified in `LAYOUT` must be correct,
+/// otherwise type checking when loading a dynamic library would be unsound,
+/// and passing this into a dynamic library would be equivalent to transmuting it.
+///
+/// # Caveats
+///
+/// This trait cannot be directly implemented for functions that take lifetime parameters,
+/// because of that, [`#[derive(StableAbi)]`](./derive.StableAbi.html)
+/// detects the presence of `extern fn` types in type definitions.
 pub unsafe trait StableAbi: GetStaticEquivalent_ {
-    /**
-    Whether this type has a single invalid bit-pattern.
-
-    Possible values:True/False
-
-    Some standard library types have a single value that is invalid for them eg:0,null.
-    these types are the only ones which can be stored in a `Option<_>` that implements StableAbi.
-
-    An alternative for types where `IsNonZeroType=False`,you can use `ROption`.
-
-    Non-exhaustive list of std types that are NonZero:
-
-    - `&T` (any T).
-
-    - `&mut T` (any T).
-
-    - `extern "C" fn()`.
-
-    - `std::ptr::NonNull`
-
-    - `std::num::NonZero*`
-
-        */
+    /// Whether this type has a single invalid bit-pattern.
+    ///
+    /// Possible values: [`True`]/[`False`]
+    ///
+    /// Some standard library types have a single value that is invalid for them eg:0,null.
+    /// these types are the only ones which can be stored in a `Option<_>` that implements StableAbi.
+    ///
+    /// For an alternative to `Option<T>` for types where
+    /// `IsNonZeroType = False`, you can use [`ROption`].
+    ///
+    /// Non-exhaustive list of std types that are NonZero:
+    ///
+    /// - `&T` (any T).
+    ///
+    /// - `&mut T` (any T).
+    ///
+    /// - `extern "C" fn()`.
+    ///
+    /// - `std::ptr::NonNull`
+    ///
+    /// - `std::num::NonZero*`
+    ///
+    /// [`True`]: ./reexports/struct.True.html
+    /// [`False`]: ./reexports/struct.False.html
+    /// [`ROption`]: ./std_types/enum.ROption.html
     type IsNonZeroType: Boolean;
 
     /// The layout of the type provided by implementors.

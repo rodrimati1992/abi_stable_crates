@@ -17,23 +17,26 @@ use crate::type_level::{
     trait_marker,
 };
 
-/**
-An `implementation type`,
-with an associated `interface type` which describes the traits that
-must be implemented when constructing a `DynTrait` from `Self`,
-using the `DynTrait::from_value` and `DynTrait::from_ptr` constructors,
-so as to pass an opaque type across ffi.
-
-To initialize `INFO` you can use the `impl_get_type_info` macro.
-
-# Uniqueness
-
-Users of this trait can't enforce that they are the only ones with the same interface,
-therefore they should handle the `Err(..)`s returned
-from the `DynTrait::*_unerased` functions whenever
-they convert back and forth between `Self` and `Self::Interface`.
-
-*/
+/// An `implementation type`,
+/// with an associated `interface type` which describes the traits that
+/// must be implemented when constructing a [`DynTrait`] from `Self`,
+/// using the [`DynTrait::from_value`] and [`DynTrait::from_ptr`] constructors,
+/// so as to pass an opaque type across ffi.
+///
+/// To initialize `INFO` you can use the [`impl_get_type_info`] macro.
+///
+/// # Uniqueness
+///
+/// Users of this trait can't enforce that they are the only ones with the same interface,
+/// therefore they should handle the `Err(..)`s returned
+/// from the `DynTrait::*downcast*` functions whenever
+/// they convert back and forth between `Self` and [`Self::Interface`](#associatedtype.Interface).
+///
+///
+/// [`DynTrait`]: ./struct.DynTrait.html
+/// [`DynTrait::from_value`]: ./struct.DynTrait.html#method.from_value
+/// [`DynTrait::from_ptr`]: ./struct.DynTrait.html#method.from_ptr
+/// [`impl_get_type_info`]: ./macro.impl_get_type_info.html
 pub trait ImplType: Sized {
     /// Describes the traits that must be implemented when constructing a
     /// `DynTrait` from `Self`.
@@ -73,107 +76,108 @@ macro_rules! declare_InterfaceType {
 }
 
 declare_InterfaceType! {
-
-
-/**
-Defines the usable/required traits when creating a
-`DynTrait<Pointer<()>, ThisInterfaceType>`.
-
-This trait can only be implemented using the
-`#[derive(StableAbi)]` and the `impl_InterfaceType` macro,
-giving a default value to each associated type,
-so that adding associated types is not a breaking change.
-
-The value of every associated type can be.
-
-- `Implemented<_>`,the trait would be required by, and be usable in `DynTrait`.
-
-- `Unimplemented<_>`,the trait would not be required by, and not be usable in `DynTrait`.
-
-# Example
-
-```
-
-use abi_stable::{
-    StableAbi,
-    erased_types::InterfaceType,
-    type_level::bools::*,
-};
-
-#[repr(C)]
-#[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Clone,Debug))]
-pub struct FooInterface;
-
-/*
-The `#[sabi(impl_InterfaceType(Clone,Debug))]` helper attribute
-(as part of #[derive(StableAbi)]) above is roughly equivalent to this impl:
-
-impl InterfaceType for FooInterface {
-    type Clone= Implemented<trait_marker::Clone>;
-
-    type Debug= Implemented<trait_marker::Debug>;
-
-    /////////////////////////////////////
-    //// defaulted associated types
-    /////////////////////////////////////
-
-    // Changing this to require/unrequire in minor versions,is an abi breaking change.
-    // type Send= Unimplemented<trait_marker::Send>;
-
-    // Changing this to require/unrequire in minor versions,is an abi breaking change.
-    // type Sync= Unimplemented<trait_marker::Sync>;
-
-    // type Iterator= Unimplemented<trait_marker::Iterator>;
-
-    // type DoubleEndedIterator= Unimplemented<trait_marker::DoubleEndedIterator>;
-
-    // type Default= Unimplemented<trait_marker::Default>;
-
-    // type Display= Unimplemented<trait_marker::Display>;
-
-    // type Serialize= Unimplemented<trait_marker::Serialize>;
-
-    // type Eq= Unimplemented<trait_marker::Eq>;
-
-    // type PartialEq= Unimplemented<trait_marker::PartialEq>;
-
-    // type Ord= Unimplemented<trait_marker::Ord>;
-
-    // type PartialOrd= Unimplemented<trait_marker::PartialOrd>;
-
-    // type Hash= Unimplemented<trait_marker::Hash>;
-
-    // type Deserialize= Unimplemented<trait_marker::Deserialize>;
-
-    // type FmtWrite= Unimplemented<trait_marker::FmtWrite>;
-
-    // type IoWrite= Unimplemented<trait_marker::IoWrite>;
-
-    // type IoSeek= Unimplemented<trait_marker::IoSeek>;
-
-    // type IoRead= Unimplemented<trait_marker::IoRead>;
-
-    // type IoBufRead= Unimplemented<trait_marker::IoBufRead>;
-
-    // type Error= Unimplemented<trait_marker::Error>;
-}
-*/
-
-# fn main(){}
-
-
-```
-
-
-*/
-
-
+    /// Defines the usable/required traits when creating a
+    /// [`DynTrait<Pointer<()>, ThisInterfaceType>`](./struct.DynTrait.html).
+    ///
+    /// This trait can only be implemented using the
+    /// [`#[derive(StableAbi)]`](./derive.StableAbi.html)
+    /// derive with the
+    /// [`#[sabi(impl_InterfaceType(...))]`](./derive.StableAbi.html#sabiimpl_interfacetype)
+    /// helper attribute,
+    /// giving a default value to each associated type,
+    /// so that adding associated types is not a breaking change.
+    ///
+    /// The value of every associated type can be.
+    ///
+    /// - [`Implemented<_>`](./type_level/impl_enum/struct.Implemented.html):
+    /// the trait would be required by, and be usable in `DynTrait`.
+    ///
+    /// - [`Unimplemented<_>`](./type_level/impl_enum/struct.Unimplemented.html):
+    /// the trait would not be required by, and not be usable in `DynTrait`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    ///
+    /// use abi_stable::{
+    ///     StableAbi,
+    ///     erased_types::InterfaceType,
+    ///     type_level::bools::*,
+    /// };
+    ///
+    /// #[repr(C)]
+    /// #[derive(StableAbi)]
+    /// #[sabi(impl_InterfaceType(Clone, Debug))]
+    /// pub struct FooInterface;
+    ///
+    /// /*
+    /// The `#[sabi(impl_InterfaceType(Clone, Debug))]` helper attribute
+    /// (as part of #[derive(StableAbi)]) above is roughly equivalent to this impl:
+    ///
+    /// impl InterfaceType for FooInterface {
+    ///     type Clone = Implemented<trait_marker::Clone>;
+    ///
+    ///     type Debug = Implemented<trait_marker::Debug>;
+    ///
+    ///     /////////////////////////////////////
+    ///     //// defaulted associated types
+    ///     /////////////////////////////////////
+    ///
+    ///     // Changing this to require/unrequire in minor versions, is an abi breaking change.
+    ///     // type Send = Unimplemented<trait_marker::Send>;
+    ///
+    ///     // Changing this to require/unrequire in minor versions, is an abi breaking change.
+    ///     // type Sync = Unimplemented<trait_marker::Sync>;
+    ///
+    ///     // type Iterator = Unimplemented<trait_marker::Iterator>;
+    ///
+    ///     // type DoubleEndedIterator = Unimplemented<trait_marker::DoubleEndedIterator>;
+    ///
+    ///     // type Default = Unimplemented<trait_marker::Default>;
+    ///
+    ///     // type Display = Unimplemented<trait_marker::Display>;
+    ///
+    ///     // type Serialize = Unimplemented<trait_marker::Serialize>;
+    ///
+    ///     // type Eq = Unimplemented<trait_marker::Eq>;
+    ///
+    ///     // type PartialEq = Unimplemented<trait_marker::PartialEq>;
+    ///
+    ///     // type Ord = Unimplemented<trait_marker::Ord>;
+    ///
+    ///     // type PartialOrd = Unimplemented<trait_marker::PartialOrd>;
+    ///
+    ///     // type Hash = Unimplemented<trait_marker::Hash>;
+    ///
+    ///     // type Deserialize = Unimplemented<trait_marker::Deserialize>;
+    ///
+    ///     // type FmtWrite = Unimplemented<trait_marker::FmtWrite>;
+    ///
+    ///     // type IoWrite = Unimplemented<trait_marker::IoWrite>;
+    ///
+    ///     // type IoSeek = Unimplemented<trait_marker::IoSeek>;
+    ///
+    ///     // type IoRead = Unimplemented<trait_marker::IoRead>;
+    ///
+    ///     // type IoBufRead = Unimplemented<trait_marker::IoBufRead>;
+    ///
+    ///     // type Error = Unimplemented<trait_marker::Error>;
+    /// }
+    /// */
+    ///
+    /// # fn main(){}
+    ///
+    ///
+    /// ```
+    ///
+    ///
+    ///
+    ///
     assoc_types[
-        /// Changing this to require/unrequire in minor versions,is an abi breaking change.
+        /// Changing this to require/unrequire in minor versions, is an abi breaking change.
         type Send;
 
-        /// Changing this to require/unrequire in minor versions,is an abi breaking change.
+        /// Changing this to require/unrequire in minor versions, is an abi breaking change.
         type Sync;
 
         type Clone;
@@ -283,7 +287,7 @@ where
 ///////////////////////////////////////
 
 /**
-Describes how `D` is deserialized,using a proxy to do so.
+Describes how `D` is deserialized, using a proxy to do so.
 
 Generally this delegates to a library function,
 so that the implementation can be delegated
@@ -399,7 +403,7 @@ pub mod interface_for {
     {
         type Interface = Interface;
 
-        /// The `&'static TypeInfo` constant,used when unerasing `DynTrait`s into a type.
+        /// The `&'static TypeInfo` constant, used when unerasing `DynTrait`s into a type.
         const INFO: &'static TypeInfo = &TypeInfo {
             size: std::mem::size_of::<T>(),
             alignment: std::mem::align_of::<T>(),
@@ -417,7 +421,7 @@ pub mod interface_for {
 
 crate::impl_InterfaceType! {
     impl crate::erased_types::InterfaceType for () {
-        type Send=True;
-        type Sync=True;
+        type Send= True;
+        type Sync= True;
     }
 }
