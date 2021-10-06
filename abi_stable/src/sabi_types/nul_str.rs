@@ -7,7 +7,7 @@ mod tests;
 use crate::{std_types::RStr, utils::ref_as_nonnull};
 
 use std::{
-    cmp::{Eq, PartialEq},
+    cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},
     fmt::{self, Debug, Display},
     marker::PhantomData,
     ptr::NonNull,
@@ -131,10 +131,10 @@ impl<'a> NulStr<'a> {
         ///
         /// # Errors
         ///
-        /// This returns a `NulStrError::NoNulTerminator` when the string does not end
+        /// This returns a [`NulStrError::NoNulTerminator`] when the string does not end
         /// with `'\0'`.
         ///
-        /// This returns a `NulStrError::InnerNul` when the string contains a
+        /// This returns a [`NulStrError::InnerNul`] when the string contains a
         /// `'\0'` before the `'\0'` terminator.
         ///
         /// # Example
@@ -151,6 +151,9 @@ impl<'a> NulStr<'a> {
         /// );
         ///
         /// ```
+        ///
+        /// [`NulStrError::InnerNul`]: enum.NulStrError.html#variant.InnerNul
+        /// [`NulStrError::NoNulTerminator`]: enum.NulStrError.html#variant.NoNulTerminator
         pub fn try_from_str(string: &'a str) -> Result<Self, NulStrError> {
             let mut i = 0;
             let mut bytes = string.as_bytes();
@@ -366,6 +369,28 @@ impl<'a> PartialEq for NulStr<'a> {
 
 impl<'a> Eq for NulStr<'a> {}
 
+impl<'a> PartialOrd for NulStr<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> Ord for NulStr<'a> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.ptr == other.ptr {
+            Ordering::Equal
+        } else {
+            self.to_str().cmp(other.to_str())
+        }
+    }
+}
+
+impl Default for NulStr<'_> {
+    fn default() -> Self {
+        NulStr::EMPTY
+    }
+}
+
 impl Display for NulStr<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Display::fmt(self.to_str(), f)
@@ -378,10 +403,15 @@ impl Debug for NulStr<'_> {
     }
 }
 
+/// Error from trying to convert a `&str` to a [`NulStr`]
+///
+/// [`NulStr`]: ./struct.NulStr.html
 #[derive(Debug, PartialEq, Clone)]
 #[non_exhaustive]
 pub enum NulStrError {
+    /// When the string has a `'\0'` before the end.
     InnerNul { pos: usize },
+    /// When the string doesn't end with `'\0'`
     NoNulTerminator,
 }
 
