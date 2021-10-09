@@ -39,31 +39,59 @@ pub enum Deallocate {
 
 /// What kind of pointer this is.
 ///
-/// The valid kinds are:
+/// # Safety
 ///
-/// - Reference:a `&T`,or a `Copy` wrapper struct containing a `&T`
-///
-/// - MutReference:a `&mut T`,or a non-`Drop` wrapper struct containing a `&mut T`
-///
-/// - SmartPointer: Any pointer type that's not a reference or a mutable reference.
+/// Each associated item describes their requirements for the implementor.
 ///
 ///
 pub unsafe trait GetPointerKind: Sized {
     /// The kind of the pointer.
+    ///
+    /// # Safety for implementor
+    ///
+    /// This is what each kind requires to be used as this associated type:
+    ///
+    /// - [`PK_Reference`]: `Self` must be a `&T`,
+    /// or a `Copy` and `#[repr(transparent)]` wrapper around a primitive pointer,
+    /// with `&T` semantics
+    ///
+    /// - [`PK_MutReference`]: `Self` must be a `&mut T`,
+    /// or a non-`Drop` and `#[repr(transparent)]` wrapper around a
+    /// primitive pointer, with `&mut T` semantics.
+    ///
+    /// - [`PK_SmartPointer`]: Any pointer type that's neither of the two other kinds.
+    ///
+    ///
+    /// [`PK_Reference`]: ./struct.PK_Reference.html
+    /// [`PK_MutReference`]: ./struct.PK_MutReference.html
+    /// [`PK_SmartPointer`]: ./struct.PK_SmartPointer.html
     type Kind: PointerKindVariant;
 
-    /// What this pointer points to,
-    /// if the type implements `std::ops::Deref` it must be the same as
-    /// `<Self as Deref>::Target`.
+    /// What this pointer points to.
     ///
     /// This is here so that pointers don't *have to* implement `Deref`.
+    ///
+    /// # Safety for implementor
+    ///
+    /// If the type implements `std::ops::Deref` this must be the same as
+    /// `<Self as Deref>::Target`.
+    ///
     type PtrTarget;
 
-    /// The kind of the pointer.
+    /// The value-level version of the [`Kind`](#associatedtype.Kind) associated type.
+    ///
+    /// # Safety for implementor
+    ///
+    /// This must not be overriden.
     const KIND: PointerKind = <Self::Kind as PointerKindVariant>::VALUE;
 }
 
-/// A type-level equivalent of a PointerKind variant.
+/// For restricting types to the type-level equivalents of [`PointerKind`] variants.
+///
+/// This trait is sealed, cannot be implemented outside this module,
+/// and won't be implemented for any more types.
+///
+/// [`PointerKind`]: ./enum.PointerKind.html
 pub trait PointerKindVariant: Sealed {
     /// The value of the PointerKind variant Self is equivalent to.
     const VALUE: PointerKind;
@@ -78,23 +106,29 @@ mod sealed {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, StableAbi)]
 #[repr(u8)]
 pub enum PointerKind {
-    /// a `&T`,or a `Copy` wrapper struct containing a `&T`
+    /// A `&T`-like pointer
     Reference,
-    /// a `&mut T`,or a non-`Drop` wrapper struct containing a `&mut T`
+    /// a `&mut T`-like pointer
     MutReference,
-    /// Any pointer type that's not a reference or a mutable reference.
+    /// Any pointer type that's neither of the other variants
     SmartPointer,
 }
 
-/// The type-level equivalent of `PointerKind::Reference`.
+/// The type-level equivalent of [`PointerKind::Reference`].
+///
+/// [`PointerKind::Reference`]: ./enum.PointerKind.html#variant.Reference
 #[allow(non_camel_case_types)]
 pub struct PK_Reference;
 
-/// The type-level equivalent of `PointerKind::MutReference`.
+/// The type-level equivalent of [`PointerKind::MutReference`].
+///
+/// [`PointerKind::MutReference`]: ./enum.PointerKind.html#variant.MutReference
 #[allow(non_camel_case_types)]
 pub struct PK_MutReference;
 
-/// The type-level equivalent of `PointerKind::SmartPointer`.
+/// The type-level equivalent of [`PointerKind::SmartPointer`].
+///
+/// [`PointerKind::SmartPointer`]: ./enum.PointerKind.html#variant.SmartPointer
 #[allow(non_camel_case_types)]
 pub struct PK_SmartPointer;
 
@@ -733,12 +767,13 @@ impl<T: OwnedPointer> Drop for DropAllocationMutGuard<'_, T> {
 ///
 /// # Safety
 ///
-/// Implementors must only contain a non-null pointer [(*1)](#clarification1).
-/// Meaning that they must be `#[repr(transparent)]` wrappers around
-/// `&`/`NonNull`/`impl ImmutableRef`.
+/// Implementors must be `#[repr(transparent)]` wrappers around
+/// `&`/`NonNull`/`impl ImmutableRef`,
+/// with any amount of 1-aligned zero-sized fields.
 ///
-/// <span id="clarification1">(*1)</span>
-/// They can also contain any amount of zero-sized fields with an alignement of 1.
+/// It must be valid to transmute a `NonNull<Self::Target>` pointer obtained
+/// from [`Self::to_nonnull`](#method.to_nonnull) back into `Self`,
+/// producing a pointer just as usable as the original.
 //
 // # Implementation notes
 //
@@ -767,13 +802,8 @@ pub unsafe trait ImmutableRef: Copy {
     ///
     /// # Safety
     ///
-    /// `from` must be one of these:
-    ///
-    /// - A pointer from a call to `ImmutableRef::to_nonnull` or
-    /// `ImmutableRef::to_raw_ptr` on an instance of `Self`,
-    /// with the same lifetime.
-    ///
-    /// - Valid to transmute to Self.
+    /// `from` must be a pointer from a call to `ImmutableRef::to_nonnull` or
+    /// `ImmutableRef::to_raw_ptr` on an instance of `Self`.
     #[inline(always)]
     unsafe fn from_nonnull(from: NonNull<Self::Target>) -> Self {
         unsafe { Transmuter { from }.to }
@@ -819,7 +849,9 @@ unsafe impl<'a, T> ImmutableRef for &'a T {
 
 /// A marker type that can be used as a proof that the `T` type parameter of
 /// `ImmutableRefTarget<T, U>`
-/// implements `ImmutableRef<Target = U>`.
+/// implements [`ImmutableRef`]`<Target = U>`.
+///
+/// [`ImmutableRef`]: ./trait.ImmutableRef.html
 pub struct ImmutableRefTarget<T, U>(NonOwningPhantom<(T, U)>);
 
 impl<T, U> Copy for ImmutableRefTarget<T, U> {}

@@ -18,7 +18,8 @@ use crate::type_level::{
 };
 
 /// An `implementation type`,
-/// with an associated `interface type` which describes the traits that
+/// with [an associated `InterfaceType`](#associatedtype.Interface)
+/// which describes the traits that
 /// must be implemented when constructing a [`DynTrait`] from `Self`,
 /// using the [`DynTrait::from_value`] and [`DynTrait::from_ptr`] constructors,
 /// so as to pass an opaque type across ffi.

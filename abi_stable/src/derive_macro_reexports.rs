@@ -57,9 +57,12 @@ pub use std::concat;
 pub use repr_offset::offset_calc::next_field_offset;
 
 pub use core_extensions::{
+    count_tts,
     type_asserts::AssertEq,
     type_level_bool::{False, True},
 };
+
+pub use ::paste::paste;
 
 pub mod renamed {
     pub use super::{
