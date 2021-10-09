@@ -43,6 +43,7 @@ fn nulstr_try_from_str_tests() {
     for (strwn, str) in pairs.iter().copied() {
         let nuls = [
             NulStr::try_from_str(strwn).unwrap(),
+            #[cfg(feature = "rust_1_46")]
             NulStr::__try_from_str_unwrapping(strwn),
         ];
         for &nul in &nuls {
@@ -64,6 +65,7 @@ fn nulstr_try_from_str_tests() {
         dbg!(strwn);
         assert_eq!(NulStr::try_from_str(strwn), Err(err));
 
+        #[cfg(feature = "rust_1_46")]
         must_panic(file_span!(), || NulStr::__try_from_str_unwrapping(strwn)).unwrap();
     }
 }

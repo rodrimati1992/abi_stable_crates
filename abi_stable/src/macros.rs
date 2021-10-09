@@ -4,124 +4,75 @@ mod internal;
 #[macro_use]
 mod nul_str_macros;
 
-/**
-Use this when constructing a [`MonoTypeLayout`] when manually implementing StableAbi.
-
-This stores indices and ranges for the type and/or const parameter taken
-from the [`SharedVars`] stored in the same [`TypeLayout`] where this is stored.
-
-# Syntax
-
-`tl_genparams!( (<lifetime>),* ; <convertible_to_startlen>; <convertible_to_startlen> )`
-
-`<convertible_to_startlen>` is one of:
-
--` `: No generic parameters of that kind.
-
--`i`:
-    Takes the ith type or const parameter(indexed separately).
-
--`i..j`:
-    Takes from i to j (exclusive) type or const parameter(indexed separately).
-
--`i..=j`:
-    Takes from i to j (inclusive) type or const parameter(indexed separately).
-
--`x:StartLen`:
-    Takes from x.start() to x.end() (exclusive) type or const parameter(indexed separately).
-
-
-
-# Examples
-
-### No generic parameters:
-
-```
-use abi_stable::{
-    type_layout::CompGenericParams,
-    tl_genparams,
-};
-
-const PARAMS:CompGenericParams=tl_genparams!(;;);
-
-```
-
-### One lifetime,one type parameter,one const parameter
-
-```
-use abi_stable::{
-    type_layout::CompGenericParams,
-    tl_genparams,
-};
-
-const PARAMS:CompGenericParams=tl_genparams!('a;0;0);
-
-```
-
-### One lifetime,two type parameters,no const parameters
-
-```
-use abi_stable::{
-    type_layout::CompGenericParams,
-    tl_genparams,
-};
-
-const PARAMS:CompGenericParams=tl_genparams!('a;0..=1;);
-
-```
-
-### Four lifetimes,no type parameters,three const parameters
-
-```
-use abi_stable::{
-    type_layout::CompGenericParams,
-    tl_genparams,
-};
-
-const PARAMS:CompGenericParams=tl_genparams!('a,'b,'c,'d;;0..3);
-
-```
-
-### No lifetimes,two type parameters,no const parameters
-
-```
-use abi_stable::{
-    type_layout::{CompGenericParams,StartLen},
-    tl_genparams,
-};
-
-const PARAMS:CompGenericParams=tl_genparams!(;StartLen::new(0,2););
-
-```
-
-[`MonoTypeLayout`]: ./type_layout/struct.MonoTypeLayout.html
-[`TypeLayout`]: ./type_layout/struct.TypeLayout.html
-[`SharedVars`]: ./type_layout/struct.SharedVars.html
-
-*/
+/// Can be used to construct [`CompGenericParams`],
+/// when manually implementing [`StableAbi`].
+///
+/// This stores indices and ranges for the type and/or const parameters taken
+/// from the [`SharedVars`] stored in the same [`TypeLayout`] where this is stored.
+///
+/// # Syntax
+///
+/// `tl_genparams!( (<lifetime>),* ; <convertible_to_startlen>; <convertible_to_startlen> )`
+///
+/// `<convertible_to_startlen>` is a range of indices into a slice:
+///
+/// -` `: No elements.
+///
+/// -`i`: Uses the `i`th element.
+///
+/// -`i..j`: Uses the elements from i up to j (exclusive).
+///
+/// -`i..=j`: Uses the elements from i up to j (inclusive).
+///
+/// -`x: StartLen`: Uses the elements from `x.start()` up to `x.end()` (exclusive).
+///
+/// For type parameters, this conceptually references the elements from
+/// the slice returned by [`SharedVars::type_layouts`].
+///
+/// For const parameters, this conceptually references the elements from
+/// the slice returned by [`SharedVars::constants`].
+///
+///
+/// # Example
+///
+/// ```rust
+/// use abi_stable::{
+///     type_layout::CompGenericParams,
+///     tl_genparams,
+/// };
+///
+/// const NO_ARGUMENTS: CompGenericParams = tl_genparams!(;;);
+///
+/// const THREE_TYPE_ARGUMENTS: CompGenericParams = tl_genparams!(; 0..=2;);
+///
+/// const ALL_ARGUMENTS: CompGenericParams = tl_genparams!('a,'b,'c,'d; 0; 0..3);
+///
+/// ```
+///
+///
+///
+/// [`MonoTypeLayout`]: ./type_layout/struct.MonoTypeLayout.html
+/// [`TypeLayout`]: ./type_layout/struct.TypeLayout.html
+/// [`SharedVars`]: ./type_layout/struct.SharedVars.html
+/// [`SharedVars::type_layouts`]: ./type_layout/struct.SharedVars.html#method.type_layouts
+/// [`SharedVars::constants`]: ./type_layout/struct.SharedVars.html#method.constants
+/// [`StableAbi`]: ./trait.StableAbi.html
+/// [`CompGenericParams`]: ./type_layout/struct.CompGenericParams.html
+///
 #[macro_export]
 macro_rules! tl_genparams {
-    (count;  ) => ( 0 );
-    (count; $v0:lifetime) => ( 1 );
-    (count; $v0:lifetime,$v1:lifetime $(,$rem:lifetime)*) => (
-        2 + $crate::tl_genparams!(count; $($rem),* )
-    );
     ( $($lt:lifetime),* $(,)? ; $($ty:expr)? ; $($const_p:expr)? ) => ({
-        #[allow(unused_imports)]
-        use $crate::{
-            type_layout::CompGenericParams,
-        };
-
         #[allow(unused_parens)]
-        let ty_param_range=$crate::type_layout::StartLenConverter( ($($ty)?) ).to_start_len();
+        let ty_param_range  =
+            $crate::type_layout::StartLenConverter( ($($ty)?) ).to_start_len();
 
         #[allow(unused_parens)]
         let const_param_range=
             $crate::type_layout::StartLenConverter( ($($const_p)?) ).to_start_len();
 
-        CompGenericParams::new(
+        $crate::type_layout::CompGenericParams::new(
             $crate::nulstr_trunc!($crate::pmr::concat!($(stringify!($lt),",",)*)),
-            $crate::tl_genparams!(count; $($lt),* ),
+            $crate::pmr::count_tts!(($($lt)*)) as u8,
             ty_param_range,
             const_param_range,
         )
@@ -356,57 +307,51 @@ macro_rules! impl_get_type_info {
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-/**
-Constructs a [`Tag`],
-a dynamically typed value for users to check extra properties about their types
-when doing runtime type checking.
-
-Note that this macro is not recursive,
-you need to invoke it every time you construct an array/map/set inside of the macro.
-
-For more examples look in the [tagging module](./type_layout/tagging/index.html)
-
-# Example
-
-Using tags to store the traits the type requires,
-so that if this changes it can be reported as an error.
-
-This will cause an error if the binary and dynamic library disagree about the values inside
-the "required traits" map entry .
-
-In real code this should be written in a
-way that keeps the tags and the type bounds in sync.
-
-
-*/
-#[cfg_attr(not(feature = "no_fn_promotion"), doc = "```rust")]
-#[cfg_attr(feature = "no_fn_promotion", doc = "```ignore")]
-/**
-use abi_stable::{
-    tag,
-    type_layout::Tag,
-    StableAbi,
-};
-
-const TAGS:Tag=tag!{{
-    "required traits"=>tag![[ "Copy" ]],
-}};
-
-
-#[repr(C)]
-#[derive(StableAbi)]
-#[sabi(bound="T:Copy")]
-#[sabi(tag="TAGS")]
-struct Value<T>{
-    value:T,
-}
-
-
-```
-
-[`Tag`]: ./type_layout/tagging/struct.Tag.html
-
-*/
+/// Constructs a [`Tag`](./type_layout/tagging/struct.Tag.html),
+/// a dynamically typed value for users to check extra properties about their types
+/// when doing runtime type checking.
+///
+/// Note that this macro is not recursive,
+/// you need to invoke it every time you construct an array/map/set inside of the macro.
+///
+/// For more examples look in the [tagging module](./type_layout/tagging/index.html)
+///
+/// # Example
+///
+/// Using tags to store the traits the type requires,
+/// so that if this changes it can be reported as an error.
+///
+/// This will cause an error if the binary and dynamic library disagree about the values inside
+/// the "required traits" map entry .
+///
+/// In real code this should be written in a
+/// way that keeps the tags and the type bounds in sync.
+///
+/// ```rust
+/// use abi_stable::{
+///     tag,
+///     type_layout::Tag,
+///     StableAbi,
+/// };
+///
+/// const TAGS: Tag = tag!{{
+///     "required traits" => tag![["Copy"]],
+/// }};
+///
+///
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// #[sabi(bound = "T: Copy")]
+/// #[sabi(tag = "TAGS")]
+/// struct Value<T>{
+///     value: T,
+/// }
+///
+///
+/// ```
+///
+/// [`Tag`]: ./type_layout/tagging/struct.Tag.html
+///
 #[macro_export]
 macro_rules! tag {
     ([ $( $elem:expr ),* $(,)? ])=>{{
@@ -804,16 +749,37 @@ macro_rules! make_shared_vars{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Allows declaring a [`StaticRef`] associated `const`ant.
+/// Allows declaring a [`StaticRef`] inherent associated `const`ant
+/// from possibly non-`'static` references.
 ///
-/// This macro is for declaring inherent associated constant of non-`'static` types.
+/// This only works in inherent implementations.
 ///
-/// # Breaking changes
+/// This does not work in:
 ///
-/// This macro may be changed to produce compiler-errors when it's used to
-/// declare a non-associated `const`, or a constant in a trait implementation.
+/// - trait definitions
+/// - trait implementations.
+/// - modules: to define a non-associated constant.
 ///
 /// # Example
+///
+/// ### Basic
+///
+/// ```rust
+/// use abi_stable::staticref;
+///
+/// struct NONE_REF<T>(T);
+///
+/// impl<T> NONE_REF<T> {
+///     // Declares a `StaticRef<Option<T>>` that points to a `None`, for any `T`.
+///     staticref!(const V: Option<T> = None);
+/// }
+///
+/// let none_string: &'static Option<String> = NONE_REF::<String>::V.get();
+/// assert_eq!(none_string, &None::<String>);
+///
+/// ```
+///
+/// ### More realistic
 ///
 /// This example demonstrates how you can construct a pointer to a vtable,
 /// constructed at compile-time.
@@ -943,21 +909,22 @@ macro_rules! staticref{
         );*
         $(;)?
     )=>{
-        $(
-            $(#[$attr])*
-            $vis const $name : $crate::sabi_types::StaticRef<$ty> = {
-                // Generating a random base36 string to avoid name collisions
-                const fn __sabi_mtuxotq5otc3ntu5mdq4ntgwmzi<T>(
-                    x: &T
-                ) -> $crate::sabi_types::StaticRef<T> {
-                    unsafe{
-                        $crate::sabi_types::StaticRef::from_raw(x)
-                    }
-                }
+        $crate::pmr::paste!{
+            $(
+                #[allow(unused_parens)]
+                #[doc(hidden)]
+                const [<$name _NHPMWYD3NJA>] : *const ($ty) = &($expr);
 
-                __sabi_mtuxotq5otc3ntu5mdq4ntgwmzi( &$crate::pmr::identity::<$ty>($expr) )
-            };
-        )*
+                #[allow(unused_parens)]
+                $(#[$attr])*
+                $vis const $name : $crate::sabi_types::StaticRef<($ty)> = unsafe{
+                    $crate::sabi_types::StaticRef::from_raw(
+                        Self::[<$name _NHPMWYD3NJA>]
+                    )
+                };
+            )*
+        }
+
     };
 }
 
