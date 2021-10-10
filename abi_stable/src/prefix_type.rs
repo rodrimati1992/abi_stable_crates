@@ -296,23 +296,29 @@ impl<T, P> StaticRef<WithMetadata_<T, P>> {
     ///
     /// ```rust
     /// use abi_stable::{
-    ///     for_examples::{Module, Module_Ref},
+    ///     for_examples::{PhantModule, PhantModule_Ref},
     ///     prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
     ///     std_types::{RNone, RStr},
     ///     staticref,
     /// };
     ///
-    /// // The `staticref` invocation here declares a `StaticRef<WithMetadata<Module>>` constant.
-    /// const WITH_META: &WithMetadata<Module> = &WithMetadata::new(
-    ///     PrefixTypeTrait::METADATA,
-    ///     Module {
-    ///         first: RNone,
-    ///         second: RStr::from_str("hello"),
-    ///         third: 100,
-    ///     },
-    /// );
+    /// struct Foo<T>(T);
     ///
-    /// const MOD: Module_Ref = Module_Ref(WITH_META.static_as_prefix());
+    /// impl<T: Copy> Foo<T> {
+    ///     // The `staticref` invocation here declares a
+    ///     // `StaticRef<WithMetadata<PhantModule<T>>>` constant.
+    ///     staticref!(const WITH_META: WithMetadata<PhantModule<T>> = WithMetadata::new(
+    ///         PrefixTypeTrait::METADATA,
+    ///         PhantModule {
+    ///             first: RNone,
+    ///             second: RStr::from_str("hello"),
+    ///             third: 100,
+    ///             phantom: std::marker::PhantomData,
+    ///         },
+    ///     ));
+    /// }
+    ///
+    /// const MOD: PhantModule_Ref<()> = PhantModule_Ref(Foo::WITH_META.as_prefix());
     ///
     /// assert_eq!(MOD.first(), RNone);
     /// assert_eq!(MOD.second().as_str(), "hello");

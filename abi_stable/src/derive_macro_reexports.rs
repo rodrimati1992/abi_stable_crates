@@ -27,7 +27,7 @@ pub use crate::{
     reflection::ModReflMode,
     sabi_trait::vtable::{RObjectVtable, RObjectVtable_Ref},
     sabi_types::{Constructor, MovePtr, RMut, RRef, VersionStrings},
-    std_types::{utypeid::new_utypeid, RErr, RNone, ROk, RSlice, RSome},
+    std_types::{utypeid::new_utypeid, RErr, RNone, ROk, ROption, RResult, RSlice, RSome},
     type_layout::{
         CompTLFields, CompTLFunction, DiscriminantRepr, FieldAccessor, GenericTLData,
         GenericTLEnum, GenericTLPrefixType, IsExhaustive, LifetimeIndex, MakeTLNonExhaustive,

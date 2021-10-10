@@ -46,7 +46,7 @@ use abi_stable::{
 };
 
 #[sabi_extern_fn]
-fn collect_into_lines(text:&str) -> RVec<RStr<'_>>{
+fn collect_into_lines(text: &str) -> RVec<RStr<'_>>{
     text.lines()
         .filter(|x| !x.is_empty() )
         .map(RStr::from)
@@ -68,7 +68,7 @@ You can use `#[sabi_extern_fn(no_early_return)]` to potentially
 improve the runtime performance of the annotated function (this has not been tested).
 
 This variant of the attribute removes an intermediate closure that is 
-used to intercept early returns (`?`,`return, and some macros),
+used to intercept early returns (`?`, `return`, etc),
 
 If this version of the attribute is used on a function which does have an 
 early return, it will (incorrectly) abort the process when it attempts to return early.

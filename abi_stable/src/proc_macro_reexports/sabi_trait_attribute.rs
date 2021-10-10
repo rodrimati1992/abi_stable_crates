@@ -376,7 +376,7 @@ pub trait Dictionary: Debug + Clone {
 
         // You can only unerase a trait object if it was constructed with `TD_CanDowncast`
         // and it's being unerased into a type that implements `std::any::Any`.
-        let map: RBox<HashMap<RString, u32>>=object.obj.downcast_into().unwrap();
+        let map: RBox<HashMap<RString, u32>> = object.obj.downcast_into().unwrap();
 
         assert_eq!(map.get("hello".into()), Some(&100));
         assert_eq!(map.get("world".into()), Some(&10));
@@ -402,7 +402,7 @@ pub trait Dictionary: Debug + Clone {
         // Dictionary::insert(&mut object,"what".into(), 99);
         
 
-        let map: RArc<HashMap<RString, u32>>=object.obj.downcast_into().unwrap();
+        let map: RArc<HashMap<RString, u32>> = object.obj.downcast_into().unwrap();
         assert_eq!(map.get("hello".into()), Some(&100));
         assert_eq!(map.get("world".into()), Some(&10));
     }
