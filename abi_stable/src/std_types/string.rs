@@ -23,7 +23,7 @@ use crate::std_types::{RStr, RVec};
 mod iters;
 
 #[cfg(test)]
-// #[cfg(all(test,not(feature="only_new_tests")))]
+// #[cfg(all(test, not(feature = "only_new_tests")))]
 mod tests;
 
 pub use self::iters::{Drain, IntoIter};
@@ -61,16 +61,16 @@ pub struct RString {
 }
 
 impl RString {
-    /// Creates a new,empty RString.
+    /// Creates a new, empty RString.
     ///
     /// # Example
     ///
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let str=RString::new();
+    /// let str = RString::new();
     ///
-    /// assert_eq!(&str[..],"");
+    /// assert_eq!(&str[..], "");
     ///
     /// ```
     pub const fn new() -> Self {
@@ -87,10 +87,10 @@ impl RString {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let str=RString::with_capacity(10);
+    /// let str = RString::with_capacity(10);
     ///
-    /// assert_eq!(&str[..],"");
-    /// assert_eq!(str.capacity(),10);
+    /// assert_eq!(&str[..], "");
+    /// assert_eq!(str.capacity(), 10);
     ///
     /// ```
     pub fn with_capacity(cap: usize) -> Self {
@@ -105,14 +105,14 @@ impl RString {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RStr,RString};
+    /// use abi_stable::std_types::{RStr, RString};
     ///
-    /// let str=RString::from("What is that.");
+    /// let str = RString::from("What is that.");
     ///
-    /// assert_eq!(str.slice(..),RStr::from("What is that."));
-    /// assert_eq!(str.slice(..4),RStr::from("What"));
-    /// assert_eq!(str.slice(4..),RStr::from(" is that."));
-    /// assert_eq!(str.slice(4..7),RStr::from(" is"));
+    /// assert_eq!(str.slice(..), RStr::from("What is that."));
+    /// assert_eq!(str.slice(..4), RStr::from("What"));
+    /// assert_eq!(str.slice(4..), RStr::from(" is that."));
+    /// assert_eq!(str.slice(4..7), RStr::from(" is"));
     ///
     /// ```
     #[inline]
@@ -131,8 +131,8 @@ impl RString {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let str="What is that.";
-    /// assert_eq!(RString::from(str).as_str(),str);
+    /// let str = "What is that.";
+    /// assert_eq!(RString::from(str).as_str(), str);
     ///
     /// ```
     #[inline]
@@ -145,9 +145,9 @@ impl RString {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RStr,RString};
+    /// use abi_stable::std_types::{RStr, RString};
     ///
-    /// let str="What is that.";
+    /// let str = "What is that.";
     /// assert_eq!(
     ///     RString::from(str).as_rstr(),
     ///     RStr::from(str),
@@ -166,9 +166,9 @@ impl RString {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// assert_eq!(RString::from("").len(),0);
-    /// assert_eq!(RString::from("a").len(),1);
-    /// assert_eq!(RString::from("Regular").len(),7);
+    /// assert_eq!(RString::from("").len(), 0);
+    /// assert_eq!(RString::from("a").len(), 1);
+    /// assert_eq!(RString::from("Regular").len(), 7);
     ///
     /// ```
     #[inline]
@@ -205,15 +205,15 @@ impl RString {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let mut str=RString::with_capacity(13);
+    /// let mut str = RString::with_capacity(13);
     ///
-    /// assert_eq!(str.capacity(),13);
+    /// assert_eq!(str.capacity(), 13);
     ///
     /// str.push_str("What is that.");
-    /// assert_eq!(str.capacity(),13);
+    /// assert_eq!(str.capacity(), 13);
     ///
     /// str.push(' ');
-    /// assert_ne!(str.capacity(),13);
+    /// assert_ne!(str.capacity(), 13);
     ///
     /// ```
     #[inline]
@@ -232,9 +232,9 @@ impl RString {
     /// # Examples
     ///
     /// ```
-    /// use abi_stable::std_types::{RString,RVec};
+    /// use abi_stable::std_types::{RString, RVec};
     ///
-    /// let bytes=RVec::from("hello".as_bytes());
+    /// let bytes = RVec::from("hello".as_bytes());
     ///
     /// unsafe{
     ///     assert_eq!( RString::from_utf8_unchecked(bytes).as_str(), "hello" );
@@ -255,10 +255,10 @@ impl RString {
     /// # Examples
     ///
     /// ```
-    /// use abi_stable::std_types::{RString,RVec};
+    /// use abi_stable::std_types::{RString, RVec};
     ///
-    /// let bytes_ok=RVec::from("hello".as_bytes());
-    /// let bytes_err=RVec::from(vec![255]);
+    /// let bytes_ok = RVec::from("hello".as_bytes());
+    /// let bytes_err = RVec::from(vec![255]);
     ///
     /// assert_eq!( RString::from_utf8(bytes_ok).unwrap(), RString::from("hello") );
     /// assert!( RString::from_utf8(bytes_err).is_err() );
@@ -290,8 +290,8 @@ impl RString {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let str="What the 😈.";
-    /// let str_utf16=str.encode_utf16().collect::<Vec<u16>>();
+    /// let str = "What the 😈.";
+    /// let str_utf16 = str.encode_utf16().collect::<Vec<u16>>();
     ///
     /// assert_eq!(
     ///     RString::from_utf16(&str_utf16).unwrap(),
@@ -307,12 +307,12 @@ impl RString {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RString,RVec};
+    /// use abi_stable::std_types::{RString, RVec};
     ///
-    /// let bytes=RVec::from("hello".as_bytes());
-    /// let str=RString::from("hello");
+    /// let bytes = RVec::from("hello".as_bytes());
+    /// let str = RString::from("hello");
     ///
-    /// assert_eq!(str.into_bytes(),bytes);
+    /// assert_eq!(str.into_bytes(), bytes);
     ///
     /// ```
     pub fn into_bytes(self) -> RVec<u8> {
@@ -331,10 +331,10 @@ impl RString {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let std_str=String::from("hello");
-    /// let str=RString::from("hello");
+    /// let std_str = String::from("hello");
+    /// let str = RString::from("hello");
     ///
-    /// assert_eq!(str.into_string(),std_str);
+    /// assert_eq!(str.into_string(), std_str);
     ///
     /// ```
     pub fn into_string(self) -> String {
@@ -363,7 +363,7 @@ impl RString {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let mut str=RString::new();
+    /// let mut str = RString::new();
     ///
     /// str.reserve(10);
     /// assert!(str.capacity()>=10);
@@ -380,10 +380,10 @@ impl RString {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let mut str=RString::with_capacity(100);
+    /// let mut str = RString::with_capacity(100);
     /// str.push_str("nope");
     /// str.shrink_to_fit();
-    /// assert_eq!(str.capacity(),4);
+    /// assert_eq!(str.capacity(), 4);
     ///
     /// ```
     pub fn shrink_to_fit(&mut self) {
@@ -399,10 +399,10 @@ impl RString {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let mut str=RString::new();
+    /// let mut str = RString::new();
     ///
     /// str.reserve_exact(10);
-    /// assert_eq!(str.capacity(),10);
+    /// assert_eq!(str.capacity(), 10);
     ///
     /// ```
     pub fn reserve_exact(&mut self, additional: usize) {
@@ -416,13 +416,13 @@ impl RString {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let mut str=RString::new();
+    /// let mut str = RString::new();
     ///
     /// str.push('O');
     /// str.push('O');
     /// str.push('P');
     ///
-    /// assert_eq!(str.as_str(),"OOP");
+    /// assert_eq!(str.as_str(), "OOP");
     ///
     /// ```
     pub fn push(&mut self, ch: char) {
@@ -439,12 +439,12 @@ impl RString {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let mut str=RString::new();
+    /// let mut str = RString::new();
     ///
     /// str.push_str("green ");
     /// str.push_str("frog");
     ///
-    /// assert_eq!(str.as_str(),"green frog");
+    /// assert_eq!(str.as_str(), "green frog");
     ///
     /// ```
     pub fn push_str(&mut self, str: &str) {
@@ -458,18 +458,18 @@ impl RString {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RString,RVec};
+    /// use abi_stable::std_types::{RString, RVec};
     ///
-    /// let mut str=RString::from("yep");
+    /// let mut str = RString::from("yep");
     ///
-    /// assert_eq!(str.pop(),Some('p'));
-    /// assert_eq!(str.pop(),Some('e'));
-    /// assert_eq!(str.pop(),Some('y'));
-    /// assert_eq!(str.pop(),None);
+    /// assert_eq!(str.pop(), Some('p'));
+    /// assert_eq!(str.pop(), Some('e'));
+    /// assert_eq!(str.pop(), Some('y'));
+    /// assert_eq!(str.pop(), None);
     ///
     /// ```
     pub fn pop(&mut self) -> Option<char> {
-        // literal copy-paste of std,so if this is wrong std is wrong.
+        // literal copy-paste of std, so if this is wrong std is wrong.
 
         let ch = self.chars().rev().next()?;
         let newlen = self.len() - ch.len_utf8();
@@ -488,19 +488,19 @@ impl RString {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RString,RVec};
+    /// use abi_stable::std_types::{RString, RVec};
     ///
-    /// let mut str=RString::from("Galileo");
+    /// let mut str = RString::from("Galileo");
     ///
-    /// assert_eq!(str.remove(3),'i');
-    /// assert_eq!(str.as_str(),"Galleo");
+    /// assert_eq!(str.remove(3), 'i');
+    /// assert_eq!(str.as_str(), "Galleo");
     ///
-    /// assert_eq!(str.remove(4),'e');
-    /// assert_eq!(str.as_str(),"Gallo");
+    /// assert_eq!(str.remove(4), 'e');
+    /// assert_eq!(str.as_str(), "Gallo");
     ///
     /// ```
     pub fn remove(&mut self, idx: usize) -> char {
-        // literal copy-paste of std,so if this is wrong std is wrong.
+        // literal copy-paste of std, so if this is wrong std is wrong.
 
         let ch = match self[idx..].chars().next() {
             Some(ch) => ch,
@@ -526,18 +526,18 @@ impl RString {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RString,RVec};
+    /// use abi_stable::std_types::{RString, RVec};
     ///
-    /// let mut str=RString::from("Cap");
+    /// let mut str = RString::from("Cap");
     ///
-    /// str.insert(1,'r');
-    /// assert_eq!(str.as_str(),"Crap");
+    /// str.insert(1, 'r');
+    /// assert_eq!(str.as_str(), "Crap");
     ///
-    /// str.insert(4,'p');
-    /// assert_eq!(str.as_str(),"Crapp");
+    /// str.insert(4, 'p');
+    /// assert_eq!(str.as_str(), "Crapp");
     ///
-    /// str.insert(5,'y');
-    /// assert_eq!(str.as_str(),"Crappy");
+    /// str.insert(5, 'y');
+    /// assert_eq!(str.as_str(), "Crappy");
     ///
     /// ```
     pub fn insert(&mut self, idx: usize, ch: char) {
@@ -556,22 +556,22 @@ impl RString {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RString,RVec};
+    /// use abi_stable::std_types::{RString, RVec};
     ///
-    /// let mut str=RString::from("rust");
+    /// let mut str = RString::from("rust");
     ///
-    /// str.insert_str(0,"T");
-    /// assert_eq!(str.as_str(),"Trust");
+    /// str.insert_str(0, "T");
+    /// assert_eq!(str.as_str(), "Trust");
     ///
-    /// str.insert_str(5," the source");
-    /// assert_eq!(str.as_str(),"Trust the source");
+    /// str.insert_str(5, " the source");
+    /// assert_eq!(str.as_str(), "Trust the source");
     ///
-    /// str.insert_str(5," the types in");
-    /// assert_eq!(str.as_str(),"Trust the types in the source");
+    /// str.insert_str(5, " the types in");
+    /// assert_eq!(str.as_str(), "Trust the types in the source");
     ///
     /// ```
     pub fn insert_str(&mut self, idx: usize, string: &str) {
-        // literal copy-paste of std,so if this is wrong std is wrong.
+        // literal copy-paste of std, so if this is wrong std is wrong.
 
         assert!(self.is_char_boundary(idx));
 
@@ -599,22 +599,22 @@ impl RString {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RString,RVec};
+    /// use abi_stable::std_types::{RString, RVec};
     ///
     /// {
-    ///     let mut str=RString::from("There were 10 people.");
+    ///     let mut str = RString::from("There were 10 people.");
     ///     str.retain(|c| !c.is_numeric() );
-    ///     assert_eq!(str.as_str(),"There were  people.");
+    ///     assert_eq!(str.as_str(), "There were  people.");
     /// }
     /// {
-    ///     let mut str=RString::from("There were 10 people.");
+    ///     let mut str = RString::from("There were 10 people.");
     ///     str.retain(|c| !c.is_whitespace() );
-    ///     assert_eq!(str.as_str(),"Therewere10people.");
+    ///     assert_eq!(str.as_str(), "Therewere10people.");
     /// }
     /// {
-    ///     let mut str=RString::from("There were 10 people.");
+    ///     let mut str = RString::from("There were 10 people.");
     ///     str.retain(|c| c.is_numeric() );
-    ///     assert_eq!(str.as_str(),"10");
+    ///     assert_eq!(str.as_str(), "10");
     /// }
     ///
     /// ```
@@ -661,20 +661,20 @@ impl RString {
         }
     }
 
-    /// Turns this into an empty RString,keeping the same allocated buffer.
+    /// Turns this into an empty RString, keeping the same allocated buffer.
     ///
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RString,RVec};
+    /// use abi_stable::std_types::{RString, RVec};
     ///
-    /// let mut str=RString::from("Nurse");
+    /// let mut str = RString::from("Nurse");
     ///
-    /// assert_eq!(str.as_str(),"Nurse");
+    /// assert_eq!(str.as_str(), "Nurse");
     ///
     /// str.clear();
     ///
-    /// assert_eq!(str.as_str(),"");
+    /// assert_eq!(str.as_str(), "");
     ///
     /// ```
     pub fn clear(&mut self) {
@@ -804,9 +804,9 @@ impl fmt::Write for RString {
 }
 
 shared_impls! {
-    mod=string_impls
-    new_type=RString[][],
-    original_type=str,
+    mod = string_impls
+    new_type = RString[][],
+    original_type = str,
 }
 
 impl<'de> Deserialize<'de> for RString {
@@ -844,39 +844,39 @@ impl RString {
     ```
     use abi_stable::std_types::RString;
 
-    let orig="Not a single way";
+    let orig = "Not a single way";
 
     {
-        let mut str=RString::from(orig);
+        let mut str = RString::from(orig);
         assert_eq!(
             str.drain(..).collect::<String>(),
             orig,
         );
-        assert_eq!(str.as_str(),"");
+        assert_eq!(str.as_str(), "");
     }
     {
-        let mut str=RString::from(orig);
+        let mut str = RString::from(orig);
         assert_eq!(
             str.drain(..4).collect::<String>(),
             "Not ",
         );
-        assert_eq!(str.as_str(),"a single way");
+        assert_eq!(str.as_str(), "a single way");
     }
     {
-        let mut str=RString::from(orig);
+        let mut str = RString::from(orig);
         assert_eq!(
             str.drain(4..).collect::<String>(),
             "a single way",
         );
-        assert_eq!(str.as_str(),"Not ");
+        assert_eq!(str.as_str(), "Not ");
     }
     {
-        let mut str=RString::from(orig);
+        let mut str = RString::from(orig);
         assert_eq!(
             str.drain(4..13).collect::<String>(),
             "a single ",
         );
-        assert_eq!(str.as_str(),"Not way");
+        assert_eq!(str.as_str(), "Not way");
     }
 
     ```
@@ -945,9 +945,9 @@ impl<'a> FromIterator<&'a char> for RString {
 /// ```
 /// use abi_stable::std_types::RString;
 ///
-/// let err=RString::from_utf8(vec![0,0,0,255]).unwrap_err();
+/// let err = RString::from_utf8(vec![0, 0, 0, 255]).unwrap_err();
 ///
-/// assert_eq!( err.as_bytes() , &[0,0,0,255] )
+/// assert_eq!( err.as_bytes() , &[0, 0, 0, 255] )
 ///
 /// ```
 #[derive(Debug)]
@@ -962,11 +962,11 @@ impl FromUtf8Error {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RString,RVec};
+    /// use abi_stable::std_types::{RString, RVec};
     ///
     /// let bytes:RVec<u8>= vec![72, 111, 95, 95, 95, 95, 95, 99, 107, 255].into();
     ///
-    /// let err=RString::from_utf8(bytes.clone()).unwrap_err();
+    /// let err = RString::from_utf8(bytes.clone()).unwrap_err();
     ///
     /// assert_eq!( err.into_bytes(), bytes );
     ///
@@ -983,7 +983,7 @@ impl FromUtf8Error {
     ///
     /// let bytes= vec![99, 114, 121, 115, 116, 97, 108, 255];
     ///
-    /// let err=RString::from_utf8(bytes.clone()).unwrap_err();
+    /// let err = RString::from_utf8(bytes.clone()).unwrap_err();
     ///
     /// assert_eq!( err.as_bytes(), &bytes[..] );
     ///
@@ -999,7 +999,7 @@ impl FromUtf8Error {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let err=RString::from_utf8( vec![0, 0, 255] ).unwrap_err();
+    /// let err = RString::from_utf8( vec![0, 0, 255] ).unwrap_err();
     ///
     /// assert_eq!( err.error().valid_up_to(), 2 );
     ///

@@ -13,7 +13,7 @@ macro_rules! declare_tuple {
     $tconstr:ident[$( $tparam:ident ),* $(,)? ]
 ) => (
     $(#[$meta])*
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash,StableAbi)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, StableAbi)]
     #[repr(C)]
     pub struct $tconstr< $($tparam,)* > (
         $(pub $tparam,)*
@@ -22,7 +22,7 @@ macro_rules! declare_tuple {
     impl_into_rust_repr! {
         impl[ $($tparam,)* ] Into<( $($tparam,)* )> for $tconstr< $($tparam,)* > {
             fn(this){
-                let $tconstr($($tparam,)*)=this;
+                let $tconstr($($tparam,)*) = this;
                 ($($tparam,)*)
             }
         }
@@ -31,7 +31,7 @@ macro_rules! declare_tuple {
     impl_from_rust_repr! {
         impl[ $($tparam,)* ] From<( $($tparam,)* )> for $tconstr< $($tparam,)* > {
             fn(this){
-                let ($($tparam,)*)=this;
+                let ($($tparam,)*) = this;
                 $tconstr ( $($tparam),* )
             }
         }
@@ -83,7 +83,7 @@ declare_tuple! {
         /// ```
         /// use abi_stable::std_types::*;
         ///
-        /// assert_eq!( Tuple2(1,2).into_tuple(), (1,2) );
+        /// assert_eq!( Tuple2(1, 2).into_tuple(), (1, 2) );
         ///
         /// ```
     ]
@@ -107,7 +107,7 @@ declare_tuple! {
         /// ```
         /// use abi_stable::std_types::*;
         ///
-        /// assert_eq!( Tuple3(1,2,3).into_tuple(), (1,2,3) );
+        /// assert_eq!( Tuple3(1, 2, 3).into_tuple(), (1, 2, 3) );
         ///
         /// ```
     ]
@@ -132,7 +132,7 @@ declare_tuple! {
         /// ```
         /// use abi_stable::std_types::*;
         ///
-        /// assert_eq!( Tuple4(1,2,3,4).into_tuple(), (1,2,3,4) );
+        /// assert_eq!( Tuple4(1, 2, 3, 4).into_tuple(), (1, 2, 3, 4) );
         ///
         /// ```
     ]

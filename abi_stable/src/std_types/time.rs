@@ -11,7 +11,7 @@ use std::time::Duration;
 /// ```
 /// use abi_stable::std_types::RDuration;
 ///
-/// let dur=RDuration::from_millis(31416);
+/// let dur = RDuration::from_millis(31416);
 /// assert_eq!( dur.as_secs(), 31 );
 /// assert_eq!( dur.as_nanos(), 31_416_000_000 );
 ///
@@ -33,7 +33,7 @@ impl RDuration {
     /// ```
     /// use abi_stable::std_types::RDuration;
     ///
-    /// let dur=RDuration::new(1,456_000_000);
+    /// let dur = RDuration::new(1, 456_000_000);
     /// assert_eq!( dur.as_millis(), 1_456 );
     /// assert_eq!( dur.as_micros(), 1_456_000 );
     ///
@@ -52,7 +52,7 @@ impl RDuration {
     /// ```
     /// use abi_stable::std_types::RDuration;
     ///
-    /// let dur=RDuration::from_secs(14);
+    /// let dur = RDuration::from_secs(14);
     /// assert_eq!( dur.as_millis(), 14_000 );
     /// assert_eq!( dur.as_micros(), 14_000_000 );
     ///
@@ -71,7 +71,7 @@ impl RDuration {
     /// ```
     /// use abi_stable::std_types::RDuration;
     ///
-    /// let dur=RDuration::from_millis(628);
+    /// let dur = RDuration::from_millis(628);
     /// assert_eq!( dur.as_micros(), 628_000 );
     /// assert_eq!( dur.as_nanos(), 628_000_000 );
     ///
@@ -90,7 +90,7 @@ impl RDuration {
     /// ```
     /// use abi_stable::std_types::RDuration;
     ///
-    /// let dur=RDuration::from_micros(1024);
+    /// let dur = RDuration::from_micros(1024);
     /// assert_eq!( dur.as_millis(), 1 );
     /// assert_eq!( dur.as_nanos(), 1024_000 );
     ///
@@ -110,7 +110,7 @@ impl RDuration {
     /// ```
     /// use abi_stable::std_types::RDuration;
     ///
-    /// let dur=RDuration::from_nanos(128_256_512);
+    /// let dur = RDuration::from_nanos(128_256_512);
     /// assert_eq!( dur.as_millis(), 128 );
     /// assert_eq!( dur.as_micros(), 128_256 );
     ///
@@ -131,7 +131,7 @@ impl RDuration {
     /// ```
     /// use abi_stable::std_types::RDuration;
     ///
-    /// let dur=RDuration::from_nanos(64_128_256_512);
+    /// let dur = RDuration::from_nanos(64_128_256_512);
     /// assert_eq!( dur.subsec_nanos(), 128_256_512 );
     ///
     /// ```
@@ -146,7 +146,7 @@ impl RDuration {
     /// ```
     /// use abi_stable::std_types::RDuration;
     ///
-    /// let dur=RDuration::from_nanos(64_128_256_512);
+    /// let dur = RDuration::from_nanos(64_128_256_512);
     /// assert_eq!( dur.seconds(), 64 );
     ///
     /// ```
@@ -161,7 +161,7 @@ impl RDuration {
     /// ```
     /// use abi_stable::std_types::RDuration;
     ///
-    /// let dur=RDuration::from_nanos(64_128_256_512);
+    /// let dur = RDuration::from_nanos(64_128_256_512);
     /// assert_eq!( dur.as_secs(), 64 );
     ///
     /// ```
@@ -176,7 +176,7 @@ impl RDuration {
     /// ```
     /// use abi_stable::std_types::RDuration;
     ///
-    /// let dur=RDuration::from_nanos(64_128_256_512);
+    /// let dur = RDuration::from_nanos(64_128_256_512);
     /// assert_eq!( dur.as_millis(), 64_128 );
     ///
     /// ```
@@ -191,7 +191,7 @@ impl RDuration {
     /// ```
     /// use abi_stable::std_types::RDuration;
     ///
-    /// let dur=RDuration::from_nanos(64_128_256_512);
+    /// let dur = RDuration::from_nanos(64_128_256_512);
     /// assert_eq!( dur.as_micros(), 64_128_256 );
     ///
     /// ```
@@ -206,7 +206,7 @@ impl RDuration {
     /// ```
     /// use abi_stable::std_types::RDuration;
     ///
-    /// let dur=RDuration::from_micros(256);
+    /// let dur = RDuration::from_micros(256);
     /// assert_eq!( dur.as_nanos(), 256_000 );
     ///
     /// ```

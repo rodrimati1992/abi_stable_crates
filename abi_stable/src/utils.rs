@@ -18,7 +18,7 @@ use crate::{
 
 //////////////////////////////////////
 
-/// Information about a panic,used in `ffi_panic_message`.
+/// Information about a panic, used in `ffi_panic_message`.
 #[derive(Debug, Copy, Clone)]
 pub struct PanicInfo {
     pub file: &'static str,
@@ -96,7 +96,7 @@ pub union Transmuter<T: Copy, U: Copy> {
 
 //////////////////////////////////
 
-/// Leaks `value` into the heap,and returns a reference to it.
+/// Leaks `value` into the heap, and returns a reference to it.
 ///
 /// # Warning
 ///
@@ -106,7 +106,7 @@ pub union Transmuter<T: Copy, U: Copy> {
 #[inline]
 pub fn leak_value<'a, T>(value: T) -> &'a T
 where
-    T: 'a, // T:'a is for the docs
+    T: 'a, // T: 'a is for the docs
 {
     let x = Box::new(value);
     let leaked: &'a T = Box::leak(x);
@@ -122,7 +122,7 @@ where
 ///
 /// # Safety
 ///
-/// This has the same safety concerns that `std::mem::transmute` has,including that
+/// This has the same safety concerns that `std::mem::transmute` has, including that
 /// `T` has to have an alignment and be compatible with `U`.
 #[inline]
 #[allow(clippy::needless_lifetimes)]
@@ -135,7 +135,7 @@ pub unsafe fn transmute_reference<T, U>(ref_: &T) -> &U {
 ///
 /// # Safety
 ///
-/// This has the same safety concerns that `std::mem::transmute` has,including that
+/// This has the same safety concerns that `std::mem::transmute` has, including that
 /// `T` has to have an alignment and be compatible with `U`.
 #[inline]
 #[allow(clippy::needless_lifetimes)]
@@ -201,7 +201,7 @@ pub(crate) trait FmtPadding {
 }
 
 macro_rules! impl_fmt_padding {
-    ($ty:ty) => {
+    ($ty: ty) => {
         impl FmtPadding for $ty {
             fn display_pad<'a, T>(
                 &'a mut self,
@@ -282,12 +282,12 @@ where
 /// ```
 /// use abi_stable::utils;
 ///
-/// let arr=["hello","world","foo","bar","baz"];
+/// let arr = ["hello", "world", "foo", "bar", "baz"];
 ///
-/// assert_eq!(utils::distance_from(&arr[0],&arr[0]),Some(0));
-/// assert_eq!(utils::distance_from(&arr[0],&arr[4]),Some(4));
+/// assert_eq!(utils::distance_from(&arr[0], &arr[0]), Some(0));
+/// assert_eq!(utils::distance_from(&arr[0], &arr[4]), Some(4));
 ///
-/// assert_eq!(utils::distance_from(&arr[4],&arr[0]),None);
+/// assert_eq!(utils::distance_from(&arr[4], &arr[0]), None);
 ///
 /// ```
 pub fn distance_from<T>(from: *const T, to: *const T) -> Option<usize> {
