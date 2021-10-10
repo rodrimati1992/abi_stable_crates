@@ -7,50 +7,50 @@ use crate::{
 
 macro_rules! declare_iter_interface {
     (
-        $k:ident=>$v:ident;
-        $(#[$attr:meta])*
-        interface=$interface:ident;
-        type Item=$item:ty;
+        $k: ident => $v: ident;
+        $(#[$attr: meta])*
+        interface = $interface: ident;
+        type Item = $item: ty;
     ) => (
         #[repr(C)]
         #[derive(StableAbi)]
         $(#[$attr])*
-        pub struct $interface<$k,$v>(PhantomData<($k,$v)>);
+        pub struct $interface<$k, $v>(PhantomData<($k, $v)>);
 
-        impl<$k,$v> $interface<$k,$v>{
+        impl<$k, $v> $interface<$k, $v>{
             /// Constructs this type.
-            pub const NEW:Self=Self(PhantomData);
+            pub const NEW: Self = Self(PhantomData);
         }
 
 
-        impl<'a,$k:'a,$v:'a> IteratorItem<'a> for $interface<$k,$v>{
-            type Item=$item;
+        impl<'a, $k: 'a, $v: 'a> IteratorItem<'a> for $interface<$k, $v>{
+            type Item = $item;
         }
     )
 }
 
 declare_iter_interface! {
-    K=>V;
+    K => V;
     /// The `InterfaceType` of the `Iter` iterator for `RHashMap`.
-    #[sabi(impl_InterfaceType(Iterator,Clone))]
-    interface=RefIterInterface;
-    type Item=Tuple2<&'a K,&'a V>;
+    #[sabi(impl_InterfaceType(Iterator, Clone))]
+    interface = RefIterInterface;
+    type Item = Tuple2<&'a K, &'a V>;
 }
 
 declare_iter_interface! {
-    K=>V;
+    K => V;
     /// The `InterfaceType` of the `IterMut` iterator for `RHashMap`.
     #[sabi(impl_InterfaceType(Iterator))]
-    interface=MutIterInterface;
-    type Item=Tuple2<&'a K,&'a mut V>;
+    interface = MutIterInterface;
+    type Item = Tuple2<&'a K, &'a mut V>;
 }
 
 declare_iter_interface! {
-    K=>V;
+    K => V;
     /// The `InterfaceType` of the `Drain` iterator for `RHashMap`.
     #[sabi(impl_InterfaceType(Iterator))]
-    interface=ValIterInterface;
-    type Item=Tuple2<K,V>;
+    interface = ValIterInterface;
+    type Item = Tuple2<K, V>;
 
 }
 

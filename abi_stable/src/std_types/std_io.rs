@@ -1,5 +1,5 @@
 /*!
-Ffi-safe equivalents of `std::io::{ErrorKind,Error,SeekFrom}`.
+Ffi-safe equivalents of `std::io::{ErrorKind, Error, SeekFrom}`.
 */
 
 use std::{
@@ -32,10 +32,10 @@ pub struct RIoErrorKind {
 macro_rules! impl_error_kind {
     (
         $(
-            $variant:ident,discriminant=$value:expr , message=$as_str_msg:expr ;
+            $variant: ident, discriminant = $value: expr , message = $as_str_msg: expr ;
         )*
     ) => (
-        /// Every (visible) variant of RIoErrorKind,equivalent to that of `std::io::ErrorKind`.
+        /// Every (visible) variant of RIoErrorKind, equivalent to that of `std::io::ErrorKind`.
         #[allow(non_upper_case_globals)]
         impl RIoErrorKind {
             $(
@@ -63,7 +63,7 @@ macro_rules! impl_error_kind {
                         $(
                             ErrorKind::$variant=> RIoErrorKind::$variant,
                         )*
-                        _=>RIoErrorKind::Other,
+                        _ => RIoErrorKind::Other,
                     }
                 }
             }
@@ -76,7 +76,7 @@ macro_rules! impl_error_kind {
                         $(
                             RIoErrorKind::$variant=> ErrorKind::$variant,
                         )*
-                        _=>ErrorKind::Other,
+                        _ => ErrorKind::Other,
                     }
                 }
             }
@@ -96,23 +96,23 @@ macro_rules! impl_error_kind {
 }
 
 impl_error_kind! {
-    NotFound, discriminant = 1 , message="entity not found" ;
-    PermissionDenied, discriminant = 2 , message="permission denied" ;
-    ConnectionRefused, discriminant = 3 , message="connection refused" ;
-    ConnectionReset, discriminant = 4 , message="connection reset" ;
-    ConnectionAborted, discriminant = 5 , message="connection aborted" ;
-    NotConnected, discriminant = 6 , message="not connected" ;
-    AddrInUse, discriminant = 7 , message="address in use" ;
-    AddrNotAvailable, discriminant = 8 , message="address not available" ;
-    BrokenPipe, discriminant = 9 , message="broken pipe" ;
-    AlreadyExists, discriminant = 10 , message="entity already exists" ;
-    WouldBlock, discriminant = 11 , message="operation would block" ;
-    InvalidInput, discriminant = 12 , message="invalid input parameter" ;
-    InvalidData, discriminant = 13 , message="invalid data" ;
-    TimedOut, discriminant = 14 , message="timed out" ;
-    WriteZero, discriminant = 15 , message="write zero" ;
-    Interrupted, discriminant = 16 , message="operation interrupted" ;
-    UnexpectedEof, discriminant = 17 , message="unexpected end of file" ;
+    NotFound, discriminant = 1 , message = "entity not found" ;
+    PermissionDenied, discriminant = 2 , message = "permission denied" ;
+    ConnectionRefused, discriminant = 3 , message = "connection refused" ;
+    ConnectionReset, discriminant = 4 , message = "connection reset" ;
+    ConnectionAborted, discriminant = 5 , message = "connection aborted" ;
+    NotConnected, discriminant = 6 , message = "not connected" ;
+    AddrInUse, discriminant = 7 , message = "address in use" ;
+    AddrNotAvailable, discriminant = 8 , message = "address not available" ;
+    BrokenPipe, discriminant = 9 , message = "broken pipe" ;
+    AlreadyExists, discriminant = 10 , message = "entity already exists" ;
+    WouldBlock, discriminant = 11 , message = "operation would block" ;
+    InvalidInput, discriminant = 12 , message = "invalid input parameter" ;
+    InvalidData, discriminant = 13 , message = "invalid data" ;
+    TimedOut, discriminant = 14 , message = "timed out" ;
+    WriteZero, discriminant = 15 , message = "write zero" ;
+    Interrupted, discriminant = 16 , message = "operation interrupted" ;
+    UnexpectedEof, discriminant = 17 , message = "unexpected end of file" ;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -133,9 +133,9 @@ impl_from_rust_repr! {
     impl From<SeekFrom> for RSeekFrom {
         fn(this){
             match this {
-                SeekFrom::Start(x)  =>RSeekFrom::Start(x),
-                SeekFrom::End(x)    =>RSeekFrom::End(x),
-                SeekFrom::Current(x)=>RSeekFrom::Current(x),
+                SeekFrom::Start(x)   => RSeekFrom::Start(x),
+                SeekFrom::End(x)     => RSeekFrom::End(x),
+                SeekFrom::Current(x) => RSeekFrom::Current(x),
             }
         }
     }
@@ -145,9 +145,9 @@ impl_into_rust_repr! {
     impl Into<SeekFrom> for RSeekFrom {
         fn(this){
             match this {
-                RSeekFrom::Start(x)  =>SeekFrom::Start(x),
-                RSeekFrom::End(x)    =>SeekFrom::End(x),
-                RSeekFrom::Current(x)=>SeekFrom::Current(x),
+                RSeekFrom::Start(x)   => SeekFrom::Start(x),
+                RSeekFrom::End(x)     => SeekFrom::End(x),
+                RSeekFrom::Current(x) => SeekFrom::Current(x),
             }
         }
     }
@@ -165,7 +165,7 @@ Defining an extern function to write a slice into a writer twice.
 ```
 use abi_stable::{
     erased_types::interfaces::IoWriteInterface,
-    std_types::{RIoError,RResult,ROk},
+    std_types::{RIoError, RResult, ROk},
     traits::IntoReprC,
     DynTrait, RMut,
     sabi_extern_fn,
@@ -176,9 +176,9 @@ use std::io::Write;
 
 #[sabi_extern_fn]
 pub fn write_slice_twice(
-    mut write: DynTrait<RMut<'_, ()>,IoWriteInterface>,
+    mut write: DynTrait<RMut<'_, ()>, IoWriteInterface>,
     slice: &[u8],
-)->RResult<(),RIoError>{
+) -> RResult<(), RIoError>{
     rtry!( write.write_all(slice).into_c() );
     rtry!( write.write_all(slice).into_c() );
     ROk(())
@@ -200,8 +200,8 @@ impl_from_rust_repr! {
     impl From<ioError> for RIoError {
         fn(this){
             RIoError{
-                kind:this.kind().into(),
-                error:this.into_inner().map(RBoxError::from_box).into_c()
+                kind: this.kind().into(),
+                error: this.into_inner().map(RBoxError::from_box).into_c()
             }
         }
     }
@@ -210,10 +210,10 @@ impl_from_rust_repr! {
 impl_into_rust_repr! {
     impl Into<ioError> for RIoError {
         fn(this){
-            let kind=this.kind().into_::<ErrorKind>();
+            let kind = this.kind().into_::<ErrorKind>();
             match this.into_inner() {
-                Some(e)=>ioError::new(kind,RBoxError::into_box(e)),
-                None=>ioError::from(kind),
+                Some(e) => ioError::new(kind, RBoxError::into_box(e)),
+                None => ioError::from(kind),
             }
         }
     }
@@ -243,7 +243,7 @@ impl RIoError {
     /// use abi_stable::std_types::RIoError;
     /// use std::io::ErrorKind;
     ///
-    /// let err=RIoError::new( ErrorKind::Other, "".parse::<u64>().unwrap_err());
+    /// let err = RIoError::new( ErrorKind::Other, "".parse::<u64>().unwrap_err());
     /// ```
     pub fn new<E>(kind: ErrorKind, error: E) -> Self
     where
@@ -264,9 +264,9 @@ impl RIoError {
     /// use abi_stable::std_types::RIoError;
     /// use std::io::ErrorKind;
     ///
-    /// let str_err="Timeout receiving the response from server.";
+    /// let str_err = "Timeout receiving the response from server.";
     ///
-    /// let err=RIoError::new_( ErrorKind::TimedOut, str_err);
+    /// let err = RIoError::new_( ErrorKind::TimedOut, str_err);
     /// ```
     #[inline]
     pub fn new_<E>(kind: ErrorKind, error: E) -> Self
@@ -284,7 +284,7 @@ impl RIoError {
     /// use abi_stable::std_types::RIoError;
     /// use std::io::ErrorKind;
     ///
-    /// let err=RIoError::from_kind( ErrorKind::AlreadyExists );
+    /// let err = RIoError::from_kind( ErrorKind::AlreadyExists );
     /// ```
     pub fn from_kind(kind: ErrorKind) -> Self {
         Self {
@@ -302,9 +302,9 @@ impl RIoError {
     /// use abi_stable::std_types::RIoError;
     /// use std::io::ErrorKind;
     ///
-    /// let str_err="Could not create file \"memes.txt\" because it already exists.";
+    /// let str_err = "Could not create file \"memes.txt\" because it already exists.";
     ///
-    /// let err=RIoError::with_box( ErrorKind::AlreadyExists, str_err.into());
+    /// let err = RIoError::with_box( ErrorKind::AlreadyExists, str_err.into());
     /// ```
     pub fn with_box(kind: ErrorKind, error: Box<dyn ErrorTrait + Send + Sync + 'static>) -> Self {
         RIoError {
@@ -321,11 +321,11 @@ impl RIoError {
     /// use abi_stable::std_types::RIoError;
     /// use std::io::ErrorKind;
     ///
-    /// type DynErr=Box<dyn std::error::Error + Send + Sync>;
+    /// type DynErr = Box<dyn std::error::Error + Send + Sync>;
     ///
-    /// let str_err:DynErr="IP address `256.256.256.256` is already in use.".into();
+    /// let str_err: DynErr = "IP address `256.256.256.256` is already in use.".into();
     ///
-    /// let err=RIoError::with_rboxerror( ErrorKind::AddrInUse, str_err.into() );
+    /// let err = RIoError::with_rboxerror( ErrorKind::AddrInUse, str_err.into() );
     /// ```
     pub fn with_rboxerror(kind: ErrorKind, error: RBoxError) -> Self {
         RIoError {
@@ -339,10 +339,10 @@ impl RIoError {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RIoError,RIoErrorKind};
+    /// use abi_stable::std_types::{RIoError, RIoErrorKind};
     /// use std::io::ErrorKind;
     ///
-    /// let err=RIoError::from_kind( ErrorKind::AlreadyExists );
+    /// let err = RIoError::from_kind( ErrorKind::AlreadyExists );
     ///
     /// assert_eq!(err.kind(), RIoErrorKind::AlreadyExists);
     /// ```
@@ -356,16 +356,16 @@ impl RIoError {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RIoError,RIoErrorKind,RBoxError};
+    /// use abi_stable::std_types::{RIoError, RIoErrorKind, RBoxError};
     /// use std::io::ErrorKind;
     ///
     /// {
-    ///     let err=RIoError::from_kind( ErrorKind::AlreadyExists );
+    ///     let err = RIoError::from_kind( ErrorKind::AlreadyExists );
     ///     assert_eq!(err.get_ref().map(|_|()), None);
     /// }
     /// {
-    ///     let msg="Cannot access directory at \"/home/Steve/memes/\".";
-    ///     let err=RIoError::new_( ErrorKind::PermissionDenied, msg );
+    ///     let msg = "Cannot access directory at \"/home/Steve/memes/\".";
+    ///     let err = RIoError::new_( ErrorKind::PermissionDenied, msg );
     ///
     ///     assert!(err.get_ref().is_some());
     /// }
@@ -381,16 +381,16 @@ impl RIoError {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RIoError,RIoErrorKind,RBoxError};
+    /// use abi_stable::std_types::{RIoError, RIoErrorKind, RBoxError};
     /// use std::io::ErrorKind;
     ///
     /// {
-    ///     let mut err=RIoError::from_kind( ErrorKind::AlreadyExists );
+    ///     let mut err = RIoError::from_kind( ErrorKind::AlreadyExists );
     ///     assert_eq!(err.get_mut().map(|_|()), None);
     /// }
     /// {
-    ///     let mut msg="Cannot access directory at \"/home/Patrick/373.15K takes/\".";
-    ///     let mut err=RIoError::new_( ErrorKind::PermissionDenied, msg );
+    ///     let mut msg = "Cannot access directory at \"/home/Patrick/373.15K takes/\".";
+    ///     let mut err = RIoError::new_( ErrorKind::PermissionDenied, msg );
     ///     assert!(err.get_mut().is_some());
     /// }
     ///
@@ -409,12 +409,12 @@ impl RIoError {
     /// use std::io::ErrorKind;
     ///
     /// {
-    ///     let err=RIoError::from_kind( ErrorKind::AlreadyExists );
+    ///     let err = RIoError::from_kind( ErrorKind::AlreadyExists );
     ///     assert_eq!(err.into_inner().map(|_|()), None);
     /// }
     /// {
-    ///     let mut msg="Cannot access directory at \"/home/wo_boat/blog/\".";
-    ///     let err=RIoError::new_( ErrorKind::PermissionDenied, msg );
+    ///     let mut msg = "Cannot access directory at \"/home/wo_boat/blog/\".";
+    ///     let err = RIoError::new_( ErrorKind::PermissionDenied, msg );
     ///     assert!(err.into_inner().is_some());
     /// }
     ///

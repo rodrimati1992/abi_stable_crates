@@ -9,21 +9,21 @@ Ffi-safe equivalent of `std::cmp::Ordering`.
 
 # Example
 
-This defines an extern function,which compares a slice to another.
+This defines an extern function, which compares a slice to another.
 
 ```
 
 use abi_stable::{
-    std_types::{RCmpOrdering,RSlice},
+    std_types::{RCmpOrdering, RSlice},
     sabi_extern_fn,
 };
 use std::cmp::Ord;
 
 
 #[sabi_extern_fn]
-pub fn compare_slices<T>(l:RSlice<'_,T>, r:RSlice<'_,T>)->RCmpOrdering
+pub fn compare_slices<T>(l: RSlice<'_, T>, r: RSlice<'_, T>) -> RCmpOrdering
 where
-    T:Ord
+    T: Ord
 {
     l.cmp(&r)
      .into()
@@ -65,9 +65,9 @@ impl_from_rust_repr! {
     impl From<Ordering> for RCmpOrdering {
         fn(this){
             match this {
-                Ordering::Less=>RCmpOrdering::Less,
-                Ordering::Equal=>RCmpOrdering::Equal,
-                Ordering::Greater=>RCmpOrdering::Greater,
+                Ordering::Less => RCmpOrdering::Less,
+                Ordering::Equal => RCmpOrdering::Equal,
+                Ordering::Greater => RCmpOrdering::Greater,
             }
         }
     }
@@ -77,9 +77,9 @@ impl_into_rust_repr! {
     impl Into<Ordering> for RCmpOrdering {
         fn(this){
             match this {
-                RCmpOrdering::Less=>Ordering::Less,
-                RCmpOrdering::Equal=>Ordering::Equal,
-                RCmpOrdering::Greater=>Ordering::Greater,
+                RCmpOrdering::Less => Ordering::Less,
+                RCmpOrdering::Equal => Ordering::Equal,
+                RCmpOrdering::Greater => Ordering::Greater,
             }
         }
     }

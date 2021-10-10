@@ -23,7 +23,7 @@ fn vec_drain() {
     let pointer = Arc::new(());
 
     macro_rules! assert_eq_drain {
-        ($range:expr,$after_drain:expr) => {
+        ($range: expr, $after_drain: expr) => {
             let range = $range;
             {
                 let after_drain: Vec<u8> = $after_drain;
@@ -65,7 +65,7 @@ fn insert_remove() {
         assert_eq!(&*list, &*original);
     };
 
-    //vec![b'a',b'b',b'c',b'd',b'e',b'f',b'g',b'h',b'i',b'j']
+    //vec![b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j']
 
     assert_insert_remove(0, vec![b'b', b'c', b'd']);
     assert_insert_remove(1, vec![b'a', b'c', b'd']);
@@ -370,8 +370,8 @@ fn into_vec() {
         let list = list.clone().set_vtable_for_testing();
         let list_ptr = list.as_ptr() as usize;
         let list_1 = list.into_vec();
-        // No,MIR interpreter,
-        // I'm not dereferencing a pointer here,I am comparing their adresses.
+        // No, MIR interpreter,
+        // I'm not dereferencing a pointer here, I am comparing their adresses.
         assert_ne!(list_ptr, list_1.as_ptr() as usize);
         assert_eq!(orig, list_1);
     }

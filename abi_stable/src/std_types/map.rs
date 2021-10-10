@@ -1,5 +1,5 @@
 /*!
-Contains the ffi-safe equivalent of `std::collections::HashMap`,and related items.
+Contains the ffi-safe equivalent of `std::collections::HashMap`, and related items.
 */
 
 use std::{
@@ -47,10 +47,10 @@ pub use self::{
 
 /**
 
-An ffi-safe hashmap,which wraps `std::collections::HashMap<K,V,S>`,
+An ffi-safe hashmap, which wraps `std::collections::HashMap<K, V, S>`,
 only requiring the `K: Eq + Hash` bounds when constructing it.
 
-Most of the API in `HashMap` is implemented here,including the Entry API.
+Most of the API in `HashMap` is implemented here, including the Entry API.
 
 
 # Example
@@ -58,13 +58,13 @@ Most of the API in `HashMap` is implemented here,including the Entry API.
 This example demonstrates how one can use the RHashMap as a dictionary.
 
 ```
-use abi_stable::std_types::{RHashMap,Tuple2,RString,RSome};
+use abi_stable::std_types::{RHashMap, Tuple2, RString, RSome};
 
-let mut map=RHashMap::new();
+let mut map = RHashMap::new();
 
-map.insert("dictionary","A book/document containing definitions of words");
-map.insert("bibliophile","Someone who loves books.");
-map.insert("pictograph","A picture representating of a word.");
+map.insert("dictionary", "A book/document containing definitions of words");
+map.insert("bibliophile", "Someone who loves books.");
+map.insert("pictograph", "A picture representating of a word.");
 
 assert_eq!(
     map["dictionary"],
@@ -81,14 +81,14 @@ assert_eq!(
     Some(&"A picture representating of a word."),
 );
 
-for Tuple2(k,v) in map {
-    assert!( k=="dictionary" || k=="pictograph" );
+for Tuple2(k, v) in map {
+    assert!( k == "dictionary" || k == "pictograph" );
 
     assert!(
-        v=="A book/document containing definitions of words" ||
-        v=="A picture representating of a word.",
-        "{}=>{}",
-        k,v
+        v == "A book/document containing definitions of words" ||
+        v == "A picture representating of a word.",
+        "{} => {}",
+        k, v
     );
 }
 
@@ -148,12 +148,12 @@ impl<K, V> RHashMap<K, V, RandomState> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RString};
+    /// use abi_stable::std_types::{RHashMap, RString};
     ///
-    /// let mut map=RHashMap::<RString,u32>::new();
+    /// let mut map = RHashMap::<RString, u32>::new();
     /// assert!(map.is_empty());
-    /// map.insert("Hello".into(),10);
-    /// assert_eq!(map.is_empty(),false);
+    /// map.insert("Hello".into(), 10);
+    /// assert_eq!(map.is_empty(), false);
     ///
     /// ```
     #[inline]
@@ -169,10 +169,10 @@ impl<K, V> RHashMap<K, V, RandomState> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RString};
+    /// use abi_stable::std_types::{RHashMap, RString};
     ///
-    /// let mut map=RHashMap::<RString,u32>::with_capacity(10);
-    /// assert!(map.capacity()>=10);
+    /// let mut map = RHashMap::<RString, u32>::with_capacity(10);
+    /// assert!(map.capacity() >= 10);
     ///
     /// ```
     #[inline]
@@ -192,14 +192,14 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RString};
+    /// use abi_stable::std_types::{RHashMap, RString};
     /// use std::collections::hash_map::RandomState;
     ///
     /// let s = RandomState::new();
-    /// let mut map=RHashMap::<RString,u32,_>::with_hasher(s);
+    /// let mut map = RHashMap::<RString, u32, _>::with_hasher(s);
     /// assert!(map.is_empty());
-    /// map.insert("Hello".into(),10);
-    /// assert_eq!(map.is_empty(),false);
+    /// map.insert("Hello".into(), 10);
+    /// assert_eq!(map.is_empty(), false);
     ///
     /// ```
     #[inline]
@@ -216,12 +216,12 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RString};
+    /// use abi_stable::std_types::{RHashMap, RString};
     /// use std::collections::hash_map::RandomState;
     ///
     /// let s = RandomState::new();
-    /// let mut map=RHashMap::<RString,u32,_>::with_capacity_and_hasher(10,s);
-    /// assert!(map.capacity()>=10);
+    /// let mut map = RHashMap::<RString, u32, _>::with_capacity_and_hasher(10, s);
+    /// assert!(map.capacity() >= 10);
     ///
     /// ```
     pub fn with_capacity_and_hasher(capacity: usize, hash_builder: S) -> RHashMap<K, V, S>
@@ -250,12 +250,12 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RString};
+    /// use abi_stable::std_types::{RHashMap, RString};
     ///
-    /// let mut map=RHashMap::<RString,u32>::new();
-    /// assert_eq!(map.contains_key("boo"),false);
-    /// map.insert("boo".into(),0);
-    /// assert_eq!(map.contains_key("boo"),true);
+    /// let mut map = RHashMap::<RString, u32>::new();
+    /// assert_eq!(map.contains_key("boo"), false);
+    /// map.insert("boo".into(), 0);
+    /// assert_eq!(map.contains_key("boo"), true);
     ///
     /// ```
     pub fn contains_key<Q>(&self, query: &Q) -> bool
@@ -273,11 +273,11 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RString};
+    /// use abi_stable::std_types::{RHashMap, RString};
     ///
-    /// let mut map=RHashMap::<RString,u32>::new();
+    /// let mut map = RHashMap::<RString, u32>::new();
     /// assert_eq!(map.get("boo"), None);
-    /// map.insert("boo".into(),0);
+    /// map.insert("boo".into(), 0);
     /// assert_eq!(map.get("boo"), Some(&0));
     ///
     /// ```
@@ -297,11 +297,11 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RString};
+    /// use abi_stable::std_types::{RHashMap, RString};
     ///
-    /// let mut map=RHashMap::<RString,u32>::new();
+    /// let mut map = RHashMap::<RString, u32>::new();
     /// assert_eq!(map.get_mut("boo"), None);
-    /// map.insert("boo".into(),0);
+    /// map.insert("boo".into(), 0);
     /// assert_eq!(map.get_mut("boo"), Some(&mut 0));
     ///
     /// ```
@@ -319,9 +319,9 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RSome,RNone};
+    /// use abi_stable::std_types::{RHashMap, RSome, RNone};
     ///
-    /// let mut map=vec![(0,1),(3,4)].into_iter().collect::<RHashMap<u32,u32>>();
+    /// let mut map = vec![(0, 1), (3, 4)].into_iter().collect::<RHashMap<u32, u32>>();
     ///
     /// assert_eq!(map.remove(&0), RSome(1));
     /// assert_eq!(map.remove(&0), RNone);
@@ -343,14 +343,14 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RSome,RNone,Tuple2};
+    /// use abi_stable::std_types::{RHashMap, RSome, RNone, Tuple2};
     ///
-    /// let mut map=vec![(0,1),(3,4)].into_iter().collect::<RHashMap<u32,u32>>();
+    /// let mut map = vec![(0, 1), (3, 4)].into_iter().collect::<RHashMap<u32, u32>>();
     ///
-    /// assert_eq!(map.remove_entry(&0), RSome(Tuple2(0,1)));
+    /// assert_eq!(map.remove_entry(&0), RSome(Tuple2(0, 1)));
     /// assert_eq!(map.remove_entry(&0), RNone);
     ///
-    /// assert_eq!(map.remove_entry(&3), RSome(Tuple2(3,4)));
+    /// assert_eq!(map.remove_entry(&3), RSome(Tuple2(3, 4)));
     /// assert_eq!(map.remove_entry(&3), RNone);
     ///
     /// ```
@@ -372,10 +372,10 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
-    /// assert_eq!(map.contains_key(&11),false);
-    /// map.insert(11,0);
-    /// assert_eq!(map.contains_key(&11),true);
+    /// let mut map = RHashMap::<u32, u32>::new();
+    /// assert_eq!(map.contains_key(&11), false);
+    /// map.insert(11, 0);
+    /// assert_eq!(map.contains_key(&11), true);
     ///
     /// ```
     pub fn contains_key_p(&self, key: &K) -> bool {
@@ -391,9 +391,9 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     /// assert_eq!(map.get(&12), None);
-    /// map.insert(12,0);
+    /// map.insert(12, 0);
     /// assert_eq!(map.get(&12), Some(&0));
     ///
     /// ```
@@ -411,9 +411,9 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     /// assert_eq!(map.get_mut(&12), None);
-    /// map.insert(12,0);
+    /// map.insert(12, 0);
     /// assert_eq!(map.get_mut(&12), Some(&mut 0));
     ///
     /// ```
@@ -427,9 +427,9 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RSome,RNone};
+    /// use abi_stable::std_types::{RHashMap, RSome, RNone};
     ///
-    /// let mut map=vec![(0,1),(3,4)].into_iter().collect::<RHashMap<u32,u32>>();
+    /// let mut map = vec![(0, 1), (3, 4)].into_iter().collect::<RHashMap<u32, u32>>();
     ///
     /// assert_eq!(map.remove_p(&0), RSome(1));
     /// assert_eq!(map.remove_p(&0), RNone);
@@ -447,14 +447,14 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RSome,RNone,Tuple2};
+    /// use abi_stable::std_types::{RHashMap, RSome, RNone, Tuple2};
     ///
-    /// let mut map=vec![(0,1),(3,4)].into_iter().collect::<RHashMap<u32,u32>>();
+    /// let mut map = vec![(0, 1), (3, 4)].into_iter().collect::<RHashMap<u32, u32>>();
     ///
-    /// assert_eq!(map.remove_entry_p(&0), RSome(Tuple2(0,1)));
+    /// assert_eq!(map.remove_entry_p(&0), RSome(Tuple2(0, 1)));
     /// assert_eq!(map.remove_entry_p(&0), RNone);
     ///
-    /// assert_eq!(map.remove_entry_p(&3), RSome(Tuple2(3,4)));
+    /// assert_eq!(map.remove_entry_p(&3), RSome(Tuple2(3, 4)));
     /// assert_eq!(map.remove_entry_p(&3), RNone);
     ///
     /// ```
@@ -474,24 +474,24 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=vec![(0,1),(3,4)].into_iter().collect::<RHashMap<u32,u32>>();
+    /// let mut map = vec![(0, 1), (3, 4)].into_iter().collect::<RHashMap<u32, u32>>();
     ///
-    /// assert_eq!(map.index_p(&0),&1);
-    /// assert_eq!(map.index_p(&3),&4);
+    /// assert_eq!(map.index_p(&0), &1);
+    /// assert_eq!(map.index_p(&3), &4);
     ///
     /// ```
     ///
     /// ```should_panic
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// assert_eq!(map.index_p(&0),&1);
+    /// assert_eq!(map.index_p(&0), &1);
     ///
     /// ```
     pub fn index_p(&self, key: &K) -> &V {
         self.get_p(key)
-            .expect("no entry in RHashMap<_,_> found for key")
+            .expect("no entry in RHashMap<_, _> found for key")
     }
 
     /// Returns a mutable reference to the value associated with the key.
@@ -505,42 +505,42 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=vec![(0,1),(3,4)].into_iter().collect::<RHashMap<u32,u32>>();
+    /// let mut map = vec![(0, 1), (3, 4)].into_iter().collect::<RHashMap<u32, u32>>();
     ///
-    /// assert_eq!(map.index_mut_p(&0),&mut 1);
-    /// assert_eq!(map.index_mut_p(&3),&mut 4);
+    /// assert_eq!(map.index_mut_p(&0), &mut 1);
+    /// assert_eq!(map.index_mut_p(&3), &mut 4);
     ///
     /// ```
     ///
     /// ```should_panic
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// assert_eq!(map.index_mut_p(&0),&mut 1);
+    /// assert_eq!(map.index_mut_p(&0), &mut 1);
     ///
     /// ```
     pub fn index_mut_p(&mut self, key: &K) -> &mut V {
         self.get_mut_p(key)
-            .expect("no entry in RHashMap<_,_> found for key")
+            .expect("no entry in RHashMap<_, _> found for key")
     }
 
     //////////////////////////////////
 
-    /// Inserts a value into the map,associating it with a key,returning the previous value.
+    /// Inserts a value into the map, associating it with a key, returning the previous value.
     ///
     /// # Example
     ///
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// map.insert(0,1);
-    /// map.insert(2,3);
+    /// map.insert(0, 1);
+    /// map.insert(2, 3);
     ///
-    /// assert_eq!(map[&0],1);
-    /// assert_eq!(map[&2],3);
+    /// assert_eq!(map[&0], 1);
+    /// assert_eq!(map[&2], 3);
     ///
     /// ```
     pub fn insert(&mut self, key: K, value: V) -> ROption<V> {
@@ -555,7 +555,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     /// map.reserve(10);
     ///
     /// ```
@@ -572,15 +572,15 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=vec![(0,1),(3,4)].into_iter().collect::<RHashMap<u32,u32>>();
+    /// let mut map = vec![(0, 1), (3, 4)].into_iter().collect::<RHashMap<u32, u32>>();
     ///
-    /// assert_eq!(map.contains_key(&0),true);
-    /// assert_eq!(map.contains_key(&3),true);
+    /// assert_eq!(map.contains_key(&0), true);
+    /// assert_eq!(map.contains_key(&3), true);
     ///
     /// map.clear();
     ///
-    /// assert_eq!(map.contains_key(&0),false);
-    /// assert_eq!(map.contains_key(&3),false);
+    /// assert_eq!(map.contains_key(&0), false);
+    /// assert_eq!(map.contains_key(&3), false);
     ///
     /// ```
     pub fn clear(&mut self) {
@@ -595,13 +595,13 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// assert_eq!(map.len(),0);
-    /// map.insert(0,1);
-    /// assert_eq!(map.len(),1);
-    /// map.insert(2,3);
-    /// assert_eq!(map.len(),2);
+    /// assert_eq!(map.len(), 0);
+    /// map.insert(0, 1);
+    /// assert_eq!(map.len(), 1);
+    /// map.insert(2, 3);
+    /// assert_eq!(map.len(), 2);
     ///
     /// ```
     pub fn len(&self) -> usize {
@@ -609,18 +609,18 @@ impl<K, V, S> RHashMap<K, V, S> {
         vtable.len()(self.map.as_rref())
     }
 
-    /// Returns the capacity of the map,the amount of elements it can store without reallocating.
+    /// Returns the capacity of the map, the amount of elements it can store without reallocating.
     ///
-    /// Note that this is a lower bound,since hash maps don't necessarily have an exact capacity.
+    /// Note that this is a lower bound, since hash maps don't necessarily have an exact capacity.
     ///
     /// # Example
     ///
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::with_capacity(4);
+    /// let mut map = RHashMap::<u32, u32>::with_capacity(4);
     ///
-    /// assert!(map.capacity()>=4);
+    /// assert!(map.capacity() >= 4);
     ///
     /// ```
     pub fn capacity(&self) -> usize {
@@ -635,18 +635,18 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// assert_eq!(map.is_empty(),true);
-    /// map.insert(0,1);
-    /// assert_eq!(map.is_empty(),false);
+    /// assert_eq!(map.is_empty(), true);
+    /// map.insert(0, 1);
+    /// assert_eq!(map.is_empty(), false);
     ///
     /// ```
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Iterates over the entries in the map,with references to the values in the map.
+    /// Iterates over the entries in the map, with references to the values in the map.
     ///
     /// This returns a type that implements
     /// `Iterator<Item= Tuple2< &K, &V > > + !Send + !Sync + Clone`
@@ -654,16 +654,16 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,Tuple2};
+    /// use abi_stable::std_types::{RHashMap, Tuple2};
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// map.insert(0,1);
-    /// map.insert(3,4);
+    /// map.insert(0, 1);
+    /// map.insert(3, 4);
     ///
-    /// let mut list=map.iter().collect::<Vec<_>>();
+    /// let mut list = map.iter().collect::<Vec<_>>();
     /// list.sort();
-    /// assert_eq!( list, vec![Tuple2(&0,&1),Tuple2(&3,&4)] );
+    /// assert_eq!( list, vec![Tuple2(&0, &1), Tuple2(&3, &4)] );
     ///
     /// ```
     pub fn iter(&self) -> Iter<'_, K, V> {
@@ -672,7 +672,7 @@ impl<K, V, S> RHashMap<K, V, S> {
         vtable.iter()(self.map.as_rref())
     }
 
-    /// Iterates over the entries in the map,with mutable references to the values in the map.
+    /// Iterates over the entries in the map, with mutable references to the values in the map.
     ///
     /// This returns a type that implements
     /// `Iterator<Item= Tuple2< &K, &mut V > > + !Send + !Sync`
@@ -680,16 +680,16 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,Tuple2};
+    /// use abi_stable::std_types::{RHashMap, Tuple2};
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// map.insert(0,1);
-    /// map.insert(3,4);
+    /// map.insert(0, 1);
+    /// map.insert(3, 4);
     ///
-    /// let mut list=map.iter_mut().collect::<Vec<_>>();
+    /// let mut list = map.iter_mut().collect::<Vec<_>>();
     /// list.sort();
-    /// assert_eq!( list, vec![Tuple2(&0,&mut 1),Tuple2(&3,&mut  4)] );
+    /// assert_eq!( list, vec![Tuple2(&0, &mut 1), Tuple2(&3, &mut  4)] );
     ///
     /// ```
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
@@ -698,23 +698,23 @@ impl<K, V, S> RHashMap<K, V, S> {
         vtable.iter_mut()(self.map.as_rmut())
     }
 
-    /// Clears the map,returning an iterator over all the entries that were removed.
+    /// Clears the map, returning an iterator over all the entries that were removed.
     ///
     /// This returns a type that implements `Iterator<Item= Tuple2< K, V > > + !Send + !Sync`
     ///
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,Tuple2};
+    /// use abi_stable::std_types::{RHashMap, Tuple2};
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// map.insert(0,1);
-    /// map.insert(3,4);
+    /// map.insert(0, 1);
+    /// map.insert(3, 4);
     ///
-    /// let mut list=map.drain().collect::<Vec<_>>();
+    /// let mut list = map.drain().collect::<Vec<_>>();
     /// list.sort();
-    /// assert_eq!( list, vec![Tuple2(0,1),Tuple2(3,4)] );
+    /// assert_eq!( list, vec![Tuple2(0, 1), Tuple2(3, 4)] );
     ///
     /// assert!(map.is_empty());
     ///
@@ -734,14 +734,14 @@ impl<K, V, S> RHashMap<K, V, S> {
     ```
     use abi_stable::std_types::RHashMap;
 
-    let mut map=RHashMap::<u32,u32>::new();
+    let mut map = RHashMap::<u32, u32>::new();
 
     // Inserting an entry that wasn't there before.
     {
-        let mut entry=map.entry(0);
-        assert_eq!(entry.get(),None);
-        assert_eq!(entry.or_insert(3),&mut 3);
-        assert_eq!(map.get(&0),Some(&3));
+        let mut entry = map.entry(0);
+        assert_eq!(entry.get(), None);
+        assert_eq!(entry.or_insert(3), &mut 3);
+        assert_eq!(map.get(&0), Some(&3));
     }
 
 
@@ -927,7 +927,7 @@ where
 
     fn index(&self, query: &Q) -> &V {
         self.get(query)
-            .expect("no entry in RHashMap<_,_> found for key")
+            .expect("no entry in RHashMap<_, _> found for key")
     }
 }
 
@@ -938,7 +938,7 @@ where
 {
     fn index_mut(&mut self, query: &Q) -> &mut V {
         self.get_mut(query)
-            .expect("no entry in RHashMap<_,_> found for key")
+            .expect("no entry in RHashMap<_, _> found for key")
     }
 }
 

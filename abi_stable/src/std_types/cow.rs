@@ -1,5 +1,5 @@
 /*!
-Contains the ffi-safe equivalent of `std::borrow::Cow`,and related items.
+Contains the ffi-safe equivalent of `std::borrow::Cow`, and related items.
 */
 
 use std::{
@@ -170,37 +170,37 @@ Ffi-safe equivalent of `std::borrow::Cow`.
 
 The most common examples of this type are:
 
-- `RCow<'_,str>`: contains an `RStr<'_>` or an `RString`.
+- `RCow<'_, str>`: contains an `RStr<'_>` or an `RString`.
 
-- `RCow<'_,[T]>`: contains an `RSlice<'_,T>` or an `RVec<T>`.
+- `RCow<'_, [T]>`: contains an `RSlice<'_, T>` or an `RVec<T>`.
 
-- `RCow<'_,T>`: contains a `&T` or a `T`.
+- `RCow<'_, T>`: contains a `&T` or a `T`.
 
 # Example
 
-### Using a `RCow<'a,str>`.
+### Using a `RCow<'a, str>`.
 
 This implements a solution to the well known fizzbuzz problem.
 
 ```
 use abi_stable::std_types::RCow;
 
-fn fizzbuzz(n:u32)->RCow<'static,str>{
-    match (n%3,n%5) {
-        (0,0)=>RCow::from("FizzBuzz"),
-        (0,_)=>RCow::from("Fizz"),
-        (_,0)=>RCow::from("Buzz"),
-        (_,_)=>RCow::from(n.to_string()),
+fn fizzbuzz(n: u32) -> RCow<'static, str>{
+    match (n%3, n%5) {
+        (0, 0) => RCow::from("FizzBuzz"),
+        (0, _) => RCow::from("Fizz"),
+        (_, 0) => RCow::from("Buzz"),
+        (_, _) => RCow::from(n.to_string()),
     }
 }
 
-for n in 1..=100{
-    println!("{}",fizzbuzz(n));
+for n in 1 ..= 100{
+    println!("{}", fizzbuzz(n));
 }
 
 ```
 
-Note:this example allocates when the number is neither a multiple of 5 or 3.
+Note: this example allocates when the number is neither a multiple of 5 or 3.
 
 
 */
@@ -235,15 +235,15 @@ where
     /// ```
     /// use abi_stable::std_types::RCow;
     ///
-    /// let mut cow:RCow<'_,str>=RCow::from("Hello");
+    /// let mut cow: RCow<'_, str>  = RCow::from("Hello");
     ///
-    /// assert_eq!(&*cow,"Hello");
+    /// assert_eq!(&*cow, "Hello");
     /// assert!(cow.is_borrowed());
     ///
     /// cow.to_mut().push_str(", world!");
     ///
     /// assert!(cow.is_owned());
-    /// assert_eq!(cow,RCow::from("Hello, world!"));
+    /// assert_eq!(cow, RCow::from("Hello, world!"));
     ///
     /// ```
     pub fn to_mut(&mut self) -> &mut B::ROwned {
@@ -264,14 +264,14 @@ where
     /// ```
     /// use abi_stable::std_types::RCow;
     ///
-    /// let mut cow:RCow<'_,str>=RCow::from("Hello");
+    /// let mut cow: RCow<'_, str>  = RCow::from("Hello");
     ///
-    /// assert_eq!(&*cow,"Hello");
+    /// assert_eq!(&*cow, "Hello");
     ///
-    /// let mut buff=cow.into_owned();
+    /// let mut buff = cow.into_owned();
     /// buff.push_str(", world!");
     ///
-    /// assert_eq!(&*buff,"Hello, world!");
+    /// assert_eq!(&*buff, "Hello, world!");
     ///
     /// ```
     pub fn into_owned(self) -> B::ROwned {
@@ -286,14 +286,14 @@ where
     /// # Examples
     ///
     /// ```
-    /// use abi_stable::std_types::{RCow,RSlice};
+    /// use abi_stable::std_types::{RCow, RSlice};
     /// {
-    ///     let cow:RCow<'_,[u8]>=RCow::from(&[0,1,2,3][..]);
-    ///     assert_eq!( cow.borrowed(), RSlice::from_slice(&[0,1,2,3]) );
+    ///     let cow: RCow<'_, [u8]>  = RCow::from(&[0, 1, 2, 3][..]);
+    ///     assert_eq!( cow.borrowed(), RSlice::from_slice(&[0, 1, 2, 3]) );
     /// }
     /// {
-    ///     let cow:RCow<'_,[u8]>=RCow::from(vec![0,1,2,3]);
-    ///     assert_eq!( cow.borrowed(), RSlice::from_slice(&[0,1,2,3]) );
+    ///     let cow: RCow<'_, [u8]>  = RCow::from(vec![0, 1, 2, 3]);
+    ///     assert_eq!( cow.borrowed(), RSlice::from_slice(&[0, 1, 2, 3]) );
     /// }
     /// ```
     pub fn borrowed<'b: 'a>(&'b self) -> <B as BorrowOwned<'b>>::RBorrowed {
@@ -311,11 +311,11 @@ where
     /// use abi_stable::std_types::RCow;
     ///
     /// {
-    ///     let cow:RCow<'_,[u8]>=RCow::from(&[0,1,2,3][..]);
+    ///     let cow: RCow<'_, [u8]>  = RCow::from(&[0, 1, 2, 3][..]);
     ///     assert!( cow.is_borrowed() );
     /// }
     /// {
-    ///     let cow:RCow<'_,[u8]>=RCow::from(vec![0,1,2,3]);
+    ///     let cow: RCow<'_, [u8]>  = RCow::from(vec![0, 1, 2, 3]);
     ///     assert!( !cow.is_borrowed() );
     /// }
     ///
@@ -331,10 +331,10 @@ where
     /// ```
     /// use abi_stable::std_types::RCow;
     ///
-    /// let cow:RCow<'_,[u8]>=RCow::from(&[0,1,2,3][..]);
+    /// let cow: RCow<'_, [u8]>  = RCow::from(&[0, 1, 2, 3][..]);
     /// assert!( !cow.is_owned() );
     ///
-    /// let cow:RCow<'_,[u8]>=RCow::from(vec![0,1,2,3]);
+    /// let cow: RCow<'_, [u8]>  = RCow::from(vec![0, 1, 2, 3]);
     /// assert!( cow.is_owned() );
     ///
     /// ```
@@ -456,23 +456,23 @@ deref_coerced_impl_cmp_traits! {
 }
 
 shared_impls! {
-    mod=slice_impls
-    new_type=RCow['a][]
+    mod = slice_impls
+    new_type = RCow['a][]
     extra[B]
     constrained[B]
-    where [ B:BorrowOwned<'a>+?Sized ],
-    original_type=void,
+    where [ B: BorrowOwned<'a>+?Sized ],
+    original_type = void,
 }
 
 impl_into_rust_repr! {
-    impl['a,B] Into<Cow<'a,B>> for RCow<'a,B>
+    impl['a, B] Into<Cow<'a, B>> for RCow<'a, B>
     where[
         B: BorrowOwned<'a>+?Sized,
     ]{
         fn(this){
             match this{
-                RCow::Borrowed(x)=>x.piped(B::into_cow_borrow).piped(Cow::Borrowed),
-                RCow::Owned(x)=>x.piped(B::into_cow_owned).piped(Cow::Owned),
+                RCow::Borrowed(x) => x.piped(B::into_cow_borrow).piped(Cow::Borrowed),
+                RCow::Owned(x) => x.piped(B::into_cow_owned).piped(Cow::Owned),
             }
         }
     }
@@ -481,14 +481,14 @@ impl_into_rust_repr! {
 ////////////////////////////////////////////////////////////
 
 impl_from_rust_repr! {
-    impl['a,B] From<Cow<'a,B>> for RCow<'a,B>
+    impl['a, B] From<Cow<'a, B>> for RCow<'a, B>
     where [
         B: BorrowOwned<'a>+?Sized ,
     ]{
         fn(this){
             match this{
-                Cow::Borrowed(x)=>x.piped(B::from_cow_borrow).piped(RCow::Borrowed),
-                Cow::Owned(x)=>x.piped(B::from_cow_owned).piped(RCow::Owned),
+                Cow::Borrowed(x) => x.piped(B::from_cow_borrow).piped(RCow::Borrowed),
+                Cow::Owned(x) => x.piped(B::from_cow_owned).piped(RCow::Owned),
             }
         }
     }
@@ -550,7 +550,7 @@ impl<'a, T> RCow<'a, [T]>
 where
     T: Clone,
 {
-    /// For converting a `&'a [T]` to an `RCow<'a,[T]>`,
+    /// For converting a `&'a [T]` to an `RCow<'a, [T]>`,
     /// most useful when converting from `&'a [T;N]` because it coerces the array to a slice.
     #[inline]
     pub fn from_slice(this: &'a [T]) -> Self {
@@ -603,12 +603,12 @@ where
 ////////////////////////////////////////////////////////////
 
 /**
-Deserializes an `RCow<'a,[u8]>` that borrows the slice from the deserializer
+Deserializes an `RCow<'a, [u8]>` that borrows the slice from the deserializer
 whenever possible.
 
 # Example
 
-Defining a type containing an `RCow<'a,[u8]>` which borrows from the deserializer.
+Defining a type containing an `RCow<'a, [u8]>` which borrows from the deserializer.
 
 ```
 use abi_stable::std_types::cow::{
@@ -616,23 +616,23 @@ use abi_stable::std_types::cow::{
     RCow,
 };
 
-use serde::{Deserialize,Serialize};
+use serde::{Deserialize, Serialize};
 
 
-#[derive(Debug,Deserialize,Serialize,PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct TheSlice<'a>{
-    #[serde(borrow,deserialize_with="deserialize_borrowed_bytes")]
-    slice:RCow<'a,[u8]>,
+    #[serde(borrow, deserialize_with = "deserialize_borrowed_bytes")]
+    slice: RCow<'a, [u8]>,
 }
 
 
-let the_slice=TheSlice{ slice:RCow::from(vec![0,1,2,3,4,5]) };
+let the_slice = TheSlice{ slice: RCow::from(vec![0, 1, 2, 3, 4, 5]) };
 
-let vec=bincode::serialize(&the_slice).unwrap();
+let vec = bincode::serialize(&the_slice).unwrap();
 
-let deserialized_slice=bincode::deserialize(&vec).unwrap();
+let deserialized_slice = bincode::deserialize(&vec).unwrap();
 
-assert_eq!(the_slice,deserialized_slice);
+assert_eq!(the_slice, deserialized_slice);
 
 assert!( deserialized_slice.slice.is_borrowed() );
 
@@ -657,13 +657,13 @@ where
 }
 
 /**
-Deserializes an `RCow<'a,str>` that borrows the string from the deserializer
+Deserializes an `RCow<'a, str>` that borrows the string from the deserializer
 whenever possible.
 
 
 # Example
 
-Defining a type containing an `RCow<'a,str>` which borrows from the deserializer.
+Defining a type containing an `RCow<'a, str>` which borrows from the deserializer.
 
 ```
 use abi_stable::std_types::cow::{
@@ -671,23 +671,23 @@ use abi_stable::std_types::cow::{
     RCow,
 };
 
-use serde::{Deserialize,Serialize};
+use serde::{Deserialize, Serialize};
 
 
-#[derive(Debug,Deserialize,Serialize,PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct TheSlice<'a>{
-    #[serde(borrow,deserialize_with="deserialize_borrowed_str")]
-    slice:RCow<'a,str>,
+    #[serde(borrow, deserialize_with = "deserialize_borrowed_str")]
+    slice: RCow<'a, str>,
 }
 
 
-let the_slice=TheSlice{ slice:RCow::from("That's a lot of fish.") };
+let the_slice = TheSlice{ slice: RCow::from("That's a lot of fish.") };
 
-let string=serde_json::to_string(&the_slice).unwrap();
+let string = serde_json::to_string(&the_slice).unwrap();
 
-let deserialized_slice=serde_json::from_str::<TheSlice<'_>>(&string).unwrap();
+let deserialized_slice = serde_json::from_str::<TheSlice<'_>>(&string).unwrap();
 
-assert_eq!(the_slice,deserialized_slice);
+assert_eq!(the_slice, deserialized_slice);
 
 assert!( deserialized_slice.slice.is_borrowed() );
 
@@ -755,7 +755,7 @@ where
 }
 
 /**
-A helper type,to deserialize an `RCow<'a,[u8]>` which borrows from the deserializer.
+A helper type, to deserialize an `RCow<'a, [u8]>` which borrows from the deserializer.
 
 # Example
 
@@ -766,11 +766,11 @@ use abi_stable::std_types::cow::{
 };
 
 
-let the_slice:Vec<u8>=vec![0,1,2,3,4,5];
+let the_slice: Vec<u8>  = vec![0, 1, 2, 3, 4, 5];
 
-let vec=bincode::serialize(&the_slice).unwrap();
+let vec = bincode::serialize(&the_slice).unwrap();
 
-let deserialized_slice=bincode::deserialize::<BorrowingRCowU8Slice<'_>>(&vec).unwrap();
+let deserialized_slice = bincode::deserialize::<BorrowingRCowU8Slice<'_>>(&vec).unwrap();
 
 assert_eq!( &*deserialized_slice.cow, &*the_slice );
 
@@ -790,11 +790,11 @@ pub struct BorrowingRCowU8Slice<'a> {
 }
 
 /**
-A helper type,to deserialize a `RCow<'a,str>` which borrows from the deserializer.
+A helper type, to deserialize a `RCow<'a, str>` which borrows from the deserializer.
 
 # Example
 
-Defining a type containing an `RCow<'a,str>` borrowing from the deserializer,
+Defining a type containing an `RCow<'a, str>` borrowing from the deserializer,
 serializing it, and then deserializing it.
 
 ```
@@ -804,9 +804,9 @@ use abi_stable::std_types::cow::{
 };
 
 
-let json=r##""W____ of S____""##;
+let json = r##""W____ of S____""##;
 
-let deserialized_slice=serde_json::from_str::<BorrowingRCowStr<'_>>(json).unwrap();
+let deserialized_slice = serde_json::from_str::<BorrowingRCowStr<'_>>(json).unwrap();
 
 assert_eq!( &*deserialized_slice.cow, json.trim_matches('"') );
 

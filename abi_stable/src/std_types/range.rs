@@ -7,7 +7,7 @@ use std::ops::{Range, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive};
 ////////////////////////////////////////////////////////////////
 
 macro_rules! impl_into_iterator {
-    ( $from:ident,$to:ident ) => {
+    ( $from: ident, $to: ident ) => {
         impl<T> IntoIterator for $from<T>
         where
             $to<T>: Iterator<Item = T>,
@@ -65,7 +65,7 @@ impl_into_rust_repr! {
     }
 }
 
-impl_into_iterator! { RRange,Range }
+impl_into_iterator! { RRange, Range }
 
 ////////////////////////////////////////////////////////////////
 
@@ -95,7 +95,7 @@ impl_into_rust_repr! {
     }
 }
 
-impl_into_iterator! { RRangeInclusive,RangeInclusive }
+impl_into_iterator! { RRangeInclusive, RangeInclusive }
 
 ////////////////////////////////////////////////////////////////
 
@@ -123,7 +123,7 @@ impl_into_rust_repr! {
     }
 }
 
-impl_into_iterator! { RRangeFrom,RangeFrom }
+impl_into_iterator! { RRangeFrom, RangeFrom }
 
 ////////////////////////////////////////////////////////////////
 
@@ -172,7 +172,7 @@ impl_from_rust_repr! {
 impl_into_rust_repr! {
     impl[T] Into<RangeToInclusive<T>> for RRangeToInclusive<T> {
         fn(this){
-            ..=this.end
+             ..= this.end
         }
     }
 }
