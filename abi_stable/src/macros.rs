@@ -83,29 +83,32 @@ macro_rules! tl_genparams {
 
 /// Equivalent to `?` for [`RResult`].
 ///
+/// Accepts both `Result` and `RResult` arguments.
+///
 /// # Example
 ///
 /// Defining an extern function that returns a result.
 ///
 /// ```
 /// use abi_stable::{
-///     std_types::{RResult, ROk, RErr, RBoxError, RStr, Tuple3},
-///     traits::IntoReprC,
+///     std_types::{RResult, ROk, RBoxError, RStr, Tuple3},
 ///     rtry,
 ///     sabi_extern_fn,
 /// };
 ///
 ///
 /// #[sabi_extern_fn]
-/// fn parse_tuple(s: RStr<'_>) -> RResult<Tuple3<u32, u32, u32>, RBoxError>{
+/// fn parse_tuple(s: RStr<'_>) -> RResult<Tuple3<u32, u32, u32>, RBoxError> {
 ///     let mut iter = s.split(',').map(|x| x.trim());
 ///     ROk(Tuple3(
-///         rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
-///         rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
-///         rtry!( iter.next().unwrap_or("").parse().map_err(RBoxError::new).into_c() ),
+///         rtry!(iter.next().unwrap_or("").parse().map_err(RBoxError::new)),
+///         rtry!(iter.next().unwrap_or("").parse().map_err(RBoxError::new)),
+///         rtry!(iter.next().unwrap_or("").parse().map_err(RBoxError::new)),
 ///     ))
 /// }
 ///
+/// assert_eq!(parse_tuple("3, 5, 8".into()).unwrap(), Tuple3(3, 5, 8));
+/// parse_tuple("".into()).unwrap_err();
 ///
 ///
 /// ```
@@ -114,7 +117,7 @@ macro_rules! tl_genparams {
 #[macro_export]
 macro_rules! rtry {
     ($expr:expr) => {{
-        match $expr.into() {
+        match $crate::pmr::RResult::from($expr) {
             $crate::pmr::ROk(x) => x,
             $crate::pmr::RErr(x) => return $crate::pmr::RErr($crate::pmr::From::from(x)),
         }
@@ -123,11 +126,34 @@ macro_rules! rtry {
 
 /// Equivalent to `?` for [`ROption`].
 ///
+/// Accepts both `Option` and `ROption` arguments.
+///
+/// # Example
+///
+/// ```rust
+/// use abi_stable::{
+///     std_types::{ROption, RSome, RNone},
+///     rtry_opt,
+///     sabi_extern_fn,
+/// };
+///
+///
+/// #[sabi_extern_fn]
+/// fn funct(arg: ROption<u32>) -> ROption<u32> {
+///     let value = rtry_opt!(Some(3));
+///     RSome(value + rtry_opt!(arg))
+/// }
+///
+/// assert_eq!(funct(RSome(5)), RSome(8));
+/// assert_eq!(funct(RNone), RNone::<u32>);
+///
+/// ```
+///
 /// [`ROption`]: ./std_types/enum.ROption.html
 #[macro_export]
 macro_rules! rtry_opt {
     ($expr:expr) => {{
-        match $expr.into() {
+        match $crate::pmr::ROption::from($expr) {
             $crate::pmr::RSome(x) => x,
             $crate::pmr::RNone => return $crate::pmr::RNone,
         }
@@ -160,7 +186,7 @@ macro_rules! check_unerased {
 /// This macro by default wraps the passed code in a closure so that any
 /// early returns that happen inside don't interfere with the macro generated code.
 ///
-/// If you don't have an early return (a `return`/`continue`/`break`)
+/// If you don't have an early return (a `return`/`continue`/`break`/`?`/etc.)
 /// in the code passed to this macro you can use
 /// `extern_fn_panic_handling!{no_early_return; <code here> }`,
 /// which *might* be cheaper(this has not been tested yet).
@@ -176,14 +202,14 @@ macro_rules! check_unerased {
 /// };
 ///
 ///
-/// pub extern "C" fn print_debug<T>(this: &T,buf: &mut RString)
+/// pub extern "C" fn print_debug<T>(this: &T, buf: &mut RString)
 /// where
 ///     T: fmt::Debug,
 /// {
 ///     extern_fn_panic_handling! {
 ///         use std::fmt::Write;
 ///
-///         println!("{:?}",this);
+///         println!("{:?}", this);
 ///     }
 /// }
 /// ```
@@ -200,14 +226,14 @@ macro_rules! check_unerased {
 /// };
 ///
 ///
-/// pub extern "C" fn print_debug<T>(this: &T,buf: &mut RString)
+/// pub extern "C" fn print_debug<T>(this: &T, buf: &mut RString)
 /// where
 ///     T: fmt::Debug,
 /// {
 ///     extern_fn_panic_handling!{no_early_return;
 ///         use std::fmt::Write;
 ///
-///         println!("{:?}",this);
+///         println!("{:?}", this);
 ///     }
 /// }
 ///
@@ -423,29 +449,28 @@ macro_rules! make_item_info {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-Constructs an [`RVec`] using the same syntax that the `std::vec` macro uses.
-
-# Example
-
-```
-
-use abi_stable::{
-    rvec,
-    std_types::RVec,
-};
-
-assert_eq!(RVec::<u32>::new(), rvec![]);
-assert_eq!(RVec::from(vec![0]), rvec![0]);
-assert_eq!(RVec::from(vec![0,3]), rvec![0,3]);
-assert_eq!(RVec::from(vec![0,3,6]), rvec![0,3,6]);
-assert_eq!(RVec::from(vec![1;10]), rvec![1;10]);
-
-```
-
-[`RVec`]: ./std_types/struct.RVec.html
-
-*/
+/// Constructs an [`RVec`] using the same syntax that the [`std::vec`] macro uses.
+///
+/// # Example
+///
+/// ```
+///
+/// use abi_stable::{
+///     rvec,
+///     std_types::RVec,
+/// };
+///
+/// assert_eq!(RVec::<u32>::new(), rvec![]);
+/// assert_eq!(RVec::from(vec![0]), rvec![0]);
+/// assert_eq!(RVec::from(vec![0, 3]), rvec![0, 3]);
+/// assert_eq!(RVec::from(vec![0, 3, 6]), rvec![0, 3, 6]);
+/// assert_eq!(RVec::from(vec![1; 10]), rvec![1; 10]);
+///
+/// ```
+///
+/// [`RVec`]: ./std_types/struct.RVec.html
+///
+/// [`std::vec`]: https://doc.rust-lang.org/std/macro.vec.html
 #[macro_export]
 macro_rules! rvec {
     ( $( $anything:tt )* ) => (
@@ -455,32 +480,29 @@ macro_rules! rvec {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-Use this macro to construct a `abi_stable::std_types::Tuple*`
-with the values passed to the macro.
-
-# Example
-
-```
-use abi_stable::{
-    rtuple,
-    std_types::{Tuple1,Tuple2,Tuple3,Tuple4},
-};
-
-assert_eq!(rtuple!(), ());
-
-assert_eq!(rtuple!(3), Tuple1(3));
-
-assert_eq!(rtuple!(3,5), Tuple2(3,5));
-
-assert_eq!(rtuple!(3,5,8), Tuple3(3,5,8));
-
-assert_eq!(rtuple!(3,5,8,9), Tuple4(3,5,8,9));
-
-```
-
-*/
-
+/// Use this macro to construct a `abi_stable::std_types::Tuple*`
+/// with the values passed to the macro.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::{
+///     rtuple,
+///     std_types::{Tuple1, Tuple2, Tuple3, Tuple4},
+/// };
+///
+/// assert_eq!(rtuple!(), ());
+///
+/// assert_eq!(rtuple!(3), Tuple1(3));
+///
+/// assert_eq!(rtuple!(3, 5), Tuple2(3, 5));
+///
+/// assert_eq!(rtuple!(3, 5, 8), Tuple3(3, 5, 8));
+///
+/// assert_eq!(rtuple!(3, 5, 8, 9), Tuple4(3, 5, 8, 9));
+///
+/// ```
+///
 #[macro_export]
 macro_rules! rtuple {
     () => {
@@ -500,31 +522,27 @@ macro_rules! rtuple {
     };
 }
 
-/**
-Use this macro to get the type of a `Tuple*` with the types passed to the macro.
-
-# Example
-
-```
-use abi_stable::{
-    RTuple,
-    std_types::{Tuple1,Tuple2,Tuple3,Tuple4},
-};
-
-let tuple0:RTuple!()=();
-
-let tuple1:RTuple!(i32)=Tuple1(3);
-
-let tuple2:RTuple!(i32,i32,)=Tuple2(3,5);
-
-let tuple3:RTuple!(i32,i32,u32,)=Tuple3(3,5,8);
-
-let tuple4:RTuple!(i32,i32,u32,u32)=Tuple4(3,5,8,9);
-
-
-```
-
-*/
+/// Use this macro to get the type of a `Tuple*` with the types passed to the macro.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::{
+///     std_types::{Tuple1, Tuple2, Tuple3, Tuple4},
+///     RTuple,
+/// };
+///
+/// let tuple0: RTuple!() = ();
+///
+/// let tuple1: RTuple!(i32) = Tuple1(3);
+///
+/// let tuple2: RTuple!(i32, i32) = Tuple2(3, 5);
+///
+/// let tuple3: RTuple!(i32, i32, u32) = Tuple3(3, 5, 8);
+///
+/// let tuple4: RTuple!(i32, i32, u32, u32) = Tuple4(3, 5, 8, 9);
+/// ```
+///
 #[macro_export]
 macro_rules! RTuple {
     () => (
@@ -546,52 +564,34 @@ macro_rules! RTuple {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-A macro to construct [`RSlice`] constants.
-
-# Examples
-
-```
-use abi_stable::{
-    std_types::RSlice,
-    rslice,
-};
-
-const RSLICE_0:RSlice<'static,u8>=rslice![];
-const RSLICE_1:RSlice<'static,u8>=rslice![1];
-const RSLICE_2:RSlice<'static,u8>=rslice![1,2];
-const RSLICE_3:RSlice<'static,u8>=rslice![1,2,3];
-const RSLICE_4:RSlice<'static,u8>=rslice![1,2,3,5];
-const RSLICE_5:RSlice<'static,u8>=rslice![1,2,3,5,8];
-const RSLICE_6:RSlice<'static,u8>=rslice![1,2,3,5,8,13];
-
-assert_eq!( RSLICE_0.as_slice(), <&[u8]>::default() );
-assert_eq!( RSLICE_0.len(), 0 );
-
-assert_eq!( RSLICE_1.as_slice(), &[1] );
-assert_eq!( RSLICE_1.len(), 1 );
-
-assert_eq!( RSLICE_2.as_slice(), &[1,2] );
-assert_eq!( RSLICE_2.len(), 2 );
-
-assert_eq!( RSLICE_3.as_slice(), &[1,2,3] );
-assert_eq!( RSLICE_3.len(), 3 );
-
-assert_eq!( RSLICE_4.as_slice(), &[1,2,3,5] );
-assert_eq!( RSLICE_4.len(), 4 );
-
-assert_eq!( RSLICE_5.as_slice(), &[1,2,3,5,8] );
-assert_eq!( RSLICE_5.len(), 5 );
-
-assert_eq!( RSLICE_6.as_slice(), &[1,2,3,5,8,13] );
-assert_eq!( RSLICE_6.len(), 6 );
-
-
-```
-
-[`RSlice`]: ./std_types/struct.RSlice.html
-
-*/
+/// A macro to construct [`RSlice`]s.
+///
+/// When this macro doesn't work(due to lifetime issues),
+/// you'll have to separately create a slice,
+/// then pass it to the [`RSlice::from_slice`] const function.
+///
+/// # Examples
+///
+/// ```
+/// use abi_stable::{
+///     std_types::RSlice,
+///     rslice,
+/// };
+///
+///
+/// const EMPTY: RSlice<'_, u8> = rslice![];
+/// // `RSlice<'_, T>`s can be compared with `&[T]`s
+/// assert_eq!(EMPTY, <&[u8]>::default());
+///
+/// const FOO: RSlice<'_,u8> = rslice![1, 2, 3, 5, 8, 13];
+/// assert_eq!(FOO[..], [1, 2, 3, 5, 8, 13]);
+///
+/// ```
+///
+/// [`RSlice`]: ./std_types/struct.RSlice.html
+///
+/// [`RSlice::from_slice`]: ./std_types/struct.RSlice.html#method.from_slice
+///
 #[macro_export]
 macro_rules! rslice {
     ( $( $elem:expr ),* $(,)* ) => {
@@ -601,51 +601,29 @@ macro_rules! rslice {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-A macro to construct [`RStr`] constants.
-
-# Examples
-
-```
-use abi_stable::{
-    std_types::RStr,
-    rstr,
-};
-
-const RSTR_0:RStr<'static>=rstr!("");
-const RSTR_1:RStr<'static>=rstr!("1");
-const RSTR_2:RStr<'static>=rstr!("12");
-const RSTR_3:RStr<'static>=rstr!("123");
-const RSTR_4:RStr<'static>=rstr!("1235");
-const RSTR_5:RStr<'static>=rstr!("12358");
-const RSTR_6:RStr<'static>=rstr!("1235813");
-
-assert_eq!( RSTR_0.as_str(), "" );
-assert_eq!( RSTR_0.len(), 0 );
-
-assert_eq!( RSTR_1.as_str(), "1" );
-assert_eq!( RSTR_1.len(), 1 );
-
-assert_eq!( RSTR_2.as_str(), "12" );
-assert_eq!( RSTR_2.len(), 2 );
-
-assert_eq!( RSTR_3.as_str(), "123" );
-assert_eq!( RSTR_3.len(), 3 );
-
-assert_eq!( RSTR_4.as_str(), "1235" );
-assert_eq!( RSTR_4.len(), 4 );
-
-assert_eq!( RSTR_5.as_str(), "12358" );
-assert_eq!( RSTR_5.len(), 5 );
-
-assert_eq!( RSTR_6.as_str(), "1235813" );
-assert_eq!( RSTR_6.len(), 7 );
-
-```
-
-[`RStr`]: ./std_types/struct.RStr.html
-
-*/
+/// Constructs [`RStr`] constants from `&'static str` constants.
+///
+/// # Examples
+///
+/// ```
+/// use abi_stable::{
+///     std_types::RStr,
+///     rstr,
+/// };
+///
+///
+/// const FOO: RStr<'_> = rstr!("");
+/// // `RStr<'_>`s can be compared with `&str`s
+/// assert_eq!(FOO, "");
+///
+/// const BAR_STR: &str = "1235813";
+/// // constructing `RStr<'_>` from a `&str` non-literal constant
+/// const BAR: RStr<'_> = rstr!(BAR_STR);
+/// assert_eq!(BAR, "1235813");
+/// ```
+///
+/// [`RStr`]: ./std_types/struct.RStr.html
+///
 #[macro_export]
 macro_rules! rstr {
     ( $str:expr ) => {{
@@ -655,10 +633,8 @@ macro_rules! rstr {
     }};
 }
 
-/**
-Constructs a RStr with the concatenation of the passed in strings,
-and variables with the range for the individual strings.
-*/
+/// Constructs a RStr with the concatenation of the passed in strings,
+/// and variables with the range for the individual strings.
 macro_rules! multi_str {
     (
         $( #[$mod_attr:meta] )*
