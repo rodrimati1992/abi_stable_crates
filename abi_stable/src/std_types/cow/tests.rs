@@ -4,8 +4,8 @@ use super::*;
 fn from_into_cow() {
     macro_rules! from_tests {
         (
-            $from:ident,
-            Cow<$cow_param:ty>
+            $from: ident,
+            Cow<$cow_param: ty>
         ) => {{
             {
                 let borrowed_rcow = $from.into_c().piped(RCow::<$cow_param>::Borrowed);
@@ -130,14 +130,14 @@ fn deserialize() {
     }
     {
         // Owned list
-        let json = r##" [0,1,2,3] "##;
+        let json = r##" [0, 1, 2, 3] "##;
 
         let what: RCow<'_, [u8]> = serde_json::from_str(json).unwrap();
 
         assert_eq!(what.as_owned(), Some(&vec![0, 1, 2, 3].into_c()),);
     }
     {
-        // Borrowed list,using bincode.
+        // Borrowed list, using bincode.
         let list = [0u8, 1, 2, 3];
         let serialized = bincode::serialize(&list[..]).unwrap();
 

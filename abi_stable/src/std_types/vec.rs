@@ -62,7 +62,7 @@ mod private {
     }
 
     #[sabi_extern_fn]
-    pub fn partition_evenness(numbers: RSlice<'_, u32>)->Partitioned{
+    pub fn partition_evenness(numbers: RSlice<'_, u32>) -> Partitioned{
         let (even, odd) = numbers.iter().cloned().partition(|n| *n % 2 == 0);
 
         Partitioned{even, odd}
@@ -491,7 +491,7 @@ impl<T> RVec<T> {
     ///
     /// let mut list = RVec::<u64>::new();
     ///
-    /// list.extend( (4..=7).rev() );
+    /// list.extend( (4 ..= 7).rev() );
     ///
     /// assert_eq!(list.to_vec(), vec![7, 6, 5, 4] );
     ///
@@ -619,7 +619,7 @@ impl<T> RVec<T> {
     /// };
     ///
     /// // This type annotation is purely for the reader.
-    /// let mut list: RVec<RStr<'static>>=
+    /// let mut list: RVec<RStr<'static>> =
     ///     vec!["foo".into_c(), "bar".into(), "baz".into()].into_c();
     ///
     /// assert_eq!( list.remove(2), "baz".into_c() );
@@ -650,7 +650,7 @@ impl<T> RVec<T> {
     /// };
     ///
     /// // This type annotation is purely for the reader.
-    /// let mut list: RVec<RStr<'static>>=
+    /// let mut list: RVec<RStr<'static>> =
     ///     vec!["foo".into_c(), "bar".into(), "baz".into(), "geo".into()].into_c();
     ///
     /// assert_eq!( list.swap_remove(1), "bar".into_c() );
@@ -790,12 +790,12 @@ impl<T> RVec<T> {
     /// use abi_stable::std_types::RVec;
     ///
     /// {
-    ///     let mut list = (0..=10).collect::<Vec<u32>>();
+    ///     let mut list = (0 ..= 10).collect::<Vec<u32>>();
     ///     list.retain(|x| *x%3 == 0 );
     ///     assert_eq!(list.as_slice(), &[0, 3, 6, 9]);
     /// }
     /// {
-    ///     let mut list = (0..=10).collect::<Vec<u32>>();
+    ///     let mut list = (0 ..= 10).collect::<Vec<u32>>();
     ///     list.retain(|x| *x%5 == 0 );
     ///     assert_eq!(list.as_slice(), &[0, 5, 10]);
     /// }

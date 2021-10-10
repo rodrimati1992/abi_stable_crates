@@ -48,7 +48,7 @@ mod private {
 
     ```
     use abi_stable::{
-        std_types::{RBox,RString},
+        std_types::{RBox, RString},
         StableAbi,
     };
 
@@ -56,19 +56,19 @@ mod private {
     #[derive(StableAbi)]
     enum Command{
         SendProduct{
-            id:u64,
+            id: u64,
         },
         GoProtest{
-            cause:RString,
-            place:RString,
+            cause: RString,
+            place: RString,
         },
         SendComplaint{
-            cause:RString,
-            website:RString,
+            cause: RString,
+            website: RString,
         },
         WithMetadata{
-            command:RBox<Command>,
-            metadata:RString,
+            command: RBox<Command>,
+            metadata: RString,
         },
     }
 
@@ -92,8 +92,8 @@ mod private {
         /// ```
         /// use abi_stable::std_types::RBox;
         ///
-        /// let baux=RBox::new(100);
-        /// assert_eq!(*baux,100);
+        /// let baux = RBox::new(100);
+        /// assert_eq!(*baux, 100);
         ///
         /// ```
         pub fn new(value: T) -> Self {
@@ -106,16 +106,16 @@ mod private {
             RBox::new(value).into_pin()
         }
 
-        /// Converts a `Box<T>` to an `RBox<T>`,reusing its heap allocation.
+        /// Converts a `Box<T>` to an `RBox<T>`, reusing its heap allocation.
         ///
         /// # Example
         ///
         /// ```
         /// use abi_stable::std_types::RBox;
         ///
-        /// let baux=Box::new(200);
-        /// let baux=RBox::from_box(baux);
-        /// assert_eq!(*baux,200);
+        /// let baux = Box::new(200);
+        /// let baux = RBox::from_box(baux);
+        /// assert_eq!(*baux, 200);
         ///
         /// ```
         pub fn from_box(p: Box<T>) -> RBox<T> {
@@ -126,7 +126,7 @@ mod private {
             }
         }
 
-        /// Constructs a `Box<T>` from a `MovePtr<'_,T>`.
+        /// Constructs a `Box<T>` from a `MovePtr<'_, T>`.
         ///
         /// # Example
         ///
@@ -139,10 +139,10 @@ mod private {
         ///     std_types::RBox,
         /// };
         ///
-        /// let b=RSmallBox::<_,[u8;1]>::new(77u8);
-        /// let rbox:RBox<_>=b.in_move_ptr(|x| RBox::from_move_ptr(x) );
+        /// let b = RSmallBox::<_, [u8;1]>::new(77u8);
+        /// let rbox: RBox<_>  = b.in_move_ptr(|x| RBox::from_move_ptr(x) );
         ///
-        /// assert_eq!(*rbox,77);
+        /// assert_eq!(*rbox, 77);
         ///
         /// ```
         pub fn from_move_ptr(p: MovePtr<'_, T>) -> RBox<T> {
@@ -213,9 +213,9 @@ impl<T> RBox<T> {
     /// ```
     /// use abi_stable::std_types::RBox;
     ///
-    /// let baux:RBox<u32>=RBox::new(200);
-    /// let baux:Box<u32>=RBox::into_box(baux);
-    /// assert_eq!(*baux,200);
+    /// let baux: RBox<u32>  = RBox::new(200);
+    /// let baux: Box<u32>  = RBox::into_box(baux);
+    /// assert_eq!(*baux, 200);
     ///
     /// ```
     pub fn into_box(this: Self) -> Box<T> {
@@ -248,9 +248,9 @@ impl<T> RBox<T> {
     /// ```
     /// use abi_stable::std_types::RBox;
     ///
-    /// let baux:RBox<u32>=RBox::new(200);
-    /// let baux:u32=RBox::into_inner(baux);
-    /// assert_eq!(baux,200);
+    /// let baux: RBox<u32>  = RBox::new(200);
+    /// let baux: u32 = RBox::into_inner(baux);
+    /// assert_eq!(baux, 200);
     ///
     /// ```
     pub fn into_inner(this: Self) -> T {
@@ -365,9 +365,9 @@ where
 }
 
 shared_impls! {pointer
-    mod=box_impls
-    new_type=RBox[][T],
-    original_type=Box,
+    mod = box_impls
+    new_type = RBox[][T],
+    original_type = Box,
 }
 
 unsafe impl<T: Send> Send for RBox<T> {}
@@ -647,7 +647,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
             WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 BoxVtable {
-                    type_id:Constructor( new_utypeid::<RBox<i32>> ),
+                    type_id: Constructor( new_utypeid::<RBox<i32>> ),
                     ..Self::DEFAULT_VTABLE
                 },
             )
@@ -666,10 +666,10 @@ unsafe extern "C" fn destroy_box<T>(
 ) {
     extern_fn_panic_handling! {no_early_return;
         let ptr = ptr as *mut T;
-        if let CallReferentDrop::Yes=call_drop {
+        if let CallReferentDrop::Yes = call_drop {
             ptr::drop_in_place(ptr);
         }
-        if let Deallocate::Yes=dealloc {
+        if let Deallocate::Yes = dealloc {
             Box::from_raw(ptr as *mut ManuallyDrop<T>);
         }
     }

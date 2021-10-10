@@ -25,7 +25,7 @@ use crate::{
 };
 
 #[cfg(test)]
-// #[cfg(all(test,not(feature="only_new_tests")))]
+// #[cfg(all(test, not(feature = "only_new_tests")))]
 mod test;
 
 /**
@@ -35,33 +35,33 @@ whose `Send + Sync`ness is determined by the `M` type parameter.
 # Examples
 
 ### Converting from and into `Box<dyn Error + ...>`
-<span id="from_to_conversion"></span>
+<span id = "from_to_conversion"></span>
 ```
 use std::{
     convert::TryFrom,
     error::Error as ErrorTrait,
 };
 
-use abi_stable::std_types::{RBox,RBoxError,UnsyncRBoxError,SendRBoxError};
+use abi_stable::std_types::{RBox, RBoxError, UnsyncRBoxError, SendRBoxError};
 
 {
-    let from:Box<dyn ErrorTrait>= "hello,error".into();
-    let rbox=UnsyncRBoxError::from_box(from);
-    let _:Box<dyn ErrorTrait>= rbox.into_box();
+    let from: Box<dyn ErrorTrait> = "hello, error".into();
+    let rbox = UnsyncRBoxError::from_box(from);
+    let _: Box<dyn ErrorTrait> = rbox.into_box();
 }
 
 {
     let arr_err=<[();0]>::try_from(&[()][..]).unwrap_err();
-    let from:Box<dyn ErrorTrait+Send>= Box::new(arr_err);
-    let rbox=SendRBoxError::from_box(from);
-    let _:Box<dyn ErrorTrait+Send>= rbox.into_box();
+    let from: Box<dyn ErrorTrait+Send> = Box::new(arr_err);
+    let rbox = SendRBoxError::from_box(from);
+    let _: Box<dyn ErrorTrait+Send> = rbox.into_box();
 }
 
 {
     let arr_err=<[();0]>::try_from(&[()][..]).unwrap_err();
-    let from:Box<dyn ErrorTrait+Send+Sync>= Box::new(arr_err);
-    let rbox=RBoxError::from_box(from);
-    let _:Box<dyn ErrorTrait+Send+Sync>= rbox.into_box();
+    let from: Box<dyn ErrorTrait+Send+Sync> = Box::new(arr_err);
+    let rbox = RBoxError::from_box(from);
+    let _: Box<dyn ErrorTrait+Send+Sync> = rbox.into_box();
 }
 
 ```
@@ -69,24 +69,24 @@ use abi_stable::std_types::{RBox,RBoxError,UnsyncRBoxError,SendRBoxError};
 ### Downcasting by value
 
 ```
-use std::num::{ParseFloatError,ParseIntError};
+use std::num::{ParseFloatError, ParseIntError};
 
-use abi_stable::std_types::{RBox,RBoxError};
+use abi_stable::std_types::{RBox, RBoxError};
 
-// Constructing a `RBoxError` from a `Box<dyn Error>`,then downcasting to a `ParseIntError`.
+// Constructing a `RBoxError` from a `Box<dyn Error>`, then downcasting to a `ParseIntError`.
 {
-    let parse_err="".parse::<u64>().unwrap_err();
-    let dyn_err:Box<std::error::Error+Send+Sync+'static>=
+    let parse_err = "".parse::<u64>().unwrap_err();
+    let dyn_err: Box<std::error::Error+Send+Sync+'static> =
         Box::new(parse_err.clone());
-    let err=RBoxError::from_box(dyn_err);
+    let err = RBoxError::from_box(dyn_err);
 
     assert_eq!( err.downcast::<ParseIntError>().unwrap(), RBox::new(parse_err) );
 }
 
-// Constructing a `RBoxError` from a `ParseFloatError`,then downcasting back to it.
+// Constructing a `RBoxError` from a `ParseFloatError`, then downcasting back to it.
 {
-    let parse_err="".parse::<f32>().unwrap_err();
-    let err=RBoxError::new(parse_err.clone());
+    let parse_err = "".parse::<f32>().unwrap_err();
+    let err = RBoxError::new(parse_err.clone());
 
     assert_eq!( err.downcast::<ParseFloatError>().unwrap(), RBox::new(parse_err) );
 }
@@ -94,8 +94,8 @@ use abi_stable::std_types::{RBox,RBoxError};
 // Constructing a `RBoxError` from a `ParseFloatError`,
 // then attempting to downcasting it to a `ParseIntError`.
 {
-    let parse_err="".parse::<f32>().unwrap_err();
-    let err=RBoxError::new(parse_err);
+    let parse_err = "".parse::<f32>().unwrap_err();
+    let err = RBoxError::new(parse_err);
 
     assert!( err.downcast::<ParseIntError>().is_err() );
 }
@@ -111,23 +111,23 @@ use std::{
     str::Utf8Error,
 };
 
-use abi_stable::std_types::{RBox,UnsyncRBoxError};
+use abi_stable::std_types::{RBox, UnsyncRBoxError};
 
 // Constructing a `UnsyncRBoxError` from a `Box<dyn Error>`,
 // then downcasting to a `TryFromIntError`.
 {
-    let int_err=u32::try_from(-1_i32).unwrap_err();
-    let dyn_err:Box<std::error::Error+'static>=
+    let int_err = u32::try_from(-1_i32).unwrap_err();
+    let dyn_err: Box<std::error::Error+'static> =
         Box::new(int_err.clone());
-    let err=UnsyncRBoxError::from_box(dyn_err);
+    let err = UnsyncRBoxError::from_box(dyn_err);
 
     assert_eq!( err.downcast_ref::<TryFromIntError>().unwrap(), &int_err );
 }
 
-// Constructing a `UnsyncRBoxError` from a `Utf8Error`,then downcasting back to it.
+// Constructing a `UnsyncRBoxError` from a `Utf8Error`, then downcasting back to it.
 {
-    let utf8_err=std::str::from_utf8(&[255]).unwrap_err();
-    let err=UnsyncRBoxError::new(utf8_err.clone());
+    let utf8_err = std::str::from_utf8(&[255]).unwrap_err();
+    let err = UnsyncRBoxError::new(utf8_err.clone());
 
     assert_eq!( err.downcast_ref::<Utf8Error>().unwrap(), &utf8_err );
 }
@@ -135,8 +135,8 @@ use abi_stable::std_types::{RBox,UnsyncRBoxError};
 // Constructing a `UnsyncRBoxError` from a `Utf8Error`,
 // then attempting to downcasting it to a `TryFromIntError`.
 {
-    let utf8_err=std::str::from_utf8(&[255]).unwrap_err();
-    let err=UnsyncRBoxError::new(utf8_err);
+    let utf8_err = std::str::from_utf8(&[255]).unwrap_err();
+    let err = UnsyncRBoxError::new(utf8_err);
 
     assert!( err.downcast_ref::<TryFromIntError>().is_none() );
 }
@@ -147,36 +147,36 @@ use abi_stable::std_types::{RBox,UnsyncRBoxError};
 ### Downcasting by mutable reference
 
 ```
-use std::string::{FromUtf8Error,FromUtf16Error};
+use std::string::{FromUtf8Error, FromUtf16Error};
 
-use abi_stable::std_types::{RBox,SendRBoxError};
+use abi_stable::std_types::{RBox, SendRBoxError};
 
 // Constructing a `SendRBoxError` from a `Box<dyn Error>`,
 // then downcasting to a `FromUtf8Error`.
 {
-    let str_err=|| String::from_utf8(vec![255]).unwrap_err() ;
-    let dyn_err:Box<std::error::Error+Send+'static>=
+    let str_err = || String::from_utf8(vec![255]).unwrap_err() ;
+    let dyn_err: Box<std::error::Error+Send+'static> =
         Box::new(str_err());
-    let mut err=SendRBoxError::from_box(dyn_err);
+    let mut err = SendRBoxError::from_box(dyn_err);
 
-    assert!( err.downcast_ref::<FromUtf8Error>().is_some() ,"part A");
+    assert!( err.downcast_ref::<FromUtf8Error>().is_some() , "part A");
 }
 
-// Constructing a `SendRBoxError` from a `FromUtf8Error`,then downcasting back to it.
+// Constructing a `SendRBoxError` from a `FromUtf8Error`, then downcasting back to it.
 {
-    let str_err=|| String::from_utf8(vec![255]).unwrap_err() ;
-    let mut err=SendRBoxError::new(str_err());
+    let str_err = || String::from_utf8(vec![255]).unwrap_err() ;
+    let mut err = SendRBoxError::new(str_err());
 
-    assert!( err.downcast_ref::<FromUtf8Error>().is_some() ,"part B");
+    assert!( err.downcast_ref::<FromUtf8Error>().is_some() , "part B");
 }
 
 // Constructing a `SendRBoxError` from a `FromUtf16Error`,
 // then attempting to downcasting it to a `FromUtf8Error`.
 {
-    let str_err=|| String::from_utf16(&[0xD834]).unwrap_err() ;
-    let mut err=SendRBoxError::new(str_err());
+    let str_err = || String::from_utf16(&[0xD834]).unwrap_err() ;
+    let mut err = SendRBoxError::new(str_err());
 
-    assert!( err.downcast_ref::<FromUtf8Error>().is_none() ,"part C");
+    assert!( err.downcast_ref::<FromUtf8Error>().is_none() , "part C");
 }
 
 ```
@@ -209,9 +209,9 @@ impl RBoxError_<SyncSend> {
     /// ```
     /// use abi_stable::std_types::RBoxError;
     ///
-    /// let str_err=String::from_utf8(vec![255]).unwrap_err();
+    /// let str_err = String::from_utf8(vec![255]).unwrap_err();
     ///
-    /// let err=RBoxError::new(str_err);
+    /// let err = RBoxError::new(str_err);
     /// ```
     pub fn new<T>(value: T) -> Self
     where
@@ -229,9 +229,9 @@ impl RBoxError_<UnsyncSend> {
     /// ```
     /// use abi_stable::std_types::SendRBoxError;
     ///
-    /// let str_err=String::from_utf16(&[0xD834]).unwrap_err() ;
+    /// let str_err = String::from_utf16(&[0xD834]).unwrap_err() ;
     ///
-    /// let err=SendRBoxError::new(str_err);
+    /// let err = SendRBoxError::new(str_err);
     /// ```
     pub fn new<T>(value: T) -> Self
     where
@@ -249,9 +249,9 @@ impl RBoxError_<UnsyncUnsend> {
     /// ```
     /// use abi_stable::std_types::UnsyncRBoxError;
     ///
-    /// let str_err=std::str::from_utf8(&[255]).unwrap_err() ;
+    /// let str_err = std::str::from_utf8(&[255]).unwrap_err() ;
     ///
-    /// let err=UnsyncRBoxError::new(str_err);
+    /// let err = UnsyncRBoxError::new(str_err);
     /// ```
     pub fn new<T>(value: T) -> Self
     where
@@ -270,15 +270,15 @@ impl<M> RBoxError_<M> {
     /// ```
     /// use abi_stable::std_types::RBoxError;
     ///
-    /// let int_error="".parse::<u32>().unwrap_err();
+    /// let int_error = "".parse::<u32>().unwrap_err();
     ///
-    /// let display_fmt=int_error.to_string();
-    /// let debug_fmt=format!("{:#?}",int_error);
+    /// let display_fmt = int_error.to_string();
+    /// let debug_fmt = format!("{:#?}", int_error);
     ///
-    /// let err=RBoxError::from_fmt(&int_error);
+    /// let err = RBoxError::from_fmt(&int_error);
     ///
-    /// assert_eq!(display_fmt,err.to_string());
-    /// assert_eq!(debug_fmt,format!("{:?}",err));
+    /// assert_eq!(display_fmt, err.to_string());
+    /// assert_eq!(debug_fmt, format!("{:?}", err));
     /// ```
     pub fn from_fmt<T>(value: &T) -> Self
     where
@@ -299,13 +299,13 @@ impl<M> RBoxError_<M> {
     /// ```
     /// use abi_stable::std_types::RBoxError;
     ///
-    /// let int_error="".parse::<u32>().unwrap_err();
+    /// let int_error = "".parse::<u32>().unwrap_err();
     ///
-    /// let debug_fmt=format!("{:#?}",int_error);
-    /// let err=RBoxError::from_debug(&int_error);
+    /// let debug_fmt = format!("{:#?}", int_error);
+    /// let err = RBoxError::from_debug(&int_error);
     ///
-    /// assert_eq!(debug_fmt,format!("{}",err));
-    /// assert_eq!(debug_fmt,format!("{:#?}",err));
+    /// assert_eq!(debug_fmt, format!("{}", err));
+    /// assert_eq!(debug_fmt, format!("{:#?}", err));
     /// ```
     pub fn from_debug<T>(value: &T) -> Self
     where
@@ -388,14 +388,14 @@ impl<M> RBoxError_<M> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RBoxError,UnsyncRBoxError};
+    /// use abi_stable::std_types::{RBoxError, UnsyncRBoxError};
     /// use std::convert::TryFrom;
     ///
-    /// let int_err=u32::try_from(-1_i32).unwrap_err();
+    /// let int_err = u32::try_from(-1_i32).unwrap_err();
     ///
-    /// let err:RBoxError=RBoxError::new(int_err);
+    /// let err: RBoxError = RBoxError::new(int_err);
     ///
-    /// let unsync_err:&UnsyncRBoxError=err.as_unsync();
+    /// let unsync_err: &UnsyncRBoxError = err.as_unsync();
     ///
     /// ```
     pub fn as_unsync(&self) -> &UnsyncRBoxError {
@@ -407,14 +407,14 @@ impl<M> RBoxError_<M> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RBoxError,UnsyncRBoxError};
+    /// use abi_stable::std_types::{RBoxError, UnsyncRBoxError};
     /// use std::convert::TryFrom;
     ///
-    /// let int_err=u64::try_from(-1338_i32).unwrap_err();
+    /// let int_err = u64::try_from(-1338_i32).unwrap_err();
     ///
-    /// let err:RBoxError=RBoxError::new(int_err);
+    /// let err: RBoxError = RBoxError::new(int_err);
     ///
-    /// let unsync_err:UnsyncRBoxError=err.into_unsync();
+    /// let unsync_err: UnsyncRBoxError = err.into_unsync();
     ///
     /// ```
     pub fn into_unsync(self) -> UnsyncRBoxError {
@@ -428,15 +428,15 @@ impl RBoxError_<SyncSend> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RBoxError,SendRBoxError};
+    /// use abi_stable::std_types::{RBoxError, SendRBoxError};
     /// use std::convert::TryFrom;
     ///
-    /// let slice:&mut [u32]=&mut [];
+    /// let slice: &mut [u32] = &mut [];
     /// let arr_err=<&mut [u32;10]>::try_from(slice).unwrap_err();
     ///
-    /// let err:RBoxError=RBoxError::new(arr_err);
+    /// let err: RBoxError = RBoxError::new(arr_err);
     ///
-    /// let unsync_err:&SendRBoxError=err.as_send();
+    /// let unsync_err: &SendRBoxError = err.as_send();
     ///
     /// ```
     pub fn as_send(&self) -> &SendRBoxError {
@@ -448,15 +448,15 @@ impl RBoxError_<SyncSend> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RBoxError,SendRBoxError};
+    /// use abi_stable::std_types::{RBoxError, SendRBoxError};
     /// use std::convert::TryFrom;
     ///
-    /// let slice:&[u32]=&[];
+    /// let slice: &[u32] = &[];
     /// let arr_err=<&[u32;10]>::try_from(slice).unwrap_err();
     ///
-    /// let err:RBoxError=RBoxError::new(arr_err);
+    /// let err: RBoxError = RBoxError::new(arr_err);
     ///
-    /// let unsync_err:SendRBoxError=err.into_send();
+    /// let unsync_err: SendRBoxError = err.into_send();
     ///
     /// ```
     pub fn into_send(self) -> SendRBoxError {
@@ -482,9 +482,9 @@ impl<M> Debug for RBoxError_<M> {
 
 macro_rules! from_impls {
     (
-        $first_docs:expr,
-        $boxdyn:ty,
-        $marker:ty,
+        $first_docs: expr,
+        $boxdyn: ty,
+        $marker: ty,
     ) => {
         impl From<$boxdyn> for RBoxError_<$marker> {
             #[doc = $first_docs]
@@ -800,7 +800,7 @@ unsafe extern "C" fn as_debug_display(
     this: RRef<'_, ErasedObject>,
 ) -> ROption<DebugDisplayRef<'_>> {
     extern_fn_panic_handling! {
-        let this=unsafe{ this.transmute_into_ref::<DebugDisplay>() };
+        let this = unsafe{ this.transmute_into_ref::<DebugDisplay>() };
         ROption::RSome(DebugDisplayRef{
             debug: this.debug.as_str().into(),
             display: this.display.as_str().into(),

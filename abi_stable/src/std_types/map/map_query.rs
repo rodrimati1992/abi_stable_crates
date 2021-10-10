@@ -26,8 +26,8 @@ impl<'a, K> MapQuery<'a, K> {
     }
 
     // #[inline]
-    // pub(super) unsafe fn to_static(self)->MapQuery<'static,K>{
-    //     mem::transmute::<MapQuery<'a,K>,MapQuery<'static,K>>(self)
+    // pub(super) unsafe fn to_static(self) -> MapQuery<'static, K>{
+    //     mem::transmute::<MapQuery<'a, K>, MapQuery<'static, K>>(self)
     // }
 
     #[inline]
@@ -65,7 +65,7 @@ where
 {
     extern_fn_panic_handling! {
         let query = unsafe{ query.transmute_into_ref::<&Q>() };
-        key.borrow()==*query
+        key.borrow() == *query
     }
 }
 

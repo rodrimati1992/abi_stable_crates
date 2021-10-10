@@ -19,76 +19,71 @@ use crate::std_types::RVec;
 mod private {
     use super::*;
 
-    /**
-    Ffi-safe equivalent of `&'a [T]`
-
-    As of the writing this documentation the abi stability of `&[T]` is
-    not yet guaranteed.
-
-    # Lifetime problems
-
-    Because `RSlice` dereferences into a slice,you can call slice methods on it.
-
-    If you call a slice method that returns a borrow into the slice,
-    it will have the lifetime of the `let slice: RSlice<'a,[T]>` variable instead of the `'a`
-    lifetime that it's parameterized over.
-
-    To get a slice with the same lifetime as an `RSlice`,
-    one must use the `RSlice::as_slice` method.
-
-
-    Example of what would not work:
-
-    ```compile_fail
-    use abi_stable::std_types::RSlice;
-
-    fn into_slice<'a,T>(slic:RSlice<'a,T>)->&'a [T] {
-        &*slic
-    }
-    ```
-
-    Example of what would work:
-
-    ```
-    use abi_stable::std_types::RSlice;
-
-    fn into_slice<'a,T>(slic:RSlice<'a,T>)->&'a [T] {
-        slic.as_slice()
-    }
-    ```
-
-
-
-    # Example
-
-    Defining an extern fn that returns a reference to
-    the first element that compares equal to a parameter.
-
-    ```
-    use abi_stable::{
-        std_types::RSlice,
-        sabi_extern_fn,
-    };
-
-    #[sabi_extern_fn]
-    pub fn find_first_mut<'a,T>(slice_:RSlice<'a,T>,element:&T)->Option<&'a T>
-    where
-        T:std::cmp::PartialEq
-    {
-        slice_.iter()
-            .position(|x| x==element )
-            .map(|i| &slice_.as_slice()[i] )
-    }
-
-
-    ```
-
-
-
-    */
+    /// Ffi-safe equivalent of `&'a [T]`
+    ///
+    /// As of the writing this documentation the abi stability of `&[T]` is
+    /// not yet guaranteed.
+    ///
+    /// # Lifetime problems
+    ///
+    /// Because `RSlice` dereferences into a slice, you can call slice methods on it.
+    ///
+    /// If you call a slice method that returns a borrow into the slice,
+    /// it will have the lifetime of the `let slice: RSlice<'a, [T]>` variable instead of the `'a`
+    /// lifetime that it's parameterized over.
+    ///
+    /// To get a slice with the same lifetime as an `RSlice`,
+    /// one must use the `RSlice::as_slice` method.
+    ///
+    ///
+    /// Example of what would not work:
+    ///
+    /// ```compile_fail
+    /// use abi_stable::std_types::RSlice;
+    ///
+    /// fn into_slice<'a, T>(slic: RSlice<'a, T>) -> &'a [T] {
+    ///     &*slic
+    /// }
+    /// ```
+    ///
+    /// Example of what would work:
+    ///
+    /// ```
+    /// use abi_stable::std_types::RSlice;
+    ///
+    /// fn into_slice<'a, T>(slic: RSlice<'a, T>) -> &'a [T] {
+    ///     slic.as_slice()
+    /// }
+    /// ```
+    ///
+    ///
+    ///
+    /// # Example
+    ///
+    /// Defining an extern fn that returns a reference to
+    /// the first element that compares equal to a parameter.
+    ///
+    /// ```
+    /// use abi_stable::{
+    ///     std_types::RSlice,
+    ///     sabi_extern_fn,
+    /// };
+    ///
+    /// #[sabi_extern_fn]
+    /// pub fn find_first_mut<'a, T>(slice_: RSlice<'a, T>, element: &T) -> Option<&'a T>
+    /// where
+    ///     T: std::cmp::PartialEq
+    /// {
+    ///     slice_.iter()
+    ///     .position(|x| x == element )
+    ///     .map(|i| &slice_.as_slice()[i] )
+    /// }
+    ///
+    ///
+    /// ```
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(bound = "T:'a")]
+    #[sabi(bound = "T: 'a")]
     //#[sabi(debug_print)]
     pub struct RSlice<'a, T> {
         data: *const T,
@@ -117,7 +112,7 @@ mod private {
             _marker: PhantomData,
         };
 
-        /// Constructs an `RSlice<'a,T>` from a pointer to the first element,
+        /// Constructs an `RSlice<'a, T>` from a pointer to the first element,
         /// and a length.
         ///
         /// # Safety
@@ -140,7 +135,7 @@ mod private {
         /// ```
         /// use abi_stable::std_types::RSlice;
         ///
-        /// fn convert<T>(slice_:&[T])->RSlice<'_,T>{
+        /// fn convert<T>(slice_: &[T]) -> RSlice<'_, T>{
         ///     unsafe{
         ///         RSlice::from_raw_parts( slice_.as_ptr(), slice_.len() )
         ///     }
@@ -173,7 +168,7 @@ mod private {
         /// ```
         /// use abi_stable::std_types::RSlice;
         ///
-        /// assert_eq!(RSlice::from_slice(&[0,1,2,3]).as_slice(), &[0,1,2,3]);
+        /// assert_eq!(RSlice::from_slice(&[0, 1, 2, 3]).as_slice(), &[0, 1, 2, 3]);
         ///
         /// ```
         pub fn as_slice(&self) -> &'a [T] {
@@ -194,7 +189,7 @@ mod private {
         ///
         /// assert_eq!(RSlice::<u8>::from_slice(&[]).len(), 0);
         /// assert_eq!(RSlice::from_slice(&[0]).len(), 1);
-        /// assert_eq!(RSlice::from_slice(&[0,1]).len(), 2);
+        /// assert_eq!(RSlice::from_slice(&[0, 1]).len(), 2);
         ///
         /// ```
         #[inline]
@@ -211,7 +206,7 @@ mod private {
         ///
         /// assert_eq!(RSlice::<u8>::from_slice(&[]).is_empty(), true);
         /// assert_eq!(RSlice::from_slice(&[0]).is_empty(), false);
-        /// assert_eq!(RSlice::from_slice(&[0,1]).is_empty(), false);
+        /// assert_eq!(RSlice::from_slice(&[0, 1]).is_empty(), false);
         ///
         /// ```
         #[inline]
@@ -229,9 +224,9 @@ impl<'a, T> RSlice<'a, T> {
         Self::EMPTY
     }
 
-    /// Converts a reference to `T` to a single element `RSlice<'a,T>`.
+    /// Converts a reference to `T` to a single element `RSlice<'a, T>`.
     ///
-    /// Note:this function does not copy anything.
+    /// Note: this function does not copy anything.
     ///
     /// # Example
     ///
@@ -248,18 +243,18 @@ impl<'a, T> RSlice<'a, T> {
         unsafe { Self::from_raw_parts(ref_, 1) }
     }
 
-    /// Converts a `&[T]` to an `RSlice<'_,T>`.
+    /// Converts a `&[T]` to an `RSlice<'_, T>`.
     ///
     /// # Example
     ///
     /// ```
     /// use abi_stable::std_types::RSlice;
     ///
-    /// let empty:&[u8]=&[];
+    /// let empty: &[u8] = &[];
     ///
     /// assert_eq!(RSlice::<u8>::from_slice(&[]).as_slice(), empty);
     /// assert_eq!(RSlice::from_slice(&[0]).as_slice()     , &[0][..]);
-    /// assert_eq!(RSlice::from_slice(&[0,1]).as_slice()   , &[0,1][..]);
+    /// assert_eq!(RSlice::from_slice(&[0, 1]).as_slice()   , &[0, 1][..]);
     ///
     /// ```
     #[inline]
@@ -267,7 +262,7 @@ impl<'a, T> RSlice<'a, T> {
         unsafe { RSlice::from_raw_parts(slic.as_ptr(), slic.len()) }
     }
 
-    /// Creates an `RSlice<'a,T>` with access to the `range` range of elements.
+    /// Creates an `RSlice<'a, T>` with access to the `range` range of elements.
     ///
     /// This is an inherent method instead of an implementation of the
     /// `std::ops::Index` trait because it does not return a reference.
@@ -277,12 +272,12 @@ impl<'a, T> RSlice<'a, T> {
     /// ```
     /// use abi_stable::std_types::RSlice;
     ///
-    /// let slic=RSlice::from_slice(&[0,1,2,3]);
+    /// let slic = RSlice::from_slice(&[0, 1, 2, 3]);
     ///
-    /// assert_eq!(slic.slice(..),RSlice::from_slice(&[0,1,2,3]));
-    /// assert_eq!(slic.slice(..2),RSlice::from_slice(&[0,1]));
-    /// assert_eq!(slic.slice(2..),RSlice::from_slice(&[2,3]));
-    /// assert_eq!(slic.slice(1..3),RSlice::from_slice(&[1,2]));
+    /// assert_eq!(slic.slice(..), RSlice::from_slice(&[0, 1, 2, 3]));
+    /// assert_eq!(slic.slice(..2), RSlice::from_slice(&[0, 1]));
+    /// assert_eq!(slic.slice(2..), RSlice::from_slice(&[2, 3]));
+    /// assert_eq!(slic.slice(1..3), RSlice::from_slice(&[1, 2]));
     ///
     /// ```
     pub fn slice<I>(&self, i: I) -> RSlice<'a, T>
@@ -297,14 +292,14 @@ impl<'a, T> RSlice<'a, T> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RSlice,RVec};
+    /// use abi_stable::std_types::{RSlice, RVec};
     ///
-    /// let slic=RSlice::from_slice(&[0,1,2,3]);
+    /// let slic = RSlice::from_slice(&[0, 1, 2, 3]);
     ///
-    /// assert_eq!( slic.slice(..).to_rvec(), RVec::from_slice(&[0,1,2,3]) );
-    /// assert_eq!( slic.slice(..2).to_rvec(), RVec::from_slice(&[0,1]) );
-    /// assert_eq!( slic.slice(2..).to_rvec(), RVec::from_slice(&[2,3]) );
-    /// assert_eq!( slic.slice(1..3).to_rvec(), RVec::from_slice(&[1,2]) );
+    /// assert_eq!( slic.slice(..).to_rvec(), RVec::from_slice(&[0, 1, 2, 3]) );
+    /// assert_eq!( slic.slice(..2).to_rvec(), RVec::from_slice(&[0, 1]) );
+    /// assert_eq!( slic.slice(2..).to_rvec(), RVec::from_slice(&[2, 3]) );
+    /// assert_eq!( slic.slice(1..3).to_rvec(), RVec::from_slice(&[1, 2]) );
     ///
     /// ```
     pub fn to_rvec(&self) -> RVec<T>
@@ -314,7 +309,7 @@ impl<'a, T> RSlice<'a, T> {
         self.to_vec().into()
     }
 
-    /// Transmutes n `RSlice<'a,T>` to a `RSlice<'a,U>`
+    /// Transmutes n `RSlice<'a, T>` to a `RSlice<'a, U>`
     ///
     /// # Safety
     ///
@@ -482,9 +477,9 @@ impl<'a> BufRead for RSlice<'a, u8> {
 type Slice<'a, T> = &'a [T];
 
 shared_impls! {
-    mod=slice_impls
-    new_type=RSlice['a][T],
-    original_type=Slice,
+    mod = slice_impls
+    new_type = RSlice['a][T],
+    original_type = Slice,
 }
 
 ////////////////////////////////////////////////////////////////////////////////

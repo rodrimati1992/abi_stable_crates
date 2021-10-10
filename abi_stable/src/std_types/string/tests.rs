@@ -11,7 +11,7 @@ static TEST_STR: &str = "hello_world.cáscara.ñ.🎊🍕👏😊😀😄😉�
 
 #[test]
 fn from_to_string() {
-    let orig = "hello,world!";
+    let orig = "hello, world!";
     let orig_owned = orig.to_string();
     let orig_cap = orig_owned.capacity();
 

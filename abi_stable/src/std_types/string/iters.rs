@@ -21,15 +21,15 @@ impl IntoIter {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let mut iter=RString::from("abcd").into_iter();
+    /// let mut iter = RString::from("abcd").into_iter();
     ///
-    /// assert_eq!(iter.as_str(),"abcd");
+    /// assert_eq!(iter.as_str(), "abcd");
     ///
-    /// assert_eq!(iter.next(),Some('a'));
-    /// assert_eq!(iter.as_str(),"bcd");
+    /// assert_eq!(iter.next(), Some('a'));
+    /// assert_eq!(iter.as_str(), "bcd");
     ///
-    /// assert_eq!(iter.next_back(),Some('d'));
-    /// assert_eq!(iter.as_str(),"bc");
+    /// assert_eq!(iter.next_back(), Some('d'));
+    /// assert_eq!(iter.as_str(), "bc");
     ///
     /// ```
     pub fn as_str(&self) -> &str {
@@ -87,20 +87,20 @@ impl<'a> Drain<'a> {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let mut string=RString::from("abcdefg");
-    /// let mut iter=string.drain(2..6);
+    /// let mut string = RString::from("abcdefg");
+    /// let mut iter = string.drain(2..6);
     ///
-    /// assert_eq!(iter.as_str(),"cdef");
+    /// assert_eq!(iter.as_str(), "cdef");
     ///
-    /// assert_eq!(iter.next(),Some('c'));
-    /// assert_eq!(iter.as_str(),"def");
+    /// assert_eq!(iter.next(), Some('c'));
+    /// assert_eq!(iter.as_str(), "def");
     ///
-    /// assert_eq!(iter.next_back(),Some('f'));
-    /// assert_eq!(iter.as_str(),"de");
+    /// assert_eq!(iter.next_back(), Some('f'));
+    /// assert_eq!(iter.as_str(), "de");
     ///
     /// drop(iter);
     ///
-    /// assert_eq!(string.as_str(),"abg")
+    /// assert_eq!(string.as_str(), "abg")
     ///
     /// ```
     pub fn as_str(&self) -> &str {

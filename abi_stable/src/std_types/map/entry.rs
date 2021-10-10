@@ -21,7 +21,7 @@ pub(super) enum BoxedREntry<'a, K, V> {
 /// A handle into an entry in a map, which is either vacant or occupied.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound = "K:'a", bound = "V:'a")]
+#[sabi(bound = "K: 'a", bound = "V: 'a")]
 pub enum REntry<'a, K, V> {
     Occupied(ROccupiedEntry<'a, K, V>),
     Vacant(RVacantEntry<'a, K, V>),
@@ -87,10 +87,10 @@ impl<'a, K, V> REntry<'a, K, V> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map:RHashMap<u32,u32>=vec![(1,100)].into_iter().collect();
+    /// let mut map: RHashMap<u32, u32>  = vec![(1, 100)].into_iter().collect();
     ///
-    /// assert_eq!(map.entry(0).get(),None);
-    /// assert_eq!(map.entry(1).get(),Some(&100));
+    /// assert_eq!(map.entry(0).get(), None);
+    /// assert_eq!(map.entry(1).get(), Some(&100));
     ///
     /// ```
     pub fn get(&self) -> Option<&V> {
@@ -107,10 +107,10 @@ impl<'a, K, V> REntry<'a, K, V> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map:RHashMap<u32,u32>=vec![(1,100)].into_iter().collect();
+    /// let mut map: RHashMap<u32, u32>  = vec![(1, 100)].into_iter().collect();
     ///
-    /// assert_eq!(map.entry(0).get_mut(),None);
-    /// assert_eq!(map.entry(1).get_mut(),Some(&mut 100));
+    /// assert_eq!(map.entry(0).get_mut(), None);
+    /// assert_eq!(map.entry(1).get_mut(), Some(&mut 100));
     ///
     /// ```
     pub fn get_mut(&mut self) -> Option<&mut V> {
@@ -128,11 +128,11 @@ impl<'a, K, V> REntry<'a, K, V> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// assert_eq!(map.entry(0).or_insert(100),&mut 100);
+    /// assert_eq!(map.entry(0).or_insert(100), &mut 100);
     ///
-    /// assert_eq!(map.entry(0).or_insert(400),&mut 100);
+    /// assert_eq!(map.entry(0).or_insert(400), &mut 100);
     ///
     /// ```
     pub fn or_insert(self, default: V) -> &'a mut V {
@@ -148,9 +148,9 @@ impl<'a, K, V> REntry<'a, K, V> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RString};
+    /// use abi_stable::std_types::{RHashMap, RString};
     ///
-    /// let mut map=RHashMap::<u32,RString>::new();
+    /// let mut map = RHashMap::<u32, RString>::new();
     ///
     /// assert_eq!(
     ///     map.entry(0).or_insert_with(|| "foo".into() ),
@@ -178,10 +178,10 @@ impl<'a, K, V> REntry<'a, K, V> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RString};
+    /// use abi_stable::std_types::{RHashMap, RString};
     ///
-    /// let mut map=RHashMap::<RString,RString>::new();
-    /// map.insert("foo".into(),"bar".into());
+    /// let mut map = RHashMap::<RString, RString>::new();
+    /// map.insert("foo".into(), "bar".into());
     ///
     /// assert_eq!(
     ///     map.entry("foo".into()).key(),
@@ -202,10 +202,10 @@ impl<'a, K, V> REntry<'a, K, V> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RHashMap,RString};
+    /// use abi_stable::std_types::{RHashMap, RString};
     ///
-    /// let mut map=RHashMap::<RString,RString>::new();
-    /// map.insert("foo".into(),"bar".into());
+    /// let mut map = RHashMap::<RString, RString>::new();
+    /// map.insert("foo".into(), "bar".into());
     ///
     /// assert_eq!(
     ///     map.entry("foo".into())
@@ -235,12 +235,12 @@ impl<'a, K, V> REntry<'a, K, V> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// assert_eq!(map.entry(0).or_insert(100),&mut 100);
-    /// assert_eq!(map.entry(0).or_default(),&mut 100);
+    /// assert_eq!(map.entry(0).or_insert(100), &mut 100);
+    /// assert_eq!(map.entry(0).or_default(), &mut 100);
     ///
-    /// assert_eq!(map.entry(1).or_default(),&mut 0);
+    /// assert_eq!(map.entry(1).or_default(), &mut 0);
     ///
     /// ```
     pub fn or_default(self) -> &'a mut V
@@ -272,7 +272,7 @@ where
 /// A handle into an occupied entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound = "K:'a", bound = "V:'a")]
+#[sabi(bound = "K: 'a", bound = "V: 'a")]
 pub struct ROccupiedEntry<'a, K, V> {
     entry: RMut<'a, ErasedOccupiedEntry<K, V>>,
     vtable: OccupiedVTable_Ref<K, V>,
@@ -282,7 +282,7 @@ pub struct ROccupiedEntry<'a, K, V> {
 /// A handle into a vacant entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound = "K:'a", bound = "V:'a")]
+#[sabi(bound = "K: 'a", bound = "V: 'a")]
 pub struct RVacantEntry<'a, K, V> {
     entry: RMut<'a, ErasedVacantEntry<K, V>>,
     vtable: VacantVTable_Ref<K, V>,
@@ -318,17 +318,17 @@ impl<'a, K, V> ROccupiedEntry<'a, K, V> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::map::{REntry,RHashMap};
+    /// use abi_stable::std_types::map::{REntry, RHashMap};
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// map.insert(0,100);
+    /// map.insert(0, 100);
     ///
     /// match map.entry(0) {
-    ///     REntry::Occupied(entry)=>{
-    ///         assert_eq!(entry.key(),&0);
+    ///     REntry::Occupied(entry) => {
+    ///         assert_eq!(entry.key(), &0);
     ///     }
-    ///     REntry::Vacant(_)=>unreachable!(),
+    ///     REntry::Vacant(_) => unreachable!(),
     /// };
     ///
     ///
@@ -344,17 +344,17 @@ impl<'a, K, V> ROccupiedEntry<'a, K, V> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::map::{REntry,RHashMap};
+    /// use abi_stable::std_types::map::{REntry, RHashMap};
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// map.insert(6,15);
+    /// map.insert(6, 15);
     ///
     /// match map.entry(6) {
-    ///     REntry::Occupied(entry)=>{
-    ///         assert_eq!(entry.get(),&15);
+    ///     REntry::Occupied(entry) => {
+    ///         assert_eq!(entry.get(), &15);
     ///     }
-    ///     REntry::Vacant(_)=>unreachable!(),
+    ///     REntry::Vacant(_) => unreachable!(),
     /// };
     ///
     ///
@@ -366,22 +366,22 @@ impl<'a, K, V> ROccupiedEntry<'a, K, V> {
     }
 
     /// Gets a mutable reference to the value in the entry.
-    /// To borrow with the lifetime of the map,use `ROccupiedEntry::into_mut`.
+    /// To borrow with the lifetime of the map, use `ROccupiedEntry::into_mut`.
     ///
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::map::{REntry,RHashMap};
+    /// use abi_stable::std_types::map::{REntry, RHashMap};
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
-    /// map.insert(6,15);
+    /// map.insert(6, 15);
     ///
     /// match map.entry(6) {
-    ///     REntry::Occupied(mut entry)=>{
-    ///         assert_eq!(entry.get_mut(),&mut 15);
+    ///     REntry::Occupied(mut entry) => {
+    ///         assert_eq!(entry.get_mut(), &mut 15);
     ///     }
-    ///     REntry::Vacant(_)=>unreachable!(),
+    ///     REntry::Vacant(_) => unreachable!(),
     /// };
     ///
     ///
@@ -399,17 +399,17 @@ impl<'a, K, V> ROccupiedEntry<'a, K, V> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::map::{REntry,RHashMap};
+    /// use abi_stable::std_types::map::{REntry, RHashMap};
     ///
-    /// let mut map=RHashMap::<String,u32>::new();
+    /// let mut map = RHashMap::<String, u32>::new();
     ///
-    /// map.insert("baz".into(),0xDEAD);
+    /// map.insert("baz".into(), 0xDEAD);
     ///
     /// match map.entry("baz".into()) {
-    ///     REntry::Occupied(entry)=>{
-    ///         assert_eq!(entry.into_mut(),&mut 0xDEAD);
+    ///     REntry::Occupied(entry) => {
+    ///         assert_eq!(entry.into_mut(), &mut 0xDEAD);
     ///     }
-    ///     REntry::Vacant(_)=>unreachable!(),
+    ///     REntry::Vacant(_) => unreachable!(),
     /// };
     ///
     ///
@@ -420,22 +420,22 @@ impl<'a, K, V> ROccupiedEntry<'a, K, V> {
         vtable.fn_into_mut_elem()(self)
     }
 
-    /// Replaces the current value of the entry with `value`,returning the previous value.
+    /// Replaces the current value of the entry with `value`, returning the previous value.
     ///
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::map::{REntry,RHashMap};
+    /// use abi_stable::std_types::map::{REntry, RHashMap};
     ///
-    /// let mut map=RHashMap::<String,u32>::new();
+    /// let mut map = RHashMap::<String, u32>::new();
     ///
-    /// map.insert("baz".into(),0xD00D);
+    /// map.insert("baz".into(), 0xD00D);
     ///
     /// match map.entry("baz".into()) {
-    ///     REntry::Occupied(mut entry)=>{
-    ///         assert_eq!(entry.insert(0xDEAD),0xD00D);
+    ///     REntry::Occupied(mut entry) => {
+    ///         assert_eq!(entry.insert(0xDEAD), 0xD00D);
     ///     }
-    ///     REntry::Vacant(_)=>{
+    ///     REntry::Vacant(_) => {
     ///         unreachable!();
     ///     }
     /// }
@@ -449,22 +449,22 @@ impl<'a, K, V> ROccupiedEntry<'a, K, V> {
         vtable.insert_elem()(self.entry.reborrow(), value)
     }
 
-    /// Removes the entry from the map,returns the value.
+    /// Removes the entry from the map, returns the value.
     ///
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::map::{REntry,RHashMap};
+    /// use abi_stable::std_types::map::{REntry, RHashMap};
     ///
-    /// let mut map=RHashMap::<String,u32>::new();
+    /// let mut map = RHashMap::<String, u32>::new();
     ///
-    /// map.insert("baz".into(),0xDEAD);
+    /// map.insert("baz".into(), 0xDEAD);
     ///
     /// match map.entry("baz".into()) {
-    ///     REntry::Occupied(entry)=>{
-    ///         assert_eq!(entry.remove(),0xDEAD);
+    ///     REntry::Occupied(entry) => {
+    ///         assert_eq!(entry.remove(), 0xDEAD);
     ///     }
-    ///     REntry::Vacant(_)=>{
+    ///     REntry::Vacant(_) => {
     ///         unreachable!();
     ///     }
     /// }
@@ -534,16 +534,16 @@ impl<'a, K, V> RVacantEntry<'a, K, V> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::map::{REntry,RHashMap};
+    /// use abi_stable::std_types::map::{REntry, RHashMap};
     ///
-    /// let mut map=RHashMap::<u32,u32>::new();
+    /// let mut map = RHashMap::<u32, u32>::new();
     ///
     /// match map.entry(1337) {
-    ///     REntry::Occupied(_)=>{
+    ///     REntry::Occupied(_) => {
     ///         unreachable!();
     ///     }
-    ///     REntry::Vacant(entry)=>{
-    ///         assert_eq!(entry.key(),&1337);
+    ///     REntry::Vacant(entry) => {
+    ///         assert_eq!(entry.key(), &1337);
     ///     }
     /// }
     ///
@@ -561,16 +561,16 @@ impl<'a, K, V> RVacantEntry<'a, K, V> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::map::{REntry,RHashMap};
+    /// use abi_stable::std_types::map::{REntry, RHashMap};
     ///
-    /// let mut map=RHashMap::<String,u32>::new();
+    /// let mut map = RHashMap::<String, u32>::new();
     ///
     /// match map.entry("lol".into()) {
-    ///     REntry::Occupied(_)=>{
+    ///     REntry::Occupied(_) => {
     ///         unreachable!();
     ///     }
-    ///     REntry::Vacant(entry)=>{
-    ///         assert_eq!(entry.into_key(),"lol".to_string());
+    ///     REntry::Vacant(entry) => {
+    ///         assert_eq!(entry.into_key(), "lol".to_string());
     ///     }
     /// }
     ///
@@ -583,21 +583,21 @@ impl<'a, K, V> RVacantEntry<'a, K, V> {
         vtable.fn_into_key()(self)
     }
 
-    /// Sets the value of the entry,returning a mutable reference to it.
+    /// Sets the value of the entry, returning a mutable reference to it.
     ///
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::map::{REntry,RHashMap};
+    /// use abi_stable::std_types::map::{REntry, RHashMap};
     ///
-    /// let mut map=RHashMap::<String,u32>::new();
+    /// let mut map = RHashMap::<String, u32>::new();
     ///
     /// match map.entry("lol".into()) {
-    ///     REntry::Occupied(_)=>{
+    ///     REntry::Occupied(_) => {
     ///         unreachable!();
     ///     }
-    ///     REntry::Vacant(entry)=>{
-    ///         assert_eq!(entry.insert(67),&mut 67);
+    ///     REntry::Vacant(entry) => {
+    ///         assert_eq!(entry.insert(67), &mut 67);
     ///     }
     /// }
     ///
@@ -649,7 +649,7 @@ impl<K, V> OccupiedVTable<K, V> {
     const VTABLE_REF: OccupiedVTable_Ref<K, V> = OccupiedVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {
-        const WM_VTABLE: WithMetadata<OccupiedVTable<K,V>> =
+        const WM_VTABLE: WithMetadata<OccupiedVTable<K, V>> =
             WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
     }
 
@@ -750,7 +750,7 @@ impl<K, V> VacantVTable<K, V> {
     const VTABLE_REF: VacantVTable_Ref<K, V> = VacantVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {
-        const WM_VTABLE: WithMetadata<VacantVTable<K,V>> =
+        const WM_VTABLE: WithMetadata<VacantVTable<K, V>> =
             WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
     }
 
@@ -765,7 +765,7 @@ impl<K, V> VacantVTable<K, V> {
 impl<K, V> ErasedVacantEntry<K, V> {
     unsafe extern "C" fn drop_entry(this: RMut<'_, Self>) {
         extern_fn_panic_handling! {
-            Self::run_downcast_as_mut(this,|this|{
+            Self::run_downcast_as_mut(this, |this|{
                 ManuallyDrop::drop(this);
             })
         }

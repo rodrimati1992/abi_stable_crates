@@ -35,22 +35,22 @@ mod private {
     ```
     use abi_stable::{
         external_types::RMutex,
-        std_types::{RArc,RVec},
+        std_types::{RArc, RVec},
     };
 
     use std::thread;
 
-    let arc=RArc::new(RMutex::new(RVec::new()));
+    let arc = RArc::new(RMutex::new(RVec::new()));
 
     {
-        let arc2=RArc::clone(&arc);
-        assert!( std::ptr::eq(&*arc,&*arc2) );
+        let arc2 = RArc::clone(&arc);
+        assert!( std::ptr::eq(&*arc, &*arc2) );
     }
 
-    let mut guards=Vec::new();
+    let mut guards = Vec::new();
 
     for i in 0..10_u64 {
-        let arc=RArc::clone(&arc);
+        let arc = RArc::clone(&arc);
         guards.push(thread::spawn(move||{
             for j in 0..100_u64{
                 arc.lock().push(i*100+j);
@@ -62,9 +62,9 @@ mod private {
         guard.join().unwrap();
     }
 
-    let mut vec=RArc::try_unwrap(arc)
+    let mut vec = RArc::try_unwrap(arc)
         .ok()
-        .expect("All the threads were joined,so this must be the only RArc")
+        .expect("All the threads were joined, so this must be the only RArc")
         .into_inner();
 
     vec.sort();
@@ -155,7 +155,7 @@ impl<T> RArc<T> {
     /// ```
     /// use abi_stable::std_types::RArc;
     ///
-    /// let arc=RArc::new(100);
+    /// let arc = RArc::new(100);
     ///
     /// ```
     pub fn new(this: T) -> Self {
@@ -181,7 +181,7 @@ impl<T> RArc<T> {
     /// use abi_stable::std_types::RArc;
     /// use std::sync::Arc;
     ///
-    /// let arc=RArc::new(100);
+    /// let arc = RArc::new(100);
     ///
     /// assert_eq!( RArc::into_arc(arc), Arc::new(100) );
     ///
@@ -211,11 +211,11 @@ impl<T> RArc<T> {
     /// ```
     /// use abi_stable::std_types::RArc;
     ///
-    /// let arc0=RArc::new(100);
+    /// let arc0 = RArc::new(100);
     /// assert_eq!( RArc::try_unwrap(arc0), Ok(100) );
     ///
-    /// let arc1=RArc::new(100);
-    /// let arc1_clone=RArc::clone(&arc1);
+    /// let arc1 = RArc::new(100);
+    /// let arc1_clone = RArc::clone(&arc1);
     /// assert_eq!( RArc::try_unwrap(arc1), Err(arc1_clone.clone()) );
     ///
     /// ```
@@ -233,12 +233,12 @@ impl<T> RArc<T> {
     /// ```
     /// use abi_stable::std_types::RArc;
     ///
-    /// let mut arc0=RArc::new(100);
-    /// *RArc::get_mut(&mut arc0).unwrap()+=400;
+    /// let mut arc0 = RArc::new(100);
+    /// *RArc::get_mut(&mut arc0).unwrap() += 400;
     /// assert_eq!( *arc0, 500 );
     ///
-    /// let mut arc1=RArc::new(100);
-    /// let _arc1_clone=RArc::clone(&arc1);
+    /// let mut arc1 = RArc::new(100);
+    /// let _arc1_clone = RArc::clone(&arc1);
     /// assert_eq!( RArc::get_mut(&mut arc1), None );
     ///
     /// ```
@@ -265,13 +265,13 @@ impl<T> RArc<T> {
     /// ```
     /// use abi_stable::std_types::RArc;
     ///
-    /// let mut arc0=RArc::new(100);
-    /// *RArc::make_mut(&mut arc0)+=400;
+    /// let mut arc0 = RArc::new(100);
+    /// *RArc::make_mut(&mut arc0) += 400;
     /// assert_eq!( *arc0, 500 );
     ///
-    /// let mut arc1=RArc::new(100);
-    /// let arc1_clone=RArc::clone(&arc1);
-    /// *RArc::make_mut(&mut arc1)+=400;
+    /// let mut arc1 = RArc::new(100);
+    /// let arc1_clone = RArc::clone(&arc1);
+    /// *RArc::make_mut(&mut arc1) += 400;
     /// assert_eq!( *arc1, 500 );
     /// assert_eq!( *arc1_clone, 100 );
     ///
@@ -289,7 +289,7 @@ impl<T> RArc<T> {
             None => {
                 let new_arc = RArc::new((**this).clone());
                 *this = new_arc;
-                // This is fine,since this is a freshly created arc with a clone of the data.
+                // This is fine, since this is a freshly created arc with a clone of the data.
                 unsafe { &mut *this.data_mut() }
             }
         }
@@ -302,10 +302,10 @@ impl<T> RArc<T> {
     /// ```
     /// use abi_stable::std_types::RArc;
     ///
-    /// let arc=RArc::new(0);
+    /// let arc = RArc::new(0);
     /// assert_eq!( RArc::strong_count(&arc), 1 );
     ///
-    /// let clone=RArc::clone(&arc);
+    /// let clone = RArc::clone(&arc);
     /// assert_eq!( RArc::strong_count(&arc), 2 );
     ///
     /// ```
@@ -323,14 +323,14 @@ impl<T> RArc<T> {
     ///
     /// use std::sync::Arc;
     ///
-    /// let rustarc=Arc::new(0);
-    /// let arc=RArc::from(rustarc.clone());
+    /// let rustarc = Arc::new(0);
+    /// let arc = RArc::from(rustarc.clone());
     /// assert_eq!( RArc::weak_count(&arc), 0 );
     ///
-    /// let weak_0=Arc::downgrade(&rustarc);
+    /// let weak_0 = Arc::downgrade(&rustarc);
     /// assert_eq!( RArc::weak_count(&arc), 1 );
     ///
-    /// let weak_1=Arc::downgrade(&rustarc);
+    /// let weak_1 = Arc::downgrade(&rustarc);
     /// assert_eq!( RArc::weak_count(&arc), 2 );
     /// ```
     pub fn weak_count(this: &Self) -> usize {
@@ -393,9 +393,9 @@ impl<T> Drop for RArc<T> {
 }
 
 shared_impls! {pointer
-    mod=arc_impls
-    new_type=RArc[][T],
-    original_type=Arc,
+    mod = arc_impls
+    new_type = RArc[][T],
+    original_type = Arc,
 }
 
 unsafe impl<T> Sync for RArc<T> where T: Send + Sync {}
@@ -421,8 +421,8 @@ mod vtable_mod {
         };
 
         staticref! {
-            const WM_DEFAULT: WithMetadata<ArcVtable<T>>=
-                WithMetadata::new(PrefixTypeTrait::METADATA,Self::DEFAULT_VTABLE)
+            const WM_DEFAULT: WithMetadata<ArcVtable<T>> =
+                WithMetadata::new(PrefixTypeTrait::METADATA, Self::DEFAULT_VTABLE)
         }
 
         // The VTABLE for this type in this executable/library
@@ -430,11 +430,11 @@ mod vtable_mod {
             { ArcVtable_Ref(Self::WM_DEFAULT.as_prefix()) };
 
         #[cfg(test)]
-        staticref! {const WM_FOR_TESTING: WithMetadata<ArcVtable<T>>=
+        staticref! {const WM_FOR_TESTING: WithMetadata<ArcVtable<T>> =
             WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 ArcVtable{
-                    type_id:Constructor( new_utypeid::<RArc<i32>> ),
+                    type_id: Constructor( new_utypeid::<RArc<i32>> ),
                     ..Self::DEFAULT_VTABLE
                 }
             )
@@ -487,7 +487,7 @@ mod vtable_mod {
     unsafe extern "C" fn get_mut_arc<'a, T>(this: &'a mut RArc<T>) -> Option<&'a mut T> {
         let arc = Arc::from_raw(this.data());
         let mut arc = ManuallyDrop::new(arc);
-        // This is fine,since we are only touching the data afterwards,
+        // This is fine, since we are only touching the data afterwards,
         // which is guaranteed to have the 'a lifetime.
         let arc: &'a mut Arc<T> = &mut *(&mut *arc as *mut Arc<T>);
         Arc::get_mut(arc)

@@ -70,8 +70,8 @@ fn downcast() {
 
     macro_rules! downcast_ {
         (
-            method=$method:ident,
-            conv=$conv:expr
+            method = $method: ident,
+            conv = $conv: expr
         ) => {{
             let res0 = RBoxError::new(err.clone())
                 .$method::<Stringy>()
@@ -88,9 +88,9 @@ fn downcast() {
         }};
     }
 
-    downcast_! {method=downcast    ,conv=|x| x.ok() }
-    downcast_! {method=downcast_ref,conv=::std::convert::identity}
-    downcast_! {method=downcast_mut,conv=::std::convert::identity}
+    downcast_! {method = downcast    , conv = |x| x.ok() }
+    downcast_! {method = downcast_ref, conv=::std::convert::identity}
+    downcast_! {method = downcast_mut, conv=::std::convert::identity}
 }
 
 #[test]
@@ -99,34 +99,34 @@ fn casts_among_rboxerrors() {
 
     macro_rules! casts_among_rboxerrors_ {
         (
-            err_ty=$err:ty;
-            methods=[$($method:ident),* $(,)*];
+            err_ty = $err: ty;
+            methods = [$($method: ident),* $(,)*];
         ) => ({
             $(
                 let e0=<$err>::new(err.clone());
-                let addr=e0.heap_address();
-                let e1=e0.$method();
+                let addr = e0.heap_address();
+                let e1 = e0.$method();
                 assert_eq!(addr, e1.heap_address());
 
-                check_formatting_equivalence(&err,&e1);
+                check_formatting_equivalence(&err, &e1);
 
             )*
         })
     }
 
     casts_among_rboxerrors_! {
-        err_ty=UnsyncRBoxError;
-        methods=[into_unsync,as_unsync];
+        err_ty = UnsyncRBoxError;
+        methods = [into_unsync, as_unsync];
     }
 
     casts_among_rboxerrors_! {
-        err_ty=SendRBoxError;
-        methods=[into_unsync,as_unsync];
+        err_ty = SendRBoxError;
+        methods = [into_unsync, as_unsync];
     }
 
     casts_among_rboxerrors_! {
-        err_ty=RBoxError;
-        methods=[into_unsync,as_unsync,as_send,into_send];
+        err_ty = RBoxError;
+        methods = [into_unsync, as_unsync, as_send, into_send];
     }
 }
 

@@ -43,10 +43,10 @@ use abi_stable::{
 
 
 #[sabi_extern_fn]
-fn first_word(phrase:RString)->RString{
+fn first_word(phrase: RString) -> RString{
     match phrase.split_whitespace().next_back() {
-        Some(x)=>x.into(),
-        None=>RString::new(),
+        Some(x) => x.into(),
+        None => RString::new(),
     }
 }
 
@@ -366,7 +366,7 @@ impl RString {
     /// let mut str = RString::new();
     ///
     /// str.reserve(10);
-    /// assert!(str.capacity()>=10);
+    /// assert!(str.capacity() >= 10);
     ///
     /// ```
     pub fn reserve(&mut self, additional: usize) {
@@ -964,7 +964,7 @@ impl FromUtf8Error {
     /// ```
     /// use abi_stable::std_types::{RString, RVec};
     ///
-    /// let bytes:RVec<u8>= vec![72, 111, 95, 95, 95, 95, 95, 99, 107, 255].into();
+    /// let bytes: RVec<u8> = vec![72, 111, 95, 95, 95, 95, 95, 99, 107, 255].into();
     ///
     /// let err = RString::from_utf8(bytes.clone()).unwrap_err();
     ///

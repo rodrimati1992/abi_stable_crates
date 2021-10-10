@@ -31,10 +31,10 @@ use abi_stable::{
 
 
 #[sabi_extern_fn]
-fn first_word(phrase:RStr<'_>)->RStr<'_>{
+fn first_word(phrase: RStr<'_>) -> RStr<'_>{
     match phrase.as_str().split_whitespace().next() {
-        Some(x)=>x.into(),
-        None=>"".into()
+        Some(x) => x.into(),
+        None => "".into()
     }
 }
 
@@ -62,9 +62,9 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// const STR:RStr<'static>=RStr::empty();
+    /// const STR: RStr<'static>  = RStr::empty();
     ///
-    /// assert_eq!(STR,RStr::from(""));
+    /// assert_eq!(STR, RStr::from(""));
     ///
     /// ```
     #[inline]
@@ -81,7 +81,7 @@ impl<'a> RStr<'a> {
     ///
     /// - `ptr_` points to valid memory,
     ///
-    /// - `ptr_ .. ptr+len` range is accessible memory,and is valid utf-8.
+    /// - `ptr_ .. ptr+len` range is accessible memory, and is valid utf-8.
     ///
     /// - The data that `ptr_` points to must be valid for the lifetime of this `RStr<'a>`
     ///
@@ -93,7 +93,7 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// fn convert(slice_:&str)->RStr<'_>{
+    /// fn convert(slice_: &str) -> RStr<'_>{
     ///     unsafe{
     ///         RStr::from_raw_parts( slice_.as_ptr(), slice_.len() )
     ///     }
@@ -133,12 +133,12 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// let str=RStr::from("What is that.");
+    /// let str = RStr::from("What is that.");
     ///
-    /// assert_eq!(str.slice(..),str);
-    /// assert_eq!(str.slice(..4),RStr::from("What"));
-    /// assert_eq!(str.slice(4..),RStr::from(" is that."));
-    /// assert_eq!(str.slice(4..7),RStr::from(" is"));
+    /// assert_eq!(str.slice(..), str);
+    /// assert_eq!(str.slice(..4), RStr::from("What"));
+    /// assert_eq!(str.slice(4..), RStr::from(" is that."));
+    /// assert_eq!(str.slice(4..7), RStr::from(" is"));
     ///
     /// ```
     pub fn slice<I>(&self, i: I) -> RStr<'a>
@@ -153,12 +153,12 @@ impl<'a> RStr<'a> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RSlice,RStr};
+    /// use abi_stable::std_types::{RSlice, RStr};
     ///
-    /// let str=RStr::from("What is that.");
-    /// let bytes=RSlice::from("What is that.".as_bytes());
+    /// let str = RStr::from("What is that.");
+    /// let bytes = RSlice::from("What is that.".as_bytes());
     ///
-    /// assert_eq!(str.as_rslice(),bytes);
+    /// assert_eq!(str.as_rslice(), bytes);
     ///
     /// ```
     #[inline]
@@ -173,8 +173,8 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// let str="What is that.";
-    /// assert_eq!(RStr::from(str).as_str(),str);
+    /// let str = "What is that.";
+    /// assert_eq!(RStr::from(str).as_str(), str);
     ///
     /// ```
     #[inline]
@@ -194,9 +194,9 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// assert_eq!(RStr::from("").len(),0);
-    /// assert_eq!(RStr::from("a").len(),1);
-    /// assert_eq!(RStr::from("What").len(),4);
+    /// assert_eq!(RStr::from("").len(), 0);
+    /// assert_eq!(RStr::from("a").len(), 1);
+    /// assert_eq!(RStr::from("What").len(), 4);
     ///
     /// ```
     #[inline]
@@ -211,9 +211,9 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// assert_eq!(RStr::from("").is_empty(),true);
-    /// assert_eq!(RStr::from("a").is_empty(),false);
-    /// assert_eq!(RStr::from("What").is_empty(),false);
+    /// assert_eq!(RStr::from("").is_empty(), true);
+    /// assert_eq!(RStr::from("a").is_empty(), false);
+    /// assert_eq!(RStr::from("What").is_empty(), false);
     ///
     /// ```
     pub const fn is_empty(&self) -> bool {
@@ -339,9 +339,9 @@ impl<'a> Serialize for RStr<'a> {
 type Str<'a> = &'a str;
 
 shared_impls! {
-    mod=slice_impls
-    new_type=RStr['a][],
-    original_type=Str,
+    mod = slice_impls
+    new_type = RStr['a][],
+    original_type = Str,
 }
 
 ////////////////////////////////////////////////////

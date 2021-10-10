@@ -71,7 +71,7 @@ fn test_eq() {
 #[test]
 fn clone() {
     macro_rules! clone_test {
-        ( $hasher:ty ) => {{
+        ( $hasher: ty ) => {{
             let map = new_map::<String, String, $hasher>();
             let clone_ = map.clone();
 
@@ -90,7 +90,7 @@ fn clone() {
 }
 
 macro_rules! insert_test {
-    ( $hasher:ty ) => {{
+    ( $hasher: ty ) => {{
         let mut map = RHashMap::<String, _, $hasher>::default();
         map.insert("what".into(), 10);
         map.insert("the".into(), 5);
@@ -106,7 +106,7 @@ fn insert() {
 }
 
 macro_rules! remove_test {
-    ( $hasher:ty ) => {{
+    ( $hasher: ty ) => {{
         let mut map = RHashMap::<String, _, $hasher>::default();
         map.insert("what".into(), 10);
         map.insert("the".into(), 5);
@@ -176,7 +176,7 @@ where
 }
 
 macro_rules! get_test {
-    ( $hasher:ty ) => {{
+    ( $hasher: ty ) => {{
         let mut map = RHashMap::<String, _, $hasher>::default();
         map.insert("what".into(), 10);
         map.insert("the".into(), 5);
@@ -410,10 +410,10 @@ fn test_serde() {
 
     let json = r##"
         {
-            "90":"40",
-            "10":"20",
-            "88":"30",
-            "77":"22"
+            "90": "40",
+            "10": "20",
+            "88": "30",
+            "77": "22"
         }
     "##;
 

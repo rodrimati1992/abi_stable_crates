@@ -6,11 +6,11 @@ Contains ffi-safe equivalents of tuples up to 4 elements.
 
 macro_rules! declare_tuple {
 (
-    struct_attrs[ $(#[$meta:meta])* ]
+    struct_attrs[ $(#[$meta: meta])* ]
 
-    into_tuple_attrs[ $(#[$into_tuple_attrs:meta])* ]
+    into_tuple_attrs[ $(#[$into_tuple_attrs: meta])* ]
 
-    $tconstr:ident[$( $tparam:ident ),* $(,)? ]
+    $tconstr: ident[$( $tparam: ident ),* $(,)? ]
 ) => (
     $(#[$meta])*
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, StableAbi)]
