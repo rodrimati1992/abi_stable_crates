@@ -1,6 +1,4 @@
-/*!
-Types used to represent values at compile-time,eg:True/False.
-*/
+//! Types used to represent values at compile-time, eg: True/False.
 
 /**
 Type-level booleans.
