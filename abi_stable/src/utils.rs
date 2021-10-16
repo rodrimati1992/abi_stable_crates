@@ -49,7 +49,7 @@ pub fn ffi_panic_message(info:&'static PanicInfo) -> ! {
 
 /// Coverts a `&T` to a `NonNull<T>`. 
 /// 
-/// # Eaxmple
+/// # Example
 /// 
 /// ```rust
 /// use abi_stable::utils::ref_as_nonnull;
