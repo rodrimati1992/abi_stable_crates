@@ -16,7 +16,7 @@ use std::{
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use core_extensions::{SelfOps, SliceExt};
+use core_extensions::SelfOps;
 
 use crate::{
     sabi_types::Constructor,
@@ -249,8 +249,21 @@ impl<T> RVec<T> {
     /// ```
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    pub fn slice<'a, I: SliceIndex<[T]>>(&'a self, range: I) -> RSlice<'a, T> {
-        (&self[range]).into()
+    pub fn slice<'a, R>(&'a self, range: R) -> RSlice<'a, T>
+    where
+        R: RangeBounds<usize>
+    {
+        let slice_start = match range.start_bound() {
+            Bound::Unbounded => 0,
+            Bound::Included(&n) => n,
+            Bound::Excluded(&n) => n.saturating_add(1),
+        };
+        let slice_end = match range.end_bound() {
+            Bound::Unbounded => self.length,
+            Bound::Included(&n) => n.saturating_add(1),
+            Bound::Excluded(&n) => n,
+        };
+        (&self[slice_start..slice_end]).into()
     }
 
     /// Creates an `RSliceMut<'a,T>` with access to the `range` range of 
@@ -275,7 +288,17 @@ impl<T> RVec<T> {
     where
         R: RangeBounds<usize>
     {
-        (&mut self[range]).into()
+        let slice_start = match range.start_bound() {
+            Bound::Unbounded => 0,
+            Bound::Included(&n) => n,
+            Bound::Excluded(&n) => n.saturating_add(1),
+        };
+        let slice_end = match range.end_bound() {
+            Bound::Unbounded => self.length,
+            Bound::Included(&n) => n.saturating_add(1),
+            Bound::Excluded(&n) => n,
+        };
+        (&mut self[slice_start..slice_end]).into()
     }
 
     /// Creates a `&[T]` with access to all the elements of the `RVec<T>`.
@@ -1290,14 +1313,14 @@ impl<T, I: SliceIndex<[T]>> Index<I> for RVec<T> {
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
-        self.get(index).expect("Index out of bounds")
+        Index::index(&**self, index)
     }
 }
 
 impl<T, I: SliceIndex<[T]>> IndexMut<I> for RVec<T> {
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        self.get_mut(index).expect("Index out of bounds")
+        IndexMut::index_mut(&mut **self, index)
     }
 }
 
@@ -1420,5 +1443,51 @@ extern "C" fn shrink_to_fit_vec<T>(this: &mut RVec<T>) {
                 list.shrink_to_fit();
             })
         }
+    }
+}
+
+#[cfg(all(test,not(feature="only_new_tests")))]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_index() {
+        let s = rvec![1, 2, 3, 4, 5];
+        assert_eq!(s.index(0), &1);
+        assert_eq!(s.index(4), &5);
+        assert_eq!(s.index(..2), rvec![1, 2, 3]);
+        assert_eq!(s.index(1..2), rvec![2, 3]);
+        assert_eq!(s.index(3..), rvec![4, 5]);
+    }
+
+    #[test]
+    fn test_index_mut() {
+        let mut s = rvec![1, 2, 3, 4, 5];
+
+        assert_eq!(s.index_mut(0), &mut 1);
+        assert_eq!(s.index_mut(4), &mut 5);
+        assert_eq!(s.index_mut(..2), &mut rvec![1, 2, 3]);
+        assert_eq!(s.index_mut(1..2), &mut rvec![2, 3]);
+        assert_eq!(s.index_mut(3..), &mut rvec![4, 5]);
+    }
+
+    #[test]
+    fn test_slice() {
+        let s = rvec![1, 2, 3, 4, 5];
+
+        assert_eq!(s.slice(..), rslice![1, 2, 3, 4, 5]);
+        assert_eq!(s.slice(..2), rslice![1, 2, 3]);
+        assert_eq!(s.slice(1..2), rslice![2, 3]);
+        assert_eq!(s.slice(3..), rslice![4, 5]);
+    }
+
+    #[test]
+    fn test_slice_mut() {
+        let mut s = rvec![1, 2, 3, 4, 5];
+
+        assert_eq!(s.slice_mut(..), RSliceMut::from_mut_slice(&mut [1, 2, 3, 4, 5]));
+        assert_eq!(s.slice_mut(..2), RSliceMut::from_mut_slice(&mut [1, 2, 3]));
+        assert_eq!(s.slice_mut(1..2), RSliceMut::from_mut_slice(&mut [2, 3]));
+        assert_eq!(s.slice_mut(3..), RSliceMut::from_mut_slice(&mut [4, 5]));
     }
 }
