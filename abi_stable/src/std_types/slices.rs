@@ -531,8 +531,8 @@ mod test {
 
         assert_eq!(s.index(0), &1);
         assert_eq!(s.index(4), &5);
-        assert_eq!(s.index(..2), rslice![1, 2, 3]);
-        assert_eq!(s.index(1..2), rslice![2, 3]);
+        assert_eq!(s.index(..2), rslice![1, 2]);
+        assert_eq!(s.index(1..2), rslice![2]);
         assert_eq!(s.index(3..), rslice![4, 5]);
     }
 }
