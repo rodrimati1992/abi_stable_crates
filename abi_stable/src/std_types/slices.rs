@@ -6,7 +6,8 @@ use std::{
     borrow::Borrow,
     io::{self, BufRead, Read},
     marker::PhantomData,
-    ops::{Deref, Index},
+    ops::{Deref, Index, IndexMut},
+    slice::SliceIndex
 };
 
 #[allow(unused_imports)]
@@ -364,6 +365,22 @@ impl<'a, T> IntoIterator for RSlice<'a, T> {
 
     fn into_iter(self) -> ::std::slice::Iter<'a, T> {
         self.as_slice().iter()
+    }
+}
+
+impl<'a, T, I: SliceIndex<[T]>> Index<I> for RSlice<'a, T> {
+    type Output = I::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        self.get(index).expect("Index out of bounds")
+    }
+}
+
+impl<'a, T, I: SliceIndex<[T]>> IndexMut<I> for RSlice<'a, T> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        self.get_mut(index).expect("Index out of bounds")
     }
 }
 

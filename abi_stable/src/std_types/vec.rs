@@ -6,10 +6,11 @@ use std::{
     borrow::{Cow,Borrow,BorrowMut},
     cmp::Ordering,
     io,
+    slice::SliceIndex,
     iter::FromIterator,
     marker::PhantomData,
     mem::{self, ManuallyDrop},
-    ops::{Deref, DerefMut, Index, IndexMut},
+    ops::{Deref, DerefMut, Index, IndexMut, RangeBounds, Bound},
     ptr,
 };
 
@@ -248,10 +249,7 @@ impl<T> RVec<T> {
     /// ```
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    pub fn slice<'a, I>(&'a self, range: I) -> RSlice<'a, T>
-    where
-        [T]: Index<I, Output = [T]>,
-    {
+    pub fn slice<'a, I: SliceIndex<[T]>>(&'a self, range: I) -> RSlice<'a, T> {
         (&self[range]).into()
     }
 
@@ -273,11 +271,11 @@ impl<T> RVec<T> {
     /// ```
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    pub fn slice_mut<'a, I>(&'a mut self, i: I) -> RSliceMut<'a, T>
+    pub fn slice_mut<'a, R>(&'a mut self, range: R) -> RSliceMut<'a, T>
     where
-        [T]: IndexMut<I, Output = [T]>,
+        R: RangeBounds<usize>
     {
-        (&mut self[i]).into()
+        (&mut self[range]).into()
     }
 
     /// Creates a `&[T]` with access to all the elements of the `RVec<T>`.
@@ -1192,17 +1190,25 @@ use abi_stable::std_types::{RSlice,RVec};
 
 
     */
-    pub fn drain<I>(&mut self, index: I) -> Drain<'_, T>
+    pub fn drain<R>(&mut self, range: R) -> Drain<'_, T>
     where
-        [T]: IndexMut<I, Output = [T]>,
+        R: RangeBounds<usize>
     {
         unsafe {
-            let slice = &self[index];
-            let slice_len = slice.len();
-            let slic_start = self.offset_of_slice(slice);
+            let slice_start = match range.start_bound() {
+                Bound::Unbounded => 0,
+                Bound::Included(&n) => n,
+                Bound::Excluded(&n) => n.saturating_add(1),
+            };
+            let slice_end = match range.end_bound() {
+                Bound::Unbounded => self.length,
+                Bound::Included(&n) => n.saturating_add(1),
+                Bound::Excluded(&n) => n,
+            };
+            let slice_len = slice_end - slice_start;
 
             let allocation_start = self.buffer;
-            let removed_start = allocation_start.add(slic_start);
+            let removed_start = allocation_start.add(slice_start);
             let iter = RawValIter::new(removed_start, slice_len);
             let old_length = self.length;
             self.length = 0;
@@ -1276,6 +1282,22 @@ impl<T> Extend<T> for RVec<T> {
         for elem in iter {
             self.push(elem);
         }
+    }
+}
+
+impl<T, I: SliceIndex<[T]>> Index<I> for RVec<T> {
+    type Output = I::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        self.get(index).expect("Index out of bounds")
+    }
+}
+
+impl<T, I: SliceIndex<[T]>> IndexMut<I> for RVec<T> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        self.get_mut(index).expect("Index out of bounds")
     }
 }
 
