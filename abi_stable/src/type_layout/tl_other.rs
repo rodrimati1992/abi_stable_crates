@@ -198,6 +198,8 @@ pub enum TLPrimitive{
     I32,
     U64,
     I64,
+    F32,
+    F64,
     Usize,
     Isize,
     Bool,

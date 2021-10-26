@@ -1092,6 +1092,8 @@ impl_for_primitive_ints!{
     (i32  ,"i32"  ,TLPrimitive::I32),
     (u64  ,"u64"  ,TLPrimitive::U64),
     (i64  ,"i64"  ,TLPrimitive::I64),
+    (f32  ,"f32"  ,TLPrimitive::F32),
+    (f64  ,"f64"  ,TLPrimitive::F64),
     (usize,"usize",TLPrimitive::Usize),
     (isize,"isize",TLPrimitive::Isize),
     (bool ,"bool" ,TLPrimitive::Bool),
