@@ -1455,8 +1455,8 @@ mod test {
         let s = rvec![1, 2, 3, 4, 5];
         assert_eq!(s.index(0), &1);
         assert_eq!(s.index(4), &5);
-        assert_eq!(s.index(..2), rvec![1, 2, 3]);
-        assert_eq!(s.index(1..2), rvec![2, 3]);
+        assert_eq!(s.index(..2), rvec![1, 2]);
+        assert_eq!(s.index(1..2), rvec![2]);
         assert_eq!(s.index(3..), rvec![4, 5]);
     }
 
@@ -1466,8 +1466,8 @@ mod test {
 
         assert_eq!(s.index_mut(0), &mut 1);
         assert_eq!(s.index_mut(4), &mut 5);
-        assert_eq!(s.index_mut(..2), &mut rvec![1, 2, 3]);
-        assert_eq!(s.index_mut(1..2), &mut rvec![2, 3]);
+        assert_eq!(s.index_mut(..2), &mut rvec![1, 2]);
+        assert_eq!(s.index_mut(1..2), &mut rvec![2]);
         assert_eq!(s.index_mut(3..), &mut rvec![4, 5]);
     }
 
@@ -1476,8 +1476,8 @@ mod test {
         let s = rvec![1, 2, 3, 4, 5];
 
         assert_eq!(s.slice(..), rslice![1, 2, 3, 4, 5]);
-        assert_eq!(s.slice(..2), rslice![1, 2, 3]);
-        assert_eq!(s.slice(1..2), rslice![2, 3]);
+        assert_eq!(s.slice(..2), rslice![1, 2]);
+        assert_eq!(s.slice(1..2), rslice![2]);
         assert_eq!(s.slice(3..), rslice![4, 5]);
     }
 
@@ -1486,8 +1486,8 @@ mod test {
         let mut s = rvec![1, 2, 3, 4, 5];
 
         assert_eq!(s.slice_mut(..), RSliceMut::from_mut_slice(&mut [1, 2, 3, 4, 5]));
-        assert_eq!(s.slice_mut(..2), RSliceMut::from_mut_slice(&mut [1, 2, 3]));
-        assert_eq!(s.slice_mut(1..2), RSliceMut::from_mut_slice(&mut [2, 3]));
+        assert_eq!(s.slice_mut(..2), RSliceMut::from_mut_slice(&mut [1, 2]));
+        assert_eq!(s.slice_mut(1..2), RSliceMut::from_mut_slice(&mut [2]));
         assert_eq!(s.slice_mut(3..), RSliceMut::from_mut_slice(&mut [4, 5]));
     }
 }
