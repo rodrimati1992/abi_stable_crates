@@ -168,24 +168,21 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static {
         let statics = Self::root_module_statics();
         statics.root_mod.try_init(|| {
             let mut items_ = None;
-            statics.raw_lib.try_init(|| -> Result<_, LibraryError> {
+            let lib = statics.raw_lib.try_init(|| -> Result<_, LibraryError> {
                 let raw_library = load_raw_library::<Self>(where_)?;
-                let items = unsafe { lib_header_from_raw_library(&raw_library)? };
-
-                items.ensure_layout::<Self>()?;
-                items_ = Some(items);
 
                 // if the library isn't leaked
                 // it would cause any use of the module to be a use after free.
                 //
-                // By leaking the library after type checking,
-                // but before calling the root module loader,
+                // By leaking the library
                 // this allows the root module loader to do anything that'd prevent
                 // sound library unloading.
-                // Nothing that can be done about static initializers that prevent
-                // library unloading though <_<.
                 Ok(leak_value(raw_library))
             })?;
+            let items = unsafe { lib_header_from_raw_library(lib)? };
+
+            items.ensure_layout::<Self>()?;
+            items_ = Some(items);
 
             // safety: the layout was checked in the closure above,
             unsafe {

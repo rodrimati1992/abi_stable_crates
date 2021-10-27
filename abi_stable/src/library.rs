@@ -6,19 +6,19 @@
 //! When you use the [`RootModule`]`::load_from*` associated functions,
 //! the root module of a library is loaded in this order:
 //! 1. A [`RawLibrary`] is loaded
+//! (The library is leaked so that the root module loader can
+//! do anything incompatible with library unloading.)
 //! 2. An [`AbiHeaderRef`] handle to the static that contains the root module is obtained.
 //! 3. The [`AbiHeaderRef`] checks that the abi_stable version used by that library is
 //! compatible with the loader's, upgrading to a [`&'static LibHeader`] on success.
 //! 4. The [`LibHeader`] checks that the layout of the types in the root module
 //! (and everything it references) are compatible with the loader's
-//! 5. The library is leaked so that the root module loader can
-//! do anything incompatible with library unloading.
-//! 6. The [root module](./trait.RootModule.html)
+//! 5. The [root module](./trait.RootModule.html)
 //! is loaded using the function from the loaded library
 //! that was annotated with [`#[export_root_module]`](../attr.export_root_module.html).
-//! 7. [`RootModule::initialize`] is called on the root module.
+//! 6. [`RootModule::initialize`] is called on the root module.
 //!
-//! All steps (except for step 5) can return errors.
+//! All steps can return errors.
 //!
 //! [`RawLibrary`]: ./struct.RawLibrary.html
 //! [`AbiHeaderRef`]: ./struct.AbiHeaderRef.html
