@@ -13,91 +13,82 @@ use std::{
 
 use crate::{sabi_types::RMut, std_types::RBox, traits::IntoInner};
 
-/**
-A move pointer, which allows moving the value from the reference,
-consuming it in the process.
-
-If `MovePtr::into_inner` isn't called, this drops the referenced value when it's dropped
-
-# Safety
-
-This is unsafe to construct since the user must ensure that the
-original owner of the value never accesses it again.
-
-# Motivation
-
-`MovePtr` was created as a way to pass `self` by value to ffi-safe trait object methods,
-since one can't simply pass `self` by value(because the type is erased).
-
-# Examples
-
-### Using OwnedPointer::in_move_ptr
-
-This is how one can use MovePtr without `unsafe`.
-
-This simply moves the contents of an `RBox<T>` into a `Box<T>`.
-
-```
-use abi_stable::{
-    pointer_trait::OwnedPointer,
-    sabi_types::MovePtr,
-    std_types::RBox,
-};
-
-
-fn move_rbox_to_box<T>(rbox:RBox<T>)->Box<T>{
-    rbox.in_move_ptr(|move_ptr|{
-        MovePtr::into_box(move_ptr)
-    })
-}
-
-assert_eq!( move_rbox_to_box(RBox::new(99)), Box::new(99) );
-
-assert_eq!( move_rbox_to_box(RBox::new(())), Box::new(()) );
-
-assert_eq!(
-    move_rbox_to_box(RBox::new(String::from("SHIT"))),
-    Box::new(String::from("SHIT"))
-);
-
-
-```
-
-### Using the (unsafe) `MovePtr::new`
-
-This is (sort of) how `RBox<T>` implements moving the `T` it owns out of its allocation
-
-This is basically what `OwnedPointer::{with_move_ptr,in_move_ptr}` do.
-
-```
-use abi_stable::{
-    pointer_trait::{AsMutPtr, OwnedPointer},
-    sabi_types::MovePtr,
-    std_types::RBox,
-};
-
-use std::mem::ManuallyDrop;
-
-let rbox = RBox::new(0x100);
-
-let second_rbox;
-
-unsafe{
-    let mut rbox = ManuallyDrop::new(rbox);
-
-    let move_ptr = unsafe{ MovePtr::from_rmut(rbox.as_rmut()) };
-    second_rbox = RBox::from_move_ptr(move_ptr);
-
-    OwnedPointer::drop_allocation(&mut rbox);
-}
-
-assert_eq!(second_rbox, RBox::new(0x100));
-
-
-
-```
-
-*/
+/// A move pointer, which allows moving the value from the reference,
+/// consuming it in the process.
+///
+/// If `MovePtr::into_inner` isn't called, this drops the referenced value when it's dropped
+///
+/// # Safety
+///
+/// This is unsafe to construct since the user must ensure that the
+/// original owner of the value never accesses it again.
+///
+/// # Motivation
+///
+/// `MovePtr` was created as a way to pass `self` by value to ffi-safe trait object methods,
+/// since one can't simply pass `self` by value(because the type is erased).
+///
+/// # Examples
+///
+/// ### Using OwnedPointer::in_move_ptr
+///
+/// This is how one can use MovePtr without `unsafe`.
+///
+/// This simply moves the contents of an `RBox<T>` into a `Box<T>`.
+///
+/// ```
+/// use abi_stable::{
+///     pointer_trait::OwnedPointer, sabi_types::MovePtr, std_types::RBox,
+/// };
+///
+/// fn move_rbox_to_box<T>(rbox: RBox<T>) -> Box<T> {
+///     rbox.in_move_ptr(|move_ptr| MovePtr::into_box(move_ptr))
+/// }
+///
+/// assert_eq!(move_rbox_to_box(RBox::new(99)), Box::new(99));
+///
+/// assert_eq!(move_rbox_to_box(RBox::new(())), Box::new(()));
+///
+/// assert_eq!(
+///     move_rbox_to_box(RBox::new(String::from("SHIT"))),
+///     Box::new(String::from("SHIT"))
+/// );
+///
+///
+/// ```
+///
+/// ### Using the (unsafe) `MovePtr::new`
+///
+/// This is (sort of) how `RBox<T>` implements moving the `T` it owns out of its allocation
+///
+/// This is basically what `OwnedPointer::{with_move_ptr,in_move_ptr}` do.
+///
+/// ```
+/// use abi_stable::{
+///     pointer_trait::{AsMutPtr, OwnedPointer},
+///     sabi_types::MovePtr,
+///     std_types::RBox,
+/// };
+///
+/// use std::mem::ManuallyDrop;
+///
+/// let rbox = RBox::new(0x100);
+///
+/// let second_rbox;
+///
+/// unsafe {
+///     let mut rbox = ManuallyDrop::new(rbox);
+///
+///     let move_ptr = unsafe { MovePtr::from_rmut(rbox.as_rmut()) };
+///     second_rbox = RBox::from_move_ptr(move_ptr);
+///
+///     OwnedPointer::drop_allocation(&mut rbox);
+/// }
+///
+/// assert_eq!(second_rbox, RBox::new(0x100));
+///
+///
+/// ```
 #[repr(transparent)]
 #[derive(StableAbi)]
 #[sabi(bound = "T:'a")]
@@ -124,7 +115,7 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// let mut manual = ManuallyDrop::new(String::from("hello"));
     ///
-    /// let moveptr = unsafe{ MovePtr::new(&mut *manual) };
+    /// let moveptr = unsafe { MovePtr::new(&mut *manual) };
     ///
     /// drop(moveptr); // moveptr drops the String here.
     /// ```
@@ -148,19 +139,16 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// ```
     /// use abi_stable::{
-    ///     sabi_types::MovePtr,
-    ///     std_types::RString,
-    ///     pointer_trait::AsMutPtr,
+    ///     pointer_trait::AsMutPtr, sabi_types::MovePtr, std_types::RString,
     ///     utils::manuallydrop_as_rmut,
     /// };
     ///
     /// use std::mem::ManuallyDrop;
     ///
-    ///
     /// let mut mdrop = ManuallyDrop::new(RString::from("hello"));
     ///
     /// // safety: `mdrop` is never accessed again
-    /// let moveptr = unsafe{ MovePtr::from_rmut(manuallydrop_as_rmut(&mut mdrop)) };
+    /// let moveptr = unsafe { MovePtr::from_rmut(manuallydrop_as_rmut(&mut mdrop)) };
     /// assert_eq!(*moveptr, "hello");
     ///
     /// let string: RString = MovePtr::into_inner(moveptr);
@@ -191,20 +179,16 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// ```
     /// use abi_stable::{
-    ///     sabi_types::MovePtr,
-    ///     std_types::RVec,
-    ///     pointer_trait::AsMutPtr,
+    ///     pointer_trait::AsMutPtr, rvec, sabi_types::MovePtr, std_types::RVec,
     ///     utils::manuallydrop_as_raw_mut,
-    ///     rvec,
     /// };
     ///
     /// use std::mem::ManuallyDrop;
     ///
-    ///
     /// let mut mdrop = ManuallyDrop::new(rvec![3, 5, 8]);
     ///
     /// // safety: `mdrop` is never accessed again
-    /// let moveptr = unsafe{ MovePtr::from_raw(manuallydrop_as_raw_mut(&mut mdrop)) };
+    /// let moveptr = unsafe { MovePtr::from_raw(manuallydrop_as_raw_mut(&mut mdrop)) };
     /// assert_eq!(moveptr[..], [3, 5, 8]);
     ///
     /// let vector: RVec<u8> = MovePtr::into_inner(moveptr);
@@ -224,16 +208,14 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// ```
     /// use abi_stable::{
-    ///     pointer_trait::OwnedPointer,
-    ///     sabi_types::MovePtr,
-    ///     std_types::RBox,
+    ///     pointer_trait::OwnedPointer, sabi_types::MovePtr, std_types::RBox,
     /// };
     ///
-    /// let rbox=RBox::new(String::from("NOPE"));
-    /// let address_rbox=&*rbox as *const String as usize;
+    /// let rbox = RBox::new(String::from("NOPE"));
+    /// let address_rbox = &*rbox as *const String as usize;
     ///
-    /// rbox.in_move_ptr(|move_ptr|{
-    ///     assert_eq!( address_rbox, MovePtr::as_ptr(&move_ptr) as usize );
+    /// rbox.in_move_ptr(|move_ptr| {
+    ///     assert_eq!(address_rbox, MovePtr::as_ptr(&move_ptr) as usize);
     /// });
     ///
     /// ```
@@ -250,16 +232,14 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// ```
     /// use abi_stable::{
-    ///     pointer_trait::OwnedPointer,
-    ///     sabi_types::MovePtr,
-    ///     std_types::RBox,
+    ///     pointer_trait::OwnedPointer, sabi_types::MovePtr, std_types::RBox,
     /// };
     ///
-    /// let rbox=RBox::new(String::from("NOPE"));
-    /// let address_rbox=&*rbox as *const String as usize;
+    /// let rbox = RBox::new(String::from("NOPE"));
+    /// let address_rbox = &*rbox as *const String as usize;
     ///
-    /// rbox.in_move_ptr(|mut move_ptr|{
-    ///     assert_eq!( address_rbox, MovePtr::as_mut_ptr(&mut move_ptr) as usize );
+    /// rbox.in_move_ptr(|mut move_ptr| {
+    ///     assert_eq!(address_rbox, MovePtr::as_mut_ptr(&mut move_ptr) as usize);
     /// });
     ///
     /// ```
@@ -276,18 +256,15 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// ```
     /// use abi_stable::{
-    ///     pointer_trait::OwnedPointer,
-    ///     sabi_types::MovePtr,
-    ///     std_types::RBox,
+    ///     pointer_trait::OwnedPointer, sabi_types::MovePtr, std_types::RBox,
     /// };
     ///
-    /// let rbox=RBox::new(String::from("NOPE"));
+    /// let rbox = RBox::new(String::from("NOPE"));
     ///
-    /// let string=rbox.in_move_ptr(|move_ptr|unsafe{
-    ///     MovePtr::into_raw(move_ptr).read()
-    /// });
+    /// let string =
+    ///     rbox.in_move_ptr(|move_ptr| unsafe { MovePtr::into_raw(move_ptr).read() });
     ///
-    /// assert_eq!(string,String::from("NOPE"));
+    /// assert_eq!(string, String::from("NOPE"));
     ///
     /// ```
     #[inline]
@@ -303,18 +280,14 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// ```
     /// use abi_stable::{
-    ///     pointer_trait::OwnedPointer,
-    ///     sabi_types::MovePtr,
-    ///     std_types::RBox,
+    ///     pointer_trait::OwnedPointer, sabi_types::MovePtr, std_types::RBox,
     /// };
     ///
-    /// let rbox=RBox::new(String::from("WHAT!!!"));
+    /// let rbox = RBox::new(String::from("WHAT!!!"));
     ///
-    /// let boxed=rbox.in_move_ptr(|move_ptr|unsafe{
-    ///     MovePtr::into_box(move_ptr)
-    /// });
+    /// let boxed = rbox.in_move_ptr(|move_ptr| unsafe { MovePtr::into_box(move_ptr) });
     ///
-    /// assert_eq!(boxed,Box::new(String::from("WHAT!!!")));
+    /// assert_eq!(boxed, Box::new(String::from("WHAT!!!")));
     ///
     /// ```
     #[inline]
@@ -340,18 +313,14 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// ```
     /// use abi_stable::{
-    ///     pointer_trait::OwnedPointer,
-    ///     sabi_types::MovePtr,
-    ///     std_types::RBox,
+    ///     pointer_trait::OwnedPointer, sabi_types::MovePtr, std_types::RBox,
     /// };
     ///
-    /// let rbox=RBox::new(String::from("WHAT!!!"));
+    /// let rbox = RBox::new(String::from("WHAT!!!"));
     ///
-    /// let boxed=rbox.in_move_ptr(|move_ptr|unsafe{
-    ///     MovePtr::into_rbox(move_ptr)
-    /// });
+    /// let boxed = rbox.in_move_ptr(|move_ptr| unsafe { MovePtr::into_rbox(move_ptr) });
     ///
-    /// assert_eq!( boxed, RBox::new(String::from("WHAT!!!")) );
+    /// assert_eq!(boxed, RBox::new(String::from("WHAT!!!")));
     ///
     /// ```
     #[inline]
@@ -365,16 +334,14 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// ```
     /// use abi_stable::{
-    ///     pointer_trait::OwnedPointer,
-    ///     sabi_types::MovePtr,
-    ///     std_types::RBox,
+    ///     pointer_trait::OwnedPointer, sabi_types::MovePtr, std_types::RBox,
     /// };
     ///
-    /// let rbox=RBox::new(String::from("(The Wi)zard(of)oz"));
+    /// let rbox = RBox::new(String::from("(The Wi)zard(of)oz"));
     ///
-    /// let string=rbox.in_move_ptr(|ptr| MovePtr::into_inner(ptr) );
+    /// let string = rbox.in_move_ptr(|ptr| MovePtr::into_inner(ptr));
     ///
-    /// assert_eq!( string, String::from("(The Wi)zard(of)oz") );
+    /// assert_eq!(string, String::from("(The Wi)zard(of)oz"));
     ///
     /// ```
     #[inline]
@@ -403,7 +370,7 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// let rbox = RBox::new(RString::from("hello"));
     ///
-    /// let bytes = rbox.in_move_ptr(|ptr| unsafe{
+    /// let bytes = rbox.in_move_ptr(|ptr| unsafe {
     ///     MovePtr::into_inner(MovePtr::transmute::<RVec<u8>>(ptr))
     /// });
     ///
