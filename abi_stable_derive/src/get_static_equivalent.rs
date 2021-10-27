@@ -31,6 +31,7 @@ pub(crate) fn derive(data: DeriveInput) -> Result<TokenStream2, syn::Error> {
         #gse_equiv_impl
     );
 
+    #[allow(clippy::if_then_panic)]
     if config.debug_print {
         panic!("\n\n\n{}\n\n\n", ret);
     }

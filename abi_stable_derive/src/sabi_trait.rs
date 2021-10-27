@@ -159,6 +159,7 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2, syn::Error> {
         }
     )
     .observe(|tokens| {
+        #[allow(clippy::if_then_panic)]
         // drop(_measure_time1);
         if config.debug_print_trait {
             panic!("\n\n\n{}\n\n\n", token_stream_to_string(tokens.clone()));

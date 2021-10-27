@@ -207,10 +207,12 @@ impl<'a> NonExhaustive<'a> {
             });
 
             for &trait_ in &enum_interface.unimpld {
-                if trait_map.remove(trait_).is_none() {
-                    // This is an internal error.
-                    panic!("Trait {} was not in TRAIT_LIST.", trait_);
-                }
+                // This is an internal error.
+                assert!(
+                    trait_map.remove(trait_).is_some(),
+                    "Trait {} was not in TRAIT_LIST.",
+                    trait_
+                );
             }
 
             for (trait_, _) in trait_map {
@@ -343,7 +345,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
         let name = ds.name;
 
-        let generics_header = GenParamsIn::new(&ds.generics, InWhat::ImplHeader);
+        let generics_header = GenParamsIn::new(ds.generics, InWhat::ImplHeader);
 
         let mut type_generics_decl = GenParamsIn::new(ds.generics, InWhat::ImplHeader);
         type_generics_decl.set_no_bounds();
@@ -606,9 +608,9 @@ pub(crate) fn tokenize_enum_info<'a>(
         }
 
         let generics_header =
-            GenParamsIn::with_after_types(&ds.generics, InWhat::ImplHeader, &ct.und_storage);
+            GenParamsIn::with_after_types(ds.generics, InWhat::ImplHeader, &ct.und_storage);
 
-        let generics_use = GenParamsIn::new(&ds.generics, InWhat::ImplHeader);
+        let generics_use = GenParamsIn::new(ds.generics, InWhat::ImplHeader);
 
         let default_interface = &this.default_interface;
 

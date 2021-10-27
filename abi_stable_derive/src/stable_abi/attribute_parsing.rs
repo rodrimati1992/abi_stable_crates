@@ -589,16 +589,16 @@ fn parse_sabi_attr<'a>(
                 let renamed = value.parse::<Ident>()?.piped(|x| arenas.alloc(x));
                 this.renamed_fields.insert(field, Some(renamed));
             } else if ident == "unsafe_change_type" {
-                let changed_type = parse_lit_as_type(&value)?.piped(|x| arenas.alloc(x));
+                let changed_type = parse_lit_as_type(value)?.piped(|x| arenas.alloc(x));
                 this.changed_types.insert(field, Some(changed_type));
             } else if ident == "accessible_if" {
-                let expr = arenas.alloc(parse_lit_as_expr(&value)?);
+                let expr = arenas.alloc(parse_lit_as_expr(value)?);
                 this.prefix_kind_fields[field].accessible_if = Some(expr);
             } else if ident == "accessor_bound" {
-                let bound = parse_lit_as_type_bounds(&value)?;
+                let bound = parse_lit_as_type_bounds(value)?;
                 this.accessor_bounds[field].extend(bound);
             } else if ident == "bound" {
-                let bounds = parse_lit_as_type_bounds(&value)?;
+                let bounds = parse_lit_as_type_bounds(value)?;
                 let preds = where_predicate_from(field.ty.clone(), bounds);
                 this.extra_bounds.push(preds);
             } else {

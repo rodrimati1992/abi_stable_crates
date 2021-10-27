@@ -16,7 +16,7 @@ use proc_macro2::Span;
 //use crate::utils::SynResultExt;
 
 pub(crate) fn parse_str_as_ident(lit: &str) -> syn::Ident {
-    syn::Ident::new(&lit, Span::call_site())
+    syn::Ident::new(lit, Span::call_site())
 }
 
 pub(crate) fn parse_str_as_path(lit: &str) -> Result<syn::Path, syn::Error> {
