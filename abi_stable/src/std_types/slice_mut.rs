@@ -7,6 +7,7 @@ use std::{
     io::{self, Write},
     marker::PhantomData,
     mem,
+    slice::SliceIndex,
     ops::{Deref, DerefMut, Index, IndexMut},
 };
 
@@ -550,6 +551,22 @@ impl<'a,T:'a> AsMut<[T]> for RSliceMut<'a,T>{
     }
 }
 
+impl<'a, T, I: SliceIndex<[T]>> Index<I> for RSliceMut<'a, T> {
+    type Output = I::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        Index::index(&**self, index)
+    }
+}
+
+impl<'a, T, I: SliceIndex<[T]>> IndexMut<I> for RSliceMut<'a, T> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        IndexMut::index_mut(&mut **self, index)
+    }
+}
+
 
 ////////////////////////////
 impl<'a, T> Serialize for RSliceMut<'a, T>
@@ -618,5 +635,29 @@ mod test {
         assert_eq!(&*a, &mut *b);
         assert_eq!(a_addr, b.data());
         assert_eq!(a.len(), b.len());
+    }
+
+    #[test]
+    fn test_index() {
+        let mut v = vec![1, 2, 3, 4, 5];
+        let s = RSliceMut::from_mut_slice(&mut v[..]);
+
+        assert_eq!(s.index(0), &1);
+        assert_eq!(s.index(4), &5);
+        assert_eq!(s.index(..2), &mut [1, 2]);
+        assert_eq!(s.index(1..2), &mut [2]);
+        assert_eq!(s.index(3..), &mut [4, 5]);
+    }
+
+    #[test]
+    fn test_index_mut() {
+        let mut v = vec![1, 2, 3, 4, 5];
+        let mut s = RSliceMut::from_mut_slice(&mut v[..]);
+
+        assert_eq!(s.index_mut(0), &mut 1);
+        assert_eq!(s.index_mut(4), &mut 5);
+        assert_eq!(s.index_mut(..2), &mut [1, 2]);
+        assert_eq!(s.index_mut(1..2),&mut [2]);
+        assert_eq!(s.index_mut(3..), &mut [4, 5]);
     }
 }

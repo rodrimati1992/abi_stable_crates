@@ -6,16 +6,17 @@ use std::{
     borrow::{Cow,Borrow,BorrowMut},
     cmp::Ordering,
     io,
+    slice::SliceIndex,
     iter::FromIterator,
     marker::PhantomData,
     mem::{self, ManuallyDrop},
-    ops::{Deref, DerefMut, Index, IndexMut},
+    ops::{Deref, DerefMut, Index, IndexMut, RangeBounds, Bound},
     ptr,
 };
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use core_extensions::{SelfOps, SliceExt};
+use core_extensions::SelfOps;
 
 use crate::{
     sabi_types::Constructor,
@@ -248,11 +249,21 @@ impl<T> RVec<T> {
     /// ```
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    pub fn slice<'a, I>(&'a self, range: I) -> RSlice<'a, T>
+    pub fn slice<'a, R>(&'a self, range: R) -> RSlice<'a, T>
     where
-        [T]: Index<I, Output = [T]>,
+        R: RangeBounds<usize>
     {
-        (&self[range]).into()
+        let slice_start = match range.start_bound() {
+            Bound::Unbounded => 0,
+            Bound::Included(&n) => n,
+            Bound::Excluded(&n) => n.saturating_add(1),
+        };
+        let slice_end = match range.end_bound() {
+            Bound::Unbounded => self.length,
+            Bound::Included(&n) => n.saturating_add(1),
+            Bound::Excluded(&n) => n,
+        };
+        (&self[slice_start..slice_end]).into()
     }
 
     /// Creates an `RSliceMut<'a,T>` with access to the `range` range of 
@@ -273,11 +284,21 @@ impl<T> RVec<T> {
     /// ```
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    pub fn slice_mut<'a, I>(&'a mut self, i: I) -> RSliceMut<'a, T>
+    pub fn slice_mut<'a, R>(&'a mut self, range: R) -> RSliceMut<'a, T>
     where
-        [T]: IndexMut<I, Output = [T]>,
+        R: RangeBounds<usize>
     {
-        (&mut self[i]).into()
+        let slice_start = match range.start_bound() {
+            Bound::Unbounded => 0,
+            Bound::Included(&n) => n,
+            Bound::Excluded(&n) => n.saturating_add(1),
+        };
+        let slice_end = match range.end_bound() {
+            Bound::Unbounded => self.length,
+            Bound::Included(&n) => n.saturating_add(1),
+            Bound::Excluded(&n) => n,
+        };
+        (&mut self[slice_start..slice_end]).into()
     }
 
     /// Creates a `&[T]` with access to all the elements of the `RVec<T>`.
@@ -1192,17 +1213,25 @@ use abi_stable::std_types::{RSlice,RVec};
 
 
     */
-    pub fn drain<I>(&mut self, index: I) -> Drain<'_, T>
+    pub fn drain<R>(&mut self, range: R) -> Drain<'_, T>
     where
-        [T]: IndexMut<I, Output = [T]>,
+        R: RangeBounds<usize>
     {
         unsafe {
-            let slice = &self[index];
-            let slice_len = slice.len();
-            let slic_start = self.offset_of_slice(slice);
+            let slice_start = match range.start_bound() {
+                Bound::Unbounded => 0,
+                Bound::Included(&n) => n,
+                Bound::Excluded(&n) => n.saturating_add(1),
+            };
+            let slice_end = match range.end_bound() {
+                Bound::Unbounded => self.length,
+                Bound::Included(&n) => n.saturating_add(1),
+                Bound::Excluded(&n) => n,
+            };
+            let slice_len = slice_end - slice_start;
 
             let allocation_start = self.buffer;
-            let removed_start = allocation_start.add(slic_start);
+            let removed_start = allocation_start.add(slice_start);
             let iter = RawValIter::new(removed_start, slice_len);
             let old_length = self.length;
             self.length = 0;
@@ -1276,6 +1305,22 @@ impl<T> Extend<T> for RVec<T> {
         for elem in iter {
             self.push(elem);
         }
+    }
+}
+
+impl<T, I: SliceIndex<[T]>> Index<I> for RVec<T> {
+    type Output = I::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        Index::index(&**self, index)
+    }
+}
+
+impl<T, I: SliceIndex<[T]>> IndexMut<I> for RVec<T> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        IndexMut::index_mut(&mut **self, index)
     }
 }
 
@@ -1398,5 +1443,51 @@ extern "C" fn shrink_to_fit_vec<T>(this: &mut RVec<T>) {
                 list.shrink_to_fit();
             })
         }
+    }
+}
+
+#[cfg(all(test,not(feature="only_new_tests")))]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_index() {
+        let s = rvec![1, 2, 3, 4, 5];
+        assert_eq!(s.index(0), &1);
+        assert_eq!(s.index(4), &5);
+        assert_eq!(s.index(..2), rvec![1, 2]);
+        assert_eq!(s.index(1..2), rvec![2]);
+        assert_eq!(s.index(3..), rvec![4, 5]);
+    }
+
+    #[test]
+    fn test_index_mut() {
+        let mut s = rvec![1, 2, 3, 4, 5];
+
+        assert_eq!(s.index_mut(0), &mut 1);
+        assert_eq!(s.index_mut(4), &mut 5);
+        assert_eq!(s.index_mut(..2), &mut rvec![1, 2]);
+        assert_eq!(s.index_mut(1..2), &mut rvec![2]);
+        assert_eq!(s.index_mut(3..), &mut rvec![4, 5]);
+    }
+
+    #[test]
+    fn test_slice() {
+        let s = rvec![1, 2, 3, 4, 5];
+
+        assert_eq!(s.slice(..), rslice![1, 2, 3, 4, 5]);
+        assert_eq!(s.slice(..2), rslice![1, 2]);
+        assert_eq!(s.slice(1..2), rslice![2]);
+        assert_eq!(s.slice(3..), rslice![4, 5]);
+    }
+
+    #[test]
+    fn test_slice_mut() {
+        let mut s = rvec![1, 2, 3, 4, 5];
+
+        assert_eq!(s.slice_mut(..), RSliceMut::from_mut_slice(&mut [1, 2, 3, 4, 5]));
+        assert_eq!(s.slice_mut(..2), RSliceMut::from_mut_slice(&mut [1, 2]));
+        assert_eq!(s.slice_mut(1..2), RSliceMut::from_mut_slice(&mut [2]));
+        assert_eq!(s.slice_mut(3..), RSliceMut::from_mut_slice(&mut [4, 5]));
     }
 }
