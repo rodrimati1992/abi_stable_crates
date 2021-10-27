@@ -17,27 +17,22 @@ use crate::{
     InterfaceType,
 };
 
-/**
-Gets the type whose type layout is used to represent this enum in `NonExhaustive<>`.
-
-# Safety
-
-`Self::NonExhaustive` must describe the layout of this enum,
-with the size and alignment of `Storage`.
-*/
+/// Gets the type whose type layout is used to represent this enum in `NonExhaustive<>`.
+///
+/// # Safety
+///
+/// `Self::NonExhaustive` must describe the layout of this enum,
+/// with the size and alignment of `Storage`.
 pub unsafe trait GetNonExhaustive<Storage>: GetEnumInfo {
     /// The type whose type layout is used to represent this enum.
     type NonExhaustive;
 }
 
-/**
-Describes the discriminant of an enum,and its valid values.
-
-# Safety
-
-This must be an enum with a `#[repr(C)]` or `#[repr(SomeInteFgerType)]` attribute.
-
-*/
+/// Describes the discriminant of an enum,and its valid values.
+///
+/// # Safety
+///
+/// This must be an enum with a `#[repr(C)]` or `#[repr(SomeInteFgerType)]` attribute.
 pub unsafe trait GetEnumInfo: Sized {
     /// The type of the discriminant.
     type Discriminant: ValidDiscriminant;
@@ -163,14 +158,12 @@ impl_valid_discriminant! {u8,i8,u16,i16,u32,i32,u64,i64,usize,isize}
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-Describes how some enum is serialized.
-
-This is generally implemented by the interface of an enum
-(`Enum_Interface` for `Enum`),which also implements [`InterfaceType`]).
-
-[`InterfaceType`]: ../trait.InterfaceType.html
-*/
+/// Describes how some enum is serialized.
+///
+/// This is generally implemented by the interface of an enum
+/// (`Enum_Interface` for `Enum`),which also implements [`InterfaceType`]).
+///
+/// [`InterfaceType`]: ../trait.InterfaceType.html
 pub trait SerializeEnum<NE> {
     /// The intermediate type the `NE` is converted into,to serialize it.
     type Proxy;
@@ -214,18 +207,16 @@ where
 
 ///////////////////////////////////////
 
-/**
-Describes how a nonexhaustive enum is deserialized.
-
-Generally this delegates to a library function,
-so that the implementation can be delegated
-to the `implementation crate`.
-
-This is generally implemented by the interface of an enum
-(`Enum_Interface` for `Enum`),which also implements [`InterfaceType`]).
-
-[`InterfaceType`]: ../trait.InterfaceType.html
-*/
+/// Describes how a nonexhaustive enum is deserialized.
+///
+/// Generally this delegates to a library function,
+/// so that the implementation can be delegated
+/// to the `implementation crate`.
+///
+/// This is generally implemented by the interface of an enum
+/// (`Enum_Interface` for `Enum`),which also implements [`InterfaceType`]).
+///
+/// [`InterfaceType`]: ../trait.InterfaceType.html
 pub trait DeserializeEnum<'borr, NE> {
     /// The intermediate type the `NE` is converted from,to deserialize it.
     type Proxy;

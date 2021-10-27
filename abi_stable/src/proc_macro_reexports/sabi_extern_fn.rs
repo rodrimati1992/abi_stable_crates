@@ -29,7 +29,7 @@ catch panics and handle them appropriately.
 use abi_stable::{sabi_extern_fn, std_types::RArc, traits::IntoReprC};
 
 #[sabi_extern_fn]
-pub(crate) fn hello() -> RArc<u32>{
+pub(crate) fn hello() -> RArc<u32> {
     RArc::new(100)
 }
 
@@ -41,23 +41,23 @@ assert_eq!(hello(), RArc::new(100));
 ```rust
 use abi_stable::{
     sabi_extern_fn,
-    std_types::{RVec, RStr},
+    std_types::{RStr, RVec},
     traits::IntoReprC,
 };
 
 #[sabi_extern_fn]
-fn collect_into_lines(text: &str) -> RVec<RStr<'_>>{
+fn collect_into_lines(text: &str) -> RVec<RStr<'_>> {
     text.lines()
-        .filter(|x| !x.is_empty() )
+        .filter(|x| !x.is_empty())
         .map(RStr::from)
         .collect()
 }
 
-
 assert_eq!(
     collect_into_lines("what\nis\nthat"),
-    vec![ "what".into_c() , "is".into() , "that".into() ].into_c(),
+    vec!["what".into_c(), "is".into(), "that".into()].into_c(),
 );
+
 
 
 ```
@@ -78,22 +78,16 @@ early return, it will (incorrectly) abort the process when it attempts to return
 ```rust
 use abi_stable::{
     sabi_extern_fn,
-    std_types::{RVec, RStr},
+    std_types::{RStr, RVec},
     traits::IntoReprC,
 };
 
 #[sabi_extern_fn(no_early_return)]
-pub(crate) fn hello() -> RVec<RStr<'static>>{
-    vec![
-        "hello".into(),
-        "world".into(),
-    ].into()
+pub(crate) fn hello() -> RVec<RStr<'static>> {
+    vec!["hello".into(), "world".into()].into()
 }
 
-assert_eq!(
-    hello(),
-    vec![ "hello".into_c() , "world".into() ].into_c(),
-);
+assert_eq!(hello(), vec!["hello".into_c(), "world".into()].into_c(),);
 
 
 

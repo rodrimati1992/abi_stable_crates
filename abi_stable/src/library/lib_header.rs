@@ -101,43 +101,41 @@ impl LibHeader {
         Ok(())
     }
 
-    /**
-    Checks that the library is compatible,returning the root module on success.
-
-    It checks that these are compatible:
-
-    - The version number of the library
-
-    - The layout of the root module.
-
-    # Warning
-
-    If this function is called within a dynamic library,
-    it must be called at or after the function that exports its root module is called.
-
-    **DO NOT** call this in the static initializer of a dynamic library,
-    since this library relies on setting up its global state before
-    calling the root module loader.
-
-    # Errors
-
-    This returns these errors:
-
-    - `LibraryError::ParseVersionError`:
-    If the version strings in the library can't be parsed as version numbers,
-    this can only happen if the version strings are manually constructed.
-
-    - `LibraryError::IncompatibleVersionNumber`:
-    If the version number of the library is incompatible.
-
-    - `LibraryError::AbiInstability`:
-    If the layout of the root module is not the expected one.
-
-    - `LibraryError::RootModule` :
-    If the root module initializer returned an error or panicked.
-
-
-        */
+    /// Checks that the library is compatible, returning the root module on success.
+    ///
+    /// It checks that these are compatible:
+    ///
+    /// - The version number of the library
+    ///
+    /// - The layout of the root module.
+    ///
+    /// # Warning
+    ///
+    /// If this function is called within a dynamic library,
+    /// it must be called at or after the function that exports its root module is called.
+    ///
+    /// **DO NOT** call this in the static initializer of a dynamic library,
+    /// since this library relies on setting up its global state before
+    /// calling the root module loader.
+    ///
+    /// # Errors
+    ///
+    /// This returns these errors:
+    ///
+    /// - `LibraryError::ParseVersionError`:
+    /// If the version strings in the library can't be parsed as version numbers,
+    /// this can only happen if the version strings are manually constructed.
+    ///
+    /// - `LibraryError::IncompatibleVersionNumber`:
+    /// If the version number of the library is incompatible.
+    ///
+    /// - `LibraryError::AbiInstability`:
+    /// If the layout of the root module is not the expected one.
+    ///
+    /// - `LibraryError::RootModule` :
+    /// If the root module initializer returned an error or panicked.
+    ///
+    ///
     pub fn init_root_module<M>(&self) -> Result<M, LibraryError>
     where
         M: RootModule,
@@ -146,42 +144,40 @@ impl LibHeader {
         self.check_layout::<M>()
     }
 
-    /**
-    Checks that the version number of the library is compatible,
-    returning the root module on success.
-
-    This function transmutes the root module type,
-    without checking that the layout is compatible first.
-
-    # Warning
-
-    If this function is called within a dynamic library,
-    it must be called at or after the function that exports its root module is called.
-
-    **DO NOT** call this in the static initializer of a dynamic library,
-    since this library relies on setting up its global state before
-    calling the root module loader.
-
-    # Safety
-
-    The caller must ensure that `M` has the expected layout.
-
-    # Errors
-
-    This returns these errors:
-
-    - `LibraryError::ParseVersionError`:
-    If the version strings in the library can't be parsed as version numbers,
-    this can only happen if the version strings are manually constructed.
-
-    - `LibraryError::IncompatibleVersionNumber`:
-    If the version number of the library is incompatible.
-
-    - `LibraryError::RootModule` :
-    If the root module initializer returned an error or panicked.
-
-
-        */
+    /// Checks that the version number of the library is compatible,
+    /// returning the root module on success.
+    ///
+    /// This function transmutes the root module type,
+    /// without checking that the layout is compatible first.
+    ///
+    /// # Warning
+    ///
+    /// If this function is called within a dynamic library,
+    /// it must be called at or after the function that exports its root module is called.
+    ///
+    /// **DO NOT** call this in the static initializer of a dynamic library,
+    /// since this library relies on setting up its global state before
+    /// calling the root module loader.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `M` has the expected layout.
+    ///
+    /// # Errors
+    ///
+    /// This returns these errors:
+    ///
+    /// - `LibraryError::ParseVersionError`:
+    /// If the version strings in the library can't be parsed as version numbers,
+    /// this can only happen if the version strings are manually constructed.
+    ///
+    /// - `LibraryError::IncompatibleVersionNumber`:
+    /// If the version number of the library is incompatible.
+    ///
+    /// - `LibraryError::RootModule` :
+    /// If the root module initializer returned an error or panicked.
+    ///
+    ///
     pub unsafe fn init_root_module_with_unchecked_layout<M>(&self) -> Result<M, LibraryError>
     where
         M: RootModule,
@@ -259,23 +255,21 @@ impl LibHeader {
         }
     }
 
-    /**
-    Gets the root module without checking that the layout of `M` is the expected one.
-    This is effectively a transmute.
-
-    This is useful if a user keeps a cache of which dynamic libraries
-    have been checked for layout compatibility.
-
-    # Safety
-
-    The caller must ensure that `M` has the expected layout.
-
-    # Errors
-
-    This function can return a `RootModuleError`
-    because the root module failed to initialize.
-
-    */
+    /// Gets the root module without checking that the layout of `M` is the expected one.
+    /// This is effectively a transmute.
+    ///
+    /// This is useful if a user keeps a cache of which dynamic libraries
+    /// have been checked for layout compatibility.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `M` has the expected layout.
+    ///
+    /// # Errors
+    ///
+    /// This function can return a `RootModuleError`
+    /// because the root module failed to initialize.
+    ///
     pub unsafe fn unchecked_layout<M>(&self) -> Result<M, RootModuleError>
     where
         M: PrefixRefTrait,

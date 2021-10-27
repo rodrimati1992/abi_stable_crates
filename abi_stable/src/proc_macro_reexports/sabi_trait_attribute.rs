@@ -301,16 +301,13 @@ which itself requires `'static` to be constructed.
 
 ```rust
 use abi_stable::{
-    StableAbi,
     sabi_trait,
     sabi_trait::prelude::*,
-    std_types::{RBox, RArc, RString, RStr, ROption, RNone},
+    std_types::{RArc, RBox, RNone, ROption, RStr, RString},
+    StableAbi,
 };
 
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-};
+use std::{collections::HashMap, fmt::Debug};
 
 #[sabi_trait]
 pub trait Dictionary: Debug + Clone {
@@ -318,15 +315,15 @@ pub trait Dictionary: Debug + Clone {
 
     fn get(&self, key: RStr<'_>) -> Option<&Self::Value>;
 
-    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last method 
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last method
     /// that was defined in the first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 , etc),
     /// requiring new methods to always be added below preexisting ones.
-    /// 
-    /// The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library 
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library
     /// bumps its "major" version,
     /// at which point it would be moved to the last method at the time.
-    /// 
+    ///
     #[sabi(last_prefix_field)]
     fn insert(&mut self, key: RString, value: Self::Value) -> ROption<Self::Value>;
 
@@ -336,21 +333,19 @@ pub trait Dictionary: Debug + Clone {
     }
 }
 
-
 # fn main() {
 
 {
     impl<V> Dictionary for HashMap<RString, V>
     where
-        V: Debug + Clone
+        V: Debug + Clone,
     {
         type Value = V;
-        fn get(&self, key: RStr<'_>) -> Option<&V>{
+        fn get(&self, key: RStr<'_>) -> Option<&V> {
             self.get(key.as_str())
         }
-        fn insert(&mut self, key: RString, value: V) -> ROption<V>{
-            self.insert(key, value)
-                .into()
+        fn insert(&mut self, key: RString, value: V) -> ROption<V> {
+            self.insert(key, value).into()
         }
     }
 
@@ -361,16 +356,16 @@ pub trait Dictionary: Debug + Clone {
     {
         // This type annotation is for the reader
         //
-        // You can unerase trait objects constructed with `TD_CanDowncast` 
+        // You can unerase trait objects constructed with `TD_CanDowncast`
         // (as opposed to `TD_Opaque`, which can't be unerased).
-        let mut object: Dictionary_TO<'_, RBox<()>, u32>=
+        let mut object: Dictionary_TO<'_, RBox<()>, u32> =
             Dictionary_TO::from_value(map.clone(), TD_CanDowncast);
 
-        assert_eq!(Dictionary::get(&object,"hello".into()), Some(&100));
+        assert_eq!(Dictionary::get(&object, "hello".into()), Some(&100));
         assert_eq!(object.get("hello".into()), Some(&100)); // Inherent method call
-        
-        assert_eq!(Dictionary::get(&object,"world".into()), Some(&10));
-        assert_eq!(object.get("world".into()), Some(&10));  // Inherent method call
+
+        assert_eq!(Dictionary::get(&object, "world".into()), Some(&10));
+        assert_eq!(object.get("world".into()), Some(&10)); // Inherent method call
 
         object.insert("what".into(), 99); // Inherent method call
 
@@ -386,13 +381,13 @@ pub trait Dictionary: Debug + Clone {
         let arc = RArc::new(map.clone());
         // This type annotation is for the reader
         //
-        // You can unerase trait objects constructed with `TD_CanDowncast` 
+        // You can unerase trait objects constructed with `TD_CanDowncast`
         // (as opposed to `TD_Opaque`, which can't be unerased).
-        let object: Dictionary_TO<'_, RArc<()>, u32>=
+        let object: Dictionary_TO<'_, RArc<()>, u32> =
             Dictionary_TO::from_ptr(arc, TD_CanDowncast);
 
         assert_eq!(object.get("world".into()), Some(&10));
-        
+
         // Can't call these methods on `Dictionary_TO<RArc<()>,..>`
         // because `RArc<_>` doesn't implement AsMutPtr.
         //
@@ -400,29 +395,27 @@ pub trait Dictionary: Debug + Clone {
         //
         // object.insert("what".into(), 99);
         // Dictionary::insert(&mut object,"what".into(), 99);
-        
 
         let map: RArc<HashMap<RString, u32>> = object.obj.downcast_into().unwrap();
         assert_eq!(map.get("hello".into()), Some(&100));
         assert_eq!(map.get("world".into()), Some(&10));
     }
-
 }
 
 {
-    impl Dictionary for (){
+    impl Dictionary for () {
         type Value = RString;
-        fn get(&self, _: RStr<'_>) -> Option<&RString>{
+        fn get(&self, _: RStr<'_>) -> Option<&RString> {
             None
         }
-        fn insert(&mut self, _: RString, _: RString) -> ROption<RString>{
+        fn insert(&mut self, _: RString, _: RString) -> ROption<RString> {
             RNone
         }
     }
 
     // This type annotation is for the reader
-    let object: Dictionary_TO<'_, RBox<()>, RString>=
-        Dictionary_TO::from_value( () , TD_Opaque);
+    let object: Dictionary_TO<'_, RBox<()>, RString> =
+        Dictionary_TO::from_value((), TD_Opaque);
 
     assert_eq!(object.get("hello".into()), None);
     assert_eq!(object.get("world".into()), None);
@@ -433,6 +426,7 @@ pub trait Dictionary: Debug + Clone {
 
 # }
 
+
 ```
 
 
@@ -442,11 +436,7 @@ This shows how one can construct a `#[sabi_trait]` generated trait object in a c
 
 ```rust
 
-use abi_stable::{
-    sabi_trait::TD_Opaque,
-    sabi_trait,
-
-};
+use abi_stable::{sabi_trait, sabi_trait::TD_Opaque};
 
 #[sabi_trait]
 pub trait StaticSet: Sync + Send + Debug + Clone {
@@ -458,35 +448,32 @@ pub trait StaticSet: Sync + Send + Debug + Clone {
 
 impl<'a, T> StaticSet for &'a [T]
 where
-    T: std::fmt::Debug + Sync + Send + std::cmp::PartialEq
+    T: std::fmt::Debug + Sync + Send + std::cmp::PartialEq,
 {
     type Element = T;
-    
+
     fn contains(&self, key: &Self::Element) -> bool {
         (**self).contains(key)
     }
 }
 
-const CARDS: &'static [char] = &['A','2','3','4','5','6','7','8','9','J','Q','K'];
+const CARDS: &'static [char] =
+    &['A', '2', '3', '4', '5', '6', '7', '8', '9', 'J', 'Q', 'K'];
 
-static IS_CARD: StaticSet_CTO<'static,'static, char>=
-    StaticSet_CTO::from_const(
-        &CARDS,
-        TD_Opaque,
-        StaticSet_MV::VTABLE,
-    );
+static IS_CARD: StaticSet_CTO<'static, 'static, char> =
+    StaticSet_CTO::from_const(&CARDS, TD_Opaque, StaticSet_MV::VTABLE);
 
 # fn main(){
 
-assert!( IS_CARD.contains(&'A') );
-assert!( IS_CARD.contains(&'4') );
-assert!( IS_CARD.contains(&'7') );
-assert!( IS_CARD.contains(&'9') );
-assert!( IS_CARD.contains(&'J') );
+assert!(IS_CARD.contains(&'A'));
+assert!(IS_CARD.contains(&'4'));
+assert!(IS_CARD.contains(&'7'));
+assert!(IS_CARD.contains(&'9'));
+assert!(IS_CARD.contains(&'J'));
 
-assert!( ! IS_CARD.contains(&'0') );
-assert!( ! IS_CARD.contains(&'1') );
-assert!( ! IS_CARD.contains(&'B') );
+assert!(!IS_CARD.contains(&'0'));
+assert!(!IS_CARD.contains(&'1'));
+assert!(!IS_CARD.contains(&'B'));
 
 # }
 

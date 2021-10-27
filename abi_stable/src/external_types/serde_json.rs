@@ -12,79 +12,73 @@ use serde_json::{error::Error as JsonError, value::RawValue};
 
 use crate::std_types::{RStr, RString};
 
-/**
-An ffi-safe equivalent of `&serde_json::value::RawValue`
-
-# Example
-
-This defines a function that serializes a struct,
-and deserializes the json into another one with `RawValueRef` fields.
-
-```
-use abi_stable::{
-    external_types::RawValueRef,
-    std_types::{RStr,RResult,ROk,RErr,RString,RBoxError},
-    sabi_extern_fn,
-};
-
-use serde::{Serialize,Deserialize};
-
-use std::collections::HashMap;
-
-const JSON:&'static str=r##"{"hello":"world"}"##;
-
-let value=RawValueRef::try_from_str(JSON).unwrap();
-
-assert_eq!(
-    serde_json::to_string(&value).unwrap().as_str(),
-    JSON
-);
-
-
-#[derive(Serialize)]
-pub struct Pair{
-    pub first:Vec<u32>,
-    pub second:HashMap<RString,RString>,
-}
-
-#[derive(Debug,Deserialize)]
-pub struct PairDeserialize<'a>{
-    #[serde(borrow)]
-    pub first:RawValueRef<'a>,
-
-    #[serde(borrow)]
-    pub second:RawValueRef<'a>,
-}
-
-#[sabi_extern_fn]
-fn deserialize_data_structure<'de>(
-    input:RStr<'de>,
-)->RResult<PairDeserialize<'de>,RBoxError>{
-
-    match serde_json::from_str::<PairDeserialize>(input.into()) {
-        Ok(x)=>ROk(x),
-        Err(x)=>RErr(RBoxError::new(x)),
-    }
-}
-
-# fn main(){
-
-let json=
-    serde_json::to_string(&Pair{
-        first:vec![0,1,2],
-        second:vec![ (RString::from("hello"),"world".into()) ].into_iter().collect(),
-    }).unwrap();
-
-let pair=deserialize_data_structure(json.as_str().into()).unwrap();
-
-assert_eq!(pair.first.get(),"[0,1,2]");
-assert_eq!(pair.second.get(),r##"{"hello":"world"}"##);
-
-
-# }
-
-```
-*/
+/// An ffi-safe equivalent of `&serde_json::value::RawValue`
+///
+/// # Example
+///
+/// This defines a function that serializes a struct,
+/// and deserializes the json into another one with `RawValueRef` fields.
+///
+/// ```
+/// use abi_stable::{
+///     external_types::RawValueRef,
+///     sabi_extern_fn,
+///     std_types::{RBoxError, RErr, ROk, RResult, RStr, RString},
+/// };
+///
+/// use serde::{Deserialize, Serialize};
+///
+/// use std::collections::HashMap;
+///
+/// const JSON: &'static str = r##"{"hello":"world"}"##;
+///
+/// let value = RawValueRef::try_from_str(JSON).unwrap();
+///
+/// assert_eq!(serde_json::to_string(&value).unwrap().as_str(), JSON);
+///
+/// #[derive(Serialize)]
+/// pub struct Pair {
+///     pub first: Vec<u32>,
+///     pub second: HashMap<RString, RString>,
+/// }
+///
+/// #[derive(Debug, Deserialize)]
+/// pub struct PairDeserialize<'a> {
+///     #[serde(borrow)]
+///     pub first: RawValueRef<'a>,
+///
+///     #[serde(borrow)]
+///     pub second: RawValueRef<'a>,
+/// }
+///
+/// #[sabi_extern_fn]
+/// fn deserialize_data_structure<'de>(
+///     input: RStr<'de>,
+/// ) -> RResult<PairDeserialize<'de>, RBoxError> {
+///     match serde_json::from_str::<PairDeserialize>(input.into()) {
+///         Ok(x) => ROk(x),
+///         Err(x) => RErr(RBoxError::new(x)),
+///     }
+/// }
+///
+/// # fn main(){
+///
+/// let json = serde_json::to_string(&Pair {
+///     first: vec![0, 1, 2],
+///     second: vec![(RString::from("hello"), "world".into())]
+///         .into_iter()
+///         .collect(),
+/// })
+/// .unwrap();
+///
+/// let pair = deserialize_data_structure(json.as_str().into()).unwrap();
+///
+/// assert_eq!(pair.first.get(), "[0,1,2]");
+/// assert_eq!(pair.second.get(), r##"{"hello":"world"}"##);
+///
+/// # }
+///
+/// ```
 #[repr(transparent)]
 #[derive(StableAbi, Copy, Clone)]
 pub struct RawValueRef<'a> {
@@ -92,64 +86,51 @@ pub struct RawValueRef<'a> {
 }
 
 impl<'a> RawValueRef<'a> {
-    /**
-    Converts a `&str` to a `RawValueRef<'a>` without checking whether it is valid JSON.
-
-    # Safety
-
-    `input` must be valid JSON and contain no leading or trailing whitespace.
-
-    # Example
-
-    ```
-    use abi_stable::external_types::RawValueRef;
-
-    const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
-
-    let value=unsafe{ RawValueRef::from_str_unchecked(JSON) };
-
-    assert_eq!(
-        serde_json::to_string(&value).unwrap().as_str(),
-        JSON
-    );
-    ```
-
-    */
+    /// Converts a `&str` to a `RawValueRef<'a>` without checking whether it is valid JSON.
+    ///
+    /// # Safety
+    ///
+    /// `input` must be valid JSON and contain no leading or trailing whitespace.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::RawValueRef;
+    ///
+    /// const JSON: &'static str = r##"{"huh":"that is interesting"}"##;
+    ///
+    /// let value = unsafe { RawValueRef::from_str_unchecked(JSON) };
+    ///
+    /// assert_eq!(serde_json::to_string(&value).unwrap().as_str(), JSON);
+    ///
+    /// ```
     pub unsafe fn from_str_unchecked(input: &'a str) -> RawValueRef<'a> {
         Self {
             ref_: RStr::from(input),
         }
     }
 
-    /**
-    Converts a `RStr<'a>` to a `RawValueRef<'a>` without checking whether it is valid JSON.
-
-    # Safety
-
-    `input` must be valid JSON and contain no leading or trailing whitespace.
-
-
-    # Example
-
-    ```
-    use abi_stable::{
-        external_types::RawValueRef,
-        std_types::RStr,
-    };
-
-    const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
-
-    let json_rstr=RStr::from(JSON);
-    let value=unsafe{ RawValueRef::from_rstr_unchecked(json_rstr) };
-
-    assert_eq!(
-        serde_json::to_string(&value).unwrap().as_str(),
-        JSON
-    );
-    ```
-
-
-    */
+    /// Converts a `RStr<'a>` to a `RawValueRef<'a>` without checking whether it is valid JSON.
+    ///
+    /// # Safety
+    ///
+    /// `input` must be valid JSON and contain no leading or trailing whitespace.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{external_types::RawValueRef, std_types::RStr};
+    ///
+    /// const JSON: &'static str = r##"{"huh":"that is interesting"}"##;
+    ///
+    /// let json_rstr = RStr::from(JSON);
+    /// let value = unsafe { RawValueRef::from_rstr_unchecked(json_rstr) };
+    ///
+    /// assert_eq!(serde_json::to_string(&value).unwrap().as_str(), JSON);
+    /// ```
+    ///
+    ///
     pub unsafe fn from_rstr_unchecked(input: RStr<'a>) -> RawValueRef<'a> {
         Self { ref_: input }
     }
@@ -161,16 +142,13 @@ impl<'a> RawValueRef<'a> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::{
-    ///     external_types::RawValueRef,
-    ///     std_types::RStr,
-    /// };
+    /// use abi_stable::{external_types::RawValueRef, std_types::RStr};
     ///
-    /// const JSON:&'static str=r##"{"nope":"oof"}"##;
+    /// const JSON: &'static str = r##"{"nope":"oof"}"##;
     ///
-    /// let raw=RawValueRef::try_from_str(JSON).unwrap();
+    /// let raw = RawValueRef::try_from_str(JSON).unwrap();
     ///
-    /// assert_eq!( raw.get(), JSON );
+    /// assert_eq!(raw.get(), JSON);
     ///
     /// ```
     #[inline]
@@ -185,11 +163,11 @@ impl<'a> RawValueRef<'a> {
     /// ```
     /// use abi_stable::external_types::RawValueRef;
     ///
-    /// const JSON:&'static str=r##"{"huh":1007}"##;
+    /// const JSON: &'static str = r##"{"huh":1007}"##;
     ///
-    /// let raw=serde_json::from_str::<RawValueRef<'static>>(JSON).unwrap();
+    /// let raw = serde_json::from_str::<RawValueRef<'static>>(JSON).unwrap();
     ///
-    /// assert_eq!( raw.get(), JSON );
+    /// assert_eq!(raw.get(), JSON);
     ///
     /// ```
     #[inline]
@@ -202,16 +180,13 @@ impl<'a> RawValueRef<'a> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::{
-    ///     external_types::RawValueRef,
-    ///     std_types::RStr,
-    /// };
+    /// use abi_stable::{external_types::RawValueRef, std_types::RStr};
     ///
-    /// const JSON:&'static str=r##"{"bugs":"life"}"##;
+    /// const JSON: &'static str = r##"{"bugs":"life"}"##;
     ///
-    /// let raw=serde_json::from_str::<RawValueRef<'static>>(JSON).unwrap();
+    /// let raw = serde_json::from_str::<RawValueRef<'static>>(JSON).unwrap();
     ///
-    /// assert_eq!( raw.get_rstr(), RStr::from(JSON) );
+    /// assert_eq!(raw.get_rstr(), RStr::from(JSON));
     ///
     /// ```
     #[inline]
@@ -267,76 +242,69 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawValueRef<'a> {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-An ffi-safe equivalent of `Box<serde_json::value::RawValue>`
-
-
-# Example
-
-This defines a function that serializes a struct,
-and deserializes the json into another one with `RawValueBox` fields.
-
-```
-use abi_stable::{
-    external_types::RawValueBox,
-    std_types::{RStr,RResult,ROk,RErr,RString,RBoxError},
-    sabi_extern_fn,
-};
-
-use serde::{Serialize,Deserialize};
-
-
-const JSON:&'static str=r##"{"hello":"world"}"##;
-
-let value=RawValueBox::try_from_string(JSON.to_string()).unwrap();
-
-assert_eq!(
-    serde_json::to_string(&value).unwrap().as_str(),
-    JSON
-);
-
-
-#[derive(Serialize)]
-pub struct Pair{
-    pub first:u64,
-    pub second:RString,
-}
-
-#[derive(Debug,Deserialize)]
-pub struct PairDeserialize{
-    pub first:RawValueBox,
-    pub second:RawValueBox,
-}
-
-
-#[sabi_extern_fn]
-fn deserialize_data_structure(input:RStr<'_>)->RResult<PairDeserialize,RBoxError>{
-    match serde_json::from_str::<PairDeserialize>(input.into()) {
-        Ok(x)=>ROk(x),
-        Err(x)=>RErr(RBoxError::new(x)),
-    }
-}
-
-
-# fn main(){
-
-let json=
-    serde_json::to_string(&Pair{
-        first:99,
-        second:"How many apples?".into(),
-    }).unwrap();
-
-let pair=deserialize_data_structure(json.as_str().into()).unwrap();
-
-assert_eq!(pair.first.get(),"99");
-assert_eq!(pair.second.get(),r##""How many apples?"}"##);
-
-
-# }
-
-```
-
-*/
+/// An ffi-safe equivalent of `Box<serde_json::value::RawValue>`
+///
+///
+/// # Example
+///
+/// This defines a function that serializes a struct,
+/// and deserializes the json into another one with `RawValueBox` fields.
+///
+/// ```
+/// use abi_stable::{
+///     external_types::RawValueBox,
+///     sabi_extern_fn,
+///     std_types::{RBoxError, RErr, ROk, RResult, RStr, RString},
+/// };
+///
+/// use serde::{Deserialize, Serialize};
+///
+/// const JSON: &'static str = r##"{"hello":"world"}"##;
+///
+/// let value = RawValueBox::try_from_string(JSON.to_string()).unwrap();
+///
+/// assert_eq!(serde_json::to_string(&value).unwrap().as_str(), JSON);
+///
+/// #[derive(Serialize)]
+/// pub struct Pair {
+///     pub first: u64,
+///     pub second: RString,
+/// }
+///
+/// #[derive(Debug, Deserialize)]
+/// pub struct PairDeserialize {
+///     pub first: RawValueBox,
+///     pub second: RawValueBox,
+/// }
+///
+/// #[sabi_extern_fn]
+/// fn deserialize_data_structure(
+///     input: RStr<'_>,
+/// ) -> RResult<PairDeserialize, RBoxError> {
+///     match serde_json::from_str::<PairDeserialize>(input.into()) {
+///         Ok(x) => ROk(x),
+///         Err(x) => RErr(RBoxError::new(x)),
+///     }
+/// }
+///
+/// # fn main(){
+///
+/// let json = serde_json::to_string(&Pair {
+///     first: 99,
+///     second: "How many apples?".into(),
+/// })
+/// .unwrap();
+///
+/// let pair = deserialize_data_structure(json.as_str().into()).unwrap();
+///
+/// assert_eq!(pair.first.get(), "99");
+/// assert_eq!(pair.second.get(), r##""How many apples?"}"##);
+///
+/// # }
+///
+///
+/// ```
+///
 #[repr(transparent)]
 #[derive(StableAbi, Clone)]
 pub struct RawValueBox {
@@ -344,30 +312,25 @@ pub struct RawValueBox {
 }
 
 impl RawValueBox {
-    /**
-    Converts a `String` to an `RawValueBox` without checking whether it is valid JSON.
-
-    # Safety
-
-    `input` must be valid JSON and contain no leading or trailing whitespace.
-
-
-    # Example
-
-    ```
-    use abi_stable::external_types::RawValueBox;
-
-    const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
-
-    let value=unsafe{ RawValueBox::from_string_unchecked(JSON.to_string()) };
-
-    assert_eq!(
-        serde_json::to_string(&value).unwrap().as_str(),
-        JSON
-    );
-    ```
-
-    */
+    /// Converts a `String` to an `RawValueBox` without checking whether it is valid JSON.
+    ///
+    /// # Safety
+    ///
+    /// `input` must be valid JSON and contain no leading or trailing whitespace.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::RawValueBox;
+    ///
+    /// const JSON: &'static str = r##"{"huh":"that is interesting"}"##;
+    ///
+    /// let value = unsafe { RawValueBox::from_string_unchecked(JSON.to_string()) };
+    ///
+    /// assert_eq!(serde_json::to_string(&value).unwrap().as_str(), JSON);
+    /// ```
+    ///
     #[inline]
     pub unsafe fn from_string_unchecked(input: String) -> RawValueBox {
         Self {
@@ -375,35 +338,26 @@ impl RawValueBox {
         }
     }
 
-    /**
-    Converts an `RString` to an `RawValueBox` without checking whether it is valid JSON.
-
-    # Safety
-
-    `input` must be valid JSON and contain no leading or trailing whitespace.
-
-
-    # Example
-
-    ```
-    use abi_stable::{
-        external_types::RawValueBox,
-        std_types::RString,
-    };
-
-    const JSON:&'static str=r##"{"huh":"that is interesting"}"##;
-
-    let json_rstring=RString::from(JSON);
-    let value=unsafe{ RawValueBox::from_rstring_unchecked(json_rstring) };
-
-    assert_eq!(
-        serde_json::to_string(&value).unwrap().as_str(),
-        JSON
-    );
-    ```
-
-
-    */
+    /// Converts an `RString` to an `RawValueBox` without checking whether it is valid JSON.
+    ///
+    /// # Safety
+    ///
+    /// `input` must be valid JSON and contain no leading or trailing whitespace.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{external_types::RawValueBox, std_types::RString};
+    ///
+    /// const JSON: &'static str = r##"{"huh":"that is interesting"}"##;
+    ///
+    /// let json_rstring = RString::from(JSON);
+    /// let value = unsafe { RawValueBox::from_rstring_unchecked(json_rstring) };
+    ///
+    /// assert_eq!(serde_json::to_string(&value).unwrap().as_str(), JSON);
+    /// ```
+    ///
     #[inline]
     pub unsafe fn from_rstring_unchecked(input: RString) -> RawValueBox {
         Self { string: input }
@@ -416,16 +370,13 @@ impl RawValueBox {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::{
-    ///     external_types::RawValueBox,
-    ///     std_types::RString,
-    /// };
+    /// use abi_stable::{external_types::RawValueBox, std_types::RString};
     ///
-    /// const JSON:&'static str=r##"{"nope":"oof"}"##;
+    /// const JSON: &'static str = r##"{"nope":"oof"}"##;
     ///
-    /// let raw=RawValueBox::try_from_string(JSON.to_string()).unwrap();
+    /// let raw = RawValueBox::try_from_string(JSON.to_string()).unwrap();
     ///
-    /// assert_eq!( raw.get(), JSON );
+    /// assert_eq!(raw.get(), JSON);
     ///
     /// ```
     #[inline]
@@ -440,11 +391,11 @@ impl RawValueBox {
     /// ```
     /// use abi_stable::external_types::RawValueBox;
     ///
-    /// const JSON:&'static str=r##"{"huh":1007}"##;
+    /// const JSON: &'static str = r##"{"huh":1007}"##;
     ///
-    /// let raw=serde_json::from_str::<RawValueBox>(JSON).unwrap();
+    /// let raw = serde_json::from_str::<RawValueBox>(JSON).unwrap();
     ///
-    /// assert_eq!( raw.get(), JSON );
+    /// assert_eq!(raw.get(), JSON);
     ///
     /// ```
     #[inline]
@@ -457,16 +408,13 @@ impl RawValueBox {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::{
-    ///     external_types::RawValueBox,
-    ///     std_types::RStr,
-    /// };
+    /// use abi_stable::{external_types::RawValueBox, std_types::RStr};
     ///
-    /// const JSON:&'static str=r##"{"bugs":"life"}"##;
+    /// const JSON: &'static str = r##"{"bugs":"life"}"##;
     ///
-    /// let raw=serde_json::from_str::<RawValueBox>(JSON).unwrap();
+    /// let raw = serde_json::from_str::<RawValueBox>(JSON).unwrap();
     ///
-    /// assert_eq!( raw.get_rstr(), RStr::from(JSON) );
+    /// assert_eq!(raw.get_rstr(), RStr::from(JSON));
     ///
     /// ```
     #[inline]
@@ -479,16 +427,13 @@ impl RawValueBox {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::external_types::{RawValueBox,RawValueRef};
+    /// use abi_stable::external_types::{RawValueBox, RawValueRef};
     ///
-    /// const JSON:&'static str=r##"{"bugs":"life"}"##;
+    /// const JSON: &'static str = r##"{"bugs":"life"}"##;
     ///
-    /// let raw=serde_json::from_str::<RawValueBox>(JSON).unwrap();
+    /// let raw = serde_json::from_str::<RawValueBox>(JSON).unwrap();
     ///
-    /// assert_eq!(
-    ///     raw.get(),
-    ///     RawValueRef::try_from_str(JSON).unwrap().get()
-    /// );
+    /// assert_eq!(raw.get(), RawValueRef::try_from_str(JSON).unwrap().get());
     ///
     /// ```
     #[inline]

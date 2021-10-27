@@ -100,11 +100,7 @@ declare_InterfaceType! {
     ///
     /// ```
     ///
-    /// use abi_stable::{
-    ///     StableAbi,
-    ///     erased_types::InterfaceType,
-    ///     type_level::bools::*,
-    /// };
+    /// use abi_stable::{erased_types::InterfaceType, type_level::bools::*, StableAbi};
     ///
     /// #[repr(C)]
     /// #[derive(StableAbi)]

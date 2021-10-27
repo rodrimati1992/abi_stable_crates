@@ -379,8 +379,8 @@ For a variant like this:
 `VariantNamed{foo: RString, bar: RBox<Struct>}`
 it would generate an associated function like this(the exact generated code might differ a bit):
 ```ignore
-fn VariantNamed_NE(foo: RString, bar: RBox<Struct>)->Enum_NE{
-    let x = Enum::VariantNamed{foo, bar};
+fn VariantNamed_NE(foo: RString, bar: RBox<Struct>) -> Enum_NE {
+    let x = Enum::VariantNamed { foo, bar };
     NonExhaustive::new(x)
 }
 ```
@@ -403,7 +403,7 @@ For a variant like this:
 
 it would generate an associated function like this(the exact generated code might differ a bit):
 ```ignore
-fn VariantNamed_NE(value: T)->Enum_NE<T>{
+fn VariantNamed_NE(value: T) -> Enum_NE<T> {
     let x = RBox::new(value);
     let x = Enum::VariantNamed(x);
     NonExhaustive::new(x)
@@ -418,9 +418,9 @@ For a variant like this:
 
 it would generate an associated function like this(the exact generated code might differ a bit):
 ```ignore
-fn VariantNamed_NE(value: T)->Enum_NE<T>{
+fn VariantNamed_NE(value: T) -> Enum_NE<T> {
     let x = MyPointer::new(value);
-    let x = Enum::VariantNamed{ptr_: x};
+    let x = Enum::VariantNamed { ptr_: x };
     NonExhaustive::new(x)
 }
 ```
@@ -431,7 +431,9 @@ For a variant like this:
 
 it would generate an associated function like this(the exact generated code might differ a bit):
 ```ignore
-fn VariantNamed_NE(value: <BoxedStruct as ::std::ops::Deref>::Target)->Enum_NE<T>{
+fn VariantNamed_NE(
+    value: <BoxedStruct as ::std::ops::Deref>::Target,
+) -> Enum_NE<T> {
     let x = BoxedStruct::new(value);
     let x = Enum::VariantNamed(x);
     NonExhaustive::new(x)
@@ -477,7 +479,7 @@ use abi_stable::StableAbi;
 
 #[repr(C)]
 #[derive(StableAbi)]
-struct Point2D{
+struct Point2D {
     x: u32,
     y: u32,
 }
@@ -492,9 +494,10 @@ use abi_stable::StableAbi;
 
 #[repr(transparent)]
 #[derive(StableAbi)]
-pub struct Wrapper<T>{
-    pub inner: T
+pub struct Wrapper<T> {
+    pub inner: T,
 }
+
 
 ```
 
@@ -504,19 +507,14 @@ This enum cannot add variants in minor versions,
 for that you have to use [nonexhaustive enums](./docs/sabi_nonexhaustive/index.html).
 
 ```
-use abi_stable::{
-    StableAbi,
-    std_types::RString,
-};
+use abi_stable::{std_types::RString, StableAbi};
 
 #[repr(u8)]
 #[derive(StableAbi)]
-pub enum Command{
+pub enum Command {
     LaunchRockets,
     EatLaundry,
-    WakeTheDragon{
-        using: RString
-    }
+    WakeTheDragon { using: RString },
 }
 
 ```
