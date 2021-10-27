@@ -1,23 +1,21 @@
 use std::cmp::{Eq, Ordering, PartialEq, PartialOrd};
 
-/**
-An Option-like type which only compares equal if it contains a value(the `Just` variant).
-
-# Example
-
-```
-use abi_stable::sabi_types::MaybeCmp;
-
-assert_eq!( MaybeCmp::Just(10), MaybeCmp::Just(10) );
-
-assert_ne!( MaybeCmp::Just(0), MaybeCmp::Just(10) );
-assert_ne!( MaybeCmp::Just(0), MaybeCmp::Nothing );
-assert_ne!( MaybeCmp::Nothing, MaybeCmp::Just(0) );
-assert_ne!( MaybeCmp::<u32>::Nothing, MaybeCmp::Nothing );
-
-```
-
-*/
+/// An Option-like type which only compares equal if it contains a value(the `Just` variant).
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::sabi_types::MaybeCmp;
+///
+/// assert_eq!(MaybeCmp::Just(10), MaybeCmp::Just(10));
+///
+/// assert_ne!(MaybeCmp::Just(0), MaybeCmp::Just(10));
+/// assert_ne!(MaybeCmp::Just(0), MaybeCmp::Nothing);
+/// assert_ne!(MaybeCmp::Nothing, MaybeCmp::Just(0));
+/// assert_ne!(MaybeCmp::<u32>::Nothing, MaybeCmp::Nothing);
+///
+/// ```
+///
 #[allow(clippy::derive_hash_xor_eq)]
 #[derive(Debug, Copy, Clone, Hash)]
 #[repr(u8)]

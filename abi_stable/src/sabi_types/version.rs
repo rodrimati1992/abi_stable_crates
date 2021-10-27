@@ -35,15 +35,14 @@ use crate::std_types::RStr;
 /// ```
 /// use abi_stable::sabi_types::VersionStrings;
 ///
-/// let v1_0_0=VersionStrings::new("1.0.0").parsed().unwrap();
-/// let v1_0_5=VersionStrings::new("1.0.5").parsed().unwrap();
-/// let v1_1_0=VersionStrings::new("1.1.0").parsed().unwrap();
-/// let v2_0_0=VersionStrings::new("1.0.5").parsed().unwrap();
+/// let v1_0_0 = VersionStrings::new("1.0.0").parsed().unwrap();
+/// let v1_0_5 = VersionStrings::new("1.0.5").parsed().unwrap();
+/// let v1_1_0 = VersionStrings::new("1.1.0").parsed().unwrap();
+/// let v2_0_0 = VersionStrings::new("1.0.5").parsed().unwrap();
 ///
-///
-/// assert!(  v1_0_0.is_compatible(v1_0_5),"'{}' '{}'",v1_0_0,v1_0_5);
-/// assert!(  v1_0_5.is_compatible(v1_1_0),"'{}' '{}'",v1_0_5,v1_1_0);
-/// assert!( !v1_1_0.is_compatible(v2_0_0),"'{}' '{}'",v1_1_0,v2_0_0);
+/// assert!(v1_0_0.is_compatible(v1_0_5), "'{}' '{}'", v1_0_0, v1_0_5);
+/// assert!(v1_0_5.is_compatible(v1_1_0), "'{}' '{}'", v1_0_5, v1_1_0);
+/// assert!(!v1_1_0.is_compatible(v2_0_0), "'{}' '{}'", v1_1_0, v2_0_0);
 ///
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
@@ -69,15 +68,30 @@ pub struct VersionStrings {
 /// ```
 /// use abi_stable::sabi_types::VersionNumber;
 ///
-/// let v0_1_0=VersionNumber{major:0,minor:1,patch:0};
-/// let v0_1_5=VersionNumber{major:0,minor:1,patch:5};
-/// let v0_1_8=VersionNumber{major:0,minor:1,patch:8};
-/// let v0_2_0=VersionNumber{major:0,minor:2,patch:0};
+/// let v0_1_0 = VersionNumber {
+///     major: 0,
+///     minor: 1,
+///     patch: 0,
+/// };
+/// let v0_1_5 = VersionNumber {
+///     major: 0,
+///     minor: 1,
+///     patch: 5,
+/// };
+/// let v0_1_8 = VersionNumber {
+///     major: 0,
+///     minor: 1,
+///     patch: 8,
+/// };
+/// let v0_2_0 = VersionNumber {
+///     major: 0,
+///     minor: 2,
+///     patch: 0,
+/// };
 ///
-///
-/// assert!(  v0_1_0.is_compatible(v0_1_5),"'{}' '{}'",v0_1_0,v0_1_5);
-/// assert!(  v0_1_5.is_compatible(v0_1_8),"'{}' '{}'",v0_1_5,v0_1_8);
-/// assert!( !v0_1_8.is_compatible(v0_2_0),"'{}' '{}'",v0_1_8,v0_2_0);
+/// assert!(v0_1_0.is_compatible(v0_1_5), "'{}' '{}'", v0_1_0, v0_1_5);
+/// assert!(v0_1_5.is_compatible(v0_1_8), "'{}' '{}'", v0_1_5, v0_1_8);
+/// assert!(!v0_1_8.is_compatible(v0_2_0), "'{}' '{}'", v0_1_8, v0_2_0);
 ///
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
@@ -100,7 +114,7 @@ impl VersionStrings {
     /// ```
     /// use abi_stable::sabi_types::VersionStrings;
     ///
-    /// static VERSION:VersionStrings=VersionStrings::new("0.1.2");
+    /// static VERSION: VersionStrings = VersionStrings::new("0.1.2");
     ///
     /// ```
     pub const fn new(version: &'static str) -> Self {
@@ -118,14 +132,21 @@ impl VersionStrings {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::sabi_types::{VersionNumber,VersionStrings};
+    /// use abi_stable::sabi_types::{VersionNumber, VersionStrings};
     ///
-    /// static VERSION:VersionStrings=VersionStrings::new("0.1.2");
+    /// static VERSION: VersionStrings = VersionStrings::new("0.1.2");
     ///
-    /// assert_eq!( VERSION.parsed(), Ok(VersionNumber{major:0,minor:1,patch:2}) );
+    /// assert_eq!(
+    ///     VERSION.parsed(),
+    ///     Ok(VersionNumber {
+    ///         major: 0,
+    ///         minor: 1,
+    ///         patch: 2
+    ///     })
+    /// );
     ///
-    /// let err_version=VersionStrings::new("0.a.2.b");
-    /// assert!( err_version.parsed().is_err() );
+    /// let err_version = VersionStrings::new("0.a.2.b");
+    /// assert!(err_version.parsed().is_err());
     ///
     /// ```
     pub fn parsed(self) -> Result<VersionNumber, ParseVersionError> {
@@ -143,14 +164,21 @@ impl VersionNumber {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::sabi_types::{VersionNumber,VersionStrings};
+    /// use abi_stable::sabi_types::{VersionNumber, VersionStrings};
     ///
-    /// static VERSION:VersionStrings=VersionStrings::new("10.5.20");
+    /// static VERSION: VersionStrings = VersionStrings::new("10.5.20");
     ///
-    /// assert_eq!( VersionNumber::new(VERSION), Ok(VersionNumber{major:10,minor:5,patch:20}) );
+    /// assert_eq!(
+    ///     VersionNumber::new(VERSION),
+    ///     Ok(VersionNumber {
+    ///         major: 10,
+    ///         minor: 5,
+    ///         patch: 20
+    ///     })
+    /// );
     ///
-    /// let err_version=VersionStrings::new("not a version number");
-    /// assert!( VersionNumber::new(err_version).is_err() );
+    /// let err_version = VersionStrings::new("not a version number");
+    /// assert!(VersionNumber::new(err_version).is_err());
     ///
     /// ```
     pub fn new(vn: VersionStrings) -> Result<Self, ParseVersionError> {
@@ -197,14 +225,30 @@ impl VersionNumber {
     /// ```
     /// use abi_stable::sabi_types::VersionNumber;
     ///
-    /// let v0_1_0=VersionNumber{major:0,minor:1,patch:0};
-    /// let v0_1_5=VersionNumber{major:0,minor:1,patch:5};
-    /// let v0_1_8=VersionNumber{major:0,minor:1,patch:8};
-    /// let v0_2_0=VersionNumber{major:0,minor:2,patch:0};
+    /// let v0_1_0 = VersionNumber {
+    ///     major: 0,
+    ///     minor: 1,
+    ///     patch: 0,
+    /// };
+    /// let v0_1_5 = VersionNumber {
+    ///     major: 0,
+    ///     minor: 1,
+    ///     patch: 5,
+    /// };
+    /// let v0_1_8 = VersionNumber {
+    ///     major: 0,
+    ///     minor: 1,
+    ///     patch: 8,
+    /// };
+    /// let v0_2_0 = VersionNumber {
+    ///     major: 0,
+    ///     minor: 2,
+    ///     patch: 0,
+    /// };
     ///
-    /// assert!(  v0_1_0.is_compatible(v0_1_5),"'{}' '{}'",v0_1_0,v0_1_5);
-    /// assert!(  v0_1_5.is_compatible(v0_1_8),"'{}' '{}'",v0_1_5,v0_1_8);
-    /// assert!( !v0_1_8.is_compatible(v0_2_0),"'{}' '{}'",v0_1_8,v0_2_0);
+    /// assert!(v0_1_0.is_compatible(v0_1_5), "'{}' '{}'", v0_1_0, v0_1_5);
+    /// assert!(v0_1_5.is_compatible(v0_1_8), "'{}' '{}'", v0_1_5, v0_1_8);
+    /// assert!(!v0_1_8.is_compatible(v0_2_0), "'{}' '{}'", v0_1_8, v0_2_0);
     ///
     /// ```
     pub fn is_compatible(self, library_implementor: VersionNumber) -> bool {
@@ -232,27 +276,59 @@ impl VersionNumber {
     /// ```
     /// use abi_stable::sabi_types::VersionNumber;
     ///
-    /// let v0_1_0=VersionNumber{major:0,minor:1,patch:0};
-    /// let v0_1_5=VersionNumber{major:0,minor:1,patch:5};
-    /// let v0_1_8=VersionNumber{major:0,minor:1,patch:8};
-    /// let v0_2_0=VersionNumber{major:0,minor:2,patch:0};
-    /// let v0_2_8=VersionNumber{major:0,minor:2,patch:8};
-    /// let v1_0_0=VersionNumber{major:1,minor:0,patch:0};
-    /// let v1_5_0=VersionNumber{major:1,minor:5,patch:0};
-    /// let v2_0_0=VersionNumber{major:2,minor:0,patch:0};
+    /// let v0_1_0 = VersionNumber {
+    ///     major: 0,
+    ///     minor: 1,
+    ///     patch: 0,
+    /// };
+    /// let v0_1_5 = VersionNumber {
+    ///     major: 0,
+    ///     minor: 1,
+    ///     patch: 5,
+    /// };
+    /// let v0_1_8 = VersionNumber {
+    ///     major: 0,
+    ///     minor: 1,
+    ///     patch: 8,
+    /// };
+    /// let v0_2_0 = VersionNumber {
+    ///     major: 0,
+    ///     minor: 2,
+    ///     patch: 0,
+    /// };
+    /// let v0_2_8 = VersionNumber {
+    ///     major: 0,
+    ///     minor: 2,
+    ///     patch: 8,
+    /// };
+    /// let v1_0_0 = VersionNumber {
+    ///     major: 1,
+    ///     minor: 0,
+    ///     patch: 0,
+    /// };
+    /// let v1_5_0 = VersionNumber {
+    ///     major: 1,
+    ///     minor: 5,
+    ///     patch: 0,
+    /// };
+    /// let v2_0_0 = VersionNumber {
+    ///     major: 2,
+    ///     minor: 0,
+    ///     patch: 0,
+    /// };
     ///
-    /// fn is_compat_assert( l:VersionNumber, r:VersionNumber, are_they_compat:bool ){
-    ///     assert_eq!( l.is_loosely_compatible(r), are_they_compat );
-    ///     assert_eq!( r.is_loosely_compatible(l), are_they_compat );
+    /// fn is_compat_assert(l: VersionNumber, r: VersionNumber, are_they_compat: bool) {
+    ///     assert_eq!(l.is_loosely_compatible(r), are_they_compat);
+    ///     assert_eq!(r.is_loosely_compatible(l), are_they_compat);
     /// }
     ///
-    /// is_compat_assert( v0_1_0, v0_1_5, true );
-    /// is_compat_assert( v0_1_5, v0_1_8, true );
-    /// is_compat_assert( v1_0_0, v1_5_0, true );
-    /// is_compat_assert( v0_1_8, v0_2_0, false);
-    /// is_compat_assert( v0_2_8, v1_0_0, false);
-    /// is_compat_assert( v2_0_0, v1_0_0, false);
-    /// is_compat_assert( v2_0_0, v1_5_0, false);
+    /// is_compat_assert(v0_1_0, v0_1_5, true);
+    /// is_compat_assert(v0_1_5, v0_1_8, true);
+    /// is_compat_assert(v1_0_0, v1_5_0, true);
+    /// is_compat_assert(v0_1_8, v0_2_0, false);
+    /// is_compat_assert(v0_2_8, v1_0_0, false);
+    /// is_compat_assert(v2_0_0, v1_0_0, false);
+    /// is_compat_assert(v2_0_0, v1_5_0, false);
     ///
     /// ```
     pub fn is_loosely_compatible(self, library_implementor: VersionNumber) -> bool {

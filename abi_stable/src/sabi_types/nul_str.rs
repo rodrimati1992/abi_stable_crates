@@ -58,9 +58,9 @@ use std::{
 /// const BAR: NulStr<'_> = NulStr::from_str("12|34\0");
 /// const QUX: NulStr<'_> = NulStr::from_str("123_abcd_45\0");
 ///
-/// assert_eq!(unsafe{ add_digits(FOO) }, 6);
-/// assert_eq!(unsafe{ add_digits(BAR) }, 10);
-/// assert_eq!(unsafe{ add_digits(QUX) }, 15);
+/// assert_eq!(unsafe { add_digits(FOO) }, 6);
+/// assert_eq!(unsafe { add_digits(BAR) }, 10);
+/// assert_eq!(unsafe { add_digits(QUX) }, 15);
 /// # }
 /// ```
 #[repr(transparent)]
@@ -147,7 +147,7 @@ impl<'a> NulStr<'a> {
         ///
         /// assert_eq!(
         ///     NulStr::try_from_str("hello\0world\0"),
-        ///     Err(NulStrError::InnerNul{pos: 5}),
+        ///     Err(NulStrError::InnerNul { pos: 5 }),
         /// );
         ///
         /// ```
@@ -204,16 +204,16 @@ impl<'a> NulStr<'a> {
     /// ```rust
     /// use abi_stable::sabi_types::NulStr;
     ///
-    /// const FOO: NulStr<'_> = unsafe{ NulStr::from_ptr("foo\0".as_ptr()) };
+    /// const FOO: NulStr<'_> = unsafe { NulStr::from_ptr("foo\0".as_ptr()) };
     /// assert_eq!(FOO, "foo");
     ///
-    /// const BAR: NulStr<'_> = unsafe{ NulStr::from_ptr("bar\0".as_ptr()) };
+    /// const BAR: NulStr<'_> = unsafe { NulStr::from_ptr("bar\0".as_ptr()) };
     /// assert_eq!(BAR, "bar");
     ///
-    /// const HEWWO: NulStr<'_> = unsafe{ NulStr::from_ptr("Hello, world!\0".as_ptr()) };
+    /// const HEWWO: NulStr<'_> = unsafe { NulStr::from_ptr("Hello, world!\0".as_ptr()) };
     /// assert_eq!(HEWWO, "Hello, world!");
     ///
-    /// const TRUNCATED: NulStr<'_> = unsafe{ NulStr::from_ptr("baz\0world!\0".as_ptr()) };
+    /// const TRUNCATED: NulStr<'_> = unsafe { NulStr::from_ptr("baz\0world!\0".as_ptr()) };
     /// assert_eq!(TRUNCATED, "baz");
     ///
     /// ```

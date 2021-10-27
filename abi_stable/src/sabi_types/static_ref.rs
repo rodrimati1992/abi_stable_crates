@@ -6,101 +6,91 @@ use std::{
     ptr::NonNull,
 };
 
-/**
-A wrapper type for vtable static references,
-and other constants that have `non-'static` generic parameters
-but are safe to reference for the lifetime of `T`.
-
-# Purpose
-
-This type is necessary because Rust doesn't understand that vtables live for `'static`,
-even though they have `non-'static` type parameters.
-
-# Example
-
-This defines a non-extensible vtable,using a StaticRef as the pointer to the vtable.
-
-```
-use abi_stable::{
-    marker_type::ErasedObject,
-    prefix_type::{PrefixTypeTrait,WithMetadata},
-    sabi_types::StaticRef,
-    StableAbi,
-    sabi_extern_fn,
-    staticref,
-};
-
-use std::{
-    marker::PhantomData,
-    ops::Deref,
-};
-
-fn main(){
-    let boxed = BoxLike::new("foo".to_string());
-    assert_eq!(boxed.as_str(), "foo");
-}
-
-/// An ffi-safe `Box<T>`
-#[repr(C)]
-#[derive(StableAbi)]
-pub struct BoxLike<T> {
-    data: *mut T,
-
-    vtable: StaticRef<VTable<T>>,
-
-    _marker: PhantomData<T>,
-}
-
-impl<T> BoxLike<T> {
-    pub fn new(value: T) -> Self {
-        Self{
-            data: Box::into_raw(Box::new(value)),
-            vtable: VTable::<T>::VTABLE,
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<T> Drop for BoxLike<T> {
-    fn drop(&mut self){
-        unsafe{
-            (self.vtable.drop_)(self.data);
-        }
-    }
-}
-
-impl<T> Deref for BoxLike<T> {
-    type Target = T;
-
-    fn deref(&self) -> &T {
-        unsafe{
-            &*self.data
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(StableAbi)]
-pub struct VTable<T>{
-    drop_:unsafe extern "C" fn(*mut T),
-}
-
-impl<T> VTable<T> {
-    // The `staticref` macro declares a `StaticRef<VTable<T>>` constant.
-    staticref!(const VTABLE: Self = Self{
-        drop_: drop_box::<T>,
-    });
-}
-
-
-#[sabi_extern_fn]
-unsafe fn drop_box<T>(object: *mut T){
-    drop(Box::from_raw(object));
-}
-
-```
-
-*/
+/// A wrapper type for vtable static references,
+/// and other constants that have `non-'static` generic parameters
+/// but are safe to reference for the lifetime of `T`.
+///
+/// # Purpose
+///
+/// This type is necessary because Rust doesn't understand that vtables live for `'static`,
+/// even though they have `non-'static` type parameters.
+///
+/// # Example
+///
+/// This defines a non-extensible vtable,using a StaticRef as the pointer to the vtable.
+///
+/// ```
+/// use abi_stable::{
+///     marker_type::ErasedObject,
+///     prefix_type::{PrefixTypeTrait, WithMetadata},
+///     sabi_extern_fn,
+///     sabi_types::StaticRef,
+///     staticref, StableAbi,
+/// };
+///
+/// use std::{marker::PhantomData, ops::Deref};
+///
+/// fn main() {
+///     let boxed = BoxLike::new("foo".to_string());
+///     assert_eq!(boxed.as_str(), "foo");
+/// }
+///
+/// /// An ffi-safe `Box<T>`
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// pub struct BoxLike<T> {
+///     data: *mut T,
+///
+///     vtable: StaticRef<VTable<T>>,
+///
+///     _marker: PhantomData<T>,
+/// }
+///
+/// impl<T> BoxLike<T> {
+///     pub fn new(value: T) -> Self {
+///         Self {
+///             data: Box::into_raw(Box::new(value)),
+///             vtable: VTable::<T>::VTABLE,
+///             _marker: PhantomData,
+///         }
+///     }
+/// }
+///
+/// impl<T> Drop for BoxLike<T> {
+///     fn drop(&mut self) {
+///         unsafe {
+///             (self.vtable.drop_)(self.data);
+///         }
+///     }
+/// }
+///
+/// impl<T> Deref for BoxLike<T> {
+///     type Target = T;
+///
+///     fn deref(&self) -> &T {
+///         unsafe { &*self.data }
+///     }
+/// }
+///
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// pub struct VTable<T> {
+///     drop_: unsafe extern "C" fn(*mut T),
+/// }
+///
+/// impl<T> VTable<T> {
+///     // The `staticref` macro declares a `StaticRef<VTable<T>>` constant.
+///     staticref!(const VTABLE: Self = Self{
+///         drop_: drop_box::<T>,
+///     });
+/// }
+///
+/// #[sabi_extern_fn]
+/// unsafe fn drop_box<T>(object: *mut T) {
+///     drop(Box::from_raw(object));
+/// }
+///
+/// ```
 #[repr(transparent)]
 #[derive(StableAbi)]
 pub struct StaticRef<T> {
@@ -148,14 +138,12 @@ impl<T> StaticRef<T> {
     ///
     /// struct GetPtr<T>(T);
     ///
-    /// impl<T> GetPtr<T>{
-    ///     const PTR:*const Option<T>=&None;
+    /// impl<T> GetPtr<T> {
+    ///     const PTR: *const Option<T> = &None;
     ///
-    ///     const STATIC:StaticRef<Option<T>>=unsafe{
-    ///         StaticRef::from_raw(Self::PTR)
-    ///     };
+    ///     const STATIC: StaticRef<Option<T>> = unsafe { StaticRef::from_raw(Self::PTR) };
     /// }
-    ///
+    /// {}
     /// ```
     pub const unsafe fn from_raw(ref_: *const T) -> Self {
         Self {
@@ -176,12 +164,11 @@ impl<T> StaticRef<T> {
     ///
     /// impl<T> GetPtr<T>
     /// where
-    ///     T:'static
+    ///     T: 'static,
     /// {
-    ///     const REF:&'static Option<T>=&None;
+    ///     const REF: &'static Option<T> = &None;
     ///
-    ///     const STATIC:StaticRef<Option<T>>=
-    ///         StaticRef::new(Self::REF);
+    ///     const STATIC: StaticRef<Option<T>> = StaticRef::new(Self::REF);
     /// }
     ///
     /// ```
@@ -208,16 +195,13 @@ impl<T> StaticRef<T> {
     ///
     /// struct GetPtr<T>(T);
     ///
-    /// impl<T> GetPtr<T>{
-    ///     const PTR:*const Option<T>=&None;
+    /// impl<T> GetPtr<T> {
+    ///     const PTR: *const Option<T> = &None;
     ///
-    ///     const STATIC:StaticRef<Option<T>>=unsafe{
-    ///         StaticRef::from_raw(Self::PTR)
-    ///     };
+    ///     const STATIC: StaticRef<Option<T>> = unsafe { StaticRef::from_raw(Self::PTR) };
     /// }
     ///
-    /// let reference:&'static Option<String>=
-    ///     GetPtr::<String>::STATIC.get();
+    /// let reference: &'static Option<String> = GetPtr::<String>::STATIC.get();
     ///
     /// ```
     pub fn get<'a>(self) -> &'a T {
@@ -234,16 +218,13 @@ impl<T> StaticRef<T> {
     ///
     /// struct GetPtr<T>(T);
     ///
-    /// impl<T> GetPtr<T>{
-    ///     const PTR:*const Option<T>=&None;
+    /// impl<T> GetPtr<T> {
+    ///     const PTR: *const Option<T> = &None;
     ///
-    ///     const STATIC:StaticRef<Option<T>>=unsafe{
-    ///         StaticRef::from_raw(Self::PTR)
-    ///     };
+    ///     const STATIC: StaticRef<Option<T>> = unsafe { StaticRef::from_raw(Self::PTR) };
     /// }
     ///
-    /// let reference:*const Option<Infallible>=
-    ///     GetPtr::<Infallible>::STATIC.as_ptr();
+    /// let reference: *const Option<Infallible> = GetPtr::<Infallible>::STATIC.as_ptr();
     ///
     /// ```
     pub const fn as_ptr(self) -> *const T {
@@ -264,18 +245,14 @@ impl<T> StaticRef<T> {
     ///
     /// struct GetPtr<T>(T);
     ///
-    /// impl<T> GetPtr<T>{
-    ///     const PTR:*const Option<T>=&None;
+    /// impl<T> GetPtr<T> {
+    ///     const PTR: *const Option<T> = &None;
     ///
-    ///     const STATIC:StaticRef<Option<T>>=unsafe{
-    ///         StaticRef::from_raw(Self::PTR)
-    ///     };
+    ///     const STATIC: StaticRef<Option<T>> = unsafe { StaticRef::from_raw(Self::PTR) };
     /// }
     ///
-    /// let reference:StaticRef<Option<[();0xFFF_FFFF]>>=unsafe{
-    ///     GetPtr::<()>::STATIC
-    ///         .transmute::<Option<[();0xFFF_FFFF]>>()
-    /// };
+    /// let reference: StaticRef<Option<[(); 0xFFF_FFFF]>> =
+    ///     unsafe { GetPtr::<()>::STATIC.transmute::<Option<[(); 0xFFF_FFFF]>>() };
     ///
     /// ```
     pub const unsafe fn transmute<U>(self) -> StaticRef<U> {

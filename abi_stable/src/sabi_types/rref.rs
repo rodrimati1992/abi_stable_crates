@@ -28,13 +28,9 @@ use crate::{
 /// This example demonstrates how a simple `&dyn Any`-like type can be implemented.
 ///
 /// ```rust
-/// use abi_stable::{
-///     marker_type::ErasedObject,
-///     std_types::UTypeId,
-///     RRef,
-/// };
+/// use abi_stable::{marker_type::ErasedObject, std_types::UTypeId, RRef};
 ///
-/// fn main(){
+/// fn main() {
 ///     let value = WithTypeId::new(5u32);
 ///     let erased = value.erase();
 ///
@@ -47,7 +43,7 @@ use crate::{
 /// // `RRef<'a, WithTypeId<T>>` to `RRef<'a, WithTypeId<ErasedObject>>`.
 /// #[repr(C)]
 /// #[derive(Debug, PartialEq)]
-/// struct WithTypeId<T>{
+/// struct WithTypeId<T> {
 ///     type_id: UTypeId,
 ///     value: T,
 /// }
@@ -55,27 +51,27 @@ use crate::{
 /// impl<T> WithTypeId<T> {
 ///     pub fn new(value: T) -> Self
 ///     where
-///         T: 'static
+///         T: 'static,
 ///     {
-///         Self{
+///         Self {
 ///             type_id: UTypeId::new::<T>(),
 ///             value,
 ///         }
 ///     }
 ///
 ///     pub fn erase(&self) -> RRef<'_, WithTypeId<ErasedObject>> {
-///         unsafe{ RRef::new(self).transmute::<WithTypeId<ErasedObject>>() }
+///         unsafe { RRef::new(self).transmute::<WithTypeId<ErasedObject>>() }
 ///     }
 /// }
 ///
 /// impl WithTypeId<ErasedObject> {
 ///     pub fn downcast<T>(this: RRef<'_, Self>) -> Option<&WithTypeId<T>>
 ///     where
-///         T: 'static
+///         T: 'static,
 ///     {
 ///         if this.get().type_id == UTypeId::new::<T>() {
 ///             // safety: we checked that type parameter was `T`
-///             unsafe{ Some(this.transmute_into_ref::<WithTypeId<T>>()) }
+///             unsafe { Some(this.transmute_into_ref::<WithTypeId<T>>()) }
 ///         } else {
 ///             None
 ///         }
@@ -151,13 +147,12 @@ impl<'a, T> RRef<'a, T> {
     /// ```
     /// use abi_stable::sabi_types::RRef;
     ///
-    /// struct GetPtr<'a,T>(&'a T);
+    /// struct GetPtr<'a, T>(&'a T);
     ///
-    /// impl<'a,T:'a> GetPtr<'a,T>{
-    ///     const REF:&'a Option<T>=&None;
+    /// impl<'a, T: 'a> GetPtr<'a, T> {
+    ///     const REF: &'a Option<T> = &None;
     ///
-    ///     const STATIC:RRef<'a,Option<T>>=
-    ///         RRef::new(Self::REF);
+    ///     const STATIC: RRef<'a, Option<T>> = RRef::new(Self::REF);
     /// }
     ///
     /// ```
@@ -181,14 +176,12 @@ impl<'a, T> RRef<'a, T> {
     /// ```
     /// use abi_stable::sabi_types::RRef;
     ///
-    /// struct GetPtr<'a,T>(&'a T);
+    /// struct GetPtr<'a, T>(&'a T);
     ///
-    /// impl<'a,T:'a> GetPtr<'a,T>{
-    ///     const PTR:*const Option<T>=&None;
+    /// impl<'a, T: 'a> GetPtr<'a, T> {
+    ///     const PTR: *const Option<T> = &None;
     ///
-    ///     const STATIC:RRef<'a,Option<T>>=unsafe{
-    ///         RRef::from_raw(Self::PTR)
-    ///     };
+    ///     const STATIC: RRef<'a, Option<T>> = unsafe { RRef::from_raw(Self::PTR) };
     /// }
     ///
     /// ```
@@ -249,7 +242,7 @@ impl<'a, T> RRef<'a, T> {
     ///
     /// let rref = RRef::new(&89);
     ///
-    /// unsafe{
+    /// unsafe {
     ///     assert_eq!(*rref.as_ptr(), 89);
     /// }
     /// ```
@@ -278,7 +271,7 @@ impl<'a, T> RRef<'a, T> {
     /// let rref = RRef::new(&13u32);
     ///
     /// // safety: Wrapping is a `#[repr(transparent)]` wrapper with one `pub` field.
-    /// let trans = unsafe{ rref.transmute::<Wrapping<u32>>() };
+    /// let trans = unsafe { rref.transmute::<Wrapping<u32>>() };
     ///
     /// assert_eq!(trans, RRef::new(&Wrapping(13u32)));
     ///
@@ -311,12 +304,9 @@ impl<'a, T> RRef<'a, T> {
     /// # Example
     ///
     /// ```rust
-    /// use abi_stable::{
-    ///     RRef,
-    ///     std_types::Tuple2,
-    /// };
+    /// use abi_stable::{std_types::Tuple2, RRef};
     ///
-    /// unsafe{
+    /// unsafe {
     ///     let reff = RRef::new(&Tuple2(3u32, 5u64));
     ///     assert_eq!(reff.transmute_into_ref::<u32>(), &3u32);
     /// }

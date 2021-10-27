@@ -3,61 +3,57 @@ use std::{
     fmt::{self, Debug, Display},
 };
 
-/**
-Newtype wrapper to pass function pointers to `const fn`.
-
-A workaround for it not being possible to get a function pointer within a `const fn`,
-since it's possible to pass structs that happen to have function pointer fields.
-
-Every impl of this type delegates the impl to the return value of the wrapped function
-(which it calls every time),don't use those impls if the function is likely expensive.
-
-# Example
-
-```
-use abi_stable::{
-    sabi_types::Constructor,
-    std_types::{ROption,RNone,RSome},
-};
-
-
-extern "C" fn returns_100()->ROption<u32>{
-    RSome(100)
-}
-
-extern "C" fn returns_100b()->ROption<u32>{
-    RSome(100)
-}
-
-extern "C" fn returns_200()->ROption<u32>{
-    RSome(200)
-}
-
-extern "C" fn returns_none()->ROption<u32>{
-    RNone
-}
-
-
-const A: Constructor<ROption<u32>>= Constructor(returns_100);
-const B: Constructor<ROption<u32>>= Constructor(returns_100b);
-const C: Constructor<ROption<u32>>= Constructor(returns_200);
-const D: Constructor<ROption<u32>>= Constructor(returns_none);
-
-assert_eq!(A,A);
-assert_eq!(B,B);
-assert_eq!(C,C);
-assert_eq!(D,D);
-
-assert_eq!(A,B);
-
-assert_ne!(A,C);
-assert_ne!(A,D);
-assert_ne!(B,C);
-assert_ne!(C,D);
-
-
-```
-*/
+/// Newtype wrapper to pass function pointers to `const fn`.
+///
+/// A workaround for it not being possible to get a function pointer within a `const fn`,
+/// since it's possible to pass structs that happen to have function pointer fields.
+///
+/// Every impl of this type delegates the impl to the return value of the wrapped function
+/// (which it calls every time),don't use those impls if the function is likely expensive.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::{
+///     sabi_types::Constructor,
+///     std_types::{RNone, ROption, RSome},
+/// };
+///
+/// extern "C" fn returns_100() -> ROption<u32> {
+///     RSome(100)
+/// }
+///
+/// extern "C" fn returns_100b() -> ROption<u32> {
+///     RSome(100)
+/// }
+///
+/// extern "C" fn returns_200() -> ROption<u32> {
+///     RSome(200)
+/// }
+///
+/// extern "C" fn returns_none() -> ROption<u32> {
+///     RNone
+/// }
+///
+/// const A: Constructor<ROption<u32>> = Constructor(returns_100);
+/// const B: Constructor<ROption<u32>> = Constructor(returns_100b);
+/// const C: Constructor<ROption<u32>> = Constructor(returns_200);
+/// const D: Constructor<ROption<u32>> = Constructor(returns_none);
+///
+/// assert_eq!(A, A);
+/// assert_eq!(B, B);
+/// assert_eq!(C, C);
+/// assert_eq!(D, D);
+///
+/// assert_eq!(A, B);
+///
+/// assert_ne!(A, C);
+/// assert_ne!(A, D);
+/// assert_ne!(B, C);
+/// assert_ne!(C, D);
+///
+/// ```
+///
 #[repr(transparent)]
 #[derive(StableAbi)]
 // #[sabi(debug_print)]

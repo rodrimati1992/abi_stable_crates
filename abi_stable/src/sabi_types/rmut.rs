@@ -29,27 +29,26 @@ use crate::{
 /// This example demonstrates how a simple `&mut dyn Any`-like type can be implemented.
 ///
 /// ```rust
-/// use abi_stable::{
-///     marker_type::ErasedObject,
-///     std_types::UTypeId,
-///     RMut,
-/// };
+/// use abi_stable::{marker_type::ErasedObject, std_types::UTypeId, RMut};
 ///
-/// fn main(){
+/// fn main() {
 ///     let mut value = WithTypeId::new(5u32);
 ///     let mut clone = value.clone();
 ///     let mut erased = value.erase();
 ///
 ///     assert_eq!(WithTypeId::downcast::<i32>(erased.reborrow()), None);
 ///     assert_eq!(WithTypeId::downcast::<bool>(erased.reborrow()), None);
-///     assert_eq!(WithTypeId::downcast::<u32>(erased.reborrow()), Some(&mut clone));
+///     assert_eq!(
+///         WithTypeId::downcast::<u32>(erased.reborrow()),
+///         Some(&mut clone)
+///     );
 /// }
 ///
 /// // `#[repr(C))]` with a trailing `T` field is required for soundly transmuting from
 /// // `RMut<'a, WithTypeId<T>>` to `RMut<'a, WithTypeId<ErasedObject>>`.
 /// #[repr(C)]
 /// #[derive(Debug, PartialEq, Clone)]
-/// struct WithTypeId<T>{
+/// struct WithTypeId<T> {
 ///     type_id: UTypeId,
 ///     value: T,
 /// }
@@ -57,27 +56,27 @@ use crate::{
 /// impl<T> WithTypeId<T> {
 ///     pub fn new(value: T) -> Self
 ///     where
-///         T: 'static
+///         T: 'static,
 ///     {
-///         Self{
+///         Self {
 ///             type_id: UTypeId::new::<T>(),
 ///             value,
 ///         }
 ///     }
 ///
 ///     pub fn erase(&mut self) -> RMut<'_, WithTypeId<ErasedObject>> {
-///         unsafe{ RMut::new(self).transmute::<WithTypeId<ErasedObject>>() }
+///         unsafe { RMut::new(self).transmute::<WithTypeId<ErasedObject>>() }
 ///     }
 /// }
 ///
 /// impl WithTypeId<ErasedObject> {
 ///     pub fn downcast<T>(this: RMut<'_, Self>) -> Option<&mut WithTypeId<T>>
 ///     where
-///         T: 'static
+///         T: 'static,
 ///     {
 ///         if this.get().type_id == UTypeId::new::<T>() {
 ///             // safety: we checked that type parameter was `T`
-///             unsafe{ Some(this.transmute_into_mut::<WithTypeId<T>>()) }
+///             unsafe { Some(this.transmute_into_mut::<WithTypeId<T>>()) }
 ///         } else {
 ///             None
 ///         }
@@ -181,7 +180,7 @@ impl<'a, T> RMut<'a, T> {
     /// // `&mut foo` is casted to a pointer to a compatible type (`u32` to `i32`),
     /// // `rmut` is only used for the lifetime of foo,
     /// // and is the only active pointer to `foo` while it's used.
-    /// let mut rmut = unsafe{ RMut::from_raw((&mut foo) as *mut u32 as *mut i32) };
+    /// let mut rmut = unsafe { RMut::from_raw((&mut foo) as *mut u32 as *mut i32) };
     /// *rmut.get_mut() -= 4;
     ///
     /// assert_eq!(*rmut.get(), -1);
@@ -401,7 +400,7 @@ impl<'a, T> RMut<'a, T> {
     /// let mut val = 34;
     /// let rmut = RMut::new(&mut val);
     ///
-    /// unsafe{
+    /// unsafe {
     ///     assert_eq!(*rmut.as_ptr(), 34);
     /// }
     /// ```
@@ -420,7 +419,7 @@ impl<'a, T> RMut<'a, T> {
     /// let mut val = 34;
     /// let mut rmut = RMut::new(&mut val);
     ///
-    /// unsafe{
+    /// unsafe {
     ///     rmut.as_mut_ptr().write(7);
     ///
     ///     *rmut.as_mut_ptr() *= 2;
@@ -443,7 +442,7 @@ impl<'a, T> RMut<'a, T> {
     /// let mut val = 89;
     /// let rmut = RMut::new(&mut val);
     ///
-    /// unsafe{
+    /// unsafe {
     ///     let ptr = rmut.into_raw();
     ///
     ///     ptr.write(27);
@@ -478,7 +477,6 @@ impl<'a, T> RMut<'a, T> {
     /// }
     ///
     /// assert_eq!(val, Direction::Down);
-    ///
     ///
     /// #[repr(u8)]
     /// #[derive(Debug, PartialEq)]
@@ -515,7 +513,7 @@ impl<'a, T> RMut<'a, T> {
     ///
     /// assert_eq!(rmut.get(), &13);
     ///
-    /// unsafe{
+    /// unsafe {
     ///     *rmut.transmute_into_mut::<i8>() = -1;
     /// }
     ///
@@ -548,7 +546,7 @@ impl<'a, T> RMut<'a, T> {
     /// let mut val: [u32; 3] = [2, 3, 0];
     /// let mut rmut = RMut::new(&mut val);
     ///
-    /// unsafe{
+    /// unsafe {
     ///     // safety:
     ///     // it's sound to transmute mutable references of arrays into shorter arrays.
     ///     //
@@ -584,7 +582,7 @@ impl<'a, T> RMut<'a, T> {
     /// # Example
     ///
     /// ```rust
-    /// use abi_stable::{RRef, RMut};
+    /// use abi_stable::{RMut, RRef};
     ///
     /// let mut val = 77;
     /// let rmut = RMut::new(&mut val);
@@ -607,7 +605,7 @@ impl<'a, T> RMut<'a, T> {
     /// # Example
     ///
     /// ```rust
-    /// use abi_stable::{RRef, RMut};
+    /// use abi_stable::{RMut, RRef};
     ///
     /// let mut val = 0;
     /// let rmut = RMut::new(&mut val);

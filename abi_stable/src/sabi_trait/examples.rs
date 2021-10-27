@@ -10,66 +10,61 @@ use crate::{
 
 //////////////////////////////////////
 
-/**
-
-```
-use abi_stable::{
-    sabi_trait::{prelude::*,examples::*},
-    std_types::*,
-};
-
-let _=RSomething_TO::<_,(),u32>::from_value(RBox::new(10_u32),TD_Opaque);
-
-```
-
-While RSomething_TO can be constructed from an RArc,
-no method on the trait can be called because RSomething has mutable and by value methods.
-
-```compile_fail
-use abi_stable::{
-    sabi_trait::{prelude::*,examples::*},
-    std_types::*,
-};
-
-
-let what=RSomething_TO::from_ptr(RArc::new(100u32),TD_Opaque);
-RSomething::into_value(what);
-
-```
-
-
-Cannot create RSomething from a !Sync type.
-```compile_fail
-use abi_stable::{
-    marker_type::*,
-    sabi_trait::{prelude::*,examples::*},
-    std_types::*,
-};
-
-use std::marker::PhantomData;
-
-let ptr=RBox::new(PhantomData::<UnsyncSend>);
-let _=RSomething_TO::<_,(),PhantomData::<UnsyncSend>>::from_value(ptr,TD_Opaque);
-
-```
-
-Cannot create RSomething from a !Send type.
-```compile_fail
-use abi_stable::{
-    marker_type::*,
-    sabi_trait::{prelude::*,examples::*},
-    std_types::*,
-};
-
-use std::marker::PhantomData;
-
-let ptr=RBox::new(PhantomData::<SyncUnsend>);
-let _=RSomething_TO::<_,(),PhantomData<SyncUnsend>>::from_value(ptr,TD_Opaque);
-
-```
-
-
-*/
+/// ```
+/// use abi_stable::{
+///     sabi_trait::{examples::*, prelude::*},
+///     std_types::*,
+/// };
+///
+/// let _ = RSomething_TO::<_, (), u32>::from_value(RBox::new(10_u32), TD_Opaque);
+///
+/// ```
+///
+/// While RSomething_TO can be constructed from an RArc,
+/// no method on the trait can be called because RSomething has mutable and by value methods.
+///
+/// ```compile_fail
+/// use abi_stable::{
+///     sabi_trait::{examples::*, prelude::*},
+///     std_types::*,
+/// };
+///
+/// let what = RSomething_TO::from_ptr(RArc::new(100u32), TD_Opaque);
+/// RSomething::into_value(what);
+///
+/// ```
+///
+///
+/// Cannot create RSomething from a !Sync type.
+/// ```compile_fail
+/// use abi_stable::{
+///     marker_type::*,
+///     sabi_trait::{examples::*, prelude::*},
+///     std_types::*,
+/// };
+///
+/// use std::marker::PhantomData;
+///
+/// let ptr = RBox::new(PhantomData::<UnsyncSend>);
+/// let _ = RSomething_TO::<_, (), PhantomData<UnsyncSend>>::from_value(ptr, TD_Opaque);
+///
+/// ```
+///
+/// Cannot create RSomething from a !Send type.
+/// ```compile_fail
+/// use abi_stable::{
+///     marker_type::*,
+///     sabi_trait::{examples::*, prelude::*},
+///     std_types::*,
+/// };
+///
+/// use std::marker::PhantomData;
+///
+/// let ptr = RBox::new(PhantomData::<SyncUnsend>);
+/// let _ = RSomething_TO::<_, (), PhantomData<SyncUnsend>>::from_value(ptr, TD_Opaque);
+///
+/// ```
+///
 #[sabi_trait]
 // #[sabi(debug_print_trait)]
 pub trait RSomething<T>: Send + Sync + Clone + Debug {

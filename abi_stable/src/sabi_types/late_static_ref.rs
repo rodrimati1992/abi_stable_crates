@@ -14,76 +14,68 @@ use crate::{
     prefix_type::{PointsToPrefixFields, PrefixRef},
 };
 
-/**
-A late-initialized static reference,with fallible initialization.
-
-As opposed to `Once`,
-this allows initialization of its static reference to happen fallibly,
-by returning a `Result<_,_>` from the `try_init` function,
-or by panicking inside either initialization function.
-
-On `Err(_)` and panics,one can try initialializing the static reference again.
-
-# Example
-
-This lazily loads a configuration file.
-
-```
-
-use abi_stable::{
-    sabi_types::LateStaticRef,
-    std_types::{RBox,RBoxError,RHashMap,RString},
-    utils::leak_value,
-};
-
-use std::{
-    fs,
-    io,
-    path::Path,
-};
-
-use serde::Deserialize;
-
-
-#[derive(Deserialize)]
-pub struct Config{
-    pub user_actions:RHashMap<RString,UserAction>,
-}
-
-#[derive(Deserialize)]
-pub enum UserAction{
-    Include,
-    Ignore,
-    ReplaceWith,
-}
-
-
-fn load_config(file_path:&Path)->Result<&'static Config,RBoxError>{
-    static CONFIG:LateStaticRef<&Config>=LateStaticRef::new();
-
-    CONFIG.try_init(||{
-        let file=load_file(file_path).map_err(RBoxError::new)?;
-        let config=serde_json::from_str::<Config>(&file).map_err(RBoxError::new)?;
-        Ok(leak_value(config))
-    })
-}
-
-
-# fn load_file(file_path:&Path)->Result<String,RBoxError>{
-#     let str=r##"
-#         {
-#             "user_actions":{
-#                 "oolong":"prolonged",
-#                 "genius":"idiot"
-#             }
-#         }
-#     "##.to_string();
-#     Ok(str)
-# }
-
-```
-
-*/
+/// A late-initialized static reference,with fallible initialization.
+///
+/// As opposed to `Once`,
+/// this allows initialization of its static reference to happen fallibly,
+/// by returning a `Result<_,_>` from the `try_init` function,
+/// or by panicking inside either initialization function.
+///
+/// On `Err(_)` and panics,one can try initialializing the static reference again.
+///
+/// # Example
+///
+/// This lazily loads a configuration file.
+///
+/// ```
+///
+/// use abi_stable::{
+///     sabi_types::LateStaticRef,
+///     std_types::{RBox, RBoxError, RHashMap, RString},
+///     utils::leak_value,
+/// };
+///
+/// use std::{fs, io, path::Path};
+///
+/// use serde::Deserialize;
+///
+/// #[derive(Deserialize)]
+/// pub struct Config {
+///     pub user_actions: RHashMap<RString, UserAction>,
+/// }
+///
+/// #[derive(Deserialize)]
+/// pub enum UserAction {
+///     Include,
+///     Ignore,
+///     ReplaceWith,
+/// }
+///
+/// fn load_config(file_path: &Path) -> Result<&'static Config, RBoxError> {
+///     static CONFIG: LateStaticRef<&Config> = LateStaticRef::new();
+///
+///     CONFIG.try_init(|| {
+///         let file = load_file(file_path).map_err(RBoxError::new)?;
+///         let config =
+///             serde_json::from_str::<Config>(&file).map_err(RBoxError::new)?;
+///         Ok(leak_value(config))
+///     })
+/// }
+///
+/// # fn load_file(file_path:&Path)->Result<String,RBoxError>{
+/// #     let str=r##"
+/// #         {
+/// #             "user_actions":{
+/// #                 "oolong":"prolonged",
+/// #                 "genius":"idiot"
+/// #             }
+/// #         }
+/// #     "##.to_string();
+/// #     Ok(str)
+/// # }
+///
+/// ```
+///
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct LateStaticRef<T> {
@@ -105,7 +97,7 @@ impl<T> LateStaticRef<T> {
     /// ```
     /// use abi_stable::sabi_types::LateStaticRef;
     ///
-    /// static LATE_REF:LateStaticRef<&String>=LateStaticRef::new();
+    /// static LATE_REF: LateStaticRef<&String> = LateStaticRef::new();
     ///
     /// ```
     pub const fn new() -> Self {
@@ -125,8 +117,7 @@ impl<T> LateStaticRef<&'static T> {
     /// ```
     /// use abi_stable::sabi_types::LateStaticRef;
     ///
-    /// static LATE_REF:LateStaticRef<&&str>=
-    ///     LateStaticRef::from_ref(&"Hello!");
+    /// static LATE_REF: LateStaticRef<&&str> = LateStaticRef::from_ref(&"Hello!");
     ///
     /// ```
     pub const fn from_ref(value: &'static T) -> Self {
@@ -145,13 +136,13 @@ impl<T: 'static> LateStaticRef<T> {
     ///
     /// ```
     /// use abi_stable::{
-    ///     StableAbi,
     ///     pointer_trait::ImmutableRef,
     ///     prefix_type::{PrefixRefTrait, PrefixTypeTrait, WithMetadata},
-    ///     sabi_types::LateStaticRef
+    ///     sabi_types::LateStaticRef,
+    ///     StableAbi,
     /// };
     ///
-    /// fn main(){
+    /// fn main() {
     ///     assert_eq!(LATE_REF.get().unwrap().get_number()(), 100);
     /// }
     ///
@@ -173,23 +164,17 @@ impl<T: 'static> LateStaticRef<T> {
     ///     /// first compatible version of the library.
     ///     /// Moving this attribute is a braeking change.
     ///     #[sabi(last_prefix_field)]
-    ///     pub get_number: extern "C" fn()->u32,
-    ///
+    ///     pub get_number: extern "C" fn() -> u32,
     /// }
     ///
     /// const MODULE: PersonMod_Ref = {
-    ///
-    ///     const S: &WithMetadata<PersonMod> = &WithMetadata::new(
-    ///         PrefixTypeTrait::METADATA,
-    ///         PersonMod{
-    ///             get_number,
-    ///         }
-    ///     );
+    ///     const S: &WithMetadata<PersonMod> =
+    ///         &WithMetadata::new(PrefixTypeTrait::METADATA, PersonMod { get_number });
     ///
     ///     PersonMod_Ref(S.static_as_prefix())
     /// };
     ///
-    /// extern fn get_number()->u32{
+    /// extern "C" fn get_number() -> u32 {
     ///     100
     /// }
     /// ```
@@ -224,10 +209,8 @@ impl<T: 'static> LateStaticRef<T> {
     ///
     /// ```rust
     /// use abi_stable::{
+    ///     pointer_trait::ImmutableRef, sabi_types::LateStaticRef, utils::ref_as_nonnull,
     ///     StableAbi,
-    ///     pointer_trait::ImmutableRef,
-    ///     sabi_types::LateStaticRef,
-    ///     utils::ref_as_nonnull,
     /// };
     ///
     /// use std::ptr::NonNull;
@@ -246,11 +229,8 @@ impl<T: 'static> LateStaticRef<T> {
     /// }
     ///
     /// const MODULE: LateStaticRef<Foo<'static>> = {
-    ///     unsafe{
-    ///         LateStaticRef::from_custom(
-    ///             ImmutableRef::TARGET,
-    ///             Foo(&100).as_nonnull(),
-    ///         )
+    ///     unsafe {
+    ///         LateStaticRef::from_custom(ImmutableRef::TARGET, Foo(&100).as_nonnull())
     ///     }
     /// };
     /// ```
@@ -283,27 +263,22 @@ where
     /// # Example
     ///
     /// ```
-    /// use abi_stable::{
-    ///     sabi_types::LateStaticRef,
-    ///     utils::leak_value,
-    /// };
+    /// use abi_stable::{sabi_types::LateStaticRef, utils::leak_value};
     ///
-    /// static LATE:LateStaticRef<&String>=LateStaticRef::new();
+    /// static LATE: LateStaticRef<&String> = LateStaticRef::new();
     ///
-    /// static EARLY:LateStaticRef<&&str>=
-    ///     LateStaticRef::from_ref(&"Hello!");
+    /// static EARLY: LateStaticRef<&&str> = LateStaticRef::from_ref(&"Hello!");
     ///
-    /// assert_eq!( LATE.try_init(|| Err("oh no!") ), Err("oh no!") );
+    /// assert_eq!(LATE.try_init(|| Err("oh no!")), Err("oh no!"));
     /// assert_eq!(
-    ///     LATE
-    ///         .try_init(||->Result<&'static String,()>{
-    ///             Ok( leak_value("Yay".to_string()) )
-    ///         })
-    ///         .map(|s| s.as_str() ),
+    ///     LATE.try_init(|| -> Result<&'static String, ()> {
+    ///         Ok(leak_value("Yay".to_string()))
+    ///     })
+    ///     .map(|s| s.as_str()),
     ///     Ok("Yay"),
     /// );
     ///
-    /// assert_eq!( EARLY.try_init(|| Err("oh no!") ), Ok(&"Hello!") );
+    /// assert_eq!(EARLY.try_init(|| Err("oh no!")), Ok(&"Hello!"));
     ///
     ///
     /// ```
@@ -343,23 +318,19 @@ where
     /// # Example
     ///
     /// ```
-    /// use abi_stable::{
-    ///     sabi_types::LateStaticRef,
-    ///     utils::leak_value,
-    /// };
+    /// use abi_stable::{sabi_types::LateStaticRef, utils::leak_value};
     ///
-    /// static LATE:LateStaticRef<&String>=LateStaticRef::new();
+    /// static LATE: LateStaticRef<&String> = LateStaticRef::new();
     ///
-    /// static EARLY:LateStaticRef<&&str>=
-    ///     LateStaticRef::from_ref(&"Hello!");
+    /// static EARLY: LateStaticRef<&&str> = LateStaticRef::from_ref(&"Hello!");
     ///
-    /// let _=std::panic::catch_unwind(||{
-    ///     LATE.init(|| panic!() );
+    /// let _ = std::panic::catch_unwind(|| {
+    ///     LATE.init(|| panic!());
     /// });
     ///
-    /// assert_eq!( LATE.init(|| leak_value("Yay".to_string()) ), &"Yay" );
+    /// assert_eq!(LATE.init(|| leak_value("Yay".to_string())), &"Yay");
     ///
-    /// assert_eq!( EARLY.init(|| panic!() ), &"Hello!" );
+    /// assert_eq!(EARLY.init(|| panic!()), &"Hello!");
     ///
     /// ```
     #[inline]
@@ -376,25 +347,21 @@ where
     /// # Example
     ///
     /// ```
-    /// use abi_stable::{
-    ///     sabi_types::LateStaticRef,
-    ///     utils::leak_value,
-    /// };
+    /// use abi_stable::{sabi_types::LateStaticRef, utils::leak_value};
     ///
-    /// static LATE:LateStaticRef<&String>=LateStaticRef::new();
+    /// static LATE: LateStaticRef<&String> = LateStaticRef::new();
     ///
-    /// static EARLY:LateStaticRef<&&str>=
-    ///     LateStaticRef::from_ref(&"Hello!");
+    /// static EARLY: LateStaticRef<&&str> = LateStaticRef::from_ref(&"Hello!");
     ///
-    /// let _=std::panic::catch_unwind(||{
-    ///     LATE.init(|| panic!() );
+    /// let _ = std::panic::catch_unwind(|| {
+    ///     LATE.init(|| panic!());
     /// });
     ///
-    /// assert_eq!( LATE.get(), None );
-    /// LATE.init(|| leak_value("Yay".to_string()) );
-    /// assert_eq!( LATE.get().map(|s| s.as_str() ), Some("Yay") );
+    /// assert_eq!(LATE.get(), None);
+    /// LATE.init(|| leak_value("Yay".to_string()));
+    /// assert_eq!(LATE.get().map(|s| s.as_str()), Some("Yay"));
     ///
-    /// assert_eq!( EARLY.get(), Some(&"Hello!") );
+    /// assert_eq!(EARLY.get(), Some(&"Hello!"));
     ///
     /// ```
     pub fn get(&self) -> Option<T> {
