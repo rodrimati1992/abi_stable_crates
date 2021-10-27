@@ -30,6 +30,8 @@ rust_1_46=["rust_1_42"]
 
 rust_1_51=["rust_1_46", "const_params"]
 
+rust_latest_stable = ["rust_1_51"]
+
 const_params=["rust_1_46"]
 
 # Enables the `#![feature(min_const_generics)]` attribute in 

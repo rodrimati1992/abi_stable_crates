@@ -239,6 +239,25 @@ macro_rules! check_unerased {
 ///
 /// ```
 ///
+/// # Returing in `no_early_return`
+///
+/// Attempting to do any kind of returning from inside of
+/// `extern_fn_panic_handling!{no_early_return}`
+/// will cause an abort:
+///
+/// ```should_panic
+/// use abi_stable::extern_fn_panic_handling;
+///
+/// pub extern "C" fn function() {
+///     extern_fn_panic_handling!{no_early_return;
+///         return;
+///     }
+/// }
+///
+/// function();
+///
+/// ```
+///
 ///
 #[macro_export]
 macro_rules! extern_fn_panic_handling {
@@ -298,7 +317,7 @@ macro_rules! extern_fn_panic_handling {
 /// {
 ///     type Interface = ();
 ///
-///     const INFO: &'static TypeInfo = impl_get_type_info! { Foo<T> };
+///     const INFO: &'static TypeInfo = impl_get_type_info! {Self};
 /// }
 ///
 ///
@@ -472,7 +491,7 @@ macro_rules! make_item_info {
 #[macro_export]
 macro_rules! rvec {
     ( $( $anything:tt )* ) => (
-        $crate::std_types::RVec::from(vec![ $($anything)* ])
+        $crate::std_types::RVec::from($crate::pmr::vec![ $($anything)* ])
     )
 }
 

@@ -608,9 +608,16 @@ required until this library is updated to automatically detect them.
 
 Features:
 
-- "rust_1_51": Enables impls which require using const generics,
+- "rust_1_46": Makes some functions `const fn`s that are otherwise not `const`,
+this is documented in each function for which it applies.
+
+- "rust_1_51_0":
+Enables impls which require using const generics,
 including implementing StableAbi for arrays of all lengths,
 requires Rust Rust 1.51.0 or higher.
+
+- "rust_latest_stable":
+Enables the "rust_1_*" features for all the stable releases.
 
 # Tools
 

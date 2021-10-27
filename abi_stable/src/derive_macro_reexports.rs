@@ -48,6 +48,7 @@ pub use std::{
     mem::ManuallyDrop,
     option::Option,
     ptr::NonNull,
+    vec,
 };
 
 pub use str;
