@@ -25,32 +25,29 @@ use std::{
 ///
 /// ```rust
 /// use abi_stable::{
-///     StableAbi,
-///     staticref,
 ///     prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
+///     staticref, StableAbi,
 /// };
 ///
-/// fn main(){
+/// fn main() {
 ///     // `Module_Ref`'s constructor can also be called at compile-time
 ///     asserts(Module_Ref(PREFIX_A));
 ///     asserts(Module_Ref(PREFIX_B));
 /// }
 ///
-/// fn asserts(module: Module_Ref){
+/// fn asserts(module: Module_Ref) {
 ///     assert_eq!(module.first(), 5);
 ///     assert_eq!(module.second(), 8);
-///    
+///
 ///     // If this Module_Ref had come from a previous version of the library without a
 ///     // `third` field it would return `None`.
 ///     assert_eq!(module.third(), Some(13));
 /// }
 ///
-///
-///
 /// #[repr(C)]
 /// #[derive(StableAbi)]
 /// #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
-/// struct Module{
+/// struct Module {
 ///     first: usize,
 ///     // The `#[sabi(last_prefix_field)]` attribute here means that this is
 ///     // the last field in this struct that was defined in the
@@ -63,7 +60,7 @@ use std::{
 ///     third: usize,
 /// }
 ///
-/// const MOD_VAL: Module = Module{
+/// const MOD_VAL: Module = Module {
 ///     first: 5,
 ///     second: 8,
 ///     third: 13,
@@ -93,12 +90,9 @@ use std::{
 ///     });
 /// }
 ///
-///
 /// const PREFIX_B: PrefixRef<Module_Prefix> = WithAssoc::MOD_WM.as_prefix();
 ///
-///
 /// /////////////////////////////////////////
-///
 ///
 /// ```
 #[repr(transparent)]
@@ -148,22 +142,24 @@ impl<P> PrefixRef<P> {
     /// use abi_stable::{
     ///     for_examples::{Module, Module_Prefix, Module_Ref},
     ///     prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
-    ///     std_types::*,
     ///     rstr,
+    ///     std_types::*,
     /// };
     ///
     /// const MOD_WM: &WithMetadata<Module> = {
-    ///     &WithMetadata::new(PrefixTypeTrait::METADATA, Module{
-    ///         first: RSome(3),
-    ///         second: rstr!("hello"),
-    ///         third: 8,
-    ///     })
+    ///     &WithMetadata::new(
+    ///         PrefixTypeTrait::METADATA,
+    ///         Module {
+    ///             first: RSome(3),
+    ///             second: rstr!("hello"),
+    ///             third: 8,
+    ///         },
+    ///     )
     /// };
     ///
-    /// const PREFIX: PrefixRef<Module_Prefix> = unsafe{ PrefixRef::from_raw(MOD_WM) };
+    /// const PREFIX: PrefixRef<Module_Prefix> = unsafe { PrefixRef::from_raw(MOD_WM) };
     ///
     /// const MODULE: Module_Ref = Module_Ref(PREFIX);
-    ///
     ///
     /// assert_eq!(MODULE.first(), RSome(3));
     ///
@@ -191,15 +187,15 @@ impl<P> PrefixRef<P> {
     /// use abi_stable::{
     ///     for_examples::{Module, Module_Prefix, Module_Ref},
     ///     prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
-    ///     std_types::*,
     ///     rstr, staticref,
+    ///     std_types::*,
     /// };
     ///
     /// struct Foo {}
     ///
     /// impl Foo {
     ///     // This macro declares a `StaticRef` pointing to the assigned `WithMetadata`.
-    ///     staticref!{const MOD_WM: WithMetadata<Module> =
+    ///     staticref! {const MOD_WM: WithMetadata<Module> =
     ///         WithMetadata::new(PrefixTypeTrait::METADATA, Module{
     ///             first: RNone,
     ///             second: rstr!("world"),
@@ -211,7 +207,6 @@ impl<P> PrefixRef<P> {
     /// const PREFIX: PrefixRef<Module_Prefix> = PrefixRef::from_staticref(Foo::MOD_WM);
     ///
     /// const MODULE: Module_Ref = Module_Ref(PREFIX);
-    ///
     ///
     /// assert_eq!(MODULE.first(), RNone);
     ///
@@ -237,22 +232,24 @@ impl<P> PrefixRef<P> {
     /// use abi_stable::{
     ///     for_examples::{Module, Module_Prefix, Module_Ref},
     ///     prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
-    ///     std_types::*,
     ///     rstr,
+    ///     std_types::*,
     /// };
     ///
     /// const MOD_WM: &WithMetadata<Module> = {
-    ///     &WithMetadata::new(PrefixTypeTrait::METADATA, Module{
-    ///         first: RNone,
-    ///         second: rstr!("foo"),
-    ///         third: 21,
-    ///     })
+    ///     &WithMetadata::new(
+    ///         PrefixTypeTrait::METADATA,
+    ///         Module {
+    ///             first: RNone,
+    ///             second: rstr!("foo"),
+    ///             third: 21,
+    ///         },
+    ///     )
     /// };
     ///
     /// const PREFIX: PrefixRef<Module_Prefix> = PrefixRef::from_ref(MOD_WM);
     ///
     /// const MODULE: Module_Ref = Module_Ref(PREFIX);
-    ///
     ///
     /// assert_eq!(MODULE.first(), RNone);
     ///
@@ -281,21 +278,24 @@ impl<P> PrefixRef<P> {
     /// };
     ///
     /// const MOD_WM: &WithMetadata<Module> = {
-    ///     &WithMetadata::new(PrefixTypeTrait::METADATA, Module{
-    ///         first: RNone,
-    ///         second: RStr::empty(),
-    ///         third: 0,
-    ///     })
+    ///     &WithMetadata::new(
+    ///         PrefixTypeTrait::METADATA,
+    ///         Module {
+    ///             first: RNone,
+    ///             second: RStr::empty(),
+    ///             third: 0,
+    ///         },
+    ///     )
     /// };
     ///
     /// const PREFIX: PrefixRef<Module_Prefix> = PrefixRef::from_ref(MOD_WM);
     ///
     /// let accessibility = PREFIX.metadata().field_accessibility();
     ///
-    /// assert!( accessibility.is_accessible(0) ); // The `first` field
-    /// assert!( accessibility.is_accessible(1) ); // The `second` field
-    /// assert!( accessibility.is_accessible(2) ); // The `third` field
-    /// assert!( !accessibility.is_accessible(3) ); // There's no field after `third`
+    /// assert!(accessibility.is_accessible(0)); // The `first` field
+    /// assert!(accessibility.is_accessible(1)); // The `second` field
+    /// assert!(accessibility.is_accessible(2)); // The `third` field
+    /// assert!(!accessibility.is_accessible(3)); // There's no field after `third`
     ///
     /// ```
     ///
@@ -312,16 +312,19 @@ impl<P> PrefixRef<P> {
     /// use abi_stable::{
     ///     for_examples::{Module, Module_Prefix},
     ///     prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
-    ///     std_types::*,
     ///     rstr,
+    ///     std_types::*,
     /// };
     ///
     /// const MOD_WM: &WithMetadata<Module> = {
-    ///     &WithMetadata::new(PrefixTypeTrait::METADATA, Module{
-    ///         first: RNone,
-    ///         second: rstr!("foo"),
-    ///         third: 21,
-    ///     })
+    ///     &WithMetadata::new(
+    ///         PrefixTypeTrait::METADATA,
+    ///         Module {
+    ///             first: RNone,
+    ///             second: rstr!("foo"),
+    ///             third: 21,
+    ///         },
+    ///     )
     /// };
     ///
     /// const PREFIX_REF: PrefixRef<Module_Prefix> = PrefixRef::from_ref(MOD_WM);

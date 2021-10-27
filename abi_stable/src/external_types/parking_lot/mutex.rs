@@ -35,38 +35,36 @@ fn assert_mutex_size() {
     let _assert_size: [(); mem::size_of::<OpaqueMutex>() - RAW_LOCK_SIZE];
 }
 
-/**
-A mutual exclusion lock that allows dynamic mutable borrows of shared data.
-
-# Poisoning
-
-As opposed to the standard library version of this type,
-this mutex type does not use poisoning,
-simply unlocking the lock when a panic happens.
-
-# Example
-
-```
-use abi_stable::external_types::RMutex;
-
-static MUTEX:RMutex<usize>=RMutex::new(0);
-
-let guard=std::thread::spawn(||{
-    for _ in 0..100 {
-        *MUTEX.lock()+=1;
-    }
-});
-
-for _ in 0..100 {
-    *MUTEX.lock()+=1;
-}
-
-guard.join().unwrap();
-
-assert_eq!(*MUTEX.lock(),200);
-
-```
-*/
+/// A mutual exclusion lock that allows dynamic mutable borrows of shared data.
+///
+/// # Poisoning
+///
+/// As opposed to the standard library version of this type,
+/// this mutex type does not use poisoning,
+/// simply unlocking the lock when a panic happens.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::external_types::RMutex;
+///
+/// static MUTEX: RMutex<usize> = RMutex::new(0);
+///
+/// let guard = std::thread::spawn(|| {
+///     for _ in 0..100 {
+///         *MUTEX.lock() += 1;
+///     }
+/// });
+///
+/// for _ in 0..100 {
+///     *MUTEX.lock() += 1;
+/// }
+///
+/// guard.join().unwrap();
+///
+/// assert_eq!(*MUTEX.lock(), 200);
+///
+/// ```
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct RMutex<T> {
@@ -75,12 +73,10 @@ pub struct RMutex<T> {
     vtable: VTable_Ref,
 }
 
-/**
-A mutex guard,which allows mutable access to the data inside an `RMutex`.
-
-When dropped this will unlock the mutex.
-
-*/
+/// A mutex guard,which allows mutable access to the data inside an `RMutex`.
+///
+/// When dropped this will unlock the mutex.
+///
 #[repr(transparent)]
 #[derive(StableAbi)]
 #[sabi(bound = "T:'a")]
@@ -100,9 +96,9 @@ impl<T> RMutex<T> {
     /// ```
     /// use abi_stable::external_types::RMutex;
     ///
-    /// static MUTEX:RMutex<Option<String>>=RMutex::new(None);
+    /// static MUTEX: RMutex<Option<String>> = RMutex::new(None);
     ///
-    /// let mutex=RMutex::new(0);
+    /// let mutex = RMutex::new(0);
     ///
     /// ```
     pub const fn new(value: T) -> Self {
@@ -133,9 +129,9 @@ impl<T> RMutex<T> {
     /// ```
     /// use abi_stable::external_types::RMutex;
     ///
-    /// let mutex=RMutex::new("hello".to_string());
+    /// let mutex = RMutex::new("hello".to_string());
     ///
-    /// assert_eq!(mutex.into_inner().as_str(),"hello");
+    /// assert_eq!(mutex.into_inner().as_str(), "hello");
     ///
     /// ```
     #[inline]
@@ -152,12 +148,11 @@ impl<T> RMutex<T> {
     /// ```
     /// use abi_stable::external_types::RMutex;
     ///
-    /// let mut mutex=RMutex::new("Hello".to_string());
+    /// let mut mutex = RMutex::new("Hello".to_string());
     ///
     /// mutex.get_mut().push_str(", World!");
     ///
-    /// assert_eq!(mutex.lock().as_str(),"Hello, World!");
-    ///
+    /// assert_eq!(mutex.lock().as_str(), "Hello, World!");
     ///
     /// ```
     #[inline]
@@ -165,58 +160,54 @@ impl<T> RMutex<T> {
         unsafe { &mut *self.data.get() }
     }
 
-    /**
-    Acquires a mutex,blocking the current thread until it can.
-
-    This function returns a guard which releases the mutex when it is dropped.
-
-    Trying to lock the mutex in the same thread that holds the lock will cause a deadlock.
-
-    # Example
-
-    ```
-    use abi_stable::external_types::RMutex;
-
-    static MUTEX:RMutex<usize>=RMutex::new(0);
-
-    let guard=std::thread::spawn(|| *MUTEX.lock()+=1 );
-
-    *MUTEX.lock()+=4;
-
-    guard.join().unwrap();
-
-    assert_eq!(*MUTEX.lock(),5);
-
-    ```
-
-        */
+    /// Acquires a mutex,blocking the current thread until it can.
+    ///
+    /// This function returns a guard which releases the mutex when it is dropped.
+    ///
+    /// Trying to lock the mutex in the same thread that holds the lock will cause a deadlock.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::RMutex;
+    ///
+    /// static MUTEX: RMutex<usize> = RMutex::new(0);
+    ///
+    /// let guard = std::thread::spawn(|| *MUTEX.lock() += 1);
+    ///
+    /// *MUTEX.lock() += 4;
+    ///
+    /// guard.join().unwrap();
+    ///
+    /// assert_eq!(*MUTEX.lock(), 5);
+    ///
+    /// ```
     #[inline]
     pub fn lock(&self) -> RMutexGuard<'_, T> {
         self.vtable().lock()(&self.raw_mutex);
         self.make_guard()
     }
-    /**
-    Attemps to acquire a mutex guard.
 
-    Returns the mutex guard if the mutex can be immediately acquired,
-    otherwise returns `RNone`.
-
-    # Example
-
-    ```
-    use abi_stable::external_types::RMutex;
-
-    static MUTEX:RMutex<usize>=RMutex::new(0);
-
-    let mut guard=MUTEX.try_lock().unwrap();
-
-    assert!( MUTEX.try_lock().is_none() );
-
-    assert_eq!(*guard,0);
-
-    ```
-
-    */
+    /// Attemps to acquire a mutex guard.
+    ///
+    /// Returns the mutex guard if the mutex can be immediately acquired,
+    /// otherwise returns `RNone`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::RMutex;
+    ///
+    /// static MUTEX: RMutex<usize> = RMutex::new(0);
+    ///
+    /// let mut guard = MUTEX.try_lock().unwrap();
+    ///
+    /// assert!(MUTEX.try_lock().is_none());
+    ///
+    /// assert_eq!(*guard, 0);
+    ///
+    /// ```
+    ///
     #[inline]
     pub fn try_lock(&self) -> ROption<RMutexGuard<'_, T>> {
         if self.vtable().try_lock()(&self.raw_mutex) {
@@ -226,34 +217,29 @@ impl<T> RMutex<T> {
         }
     }
 
-    /**
-    Attempts to acquire a mutex guard for the `timeout` duration.
-
-    Once the timeout is reached,this will return `RNone`,
-    otherwise it will return the mutex guard.
-
-
-    # Example
-
-    ```
-    use abi_stable::{
-        external_types::RMutex,
-        std_types::RDuration,
-    };
-
-    static MUTEX:RMutex<usize>=RMutex::new(0);
-
-    static DUR:RDuration=RDuration::from_millis(4);
-
-    let mut guard=MUTEX.try_lock_for(DUR).unwrap();
-
-    assert!( MUTEX.try_lock_for(DUR).is_none() );
-
-    assert_eq!(*guard,0);
-
-    ```
-
-    */
+    /// Attempts to acquire a mutex guard for the `timeout` duration.
+    ///
+    /// Once the timeout is reached,this will return `RNone`,
+    /// otherwise it will return the mutex guard.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{external_types::RMutex, std_types::RDuration};
+    ///
+    /// static MUTEX: RMutex<usize> = RMutex::new(0);
+    ///
+    /// static DUR: RDuration = RDuration::from_millis(4);
+    ///
+    /// let mut guard = MUTEX.try_lock_for(DUR).unwrap();
+    ///
+    /// assert!(MUTEX.try_lock_for(DUR).is_none());
+    ///
+    /// assert_eq!(*guard, 0);
+    ///
+    /// ```
+    ///
     #[inline]
     pub fn try_lock_for(&self, timeout: RDuration) -> ROption<RMutexGuard<'_, T>> {
         if self.vtable().try_lock_for()(&self.raw_mutex, timeout) {

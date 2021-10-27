@@ -35,41 +35,39 @@ fn assert_lock_size() {
     let _assert_size: [(); mem::size_of::<OpaqueRwLock>() - RAW_LOCK_SIZE];
 }
 
-/**
-A read-write lock that allows dynamic mutable/shared borrows of shared data.
-
-RRwLock allows either multiple shared locks,or a single write lock.
-
-# Poisoning
-
-As opposed to the standard library version of this type,
-this rwlock type does not use poisoning,
-simply unlocking the lock when a panic happens.
-
-# Example
-
-```
-use abi_stable::external_types::RRwLock;
-
-static LOCK:RRwLock<usize>=RRwLock::new(0);
-
-let guard=std::thread::spawn(||{
-    for _ in 0..100 {
-        *LOCK.write()+=1;
-    }
-});
-
-for _ in 0..100 {
-    *LOCK.write()+=1;
-}
-
-guard.join().unwrap();
-
-assert_eq!(*LOCK.read(),200);
-
-```
-
-*/
+/// A read-write lock that allows dynamic mutable/shared borrows of shared data.
+///
+/// RRwLock allows either multiple shared locks,or a single write lock.
+///
+/// # Poisoning
+///
+/// As opposed to the standard library version of this type,
+/// this rwlock type does not use poisoning,
+/// simply unlocking the lock when a panic happens.
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::external_types::RRwLock;
+///
+/// static LOCK: RRwLock<usize> = RRwLock::new(0);
+///
+/// let guard = std::thread::spawn(|| {
+///     for _ in 0..100 {
+///         *LOCK.write() += 1;
+///     }
+/// });
+///
+/// for _ in 0..100 {
+///     *LOCK.write() += 1;
+/// }
+///
+/// guard.join().unwrap();
+///
+/// assert_eq!(*LOCK.read(), 200);
+///
+/// ```
+///
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct RRwLock<T> {
@@ -78,13 +76,11 @@ pub struct RRwLock<T> {
     vtable: VTable_Ref,
 }
 
-/**
-A read guard,which allows shared access to the data inside the `RRwLock`.
-
-There can be many of these for the same RRwLock at any given time.
-
-When dropped this will unlock the rwlock.
-*/
+/// A read guard,which allows shared access to the data inside the `RRwLock`.
+///
+/// There can be many of these for the same RRwLock at any given time.
+///
+/// When dropped this will unlock the rwlock.
 #[repr(transparent)]
 #[derive(StableAbi)]
 #[sabi(bound = "T:'a")]
@@ -94,13 +90,11 @@ pub struct RReadGuard<'a, T> {
     _marker: PhantomData<(&'a T, UnsyncUnsend)>,
 }
 
-/**
-A write guard,which allows mutable access to the data inside the `RRwLock`.
-
-There can be only of these for the same RRwLock at any given time.
-
-When dropped this will unlock the rwlock.
-*/
+/// A write guard,which allows mutable access to the data inside the `RRwLock`.
+///
+/// There can be only of these for the same RRwLock at any given time.
+///
+/// When dropped this will unlock the rwlock.
 #[repr(transparent)]
 #[derive(StableAbi)]
 #[sabi(bound = "T:'a")]
@@ -120,9 +114,9 @@ impl<T> RRwLock<T> {
     /// ```
     /// use abi_stable::external_types::RRwLock;
     ///
-    /// static LOCK:RRwLock<Option<String>>=RRwLock::new(None);
+    /// static LOCK: RRwLock<Option<String>> = RRwLock::new(None);
     ///
-    /// let lock=RRwLock::new(0);
+    /// let lock = RRwLock::new(0);
     ///
     /// ```
     pub const fn new(value: T) -> Self {
@@ -161,9 +155,9 @@ impl<T> RRwLock<T> {
     /// ```
     /// use abi_stable::external_types::RRwLock;
     ///
-    /// let lock=RRwLock::new("hello".to_string());
+    /// let lock = RRwLock::new("hello".to_string());
     ///
-    /// assert_eq!(lock.into_inner().as_str(),"hello");
+    /// assert_eq!(lock.into_inner().as_str(), "hello");
     ///
     /// ```
     #[inline]
@@ -180,11 +174,11 @@ impl<T> RRwLock<T> {
     /// ```
     /// use abi_stable::external_types::RRwLock;
     ///
-    /// let mut lock=RRwLock::new("Hello".to_string());
+    /// let mut lock = RRwLock::new("Hello".to_string());
     ///
     /// lock.get_mut().push_str(", World!");
     ///
-    /// assert_eq!(lock.read().as_str(),"Hello, World!");
+    /// assert_eq!(lock.read().as_str(), "Hello, World!");
     ///
     /// ```
     #[inline]
@@ -192,61 +186,58 @@ impl<T> RRwLock<T> {
         unsafe { &mut *self.data.get() }
     }
 
-    /**
-    Acquires a lock for reading,blocking the current thread until it can.
-
-    This function returns a read guard,which releases read access when it is dropped.
-
-    Trying to lock the rwlock for reading in the same thread that has write
-    access to the same rwlock will cause a deadlock.
-
-    # Example
-
-    ```
-    use abi_stable::external_types::RRwLock;
-
-    static LOCK:RRwLock<usize>=RRwLock::new(0);
-
-    *LOCK.write()+=4;
-
-    let read_guard_a=LOCK.read();
-    let read_guard_b=LOCK.read();
-
-    assert_eq!(*read_guard_a,4);
-    assert_eq!(*read_guard_b,4);
-
-    ```
-
-        */
+    /// Acquires a lock for reading,blocking the current thread until it can.
+    ///
+    /// This function returns a read guard,which releases read access when it is dropped.
+    ///
+    /// Trying to lock the rwlock for reading in the same thread that has write
+    /// access to the same rwlock will cause a deadlock.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::RRwLock;
+    ///
+    /// static LOCK: RRwLock<usize> = RRwLock::new(0);
+    ///
+    /// *LOCK.write() += 4;
+    ///
+    /// let read_guard_a = LOCK.read();
+    /// let read_guard_b = LOCK.read();
+    ///
+    /// assert_eq!(*read_guard_a, 4);
+    /// assert_eq!(*read_guard_b, 4);
+    ///
+    /// ```
+    ///
     #[inline]
     pub fn read(&self) -> RReadGuard<'_, T> {
         self.vtable().lock_shared()(&self.raw_lock);
         self.read_guard()
     }
-    /**
-    Attemps to acquire a lock for reading,failing if it is locked for writing.
 
-    Returns the read guard if the rwlock can be immediately acquired,otherwise returns RNone.
-
-    # Example
-
-    ```
-    use abi_stable::external_types::RRwLock;
-
-    static LOCK:RRwLock<usize>=RRwLock::new(0);
-
-    let mut write_guard=LOCK.write();
-
-    assert!(LOCK.try_read().is_none());
-
-    *write_guard+=4;
-    drop(write_guard);
-
-    assert_eq!(*LOCK.try_read().unwrap(),4);
-
-    ```
-
-    */
+    /// Attemps to acquire a lock for reading,failing if it is locked for writing.
+    ///
+    /// Returns the read guard if the rwlock can be immediately acquired,otherwise returns RNone.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::RRwLock;
+    ///
+    /// static LOCK: RRwLock<usize> = RRwLock::new(0);
+    ///
+    /// let mut write_guard = LOCK.write();
+    ///
+    /// assert!(LOCK.try_read().is_none());
+    ///
+    /// *write_guard += 4;
+    /// drop(write_guard);
+    ///
+    /// assert_eq!(*LOCK.try_read().unwrap(), 4);
+    ///
+    /// ```
+    ///
     #[inline]
     pub fn try_read(&self) -> ROption<RReadGuard<'_, T>> {
         if self.vtable().try_lock_shared()(&self.raw_lock) {
@@ -256,37 +247,31 @@ impl<T> RRwLock<T> {
         }
     }
 
-    /**
-    Attempts to acquire a lock for reading,for the timeout duration.
-
-    Once the timeout is reached,this will return None,
-    otherwise it will return the read guard.
-
-
-    # Example
-
-    ```
-    use abi_stable::{
-        external_types::RRwLock,
-        std_types::RDuration,
-    };
-
-    static LOCK:RRwLock<usize>=RRwLock::new(0);
-
-    static DUR:RDuration=RDuration::from_millis(1);
-
-    let mut write_guard=LOCK.write();
-
-    assert!(LOCK.try_read_for(DUR).is_none());
-
-    *write_guard+=7;
-    drop(write_guard);
-
-    assert_eq!(*LOCK.try_read_for(DUR).unwrap(),7);
-
-    ```
-
-    */
+    /// Attempts to acquire a lock for reading,for the timeout duration.
+    ///
+    /// Once the timeout is reached,this will return None,
+    /// otherwise it will return the read guard.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{external_types::RRwLock, std_types::RDuration};
+    ///
+    /// static LOCK: RRwLock<usize> = RRwLock::new(0);
+    ///
+    /// static DUR: RDuration = RDuration::from_millis(1);
+    ///
+    /// let mut write_guard = LOCK.write();
+    ///
+    /// assert!(LOCK.try_read_for(DUR).is_none());
+    ///
+    /// *write_guard += 7;
+    /// drop(write_guard);
+    ///
+    /// assert_eq!(*LOCK.try_read_for(DUR).unwrap(), 7);
+    ///
+    /// ```
     #[inline]
     pub fn try_read_for(&self, timeout: RDuration) -> ROption<RReadGuard<'_, T>> {
         if self.vtable().try_lock_shared_for()(&self.raw_lock, timeout) {
@@ -296,57 +281,54 @@ impl<T> RRwLock<T> {
         }
     }
 
-    /**
-    Acquires a lock for writing,blocking the current thread until it can.
-
-    This function returns a write guard,which releases write access when it is dropped.
-
-    Trying to lock the rwlock in the same thread that has read or write
-    access to the same rwlock will cause a deadlock.
-
-    # Example
-
-    ```
-    use abi_stable::external_types::RRwLock;
-
-    let lock=RRwLock::new(0);
-
-    let mut guard=lock.write();
-
-    *guard+=4;
-
-    assert_eq!(*guard,4);
-
-    ```
-        */
+    /// Acquires a lock for writing,blocking the current thread until it can.
+    ///
+    /// This function returns a write guard,which releases write access when it is dropped.
+    ///
+    /// Trying to lock the rwlock in the same thread that has read or write
+    /// access to the same rwlock will cause a deadlock.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::RRwLock;
+    ///
+    /// let lock = RRwLock::new(0);
+    ///
+    /// let mut guard = lock.write();
+    ///
+    /// *guard += 4;
+    ///
+    /// assert_eq!(*guard, 4);
+    ///
+    /// ```
     #[inline]
     pub fn write(&self) -> RWriteGuard<'_, T> {
         self.vtable().lock_exclusive()(&self.raw_lock);
         self.write_guard()
     }
-    /**
-    Attemps to acquire a lock for writing.
 
-    Returns the write guard if the rwlock can be immediately acquired,otherwise returns RNone.
-
-
-    # Example
-
-    ```
-    use abi_stable::external_types::RRwLock;
-
-    let lock=RRwLock::new(0);
-
-    let mut guard=lock.write();
-
-    assert!( lock.try_write().is_none() );
-
-    *guard+=4;
-
-    assert_eq!(*guard,4);
-
-    ```
-    */
+    /// Attemps to acquire a lock for writing.
+    ///
+    /// Returns the write guard if the rwlock can be immediately acquired,otherwise returns RNone.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::external_types::RRwLock;
+    ///
+    /// let lock = RRwLock::new(0);
+    ///
+    /// let mut guard = lock.write();
+    ///
+    /// assert!(lock.try_write().is_none());
+    ///
+    /// *guard += 4;
+    ///
+    /// assert_eq!(*guard, 4);
+    ///
+    /// ```
     #[inline]
     pub fn try_write(&self) -> ROption<RWriteGuard<'_, T>> {
         if self.vtable().try_lock_exclusive()(&self.raw_lock) {
@@ -356,35 +338,30 @@ impl<T> RRwLock<T> {
         }
     }
 
-    /**
-    Attempts to acquire a lock for writing,for the timeout duration.
-
-    Once the timeout is reached,this will return None,
-    otherwise it will return the write guard.
-
-
-    # Example
-
-    ```
-    use abi_stable::{
-        external_types::RRwLock,
-        std_types::RDuration,
-    };
-
-    static DUR:RDuration=RDuration::from_millis(1);
-
-    let lock=RRwLock::new(0);
-
-    let mut write_guard=lock.try_write_for(DUR).unwrap();
-    *write_guard+=4;
-
-    assert!( lock.try_write_for(DUR).is_none() );
-
-    assert_eq!(*write_guard,4);
-
-    ```
-
-    */
+    /// Attempts to acquire a lock for writing,for the timeout duration.
+    ///
+    /// Once the timeout is reached,this will return None,
+    /// otherwise it will return the write guard.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::{external_types::RRwLock, std_types::RDuration};
+    ///
+    /// static DUR: RDuration = RDuration::from_millis(1);
+    ///
+    /// let lock = RRwLock::new(0);
+    ///
+    /// let mut write_guard = lock.try_write_for(DUR).unwrap();
+    /// *write_guard += 4;
+    ///
+    /// assert!(lock.try_write_for(DUR).is_none());
+    ///
+    /// assert_eq!(*write_guard, 4);
+    ///
+    /// ```
+    ///
     #[inline]
     pub fn try_write_for(&self, timeout: RDuration) -> ROption<RWriteGuard<'_, T>> {
         if self.vtable().try_lock_exclusive_for()(&self.raw_lock, timeout) {

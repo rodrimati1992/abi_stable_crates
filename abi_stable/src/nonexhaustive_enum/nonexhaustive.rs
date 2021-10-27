@@ -35,126 +35,120 @@ use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(all(test, not(feature = "only_new_tests")))]
 mod tests;
 
-/**
-
-A generic type for all ffi-safe non-exhaustive enums.
-
-This type allows adding variants to enums it wraps in ABI compatible versions of a library.
-
-# Generic parameters
-
-###  `E`
-
-This is the enum that this was constructed from,
-and can be unwrapped back into if it's one of the valid variants in this context.
-
-###  `S`
-
-The storage type,used to store the enum opaquely.
-
-This has to be at least the size and alignment of the wrapped enum.
-
-This is necessary because:
-
-- The compiler assumes that an enum cannot be a variant outside the ones it sees.
-
-- To give some flexibility to grow the enum in semver compatible versions of a library.
-
-###  `I`
-
-The interface of the enum(it implements `InterfaceType`),
-determining which traits are required when constructing `NonExhaustive<>`
-and which are available afterwards.
-
-### Example
-
-Say that we define an error type for a library.
-
-
-Version 1.0.
-```
-use abi_stable::{
-    StableAbi,
-    nonexhaustive_enum::{NonExhaustiveFor,NonExhaustive},
-    std_types::RString,
-    sabi_trait,
-};
-
-#[repr(u8)]
-#[derive(StableAbi,Debug,Clone,PartialEq)]
-#[sabi(kind(WithNonExhaustive(
-    size="[usize;8]",
-    traits(Debug,Clone,PartialEq),
-)))]
-pub enum Error{
-    #[doc(hidden)]
-    __NonExhaustive,
-    CouldNotFindItem{
-        name:RString,
-    },
-    OutOfStock{
-        id:usize,
-        name:RString,
-    },
-}
-
-
-fn returns_could_not_find_item(name:RString)->NonExhaustiveFor<Error>{
-    let e=Error::CouldNotFindItem{name};
-    NonExhaustive::new(e)
-}
-
-fn returns_out_of_stock(id:usize,name:RString)->NonExhaustiveFor<Error>{
-    let e=Error::OutOfStock{id,name};
-    NonExhaustive::new(e)
-}
-
-```
-
-Then in 1.1 we add another error variant,returned only by new library functions.
-
-```
-use abi_stable::{
-    StableAbi,
-    nonexhaustive_enum::{NonExhaustiveFor,NonExhaustive},
-    std_types::RString,
-    sabi_trait,
-};
-
-#[repr(u8)]
-#[derive(StableAbi,Debug,Clone,PartialEq)]
-#[sabi(kind(WithNonExhaustive(
-    size="[usize;8]",
-    traits(Debug,Clone,PartialEq),
-)))]
-pub enum Error{
-    #[doc(hidden)]
-    __NonExhaustive,
-    CouldNotFindItem{
-        name:RString,
-    },
-    OutOfStock{
-        id:usize,
-        name:RString,
-    },
-    InvalidItemId{
-        id:usize,
-    },
-}
-
-
-fn returns_invalid_item_id()->NonExhaustiveFor<Error>{
-    NonExhaustive::new(Error::InvalidItemId{id:100})
-}
-
-```
-
-If a library user attempted to unwrap `Error::InvalidItemId`
-(using NonExhaustive::as_enum/as_enum_mut/into_enum)
-with the 1.0 version of `Error` they would get an `Err(..)` back.
-
-
-*/
+/// A generic type for all ffi-safe non-exhaustive enums.
+///
+/// This type allows adding variants to enums it wraps in ABI compatible versions of a library.
+///
+/// # Generic parameters
+///
+/// ###  `E`
+///
+/// This is the enum that this was constructed from,
+/// and can be unwrapped back into if it's one of the valid variants in this context.
+///
+/// ###  `S`
+///
+/// The storage type,used to store the enum opaquely.
+///
+/// This has to be at least the size and alignment of the wrapped enum.
+///
+/// This is necessary because:
+///
+/// - The compiler assumes that an enum cannot be a variant outside the ones it sees.
+///
+/// - To give some flexibility to grow the enum in semver compatible versions of a library.
+///
+/// ###  `I`
+///
+/// The interface of the enum(it implements `InterfaceType`),
+/// determining which traits are required when constructing `NonExhaustive<>`
+/// and which are available afterwards.
+///
+/// ### Example
+///
+/// Say that we define an error type for a library.
+///
+///
+/// Version 1.0.
+/// ```
+/// use abi_stable::{
+///     nonexhaustive_enum::{NonExhaustive, NonExhaustiveFor},
+///     sabi_trait,
+///     std_types::RString,
+///     StableAbi,
+/// };
+///
+/// #[repr(u8)]
+/// #[derive(StableAbi, Debug, Clone, PartialEq)]
+/// #[sabi(kind(WithNonExhaustive(
+///     size = "[usize;8]",
+///     traits(Debug, Clone, PartialEq),
+/// )))]
+/// pub enum Error {
+///     #[doc(hidden)]
+///     __NonExhaustive,
+///     CouldNotFindItem {
+///         name: RString,
+///     },
+///     OutOfStock {
+///         id: usize,
+///         name: RString,
+///     },
+/// }
+///
+/// fn returns_could_not_find_item(name: RString) -> NonExhaustiveFor<Error> {
+///     let e = Error::CouldNotFindItem { name };
+///     NonExhaustive::new(e)
+/// }
+///
+/// fn returns_out_of_stock(id: usize, name: RString) -> NonExhaustiveFor<Error> {
+///     let e = Error::OutOfStock { id, name };
+///     NonExhaustive::new(e)
+/// }
+///
+/// ```
+///
+/// Then in 1.1 we add another error variant,returned only by new library functions.
+///
+/// ```
+/// use abi_stable::{
+///     nonexhaustive_enum::{NonExhaustive, NonExhaustiveFor},
+///     sabi_trait,
+///     std_types::RString,
+///     StableAbi,
+/// };
+///
+/// #[repr(u8)]
+/// #[derive(StableAbi, Debug, Clone, PartialEq)]
+/// #[sabi(kind(WithNonExhaustive(
+///     size = "[usize;8]",
+///     traits(Debug, Clone, PartialEq),
+/// )))]
+/// pub enum Error {
+///     #[doc(hidden)]
+///     __NonExhaustive,
+///     CouldNotFindItem {
+///         name: RString,
+///     },
+///     OutOfStock {
+///         id: usize,
+///         name: RString,
+///     },
+///     InvalidItemId {
+///         id: usize,
+///     },
+/// }
+///
+/// fn returns_invalid_item_id() -> NonExhaustiveFor<Error> {
+///     NonExhaustive::new(Error::InvalidItemId { id: 100 })
+/// }
+///
+/// ```
+///
+/// If a library user attempted to unwrap `Error::InvalidItemId`
+/// (using NonExhaustive::as_enum/as_enum_mut/into_enum)
+/// with the 1.0 version of `Error` they would get an `Err(..)` back.
+///
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
@@ -188,13 +182,11 @@ pub type NonExhaustiveWI<E, I> = NonExhaustive<E, <E as GetEnumInfo>::DefaultSto
 pub type NonExhaustiveWS<E, S> = NonExhaustive<E, S, <E as GetEnumInfo>::DefaultInterface>;
 
 impl<E, S, I> NonExhaustive<E, S, I> {
-    /**
-    Constructs a `NonExhaustive<>` from `value` using its default interface and storage.
-
-    # Panic
-
-    This panics if the storage has an alignment or size smaller than that of `E`.
-    */
+    /// Constructs a `NonExhaustive<>` from `value` using its default interface and storage.
+    ///
+    /// # Panic
+    ///
+    /// This panics if the storage has an alignment or size smaller than that of `E`.
     #[inline]
     pub fn new(value: E) -> Self
     where
@@ -203,14 +195,12 @@ impl<E, S, I> NonExhaustive<E, S, I> {
         NonExhaustive::with_storage_and_interface(value)
     }
 
-    /**
-    Constructs a `NonExhaustive<>` from `value` using its default storage
-    and a custom interface.
-
-    # Panic
-
-    This panics if the storage has an alignment or size smaller than that of `E`.
-    */
+    /// Constructs a `NonExhaustive<>` from `value` using its default storage
+    /// and a custom interface.
+    ///
+    /// # Panic
+    ///
+    /// This panics if the storage has an alignment or size smaller than that of `E`.
     #[inline]
     pub fn with_interface(value: E) -> Self
     where
@@ -219,14 +209,12 @@ impl<E, S, I> NonExhaustive<E, S, I> {
         NonExhaustive::with_storage_and_interface(value)
     }
 
-    /**
-    Constructs a `NonExhaustive<>` from `value` using its default interface
-    and a custom storage.
-
-    # Panic
-
-    This panics if the storage has an alignment or size smaller than that of `E`.
-    */
+    /// Constructs a `NonExhaustive<>` from `value` using its default interface
+    /// and a custom storage.
+    ///
+    /// # Panic
+    ///
+    /// This panics if the storage has an alignment or size smaller than that of `E`.
     #[inline]
     pub fn with_storage(value: E) -> Self
     where
@@ -235,13 +223,11 @@ impl<E, S, I> NonExhaustive<E, S, I> {
         NonExhaustive::with_storage_and_interface(value)
     }
 
-    /**
-    Constructs a `NonExhaustive<>` from `value` using both a custom interface and storage.
-
-    # Panic
-
-    This panics if the storage has an alignment or size smaller than that of `E`.
-    */
+    /// Constructs a `NonExhaustive<>` from `value` using both a custom interface and storage.
+    ///
+    /// # Panic
+    ///
+    /// This panics if the storage has an alignment or size smaller than that of `E`.
     pub fn with_storage_and_interface(value: E) -> Self
     where
         E: GetVTable<S, I>,
@@ -305,33 +291,31 @@ impl<E, S, I> NonExhaustive<E, S, I>
 where
     E: GetEnumInfo,
 {
-    /**
-    Unwraps a reference to this `NonExhaustive<>` into a reference to the original enum.
-
-    # Errors
-
-    This returns an error if the wrapped enum is of a variant that is
-    not valid in this context.
-
-    # Example
-
-    This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
-    That enum comes from a newer version of the library than this knows.
-
-    ```
-    use abi_stable::nonexhaustive_enum::{
-        doc_enums::example_2::{Foo,new_a,new_b,new_c},
-    };
-
-    assert_eq!(new_a()  .as_enum().ok(),Some(&Foo::A)    );
-    assert_eq!(new_b(10).as_enum().ok(),Some(&Foo::B(10)));
-    assert_eq!(new_b(77).as_enum().ok(),Some(&Foo::B(77)));
-    assert_eq!(new_c().as_enum().ok()  ,None             );
-
-
-    ```
-
-    */
+    /// wraps a reference to this `NonExhaustive<>` into a reference to the original enum.
+    ///
+    /// # Errors
+    ///
+    /// This returns an error if the wrapped enum is of a variant that is
+    /// not valid in this context.
+    ///
+    /// # Example
+    ///
+    /// This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
+    /// That enum comes from a newer version of the library than this knows.
+    ///
+    /// ```
+    /// use abi_stable::nonexhaustive_enum::doc_enums::example_2::{
+    ///     new_a, new_b, new_c, Foo,
+    /// };
+    ///
+    /// assert_eq!(new_a().as_enum().ok(), Some(&Foo::A));
+    /// assert_eq!(new_b(10).as_enum().ok(), Some(&Foo::B(10)));
+    /// assert_eq!(new_b(77).as_enum().ok(), Some(&Foo::B(77)));
+    /// assert_eq!(new_c().as_enum().ok(), None);
+    ///
+    ///
+    /// ```
+    ///
     pub fn as_enum(&self) -> Result<&E, UnwrapEnumError<&Self>> {
         let discriminant = self.get_discriminant();
         if E::is_valid_discriminant(discriminant) {
@@ -341,46 +325,40 @@ where
         }
     }
 
-    /**
-    Unwraps a mutable reference to this `NonExhaustive<>` into a
-    mutable reference to the original enum.
-
-    # Errors
-
-    This returns an error if the wrapped enum is of a variant that is
-    not valid in this context.
-
-    # Example
-
-    This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
-    That enum comes from a newer version of the library than this knows.
-
-    ```
-    use abi_stable::nonexhaustive_enum::{
-        doc_enums::example_1::{Foo,new_a,new_b,new_c},
-    };
-
-    assert_eq!(new_a()  .as_enum_mut().ok(),Some(&mut Foo::A));
-    assert_eq!(new_b(10).as_enum_mut().ok(),None);
-    assert_eq!(new_b(77).as_enum_mut().ok(),None);
-    assert_eq!(new_c().as_enum_mut().ok()  ,None);
-
-
-    ```
-
-    */
+    /// Unwraps a mutable reference to this `NonExhaustive<>` into a
+    /// mutable reference to the original enum.
+    ///
+    /// # Errors
+    ///
+    /// This returns an error if the wrapped enum is of a variant that is
+    /// not valid in this context.
+    ///
+    /// # Example
+    ///
+    /// This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
+    /// That enum comes from a newer version of the library than this knows.
+    ///
+    /// ```
+    /// use abi_stable::nonexhaustive_enum::doc_enums::example_1::{
+    ///     new_a, new_b, new_c, Foo,
+    /// };
+    ///
+    /// assert_eq!(new_a().as_enum_mut().ok(), Some(&mut Foo::A));
+    /// assert_eq!(new_b(10).as_enum_mut().ok(), None);
+    /// assert_eq!(new_b(77).as_enum_mut().ok(), None);
+    /// assert_eq!(new_c().as_enum_mut().ok(), None);
+    ///
+    /// ```
     pub fn as_enum_mut(&mut self) -> Result<&mut E, UnwrapEnumError<&mut Self>>
     where
         E: GetVTable<S, I>,
     {
         let discriminant = self.get_discriminant();
         if E::is_valid_discriminant(discriminant) {
-            /*
-            Must update the vtable every time as_enum_mut is called,
-            because if the enum is replaced with a variant with a discriminant
-            outside the valid range for the functions in the vtable,
-            it would be undefined behavior to call those functions.
-            */
+            // Must update the vtable every time as_enum_mut is called,
+            // because if the enum is replaced with a variant with a discriminant
+            // outside the valid range for the functions in the vtable,
+            // it would be undefined behavior to call those functions.
             self.vtable = E::VTABLE_REF;
             unsafe { Ok(&mut *(&mut self.fill as *mut ScratchSpace<S> as *mut E)) }
         } else {
@@ -388,31 +366,29 @@ where
         }
     }
 
-    /**
-    Unwraps this `NonExhaustive<>` into the original enum.
-
-    # Errors
-
-    This returns an error if the wrapped enum is of a variant that is
-    not valid in this context.
-
-    # Example
-
-    This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
-    That enum comes from a newer version of the library than this knows.
-
-    ```
-    use abi_stable::nonexhaustive_enum::{
-        doc_enums::example_2::{Foo,new_a,new_b,new_c},
-    };
-
-    assert_eq!(new_a()  .into_enum().ok(),Some(Foo::A));
-    assert_eq!(new_b(10).into_enum().ok(),Some(Foo::B(10)));
-    assert_eq!(new_b(77).into_enum().ok(),Some(Foo::B(77)));
-    assert_eq!(new_c().into_enum().ok()  ,None);
-
-
-    */
+    /// Unwraps this `NonExhaustive<>` into the original enum.
+    ///
+    /// # Errors
+    ///
+    /// This returns an error if the wrapped enum is of a variant that is
+    /// not valid in this context.
+    ///
+    /// # Example
+    ///
+    /// This shows how some `NonExhaustive<enum>` can be unwrapped, and others cannot.<br>
+    /// That enum comes from a newer version of the library than this knows.
+    ///
+    /// ```
+    /// use abi_stable::nonexhaustive_enum::doc_enums::example_2::{
+    ///     new_a, new_b, new_c, Foo,
+    /// };
+    ///
+    /// assert_eq!(new_a().into_enum().ok(), Some(Foo::A));
+    /// assert_eq!(new_b(10).into_enum().ok(), Some(Foo::B(10)));
+    /// assert_eq!(new_b(77).into_enum().ok(), Some(Foo::B(77)));
+    /// assert_eq!(new_c().into_enum().ok(), None);
+    ///
+    /// ```
     pub fn into_enum(self) -> Result<E, UnwrapEnumError<Self>> {
         let discriminant = self.get_discriminant();
         if E::is_valid_discriminant(discriminant) {
@@ -423,20 +399,16 @@ where
         }
     }
 
-    /**
-    Returns whether the discriminant of this enum is valid in this context.
-
-    The only way for it to be invalid is if the dynamic library is a
-    newer version than this knows.
-    */
+    /// Returns whether the discriminant of this enum is valid in this context.
+    ///
+    /// The only way for it to be invalid is if the dynamic library is a
+    /// newer version than this knows.
     #[inline]
     pub fn is_valid_discriminant(&self) -> bool {
         E::is_valid_discriminant(self.get_discriminant())
     }
 
-    /**
-    Gets the value of the discriminant of the enum.
-    */
+    /// Gets the value of the discriminant of the enum.
     #[inline]
     pub fn get_discriminant(&self) -> E::Discriminant {
         unsafe { *(&self.fill as *const ScratchSpace<S> as *const E::Discriminant) }
@@ -444,76 +416,66 @@ where
 }
 
 impl<E, S, I> NonExhaustive<E, S, I> {
-    /**
-    Transmute this `NonExhaustive<E,S,I>` into `NonExhaustive<F,S,I>`,
-    changing the type of the enum it wraps.
-
-    # Safety
-
-    This has the same safety requirements that `std::mem::transmute` has.
-
-    # Panics
-
-    This panics if the storage has an alignment or size smaller than that of `F`.
-
-    */
+    /// Transmute this `NonExhaustive<E,S,I>` into `NonExhaustive<F,S,I>`,
+    /// changing the type of the enum it wraps.
+    ///
+    /// # Safety
+    ///
+    /// This has the same safety requirements that `std::mem::transmute` has.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the storage has an alignment or size smaller than that of `F`.
+    ///
+    ///
     pub unsafe fn transmute_enum<F>(self) -> NonExhaustive<F, S, I> {
         NonExhaustive::<F, S, I>::assert_fits_within_storage();
         transmute_ignore_size(self)
     }
 
-    /**
-    Transmute this `&NonExhaustive<E,S,I>` into `&NonExhaustive<F,S,I>`,
-    changing the type of the enum it wraps.
-
-    # Safety
-
-    This has the same safety requirements that `std::mem::transmute` has.
-
-    # Panics
-
-    This panics if the storage has an alignment or size smaller than that of `F`.
-
-    */
+    /// Transmute this `&NonExhaustive<E,S,I>` into `&NonExhaustive<F,S,I>`,
+    /// changing the type of the enum it wraps.
+    ///
+    /// # Safety
+    ///
+    /// This has the same safety requirements that `std::mem::transmute` has.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the storage has an alignment or size smaller than that of `F`.
     pub unsafe fn transmute_enum_ref<F>(&self) -> &NonExhaustive<F, S, I> {
         NonExhaustive::<F, S, I>::assert_fits_within_storage();
         &*(self as *const Self as *const _)
     }
 
-    /**
-    Transmute this `&mut NonExhaustive<E,S,I>` into `&mut NonExhaustive<F,S,I>`,
-    changing the type of the enum it wraps.
-
-    # Safety
-
-    This has the same safety requirements that `std::mem::transmute` has.
-
-    # Panics
-
-    This panics if the storage has an alignment or size smaller than that of `F`.
-
-    */
+    /// Transmute this `&mut NonExhaustive<E,S,I>` into `&mut NonExhaustive<F,S,I>`,
+    /// changing the type of the enum it wraps.
+    ///
+    /// # Safety
+    ///
+    /// This has the same safety requirements that `std::mem::transmute` has.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the storage has an alignment or size smaller than that of `F`.
     pub unsafe fn transmute_enum_mut<F>(&mut self) -> &mut NonExhaustive<F, S, I> {
         NonExhaustive::<F, S, I>::assert_fits_within_storage();
         &mut *(self as *mut Self as *mut _)
     }
 
-    /**
-    Transmute this pointer to a `NonExhaustive<E,S,I>` into
-    a pointer (of the same kind) to a `NonExhaustive<F,S,I>`,
-    changing the type of the enum it wraps.
-
-    # Safety
-
-    This has the same safety requirements that
-    `abi_stable::pointer_traits::TransmuteElement::transmute_element` has.
-
-    # Panics
-
-    This panics if the storage has an alignment or size smaller than that of `F`.
-
-    */
-
+    /// Transmute this pointer to a `NonExhaustive<E,S,I>` into
+    /// a pointer (of the same kind) to a `NonExhaustive<F,S,I>`,
+    /// changing the type of the enum it wraps.
+    ///
+    /// # Safety
+    ///
+    /// This has the same safety requirements that
+    /// `abi_stable::pointer_traits::TransmuteElement::transmute_element` has.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the storage has an alignment or size smaller than that of `F`.
+    ///
     pub unsafe fn transmute_enum_ptr<P, F>(this: P) -> P::TransmutedPtr
     where
         P: Deref<Target = Self>,
@@ -846,11 +808,9 @@ where
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-An error for a situation where a `NonExhaustive<>` could not be unwrapped into the enum
-because the discriminant wasn't valid in this context
-(likely because it is from a newer version of the library).
-*/
+/// An error for a situation where a `NonExhaustive<>` could not be unwrapped into the enum
+/// because the discriminant wasn't valid in this context
+/// (likely because it is from a newer version of the library).
 #[must_use]
 #[repr(transparent)]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, StableAbi)]

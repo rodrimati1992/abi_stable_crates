@@ -41,11 +41,8 @@ and use the value of an associated constant as the identity of the type.
 use std::marker::PhantomData;
 
 use abi_stable::{
-    abi_stability::check_layout_compatibility,
-    marker_type::UnsafeIgnoredType,
-    StableAbi,
-    GetStaticEquivalent,
-    tag,
+    abi_stability::check_layout_compatibility, marker_type::UnsafeIgnoredType, tag,
+    GetStaticEquivalent, StableAbi,
 };
 
 #[repr(C)]
@@ -53,65 +50,58 @@ use abi_stable::{
 #[sabi(
     not_stableabi(T),
     bound = "T: WithName",
-    tag = "tag!( <T as WithName>::NAME )",
+    tag = "tag!( <T as WithName>::NAME )"
 )]
 struct WithMarker<T>(UnsafeIgnoredType<T>);
 
-impl<T> WithMarker<T>{
+impl<T> WithMarker<T> {
     const NEW: Self = WithMarker(UnsafeIgnoredType::NEW);
 }
 
-
-trait WithName{
+trait WithName {
     const NAME: &'static str;
 }
 
 #[derive(GetStaticEquivalent)]
 struct Mark;
-impl WithName for Mark{
+impl WithName for Mark {
     const NAME: &'static str = "Mark";
 }
 
-
 #[derive(GetStaticEquivalent)]
 struct John;
-impl WithName for John{
+impl WithName for John {
     const NAME: &'static str = "John";
 }
 
-
 #[derive(GetStaticEquivalent)]
 struct JessiJames;
-impl WithName for JessiJames{
+impl WithName for JessiJames {
     const NAME: &'static str = "JessiJames";
 }
-
 
 # fn main(){
 
 // This checks that the two types aren't considered compatible.
-assert!(
-    check_layout_compatibility(
-        <WithMarker<Mark> as StableAbi>::LAYOUT,
-        <WithMarker<John> as StableAbi>::LAYOUT,
-    ).is_err()
-);
+assert!(check_layout_compatibility(
+    <WithMarker<Mark> as StableAbi>::LAYOUT,
+    <WithMarker<John> as StableAbi>::LAYOUT,
+)
+.is_err());
 
 // This checks that the two types aren't considered compatible.
-assert!(
-    check_layout_compatibility(
-        <WithMarker<John> as StableAbi>::LAYOUT,
-        <WithMarker<JessiJames> as StableAbi>::LAYOUT,
-    ).is_err()
-);
+assert!(check_layout_compatibility(
+    <WithMarker<John> as StableAbi>::LAYOUT,
+    <WithMarker<JessiJames> as StableAbi>::LAYOUT,
+)
+.is_err());
 
 // This checks that the two types aren't considered compatible.
-assert!(
-    check_layout_compatibility(
-        <WithMarker<JessiJames> as StableAbi>::LAYOUT,
-        <WithMarker<Mark> as StableAbi>::LAYOUT,
-    ).is_err()
-);
+assert!(check_layout_compatibility(
+    <WithMarker<JessiJames> as StableAbi>::LAYOUT,
+    <WithMarker<Mark> as StableAbi>::LAYOUT,
+)
+.is_err());
 
 # }
 
@@ -124,20 +114,14 @@ This example demonstrates how one can have a type parameter,
 and use its associated type as a field.
 
 ```rust
-use abi_stable::{
-    std_types::RVec,
-    StableAbi,
-};
+use abi_stable::{std_types::RVec, StableAbi};
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(
-    not_stableabi(I),
-    bound = "<I as IntoIterator>::Item : StableAbi",
-)]
+#[sabi(not_stableabi(I), bound = "<I as IntoIterator>::Item : StableAbi")]
 pub struct CollectedIterator<I>
 where
-    I: IntoIterator
+    I: IntoIterator,
 {
     vec: RVec<I::Item>,
 }

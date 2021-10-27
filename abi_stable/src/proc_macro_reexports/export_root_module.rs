@@ -9,11 +9,8 @@ use abi_stable::prefix_type::PrefixTypeTrait;
 
 #[abi_stable::export_root_module]
 pub fn get_hello_world_mod() -> TextOperationsMod_Ref {
-    TextOperationsMod{
-        reverse_string,
-    }.leak_into_prefix()
+    TextOperationsMod { reverse_string }.leak_into_prefix()
 }
-
 
 # #[repr(C)]
 # #[derive(abi_stable::StableAbi)]
@@ -25,7 +22,7 @@ pub fn get_hello_world_mod() -> TextOperationsMod_Ref {
 # }
 # 
 # extern "C" fn reverse_string() {}
-#
+
 # impl abi_stable::library::RootModule for TextOperationsMod_Ref {
 #     abi_stable::declare_root_module_statics!{TextOperationsMod_Ref}
 #     const BASE_NAME: &'static str = "stuff";
@@ -33,8 +30,9 @@ pub fn get_hello_world_mod() -> TextOperationsMod_Ref {
 #     const VERSION_STRINGS: abi_stable::sabi_types::VersionStrings =
 #           abi_stable::package_version_strings!();
 # }
-#
+
 # fn main(){}
+
 
 ```
 
