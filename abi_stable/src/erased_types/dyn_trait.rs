@@ -1,6 +1,4 @@
-/*!
-Contains the `DynTrait` type, and related traits/type aliases.
-*/
+//! Contains the `DynTrait` type, and related traits/type aliases.
 
 use std::{
     fmt::{self, Write as fmtWrite},
@@ -221,26 +219,23 @@ mod priv_ {
     ///
     /// ```
     /// use abi_stable::{
-    ///     StableAbi,
-    ///     impl_get_type_info,
-    ///     sabi_extern_fn,
     ///     erased_types::{
-    ///         InterfaceType, DeserializeDyn, SerializeProxyType, ImplType, SerializeImplType,
-    ///         TypeInfo,
+    ///         DeserializeDyn, ImplType, InterfaceType, SerializeImplType,
+    ///         SerializeProxyType, TypeInfo,
     ///     },
-    ///     external_types::{RawValueRef, RawValueBox},
+    ///     external_types::{RawValueBox, RawValueRef},
+    ///     impl_get_type_info,
     ///     prefix_type::{PrefixTypeTrait, WithMetadata},
-    ///     type_level::bools::*,
-    ///     DynTrait,
-    ///     std_types::{RBox, RStr, RBoxError, RResult, ROk, RErr},
+    ///     sabi_extern_fn,
+    ///     std_types::{RBox, RBoxError, RErr, ROk, RResult, RStr},
     ///     traits::IntoReprC,
+    ///     type_level::bools::*,
+    ///     DynTrait, StableAbi,
     /// };
-    ///
     ///
     /// //////////////////////////////////
     /// ////   In interface crate    /////
     /// //////////////////////////////////
-    ///
     ///
     /// use serde::{Deserialize, Serialize};
     ///
@@ -253,25 +248,22 @@ mod priv_ {
     /// /// The state passed to most functions in the TextOpsMod module.
     /// pub type FooInterfaceBox = DynTrait<'static, RBox<()>, FooInterface>;
     ///
-    ///
     /// /// First <ConcreteType as DeserializeImplType>::serialize_impl returns
     /// /// a RawValueBox containing the serialized data,
     /// /// then the returned RawValueBox is serialized.
-    /// impl<'s> SerializeProxyType<'s> for FooInterface{
+    /// impl<'s> SerializeProxyType<'s> for FooInterface {
     ///     type Proxy = RawValueBox;
     /// }
-    ///
     ///
     /// impl<'borr> DeserializeDyn<'borr, FooInterfaceBox> for FooInterface {
     ///     type Proxy = RawValueRef<'borr>;
     ///
-    ///     fn deserialize_dyn(s: RawValueRef<'borr>) -> Result<FooInterfaceBox, RBoxError> {
-    ///         MODULE
-    ///             .deserialize_foo()(s.get_rstr())
-    ///             .into_result()
+    ///     fn deserialize_dyn(
+    ///         s: RawValueRef<'borr>,
+    ///     ) -> Result<FooInterfaceBox, RBoxError> {
+    ///         MODULE.deserialize_foo()(s.get_rstr()).into_result()
     ///     }
     /// }
-    ///
     ///
     /// // `#[sabi(kind(Prefix))]` declares this type as being a prefix-type,
     /// // generating both of these types:<br>
@@ -279,39 +271,34 @@ mod priv_ {
     /// //     - Module_Prefix`:
     /// //     A struct with the fields up to (and including) the field with the
     /// //     `#[sabi(last_prefix_field)]` attribute.
-    /// //     
+    /// //
     /// //     - Module_Ref`:
     /// //      An ffi-safe pointer to a `Module`, with methods to get `Module`'s fields.
     /// #[repr(C)]
     /// #[derive(StableAbi)]
     /// #[sabi(kind(Prefix))]
     /// #[sabi(missing_field(panic))]
-    /// pub struct Module{
+    /// pub struct Module {
     ///     #[sabi(last_prefix_field)]
-    ///     pub deserialize_foo: extern "C" fn(s: RStr<'_>) -> RResult<FooInterfaceBox, RBoxError>,
+    ///     pub deserialize_foo:
+    ///         extern "C" fn(s: RStr<'_>) -> RResult<FooInterfaceBox, RBoxError>,
     /// }
     ///
     /// // This is how ffi-safe pointers to non-generic prefix types are constructed
     /// // at compile-time.
     /// const MODULE: Module_Ref = {
-    ///     const S: &WithMetadata<Module> = &WithMetadata::new(
-    ///         PrefixTypeTrait::METADATA,
-    ///         Module{
-    ///             deserialize_foo,
-    ///         }
-    ///     );
+    ///     const S: &WithMetadata<Module> =
+    ///         &WithMetadata::new(PrefixTypeTrait::METADATA, Module { deserialize_foo });
     ///
     ///     Module_Ref(S.static_as_prefix())
     /// };
-    ///
     ///
     /// /////////////////////////////////////////////////////////////////////////////////////////
     /// ////   In implementation crate (the one that gets compiled as a dynamic library)    /////
     /// /////////////////////////////////////////////////////////////////////////////////////////
     ///
-    ///
     /// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-    /// pub struct Foo{
+    /// pub struct Foo {
     ///     name: String,
     /// }
     ///
@@ -326,46 +313,46 @@ mod priv_ {
     ///
     ///     fn serialize_impl(&'s self) -> Result<RawValueBox, RBoxError> {
     ///         match serde_json::to_string(self) {
-    ///             Ok(v) =>{
-    ///                 RawValueBox::try_from_string(v)
-    ///                     .map_err(RBoxError::new)
-    ///             }
-    ///             Err(e) =>Err(RBoxError::new(e)),
+    ///             Ok(v) => RawValueBox::try_from_string(v).map_err(RBoxError::new),
+    ///             Err(e) => Err(RBoxError::new(e)),
     ///         }
     ///     }
     /// }
     ///
     /// #[sabi_extern_fn]
-    /// pub fn deserialize_foo(s: RStr<'_>) -> RResult<FooInterfaceBox, RBoxError>{
+    /// pub fn deserialize_foo(s: RStr<'_>) -> RResult<FooInterfaceBox, RBoxError> {
     ///     match serde_json::from_str::<Foo>(s.into()) {
     ///         Ok(x) => ROk(DynTrait::from_value(x)),
     ///         Err(e) => RErr(RBoxError::new(e)),
     ///     }
     /// }
     ///
-    ///
     /// # /*
     /// #[test]
     /// fn testing_serialization_deserialization() {
     /// # */ fn main() {
-    ///     let foo = Foo{name:"nope".into()};
+    ///     let foo = Foo {
+    ///         name: "nope".into(),
+    ///     };
     ///     let object = DynTrait::from_value(foo.clone());
-    ///     
+    ///
     ///     assert_eq!(
-    ///         serde_json::from_str::<FooInterfaceBox>(r##"
-    ///             {
-    ///                 "name":"nope"
-    ///             }
-    ///         "##).unwrap(),
+    ///         serde_json::from_str::<FooInterfaceBox>(
+    ///             r##"
+    ///         {
+    ///             "name":"nope"
+    ///         }
+    ///     "##
+    ///         )
+    ///         .unwrap(),
     ///         object
     ///     );
-    ///     
+    ///
     ///     assert_eq!(
     ///         serde_json::to_string(&object).unwrap(),
     ///         r##"{"name":"nope"}"##
     ///     );
-    ///
-    /// }
+    /// # }
     ///
     /// ```
     ///
@@ -393,9 +380,9 @@ mod priv_ {
     ///
     /// ```
     /// use abi_stable::{
-    ///     DynTrait, RRef, RMut,
     ///     erased_types::interfaces::PartialEqInterface,
     ///     std_types::{RArc, RBox},
+    ///     DynTrait, RMut, RRef,
     /// };
     ///
     /// {
@@ -403,7 +390,7 @@ mod priv_ {
     ///     // since `&T` can't soundly be transmuted back and forth into `&()`
     ///     let left: DynTrait<'static, RRef<'_, ()>, PartialEqInterface> =
     ///         DynTrait::from_any_ptr(&100, PartialEqInterface);
-    ///     
+    ///
     ///     let mut n100 = 100;
     ///     // `DynTrait`s constructed from `&mut` are `DynTrait<'_, RMut<'_, ()>, _>`
     ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
@@ -429,10 +416,7 @@ mod priv_ {
     /// This is an example of using the `write!()` macro with DynTrait.
     ///
     /// ```
-    /// use abi_stable::{
-    ///     DynTrait, RMut,
-    ///     erased_types::interfaces::FmtWriteInterface,
-    /// };
+    /// use abi_stable::{erased_types::interfaces::FmtWriteInterface, DynTrait, RMut};
     ///
     /// use std::fmt::Write;
     ///
@@ -458,10 +442,7 @@ mod priv_ {
     /// Using `DynTrait` as an `Iterator` and `DoubleEndedIterator`.
     ///
     /// ```
-    /// use abi_stable::{
-    ///     DynTrait,
-    ///     erased_types::interfaces::DEIteratorInterface,
-    /// };
+    /// use abi_stable::{erased_types::interfaces::DEIteratorInterface, DynTrait};
     ///
     /// let mut wrapped = DynTrait::from_any_value(0..=10, DEIteratorInterface::NEW);
     ///
@@ -470,11 +451,7 @@ mod priv_ {
     ///     vec![0, 1, 2, 3, 4]
     /// );
     ///
-    /// assert_eq!(
-    ///     wrapped.rev().collect::<Vec<_>>(),
-    ///     vec![10, 9, 8, 7, 6, 5]
-    /// );
-    ///
+    /// assert_eq!(wrapped.rev().collect::<Vec<_>>(), vec![10, 9, 8, 7, 6, 5]);
     ///
     /// ```
     ///
@@ -505,7 +482,7 @@ mod priv_ {
     ///     
     /// use abi_stable::DynTrait;
     ///
-    /// fn main(){
+    /// fn main() {
     ///     let lines = "line0\nline1\nline2";
     ///     let mut iter = NewtypeBox::new(lines.lines());
     ///
@@ -523,18 +500,23 @@ mod priv_ {
     ///
     ///     assert_eq!(
     ///         clone.rev().collect::<Vec<_>>(),
-    ///
     ///         vec!["line2", "line1", "line0"],
     ///     )
-    ///
     /// }
     ///
     /// #[repr(C)]
     /// #[derive(StableAbi)]
-    /// #[sabi(impl_InterfaceType(Sync, Send, Iterator, DoubleEndedIterator, Clone, Debug))]
+    /// #[sabi(impl_InterfaceType(
+    ///     Sync,
+    ///     Send,
+    ///     Iterator,
+    ///     DoubleEndedIterator,
+    ///     Clone,
+    ///     Debug
+    /// ))]
     /// pub struct IteratorInterface;
     ///
-    /// impl<'a> IteratorItem<'a> for IteratorInterface{
+    /// impl<'a> IteratorItem<'a> for IteratorInterface {
     ///     type Item = &'a str;
     /// }
     ///
@@ -543,33 +525,30 @@ mod priv_ {
     /// use std::ops::{Deref, DerefMut};
     ///
     /// use abi_stable::{
-    ///     StableAbi,
-    ///     InterfaceType,
-    ///     std_types::RBox,
     ///     erased_types::IteratorItem,
     ///     pointer_trait::{
-    ///         AsPtr, AsMutPtr,
-    ///         GetPointerKind, PK_SmartPointer,
-    ///         CanTransmuteElement,
+    ///         AsMutPtr, AsPtr, CanTransmuteElement, GetPointerKind, PK_SmartPointer,
     ///     },
+    ///     std_types::RBox,
     ///     type_level::bools::True,
+    ///     InterfaceType, StableAbi,
     /// };
     ///
     /// #[repr(transparent)]
     /// #[derive(Default, Clone, StableAbi)]
-    /// pub struct NewtypeBox<T>{
+    /// pub struct NewtypeBox<T> {
     ///     box_: RBox<T>,
     /// }
     ///
-    /// impl<T> NewtypeBox<T>{
-    ///     pub fn new(value: T) -> Self{
-    ///         Self{
-    ///             box_: RBox::new(value)
+    /// impl<T> NewtypeBox<T> {
+    ///     pub fn new(value: T) -> Self {
+    ///         Self {
+    ///             box_: RBox::new(value),
     ///         }
     ///     }
     /// }
     ///
-    /// unsafe impl<T> GetPointerKind for NewtypeBox<T>{
+    /// unsafe impl<T> GetPointerKind for NewtypeBox<T> {
     ///     // This is a smart pointer because `RBox` is one.
     ///     type Kind = PK_SmartPointer;
     ///     type PtrTarget = T;
@@ -597,7 +576,7 @@ mod priv_ {
     ///
     ///     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
     ///         let box_: RBox<O> = self.box_.transmute_element_();
-    ///         NewtypeBox{box_}
+    ///         NewtypeBox { box_ }
     ///     }
     /// }
     ///
@@ -648,9 +627,7 @@ mod priv_ {
         ///
         /// ```rust
         /// use abi_stable::{
-        ///     erased_types::TypeInfo,
-        ///     std_types::RBox,
-        ///     DynTrait, ImplType, StableAbi,
+        ///     erased_types::TypeInfo, std_types::RBox, DynTrait, ImplType, StableAbi,
         /// };
         ///
         /// fn main() {
@@ -660,14 +637,13 @@ mod priv_ {
         ///     assert_eq!(format!("{:?}", to), "Foo(10)");
         /// }
         ///
-        ///
         /// #[repr(transparent)]
         /// #[derive(Debug, StableAbi)]
         /// struct Foo(u32);
         ///
         /// impl ImplType for Foo {
         ///     type Interface = FooInterface;
-        ///     
+        ///
         ///     const INFO: &'static TypeInfo = abi_stable::impl_get_type_info!(Foo);
         /// }
         ///
@@ -700,8 +676,7 @@ mod priv_ {
         /// use abi_stable::{
         ///     erased_types::TypeInfo,
         ///     std_types::{RArc, RBox},
-        ///     DynTrait, RRef, RMut,
-        ///     ImplType, StableAbi,
+        ///     DynTrait, ImplType, RMut, RRef, StableAbi,
         /// };
         ///
         /// fn main() {
@@ -711,7 +686,7 @@ mod priv_ {
         ///         // since `&T` can't soundly be transmuted back and forth into `&()`
         ///         let rref: DynTrait<'static, RRef<'_, ()>, FooInterface> =
         ///             DynTrait::from_ptr(&Foo(10u32));
-        ///     
+        ///
         ///         assert_eq!(format!("{:?}", rref), "Foo(10)");
         ///     }
         ///     // Constructing a DynTrait from a `&mut T`
@@ -721,25 +696,24 @@ mod priv_ {
         ///         // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
         ///         let rmut: DynTrait<'static, RMut<'_, ()>, FooInterface> =
         ///             DynTrait::from_ptr(mmut);
-        ///     
+        ///
         ///         assert_eq!(format!("{:?}", rmut), "Foo(20)");
         ///     }
         ///     // Constructing a DynTrait from a `RBox<T>`
         ///     {
         ///         let boxed: DynTrait<'static, RBox<()>, FooInterface> =
         ///             DynTrait::from_ptr(RBox::new(Foo(30u32)));
-        ///     
+        ///
         ///         assert_eq!(format!("{:?}", boxed), "Foo(30)");
         ///     }
         ///     // Constructing a DynTrait from an `RArc<T>`
         ///     {
         ///         let arc: DynTrait<'static, RArc<()>, FooInterface> =
         ///             DynTrait::from_ptr(RArc::new(Foo(30u32)));
-        ///     
+        ///
         ///         assert_eq!(format!("{:?}", arc), "Foo(30)");
         ///     }
         /// }
-        ///
         ///
         /// #[repr(transparent)]
         /// #[derive(Debug, StableAbi)]
@@ -747,7 +721,7 @@ mod priv_ {
         ///
         /// impl ImplType for Foo {
         ///     type Interface = FooInterface;
-        ///     
+        ///
         ///     const INFO: &'static TypeInfo = abi_stable::impl_get_type_info!(Foo);
         /// }
         ///
@@ -756,7 +730,6 @@ mod priv_ {
         /// #[derive(StableAbi)]
         /// #[sabi(impl_InterfaceType(Sync, Debug))]
         /// pub struct FooInterface;
-        ///
         ///
         /// ```
         pub fn from_ptr<P, T>(object: P) -> DynTrait<'static, P::TransmutedPtr, T::Interface>
@@ -781,11 +754,8 @@ mod priv_ {
         ///
         /// ```rust
         /// use abi_stable::{
-        ///     erased_types::interfaces::DebugDisplayInterface,
-        ///     std_types::RBox,
-        ///     DynTrait,
+        ///     erased_types::interfaces::DebugDisplayInterface, std_types::RBox, DynTrait,
         /// };
-        ///
         ///
         /// // DebugDisplayInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RBox<()>, DebugDisplayInterface> =
@@ -814,7 +784,7 @@ mod priv_ {
         /// use abi_stable::{
         ///     erased_types::interfaces::DebugDisplayInterface,
         ///     std_types::{RArc, RBox},
-        ///     DynTrait, RRef, RMut,
+        ///     DynTrait, RMut, RRef,
         /// };
         ///
         /// // Constructing a DynTrait from a `&T`
@@ -882,11 +852,8 @@ mod priv_ {
         ///
         /// ```rust
         /// use abi_stable::{
-        ///     erased_types::interfaces::DebugDisplayInterface,
-        ///     std_types::RBox,
-        ///     DynTrait,
+        ///     erased_types::interfaces::DebugDisplayInterface, std_types::RBox, DynTrait,
         /// };
-        ///
         ///
         /// // DebugDisplayInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RBox<()>, DebugDisplayInterface> =
@@ -894,7 +861,6 @@ mod priv_ {
         ///
         /// assert_eq!(format!("{}", to), "3");
         /// assert_eq!(format!("{:?}", to), "3");
-        ///
         ///
         /// // `DynTrait`s constructed using the `from_borrowing_*` constructors
         /// // can't be downcasted.
@@ -925,7 +891,7 @@ mod priv_ {
         /// use abi_stable::{
         ///     erased_types::interfaces::DebugDisplayInterface,
         ///     std_types::{RArc, RBox},
-        ///     DynTrait, RRef, RMut,
+        ///     DynTrait, RMut, RRef,
         /// };
         ///
         /// // Constructing a DynTrait from a `&T`
@@ -997,13 +963,9 @@ mod priv_ {
         ///
         /// ```rust
         /// use abi_stable::{
-        ///     erased_types::{
-        ///         interfaces::DebugDisplayInterface,
-        ///         TD_Opaque,
-        ///     },
+        ///     erased_types::{interfaces::DebugDisplayInterface, TD_Opaque},
         ///     DynTrait, RRef,
         /// };
-        ///
         ///
         /// // DebugDisplayInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RRef<()>, DebugDisplayInterface, usize> =
@@ -1093,25 +1055,19 @@ mod priv_ {
         /// ```
         /// use abi_stable::{
         ///     erased_types::{
-        ///         interfaces::DebugDisplayInterface,
-        ///         DynTrait, TD_Opaque, VTableDT,
+        ///         interfaces::DebugDisplayInterface, DynTrait, TD_Opaque, VTableDT,
         ///     },
         ///     sabi_types::RRef,
         /// };
         ///
-        /// static STRING:&str ="What the heck";
+        /// static STRING: &str = "What the heck";
         ///
-        /// static DYN: DynTrait<'static, RRef<'static,()>, DebugDisplayInterface,()> =
-        ///     DynTrait::from_const(
-        ///         &STRING,
-        ///         TD_Opaque,
-        ///         VTableDT::GET,
-        ///         (),
-        ///     );
+        /// static DYN: DynTrait<'static, RRef<'static, ()>, DebugDisplayInterface, ()> =
+        ///     DynTrait::from_const(&STRING, TD_Opaque, VTableDT::GET, ());
         ///
-        /// fn main(){
-        ///     assert_eq!( format!("{}", DYN), format!("{}", STRING) );
-        ///     assert_eq!( format!("{:?}", DYN), format!("{:?}", STRING) );    
+        /// fn main() {
+        ///     assert_eq!(format!("{}", DYN), format!("{}", STRING));
+        ///     assert_eq!(format!("{:?}", DYN), format!("{:?}", STRING));
         /// }
         ///
         /// ```
@@ -1193,11 +1149,7 @@ mod priv_ {
         /// # Example
         ///
         /// ```rust
-        /// use abi_stable::{
-        ///     erased_types::TD_Opaque,
-        ///     DynTrait, RRef,
-        /// };
-        ///
+        /// use abi_stable::{erased_types::TD_Opaque, DynTrait, RRef};
         ///
         /// let to: DynTrait<'static, RRef<()>, (), char> =
         ///     DynTrait::with_extra_value::<_, TD_Opaque>(&55u8, 'Z');
@@ -1225,15 +1177,11 @@ mod priv_ {
         /// # Example
         ///
         /// ```rust
-        /// use abi_stable::{
-        ///     erased_types::TD_Opaque,
-        ///     DynTrait, RRef,
-        /// };
+        /// use abi_stable::{erased_types::TD_Opaque, DynTrait, RRef};
         ///
         /// let reff = &55u8;
         ///
-        /// let to: DynTrait<'static, RRef<()>, ()> =
-        ///     DynTrait::from_any_ptr(reff, ());
+        /// let to: DynTrait<'static, RRef<()>, ()> = DynTrait::from_any_ptr(reff, ());
         ///
         /// assert_eq!(to.sabi_object_address(), reff as *const _ as usize);
         ///
@@ -1266,17 +1214,12 @@ mod priv_ {
         /// # Example
         ///
         /// ```rust
-        /// use abi_stable::{
-        ///     std_types::RBox,
-        ///     DynTrait,
-        /// };
+        /// use abi_stable::{std_types::RBox, DynTrait};
         ///
+        /// let to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_any_value(66u8, ());
         ///
-        /// let to: DynTrait<'static, RBox<()>, ()> =
-        ///     DynTrait::from_any_value(66u8, ());
-        ///
-        /// unsafe{
-        ///     assert_eq!(to.sabi_erased_ref().transmute_into_ref::<u8>() , &66);
+        /// unsafe {
+        ///     assert_eq!(to.sabi_erased_ref().transmute_into_ref::<u8>(), &66);
         /// }
         /// ```
         pub fn sabi_erased_ref(&self) -> RRef<'_, ErasedObject>
@@ -1298,17 +1241,15 @@ mod priv_ {
         /// # Example
         ///
         /// ```rust
-        /// use abi_stable::{
-        ///     std_types::RBox,
-        ///     DynTrait,
-        /// };
+        /// use abi_stable::{std_types::RBox, DynTrait};
         ///
+        /// let mut to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_any_value("hello", ());
         ///
-        /// let mut to: DynTrait<'static, RBox<()>, ()> =
-        ///     DynTrait::from_any_value("hello", ());
-        ///
-        /// unsafe{
-        ///     assert_eq!(to.sabi_erased_mut().transmute_into_mut::<&str>() , &mut "hello");
+        /// unsafe {
+        ///     assert_eq!(
+        ///         to.sabi_erased_mut().transmute_into_mut::<&str>(),
+        ///         &mut "hello"
+        ///     );
         /// }
         /// ```
         #[inline]
@@ -1324,17 +1265,12 @@ mod priv_ {
         /// # Example
         ///
         /// ```rust
-        /// use abi_stable::{
-        ///     std_types::RBox,
-        ///     DynTrait,
-        /// };
+        /// use abi_stable::{std_types::RBox, DynTrait};
         ///
+        /// let to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_any_value(66u8, ());
         ///
-        /// let to: DynTrait<'static, RBox<()>, ()> =
-        ///     DynTrait::from_any_value(66u8, ());
-        ///
-        /// unsafe{
-        ///     assert_eq!(to.sabi_as_rref().transmute_into_ref::<u8>() , &66);
+        /// unsafe {
+        ///     assert_eq!(to.sabi_as_rref().transmute_into_ref::<u8>(), &66);
         /// }
         /// ```
         pub fn sabi_as_rref(&self) -> RRef<'_, ()>
@@ -1349,17 +1285,12 @@ mod priv_ {
         /// # Example
         ///
         /// ```rust
-        /// use abi_stable::{
-        ///     std_types::RBox,
-        ///     DynTrait,
-        /// };
+        /// use abi_stable::{std_types::RBox, DynTrait};
         ///
+        /// let mut to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_any_value("hello", ());
         ///
-        /// let mut to: DynTrait<'static, RBox<()>, ()> =
-        ///     DynTrait::from_any_value("hello", ());
-        ///
-        /// unsafe{
-        ///     assert_eq!(to.sabi_as_rmut().transmute_into_mut::<&str>() , &mut "hello");
+        /// unsafe {
+        ///     assert_eq!(to.sabi_as_rmut().transmute_into_mut::<&str>(), &mut "hello");
         /// }
         /// ```
         pub fn sabi_as_rmut(&mut self) -> RMut<'_, ()>
@@ -1386,11 +1317,10 @@ mod priv_ {
         ///     DynTrait,
         /// };
         ///
-        ///
         /// let to: DynTrait<'static, RBox<()>, ()> =
         ///     DynTrait::from_any_value(RVec::<u8>::from_slice(b"foobarbaz"), ());
         ///
-        /// let string = to.sabi_with_value(|x| unsafe{
+        /// let string = to.sabi_with_value(|x| unsafe {
         ///     MovePtr::into_inner(MovePtr::transmute::<String>(x))
         /// });
         ///
@@ -1464,10 +1394,7 @@ mod priv_ {
         ///         to().downcast_into_impltype::<Foo<u8>>().ok(),
         ///         Some(RBox::new(Foo(b'A'))),
         ///     );
-        ///     assert_eq!(
-        ///         to().downcast_into_impltype::<Foo<u16>>().ok(),
-        ///         None,
-        ///     );
+        ///     assert_eq!(to().downcast_into_impltype::<Foo<u16>>().ok(), None,);
         /// }
         /// {
         ///     fn to() -> DynTrait<'static, RArc<()>, FooInterface> {
@@ -1478,10 +1405,7 @@ mod priv_ {
         ///         to().downcast_into_impltype::<Foo<u8>>().ok(),
         ///         Some(RArc::new(Foo(b'B'))),
         ///     );
-        ///     assert_eq!(
-        ///         to().downcast_into_impltype::<Foo<u16>>().ok(),
-        ///         None,
-        ///     );
+        ///     assert_eq!(to().downcast_into_impltype::<Foo<u16>>().ok(), None,);
         /// }
         /// # }
         ///
@@ -1491,17 +1415,15 @@ mod priv_ {
         ///
         /// impl<T: 'static> ImplType for Foo<T> {
         ///     type Interface = FooInterface;
-        ///     
+        ///
         ///     const INFO: &'static TypeInfo = abi_stable::impl_get_type_info!(Foo<T>);
         /// }
-        ///
         ///
         /// /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
         /// #[repr(C)]
         /// #[derive(StableAbi)]
         /// #[sabi(impl_InterfaceType(Sync, Debug))]
         /// pub struct FooInterface;
-        ///
         ///
         /// ```
         pub fn downcast_into_impltype<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
@@ -1537,10 +1459,8 @@ mod priv_ {
         ///
         /// ```rust
         /// use abi_stable::{
-        ///     erased_types::TypeInfo,
-        ///     std_types::RArc,
-        ///     DynTrait, RRef, RMut,
-        ///     ImplType, StableAbi,
+        ///     erased_types::TypeInfo, std_types::RArc, DynTrait, ImplType, RMut, RRef,
+        ///     StableAbi,
         /// };
         ///
         /// # fn main(){
@@ -1576,10 +1496,9 @@ mod priv_ {
         ///
         /// impl<T: 'static> ImplType for Foo<T> {
         ///     type Interface = FooInterface;
-        ///     
+        ///
         ///     const INFO: &'static TypeInfo = abi_stable::impl_get_type_info!(Foo<T>);
         /// }
-        ///
         ///
         /// /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
         /// #[repr(C)]
@@ -1618,10 +1537,7 @@ mod priv_ {
         ///
         /// ```rust
         /// use abi_stable::{
-        ///     erased_types::TypeInfo,
-        ///     std_types::RBox,
-        ///     DynTrait, RMut,
-        ///     ImplType, StableAbi,
+        ///     erased_types::TypeInfo, std_types::RBox, DynTrait, ImplType, RMut, StableAbi,
         /// };
         ///
         /// # fn main(){
@@ -1631,14 +1547,20 @@ mod priv_ {
         ///     let mut to: DynTrait<'static, RMut<'_, ()>, FooInterface> =
         ///         DynTrait::from_ptr(&mut val);
         ///
-        ///     assert_eq!(to.downcast_as_mut_impltype::<Foo<u8>>().ok(), Some(&mut Foo(7)));
+        ///     assert_eq!(
+        ///         to.downcast_as_mut_impltype::<Foo<u8>>().ok(),
+        ///         Some(&mut Foo(7))
+        ///     );
         ///     assert_eq!(to.downcast_as_mut_impltype::<Foo<u16>>().ok(), None);
         /// }
         /// {
         ///     let mut to: DynTrait<'static, RBox<()>, FooInterface> =
         ///         DynTrait::from_ptr(RBox::new(Foo(1u8)));
         ///
-        ///     assert_eq!(to.downcast_as_mut_impltype::<Foo<u8>>().ok(), Some(&mut Foo(1u8)));
+        ///     assert_eq!(
+        ///         to.downcast_as_mut_impltype::<Foo<u8>>().ok(),
+        ///         Some(&mut Foo(1u8))
+        ///     );
         ///     assert_eq!(to.downcast_as_mut_impltype::<Foo<u16>>().ok(), None);
         /// }
         ///
@@ -1650,10 +1572,9 @@ mod priv_ {
         ///
         /// impl<T: 'static> ImplType for Foo<T> {
         ///     type Interface = FooInterface;
-        ///     
+        ///
         ///     const INFO: &'static TypeInfo = abi_stable::impl_get_type_info!(Foo<T>);
         /// }
-        ///
         ///
         /// /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
         /// #[repr(C)]
@@ -1754,14 +1675,10 @@ mod priv_ {
         /// # Example
         ///
         /// ```rust
-        /// use abi_stable::{
-        ///     std_types::RArc,
-        ///     DynTrait, RRef, RMut,
-        /// };
+        /// use abi_stable::{std_types::RArc, DynTrait, RMut, RRef};
         ///
         /// {
-        ///     let to: DynTrait<'static, RRef<'_, ()>, ()> =
-        ///         DynTrait::from_any_ptr(&9u8, ());
+        ///     let to: DynTrait<'static, RRef<'_, ()>, ()> = DynTrait::from_any_ptr(&9u8, ());
         ///
         ///     assert_eq!(to.downcast_as::<u8>().ok(), Some(&9u8));
         ///     assert_eq!(to.downcast_as::<u16>().ok(), None);
@@ -1817,10 +1734,7 @@ mod priv_ {
         /// # Example
         ///
         /// ```rust
-        /// use abi_stable::{
-        ///     std_types::RBox,
-        ///     DynTrait, RMut,
-        /// };
+        /// use abi_stable::{std_types::RBox, DynTrait, RMut};
         ///
         /// {
         ///     let mut val = 7u8;
@@ -1838,7 +1752,6 @@ mod priv_ {
         ///     assert_eq!(to.downcast_as_mut::<u8>().ok(), Some(&mut 1u8));
         ///     assert_eq!(to.downcast_as_mut::<u16>().ok(), None);
         /// }
-        ///
         ///
         /// ```
         pub fn downcast_as_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
@@ -1906,14 +1819,10 @@ mod priv_ {
         /// # Example
         ///
         /// ```rust
-        /// use abi_stable::{
-        ///     std_types::RArc,
-        ///     DynTrait, RRef, RMut,
-        /// };
+        /// use abi_stable::{std_types::RArc, DynTrait, RMut, RRef};
         ///
         /// unsafe {
-        ///     let to: DynTrait<'static, RRef<'_, ()>, ()> =
-        ///         DynTrait::from_any_ptr(&9u8, ());
+        ///     let to: DynTrait<'static, RRef<'_, ()>, ()> = DynTrait::from_any_ptr(&9u8, ());
         ///
         ///     assert_eq!(to.unchecked_downcast_as::<u8>(), &9u8);
         /// }
@@ -1952,10 +1861,7 @@ mod priv_ {
         /// # Example
         ///
         /// ```rust
-        /// use abi_stable::{
-        ///     std_types::RBox,
-        ///     DynTrait, RMut,
-        /// };
+        /// use abi_stable::{std_types::RBox, DynTrait, RMut};
         ///
         /// unsafe {
         ///     let mut val = 7u8;
@@ -1971,7 +1877,6 @@ mod priv_ {
         ///
         ///     assert_eq!(to.unchecked_downcast_as_mut::<u8>(), &mut 1u8);
         /// }
-        ///
         ///
         /// ```
         #[inline]
@@ -2022,23 +1927,18 @@ mod priv_ {
         /// use abi_stable::{
         ///     erased_types::interfaces::DebugDisplayInterface,
         ///     std_types::RBox,
-        ///     type_level::{
-        ///         impl_enum::Implemented,
-        ///         trait_marker,
-        ///     },
+        ///     type_level::{impl_enum::Implemented, trait_marker},
         ///     DynTrait, InterfaceBound, RRef,
         /// };
-        ///
         ///
         /// let to: DynTrait<'static, RBox<()>, DebugDisplayInterface> =
         ///     DynTrait::from_any_value(1337_u16, DebugDisplayInterface);
         ///
         /// assert_eq!(debug_string(to.reborrow()), "1337");
         ///
-        ///
         /// fn debug_string<I>(to: DynTrait<'_, RRef<'_, ()>, I>) -> String
         /// where
-        ///     I: InterfaceBound<Debug = Implemented<trait_marker::Debug>>
+        ///     I: InterfaceBound<Debug = Implemented<trait_marker::Debug>>,
         /// {
         ///     format!("{:?}", to)
         /// }
@@ -2074,11 +1974,8 @@ mod priv_ {
         ///
         /// ```rust
         /// use abi_stable::{
-        ///     erased_types::interfaces::DEIteratorInterface,
-        ///     std_types::RBox,
-        ///     DynTrait,
+        ///     erased_types::interfaces::DEIteratorInterface, std_types::RBox, DynTrait,
         /// };
-        ///
         ///
         /// let mut to = DynTrait::from_any_value(0_u8..=255, DEIteratorInterface::NEW);
         ///
@@ -2086,7 +1983,6 @@ mod priv_ {
         /// assert_eq!(both_ends(to.reborrow_mut()), (Some(1), Some(254)));
         /// assert_eq!(both_ends(to.reborrow_mut()), (Some(2), Some(253)));
         /// assert_eq!(both_ends(to.reborrow_mut()), (Some(3), Some(252)));
-        ///
         ///
         /// fn both_ends<I>(mut to: I) -> (Option<I::Item>, Option<I::Item>)
         /// where
@@ -2171,20 +2067,23 @@ mod priv_ {
         /// # Example
         ///
         /// ```rust
-        /// use abi_stable::{
-        ///     DynTrait,
-        ///     erased_types::interfaces::DebugDefEqInterface,
-        /// };
+        /// use abi_stable::{erased_types::interfaces::DebugDefEqInterface, DynTrait};
         ///
         /// {
         ///     let object = DynTrait::from_any_value(true, DebugDefEqInterface);
-        ///     
-        ///     assert_eq!(object.default(), DynTrait::from_any_value(false, DebugDefEqInterface));
+        ///
+        ///     assert_eq!(
+        ///         object.default(),
+        ///         DynTrait::from_any_value(false, DebugDefEqInterface)
+        ///     );
         /// }
         /// {
         ///     let object = DynTrait::from_any_value(123u8, DebugDefEqInterface);
-        ///     
-        ///     assert_eq!(object.default(), DynTrait::from_any_value(0u8, DebugDefEqInterface));
+        ///
+        ///     assert_eq!(
+        ///         object.default(),
+        ///         DynTrait::from_any_value(0u8, DebugDefEqInterface)
+        ///     );
         /// }
         ///
         /// ```
@@ -2278,25 +2177,23 @@ where
     }
 }
 
-/**
-Clone is implemented for references and smart pointers,
-using `GetPointerKind` to decide whether `P` is a smart pointer or a reference.
-
-DynTrait does not implement Clone if P ==`RMut<'_, ()>` :
-
-```compile_fail
-# use abi_stable::{
-#     DynTrait,
-#     erased_types::interfaces::CloneInterface,
-# };
-
-let mut object = DynTrait::from_any_value((),());
-let borrow = object.reborrow_mut();
-let _ = borrow.clone();
-
-```
-
-*/
+/// Clone is implemented for references and smart pointers,
+/// using `GetPointerKind` to decide whether `P` is a smart pointer or a reference.
+///
+/// DynTrait does not implement Clone if P ==`RMut<'_, ()>` :
+///
+/// ```compile_fail
+/// # use abi_stable::{
+/// #     DynTrait,
+/// #     erased_types::interfaces::CloneInterface,
+/// # };
+///
+/// let mut object = DynTrait::from_any_value((),());
+/// let borrow = object.reborrow_mut();
+/// let _ = borrow.clone();
+///
+/// ```
+///
 impl<'borr, P, I, EV> Clone for DynTrait<'borr, P, I, EV>
 where
     P: AsPtr,
@@ -2345,12 +2242,10 @@ where
 {
 }
 
-/**
-First it serializes a `DynTrait<_>` into a string by using
-<ConcreteType as SerializeImplType>::serialize_impl,
-then it serializes the string.
-
-*/
+/// First it serializes a `DynTrait<_>` into a string by using
+/// <ConcreteType as SerializeImplType>::serialize_impl,
+/// then it serializes the string.
+///
 impl<'borr, P, I, EV> Serialize for DynTrait<'borr, P, I, EV>
 where
     P: AsPtr,
@@ -2519,48 +2414,44 @@ where
     I: InterfaceBound<Iterator = Implemented<trait_marker::Iterator>>,
     Item: 'borr,
 {
-    /**
-    Eagerly skips n elements from the iterator.
-
-    This method is faster than using `Iterator::skip`.
-
-    # Example
-
-    ```
-    # use abi_stable::{
-    #     DynTrait,
-    #     erased_types::interfaces::IteratorInterface,
-    #     std_types::RVec,
-    #     traits::IntoReprC,
-    # };
-
-    let mut iter = 0..20;
-    let mut wrapped = DynTrait::from_any_ptr(&mut iter, IteratorInterface::NEW);
-
-    assert_eq!(wrapped.next(), Some(0));
-
-    wrapped.skip_eager(2);
-
-    assert_eq!(wrapped.next(), Some(3));
-    assert_eq!(wrapped.next(), Some(4));
-    assert_eq!(wrapped.next(), Some(5));
-
-    wrapped.skip_eager(2);
-
-    assert_eq!(wrapped.next(), Some(8));
-    assert_eq!(wrapped.next(), Some(9));
-
-    wrapped.skip_eager(9);
-
-    assert_eq!(wrapped.next(), Some(19));
-    assert_eq!(wrapped.next(), None    );
-
-
-
-    ```
-
-
-    */
+    /// Eagerly skips n elements from the iterator.
+    ///
+    /// This method is faster than using `Iterator::skip`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use abi_stable::{
+    /// #     DynTrait,
+    /// #     erased_types::interfaces::IteratorInterface,
+    /// #     std_types::RVec,
+    /// #     traits::IntoReprC,
+    /// # };
+    ///
+    /// let mut iter = 0..20;
+    /// let mut wrapped = DynTrait::from_any_ptr(&mut iter, IteratorInterface::NEW);
+    ///
+    /// assert_eq!(wrapped.next(), Some(0));
+    ///
+    /// wrapped.skip_eager(2);
+    ///
+    /// assert_eq!(wrapped.next(), Some(3));
+    /// assert_eq!(wrapped.next(), Some(4));
+    /// assert_eq!(wrapped.next(), Some(5));
+    ///
+    /// wrapped.skip_eager(2);
+    ///
+    /// assert_eq!(wrapped.next(), Some(8));
+    /// assert_eq!(wrapped.next(), Some(9));
+    ///
+    /// wrapped.skip_eager(9);
+    ///
+    /// assert_eq!(wrapped.next(), Some(19));
+    /// assert_eq!(wrapped.next(), None);
+    ///
+    ///
+    /// ```
+    ///
     pub fn skip_eager(&mut self, n: usize) {
         unsafe {
             let vtable = self.sabi_vtable();
@@ -2568,40 +2459,35 @@ where
         }
     }
 
-    /**
-    Extends the `RVec<Item>` with the `self` Iterator.
-
-    Extends `buffer` with as many elements of the iterator as `taking` specifies:
-
-    - RNone: Yields all elements.Use this with care, since Iterators can be infinite.
-
-    - RSome(n): Yields n elements.
-
-    ###  Example
-
-    ```
-    # use abi_stable::{
-    #     DynTrait,
-    #     erased_types::interfaces::IteratorInterface,
-    #     std_types::{RVec, RSome},
-    #     traits::IntoReprC,
-    # };
-
-    let mut wrapped = DynTrait::from_any_value(0.. , IteratorInterface::NEW);
-
-    let mut buffer = vec![ 101, 102, 103 ].into_c();
-    wrapped.extending_rvec(&mut buffer, RSome(5));
-    assert_eq!(
-        &buffer[..],
-        &*vec![101, 102, 103, 0, 1, 2, 3, 4]
-    );
-
-    assert_eq!( wrapped.next(), Some(5));
-    assert_eq!( wrapped.next(), Some(6));
-    assert_eq!( wrapped.next(), Some(7));
-
-    ```
-    */
+    /// Extends the `RVec<Item>` with the `self` Iterator.
+    ///
+    /// Extends `buffer` with as many elements of the iterator as `taking` specifies:
+    ///
+    /// - RNone: Yields all elements.Use this with care, since Iterators can be infinite.
+    ///
+    /// - RSome(n): Yields n elements.
+    ///
+    /// ###  Example
+    ///
+    /// ```
+    /// # use abi_stable::{
+    /// #     DynTrait,
+    /// #     erased_types::interfaces::IteratorInterface,
+    /// #     std_types::{RVec, RSome},
+    /// #     traits::IntoReprC,
+    /// # };
+    ///
+    /// let mut wrapped = DynTrait::from_any_value(0.., IteratorInterface::NEW);
+    ///
+    /// let mut buffer = vec![101, 102, 103].into_c();
+    /// wrapped.extending_rvec(&mut buffer, RSome(5));
+    /// assert_eq!(&buffer[..], &*vec![101, 102, 103, 0, 1, 2, 3, 4]);
+    ///
+    /// assert_eq!(wrapped.next(), Some(5));
+    /// assert_eq!(wrapped.next(), Some(6));
+    /// assert_eq!(wrapped.next(), Some(7));
+    ///
+    /// ```
     pub fn extending_rvec(&mut self, buffer: &mut RVec<Item>, taking: ROption<usize>) {
         unsafe {
             let vtable = self.sabi_vtable();
@@ -2641,10 +2527,7 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use abi_stable::{
-    ///     erased_types::interfaces::DEIteratorCloneInterface,
-    ///     DynTrait,
-    /// };
+    /// use abi_stable::{erased_types::interfaces::DEIteratorCloneInterface, DynTrait};
     ///
     /// let to = || DynTrait::from_any_value(7..=10, DEIteratorCloneInterface::NEW);
     ///
@@ -2664,37 +2547,32 @@ where
         }
     }
 
-    /**
-    Extends the `RVec<Item>` with the back of the `self` DoubleEndedIterator.
-
-    Extends `buffer` with as many elements of the iterator as `taking` specifies:
-
-    - RNone: Yields all elements.Use this with care, since Iterators can be infinite.
-
-    - RSome(n): Yields n elements.
-
-    ###  Example
-
-    ```
-    # use abi_stable::{
-    #     DynTrait,
-    #     erased_types::interfaces::DEIteratorInterface,
-    #     std_types::{RVec, RNone},
-    #     traits::IntoReprC,
-    # };
-
-    let mut wrapped = DynTrait::from_any_value(0..=3 , DEIteratorInterface::NEW);
-
-    let mut buffer = vec![ 101, 102, 103 ].into_c();
-    wrapped.extending_rvec_back(&mut buffer, RNone);
-    assert_eq!(
-        &buffer[..],
-        &*vec![101, 102, 103, 3, 2, 1, 0]
-    )
-
-    ```
-
-    */
+    /// Extends the `RVec<Item>` with the back of the `self` DoubleEndedIterator.
+    ///
+    /// Extends `buffer` with as many elements of the iterator as `taking` specifies:
+    ///
+    /// - RNone: Yields all elements.Use this with care, since Iterators can be infinite.
+    ///
+    /// - RSome(n): Yields n elements.
+    ///
+    /// ###  Example
+    ///
+    /// ```
+    /// # use abi_stable::{
+    /// #     DynTrait,
+    /// #     erased_types::interfaces::DEIteratorInterface,
+    /// #     std_types::{RVec, RNone},
+    /// #     traits::IntoReprC,
+    /// # };
+    ///
+    /// let mut wrapped = DynTrait::from_any_value(0..=3, DEIteratorInterface::NEW);
+    ///
+    /// let mut buffer = vec![101, 102, 103].into_c();
+    /// wrapped.extending_rvec_back(&mut buffer, RNone);
+    /// assert_eq!(&buffer[..], &*vec![101, 102, 103, 3, 2, 1, 0])
+    ///
+    /// ```
+    ///
     pub fn extending_rvec_back(&mut self, buffer: &mut RVec<Item>, taking: ROption<usize>) {
         unsafe {
             let vtable = self.sabi_vtable();
