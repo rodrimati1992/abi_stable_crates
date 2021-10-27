@@ -1,8 +1,6 @@
-/*!
-This module defines the CommonTokens type,
-used to pass constants of type from `syn` to
-many functions in the `abi_stable_derive_lib::sabi_trait` module.
-*/
+//! This module defines the CommonTokens type,
+//! used to pass constants of type from `syn` to
+//! many functions in the `abi_stable_derive_lib::sabi_trait` module.
 
 use proc_macro2::{Span, TokenStream};
 

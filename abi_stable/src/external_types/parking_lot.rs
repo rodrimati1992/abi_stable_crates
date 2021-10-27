@@ -1,7 +1,5 @@
-/*!
-Ffi-safe synchronization primitives,most of which are ffi-safe wrappers of
-[parking_lot](https://crates.io/crates/parking_lot) types
-*/
+//! Ffi-safe synchronization primitives,most of which are ffi-safe wrappers of
+//! [parking_lot](https://crates.io/crates/parking_lot) types
 
 pub mod mutex;
 pub mod once;

@@ -1,6 +1,4 @@
-/*!
-types and traits related to abi stability.
-*/
+//! types and traits related to abi stability.
 
 #[doc(hidden)]
 pub mod abi_checking;

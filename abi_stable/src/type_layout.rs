@@ -1,6 +1,4 @@
-/*!
-Types for modeling the layout of a datatype
-*/
+//! Types for modeling the layout of a datatype
 
 use std::{
     cell::RefCell,
@@ -205,24 +203,22 @@ impl TypeLayout {
         self.extra_checks.value.map(|x| x.sabi_reborrow())
     }
 
-    /**
-    Gets the fields of the type.
-
-    # Return value
-
-    If this a:
-
-    - primitive or opaque type:
-        It returns `None`.
-
-    - enum:
-        It returns `Some()` with all the fields in the order that they were declared,
-        ignoring variants.
-
-    - structs/unions/prefix types:
-        It returns `Some()` with all the fields in the order that they were declared.
-
-    */
+    /// Gets the fields of the type.
+    ///
+    /// # Return value
+    ///
+    /// If this a:
+    ///
+    /// - primitive or opaque type:
+    ///     It returns `None`.
+    ///
+    /// - enum:
+    ///     It returns `Some()` with all the fields in the order that they were declared,
+    ///     ignoring variants.
+    ///
+    /// - structs/unions/prefix types:
+    ///     It returns `Some()` with all the fields in the order that they were declared.
+    ///
     pub fn get_fields(&self) -> Option<TLFields> {
         let fields = self.mono.get_fields()?;
         Some(fields.expand(self.shared_vars))
@@ -478,24 +474,22 @@ impl MonoTypeLayout {
         &self.shared_vars
     }
 
-    /**
-    Gets the compressed versions of the fields of the type.
-
-    # Return value
-
-    If this a:
-
-    - primitive or opaque type:
-        It returns `None`.
-
-    - enum:
-        It returns `Some()` with all the fields in the order that they were declared,
-        ignoring variants.
-
-    - structs/unions/prefix types:
-        It returns `Some()` with all the fields in the order that they were declared.
-
-    */
+    /// Gets the compressed versions of the fields of the type.
+    ///
+    /// # Return value
+    ///
+    /// If this a:
+    ///
+    /// - primitive or opaque type:
+    ///     It returns `None`.
+    ///
+    /// - enum:
+    ///     It returns `Some()` with all the fields in the order that they were declared,
+    ///     ignoring variants.
+    ///
+    /// - structs/unions/prefix types:
+    ///     It returns `Some()` with all the fields in the order that they were declared.
+    ///
     pub fn get_fields(&self) -> Option<CompTLFields> {
         match self.data {
             MonoTLData::Primitive { .. } => None,

@@ -1,6 +1,4 @@
-/*!
-Contains the ffi-safe equivalent of `std::collections::HashMap`, and related items.
-*/
+//! Contains the ffi-safe equivalent of `std::collections::HashMap`, and related items.
 
 use std::{
     borrow::Borrow,
@@ -45,58 +43,55 @@ pub use self::{
     iterator_stuff::{IntoIter, MutIterInterface, RefIterInterface, ValIterInterface},
 };
 
-/**
-
-An ffi-safe hashmap, which wraps `std::collections::HashMap<K, V, S>`,
-only requiring the `K: Eq + Hash` bounds when constructing it.
-
-Most of the API in `HashMap` is implemented here, including the Entry API.
-
-
-# Example
-
-This example demonstrates how one can use the RHashMap as a dictionary.
-
-```
-use abi_stable::std_types::{RHashMap, Tuple2, RString, RSome};
-
-let mut map = RHashMap::new();
-
-map.insert("dictionary", "A book/document containing definitions of words");
-map.insert("bibliophile", "Someone who loves books.");
-map.insert("pictograph", "A picture representating of a word.");
-
-assert_eq!(
-    map["dictionary"],
-    "A book/document containing definitions of words",
-);
-
-assert_eq!(
-    map.remove("bibliophile"),
-    RSome("Someone who loves books."),
-);
-
-assert_eq!(
-    map.get("pictograph"),
-    Some(&"A picture representating of a word."),
-);
-
-for Tuple2(k, v) in map {
-    assert!( k == "dictionary" || k == "pictograph" );
-
-    assert!(
-        v == "A book/document containing definitions of words" ||
-        v == "A picture representating of a word.",
-        "{} => {}",
-        k, v
-    );
-}
-
-
-```
-
-
-*/
+/// An ffi-safe hashmap, which wraps `std::collections::HashMap<K, V, S>`,
+/// only requiring the `K: Eq + Hash` bounds when constructing it.
+///
+/// Most of the API in `HashMap` is implemented here, including the Entry API.
+///
+///
+/// # Example
+///
+/// This example demonstrates how one can use the RHashMap as a dictionary.
+///
+/// ```
+/// use abi_stable::std_types::{RHashMap, RSome, RString, Tuple2};
+///
+/// let mut map = RHashMap::new();
+///
+/// map.insert(
+///     "dictionary",
+///     "A book/document containing definitions of words",
+/// );
+/// map.insert("bibliophile", "Someone who loves books.");
+/// map.insert("pictograph", "A picture representating of a word.");
+///
+/// assert_eq!(
+///     map["dictionary"],
+///     "A book/document containing definitions of words",
+/// );
+///
+/// assert_eq!(map.remove("bibliophile"), RSome("Someone who loves books."),);
+///
+/// assert_eq!(
+///     map.get("pictograph"),
+///     Some(&"A picture representating of a word."),
+/// );
+///
+/// for Tuple2(k, v) in map {
+///     assert!(k == "dictionary" || k == "pictograph");
+///
+///     assert!(
+///         v == "A book/document containing definitions of words"
+///             || v == "A picture representating of a word.",
+///         "{} => {}",
+///         k,
+///         v
+///     );
+/// }
+///
+///
+/// ```
+///
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -725,28 +720,27 @@ impl<K, V, S> RHashMap<K, V, S> {
         vtable.drain()(self.map.as_rmut())
     }
 
-    /**
-    Gets a handle into the entry in the map for the key,
-    that allows operating directly on the entry.
-
-    # Example
-
-    ```
-    use abi_stable::std_types::RHashMap;
-
-    let mut map = RHashMap::<u32, u32>::new();
-
-    // Inserting an entry that wasn't there before.
-    {
-        let mut entry = map.entry(0);
-        assert_eq!(entry.get(), None);
-        assert_eq!(entry.or_insert(3), &mut 3);
-        assert_eq!(map.get(&0), Some(&3));
-    }
-
-
-    ```
-    */
+    /// Gets a handle into the entry in the map for the key,
+    /// that allows operating directly on the entry.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RHashMap;
+    ///
+    /// let mut map = RHashMap::<u32, u32>::new();
+    ///
+    /// // Inserting an entry that wasn't there before.
+    /// {
+    ///     let mut entry = map.entry(0);
+    ///     assert_eq!(entry.get(), None);
+    ///     assert_eq!(entry.or_insert(3), &mut 3);
+    ///     assert_eq!(map.get(&0), Some(&3));
+    /// }
+    ///
+    ///
+    /// ```
+    ///
     pub fn entry(&mut self, key: K) -> REntry<'_, K, V> {
         let vtable = self.vtable();
 

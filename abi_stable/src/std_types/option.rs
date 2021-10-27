@@ -1,6 +1,4 @@
-/*!
-Contains the ffi-safe equivalent of `std::option::Option`.
-*/
+//! Contains the ffi-safe equivalent of `std::option::Option`.
 
 use std::mem;
 

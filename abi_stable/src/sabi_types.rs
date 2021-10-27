@@ -1,6 +1,4 @@
-/*!
-ffi-safe types that aren't wrappers for other types.
-*/
+//! ffi-safe types that aren't wrappers for other types.
 
 mod constructor;
 mod ignored_wrapper;

@@ -1,6 +1,4 @@
-/*!
-An implementation detail of abi_stable.
-*/
+//! An implementation detail of abi_stable.
 
 #![recursion_limit = "192"]
 // #![deny(unused_variables)]
@@ -15,29 +13,20 @@ An implementation detail of abi_stable.
 
 extern crate proc_macro;
 
-/**
-
-
-This macro is documented in abi_stable::docs::stable_abi_derive
-
-*/
-
+/// This macro is documented in abi_stable::docs::stable_abi_derive
 #[proc_macro_derive(StableAbi, attributes(sabi))]
 pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
     parse_or_compile_err(input, stable_abi::derive).into()
 }
 
-/**
-
-Allows implementing the InterfaceType trait,
-providing default values for associated types not specified in the impl block.
-
-<b>
-This macro has been deprecated in favor of using the `#[sabi(impl_InterfaceType())]`
-helper attribute of both `#[derive(StableAbi)]` and `#[derive(GetStaticEquivalent)]`
-</b>
-
-*/
+/// Allows implementing the InterfaceType trait,
+/// providing default values for associated types not specified in the impl block.
+///
+/// <b>
+/// This macro has been deprecated in favor of using the `#[sabi(impl_InterfaceType())]`
+/// helper attribute of both `#[derive(StableAbi)]` and `#[derive(GetStaticEquivalent)]`
+/// </b>
+///
 #[doc(hidden)]
 #[proc_macro]
 #[allow(non_snake_case)]

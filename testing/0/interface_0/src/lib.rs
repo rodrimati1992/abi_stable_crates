@@ -1,16 +1,12 @@
-/*!
-
-This is an example `interface crate`,
-where all publically available modules(structs of function pointers) and types are declared,
-
-This crate is where extra tests which don't belong in examples go.
-
-To load the library and the modules together,
-call `<TestingMod_Ref as RootModule>::load_from_directory`,
-which will load the dynamic library from a directory(folder),
-and then all the modules inside of the library.
-
-*/
+//! This is an example `interface crate`,
+//! where all publically available modules(structs of function pointers) and types are declared,
+//!
+//! This crate is where extra tests which don't belong in examples go.
+//!
+//! To load the library and the modules together,
+//! call `<TestingMod_Ref as RootModule>::load_from_directory`,
+//! which will load the dynamic library from a directory(folder),
+//! and then all the modules inside of the library.
 
 use abi_stable::{
     library::RootModule,
@@ -89,15 +85,13 @@ declare_PrefixTypeMod! {
 }
 
 declare_PrefixTypeMod! {
-    /**
-    This is unsafely converted from PrefixTypeMod0_Ref in tests to check that
-    `prefix.field_a()==some_integer`,
-    `prefix.field_b()==None`,
-    `prefix.field_c()==None`.
-
-    This only works because I know that both structs have the same alignment,
-    if either struct alignment changed that conversion would be unsound.
-    */
+    /// This is unsafely converted from PrefixTypeMod0_Ref in tests to check that
+    /// `prefix.field_a()==some_integer`,
+    /// `prefix.field_b()==None`,
+    /// `prefix.field_c()==None`.
+    ///
+    /// This only works because I know that both structs have the same alignment,
+    /// if either struct alignment changed that conversion would be unsound.
     struct PrefixTypeMod1;
     prefix_ref="PrefixTypeMod1_Ref";
 

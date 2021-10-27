@@ -1,6 +1,4 @@
-/*!
-Wrapper type(s) where their value is ignored in some trait impls .
-*/
+//! Wrapper type(s) where their value is ignored in some trait impls .
 
 use std::{
     cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},
@@ -55,7 +53,8 @@ use std::{
 /// );
 ///
 /// assert_eq!(map.len(), 1);
-/// assert_eq!(map.get(&a).unwrap().alt_name.as_str(), "H___ of B_____");///
+/// assert_eq!(map.get(&a).unwrap().alt_name.as_str(), "H___ of B_____");
+///
 /// ```
 ///
 #[repr(transparent)]

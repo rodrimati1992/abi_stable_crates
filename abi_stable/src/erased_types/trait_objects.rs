@@ -1,6 +1,4 @@
-/*!
-Ffi-safe trait objects for individual traits.
-*/
+//! Ffi-safe trait objects for individual traits.
 
 use std::fmt::{self, Debug, Display};
 

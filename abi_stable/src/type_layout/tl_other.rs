@@ -35,9 +35,7 @@ pub enum ReprAttr {
 
 /////////////////////////////////////////////////////
 
-/**
-A module path.
-*/
+/// A module path.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
@@ -227,9 +225,7 @@ impl FmtFullType {
 
 ////////////////////////////////////
 
-/**
-Either a TLField or a TLFunction.
-*/
+/// Either a TLField or a TLFunction.
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]

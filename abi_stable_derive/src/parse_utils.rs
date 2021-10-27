@@ -1,6 +1,4 @@
-/*!
-Functions for parsing many `syn` types.
-*/
+//! Functions for parsing many `syn` types.
 
 use as_derive_utils::spanned_err;
 

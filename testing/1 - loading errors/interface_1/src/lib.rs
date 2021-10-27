@@ -1,10 +1,7 @@
-/*!
-
-This is an example `interface crate`,
-where all publically available modules(structs of function pointers) and types are declared,
-
-These crate test a few of the errors that are returned when loading dynamic libraries
-*/
+//! This is an example `interface crate`,
+//! where all publically available modules(structs of function pointers) and types are declared,
+//!
+//! These crate test a few of the errors that are returned when loading dynamic libraries
 
 use abi_stable::{
     library::RootModule, package_version_strings, sabi_types::VersionStrings, StableAbi,

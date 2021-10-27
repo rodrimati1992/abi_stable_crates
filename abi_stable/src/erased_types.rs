@@ -1,6 +1,4 @@
-/*!
-Types and traits related to type erasure.
-*/
+//! Types and traits related to type erasure.
 
 use std::{
     cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},

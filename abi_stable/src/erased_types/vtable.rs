@@ -1,8 +1,5 @@
-/*!
+//! Contains `DynTrait<_>`'s vtable,and related types/traits.
 
-Contains `DynTrait<_>`'s vtable,and related types/traits.
-
-*/
 use std::{
     fmt::{self, Debug, Write as FmtWrite},
     io,

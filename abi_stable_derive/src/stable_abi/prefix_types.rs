@@ -1,8 +1,4 @@
-/*!
-
-Code generation for prefix-types.
-
-*/
+//! Code generation for prefix-types.
 
 use abi_stable_shared::const_utils::low_bit_mask_u64;
 
@@ -213,9 +209,7 @@ impl<'a> PrefixKind<'a> {
 /////                 Code generation
 ////////////////////////////////////////////////////////////////////////////////
 
-/**
-Returns a value which for a prefix-type .
-*/
+/// Returns a value which for a prefix-type .
 pub(crate) fn prefix_type_tokenizer<'a>(
     module: &'a Ident,
     mono_type_layout: &'a Ident,

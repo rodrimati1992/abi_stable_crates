@@ -1,10 +1,7 @@
-/*!
-Ffi wrapper for types defined outside the standard library.
-
-The modules here are named after the crates whose types are being wrapped.
-
-
-*/
+//! Ffi wrapper for types defined outside the standard library.
+//!
+//! The modules here are named after the crates whose types are being wrapped.
+//!
 
 #[cfg(feature = "crossbeam-channel")]
 #[cfg_attr(feature = "docsrs", doc(cfg(feature = "channels")))]

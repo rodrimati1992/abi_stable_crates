@@ -28,162 +28,158 @@ use crate::{
 // #[cfg(all(test, not(feature = "only_new_tests")))]
 mod test;
 
-/**
-Ffi-safe version of `Box<dyn std::error::Error + 'static>`
-whose `Send + Sync`ness is determined by the `M` type parameter.
-
-# Examples
-
-### Converting from and into `Box<dyn Error + ...>`
-<span id = "from_to_conversion"></span>
-```
-use std::{
-    convert::TryFrom,
-    error::Error as ErrorTrait,
-};
-
-use abi_stable::std_types::{RBox, RBoxError, UnsyncRBoxError, SendRBoxError};
-
-{
-    let from: Box<dyn ErrorTrait> = "hello, error".into();
-    let rbox = UnsyncRBoxError::from_box(from);
-    let _: Box<dyn ErrorTrait> = rbox.into_box();
-}
-
-{
-    let arr_err=<[();0]>::try_from(&[()][..]).unwrap_err();
-    let from: Box<dyn ErrorTrait+Send> = Box::new(arr_err);
-    let rbox = SendRBoxError::from_box(from);
-    let _: Box<dyn ErrorTrait+Send> = rbox.into_box();
-}
-
-{
-    let arr_err=<[();0]>::try_from(&[()][..]).unwrap_err();
-    let from: Box<dyn ErrorTrait+Send+Sync> = Box::new(arr_err);
-    let rbox = RBoxError::from_box(from);
-    let _: Box<dyn ErrorTrait+Send+Sync> = rbox.into_box();
-}
-
-```
-
-### Downcasting by value
-
-```
-use std::num::{ParseFloatError, ParseIntError};
-
-use abi_stable::std_types::{RBox, RBoxError};
-
-// Constructing a `RBoxError` from a `Box<dyn Error>`, then downcasting to a `ParseIntError`.
-{
-    let parse_err = "".parse::<u64>().unwrap_err();
-    let dyn_err: Box<std::error::Error+Send+Sync+'static> =
-        Box::new(parse_err.clone());
-    let err = RBoxError::from_box(dyn_err);
-
-    assert_eq!( err.downcast::<ParseIntError>().unwrap(), RBox::new(parse_err) );
-}
-
-// Constructing a `RBoxError` from a `ParseFloatError`, then downcasting back to it.
-{
-    let parse_err = "".parse::<f32>().unwrap_err();
-    let err = RBoxError::new(parse_err.clone());
-
-    assert_eq!( err.downcast::<ParseFloatError>().unwrap(), RBox::new(parse_err) );
-}
-
-// Constructing a `RBoxError` from a `ParseFloatError`,
-// then attempting to downcasting it to a `ParseIntError`.
-{
-    let parse_err = "".parse::<f32>().unwrap_err();
-    let err = RBoxError::new(parse_err);
-
-    assert!( err.downcast::<ParseIntError>().is_err() );
-}
-
-```
-
-### Downcasting by reference
-
-```
-use std::{
-    convert::TryFrom,
-    num::TryFromIntError,
-    str::Utf8Error,
-};
-
-use abi_stable::std_types::{RBox, UnsyncRBoxError};
-
-// Constructing a `UnsyncRBoxError` from a `Box<dyn Error>`,
-// then downcasting to a `TryFromIntError`.
-{
-    let int_err = u32::try_from(-1_i32).unwrap_err();
-    let dyn_err: Box<std::error::Error+'static> =
-        Box::new(int_err.clone());
-    let err = UnsyncRBoxError::from_box(dyn_err);
-
-    assert_eq!( err.downcast_ref::<TryFromIntError>().unwrap(), &int_err );
-}
-
-// Constructing a `UnsyncRBoxError` from a `Utf8Error`, then downcasting back to it.
-{
-    let utf8_err = std::str::from_utf8(&[255]).unwrap_err();
-    let err = UnsyncRBoxError::new(utf8_err.clone());
-
-    assert_eq!( err.downcast_ref::<Utf8Error>().unwrap(), &utf8_err );
-}
-
-// Constructing a `UnsyncRBoxError` from a `Utf8Error`,
-// then attempting to downcasting it to a `TryFromIntError`.
-{
-    let utf8_err = std::str::from_utf8(&[255]).unwrap_err();
-    let err = UnsyncRBoxError::new(utf8_err);
-
-    assert!( err.downcast_ref::<TryFromIntError>().is_none() );
-}
-
-```
-
-
-### Downcasting by mutable reference
-
-```
-use std::string::{FromUtf8Error, FromUtf16Error};
-
-use abi_stable::std_types::{RBox, SendRBoxError};
-
-// Constructing a `SendRBoxError` from a `Box<dyn Error>`,
-// then downcasting to a `FromUtf8Error`.
-{
-    let str_err = || String::from_utf8(vec![255]).unwrap_err() ;
-    let dyn_err: Box<std::error::Error+Send+'static> =
-        Box::new(str_err());
-    let mut err = SendRBoxError::from_box(dyn_err);
-
-    assert!( err.downcast_ref::<FromUtf8Error>().is_some() , "part A");
-}
-
-// Constructing a `SendRBoxError` from a `FromUtf8Error`, then downcasting back to it.
-{
-    let str_err = || String::from_utf8(vec![255]).unwrap_err() ;
-    let mut err = SendRBoxError::new(str_err());
-
-    assert!( err.downcast_ref::<FromUtf8Error>().is_some() , "part B");
-}
-
-// Constructing a `SendRBoxError` from a `FromUtf16Error`,
-// then attempting to downcasting it to a `FromUtf8Error`.
-{
-    let str_err = || String::from_utf16(&[0xD834]).unwrap_err() ;
-    let mut err = SendRBoxError::new(str_err());
-
-    assert!( err.downcast_ref::<FromUtf8Error>().is_none() , "part C");
-}
-
-```
-
-
-
-*/
+/// Ffi-safe version of `Box<dyn std::error::Error + 'static>`
+/// whose `Send + Sync`ness is determined by the `M` type parameter.
+///
+/// # Examples
+///
+/// ### Converting from and into `Box<dyn Error + ...>`
+/// <span id = "from_to_conversion"></span>
+/// ```
+/// use std::{convert::TryFrom, error::Error as ErrorTrait};
+///
+/// use abi_stable::std_types::{RBox, RBoxError, SendRBoxError, UnsyncRBoxError};
+///
+/// {
+///     let from: Box<dyn ErrorTrait> = "hello, error".into();
+///     let rbox = UnsyncRBoxError::from_box(from);
+///     let _: Box<dyn ErrorTrait> = rbox.into_box();
+/// }
+///
+/// {
+///     let arr_err = <[(); 0]>::try_from(&[()][..]).unwrap_err();
+///     let from: Box<dyn ErrorTrait + Send> = Box::new(arr_err);
+///     let rbox = SendRBoxError::from_box(from);
+///     let _: Box<dyn ErrorTrait + Send> = rbox.into_box();
+/// }
+///
+/// {
+///     let arr_err = <[(); 0]>::try_from(&[()][..]).unwrap_err();
+///     let from: Box<dyn ErrorTrait + Send + Sync> = Box::new(arr_err);
+///     let rbox = RBoxError::from_box(from);
+///     let _: Box<dyn ErrorTrait + Send + Sync> = rbox.into_box();
+/// }
+///
+///
+/// ```
+///
+/// ### Downcasting by value
+///
+/// ```
+/// use std::num::{ParseFloatError, ParseIntError};
+///
+/// use abi_stable::std_types::{RBox, RBoxError};
+///
+/// // Constructing a `RBoxError` from a `Box<dyn Error>`, then downcasting to a `ParseIntError`.
+/// {
+///     let parse_err = "".parse::<u64>().unwrap_err();
+///     let dyn_err: Box<std::error::Error + Send + Sync + 'static> =
+///         Box::new(parse_err.clone());
+///     let err = RBoxError::from_box(dyn_err);
+///
+///     assert_eq!(
+///         err.downcast::<ParseIntError>().unwrap(),
+///         RBox::new(parse_err)
+///     );
+/// }
+///
+/// // Constructing a `RBoxError` from a `ParseFloatError`, then downcasting back to it.
+/// {
+///     let parse_err = "".parse::<f32>().unwrap_err();
+///     let err = RBoxError::new(parse_err.clone());
+///
+///     assert_eq!(
+///         err.downcast::<ParseFloatError>().unwrap(),
+///         RBox::new(parse_err)
+///     );
+/// }
+///
+/// // Constructing a `RBoxError` from a `ParseFloatError`,
+/// // then attempting to downcasting it to a `ParseIntError`.
+/// {
+///     let parse_err = "".parse::<f32>().unwrap_err();
+///     let err = RBoxError::new(parse_err);
+///
+///     assert!(err.downcast::<ParseIntError>().is_err());
+/// }
+///
+/// ```
+///
+/// ### Downcasting by reference
+///
+/// ```
+/// use std::{convert::TryFrom, num::TryFromIntError, str::Utf8Error};
+///
+/// use abi_stable::std_types::{RBox, UnsyncRBoxError};
+///
+/// // Constructing a `UnsyncRBoxError` from a `Box<dyn Error>`,
+/// // then downcasting to a `TryFromIntError`.
+/// {
+///     let int_err = u32::try_from(-1_i32).unwrap_err();
+///     let dyn_err: Box<std::error::Error + 'static> = Box::new(int_err.clone());
+///     let err = UnsyncRBoxError::from_box(dyn_err);
+///
+///     assert_eq!(err.downcast_ref::<TryFromIntError>().unwrap(), &int_err);
+/// }
+///
+/// // Constructing a `UnsyncRBoxError` from a `Utf8Error`, then downcasting back to it.
+/// {
+///     let utf8_err = std::str::from_utf8(&[255]).unwrap_err();
+///     let err = UnsyncRBoxError::new(utf8_err.clone());
+///
+///     assert_eq!(err.downcast_ref::<Utf8Error>().unwrap(), &utf8_err);
+/// }
+///
+/// // Constructing a `UnsyncRBoxError` from a `Utf8Error`,
+/// // then attempting to downcasting it to a `TryFromIntError`.
+/// {
+///     let utf8_err = std::str::from_utf8(&[255]).unwrap_err();
+///     let err = UnsyncRBoxError::new(utf8_err);
+///
+///     assert!(err.downcast_ref::<TryFromIntError>().is_none());
+/// }
+///
+/// ```
+///
+///
+/// ### Downcasting by mutable reference
+///
+/// ```
+/// use std::string::{FromUtf16Error, FromUtf8Error};
+///
+/// use abi_stable::std_types::{RBox, SendRBoxError};
+///
+/// // Constructing a `SendRBoxError` from a `Box<dyn Error>`,
+/// // then downcasting to a `FromUtf8Error`.
+/// {
+///     let str_err = || String::from_utf8(vec![255]).unwrap_err();
+///     let dyn_err: Box<std::error::Error + Send + 'static> = Box::new(str_err());
+///     let mut err = SendRBoxError::from_box(dyn_err);
+///
+///     assert!(err.downcast_ref::<FromUtf8Error>().is_some(), "part A");
+/// }
+///
+/// // Constructing a `SendRBoxError` from a `FromUtf8Error`, then downcasting back to it.
+/// {
+///     let str_err = || String::from_utf8(vec![255]).unwrap_err();
+///     let mut err = SendRBoxError::new(str_err());
+///
+///     assert!(err.downcast_ref::<FromUtf8Error>().is_some(), "part B");
+/// }
+///
+/// // Constructing a `SendRBoxError` from a `FromUtf16Error`,
+/// // then attempting to downcasting it to a `FromUtf8Error`.
+/// {
+///     let str_err = || String::from_utf16(&[0xD834]).unwrap_err();
+///     let mut err = SendRBoxError::new(str_err());
+///
+///     assert!(err.downcast_ref::<FromUtf8Error>().is_none(), "part C");
+/// }
+///
+/// ```
+///
+///
+///
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct RBoxError_<M = SyncSend> {

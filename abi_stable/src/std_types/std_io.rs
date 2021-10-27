@@ -1,6 +1,4 @@
-/*!
-Ffi-safe equivalents of `std::io::{ErrorKind, Error, SeekFrom}`.
-*/
+//! Ffi-safe equivalents of `std::io::{ErrorKind, Error, SeekFrom}`.
 
 use std::{
     error::Error as ErrorTrait,
@@ -155,40 +153,35 @@ impl_into_rust_repr! {
 
 ///////////////////////////////////////////////////////////////////////////
 
-/**
-Ffi safe equivalent to `std::io::Error`.
-
-# Example
-
-Defining an extern function to write a slice into a writer twice.
-
-```
-use abi_stable::{
-    erased_types::interfaces::IoWriteInterface,
-    std_types::{RIoError, RResult, ROk},
-    traits::IntoReprC,
-    DynTrait, RMut,
-    sabi_extern_fn,
-    rtry,
-};
-
-use std::io::Write;
-
-#[sabi_extern_fn]
-pub fn write_slice_twice(
-    mut write: DynTrait<RMut<'_, ()>, IoWriteInterface>,
-    slice: &[u8],
-) -> RResult<(), RIoError>{
-    rtry!( write.write_all(slice).into_c() );
-    rtry!( write.write_all(slice).into_c() );
-    ROk(())
-}
-
-
-
-```
-
-*/
+/// Ffi safe equivalent to `std::io::Error`.
+///
+/// # Example
+///
+/// Defining an extern function to write a slice into a writer twice.
+///
+/// ```
+/// use abi_stable::{
+///     erased_types::interfaces::IoWriteInterface,
+///     rtry, sabi_extern_fn,
+///     std_types::{RIoError, ROk, RResult},
+///     traits::IntoReprC,
+///     DynTrait, RMut,
+/// };
+///
+/// use std::io::Write;
+///
+/// #[sabi_extern_fn]
+/// pub fn write_slice_twice(
+///     mut write: DynTrait<RMut<'_, ()>, IoWriteInterface>,
+///     slice: &[u8],
+/// ) -> RResult<(), RIoError> {
+///     rtry!(write.write_all(slice).into_c());
+///     rtry!(write.write_all(slice).into_c());
+///     ROk(())
+/// }
+///
+/// ```
+///
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct RIoError {

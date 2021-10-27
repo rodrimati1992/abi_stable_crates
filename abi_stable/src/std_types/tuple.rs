@@ -1,6 +1,4 @@
-/*!
-Contains ffi-safe equivalents of tuples up to 4 elements.
-*/
+//! Contains ffi-safe equivalents of tuples up to 4 elements.
 
 #![allow(non_snake_case)]
 

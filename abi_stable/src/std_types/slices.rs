@@ -1,6 +1,4 @@
-/*!
-Contains the ffi-safe equivalent of `&'a [T]`.
-*/
+//! Contains the ffi-safe equivalent of `&'a [T]`.
 
 use std::{
     borrow::Borrow,

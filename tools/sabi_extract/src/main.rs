@@ -15,10 +15,8 @@ use structopt::StructOpt;
 #[derive(StructOpt)]
 #[structopt(author = "_")]
 enum Command {
-    /**
-    Extracts the module structure of an abi_stable library,
-    with the typenames of each function parameter/return type.
-    */
+    /// Extracts the module structure of an abi_stable library,
+    /// with the typenames of each function parameter/return type.
     #[structopt(name = "mods")]
     #[structopt(author = "_")]
     Modules {

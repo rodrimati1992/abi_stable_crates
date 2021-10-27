@@ -1,6 +1,4 @@
-/*!
-Wrapper type(s) where their value is ignored in comparisons .
-*/
+//! Wrapper type(s) where their value is ignored in comparisons .
 
 use std::{
     cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},

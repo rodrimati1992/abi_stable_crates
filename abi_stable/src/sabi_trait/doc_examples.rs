@@ -1,6 +1,4 @@
-/*!
-Examples of `#[sabi_trait]` generated trait objects,for the documentation.
-*/
+//! Examples of `#[sabi_trait]` generated trait objects,for the documentation.
 
 use crate::sabi_trait;
 

@@ -1,6 +1,5 @@
-/**
-Contains the replace_self_path function,and the ReplaceWith enum.
-*/
+//! Contains the `replace_self_path` function,and the `ReplaceWith` enum.
+
 use as_derive_utils::spanned_err;
 
 use syn::visit_mut::VisitMut;
@@ -53,18 +52,16 @@ impl_visit_mut_with! {
     (syn::Type,VisitMut::visit_type_mut),
 }
 
-/**
-Replaces all associated types of `Self` from `value`.
-
-`replace_with` determines what happens to `Self::` when `Some()` is
-returned from `is_assoc_type`.
-
-`is_assoc_type` is used to find the associated types to replace
-(when the function returns Some(_)),
-as well as what to replace them with.
-
-
-*/
+/// Replaces all associated types of `Self` from `value`.
+///
+/// `replace_with` determines what happens to `Self::` when `Some()` is
+/// returned from `is_assoc_type`.
+///
+/// `is_assoc_type` is used to find the associated types to replace
+/// (when the function returns Some(_)),
+/// as well as what to replace them with.
+///
+///
 pub(crate) fn replace_self_path<V, F>(
     value: &mut V,
     replace_with: ReplaceWith,

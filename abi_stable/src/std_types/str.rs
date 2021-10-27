@@ -1,6 +1,4 @@
-/*!
-Contains an ffi-safe equivalent of `&'a str`.
-*/
+//! Contains an ffi-safe equivalent of `&'a str`.
 
 use std::{
     borrow::{Borrow, Cow},
@@ -16,31 +14,25 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::std_types::{RSlice, RString};
 
-/**
-Ffi-safe equivalent of `&'a str`
-
-# Example
-
-This defines a function that returns the first word in a string.
-
-```
-use abi_stable::{
-    std_types::RStr,
-    sabi_extern_fn,
-};
-
-
-#[sabi_extern_fn]
-fn first_word(phrase: RStr<'_>) -> RStr<'_>{
-    match phrase.as_str().split_whitespace().next() {
-        Some(x) => x.into(),
-        None => "".into()
-    }
-}
-
-```
-
-*/
+/// Ffi-safe equivalent of `&'a str`
+///
+/// # Example
+///
+/// This defines a function that returns the first word in a string.
+///
+/// ```
+/// use abi_stable::{sabi_extern_fn, std_types::RStr};
+///
+/// #[sabi_extern_fn]
+/// fn first_word(phrase: RStr<'_>) -> RStr<'_> {
+///     match phrase.as_str().split_whitespace().next() {
+///         Some(x) => x.into(),
+///         None => "".into(),
+///     }
+/// }
+///
+///
+/// ```
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 pub struct RStr<'a> {

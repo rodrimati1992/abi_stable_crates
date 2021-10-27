@@ -1,6 +1,4 @@
-/*!
-Contains `NonExhaustive<>` and related items.
-*/
+//! Contains `NonExhaustive<>` and related items.
 
 use std::{
     cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},
@@ -637,10 +635,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     }
 }
 
-/**
-First it serializes a `NonExhaustive<_>` into a proxy,then it serializes that proxy.
-
-*/
+/// First it serializes a `NonExhaustive<_>` into a proxy,then it serializes that proxy.
 impl<E, S, I> Serialize for NonExhaustive<E, S, I>
 where
     I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,

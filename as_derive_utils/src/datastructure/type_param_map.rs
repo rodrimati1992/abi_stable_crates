@@ -6,14 +6,12 @@ use std::{
     rc::Rc,
 };
 
-/**
-This is a map from type parameters to some value.
-
-If you put this in a type,and use Default to initialize it,
-you must remember to replace the `TypeParamMap` using either
-`TypeParamMap::defaulted` or `TypeParamMap::with`
-
-*/
+/// This is a map from type parameters to some value.
+///
+/// If you put this in a type,and use Default to initialize it,
+/// you must remember to replace the `TypeParamMap` using either
+/// `TypeParamMap::defaulted` or `TypeParamMap::with`
+///
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct TypeParamMap<'a, T> {
     idents: Rc<Idents<'a>>,

@@ -1,6 +1,4 @@
-/*!
-Types for conveniently representing visibility.
-*/
+//! Types for conveniently representing visibility.
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;

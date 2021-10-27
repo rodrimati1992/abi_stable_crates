@@ -1,6 +1,4 @@
-/*!
-Utility functions.
-*/
+//! Utility functions.
 
 use std::{
     cmp::Ord,

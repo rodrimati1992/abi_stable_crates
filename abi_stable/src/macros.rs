@@ -431,11 +431,9 @@ macro_rules! assert_matches {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-Constructs an [`ItemInfo`], with information about the place where it's called.
-
-[`ItemInfo`]: ./type_layout/struct.ItemInfo.html
-*/
+/// Constructs an [`ItemInfo`], with information about the place where it's called.
+///
+/// [`ItemInfo`]: ./type_layout/struct.ItemInfo.html
 #[macro_export]
 macro_rules! make_item_info {
     () => {
@@ -651,9 +649,7 @@ macro_rules! multi_str {
     )
 }
 
-/**
-Constructs a `&'static SharedVars`
-*/
+/// Constructs a `&'static SharedVars`
 macro_rules! make_shared_vars{
     (
         impl[$($impl_gen:tt)*] $type:ty

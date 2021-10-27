@@ -142,22 +142,20 @@ where
         self.arena.len()
     }
 
-    /**
-    Replaces the element at the `replace` index with the one at the `with` index,
-    mapping all keys to the `with` index to the `replace` index.
-
-    # Return value
-
-    This method returns the previous value at `replace` if all these conditions are satisfied:
-
-    - The `replace` index is not the same as the `with` index.
-
-    - Both `replace` and `with` are valid indices
-
-    If the conditions are not satisfied this method will return None without
-    modifying the collection.
-
-    */
+    /// Replaces the element at the `replace` index with the one at the `with` index,
+    /// mapping all keys to the `with` index to the `replace` index.
+    ///
+    /// # Return value
+    ///
+    /// This method returns the previous value at `replace` if all these conditions are satisfied:
+    ///
+    /// - The `replace` index is not the same as the `with` index.
+    ///
+    /// - Both `replace` and `with` are valid indices
+    ///
+    /// If the conditions are not satisfied this method will return None without
+    /// modifying the collection.
+    ///
     pub fn replace_with_index(&mut self, replace: MapIndex, with: MapIndex) -> Option<T> {
         if replace == with
             || !self.arena.contains(replace.index)

@@ -1,6 +1,4 @@
-/*!
-Utilities for const contexts.
-*/
+//! Utilities for const contexts.
 
 use crate::std_types::RStr;
 

@@ -1,6 +1,4 @@
-/*!
-Contains the ffi-safe equivalent of `&'a mut [T]`.
-*/
+//! Contains the ffi-safe equivalent of `&'a mut [T]`.
 
 use std::{
     borrow::{Borrow, BorrowMut},
@@ -20,78 +18,76 @@ use crate::std_types::{RSlice, RVec};
 mod privacy {
     use super::*;
 
-    /**
-    Ffi-safe equivalent of `&'a mut [T]`
-
-    As of the writing this documentation the abi stability of `&mut [T]` is
-    not yet guaranteed.
-
-    # Lifetime problems
-
-    Because `RSliceMut` dereferences into a mutable slice, you can call slice methods on it.
-
-    If you call a slice method that returns a borrow into the slice,
-    it will have the lifetime of the `let slice: RSliceMut<'a, [T]>` variable instead of the `'a`
-    lifetime that it's parameterized over.
-
-    To get a slice with the same lifetime as an `RSliceMut`,
-    one must use one of the `RSliceMut::{into_slice, into_mut_slice}` methods.
-
-
-    Example of what would not work:
-
-    ```compile_fail
-    use abi_stable::std_types::RSliceMut;
-
-    fn into_slice<'a, T>(slic: RSliceMut<'a, T>) -> &'a [T] {
-        &*slic
-    }
-
-    fn into_mut_slice<'a, T>(slic: RSliceMut<'a, T>) -> &'a mut [T] {
-        &mut *slic
-    }
-    ```
-
-    Example of what would work:
-
-    ```
-    use abi_stable::std_types::RSliceMut;
-
-    fn into_slice<'a, T>(slic: RSliceMut<'a, T>) -> &'a [T] {
-        slic.into_slice()
-    }
-
-    fn into_mut_slice<'a, T>(slic: RSliceMut<'a, T>) -> &'a mut [T] {
-        slic.into_mut_slice()
-    }
-    ```
-
-
-    # Example
-
-    Defining an extern fn that returns a mutable reference to
-    the first element that compares equal to a parameter.
-
-    ```
-    use abi_stable::{
-        std_types::RSliceMut,
-        sabi_extern_fn,
-    };
-
-    #[sabi_extern_fn]
-    pub fn find_first_mut<'a, T>(slice_: RSliceMut<'a, T>, element: &T) -> Option<&'a mut T>
-    where
-        T: std::cmp::PartialEq
-    {
-        slice_.iter()
-            .position(|x| x == element )
-            .map(|i| &mut slice_.into_mut_slice()[i] )
-    }
-
-
-    ```
-
-    */
+    /// Ffi-safe equivalent of `&'a mut [T]`
+    ///
+    /// As of the writing this documentation the abi stability of `&mut [T]` is
+    /// not yet guaranteed.
+    ///
+    /// # Lifetime problems
+    ///
+    /// Because `RSliceMut` dereferences into a mutable slice, you can call slice methods on it.
+    ///
+    /// If you call a slice method that returns a borrow into the slice,
+    /// it will have the lifetime of the `let slice: RSliceMut<'a, [T]>` variable instead of the `'a`
+    /// lifetime that it's parameterized over.
+    ///
+    /// To get a slice with the same lifetime as an `RSliceMut`,
+    /// one must use one of the `RSliceMut::{into_slice, into_mut_slice}` methods.
+    ///
+    ///
+    /// Example of what would not work:
+    ///
+    /// ```compile_fail
+    /// use abi_stable::std_types::RSliceMut;
+    ///
+    /// fn into_slice<'a, T>(slic: RSliceMut<'a, T>) -> &'a [T] {
+    ///     &*slic
+    /// }
+    ///
+    /// fn into_mut_slice<'a, T>(slic: RSliceMut<'a, T>) -> &'a mut [T] {
+    ///     &mut *slic
+    /// }
+    /// ```
+    ///
+    /// Example of what would work:
+    ///
+    /// ```
+    /// use abi_stable::std_types::RSliceMut;
+    ///
+    /// fn into_slice<'a, T>(slic: RSliceMut<'a, T>) -> &'a [T] {
+    ///     slic.into_slice()
+    /// }
+    ///
+    /// fn into_mut_slice<'a, T>(slic: RSliceMut<'a, T>) -> &'a mut [T] {
+    ///     slic.into_mut_slice()
+    /// }
+    ///
+    /// ```
+    ///
+    ///
+    /// # Example
+    ///
+    /// Defining an extern fn that returns a mutable reference to
+    /// the first element that compares equal to a parameter.
+    ///
+    /// ```
+    /// use abi_stable::{sabi_extern_fn, std_types::RSliceMut};
+    ///
+    /// #[sabi_extern_fn]
+    /// pub fn find_first_mut<'a, T>(
+    ///     slice_: RSliceMut<'a, T>,
+    ///     element: &T,
+    /// ) -> Option<&'a mut T>
+    /// where
+    ///     T: std::cmp::PartialEq,
+    /// {
+    ///     slice_
+    ///         .iter()
+    ///         .position(|x| x == element)
+    ///         .map(|i| &mut slice_.into_mut_slice()[i])
+    /// }
+    /// ```
+    ///
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(bound = "T: 'a")]

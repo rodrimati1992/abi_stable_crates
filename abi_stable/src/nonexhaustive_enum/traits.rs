@@ -1,6 +1,4 @@
-/*!
-The traits releated to nonexhaustive enums.
-*/
+//! The traits releated to nonexhaustive enums.
 
 use std::{
     cmp::{Eq, Ord},

@@ -1,6 +1,4 @@
-/*!
-Contains the `MovePtr<_>` type.
-*/
+//! Contains the `MovePtr<_>` type.
 
 use std::{
     alloc::{self, Layout},

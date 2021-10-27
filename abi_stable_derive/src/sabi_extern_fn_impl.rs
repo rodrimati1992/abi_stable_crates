@@ -1,6 +1,4 @@
-/*!
-Implementation details of the `#[sabi_extern_fn]` attribute.
-*/
+//! Implementation details of the `#[sabi_extern_fn]` attribute.
 
 use std::mem;
 

@@ -1,7 +1,5 @@
-/*!
-This module runs tests on the C abi as defined by Rust,
-to detect whether Rust changed how it deals with zero-sized types.
-*/
+//! This module runs tests on the C abi as defined by Rust,
+//! to detect whether Rust changed how it deals with zero-sized types.
 
 use super::LibraryError;
 use crate::std_types::{RBoxError, Tuple2, Tuple3};

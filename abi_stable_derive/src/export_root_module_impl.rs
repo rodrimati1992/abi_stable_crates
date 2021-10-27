@@ -1,6 +1,4 @@
-/*!
-The implementation of the `#[export_root_module]` attribute.
-*/
+//! The implementation of the `#[export_root_module]` attribute.
 
 use super::*;
 

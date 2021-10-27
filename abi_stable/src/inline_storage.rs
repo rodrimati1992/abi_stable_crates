@@ -1,19 +1,15 @@
-/*!
-Contains the `InlineStorage` trait,and related items.
-*/
+//! Contains the `InlineStorage` trait,and related items.
 
-/**
-Type used as the inline storage of a RSmallBox<>/NonExhaustive<>.
-
-# Safety
-
-Implementors must:
-
-- Be types for which all bitpatterns are valid.
-
-- Not implement Drop,and have no drop glue.
-
-*/
+/// Type used as the inline storage of a RSmallBox<>/NonExhaustive<>.
+///
+/// # Safety
+///
+/// Implementors must:
+///
+/// - Be types for which all bitpatterns are valid.
+///
+/// - Not implement Drop,and have no drop glue.
+///
 pub unsafe trait InlineStorage {}
 
 macro_rules! impl_for_arrays {
@@ -134,12 +130,10 @@ impl<Inline> ScratchSpace<Inline> {
         unsafe { Self::new_unchecked(value) }
     }
 
-    /**
-    # Safety
-
-    You must ensure that `T` has a compatible size/alignement with `Inline`,
-    and that `Inline` si valid for all bitpatterns.
-    */
+    /// # Safety
+    ///
+    /// You must ensure that `T` has a compatible size/alignement with `Inline`,
+    /// and that `Inline` si valid for all bitpatterns.
     #[inline]
     #[allow(dead_code)]
     pub(crate) unsafe fn new_unchecked<T>(value: T) -> Self {
