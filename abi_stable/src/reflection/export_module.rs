@@ -1,6 +1,4 @@
-/*!
-Data structures to export a type as though it were a module.
-*/
+//! Data structures to export a type as though it were a module.
 
 use std::fmt::{self, Display};
 

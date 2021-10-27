@@ -1,6 +1,4 @@
-/*!
-Contains the ffi-safe equivalent of `std::result::Result`.
-*/
+//! Contains the ffi-safe equivalent of `std::result::Result`.
 
 use std::fmt::Debug;
 

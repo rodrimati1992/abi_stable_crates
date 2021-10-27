@@ -1,9 +1,6 @@
-/*!
-This is an `implementation crate`,
-It exports the root module(a struct of function pointers) required by the
-`example_0_interface`(the `interface crate`).
-
-*/
+//! This is an `implementation crate`,
+//! It exports the root module(a struct of function pointers) required by the
+//! `example_0_interface`(the `interface crate`).
 
 use abi_stable::{
     export_root_module,

@@ -11,24 +11,23 @@ use abi_stable::std_types::{RBoxError, RResult, RStr, RString};
 
 use serde::{Deserialize, Serialize};
 
-/**
-Sends a json encoded command to a plugin,and returns the response by encoding it to json.
-
-# Errors
-
-These are all error that this function returns
-(this does not include error returned as part of the command):
-
-- Error::Serialize:
-    If the command/return value could not be serialized to JSON.
-
-- Error::Deserialize
-    If the command/return value could not be deserialized from JSON(this comes from the plugin).
-
-- Error::UnsupportedCommand
-    If the command is not supported by the plugin.
-
-*/
+/// Sends a json encoded command to a plugin,and returns the response by encoding it to json.
+///
+/// # Errors
+///
+/// These are all error that this function returns
+/// (this does not include error returned as part of the command):
+///
+/// - Error::Serialize:
+///     If the command/return value could not be serialized to JSON.
+///
+/// - Error::Deserialize
+///     If the command/return value could not be deserialized from JSON
+///     (this comes from the plugin).
+///
+/// - Error::UnsupportedCommand
+///     If the command is not supported by the plugin.
+///
 pub fn process_command<'de, P, C, R, F>(
     this: &mut P,
     command: RStr<'de>,
@@ -71,29 +70,28 @@ where
     .into()
 }
 
-/**
-Sends a typed command to a plugin.
-
-# Errors
-
-These are all error that this function returns
-(this does not include error returned as part of the command):
-
-- Error::Serialize:
-    If the command/return value could not be serialized to JSON.
-
-- Error::Deserialize
-    If the command/return value could not be deserialized from JSON(this comes from the plugin).
-
-- Error::UnsupportedReturnValue:
-    If the return value could not be deserialized from JSON
-    (after checking that it has the `{"name":"...",description: ... }` format),
-    containing the name of the command this is a return value for .
-
-- Error::UnsupportedCommand
-    If the command is not supported by the plugin.
-
-*/
+/// Sends a typed command to a plugin.
+///
+/// # Errors
+///
+/// These are all error that this function returns
+/// (this does not include error returned as part of the command):
+///
+/// - Error::Serialize:
+///     If the command/return value could not be serialized to JSON.
+///
+/// - Error::Deserialize
+///     If the command/return value could not be deserialized from JSON
+///     (this comes from the plugin).
+///
+/// - Error::UnsupportedReturnValue:
+///     If the return value could not be deserialized from JSON
+///     (after checking that it has the `{"name":"...",description: ... }` format),
+///     containing the name of the command this is a return value for .
+///
+/// - Error::UnsupportedCommand
+///     If the command is not supported by the plugin.
+///
 pub fn send_command<C>(
     this: &mut PluginType,
     command: &C,

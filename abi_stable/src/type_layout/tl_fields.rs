@@ -193,9 +193,7 @@ impl PartialEq for TLFields {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-An iterator over all the fields in a type definition.
-*/
+/// An iterator over all the fields in a type definition.
 #[derive(Clone, Debug)]
 pub struct TLFieldsIterator {
     shared_vars: &'static SharedVars,

@@ -10,11 +10,9 @@ use core_extensions::SelfOps;
 #[cfg(test)]
 mod tests;
 
-/**
-A function which recursively traverses a type layout,
-calling `callback` for every `TypeLayout` it goes over.
-
-*/
+/// A function which recursively traverses a type layout,
+/// calling `callback` for every `TypeLayout` it goes over.
+///
 fn traverse_type_layouts<'a, F>(layout: &'a TypeLayout, mut callback: F)
 where
     F: FnMut(&'a TypeLayout),

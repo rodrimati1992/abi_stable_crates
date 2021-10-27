@@ -1,12 +1,10 @@
 //! Types used to represent values at compile-time, eg: True/False.
 
-/**
-Type-level booleans.
-
-This is a re-export from `core_extensions::type_level_bool`,
-so as to allow glob imports (`abi_stable::type_level::bools::*`)
-without worrying about importing too many items.
-*/
+/// Type-level booleans.
+///
+/// This is a re-export from `core_extensions::type_level_bool`,
+/// so as to allow glob imports (`abi_stable::type_level::bools::*`)
+/// without worrying about importing too many items.
 pub mod bools {
     #[doc(no_inline)]
     pub use core_extensions::type_level_bool::{Boolean, False, True};

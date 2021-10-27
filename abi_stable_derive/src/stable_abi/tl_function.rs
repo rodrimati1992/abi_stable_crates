@@ -1,6 +1,4 @@
-/*!
-Contains types related to the type layout of function pointers.
-*/
+//! Contains types related to the type layout of function pointers.
 
 use super::*;
 

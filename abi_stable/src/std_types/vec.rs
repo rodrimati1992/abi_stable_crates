@@ -1,6 +1,4 @@
-/*!
-Contains an ffi-safe equivalent of `Vec<T>`.
-*/
+//! Contains an ffi-safe equivalent of `Vec<T>`.
 
 use std::{
     borrow::{Borrow, BorrowMut, Cow},
@@ -39,38 +37,36 @@ pub use self::iters::{Drain, IntoIter};
 mod private {
     use super::*;
 
-    /**
-    Ffi-safe equivalent of `std::vec::Vec`.
-
-    # Example
-
-    Here is a function that partitions numbers by whether they are even or odd.
-
-    ```
-
-    use abi_stable::{
-        std_types::{RSlice, RVec},
-        StableAbi,
-        sabi_extern_fn,
-    };
-
-    #[repr(C)]
-    #[derive(StableAbi)]
-    pub struct Partitioned{
-        pub even: RVec<u32>,
-        pub odd : RVec<u32>,
-    }
-
-    #[sabi_extern_fn]
-    pub fn partition_evenness(numbers: RSlice<'_, u32>) -> Partitioned{
-        let (even, odd) = numbers.iter().cloned().partition(|n| *n % 2 == 0);
-
-        Partitioned{even, odd}
-    }
-
-    ```
-
-    */
+    /// Ffi-safe equivalent of `std::vec::Vec`.
+    ///
+    /// # Example
+    ///
+    /// Here is a function that partitions numbers by whether they are even or odd.
+    ///
+    /// ```
+    ///
+    /// use abi_stable::{
+    ///     sabi_extern_fn,
+    ///     std_types::{RSlice, RVec},
+    ///     StableAbi,
+    /// };
+    ///
+    /// #[repr(C)]
+    /// #[derive(StableAbi)]
+    /// pub struct Partitioned {
+    ///     pub even: RVec<u32>,
+    ///     pub odd: RVec<u32>,
+    /// }
+    ///
+    /// #[sabi_extern_fn]
+    /// pub fn partition_evenness(numbers: RSlice<'_, u32>) -> Partitioned {
+    ///     let (even, odd) = numbers.iter().cloned().partition(|n| *n % 2 == 0);
+    ///
+    ///     Partitioned { even, odd }
+    /// }
+    ///
+    /// ```
+    ///
     #[repr(C)]
     #[derive(StableAbi)]
     // #[sabi(debug_print)]
@@ -1145,50 +1141,49 @@ where
 /////////////////////////////////////////////////////////////////////////////////////
 
 impl<T> RVec<T> {
-    /**
-    Creates a draining iterator that removes the specified range in
-    the `RVec<T>` and yields the removed items.
-
-    # Panic
-
-    Panics if the index is out of bounds or if the start of the range is
-    greater than the end of the range.
-
-    # Consumption
-
-    The elements in the range will be removed even if the iterator
-    was dropped before yielding them.
-
-    # Example
-
-    ```
-    use abi_stable::std_types::{RSlice, RVec};
-
-    {
-        let mut list = RVec::from(vec![0, 1, 2, 3, 4, 5]);
-        assert_eq!( list.drain(2..4).collect::<Vec<_>>(), vec![2, 3] );
-        assert_eq!( list.as_slice(), &[0, 1, 4, 5] );
-    }
-    {
-        let mut list = RVec::from(vec![0, 1, 2, 3, 4, 5]);
-        assert_eq!( list.drain(2..).collect::<Vec<_>>(), vec![2, 3, 4, 5] );
-        assert_eq!( list.as_slice(), &[0, 1] );
-    }
-    {
-        let mut list = RVec::from(vec![0, 1, 2, 3, 4, 5]);
-        assert_eq!( list.drain(..2).collect::<Vec<_>>(), vec![0, 1] );
-        assert_eq!( list.as_slice(), &[2, 3, 4, 5] );
-    }
-    {
-        let mut list = RVec::from(vec![0, 1, 2, 3, 4, 5]);
-        assert_eq!( list.drain(..).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4, 5] );
-        assert_eq!( list.as_rslice(), RSlice::<u32>::EMPTY );
-    }
-
-    ```
-
-
-        */
+    /// Creates a draining iterator that removes the specified range in
+    /// the `RVec<T>` and yields the removed items.
+    ///
+    /// # Panic
+    ///
+    /// Panics if the index is out of bounds or if the start of the range is
+    /// greater than the end of the range.
+    ///
+    /// # Consumption
+    ///
+    /// The elements in the range will be removed even if the iterator
+    /// was dropped before yielding them.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RSlice, RVec};
+    ///
+    /// {
+    ///     let mut list = RVec::from(vec![0, 1, 2, 3, 4, 5]);
+    ///     assert_eq!(list.drain(2..4).collect::<Vec<_>>(), vec![2, 3]);
+    ///     assert_eq!(list.as_slice(), &[0, 1, 4, 5]);
+    /// }
+    /// {
+    ///     let mut list = RVec::from(vec![0, 1, 2, 3, 4, 5]);
+    ///     assert_eq!(list.drain(2..).collect::<Vec<_>>(), vec![2, 3, 4, 5]);
+    ///     assert_eq!(list.as_slice(), &[0, 1]);
+    /// }
+    /// {
+    ///     let mut list = RVec::from(vec![0, 1, 2, 3, 4, 5]);
+    ///     assert_eq!(list.drain(..2).collect::<Vec<_>>(), vec![0, 1]);
+    ///     assert_eq!(list.as_slice(), &[2, 3, 4, 5]);
+    /// }
+    /// {
+    ///     let mut list = RVec::from(vec![0, 1, 2, 3, 4, 5]);
+    ///     assert_eq!(list.drain(..).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4, 5]);
+    ///     assert_eq!(list.as_rslice(), RSlice::<u32>::EMPTY);
+    /// }
+    ///
+    ///
+    /// ```
+    ///
+    ///
     pub fn drain<I>(&mut self, index: I) -> Drain<'_, T>
     where
         [T]: IndexMut<I, Output = [T]>,

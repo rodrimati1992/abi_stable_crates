@@ -1,7 +1,4 @@
-/*!
-This crate is where extra tests which don't belong in examples go.
-
-*/
+//! This crate is where extra tests which don't belong in examples go.
 
 use testing_interface_0::{ForTests, PrefixTypeMod0, TestingMod, TestingMod_Ref};
 

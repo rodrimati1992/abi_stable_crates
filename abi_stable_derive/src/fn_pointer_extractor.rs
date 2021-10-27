@@ -1,7 +1,5 @@
-/*!
-Contains visitor type for
-extracting function pointers and the referenced lifetimes of the fields of a type declaration.
-*/
+//! Contains visitor type for
+//! extracting function pointers and the referenced lifetimes of the fields of a type declaration.
 
 use std::{collections::HashSet, mem};
 
@@ -420,14 +418,12 @@ impl<'a> VisitMut for TypeVisitor<'a> {
 /////////////
 
 impl<'a, 'b> FnVisitor<'a, 'b> {
-    /**
-    This function does these things:
-
-    - Adds the lifetime as a referenced lifetime.
-
-    - If `lt` is `Some('someident)` returns `Some('_)`.
-
-        */
+    /// This function does these things:
+    ///
+    /// - Adds the lifetime as a referenced lifetime.
+    ///
+    /// - If `lt` is `Some('someident)` returns `Some('_)`.
+    ///
     #[inline(never)]
     fn setup_lifetime(&mut self, lt: Option<&Ident>, span: Span) -> Option<&'a Ident> {
         let ctokens = self.refs.ctokens;

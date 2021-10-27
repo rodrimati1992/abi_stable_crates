@@ -1,10 +1,7 @@
-/*!
-Helper types for constructing strings and arrays composed of other strings and arrays.
-
-These datatypes are special-cased for small composite collections ,
-whose indices fit in a u16.
-
-*/
+//! Helper types for constructing strings and arrays composed of other strings and arrays.
+//!
+//! These datatypes are special-cased for small composite collections ,
+//! whose indices fit in a u16.
 
 use std::{
     borrow::Borrow,

@@ -70,12 +70,9 @@ pub struct IntoIter<K, V> {
 }
 
 impl<K, V> IntoIter<K, V> {
-    /**
-
-    # Safety
-
-    This must be called only in `ErasedMap::into_val`.
-    */
+    /// # Safety
+    ///
+    /// This must be called only in `ErasedMap::into_val`.
     pub(super) unsafe fn new<'a>(iter: DynTrait<'a, RBox<()>, ValIterInterface<K, V>>) -> Self
     where
         K: 'a,

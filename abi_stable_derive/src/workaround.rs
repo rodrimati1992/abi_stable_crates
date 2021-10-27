@@ -1,9 +1,5 @@
-/*!
-
-Wrote this as a workaround for
-`<TokenStream as Display>::fmt` not working correctly for some reason.
-
-*/
+//! Wrote this as a workaround for
+//! `<TokenStream as Display>::fmt` not working correctly for some reason.
 
 use std::{fmt::Write, mem};
 

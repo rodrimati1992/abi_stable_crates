@@ -1,36 +1,30 @@
-/*!
-Contains the ffi-safe equivalent of `std::cmp::Ordering`.
-*/
+//! Contains the ffi-safe equivalent of `std::cmp::Ordering`.
 
 use std::cmp::Ordering;
 
-/**
-Ffi-safe equivalent of `std::cmp::Ordering`.
-
-# Example
-
-This defines an extern function, which compares a slice to another.
-
-```
-
-use abi_stable::{
-    std_types::{RCmpOrdering, RSlice},
-    sabi_extern_fn,
-};
-use std::cmp::Ord;
-
-
-#[sabi_extern_fn]
-pub fn compare_slices<T>(l: RSlice<'_, T>, r: RSlice<'_, T>) -> RCmpOrdering
-where
-    T: Ord
-{
-    l.cmp(&r)
-     .into()
-}
-
-```
-*/
+/// Ffi-safe equivalent of `std::cmp::Ordering`.
+///
+/// # Example
+///
+/// This defines an extern function, which compares a slice to another.
+///
+/// ```rust
+///
+/// use abi_stable::{
+///     sabi_extern_fn,
+///     std_types::{RCmpOrdering, RSlice},
+/// };
+/// use std::cmp::Ord;
+///
+/// #[sabi_extern_fn]
+/// pub fn compare_slices<T>(l: RSlice<'_, T>, r: RSlice<'_, T>) -> RCmpOrdering
+/// where
+///     T: Ord,
+/// {
+///     l.cmp(&r).into()
+/// }
+///
+/// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[repr(u8)]
 #[derive(StableAbi)]

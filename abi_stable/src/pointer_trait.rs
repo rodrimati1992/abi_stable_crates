@@ -1,6 +1,5 @@
-/*!
-Traits for pointers.
-*/
+//! Traits for pointers.
+
 use std::{mem::ManuallyDrop, ptr::NonNull};
 
 use crate::{

@@ -1,10 +1,6 @@
-/*!
-
-Ffi-safe wrapper types around the
-[crossbeam-channel](https://crates.io/crates/crossbeam-channel/)
-channel types.
-
-*/
+//! Ffi-safe wrapper types around the
+//! [crossbeam-channel](https://crates.io/crates/crossbeam-channel/)
+//! channel types.
 
 use std::{
     fmt::{self, Debug},

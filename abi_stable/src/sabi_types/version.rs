@@ -1,6 +1,4 @@
-/*!
-Types representing the version number of a library.
-*/
+//! Types representing the version number of a library.
 
 use core_extensions::{SelfOps, StringExt};
 

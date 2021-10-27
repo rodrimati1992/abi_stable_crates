@@ -1,6 +1,4 @@
-/*!
-A late-initialized static reference.
-*/
+//! A late-initialized static reference.
 
 use std::{
     marker::PhantomData,

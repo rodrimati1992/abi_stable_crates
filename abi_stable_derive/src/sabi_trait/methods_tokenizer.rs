@@ -1,26 +1,24 @@
-/*!
-Contains the MethodsTokenizer type,
-which is used to print the definition of the method in different places.
-
-Where this is used is determined by WhichItem:
-
-- `WhichItem::Trait`:
-    outputs the method in the trait definition.
-
-- `WhichItem::TraitImpl`:
-    outputs the method in the trait implemetation for the generated trait object.
-
-- `WhichItem::TraitObjectImpl`:
-    outputs the methods in the inherent implemetation of the generated trait object.
-
-- `WhichItem::VtableDecl`:
-    outputs the fields of the trait object vtable.
-
-- `WhichItem::VtableImpl`:
-    outputs the methods used to construct the vtable.
-
-
-*/
+//! Contains the MethodsTokenizer type,
+//! which is used to print the definition of the method in different places.
+//!
+//! Where this is used is determined by WhichItem:
+//!
+//! - `WhichItem::Trait`:
+//!     outputs the method in the trait definition.
+//!
+//! - `WhichItem::TraitImpl`:
+//!     outputs the method in the trait implemetation for the generated trait object.
+//!
+//! - `WhichItem::TraitObjectImpl`:
+//!     outputs the methods in the inherent implemetation of the generated trait object.
+//!
+//! - `WhichItem::VtableDecl`:
+//!     outputs the fields of the trait object vtable.
+//!
+//! - `WhichItem::VtableImpl`:
+//!     outputs the methods used to construct the vtable.
+//!
+//!
 
 use super::{lifetime_unelider::BorrowKind, *};
 

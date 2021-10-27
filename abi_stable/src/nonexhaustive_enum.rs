@@ -1,12 +1,10 @@
-/*!
-Contains types and traits for nonexhaustive enums.
-
-The most important type here is [NonExhaustive](./nonexhaustive/struct.NonExhaustive.html),
-which allows passing an enum which used the
-`#[derive(StableAbi)] #[sabi(kind(WithNonExhaustive(...)))]`
-attributes through ffi.
-
-*/
+//! Contains types and traits for nonexhaustive enums.
+//!
+//! The most important type here is [NonExhaustive](./nonexhaustive/struct.NonExhaustive.html),
+//! which allows passing an enum which used the
+//! `#[derive(StableAbi)] #[sabi(kind(WithNonExhaustive(...)))]`
+//! attributes through ffi.
+//!
 
 #[doc(hidden)]
 pub mod doc_enums;

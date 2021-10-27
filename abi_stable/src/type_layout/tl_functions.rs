@@ -82,9 +82,7 @@ impl TLFunctions {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-A slice of functions from a `TLFunctions`.
-*/
+/// A slice of functions from a `TLFunctions`.
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]

@@ -74,25 +74,23 @@ where
 }
 
 impl<_Self, OrigPtr, Downcasting, V> VTableTO<_Self, OrigPtr, Downcasting, V, ()> {
-    /**
-    Wraps an erased vtable.
-
-    # Safety
-
-    These are the requirements for the caller:
-
-    - `OrigPtr` must be a pointer to the type that the vtable functions
-        take as the first parameter.
-
-    - The vtable must not come from a reborrowed RObject
-        (created using RObject::reborrow or RObject::reborrow_mut).
-
-    - The vtable must be the `<SomeVTableName>` of a struct declared with
-        `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_ref="<SomeVTableName>")))]`.
-
-    - The vtable must have `PrefixRef<RObjectVtable<..>>`
-        as its first declared field
-    */
+    /// Wraps an erased vtable.
+    ///
+    /// # Safety
+    ///
+    /// These are the requirements for the caller:
+    ///
+    /// - `OrigPtr` must be a pointer to the type that the vtable functions
+    ///     take as the first parameter.
+    ///
+    /// - The vtable must not come from a reborrowed RObject
+    ///     (created using RObject::reborrow or RObject::reborrow_mut).
+    ///
+    /// - The vtable must be the `<SomeVTableName>` of a struct declared with
+    ///     `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_ref="<SomeVTableName>")))]`.
+    ///
+    /// - The vtable must have `PrefixRef<RObjectVtable<..>>`
+    ///     as its first declared field
     pub const unsafe fn for_robject(vtable: PrefixRef<V>) -> Self {
         Self {
             vtable,
@@ -123,13 +121,11 @@ impl<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V>
 impl<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V>
     VTableTO_DT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V>
 {
-    /**
-    Wraps an erased vtable,alongside the vtable for DynTrait.
-
-    # Safety
-
-    This has the same safety requirements as the 'for_robject' constructor
-    */
+    /// Wraps an erased vtable,alongside the vtable for DynTrait.
+    ///
+    /// # Safety
+    ///
+    /// This has the same safety requirements as the 'for_robject' constructor
     pub const unsafe fn for_dyntrait(
         vtable: PrefixRef<V>,
         for_dyn_trait: VTableDT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting>,

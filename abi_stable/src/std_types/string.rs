@@ -1,6 +1,4 @@
-/*!
-Contains an ffi-safe equivalent of `std::string::String`.
-*/
+//! Contains an ffi-safe equivalent of `std::string::String`.
 
 use std::{
     borrow::{Borrow, Cow},
@@ -28,31 +26,26 @@ mod tests;
 
 pub use self::iters::{Drain, IntoIter};
 
-/**
-Ffi-safe equivalent of `std::string::String`.
-
-# Example
-
-This defines a function returning the last word of an `RString`.
-
-```
-use abi_stable::{
-    std_types::RString,
-    sabi_extern_fn,
-};
-
-
-#[sabi_extern_fn]
-fn first_word(phrase: RString) -> RString{
-    match phrase.split_whitespace().next_back() {
-        Some(x) => x.into(),
-        None => RString::new(),
-    }
-}
-
-```
-
-*/
+/// Ffi-safe equivalent of `std::string::String`.
+///
+/// # Example
+///
+/// This defines a function returning the last word of an `RString`.
+///
+/// ```
+/// use abi_stable::{sabi_extern_fn, std_types::RString};
+///
+/// #[sabi_extern_fn]
+/// fn first_word(phrase: RString) -> RString {
+///     match phrase.split_whitespace().next_back() {
+///         Some(x) => x.into(),
+///         None => RString::new(),
+///     }
+/// }
+///
+///
+/// ```
+///
 #[derive(Clone)]
 #[repr(C)]
 #[derive(StableAbi)]
@@ -830,58 +823,43 @@ impl Serialize for RString {
 //////////////////////////////////////////////////////
 
 impl RString {
-    /**
-    Creates an iterator that yields the chars in the `range`,
-    removing the characters in that range in the process.
-
-    # Panic
-
-    Panics if the start or end of the range are not on a on a char boundary,
-    or if either are out of bounds.
-
-    # Example
-
-    ```
-    use abi_stable::std_types::RString;
-
-    let orig = "Not a single way";
-
-    {
-        let mut str = RString::from(orig);
-        assert_eq!(
-            str.drain(..).collect::<String>(),
-            orig,
-        );
-        assert_eq!(str.as_str(), "");
-    }
-    {
-        let mut str = RString::from(orig);
-        assert_eq!(
-            str.drain(..4).collect::<String>(),
-            "Not ",
-        );
-        assert_eq!(str.as_str(), "a single way");
-    }
-    {
-        let mut str = RString::from(orig);
-        assert_eq!(
-            str.drain(4..).collect::<String>(),
-            "a single way",
-        );
-        assert_eq!(str.as_str(), "Not ");
-    }
-    {
-        let mut str = RString::from(orig);
-        assert_eq!(
-            str.drain(4..13).collect::<String>(),
-            "a single ",
-        );
-        assert_eq!(str.as_str(), "Not way");
-    }
-
-    ```
-
-        */
+    /// Creates an iterator that yields the chars in the `range`,
+    /// removing the characters in that range in the process.
+    ///
+    /// # Panic
+    ///
+    /// Panics if the start or end of the range are not on a on a char boundary,
+    /// or if either are out of bounds.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RString;
+    ///
+    /// let orig = "Not a single way";
+    ///
+    /// {
+    ///     let mut str = RString::from(orig);
+    ///     assert_eq!(str.drain(..).collect::<String>(), orig,);
+    ///     assert_eq!(str.as_str(), "");
+    /// }
+    /// {
+    ///     let mut str = RString::from(orig);
+    ///     assert_eq!(str.drain(..4).collect::<String>(), "Not ",);
+    ///     assert_eq!(str.as_str(), "a single way");
+    /// }
+    /// {
+    ///     let mut str = RString::from(orig);
+    ///     assert_eq!(str.drain(4..).collect::<String>(), "a single way",);
+    ///     assert_eq!(str.as_str(), "Not ");
+    /// }
+    /// {
+    ///     let mut str = RString::from(orig);
+    ///     assert_eq!(str.drain(4..13).collect::<String>(), "a single ",);
+    ///     assert_eq!(str.as_str(), "Not way");
+    /// }
+    ///
+    /// ```
     pub fn drain<I>(&mut self, range: I) -> Drain<'_>
     where
         str: Index<I, Output = str>,

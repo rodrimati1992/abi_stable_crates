@@ -1,6 +1,4 @@
-/*!
-Contains ffi-safe equivalent of `std::time::Duration`.
-*/
+//! Contains ffi-safe equivalent of `std::time::Duration`.
 
 use std::time::Duration;
 

@@ -1,8 +1,6 @@
-/*!
-An ffi-safe equivalent of `std::any::TypeId`.
-
-No types coming from different dynamic libraries compare equal.
-*/
+//! An ffi-safe equivalent of `std::any::TypeId`.
+//!
+//! No types coming from different dynamic libraries compare equal.
 
 use std::{
     any::TypeId,

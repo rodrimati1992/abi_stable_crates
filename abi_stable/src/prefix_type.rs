@@ -1,7 +1,4 @@
-/*!
-Types,traits,and functions used by prefix-types.
-
-*/
+//! Types,traits,and functions used by prefix-types.
 
 use std::{
     fmt::{self, Debug},

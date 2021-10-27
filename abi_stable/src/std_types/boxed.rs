@@ -1,6 +1,4 @@
-/*!
-Contains the ffi-safe equivalent of `std::boxed::Box`.
-*/
+//! Contains the ffi-safe equivalent of `std::boxed::Box`.
 
 use std::{
     borrow::{Borrow, BorrowMut},
@@ -39,43 +37,41 @@ mod test;
 mod private {
     use super::*;
 
-    /**
-    Ffi-safe equivalent of `std::box::Box`.
-
-    # Example
-
-    Declaring a recursive datatype.
-
-    ```
-    use abi_stable::{
-        std_types::{RBox, RString},
-        StableAbi,
-    };
-
-    #[repr(u8)]
-    #[derive(StableAbi)]
-    enum Command{
-        SendProduct{
-            id: u64,
-        },
-        GoProtest{
-            cause: RString,
-            place: RString,
-        },
-        SendComplaint{
-            cause: RString,
-            website: RString,
-        },
-        WithMetadata{
-            command: RBox<Command>,
-            metadata: RString,
-        },
-    }
-
-
-    ```
-
-        */
+    /// Ffi-safe equivalent of `std::box::Box`.
+    ///
+    /// # Example
+    ///
+    /// Declaring a recursive datatype.
+    ///
+    /// ```
+    /// use abi_stable::{
+    ///     std_types::{RBox, RString},
+    ///     StableAbi,
+    /// };
+    ///
+    /// #[repr(u8)]
+    /// #[derive(StableAbi)]
+    /// enum Command {
+    ///     SendProduct {
+    ///         id: u64,
+    ///     },
+    ///     GoProtest {
+    ///         cause: RString,
+    ///         place: RString,
+    ///     },
+    ///     SendComplaint {
+    ///         cause: RString,
+    ///         website: RString,
+    ///     },
+    ///     WithMetadata {
+    ///         command: RBox<Command>,
+    ///         metadata: RString,
+    ///     },
+    /// }
+    ///
+    ///
+    /// ```
+    ///
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct RBox<T> {

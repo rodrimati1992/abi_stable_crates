@@ -1,6 +1,4 @@
-/*!
-Contains the `RSmallBox<_>` type.
-*/
+//! Contains the `RSmallBox<_>` type.
 
 use crate::{
     pointer_trait::{

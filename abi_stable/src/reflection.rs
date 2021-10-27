@@ -1,17 +1,13 @@
-/*!
-Types and submodules for doing runtime reflection.
-*/
+//! Types and submodules for doing runtime reflection.
 
 #[cfg(all(test, not(feature = "only_new_tests")))]
 pub mod tests {
     pub mod derive_reflection;
 }
 
-/**
-Implementation details of the sabi_extract tool.
-
-This is here so that its tests run among other abi_stable tests.
-*/
+/// Implementation details of the sabi_extract tool.
+///
+/// This is here so that its tests run among other abi_stable tests.
 #[doc(hidden)]
 pub mod export_module;
 

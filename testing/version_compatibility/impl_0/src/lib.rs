@@ -1,7 +1,4 @@
-/*!
-This crate is where extra tests which don't belong in examples go.
-
-*/
+//! This crate is where extra tests which don't belong in examples go.
 
 use version_compatibility_interface::{RootMod, RootMod_Ref};
 

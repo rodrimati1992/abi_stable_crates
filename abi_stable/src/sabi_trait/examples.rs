@@ -193,57 +193,51 @@ pub trait StaticTrait: 'static {}
 
 //////////////////////////////////////
 
-/**
-
-While RSomethingElse_TO can be constructed from an RArc,
-no method on the trait can be called because RSomethingElse has mutable and by value methods.
-
-```compile_fail
-use abi_stable::{
-    marker_type::*,
-    sabi_trait::{prelude::*,examples::*},
-    std_types::*,
-};
-
-let what=RSomethingElse_TO::from_ptr(RArc::new(100u32),TD_Opaque);
-RSomethingElse::into_value(what);
-
-
-```
-
-
-```
-use abi_stable::{
-    marker_type::*,
-    sabi_trait::{prelude::*,examples::*},
-    std_types::*,
-};
-
-use std::marker::PhantomData;
-
-let ptr=RBox::new(PhantomData::<UnsyncSend>);
-let _=RSomethingElse_TO::from_value(ptr,TD_Opaque);
-
-```
-
-Cannot create RSomethingElse from a !Send type.
-```compile_fail
-use abi_stable::{
-    marker_type::*,
-    sabi_trait::{prelude::*,examples::*},
-    std_types::*,
-};
-
-use std::marker::PhantomData;
-
-let ptr=RBox::new(PhantomData::<SyncUnsend>);
-let _=RSomethingElse_TO::from_value(ptr,TD_Opaque);
-
-```
-
-
-
-*/
+/// While RSomethingElse_TO can be constructed from an RArc,
+/// no method on the trait can be called because RSomethingElse has mutable and by value methods.
+///
+/// ```compile_fail
+/// use abi_stable::{
+///     marker_type::*,
+///     sabi_trait::{examples::*, prelude::*},
+///     std_types::*,
+/// };
+///
+/// let what = RSomethingElse_TO::from_ptr(RArc::new(100u32), TD_Opaque);
+/// RSomethingElse::into_value(what);
+///
+///
+/// ```
+///
+///
+/// ```
+/// use abi_stable::{
+///     marker_type::*,
+///     sabi_trait::{examples::*, prelude::*},
+///     std_types::*,
+/// };
+///
+/// use std::marker::PhantomData;
+///
+/// let ptr = RBox::new(PhantomData::<UnsyncSend>);
+/// let _ = RSomethingElse_TO::from_value(ptr, TD_Opaque);
+///
+/// ```
+///
+/// Cannot create RSomethingElse from a !Send type.
+/// ```compile_fail
+/// use abi_stable::{
+///     marker_type::*,
+///     sabi_trait::{examples::*, prelude::*},
+///     std_types::*,
+/// };
+///
+/// use std::marker::PhantomData;
+///
+/// let ptr = RBox::new(PhantomData::<SyncUnsend>);
+/// let _ = RSomethingElse_TO::from_value(ptr, TD_Opaque);
+///
+/// ```
 pub struct Dummy0;
 
 #[sabi_trait]

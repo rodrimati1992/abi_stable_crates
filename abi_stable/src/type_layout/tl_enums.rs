@@ -514,10 +514,8 @@ impl<T> MakeTLNonExhaustive<T> {
 
 ////////////////////////////
 
-/**
-An error declaring that the Storage of a nonexhaustive enum is
-not compatible with the enum.
-*/
+/// An error declaring that the Storage of a nonexhaustive enum is
+/// not compatible with the enum.
 #[repr(C)]
 #[derive(Debug, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
@@ -553,9 +551,7 @@ impl std::error::Error for IncompatibleWithNonExhaustive {}
 
 /////////////////////////////////////////////////////////////////////////////
 
-/**
-An iterator that yields the names of an enum's variants.
-*/
+/// An iterator that yields the names of an enum's variants.
 #[derive(Debug, Clone)]
 struct GetVariantNames {
     split: std::str::Split<'static, char>,

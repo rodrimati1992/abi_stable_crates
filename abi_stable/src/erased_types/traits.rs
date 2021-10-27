@@ -1,6 +1,4 @@
-/*!
-Traits for types wrapped in `DynTrait<_>`
-*/
+//! Traits for types wrapped in `DynTrait<_>`
 
 use crate::{
     marker_type::NonOwningPhantom,
@@ -221,11 +219,9 @@ declare_InterfaceType! {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-Describes how a type is serialized by [`DynTrait`].
-
-[`DynTrait`]: ../struct.DynTrait.html
-*/
+/// Describes how a type is serialized by [`DynTrait`].
+///
+/// [`DynTrait`]: ../struct.DynTrait.html
 pub trait SerializeImplType<'s> {
     /// An [`InterfaceType`] implementor which determines the
     /// intermediate type through which this is serialized.
@@ -238,12 +234,10 @@ pub trait SerializeImplType<'s> {
     ) -> Result<<Self::Interface as SerializeProxyType<'s>>::Proxy, RBoxError>;
 }
 
-/**
-Determines the intermediate type a [`SerializeImplType`] implementor is converted into,
-and is then serialized.
-
-[`SerializeImplType`]: ./trait.SerializeImplType.html
-*/
+/// Determines the intermediate type a [`SerializeImplType`] implementor is converted into,
+/// and is then serialized.
+///
+/// [`SerializeImplType`]: ./trait.SerializeImplType.html
 pub trait SerializeProxyType<'borr>: InterfaceType {
     /// The intermediate type.
     type Proxy: 'borr;
@@ -283,14 +277,12 @@ where
 
 ///////////////////////////////////////
 
-/**
-Describes how `D` is deserialized, using a proxy to do so.
-
-Generally this delegates to a library function,
-so that the implementation can be delegated
-to the `implementation crate`.
-
-*/
+/// Describes how `D` is deserialized, using a proxy to do so.
+///
+/// Generally this delegates to a library function,
+/// so that the implementation can be delegated
+/// to the `implementation crate`.
+///
 pub trait DeserializeDyn<'borr, D> {
     /// The type that is deserialized and then converted into `D`,
     /// with `DeserializeDyn::deserialize_dyn`.

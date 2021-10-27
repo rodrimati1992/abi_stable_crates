@@ -1,6 +1,4 @@
-/*!
-Where miscellaneous traits reside.
-*/
+//! Where miscellaneous traits reside.
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;

@@ -1,6 +1,5 @@
-/*!
-Example non-exhaustive enums,used in tests
-*/
+//! Example non-exhaustive enums,used in tests
+
 #![allow(dead_code)]
 
 pub mod command_one {

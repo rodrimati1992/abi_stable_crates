@@ -1,6 +1,4 @@
-/*!
-For parsing the helper attributess for `#[derive(GetStaticEquivalent)]`.
-*/
+//! For parsing the helper attributess for `#[derive(GetStaticEquivalent)]`.
 
 use std::marker::PhantomData;
 

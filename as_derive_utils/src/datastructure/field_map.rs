@@ -5,13 +5,11 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-/**
-This is a map from fields to some value.
-
-If you put this in a type,and use Default to initialize it,
-you must remember to replace the `FieldMap` using either `FieldMap::defaulted` or `FieldMap::with`
-
-*/
+/// This is a map from fields to some value.
+///
+/// If you put this in a type,and use Default to initialize it,
+/// you must remember to replace the `FieldMap` using either `FieldMap::defaulted` or
+/// `FieldMap::with`
 #[derive(Default, Clone, Debug, PartialEq, Hash)]
 pub struct FieldMap<T> {
     // The outer vec is the enum variant (if it's a struct/union it's a single element Vec),

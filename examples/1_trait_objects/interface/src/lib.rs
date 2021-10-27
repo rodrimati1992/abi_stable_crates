@@ -1,14 +1,12 @@
-/*!
-This is an example `interface crate`,
-where all publically available modules(structs of function pointers) and types are declared,
-
-To load the library and the modules together,
-call `<PluginMod_Ref as RootModule>::load_from_directory`,
-which will load the dynamic library from a directory(folder),
-and all the modules inside of the library.
-
-
-*/
+//! This is an example `interface crate`,
+//! where all publically available modules(structs of function pointers) and types are declared,
+//!
+//! To load the library and the modules together,
+//! call `<PluginMod_Ref as RootModule>::load_from_directory`,
+//! which will load the dynamic library from a directory(folder),
+//! and all the modules inside of the library.
+//!
+//!
 
 use abi_stable::{
     declare_root_module_statics,
@@ -39,9 +37,7 @@ pub use self::{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-The identifier for a plugin.
-*/
+/// The identifier for a plugin.
 #[repr(C)]
 #[derive(Debug, Clone, PartialEq, Eq, StableAbi, Serialize, Deserialize)]
 pub struct PluginId {
@@ -87,11 +83,7 @@ impl<'a> PluginResponse<'a> {
 
 pub type PluginType = Plugin_TO<'static, RBox<()>>;
 
-/**
-A plugin which is loaded by the application,and provides some functionality.
-
-
-*/
+/// A plugin which is loaded by the application,and provides some functionality.
 #[sabi_trait]
 //#[sabi(debug_print)]
 pub trait Plugin {
@@ -118,24 +110,22 @@ pub trait Plugin {
     /// Gets a description of all commands from this Plugin.
     fn list_commands(&self) -> RVec<CommandDescription>;
 
-    /*
-    Closes the plugin,
-
-    This does not unload the dynamic library of this plugin,
-    you can instantiate another instance of this plugin with
-    `PluginMod_Ref::get_module().new()(application_handle)`.
-
-
-
-    The `#[sabi(last_prefix_field)]` attribute here means that this is the last method
-    that was defined in the first compatible version of the library
-    (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    requiring new methods to always be added below preexisting ones.
-
-    The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library
-    bumps its "major" version,
-    at which point it would be moved to the last method at the time.
-        */
+    /// Closes the plugin,
+    ///
+    /// This does not unload the dynamic library of this plugin,
+    /// you can instantiate another instance of this plugin with
+    /// `PluginMod_Ref::get_module().new()(application_handle)`.
+    ///
+    ///
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last method
+    /// that was defined in the first compatible version of the library
+    /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+    /// requiring new methods to always be added below preexisting ones.
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library
+    /// bumps its "major" version,
+    /// at which point it would be moved to the last method at the time.
     #[sabi(last_prefix_field)]
     fn close(self, app: ApplicationMut<'_>);
 }
@@ -151,20 +141,18 @@ pub trait Plugin {
 #[sabi(kind(Prefix(prefix_ref = "PluginMod_Ref")))]
 #[sabi(missing_field(panic))]
 pub struct PluginMod {
-    /**
-    Constructs the plugin.
-
-
-    The `#[sabi(last_prefix_field)]` attribute here means that this is the last field in this struct
-    that was defined in the first compatible version of the library
-    (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    requiring new fields to always be added below preexisting ones.
-
-    The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library
-    bumps its "major" version,
-    at which point it would be moved to the last field at the time.
-
-    */
+    /// Constructs the plugin.
+    ///
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last field in this struct
+    /// that was defined in the first compatible version of the library
+    /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+    /// requiring new fields to always be added below preexisting ones.
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library
+    /// bumps its "major" version,
+    /// at which point it would be moved to the last field at the time.
+    ///
     #[sabi(last_prefix_field)]
     pub new: extern "C" fn(RSender<AsyncCommand>, PluginId) -> RResult<PluginType, Error>,
 }
@@ -195,20 +183,18 @@ pub trait Application {
         command: RString,
     ) -> RResult<(), Error>;
 
-    /**
-    Gets the `PluginId`s of the plugins specified by `which_plugin`.
-
-
-    The `#[sabi(last_prefix_field)]` attribute here means that this is the last method
-    that was defined in the first compatible version of the library
-    (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    requiring new methods to always be added below preexisting ones.
-
-    The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library
-    bumps its "major" version,
-    at which point it would be moved to the last method at the time.
-
-    */
+    /// Gets the `PluginId`s of the plugins specified by `which_plugin`.
+    ///
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last method
+    /// that was defined in the first compatible version of the library
+    /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+    /// requiring new methods to always be added below preexisting ones.
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library
+    /// bumps its "major" version,
+    /// at which point it would be moved to the last method at the time.
+    ///
     #[sabi(last_prefix_field)]
     fn get_plugin_id(&self, which_plugin: WhichPlugin) -> RResult<RVec<PluginId>, Error>;
 

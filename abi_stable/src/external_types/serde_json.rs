@@ -1,6 +1,4 @@
-/*!
-Ffi-safe equivalents of `serde_json` types.
-*/
+//! Ffi-safe equivalents of `serde_json` types.
 
 use std::{
     convert::{TryFrom, TryInto},

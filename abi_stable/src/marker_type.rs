@@ -1,6 +1,4 @@
-/*!
-Zero-sized types .
-*/
+//! Zero-sized types .
 
 use std::{cell::Cell, marker::PhantomData, rc::Rc};
 
@@ -193,20 +191,18 @@ unsafe impl PrefixStableAbi for ErasedPrefix {
 
 //////////////////////////////////////////////////////////////
 
-/**
-MarkerType which ignores its type parameter in its [`StableAbi`] implementation.
-
-# Safety
-
-`Unsafe` is part of its name,
-because users can violate memory safety
-if they depend on the value of the type parameter passed to `UnsafeIgnoredType` for safety,
-since the type parameter is ignored when type checking dynamic libraries.
-
-
-[`StableAbi`]: ../trait.StableAbi.html
-
-*/
+/// MarkerType which ignores its type parameter in its [`StableAbi`] implementation.
+///
+/// # Safety
+///
+/// `Unsafe` is part of its name,
+/// because users can violate memory safety
+/// if they depend on the value of the type parameter passed to `UnsafeIgnoredType` for safety,
+/// since the type parameter is ignored when type checking dynamic libraries.
+///
+///
+/// [`StableAbi`]: ../trait.StableAbi.html
+///
 pub struct UnsafeIgnoredType<T: ?Sized> {
     _inner: PhantomData<T>,
 }

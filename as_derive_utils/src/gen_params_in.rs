@@ -1,6 +1,4 @@
-/*!
-Contains the `GenParamsIn` type,for printing generic parameters.
-*/
+//! Contains the `GenParamsIn` type,for printing generic parameters.
 
 use syn::{
     token::{Colon, Comma, Const, Star},
@@ -44,10 +42,8 @@ pub enum InWhat {
     ItemDecl,
     /// For when using a generic as an argument for a trait/struct/enum/union.
     ItemUse,
-    /**
-    For defining the fields of a Dummy struct that is never instantiated,
-    only using its associated items.
-        */
+    /// For defining the fields of a Dummy struct that is never instantiated,
+    /// only using its associated items.
     DummyStruct,
 }
 

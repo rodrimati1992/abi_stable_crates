@@ -167,22 +167,20 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2, syn::Error> {
     .piped(Ok)
 }
 
-/**
-Outputs these items:
-
-- `Trait_Backend`:
-    A type alias to the underlying implementation of the trait object,
-    which is either RObject
-
-- `Trait_Interface`
-    A marker type describing the traits that are required when constructing
-    the underlying implementation of the trait object,
-    and are then implemented by it,by implementing InterfaceType.
-
-- `Trait_TO`:
-    The ffi-safe trait object for the trait.
-
-*/
+/// Outputs these items:
+///
+/// - `Trait_Backend`:
+///     A type alias to the underlying implementation of the trait object,
+///     which is either RObject
+///
+/// - `Trait_Interface`
+///     A marker type describing the traits that are required when constructing
+///     the underlying implementation of the trait object,
+///     and are then implemented by it,by implementing InterfaceType.
+///
+/// - `Trait_TO`:
+///     The ffi-safe trait object for the trait.
+///
 fn first_items(
     TokenizerParams {
         config,
@@ -1093,14 +1091,12 @@ fn declare_vtable(
     .to_tokens(mod_);
 }
 
-/**
-Outputs the vtable impl block with both:
-
-- A constant where the vtable is constructed.
-
-- The methods that the vtable is constructed with.
-
-*/
+/// Outputs the vtable impl block with both:
+///
+/// - A constant where the vtable is constructed.
+///
+/// - The methods that the vtable is constructed with.
+///
 fn vtable_impl(
     TokenizerParams {
         config,

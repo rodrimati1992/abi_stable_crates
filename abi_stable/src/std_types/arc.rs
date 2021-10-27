@@ -1,6 +1,4 @@
-/*!
-Contains the ffi-safe equivalent of `std::sync::Arc`.
-*/
+//! Contains the ffi-safe equivalent of `std::sync::Arc`.
 
 use std::{borrow::Borrow, marker::PhantomData, mem::ManuallyDrop, sync::Arc};
 
@@ -25,56 +23,53 @@ mod test;
 mod private {
     use super::*;
 
-    /**
-    Ffi-safe version of `std::sync::Arc`
-
-    # Example
-
-    Using an `RArc<RMutex<RVec<u32>>>` to get a list populated from multiple threads.
-
-    ```
-    use abi_stable::{
-        external_types::RMutex,
-        std_types::{RArc, RVec},
-    };
-
-    use std::thread;
-
-    let arc = RArc::new(RMutex::new(RVec::new()));
-
-    {
-        let arc2 = RArc::clone(&arc);
-        assert!( std::ptr::eq(&*arc, &*arc2) );
-    }
-
-    let mut guards = Vec::new();
-
-    for i in 0..10_u64 {
-        let arc = RArc::clone(&arc);
-        guards.push(thread::spawn(move||{
-            for j in 0..100_u64{
-                arc.lock().push(i*100+j);
-            }
-        }));
-    }
-
-    for guard in guards{
-        guard.join().unwrap();
-    }
-
-    let mut vec = RArc::try_unwrap(arc)
-        .ok()
-        .expect("All the threads were joined, so this must be the only RArc")
-        .into_inner();
-
-    vec.sort();
-
-    assert_eq!( vec, (0..1000).collect::<RVec<_>>() );
-
-
-    ```
-
-    */
+    /// Ffi-safe version of `std::sync::Arc`
+    ///
+    /// # Example
+    ///
+    /// Using an `RArc<RMutex<RVec<u32>>>` to get a list populated from multiple threads.
+    ///
+    /// ```
+    /// use abi_stable::{
+    ///     external_types::RMutex,
+    ///     std_types::{RArc, RVec},
+    /// };
+    ///
+    /// use std::thread;
+    ///
+    /// let arc = RArc::new(RMutex::new(RVec::new()));
+    ///
+    /// {
+    ///     let arc2 = RArc::clone(&arc);
+    ///     assert!(std::ptr::eq(&*arc, &*arc2));
+    /// }
+    ///
+    /// let mut guards = Vec::new();
+    ///
+    /// for i in 0..10_u64 {
+    ///     let arc = RArc::clone(&arc);
+    ///     guards.push(thread::spawn(move || {
+    ///         for j in 0..100_u64 {
+    ///             arc.lock().push(i * 100 + j);
+    ///         }
+    ///     }));
+    /// }
+    ///
+    /// for guard in guards {
+    ///     guard.join().unwrap();
+    /// }
+    ///
+    /// let mut vec = RArc::try_unwrap(arc)
+    ///     .ok()
+    ///     .expect("All the threads were joined, so this must be the only RArc")
+    ///     .into_inner();
+    ///
+    /// vec.sort();
+    ///
+    /// assert_eq!(vec, (0..1000).collect::<RVec<_>>());
+    ///
+    /// ```
+    ///
     #[derive(StableAbi)]
     #[repr(C)]
     pub struct RArc<T> {

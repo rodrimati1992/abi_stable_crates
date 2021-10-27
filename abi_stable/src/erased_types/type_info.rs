@@ -1,6 +1,4 @@
-/*!
-Contains TypeInfo,metadata for a type.
-*/
+//! Contains TypeInfo,metadata for a type.
 
 use std::fmt;
 

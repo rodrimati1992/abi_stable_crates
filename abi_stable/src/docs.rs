@@ -1,6 +1,4 @@
-/*!
-Additional docs for macros, and guides.
-*/
+//! Additional docs for macros, and guides.
 
 pub mod library_evolution;
 pub mod prefix_types;

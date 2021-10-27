@@ -1,7 +1,5 @@
-/*!
-The implementation of both the `#[sabi(impl_InterfaceType())]` helper attributes,
-and the `impl_InterfaceType!{}` macro.
-*/
+//! The implementation of both the `#[sabi(impl_InterfaceType())]` helper attributes,
+//! and the `impl_InterfaceType!{}` macro.
 
 use std::collections::HashMap;
 

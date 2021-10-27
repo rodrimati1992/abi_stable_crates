@@ -1,6 +1,4 @@
-/*!
-Contains items related to the `#[sabi_trait]` attribute.
-*/
+//! Contains items related to the `#[sabi_trait]` attribute.
 
 #[doc(hidden)]
 pub mod reexports {

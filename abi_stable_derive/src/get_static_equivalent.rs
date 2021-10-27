@@ -1,6 +1,4 @@
-/*!
-Stuff related to the `GetStaticEquivalent` derive macro.
-*/
+//! Stuff related to the `GetStaticEquivalent` derive macro.
 
 use proc_macro2::{Span, TokenStream as TokenStream2};
 

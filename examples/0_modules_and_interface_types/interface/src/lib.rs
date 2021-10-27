@@ -1,14 +1,11 @@
-/*!
-This is an example `interface crate`,
-where all publically available modules(structs of function pointers) and types are declared,
-
-To load the library and the modules together,
-call `<TextOpsMod_Ref as RootModule>::load_from_directory`,
-which will load the dynamic library from a directory(folder),
-and all the modules inside of the library.
-
-
-*/
+//! This is an example `interface crate`,
+//! where all publically available modules(structs of function pointers) and types are declared,
+//!
+//! To load the library and the modules together,
+//! call `<TextOpsMod_Ref as RootModule>::load_from_directory`,
+//! which will load the dynamic library from a directory(folder),
+//! and all the modules inside of the library.
+//!
 
 use abi_stable::{
     declare_root_module_statics,
@@ -34,19 +31,16 @@ pub struct TextOpsMod {
     /// Constructs TOStateBox,state that is passed to other functions in this module.
     pub new: extern "C" fn() -> TOStateBox,
 
-    /**
-    The `deserializers` submodule.
-
-    The `#[sabi(last_prefix_field)]` attribute here means that this is the last field in this struct
-    that was defined in the first compatible version of the library
-    (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    requiring new fields to always be added below preexisting ones.
-
-    The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library
-    bumps its "major" version,
-    at which point it would be moved to the last field at the time.
-
-    */
+    /// The `deserializers` submodule.
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last
+    /// field in this struct that was defined in the first compatible version of the library
+    /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+    /// requiring new fields to always be added below preexisting ones.
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library
+    /// bumps its "major" version,
+    /// at which point it would be moved to the last field at the time.
     #[sabi(last_prefix_field)]
     pub deserializers: DeserializerMod_Ref,
 
@@ -86,20 +80,18 @@ impl RootModule for TextOpsMod_Ref {
 pub struct DeserializerMod {
     pub something: std::marker::PhantomData<()>,
 
-    /**
-    The implementation for how TOStateBox is going to be deserialized.
-
-
-    The `#[sabi(last_prefix_field)]` attribute here means that this is the last field in this struct
-    that was defined in the first compatible version of the library
-    (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
-    requiring new fields to always be added below preexisting ones.
-
-    The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library
-    bumps its "major" version,
-    at which point it would be moved to the last field at the time.
-
-    */
+    /// The implementation for how TOStateBox is going to be deserialized.
+    ///
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the
+    /// last field in this struct that was defined in the first compatible version of the library
+    /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+    /// requiring new fields to always be added below preexisting ones.
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the library
+    /// bumps its "major" version,
+    /// at which point it would be moved to the last field at the time.
+    ///
     #[sabi(last_prefix_field)]
     pub deserialize_state: extern "C" fn(RStr<'_>) -> RResult<TOStateBox, RBoxError>,
 
@@ -118,11 +110,9 @@ pub struct DeserializerMod {
 
 ///////////////////////////////////////////////
 
-/**
-An `InterfaceType` describing which traits are required
-when constructing `TOStateBox`(Serialize,Deserialize,and PartialEq)
-and are then usable afterwards.
-*/
+/// An `InterfaceType` describing which traits are required
+/// when constructing `TOStateBox`(Serialize,Deserialize,and PartialEq)
+/// and are then usable afterwards.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Serialize, Deserialize, Debug, PartialEq))]
@@ -138,9 +128,7 @@ impl<'a> SerializeProxyType<'a> for TOState {
     type Proxy = RawValueBox;
 }
 
-/**
-Describes how a `TOStateBox` is deserialized.
-*/
+/// Describes how a `TOStateBox` is deserialized.
 impl<'borr> DeserializeDyn<'borr, TOStateBox> for TOState {
     /// The intermediate type that is deserialized,
     /// and then converted to `TOStateBox` with `DeserializeDyn::deserialize_dyn`.
@@ -157,11 +145,9 @@ impl<'borr> DeserializeDyn<'borr, TOStateBox> for TOState {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-An `InterfaceType` describing which traits are required
-when constructing `TOCommandBox`(Send,Sync,Debug,Serialize,etc)
-and are then usable afterwards.
-*/
+/// An `InterfaceType` describing which traits are required
+/// when constructing `TOCommandBox`(Send,Sync,Debug,Serialize,etc)
+/// and are then usable afterwards.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Send, Sync, Debug, Serialize, Deserialize, PartialEq, Iterator))]
@@ -200,11 +186,9 @@ impl<'borr> DeserializeDyn<'borr, TOCommandBox<'static>> for TOCommand {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-An `InterfaceType` describing which traits are required
-when constructing `TOReturnValueArc`(Send,Sync,Debug,Serialize,Deserialize,and PartialEq)
-and are then usable afterwards.
-*/
+/// An `InterfaceType` describing which traits are required
+/// when constructing `TOReturnValueArc`(Send,Sync,Debug,Serialize,Deserialize,and PartialEq)
+/// and are then usable afterwards.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Sync, Send, Debug, Serialize, Deserialize, PartialEq))]
@@ -237,11 +221,9 @@ impl<'borr> DeserializeDyn<'borr, TOReturnValueArc> for TOReturnValue {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/**
-An `InterfaceType` describing which traits are required
-when constructing `DynTrait<_,CowStrIter>`(Send,Sync,and Iterator)
-and are then usable afterwards.
-*/
+/// An `InterfaceType` describing which traits are required
+/// when constructing `DynTrait<_,CowStrIter>`(Send,Sync,and Iterator)
+/// and are then usable afterwards.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Sync, Send, Iterator))]
