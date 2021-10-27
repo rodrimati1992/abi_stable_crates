@@ -39,24 +39,19 @@ It is not possible to add variants or fields to exhaustive enums.
 
 Exhaustive enums being ones that are declared like this:
 ```rust
-use abi_stable::{
-    std_types::RString,
-    StableAbi,
-};
+use abi_stable::{std_types::RString, StableAbi};
 
 #[repr(u8)]
 #[derive(StableAbi)]
-enum Exhaustive{
+enum Exhaustive {
     A,
     B(RString),
     C,
-    D{
-        hello:u32,
-        world:i64,
-    },
+    D { hello: u32, world: i64 },
 }
 
 # fn main(){}
+
 ```
 
 ### Non-exhaustive enums
@@ -82,17 +77,18 @@ Example field-less enum implemented as a struct wrapping an integer:
 use abi_stable::StableAbi;
 
 #[repr(transparent)]
-#[derive(StableAbi,Eq,PartialEq)]
+#[derive(StableAbi, Eq, PartialEq)]
 pub struct Direction(u8);
 
-impl Direction{
-    pub const LEFT :Self=Direction(0);
-    pub const RIGHT:Self=Direction(1);
-    pub const UP   :Self=Direction(2);
-    pub const DOWN :Self=Direction(3);
+impl Direction {
+    pub const LEFT: Self = Direction(0);
+    pub const RIGHT: Self = Direction(1);
+    pub const UP: Self = Direction(2);
+    pub const DOWN: Self = Direction(3);
 }
 
 # fn main(){}
+
 
 ```
 

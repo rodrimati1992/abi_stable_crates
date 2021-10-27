@@ -1,6 +1,4 @@
-/*!
-Functions and types related to the layout checking.
-*/
+//! Functions and types related to the layout checking.
 
 use std::{cmp::Ordering, fmt, mem};
 
@@ -1071,16 +1069,14 @@ impl AbiChecker {
     }
 }
 
-/**
-Checks that the layout of `interface` is compatible with `implementation`.
-
-# Warning
-
-This function is not symmetric,
-the first parameter must be the expected layout,
-and the second must be actual layout.
-
-*/
+/// Checks that the layout of `interface` is compatible with `implementation`.
+///
+/// # Warning
+///
+/// This function is not symmetric,
+/// the first parameter must be the expected layout,
+/// and the second must be actual layout.
+///
 pub fn check_layout_compatibility(
     interface: &'static TypeLayout,
     implementation: &'static TypeLayout,
@@ -1142,9 +1138,7 @@ pub fn check_layout_compatibility_with_globals(
     }
 }
 
-/**
-Checks that the layout of `interface` is compatible with `implementation`,
-*/
+/// Checks that the layout of `interface` is compatible with `implementation`,
 pub(crate) extern "C" fn check_layout_compatibility_for_ffi(
     interface: &'static TypeLayout,
     implementation: &'static TypeLayout,
@@ -1174,24 +1168,22 @@ pub(crate) extern "C" fn check_layout_compatibility_for_ffi(
     }
 }
 
-/**
-Checks that the layout of `interface` is compatible with `implementation`,
-
-If this function is called within a dynamic library,
-it must be called during or after the function that exports its root module is called.
-
-**DO NOT** call this in the static initializer of a dynamic library,
-since this library relies on setting up its global state before
-calling the root module loader.
-
-# Warning
-
-This function is not symmetric,
-the first parameter must be the expected layout,
-and the second must be actual layout.
-
-
-*/
+/// Checks that the layout of `interface` is compatible with `implementation`,
+///
+/// If this function is called within a dynamic library,
+/// it must be called during or after the function that exports its root module is called.
+///
+/// **DO NOT** call this in the static initializer of a dynamic library,
+/// since this library relies on setting up its global state before
+/// calling the root module loader.
+///
+/// # Warning
+///
+/// This function is not symmetric,
+/// the first parameter must be the expected layout,
+/// and the second must be actual layout.
+///
+///
 pub extern "C" fn exported_check_layout_compatibility(
     interface: &'static TypeLayout,
     implementation: &'static TypeLayout,
