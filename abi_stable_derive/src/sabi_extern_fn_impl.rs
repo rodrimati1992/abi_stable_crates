@@ -45,7 +45,7 @@ pub(crate) fn convert_to_sabi_extern_fn(with_early_return: WithEarlyReturn, item
         name: Some(syn::LitStr::new("C", Span::call_site())),
     });
 
-    let statements = mem::replace(&mut item.block.stmts, Vec::new());
+    let statements = mem::take(&mut item.block.stmts);
 
     let x = quote! {
         ::abi_stable::extern_fn_panic_handling!(

@@ -134,10 +134,10 @@ impl<T> DerefMut for LinearResult<T> {
     }
 }
 
-impl<T> Into<Result<T, syn::Error>> for LinearResult<T> {
+impl<T> From<LinearResult<T>> for Result<T, syn::Error> {
     #[inline]
-    fn into(self) -> Result<T, syn::Error> {
-        self.into_result()
+    fn from(this: LinearResult<T>) -> Result<T, syn::Error> {
+        this.into_result()
     }
 }
 

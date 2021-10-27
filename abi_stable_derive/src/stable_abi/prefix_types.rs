@@ -175,8 +175,8 @@ impl<'a> AccessorOrMaybe<'a> {
     }
 
     /// Converts this to a MaybeAccessor,returning None if it is not the `Maybe` variant.
-    pub(crate) fn to_maybe_accessor(&self) -> Option<MaybeAccessor<'a>> {
-        match *self {
+    pub(crate) fn to_maybe_accessor(self) -> Option<MaybeAccessor<'a>> {
+        match self {
             AccessorOrMaybe::Maybe(x) => Some(x),
             _ => None,
         }
@@ -437,7 +437,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                     }) => write!(
                         acc_doc_buffer,
                         "Returns `{function}()` if the field does not exist.",
-                        function = (&function).into_token_stream().to_string()
+                        function = (&function).into_token_stream()
                     )
                     .drop_(),
                     AOM::Maybe(MaybeAccessor {

@@ -8,7 +8,6 @@ use as_derive_utils::{spanned_err, syn_err};
 use core_extensions::SelfOps;
 
 use syn::{
-    punctuated::Punctuated,
     spanned::Spanned,
     visit_mut::{self, VisitMut},
     Generics, Ident, Lifetime, Type, TypeBareFn, TypeReference,
@@ -90,22 +89,6 @@ pub(crate) struct FnParamRet<'a> {
     pub(crate) param_or_ret: ParamOrReturn,
 }
 
-impl<'a> FnParamRet<'a> {
-    /// Constructs an `FnParamRet` for a `()` return type.
-    pub fn unit_ret(arenas: &'a Arenas) -> Self {
-        let unit = syn::TypeTuple {
-            paren_token: Default::default(),
-            elems: Punctuated::default(),
-        };
-        FnParamRet {
-            name: None,
-            lifetime_refs: Vec::new(),
-            ty: arenas.alloc(syn::Type::from(unit)),
-            param_or_ret: ParamOrReturn::Return,
-        }
-    }
-}
-
 /// The information returned from visiting a field.
 pub(crate) struct VisitFieldRet<'a> {
     /// The lifetimes that the field references.
@@ -130,7 +113,7 @@ impl<'a> TypeVisitor<'a> {
                 allow_type_macros: false,
                 referenced_lifetimes: Vec::default(),
                 fn_info: FnInfo {
-                    parent_generics: &generics,
+                    parent_generics: generics,
                     env_lifetimes: generics.lifetimes().map(|lt| &lt.lifetime.ident).collect(),
                     initial_bound_lifetime: generics.lifetimes().count(),
                     functions: Vec::new(),
@@ -162,8 +145,8 @@ impl<'a> TypeVisitor<'a> {
     pub fn visit_field(&mut self, ty: &mut Type) -> VisitFieldRet<'a> {
         self.visit_type_mut(ty);
         VisitFieldRet {
-            referenced_lifetimes: mem::replace(&mut self.vars.referenced_lifetimes, Vec::new()),
-            functions: mem::replace(&mut self.vars.fn_info.functions, Vec::new()),
+            referenced_lifetimes: mem::take(&mut self.vars.referenced_lifetimes),
+            functions: mem::take(&mut self.vars.fn_info.functions),
         }
     }
 

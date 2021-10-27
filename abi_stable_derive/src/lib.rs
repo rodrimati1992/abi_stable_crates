@@ -6,10 +6,10 @@
 // #![deny(unused_parens)]
 // #![deny(unused_assignments)]
 // #![deny(unused_mut)]
+#![allow(clippy::field_reassign_with_default)]
 #![deny(unreachable_patterns)]
 #![deny(unused_doc_comments)]
 #![deny(unconditional_recursion)]
-#![allow(clippy::suspicious_assignment_formatting)]
 
 extern crate proc_macro;
 

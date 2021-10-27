@@ -228,7 +228,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
         } else if is_opaque_field {
             quote!(__sabi_re::False)
         } else {
-            let ty = visited_field.comp_field.type_(&shared_vars);
+            let ty = visited_field.comp_field.type_(shared_vars);
             quote!( <#ty as __StableAbi>::IsNonZeroType )
         }
     } else {
@@ -387,7 +387,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     let extra_bounds = &config.extra_bounds;
 
     let prefix_type_tokenizer_ =
-        prefix_type_tokenizer(&module, &mono_type_layout, &ds, config, ctokens)?;
+        prefix_type_tokenizer(&module, mono_type_layout, ds, config, ctokens)?;
 
     let mod_refl_mode = match config.mod_refl_mode {
         ModReflMode::Module => quote!(__ModReflMode::Module),
@@ -422,7 +422,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     // The storage type parameter that is added if this is a nonexhaustive enum.
     let storage_opt = nonexh_opt.map(|_| &ctokens.und_storage);
     let generics_header =
-        GenParamsIn::with_after_types(&ds.generics, InWhat::ImplHeader, storage_opt);
+        GenParamsIn::with_after_types(ds.generics, InWhat::ImplHeader, storage_opt);
 
     shared_vars.extract_errs()?;
 
@@ -431,7 +431,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     let strings_const = &config.const_idents.strings;
     let strings = shared_vars.strings().piped(rstr_tokenizer);
 
-    let shared_vars_tokenizer = shared_vars.shared_vars_tokenizer(&mono_type_layout);
+    let shared_vars_tokenizer = shared_vars.shared_vars_tokenizer(mono_type_layout);
 
     // drop(_measure_time0);
     // let _measure_time1=PrintDurationOnDrop::new(abi_stable_shared::file_span!());
@@ -578,6 +578,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
         }
     )
     .observe(|tokens| {
+        #[allow(clippy::if_then_panic)]
         // drop(_measure_time1);
         if config.debug_print {
             panic!("\n\n\n{}\n\n\n", tokens);
@@ -689,7 +690,7 @@ fn fields_tokenizer_inner<'a>(
         to_stream!(ts;ct.some);
         ct.paren.surround(ts, |ts| {
             ct.and_.to_tokens(ts);
-            tokenize_tl_functions(ds, &visited_fields, ct, ts);
+            tokenize_tl_functions(ds, visited_fields, ct, ts);
         });
     }
     to_stream! {ts; ct.comma };

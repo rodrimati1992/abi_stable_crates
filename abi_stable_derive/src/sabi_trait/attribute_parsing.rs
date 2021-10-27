@@ -2,7 +2,7 @@ use super::{TraitDefinition, *};
 
 use std::{iter, mem};
 
-use syn::{Attribute, Ident, ItemTrait, Meta, MetaList, NestedMeta, TraitItem, TraitItemMethod};
+use syn::{Attribute, ItemTrait, Meta, MetaList, NestedMeta, TraitItem, TraitItemMethod};
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
@@ -104,8 +104,8 @@ pub(super) struct SabiTraitAttrs<'a> {
 
 /// Used as context while parsing helper attributes of #[sabi_trait].
 #[derive(Debug, Copy, Clone)]
-enum ParseContext<'a> {
-    TraitAttr { name: &'a Ident },
+enum ParseContext {
+    TraitAttr,
     Method { index: usize },
 }
 
@@ -130,14 +130,7 @@ pub(crate) fn parse_attrs_for_sabi_trait<'a>(
 
     this.disable_inherent_default.resize(assoc_fns.len(), false);
 
-    parse_inner(
-        &mut this,
-        &*trait_.attrs,
-        ParseContext::TraitAttr {
-            name: &trait_.ident,
-        },
-        arenas,
-    )?;
+    parse_inner(&mut this, &*trait_.attrs, ParseContext::TraitAttr, arenas)?;
 
     for (index, assoc_fn) in assoc_fns.iter().cloned().enumerate() {
         this.methods_with_attrs.push(MethodWithAttrs::new(assoc_fn));
@@ -169,7 +162,7 @@ pub(crate) fn parse_attrs_for_sabi_trait<'a>(
 fn parse_inner<'a, I>(
     this: &mut SabiTraitAttrs<'a>,
     attrs: I,
-    pctx: ParseContext<'a>,
+    pctx: ParseContext,
     arenas: &'a Arenas,
 ) -> Result<(), syn::Error>
 where
@@ -181,7 +174,7 @@ where
                 parse_attr_list(this, pctx, list, arenas)?;
             }
             Ok(other_attr) => match pctx {
-                ParseContext::TraitAttr { .. } => {
+                ParseContext::TraitAttr => {
                     this.attrs.other_attrs.push(other_attr);
                 }
                 ParseContext::Method { .. } => {
@@ -204,7 +197,7 @@ where
 /// Parses the list attributes on an item.
 fn parse_attr_list<'a>(
     this: &mut SabiTraitAttrs<'a>,
-    pctx: ParseContext<'a>,
+    pctx: ParseContext,
     list: MetaList,
     arenas: &'a Arenas,
 ) -> Result<(), syn::Error> {
@@ -235,11 +228,11 @@ fn parse_attr_list<'a>(
 /// Parses the `#[sabi()]` attributes on an item.
 fn parse_sabi_trait_attr<'a>(
     this: &mut SabiTraitAttrs<'a>,
-    pctx: ParseContext<'a>,
+    pctx: ParseContext,
     attr: Meta,
     _arenas: &'a Arenas,
 ) -> Result<(), syn::Error> {
-    fn push_attr<'a>(this: &mut SabiTraitAttrs<'a>, pctx: ParseContext<'a>, attr: Meta) {
+    fn push_attr(this: &mut SabiTraitAttrs<'_>, pctx: ParseContext, attr: Meta) {
         match pctx {
             ParseContext::Method { .. } => {
                 this.methods_with_attrs
@@ -249,7 +242,7 @@ fn parse_sabi_trait_attr<'a>(
                     .derive_attrs
                     .push(attr);
             }
-            ParseContext::TraitAttr { .. } => {
+            ParseContext::TraitAttr => {
                 this.attrs.derive_attrs.push(attr);
             }
         }
@@ -267,7 +260,7 @@ fn parse_sabi_trait_attr<'a>(
 
             if ident == "no_default_fallback" {
                 match pctx {
-                    ParseContext::TraitAttr { .. } => {
+                    ParseContext::TraitAttr => {
                         for is_disabled in &mut this.disable_inherent_default {
                             *is_disabled = true;
                         }
@@ -278,7 +271,7 @@ fn parse_sabi_trait_attr<'a>(
                 }
             } else if ident == "debug_print_trait" {
                 this.debug_print_trait = true;
-            } else if let ParseContext::TraitAttr { .. } = pctx {
+            } else if let ParseContext::TraitAttr = pctx {
                 if ident == "use_dyntrait" || ident == "use_dyn_trait" {
                     this.which_object = WhichObject::DynTrait;
                 } else if ident == "no_trait_impl" {

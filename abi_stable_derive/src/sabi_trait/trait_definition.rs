@@ -28,7 +28,7 @@ use syn::{
     token::{Colon, Comma, Semi},
     visit_mut::VisitMut,
     Abi, Block, FnArg, Ident, ItemTrait, Lifetime, LifetimeDef, Meta, TraitItem, TypeParamBound,
-    Visibility, WherePredicate,
+    WherePredicate,
 };
 
 use proc_macro2::Span;
@@ -63,7 +63,7 @@ pub(crate) struct TraitDefinition<'a> {
     #[allow(dead_code)]
     /// The path for the implemented serde::Deserialize trait
     /// (it may reference some trait lifetime parameter)
-    pub(crate) deserialize_bound: Option<DeserializeBound<'a>>,
+    pub(crate) deserialize_bound: Option<DeserializeBound>,
     /// The traits this has as supertraits.
     pub(crate) impld_traits: Vec<TraitImplness<'a>>,
     /// The traits this doesn't have as supertraits.
@@ -97,7 +97,6 @@ pub(crate) struct TraitDefinition<'a> {
     /// A TokenStream with the equivalent of `<Pointer::PtrTarget as Trait>::`
     pub(crate) ts_fq_self: &'a TokenStream2,
     pub(crate) ctokens: &'a CommonTokens,
-    pub(crate) arenas: &'a Arenas,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -127,7 +126,7 @@ impl<'a> TraitDefinition<'a> {
             .into_iter()
             .zip(disable_inherent_default)
             .filter_map(|(func, disable_inh_def)| {
-                match TraitMethod::new(func, disable_inh_def, &trait_.vis, ctokens, arenas) {
+                match TraitMethod::new(func, disable_inh_def, ctokens, arenas) {
                     Ok(x) => x,
                     Err(e) => {
                         errors.push_err(e);
@@ -261,7 +260,6 @@ impl<'a> TraitDefinition<'a> {
             ts_fq_self: arenas.alloc(ts_fq_self),
             is_static,
             ctokens,
-            arenas,
         })
     }
 
@@ -399,12 +397,8 @@ impl<'a> TraitDefinition<'a> {
 #[derive(Debug, Clone)]
 pub(crate) struct TraitMethod<'a> {
     pub(crate) disable_inherent_default: bool,
-    /// A refernce to the `syn` type this was derived from.
-    pub(crate) item: &'a syn::TraitItemMethod,
     pub(crate) unsafety: Option<&'a Unsafe>,
     pub(crate) abi: Option<&'a Abi>,
-    /// The visibility of the trait
-    pub(crate) vis: &'a Visibility,
     /// Attributes applied to the method in the vtable.
     pub(crate) derive_attrs: &'a [Meta],
     /// Attributes applied to the method in the trait definition.
@@ -427,7 +421,6 @@ pub(crate) struct TraitMethod<'a> {
     /// The semicolon token for the method
     /// (when the method did not have a default implementation).
     pub(crate) semicolon: Option<&'a Semi>,
-    pub(crate) ctokens: &'a CommonTokens,
 }
 
 #[derive(Debug, Clone)]
@@ -451,7 +444,6 @@ impl<'a> TraitMethod<'a> {
     pub fn new(
         mwa: MethodWithAttrs<'a>,
         disable_inherent_default: bool,
-        vis: &'a Visibility,
         ctokens: &'a CommonTokens,
         arena: &'a Arenas,
     ) -> Result<Option<Self>, syn::Error> {
@@ -558,10 +550,8 @@ impl<'a> TraitMethod<'a> {
 
         Ok(Some(Self {
             disable_inherent_default,
-            item: &mwa.item,
             unsafety: method_signature.unsafety.as_ref(),
             abi: method_signature.abi.as_ref(),
-            vis,
             derive_attrs: arena.alloc(mwa.attrs.derive_attrs),
             other_attrs: arena.alloc(mwa.attrs.other_attrs),
             name,
@@ -573,7 +563,6 @@ impl<'a> TraitMethod<'a> {
             where_clause,
             default,
             semicolon: mwa.item.semi_token.as_ref(),
-            ctokens,
         }))
     }
 
@@ -698,10 +687,7 @@ impl<'a> ToTokens for GenericsTokenizer<'a> {
 
 /// Represents a `Deserialize<'de>` supertrait bound.
 #[derive(Debug, Clone)]
-pub(crate) struct DeserializeBound<'a> {
-    pub(crate) bound: &'a syn::TraitBound,
-    pub(crate) lifetime: &'a syn::Lifetime,
-}
+pub(crate) struct DeserializeBound;
 
 /// Used to returns the information about supertraits,to construct TraitDefinition.
 struct GetSupertraits<'a> {
@@ -709,7 +695,7 @@ struct GetSupertraits<'a> {
     unimpld_traits: Vec<&'a Ident>,
     lifetime_bounds: Punctuated<&'a Lifetime, Comma>,
     iterator_item: Option<&'a syn::Type>,
-    deserialize_bound: Option<DeserializeBound<'a>>,
+    deserialize_bound: Option<DeserializeBound>,
     trait_flags: TraitStruct<bool>,
     trait_spans: TraitStruct<Span>,
     errors: LinearResult<()>,
@@ -718,8 +704,6 @@ struct GetSupertraits<'a> {
 /// Contains information about a supertrait,including whether it's implemented.
 #[derive(Debug, Clone)]
 pub(crate) struct TraitImplness<'a> {
-    pub(crate) which_trait: WhichTrait,
-    pub(crate) name: &'static str,
     pub(crate) ident: Ident,
     pub(crate) bound: syn::TraitBound,
     pub(crate) is_implemented: bool,
@@ -745,8 +729,6 @@ where
     // A struct indexable by `WhichTrait`,
     // with information about all possible supertraits.
     let mut trait_struct = TraitStruct::TRAITS.map(|_, t| TraitImplness {
-        which_trait: t.which_trait,
-        name: t.name,
         ident: parse_str_as_ident(t.name),
         bound: parse_str_as_trait_bound(t.full_path).expect("BUG"),
         is_implemented: false,
@@ -767,7 +749,7 @@ where
                 };
                 let trait_ident = &last_path_component.ident;
 
-                match trait_map.get(&trait_ident) {
+                match trait_map.get(trait_ident) {
                     Some(&which_trait) => {
                         let usable_by = which_trait.usable_by();
                         match which_object {
@@ -809,18 +791,6 @@ where
                                 iterator_item = iterator_item.or(iter_item);
                             }
                             WhichTrait::Deserialize => {
-                                // deserialize_bound=deserialize_bound.or(Some(
-                                //     DeserializeBound{
-                                //         bound:trait_bound
-                                //             .clone()
-                                //             .piped(|x| arenas.alloc(x) ),
-                                //         lifetime:
-                                //             extract_deserialize_lifetime(
-                                //                 last_path_component,
-                                //                 arenas
-                                //             ),
-                                //     }
-                                // ));
                                 errors.push_err(spanned_err!(
                                     trait_bound.path,
                                     "Deserialize is not currently supported."
