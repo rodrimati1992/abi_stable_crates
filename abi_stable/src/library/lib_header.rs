@@ -219,6 +219,9 @@ impl LibHeader {
                 .map_err(|e| {
                     // Fixes the bug where printing the error causes a segfault because it
                     // contains static references and function pointers into the unloaded library.
+                    //
+                    // This isn't strictly required anymore because abi_stable doesn't
+                    // unload libraries right now.
                     let formatted = e.to_formatted_error();
                     LibraryError::AbiInstability(formatted)
                 })?;
@@ -279,6 +282,9 @@ impl LibHeader {
             .map_err(|mut err| {
                 // Making sure that the error doesn't contain references into
                 // the unloaded library.
+                //
+                // This isn't strictly required anymore because abi_stable doesn't
+                // unload libraries right now.
                 err.reallocate();
                 err
             })?

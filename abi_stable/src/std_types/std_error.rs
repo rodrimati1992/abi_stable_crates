@@ -346,6 +346,9 @@ impl<M> RBoxError_<M> {
     /// This is used to decouple an `RBoxError` from the dynamic library that produced it,
     /// in order to unload the dynamic library.
     ///
+    // This isn't strictly required anymore because abi_stable doesn't
+    // unload libraries right now.
+    ///
     pub fn to_formatted_error<N>(&self) -> RBoxError_<N> {
         if let Some(dd) = self.as_debug_display() {
             RBoxError_::from_debug_display(DebugDisplay {
