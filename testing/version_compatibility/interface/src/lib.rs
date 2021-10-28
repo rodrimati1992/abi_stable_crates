@@ -98,6 +98,12 @@ mod many_types {
         marker_type::NonOwningPhantom<u32>,
         marker_type::NonOwningPhantom<RString>,
     );
+
+    // Adding more types in a patch release,
+    // you can merge this with ManyTypes in the next breaking release.
+    #[repr(C)]
+    #[derive(abi_stable::StableAbi)]
+    pub struct ManyTypes2(f32, f64);
 }
 
 pub use many_types::ManyTypes;
@@ -109,6 +115,7 @@ pub use many_types::ManyTypes;
 pub struct RootMod {
     pub abi_stable_version: VersionStrings,
     pub _marker: NonOwningPhantom<many_types::ManyTypes>,
+    pub _marker2: NonOwningPhantom<many_types::ManyTypes2>,
 }
 
 impl RootModule for RootMod_Ref {

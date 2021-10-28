@@ -293,6 +293,8 @@ fn same_different_abi_stability() {
         <[u32; 3]>::LAYOUT,
         <i32>::LAYOUT,
         <u32>::LAYOUT,
+        <f32>::LAYOUT,
+        <f64>::LAYOUT,
         <bool>::LAYOUT,
         <atomic::AtomicBool>::LAYOUT,
         <atomic::AtomicIsize>::LAYOUT,
