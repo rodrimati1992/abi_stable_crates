@@ -211,7 +211,7 @@ impl<T> RVec<T> {
     /// assert_eq!(list.len(), 0);
     /// assert_eq!(list.capacity(), 7);
     ///
-    /// list.extend( std::iter::repeat(11).take(7) );
+    /// list.extend(std::iter::repeat(11).take(7));
     /// assert_eq!(list.len(), 7);
     /// assert_eq!(list.capacity(), 7);
     ///
@@ -232,10 +232,13 @@ impl<T> RVec<T> {
     ///
     /// let list = RVec::from(vec![0, 1, 2, 3, 4, 5, 6, 7, 8]);
     ///
-    /// assert_eq!( list.slice(..), RSlice::from_slice(&[0, 1, 2, 3, 4, 5, 6, 7, 8]) );
-    /// assert_eq!( list.slice(..4), RSlice::from_slice(&[0, 1, 2, 3]) );
-    /// assert_eq!( list.slice(4..), RSlice::from_slice(&[4, 5, 6, 7, 8]) );
-    /// assert_eq!( list.slice(4..7), RSlice::from_slice(&[4, 5, 6]) );
+    /// assert_eq!(
+    ///     list.slice(..),
+    ///     RSlice::from_slice(&[0, 1, 2, 3, 4, 5, 6, 7, 8])
+    /// );
+    /// assert_eq!(list.slice(..4), RSlice::from_slice(&[0, 1, 2, 3]));
+    /// assert_eq!(list.slice(4..), RSlice::from_slice(&[4, 5, 6, 7, 8]));
+    /// assert_eq!(list.slice(4..7), RSlice::from_slice(&[4, 5, 6]));
     ///
     /// ```
     #[inline]
@@ -267,10 +270,22 @@ impl<T> RVec<T> {
     ///
     /// let mut list = RVec::from(vec![0, 1, 2, 3, 4, 5, 6, 7, 8]);
     ///
-    /// assert_eq!( list.slice_mut(..), RSliceMut::from_mut_slice(&mut [0, 1, 2, 3, 4, 5, 6, 7, 8]) );
-    /// assert_eq!( list.slice_mut(..4), RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]) );
-    /// assert_eq!( list.slice_mut(4..), RSliceMut::from_mut_slice(&mut [4, 5, 6, 7, 8]) );
-    /// assert_eq!( list.slice_mut(4..7), RSliceMut::from_mut_slice(&mut [4, 5, 6]) );
+    /// assert_eq!(
+    ///     list.slice_mut(..),
+    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3, 4, 5, 6, 7, 8])
+    /// );
+    /// assert_eq!(
+    ///     list.slice_mut(..4),
+    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3])
+    /// );
+    /// assert_eq!(
+    ///     list.slice_mut(4..),
+    ///     RSliceMut::from_mut_slice(&mut [4, 5, 6, 7, 8])
+    /// );
+    /// assert_eq!(
+    ///     list.slice_mut(4..7),
+    ///     RSliceMut::from_mut_slice(&mut [4, 5, 6])
+    /// );
     ///
     /// ```
     #[inline]
@@ -346,7 +361,10 @@ impl<T> RVec<T> {
     /// use abi_stable::std_types::{RSliceMut, RVec};
     ///
     /// let mut list = RVec::from(vec![0, 1, 2, 3]);
-    /// assert_eq!(list.as_mut_rslice(), RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]));
+    /// assert_eq!(
+    ///     list.as_mut_rslice(),
+    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3])
+    /// );
     ///
     /// ```
     pub fn as_mut_rslice(&mut self) -> RSliceMut<'_, T> {
@@ -393,7 +411,7 @@ impl<T> RVec<T> {
     ///
     /// list.reserve_exact(10);
     ///
-    /// unsafe{
+    /// unsafe {
     ///     let start = list.as_mut_ptr();
     ///     for i in 0..10 {
     ///         start.add(i as usize).write(i);
@@ -401,7 +419,7 @@ impl<T> RVec<T> {
     ///     list.set_len(10);
     /// }
     ///
-    /// assert_eq!( list, (0..10).collect::<RVec<u64>>() );
+    /// assert_eq!(list, (0..10).collect::<RVec<u64>>());
     ///
     /// ```
     pub unsafe fn set_len(&mut self, new_len: usize) {
@@ -417,7 +435,7 @@ impl<T> RVec<T> {
     ///
     /// let mut list = RVec::<u32>::with_capacity(7);
     ///
-    /// list.extend( std::iter::repeat(11).take(4) );
+    /// list.extend(std::iter::repeat(11).take(4));
     /// assert_eq!(list.len(), 4);
     /// assert_eq!(list.capacity(), 7);
     ///
@@ -505,9 +523,9 @@ impl<T> RVec<T> {
     ///
     /// let mut list = RVec::<u64>::new();
     ///
-    /// list.extend( (4 ..= 7).rev() );
+    /// list.extend((4..=7).rev());
     ///
-    /// assert_eq!(list.to_vec(), vec![7, 6, 5, 4] );
+    /// assert_eq!(list.to_vec(), vec![7, 6, 5, 4]);
     ///
     /// ```
     pub fn to_vec(&self) -> Vec<T>
@@ -636,11 +654,11 @@ impl<T> RVec<T> {
     /// let mut list: RVec<RStr<'static>> =
     ///     vec!["foo".into_c(), "bar".into(), "baz".into()].into_c();
     ///
-    /// assert_eq!( list.remove(2), "baz".into_c() );
-    /// assert_eq!(list.as_slice(), &["foo".into_c(), "bar".into_c()] );
+    /// assert_eq!(list.remove(2), "baz".into_c());
+    /// assert_eq!(list.as_slice(), &["foo".into_c(), "bar".into_c()]);
     ///
-    /// assert_eq!( list.remove(0), "foo".into_c() );
-    /// assert_eq!(list.as_slice(), &["bar".into_c()] );
+    /// assert_eq!(list.remove(0), "foo".into_c());
+    /// assert_eq!(list.as_slice(), &["bar".into_c()]);
     /// ```
     pub fn remove(&mut self, index: usize) -> T {
         match self.try_remove(index) {
@@ -667,11 +685,14 @@ impl<T> RVec<T> {
     /// let mut list: RVec<RStr<'static>> =
     ///     vec!["foo".into_c(), "bar".into(), "baz".into(), "geo".into()].into_c();
     ///
-    /// assert_eq!( list.swap_remove(1), "bar".into_c() );
-    /// assert_eq!( list.as_slice(), &["foo".into_c(), "geo".into(), "baz".into()] );
+    /// assert_eq!(list.swap_remove(1), "bar".into_c());
+    /// assert_eq!(
+    ///     list.as_slice(),
+    ///     &["foo".into_c(), "geo".into(), "baz".into()]
+    /// );
     ///
-    /// assert_eq!( list.swap_remove(0), "foo".into_c() );
-    /// assert_eq!( list.as_slice(), &["baz".to_string(), "geo".into()] );
+    /// assert_eq!(list.swap_remove(0), "foo".into_c());
+    /// assert_eq!(list.as_slice(), &["baz".to_string(), "geo".into()]);
     ///
     /// ```
     pub fn swap_remove(&mut self, index: usize) -> T {
@@ -729,7 +750,7 @@ impl<T> RVec<T> {
     /// assert_eq!(list.as_slice(), &[11]);
     ///
     /// assert_eq!(list.pop(), Some(11));
-    /// assert_eq!(list.as_rslice(), RSlice::<u32>::EMPTY );
+    /// assert_eq!(list.as_rslice(), RSlice::<u32>::EMPTY);
     ///
     /// assert_eq!(list.pop(), None);
     ///
@@ -758,10 +779,10 @@ impl<T> RVec<T> {
     /// let mut list = RVec::<u32>::from_slice(&[11, 22, 55, 66, 77]);
     ///
     /// list.truncate(3);
-    /// assert_eq!(list.as_slice(), &[11, 22, 55] );
+    /// assert_eq!(list.as_slice(), &[11, 22, 55]);
     ///
     /// list.truncate(0);
-    /// assert_eq!(list.as_rslice(), RSlice::<u32>::EMPTY  );
+    /// assert_eq!(list.as_rslice(), RSlice::<u32>::EMPTY);
     ///
     /// list.truncate(5555); //This is a no-op.
     /// ```    
@@ -782,11 +803,11 @@ impl<T> RVec<T> {
     ///
     /// let mut list = RVec::<u32>::from_slice(&[11, 22, 55]);
     ///
-    /// assert_eq!( list.as_slice(), &[11, 22, 55] );
+    /// assert_eq!(list.as_slice(), &[11, 22, 55]);
     ///
     /// list.clear();
-    /// assert_eq!( list.as_rslice(), RSlice::<u32>::EMPTY );
-    /// assert_ne!( list.capacity(), 0 );
+    /// assert_eq!(list.as_rslice(), RSlice::<u32>::EMPTY);
+    /// assert_ne!(list.capacity(), 0);
     ///
     /// ```
     pub fn clear(&mut self) {
@@ -804,13 +825,13 @@ impl<T> RVec<T> {
     /// use abi_stable::std_types::RVec;
     ///
     /// {
-    ///     let mut list = (0 ..= 10).collect::<Vec<u32>>();
-    ///     list.retain(|x| *x%3 == 0 );
+    ///     let mut list = (0..=10).collect::<Vec<u32>>();
+    ///     list.retain(|x| *x % 3 == 0);
     ///     assert_eq!(list.as_slice(), &[0, 3, 6, 9]);
     /// }
     /// {
-    ///     let mut list = (0 ..= 10).collect::<Vec<u32>>();
-    ///     list.retain(|x| *x%5 == 0 );
+    ///     let mut list = (0..=10).collect::<Vec<u32>>();
+    ///     list.retain(|x| *x % 5 == 0);
     ///     assert_eq!(list.as_slice(), &[0, 5, 10]);
     /// }
     ///
@@ -856,11 +877,11 @@ impl<T> RVec<T> {
     /// let mut list = RVec::<u32>::new();
     ///
     /// list.reserve(10);
-    /// assert!( list.capacity() >= 10 );
+    /// assert!(list.capacity() >= 10);
     ///
     /// let cap = list.capacity();
     /// list.extend(0..10);
-    /// assert_eq!( list.capacity(), cap );
+    /// assert_eq!(list.capacity(), cap);
     ///
     /// ```
     pub fn reserve(&mut self, additional: usize) {
@@ -879,11 +900,11 @@ impl<T> RVec<T> {
     /// let mut list = RVec::<u32>::new();
     ///
     /// list.reserve_exact(17);
-    /// assert_eq!( list.capacity(), 17 );
+    /// assert_eq!(list.capacity(), 17);
     ///
     /// let cap = list.capacity();
     /// list.extend(0..17);
-    /// assert_eq!( list.capacity(), cap );
+    /// assert_eq!(list.capacity(), cap);
     ///
     /// ```
     pub fn reserve_exact(&mut self, additional: usize) {
@@ -920,13 +941,13 @@ where
     /// let mut list = RVec::<u32>::new();
     ///
     /// list.resize(5, 88);
-    /// assert_eq!( list.as_slice(), &[88, 88, 88, 88, 88] );
+    /// assert_eq!(list.as_slice(), &[88, 88, 88, 88, 88]);
     ///
     /// list.resize(3, 0);
-    /// assert_eq!( list.as_slice(), &[88, 88, 88] );
+    /// assert_eq!(list.as_slice(), &[88, 88, 88]);
     ///
     /// list.resize(6, 123);
-    /// assert_eq!( list.as_slice(), &[88, 88, 88, 123, 123, 123] );
+    /// assert_eq!(list.as_slice(), &[88, 88, 88, 123, 123, 123]);
     ///
     /// ```
     pub fn resize(&mut self, new_len: usize, value: T) {
@@ -965,7 +986,7 @@ where
     /// list.extend_from_slice(&[99, 88]);
     /// list.extend_from_slice(&[77, 66]);
     ///
-    /// assert_eq!( list.as_slice(), &[99, 88, 77, 66] );
+    /// assert_eq!(list.as_slice(), &[99, 88, 77, 66]);
     /// ```
     pub fn extend_from_slice(&mut self, slic_: &[T]) {
         self.reserve(slic_.len());

@@ -108,13 +108,13 @@ impl<T> IntoIter<T> {
     ///
     /// let mut iter = RVec::from(vec![0, 1, 2, 3]).into_iter();
     ///
-    /// assert_eq!( iter.as_slice(), &[0, 1, 2, 3] );
+    /// assert_eq!(iter.as_slice(), &[0, 1, 2, 3]);
     ///
-    /// assert_eq!( iter.next(), Some(0) );
-    /// assert_eq!( iter.as_slice(), &[1, 2, 3] );
+    /// assert_eq!(iter.next(), Some(0));
+    /// assert_eq!(iter.as_slice(), &[1, 2, 3]);
     ///
-    /// assert_eq!( iter.next_back(), Some(3) );
-    /// assert_eq!( iter.as_slice(), &[1, 2] );
+    /// assert_eq!(iter.next_back(), Some(3));
+    /// assert_eq!(iter.as_slice(), &[1, 2]);
     ///
     /// ```
     pub fn as_slice(&self) -> &[T] {
@@ -130,13 +130,13 @@ impl<T> IntoIter<T> {
     ///
     /// let mut iter = RVec::from(vec![0, 1, 2, 3]).into_iter();
     ///
-    /// assert_eq!( iter.as_mut_slice(), &mut [0, 1, 2, 3] );
+    /// assert_eq!(iter.as_mut_slice(), &mut [0, 1, 2, 3]);
     ///
-    /// assert_eq!( iter.next(), Some(0) );
-    /// assert_eq!( iter.as_mut_slice(), &mut [1, 2, 3] );
+    /// assert_eq!(iter.next(), Some(0));
+    /// assert_eq!(iter.as_mut_slice(), &mut [1, 2, 3]);
     ///
-    /// assert_eq!( iter.next_back(), Some(3) );
-    /// assert_eq!( iter.as_mut_slice(), &mut [1, 2] );
+    /// assert_eq!(iter.next_back(), Some(3));
+    /// assert_eq!(iter.as_mut_slice(), &mut [1, 2]);
     ///
     /// ```
     pub fn as_mut_slice(&mut self) -> &mut [T] {
@@ -194,13 +194,13 @@ impl<'a, T> Drain<'a, T> {
     /// let mut list = (0..8).collect::<RVec<u8>>();
     /// let mut iter = list.drain(3..7);
     ///
-    /// assert_eq!( iter.as_slice(), &[3, 4, 5, 6] );
+    /// assert_eq!(iter.as_slice(), &[3, 4, 5, 6]);
     ///
-    /// assert_eq!( iter.next(), Some(3) );
-    /// assert_eq!( iter.as_slice(), &[4, 5, 6] );
+    /// assert_eq!(iter.next(), Some(3));
+    /// assert_eq!(iter.as_slice(), &[4, 5, 6]);
     ///
-    /// assert_eq!( iter.next(), Some(4) );
-    /// assert_eq!( iter.as_slice(), &[5, 6] );
+    /// assert_eq!(iter.next(), Some(4));
+    /// assert_eq!(iter.as_slice(), &[5, 6]);
     ///
     /// drop(iter);
     ///
@@ -221,13 +221,13 @@ impl<'a, T> Drain<'a, T> {
     /// let mut list = (0..8).collect::<RVec<u8>>();
     /// let mut iter = list.drain(3..7);
     ///
-    /// assert_eq!( iter.as_mut_slice(), &mut [3, 4, 5, 6] );
+    /// assert_eq!(iter.as_mut_slice(), &mut [3, 4, 5, 6]);
     ///
-    /// assert_eq!( iter.next(), Some(3) );
-    /// assert_eq!( iter.as_mut_slice(), &mut [4, 5, 6] );
+    /// assert_eq!(iter.next(), Some(3));
+    /// assert_eq!(iter.as_mut_slice(), &mut [4, 5, 6]);
     ///
-    /// assert_eq!( iter.next(), Some(4) );
-    /// assert_eq!( iter.as_mut_slice(), &mut [5, 6] );
+    /// assert_eq!(iter.next(), Some(4));
+    /// assert_eq!(iter.as_mut_slice(), &mut [5, 6]);
     ///
     /// drop(iter);
     ///

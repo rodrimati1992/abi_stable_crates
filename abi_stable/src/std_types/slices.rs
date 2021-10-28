@@ -63,21 +63,18 @@ mod private {
     /// the first element that compares equal to a parameter.
     ///
     /// ```
-    /// use abi_stable::{
-    ///     std_types::RSlice,
-    ///     sabi_extern_fn,
-    /// };
+    /// use abi_stable::{sabi_extern_fn, std_types::RSlice};
     ///
     /// #[sabi_extern_fn]
     /// pub fn find_first_mut<'a, T>(slice_: RSlice<'a, T>, element: &T) -> Option<&'a T>
     /// where
-    ///     T: std::cmp::PartialEq
+    ///     T: std::cmp::PartialEq,
     /// {
-    ///     slice_.iter()
-    ///     .position(|x| x == element )
-    ///     .map(|i| &slice_.as_slice()[i] )
+    ///     slice_
+    ///         .iter()
+    ///         .position(|x| x == element)
+    ///         .map(|i| &slice_.as_slice()[i])
     /// }
-    ///
     ///
     /// ```
     #[repr(C)]
@@ -134,10 +131,8 @@ mod private {
         /// ```
         /// use abi_stable::std_types::RSlice;
         ///
-        /// fn convert<T>(slice_: &[T]) -> RSlice<'_, T>{
-        ///     unsafe{
-        ///         RSlice::from_raw_parts( slice_.as_ptr(), slice_.len() )
-        ///     }
+        /// fn convert<T>(slice_: &[T]) -> RSlice<'_, T> {
+        ///     unsafe { RSlice::from_raw_parts(slice_.as_ptr(), slice_.len()) }
         /// }
         ///
         /// ```
@@ -232,10 +227,9 @@ impl<'a, T> RSlice<'a, T> {
     /// ```
     /// use abi_stable::std_types::RSlice;
     ///
-    /// assert_eq!(RSlice::from_ref(&0), RSlice::from_slice(&[0]) );
-    /// assert_eq!(RSlice::from_ref(&1), RSlice::from_slice(&[1]) );
-    /// assert_eq!(RSlice::from_ref(&2), RSlice::from_slice(&[2]) );
-    ///
+    /// assert_eq!(RSlice::from_ref(&0), RSlice::from_slice(&[0]));
+    /// assert_eq!(RSlice::from_ref(&1), RSlice::from_slice(&[1]));
+    /// assert_eq!(RSlice::from_ref(&2), RSlice::from_slice(&[2]));
     ///
     /// ```
     pub const fn from_ref(ref_: &'a T) -> Self {
@@ -252,8 +246,8 @@ impl<'a, T> RSlice<'a, T> {
     /// let empty: &[u8] = &[];
     ///
     /// assert_eq!(RSlice::<u8>::from_slice(&[]).as_slice(), empty);
-    /// assert_eq!(RSlice::from_slice(&[0]).as_slice()     , &[0][..]);
-    /// assert_eq!(RSlice::from_slice(&[0, 1]).as_slice()   , &[0, 1][..]);
+    /// assert_eq!(RSlice::from_slice(&[0]).as_slice(), &[0][..]);
+    /// assert_eq!(RSlice::from_slice(&[0, 1]).as_slice(), &[0, 1][..]);
     ///
     /// ```
     #[inline]
@@ -295,10 +289,10 @@ impl<'a, T> RSlice<'a, T> {
     ///
     /// let slic = RSlice::from_slice(&[0, 1, 2, 3]);
     ///
-    /// assert_eq!( slic.slice(..).to_rvec(), RVec::from_slice(&[0, 1, 2, 3]) );
-    /// assert_eq!( slic.slice(..2).to_rvec(), RVec::from_slice(&[0, 1]) );
-    /// assert_eq!( slic.slice(2..).to_rvec(), RVec::from_slice(&[2, 3]) );
-    /// assert_eq!( slic.slice(1..3).to_rvec(), RVec::from_slice(&[1, 2]) );
+    /// assert_eq!(slic.slice(..).to_rvec(), RVec::from_slice(&[0, 1, 2, 3]));
+    /// assert_eq!(slic.slice(..2).to_rvec(), RVec::from_slice(&[0, 1]));
+    /// assert_eq!(slic.slice(2..).to_rvec(), RVec::from_slice(&[2, 3]));
+    /// assert_eq!(slic.slice(1..3).to_rvec(), RVec::from_slice(&[1, 2]));
     ///
     /// ```
     pub fn to_rvec(&self) -> RVec<T>

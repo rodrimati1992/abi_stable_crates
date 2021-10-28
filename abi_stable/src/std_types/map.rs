@@ -81,11 +81,11 @@ pub use self::{
 ///     assert!(k == "dictionary" || k == "pictograph");
 ///
 ///     assert!(
-///         v == "A book/document containing definitions of words"
-///             || v == "A picture representating of a word.",
+///         v == "A book/document containing definitions of words" ||
+///         v == "A picture representating of a word.",
 ///         "{} => {}",
 ///         k,
-///         v
+///         v,
 ///     );
 /// }
 ///

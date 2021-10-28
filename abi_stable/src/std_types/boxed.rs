@@ -69,7 +69,6 @@ mod private {
     ///     },
     /// }
     ///
-    ///
     /// ```
     ///
     #[repr(C)]
@@ -135,8 +134,8 @@ mod private {
         ///     std_types::RBox,
         /// };
         ///
-        /// let b = RSmallBox::<_, [u8;1]>::new(77u8);
-        /// let rbox: RBox<_>  = b.in_move_ptr(|x| RBox::from_move_ptr(x) );
+        /// let b = RSmallBox::<_, [u8; 1]>::new(77u8);
+        /// let rbox: RBox<_> = b.in_move_ptr(|x| RBox::from_move_ptr(x));
         ///
         /// assert_eq!(*rbox, 77);
         ///
@@ -209,8 +208,8 @@ impl<T> RBox<T> {
     /// ```
     /// use abi_stable::std_types::RBox;
     ///
-    /// let baux: RBox<u32>  = RBox::new(200);
-    /// let baux: Box<u32>  = RBox::into_box(baux);
+    /// let baux: RBox<u32> = RBox::new(200);
+    /// let baux: Box<u32> = RBox::into_box(baux);
     /// assert_eq!(*baux, 200);
     ///
     /// ```
@@ -244,7 +243,7 @@ impl<T> RBox<T> {
     /// ```
     /// use abi_stable::std_types::RBox;
     ///
-    /// let baux: RBox<u32>  = RBox::new(200);
+    /// let baux: RBox<u32> = RBox::new(200);
     /// let baux: u32 = RBox::into_inner(baux);
     /// assert_eq!(baux, 200);
     ///

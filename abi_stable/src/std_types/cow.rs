@@ -230,7 +230,7 @@ where
     /// ```
     /// use abi_stable::std_types::RCow;
     ///
-    /// let mut cow: RCow<'_, str>  = RCow::from("Hello");
+    /// let mut cow: RCow<'_, str> = RCow::from("Hello");
     ///
     /// assert_eq!(&*cow, "Hello");
     /// assert!(cow.is_borrowed());
@@ -259,7 +259,7 @@ where
     /// ```
     /// use abi_stable::std_types::RCow;
     ///
-    /// let mut cow: RCow<'_, str>  = RCow::from("Hello");
+    /// let mut cow: RCow<'_, str> = RCow::from("Hello");
     ///
     /// assert_eq!(&*cow, "Hello");
     ///
@@ -283,12 +283,12 @@ where
     /// ```
     /// use abi_stable::std_types::{RCow, RSlice};
     /// {
-    ///     let cow: RCow<'_, [u8]>  = RCow::from(&[0, 1, 2, 3][..]);
-    ///     assert_eq!( cow.borrowed(), RSlice::from_slice(&[0, 1, 2, 3]) );
+    ///     let cow: RCow<'_, [u8]> = RCow::from(&[0, 1, 2, 3][..]);
+    ///     assert_eq!(cow.borrowed(), RSlice::from_slice(&[0, 1, 2, 3]));
     /// }
     /// {
-    ///     let cow: RCow<'_, [u8]>  = RCow::from(vec![0, 1, 2, 3]);
-    ///     assert_eq!( cow.borrowed(), RSlice::from_slice(&[0, 1, 2, 3]) );
+    ///     let cow: RCow<'_, [u8]> = RCow::from(vec![0, 1, 2, 3]);
+    ///     assert_eq!(cow.borrowed(), RSlice::from_slice(&[0, 1, 2, 3]));
     /// }
     /// ```
     pub fn borrowed<'b: 'a>(&'b self) -> <B as BorrowOwned<'b>>::RBorrowed {
@@ -306,12 +306,12 @@ where
     /// use abi_stable::std_types::RCow;
     ///
     /// {
-    ///     let cow: RCow<'_, [u8]>  = RCow::from(&[0, 1, 2, 3][..]);
-    ///     assert!( cow.is_borrowed() );
+    ///     let cow: RCow<'_, [u8]> = RCow::from(&[0, 1, 2, 3][..]);
+    ///     assert!(cow.is_borrowed());
     /// }
     /// {
-    ///     let cow: RCow<'_, [u8]>  = RCow::from(vec![0, 1, 2, 3]);
-    ///     assert!( !cow.is_borrowed() );
+    ///     let cow: RCow<'_, [u8]> = RCow::from(vec![0, 1, 2, 3]);
+    ///     assert!(!cow.is_borrowed());
     /// }
     ///
     /// ```
@@ -326,11 +326,11 @@ where
     /// ```
     /// use abi_stable::std_types::RCow;
     ///
-    /// let cow: RCow<'_, [u8]>  = RCow::from(&[0, 1, 2, 3][..]);
-    /// assert!( !cow.is_owned() );
+    /// let cow: RCow<'_, [u8]> = RCow::from(&[0, 1, 2, 3][..]);
+    /// assert!(!cow.is_owned());
     ///
-    /// let cow: RCow<'_, [u8]>  = RCow::from(vec![0, 1, 2, 3]);
-    /// assert!( cow.is_owned() );
+    /// let cow: RCow<'_, [u8]> = RCow::from(vec![0, 1, 2, 3]);
+    /// assert!(cow.is_owned());
     ///
     /// ```
     pub fn is_owned(&self) -> bool {
@@ -756,7 +756,6 @@ where
 ///
 /// assert!(deserialized_slice.cow.is_borrowed());
 ///
-///
 /// ```
 ///
 #[derive(Deserialize)]
@@ -785,7 +784,6 @@ pub struct BorrowingRCowU8Slice<'a> {
 /// assert_eq!(&*deserialized_slice.cow, json.trim_matches('"'));
 ///
 /// assert!(deserialized_slice.cow.is_borrowed());
-///
 ///
 /// ```
 ///

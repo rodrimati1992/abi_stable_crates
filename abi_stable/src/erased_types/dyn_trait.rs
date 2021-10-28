@@ -352,7 +352,7 @@ mod priv_ {
     ///         serde_json::to_string(&object).unwrap(),
     ///         r##"{"name":"nope"}"##
     ///     );
-    /// # }
+    /// }
     ///
     /// ```
     ///

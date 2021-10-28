@@ -29,8 +29,8 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .as_ref(), RSome(&10));
-    /// assert_eq!(RNone::<u32>.as_ref(), RNone     );
+    /// assert_eq!(RSome(10).as_ref(), RSome(&10));
+    /// assert_eq!(RNone::<u32>.as_ref(), RNone);
     ///
     /// ```
     #[inline]
@@ -48,8 +48,8 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .as_mut(), RSome(&mut 10));
-    /// assert_eq!(RNone::<u32>.as_mut(), RNone );
+    /// assert_eq!(RSome(10).as_mut(), RSome(&mut 10));
+    /// assert_eq!(RNone::<u32>.as_mut(), RNone);
     ///
     /// ```
     #[inline]
@@ -67,7 +67,7 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .is_rsome(), true);
+    /// assert_eq!(RSome(10).is_rsome(), true);
     /// assert_eq!(RNone::<u32>.is_rsome(), false);
     ///
     /// ```
@@ -83,7 +83,7 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .is_rnone(), false);
+    /// assert_eq!(RSome(10).is_rnone(), false);
     /// assert_eq!(RNone::<u32>.is_rnone(), true);
     ///
     /// ```
@@ -99,7 +99,7 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .is_some(), true);
+    /// assert_eq!(RSome(10).is_some(), true);
     /// assert_eq!(RNone::<u32>.is_some(), false);
     ///
     /// ```
@@ -115,7 +115,7 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .is_none(), false);
+    /// assert_eq!(RSome(10).is_none(), false);
     /// assert_eq!(RNone::<u32>.is_none(), true);
     ///
     /// ```
@@ -131,8 +131,8 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .into_option(), Some(10));
-    /// assert_eq!(RNone::<u32>.into_option(), None     );
+    /// assert_eq!(RSome(10).into_option(), Some(10));
+    /// assert_eq!(RNone::<u32>.into_option(), None);
     ///
     /// ```
     #[inline]
@@ -151,7 +151,7 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!( RSome(100).expect("must contain a value"), 100 );
+    /// assert_eq!(RSome(100).expect("must contain a value"), 100);
     ///
     /// ```
     ///
@@ -176,7 +176,7 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!( RSome(500).unwrap(), 500 );
+    /// assert_eq!(RSome(500).unwrap(), 500);
     ///
     /// ```
     ///
@@ -198,7 +198,7 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .unwrap_or(99), 10);
+    /// assert_eq!(RSome(10).unwrap_or(99), 10);
     /// assert_eq!(RNone::<u32>.unwrap_or(99), 99);
     ///
     /// ```
@@ -217,7 +217,7 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .unwrap_or_default(), 10);
+    /// assert_eq!(RSome(10).unwrap_or_default(), 10);
     /// assert_eq!(RNone::<u32>.unwrap_or_default(), 0);
     ///
     /// ```
@@ -240,8 +240,8 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .unwrap_or_else(|| 77 ), 10);
-    /// assert_eq!(RNone::<u32>.unwrap_or_else(|| 77 ), 77);
+    /// assert_eq!(RSome(10).unwrap_or_else(|| 77), 10);
+    /// assert_eq!(RNone::<u32>.unwrap_or_else(|| 77), 77);
     ///
     /// ```
     #[inline]
@@ -263,8 +263,8 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .map(|x| x*2 ), RSome(20));
-    /// assert_eq!(RNone::<u32>.map(|x| x*2 ), RNone);
+    /// assert_eq!(RSome(10).map(|x| x * 2), RSome(20));
+    /// assert_eq!(RNone::<u32>.map(|x| x * 2), RNone);
     ///
     /// ```
     #[inline]
@@ -286,8 +286,8 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .map_or(77, |x| x*2 ), 20);
-    /// assert_eq!(RNone::<u32>.map_or(77, |x| x*2 ), 77);
+    /// assert_eq!(RSome(10).map_or(77, |x| x * 2), 20);
+    /// assert_eq!(RNone::<u32>.map_or(77, |x| x * 2), 77);
     ///
     /// ```
     #[inline]
@@ -309,8 +309,8 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10)   .map_or_else(||77, |x| x*2 ), 20);
-    /// assert_eq!(RNone::<u32>.map_or_else(||77, |x| x*2 ), 77);
+    /// assert_eq!(RSome(10).map_or_else(|| 77, |x| x * 2), 20);
+    /// assert_eq!(RNone::<u32>.map_or_else(|| 77, |x| x * 2), 77);
     ///
     /// ```
     #[inline]
@@ -332,10 +332,10 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10).filter(|x| (x%2) == 0 ), RSome(10));
-    /// assert_eq!(RSome(10).filter(|x| (x%2) == 1 ), RNone    );
-    /// assert_eq!(RNone::<u32>.filter(|_| true     ), RNone    );
-    /// assert_eq!(RNone::<u32>.filter(|_| false    ), RNone    );
+    /// assert_eq!(RSome(10).filter(|x| (x % 2) == 0), RSome(10));
+    /// assert_eq!(RSome(10).filter(|x| (x % 2) == 1), RNone);
+    /// assert_eq!(RNone::<u32>.filter(|_| true), RNone);
+    /// assert_eq!(RNone::<u32>.filter(|_| false), RNone);
     ///
     /// ```
     pub fn filter<P>(self, predicate: P) -> Self
@@ -358,9 +358,9 @@ impl<T> ROption<T> {
     /// # use abi_stable::std_types::*;
     ///
     /// assert_eq!(RSome(10).and(RSome(20)), RSome(20));
-    /// assert_eq!(RSome(10).and(RNone    ), RNone);
+    /// assert_eq!(RSome(10).and(RNone), RNone);
     /// assert_eq!(RNone::<u32>.and(RSome(20)), RNone);
-    /// assert_eq!(RNone::<u32>.and(RNone    ), RNone);
+    /// assert_eq!(RNone::<u32>.and(RNone), RNone);
     ///
     /// ```
     #[inline]
@@ -379,10 +379,10 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10).and_then(|x|RSome(x * 2)), RSome(20));
-    /// assert_eq!(RSome(10).and_then(|_|RNone::<u32>), RNone);
-    /// assert_eq!(RNone::<u32>.and_then(|x|RSome(x * 2)), RNone);
-    /// assert_eq!(RNone::<u32>.and_then(|_|RNone::<u32>), RNone);
+    /// assert_eq!(RSome(10).and_then(|x| RSome(x * 2)), RSome(20));
+    /// assert_eq!(RSome(10).and_then(|_| RNone::<u32>), RNone);
+    /// assert_eq!(RNone::<u32>.and_then(|x| RSome(x * 2)), RNone);
+    /// assert_eq!(RNone::<u32>.and_then(|_| RNone::<u32>), RNone);
     ///
     /// ```
     #[inline]
@@ -425,10 +425,10 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10).or_else(|| RSome(20) ), RSome(10));
-    /// assert_eq!(RSome(10).or_else(|| RNone     ), RSome(10));
-    /// assert_eq!(RNone::<u32>.or_else(|| RSome(20) ), RSome(20));
-    /// assert_eq!(RNone::<u32>.or_else(|| RNone     ), RNone);
+    /// assert_eq!(RSome(10).or_else(|| RSome(20)), RSome(10));
+    /// assert_eq!(RSome(10).or_else(|| RNone), RSome(10));
+    /// assert_eq!(RNone::<u32>.or_else(|| RSome(20)), RSome(20));
+    /// assert_eq!(RNone::<u32>.or_else(|| RNone), RNone);
     ///
     /// ```
     #[inline]
@@ -450,10 +450,10 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10).xor(RSome(20)), RNone    );
-    /// assert_eq!(RSome(10).xor(RNone    ), RSome(10));
+    /// assert_eq!(RSome(10).xor(RSome(20)), RNone);
+    /// assert_eq!(RSome(10).xor(RNone), RSome(10));
     /// assert_eq!(RNone::<u32>.xor(RSome(20)), RSome(20));
-    /// assert_eq!(RNone::<u32>.xor(RNone    ), RNone    );
+    /// assert_eq!(RNone::<u32>.xor(RNone), RNone);
     ///
     /// ```
     #[inline]
@@ -498,9 +498,9 @@ impl<T> ROption<T> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(RSome(10).get_or_insert_with(||40), &mut 10);
-    /// assert_eq!(RSome(20).get_or_insert_with(||55), &mut 20);
-    /// assert_eq!(RNone::<u32>.get_or_insert_with(||77), &mut 77);
+    /// assert_eq!(RSome(10).get_or_insert_with(|| 40), &mut 10);
+    /// assert_eq!(RSome(20).get_or_insert_with(|| 55), &mut 20);
+    /// assert_eq!(RNone::<u32>.get_or_insert_with(|| 77), &mut 77);
     ///
     /// ```
     #[inline]
@@ -578,7 +578,7 @@ impl<T> ROption<&T> {
     /// # use abi_stable::std_types::*;
     ///
     /// assert_eq!(RSome(&vec![()]).cloned(), RSome(vec![()]));
-    /// assert_eq!(RNone::<&Vec<()>>.cloned(), RNone        );
+    /// assert_eq!(RNone::<&Vec<()>>.cloned(), RNone);
     ///
     /// ```
     #[inline]
@@ -624,7 +624,7 @@ impl<T> ROption<&mut T> {
     /// # use abi_stable::std_types::*;
     ///
     /// assert_eq!(RSome(&mut vec![()]).cloned(), RSome(vec![()]));
-    /// assert_eq!(RNone::<&mut Vec<()>>.cloned(), RNone    );
+    /// assert_eq!(RNone::<&mut Vec<()>>.cloned(), RNone);
     ///
     /// ```
     #[inline]
@@ -646,7 +646,7 @@ impl<T> ROption<&mut T> {
     /// # use abi_stable::std_types::*;
     ///
     /// assert_eq!(RSome(&mut 7).copied(), RSome(7));
-    /// assert_eq!(RNone::<&mut u32>.copied(), RNone   );
+    /// assert_eq!(RNone::<&mut u32>.copied(), RNone);
     ///
     /// ```
     #[inline]

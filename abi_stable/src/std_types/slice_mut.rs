@@ -144,10 +144,9 @@ mod privacy {
         /// ```
         /// use abi_stable::std_types::RSliceMut;
         ///
-        /// assert_eq!(RSliceMut::<u8>::from_mut_slice(&mut[]).len(), 0);
-        /// assert_eq!(RSliceMut::from_mut_slice(&mut[0]).len(), 1);
-        /// assert_eq!(RSliceMut::from_mut_slice(&mut[0, 1]).len(), 2);
-        ///
+        /// assert_eq!(RSliceMut::<u8>::from_mut_slice(&mut []).len(), 0);
+        /// assert_eq!(RSliceMut::from_mut_slice(&mut [0]).len(), 1);
+        /// assert_eq!(RSliceMut::from_mut_slice(&mut [0, 1]).len(), 2);
         ///
         /// ```
         #[inline(always)]
@@ -195,11 +194,9 @@ mod privacy {
         /// ```
         /// use abi_stable::std_types::RSliceMut;
         ///
-        /// fn convert<T>(slice_: &mut [T]) -> RSliceMut<'_, T>{
+        /// fn convert<T>(slice_: &mut [T]) -> RSliceMut<'_, T> {
         ///     let len = slice_.len();
-        ///     unsafe{
-        ///         RSliceMut::from_raw_parts_mut( slice_.as_mut_ptr(), len )
-        ///     }
+        ///     unsafe { RSliceMut::from_raw_parts_mut(slice_.as_mut_ptr(), len) }
         /// }
         ///
         /// ```
@@ -230,10 +227,18 @@ impl<'a, T> RSliceMut<'a, T> {
     /// ```
     /// use abi_stable::std_types::RSliceMut;
     ///
-    /// assert_eq!(RSliceMut::from_mut(&mut 0), RSliceMut::from_mut_slice(&mut [0]) );
-    /// assert_eq!(RSliceMut::from_mut(&mut 1), RSliceMut::from_mut_slice(&mut [1]) );
-    /// assert_eq!(RSliceMut::from_mut(&mut 2), RSliceMut::from_mut_slice(&mut [2]) );
-    ///
+    /// assert_eq!(
+    ///     RSliceMut::from_mut(&mut 0),
+    ///     RSliceMut::from_mut_slice(&mut [0])
+    /// );
+    /// assert_eq!(
+    ///     RSliceMut::from_mut(&mut 1),
+    ///     RSliceMut::from_mut_slice(&mut [1])
+    /// );
+    /// assert_eq!(
+    ///     RSliceMut::from_mut(&mut 2),
+    ///     RSliceMut::from_mut_slice(&mut [2])
+    /// );
     ///
     /// ```
     pub fn from_mut(ref_: &'a mut T) -> Self {
@@ -249,9 +254,18 @@ impl<'a, T> RSliceMut<'a, T> {
     ///
     /// let empty: &mut [u8] = &mut [];
     ///
-    /// assert_eq!(RSliceMut::<u8>::from_mut_slice(&mut[]).as_mut_slice(), empty);
-    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0]).as_mut_slice()     , &mut [0][..]);
-    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0, 1]).as_mut_slice()   , &mut [0, 1][..]);
+    /// assert_eq!(
+    ///     RSliceMut::<u8>::from_mut_slice(&mut []).as_mut_slice(),
+    ///     empty
+    /// );
+    /// assert_eq!(
+    ///     RSliceMut::from_mut_slice(&mut [0]).as_mut_slice(),
+    ///     &mut [0][..]
+    /// );
+    /// assert_eq!(
+    ///     RSliceMut::from_mut_slice(&mut [0, 1]).as_mut_slice(),
+    ///     &mut [0, 1][..]
+    /// );
     ///
     /// ```
     #[inline]
@@ -267,9 +281,9 @@ impl<'a, T> RSliceMut<'a, T> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RSliceMut, RSlice};
+    /// use abi_stable::std_types::{RSlice, RSliceMut};
     ///
-    /// let slic = &mut[0, 1, 2, 3];
+    /// let slic = &mut [0, 1, 2, 3];
     /// let slic = RSliceMut::from_mut_slice(slic);
     ///
     /// assert_eq!(slic.slice(..), RSlice::from_slice(&[0, 1, 2, 3]));
@@ -296,13 +310,16 @@ impl<'a, T> RSliceMut<'a, T> {
     /// ```
     /// use abi_stable::std_types::RSliceMut;
     ///
-    /// let slic = &mut[0, 1, 2, 3];
+    /// let slic = &mut [0, 1, 2, 3];
     /// let mut slic = RSliceMut::from_mut_slice(slic);
     ///
-    /// assert_eq!(slic.slice_mut(..), RSliceMut::from_mut_slice(&mut[0, 1, 2, 3]));
-    /// assert_eq!(slic.slice_mut(..2), RSliceMut::from_mut_slice(&mut[0, 1]));
-    /// assert_eq!(slic.slice_mut(2..), RSliceMut::from_mut_slice(&mut[2, 3]));
-    /// assert_eq!(slic.slice_mut(1..3), RSliceMut::from_mut_slice(&mut[1, 2]));
+    /// assert_eq!(
+    ///     slic.slice_mut(..),
+    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3])
+    /// );
+    /// assert_eq!(slic.slice_mut(..2), RSliceMut::from_mut_slice(&mut [0, 1]));
+    /// assert_eq!(slic.slice_mut(2..), RSliceMut::from_mut_slice(&mut [2, 3]));
+    /// assert_eq!(slic.slice_mut(1..3), RSliceMut::from_mut_slice(&mut [1, 2]));
     ///
     /// ```
     #[allow(clippy::needless_lifetimes)]
@@ -320,7 +337,7 @@ impl<'a, T> RSliceMut<'a, T> {
     /// ```
     /// use abi_stable::std_types::{RSliceMut, RVec};
     ///
-    /// let slic = &mut[0, 1, 2, 3];
+    /// let slic = &mut [0, 1, 2, 3];
     /// let slic = RSliceMut::from_mut_slice(slic);
     ///
     /// assert_eq!(slic.slice(..).to_rvec(), RVec::from_slice(&[0, 1, 2, 3]));
@@ -351,7 +368,10 @@ impl<'a, T> RSliceMut<'a, T> {
     /// ```
     /// use abi_stable::std_types::RSliceMut;
     ///
-    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0, 1, 2, 3]).as_slice(), &[0, 1, 2, 3]);
+    /// assert_eq!(
+    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]).as_slice(),
+    ///     &[0, 1, 2, 3]
+    /// );
     ///
     /// ```
     pub fn as_slice(&self) -> &[T] {
@@ -368,7 +388,10 @@ impl<'a, T> RSliceMut<'a, T> {
     /// ```
     /// use abi_stable::std_types::RSliceMut;
     ///
-    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0, 1, 2, 3]).into_slice(), &[0, 1, 2, 3]);
+    /// assert_eq!(
+    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]).into_slice(),
+    ///     &[0, 1, 2, 3]
+    /// );
     ///
     /// ```
     pub fn into_slice(self) -> &'a [T] {
@@ -380,10 +403,10 @@ impl<'a, T> RSliceMut<'a, T> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RSliceMut, RSlice};
+    /// use abi_stable::std_types::{RSlice, RSliceMut};
     ///
     /// assert_eq!(
-    ///     RSliceMut::from_mut_slice(&mut[0, 1, 2, 3]).as_rslice(),
+    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]).as_rslice(),
     ///     RSlice::from_slice(&[0, 1, 2, 3]),
     /// );
     ///
@@ -400,10 +423,10 @@ impl<'a, T> RSliceMut<'a, T> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RSliceMut, RSlice};
+    /// use abi_stable::std_types::{RSlice, RSliceMut};
     ///
     /// assert_eq!(
-    ///     RSliceMut::from_mut_slice(&mut[0, 1, 2, 3]).into_rslice(),
+    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]).into_rslice(),
     ///     RSlice::from_slice(&[0, 1, 2, 3]),
     /// );
     ///
@@ -419,7 +442,10 @@ impl<'a, T> RSliceMut<'a, T> {
     /// ```
     /// use abi_stable::std_types::RSliceMut;
     ///
-    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0, 1, 2, 3]).as_mut_slice(), &mut [0, 1, 2, 3]);
+    /// assert_eq!(
+    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]).as_mut_slice(),
+    ///     &mut [0, 1, 2, 3]
+    /// );
     ///
     /// ```
     pub fn as_mut_slice(&mut self) -> &mut [T] {
@@ -436,7 +462,10 @@ impl<'a, T> RSliceMut<'a, T> {
     /// ```
     /// use abi_stable::std_types::RSliceMut;
     ///
-    /// assert_eq!(RSliceMut::from_mut_slice(&mut[0, 1, 2, 3]).into_mut_slice(), &mut [0, 1, 2, 3]);
+    /// assert_eq!(
+    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]).into_mut_slice(),
+    ///     &mut [0, 1, 2, 3]
+    /// );
     ///
     /// ```
     pub fn into_mut_slice(mut self) -> &'a mut [T] {
