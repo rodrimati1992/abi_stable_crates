@@ -1201,7 +1201,7 @@ impl<T> RVec<T> {
     /// ```
     ///
     ///
-    pub fn drain<I>(&mut self, index: I) -> Drain<'_, T>
+    pub fn drain<R>(&mut self, range: R) -> Drain<'_, T>
     where
         R: RangeBounds<usize>,
     {

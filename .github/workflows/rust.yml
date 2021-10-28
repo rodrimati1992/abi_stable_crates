@@ -12,13 +12,24 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        rust: [stable, beta, nightly, 1.41.0]
+        rust: [stable, beta, nightly, 1.41.0, 1.51.0]
         os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
     - name: enable-rust-stable
-      if: matrix.rust == 'stable' || matrix.rust == 'beta' || matrix.rust == 'nightly'
+      if: matrix.rust == '1.51.0' 
       run: echo "rustv=rust_1_51" >> $GITHUB_ENV
+
+    - name: enable-rust-stable
+      if: matrix.rust == 'stable' || matrix.rust == 'beta' || matrix.rust == 'nightly'
+      run: echo "rustv=rust_latest_stable" >> $GITHUB_ENV
+
+    - uses: actions/checkout@v2
+    - name: ci-format
+      run: |
+        rustup override set ${{ matrix.rust }}
+        cd "${{github.workspace}}/"
+        cargo fmt -- --check
 
     - uses: actions/checkout@v2
     - name: ci-all-versions
