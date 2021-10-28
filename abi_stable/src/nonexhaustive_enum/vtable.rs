@@ -2,6 +2,7 @@ use std::{
     cmp::{Ord, PartialEq, PartialOrd},
     fmt::{Debug, Display},
     hash::Hash,
+    marker::PhantomData,
 };
 
 use crate::{
@@ -22,8 +23,19 @@ use crate::{
     StableAbi,
 };
 
+#[doc(hidden)]
+pub struct Private<T: ?Sized, S: ?Sized, I: ?Sized>(
+    PhantomData<(PhantomData<T>, PhantomData<S>, PhantomData<I>)>,
+);
+
 /// Gets the vtable of `NonExhaustive<Self,S,I>`.
-pub unsafe trait GetVTable<S, I>: GetEnumInfo {
+///
+/// This trait cannot be implemented outside of `abi_stable`, it can only be used.
+pub trait GetVTable<S, I>: GetEnumInfo {
+    // Using privacy to make it impossible to implement this trait outside this module.
+    #[doc(hidden)]
+    const __HIDDEN_10341423423__: Private<Self, S, I>;
+
     #[doc(hidden)]
     const VTABLE_VAL: NonExhaustiveVtable<Self, S, I>;
 
@@ -35,7 +47,7 @@ pub unsafe trait GetVTable<S, I>: GetEnumInfo {
 
     #[doc(hidden)]
     const VTABLE_REF: NonExhaustiveVtable_Ref<Self, S, I> =
-        unsafe { NonExhaustiveVtable_Ref(Self::VTABLE_WM.as_prefix()) };
+        NonExhaustiveVtable_Ref(Self::VTABLE_WM.as_prefix());
 }
 
 /// The vtable for NonExhaustive<>.
@@ -106,7 +118,7 @@ pub struct NonExhaustiveVtable<E, S, I> {
 unsafe impl<E, S, I> Sync for NonExhaustiveVtable<E, S, I> {}
 unsafe impl<E, S, I> Send for NonExhaustiveVtable<E, S, I> {}
 
-unsafe impl<E, S, I> GetVTable<S, I> for E
+impl<E, S, I> GetVTable<S, I> for E
 where
     S: InlineStorage,
     I: InterfaceType,
@@ -122,6 +134,8 @@ where
     I::Ord: InitOrdField<E, S, I>,
     I::Hash: InitHashField<E, S, I>,
 {
+    const __HIDDEN_10341423423__: Private<Self, S, I> = Private(PhantomData);
+
     #[doc(hidden)]
     const VTABLE_VAL: NonExhaustiveVtable<E, S, I> = NonExhaustiveVtable {
         _sabi_tys: UnsafeIgnoredType::DEFAULT,

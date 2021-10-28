@@ -1233,7 +1233,7 @@ mod priv_ {
         where
             P: AsPtr,
         {
-            unsafe { RRef::from_raw(self.object.as_ptr() as *const ErasedObject) }
+            RRef::from_raw(self.object.as_ptr() as *const ErasedObject)
         }
 
         /// Gets a mutable reference pointing to the erased object.
@@ -1648,10 +1648,8 @@ mod priv_ {
                 self.sabi_check_same_destructor::<InterfaceFor<T, I, TD_CanDowncast>, T>()
             );
             unsafe {
-                unsafe {
-                    let this = ManuallyDrop::new(self);
-                    Ok(ptr::read(&*this.object).transmute_element::<T>())
-                }
+                let this = ManuallyDrop::new(self);
+                Ok(ptr::read(&*this.object).transmute_element::<T>())
             }
         }
 

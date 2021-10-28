@@ -42,7 +42,7 @@ pub trait GetVtable<'borr, This, ErasedPtr, OrigPtr, I: InterfaceBound> {
 
     #[doc(hidden)]
     const _GET_INNER_VTABLE: VTable_Ref<'borr, ErasedPtr, I> =
-        unsafe { VTable_Ref(Self::_WM_VTABLE.as_prefix()) };
+        VTable_Ref(Self::_WM_VTABLE.as_prefix());
 }
 
 /// A helper type for constructing a `DynTrait` at compile-time,

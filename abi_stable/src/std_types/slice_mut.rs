@@ -509,9 +509,9 @@ impl_into_rust_repr! {
     }
 }
 
-impl<'a, T> Into<&'a [T]> for RSliceMut<'a, T> {
-    fn into(self) -> &'a [T] {
-        self.into_slice()
+impl<'a, T> From<RSliceMut<'a, T>> for &'a [T] {
+    fn from(this: RSliceMut<'a, T>) -> &'a [T] {
+        this.into_slice()
     }
 }
 

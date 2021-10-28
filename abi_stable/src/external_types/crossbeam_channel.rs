@@ -759,7 +759,7 @@ where
 #[derive(StableAbi)]
 struct ErasedSender<T>(PhantomData<T>, UnsafeIgnoredType<Sender<T>>);
 
-unsafe impl<T> ErasedType<'_> for ErasedSender<T> {
+impl<T> ErasedType<'_> for ErasedSender<T> {
     type Unerased = Sender<T>;
 }
 
@@ -767,7 +767,7 @@ unsafe impl<T> ErasedType<'_> for ErasedSender<T> {
 #[derive(StableAbi)]
 struct ErasedReceiver<T>(PhantomData<T>, UnsafeIgnoredType<Receiver<T>>);
 
-unsafe impl<T> ErasedType<'_> for ErasedReceiver<T> {
+impl<T> ErasedType<'_> for ErasedReceiver<T> {
     type Unerased = Receiver<T>;
 }
 

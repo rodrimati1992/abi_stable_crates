@@ -325,17 +325,15 @@ impl<M> RBoxError_<M> {
         unsafe { Self::new_with_vtable(value, MakeRErrorVTable::<T>::LIB_VTABLE) }
     }
 
-    fn new_with_vtable<T>(value: T, vtable: RErrorVTable_Ref) -> Self {
-        unsafe {
-            let value = value
-                .piped(RBox::new)
-                .piped(|x| mem::transmute::<RBox<T>, RBox<ErasedObject>>(x));
+    unsafe fn new_with_vtable<T>(value: T, vtable: RErrorVTable_Ref) -> Self {
+        let value = value
+            .piped(RBox::new)
+            .piped(|x| mem::transmute::<RBox<T>, RBox<ErasedObject>>(x));
 
-            Self {
-                value,
-                vtable,
-                _sync_send: PhantomData,
-            }
+        Self {
+            value,
+            vtable,
+            _sync_send: PhantomData,
         }
     }
 }
@@ -520,10 +518,12 @@ macro_rules! from_impls {
             pub fn from_box(this: $boxdyn) -> Self {
                 match this.downcast::<Self>() {
                     Ok(e) => *e,
-                    Err(e) => Self::new_with_vtable::<$boxdyn>(
-                        e,
-                        MakeBoxedRErrorVTable::<$boxdyn>::LIB_VTABLE,
-                    ),
+                    Err(e) => unsafe {
+                        Self::new_with_vtable::<$boxdyn>(
+                            e,
+                            MakeBoxedRErrorVTable::<$boxdyn>::LIB_VTABLE,
+                        )
+                    },
                 }
             }
 

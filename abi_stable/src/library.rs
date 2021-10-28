@@ -52,7 +52,10 @@ pub mod c_abi_testing;
 pub mod development_utils;
 mod errors;
 mod lib_header;
+
+#[cfg(test)]
 mod library_tests;
+
 mod raw_library;
 mod root_mod_trait;
 
@@ -276,7 +279,7 @@ pub const ROOT_MODULE_LOADER_NAME_WITH_NUL: &str = PRIV_MANGLED_ROOT_MODULE_LOAD
 /// [`ROOT_MODULE_LOADER_NAME`]: ./constant.ROOT_MODULE_LOADER_NAME.html
 /// [`NulStr`]: ../sabi_types/struct.NulStr.html
 pub const ROOT_MODULE_LOADER_NAME_NULSTR: NulStr<'_> =
-    unsafe { NulStr::from_str(PRIV_MANGLED_ROOT_MODULE_LOADER_NAME_NUL) };
+    NulStr::from_str(PRIV_MANGLED_ROOT_MODULE_LOADER_NAME_NUL);
 
 //////////////////////////////////////////////////////////////////////
 

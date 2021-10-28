@@ -26,6 +26,7 @@ type OpaqueRwLock = UnsafeOveralignedField<RawRwLock, [u8; OM_PADDING]>;
 
 const OM_PADDING: usize = RAW_LOCK_SIZE - mem::size_of::<RawRwLock>();
 
+#[allow(clippy::declare_interior_mutable_const)]
 const OPAQUE_LOCK: OpaqueRwLock =
     OpaqueRwLock::new(<RawRwLock as RawRwLockTrait>::INIT, [0u8; OM_PADDING]);
 

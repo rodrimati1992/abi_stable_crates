@@ -147,7 +147,7 @@ impl<T> StaticRef<T> {
     /// ```
     pub const unsafe fn from_raw(ref_: *const T) -> Self {
         Self {
-            ref_: unsafe { NonNull::new_unchecked(ref_ as *mut T) },
+            ref_: NonNull::new_unchecked(ref_ as *mut T),
         }
     }
 

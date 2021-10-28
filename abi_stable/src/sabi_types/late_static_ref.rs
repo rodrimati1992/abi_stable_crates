@@ -82,6 +82,7 @@ pub struct LateStaticRef<T> {
     _marker: PhantomData<T>,
 }
 
+#[allow(clippy::declare_interior_mutable_const)]
 const LOCK: RMutex<()> = RMutex::new(());
 
 unsafe impl<T: Sync> Sync for LateStaticRef<T> {}

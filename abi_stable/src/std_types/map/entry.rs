@@ -41,11 +41,11 @@ type UnerasedOccupiedEntry<'a, K, V> = ManuallyDrop<OccupiedEntry<'a, MapKey<K>,
 
 type UnerasedVacantEntry<'a, K, V> = ManuallyDrop<VacantEntry<'a, MapKey<K>, V>>;
 
-unsafe impl<'a, K: 'a, V: 'a> ErasedType<'a> for ErasedOccupiedEntry<K, V> {
+impl<'a, K: 'a, V: 'a> ErasedType<'a> for ErasedOccupiedEntry<K, V> {
     type Unerased = UnerasedOccupiedEntry<'a, K, V>;
 }
 
-unsafe impl<'a, K: 'a, V: 'a> ErasedType<'a> for ErasedVacantEntry<K, V> {
+impl<'a, K: 'a, V: 'a> ErasedType<'a> for ErasedVacantEntry<K, V> {
     type Unerased = UnerasedVacantEntry<'a, K, V>;
 }
 

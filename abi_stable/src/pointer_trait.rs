@@ -161,7 +161,7 @@ unsafe impl<'a, T> GetPointerKind for &'a mut T {
 
 /// Whether the pointer can be transmuted to an equivalent pointer with `T` as the referent type.
 ///
-/// # Safety for implementor
+/// # Safety
 ///
 /// Implementors of this trait must ensure that:
 ///
@@ -805,7 +805,7 @@ pub unsafe trait ImmutableRef: Copy {
     /// `ImmutableRef::to_raw_ptr` on an instance of `Self`.
     #[inline(always)]
     unsafe fn from_nonnull(from: NonNull<Self::Target>) -> Self {
-        unsafe { Transmuter { from }.to }
+        Transmuter { from }.to
     }
 
     /// Converts this pointer to a raw pointer.
@@ -821,7 +821,7 @@ pub unsafe trait ImmutableRef: Copy {
     /// This has the same safety requirements as [`from_nonnull`](#method.from_nonnull)
     #[inline(always)]
     unsafe fn from_raw_ptr(from: *const Self::Target) -> Option<Self> {
-        unsafe { Transmuter { from }.to }
+        Transmuter { from }.to
     }
 }
 

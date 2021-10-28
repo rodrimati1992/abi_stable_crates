@@ -38,12 +38,12 @@ impl<T> RawValIter<T> {
 
     fn as_slice(&self) -> &[T] {
         let len = self.calculate_length();
-        unsafe { unsafe { ::std::slice::from_raw_parts(self.start, len) } }
+        unsafe { ::std::slice::from_raw_parts(self.start, len) }
     }
 
     fn as_mut_slice(&mut self) -> &mut [T] {
         let len = self.calculate_length();
-        unsafe { unsafe { ::std::slice::from_raw_parts_mut(self.start as *mut T, len) } }
+        unsafe { ::std::slice::from_raw_parts_mut(self.start as *mut T, len) }
     }
 }
 

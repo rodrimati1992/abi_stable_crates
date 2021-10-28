@@ -141,13 +141,14 @@ pub const fn log2_usize(n: usize) -> u8 {
 /// since both types are required to be the same concrete type inside the macro.
 #[macro_export]
 macro_rules! type_identity {
-    ($from:ty=>$to:ty; $expr:expr ) => {
+    ($from:ty=>$to:ty; $expr:expr ) => {{
+        let from = $expr;
         unsafe {
             let _: $crate::pmr::AssertEq<$from, $to>;
 
-            $crate::utils::Transmuter::<$from, $to> { from: $expr }.to
+            $crate::utils::Transmuter::<$from, $to> { from }.to
         }
-    };
+    }};
 }
 
 //////////////////////////////////////

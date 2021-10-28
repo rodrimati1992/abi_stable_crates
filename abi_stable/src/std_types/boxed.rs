@@ -281,10 +281,8 @@ unsafe impl<T> OwnedPointer for RBox<T> {
 
     #[inline]
     unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>) {
-        unsafe {
-            let data: *mut T = this.data();
-            (this.vtable().destructor())(data as *mut (), CallReferentDrop::No, Deallocate::Yes);
-        }
+        let data: *mut T = this.data();
+        (this.vtable().destructor())(data as *mut (), CallReferentDrop::No, Deallocate::Yes);
     }
 }
 
@@ -635,7 +633,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     }
 
     // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: BoxVtable_Ref<T> = unsafe { BoxVtable_Ref(Self::WM_DEFAULT.as_prefix()) };
+    const LIB_VTABLE: BoxVtable_Ref<T> = BoxVtable_Ref(Self::WM_DEFAULT.as_prefix());
 
     #[cfg(test)]
     staticref! {

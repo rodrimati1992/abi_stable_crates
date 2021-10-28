@@ -59,7 +59,7 @@ pub fn manuallydrop_as_rmut<T>(this: &mut ManuallyDrop<T>) -> RMut<'_, T> {
 
 /// Casts a `&'a mut ManuallyDrop<T>` to `*mut T`
 pub fn manuallydrop_as_raw_mut<T>(this: &mut ManuallyDrop<T>) -> *mut T {
-    unsafe { this as *mut ManuallyDrop<T> as *mut T }
+    this as *mut ManuallyDrop<T> as *mut T
 }
 
 //////////////////////////////////

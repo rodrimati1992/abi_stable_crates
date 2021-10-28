@@ -13,20 +13,40 @@ use crate::{
     },
 };
 
+use std::marker::PhantomData;
+
 //////////////////////////////////////////////////////////////////////////////
+
+#[doc(hidden)]
+pub struct Private<A: ?Sized, B: ?Sized, C: ?Sized, D: ?Sized, E: ?Sized>(
+    PhantomData<(
+        PhantomData<A>,
+        PhantomData<B>,
+        PhantomData<C>,
+        PhantomData<D>,
+        PhantomData<E>,
+    )>,
+);
 
 /// Gets an `RObjectVtable_Ref<_Self,ErasedPtr,TO>`(the vtable for RObject itself),
 /// which is stored as the first field of all generated trait object vtables.
-pub unsafe trait GetRObjectVTable<IA, _Self, ErasedPtr, OrigPtr>:
-    Sized + InterfaceType
-{
+///
+/// This trait cannot be implemented outside of `abi_stable`, it can only be used.
+pub trait GetRObjectVTable<IA, _Self, ErasedPtr, OrigPtr>: Sized + InterfaceType {
+    // Using privacy to make it impossible to implement this trait outside this module.
+    #[doc(hidden)]
+    const __HIDDEN_10341423423AB__: Private<Self, IA, _Self, ErasedPtr, OrigPtr>;
+
     const ROBJECT_VTABLE: RObjectVtable_Ref<_Self, ErasedPtr, Self>;
 }
 
-unsafe impl<IA, _Self, ErasedPtr, OrigPtr, I> GetRObjectVTable<IA, _Self, ErasedPtr, OrigPtr> for I
+impl<IA, _Self, ErasedPtr, OrigPtr, I> GetRObjectVTable<IA, _Self, ErasedPtr, OrigPtr> for I
 where
     I: AreTraitsImpld<IA, _Self, ErasedPtr, OrigPtr> + InterfaceType,
 {
+    const __HIDDEN_10341423423AB__: Private<Self, IA, _Self, ErasedPtr, OrigPtr> =
+        Private(std::marker::PhantomData);
+
     const ROBJECT_VTABLE: RObjectVtable_Ref<_Self, ErasedPtr, Self> =
         { GetRObjectVTableHelper::<IA, _Self, ErasedPtr, OrigPtr, I>::TMP_VTABLE };
 }
@@ -179,7 +199,7 @@ where
     }
 
     const TMP_VTABLE: RObjectVtable_Ref<_Self, ErasedPtr, I> =
-        unsafe { RObjectVtable_Ref(Self::TMP_WM.as_prefix()) };
+        RObjectVtable_Ref(Self::TMP_WM.as_prefix());
 }
 
 /// The vtable for RObject,which all  `#[trait_object]` derived trait objects contain.

@@ -167,7 +167,6 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static {
     fn load_from(where_: LibraryPath<'_>) -> Result<Self, LibraryError> {
         let statics = Self::root_module_statics();
         statics.root_mod.try_init(|| {
-            let mut items_ = None;
             let lib = statics.raw_lib.try_init(|| -> Result<_, LibraryError> {
                 let raw_library = load_raw_library::<Self>(where_)?;
 
@@ -182,13 +181,10 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static {
             let items = unsafe { lib_header_from_raw_library(lib)? };
 
             items.ensure_layout::<Self>()?;
-            items_ = Some(items);
 
-            // safety: the layout was checked in the closure above,
+            // safety: the layout was checked in the code above,
             unsafe {
-                items_
-                    .as_ref()
-                    .unwrap()
+                items
                     .init_root_module_with_unchecked_layout::<Self>()?
                     .initialization()
             }
@@ -236,7 +232,7 @@ where
     M: RootModule,
 {
     let path = match where_ {
-        LibraryPath::Directory(directory) => M::get_library_path(&directory),
+        LibraryPath::Directory(directory) => M::get_library_path(directory),
         LibraryPath::FullPath(full_path) => full_path.to_owned(),
     };
     RawLibrary::load_at(&path)
@@ -263,7 +259,7 @@ where
 pub unsafe fn lib_header_from_raw_library(
     raw_library: &RawLibrary,
 ) -> Result<&'static LibHeader, LibraryError> {
-    unsafe { abi_header_from_raw_library(raw_library)?.upgrade() }
+    abi_header_from_raw_library(raw_library)?.upgrade()
 }
 
 /// Gets the AbiHeaderRef of a library.
@@ -284,12 +280,10 @@ pub unsafe fn lib_header_from_raw_library(
 pub unsafe fn abi_header_from_raw_library(
     raw_library: &RawLibrary,
 ) -> Result<AbiHeaderRef, LibraryError> {
-    unsafe {
-        let mangled = ROOT_MODULE_LOADER_NAME_WITH_NUL;
-        let header: AbiHeaderRef = *raw_library.get::<AbiHeaderRef>(mangled.as_bytes())?;
+    let mangled = ROOT_MODULE_LOADER_NAME_WITH_NUL;
+    let header: AbiHeaderRef = *raw_library.get::<AbiHeaderRef>(mangled.as_bytes())?;
 
-        Ok(header)
-    }
+    Ok(header)
 }
 
 /// Gets the LibHeader of the library at the path.

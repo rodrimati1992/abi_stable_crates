@@ -381,13 +381,12 @@ mod private {
     }
 
     /// Converts a RSmallBox into an RBox,currently this allocates.
-    #[allow(clippy::redundant_closure)]
-    impl<T, Inline> Into<RBox<T>> for RSmallBox<T, Inline>
+    impl<T, Inline> From<RSmallBox<T, Inline>> for RBox<T>
     where
         Inline: InlineStorage,
     {
-        fn into(self) -> RBox<T> {
-            Self::with_move_ptr(ManuallyDrop::new(self), |x| MovePtr::into_rbox(x))
+        fn from(this: RSmallBox<T, Inline>) -> RBox<T> {
+            OwnedPointer::with_move_ptr(ManuallyDrop::new(this), |x| MovePtr::into_rbox(x))
         }
     }
 }

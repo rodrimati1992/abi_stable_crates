@@ -3,6 +3,18 @@
 /// A type that stands in for `Self`,used to create a `UTypeId` for doing layout checking.
 ///
 /// This may or may not have the same TypeId as Self.
+///
+/// # Safety
+///
+/// The `StaticEquivalent` associated type must be either of:
+/// - the same type as `Self`, ignoring lifetime arguments.
+/// - a type declared specifically to be the `StaticEquivalent`
+/// associated type of `Self`(and no other type),
+/// with the same type and const arguments as `Self`.
+///
+/// In either case, non-`'static` type parameters can be replaced with their
+/// `GetStaticEquivalent_::StaticEquivalent` associated type.
+///
 pub unsafe trait GetStaticEquivalent_ {
     type StaticEquivalent: 'static;
 }

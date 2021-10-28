@@ -276,7 +276,7 @@ impl TypeLayout {
     /// Gets information about where a type was declared.
     #[inline]
     pub fn item_info(&self) -> &ItemInfo {
-        &self.mono.item_info()
+        self.mono.item_info()
     }
 
     /// Gets the alignment of the type.
@@ -346,7 +346,7 @@ impl TypeLayout {
 
     /// Gets the parts of the type layout that don't change with generic parameters.
     pub fn mono_type_layout(&self) -> &MonoTypeLayout {
-        &self.mono
+        self.mono
     }
 }
 

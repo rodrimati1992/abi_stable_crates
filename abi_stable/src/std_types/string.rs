@@ -707,14 +707,14 @@ impl_into_rust_repr! {
     }
 }
 
-impl<'a> Into<Cow<'a, str>> for RString {
-    fn into(self) -> Cow<'a, str> {
-        self.into_string().piped(Cow::Owned)
+impl<'a> From<RString> for Cow<'a, str> {
+    fn from(this: RString) -> Cow<'a, str> {
+        this.into_string().piped(Cow::Owned)
     }
 }
 
-impl<'a> From<&'a str> for RString {
-    fn from(this: &'a str) -> Self {
+impl From<&str> for RString {
+    fn from(this: &str) -> Self {
         this.to_owned().into()
     }
 }
@@ -886,11 +886,9 @@ impl IntoIterator for RString {
         unsafe {
             // Make sure that the buffer is not deallocated as long as the iterator is accessible.
             let text: &'static str = &*(&*self as *const str);
-            unsafe {
-                IntoIter {
-                    iter: text.chars(),
-                    _buf: self,
-                }
+            IntoIter {
+                iter: text.chars(),
+                _buf: self,
             }
         }
     }

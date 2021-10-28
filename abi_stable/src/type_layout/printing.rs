@@ -324,6 +324,7 @@ impl Drop for DecrementLevel {
 ////////////////
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct TypeLayoutPointer {
     key_in_map: Option<usize>,
     type_: FmtFullType,

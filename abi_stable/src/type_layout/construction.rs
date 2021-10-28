@@ -92,7 +92,7 @@ impl ItemInfo {
         let pav = self.package_and_version.as_str();
         match pav.find(';') {
             Some(separator) => (&pav[..separator], &pav[(separator + 1)..]),
-            None => (&pav[..], ""),
+            None => (pav, ""),
         }
     }
 

@@ -19,10 +19,10 @@ pub use self::functions::{CAbiTestingFns, C_ABI_TESTING_FNS};
 /// Tests that the abi (as defined by the compiler) of the functions in
 /// CAbiTestingFns is the same as the caller's.
 pub fn run_tests(funcs: &CAbiTestingFns) -> Result<(), LibraryError> {
-    pair_tests(&funcs)?;
-    triple_tests(&funcs)?;
-    two_pair_tests(&funcs)?;
-    mixed_units_test(&funcs)?;
+    pair_tests(funcs)?;
+    triple_tests(funcs)?;
+    two_pair_tests(funcs)?;
+    mixed_units_test(funcs)?;
     Ok(())
 }
 

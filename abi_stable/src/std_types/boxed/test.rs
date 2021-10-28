@@ -89,7 +89,7 @@ fn with_move_ptr_runs() {
 fn owned_pointer_trait() {
     let arc = Arc::new(10);
 
-    unsafe {
+    {
         let cloned_arc = ManuallyDrop::new(RBox::new(arc.clone()));
 
         OwnedPointer::with_move_ptr(cloned_arc, |move_ptr| {
@@ -100,7 +100,7 @@ fn owned_pointer_trait() {
         });
     }
     assert_eq!(Arc::strong_count(&arc), 1);
-    unsafe {
+    {
         let cloned_arc = ManuallyDrop::new(RBox::new(arc.clone()));
 
         OwnedPointer::with_move_ptr(cloned_arc, |move_ptr| {

@@ -26,6 +26,7 @@ type OpaqueMutex = UnsafeOveralignedField<RawMutex, [u8; OM_PADDING]>;
 
 const OM_PADDING: usize = RAW_LOCK_SIZE - mem::size_of::<RawMutex>();
 
+#[allow(clippy::declare_interior_mutable_const)]
 const OPAQUE_MUTEX: OpaqueMutex =
     OpaqueMutex::new(<RawMutex as RawMutexTrait>::INIT, [0u8; OM_PADDING]);
 

@@ -131,7 +131,7 @@ pub type Drain<'a, K, V> = DynTrait<'a, RBox<()>, ValIterInterface<K, V>>;
 )]
 struct ErasedMap<K, V, S>(PhantomData<(K, V)>, UnsafeIgnoredType<S>);
 
-unsafe impl<'a, K: 'a, V: 'a, S: 'a> ErasedType<'a> for ErasedMap<K, V, S> {
+impl<'a, K: 'a, V: 'a, S: 'a> ErasedType<'a> for ErasedMap<K, V, S> {
     type Unerased = BoxedHashMap<'a, K, V, S>;
 }
 
@@ -225,7 +225,9 @@ impl<K, V, S> RHashMap<K, V, S> {
         S: BuildHasher + Default,
     {
         let mut map = VTable::<K, V, S>::erased_map(hash_builder);
-        ErasedMap::reserve(map.as_rmut(), capacity);
+        unsafe {
+            ErasedMap::reserve(map.as_rmut(), capacity);
+        }
         RHashMap {
             map,
             vtable: VTable::VTABLE_REF,
@@ -355,7 +357,7 @@ impl<K, V, S> RHashMap<K, V, S> {
         Q: Hash + Eq + ?Sized,
     {
         let vtable = self.vtable();
-        vtable.remove_entry()(self.map.as_rmut(), MapQuery::new(&query))
+        unsafe { vtable.remove_entry()(self.map.as_rmut(), MapQuery::new(&query)) }
     }
 }
 
@@ -394,7 +396,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     pub fn get_p(&self, key: &K) -> Option<&V> {
         let vtable = self.vtable();
-        unsafe { vtable.get_elem_p()(self.map.as_rref(), &key) }
+        unsafe { vtable.get_elem_p()(self.map.as_rref(), key) }
     }
 
     /// Returns a mutable reference to the value associated with the key.
@@ -414,7 +416,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     pub fn get_mut_p(&mut self, key: &K) -> Option<&mut V> {
         let vtable = self.vtable();
-        unsafe { vtable.get_mut_elem_p()(self.map.as_rmut(), &key) }
+        unsafe { vtable.get_mut_elem_p()(self.map.as_rmut(), key) }
     }
 
     /// Removes the value associated with the key.
@@ -455,7 +457,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     pub fn remove_entry_p(&mut self, key: &K) -> ROption<Tuple2<K, V>> {
         let vtable = self.vtable();
-        vtable.remove_entry_p()(self.map.as_rmut(), &key)
+        unsafe { vtable.remove_entry_p()(self.map.as_rmut(), key) }
     }
 
     /// Returns a reference to the value associated with the key.
@@ -557,7 +559,9 @@ impl<K, V, S> RHashMap<K, V, S> {
     pub fn reserve(&mut self, reserved: usize) {
         let vtable = self.vtable();
 
-        vtable.reserve()(self.map.as_rmut(), reserved);
+        unsafe {
+            vtable.reserve()(self.map.as_rmut(), reserved);
+        }
     }
 
     /// Removes all the entries in the map.
@@ -580,7 +584,9 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     pub fn clear(&mut self) {
         let vtable = self.vtable();
-        vtable.clear_map()(self.map.as_rmut());
+        unsafe {
+            vtable.clear_map()(self.map.as_rmut());
+        }
     }
 
     /// Returns the amount of entries in the map.
@@ -601,7 +607,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     pub fn len(&self) -> usize {
         let vtable = self.vtable();
-        vtable.len()(self.map.as_rref())
+        unsafe { vtable.len()(self.map.as_rref()) }
     }
 
     /// Returns the capacity of the map, the amount of elements it can store without reallocating.
@@ -620,7 +626,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     /// ```
     pub fn capacity(&self) -> usize {
         let vtable = self.vtable();
-        vtable.capacity()(self.map.as_rref())
+        unsafe { vtable.capacity()(self.map.as_rref()) }
     }
 
     /// Returns whether the map contains any entries.
@@ -664,7 +670,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     pub fn iter(&self) -> Iter<'_, K, V> {
         let vtable = self.vtable();
 
-        vtable.iter()(self.map.as_rref())
+        unsafe { vtable.iter()(self.map.as_rref()) }
     }
 
     /// Iterates over the entries in the map, with mutable references to the values in the map.
@@ -690,7 +696,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         let vtable = self.vtable();
 
-        vtable.iter_mut()(self.map.as_rmut())
+        unsafe { vtable.iter_mut()(self.map.as_rmut()) }
     }
 
     /// Clears the map, returning an iterator over all the entries that were removed.
@@ -717,7 +723,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     pub fn drain(&mut self) -> Drain<'_, K, V> {
         let vtable = self.vtable();
 
-        vtable.drain()(self.map.as_rmut())
+        unsafe { vtable.drain()(self.map.as_rmut()) }
     }
 
     /// Gets a handle into the entry in the map for the key,
@@ -744,7 +750,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     pub fn entry(&mut self, key: K) -> REntry<'_, K, V> {
         let vtable = self.vtable();
 
-        vtable.entry()(self.map.as_rmut(), key)
+        unsafe { vtable.entry()(self.map.as_rmut(), key) }
     }
 }
 
@@ -756,7 +762,7 @@ impl<K, V, S> IntoIterator for RHashMap<K, V, S> {
     fn into_iter(self) -> IntoIter<K, V> {
         let vtable = self.vtable();
 
-        vtable.iter_val()(self.map)
+        unsafe { vtable.iter_val()(self.map) }
     }
 }
 
@@ -790,13 +796,13 @@ where
     }
 }
 
-impl<K, V, S> Into<HashMap<K, V, S>> for RHashMap<K, V, S>
+impl<K, V, S> From<RHashMap<K, V, S>> for HashMap<K, V, S>
 where
     K: Eq + Hash,
     S: BuildHasher + Default,
 {
-    fn into(self) -> HashMap<K, V, S> {
-        self.into_iter().map(IntoReprRust::into_rust).collect()
+    fn from(this: RHashMap<K, V, S>) -> HashMap<K, V, S> {
+        this.into_iter().map(|x| x.into_tuple()).collect()
     }
 }
 
@@ -1030,28 +1036,36 @@ mod serde {
 )]
 struct VTable<K, V, S> {
     ///
-    insert_elem: extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K, V) -> ROption<V>,
+    insert_elem: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K, V) -> ROption<V>,
 
-    get_elem: for<'a> extern "C" fn(RRef<'a, ErasedMap<K, V, S>>, MapQuery<'_, K>) -> Option<&'a V>,
-    get_mut_elem:
-        for<'a> extern "C" fn(RMut<'a, ErasedMap<K, V, S>>, MapQuery<'_, K>) -> Option<&'a mut V>,
-    remove_entry:
-        extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, MapQuery<'_, K>) -> ROption<Tuple2<K, V>>,
+    get_elem: for<'a> unsafe extern "C" fn(
+        RRef<'a, ErasedMap<K, V, S>>,
+        MapQuery<'_, K>,
+    ) -> Option<&'a V>,
+    get_mut_elem: for<'a> unsafe extern "C" fn(
+        RMut<'a, ErasedMap<K, V, S>>,
+        MapQuery<'_, K>,
+    ) -> Option<&'a mut V>,
+    remove_entry: unsafe extern "C" fn(
+        RMut<'_, ErasedMap<K, V, S>>,
+        MapQuery<'_, K>,
+    ) -> ROption<Tuple2<K, V>>,
 
-    get_elem_p: for<'a> extern "C" fn(RRef<'a, ErasedMap<K, V, S>>, &K) -> Option<&'a V>,
-    get_mut_elem_p: for<'a> extern "C" fn(RMut<'a, ErasedMap<K, V, S>>, &K) -> Option<&'a mut V>,
-    remove_entry_p: extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, &K) -> ROption<Tuple2<K, V>>,
+    get_elem_p: for<'a> unsafe extern "C" fn(RRef<'a, ErasedMap<K, V, S>>, &K) -> Option<&'a V>,
+    get_mut_elem_p:
+        for<'a> unsafe extern "C" fn(RMut<'a, ErasedMap<K, V, S>>, &K) -> Option<&'a mut V>,
+    remove_entry_p: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, &K) -> ROption<Tuple2<K, V>>,
 
-    reserve: extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, usize),
-    clear_map: extern "C" fn(RMut<'_, ErasedMap<K, V, S>>),
-    len: extern "C" fn(RRef<'_, ErasedMap<K, V, S>>) -> usize,
-    capacity: extern "C" fn(RRef<'_, ErasedMap<K, V, S>>) -> usize,
-    iter: extern "C" fn(RRef<'_, ErasedMap<K, V, S>>) -> Iter<'_, K, V>,
-    iter_mut: extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> IterMut<'_, K, V>,
-    drain: extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> Drain<'_, K, V>,
-    iter_val: extern "C" fn(RBox<ErasedMap<K, V, S>>) -> IntoIter<K, V>,
+    reserve: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, usize),
+    clear_map: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>),
+    len: unsafe extern "C" fn(RRef<'_, ErasedMap<K, V, S>>) -> usize,
+    capacity: unsafe extern "C" fn(RRef<'_, ErasedMap<K, V, S>>) -> usize,
+    iter: unsafe extern "C" fn(RRef<'_, ErasedMap<K, V, S>>) -> Iter<'_, K, V>,
+    iter_mut: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> IterMut<'_, K, V>,
+    drain: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> Drain<'_, K, V>,
+    iter_val: unsafe extern "C" fn(RBox<ErasedMap<K, V, S>>) -> IntoIter<K, V>,
     #[sabi(last_prefix_field)]
-    entry: extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> REntry<'_, K, V>,
+    entry: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> REntry<'_, K, V>,
 }
 
 impl<K, V, S> VTable<K, V, S>

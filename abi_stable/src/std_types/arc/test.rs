@@ -81,7 +81,7 @@ fn make_mut() {
 
     let mut arc = Arc::new(ValueAndDod {
         value: 'a',
-        dod: dod.clone(),
+        _dod: dod.clone(),
     })
     .piped(RArc::from);
 
@@ -104,7 +104,7 @@ fn make_mut() {
 #[derive(Clone)]
 struct ValueAndDod<'a, T> {
     value: T,
-    dod: DecrementOnDrop<'a>,
+    _dod: DecrementOnDrop<'a>,
 }
 
 /////////////////////////////////////////

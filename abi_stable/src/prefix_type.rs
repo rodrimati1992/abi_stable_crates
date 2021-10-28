@@ -37,6 +37,10 @@ pub use self::{
 pub use self::pt_metadata::__PrefixTypeMetadata;
 
 /// For types deriving `StableAbi` with `#[sabi(kind(Prefix(..)))]`.
+///
+/// # Safety
+///
+/// This trait must be implemented by the `StableAbi` derive macro.
 pub unsafe trait PrefixTypeTrait: Sized {
     /// The metadata of the prefix-type (a FieldAccessibility and a PTStructLayout),
     /// for passing to `WithMetadata::new`,
