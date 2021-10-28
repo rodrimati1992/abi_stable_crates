@@ -752,6 +752,142 @@ impl<K, V, S> RHashMap<K, V, S> {
 
         unsafe { vtable.entry()(self.map.as_rmut(), key) }
     }
+
+    /// let mut map = RHashMap::new();
+    /// map.insert("a", 1);
+    /// map.insert("b", 2);
+    /// map.insert("c", 3);
+    ///
+    /// for key in map.keys() {
+    ///     println!("{}", key);
+    /// }
+    /// ```
+    pub fn keys(&self) -> Keys<'_, K, V> {
+        Keys { inner: self.iter() }
+    }
+
+    /// An iterator visiting all values in arbitrary order.
+    /// The iterator element type is `&'a V`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use abi_stable::std_types::RHashMap;
+    ///
+    /// let mut map = RHashMap::new();
+    /// map.insert("a", 1);
+    /// map.insert("b", 2);
+    /// map.insert("c", 3);
+    ///
+    /// for val in map.values() {
+    ///     println!("{}", val);
+    /// }
+    /// ```
+    pub fn values(&self) -> Values<'_, K, V> {
+        Values { inner: self.iter() }
+    }
+}
+
+/// An iterator over the keys of a `RHashMap`.
+///
+/// This `struct` is created by the [`keys`] method on [`RHashMap`]. See its
+/// documentation for more.
+///
+/// [`keys`]: RHashMap::keys
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::std_types::RHashMap;
+///
+/// let mut map = RHashMap::new();
+/// map.insert("a", 1);
+/// let iter_keys = map.keys();
+/// ```
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct Keys<'a, K: 'a, V: 'a> {
+    inner: Iter<'a, K, V>,
+}
+
+// FIXME(#26925) Remove in favor of `#[derive(Clone)]`
+impl<K, V> Clone for Keys<'_, K, V> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Keys {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+impl<K: Debug, V> fmt::Debug for Keys<'_, K, V> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(self.clone()).finish()
+    }
+}
+
+impl<'a, K, V> Iterator for Keys<'a, K, V> {
+    type Item = &'a K;
+
+    #[inline]
+    fn next(&mut self) -> Option<&'a K> {
+        self.inner.next().map(|tuple| tuple.0)
+    }
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+/// An iterator over the values of a `HashMap`.
+///
+/// This `struct` is created by the [`values`] method on [`HashMap`]. See its
+/// documentation for more.
+///
+/// [`values`]: HashMap::values
+///
+/// # Example
+///
+/// ```
+/// use abi_stable::std_types::RHashMap;
+///
+/// let mut map = RHashMap::new();
+/// map.insert("a", 1);
+/// let iter_values = map.values();
+/// ```
+#[repr(C)]
+#[derive(StableAbi)]
+pub struct Values<'a, K: 'a, V: 'a> {
+    inner: Iter<'a, K, V>,
+}
+
+// FIXME(#26925) Remove in favor of `#[derive(Clone)]`
+impl<K, V> Clone for Values<'_, K, V> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Values {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+impl<K, V: Debug> fmt::Debug for Values<'_, K, V> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(self.clone()).finish()
+    }
+}
+
+impl<'a, K, V> Iterator for Values<'a, K, V> {
+    type Item = &'a V;
+
+    #[inline]
+    fn next(&mut self) -> Option<&'a V> {
+        self.inner.next().map(|tuple| tuple.1)
+    }
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 }
 
 /// This returns an `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`

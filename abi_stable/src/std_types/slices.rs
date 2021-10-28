@@ -5,6 +5,7 @@ use std::{
     io::{self, BufRead, Read},
     marker::PhantomData,
     ops::{Deref, Index},
+    slice::SliceIndex,
 };
 
 #[allow(unused_imports)]
@@ -351,6 +352,15 @@ impl<'a, T> IntoIterator for RSlice<'a, T> {
     }
 }
 
+impl<'a, T, I: SliceIndex<[T]>> Index<I> for RSlice<'a, T> {
+    type Output = I::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        self.get(index).expect("Index out of bounds")
+    }
+}
+
 slice_like_impl_cmp_traits! {
     impl[] RSlice<'_, T>,
     where[];
@@ -494,5 +504,16 @@ mod test {
 
         assert_eq!(a, &*b);
         assert_eq!(a.len(), b.len());
+    }
+
+    #[test]
+    fn test_index() {
+        let s = rslice![1, 2, 3, 4, 5];
+
+        assert_eq!(s.index(0), &1);
+        assert_eq!(s.index(4), &5);
+        assert_eq!(s.index(..2), rslice![1, 2]);
+        assert_eq!(s.index(1..2), rslice![2]);
+        assert_eq!(s.index(3..), rslice![4, 5]);
     }
 }
