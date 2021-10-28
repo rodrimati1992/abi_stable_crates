@@ -1,6 +1,6 @@
 [package]
 name = "as_derive_utils"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
 description = "private derive utilities used by abi_stable and structural."

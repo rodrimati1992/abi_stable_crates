@@ -101,6 +101,7 @@ mod many_types {
 
     // Adding more types in a patch release,
     // you can merge this with ManyTypes in the next breaking release.
+    #[cfg(feature = "new_abi_stable")]
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
     pub struct ManyTypes2(f32, f64);
@@ -115,6 +116,7 @@ pub use many_types::ManyTypes;
 pub struct RootMod {
     pub abi_stable_version: VersionStrings,
     pub _marker: NonOwningPhantom<many_types::ManyTypes>,
+    #[cfg(feature = "new_abi_stable")]
     pub _marker2: NonOwningPhantom<many_types::ManyTypes2>,
 }
 
