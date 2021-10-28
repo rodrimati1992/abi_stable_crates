@@ -29,7 +29,7 @@ field names are part of the ABI of a type.
 ### Structs
 
 It's only valid to add fields to structs if they are
-[prefix types(vtables or modules)](../prefix_types/index.html)),
+[prefix types (vtables or modules)](../prefix_types/index.html),
 and only after the last field.
 
 

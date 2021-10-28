@@ -57,7 +57,7 @@ pub unsafe trait PrefixTypeTrait: Sized {
     /// A bit array,where each nth bit represents whether the nth field is accessible.
     const PT_FIELD_ACCESSIBILITY: FieldAccessibility;
 
-    /// Convers `Self` to `Self::PrefixRef`,leaking it in the process.
+    /// Converts `Self` to `Self::PrefixRef`,leaking it in the process.
     ///
     /// # Warning
     ///

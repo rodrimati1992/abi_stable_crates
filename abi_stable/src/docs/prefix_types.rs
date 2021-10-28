@@ -164,7 +164,7 @@ extern "C" fn elapsed(milliseconds: u64) -> RDuration {
 <span id="vtable_construction"></span>
 ### Constructing a vtable
 
-This eaxmple demonstrates how you can construct a vtable.
+This example demonstrates how you can construct a vtable.
 
 ```rust
 use abi_stable::{
