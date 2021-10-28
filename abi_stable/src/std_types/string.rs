@@ -141,10 +141,7 @@ impl RString {
     /// use abi_stable::std_types::{RStr, RString};
     ///
     /// let str = "What is that.";
-    /// assert_eq!(
-    ///     RString::from(str).as_rstr(),
-    ///     RStr::from(str),
-    /// );
+    /// assert_eq!(RString::from(str).as_rstr(), RStr::from(str),);
     ///
     /// ```
     #[inline]
@@ -229,8 +226,8 @@ impl RString {
     ///
     /// let bytes = RVec::from("hello".as_bytes());
     ///
-    /// unsafe{
-    ///     assert_eq!( RString::from_utf8_unchecked(bytes).as_str(), "hello" );
+    /// unsafe {
+    ///     assert_eq!(RString::from_utf8_unchecked(bytes).as_str(), "hello");
     /// }
     ///
     /// ```
@@ -253,8 +250,11 @@ impl RString {
     /// let bytes_ok = RVec::from("hello".as_bytes());
     /// let bytes_err = RVec::from(vec![255]);
     ///
-    /// assert_eq!( RString::from_utf8(bytes_ok).unwrap(), RString::from("hello") );
-    /// assert!( RString::from_utf8(bytes_err).is_err() );
+    /// assert_eq!(
+    ///     RString::from_utf8(bytes_ok).unwrap(),
+    ///     RString::from("hello")
+    /// );
+    /// assert!(RString::from_utf8(bytes_err).is_err());
     ///
     /// ```
     pub fn from_utf8<V>(vec: V) -> Result<Self, FromUtf8Error>
@@ -286,10 +286,7 @@ impl RString {
     /// let str = "What the 😈.";
     /// let str_utf16 = str.encode_utf16().collect::<Vec<u16>>();
     ///
-    /// assert_eq!(
-    ///     RString::from_utf16(&str_utf16).unwrap(),
-    ///     RString::from(str),
-    /// );
+    /// assert_eq!(RString::from_utf16(&str_utf16).unwrap(), RString::from(str),);
     /// ```
     pub fn from_utf16(s: &[u16]) -> Result<Self, FromUtf16Error> {
         String::from_utf16(s).map(From::from)
@@ -596,17 +593,17 @@ impl RString {
     ///
     /// {
     ///     let mut str = RString::from("There were 10 people.");
-    ///     str.retain(|c| !c.is_numeric() );
+    ///     str.retain(|c| !c.is_numeric());
     ///     assert_eq!(str.as_str(), "There were  people.");
     /// }
     /// {
     ///     let mut str = RString::from("There were 10 people.");
-    ///     str.retain(|c| !c.is_whitespace() );
+    ///     str.retain(|c| !c.is_whitespace());
     ///     assert_eq!(str.as_str(), "Therewere10people.");
     /// }
     /// {
     ///     let mut str = RString::from("There were 10 people.");
-    ///     str.retain(|c| c.is_numeric() );
+    ///     str.retain(|c| c.is_numeric());
     ///     assert_eq!(str.as_str(), "10");
     /// }
     ///
@@ -923,7 +920,7 @@ impl<'a> FromIterator<&'a char> for RString {
 ///
 /// let err = RString::from_utf8(vec![0, 0, 0, 255]).unwrap_err();
 ///
-/// assert_eq!( err.as_bytes() , &[0, 0, 0, 255] )
+/// assert_eq!(err.as_bytes(), &[0, 0, 0, 255])
 ///
 /// ```
 #[derive(Debug)]
@@ -944,7 +941,7 @@ impl FromUtf8Error {
     ///
     /// let err = RString::from_utf8(bytes.clone()).unwrap_err();
     ///
-    /// assert_eq!( err.into_bytes(), bytes );
+    /// assert_eq!(err.into_bytes(), bytes);
     ///
     /// ```
     pub fn into_bytes(self) -> RVec<u8> {
@@ -957,11 +954,11 @@ impl FromUtf8Error {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let bytes= vec![99, 114, 121, 115, 116, 97, 108, 255];
+    /// let bytes = vec![99, 114, 121, 115, 116, 97, 108, 255];
     ///
     /// let err = RString::from_utf8(bytes.clone()).unwrap_err();
     ///
-    /// assert_eq!( err.as_bytes(), &bytes[..] );
+    /// assert_eq!(err.as_bytes(), &bytes[..]);
     ///
     /// ```
     pub fn as_bytes(&self) -> &[u8] {
@@ -975,9 +972,9 @@ impl FromUtf8Error {
     /// ```
     /// use abi_stable::std_types::RString;
     ///
-    /// let err = RString::from_utf8( vec![0, 0, 255] ).unwrap_err();
+    /// let err = RString::from_utf8(vec![0, 0, 255]).unwrap_err();
     ///
-    /// assert_eq!( err.error().valid_up_to(), 2 );
+    /// assert_eq!(err.error().valid_up_to(), 2);
     ///
     /// ```
     pub fn error(&self) -> Utf8Error {

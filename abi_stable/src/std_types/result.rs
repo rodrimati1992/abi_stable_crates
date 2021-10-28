@@ -129,7 +129,7 @@ impl<T, E> RResult<T, E> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(ROk::<u32, u32>(10).into_result(), Ok (10));
+    /// assert_eq!(ROk::<u32, u32>(10).into_result(), Ok(10));
     /// assert_eq!(RErr::<u32, u32>(5).into_result(), Err(5));
     ///
     /// ```
@@ -146,8 +146,8 @@ impl<T, E> RResult<T, E> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(ROk::<u32, u32>(10).map(|x| x*3 ), ROk(30));
-    /// assert_eq!(RErr::<u32, u32>(5).map(|x| x/2 ), RErr(5));
+    /// assert_eq!(ROk::<u32, u32>(10).map(|x| x * 3), ROk(30));
+    /// assert_eq!(RErr::<u32, u32>(5).map(|x| x / 2), RErr(5));
     ///
     /// ```
     #[inline]
@@ -169,8 +169,8 @@ impl<T, E> RResult<T, E> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(ROk::<u32, u32>(10).map_err(|x| x*3 ), ROk(10));
-    /// assert_eq!(RErr::<u32, u32>(5).map_err(|x| x/2 ), RErr(2));
+    /// assert_eq!(ROk::<u32, u32>(10).map_err(|x| x * 3), ROk(10));
+    /// assert_eq!(RErr::<u32, u32>(5).map_err(|x| x / 2), RErr(2));
     ///
     /// ```
     #[inline]
@@ -193,8 +193,8 @@ impl<T, E> RResult<T, E> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(ROk::<u32, u32>(10).map_or_else(|_|77 , |x| x*3 ), 30);
-    /// assert_eq!(RErr::<u32, u32>(5).map_or_else(|e|e*4, |x| x/2 ), 20);
+    /// assert_eq!(ROk::<u32, u32>(10).map_or_else(|_| 77, |x| x * 3), 30);
+    /// assert_eq!(RErr::<u32, u32>(5).map_or_else(|e| e * 4, |x| x / 2), 20);
     ///
     /// ```
     #[inline]
@@ -215,19 +215,19 @@ impl<T, E> RResult<T, E> {
     /// # use abi_stable::std_types::*;
     ///
     /// assert_eq!(
-    ///     ROk::<u32, u32>(10).and_then(|x| ROk ::<u32, u32>(x*3) ),
-    ///     ROk (30),
+    ///     ROk::<u32, u32>(10).and_then(|x| ROk::<u32, u32>(x * 3)),
+    ///     ROk(30),
     /// );
     /// assert_eq!(
-    ///     ROk::<u32, u32>(10).and_then(|x| RErr::<u32, u32>(x*3)),
+    ///     ROk::<u32, u32>(10).and_then(|x| RErr::<u32, u32>(x * 3)),
     ///     RErr(30),
     /// );
     /// assert_eq!(
-    ///     RErr::<u32, u32>(5).and_then(|x| ROk ::<u32, u32>(x/2) ),
+    ///     RErr::<u32, u32>(5).and_then(|x| ROk::<u32, u32>(x / 2)),
     ///     RErr(5),
     /// );
     /// assert_eq!(
-    ///     RErr::<u32, u32>(5).and_then(|x| RErr::<u32, u32>(x/2) ),
+    ///     RErr::<u32, u32>(5).and_then(|x| RErr::<u32, u32>(x / 2)),
     ///     RErr(5),
     /// );
     ///
@@ -251,10 +251,22 @@ impl<T, E> RResult<T, E> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(ROk::<u32, u32>(10).or_else(|e| ROk ::<u32, u32>(e*3) ) , ROk(10));
-    /// assert_eq!(ROk::<u32, u32>(10).or_else(|e| RErr::<u32, u32>(e*3)) , ROk(10));
-    /// assert_eq!(RErr::<u32, u32>(5).or_else(|e| ROk ::<u32, u32>(e/2) ), ROk (2));
-    /// assert_eq!(RErr::<u32, u32>(5).or_else(|e| RErr::<u32, u32>(e/2) ), RErr(2));
+    /// assert_eq!(
+    ///     ROk::<u32, u32>(10).or_else(|e| ROk::<u32, u32>(e * 3)),
+    ///     ROk(10)
+    /// );
+    /// assert_eq!(
+    ///     ROk::<u32, u32>(10).or_else(|e| RErr::<u32, u32>(e * 3)),
+    ///     ROk(10)
+    /// );
+    /// assert_eq!(
+    ///     RErr::<u32, u32>(5).or_else(|e| ROk::<u32, u32>(e / 2)),
+    ///     ROk(2)
+    /// );
+    /// assert_eq!(
+    ///     RErr::<u32, u32>(5).or_else(|e| RErr::<u32, u32>(e / 2)),
+    ///     RErr(2)
+    /// );
     ///
     /// ```
     #[inline]
@@ -280,7 +292,7 @@ impl<T, E> RResult<T, E> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!( ROk::<_, ()>(500).unwrap(), 500 );
+    /// assert_eq!(ROk::<_, ()>(500).unwrap(), 500);
     ///
     /// ```
     ///
@@ -310,7 +322,7 @@ impl<T, E> RResult<T, E> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!( ROk::<_, ()>(500).expect("Are you OK?"), 500 );
+    /// assert_eq!(ROk::<_, ()>(500).expect("Are you OK?"), 500);
     ///
     /// ```
     ///
@@ -339,7 +351,7 @@ impl<T, E> RResult<T, E> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!( RErr::<(), u32>(0xB007).unwrap_err(), 0xB007 );
+    /// assert_eq!(RErr::<(), u32>(0xB007).unwrap_err(), 0xB007);
     ///
     /// ```
     ///
@@ -369,7 +381,7 @@ impl<T, E> RResult<T, E> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!( RErr::<(), u32>(0xB001).expect_err("Murphy's law"), 0xB001 );
+    /// assert_eq!(RErr::<(), u32>(0xB001).expect_err("Murphy's law"), 0xB001);
     ///
     /// ```
     ///
@@ -413,8 +425,8 @@ impl<T, E> RResult<T, E> {
     /// ```
     /// # use abi_stable::std_types::*;
     ///
-    /// assert_eq!(ROk::<u32, u32>(10).unwrap_or_else(|e| e*3 ), 10);
-    /// assert_eq!(RErr::<u32, u32>(5).unwrap_or_else(|e| e/2 ), 2);
+    /// assert_eq!(ROk::<u32, u32>(10).unwrap_or_else(|e| e * 3), 10);
+    /// assert_eq!(RErr::<u32, u32>(5).unwrap_or_else(|e| e / 2), 2);
     ///
     /// ```
     #[inline]

@@ -87,7 +87,7 @@ impl<'a, K, V> REntry<'a, K, V> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map: RHashMap<u32, u32>  = vec![(1, 100)].into_iter().collect();
+    /// let mut map: RHashMap<u32, u32> = vec![(1, 100)].into_iter().collect();
     ///
     /// assert_eq!(map.entry(0).get(), None);
     /// assert_eq!(map.entry(1).get(), Some(&100));
@@ -107,7 +107,7 @@ impl<'a, K, V> REntry<'a, K, V> {
     /// ```
     /// use abi_stable::std_types::RHashMap;
     ///
-    /// let mut map: RHashMap<u32, u32>  = vec![(1, 100)].into_iter().collect();
+    /// let mut map: RHashMap<u32, u32> = vec![(1, 100)].into_iter().collect();
     ///
     /// assert_eq!(map.entry(0).get_mut(), None);
     /// assert_eq!(map.entry(1).get_mut(), Some(&mut 100));
@@ -153,12 +153,12 @@ impl<'a, K, V> REntry<'a, K, V> {
     /// let mut map = RHashMap::<u32, RString>::new();
     ///
     /// assert_eq!(
-    ///     map.entry(0).or_insert_with(|| "foo".into() ),
+    ///     map.entry(0).or_insert_with(|| "foo".into()),
     ///     &mut RString::from("foo")
     /// );
     ///
     /// assert_eq!(
-    ///     map.entry(0).or_insert_with(|| "bar".into() ),
+    ///     map.entry(0).or_insert_with(|| "bar".into()),
     ///     &mut RString::from("foo")
     /// );
     ///
@@ -183,10 +183,7 @@ impl<'a, K, V> REntry<'a, K, V> {
     /// let mut map = RHashMap::<RString, RString>::new();
     /// map.insert("foo".into(), "bar".into());
     ///
-    /// assert_eq!(
-    ///     map.entry("foo".into()).key(),
-    ///     &RString::from("foo")
-    /// );
+    /// assert_eq!(map.entry("foo".into()).key(), &RString::from("foo"));
     /// ```
     pub fn key(&self) -> &K {
         match self {
@@ -209,8 +206,8 @@ impl<'a, K, V> REntry<'a, K, V> {
     ///
     /// assert_eq!(
     ///     map.entry("foo".into())
-    ///        .and_modify(|x| x.push_str("hoo") )
-    ///        .get(),
+    ///         .and_modify(|x| x.push_str("hoo"))
+    ///         .get(),
     ///     Some(&RString::from("barhoo"))
     /// );
     /// ```
@@ -331,7 +328,6 @@ impl<'a, K, V> ROccupiedEntry<'a, K, V> {
     ///     REntry::Vacant(_) => unreachable!(),
     /// };
     ///
-    ///
     /// ```
     pub fn key(&self) -> &K {
         let vtable = self.vtable();
@@ -440,7 +436,7 @@ impl<'a, K, V> ROccupiedEntry<'a, K, V> {
     ///     }
     /// }
     ///
-    /// assert_eq!( map.get("baz"), Some(&0xDEAD));
+    /// assert_eq!(map.get("baz"), Some(&0xDEAD));
     ///
     /// ```
     pub fn insert(&mut self, value: V) -> V {
@@ -469,7 +465,7 @@ impl<'a, K, V> ROccupiedEntry<'a, K, V> {
     ///     }
     /// }
     ///
-    /// assert!( ! map.contains_key("baz") );
+    /// assert!(!map.contains_key("baz"));
     ///
     /// ```
     pub fn remove(self) -> V {
@@ -547,7 +543,7 @@ impl<'a, K, V> RVacantEntry<'a, K, V> {
     ///     }
     /// }
     ///
-    /// assert_eq!( map.get(&1337), None );
+    /// assert_eq!(map.get(&1337), None);
     ///
     /// ```
     pub fn key(&self) -> &K {
@@ -574,7 +570,7 @@ impl<'a, K, V> RVacantEntry<'a, K, V> {
     ///     }
     /// }
     ///
-    /// assert_eq!( map.get("lol"), None );
+    /// assert_eq!(map.get("lol"), None);
     ///
     /// ```
     pub fn into_key(self) -> K {
@@ -601,7 +597,7 @@ impl<'a, K, V> RVacantEntry<'a, K, V> {
     ///     }
     /// }
     ///
-    /// assert_eq!( map.get("lol"), Some(&67) );
+    /// assert_eq!(map.get("lol"), Some(&67));
     ///
     /// ```
     pub fn insert(self, value: V) -> &'a mut V {

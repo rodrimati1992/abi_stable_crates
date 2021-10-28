@@ -21,17 +21,17 @@ use crate::{sabi_types::MaybeCmp, EXECUTABLE_IDENTITY};
 /// use abi_stable::std_types::utypeid::new_utypeid;
 /// use std::collections::HashMap;
 ///
-/// let hashmap_id = new_utypeid::< HashMap<String, String> >();
-/// let vec_id = new_utypeid::< Vec<String> >();
-/// let u32_id = new_utypeid::< u32 >();
+/// let hashmap_id = new_utypeid::<HashMap<String, String>>();
+/// let vec_id = new_utypeid::<Vec<String>>();
+/// let u32_id = new_utypeid::<u32>();
 ///
-/// assert_eq!( hashmap_id, hashmap_id );
-/// assert_eq!( vec_id, vec_id );
-/// assert_eq!( u32_id, u32_id );
+/// assert_eq!(hashmap_id, hashmap_id);
+/// assert_eq!(vec_id, vec_id);
+/// assert_eq!(u32_id, u32_id);
 ///
-/// assert_ne!( vec_id, hashmap_id );
-/// assert_ne!( u32_id, hashmap_id );
-/// assert_ne!( vec_id, u32_id );
+/// assert_ne!(vec_id, hashmap_id);
+/// assert_ne!(u32_id, hashmap_id);
+/// assert_ne!(vec_id, u32_id);
 ///
 /// ```
 pub extern "C" fn new_utypeid<T>() -> UTypeId
@@ -92,7 +92,7 @@ impl UTypeId {
     /// use abi_stable::std_types::UTypeId;
     /// use std::collections::HashMap;
     ///
-    /// let id = UTypeId::new::< HashMap<String, String> >();
+    /// let id = UTypeId::new::<HashMap<String, String>>();
     /// # drop(id);
     /// ```
     #[inline(always)]

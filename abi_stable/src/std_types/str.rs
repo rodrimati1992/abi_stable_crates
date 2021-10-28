@@ -54,7 +54,7 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// const STR: RStr<'static>  = RStr::empty();
+    /// const STR: RStr<'static> = RStr::empty();
     ///
     /// assert_eq!(STR, RStr::from(""));
     ///
@@ -85,10 +85,8 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// fn convert(slice_: &str) -> RStr<'_>{
-    ///     unsafe{
-    ///         RStr::from_raw_parts( slice_.as_ptr(), slice_.len() )
-    ///     }
+    /// fn convert(slice_: &str) -> RStr<'_> {
+    ///     unsafe { RStr::from_raw_parts(slice_.as_ptr(), slice_.len()) }
     /// }
     ///
     /// ```

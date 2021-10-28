@@ -178,7 +178,7 @@ impl<T> RArc<T> {
     ///
     /// let arc = RArc::new(100);
     ///
-    /// assert_eq!( RArc::into_arc(arc), Arc::new(100) );
+    /// assert_eq!(RArc::into_arc(arc), Arc::new(100));
     ///
     /// ```
     pub fn into_arc(this: Self) -> Arc<T>
@@ -207,11 +207,11 @@ impl<T> RArc<T> {
     /// use abi_stable::std_types::RArc;
     ///
     /// let arc0 = RArc::new(100);
-    /// assert_eq!( RArc::try_unwrap(arc0), Ok(100) );
+    /// assert_eq!(RArc::try_unwrap(arc0), Ok(100));
     ///
     /// let arc1 = RArc::new(100);
     /// let arc1_clone = RArc::clone(&arc1);
-    /// assert_eq!( RArc::try_unwrap(arc1), Err(arc1_clone.clone()) );
+    /// assert_eq!(RArc::try_unwrap(arc1), Err(arc1_clone.clone()));
     ///
     /// ```
     #[inline]
@@ -230,11 +230,11 @@ impl<T> RArc<T> {
     ///
     /// let mut arc0 = RArc::new(100);
     /// *RArc::get_mut(&mut arc0).unwrap() += 400;
-    /// assert_eq!( *arc0, 500 );
+    /// assert_eq!(*arc0, 500);
     ///
     /// let mut arc1 = RArc::new(100);
     /// let _arc1_clone = RArc::clone(&arc1);
-    /// assert_eq!( RArc::get_mut(&mut arc1), None );
+    /// assert_eq!(RArc::get_mut(&mut arc1), None);
     ///
     /// ```
     #[inline]
@@ -262,13 +262,13 @@ impl<T> RArc<T> {
     ///
     /// let mut arc0 = RArc::new(100);
     /// *RArc::make_mut(&mut arc0) += 400;
-    /// assert_eq!( *arc0, 500 );
+    /// assert_eq!(*arc0, 500);
     ///
     /// let mut arc1 = RArc::new(100);
     /// let arc1_clone = RArc::clone(&arc1);
     /// *RArc::make_mut(&mut arc1) += 400;
-    /// assert_eq!( *arc1, 500 );
-    /// assert_eq!( *arc1_clone, 100 );
+    /// assert_eq!(*arc1, 500);
+    /// assert_eq!(*arc1_clone, 100);
     ///
     /// ```
     #[inline]
@@ -298,10 +298,10 @@ impl<T> RArc<T> {
     /// use abi_stable::std_types::RArc;
     ///
     /// let arc = RArc::new(0);
-    /// assert_eq!( RArc::strong_count(&arc), 1 );
+    /// assert_eq!(RArc::strong_count(&arc), 1);
     ///
     /// let clone = RArc::clone(&arc);
-    /// assert_eq!( RArc::strong_count(&arc), 2 );
+    /// assert_eq!(RArc::strong_count(&arc), 2);
     ///
     /// ```
     pub fn strong_count(this: &Self) -> usize {
@@ -320,13 +320,13 @@ impl<T> RArc<T> {
     ///
     /// let rustarc = Arc::new(0);
     /// let arc = RArc::from(rustarc.clone());
-    /// assert_eq!( RArc::weak_count(&arc), 0 );
+    /// assert_eq!(RArc::weak_count(&arc), 0);
     ///
     /// let weak_0 = Arc::downgrade(&rustarc);
-    /// assert_eq!( RArc::weak_count(&arc), 1 );
+    /// assert_eq!(RArc::weak_count(&arc), 1);
     ///
     /// let weak_1 = Arc::downgrade(&rustarc);
-    /// assert_eq!( RArc::weak_count(&arc), 2 );
+    /// assert_eq!(RArc::weak_count(&arc), 2);
     /// ```
     pub fn weak_count(this: &Self) -> usize {
         let vtable = this.vtable();

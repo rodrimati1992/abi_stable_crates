@@ -236,7 +236,7 @@ impl RIoError {
     /// use abi_stable::std_types::RIoError;
     /// use std::io::ErrorKind;
     ///
-    /// let err = RIoError::new( ErrorKind::Other, "".parse::<u64>().unwrap_err());
+    /// let err = RIoError::new(ErrorKind::Other, "".parse::<u64>().unwrap_err());
     /// ```
     pub fn new<E>(kind: ErrorKind, error: E) -> Self
     where
@@ -259,7 +259,7 @@ impl RIoError {
     ///
     /// let str_err = "Timeout receiving the response from server.";
     ///
-    /// let err = RIoError::new_( ErrorKind::TimedOut, str_err);
+    /// let err = RIoError::new_(ErrorKind::TimedOut, str_err);
     /// ```
     #[inline]
     pub fn new_<E>(kind: ErrorKind, error: E) -> Self
@@ -277,7 +277,7 @@ impl RIoError {
     /// use abi_stable::std_types::RIoError;
     /// use std::io::ErrorKind;
     ///
-    /// let err = RIoError::from_kind( ErrorKind::AlreadyExists );
+    /// let err = RIoError::from_kind(ErrorKind::AlreadyExists);
     /// ```
     pub fn from_kind(kind: ErrorKind) -> Self {
         Self {
@@ -297,7 +297,7 @@ impl RIoError {
     ///
     /// let str_err = "Could not create file \"memes.txt\" because it already exists.";
     ///
-    /// let err = RIoError::with_box( ErrorKind::AlreadyExists, str_err.into());
+    /// let err = RIoError::with_box(ErrorKind::AlreadyExists, str_err.into());
     /// ```
     pub fn with_box(kind: ErrorKind, error: Box<dyn ErrorTrait + Send + Sync + 'static>) -> Self {
         RIoError {
@@ -318,7 +318,7 @@ impl RIoError {
     ///
     /// let str_err: DynErr = "IP address `256.256.256.256` is already in use.".into();
     ///
-    /// let err = RIoError::with_rboxerror( ErrorKind::AddrInUse, str_err.into() );
+    /// let err = RIoError::with_rboxerror(ErrorKind::AddrInUse, str_err.into());
     /// ```
     pub fn with_rboxerror(kind: ErrorKind, error: RBoxError) -> Self {
         RIoError {
@@ -335,7 +335,7 @@ impl RIoError {
     /// use abi_stable::std_types::{RIoError, RIoErrorKind};
     /// use std::io::ErrorKind;
     ///
-    /// let err = RIoError::from_kind( ErrorKind::AlreadyExists );
+    /// let err = RIoError::from_kind(ErrorKind::AlreadyExists);
     ///
     /// assert_eq!(err.kind(), RIoErrorKind::AlreadyExists);
     /// ```
@@ -349,16 +349,16 @@ impl RIoError {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RIoError, RIoErrorKind, RBoxError};
+    /// use abi_stable::std_types::{RBoxError, RIoError, RIoErrorKind};
     /// use std::io::ErrorKind;
     ///
     /// {
-    ///     let err = RIoError::from_kind( ErrorKind::AlreadyExists );
-    ///     assert_eq!(err.get_ref().map(|_|()), None);
+    ///     let err = RIoError::from_kind(ErrorKind::AlreadyExists);
+    ///     assert_eq!(err.get_ref().map(|_| ()), None);
     /// }
     /// {
     ///     let msg = "Cannot access directory at \"/home/Steve/memes/\".";
-    ///     let err = RIoError::new_( ErrorKind::PermissionDenied, msg );
+    ///     let err = RIoError::new_(ErrorKind::PermissionDenied, msg);
     ///
     ///     assert!(err.get_ref().is_some());
     /// }
@@ -374,16 +374,16 @@ impl RIoError {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RIoError, RIoErrorKind, RBoxError};
+    /// use abi_stable::std_types::{RBoxError, RIoError, RIoErrorKind};
     /// use std::io::ErrorKind;
     ///
     /// {
-    ///     let mut err = RIoError::from_kind( ErrorKind::AlreadyExists );
-    ///     assert_eq!(err.get_mut().map(|_|()), None);
+    ///     let mut err = RIoError::from_kind(ErrorKind::AlreadyExists);
+    ///     assert_eq!(err.get_mut().map(|_| ()), None);
     /// }
     /// {
     ///     let mut msg = "Cannot access directory at \"/home/Patrick/373.15K takes/\".";
-    ///     let mut err = RIoError::new_( ErrorKind::PermissionDenied, msg );
+    ///     let mut err = RIoError::new_(ErrorKind::PermissionDenied, msg);
     ///     assert!(err.get_mut().is_some());
     /// }
     ///
@@ -402,12 +402,12 @@ impl RIoError {
     /// use std::io::ErrorKind;
     ///
     /// {
-    ///     let err = RIoError::from_kind( ErrorKind::AlreadyExists );
-    ///     assert_eq!(err.into_inner().map(|_|()), None);
+    ///     let err = RIoError::from_kind(ErrorKind::AlreadyExists);
+    ///     assert_eq!(err.into_inner().map(|_| ()), None);
     /// }
     /// {
     ///     let mut msg = "Cannot access directory at \"/home/wo_boat/blog/\".";
-    ///     let err = RIoError::new_( ErrorKind::PermissionDenied, msg );
+    ///     let err = RIoError::new_(ErrorKind::PermissionDenied, msg);
     ///     assert!(err.into_inner().is_some());
     /// }
     ///

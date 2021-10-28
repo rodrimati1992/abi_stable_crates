@@ -43,10 +43,9 @@ impl RCmpOrdering {
     /// use abi_stable::std_types::RCmpOrdering;
     /// use std::cmp::Ordering;
     ///
-    ///
-    /// assert_eq!( RCmpOrdering::Less.into_ordering(), Ordering::Less );
-    /// assert_eq!( RCmpOrdering::Equal.into_ordering(), Ordering::Equal );
-    /// assert_eq!( RCmpOrdering::Greater.into_ordering(), Ordering::Greater );
+    /// assert_eq!(RCmpOrdering::Less.into_ordering(), Ordering::Less);
+    /// assert_eq!(RCmpOrdering::Equal.into_ordering(), Ordering::Equal);
+    /// assert_eq!(RCmpOrdering::Greater.into_ordering(), Ordering::Greater);
     ///
     /// ```
     #[inline]
