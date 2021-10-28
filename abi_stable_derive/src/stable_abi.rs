@@ -96,7 +96,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     let visited_fields = &VisitedFieldMap::new(ds, config, shared_vars, ctokens);
     shared_vars.extract_errs()?;
 
-    let module = Ident::new(&format!("_sabi_{}", name), Span::call_site());
     let mono_type_layout = &Ident::new(&format!("_MONO_LAYOUT_{}", name), Span::call_site());
 
     let (_, _, where_clause) = generics.split_for_impl();
@@ -214,7 +213,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     };
 
     // tokenizes the items for nonexhaustive enums outside of the module this generates.
-    let nonexhaustive_items = tokenize_nonexhaustive_items(&module, ds, config, ctokens);
+    let nonexhaustive_items = tokenize_nonexhaustive_items(ds, config, ctokens);
 
     // tokenizes the items for nonexhaustive enums inside of the module this generates.
     let nonexhaustive_tokens = tokenize_enum_info(ds, variant_names_start_len, config, ctokens)?;
@@ -389,7 +388,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     let PrefixTypeTokens {
         prefixref_types,
         prefixref_impls,
-    } = prefix_type_tokenizer(&module, mono_type_layout, ds, config, ctokens)?;
+    } = prefix_type_tokenizer(mono_type_layout, ds, config, ctokens)?;
 
     let mod_refl_mode = match config.mod_refl_mode {
         ModReflMode::Module => quote!(__ModReflMode::Module),
