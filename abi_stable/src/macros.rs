@@ -270,6 +270,7 @@ macro_rules! extern_fn_panic_handling {
             };
             BOMB
         };
+
         let res = {
             $($fn_contents)*
         };
@@ -279,13 +280,18 @@ macro_rules! extern_fn_panic_handling {
         res
     });
     ( $($fn_contents:tt)* ) => (
-        $crate::extern_fn_panic_handling!{
-            no_early_return;
-            let a = $crate::marker_type::NotCopyNotClone;
-            (move||{
-                drop(a);
-                $($fn_contents)*
-            })()
+        #[allow(clippy::redundant_closure_call)]
+        {
+            $crate::extern_fn_panic_handling!{
+                no_early_return;
+                let a = $crate::marker_type::NotCopyNotClone;
+                (move||{
+                    drop(a);
+                    {
+                        $($fn_contents)*
+                    }
+                })()
+            }
         }
     )
 }

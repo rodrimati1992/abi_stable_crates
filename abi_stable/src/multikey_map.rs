@@ -241,9 +241,11 @@ where
     where
         K: Clone + ::std::fmt::Debug,
     {
-        if !self.arena.contains(index.index) {
-            panic!("Invalid index:{:?}", index);
-        }
+        assert!(
+            self.arena.contains(index.index),
+            "Invalid index:{:?}",
+            index,
+        );
         let ret = match self.map.entry(key.clone()) {
             Entry::Occupied(mut entry) => {
                 let index_before = *entry.get();

@@ -371,7 +371,7 @@ impl_into_rust_repr! {
         T: Clone+StableAbi,
     ]{
         fn(this){
-            Self::into_arc(this)
+            RArc::into_arc(this)
         }
     }
 }
@@ -476,7 +476,7 @@ mod vtable_mod {
     }
 
     unsafe extern "C" fn clone_arc<T>(this: &RArc<T>) -> RArc<T> {
-        with_arc_ref(this, |x| Arc::clone(&x).into())
+        with_arc_ref(this, |x| Arc::clone(x).into())
     }
 
     unsafe extern "C" fn get_mut_arc<'a, T>(this: &'a mut RArc<T>) -> Option<&'a mut T> {
@@ -497,11 +497,11 @@ mod vtable_mod {
     }
 
     unsafe extern "C" fn strong_count_arc<T>(this: &RArc<T>) -> usize {
-        with_arc_ref(this, |x| Arc::strong_count(&x))
+        with_arc_ref(this, |x| Arc::strong_count(x))
     }
 
     unsafe extern "C" fn weak_count_arc<T>(this: &RArc<T>) -> usize {
-        with_arc_ref(this, |x| Arc::weak_count(&x))
+        with_arc_ref(this, |x| Arc::weak_count(x))
     }
 }
 use self::vtable_mod::{ArcVtable_Ref, VTableGetter};

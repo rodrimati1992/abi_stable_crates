@@ -268,8 +268,7 @@ impl<'a, T> MovePtr<'a, T> {
     #[inline]
     pub fn into_raw(this: Self) -> *mut T {
         let this = ManuallyDrop::new(this);
-        let ptr = this.ptr.as_ptr();
-        ptr
+        this.ptr.as_ptr()
     }
 
     /// Moves the value into a new `Box<T>`

@@ -201,21 +201,14 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 // the true positives are caught by the StableAbi trait.
 #![allow(improper_ctypes)]
 #![allow(improper_ctypes_definitions)]
-#![allow(unused_unsafe)]
 #![allow(non_camel_case_types)]
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
-#![allow(clippy::declare_interior_mutable_const)]
 #![allow(clippy::needless_doctest_main)]
-#![allow(clippy::redundant_closure_call)]
-#![allow(clippy::suspicious_assignment_formatting)]
 #![allow(clippy::zero_prefixed_literal)]
 #![allow(clippy::type_complexity)]
-// This lint is telling me to use `#[non_exhaustive]` for structs that will never change,
-// that is very silly.
-#![allow(clippy::manual_non_exhaustive)]
-#![allow(clippy::ptr_offset_with_cast)]
 #![allow(clippy::empty_loop)]
+#![allow(clippy::ptr_offset_with_cast)]
 #![deny(clippy::missing_safety_doc)]
 #![cfg_attr(feature = "docsrs", feature(doc_cfg))]
 
@@ -374,7 +367,7 @@ pub mod globals {
 
     #[inline(never)]
     pub fn initialized_globals() -> &'static Globals {
-        GLOBALS.init(|| Globals::new())
+        GLOBALS.init(Globals::new)
     }
 
     #[inline(never)]

@@ -94,9 +94,9 @@ impl MonoTLData {
         }
     }
 
-    pub(super) fn to_primitive(&self) -> Option<TLPrimitive> {
+    pub(super) fn to_primitive(self) -> Option<TLPrimitive> {
         match self {
-            MonoTLData::Primitive(x) => Some(*x),
+            MonoTLData::Primitive(x) => Some(x),
             _ => None,
         }
     }

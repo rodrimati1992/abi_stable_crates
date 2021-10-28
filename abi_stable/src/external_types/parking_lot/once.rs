@@ -24,6 +24,7 @@ type OpaqueOnce = UnsafeOveralignedField<PLOnce, [u8; OM_PADDING]>;
 
 const OM_PADDING: usize = RAW_LOCK_SIZE - mem::size_of::<PLOnce>();
 
+#[allow(clippy::declare_interior_mutable_const)]
 const OPAQUE_ONCE: OpaqueOnce = OpaqueOnce::new(parking_lot::Once::new(), [0u8; OM_PADDING]);
 
 #[allow(dead_code)]
@@ -99,6 +100,7 @@ impl ROnce {
     /// static ONCE: ROnce = ROnce::NEW;
     ///
     /// ```
+    #[allow(clippy::declare_interior_mutable_const)]
     pub const NEW: Self = ROnce {
         opaque_once: OPAQUE_ONCE,
         vtable: VTable::VTABLE,
@@ -510,8 +512,6 @@ where
 //#[cfg(test)]
 mod tests {
     use super::*;
-
-    use std::{thread, time::Duration};
 
     use crossbeam_utils::thread::scope as scoped_thread;
 

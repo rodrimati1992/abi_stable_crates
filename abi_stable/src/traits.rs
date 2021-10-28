@@ -85,12 +85,11 @@ macro_rules! impl_into_rust_repr {
 
     ) => (
         $(#[$meta])*
-        impl $(< $($impl_header)* >)?  Into<$into_ty> for $from_ty
+        impl $(< $($impl_header)* >)? From<$from_ty> for $into_ty
         $(where $($where_clause)*)?
         {
             #[inline]
-            fn into(self)->$into_ty{
-                let $this=self;
+            fn from($this: $from_ty) -> $into_ty{
                 $($function_contents)*
             }
         }
@@ -112,7 +111,7 @@ macro_rules! impl_into_rust_repr {
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-pub(crate) unsafe trait ErasedType<'a>: Sized {
+pub(crate) trait ErasedType<'a>: Sized {
     type Unerased;
 
     #[inline]

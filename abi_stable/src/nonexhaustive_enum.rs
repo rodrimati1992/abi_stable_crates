@@ -41,6 +41,7 @@ where
     T: GetVTable<<T as GetEnumInfo>::DefaultStorage, <T as GetEnumInfo>::DefaultInterface>,
 {
     #[derive(Debug)]
+    #[allow(dead_code)]
     struct TypeAndStorageLayout {
         type_: &'static str,
         type_size: usize,

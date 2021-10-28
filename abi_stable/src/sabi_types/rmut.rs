@@ -596,6 +596,7 @@ impl<'a, T> RMut<'a, T> {
     /// }
     /// ```
     #[inline(always)]
+    #[allow(clippy::needless_lifetimes)]
     pub fn as_rref<'r>(&'r self) -> RRef<'r, T> {
         unsafe { RRef::from_raw(self.ref_.as_ptr()) }
     }
@@ -746,6 +747,7 @@ mod tests {
         }
     }
 
+    #[test]
     fn as_rtype_test() {
         let mut num = 0u8;
         let mut rmut = RMut::new(&mut num);

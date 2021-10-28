@@ -349,6 +349,8 @@ impl std::ops::Deref for AbiHeaderRef {
 /// [`LibraryError::InvalidAbiHeader`]: ./enum.LibraryError.html#variant.InvalidAbiHeader
 #[repr(C)]
 #[derive(Debug, StableAbi, Copy, Clone)]
+// This type will never have new fields clippy, that's the point <_<
+#[allow(clippy::manual_non_exhaustive)]
 pub struct AbiHeader {
     /// A magic string used to check that this is actually abi_stable.
     pub magic_string: [u8; 32],

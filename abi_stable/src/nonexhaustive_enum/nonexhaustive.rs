@@ -236,7 +236,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
         Self::assert_fits_within_storage();
 
         let mut this = Self {
-            fill: unsafe {
+            fill: {
                 // The fact that the vtable was constructed ensures that
                 // `Inline` implements `InlineStorage`
                 ScratchSpace::uninit_unbounded()
@@ -589,11 +589,9 @@ where
     Self: PartialEq<E>,
 {
     fn partial_cmp(&self, other: &E) -> Option<Ordering> {
-        unsafe {
-            match self.as_enum() {
-                Ok(this) => this.partial_cmp(other),
-                Err(_) => Some(Ordering::Greater),
-            }
+        match self.as_enum() {
+            Ok(this) => this.partial_cmp(other),
+            Err(_) => Some(Ordering::Greater),
         }
     }
 }
@@ -809,10 +807,10 @@ where
 #[must_use]
 #[repr(transparent)]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, StableAbi)]
+#[non_exhaustive]
 pub struct UnwrapEnumError<N> {
     /// This field is either a `NonExhaustive<>` or a `DiscrAndEnumInfo<>`
     pub non_exhaustive: N,
-    _priv: (),
 }
 
 impl<N> UnwrapEnumError<N> {
@@ -839,10 +837,7 @@ impl<N> UnwrapEnumError<N> {
 impl<N> UnwrapEnumError<N> {
     #[inline]
     const fn new(non_exhaustive: N) -> Self {
-        Self {
-            non_exhaustive,
-            _priv: (),
-        }
+        Self { non_exhaustive }
     }
 }
 

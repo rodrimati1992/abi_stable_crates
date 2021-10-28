@@ -139,14 +139,20 @@ macro_rules! declare_tl_lifetime_types {(
         #[inline]
         pub const fn from_u20(bits: u32) -> Self {
             Self {
-                bits:bits&0xF_FF_FF
+                bits:bits & 0xF_FF_FF
             }
         }
 
         /// Gets the length of this array.
         #[inline]
-        pub const fn len(mut self)->usize{
-            (8-(self.bits.leading_zeros()>>2))as usize
+        pub const fn len(mut self) -> usize{
+            (8-(self.bits.leading_zeros() >> 2))as usize
+        }
+
+        /// Gets whether the array is empty.
+        #[inline]
+        pub const fn is_empty(self) -> bool{
+            self.len() == 0
         }
     }
 
@@ -228,6 +234,12 @@ macro_rules! declare_tl_lifetime_types {(
             }else{
                 LifetimeIndexArray::from_u20(self.bits).len()
             }
+        }
+
+        /// Whether this span of lifetimes is empty.
+        #[inline]
+        pub fn is_empty(self) -> bool {
+            self.len() == 0
         }
 
         /// Whether this is a range into a slice of `LifetimePair`s.

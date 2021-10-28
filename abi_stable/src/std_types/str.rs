@@ -245,9 +245,9 @@ deref_coerced_impl_cmp_traits! {
 
 ////////////////////////////////
 
-impl<'a> Into<Cow<'a, str>> for RStr<'a> {
-    fn into(self) -> Cow<'a, str> {
-        self.as_str().into()
+impl<'a> From<RStr<'a>> for Cow<'a, str> {
+    fn from(this: RStr<'a>) -> Cow<'a, str> {
+        this.as_str().into()
     }
 }
 
@@ -259,15 +259,15 @@ impl_into_rust_repr! {
     }
 }
 
-impl<'a> Into<String> for RStr<'a> {
-    fn into(self) -> String {
-        self.as_str().into()
+impl From<RStr<'_>> for String {
+    fn from(this: RStr<'_>) -> String {
+        this.as_str().into()
     }
 }
 
-impl<'a> Into<RString> for RStr<'a> {
-    fn into(self) -> RString {
-        self.as_str().into()
+impl From<RStr<'_>> for RString {
+    fn from(this: RStr<'_>) -> RString {
+        this.as_str().into()
     }
 }
 

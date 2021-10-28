@@ -159,14 +159,11 @@ mod private {
         where
             F: FnOnce(&mut Vec<T>) -> U,
         {
-            unsafe {
-                let mut old = mem::replace(self, RVec::new()).piped(ManuallyDrop::new);
-                let mut list =
-                    Vec::<T>::from_raw_parts(old.buffer_mut(), old.len(), old.capacity());
-                let ret = f(&mut list);
-                ptr::write(self, list.into());
-                ret
-            }
+            let mut old = mem::replace(self, RVec::new()).piped(ManuallyDrop::new);
+            let mut list = Vec::<T>::from_raw_parts(old.buffer_mut(), old.len(), old.capacity());
+            let ret = f(&mut list);
+            ptr::write(self, list.into());
+            ret
         }
 
         /// Gets a raw pointer to the start of this RVec's buffer.

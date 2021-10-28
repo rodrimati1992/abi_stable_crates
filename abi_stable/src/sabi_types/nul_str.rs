@@ -4,7 +4,7 @@
 #[cfg(test)]
 mod tests;
 
-use crate::{std_types::RStr, utils::ref_as_nonnull};
+use crate::std_types::RStr;
 
 use std::{
     cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},
@@ -157,7 +157,6 @@ impl<'a> NulStr<'a> {
         pub fn try_from_str(string: &'a str) -> Result<Self, NulStrError> {
             let mut i = 0;
             let mut bytes = string.as_bytes();
-            let len = string.len();
 
             bytes = match bytes {
                 [rem @ .., 0] => rem,
@@ -173,7 +172,7 @@ impl<'a> NulStr<'a> {
             }
 
             unsafe{
-                Ok(NulStr::from_str(string))
+                Ok(NulStr::from_ptr(string.as_ptr()))
             }
         }
     }

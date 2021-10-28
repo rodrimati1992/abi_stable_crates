@@ -111,7 +111,7 @@ mod _sabi_erasedobject {
         type StaticEquivalent = _static_ErasedObject<__GetStaticEquivalent<T>>;
     }
     #[doc(hidden)]
-    pub(super) const _MONO_LAYOUT_ErasedObject: &'static __sabi_re::MonoTypeLayout =
+    pub(super) const _MONO_LAYOUT_ErasedObject: &__sabi_re::MonoTypeLayout =
         &__sabi_re::MonoTypeLayout::from_derive(__sabi_re::_private_MonoTypeLayoutDerive {
             name: abi_stable::std_types::RStr::from_str("ErasedObject"),
             item_info: _ITEM_INFO_CONST_ERASEDOBJECT,

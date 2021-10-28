@@ -22,7 +22,7 @@ abi_stable_shared::declare_multi_tl_types! {
 }
 
 impl TypeLayoutRange {
-    pub(crate) fn to_array(&self) -> [u16; Self::STORED_INLINE] {
+    pub(crate) fn to_array(self) -> [u16; Self::STORED_INLINE] {
         [
             ((self.bits0 >> Self::INDEX_0_OFFSET) & Self::INDEX_MASK) as u16,
             ((self.bits0 >> Self::INDEX_1_OFFSET) & Self::INDEX_MASK) as u16,
