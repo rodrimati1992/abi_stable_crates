@@ -55,7 +55,7 @@ use self::{
     },
     common_tokens::CommonTokens,
     nonexhaustive::{tokenize_enum_info, tokenize_nonexhaustive_items},
-    prefix_types::prefix_type_tokenizer,
+    prefix_types::{prefix_type_tokenizer, PrefixTypeTokens},
     reflection::ModReflMode,
     shared_vars::SharedVars,
     tl_field::CompTLField,
@@ -386,8 +386,10 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
 
     let extra_bounds = &config.extra_bounds;
 
-    let prefix_type_tokenizer_ =
-        prefix_type_tokenizer(&module, mono_type_layout, ds, config, ctokens)?;
+    let PrefixTypeTokens {
+        prefixref_types,
+        prefixref_impls,
+    } = prefix_type_tokenizer(&module, mono_type_layout, ds, config, ctokens)?;
 
     let mod_refl_mode = match config.mod_refl_mode {
         ModReflMode::Module => quote!(__ModReflMode::Module),
@@ -489,25 +491,26 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     };
 
     quote!(
-        #prefix_type_tokenizer_
+        #prefixref_types
 
         #nonexhaustive_items
 
-        const #item_info_const:abi_stable::type_layout::ItemInfo=
-            abi_stable::make_item_info!();
-
-        const #strings_const: ::abi_stable::std_types::RStr<'static>=#strings;
-
-        mod #module {
-            use super::*;
-
-            pub(super) use ::abi_stable;
+        const _: () = {
+            use ::abi_stable;
 
             #[allow(unused_imports)]
-            pub(super) use ::abi_stable::derive_macro_reexports::{
+            use ::abi_stable::pmr::{
                 self as __sabi_re,
                 renamed::*,
             };
+
+            #prefixref_impls
+
+            const #item_info_const: abi_stable::type_layout::ItemInfo=
+                abi_stable::make_item_info!();
+
+            const #strings_const: ::abi_stable::std_types::RStr<'static>=#strings;
+
 
             #static_struct_decl
 
@@ -529,7 +532,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
             }
 
             #[doc(hidden)]
-            pub(super) const #mono_type_layout:&'static __sabi_re::MonoTypeLayout=
+            const #mono_type_layout:&'static __sabi_re::MonoTypeLayout=
                 &__sabi_re::MonoTypeLayout::from_derive(
                     __sabi_re::_private_MonoTypeLayoutDerive{
                         name: #stringified_name,
@@ -575,7 +578,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
                 };
             }
 
-        }
+        };
     )
     .observe(|tokens| {
         #[allow(clippy::if_then_panic)]

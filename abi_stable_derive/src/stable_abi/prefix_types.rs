@@ -6,7 +6,7 @@ use core_extensions::{matches, SelfOps};
 
 use syn::{punctuated::Punctuated, Ident, TypeParamBound, Visibility, WherePredicate};
 
-use quote::{quote_spanned, ToTokens};
+use quote::{quote_spanned, ToTokens, TokenStreamExt};
 
 use as_derive_utils::{
     datastructure::{DataStructure, Field, FieldIndex, FieldMap},
@@ -209,6 +209,11 @@ impl<'a> PrefixKind<'a> {
 /////                 Code generation
 ////////////////////////////////////////////////////////////////////////////////
 
+pub struct PrefixTypeTokens {
+    pub prefixref_types: TokenStream2,
+    pub prefixref_impls: TokenStream2,
+}
+
 /// Returns a value which for a prefix-type .
 pub(crate) fn prefix_type_tokenizer<'a>(
     module: &'a Ident,
@@ -216,7 +221,7 @@ pub(crate) fn prefix_type_tokenizer<'a>(
     ds: &'a DataStructure<'a>,
     config: &'a StableAbiOptions<'a>,
     _ctokens: &'a CommonTokens<'a>,
-) -> Result<impl ToTokens + 'a, syn::Error> {
+) -> Result<PrefixTypeTokens, syn::Error> {
     if matches!(config.kind, StabilityKind::Prefix { .. }) {
         if ds
             .variants
@@ -237,15 +242,22 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         }
     }
 
-    Ok(ToTokenFnMut::new(move |ts| {
+    Ok({
+        fn default_prefixtype_tokens() -> PrefixTypeTokens {
+            PrefixTypeTokens {
+                prefixref_types: TokenStream2::new(),
+                prefixref_impls: TokenStream2::new(),
+            }
+        }
+
         let struct_ = match ds.variants.get(0) {
             Some(x) => x,
-            None => return,
+            None => return Ok(default_prefixtype_tokens()),
         };
 
         let prefix = match &config.kind {
             StabilityKind::Prefix(prefix) => prefix,
-            _ => return,
+            _ => return Ok(default_prefixtype_tokens()),
         };
 
         let first_suffix_field = prefix.first_suffix_field.field_pos;
@@ -327,7 +339,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
         let prefix_ref = prefix.prefix_ref;
 
         // Generating the `<prefix_ref>` struct
-        {
+        let generated_types = {
             let vis = ds.vis;
             let generics = ds.generics;
 
@@ -358,7 +370,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 #[doc=#prefix_ref_docs]
                 #[repr(transparent)]
                 #vis struct #prefix_ref #generics (
-                    #vis #module::__sabi_re::PrefixRef<
+                    #vis ::abi_stable::pmr::PrefixRef<
                         #prefix_fields_struct #ty_generics,
                     >
                 )#where_clause;
@@ -381,11 +393,10 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                     // Using this to ensure that the struct has at least the alignment of usize,
                     // so that adding pointer fields is not an ABI breaking change.
                     __sabi_usize_alignment: [usize; 0],
-                    __sabi_pt_unbounds: #module::__sabi_re::NotCopyNotClone,
+                    __sabi_pt_unbounds: ::abi_stable::pmr::NotCopyNotClone,
                 }
             )
-            .to_tokens(ts);
-        }
+        };
 
         let mut accessor_buffer = String::new();
 
@@ -581,20 +592,18 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
         let mut pt_layout_ident = parse_str_as_ident(&format!("__sabi_PT_LAYOUT{}", deriving_name));
         pt_layout_ident.set_span(deriving_name.span());
 
-        quote!(const _: () = {
-            use #module::__sabi_re;
-            
+        let mut generated_impls = quote!(
             #[allow(non_upper_case_globals)]
-            const #pt_layout_ident:&'static #module::__PTStructLayout ={
+            const #pt_layout_ident:&'static __sabi_re::PTStructLayout ={
                 &__sabi_re::PTStructLayout::new(
                     #stringified_generics_tokenizer,
-                    #module::#mono_type_layout,
+                    #mono_type_layout,
                 )
             };
 
             unsafe impl #impl_generics
-                __sabi_re::PrefixTypeTrait 
-            for #deriving_name #ty_generics 
+                __sabi_re::PrefixTypeTrait
+            for #deriving_name #ty_generics
             where
                 #(#where_preds_a,)*
                 #(#prefix_bounds,)*
@@ -610,7 +619,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                     )
                 };
                 // A description of the struct used for error messages.
-                const PT_LAYOUT:&'static #module::__PTStructLayout =#pt_layout_ident;
+                const PT_LAYOUT:&'static __sabi_re::PTStructLayout =#pt_layout_ident;
 
                 type PrefixFields = #prefix_fields_struct #ty_generics;
                 type PrefixRef = #prefix_ref #ty_generics;
@@ -618,7 +627,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
 
             #[allow(non_upper_case_globals, clippy::needless_lifetimes, clippy::new_ret_no_self)]
             impl #impl_generics #prefix_ref #ty_generics
-            where 
+            where
                 #(#where_preds_b,)*
             {
                 #(
@@ -632,8 +641,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                         #field_i_a;
                 )*
             }
-        };)
-        .to_tokens(ts);
+        );
 
         let first_offset = if let Some(constant) = offset_consts.first() {
             quote!(
@@ -656,9 +664,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
         let prev_tys = struct_.fields.iter().map(|f| f.ty);
         let curr_tys = prev_tys.clone().skip(1);
 
-        quote!( const _: () = {
-            use #module::__sabi_re;
-
+        generated_impls.append_all(quote!(
             #[allow(
                 clippy::ptr_offset_with_cast,
                 clippy::needless_lifetimes,
@@ -666,13 +672,13 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 non_upper_case_globals,
             )]
             impl #impl_generics #prefix_ref #ty_generics
-            where 
+            where
                 #(#where_preds_c,)*
                 #(#prefix_bounds,)*
             {
                 #first_offset
                 #(
-                    const #curr_offsets: usize = 
+                    const #curr_offsets: usize =
                         __sabi_re::next_field_offset::<
                             #deriving_name #ty_generics,
                             #prev_tys,
@@ -687,13 +693,13 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 //    0:the field is inaccessible.
                 //    1:the field is accessible.
                 const __SABI_PTT_FAM:u64=
-                    <#deriving_name #ty_generics as 
-                        __sabi_re::PrefixTypeTrait 
+                    <#deriving_name #ty_generics as
+                        __sabi_re::PrefixTypeTrait
                     >::PT_FIELD_ACCESSIBILITY.bits();
 
                 /// Accessor to get the layout of the type,used for error messages.
                 #[inline(always)]
-                pub fn _prefix_type_layout(self)-> &'static #module::__PTStructLayout {
+                pub fn _prefix_type_layout(self)-> &'static __sabi_re::PTStructLayout {
                     self.0.metadata().type_layout()
                 }
 
@@ -703,7 +709,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 )*
             }
 
-            unsafe impl #impl_generics __sabi_re::ImmutableRef for #prefix_ref #ty_generics 
+            unsafe impl #impl_generics __sabi_re::ImmutableRef for #prefix_ref #ty_generics
             where
                 #(#where_preds_rl,)*
             {
@@ -713,43 +719,20 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 >;
             }
 
-            unsafe impl #impl_generics __sabi_re::PrefixRefTrait for #prefix_ref #ty_generics 
+            unsafe impl #impl_generics __sabi_re::PrefixRefTrait for #prefix_ref #ty_generics
             where
                 #(#where_preds_r2,)*
             {
                 type PrefixFields = #prefix_fields_struct #ty_generics;
             }
 
-            // unsafe impl #impl_generics __sabi_re::GetStaticEquivalent_
-            // for #prefix_ref #ty_generics
-            // where
-            //     #(#where_preds_d0,)*
-            //     #prefix_fields_struct #ty_generics: __sabi_re::GetStaticEquivalent_
-            // {
-            //     type StaticEquivalent = 
-            //         __sabi_re::GetStaticEquivalent<#prefix_fields_struct #ty_generics>;
-            // }
-
-            // unsafe impl #impl_generics __sabi_re::StableAbi for #prefix_ref #ty_generics
-            // where 
-            //     #(#where_preds_d1,)*
-            //     #prefix_fields_struct #ty_generics: __sabi_re::PrefixStableAbi
-            // {
-            //     type IsNonZeroType = __sabi_re::True;
-
-            //     const LAYOUT: &'static __sabi_re::TypeLayout = 
-            //         <__sabi_re::PrefixRef<#prefix_fields_struct #ty_generics>
-            //             as __sabi_re::StableAbi
-            //         >::LAYOUT;
-            // }
-
             impl #impl_generics Copy for #prefix_ref #ty_generics
-            where 
+            where
                 #(#where_preds_e,)*
             {}
 
             impl #impl_generics Clone for #prefix_ref #ty_generics
-            where 
+            where
                 #(#where_preds_f,)*
             {
                 fn clone(&self) -> Self {
@@ -757,7 +740,11 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 }
             }
 
-        };)
-        .to_tokens(ts);
-    }))
+        ));
+
+        PrefixTypeTokens {
+            prefixref_types: generated_types,
+            prefixref_impls: generated_impls,
+        }
+    })
 }
