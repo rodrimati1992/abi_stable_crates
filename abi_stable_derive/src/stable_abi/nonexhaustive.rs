@@ -389,13 +389,13 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
 
             #[doc=#alias_docs]
             #vis type #nonexhaustive_alias<#type_generics_decl>=
-                #module::__sabi_re::NonExhaustive<
+                ::abi_stable::pmr::NonExhaustive<
                     #name<#type_generics_use>,
                     #enum_storage,
                     #default_interface,
                 >;
 
-            unsafe impl #module::__sabi_re::InlineStorage for #enum_storage{}
+            unsafe impl ::abi_stable::pmr::InlineStorage for #enum_storage{}
 
             #[doc=#marker_docs]
             #vis struct #nonexhaustive_marker<T,S>(
@@ -491,7 +491,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
                             let type_param = ToTokenFnMut::new(|ts| match referent {
                                 Some(x) => x.to_tokens(ts),
                                 None => {
-                                    quote!( <#pointer as __sabi_re::GetPointerKind>::PtrTarget )
+                                    quote!( <#pointer as ::abi_stable::pmr::GetPointerKind>::PtrTarget )
                                         .to_tokens(ts)
                                 }
                             });
@@ -518,7 +518,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
             let bound = match &this.bounds_trait {
                 Some(BoundsTrait { ident, .. }) => quote!(#ident),
                 None => quote!(
-                    #module::__sabi_re::GetNonExhaustiveVTable<
+                    ::abi_stable::pmr::GetNonExhaustiveVTable<
                         #enum_storage,
                         #default_interface,
                     >
@@ -688,7 +688,7 @@ pub(crate) fn tokenize_enum_info<'a>(
             quote!(
                 #[test]
                 fn #tests_function(){
-                    use self::__sabi_re::assert_nonexhaustive;
+                    use ::abi_stable::pmr::assert_nonexhaustive;
 
                     #(
                         assert_nonexhaustive::<#assertions>();
