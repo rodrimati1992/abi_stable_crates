@@ -753,6 +753,14 @@ impl<K, V, S> RHashMap<K, V, S> {
         unsafe { vtable.entry()(self.map.as_rmut(), key) }
     }
 
+    /// An iterator visiting all keys in arbitrary order.
+    /// The iterator element type is `&'a K`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use abi_stable::std_types::RHashMap;
+    ///
     /// let mut map = RHashMap::new();
     /// map.insert("a", 1);
     /// map.insert("b", 2);

@@ -216,7 +216,6 @@ pub struct PrefixTypeTokens {
 
 /// Returns a value which for a prefix-type .
 pub(crate) fn prefix_type_tokenizer<'a>(
-    module: &'a Ident,
     mono_type_layout: &'a Ident,
     ds: &'a DataStructure<'a>,
     config: &'a StableAbiOptions<'a>,
