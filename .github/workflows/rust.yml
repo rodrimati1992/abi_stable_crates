@@ -28,6 +28,15 @@ jobs:
             os: ubuntu-latest
 
     steps:
+    - uses: actions/checkout@v2
+    - name: ci-format
+      if: matrix.rust == 'stable'
+      run: |
+        rustup override set ${{ matrix.rust }}
+        rustup component add rustfmt
+        cd "${{github.workspace}}/"
+        cargo fmt -- --check
+
     - name: enable-rust-stable
       if: matrix.rust == '1.51.0' 
       run: echo "rustv=rust_1_51" >> $GITHUB_ENV
@@ -35,14 +44,6 @@ jobs:
     - name: enable-rust-stable
       if: matrix.rust == 'stable' || matrix.rust == 'beta' || matrix.rust == 'nightly'
       run: echo "rustv=rust_latest_stable" >> $GITHUB_ENV
-
-    - uses: actions/checkout@v2
-    - name: ci-format
-      run: |
-        rustup override set ${{ matrix.rust }}
-        rustup component add rustfmt
-        cd "${{github.workspace}}/"
-        cargo fmt -- --check
 
     - uses: actions/checkout@v2
     - name: ci-all-versions
