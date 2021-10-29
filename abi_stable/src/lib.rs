@@ -53,10 +53,16 @@ To run the example crates you'll generally have to build the `*_impl` crate,
 then run the `*_user` crate (all `*_user` crates should have a help message and a readme.md).
 
 
-# Cargo Features
+# Minimum Rust version
 
-If it becomes possible to disable build scripts,
-you can manually enable support for Rust past 1.41.0 features with the `rust_*_*` cargo features.
+This crate support Rust back to 1.46.0
+
+You can manually enable support for Rust past 1.46.0 with the `rust_*_*` cargo features.
+
+Had to bump the MSRV from 1.41.0 to 1.46.0 because fixing Rust nightly
+compatibility caused Internal Compiler Errors in older Rust versions.
+
+# Crate Features
 
 These are default cargo features that enable optional crates :
 
@@ -82,14 +88,7 @@ enabling the features you need in the `features` array.
 
 ### Manually enabled
 
-These are features to manually enable support for newer language features,
-required until this library is updated to automatically detect them,
-every one of which has a `nightly_*` equivalent.
-
-Features:
-
-- "rust_1_46": Makes some functions `const fn`s that are otherwise not `const`,
-this is documented in each function for which it applies.
+These are crate features to manually enable support for newer language features:
 
 - "rust_1_51_0":
 Enables impls which require using const generics,

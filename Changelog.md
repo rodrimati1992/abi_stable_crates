@@ -7,6 +7,8 @@ Minor changes may be ommited, as well as improvements to documentation.
 ### 0.10.3
 
 
+Bumped Minimum Supported Rust Version to 1.46.0 because fixing support for Rust nightly caused Internal Compiler Errors in older Rust versions. 
+
 Added `StableAbi` impls for `f32` and `f64`.
 
 Fixed error in `StableAbi` derive caused by using the derive inside a function with the `proc_macro_derive_resolution_fallback` lint enabled (deny-by-default in nightly).
@@ -31,8 +33,6 @@ Made `NulStr::from_str` safe, by not requiring no internal nul bytes.
 Deprecated `nul_str` macro.
 
 Added `nulstr` and `nulstr_trunc` macros.
-
-Added "rust_1_46" feature.
 
 Added "rust_latest_stable" feature.
 

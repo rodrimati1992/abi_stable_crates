@@ -252,14 +252,7 @@ impl_fmt_padding! { RString }
 /// After this function is called `slot` will become uninitialized and
 /// must not be read again.
 pub unsafe fn take_manuallydrop<T>(slot: &mut ManuallyDrop<T>) -> T {
-    #[cfg(feature = "rust_1_42")]
-    {
-        ManuallyDrop::take(slot)
-    }
-    #[cfg(not(feature = "rust_1_42"))]
-    {
-        ManuallyDrop::into_inner(std::ptr::read(slot))
-    }
+    ManuallyDrop::take(slot)
 }
 
 #[doc(hidden)]
