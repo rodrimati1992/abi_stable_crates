@@ -8,13 +8,13 @@ This library allows defining Rust libraries that can be loaded at runtime,
 even if they were built with a different Rust version than the crate that depends on it.
 
 These are some usecases for this library:
-    
+
 - Converting a Rust dependency tree from compiling statically into a single binary,
     into one binary (and potentially) many dynamic libraries,
     allowing separate re-compilation on changes.
 
 - Creating a plugin system (without support for unloading).
-    
+
 # Features
 
 Currently this library has these features:
@@ -53,10 +53,16 @@ To run the example crates you'll generally have to build the `*_impl` crate,
 then run the `*_user` crate (all `*_user` crates should have a help message and a readme.md).
 
 
-# Cargo Features
+# Minimum Rust version
 
-If it becomes possible to disable build scripts,
-you can manually enable support for Rust past 1.41.0 features with the `rust_*_*` cargo features.
+This crate support Rust back to 1.46.0
+
+You can manually enable support for Rust past 1.46.0 with the `rust_*_*` cargo features.
+
+Had to bump the MSRV from 1.41.0 to 1.46.0 because fixing Rust nightly
+compatibility caused Internal Compiler Errors in older Rust versions.
+
+# Crate Features
 
 These are default cargo features that enable optional crates :
 
@@ -66,7 +72,7 @@ These are default cargo features that enable optional crates :
 
 - "serde_json":
     Depends on `serde_json`,
-    providing ffi-safe equivalents of 
+    providing ffi-safe equivalents of
     `&serde_json::value::RawValue` and `Box<serde_json::value::RawValue>`,
     in `abi_stable::external_types::serde_json` .
 
@@ -82,25 +88,24 @@ enabling the features you need in the `features` array.
 
 ### Manually enabled
 
-These are features to manually enable support for newer language features,
-required until this library is updated to automatically detect them,
-every one of which has a `nightly_*` equivalent.
-
-Features:
+These are crate features to manually enable support for newer language features:
 
 - "rust_1_51_0":
 Enables impls which require using const generics,
 including implementing StableAbi for arrays of all lengths,
 requires Rust Rust 1.51.0 or higher.
 
+- "rust_latest_stable":
+Enables the "rust_1_*" features for all the stable releases.
+
 # Glossary
 
-`interface crate`:the crate that declares the public functions, types, and traits that 
+`interface crate`:the crate that declares the public functions, types, and traits that
 are necessary to load the library at runtime.
 
 `ìmplementation crate`:A crate that implements all the functions in the interface crate.
 
-`user crate`:A crate that depends on an `interface crate` and 
+`user crate`:A crate that depends on an `interface crate` and
 loads 1 or more `ìmplementation crate`s for it.
 
 `module`:refers to a struct of function pointers and other static values.
@@ -128,13 +133,13 @@ These are the kinds of types passed through FFI:
 - [Trait objects] :<br>
     Trait object-like types generated using the [`sabi_trait`] attribute macro,
     which erase the type of the value they wrap,implements the methods of the trait,
-    and can only be unwrapped back to the original type in the dynamic library/binary 
+    and can only be unwrapped back to the original type in the dynamic library/binary
     that created it.
 
 - Opaque kind:<br>
     Types wrapped in [`DynTrait`],
     whose layout can change in any version of the library,
-    and can only be unwrapped back to the original type in the dynamic library/binary 
+    and can only be unwrapped back to the original type in the dynamic library/binary
     that created it.
 
 - [Prefix types] :<br>
@@ -195,26 +200,15 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 // the true positives are caught by the StableAbi trait.
 #![allow(improper_ctypes)]
 #![allow(improper_ctypes_definitions)]
-#![allow(unused_unsafe)]
 #![allow(non_camel_case_types)]
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
-
-#![allow(clippy::declare_interior_mutable_const)]
 #![allow(clippy::needless_doctest_main)]
-#![allow(clippy::redundant_closure_call)]
-#![allow(clippy::suspicious_assignment_formatting)]
 #![allow(clippy::zero_prefixed_literal)]
 #![allow(clippy::type_complexity)]
-// This lint is telling me to use `#[non_exhaustive]` for structs that will never change,
-// that is very silly.
-#![allow(clippy::manual_non_exhaustive)]
-#![allow(clippy::ptr_offset_with_cast)]
 #![allow(clippy::empty_loop)]
-
+#![allow(clippy::ptr_offset_with_cast)]
 #![deny(clippy::missing_safety_doc)]
-
-
 #![cfg_attr(feature = "docsrs", feature(doc_cfg))]
 
 #[allow(unused_imports)]
@@ -229,36 +223,28 @@ extern crate abi_stable_derive;
 
 extern crate self as abi_stable;
 
-
-include!{"./proc_macro_reexports/get_static_equivalent.rs"}
-include!{"./proc_macro_reexports/export_root_module.rs"}
-include!{"./proc_macro_reexports/sabi_extern_fn.rs"}
-include!{"./proc_macro_reexports/sabi_trait_attribute.rs"}
-include!{"./proc_macro_reexports/stable_abi_derive.rs"}
-
+include! {"./proc_macro_reexports/get_static_equivalent.rs"}
+include! {"./proc_macro_reexports/export_root_module.rs"}
+include! {"./proc_macro_reexports/sabi_extern_fn.rs"}
+include! {"./proc_macro_reexports/sabi_trait_attribute.rs"}
+include! {"./proc_macro_reexports/stable_abi_derive.rs"}
 
 #[doc(no_inline)]
-pub use abi_stable::sabi_types::{RRef, RMut};
+pub use abi_stable::sabi_types::{RMut, RRef};
 
-use abi_stable_derive::{
-    impl_InterfaceType,
-};
+use abi_stable_derive::impl_InterfaceType;
 
 #[doc(hidden)]
-pub use abi_stable_derive::{
-    get_root_module_static,
-};
+pub use abi_stable_derive::get_root_module_static;
 
 #[macro_use]
 mod impls;
-
 
 #[macro_use]
 mod internal_macros;
 
 #[macro_use]
 mod macros;
-
 
 #[cfg(test)]
 #[macro_use]
@@ -282,7 +268,6 @@ pub mod traits;
 
 pub mod for_examples;
 
-
 #[macro_use]
 pub mod abi_stability;
 #[macro_use]
@@ -290,15 +275,13 @@ pub mod erased_types;
 pub mod external_types;
 #[macro_use]
 pub mod library;
+pub mod inline_storage;
 pub mod marker_type;
 mod multikey_map;
 pub mod nonexhaustive_enum;
 pub mod pointer_trait;
 pub mod prefix_type;
 pub mod type_layout;
-pub mod inline_storage;
-
-
 
 #[doc(hidden)]
 pub mod derive_macro_reexports;
@@ -307,9 +290,8 @@ pub mod derive_macro_reexports;
 #[doc(hidden)]
 pub use self::derive_macro_reexports as pmr;
 
-pub mod std_types;
 pub mod sabi_types;
-
+pub mod std_types;
 
 pub mod reflection;
 pub mod type_level;
@@ -318,30 +300,28 @@ pub mod docs;
 
 pub mod sabi_trait;
 
-
 /// The header used to identify the version number of abi_stable
 /// that a dynamic libraries uses.
-pub static LIB_HEADER:library::AbiHeader=library::AbiHeader::VALUE;
-
+pub static LIB_HEADER: library::AbiHeader = library::AbiHeader::VALUE;
 
 /// Miscelaneous items re-exported from core_extensions.
-pub mod reexports{
-    pub use core_extensions::SelfOps;
-    pub use core_extensions::type_level_bool::{True, False};
-    pub use core_extensions::utils::transmute_ignore_size;
+pub mod reexports {
+    pub use core_extensions::{
+        type_level_bool::{False, True},
+        utils::transmute_ignore_size,
+        SelfOps,
+    };
 }
 
-
 #[doc(hidden)]
-pub const ABI_STABLE_VERSION:sabi_types::VersionStrings=package_version_strings!();
-
+pub const ABI_STABLE_VERSION: sabi_types::VersionStrings = package_version_strings!();
 
 /*
 I am using this static as the `identity` of this dynamic library/executable,
-this assumes that private static variables don't get merged between 
+this assumes that private static variables don't get merged between
 Rust dynamic libraries that have a different global allocator.
 
-If the address of this is the same among dynamic libraries that have *different* 
+If the address of this is the same among dynamic libraries that have *different*
 allocators,please create an issue for this.
 */
 use std::sync::atomic::AtomicUsize;
@@ -350,26 +330,18 @@ static EXECUTABLE_IDENTITY: AtomicUsize = AtomicUsize::new(1);
 #[doc(inline)]
 pub use crate::{
     abi_stability::StableAbi,
-    erased_types::{
-        dyn_trait::DynTrait,
-        ImplType,
-        InterfaceType,
-    },
+    erased_types::{dyn_trait::DynTrait, ImplType, InterfaceType},
 };
 
 #[doc(no_inline)]
 pub use crate::erased_types::InterfaceBound;
 
-
-
 #[doc(hidden)]
-pub mod globals{
+pub mod globals {
     use crate::{
-        abi_stability::{
-            abi_checking::{check_layout_compatibility_for_ffi},
-        },
+        abi_stability::abi_checking::check_layout_compatibility_for_ffi,
         sabi_types::LateStaticRef,
-        std_types::{RResult,RBoxError},
+        std_types::{RBoxError, RResult},
         type_layout::TypeLayout,
         utils::leak_value,
     };
@@ -377,38 +349,34 @@ pub mod globals{
     #[repr(C)]
     #[derive(StableAbi)]
     // #[sabi(debug_print)]
-    pub struct Globals{
+    pub struct Globals {
         pub layout_checking:
-            extern "C" fn(&'static TypeLayout,&'static TypeLayout) -> RResult<(), RBoxError> ,
+            extern "C" fn(&'static TypeLayout, &'static TypeLayout) -> RResult<(), RBoxError>,
     }
 
-    impl Globals{
-        pub fn new()->&'static Self{
-            leak_value(Globals{
-                layout_checking:check_layout_compatibility_for_ffi,
+    impl Globals {
+        pub fn new() -> &'static Self {
+            leak_value(Globals {
+                layout_checking: check_layout_compatibility_for_ffi,
             })
         }
     }
 
-    pub(crate)static GLOBALS:LateStaticRef<&Globals>=LateStaticRef::new();
+    pub(crate) static GLOBALS: LateStaticRef<&Globals> = LateStaticRef::new();
 
     #[inline(never)]
-    pub fn initialized_globals()->&'static Globals{
-        GLOBALS.init(|| Globals::new() )
+    pub fn initialized_globals() -> &'static Globals {
+        GLOBALS.init(Globals::new)
     }
 
-
     #[inline(never)]
-    pub extern "C" fn initialize_globals_with(globs:&'static Globals){
-        GLOBALS.init(|| globs );
+    pub extern "C" fn initialize_globals_with(globs: &'static Globals) {
+        GLOBALS.init(|| globs);
     }
 }
 
-
 #[cfg(all(test, not(feature = "testing")))]
 compile_error! { "tests must be run with the \"testing\" feature" }
-
-
 
 #[cfg(miri)]
 extern "Rust" {
@@ -419,4 +387,3 @@ extern "Rust" {
     /// `ptr` has to point to the beginning of an allocated block.
     fn miri_static_root(ptr: *const u8);
 }
-

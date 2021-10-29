@@ -2,14 +2,14 @@
 
 This attribute generates an ffi-safe trait object on the trait it's applied to.
 
-All items outside the list of generated items comes from `abi_stable::sabi_trait`.
+All items outside the list of generated items comes from [`abi_stable::sabi_trait`].
 
 
 # Supertraits.
 
-By default these are the supertraits that `#[sabi_trait]` traits can have:
+By default these are the supertraits that `#[sabi_trait]` traits can have: 
 
-- lifetimes:It can be a lifetime declared by the trait,or `'static`.
+- lifetimes: It can be a lifetime declared by the trait, or `'static`.
 
 - `Debug`
 
@@ -25,8 +25,8 @@ it uses the default implementation,
 - `Sync`
 
 To be able to have more supertraits you must use the `#[sabi(use_dyntrait)]` helper attribute,
-which changes the underlying implementation from `RObject<_>` to `DynTrait<_>`,
-allowing these supertraits:
+which changes the underlying implementation from [`RObject`] to [`DynTrait`],
+allowing these supertraits: 
 
 - `Iterator`: requires the Item type to be specified.
 
@@ -70,12 +70,12 @@ and that would be Undefined Behavior in many situations.
 # Extensibility
 
 `#[sabi_trait]` trait objects are (ABI-wise) safe to extend in minor versions,
-so long as methods are always added at the end,preferably as default methods.
+so long as methods are always added at the end, preferably as default methods.
 
 A library will not load (through safe means) if methods are added anywhere but the end.
 
 Accidentally calling newer methods on trait objects from older versions of a
-library will cause a panic at runtime,unless it has a default implementation
+library will cause a panic at runtime, unless it has a default implementation
 (within the trait definition that `#[sabi_trait]` can see).
 
 Panics can only happen if one loads multiple versions of a library,
@@ -91,16 +91,16 @@ where `Trait` is the name of the annotated trait.
 
 This is the module inside of which all the items are generated.
 
-These are the items reexported from the module:
+These are the items reexported from the module: 
 
-- [`Trait`](#trait):The trait itself.
+- [`Trait`](#trait): The trait itself.
 
-- [`Trait_TO`](#trait_to):The trait object for the trait.
+- [`Trait_TO`](#trait_to): The trait object for the trait.
 
-- [`Trait_MV`](#trait_mv):
+- [`Trait_MV`](#trait_mv): 
     A helper type used to construct the vtable for the trait object in constants.
 
-- [`Trait_CTO`](#trait_cto):
+- [`Trait_CTO`](#trait_cto): 
 A type alias for the trait object which is constructible in constants.
 
 
@@ -118,7 +118,7 @@ only requiring the wrapped pointer to implement the trait in the individual meth
 <br>
 
 This only implements `Trait` if all the methods are callable,
-when the wrapped pointer type implements traits for these methods:
+when the wrapped pointer type implements traits for these methods: 
 
 - `&self` method: requires `AsPtr<PtrTarget = ()>`.
 - `&mut self` method: requires `AsMutPtr<PtrTarget = ()>`.
@@ -126,18 +126,18 @@ when the wrapped pointer type implements traits for these methods:
 
 <br>
 
-Trait_TO has these generic parameters(in order):
+Trait_TO has these generic parameters(in order): 
 
-- `'trait_lifetime_n`: The lifetime parameters of the trait,if any.
+- `'trait_lifetime_n`: The lifetime parameters of the trait, if any.
 
-- `'lt`:
+- `'lt`: 
 This is the lifetime of the type that the trait object was constructed with.
 If the trait requires `'static`(in the list of supertraits),
 then it doesn't have this lifetime parameter.
 
 - `Pointer`: 
     An pointer whose referent has been erased,
-    most commonly `RBox<()>`/`RArc<()>`/`&()`/`&mut ()`.
+    most commonly [`RBox<()>`]/[`RArc<()>`]/[`RRef<'_, ()>`]/[`RMut<'_, ()>`].
 
 - `trait_type_param_n`: The type parameters of the trait.
 
@@ -146,13 +146,13 @@ then it doesn't have this lifetime parameter.
 - `trait_assoc_type_n`: The associated types of the trait.
 
 
-A trait defined like this:`trait Foo<'a, T, U>{ type Hello; type World; }`,
-has this trait object:`Foo_TO<'a, 'lt, Pointer, T, U, Hello, World>`.
+A trait defined like this: `trait Foo<'a, T, U>{ type Hello; type World; }`,
+has this trait object: `Foo_TO<'a, 'lt, Pointer, T, U, Hello, World>`.
 
 <br>
 
 One can access the underlying implementation of the trait object through the `obj` field,
-allowing one to call these methods(a nonexhaustive list):
+allowing one to call these methods(a nonexhaustive list): 
 
 - downcast_into_impltype(only DynTrait)
 
@@ -174,17 +174,17 @@ you can use the `Trait_TO::from_sabi` associated function.
 A type alias for the type of the trait objct that is constructible in constants,
 with the `from_const` constructor function.
 
-Constructed with `Trait_CTO::from_const(&value,Trait_MV::VTABLE)`.
+Constructed with `Trait_CTO::from_const(&value, Trait_MV::VTABLE)`.
 
-Trait_CTO has these generic parameters(in order):
+Trait_CTO has these generic parameters(in order): 
 
-- `'trait_lifetime_n`: The lifetime parameters of the trait,if any.
+- `'trait_lifetime_n`: The lifetime parameters of the trait, if any.
 
-- `'lt`:this is the lifetime of the type that the trait object was construct with.
+- `'lt`: this is the lifetime of the type that the trait object was construct with.
 If the trait requires `'static`(in the list of supertraits),
 then it doesn't have this lifetime parameter.
 
-- `'_ref`:this is the lifetime of the reference that this was constructed with.
+- `'_ref`: this is the lifetime of the reference that this was constructed with.
 
 - `trait_type_param_n`: The type parameters of the trait.
 
@@ -204,11 +204,11 @@ A helper type used to construct the vtable of the trait object.
 The trait is defined similarly to how it is before being transformed by the 
 `#[sabi_trait]` attribute.
 
-These are the differences:
+These are the differences: 
 
-- If there is a by-value method,a `Self:Sized` constraint will be added automatically.
+- If there is a by-value method, a `Self: Sized` constraint will be added automatically.
 
-- Lifetime supertraits are stripped,because they disallow the trait object to be 
+- Lifetime supertraits are stripped, because they disallow the trait object to be 
 constructed with a reference of a smaller lifetime.
 
 ### Trait_Bounds
@@ -226,7 +226,7 @@ that are valid for `#[derive(StableAbi)]`.
 
 # Trait attributes.
 
-These are attributes for the generated trait,applied on the trait(not on methods).
+These are attributes for the generated trait, applied on the trait(not on methods).
 
 ###  `#[sabi(no_trait_impl)]`
 
@@ -242,7 +242,7 @@ Stops using default implementation of methods (from the trait declaration)
 as the fallback implementation of the method when it's not in the vtable,
 because the trait object comes from a previous version of the library.
 
-By using this attribute,defaulted methods will behave the same as 
+By using this attribute, defaulted methods will behave the same as 
 non-defaulted methods when they don't exist in the vtable.
 
 ### `#[sabi(debug_print_trait)]`
@@ -255,7 +255,7 @@ Note that this does not expand the output of the
 ### `#[sabi(use_dyntrait)]`
 
 Changes how the trait object is implemented to use `DynTrait` instead of `RObject`,
-this allows using more traits,with the (potential) cost of having more overhead.
+this allows using more traits, with the (potential) cost of having more overhead.
 
 # Associated types
 
@@ -267,7 +267,7 @@ that come after those of the trait.
 
 # Object safety
 
-Trait objects generated using this attribute have similar restrictions to built-in trait objects:
+Trait objects generated using this attribute have similar restrictions to built-in trait objects: 
 
 - `Self` can only be used to access associated types 
     (using the `Self::AssocType` syntax).
@@ -278,7 +278,7 @@ Trait objects generated using this attribute have similar restrictions to built-
 
 # Questions and Answers
 
-**Question:** Why does Calling from_ptr/from_value give me a expected a `'static` value error?
+**Question: ** Why does Calling from_ptr/from_value give me a expected a `'static` value error?
 
 Answer: There are 3 possible reasons
 
@@ -288,7 +288,7 @@ Answer: There are 3 possible reasons
 (`Eq`/`PartialEq`/`Ord`/`PartialOrd`)
 as supertraits.
 This requires the type to be `'static` because comparing trait objects requires 
-constructing a `std::any::TypeId`,which itself requires `'static` to be constructed.
+constructing a `std::any::TypeId`, which itself requires `'static` to be constructed.
 
 - 3: Because you passed `TD_CanDowncast` to the constructor function,
 which requires constructing a `std::any::TypeId`
@@ -301,137 +301,131 @@ which itself requires `'static` to be constructed.
 
 ```rust
 use abi_stable::{
-    StableAbi,
     sabi_trait,
     sabi_trait::prelude::*,
-    std_types::{RBox,RArc,RString,RStr,ROption,RNone},
+    std_types::{RArc, RBox, RNone, ROption, RStr, RString},
+    StableAbi,
 };
 
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-};
+use std::{collections::HashMap, fmt::Debug};
 
 #[sabi_trait]
-pub trait Dictionary:Debug+Clone{
+pub trait Dictionary: Debug + Clone {
     type Value;
 
-    fn get(&self,key:RStr<'_>)->Option<&Self::Value>;
+    fn get(&self, key: RStr<'_>) -> Option<&Self::Value>;
 
-    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last method 
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last method
     /// that was defined in the first compatible version of the library
-    /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
+    /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 , etc),
     /// requiring new methods to always be added below preexisting ones.
-    /// 
-    /// The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library 
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library
     /// bumps its "major" version,
     /// at which point it would be moved to the last method at the time.
-    /// 
+    ///
     #[sabi(last_prefix_field)]
-    fn insert(&mut self,key:RString,value:Self::Value)->ROption<Self::Value>;
+    fn insert(&mut self, key: RString, value: Self::Value) -> ROption<Self::Value>;
 
     /// You can add defaulted methods in minor versions(it's not a breaking change).
-    fn contains(&self,key:RStr<'_>)->bool{
+    fn contains(&self, key: RStr<'_>) -> bool {
         self.get(key).is_some()
     }
 }
 
-
 # fn main() {
 
 {
-    impl<V> Dictionary for HashMap<RString,V>
+    impl<V> Dictionary for HashMap<RString, V>
     where
-        V:Debug+Clone
+        V: Debug + Clone,
     {
-        type Value=V;
-        fn get(&self,key:RStr<'_>)->Option<&V>{
+        type Value = V;
+        fn get(&self, key: RStr<'_>) -> Option<&V> {
             self.get(key.as_str())
         }
-        fn insert(&mut self,key:RString,value:V)->ROption<V>{
-            self.insert(key,value)
-                .into()
+        fn insert(&mut self, key: RString, value: V) -> ROption<V> {
+            self.insert(key, value).into()
         }
     }
 
-    let mut map=HashMap::<RString,u32>::new();
-    map.insert("hello".into(),100);
-    map.insert("world".into(),10);
+    let mut map = HashMap::<RString, u32>::new();
+    map.insert("hello".into(), 100);
+    map.insert("world".into(), 10);
 
     {
         // This type annotation is for the reader
         //
-        // You can unerase trait objects constructed with `TD_CanDowncast` 
-        // (as opposed to `TD_Opaque`,which can't be unerased).
-        let mut object:Dictionary_TO<'_,RBox<()>,u32>=
-            Dictionary_TO::from_value(map.clone(),TD_CanDowncast);
+        // You can unerase trait objects constructed with `TD_CanDowncast`
+        // (as opposed to `TD_Opaque`, which can't be unerased).
+        let mut object: Dictionary_TO<'_, RBox<()>, u32> =
+            Dictionary_TO::from_value(map.clone(), TD_CanDowncast);
 
-        assert_eq!(Dictionary::get(&object,"hello".into()),Some(&100));
-        assert_eq!(object.get("hello".into()),Some(&100)); // Inherent method call
-        
-        assert_eq!(Dictionary::get(&object,"world".into()),Some(&10));
-        assert_eq!(object.get("world".into()),Some(&10));  // Inherent method call
+        assert_eq!(Dictionary::get(&object, "hello".into()), Some(&100));
+        assert_eq!(object.get("hello".into()), Some(&100)); // Inherent method call
 
-        object.insert("what".into(),99); // Inherent method call
+        assert_eq!(Dictionary::get(&object, "world".into()), Some(&10));
+        assert_eq!(object.get("world".into()), Some(&10)); // Inherent method call
+
+        object.insert("what".into(), 99); // Inherent method call
 
         // You can only unerase a trait object if it was constructed with `TD_CanDowncast`
         // and it's being unerased into a type that implements `std::any::Any`.
-        let map:RBox<HashMap<RString,u32>>=object.obj.downcast_into().unwrap();
+        let map: RBox<HashMap<RString, u32>> = object.obj.downcast_into().unwrap();
 
         assert_eq!(map.get("hello".into()), Some(&100));
         assert_eq!(map.get("world".into()), Some(&10));
         assert_eq!(map.get("what".into()), Some(&99));
     }
     {
-        let arc=RArc::new(map.clone());
+        let arc = RArc::new(map.clone());
         // This type annotation is for the reader
         //
-        // You can unerase trait objects constructed with `TD_CanDowncast` 
-        // (as opposed to `TD_Opaque`,which can't be unerased).
-        let object:Dictionary_TO<'_,RArc<()>,u32>=
-            Dictionary_TO::from_ptr(arc,TD_CanDowncast);
+        // You can unerase trait objects constructed with `TD_CanDowncast`
+        // (as opposed to `TD_Opaque`, which can't be unerased).
+        let object: Dictionary_TO<'_, RArc<()>, u32> =
+            Dictionary_TO::from_ptr(arc, TD_CanDowncast);
 
-        assert_eq!(object.get("world".into()),Some(&10));
-        
+        assert_eq!(object.get("world".into()), Some(&10));
+
         // Can't call these methods on `Dictionary_TO<RArc<()>,..>`
         // because `RArc<_>` doesn't implement AsMutPtr.
         //
-        // assert_eq!(Dictionary::get(&object,"hello"),Some(&100));
+        // assert_eq!(Dictionary::get(&object,"hello"), Some(&100));
         //
-        // object.insert("what".into(),99);
-        // Dictionary::insert(&mut object,"what".into(),99);
-        
+        // object.insert("what".into(), 99);
+        // Dictionary::insert(&mut object,"what".into(), 99);
 
-        let map:RArc<HashMap<RString,u32>>=object.obj.downcast_into().unwrap();
+        let map: RArc<HashMap<RString, u32>> = object.obj.downcast_into().unwrap();
         assert_eq!(map.get("hello".into()), Some(&100));
         assert_eq!(map.get("world".into()), Some(&10));
     }
-
 }
 
 {
-    impl Dictionary for (){
-        type Value=RString;
-        fn get(&self,_:RStr<'_>)->Option<&RString>{
+    impl Dictionary for () {
+        type Value = RString;
+        fn get(&self, _: RStr<'_>) -> Option<&RString> {
             None
         }
-        fn insert(&mut self,_:RString,_:RString)->ROption<RString>{
+        fn insert(&mut self, _: RString, _: RString) -> ROption<RString> {
             RNone
         }
     }
 
     // This type annotation is for the reader
-    let object:Dictionary_TO<'_,RBox<()>,RString>=
-        Dictionary_TO::from_value( () ,TD_Opaque);
+    let object: Dictionary_TO<'_, RBox<()>, RString> =
+        Dictionary_TO::from_value((), TD_Opaque);
 
-    assert_eq!(object.get("hello".into()),None);
-    assert_eq!(object.get("world".into()),None);
+    assert_eq!(object.get("hello".into()), None);
+    assert_eq!(object.get("world".into()), None);
 
     // Cannot unerase trait objects created with `TD_Opaque`.
-    assert_eq!(object.obj.downcast_into::<()>().ok(),None);
+    assert_eq!(object.obj.downcast_into::<()>().ok(), None);
 }
 
 # }
+
 
 ```
 
@@ -442,51 +436,44 @@ This shows how one can construct a `#[sabi_trait]` generated trait object in a c
 
 ```rust
 
-use abi_stable::{
-    sabi_trait::TD_Opaque,
-    sabi_trait,
-
-};
+use abi_stable::{sabi_trait, sabi_trait::TD_Opaque};
 
 #[sabi_trait]
-pub trait StaticSet:Sync+Send+Debug+Clone{
+pub trait StaticSet: Sync + Send + Debug + Clone {
     type Element;
 
     /// Whether the set contains the key.
-    fn contains(&self,key:&Self::Element)->bool;
+    fn contains(&self, key: &Self::Element) -> bool;
 }
 
-impl<'a,T> StaticSet for &'a [T]
+impl<'a, T> StaticSet for &'a [T]
 where
-    T:std::fmt::Debug+Sync+Send+std::cmp::PartialEq
+    T: std::fmt::Debug + Sync + Send + std::cmp::PartialEq,
 {
-    type Element=T;
-    
-    fn contains(&self,key:&Self::Element)->bool{
+    type Element = T;
+
+    fn contains(&self, key: &Self::Element) -> bool {
         (**self).contains(key)
     }
 }
 
-const CARDS:&'static [char]=&['A','2','3','4','5','6','7','8','9','J','Q','K'];
+const CARDS: &'static [char] =
+    &['A', '2', '3', '4', '5', '6', '7', '8', '9', 'J', 'Q', 'K'];
 
-static IS_CARD:StaticSet_CTO<'static,'static,char>=
-    StaticSet_CTO::from_const(
-        &CARDS,
-        TD_Opaque,
-        StaticSet_MV::VTABLE,
-    );
+static IS_CARD: StaticSet_CTO<'static, 'static, char> =
+    StaticSet_CTO::from_const(&CARDS, TD_Opaque, StaticSet_MV::VTABLE);
 
 # fn main(){
 
-assert!( IS_CARD.contains(&'A') );
-assert!( IS_CARD.contains(&'4') );
-assert!( IS_CARD.contains(&'7') );
-assert!( IS_CARD.contains(&'9') );
-assert!( IS_CARD.contains(&'J') );
+assert!(IS_CARD.contains(&'A'));
+assert!(IS_CARD.contains(&'4'));
+assert!(IS_CARD.contains(&'7'));
+assert!(IS_CARD.contains(&'9'));
+assert!(IS_CARD.contains(&'J'));
 
-assert!( ! IS_CARD.contains(&'0') );
-assert!( ! IS_CARD.contains(&'1') );
-assert!( ! IS_CARD.contains(&'B') );
+assert!(!IS_CARD.contains(&'0'));
+assert!(!IS_CARD.contains(&'1'));
+assert!(!IS_CARD.contains(&'B'));
 
 # }
 
@@ -494,6 +481,13 @@ assert!( ! IS_CARD.contains(&'B') );
 
 
 
+[`abi_stable::sabi_trait`]: ./sabi_trait/index.html
+[`RObject`]: ./sabi_trait/struct.RObject.html
+[`DynTrait`]: ./struct.DynTrait.html
+[`RBox<()>`]: ./std_types/struct.RBox.html
+[`RArc<()>`]: ./std_types/struct.RArc.html
+[`RRef<'_, ()>`]: ./sabi_types/struct.RRef.html
+[`RMut<'_, ()>`]: ./sabi_types/struct.RMut.html
 
 */
 #[doc(inline)]

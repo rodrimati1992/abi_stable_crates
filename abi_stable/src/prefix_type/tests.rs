@@ -1,6 +1,6 @@
 use crate::{
+    prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
     StableAbi,
-    prefix_type::{PrefixTypeTrait, WithMetadata, PrefixRef},
 };
 
 mod cond_fields {
@@ -10,24 +10,24 @@ mod cond_fields {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
-    pub struct Module{
-        #[sabi(accessible_if="true")]
+    pub struct Module {
+        #[sabi(accessible_if = "true")]
         pub first: usize,
-        
+
         #[sabi(last_prefix_field)]
         pub second: usize,
-        
-        #[sabi(accessible_if="true")]
+
+        #[sabi(accessible_if = "true")]
         pub third: usize,
-        
+
         pub fourth: usize,
     }
 
     impl std::ops::Deref for Module_Prefix {
         type Target = DerefTo;
 
-        fn deref(&self)->&DerefTo{
-            &DerefTo{
+        fn deref(&self) -> &DerefTo {
+            &DerefTo {
                 first: "5",
                 second: "8",
                 third: "13",
@@ -36,13 +36,15 @@ mod cond_fields {
         }
     }
 
-    pub const MOD_VAL: &WithMetadata<Module> = 
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Module{
+    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(
+        PrefixTypeTrait::METADATA,
+        Module {
             first: 5,
             second: 8,
             third: 13,
             fourth: 21,
-        });
+        },
+    );
 
     pub const PREFIX: PrefixRef<Module_Prefix> = MOD_VAL.static_as_prefix();
 }
@@ -54,34 +56,30 @@ pub struct DerefTo {
     pub fourth: &'static str,
 }
 
-
-
-
 #[test]
-fn prefix_field_vis(){
-    use cond_fields::{PREFIX, Module_Ref};
+fn prefix_field_vis() {
+    use cond_fields::{Module_Ref, PREFIX};
 
     let pref = PREFIX.prefix();
     let modref = Module_Ref(PREFIX);
 
-    // Exploiting the fact that the compiler does a deref coercion 
+    // Exploiting the fact that the compiler does a deref coercion
     // if it can't find a pub field with a given name.
 
     assert_eq!(pref.first, "5");
     assert_eq!(modref.first(), Some(5));
-    
+
     assert_eq!(pref.second, 8);
     assert_eq!(modref.second(), 8);
-    
+
     assert_eq!(pref.third, "13");
-    assert_eq!(modref.third()   , Some(13));
+    assert_eq!(modref.third(), Some(13));
 
     assert_eq!(pref.fourth, "21");
-    assert_eq!(modref.fourth()   , Some(21));
+    assert_eq!(modref.fourth(), Some(21));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
 
 mod different_alignments {
     use super::*;
@@ -90,7 +88,7 @@ mod different_alignments {
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
-    pub struct Module{
+    pub struct Module {
         pub f0: u64,
         #[sabi(last_prefix_field)]
         pub f1: u8,
@@ -102,8 +100,9 @@ mod different_alignments {
         pub f7: u8,
     }
 
-    pub const MOD_VAL: &WithMetadata<Module> = 
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Module{
+    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(
+        PrefixTypeTrait::METADATA,
+        Module {
             f0: 5,
             f1: 8,
             f2: 13,
@@ -112,16 +111,16 @@ mod different_alignments {
             f5: 55,
             f6: 89,
             f7: 144,
-        });
+        },
+    );
 
     pub const PREFIX: PrefixRef<Module_Prefix> = MOD_VAL.static_as_prefix();
 }
 
-
 /// Making sure that suffix fields with different alignments are accessed correctly.
 #[test]
-fn access_different_alignments(){
-    use different_alignments::{PREFIX, Module_Ref};
+fn access_different_alignments() {
+    use different_alignments::{Module_Ref, PREFIX};
 
     let modref = Module_Ref(PREFIX);
 
@@ -135,9 +134,7 @@ fn access_different_alignments(){
     assert_eq!(modref.f7(), Some(144));
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
-
 
 #[repr(C, align(32))]
 #[derive(StableAbi, Debug, Copy, Clone, PartialEq)]
@@ -147,7 +144,6 @@ pub struct AlignTo32<T>(pub T);
 #[derive(StableAbi, Debug, Copy, Clone, PartialEq)]
 pub struct AlignTo64<T>(pub T);
 
-
 mod overaligned {
     use super::*;
 
@@ -155,7 +151,7 @@ mod overaligned {
     #[repr(C, align(32))]
     #[derive(StableAbi)]
     #[sabi(kind(Prefix))]
-    pub struct Module{
+    pub struct Module {
         pub f0: u64,
         pub f1: u8,
         #[sabi(last_prefix_field)]
@@ -166,8 +162,9 @@ mod overaligned {
         pub f6: u8,
     }
 
-    pub const MOD_VAL: &WithMetadata<Module> = 
-        &WithMetadata::new(PrefixTypeTrait::METADATA,Module{
+    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(
+        PrefixTypeTrait::METADATA,
+        Module {
             f0: 5,
             f1: 8,
             f2: 13,
@@ -175,15 +172,16 @@ mod overaligned {
             f4: AlignTo64(34),
             f5: 55,
             f6: 89,
-        });
+        },
+    );
 
     pub const PREFIX: PrefixRef<Module_Prefix> = MOD_VAL.static_as_prefix();
 }
 
 /// Making sure that suffix fields with different alignments are accessed correctly.
 #[test]
-fn access_overaligned_fields(){
-    use overaligned::{PREFIX, Module_Ref};
+fn access_overaligned_fields() {
+    use overaligned::{Module_Ref, PREFIX};
 
     let modref = Module_Ref(PREFIX);
 

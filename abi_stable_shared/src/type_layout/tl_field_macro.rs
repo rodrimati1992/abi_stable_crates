@@ -1,9 +1,9 @@
 #[doc(hidden)]
 #[macro_export]
-macro_rules! declare_comp_tl_field {( 
+macro_rules! declare_comp_tl_field {(
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
-    
+
     /// A `TLField` represented as a `u64`,
     /// expadable to a `TLField` by calling the `expand` method.
     #[repr(transparent)]
@@ -18,11 +18,11 @@ macro_rules! declare_comp_tl_field {(
 
     impl CompTLField{
         const NAME_OFFSET:u32=0;
-        
+
         const LIFETIME_INDICES_OFFSET:u32=StartLen::BIT_SIZE;
-        
+
         const FIELD_ACCESSOR_OFFSET:u32=Self::LIFETIME_INDICES_OFFSET+LifetimeRange::BIT_SIZE;
-        
+
         const TYPE_LAYOUT_OFFSET:u32=Self::FIELD_ACCESSOR_OFFSET+CompFieldAccessor::BIT_SIZE;
         const TYPE_LAYOUT_SR_MASK:u64=TypeLayoutIndex::MASK as u64;
 

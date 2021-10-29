@@ -1,9 +1,7 @@
-/*!
-Contains an ffi-safe equivalent of `&'a str`.
-*/
+//! Contains an ffi-safe equivalent of `&'a str`.
 
 use std::{
-    borrow::{Cow,Borrow},
+    borrow::{Borrow, Cow},
     fmt::{self, Display},
     ops::{Deref, Index},
     str,
@@ -16,31 +14,25 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::std_types::{RSlice, RString};
 
-/**
-Ffi-safe equivalent of `&'a str`
-
-# Example
-
-This defines a function that returns the first word in a string.
-
-```
-use abi_stable::{
-    std_types::RStr,
-    sabi_extern_fn,
-};
-
-
-#[sabi_extern_fn]
-fn first_word(phrase:RStr<'_>)->RStr<'_>{
-    match phrase.as_str().split_whitespace().next() {
-        Some(x)=>x.into(),
-        None=>"".into()
-    }
-}
-
-```
-
-*/
+/// Ffi-safe equivalent of `&'a str`
+///
+/// # Example
+///
+/// This defines a function that returns the first word in a string.
+///
+/// ```
+/// use abi_stable::{sabi_extern_fn, std_types::RStr};
+///
+/// #[sabi_extern_fn]
+/// fn first_word(phrase: RStr<'_>) -> RStr<'_> {
+///     match phrase.as_str().split_whitespace().next() {
+///         Some(x) => x.into(),
+///         None => "".into(),
+///     }
+/// }
+///
+///
+/// ```
 #[repr(C)]
 #[derive(Copy, Clone, StableAbi)]
 pub struct RStr<'a> {
@@ -62,9 +54,9 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// const STR:RStr<'static>=RStr::empty();
+    /// const STR: RStr<'static> = RStr::empty();
     ///
-    /// assert_eq!(STR,RStr::from(""));
+    /// assert_eq!(STR, RStr::from(""));
     ///
     /// ```
     #[inline]
@@ -81,7 +73,7 @@ impl<'a> RStr<'a> {
     ///
     /// - `ptr_` points to valid memory,
     ///
-    /// - `ptr_ .. ptr+len` range is accessible memory,and is valid utf-8.
+    /// - `ptr_ .. ptr+len` range is accessible memory, and is valid utf-8.
     ///
     /// - The data that `ptr_` points to must be valid for the lifetime of this `RStr<'a>`
     ///
@@ -93,10 +85,8 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// fn convert(slice_:&str)->RStr<'_>{
-    ///     unsafe{
-    ///         RStr::from_raw_parts( slice_.as_ptr(), slice_.len() )
-    ///     }
+    /// fn convert(slice_: &str) -> RStr<'_> {
+    ///     unsafe { RStr::from_raw_parts(slice_.as_ptr(), slice_.len()) }
     /// }
     ///
     /// ```
@@ -120,7 +110,7 @@ impl<'a> RStr<'a> {
     ///
     /// ```
     pub const fn from_str(s: &'a str) -> Self {
-        unsafe{ Self::from_raw_parts( s.as_ptr(), s.len() ) }
+        unsafe { Self::from_raw_parts(s.as_ptr(), s.len()) }
     }
 
     /// For slicing `RStr`s.
@@ -133,12 +123,12 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// let str=RStr::from("What is that.");
+    /// let str = RStr::from("What is that.");
     ///
-    /// assert_eq!(str.slice(..),str);
-    /// assert_eq!(str.slice(..4),RStr::from("What"));
-    /// assert_eq!(str.slice(4..),RStr::from(" is that."));
-    /// assert_eq!(str.slice(4..7),RStr::from(" is"));
+    /// assert_eq!(str.slice(..), str);
+    /// assert_eq!(str.slice(..4), RStr::from("What"));
+    /// assert_eq!(str.slice(4..), RStr::from(" is that."));
+    /// assert_eq!(str.slice(4..7), RStr::from(" is"));
     ///
     /// ```
     pub fn slice<I>(&self, i: I) -> RStr<'a>
@@ -153,12 +143,12 @@ impl<'a> RStr<'a> {
     /// # Example
     ///
     /// ```
-    /// use abi_stable::std_types::{RSlice,RStr};
+    /// use abi_stable::std_types::{RSlice, RStr};
     ///
-    /// let str=RStr::from("What is that.");
-    /// let bytes=RSlice::from("What is that.".as_bytes());
+    /// let str = RStr::from("What is that.");
+    /// let bytes = RSlice::from("What is that.".as_bytes());
     ///
-    /// assert_eq!(str.as_rslice(),bytes);
+    /// assert_eq!(str.as_rslice(), bytes);
     ///
     /// ```
     #[inline]
@@ -173,8 +163,8 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// let str="What is that.";
-    /// assert_eq!(RStr::from(str).as_str(),str);
+    /// let str = "What is that.";
+    /// assert_eq!(RStr::from(str).as_str(), str);
     ///
     /// ```
     #[inline]
@@ -183,7 +173,7 @@ impl<'a> RStr<'a> {
     }
 
     /// Gets a raw pointer to the start of the string slice.
-    pub const fn as_ptr(&self) -> *const u8{
+    pub const fn as_ptr(&self) -> *const u8 {
         self.inner.as_ptr()
     }
 
@@ -194,9 +184,9 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// assert_eq!(RStr::from("").len(),0);
-    /// assert_eq!(RStr::from("a").len(),1);
-    /// assert_eq!(RStr::from("What").len(),4);
+    /// assert_eq!(RStr::from("").len(), 0);
+    /// assert_eq!(RStr::from("a").len(), 1);
+    /// assert_eq!(RStr::from("What").len(), 4);
     ///
     /// ```
     #[inline]
@@ -211,12 +201,12 @@ impl<'a> RStr<'a> {
     /// ```
     /// use abi_stable::std_types::RStr;
     ///
-    /// assert_eq!(RStr::from("").is_empty(),true);
-    /// assert_eq!(RStr::from("a").is_empty(),false);
-    /// assert_eq!(RStr::from("What").is_empty(),false);
+    /// assert_eq!(RStr::from("").is_empty(), true);
+    /// assert_eq!(RStr::from("a").is_empty(), false);
+    /// assert_eq!(RStr::from("What").is_empty(), false);
     ///
     /// ```
-    pub const fn is_empty(&self)->bool{
+    pub const fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 }
@@ -239,8 +229,7 @@ impl<'a> Deref for RStr<'a> {
     }
 }
 
-
-deref_coerced_impl_cmp_traits!{
+deref_coerced_impl_cmp_traits! {
     RStr<'_>;
     coerce_to = str,
     [
@@ -254,9 +243,9 @@ deref_coerced_impl_cmp_traits!{
 
 ////////////////////////////////
 
-impl<'a> Into<Cow<'a, str>> for RStr<'a> {
-    fn into(self) -> Cow<'a, str> {
-        self.as_str().into()
+impl<'a> From<RStr<'a>> for Cow<'a, str> {
+    fn from(this: RStr<'a>) -> Cow<'a, str> {
+        this.as_str().into()
     }
 }
 
@@ -268,15 +257,15 @@ impl_into_rust_repr! {
     }
 }
 
-impl<'a> Into<String> for RStr<'a> {
-    fn into(self) -> String {
-        self.as_str().into()
+impl From<RStr<'_>> for String {
+    fn from(this: RStr<'_>) -> String {
+        this.as_str().into()
     }
 }
 
-impl<'a> Into<RString> for RStr<'a> {
-    fn into(self) -> RString {
-        self.as_str().into()
+impl From<RStr<'_>> for RString {
+    fn from(this: RStr<'_>) -> RString {
+        this.as_str().into()
     }
 }
 
@@ -292,20 +281,20 @@ impl_from_rust_repr! {
 
 ////////////////////////////////
 
-impl<'a> Borrow<str> for RStr<'a>{
-    fn borrow(&self)->&str{
+impl<'a> Borrow<str> for RStr<'a> {
+    fn borrow(&self) -> &str {
         self
     }
 }
 
-impl AsRef<str> for RStr<'_>{
-    fn as_ref(&self)->&str{
+impl AsRef<str> for RStr<'_> {
+    fn as_ref(&self) -> &str {
         self
     }
 }
 
-impl AsRef<[u8]> for RStr<'_>{
-    fn as_ref(&self)->&[u8]{
+impl AsRef<[u8]> for RStr<'_> {
+    fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
@@ -340,15 +329,15 @@ impl<'a> Serialize for RStr<'a> {
 type Str<'a> = &'a str;
 
 shared_impls! {
-    mod=slice_impls
-    new_type=RStr['a][],
-    original_type=Str,
+    mod = slice_impls
+    new_type = RStr['a][],
+    original_type = Str,
 }
 
 ////////////////////////////////////////////////////
 
 //#[cfg(test)]
-#[cfg(all(test,not(feature="only_new_tests")))]
+#[cfg(all(test, not(feature = "only_new_tests")))]
 mod test {
     use super::*;
 

@@ -1,6 +1,69 @@
-This is the changelog,summarising changes in each version(some minor changes may be ommited).
+This is the changelog,summarising changes in each version
+
+Minor changes may be ommited, as well as improvements to documentation.
 
 # 0.10
+
+### 0.10.3
+
+
+Bumped Minimum Supported Rust Version to 1.46.0 because fixing support for Rust nightly caused Internal Compiler Errors in older Rust versions. 
+
+Added `StableAbi` impls for `f32` and `f64`.
+
+Fixed error in `StableAbi` derive caused by using the derive inside a function with the `proc_macro_derive_resolution_fallback` lint enabled (deny-by-default in nightly).
+
+Deprecated `abi_stable::library::mangled_root_module_loader_name` function.
+
+Superceeded the `mangled_root_module_loader_name` function (and uses of it) with these `abi_stable::library` constants:
+- `ROOT_MODULE_LOADER_NAME`
+- `ROOT_MODULE_LOADER_NAME_WITH_NUL`
+- `ROOT_MODULE_LOADER_NAME_NULSTR`
+
+Added `NulStr::{as_ptr, try_from_str}` associated functions.
+
+Added `ǸulStrError`, returned by `NulStr::try_from_str`
+
+Added `PartialEq` impls for comparing `str` and `NulStr` in both directions.
+
+Added Default, PartialOrd, and Ord impls for NulStr.
+
+Made `NulStr::from_str` safe, by not requiring no internal nul bytes.
+
+Deprecated `nul_str` macro.
+
+Added `nulstr` and `nulstr_trunc` macros.
+
+Added "rust_latest_stable" feature.
+
+Added `LibHeader::ensure_layout` method.
+
+Fixed `StaticRef::as_prefix` doc example.
+
+Added `for_examples::PhantModule` struct
+
+Added `RHashMap::{keys, values}` methods for iterating over the map, which return the `Keys` and `Values` iterators respectively.
+
+Added `Index` and `IndexMut` impls for `RSliceMut` and `RVec`
+
+Added `Index` impl for `RSlice`
+
+Changed these methods to use `R: RangeBounds<usize>` instead of `[T]: Index<I, Output = [T]>` or `Index<I, Output = [T]>`:
+- `RVec::slice`
+- `RVec::slice_mut`
+- `RVec::drain`
+
+Replaced all `Into` implementations converting from `abi_stable` types with `From` impls converting in the same direction.
+
+Rewrote `staticref` macro to support more cases of static promotion, this breaks non-inherent-impl uses of the macro(it was documented that this breaking change could happen).
+
+Made libraries loaded with `RootModule` never be unloaded, previously they were unloaded when the type layout of the root module isn't compatible (this was possibly unsound?).
+
+Formatted documentation examples (all doc examples up to `sabi_types` were formatted with `rustfmt`, every one from `std_types` up to the last module were manually formatted).
+
+Added dependency on `paste` 1.0
+
+Enabled the "macro_utils" feature of `core_extensions`
 
 ### 0.10.1
 

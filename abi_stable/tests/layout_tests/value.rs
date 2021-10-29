@@ -1,37 +1,26 @@
 #![allow(dead_code)]
 
-use std::{marker::PhantomData,mem, num, ptr, sync::atomic};
+use std::{marker::PhantomData, mem, num, ptr, sync::atomic};
 
 #[allow(unused_imports)]
 use core_extensions::matches;
 
 use abi_stable::{
-    abi_stability::{
-        abi_checking::{AbiInstability,check_layout_compatibility},
-    },
+    abi_stability::abi_checking::{check_layout_compatibility, AbiInstability},
     external_types::{
-        crossbeam_channel::{RReceiver,RSender},
-        RMutex,RRwLock,ROnce
+        crossbeam_channel::{RReceiver, RSender},
+        RMutex, ROnce, RRwLock,
     },
-    marker_type::{NonOwningPhantom,UnsafeIgnoredType},
+    marker_type::{NonOwningPhantom, UnsafeIgnoredType},
     std_types::*,
-    type_layout::{Tag,TLData,TypeLayout},
+    type_layout::{TLData, Tag, TypeLayout},
     *,
 };
 
 use super::shared_types::{
-    basic_enum,
-    gen_basic,
-    gen_more_lts,
-    enum_extra_fields_b,
-    extra_variant,
-    swapped_fields_first,
-    gen_more_lts_b,
-    mod_5,
-    mod_7,
+    basic_enum, enum_extra_fields_b, extra_variant, gen_basic, gen_more_lts, gen_more_lts_b, mod_5,
+    mod_7, swapped_fields_first,
 };
-
-
 
 pub(super) mod union_1a {
     #[repr(C)]
@@ -116,7 +105,7 @@ pub(super) mod changed_field_name {
     pub struct Rectangle {
         x: u32,
         y: u32,
-        #[sabi(rename="w2")]
+        #[sabi(rename = "w2")]
         w: u16,
         h: u32,
     }
@@ -198,7 +187,6 @@ pub(super) mod changed_alignment {
     }
 }
 
-
 pub(super) mod built_in {
     pub use i32 as std_i32;
     pub use u32 as std_u32;
@@ -231,7 +219,7 @@ fn assert_equal_type_layout(interface: &'static TypeLayout, impl_: &'static Type
 }
 
 fn assert_different_type_layout(interface: &'static TypeLayout, impl_: &'static TypeLayout) {
-    let res=check_layout_compatibility(interface, impl_);
+    let res = check_layout_compatibility(interface, impl_);
     assert_ne!(
         res,
         Ok(()),
@@ -241,30 +229,27 @@ fn assert_different_type_layout(interface: &'static TypeLayout, impl_: &'static 
     );
 }
 
-
 #[repr(transparent)]
 #[derive(abi_stable::StableAbi)]
-pub struct UnsafeOF{
+pub struct UnsafeOF {
     #[sabi(unsafe_opaque_field)]
-    opaque:Vec<u8>,
+    opaque: Vec<u8>,
 }
 
-
 #[test]
-fn unsafe_opaque_fields(){
-    let layout=UnsafeOF::LAYOUT;
+fn unsafe_opaque_fields() {
+    let layout = UnsafeOF::LAYOUT;
 
-    let fields=match layout.data() {
-        TLData::Struct{fields}=>fields.iter().collect::<Vec<_>>(),
-        _=>unreachable!(),
+    let fields = match layout.data() {
+        TLData::Struct { fields } => fields.iter().collect::<Vec<_>>(),
+        _ => unreachable!(),
     };
 
-    let field_0_ai=fields[0].layout();
+    let field_0_ai = fields[0].layout();
     assert_eq!(field_0_ai.data(), TLData::Opaque);
     assert_eq!(field_0_ai.size(), mem::size_of::<Vec<u8>>());
     assert_eq!(field_0_ai.alignment(), mem::align_of::<Vec<u8>>());
 }
-
 
 #[cfg(not(miri))]
 #[test]
@@ -308,6 +293,8 @@ fn same_different_abi_stability() {
         <[u32; 3]>::LAYOUT,
         <i32>::LAYOUT,
         <u32>::LAYOUT,
+        <f32>::LAYOUT,
+        <f64>::LAYOUT,
         <bool>::LAYOUT,
         <atomic::AtomicBool>::LAYOUT,
         <atomic::AtomicIsize>::LAYOUT,
@@ -316,10 +303,10 @@ fn same_different_abi_stability() {
         <num::NonZeroU16>::LAYOUT,
         <ptr::NonNull<()>>::LAYOUT,
         <ptr::NonNull<i32>>::LAYOUT,
-        <RHashMap<RString,RString>>::LAYOUT,
-        <RHashMap<RString,i32>>::LAYOUT,
-        <RHashMap<i32,RString>>::LAYOUT,
-        <RHashMap<i32,i32>>::LAYOUT,
+        <RHashMap<RString, RString>>::LAYOUT,
+        <RHashMap<RString, i32>>::LAYOUT,
+        <RHashMap<i32, RString>>::LAYOUT,
+        <RHashMap<i32, i32>>::LAYOUT,
         <RVec<()>>::LAYOUT,
         <RVec<i32>>::LAYOUT,
         <RSlice<'_, ()>>::LAYOUT,
@@ -343,14 +330,14 @@ fn same_different_abi_stability() {
         <RCmpOrdering>::LAYOUT,
         <PhantomData<()>>::LAYOUT,
         <PhantomData<(u8,)>>::LAYOUT,
-        <PhantomData<(u8,u16)>>::LAYOUT,
-        <PhantomData<(u8,u16,u32)>>::LAYOUT,
+        <PhantomData<(u8, u16)>>::LAYOUT,
+        <PhantomData<(u8, u16, u32)>>::LAYOUT,
         <PhantomData<RString>>::LAYOUT,
         // NonOwningPhantom and PhantomData share the same type layout,
         // so the NonOwningPhantom types here have to be different
         <NonOwningPhantom<(RVec<()>,)>>::LAYOUT,
-        <NonOwningPhantom<(RVec<()>,u16)>>::LAYOUT,
-        <NonOwningPhantom<(RVec<()>,u16,u32)>>::LAYOUT,
+        <NonOwningPhantom<(RVec<()>, u16)>>::LAYOUT,
+        <NonOwningPhantom<(RVec<()>, u16, u32)>>::LAYOUT,
         <NonOwningPhantom<RVec<u32>>>::LAYOUT,
         <RMutex<()>>::LAYOUT,
         <RMutex<RString>>::LAYOUT,
@@ -408,7 +395,6 @@ fn same_different_abi_stability() {
         ]);
     }
 
-
     let (_dur, ()) = core_extensions::measure_time::measure(|| {
         for (i, this) in list.iter().cloned().enumerate() {
             for (j, other) in list.iter().cloned().enumerate() {
@@ -420,14 +406,16 @@ fn same_different_abi_stability() {
             }
         }
 
-        for this in vec![<UnsafeIgnoredType<()>>::LAYOUT, <UnsafeIgnoredType<RString>>::LAYOUT] {
+        for this in vec![
+            <UnsafeIgnoredType<()>>::LAYOUT,
+            <UnsafeIgnoredType<RString>>::LAYOUT,
+        ] {
             assert_equal_type_layout(<UnsafeIgnoredType<()>>::LAYOUT, this)
         }
     });
 
     // println!("taken {} to check all listed layouts", dur);
 }
-
 
 #[cfg(miri)]
 #[test]
@@ -438,7 +426,6 @@ fn same_different_abi_stability() {
     let l3 = <mod_5::Mod>::LAYOUT;
     let l6 = <ROption<()>>::LAYOUT;
     let l7 = <ROption<u32>>::LAYOUT;
-        
 
     assert_equal_type_layout(l0, l0);
     assert_different_type_layout(l0, l1);
@@ -465,7 +452,7 @@ fn same_different_abi_stability() {
     }
 }
 
-#[cfg_attr(not(miri),test)]
+#[cfg_attr(not(miri), test)]
 fn compare_references() {
     let list = vec![
         <&mut ()>::LAYOUT,
@@ -488,19 +475,18 @@ fn compare_references() {
             }
         }
 
-        for this in vec![<UnsafeIgnoredType<()>>::LAYOUT, <UnsafeIgnoredType<RString>>::LAYOUT] {
+        for this in vec![
+            <UnsafeIgnoredType<()>>::LAYOUT,
+            <UnsafeIgnoredType<RString>>::LAYOUT,
+        ] {
             assert_equal_type_layout(<UnsafeIgnoredType<()>>::LAYOUT, this)
         }
     });
 }
 
-
 #[cfg(test)]
 fn different_zeroness() {
-    const ZEROABLE_ABI: &'static TypeLayout = &{
-        <&()>::LAYOUT
-            ._set_is_nonzero(false)
-    };
+    const ZEROABLE_ABI: &'static TypeLayout = &{ <&()>::LAYOUT._set_is_nonzero(false) };
 
     let non_zero = <&()>::LAYOUT;
 
@@ -512,7 +498,7 @@ fn different_zeroness() {
         .flatten_errors();
     assert!(errs
         .iter()
-        .any(|err| matches!(err, AbiInstability::NonZeroness{..})));
+        .any(|err| matches!(err, AbiInstability::NonZeroness { .. })));
 }
 
 #[test]
@@ -524,33 +510,30 @@ fn different_name() {
         .flatten_errors();
     assert!(errs
         .iter()
-        .any(|err| matches!(err, AbiInstability::Name{..})));
+        .any(|err| matches!(err, AbiInstability::Name { .. })));
 }
-
 
 #[test]
 fn different_field_name() {
     let regular = regular::Rectangle::LAYOUT;
     let other = changed_field_name::Rectangle::LAYOUT;
 
-    let fields=match other.data() {
-        TLData::Struct{fields}=>fields.iter().collect::<Vec<_>>(),
-        _=>unreachable!(),
+    let fields = match other.data() {
+        TLData::Struct { fields } => fields.iter().collect::<Vec<_>>(),
+        _ => unreachable!(),
     };
 
-    assert_eq!(fields[0].name(),"x");
-    assert_eq!(fields[1].name(),"y");
-    assert_eq!(fields[2].name(),"w2");
+    assert_eq!(fields[0].name(), "x");
+    assert_eq!(fields[1].name(), "y");
+    assert_eq!(fields[2].name(), "w2");
 
     let errs = check_layout_compatibility(regular, other)
         .unwrap_err()
         .flatten_errors();
     assert!(errs
         .iter()
-        .any(|err| matches!(err, AbiInstability::UnexpectedField{..})));
+        .any(|err| matches!(err, AbiInstability::UnexpectedField { .. })));
 }
-
-
 
 #[test]
 fn swapped_fields() {
@@ -564,7 +547,7 @@ fn swapped_fields() {
             .flatten_errors();
         assert!(errs
             .iter()
-            .any(|x| matches!(x, AbiInstability::UnexpectedField{..})))
+            .any(|x| matches!(x, AbiInstability::UnexpectedField { .. })))
     }
 }
 
@@ -642,7 +625,7 @@ pub(super) mod gen_more_lts_d {
 }
 
 pub(super) mod gen_more_tys {
-    use super::{PhantomData,Tuple2};
+    use super::{PhantomData, Tuple2};
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
     pub struct Generics<T: 'static, U> {
@@ -679,7 +662,7 @@ fn different_generics() {
                 .flatten_errors();
             assert!(errs
                 .iter()
-                .any(|err| matches!(err, AbiInstability::GenericParamCount{..})));
+                .any(|err| matches!(err, AbiInstability::GenericParamCount { .. })));
         }
     }
 
@@ -692,7 +675,7 @@ fn different_generics() {
                 .flatten_errors();
             assert!(errs
                 .iter()
-                .any(|err| matches!(err, AbiInstability::FieldLifetimeMismatch{..})));
+                .any(|err| matches!(err, AbiInstability::FieldLifetimeMismatch { .. })));
         }
     }
 }
@@ -701,13 +684,12 @@ fn different_generics() {
 ////    Enums
 //////////////////////////////////////////////////////////
 
-
 pub(super) mod enum_extra_fields_a {
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
     pub enum Enum {
         Variant0,
-        Variant1 { a: u32,b:u32 },
+        Variant1 { a: u32, b: u32 },
     }
 }
 
@@ -720,7 +702,6 @@ pub(super) mod misnamed_variant {
     }
 }
 
-
 #[cfg(test)]
 fn variant_mismatch() {
     let regular = basic_enum::Enum::LAYOUT;
@@ -732,7 +713,7 @@ fn variant_mismatch() {
             .flatten_errors();
         assert!(errs
             .iter()
-            .any(|err| matches!(err, AbiInstability::UnexpectedVariant{..})));
+            .any(|err| matches!(err, AbiInstability::UnexpectedVariant { .. })));
     }
 
     {
@@ -742,11 +723,9 @@ fn variant_mismatch() {
             .flatten_errors();
         assert!(errs
             .iter()
-            .any(|err| matches!(err, AbiInstability::TooManyVariants{..})));
+            .any(|err| matches!(err, AbiInstability::TooManyVariants { .. })));
     }
 }
-
-
 
 //////////////////////////////////////////////////////////////////////////////
 ///  Modules,with function pointers
@@ -756,8 +735,8 @@ pub(super) mod mod_0 {
 
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn(&mut u32,u64) -> RString,
+    pub struct Mod {
+        pub function_0: extern "C" fn(&mut u32, u64) -> RString,
         pub function_1: extern "C" fn() -> RString,
     }
 }
@@ -767,42 +746,39 @@ pub(super) mod mod_0b {
 
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn(&mut u32,u64,()) -> RString,
+    pub struct Mod {
+        pub function_0: extern "C" fn(&mut u32, u64, ()) -> RString,
         pub function_1: extern "C" fn() -> RString,
     }
 }
-
 
 pub(super) mod mod_1 {
     use abi_stable::std_types::RString;
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn(&mut u32,u64,RString),
+    pub struct Mod {
+        pub function_0: extern "C" fn(&mut u32, u64, RString),
         pub function_1: extern "C" fn(RString),
     }
 }
-
 
 pub(super) mod mod_2 {
     use abi_stable::std_types::RString;
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn(&mut u32,u64,RString)->RString,
+    pub struct Mod {
+        pub function_0: extern "C" fn(&mut u32, u64, RString) -> RString,
         pub function_1: extern "C" fn(),
     }
 }
-
 
 pub(super) mod mod_3 {
     use abi_stable::std_types::RString;
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn(&mut u32,u64,RString),
-        pub function_1: extern "C" fn()->RString,
+    pub struct Mod {
+        pub function_0: extern "C" fn(&mut u32, u64, RString),
+        pub function_1: extern "C" fn() -> RString,
     }
 }
 
@@ -810,19 +786,18 @@ pub(super) mod mod_4 {
     use abi_stable::std_types::RString;
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn()->RString,
-        pub function_1: extern "C" fn(&mut u32,u64,RString),
+    pub struct Mod {
+        pub function_0: extern "C" fn() -> RString,
+        pub function_1: extern "C" fn(&mut u32, u64, RString),
     }
 }
-
 
 pub(super) mod mod_6 {
     use abi_stable::std_types::RString;
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn()->RString,
+    pub struct Mod {
+        pub function_0: extern "C" fn() -> RString,
     }
 }
 
@@ -830,17 +805,14 @@ pub(super) mod mod_6 {
 pub(super) mod mod_6b {
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    pub struct Mod{
-        pub function_0: extern "C" fn()->u32,
+    pub struct Mod {
+        pub function_0: extern "C" fn() -> u32,
     }
 }
-
-
 
 //////////////////////////////////////////////////////////////////////////////
 ////            Tagged values
 //////////////////////////////////////////////////////////////////////////////
-
 
 #[cfg(not(feature = "no_fn_promotion"))]
 mod tagging_items {
@@ -851,14 +823,13 @@ mod tagging_items {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         not_stableabi(M),
-        bound="M:ToTagConst",
-        tag="<M as ToTagConst>::TAG",
+        bound = "M:ToTagConst",
+        tag = "<M as ToTagConst>::TAG"
     )]
     pub struct Tagged<M>(UnsafeIgnoredType<M>);
 
-
-    pub trait ToTagConst{
-        const TAG:Tag;
+    pub trait ToTagConst {
+        const TAG: Tag;
     }
 
     macro_rules! declare_tags {
@@ -877,8 +848,7 @@ mod tagging_items {
         )
     }
 
-
-    declare_tags!{
+    declare_tags! {
         const TAG_DEFAULT_0=Tag::null();
         const TAG_DEFAULT_1=Tag::bool_(false);
         const TAG_DEFAULT_2=Tag::int(0);
@@ -886,9 +856,9 @@ mod tagging_items {
         const TAG_DEFAULT_4=Tag::str("");
         const TAG_DEFAULT_5=Tag::arr(RSlice::EMPTY);
         const TAG_DEFAULT_6=Tag::set(RSlice::EMPTY);
-        
+
         const TAG_EMPTY_SET=Tag::set(RSlice::EMPTY);
-        
+
         const TAG_SET_A0=Tag::set(rslice![
             Tag::str("Sync"),
         ]);
@@ -923,59 +893,69 @@ mod tagging_items {
         ]);
     }
 
-
-    trait TaggedExt{
-        const GET_AI:&'static TypeLayout;
+    trait TaggedExt {
+        const GET_AI: &'static TypeLayout;
     }
-
 
     impl<T> TaggedExt for T
-    where 
-        Tagged<T>:StableAbi,
+    where
+        Tagged<T>: StableAbi,
     {
-        const GET_AI:&'static TypeLayout=
-            <Tagged<T> as StableAbi>::LAYOUT;
+        const GET_AI: &'static TypeLayout = <Tagged<T> as StableAbi>::LAYOUT;
     }
-
-
 
     #[cfg(not(miri))]
     #[test]
-    fn test_tag_subsets(){
-        let valid_subsets=vec![
-            vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A0::GET_AI, TAG_SET_B0::GET_AI, TAG_SET_C0::GET_AI],
-            vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A1::GET_AI, TAG_SET_B0::GET_AI, TAG_SET_C0::GET_AI],
-            vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A2::GET_AI, TAG_SET_B1::GET_AI, TAG_SET_C0::GET_AI],
-            vec![TAG_EMPTY_SET::GET_AI, TAG_SET_A3::GET_AI, TAG_SET_B1::GET_AI, TAG_SET_C0::GET_AI],
+    fn test_tag_subsets() {
+        let valid_subsets = vec![
+            vec![
+                TAG_EMPTY_SET::GET_AI,
+                TAG_SET_A0::GET_AI,
+                TAG_SET_B0::GET_AI,
+                TAG_SET_C0::GET_AI,
+            ],
+            vec![
+                TAG_EMPTY_SET::GET_AI,
+                TAG_SET_A1::GET_AI,
+                TAG_SET_B0::GET_AI,
+                TAG_SET_C0::GET_AI,
+            ],
+            vec![
+                TAG_EMPTY_SET::GET_AI,
+                TAG_SET_A2::GET_AI,
+                TAG_SET_B1::GET_AI,
+                TAG_SET_C0::GET_AI,
+            ],
+            vec![
+                TAG_EMPTY_SET::GET_AI,
+                TAG_SET_A3::GET_AI,
+                TAG_SET_B1::GET_AI,
+                TAG_SET_C0::GET_AI,
+            ],
         ];
 
-
         for subset in &valid_subsets {
-            for (l_i,l_abi) in subset.iter().enumerate() {
-                for (r_i,r_abi) in subset.iter().enumerate() {
-
-                    let res=check_layout_compatibility(l_abi,r_abi);
+            for (l_i, l_abi) in subset.iter().enumerate() {
+                for (r_i, r_abi) in subset.iter().enumerate() {
+                    let res = check_layout_compatibility(l_abi, r_abi);
 
                     if l_i <= r_i {
-                        assert_eq!(res,Ok(()));
-                    }else{
-                        let errs=res.unwrap_err().flatten_errors();
-                        assert!(
-                            errs
+                        assert_eq!(res, Ok(()));
+                    } else {
+                        let errs = res.unwrap_err().flatten_errors();
+                        assert!(errs
                             .iter()
-                            .any(|err| matches!(err, AbiInstability::TagError{..}) )
-                        );
+                            .any(|err| matches!(err, AbiInstability::TagError { .. })));
                     }
                 }
             }
         }
     }
 
-
     #[cfg(not(miri))]
     #[test]
-    fn test_tag_incompatible(){
-        let incompatible_sets=vec![
+    fn test_tag_incompatible() {
+        let incompatible_sets = vec![
             vec![
                 TAG_SET_A0::GET_AI,
                 TAG_SET_A1::GET_AI,
@@ -988,19 +968,17 @@ mod tagging_items {
         ];
 
         for subset in &incompatible_sets {
-            for (l_i,l_abi) in subset.iter().enumerate() {
-                for (r_i,r_abi) in subset.iter().enumerate() {
-                    let res=check_layout_compatibility(l_abi,r_abi);
+            for (l_i, l_abi) in subset.iter().enumerate() {
+                for (r_i, r_abi) in subset.iter().enumerate() {
+                    let res = check_layout_compatibility(l_abi, r_abi);
 
                     if l_i == r_i {
-                        assert_eq!(res,Ok(()));
-                    }else{
-                        let errs=res.unwrap_err().flatten_errors();
-                        assert!(
-                            errs
+                        assert_eq!(res, Ok(()));
+                    } else {
+                        let errs = res.unwrap_err().flatten_errors();
+                        assert!(errs
                             .iter()
-                            .any(|err| matches!(err, AbiInstability::TagError{..}) )
-                        );
+                            .any(|err| matches!(err, AbiInstability::TagError { .. })));
                     }
                 }
             }

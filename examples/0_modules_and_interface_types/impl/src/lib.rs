@@ -1,38 +1,33 @@
-/*!
-This is an `implementation crate`,
-It exports the root module(a struct of function pointers) required by the 
-`example_0_interface`(the `interface crate`).
-
-*/
+//! This is an `implementation crate`,
+//! It exports the root module(a struct of function pointers) required by the
+//! `example_0_interface`(the `interface crate`).
 
 use std::{
     borrow::Cow,
     collections::HashSet,
     marker::PhantomData,
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 use example_0_interface::{
-    RemoveWords, CowStrIter,
-    TextOpsMod_Ref,TextOpsMod,
-    DeserializerMod, DeserializerMod_Ref,
-    TOState, TOStateBox,TOCommand,TOReturnValue,TOCommandBox,TOReturnValueArc,
+    CowStrIter, DeserializerMod, DeserializerMod_Ref, RemoveWords, TOCommand, TOCommandBox,
+    TOReturnValue, TOReturnValueArc, TOState, TOStateBox, TextOpsMod, TextOpsMod_Ref,
 };
 
 use abi_stable::{
-    external_types::RawValueBox,
+    erased_types::{ImplType, SerializeImplType, TypeInfo},
     export_root_module,
-    sabi_extern_fn,
+    external_types::RawValueBox,
     impl_get_type_info,
-    erased_types::{ImplType,SerializeImplType,TypeInfo},
-    prefix_type::{PrefixTypeTrait,WithMetadata},
-    traits::{IntoReprC},
-    std_types::{RCow, RStr,RBox,RVec,RArc, RString,RResult,ROk,RErr,RBoxError}, 
+    prefix_type::{PrefixTypeTrait, WithMetadata},
+    sabi_extern_fn,
+    std_types::{RArc, RBox, RBoxError, RCow, RErr, ROk, RResult, RStr, RString, RVec},
+    traits::IntoReprC,
     DynTrait,
 };
-use core_extensions::{SelfOps,StringExt};
+use core_extensions::{SelfOps, StringExt};
 
-use serde::{Serialize,Deserialize};
-
+use serde::{Deserialize, Serialize};
 
 ///////////////////////////////////////////////////////////////////////////////////
 
@@ -41,13 +36,13 @@ use serde::{Serialize,Deserialize};
 /// This code isn't run until the layout of the type it returns is checked.
 #[export_root_module]
 // #[unsafe_no_layout_constant]
-fn instantiate_root_module()->TextOpsMod_Ref{
+fn instantiate_root_module() -> TextOpsMod_Ref {
     TextOpsMod {
         new,
-        deserializers:{
+        deserializers: {
             // Another way to instantiate a module.
-            const MOD_:DeserializerMod=DeserializerMod{
-                something:PhantomData,
+            const MOD_: DeserializerMod = DeserializerMod {
+                something: PhantomData,
                 deserialize_state,
                 deserialize_command,
                 deserialize_command_borrowing,
@@ -62,15 +57,15 @@ fn instantiate_root_module()->TextOpsMod_Ref{
         reverse_lines,
         remove_words,
         get_processed_bytes,
+        set_initial_processed_bytes,
         run_command,
-    }.leak_into_prefix()
+    }
+    .leak_into_prefix()
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////
 
-
-#[derive(Debug,Serialize,Deserialize,PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 struct TextOperationState {
     processed_bytes: u64,
 }
@@ -85,46 +80,41 @@ struct TextOperationState {
 impl ImplType for TextOperationState {
     type Interface = TOState;
 
-    const INFO: &'static TypeInfo=impl_get_type_info! { TextOperationState };
+    const INFO: &'static TypeInfo = impl_get_type_info! { TextOperationState };
 }
 
 /// Defines how the type is serialized in DynTrait<_>.
 impl<'a> SerializeImplType<'a> for TextOperationState {
     type Interface = TOState;
-    
+
     fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
     }
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////////
 
-
 /// An enum used to send commands to this library dynamically.
-#[derive(Debug,Serialize,Deserialize,PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Command<'a> {
     ReverseLines(RString),
-    RemoveWords{
-        string:RString,
-        words:RVec<RString>,
+    RemoveWords {
+        string: RString,
+        words: RVec<RString>,
         #[serde(skip)]
-        _marker:PhantomData<&'a mut RString>,
+        _marker: PhantomData<&'a mut RString>,
     },
     GetProcessedBytes,
     Batch(RVec<Command<'a>>),
 }
 
+impl<'a> Iterator for Command<'a> {
+    type Item = &'a mut RString;
 
-
-impl<'a> Iterator for Command<'a>{
-    type Item=&'a mut RString;
-
-    fn next(&mut self)->Option<Self::Item>{
+    fn next(&mut self) -> Option<Self::Item> {
         None
     }
 }
-
 
 /// Declares TOState as the `ìnterface type` of `TOCommand`.
 ///
@@ -136,25 +126,22 @@ impl<'a> Iterator for Command<'a>{
 impl ImplType for Command<'static> {
     type Interface = TOCommand;
 
-    const INFO: &'static TypeInfo=impl_get_type_info! { Command };
+    const INFO: &'static TypeInfo = impl_get_type_info! { Command };
 }
 
 /// Defines how the type is serialized in DynTrait<_>.
-impl<'borr,'a> SerializeImplType<'a> for Command<'borr> {
+impl<'borr, 'a> SerializeImplType<'a> for Command<'borr> {
     type Interface = TOCommand;
     fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
     }
 }
 
-
-
 //////////////////////////////////////////////////////////////////////////////////////
-
 
 /// The return type of `fn run_command`,
 /// where the returned variant corresponds to the `Command` that was passed in.
-#[derive(Debug,Serialize,Deserialize,PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum ReturnValue {
     ReverseLines(RString),
     RemoveWords(RString),
@@ -172,7 +159,7 @@ pub enum ReturnValue {
 impl ImplType for ReturnValue {
     type Interface = TOReturnValue;
 
-    const INFO: &'static TypeInfo=impl_get_type_info! { ReturnValue };
+    const INFO: &'static TypeInfo = impl_get_type_info! { ReturnValue };
 }
 
 /// Defines how the type is serialized in DynTrait<_>.
@@ -183,10 +170,7 @@ impl<'a> SerializeImplType<'a> for ReturnValue {
     }
 }
 
-
-
 //////////////////////////////////////////////////////////////////////////////////////
-
 
 fn deserialize_json<'a, T>(s: RStr<'a>) -> RResult<T, RBoxError>
 where
@@ -203,26 +187,22 @@ where
     T: serde::Serialize,
 {
     match serde_json::to_string::<T>(&value) {
-        Ok(v)=>unsafe{ Ok(RawValueBox::from_rstring_unchecked(v.into_c())) },
-        Err(e)=>Err(RBoxError::new(e)),
+        Ok(v) => unsafe { Ok(RawValueBox::from_rstring_unchecked(v.into_c())) },
+        Err(e) => Err(RBoxError::new(e)),
     }
 }
-
 
 //////////////////////////////////////////////////////////////////////////////////////
 
 /// Defines how a TOStateBox is deserialized from json.
 #[sabi_extern_fn]
-pub fn deserialize_state(s:RStr<'_>) -> RResult<TOStateBox, RBoxError>{
-    deserialize_json::<TextOperationState>(s)
-        .map(DynTrait::from_value)
+pub fn deserialize_state(s: RStr<'_>) -> RResult<TOStateBox, RBoxError> {
+    deserialize_json::<TextOperationState>(s).map(DynTrait::from_value)
 }
 
 /// Defines how a TOCommandBox is deserialized from json.
 #[sabi_extern_fn]
-pub fn deserialize_command(
-    s:RStr<'_>
-) -> RResult<TOCommandBox<'static>, RBoxError>{
+pub fn deserialize_command(s: RStr<'_>) -> RResult<TOCommandBox<'static>, RBoxError> {
     deserialize_json::<Command>(s)
         .map(RBox::new)
         .map(DynTrait::from_ptr)
@@ -230,17 +210,15 @@ pub fn deserialize_command(
 
 /// Defines how a TOCommandBox is deserialized from json.
 #[sabi_extern_fn]
-pub fn deserialize_command_borrowing(
-    s:RStr<'_>
-) -> RResult<TOCommandBox<'_>, RBoxError>{
+pub fn deserialize_command_borrowing(s: RStr<'_>) -> RResult<TOCommandBox<'_>, RBoxError> {
     deserialize_json::<Command>(s)
         .map(RBox::new)
-        .map(|x|DynTrait::from_borrowing_ptr(x,TOCommand))
+        .map(|x| DynTrait::from_borrowing_ptr(x, TOCommand))
 }
 
 /// Defines how a TOReturnValueArc is deserialized from json.
 #[sabi_extern_fn]
-pub fn deserialize_return_value(s:RStr<'_>) -> RResult<TOReturnValueArc, RBoxError>{
+pub fn deserialize_return_value(s: RStr<'_>) -> RResult<TOReturnValueArc, RBoxError> {
     deserialize_json::<ReturnValue>(s)
         .map(RArc::new)
         .map(DynTrait::from_ptr)
@@ -248,29 +226,30 @@ pub fn deserialize_return_value(s:RStr<'_>) -> RResult<TOReturnValueArc, RBoxErr
 
 //////////////////////////////////////////////////////////////////////////////////////
 
+static INITIAL_PROCESSED_BYTES: AtomicU64 = AtomicU64::new(0);
 
-/// Constructs a TextOperationState and erases it by wrapping it into a 
+/// Constructs a TextOperationState and erases it by wrapping it into a
 /// `DynTrait<Box<()>,TOState>`.
 #[sabi_extern_fn]
 pub fn new() -> TOStateBox {
-    let this=TextOperationState{
-        processed_bytes:0,
+    let this = TextOperationState {
+        processed_bytes: INITIAL_PROCESSED_BYTES.load(Ordering::SeqCst),
     };
     DynTrait::from_value(this)
 }
 
-
-
 /// Reverses order of the lines in `text`.
 #[sabi_extern_fn]
-pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
-    let this = this.downcast_as_mut_impltype::<TextOperationState>().unwrap();
+pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>) -> RString {
+    let this = this
+        .downcast_as_mut_impltype::<TextOperationState>()
+        .unwrap();
 
-    this.processed_bytes+=text.len() as u64;
+    this.processed_bytes += text.len() as u64;
 
-    let mut lines=text.lines().collect::<Vec<&str>>();
+    let mut lines = text.lines().collect::<Vec<&str>>();
     lines.reverse();
-    let mut buffer=RString::with_capacity(text.len());
+    let mut buffer = RString::with_capacity(text.len());
     for line in lines {
         buffer.push_str(line);
         buffer.push('\n');
@@ -278,37 +257,41 @@ pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>)-> RString {
     buffer
 }
 
-
 /// Removes the words in `param.words` from `param.string`,
 /// as well as the whitespace that comes after it.
 #[sabi_extern_fn]
 // How is a `&mut ()` not ffi-safe?????
 #[allow(improper_ctypes_definitions)]
-pub fn remove_words(this: &mut TOStateBox, param: RemoveWords<'_,'_>) -> RString{
-    let this = this.downcast_as_mut_impltype::<TextOperationState>().unwrap();
+pub fn remove_words(this: &mut TOStateBox, param: RemoveWords<'_, '_>) -> RString {
+    let this = this
+        .downcast_as_mut_impltype::<TextOperationState>()
+        .unwrap();
 
-    this.processed_bytes+=param.string.len() as u64;
+    this.processed_bytes += param.string.len() as u64;
 
-    let set=param.words.map(RCow::into).collect::<HashSet<Cow<'_,str>>>();
-    let mut buffer=String::with_capacity(10);
+    let set = param
+        .words
+        .map(RCow::into)
+        .collect::<HashSet<Cow<'_, str>>>();
+    let mut buffer = String::with_capacity(10);
 
-    let haystack=&*param.string;
-    let mut prev_was_deleted=false;
-    for kv in haystack.split_while(|c|c.is_alphabetic()) {
-        let s=kv.str;
-        let cs=Cow::from(s);
-        let is_a_word=kv.key;
-        let is_deleted= (!is_a_word&&prev_was_deleted) || (is_a_word && set.contains(&cs));
+    let haystack = &*param.string;
+    let mut prev_was_deleted = false;
+    for kv in haystack.split_while(|c| c.is_alphabetic()) {
+        let s = kv.str;
+        let cs = Cow::from(s);
+        let is_a_word = kv.key;
+        let is_deleted = (!is_a_word && prev_was_deleted) || (is_a_word && set.contains(&cs));
         if !is_deleted {
             buffer.push_str(s);
         }
-        prev_was_deleted=is_deleted;
+        prev_was_deleted = is_deleted;
     }
 
     buffer.into()
 }
 
-/// Returns the amount of text (in bytes) 
+/// Returns the amount of text (in bytes)
 /// that was processed in functions taking `&mut TOStateBox`.
 #[sabi_extern_fn]
 pub fn get_processed_bytes(this: &TOStateBox) -> u64 {
@@ -316,67 +299,70 @@ pub fn get_processed_bytes(this: &TOStateBox) -> u64 {
     this.processed_bytes
 }
 
-
-
-fn run_command_inner(this:&mut TOStateBox,command:Command)->ReturnValue{
-    match command {
-        Command::ReverseLines(s)=>{
-            reverse_lines(this,s.as_rstr())
-                .piped(ReturnValue::ReverseLines)
-        }
-        Command::RemoveWords{string,words,_marker:_}=>{
-            let iter=&mut words.iter().map(|s| RCow::Borrowed(s.as_rstr()) );
-
-            remove_words(this,RemoveWords{
-                string:string.as_rstr(),
-                words:DynTrait::from_borrowing_ptr(iter,CowStrIter),
-            })
-            .piped(ReturnValue::RemoveWords)
-        }
-        Command::GetProcessedBytes=>{
-            get_processed_bytes(this)
-                .piped(ReturnValue::GetProcessedBytes)
-        }
-        Command::Batch(list)=>{
-            list.into_iter()
-                .map(|cmd| run_command_inner(this,cmd) )
-                .collect::<RVec<ReturnValue>>()
-                .piped(ReturnValue::Batch)
-        }
-    }
+#[sabi_extern_fn]
+pub fn set_initial_processed_bytes(n: u64) {
+    INITIAL_PROCESSED_BYTES.store(n, Ordering::SeqCst);
 }
 
+fn run_command_inner(this: &mut TOStateBox, command: Command) -> ReturnValue {
+    match command {
+        Command::ReverseLines(s) => {
+            reverse_lines(this, s.as_rstr()).piped(ReturnValue::ReverseLines)
+        }
+        Command::RemoveWords {
+            string,
+            words,
+            _marker: _,
+        } => {
+            let iter = &mut words.iter().map(|s| RCow::Borrowed(s.as_rstr()));
+
+            remove_words(
+                this,
+                RemoveWords {
+                    string: string.as_rstr(),
+                    words: DynTrait::from_borrowing_ptr(iter, CowStrIter),
+                },
+            )
+            .piped(ReturnValue::RemoveWords)
+        }
+        Command::GetProcessedBytes => {
+            get_processed_bytes(this).piped(ReturnValue::GetProcessedBytes)
+        }
+        Command::Batch(list) => list
+            .into_iter()
+            .map(|cmd| run_command_inner(this, cmd))
+            .collect::<RVec<ReturnValue>>()
+            .piped(ReturnValue::Batch),
+    }
+}
 
 /// An interpreter for text operation commands
 // How is a `*mut ()` not ffi-safe?????
 #[allow(improper_ctypes_definitions)]
 #[sabi_extern_fn]
-pub fn run_command(
-    this:&mut TOStateBox,
-    command:TOCommandBox<'static>
-)->TOReturnValueArc{
-    let command = command.downcast_into_impltype::<Command<'static>>().unwrap()
+pub fn run_command(this: &mut TOStateBox, command: TOCommandBox<'static>) -> TOReturnValueArc {
+    let command = command
+        .downcast_into_impltype::<Command<'static>>()
+        .unwrap()
         .piped(RBox::into_inner);
-        
-    run_command_inner(this,command)
+
+    run_command_inner(this, command)
         .piped(RArc::new)
         .piped(DynTrait::from_ptr)
 }
 
-
 /////////////////////////////////////////////////////////////////////////////
 
-
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
 
     use abi_stable::library::RootModule;
 
     use serde_json::value::RawValue;
 
-    fn setup(){
-        let _=TextOpsMod_Ref::load_module_with(|| Ok::<_,()>(instantiate_root_module()) );
+    fn setup() {
+        let _ = TextOpsMod_Ref::load_module_with(|| Ok::<_, ()>(instantiate_root_module()));
     }
 
     #[test]
@@ -392,69 +378,63 @@ mod tests{
     fn test_remove_words() {
         let mut state = new();
         {
-            let words = ["burrito", "like","a"];
-            let mut iter=words.iter().cloned().map(RCow::from);
+            let words = ["burrito", "like", "a"];
+            let mut iter = words.iter().cloned().map(RCow::from);
             let param = RemoveWords {
                 string: "Monads are like a burrito wrapper.".into(),
-                words: DynTrait::from_borrowing_ptr(&mut iter,CowStrIter),
+                words: DynTrait::from_borrowing_ptr(&mut iter, CowStrIter),
             };
             assert_eq!(&*remove_words(&mut state, param), "Monads are wrapper.");
         }
         {
-            let words = ["largest","is"];
-            let mut iter=words.iter().cloned().map(RCow::from);
+            let words = ["largest", "is"];
+            let mut iter = words.iter().cloned().map(RCow::from);
             let param = RemoveWords {
                 string: "The   largest planet  is    jupiter.".into(),
-                words: DynTrait::from_borrowing_ptr(&mut iter,CowStrIter),
+                words: DynTrait::from_borrowing_ptr(&mut iter, CowStrIter),
             };
             assert_eq!(&*remove_words(&mut state, param), "The   planet  jupiter.");
         }
     }
 
     #[test]
-    fn deserializing(){
+    fn deserializing() {
         setup();
-        
-        let json=r#"
+
+        let json = r#"
             {
                 "processed_bytes":101
             }
         "#;
 
-        let rvref=serde_json::from_str::<&RawValue>(json).unwrap();
-        let value0=TOStateBox::deserialize_from_proxy(rvref.into()).unwrap();
+        let rvref = serde_json::from_str::<&RawValue>(json).unwrap();
+        let value0 = TOStateBox::deserialize_from_proxy(rvref.into()).unwrap();
 
-        let value1=serde_json::from_str::<TOStateBox>(&json).unwrap();
+        let value1 = serde_json::from_str::<TOStateBox>(&json).unwrap();
 
-        assert_eq!(value0,value1);
-
+        assert_eq!(value0, value1);
     }
 
-
     #[test]
-    fn serializing(){
+    fn serializing() {
         setup();
 
-        let this=TextOperationState {
+        let this = TextOperationState {
             processed_bytes: 1337,
-        }.piped(DynTrait::from_value);
+        }
+        .piped(DynTrait::from_value);
 
-        let serialized_0= this.serialize_into_proxy()
+        let serialized_0 = this
+            .serialize_into_proxy()
             .unwrap()
             .get()
             .split_whitespace()
             .collect::<String>();
 
-        let expected_0=r#"{"processed_bytes":1337}"#;
+        let expected_0 = r#"{"processed_bytes":1337}"#;
 
-        assert_eq!(serialized_0,expected_0);
+        assert_eq!(serialized_0, expected_0);
 
-        assert_eq!(
-            serde_json::to_string(&this).unwrap(), 
-            expected_0,
-        );
+        assert_eq!(serde_json::to_string(&this).unwrap(), expected_0,);
     }
-
 }
-
-

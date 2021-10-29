@@ -14,7 +14,7 @@ Any method that needs it calls vtable functions to do the allocation/deallocatio
 
 # Relating to global constructors in dynamic libraries
 
-It is unsound to do load a library developed with abi_stable or 
+It is unsound to do load a library developed with abi_stable or
 checking the layout of types with
 `abi_stable::abi_stability::check_layout_compatibility` in global constructors,
 because `abi_stable` relies on initializing its global global state in the binary

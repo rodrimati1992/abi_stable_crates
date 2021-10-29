@@ -1,11 +1,6 @@
-
 use super::*;
 
-use crate::{
-    abi_stability::ConstGeneric,
-};
-
-
+use crate::abi_stability::ConstGeneric;
 
 /////////////////////////////////////////////////////
 
@@ -13,7 +8,7 @@ use crate::{
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
-pub enum ReprAttr{
+pub enum ReprAttr {
     /// This is an Option<NonZeroType>.
     /// In which the size and alignment of the Option<_> is exactly that of its contents.
     ///
@@ -32,53 +27,45 @@ pub enum ReprAttr{
     Int(DiscriminantRepr),
     // Added just in case that I add support for it
     #[doc(hidden)]
-    Packed{
+    Packed {
         /// The alignment represented as a `1 << alignment_power_of_two`.
-        alignment_power_of_two:u8,
-    }
+        alignment_power_of_two: u8,
+    },
 }
-
 
 /////////////////////////////////////////////////////
 
-
-/**
-A module path.
-*/
+/// A module path.
 #[repr(transparent)]
-#[derive(Debug, Copy, Clone,Eq,PartialEq, StableAbi)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct ModPath(NulStr<'static>);
 
-impl ModPath{
-
+impl ModPath {
     /// An item without a path
-    pub const NO_PATH:Self=ModPath(nul_str!("<no path>"));
+    pub const NO_PATH: Self = ModPath(nulstr_trunc!("<no path>"));
 
     /// An item in the prelude.
-    pub const PRELUDE:Self=ModPath(nul_str!("<prelude>"));
+    pub const PRELUDE: Self = ModPath(nulstr_trunc!("<prelude>"));
 
     /// Constructs a ModPath from a string with a module path.
-    pub const fn inside(path:NulStr<'static>)->Self{
+    pub const fn inside(path: NulStr<'static>) -> Self {
         ModPath(path)
     }
 }
 
-
-impl Display for ModPath{
+impl Display for ModPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(&self.0,f)
+        Display::fmt(&self.0, f)
     }
 }
 
-
 /////////////////////////////////////////////////////
-
 
 /// The compressed generic parameters of a type,
 /// which can be expanded into a `GenericParams` by calling `expand`.
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq,StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct CompGenericParams {
     /// The names of the lifetimes declared by a type.
@@ -87,18 +74,18 @@ pub struct CompGenericParams {
     types: StartLen,
     /// The const parameters of a type,getting them from the containing TypeLayout.
     consts: StartLen,
-    lifetime_count:u8,
+    lifetime_count: u8,
 }
 
-impl CompGenericParams{
+impl CompGenericParams {
     /// Constructs a CompGenericParams.
     pub const fn new(
         lifetime: NulStr<'static>,
-        lifetime_count:u8,
-        types:StartLen,
-        consts:StartLen,
-    )->Self{
-        Self{
+        lifetime_count: u8,
+        types: StartLen,
+        consts: StartLen,
+    ) -> Self {
+        Self {
             lifetime,
             lifetime_count,
             types,
@@ -107,26 +94,26 @@ impl CompGenericParams{
     }
 
     /// Expands this `CompGenericParams` into a `GenericParams`.
-    pub fn expand(self,shared_vars:&'static SharedVars)->GenericParams{
-        GenericParams{
+    pub fn expand(self, shared_vars: &'static SharedVars) -> GenericParams {
+        GenericParams {
             lifetime: self.lifetime,
             types: &shared_vars.type_layouts()[self.types.to_range()],
             consts: &shared_vars.constants()[self.consts.to_range()],
-            lifetime_count:self.lifetime_count,
+            lifetime_count: self.lifetime_count,
         }
     }
 }
 
 /// The generic parameters of a type.
-#[derive(Copy,Clone,PartialEq,Eq)]
-pub struct GenericParams{
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct GenericParams {
     /// The names of the lifetimes declared by a type.
     pub(super) lifetime: NulStr<'static>,
     /// The type parameters of a type,getting them from the containing TypeLayout.
     pub(super) types: &'static [TypeLayoutCtor],
     /// The const parameters of a type,getting them from the containing TypeLayout.
     pub(super) consts: &'static [ConstGeneric],
-    pub(super) lifetime_count:u8,
+    pub(super) lifetime_count: u8,
 }
 
 impl GenericParams {
@@ -136,19 +123,19 @@ impl GenericParams {
     }
 
     /// Gets an iterator over the names of the lifetime parameters of the type.
-    pub fn lifetimes(&self)-> impl Iterator<Item=&'static str>+Clone+Send+Sync+'static {
-        self.lifetime.to_str().split(',').filter(|x| !x.is_empty() )
+    pub fn lifetimes(&self) -> impl Iterator<Item = &'static str> + Clone + Send + Sync + 'static {
+        self.lifetime.to_str().split(',').filter(|x| !x.is_empty())
     }
     /// The amount of lifetimes of the type.
-    pub fn lifetime_count(&self)->usize{
+    pub fn lifetime_count(&self) -> usize {
         self.lifetime_count as usize
     }
     /// The type parameters of the type.
-    pub fn type_params(&self)->&'static [TypeLayoutCtor]{
+    pub fn type_params(&self) -> &'static [TypeLayoutCtor] {
         self.types
     }
     /// The const parameters of the type.
-    pub fn const_params(&self)->&'static [ConstGeneric]{
+    pub fn const_params(&self) -> &'static [ConstGeneric] {
         self.consts
     }
 }
@@ -163,8 +150,8 @@ impl Display for GenericParams {
             }
             Ok(())
         };
- 
-       for (i, param) in self.lifetimes().enumerate() {
+
+        for (i, param) in self.lifetimes().enumerate() {
             fmt::Display::fmt(param, &mut *f)?;
             post_iter(i, self.lifetime_count(), &mut *f)?;
         }
@@ -181,15 +168,13 @@ impl Display for GenericParams {
     }
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-
 
 /// Types defined in the compiler
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq,StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
-pub enum TLPrimitive{
+pub enum TLPrimitive {
     U8,
     I8,
     U16,
@@ -210,85 +195,74 @@ pub enum TLPrimitive{
     /// A `*mut T`
     MutPtr,
     /// An array.
-    Array{
-        len:usize,
+    Array {
+        len: usize,
     },
 }
 
-
 ///////////////////////////
-
 
 /// The typename and generics of the type this layout is associated to,
 /// used for printing types (eg: `RVec<u8>` ).
-#[derive(Copy,Clone,PartialEq,Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct FmtFullType {
-    pub(super) name:&'static str,
-    pub(super) generics:GenericParams,
-    pub(super) primitive:Option<TLPrimitive>,
-    pub(super) utypeid:UTypeId,
+    pub(super) name: &'static str,
+    pub(super) generics: GenericParams,
+    pub(super) primitive: Option<TLPrimitive>,
+    pub(super) utypeid: UTypeId,
 }
 
-impl FmtFullType{
+impl FmtFullType {
     /// The name of a type.
-    pub fn name(&self)->&'static str{
+    pub fn name(&self) -> &'static str {
         self.name
     }
     /// The generic parmaters of a type.
-    pub fn generics(&self)->GenericParams{
+    pub fn generics(&self) -> GenericParams {
         self.generics
     }
 }
 
-
 ////////////////////////////////////
 
-
-/**
-Either a TLField or a TLFunction.
-*/
+/// Either a TLField or a TLFunction.
 #[repr(u8)]
-#[derive(Copy,Clone,Debug,Eq,PartialEq,StableAbi)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
-pub enum TLFieldOrFunction{
+pub enum TLFieldOrFunction {
     Field(TLField),
     Function(TLFunction),
 }
 
-
-impl From<TLField> for TLFieldOrFunction{
-    fn from(x:TLField)->Self{
+impl From<TLField> for TLFieldOrFunction {
+    fn from(x: TLField) -> Self {
         TLFieldOrFunction::Field(x)
     }
 }
 
-impl From<TLFunction> for TLFieldOrFunction{
-    fn from(x:TLFunction)->Self{
+impl From<TLFunction> for TLFieldOrFunction {
+    fn from(x: TLFunction) -> Self {
         TLFieldOrFunction::Function(x)
     }
 }
 
-
-impl Display for TLFieldOrFunction{
-    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
+impl Display for TLFieldOrFunction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TLFieldOrFunction::Field(x)=>Display::fmt(x,f),
-            TLFieldOrFunction::Function(x)=>Display::fmt(x,f),
+            TLFieldOrFunction::Field(x) => Display::fmt(x, f),
+            TLFieldOrFunction::Function(x) => Display::fmt(x, f),
         }
     }
 }
 
-
-impl TLFieldOrFunction{
+impl TLFieldOrFunction {
     /// Outputs this into a String with `Display` formatting.
-    pub fn formatted_layout(&self)->String{
+    pub fn formatted_layout(&self) -> String {
         match self {
-            TLFieldOrFunction::Field(x)=>x.layout().to_string(),
-            TLFieldOrFunction::Function(x)=>x.to_string(),
+            TLFieldOrFunction::Field(x) => x.layout().to_string(),
+            TLFieldOrFunction::Function(x) => x.to_string(),
         }
     }
 }
-
-
 
 //////////////////////////////////////////////////////////////////////////////

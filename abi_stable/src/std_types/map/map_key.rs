@@ -1,71 +1,61 @@
 use super::*;
 
-pub enum MapKey<K>{
+pub enum MapKey<K> {
     Value(K),
     /// This is a horrible hack.
-    Query(NonNull<MapQuery<'static,K>>),
+    Query(NonNull<MapQuery<'static, K>>),
 }
 
-
-impl<K> MapKey<K>{
+impl<K> MapKey<K> {
     #[inline]
-    pub fn into_inner(self)->K{
+    pub fn into_inner(self) -> K {
         match self {
-            MapKey::Value(v)=>v,
-            _=>unreachable!("This is a BUG!!!!!!!!!!!!!!!!!!!!")
+            MapKey::Value(v) => v,
+            _ => unreachable!("This is a BUG!!!!!!!!!!!!!!!!!!!!"),
         }
     }
 
     #[inline]
-    pub fn as_ref(&self)->&K{
+    pub fn as_ref(&self) -> &K {
         match self {
-            MapKey::Value(v)=>v,
-            _=>unreachable!("This is a BUG!!!!!!!!!!!!!!!!!!!!")
+            MapKey::Value(v) => v,
+            _ => unreachable!("This is a BUG!!!!!!!!!!!!!!!!!!!!"),
         }
     }
 }
 
-
-impl<K> From<K> for MapKey<K>{
+impl<K> From<K> for MapKey<K> {
     #[inline]
-    fn from(value:K)->Self{
+    fn from(value: K) -> Self {
         MapKey::Value(value)
     }
 }
 
 impl<K> Debug for MapKey<K>
-where 
-    K:Debug
+where
+    K: Debug,
 {
-    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MapKey::Value(v)=>Debug::fmt(v,f),
-            _=>unreachable!("This is a BUG!!!!!!!!!!!!!!!!!!!!")
+            MapKey::Value(v) => Debug::fmt(v, f),
+            _ => unreachable!("This is a BUG!!!!!!!!!!!!!!!!!!!!"),
         }
     }
 }
 
-impl<K> Eq for MapKey<K>
-where
-    K:Eq
-{}
+impl<K> Eq for MapKey<K> where K: Eq {}
 
 impl<K> PartialEq for MapKey<K>
 where
-    K:PartialEq
+    K: PartialEq,
 {
-    fn eq<'a>(&'a self, other: &'a Self) -> bool{
-        match (self,other) {
-             (MapKey::Value(lhs),MapKey::Query(rhs))
-            |(MapKey::Query(rhs),MapKey::Value(lhs))=>{
-                unsafe{
-                    rhs.as_ref().is_equal(lhs)
-                }
-            }
-            (MapKey::Value(lhs),MapKey::Value(rhs))=>{
-                lhs==rhs
-            }
-            _=>{
+    fn eq<'a>(&'a self, other: &'a Self) -> bool {
+        match (self, other) {
+            (MapKey::Value(lhs), MapKey::Query(rhs)) | (MapKey::Query(rhs), MapKey::Value(lhs)) => unsafe {
+                rhs.as_ref().is_equal(lhs)
+            },
+            (MapKey::Value(lhs), MapKey::Value(rhs)) => lhs == rhs,
+            _ => {
                 unreachable!("This is a BUG!!!!!!!!!!!!!!!!!!!!!!!!");
             }
         }
@@ -73,29 +63,26 @@ where
 }
 
 impl<K> Hash for MapKey<K>
-where 
-    K:Hash
+where
+    K: Hash,
 {
-    fn hash<H>(&self,hasher:&mut H)
+    fn hash<H>(&self, hasher: &mut H)
     where
-        H:Hasher
+        H: Hasher,
     {
         match self {
-            MapKey::Value(this)=>{
+            MapKey::Value(this) => {
                 this.hash(hasher);
             }
-            MapKey::Query(this)=>{
-                unsafe{ 
-                    this.as_ref().hash(hasher);
-                }
-            }
+            MapKey::Query(this) => unsafe {
+                this.as_ref().hash(hasher);
+            },
         }
     }
 }
 
-
-impl<K> Borrow<K> for MapKey<K>{
-    fn borrow(&self)->&K{
+impl<K> Borrow<K> for MapKey<K> {
+    fn borrow(&self) -> &K {
         self.as_ref()
     }
 }

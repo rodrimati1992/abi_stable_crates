@@ -1,6 +1,5 @@
 use crate::std_types::RStr;
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Whether a field is accessible,and how it is accessed.
@@ -13,58 +12,45 @@ pub enum FieldAccessor {
     /// Accessible with `fn field_name(&self)->FieldType`
     Method,
     /// Accessible with `fn name(&self)->FieldType`
-    MethodNamed{
-        name:RStr<'static>,
-    },
+    MethodNamed { name: RStr<'static> },
     /// Accessible with `fn field_name(&self)->Option<FieldType>`
     MethodOption,
     /// This field is completely inaccessible.
     Opaque,
 }
 
-
-impl FieldAccessor{
+impl FieldAccessor {
     /// Constructs a FieldAccessor for a method named `name`.
-    pub const fn method_named(name:RStr<'static>)->Self{
-        FieldAccessor::MethodNamed{name}
+    pub const fn method_named(name: RStr<'static>) -> Self {
+        FieldAccessor::MethodNamed { name }
     }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
-
-abi_stable_shared::declare_comp_field_accessor!{
-    attrs=[ 
+abi_stable_shared::declare_comp_field_accessor! {
+    attrs=[
         derive(StableAbi),
         sabi(unsafe_sabi_opaque_fields),
     ]
 }
 
-
-impl CompFieldAccessor{
+impl CompFieldAccessor {
     /// Expands this `CompFieldAccessor` into a `FieldAccessor`,
     /// using the string slice contained in the `SharedVars` of
     /// the `TypeLayout` this is stored inside of.
-    pub fn expand(self,string:&'static str)->Option<FieldAccessor>{
+    pub fn expand(self, string: &'static str) -> Option<FieldAccessor> {
         Some(match self {
-            Self::DIRECT=>
-                FieldAccessor::Direct,
-            Self::METHOD=>
-                FieldAccessor::Method,
-            Self::METHOD_NAMED=>
-                FieldAccessor::MethodNamed{name:string.into()},
-            Self::METHOD_OPTION=>
-                FieldAccessor::MethodOption,
-            Self::OPAQUE=>
-                FieldAccessor::Opaque,
-            _=>return None,
+            Self::DIRECT => FieldAccessor::Direct,
+            Self::METHOD => FieldAccessor::Method,
+            Self::METHOD_NAMED => FieldAccessor::MethodNamed {
+                name: string.into(),
+            },
+            Self::METHOD_OPTION => FieldAccessor::MethodOption,
+            Self::OPAQUE => FieldAccessor::Opaque,
+            _ => return None,
         })
     }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
-
-
-

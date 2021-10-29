@@ -18,9 +18,9 @@ where
         }
     }
     #[allow(dead_code)]
-    pub fn boxed<'a>(f: F) -> Box<dyn ToTokens+'a> 
+    pub fn boxed<'a>(f: F) -> Box<dyn ToTokens + 'a>
     where
-        F:'a,
+        F: 'a,
     {
         Box::new(Self::new(f))
     }

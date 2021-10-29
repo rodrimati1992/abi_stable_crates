@@ -11,7 +11,7 @@ annotated with the [`sabi_trait`] attribute macro".
 pub trait Action: Debug {
     /// Gets the current value of `self`.
     fn get(&self) -> usize;
-    
+
     /// Adds `val` into `self`, returning the new value.
     fn add_mut(&mut self, val: usize) -> usize;
 
@@ -50,12 +50,12 @@ impl<'lt, ErasedPtr, …> Trait_TO<'lt, ErasedPtr, …> {
     pub fn from_ptr<Ptr, Downcasting>(
         pointer: Ptr,
         can_it_downcast: Downcasting
-    ) -> Self 
+    ) -> Self
 ```
 
 Constructs `<trait>_TO` from a pointer to a type that implements `<trait>`
 
-The `can_it_downcast` parameter describes whether the trait object can be 
+The `can_it_downcast` parameter describes whether the trait object can be
 converted back into the original type or not.<br>
 Its possible values are [`TD_CanDowncast`] and [`TD_Opaque`].
 
@@ -68,7 +68,7 @@ use abi_stable::{
     sabi_trait::doc_examples::Action_TO,
     std_types::{RArc, RBox},
     type_level::downcasting::TD_CanDowncast,
-    RRef, RMut,
+    RMut, RRef,
 };
 
 // From an RBox
@@ -89,7 +89,7 @@ use abi_stable::{
 // From a reference
 {
     // `Action_TO`s constructed from `&` are `Action_TO<'_, RRef<'_, ()>>`
-    // since `&T` can't soundly be transmuted back and forth into `&()`    
+    // since `&T` can't soundly be transmuted back and forth into `&()`
     let object: Action_TO<'static, RRef<'static, ()>> =
         Action_TO::from_ptr(&20_usize, TD_CanDowncast);
 
@@ -101,7 +101,7 @@ use abi_stable::{
     let mut val = 30_usize;
 
     // `Action_TO`s constructed from `&mut` are `Action_TO<'_, RMut<'_, ()>>`
-    // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`    
+    // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
     let mut object: Action_TO<'static, RMut<'_, ()>> =
         Action_TO::from_ptr(&mut val, TD_CanDowncast);
 
@@ -132,13 +132,13 @@ impl<'lt, …> Trait_TO<'lt, RBox<()>, …> {
     pub fn from_value<_OrigPtr, Downcasting>(
         pointer: _OrigPtr,
         can_it_downcast: Downcasting
-    ) -> Self 
+    ) -> Self
 ```
 
 Constructs `<trait>_TO` from a type that implements `<trait>`,
 wrapping that value in an [`RBox`].
 
-The `can_it_downcast` parameter describes whether the trait object can be 
+The `can_it_downcast` parameter describes whether the trait object can be
 converted back into the original type or not.<br>
 Its possible values are [`TD_CanDowncast`] and [`TD_Opaque`].
 
@@ -148,8 +148,7 @@ Its possible values are [`TD_CanDowncast`] and [`TD_Opaque`].
 **Example**:
 ```rust
 use abi_stable::{
-    sabi_trait::doc_examples::Action_TO,
-    std_types::RBox,
+    sabi_trait::doc_examples::Action_TO, std_types::RBox,
     type_level::downcasting::TD_CanDowncast,
 };
 
@@ -176,13 +175,13 @@ impl<'lt, 'sub, …> Trait_TO<'lt, RRef<'sub, ()>, …> {
         pointer: &'sub T,
         can_it_downcast: Downcasting,
         vtable_for: …,
-    ) -> Self 
+    ) -> Self
 ```
 
 Const-constructs `<trait>_TO` from a constant that
 implements `<trait>`,
 
-The `can_it_downcast` parameter describes whether the trait object can be 
+The `can_it_downcast` parameter describes whether the trait object can be
 converted back into the original type or not.<br>
 Its possible values are [`TD_CanDowncast`] and [`TD_Opaque`].
 
@@ -194,17 +193,13 @@ You can construct the `vtable_for` parameter with `<trait>_MV:VTABLE`
 **Example:**
 ```rust
 use abi_stable::{
-    sabi_trait::doc_examples::Action_trait::{Action_CTO, Action_TO, Action_MV},
+    sabi_trait::doc_examples::Action_trait::{Action_CTO, Action_MV, Action_TO},
     std_types::RBox,
     type_level::downcasting::TD_CanDowncast,
 };
 
-const TO: Action_CTO<'_, '_> = 
-    Action_TO::from_const(
-        &200,
-        TD_CanDowncast,
-        Action_MV::VTABLE,
-    );
+const TO: Action_CTO<'_, '_> =
+    Action_TO::from_const(&200, TD_CanDowncast, Action_MV::VTABLE);
 
 assert_eq!(TO.get(), 200);
 
@@ -215,7 +210,7 @@ assert_eq!(TO.get(), 200);
 
 ```text
 impl<'lt, ErasedPtr, …> Trait_TO<'lt, ErasedPtr, …> {
-    pub fn from_sabi(obj: Trait_Backend<'lt, ErasedPtr, …>) -> Self 
+    pub fn from_sabi(obj: Trait_Backend<'lt, ErasedPtr, …>) -> Self
 ```
 
 Constructs `<trait>_TO` from the backend trait object type,
@@ -234,26 +229,23 @@ For [`Action_TO`] specifically, [`RObject`] is the backend.
 use abi_stable::{
     pointer_trait::{CanTransmuteElement, OwnedPointer},
     sabi_trait::{
-        doc_examples::Action_trait::{Action_Interface, Action_TO, Action_MV},
+        doc_examples::Action_trait::{Action_Interface, Action_MV, Action_TO},
         RObject,
     },
     std_types::RBox,
     type_level::downcasting::TD_CanDowncast,
 };
 
-let mut object: Action_TO<'static, RBox<()>> = 
+let mut object: Action_TO<'static, RBox<()>> =
     Action_TO::from_value(700, TD_CanDowncast);
 
+object = try_downcast::<_, u32>(object).unwrap_err();
 
-object = try_unerase::<_, u32>(object).unwrap_err();
+object = try_downcast::<_, String>(object).unwrap_err();
 
-object = try_unerase::<_, String>(object).unwrap_err();
+assert_eq!(*try_downcast::<_, usize>(object).unwrap(), 700);
 
-assert_eq!(*try_unerase::<_, usize>(object).unwrap(), 700);
-
-
-
-fn try_unerase<P, T>(
+fn try_downcast<P, T>(
     object: Action_TO<'static, P>,
 ) -> Result<P::TransmutedPtr, Action_TO<'static, P>>
 where
@@ -261,7 +253,8 @@ where
     // This bound is required to call `downcast_into` on the `obj: RObject<…>` field
     P: OwnedPointer<PtrTarget = ()> + CanTransmuteElement<T>,
 {
-    object.obj
+    object
+        .obj
         .downcast_into()
         .map_err(|e| Action_TO::from_sabi(e.into_inner()))
 }
@@ -291,10 +284,8 @@ This method is only available for traits that either:
 **Example**:
 ```rust
 use abi_stable::{
-    sabi_trait::doc_examples::Action_TO,
-    std_types::RBox,
-    type_level::downcasting::TD_CanDowncast,
-    RRef,
+    sabi_trait::doc_examples::Action_TO, std_types::RBox,
+    type_level::downcasting::TD_CanDowncast, RRef,
 };
 
 let mut object: Action_TO<'static, RBox<()>> =
@@ -309,10 +300,9 @@ assert_eq!(object.add_mut(14), 321);
 // last use of `object`, so we can move it into the function
 assert_eq!(to_debug_string(object), "321");
 
-
 fn to_debug_string<T>(x: T) -> String
 where
-    T: std::fmt::Debug
+    T: std::fmt::Debug,
 {
     format!("{:?}", x)
 }
@@ -320,6 +310,7 @@ where
 fn get_usize(x: Action_TO<'_, RRef<'_, ()>>) -> usize {
     x.get()
 }
+
 ```
 
 ## `sabi_reborrow_mut` method
@@ -345,9 +336,7 @@ This method is only available for traits that either:
 **Example**:
 ```rust
 use abi_stable::{
-    pointer_trait::AsMutPtr,
-    sabi_trait::doc_examples::Action_TO,
-    std_types::RBox,
+    pointer_trait::AsMutPtr, sabi_trait::doc_examples::Action_TO, std_types::RBox,
     type_level::downcasting::TD_CanDowncast,
 };
 
@@ -361,11 +350,10 @@ assert_eq!(add_mut(object.sabi_reborrow_mut(), 10), 416);
 // last use of `object`, so we can move it into the function
 assert_eq!(add_mut(object, 20), 436);
 
-
-fn add_mut<P>(mut x: Action_TO<'_, P>, how_much: usize) -> usize 
+fn add_mut<P>(mut x: Action_TO<'_, P>, how_much: usize) -> usize
 where
     // Needed for calling mutable methods on `Action_TO`
-    P: AsMutPtr<PtrTarget = ()>
+    P: AsMutPtr<PtrTarget = ()>,
 {
     x.add_mut(how_much)
 }

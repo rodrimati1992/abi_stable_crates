@@ -1,6 +1,4 @@
-/*!
-Tests the fields related to reflection generated in the StableAbi derive macro.
-*/
+//! Tests the fields related to reflection generated in the StableAbi derive macro.
 
 
 use crate::{

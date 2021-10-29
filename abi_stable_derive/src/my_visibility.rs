@@ -1,15 +1,12 @@
-/*!
-Types for conveniently representing visibility.
-*/
+//! Types for conveniently representing visibility.
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 #[allow(unused_imports)]
 use syn::{
     self,
-    token::{Pub,Paren,Super,Colon2,In,Crate},
-    Path,
-    Visibility,
+    token::{Colon2, Crate, In, Paren, Pub, Super},
+    Path, Visibility,
 };
 
 use core_extensions::SelfOps;
@@ -46,14 +43,14 @@ impl<'a> VisibilityKind<'a> {
                 let path = &restricted.path;
                 let is_global = restricted.path.leading_colon.is_some();
                 let path_seg_0 = path.segments.first();
-                let is_crate = path_seg_0.map_or(false,|x| x.ident == "crate");
+                let is_crate = path_seg_0.map_or(false, |x| x.ident == "crate");
                 if is_global || is_crate {
                     if is_crate && path.segments.len() == 1 {
                         VisibilityKind::Crate
                     } else {
                         VisibilityKind::Absolute(path)
                     }
-                } else if path_seg_0.map_or(false,|x| x.ident == "self") {
+                } else if path_seg_0.map_or(false, |x| x.ident == "self") {
                     assert!(
                         path.segments.len() == 1,
                         "paths in pub(...) that start with 'self' \
@@ -62,7 +59,7 @@ impl<'a> VisibilityKind<'a> {
                     );
 
                     VisibilityKind::Private
-                } else if path_seg_0.map_or(false,|x| x.ident == "super") {
+                } else if path_seg_0.map_or(false, |x| x.ident == "super") {
                     assert!(
                         path.segments.iter().all(|segment| segment.ident == "super"),
                         "paths in pub(...) that start with 'super' \
@@ -149,7 +146,7 @@ impl<'a> ToTokens for RelativeVis<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Eq,PartialEq,PartialOrd,Ord)]
+#[derive(Eq, PartialEq, PartialOrd, Ord)]
 enum VKDiscr {
     Private,
     Super,
@@ -173,7 +170,6 @@ impl<'a> VisibilityKind<'a> {
 impl<'a> PartialOrd for VisibilityKind<'a> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         use self::VisibilityKind as VK;
-
 
         match self.to_discriminant().cmp(&other.to_discriminant()) {
             expr @ Ordering::Less | expr @ Ordering::Greater => return Some(expr),
@@ -222,22 +218,22 @@ mod tests {
             };
         }
 
-        new_visibility!{vis_self="pub(self)"}
-        new_visibility!{vis_self_b=""}
+        new_visibility! {vis_self="pub(self)"}
+        new_visibility! {vis_self_b=""}
 
-        new_visibility!{vis_super="pub(super)"}
-        new_visibility!{vis_super_1="pub(in super::super)"}
-        new_visibility!{vis_super_2="pub(in super::super::super)"}
+        new_visibility! {vis_super="pub(super)"}
+        new_visibility! {vis_super_1="pub(in super::super)"}
+        new_visibility! {vis_super_2="pub(in super::super::super)"}
 
-        new_visibility!{vis_mod1_mod2="pub(in  ::mod1::mod2)"}
-        new_visibility!{vis_mod1_mod2_mod4="pub(in  ::mod1::mod2::mod4)"}
-        new_visibility!{vis_mod1_mod3="pub(in ::mod1::mod3)"}
-        new_visibility!{vis_mod1="pub(in ::mod1)"}
+        new_visibility! {vis_mod1_mod2="pub(in  ::mod1::mod2)"}
+        new_visibility! {vis_mod1_mod2_mod4="pub(in  ::mod1::mod2::mod4)"}
+        new_visibility! {vis_mod1_mod3="pub(in ::mod1::mod3)"}
+        new_visibility! {vis_mod1="pub(in ::mod1)"}
 
-        new_visibility!{vis_crate="crate"}
-        new_visibility!{vis_crate_1="pub(crate)"}
+        new_visibility! {vis_crate="crate"}
+        new_visibility! {vis_crate_1="pub(crate)"}
 
-        new_visibility!{vis_pub="pub"}
+        new_visibility! {vis_pub="pub"}
 
         assert_eq!(vis_self, vis_self_b);
         assert_eq!(vis_crate, vis_crate_1);

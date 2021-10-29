@@ -12,10 +12,39 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        rust: [stable, beta, nightly, 1.41.0]
+        rust: [nightly]
         os: [ubuntu-latest, windows-latest, macOS-latest]
+        include:
+          - rust: stable
+            os: ubuntu-latest
+
+          - rust: beta
+            os: ubuntu-latest
+
+          - rust: 1.46.0
+            os: ubuntu-latest
+
+          - rust: 1.51.0
+            os: ubuntu-latest
 
     steps:
+    - uses: actions/checkout@v2
+    - name: ci-format
+      if: matrix.rust == 'stable'
+      run: |
+        rustup override set ${{ matrix.rust }}
+        rustup component add rustfmt
+        cd "${{github.workspace}}/"
+        cargo fmt -- --check
+
+    - name: enable-rust-stable
+      if: matrix.rust == '1.51.0' 
+      run: echo "rustv=rust_1_51" >> $GITHUB_ENV
+
+    - name: enable-rust-stable
+      if: matrix.rust == 'stable' || matrix.rust == 'beta' || matrix.rust == 'nightly'
+      run: echo "rustv=rust_latest_stable" >> $GITHUB_ENV
+
     - uses: actions/checkout@v2
     - name: ci-all-versions
       run: |
@@ -79,7 +108,7 @@ jobs:
         cargo test
 
         cd "${{github.workspace}}/abi_stable"
-        cargo test --features "testing"
+        cargo test --features "${{ env.rustv }} testing"
 
         cd "${{github.workspace}}/examples/0_modules_and_interface_types/impl/"
         cargo test

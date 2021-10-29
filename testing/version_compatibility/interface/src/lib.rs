@@ -1,27 +1,18 @@
-
-#[cfg(feature="new")]
+#[cfg(feature = "new")]
 extern crate new_abi_stable as abi_stable;
 
-#[cfg(not(feature="new"))]
+#[cfg(not(feature = "new"))]
 extern crate old_abi_stable as abi_stable;
 
-use abi_stable::{
-    marker_type::NonOwningPhantom,
-    sabi_types::VersionStrings,
-    library::RootModule,
-};
+use abi_stable::{library::RootModule, marker_type::NonOwningPhantom, sabi_types::VersionStrings};
 
+mod many_types {
+    use std::{marker::PhantomData, sync::atomic};
 
-mod many_types{
-    use std::{
-        marker::PhantomData,
-        sync::atomic,
-    };
-    
     use abi_stable::{
         external_types::{
-            crossbeam_channel::{RReceiver,RSender},
-            RMutex,RRwLock,ROnce
+            crossbeam_channel::{RReceiver, RSender},
+            RMutex, ROnce, RRwLock,
         },
         marker_type,
         prefix_type::PrefixRef,
@@ -59,10 +50,10 @@ mod many_types{
         std::num::NonZeroU16,
         std::ptr::NonNull<()>,
         std::ptr::NonNull<i32>,
-        RHashMap<RString,RString>,
-        RHashMap<RString,i32>,
-        RHashMap<i32,RString>,
-        RHashMap<i32,i32>,
+        RHashMap<RString, RString>,
+        RHashMap<RString, i32>,
+        RHashMap<i32, RString>,
+        RHashMap<i32, i32>,
         RVec<()>,
         RVec<i32>,
         RSlice<'static, ()>,
@@ -106,25 +97,33 @@ mod many_types{
         marker_type::UnsafeIgnoredType<u32>,
         marker_type::NonOwningPhantom<u32>,
         marker_type::NonOwningPhantom<RString>,
-    );    
+    );
+
+    // Adding more types in a patch release,
+    // you can merge this with ManyTypes in the next breaking release.
+    #[cfg(feature = "new_abi_stable")]
+    #[repr(C)]
+    #[derive(abi_stable::StableAbi)]
+    pub struct ManyTypes2(f32, f64);
 }
 
 pub use many_types::ManyTypes;
 
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(kind(Prefix(prefix_ref="RootMod_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = "RootMod_Ref")))]
 #[sabi(missing_field(panic))]
-pub struct RootMod{
-    pub abi_stable_version:VersionStrings,
-    pub _marker:NonOwningPhantom<many_types::ManyTypes>,
+pub struct RootMod {
+    pub abi_stable_version: VersionStrings,
+    pub _marker: NonOwningPhantom<many_types::ManyTypes>,
+    #[cfg(feature = "new_abi_stable")]
+    pub _marker2: NonOwningPhantom<many_types::ManyTypes2>,
 }
 
 impl RootModule for RootMod_Ref {
-    abi_stable::declare_root_module_statics!{RootMod_Ref}
+    abi_stable::declare_root_module_statics! {RootMod_Ref}
 
     const BASE_NAME: &'static str = "version_compatibility_impl";
     const NAME: &'static str = "version_compatibility_impl";
     const VERSION_STRINGS: VersionStrings = abi_stable::package_version_strings!();
 }
-
