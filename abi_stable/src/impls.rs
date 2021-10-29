@@ -188,7 +188,6 @@ macro_rules! shared_impls {
     };
 }
 
-
 macro_rules! si_deref {
     ($self:ident) => {
         &**$self

@@ -48,12 +48,12 @@ impl Parse for ConcatenatedStrings {
     }
 }
 
-pub fn macro_impl(input: TokenStream2) -> Result<TokenStream2,syn::Error> {
+pub fn macro_impl(input: TokenStream2) -> Result<TokenStream2, syn::Error> {
     let ConcatenatedStrings {
         concatenated: conc_ident,
         strings,
-    }=syn::parse2::<ConcatenatedStrings>(input)?;
-    
+    } = syn::parse2::<ConcatenatedStrings>(input)?;
+
     let capacity = strings.iter().map(|sav| sav.string.len() + 1).sum();
 
     let mut concatenated = String::with_capacity(capacity);
@@ -61,10 +61,10 @@ pub fn macro_impl(input: TokenStream2) -> Result<TokenStream2,syn::Error> {
     let mut lengths = Vec::<u16>::with_capacity(strings.len());
 
     for sav in &strings {
-        let start=concatenated.len() as u16;
+        let start = concatenated.len() as u16;
         starts.push(start);
         concatenated.push_str(&sav.string);
-        lengths.push(concatenated.len() as u16-start);
+        lengths.push(concatenated.len() as u16 - start);
         concatenated.push(';');
     }
 

@@ -29,25 +29,21 @@ impl<T> RawValIter<T> {
         }
     }
 
-    fn calculate_length(&self)->usize{
+    fn calculate_length(&self) -> usize {
         let elem_size = mem::size_of::<T>();
         let distance = self.end as usize - self.start as usize;
         let stride_size = if elem_size == 0 { 1 } else { elem_size };
         distance / stride_size
     }
 
-    fn as_slice(&self)->&[T]{
-        let len=self.calculate_length();
-        unsafe{
-            unsafe { ::std::slice::from_raw_parts(self.start,len ) }
-        }
+    fn as_slice(&self) -> &[T] {
+        let len = self.calculate_length();
+        unsafe { ::std::slice::from_raw_parts(self.start, len) }
     }
 
-    fn as_mut_slice(&mut self)->&mut [T]{
-        let len=self.calculate_length();
-        unsafe{
-            unsafe { ::std::slice::from_raw_parts_mut(self.start as *mut T,len ) }
-        }
+    fn as_mut_slice(&mut self) -> &mut [T] {
+        let len = self.calculate_length();
+        unsafe { ::std::slice::from_raw_parts_mut(self.start as *mut T, len) }
     }
 }
 
@@ -102,8 +98,7 @@ pub struct IntoIter<T> {
     pub(super) iter: RawValIter<T>,
 }
 
-
-impl<T> IntoIter<T>{
+impl<T> IntoIter<T> {
     /// Returns a slice over the remainder of the `Vec<T>` that is being iterated over.
     ///
     /// # Example
@@ -111,18 +106,18 @@ impl<T> IntoIter<T>{
     /// ```
     /// use abi_stable::std_types::RVec;
     ///
-    /// let mut iter=RVec::from(vec![0,1,2,3]).into_iter();
+    /// let mut iter = RVec::from(vec![0, 1, 2, 3]).into_iter();
     ///
-    /// assert_eq!( iter.as_slice(), &[0,1,2,3] );
+    /// assert_eq!(iter.as_slice(), &[0, 1, 2, 3]);
     ///
-    /// assert_eq!( iter.next(), Some(0) );
-    /// assert_eq!( iter.as_slice(), &[1,2,3] );
+    /// assert_eq!(iter.next(), Some(0));
+    /// assert_eq!(iter.as_slice(), &[1, 2, 3]);
     ///
-    /// assert_eq!( iter.next_back(), Some(3) );
-    /// assert_eq!( iter.as_slice(), &[1,2] );
+    /// assert_eq!(iter.next_back(), Some(3));
+    /// assert_eq!(iter.as_slice(), &[1, 2]);
     ///
     /// ```
-    pub fn as_slice(&self)->&[T]{
+    pub fn as_slice(&self) -> &[T] {
         self.iter.as_slice()
     }
 
@@ -133,18 +128,18 @@ impl<T> IntoIter<T>{
     /// ```
     /// use abi_stable::std_types::RVec;
     ///
-    /// let mut iter=RVec::from(vec![0,1,2,3]).into_iter();
+    /// let mut iter = RVec::from(vec![0, 1, 2, 3]).into_iter();
     ///
-    /// assert_eq!( iter.as_mut_slice(), &mut [0,1,2,3] );
+    /// assert_eq!(iter.as_mut_slice(), &mut [0, 1, 2, 3]);
     ///
-    /// assert_eq!( iter.next(), Some(0) );
-    /// assert_eq!( iter.as_mut_slice(), &mut [1,2,3] );
+    /// assert_eq!(iter.next(), Some(0));
+    /// assert_eq!(iter.as_mut_slice(), &mut [1, 2, 3]);
     ///
-    /// assert_eq!( iter.next_back(), Some(3) );
-    /// assert_eq!( iter.as_mut_slice(), &mut [1,2] );
+    /// assert_eq!(iter.next_back(), Some(3));
+    /// assert_eq!(iter.as_mut_slice(), &mut [1, 2]);
     ///
     /// ```
-    pub fn as_mut_slice(&mut self)->&mut [T]{
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
         self.iter.as_mut_slice()
     }
 }
@@ -188,7 +183,7 @@ pub struct Drain<'a, T> {
     pub(super) slice_len: usize,
 }
 
-impl<'a,T> Drain<'a,T>{
+impl<'a, T> Drain<'a, T> {
     /// Returns a slice over the remainder of the `Vec<T>` that is being drained.
     ///
     /// # Example
@@ -196,23 +191,23 @@ impl<'a,T> Drain<'a,T>{
     /// ```
     /// use abi_stable::std_types::RVec;
     ///
-    /// let mut list=(0..8).collect::<RVec<u8>>();
-    /// let mut iter=list.drain(3..7);
+    /// let mut list = (0..8).collect::<RVec<u8>>();
+    /// let mut iter = list.drain(3..7);
     ///
-    /// assert_eq!( iter.as_slice(), &[3,4,5,6] );
+    /// assert_eq!(iter.as_slice(), &[3, 4, 5, 6]);
     ///
-    /// assert_eq!( iter.next(), Some(3) );
-    /// assert_eq!( iter.as_slice(), &[4,5,6] );
+    /// assert_eq!(iter.next(), Some(3));
+    /// assert_eq!(iter.as_slice(), &[4, 5, 6]);
     ///
-    /// assert_eq!( iter.next(), Some(4) );
-    /// assert_eq!( iter.as_slice(), &[5,6] );
+    /// assert_eq!(iter.next(), Some(4));
+    /// assert_eq!(iter.as_slice(), &[5, 6]);
     ///
     /// drop(iter);
     ///
-    /// assert_eq!(list.as_slice(),&[0,1,2,7]);
+    /// assert_eq!(list.as_slice(), &[0, 1, 2, 7]);
     ///
     /// ```
-    pub fn as_slice(&self)->&[T]{
+    pub fn as_slice(&self) -> &[T] {
         self.iter.as_slice()
     }
 
@@ -223,23 +218,23 @@ impl<'a,T> Drain<'a,T>{
     /// ```
     /// use abi_stable::std_types::RVec;
     ///
-    /// let mut list=(0..8).collect::<RVec<u8>>();
-    /// let mut iter=list.drain(3..7);
+    /// let mut list = (0..8).collect::<RVec<u8>>();
+    /// let mut iter = list.drain(3..7);
     ///
-    /// assert_eq!( iter.as_mut_slice(), &mut [3,4,5,6] );
+    /// assert_eq!(iter.as_mut_slice(), &mut [3, 4, 5, 6]);
     ///
-    /// assert_eq!( iter.next(), Some(3) );
-    /// assert_eq!( iter.as_mut_slice(), &mut [4,5,6] );
+    /// assert_eq!(iter.next(), Some(3));
+    /// assert_eq!(iter.as_mut_slice(), &mut [4, 5, 6]);
     ///
-    /// assert_eq!( iter.next(), Some(4) );
-    /// assert_eq!( iter.as_mut_slice(), &mut [5,6] );
+    /// assert_eq!(iter.next(), Some(4));
+    /// assert_eq!(iter.as_mut_slice(), &mut [5, 6]);
     ///
     /// drop(iter);
     ///
-    /// assert_eq!(list.as_slice(),&[0,1,2,7]);
+    /// assert_eq!(list.as_slice(), &[0, 1, 2, 7]);
     ///
     /// ```
-    pub fn as_mut_slice(&mut self)->&mut [T]{
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
         self.iter.as_mut_slice()
     }
 }
@@ -266,24 +261,22 @@ impl<'a, T> Drop for Drain<'a, T> {
         unsafe {
             let removed_start = self.removed_start;
             let removed_end = self.removed_start.offset(self.slice_len as isize);
-            let end_index = 
-                distance_from(self.allocation_start, removed_start).unwrap_or(0)+self.slice_len;
+            let end_index =
+                distance_from(self.allocation_start, removed_start).unwrap_or(0) + self.slice_len;
             ptr::copy(removed_end, removed_start, self.len - end_index);
             *self.vec_len = self.len - self.slice_len;
         }
     }
 }
 
-
 ///////////////////////////////////////////////////
-
-
 
 // copy of the std library DrainFilter, without the allocator parameter.
 // (from rustc 1.50.0-nightly (eb4fc71dc 2020-12-17))
 #[derive(Debug)]
 pub(crate) struct DrainFilter<'a, T, F>
-    where F: FnMut(&mut T) -> bool,
+where
+    F: FnMut(&mut T) -> bool,
 {
     // pub(super) vec: &'a mut RVec<T>,
     pub(super) allocation_start: *mut T,

@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition="2018"
 license = "MIT/Apache-2.0"
@@ -26,9 +26,13 @@ default = ["channels","serde_json"]
 
 rust_1_42=[]
 
-rust_1_51=["rust_1_42", "const_params"]
+rust_1_46=["rust_1_42"]
 
-const_params=["rust_1_42"]
+rust_1_51=["rust_1_46", "const_params"]
+
+rust_latest_stable = ["rust_1_51"]
+
+const_params=["rust_1_46"]
 
 # Enables the `#![feature(min_const_generics)]` attribute in 
 nightly_const_params=["const_params"]
@@ -52,8 +56,8 @@ channels=["crossbeam-channel"]
 
 
 [dependencies]
-abi_stable_derive= {version="0.10.2",path="../abi_stable_derive"}
-abi_stable_shared= {version="0.10.2",path="../abi_stable_shared"}
+abi_stable_derive= {version="0.10.3",path="../abi_stable_derive"}
+abi_stable_shared= {version="0.10.3",path="../abi_stable_shared"}
 serde          = { version = "1.0.127", features = ["derive"] }
 repr_offset = { version = "0.2.1", default_features = false }
 serde_derive   = "1.0.127"
@@ -63,12 +67,14 @@ lock_api       = "0.4.4"
 generational-arena = "0.2.8"
 crossbeam-channel = { version = "0.5.1", optional = true }
 serde_json = { version = "1.0.66", features = ["raw_value"], optional = true }
+paste = "1.0"
 
 [dependencies.core_extensions]
 default_features=false
 features=[
     "std",
     "iterators",
+    "macro_utils",
     "self_ops",
     "type_asserts", "type_identity", "type_level_bool",
     "void",

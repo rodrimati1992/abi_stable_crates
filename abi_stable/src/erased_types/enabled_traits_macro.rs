@@ -2,7 +2,7 @@ macro_rules! declare_enabled_traits {
     (declare_index;($value:expr,$ty:ty);$which_impl0:ident,$which_impl1:ident $(,$rest:ident)* )=>{
         pub const $which_impl0:$ty=$value;
         pub const $which_impl1:$ty=$value << 1;
-        
+
         declare_enabled_traits!{declare_index;($value << 2,$ty); $($rest),* }
     };
     (declare_index;($value:expr,$ty:ty);$which_impl:ident)=>{
@@ -69,7 +69,7 @@ macro_rules! declare_enabled_traits {
         impl Display for EnabledTraits{
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
                 f.write_str("EnabledTraits\n")?;
-                
+
                 f.write_str("Auto traits:")?;
                 if self.auto_traits==0 {
                     f.write_str("<no_traits>")?;

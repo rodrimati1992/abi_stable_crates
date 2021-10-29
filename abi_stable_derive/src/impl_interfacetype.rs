@@ -1,45 +1,32 @@
-/*!
-The implementation of both the `#[sabi(impl_InterfaceType())]` helper attributes,
-and the `impl_InterfaceType!{}` macro.
-*/
+//! The implementation of both the `#[sabi(impl_InterfaceType())]` helper attributes,
+//! and the `impl_InterfaceType!{}` macro.
 
 use std::collections::HashMap;
-
-
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
 
-use quote::{ToTokens,quote,quote_spanned};
+use quote::{quote, quote_spanned, ToTokens};
 
 use syn::Ident;
 
-use as_derive_utils::{
-    to_token_fn::ToTokenFnMut,
-};
+use as_derive_utils::to_token_fn::ToTokenFnMut;
 
-use crate::{
-    parse_utils::parse_str_as_ident,
-};
-
-
-
+use crate::parse_utils::parse_str_as_ident;
 
 pub(crate) mod attribute_parsing;
 mod macro_impl;
 
-
 pub(crate) use self::{
-    attribute_parsing::{ImplInterfaceType,parse_impl_interfacetype},
+    attribute_parsing::{parse_impl_interfacetype, ImplInterfaceType},
     macro_impl::the_macro,
 };
-
 
 //////////////////////
 
 /// The default value for an associated type.
-#[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord,Hash)]
-pub enum DefaultVal{
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DefaultVal {
     /// The value of the associated type is `Unimplemented<trait_marker::AssocTypeName>`
     Unimplemented,
     /// The value of the associated type is `Implemented<trait_marker::AssocTypeName>`
@@ -49,38 +36,40 @@ pub enum DefaultVal{
     Hidden,
 }
 
-impl From<bool> for DefaultVal{
-    fn from(b:bool)->Self{
-        if b { DefaultVal::Implemented }else{ DefaultVal::Unimplemented }
+impl From<bool> for DefaultVal {
+    fn from(b: bool) -> Self {
+        if b {
+            DefaultVal::Implemented
+        } else {
+            DefaultVal::Unimplemented
+        }
     }
 }
 
 //////////////////////
 
-/// The trait object implementations (either RObject or DynTrait) 
+/// The trait object implementations (either RObject or DynTrait)
 /// that a trait can be used with.
-#[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord,Hash)]
-pub struct UsableBy{
-    robject:bool,
-    dyn_trait:bool,
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct UsableBy {
+    robject: bool,
+    dyn_trait: bool,
 }
 
-
-
-impl UsableBy{
-    pub const DYN_TRAIT:Self=Self{
-        robject:false,
-        dyn_trait:true,
+impl UsableBy {
+    pub const DYN_TRAIT: Self = Self {
+        robject: false,
+        dyn_trait: true,
     };
-    pub const ROBJECT_AND_DYN_TRAIT:Self=Self{
-        robject:true,
-        dyn_trait:true,
+    pub const ROBJECT_AND_DYN_TRAIT: Self = Self {
+        robject: true,
+        dyn_trait: true,
     };
 
-    pub const fn robject(&self)->bool{
+    pub const fn robject(&self) -> bool {
         self.robject
     }
-    pub const fn dyn_trait(&self)->bool{
+    pub const fn dyn_trait(&self) -> bool {
         self.dyn_trait
     }
 }
@@ -88,16 +77,16 @@ impl UsableBy{
 //////////////////////
 
 /// Information about a trait that is usable in RObject and/or DynTrait.
-#[derive(Debug,Copy,Clone)]
-pub struct UsableTrait{
-    pub which_trait:WhichTrait,
-    pub name:&'static str,
-    pub full_path:&'static str,
+#[derive(Debug, Copy, Clone)]
+pub struct UsableTrait {
+    pub which_trait: WhichTrait,
+    pub name: &'static str,
+    pub full_path: &'static str,
 }
 
 macro_rules! usable_traits {
-    ( 
-        $( 
+    (
+        $(
             $field:ident=
             (
                 $which_trait:ident,
@@ -105,7 +94,7 @@ macro_rules! usable_traits {
                 $default_value:expr,
                 $usable_by:expr
             ),
-        )* 
+        )*
     ) => (
         /// A list of all the traits usable in RObject and/or DynTrait.
         pub static TRAIT_LIST:&[UsableTrait]=&[$(
@@ -199,9 +188,9 @@ macro_rules! usable_traits {
     )
 }
 
-use self::{UsableBy as UB};
+use self::UsableBy as UB;
 
-usable_traits!{
+usable_traits! {
     clone=(Clone,"::std::clone::Clone",false,UB::ROBJECT_AND_DYN_TRAIT),
     default=(Default,"::std::default::Default",false,UB::DYN_TRAIT),
     display=(Display,"::std::fmt::Display",false,UB::ROBJECT_AND_DYN_TRAIT),
@@ -227,45 +216,40 @@ usable_traits!{
     error=(Error,"::std::error::Error",false,UB::ROBJECT_AND_DYN_TRAIT),
 }
 
-pub(crate) fn private_associated_type()->syn::Ident{
+pub(crate) fn private_associated_type() -> syn::Ident {
     parse_str_as_ident("define_this_in_the_impl_InterfaceType_macro")
 }
 
-
-
 //////////////////////////////////////////////////////////////////////////////
-
-
 
 /// Returns a tokenizer
 /// which prints an implementation of InterfaceType for `name`,
 /// with `impl_interfacetype` determining the associated types.
 pub(crate) fn impl_interfacetype_tokenizer<'a>(
-    name:&'a Ident,
-    generics:&'a syn::Generics,
-    impl_interfacetype:Option<&'a ImplInterfaceType>,
-)->impl ToTokens+'a{
-    ToTokenFnMut::new(move|ts|{
-        let ImplInterfaceType{impld,unimpld}=
-            match impl_interfacetype {
-                Some(x) => x,
-                None => return,
-            };
-        
+    name: &'a Ident,
+    generics: &'a syn::Generics,
+    impl_interfacetype: Option<&'a ImplInterfaceType>,
+) -> impl ToTokens + 'a {
+    ToTokenFnMut::new(move |ts| {
+        let ImplInterfaceType { impld, unimpld } = match impl_interfacetype {
+            Some(x) => x,
+            None => return,
+        };
+
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-        
-        let const_ident=crate::parse_utils::parse_str_as_ident(&format!(
+
+        let const_ident = crate::parse_utils::parse_str_as_ident(&format!(
             "_impl_InterfaceType_constant_{}",
             name,
         ));
 
-        let impld_a=impld;
-        let impld_b=impld;
+        let impld_a = impld;
+        let impld_b = impld;
 
-        let unimpld_a=unimpld;
-        let unimpld_b=unimpld;
+        let unimpld_a = unimpld;
+        let unimpld_b = unimpld;
 
-        let priv_assocty=private_associated_type();
+        let priv_assocty = private_associated_type();
 
         quote!(
             const #const_ident:()={
@@ -278,21 +262,17 @@ pub(crate) fn impl_interfacetype_tokenizer<'a>(
                         trait_marker,
                     },
                 };
-                impl #impl_generics abi_stable::InterfaceType for #name #ty_generics 
-                #where_clause 
+                impl #impl_generics abi_stable::InterfaceType for #name #ty_generics
+                #where_clause
                 {
                     #( type #impld_a=__Implemented<trait_marker::#impld_b>; )*
                     #( type #unimpld_a=__Unimplemented<trait_marker::#unimpld_b>; )*
                     type #priv_assocty=();
                 }
             };
-        ).to_tokens(ts);
+        )
+        .to_tokens(ts);
     })
 }
 
-
-
-
 //////////////////////////////////////////////////////////////////////////////
-
-

@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable_derive"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition = "2018"
 description = "Implementation detail of abi_stable."
@@ -20,7 +20,7 @@ include = [
 [features]
 
 [dependencies]
-abi_stable_shared= {version="0.10.2",path="../abi_stable_shared"}
+abi_stable_shared= {version="0.10.3",path="../abi_stable_shared"}
 
 quote = "1.0.7"
 typed-arena = "2.0.1"
@@ -39,11 +39,11 @@ features=["full","extra-traits","visit","visit-mut"]
 ###### as_derive_utils
 
 [dependencies.as_derive_utils]
-version="0.10.0"
+version="0.10.3"
 path="../as_derive_utils"
 
 [dev-dependencies.as_derive_utils]
-version="0.10.0"
+version="0.10.3"
 path="../as_derive_utils"
 features=["testing"]
 

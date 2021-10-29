@@ -1,13 +1,11 @@
 #![allow(clippy::print_literal)]
 
 use abi_stable::library::{
-    development_utils::compute_library_path,
-    LibraryError, RootModule, RootModuleError,
+    development_utils::compute_library_path, LibraryError, RootModule, RootModuleError,
 };
 
 use testing_interface_1::{
-    NonAbiStableLib_Ref, ReturnWhat, TestingMod_Ref, WithIncompatibleLayout_Ref,
-    get_env_vars,
+    get_env_vars, NonAbiStableLib_Ref, ReturnWhat, TestingMod_Ref, WithIncompatibleLayout_Ref,
 };
 
 use std::fmt;
@@ -18,32 +16,32 @@ fn main() {
     let envars = get_env_vars();
 
     println!("app: {:?}", envars);
-    
+
     {
         let err = WithIncompatibleLayout_Ref::load_from_directory("foo/bar/bar".as_ref())
             .err()
             .unwrap();
         assert!(
-            core_extensions::matches!(err, LibraryError::OpenError{..}),
+            core_extensions::matches!(err, LibraryError::OpenError { .. }),
             "{:?}",
             err,
         );
     }
 
     {
-        let library_path=
-            compute_library_path::<WithIncompatibleLayout_Ref>(target).unwrap();
-        let err = NonAbiStableLib_Ref::load_from_directory(&library_path).err().unwrap();
+        let library_path = compute_library_path::<WithIncompatibleLayout_Ref>(target).unwrap();
+        let err = NonAbiStableLib_Ref::load_from_directory(&library_path)
+            .err()
+            .unwrap();
         assert!(
-            core_extensions::matches!(err, LibraryError::GetSymbolError{..}),
+            core_extensions::matches!(err, LibraryError::GetSymbolError { .. }),
             "{:?}",
             err,
         );
     }
 
     {
-        let library_path=
-            compute_library_path::<WithIncompatibleLayout_Ref>(target).unwrap();
+        let library_path = compute_library_path::<WithIncompatibleLayout_Ref>(target).unwrap();
 
         let err = WithIncompatibleLayout_Ref::load_from_directory(&library_path)
             .err()
@@ -59,32 +57,32 @@ fn main() {
         let formatted = format!("{0} {0:?}", err);
         println!(
             "sum of bytes in the error: {}",
-            formatted.bytes().map(|x| x as u64 ).sum::<u64>()
+            formatted.bytes().map(|x| x as u64).sum::<u64>()
         );
-        
     }
 
-    {    
-        let library_path=compute_library_path::<TestingMod_Ref>(target).unwrap();
-        let res=TestingMod_Ref::load_from_directory(&library_path);
+    {
+        let library_path = compute_library_path::<TestingMod_Ref>(target).unwrap();
+        let res = TestingMod_Ref::load_from_directory(&library_path);
 
         match envars.return_what {
-            ReturnWhat::Ok=>{
+            ReturnWhat::Ok => {
                 let module = res.unwrap();
                 assert_eq!(module.a(), 5);
                 assert_eq!(module.b(), 8);
                 assert_eq!(module.c(), 13);
             }
-            ReturnWhat::Error|ReturnWhat::Panic=>{
+            ReturnWhat::Error | ReturnWhat::Panic => {
                 let err = res.err().expect("Expected the library to return an error");
 
-                if let LibraryError::RootModule{err: rm_err, ..} = &err {
-
+                if let LibraryError::RootModule { err: rm_err, .. } = &err {
                     assert!(
                         core_extensions::matches!(
                             (&envars.return_what, rm_err),
-                            |(ReturnWhat::Error, RootModuleError::Returned{..})
-                            |(ReturnWhat::Panic, RootModuleError::Unwound{..})
+                            |(ReturnWhat::Error, RootModuleError::Returned { .. })| (
+                                ReturnWhat::Panic,
+                                RootModuleError::Unwound { .. }
+                            )
                         ),
                         "return_what: {:?}\nerror: {:?}",
                         envars.return_what,
@@ -103,15 +101,13 @@ fn main() {
         }
         println!(
             "\n{S}{S}\n\nFinished successfully\n\n{S}{S}\n",
-            S="----------------------------------------",
+            S = "----------------------------------------",
         );
     }
 }
 
 fn print_error_sum<E: fmt::Debug + fmt::Display>(line: u32, e: E) {
     let formatted = format!("{0} {0:?}", e);
-    let sum = formatted.bytes()
-        .map(|x| x as u64 )
-        .sum::<u64>();
+    let sum = formatted.bytes().map(|x| x as u64).sum::<u64>();
     println!("{}: sum of bytes in the error: {}", line, sum);
 }

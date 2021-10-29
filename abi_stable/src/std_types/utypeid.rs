@@ -1,8 +1,6 @@
-/*!
-An ffi-safe equivalent of `std::any::TypeId`.
-
-No types coming from different dynamic libraries compare equal.
-*/
+//! An ffi-safe equivalent of `std::any::TypeId`.
+//!
+//! No types coming from different dynamic libraries compare equal.
 
 use std::{
     any::TypeId,
@@ -11,10 +9,7 @@ use std::{
     sync::atomic::AtomicUsize,
 };
 
-use crate::{
-    EXECUTABLE_IDENTITY,
-    sabi_types::MaybeCmp,
-};
+use crate::{sabi_types::MaybeCmp, EXECUTABLE_IDENTITY};
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -26,17 +21,17 @@ use crate::{
 /// use abi_stable::std_types::utypeid::new_utypeid;
 /// use std::collections::HashMap;
 ///
-/// let hashmap_id=new_utypeid::< HashMap<String,String> >();
-/// let vec_id=new_utypeid::< Vec<String> >();
-/// let u32_id=new_utypeid::< u32 >();
+/// let hashmap_id = new_utypeid::<HashMap<String, String>>();
+/// let vec_id = new_utypeid::<Vec<String>>();
+/// let u32_id = new_utypeid::<u32>();
 ///
-/// assert_eq!( hashmap_id, hashmap_id );
-/// assert_eq!( vec_id, vec_id );
-/// assert_eq!( u32_id, u32_id );
+/// assert_eq!(hashmap_id, hashmap_id);
+/// assert_eq!(vec_id, vec_id);
+/// assert_eq!(u32_id, u32_id);
 ///
-/// assert_ne!( vec_id, hashmap_id );
-/// assert_ne!( u32_id, hashmap_id );
-/// assert_ne!( vec_id, u32_id );
+/// assert_ne!(vec_id, hashmap_id);
+/// assert_ne!(u32_id, hashmap_id);
+/// assert_ne!(vec_id, u32_id);
 ///
 /// ```
 pub extern "C" fn new_utypeid<T>() -> UTypeId
@@ -46,7 +41,6 @@ where
     UTypeId::new::<T>()
 }
 
-
 #[doc(hidden)]
 pub extern "C" fn some_utypeid<T>() -> MaybeCmp<UTypeId>
 where
@@ -55,12 +49,10 @@ where
     MaybeCmp::Just(UTypeId::new::<T>())
 }
 
-
 #[doc(hidden)]
-pub extern "C" fn no_utypeid() -> MaybeCmp<UTypeId>{
+pub extern "C" fn no_utypeid() -> MaybeCmp<UTypeId> {
     MaybeCmp::Nothing
 }
-
 
 /// An ffi-safe equivalent of `std::any::TypeId` that
 /// can compare types across dynamic libraries.
@@ -88,10 +80,8 @@ pub struct UTypeId {
     type_id_array: [u8; MAX_TYPE_ID_SIZE],
 }
 
-
-unsafe impl Send for UTypeId{}
-unsafe impl Sync for UTypeId{}
-
+unsafe impl Send for UTypeId {}
+unsafe impl Sync for UTypeId {}
 
 impl UTypeId {
     /// Constructs `UTypeId` from a type that satisfies the `'static` bound.
@@ -102,7 +92,7 @@ impl UTypeId {
     /// use abi_stable::std_types::UTypeId;
     /// use std::collections::HashMap;
     ///
-    /// let id=UTypeId::new::< HashMap<String,String> >();
+    /// let id = UTypeId::new::<HashMap<String, String>>();
     /// # drop(id);
     /// ```
     #[inline(always)]
@@ -179,4 +169,3 @@ impl Hasher for TypeIdHasher {
         0
     }
 }
-

@@ -1,6 +1,6 @@
 #[doc(hidden)]
 #[macro_export]
-macro_rules! declare_tl_lifetime_types {( 
+macro_rules! declare_tl_lifetime_types {(
     repr=$repr:ty,
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
@@ -132,21 +132,27 @@ macro_rules! declare_tl_lifetime_types {(
         /// Converts this array into its representation.
         #[inline]
         pub const fn to_u20(self) -> u32 {
-            self.bits&0xF_FF_FF 
-        }        
+            self.bits&0xF_FF_FF
+        }
 
         /// Constructs this array from its representation.
         #[inline]
         pub const fn from_u20(bits: u32) -> Self {
             Self {
-                bits:bits&0xF_FF_FF 
+                bits:bits & 0xF_FF_FF
             }
         }
 
         /// Gets the length of this array.
         #[inline]
-        pub const fn len(mut self)->usize{
-            (8-(self.bits.leading_zeros()>>2))as usize
+        pub const fn len(mut self) -> usize{
+            (8-(self.bits.leading_zeros() >> 2))as usize
+        }
+
+        /// Gets whether the array is empty.
+        #[inline]
+        pub const fn is_empty(self) -> bool{
+            self.len() == 0
         }
     }
 
@@ -157,7 +163,7 @@ macro_rules! declare_tl_lifetime_types {(
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
     $(#[ $extra_attrs ])*
     pub struct LifetimeRange{
-        /// 21 bits: 
+        /// 21 bits:
         ///      (13 for the start index | 12 for the LifetimeIndexArray)
         ///     +8 bits for the length
         bits:u32,
@@ -166,13 +172,13 @@ macro_rules! declare_tl_lifetime_types {(
     impl LifetimeRange{
         /// An empty `LifetimeRange`.
         pub const EMPTY: Self = Self { bits: 0 };
-        
+
         const IS_RANGE_BIT: u32 = 1<<20;
 
         const RANGE_LEN_OFFSET: u32 = 13;
         const LEN_SR_MASK: u32 = 0b111_1111;
         const LEN_BIT_SIZE: u32 = 7;
-        
+
         const MASK: u32 = 0x1F_FF_FF;
         const START_MASK: u32 = 0b1_1111_1111_1111;
 
@@ -209,7 +215,7 @@ macro_rules! declare_tl_lifetime_types {(
             let len=range.end-range.start;
             Self{
                 bits:
-                    Self::IS_RANGE_BIT 
+                    Self::IS_RANGE_BIT
                     |((range.start as u32)&Self::START_MASK)
                     |((len as u32 & Self::LEN_SR_MASK) << Self::RANGE_LEN_OFFSET)
             }
@@ -228,6 +234,12 @@ macro_rules! declare_tl_lifetime_types {(
             }else{
                 LifetimeIndexArray::from_u20(self.bits).len()
             }
+        }
+
+        /// Whether this span of lifetimes is empty.
+        #[inline]
+        pub fn is_empty(self) -> bool {
+            self.len() == 0
         }
 
         /// Whether this is a range into a slice of `LifetimePair`s.

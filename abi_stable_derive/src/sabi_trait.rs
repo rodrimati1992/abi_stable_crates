@@ -1,107 +1,100 @@
 use crate::{
-    *,
     impl_interfacetype::private_associated_type,
-    parse_utils::{parse_str_as_ident},
-    my_visibility::{VisibilityKind,RelativeVis},
+    my_visibility::{RelativeVis, VisibilityKind},
+    parse_utils::parse_str_as_ident,
     workaround::token_stream_to_string,
+    *,
 };
 
-use std::{
-    marker::PhantomData,
-};
+use std::marker::PhantomData;
 
 use proc_macro2::TokenStream as TokenStream2;
 
-use syn::{
-    ItemTrait,
-};
+use syn::ItemTrait;
 
 use as_derive_utils::{
-    gen_params_in::{GenParamsIn,InWhat},
+    gen_params_in::{GenParamsIn, InWhat},
     to_token_fn::ToTokenFnMut,
 };
-
 
 mod attribute_parsing;
 mod common_tokens;
 mod impl_delegations;
-mod method_where_clause;
 mod lifetime_unelider;
+mod method_where_clause;
+mod methods_tokenizer;
 mod replace_self_path;
 mod trait_definition;
-mod methods_tokenizer;
 
 #[cfg(test)]
 mod tests;
 
 use self::{
     attribute_parsing::SabiTraitOptions,
-    common_tokens::{CommonTokens,IsStaticTrait,LifetimeTokens},
+    common_tokens::{CommonTokens, IsStaticTrait, LifetimeTokens},
     lifetime_unelider::LifetimeUnelider,
-    trait_definition::{TraitDefinition,TraitMethod},
     method_where_clause::MethodWhereClause,
     methods_tokenizer::MethodsTokenizer,
+    trait_definition::{TraitDefinition, TraitMethod},
 };
 
 /// Variables passed to all the `*_items` functions here.
 #[allow(dead_code)]
-#[derive(Copy,Clone)]
-struct TokenizerParams<'a>{
-    arenas:&'a Arenas,
-    ctokens:&'a CommonTokens,
-    config:&'a SabiTraitOptions<'a>,
-    trait_def:&'a TraitDefinition<'a>,
-    vis:VisibilityKind<'a>,
-    submod_vis:RelativeVis<'a>,
-    totrait_def:&'a TraitDefinition<'a>,
-    vtable_trait_decl:&'a TraitDefinition<'a>,
-    vtable_trait_impl:&'a TraitDefinition<'a>,
-    trait_ident:&'a syn::Ident,
+#[derive(Copy, Clone)]
+struct TokenizerParams<'a> {
+    arenas: &'a Arenas,
+    ctokens: &'a CommonTokens,
+    config: &'a SabiTraitOptions<'a>,
+    trait_def: &'a TraitDefinition<'a>,
+    vis: VisibilityKind<'a>,
+    submod_vis: RelativeVis<'a>,
+    totrait_def: &'a TraitDefinition<'a>,
+    vtable_trait_decl: &'a TraitDefinition<'a>,
+    vtable_trait_impl: &'a TraitDefinition<'a>,
+    trait_ident: &'a syn::Ident,
     /// The name of `Trait_Bounds`.
-    trait_bounds:&'a syn::Ident,
-    trait_to:&'a syn::Ident,
-    trait_backend:&'a syn::Ident,
-    trait_interface:&'a syn::Ident,
-    make_vtable_ident:&'a syn::Ident,
-    trait_cto_ident:&'a syn::Ident,
-    /// TokenStreams that don't have a `'lt,` if the trait object requires 
+    trait_bounds: &'a syn::Ident,
+    trait_to: &'a syn::Ident,
+    trait_backend: &'a syn::Ident,
+    trait_interface: &'a syn::Ident,
+    make_vtable_ident: &'a syn::Ident,
+    trait_cto_ident: &'a syn::Ident,
+    /// TokenStreams that don't have a `'lt,` if the trait object requires
     /// `'static` to be constructed.
-    lt_tokens:&'a LifetimeTokens,
+    lt_tokens: &'a LifetimeTokens,
 }
 
-
 /// The implementation of the `#[sabi_trait]` proc-macro attribute.
-pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
+pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2, syn::Error> {
     let arenas = Arenas::default();
     let arenas = &arenas;
     let ctokens = CommonTokens::new();
     let ctokens = &ctokens;
-    
-    let trait_ident=&item.ident;
 
-    let config=&self::attribute_parsing::parse_attrs_for_sabi_trait(&item,arenas,ctokens)?;
+    let trait_ident = &item.ident;
 
-    let trait_def=&config.trait_definition;
-    let lt_tokens=&LifetimeTokens::new(trait_def.is_static);
-    let vis=trait_def.vis;
-    let submod_vis=trait_def.submod_vis;
-    
-    let totrait_def=&trait_def.replace_self(WhichItem::TraitObjectImpl)?;
-    let vtable_trait_decl=&trait_def.replace_self(WhichItem::VtableDecl)?;
-    let vtable_trait_impl=&trait_def.replace_self(WhichItem::VtableImpl)?;
+    let config = &self::attribute_parsing::parse_attrs_for_sabi_trait(&item, arenas, ctokens)?;
 
+    let trait_def = &config.trait_definition;
+    let lt_tokens = &LifetimeTokens::new(trait_def.is_static);
+    let vis = trait_def.vis;
+    let submod_vis = trait_def.submod_vis;
 
-    let generated_mod=&parse_str_as_ident(&format!("{}_trait",trait_ident));
-    let trait_bounds=&parse_str_as_ident(&format!("{}_Bounds",trait_ident));
-    let trait_to    =&parse_str_as_ident(&format!("{}_TO",trait_ident));
-    let trait_backend=&parse_str_as_ident(&format!("{}_Backend",trait_ident));
-    let trait_interface=&parse_str_as_ident(&format!("{}_Interface",trait_ident));
-    let make_vtable_ident=&parse_str_as_ident(&format!("{}_MV",trait_ident));
-    let trait_cto_ident=&parse_str_as_ident(&format!("{}_CTO",trait_ident));
-    
-    let mut mod_contents=TokenStream2::default();
+    let totrait_def = &trait_def.replace_self(WhichItem::TraitObjectImpl)?;
+    let vtable_trait_decl = &trait_def.replace_self(WhichItem::VtableDecl)?;
+    let vtable_trait_impl = &trait_def.replace_self(WhichItem::VtableImpl)?;
 
-    let tokenizer_params=TokenizerParams{
+    let generated_mod = &parse_str_as_ident(&format!("{}_trait", trait_ident));
+    let trait_bounds = &parse_str_as_ident(&format!("{}_Bounds", trait_ident));
+    let trait_to = &parse_str_as_ident(&format!("{}_TO", trait_ident));
+    let trait_backend = &parse_str_as_ident(&format!("{}_Backend", trait_ident));
+    let trait_interface = &parse_str_as_ident(&format!("{}_Interface", trait_ident));
+    let make_vtable_ident = &parse_str_as_ident(&format!("{}_MV", trait_ident));
+    let trait_cto_ident = &parse_str_as_ident(&format!("{}_CTO", trait_ident));
+
+    let mut mod_contents = TokenStream2::default();
+
+    let tokenizer_params = TokenizerParams {
         arenas,
         ctokens,
         config,
@@ -114,28 +107,28 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
         vtable_trait_impl,
         trait_ident,
         trait_bounds,
-        trait_to    ,
+        trait_to,
         trait_backend,
         trait_interface,
         make_vtable_ident,
         trait_cto_ident,
     };
 
-    first_items(tokenizer_params,&mut mod_contents);
+    first_items(tokenizer_params, &mut mod_contents);
 
-    constructor_items(tokenizer_params,&mut mod_contents);
-    
-    trait_and_impl(tokenizer_params,&mut mod_contents);
+    constructor_items(tokenizer_params, &mut mod_contents);
 
-    methods_impls(tokenizer_params,&mut mod_contents)?;
+    trait_and_impl(tokenizer_params, &mut mod_contents);
 
-    declare_vtable(tokenizer_params,&mut mod_contents);
-    
-    vtable_impl(tokenizer_params,&mut mod_contents);
+    methods_impls(tokenizer_params, &mut mod_contents)?;
 
-    impl_delegations::delegated_impls(tokenizer_params,&mut mod_contents);
+    declare_vtable(tokenizer_params, &mut mod_contents);
 
-    let doc_hidden_attr=config.doc_hidden_attr;
+    vtable_impl(tokenizer_params, &mut mod_contents);
+
+    impl_delegations::delegated_impls(tokenizer_params, &mut mod_contents);
+
+    let doc_hidden_attr = config.doc_hidden_attr;
 
     let mod_docs = if doc_hidden_attr.is_none() {
         Some(format!(
@@ -145,7 +138,8 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
         ))
     } else {
         None
-    }.into_iter();
+    }
+    .into_iter();
 
     quote!(
         #doc_hidden_attr
@@ -163,34 +157,33 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2,syn::Error> {
         #vis mod #generated_mod{
             #mod_contents
         }
-    ).observe(|tokens|{
+    )
+    .observe(|tokens| {
+        #[allow(clippy::if_then_panic)]
         // drop(_measure_time1);
         if config.debug_print_trait {
-            panic!("\n\n\n{}\n\n\n",token_stream_to_string(tokens.clone()));
+            panic!("\n\n\n{}\n\n\n", token_stream_to_string(tokens.clone()));
         }
     })
     .piped(Ok)
 }
 
-
-/**
-Outputs these items:
-
-- `Trait_Backend`: 
-    A type alias to the underlying implementation of the trait object,
-    which is either RObject
-
-- `Trait_Interface`
-    A marker type describing the traits that are required when constructing 
-    the underlying implementation of the trait object,
-    and are then implemented by it,by implementing InterfaceType.
-
-- `Trait_TO`:
-    The ffi-safe trait object for the trait.
-
-*/
+/// Outputs these items:
+///
+/// - `Trait_Backend`:
+///     A type alias to the underlying implementation of the trait object,
+///     which is either RObject
+///
+/// - `Trait_Interface`
+///     A marker type describing the traits that are required when constructing
+///     the underlying implementation of the trait object,
+///     and are then implemented by it,by implementing InterfaceType.
+///
+/// - `Trait_TO`:
+///     The ffi-safe trait object for the trait.
+///
 fn first_items(
-    TokenizerParams{
+    TokenizerParams {
         config,
         ctokens,
         lt_tokens,
@@ -201,49 +194,47 @@ fn first_items(
         trait_interface,
         trait_cto_ident,
         ..
-    }:TokenizerParams,
-    mod_:&mut TokenStream2,
-){
-    let trait_ident=trait_def.name;
+    }: TokenizerParams,
+    mod_: &mut TokenStream2,
+) {
+    let trait_ident = trait_def.name;
 
-    let doc_hidden_attr=config.doc_hidden_attr;
+    let doc_hidden_attr = config.doc_hidden_attr;
 
-    let mut uto_params=trait_def.generics_tokenizer(
+    let mut uto_params = trait_def.generics_tokenizer(
         InWhat::ItemDecl,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &lt_tokens.lt_erasedptr,
     );
     uto_params.set_no_bounds();
-    
-    let mut gen_params_header_rref=
-        trait_def.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt_sub_lt,
-        );
+
+    let mut gen_params_header_rref = trait_def.generics_tokenizer(
+        InWhat::ImplHeader,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt_sub_lt,
+    );
     gen_params_header_rref.set_no_bounds();
 
-    let gen_params_use_to_rref=
-        trait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt_rref,
-        );
+    let gen_params_use_to_rref = trait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt_rref,
+    );
 
-    let uto_params_use=trait_def.generics_tokenizer(
+    let uto_params_use = trait_def.generics_tokenizer(
         InWhat::ItemUse,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &lt_tokens.lt_erasedptr,
     );
 
-    let mut trait_interface_header=trait_def.generics_tokenizer(
+    let mut trait_interface_header = trait_def.generics_tokenizer(
         InWhat::ImplHeader,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &ctokens.ts_empty,
     );
     trait_interface_header.set_no_bounds();
 
-    let mut trait_interface_decl=trait_def.generics_tokenizer(
+    let mut trait_interface_decl = trait_def.generics_tokenizer(
         InWhat::ItemDecl,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &ctokens.ts_empty,
@@ -251,99 +242,99 @@ fn first_items(
     trait_interface_decl.set_no_bounds();
     // trait_interface_decl.set_unsized_types();
 
-    let trait_interface_use=trait_def.generics_tokenizer(
+    let trait_interface_use = trait_def.generics_tokenizer(
         InWhat::ItemUse,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &ctokens.ts_empty,
     );
 
-    let mut to_params=trait_def.generics_tokenizer(
+    let mut to_params = trait_def.generics_tokenizer(
         InWhat::ItemDecl,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &lt_tokens.lt_erasedptr,
     );
     to_params.set_no_bounds();
 
-    let where_preds=(&trait_def.where_preds).into_iter();
+    let where_preds = (&trait_def.where_preds).into_iter();
 
-    let vtable_args=trait_def.generics_tokenizer(
+    let vtable_args = trait_def.generics_tokenizer(
         InWhat::ItemUse,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &ctokens.ts_unit_erasedptr,
     );
 
-    let impld_traits=trait_def.impld_traits.iter().map(|x|&x.ident);
-    let impld_traits_a=impld_traits.clone();
-    let impld_traits_b=impld_traits.clone();
+    let impld_traits = trait_def.impld_traits.iter().map(|x| &x.ident);
+    let impld_traits_a = impld_traits.clone();
+    let impld_traits_b = impld_traits.clone();
 
-    let unimpld_traits_a=trait_def.unimpld_traits.iter().cloned();
-    let unimpld_traits_b=trait_def.unimpld_traits.iter().cloned();
+    let unimpld_traits_a = trait_def.unimpld_traits.iter().cloned();
+    let unimpld_traits_b = trait_def.unimpld_traits.iter().cloned();
 
-    let priv_assocty=private_associated_type();
+    let priv_assocty = private_associated_type();
 
-    let object=match trait_def.which_object {
-        WhichObject::DynTrait=>quote!(DynTrait),
-        WhichObject::RObject=>quote!(RObject),
+    let object = match trait_def.which_object {
+        WhichObject::DynTrait => quote!(DynTrait),
+        WhichObject::RObject => quote!(RObject),
     };
-    let vtable_argument=match trait_def.which_object {
-        WhichObject::DynTrait=>quote!(__sabi_re::PrefixRef<VTable<#vtable_args>>),
-        WhichObject::RObject=>quote!(VTable<#vtable_args>),
+    let vtable_argument = match trait_def.which_object {
+        WhichObject::DynTrait => quote!(__sabi_re::PrefixRef<VTable<#vtable_args>>),
+        WhichObject::RObject => quote!(VTable<#vtable_args>),
     };
 
-    let dummy_struct_generics=
-        trait_def.generics_tokenizer(
-            InWhat::DummyStruct,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_empty,
-        );
+    let dummy_struct_generics = trait_def.generics_tokenizer(
+        InWhat::DummyStruct,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &ctokens.ts_empty,
+    );
     // dummy_struct_generics.set_unsized_types();
 
-    let used_trait_object=quote!(#trait_backend<#uto_params_use>);
+    let used_trait_object = quote!(#trait_backend<#uto_params_use>);
 
-    let used_to_bound=format!(
+    let used_to_bound = format!(
         "{}: ::abi_stable::StableAbi",
         (&used_trait_object).into_token_stream()
     );
-    let trait_flags=&trait_def.trait_flags;
-    let send_syncness=match (trait_flags.sync,trait_flags.send) {
-        (false,false)=>"UnsyncUnsend",
-        (false,true )=>"UnsyncSend",
-        (true ,false)=>"SyncUnsend",
-        (true ,true )=>"SyncSend",
-    }.piped(parse_str_as_ident);
+    let trait_flags = &trait_def.trait_flags;
+    let send_syncness = match (trait_flags.sync, trait_flags.send) {
+        (false, false) => "UnsyncUnsend",
+        (false, true) => "UnsyncSend",
+        (true, false) => "SyncUnsend",
+        (true, true) => "SyncSend",
+    }
+    .piped(parse_str_as_ident);
 
-    let mut trait_backend_docs=String::new();
+    let mut trait_backend_docs = String::new();
 
-    let mut trait_interface_docs=String::new();
+    let mut trait_interface_docs = String::new();
 
-    let mut trait_to_docs=String::new();
-    
-    let mut trait_cto_docs=String::new();
+    let mut trait_to_docs = String::new();
+
+    let mut trait_cto_docs = String::new();
     if doc_hidden_attr.is_none() {
-        trait_backend_docs=format!(
+        trait_backend_docs = format!(
             "An alias for the underlying implementation of `{}`.",
             trait_to,
         );
-        trait_interface_docs=format!(
+        trait_interface_docs = format!(
             "A marker type describing the traits that are required when constructing `{}`,\
              and are then implemented by it,
              by implementing the `InterfaceType` trait.",
             trait_to,
         );
-        trait_to_docs=format!(
+        trait_to_docs = format!(
             "\
             The trait object for [{Trait}](trait.{Trait}.html).\n\
             \n\
             There are extra methods on the `obj` field.\n
             ",
-            Trait=trait_ident
-        );    
-        trait_cto_docs=format!(
+            Trait = trait_ident
+        );
+        trait_cto_docs = format!(
             "A type alias for the const-constructible `{trait_to}`.",
-            trait_to=trait_to
+            trait_to = trait_to
         );
     }
-    let one_lt=&lt_tokens.one_lt;
+    let one_lt = &lt_tokens.one_lt;
 
     quote!(
         use super::*;
@@ -365,7 +356,7 @@ fn first_items(
         #submod_vis type #trait_cto_ident<#gen_params_header_rref>=
             #trait_to<#gen_params_use_to_rref>;
 
-        
+
 
         #[doc=#trait_interface_docs]
         #[repr(C)]
@@ -401,8 +392,8 @@ fn first_items(
                 },
             };
 
-            impl<#trait_interface_header> 
-                abi_stable::InterfaceType 
+            impl<#trait_interface_header>
+                abi_stable::InterfaceType
                 for #trait_interface<#trait_interface_use>
             {
                 #( type #impld_traits_a=Implemented<trait_marker::#impld_traits_b>; )*
@@ -411,64 +402,65 @@ fn first_items(
             }
         };
 
-    ).to_tokens(mod_);
+    )
+    .to_tokens(mod_);
 }
 
-
 /// Outputs the trait object constructors.
-fn constructor_items(
-    params:TokenizerParams<'_>,
-    mod_:&mut TokenStream2,
-){
-    let TokenizerParams{
-        ctokens,totrait_def,submod_vis,trait_ident,trait_to,trait_backend,trait_interface,
-        lt_tokens,trait_bounds,make_vtable_ident,
+fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
+    let TokenizerParams {
+        ctokens,
+        totrait_def,
+        submod_vis,
+        trait_ident,
+        trait_to,
+        trait_backend,
+        trait_interface,
+        lt_tokens,
+        trait_bounds,
+        make_vtable_ident,
         ..
-    }=params;
+    } = params;
 
-    let doc_hidden_attr=params.config.doc_hidden_attr;
+    let doc_hidden_attr = params.config.doc_hidden_attr;
 
+    let trait_params =
+        totrait_def.generics_tokenizer(InWhat::ItemUse, WithAssocTys::No, &ctokens.empty_ts);
 
-    let trait_params=totrait_def.generics_tokenizer(
-        InWhat::ItemUse,
-        WithAssocTys::No,
-        &ctokens.empty_ts,
-    );
+    let assoc_tys_a = totrait_def.assoc_tys.keys();
+    let assoc_tys_b = assoc_tys_a.clone();
+    let assoc_tys_c = assoc_tys_a.clone();
+    let assoc_tys_d = assoc_tys_a.clone();
 
-    let assoc_tys_a=totrait_def.assoc_tys.keys();
-    let assoc_tys_b=assoc_tys_a.clone();
-    let assoc_tys_c=assoc_tys_a.clone();
-    let assoc_tys_d=assoc_tys_a.clone();
-    
-    let mut make_vtable_args=totrait_def.generics_tokenizer(
+    let mut make_vtable_args = totrait_def.generics_tokenizer(
         InWhat::ItemUse,
         WithAssocTys::No,
         &ctokens.ts_make_vtable_args,
     );
     make_vtable_args.skip_lifetimes();
-    
-    let fn_can_it_downcast_arg=match totrait_def.which_object {
-        WhichObject::DynTrait=>quote!(Downcasting),
-        WhichObject::RObject=>quote!(),
+
+    let fn_can_it_downcast_arg = match totrait_def.which_object {
+        WhichObject::DynTrait => quote!(Downcasting),
+        WhichObject::RObject => quote!(),
     };
 
-    let trait_interface_use=totrait_def.generics_tokenizer(
+    let trait_interface_use = totrait_def.generics_tokenizer(
         InWhat::ItemUse,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &ctokens.ts_empty,
     );
 
-    let one_lt=&lt_tokens.one_lt;
+    let one_lt = &lt_tokens.one_lt;
 
-    let extra_constraints_ptr=match totrait_def.which_object {
-        WhichObject::DynTrait=>quote!(
+    let extra_constraints_ptr = match totrait_def.which_object {
+        WhichObject::DynTrait => quote!(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
             __sabi_re::InterfaceFor<
                 _OrigPtr::PtrTarget,
                 #trait_interface<#trait_interface_use>,
                 Downcasting
-            >: 
+            >:
                 __sabi_re::GetVtable<
                     #one_lt
                     _OrigPtr::PtrTarget,
@@ -477,15 +469,14 @@ fn constructor_items(
                     #trait_interface<#trait_interface_use>,
                 >,
         ),
-        WhichObject::RObject=>quote!(),
+        WhichObject::RObject => quote!(),
     };
 
-
-    let extra_constraints_value=match totrait_def.which_object {
-        WhichObject::DynTrait=>quote!(
+    let extra_constraints_value = match totrait_def.which_object {
+        WhichObject::DynTrait => quote!(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
-            __sabi_re::InterfaceFor<_Self,#trait_interface<#trait_interface_use>,Downcasting>: 
+            __sabi_re::InterfaceFor<_Self,#trait_interface<#trait_interface_use>,Downcasting>:
                 __sabi_re::GetVtable<
                     #one_lt
                     _Self,
@@ -494,99 +485,93 @@ fn constructor_items(
                     #trait_interface<#trait_interface_use>,
                 >,
         ),
-        WhichObject::RObject=>quote!(),
+        WhichObject::RObject => quote!(),
     };
 
-    let gen_params_header=
-        totrait_def.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt_erasedptr,
-        );
-    
-    let gen_params_use_to=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt_erasedptr,
-        );
+    let gen_params_header = totrait_def.generics_tokenizer(
+        InWhat::ImplHeader,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt_erasedptr,
+    );
 
-    let gen_params_header_rbox=
-        totrait_def.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt,
-        );
-    
-    let gen_params_use_to_rbox=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt_rbox,
-        );
-
-    let uto_params_use=totrait_def.generics_tokenizer(
+    let gen_params_use_to = totrait_def.generics_tokenizer(
         InWhat::ItemUse,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &lt_tokens.lt_erasedptr,
     );
 
-    let trait_interface_use=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_empty,
-        );
+    let gen_params_header_rbox = totrait_def.generics_tokenizer(
+        InWhat::ImplHeader,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt,
+    );
 
-    let mut gen_params_header_rref=
-        totrait_def.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt_sub_lt,
-        );
+    let gen_params_use_to_rbox = totrait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt_rbox,
+    );
+
+    let uto_params_use = totrait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt_erasedptr,
+    );
+
+    let trait_interface_use = totrait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &ctokens.ts_empty,
+    );
+
+    let mut gen_params_header_rref = totrait_def.generics_tokenizer(
+        InWhat::ImplHeader,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt_sub_lt,
+    );
     gen_params_header_rref.set_no_bounds();
 
-    let gen_params_use_to_rref=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt_rref,
-        );
+    let gen_params_use_to_rref = totrait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt_rref,
+    );
 
-    let mut shared_docs=String::new();
-    let mut from_ptr_docs=String::new();
-    let mut from_value_docs=String::new();
-    let mut from_const_docs=String::new();
+    let mut shared_docs = String::new();
+    let mut from_ptr_docs = String::new();
+    let mut from_value_docs = String::new();
+    let mut from_const_docs = String::new();
 
     if doc_hidden_attr.is_none() {
-        shared_docs="\
+        shared_docs = "\
             <br><br>\
             `can_it_downcast` describes whether the trait object can be \
             converted back into the original type or not.<br>\n\
             Its possible values are `TD_CanDowncast` and `TD_Opaque`.\n\
-        ".to_string();
+        "
+        .to_string();
 
-        from_ptr_docs=format!(
+        from_ptr_docs = format!(
             "Constructs this trait object from a pointer to a type that implements `{trait_}`.\n\
              \n\
              This method is automatically generated,\n\
              for more documentation you can look at\n\
              [`abi_stable::docs::sabi_trait_inherent#from_ptr-method`]\n\
             ",
-            trait_=trait_ident
+            trait_ = trait_ident
         );
 
-        from_value_docs=format!(
+        from_value_docs = format!(
             "Constructs this trait from a type that implements `{trait_}`.\n\
              \n\
              This method is automatically generated,\n\
              for more documentation you can look at\n\
              [`abi_stable::docs::sabi_trait_inherent#from_value-method`]\n\
             ",
-            trait_=trait_ident
+            trait_ = trait_ident
         );
 
-        from_const_docs=format!(
+        from_const_docs = format!(
             "Constructs this trait from a constant of a type that implements `{trait_}`.\n\
              \n\
              This method is automatically generated,\n\
@@ -595,26 +580,23 @@ fn constructor_items(
               \n\
              You can construct the `vtable_for` parameter with `{make_vtable_ident}::VTABLE`.\n\
             ",
-            trait_=trait_ident,
-            make_vtable_ident=make_vtable_ident,
+            trait_ = trait_ident,
+            make_vtable_ident = make_vtable_ident,
         );
-
     }
-    
-    let vtable_generics_rref=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_unit_rref_unit,
-        );
 
-    let reborrow_methods=reborrow_methods_tokenizer(params);
+    let vtable_generics_rref = totrait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &ctokens.ts_unit_rref_unit,
+    );
 
-    let plus_lt=&lt_tokens.plus_lt;
-    
-    
-    let vtable_type=match totrait_def.which_object {
-        WhichObject::DynTrait=>quote!(
+    let reborrow_methods = reborrow_methods_tokenizer(params);
+
+    let plus_lt = &lt_tokens.plus_lt;
+
+    let vtable_type = match totrait_def.which_object {
+        WhichObject::DynTrait => quote!(
             __sabi_re::VTableTO_DT<
                 #one_lt
                 _Self,
@@ -625,7 +607,7 @@ fn constructor_items(
                 VTable<#vtable_generics_rref>,
             >
         ),
-        WhichObject::RObject=>quote!(
+        WhichObject::RObject => quote!(
             __sabi_re::VTableTO_RO<
                 _Self,
                 __sabi_re::RRef<'_sub,_Self>,
@@ -634,9 +616,9 @@ fn constructor_items(
             >
         ),
     };
-    
-    let constructing_backend=match totrait_def.which_object {
-        WhichObject::DynTrait=>quote!(
+
+    let constructing_backend = match totrait_def.which_object {
+        WhichObject::DynTrait => quote!(
             #trait_backend::from_const(
                 ptr,
                 can_it_downcast,
@@ -644,14 +626,14 @@ fn constructor_items(
                 vtable_for.robject_vtable(),
             )
         ),
-        WhichObject::RObject=>quote!({
+        WhichObject::RObject => quote!({
             let _ = __sabi_re::ManuallyDrop::new(can_it_downcast);
             #trait_backend::with_vtable_const(ptr,vtable_for)
         }),
     };
 
     quote!(
-        impl<#gen_params_header> #trait_to<#gen_params_use_to> 
+        impl<#gen_params_header> #trait_to<#gen_params_use_to>
         where
             _ErasedPtr: __sabi_re::AsPtr<PtrTarget = ()>,
         {
@@ -688,7 +670,7 @@ fn constructor_items(
             }
 
             /// Constructs this trait object from its underlying implementation.
-            /// 
+            ///
             /// This method is automatically generated,
             /// for more documentation you can look at
             /// [`abi_stable::docs::sabi_trait_inherent#from_sabi-method`]
@@ -701,7 +683,7 @@ fn constructor_items(
 
             #reborrow_methods
         }
-        
+
         impl<#gen_params_header_rbox> #trait_to<#gen_params_use_to_rbox> {
             #[doc=#from_value_docs]
             #[doc=#shared_docs]
@@ -746,40 +728,43 @@ fn constructor_items(
             }
         }
 
-    ).to_tokens(mod_);
+    )
+    .to_tokens(mod_);
 }
-
 
 /// Returns a tokenizer for the reborrowing methods
 fn reborrow_methods_tokenizer(
-    TokenizerParams{totrait_def,submod_vis,trait_to,lt_tokens,..}:TokenizerParams<'_>,
-)->impl ToTokens + '_{
-    ToTokenFnMut::new(move|ts|{
-        let traits=totrait_def.trait_flags;
+    TokenizerParams {
+        totrait_def,
+        submod_vis,
+        trait_to,
+        lt_tokens,
+        ..
+    }: TokenizerParams<'_>,
+) -> impl ToTokens + '_ {
+    ToTokenFnMut::new(move |ts| {
+        let traits = totrait_def.trait_flags;
         // If the trait object doesn't have both Sync+Send as supertraits or neither,
         // it can't be reborrowed.
-        if traits.sync!=traits.send {
+        if traits.sync != traits.send {
             return;
         }
 
-        let gen_params_use_ref=
-            totrait_def.generics_tokenizer(
-                InWhat::ItemUse,
-                WithAssocTys::Yes(WhichSelf::NoSelf),
-                &lt_tokens.lt_rref,
-            );
+        let gen_params_use_ref = totrait_def.generics_tokenizer(
+            InWhat::ItemUse,
+            WithAssocTys::Yes(WhichSelf::NoSelf),
+            &lt_tokens.lt_rref,
+        );
 
-        let gen_params_use_mut=
-            totrait_def.generics_tokenizer(
-                InWhat::ItemUse,
-                WithAssocTys::Yes(WhichSelf::NoSelf),
-                &lt_tokens.lt_rmut,
-            );
-
+        let gen_params_use_mut = totrait_def.generics_tokenizer(
+            InWhat::ItemUse,
+            WithAssocTys::Yes(WhichSelf::NoSelf),
+            &lt_tokens.lt_rmut,
+        );
 
         quote!(
             /// Reborrows this trait object to a reference-based trait object.
-            /// 
+            ///
             /// This method is automatically generated,
             /// for more documentation you can look at
             /// [`abi_stable::docs::sabi_trait_inherent#sabi_reborrow-method`]
@@ -794,7 +779,7 @@ fn reborrow_methods_tokenizer(
             }
 
             /// Reborrows this trait object to a mutable-reference-based trait object.
-            /// 
+            ///
             /// This method is automatically generated,
             /// for more documentation you can look at
             /// [`abi_stable::docs::sabi_trait_inherent#sabi_reborrow_mut-method`]
@@ -807,38 +792,44 @@ fn reborrow_methods_tokenizer(
                 let x=unsafe{ __sabi_re::transmute(x) };
                 #trait_to::from_sabi(x)
             }
-        ).to_tokens(ts);
+        )
+        .to_tokens(ts);
     })
 }
-
 
 /// Outputs the annotated trait (as modified by the proc-macro)
 /// and an implementation of the trait for the generated trait object.
 fn trait_and_impl(
-    TokenizerParams{
-        ctokens,submod_vis,trait_def,trait_to,lt_tokens,
-        trait_ident,trait_bounds,..
-    }:TokenizerParams,
-    mod_:&mut TokenStream2,
-){
-    let other_attrs=trait_def.other_attrs;
-    let gen_params_trait=
-        trait_def.generics_tokenizer(InWhat::ItemDecl,WithAssocTys::No,&ctokens.empty_ts);
-    let where_preds=(&trait_def.where_preds).into_iter();
-    let where_preds_b=where_preds.clone();
-    let methods_tokenizer_def=trait_def.methods_tokenizer(WhichItem::Trait);
-    let methods_tokenizer_impl=trait_def.methods_tokenizer(WhichItem::TraitImpl);
-    let lifetime_bounds_a=trait_def.lifetime_bounds.iter();
-    let lifetime_bounds_b=trait_def.lifetime_bounds.iter();
-    let lifetime_bounds_c=trait_def.lifetime_bounds.iter();
-    let super_traits_a=trait_def.impld_traits.iter().map(|t| &t.bound );
-    let super_traits_b=super_traits_a.clone();
+    TokenizerParams {
+        ctokens,
+        submod_vis,
+        trait_def,
+        trait_to,
+        lt_tokens,
+        trait_ident,
+        trait_bounds,
+        ..
+    }: TokenizerParams,
+    mod_: &mut TokenStream2,
+) {
+    let other_attrs = trait_def.other_attrs;
+    let gen_params_trait =
+        trait_def.generics_tokenizer(InWhat::ItemDecl, WithAssocTys::No, &ctokens.empty_ts);
+    let where_preds = (&trait_def.where_preds).into_iter();
+    let where_preds_b = where_preds.clone();
+    let methods_tokenizer_def = trait_def.methods_tokenizer(WhichItem::Trait);
+    let methods_tokenizer_impl = trait_def.methods_tokenizer(WhichItem::TraitImpl);
+    let lifetime_bounds_a = trait_def.lifetime_bounds.iter();
+    let lifetime_bounds_b = trait_def.lifetime_bounds.iter();
+    let lifetime_bounds_c = trait_def.lifetime_bounds.iter();
+    let super_traits_a = trait_def.impld_traits.iter().map(|t| &t.bound);
+    let super_traits_b = super_traits_a.clone();
 
-    let assoc_tys_a=trait_def.assoc_tys.values().map(|x| &x.assoc_ty );
-    
+    let assoc_tys_a = trait_def.assoc_tys.values().map(|x| &x.assoc_ty);
+
     let unsafety = trait_def.item.unsafety;
 
-    let erased_ptr_bounds=trait_def.erased_ptr_preds();
+    let erased_ptr_bounds = trait_def.erased_ptr_preds();
 
     quote!(
         #( #[#other_attrs] )*
@@ -846,39 +837,32 @@ fn trait_and_impl(
         #submod_vis #unsafety trait #trait_ident<
             #gen_params_trait
         >: #( #super_traits_a + )*
-        where 
+        where
             #(#where_preds,)*
         {
             #( #assoc_tys_a )*
 
             #methods_tokenizer_def
         }
-    ).to_tokens(mod_);
+    )
+    .to_tokens(mod_);
 
-    let gen_params_use_trait=
-        trait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::No,
-            &ctokens.empty_ts,
-        );
+    let gen_params_use_trait =
+        trait_def.generics_tokenizer(InWhat::ItemUse, WithAssocTys::No, &ctokens.empty_ts);
 
     {
-        let gen_params_header=
-            trait_def.generics_tokenizer(
-                InWhat::ImplHeader,
-                WithAssocTys::No,
-                &ctokens.ts_uself,
-            );
+        let gen_params_header =
+            trait_def.generics_tokenizer(InWhat::ImplHeader, WithAssocTys::No, &ctokens.ts_uself);
 
-        let docs=format!(
+        let docs = format!(
             "A trait alias for [{Trait}](trait.{Trait}.html) + the lifetime bounds that \
              it had before being stripped by the `#[sabi_trait]` attribute.
             ",
-            Trait=trait_ident
+            Trait = trait_ident
         );
         quote!(
             #[doc= #docs ]
-            #submod_vis trait #trait_bounds<#gen_params_trait>: 
+            #submod_vis trait #trait_bounds<#gen_params_trait>:
                 #trait_ident<#gen_params_use_trait>
                 #( + #lifetime_bounds_a )*
             {}
@@ -887,32 +871,28 @@ fn trait_and_impl(
             where
                 _Self: #trait_ident<#gen_params_use_trait> #( + #lifetime_bounds_b )*
             {}
-        ).to_tokens(mod_);
-
+        )
+        .to_tokens(mod_);
     }
 
+    if !trait_def.disable_trait_impl {
+        let gen_params_header = trait_def.generics_tokenizer(
+            InWhat::ImplHeader,
+            WithAssocTys::Yes(WhichSelf::NoSelf),
+            &lt_tokens.lt_erasedptr,
+        );
+        let gen_params_use_to = trait_def.generics_tokenizer(
+            InWhat::ItemUse,
+            WithAssocTys::Yes(WhichSelf::NoSelf),
+            &lt_tokens.lt_erasedptr,
+        );
 
-    if ! trait_def.disable_trait_impl {
-
-        let gen_params_header=
-            trait_def.generics_tokenizer(
-                InWhat::ImplHeader,
-                WithAssocTys::Yes(WhichSelf::NoSelf),
-                &lt_tokens.lt_erasedptr,
-            );
-        let gen_params_use_to=
-            trait_def.generics_tokenizer(
-                InWhat::ItemUse,
-                WithAssocTys::Yes(WhichSelf::NoSelf),
-                &lt_tokens.lt_erasedptr,
-            );
-
-        let assoc_ty_named_a=trait_def.assoc_tys.values().map(|x| &x.assoc_ty.ident );
-        let assoc_ty_named_b=assoc_ty_named_a.clone();
+        let assoc_ty_named_a = trait_def.assoc_tys.values().map(|x| &x.assoc_ty.ident);
+        let assoc_ty_named_b = assoc_ty_named_a.clone();
 
         quote!(
             #[allow(clippy::needless_lifetimes, clippy::new_ret_no_self)]
-            impl<#gen_params_header> #trait_ident<#gen_params_use_trait> 
+            impl<#gen_params_header> #trait_ident<#gen_params_use_trait>
             for #trait_to<#gen_params_use_to>
             where
                 Self:#( #super_traits_b + )* #(#lifetime_bounds_c+)* Sized ,
@@ -923,49 +903,49 @@ fn trait_and_impl(
 
                 #methods_tokenizer_impl
             }
-        ).to_tokens(mod_);
+        )
+        .to_tokens(mod_);
     }
-
 }
 
 /// An inherent implementation of the generated trait object,
 /// which mirrors the trait definition.
-fn methods_impls(
-    param:TokenizerParams,
-    mod_:&mut TokenStream2,
-)-> Result<(),syn::Error> {
-    let TokenizerParams{totrait_def,trait_to,ctokens,lt_tokens,..}=param;
-    
-    let impl_where_preds=totrait_def.trait_impl_where_preds()?;
+fn methods_impls(param: TokenizerParams, mod_: &mut TokenStream2) -> Result<(), syn::Error> {
+    let TokenizerParams {
+        totrait_def,
+        trait_to,
+        ctokens,
+        lt_tokens,
+        ..
+    } = param;
 
-    let super_traits_a=totrait_def.impld_traits.iter().map(|t| &t.bound );
-    
-    let gen_params_header=
-        totrait_def.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt_erasedptr,
-        );
-    let gen_params_use_to=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &lt_tokens.lt_erasedptr,
-        );
+    let impl_where_preds = totrait_def.trait_impl_where_preds()?;
 
-    let generics_use1=
-        totrait_def.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_unit_erasedptr,
-        );
-    
-    let methods_tokenizer_def=totrait_def.methods_tokenizer(WhichItem::TraitObjectImpl);
+    let super_traits_a = totrait_def.impld_traits.iter().map(|t| &t.bound);
+
+    let gen_params_header = totrait_def.generics_tokenizer(
+        InWhat::ImplHeader,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt_erasedptr,
+    );
+    let gen_params_use_to = totrait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &lt_tokens.lt_erasedptr,
+    );
+
+    let generics_use1 = totrait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &ctokens.ts_unit_erasedptr,
+    );
+
+    let methods_tokenizer_def = totrait_def.methods_tokenizer(WhichItem::TraitObjectImpl);
 
     quote!(
         #[allow(clippy::needless_lifetimes, clippy::new_ret_no_self)]
         impl<#gen_params_header> #trait_to<#gen_params_use_to>
-        where 
+        where
             _ErasedPtr: __sabi_re::AsPtr<PtrTarget = ()>,
             Self:#( #super_traits_a + )* Sized ,
             #impl_where_preds
@@ -981,69 +961,70 @@ fn methods_impls(
 
             #methods_tokenizer_def
         }
-    ).to_tokens(mod_);
+    )
+    .to_tokens(mod_);
 
     Ok(())
 }
 
 /// Outputs the vtable struct.
 fn declare_vtable(
-    TokenizerParams{ctokens,vtable_trait_decl,submod_vis,trait_interface,..}:TokenizerParams,
-    mod_:&mut TokenStream2,
-){
-    
+    TokenizerParams {
+        ctokens,
+        vtable_trait_decl,
+        submod_vis,
+        trait_interface,
+        ..
+    }: TokenizerParams,
+    mod_: &mut TokenStream2,
+) {
+    let generics_decl = vtable_trait_decl.generics_tokenizer(
+        InWhat::ItemDecl,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &ctokens.ts_self_erasedptr,
+    );
 
-    let generics_decl=
-        vtable_trait_decl.generics_tokenizer(
-            InWhat::ItemDecl,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_self_erasedptr,
-        );    
-
-    let mut generics_decl_unbounded=generics_decl;
+    let mut generics_decl_unbounded = generics_decl;
     generics_decl_unbounded.set_no_bounds();
 
-    let mut generics_use0=
-        vtable_trait_decl.generics_tokenizer(
-            InWhat::DummyStruct,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_self_erasedptr,
-        );
+    let mut generics_use0 = vtable_trait_decl.generics_tokenizer(
+        InWhat::DummyStruct,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &ctokens.ts_self_erasedptr,
+    );
     generics_use0.set_no_bounds();
 
-    let generics_use1=
-        vtable_trait_decl.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_self_erasedptr,
-        );
+    let generics_use1 = vtable_trait_decl.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &ctokens.ts_self_erasedptr,
+    );
 
+    let derive_attrs = vtable_trait_decl.derive_attrs;
 
-    let derive_attrs=vtable_trait_decl.derive_attrs;
+    let methods_tokenizer = vtable_trait_decl.methods_tokenizer(WhichItem::VtableDecl);
 
-    let methods_tokenizer=vtable_trait_decl.methods_tokenizer(WhichItem::VtableDecl);
-
-    let lifetime_bounds=if vtable_trait_decl.lifetime_bounds.is_empty() {
+    let lifetime_bounds = if vtable_trait_decl.lifetime_bounds.is_empty() {
         None
-    }else{
+    } else {
         use std::fmt::Write;
-        let mut lifetime_bounds=String::with_capacity(32);
+        let mut lifetime_bounds = String::with_capacity(32);
         lifetime_bounds.push_str("_Self:");
         for lt in &vtable_trait_decl.lifetime_bounds {
-            let _=write!(lifetime_bounds,"{}+",lt);
+            let _ = write!(lifetime_bounds, "{}+", lt);
         }
         lifetime_bounds.push_str("Sized");
         Some(lifetime_bounds)
-    }.into_iter();
+    }
+    .into_iter();
 
-    let trait_interface_use=
-        vtable_trait_decl.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_empty,
-        );
+    let trait_interface_use = vtable_trait_decl.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::NoSelf),
+        &ctokens.ts_empty,
+    );
 
-    let robject_vtable=quote!(
+    let robject_vtable = quote!(
         __sabi_re::RObjectVtable_Ref<
             _Self,
             _ErasedPtr,
@@ -1051,16 +1032,16 @@ fn declare_vtable(
         >
     );
 
-    let real_vtable_ty=format!(
-        "VTableInner_Ref<{}>",
-        generics_use1.into_token_stream(),
+    let real_vtable_ty = format!("VTableInner_Ref<{}>", generics_use1.into_token_stream(),);
+    let inner_vtable_bound = format!("{}: ::abi_stable::StableAbi", real_vtable_ty);
+
+    let vtable_bound = format!(
+        "{}: ::abi_stable::StableAbi",
+        (&robject_vtable).into_token_stream()
     );
-    let inner_vtable_bound=format!("{}: ::abi_stable::StableAbi",real_vtable_ty);
 
-    let vtable_bound=format!("{}: ::abi_stable::StableAbi",(&robject_vtable).into_token_stream());
-
-    let bounds={
-        let mut gen_toks=vtable_trait_decl.generics_tokenizer(
+    let bounds = {
+        let mut gen_toks = vtable_trait_decl.generics_tokenizer(
             InWhat::ImplHeader,
             WithAssocTys::Yes(WhichSelf::NoSelf),
             &ctokens.ts_empty,
@@ -1088,7 +1069,7 @@ fn declare_vtable(
 
             _sabi_tys: __sabi_re::NonOwningPhantom<(#generics_use0)>,
         }
-        
+
         #[repr(C)]
         #[derive(abi_stable::StableAbi)]
         #[sabi(kind(Prefix))]
@@ -1107,88 +1088,83 @@ fn declare_vtable(
 
             #methods_tokenizer
         }
-    ).to_tokens(mod_);
-
+    )
+    .to_tokens(mod_);
 }
 
-/**
-Outputs the vtable impl block with both:
-
-- A constant where the vtable is constructed.
-
-- The methods that the vtable is constructed with.
-
-*/
+/// Outputs the vtable impl block with both:
+///
+/// - A constant where the vtable is constructed.
+///
+/// - The methods that the vtable is constructed with.
+///
 fn vtable_impl(
-    TokenizerParams{
-        config,ctokens,vtable_trait_impl,trait_interface,trait_cto_ident,
-        trait_bounds,make_vtable_ident,submod_vis,lt_tokens,..
-    }:TokenizerParams,
-    mod_:&mut TokenStream2,
-){
-    let struct_decl_generics=
-        vtable_trait_impl.generics_tokenizer(
-            InWhat::ItemDecl,
-            WithAssocTys::No,
-            &ctokens.ts_getvtable_params,
-        );
+    TokenizerParams {
+        config,
+        ctokens,
+        vtable_trait_impl,
+        trait_interface,
+        trait_cto_ident,
+        trait_bounds,
+        make_vtable_ident,
+        submod_vis,
+        lt_tokens,
+        ..
+    }: TokenizerParams,
+    mod_: &mut TokenStream2,
+) {
+    let struct_decl_generics = vtable_trait_impl.generics_tokenizer(
+        InWhat::ItemDecl,
+        WithAssocTys::No,
+        &ctokens.ts_getvtable_params,
+    );
 
-    let dummy_struct_tys=
-        vtable_trait_impl.generics_tokenizer(
-            InWhat::DummyStruct,
-            WithAssocTys::No,
-            &ctokens.ts_getvtable_dummy_struct_fields,
-        );
+    let dummy_struct_tys = vtable_trait_impl.generics_tokenizer(
+        InWhat::DummyStruct,
+        WithAssocTys::No,
+        &ctokens.ts_getvtable_dummy_struct_fields,
+    );
 
-    let impl_header_generics=
-        vtable_trait_impl.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::No,
-            &ctokens.ts_getvtable_params,
-        );
+    let impl_header_generics = vtable_trait_impl.generics_tokenizer(
+        InWhat::ImplHeader,
+        WithAssocTys::No,
+        &ctokens.ts_getvtable_params,
+    );
 
-    let makevtable_generics=
-        vtable_trait_impl.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::No,
-            &ctokens.ts_getvtable_params,
-        );
+    let makevtable_generics = vtable_trait_impl.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::No,
+        &ctokens.ts_getvtable_params,
+    );
 
-    let trait_generics=
-        vtable_trait_impl.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::No,
-            &ctokens.empty_ts
-        );
+    let trait_generics =
+        vtable_trait_impl.generics_tokenizer(InWhat::ItemUse, WithAssocTys::No, &ctokens.empty_ts);
 
-    let withmetadata_generics=
-        vtable_trait_impl.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::Underscore),
-            &ctokens.ts_self_erasedptr,
-        );
+    let withmetadata_generics = vtable_trait_impl.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::Underscore),
+        &ctokens.ts_self_erasedptr,
+    );
 
-    let trait_interface_use=
-        vtable_trait_impl.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::Underscore),
-            &ctokens.ts_empty,
-        );
+    let trait_interface_use = vtable_trait_impl.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::Underscore),
+        &ctokens.ts_empty,
+    );
 
-    let method_names_a=vtable_trait_impl.methods.iter().map(|m|m.name);
-    let method_names_b=method_names_a.clone();
+    let method_names_a = vtable_trait_impl.methods.iter().map(|m| m.name);
+    let method_names_b = method_names_a.clone();
 
-    let vtable_generics=
-        vtable_trait_impl.generics_tokenizer(
-            InWhat::ItemUse,
-            WithAssocTys::Yes(WhichSelf::Underscore),
-            &ctokens.ts_unit_erasedptr,
-        );
+    let vtable_generics = vtable_trait_impl.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::Yes(WhichSelf::Underscore),
+        &ctokens.ts_unit_erasedptr,
+    );
 
-    let methods_tokenizer=vtable_trait_impl.methods_tokenizer(WhichItem::VtableImpl);
+    let methods_tokenizer = vtable_trait_impl.methods_tokenizer(WhichItem::VtableImpl);
 
-    let const_vtable_item=match vtable_trait_impl.which_object {
-        WhichObject::DynTrait=>quote!(
+    let const_vtable_item = match vtable_trait_impl.which_object {
+        WhichObject::DynTrait => quote!(
             pub const VTABLE:__sabi_re::VTableTO_DT<
                 'lt,
                 _Self,
@@ -1204,7 +1180,7 @@ fn vtable_impl(
                 )
             };
         ),
-        WhichObject::RObject=>quote!(
+        WhichObject::RObject => quote!(
             pub const VTABLE:__sabi_re::VTableTO_RO<
                 _Self,
                 _OrigPtr,
@@ -1216,17 +1192,17 @@ fn vtable_impl(
         ),
     };
 
-    let one_lt=&lt_tokens.one_lt;
-    
-    let extra_constraints=match vtable_trait_impl.which_object {
-        WhichObject::DynTrait=>quote!(
+    let one_lt = &lt_tokens.one_lt;
+
+    let extra_constraints = match vtable_trait_impl.which_object {
+        WhichObject::DynTrait => quote!(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
             __sabi_re::InterfaceFor<
                 _Self,
                 #trait_interface<#trait_interface_use>,
                 IA
-            >: 
+            >:
                 __sabi_re::GetVtable<
                     #one_lt
                     _Self,
@@ -1235,18 +1211,17 @@ fn vtable_impl(
                     #trait_interface<#trait_interface_use>,
                 >,
         ),
-        WhichObject::RObject=>quote!(),
+        WhichObject::RObject => quote!(),
     };
 
-    let doc_hidden_attr=config.doc_hidden_attr;
+    let doc_hidden_attr = config.doc_hidden_attr;
 
-    let mut trait_mv_docs=String::new();
+    let mut trait_mv_docs = String::new();
 
     if doc_hidden_attr.is_none() {
-        trait_mv_docs=format!(
+        trait_mv_docs = format!(
             "A helper struct for constructing the vtable for `{0}`,with `{1}::VTABLE`",
-            trait_cto_ident,
-            make_vtable_ident,
+            trait_cto_ident, make_vtable_ident,
         );
     }
 
@@ -1256,7 +1231,7 @@ fn vtable_impl(
 
 
         impl<#impl_header_generics> #make_vtable_ident<#makevtable_generics>
-        where 
+        where
             _Self:#trait_bounds<#trait_generics>,
             _OrigPtr:
                 __sabi_re::CanTransmuteElement<(), PtrTarget = _Self, TransmutedPtr = _ErasedPtr>,
@@ -1288,25 +1263,23 @@ fn vtable_impl(
             #const_vtable_item
 
             #methods_tokenizer
-        }                    
-    ).to_tokens(mod_);
+        }
+    )
+    .to_tokens(mod_);
 }
 
-
-
-
-#[derive(Debug,Clone,PartialEq,Eq)]
-pub(crate) enum SelfParam<'a>{
-    ByRef{
-        lifetime:Option<&'a syn::Lifetime>,
-        is_mutable:bool,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum SelfParam<'a> {
+    ByRef {
+        lifetime: Option<&'a syn::Lifetime>,
+        is_mutable: bool,
     },
     ByVal,
 }
 
 /// Which item this is refering to.
-#[derive(Debug,Clone,Copy,PartialEq,Eq)]
-pub(crate) enum WhichItem{
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WhichItem {
     /// the method in the trait definition
     Trait,
     /// the method in the trait implemetation for the generated trait object.
@@ -1319,24 +1292,22 @@ pub(crate) enum WhichItem{
     VtableImpl,
 }
 
-
 /// Which type used to implement the trait object.
-#[derive(Debug,Clone,Copy,PartialEq,Eq)]
-pub(crate) enum WhichObject{
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WhichObject {
     DynTrait,
-    RObject
+    RObject,
 }
 
-impl Default for WhichObject{
-    fn default()->Self{
+impl Default for WhichObject {
+    fn default() -> Self {
         WhichObject::RObject
     }
 }
 
-
 /// Which Self type to get the associated types from.
-#[derive(Debug,Clone,Copy,PartialEq,Eq)]
-pub(crate) enum WhichSelf{
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WhichSelf {
     /// Self::AssocTy
     #[allow(dead_code)]
     Regular,
@@ -1349,10 +1320,9 @@ pub(crate) enum WhichSelf{
     NoSelf,
 }
 
-
-/// Whether to include associated types when printing generic parameters. 
-#[derive(Debug,Clone,Copy,PartialEq,Eq)]
-pub(crate) enum WithAssocTys{
+/// Whether to include associated types when printing generic parameters.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WithAssocTys {
     No,
     Yes(WhichSelf),
 }

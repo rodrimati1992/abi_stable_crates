@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 /// Implements `InterfaceType`, requiring `Send + Sync + Clone`
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Send,Sync,Clone))]
+#[sabi(impl_InterfaceType(Send, Sync, Clone))]
 pub struct CloneInterface;
 
 //////////////////////////////////////////////
@@ -12,7 +12,7 @@ pub struct CloneInterface;
 /// Implements `InterfaceType`, requiring `Send + Sync + Debug + Clone + Eq`
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Send,Sync,Debug,Clone,Eq))]
+#[sabi(impl_InterfaceType(Send, Sync, Debug, Clone, Eq))]
 pub struct CloneEqInterface;
 
 //////////////////////////////////////////////
@@ -20,26 +20,23 @@ pub struct CloneEqInterface;
 /// Implements `InterfaceType`, requiring `Send + Sync + Debug + Clone + DoubleEndedIterator`
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Send,Sync,Debug,Clone,DoubleEndedIterator))]
+#[sabi(impl_InterfaceType(Send, Sync, Debug, Clone, DoubleEndedIterator))]
 pub struct DEIteratorCloneInterface<T>(PhantomData<T>);
 
-impl<T> DEIteratorCloneInterface<T>{
-    pub const NEW:Self=Self(PhantomData);
+impl<T> DEIteratorCloneInterface<T> {
+    pub const NEW: Self = Self(PhantomData);
 }
 
-impl<'a,T:'a> IteratorItem<'a> for DEIteratorCloneInterface<T>{
-    type Item=T;
+impl<'a, T: 'a> IteratorItem<'a> for DEIteratorCloneInterface<T> {
+    type Item = T;
 }
-
-
 
 //////////////////////////////////////////////
-
 
 /// Implements `InterfaceType`, requiring `Send + Sync + Default`
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Send,Sync,Default))]
+#[sabi(impl_InterfaceType(Send, Sync, Default))]
 pub struct DefaultInterface;
 
 //////////////////////////////////////////////
@@ -47,27 +44,24 @@ pub struct DefaultInterface;
 /// Implements `InterfaceType`, requiring `Send + Sync + Debug + Eq + Default`
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Send,Sync,Debug,Eq,Default))]
+#[sabi(impl_InterfaceType(Send, Sync, Debug, Eq, Default))]
 pub struct DebugDefEqInterface;
-
 
 //////////////////////////////////////////////
 
 /// Implements `InterfaceType`, requiring `Send + Sync + Debug + PartialEq`
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Send,Sync,Debug,PartialEq))]
+#[sabi(impl_InterfaceType(Send, Sync, Debug, PartialEq))]
 pub struct PartialEqInterface;
-
 
 //////////////////////////////////////////////
 
 /// Implements `InterfaceType`, requiring `Send + Sync + Debug + std::fmt::Write`
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Send,Sync,Debug,FmtWrite))]
+#[sabi(impl_InterfaceType(Send, Sync, Debug, FmtWrite))]
 pub struct FmtWriteInterface;
-
 
 //////////////////////////////////////////////
 
@@ -82,42 +76,37 @@ pub struct IoWriteInterface;
 /// Implements `InterfaceType`, requiring `Send + Sync + Debug + Display`
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Send,Sync,Debug,Display))]
+#[sabi(impl_InterfaceType(Send, Sync, Debug, Display))]
 pub struct DebugDisplayInterface;
 
 //////////////////////////////////////////////
 
-
 /// Implements `InterfaceType`, requiring `Send + Sync + Iterator<Item = T>`
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Send,Sync,Iterator))]
+#[sabi(impl_InterfaceType(Send, Sync, Iterator))]
 pub struct IteratorInterface<T>(PhantomData<T>);
 
-impl<T> IteratorInterface<T>{
-    pub const NEW:Self=Self(PhantomData);
+impl<T> IteratorInterface<T> {
+    pub const NEW: Self = Self(PhantomData);
 }
 
-impl<'a,T:'a> IteratorItem<'a> for IteratorInterface<T>{
-    type Item=T;
+impl<'a, T: 'a> IteratorItem<'a> for IteratorInterface<T> {
+    type Item = T;
 }
-
 
 //////////////////////////////////////////////
-
-
 
 /// Implements `InterfaceType`, requiring `Send + Sync + DoubleEndedIterator<Item = T>`
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Send,Sync,DoubleEndedIterator))]
+#[sabi(impl_InterfaceType(Send, Sync, DoubleEndedIterator))]
 pub struct DEIteratorInterface<T>(PhantomData<T>);
 
-impl<T> DEIteratorInterface<T>{
-    pub const NEW:Self=Self(PhantomData);
+impl<T> DEIteratorInterface<T> {
+    pub const NEW: Self = Self(PhantomData);
 }
 
-impl<'a,T:'a> IteratorItem<'a> for DEIteratorInterface<T>{
-    type Item=T;
+impl<'a, T: 'a> IteratorItem<'a> for DEIteratorInterface<T> {
+    type Item = T;
 }
-

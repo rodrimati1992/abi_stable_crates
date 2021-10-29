@@ -1,107 +1,92 @@
-/*!
+//! Contains `DynTrait<_>`'s vtable,and related types/traits.
 
-Contains `DynTrait<_>`'s vtable,and related types/traits.
-
-*/
 use std::{
-    fmt::{self, Debug,Write as FmtWrite},
+    fmt::{self, Debug, Write as FmtWrite},
     io,
     marker::PhantomData,
 };
 
 use super::{
-    *,
     c_functions::*,
-    iterator::{
-        IteratorFns,MakeIteratorFns,
-        DoubleEndedIteratorFns,MakeDoubleEndedIteratorFns,
-    },
-    traits::{
-        IteratorItemOrDefault,InterfaceFor,
-        SerializeImplType,GetSerializeProxyType,
-    },
+    iterator::{DoubleEndedIteratorFns, IteratorFns, MakeDoubleEndedIteratorFns, MakeIteratorFns},
+    traits::{GetSerializeProxyType, InterfaceFor, IteratorItemOrDefault, SerializeImplType},
+    *,
 };
 
 use crate::{
-    StableAbi,
-    marker_type::{ErasedObject,NonOwningPhantom},
-    prefix_type::{PrefixTypeTrait,WithMetadata,panic_on_missing_fieldname},
-    pointer_trait::{AsPtr, GetPointerKind,CanTransmuteElement},
-    sabi_types::{RRef, RMut},
-    std_types::{RSome,RNone,RIoError,RSeekFrom},
+    marker_type::{ErasedObject, NonOwningPhantom},
+    pointer_trait::{AsPtr, CanTransmuteElement, GetPointerKind},
+    prefix_type::{panic_on_missing_fieldname, PrefixTypeTrait, WithMetadata},
+    sabi_types::{RMut, RRef},
+    std_types::{RIoError, RNone, RSeekFrom, RSome},
     type_level::{
-        impl_enum::{Implemented,Unimplemented,Implementability},
+        impl_enum::{Implementability, Implemented, Unimplemented},
         trait_marker,
     },
     utils::Transmuter,
+    StableAbi,
 };
-
 
 use core_extensions::TypeIdentity;
 
-
-
-
-
 /// Returns the vtable used by DynTrait to do dynamic dispatch.
-pub trait GetVtable<'borr,This,ErasedPtr,OrigPtr,I:InterfaceBound> {
-    
+pub trait GetVtable<'borr, This, ErasedPtr, OrigPtr, I: InterfaceBound> {
     #[doc(hidden)]
-    const TMP_VTABLE:VTable<'borr,ErasedPtr,I>;
+    const TMP_VTABLE: VTable<'borr, ErasedPtr, I>;
 
-
-    staticref!{
+    staticref! {
         #[doc(hidden)]
-        const _WM_VTABLE: WithMetadata<VTable<'borr,ErasedPtr,I>> = 
+        const _WM_VTABLE: WithMetadata<VTable<'borr,ErasedPtr,I>> =
             WithMetadata::new(PrefixTypeTrait::METADATA, Self::TMP_VTABLE)
     }
 
     #[doc(hidden)]
-    const _GET_INNER_VTABLE:VTable_Ref<'borr,ErasedPtr,I>=unsafe{
-        VTable_Ref(Self::_WM_VTABLE.as_prefix())
-    };
-
+    const _GET_INNER_VTABLE: VTable_Ref<'borr, ErasedPtr, I> =
+        VTable_Ref(Self::_WM_VTABLE.as_prefix());
 }
-
 
 /// A helper type for constructing a `DynTrait` at compile-time,
 /// by passing `VTableDT::GET` to `DynTrait::from_const`.
 #[repr(transparent)]
-pub struct VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>{
-    pub(super) vtable:VTable_Ref<'borr,ErasedPtr,I>,
-    _for:NonOwningPhantom<(T,OrigPtr,Downcasting)>
+pub struct VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting> {
+    pub(super) vtable: VTable_Ref<'borr, ErasedPtr, I>,
+    _for: NonOwningPhantom<(T, OrigPtr, Downcasting)>,
 }
 
-impl<'borr,T,ErasedPtr,OrigPtr,I,Downcasting> Copy 
-    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>
-{}
-
-impl<'borr,T,ErasedPtr,OrigPtr,I,Downcasting> Clone
-    for VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>
+impl<'borr, T, ErasedPtr, OrigPtr, I, Downcasting> Copy
+    for VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
 {
-    fn clone(&self)->Self{
+}
+
+impl<'borr, T, ErasedPtr, OrigPtr, I, Downcasting> Clone
+    for VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
+{
+    fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<'borr,T,ErasedPtr,OrigPtr,I,Downcasting> 
-    VTableDT<'borr,T,ErasedPtr,OrigPtr,I,Downcasting>
+impl<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
+    VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
 where
-    OrigPtr: CanTransmuteElement<(), PtrTarget = T, TransmutedPtr=ErasedPtr>,
-    ErasedPtr: AsPtr<PtrTarget=()>,
+    OrigPtr: CanTransmuteElement<(), PtrTarget = T, TransmutedPtr = ErasedPtr>,
+    ErasedPtr: AsPtr<PtrTarget = ()>,
     I: InterfaceBound,
-    InterfaceFor<T,I,Downcasting>: GetVtable<'borr,T,ErasedPtr,OrigPtr,I>,
-{    
+    InterfaceFor<T, I, Downcasting>: GetVtable<'borr, T, ErasedPtr, OrigPtr, I>,
+{
     /// Constructs a `VTableDT`.
-    pub const GET:Self=Self{
-        vtable:<
-            InterfaceFor<T,I,Downcasting> as 
-            GetVtable<'borr,T,ErasedPtr,OrigPtr,I>
-        >::_GET_INNER_VTABLE,
-        _for:NonOwningPhantom::NEW,
-    };
+    pub const GET: Self =
+        Self {
+            vtable: <InterfaceFor<T, I, Downcasting> as GetVtable<
+                'borr,
+                T,
+                ErasedPtr,
+                OrigPtr,
+                I,
+            >>::_GET_INNER_VTABLE,
+            _for: NonOwningPhantom::NEW,
+        };
 }
-
 
 macro_rules! declare_meta_vtable {
     (
@@ -130,7 +115,7 @@ macro_rules! declare_meta_vtable {
             field_index=$field_index:ident;
 
             $(struct_bound=$struct_bound:expr;)*
-            
+
             impl[$($impl_params:tt)*] VtableFieldValue<$selector:ident>
             where [ $($where_clause:tt)* ]
             { $field_value:expr }
@@ -185,7 +170,7 @@ macro_rules! declare_meta_vtable {
             )*
             pub fn iter(
                 &self
-            )->IteratorFns< <I as IteratorItemOrDefault<'borr>>::Item > 
+            )->IteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >
             where
                 $interf:InterfaceBound<Iterator=Implemented<trait_marker::Iterator>>,
                 $interf:IteratorItemOrDefault<'borr>,
@@ -255,16 +240,16 @@ macro_rules! declare_meta_vtable {
 
 
         $(
-            impl<'borr,$value,$erased_ptr,$orig_ptr,$interf> 
-                VTableFieldType_<'borr,$value,$erased_ptr,$orig_ptr,$interf> 
-            for trait_selector::$selector 
-            where 
+            impl<'borr,$value,$erased_ptr,$orig_ptr,$interf>
+                VTableFieldType_<'borr,$value,$erased_ptr,$orig_ptr,$interf>
+            for trait_selector::$selector
+            where
                 $interf:InterfaceBound,
             {
                 type Field=$field_ty;
             }
 
-            
+
             impl<'borr,AnyFieldTy,$value,$erased_ptr,$orig_ptr,$interf>
                 VTableFieldValue<
                     'borr,
@@ -291,7 +276,7 @@ macro_rules! declare_meta_vtable {
                     $interf
                 >
             for trait_selector::$selector
-            where 
+            where
                 $interf:InterfaceBound,
                 $field_ty:TypeIdentity<Type=FieldTy>,
                 FieldTy:Copy,
@@ -304,22 +289,22 @@ macro_rules! declare_meta_vtable {
 
 
 
-        impl<'borr,Anything,$value,X,$erased_ptr,$orig_ptr> 
-            MarkerTrait<'borr,Unimplemented<X>,$value,$erased_ptr,$orig_ptr> 
+        impl<'borr,Anything,$value,X,$erased_ptr,$orig_ptr>
+            MarkerTrait<'borr,Unimplemented<X>,$value,$erased_ptr,$orig_ptr>
         for Anything
         {}
 
         $(
-            impl<'borr,$value,X,$erased_ptr,$orig_ptr> 
-                MarkerTrait<'borr,Implemented<X>,$value,$erased_ptr,$orig_ptr> 
+            impl<'borr,$value,X,$erased_ptr,$orig_ptr>
+                MarkerTrait<'borr,Implemented<X>,$value,$erased_ptr,$orig_ptr>
             for trait_selector::$auto_trait
             where $($phantom_where_clause)*
             {}
         )*
 
         $(
-            impl<'borr,$value,X,$erased_ptr,$orig_ptr> 
-                MarkerTrait<'borr,Implemented<X>,$value,$erased_ptr,$orig_ptr> 
+            impl<'borr,$value,X,$erased_ptr,$orig_ptr>
+                MarkerTrait<'borr,Implemented<X>,$value,$erased_ptr,$orig_ptr>
             for trait_selector::$marker_trait
             where $($marker_where_clause)*
             {}
@@ -344,7 +329,7 @@ macro_rules! declare_meta_vtable {
         }
 
 
-        impl<'borr,This,$value,$erased_ptr,$orig_ptr,$interf> 
+        impl<'borr,This,$value,$erased_ptr,$orig_ptr,$interf>
             GetVtable<'borr,$value,$erased_ptr,$orig_ptr,$interf>
         for This
         where
@@ -412,10 +397,10 @@ macro_rules! declare_meta_vtable {
             #[doc(hidden)]
             const EXTRA_CHECKS:EnabledTraits;
 
-            $( 
+            $(
                 /// Whether the trait is required,
                 /// and is usable by a `DynTrait` parameterized with this `InterfaceType`.
-                const $selector:bool; 
+                const $selector:bool;
             )*
 
         }
@@ -430,7 +415,7 @@ macro_rules! declare_meta_vtable {
 
         #[allow(non_upper_case_globals)]
         impl<I> InterfaceBound for I
-        where 
+        where
             I:InterfaceType,
             $( I::$auto_trait:Implementability, )*
             $( I::$marker_trait:Implementability, )*
@@ -438,7 +423,7 @@ macro_rules! declare_meta_vtable {
         {
             #[doc(hidden)]
             const EXTRA_CHECKS:EnabledTraits=EnabledTraits{
-                
+
                 // Auto traits have to be equivalent in every linked library,
                 // this is why this is an array,it must match exactly.
                 auto_traits:
@@ -468,16 +453,16 @@ macro_rules! declare_meta_vtable {
                     0,
             };
 
-            $( 
+            $(
                 const $selector:bool=<I::$selector as Implementability>::IS_IMPLD;
             )*
-            
+
             const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>=
                 PrivStruct(PhantomData);
         }
 
 
-        impl<'borr,$erased_ptr,$interf> Debug for VTable_Ref<'borr,$erased_ptr,$interf> 
+        impl<'borr,$erased_ptr,$interf> Debug for VTable_Ref<'borr,$erased_ptr,$interf>
         where
             $interf:InterfaceBound,
         {
@@ -534,7 +519,7 @@ declare_meta_vtable! {
         priv _clone_ptr;
         option=Option,Some,None;
         field_index=field_index_for__clone_ptr;
-        
+
         impl[] VtableFieldValue<Clone>
         where [OrigP:Clone]
         {
@@ -596,7 +581,7 @@ declare_meta_vtable! {
         field_index=field_index_for_priv_serialize;
 
         impl[] VtableFieldValue<Serialize>
-        where [ 
+        where [
             T:for<'s>SerializeImplType<'s,Interface=I>,
             I:for<'s>SerializeProxyType<'s>,
         ]{
@@ -749,7 +734,7 @@ declare_meta_vtable! {
         field_index=field_index_for__io_bufread;
 
         impl[] VtableFieldValue<IoBufRead>
-        where [ 
+        where [
             T:io::BufRead,
             I:InterfaceType<IoRead= Implemented<trait_marker::IoRead>>
         ]{
@@ -774,9 +759,7 @@ declare_meta_vtable! {
 
 //////////////
 
-
 /// Used to prevent InterfaceBound being implemented outside this module,
 /// since it is only constructed in the impl of InterfaceBound in this module.
 #[doc(hidden)]
 pub struct PrivStruct<T>(PhantomData<T>);
-

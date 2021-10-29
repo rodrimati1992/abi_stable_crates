@@ -1,10 +1,8 @@
-/*!
-This module defines the CommonTokens type,
-used to pass constants of type from `syn` to 
-many functions in the `abi_stable_derive_lib::sabi_trait` module.
-*/
+//! This module defines the CommonTokens type,
+//! used to pass constants of type from `syn` to
+//! many functions in the `abi_stable_derive_lib::sabi_trait` module.
 
-use proc_macro2::{Span,TokenStream};
+use proc_macro2::{Span, TokenStream};
 
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 
@@ -91,9 +89,7 @@ declare_common_tokens! {
 
     token_streams[
         self_sized="Self:Sized,",
-        makevtable_typarams="IA,_Self,_ErasedPtr,_OrigPtr,",
-        vtable_typarams="_Self,_ErasedPtr,",
-        
+
         ptr_ref_bound=
             "_ErasedPtr: __sabi_re::AsPtr<PtrTarget=()>,",
         ptr_mut_bound=
@@ -108,7 +104,6 @@ declare_common_tokens! {
         empty_ts="",
         ts_empty="",
 
-        ts_self ="Self",
         ts_uself="_Self,",
 
         ts_self_colon2 ="Self::",
@@ -116,7 +111,6 @@ declare_common_tokens! {
 
         ts_make_vtable_args="Downcasting,_OrigPtr::PtrTarget,_OrigPtr::TransmutedPtr,_OrigPtr,",
         ts_erasedptr_and2="_ErasedPtr,_ErasedPtr2,",
-        ts_erasedptr="_ErasedPtr,",
         ts_self_erasedptr="_Self,_ErasedPtr,",
         ts_unit_erasedptr="(),_ErasedPtr,",
         ts_unit_rref_unit="(),__sabi_re::RRef<'_sub,()>,",
@@ -127,43 +121,27 @@ declare_common_tokens! {
     ]
 
     types[
-        empty_tuple="()",
         self_ty="Self",
     ]
 
     idents[
-        default_trait="__DefaultTrait",
-        the_trait="__Trait",
-        u_erased_ptr="_ErasedPtr",
-        nope_ident="__NOPE__",
-        self_ident="self",
-        uself_ident="_self",
         u_capself="_Self",
-        capself="Self",
     ]
 
     lifetime[
         static_lifetime="'static",
-        under_lifetime="'_",
-        uself_lifetime="'_self",
     ]
 
-    str_lits[
-        c_abi_lit="C",
-    ]
+    str_lits[]
 
-    patterns[
-        ignored_pat="_",
-    ]
+    patterns[]
 
     token[
         unsafe_=Unsafe,
     ]
 }
 
-
 ////////////////////////////////////////////////////////
-
 
 macro_rules! declare_lifetime_tokens {
     (
@@ -226,15 +204,13 @@ macro_rules! declare_lifetime_tokens {
     )
 }
 
-declare_lifetime_tokens!{
+declare_lifetime_tokens! {
     lifetime_tokens=[
         lt="",
         lt_erasedptr="_ErasedPtr,",
         lt_rbox="__sabi_re::RBox<()>,",
         lt_rref="__sabi_re::RRef<'_sub,()>,",
         lt_rmut="__sabi_re::RMut<'_sub,()>,",
-        lt_ref="&'_sub(),",
-        lt_mut="&'_sub mut (),",
         lt_sub_lt="'_sub,",
     ]
     one_lifetime_tokens=[
@@ -245,4 +221,3 @@ declare_lifetime_tokens!{
         staticlt_erasedptr="_ErasedPtr,",
     ]
 }
-

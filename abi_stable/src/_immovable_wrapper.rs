@@ -1,6 +1,4 @@
-/**
-    Wrapper type to prevent moving the referent of a pointer out.
-*/
+//! Wrapper type to prevent moving the referent of a pointer out.
 
 use std::{
     fmt,
