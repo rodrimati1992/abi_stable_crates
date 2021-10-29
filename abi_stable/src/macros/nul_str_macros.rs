@@ -80,8 +80,6 @@ macro_rules! nulstr_trunc {
 ///
 /// [`NulStr`]: ./sabi_types/struct.NulStr.html
 #[macro_export]
-#[cfg(feature = "rust_1_46")]
-#[cfg_attr(feature = "docsrs", doc(cfg(feature = "rust_1_46")))]
 macro_rules! nulstr {
     ($str:expr $(,)*) => {{
         const __STR_NHPMWYD3NJA: $crate::sabi_types::NulStr<'_> =

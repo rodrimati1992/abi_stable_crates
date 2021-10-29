@@ -121,64 +121,54 @@ impl<'a> NulStr<'a> {
         [this /* expected a nul terminator */][last_byte]
     }
 
-    const_fn_if_1_46! {
-        /// Constructs an NulStr from a string slice.
-        ///
-        /// # Cosntness
-        ///
-        /// This is a `const fn` if the `"rust_1_46"` feature is enabled,
-        /// otherwise it is a non-`const` function.
-        ///
-        /// # Errors
-        ///
-        /// This returns a [`NulStrError::NoNulTerminator`] when the string does not end
-        /// with `'\0'`.
-        ///
-        /// This returns a [`NulStrError::InnerNul`] when the string contains a
-        /// `'\0'` before the `'\0'` terminator.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// use abi_stable::sabi_types::{NulStr, NulStrError};
-        ///
-        /// // `NulStr`s can be compared with `str`s
-        /// assert_eq!(NulStr::try_from_str("hello\0").unwrap(), "hello");
-        ///
-        /// assert_eq!(
-        ///     NulStr::try_from_str("hello\0world\0"),
-        ///     Err(NulStrError::InnerNul { pos: 5 }),
-        /// );
-        ///
-        /// ```
-        ///
-        /// [`NulStrError::InnerNul`]: enum.NulStrError.html#variant.InnerNul
-        /// [`NulStrError::NoNulTerminator`]: enum.NulStrError.html#variant.NoNulTerminator
-        pub fn try_from_str(string: &'a str) -> Result<Self, NulStrError> {
-            let mut i = 0;
-            let mut bytes = string.as_bytes();
+    /// Constructs an NulStr from a string slice.
+    ///
+    /// # Errors
+    ///
+    /// This returns a [`NulStrError::NoNulTerminator`] when the string does not end
+    /// with `'\0'`.
+    ///
+    /// This returns a [`NulStrError::InnerNul`] when the string contains a
+    /// `'\0'` before the `'\0'` terminator.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::{NulStr, NulStrError};
+    ///
+    /// // `NulStr`s can be compared with `str`s
+    /// assert_eq!(NulStr::try_from_str("hello\0").unwrap(), "hello");
+    ///
+    /// assert_eq!(
+    ///     NulStr::try_from_str("hello\0world\0"),
+    ///     Err(NulStrError::InnerNul { pos: 5 }),
+    /// );
+    ///
+    /// ```
+    ///
+    /// [`NulStrError::InnerNul`]: enum.NulStrError.html#variant.InnerNul
+    /// [`NulStrError::NoNulTerminator`]: enum.NulStrError.html#variant.NoNulTerminator
+    pub const fn try_from_str(string: &'a str) -> Result<Self, NulStrError> {
+        let mut i = 0;
+        let mut bytes = string.as_bytes();
 
-            bytes = match bytes {
-                [rem @ .., 0] => rem,
-                _ => return Err(NulStrError::NoNulTerminator),
-            };
+        bytes = match bytes {
+            [rem @ .., 0] => rem,
+            _ => return Err(NulStrError::NoNulTerminator),
+        };
 
-            while let [b, ref rem @ ..] = *bytes {
-                if b == 0 {
-                    return Err(NulStrError::InnerNul {pos : i});
-                }
-                i += 1;
-                bytes = rem;
+        while let [b, ref rem @ ..] = *bytes {
+            if b == 0 {
+                return Err(NulStrError::InnerNul { pos: i });
             }
-
-            unsafe{
-                Ok(NulStr::from_ptr(string.as_ptr()))
-            }
+            i += 1;
+            bytes = rem;
         }
+
+        unsafe { Ok(NulStr::from_ptr(string.as_ptr())) }
     }
 
     #[doc(hidden)]
-    #[cfg(feature = "rust_1_46")]
     pub const fn __try_from_str_unwrapping(s: &'a str) -> Self {
         match Self::try_from_str(s) {
             Ok(x) => x,

@@ -12,8 +12,20 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        rust: [stable, beta, nightly, 1.41.0, 1.51.0]
+        rust: nightly
         os: [ubuntu-latest, windows-latest, macOS-latest]
+        include:
+          - rust: stable
+            os: ubuntu-latest
+
+          - rust: beta
+            os: ubuntu-latest
+
+          - rust: 1.46.0
+            os: ubuntu-latest
+
+          - rust: 1.51.0
+            os: ubuntu-latest
 
     steps:
     - name: enable-rust-stable
