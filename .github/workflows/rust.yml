@@ -28,6 +28,7 @@ jobs:
     - name: ci-format
       run: |
         rustup override set ${{ matrix.rust }}
+        rustup component add rustfmt
         cd "${{github.workspace}}/"
         cargo fmt -- --check
 
