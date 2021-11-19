@@ -662,10 +662,11 @@ impl<T> ROption<&mut T> {
 }
 
 impl<T: Deref> ROption<T> {
-    /// Converts from `Option<T>` (or `&Option<T>`) to `Option<&T::Target>`.
+    /// Converts from `ROption<T>` (or `&ROption<T>`) to `ROption<&T::Target>`.
     ///
-    /// Leaves the original Option in-place, creating a new one with a reference
-    /// to the original one, additionally coercing the contents via [`Deref`].
+    /// Leaves the original ROption in-place, creating a new one with a
+    /// reference to the original one, additionally coercing the contents via
+    /// [`Deref`].
     ///
     /// # Examples
     ///
