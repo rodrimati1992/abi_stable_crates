@@ -1,6 +1,6 @@
 //! Contains the ffi-safe equivalent of `std::option::Option`.
 
-use std::mem;
+use std::{mem, ops::Deref};
 
 use core_extensions::matches;
 
@@ -658,6 +658,29 @@ impl<T> ROption<&mut T> {
             RSome(expr) => RSome(*expr),
             RNone => RNone,
         }
+    }
+}
+
+impl<T: Deref> ROption<T> {
+    /// Converts from `ROption<T>` (or `&ROption<T>`) to `ROption<&T::Target>`.
+    ///
+    /// Leaves the original ROption in-place, creating a new one with a
+    /// reference to the original one, additionally coercing the contents via
+    /// [`Deref`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*;
+    ///
+    /// let x: ROption<RString> = RSome(RString::from("hey"));
+    /// assert_eq!(x.as_deref(), RSome("hey"));
+    ///
+    /// let x: ROption<RString> = RNone;
+    /// assert_eq!(x.as_deref(), RNone);
+    /// ```
+    pub fn as_deref(&self) -> ROption<&T::Target> {
+        self.as_ref().map(|t| t.deref())
     }
 }
 
