@@ -775,11 +775,13 @@ impl<T> RVec<T> {
     /// # Examples
     ///
     /// ```
-    /// let mut vec = rvec![1, 2, 3];
-    /// let mut vec2 = rvec![4, 5, 6];
+    /// use abi_stable::std_types::{RSlice, RVec};
+    ///
+    /// let mut vec = RVec::from_slice(&[1, 2, 3]);
+    /// let mut vec2 = RVec::from_slice(&[4, 5, 6]);
     /// vec.append(&mut vec2);
-    /// assert_eq!(vec, [1, 2, 3, 4, 5, 6]);
-    /// assert_eq!(vec2, []);
+    /// assert_eq!(vec.as_slice(), &[1, 2, 3, 4, 5, 6]);
+    /// assert_eq!(vec2.as_slice(), RSlice::<u32>::EMPTY);
     /// ```
     #[inline]
     pub fn append(&mut self, other: &mut Self) {
