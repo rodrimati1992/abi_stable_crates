@@ -244,14 +244,14 @@ impl<T> RBox<T> {
     /// use abi_stable::std_types::RBox;
     ///
     /// let baux: RBox<u32> = RBox::new(200);
-    /// let baux: u32 = RBox::into_inner(baux);
+    /// let baux: u32 = baux.into_inner();
     /// assert_eq!(baux, 200);
     ///
     /// ```
-    pub fn into_inner(this: Self) -> T {
+    pub fn into_inner(self) -> T {
         unsafe {
-            let value = this.data().read();
-            Self::drop_allocation(&mut ManuallyDrop::new(this));
+            let value = self.data().read();
+            Self::drop_allocation(&mut ManuallyDrop::new(self));
             value
         }
     }
