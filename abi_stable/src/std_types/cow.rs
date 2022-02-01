@@ -433,12 +433,13 @@ where
     }
 }
 
-impl<'a, B> PartialOrd for RCow<'a, B>
+impl<'a, 'b, B, C> PartialOrd<RCow<'b, C>> for RCow<'a, B>
 where
-    B: PartialOrd + BorrowOwned<'a> + ?Sized,
+    B: PartialOrd<C> + BorrowOwned<'a> + ?Sized,
+    C: BorrowOwned<'b> + ?Sized,
 {
     #[inline]
-    fn partial_cmp(&self, other: &RCow<'a, B>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &RCow<'b, C>) -> Option<Ordering> {
         PartialOrd::partial_cmp(&**self, &**other)
     }
 }
