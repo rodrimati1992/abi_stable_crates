@@ -4,6 +4,14 @@ Minor changes may be ommited, as well as improvements to documentation.
 
 # 0.10
 
+### 0.10.4
+
+Fixed compatibility with the nightly compiler.
+
+Added `StableAbi` impl for `core::ffi::c_void`.
+
+Added `ROption::as_deref` method.
+
 ### 0.10.3
 
 
