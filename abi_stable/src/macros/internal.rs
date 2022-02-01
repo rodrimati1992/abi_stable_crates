@@ -8,26 +8,29 @@ macro_rules! deref_coerced_impl_cmp_traits {
             use std::cmp::{PartialEq, PartialOrd, Ordering};
 
             $(
-
-                impl PartialEq<$Rhs> for $Self {
+                #[allow(unused_lifetimes)]
+                impl<'a, 'b> PartialEq<$Rhs> for $Self {
                     fn eq(&self, other: &$Rhs) -> bool {
                         <$coerce_to as PartialEq>::eq(self, other)
                     }
                 }
 
-                impl PartialOrd<$Rhs> for $Self {
+                #[allow(unused_lifetimes)]
+                impl<'a, 'b> PartialOrd<$Rhs> for $Self {
                     fn partial_cmp(&self, other: &$Rhs) -> Option<Ordering> {
                         <$coerce_to as PartialOrd>::partial_cmp(self, other)
                     }
                 }
 
-                impl PartialEq<$Self> for $Rhs {
+                #[allow(unused_lifetimes)]
+                impl<'a, 'b> PartialEq<$Self> for $Rhs {
                     fn eq(&self, other: &$Self) -> bool {
                         <$coerce_to as PartialEq>::eq(self, other)
                     }
                 }
 
-                impl PartialOrd<$Self> for $Rhs {
+                #[allow(unused_lifetimes)]
+                impl<'a, 'b> PartialOrd<$Self> for $Rhs {
                     fn partial_cmp(&self, other: &$Self) -> Option<Ordering> {
                         <$coerce_to as PartialOrd>::partial_cmp(self, other)
                     }
@@ -60,7 +63,8 @@ macro_rules! slice_like_impl_cmp_traits {
         const _: () = {
             use std::cmp::{PartialEq, PartialOrd, Ordering};
 
-            impl<T: PartialEq<U>, U, $($impl_params)*> PartialEq<$Rhs> for $Self
+            #[allow(unused_lifetimes)]
+            impl<'a, 'b, T: PartialEq<U>, U, $($impl_params)*> PartialEq<$Rhs> for $Self
             where $($where)*
             {
                 fn eq(&self, other: &$Rhs) -> bool {
@@ -68,6 +72,7 @@ macro_rules! slice_like_impl_cmp_traits {
                 }
             }
 
+            #[allow(unused_lifetimes)]
             impl<T, U, $($impl_params)*> PartialOrd<$Rhs> for $Self
             where
                 T: PartialOrd<U>,
@@ -79,6 +84,7 @@ macro_rules! slice_like_impl_cmp_traits {
                 }
             }
 
+            #[allow(unused_lifetimes)]
             impl<U: PartialEq<T>, T, $($impl_params)*> PartialEq<$Self> for $Rhs
             where $($where)*
             {
@@ -87,6 +93,7 @@ macro_rules! slice_like_impl_cmp_traits {
                 }
             }
 
+            #[allow(unused_lifetimes)]
             impl<U, T, $($impl_params)*> PartialOrd<$Self> for $Rhs
             where
                 U: PartialOrd<T>,

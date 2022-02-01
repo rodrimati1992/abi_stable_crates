@@ -2,7 +2,9 @@
 
 use std::{
     borrow::{Borrow, Cow},
+    cmp::Ordering,
     fmt,
+    hash::{Hash, Hasher},
     ops::Deref,
 };
 
@@ -396,6 +398,61 @@ where
     }
 }
 
+impl<'a, B> fmt::Debug for RCow<'a, B>
+where
+    B: fmt::Debug + BorrowOwned<'a> + ?Sized,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
+    }
+}
+
+impl<'a, B> Eq for RCow<'a, B> where B: Eq + BorrowOwned<'a> + ?Sized {}
+
+impl<'a, 'b, B, C> PartialEq<RCow<'b, C>> for RCow<'a, B>
+where
+    B: PartialEq<C> + BorrowOwned<'a> + ?Sized,
+    C: BorrowOwned<'b> + ?Sized,
+{
+    #[inline]
+    fn eq(&self, other: &RCow<'b, C>) -> bool {
+        PartialEq::eq(&**self, &**other)
+    }
+}
+
+impl<'a, B> Ord for RCow<'a, B>
+where
+    B: Ord + BorrowOwned<'a> + ?Sized,
+{
+    #[inline]
+    fn cmp(&self, other: &Self) -> Ordering {
+        if std::ptr::eq(&**self, &**other) {
+            return Ordering::Equal;
+        }
+        (&**self).cmp(&**other)
+    }
+}
+
+impl<'a, B> PartialOrd for RCow<'a, B>
+where
+    B: PartialOrd + BorrowOwned<'a> + ?Sized,
+{
+    #[inline]
+    fn partial_cmp(&self, other: &RCow<'a, B>) -> Option<Ordering> {
+        PartialOrd::partial_cmp(&**self, &**other)
+    }
+}
+
+impl<'a, B> Hash for RCow<'a, B>
+where
+    B: Hash + BorrowOwned<'a> + ?Sized,
+{
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Hash::hash(&**self, state)
+    }
+}
+
 ////////////////////
 
 impl<'a, B> Borrow<B> for RCow<'a, B>
@@ -424,6 +481,7 @@ slice_like_impl_cmp_traits! {
     Vec<U>,
     [U],
     &[U],
+    &mut [U],
 }
 
 #[cfg(feature = "const_params")]
@@ -440,23 +498,14 @@ slice_like_impl_cmp_traits! {
 }
 
 deref_coerced_impl_cmp_traits! {
-    RCow<'_, str>;
+    RCow<'a, str>;
     coerce_to = str,
     [
         String,
         str,
-        &str,
-        Cow<'_, str>,
+        &'b str,
+        Cow<'b, str>,
     ]
-}
-
-shared_impls! {
-    mod = slice_impls
-    new_type = RCow['a][]
-    extra[B]
-    constrained[B]
-    where [ B: BorrowOwned<'a>+?Sized ],
-    original_type = void,
 }
 
 impl_into_rust_repr! {
