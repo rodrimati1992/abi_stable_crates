@@ -116,7 +116,7 @@ macro_rules! declare_meta_vtable {
 
             $(struct_bound=$struct_bound:expr;)*
 
-            impl[$($impl_params:tt)*] VtableFieldValue<$selector:ident>
+            impl[$($impl_params:tt)*] VtableFieldValue<$selector:ident($selector_const:ident)>
             where [ $($where_clause:tt)* ]
             { $field_value:expr }
         ])*
@@ -400,7 +400,7 @@ macro_rules! declare_meta_vtable {
             $(
                 /// Whether the trait is required,
                 /// and is usable by a `DynTrait` parameterized with this `InterfaceType`.
-                const $selector:bool;
+                const $selector_const:bool;
             )*
 
         }
@@ -454,7 +454,7 @@ macro_rules! declare_meta_vtable {
             };
 
             $(
-                const $selector:bool=<I::$selector as Implementability>::IS_IMPLD;
+                const $selector_const:bool=<I::$selector as Implementability>::IS_IMPLD;
             )*
 
             const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>=
@@ -514,26 +514,26 @@ declare_meta_vtable! {
     ]
 
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::Clone")]
+        #[sabi(accessible_if="<I as InterfaceBound>::CLONE")]
         clone_ptr:    unsafe extern "C" fn(RRef<'_, ErasedPtr>)->ErasedPtr;
         priv _clone_ptr;
         option=Option,Some,None;
         field_index=field_index_for__clone_ptr;
 
-        impl[] VtableFieldValue<Clone>
+        impl[] VtableFieldValue<Clone(CLONE)>
         where [OrigP:Clone]
         {
             clone_pointer_impl::<OrigP,ErasedPtr>
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::Default")]
+        #[sabi(accessible_if="<I as InterfaceBound>::DEFAULT")]
         default_ptr: unsafe extern "C" fn()->ErasedPtr ;
         priv _default_ptr;
         option=Option,Some,None;
         field_index=field_index_for__default_ptr;
 
-        impl[] VtableFieldValue<Default>
+        impl[] VtableFieldValue<Default(DEFAULT)>
         where [
             OrigP:GetPointerKind,
             OrigP:DefaultImpl<<OrigP as GetPointerKind>::Kind>,
@@ -542,26 +542,26 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::Display")]
+        #[sabi(accessible_if="<I as InterfaceBound>::DISPLAY")]
         display:unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>;
         priv _display;
         option=Option,Some,None;
         field_index=field_index_for__display;
 
-        impl[] VtableFieldValue<Display>
+        impl[] VtableFieldValue<Display(DISPLAY)>
         where [T:Display]
         {
             display_impl::<T>
         }
     ]
     [
-    #[sabi(accessible_if="<I as InterfaceBound>::Debug")]
+    #[sabi(accessible_if="<I as InterfaceBound>::DEBUG")]
         debug:unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>;
         priv _debug;
         option=Option,Some,None;
         field_index=field_index_for__debug;
 
-        impl[] VtableFieldValue<Debug>
+        impl[] VtableFieldValue<Debug(DEBUG)>
         where [T:Debug]
         {
             debug_impl::<T>
@@ -574,13 +574,13 @@ declare_meta_vtable! {
                 RRef<'s, ErasedObject>
             )->RResult<<I as GetSerializeProxyType<'s>>::ProxyType,RBoxError>
         "#)]
-        #[sabi(accessible_if="<I as InterfaceBound>::Serialize")]
+        #[sabi(accessible_if="<I as InterfaceBound>::SERIALIZE")]
         erased_serialize:unsafe extern "C" fn(RRef<'_, ErasedObject>)->RResult<ErasedObject,RBoxError>;
         priv priv_serialize;
         option=Option,Some,None;
         field_index=field_index_for_priv_serialize;
 
-        impl[] VtableFieldValue<Serialize>
+        impl[] VtableFieldValue<Serialize(SERIALIZE)>
         where [
             T:for<'s>SerializeImplType<'s,Interface=I>,
             I:for<'s>SerializeProxyType<'s>,
@@ -598,52 +598,52 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::PartialEq")]
+        #[sabi(accessible_if="<I as InterfaceBound>::PARTIAL_EQ")]
         partial_eq: unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->bool;
         priv _partial_eq;
         option=Option,Some,None;
         field_index=field_index_for__partial_eq;
 
-        impl[] VtableFieldValue<PartialEq>
+        impl[] VtableFieldValue<PartialEq(PARTIAL_EQ)>
         where [T:PartialEq,]
         {
             partial_eq_impl::<T>
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::Ord")]
+        #[sabi(accessible_if="<I as InterfaceBound>::ORD")]
         cmp:        unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->RCmpOrdering;
         priv _cmp;
         option=Option,Some,None;
         field_index=field_index_for__cmp;
 
-        impl[] VtableFieldValue<Ord>
+        impl[] VtableFieldValue<Ord(ORD)>
         where [T:Ord,]
         {
             cmp_ord::<T>
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::PartialOrd")]
+        #[sabi(accessible_if="<I as InterfaceBound>::PARTIAL_ORD")]
         partial_cmp:unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->ROption<RCmpOrdering>;
         priv _partial_cmp;
         option=Option,Some,None;
         field_index=field_index_for__partial_cmp;
 
-        impl[] VtableFieldValue<PartialOrd>
+        impl[] VtableFieldValue<PartialOrd(PARTIAL_ORD)>
         where [T:PartialOrd,]
         {
             partial_cmp_ord::<T>
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::Hash")]
+        #[sabi(accessible_if="<I as InterfaceBound>::HASH")]
         hash:unsafe extern "C" fn(RRef<'_, ErasedObject>,trait_objects::HasherObject<'_>);
         priv _hash;
         option=Option,Some,None;
         field_index=field_index_for__hash;
 
-        impl[] VtableFieldValue<Hash>
+        impl[] VtableFieldValue<Hash(HASH)>
         where [T:Hash]
         {
             hash_Hash::<T>
@@ -654,13 +654,13 @@ declare_meta_vtable! {
             unsafe_change_type=
             "ROption<IteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >>"
         )]
-        #[sabi(accessible_if="<I as InterfaceBound>::Iterator")]
+        #[sabi(accessible_if="<I as InterfaceBound>::ITERATOR")]
         erased_iter:IteratorFns< () >;
         priv _iter;
         option=ROption,RSome,RNone;
         field_index=field_index_for__iter;
 
-        impl[] VtableFieldValue<Iterator>
+        impl[] VtableFieldValue<Iterator(ITERATOR)>
         where [
             T:Iterator,
             I:IteratorItemOrDefault<'borr,Item=<T as Iterator>::Item>,
@@ -673,13 +673,13 @@ declare_meta_vtable! {
             unsafe_change_type=
             "ROption<DoubleEndedIteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >>"
         )]
-        #[sabi(accessible_if="<I as InterfaceBound>::DoubleEndedIterator")]
+        #[sabi(accessible_if="<I as InterfaceBound>::DOUBLE_ENDED_ITERATOR")]
         erased_back_iter:DoubleEndedIteratorFns< () >;
         priv _back_iter;
         option=ROption,RSome,RNone;
         field_index=field_index_for__back_iter;
 
-        impl[] VtableFieldValue<DoubleEndedIterator>
+        impl[] VtableFieldValue<DoubleEndedIterator(DOUBLE_ENDED_ITERATOR)>
         where [
             T:DoubleEndedIterator,
             I:IteratorItemOrDefault<'borr,Item=<T as Iterator>::Item>,
@@ -688,52 +688,52 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::FmtWrite")]
+        #[sabi(accessible_if="<I as InterfaceBound>::FMT_WRITE")]
         fmt_write_str:unsafe extern "C" fn(RMut<'_, ErasedObject>,RStr<'_>)->RResult<(),()>;
         priv _fmt_write_str;
         option=Option,Some,None;
         field_index=field_index_for__fmt_write_str;
 
-        impl[] VtableFieldValue<FmtWrite>
+        impl[] VtableFieldValue<FmtWrite(FMT_WRITE)>
         where [ T:FmtWrite ]
         {
             write_str_fmt_write::<T>
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::IoWrite")]
+        #[sabi(accessible_if="<I as InterfaceBound>::IO_WRITE")]
         io_write:IoWriteFns;
         priv _io_write;
         option=ROption,RSome,RNone;
         field_index=field_index_for__io_write;
 
-        impl[] VtableFieldValue<IoWrite>
+        impl[] VtableFieldValue<IoWrite(IO_WRITE)>
         where [ T:io::Write ]
         {
             MakeIoWriteFns::<T>::NEW
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::IoRead")]
+        #[sabi(accessible_if="<I as InterfaceBound>::IO_READ")]
         io_read:IoReadFns;
         priv _io_read;
         option=ROption,RSome,RNone;
         field_index=field_index_for__io_read;
 
-        impl[] VtableFieldValue<IoRead>
+        impl[] VtableFieldValue<IoRead(IO_READ)>
         where [ T:io::Read ]
         {
             MakeIoReadFns::<T>::NEW
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::IoBufRead")]
+        #[sabi(accessible_if="<I as InterfaceBound>::IO_BUF_READ")]
         io_bufread:IoBufReadFns;
         priv _io_bufread;
         option=ROption,RSome,RNone;
         field_index=field_index_for__io_bufread;
 
-        impl[] VtableFieldValue<IoBufRead>
+        impl[] VtableFieldValue<IoBufRead(IO_BUF_READ)>
         where [
             T:io::BufRead,
             I:InterfaceType<IoRead= Implemented<trait_marker::IoRead>>
@@ -743,13 +743,13 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(last_prefix_field)]
-        #[sabi(accessible_if="<I as InterfaceBound>::IoSeek")]
+        #[sabi(accessible_if="<I as InterfaceBound>::IO_SEEK")]
         io_seek:unsafe extern "C" fn(RMut<'_, ErasedObject>,RSeekFrom)->RResult<u64,RIoError>;
         priv _io_seek;
         option=Option,Some,None;
         field_index=field_index_for__io_seek;
 
-        impl[] VtableFieldValue<IoSeek>
+        impl[] VtableFieldValue<IoSeek(IO_SEEK)>
         where [ T:io::Seek ]
         {
             io_Seek_seek::<T>
