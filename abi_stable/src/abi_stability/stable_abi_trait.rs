@@ -1393,6 +1393,41 @@ impl_stableabi_for_unit_struct! {
 
 /////////////
 
+unsafe impl GetStaticEquivalent_ for ::core::ffi::c_void {
+    type StaticEquivalent = ::core::ffi::c_void;
+}
+unsafe impl StableAbi for ::core::ffi::c_void {
+    type IsNonZeroType = False;
+
+    const LAYOUT: &'static TypeLayout = {
+        const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
+            *mono_shared_vars,
+            rstr!("c_void"),
+            ItemInfo::std_type_in(nulstr_trunc!("std::ffi")),
+            MonoTLData::EMPTY,
+            tl_genparams!(;;),
+            ReprAttr::C,
+            ModReflMode::Module,
+            RSlice::EMPTY,
+        );
+
+        make_shared_vars! {
+            impl[] ::core::ffi::c_void;
+
+            let (mono_shared_vars,shared_vars)={};
+        }
+
+        &TypeLayout::from_std::<Self>(
+            shared_vars,
+            MONO_TYPE_LAYOUT,
+            Self::ABI_CONSTS,
+            GenericTLData::Struct,
+        )
+    };
+}
+
+/////////////
+
 unsafe impl GetStaticEquivalent_ for core_extensions::Void {
     type StaticEquivalent = Self;
 }
