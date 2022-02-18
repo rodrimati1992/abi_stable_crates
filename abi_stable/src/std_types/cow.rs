@@ -273,7 +273,6 @@ impl<'a> RCowStr<'a> {
     }
 }
 
-
 #[allow(dead_code)]
 #[cfg(test)]
 impl<B: IntoOwned> RCow<B> {

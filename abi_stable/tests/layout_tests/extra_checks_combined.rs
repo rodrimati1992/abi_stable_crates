@@ -246,7 +246,7 @@ unsafe impl ExtraChecks for ConstChecker {
         })
     }
 
-    fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
+    fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
         RCow::from_slice(&[])
     }
 
@@ -331,7 +331,7 @@ unsafe impl ExtraChecks for IdentityChecker {
         })
     }
 
-    fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
+    fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
         vec![self.type_layout.get()].into()
     }
 }
@@ -401,8 +401,8 @@ fn test_identity_extra_checker() {
         wrap_type_layout::<Option<extern "C" fn()>>(),
         wrap_type_layout::<ROption<()>>(),
         wrap_type_layout::<ROption<u32>>(),
-        wrap_type_layout::<RCow<'_, str>>(),
-        wrap_type_layout::<RCow<'_, [u32]>>(),
+        wrap_type_layout::<RCowStr<'_>>(),
+        wrap_type_layout::<RCowSlice<'_>>(),
         wrap_type_layout::<RArc<()>>(),
         wrap_type_layout::<RArc<u32>>(),
         wrap_type_layout::<RBox<()>>(),
@@ -563,7 +563,7 @@ unsafe impl ExtraChecks for LocalExtraChecker {
         )
     }
 
-    fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
+    fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
         vec![self.comp0, self.comp1].into()
     }
 }

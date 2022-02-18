@@ -33,28 +33,30 @@ fn from_into_cow() {
 
     {
         let line = "what the heck";
-        from_tests! { line, Cow< str > }
+        // TODO: Fix
+        from_tests! { line, CowStr< RStr<'_> > }
     }
     {
         let list = [0, 1, 2, 3];
         let list = &list[..];
-        from_tests! { list, Cow< [u8] > }
+        // TODO: Fix
+        from_tests! { list, CowSlice< RSlice<'_, u8> > }
     }
     {
         let value = &1000u32;
         {
-            let borrowed_rcow = value.piped(RCow::<u32>::Borrowed);
+            let borrowed_rcow = value.piped(RCow::<&u32>::Borrowed);
             assert_eq!(
                 value.piped(Cow::Borrowed).piped(RCow::from).as_borrowed(),
                 borrowed_rcow.as_borrowed(),
             );
         }
         {
-            let owned_rcow = value.to_owned().piped(RCow::<u32>::Owned);
+            let owned_rcow = value.to_owned().piped(RCow::<&u32>::Owned);
             assert_eq!(
                 value
                     .to_owned()
-                    .piped(Cow::<u32>::Owned)
+                    .piped(Cow::<&u32>::Owned)
                     .piped(RCow::from)
                     .as_owned(),
                 owned_rcow.as_owned(),
@@ -66,13 +68,13 @@ fn from_into_cow() {
 #[test]
 fn to_mut() {
     {
-        let mut value = RCow::<u32>::Borrowed(&100);
+        let mut value = RCow::<&u32>::Borrowed(&100);
         assert_eq!(*value, 100);
         *value.to_mut() = 137;
         assert_eq!(*value, 137);
     }
     {
-        let mut value = RCow::<str>::Borrowed("what".into_c());
+        let mut value = RCowStr::Borrowed("what".into_c());
         assert_eq!(&*value, "what");
 
         *value.to_mut() = "the".piped(RString::from);
@@ -81,7 +83,7 @@ fn to_mut() {
     {
         let arr = [0, 1, 2, 3];
 
-        let mut value = RCow::<[u32]>::Borrowed((&arr[..]).into());
+        let mut value = RCowSlice::<u32>::Borrowed((&arr[..]).into());
         assert_eq!(&*value, &arr[..]);
         *value.to_mut() = vec![99, 100, 101].into_c();
         assert_eq!(&*value, &[99, 100, 101][..]);
@@ -91,18 +93,18 @@ fn to_mut() {
 #[test]
 fn into_owned() {
     {
-        let value = RCow::<u32>::Borrowed(&100);
+        let value = RCow::<&u32>::Borrowed(&100);
         let value: u32 = value.into_owned();
         assert_eq!(value, 100);
     }
     {
-        let value = RCow::<str>::Borrowed("what".into_c());
+        let value = RCowStr::Borrowed("what".into_c());
         let value: RString = value.into_owned();
         assert_eq!(&*value, "what");
     }
     {
         let arr = [0, 1, 2, 3];
-        let value = RCow::<[u32]>::Borrowed((&arr[..]).into());
+        let value = RCowSlice::<u32>::Borrowed((&arr[..]).into());
         let value: RVec<u32> = value.into_owned();
         assert_eq!(&*value, &arr[..]);
     }
@@ -124,7 +126,7 @@ fn deserialize() {
         let json = r##" "what \nthe hell" "##;
         let str_owned = "what \nthe hell".piped(RString::from);
 
-        let what: RCow<'_, str> = serde_json::from_str(json).unwrap();
+        let what: RCowStr<'_> = serde_json::from_str(json).unwrap();
 
         assert_eq!(what.as_owned(), Some(&str_owned),);
     }
@@ -132,7 +134,7 @@ fn deserialize() {
         // Owned list
         let json = r##" [0, 1, 2, 3] "##;
 
-        let what: RCow<'_, [u8]> = serde_json::from_str(json).unwrap();
+        let what: RCowSlice<'_, u8> = serde_json::from_str(json).unwrap();
 
         assert_eq!(what.as_owned(), Some(&vec![0, 1, 2, 3].into_c()),);
     }
@@ -149,7 +151,7 @@ fn deserialize() {
         // Owned value
         let json = r##" 1000 "##;
 
-        let what: RCow<'_, u16> = serde_json::from_str(json).unwrap();
+        let what: RCow<&u16> = serde_json::from_str(json).unwrap();
 
         assert_eq!(what.as_owned(), Some(&1000),);
     }

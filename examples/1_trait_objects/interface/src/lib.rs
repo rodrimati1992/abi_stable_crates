@@ -14,7 +14,7 @@ use abi_stable::{
     library::RootModule,
     package_version_strings, sabi_trait,
     sabi_types::{RMut, VersionStrings},
-    std_types::{RBox, RCow, ROk, ROption, RResult, RSome, RStr, RString, RVec},
+    std_types::{RBox, RCowStr, ROk, ROption, RResult, RSome, RStr, RString, RVec},
     StableAbi,
 };
 
@@ -41,7 +41,7 @@ pub use self::{
 #[repr(C)]
 #[derive(Debug, Clone, PartialEq, Eq, StableAbi, Serialize, Deserialize)]
 pub struct PluginId {
-    pub named: RCow<'static, str>,
+    pub named: RCowStr<'static>,
     /// The number of the instance of this Plugin.
     pub instance: u64,
 }
@@ -61,7 +61,7 @@ pub struct PluginResponse<'a> {
     /// The id of the plugin that is responding.
     pub plugin_id: PluginId,
     /// The response from the plugin
-    pub response: RCow<'a, str>,
+    pub response: RCowStr<'a>,
 }
 
 impl<'a> PluginResponse<'a> {

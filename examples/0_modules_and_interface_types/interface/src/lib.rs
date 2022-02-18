@@ -14,7 +14,7 @@ use abi_stable::{
     library::{LibraryError, RootModule},
     package_version_strings,
     sabi_types::{RMut, VersionStrings},
-    std_types::{RArc, RBox, RBoxError, RCow, RResult, RStr, RString},
+    std_types::{RArc, RBox, RBoxError, RCowStr, RResult, RStr, RString},
     DynTrait, StableAbi,
 };
 
@@ -232,7 +232,7 @@ pub struct CowStrIter;
 /// This specifies the type Item type that `DynTrait<_,CowStrIter>`
 /// yields when iterating.
 impl<'a> IteratorItem<'a> for CowStrIter {
-    type Item = RCow<'a, str>;
+    type Item = RCowStr<'a>;
 }
 
 /// The parameters for the `TextOpsMod_Ref.remove_words` function.
