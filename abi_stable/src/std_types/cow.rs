@@ -25,11 +25,11 @@ mod tests;
 
 // TODO: documentation
 
-trait QueryOwnedType: Deref {
+pub trait QueryOwnedType: Deref {
     type Owned: Borrow<Self::Target>;
 }
 
-trait IntoOwned: Copy + QueryOwnedType {
+pub trait IntoOwned: Copy + QueryOwnedType {
     fn into_owned(self) -> Self::Owned;
 }
 
@@ -145,7 +145,7 @@ impl<B: IntoOwned> RCow<B> {
     ///
     /// ```
     // TODO: update this doc
-    fn make_mut(&mut self) -> &mut B::Owned {
+    pub fn make_mut(&mut self) -> &mut B::Owned {
         match self {
             RCow::Borrowed(x) => {
                 *self = RCow::Owned(x.into_owned());
@@ -252,7 +252,7 @@ impl<'a, B: IntoOwned> RCow<&'a B> {
     pub fn borrowed(&'a self) -> &'a B {
         match self {
             Borrowed(x) => *x,
-            Owned(x) => &x,
+            Owned(x) => x,
         }
     }
 }
@@ -433,9 +433,24 @@ deref_coerced_impl_cmp_traits! {
     ]
 }
 
+// TODO: fix; macro is broken now
+// shared_impls! {
+//     mod = slice_impls_ref
+//     new_type = RCow['a][&'a B]
+//     extra[B]
+//     constrained[B]
+//     where [ B: IntoOwned ],
+//     original_type = void,
+// }
 shared_impls! {
-    mod = slice_impls
-    new_type = RCow[][]
+    mod = slice_impls_str
+    new_type = RCowStr['a][]
+    where [],
+    original_type = void,
+}
+shared_impls! {
+    mod = slice_impls_slice
+    new_type = RCowSlice['a][]
     extra[B]
     constrained[B]
     where [ B: IntoOwned ],
@@ -620,12 +635,19 @@ where
 
 ////////////////////////////////////////////////////////////
 
-impl<B> fmt::Display for RCow<B>
+impl<'a, B> fmt::Display for RCow<&'a B>
 where
     B: IntoOwned + fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&**self, f)
+        let s: &B = &*self;
+        fmt::Display::fmt(s, f)
+    }
+}
+impl<'a> fmt::Display for RCowStr<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s: &str = &*self;
+        fmt::Display::fmt(s, f)
     }
 }
 
@@ -760,7 +782,26 @@ where
     }
 }
 
-impl<B> Serialize for RCow<B>
+impl<'a, B> Serialize for RCow<&'a B>
+where
+    B: IntoOwned + Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        (&**self).serialize(serializer)
+    }
+}
+impl<'a> Serialize for RCowStr<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        (&**self).serialize(serializer)
+    }
+}
+impl<'a, B> Serialize for RCowSlice<'a, B>
 where
     B: IntoOwned + Serialize,
 {

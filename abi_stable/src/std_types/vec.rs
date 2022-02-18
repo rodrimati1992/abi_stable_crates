@@ -1106,7 +1106,8 @@ slice_like_impl_cmp_traits! {
     impl[] RVec<T>,
     where[T: Clone, U: Clone];
     std::borrow::Cow<'_, [U]>,
-    crate::std_types::RCowSlice<'_, U>,
+    // TODO: add back
+    // crate::std_types::RCowSlice<'_, U>,
 }
 
 shared_impls! {
