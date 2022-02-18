@@ -1038,23 +1038,25 @@ where
 
 impl<K, V, S> Eq for RHashMap<K, V, S>
 where
-    K: Eq,
+    K: Eq + Hash,
     V: Eq,
+    S: BuildHasher,
 {
 }
 
-impl<K, V, S> PartialEq for RHashMap<K, V, S>
+impl<K, V1, V2, S> PartialEq<RHashMap<K, V2, S>> for RHashMap<K, V1, S>
 where
-    K: PartialEq,
-    V: PartialEq,
+    K: PartialEq + Hash,
+    V1: PartialEq<V2>,
+    S: BuildHasher,
 {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, other: &RHashMap<K, V2, S>) -> bool {
         if self.len() != other.len() {
             return false;
         }
 
         self.iter()
-            .all(|Tuple2(k, vl)| other.get_p(k).map_or(false, |vr| *vr == *vl))
+            .all(|Tuple2(k, vl)| other.get_p(k).map_or(false, |vr| *vl == *vr))
     }
 }
 

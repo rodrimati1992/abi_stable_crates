@@ -3,6 +3,8 @@
 use std::{
     borrow::{Borrow, BorrowMut, Cow},
     cmp::Ordering,
+    fmt,
+    hash::{Hash, Hasher},
     io,
     iter::FromIterator,
     marker::PhantomData,
@@ -1085,6 +1087,48 @@ impl<T> BorrowMut<[T]> for RVec<T> {
     }
 }
 
+impl<T: fmt::Debug> fmt::Debug for RVec<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
+    }
+}
+
+impl<T> Eq for RVec<T> where T: Eq {}
+
+impl<T, U> PartialEq<RVec<U>> for RVec<T>
+where
+    T: PartialEq<U>,
+{
+    #[inline]
+    fn eq(&self, other: &RVec<U>) -> bool {
+        PartialEq::eq(&**self, &**other)
+    }
+}
+
+impl<T: Ord> Ord for RVec<T> {
+    #[inline]
+    fn cmp(&self, other: &Self) -> Ordering {
+        if std::ptr::eq(&**self, &**other) {
+            return Ordering::Equal;
+        }
+        (&**self).cmp(&**other)
+    }
+}
+
+impl<T: PartialOrd> PartialOrd for RVec<T> {
+    #[inline]
+    fn partial_cmp(&self, other: &RVec<T>) -> Option<Ordering> {
+        PartialOrd::partial_cmp(&**self, &**other)
+    }
+}
+
+impl<T: Hash> Hash for RVec<T> {
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Hash::hash(&**self, state)
+    }
+}
+
 slice_like_impl_cmp_traits! {
     impl[] RVec<T>,
     where[];
@@ -1108,12 +1152,6 @@ slice_like_impl_cmp_traits! {
     std::borrow::Cow<'_, [U]>,
     // TODO: add back
     // crate::std_types::RCowSlice<'_, U>,
-}
-
-shared_impls! {
-    mod = buffer_impls
-    new_type = RVec[][T],
-    original_type = Vec,
 }
 
 impl_into_rust_repr! {

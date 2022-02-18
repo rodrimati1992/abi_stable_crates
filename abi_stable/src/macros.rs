@@ -483,7 +483,8 @@ macro_rules! make_item_info {
 ///     std_types::RVec,
 /// };
 ///
-/// assert_eq!(RVec::<u32>::new(), rvec![]);
+/// let empty: RVec<u32> = rvec![];
+/// assert_eq!(RVec::<u32>::new(), empty);
 /// assert_eq!(RVec::from(vec![0]), rvec![0]);
 /// assert_eq!(RVec::from(vec![0, 3]), rvec![0, 3]);
 /// assert_eq!(RVec::from(vec![0, 3, 6]), rvec![0, 3, 6]);
