@@ -105,6 +105,7 @@ impl<T: Clone> IntoOwned for RSlice<'_, T> {
 ///
 #[repr(C)]
 #[derive(StableAbi)]
+#[sabi(bound = "<B as QueryOwnedType>::Owned: StableAbi")]
 pub enum RCow<B>
 where
     B: IntoOwned,
