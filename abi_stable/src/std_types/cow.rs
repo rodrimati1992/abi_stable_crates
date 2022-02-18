@@ -175,7 +175,8 @@ impl<B: IntoOwned> RCow<B> {
     /// assert_eq!(&*buff, "Hello, world!");
     ///
     /// ```
-    // TODO: remove this method?
+    // TODO: remove this method? Same as the trait, you just don't need the
+    // trait imported.
     pub fn into_owned(self) -> B::Owned {
         match self {
             Borrowed(x) => B::into_owned(x),
@@ -183,28 +184,28 @@ impl<B: IntoOwned> RCow<B> {
         }
     }
 
-    /// Gets the contents of the RCow casted to the borrowed variant.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use abi_stable::std_types::{RCow, RSlice};
-    /// {
-    ///     let cow: RCow<'_, [u8]> = RCow::from(&[0, 1, 2, 3][..]);
-    ///     assert_eq!(cow.borrowed(), RSlice::from_slice(&[0, 1, 2, 3]));
-    /// }
-    /// {
-    ///     let cow: RCow<'_, [u8]> = RCow::from(vec![0, 1, 2, 3]);
-    ///     assert_eq!(cow.borrowed(), RSlice::from_slice(&[0, 1, 2, 3]));
-    /// }
-    /// ```
-    pub fn borrowed(&self) -> B {
-        match self {
-            Borrowed(x) => *x,
-            // TODO: owned -> borrowed?
-            Owned(x) => &*x,
-        }
-    }
+    // /// Gets the contents of the RCow casted to the borrowed variant.
+    // ///
+    // /// # Examples
+    // ///
+    // /// ```
+    // /// use abi_stable::std_types::{RCow, RSlice};
+    // /// {
+    // ///     let cow: RCow<'_, [u8]> = RCow::from(&[0, 1, 2, 3][..]);
+    // ///     assert_eq!(cow.borrowed(), RSlice::from_slice(&[0, 1, 2, 3]));
+    // /// }
+    // /// {
+    // ///     let cow: RCow<'_, [u8]> = RCow::from(vec![0, 1, 2, 3]);
+    // ///     assert_eq!(cow.borrowed(), RSlice::from_slice(&[0, 1, 2, 3]));
+    // /// }
+    // /// ```
+    // pub fn borrowed(&self) -> B {
+    //     match self {
+    //         Borrowed(x) => *x,
+    //         // TODO: owned -> borrowed?
+    //         Owned(x) => &*x,
+    //     }
+    // }
 
     /// Whether this is a borrowing RCow.
     ///
@@ -246,6 +247,32 @@ impl<B: IntoOwned> RCow<B> {
     }
 }
 
+impl<'a, B: IntoOwned> RCow<&'a B> {
+    pub fn borrowed(&'a self) -> &'a B {
+        match self {
+            Borrowed(x) => *x,
+            Owned(x) => &x,
+        }
+    }
+}
+impl<'a, B: IntoOwned> RCowSlice<'a, B> {
+    pub fn borrowed(&'a self) -> RSlice<'a, B> {
+        match self {
+            Borrowed(x) => *x,
+            Owned(x) => x.as_rslice(),
+        }
+    }
+}
+impl<'a> RCowStr<'a> {
+    pub fn borrowed(&'a self) -> RStr<'a> {
+        match self {
+            Borrowed(x) => *x,
+            Owned(x) => x.as_rstr(),
+        }
+    }
+}
+
+
 #[allow(dead_code)]
 #[cfg(test)]
 impl<B: IntoOwned> RCow<B> {
@@ -286,7 +313,7 @@ where
     }
 }
 
-impl<B> Deref for RCow<B>
+impl<B> Deref for RCow<&'_ B>
 where
     B: IntoOwned,
 {
@@ -296,7 +323,31 @@ where
     fn deref(&self) -> &Self::Target {
         match self {
             Borrowed(x) => x,
-            // TODO: owned -> borrowed?
+            Owned(x) => x,
+        }
+    }
+}
+impl Deref for RCowStr<'_> {
+    type Target = str;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Borrowed(x) => x,
+            Owned(x) => x,
+        }
+    }
+}
+impl<B> Deref for RCowSlice<'_, B>
+where
+    B: IntoOwned,
+{
+    type Target = [B];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Borrowed(x) => x,
             Owned(x) => x,
         }
     }
@@ -304,21 +355,47 @@ where
 
 ////////////////////
 
-impl<B> Borrow<B> for RCow<B>
+impl<B> Borrow<B> for RCow<&'_ B>
 where
     B: IntoOwned,
 {
     fn borrow(&self) -> &B {
-        self
+        &*self
+    }
+}
+impl Borrow<str> for RCowStr<'_> {
+    fn borrow(&self) -> &str {
+        &*self
+    }
+}
+impl<B> Borrow<[B]> for RCowSlice<'_, B>
+where
+    B: IntoOwned,
+{
+    fn borrow(&self) -> &[B] {
+        &*self
     }
 }
 
-impl<B> AsRef<B> for RCow<B>
+impl<B> AsRef<B> for RCow<&'_ B>
 where
     B: IntoOwned,
 {
     fn as_ref(&self) -> &B {
-        self
+        &*self
+    }
+}
+impl AsRef<str> for RCowStr<'_> {
+    fn as_ref(&self) -> &str {
+        &*self
+    }
+}
+impl<B> AsRef<[B]> for RCowSlice<'_, B>
+where
+    B: IntoOwned,
+{
+    fn as_ref(&self) -> &[B] {
+        &*self
     }
 }
 
