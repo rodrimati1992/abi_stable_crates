@@ -592,7 +592,7 @@
 use crate::{
     rtry, sabi_trait,
     sabi_types::{RMut, RRef},
-    std_types::{RBox, RBoxError, RCow, RNone, ROk, ROption, RResult},
+    std_types::{RBox, RBoxError, RCowSlice, RNone, ROk, ROption, RResult},
     traits::IntoReprC,
     type_layout::TypeLayout,
     StableAbi,
@@ -706,7 +706,7 @@ pub unsafe trait ExtraChecks: 'static + Debug + Display + Clone + Send + Sync {
     /// Returns the `TypeLayout`s owned or referenced by `self`.
     ///
     /// This is necessary for the Debug implementation of `TypeLayout`.
-    fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]>;
+    fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout>;
 
     /// Combines this ExtraChecks trait object with another one.
     ///

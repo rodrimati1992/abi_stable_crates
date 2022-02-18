@@ -216,7 +216,7 @@ use crate::{
     abi_stability::extra_checks::{
         ExtraChecks, ExtraChecksError, ForExtraChecksImplementor, TypeCheckerMut,
     },
-    std_types::{RBox, RCow, RNone, ROption, RResult, RSlice, RSome, RStr, RVec},
+    std_types::{RBox, RCow, RCowSlice, RNone, ROption, RResult, RSlice, RSome, RStr, RVec},
     traits::IntoReprC,
     type_layout::TypeLayout,
     utils::FmtPadding,
@@ -825,7 +825,7 @@ unsafe impl ExtraChecks for Tag {
         })
     }
 
-    fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
+    fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
         RCow::from_slice(&[])
     }
 }
