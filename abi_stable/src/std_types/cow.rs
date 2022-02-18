@@ -340,7 +340,7 @@ impl Deref for RCowStr<'_> {
 }
 impl<B> Deref for RCowSlice<'_, B>
 where
-    B: IntoOwned,
+    B: Clone,
 {
     type Target = [B];
 
@@ -370,7 +370,7 @@ impl Borrow<str> for RCowStr<'_> {
 }
 impl<B> Borrow<[B]> for RCowSlice<'_, B>
 where
-    B: IntoOwned,
+    B: Clone,
 {
     fn borrow(&self) -> &[B] {
         &*self
@@ -392,7 +392,7 @@ impl AsRef<str> for RCowStr<'_> {
 }
 impl<B> AsRef<[B]> for RCowSlice<'_, B>
 where
-    B: IntoOwned,
+    B: Clone,
 {
     fn as_ref(&self) -> &[B] {
         &*self
@@ -403,7 +403,7 @@ where
 
 slice_like_impl_cmp_traits! {
     impl[] RCowSlice<'_, T>,
-    where[T: IntoOwned];
+    where[T: Clone];
     Vec<U>,
     [U],
     &[U],
@@ -412,13 +412,13 @@ slice_like_impl_cmp_traits! {
 #[cfg(feature = "const_params")]
 slice_like_impl_cmp_traits! {
     impl[const N: usize] RCowSlice<'_, T>,
-    where[T: IntoOwned];
+    where[T: Clone];
     [U; N],
 }
 
 slice_like_impl_cmp_traits! {
     impl[] RCowSlice<'_, T>,
-    where[T: IntoOwned, U: IntoOwned];
+    where[T: Clone, U: Clone];
     Cow<'_, [U]>,
 }
 
@@ -453,7 +453,7 @@ shared_impls! {
     new_type = RCowSlice['a][]
     extra[B]
     constrained[B]
-    where [ B: IntoOwned ],
+    where [ B: Clone ],
     original_type = void,
 }
 
@@ -486,7 +486,7 @@ impl_into_rust_repr! {
 impl_into_rust_repr! {
     impl['a, B] Into<Cow<'a, [B]>> for RCowSlice<'a, B>
     where[
-        B: IntoOwned
+        B: Clone
     ]{
         fn(this) {
             match this {
@@ -528,7 +528,7 @@ impl_from_rust_repr! {
 impl_from_rust_repr! {
     impl['a, B] From<Cow<'a, [B]>> for RCowSlice<'a, B>
     where [
-        B: IntoOwned,
+        B: Clone,
     ]{
         fn(this) {
             match this {
