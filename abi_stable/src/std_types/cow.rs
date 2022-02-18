@@ -332,7 +332,7 @@ where
     }
 }
 
-impl<'a, B> fmt::Debug for RCow<&'a B>
+impl<B> fmt::Debug for RCow<&B>
 where
     B: fmt::Debug + IntoOwned + ?Sized,
 {
@@ -340,12 +340,12 @@ where
         fmt::Debug::fmt(&**self, f)
     }
 }
-impl<'a> fmt::Debug for RCowStr<'a> {
+impl fmt::Debug for RCowStr<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
-impl<'a, B> fmt::Debug for RCowSlice<'a, B>
+impl<B> fmt::Debug for RCowSlice<'_, B>
 where
     B: fmt::Debug + Clone + ?Sized,
 {
@@ -361,13 +361,13 @@ where
 {
 }
 
-impl<'a, 'b, B, C> PartialEq<RCow<&'b C>> for RCow<&'a B>
+impl<'a, 'b, A, B> PartialEq<RCow<&'b B>> for RCow<&'a A>
 where
-    B: PartialEq<C> + IntoOwned + ?Sized,
-    C: IntoOwned + ?Sized,
+    A: PartialEq<B> + IntoOwned + ?Sized,
+    B: IntoOwned + ?Sized,
 {
     #[inline]
-    fn eq(&self, other: &RCow<&'b C>) -> bool {
+    fn eq(&self, other: &RCow<&'b B>) -> bool {
         PartialEq::eq(&**self, &**other)
     }
 }
@@ -377,18 +377,18 @@ impl<'a, 'b> PartialEq<RCowStr<'b>> for RCowStr<'a> {
         PartialEq::eq(&**self, &**other)
     }
 }
-impl<'a, 'b, B, C> PartialEq<RCowSlice<'b, C>> for RCowSlice<'a, B>
+impl<'a, 'b, A, B> PartialEq<RCowSlice<'b, B>> for RCowSlice<'a, A>
 where
-    B: PartialEq<C> + Clone + ?Sized,
-    C: Clone + ?Sized,
+    A: PartialEq<B> + Clone + ?Sized,
+    B: Clone + ?Sized,
 {
     #[inline]
-    fn eq(&self, other: &RCowSlice<'b, C>) -> bool {
+    fn eq(&self, other: &RCowSlice<'b, B>) -> bool {
         PartialEq::eq(&**self, &**other)
     }
 }
 
-impl<'a, B> Ord for RCow<&'a B>
+impl<B> Ord for RCow<&B>
 where
     B: Ord + IntoOwned + ?Sized,
 {
@@ -400,7 +400,7 @@ where
         (&**self).cmp(&**other)
     }
 }
-impl<'a> Ord for RCowStr<'a> {
+impl Ord for RCowStr<'_> {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         if std::ptr::eq(&**self, &**other) {
@@ -409,7 +409,7 @@ impl<'a> Ord for RCowStr<'a> {
         (&**self).cmp(&**other)
     }
 }
-impl<'a, B> Ord for RCowSlice<'a, B>
+impl<B> Ord for RCowSlice<'_, B>
 where
     B: Ord + Clone + ?Sized,
 {
@@ -422,13 +422,13 @@ where
     }
 }
 
-impl<'a, 'b, B, C> PartialOrd<RCow<&'b C>> for RCow<&'a B>
+impl<'a, 'b, A, B> PartialOrd<RCow<&'b B>> for RCow<&'a A>
 where
-    B: PartialOrd<C> + IntoOwned + ?Sized,
-    C: IntoOwned + ?Sized,
+    A: PartialOrd<B> + IntoOwned + ?Sized,
+    B: IntoOwned + ?Sized,
 {
     #[inline]
-    fn partial_cmp(&self, other: &RCow<&'b C>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &RCow<&'b B>) -> Option<Ordering> {
         PartialOrd::partial_cmp(&**self, &**other)
     }
 }
@@ -438,19 +438,19 @@ impl<'a, 'b> PartialOrd<RCowStr<'b>> for RCowStr<'a> {
         PartialOrd::partial_cmp(&**self, &**other)
     }
 }
-impl<'a, 'b, B, C> PartialOrd<RCowSlice<'b, C>> for RCowSlice<'a, B>
+impl<'a, 'b, A, B> PartialOrd<RCowSlice<'b, B>> for RCowSlice<'a, A>
 where
-    [B]: PartialOrd<[C]>,
-    B: PartialEq<C> + Clone + ?Sized,
-    C: Clone + ?Sized,
+    [A]: PartialOrd<[B]>,
+    A: PartialEq<B> + Clone + ?Sized,
+    B: Clone + ?Sized,
 {
     #[inline]
-    fn partial_cmp(&self, other: &RCowSlice<'b, C>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &RCowSlice<'b, B>) -> Option<Ordering> {
         PartialOrd::partial_cmp(&**self, &**other)
     }
 }
 
-impl<'a, B> Hash for RCow<&'a B>
+impl<B> Hash for RCow<&B>
 where
     B: Hash + IntoOwned + ?Sized,
 {
@@ -459,13 +459,13 @@ where
         Hash::hash(&**self, state)
     }
 }
-impl<'a> Hash for RCowStr<'a> {
+impl Hash for RCowStr<'_> {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         Hash::hash(&**self, state)
     }
 }
-impl<'a, B> Hash for RCowSlice<'a, B>
+impl<B> Hash for RCowSlice<'_, B>
 where
     B: Hash + Clone + ?Sized,
 {
