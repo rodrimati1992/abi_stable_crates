@@ -766,6 +766,41 @@ impl<T> RVec<T> {
         }
     }
 
+    /// Moves all the elements of `other` into `Self`, leaving `other` empty.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the number of elements in the vector overflows a `usize`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use abi_stable::std_types::{RSlice, RVec};
+    ///
+    /// let mut vec = RVec::from_slice(&[1, 2, 3]);
+    /// let mut vec2 = RVec::from_slice(&[4, 5, 6]);
+    /// vec.append(&mut vec2);
+    /// assert_eq!(vec.as_slice(), &[1, 2, 3, 4, 5, 6]);
+    /// assert_eq!(vec2.as_slice(), RSlice::<u32>::EMPTY);
+    /// ```
+    #[inline]
+    pub fn append(&mut self, other: &mut Self) {
+        unsafe {
+            self.append_elements(other.as_slice() as _);
+            other.set_len(0);
+        }
+    }
+
+    /// Appends elements to `Self` from other buffer.
+    #[inline]
+    unsafe fn append_elements(&mut self, other: *const [T]) {
+        let count = (*other).len();
+        self.reserve(count);
+        let len = self.len();
+        ptr::copy_nonoverlapping(other as *const T, self.as_mut_ptr().add(len), count);
+        self.length += count;
+    }
+
     /// Truncates the `RVec<T>` to `to` length.
     /// Does nothing if `self.len() <= to`.
     ///
