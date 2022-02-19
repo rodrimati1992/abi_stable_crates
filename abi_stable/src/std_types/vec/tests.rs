@@ -284,6 +284,31 @@ fn extend() {
 }
 
 #[test]
+fn append() {
+    let mut into = RVec::<u16>::new();
+
+    into.append(&mut RVec::new());
+    assert_eq!(into, Vec::<u16>::new());
+
+    {
+        let mut from = rvec![3u16, 5, 8];
+        into.append(&mut from);
+        assert_eq!(into, [3u16, 5, 8][..]);
+        assert_eq!(from, Vec::<u16>::new());
+    }
+
+    into.append(&mut RVec::new());
+    assert_eq!(into, [3u16, 5, 8][..]);
+
+    {
+        let mut from = rvec![13u16];
+        into.append(&mut from);
+        assert_eq!(into, [3u16, 5, 8, 13][..]);
+        assert_eq!(from, Vec::<u16>::new());
+    }
+}
+
+#[test]
 fn into_iter() {
     assert_eq!(RVec::<()>::new().into_iter().next(), None);
 
