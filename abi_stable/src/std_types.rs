@@ -39,7 +39,7 @@ pub use self::{
     arc::RArc,
     boxed::RBox,
     cmp_ordering::RCmpOrdering,
-    cow::{RCow, RCowSlice, RCowStr},
+    cow::{BCow, RCowSlice, RCowStr},
     map::RHashMap,
     option::{RNone, ROption, RSome},
     result::{RErr, ROk, RResult},

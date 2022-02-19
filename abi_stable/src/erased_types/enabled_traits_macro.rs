@@ -29,7 +29,7 @@ macro_rules! declare_enabled_traits {
                 ForExtraChecksImplementor,ExtraChecksError,
             },
             type_layout::TypeLayout,
-            std_types::{RCow, RCowSlice,RResult},
+            std_types::{RCowSlice,RResult},
             StableAbi,
         };
 
@@ -130,7 +130,7 @@ macro_rules! declare_enabled_traits {
             }
 
             fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout>{
-                RCow::from_slice(&[])
+                RCowSlice::from_slice(&[])
             }
         }
 

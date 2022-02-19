@@ -27,39 +27,31 @@ mod tests;
 
 // TODO: documentation
 
-pub trait QueryOwnedType: Deref {
+pub trait IntoOwned: Copy + Deref {
     type Owned: Borrow<Self::Target>;
-}
 
-pub trait IntoOwned: Copy + QueryOwnedType {
     fn into_owned(self) -> Self::Owned;
 }
 
-impl<T> QueryOwnedType for &T {
-    type Owned = T;
-}
-
 impl<T: Clone> IntoOwned for &T {
+    type Owned = T;
+
     fn into_owned(self) -> T {
         self.clone()
     }
 }
 
-impl QueryOwnedType for RStr<'_> {
-    type Owned = RString;
-}
-
 impl IntoOwned for RStr<'_> {
+    type Owned = RString;
+
     fn into_owned(self) -> RString {
         self.into()
     }
 }
 
-impl<T> QueryOwnedType for RSlice<'_, T> {
-    type Owned = RVec<T>;
-}
-
 impl<T: Clone> IntoOwned for RSlice<'_, T> {
+    type Owned = RVec<T>;
+
     fn into_owned(self) -> RVec<T> {
         self.to_rvec()
     }
@@ -107,26 +99,21 @@ impl<T: Clone> IntoOwned for RSlice<'_, T> {
 ///
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(bound = "<B as QueryOwnedType>::Owned: StableAbi")]
-pub enum RCow<B>
-where
-    B: IntoOwned,
-{
+pub enum RCow<B, O> {
     Borrowed(B),
-    Owned(B::Owned),
+    Owned(O),
 }
 
-// TODO: remove BCow?
 // TODO: add RCowSliceMut?
-pub type BCow<'a, T> = RCow<&'a T>;
-pub type RCowStr<'a> = RCow<RStr<'a>>;
-pub type RCowSlice<'a, T> = RCow<RSlice<'a, T>>;
+pub type BCow<'a, T> = RCow<&'a T, T>;
+pub type RCowStr<'a> = RCow<RStr<'a>, RString>;
+pub type RCowSlice<'a, T> = RCow<RSlice<'a, T>, RVec<T>>;
 
 use self::RCow::{Borrowed, Owned};
 
 // ///////////////////////////////////////////////////////////////////////////
 
-impl<B: IntoOwned> RCow<B> {
+impl<B: IntoOwned> RCow<B, B::Owned> {
     /// Get a mutable reference to the owned form of RCow,
     /// converting to the owned form if it is currently the borrowed form.
     ///
@@ -227,7 +214,7 @@ impl<B: IntoOwned> RCow<B> {
     }
 }
 
-impl<'a, B: IntoOwned> RCow<&'a B> {
+impl<'a, B: IntoOwned> BCow<'a, B> {
     pub fn borrowed(&'a self) -> &'a B {
         match self {
             Borrowed(x) => *x,
@@ -272,14 +259,14 @@ impl<B: IntoOwned> RCow<B> {
     }
 }
 
-impl<B> Copy for RCow<B>
+impl<B> Copy for RCow<B, B::Owned>
 where
     B: IntoOwned,
     B::Owned: Copy,
 {
 }
 
-impl<B> Clone for RCow<B>
+impl<B> Clone for RCow<B, B::Owned>
 where
     B: IntoOwned,
     B::Owned: Clone,
@@ -292,7 +279,7 @@ where
     }
 }
 
-impl<B> Deref for RCow<&'_ B>
+impl<B> Deref for BCow<'_, B>
 where
     B: IntoOwned,
 {
@@ -332,7 +319,7 @@ where
     }
 }
 
-impl<B> fmt::Debug for RCow<&B>
+impl<B> fmt::Debug for BCow<'_, B>
 where
     B: fmt::Debug + IntoOwned + ?Sized,
 {
@@ -354,20 +341,20 @@ where
     }
 }
 
-impl<B> Eq for RCow<B>
+impl<B> Eq for RCow<B, B::Owned>
 where
     B: Eq + IntoOwned,
-    RCow<B>: PartialEq,
+    RCow<B, B::Owned>: PartialEq,
 {
 }
 
-impl<'a, 'b, A, B> PartialEq<RCow<&'b B>> for RCow<&'a A>
+impl<'a, 'b, A, B> PartialEq<BCow<'b, B>> for BCow<'a, A>
 where
     A: PartialEq<B> + IntoOwned + ?Sized,
     B: IntoOwned + ?Sized,
 {
     #[inline]
-    fn eq(&self, other: &RCow<&'b B>) -> bool {
+    fn eq(&self, other: &BCow<'b, B>) -> bool {
         PartialEq::eq(&**self, &**other)
     }
 }
@@ -388,7 +375,7 @@ where
     }
 }
 
-impl<B> Ord for RCow<&B>
+impl<B> Ord for BCow<'_, B>
 where
     B: Ord + IntoOwned + ?Sized,
 {
@@ -422,13 +409,13 @@ where
     }
 }
 
-impl<'a, 'b, A, B> PartialOrd<RCow<&'b B>> for RCow<&'a A>
+impl<'a, 'b, A, B> PartialOrd<BCow<'b, B>> for BCow<'a, A>
 where
     A: PartialOrd<B> + IntoOwned + ?Sized,
     B: IntoOwned + ?Sized,
 {
     #[inline]
-    fn partial_cmp(&self, other: &RCow<&'b B>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &BCow<'b, B>) -> Option<Ordering> {
         PartialOrd::partial_cmp(&**self, &**other)
     }
 }
@@ -450,7 +437,7 @@ where
     }
 }
 
-impl<B> Hash for RCow<&B>
+impl<B> Hash for BCow<'_, B>
 where
     B: Hash + IntoOwned + ?Sized,
 {
@@ -477,7 +464,7 @@ where
 
 ////////////////////
 
-impl<B> Borrow<B> for RCow<&'_ B>
+impl<B> Borrow<B> for BCow<'_, B>
 where
     B: IntoOwned,
 {
@@ -499,7 +486,7 @@ where
     }
 }
 
-impl<B> AsRef<B> for RCow<&'_ B>
+impl<B> AsRef<B> for BCow<'_, B>
 where
     B: IntoOwned,
 {
@@ -557,7 +544,7 @@ deref_coerced_impl_cmp_traits! {
 }
 
 impl_into_rust_repr! {
-    impl['a, B] Into<Cow<'a, B>> for RCow<&'a B>
+    impl['a, B] Into<Cow<'a, B>> for BCow<'a, B>
     where[
         B: IntoOwned
     ]{
@@ -599,7 +586,7 @@ impl_into_rust_repr! {
 ////////////////////////////////////////////////////////////
 
 impl_from_rust_repr! {
-    impl['a, B] From<Cow<'a, B>> for RCow<&'a B>
+    impl['a, B] From<Cow<'a, B>> for BCow<'a, B>
     where [
         B: IntoOwned,
     ]{
@@ -734,7 +721,7 @@ where
 
 ////////////////////////////////////////////////////////////
 
-impl<'a, B> fmt::Display for RCow<&'a B>
+impl<'a, B> fmt::Display for BCow<'a, B>
 where
     B: IntoOwned + fmt::Display,
 {
@@ -869,7 +856,7 @@ impl<'de, 'a> Deserialize<'de> for RCowStr<'a> {
     }
 }
 
-impl<'de, 'a, T> Deserialize<'de> for RCow<&'a T>
+impl<'de, 'a, T> Deserialize<'de> for BCow<'a, T>
 where
     T: Clone + Deserialize<'de>,
 {
@@ -881,7 +868,7 @@ where
     }
 }
 
-impl<'a, B> Serialize for RCow<&'a B>
+impl<'a, B> Serialize for BCow<'a, B>
 where
     B: IntoOwned + Serialize,
 {
