@@ -1,15 +1,52 @@
 //! Where miscellaneous traits reside.
 
+use std::{borrow::Borrow, ops::Deref};
+
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
 
 use crate::{
     pointer_trait::{CanTransmuteElement, TransmuteElement},
     sabi_types::{RMut, RRef},
+    std_types::{RSlice, RStr, RString, RVec},
 };
 
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+
+/// For cloning a reference-like type into a (preferably ffi-safe) owned type.
+pub trait IntoOwned: Copy + Deref {
+    /// The owned equivalent of this type.
+    type ROwned: Borrow<Self::Target>;
+
+    fn into_owned(self) -> Self::ROwned;
+}
+
+impl<T: Clone> IntoOwned for &T {
+    type ROwned = T;
+
+    fn into_owned(self) -> T {
+        self.clone()
+    }
+}
+
+impl IntoOwned for RStr<'_> {
+    type ROwned = RString;
+
+    fn into_owned(self) -> RString {
+        self.into()
+    }
+}
+
+impl<T: Clone> IntoOwned for RSlice<'_, T> {
+    type ROwned = RVec<T>;
+
+    fn into_owned(self) -> RVec<T> {
+        self.to_rvec()
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 /// Converts a `#[repr(Rust)]` type into its `#[repr(C)]` equivalent.

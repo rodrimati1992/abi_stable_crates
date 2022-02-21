@@ -512,7 +512,7 @@ slice_like_impl_cmp_traits! {
     impl[] RSliceMut<'_, T>,
     where[T: Clone, U: Clone];
     std::borrow::Cow<'_, [U]>,
-    crate::std_types::RCow<'_, [U]>,
+    crate::std_types::RCowSlice<'_, U>,
 }
 
 impl<'a, T> Deref for RSliceMut<'a, T> {
