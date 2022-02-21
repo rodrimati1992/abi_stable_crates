@@ -472,15 +472,15 @@ mod tests {
 
         let (ret, ret_discr) = map.get_or_insert(10, 1).split();
         *ret.value = 1234;
-        assert_matches!(InsertionTime::Now { .. } = ret_discr);
+        assert_matches!(ret_discr, InsertionTime::Now { .. });
 
         assert_matches!(
-            (&mut 1234, InsertionTime::Before { .. }) =
-                map.get_or_insert(10, 2).map(|x| x.value).split()
+            map.get_or_insert(10, 2).map(|x| x.value).split(),
+            (&mut 1234, InsertionTime::Before { .. })
         );
         assert_matches!(
-            (&mut 1234, InsertionTime::Before { .. }) =
-                map.get_or_insert(10, 3).map(|x| x.value).split()
+            map.get_or_insert(10, 3).map(|x| x.value).split(),
+            (&mut 1234, InsertionTime::Before { .. })
         );
     }
 
@@ -491,7 +491,7 @@ mod tests {
         let (ret, ret_discr) = map.get_or_insert(100, 1).split();
         let index0 = ret.index;
         *ret.value = 1234;
-        assert_matches!(InsertionTime::Now { .. } = ret_discr);
+        assert_matches!(ret_discr, InsertionTime::Now { .. });
 
         let index1 = map.get_or_insert(200, 200).into_inner().index;
         let index2 = map.get_or_insert(300, 300).into_inner().index;

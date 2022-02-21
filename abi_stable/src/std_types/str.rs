@@ -237,7 +237,7 @@ deref_coerced_impl_cmp_traits! {
         str,
         &str,
         std::borrow::Cow<'_, str>,
-        crate::std_types::RCow<'_, str>,
+        crate::std_types::RCowStr<'_>,
     ]
 }
 

@@ -452,7 +452,7 @@ where
     V: Clone + Debug + PartialEq,
 {
     let mut entry = map.entry(k.clone());
-    assert_matches!(REntry::Occupied { .. } = entry);
+    assert_matches!(&entry, REntry::Occupied { .. });
     assert_eq!(entry.key(), &k);
     assert_eq!(entry.get().cloned(), Some(v.clone()));
     assert_eq!(entry.get_mut().cloned(), Some(v.clone()));
@@ -464,7 +464,7 @@ where
     V: Clone + Debug + PartialEq,
 {
     let mut entry = map.entry(k.clone());
-    assert_matches!(REntry::Vacant { .. } = entry);
+    assert_matches!(&entry, REntry::Vacant { .. });
     assert_eq!(entry.key(), &k);
     assert_eq!(entry.get().cloned(), None);
     assert_eq!(entry.get_mut().cloned(), None);
@@ -527,7 +527,10 @@ fn entry_and_modify() {
 
     assert_is_vacant(&mut map, "12".into());
 
-    assert_matches!(REntry::Vacant { .. } = map.entry("12".into()).and_modify(|_| unreachable!()));
+    assert_matches!(
+        map.entry("12".into()).and_modify(|_| unreachable!()),
+        REntry::Vacant { .. }
+    );
 
     assert_eq!(
         *map.entry("12".into())

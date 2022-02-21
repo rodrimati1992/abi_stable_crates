@@ -63,7 +63,7 @@
 //!     marker_type::UnsafeIgnoredType,
 //!     sabi_extern_fn,
 //!     sabi_trait::prelude::TD_Opaque,
-//!     std_types::{RCow, ROption, RResult, RSome, RStr},
+//!     std_types::{RCowSlice, ROption, RResult, RSome, RStr},
 //!     type_layout::TypeLayout,
 //!     GetStaticEquivalent, StableAbi,
 //! };
@@ -219,8 +219,8 @@
 //!         })
 //!     }
 //!
-//!     fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
-//!         RCow::from_slice(&[])
+//!     fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
+//!         RCowSlice::from(&[])
 //!     }
 //!
 //!     fn combine(
@@ -292,7 +292,7 @@
 //!     },
 //!     sabi_extern_fn,
 //!     sabi_trait::prelude::TD_Opaque,
-//!     std_types::{RCow, RDuration, ROption, RResult, RStr, RString},
+//!     std_types::{RCowSlice, RDuration, ROption, RResult, RStr, RString},
 //!     type_layout::TypeLayout,
 //!     StableAbi,
 //! };
@@ -374,8 +374,8 @@
 //!         })
 //!     }
 //!
-//!     fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
-//!         RCow::from_slice(&[])
+//!     fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
+//!         RCowSlice::from(&[])
 //!     }
 //! }
 //!
@@ -421,7 +421,7 @@
 //!     marker_type::UnsafeIgnoredType,
 //!     sabi_extern_fn,
 //!     sabi_trait::prelude::TD_Opaque,
-//!     std_types::{RCow, RDuration, RResult, RStr, RString},
+//!     std_types::{RCowSlice, RDuration, RResult, RStr, RString},
 //!     type_layout::TypeLayout,
 //!     GetStaticEquivalent, StableAbi,
 //! };
@@ -558,8 +558,8 @@
 //!         })
 //!     }
 //!
-//!     fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
-//!         RCow::from_slice(&[])
+//!     fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
+//!         RCowSlice::from(&[])
 //!     }
 //! }
 //!
@@ -592,7 +592,7 @@
 use crate::{
     rtry, sabi_trait,
     sabi_types::{RMut, RRef},
-    std_types::{RBox, RBoxError, RCow, RNone, ROk, ROption, RResult},
+    std_types::{RBox, RBoxError, RCowSlice, RNone, ROk, ROption, RResult},
     traits::IntoReprC,
     type_layout::TypeLayout,
     StableAbi,
@@ -706,7 +706,7 @@ pub unsafe trait ExtraChecks: 'static + Debug + Display + Clone + Send + Sync {
     /// Returns the `TypeLayout`s owned or referenced by `self`.
     ///
     /// This is necessary for the Debug implementation of `TypeLayout`.
-    fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]>;
+    fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout>;
 
     /// Combines this ExtraChecks trait object with another one.
     ///
