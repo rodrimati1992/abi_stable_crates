@@ -680,14 +680,14 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// use abi_stable::{
     ///     pointer_trait::OwnedPointer,
     ///     sabi_types::MovePtr,
-    ///     std_types::{RBox, RCow},
+    ///     std_types::{RBox, RCow, RCowSlice},
     /// };
     ///
     /// use std::mem::ManuallyDrop;
     ///
     /// let this = ManuallyDrop::new(RBox::new(RCow::from_slice(&[13, 21, 34])));
     ///
-    /// let cow: RCow<'static, [u8]> = OwnedPointer::with_move_ptr(this, |moveptr|{
+    /// let cow: RCowSlice<'static, u8> = OwnedPointer::with_move_ptr(this, |moveptr|{
     ///     MovePtr::into_inner(moveptr)
     /// });
     ///
@@ -715,7 +715,7 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// use abi_stable::{
     ///     pointer_trait::OwnedPointer,
     ///     sabi_types::MovePtr,
-    ///     std_types::{RBox, RCow},
+    ///     std_types::RBox,
     /// };
     ///
     /// let this = RBox::new(Foo(41));

@@ -114,10 +114,10 @@ impl CommandTrait for BasicCommand {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, StableAbi)]
 pub struct CommandDescription {
     /// A description of what this command does.
-    pub name: RCow<'static, str>,
+    pub name: RCowStr<'static>,
     /// A description of what this command does,
     /// optionally with a description of the command format.
-    pub description: RCow<'static, str>,
+    pub description: RCowStr<'static>,
 }
 
 impl CommandDescription {

@@ -63,7 +63,7 @@
 //!     marker_type::UnsafeIgnoredType,
 //!     sabi_extern_fn,
 //!     sabi_trait::prelude::TD_Opaque,
-//!     std_types::{RCowSlice, ROption, RResult, RSome, RStr},
+//!     std_types::{RCow, RCowSlice, ROption, RResult, RSome, RStr},
 //!     type_layout::TypeLayout,
 //!     GetStaticEquivalent, StableAbi,
 //! };
@@ -220,7 +220,7 @@
 //!     }
 //!
 //!     fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
-//!         RCowSlice::from(&[])
+//!         RCow::from_slice(&[])
 //!     }
 //!
 //!     fn combine(
@@ -292,7 +292,7 @@
 //!     },
 //!     sabi_extern_fn,
 //!     sabi_trait::prelude::TD_Opaque,
-//!     std_types::{RCowSlice, RDuration, ROption, RResult, RStr, RString},
+//!     std_types::{RCow, RCowSlice, RDuration, ROption, RResult, RStr, RString},
 //!     type_layout::TypeLayout,
 //!     StableAbi,
 //! };
@@ -375,7 +375,7 @@
 //!     }
 //!
 //!     fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
-//!         RCowSlice::from(&[])
+//!         RCow::from_slice(&[])
 //!     }
 //! }
 //!
@@ -421,7 +421,7 @@
 //!     marker_type::UnsafeIgnoredType,
 //!     sabi_extern_fn,
 //!     sabi_trait::prelude::TD_Opaque,
-//!     std_types::{RCowSlice, RDuration, RResult, RStr, RString},
+//!     std_types::{RCow, RCowSlice, RDuration, RResult, RStr, RString},
 //!     type_layout::TypeLayout,
 //!     GetStaticEquivalent, StableAbi,
 //! };
@@ -559,7 +559,7 @@
 //!     }
 //!
 //!     fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
-//!         RCowSlice::from(&[])
+//!         RCow::from_slice(&[])
 //!     }
 //! }
 //!
