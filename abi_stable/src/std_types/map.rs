@@ -18,9 +18,11 @@ use core_extensions::SelfOps;
 
 use crate::{
     erased_types::trait_objects::HasherObject,
-    marker_type::{ErasedObject, NonOwningPhantom, NotCopyNotClone, UnsafeIgnoredType},
+    marker_type::{
+        ErasedObject, ErasedPrefix, NonOwningPhantom, NotCopyNotClone, UnsafeIgnoredType,
+    },
     pointer_trait::{AsMutPtr, AsPtr},
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
     sabi_types::{RMut, RRef},
     std_types::*,
     traits::{ErasedType, IntoReprRust},
@@ -100,7 +102,8 @@ pub use self::{
 )]
 pub struct RHashMap<K, V, S = RandomState> {
     map: RBox<ErasedMap<K, V, S>>,
-    vtable: VTable_Ref<K, V, S>,
+    #[sabi(unsafe_change_type = "VTable_Ref<K, V, S>")]
+    vtable: PrefixRef<ErasedPrefix>,
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -227,17 +230,18 @@ impl<K, V, S> RHashMap<K, V, S> {
         let mut map = VTable::<K, V, S>::erased_map(hash_builder);
         unsafe {
             ErasedMap::reserve(map.as_rmut(), capacity);
-        }
-        RHashMap {
-            map,
-            vtable: VTable::VTABLE_REF,
+
+            RHashMap {
+                map,
+                vtable: VTable::<K, V, S>::VTABLE_REF.0.cast(),
+            }
         }
     }
 }
 
 impl<K, V, S> RHashMap<K, V, S> {
     fn vtable(&self) -> VTable_Ref<K, V, S> {
-        self.vtable
+        unsafe { VTable_Ref::<K, V, S>(self.vtable.cast()) }
     }
 }
 
