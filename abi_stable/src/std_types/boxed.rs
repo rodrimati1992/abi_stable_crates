@@ -11,7 +11,7 @@ use std::{
     mem::ManuallyDrop,
     ops::DerefMut,
     pin::Pin,
-    ptr,
+    ptr::{self, NonNull},
     task::{Context, Poll},
 };
 
@@ -74,7 +74,7 @@ mod private {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct RBox<T> {
-        data: *mut T,
+        data: NonNull<T>,
         vtable: BoxVtable_Ref<T>,
         _marker: PhantomData<T>,
     }
@@ -115,7 +115,7 @@ mod private {
         /// ```
         pub fn from_box(p: Box<T>) -> RBox<T> {
             RBox {
-                data: Box::into_raw(p),
+                data: unsafe { NonNull::new_unchecked(Box::into_raw(p)) },
                 vtable: VTableGetter::<T>::LIB_VTABLE,
                 _marker: PhantomData,
             }
@@ -146,11 +146,11 @@ mod private {
 
         #[inline(always)]
         pub(super) fn data(&self) -> *mut T {
-            self.data
+            self.data.as_ptr()
         }
         #[inline(always)]
         pub(super) fn data_mut(&mut self) -> *mut T {
-            self.data
+            self.data.as_ptr()
         }
 
         #[inline(always)]
@@ -168,13 +168,13 @@ mod private {
     unsafe impl<T> AsPtr for RBox<T> {
         #[inline(always)]
         fn as_ptr(&self) -> *const T {
-            self.data
+            self.data.as_ptr()
         }
     }
     unsafe impl<T> AsMutPtr for RBox<T> {
         #[inline(always)]
         fn as_mut_ptr(&mut self) -> *mut T {
-            self.data
+            self.data.as_ptr()
         }
     }
 }

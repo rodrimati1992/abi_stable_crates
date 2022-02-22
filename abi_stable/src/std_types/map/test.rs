@@ -8,6 +8,36 @@ use crate::std_types::RString;
 
 type DefaultBH = RandomState;
 
+fn _covariant_hashmap<'a: 'b, 'b, T>(foo: HashMap<&'a T, &'a T>) -> HashMap<&'b T, &'b T> {
+    foo
+}
+
+fn _covariant_rhashmap<'a: 'b, 'b, T>(foo: RHashMap<&'a T, &'a T>) -> RHashMap<&'b T, &'b T> {
+    foo
+}
+
+#[test]
+fn test_covariance() {
+    struct F<T>(T);
+
+    fn eq<'a, 'b, T>(left: &RHashMap<&'a T, &'a T>, right: &RHashMap<&'b T, &'b T>) -> bool
+    where
+        T: PartialEq + Hash,
+    {
+        left == right
+    }
+
+    let aaa = F(3);
+    let bbb = F(5);
+    let ccc = F(8);
+    let ddd = F(13);
+
+    let v0 = RHashMap::from_iter(vec![(&aaa.0, &bbb.0)]);
+    let v1 = RHashMap::from_iter(vec![(&ccc.0, &ddd.0)]);
+
+    assert!(!eq(&v0, &v1));
+}
+
 fn new_stdmap() -> HashMap<u32, u32> {
     vec![(90, 40), (10, 20), (88, 30), (77, 22)]
         .into_iter()

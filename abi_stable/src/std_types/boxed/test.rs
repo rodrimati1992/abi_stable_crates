@@ -6,6 +6,34 @@ use crate::{sabi_types::MovePtr, test_utils::must_panic};
 
 use abi_stable_shared::file_span;
 
+fn _covariant_hashmap<'a: 'b, 'b, T>(foo: Box<&'a T>) -> Box<&'b T> {
+    foo
+}
+
+fn _covariant_rhashmap<'a: 'b, 'b, T>(foo: RBox<&'a T>) -> RBox<&'b T> {
+    foo
+}
+
+#[test]
+fn test_covariance() {
+    struct F<T>(T);
+
+    fn eq<'a, 'b, T>(left: &RBox<&'a T>, right: &RBox<&'b T>) -> bool
+    where
+        T: PartialEq,
+    {
+        left == right
+    }
+
+    let aaa = F(3);
+    let bbb = F(5);
+
+    let v0 = RBox::new(&aaa.0);
+    let v1 = RBox::new(&bbb.0);
+
+    assert!(!eq(&v0, &v1));
+}
+
 #[test]
 fn new_and_drop() {
     let arc_a = Arc::new(100);
