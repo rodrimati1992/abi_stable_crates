@@ -12,6 +12,43 @@ use crate::{
     traits::IntoReprC,
 };
 
+#[test]
+fn test_equality_between_vecs() {
+    struct F<T>(T);
+
+    fn eq<'a, 'b, T>(left: &RVec<&'a T>, right: &RVec<&'b T>) -> bool
+    where
+        T: std::cmp::PartialEq,
+    {
+        left == right
+    }
+
+    let aaa = F(3);
+    let bbb = F(5);
+    let ccc = F(8);
+    let ddd = F(13);
+
+    {
+        let v0 = rvec![&aaa.0, &bbb.0];
+        let v1 = rvec![&ccc.0, &ddd.0];
+
+        assert!(!eq(&v0, &v1));
+    }
+
+    // forcing the lifetime to extend to the end of the scope
+    drop(ccc);
+    drop(ddd);
+    drop(aaa);
+    drop(bbb);
+}
+
+fn _assert_covariant<'a: 'b, 'b, T>(x: RVec<&'a T>) -> RVec<&'b T> {
+    x
+}
+fn _assert_covariant_vec<'a: 'b, 'b, T>(x: Vec<&'a T>) -> Vec<&'b T> {
+    x
+}
+
 fn typical_list(upto: u8) -> (Vec<u8>, RVec<u8>) {
     let orig = (b'a'..=upto).collect::<Vec<_>>();
     (orig.clone(), orig.clone().iter().cloned().collect())
@@ -464,4 +501,48 @@ fn retain_panic() {
             index, count
         );
     }
+}
+
+#[test]
+fn test_index() {
+    let s = rvec![1, 2, 3, 4, 5];
+    assert_eq!(s.index(0), &1);
+    assert_eq!(s.index(4), &5);
+    assert_eq!(s.index(..2), rvec![1, 2]);
+    assert_eq!(s.index(1..2), rvec![2]);
+    assert_eq!(s.index(3..), rvec![4, 5]);
+}
+
+#[test]
+fn test_index_mut() {
+    let mut s = rvec![1, 2, 3, 4, 5];
+
+    assert_eq!(s.index_mut(0), &mut 1);
+    assert_eq!(s.index_mut(4), &mut 5);
+    assert_eq!(s.index_mut(..2), &mut rvec![1, 2]);
+    assert_eq!(s.index_mut(1..2), &mut rvec![2]);
+    assert_eq!(s.index_mut(3..), &mut rvec![4, 5]);
+}
+
+#[test]
+fn test_slice() {
+    let s = rvec![1, 2, 3, 4, 5];
+
+    assert_eq!(s.slice(..), rslice![1, 2, 3, 4, 5]);
+    assert_eq!(s.slice(..2), rslice![1, 2]);
+    assert_eq!(s.slice(1..2), rslice![2]);
+    assert_eq!(s.slice(3..), rslice![4, 5]);
+}
+
+#[test]
+fn test_slice_mut() {
+    let mut s = rvec![1, 2, 3, 4, 5];
+
+    assert_eq!(
+        s.slice_mut(..),
+        RSliceMut::from_mut_slice(&mut [1, 2, 3, 4, 5])
+    );
+    assert_eq!(s.slice_mut(..2), RSliceMut::from_mut_slice(&mut [1, 2]));
+    assert_eq!(s.slice_mut(1..2), RSliceMut::from_mut_slice(&mut [2]));
+    assert_eq!(s.slice_mut(3..), RSliceMut::from_mut_slice(&mut [4, 5]));
 }
