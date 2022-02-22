@@ -314,7 +314,7 @@ fn run_command_inner(this: &mut TOStateBox, command: Command) -> ReturnValue {
             words,
             _marker: _,
         } => {
-            let iter = &mut words.iter().map(|s| RCow::Borrowed(s.as_rstr()));
+            let iter = &mut words.iter().map(|s| RCow::from(s.as_rstr()));
 
             remove_words(
                 this,

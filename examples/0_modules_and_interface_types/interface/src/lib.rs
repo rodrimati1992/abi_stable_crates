@@ -14,7 +14,7 @@ use abi_stable::{
     library::{LibraryError, RootModule},
     package_version_strings,
     sabi_types::{RMut, VersionStrings},
-    std_types::{RArc, RBox, RBoxError, RCow, RResult, RStr, RString},
+    std_types::{RArc, RBox, RBoxError, RCowStr, RResult, RStr, RString},
     DynTrait, StableAbi,
 };
 
@@ -232,7 +232,7 @@ pub struct CowStrIter;
 /// This specifies the type Item type that `DynTrait<_,CowStrIter>`
 /// yields when iterating.
 impl<'a> IteratorItem<'a> for CowStrIter {
-    type Item = RCow<'a, str>;
+    type Item = RCowStr<'a>;
 }
 
 /// The parameters for the `TextOpsMod_Ref.remove_words` function.
@@ -243,8 +243,8 @@ pub struct RemoveWords<'a, 'b> {
     pub string: RStr<'a>,
     /// The words that will be removed from self.string.
     ///
-    /// An iterator over `RCow<'a,str>`,
-    /// constructed from a `&'b mut impl Iterator<RCow<'a,str>>`
+    /// An iterator over `RCowStr<'a>`,
+    /// constructed from a `&'b mut impl Iterator<RCowStr<'a>>`
     /// with `DynTrait::from_borrowing_ptr(iter,CowStrIter)`.
     pub words: DynTrait<'a, RMut<'b, ()>, CowStrIter>,
 }
