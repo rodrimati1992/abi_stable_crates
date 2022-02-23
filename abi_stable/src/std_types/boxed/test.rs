@@ -6,11 +6,11 @@ use crate::{sabi_types::MovePtr, test_utils::must_panic};
 
 use abi_stable_shared::file_span;
 
-fn _covariant_hashmap<'a: 'b, 'b, T>(foo: Box<&'a T>) -> Box<&'b T> {
+fn _covariant_box<'a: 'b, 'b, T>(foo: Box<&'a T>) -> Box<&'b T> {
     foo
 }
 
-fn _covariant_rhashmap<'a: 'b, 'b, T>(foo: RBox<&'a T>) -> RBox<&'b T> {
+fn _covariant_rbox<'a: 'b, 'b, T>(foo: RBox<&'a T>) -> RBox<&'b T> {
     foo
 }
 

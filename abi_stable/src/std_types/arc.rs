@@ -6,10 +6,11 @@ use core_extensions::SelfOps;
 
 use crate::{
     abi_stability::StableAbi,
+    marker_type::ErasedPrefix,
     pointer_trait::{
         AsPtr, CallReferentDrop, CanTransmuteElement, GetPointerKind, PK_SmartPointer,
     },
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
     sabi_types::Constructor,
     std_types::{
         utypeid::{new_utypeid, UTypeId},
@@ -74,7 +75,8 @@ mod private {
     #[repr(C)]
     pub struct RArc<T> {
         data: *const T,
-        vtable: ArcVtable_Ref<T>,
+        #[sabi(unsafe_change_type = "ArcVtable_Ref<T>")]
+        vtable: PrefixRef<ErasedPrefix>,
         _marker: PhantomData<T>,
     }
 
@@ -83,7 +85,7 @@ mod private {
             fn(this){
                 RArc {
                     data: Arc::into_raw(this),
-                    vtable: VTableGetter::LIB_VTABLE,
+                    vtable: unsafe{ VTableGetter::<T>::LIB_VTABLE.0.cast() },
                     _marker: Default::default(),
                 }
             }
@@ -129,13 +131,13 @@ mod private {
 
         #[inline(always)]
         pub(crate) fn vtable(&self) -> ArcVtable_Ref<T> {
-            self.vtable
+            unsafe { ArcVtable_Ref::<T>(self.vtable.cast()) }
         }
 
         #[allow(dead_code)]
         #[cfg(test)]
         pub(super) fn set_vtable_for_testing(&mut self) {
-            self.vtable = VTableGetter::LIB_VTABLE_FOR_TESTING;
+            self.vtable = unsafe { VTableGetter::<T>::LIB_VTABLE_FOR_TESTING.0.cast() };
         }
     }
 }
