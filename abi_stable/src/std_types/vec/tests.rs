@@ -273,8 +273,9 @@ fn extend_from_copy_slice() {
 fn extend() {
     let mut list = RVec::new();
     let from: Vec<&str> = vec!["hello 0", "hello 1", "hello 2"];
-    list.extend([].iter().cloned());
     list.extend(from.iter().cloned());
+    let from_empty: &[&str] = &[];
+    list.extend(from_empty.iter().cloned());
     assert_eq!(&*list, &*from);
 
     let from2: Vec<&str> = vec!["fuck", "that"];

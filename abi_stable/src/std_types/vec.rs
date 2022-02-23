@@ -1126,6 +1126,7 @@ slice_like_impl_cmp_traits! {
     Vec<U>,
     [U],
     &[U],
+    &mut [U],
     RSlice<'_, U>,
     RSliceMut<'_, U>,
 }
@@ -1158,12 +1159,27 @@ impl_into_rust_repr! {
     }
 }
 
-impl<'a, T> From<&'a [T]> for RVec<T>
+impl<T> From<&[T]> for RVec<T>
 where
     T: Clone,
 {
-    fn from(this: &'a [T]) -> Self {
+    fn from(this: &[T]) -> Self {
         this.to_vec().into()
+    }
+}
+
+impl<T> From<&mut [T]> for RVec<T>
+where
+    T: Clone,
+{
+    fn from(this: &mut [T]) -> Self {
+        this.to_vec().into()
+    }
+}
+
+impl From<&str> for RVec<u8> {
+    fn from(s: &str) -> Self {
+        From::from(s.as_bytes())
     }
 }
 
@@ -1348,6 +1364,24 @@ impl<T> Extend<T> for RVec<T> {
         self.reserve(lower);
         for elem in iter {
             self.push(elem);
+        }
+    }
+}
+
+impl<'a, T> Extend<&'a T> for RVec<T>
+where
+    T: 'a + Copy,
+{
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = &'a T>,
+    {
+        // optimizable
+        let iter = iter.into_iter();
+        let (lower, _) = iter.size_hint();
+        self.reserve(lower);
+        for elem in iter {
+            self.push(*elem);
         }
     }
 }
