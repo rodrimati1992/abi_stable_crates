@@ -11,6 +11,11 @@ use std::{
 
 ///////////////////////////////////////////////////////////////////////////////
 
+#[cfg(test)]
+mod tests;
+
+///////////////////////////////////////////////////////////////////////////////
+
 /// All the function pointer types in a type declaration.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, StableAbi)]
@@ -185,10 +190,30 @@ impl PartialEq for TLFunctionSlice {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+#[repr(transparent)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, StableAbi)]
+pub struct TLFunctionQualifiers(u16);
+
+impl TLFunctionQualifiers {
+    pub const NEW: Self = Self(0);
+
+    const UNSAFE_BIT: u16 = 1;
+
+    pub const fn is_unsafe(&self) -> bool {
+        (self.0 & Self::UNSAFE_BIT) != 0
+    }
+    pub const fn set_unsafe(mut self) -> Self {
+        self.0 |= Self::UNSAFE_BIT;
+        self
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 /// A compressed version of `TLFunction`,
 /// which can be expanded into a `TLFunction` by calling the `expand` method.
 #[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, StableAbi)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct CompTLFunction {
     name: StartLen,
@@ -199,6 +224,7 @@ pub struct CompTLFunction {
     return_type_layout: u16,
     paramret_lifetime_range: LifetimeRange,
     param_type_layouts: TypeLayoutRange,
+    fn_qualifs: TLFunctionQualifiers,
 }
 
 impl CompTLFunction {
@@ -211,6 +237,7 @@ impl CompTLFunction {
         return_type_layout: u16,
         paramret_lifetime_range: u32,
         param_type_layouts: u64,
+        fn_qualifs: TLFunctionQualifiers,
     ) -> Self {
         Self {
             name: StartLen::from_u32(name),
@@ -220,6 +247,7 @@ impl CompTLFunction {
             return_type_layout,
             paramret_lifetime_range: LifetimeRange::from_u21(paramret_lifetime_range),
             param_type_layouts: TypeLayoutRange::from_u64(param_type_layouts),
+            fn_qualifs,
         }
     }
 
@@ -243,6 +271,7 @@ impl CompTLFunction {
             param_type_layouts: self.param_type_layouts.expand(type_layouts),
             paramret_lifetime_indices: self.paramret_lifetime_range.slicing(lifetime_indices),
             return_type_layout: type_layouts.get(self.return_type_layout as usize).cloned(),
+            fn_qualifs: self.fn_qualifs,
         }
     }
 }
@@ -273,6 +302,8 @@ pub struct TLFunction {
 
     /// The return type of the function.
     pub return_type_layout: Option<TypeLayoutCtor>,
+
+    pub fn_qualifs: TLFunctionQualifiers,
 }
 
 impl PartialEq for TLFunction {
@@ -283,6 +314,7 @@ impl PartialEq for TLFunction {
             && self.get_params_ret_iter().eq(other.get_params_ret_iter())
             && self.paramret_lifetime_indices == other.paramret_lifetime_indices
             && self.return_type_layout.map(|x| x.get()) == other.return_type_layout.map(|x| x.get())
+            && self.fn_qualifs == other.fn_qualifs
     }
 }
 
@@ -324,11 +356,18 @@ impl TLFunction {
     pub(crate) fn get_params_ret_vec(&self) -> RVec<TLField> {
         self.get_params_ret_iter().collect()
     }
+
+    pub(crate) fn qualifiers(&self) -> TLFunctionQualifiers {
+        self.fn_qualifs
+    }
 }
 
 impl Display for TLFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "fn(")?;
+        if self.fn_qualifs.is_unsafe() {
+            f.write_str("unsafe ")?;
+        }
+        f.write_str("fn(")?;
         let params = self.get_params();
         let param_count = params.len();
         for (param_i, param) in params.enumerate() {

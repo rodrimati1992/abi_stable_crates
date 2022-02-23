@@ -54,7 +54,10 @@ pub use self::{
     },
     tl_field::{CompTLField, CompTLFieldRepr, TLField},
     tl_fields::{CompTLFields, TLFields, TLFieldsIterator},
-    tl_functions::{CompTLFunction, TLFunction, TLFunctionIter, TLFunctionSlice, TLFunctions},
+    tl_functions::{
+        CompTLFunction, TLFunction, TLFunctionIter, TLFunctionQualifiers, TLFunctionSlice,
+        TLFunctions,
+    },
     tl_lifetimes::{
         LifetimeArrayOrSlice, LifetimeIndex, LifetimeIndexArray, LifetimeIndexPair,
         LifetimeIndexPairRepr, LifetimeRange,
