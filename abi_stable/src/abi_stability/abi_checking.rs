@@ -297,6 +297,10 @@ impl AbiChecker {
                         push_err(errs, t_func, o_func, |x| x, AI::FnLifetimeMismatch);
                     }
 
+                    if t_func.qualifiers() != o_func.qualifiers() {
+                        push_err(errs, t_func, o_func, |x| x, AI::FnQualifierMismatch);
+                    }
+
                     self.check_fields(
                         errs,
                         t_lay,

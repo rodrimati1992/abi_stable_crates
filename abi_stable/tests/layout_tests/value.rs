@@ -372,6 +372,8 @@ fn same_different_abi_stability() {
         <gen_more_lts_b::Generics<'_>>::LAYOUT,
         <gen_more_lts_c::Generics<'_>>::LAYOUT,
         <gen_more_lts_d::Generics<'_>>::LAYOUT,
+        <fn_safe::Fn>::LAYOUT,
+        <fn_unsafe::Fn>::LAYOUT,
     ];
 
     #[cfg(not(feature = "no_fn_promotion"))]
@@ -681,6 +683,21 @@ fn different_generics() {
                 .any(|err| matches!(err, AbiInstability::FieldLifetimeMismatch { .. })));
         }
     }
+}
+
+//////////////////////////////////////////////////////////
+////    Function pointers
+//////////////////////////////////////////////////////////
+
+pub(super) mod fn_safe {
+    #[repr(C)]
+    #[derive(abi_stable::StableAbi)]
+    pub struct Fn(extern "C" fn(u8));
+}
+pub(super) mod fn_unsafe {
+    #[repr(C)]
+    #[derive(abi_stable::StableAbi)]
+    pub struct Fn(unsafe extern "C" fn(u8));
 }
 
 //////////////////////////////////////////////////////////
