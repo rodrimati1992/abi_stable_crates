@@ -83,10 +83,9 @@ declare_InterfaceType! {
     /// derive with the
     /// [`#[sabi(impl_InterfaceType(...))]`](./derive.StableAbi.html#sabiimpl_interfacetype)
     /// helper attribute,
-    /// giving a default value to each associated type,
-    /// so that adding associated types is not a breaking change.
+    /// defaulting associated types to `Unimplemented<_>`.
     ///
-    /// The value of every associated type can be.
+    /// The value of every associated type can be:
     ///
     /// - [`Implemented<_>`](./type_level/impl_enum/struct.Implemented.html):
     /// the trait would be required by, and be usable in `DynTrait`.
@@ -123,6 +122,9 @@ declare_InterfaceType! {
     ///
     ///     // Changing this to require/unrequire in minor versions, is an abi breaking change.
     ///     // type Sync = Unimplemented<trait_marker::Sync>;
+    ///
+    ///     // Changing this to require/unrequire in minor versions, is an abi breaking change.
+    ///     // type Unpin = Unimplemented<trait_marker::Unpin>;
     ///
     ///     // type Iterator = Unimplemented<trait_marker::Iterator>;
     ///
@@ -174,6 +176,9 @@ declare_InterfaceType! {
 
         /// Changing this to require/unrequire in minor versions, is an abi breaking change.
         type Sync;
+
+        /// Changing this to require/unrequire in minor versions, is an abi breaking change.
+        type Unpin;
 
         type Clone;
 

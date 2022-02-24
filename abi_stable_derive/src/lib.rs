@@ -22,11 +22,6 @@ pub fn derive_stable_abi(input: TokenStream1) -> TokenStream1 {
 /// Allows implementing the InterfaceType trait,
 /// providing default values for associated types not specified in the impl block.
 ///
-/// <b>
-/// This macro has been deprecated in favor of using the `#[sabi(impl_InterfaceType())]`
-/// helper attribute of both `#[derive(StableAbi)]` and `#[derive(GetStaticEquivalent)]`
-/// </b>
-///
 #[doc(hidden)]
 #[proc_macro]
 #[allow(non_snake_case)]

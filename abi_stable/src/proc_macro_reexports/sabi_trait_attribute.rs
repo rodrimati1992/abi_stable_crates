@@ -24,6 +24,8 @@ it uses the default implementation,
 
 - `Sync`
 
+- `Unpin`
+
 To be able to have more supertraits you must use the `#[sabi(use_dyntrait)]` helper attribute,
 which changes the underlying implementation from [`RObject`] to [`DynTrait`],
 allowing these supertraits: 

@@ -38,17 +38,19 @@ use crate::{
 /// can be used as a trait object for any combination of
 /// the traits listed below:
 ///
-/// - `Send`
+/// - [`Send`]
 ///
-/// - `Sync`
+/// - [`Sync`]
 ///
-/// - `Debug`
+/// - [`Unpin`](std::marker::Unpin)
 ///
-/// - `Display`
+/// - [`Debug`]
 ///
-/// - `Error`
+/// - [`Display`]
 ///
-/// - `Clone`
+/// - [`Error`](std::error::Error)
+///
+/// - [`Clone`]
 ///
 /// # Deconstruction
 ///
@@ -223,6 +225,14 @@ unsafe impl<'lt, P, I, V> Sync for RObject<'lt, P, I, V>
 where
     P: GetPointerKind,
     I: InterfaceType<Sync = Implemented<trait_marker::Sync>>,
+{
+}
+
+impl<'lt, P, I, V> Unpin for RObject<'lt, P, I, V>
+where
+    // `Unpin` is a property of the referent
+    P: GetPointerKind,
+    I: InterfaceBound<Unpin = Implemented<trait_marker::Unpin>>,
 {
 }
 

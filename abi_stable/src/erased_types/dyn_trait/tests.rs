@@ -16,6 +16,7 @@ use crate::{
     erased_types::{DynTrait, ImplType, InterfaceType, IteratorItem},
     impl_get_type_info,
     std_types::{RArc, RBox, RBoxError, RCow, RNone, ROption, RSome, RStr, RString},
+    test_utils::{GetImpls, GetImplsHelper},
     traits::IntoReprC,
     type_level::bools::{False, True},
     StableAbi,
@@ -23,6 +24,8 @@ use crate::{
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
+
+type DynTraitBox<I> = DynTrait<'static, RBox<()>, I>;
 
 /// It doesn't need to be `#[repr(C)]` because  DynTrait puts it behind a pointer,
 /// and is only interacted with through regular Rust functions.
@@ -37,6 +40,32 @@ struct Foo<T> {
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Clone, Default, Display, Debug, Serialize, Deserialize, Ord, Hash))]
 struct FooInterface;
+
+#[test]
+fn foo_interface_test() {
+    type GI = GetImpls<DynTraitBox<FooInterface>>;
+    assert!(!GI::IMPLS_SEND);
+    assert!(!GI::IMPLS_SYNC);
+    assert!(!GI::IMPLS_UNPIN);
+    assert!(GI::IMPLS_CLONE);
+    assert!(GI::IMPLS_DISPLAY);
+    assert!(GI::IMPLS_DEBUG);
+    assert!(GI::IMPLS_SERIALIZE);
+    assert!(GI::IMPLS_EQ);
+    assert!(GI::IMPLS_PARTIAL_EQ);
+    assert!(GI::IMPLS_ORD);
+    assert!(GI::IMPLS_PARTIAL_ORD);
+    assert!(GI::IMPLS_HASH);
+    assert!(GI::IMPLS_DESERIALIZE);
+    assert!(!GI::IMPLS_ITERATOR);
+    assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+    assert!(!GI::IMPLS_FMT_WRITE);
+    assert!(!GI::IMPLS_IO_WRITE);
+    assert!(!GI::IMPLS_IO_SEEK);
+    assert!(!GI::IMPLS_IO_READ);
+    assert!(!GI::IMPLS_IO_BUF_READ);
+    assert!(!GI::IMPLS_ERROR);
+}
 
 impl<S> Display for Foo<S>
 where
@@ -92,6 +121,32 @@ type VirtualFoo<'a> = DynTrait<'a, RBox<()>, FooInterface>;
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Send, Sync, Debug))]
 struct DebugInterface;
+
+#[test]
+fn debug_interface_test() {
+    type GI = GetImpls<DynTraitBox<DebugInterface>>;
+    assert!(GI::IMPLS_SEND);
+    assert!(GI::IMPLS_SYNC);
+    assert!(!GI::IMPLS_UNPIN);
+    assert!(!GI::IMPLS_CLONE);
+    assert!(!GI::IMPLS_DISPLAY);
+    assert!(GI::IMPLS_DEBUG);
+    assert!(!GI::IMPLS_SERIALIZE);
+    assert!(!GI::IMPLS_EQ);
+    assert!(!GI::IMPLS_PARTIAL_EQ);
+    assert!(!GI::IMPLS_ORD);
+    assert!(!GI::IMPLS_PARTIAL_ORD);
+    assert!(!GI::IMPLS_HASH);
+    assert!(!GI::IMPLS_DESERIALIZE);
+    assert!(!GI::IMPLS_ITERATOR);
+    assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+    assert!(!GI::IMPLS_FMT_WRITE);
+    assert!(!GI::IMPLS_IO_WRITE);
+    assert!(!GI::IMPLS_IO_SEEK);
+    assert!(!GI::IMPLS_IO_READ);
+    assert!(!GI::IMPLS_IO_BUF_READ);
+    assert!(!GI::IMPLS_ERROR);
+}
 
 /////////////////////////////////
 
@@ -460,6 +515,7 @@ mod borrowing {
     #[sabi(impl_InterfaceType(
         Send,
         Sync,
+        Unpin,
         Clone,
         Default,
         Display,
@@ -469,6 +525,32 @@ mod borrowing {
         Hash
     ))]
     struct FooInterface;
+
+    #[test]
+    fn foo_interface_test() {
+        type GI = GetImpls<DynTraitBox<FooInterface>>;
+        assert!(GI::IMPLS_SEND);
+        assert!(GI::IMPLS_SYNC);
+        assert!(GI::IMPLS_UNPIN);
+        assert!(GI::IMPLS_CLONE);
+        assert!(GI::IMPLS_DISPLAY);
+        assert!(GI::IMPLS_DEBUG);
+        assert!(GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(GI::IMPLS_HASH);
+        assert!(GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
+    }
 
     impl<'s> SerializeProxyType<'s> for FooInterface {
         type Proxy = RString;
@@ -642,6 +724,32 @@ mod borrowing {
 
     fn exact_size_hint(n: usize) -> (usize, Option<usize>) {
         (n, Some(n))
+    }
+
+    #[test]
+    fn iter_interface_test() {
+        type GI = GetImpls<DynTraitBox<IterInterface>>;
+        assert!(GI::IMPLS_SEND);
+        assert!(GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(GI::IMPLS_ITERATOR);
+        assert!(GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
     }
 
     #[test]
@@ -854,6 +962,32 @@ mod borrowing {
     struct FmtInterface;
 
     #[test]
+    fn fmt_interface_test() {
+        type GI = GetImpls<DynTraitBox<FmtInterface>>;
+        assert!(GI::IMPLS_SEND);
+        assert!(GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
+    }
+
+    #[test]
     fn fmt_write() {
         use std::fmt::Write;
         let mut s = String::new();
@@ -922,6 +1056,32 @@ mod borrowing {
     #[derive(StableAbi)]
     #[sabi(impl_InterfaceType(Send, Sync, IoRead, IoBufRead))]
     struct IoBufReadInterface;
+
+    #[test]
+    fn io_buf_read_interface_test() {
+        type GI = GetImpls<DynTraitBox<IoBufReadInterface>>;
+        assert!(GI::IMPLS_SEND);
+        assert!(GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(GI::IMPLS_IO_READ);
+        assert!(GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
+    }
 
     #[test]
     fn io_bufread() {

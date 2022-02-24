@@ -15,8 +15,9 @@ pub struct AllTraitsImpld;
 
 impl_InterfaceType! {
     impl InterfaceType for AllTraitsImpld{
-        // type Send=True;  // These are True by default
-        // type Sync=True;  // These are True by default
+        type Send=True;
+        type Sync=True;
+        type Unpin=True;
         type Clone=True;
         type Default=True;
         type Display=True;
@@ -43,6 +44,7 @@ impl_InterfaceType! {
 fn assert_all_traits_impld() {
     let _: <AllTraitsImpld as InterfaceType>::Send = Implemented::NEW;
     let _: <AllTraitsImpld as InterfaceType>::Sync = Implemented::NEW;
+    let _: <AllTraitsImpld as InterfaceType>::Unpin = Implemented::NEW;
     let _: <AllTraitsImpld as InterfaceType>::Clone = Implemented::NEW;
     let _: <AllTraitsImpld as InterfaceType>::Default = Implemented::NEW;
     let _: <AllTraitsImpld as InterfaceType>::Display = Implemented::NEW;
@@ -79,6 +81,7 @@ impl_InterfaceType! {
 fn assert_all_traits_unimpld() {
     let _: <NoTraitsImpld<()> as InterfaceType>::Send = Unimplemented::NEW;
     let _: <NoTraitsImpld<()> as InterfaceType>::Sync = Unimplemented::NEW;
+    let _: <NoTraitsImpld<()> as InterfaceType>::Unpin = Unimplemented::NEW;
     let _: <NoTraitsImpld<()> as InterfaceType>::Clone = Unimplemented::NEW;
     let _: <NoTraitsImpld<()> as InterfaceType>::Default = Unimplemented::NEW;
     let _: <NoTraitsImpld<()> as InterfaceType>::Display = Unimplemented::NEW;
@@ -111,6 +114,8 @@ impl_InterfaceType! {
     where
         T:Debug
     {
+        type Send=True;
+        type Sync=True;
         type Debug=True;
         type Display=True;
     }
@@ -120,6 +125,7 @@ impl_InterfaceType! {
 fn assert_fmt_traits_impld() {
     let _: <FmtInterface<()> as InterfaceType>::Send = Implemented::NEW;
     let _: <FmtInterface<()> as InterfaceType>::Sync = Implemented::NEW;
+    let _: <FmtInterface<()> as InterfaceType>::Unpin = Unimplemented::NEW;
     let _: <FmtInterface<()> as InterfaceType>::Clone = Unimplemented::NEW;
     let _: <FmtInterface<()> as InterfaceType>::Default = Unimplemented::NEW;
     let _: <FmtInterface<()> as InterfaceType>::Display = Implemented::NEW;
@@ -152,6 +158,8 @@ impl_InterfaceType! {
     where
         T:Debug
     {
+        type Send=True;
+        type Sync=True;
         type Hash=True;
         type PartialEq=True;
         type Eq=True;
@@ -162,6 +170,7 @@ impl_InterfaceType! {
 fn assert_hash_eq_impld() {
     let _: <HashEqInterface<()> as InterfaceType>::Send = Implemented::NEW;
     let _: <HashEqInterface<()> as InterfaceType>::Sync = Implemented::NEW;
+    let _: <HashEqInterface<()> as InterfaceType>::Unpin = Unimplemented::NEW;
     let _: <HashEqInterface<()> as InterfaceType>::Clone = Unimplemented::NEW;
     let _: <HashEqInterface<()> as InterfaceType>::Default = Unimplemented::NEW;
     let _: <HashEqInterface<()> as InterfaceType>::Display = Unimplemented::NEW;
