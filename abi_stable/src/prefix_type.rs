@@ -82,7 +82,7 @@ pub unsafe trait PrefixTypeTrait: Sized {
     ///
     /// Those pointer types are usually named with a `_Ref` suffix.
     type PrefixRef: PrefixRefTrait<
-        Target = WithMetadata_<Self::PrefixFields, Self::PrefixFields>,
+        PtrTarget = WithMetadata_<Self::PrefixFields, Self::PrefixFields>,
         PrefixFields = Self::PrefixFields,
     >;
 }
@@ -109,7 +109,7 @@ pub unsafe trait PrefixRefTrait: Sized + ImmutableRef {
     // is a hacky way to encode this type equality bound:
     // `Self::Target == WithMetadata_<Self::PrefixFields, Self::PrefixFields>`
     // (except that the compiler doesn't unify both types)
-    type PrefixFields: GetWithMetadata<ForSelf = Self::Target>;
+    type PrefixFields: GetWithMetadata<ForSelf = Self::PtrTarget>;
 
     /// A type used to prove that the `This` type parameter in
     /// `PointsToPrefixFields<This, PF>` implements

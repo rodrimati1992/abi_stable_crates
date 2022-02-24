@@ -18,7 +18,7 @@ pub use crate::{
         assert_nonexhaustive, EnumInfo, GetEnumInfo, GetNonExhaustive,
         GetVTable as GetNonExhaustiveVTable, NonExhaustive, ValidDiscriminant,
     },
-    pointer_trait::{AsMutPtr, AsPtr, ImmutableRef, ImmutableRefTarget},
+    pointer_trait::{AsMutPtr, AsPtr, GetPointerKind, PK_Reference},
     prefix_type::{
         panic_on_missing_field_ty, FieldAccessibility, FieldConditionality, IsAccessible,
         IsConditional, PTStructLayout, PrefixMetadata, PrefixRef, PrefixRefTrait, PrefixTypeTrait,
