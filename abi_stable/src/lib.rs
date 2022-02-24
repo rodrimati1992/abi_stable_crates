@@ -55,12 +55,9 @@ then run the `*_user` crate (all `*_user` crates should have a help message and 
 
 # Minimum Rust version
 
-This crate support Rust back to 1.46.0
+This crate support Rust back to 1.51.0
 
-You can manually enable support for Rust past 1.46.0 with the `rust_*_*` cargo features.
-
-Had to bump the MSRV from 1.41.0 to 1.46.0 because fixing Rust nightly
-compatibility caused Internal Compiler Errors in older Rust versions.
+You can manually enable support for Rust past 1.51.0 with the `rust_*_*` cargo features.
 
 # Crate Features
 
@@ -90,10 +87,8 @@ enabling the features you need in the `features` array.
 
 These are crate features to manually enable support for newer language features:
 
-- "rust_1_51_0":
-Enables impls which require using const generics,
-including implementing StableAbi for arrays of all lengths,
-requires Rust Rust 1.51.0 or higher.
+- "rust_1_56":
+Enables methods that require using `transmute` and `union`s.
 
 - "rust_latest_stable":
 Enables the "rust_1_*" features for all the stable releases.
@@ -387,3 +382,7 @@ extern "Rust" {
     /// `ptr` has to point to the beginning of an allocated block.
     fn miri_static_root(ptr: *const u8);
 }
+
+#[cfg(all(feature = "rust_1_56", doctest))]
+#[doc = include_str!("../../readme.md")]
+pub struct ReadmeTest;

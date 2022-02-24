@@ -1203,6 +1203,31 @@
         
       ],
     ),
+    
+    /*////////////////////////////////////////////////////////////////////////////
+                    function pointer qualifiers
+    *///////////////////////////////////////////////////////////////////////////// 
+    (
+      name:"Max unique lifetime parameters",
+      code:r##"
+          #[repr(C)]
+          struct Foo{
+            func: #qualif fn(),
+          }
+      "##,
+      subcase: [
+        ( replacements: { "#qualif":r#"extern "C" "# }, error_count: 0),
+        ( replacements: { "#qualif":r#"unsafe extern "C" "# }, error_count: 0),
+        ( replacements: { "#qualif":r#"extern "Rust" "# }, error_count: 1),
+        ( replacements: { "#qualif":r#"unsafe extern "Rust" "# }, error_count: 1),
+        ( replacements: { "#qualif":r#""# }, error_count: 1 ),
+        ( replacements: { "#qualif":r#"unsafe "# }, error_count: 1 ),
+        ( replacements: { "#qualif":r#"const "# }, error_count: 1 ),
+        ( replacements: { "#qualif":r#"const extern "C" "# }, error_count: 1 ),
+        ( replacements: { "#qualif":r#"const unsafe extern "C" "# }, error_count: 1 ),
+      ],
+    ),
+
     /*////////////////////////////////////////////////////////////////////////////
               Stuff that should error because it goes over some limit
     *///////////////////////////////////////////////////////////////////////////// 

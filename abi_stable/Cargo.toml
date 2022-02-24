@@ -24,18 +24,9 @@ travis-ci = { repository =  "rodrimati1992/abi_stable_crates/" }
 [features]
 default = ["channels","serde_json"]
 
-rust_1_42=[]
+rust_1_56 = []
 
-rust_1_46=["rust_1_42"]
-
-rust_1_51=["rust_1_46", "const_params"]
-
-rust_latest_stable = ["rust_1_51"]
-
-const_params=["rust_1_46"]
-
-# Enables the `#![feature(min_const_generics)]` attribute in 
-nightly_const_params=["const_params"]
+rust_latest_stable = ["rust_1_56"]
 
 # internal features
 testing=[]
