@@ -708,14 +708,16 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 )*
             }
 
-            unsafe impl #impl_generics __sabi_re::ImmutableRef for #prefix_ref #ty_generics
+            unsafe impl #impl_generics __sabi_re::GetPointerKind for #prefix_ref #ty_generics
             where
                 #(#where_preds_rl,)*
             {
-                type Target = __sabi_re::WithMetadata_<
+                type PtrTarget = __sabi_re::WithMetadata_<
                     #prefix_fields_struct #ty_generics,
                     #prefix_fields_struct #ty_generics,
                 >;
+
+                type Kind = __sabi_re::PK_Reference;
             }
 
             unsafe impl #impl_generics __sabi_re::PrefixRefTrait for #prefix_ref #ty_generics

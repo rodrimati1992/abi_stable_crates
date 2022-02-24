@@ -150,7 +150,7 @@ jobs:
         rustup component add miri
         cargo miri setup
         env MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --tests --features "testing rust_1_51" -- crossbeam_channel
-        env MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-track-raw-pointers" cargo miri test --features "test_miri_track_raw rust_1_51"
+        env MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-tag-raw-pointers" cargo miri test --features "test_miri_track_raw rust_1_51"
 
         cd "${{github.workspace}}"
         rm Cargo.lock

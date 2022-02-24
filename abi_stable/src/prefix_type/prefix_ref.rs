@@ -1,6 +1,6 @@
 use crate::{
     abi_stability::{GetStaticEquivalent, GetStaticEquivalent_, PrefixStableAbi, StableAbi},
-    pointer_trait::ImmutableRef,
+    pointer_trait::{GetPointerKind, PK_Reference},
     prefix_type::{PrefixMetadata, PrefixRefTrait, WithMetadata_},
     reexports::True,
     reflection::ModReflMode,
@@ -427,8 +427,9 @@ where
     };
 }
 
-unsafe impl<P> ImmutableRef for PrefixRef<P> {
-    type Target = WithMetadata_<P, P>;
+unsafe impl<P> GetPointerKind for PrefixRef<P> {
+    type PtrTarget = WithMetadata_<P, P>;
+    type Kind = PK_Reference;
 }
 
 unsafe impl<P> PrefixRefTrait for PrefixRef<P> {

@@ -51,8 +51,10 @@ pub unsafe trait GetPointerKind: Sized {
     /// This is what each kind requires to be used as this associated type:
     ///
     /// - [`PK_Reference`]: `Self` must be a `&T`,
-    /// or a `Copy` and `#[repr(transparent)]` wrapper around a primitive pointer,
-    /// with `&T` semantics
+    /// or a `Copy` and `#[repr(transparent)]` wrapper around a raw pointer or reference,
+    /// with `&T` semantics.
+    /// Note that converting into and then back from `&Self::PtrTarget` might
+    /// be a lossy operation for such a type.
     ///
     /// - [`PK_MutReference`]: `Self` must be a `&mut T`,
     /// or a non-`Drop` and `#[repr(transparent)]` wrapper around a
@@ -77,6 +79,10 @@ pub unsafe trait GetPointerKind: Sized {
     ///
     type PtrTarget;
 
+    /// A marker type that can be used as a proof that the `T` type parameter of
+    /// `ImmutableRefTarget<T, U>` implements `ImmutableRef<Target = U>`.
+    const PROOF: IsPointer<Self, Self::PtrTarget, Self::Kind> = IsPointer::NEW;
+
     /// The value-level version of the [`Kind`](#associatedtype.Kind) associated type.
     ///
     /// # Safety for implementor
@@ -84,6 +90,63 @@ pub unsafe trait GetPointerKind: Sized {
     /// This must not be overriden.
     const KIND: PointerKind = <Self::Kind as PointerKindVariant>::VALUE;
 }
+
+unsafe impl<'a, T> GetPointerKind for &'a T {
+    type Kind = PK_Reference;
+    type PtrTarget = T;
+}
+
+unsafe impl<'a, T> GetPointerKind for &'a mut T {
+    type Kind = PK_MutReference;
+    type PtrTarget = T;
+}
+
+////////////////////////////////////////////
+
+/// A marker type that can be used as a proof that the `S` type parameter
+/// is a pointer type (implements [`GetPointerKind`]`<PtrTarget = T, Kind = K>`).
+///
+/// [`GetPointerKind`]: ./trait.GetPointerKind.html
+pub struct IsPointer<S, T, K>(NonOwningPhantom<(S, T, K)>);
+
+impl<S, T, K> Copy for IsPointer<S, T, K> {}
+
+impl<S, T, K> Clone for IsPointer<S, T, K> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<S, T, K> IsPointer<S, T, K>
+where
+    S: GetPointerKind<PtrTarget = T, Kind = K>,
+{
+    /// Constructs an `IsPointer`
+    pub const NEW: Self = Self(NonOwningPhantom::NEW);
+}
+
+/// A marker type that can be used as a proof that the `S` type parameter
+/// is a shared-reference-like
+/// (implements [`GetPointerKind`]`<PtrTarget = T, Kind = PK_Reference>`).
+///
+/// [`GetPointerKind`]: ./trait.GetPointerKind.html
+pub type IsReference<S, T> = IsPointer<S, T, PK_Reference>;
+
+/// A marker type that can be used as a proof that the `S` type parameter
+/// is a mutable-reference-like
+/// (implements [`GetPointerKind`]`<PtrTarget = T, Kind = PK_MutReference>`).
+///
+/// [`GetPointerKind`]: ./trait.GetPointerKind.html
+pub type IsMutReference<S, T> = IsPointer<S, T, PK_MutReference>;
+
+/// A marker type that can be used as a proof that the `S` type parameter
+/// is a smart pointer
+/// (implements [`GetPointerKind`]`<PtrTarget = T, Kind = PK_SmartPointer>`).
+///
+/// [`GetPointerKind`]: ./trait.GetPointerKind.html
+pub type IsSmartPointer<S, T> = IsPointer<S, T, PK_SmartPointer>;
+
+////////////////////////////////////////////
 
 /// For restricting types to the type-level equivalents of [`PointerKind`] variants.
 ///
@@ -145,16 +208,6 @@ impl PointerKindVariant for PK_MutReference {
 
 impl PointerKindVariant for PK_SmartPointer {
     const VALUE: PointerKind = PointerKind::SmartPointer;
-}
-
-unsafe impl<'a, T> GetPointerKind for &'a T {
-    type Kind = PK_Reference;
-    type PtrTarget = T;
-}
-
-unsafe impl<'a, T> GetPointerKind for &'a mut T {
-    type Kind = PK_MutReference;
-    type PtrTarget = T;
 }
 
 ///////////
@@ -764,36 +817,10 @@ impl<T: OwnedPointer> Drop for DropAllocationMutGuard<'_, T> {
 
 /// Trait for non-owning pointers that are shared-reference-like.
 ///
-/// # Safety
-///
-/// Implementors must be `#[repr(transparent)]` wrappers around
-/// `&`/`NonNull`/`impl ImmutableRef`,
-/// with any amount of 1-aligned zero-sized fields.
-///
-/// It must be valid to transmute a `NonNull<Self::Target>` pointer obtained
-/// from [`Self::to_nonnull`](#method.to_nonnull) back into `Self`,
-/// producing a pointer just as usable as the original.
-//
-// # Implementation notes
-//
-// The default methods use `Transmuter` instead of:
-// - `std::mem::transmute` because the compiler doesn't know that the size of
-//   `*const ()` and `Self` is the same
-// - `std::mem::transmute_copy`: incurrs function call overhead in unoptimized builds,
-// which is unnacceptable.
-//
-// These methods have been defined to compile to a couple of `mov`s in debug builds.
-pub unsafe trait ImmutableRef: Copy {
-    /// The referent of the pointer, what it points to.
-    type Target;
-
-    /// A marker type that can be used as a proof that the `T` type parameter of
-    /// `ImmutableRefTarget<T, U>` implements `ImmutableRef<Target = U>`.
-    const TARGET: ImmutableRefTarget<Self, Self::Target> = ImmutableRefTarget::new();
-
+pub unsafe trait ImmutableRef: Copy + GetPointerKind<Kind = PK_Reference> {
     /// Converts this pointer to a `NonNull`.
     #[inline(always)]
-    fn to_nonnull(self) -> NonNull<Self::Target> {
+    fn to_nonnull(self) -> NonNull<Self::PtrTarget> {
         unsafe { Transmuter { from: self }.to }
     }
 
@@ -804,13 +831,13 @@ pub unsafe trait ImmutableRef: Copy {
     /// `from` must be a pointer from a call to `ImmutableRef::to_nonnull` or
     /// `ImmutableRef::to_raw_ptr` on an instance of `Self`.
     #[inline(always)]
-    unsafe fn from_nonnull(from: NonNull<Self::Target>) -> Self {
+    unsafe fn from_nonnull(from: NonNull<Self::PtrTarget>) -> Self {
         Transmuter { from }.to
     }
 
     /// Converts this pointer to a raw pointer.
     #[inline(always)]
-    fn to_raw_ptr(self) -> *const Self::Target {
+    fn to_raw_ptr(self) -> *const Self::PtrTarget {
         unsafe { Transmuter { from: self }.to }
     }
 
@@ -820,53 +847,9 @@ pub unsafe trait ImmutableRef: Copy {
     ///
     /// This has the same safety requirements as [`from_nonnull`](#method.from_nonnull)
     #[inline(always)]
-    unsafe fn from_raw_ptr(from: *const Self::Target) -> Option<Self> {
+    unsafe fn from_raw_ptr(from: *const Self::PtrTarget) -> Option<Self> {
         Transmuter { from }.to
     }
 }
 
-/// Gets the `ImmutableRef::Target` associated type for `T`.
-pub type ImmutableRefOut<T> = <T as ImmutableRef>::Target;
-
-unsafe impl<'a, T> ImmutableRef for &'a T {
-    type Target = T;
-
-    #[inline(always)]
-    #[cfg(miri)]
-    fn to_raw_ptr(self) -> *const Self::Target {
-        self as _
-    }
-
-    #[inline(always)]
-    #[cfg(miri)]
-    unsafe fn from_raw_ptr(from: *const Self::Target) -> Option<Self> {
-        std::mem::transmute(from)
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-/// A marker type that can be used as a proof that the `T` type parameter of
-/// `ImmutableRefTarget<T, U>`
-/// implements [`ImmutableRef`]`<Target = U>`.
-///
-/// [`ImmutableRef`]: ./trait.ImmutableRef.html
-pub struct ImmutableRefTarget<T, U>(NonOwningPhantom<(T, U)>);
-
-impl<T, U> Copy for ImmutableRefTarget<T, U> {}
-impl<T, U> Clone for ImmutableRefTarget<T, U> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T, U> ImmutableRefTarget<T, U> {
-    // This function is private on purpose.
-    //
-    // This type is only supposed to be constructed in the default initializer for
-    // `ImmutableRef::TARGET`.
-    #[inline(always)]
-    const fn new() -> Self {
-        Self(NonOwningPhantom::DEFAULT)
-    }
-}
+unsafe impl<T> ImmutableRef for T where T: Copy + GetPointerKind<Kind = PK_Reference> {}

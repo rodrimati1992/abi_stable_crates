@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     external_types::RMutex,
-    pointer_trait::{ImmutableRef, ImmutableRefTarget},
+    pointer_trait::{ImmutableRef, IsReference},
     prefix_type::{PointsToPrefixFields, PrefixRef},
 };
 
@@ -208,7 +208,9 @@ impl<T: 'static> LateStaticRef<T> {
     ///
     /// ```rust
     /// use abi_stable::{
-    ///     pointer_trait::ImmutableRef, sabi_types::LateStaticRef, utils::ref_as_nonnull,
+    ///     pointer_trait::{IsReference, GetPointerKind, PK_Reference},
+    ///     sabi_types::LateStaticRef,
+    ///     utils::ref_as_nonnull,
     ///     StableAbi,
     /// };
     ///
@@ -223,18 +225,19 @@ impl<T: 'static> LateStaticRef<T> {
     ///     }
     /// }
     ///
-    /// unsafe impl<'a> ImmutableRef for Foo<'a> {
-    ///     type Target = u64;
+    /// unsafe impl<'a> GetPointerKind for Foo<'a> {
+    ///     type PtrTarget = u64;
+    ///     type Kind = PK_Reference;
     /// }
     ///
     /// const MODULE: LateStaticRef<Foo<'static>> = {
     ///     unsafe {
-    ///         LateStaticRef::from_custom(ImmutableRef::TARGET, Foo(&100).as_nonnull())
+    ///         LateStaticRef::from_custom(IsReference::NEW, Foo(&100).as_nonnull())
     ///     }
     /// };
     /// ```
     pub const unsafe fn from_custom<U: 'static>(
-        _target: ImmutableRefTarget<T, U>,
+        _target: IsReference<T, U>,
         ptr: NonNull<U>,
     ) -> Self {
         Self {
@@ -298,7 +301,7 @@ where
         let pointer = initializer()?;
 
         self.pointer.store(
-            pointer.to_raw_ptr() as *mut T::Target as *mut (),
+            pointer.to_raw_ptr() as *mut T::PtrTarget as *mut (),
             Ordering::Release,
         );
 
@@ -364,7 +367,7 @@ where
     ///
     /// ```
     pub fn get(&self) -> Option<T> {
-        unsafe { T::from_raw_ptr(self.pointer.load(Ordering::Acquire) as *const T::Target) }
+        unsafe { T::from_raw_ptr(self.pointer.load(Ordering::Acquire) as *const T::PtrTarget) }
     }
 }
 
