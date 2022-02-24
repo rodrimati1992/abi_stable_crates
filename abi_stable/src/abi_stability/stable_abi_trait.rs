@@ -814,12 +814,8 @@ where
 
 /////////////
 
-#[cfg(feature = "const_params")]
 macro_rules! impl_stable_abi_array {
     () => {
-        /// When the "const_params" feature is disabled,
-        /// this trait is implemented for arrays of up to 32 elements.
-        #[cfg_attr(feature = "docsrs", doc(cfg(feature = "const_params")))]
         unsafe impl<T, const N: usize> GetStaticEquivalent_ for [T; N]
         where
             T: GetStaticEquivalent_,
@@ -827,9 +823,6 @@ macro_rules! impl_stable_abi_array {
             type StaticEquivalent = [T::StaticEquivalent; N];
         }
 
-        /// When the "const_params" feature is disabled,
-        /// this trait is implemented for arrays of up to 32 elements.
-        #[cfg_attr(feature = "docsrs", doc(cfg(feature = "const_params")))]
         unsafe impl<T, const N: usize> StableAbi for [T; N]
         where
             T: StableAbi,
@@ -879,73 +872,7 @@ macro_rules! impl_stable_abi_array {
     };
 }
 
-#[cfg(feature = "const_params")]
 impl_stable_abi_array! {}
-
-/////////////
-
-#[cfg(not(feature = "const_params"))]
-macro_rules! impl_stable_abi_array {
-    ($($size:expr),*)=>{
-        $(
-            unsafe impl<T> GetStaticEquivalent_ for [T;$size]
-            where T:GetStaticEquivalent_
-            {
-                type StaticEquivalent=[T::StaticEquivalent;$size];
-            }
-
-            unsafe impl<T> StableAbi for [T;$size]
-            where T:StableAbi
-            {
-                type IsNonZeroType=False;
-
-                const LAYOUT: &'static TypeLayout = {
-                    const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
-                        *mono_shared_vars,
-                        rstr!("array"),
-                        ItemInfo::primitive(),
-                        MonoTLData::Primitive(TLPrimitive::Array{len:$size}),
-                        tl_genparams!(;0;0),
-                        ReprAttr::Primitive,
-                        ModReflMode::Module,
-                        {
-                            const S: &[CompTLField] = &[
-                                CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
-                            ];
-                            RSlice::from_slice(S)
-                        },
-                    );
-
-                    make_shared_vars!{
-                        impl[T] [T; $size]
-                        where[T: StableAbi];
-
-                        let (mono_shared_vars,shared_vars)={
-                            strings={ field0:"element", },
-                            type_layouts=[T],
-                            constant=[usize => $size as usize],
-                        };
-                    }
-
-                    &TypeLayout::from_std::<Self>(
-                        shared_vars,
-                        MONO_TYPE_LAYOUT,
-                        Self::ABI_CONSTS,
-                        GenericTLData::Primitive,
-                    )
-                };
-            }
-        )*
-    }
-}
-
-#[cfg(not(feature = "const_params"))]
-impl_stable_abi_array! {
-    00,01,02,03,04,05,06,07,08,09,
-    10,11,12,13,14,15,16,17,18,19,
-    20,21,22,23,24,25,26,27,28,29,
-    30,31,32
-}
 
 /////////////
 

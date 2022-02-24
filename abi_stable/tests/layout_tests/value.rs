@@ -388,7 +388,7 @@ fn same_different_abi_stability() {
             <Tagged<tagging_items::TAG_DEFAULT_6>>::LAYOUT,
         ]);
     }
-    #[cfg(feature = "const_params")]
+
     {
         list.extend(vec![
             <[u8; 0]>::LAYOUT,

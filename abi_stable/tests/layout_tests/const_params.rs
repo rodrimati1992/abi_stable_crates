@@ -4,7 +4,6 @@ use abi_stable::{
     StableAbi,
 };
 
-#[cfg(feature = "const_params")]
 mod with_const_generics;
 
 mod one_phantom {
@@ -96,7 +95,6 @@ fn test_compatibility() {
         <two_phantom::Struct<i8, i64> as StableAbi>::LAYOUT,
     ];
 
-    #[cfg(feature = "const_params")]
     {
         use self::with_const_generics::{single_integer, single_integer_one_phantom, two_integer};
         list.extend(vec![

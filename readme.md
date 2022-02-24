@@ -423,6 +423,7 @@ impl StringBuilder{
 
 #[sabi_extern_fn]
 pub fn new_appender() -> AppenderBox<u32>{
+    /*
     What `TD_Opaque` does here is specify that the trait object cannot be downcasted,
     disallowing the `Appender_TO` from being unwrapped back into an `RVec<u32>`
     using the `trait_object.obj.*_downcast_*()` methods.
@@ -489,7 +490,6 @@ impl<T> Appender for RVec<T>{
 }
 
 ```
-
 
 
 # Safety
@@ -570,12 +570,9 @@ and loads the pre-compiled `implementation crate` dynamic library from some path
 
 # Minimum Rust version
 
-This crate support Rust back to 1.46.0
+This crate support Rust back to 1.51.0
 
-You can manually enable support for Rust past 1.46.0 with the `rust_*_*` cargo features.
-
-Had to bump the MSRV from 1.41.0 to 1.46.0 because fixing Rust nightly
-compatibility caused Internal Compiler Errors in older Rust versions.
+You can manually enable support for Rust past 1.51.0 with the `rust_*_*` cargo features.
 
 # Crate Features
 
@@ -593,7 +590,7 @@ These are default cargo features that enable optional crates :
 
 
 To disable the default features use:
-```
+```toml
 [dependencies.abi_stable]
 version = "<current_version>"
 default-features = false
@@ -606,10 +603,8 @@ enabling the features you need in the `features` array.
 
 These are crate features to manually enable support for newer language features:
 
-- "rust_1_51_0":
-Enables impls which require using const generics,
-including implementing StableAbi for arrays of all lengths,
-requires Rust Rust 1.51.0 or higher.
+- "rust_1_56_0":
+Enables methods that require using `transmute` and `union`s.
 
 - "rust_latest_stable":
 Enables the "rust_1_*" features for all the stable releases.
@@ -626,8 +621,10 @@ A program to extract a variety of information from an abi_stable dynamic library
 
 abi_stable is licensed under either of
 
+```text
     Apache License, Version 2.0, (LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
     MIT license (LICENSE-MIT or http://opensource.org/licenses/MIT)
+```
 
 at your option.
 
