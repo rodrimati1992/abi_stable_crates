@@ -505,6 +505,9 @@ declare_meta_vtable! {
         [
             impl Sync where [OrigP:Sync,T:Sync]
         ]
+        [
+            impl Unpin where [OrigP:Unpin,T:Unpin]
+        ]
     ]
 
     marker_traits[

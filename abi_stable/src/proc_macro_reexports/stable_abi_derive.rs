@@ -170,6 +170,8 @@ and won't be usable afterwards.
 
 - `Sync`: Changing this to require/unrequire in minor versions is an abi breaking change.
 
+- `Unpin`: Changing this to require/unrequire in minor versions is an abi breaking change.
+
 - `Clone`
 
 - `Default`

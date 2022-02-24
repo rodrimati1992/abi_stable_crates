@@ -12,6 +12,7 @@ use crate::{
 #[sabi(impl_InterfaceType(
     Send,
     Sync,
+    Unpin,
     Clone,
     Default,
     Display,
@@ -38,6 +39,7 @@ pub struct AllTraitsImpld;
 fn assert_all_traits_impld() {
     let _: <AllTraitsImpld as InterfaceType>::Send = Implemented::NEW;
     let _: <AllTraitsImpld as InterfaceType>::Sync = Implemented::NEW;
+    let _: <AllTraitsImpld as InterfaceType>::Unpin = Implemented::NEW;
     let _: <AllTraitsImpld as InterfaceType>::Clone = Implemented::NEW;
     let _: <AllTraitsImpld as InterfaceType>::Default = Implemented::NEW;
     let _: <AllTraitsImpld as InterfaceType>::Display = Implemented::NEW;
@@ -71,6 +73,7 @@ pub struct NoTraitsImpld<T>(PhantomData<T>);
 fn assert_all_traits_unimpld() {
     let _: <NoTraitsImpld<()> as InterfaceType>::Send = Unimplemented::NEW;
     let _: <NoTraitsImpld<()> as InterfaceType>::Sync = Unimplemented::NEW;
+    let _: <NoTraitsImpld<()> as InterfaceType>::Unpin = Unimplemented::NEW;
     let _: <NoTraitsImpld<()> as InterfaceType>::Clone = Unimplemented::NEW;
     let _: <NoTraitsImpld<()> as InterfaceType>::Default = Unimplemented::NEW;
     let _: <NoTraitsImpld<()> as InterfaceType>::Display = Unimplemented::NEW;
@@ -105,6 +108,7 @@ where
 fn assert_fmt_traits_impld() {
     let _: <FmtInterface<()> as InterfaceType>::Send = Unimplemented::NEW;
     let _: <FmtInterface<()> as InterfaceType>::Sync = Unimplemented::NEW;
+    let _: <FmtInterface<()> as InterfaceType>::Unpin = Unimplemented::NEW;
     let _: <FmtInterface<()> as InterfaceType>::Clone = Unimplemented::NEW;
     let _: <FmtInterface<()> as InterfaceType>::Default = Unimplemented::NEW;
     let _: <FmtInterface<()> as InterfaceType>::Display = Implemented::NEW;
@@ -139,6 +143,7 @@ where
 fn assert_hash_ord_impld() {
     let _: <HashOrdInterface<()> as InterfaceType>::Send = Unimplemented::NEW;
     let _: <HashOrdInterface<()> as InterfaceType>::Sync = Unimplemented::NEW;
+    let _: <HashOrdInterface<()> as InterfaceType>::Unpin = Unimplemented::NEW;
     let _: <HashOrdInterface<()> as InterfaceType>::Clone = Unimplemented::NEW;
     let _: <HashOrdInterface<()> as InterfaceType>::Default = Unimplemented::NEW;
     let _: <HashOrdInterface<()> as InterfaceType>::Display = Unimplemented::NEW;
@@ -171,6 +176,7 @@ pub struct OnlyEq;
 fn assert_only_eq() {
     let _: <OnlyEq as InterfaceType>::Send = Unimplemented::NEW;
     let _: <OnlyEq as InterfaceType>::Sync = Unimplemented::NEW;
+    let _: <OnlyEq as InterfaceType>::Unpin = Unimplemented::NEW;
     let _: <OnlyEq as InterfaceType>::Clone = Unimplemented::NEW;
     let _: <OnlyEq as InterfaceType>::Default = Unimplemented::NEW;
     let _: <OnlyEq as InterfaceType>::Display = Unimplemented::NEW;
@@ -203,6 +209,7 @@ pub struct OnlyPartialOrd;
 fn assert_only_partial_ord() {
     let _: <OnlyPartialOrd as InterfaceType>::Send = Unimplemented::NEW;
     let _: <OnlyPartialOrd as InterfaceType>::Sync = Unimplemented::NEW;
+    let _: <OnlyPartialOrd as InterfaceType>::Unpin = Unimplemented::NEW;
     let _: <OnlyPartialOrd as InterfaceType>::Clone = Unimplemented::NEW;
     let _: <OnlyPartialOrd as InterfaceType>::Default = Unimplemented::NEW;
     let _: <OnlyPartialOrd as InterfaceType>::Display = Unimplemented::NEW;
@@ -235,6 +242,7 @@ pub struct OnlyError;
 fn assert_only_error() {
     let _: <OnlyError as InterfaceType>::Send = Unimplemented::NEW;
     let _: <OnlyError as InterfaceType>::Sync = Unimplemented::NEW;
+    let _: <OnlyError as InterfaceType>::Unpin = Unimplemented::NEW;
     let _: <OnlyError as InterfaceType>::Clone = Unimplemented::NEW;
     let _: <OnlyError as InterfaceType>::Default = Unimplemented::NEW;
     let _: <OnlyError as InterfaceType>::Display = Implemented::NEW;
@@ -267,6 +275,7 @@ pub struct OnlyIter;
 fn assert_only_iter() {
     let _: <OnlyIter as InterfaceType>::Send = Unimplemented::NEW;
     let _: <OnlyIter as InterfaceType>::Sync = Unimplemented::NEW;
+    let _: <OnlyIter as InterfaceType>::Unpin = Unimplemented::NEW;
     let _: <OnlyIter as InterfaceType>::Clone = Unimplemented::NEW;
     let _: <OnlyIter as InterfaceType>::Default = Unimplemented::NEW;
     let _: <OnlyIter as InterfaceType>::Display = Unimplemented::NEW;
@@ -299,6 +308,7 @@ pub struct OnlyDEIter;
 fn assert_only_de_iter() {
     let _: <OnlyDEIter as InterfaceType>::Send = Unimplemented::NEW;
     let _: <OnlyDEIter as InterfaceType>::Sync = Unimplemented::NEW;
+    let _: <OnlyDEIter as InterfaceType>::Unpin = Unimplemented::NEW;
     let _: <OnlyDEIter as InterfaceType>::Clone = Unimplemented::NEW;
     let _: <OnlyDEIter as InterfaceType>::Default = Unimplemented::NEW;
     let _: <OnlyDEIter as InterfaceType>::Display = Unimplemented::NEW;

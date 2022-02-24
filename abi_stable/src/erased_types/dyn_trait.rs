@@ -98,48 +98,50 @@ mod priv_ {
     ///
     /// These are the traits:
     ///
-    /// - Send
+    /// - [`Send`]
     ///
-    /// - Sync
+    /// - [`Sync`]
     ///
-    /// - Iterator
+    /// - [`Unpin`]
     ///
-    /// - DoubleEndedIterator
+    /// - [`Iterator`]
     ///
-    /// - std::fmt::Write
+    /// - [`DoubleEndedIterator`]
     ///
-    /// - std::io::Write
+    /// - [`std::fmt::Write`]
     ///
-    /// - std::io::Seek
+    /// - [`std::io::Write`]
     ///
-    /// - std::io::Read
+    /// - [`std::io::Seek`]
     ///
-    /// - std::io::BufRead
+    /// - [`std::io::Read`]
     ///
-    /// - Clone
+    /// - [`std::io::BufRead`]
     ///
-    /// - Display
+    /// - [`Clone`]
     ///
-    /// - Debug
+    /// - [`Display`]
     ///
-    /// - std::error::Error
+    /// - [`Debug`]
     ///
-    /// - Default: Can be called as an inherent method.
+    /// - [`std::error::Error`]
     ///
-    /// - Eq
+    /// - [`Default`]: Can only be called as an inherent method.
     ///
-    /// - PartialEq
+    /// - [`Eq`]
     ///
-    /// - Ord
+    /// - [`PartialEq`]
     ///
-    /// - PartialOrd
+    /// - [`Ord`]
     ///
-    /// - Hash
+    /// - [`PartialOrd`]
     ///
-    /// - serde::Deserialize:
+    /// - [`Hash`]
+    ///
+    /// - [`serde::Deserialize`]:
     ///     first deserializes from a string, and then calls the objects' Deserialize impl.
     ///
-    /// - serde::Serialize:
+    /// - [`serde::Serialize`]:
     ///     first calls the objects' Deserialize impl, then serializes that as a string.
     ///
     /// ###  Deconstruction
@@ -2715,6 +2717,14 @@ unsafe impl<'borr, P, I, EV> Sync for DynTrait<'borr, P, I, EV>
 where
     P: Sync + GetPointerKind,
     I: InterfaceBound<Sync = Implemented<trait_marker::Sync>>,
+{
+}
+
+impl<'borr, P, I, EV> Unpin for DynTrait<'borr, P, I, EV>
+where
+    // `Unpin` is a property of the referent
+    P: GetPointerKind,
+    I: InterfaceBound<Unpin = Implemented<trait_marker::Unpin>>,
 {
 }
 

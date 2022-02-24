@@ -32,32 +32,35 @@ pub mod trait_marker {
     pub struct PartialOrd;
     pub struct Hash;
 
-    /// Represents the `serde::Deserialize` trait.
+    /// Represents the [`serde::Deserialize`] trait.
     pub struct Deserialize;
 
-    /// Represents the `serde::Serialize` trait.
+    /// Represents the [`serde::Serialize`] trait.
     pub struct Serialize;
 
     pub struct Iterator;
     pub struct DoubleEndedIterator;
 
-    /// Represents the `std::fmt::Write` trait.
+    /// Represents the [`std::fmt::Write`] trait.
     pub struct FmtWrite;
 
-    /// Represents the `std::io::Write` trait.
+    /// Represents the [`std::io::Write`] trait.
     pub struct IoWrite;
 
-    /// Represents the `std::io::Seek` trait.
+    /// Represents the [`std::io::Seek`] trait.
     pub struct IoSeek;
 
-    /// Represents the `std::io::Read` trait.
+    /// Represents the [`std::io::Read`] trait.
     pub struct IoRead;
 
-    /// Represents the `std::io::BufRead` trait.
+    /// Represents the [`std::io::BufRead`] trait.
     pub struct IoBufRead;
 
-    /// Represents the `std::error::Error` trait.
+    /// Represents the [`std::error::Error`] trait.
     pub struct Error;
+
+    /// Represents the [`std::marker::Unpin`] trait.
+    pub struct Unpin;
 
     #[doc(hidden)]
     #[allow(non_camel_case_types)]
