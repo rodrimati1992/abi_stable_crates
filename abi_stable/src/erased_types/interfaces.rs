@@ -41,6 +41,14 @@ pub struct DefaultInterface;
 
 //////////////////////////////////////////////
 
+/// Implements `InterfaceType`, requiring `Unpin`
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Unpin))]
+pub struct UnpinInterface;
+
+//////////////////////////////////////////////
+
 /// Implements `InterfaceType`, requiring `Send + Sync + Debug + Eq + Default`
 #[repr(C)]
 #[derive(StableAbi)]

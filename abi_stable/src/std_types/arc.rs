@@ -399,6 +399,8 @@ unsafe impl<T> Sync for RArc<T> where T: Send + Sync {}
 
 unsafe impl<T> Send for RArc<T> where T: Send + Sync {}
 
+impl<T> Unpin for RArc<T> {}
+
 /////////////////////////////////////////////////////////
 
 mod vtable_mod {
