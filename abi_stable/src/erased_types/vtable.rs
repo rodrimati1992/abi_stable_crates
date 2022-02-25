@@ -232,17 +232,17 @@ macro_rules! declare_meta_vtable {
 
         /// Returns the value of a vtable field in the current binary
         /// (this can be a different value in a dynamically_linked_library/executable).
-        pub trait VTableFieldValue<'borr,Ty,IsImpld,$value,$erased_ptr,$orig_ptr,$interf>{
+        pub trait VTableFieldValue<'borr,Ty,$value,$erased_ptr,$orig_ptr,$interf>{
             const FIELD:Ty;
         }
 
-        pub trait MarkerTrait<'borr,IsImpld,$value,$erased_ptr,$orig_ptr>{}
+        pub trait MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>{}
 
 
         $(
             impl<'borr,$value,$erased_ptr,$orig_ptr,$interf>
                 VTableFieldType_<'borr,$value,$erased_ptr,$orig_ptr,$interf>
-            for trait_selector::$selector
+            for trait_marker::$selector
             where
                 $interf:InterfaceBound,
             {
@@ -254,13 +254,12 @@ macro_rules! declare_meta_vtable {
                 VTableFieldValue<
                     'borr,
                     $option_ty<AnyFieldTy>,
-                    Unimplemented<trait_marker::$selector>,
                     $value,
                     $erased_ptr,
                     $orig_ptr,
                     $interf
                 >
-            for trait_selector::$selector
+            for Unimplemented<trait_marker::$selector>
             {
                 const FIELD:$option_ty<AnyFieldTy>=$none_constr;
             }
@@ -269,13 +268,12 @@ macro_rules! declare_meta_vtable {
                 VTableFieldValue<
                     'borr,
                     $option_ty<FieldTy>,
-                    Implemented<trait_marker::$selector>,
                     $value,
                     $erased_ptr,
                     $orig_ptr,
                     $interf
                 >
-            for trait_selector::$selector
+            for Implemented<trait_marker::$selector>
             where
                 $interf:InterfaceBound,
                 $field_ty:TypeIdentity<Type=FieldTy>,
@@ -289,45 +287,28 @@ macro_rules! declare_meta_vtable {
 
 
 
-        impl<'borr,Anything,$value,X,$erased_ptr,$orig_ptr>
-            MarkerTrait<'borr,Unimplemented<X>,$value,$erased_ptr,$orig_ptr>
-        for Anything
+        impl<'borr,Anything,$value,$erased_ptr,$orig_ptr>
+            MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>
+        for Unimplemented<Anything>
         {}
 
         $(
-            impl<'borr,$value,X,$erased_ptr,$orig_ptr>
-                MarkerTrait<'borr,Implemented<X>,$value,$erased_ptr,$orig_ptr>
-            for trait_selector::$auto_trait
+            impl<'borr,$value,$erased_ptr,$orig_ptr>
+                MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>
+            for Implemented<trait_marker::$auto_trait>
             where $($phantom_where_clause)*
             {}
         )*
 
         $(
-            impl<'borr,$value,X,$erased_ptr,$orig_ptr>
-                MarkerTrait<'borr,Implemented<X>,$value,$erased_ptr,$orig_ptr>
-            for trait_selector::$marker_trait
+            impl<'borr,$value,$erased_ptr,$orig_ptr>
+                MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>
+            for Implemented<trait_marker::$marker_trait>
             where $($marker_where_clause)*
             {}
         )*
 
         ///////////////////////////////////////////////////////////
-
-        /// Contains marker types representing traits of the same name.
-        pub mod trait_selector{
-            $(
-                /// Marker type representing the trait of the same name.
-                pub struct $auto_trait;
-            )*
-            $(
-                /// Marker type representing the trait of the same name.
-                pub struct $marker_trait;
-            )*
-            $(
-                /// Marker type representing the trait of the same name.
-                pub struct $selector;
-            )*
-        }
-
 
         impl<'borr,This,$value,$erased_ptr,$orig_ptr,$interf>
             GetVtable<'borr,$value,$erased_ptr,$orig_ptr,$interf>
@@ -336,18 +317,17 @@ macro_rules! declare_meta_vtable {
             This:ImplType<Interface=$interf>,
             $interf:InterfaceBound,
             $(
-                trait_selector::$auto_trait:
-                    MarkerTrait<'borr,$interf::$auto_trait,$value,$erased_ptr,$orig_ptr>,
+                $interf::$auto_trait:
+                    MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>,
             )*
             $(
-                trait_selector::$marker_trait:
-                    MarkerTrait<'borr,$interf::$marker_trait,$value,$erased_ptr,$orig_ptr>,
+                $interf::$marker_trait:
+                    MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>,
             )*
             $(
-                trait_selector::$selector:VTableFieldValue<
+                $interf::$selector: VTableFieldValue<
                     'borr,
                     $option_ty<$field_ty>,
-                    $interf::$selector,
                     $value,
                     $erased_ptr,
                     $orig_ptr,
@@ -360,17 +340,16 @@ macro_rules! declare_meta_vtable {
                 drop_ptr:drop_pointer_impl::<$orig_ptr,$erased_ptr>,
                 $(
                     $priv_field:
-                        <trait_selector::$selector as
+                        <$interf::$selector as
                             VTableFieldValue<
                                 $option_ty<VTableFieldType<
                                     'borr,
-                                    trait_selector::$selector,
+                                    trait_marker::$selector,
                                     $value,
                                     $erased_ptr,
                                     $orig_ptr,
                                     $interf,
                                 >>,
-                                $interf::$selector,
                                 $value,
                                 $erased_ptr,
                                 $orig_ptr,
@@ -500,13 +479,13 @@ declare_meta_vtable! {
 
     auto_traits[
         [
-            impl Send where [OrigP:Send,T:Send]
+            impl Send where [OrigP:Send, T:Send]
         ]
         [
-            impl Sync where [OrigP:Sync,T:Sync]
+            impl Sync where [OrigP:Sync, T:Sync]
         ]
         [
-            impl Unpin where [OrigP:Unpin,T:Unpin]
+            impl Unpin where [T: Unpin]
         ]
     ]
 
