@@ -273,7 +273,9 @@ where
             Owned(x) => x.borrow(),
         }
     }
+}
 
+impl<B, O> RCow<B, O> {
     /// Whether this is a borrowing RCow.
     ///
     /// # Examples
@@ -291,7 +293,7 @@ where
     /// }
     ///
     /// ```
-    pub fn is_borrowed(&self) -> bool {
+    pub const fn is_borrowed(&self) -> bool {
         matches!(self, Borrowed { .. })
     }
 
@@ -309,7 +311,7 @@ where
     /// assert!(cow.is_owned());
     ///
     /// ```
-    pub fn is_owned(&self) -> bool {
+    pub const fn is_owned(&self) -> bool {
         matches!(self, Owned { .. })
     }
 }
@@ -547,6 +549,26 @@ impl_from_rust_repr! {
 
 ////////////////////////////////////////////////////////////
 
+impl<'a> RCowStr<'a> {
+    /// For converting a `&'a [T]` to an `RCowSlice<'a, T>`,
+    /// most useful when converting from `&'a [T;N]` because it coerces the array to a slice.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::std_types::{RCow, RCowStr};
+    ///
+    /// const C: RCowStr<'_> = RCow::from_str("hello");
+    ///
+    /// assert_eq!(C, "hello");
+    ///
+    /// ```
+    #[inline]
+    pub const fn from_str(this: &'a str) -> Self {
+        RCow::Borrowed(RStr::from_str(this))
+    }
+}
+
 impl<'a> From<&'a str> for RCowStr<'a> {
     #[inline]
     fn from(this: &'a str) -> Self {
@@ -619,15 +641,23 @@ where
     }
 }
 
-impl<'a, T> RCowSlice<'a, T>
-where
-    T: Clone,
-{
+impl<'a, T> RCowSlice<'a, T> {
     /// For converting a `&'a [T]` to an `RCowSlice<'a, T>`,
     /// most useful when converting from `&'a [T;N]` because it coerces the array to a slice.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::std_types::{RCow, RCowSlice};
+    ///
+    /// const C: RCowSlice<'_, u8> = RCow::from_slice(&[3, 5, 8]);
+    ///
+    /// assert_eq!(C, [3, 5, 8]);
+    ///
+    /// ```
     #[inline]
-    pub fn from_slice(this: &'a [T]) -> Self {
-        RCow::Borrowed(RSlice::from(this))
+    pub const fn from_slice(this: &'a [T]) -> Self {
+        RCow::Borrowed(RSlice::from_slice(this))
     }
 }
 

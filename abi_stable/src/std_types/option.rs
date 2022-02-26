@@ -34,7 +34,7 @@ impl<T> ROption<T> {
     ///
     /// ```
     #[inline]
-    pub fn as_ref(&self) -> ROption<&T> {
+    pub const fn as_ref(&self) -> ROption<&T> {
         match self {
             RSome(v) => RSome(v),
             RNone => RNone,
@@ -72,7 +72,7 @@ impl<T> ROption<T> {
     ///
     /// ```
     #[inline]
-    pub fn is_rsome(&self) -> bool {
+    pub const fn is_rsome(&self) -> bool {
         matches!(self, RSome { .. })
     }
 
@@ -88,7 +88,7 @@ impl<T> ROption<T> {
     ///
     /// ```
     #[inline]
-    pub fn is_rnone(&self) -> bool {
+    pub const fn is_rnone(&self) -> bool {
         matches!(self, RNone { .. })
     }
 
@@ -104,7 +104,7 @@ impl<T> ROption<T> {
     ///
     /// ```
     #[inline]
-    pub fn is_some(&self) -> bool {
+    pub const fn is_some(&self) -> bool {
         matches!(self, RSome { .. })
     }
 
@@ -120,7 +120,7 @@ impl<T> ROption<T> {
     ///
     /// ```
     #[inline]
-    pub fn is_none(&self) -> bool {
+    pub const fn is_none(&self) -> bool {
         matches!(self, RNone { .. })
     }
 
