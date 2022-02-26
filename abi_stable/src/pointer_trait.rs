@@ -11,6 +11,9 @@ use crate::{
 #[allow(unused_imports)]
 use core_extensions::utils::transmute_ignore_size;
 
+#[cfg(test)]
+mod tests;
+
 ///
 /// Determines whether the referent of a pointer is dropped when the
 /// pointer deallocates the memory.
@@ -54,7 +57,7 @@ pub unsafe trait GetPointerKind: Sized {
     /// or a `Copy` and `#[repr(transparent)]` wrapper around a raw pointer or reference,
     /// with `&T` semantics.
     /// Note that converting into and then back from `&Self::PtrTarget` might
-    /// be a lossy operation for such a type.
+    /// be a lossy operation for such a type and therefore incorrect.
     ///
     /// - [`PK_MutReference`]: `Self` must be a `&mut T`,
     /// or a non-`Drop` and `#[repr(transparent)]` wrapper around a
@@ -79,9 +82,8 @@ pub unsafe trait GetPointerKind: Sized {
     ///
     type PtrTarget;
 
-    /// A marker type that can be used as a proof that the `T` type parameter of
-    /// `ImmutableRefTarget<T, U>` implements `ImmutableRef<Target = U>`.
-    const PROOF: IsPointer<Self, Self::PtrTarget, Self::Kind> = IsPointer::NEW;
+    /// A marker type that can be used as a proof that `Self` implements this trait.
+    const IS_PTR: IsPointer<Self, Self::PtrTarget, Self::Kind> = IsPointer::NEW;
 
     /// The value-level version of the [`Kind`](#associatedtype.Kind) associated type.
     ///
@@ -828,8 +830,10 @@ pub unsafe trait ImmutableRef: Copy + GetPointerKind<Kind = PK_Reference> {
     ///
     /// # Safety
     ///
-    /// `from` must be a pointer from a call to `ImmutableRef::to_nonnull` or
-    /// `ImmutableRef::to_raw_ptr` on an instance of `Self`.
+    /// `from` must be a non-dangling pointer from a call to `to_nonnull` or
+    /// `to_raw_ptr` on an instance of `Self` or a compatible pointer type.
+    ///
+    ///
     #[inline(always)]
     unsafe fn from_nonnull(from: NonNull<Self::PtrTarget>) -> Self {
         Transmuter { from }.to
@@ -845,7 +849,9 @@ pub unsafe trait ImmutableRef: Copy + GetPointerKind<Kind = PK_Reference> {
     ///
     /// # Safety
     ///
-    /// This has the same safety requirements as [`from_nonnull`](#method.from_nonnull)
+    /// This has the same safety requirements as [`from_nonnull`](Self::from_nonnull),
+    /// with the exception that null pointers are allowed.
+    ///
     #[inline(always)]
     unsafe fn from_raw_ptr(from: *const Self::PtrTarget) -> Option<Self> {
         Transmuter { from }.to
@@ -853,3 +859,97 @@ pub unsafe trait ImmutableRef: Copy + GetPointerKind<Kind = PK_Reference> {
 }
 
 unsafe impl<T> ImmutableRef for T where T: Copy + GetPointerKind<Kind = PK_Reference> {}
+
+/// `const` equivalents of [`ImmutableRef`] methods.
+#[cfg(feature = "rust_1_56")]
+pub mod immutable_ref {
+    use super::*;
+
+    use crate::utils::const_transmute;
+
+    /// Converts the `from` pointer to a `NonNull`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::pointer_trait::{immutable_ref, IsReference};
+    ///
+    /// use std::ptr::NonNull;
+    ///
+    /// const X: NonNull<i8> = immutable_ref::to_nonnull(&3i8, IsReference::NEW);
+    /// unsafe {
+    ///     assert_eq!(*X.as_ref(), 3i8);
+    /// }
+    /// ```
+    ///
+    pub const fn to_nonnull<S, PT>(from: S, _proof: IsReference<S, PT>) -> NonNull<PT> {
+        unsafe { const_transmute!(S, NonNull<PT>, from) }
+    }
+
+    /// Constructs this pointer from a `NonNull`.
+    ///
+    /// # Safety
+    ///
+    /// `from` must be a non-dangling pointer from a call to `to_nonnull` or
+    /// `to_raw_ptr` on an instance of `S` or a compatible pointer type.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::pointer_trait::{immutable_ref, IsReference};
+    ///
+    /// const X: &u32 = unsafe {
+    ///     let nn = abi_stable::utils::ref_as_nonnull(&5u32);
+    ///     immutable_ref::from_nonnull(nn, IsReference::NEW)
+    /// };
+    /// assert_eq!(*X, 5u32);
+    /// ```
+    ///
+    pub const unsafe fn from_nonnull<S, PT>(from: NonNull<PT>, _proof: IsReference<S, PT>) -> S {
+        const_transmute!(NonNull<PT>, S, from)
+    }
+
+    /// Converts the `from` pointer to a raw pointer.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::pointer_trait::{immutable_ref, IsReference};
+    ///
+    /// unsafe {
+    ///     const X: *const u32 = immutable_ref::to_raw_ptr(&8u32, IsReference::NEW);
+    ///     assert_eq!(*X, 8u32);
+    /// }
+    /// ```
+    ///
+    pub const fn to_raw_ptr<S, PT>(from: S, _proof: IsReference<S, PT>) -> *const PT {
+        unsafe { const_transmute!(S, *const PT, from) }
+    }
+
+    /// Converts a raw pointer to an `S` pointer.
+    ///
+    /// # Safety
+    ///
+    /// This has the same safety requirements as [`from_nonnull`],
+    /// with the exception that null pointers are allowed.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::pointer_trait::{immutable_ref, IsReference};
+    ///
+    /// unsafe {
+    ///     const X: Option<&u8> = unsafe {
+    ///         immutable_ref::from_raw_ptr(&13u8 as *const u8, IsReference::NEW)
+    ///     };
+    ///     assert_eq!(*X.unwrap(), 13u8);
+    /// }
+    /// ```
+    ///
+    pub const unsafe fn from_raw_ptr<S, PT>(
+        from: *const PT,
+        _proof: IsReference<S, PT>,
+    ) -> Option<S> {
+        const_transmute!(*const PT, Option<S>, from)
+    }
+}
