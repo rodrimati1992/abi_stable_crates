@@ -92,7 +92,7 @@ use crate::{sabi_types::RMut, std_types::RBox, traits::IntoInner};
 #[sabi(bound = "T:'a")]
 pub struct MovePtr<'a, T> {
     ptr: NonNull<T>,
-    _marker: PhantomData<&'a mut T>,
+    _marker: PhantomData<crate::utils::MutRef<'a, T>>,
 }
 
 impl<'a, T> MovePtr<'a, T> {
@@ -154,7 +154,7 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// ```
     #[inline]
-    pub unsafe fn from_rmut(ptr: RMut<'a, T>) -> Self {
+    pub const unsafe fn from_rmut(ptr: RMut<'a, T>) -> Self {
         Self {
             ptr: NonNull::new_unchecked(ptr.into_raw()),
             _marker: PhantomData,
@@ -193,7 +193,7 @@ impl<'a, T> MovePtr<'a, T> {
     /// assert_eq!(vector[..], [3, 5, 8]);
     ///
     /// ```
-    pub unsafe fn from_raw(ptr: *mut T) -> Self {
+    pub const unsafe fn from_raw(ptr: *mut T) -> Self {
         Self {
             ptr: NonNull::new_unchecked(ptr),
             _marker: PhantomData,
@@ -266,9 +266,10 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// ```
     #[inline]
-    pub fn into_raw(this: Self) -> *mut T {
-        let this = ManuallyDrop::new(this);
-        this.ptr.as_ptr()
+    pub const fn into_raw(this: Self) -> *mut T {
+        let ptr = this.ptr.as_ptr();
+        std::mem::forget(this);
+        ptr
     }
 
     /// Moves the value into a new `Box<T>`
@@ -375,7 +376,7 @@ impl<'a, T> MovePtr<'a, T> {
     ///
     /// ```
     #[inline]
-    pub unsafe fn transmute<U>(this: Self) -> MovePtr<'a, U>
+    pub const unsafe fn transmute<U>(this: Self) -> MovePtr<'a, U>
     where
         U: 'a,
     {

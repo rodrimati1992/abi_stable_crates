@@ -121,3 +121,23 @@ macro_rules! zst_assert {
 }
 
 ///////////////////////////////////////////////////////////////////////////////7
+
+macro_rules! conditionally_const {
+    (
+        feature = $feature:literal;
+        $( #[$meta:meta] )*
+        $vis:vis
+        $(unsafe $(@$safety:tt)?)?
+        fn $fn_name:ident $([$($gen_args:tt)*])? ($($params:tt)*) -> $($rem:tt)*
+    ) => (
+        $(#[$meta])*
+        #[cfg(feature = $feature)]
+        $vis const $(unsafe $($safety)?)?
+        fn $fn_name $(<$($gen_args)*>)? ($($params)*) -> $($rem)*
+
+        $(#[$meta])*
+        #[cfg(not(feature = $feature))]
+        $vis $(unsafe $($safety)?)?
+        fn $fn_name $(<$($gen_args)*>)? ($($params)*) -> $($rem)*
+    )
+}
