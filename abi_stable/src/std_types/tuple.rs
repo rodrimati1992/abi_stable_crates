@@ -8,6 +8,8 @@ macro_rules! declare_tuple {
 
     into_tuple_attrs[ $(#[$into_tuple_attrs: meta])* ]
 
+    from_tuple_attrs[ $(#[$from_tuple_attrs: meta])* ]
+
     $tconstr: ident[$( $tparam: ident ),* $(,)? ]
 ) => (
     $(#[$meta])*
@@ -39,7 +41,14 @@ macro_rules! declare_tuple {
         $(#[$into_tuple_attrs])*
         #[inline]
         pub fn into_tuple(self)-> ($($tparam,)*) {
-            self.into()
+            let $tconstr($($tparam,)*) = self;
+            ($($tparam,)*)
+        }
+        $(#[$from_tuple_attrs])*
+        #[inline]
+        pub fn from_tuple(from: ($($tparam,)*))-> Self {
+            let ($($tparam,)*) = from;
+            Self($($tparam,)*)
         }
     }
 
@@ -55,10 +64,23 @@ declare_tuple! {
         ///
         /// # Example
         ///
-        /// ```
+        /// ```rust
         /// use abi_stable::std_types::*;
         ///
         /// assert_eq!(Tuple1(1).into_tuple(), (1,));
+        ///
+        /// ```
+    ]
+
+    from_tuple_attrs[
+        /// Converts a unary tuple to a `Tuple1`.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// use abi_stable::std_types::*;
+        ///
+        /// assert_eq!(Tuple1::from_tuple((1,)), Tuple1(1));
         ///
         /// ```
     ]
@@ -78,10 +100,23 @@ declare_tuple! {
         ///
         /// # Example
         ///
-        /// ```
+        /// ```rust
         /// use abi_stable::std_types::*;
         ///
         /// assert_eq!(Tuple2(1, 2).into_tuple(), (1, 2));
+        ///
+        /// ```
+    ]
+
+    from_tuple_attrs[
+        /// Converts a pair to a `Tuple2`.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// use abi_stable::std_types::*;
+        ///
+        /// assert_eq!(Tuple2::from_tuple((1, 2)), Tuple2(1, 2));
         ///
         /// ```
     ]
@@ -102,10 +137,23 @@ declare_tuple! {
         ///
         /// # Example
         ///
-        /// ```
+        /// ```rust
         /// use abi_stable::std_types::*;
         ///
         /// assert_eq!(Tuple3(1, 2, 3).into_tuple(), (1, 2, 3));
+        ///
+        /// ```
+    ]
+
+    from_tuple_attrs[
+        /// Converts a 3-tuple to a `Tuple3`.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// use abi_stable::std_types::*;
+        ///
+        /// assert_eq!(Tuple3::from_tuple((1, 2, 3)), Tuple3(1, 2, 3));
         ///
         /// ```
     ]
@@ -127,10 +175,23 @@ declare_tuple! {
         ///
         /// # Example
         ///
-        /// ```
+        /// ```rust
         /// use abi_stable::std_types::*;
         ///
         /// assert_eq!(Tuple4(1, 2, 3, 4).into_tuple(), (1, 2, 3, 4));
+        ///
+        /// ```
+    ]
+
+    from_tuple_attrs[
+        /// Converts a 4-tuple to a `Tuple4`.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// use abi_stable::std_types::*;
+        ///
+        /// assert_eq!(Tuple4::from_tuple((1, 2, 3, 4)), Tuple4(1, 2, 3, 4));
         ///
         /// ```
     ]

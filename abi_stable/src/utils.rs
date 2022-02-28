@@ -36,6 +36,13 @@ pub fn ffi_panic_message(info: &'static PanicInfo) -> ! {
 
 //////////////////////////////////
 
+#[repr(transparent)]
+#[derive(StableAbi)]
+#[sabi(bound = "T:'a")]
+pub(crate) struct MutRef<'a, T>(&'a mut T);
+
+//////////////////////////////////
+
 /// Converts a `&T` to a `NonNull<T>`.
 ///
 /// # Example
@@ -90,7 +97,34 @@ impl Drop for AbortBomb {
 pub union Transmuter<T: Copy, U: Copy> {
     pub from: T,
     pub to: U,
-} //////////////////////////////////
+}
+
+//////////////////////////////////
+
+#[repr(C)]
+pub(crate) union Dereference<'a, T> {
+    pub ptr: *const T,
+    pub reff: &'a T,
+}
+
+#[cfg(feature = "rust_1_56")]
+macro_rules! deref {
+    ($ptr:expr) => {
+        crate::utils::Dereference { ptr: $ptr }.reff
+    };
+}
+
+#[cfg(not(feature = "rust_1_56"))]
+macro_rules! deref {
+    ($ptr:expr) => {
+        let ptr: *const _ = $ptr;
+        &*ptr
+    };
+}
+
+pub(crate) use deref;
+
+//////////////////////////////////
 
 /// Helper type for transmuting non-Copy types without adding any overhead in debug builds.
 ///
