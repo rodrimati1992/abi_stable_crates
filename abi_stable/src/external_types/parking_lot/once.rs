@@ -515,7 +515,7 @@ mod tests {
 
     use crossbeam_utils::thread::scope as scoped_thread;
 
-    use abi_stable_shared::{file_span, test_utils::must_panic};
+    use abi_stable_shared::test_utils::must_panic;
 
     #[test]
     #[cfg(not(all(miri, target_os = "windows")))]
@@ -529,7 +529,7 @@ mod tests {
         {
             let once = ROnce::new();
             assert_eq!(once.state(), ROnceState::New);
-            must_panic(file_span!(), || {
+            must_panic(|| {
                 once.call_once(|| panic!());
             })
             .unwrap();
@@ -570,11 +570,11 @@ mod tests {
         {
             let once = ROnce::new();
             let mut a = 0;
-            must_panic(file_span!(), || {
+            must_panic(|| {
                 once.call_once(|| panic!());
             })
             .unwrap();
-            must_panic(file_span!(), || {
+            must_panic(|| {
                 once.call_once(|| a += 2);
             })
             .unwrap();
@@ -594,7 +594,7 @@ mod tests {
         {
             let once = ROnce::new();
             let a = &mut 0;
-            must_panic(file_span!(), || {
+            must_panic(|| {
                 once.call_once_force(|state| {
                     assert_eq!(state, ROnceState::New);
                     panic!()

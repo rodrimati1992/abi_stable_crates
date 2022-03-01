@@ -10,7 +10,7 @@ use abi_stable::{
         check_layout_compatibility_with_globals, AbiInstability, CheckingGlobals,
     },
     prefix_type::{PrefixTypeTrait, WithMetadata, __PrefixTypeMetadata},
-    test_utils::{file_span, must_panic},
+    test_utils::must_panic,
     type_layout::TypeLayout,
     type_level::bools::*,
     *,
@@ -377,9 +377,9 @@ fn prefix_on_nonexistent_field() {
     {
         let value3: prefix3::Prefix_Ref = unsafe { std::mem::transmute(prefix0) };
         assert_eq!(value3.field0(), 1);
-        must_panic(file_span!(), || value3.field1()).unwrap();
-        must_panic(file_span!(), || value3.field2()).unwrap();
-        must_panic(file_span!(), || value3.field3()).unwrap();
+        must_panic(|| value3.field1()).unwrap();
+        must_panic(|| value3.field2()).unwrap();
+        must_panic(|| value3.field3()).unwrap();
     }
 }
 

@@ -6,10 +6,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-pub use abi_stable_shared::test_utils::{must_panic, FileSpan, ShouldHavePanickedAt, ThreadError};
-
-#[allow(unused_imports)]
-pub use abi_stable_shared::file_span;
+pub use abi_stable_shared::test_utils::{must_panic, ShouldHavePanickedAt, ThreadError};
 
 //////////////////////////////////////////////////////////////////
 

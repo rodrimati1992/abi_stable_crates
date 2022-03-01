@@ -7,7 +7,7 @@ use crate::{
     *,
 };
 
-use abi_stable_shared::{file_span, test_utils::must_panic};
+use abi_stable_shared::test_utils::must_panic;
 
 mod empty {
     use super::*;
@@ -100,20 +100,20 @@ fn downcasting_tests() {
         let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
         assert_eq!(object.first_method(), 0xf000);
         assert_eq!(object.last_method(), 0xfAAA);
-        must_panic(file_span!(), || object.apply(2, 5)).unwrap();
+        must_panic(|| object.apply(2, 5)).unwrap();
     }
     unsafe {
         use self::method_disabled_all_default::*;
         let empty = empty::Trait_TO::from_value((), TD_Opaque);
         let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
-        must_panic(file_span!(), || object.first_method()).unwrap();
-        must_panic(file_span!(), || object.last_method()).unwrap();
+        must_panic(|| object.first_method()).unwrap();
+        must_panic(|| object.last_method()).unwrap();
     }
     unsafe {
         use self::method_no_default::*;
         let empty = empty::Trait_TO::from_value((), TD_Opaque);
         let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
-        must_panic(file_span!(), || object.apply(2, 5)).unwrap();
+        must_panic(|| object.apply(2, 5)).unwrap();
     }
     unsafe {
         use self::method_default::*;

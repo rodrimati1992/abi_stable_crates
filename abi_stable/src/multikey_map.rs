@@ -393,8 +393,6 @@ mod tests {
 
     use crate::test_utils::must_panic;
 
-    use abi_stable_shared::file_span;
-
     #[test]
     fn equality() {
         fn insert(map: &mut MultiKeyMap<u32, u32>, key: u32, value: u32) {
@@ -545,10 +543,10 @@ mod tests {
         assert_eq!(map.associate_key_forced(200, index2), None);
         assert_eq!(map.associate_key_forced(30, index2), Some(2000));
 
-        must_panic(file_span!(), || map.associate_key_forced(100, index0)).unwrap();
-        must_panic(file_span!(), || map.associate_key_forced(200, index0)).unwrap();
-        must_panic(file_span!(), || map.associate_key_forced(20, index0)).unwrap();
-        must_panic(file_span!(), || map.associate_key_forced(30, index0)).unwrap();
+        must_panic(|| map.associate_key_forced(100, index0)).unwrap();
+        must_panic(|| map.associate_key_forced(200, index0)).unwrap();
+        must_panic(|| map.associate_key_forced(20, index0)).unwrap();
+        must_panic(|| map.associate_key_forced(30, index0)).unwrap();
     }
 
     #[test]

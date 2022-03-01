@@ -206,10 +206,6 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 #![deny(clippy::missing_safety_doc)]
 #![cfg_attr(feature = "docsrs", feature(doc_cfg))]
 
-#[allow(unused_imports)]
-#[cfg(test)]
-use abi_stable_shared::file_span;
-
 #[macro_use]
 extern crate serde_derive;
 

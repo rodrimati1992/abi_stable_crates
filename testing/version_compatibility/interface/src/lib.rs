@@ -97,14 +97,9 @@ mod many_types {
         marker_type::UnsafeIgnoredType<u32>,
         marker_type::NonOwningPhantom<u32>,
         marker_type::NonOwningPhantom<RString>,
+        f32,
+        f64,
     );
-
-    // Adding more types in a patch release,
-    // you can merge this with ManyTypes in the next breaking release.
-    #[cfg(feature = "new_abi_stable")]
-    #[repr(C)]
-    #[derive(abi_stable::StableAbi)]
-    pub struct ManyTypes2(f32, f64);
 }
 
 pub use many_types::ManyTypes;

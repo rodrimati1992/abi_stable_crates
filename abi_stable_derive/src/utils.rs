@@ -1,6 +1,4 @@
-use std::time::Instant;
-
-use abi_stable_shared::test_utils::FileSpan;
+use std::{panic::Location, time::Instant};
 
 pub(crate) use as_derive_utils::utils::{
     dummy_ident,
@@ -18,15 +16,15 @@ pub(crate) use as_derive_utils::utils::{
 #[allow(dead_code)]
 pub struct PrintDurationOnDrop {
     start: Instant,
-    file_span: FileSpan,
+    file_span: &'static Location<'static>,
 }
 
 impl PrintDurationOnDrop {
     #[allow(dead_code)]
-    pub fn new(file_span: FileSpan) -> Self {
+    pub fn new() -> Self {
         Self {
             start: Instant::now(),
-            file_span,
+            file_span: Location::caller(),
         }
     }
 }
@@ -35,6 +33,6 @@ impl Drop for PrintDurationOnDrop {
     fn drop(&mut self) {
         let span = self.file_span;
         let dur = self.start.elapsed();
-        println!("{}-{}:taken {:?} to run", span.file, span.line, dur);
+        println!("{}-{}:taken {:?} to run", span.file(), span.line(), dur);
     }
 }
