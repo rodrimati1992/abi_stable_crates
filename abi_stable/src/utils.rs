@@ -101,6 +101,7 @@ pub union Transmuter<T: Copy, U: Copy> {
 
 //////////////////////////////////
 
+#[cfg(feature = "rust_1_56")]
 #[repr(C)]
 pub(crate) union Dereference<'a, T> {
     pub ptr: *const T,
@@ -116,10 +117,10 @@ macro_rules! deref {
 
 #[cfg(not(feature = "rust_1_56"))]
 macro_rules! deref {
-    ($ptr:expr) => {
+    ($ptr:expr) => {{
         let ptr: *const _ = $ptr;
         &*ptr
-    };
+    }};
 }
 
 pub(crate) use deref;

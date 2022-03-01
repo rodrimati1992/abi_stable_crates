@@ -161,13 +161,13 @@ mod tests;
 pub struct NonExhaustive<E, S, I> {
     // This is an opaque field since we only care about its size and alignment
     #[sabi(unsafe_opaque_field)]
-    fill: ScratchSpace<S>,
+    fill: ScratchSpace<E, S>,
     vtable: NonExhaustiveVtable_Ref<E, S, I>,
     _marker: PhantomData<()>,
 }
 
-/// The type of a `NonExhaustive<>` wrapping the enum E,
-/// using the `E`'s  default storage and interface.
+/// The type of a `NonExhaustive` wrapping the enum `E`,
+/// using `E`'s  default storage and interface.
 pub type NonExhaustiveFor<E> =
     NonExhaustive<E, <E as GetEnumInfo>::DefaultStorage, <E as GetEnumInfo>::DefaultInterface>;
 
@@ -230,24 +230,20 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     where
         E: GetVTable<S, I>,
     {
-        unsafe { NonExhaustive::with_vtable(value, E::VTABLE_REF) }
+        unsafe { NonExhaustive::with_vtable(value, E::VTABLE) }
     }
     pub(super) unsafe fn with_vtable(value: E, vtable: NonExhaustiveVtable_Ref<E, S, I>) -> Self {
         Self::assert_fits_within_storage();
 
-        let mut this = Self {
+        Self {
             fill: {
                 // The fact that the vtable was constructed ensures that
                 // `Inline` implements `InlineStorage`
-                ScratchSpace::uninit_unbounded()
+                ScratchSpace::new_unchecked(value)
             },
             vtable,
             _marker: PhantomData,
-        };
-
-        (&mut this.fill as *mut ScratchSpace<S> as *mut E).write(value);
-
-        this
+        }
     }
 
     /// Checks that the alignment of `E` is correct,returning `true` if it is.
@@ -285,6 +281,70 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     }
 }
 
+impl<E, S, I> NonExhaustive<E, S, I> {
+    /// Constructs a `NonExhaustive` from `value`.
+    ///
+    /// # Panic
+    ///
+    /// This panics if the storage has an alignment or size smaller than that of `E`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::{
+    ///     nonexhaustive_enum::{NonExhaustiveFor, GetVTable},
+    ///     std_types::RString,
+    ///     rstr, StableAbi,
+    /// };
+    ///
+    /// type NEFoo = NonExhaustiveFor<Foo>;
+    ///
+    /// static AA: NEFoo = NEFoo::const_new(Foo::A, GetVTable::VTABLE);
+    ///
+    /// static BB: NEFoo = NEFoo::const_new(Foo::B(2), GetVTable::VTABLE);
+    ///
+    /// // Both `NonExhaustiveFor` and `NEFoo` work here.
+    /// // Note that `ǸonExhaustive` doesn't work,
+    /// // because the `S`(storage) and `I`(interface) type parameters are unconstrained.
+    /// let cc = NonExhaustiveFor::const_new(
+    ///     Foo::C {name: "hello".into()},
+    ///     GetVTable::VTABLE
+    /// );
+    ///
+    /// assert_eq!(AA, Foo::A);
+    /// assert_eq!(BB, Foo::B(2));
+    /// assert_eq!(cc, Foo::C {name: RString::from("hello")});
+    ///
+    ///
+    /// #[repr(u8)]
+    /// #[derive(StableAbi, Debug, PartialEq, Eq)]
+    /// #[sabi(kind(WithNonExhaustive(
+    ///     size = 64,
+    ///     traits(Debug, PartialEq, Eq)
+    /// )))]
+    /// pub enum Foo {
+    ///     A,
+    ///     B(i8),
+    ///     C { name: RString },
+    /// }
+    ///
+    ///
+    ///
+    /// ```
+    #[inline]
+    pub const fn const_new(value: E, vtable: NonExhaustiveVtable_Ref<E, S, I>) -> Self {
+        Self {
+            fill: unsafe {
+                // The fact that the vtable was constructed ensures that
+                // `Inline` implements `InlineStorage`
+                ScratchSpace::new_unchecked(value)
+            },
+            vtable,
+            _marker: PhantomData,
+        }
+    }
+}
+
 impl<E, S, I> NonExhaustive<E, S, I>
 where
     E: GetEnumInfo,
@@ -317,7 +377,7 @@ where
     pub fn as_enum(&self) -> Result<&E, UnwrapEnumError<&Self>> {
         let discriminant = self.get_discriminant();
         if E::is_valid_discriminant(discriminant) {
-            unsafe { Ok(&*(&self.fill as *const ScratchSpace<S> as *const E)) }
+            unsafe { Ok(&*(&self.fill as *const ScratchSpace<E, S> as *const E)) }
         } else {
             Err(UnwrapEnumError::new(self))
         }
@@ -357,8 +417,8 @@ where
             // because if the enum is replaced with a variant with a discriminant
             // outside the valid range for the functions in the vtable,
             // it would be undefined behavior to call those functions.
-            self.vtable = E::VTABLE_REF;
-            unsafe { Ok(&mut *(&mut self.fill as *mut ScratchSpace<S> as *mut E)) }
+            self.vtable = E::VTABLE;
+            unsafe { Ok(&mut *(&mut self.fill as *mut ScratchSpace<E, S> as *mut E)) }
         } else {
             Err(UnwrapEnumError::new(self))
         }
@@ -391,7 +451,7 @@ where
         let discriminant = self.get_discriminant();
         if E::is_valid_discriminant(discriminant) {
             let this = ManuallyDrop::new(self);
-            unsafe { Ok((&this.fill as *const ScratchSpace<S> as *const E).read()) }
+            unsafe { Ok((&this.fill as *const ScratchSpace<E, S> as *const E).read()) }
         } else {
             Err(UnwrapEnumError::new(self))
         }
@@ -409,7 +469,7 @@ where
     /// Gets the value of the discriminant of the enum.
     #[inline]
     pub fn get_discriminant(&self) -> E::Discriminant {
-        unsafe { *(&self.fill as *const ScratchSpace<S> as *const E::Discriminant) }
+        unsafe { *(&self.fill as *const ScratchSpace<E, S> as *const E::Discriminant) }
     }
 }
 
@@ -489,7 +549,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     }
 
     fn sabi_erased_ref(&self) -> RRef<'_, ErasedObject> {
-        unsafe { RRef::from_raw(&self.fill as *const ScratchSpace<S> as *const ErasedObject) }
+        unsafe { RRef::from_raw(&self.fill as *const ScratchSpace<E, S> as *const ErasedObject) }
     }
 
     fn as_erased_ref(&self) -> RRef<'_, ErasedObject> {
@@ -497,7 +557,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     }
 
     fn sabi_erased_mut(&mut self) -> RMut<'_, ErasedObject> {
-        unsafe { RMut::from_raw(&mut self.fill as *mut ScratchSpace<S> as *mut ErasedObject) }
+        unsafe { RMut::from_raw(&mut self.fill as *mut ScratchSpace<E, S> as *mut ErasedObject) }
     }
 }
 

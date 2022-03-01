@@ -25,8 +25,9 @@ travis-ci = { repository =  "rodrimati1992/abi_stable_crates/" }
 default = ["channels","serde_json"]
 
 rust_1_56 = []
+rust_1_57 = ["const_panic", "rust_1_56"]
 
-rust_latest_stable = ["rust_1_56"]
+rust_latest_stable = ["rust_1_57"]
 
 # internal features
 testing=[]
@@ -59,6 +60,11 @@ generational-arena = "0.2.8"
 crossbeam-channel = { version = "0.5.1", optional = true }
 serde_json = { version = "1.0.66", features = ["raw_value"], optional = true }
 paste = "1.0"
+
+[dependencies.const_panic]
+version = "0.2.0"
+default_features = false
+optional = true
 
 [dependencies.core_extensions]
 default_features=false

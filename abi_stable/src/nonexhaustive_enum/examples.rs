@@ -248,6 +248,17 @@ pub mod generic_a {
     }
 }
 
+pub mod generic_b {
+    #[repr(u8)]
+    #[derive(StableAbi, Debug, PartialEq)]
+    #[sabi(kind(WithNonExhaustive(size = 64, align = 8, traits(Debug, PartialEq))))]
+    pub enum Foo<T> {
+        A,
+        B,
+        C(T),
+    }
+}
+
 pub mod many_ranges_a {
     #[repr(u8)]
     #[derive(StableAbi, Debug, PartialEq, Eq, Clone)]

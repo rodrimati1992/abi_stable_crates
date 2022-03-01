@@ -45,8 +45,8 @@ pub trait GetVTable<S, I>: GetEnumInfo {
             WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE_VAL)
     }
 
-    #[doc(hidden)]
-    const VTABLE_REF: NonExhaustiveVtable_Ref<Self, S, I> =
+    // The vtable
+    const VTABLE: NonExhaustiveVtable_Ref<Self, S, I> =
         NonExhaustiveVtable_Ref(Self::VTABLE_WM.as_prefix());
 }
 
