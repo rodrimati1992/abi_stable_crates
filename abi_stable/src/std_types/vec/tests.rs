@@ -1,7 +1,5 @@
 use super::*;
 
-use abi_stable_shared::file_span;
-
 use std::{iter, sync::Arc};
 
 #[allow(unused_imports)]
@@ -123,7 +121,7 @@ fn insert_remove() {
 fn remove_panics() -> Result<(), ShouldHavePanickedAt> {
     let mut list = RVec::new();
     for (i, elem) in (10..20).enumerate() {
-        must_panic(file_span!(), || list.remove(i))?;
+        must_panic(|| list.remove(i))?;
         list.push(elem);
         list.remove(i);
         list.push(elem);
@@ -247,7 +245,7 @@ fn retain() {
     {
         let mut copy = copy.clone();
         let mut i = 0;
-        must_panic(file_span!(), || {
+        must_panic(|| {
             copy.retain(|_| {
                 i += 1;
                 if i == 4 {

@@ -9,7 +9,7 @@ use crate::{
         },
         GetEnumInfo,
     },
-    test_utils::{check_formatting_equivalence, file_span, must_panic},
+    test_utils::{check_formatting_equivalence, must_panic},
 };
 
 use core_extensions::SelfOps;
@@ -85,11 +85,8 @@ fn construct_panic() {
     macro_rules! failing_ctor {
         ($enum_ty:ty) => {{
             type ET = $enum_ty;
-            must_panic(file_span!(), || <NE<ET>>::with_storage_and_interface(ET::B)).unwrap();
-            must_panic(file_span!(), || {
-                <NE<ET>>::const_new(ET::A, GetVTable::VTABLE)
-            })
-            .unwrap();
+            must_panic(|| <NE<ET>>::with_storage_and_interface(ET::B)).unwrap();
+            must_panic(|| <NE<ET>>::const_new(ET::A, GetVTable::VTABLE)).unwrap();
         }};
     }
 

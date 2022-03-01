@@ -67,7 +67,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     data.generics.make_where_clause();
 
     // println!("\nderiving for {}",data.ident);
-    // let _measure_time0=PrintDurationOnDrop::new(abi_stable_shared::file_span!());
 
     let arenas = Arenas::default();
     let arenas = &arenas;
@@ -435,7 +434,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     let shared_vars_tokenizer = shared_vars.shared_vars_tokenizer(mono_type_layout);
 
     // drop(_measure_time0);
-    // let _measure_time1=PrintDurationOnDrop::new(abi_stable_shared::file_span!());
 
     let shared_where_preds = quote!(
         #(#where_clause_b,)*

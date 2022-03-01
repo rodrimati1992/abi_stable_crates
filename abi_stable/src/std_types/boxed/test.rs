@@ -4,8 +4,6 @@ use std::sync::Arc;
 
 use crate::{sabi_types::MovePtr, test_utils::must_panic};
 
-use abi_stable_shared::file_span;
-
 fn _covariant_box<'a: 'b, 'b, T>(foo: Box<&'a T>) -> Box<&'b T> {
     foo
 }
@@ -102,7 +100,7 @@ fn mutated() {
 fn with_move_ptr_runs() {
     let rbox = ManuallyDrop::new(RBox::new(rvec![3]));
 
-    must_panic(file_span!(), || {
+    must_panic(|| {
         OwnedPointer::with_move_ptr(rbox, |_| {
             panic!();
         });

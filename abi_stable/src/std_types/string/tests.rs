@@ -2,8 +2,6 @@ use super::*;
 
 use crate::test_utils::must_panic;
 
-use abi_stable_shared::file_span;
-
 #[allow(unused_imports)]
 use core_extensions::{SelfOps, SliceExt};
 
@@ -56,17 +54,17 @@ fn insert_str() {
 
     {
         let mut rstr = rstr.clone();
-        must_panic(file_span!(), || rstr.insert_str(1, "foo")).unwrap();
-        must_panic(file_span!(), || rstr.insert_str(2, "foo")).unwrap();
-        must_panic(file_span!(), || rstr.insert_str(3, "foo")).unwrap();
+        must_panic(|| rstr.insert_str(1, "foo")).unwrap();
+        must_panic(|| rstr.insert_str(2, "foo")).unwrap();
+        must_panic(|| rstr.insert_str(3, "foo")).unwrap();
 
-        must_panic(file_span!(), || rstr.insert_str(9, "foo")).unwrap();
-        must_panic(file_span!(), || rstr.insert_str(10, "foo")).unwrap();
-        must_panic(file_span!(), || rstr.insert_str(11, "foo")).unwrap();
+        must_panic(|| rstr.insert_str(9, "foo")).unwrap();
+        must_panic(|| rstr.insert_str(10, "foo")).unwrap();
+        must_panic(|| rstr.insert_str(11, "foo")).unwrap();
 
-        must_panic(file_span!(), || rstr.insert_str(15, "foo")).unwrap();
-        must_panic(file_span!(), || rstr.insert_str(16, "foo")).unwrap();
-        must_panic(file_span!(), || rstr.insert_str(17, "foo")).unwrap();
+        must_panic(|| rstr.insert_str(15, "foo")).unwrap();
+        must_panic(|| rstr.insert_str(16, "foo")).unwrap();
+        must_panic(|| rstr.insert_str(17, "foo")).unwrap();
     }
     {
         // insert at the end
@@ -99,17 +97,17 @@ fn remove() {
     let test_str_nohearts = test_str.chars().filter(|&c| c != '💔').collect::<String>();
     let mut rstr = test_str.into_::<RString>();
 
-    must_panic(file_span!(), || rstr.remove(1)).unwrap();
-    must_panic(file_span!(), || rstr.remove(9)).unwrap();
-    must_panic(file_span!(), || rstr.remove(10)).unwrap();
-    must_panic(file_span!(), || rstr.remove(11)).unwrap();
-    must_panic(file_span!(), || rstr.remove(15)).unwrap();
-    must_panic(file_span!(), || rstr.remove(16)).unwrap();
-    must_panic(file_span!(), || rstr.remove(17)).unwrap();
-    must_panic(file_span!(), || rstr.remove(test_str.len() - 3)).unwrap();
-    must_panic(file_span!(), || rstr.remove(test_str.len() - 2)).unwrap();
-    must_panic(file_span!(), || rstr.remove(test_str.len() - 1)).unwrap();
-    must_panic(file_span!(), || rstr.remove(test_str.len())).unwrap();
+    must_panic(|| rstr.remove(1)).unwrap();
+    must_panic(|| rstr.remove(9)).unwrap();
+    must_panic(|| rstr.remove(10)).unwrap();
+    must_panic(|| rstr.remove(11)).unwrap();
+    must_panic(|| rstr.remove(15)).unwrap();
+    must_panic(|| rstr.remove(16)).unwrap();
+    must_panic(|| rstr.remove(17)).unwrap();
+    must_panic(|| rstr.remove(test_str.len() - 3)).unwrap();
+    must_panic(|| rstr.remove(test_str.len() - 2)).unwrap();
+    must_panic(|| rstr.remove(test_str.len() - 1)).unwrap();
+    must_panic(|| rstr.remove(test_str.len())).unwrap();
 
     assert_eq!(rstr.remove(32), '💔');
     assert_eq!(rstr.remove(26), '💔');
@@ -266,21 +264,12 @@ fn drain() {
     // Using this to test that trying to drain in the middle of a character does not work
     let broken_heart_pos = TEST_STR.char_indices().find(|(_, c)| '💔' == *c).unwrap().0;
 
-    must_panic(file_span!(), || rstr.drain(..TEST_STR.len() + 1)).unwrap();
-    must_panic(file_span!(), || rstr.drain(..broken_heart_pos + 1)).unwrap();
-    must_panic(file_span!(), || {
-        rstr.drain(broken_heart_pos..broken_heart_pos + 1)
-    })
-    .unwrap();
-    must_panic(file_span!(), || {
-        rstr.drain(broken_heart_pos + 1..broken_heart_pos + 2)
-    })
-    .unwrap();
-    must_panic(file_span!(), || {
-        rstr.drain(broken_heart_pos + 1..broken_heart_pos + 3)
-    })
-    .unwrap();
-    must_panic(file_span!(), || rstr.drain(broken_heart_pos + 1..)).unwrap();
+    must_panic(|| rstr.drain(..TEST_STR.len() + 1)).unwrap();
+    must_panic(|| rstr.drain(..broken_heart_pos + 1)).unwrap();
+    must_panic(|| rstr.drain(broken_heart_pos..broken_heart_pos + 1)).unwrap();
+    must_panic(|| rstr.drain(broken_heart_pos + 1..broken_heart_pos + 2)).unwrap();
+    must_panic(|| rstr.drain(broken_heart_pos + 1..broken_heart_pos + 3)).unwrap();
+    must_panic(|| rstr.drain(broken_heart_pos + 1..)).unwrap();
 
     assert_eq!(&rstr.drain(11..).collect::<String>(), &TEST_STR[11..]);
     assert_eq!(&rstr[..], "hello_world");

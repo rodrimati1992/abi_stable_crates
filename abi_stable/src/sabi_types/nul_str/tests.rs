@@ -1,6 +1,6 @@
 use crate::sabi_types::{NulStr, NulStrError};
 
-use abi_stable_shared::{file_span, test_utils::must_panic};
+use abi_stable_shared::test_utils::must_panic;
 
 use std::cmp::{Ord, Ordering, PartialOrd};
 
@@ -29,9 +29,9 @@ fn from_str_with_constructor(func: fn(&str) -> NulStr<'_>) {
 
 #[test]
 fn nulstr_from_str_tests() {
-    must_panic(file_span!(), || NulStr::from_str("foo\0bar")).unwrap();
-    must_panic(file_span!(), || NulStr::from_str("foo")).unwrap();
-    must_panic(file_span!(), || NulStr::from_str("")).unwrap();
+    must_panic(|| NulStr::from_str("foo\0bar")).unwrap();
+    must_panic(|| NulStr::from_str("foo")).unwrap();
+    must_panic(|| NulStr::from_str("")).unwrap();
 
     from_str_with_constructor(|s| NulStr::from_str(s));
     from_str_with_constructor(|s| unsafe { NulStr::from_ptr(s.as_ptr()) });
@@ -64,7 +64,7 @@ fn nulstr_try_from_str_tests() {
         dbg!(strwn);
         assert_eq!(NulStr::try_from_str(strwn), Err(err));
 
-        must_panic(file_span!(), || NulStr::__try_from_str_unwrapping(strwn)).unwrap();
+        must_panic(|| NulStr::__try_from_str_unwrapping(strwn)).unwrap();
     }
 }
 
