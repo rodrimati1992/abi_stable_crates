@@ -50,7 +50,7 @@ pub unsafe trait GetEnumInfo: Sized {
 
     /// The values of the discriminants of each variant.
     ///
-    fn discriminants() -> &'static [Self::Discriminant];
+    const DISCRIMINANTS: &'static [Self::Discriminant];
 
     /// Whether `discriminant` is one of the valid discriminants for this enum in this context.
     fn is_valid_discriminant(discriminant: Self::Discriminant) -> bool;

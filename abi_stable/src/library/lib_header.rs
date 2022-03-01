@@ -59,12 +59,12 @@ impl LibHeader {
     }
 
     /// All the important constants of a `RootModule` for some erased type.
-    pub fn root_mod_consts(&self) -> &ErasedRootModuleConsts {
+    pub const fn root_mod_consts(&self) -> &ErasedRootModuleConsts {
         &self.root_mod_consts
     }
 
     /// The version string of the library the module is being loaded from.
-    pub fn version_strings(&self) -> VersionStrings {
+    pub const fn version_strings(&self) -> VersionStrings {
         self.root_mod_consts.version_strings()
     }
 

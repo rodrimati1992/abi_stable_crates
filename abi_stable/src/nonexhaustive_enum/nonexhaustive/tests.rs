@@ -1,14 +1,15 @@
 use super::*;
 
 use crate::{
+    inline_storage::alignment::{AlignTo16, AlignTo8},
     nonexhaustive_enum::{
         examples::{
             command_a, command_b, command_c, command_h_mismatched_discriminant, command_serde,
-            generic_a, many_ranges_a, many_ranges_b,
+            generic_a, generic_b, many_ranges_a, many_ranges_b,
         },
         GetEnumInfo,
     },
-    test_utils::check_formatting_equivalence,
+    test_utils::{check_formatting_equivalence, file_span, must_panic},
 };
 
 use core_extensions::SelfOps;
@@ -22,39 +23,85 @@ use std::{
 
 #[test]
 fn construct_deconstruct() {
-    {
-        use self::command_a::Foo as FooA;
-        let mut variant_a = NonExhaustive::new(FooA::A);
-        let mut variant_b = NonExhaustive::new(FooA::B(11));
+    macro_rules! construct_deconstruct_cases {
+        ($NE:ident :: $ctor:ident($($extra_args:tt)*)) => {
+            {
+                use self::command_a::Foo as FooA;
+                let mut variant_a = $NE::$ctor(FooA::A, $($extra_args)*);
+                let mut variant_b = $NE::$ctor(FooA::B(11), $($extra_args)*);
 
-        assert_eq!(variant_a.as_enum(), Ok(&FooA::A));
-        assert_eq!(variant_b.as_enum(), Ok(&FooA::B(11)));
+                assert_eq!(variant_a.as_enum(), Ok(&FooA::A));
+                assert_eq!(variant_b.as_enum(), Ok(&FooA::B(11)));
 
-        assert_eq!(variant_a.as_enum_mut(), Ok(&mut FooA::A));
-        assert_eq!(variant_b.as_enum_mut(), Ok(&mut FooA::B(11)));
+                assert_eq!(variant_a.as_enum_mut(), Ok(&mut FooA::A));
+                assert_eq!(variant_b.as_enum_mut(), Ok(&mut FooA::B(11)));
 
-        assert_eq!(variant_a.into_enum(), Ok(FooA::A));
-        assert_eq!(variant_b.into_enum(), Ok(FooA::B(11)));
+                assert_eq!(variant_a.into_enum(), Ok(FooA::A));
+                assert_eq!(variant_b.into_enum(), Ok(FooA::B(11)));
+            }
+            {
+                use self::command_b::Foo as FooB;
+
+                let mut variant_a = $NE::$ctor(FooB::A, $($extra_args)*);
+                let mut variant_b = $NE::$ctor(FooB::B(11), $($extra_args)*);
+                let mut variant_c = $NE::$ctor(FooB::C, $($extra_args)*);
+
+                assert_eq!(variant_a.as_enum(), Ok(&FooB::A));
+                assert_eq!(variant_b.as_enum(), Ok(&FooB::B(11)));
+                assert_eq!(variant_c.as_enum(), Ok(&FooB::C));
+
+                assert_eq!(variant_a.as_enum_mut(), Ok(&mut FooB::A));
+                assert_eq!(variant_b.as_enum_mut(), Ok(&mut FooB::B(11)));
+                assert_eq!(variant_c.as_enum_mut(), Ok(&mut FooB::C));
+
+                assert_eq!(variant_a.into_enum(), Ok(FooB::A));
+                assert_eq!(variant_b.into_enum(), Ok(FooB::B(11)));
+                assert_eq!(variant_c.into_enum(), Ok(FooB::C));
+            }
+        };
     }
-    {
-        use self::command_b::Foo as FooB;
 
-        let mut variant_a = NonExhaustive::new(FooB::A);
-        let mut variant_b = NonExhaustive::new(FooB::B(11));
-        let mut variant_c = NonExhaustive::new(FooB::C);
+    construct_deconstruct_cases! {NonExhaustive::new()}
+    construct_deconstruct_cases! {NonExhaustiveFor::const_new(GetVTable::VTABLE)}
+}
 
-        assert_eq!(variant_a.as_enum(), Ok(&FooB::A));
-        assert_eq!(variant_b.as_enum(), Ok(&FooB::B(11)));
-        assert_eq!(variant_c.as_enum(), Ok(&FooB::C));
+#[test]
+fn construct_panic() {
+    use self::generic_b::{Foo, Foo_Interface, Foo_Storage};
 
-        assert_eq!(variant_a.as_enum_mut(), Ok(&mut FooB::A));
-        assert_eq!(variant_b.as_enum_mut(), Ok(&mut FooB::B(11)));
-        assert_eq!(variant_c.as_enum_mut(), Ok(&mut FooB::C));
+    type NE<E> = NonExhaustive<E, Foo_Storage, Foo_Interface>;
 
-        assert_eq!(variant_a.into_enum(), Ok(FooB::A));
-        assert_eq!(variant_b.into_enum(), Ok(FooB::B(11)));
-        assert_eq!(variant_c.into_enum(), Ok(FooB::C));
+    macro_rules! passing_ctor {
+        ($enum_ty:ty) => {{
+            type ET = $enum_ty;
+            let runtime = <NE<ET>>::with_storage_and_interface(ET::A);
+            let const_ = <NE<ET>>::const_new(ET::B, GetVTable::VTABLE);
+
+            assert_eq!(runtime, ET::A);
+            assert_eq!(const_, ET::B);
+        }};
     }
+
+    macro_rules! failing_ctor {
+        ($enum_ty:ty) => {{
+            type ET = $enum_ty;
+            must_panic(file_span!(), || <NE<ET>>::with_storage_and_interface(ET::B)).unwrap();
+            must_panic(file_span!(), || {
+                <NE<ET>>::const_new(ET::A, GetVTable::VTABLE)
+            })
+            .unwrap();
+        }};
+    }
+
+    passing_ctor! {Foo<AlignTo8<[u8; 0]>>}
+    passing_ctor! {Foo<AlignTo8<[u8; 56]>>}
+
+    // too large
+    failing_ctor! {Foo<AlignTo8<[u8; 64]>>}
+    // too aligned
+    failing_ctor! {Foo<AlignTo16<[u8; 0]>>}
+    // too large, too aligned
+    failing_ctor! {Foo<AlignTo16<[u8; 64]>>}
 }
 
 #[test]

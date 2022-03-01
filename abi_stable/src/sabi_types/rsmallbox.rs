@@ -156,7 +156,7 @@ mod private {
     pub struct RSmallBox<T, Inline> {
         // This is an opaque field since we only care about its size and alignment
         #[sabi(unsafe_opaque_field)]
-        inline: ScratchSpace<Inline>,
+        inline: ScratchSpace<(), Inline>,
         ptr: *mut T,
         destroy: unsafe extern "C" fn(*mut T, CallReferentDrop, Deallocate),
         _marker: PhantomData<T>,
@@ -201,7 +201,7 @@ mod private {
         #[inline]
         pub fn as_mut_ptr(this: &mut Self) -> *mut T {
             if this.ptr.is_null() {
-                &mut this.inline as *mut ScratchSpace<Inline> as *mut T
+                &mut this.inline as *mut ScratchSpace<(), Inline> as *mut T
             } else {
                 this.ptr
             }
@@ -227,7 +227,7 @@ mod private {
         #[inline]
         pub fn as_ptr(this: &Self) -> *const T {
             if this.ptr.is_null() {
-                &this.inline as *const ScratchSpace<Inline> as *const T
+                &this.inline as *const ScratchSpace<(), Inline> as *const T
             } else {
                 this.ptr
             }
@@ -259,13 +259,13 @@ mod private {
             let value_align = mem::align_of::<T>();
 
             unsafe {
-                let mut inline: ScratchSpace<Inline> = ScratchSpace::uninit();
+                let mut inline: ScratchSpace<(), Inline> = ScratchSpace::uninit();
                 let (storage_ptr, ptr) = if inline_size < value_size || inline_align < value_align {
                     let x = alloc::alloc(Layout::new::<T>());
                     (x, x as *mut T)
                 } else {
                     (
-                        (&mut inline as *mut ScratchSpace<Inline> as *mut u8),
+                        (&mut inline as *mut ScratchSpace<(), Inline> as *mut u8),
                         ptr::null_mut(),
                     )
                 };
@@ -360,7 +360,7 @@ mod private {
         pub(super) unsafe fn drop_in_place(this: &mut Self, drop_referent: CallReferentDrop) {
             let (ptr, dealloc) = if this.ptr.is_null() {
                 (
-                    &mut this.inline as *mut ScratchSpace<Inline> as *mut T,
+                    &mut this.inline as *mut ScratchSpace<(), Inline> as *mut T,
                     Deallocate::No,
                 )
             } else {
