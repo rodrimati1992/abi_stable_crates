@@ -39,12 +39,12 @@ impl CompFieldAccessor {
     /// Expands this `CompFieldAccessor` into a `FieldAccessor`,
     /// using the string slice contained in the `SharedVars` of
     /// the `TypeLayout` this is stored inside of.
-    pub fn expand(self, string: &'static str) -> Option<FieldAccessor> {
+    pub const fn expand(self, string: &'static str) -> Option<FieldAccessor> {
         Some(match self {
             Self::DIRECT => FieldAccessor::Direct,
             Self::METHOD => FieldAccessor::Method,
             Self::METHOD_NAMED => FieldAccessor::MethodNamed {
-                name: string.into(),
+                name: RStr::from_str(string),
             },
             Self::METHOD_OPTION => FieldAccessor::MethodOption,
             Self::OPAQUE => FieldAccessor::Opaque,

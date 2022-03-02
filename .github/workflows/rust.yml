@@ -42,6 +42,10 @@ jobs:
       run: echo "rustv=rust_1_51" >> $GITHUB_ENV
 
     - name: enable-rust-stable
+      if: matrix.rust == '1.56.0' 
+      run: echo "rustv=rust_1_56" >> $GITHUB_ENV
+
+    - name: enable-rust-stable
       if: matrix.rust == 'stable' || matrix.rust == 'beta' || matrix.rust == 'nightly'
       run: echo "rustv=rust_latest_stable" >> $GITHUB_ENV
 
@@ -109,6 +113,7 @@ jobs:
 
         cd "${{github.workspace}}/abi_stable"
         cargo test --features "${{ env.rustv }} testing"
+        # clear; clear; cargo test --features "rust_latest_stable testing"
 
         cd "${{github.workspace}}/examples/0_modules_and_interface_types/impl/"
         cargo test
@@ -149,8 +154,8 @@ jobs:
         rustup override set "$MIRI_NIGHTLY"
         rustup component add miri
         cargo miri setup
-        env MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --tests --features "testing rust_1_51" -- crossbeam_channel
-        env MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-tag-raw-pointers" cargo miri test --features "test_miri_track_raw rust_1_51"
+        env MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --tests --features "testing rust_latest_stable" -- crossbeam_channel
+        env MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-tag-raw-pointers" cargo miri test --features "test_miri_track_raw rust_latest_stable"
 
         cd "${{github.workspace}}"
         rm Cargo.lock
@@ -158,6 +163,6 @@ jobs:
         cargo clean
         cargo update -Z minimal-versions
         cd "${{github.workspace}}/abi_stable/"
-        cargo build --features "rust_1_51"
+        cargo build --features "rust_latest_stable"
 
         

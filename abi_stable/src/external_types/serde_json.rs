@@ -97,14 +97,14 @@ impl<'a> RawValueRef<'a> {
     ///
     /// const JSON: &'static str = r##"{"huh":"that is interesting"}"##;
     ///
-    /// let value = unsafe { RawValueRef::from_str_unchecked(JSON) };
+    /// const VALUE: RawValueRef<'_> = unsafe { RawValueRef::from_str_unchecked(JSON) };
     ///
-    /// assert_eq!(serde_json::to_string(&value).unwrap().as_str(), JSON);
+    /// assert_eq!(serde_json::to_string(&VALUE).unwrap().as_str(), JSON);
     ///
     /// ```
-    pub unsafe fn from_str_unchecked(input: &'a str) -> RawValueRef<'a> {
+    pub const unsafe fn from_str_unchecked(input: &'a str) -> RawValueRef<'a> {
         Self {
-            ref_: RStr::from(input),
+            ref_: RStr::from_str(input),
         }
     }
 
@@ -129,7 +129,7 @@ impl<'a> RawValueRef<'a> {
     /// ```
     ///
     ///
-    pub unsafe fn from_rstr_unchecked(input: RStr<'a>) -> RawValueRef<'a> {
+    pub const unsafe fn from_rstr_unchecked(input: RStr<'a>) -> RawValueRef<'a> {
         Self { ref_: input }
     }
 
@@ -188,8 +188,8 @@ impl<'a> RawValueRef<'a> {
     ///
     /// ```
     #[inline]
-    pub fn get_rstr(&self) -> RStr<'a> {
-        self.get().into()
+    pub const fn get_rstr(&self) -> RStr<'a> {
+        self.ref_
     }
 }
 

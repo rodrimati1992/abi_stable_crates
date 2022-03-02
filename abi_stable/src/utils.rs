@@ -129,14 +129,13 @@ pub(crate) use deref;
 
 /// Helper type for transmuting non-Copy types without adding any overhead in debug builds.
 ///
+#[doc(hidden)]
 #[repr(C)]
-#[cfg(feature = "rust_1_56")]
 pub union TransmuterMD<T, U> {
     pub from: ManuallyDrop<T>,
     pub to: ManuallyDrop<U>,
 }
 
-#[cfg(feature = "rust_1_56")]
 macro_rules! const_transmute {
     ($from:ty, $to:ty, $val:expr) => {
         $crate::pmr::ManuallyDrop::into_inner(
@@ -148,7 +147,6 @@ macro_rules! const_transmute {
     };
 }
 
-#[cfg(feature = "rust_1_56")]
 pub(crate) use const_transmute;
 
 //////////////////////////////////

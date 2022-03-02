@@ -22,7 +22,7 @@ abi_stable_shared::declare_multi_tl_types! {
 }
 
 impl TypeLayoutRange {
-    pub(crate) fn to_array(self) -> [u16; Self::STORED_INLINE] {
+    pub(crate) const fn to_array(self) -> [u16; Self::STORED_INLINE] {
         [
             ((self.bits0 >> Self::INDEX_0_OFFSET) & Self::INDEX_MASK) as u16,
             ((self.bits0 >> Self::INDEX_1_OFFSET) & Self::INDEX_MASK) as u16,
@@ -72,17 +72,17 @@ pub struct MultipleTypeLayouts<'a> {
 
 impl<'a> MultipleTypeLayouts<'a> {
     /// The amount of `TypeLayoutCtor` this contains.
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.first.len as usize + self.remaining.len()
     }
 
     /// Whether this is empty.
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Gets an iterator over the `TypeLayoutCtor` this contains.
-    pub fn iter(&self) -> MTLIterator<'a> {
+    pub const fn iter(&self) -> MTLIterator<'a> {
         MTLIterator {
             this: *self,
             index: 0,

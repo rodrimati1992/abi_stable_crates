@@ -142,17 +142,27 @@ impl OptionU16 {
         OptionU16(min_u16(value, Self::MAX_VAL))
     }
 
+    /// Const equivalent of `OptionU16 == OptionU16`
+    pub const fn eq(self, other: Self) -> bool {
+        self.0 == other.0
+    }
+
+    /// Const equivalent of `OptionU16 != OptionU16`
+    pub const fn ne(self, other: Self) -> bool {
+        self.0 != other.0
+    }
+
     /// Whether this is the Some variant.
-    pub fn is_some(self) -> bool {
-        self != Self::None
+    pub const fn is_some(self) -> bool {
+        self.ne(Self::None)
     }
     /// Whether this is the None variant.
-    pub fn is_none(self) -> bool {
-        self == Self::None
+    pub const fn is_none(self) -> bool {
+        self.eq(Self::None)
     }
 
     /// Converts this to an `Option<u16>`.
-    pub fn to_option(self) -> Option<u16> {
+    pub const fn to_option(self) -> Option<u16> {
         if self.is_some() {
             Some(self.0)
         } else {
@@ -197,17 +207,27 @@ impl OptionU8 {
         OptionU8(min_u8(value, Self::MAX_VAL))
     }
 
+    /// Const equivalent of `OptionU8 == OptionU8`
+    pub const fn eq(self, other: Self) -> bool {
+        self.0 == other.0
+    }
+
+    /// Const equivalent of `OptionU8 != OptionU8`
+    pub const fn ne(self, other: Self) -> bool {
+        self.0 != other.0
+    }
+
     /// Whether this is the Some variant.
-    pub fn is_some(self) -> bool {
-        self != Self::None
+    pub const fn is_some(self) -> bool {
+        self.ne(Self::None)
     }
     /// Whether this is the None variant.
-    pub fn is_none(self) -> bool {
-        self == Self::None
+    pub const fn is_none(self) -> bool {
+        self.eq(Self::None)
     }
 
     /// Converts this to an `Option<u8>`.
-    pub fn to_option(self) -> Option<u8> {
+    pub const fn to_option(self) -> Option<u8> {
         if self.is_some() {
             Some(self.0)
         } else {

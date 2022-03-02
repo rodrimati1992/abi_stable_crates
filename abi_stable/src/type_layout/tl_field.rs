@@ -54,8 +54,9 @@ impl TLField {
     pub fn name(&self) -> &'static str {
         self.name.as_str()
     }
+
     /// Gets the lifetimes that the field references.
-    pub fn lifetime_indices(&self) -> LifetimeArrayOrSlice<'static> {
+    pub const fn lifetime_indices(&self) -> LifetimeArrayOrSlice<'static> {
         self.lifetime_indices
     }
     /// Gets the layout of the field type
@@ -63,16 +64,16 @@ impl TLField {
         self.layout.get()
     }
     /// Gets all the function pointer types in the field.
-    pub fn function_range(&self) -> TLFunctionSlice {
+    pub const fn function_range(&self) -> TLFunctionSlice {
         self.function_range
     }
     /// Gets whether the field is itself a function pointer.
-    pub fn is_function(&self) -> bool {
+    pub const fn is_function(&self) -> bool {
         self.is_function
     }
     /// Gets the `FieldAccessor` for the type,
     /// which describes whether a field is accessible,and how it is accessed.
-    pub fn field_accessor(&self) -> FieldAccessor {
+    pub const fn field_accessor(&self) -> FieldAccessor {
         self.field_accessor
     }
 
@@ -265,7 +266,7 @@ impl CompTLField {
     }
 
     /// Gets the name of the field from `SharedVars`'s slice of `TypeLayoutCtor`.
-    pub fn type_layout(&self, type_layouts: &'static [TypeLayoutCtor]) -> TypeLayoutCtor {
+    pub const fn type_layout(&self, type_layouts: &'static [TypeLayoutCtor]) -> TypeLayoutCtor {
         type_layouts[self.type_layout_index()]
     }
 
@@ -278,21 +279,6 @@ impl CompTLField {
     ) -> TLField {
         let strings = vars.strings();
         let function_range = TLFunctionSlice::for_field(field_index, functions, vars);
-
-        // println!(
-        //     "field:{:b}\n\
-        //     name_start_len:{:?}\n\
-        //     lifetime_range:{:?} bits:{:b}\n\
-        //     type_layout_index:{}\n\
-        //     is_function:{}\n\
-        //     ",
-        //     self.bits0,
-        //     self.name_start_len(),
-        //     LifetimeRange::from_u21(self.lifetime_indices_bits()),
-        //     self.lifetime_indices_bits(),
-        //     self.type_layout_index(),
-        //     self.is_function(),
-        // );
 
         TLField {
             name: self.name(strings).into(),

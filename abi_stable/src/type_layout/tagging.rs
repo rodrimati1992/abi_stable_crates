@@ -602,7 +602,7 @@ impl<T> KeyValue<T> {
     }
 
     /// Casts a &KeyValue into a `(key, value)` pair of references.
-    pub fn as_pair(&self) -> (&T, &T) {
+    pub const fn as_pair(&self) -> (&T, &T) {
         (&self.key, &self.value)
     }
 
