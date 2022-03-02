@@ -43,12 +43,12 @@ impl MonoTLEnum {
     }
 
     /// Gets the amount of variants in the enum.
-    pub fn variant_count(&self) -> usize {
+    pub const fn variant_count(&self) -> usize {
         self.field_count_len as usize
     }
 
     /// Gets a slice with the amount of fields for each variant in the enum.
-    pub fn field_count(&self) -> RSlice<'static, u8> {
+    pub const fn field_count(&self) -> RSlice<'static, u8> {
         unsafe { RSlice::from_raw_parts(self.field_count, self.field_count_len as usize) }
     }
 
@@ -115,7 +115,7 @@ pub struct TLEnum {
 
 impl TLEnum {
     /// Returns the amount of variants in the enum.
-    pub fn variant_count(&self) -> usize {
+    pub const fn variant_count(&self) -> usize {
         self.field_count.len()
     }
     /// Returns an iterator over the names of the variants in this enum.
@@ -242,7 +242,7 @@ macro_rules! declare_tl_discriminants {
             )*
 
             /// Gets the type of the discriminant in this `TLDiscriminants`.
-            pub fn discriminant_repr(&self)->DiscriminantRepr{
+            pub const fn discriminant_repr(&self)->DiscriminantRepr{
                 match self.inner {
                     $(
                         TLDiscrsInner::$variant{..}=>DiscriminantRepr::$variant,
@@ -441,15 +441,15 @@ impl IsExhaustive {
         }
     }
     /// Whether this is an exhaustive enum.
-    pub fn is_exhaustive(&self) -> bool {
+    pub const fn is_exhaustive(&self) -> bool {
         self.value.is_none()
     }
     /// Whether this is an nonexhaustive enum.
-    pub fn is_nonexhaustive(&self) -> bool {
+    pub const fn is_nonexhaustive(&self) -> bool {
         self.value.is_some()
     }
     /// Converts this to a TLNonExhaustive.Returning None if it is exhaustive.
-    pub fn as_nonexhaustive(&self) -> Option<&'static TLNonExhaustive> {
+    pub const fn as_nonexhaustive(&self) -> Option<&'static TLNonExhaustive> {
         self.value
     }
 }
@@ -473,11 +473,11 @@ impl TLNonExhaustive {
     }
 
     #[inline]
-    fn original_size(&self) -> usize {
+    const fn original_size(&self) -> usize {
         self.original_size
     }
     #[inline]
-    fn original_alignment(&self) -> usize {
+    const fn original_alignment(&self) -> usize {
         1_usize << (self.original_alignment_pow2 as u32)
     }
 

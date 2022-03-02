@@ -83,7 +83,7 @@ impl MonoTLData {
 
     /// Converts this into a `TLDataDiscriminant`,
     /// allowing one to query which discriminant this is.
-    pub fn as_discriminant(&self) -> TLDataDiscriminant {
+    pub const fn as_discriminant(&self) -> TLDataDiscriminant {
         match self {
             MonoTLData::Primitive { .. } => TLDataDiscriminant::Primitive,
             MonoTLData::Opaque { .. } => TLDataDiscriminant::Opaque,
@@ -94,7 +94,7 @@ impl MonoTLData {
         }
     }
 
-    pub(super) fn to_primitive(self) -> Option<TLPrimitive> {
+    pub(super) const fn to_primitive(self) -> Option<TLPrimitive> {
         match self {
             MonoTLData::Primitive(x) => Some(x),
             _ => None,

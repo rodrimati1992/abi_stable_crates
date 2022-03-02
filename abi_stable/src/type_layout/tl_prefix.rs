@@ -22,7 +22,7 @@ pub struct MonoTLPrefixType {
 
 impl MonoTLPrefixType {
     /// Expands this into a `TLPrefixType`.
-    pub fn expand(
+    pub const fn expand(
         self,
         other: GenericTLPrefixType,
         shared_vars: &'static SharedVars,

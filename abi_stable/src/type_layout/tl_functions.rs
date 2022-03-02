@@ -75,12 +75,12 @@ impl TLFunctions {
 
     /// Gets the amount of `TLFunction` in this `TLFunctions`.
     #[inline]
-    pub fn len(&'static self) -> usize {
+    pub const fn len(&'static self) -> usize {
         self.functions_len as usize
     }
 
     /// Whether this is empty.
-    pub fn is_empty(&'static self) -> bool {
+    pub const fn is_empty(&'static self) -> bool {
         self.functions_len == 0
     }
 }

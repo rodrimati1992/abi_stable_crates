@@ -41,7 +41,7 @@ macro_rules! declare_tl_lifetime_types {(
         /// Gets which lifetiem parameter this is.
         /// Returns None if it's not a lifetime parameter.
         #[inline]
-        pub fn to_param(self)->Option<$repr>{
+        pub const fn to_param(self)->Option<$repr>{
             if self.bits < Self::START_OF_LIFETIMES {
                 None
             }else{
@@ -228,7 +228,7 @@ macro_rules! declare_tl_lifetime_types {(
 
         /// The amount of lifetime indices this spans.
         #[inline]
-        pub fn len(self) -> usize {
+        pub const fn len(self) -> usize {
             if self.is_range() {
                 self.range_len()
             }else{
@@ -238,7 +238,7 @@ macro_rules! declare_tl_lifetime_types {(
 
         /// Whether this span of lifetimes is empty.
         #[inline]
-        pub fn is_empty(self) -> bool {
+        pub const fn is_empty(self) -> bool {
             self.len() == 0
         }
 
