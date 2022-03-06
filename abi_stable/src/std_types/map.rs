@@ -944,22 +944,46 @@ impl<'a, K, V, S: BuildHasher> IntoIterator for &'a mut RHashMap<K, V, S> {
     }
 }
 
-impl<K, V, S> From<HashMap<K, V, S>> for RHashMap<K, V, S>
+impl<K, V, S> From<std::collections::HashMap<K, V, S>> for RHashMap<K, V, S>
 where
+    K: Eq + Hash,
     S: BuildHasher,
     Self: Default,
 {
-    fn from(map: HashMap<K, V, S>) -> Self {
+    fn from(map: std::collections::HashMap<K, V, S>) -> Self {
         map.into_iter().collect()
     }
 }
 
-impl<K, V, S> From<RHashMap<K, V, S>> for HashMap<K, V, S>
+#[cfg(feature = "halfbrown")]
+impl<K, V, S> From<halfbrown::HashMap<K, V, S>> for RHashMap<K, V, S>
+where
+    K: Eq + Hash,
+    S: BuildHasher,
+    Self: Default,
+{
+    fn from(map: halfbrown::HashMap<K, V, S>) -> Self {
+        map.into_iter().collect()
+    }
+}
+
+impl<K, V, S> From<RHashMap<K, V, S>> for std::collections::HashMap<K, V, S>
 where
     K: Eq + Hash,
     S: BuildHasher + Default,
 {
-    fn from(this: RHashMap<K, V, S>) -> HashMap<K, V, S> {
+    fn from(this: RHashMap<K, V, S>) -> std::collections::HashMap<K, V, S> {
+        this.into_iter().map(|x| x.into_tuple()).collect()
+    }
+}
+
+#[cfg(feature = "halfbrown")]
+impl<K, V, S> From<RHashMap<K, V, S>> for halfbrown::HashMap<K, V, S>
+where
+    K: Eq + Hash,
+    S: BuildHasher + Default,
+{
+    fn from(this: RHashMap<K, V, S>) -> halfbrown::HashMap<K, V, S> {
         this.into_iter().map(|x| x.into_tuple()).collect()
     }
 }

@@ -37,7 +37,7 @@ pub enum REntry<'a, K, V, S: BuildHasher> {
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-struct ErasedOccupiedEntry<K, V, S>(PhantomData<(K, V, S)>);
+struct ErasedOccupiedEntry<K, V, S: BuildHasher>(PhantomData<(K, V)>, UnsafeIgnoredType<S>);
 
 #[derive(StableAbi)]
 #[repr(C)]
@@ -45,7 +45,7 @@ struct ErasedOccupiedEntry<K, V, S>(PhantomData<(K, V, S)>);
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-struct ErasedVacantEntry<K, V, S>(PhantomData<(K, V, S)>);
+struct ErasedVacantEntry<K, V, S: BuildHasher>(PhantomData<(K, V)>, UnsafeIgnoredType<S>);
 
 type UnerasedOccupiedEntry<'a, K, V, S> = ManuallyDrop<OccupiedEntry<'a, MapKey<K>, V, S>>;
 
