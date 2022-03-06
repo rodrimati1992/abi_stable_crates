@@ -2,15 +2,19 @@ use super::*;
 
 use std::{hash::Hash, mem::ManuallyDrop, ptr};
 
-// TODO: clean up
 #[cfg(not(feature = "halfbrown"))]
-use std::collections::hash_map::{Entry, OccupiedEntry, VacantEntry};
+mod hashmap_impl {
+    pub use std::collections::hash_map::{Entry, OccupiedEntry, VacantEntry};
+}
 #[cfg(feature = "halfbrown")]
-type OccupiedEntry<'a, K, V> = halfbrown::OccupiedEntry<'a, K, V, halfbrown::DefaultHashBuilder>;
-#[cfg(feature = "halfbrown")]
-type VacantEntry<'a, K, V> = halfbrown::VacantEntry<'a, K, V, halfbrown::DefaultHashBuilder>;
-#[cfg(feature = "halfbrown")]
-type Entry<'a, K, V> = halfbrown::Entry<'a, K, V, halfbrown::DefaultHashBuilder>;
+mod hashmap_impl {
+    pub type OccupiedEntry<'a, K, V> =
+        halfbrown::OccupiedEntry<'a, K, V, halfbrown::DefaultHashBuilder>;
+    pub type VacantEntry<'a, K, V> =
+        halfbrown::VacantEntry<'a, K, V, halfbrown::DefaultHashBuilder>;
+    pub type Entry<'a, K, V> = halfbrown::Entry<'a, K, V, halfbrown::DefaultHashBuilder>;
+}
+use hashmap_impl::*;
 
 use crate::{
     marker_type::UnsafeIgnoredType,
@@ -748,7 +752,10 @@ pub struct VacantVTable<K, V> {
     insert_elem: extern "C" fn(RVacantEntry<'_, K, V>, V) -> &'_ mut V,
 }
 
-impl<K, V> VacantVTable<K, V> {
+impl<K, V> VacantVTable<K, V>
+where
+    K: Hash,
+{
     const VTABLE_REF: VacantVTable_Ref<K, V> = VacantVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {

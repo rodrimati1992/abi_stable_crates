@@ -12,10 +12,10 @@ use std::{
     ptr::NonNull,
 };
 
-#[cfg(not(feature = "halfbrown"))]
-use collections::{hash_map::RandomState as DefaultHashBuilder, HashMap};
 #[cfg(feature = "halfbrown")]
 use halfbrown::{DefaultHashBuilder, HashMap};
+#[cfg(not(feature = "halfbrown"))]
+use std::collections::{hash_map::RandomState as DefaultHashBuilder, HashMap};
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;

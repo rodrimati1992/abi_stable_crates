@@ -6,7 +6,6 @@ use fnv::FnvBuildHasher as FnVBH;
 
 use crate::std_types::RString;
 
-// TODO: remove?
 type DefaultBH = DefaultHashBuilder;
 
 fn _covariant_hashmap<'a: 'b, 'b, T>(foo: HashMap<&'a T, &'a T>) -> HashMap<&'b T, &'b T> {
