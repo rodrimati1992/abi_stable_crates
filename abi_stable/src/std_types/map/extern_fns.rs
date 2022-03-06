@@ -9,7 +9,7 @@ use crate::{
 impl<K, V, S> ErasedMap<K, V, S>
 where
     K: Hash + Eq,
-    S: BuildHasher,
+    S: BuildHasher + Default,
 {
     unsafe fn run<'a, F, R>(this: RRef<'a, Self>, f: F) -> R
     where
@@ -71,12 +71,19 @@ where
         this: RMut<'_, Self>,
         key: MapQuery<'_, K>,
     ) -> ROption<Tuple2<K, V>> {
-        Self::run_mut(this, |this| {
-            match this.map.remove_entry(unsafe { &key.as_mapkey() }) {
-                Some(x) => RSome(Tuple2(x.0.into_inner(), x.1)),
-                None => RNone,
-            }
-        })
+        #[cfg(not(feature = "halfbrown"))]
+        {
+            Self::run_mut(this, |this| {
+                match this.map.remove_entry(unsafe { &key.as_mapkey() }) {
+                    Some(x) => RSome(Tuple2(x.0.into_inner(), x.1)),
+                    None => RNone,
+                }
+            })
+        }
+
+        // TODO
+        #[cfg(feature = "halfbrown")]
+        RNone
     }
 
     pub(super) unsafe extern "C" fn get_elem_p<'a>(this: RRef<'a, Self>, key: &K) -> Option<&'a V> {
@@ -94,10 +101,17 @@ where
         this: RMut<'_, Self>,
         key: &K,
     ) -> ROption<Tuple2<K, V>> {
-        Self::run_mut(this, |this| match this.map.remove_entry(key) {
-            Some(x) => RSome(Tuple2(x.0.into_inner(), x.1)),
-            None => RNone,
-        })
+        #[cfg(not(feature = "halfbrown"))]
+        {
+            Self::run_mut(this, |this| match this.map.remove_entry(key) {
+                Some(x) => RSome(Tuple2(x.0.into_inner(), x.1)),
+                None => RNone,
+            })
+        }
+
+        // TODO
+        #[cfg(not(feature = "halfbrown"))]
+        RNone
     }
 
     pub(super) unsafe extern "C" fn reserve(this: RMut<'_, Self>, reserved: usize) {

@@ -3,7 +3,6 @@
 use std::{
     borrow::Borrow,
     cmp::{Eq, PartialEq},
-    collections::{hash_map::RandomState, HashMap},
     fmt::{self, Debug},
     hash::{BuildHasher, Hash, Hasher},
     iter::FromIterator,
@@ -12,6 +11,11 @@ use std::{
     ops::{Index, IndexMut},
     ptr::NonNull,
 };
+
+#[cfg(not(feature = "halfbrown"))]
+use collections::{hash_map::RandomState as DefaultHashBuilder, HashMap};
+#[cfg(feature = "halfbrown")]
+use halfbrown::{DefaultHashBuilder, HashMap};
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
@@ -100,7 +104,7 @@ pub use self::{
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-pub struct RHashMap<K, V, S = RandomState> {
+pub struct RHashMap<K, V, S = DefaultHashBuilder> {
     map: RBox<ErasedMap<K, V, S>>,
     #[sabi(unsafe_change_type = VTable_Ref<K, V, S>)]
     vtable: PrefixRef<ErasedPrefix>,
@@ -140,7 +144,7 @@ impl<'a, K: 'a, V: 'a, S: 'a> ErasedType<'a> for ErasedMap<K, V, S> {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-impl<K, V> RHashMap<K, V, RandomState> {
+impl<K, V> RHashMap<K, V, DefaultHashBuilder> {
     /// Constructs an empty RHashMap.
     ///
     /// # Example
@@ -191,9 +195,9 @@ impl<K, V, S> RHashMap<K, V, S> {
     ///
     /// ```
     /// use abi_stable::std_types::{RHashMap, RString};
-    /// use std::collections::hash_map::RandomState;
+    /// use std::collections::hash_map::DefaultHashBuilder;
     ///
-    /// let s = RandomState::new();
+    /// let s = DefaultHashBuilder::new();
     /// let mut map = RHashMap::<RString, u32, _>::with_hasher(s);
     /// assert!(map.is_empty());
     /// map.insert("Hello".into(), 10);
@@ -215,9 +219,9 @@ impl<K, V, S> RHashMap<K, V, S> {
     ///
     /// ```
     /// use abi_stable::std_types::{RHashMap, RString};
-    /// use std::collections::hash_map::RandomState;
+    /// use std::collections::hash_map::DefaultHashBuilder;
     ///
-    /// let s = RandomState::new();
+    /// let s = DefaultHashBuilder::new();
     /// let mut map = RHashMap::<RString, u32, _>::with_capacity_and_hasher(10, s);
     /// assert!(map.capacity() >= 10);
     ///
@@ -1219,7 +1223,7 @@ struct VTable<K, V, S> {
 impl<K, V, S> VTable<K, V, S>
 where
     K: Eq + Hash,
-    S: BuildHasher,
+    S: BuildHasher + Default,
 {
     const VTABLE_VAL: WithMetadata<VTable<K, V, S>> =
         { WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE) };

@@ -1,10 +1,16 @@
 use super::*;
 
-use std::{
-    collections::hash_map::{Entry, OccupiedEntry, VacantEntry},
-    mem::ManuallyDrop,
-    ptr,
-};
+use std::{hash::Hash, mem::ManuallyDrop, ptr};
+
+// TODO: clean up
+#[cfg(not(feature = "halfbrown"))]
+use std::collections::hash_map::{Entry, OccupiedEntry, VacantEntry};
+#[cfg(feature = "halfbrown")]
+type OccupiedEntry<'a, K, V> = halfbrown::OccupiedEntry<'a, K, V, halfbrown::DefaultHashBuilder>;
+#[cfg(feature = "halfbrown")]
+type VacantEntry<'a, K, V> = halfbrown::VacantEntry<'a, K, V, halfbrown::DefaultHashBuilder>;
+#[cfg(feature = "halfbrown")]
+type Entry<'a, K, V> = halfbrown::Entry<'a, K, V, halfbrown::DefaultHashBuilder>;
 
 use crate::{
     marker_type::UnsafeIgnoredType,
@@ -758,7 +764,10 @@ impl<K, V> VacantVTable<K, V> {
     };
 }
 
-impl<K, V> ErasedVacantEntry<K, V> {
+impl<K, V> ErasedVacantEntry<K, V>
+where
+    K: Hash,
+{
     unsafe extern "C" fn drop_entry(this: RMut<'_, Self>) {
         extern_fn_panic_handling! {
             Self::run_downcast_as_mut(this, |this|{
