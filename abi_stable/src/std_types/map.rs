@@ -831,21 +831,23 @@ pub struct Keys<'a, K: 'a, V: 'a> {
     inner: Iter<'a, K, V>,
 }
 
+// FIXME: add this back after making `Iter: Clone`?
 // FIXME(#26925) Remove in favor of `#[derive(Clone)]`
-impl<K, V> Clone for Keys<'_, K, V> {
-    #[inline]
-    fn clone(&self) -> Self {
-        Keys {
-            inner: self.inner.clone(),
-        }
-    }
-}
+// impl<K, V> Clone for Keys<'_, K, V> {
+//     #[inline]
+//     fn clone(&self) -> Self {
+//         Keys {
+//             inner: self.inner.clone(),
+//         }
+//     }
+// }
 
-impl<K: Debug, V> fmt::Debug for Keys<'_, K, V> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(self.clone()).finish()
-    }
-}
+// FIXME: add this back after making `Iter: Clone`?
+// impl<K: Debug, V> fmt::Debug for Keys<'_, K, V> {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         f.debug_list().entries(self.clone()).finish()
+//     }
+// }
 
 impl<'a, K, V> Iterator for Keys<'a, K, V> {
     type Item = &'a K;
@@ -882,21 +884,23 @@ pub struct Values<'a, K: 'a, V: 'a> {
     inner: Iter<'a, K, V>,
 }
 
+// FIXME: add this back after making `Iter: Clone`?
 // FIXME(#26925) Remove in favor of `#[derive(Clone)]`
-impl<K, V> Clone for Values<'_, K, V> {
-    #[inline]
-    fn clone(&self) -> Self {
-        Values {
-            inner: self.inner.clone(),
-        }
-    }
-}
+// impl<K, V> Clone for Values<'_, K, V> {
+//     #[inline]
+//     fn clone(&self) -> Self {
+//         Values {
+//             inner: self.inner.clone(),
+//         }
+//     }
+// }
 
-impl<K, V: Debug> fmt::Debug for Values<'_, K, V> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(self.clone()).finish()
-    }
-}
+// FIXME: add this back after making `Iter: Clone`?
+// impl<K, V: Debug> fmt::Debug for Values<'_, K, V> {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         f.debug_list().entries(self.clone()).finish()
+//     }
+// }
 
 impl<'a, K, V> Iterator for Values<'a, K, V> {
     type Item = &'a V;

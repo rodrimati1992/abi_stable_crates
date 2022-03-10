@@ -31,8 +31,9 @@ macro_rules! declare_iter_interface {
 
 declare_iter_interface! {
     K => V;
+    // FIXME: add `Clone` to the InterfaceType
     /// The `InterfaceType` of the `Iter` iterator for `RHashMap`.
-    #[sabi(impl_InterfaceType(Iterator, Clone))]
+    #[sabi(impl_InterfaceType(Iterator))]
     interface = RefIterInterface;
     type Item = Tuple2<&'a K, &'a V>;
 }
