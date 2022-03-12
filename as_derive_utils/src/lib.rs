@@ -5,9 +5,6 @@
 pub mod macros;
 
 #[doc(hidden)]
-pub mod attribute_parsing;
-
-#[doc(hidden)]
 pub mod gen_params_in;
 
 #[doc(hidden)]

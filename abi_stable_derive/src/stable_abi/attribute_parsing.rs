@@ -18,6 +18,7 @@ use proc_macro2::Span;
 use crate::*;
 
 use crate::{
+    attribute_parsing::contains_doc_hidden,
     impl_interfacetype::{parse_impl_interfacetype, ImplInterfaceType},
     parse_utils::{parse_str_as_ident, ParseBounds, ParsePunctuated},
     utils::{LinearResult, SynResultExt},
@@ -57,7 +58,6 @@ mod kw {
     syn::custom_keyword! {Error}
     syn::custom_keyword! {extra_checks}
     syn::custom_keyword! {Hash}
-    syn::custom_keyword! {hidden}
     syn::custom_keyword! {ident}
     syn::custom_keyword! {interface}
     syn::custom_keyword! {impl_InterfaceType}
@@ -523,27 +523,10 @@ fn parse_inner<'a, I>(
                 })
             })
         } else if attr.path.is_ident("doc") {
-            let parser = |input: &ParseBuffer<'_>| {
-                let input = if input.peek(Token!(=)) {
-                    let _ = input.parse::<TokenStream2>();
-                    return Ok(());
-                } else {
-                    input.parse_paren_buffer()?
-                };
+            (|| -> syn::Result<()> {
+                let is_hidden =
+                    syn::parse::Parser::parse2(contains_doc_hidden, attr.tokens.clone())?;
 
-                let mut is_hidden = false;
-                while !input.is_empty() {
-                    if input.check_parse(kw::hidden)? {
-                        is_hidden = true;
-                        if !input.is_empty() {
-                            let _ = input.parse::<Token!(,)>()?;
-                        }
-                        let _ = input.parse::<TokenStream2>();
-                        break;
-                    } else {
-                        input.skip_tt();
-                    }
-                }
                 match pctx {
                     ParseContext::TypeAttr { .. } => {
                         this.is_hidden = is_hidden;
@@ -553,10 +536,9 @@ fn parse_inner<'a, I>(
                     }
                     ParseContext::Field { .. } => {}
                 }
-                Ok(())
-            };
 
-            syn::parse::Parser::parse2(parser, attr.tokens.clone())
+                Ok(())
+            })()
         } else if attr.path.is_ident("repr") {
             fn parse_int_arg(input: &'_ ParseBuffer<'_>) -> Result<u32, syn::Error> {
                 input.parse_paren_buffer()?.parse_int::<u32>()
