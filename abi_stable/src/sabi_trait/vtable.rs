@@ -107,7 +107,7 @@ impl<_Self, OrigPtr, Downcasting, V> VTableTO<_Self, OrigPtr, Downcasting, V, ()
     ///     (created using RObject::reborrow or RObject::reborrow_mut).
     ///
     /// - The vtable must be the `<SomeVTableName>` of a struct declared with
-    ///     `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_ref="<SomeVTableName>")))]`.
+    ///     `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_ref= <SomeVTableName>)))]`.
     ///
     /// - The vtable must have `PrefixRef<RObjectVtable<..>>`
     ///     as its first declared field
@@ -236,8 +236,8 @@ pub struct RObjectVtable<_Self, ErasedPtr, I> {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    bound = "I:InterfaceBound",
-    extra_checks = "<I as InterfaceBound>::EXTRA_CHECKS",
+    bound(I: InterfaceBound),
+    extra_checks = <I as InterfaceBound>::EXTRA_CHECKS,
     kind(Prefix)
 )]
 pub(super) struct BaseVtable<_Self, ErasedPtr, I> {

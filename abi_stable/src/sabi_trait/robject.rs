@@ -77,9 +77,9 @@ use crate::{
 #[derive(StableAbi)]
 #[sabi(
     not_stableabi(V),
-    bound = "V:PrefixStableAbi",
-    bound = "I:InterfaceBound",
-    extra_checks = "<I as InterfaceBound>::EXTRA_CHECKS"
+    bound(V: PrefixStableAbi),
+    bound(I: InterfaceBound),
+    extra_checks = <I as InterfaceBound>::EXTRA_CHECKS,
 )]
 pub struct RObject<'lt, P, I, V>
 where
@@ -255,7 +255,7 @@ where
     ///     (created using `RObject::reborrow` or `RObject::reborrow_mut`).
     ///
     /// - The vtable must be the `SomeVTableName` of a struct declared with
-    ///     `#[derive(StableAbi)] #[sabi(kind(Prefix(prefix_ref="SomeVTableName")))]`.
+    ///     `#[derive(StableAbi)] #[sabi(kind(Prefix(prefix_ref= SomeVTableName)))]`.
     ///
     /// - The vtable must have `RObjectVtable_Ref` as its first declared field
     ///

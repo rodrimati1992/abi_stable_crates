@@ -102,7 +102,7 @@ pub use self::{
 )]
 pub struct RHashMap<K, V, S = RandomState> {
     map: RBox<ErasedMap<K, V, S>>,
-    #[sabi(unsafe_change_type = "VTable_Ref<K, V, S>")]
+    #[sabi(unsafe_change_type = VTable_Ref<K, V, S>)]
     vtable: PrefixRef<ErasedPrefix>,
 }
 

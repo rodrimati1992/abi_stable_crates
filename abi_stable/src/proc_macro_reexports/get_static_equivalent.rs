@@ -49,8 +49,8 @@ use abi_stable::{
 #[derive(StableAbi)]
 #[sabi(
     not_stableabi(T),
-    bound = "T: WithName",
-    tag = "tag!( <T as WithName>::NAME )"
+    bound(T: WithName),
+    tag = tag!( <T as WithName>::NAME )
 )]
 struct WithMarker<T>(UnsafeIgnoredType<T>);
 
@@ -118,7 +118,7 @@ use abi_stable::{std_types::RVec, StableAbi};
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(not_stableabi(I), bound = "<I as IntoIterator>::Item : StableAbi")]
+#[sabi(not_stableabi(I), bound(<I as IntoIterator>::Item : StableAbi))]
 pub struct CollectedIterator<I>
 where
     I: IntoIterator,

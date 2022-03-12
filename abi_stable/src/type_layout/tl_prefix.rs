@@ -14,7 +14,7 @@ pub struct MonoTLPrefixType {
     /// Which fields in the prefix
     /// (the ones up to the one with the `#[sabi(last_prefix_field)]` attribute)
     /// are conditionally accessible
-    /// (with the `#[sabi(accessible_if=" expression ")]` attribute).
+    /// (with the `#[sabi(accessible_if = expression)]` attribute).
     pub conditional_prefix_fields: FieldConditionality,
     /// All the fields of the prefix-type,even if they are inaccessible.
     pub fields: CompTLFields,
@@ -62,7 +62,7 @@ pub struct TLPrefixType {
     /// Which fields in the prefix
     /// (the ones up to the one with the `#[sabi(last_prefix_field)]` attribute)
     /// are conditionally accessible
-    /// (with the `#[sabi(accessible_if=" expression ")]` attribute).
+    /// (with the `#[sabi(accessible_if = expression)]` attribute).
     pub conditional_prefix_fields: FieldConditionality,
     /// All the fields of the prefix-type,even if they are inaccessible.
     pub fields: TLFields,

@@ -162,7 +162,7 @@ impl<M> RootModuleStatics<M> {
 ///
 /// #[repr(C)]
 /// #[derive(StableAbi)]
-/// #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+/// #[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
 /// pub struct Module{
 ///     pub first: u8,
 ///     #[sabi(last_prefix_field)]

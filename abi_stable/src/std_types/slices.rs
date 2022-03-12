@@ -79,7 +79,7 @@ mod private {
     /// ```
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(bound = "T: 'a")]
+    #[sabi(bound(T: 'a))]
     //#[sabi(debug_print)]
     pub struct RSlice<'a, T> {
         data: *const T,

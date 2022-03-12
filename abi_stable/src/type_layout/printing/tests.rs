@@ -10,17 +10,17 @@ mod display {
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(phantom_const_param = "STRUCT_0_LAYS")]
+    #[sabi(phantom_const_param = STRUCT_0_LAYS)]
     pub(super) struct Struct0;
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(phantom_const_param = "STRUCT_1_LAYS")]
+    #[sabi(phantom_const_param = STRUCT_1_LAYS)]
     pub(super) struct Struct1;
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(phantom_const_param = "STRUCT_2_LAYS")]
+    #[sabi(phantom_const_param = STRUCT_2_LAYS)]
     pub(super) struct Struct2;
 
     const STRUCT_0_LAYS: RSlice<'static, AlwaysDisplay<Constructor<&'static TypeLayout>>> =
@@ -61,17 +61,17 @@ mod debug {
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(phantom_const_param = "STRUCT_0_LAYS")]
+    #[sabi(phantom_const_param = STRUCT_0_LAYS)]
     pub(super) struct Struct0;
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(phantom_const_param = "STRUCT_1_LAYS")]
+    #[sabi(phantom_const_param = STRUCT_1_LAYS)]
     pub(super) struct Struct1;
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(phantom_const_param = "STRUCT_2_LAYS")]
+    #[sabi(phantom_const_param = STRUCT_2_LAYS)]
     pub(super) struct Struct2;
 
     const STRUCT_0_LAYS: RSlice<'static, Constructor<&'static TypeLayout>> = rslice![];

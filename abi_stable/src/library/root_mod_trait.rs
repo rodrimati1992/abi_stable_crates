@@ -19,7 +19,7 @@ use crate::{marker_type::NonOwningPhantom, prefix_type::PrefixRefTrait, utils::l
 ///
 /// #[repr(C)]
 /// #[derive(StableAbi)]
-/// #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+/// #[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
 /// pub struct Module {
 ///     pub first: u8,
 ///     // The `#[sabi(last_prefix_field)]` attribute here means that this is

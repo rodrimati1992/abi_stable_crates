@@ -10,7 +10,7 @@ use crate::{
 /// This type is used in prefix type examples.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+#[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
 pub struct Module {
     pub first: ROption<usize>,
     // The `#[sabi(last_prefix_field)]` attribute here means that this is
@@ -34,7 +34,7 @@ impl RootModule for Module_Ref {
 /// This type is used in prefix type examples.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "PhantModule_Ref", prefix_fields = "PhantModule_Prefix")))]
+#[sabi(kind(Prefix(prefix_ref = PhantModule_Ref, prefix_fields = PhantModule_Prefix)))]
 pub struct PhantModule<T: Copy> {
     pub first: ROption<usize>,
     // The `#[sabi(last_prefix_field)]` attribute here means that this is
@@ -54,7 +54,7 @@ pub struct PhantModule<T: Copy> {
 // #[derive(Debug,Clone,PartialEq)]
 // #[sabi(debug_print)]
 #[derive(StableAbi, Debug, Clone, PartialEq)]
-#[sabi(kind(WithNonExhaustive(size = "[usize;10]", traits(Debug, Clone, PartialEq),)))]
+#[sabi(kind(WithNonExhaustive(size = [usize;10], traits(Debug, Clone, PartialEq),)))]
 #[sabi(with_constructor)]
 #[non_exhaustive]
 pub enum ValidTag {

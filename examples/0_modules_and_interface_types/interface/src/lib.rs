@@ -25,7 +25,7 @@ use abi_stable::{
 /// call <TextOpsMod_Ref as RootModule>::load_from_directory(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "TextOpsMod_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = TextOpsMod_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct TextOpsMod {
     /// Constructs TOStateBox,state that is passed to other functions in this module.
@@ -75,7 +75,7 @@ impl RootModule for TextOpsMod_Ref {
 /// A module for all deserialization functions.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "DeserializerMod_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = DeserializerMod_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct DeserializerMod {
     pub something: std::marker::PhantomData<()>,

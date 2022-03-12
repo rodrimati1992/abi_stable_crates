@@ -105,7 +105,7 @@ pub(super) mod changed_field_name {
     pub struct Rectangle {
         x: u32,
         y: u32,
-        #[sabi(rename = "w2")]
+        #[sabi(rename = w2)]
         w: u16,
         h: u32,
     }
@@ -843,8 +843,8 @@ mod tagging_items {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         not_stableabi(M),
-        bound = "M:ToTagConst",
-        tag = "<M as ToTagConst>::TAG"
+        bound(M: ToTagConst),
+        tag = <M as ToTagConst>::TAG,
     )]
     pub struct Tagged<M>(UnsafeIgnoredType<M>);
 

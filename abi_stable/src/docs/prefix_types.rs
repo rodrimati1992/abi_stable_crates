@@ -5,7 +5,7 @@ Prefix-types are types that derive StableAbi along with the
 This is mostly intended for **vtables** and **modules**.
 
 Prefix-types cannot directly be passed through ffi,
-instead they must be converted to the type declared with `prefix_ref="Foo_Ref"`,
+instead they must be converted to the type declared with `prefix_ref= Foo_Ref`,
 and then pass that instead.
 
 To convert `Foo` to `Foo_Ref` you can use any of (non-exhaustive list):
@@ -71,7 +71,7 @@ use abi_stable::{
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "Module_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = Module_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct Module {
     pub lib_name: RStr<'static>,
@@ -89,7 +89,7 @@ pub struct Module {
 
 In this example:
 
-- `#[sabi(kind(Prefix(prefix_ref="Module_Ref")))]` declares this type as being a prefix-type
+- `#[sabi(kind(Prefix(prefix_ref= Module_Ref)))]` declares this type as being a prefix-type
     with an ffi-safe pointer called `Module_Ref` to which `Module` can be converted into.
 
 - `#[sabi(missing_field(panic))]`
@@ -128,7 +128,7 @@ fn main() {
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "Module_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = Module_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct Module<T> {
     pub lib_name: RStr<'static>,
@@ -193,7 +193,7 @@ fn main() {
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "VTable_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = VTable_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct VTable {
     #[sabi(last_prefix_field)]
@@ -416,7 +416,7 @@ pub struct PersonMod {
     pub visits: extern "C" fn(Id) -> u32,
 
     // The getter for this field returns `default_score()` if the field doesn't exist.
-    #[sabi(missing_field(with = "default_score"))]
+    #[sabi(missing_field(with = default_score))]
     pub score: extern "C" fn(Id) -> u32,
 
     // The getter for this field returns `Default::default()` if the field doesn't exist.

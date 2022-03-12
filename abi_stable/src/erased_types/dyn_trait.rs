@@ -607,9 +607,9 @@ mod priv_ {
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
-        bound ="I: InterfaceBound",
-        bound ="VTable_Ref<'borr, P, I>: StableAbi",
-        extra_checks ="<I as InterfaceBound>::EXTRA_CHECKS",
+        bound(I: InterfaceBound),
+        bound(VTable_Ref<'borr, P, I>: StableAbi),
+        extra_checks = <I as InterfaceBound>::EXTRA_CHECKS,
     )]
     pub struct DynTrait<'borr, P, I, EV = ()>
     where

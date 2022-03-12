@@ -329,7 +329,8 @@ pub trait Dictionary: Debug + Clone {
     #[sabi(last_prefix_field)]
     fn insert(&mut self, key: RString, value: Self::Value) -> ROption<Self::Value>;
 
-    /// You can add defaulted methods in minor versions(it's not a breaking change).
+    /// It's semver compatible to add defaulted methods below previously-defined ones in
+    /// minor version updates.
     fn contains(&self, key: RStr<'_>) -> bool {
         self.get(key).is_some()
     }

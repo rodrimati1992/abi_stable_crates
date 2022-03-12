@@ -80,7 +80,7 @@ pub struct RMutex<T> {
 ///
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 #[must_use]
 pub struct RMutexGuard<'a, T> {
     rmutex: &'a RMutex<T>,

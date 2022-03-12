@@ -51,8 +51,8 @@ Syntax:`align=integer_literal`<br>
 Example:`align=8`<br>
 
 With the same alignment is that of another type.<br>
-Syntax:`align="type"`<br>
-Example:`align="usize"`<br>
+Syntax:`align = type`<br>
+Example:`align = usize`<br>
 
 ### size (required parameter)
 
@@ -63,8 +63,8 @@ Syntax:`size=integer_literal`<br>
 Example:`size=8`<br>
 
 The size of Enum_TE is that of of another type<br>
-Syntax:`size="type"`<br>
-Example:`size="[usize;8]"`<br>
+Syntax:`size = type`<br>
+Example:`size = [usize;8]`<br>
 Recommendation:
 Use a type that has a constant layout,generally a concrete type.
 It is a bad idea to use `Enum` since its size is allowed to change.<br>
@@ -77,12 +77,12 @@ usable after constructing it.
 If neither this parameter nor interface are specified,
 no traits will be required in `NonExhaustive<>` and none will be usable.
 
-Syntax:`traits( trait0,trait1=false,trait2=true,trait3 )`
+Syntax:`traits(trait0, trait1 = false, trait2 = true, trait3)`
 
 Example0:`traits(Debug,Display)`<br>
-Example1:`traits(Sync=false,Debug,Display)`<br>
-Example2:`traits(Sync=false,Send=false,Debug,Display)`<br>
-Example3:`traits(Clone,Debug,Display,Error)`<br>
+Example1:`traits(Sync = false, Debug,Display)`<br>
+Example2:`traits(Sync = false, Send = false, Debug, Display)`<br>
+Example3:`traits(Clone, Debug, Display, Error)`<br>
 
 All the traits are optional.
 
@@ -121,18 +121,18 @@ required when constructing `NonExhaustive<>` from this enum and are then usable 
 
 The type describes which traits are required using the [`InterfaceType`] trait.
 
-Syntax:`interface="type"`
+Syntax:`interface=type`
 
-Example0:`interface="()"`.
+Example0:`interface = ()`.
 This means that no trait is usable/required.<br>
 
-Example1:`interface="CloneInterface"`.
+Example1:`interface = CloneInterface`.
 This means that only Clone is usable/required.<br>
 
-Example2:`interface="PartialEqInterface"`.
+Example2:`interface = PartialEqInterface`.
 This means that only Debug/PartialEq are usable/required.<br>
 
-Example3:`interface="CloneEqInterface"`.
+Example3:`interface = CloneEqInterface`.
 This means that only Debug/Clone/Eq/PartialEq are usable/required.<br>
 
 The `*Interface` types from the examples come from the
@@ -148,14 +148,14 @@ You must run those tests with `cargo test`,they are not static assertions.
 Once static assertions can be done in a non-hacky way,
 this library will provide another attribute which generates static assertions.
 
-Syntax:`assert_nonexhaustive="type" )`<br>
-Example:`assert_nonexhaustive="Foo<u8>")`<br>
-Example:`assert_nonexhaustive="Foo<RArc<u8>>")`<br>
-Example:`assert_nonexhaustive="Foo<RBox<u8>>")`<br>
+Syntax:`assert_nonexhaustive = type)`<br>
+Example:`assert_nonexhaustive = Foo<u8>)`<br>
+Example:`assert_nonexhaustive = Foo<RArc<u8>>)`<br>
+Example:`assert_nonexhaustive = Foo<RBox<u8>>)`<br>
 
-Syntax:`assert_nonexhaustive("type0","type1")`<br>
-Example:`assert_nonexhaustive("Foo<RArc<u8>>")`<br>
-Example:`assert_nonexhaustive("Foo<u8>","Foo<RVec<()>>")`<br>
+Syntax:`assert_nonexhaustive(type0, type1)`<br>
+Example:`assert_nonexhaustive(Foo<RArc<u8>>)`<br>
+Example:`assert_nonexhaustive(Foo<u8>, Foo<RVec<()>>)`<br>
 
 # `serde` support
 
@@ -187,11 +187,11 @@ use serde::{Deserialize, Serialize};
 #[repr(u8)]
 #[derive(StableAbi, Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[sabi(kind(WithNonExhaustive(
-// Determines the maximum size of this enum in semver compatible versions.
-size="[usize;10]",
-// Determines the traits that are required when wrapping this enum in NonExhaustive,
-// and are then available with it.
-traits(Debug,Clone,PartialEq,Serialize,Deserialize),
+    // Determines the maximum size of this enum in semver compatible versions.
+    size = [usize;10],
+    // Determines the traits that are required when wrapping this enum in NonExhaustive,
+    // and are then available with it.
+    traits(Debug,Clone,PartialEq,Serialize,Deserialize),
 )))]
 // The `#[sabi(with_constructor)]` helper attribute here generates constructor functions
 // that look take the fields of the variant as parameters and return a `ValidTag_NE`.
@@ -377,7 +377,7 @@ use std::{
 #[repr(u8)]
 #[derive(StableAbi, Debug, Clone, PartialEq)]
 #[sabi(kind(WithNonExhaustive(
-    size = "[usize;3]",
+    size = [usize;3],
     traits(Debug, Display, Clone, PartialEq),
 )))]
 pub enum Message<T> {
@@ -471,14 +471,14 @@ use abi_stable::{
 #[repr(u8)]
 #[derive(StableAbi, Debug, Clone, PartialEq)]
 #[sabi(kind(WithNonExhaustive(
-// Determines the maximum size of this enum in semver compatible versions.
-// This is 11 usize large because:
-//    - The enum discriminant occupies 1 usize(because the enum is usize aligned).
-//    - RSmallBox<T,[usize;8]>: is 10 usize large
-size="[usize;11]",
-// Determines the traits that are required when wrapping this enum in NonExhaustive,
-// and are then available with it.
-traits(Debug,Clone,PartialEq),
+    // Determines the maximum size of this enum in semver compatible versions.
+    // This is 11 usize large because:
+    //    - The enum discriminant occupies 1 usize(because the enum is usize aligned).
+    //    - RSmallBox<T,[usize;8]>: is 10 usize large
+    size = [usize;11],
+    // Determines the traits that are required when wrapping this enum in NonExhaustive,
+    // and are then available with it.
+    traits(Debug,Clone,PartialEq),
 )))]
 #[sabi(with_constructor)]
 pub enum SomeEnum<T> {
@@ -592,7 +592,7 @@ pub struct GroupId(pub usize);
 #[repr(u8)]
 #[derive(StableAbi, Debug, Clone, PartialEq)]
 #[sabi(kind(WithNonExhaustive(
-    size = "[usize;8]",
+    size = [usize;8],
     traits(Debug, Clone, PartialEq),
 )))]
 #[sabi(with_constructor)]

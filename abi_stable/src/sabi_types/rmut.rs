@@ -110,7 +110,7 @@ use crate::{
 ///
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 pub struct RMut<'a, T> {
     ref_: NonNull<T>,
     _marker: PhantomData<crate::utils::MutRef<'a, T>>,

@@ -138,7 +138,7 @@ pub trait Plugin {
 /// call <PluginMod as RootModule>::load_from_directory(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "PluginMod_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = PluginMod_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct PluginMod {
     /// Constructs the plugin.

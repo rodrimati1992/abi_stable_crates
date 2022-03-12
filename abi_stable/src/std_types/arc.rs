@@ -75,7 +75,7 @@ mod private {
     #[repr(C)]
     pub struct RArc<T> {
         data: *const T,
-        #[sabi(unsafe_change_type = "ArcVtable_Ref<T>")]
+        #[sabi(unsafe_change_type = ArcVtable_Ref<T>)]
         vtable: PrefixRef<ErasedPrefix>,
         _marker: PhantomData<T>,
     }

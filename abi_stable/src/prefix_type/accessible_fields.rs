@@ -31,7 +31,7 @@ pub type FieldAccessibility = BoolArray<IsAccessible>;
 
 /// An array with whether the ith field in the prefix of a prefix-type
 /// is conditional,which means whether it has the
-/// `#[sabi(accessible_if=" expression ")]` attribute applied to it.
+/// `#[sabi(accessible_if = expression)]` attribute applied to it.
 pub type FieldConditionality = BoolArray<IsConditional>;
 
 impl<T> BoolArray<T> {
@@ -192,7 +192,7 @@ impl BooleanEnum for IsAccessible {
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Whether a field is conditional,
-/// whether it has a `#[sabi(accessible_if=" expression ")]` helper attribute or not.
+/// whether it has a `#[sabi(accessible_if = expression)]` helper attribute or not.
 #[derive(StableAbi, Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum IsConditional {

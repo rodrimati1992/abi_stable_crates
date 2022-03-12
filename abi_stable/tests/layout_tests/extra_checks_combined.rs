@@ -151,8 +151,8 @@ fn test_incompatible() {
     // Replaces the C:StableAbi constraint with `C:GetStaticEquivalent` 
     // (a supertrait of StableAbi).
     not_stableabi(C),
-    bound="C:GetConstant",
-    extra_checks="Self::CHECKER"
+    bound(C: GetConstant),
+    extra_checks = Self::CHECKER,
 )]
 struct WithConstant<C> {
     // UnsafeIgnoredType is equivalent to PhantomData,
@@ -469,7 +469,7 @@ fn test_identity_extra_checker() {
 
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(extra_checks = "Self::NEW")]
+#[sabi(extra_checks = Self::NEW)]
 struct WithCyclicExtraChecker;
 
 impl WithCyclicExtraChecker {
@@ -505,7 +505,7 @@ fn test_cyclic_extra_checker() {
 
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(extra_checks = "Self::EXTRA_CHECKER")]
+#[sabi(extra_checks = Self::EXTRA_CHECKER)]
 struct WithLocalExtraChecker<C0, C1> {
     _marker: UnsafeIgnoredType<(C0, C1)>,
 }

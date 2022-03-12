@@ -16,6 +16,6 @@ pub(super) mod single_integer_one_phantom {
 
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    #[sabi(bound = "T:AssocStr", phantom_const_param = "T::STR")]
+    #[sabi(bound(T: AssocStr), phantom_const_param = T::STR)]
     pub struct Struct<T, const A: usize>(UnsafeIgnoredType<T>);
 }

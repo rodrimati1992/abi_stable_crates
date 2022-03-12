@@ -36,9 +36,9 @@ pub struct ItemId {
 #[repr(u8)]
 #[derive(StableAbi, Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[sabi(kind(WithNonExhaustive(
-    size = "[usize;8]",
+    size = [usize;8],
     traits(Send, Sync, Debug, Clone, PartialEq, Serialize, Deserialize),
-    assert_nonexhaustive = "Command",
+    assert_nonexhaustive = Command,
 )))]
 pub enum Command {
     /// `#[sabi(with_boxed_constructor)]` tells the `StableAbi` derive macro to
@@ -172,9 +172,9 @@ fn examples_of_constructing_a_command() {
 #[repr(u8)]
 #[derive(StableAbi, Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[sabi(kind(WithNonExhaustive(
-    size = "[usize;6]",
-    interface = "Command_Interface",
-    assert_nonexhaustive = "ReturnVal",
+    size = [usize;6],
+    interface = Command_Interface,
+    assert_nonexhaustive = ReturnVal,
 )))]
 pub enum ReturnVal {
     CreateItem {
@@ -236,7 +236,7 @@ pub struct RetRenameItem {
 /// This specifies how `ReturnVal_NE` is serialized.
 ///
 /// This is implemented on Command_Interface,
-/// because `interface="Command_Interface"` was passed as a parameter to
+/// because `interface = Command_Interface` was passed as a parameter to
 /// `#[sabi(kind(WithNonExhaustive( ... )))]`.
 impl SerializeEnum<ReturnVal_NE> for Command_Interface {
     /// The intermediate type the enum is converted into with `SerializeEnum::serialize_enum`,
@@ -312,7 +312,7 @@ fn examples_of_constructing_a_returnval() {
 #[non_exhaustive]
 #[repr(u8)]
 #[derive(StableAbi, Debug, Clone, PartialEq)]
-#[sabi(kind(WithNonExhaustive(size = "[usize;6]", traits(Send, Sync, Debug, Clone, PartialEq),)))]
+#[sabi(kind(WithNonExhaustive(size = [usize;6], traits(Send, Sync, Debug, Clone, PartialEq),)))]
 #[sabi(with_constructor)]
 pub enum Error {
     ItemAlreadyExists {
@@ -367,7 +367,7 @@ fn examples_of_constructing_an_error() {
 /// call <ShopMod_Ref as RootModule>::load_from_directory(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "ShopMod_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = ShopMod_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct ShopMod {
     /// Constructs the `Shop_TO` trait object.
