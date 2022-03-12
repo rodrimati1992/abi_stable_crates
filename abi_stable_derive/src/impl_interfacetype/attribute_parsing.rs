@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use as_derive_utils::{return_spanned_err, spanned_err};
+use as_derive_utils::{parse_utils::ParseBufferExt, return_syn_err, syn_err};
 
-use syn::{punctuated::Punctuated, token::Comma, Ident, Meta, NestedMeta};
+use syn::{parse::ParseBuffer, Ident, Token};
 
 use crate::{
     impl_interfacetype::{TraitStruct, WhichTrait, TRAIT_LIST},
@@ -18,7 +18,7 @@ pub(crate) struct ImplInterfaceType {
 
 /// Parses the `#[sabi(impl_InterfaceType())]` helper attribute.
 pub(crate) fn parse_impl_interfacetype(
-    list: &Punctuated<NestedMeta, Comma>,
+    input: &ParseBuffer<'_>,
 ) -> Result<ImplInterfaceType, syn::Error> {
     let trait_map = TRAIT_LIST
         .iter()
@@ -41,22 +41,18 @@ pub(crate) fn parse_impl_interfacetype(
             .join("\n    ")
     };
 
-    for subelem in list {
-        let trait_ident = match subelem {
-            NestedMeta::Meta(Meta::Path(ident)) => ident.get_ident(),
-            _ => None,
-        }
-        .ok_or_else(|| {
-            spanned_err!(
-                subelem,
+    input.for_each_separated(Token!(,), |input| {
+        let trait_ident = input.parse::<Ident>().map_err(|e| {
+            syn_err!(
+                e.span(),
                 "invalid attribute inside #[sabi(impl_InterfaceType(  ))].\n\
-                 Valid traits:\n    {}\n\
-                ",
+                     Valid traits:\n    {}\n\
+                    ",
                 valid_traits()
             )
         })?;
 
-        match trait_map.get(trait_ident) {
+        match trait_map.get(&trait_ident) {
             Some(&which_trait) => {
                 impld_struct[which_trait] = true;
 
@@ -82,14 +78,15 @@ pub(crate) fn parse_impl_interfacetype(
                     _ => {}
                 }
             }
-            None => return_spanned_err!(
-                trait_ident,
+            None => return_syn_err!(
+                trait_ident.span(),
                 "invalid trait inside #[sabi(impl_InterfaceType(  ))]:\n\
                  Valid traits:\n    {}\n",
                 valid_traits(),
             ),
         }
-    }
+        Ok(())
+    })?;
 
     for (trait_, which_trait) in trait_map {
         if impld_struct[which_trait] {

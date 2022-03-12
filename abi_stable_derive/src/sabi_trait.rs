@@ -10,6 +10,8 @@ use std::marker::PhantomData;
 
 use proc_macro2::TokenStream as TokenStream2;
 
+use quote::TokenStreamExt;
+
 use syn::ItemTrait;
 
 use as_derive_utils::{
@@ -290,10 +292,6 @@ fn first_items(
 
     let used_trait_object = quote!(#trait_backend<#uto_params_use>);
 
-    let used_to_bound = format!(
-        "{}: ::abi_stable::StableAbi",
-        (&used_trait_object).into_token_stream()
-    );
     let trait_flags = &trait_def.trait_flags;
     let send_syncness = match (trait_flags.sync, trait_flags.send) {
         (false, false) => "UnsyncUnsend",
@@ -373,7 +371,7 @@ fn first_items(
         #[doc=#trait_to_docs]
         #[repr(transparent)]
         #[derive(::abi_stable::StableAbi)]
-        #[sabi(bound=#used_to_bound)]
+        #[sabi(bound(#used_trait_object: ::abi_stable::StableAbi))]
         #submod_vis struct #trait_to<#to_params>
         where
             _ErasedPtr:__GetPointerKind,
@@ -1007,13 +1005,11 @@ fn declare_vtable(
     let lifetime_bounds = if vtable_trait_decl.lifetime_bounds.is_empty() {
         None
     } else {
-        use std::fmt::Write;
-        let mut lifetime_bounds = String::with_capacity(32);
-        lifetime_bounds.push_str("_Self:");
+        let mut lifetime_bounds = quote!(_Self:);
         for lt in &vtable_trait_decl.lifetime_bounds {
-            let _ = write!(lifetime_bounds, "{}+", lt);
+            lifetime_bounds.append_all(quote!(#lt +));
         }
-        lifetime_bounds.push_str("Sized");
+        lifetime_bounds.append(parse_str_as_ident("Sized"));
         Some(lifetime_bounds)
     }
     .into_iter();
@@ -1032,13 +1028,7 @@ fn declare_vtable(
         >
     );
 
-    let real_vtable_ty = format!("VTableInner_Ref<{}>", generics_use1.into_token_stream(),);
-    let inner_vtable_bound = format!("{}: ::abi_stable::StableAbi", real_vtable_ty);
-
-    let vtable_bound = format!(
-        "{}: ::abi_stable::StableAbi",
-        (&robject_vtable).into_token_stream()
-    );
+    let real_vtable_ty = quote!(VTableInner_Ref<#generics_use1>);
 
     let bounds = {
         let mut gen_toks = vtable_trait_decl.generics_tokenizer(
@@ -1047,10 +1037,12 @@ fn declare_vtable(
             &ctokens.ts_empty,
         );
         gen_toks.skip_unbounded();
-        format!(
-            "{}_Self:{},_ErasedPtr: __GetPointerKind",
-            gen_toks.into_token_stream(),
-            vtable_trait_decl.lifetime_bounds.to_token_stream(),
+        let lt_bounds = &vtable_trait_decl.lifetime_bounds;
+
+        quote!(
+            #gen_toks
+            _Self: #lt_bounds,
+            _ErasedPtr: __GetPointerKind,
         )
     };
 
@@ -1059,8 +1051,8 @@ fn declare_vtable(
         #[repr(C)]
         #[derive(abi_stable::StableAbi)]
         #[sabi(
-            bounds=#bounds,
-            bound=#inner_vtable_bound,
+            bounds(#bounds),
+            bound(#real_vtable_ty: ::abi_stable::StableAbi),
             impl_prefix_stable_abi,
         )]
         #submod_vis struct VTable<#generics_decl_unbounded>{
@@ -1074,8 +1066,8 @@ fn declare_vtable(
         #[derive(abi_stable::StableAbi)]
         #[sabi(kind(Prefix))]
         #[sabi(missing_field(panic))]
-        #( #[sabi(prefix_bound=#lifetime_bounds)] )*
-        #[sabi(bound=#vtable_bound)]
+        #( #[sabi(prefix_bound(#lifetime_bounds))] )*
+        #[sabi(bound(#robject_vtable: ::abi_stable::StableAbi))]
         #(#[#derive_attrs])*
         #[doc(hidden)]
         #submod_vis struct VTableInner<#generics_decl>
