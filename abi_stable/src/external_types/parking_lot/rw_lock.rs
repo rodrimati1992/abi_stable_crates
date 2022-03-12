@@ -84,7 +84,7 @@ pub struct RRwLock<T> {
 /// When dropped this will unlock the rwlock.
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 #[must_use]
 pub struct RReadGuard<'a, T> {
     rlock: &'a RRwLock<T>,
@@ -98,7 +98,7 @@ pub struct RReadGuard<'a, T> {
 /// When dropped this will unlock the rwlock.
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 #[must_use]
 pub struct RWriteGuard<'a, T> {
     rlock: &'a RRwLock<T>,

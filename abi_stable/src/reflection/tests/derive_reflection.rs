@@ -30,7 +30,7 @@ enum PrivEnum {
 pub struct RegularPubFields {
     pub field0: u8,
     pub field1: u8,
-    #[sabi(refl(pub_getter = "what_the"))]
+    #[sabi(refl(pub_getter = what_the))]
     pub field2: u8,
 }
 
@@ -55,7 +55,7 @@ pub struct RegularMostPrivacies {
 pub struct RegularPriv {
     field0: u8,
     field1: u16,
-    #[sabi(refl(pub_getter = "hello"))]
+    #[sabi(refl(pub_getter = hello))]
     field2: u32,
 }
 
@@ -68,7 +68,7 @@ pub struct PrefixPubFields {
     pub field1: u8,
     #[sabi(missing_field(option))]
     pub field2: u8,
-    #[sabi(refl(pub_getter = "hello"))]
+    #[sabi(refl(pub_getter = hello))]
     #[sabi(missing_field(default))]
     pub field3: u8,
     #[sabi(missing_field(panic))]

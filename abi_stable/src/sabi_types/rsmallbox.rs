@@ -63,7 +63,7 @@ mod private {
     ///     // This is 7 usize large because:
     ///     //    - The enum discriminant occupies 1 usize(because the enum is usize aligned).
     ///     //    - RSmallBox<T,[usize;4]>: is 6 usize large
-    ///     size="[usize;7]",
+    ///     size = [usize;7],
     ///     // Determines the traits that are required when wrapping this enum in NonExhaustive,
     ///     // and are then available with it.
     ///     traits(Debug,Clone,PartialEq),

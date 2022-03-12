@@ -19,7 +19,7 @@ pub mod example_1 {
 
     #[repr(u8)]
     #[derive(StableAbi, Debug, Clone, PartialEq)]
-    #[sabi(kind(WithNonExhaustive(size = "[usize;4]", traits(Debug, Clone, PartialEq))))]
+    #[sabi(kind(WithNonExhaustive(size = [usize;4], traits(Debug, Clone, PartialEq))))]
     pub enum Foo {
         A,
     }
@@ -33,7 +33,7 @@ pub mod example_2 {
 
     #[repr(u8)]
     #[derive(StableAbi, Debug, Clone, PartialEq)]
-    #[sabi(kind(WithNonExhaustive(size = "[usize;4]", traits(Debug, Clone, PartialEq))))]
+    #[sabi(kind(WithNonExhaustive(size = [usize;4], traits(Debug, Clone, PartialEq))))]
     pub enum Foo {
         A,
         B(i8),
@@ -48,7 +48,7 @@ pub mod example_3 {
 
     #[repr(u8)]
     #[derive(StableAbi, Debug, Clone, PartialEq)]
-    #[sabi(kind(WithNonExhaustive(size = "[usize;4]", traits(Debug, Clone, PartialEq))))]
+    #[sabi(kind(WithNonExhaustive(size = [usize;4], traits(Debug, Clone, PartialEq))))]
     pub enum Foo {
         A,
         B(i8),

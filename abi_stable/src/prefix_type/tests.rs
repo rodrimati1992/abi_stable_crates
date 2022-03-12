@@ -9,15 +9,15 @@ mod cond_fields {
     /// This type is used in prefix type examples.
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+    #[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
     pub struct Module {
-        #[sabi(accessible_if = "true")]
+        #[sabi(accessible_if = true)]
         pub first: usize,
 
         #[sabi(last_prefix_field)]
         pub second: usize,
 
-        #[sabi(accessible_if = "true")]
+        #[sabi(accessible_if = true)]
         pub third: usize,
 
         pub fourth: usize,
@@ -87,7 +87,7 @@ mod different_alignments {
     /// This type is used in prefix type examples.
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+    #[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
     pub struct Module {
         pub f0: u64,
         #[sabi(last_prefix_field)]

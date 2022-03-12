@@ -32,7 +32,7 @@
 //!
 //! #[repr(C)]
 //! #[derive(StableAbi)]
-//! #[sabi( tag = r##" tag!("WAT") "## )]
+//! #[sabi( tag = tag!("WAT"))]
 //! struct UnitType;
 //!
 //!
@@ -69,8 +69,8 @@
 //! #[repr(C)]
 //! #[derive(StableAbi)]
 //! #[sabi(
-//!     bound="S:Name",
-//!     tag = r##" tag!( S::NAME ) "## ,
+//!     bound(S:Name),
+//!     tag = tag!( S::NAME ),
 //! )]
 //! struct StringParameterized<S>{
 //!     _marker:UnsafeIgnoredType<S>

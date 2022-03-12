@@ -131,13 +131,11 @@ macro_rules! declare_meta_vtable {
             with_field_indices,
             kind(Prefix),
             missing_field(panic),
-            prefix_bound="I:InterfaceBound",
-            bound="I:IteratorItemOrDefault<'borr>",
-            bound="<I as IteratorItemOrDefault<'borr>>::Item:StableAbi",
-            bound="I: GetSerializeProxyType<'borr>",
-            bound="<I as GetSerializeProxyType<'borr>>::ProxyType:StableAbi",
-            // bound="I:for<'s> GetSerializeProxyType<'s>",
-            // bound="for<'s> <I as GetSerializeProxyType<'s>>::ProxyType:StableAbi",
+            prefix_bound(I: InterfaceBound),
+            bound(I: IteratorItemOrDefault<'borr>),
+            bound(<I as IteratorItemOrDefault<'borr>>::Item: StableAbi),
+            bound(I: GetSerializeProxyType<'borr>),
+            bound(<I as GetSerializeProxyType<'borr>>::ProxyType: StableAbi),
             $($(bound=$struct_bound,)*)*
         )]
         pub struct VTable<'borr,$erased_ptr,$interf>{
@@ -496,7 +494,7 @@ declare_meta_vtable! {
     ]
 
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::CLONE")]
+        #[sabi(accessible_if= <I as InterfaceBound>::CLONE)]
         clone_ptr:    unsafe extern "C" fn(RRef<'_, ErasedPtr>)->ErasedPtr;
         priv _clone_ptr;
         option=Option,Some,None;
@@ -509,7 +507,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::DEFAULT")]
+        #[sabi(accessible_if= <I as InterfaceBound>::DEFAULT)]
         default_ptr: unsafe extern "C" fn()->ErasedPtr ;
         priv _default_ptr;
         option=Option,Some,None;
@@ -524,7 +522,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::DISPLAY")]
+        #[sabi(accessible_if= <I as InterfaceBound>::DISPLAY)]
         display:unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>;
         priv _display;
         option=Option,Some,None;
@@ -537,7 +535,7 @@ declare_meta_vtable! {
         }
     ]
     [
-    #[sabi(accessible_if="<I as InterfaceBound>::DEBUG")]
+    #[sabi(accessible_if= <I as InterfaceBound>::DEBUG)]
         debug:unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>;
         priv _debug;
         option=Option,Some,None;
@@ -550,13 +548,13 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(unsafe_change_type=r#"
+        #[sabi(unsafe_change_type=
             for<'s>
             unsafe extern "C" fn(
                 RRef<'s, ErasedObject>
             )->RResult<<I as GetSerializeProxyType<'s>>::ProxyType,RBoxError>
-        "#)]
-        #[sabi(accessible_if="<I as InterfaceBound>::SERIALIZE")]
+        )]
+        #[sabi(accessible_if= <I as InterfaceBound>::SERIALIZE)]
         erased_serialize:unsafe extern "C" fn(RRef<'_, ErasedObject>)->RResult<ErasedObject,RBoxError>;
         priv priv_serialize;
         option=Option,Some,None;
@@ -580,7 +578,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::PARTIAL_EQ")]
+        #[sabi(accessible_if= <I as InterfaceBound>::PARTIAL_EQ)]
         partial_eq: unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->bool;
         priv _partial_eq;
         option=Option,Some,None;
@@ -593,7 +591,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::ORD")]
+        #[sabi(accessible_if= <I as InterfaceBound>::ORD)]
         cmp:        unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->RCmpOrdering;
         priv _cmp;
         option=Option,Some,None;
@@ -606,7 +604,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::PARTIAL_ORD")]
+        #[sabi(accessible_if= <I as InterfaceBound>::PARTIAL_ORD)]
         partial_cmp:unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->ROption<RCmpOrdering>;
         priv _partial_cmp;
         option=Option,Some,None;
@@ -619,7 +617,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::HASH")]
+        #[sabi(accessible_if= <I as InterfaceBound>::HASH)]
         hash:unsafe extern "C" fn(RRef<'_, ErasedObject>,trait_objects::HasherObject<'_>);
         priv _hash;
         option=Option,Some,None;
@@ -634,9 +632,9 @@ declare_meta_vtable! {
     [
         #[sabi(
             unsafe_change_type=
-            "ROption<IteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >>"
+            ROption<IteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >>
         )]
-        #[sabi(accessible_if="<I as InterfaceBound>::ITERATOR")]
+        #[sabi(accessible_if= <I as InterfaceBound>::ITERATOR)]
         erased_iter:IteratorFns< () >;
         priv _iter;
         option=ROption,RSome,RNone;
@@ -653,9 +651,9 @@ declare_meta_vtable! {
     [
         #[sabi(
             unsafe_change_type=
-            "ROption<DoubleEndedIteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >>"
+            ROption<DoubleEndedIteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >>
         )]
-        #[sabi(accessible_if="<I as InterfaceBound>::DOUBLE_ENDED_ITERATOR")]
+        #[sabi(accessible_if= <I as InterfaceBound>::DOUBLE_ENDED_ITERATOR)]
         erased_back_iter:DoubleEndedIteratorFns< () >;
         priv _back_iter;
         option=ROption,RSome,RNone;
@@ -670,7 +668,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::FMT_WRITE")]
+        #[sabi(accessible_if= <I as InterfaceBound>::FMT_WRITE)]
         fmt_write_str:unsafe extern "C" fn(RMut<'_, ErasedObject>,RStr<'_>)->RResult<(),()>;
         priv _fmt_write_str;
         option=Option,Some,None;
@@ -683,7 +681,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::IO_WRITE")]
+        #[sabi(accessible_if= <I as InterfaceBound>::IO_WRITE)]
         io_write:IoWriteFns;
         priv _io_write;
         option=ROption,RSome,RNone;
@@ -696,7 +694,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::IO_READ")]
+        #[sabi(accessible_if= <I as InterfaceBound>::IO_READ)]
         io_read:IoReadFns;
         priv _io_read;
         option=ROption,RSome,RNone;
@@ -709,7 +707,7 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::IO_BUF_READ")]
+        #[sabi(accessible_if= <I as InterfaceBound>::IO_BUF_READ)]
         io_bufread:IoBufReadFns;
         priv _io_bufread;
         option=ROption,RSome,RNone;
@@ -725,7 +723,7 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(last_prefix_field)]
-        #[sabi(accessible_if="<I as InterfaceBound>::IO_SEEK")]
+        #[sabi(accessible_if= <I as InterfaceBound>::IO_SEEK)]
         io_seek:unsafe extern "C" fn(RMut<'_, ErasedObject>,RSeekFrom)->RResult<u64,RIoError>;
         priv _io_seek;
         option=Option,Some,None;

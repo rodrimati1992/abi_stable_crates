@@ -35,7 +35,7 @@ pub(super) mod gen_more_lts {
     use super::PhantomData;
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    #[sabi(bound = "T:'a")]
+    #[sabi(bound(T:'a))]
     pub struct Generics<'a, T> {
         x: &'a T,
         y: &'a T,

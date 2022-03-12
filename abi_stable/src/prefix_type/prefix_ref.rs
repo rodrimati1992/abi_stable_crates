@@ -46,7 +46,7 @@ use std::{
 ///
 /// #[repr(C)]
 /// #[derive(StableAbi)]
-/// #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+/// #[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
 /// struct Module {
 ///     first: usize,
 ///     // The `#[sabi(last_prefix_field)]` attribute here means that this is

@@ -50,13 +50,12 @@ pub trait GetVTable<S, I>: GetEnumInfo {
         NonExhaustiveVtable_Ref(Self::VTABLE_WM.as_prefix());
 }
 
-/// The vtable for NonExhaustive<>.
-#[doc(hidden)]
+/// The vtable for NonExhaustive.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    bound="I:GetSerializeEnumProxy<NonExhaustive<E,S,I>>",
-    bound="<I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType: StableAbi",
+    bound(I: GetSerializeEnumProxy<NonExhaustive<E,S,I>>),
+    bound(<I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType: StableAbi),
     not_stableabi(E,S,I),
     missing_field(default),
     kind(Prefix),
@@ -92,11 +91,11 @@ pub struct NonExhaustiveVtable<E, S, I> {
             &mut RString,
         ) -> RResult<(), ()>,
     >,
-    #[sabi(unsafe_change_type = r##"
+    #[sabi(unsafe_change_type =
         unsafe extern "C" fn(
             RRef<'_, ErasedObject>
         )->RResult< <I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType, RBoxError>
-    "##)]
+    )]
     pub(crate) erased_sabi_serialize:
         Option<unsafe extern "C" fn(RRef<'_, ErasedObject>) -> RResult<ErasedObject, RBoxError>>,
     pub(crate) _sabi_partial_eq:
@@ -160,7 +159,7 @@ type UnerasedSerializeFn<E, S, I> = unsafe extern "C" fn(
 >;
 
 impl<E, S, I> NonExhaustiveVtable_Ref<E, S, I> {
-    pub fn serialize(self) -> UnerasedSerializeFn<E, S, I>
+    pub(crate) fn serialize(self) -> UnerasedSerializeFn<E, S, I>
     where
         I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
         I: GetSerializeEnumProxy<NonExhaustive<E, S, I>>,

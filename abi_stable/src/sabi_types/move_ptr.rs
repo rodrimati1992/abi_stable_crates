@@ -89,7 +89,7 @@ use crate::{sabi_types::RMut, std_types::RBox, traits::IntoInner};
 /// ```
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 pub struct MovePtr<'a, T> {
     ptr: NonNull<T>,
     _marker: PhantomData<crate::utils::MutRef<'a, T>>,

@@ -38,7 +38,7 @@ pub fn ffi_panic_message(info: &'static PanicInfo) -> ! {
 
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 pub(crate) struct MutRef<'a, T>(&'a mut T);
 
 //////////////////////////////////

@@ -10,7 +10,7 @@ pub mod command_one {
     #[sabi(kind(WithNonExhaustive(
         size = 64,
         traits(Debug, PartialEq, Eq, Clone),
-        assert_nonexhaustive = "Foo",
+        assert_nonexhaustive = Foo,
     )))]
     pub enum Foo {
         A,
@@ -31,7 +31,7 @@ pub mod command_one_more_traits_1 {
     #[sabi(kind(WithNonExhaustive(
         size = 64,
         traits(Debug, PartialEq, Eq, Clone, Hash),
-        assert_nonexhaustive("Foo"),
+        assert_nonexhaustive(Foo),
     )))]
     pub enum Foo {
         A,

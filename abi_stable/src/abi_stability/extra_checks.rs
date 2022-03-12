@@ -6,7 +6,7 @@
 //!
 //! - Create some type and implement ExtraChecks for it,
 //!
-//! - Apply the `#[sabi(extra_checks="const expression that implements ExtraChecks")]`
+//! - Apply the `#[sabi(extra_checks = const expression that implements ExtraChecks)]`
 //!     attribute to a type that uses `#[derive(StableAbi)]`.
 //!
 //! # Combination
@@ -101,11 +101,11 @@
 //! #[repr(C)]
 //! #[derive(StableAbi)]
 //! #[sabi(
-//! // Replaces the C:StableAbi constraint with `C:GetStaticEquivalent`
-//! // (a supertrait of StableAbi).
-//! not_stableabi(C),
-//! bound="C:GetConstant",
-//! extra_checks="Self::CHECKER"
+//!     // Replaces the C:StableAbi constraint with `C:GetStaticEquivalent`
+//!     // (a supertrait of StableAbi).
+//!     not_stableabi(C),
+//!     bound(C: GetConstant),
+//!     extra_checks = Self::CHECKER
 //! )]
 //! struct WithConstant<C> {
 //!     // UnsafeIgnoredType is equivalent to PhantomData,
@@ -313,7 +313,7 @@
 //!
 //! #[repr(C)]
 //! #[derive(StableAbi)]
-//! #[sabi(extra_checks = "InOrderChecker")]
+//! #[sabi(extra_checks = InOrderChecker)]
 //! struct Rectangle {
 //!     x: u32,
 //!     y: u32,
@@ -322,7 +322,7 @@
 //!
 //! #[repr(C)]
 //! #[derive(StableAbi)]
-//! #[sabi(extra_checks = "InOrderChecker")]
+//! #[sabi(extra_checks = InOrderChecker)]
 //! struct Person {
 //!     name: RString,
 //!     surname: RString,
@@ -461,11 +461,11 @@
 //! #[repr(C)]
 //! #[derive(StableAbi)]
 //! #[sabi(
-//! // Replaces the C:StableAbi constraint with `C:GetStaticEquivalent`
-//! // (a supertrait of StableAbi).
-//! not_stableabi(C),
-//! bound="C:GetConstant",
-//! extra_checks="Self::CHECKER"
+//!     // Replaces the C:StableAbi constraint with `C:GetStaticEquivalent`
+//!     // (a supertrait of StableAbi).
+//!     not_stableabi(C),
+//!     bound(C:GetConstant),
+//!     extra_checks = Self::CHECKER,
 //! )]
 //! struct WithConstant<C> {
 //!     // UnsafeIgnoredType is equivalent to PhantomData,

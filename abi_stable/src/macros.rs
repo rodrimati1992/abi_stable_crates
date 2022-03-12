@@ -392,8 +392,8 @@ macro_rules! impl_get_type_info {
 ///
 /// #[repr(C)]
 /// #[derive(StableAbi)]
-/// #[sabi(bound = "T: Copy")]
-/// #[sabi(tag = "TAGS")]
+/// #[sabi(bound(T: Copy))]
+/// #[sabi(tag = TAGS)]
 /// struct Value<T>{
 ///     value: T,
 /// }

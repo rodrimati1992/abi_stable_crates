@@ -17,7 +17,14 @@ pub(crate) mod nonexhaustive;
 pub(crate) mod traits;
 pub(crate) mod vtable;
 
-pub(crate) use self::vtable::NonExhaustiveVtable_Ref;
+/// A reference to the vtable of a non-exhaustive enum,
+/// the second argument of [`NonExhaustive::const_new`].
+///
+/// This can be instantiated with [`GetVTable::VTABLE`].
+///
+///
+///
+pub use self::vtable::NonExhaustiveVtable_Ref;
 
 pub use self::{
     nonexhaustive::{
@@ -27,7 +34,7 @@ pub use self::{
     traits::{
         DeserializeEnum, EnumInfo, GetEnumInfo, GetNonExhaustive, SerializeEnum, ValidDiscriminant,
     },
-    vtable::GetVTable,
+    vtable::{GetVTable, NonExhaustiveVtable},
 };
 
 pub(crate) use self::traits::GetSerializeEnumProxy;

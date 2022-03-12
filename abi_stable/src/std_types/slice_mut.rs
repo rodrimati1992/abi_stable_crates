@@ -91,7 +91,7 @@ mod privacy {
     ///
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(bound = "T: 'a")]
+    #[sabi(bound(T: 'a))]
     pub struct RSliceMut<'a, T> {
         data: *mut T,
         length: usize,
@@ -101,7 +101,7 @@ mod privacy {
     /// Used as a workaround to make `from_raw_parts_mut` a const fn.
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(bound = "T: 'a")]
+    #[sabi(bound(T: 'a))]
     struct MutWorkaround<'a, T>(&'a mut T);
 
     impl_from_rust_repr! {

@@ -21,7 +21,7 @@ pub(super) enum BoxedREntry<'a, K, V> {
 /// A handle into an entry in a map, which is either vacant or occupied.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound = "K: 'a", bound = "V: 'a")]
+#[sabi(bound(K: 'a), bound(V: 'a))]
 pub enum REntry<'a, K, V> {
     Occupied(ROccupiedEntry<'a, K, V>),
     Vacant(RVacantEntry<'a, K, V>),
@@ -269,7 +269,7 @@ where
 /// A handle into an occupied entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound = "K: 'a", bound = "V: 'a")]
+#[sabi(bound(K: 'a), bound(V: 'a))]
 pub struct ROccupiedEntry<'a, K, V> {
     entry: RMut<'a, ErasedOccupiedEntry<K, V>>,
     vtable: OccupiedVTable_Ref<K, V>,
@@ -279,7 +279,7 @@ pub struct ROccupiedEntry<'a, K, V> {
 /// A handle into a vacant entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound = "K: 'a", bound = "V: 'a")]
+#[sabi(bound(K: 'a), bound(V: 'a))]
 pub struct RVacantEntry<'a, K, V> {
     entry: RMut<'a, ErasedVacantEntry<K, V>>,
     vtable: VacantVTable_Ref<K, V>,

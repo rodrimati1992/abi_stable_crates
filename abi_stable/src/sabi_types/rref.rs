@@ -105,7 +105,7 @@ use crate::{
 ///
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 pub struct RRef<'a, T> {
     ref_: NonNull<T>,
     _marker: PhantomData<&'a T>,

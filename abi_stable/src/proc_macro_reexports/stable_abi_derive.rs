@@ -15,18 +15,18 @@ you must use the full type name and generic arguments.
 
 These helper attributes are applied on the type declaration.
 
-###  `#[sabi(phantom_field = "name: type")]` 
+###  `#[sabi(phantom_field(name: type))]` 
 
 Adds a virtual field to the type layout constant,
 which is checked against the phantom field that was declared in the same order 
 for compatibility.
 
-###  `#[sabi(phantom_type_param = "type")]` 
+###  `#[sabi(phantom_type_param = type)]` 
 
 Adds a virtual type parameter to the type layout constant,
 which is checked for compatibility.
 
-###  `#[sabi(phantom_const_param = "constant expression")]` 
+###  `#[sabi(phantom_const_param = constant expression)]` 
 
 Adds a virtual const parameter to the type layout constant,
 which is checked for equality with the vistual const parameter declared in the same order.
@@ -49,25 +49,25 @@ would cause Undefined Behavior.
 
 This is only necessary if you are passing `TypeParameter` to `UnsafeIgnoredType`
 
-###  `#[sabi(bound = "Type: ATrait")]` 
+###  `#[sabi(bound(Type: ATrait))]` 
 
 Adds a bound to the `StableAbi` impl.
 
-###  `#[sabi(bounds = "Type: ATrait, Type2: OtherTrait")]` 
+###  `#[sabi(bounds(Type: ATrait, Type2: OtherTrait))]` 
 
 Adds many bounds to the `StableAbi` impl.
 
-###  `#[sabi(prefix_bound = "Type: ATrait")]` 
+###  `#[sabi(prefix_bound(Type: ATrait))]` 
 
 This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
 
 Adds a bound to the `PrefixTypeTrait` impl (for the deriving type).
 
-###  `#[sabi(prefix_bounds = "Type: ATrait, Type2: OtherTrait")]` 
+###  `#[sabi(prefix_bounds(Type: ATrait, Type2: OtherTrait))]` 
 
 This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
 
-Adds many bound to the `PrefixTypeTrait` impl (for the deriving type).
+Adds many bounds to the `PrefixTypeTrait` impl (for the deriving type).
 
 ### `#[sabi(unsafe_allow_type_macros)]`
 
@@ -80,7 +80,7 @@ it won't be checked by the runtime type checker.
 
 A type macro is any macro that evaluates to a type.
 
-###  `#[sabi(tag = " some_expr ")]` 
+###  `#[sabi(tag = some_expr)]` 
 
 Adds a "tag" associated with the type,
 a dynamically typed data structure used to encode extra properties about a type.
@@ -102,7 +102,7 @@ Sibling means libraries loaded at runtime by the same library/binary
 
 For more information about tags, [look here](./type_layout/tagging/index.html)
 
-###  `#[sabi(extra_checks = "<some_constant_expression>")]` 
+###  `#[sabi(extra_checks = <some_constant_expression>)]` 
 
 Adds an `ExtraChecks` trait object associated with the type,
 which allows encoding and checking extra properties about a type.
@@ -121,13 +121,13 @@ Declares the struct as being a prefix-type.
 
 Arguments (what goes inside `#[sabi(kind(Prefix(   <here>   )))]`):
 
-- `prefix_ref = "<Identifier>")` (optional: defaults to `<DerivingType>_Ref`):
+- `prefix_ref = <Identifier>)` (optional: defaults to `<DerivingType>_Ref`):
 Declares an ffi-safe pointer to a vtable/module,
 that can be extended in semver compatible versions.<br>
 Uses "<Identifier>" as the name of the prefix struct.<br>
 For more details on prefix-types [look here](./docs/prefix_types/index.html)
 
-- `prefix_fields = "<Identifier>")` (optional: defaults to `<DerivingType>_Prefix`):<be>
+- `prefix_fields = <Identifier>)` (optional: defaults to `<DerivingType>_Prefix`):<be>
 Declares a struct with all the fields in the deriving type up to (and including)
 the field with the `#[sabi(last_prefix_field)]` attribute,
 named "<Identifier>".
@@ -245,12 +245,12 @@ which causes Undefined Behavior if the type has a different layout.
 These helper attributes are applied to fields.
 
 
-###  `#[sabi(rename = "ident")]` 
+###  `#[sabi(rename = ident)]` 
 
 Renames the field in the generated layout information.
 Use this when renaming private fields.
 
-###  `#[sabi(unsafe_change_type = "SomeType")]` 
+###  `#[sabi(unsafe_change_type = SomeType)]` 
 
 Changes the type of this field in the generated type layout constant to SomeType.
 
@@ -272,13 +272,13 @@ but doesn't check its layout.
 This is unsafe because the layout of the type won't be verified when loading the library,
 which causes Undefined Behavior if the type has a different layout.
 
-###  `#[sabi(bound = "SomeBound")]` 
+###  `#[sabi(bound = SomeBound)]` 
 
 Adds a `TheFieldType: SomeBound` constraint to the `StableAbi` impl.
 
 Eg: 
 ```ignore
-#[sabi(bound = "Debug")]
+#[sabi(bound = Debug)]
 name: RStr<'static>,
 ```
 adds the `RStr<'static>: Debug` bound to the `StableAbi` impl
@@ -292,7 +292,7 @@ the index of each field in the prefix type.
 Those indices can then be passed to the `abi_stable::prefix_types::panic_on_missing_*` 
 functions to panic on a missing field.
 
-###  `#[sabi(accessor_bound = "ATrait")]` 
+###  `#[sabi(accessor_bound = ATrait)]` 
 
 This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
 
@@ -305,7 +305,7 @@ This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
 Declares that the field it is applied to is the last field in the prefix,
 where every field up to it is guaranteed to exist.
 
-###  `#[sabi(accessible_if = " expression ")]` 
+###  `#[sabi(accessible_if = expression)]` 
 
 This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
 
@@ -326,10 +326,10 @@ which accessors are conditional for prefix fields.
 Prefix fields with this attribute are made private in the generated
 `<DerivingType>_Prefix` struct, without this attribute they keep the visibility.
 
-To do `#[sabi(accessible_if = "<TypeParameter as Trait>::CONSTANT")]` you can use the 
-`#[sabi(prefix_bound = "TypeParameter: Trait")]` helper attribute.
+To do `#[sabi(accessible_if = <TypeParameter as Trait>::CONSTANT)]` you can use the 
+`#[sabi(prefix_bound(TypeParameter: Trait))]` helper attribute.
 
-###  `#[sabi(refl(pub_getter = " function_name "))]` 
+###  `#[sabi(refl(pub_getter = function_name))]` 
 
 Determines the public getter for a field used by reflection.
 
@@ -358,10 +358,10 @@ Panics if the field doesn't exist, with an informative error message.
 Returns None if the field doesn't exist, Some(fieldvalue) if it does.
 This is the default.
 
-`#[sabi(missing_field(with = "somefunction"))]`<br>
+`#[sabi(missing_field(with = somefunction))]`<br>
 Returns `somefunction()` if the field doesn't exist.
 
-`#[sabi(missing_field(value = "some_expression"))]`<br>
+`#[sabi(missing_field(value = some_expression))]`<br>
 Returns `some_expression` if the field doesn't exist.
 
 `#[sabi(missing_field(default))]`<br>

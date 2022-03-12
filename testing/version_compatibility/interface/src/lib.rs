@@ -106,7 +106,7 @@ pub use many_types::ManyTypes;
 
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "RootMod_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = RootMod_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct RootMod {
     pub abi_stable_version: VersionStrings,

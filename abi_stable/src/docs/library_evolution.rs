@@ -22,7 +22,7 @@ Types cannot be renamed.
 
 A type cannot be replaced with a `#[repr(transparent)]` types wrappig it.
 
-If you rename a field,remember to use the `#[sabi(rename="the_old_name")]` attribute,
+If you rename a field,remember to use the `#[sabi(rename=the_old_name)]` attribute,
 field names are part of the ABI of a type.
 
 

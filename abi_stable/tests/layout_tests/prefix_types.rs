@@ -41,7 +41,7 @@ mod prefix1 {
     #[sabi(
         // debug_print,
         kind(Prefix),
-        missing_field(with="custom_default::<_>"),
+        missing_field(with = custom_default::<_>),
     )]
     pub struct Prefix {
         #[sabi(last_prefix_field)]
@@ -509,12 +509,12 @@ mod cond_fields_0 {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
-        prefix_bound = "C:EnabledFields",
+        prefix_bound(C:EnabledFields),
         unsafe_unconstrained(C)
     )]
     pub struct Prefix<C> {
         pub _marker: UnsafeIgnoredType<C>,
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
         #[sabi(last_prefix_field)]
         pub field0: u8,
     }
@@ -528,19 +528,19 @@ mod cond_fields_1 {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
-        prefix_bound = "C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C)
     )]
     pub struct Prefix<C, T = u8, U = u16> {
         pub _marker: UnsafeIgnoredType<C>,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
+        #[sabi(accessor_bound = Copy)]
         #[sabi(last_prefix_field)]
         pub field0: T,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
+        #[sabi(accessor_bound = Copy)]
         pub field1: U,
     }
 }
@@ -552,23 +552,23 @@ mod cond_fields_2 {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
-        prefix_bound = "C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C)
     )]
     pub struct Prefix<C, T = u8, U = u16, V = u32> {
         pub _marker: UnsafeIgnoredType<C>,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
         #[sabi(last_prefix_field)]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessor_bound = Copy)]
         pub field0: T,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
+        #[sabi(accessor_bound = Copy)]
         pub field1: U,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_2 )]
+        #[sabi(accessor_bound = Copy)]
         pub field2: V,
     }
 }
@@ -581,20 +581,20 @@ mod cond_fields_2_misaligned {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
-        prefix_bound = "C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C)
     )]
     pub struct Prefix<C> {
         pub _marker: UnsafeIgnoredType<C>,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
         #[sabi(last_prefix_field)]
         pub field0: u8,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
         pub field1: u16,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_2 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_2 )]
         pub field2: u32,
     }
 }
@@ -606,23 +606,23 @@ mod cond_fields_2_different_prefix {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
-        prefix_bound = "C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C)
     )]
     pub struct Prefix<C, T = u8, U = u16, V = u32> {
         pub _marker: UnsafeIgnoredType<C>,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
+        #[sabi(accessor_bound = Copy)]
         pub field0: T,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
         #[sabi(last_prefix_field)]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessor_bound = Copy)]
         pub field1: U,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_2 )]
+        #[sabi(accessor_bound = Copy)]
         pub field2: V,
     }
 }
@@ -635,27 +635,27 @@ mod cond_fields_3 {
     #[sabi(
         // debug_print,
         kind(Prefix),
-        prefix_bound="C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C),
     )]
     pub struct Prefix<C, T = u8, U = u16, V = u32, W = u64> {
         pub _marker: UnsafeIgnoredType<(C, T, U, V, W)>,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
         #[sabi(last_prefix_field)]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessor_bound = Copy)]
         pub field0: T,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
+        #[sabi(accessor_bound = Copy)]
         pub field1: U,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_2 )]
+        #[sabi(accessor_bound = Copy)]
         pub field2: V,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_3 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_3 )]
+        #[sabi(accessor_bound = Copy)]
         pub field3: W,
     }
 }
@@ -668,26 +668,26 @@ mod cond_fields_3_uncond_prefix {
     #[sabi(
         // debug_print,
         kind(Prefix),
-        prefix_bound="C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C),
     )]
     pub struct Prefix<C, T = u8, U = u16, V = u32, W = u64> {
         pub _marker: UnsafeIgnoredType<(C, T, U, V, W)>,
 
         #[sabi(last_prefix_field)]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessor_bound = Copy)]
         pub field0: T,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
+        #[sabi(accessor_bound = Copy)]
         pub field1: U,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_2 )]
+        #[sabi(accessor_bound = Copy)]
         pub field2: V,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_3 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_3 )]
+        #[sabi(accessor_bound = Copy)]
         pub field3: W,
     }
 }
