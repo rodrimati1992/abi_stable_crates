@@ -830,7 +830,7 @@ fn trait_and_impl(
     let erased_ptr_bounds = trait_def.erased_ptr_preds();
 
     quote!(
-        #( #[#other_attrs] )*
+        #( #other_attrs )*
         #[allow(clippy::needless_lifetimes, clippy::new_ret_no_self)]
         #submod_vis #unsafety trait #trait_ident<
             #gen_params_trait
@@ -1068,7 +1068,7 @@ fn declare_vtable(
         #[sabi(missing_field(panic))]
         #( #[sabi(prefix_bound(#lifetime_bounds))] )*
         #[sabi(bound(#robject_vtable: ::abi_stable::StableAbi))]
-        #(#[#derive_attrs])*
+        #(#derive_attrs)*
         #[doc(hidden)]
         #submod_vis struct VTableInner<#generics_decl>
         where

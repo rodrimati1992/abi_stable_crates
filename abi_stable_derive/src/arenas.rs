@@ -66,7 +66,7 @@ macro_rules! declare_arenas {
 }
 
 declare_arenas! {
-    vec_meta: Vec<syn::Meta>,
+    vec_meta: Vec<syn::Attribute>,
     ident: syn::Ident,
     ident_vec: Vec<syn::Ident>,
     trait_bound: syn::TraitBound,
@@ -76,7 +76,6 @@ declare_arenas! {
     // metalists: syn::MetaList,
     lifetime_defs: syn::LifetimeDef,
     tokenstream: proc_macro2::TokenStream,
-    meta_attr: syn::Meta,
     expr: syn::Expr,
     strings: String,
     paths: syn::Path,

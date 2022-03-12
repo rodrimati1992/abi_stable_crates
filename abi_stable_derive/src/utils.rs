@@ -9,7 +9,6 @@ pub(crate) use as_derive_utils::utils::{
     //take_manuallydrop,
     uint_lit,
     LinearResult,
-    SynPathExt,
     SynResultExt,
 };
 

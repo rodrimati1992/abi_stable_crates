@@ -20,35 +20,6 @@ impl ToTokens for NoTokens {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub trait SynPathExt {
-    fn equals_str(&self, s: &str) -> bool;
-    fn equals_ident(&self, s: &syn::Ident) -> bool;
-    fn into_ident(self) -> Result<syn::Ident, Self>
-    where
-        Self: Sized;
-}
-
-impl SynPathExt for syn::Path {
-    fn equals_str(&self, s: &str) -> bool {
-        match self.get_ident() {
-            Some(ident) => ident == s,
-            None => false,
-        }
-    }
-    fn equals_ident(&self, s: &syn::Ident) -> bool {
-        self.get_ident() == Some(s)
-    }
-    fn into_ident(mut self) -> Result<syn::Ident, Self> {
-        if self.segments.len() == 1 {
-            Ok(self.segments.pop().expect("TEST BUG").into_value().ident)
-        } else {
-            Err(self)
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 pub trait SynResultExt {
     fn push_err(&mut self, err: syn::Error);
     fn combine_err<T>(&mut self, res: Result<T, syn::Error>);

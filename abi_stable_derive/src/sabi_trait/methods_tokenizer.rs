@@ -191,7 +191,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
 
             quote_spanned!( method_span=>
                 #optional_field
-                #(#[#derive_attrs])*
+                #(#derive_attrs)*
                 #vis #method_name:
                     #(for< #(#lifetimes,)* >)*
                     unsafe extern "C" fn(
@@ -223,7 +223,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
 
             quote_spanned!(method_span=>
                 #[allow(clippy::let_and_return)]
-                #(#[#other_attrs])*
+                #(#other_attrs)*
                 #inherent_method_docs
                 #vis #unsafety #abi fn #method_name #(< #(#lifetimes,)* >)* (
                     #self_param,

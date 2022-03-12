@@ -21,6 +21,11 @@ pub trait ParseBufferExt {
         let _ = self.as_pb().parse::<proc_macro2::TokenTree>();
     }
 
+    /// Ignores the rest of the parse input
+    fn ignore_rest(&self) {
+        let _ = self.as_pb().parse::<proc_macro2::TokenStream>();
+    }
+
     /// Checks that a token is parsable, advancing the parse buffer if it is.
     ///
     /// This returns:
