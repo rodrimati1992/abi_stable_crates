@@ -348,39 +348,43 @@ impl<'a, T> MovePtr<'a, T> {
         unsafe { this.ptr.as_ptr().read() }
     }
 
-    /// Transmute this `RMove<'a, T>` into a `RMove<'a, U>`.
-    ///
-    /// # Safety
-    ///
-    /// This has the safety requirements as
-    /// [`std::mem::transmute`](https://doc.rust-lang.org/std/mem/fn.transmute.html),
-    /// as well as requiring that this `MovePtr` is aligned for `U`.
-    ///
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::{
-    ///     pointer_trait::OwnedPointer,
-    ///     sabi_types::MovePtr,
-    ///     std_types::{RBox, RString, RVec},
-    /// };
-    ///
-    /// let rbox = RBox::new(RString::from("hello"));
-    ///
-    /// let bytes = rbox.in_move_ptr(|ptr| unsafe {
-    ///     MovePtr::into_inner(MovePtr::transmute::<RVec<u8>>(ptr))
-    /// });
-    ///
-    /// assert_eq!(bytes.as_slice(), b"hello");
-    ///
-    /// ```
-    #[inline]
-    pub const unsafe fn transmute<U>(this: Self) -> MovePtr<'a, U>
-    where
-        U: 'a,
-    {
-        std::mem::transmute::<MovePtr<'a, T>, MovePtr<'a, U>>(this)
+    conditionally_const! {
+        feature = "rust_1_56";
+
+        /// Transmute this `RMove<'a, T>` into a `RMove<'a, U>`.
+        ///
+        /// # Safety
+        ///
+        /// This has the safety requirements as
+        /// [`std::mem::transmute`](https://doc.rust-lang.org/std/mem/fn.transmute.html),
+        /// as well as requiring that this `MovePtr` is aligned for `U`.
+        ///
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::{
+        ///     pointer_trait::OwnedPointer,
+        ///     sabi_types::MovePtr,
+        ///     std_types::{RBox, RString, RVec},
+        /// };
+        ///
+        /// let rbox = RBox::new(RString::from("hello"));
+        ///
+        /// let bytes = rbox.in_move_ptr(|ptr| unsafe {
+        ///     MovePtr::into_inner(MovePtr::transmute::<RVec<u8>>(ptr))
+        /// });
+        ///
+        /// assert_eq!(bytes.as_slice(), b"hello");
+        ///
+        /// ```
+        #[inline]
+        pub unsafe fn transmute[U](this: Self) -> MovePtr<'a, U>
+        where
+            U: 'a,
+        {
+            std::mem::transmute::<MovePtr<'a, T>, MovePtr<'a, U>>(this)
+        }
     }
 }
 

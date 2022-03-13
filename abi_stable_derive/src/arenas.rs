@@ -67,6 +67,7 @@ macro_rules! declare_arenas {
 
 declare_arenas! {
     vec_meta: Vec<syn::Attribute>,
+    vec_expr: Vec<syn::Expr>,
     ident: syn::Ident,
     ident_vec: Vec<syn::Ident>,
     trait_bound: syn::TraitBound,

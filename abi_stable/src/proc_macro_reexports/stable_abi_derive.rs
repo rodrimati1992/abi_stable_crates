@@ -31,6 +31,8 @@ which is checked for compatibility.
 Adds a virtual const parameter to the type layout constant,
 which is checked for equality with the vistual const parameter declared in the same order.
 
+The parameter must implement `StableAbi + Eq + Debug`.
+
 ###  `#[sabi(not_stableabi(TypeParameter))]`  
 
 Replaces the implicit `TypeParameter: StableAbi` constraint
@@ -82,12 +84,11 @@ A type macro is any macro that evaluates to a type.
 
 ###  `#[sabi(tag = some_expr)]` 
 
-Adds a "tag" associated with the type,
+Adds a [`Tag`](crate::type_layout::Tag) associated with the type,
 a dynamically typed data structure used to encode extra properties about a type.
 
 This can only be done once,
-to add multiple properties you must decide whether you want to use
-a map, an array, or a set.
+to add multiple properties you must to use any of a map, an array, or a set.
 
 You can only rely on tags for safety if 
 the specific tags were present since the first compatible version of the library,
@@ -131,6 +132,10 @@ For more details on prefix-types [look here](./docs/prefix_types/index.html)
 Declares a struct with all the fields in the deriving type up to (and including)
 the field with the `#[sabi(last_prefix_field)]` attribute,
 named "<Identifier>".
+
+- `prefix_ref_docs = <expression>` (optional, allows multiple):<br>
+Replaces the default documentation for `<DerivingType>_Ref` with the passed-in expresion.<br>
+If this is passed multiple times, then multiple `#[doc = ...]` attributes are emitted.
 
 ###  `#[sabi(kind(WithNonExhaustive( .. ))]` 
 

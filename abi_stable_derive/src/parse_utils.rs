@@ -1,5 +1,7 @@
 //! Functions for parsing many `syn` types.
 
+use as_derive_utils::ret_err_on_peek;
+
 use syn::{parse, punctuated::Punctuated, token::Add, TypeParamBound};
 
 use proc_macro2::Span;
@@ -33,7 +35,12 @@ pub struct ParseBounds {
 
 impl parse::Parse for ParseBounds {
     fn parse(input: parse::ParseStream) -> parse::Result<Self> {
-        let list = Punctuated::<TypeParamBound, Add>::parse_terminated(input)?;
+        ret_err_on_peek! {input, syn::Lit, "bound", "literal"}
+
+        let list = Punctuated::<TypeParamBound, Add>::parse_terminated(input).map_err(|e| {
+            let msg = format!("while parsing bounds: {}", e);
+            syn::Error::new(e.span(), msg)
+        })?;
 
         if list.is_empty() {
             Err(input.error("type bounds can't be empty"))

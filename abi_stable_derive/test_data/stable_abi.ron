@@ -166,10 +166,26 @@
 
       "##,
       subcase: [
-        ( replacements: { "@field1": "=i32", "@field2": "=what"}, error_count: 2 ),
-        ( replacements: { "@field1": "(i32)", "@field2": "(what)" }, error_count: 2 ),
-        ( replacements: { "@field1": "(i32)", "@field2": "(a:String)" }, error_count: 1 ),
-        ( replacements: { "@field1": "(32)", "@field2": "(a:String)" }, error_count: 1 ),
+        (
+          replacements: { "@field1": "=i32", "@field2": "=what"},
+          find_all: [str("expected parentheses")],
+          error_count: 2,
+        ),
+        (
+          replacements: { "@field1": "(i32)", "@field2": "(what)" }, 
+          find_all: [regex("expected `:`.*expected `:`")],
+          error_count: 2,
+        ),
+        (
+          replacements: { "@field1": "(i32)", "@field2": "(a:String)" }, 
+          find_all: [regex("expected `:`")],
+          error_count: 1 ,
+        ),
+        (
+          replacements: { "@field1": "(32)", "@field2": "(a:String)" },
+          find_all: [str("expected identifier")],
+          error_count: 1,
+        ),
         // Repeated phantom field names are fine.
         ( replacements: { "@field1": "(a:u32)", "@field2": "(a:String)"}, error_count: 0 ),
       ],
@@ -184,10 +200,53 @@
       "##,
       subcase: [
         ( replacements: { "@phantom1": "=i32", "@phantom2": "=what" }, error_count: 0 ),
-        ( replacements: { "@phantom1": "=i32", "@phantom2": "=a:String" }, error_count: 1 ),
-        ( replacements: { "@phantom1": "(foo)", "@phantom2": "=a:String" }, error_count: 2 ),
+        (
+          replacements: { "@phantom1": "=i32", "@phantom2": "=a:String" }, 
+          find_all: [str("expected `,`")],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@phantom1": "(foo)", "@phantom2": "=a:String" },
+          find_all: [str("expected `=`"), str("expected `,`")],
+          error_count: 2,
+        ),
         // Repeated phantom phantom names are fine.
         ( replacements: { "@phantom1": "=a:u32", "@phantom2": "=a:String" }, error_count: 2 ),
+      ],
+    ),
+    (
+      name:"phantom const param",
+      code:r##"
+        #[repr(C)]
+        #[sabi(phantom_const_param @a1)]
+        struct Foo;
+      "##,
+      subcase: [
+        ( 
+          replacements: {"@a1":r#"()"#},
+          find_all: [str("expected `=`")],
+          error_count: 1
+        ),
+        ( 
+          replacements: {"@a1":r#"= foo::<2 + 2>()"#},
+          find_all: [str("parsing expression")],
+          error_count: 1
+        ),
+        ( 
+          replacements: {"@a1":r#"= """#},
+          find_all: [regex("expected.*StableAbi.*found.*literal")],
+          error_count: 1
+        ),
+        ( 
+          replacements: {"@a1":r#"= 1 + 1"#},
+          find_all: [regex(r#"1 *\+ *1"#)],
+          error_count: 0
+        ),
+        ( 
+          replacements: {"@a1":r#"= somefunction(hello)"#},
+          find_all: [regex(r#"somefunction *\( *hello *\)"#)],
+          error_count: 0
+        ),
       ],
     ),
     (
@@ -243,11 +302,21 @@
           error_count: 0,
         ),
         ( 
-          replacements: { "@p1": "(i32: Foo)", "@p2": "String: Bar" }, 
+          replacements: { "@p1": r#"("i32: Foo")"#, "@p2": "(A: B)" }, 
+          find_all: [regex("expected.*where predicate.*found.*literal")],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@p1": "(i32: Foo)", "@p2": " String: Bar" }, 
+          find_all: [regex("expected.*parentheses")],
           error_count: 1,
         ),
         ( 
           replacements: { "@p1": "()", "@p2": "= String: Bar" }, 
+          find_all: [
+              regex("parsing where predicate"),
+              regex("expected.*parentheses"),
+          ],
           error_count: 2,
         ),
       ],
@@ -271,12 +340,12 @@
         ),
         ( 
           replacements: { "@p1": "bound =" , "@p2": "" }, 
-          find_all: [str("empty")],
+          find_all: [regex("type bounds.*empty")],
           error_count: 1,
         ),
         ( 
           replacements: { "@p1": "bound=" , "@p2": "bound=" }, 
-          find_all: [str("empty")],
+          find_all: [regex("type bounds.*empty")],
           error_count: 2,
         ),
       ],
@@ -306,6 +375,16 @@
           find_all: [regex(r#"struct *World *\{"#), regex(r#"struct *Hello *\("#)],
           error_count: 0,
         ),
+        ( 
+          replacements: { "@p":r#"prefix_ref = "Hello" "# }, 
+          find_all: [str(r#"expected identifier"#)],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@p":r#"prefix_fields = "Hello" "# }, 
+          find_all: [str(r#"expected identifier"#)],
+          error_count: 1,
+        ),
       ],
     ),
     (
@@ -327,11 +406,50 @@
         ),
         ( 
           replacements: { "@p1": "(i32: Foo)", "@p2": "=String:Bar" }, 
+          find_all: [str("expected parentheses")],
           error_count: 1,
         ),
         ( 
           replacements: { "@p1": "()", "@p2": "=(String:Bar)" }, 
+          find_all: [regex("parsing.*where predicate"), str("expected parentheses")],
           error_count: 2,
+        ),
+      ],
+    ),
+    (
+      name:"prefix_bounds",
+      code:r##"
+        #[repr(C)]
+        #[sabi(prefix_bounds@p1)]
+        #[sabi(kind(Prefix(prefix_ref = VecVTable)))]
+        struct Foo{
+          x:u32,
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@p1": "()" }, 
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1": "(i32: Foo)" }, 
+          find_all: [regex("i32 *: *Foo")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1": "(i32: Foo, u32: Bar)" }, 
+          find_all: [regex("i32 *: *Foo"),regex("u32 *: *Bar")],
+          error_count: 0,
+        ),
+        ( 
+          replacements: { "@p1": "=(i32: Foo)" }, 
+          find_all: [str("expected parentheses")],
+          error_count: 1,
+        ),
+        ( 
+          replacements: { "@p1": "(Foo)" }, 
+          find_all: [regex("parsing.*where predicates")],
+          error_count: 1,
         ),
       ],
     ),
@@ -360,7 +478,8 @@
         ),
         ( 
           replacements: { "@tag1": "tag=100", "@tag2": "" }, 
-          error_count: 0
+          find_all: [regex( r#"expected.*Tag.*found.*literal"#)],
+          error_count: 1
         ),
         ( 
           replacements: { "@tag1": "tag()", "@tag2": "tag = tag![[0]]" }, 
@@ -388,11 +507,18 @@
           error_count: 0
         ),
         ( 
+          replacements: { "@ec1": "", "@ec2": r#" extra_checks = "" "# }, 
+          find_all: [regex("expected.*found.*literal")],
+          error_count: 1
+        ),
+        ( 
           replacements: { "@ec1": "extra_checks = aaa ", "@ec2": "extra_checks = b" }, 
+          find_all: [regex("cannot.*use.*attribute.*(twice|times)")],
           error_count: 1
         ),
         ( 
           replacements: { "@ec1": "extra_checks(b)", "@ec2": "" }, 
+          find_all: [str("expected `=`")],
           error_count: 1
         ),
       ],
@@ -475,12 +601,12 @@
         ),
         ( 
           replacements: { "@ra1": r#"rename="" "#, "@ra2": "" },
-          find_all: [str("identifier")],
+          find_all: [str("expected identifier")],
           error_count: 1
         ),
         ( 
           replacements: { "@ra1": "rename =", "@ra2": "" },
-          find_all: [str("identifier")],
+          find_all: [str("expected identifier")],
           error_count: 1
         ),
         ( 
@@ -560,14 +686,14 @@
           find_all: [str("MyType"),str("u64"),not(str("u32"))],
           error_count: 0 
         ),
-        ( 
+        (
           replacements: { "@uct1": "= MyType", "@uct2": "unsafe_change_type = YourType" },
           find_all: [str("MyType"),str("YourType"),not(regex("< *u32 *>")),not(regex("< *u64 *>"))],
           error_count: 0 
         ),
         ( 
           replacements: { "@uct1": "=", "@uct2": "" },
-          find_all: [str("identifier")],
+          find_all: [str("expected identifier")],
           error_count: 1
         ),
         ( 
@@ -614,7 +740,7 @@
       subcase: [
         ( 
           replacements: { "@b1": r#"="1000""# },
-          find_all: [str("identifier")],
+          find_all: [regex( r#"expected.*bound.*found.*literal"#)],
           error_count: 1
         ),
         ( 
@@ -625,6 +751,45 @@
         ( 
           replacements: { "@b1": "= Debug" },
           find_all: [regex(r#"Vec *: *Debug"#)],
+          error_count: 0
+        ),
+      ],
+    ),
+    (
+      name:"replace docs",
+      code:r##"
+        #[repr(C)]
+        #[sabi(kind(Prefix(prefix_ref = Foo_Ref, @a)))]
+        pub struct Foo{
+          hello:Vec
+        }
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@a": r#""# },
+          find_all: [str("pointer to the prefix"), str("generated doc")],
+          error_count: 0
+        ),
+        ( 
+          replacements: { "@a": r#" prefix_ref_docs = "hello world 324234234" "# },
+          find_all: [
+            regex(r#"doc *= *"hello world 324234234""#),
+            not(str("pointer to the prefix")), 
+          ],
+          error_count: 0
+        ),
+        ( 
+          replacements: {
+            "@a": r#"
+              prefix_ref_docs = "hello world 324234234",
+              prefix_ref_docs = "foo bar 324234234",
+            "# 
+          },
+          find_all: [
+            regex(r#"doc *= *"hello world 324234234""#),
+            regex(r#"doc *= *"foo bar 324234234""#),
+            not(str("pointer to the prefix")), 
+          ],
           error_count: 0
         ),
       ],
@@ -669,21 +834,28 @@
       "##,
       subcase: [
         ( 
-          replacements: { "@a1":r#""#, "@b1":r#" ="false" "# },
+          replacements: { "@a1":r#""#, "@b1":r#" = "false" "# },
+          find_all: [regex( r#"expected.*bool.*found.*literal"#)],
+          error_count: 1
+        ),
+        ( 
+          replacements: { "@a1":r#""#, "@b1":r#" = false "# },
           error_count: 0
         ),
         ( 
           replacements: { 
             "@a1":r#"kind(Prefix(prefix_ref = AAAA))"#,
-            "@b1":r#" = true&&false "# 
+            "@b1":r#" = true && false "# 
           },
+          find_all: [regex(r#"true *&& *false"#)],
           error_count: 0
         ),
         ( 
           replacements: { 
             "@a1":r#"kind(Prefix(prefix_ref = AAAA))"#,
-            "@b1":r#" ="<TypeParameter as Trait>::CONSTANT" "# 
+            "@b1":r#" = <TypeParameter as Trait>::CONSTANT "# 
           },
+          find_all: [regex(r#"< *TypeParameter +as +Trait *> *:: *CONSTANT"#)],
           error_count: 0
         ),
         ( 
@@ -691,7 +863,8 @@
             "@a1":r#"kind(Prefix(prefix_ref = AAAA))"#,
             "@b1":r#" = "" "# 
           },
-          error_count: 0
+          find_all: [regex( r#"expected.*bool.*found.*literal"#)],
+          error_count: 1
         ),
         ( 
           replacements: {
@@ -727,12 +900,12 @@
         ),
         ( 
           replacements: { "@b1":r#"="hello::<>" "# },
-          find_all: [str("expected")],
+          find_all: [str("expected identifier")],
           error_count: 1
         ),
         ( 
           replacements: { "@b1":r#"="" "# },
-          find_all: [str("identifier")],
+          find_all: [str("expected identifier")],
           error_count: 1
         ),
         ( 
@@ -898,6 +1071,15 @@
         ( 
           replacements: { 
             "@a1":r#""#,
+            "@b1":r#"(value = foo::<2 + 2>())"# ,
+            "@b2":r#""#,
+          },
+          find_all: [str("parsing expression")],
+          error_count: 1
+        ),
+        ( 
+          replacements: { 
+            "@a1":r#""#,
             "@b1":r#"(value="")"# ,
             "@b2":r#""#,
           },
@@ -1004,7 +1186,7 @@
       subcase: [
         ( 
           replacements: { "@s": r#""[usize;10]""#, "@p1": "", "@f1":"" },
-          find_all: [str("expected")],
+          find_all: [regex("expected.*type.*found.*literal")],
           error_count: 1,
         ),
         ( 
@@ -1131,7 +1313,7 @@
         ),
         ( 
           replacements: { "@size":r#"=100"#, "@p1":r#"align="MyVec" "# },
-          find_all: [str("expected")],
+          find_all: [regex("expected.*type.*found.*literal")],
           error_count: 1,
         ),
         ( 
@@ -1157,7 +1339,7 @@
         ),
         (
           replacements: { "@size":r#"=100"#, "@p1":r#"interface = "FooInterface::<T>" "# },
-          find_all: [str("expected")],
+          find_all: [regex("expected.*type.*found.*literal")],
           error_count: 1,
         ),
         (
@@ -1185,6 +1367,11 @@
           replacements: { "@size":r#"=100"#, "@p1":r#"traits(Debug,Display) "# },
           find_all: [],
           error_count: 0,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"traits("Debug",Display) "# },
+          find_all: [str("expected identifier")],
+          error_count: 1,
         ),
         ( 
           replacements: { "@size":r#"=100"#, "@p1":r#"traits(Debug,foobar) "# },
@@ -1231,6 +1418,11 @@
           replacements: { "@size":r#"=100"#, "@p1":r#"assert_nonexhaustive(MyVec, MyStr) "# },
           find_all: [str("MyVec"),str("MyStr")],
           error_count: 0,
+        ),
+        ( 
+          replacements: { "@size":r#"=100"#, "@p1":r#"assert_nonexhaustive("MyVec", "MyStr") "# },
+          find_all: [regex("expected.*type.*found.*literal")],
+          error_count: 1,
         ),
         
       ],

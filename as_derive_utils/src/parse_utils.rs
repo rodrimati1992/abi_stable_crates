@@ -1,4 +1,40 @@
+use crate::utils::SynErrorExt;
+
 use syn::parse::{Parse, ParseBuffer, Peek};
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! ret_err_on_peek {
+    ($input:ident, $peeked:expr, $expected:expr, $found_msg:expr $(,)*) => {
+        if $input.peek($peeked) {
+            return Err($input.error(concat!("expected ", $expected, ", found ", $found_msg)));
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! ret_err_on {
+    ($cond:expr, $span:expr, $expected:expr, $found_msg:expr $(,)*) => {
+        if $cond {
+            return Err(syn::Error::new(
+                $span,
+                concat!("expected ", $expected, ", found ", $found_msg),
+            ));
+        }
+    };
+}
+
+pub use crate::{ret_err_on, ret_err_on_peek};
+
+fn parse_with_prefix_err<T>(input: &ParseBuffer<'_>, prefix: &str) -> Result<T, syn::Error>
+where
+    T: Parse,
+{
+    input
+        .parse::<T>()
+        .map_err(|e| e.prepend_msg(format!("{}: ", prefix)))
+}
 
 pub trait ParseBufferExt {
     fn as_pb(&self) -> &ParseBuffer<'_>;
@@ -14,6 +50,22 @@ pub trait ParseBufferExt {
         } else {
             Ok(None)
         }
+    }
+
+    /// Alternate method for parsing a type, with a better (?) error message.
+    fn parse_type(&self) -> Result<syn::Type, syn::Error> {
+        let input = self.as_pb();
+
+        if input.peek(syn::Lit) {
+            Err(input.error("expected type, found literal"))
+        } else {
+            parse_with_prefix_err(input, "while parsing type")
+        }
+    }
+
+    /// Alternate method for parsing an expression, with a better (?) error message.
+    fn parse_expr(&self) -> Result<syn::Expr, syn::Error> {
+        parse_with_prefix_err(self.as_pb(), "while parsing expression")
     }
 
     /// skips a token tree.
