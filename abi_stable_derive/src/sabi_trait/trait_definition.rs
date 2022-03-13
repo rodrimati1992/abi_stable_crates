@@ -756,13 +756,13 @@ where
                             WhichObject::DynTrait if !usable_by.dyn_trait() => {
                                 errors.push_err(spanned_err!(
                                     trait_bound.path,
-                                    "Cannot use this trait with DynTrait",
+                                    "cannot use this trait with DynTrait",
                                 ));
                             }
                             WhichObject::RObject if !usable_by.robject() => {
                                 errors.push_err(spanned_err!(
                                     trait_bound.path,
-                                    "Cannot use this trait with RObject.
+                                    "cannot use this trait with RObject.
                                      To make that trait usable you must use the \
                                      #[sabi(use_dyntrait)] attribute,\
                                      which changes the trait object implementation \

@@ -358,16 +358,22 @@ impl<'a> SharedVars<'a> {
                 .map(|&(layout_ctor, ty)| make_get_type_layout_tokenizer(ty, layout_ctor, ct));
 
             let consts_i = 0..self.constants.len();
-            let constants = self.constants.iter().copied();
+            let constants = self.constants.iter().copied().map(|c| {
+                let span = syn::spanned::Spanned::span(&c);
+
+                quote::quote_spanned! {span =>
+                    __sabi_re::ConstGenericErasureHack::new(
+                        __ConstGenericVTableFor::NEW,
+                        #c,
+                    )
+                }
+            });
 
             quote!(
                 const __SABI_CONST_PARAMS_A: &'static [
                     &'static __sabi_re::ConstGenericErasureHack<dyn ::std::marker::Send>
                 ] = &[#(
-                    &__sabi_re::ConstGenericErasureHack::new(
-                        __ConstGenericVTableFor::NEW,
-                        #constants,
-                    ),
+                    &#constants,
                 )*];
 
                 const __SABI_CONST_PARAMS_B: &'static [__ConstGeneric] = &[

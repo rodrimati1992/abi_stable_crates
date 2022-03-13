@@ -29,6 +29,7 @@ pub(crate) struct PrefixKind<'a> {
     pub(crate) first_suffix_field: FirstSuffixField,
     pub(crate) prefix_ref: &'a Ident,
     pub(crate) prefix_fields_struct: &'a Ident,
+    pub(crate) replacing_prefix_ref_docs: &'a [syn::Expr],
     pub(crate) prefix_bounds: Vec<WherePredicate>,
     pub(crate) fields: FieldMap<AccessorOrMaybe<'a>>,
     pub(crate) accessor_bounds: FieldMap<Vec<TypeParamBound>>,
@@ -45,6 +46,7 @@ pub(crate) struct PrefixKindCtor<'a> {
     pub(crate) first_suffix_field: FirstSuffixField,
     pub(crate) prefix_ref: Option<&'a Ident>,
     pub(crate) prefix_fields: Option<&'a Ident>,
+    pub(crate) replacing_prefix_ref_docs: &'a [syn::Expr],
     pub(crate) prefix_bounds: Vec<WherePredicate>,
     pub(crate) fields: FieldMap<AccessorOrMaybe<'a>>,
     pub(crate) accessor_bounds: FieldMap<Vec<TypeParamBound>>,
@@ -85,6 +87,7 @@ impl<'a> PrefixKindCtor<'a> {
                 let ident = format!("{}_Prefix", ctor.struct_name);
                 ctor.arenas.alloc(parse_str_as_ident(&ident))
             }),
+            replacing_prefix_ref_docs: ctor.replacing_prefix_ref_docs,
             prefix_bounds: ctor.prefix_bounds,
             fields: ctor.fields,
             accessor_bounds: ctor.accessor_bounds,
@@ -289,34 +292,45 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         let stringified_generics_tokenizer = rstr_tokenizer(&stringified_generics);
 
         let is_ds_pub = matches!(ds.vis, Visibility::Public { .. }) && doc_hidden_attr.is_none();
+        let has_replaced_docs = !prefix.replacing_prefix_ref_docs.is_empty();
 
-        let prefix_ref_docs = if is_ds_pub {
-            format!(
-                "\
-This is the pointer to the prefix of 
-[{deriving_name}{generics}](./struct.{deriving_name}.html).
+        let prefix_ref_docs = ToTokenFnMut::new(|ts| {
+            if !is_ds_pub {
+                return;
+            }
 
-**This is automatically generated documentation,by the StableAbi derive macro**.
+            if has_replaced_docs {
+                let iter = prefix.replacing_prefix_ref_docs.iter();
+                ts.append_all(quote!(#(#[doc = #iter])*));
+            } else {
+                let single_docs = format!(
+                    "\
+                        This is the pointer to the prefix of \n\
+                        [{deriving_name}{generics}](./struct.{deriving_name}.html).\n\
+                        \n\
+                        **This is automatically generated documentation,\
+                        by the StableAbi derive macro**.\n\
+                        \n\
+                        ### Creating a compiletime-constant\n\
+                        \n\
+                        You can look at the docs in `abi_stable::docs::prefix_types` \
+                        to see how you\n\
+                        can construct and use this and similar types.<br>\n\
+                        More specifically in the \n\
+                        [\"constructing a module\" example\n\
+                        ](https://docs.rs/abi_stable/*/abi_stable/docs/\
+                        prefix_types/index.html#module_construction) or the\n\
+                        [\"Constructing a vtable\" example\n\
+                        ](https://docs.rs/abi_stable/*/abi_stable/docs/\
+                        prefix_types/index.html#vtable_construction)\n\
+                    ",
+                    deriving_name = stringified_deriving_name,
+                    generics = stringified_generics,
+                );
 
-### Creating a compiletime-constant
-
-You can look at the docs in `abi_stable::docs::prefix_types` to see how you
-can construct and use this and similar types.<br>
-More specifically in the 
-[\"constructing a module\" example
-](https://docs.rs/abi_stable/*/abi_stable/docs/prefix_types/index.html#module_construction)
-or the
-[\"Constructing a vtable\" example
-](https://docs.rs/abi_stable/*/abi_stable/docs/prefix_types/index.html#vtable_construction)
-
-                ",
-                //prefix_name=prefix.prefix_ref,
-                deriving_name = stringified_deriving_name,
-                generics = stringified_generics,
-            )
-        } else {
-            String::new()
-        };
+                ts.append_all(quote!(#[doc = #single_docs]));
+            }
+        });
 
         let prefix_fields_docs = if is_ds_pub {
             format!(
@@ -366,7 +380,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
 
             quote!(
                 #doc_hidden_attr
-                #[doc=#prefix_ref_docs]
+                #prefix_ref_docs
                 #[repr(transparent)]
                 #vis struct #prefix_ref #generics (
                     #vis ::abi_stable::pmr::PrefixRef<

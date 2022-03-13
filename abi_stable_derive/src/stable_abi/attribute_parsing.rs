@@ -1,12 +1,13 @@
 use as_derive_utils::{
     datastructure::{DataStructure, DataVariant, Field, FieldMap, TypeParamMap},
-    parse_utils::ParseBufferExt,
+    parse_utils::{ret_err_on, ret_err_on_peek, ParseBufferExt},
     return_spanned_err, return_syn_err, spanned_err, syn_err,
+    utils::SynErrorExt,
 };
 
 use syn::{
-    parse::ParseBuffer, punctuated::Punctuated, token::Comma, Attribute, Ident, Token, Type,
-    TypeParamBound, WherePredicate,
+    parse::ParseBuffer, punctuated::Punctuated, token::Comma, Attribute, Expr, ExprLit, Ident, Lit,
+    Token, Type, TypeParamBound, WherePredicate,
 };
 
 use std::{collections::HashSet, mem};
@@ -82,6 +83,7 @@ mod kw {
     syn::custom_keyword! {prefix_bound}
     syn::custom_keyword! {prefix_fields}
     syn::custom_keyword! {prefix_ref}
+    syn::custom_keyword! {prefix_ref_docs}
     syn::custom_keyword! {Prefix}
     syn::custom_keyword! {pub_getter}
     syn::custom_keyword! {refl}
@@ -260,6 +262,7 @@ impl<'a> StableAbiOptions<'a> {
                 first_suffix_field: this.first_suffix_field,
                 prefix_ref: prefix.prefix_ref,
                 prefix_fields: prefix.prefix_fields,
+                replacing_prefix_ref_docs: prefix.replacing_prefix_ref_docs,
                 fields: mem::replace(&mut this.prefix_kind_fields, FieldMap::empty()).map(
                     |fi, pk_field| {
                         AccessorOrMaybe::new(
@@ -433,6 +436,7 @@ enum UncheckedStabilityKind<'a> {
 struct UncheckedPrefixKind<'a> {
     prefix_ref: Option<&'a Ident>,
     prefix_fields: Option<&'a Ident>,
+    replacing_prefix_ref_docs: &'a [syn::Expr],
 }
 
 impl<'a> Default for UncheckedStabilityKind<'a> {
@@ -593,16 +597,26 @@ fn parse_sabi_attr<'a>(
 
     if let ParseContext::TypeAttr = pctx {
         fn parse_pred(input: &ParseBuffer) -> Result<WherePredicate, syn::Error> {
-            input.parse_paren_buffer()?.parse::<WherePredicate>()
+            let input = input.parse_paren_buffer()?;
+
+            ret_err_on_peek! {input, syn::Lit, "where predicate", "literal"}
+
+            input
+                .parse::<WherePredicate>()
+                .map_err(|e| e.prepend_msg("while parsing where predicate: "))
         }
 
         fn parse_preds(
             input: &ParseBuffer<'_>,
         ) -> Result<Punctuated<WherePredicate, Comma>, syn::Error> {
-            input
-                .parse_paren_buffer()?
-                .parse::<ParsePunctuated<WherePredicate, Comma>>()
-                .map(|x| x.list)
+            let input = input.parse_paren_buffer()?;
+
+            ret_err_on_peek! {input, syn::Lit, "where predicates", "literal"}
+
+            match input.parse::<ParsePunctuated<WherePredicate, Comma>>() {
+                Ok(x) => Ok(x.list),
+                Err(e) => Err(e.prepend_msg("while parsing where predicates: ")),
+            }
         }
 
         if input.check_parse(kw::bound)? {
@@ -617,21 +631,35 @@ fn parse_sabi_attr<'a>(
             input.parse_paren_with(|input| {
                 let fname = arenas.alloc(input.parse::<Ident>()?);
                 let _ = input.parse::<Token!(:)>()?;
-                let ty = arenas.alloc(input.parse::<syn::Type>()?);
+                let ty = arenas.alloc(input.parse_type()?);
                 this.extra_phantom_fields.push((fname, ty));
                 Ok(())
             })?;
         } else if input.check_parse(kw::phantom_type_param)? {
             input.parse::<Token!(=)>()?;
-            let ty = arenas.alloc(input.parse::<syn::Type>()?);
+            let ty = arenas.alloc(input.parse_type()?);
             this.phantom_type_params.push(ty);
         } else if input.check_parse(kw::phantom_const_param)? {
             input.parse::<Token!(=)>()?;
-            let constant = arenas.alloc(input.parse::<syn::Expr>()?);
+            let constant = arenas.alloc(input.parse_expr()?);
+            ret_err_on! {
+                matches!(constant, syn::Expr::Lit(ExprLit{lit: Lit::Str{..}, ..})),
+                syn::spanned::Spanned::span(constant),
+                "`impl StableAbi + Eq + Debug` expression",
+                "string literal",
+            }
             this.phantom_const_params.push(constant);
         } else if let Some(tag_token) = input.peek_parse(kw::tag)? {
             input.parse::<Token!(=)>()?;
-            let bound = input.parse::<syn::Expr>();
+
+            ret_err_on_peek! {
+                input,
+                syn::Lit,
+                "`abi_stable::type_layout::Tag` expression",
+                "literal",
+            }
+
+            let bound = input.parse_expr()?;
             if this.tags.is_some() {
                 return_syn_err!(
                     tag_token.span,
@@ -652,25 +680,28 @@ fn parse_sabi_attr<'a>(
                     ",
                 );
             }
-            this.tags = Some(bound?);
+            this.tags = Some(bound);
         } else if let Some(ec_token) = input.peek_parse(kw::extra_checks)? {
             input.parse::<Token!(=)>()?;
-            let bound = input.parse::<syn::Expr>();
+
+            ret_err_on_peek! {input, syn::Lit, "`impl ExtraChecks` expression", "literal"}
+
+            let bound = input.parse_expr()?;
             if this.extra_checks.is_some() {
                 return_syn_err!(
                     ec_token.span,
-                    "Cannot use the `#[sabi(extra_checks=\"\")]` \
+                    "cannot use the `#[sabi(extra_checks=\"\")]` \
                      attribute multiple times,\
                     "
                 );
             }
 
-            this.extra_checks = Some(bound?);
+            this.extra_checks = Some(bound);
         } else if input.check_parse(kw::missing_field)? {
             let on_missing = &mut this.default_on_missing_fields;
             if on_missing.is_some() {
                 return Err(
-                    input.error("Cannot use this attribute multiple times on the container")
+                    input.error("Cannot use this attribute multiple times on the same type")
                 );
             }
             *on_missing = Some(input.parse_paren_with(|i| parse_missing_field(i, arenas))?);
@@ -811,11 +842,23 @@ fn parse_sabi_attr<'a>(
             this.renamed_fields.insert(field, Some(renamed));
         } else if input.check_parse(kw::unsafe_change_type)? {
             input.parse::<Token!(=)>()?;
-            let changed_type = input.parse::<syn::Type>()?.piped(|x| arenas.alloc(x));
+            let changed_type = input.parse_type()?.piped(|x| arenas.alloc(x));
             this.changed_types.insert(field, Some(changed_type));
         } else if input.check_parse(kw::accessible_if)? {
             input.parse::<Token!(=)>()?;
-            let expr = arenas.alloc(input.parse::<syn::Expr>()?);
+
+            let expr = input.parse_expr()?;
+
+            if let Expr::Lit(ExprLit { lit, .. }) = &expr {
+                ret_err_on! {
+                    !matches!(lit, Lit::Bool{..}),
+                    syn::spanned::Spanned::span(&expr),
+                    "`bool` expression",
+                    "non-bool literal",
+                }
+            }
+
+            let expr = arenas.alloc(expr);
             this.prefix_kind_fields[field].accessible_if = Some(expr);
         } else if input.check_parse(kw::accessor_bound)? {
             input.parse::<Token!(=)>()?;
@@ -904,7 +947,7 @@ Valid Attributes:
         Ok(OnMissingField::With { function })
     } else if input.check_parse(kw::value)? {
         input.parse::<Token!(=)>()?;
-        let value = input.parse::<syn::Expr>()?.piped(|i| arenas.alloc(i));
+        let value = input.parse_expr()?.piped(|i| arenas.alloc(i));
         Ok(OnMissingField::Value { value })
     } else if input.is_empty() {
         Err(syn_err!(
@@ -928,11 +971,15 @@ fn parse_prefix_type_list<'a>(
 ) -> Result<UncheckedPrefixKind<'a>, syn::Error> {
     let mut prefix_ref = None;
     let mut prefix_fields = None;
+    let mut replacing_prefix_ref_docs = Vec::new();
 
     input.for_each_separated(Token!(,), |input| {
         if input.check_parse(kw::prefix_ref)? {
             input.parse::<Token!(=)>()?;
             prefix_ref = Some(arenas.alloc(input.parse::<Ident>()?));
+        } else if input.check_parse(kw::prefix_ref_docs)? {
+            input.parse::<Token!(=)>()?;
+            replacing_prefix_ref_docs.push(input.parse_expr()?);
         } else if input.check_parse(kw::prefix_fields)? {
             input.parse::<Token!(=)>()?;
             prefix_fields = Some(arenas.alloc(input.parse::<Ident>()?));
@@ -950,6 +997,7 @@ fn parse_prefix_type_list<'a>(
     Ok(UncheckedPrefixKind {
         prefix_ref,
         prefix_fields,
+        replacing_prefix_ref_docs: arenas.alloc(replacing_prefix_ref_docs),
     })
 }
 
@@ -1008,7 +1056,14 @@ fn parse_non_exhaustive_list<'a>(
             if input.peek(syn::LitInt) {
                 Ok(IntOrType::Int(input.parse_int::<usize>()?))
             } else {
-                Ok(IntOrType::Type(arenas.alloc(input.parse::<syn::Type>()?)))
+                ret_err_on_peek! {
+                    input,
+                    syn::LitStr,
+                    "either integer literal or type",
+                    "string literal",
+                }
+
+                Ok(IntOrType::Type(arenas.alloc(input.parse_type()?)))
             }
         }
 
@@ -1023,18 +1078,18 @@ fn parse_non_exhaustive_list<'a>(
                 input
                     .parse_paren_buffer()?
                     .for_each_separated(Token!(,), |input| {
-                        let ty = arenas.alloc(input.parse::<syn::Type>()?);
+                        let ty = arenas.alloc(input.parse_type()?);
                         this.assert_nonexh.push(ty);
                         Ok(())
                     })?;
             } else {
                 input.parse::<Token!(=)>()?;
-                let ty = arenas.alloc(input.parse::<syn::Type>()?);
+                let ty = arenas.alloc(input.parse_type()?);
                 this.assert_nonexh.push(ty);
             }
         } else if let Some(in_token) = input.peek_parse(kw::interface)? {
             input.parse::<Token!(=)>()?;
-            let ty = arenas.alloc(input.parse::<syn::Type>()?);
+            let ty = arenas.alloc(input.parse_type()?);
             if this.enum_interface.is_some() {
                 return Err(both_err(in_token.span));
             }

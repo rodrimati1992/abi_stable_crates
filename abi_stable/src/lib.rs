@@ -380,5 +380,12 @@ extern "Rust" {
 }
 
 #[cfg(all(feature = "rust_1_56", doctest))]
-#[doc = include_str!("../../readme.md")]
-pub struct ReadmeTest;
+macro_rules! readme_test {
+    () => {
+        #[doc = include_str!("../../readme.md")]
+        pub struct ReadmeTest;
+    };
+}
+
+#[cfg(all(feature = "rust_1_56", doctest))]
+readme_test! {}

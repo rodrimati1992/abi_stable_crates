@@ -11,6 +11,27 @@ use syn::spanned::Spanned;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+pub trait SynErrorExt: Sized {
+    fn into_syn_err(self) -> syn::Error;
+
+    fn prepend_msg<M>(self, msg: M) -> syn::Error
+    where
+        M: AsRef<str>,
+    {
+        let e = self.into_syn_err();
+        syn::Error::new(e.span(), format!("{}{}", msg.as_ref(), e))
+    }
+}
+
+impl SynErrorExt for syn::Error {
+    #[inline(always)]
+    fn into_syn_err(self) -> syn::Error {
+        self
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NoTokens;
 
