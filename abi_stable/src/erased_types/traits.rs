@@ -16,7 +16,7 @@ use crate::type_level::{
 };
 
 /// An `implementation type`,
-/// with [an associated `InterfaceType`](#associatedtype.Interface)
+/// with [an associated `InterfaceType`](ImplType::Interface)
 /// which describes the traits that
 /// must be implemented when constructing a [`DynTrait`] from `Self`,
 /// using the [`DynTrait::from_value`] and [`DynTrait::from_ptr`] constructors,
@@ -32,10 +32,10 @@ use crate::type_level::{
 /// they convert back and forth between `Self` and [`Self::Interface`](#associatedtype.Interface).
 ///
 ///
-/// [`DynTrait`]: ./struct.DynTrait.html
-/// [`DynTrait::from_value`]: ./struct.DynTrait.html#method.from_value
-/// [`DynTrait::from_ptr`]: ./struct.DynTrait.html#method.from_ptr
-/// [`impl_get_type_info`]: ./macro.impl_get_type_info.html
+/// [`DynTrait`]: crate::DynTrait
+/// [`DynTrait::from_value`]: crate::DynTrait::from_value
+/// [`DynTrait::from_ptr`]: crate::DynTrait::from_ptr
+/// [`impl_get_type_info`]: crate::impl_get_type_info
 pub trait ImplType: Sized {
     /// Describes the traits that must be implemented when constructing a
     /// `DynTrait` from `Self`.
@@ -76,21 +76,21 @@ macro_rules! declare_InterfaceType {
 
 declare_InterfaceType! {
     /// Defines the usable/required traits when creating a
-    /// [`DynTrait<Pointer<()>, ThisInterfaceType>`](./struct.DynTrait.html).
+    /// [`DynTrait<Pointer<()>, ThisInterfaceType>`](crate::DynTrait).
     ///
     /// This trait can only be implemented using the
-    /// [`#[derive(StableAbi)]`](./derive.StableAbi.html)
+    /// [`#[derive(StableAbi)]`](derive@crate::StableAbi)
     /// derive with the
-    /// [`#[sabi(impl_InterfaceType(...))]`](./derive.StableAbi.html#sabiimpl_interfacetype)
+    /// [`#[sabi(impl_InterfaceType(...))]`](derive@crate::StableAbi#sabiimpl_interfacetype)
     /// helper attribute,
     /// defaulting associated types to `Unimplemented<_>`.
     ///
     /// The value of every associated type can be:
     ///
-    /// - [`Implemented<_>`](./type_level/impl_enum/struct.Implemented.html):
+    /// - [`Implemented<_>`](crate::type_level::impl_enum::Implemented):
     /// the trait would be required by, and be usable in `DynTrait`.
     ///
-    /// - [`Unimplemented<_>`](./type_level/impl_enum/struct.Unimplemented.html):
+    /// - [`Unimplemented<_>`](crate::type_level::impl_enum::Unimplemented):
     /// the trait would not be required by, and not be usable in `DynTrait`.
     ///
     /// # Example

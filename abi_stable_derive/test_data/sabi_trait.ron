@@ -72,5 +72,19 @@
         ),        
       ]
     ),
+    (
+      name:"doc hidden",
+      code:r##"
+          @d
+          pub(crate) trait Foo{}
+      "##,
+      subcase: [
+        ( 
+          replacements: { "@d":"#[doc(hidden)]" }, 
+          find_all: [regex(r#"# *\[doc *\( *hidden *\) *\].*mod"#)],
+          error_count: 0,
+        ),        
+      ]
+    ),
   ]
 )

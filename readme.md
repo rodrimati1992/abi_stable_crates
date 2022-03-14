@@ -185,7 +185,7 @@ use abi_stable::{
 /// This struct is the root module,
 /// which must be converted to `ExampleLib_Ref` to be passed through ffi.
 /// 
-/// The `#[sabi(kind(Prefix(prefix_ref="ExampleLib_Ref")))]` 
+/// The `#[sabi(kind(Prefix(prefix_ref = ExampleLib_Ref)))]` 
 /// attribute tells `StableAbi` to create an ffi-safe static refernce type
 /// for `ExampleLib` called `ExampleLib_Ref`.
 /// 
@@ -194,7 +194,7 @@ use abi_stable::{
 /// the field is inaccessible.
 #[repr(C)]
 #[derive(StableAbi)] 
-#[sabi(kind(Prefix(prefix_ref="ExampleLib_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = ExampleLib_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct ExampleLib {
     pub new_appender: extern "C" fn() -> AppenderBox<u32>,
