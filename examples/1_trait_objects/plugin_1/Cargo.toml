@@ -6,9 +6,9 @@ edition = "2018"
 
 [dependencies]
 abi_stable={version="*",path="../../../abi_stable"}
-core_extensions={version = "1.4.2"}
-serde={ version = "1.0.117", features = ["derive"] }
-serde_json = { version = "1.0.59", features = ["raw_value"] }
+core_extensions= "1.5.2"
+serde={ version = "1.0.136", features = ["derive"] }
+serde_json = { version = "1.0.79", features = ["raw_value"] }
 
 [dependencies.example_1_interface]
 version="0.1"

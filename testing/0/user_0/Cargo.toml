@@ -6,8 +6,8 @@ edition = "2018"
 
 [dependencies]
 abi_stable={version="*",path="../../../abi_stable"}
-structopt = "0.3.20"
-core_extensions={ version = "1.4", default_features = false, features = ["std"] }
+structopt = "0.3.26"
+core_extensions={ version = "1.5.2", default_features = false, features = ["std"] }
 
 [dependencies.testing_interface_0]
 version="0.1"

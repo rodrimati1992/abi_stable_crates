@@ -22,4 +22,4 @@ include = [
 [dependencies.core_extensions]
 default_features=false
 features=["std", "self_ops", "slices", "type_level_bool"]
-version= "1.4.2"
+version= "1.5.2"
