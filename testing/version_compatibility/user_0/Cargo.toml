@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 abi_stable={path="../../../abi_stable"}
-core_extensions={ version = "1.4.0", default_features = false }
+core_extensions={ version = "1.5.2", default_features = false }
 
 [dependencies.version_compatibility_interface]
 version="0.1"

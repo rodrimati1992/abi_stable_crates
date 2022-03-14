@@ -2,6 +2,123 @@ This is the changelog,summarising changes in each version
 
 Minor changes may be ommited, as well as improvements to documentation.
 
+# 0.11
+
+### 0.11.0
+
+Added `abi_stable::traits::IntoOwned` trait.
+
+Added `RVec::append` method.
+
+Breaking: made `unsafe` function pointers ABI incompatible with safe ones.
+
+Defined the `TLFunctionQualifiers` type to be forward compatible with detecting more qualifiers on function pointers, like `const`.
+
+Fixed these types to be covariant instead of invariant over their type parameters:
+- `RVec`
+- `RHashMap`
+- `RBox`
+- `RArc`
+
+Rewrote `RCow` to make it covariant instead of invariant, changing how it's represented.
+
+Added `RCowVal`, `RCowStr`, and `RCowSlice` type aliases to make `RCow` usable.
+
+Now `RCow` only implements `IntoReprRust`/`AsRef`/`Borrow` for `RCowVal`, `RCowSlice`, and `RCowStr`.
+
+Removed `BorrowOwned` trait.
+
+Made the comparison traits accept `RCow`s with different type arguments.
+
+Added these conversion impls:
+- `From<&'a RVec<T>> for RCowSlice<'a, T>`
+- `From<&'a Vec<T>> for RCowSlice<'a, T>`
+
+Made `ImmutableRef` a blanket implemented trait, with `GetPointerKind<Kind = PK_Reference>` as a supertrait.
+
+Turned `ImmutableRef::TARGET` into `GetPointerKind::PROOF`.
+
+Added `IsPointer` struct; `IsMutReference`, `IsReference`, and `IsSmartPointer` type aliases.
+    
+Replaced `ImmutableRefOut` with `IsReference`.
+
+Changed many `#[sabi(...)]` attributes away from taking string literals for expressions and types:
+- From `accessor_bound = "Foo"` to `accessor_bound = Foo`
+- From `accessible_if = "FOO"` to `accessible_if = FOO`
+- From `bound = "T: Bar"` to `bound(T: Bar)` (container attribute)
+- From `bound = "Bar"` to `bound = Bar` (field attribute)
+- From `extra_checks = "foo"` to `extra_checks = foo`
+- From `kind(Prefix(prefix_ref = "Foo"))` to `kind(Prefix(prefix_ref = Foo))`
+- From `kind(Prefix(prefix_fields = "Foo"))` to `kind(Prefix(prefix_fields = Foo))`
+- From `kind(WithNonExhaustive(align = "Foo"))` to `kind(WithNonExhaustive(align = Foo))`
+- From `kind(WithNonExhaustive(assert_nonexhaustive = "Foo"))` to `kind(WithNonExhaustive(assert_nonexhaustive = Foo))`
+- From `kind(WithNonExhaustive(assert_nonexhaustive("Foo", "Bar")))` to `kind(WithNonExhaustive(assert_nonexhaustive(Foo, Bar)))`
+- From `kind(WithNonExhaustive(interface = "Foo"))` to `kind(WithNonExhaustive(interface = Foo))`
+- From `kind(WithNonExhaustive(size = "Foo"))` to `kind(WithNonExhaustive(size = Foo))`
+- From `missing_field(value = "foo")` to `missing_field(value = foo)`
+- From `missing_field(with = "foo")` to `missing_field(with = foo)`
+- From `phantom_field = "foo: Bar"` to `phantom_field(foo: Bar)`
+- From `phantom_type_param = "Bar"` to `phantom_type_param = Bar`
+- From `phantom_const_param = "BAR"` to `phantom_const_param = BAR`
+- From `prefix_bound = "T: Bar"` to `prefix_bound(T: Bar)`
+- From `prefix_bounds = "T: Bar, U: Baz"` to `prefix_bounds(T: Bar, U: Baz)`
+- From `refl(pub_getter = "foo")` to `refl(pub_getter = foo)`
+- From `rename = "foo"` to `rename = foo`
+- From `tag = "FOO"` to `tag = FOO`
+- From `unsafe_change_type = "Foo"` to `unsafe_change_type = Foo`
+
+Improved error messages of `#[sabi(...)]` helper attributes, needed to transition away from using string literals.
+
+Added `#[sabi(kind(Prefix(prefix_ref_docs = "")))]` helper attribute, to replace docs of `<DerivingType>_Ref` type.
+
+Implemented `Unpin` for `RArc`
+
+Made `Send` and `Sync` unimplemented by default in `ìmpl_InterfaceType` macro
+
+Added `RTuple*::from_tuple` methods.
+
+Added free `const fn` equivalents of the `ImmutableRef` trait in the `immutable_ref` module. Requires Rust 1.56 and `"rust_1_56"` feature.
+
+Made these functions `const`:
+- `RResult::{as_ref, is_rok, is_ok, is_rerr, is_err}`
+- `ROption::{as_ref, is_rsome, is_rnone, is_some, is_none}`
+- `RCow::{is_borrowed, is_owned}`
+- `RCmpOrdering::to_ordering`
+- `MovePtr::{from_rmut, from_raw, into_raw, transmute}`
+- `RMut::{get, into_ref}` (conditional on rust 1.56.0)
+- `RMut::{from_raw, as_ptr, into_raw, transmute_into_raw, transmute, as_rref, into_rref}`
+- `RRef::{get, transmute_into_ref}` (conditional on rust 1.56.0)
+- `LibHeader::{root_mod_consts, version_strings}`
+- `RawValueRef::{from_str_unchecked, from_rstr_unchecked, get_rstr}`
+- many `abi_stable::type_layout` functions
+
+Defined these new const functions
+- `NonExhaustive::const_new`
+- `RCmpOdering::from_ordering`
+- `RCow::{from_str, from_slice}`
+
+Exposed `abi_stable::nonexhaustive_enum::GetVTable::VTABLE` associated const to construct vtable used by `NonExhaustive::const_new`
+
+Replaced `GetEnumInfo::discriminants` function with `DISCRIMINANTS` associated constant.
+
+Exposed `abi_stable::nonexhaustive_enum::NonExhaustiveVtable_Ref`.
+
+
+Exposed `GetVTable::VTABLE` associated const to construct vtable use by `NonExhaustive::const_new`
+    
+Replaced `GetEnumInfo::discriminants` function with `DISCRIMINANTS` associated constant.
+
+Made all structs in  `abi_stable::inline_storage::alignment` implement `Debug`, `PartialEq`, `Copy`, and `Clone`
+
+Bumped `parking_lot` public dependency to `0.12.0`
+
+Bumped Minimum Supported Rust Version to 1.51.0
+
+Removed all `rust_*` features up to 1.51.0, making items that require 1.51.0 unconditional
+    
+Added `"rust_1_56"` and `"rust_1_57"` features for stuff that requires those versions.
+
+
 # 0.10
 
 ### 0.10.4
