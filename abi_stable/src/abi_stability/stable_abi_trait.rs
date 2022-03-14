@@ -28,7 +28,7 @@ use crate::{
 /// Represents a type whose layout is stable.
 ///
 /// This trait can be derived using
-/// [`#[derive(StableAbi)]`](./derive.StableAbi.html).
+/// [`#[derive(StableAbi)]`](derive@crate::StableAbi).
 ///
 /// # Safety
 ///
@@ -39,7 +39,7 @@ use crate::{
 /// # Caveats
 ///
 /// This trait cannot be directly implemented for functions that take lifetime parameters,
-/// because of that, [`#[derive(StableAbi)]`](./derive.StableAbi.html)
+/// because of that, [`#[derive(StableAbi)]`](derive@crate::StableAbi)
 /// detects the presence of `extern fn` types in type definitions.
 pub unsafe trait StableAbi: GetStaticEquivalent_ {
     /// Whether this type has a single invalid bit-pattern.
@@ -64,9 +64,9 @@ pub unsafe trait StableAbi: GetStaticEquivalent_ {
     ///
     /// - `std::num::NonZero*`
     ///
-    /// [`True`]: ./reexports/struct.True.html
-    /// [`False`]: ./reexports/struct.False.html
-    /// [`ROption`]: ./std_types/enum.ROption.html
+    /// [`True`]: crate::reexports::True
+    /// [`False`]: crate::reexports::False
+    /// [`ROption`]: crate::std_types::ROption
     type IsNonZeroType: Boolean;
 
     /// The layout of the type provided by implementors.

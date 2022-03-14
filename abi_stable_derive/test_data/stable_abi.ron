@@ -693,7 +693,7 @@
         ),
         ( 
           replacements: { "@uct1": "=", "@uct2": "" },
-          find_all: [str("expected identifier")],
+          find_all: [str("parsing type")],
           error_count: 1
         ),
         ( 
