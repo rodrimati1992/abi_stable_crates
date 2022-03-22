@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// The enum stored alongside the unerased HashMap.
-pub(super) enum BoxedREntry<'a, K, V, S: BuildHasher> {
+pub(super) enum BoxedREntry<'a, K, V, S> {
     Occupied(UnerasedOccupiedEntry<'a, K, V, S>),
     Vacant(UnerasedVacantEntry<'a, K, V, S>),
 }
@@ -24,7 +24,7 @@ pub(super) enum BoxedREntry<'a, K, V, S: BuildHasher> {
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-pub enum REntry<'a, K, V, S: BuildHasher> {
+pub enum REntry<'a, K, V, S> {
     Occupied(ROccupiedEntry<'a, K, V, S>),
     Vacant(RVacantEntry<'a, K, V, S>),
 }
@@ -37,7 +37,7 @@ pub enum REntry<'a, K, V, S: BuildHasher> {
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-struct ErasedOccupiedEntry<K, V, S: BuildHasher>(PhantomData<(K, V)>, UnsafeIgnoredType<S>);
+struct ErasedOccupiedEntry<K, V, S>(PhantomData<(K, V)>, UnsafeIgnoredType<S>);
 
 #[derive(StableAbi)]
 #[repr(C)]
@@ -45,17 +45,17 @@ struct ErasedOccupiedEntry<K, V, S: BuildHasher>(PhantomData<(K, V)>, UnsafeIgno
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-struct ErasedVacantEntry<K, V, S: BuildHasher>(PhantomData<(K, V)>, UnsafeIgnoredType<S>);
+struct ErasedVacantEntry<K, V, S>(PhantomData<(K, V)>, UnsafeIgnoredType<S>);
 
 type UnerasedOccupiedEntry<'a, K, V, S> = ManuallyDrop<OccupiedEntry<'a, MapKey<K>, V, S>>;
 
 type UnerasedVacantEntry<'a, K, V, S> = ManuallyDrop<VacantEntry<'a, MapKey<K>, V, S>>;
 
-impl<'a, K: 'a, V: 'a, S: 'a + BuildHasher> ErasedType<'a> for ErasedOccupiedEntry<K, V, S> {
+impl<'a, K: 'a, V: 'a, S: 'a> ErasedType<'a> for ErasedOccupiedEntry<K, V, S> {
     type Unerased = UnerasedOccupiedEntry<'a, K, V, S>;
 }
 
-impl<'a, K: 'a, V: 'a, S: 'a + BuildHasher> ErasedType<'a> for ErasedVacantEntry<K, V, S> {
+impl<'a, K: 'a, V: 'a, S: 'a> ErasedType<'a> for ErasedVacantEntry<K, V, S> {
     type Unerased = UnerasedVacantEntry<'a, K, V, S>;
 }
 
@@ -64,7 +64,6 @@ impl<'a, K: 'a, V: 'a, S: 'a + BuildHasher> ErasedType<'a> for ErasedVacantEntry
 impl<'a, K, V, S> From<Entry<'a, MapKey<K>, V, S>> for BoxedREntry<'a, K, V, S>
 where
     K: Eq + Hash,
-    S: BuildHasher,
 {
     fn from(entry: Entry<'a, MapKey<K>, V, S>) -> Self {
         match entry {
@@ -74,10 +73,9 @@ where
     }
 }
 
-impl<'a, K, V, S> REntry<'a, K, V, S>
+impl<'a, K, V, S: BuildHasher> REntry<'a, K, V, S>
 where
     K: Eq + Hash,
-    S: BuildHasher,
 {
     pub(super) unsafe fn new(entry: &'a mut BoxedREntry<'a, K, V, S>) -> Self {
         match entry {
@@ -289,7 +287,7 @@ where
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-pub struct ROccupiedEntry<'a, K, V, S: BuildHasher> {
+pub struct ROccupiedEntry<'a, K, V, S> {
     entry: RMut<'a, ErasedOccupiedEntry<K, V, S>>,
     vtable: OccupiedVTable_Ref<K, V, S>,
     _marker: UnsafeIgnoredType<OccupiedEntry<'a, K, V, S>>,
@@ -305,7 +303,7 @@ pub struct ROccupiedEntry<'a, K, V, S: BuildHasher> {
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-pub struct RVacantEntry<'a, K, V, S: BuildHasher> {
+pub struct RVacantEntry<'a, K, V, S> {
     entry: RMut<'a, ErasedVacantEntry<K, V, S>>,
     vtable: VacantVTable_Ref<K, V, S>,
     _marker: UnsafeIgnoredType<VacantEntry<'a, K, V, S>>,
@@ -313,13 +311,13 @@ pub struct RVacantEntry<'a, K, V, S: BuildHasher> {
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, K, V, S: BuildHasher> ROccupiedEntry<'a, K, V, S> {
+impl<'a, K, V, S> ROccupiedEntry<'a, K, V, S> {
     fn vtable(&self) -> OccupiedVTable_Ref<K, V, S> {
         self.vtable
     }
 }
 
-impl<'a, K, V, S: BuildHasher> ROccupiedEntry<'a, K, V, S> {
+impl<'a, K, V, S> ROccupiedEntry<'a, K, V, S> {
     fn into_inner(self) -> RMut<'a, ErasedOccupiedEntry<K, V, S>> {
         let mut this = ManuallyDrop::new(self);
         unsafe { ((&mut this.entry) as *mut RMut<'a, ErasedOccupiedEntry<K, V, S>>).read() }
@@ -500,7 +498,7 @@ impl<'a, K, V, S: BuildHasher> ROccupiedEntry<'a, K, V, S> {
     }
 }
 
-impl<K, V, S: BuildHasher> Debug for ROccupiedEntry<'_, K, V, S>
+impl<K, V, S> Debug for ROccupiedEntry<'_, K, V, S>
 where
     K: Debug,
     V: Debug,
@@ -513,7 +511,7 @@ where
     }
 }
 
-impl<'a, K, V, S: BuildHasher> Drop for ROccupiedEntry<'a, K, V, S> {
+impl<'a, K, V, S> Drop for ROccupiedEntry<'a, K, V, S> {
     fn drop(&mut self) {
         let vtable = self.vtable();
 
@@ -525,7 +523,7 @@ impl<'a, K, V, S: BuildHasher> Drop for ROccupiedEntry<'a, K, V, S> {
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, K, V, S: BuildHasher> RVacantEntry<'a, K, V, S> {
+impl<'a, K, V, S> RVacantEntry<'a, K, V, S> {
     fn vtable(&self) -> VacantVTable_Ref<K, V, S> {
         self.vtable
     }
@@ -632,9 +630,10 @@ impl<'a, K, V, S: BuildHasher> RVacantEntry<'a, K, V, S> {
     }
 }
 
-impl<K, V, S: BuildHasher> Debug for RVacantEntry<'_, K, V, S>
+impl<K, V, S> Debug for RVacantEntry<'_, K, V, S>
 where
     K: Debug,
+    S: BuildHasher,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RVacantEntry")
@@ -643,7 +642,7 @@ where
     }
 }
 
-impl<'a, K, V, S: BuildHasher> Drop for RVacantEntry<'a, K, V, S> {
+impl<'a, K, V, S> Drop for RVacantEntry<'a, K, V, S> {
     fn drop(&mut self) {
         let vtable = self.vtable();
 
@@ -661,7 +660,7 @@ impl<'a, K, V, S: BuildHasher> Drop for RVacantEntry<'a, K, V, S> {
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-pub struct OccupiedVTable<K, V, S: BuildHasher> {
+pub struct OccupiedVTable<K, V, S> {
     drop_entry: unsafe extern "C" fn(RMut<'_, ErasedOccupiedEntry<K, V, S>>),
     key: extern "C" fn(RRef<'_, ErasedOccupiedEntry<K, V, S>>) -> &K,
     get_elem: extern "C" fn(RRef<'_, ErasedOccupiedEntry<K, V, S>>) -> &V,
@@ -671,7 +670,7 @@ pub struct OccupiedVTable<K, V, S: BuildHasher> {
     remove: extern "C" fn(ROccupiedEntry<'_, K, V, S>) -> V,
 }
 
-impl<K, V, S: BuildHasher> OccupiedVTable<K, V, S> {
+impl<K, V, S> OccupiedVTable<K, V, S> {
     const VTABLE_REF: OccupiedVTable_Ref<K, V, S> = OccupiedVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {
@@ -690,7 +689,7 @@ impl<K, V, S: BuildHasher> OccupiedVTable<K, V, S> {
     };
 }
 
-impl<K, V, S: BuildHasher> ErasedOccupiedEntry<K, V, S> {
+impl<K, V, S> ErasedOccupiedEntry<K, V, S> {
     unsafe extern "C" fn drop_entry(this: RMut<'_, Self>) {
         extern_fn_panic_handling! {
             Self::run_downcast_as_mut(this, |this|{
@@ -770,7 +769,7 @@ impl<K, V, S: BuildHasher> ErasedOccupiedEntry<K, V, S> {
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-pub struct VacantVTable<K, V, S: BuildHasher> {
+pub struct VacantVTable<K, V, S> {
     drop_entry: unsafe extern "C" fn(RMut<'_, ErasedVacantEntry<K, V, S>>),
     key: extern "C" fn(RRef<'_, ErasedVacantEntry<K, V, S>>) -> &K,
     fn_into_key: extern "C" fn(RVacantEntry<'_, K, V, S>) -> K,

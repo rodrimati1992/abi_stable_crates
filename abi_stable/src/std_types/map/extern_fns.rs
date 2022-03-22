@@ -9,7 +9,7 @@ use crate::{
 impl<K, V, S> ErasedMap<K, V, S>
 where
     K: Hash + Eq,
-    S: BuildHasher + Default,
+    S: BuildHasher,
 {
     unsafe fn run<'a, F, R>(this: RRef<'a, Self>, f: F) -> R
     where
