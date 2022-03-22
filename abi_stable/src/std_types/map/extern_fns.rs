@@ -48,7 +48,10 @@ where
         this: RMut<'_, Self>,
         key: K,
         value: V,
-    ) -> ROption<V> {
+    ) -> ROption<V>
+    where
+        S: Default,
+    {
         Self::run_mut(this, |this| {
             this.map.insert(MapKey::Value(key), value).into_c()
         })
