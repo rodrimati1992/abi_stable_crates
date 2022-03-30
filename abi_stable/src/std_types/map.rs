@@ -200,9 +200,9 @@ impl<K, V, S> RHashMap<K, V, S> {
     ///
     /// ```
     /// use abi_stable::std_types::{RHashMap, RString};
-    /// use std::collections::hash_map::DefaultHashBuilder;
+    /// use std::collections::hash_map::RandomState;
     ///
-    /// let s = DefaultHashBuilder::new();
+    /// let s = RandomState::new();
     /// let mut map = RHashMap::<RString, u32, _>::with_hasher(s);
     /// assert!(map.is_empty());
     /// map.insert("Hello".into(), 10);
@@ -224,9 +224,9 @@ impl<K, V, S> RHashMap<K, V, S> {
     ///
     /// ```
     /// use abi_stable::std_types::{RHashMap, RString};
-    /// use std::collections::hash_map::DefaultHashBuilder;
+    /// use std::collections::hash_map::RandomState;
     ///
-    /// let s = DefaultHashBuilder::new();
+    /// let s = RandomState::new();
     /// let mut map = RHashMap::<RString, u32, _>::with_capacity_and_hasher(10, s);
     /// assert!(map.capacity() >= 10);
     ///
