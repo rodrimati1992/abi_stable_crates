@@ -73,6 +73,14 @@ Added `#[sabi(kind(Prefix(prefix_ref_docs = "")))]` helper attribute, to replace
 
 Implemented `Unpin` for `RArc`
 
+Added `RResult::{ok_or, ok_or_else}`
+
+Added comparison trait impls between `RVec<T>` and `&mut [T]`
+
+Added `From` conversions from `&[T]` and `&mut [T]` for `RVec<T>`
+
+Added `Extend<&'a T>` impl for `RVec<T>`
+
 Made `Send` and `Sync` unimplemented by default in `ìmpl_InterfaceType` macro
 
 Added `RTuple*::from_tuple` methods.
