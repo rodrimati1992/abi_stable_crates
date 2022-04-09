@@ -6,6 +6,8 @@ use core_extensions::matches;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::std_types::RResult;
+
 /// Ffi-safe equivalent of the `std::option::Option` type.
 ///
 /// `Option` is also ffi-safe for NonNull/NonZero types, and references.
@@ -322,6 +324,59 @@ impl<T> ROption<T> {
         match self {
             RSome(t) => f(t),
             RNone => otherwise(),
+        }
+    }
+
+    /// Transforms the `ROption<T>` into a `RResult<T, E>`, mapping `RSome(v)`
+    /// to `ROk(v)` and `RNone` to `RErr(err)`.
+    ///
+    /// Arguments passed to `ok_or` are eagerly evaluated; if you are passing the
+    /// result of a function call, it is recommended to use [`ok_or_else`], which is
+    /// lazily evaluated.
+    ///
+    /// [`ok_or_else`]: ROption::ok_or_else
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*;
+    ///
+    /// let x = RSome("foo");
+    /// assert_eq!(x.ok_or(0), ROk("foo"));
+    ///
+    /// let x: ROption<&str> = RNone;
+    /// assert_eq!(x.ok_or(0), RErr(0));
+    /// ```
+    #[inline]
+    pub fn ok_or<E>(self, err: E) -> RResult<T, E> {
+        match self {
+            RSome(v) => RResult::ROk(v),
+            RNone => RResult::RErr(err),
+        }
+    }
+
+    /// Transforms the `ROption<T>` into a `RResult<T, E>`, mapping `RSome(v)` to
+    /// `ROk(v)` and `RNone` to `RErr(err())`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use abi_stable::std_types::*;
+    ///
+    /// let x = RSome("foo");
+    /// assert_eq!(x.ok_or_else(|| 0), ROk("foo"));
+    ///
+    /// let x: ROption<&str> = RNone;
+    /// assert_eq!(x.ok_or_else(|| 0), RErr(0));
+    /// ```
+    #[inline]
+    pub fn ok_or_else<E, F>(self, err: F) -> RResult<T, E>
+    where
+        F: FnOnce() -> E,
+    {
+        match self {
+            RSome(v) => RResult::ROk(v),
+            RNone => RResult::RErr(err()),
         }
     }
 
