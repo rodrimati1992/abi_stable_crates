@@ -249,6 +249,49 @@ fn get() {
 }
 
 #[test]
+fn map_key() {
+    let test_key: u8 = 100;
+    let borrow_key: &u8 = &test_key;
+    let builder = hashbrown::hash_map::DefaultHashBuilder::new();
+
+    // Hashing the original value
+    let mut hasher = builder.build_hasher();
+    test_key.hash(&mut hasher);
+    let original_hash = hasher.finish();
+
+    // Hashing the `MapKey::Value` variant
+    let map_value: MapKey<u8> = MapKey::Value(test_key);
+    let mut hasher = builder.build_hasher();
+    map_value.hash(&mut hasher);
+    let value_hash = hasher.finish();
+
+    // Should be the same as the original value
+    assert_eq!(original_hash, value_hash);
+
+    // Hashing `MapQuery`
+    let query = MapQuery::<'_, u8>::new(&borrow_key);
+    let mut hasher = builder.build_hasher();
+    query.hash(&mut hasher);
+    let query_hash1 = hasher.finish();
+
+    // Should be the same as the original value
+    assert_eq!(original_hash, query_hash1);
+
+    // Hashing the `MapKey::Query` variant
+    let map_query = unsafe { &query.as_mapkey() };
+    let mut hasher = builder.build_hasher();
+    map_query.hash(&mut hasher);
+    let query_hash2 = hasher.finish();
+
+    // Should be the same as the inner `MapQuery` value
+    assert_eq!(query_hash1, query_hash2);
+
+    // And both `Query` should be the same as `Value` to cover all the possible
+    // cases
+    assert_eq!(value_hash, query_hash2);
+}
+
+#[test]
 fn clear() {
     let mut map = RHashMap::<String, _>::new();
     map.insert("what".into(), 10);
