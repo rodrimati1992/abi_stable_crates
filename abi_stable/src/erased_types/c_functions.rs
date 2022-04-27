@@ -228,10 +228,8 @@ pub(crate) unsafe extern "C" fn hash_Hash<T>(
 //////////////////
 // Hasher
 
-pub(crate) unsafe extern "C" fn hash_slice_Hasher<T>(
-    this: RMut<'_, ErasedObject>,
-    slic_: RSlice<'_, u8>,
-) where
+pub(crate) unsafe extern "C" fn write_Hasher<T>(this: RMut<'_, ErasedObject>, slic_: RSlice<'_, u8>)
+where
     T: Hasher,
 {
     extern_fn_panic_handling! {
@@ -239,6 +237,42 @@ pub(crate) unsafe extern "C" fn hash_slice_Hasher<T>(
         this.write(slic_.into());
     }
 }
+
+macro_rules! fn_write {
+    ( $(($ty:ty, $delegated_fn:ident, $new_fn:ident)),* ) => {
+        $(
+            pub(crate) unsafe extern "C" fn $new_fn<T>(
+                this: RMut<'_, ErasedObject>,
+                val: $ty,
+            ) where
+                T: Hasher,
+            {
+                extern_fn_panic_handling! {
+                    let this=unsafe{ this.transmute_into_mut::<T>() };
+                    this.$delegated_fn(val);
+                }
+            }
+        )*
+    }
+}
+
+fn_write!(
+    // No c-compatible layout for u128 yet
+    // (i128, write_i128, write_i128_Hasher),
+    (i16, write_i16, write_i16_Hasher),
+    (i32, write_i32, write_i32_Hasher),
+    (i64, write_i64, write_i64_Hasher),
+    (i8, write_i8, write_i8_Hasher),
+    (isize, write_isize, write_isize_Hasher),
+    // No c-compatible layout for u128 yet
+    // (u128, write_u128, write_u128_Hasher),
+    (u16, write_u16, write_u16_Hasher),
+    (u32, write_u32, write_u32_Hasher),
+    (u64, write_u64, write_u64_Hasher),
+    (u8, write_u8, write_u8_Hasher),
+    (usize, write_usize, write_usize_Hasher)
+);
+
 pub(crate) unsafe extern "C" fn finish_Hasher<T>(this: RRef<'_, ErasedObject>) -> u64
 where
     T: Hasher,
