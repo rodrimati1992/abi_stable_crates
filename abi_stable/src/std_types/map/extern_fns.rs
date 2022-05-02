@@ -36,6 +36,7 @@ where
         F: FnOnce(RBox<BoxedHashMap<'a, K, V, S>>) -> R,
         K: 'a,
         V: 'a,
+        S: 'a,
     {
         extern_fn_panic_handling! {
             let map = this.transmute_element::<BoxedHashMap<'a, K, V, S>>();
@@ -149,7 +150,7 @@ where
         })
     }
 
-    pub(super) unsafe extern "C" fn entry(this: RMut<'_, Self>, key: K) -> REntry<'_, K, V> {
+    pub(super) unsafe extern "C" fn entry(this: RMut<'_, Self>, key: K) -> REntry<'_, K, V, S> {
         Self::run_mut(this, |this| {
             this.entry = None;
             let map = &mut this.map;

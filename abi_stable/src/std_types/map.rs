@@ -49,6 +49,11 @@ pub use self::{
     iterator_stuff::{IntoIter, MutIterInterface, RefIterInterface, ValIterInterface},
 };
 
+#[cfg(feature = "halfbrown")]
+pub use halfbrown::{Entry, OccupiedEntry, VacantEntry};
+#[cfg(not(feature = "halfbrown"))]
+pub use hashbrown::hash_map::{Entry, OccupiedEntry, VacantEntry};
+
 /// An ffi-safe hashmap, which wraps `std::collections::HashMap<K, V, S>`,
 /// only requiring the `K: Eq + Hash` bounds when constructing it.
 ///
@@ -104,7 +109,7 @@ pub use self::{
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-pub struct RHashMap<K, V, S = DefaultHashBuilder> {
+pub struct RHashMap<K, V, S: BuildHasher = DefaultHashBuilder> {
     map: RBox<ErasedMap<K, V, S>>,
     #[sabi(unsafe_change_type = VTable_Ref<K, V, S>)]
     vtable: PrefixRef<ErasedPrefix>,
@@ -112,9 +117,9 @@ pub struct RHashMap<K, V, S = DefaultHashBuilder> {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-struct BoxedHashMap<'a, K, V, S> {
+struct BoxedHashMap<'a, K, V, S: BuildHasher> {
     map: HashMap<MapKey<K>, V, S>,
-    entry: Option<BoxedREntry<'a, K, V>>,
+    entry: Option<BoxedREntry<'a, K, V, S>>,
 }
 
 /// An RHashMap iterator,
@@ -138,7 +143,7 @@ pub type Drain<'a, K, V> = DynTrait<'a, RBox<()>, ValIterInterface<K, V>>;
 )]
 struct ErasedMap<K, V, S>(PhantomData<(K, V)>, UnsafeIgnoredType<S>);
 
-impl<'a, K: 'a, V: 'a, S: 'a> ErasedType<'a> for ErasedMap<K, V, S> {
+impl<'a, K: 'a, V: 'a, S: 'a + BuildHasher> ErasedType<'a> for ErasedMap<K, V, S> {
     type Unerased = BoxedHashMap<'a, K, V, S>;
 }
 
@@ -188,7 +193,7 @@ impl<K, V> RHashMap<K, V, DefaultHashBuilder> {
     }
 }
 
-impl<K, V, S> RHashMap<K, V, S> {
+impl<K, V, S: BuildHasher> RHashMap<K, V, S> {
     /// Constructs an empty RHashMap with the passed `hash_builder` to hash the keys.
     ///
     /// # Example
@@ -243,13 +248,13 @@ impl<K, V, S> RHashMap<K, V, S> {
     }
 }
 
-impl<K, V, S> RHashMap<K, V, S> {
+impl<K, V, S: BuildHasher> RHashMap<K, V, S> {
     fn vtable(&self) -> VTable_Ref<K, V, S> {
         unsafe { VTable_Ref::<K, V, S>(self.vtable.cast()) }
     }
 }
 
-impl<K, V, S> RHashMap<K, V, S> {
+impl<K, V, S: BuildHasher> RHashMap<K, V, S> {
     /// Returns whether the map associates a value with the key.
     ///
     /// # Example
@@ -369,7 +374,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     }
 }
 
-impl<K, V, S> RHashMap<K, V, S> {
+impl<K, V, S: BuildHasher> RHashMap<K, V, S> {
     /// Returns whether the map associates a value with the key.
     ///
     /// # Example
@@ -755,7 +760,7 @@ impl<K, V, S> RHashMap<K, V, S> {
     ///
     /// ```
     ///
-    pub fn entry(&mut self, key: K) -> REntry<'_, K, V> {
+    pub fn entry(&mut self, key: K) -> REntry<'_, K, V, S> {
         let vtable = self.vtable();
 
         unsafe { vtable.entry()(self.map.as_rmut(), key) }
@@ -907,7 +912,7 @@ impl<'a, K, V> Iterator for Values<'a, K, V> {
 }
 
 /// This returns an `Iterator<Item= Tuple2< K, V > >+!Send+!Sync`
-impl<K, V, S> IntoIterator for RHashMap<K, V, S> {
+impl<K, V, S: BuildHasher> IntoIterator for RHashMap<K, V, S> {
     type Item = Tuple2<K, V>;
     type IntoIter = IntoIter<K, V>;
 
@@ -919,7 +924,7 @@ impl<K, V, S> IntoIterator for RHashMap<K, V, S> {
 }
 
 /// This returns an `Iterator<Item= Tuple2< &K, &V > > + !Send + !Sync + Clone`
-impl<'a, K, V, S> IntoIterator for &'a RHashMap<K, V, S> {
+impl<'a, K, V, S: BuildHasher> IntoIterator for &'a RHashMap<K, V, S> {
     type Item = Tuple2<&'a K, &'a V>;
     type IntoIter = Iter<'a, K, V>;
 
@@ -930,7 +935,7 @@ impl<'a, K, V, S> IntoIterator for &'a RHashMap<K, V, S> {
 
 /// This returns a type that implements
 /// `Iterator<Item= Tuple2< &K, &mut V > > + !Send + !Sync`
-impl<'a, K, V, S> IntoIterator for &'a mut RHashMap<K, V, S> {
+impl<'a, K, V, S: BuildHasher> IntoIterator for &'a mut RHashMap<K, V, S> {
     type Item = Tuple2<&'a K, &'a mut V>;
     type IntoIter = IterMut<'a, K, V>;
 
@@ -941,6 +946,7 @@ impl<'a, K, V, S> IntoIterator for &'a mut RHashMap<K, V, S> {
 
 impl<K, V, S> From<HashMap<K, V, S>> for RHashMap<K, V, S>
 where
+    S: BuildHasher,
     Self: Default,
 {
     fn from(map: HashMap<K, V, S>) -> Self {
@@ -958,7 +964,7 @@ where
     }
 }
 
-impl<K, V, S> FromIterator<(K, V)> for RHashMap<K, V, S>
+impl<K, V, S: BuildHasher> FromIterator<(K, V)> for RHashMap<K, V, S>
 where
     Self: Default,
 {
@@ -972,7 +978,7 @@ where
     }
 }
 
-impl<K, V, S> FromIterator<Tuple2<K, V>> for RHashMap<K, V, S>
+impl<K, V, S: BuildHasher> FromIterator<Tuple2<K, V>> for RHashMap<K, V, S>
 where
     Self: Default,
 {
@@ -986,7 +992,7 @@ where
     }
 }
 
-impl<K, V, S> Extend<(K, V)> for RHashMap<K, V, S> {
+impl<K, V, S: BuildHasher> Extend<(K, V)> for RHashMap<K, V, S> {
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = (K, V)>,
@@ -999,7 +1005,7 @@ impl<K, V, S> Extend<(K, V)> for RHashMap<K, V, S> {
     }
 }
 
-impl<K, V, S> Extend<Tuple2<K, V>> for RHashMap<K, V, S> {
+impl<K, V, S: BuildHasher> Extend<Tuple2<K, V>> for RHashMap<K, V, S> {
     #[inline]
     fn extend<I>(&mut self, iter: I)
     where
@@ -1013,6 +1019,7 @@ impl<K, V, S> Default for RHashMap<K, V, S>
 where
     K: Eq + Hash,
     S: BuildHasher + Default,
+    S: BuildHasher,
 {
     fn default() -> Self {
         Self::with_hasher(S::default())
@@ -1023,6 +1030,7 @@ impl<K, V, S> Clone for RHashMap<K, V, S>
 where
     K: Clone,
     V: Clone,
+    S: BuildHasher,
     Self: Default,
 {
     fn clone(&self) -> Self {
@@ -1036,6 +1044,7 @@ impl<K, V, S> Debug for RHashMap<K, V, S>
 where
     K: Debug,
     V: Debug,
+    S: BuildHasher,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map()
@@ -1048,6 +1057,7 @@ impl<K, V, S> Eq for RHashMap<K, V, S>
 where
     K: Eq,
     V: Eq,
+    S: BuildHasher,
 {
 }
 
@@ -1055,6 +1065,7 @@ impl<K, V, S> PartialEq for RHashMap<K, V, S>
 where
     K: PartialEq,
     V: PartialEq,
+    S: BuildHasher,
 {
     fn eq(&self, other: &Self) -> bool {
         if self.len() != other.len() {
@@ -1066,14 +1077,25 @@ where
     }
 }
 
-unsafe impl<K, V, S> Send for RHashMap<K, V, S> where HashMap<K, V, S>: Send {}
+unsafe impl<K, V, S> Send for RHashMap<K, V, S>
+where
+    HashMap<K, V, S>: Send,
+    S: BuildHasher,
+{
+}
 
-unsafe impl<K, V, S> Sync for RHashMap<K, V, S> where HashMap<K, V, S>: Sync {}
+unsafe impl<K, V, S> Sync for RHashMap<K, V, S>
+where
+    HashMap<K, V, S>: Sync,
+    S: BuildHasher,
+{
+}
 
 impl<K, Q, V, S> Index<&Q> for RHashMap<K, V, S>
 where
     K: Borrow<Q>,
     Q: Eq + Hash + ?Sized,
+    S: BuildHasher,
 {
     type Output = V;
 
@@ -1087,6 +1109,7 @@ impl<K, Q, V, S> IndexMut<&Q> for RHashMap<K, V, S>
 where
     K: Borrow<Q>,
     Q: Eq + Hash + ?Sized,
+    S: BuildHasher,
 {
     fn index_mut(&mut self, query: &Q) -> &mut V {
         self.get_mut(query)
@@ -1103,11 +1126,11 @@ mod serde {
         Deserialize, Deserializer, Serialize, Serializer,
     };
 
-    struct RHashMapVisitor<K, V, S> {
+    struct RHashMapVisitor<K, V, S: BuildHasher> {
         _marker: NonOwningPhantom<RHashMap<K, V, S>>,
     }
 
-    impl<K, V, S> RHashMapVisitor<K, V, S> {
+    impl<K, V, S: BuildHasher> RHashMapVisitor<K, V, S> {
         fn new() -> Self {
             RHashMapVisitor {
                 _marker: NonOwningPhantom::NEW,
@@ -1119,6 +1142,7 @@ mod serde {
     where
         K: Deserialize<'de>,
         V: Deserialize<'de>,
+        S: BuildHasher,
         RHashMap<K, V, S>: Default,
     {
         type Value = RHashMap<K, V, S>;
@@ -1147,6 +1171,7 @@ mod serde {
     where
         K: Deserialize<'de>,
         V: Deserialize<'de>,
+        S: BuildHasher,
         Self: Default,
     {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -1161,6 +1186,7 @@ mod serde {
     where
         K: Serialize,
         V: Serialize,
+        S: BuildHasher,
     {
         fn serialize<Z>(&self, serializer: Z) -> Result<Z::Ok, Z::Error>
         where
@@ -1186,7 +1212,7 @@ mod serde {
     unsafe_unconstrained(S),
     //debug_print,
 )]
-struct VTable<K, V, S> {
+struct VTable<K, V, S: BuildHasher> {
     ///
     insert_elem: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K, V) -> ROption<V>,
 
@@ -1217,7 +1243,7 @@ struct VTable<K, V, S> {
     drain: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> Drain<'_, K, V>,
     iter_val: unsafe extern "C" fn(RBox<ErasedMap<K, V, S>>) -> IntoIter<K, V>,
     #[sabi(last_prefix_field)]
-    entry: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> REntry<'_, K, V>,
+    entry: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> REntry<'_, K, V, S>,
 }
 
 impl<K, V, S> VTable<K, V, S>

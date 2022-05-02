@@ -2,20 +2,6 @@ use super::*;
 
 use std::{hash::Hash, mem::ManuallyDrop, ptr};
 
-#[cfg(not(feature = "halfbrown"))]
-mod hashmap_impl {
-    pub use std::collections::hash_map::{Entry, OccupiedEntry, VacantEntry};
-}
-#[cfg(feature = "halfbrown")]
-mod hashmap_impl {
-    pub type OccupiedEntry<'a, K, V> =
-        halfbrown::OccupiedEntry<'a, K, V, halfbrown::DefaultHashBuilder>;
-    pub type VacantEntry<'a, K, V> =
-        halfbrown::VacantEntry<'a, K, V, halfbrown::DefaultHashBuilder>;
-    pub type Entry<'a, K, V> = halfbrown::Entry<'a, K, V, halfbrown::DefaultHashBuilder>;
-}
-use hashmap_impl::*;
-
 use crate::{
     marker_type::UnsafeIgnoredType,
     prefix_type::{PrefixTypeTrait, WithMetadata},
@@ -23,49 +9,64 @@ use crate::{
 };
 
 /// The enum stored alongside the unerased HashMap.
-pub(super) enum BoxedREntry<'a, K, V> {
-    Occupied(UnerasedOccupiedEntry<'a, K, V>),
-    Vacant(UnerasedVacantEntry<'a, K, V>),
+pub(super) enum BoxedREntry<'a, K, V, S: BuildHasher> {
+    Occupied(UnerasedOccupiedEntry<'a, K, V, S>),
+    Vacant(UnerasedVacantEntry<'a, K, V, S>),
 }
 
 /// A handle into an entry in a map, which is either vacant or occupied.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound(K: 'a), bound(V: 'a))]
-pub enum REntry<'a, K, V> {
-    Occupied(ROccupiedEntry<'a, K, V>),
-    Vacant(RVacantEntry<'a, K, V>),
+#[sabi(
+    bound(K: 'a),
+    bound(V: 'a),
+    bound(S: 'a),
+    // The hasher doesn't matter
+    unsafe_unconstrained(S),
+)]
+pub enum REntry<'a, K, V, S: BuildHasher> {
+    Occupied(ROccupiedEntry<'a, K, V, S>),
+    Vacant(RVacantEntry<'a, K, V, S>),
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 #[derive(StableAbi)]
 #[repr(C)]
-struct ErasedOccupiedEntry<K, V>(PhantomData<(K, V)>);
+#[sabi(
+    // The hasher doesn't matter
+    unsafe_unconstrained(S),
+)]
+struct ErasedOccupiedEntry<K, V, S>(PhantomData<(K, V, S)>);
 
 #[derive(StableAbi)]
 #[repr(C)]
-struct ErasedVacantEntry<K, V>(PhantomData<(K, V)>);
+#[sabi(
+    // The hasher doesn't matter
+    unsafe_unconstrained(S),
+)]
+struct ErasedVacantEntry<K, V, S>(PhantomData<(K, V, S)>);
 
-type UnerasedOccupiedEntry<'a, K, V> = ManuallyDrop<OccupiedEntry<'a, MapKey<K>, V>>;
+type UnerasedOccupiedEntry<'a, K, V, S> = ManuallyDrop<OccupiedEntry<'a, MapKey<K>, V, S>>;
 
-type UnerasedVacantEntry<'a, K, V> = ManuallyDrop<VacantEntry<'a, MapKey<K>, V>>;
+type UnerasedVacantEntry<'a, K, V, S> = ManuallyDrop<VacantEntry<'a, MapKey<K>, V, S>>;
 
-impl<'a, K: 'a, V: 'a> ErasedType<'a> for ErasedOccupiedEntry<K, V> {
-    type Unerased = UnerasedOccupiedEntry<'a, K, V>;
+impl<'a, K: 'a, V: 'a, S: 'a + BuildHasher> ErasedType<'a> for ErasedOccupiedEntry<K, V, S> {
+    type Unerased = UnerasedOccupiedEntry<'a, K, V, S>;
 }
 
-impl<'a, K: 'a, V: 'a> ErasedType<'a> for ErasedVacantEntry<K, V> {
-    type Unerased = UnerasedVacantEntry<'a, K, V>;
+impl<'a, K: 'a, V: 'a, S: 'a + BuildHasher> ErasedType<'a> for ErasedVacantEntry<K, V, S> {
+    type Unerased = UnerasedVacantEntry<'a, K, V, S>;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, K, V> From<Entry<'a, MapKey<K>, V>> for BoxedREntry<'a, K, V>
+impl<'a, K, V, S> From<Entry<'a, MapKey<K>, V, S>> for BoxedREntry<'a, K, V, S>
 where
     K: Eq + Hash,
+    S: BuildHasher,
 {
-    fn from(entry: Entry<'a, MapKey<K>, V>) -> Self {
+    fn from(entry: Entry<'a, MapKey<K>, V, S>) -> Self {
         match entry {
             Entry::Occupied(entry) => entry.piped(ManuallyDrop::new).piped(BoxedREntry::Occupied),
             Entry::Vacant(entry) => entry.piped(ManuallyDrop::new).piped(BoxedREntry::Vacant),
@@ -73,11 +74,12 @@ where
     }
 }
 
-impl<'a, K, V> REntry<'a, K, V>
+impl<'a, K, V, S> REntry<'a, K, V, S>
 where
     K: Eq + Hash,
+    S: BuildHasher,
 {
-    pub(super) unsafe fn new(entry: &'a mut BoxedREntry<'a, K, V>) -> Self {
+    pub(super) unsafe fn new(entry: &'a mut BoxedREntry<'a, K, V, S>) -> Self {
         match entry {
             BoxedREntry::Occupied(entry) => {
                 entry.piped(ROccupiedEntry::new).piped(REntry::Occupied)
@@ -89,7 +91,7 @@ where
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, K, V> REntry<'a, K, V> {
+impl<'a, K, V, S: BuildHasher> REntry<'a, K, V, S> {
     /// Returns a reference to the value in the entry.
     ///
     /// # Example
@@ -261,10 +263,11 @@ impl<'a, K, V> REntry<'a, K, V> {
     }
 }
 
-impl<K, V> Debug for REntry<'_, K, V>
+impl<K, V, S> Debug for REntry<'_, K, V, S>
 where
     K: Debug,
     V: Debug,
+    S: BuildHasher,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -279,38 +282,50 @@ where
 /// A handle into an occupied entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound(K: 'a), bound(V: 'a))]
-pub struct ROccupiedEntry<'a, K, V> {
-    entry: RMut<'a, ErasedOccupiedEntry<K, V>>,
-    vtable: OccupiedVTable_Ref<K, V>,
-    _marker: UnsafeIgnoredType<OccupiedEntry<'a, K, V>>,
+#[sabi(
+    bound(K: 'a),
+    bound(V: 'a),
+    bound(S: 'a),
+    // The hasher doesn't matter
+    unsafe_unconstrained(S),
+)]
+pub struct ROccupiedEntry<'a, K, V, S: BuildHasher> {
+    entry: RMut<'a, ErasedOccupiedEntry<K, V, S>>,
+    vtable: OccupiedVTable_Ref<K, V, S>,
+    _marker: UnsafeIgnoredType<OccupiedEntry<'a, K, V, S>>,
 }
 
 /// A handle into a vacant entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound(K: 'a), bound(V: 'a))]
-pub struct RVacantEntry<'a, K, V> {
-    entry: RMut<'a, ErasedVacantEntry<K, V>>,
-    vtable: VacantVTable_Ref<K, V>,
-    _marker: UnsafeIgnoredType<VacantEntry<'a, K, V>>,
+#[sabi(
+    bound(K: 'a),
+    bound(V: 'a),
+    bound(S: 'a),
+    // The hasher doesn't matter
+    unsafe_unconstrained(S),
+)]
+pub struct RVacantEntry<'a, K, V, S: BuildHasher> {
+    entry: RMut<'a, ErasedVacantEntry<K, V, S>>,
+    vtable: VacantVTable_Ref<K, V, S>,
+    _marker: UnsafeIgnoredType<VacantEntry<'a, K, V, S>>,
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, K, V> ROccupiedEntry<'a, K, V> {
-    fn vtable(&self) -> OccupiedVTable_Ref<K, V> {
+impl<'a, K, V, S: BuildHasher> ROccupiedEntry<'a, K, V, S> {
+    fn vtable(&self) -> OccupiedVTable_Ref<K, V, S> {
         self.vtable
     }
 }
 
-impl<'a, K, V> ROccupiedEntry<'a, K, V> {
-    fn into_inner(self) -> RMut<'a, ErasedOccupiedEntry<K, V>> {
+impl<'a, K, V, S: BuildHasher> ROccupiedEntry<'a, K, V, S> {
+    fn into_inner(self) -> RMut<'a, ErasedOccupiedEntry<K, V, S>> {
         let mut this = ManuallyDrop::new(self);
-        unsafe { ((&mut this.entry) as *mut RMut<'a, ErasedOccupiedEntry<K, V>>).read() }
+        unsafe { ((&mut this.entry) as *mut RMut<'a, ErasedOccupiedEntry<K, V, S>>).read() }
     }
 
-    pub(super) fn new(entry: &'a mut UnerasedOccupiedEntry<'a, K, V>) -> Self {
+    pub(super) fn new(entry: &'a mut UnerasedOccupiedEntry<'a, K, V, S>) -> Self {
         unsafe {
             Self {
                 entry: ErasedOccupiedEntry::from_unerased(entry),
@@ -485,7 +500,7 @@ impl<'a, K, V> ROccupiedEntry<'a, K, V> {
     }
 }
 
-impl<K, V> Debug for ROccupiedEntry<'_, K, V>
+impl<K, V, S: BuildHasher> Debug for ROccupiedEntry<'_, K, V, S>
 where
     K: Debug,
     V: Debug,
@@ -498,7 +513,7 @@ where
     }
 }
 
-impl<'a, K, V> Drop for ROccupiedEntry<'a, K, V> {
+impl<'a, K, V, S: BuildHasher> Drop for ROccupiedEntry<'a, K, V, S> {
     fn drop(&mut self) {
         let vtable = self.vtable();
 
@@ -510,19 +525,19 @@ impl<'a, K, V> Drop for ROccupiedEntry<'a, K, V> {
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, K, V> RVacantEntry<'a, K, V> {
-    fn vtable(&self) -> VacantVTable_Ref<K, V> {
+impl<'a, K, V, S: BuildHasher> RVacantEntry<'a, K, V, S> {
+    fn vtable(&self) -> VacantVTable_Ref<K, V, S> {
         self.vtable
     }
 }
 
-impl<'a, K, V> RVacantEntry<'a, K, V> {
-    fn into_inner(self) -> RMut<'a, ErasedVacantEntry<K, V>> {
+impl<'a, K, V, S: BuildHasher> RVacantEntry<'a, K, V, S> {
+    fn into_inner(self) -> RMut<'a, ErasedVacantEntry<K, V, S>> {
         let mut this = ManuallyDrop::new(self);
-        unsafe { ((&mut this.entry) as *mut RMut<'a, ErasedVacantEntry<K, V>>).read() }
+        unsafe { ((&mut this.entry) as *mut RMut<'a, ErasedVacantEntry<K, V, S>>).read() }
     }
 
-    pub(super) fn new(entry: &'a mut UnerasedVacantEntry<'a, K, V>) -> Self
+    pub(super) fn new(entry: &'a mut UnerasedVacantEntry<'a, K, V, S>) -> Self
     where
         K: Eq + Hash,
     {
@@ -617,7 +632,7 @@ impl<'a, K, V> RVacantEntry<'a, K, V> {
     }
 }
 
-impl<K, V> Debug for RVacantEntry<'_, K, V>
+impl<K, V, S: BuildHasher> Debug for RVacantEntry<'_, K, V, S>
 where
     K: Debug,
 {
@@ -628,7 +643,7 @@ where
     }
 }
 
-impl<'a, K, V> Drop for RVacantEntry<'a, K, V> {
+impl<'a, K, V, S: BuildHasher> Drop for RVacantEntry<'a, K, V, S> {
     fn drop(&mut self) {
         let vtable = self.vtable();
 
@@ -640,26 +655,31 @@ impl<'a, K, V> Drop for RVacantEntry<'a, K, V> {
 
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(kind(Prefix), missing_field(panic))]
-pub struct OccupiedVTable<K, V> {
-    drop_entry: unsafe extern "C" fn(RMut<'_, ErasedOccupiedEntry<K, V>>),
-    key: extern "C" fn(RRef<'_, ErasedOccupiedEntry<K, V>>) -> &K,
-    get_elem: extern "C" fn(RRef<'_, ErasedOccupiedEntry<K, V>>) -> &V,
-    get_mut_elem: extern "C" fn(RMut<'_, ErasedOccupiedEntry<K, V>>) -> &mut V,
-    fn_into_mut_elem: extern "C" fn(ROccupiedEntry<'_, K, V>) -> &'_ mut V,
-    insert_elem: extern "C" fn(RMut<'_, ErasedOccupiedEntry<K, V>>, V) -> V,
-    remove: extern "C" fn(ROccupiedEntry<'_, K, V>) -> V,
+#[sabi(
+    kind(Prefix),
+    missing_field(panic),
+    // The hasher doesn't matter
+    unsafe_unconstrained(S),
+)]
+pub struct OccupiedVTable<K, V, S: BuildHasher> {
+    drop_entry: unsafe extern "C" fn(RMut<'_, ErasedOccupiedEntry<K, V, S>>),
+    key: extern "C" fn(RRef<'_, ErasedOccupiedEntry<K, V, S>>) -> &K,
+    get_elem: extern "C" fn(RRef<'_, ErasedOccupiedEntry<K, V, S>>) -> &V,
+    get_mut_elem: extern "C" fn(RMut<'_, ErasedOccupiedEntry<K, V, S>>) -> &mut V,
+    fn_into_mut_elem: extern "C" fn(ROccupiedEntry<'_, K, V, S>) -> &'_ mut V,
+    insert_elem: extern "C" fn(RMut<'_, ErasedOccupiedEntry<K, V, S>>, V) -> V,
+    remove: extern "C" fn(ROccupiedEntry<'_, K, V, S>) -> V,
 }
 
-impl<K, V> OccupiedVTable<K, V> {
-    const VTABLE_REF: OccupiedVTable_Ref<K, V> = OccupiedVTable_Ref(Self::WM_VTABLE.as_prefix());
+impl<K, V, S: BuildHasher> OccupiedVTable<K, V, S> {
+    const VTABLE_REF: OccupiedVTable_Ref<K, V, S> = OccupiedVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {
-        const WM_VTABLE: WithMetadata<OccupiedVTable<K, V>> =
+        const WM_VTABLE: WithMetadata<OccupiedVTable<K, V, S>> =
             WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
     }
 
-    const VTABLE: OccupiedVTable<K, V> = OccupiedVTable {
+    const VTABLE: OccupiedVTable<K, V, S> = OccupiedVTable {
         drop_entry: ErasedOccupiedEntry::drop_entry,
         key: ErasedOccupiedEntry::key,
         get_elem: ErasedOccupiedEntry::get_elem,
@@ -670,7 +690,7 @@ impl<K, V> OccupiedVTable<K, V> {
     };
 }
 
-impl<K, V> ErasedOccupiedEntry<K, V> {
+impl<K, V, S: BuildHasher> ErasedOccupiedEntry<K, V, S> {
     unsafe extern "C" fn drop_entry(this: RMut<'_, Self>) {
         extern_fn_panic_handling! {
             Self::run_downcast_as_mut(this, |this|{
@@ -708,7 +728,7 @@ impl<K, V> ErasedOccupiedEntry<K, V> {
             }
         }
     }
-    extern "C" fn fn_into_mut_elem(this: ROccupiedEntry<'_, K, V>) -> &'_ mut V {
+    extern "C" fn fn_into_mut_elem(this: ROccupiedEntry<'_, K, V, S>) -> &'_ mut V {
         unsafe {
             extern_fn_panic_handling! {
                 Self::run_downcast_as_mut(
@@ -728,7 +748,7 @@ impl<K, V> ErasedOccupiedEntry<K, V> {
             }
         }
     }
-    extern "C" fn remove(this: ROccupiedEntry<'_, K, V>) -> V {
+    extern "C" fn remove(this: ROccupiedEntry<'_, K, V, S>) -> V {
         unsafe {
             extern_fn_panic_handling! {
                 Self::run_downcast_as_mut(
@@ -744,26 +764,32 @@ impl<K, V> ErasedOccupiedEntry<K, V> {
 
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(kind(Prefix), missing_field(panic))]
-pub struct VacantVTable<K, V> {
-    drop_entry: unsafe extern "C" fn(RMut<'_, ErasedVacantEntry<K, V>>),
-    key: extern "C" fn(RRef<'_, ErasedVacantEntry<K, V>>) -> &K,
-    fn_into_key: extern "C" fn(RVacantEntry<'_, K, V>) -> K,
-    insert_elem: extern "C" fn(RVacantEntry<'_, K, V>, V) -> &'_ mut V,
+#[sabi(
+    kind(Prefix),
+    missing_field(panic),
+    // The hasher doesn't matter
+    unsafe_unconstrained(S),
+)]
+pub struct VacantVTable<K, V, S: BuildHasher> {
+    drop_entry: unsafe extern "C" fn(RMut<'_, ErasedVacantEntry<K, V, S>>),
+    key: extern "C" fn(RRef<'_, ErasedVacantEntry<K, V, S>>) -> &K,
+    fn_into_key: extern "C" fn(RVacantEntry<'_, K, V, S>) -> K,
+    insert_elem: extern "C" fn(RVacantEntry<'_, K, V, S>, V) -> &'_ mut V,
 }
 
-impl<K, V> VacantVTable<K, V>
+impl<K, V, S> VacantVTable<K, V, S>
 where
     K: Hash,
+    S: BuildHasher,
 {
-    const VTABLE_REF: VacantVTable_Ref<K, V> = VacantVTable_Ref(Self::WM_VTABLE.as_prefix());
+    const VTABLE_REF: VacantVTable_Ref<K, V, S> = VacantVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {
-        const WM_VTABLE: WithMetadata<VacantVTable<K, V>> =
+        const WM_VTABLE: WithMetadata<VacantVTable<K, V, S>> =
             WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
     }
 
-    const VTABLE: VacantVTable<K, V> = VacantVTable {
+    const VTABLE: VacantVTable<K, V, S> = VacantVTable {
         drop_entry: ErasedVacantEntry::drop_entry,
         key: ErasedVacantEntry::key,
         fn_into_key: ErasedVacantEntry::fn_into_key,
@@ -771,9 +797,10 @@ where
     };
 }
 
-impl<K, V> ErasedVacantEntry<K, V>
+impl<K, V, S> ErasedVacantEntry<K, V, S>
 where
     K: Hash,
+    S: BuildHasher,
 {
     unsafe extern "C" fn drop_entry(this: RMut<'_, Self>) {
         extern_fn_panic_handling! {
@@ -792,7 +819,7 @@ where
             }
         }
     }
-    extern "C" fn fn_into_key(this: RVacantEntry<'_, K, V>) -> K {
+    extern "C" fn fn_into_key(this: RVacantEntry<'_, K, V, S>) -> K {
         unsafe {
             extern_fn_panic_handling! {
                 Self::run_downcast_as_mut(
@@ -802,7 +829,7 @@ where
             }
         }
     }
-    extern "C" fn insert_elem(this: RVacantEntry<'_, K, V>, elem: V) -> &'_ mut V {
+    extern "C" fn insert_elem(this: RVacantEntry<'_, K, V, S>, elem: V) -> &'_ mut V {
         unsafe {
             extern_fn_panic_handling! {
                 Self::run_downcast_as_mut(
