@@ -379,6 +379,14 @@ unsafe impl<T: Send + Sync> Sync for RRwLock<T> where RawRwLock: Sync {}
 
 ///////////////////////////////////////////////////////////////////////////////
 
+impl<T: Default> Default for RRwLock<T> {
+    fn default() -> Self {
+        Self::new(T::default())
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 macro_rules! impl_lock_guard {
     ($guard:ident) => {
         impl<'a, T> Display for $guard<'a, T>
