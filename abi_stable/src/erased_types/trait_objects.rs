@@ -1,6 +1,9 @@
 //! Ffi-safe trait objects for individual traits.
 
-use std::fmt::{self, Debug, Display};
+use std::{
+    fmt::{self, Debug, Display},
+    marker::PhantomData,
+};
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
@@ -21,21 +24,7 @@ use crate::{
 #[derive(StableAbi)]
 pub struct HasherObject<'a> {
     this: RMut<'a, ErasedObject>,
-    write: unsafe extern "C" fn(RMut<'_, ErasedObject>, RSlice<'_, u8>),
-    // No c-compatible layout for i128 yet
-    // write_i128: unsafe extern "C" fn(RMut<'_, ErasedObject>, i128),
-    write_i16: unsafe extern "C" fn(RMut<'_, ErasedObject>, i16),
-    write_i32: unsafe extern "C" fn(RMut<'_, ErasedObject>, i32),
-    write_i64: unsafe extern "C" fn(RMut<'_, ErasedObject>, i64),
-    write_i8: unsafe extern "C" fn(RMut<'_, ErasedObject>, i8),
-    write_isize: unsafe extern "C" fn(RMut<'_, ErasedObject>, isize),
-    // No c-compatible layout for u128 yet
-    // write_u128: unsafe extern "C" fn(RMut<'_, ErasedObject>, u128),
-    write_u16: unsafe extern "C" fn(RMut<'_, ErasedObject>, u16),
-    write_u32: unsafe extern "C" fn(RMut<'_, ErasedObject>, u32),
-    write_u64: unsafe extern "C" fn(RMut<'_, ErasedObject>, u64),
-    write_u8: unsafe extern "C" fn(RMut<'_, ErasedObject>, u8),
-    write_usize: unsafe extern "C" fn(RMut<'_, ErasedObject>, usize),
+    write_fns: &'static WriteFns,
     finish: unsafe extern "C" fn(RRef<'_, ErasedObject>) -> u64,
 }
 
@@ -50,17 +39,7 @@ impl<'a> HasherObject<'a> {
                 // The lifetime is tied to the input.
                 this.transmute_element::<ErasedObject>()
             },
-            write: write_Hasher::<T>,
-            write_i16: write_i16_Hasher::<T>,
-            write_i32: write_i32_Hasher::<T>,
-            write_i64: write_i64_Hasher::<T>,
-            write_i8: write_i8_Hasher::<T>,
-            write_isize: write_isize_Hasher::<T>,
-            write_u16: write_u16_Hasher::<T>,
-            write_u32: write_u32_Hasher::<T>,
-            write_u64: write_u64_Hasher::<T>,
-            write_u8: write_u8_Hasher::<T>,
-            write_usize: write_usize_Hasher::<T>,
+            write_fns: MakeWriteFns::<T>::V,
             finish: finish_Hasher::<T>,
         }
     }
@@ -69,17 +48,7 @@ impl<'a> HasherObject<'a> {
     pub fn as_mut<'b: 'a>(&'b mut self) -> HasherObject<'b> {
         Self {
             this: self.this.reborrow(),
-            write: self.write,
-            write_i16: self.write_i16,
-            write_i32: self.write_i32,
-            write_i64: self.write_i64,
-            write_i8: self.write_i8,
-            write_isize: self.write_isize,
-            write_u16: self.write_u16,
-            write_u32: self.write_u32,
-            write_u64: self.write_u64,
-            write_u8: self.write_u8,
-            write_usize: self.write_usize,
+            write_fns: self.write_fns,
             finish: self.finish,
         }
     }
@@ -89,7 +58,7 @@ macro_rules! impl_write {
     ( $(($ty:ty, $fn:ident)),* ) => {
         $(
             fn $fn(&mut self, val: $ty) {
-                unsafe { (self.$fn)(self.this.reborrow(), val) }
+                unsafe { (self.write_fns.$fn)(self.this.reborrow(), val) }
             }
         )*
     }
@@ -100,7 +69,7 @@ impl<'a> Hasher for HasherObject<'a> {
         unsafe { (self.finish)(self.this.as_rref()) }
     }
     fn write(&mut self, bytes: &[u8]) {
-        unsafe { (self.write)(self.this.reborrow(), bytes.into()) }
+        unsafe { (self.write_fns.write)(self.this.reborrow(), bytes.into()) }
     }
 
     impl_write!(
@@ -122,6 +91,51 @@ impl<'a> Hasher for HasherObject<'a> {
     fn write_u128(&mut self, val: u128) {
         todo!()
     }
+}
+
+/// The write variations for the hasher. Even if `write` is the only required
+/// function in the trait, the rest must also be explicitly implemented in the
+/// hasher object so that the original behaviour is maintained (since the
+/// default impls may have been overridden).
+///
+/// They are declared and constructed separately from the object for
+/// cleanliness.
+#[repr(C)]
+#[derive(StableAbi)]
+struct WriteFns {
+    write: unsafe extern "C" fn(RMut<'_, ErasedObject>, RSlice<'_, u8>),
+    // No c-compatible layout for i128 yet
+    // write_i128: unsafe extern "C" fn(RMut<'_, ErasedObject>, i128),
+    write_i16: unsafe extern "C" fn(RMut<'_, ErasedObject>, i16),
+    write_i32: unsafe extern "C" fn(RMut<'_, ErasedObject>, i32),
+    write_i64: unsafe extern "C" fn(RMut<'_, ErasedObject>, i64),
+    write_i8: unsafe extern "C" fn(RMut<'_, ErasedObject>, i8),
+    write_isize: unsafe extern "C" fn(RMut<'_, ErasedObject>, isize),
+    // No c-compatible layout for u128 yet
+    // write_u128: unsafe extern "C" fn(RMut<'_, ErasedObject>, u128),
+    write_u16: unsafe extern "C" fn(RMut<'_, ErasedObject>, u16),
+    write_u32: unsafe extern "C" fn(RMut<'_, ErasedObject>, u32),
+    write_u64: unsafe extern "C" fn(RMut<'_, ErasedObject>, u64),
+    write_u8: unsafe extern "C" fn(RMut<'_, ErasedObject>, u8),
+    write_usize: unsafe extern "C" fn(RMut<'_, ErasedObject>, usize),
+}
+
+struct MakeWriteFns<T>(PhantomData<T>);
+
+impl<T: Hasher> MakeWriteFns<T> {
+    const V: &'static WriteFns = &WriteFns {
+        write: write_Hasher::<T>,
+        write_i16: write_i16_Hasher::<T>,
+        write_i32: write_i32_Hasher::<T>,
+        write_i64: write_i64_Hasher::<T>,
+        write_i8: write_i8_Hasher::<T>,
+        write_isize: write_isize_Hasher::<T>,
+        write_u16: write_u16_Hasher::<T>,
+        write_u32: write_u32_Hasher::<T>,
+        write_u64: write_u64_Hasher::<T>,
+        write_u8: write_u8_Hasher::<T>,
+        write_usize: write_usize_Hasher::<T>,
+    };
 }
 
 //////////////
