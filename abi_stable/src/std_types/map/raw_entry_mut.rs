@@ -97,46 +97,6 @@ where
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a, K, V, S: BuildHasher> RRawEntryMut<'a, K, V, S> {
-    /// Returns a reference to the value in the entry.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RHashMap;
-    ///
-    /// let mut map: RHashMap<u32, u32> = vec![(1, 100)].into_iter().collect();
-    ///
-    /// assert_eq!(map.entry(0).get(), None);
-    /// assert_eq!(map.entry(1).get(), Some(&100));
-    ///
-    /// ```
-    pub fn get(&self) -> Option<&V> {
-        match self {
-            RRawEntryMut::Occupied(entry) => Some(entry.get()),
-            RRawEntryMut::Vacant(_) => None,
-        }
-    }
-
-    /// Returns a mutable reference to the value in the entry.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RHashMap;
-    ///
-    /// let mut map: RHashMap<u32, u32> = vec![(1, 100)].into_iter().collect();
-    ///
-    /// assert_eq!(map.entry(0).get_mut(), None);
-    /// assert_eq!(map.entry(1).get_mut(), Some(&mut 100));
-    ///
-    /// ```
-    pub fn get_mut(&mut self) -> Option<&mut V> {
-        match self {
-            RRawEntryMut::Occupied(entry) => Some(entry.get_mut()),
-            RRawEntryMut::Vacant(_) => None,
-        }
-    }
-
     /// Inserts `default` as the value in the entry if it wasn't occupied,
     /// returning a mutable reference to the value in the entry.
     ///
@@ -190,25 +150,6 @@ impl<'a, K, V, S: BuildHasher> RRawEntryMut<'a, K, V, S> {
         }
     }
 
-    /// Gets the key of the entry.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::{RHashMap, RString};
-    ///
-    /// let mut map = RHashMap::<RString, RString>::new();
-    /// map.insert("foo".into(), "bar".into());
-    ///
-    /// assert_eq!(map.entry("foo".into()).key(), &RString::from("foo"));
-    /// ```
-    pub fn key(&self) -> &K {
-        match self {
-            RRawEntryMut::Occupied(entry) => entry.key(),
-            RRawEntryMut::Vacant(entry) => entry.key(),
-        }
-    }
-
     /// Allows mutating an occupied entry before doing other operations.
     ///
     /// This is a no-op on a vacant entry.
@@ -238,32 +179,6 @@ impl<'a, K, V, S: BuildHasher> RRawEntryMut<'a, K, V, S> {
                 RRawEntryMut::Occupied(entry)
             }
             RRawEntryMut::Vacant(entry) => RRawEntryMut::Vacant(entry),
-        }
-    }
-
-    /// Inserts the `V::default()` value in the entry if it wasn't occupied,
-    /// returning a mutable reference to the value in the entry.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RHashMap;
-    ///
-    /// let mut map = RHashMap::<u32, u32>::new();
-    ///
-    /// assert_eq!(map.entry(0).or_insert(100), &mut 100);
-    /// assert_eq!(map.entry(0).or_default(), &mut 100);
-    ///
-    /// assert_eq!(map.entry(1).or_default(), &mut 0);
-    ///
-    /// ```
-    pub fn or_default(self) -> &'a mut V
-    where
-        V: Default,
-    {
-        match self {
-            RRawEntryMut::Occupied(entry) => entry.into_mut(),
-            RRawEntryMut::Vacant(entry) => entry.insert(Default::default()),
         }
     }
 }
@@ -776,9 +691,7 @@ impl<K, V, S> ErasedRawOccupiedEntryMut<K, V, S> {
 )]
 pub struct VacantVTable<K, V, S> {
     drop_entry: unsafe extern "C" fn(RMut<'_, ErasedRawVacantEntryMut<K, V, S>>),
-    key: extern "C" fn(RRef<'_, ErasedRawVacantEntryMut<K, V, S>>) -> &K,
-    fn_into_key: extern "C" fn(RRawVacantEntryMut<'_, K, V, S>) -> K,
-    insert_elem: extern "C" fn(RRawVacantEntryMut<'_, K, V, S>, V) -> &'_ mut V,
+    insert_elem: extern "C" fn(RRawVacantEntryMut<'_, K, V, S>, K, V) -> &'_ mut V,
 }
 
 impl<K, V, S> VacantVTable<K, V, S>
@@ -795,8 +708,6 @@ where
 
     const VTABLE: VacantVTable<K, V, S> = VacantVTable {
         drop_entry: ErasedRawVacantEntryMut::drop_entry,
-        key: ErasedRawVacantEntryMut::key,
-        fn_into_key: ErasedRawVacantEntryMut::fn_into_key,
         insert_elem: ErasedRawVacantEntryMut::insert_elem,
     };
 }
@@ -813,32 +724,16 @@ where
             })
         }
     }
-    extern "C" fn key(this: RRef<'_, Self>) -> &K {
-        unsafe {
-            extern_fn_panic_handling! {
-                Self::run_downcast_as(
-                    this,
-                    |this| this.key().as_ref()
-                )
-            }
-        }
-    }
-    extern "C" fn fn_into_key(this: RRawVacantEntryMut<'_, K, V, S>) -> K {
+    extern "C" fn insert_elem<'a>(
+        this: RRawVacantEntryMut<'a, K, V, S>,
+        key: K,
+        elem: V,
+    ) -> (&'a mut K, &'a mut V) {
         unsafe {
             extern_fn_panic_handling! {
                 Self::run_downcast_as_mut(
                     this.into_inner(),
-                    |this| take_manuallydrop(this).into_key().into_inner()
-                )
-            }
-        }
-    }
-    extern "C" fn insert_elem(this: RRawVacantEntryMut<'_, K, V, S>, key: K, elem: V) -> &'_ mut V {
-        unsafe {
-            extern_fn_panic_handling! {
-                Self::run_downcast_as_mut(
-                    this.into_inner(),
-                    |this| take_manuallydrop(this).insert(key, elem)
+                    |this| take_manuallydrop(this).insert(MapKey::Value(key), elem)
                 )
             }
         }

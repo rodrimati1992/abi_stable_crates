@@ -781,11 +781,37 @@ impl<K, V, S> RHashMap<K, V, S> {
         unsafe { vtable.entry()(self.map.as_rmut(), key) }
     }
 
-    /// TODO
-    pub fn raw_entry_mut(&mut self, key: K) -> RRawEntryMut<'_, K, V, S> {
+    /// TODO docs
+    pub fn raw_entry_key<Q>(&mut self, k: &Q) -> RRawEntryMut<'_, K, V, S>
+    where
+        S: BuildHasher,
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
         let vtable = self.vtable();
 
-        unsafe { vtable.raw_entry_mut()(self.map.as_rmut(), key) }
+        unsafe { vtable.raw_entry_key()(self.map.as_rmut(), k) }
+    }
+
+    /// TODO docs
+    pub fn raw_entry_key_hashed_nocheck<Q>(&mut self, hash: u64, k: &Q) -> RRawEntryMut<'_, K, V, S>
+    where
+        K: Borrow<Q>,
+        Q: Eq,
+    {
+        let vtable = self.vtable();
+
+        unsafe { vtable.raw_entry_key_hashed_nocheck()(self.map.as_rmut(), hash, k) }
+    }
+
+    /// TODO docs
+    pub fn raw_entry_hash<F>(&mut self, hash: u64, is_match: F) -> RRawEntryMut<'_, K, V, S>
+    where
+        F: Fn(&K) -> bool,
+    {
+        let vtable = self.vtable();
+
+        unsafe { vtable.raw_entry_hash()(self.map.as_rmut(), hash, is_match) }
     }
 
     /// An iterator visiting all keys in arbitrary order.
@@ -1276,7 +1302,7 @@ struct VTable<K, V, S> {
     #[sabi(last_prefix_field)]
     raw_entry_hash: for<'a> unsafe extern "C" fn(
         RMut<'a, ErasedMap<K, V, S>>,
-        &'a K,
+        u64,
         MatchFn<K>,
     ) -> RRawEntryMut<'a, K, V, S>,
 }
