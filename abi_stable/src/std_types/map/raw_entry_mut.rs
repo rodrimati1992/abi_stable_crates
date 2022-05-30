@@ -47,7 +47,8 @@ struct ErasedRawOccupiedEntryMut<K, V, S>(PhantomData<(K, V)>, UnsafeIgnoredType
 )]
 struct ErasedRawVacantEntryMut<K, V, S>(PhantomData<(K, V)>, UnsafeIgnoredType<S>);
 
-type UnerasedRawOccupiedEntryMut<'a, K, V, S> = ManuallyDrop<RawOccupiedEntryMut<'a, MapKey<K>, V, S>>;
+type UnerasedRawOccupiedEntryMut<'a, K, V, S> =
+    ManuallyDrop<RawOccupiedEntryMut<'a, MapKey<K>, V, S>>;
 
 type UnerasedRawVacantEntryMut<'a, K, V, S> = ManuallyDrop<RawVacantEntryMut<'a, MapKey<K>, V, S>>;
 
@@ -67,8 +68,12 @@ where
 {
     fn from(entry: RawEntryMut<'a, MapKey<K>, V, S>) -> Self {
         match entry {
-            RawEntryMut::Occupied(entry) => entry.piped(ManuallyDrop::new).piped(BoxedRRawEntryMut::Occupied),
-            RawEntryMut::Vacant(entry) => entry.piped(ManuallyDrop::new).piped(BoxedRRawEntryMut::Vacant),
+            RawEntryMut::Occupied(entry) => entry
+                .piped(ManuallyDrop::new)
+                .piped(BoxedRRawEntryMut::Occupied),
+            RawEntryMut::Vacant(entry) => entry
+                .piped(ManuallyDrop::new)
+                .piped(BoxedRRawEntryMut::Vacant),
         }
     }
 }
@@ -79,10 +84,12 @@ where
 {
     pub(super) unsafe fn new(entry: &'a mut BoxedRRawEntryMut<'a, K, V, S>) -> Self {
         match entry {
-            BoxedRRawEntryMut::Occupied(entry) => {
-                entry.piped(RRawOccupiedEntryMut::new).piped(RRawEntryMut::Occupied)
-            }
-            BoxedRRawEntryMut::Vacant(entry) => entry.piped(RRawVacantEntryMut::new).piped(RRawEntryMut::Vacant),
+            BoxedRRawEntryMut::Occupied(entry) => entry
+                .piped(RRawOccupiedEntryMut::new)
+                .piped(RRawEntryMut::Occupied),
+            BoxedRRawEntryMut::Vacant(entry) => entry
+                .piped(RRawVacantEntryMut::new)
+                .piped(RRawEntryMut::Vacant),
         }
     }
 }
@@ -826,12 +833,12 @@ where
             }
         }
     }
-    extern "C" fn insert_elem(this: RRawVacantEntryMut<'_, K, V, S>, elem: V) -> &'_ mut V {
+    extern "C" fn insert_elem(this: RRawVacantEntryMut<'_, K, V, S>, key: K, elem: V) -> &'_ mut V {
         unsafe {
             extern_fn_panic_handling! {
                 Self::run_downcast_as_mut(
                     this.into_inner(),
-                    |this| take_manuallydrop(this).insert(elem)
+                    |this| take_manuallydrop(this).insert(key, elem)
                 )
             }
         }

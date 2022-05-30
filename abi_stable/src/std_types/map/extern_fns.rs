@@ -6,6 +6,8 @@ use crate::{
     traits::IntoReprC,
 };
 
+pub(super) type MatchFn<K> = extern "C" fn(&K) -> bool;
+
 impl<K, V, S> ErasedMap<K, V, S>
 where
     K: Hash + Eq,
@@ -181,19 +183,62 @@ where
         })
     }
 
-    pub(super) unsafe extern "C" fn raw_entry_mut(
-        this: RMut<'_, Self>,
-        key: K,
-        value: V,
-    ) -> RRawEntryBuilderMut<'_, K, V, S> {
+    /// Note that this avoid the intermediate builder step for simplicity
+    pub(super) unsafe extern "C" fn raw_entry_key<'a>(
+        this: RMut<'a, Self>,
+        k: &'a K,
+    ) -> RRawEntryMut<'a, K, V, S> {
         Self::run_mut(this, |this| {
             this.raw_entry_mut = None;
             let map = &mut this.map;
-            let raw_entry_mut = this
-                .raw_entry_mut
-                .get_or_insert_with(|| { map }.raw_entry_mut().piped(BoxedRRawEntryBuilderMut::new));
+            let raw_entry_mut = this.raw_entry_mut.get_or_insert_with(|| {
+                { map }
+                    .raw_entry_mut()
+                    .from_key(k)
+                    .piped(BoxedRRawEntryMut::from)
+            });
 
-            unsafe { RRawEntryBuilderMut::new(raw_entry_mut) }
+            unsafe { RRawEntryMut::new(raw_entry_mut) }
+        })
+    }
+
+    /// Note that this avoid the intermediate builder step for simplicity
+    pub(super) unsafe extern "C" fn raw_entry_key_hashed_nocheck<'a>(
+        this: RMut<'a, Self>,
+        hash: u64,
+        k: &'a K,
+    ) -> RRawEntryMut<'a, K, V, S> {
+        Self::run_mut(this, |this| {
+            this.raw_entry_mut = None;
+            let map = &mut this.map;
+            let raw_entry_mut = this.raw_entry_mut.get_or_insert_with(|| {
+                { map }
+                    .raw_entry_mut()
+                    .from_key_hashed_nocheck(hash, k)
+                    .piped(BoxedRRawEntryMut::from)
+            });
+
+            unsafe { RRawEntryMut::new(raw_entry_mut) }
+        })
+    }
+
+    /// Note that this avoid the intermediate builder step for simplicity
+    pub(super) unsafe extern "C" fn raw_entry_hash<'a>(
+        this: RMut<'a, Self>,
+        hash: u64,
+        is_match: MatchFn<F>,
+    ) -> RRawEntryMut<'a, K, V, S> {
+        Self::run_mut(this, |this| {
+            this.raw_entry_mut = None;
+            let map = &mut this.map;
+            let raw_entry_mut = this.raw_entry_mut.get_or_insert_with(|| {
+                { map }
+                    .raw_entry_mut()
+                    .from_hash(hash, is_match)
+                    .piped(BoxedRRawEntryMut::from)
+            });
+
+            unsafe { RRawEntryMut::new(raw_entry_mut) }
         })
     }
 }

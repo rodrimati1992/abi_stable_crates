@@ -39,26 +39,34 @@ mod iterator_stuff;
 mod map_key;
 mod map_query;
 mod raw_entry_mut;
-mod raw_entry_builder_mut;
+// mod raw_entry_builder_mut;
 
 #[cfg(all(test, not(feature = "only_new_tests")))]
 mod test;
 
 use self::{
-    entry::BoxedREntry, map_key::MapKey, map_query::MapQuery, raw_entry_mut::BoxedRRawEntryMut, raw_entry_builder_mut::BoxedRRawEntryBuilderMut,
+    entry::BoxedREntry,
+    map_key::MapKey,
+    map_query::MapQuery,
+    raw_entry_mut::BoxedRRawEntryMut,
+    // raw_entry_builder_mut::BoxedRRawEntryBuilderMut,
 };
 
 pub use self::{
     entry::{REntry, ROccupiedEntry, RVacantEntry},
     iterator_stuff::{IntoIter, MutIterInterface, RefIterInterface, ValIterInterface},
     raw_entry_mut::{RRawEntryMut, RRawOccupiedEntryMut, RRawVacantEntryMut},
-    raw_entry_builder_mut::RRawEntryBuilderMut,
+    // raw_entry_builder_mut::RRawEntryBuilderMut,
 };
 
 #[cfg(feature = "halfbrown")]
-pub use halfbrown::{Entry, OccupiedEntry, VacantEntry, RawEntryMut, RawEntryBuilderMut, RawOccupiedEntryMut, RawVacantEntryMut};
+pub use halfbrown::{
+    Entry, OccupiedEntry, RawEntryMut, RawOccupiedEntryMut, RawVacantEntryMut, VacantEntry,
+};
 #[cfg(not(feature = "halfbrown"))]
-pub use hashbrown::hash_map::{Entry, OccupiedEntry, VacantEntry, RawEntryMut, RawEntryBuilderMut, RawOccupiedEntryMut, RawVacantEntryMut};
+pub use hashbrown::hash_map::{
+    Entry, OccupiedEntry, RawEntryMut, RawOccupiedEntryMut, RawVacantEntryMut, VacantEntry,
+};
 
 /// An ffi-safe hashmap, which wraps `std::collections::HashMap<K, V, S>`,
 /// only requiring the `K: Eq + Hash` bounds when constructing it.
@@ -1213,6 +1221,8 @@ mod serde {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+pub(super) type MatchFn<K> = extern "C" fn(&K) -> bool;
+
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -1254,8 +1264,21 @@ struct VTable<K, V, S> {
     drain: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> Drain<'_, K, V>,
     iter_val: unsafe extern "C" fn(RBox<ErasedMap<K, V, S>>) -> IntoIter<K, V>,
     entry: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> REntry<'_, K, V, S>,
+    raw_entry_key: for<'a> unsafe extern "C" fn(
+        RMut<'a, ErasedMap<K, V, S>>,
+        &'a K,
+    ) -> RRawEntryMut<'a, K, V, S>,
+    raw_entry_key_hashed_nocheck: for<'a> unsafe extern "C" fn(
+        RMut<'a, ErasedMap<K, V, S>>,
+        u64,
+        &'a K,
+    ) -> RRawEntryMut<'a, K, V, S>,
     #[sabi(last_prefix_field)]
-    raw_entry_mut: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> RRawEntryBuilderMut<'_, K, V, S>,
+    raw_entry_hash: for<'a> unsafe extern "C" fn(
+        RMut<'a, ErasedMap<K, V, S>>,
+        &'a K,
+        MatchFn<K>,
+    ) -> RRawEntryMut<'a, K, V, S>,
 }
 
 impl<K, V, S> VTable<K, V, S>
@@ -1302,7 +1325,9 @@ where
         drain: ErasedMap::drain,
         iter_val: ErasedMap::iter_val,
         entry: ErasedMap::entry,
-        raw_entry_mut: ErasedMap::raw_entry_mut,
+        raw_entry_key: ErasedMap::raw_entry_key,
+        raw_entry_key_hashed_nocheck: ErasedMap::raw_entry_key_hashed_nocheck,
+        raw_entry_hash: ErasedMap::raw_entry_hash,
     };
 }
 
