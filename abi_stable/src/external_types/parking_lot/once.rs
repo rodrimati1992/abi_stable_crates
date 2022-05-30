@@ -259,12 +259,6 @@ impl Default for ROnce {
 unsafe impl Send for ROnce {}
 unsafe impl Sync for ROnce {}
 
-impl Default for ROnce {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 
 /// Describes the running state of an ROnce.
