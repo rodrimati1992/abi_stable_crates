@@ -1,6 +1,6 @@
 use super::*;
 
-use std::{hash::Hash, mem::ManuallyDrop, ptr};
+use std::{mem::ManuallyDrop, ptr};
 
 use crate::{
     marker_type::UnsafeIgnoredType,
@@ -12,7 +12,7 @@ use crate::{
 /// Note that the boxed type is just an alias here for consistency and ease of
 /// use, but in reality it's just the unerased type, which in turn is just a
 /// manually-dropped version of the raw entry.
-pub type BoxedRRawEntryBuilder<'a, K, V, S> = UnerasedRawEntryBuilder<'a, K, V, S>;
+pub type BoxedRRawEntryBuilderMut<'a, K, V, S> = UnerasedRawEntryBuilderMut<'a, K, V, S>;
 
 #[derive(StableAbi)]
 #[repr(C)]
@@ -23,10 +23,10 @@ pub type BoxedRRawEntryBuilder<'a, K, V, S> = UnerasedRawEntryBuilder<'a, K, V, 
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-pub struct RRawEntryBuilder<'a, K, V, S> {
-    raw_entry: RRef<'a, ErasedRawEntryBuilder<'a, K, V, S>>,
-    vtable: RawEntryVTable_Ref<K, V, S>,
-    _marker: UnsafeIgnoredType<RawEntryBuilder<'a, K, V, S>>,
+pub struct RRawEntryBuilderMut<'a, K, V, S> {
+    raw_entry: RRef<'a, ErasedRawEntryBuilderMut<'a, K, V, S>>,
+    vtable: RawEntryBuilderMutVTable<K, V, S>,
+    _marker: UnsafeIgnoredType<RawEntryBuilderMut<'a, K, V, S>>,
 }
 
 // TODO: mutable version
@@ -42,30 +42,30 @@ pub struct RRawEntryBuilder<'a, K, V, S> {
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-struct ErasedRawEntryBuilder<'a, K, V, S>(PhantomData<(K, V)>, UnsafeIgnoredType<RRef<'a, S>>);
+struct ErasedRawEntryBuilderMut<'a, K, V, S>(PhantomData<(K, V)>, UnsafeIgnoredType<RRef<'a, S>>);
 
-type UnerasedRawEntryBuilder<'a, K, V, S> = ManuallyDrop<RawEntryBuilder<'a, MapKey<K>, V, S>>;
+type UnerasedRawEntryBuilderMut<'a, K, V, S> = ManuallyDrop<RawEntryBuilderMut<'a, MapKey<K>, V, S>>;
 
-impl<'a, K: 'a, V: 'a, S: 'a> ErasedType<'a> for ErasedRawEntryBuilder<'a, K, V, S> {
-    type Unerased = UnerasedRawEntryBuilder<'a, K, V, S>;
+impl<'a, K: 'a, V: 'a, S: 'a> ErasedType<'a> for ErasedRawEntryBuilderMut<'a, K, V, S> {
+    type Unerased = UnerasedRawEntryBuilderMut<'a, K, V, S>;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, K, V, S> RRawEntryBuilder<'a, K, V, S> {
-    fn vtable(&self) -> RawEntryVTable_Ref<K, V, S> {
+impl<'a, K, V, S> RRawEntryBuilderMut<'a, K, V, S> {
+    fn vtable(&self) -> RawEntryBuilderMutVTable<K, V, S> {
         self.vtable
     }
 
-    fn into_inner(self) -> RRef<'a, ErasedRawEntryBuilder<'a, K, V, S>> {
+    fn into_inner(self) -> RRef<'a, ErasedRawEntryBuilderMut<'a, K, V, S>> {
         let mut this = ManuallyDrop::new(self);
-        unsafe { ((&this.raw_entry) as *const RRef<'a, ErasedRawEntryBuilder<'a, K, V, S>>).read() }
+        unsafe { ((&this.raw_entry) as *const RRef<'a, ErasedRawEntryBuilderMut<'a, K, V, S>>).read() }
     }
 
-    pub(super) unsafe fn new(raw_entry: &'a BoxedRRawEntryBuilder<'a, K, V, S>) -> Self {
+    pub(super) unsafe fn new(raw_entry: &'a mut BoxedRRawEntryBuilderMut<'a, K, V, S>) -> Self {
         Self {
-            raw_entry: ErasedRawEntryBuilder::from_unerased(raw_entry),
-            vtable: RawEntryVTable::VTABLE_REF,
+            raw_entry: ErasedRawEntryBuilderMut::from_unerased(raw_entry),
+            vtable: RawEntryBuilderMutVTable::VTABLE_REF,
             _marker: UnsafeIgnoredType::DEFAULT,
         }
     }
@@ -73,36 +73,29 @@ impl<'a, K, V, S> RRawEntryBuilder<'a, K, V, S> {
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, K, V, S: BuildHasher> RRawEntryBuilder<'a, K, V, S> {
+pub type MatchFn<K> = extern "C" fn(&K) -> bool;
+
+impl<'a, K, V, S: BuildHasher> RRawEntryBuilderMut<'a, K, V, S> {
     /// TODO: docs
-    pub fn from_key<Q: ?Sized>(&self, k: &Q) -> ROption<Tuple2<&'a K, &'a V>>
+    pub fn from_key(&self, k: &K) -> ROption<Tuple2<&'a K, &'a V>>
     where
         S: BuildHasher,
-        K: Borrow<Q>,
-        Q: Hash + Eq,
     {
-        RNone
+        todo!()
     }
 
     /// TODO: docs
-    pub fn from_key_hashed<Q: ?Sized>(&self, hash: u64, k: &Q) -> ROption<Tuple2<&'a K, &'a V>>
-    where
-        K: Borrow<Q>,
-        Q: Eq,
-    {
-        RNone
+    pub fn from_key_hashed(&self, hash: u64, k: &K) -> ROption<Tuple2<&'a K, &'a V>> {
+        todo!()
     }
 
     /// TODO: docs
-    pub fn from_hash<F>(&self, hash: u64, is_match: F) -> ROption<Tuple2<&'a K, &'a V>>
-    where
-        F: FnMut(&K) -> bool,
-    {
-        RNone
+    pub fn from_hash(&self, hash: u64, is_match: MatchFn<K>) -> ROption<Tuple2<&'a K, &'a V>> {
+        todo!()
     }
 }
 
-impl<K, V, S> Debug for RRawEntryBuilder<'_, K, V, S>
+impl<K, V, S> Debug for RRawEntryBuilderMut<'_, K, V, S>
 where
     K: Debug,
     V: Debug,
@@ -112,7 +105,7 @@ where
     }
 }
 
-impl<'a, K, V, S> Drop for RRawEntryBuilder<'a, K, V, S> {
+impl<'a, K, V, S> Drop for RRawEntryBuilderMut<'a, K, V, S> {
     fn drop(&mut self) {
         let vtable = self.vtable();
 
@@ -132,34 +125,30 @@ impl<'a, K, V, S> Drop for RRawEntryBuilder<'a, K, V, S> {
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-pub struct RawEntryVTable<K, V, S, F, Q>
-    where
-        K: Borrow<Q>,
-        F: FnMut(&K) -> bool,
-{
-    drop_raw_entry: for<'a> unsafe extern "C" fn(RMut<'a, ErasedRawEntryBuilder<'a, K, V, S>>),
-    from_key: for<'a> extern "C" fn(RRawEntryBuilder<'a, K, V, S>, RRef<'a, Q>) -> ROption<Tuple2<&'a K, &'a V>>,
-    from_key_hashed_nocheck: for<'a> extern "C" fn(RRawEntryBuilder<'a, K, V, S>, u64, RRef<'a, Q>) -> ROption<Tuple2<&'a K, &'a V>>,
-    from_hash: for<'a> extern "C" fn(RRawEntryBuilder<'a, K, V, S>, u64, F) -> ROption<Tuple2<&'a K, &'a V>>,
+pub struct RawEntryBuilderMutVTable<K, V, S> {
+    drop_raw_entry: for<'a> unsafe extern "C" fn(RMut<'a, ErasedRawEntryBuilderMut<'a, K, V, S>>),
+    from_key: for<'a> extern "C" fn(RRawEntryBuilderMut<'a, K, V, S>, RRef<'a, K>) -> ROption<Tuple2<&'a K, &'a V>>,
+    from_key_hashed_nocheck: for<'a> extern "C" fn(RRawEntryBuilderMut<'a, K, V, S>, u64, RRef<'a, K>) -> ROption<Tuple2<&'a K, &'a V>>,
+    from_hash: for<'a> extern "C" fn(RRawEntryBuilderMut<'a, K, V, S>, u64, MatchFn<K>) -> ROption<Tuple2<&'a K, &'a V>>,
 }
 
-impl<K, V, S> RawEntryVTable<K, V, S> {
-    const VTABLE_REF: RawEntryVTable_Ref<K, V, S> = RawEntryVTable_Ref(Self::WM_VTABLE.as_prefix());
+impl<K, V, S> RawEntryBuilderMutVTable<K, V, S> {
+    const VTABLE_REF: RawEntryBuilderMutVTable_Ref<K, V, S> = RawEntryBuilderMutVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {
-        const WM_VTABLE: WithMetadata<RawEntryVTable<K, V, S>> =
+        const WM_VTABLE: WithMetadata<RawEntryBuilderMutVTable<K, V, S>> =
             WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
     }
 
-    const VTABLE: RawEntryVTable<K, V, S> = RawEntryVTable {
-        drop_raw_entry: ErasedRawEntryBuilder::drop_raw_entry,
-        from_key: ErasedRawEntryBuilder::from_key,
-        from_key_hashed_nocheck: ErasedRawEntryBuilder::from_key_hashed_nocheck,
-        from_hash: ErasedRawEntryBuilder::from_hash,
+    const VTABLE: RawEntryBuilderMutVTable<K, V, S> = RawEntryBuilderMutVTable {
+        drop_raw_entry: ErasedRawEntryBuilderMut::drop_raw_entry,
+        from_key: ErasedRawEntryBuilderMut::from_key,
+        from_key_hashed_nocheck: ErasedRawEntryBuilderMut::from_key_hashed_nocheck,
+        from_hash: ErasedRawEntryBuilderMut::from_hash,
     };
 }
 
-impl<'a, K, V, S> ErasedRawEntryBuilder<'a, K, V, S> {
+impl<'a, K, V, S> ErasedRawEntryBuilderMut<'a, K, V, S> {
     unsafe extern "C" fn drop_entry(this: RMut<'a, Self>) {
         extern_fn_panic_handling! {
             Self::run_downcast_as_mut(this, |this|{
@@ -168,7 +157,7 @@ impl<'a, K, V, S> ErasedRawEntryBuilder<'a, K, V, S> {
         }
     }
     extern "C" fn from_key<Q>(
-        this: RRawEntryBuilder<'a, K, V, S>,
+        this: RRawEntryBuilderMut<'a, K, V, S>,
         k: RRef<'a, Q>,
     ) -> ROption<Tuple2<&'a K, &'a V>>
     where
@@ -184,7 +173,7 @@ impl<'a, K, V, S> ErasedRawEntryBuilder<'a, K, V, S> {
         }
     }
     extern "C" fn from_key_hashed_nocheck<Q>(
-        this: RRawEntryBuilder<'a, K, V, S>,
+        this: RRawEntryBuilderMut<'a, K, V, S>,
         hash: u64,
         k: RRef<'a, Q>,
     ) -> ROption<Tuple2<&'a K, &'a V>>
@@ -201,7 +190,7 @@ impl<'a, K, V, S> ErasedRawEntryBuilder<'a, K, V, S> {
         }
     }
     extern "C" fn from_hash<F>(
-        this: RRawEntryBuilder<'a, K, V, S>,
+        this: RRawEntryBuilderMut<'a, K, V, S>,
         hash: u64,
         is_match: F,
     ) -> ROption<Tuple2<&'a K, &'a V>>

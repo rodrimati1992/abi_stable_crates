@@ -181,19 +181,19 @@ where
         })
     }
 
-    pub(super) unsafe extern "C" fn raw_entry(
-        this: RRef<'_, Self>,
+    pub(super) unsafe extern "C" fn raw_entry_mut(
+        this: RMut<'_, Self>,
         key: K,
         value: V,
-    ) -> RRawEntryBuilder<'_, K, V, S> {
+    ) -> RRawEntryBuilderMut<'_, K, V, S> {
         Self::run_mut(this, |this| {
-            this.raw_entry = None;
+            this.raw_entry_mut = None;
             let map = &mut this.map;
-            let raw_entry = this
-                .raw_entry
-                .get_or_insert_with(|| { map }.raw_entry().piped(BoxedRRawEntryBuilder::new));
+            let raw_entry_mut = this
+                .raw_entry_mut
+                .get_or_insert_with(|| { map }.raw_entry_mut().piped(BoxedRRawEntryBuilderMut::new));
 
-            unsafe { RRawEntryBuilder::new(raw_entry) }
+            unsafe { RRawEntryBuilderMut::new(raw_entry_mut) }
         })
     }
 }

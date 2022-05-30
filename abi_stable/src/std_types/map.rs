@@ -15,7 +15,7 @@ use std::{
 #[cfg(feature = "halfbrown")]
 use halfbrown::{DefaultHashBuilder, HashMap, RawEntryBuilder, RawEntryBuilderMut};
 #[cfg(not(feature = "halfbrown"))]
-use hashbrown::hash_map::{DefaultHashBuilder, HashMap, RawEntryBuilder, RawEntryBuilderMut};
+use hashbrown::hash_map::{DefaultHashBuilder, HashMap};
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
@@ -38,25 +38,27 @@ mod extern_fns;
 mod iterator_stuff;
 mod map_key;
 mod map_query;
-mod raw_entry;
+mod raw_entry_mut;
+mod raw_entry_builder_mut;
 
 #[cfg(all(test, not(feature = "only_new_tests")))]
 mod test;
 
 use self::{
-    entry::BoxedREntry, map_key::MapKey, map_query::MapQuery, raw_entry::BoxedRRawEntryBuilder,
+    entry::BoxedREntry, map_key::MapKey, map_query::MapQuery, raw_entry_mut::BoxedRRawEntryMut, raw_entry_builder_mut::BoxedRRawEntryBuilderMut,
 };
 
 pub use self::{
     entry::{REntry, ROccupiedEntry, RVacantEntry},
     iterator_stuff::{IntoIter, MutIterInterface, RefIterInterface, ValIterInterface},
-    raw_entry::RRawEntryBuilder,
+    raw_entry_mut::{RRawEntryMut, RRawOccupiedEntryMut, RRawVacantEntryMut},
+    raw_entry_builder_mut::RRawEntryBuilderMut,
 };
 
 #[cfg(feature = "halfbrown")]
-pub use halfbrown::{Entry, OccupiedEntry, VacantEntry};
+pub use halfbrown::{Entry, OccupiedEntry, VacantEntry, RawEntryMut, RawEntryBuilderMut, RawOccupiedEntryMut, RawVacantEntryMut};
 #[cfg(not(feature = "halfbrown"))]
-pub use hashbrown::hash_map::{Entry, OccupiedEntry, VacantEntry};
+pub use hashbrown::hash_map::{Entry, OccupiedEntry, VacantEntry, RawEntryMut, RawEntryBuilderMut, RawOccupiedEntryMut, RawVacantEntryMut};
 
 /// An ffi-safe hashmap, which wraps `std::collections::HashMap<K, V, S>`,
 /// only requiring the `K: Eq + Hash` bounds when constructing it.
@@ -124,7 +126,7 @@ pub struct RHashMap<K, V, S = DefaultHashBuilder> {
 struct BoxedHashMap<'a, K, V, S> {
     map: HashMap<MapKey<K>, V, S>,
     entry: Option<BoxedREntry<'a, K, V, S>>,
-    raw_entry: Option<BoxedRRawEntryBuilder<'a, K, V, S>>,
+    raw_entry_mut: Option<BoxedRRawEntryMut<'a, K, V, S>>,
 }
 
 /// An RHashMap iterator,
@@ -771,6 +773,13 @@ impl<K, V, S> RHashMap<K, V, S> {
         unsafe { vtable.entry()(self.map.as_rmut(), key) }
     }
 
+    /// TODO
+    pub fn raw_entry_mut(&mut self, key: K) -> RRawEntryMut<'_, K, V, S> {
+        let vtable = self.vtable();
+
+        unsafe { vtable.raw_entry_mut()(self.map.as_rmut(), key) }
+    }
+
     /// An iterator visiting all keys in arbitrary order.
     /// The iterator element type is `&'a K`.
     ///
@@ -1244,8 +1253,9 @@ struct VTable<K, V, S> {
     iter_mut: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> IterMut<'_, K, V>,
     drain: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> Drain<'_, K, V>,
     iter_val: unsafe extern "C" fn(RBox<ErasedMap<K, V, S>>) -> IntoIter<K, V>,
-    #[sabi(last_prefix_field)]
     entry: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> REntry<'_, K, V, S>,
+    #[sabi(last_prefix_field)]
+    raw_entry_mut: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> RRawEntryBuilderMut<'_, K, V, S>,
 }
 
 impl<K, V, S> VTable<K, V, S>
@@ -1264,7 +1274,7 @@ where
             let boxed = BoxedHashMap {
                 map,
                 entry: None,
-                raw_entry: None,
+                raw_entry_mut: None,
             };
             let boxed = RBox::new(boxed);
             mem::transmute::<RBox<_>, RBox<ErasedMap<K, V, S>>>(boxed)
@@ -1292,6 +1302,7 @@ where
         drain: ErasedMap::drain,
         iter_val: ErasedMap::iter_val,
         entry: ErasedMap::entry,
+        raw_entry_mut: ErasedMap::raw_entry_mut,
     };
 }
 
