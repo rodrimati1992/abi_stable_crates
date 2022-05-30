@@ -13,9 +13,9 @@ use std::{
 };
 
 #[cfg(feature = "halfbrown")]
-use halfbrown::{DefaultHashBuilder, HashMap};
+use halfbrown::{DefaultHashBuilder, HashMap, RawEntryBuilder, RawEntryBuilderMut};
 #[cfg(not(feature = "halfbrown"))]
-use hashbrown::hash_map::{DefaultHashBuilder, HashMap};
+use hashbrown::hash_map::{DefaultHashBuilder, HashMap, RawEntryBuilder, RawEntryBuilderMut};
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
@@ -38,15 +38,19 @@ mod extern_fns;
 mod iterator_stuff;
 mod map_key;
 mod map_query;
+mod raw_entry;
 
 #[cfg(all(test, not(feature = "only_new_tests")))]
 mod test;
 
-use self::{entry::BoxedREntry, map_key::MapKey, map_query::MapQuery};
+use self::{
+    entry::BoxedREntry, map_key::MapKey, map_query::MapQuery, raw_entry::BoxedRRawEntryBuilder,
+};
 
 pub use self::{
     entry::{REntry, ROccupiedEntry, RVacantEntry},
     iterator_stuff::{IntoIter, MutIterInterface, RefIterInterface, ValIterInterface},
+    raw_entry::RRawEntryBuilder,
 };
 
 #[cfg(feature = "halfbrown")]
@@ -120,6 +124,7 @@ pub struct RHashMap<K, V, S = DefaultHashBuilder> {
 struct BoxedHashMap<'a, K, V, S> {
     map: HashMap<MapKey<K>, V, S>,
     entry: Option<BoxedREntry<'a, K, V, S>>,
+    raw_entry: Option<BoxedRRawEntryBuilder<'a, K, V, S>>,
 }
 
 /// An RHashMap iterator,
@@ -1211,6 +1216,7 @@ mod serde {
 struct VTable<K, V, S> {
     ///
     insert_elem: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K, V) -> ROption<V>,
+    insert_nocheck_elem: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K, V),
 
     get_elem: for<'a> unsafe extern "C" fn(
         RRef<'a, ErasedMap<K, V, S>>,
@@ -1255,7 +1261,11 @@ where
     fn erased_map(hash_builder: S) -> RBox<ErasedMap<K, V, S>> {
         unsafe {
             let map = HashMap::<MapKey<K>, V, S>::with_hasher(hash_builder);
-            let boxed = BoxedHashMap { map, entry: None };
+            let boxed = BoxedHashMap {
+                map,
+                entry: None,
+                raw_entry: None,
+            };
             let boxed = RBox::new(boxed);
             mem::transmute::<RBox<_>, RBox<ErasedMap<K, V, S>>>(boxed)
         }
@@ -1263,6 +1273,7 @@ where
 
     const VTABLE: VTable<K, V, S> = VTable {
         insert_elem: ErasedMap::insert_elem,
+        insert_nocheck_elem: ErasedMap::insert_nocheck_elem,
 
         get_elem: ErasedMap::get_elem,
         get_mut_elem: ErasedMap::get_mut_elem,

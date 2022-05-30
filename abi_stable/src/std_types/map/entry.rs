@@ -315,9 +315,7 @@ impl<'a, K, V, S> ROccupiedEntry<'a, K, V, S> {
     fn vtable(&self) -> OccupiedVTable_Ref<K, V, S> {
         self.vtable
     }
-}
 
-impl<'a, K, V, S> ROccupiedEntry<'a, K, V, S> {
     fn into_inner(self) -> RMut<'a, ErasedOccupiedEntry<K, V, S>> {
         let mut this = ManuallyDrop::new(self);
         unsafe { ((&mut this.entry) as *mut RMut<'a, ErasedOccupiedEntry<K, V, S>>).read() }

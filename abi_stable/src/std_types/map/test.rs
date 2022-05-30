@@ -66,6 +66,13 @@ fn test_new_map() {
 }
 
 #[test]
+fn test_nocheck() {
+    let mut map = RHashMap::new();
+    map.insert_nocheck(10, 100);
+    assert_eq!(map.get(&10), Some(&100));
+}
+
+#[test]
 fn test_default() {
     let default_ = RHashMap::<u32, u32>::default();
     let new_ = RHashMap::<u32, u32>::new();

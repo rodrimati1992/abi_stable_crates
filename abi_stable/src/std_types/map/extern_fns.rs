@@ -11,6 +11,7 @@ where
     K: Hash + Eq,
     S: BuildHasher,
 {
+    #[inline]
     unsafe fn run<'a, F, R>(this: RRef<'a, Self>, f: F) -> R
     where
         F: FnOnce(&'a BoxedHashMap<'a, K, V, S>) -> R,
@@ -21,6 +22,7 @@ where
         }
     }
 
+    #[inline]
     unsafe fn run_mut<'a, F, R>(this: RMut<'a, Self>, f: F) -> R
     where
         F: FnOnce(&'a mut BoxedHashMap<'a, K, V, S>) -> R,
@@ -31,6 +33,7 @@ where
         }
     }
 
+    #[inline]
     unsafe fn run_val<'a, F, R>(this: RBox<Self>, f: F) -> R
     where
         F: FnOnce(RBox<BoxedHashMap<'a, K, V, S>>) -> R,
@@ -54,6 +57,19 @@ where
     {
         Self::run_mut(this, |this| {
             this.map.insert(MapKey::Value(key), value).into_c()
+        })
+    }
+
+    pub(super) unsafe extern "C" fn insert_nocheck_elem(this: RMut<'_, Self>, key: K, value: V)
+    where
+        S: Default,
+    {
+        #[cfg(not(feature = "hashbrown"))]
+        ErasedMap::insert_elem(this, key, value);
+
+        #[cfg(feature = "hashbrown")]
+        Self::run_mut(this, |this| {
+            this.map.insert_nocheck(MapKey::Value(key), value).into_c()
         })
     }
 
@@ -162,6 +178,22 @@ where
                 .get_or_insert_with(|| { map }.entry(MapKey::Value(key)).piped(BoxedREntry::from));
 
             unsafe { REntry::new(entry_mut) }
+        })
+    }
+
+    pub(super) unsafe extern "C" fn raw_entry(
+        this: RRef<'_, Self>,
+        key: K,
+        value: V,
+    ) -> RRawEntryBuilder<'_, K, V, S> {
+        Self::run_mut(this, |this| {
+            this.raw_entry = None;
+            let map = &mut this.map;
+            let raw_entry = this
+                .raw_entry
+                .get_or_insert_with(|| { map }.raw_entry().piped(BoxedRRawEntryBuilder::new));
+
+            unsafe { RRawEntryBuilder::new(raw_entry) }
         })
     }
 }
