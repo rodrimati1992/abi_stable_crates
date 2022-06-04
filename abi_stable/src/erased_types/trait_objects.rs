@@ -84,13 +84,6 @@ impl<'a> Hasher for HasherObject<'a> {
         (u8, write_u8),
         (usize, write_usize)
     );
-
-    fn write_i128(&mut self, val: i128) {
-        todo!()
-    }
-    fn write_u128(&mut self, val: u128) {
-        todo!()
-    }
 }
 
 /// The write variations for the hasher. Even if `write` is the only required
