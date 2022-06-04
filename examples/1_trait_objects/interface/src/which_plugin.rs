@@ -82,7 +82,7 @@ impl WhichPlugin {
         let splitted = s
             .splitn(2, ':')
             .map(|s| s.trim())
-            .collect::<ArrayVec<[&str; 2]>>();
+            .collect::<ArrayVec<&str, 2>>();
         let named = splitted
             .get(0)
             .filter(|s| !s.is_empty())
