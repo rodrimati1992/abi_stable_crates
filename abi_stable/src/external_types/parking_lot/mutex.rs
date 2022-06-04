@@ -257,6 +257,14 @@ unsafe impl<T: Send> Sync for RMutex<T> where RawMutex: Sync {}
 
 ///////////////////////////////////////////////////////////////////////////////
 
+impl<T: Default> Default for RMutex<T> {
+    fn default() -> Self {
+        Self::new(T::default())
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 impl<'a, T> Display for RMutexGuard<'a, T>
 where
     T: Display,
