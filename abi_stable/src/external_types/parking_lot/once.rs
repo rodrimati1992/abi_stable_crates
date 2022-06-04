@@ -508,7 +508,7 @@ where
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(all(test, not(feature = "only_new_tests")))]
+#[cfg(all(test, not(feature = "test_miri_track_raw")))]
 //#[cfg(test)]
 mod tests {
     use super::*;
