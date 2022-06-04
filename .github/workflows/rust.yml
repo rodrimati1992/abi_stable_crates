@@ -38,10 +38,6 @@ jobs:
         cargo fmt -- --check
 
     - name: enable-rust-stable
-      if: matrix.rust == '1.51.0' 
-      run: echo "rustv=rust_1_51" >> $GITHUB_ENV
-
-    - name: enable-rust-stable
       if: matrix.rust == '1.56.0' 
       run: echo "rustv=rust_1_56" >> $GITHUB_ENV
 
