@@ -73,7 +73,11 @@ Added `#[sabi(kind(Prefix(prefix_ref_docs = "")))]` helper attribute, to replace
 
 Implemented `Unpin` for `RArc`
 
-Added `RResult::{ok_or, ok_or_else}`
+Changed `HashetObject` to use the type's `write_i*` and `write_u*` methods. Both `write_i128` and `write_u128` still delegate their implementation to `write`.
+
+Added `Default` impls for `RRwLock`/`RMutex`.
+
+Added `ROption::{ok_or, ok_or_else}`
 
 Added comparison trait impls between `RVec<T>` and `&mut [T]`
 
@@ -111,8 +115,7 @@ Replaced `GetEnumInfo::discriminants` function with `DISCRIMINANTS` associated c
 
 Exposed `abi_stable::nonexhaustive_enum::NonExhaustiveVtable_Ref`.
 
-
-Exposed `GetVTable::VTABLE` associated const to construct vtable use by `NonExhaustive::const_new`
+Exposed `GetVTable::VTABLE` associated const to construct vtable used by `NonExhaustive::const_new`
     
 Replaced `GetEnumInfo::discriminants` function with `DISCRIMINANTS` associated constant.
 
