@@ -242,7 +242,10 @@ pub struct RRawVacantEntryMut<'a, K, V, S> {
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, K, V, S> RRawOccupiedEntryMut<'a, K, V, S> {
+impl<'a, K, V, S> RRawOccupiedEntryMut<'a, K, V, S>
+where
+    S: BuildHasher,
+{
     fn vtable(&self) -> OccupiedVTable_Ref<K, V, S> {
         self.vtable
     }
@@ -457,7 +460,7 @@ where
 
 impl<'a, K, V, S> Drop for RRawOccupiedEntryMut<'a, K, V, S> {
     fn drop(&mut self) {
-        let vtable = self.vtable();
+        let vtable = self.vtable;
 
         unsafe {
             vtable.drop_entry()(self.entry.reborrow());
@@ -645,7 +648,10 @@ pub struct OccupiedVTable<K, V, S> {
     // remove: extern "C" fn(RRawOccupiedEntryMut<'_, K, V, S>) -> V,
 }
 
-impl<K, V, S> OccupiedVTable<K, V, S> {
+impl<K, V, S> OccupiedVTable<K, V, S>
+where
+    S: BuildHasher,
+{
     const VTABLE_REF: OccupiedVTable_Ref<K, V, S> = OccupiedVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {
@@ -665,7 +671,10 @@ impl<K, V, S> OccupiedVTable<K, V, S> {
     };
 }
 
-impl<K, V, S> ErasedRawOccupiedEntryMut<K, V, S> {
+impl<K, V, S> ErasedRawOccupiedEntryMut<K, V, S>
+where
+    S: BuildHasher,
+{
     unsafe extern "C" fn drop_entry(this: RMut<'_, Self>) {
         extern_fn_panic_handling! {
             Self::run_downcast_as_mut(this, |this|{

@@ -573,6 +573,15 @@ impl<K, V, S> RHashMap<K, V, S> {
         unsafe { vtable.insert_elem()(self.map.as_rmut(), key, value) }
     }
 
+    /// TODO: docs
+    pub fn insert_nocheck(&mut self, key: K, value: V)
+    where
+        S: Default,
+    {
+        let vtable = self.vtable();
+        unsafe { vtable.insert_nocheck_elem()(self.map.as_rmut(), key, value) }
+    }
+
     /// Reserves enough space to insert `reserved` extra elements without reallocating.
     ///
     /// # Example
