@@ -184,6 +184,21 @@ where
     }
 
     /// Note that this avoids the intermediate builder step for simplicity
+    pub(super) unsafe extern "C" fn raw_entry_key_hashed_nocheck<'a>(
+        this: RRef<'a, Self>,
+        hash: u64,
+        k: MapQuery<'_, K>,
+    ) -> ROption<Tuple2<&'a K, &'a V>> {
+        Self::run(this, |this| {
+            let k = unsafe { k.as_mapkey() };
+            match this.map.raw_entry().from_key_hashed_nocheck(hash, &k) {
+                Some(x) => RSome(Tuple2(x.0.as_ref(), x.1)),
+                None => RNone,
+            }
+        })
+    }
+
+    /// Note that this avoids the intermediate builder step for simplicity
     pub(super) unsafe extern "C" fn raw_entry_mut_key<'a>(
         this: RMut<'a, Self>,
         k: &'a K,

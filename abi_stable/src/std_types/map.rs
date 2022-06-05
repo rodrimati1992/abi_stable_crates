@@ -791,6 +791,23 @@ impl<K, V, S> RHashMap<K, V, S> {
     }
 
     /// TODO docs
+    pub fn raw_entry_key_hashed_nocheck<'a, Q>(
+        &'a self,
+        hash: u64,
+        query: &'a Q,
+    ) -> ROption<Tuple2<&'a K, &'a V>>
+    where
+        K: Borrow<Q>,
+        Q: Eq + Hash + ?Sized,
+    {
+        let vtable = self.vtable();
+
+        unsafe {
+            vtable.raw_entry_key_hashed_nocheck()(self.map.as_rref(), hash, MapQuery::new(&query))
+        }
+    }
+
+    /// TODO docs
     pub fn raw_entry_mut_key<'a>(&'a mut self, k: &'a K) -> RRawEntryMut<'a, K, V, S>
     where
         S: BuildHasher,
@@ -1305,6 +1322,12 @@ struct VTable<K, V, S> {
     drain: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> Drain<'_, K, V>,
     iter_val: unsafe extern "C" fn(RBox<ErasedMap<K, V, S>>) -> IntoIter<K, V>,
     entry: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> REntry<'_, K, V, S>,
+    raw_entry_key_hashed_nocheck: for<'a> unsafe extern "C" fn(
+        RRef<'a, ErasedMap<K, V, S>>,
+        u64,
+        MapQuery<'_, K>,
+    )
+        -> ROption<Tuple2<&'a K, &'a V>>,
     raw_entry_mut_key: for<'a> unsafe extern "C" fn(
         RMut<'a, ErasedMap<K, V, S>>,
         &'a K,
@@ -1367,6 +1390,7 @@ where
         drain: ErasedMap::drain,
         iter_val: ErasedMap::iter_val,
         entry: ErasedMap::entry,
+        raw_entry_key_hashed_nocheck: ErasedMap::raw_entry_key_hashed_nocheck,
         raw_entry_mut_key: ErasedMap::raw_entry_mut_key,
         raw_entry_mut_key_hashed_nocheck: ErasedMap::raw_entry_mut_key_hashed_nocheck,
         // raw_entry_hash: ErasedMap::raw_entry_hash,
