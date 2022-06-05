@@ -184,7 +184,7 @@ where
     }
 
     /// Note that this avoids the intermediate builder step for simplicity
-    pub(super) unsafe extern "C" fn raw_entry_key<'a>(
+    pub(super) unsafe extern "C" fn raw_entry_mut_key<'a>(
         this: RMut<'a, Self>,
         k: &'a K,
     ) -> RRawEntryMut<'a, K, V, S> {
@@ -203,7 +203,7 @@ where
     }
 
     /// Note that this avoids the intermediate builder step for simplicity
-    pub(super) unsafe extern "C" fn raw_entry_key_hashed_nocheck<'a>(
+    pub(super) unsafe extern "C" fn raw_entry_mut_key_hashed_nocheck<'a>(
         this: RMut<'a, Self>,
         hash: u64,
         k: &'a K,
