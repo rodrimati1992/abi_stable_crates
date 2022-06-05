@@ -183,7 +183,7 @@ where
         })
     }
 
-    /// Note that this avoid the intermediate builder step for simplicity
+    /// Note that this avoids the intermediate builder step for simplicity
     pub(super) unsafe extern "C" fn raw_entry_key<'a>(
         this: RMut<'a, Self>,
         k: &'a K,
@@ -202,7 +202,7 @@ where
         })
     }
 
-    /// Note that this avoid the intermediate builder step for simplicity
+    /// Note that this avoids the intermediate builder step for simplicity
     pub(super) unsafe extern "C" fn raw_entry_key_hashed_nocheck<'a>(
         this: RMut<'a, Self>,
         hash: u64,
@@ -222,25 +222,25 @@ where
         })
     }
 
-    /// Note that this avoid the intermediate builder step for simplicity
-    pub(super) unsafe extern "C" fn raw_entry_hash<'a>(
-        this: RMut<'a, Self>,
-        hash: u64,
-        is_match: MatchFn<F>,
-    ) -> RRawEntryMut<'a, K, V, S> {
-        Self::run_mut(this, |this| {
-            this.raw_entry_mut = None;
-            let map = &mut this.map;
-            let raw_entry_mut = this.raw_entry_mut.get_or_insert_with(|| {
-                { map }
-                    .raw_entry_mut()
-                    .from_hash(hash, is_match)
-                    .piped(BoxedRRawEntryMut::from)
-            });
+    // /// Note that this avoids the intermediate builder step for simplicity
+    // pub(super) unsafe extern "C" fn raw_entry_hash<'a>(
+    //     this: RMut<'a, Self>,
+    //     hash: u64,
+    //     is_match: MatchFn<F>,
+    // ) -> RRawEntryMut<'a, K, V, S> {
+    //     Self::run_mut(this, |this| {
+    //         this.raw_entry_mut = None;
+    //         let map = &mut this.map;
+    //         let raw_entry_mut = this.raw_entry_mut.get_or_insert_with(|| {
+    //             { map }
+    //                 .raw_entry_mut()
+    //                 .from_hash(hash, is_match)
+    //                 .piped(BoxedRRawEntryMut::from)
+    //         });
 
-            unsafe { RRawEntryMut::new(raw_entry_mut) }
-        })
-    }
+    //         unsafe { RRawEntryMut::new(raw_entry_mut) }
+    //     })
+    // }
 }
 
 fn map_iter_ref<'a, K, V: 'a>((key, val): (&'a MapKey<K>, V)) -> Tuple2<&'a K, V> {

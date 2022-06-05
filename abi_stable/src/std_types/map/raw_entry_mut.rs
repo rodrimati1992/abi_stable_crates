@@ -97,6 +97,7 @@ where
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a, K, V, S: BuildHasher> RRawEntryMut<'a, K, V, S> {
+    /*
     /// Inserts `default` as the value in the entry if it wasn't occupied,
     /// returning a mutable reference to the value in the entry.
     ///
@@ -118,6 +119,7 @@ impl<'a, K, V, S: BuildHasher> RRawEntryMut<'a, K, V, S> {
             RRawEntryMut::Vacant(entry) => entry.insert(default),
         }
     }
+    */
 
     /// Inserts `default()` as the value in the entry if it wasn't occupied,
     /// returning a mutable reference to the value in the entry.
@@ -140,16 +142,22 @@ impl<'a, K, V, S: BuildHasher> RRawEntryMut<'a, K, V, S> {
     /// );
     ///
     /// ```
-    pub fn or_insert_with<F>(self, default: F) -> &'a mut V
+    pub fn or_insert_with<F>(self, default: F) -> (&'a mut K, &'a mut V)
     where
-        F: FnOnce() -> V,
+        F: FnOnce() -> (K, V),
+        K: Hash,
+        S: BuildHasher,
     {
         match self {
-            RRawEntryMut::Occupied(entry) => entry.into_mut(),
-            RRawEntryMut::Vacant(entry) => entry.insert(default()),
+            RRawEntryMut::Occupied(entry) => entry.into_key_value(),
+            RRawEntryMut::Vacant(entry) => {
+                let (key, value) = default();
+                entry.insert(key, value)
+            }
         }
     }
 
+    /*
     /// Allows mutating an occupied entry before doing other operations.
     ///
     /// This is a no-op on a vacant entry.
@@ -181,6 +189,7 @@ impl<'a, K, V, S: BuildHasher> RRawEntryMut<'a, K, V, S> {
             RRawEntryMut::Vacant(entry) => RRawEntryMut::Vacant(entry),
         }
     }
+    */
 }
 
 impl<K, V, S> Debug for RRawEntryMut<'_, K, V, S>
@@ -253,6 +262,7 @@ impl<'a, K, V, S> RRawOccupiedEntryMut<'a, K, V, S> {
         }
     }
 
+    /*
     /// Gets a reference to the key of the entry.
     ///
     /// # Example
@@ -277,7 +287,9 @@ impl<'a, K, V, S> RRawOccupiedEntryMut<'a, K, V, S> {
 
         vtable.key()(self.entry.as_rref())
     }
+    */
 
+    /*
     /// Gets a reference to the value in the entry.
     ///
     /// # Example
@@ -303,7 +315,9 @@ impl<'a, K, V, S> RRawOccupiedEntryMut<'a, K, V, S> {
 
         vtable.get_elem()(self.entry.as_rref())
     }
+    */
 
+    /*
     /// Gets a mutable reference to the value in the entry.
     /// To borrow with the lifetime of the map, use `ROccupiedEntry::into_mut`.
     ///
@@ -330,6 +344,7 @@ impl<'a, K, V, S> RRawOccupiedEntryMut<'a, K, V, S> {
 
         vtable.get_mut_elem()(self.entry.reborrow())
     }
+    */
 
     /// Gets a mutable reference to the value in the entry,
     /// that borrows with the lifetime of the map instead of
@@ -359,6 +374,13 @@ impl<'a, K, V, S> RRawOccupiedEntryMut<'a, K, V, S> {
         vtable.fn_into_mut_elem()(self)
     }
 
+    /// TODO: docs
+    pub fn into_key_value(self) -> (&'a mut K, &'a mut V) {
+        let vtable = self.vtable();
+
+        vtable.fn_into_key_value_elem()(self).into()
+    }
+
     /// Replaces the current value of the entry with `value`, returning the previous value.
     ///
     /// # Example
@@ -385,9 +407,10 @@ impl<'a, K, V, S> RRawOccupiedEntryMut<'a, K, V, S> {
     pub fn insert(&mut self, value: V) -> V {
         let vtable = self.vtable();
 
-        vtable.insert_elem()(self.entry.reborrow(), value)
+        vtable.insert_elem()(self.entry.reborrow(), value).into()
     }
 
+    /*
     /// Removes the entry from the map, returns the value.
     ///
     /// # Example
@@ -416,6 +439,7 @@ impl<'a, K, V, S> RRawOccupiedEntryMut<'a, K, V, S> {
 
         vtable.remove()(self)
     }
+    */
 }
 
 impl<K, V, S> Debug for RRawOccupiedEntryMut<'_, K, V, S>
@@ -425,8 +449,8 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ROccupiedEntry")
-            .field("key", self.key())
-            .field("value", self.get())
+            // .field("key", self.key())
+            // .field("value", self.get())
             .finish()
     }
 }
@@ -468,6 +492,7 @@ impl<'a, K, V, S: BuildHasher> RRawVacantEntryMut<'a, K, V, S> {
         }
     }
 
+    /*
     /// Gets a reference to the key of the entry.
     ///
     /// # Example
@@ -494,7 +519,9 @@ impl<'a, K, V, S: BuildHasher> RRawVacantEntryMut<'a, K, V, S> {
 
         vtable.key()(self.entry.as_rref())
     }
+    */
 
+    /*
     /// Gets back the key that was passed to `RHashMap::entry`.
     ///
     /// # Example
@@ -521,7 +548,9 @@ impl<'a, K, V, S: BuildHasher> RRawVacantEntryMut<'a, K, V, S> {
 
         vtable.fn_into_key()(self)
     }
+    */
 
+    /*
     /// Sets the value of the entry, returning a mutable reference to it.
     ///
     /// # Example
@@ -548,6 +577,30 @@ impl<'a, K, V, S: BuildHasher> RRawVacantEntryMut<'a, K, V, S> {
 
         vtable.insert_elem()(self, value)
     }
+    */
+
+    pub fn insert(self, key: K, value: V) -> (&'a mut K, &'a mut V)
+    where
+        K: Hash,
+        S: BuildHasher,
+    {
+        let vtable = self.vtable();
+
+        vtable.insert_elem()(self, key, value).into()
+    }
+
+    /// TODO: docs
+    ///
+    /// https://docs.rs/halfbrown/latest/halfbrown/struct.RawVacantEntryMut.html#method.insert_hashed_nocheck
+    pub fn insert_hashed_nocheck(self, hash: u64, key: K, value: V) -> (&'a mut K, &'a mut V)
+    where
+        K: Hash,
+        S: BuildHasher,
+    {
+        let vtable = self.vtable();
+
+        vtable.insert_hashed_nocheck_elem()(self, hash, key, value).into()
+    }
 }
 
 impl<K, V, S> Debug for RRawVacantEntryMut<'_, K, V, S>
@@ -557,7 +610,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RVacantEntry")
-            .field("key", self.key())
+            // .field("key", self.key())
             .finish()
     }
 }
@@ -582,12 +635,14 @@ impl<'a, K, V, S> Drop for RRawVacantEntryMut<'a, K, V, S> {
 )]
 pub struct OccupiedVTable<K, V, S> {
     drop_entry: unsafe extern "C" fn(RMut<'_, ErasedRawOccupiedEntryMut<K, V, S>>),
-    key: extern "C" fn(RRef<'_, ErasedRawOccupiedEntryMut<K, V, S>>) -> &K,
-    get_elem: extern "C" fn(RRef<'_, ErasedRawOccupiedEntryMut<K, V, S>>) -> &V,
-    get_mut_elem: extern "C" fn(RMut<'_, ErasedRawOccupiedEntryMut<K, V, S>>) -> &mut V,
+    // key: extern "C" fn(RRef<'_, ErasedRawOccupiedEntryMut<K, V, S>>) -> &K,
+    // get_elem: extern "C" fn(RRef<'_, ErasedRawOccupiedEntryMut<K, V, S>>) -> &V,
+    // get_mut_elem: extern "C" fn(RMut<'_, ErasedRawOccupiedEntryMut<K, V, S>>) -> &mut V,
     fn_into_mut_elem: extern "C" fn(RRawOccupiedEntryMut<'_, K, V, S>) -> &'_ mut V,
+    fn_into_key_value_elem:
+        for<'a> extern "C" fn(RRawOccupiedEntryMut<'a, K, V, S>) -> Tuple2<&'a mut K, &'a mut V>,
     insert_elem: extern "C" fn(RMut<'_, ErasedRawOccupiedEntryMut<K, V, S>>, V) -> V,
-    remove: extern "C" fn(RRawOccupiedEntryMut<'_, K, V, S>) -> V,
+    // remove: extern "C" fn(RRawOccupiedEntryMut<'_, K, V, S>) -> V,
 }
 
 impl<K, V, S> OccupiedVTable<K, V, S> {
@@ -600,12 +655,13 @@ impl<K, V, S> OccupiedVTable<K, V, S> {
 
     const VTABLE: OccupiedVTable<K, V, S> = OccupiedVTable {
         drop_entry: ErasedRawOccupiedEntryMut::drop_entry,
-        key: ErasedRawOccupiedEntryMut::key,
-        get_elem: ErasedRawOccupiedEntryMut::get_elem,
-        get_mut_elem: ErasedRawOccupiedEntryMut::get_mut_elem,
+        // key: ErasedRawOccupiedEntryMut::key,
+        // get_elem: ErasedRawOccupiedEntryMut::get_elem,
+        // get_mut_elem: ErasedRawOccupiedEntryMut::get_mut_elem,
         fn_into_mut_elem: ErasedRawOccupiedEntryMut::fn_into_mut_elem,
+        fn_into_key_value_elem: ErasedRawOccupiedEntryMut::fn_into_key_value_elem,
         insert_elem: ErasedRawOccupiedEntryMut::insert_elem,
-        remove: ErasedRawOccupiedEntryMut::remove,
+        // remove: ErasedRawOccupiedEntryMut::remove,
     };
 }
 
@@ -617,6 +673,7 @@ impl<K, V, S> ErasedRawOccupiedEntryMut<K, V, S> {
             })
         }
     }
+    /*
     extern "C" fn key(this: RRef<'_, Self>) -> &K {
         unsafe {
             extern_fn_panic_handling! {
@@ -627,6 +684,8 @@ impl<K, V, S> ErasedRawOccupiedEntryMut<K, V, S> {
             }
         }
     }
+    */
+    /*
     extern "C" fn get_elem(this: RRef<'_, Self>) -> &V {
         unsafe {
             extern_fn_panic_handling! {
@@ -637,6 +696,8 @@ impl<K, V, S> ErasedRawOccupiedEntryMut<K, V, S> {
             }
         }
     }
+    */
+    /*
     extern "C" fn get_mut_elem(this: RMut<'_, Self>) -> &mut V {
         unsafe {
             extern_fn_panic_handling! {
@@ -647,12 +708,28 @@ impl<K, V, S> ErasedRawOccupiedEntryMut<K, V, S> {
             }
         }
     }
+    */
     extern "C" fn fn_into_mut_elem(this: RRawOccupiedEntryMut<'_, K, V, S>) -> &'_ mut V {
         unsafe {
             extern_fn_panic_handling! {
                 Self::run_downcast_as_mut(
                     this.into_inner(),
                     |this| take_manuallydrop(this).into_mut()
+                )
+            }
+        }
+    }
+    extern "C" fn fn_into_key_value_elem<'a>(
+        this: RRawOccupiedEntryMut<'a, K, V, S>,
+    ) -> Tuple2<&'a mut K, &'a mut V> {
+        unsafe {
+            extern_fn_panic_handling! {
+                Self::run_downcast_as_mut(
+                    this.into_inner(),
+                    |this| {
+                        let (key, value) = take_manuallydrop(this).into_key_value();
+                        Tuple2(key.as_mut(), value)
+                    }
                 )
             }
         }
@@ -667,6 +744,7 @@ impl<K, V, S> ErasedRawOccupiedEntryMut<K, V, S> {
             }
         }
     }
+    /*
     extern "C" fn remove(this: RRawOccupiedEntryMut<'_, K, V, S>) -> V {
         unsafe {
             extern_fn_panic_handling! {
@@ -677,6 +755,7 @@ impl<K, V, S> ErasedRawOccupiedEntryMut<K, V, S> {
             }
         }
     }
+    */
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -691,7 +770,17 @@ impl<K, V, S> ErasedRawOccupiedEntryMut<K, V, S> {
 )]
 pub struct VacantVTable<K, V, S> {
     drop_entry: unsafe extern "C" fn(RMut<'_, ErasedRawVacantEntryMut<K, V, S>>),
-    insert_elem: extern "C" fn(RRawVacantEntryMut<'_, K, V, S>, K, V) -> &'_ mut V,
+    insert_elem: for<'a> extern "C" fn(
+        RRawVacantEntryMut<'a, K, V, S>,
+        K,
+        V,
+    ) -> Tuple2<&'a mut K, &'a mut V>,
+    insert_hashed_nocheck_elem: for<'a> extern "C" fn(
+        RRawVacantEntryMut<'a, K, V, S>,
+        u64,
+        K,
+        V,
+    ) -> Tuple2<&'a mut K, &'a mut V>,
 }
 
 impl<K, V, S> VacantVTable<K, V, S>
@@ -709,6 +798,7 @@ where
     const VTABLE: VacantVTable<K, V, S> = VacantVTable {
         drop_entry: ErasedRawVacantEntryMut::drop_entry,
         insert_elem: ErasedRawVacantEntryMut::insert_elem,
+        insert_hashed_nocheck_elem: ErasedRawVacantEntryMut::insert_hashed_nocheck_elem,
     };
 }
 
@@ -728,12 +818,37 @@ where
         this: RRawVacantEntryMut<'a, K, V, S>,
         key: K,
         elem: V,
-    ) -> (&'a mut K, &'a mut V) {
+    ) -> Tuple2<&'a mut K, &'a mut V> {
         unsafe {
             extern_fn_panic_handling! {
                 Self::run_downcast_as_mut(
                     this.into_inner(),
-                    |this| take_manuallydrop(this).insert(MapKey::Value(key), elem)
+                    |this| {
+                        let (key, value) = take_manuallydrop(this)
+                            .insert(MapKey::Value(key), elem);
+
+                        Tuple2(key.as_mut(), value)
+                    }
+                )
+            }
+        }
+    }
+    extern "C" fn insert_hashed_nocheck_elem<'a>(
+        this: RRawVacantEntryMut<'a, K, V, S>,
+        hash: u64,
+        key: K,
+        elem: V,
+    ) -> Tuple2<&'a mut K, &'a mut V> {
+        unsafe {
+            extern_fn_panic_handling! {
+                Self::run_downcast_as_mut(
+                    this.into_inner(),
+                    |this| {
+                        let (key, value) = take_manuallydrop(this)
+                            .insert_hashed_nocheck(hash, MapKey::Value(key), elem);
+
+                        Tuple2(key.as_mut(), value)
+                    }
                 )
             }
         }
