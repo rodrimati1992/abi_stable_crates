@@ -808,30 +808,32 @@ impl<K, V, S> RHashMap<K, V, S> {
     }
 
     /// TODO docs
-    pub fn raw_entry_mut_key<'a, Q>(&'a mut self, k: &'a K) -> RRawEntryMut<'a, K, V, S>
+    pub fn raw_entry_mut_key<'a>(&'a mut self, k: &'a K) -> RRawEntryMut<'a, K, V, S>
     where
         S: BuildHasher,
-        K: Borrow<Q>,
-        Q: Hash + Eq,
+        // TODO: not sure how to approach generics here
+        // K: Borrow<Q>,
+        // Q: Hash + Eq,
     {
         let vtable = self.vtable();
 
-        unsafe { vtable.raw_entry_mut_key()(self.map.as_rmut(), &k) }
+        unsafe { vtable.raw_entry_mut_key()(self.map.as_rmut(), k) }
     }
 
     /// TODO docs
-    pub fn raw_entry_mut_key_hashed_nocheck<'a, Q>(
+    pub fn raw_entry_mut_key_hashed_nocheck<'a>(
         &'a mut self,
         hash: u64,
         k: &'a K,
     ) -> RRawEntryMut<'a, K, V, S>
-where
-        K: Borrow<Q>,
-        Q: Eq,
+    where
+        // TODO: not sure how to approach generics here
+        // K: Borrow<Q>,
+        // Q: Eq,
     {
         let vtable = self.vtable();
 
-        unsafe { vtable.raw_entry_mut_key_hashed_nocheck()(self.map.as_rmut(), hash, &k) }
+        unsafe { vtable.raw_entry_mut_key_hashed_nocheck()(self.map.as_rmut(), hash, k) }
     }
 
     /*
