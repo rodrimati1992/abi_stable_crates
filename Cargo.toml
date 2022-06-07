@@ -27,8 +27,3 @@ members=[
     "tools/*",
     "playground/",
 ]
-
-[patch.crates-io]
-# FIXME: remove once merged:
-# https://github.com/Licenser/halfbrown/pull/18
-halfbrown = { git = "https://github.com/marioortizmanero/halfbrown.git", branch = "fix-clone" }

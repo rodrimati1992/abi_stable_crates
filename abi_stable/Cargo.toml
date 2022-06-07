@@ -60,7 +60,7 @@ generational-arena = "0.2.8"
 crossbeam-channel = { version = "0.5.2", optional = true }
 serde_json = { version = "1.0.79", features = ["raw_value"], optional = true }
 paste = "1.0.6"
-halfbrown = { version = "0.1.14", optional = true }
+halfbrown = { version = "0.1.15", optional = true }
 hashbrown = "0.12.0"
 
 [dependencies.const_panic]
