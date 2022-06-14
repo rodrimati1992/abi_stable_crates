@@ -184,11 +184,11 @@ where
     }
 
     /// Note that this avoids the intermediate builder step for simplicity
-    pub(super) unsafe extern "C" fn raw_entry_key_hashed_nocheck<'a>(
-        this: RRef<'a, Self>,
+    pub(super) unsafe extern "C" fn raw_entry_key_hashed_nocheck<'map>(
+        this: RRef<'map, Self>,
         hash: u64,
         k: MapQuery<'_, K>,
-    ) -> ROption<Tuple2<&'a K, &'a V>> {
+    ) -> ROption<Tuple2<&'map K, &'map V>> {
         Self::run(this, |this| {
             let k = unsafe { k.as_mapkey() };
             match this.map.raw_entry().from_key_hashed_nocheck(hash, &k) {
@@ -199,10 +199,10 @@ where
     }
 
     /// Note that this avoids the intermediate builder step for simplicity
-    pub(super) unsafe extern "C" fn raw_entry_mut_key<'a>(
-        this: RMut<'a, Self>,
-        k: &'a K,
-    ) -> RRawEntryMut<'a, K, V, S> {
+    pub(super) unsafe extern "C" fn raw_entry_mut_key<'map>(
+        this: RMut<'map, Self>,
+        k: &K,
+    ) -> RRawEntryMut<'map, K, V, S> {
         Self::run_mut(this, |this| {
             this.raw_entry_mut = None;
             let map = &mut this.map;
@@ -218,11 +218,11 @@ where
     }
 
     /// Note that this avoids the intermediate builder step for simplicity
-    pub(super) unsafe extern "C" fn raw_entry_mut_key_hashed_nocheck<'a>(
-        this: RMut<'a, Self>,
+    pub(super) unsafe extern "C" fn raw_entry_mut_key_hashed_nocheck<'map>(
+        this: RMut<'map, Self>,
         hash: u64,
-        k: &'a K,
-    ) -> RRawEntryMut<'a, K, V, S> {
+        k: &K,
+    ) -> RRawEntryMut<'map, K, V, S> {
         Self::run_mut(this, |this| {
             this.raw_entry_mut = None;
             let map = &mut this.map;
