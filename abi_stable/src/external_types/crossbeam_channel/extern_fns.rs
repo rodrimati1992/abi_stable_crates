@@ -9,8 +9,8 @@ macro_rules! shared_fns {
     ) => {
         impl<T> $erased<T> {
             pub(super) fn from_unerased_value(value: $unerased<T>) -> RBox<Self> {
+                let boxed = RBox::new(value);
                 unsafe {
-                    let boxed = RBox::new(value);
                     ErasedType::from_unerased(boxed)
                 }
             }

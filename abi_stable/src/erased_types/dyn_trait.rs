@@ -1087,8 +1087,8 @@ mod priv_ {
             // errors with `constant functions cannot evaluate destructors`.
             let _ = ManuallyDrop::new(can_it_downcast);
             DynTrait {
-                object: unsafe {
-                    let x = RRef::from_raw(ptr as *const T as *const ());
+                object: {
+                    let x = unsafe{ RRef::from_raw(ptr as *const T as *const ()) };
                     ManuallyDrop::new(x)
                 },
                 vtable: vtable_for.vtable,
@@ -1432,8 +1432,8 @@ mod priv_ {
             T: ImplType,
         {
             check_unerased!(self, self.sabi_check_same_destructor::<T, T>());
+            let this = ManuallyDrop::new(self);
             unsafe {
-                let this = ManuallyDrop::new(self);
                 Ok(ptr::read(&*this.object).transmute_element::<T>())
             }
         }
@@ -1647,8 +1647,8 @@ mod priv_ {
                 self,
                 self.sabi_check_same_destructor::<InterfaceFor<T, I, TD_CanDowncast>, T>()
             );
+            let this = ManuallyDrop::new(self);
             unsafe {
-                let this = ManuallyDrop::new(self);
                 Ok(ptr::read(&*this.object).transmute_element::<T>())
             }
         }
@@ -2091,10 +2091,10 @@ mod priv_ {
             I: InterfaceType<Default = Implemented<trait_marker::Default>>,
             EV: Copy,
         {
-            unsafe {
-                let new = self.sabi_vtable().default_ptr()();
+            
+                let new = unsafe { self.sabi_vtable().default_ptr()() };
                 self.from_new_ptr(new, *self.sabi_extra_value())
-            }
+            
         }
 
         /// It serializes a `DynTrait<_>` into a string by using
@@ -2125,8 +2125,8 @@ mod priv_ {
         P: GetPointerKind,
     {
         fn drop(&mut self) {
+            let vtable = self.sabi_vtable();
             unsafe {
-                let vtable = self.sabi_vtable();
 
                 if <P as GetPointerKind>::KIND == PointerKind::SmartPointer {
                     vtable.drop_ptr()(RMut::<P>::new(&mut self.object));
@@ -2155,11 +2155,11 @@ where
     EV: Copy + 'borr,
 {
     fn clone_impl(&self) -> Self {
-        unsafe {
+        
             let vtable = self.sabi_vtable();
-            let new = vtable.clone_ptr()(RRef::<P>::new(&*self.object));
+            let new = unsafe { vtable.clone_ptr()(RRef::<P>::new(&*self.object)) };
             self.from_new_ptr(new, *self.sabi_extra_value())
-        }
+        
     }
 }
 
@@ -2369,37 +2369,37 @@ where
     type Item = Item;
 
     fn next(&mut self) -> Option<Item> {
+        let vtable = self.sabi_vtable();
         unsafe {
-            let vtable = self.sabi_vtable();
             (vtable.iter().next)(self.sabi_erased_mut()).into_rust()
         }
     }
 
     fn nth(&mut self, nth: usize) -> Option<Item> {
+        let vtable = self.sabi_vtable();
         unsafe {
-            let vtable = self.sabi_vtable();
             (vtable.iter().nth)(self.sabi_erased_mut(), nth).into_rust()
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        unsafe {
+        
             let vtable = self.sabi_vtable();
-            let tuple = (vtable.iter().size_hint)(self.sabi_erased_ref()).into_rust();
+            let tuple = unsafe { (vtable.iter().size_hint)(self.sabi_erased_ref()).into_rust() };
             (tuple.0, tuple.1.into_rust())
-        }
+        
     }
 
     fn count(mut self) -> usize {
+        let vtable = self.sabi_vtable();
         unsafe {
-            let vtable = self.sabi_vtable();
             (vtable.iter().count)(self.sabi_erased_mut())
         }
     }
 
     fn last(mut self) -> Option<Item> {
+        let vtable = self.sabi_vtable();
         unsafe {
-            let vtable = self.sabi_vtable();
             (vtable.iter().last)(self.sabi_erased_mut()).into_rust()
         }
     }
@@ -2451,8 +2451,8 @@ where
     /// ```
     ///
     pub fn skip_eager(&mut self, n: usize) {
+        let vtable = self.sabi_vtable();
         unsafe {
-            let vtable = self.sabi_vtable();
             (vtable.iter().skip_eager)(self.sabi_erased_mut(), n);
         }
     }
@@ -2487,8 +2487,8 @@ where
     ///
     /// ```
     pub fn extending_rvec(&mut self, buffer: &mut RVec<Item>, taking: ROption<usize>) {
+        let vtable = self.sabi_vtable();
         unsafe {
-            let vtable = self.sabi_vtable();
             (vtable.iter().extending_rvec)(self.sabi_erased_mut(), buffer, taking);
         }
     }
@@ -2505,8 +2505,8 @@ where
     Item: 'borr,
 {
     fn next_back(&mut self) -> Option<Item> {
+        let vtable = self.sabi_vtable();
         unsafe {
-            let vtable = self.sabi_vtable();
             (vtable.back_iter().next_back)(self.sabi_erased_mut()).into_rust()
         }
     }
@@ -2539,8 +2539,8 @@ where
     /// ```
     ///
     pub fn nth_back_(&mut self, nth: usize) -> Option<Item> {
+        let vtable = self.sabi_vtable();
         unsafe {
-            let vtable = self.sabi_vtable();
             (vtable.back_iter().nth_back)(self.sabi_erased_mut(), nth).into_rust()
         }
     }
@@ -2572,8 +2572,8 @@ where
     /// ```
     ///
     pub fn extending_rvec_back(&mut self, buffer: &mut RVec<Item>, taking: ROption<usize>) {
+        let vtable = self.sabi_vtable();
         unsafe {
-            let vtable = self.sabi_vtable();
             (vtable.back_iter().extending_rvec_back)(self.sabi_erased_mut(), buffer, taking);
         }
     }
@@ -2589,12 +2589,12 @@ where
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         let vtable = self.sabi_vtable();
 
-        unsafe {
-            match vtable.fmt_write_str()(self.sabi_erased_mut(), s.into()) {
+        
+            match unsafe { vtable.fmt_write_str()(self.sabi_erased_mut(), s.into()) }{
                 ROk(_) => Ok(()),
                 RErr(_) => Err(fmt::Error),
             }
-        }
+        
     }
 }
 
@@ -2643,16 +2643,16 @@ where
     I: InterfaceBound<IoRead = Implemented<trait_marker::IoRead>>,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let vtable = self.sabi_vtable().io_read();
         unsafe {
-            let vtable = self.sabi_vtable().io_read();
 
             to_io_result((vtable.read)(self.sabi_erased_mut(), buf.into()))
         }
     }
 
     fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
+        let vtable = self.sabi_vtable().io_read();
         unsafe {
-            let vtable = self.sabi_vtable().io_read();
 
             to_io_result((vtable.read_exact)(self.sabi_erased_mut(), buf.into()))
         }
@@ -2670,16 +2670,16 @@ where
     >,
 {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        let vtable = self.sabi_vtable().io_bufread();
         unsafe {
-            let vtable = self.sabi_vtable().io_bufread();
 
             to_io_result((vtable.fill_buf)(self.sabi_erased_mut()))
         }
     }
 
     fn consume(&mut self, amount: usize) {
+        let vtable = self.sabi_vtable().io_bufread();
         unsafe {
-            let vtable = self.sabi_vtable().io_bufread();
 
             (vtable.consume)(self.sabi_erased_mut(), amount)
         }
@@ -2694,8 +2694,8 @@ where
     I: InterfaceBound<IoSeek = Implemented<trait_marker::IoSeek>>,
 {
     fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
+        let vtable = self.sabi_vtable();
         unsafe {
-            let vtable = self.sabi_vtable();
 
             to_io_result(vtable.io_seek()(self.sabi_erased_mut(), pos.into()))
         }

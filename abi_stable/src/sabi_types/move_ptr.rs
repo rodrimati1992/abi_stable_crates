@@ -289,8 +289,8 @@ impl<'a, T> MovePtr<'a, T> {
     /// ```
     #[inline]
     pub fn into_box(this: Self) -> Box<T> {
+        let raw = Self::into_raw(this);
         unsafe {
-            let raw = Self::into_raw(this);
 
             if std::mem::size_of::<T>() == 0 {
                 Box::from_raw(raw)
