@@ -808,7 +808,10 @@ impl<K, V, S> RHashMap<K, V, S> {
     }
 
     /// TODO docs
-    pub fn raw_entry_mut_key<'map, 'query>(&'map mut self, k: &'query K) -> RRawEntryMut<'map, K, V, S>
+    pub fn raw_entry_mut_key<'map, 'query>(
+        &'map mut self,
+        k: &'query K,
+    ) -> RRawEntryMut<'map, K, V, S>
     where
         S: BuildHasher,
         // TODO: not sure how to approach generics here
@@ -826,7 +829,7 @@ impl<K, V, S> RHashMap<K, V, S> {
         hash: u64,
         k: &K,
     ) -> RRawEntryMut<'map, K, V, S>
-    where
+where
         // TODO: not sure how to approach generics here
         // K: Borrow<Q>,
         // Q: Eq,
@@ -1324,12 +1327,12 @@ struct VTable<K, V, S> {
     drain: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> Drain<'_, K, V>,
     iter_val: unsafe extern "C" fn(RBox<ErasedMap<K, V, S>>) -> IntoIter<K, V>,
     entry: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> REntry<'_, K, V, S>,
-    raw_entry_key_hashed_nocheck: for<'map> unsafe extern "C" fn(
-        RRef<'map, ErasedMap<K, V, S>>,
-        u64,
-        MapQuery<'_, K>,
-    )
-        -> ROption<Tuple2<&'map K, &'map V>>,
+    raw_entry_key_hashed_nocheck:
+        for<'map> unsafe extern "C" fn(
+            RRef<'map, ErasedMap<K, V, S>>,
+            u64,
+            MapQuery<'_, K>,
+        ) -> ROption<Tuple2<&'map K, &'map V>>,
     raw_entry_mut_key: for<'map> unsafe extern "C" fn(
         RMut<'map, ErasedMap<K, V, S>>,
         &K,

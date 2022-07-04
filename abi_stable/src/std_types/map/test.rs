@@ -651,8 +651,52 @@ fn entry_or_default() {
 }
 
 #[test]
+fn raw_entry_lookup_or_insert() {
+    fn raw_lookup_or_insert(
+        map: &mut RHashMap<RString, RString>,
+        key: RString,
+        hash: u64,
+        value: RString,
+    ) -> (&mut RString, &mut RString) {
+        map.raw_entry_mut_key_hashed_nocheck(hash, &key)
+            .or_insert_with(|| (key.clone(), value))
+    }
+
+    // TODO: avoid repetition
+    let mut map = RHashMap::new();
+
+    let key = RString::from("key");
+    let hash_builder = DefaultHashBuilder::default();
+    let mut hasher = hash_builder.build_hasher();
+    key.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    assert_eq!(map.len(), 0);
+    assert_eq!(map.get("key".into()), None);
+
+    {
+        let returned = raw_lookup_or_insert(&mut map, key, hash, "value".into());
+        assert_eq!(returned, (&mut "key".into(), &mut "value".into()));
+    }
+    assert_eq!(map.len(), 1);
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+
+    {
+        let returned = raw_lookup_or_insert(&mut map, "key".into(), hash, "value".into());
+        assert_eq!(returned, (&mut "key".into(), &mut "value".into()));
+    }
+    assert_eq!(map.len(), 1);
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+}
+
+#[test]
 fn raw_entry_insert() {
-    fn raw_insert(map: &mut RHashMap<RString, RString>, key: RString, hash: u64, value: RString) -> Option<RString> {
+    fn raw_insert(
+        map: &mut RHashMap<RString, RString>,
+        key: RString,
+        hash: u64,
+        value: RString,
+    ) -> Option<RString> {
         match map.raw_entry_mut_key_hashed_nocheck(hash, &key) {
             RRawEntryMut::Occupied(mut e) => Some(e.insert(value)),
             RRawEntryMut::Vacant(e) => {
