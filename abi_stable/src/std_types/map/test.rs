@@ -649,3 +649,57 @@ fn entry_or_default() {
         "hello".into_::<RString>()
     );
 }
+
+#[test]
+fn raw_entry_insert() {
+    fn raw_insert(map: &mut RHashMap<RString, RString>, key: RString, hash: u64, value: RString) -> Option<RString> {
+        match map.raw_entry_mut_key_hashed_nocheck(hash, &key) {
+            RRawEntryMut::Occupied(mut e) => Some(e.insert(value)),
+            RRawEntryMut::Vacant(e) => {
+                e.insert_hashed_nocheck(hash, key, value);
+                None
+            }
+        }
+    }
+
+    let mut map = RHashMap::new();
+
+    let key = RString::from("key");
+    let hash_builder = DefaultHashBuilder::default();
+    let mut hasher = hash_builder.build_hasher();
+    key.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    assert_eq!(map.len(), 0);
+    assert_eq!(map.get("key".into()), None);
+
+    let returned = raw_insert(&mut map, key, hash, "value".into());
+    assert_eq!(map.len(), 1);
+    assert_eq!(returned, None);
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+
+    let returned = raw_insert(&mut map, "key".into(), hash, "value".into());
+    assert_eq!(map.len(), 1);
+    assert_eq!(returned, Some("value".into()));
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+}
+
+#[test]
+fn insert_nocheck() {
+    let mut map = RHashMap::<RString, RString>::new();
+
+    assert_eq!(map.len(), 0);
+    map.insert_nocheck("key1".into(), "value1".into());
+    assert_eq!(map.len(), 1);
+    map.insert_nocheck("key2".into(), "value2".into());
+    assert_eq!(map.len(), 2);
+    map.insert_nocheck("key3".into(), "value3".into());
+    assert_eq!(map.len(), 3);
+    map.insert_nocheck("key4".into(), "value4".into());
+    assert_eq!(map.len(), 4);
+
+    assert_eq!(map.get("key1".into()), Some(&"value1".into()));
+    assert_eq!(map.get("key2".into()), Some(&"value2".into()));
+    assert_eq!(map.get("key3".into()), Some(&"value3".into()));
+    assert_eq!(map.get("key4".into()), Some(&"value4".into()));
+}
