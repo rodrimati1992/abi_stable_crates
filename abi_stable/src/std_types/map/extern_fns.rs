@@ -6,11 +6,14 @@ use crate::{
     traits::IntoReprC,
 };
 
+pub(super) type MatchFn<K> = extern "C" fn(&K) -> bool;
+
 impl<K, V, S> ErasedMap<K, V, S>
 where
     K: Hash + Eq,
     S: BuildHasher,
 {
+    #[inline]
     unsafe fn run<'a, F, R>(this: RRef<'a, Self>, f: F) -> R
     where
         F: FnOnce(&'a BoxedHashMap<'a, K, V, S>) -> R,
@@ -21,6 +24,7 @@ where
         }
     }
 
+    #[inline]
     unsafe fn run_mut<'a, F, R>(this: RMut<'a, Self>, f: F) -> R
     where
         F: FnOnce(&'a mut BoxedHashMap<'a, K, V, S>) -> R,
@@ -31,11 +35,13 @@ where
         }
     }
 
+    #[inline]
     unsafe fn run_val<'a, F, R>(this: RBox<Self>, f: F) -> R
     where
         F: FnOnce(RBox<BoxedHashMap<'a, K, V, S>>) -> R,
         K: 'a,
         V: 'a,
+        S: 'a,
     {
         extern_fn_panic_handling! {
             let map = this.transmute_element::<BoxedHashMap<'a, K, V, S>>();
@@ -47,9 +53,25 @@ where
         this: RMut<'_, Self>,
         key: K,
         value: V,
-    ) -> ROption<V> {
+    ) -> ROption<V>
+    where
+        S: Default,
+    {
         Self::run_mut(this, |this| {
             this.map.insert(MapKey::Value(key), value).into_c()
+        })
+    }
+
+    pub(super) unsafe extern "C" fn insert_nocheck_elem(this: RMut<'_, Self>, key: K, value: V)
+    where
+        S: Default,
+    {
+        #[cfg(not(feature = "hashbrown"))]
+        ErasedMap::insert_elem(this, key, value);
+
+        #[cfg(feature = "hashbrown")]
+        Self::run_mut(this, |this| {
+            this.map.insert_nocheck(MapKey::Value(key), value).into_c()
         })
     }
 
@@ -149,7 +171,7 @@ where
         })
     }
 
-    pub(super) unsafe extern "C" fn entry(this: RMut<'_, Self>, key: K) -> REntry<'_, K, V> {
+    pub(super) unsafe extern "C" fn entry(this: RMut<'_, Self>, key: K) -> REntry<'_, K, V, S> {
         Self::run_mut(this, |this| {
             this.entry = None;
             let map = &mut this.map;
@@ -160,6 +182,80 @@ where
             unsafe { REntry::new(entry_mut) }
         })
     }
+
+    /// Note that this avoids the intermediate builder step for simplicity
+    pub(super) unsafe extern "C" fn raw_entry_key_hashed_nocheck<'map>(
+        this: RRef<'map, Self>,
+        hash: u64,
+        k: MapQuery<'_, K>,
+    ) -> ROption<Tuple2<&'map K, &'map V>> {
+        Self::run(this, |this| {
+            let k = unsafe { k.as_mapkey() };
+            match this.map.raw_entry().from_key_hashed_nocheck(hash, &k) {
+                Some(x) => RSome(Tuple2(x.0.as_ref(), x.1)),
+                None => RNone,
+            }
+        })
+    }
+
+    /// Note that this avoids the intermediate builder step for simplicity
+    pub(super) unsafe extern "C" fn raw_entry_mut_key<'map>(
+        this: RMut<'map, Self>,
+        k: &K,
+    ) -> RRawEntryMut<'map, K, V, S> {
+        Self::run_mut(this, |this| {
+            this.raw_entry_mut = None;
+            let map = &mut this.map;
+            let raw_entry_mut = this.raw_entry_mut.get_or_insert_with(|| {
+                { map }
+                    .raw_entry_mut()
+                    .from_key(k)
+                    .piped(BoxedRRawEntryMut::from)
+            });
+
+            unsafe { RRawEntryMut::new(raw_entry_mut) }
+        })
+    }
+
+    /// Note that this avoids the intermediate builder step for simplicity
+    pub(super) unsafe extern "C" fn raw_entry_mut_key_hashed_nocheck<'map>(
+        this: RMut<'map, Self>,
+        hash: u64,
+        k: &K,
+    ) -> RRawEntryMut<'map, K, V, S> {
+        Self::run_mut(this, |this| {
+            this.raw_entry_mut = None;
+            let map = &mut this.map;
+            let raw_entry_mut = this.raw_entry_mut.get_or_insert_with(|| {
+                { map }
+                    .raw_entry_mut()
+                    .from_key_hashed_nocheck(hash, k)
+                    .piped(BoxedRRawEntryMut::from)
+            });
+
+            unsafe { RRawEntryMut::new(raw_entry_mut) }
+        })
+    }
+
+    // /// Note that this avoids the intermediate builder step for simplicity
+    // pub(super) unsafe extern "C" fn raw_entry_hash<'a>(
+    //     this: RMut<'a, Self>,
+    //     hash: u64,
+    //     is_match: MatchFn<F>,
+    // ) -> RRawEntryMut<'a, K, V, S> {
+    //     Self::run_mut(this, |this| {
+    //         this.raw_entry_mut = None;
+    //         let map = &mut this.map;
+    //         let raw_entry_mut = this.raw_entry_mut.get_or_insert_with(|| {
+    //             { map }
+    //                 .raw_entry_mut()
+    //                 .from_hash(hash, is_match)
+    //                 .piped(BoxedRRawEntryMut::from)
+    //         });
+
+    //         unsafe { RRawEntryMut::new(raw_entry_mut) }
+    //     })
+    // }
 }
 
 fn map_iter_ref<'a, K, V: 'a>((key, val): (&'a MapKey<K>, V)) -> Tuple2<&'a K, V> {

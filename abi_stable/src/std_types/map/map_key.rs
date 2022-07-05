@@ -22,6 +22,14 @@ impl<K> MapKey<K> {
             _ => unreachable!("This is a BUG!!!!!!!!!!!!!!!!!!!!"),
         }
     }
+
+    #[inline]
+    pub fn as_mut(&mut self) -> &mut K {
+        match self {
+            MapKey::Value(v) => v,
+            _ => unreachable!("This is a BUG!!!!!!!!!!!!!!!!!!!!"),
+        }
+    }
 }
 
 impl<K> From<K> for MapKey<K> {

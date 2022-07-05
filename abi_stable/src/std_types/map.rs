@@ -3,7 +3,6 @@
 use std::{
     borrow::Borrow,
     cmp::{Eq, PartialEq},
-    collections::{hash_map::RandomState, HashMap},
     fmt::{self, Debug},
     hash::{BuildHasher, Hash, Hasher},
     iter::FromIterator,
@@ -12,6 +11,11 @@ use std::{
     ops::{Index, IndexMut},
     ptr::NonNull,
 };
+
+#[cfg(feature = "halfbrown")]
+use halfbrown::{DefaultHashBuilder, HashMap, RawEntryBuilder, RawEntryBuilderMut};
+#[cfg(not(feature = "halfbrown"))]
+use hashbrown::hash_map::{DefaultHashBuilder, HashMap};
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
@@ -34,15 +38,34 @@ mod extern_fns;
 mod iterator_stuff;
 mod map_key;
 mod map_query;
+mod raw_entry_mut;
+// mod raw_entry_builder_mut;
 
 #[cfg(all(test, not(feature = "only_new_tests")))]
 mod test;
 
-use self::{entry::BoxedREntry, map_key::MapKey, map_query::MapQuery};
+use self::{
+    entry::BoxedREntry,
+    map_key::MapKey,
+    map_query::MapQuery,
+    raw_entry_mut::BoxedRRawEntryMut,
+    // raw_entry_builder_mut::BoxedRRawEntryBuilderMut,
+};
 
 pub use self::{
     entry::{REntry, ROccupiedEntry, RVacantEntry},
     iterator_stuff::{IntoIter, MutIterInterface, RefIterInterface, ValIterInterface},
+    raw_entry_mut::{RRawEntryMut, RRawOccupiedEntryMut, RRawVacantEntryMut},
+    // raw_entry_builder_mut::RRawEntryBuilderMut,
+};
+
+#[cfg(feature = "halfbrown")]
+pub use halfbrown::{
+    Entry, OccupiedEntry, RawEntryMut, RawOccupiedEntryMut, RawVacantEntryMut, VacantEntry,
+};
+#[cfg(not(feature = "halfbrown"))]
+pub use hashbrown::hash_map::{
+    Entry, OccupiedEntry, RawEntryMut, RawOccupiedEntryMut, RawVacantEntryMut, VacantEntry,
 };
 
 /// An ffi-safe hashmap, which wraps `std::collections::HashMap<K, V, S>`,
@@ -100,7 +123,7 @@ pub use self::{
     // The hasher doesn't matter
     unsafe_unconstrained(S),
 )]
-pub struct RHashMap<K, V, S = RandomState> {
+pub struct RHashMap<K, V, S = DefaultHashBuilder> {
     map: RBox<ErasedMap<K, V, S>>,
     #[sabi(unsafe_change_type = VTable_Ref<K, V, S>)]
     vtable: PrefixRef<ErasedPrefix>,
@@ -110,7 +133,8 @@ pub struct RHashMap<K, V, S = RandomState> {
 
 struct BoxedHashMap<'a, K, V, S> {
     map: HashMap<MapKey<K>, V, S>,
-    entry: Option<BoxedREntry<'a, K, V>>,
+    entry: Option<BoxedREntry<'a, K, V, S>>,
+    raw_entry_mut: Option<BoxedRRawEntryMut<'a, K, V, S>>,
 }
 
 /// An RHashMap iterator,
@@ -140,7 +164,7 @@ impl<'a, K: 'a, V: 'a, S: 'a> ErasedType<'a> for ErasedMap<K, V, S> {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-impl<K, V> RHashMap<K, V, RandomState> {
+impl<K, V> RHashMap<K, V, DefaultHashBuilder> {
     /// Constructs an empty RHashMap.
     ///
     /// # Example
@@ -549,6 +573,15 @@ impl<K, V, S> RHashMap<K, V, S> {
         unsafe { vtable.insert_elem()(self.map.as_rmut(), key, value) }
     }
 
+    /// TODO: docs
+    pub fn insert_nocheck(&mut self, key: K, value: V)
+    where
+        S: Default,
+    {
+        let vtable = self.vtable();
+        unsafe { vtable.insert_nocheck_elem()(self.map.as_rmut(), key, value) }
+    }
+
     /// Reserves enough space to insert `reserved` extra elements without reallocating.
     ///
     /// # Example
@@ -751,11 +784,72 @@ impl<K, V, S> RHashMap<K, V, S> {
     ///
     /// ```
     ///
-    pub fn entry(&mut self, key: K) -> REntry<'_, K, V> {
+    pub fn entry(&mut self, key: K) -> REntry<'_, K, V, S> {
         let vtable = self.vtable();
 
         unsafe { vtable.entry()(self.map.as_rmut(), key) }
     }
+
+    /// TODO docs
+    pub fn raw_entry_key_hashed_nocheck<'map, Q>(
+        &'map self,
+        hash: u64,
+        query: &Q,
+    ) -> ROption<Tuple2<&'map K, &'map V>>
+    where
+        K: Borrow<Q>,
+        Q: Eq + Hash + ?Sized,
+    {
+        let vtable = self.vtable();
+
+        unsafe {
+            vtable.raw_entry_key_hashed_nocheck()(self.map.as_rref(), hash, MapQuery::new(&query))
+        }
+    }
+
+    /// TODO docs
+    pub fn raw_entry_mut_key<'map, 'query>(
+        &'map mut self,
+        k: &'query K,
+    ) -> RRawEntryMut<'map, K, V, S>
+    where
+        S: BuildHasher,
+        // TODO: not sure how to approach generics here
+        // K: Borrow<Q>,
+        // Q: Hash + Eq,
+    {
+        let vtable = self.vtable();
+
+        unsafe { vtable.raw_entry_mut_key()(self.map.as_rmut(), k) }
+    }
+
+    /// TODO docs
+    pub fn raw_entry_mut_key_hashed_nocheck<'map>(
+        &'map mut self,
+        hash: u64,
+        k: &K,
+    ) -> RRawEntryMut<'map, K, V, S>
+where
+        // TODO: not sure how to approach generics here
+        // K: Borrow<Q>,
+        // Q: Eq,
+    {
+        let vtable = self.vtable();
+
+        unsafe { vtable.raw_entry_mut_key_hashed_nocheck()(self.map.as_rmut(), hash, k) }
+    }
+
+    /*
+    /// TODO docs
+    pub fn raw_entry_hash<F>(&mut self, hash: u64, is_match: F) -> RRawEntryMut<'_, K, V, S>
+    where
+        F: Fn(&K) -> bool,
+    {
+        let vtable = self.vtable();
+
+        unsafe { vtable.raw_entry_hash()(self.map.as_rmut(), hash, is_match) }
+    }
+    */
 
     /// An iterator visiting all keys in arbitrary order.
     /// The iterator element type is `&'a K`.
@@ -822,7 +916,6 @@ pub struct Keys<'a, K: 'a, V: 'a> {
     inner: Iter<'a, K, V>,
 }
 
-// FIXME(#26925) Remove in favor of `#[derive(Clone)]`
 impl<K, V> Clone for Keys<'_, K, V> {
     #[inline]
     fn clone(&self) -> Self {
@@ -873,7 +966,6 @@ pub struct Values<'a, K: 'a, V: 'a> {
     inner: Iter<'a, K, V>,
 }
 
-// FIXME(#26925) Remove in favor of `#[derive(Clone)]`
 impl<K, V> Clone for Values<'_, K, V> {
     #[inline]
     fn clone(&self) -> Self {
@@ -935,12 +1027,31 @@ impl<'a, K, V, S> IntoIterator for &'a mut RHashMap<K, V, S> {
     }
 }
 
+impl<K, V, S> From<std::collections::HashMap<K, V, S>> for RHashMap<K, V, S>
+where
+    Self: Default,
+{
+    fn from(map: std::collections::HashMap<K, V, S>) -> Self {
+        map.into_iter().collect()
+    }
+}
+
 impl<K, V, S> From<HashMap<K, V, S>> for RHashMap<K, V, S>
 where
     Self: Default,
 {
     fn from(map: HashMap<K, V, S>) -> Self {
         map.into_iter().collect()
+    }
+}
+
+impl<K, V, S> From<RHashMap<K, V, S>> for std::collections::HashMap<K, V, S>
+where
+    K: Eq + Hash,
+    S: BuildHasher + Default,
+{
+    fn from(this: RHashMap<K, V, S>) -> std::collections::HashMap<K, V, S> {
+        this.into_iter().map(|x| x.into_tuple()).collect()
     }
 }
 
@@ -1173,6 +1284,8 @@ mod serde {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+pub(super) type MatchFn<K> = extern "C" fn(&K) -> bool;
+
 #[derive(StableAbi)]
 #[repr(C)]
 #[sabi(
@@ -1185,6 +1298,7 @@ mod serde {
 struct VTable<K, V, S> {
     ///
     insert_elem: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K, V) -> ROption<V>,
+    insert_nocheck_elem: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K, V),
 
     get_elem: for<'a> unsafe extern "C" fn(
         RRef<'a, ErasedMap<K, V, S>>,
@@ -1212,14 +1326,35 @@ struct VTable<K, V, S> {
     iter_mut: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> IterMut<'_, K, V>,
     drain: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>) -> Drain<'_, K, V>,
     iter_val: unsafe extern "C" fn(RBox<ErasedMap<K, V, S>>) -> IntoIter<K, V>,
+    entry: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> REntry<'_, K, V, S>,
+    raw_entry_key_hashed_nocheck:
+        for<'map> unsafe extern "C" fn(
+            RRef<'map, ErasedMap<K, V, S>>,
+            u64,
+            MapQuery<'_, K>,
+        ) -> ROption<Tuple2<&'map K, &'map V>>,
+    raw_entry_mut_key: for<'map> unsafe extern "C" fn(
+        RMut<'map, ErasedMap<K, V, S>>,
+        &K,
+    ) -> RRawEntryMut<'map, K, V, S>,
     #[sabi(last_prefix_field)]
-    entry: unsafe extern "C" fn(RMut<'_, ErasedMap<K, V, S>>, K) -> REntry<'_, K, V>,
+    raw_entry_mut_key_hashed_nocheck: for<'map> unsafe extern "C" fn(
+        RMut<'map, ErasedMap<K, V, S>>,
+        u64,
+        &K,
+    )
+        -> RRawEntryMut<'map, K, V, S>,
+    // raw_entry_hash: for<'a> unsafe extern "C" fn(
+    //     RMut<'a, ErasedMap<K, V, S>>,
+    //     u64,
+    //     MatchFn<K>,
+    // ) -> RRawEntryMut<'a, K, V, S>,
 }
 
 impl<K, V, S> VTable<K, V, S>
 where
     K: Eq + Hash,
-    S: BuildHasher,
+    S: BuildHasher + Default,
 {
     const VTABLE_VAL: WithMetadata<VTable<K, V, S>> =
         { WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE) };
@@ -1229,7 +1364,11 @@ where
     fn erased_map(hash_builder: S) -> RBox<ErasedMap<K, V, S>> {
         unsafe {
             let map = HashMap::<MapKey<K>, V, S>::with_hasher(hash_builder);
-            let boxed = BoxedHashMap { map, entry: None };
+            let boxed = BoxedHashMap {
+                map,
+                entry: None,
+                raw_entry_mut: None,
+            };
             let boxed = RBox::new(boxed);
             mem::transmute::<RBox<_>, RBox<ErasedMap<K, V, S>>>(boxed)
         }
@@ -1237,6 +1376,7 @@ where
 
     const VTABLE: VTable<K, V, S> = VTable {
         insert_elem: ErasedMap::insert_elem,
+        insert_nocheck_elem: ErasedMap::insert_nocheck_elem,
 
         get_elem: ErasedMap::get_elem,
         get_mut_elem: ErasedMap::get_mut_elem,
@@ -1255,6 +1395,10 @@ where
         drain: ErasedMap::drain,
         iter_val: ErasedMap::iter_val,
         entry: ErasedMap::entry,
+        raw_entry_key_hashed_nocheck: ErasedMap::raw_entry_key_hashed_nocheck,
+        raw_entry_mut_key: ErasedMap::raw_entry_mut_key,
+        raw_entry_mut_key_hashed_nocheck: ErasedMap::raw_entry_mut_key_hashed_nocheck,
+        // raw_entry_hash: ErasedMap::raw_entry_hash,
     };
 }
 

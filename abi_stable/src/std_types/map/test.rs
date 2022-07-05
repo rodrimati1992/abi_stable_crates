@@ -6,7 +6,7 @@ use fnv::FnvBuildHasher as FnVBH;
 
 use crate::std_types::RString;
 
-type DefaultBH = RandomState;
+type DefaultBH = DefaultHashBuilder;
 
 fn _covariant_hashmap<'a: 'b, 'b, T>(foo: HashMap<&'a T, &'a T>) -> HashMap<&'b T, &'b T> {
     foo
@@ -62,6 +62,13 @@ where
 fn test_new_map() {
     let mut map = RHashMap::new();
     map.insert(10, 100);
+    assert_eq!(map.get(&10), Some(&100));
+}
+
+#[test]
+fn test_nocheck() {
+    let mut map = RHashMap::new();
+    map.insert_nocheck(10, 100);
     assert_eq!(map.get(&10), Some(&100));
 }
 
@@ -252,7 +259,7 @@ fn get() {
 fn map_key() {
     let test_key: u8 = 100;
     let borrow_key: &u8 = &test_key;
-    let builder = hashbrown::hash_map::DefaultHashBuilder::new();
+    let builder = DefaultHashBuilder::new();
 
     // Hashing the original value
     let mut hasher = builder.build_hasher();
@@ -641,4 +648,150 @@ fn entry_or_default() {
             .or_default(),
         "hello".into_::<RString>()
     );
+}
+
+#[test]
+fn raw_entry_lookup() {
+    let hash_builder = DefaultHashBuilder::default();
+    // TODO: avoid repetition
+    let mut map = RHashMap::<RString, RString>::with_hasher(hash_builder.clone());
+
+    let key = RString::from("key");
+    let mut hasher = hash_builder.build_hasher();
+    key.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    let returned = map.raw_entry_key_hashed_nocheck(hash, &RString::from("key"));
+    assert_eq!(map.len(), 0);
+    assert_eq!(returned, RNone);
+
+    map.insert("key".into(), "value".into());
+
+    let returned = map.raw_entry_key_hashed_nocheck(hash, &RString::from("key"));
+    println!("{map:?} {returned:?}");
+    assert_eq!(map.len(), 1);
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+    assert_eq!(returned, RSome(Tuple2(&"key".into(), &"value".into())));
+
+    /*
+    let hash_builder = DefaultHashBuilder::default();
+
+    // TODO: avoid repetition
+    let mut map = hashbrown::HashMap::<String, String>::with_hasher(hash_builder.clone());
+
+    let key = String::from("key");
+    let mut hasher = hash_builder.build_hasher();
+    key.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    let returned = map.raw_entry().from_key_hashed_nocheck(hash, &String::from("key"));
+    assert_eq!(map.len(), 0);
+    assert_eq!(returned, None);
+
+    map.insert("key".into(), "value".into());
+
+    let returned = map.raw_entry().from_key_hashed_nocheck(hash, &String::from("key"));
+    println!("{map:?} {returned:?}");
+    assert_eq!(map.len(), 1);
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+    assert_eq!(returned, Some((&"key".into(), &"value".into())));
+    */
+}
+
+#[test]
+fn raw_entry_mut_lookup_or_insert() {
+    fn raw_lookup_or_insert(
+        map: &mut RHashMap<RString, RString>,
+        key: RString,
+        hash: u64,
+        value: RString,
+    ) -> (&mut RString, &mut RString) {
+        map.raw_entry_mut_key_hashed_nocheck(hash, &key)
+            .or_insert_with(|| (key.clone(), value))
+    }
+
+    // TODO: avoid repetition
+    let hash_builder = DefaultHashBuilder::default();
+    let mut map = RHashMap::<RString, RString>::with_hasher(hash_builder.clone());
+
+    let key = RString::from("key");
+    let mut hasher = hash_builder.build_hasher();
+    key.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    assert_eq!(map.len(), 0);
+    assert_eq!(map.get("key".into()), None);
+
+    {
+        let returned = raw_lookup_or_insert(&mut map, key, hash, "value".into());
+        assert_eq!(returned, (&mut "key".into(), &mut "value".into()));
+    }
+    assert_eq!(map.len(), 1);
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+
+    {
+        let returned = raw_lookup_or_insert(&mut map, "key".into(), hash, "value".into());
+        assert_eq!(returned, (&mut "key".into(), &mut "value".into()));
+    }
+    assert_eq!(map.len(), 1);
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+}
+
+#[test]
+fn raw_entry_mut_insert() {
+    fn raw_insert(
+        map: &mut RHashMap<RString, RString>,
+        key: RString,
+        hash: u64,
+        value: RString,
+    ) -> Option<RString> {
+        match map.raw_entry_mut_key_hashed_nocheck(hash, &key) {
+            RRawEntryMut::Occupied(mut e) => Some(e.insert(value)),
+            RRawEntryMut::Vacant(e) => {
+                e.insert_hashed_nocheck(hash, key, value);
+                None
+            }
+        }
+    }
+
+    let hash_builder = DefaultHashBuilder::default();
+    let mut map = RHashMap::<RString, RString>::with_hasher(hash_builder.clone());
+
+    let key = RString::from("key");
+    let mut hasher = hash_builder.build_hasher();
+    key.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    assert_eq!(map.len(), 0);
+    assert_eq!(map.get("key".into()), None);
+
+    let returned = raw_insert(&mut map, key, hash, "value".into());
+    assert_eq!(map.len(), 1);
+    assert_eq!(returned, None);
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+
+    let returned = raw_insert(&mut map, "key".into(), hash, "value".into());
+    assert_eq!(map.len(), 1);
+    assert_eq!(returned, Some("value".into()));
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+}
+
+#[test]
+fn insert_nocheck() {
+    let mut map = RHashMap::<RString, RString>::new();
+
+    assert_eq!(map.len(), 0);
+    map.insert_nocheck("key1".into(), "value1".into());
+    assert_eq!(map.len(), 1);
+    map.insert_nocheck("key2".into(), "value2".into());
+    assert_eq!(map.len(), 2);
+    map.insert_nocheck("key3".into(), "value3".into());
+    assert_eq!(map.len(), 3);
+    map.insert_nocheck("key4".into(), "value4".into());
+    assert_eq!(map.len(), 4);
+
+    assert_eq!(map.get("key1".into()), Some(&"value1".into()));
+    assert_eq!(map.get("key2".into()), Some(&"value2".into()));
+    assert_eq!(map.get("key3".into()), Some(&"value3".into()));
+    assert_eq!(map.get("key4".into()), Some(&"value4".into()));
 }
