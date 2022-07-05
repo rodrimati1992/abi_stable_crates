@@ -259,7 +259,7 @@ fn get() {
 fn map_key() {
     let test_key: u8 = 100;
     let borrow_key: &u8 = &test_key;
-    let builder = hashbrown::hash_map::DefaultHashBuilder::new();
+    let builder = DefaultHashBuilder::new();
 
     // Hashing the original value
     let mut hasher = builder.build_hasher();
@@ -651,7 +651,55 @@ fn entry_or_default() {
 }
 
 #[test]
-fn raw_entry_lookup_or_insert() {
+fn raw_entry_lookup() {
+    let hash_builder = DefaultHashBuilder::default();
+    // TODO: avoid repetition
+    let mut map = RHashMap::<RString, RString>::with_hasher(hash_builder.clone());
+
+    let key = RString::from("key");
+    let mut hasher = hash_builder.build_hasher();
+    key.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    let returned = map.raw_entry_key_hashed_nocheck(hash, &RString::from("key"));
+    assert_eq!(map.len(), 0);
+    assert_eq!(returned, RNone);
+
+    map.insert("key".into(), "value".into());
+
+    let returned = map.raw_entry_key_hashed_nocheck(hash, &RString::from("key"));
+    println!("{map:?} {returned:?}");
+    assert_eq!(map.len(), 1);
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+    assert_eq!(returned, RSome(Tuple2(&"key".into(), &"value".into())));
+
+    /*
+    let hash_builder = DefaultHashBuilder::default();
+
+    // TODO: avoid repetition
+    let mut map = hashbrown::HashMap::<String, String>::with_hasher(hash_builder.clone());
+
+    let key = String::from("key");
+    let mut hasher = hash_builder.build_hasher();
+    key.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    let returned = map.raw_entry().from_key_hashed_nocheck(hash, &String::from("key"));
+    assert_eq!(map.len(), 0);
+    assert_eq!(returned, None);
+
+    map.insert("key".into(), "value".into());
+
+    let returned = map.raw_entry().from_key_hashed_nocheck(hash, &String::from("key"));
+    println!("{map:?} {returned:?}");
+    assert_eq!(map.len(), 1);
+    assert_eq!(map.get("key".into()), Some(&"value".into()));
+    assert_eq!(returned, Some((&"key".into(), &"value".into())));
+    */
+}
+
+#[test]
+fn raw_entry_mut_lookup_or_insert() {
     fn raw_lookup_or_insert(
         map: &mut RHashMap<RString, RString>,
         key: RString,
@@ -663,10 +711,10 @@ fn raw_entry_lookup_or_insert() {
     }
 
     // TODO: avoid repetition
-    let mut map = RHashMap::new();
+    let hash_builder = DefaultHashBuilder::default();
+    let mut map = RHashMap::<RString, RString>::with_hasher(hash_builder.clone());
 
     let key = RString::from("key");
-    let hash_builder = DefaultHashBuilder::default();
     let mut hasher = hash_builder.build_hasher();
     key.hash(&mut hasher);
     let hash = hasher.finish();
@@ -690,7 +738,7 @@ fn raw_entry_lookup_or_insert() {
 }
 
 #[test]
-fn raw_entry_insert() {
+fn raw_entry_mut_insert() {
     fn raw_insert(
         map: &mut RHashMap<RString, RString>,
         key: RString,
@@ -706,10 +754,10 @@ fn raw_entry_insert() {
         }
     }
 
-    let mut map = RHashMap::new();
+    let hash_builder = DefaultHashBuilder::default();
+    let mut map = RHashMap::<RString, RString>::with_hasher(hash_builder.clone());
 
     let key = RString::from("key");
-    let hash_builder = DefaultHashBuilder::default();
     let mut hasher = hash_builder.build_hasher();
     key.hash(&mut hasher);
     let hash = hasher.finish();
