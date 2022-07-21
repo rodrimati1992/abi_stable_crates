@@ -11,7 +11,7 @@ with a focus on creating libraries loaded at program startup,
 and with load-time type-checking.
 
 This library allows defining Rust libraries that can be loaded at runtime,
-even if they were built with a different Rust version than the crate that depends on it.
+since the Rust ABI is unstable.
 
 These are some usecases for this library:
     
