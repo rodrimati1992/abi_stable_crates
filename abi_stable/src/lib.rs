@@ -275,6 +275,7 @@ pub mod erased_types;
 pub mod external_types;
 #[macro_use]
 pub mod library;
+pub mod closures;
 pub mod inline_storage;
 pub mod marker_type;
 mod multikey_map;
