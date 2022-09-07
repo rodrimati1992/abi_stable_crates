@@ -55,9 +55,9 @@ then run the `*_user` crate (all `*_user` crates should have a help message and 
 
 # Minimum Rust version
 
-This crate support Rust back to 1.51.0
+This crate support Rust back to 1.57.0
 
-You can manually enable support for Rust past 1.51.0 with the `rust_*_*` cargo features.
+You can manually enable support for Rust past 1.57.0 with the `rust_*_*` cargo features.
 
 # Crate Features
 
@@ -86,9 +86,6 @@ enabling the features you need in the `features` array.
 ### Manually enabled
 
 These are crate features to manually enable support for newer language features:
-
-- "rust_1_56":
-Enables methods that require using `transmute` and `union`s.
 
 - "rust_latest_stable":
 Enables the "rust_1_*" features for all the stable releases.
@@ -379,13 +376,6 @@ extern "Rust" {
     fn miri_static_root(ptr: *const u8);
 }
 
-#[cfg(all(feature = "rust_1_56", doctest))]
-macro_rules! readme_test {
-    () => {
-        #[doc = include_str!("../../readme.md")]
-        pub struct ReadmeTest;
-    };
-}
-
-#[cfg(all(feature = "rust_1_56", doctest))]
-readme_test! {}
+#[cfg(doctest)]
+#[doc = include_str!("../../readme.md")]
+pub struct ReadmeTest;

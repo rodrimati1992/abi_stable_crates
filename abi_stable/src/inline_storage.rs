@@ -183,31 +183,20 @@ impl<T, Inline> ScratchSpace<T, Inline> {
         let size_val = std::mem::size_of::<T>();
         let size_storage = std::mem::size_of::<Inline>();
 
-        #[cfg(not(feature = "rust_1_57"))]
-        {
-            [(/*The alignment of the storage is lower than the value*/)]
-                [(align_val > align_storage) as usize];
-
-            [(/*The size of the storage is smaller than the value*/)]
-                [(size_val > size_storage) as usize];
-        }
-        #[cfg(feature = "rust_1_57")]
-        {
-            const_panic::concat_assert!(
-                align_val <= align_storage,
-                "The alignment of the storage is lower than the value:\n\t",
-                align_storage,
-                " < ",
-                align_val,
-            );
-            const_panic::concat_assert!(
-                size_val <= size_storage,
-                "The size of the storage is smaller than the value:\n\t",
-                size_storage,
-                " < ",
-                size_val,
-            );
-        }
+        const_panic::concat_assert!(
+            align_val <= align_storage,
+            "The alignment of the storage is lower than the value:\n\t",
+            align_storage,
+            " < ",
+            align_val,
+        );
+        const_panic::concat_assert!(
+            size_val <= size_storage,
+            "The size of the storage is smaller than the value:\n\t",
+            size_storage,
+            " < ",
+            size_val,
+        );
     }
 }
 

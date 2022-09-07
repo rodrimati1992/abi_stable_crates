@@ -141,12 +141,7 @@ The `*Interface` types from the examples come from the
 
 ### NonExhaustive assertions
 
-This generates a test that checks that the listed types can be stored within `NonExhaustive`.
-
-You must run those tests with `cargo test`,they are not static assertions.
-
-Once static assertions can be done in a non-hacky way,
-this library will provide another attribute which generates static assertions.
+This generates a static assertion that the listed types can be stored within `NonExhaustive`.
 
 Syntax:`assert_nonexhaustive = type)`<br>
 Example:`assert_nonexhaustive = Foo<u8>)`<br>

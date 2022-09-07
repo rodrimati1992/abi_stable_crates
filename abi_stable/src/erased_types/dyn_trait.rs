@@ -42,7 +42,7 @@ use super::{
 #[cfg(all(test, not(feature = "only_new_tests")))]
 mod tests;
 
-#[cfg(all(doctest, feature = "rust_1_56"))]
+#[cfg(doctest)]
 pub mod doctests;
 
 mod priv_ {

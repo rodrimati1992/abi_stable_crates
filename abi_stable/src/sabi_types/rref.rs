@@ -196,26 +196,22 @@ impl<'a, T> RRef<'a, T> {
         }
     }
 
-    conditionally_const! {
-        feature = "rust_1_56";
-
-        /// Casts this to an equivalent reference.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// use abi_stable::RRef;
-        ///
-        /// let rref = RRef::new(&89);
-        ///
-        /// assert_eq!(rref.get(), &89);
-        ///
-        /// ```
-        #[inline(always)]
-        pub fn get(self) -> &'a T {
-            unsafe {
-                crate::utils::deref!(self.ref_.as_ptr())
-            }
+    /// Casts this to an equivalent reference.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::RRef;
+    ///
+    /// let rref = RRef::new(&89);
+    ///
+    /// assert_eq!(rref.get(), &89);
+    ///
+    /// ```
+    #[inline(always)]
+    pub const fn get(self) -> &'a T {
+        unsafe {
+            crate::utils::deref!(self.ref_.as_ptr())
         }
     }
 
@@ -297,37 +293,33 @@ impl<'a, T> RRef<'a, T> {
         self.ref_.as_ptr() as *const T as *const U
     }
 
-    conditionally_const! {
-        feature = "rust_1_56";
-
-        /// Transmutes this to a reference pointing to a different type.
-        ///
-        /// # Safety
-        ///
-        /// Either of these must be the case:
-        ///
-        /// - [`U` is a prefix of `T`](#type-prefix-exp)
-        ///
-        /// - `RRef<'a, U>` was the original type of this `RRef<'a, T>`.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// use abi_stable::{std_types::Tuple2, RRef};
-        ///
-        /// unsafe {
-        ///     let reff = RRef::new(&Tuple2(3u32, 5u64));
-        ///     assert_eq!(reff.transmute_into_ref::<u32>(), &3u32);
-        /// }
-        ///
-        /// ```
-        #[inline(always)]
-        pub unsafe fn transmute_into_ref[U](self) -> &'a U
-        where
-            U: 'a,
-        {
-            crate::utils::deref!(self.ref_.as_ptr() as *const T as *const U)
-        }
+    /// Transmutes this to a reference pointing to a different type.
+    ///
+    /// # Safety
+    ///
+    /// Either of these must be the case:
+    ///
+    /// - [`U` is a prefix of `T`](#type-prefix-exp)
+    ///
+    /// - `RRef<'a, U>` was the original type of this `RRef<'a, T>`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::{std_types::Tuple2, RRef};
+    ///
+    /// unsafe {
+    ///     let reff = RRef::new(&Tuple2(3u32, 5u64));
+    ///     assert_eq!(reff.transmute_into_ref::<u32>(), &3u32);
+    /// }
+    ///
+    /// ```
+    #[inline(always)]
+    pub const unsafe fn transmute_into_ref<U>(self) -> &'a U
+    where
+        U: 'a,
+    {
+        crate::utils::deref!(self.ref_.as_ptr() as *const T as *const U)
     }
 }
 

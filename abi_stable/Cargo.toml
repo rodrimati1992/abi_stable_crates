@@ -24,10 +24,7 @@ travis-ci = { repository =  "rodrimati1992/abi_stable_crates/" }
 [features]
 default = ["channels","serde_json"]
 
-rust_1_56 = []
-rust_1_57 = ["const_panic", "rust_1_56"]
-
-rust_latest_stable = ["rust_1_57"]
+rust_latest_stable = []
 
 # internal features
 testing=[]
@@ -64,7 +61,6 @@ paste = "1.0.6"
 [dependencies.const_panic]
 version = "0.2.1"
 default_features = false
-optional = true
 
 [dependencies.core_extensions]
 default_features=false

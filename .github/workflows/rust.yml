@@ -21,10 +21,7 @@ jobs:
           - rust: beta
             os: ubuntu-latest
 
-          - rust: 1.51.0
-            os: ubuntu-latest
-
-          - rust: 1.56.0
+          - rust: 1.57.0
             os: ubuntu-latest
 
     steps:
@@ -36,10 +33,6 @@ jobs:
         rustup component add rustfmt
         cd "${{github.workspace}}/"
         cargo fmt -- --check
-
-    - name: enable-rust-stable
-      if: matrix.rust == '1.56.0' 
-      run: echo "rustv=rust_1_56" >> $GITHUB_ENV
 
     - name: enable-rust-stable
       if: matrix.rust == 'stable' || matrix.rust == 'beta' || matrix.rust == 'nightly'

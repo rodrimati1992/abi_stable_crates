@@ -122,6 +122,7 @@ macro_rules! zst_assert {
 
 ///////////////////////////////////////////////////////////////////////////////7
 
+#[allow(unused_macros)]
 macro_rules! conditionally_const {
     (
         feature = $feature:literal;

@@ -676,17 +676,20 @@ pub(crate) fn tokenize_enum_info<'a>(
         .to_tokens(ts);
 
         if !this.assert_nonexh.is_empty() {
-            let tests_function = parse_str_as_ident(&format!("{}_storage_assertions", name));
             let assertions = this.assert_nonexh.iter().cloned();
+            let assertions_str = this.assert_nonexh
+                .iter()
+                .map(|x| x.to_token_stream().to_string());
+            let enum_storage_str = enum_storage.to_string();
             quote!(
-                #[test]
-                fn #tests_function(){
-                    use ::abi_stable::pmr::assert_nonexhaustive;
-
-                    #(
-                        assert_nonexhaustive::<#assertions>();
-                    )*
-                }
+                #(
+                    const _: () = ::abi_stable::pmr::assert_correct_storage::<#assertions, #enum_storage>(
+                        ::abi_stable::pmr::AssertCsArgs{
+                            enum_ty: #assertions_str,
+                            storage_ty: #enum_storage_str,
+                        }
+                    );
+                )*
             )
             .to_tokens(ts);
         }

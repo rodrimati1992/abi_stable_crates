@@ -232,52 +232,48 @@ impl<'a, T> RMut<'a, T> {
         }
     }
 
-    conditionally_const! {
-        feature = "rust_1_56";
-
-        /// Reborrows this `RMut` into a shared reference.
-        ///
-        /// Note that because the reference reborrows this `RMut<'a, T>`
-        /// its lifetime argument is strictly smaller.
-        /// To turn an `RMut<'a, T>` into a `&'a T` (with the same lifetime argument)
-        /// you can use [`into_ref`](#method.into_ref).
-        ///
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// use abi_stable::RMut;
-        ///
-        /// let mut val = 89;
-        /// let rmut = RMut::new(&mut val);
-        ///
-        /// assert_eq!(rmut.get(), &89);
-        ///
-        /// ```
-        ///
-        /// ### Lifetimes
-        ///
-        /// This demonstrates when `into_ref` works, but `get` doesn't.
-        ///
-        /// ```rust
-        /// # use abi_stable::RMut;
-        /// fn stuff<'a>(x: RMut<'a, i32>) -> &'a i32 {
-        ///     x.into_ref()
-        /// }
-        /// ```
-        ///
-        /// This doesn't compile, because `get` reborrows `foo`.
-        /// ```compile_fail
-        /// # use abi_stable::RMut;
-        /// fn stuff<'a>(foo: RMut<'a, i32>) -> &'a i32 {
-        ///     foo.get()
-        /// }
-        /// ```
-        #[inline(always)]
-        pub fn get(&self) -> &T {
-            unsafe {
-                crate::utils::deref!(self.ref_.as_ptr())
-            }
+    /// Reborrows this `RMut` into a shared reference.
+    ///
+    /// Note that because the reference reborrows this `RMut<'a, T>`
+    /// its lifetime argument is strictly smaller.
+    /// To turn an `RMut<'a, T>` into a `&'a T` (with the same lifetime argument)
+    /// you can use [`into_ref`](#method.into_ref).
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::RMut;
+    ///
+    /// let mut val = 89;
+    /// let rmut = RMut::new(&mut val);
+    ///
+    /// assert_eq!(rmut.get(), &89);
+    ///
+    /// ```
+    ///
+    /// ### Lifetimes
+    ///
+    /// This demonstrates when `into_ref` works, but `get` doesn't.
+    ///
+    /// ```rust
+    /// # use abi_stable::RMut;
+    /// fn stuff<'a>(x: RMut<'a, i32>) -> &'a i32 {
+    ///     x.into_ref()
+    /// }
+    /// ```
+    ///
+    /// This doesn't compile, because `get` reborrows `foo`.
+    /// ```compile_fail
+    /// # use abi_stable::RMut;
+    /// fn stuff<'a>(foo: RMut<'a, i32>) -> &'a i32 {
+    ///     foo.get()
+    /// }
+    /// ```
+    #[inline(always)]
+    pub const fn get(&self) -> &T {
+        unsafe {
+            crate::utils::deref!(self.ref_.as_ptr())
         }
     }
 
@@ -304,32 +300,28 @@ impl<'a, T> RMut<'a, T> {
         unsafe { *(self.ref_.as_ptr() as *const T) }
     }
 
-    conditionally_const! {
-        feature = "rust_1_56";
-
-        /// Converts this `RMut<'a, T>` into a `&'a T`
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// use abi_stable::RMut;
-        ///
-        /// let mut val = 89;
-        ///
-        /// assert_eq!(mutate(RMut::new(&mut val)), &44);
-        ///
-        /// fn mutate(mut rmut: RMut<'_, u32>) -> &u32 {
-        ///     *rmut.get_mut() /= 2;
-        ///     rmut.into_ref()
-        /// }
-        ///
-        /// ```
-        ///
-        #[inline(always)]
-        pub fn into_ref(self) -> &'a T {
-            unsafe {
-                crate::utils::deref!(self.ref_.as_ptr())
-            }
+    /// Converts this `RMut<'a, T>` into a `&'a T`
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::RMut;
+    ///
+    /// let mut val = 89;
+    ///
+    /// assert_eq!(mutate(RMut::new(&mut val)), &44);
+    ///
+    /// fn mutate(mut rmut: RMut<'_, u32>) -> &u32 {
+    ///     *rmut.get_mut() /= 2;
+    ///     rmut.into_ref()
+    /// }
+    ///
+    /// ```
+    ///
+    #[inline(always)]
+    pub const fn into_ref(self) -> &'a T {
+        unsafe {
+            crate::utils::deref!(self.ref_.as_ptr())
         }
     }
 

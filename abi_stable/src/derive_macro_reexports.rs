@@ -15,7 +15,10 @@ pub use crate::{
         UnsyncUnsend,
     },
     nonexhaustive_enum::{
-        assert_nonexhaustive, EnumInfo, GetEnumInfo, GetNonExhaustive,
+        AssertCsArgs,
+        assert_correct_default_storage,
+        assert_correct_storage,
+        EnumInfo, GetEnumInfo, GetNonExhaustive,
         GetVTable as GetNonExhaustiveVTable, NonExhaustive, ValidDiscriminant,
     },
     pointer_trait::{AsMutPtr, AsPtr, GetPointerKind, PK_Reference},

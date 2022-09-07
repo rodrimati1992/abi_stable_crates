@@ -1,10 +1,7 @@
-#[cfg(feature = "rust_1_56")]
 use super::{immutable_ref, GetPointerKind, IsReference};
 
-#[cfg(feature = "rust_1_56")]
 use std::ptr::NonNull;
 
-#[cfg(feature = "rust_1_56")]
 #[test]
 fn teest_to_nonnull() {
     unsafe {
@@ -13,7 +10,6 @@ fn teest_to_nonnull() {
     }
 }
 
-#[cfg(feature = "rust_1_56")]
 #[test]
 fn teest_from_nonnull() {
     unsafe {
@@ -22,7 +18,6 @@ fn teest_from_nonnull() {
     }
 }
 
-#[cfg(feature = "rust_1_56")]
 #[test]
 fn teest_to_raw_ptr() {
     unsafe {
@@ -31,7 +26,6 @@ fn teest_to_raw_ptr() {
     }
 }
 
-#[cfg(feature = "rust_1_56")]
 #[test]
 fn teest_from_raw_ptr() {
     unsafe {

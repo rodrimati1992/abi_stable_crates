@@ -861,7 +861,6 @@ pub unsafe trait ImmutableRef: Copy + GetPointerKind<Kind = PK_Reference> {
 unsafe impl<T> ImmutableRef for T where T: Copy + GetPointerKind<Kind = PK_Reference> {}
 
 /// `const` equivalents of [`ImmutableRef`] methods.
-#[cfg(feature = "rust_1_56")]
 pub mod immutable_ref {
     use super::*;
 
