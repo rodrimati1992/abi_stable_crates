@@ -1,0 +1,80 @@
+error[E0080]: evaluation of constant value failed
+   --> src/inline_storage.rs
+    |
+    |         Self::assert_fits_within_storage();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |         |
+    |         the evaluated program panicked at '
+The size of the storage is smaller than the contained type:
+enum_: "<unknown>"
+enum_size: 2
+enum_alignment: 1
+storage_: "<unknown>"
+storage_size: 1
+storage_alignment: 1
+', $DIR/src/inline_storage.rs:147:9
+    |         inside `inline_storage::ScratchSpace::<TooLarge, TooLarge_Storage>::new` at $DIR/src/inline_storage.rs:147:9
+    |
+   ::: src/nonexhaustive_enum/nonexhaustive.rs
+    |
+    |             fill: ScratchSpace::<E, S>::new(value),
+    |                   -------------------------------- inside `NonExhaustive::<TooLarge, TooLarge_Storage, ()>::const_new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:331:19
+    |
+   ::: tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:19:34
+    |
+19  | const _: () = { std::mem::forget(NEFor::const_new(<TooLarge>::Foo, GetVTable::VTABLE)); };
+    |                                  ---------------------------------------------------- inside `_` at $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:19:34
+
+error[E0080]: evaluation of constant value failed
+   --> src/inline_storage.rs
+    |
+    |         Self::assert_fits_within_storage();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |         |
+    |         the evaluated program panicked at '
+The alignment of the storage is lower than the contained type:
+enum_: "<unknown>"
+enum_size: 16
+enum_alignment: 8
+storage_: "<unknown>"
+storage_size: 32
+storage_alignment: 1
+', $DIR/src/inline_storage.rs:147:9
+    |         inside `inline_storage::ScratchSpace::<Unaligned, Unaligned_Storage>::new` at $DIR/src/inline_storage.rs:147:9
+    |
+   ::: src/nonexhaustive_enum/nonexhaustive.rs
+    |
+    |             fill: ScratchSpace::<E, S>::new(value),
+    |                   -------------------------------- inside `NonExhaustive::<Unaligned, Unaligned_Storage, ()>::const_new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:331:19
+    |
+   ::: tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:35:34
+    |
+35  | const _: () = { std::mem::forget(NEFor::const_new(<Unaligned>::Foo, GetVTable::VTABLE)); };
+    |                                  ----------------------------------------------------- inside `_` at $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:35:34
+
+error[E0080]: evaluation of constant value failed
+   --> src/inline_storage.rs
+    |
+    |         Self::assert_fits_within_storage();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |         |
+    |         the evaluated program panicked at '
+The alignment and size of the storage is smaller than the contained type:
+enum_: "<unknown>"
+enum_size: 16
+enum_alignment: 8
+storage_: "<unknown>"
+storage_size: 1
+storage_alignment: 1
+', $DIR/src/inline_storage.rs:147:9
+    |         inside `inline_storage::ScratchSpace::<UnalignedAndTooLarge, UnalignedAndTooLarge_Storage>::new` at $DIR/src/inline_storage.rs:147:9
+    |
+   ::: src/nonexhaustive_enum/nonexhaustive.rs
+    |
+    |             fill: ScratchSpace::<E, S>::new(value),
+    |                   -------------------------------- inside `NonExhaustive::<UnalignedAndTooLarge, UnalignedAndTooLarge_Storage, ()>::const_new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:331:19
+    |
+   ::: tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:50:34
+    |
+50  | const _: () = { std::mem::forget(NEFor::const_new(<UnalignedAndTooLarge>::Foo, GetVTable::VTABLE)); };
+    |                                  ---------------------------------------------------------------- inside `_` at $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:50:34

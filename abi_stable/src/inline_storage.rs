@@ -115,7 +115,6 @@ pub mod alignment {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Used internally to avoid requiring Rust 1.36.0 .
 #[repr(transparent)]
 pub(crate) struct ScratchSpace<T, Inline> {
     #[allow(dead_code)]
@@ -129,13 +128,13 @@ union ScratchSpaceInner<T, Inline> {
     uninit: (),
 }
 
+// These constructors don't require `Inline: InlineStorage` because 
+// the `storage` field is only used for its side/alignment,
+// it is never actually constructed.
 impl<T, Inline> ScratchSpace<T, Inline> {
     #[inline]
     #[allow(dead_code)]
-    pub(crate) fn uninit() -> Self
-    where
-        Inline: InlineStorage,
-    {
+    pub(crate) const fn uninit() -> Self {
         Self::assert_fits_within_storage();
         Self {
             inner: ScratchSpaceInner { uninit: () },
@@ -144,10 +143,7 @@ impl<T, Inline> ScratchSpace<T, Inline> {
 
     #[inline]
     #[allow(dead_code)]
-    pub(crate) fn new(value: T) -> Self
-    where
-        Inline: InlineStorage,
-    {
+    pub(crate) const fn new(value: T) -> Self {
         Self::assert_fits_within_storage();
         Self {
             inner: ScratchSpaceInner {
@@ -157,62 +153,16 @@ impl<T, Inline> ScratchSpace<T, Inline> {
     }
 
     /// Asserts that `T` fits within `Inline`,with the correct alignment and size.
-    fn assert_fits_within_storage() {
-        let align_val = std::mem::align_of::<T>();
-        let align_storage = std::mem::align_of::<Inline>();
-        assert!(
-            align_val <= align_storage,
-            "The alignment of the storage is lower than the value:\n\t{} < {}",
-            align_storage,
-            align_val,
-        );
-        let size_val = std::mem::size_of::<T>();
-        let size_storage = std::mem::size_of::<Inline>();
-        assert!(
-            size_val <= size_storage,
-            "The size of the storage is smaller than the value:\n\t{} < {}",
-            size_storage,
-            size_val,
-        );
-    }
+    #[track_caller]
+    const fn assert_fits_within_storage() {
+        use crate::nonexhaustive_enum::AssertCsArgs;
 
-    /// Asserts that `T` fits within `Inline`,with the correct alignment and size.
-    const fn assert_fits_within_storage_const() {
-        let align_val = std::mem::align_of::<T>();
-        let align_storage = std::mem::align_of::<Inline>();
-        let size_val = std::mem::size_of::<T>();
-        let size_storage = std::mem::size_of::<Inline>();
-
-        const_panic::concat_assert!(
-            align_val <= align_storage,
-            "The alignment of the storage is lower than the value:\n\t",
-            align_storage,
-            " < ",
-            align_val,
-        );
-        const_panic::concat_assert!(
-            size_val <= size_storage,
-            "The size of the storage is smaller than the value:\n\t",
-            size_storage,
-            " < ",
-            size_val,
-        );
+        crate::nonexhaustive_enum::assert_correct_storage::<T, Inline>(AssertCsArgs {
+            enum_ty: "<unknown>",
+            storage_ty: "<unknown>",
+        })
     }
 }
 
-impl<T, Inline> ScratchSpace<T, Inline> {
-    /// # Safety
-    ///
-    /// You must ensure that `T` has a compatible size/alignement with `Inline`,
-    /// and that `Inline` si valid for all bitpatterns.
-    #[inline]
-    #[allow(dead_code)]
-    pub(crate) const unsafe fn new_unchecked(value: T) -> Self {
-        Self::assert_fits_within_storage_const();
-        Self {
-            inner: ScratchSpaceInner {
-                value: ManuallyDrop::new(value),
-            },
-        }
-    }
-}
+
+

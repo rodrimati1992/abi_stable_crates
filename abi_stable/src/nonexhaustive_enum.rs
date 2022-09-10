@@ -75,10 +75,14 @@ pub const fn assert_correct_storage<Enum, Storage>(args: AssertCsArgs) {
             lay.enum_alignment <= lay.storage_alignment,
             lay.enum_size <= lay.storage_size,
         ) {
-            (false, false) => "The alignment and size of the storage is smaller than the enum",
-            (false, true) => "The alignment of the storage is lower than the enum",
-            (true, false) => "The size of the storage is smaller than the enum",
-            (true, true) => return,
+            (false, false) => 
+                "The alignment and size of the storage is smaller than the contained type",
+            (false, true) => 
+                "The alignment of the storage is lower than the contained type",
+            (true, false) => 
+                "The size of the storage is smaller than the contained type",
+            (true, true) => 
+                return,
         };
 
         const_panic::concat_panic!(

@@ -3,7 +3,7 @@ error[E0080]: evaluation of constant value failed
   |
 6 | #[derive(StableAbi)]
   |          ^^^^^^^^^ the evaluated program panicked at '
-The size of the storage is smaller than the enum:
+The size of the storage is smaller than the contained type:
 enum_: "TooLarge"
 enum_size: 2
 enum_alignment: 1
@@ -19,7 +19,7 @@ error[E0080]: evaluation of constant value failed
    |
 20 | #[derive(StableAbi)]
    |          ^^^^^^^^^ the evaluated program panicked at '
-The alignment of the storage is lower than the enum:
+The alignment of the storage is lower than the contained type:
 enum_: "Unaligned"
 enum_size: 16
 enum_alignment: 8
@@ -35,7 +35,7 @@ error[E0080]: evaluation of constant value failed
    |
 35 | #[derive(StableAbi)]
    |          ^^^^^^^^^ the evaluated program panicked at '
-The alignment and size of the storage is smaller than the enum:
+The alignment and size of the storage is smaller than the contained type:
 enum_: "UnalignedAndTooLarge"
 enum_size: 16
 enum_alignment: 8

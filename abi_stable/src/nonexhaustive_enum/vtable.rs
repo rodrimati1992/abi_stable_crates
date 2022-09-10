@@ -31,7 +31,7 @@ pub struct Private<T: ?Sized, S: ?Sized, I: ?Sized>(
 /// Gets the vtable of `NonExhaustive<Self,S,I>`.
 ///
 /// This trait cannot be implemented outside of `abi_stable`, it can only be used.
-pub trait GetVTable<S, I>: GetEnumInfo {
+pub trait GetVTable<S, I>: Sized {
     // Using privacy to make it impossible to implement this trait outside this module.
     #[doc(hidden)]
     const __HIDDEN_10341423423__: Private<Self, S, I>;

@@ -186,7 +186,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     #[inline]
     pub fn new(value: E) -> Self
     where
-        E: GetVTable<S, I, DefaultStorage = S, DefaultInterface = I>,
+        E: GetVTable<S, I> + GetEnumInfo<DefaultStorage = S, DefaultInterface = I>,
     {
         NonExhaustive::with_storage_and_interface(value)
     }
@@ -200,7 +200,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     #[inline]
     pub fn with_interface(value: E) -> Self
     where
-        E: GetVTable<S, I, DefaultStorage = S>,
+        E: GetVTable<S, I> + GetEnumInfo<DefaultStorage = S>,
     {
         NonExhaustive::with_storage_and_interface(value)
     }
@@ -214,7 +214,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     #[inline]
     pub fn with_storage(value: E) -> Self
     where
-        E: GetVTable<S, I, DefaultInterface = I>,
+        E: GetVTable<S, I> + GetEnumInfo<DefaultInterface = I>,
     {
         NonExhaustive::with_storage_and_interface(value)
     }
@@ -234,11 +234,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
         Self::assert_fits_within_storage();
 
         Self {
-            fill: {
-                // The fact that the vtable was constructed ensures that
-                // `Inline` implements `InlineStorage`
-                ScratchSpace::new_unchecked(value)
-            },
+            fill: ScratchSpace::<E, S>::new(value),
             vtable,
             _marker: PhantomData,
         }
@@ -332,11 +328,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     #[inline]
     pub const fn const_new(value: E, vtable: NonExhaustiveVtable_Ref<E, S, I>) -> Self {
         Self {
-            fill: unsafe {
-                // The fact that the vtable was constructed ensures that
-                // `Inline` implements `InlineStorage`
-                ScratchSpace::new_unchecked(value)
-            },
+            fill: ScratchSpace::<E, S>::new(value),
             vtable,
             _marker: PhantomData,
         }
