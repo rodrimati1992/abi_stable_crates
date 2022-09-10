@@ -143,6 +143,9 @@ The `*Interface` types from the examples come from the
 
 This generates a static assertion that the listed types can be stored within `NonExhaustive`.
 
+Note that this attribute is implicitly added for non-generic enums,
+it is only required for generic enums.
+
 Syntax:`assert_nonexhaustive = type)`<br>
 Example:`assert_nonexhaustive = Foo<u8>)`<br>
 Example:`assert_nonexhaustive = Foo<RArc<u8>>)`<br>

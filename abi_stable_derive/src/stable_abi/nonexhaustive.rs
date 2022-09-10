@@ -675,9 +675,22 @@ pub(crate) fn tokenize_enum_info<'a>(
         )
         .to_tokens(ts);
 
-        if !this.assert_nonexh.is_empty() {
-            let assertions = this.assert_nonexh.iter().cloned();
-            let assertions_str = this.assert_nonexh
+        let self_type: syn::Type;
+        let self_type_buf: Vec<&syn::Type>;
+        let assert_nonexh = if this.assert_nonexh.is_empty() && 
+            ds.generics.params.is_empty()
+        {
+            let name = ds.name;
+            self_type = syn::parse_quote!(#name);
+            self_type_buf = vec![&self_type];
+            &self_type_buf
+        } else {
+            &this.assert_nonexh
+        };
+
+        if !assert_nonexh.is_empty() {
+            let assertions = assert_nonexh.iter().cloned();
+            let assertions_str = assert_nonexh
                 .iter()
                 .map(|x| x.to_token_stream().to_string());
             let enum_storage_str = enum_storage.to_string();

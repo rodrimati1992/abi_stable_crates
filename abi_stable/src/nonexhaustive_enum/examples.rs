@@ -211,9 +211,9 @@ pub mod too_large {
     #[repr(u8)]
     #[derive(StableAbi, Hash, Debug, PartialEq, Eq, Clone)]
     #[sabi(kind(WithNonExhaustive(size = 64, traits(Debug, PartialEq, Eq, Clone))))]
-    pub enum Foo {
+    pub enum Foo<T = i8> {
         A,
-        B(i8),
+        B(T),
         C([u16; 32]),
     }
 }
