@@ -82,9 +82,8 @@ mod tests;
 ///     size = [usize;8],
 ///     traits(Debug, Clone, PartialEq),
 /// )))]
+/// #[non_exhaustive]
 /// pub enum Error {
-///     #[doc(hidden)]
-///     __NonExhaustive,
 ///     CouldNotFindItem {
 ///         name: RString,
 ///     },
@@ -122,9 +121,8 @@ mod tests;
 ///     size = [usize;8],
 ///     traits(Debug, Clone, PartialEq),
 /// )))]
+/// #[non_exhaustive]
 /// pub enum Error {
-///     #[doc(hidden)]
-///     __NonExhaustive,
 ///     CouldNotFindItem {
 ///         name: RString,
 ///     },

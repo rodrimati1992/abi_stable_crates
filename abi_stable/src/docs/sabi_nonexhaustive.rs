@@ -191,9 +191,8 @@ use serde::{Deserialize, Serialize};
 // The `#[sabi(with_constructor)]` helper attribute here generates constructor functions
 // that look take the fields of the variant as parameters and return a `ValidTag_NE`.
 #[sabi(with_constructor)]
+#[non_exhaustive]
 pub enum ValidTag {
-    #[doc(hidden)]
-    __NonExhaustive,
     Foo,
     Bar,
     Tag {
@@ -375,9 +374,8 @@ use std::{
     size = [usize;3],
     traits(Debug, Display, Clone, PartialEq),
 )))]
+#[non_exhaustive]
 pub enum Message<T> {
-    #[doc(hidden)]
-    __NonExhaustive,
     SaysHello,
     SaysGoodbye,
 
@@ -397,11 +395,11 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Message::__NonExhaustive => unreachable!(),
             Message::SaysHello => write!(f, "Hello!"),
             Message::SaysGoodbye => write!(f, "Goodbye!"),
             Message::Custom(custom) => Display::fmt(&**custom, f),
             Message::SaysThankYou(x) => writeln!(f, "Thank you,{}!", x.to),
+            _ => unreachable!(),
         }
     }
 }
@@ -476,9 +474,8 @@ use abi_stable::{
     traits(Debug,Clone,PartialEq),
 )))]
 #[sabi(with_constructor)]
+#[non_exhaustive]
 pub enum SomeEnum<T> {
-    #[doc(hidden)]
-    __NonExhaustive,
     Foo,
     Bar,
     Crash {
@@ -493,11 +490,11 @@ pub enum SomeEnum<T> {
 impl<T> SomeEnum<T> {
     pub fn is_inline(&self) -> bool {
         match self {
-            SomeEnum::__NonExhaustive => true,
             SomeEnum::Foo => true,
             SomeEnum::Bar => true,
             SomeEnum::Crash { .. } => true,
             SomeEnum::Other(rsbox) => RSmallBox::is_inline(rsbox),
+            _ => true,
         }
     }
 
@@ -591,9 +588,8 @@ pub struct GroupId(pub usize);
     traits(Debug, Clone, PartialEq),
 )))]
 #[sabi(with_constructor)]
+#[non_exhaustive]
 pub enum Event {
-    #[doc(hidden)]
-    __NonExhaustive,
     CreatedInstance {
         object_id: ObjectId,
     },

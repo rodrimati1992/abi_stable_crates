@@ -1,5 +1,6 @@
 use abi_stable::{
     declare_root_module_statics,
+    rvec,
     external_types::{RawValueBox, RawValueRef},
     library::RootModule,
     nonexhaustive_enum::{DeserializeEnum, NonExhaustiveFor, SerializeEnum},
@@ -352,8 +353,8 @@ fn examples_of_constructing_an_error() {
         NonExhaustive::new(x)
     });
 
-    assert_eq!(Error::InvalidCommand_NE(Command::__NonExhaustive_NE()), {
-        let x = Command::__NonExhaustive;
+    assert_eq!(Error::InvalidCommand_NE(Command::Many_NE(rvec![])), {
+        let x = Command::Many{list: rvec![]};
         let x = NonExhaustive::new(x);
         let x = RBox::new(x);
         let x = Error::InvalidCommand { cmd: x };

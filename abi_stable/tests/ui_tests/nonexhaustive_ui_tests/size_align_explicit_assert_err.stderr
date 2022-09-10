@@ -1,0 +1,47 @@
+error[E0080]: evaluation of constant value failed
+ --> tests/ui_tests/nonexhaustive_ui_tests/size_align_explicit_assert_err.rs:6:10
+  |
+6 | #[derive(StableAbi)]
+  |          ^^^^^^^^^ the evaluated program panicked at '
+The size of the storage is smaller than the enum:
+enum_: "TooLarge"
+enum_size: 2
+enum_alignment: 1
+storage_: "TooLarge_Storage"
+storage_size: 1
+storage_alignment: 1
+', $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_explicit_assert_err.rs:6:10
+  |
+  = note: this error originates in the derive macro `StableAbi` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation of constant value failed
+  --> tests/ui_tests/nonexhaustive_ui_tests/size_align_explicit_assert_err.rs:20:10
+   |
+20 | #[derive(StableAbi)]
+   |          ^^^^^^^^^ the evaluated program panicked at '
+The alignment of the storage is lower than the enum:
+enum_: "Unaligned"
+enum_size: 16
+enum_alignment: 8
+storage_: "Unaligned_Storage"
+storage_size: 32
+storage_alignment: 1
+', $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_explicit_assert_err.rs:20:10
+   |
+   = note: this error originates in the derive macro `StableAbi` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation of constant value failed
+  --> tests/ui_tests/nonexhaustive_ui_tests/size_align_explicit_assert_err.rs:35:10
+   |
+35 | #[derive(StableAbi)]
+   |          ^^^^^^^^^ the evaluated program panicked at '
+The alignment and size of the storage is smaller than the enum:
+enum_: "UnalignedAndTooLarge"
+enum_size: 16
+enum_alignment: 8
+storage_: "UnalignedAndTooLarge_Storage"
+storage_size: 1
+storage_alignment: 1
+', $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_explicit_assert_err.rs:35:10
+   |
+   = note: this error originates in the derive macro `StableAbi` (in Nightly builds, run with -Z macro-backtrace for more info)

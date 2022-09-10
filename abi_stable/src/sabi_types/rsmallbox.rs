@@ -68,9 +68,8 @@ mod private {
     ///     // and are then available with it.
     ///     traits(Debug,Clone,PartialEq),
     /// )))]
+    /// #[non_exhaustive]
     /// pub enum SomeEnum<T> {
-    ///     #[doc(hidden)]
-    ///     __NonExhaustive,
     ///     Foo,
     ///     Bar,
     ///     // This variant was added in a newer (compatible) version of the library.
@@ -80,10 +79,10 @@ mod private {
     /// impl<T> SomeEnum<T> {
     ///     pub fn is_inline(&self) -> bool {
     ///         match self {
-    ///             SomeEnum::__NonExhaustive => true,
     ///             SomeEnum::Foo => true,
     ///             SomeEnum::Bar => true,
     ///             SomeEnum::Baz(rsbox) => RSmallBox::is_inline(rsbox),
+    ///             _ => true,
     ///         }
     ///     }
     ///
