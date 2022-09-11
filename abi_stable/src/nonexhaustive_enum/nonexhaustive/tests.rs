@@ -1,9 +1,10 @@
 use super::*;
 
 use crate::{
-    inline_storage::alignment::{AlignTo16, AlignTo8},
+    inline_storage::alignment::{AlignTo1, AlignTo2, AlignTo4, AlignTo8, AlignTo16},
     nonexhaustive_enum::{
         examples::{
+            const_expr_size_align,
             command_a, command_b, command_c, command_h_mismatched_discriminant, command_serde,
             generic_a, generic_b, many_ranges_a, many_ranges_b,
         },
@@ -99,6 +100,39 @@ fn construct_panic() {
     failing_ctor! {Foo<AlignTo16<[u8; 0]>>}
     // too large, too aligned
     failing_ctor! {Foo<AlignTo16<[u8; 64]>>}
+}
+
+#[test]
+fn const_expr_size_align_test() {
+    use self::const_expr_size_align::{Foo, Foo_Interface, Foo_Storage};
+
+    type NE<E> = NonExhaustive<E, Foo_Storage, Foo_Interface>;
+
+    macro_rules! passing_ctor {
+        ($enum_ty:ty) => {{
+            type ET = $enum_ty;
+            let const_ = <NE<ET>>::const_new(ET::B, GetVTable::VTABLE);
+            assert_eq!(const_, ET::B);
+        }};
+    }
+
+    macro_rules! failing_ctor {
+        ($enum_ty:ty) => {{
+            type ET = $enum_ty;
+            must_panic(|| <NE<ET>>::const_new(ET::A, GetVTable::VTABLE)).unwrap();
+        }};
+    }
+
+    passing_ctor! {Foo<AlignTo2<[u8; 0]>>}
+    passing_ctor! {Foo<AlignTo1<[u8; 9]>>}
+    passing_ctor! {Foo<AlignTo2<[u8; 8]>>}
+
+    // too large
+    failing_ctor! {Foo<AlignTo2<[u8; 9]>>}
+    // too aligned
+    failing_ctor! {Foo<AlignTo4<[u8; 0]>>}
+    // too large, too aligned
+    failing_ctor! {Foo<AlignTo4<[u8; 64]>>}
 }
 
 #[test]

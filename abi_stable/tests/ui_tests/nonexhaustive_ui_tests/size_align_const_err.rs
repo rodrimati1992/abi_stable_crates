@@ -37,8 +37,8 @@ const _: () = { std::mem::forget(NEFor::const_new(<Unaligned>::Foo, GetVTable::V
 #[repr(u8)]
 #[derive(StableAbi)]
 #[sabi(kind(WithNonExhaustive(
-    size = 1,
-    align = 1,
+    size = {one()},
+    align = {one()},
 )))]
 #[sabi(with_constructor)]
 pub enum UnalignedAndTooLarge<T = u64> {
@@ -48,5 +48,10 @@ pub enum UnalignedAndTooLarge<T = u64> {
 }
 
 const _: () = { std::mem::forget(NEFor::const_new(<UnalignedAndTooLarge>::Foo, GetVTable::VTABLE)); };
+
+const fn one() -> usize {
+    1
+}
+
 
 fn main(){}

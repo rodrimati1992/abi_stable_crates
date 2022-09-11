@@ -27,7 +27,7 @@ use crate::{
 
 use super::{
     nonexhaustive::{
-        EnumInterface, IntOrType, NonExhaustive, UncheckedNEVariant, UncheckedNonExhaustive,
+        EnumInterface, ExprOrType, NonExhaustive, UncheckedNEVariant, UncheckedNonExhaustive,
         UncheckedVariantConstructor,
     },
     prefix_types::{
@@ -1049,12 +1049,15 @@ fn parse_non_exhaustive_list<'a>(
     let mut errors = LinearResult::ok(());
 
     input.for_each_separated(Token!(,), |input| {
-        fn parse_int_or_type<'a>(
+        fn parse_expr_or_type<'a>(
             input: &ParseBuffer,
             arenas: &'a Arenas,
-        ) -> Result<IntOrType<'a>, syn::Error> {
+        ) -> Result<ExprOrType<'a>, syn::Error> {
             if input.peek(syn::LitInt) {
-                Ok(IntOrType::Int(input.parse_int::<usize>()?))
+                Ok(ExprOrType::Int(input.parse_int::<usize>()?))
+            } else if input.peek(syn::token::Brace) {
+                let expr = input.parse::<syn::Expr>()?;
+                Ok(ExprOrType::Expr(arenas.alloc(expr)))
             } else {
                 ret_err_on_peek! {
                     input,
@@ -1063,16 +1066,16 @@ fn parse_non_exhaustive_list<'a>(
                     "string literal",
                 }
 
-                Ok(IntOrType::Type(arenas.alloc(input.parse_type()?)))
+                Ok(ExprOrType::Type(arenas.alloc(input.parse_type()?)))
             }
         }
 
         if input.check_parse(kw::align)? {
             input.parse::<Token!(=)>()?;
-            this.alignment = Some(parse_int_or_type(input, arenas)?);
+            this.alignment = Some(parse_expr_or_type(input, arenas)?);
         } else if input.check_parse(kw::size)? {
             input.parse::<Token!(=)>()?;
-            this.size = Some(parse_int_or_type(input, arenas)?);
+            this.size = Some(parse_expr_or_type(input, arenas)?);
         } else if input.check_parse(kw::assert_nonexhaustive)? {
             if input.peek(syn::token::Paren) {
                 input

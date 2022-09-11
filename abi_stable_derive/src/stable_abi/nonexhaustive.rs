@@ -33,8 +33,8 @@ use crate::{
 /// Used while parsing the `#[sabi(kind(WithNonExhaustive(...)))]` attribute.
 #[derive(Clone, Default)]
 pub(crate) struct UncheckedNonExhaustive<'a> {
-    pub(crate) alignment: Option<IntOrType<'a>>,
-    pub(crate) size: Option<IntOrType<'a>>,
+    pub(crate) alignment: Option<ExprOrType<'a>>,
+    pub(crate) size: Option<ExprOrType<'a>>,
     pub(crate) enum_interface: Option<EnumInterface<'a>>,
     pub(crate) assert_nonexh: Vec<&'a syn::Type>,
 }
@@ -48,9 +48,9 @@ pub(crate) struct NonExhaustive<'a> {
     /// The identifier for the storage space used to store the enum within `NonExhaustive<>`
     pub(crate) enum_storage: &'a Ident,
     /// The alignment of `#enum_storage`
-    pub(crate) alignment: IntOrType<'a>,
+    pub(crate) alignment: ExprOrType<'a>,
     /// The size of `#enum_storage`
-    pub(crate) size: IntOrType<'a>,
+    pub(crate) size: ExprOrType<'a>,
     /// The InterfaceType-implementing marker struct this will generate,
     /// if this is:
     ///     - `Some(EnumInterface::New{..})`:it will use a new struct as the InterfaceType.
@@ -147,7 +147,7 @@ impl<'a> NonExhaustive<'a> {
     ) -> Result<Self, syn::Error> {
         let name = ds.name;
 
-        let alignment = unchecked.alignment.unwrap_or(IntOrType::Usize);
+        let alignment = unchecked.alignment.unwrap_or(ExprOrType::Usize);
 
         let parse_ident = move |s: &str, span: Option<Span>| -> &'a Ident {
             let mut ident = parse_str_as_ident(s);
@@ -168,7 +168,7 @@ impl<'a> NonExhaustive<'a> {
                 the `#[sabi(kind(WithNonExhaustive(...)))]` helper attribute.\n\
                 "
             ));
-            IntOrType::Int(0)
+            ExprOrType::Int(0)
         });
 
         let mut bounds_trait = None::<BoundsTrait<'a>>;
@@ -271,8 +271,9 @@ impl<'a> NonExhaustive<'a> {
 }
 
 #[derive(Copy, Clone)]
-pub enum IntOrType<'a> {
+pub enum ExprOrType<'a> {
     Int(usize),
+    Expr(&'a syn::Expr),
     Type(&'a syn::Type),
     Usize,
 }
@@ -328,18 +329,30 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
         let enum_storage = this.enum_storage;
 
         let (aligner_attribute, aligner_field) = match this.alignment {
-            IntOrType::Int(bytes) => {
+            ExprOrType::Int(bytes) => {
                 let bytes = crate::utils::expr_from_int(bytes as _);
                 (Some(quote!(#[repr(align(#bytes))])), None)
             }
-            IntOrType::Type(ty) => (None, Some(quote!(__aligner:[#ty;0],))),
-            IntOrType::Usize => (None, Some(quote!(__aligner: [usize; 0],))),
+            ExprOrType::Expr(expr) => {
+                (
+                    None,
+                    Some(quote!(
+                        __aligner: [
+                            ::abi_stable::pmr::GetAlignerFor<::abi_stable::pmr::u8, #expr>; 
+                            0
+                        ]
+                    ))
+                )
+            }
+            ExprOrType::Type(ty) => (None, Some(quote!(__aligner:[#ty;0],))),
+            ExprOrType::Usize => (None, Some(quote!(__aligner: [::abi_stable::pmr::usize; 0],))),
         };
 
         let aligner_size = match this.size {
-            IntOrType::Int(size) => quote!( #size ),
-            IntOrType::Type(ty) => quote!( std::mem::size_of::<#ty>() ),
-            IntOrType::Usize => quote!(std::mem::size_of::<usize>()),
+            ExprOrType::Int(size) => quote!( #size ),
+            ExprOrType::Expr(expr) => quote!( (#expr) ),
+            ExprOrType::Type(ty) => quote!( ::std::mem::size_of::<#ty>() ),
+            ExprOrType::Usize => quote!( ::std::mem::size_of::<::abi_stable::pmr::usize>()),
         };
 
         let name = ds.name;

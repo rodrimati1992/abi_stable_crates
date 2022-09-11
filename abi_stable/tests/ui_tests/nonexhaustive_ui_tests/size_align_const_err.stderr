@@ -12,8 +12,8 @@ enum_alignment: 1
 storage_: "<unknown>"
 storage_size: 1
 storage_alignment: 1
-', $DIR/src/inline_storage.rs:147:9
-    |         inside `inline_storage::ScratchSpace::<TooLarge, TooLarge_Storage>::new` at $DIR/src/inline_storage.rs:147:9
+', $DIR/src/inline_storage.rs:199:9
+    |         inside `inline_storage::ScratchSpace::<TooLarge, TooLarge_Storage>::new` at $DIR/src/inline_storage.rs:199:9
     |
    ::: src/nonexhaustive_enum/nonexhaustive.rs
     |
@@ -39,8 +39,8 @@ enum_alignment: 8
 storage_: "<unknown>"
 storage_size: 32
 storage_alignment: 1
-', $DIR/src/inline_storage.rs:147:9
-    |         inside `inline_storage::ScratchSpace::<Unaligned, Unaligned_Storage>::new` at $DIR/src/inline_storage.rs:147:9
+', $DIR/src/inline_storage.rs:199:9
+    |         inside `inline_storage::ScratchSpace::<Unaligned, Unaligned_Storage>::new` at $DIR/src/inline_storage.rs:199:9
     |
    ::: src/nonexhaustive_enum/nonexhaustive.rs
     |
@@ -66,8 +66,8 @@ enum_alignment: 8
 storage_: "<unknown>"
 storage_size: 1
 storage_alignment: 1
-', $DIR/src/inline_storage.rs:147:9
-    |         inside `inline_storage::ScratchSpace::<UnalignedAndTooLarge, UnalignedAndTooLarge_Storage>::new` at $DIR/src/inline_storage.rs:147:9
+', $DIR/src/inline_storage.rs:199:9
+    |         inside `inline_storage::ScratchSpace::<UnalignedAndTooLarge, UnalignedAndTooLarge_Storage>::new` at $DIR/src/inline_storage.rs:199:9
     |
    ::: src/nonexhaustive_enum/nonexhaustive.rs
     |

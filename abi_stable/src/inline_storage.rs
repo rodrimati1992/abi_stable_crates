@@ -1,6 +1,9 @@
 //! Contains the `InlineStorage` trait,and related items.
 
-use std::mem::ManuallyDrop;
+use std::{
+    marker::PhantomData,
+    mem::ManuallyDrop,
+};
 
 /// Type used as the inline storage of a RSmallBox<>/NonExhaustive<>.
 ///
@@ -66,13 +69,39 @@ impl_for_arrays! {
     ]
 }
 
+
+mod private {
+    use super::*;
+    pub struct Private<T, const ALIGNMENT: usize>(pub(super) PhantomData<T>);
+}
+use private::Private;
+
+
+/// For getting the `AlignTo*` type which aligns `Self` to `ALIGNMENT`.
+pub trait AlignerFor<const ALIGNMENT: usize>: Sized {
+    // prevents implementations outside this crate.
+    #[doc(hidden)]
+    const __PRIVATE_12350662443733019984: Private<Self, ALIGNMENT>;
+
+    /// The `AlignTo*` type which aligns `Self` to `ALIGNMENT`.
+    type Aligner;
+}
+
+/// For getting the `AlignTo*` type which aligns `T` to `ALIGNMENT`.
+pub type GetAlignerFor<T, const ALIGNMENT: usize> = <T as AlignerFor<ALIGNMENT>>::Aligner;
+
+
 macro_rules! declare_alignments {
     (
-        $(( $docs:expr, $aligner:ident, $alignment:expr ),)*
+        $(( $aligner:ident, $alignment:expr),)*
     ) => (
         $(
-            #[doc=$docs]
-            #[derive(Debug, PartialEq, Copy, Clone)]
+            #[doc = concat!(
+                "Aligns its contents to an address at a multiple of ",
+                $alignment,
+                " bytes."
+            )]
+            #[derive(StableAbi, Debug, PartialEq, Copy, Clone)]
             #[repr(C)]
             #[repr(align($alignment))]
             pub struct $aligner<Inline>(pub Inline);
@@ -81,6 +110,13 @@ macro_rules! declare_alignments {
             where
                 Inline:InlineStorage,
             {}
+
+            impl<T> AlignerFor<$alignment> for T {
+                #[doc(hidden)]
+                const __PRIVATE_12350662443733019984: Private<T, $alignment> = Private(PhantomData);
+
+                type Aligner = $aligner<T>;
+            }
         )*
     )
 }
@@ -89,15 +125,31 @@ macro_rules! declare_alignments {
 pub mod alignment {
     use super::*;
 
+    /*
+        fn main(){
+            for pow in 0..=16 {
+                let val = 1u32 << pow;
+                println!("        (AlignTo{val}, {val}),")
+            }
+        }
+    */
     declare_alignments! {
-        ( "Aligns its contents to an address at a multiple of 1 bytes.",AlignTo1,1 ),
-        ( "Aligns its contents to an address at a multiple of 2 bytes.",AlignTo2,2 ),
-        ( "Aligns its contents to an address at a multiple of 4 bytes.",AlignTo4,4 ),
-        ( "Aligns its contents to an address at a multiple of 8 bytes.",AlignTo8,8 ),
-        ( "Aligns its contents to an address at a multiple of 16 bytes.",AlignTo16,16 ),
-        ( "Aligns its contents to an address at a multiple of 32 bytes.",AlignTo32,32 ),
-        ( "Aligns its contents to an address at a multiple of 64 bytes.",AlignTo64,64 ),
-        ( "Aligns its contents to an address at a multiple of 128 bytes.",AlignTo128,128 ),
+        (AlignTo1, 1),
+        (AlignTo2, 2),
+        (AlignTo4, 4),
+        (AlignTo8, 8),
+        (AlignTo16, 16),
+        (AlignTo32, 32),
+        (AlignTo64, 64),
+        (AlignTo128, 128),
+        (AlignTo256, 256),
+        (AlignTo512, 512),
+        (AlignTo1024, 1024),
+        (AlignTo2048, 2048),
+        (AlignTo4096, 4096),
+        (AlignTo8192, 8192),
+        (AlignTo16384, 16384),
+        (AlignTo32768, 32768),
     }
 
     /// Aligns its contents to an address to an address at

@@ -9,7 +9,7 @@ pub use crate::{
         },
     },
     extern_fn_panic_handling,
-    inline_storage::InlineStorage,
+    inline_storage::{GetAlignerFor, InlineStorage},
     marker_type::{
         NonOwningPhantom, NotCopyNotClone, SyncSend, SyncUnsend, UnsafeIgnoredType, UnsyncSend,
         UnsyncUnsend,
@@ -51,12 +51,9 @@ pub use std::{
     mem::ManuallyDrop,
     option::Option,
     ptr::NonNull,
-    vec,
+    primitive::{str, u8, usize},
+    concat, vec,
 };
-
-pub use str;
-
-pub use std::concat;
 
 pub use repr_offset::offset_calc::next_field_offset;
 

@@ -47,8 +47,11 @@ These are the required and optional parameters for the
 Specifies the alignment of Enum_Storage.
 
 With a specific alignemnt.<br>
-Syntax:`align=integer_literal`<br>
-Example:`align=8`<br>
+Syntax:`align = integer_literal`<br>
+Example:`align = 8`<br>
+A non-literal constant expression can also be used:<be>
+Syntax:`align = { (<statement>;)* <expression> }`<br>
+Example:`align = { foo() }` <br>
 
 With the same alignment is that of another type.<br>
 Syntax:`align = type`<br>
@@ -60,13 +63,16 @@ Specifies the size of Enum_Storage.
 
 The size of Enum_TE in bytes.<br>
 Syntax:`size=integer_literal`<br>
-Example:`size=8`<br>
+Example:`size = 8` <br>
+A non-literal constant expression can also be used:<be>
+Syntax:`size = { (<statement>;)* <expression> }`<br>
+Example:`size = { foo() }` <br>
 
 The size of Enum_TE is that of of another type<br>
 Syntax:`size = type`<br>
 Example:`size = [usize;8]`<br>
 Recommendation:
-Use a type that has a constant layout,generally a concrete type.
+Use a type that has a stable layout,generally a concrete type.
 It is a bad idea to use `Enum` since its size is allowed to change.<br>
 
 ### Traits (optional parameter)
@@ -155,11 +161,15 @@ Syntax:`assert_nonexhaustive(type0, type1)`<br>
 Example:`assert_nonexhaustive(Foo<RArc<u8>>)`<br>
 Example:`assert_nonexhaustive(Foo<u8>, Foo<RVec<()>>)`<br>
 
+[full example below](#using_assert_nonexhaustive_example)
+
 # `serde` support
 
-`NonExhaustive<Enum,Storage,Interface>` only implements serde::{Serialize,Deserialize}
-if Interface allows them in its [`InterfaceType`] implementation,
+`NonExhaustive<Enum, Storage, Interface>` only implements `serde::{Serialize,Deserialize}`
+if `Interface` allows them in its [`InterfaceType`] implementation,
 and also implements the [`SerializeEnum`] and [`DeserializeEnum`] traits.
+
+# Examples
 
 ### Defining a (de)serializable nonexhaustive enum.
 
@@ -349,8 +359,7 @@ pub fn deserialize_tag(s: RStr<'_>) -> RResult<ValidTag_NE, RBoxError> {
 
 ```
 
-
-# Example,boxing variants of unknown size
+### Boxing variants of unknown size
 
 This example demonstrates how one can use boxing to store types larger than `[usize;2]`
 (the size of `RBox<_>`),
@@ -451,7 +460,7 @@ pub struct SaysThankYou {
 
 
 
-# Example
+### Generic enum with `RSmallBox`
 
 This example shows how one can use RSmallBox to define a generic nonexhausitve enum.
 
@@ -554,7 +563,7 @@ assert!(other_nestedlist.as_enum().unwrap().is_heap_allocated());
 
 ```
 
-# Example
+### Add variant to "private" enum across versions
 
 Say that we want to define a "private" enum
 (it's exposed to the ABI but it's not public API),
@@ -751,9 +760,133 @@ let groupid_1 = GroupId(0);
 ```
 
 
+<span id = "using_assert_nonexhaustive_example"></span>
+### Using `assert_nonexhaustive`
 
-[`InterfaceType`]: ../../trait.InterfaceType.html
-[`SerializeEnum`]: ../../nonexhaustive_enum/trait.SerializeEnum.html
-[`DeserializeEnum`]: ../../nonexhaustive_enum/trait.DeserializeEnum.html
+This example demonstrates the `assert_nonexhaustive` helper attribute,
+and the errors produced when the enum is too large or is misaligned for its default storage.
+
+```compile_fail
+use abi_stable::StableAbi;
+
+#[repr(u8)]
+#[derive(StableAbi)]
+#[sabi(kind(WithNonExhaustive(
+    // Determines the maximum size of this enum in semver compatible versions.
+    // maximum size is `size_of::<[u16; 3]>()`
+    size = [u16; 3],
+    // Determines the maximum alignment of this enum in semver compatible versions.
+    // aligned at most `align_of::<u16>()`
+    align = u16, 
+    // The below attribute is implied for non-generic enums,
+    // it generates a static assertion checking that `Concrete`
+    // fits within its default storage.
+    // assert_nonexhaustive(Concrete)
+)))]
+#[non_exhaustive]
+pub enum Concrete {
+    Foo,
+    Bar,
+    Tag([u16; 3]),
+}
+
+
+#[repr(u8)]
+#[derive(StableAbi)]
+#[sabi(kind(WithNonExhaustive(
+    // Determines the maximum size of this enum in semver compatible versions.
+    size = 8,
+    // Determines the maximum alignment of this enum in semver compatible versions.
+    // non-literal constants have to be wrapped in braces
+    align = {alignment()},
+    // generic enums don't implicitly assert that the enum is compatible with the
+    // default storage, you must specify the tested concrete types
+    assert_nonexhaustive(Generic<[u16; 4]>, Generic<u32>, Generic<u64>)
+)))]
+#[non_exhaustive]
+pub enum Generic<T> {
+    Foo,
+    Bar,
+    Qux(T),
+}
+
+const fn alignment() -> usize {
+    2
+}
+```
+
+This is the compile-time error for the above code:
+```text
+error[E0080]: evaluation of constant value failed
+ --> src/docs/sabi_nonexhaustive.rs:767:10
+  |
+7 | #[derive(StableAbi)]
+  |          ^^^^^^^^^ the evaluated program panicked at '
+The size of the storage is smaller than the contained type:
+    enum_: "Concrete"
+    enum_size: 8
+    enum_alignment: 2
+    storage_: "Concrete_Storage"
+    storage_size: 6
+    storage_alignment: 2
+', src/docs/sabi_nonexhaustive.rs:7:10
+  |
+  = note: this error originates in the derive macro `StableAbi` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation of constant value failed
+  --> src/docs/sabi_nonexhaustive.rs:789:10
+   |
+29 | #[derive(StableAbi)]
+   |          ^^^^^^^^^ the evaluated program panicked at '
+The size of the storage is smaller than the contained type:
+    enum_: "Generic < [u16 ; 4] >"
+    enum_size: 10
+    enum_alignment: 2
+    storage_: "Generic_Storage"
+    storage_size: 8
+    storage_alignment: 2
+', src/docs/sabi_nonexhaustive.rs:29:10
+   |
+   = note: this error originates in the derive macro `StableAbi` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation of constant value failed
+  --> src/docs/sabi_nonexhaustive.rs:789:10
+   |
+29 | #[derive(StableAbi)]
+   |          ^^^^^^^^^ the evaluated program panicked at '
+The alignment of the storage is lower than the contained type:
+    enum_: "Generic < u32 >"
+    enum_size: 8
+    enum_alignment: 4
+    storage_: "Generic_Storage"
+    storage_size: 8
+    storage_alignment: 2
+', src/docs/sabi_nonexhaustive.rs:29:10
+   |
+   = note: this error originates in the derive macro `StableAbi` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation of constant value failed
+  --> src/docs/sabi_nonexhaustive.rs:789:10
+   |
+29 | #[derive(StableAbi)]
+   |          ^^^^^^^^^ the evaluated program panicked at '
+The alignment and size of the storage is smaller than the contained type:
+    enum_: "Generic < u64 >"
+    enum_size: 16
+    enum_alignment: 8
+    storage_: "Generic_Storage"
+    storage_size: 8
+    storage_alignment: 2
+', src/docs/sabi_nonexhaustive.rs:29:10
+   |
+   = note: this error originates in the derive macro `StableAbi` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 4 previous errors
+```
+
+
+[`InterfaceType`]: crate::InterfaceType
+[`SerializeEnum`]: crate::nonexhaustive_enum::SerializeEnum
+[`DeserializeEnum`]: crate::nonexhaustive_enum::DeserializeEnum
 
 */

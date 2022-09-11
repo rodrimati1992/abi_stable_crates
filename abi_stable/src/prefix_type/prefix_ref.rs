@@ -347,17 +347,8 @@ impl<P> PrefixRef<P> {
 
     /// Converts this PrefixRef into a raw pointer.
     #[inline(always)]
-    pub fn to_raw_ptr(self) -> *const WithMetadata_<P, P> {
+    pub const fn to_raw_ptr(self) -> *const WithMetadata_<P, P> {
         unsafe { Transmuter { from: self }.to }
-    }
-
-    /// A const-callable version of `to_raw_ptr`,
-    /// use `to_raw_ptr` in non-const code instead of this.
-    ///
-    /// `to_raw_ptr` exists for efficiency-in-debug-build reasons.
-    #[inline]
-    pub const fn const_to_raw_ptr(self) -> *const WithMetadata_<P, P> {
-        self.ptr.as_ptr()
     }
 
     /// Casts the pointed-to prefix to another type.

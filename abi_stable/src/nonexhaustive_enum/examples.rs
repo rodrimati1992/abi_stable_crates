@@ -323,6 +323,36 @@ pub mod command_h_mismatched_discriminant {
     }
 }
 
+pub mod const_expr_size_align {
+    use std::fmt::{self, Display};
+
+    const fn size() -> usize {
+        10
+    }
+    const fn align() -> usize {
+        2
+    }
+
+    #[repr(u8)]
+    #[derive(StableAbi, Debug, PartialEq)]
+    #[sabi(kind(WithNonExhaustive(
+        size = { size() },
+        align = { align() },
+        traits(Debug, PartialEq)
+    )))]
+    pub enum Foo<T> {
+        A,
+        B,
+        C(T),
+    }
+
+    impl<T> Display for Foo<T> {
+        fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
+            Ok(())
+        }
+    }
+}
+
 pub mod codecs {
     use serde::{Deserialize, Serialize};
 

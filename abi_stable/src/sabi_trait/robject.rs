@@ -276,7 +276,7 @@ where
 impl<'borr, 'a, I, V> RObject<'borr, RRef<'a, ()>, I, V> {
     /// This function allows constructing an RObject in a constant/static.
     ///
-    /// This is mostly intended for `#[sabi_trait] generated trait objects`
+    /// This is mostly intended for `#[sabi_trait]`-generated trait objects
     ///
     /// # Safety
     ///
