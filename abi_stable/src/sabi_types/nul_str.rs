@@ -110,11 +110,9 @@ impl<'a> NulStr<'a> {
     ///
     /// ```
     pub const fn from_str(str: &'a str) -> Self {
-        let this = unsafe {
-            Self {
-                ptr: NonNull::new_unchecked(str.as_ptr() as *mut u8),
-                _marker: PhantomData,
-            }
+        let this = Self {
+            ptr: unsafe { NonNull::new_unchecked(str.as_ptr() as *mut u8) },
+            _marker: PhantomData,
         };
 
         let last_byte = str.as_bytes()[str.len() - 1] as usize;
@@ -208,7 +206,7 @@ impl<'a> NulStr<'a> {
     /// ```
     pub const unsafe fn from_ptr(ptr: *const u8) -> Self {
         Self {
-            ptr: NonNull::new_unchecked(ptr as *mut u8),
+            ptr: unsafe { NonNull::new_unchecked(ptr as *mut u8) },
             _marker: PhantomData,
         }
     }

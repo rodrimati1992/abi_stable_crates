@@ -120,7 +120,7 @@ impl<'a, T> MovePtr<'a, T> {
     #[inline]
     pub unsafe fn new(ptr: &'a mut T) -> Self {
         Self {
-            ptr: NonNull::new_unchecked(ptr),
+            ptr: unsafe { NonNull::new_unchecked(ptr) },
             _marker: PhantomData,
         }
     }
@@ -156,7 +156,7 @@ impl<'a, T> MovePtr<'a, T> {
     #[inline]
     pub const unsafe fn from_rmut(ptr: RMut<'a, T>) -> Self {
         Self {
-            ptr: NonNull::new_unchecked(ptr.into_raw()),
+            ptr: unsafe { NonNull::new_unchecked(ptr.into_raw()) },
             _marker: PhantomData,
         }
     }
@@ -195,7 +195,7 @@ impl<'a, T> MovePtr<'a, T> {
     /// ```
     pub const unsafe fn from_raw(ptr: *mut T) -> Self {
         Self {
-            ptr: NonNull::new_unchecked(ptr),
+            ptr: unsafe { NonNull::new_unchecked(ptr) },
             _marker: PhantomData,
         }
     }
@@ -380,7 +380,7 @@ impl<'a, T> MovePtr<'a, T> {
     where
         U: 'a,
     {
-        std::mem::transmute::<MovePtr<'a, T>, MovePtr<'a, U>>(this)
+        unsafe { std::mem::transmute::<MovePtr<'a, T>, MovePtr<'a, U>>(this) }
     }
 }
 

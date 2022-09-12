@@ -193,7 +193,7 @@ impl<'a, T> RMut<'a, T> {
         T: 'a,
     {
         Self {
-            ref_: NonNull::new_unchecked(ref_),
+            ref_: unsafe { NonNull::new_unchecked(ref_) },
             _marker: PhantomData,
         }
     }
@@ -529,7 +529,7 @@ impl<'a, T> RMut<'a, T> {
     where
         U: 'a,
     {
-        &mut *(self.ref_.as_ptr() as *mut U)
+        unsafe { &mut *(self.ref_.as_ptr() as *mut U) }
     }
 
     /// Transmutes this `RMut<'a, T>` to a `RMut<'a,U>`.
@@ -578,7 +578,7 @@ impl<'a, T> RMut<'a, T> {
     where
         U: 'a,
     {
-        RMut::from_raw(self.ref_.as_ptr() as *mut U)
+        unsafe { RMut::from_raw(self.ref_.as_ptr() as *mut U) }
     }
 
     /// Reborrows this `RMut<'a, T>` into an `RRef<'_, T>`
@@ -664,7 +664,7 @@ where
 
     #[inline(always)]
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-        self.transmute()
+        unsafe { self.transmute() }
     }
 }
 

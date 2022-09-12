@@ -363,7 +363,7 @@ pub trait TransmuteElement {
     where
         Self: CanTransmuteElement<T>,
     {
-        self.transmute_element_()
+        unsafe { self.transmute_element_() }
     }
 }
 
@@ -375,7 +375,7 @@ unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a T {
     type TransmutedPtr = RRef<'a, O>;
 
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-        RRef::from_raw(self as *const T as *const O)
+        unsafe { RRef::from_raw(self as *const T as *const O) }
     }
 }
 
@@ -385,7 +385,7 @@ unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a mut T {
     type TransmutedPtr = RMut<'a, O>;
 
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-        RMut::from_raw(self as *mut T as *mut O)
+        unsafe { RMut::from_raw(self as *mut T as *mut O) }
     }
 }
 
@@ -836,7 +836,7 @@ pub unsafe trait ImmutableRef: Copy + GetPointerKind<Kind = PK_Reference> {
     ///
     #[inline(always)]
     unsafe fn from_nonnull(from: NonNull<Self::PtrTarget>) -> Self {
-        Transmuter { from }.to
+        unsafe { Transmuter { from }.to }
     }
 
     /// Converts this pointer to a raw pointer.
@@ -854,7 +854,7 @@ pub unsafe trait ImmutableRef: Copy + GetPointerKind<Kind = PK_Reference> {
     ///
     #[inline(always)]
     unsafe fn from_raw_ptr(from: *const Self::PtrTarget) -> Option<Self> {
-        Transmuter { from }.to
+        unsafe { Transmuter { from }.to }
     }
 }
 
@@ -905,7 +905,7 @@ pub mod immutable_ref {
     /// ```
     ///
     pub const unsafe fn from_nonnull<S, PT>(from: NonNull<PT>, _proof: IsReference<S, PT>) -> S {
-        const_transmute!(NonNull<PT>, S, from)
+        unsafe { const_transmute!(NonNull<PT>, S, from) }
     }
 
     /// Converts the `from` pointer to a raw pointer.
@@ -949,6 +949,6 @@ pub mod immutable_ref {
         from: *const PT,
         _proof: IsReference<S, PT>,
     ) -> Option<S> {
-        const_transmute!(*const PT, Option<S>, from)
+        unsafe { const_transmute!(*const PT, Option<S>, from) }
     }
 }

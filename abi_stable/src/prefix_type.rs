@@ -236,7 +236,7 @@ impl<T, P> WithMetadata_<T, P> {
     /// You must enture that this `WithMetadata` lives for the entire program's lifetime.
     #[inline]
     pub const unsafe fn raw_as_prefix(this: *const Self) -> PrefixRef<P> {
-        PrefixRef::from_raw(this)
+        unsafe { PrefixRef::from_raw(this) }
     }
 
     /// Constructs a `PrefixRef` from `self`.
@@ -252,7 +252,7 @@ impl<T, P> WithMetadata_<T, P> {
     /// [`StaticRef::as_prefix`]: ../sabi_types/struct.StaticRef.html#method.as_prefix
     #[inline]
     pub const unsafe fn as_prefix(&self) -> PrefixRef<P> {
-        PrefixRef::from_raw(self)
+        unsafe { PrefixRef::from_raw(self) }
     }
 
     /// Constructs a `PrefixRef` from `self`.

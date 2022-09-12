@@ -365,7 +365,7 @@ mod private {
             } else {
                 (this.ptr, Deallocate::Yes)
             };
-            (this.destroy)(ptr, drop_referent, dealloc);
+            unsafe{ (this.destroy)(ptr, drop_referent, dealloc) };
         }
     }
 
@@ -463,7 +463,7 @@ unsafe impl<T, O, Inline> CanTransmuteElement<O> for RSmallBox<T, Inline> {
     type TransmutedPtr = RSmallBox<O, Inline>;
 
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-        core_extensions::utils::transmute_ignore_size(self)
+        unsafe { core_extensions::utils::transmute_ignore_size(self) }
     }
 }
 
@@ -502,12 +502,12 @@ where
 unsafe impl<T, Inline> OwnedPointer for RSmallBox<T, Inline> {
     #[inline]
     unsafe fn get_move_ptr(this: &mut ManuallyDrop<Self>) -> MovePtr<'_, T> {
-        MovePtr::new(&mut **this)
+        unsafe { MovePtr::new(&mut **this) }
     }
 
     #[inline]
     unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>) {
-        Self::drop_in_place(&mut **this, CallReferentDrop::No);
+        unsafe { Self::drop_in_place(&mut **this, CallReferentDrop::No); }
     }
 }
 
@@ -522,10 +522,10 @@ impl<T, Inline> Drop for RSmallBox<T, Inline> {
 unsafe extern "C" fn destroy<T>(ptr: *mut T, drop_referent: CallReferentDrop, dealloc: Deallocate) {
     extern_fn_panic_handling! {no_early_return;
         if let CallReferentDrop::Yes=drop_referent{
-            ptr::drop_in_place(ptr);
+            unsafe { ptr::drop_in_place(ptr); }
         }
-        if let Deallocate::Yes=dealloc{
-            Box::from_raw(ptr as *mut ManuallyDrop<T>);
+        if let Deallocate::Yes = dealloc{
+            unsafe { Box::from_raw(ptr as *mut ManuallyDrop<T>); }
         }
     }
 }

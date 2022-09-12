@@ -56,7 +56,7 @@ impl ConstGeneric {
     /// (where `T` is the unerased type of `this`)
     pub const unsafe fn from_erased(this: *const (), vtable: ConstGenericVTable_Ref) -> Self {
         Self {
-            ptr: RRef::from_raw(this as *const ErasedObject),
+            ptr: unsafe{ RRef::from_raw(this as *const ErasedObject) },
             vtable,
         }
     }

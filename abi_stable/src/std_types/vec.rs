@@ -164,9 +164,11 @@ mod private {
             F: FnOnce(&mut Vec<T>) -> U,
         {
             let mut old = mem::replace(self, RVec::new()).piped(ManuallyDrop::new);
-            let mut list = Vec::<T>::from_raw_parts(old.buffer_mut(), old.len(), old.capacity());
+            let mut list = unsafe {
+                Vec::<T>::from_raw_parts(old.buffer_mut(), old.len(), old.capacity())
+            };
             let ret = f(&mut list);
-            ptr::write(self, list.into());
+            unsafe { ptr::write(self, list.into()); }
             ret
         }
 
@@ -799,10 +801,12 @@ impl<T> RVec<T> {
     /// Appends elements to `Self` from other buffer.
     #[inline]
     unsafe fn append_elements(&mut self, other: *const [T]) {
-        let count = (*other).len();
+        let count = unsafe { (*other).len() };
         self.reserve(count);
         let len = self.len();
-        ptr::copy_nonoverlapping(other as *const T, self.as_mut_ptr().add(len), count);
+        unsafe {
+            ptr::copy_nonoverlapping(other as *const T, self.as_mut_ptr().add(len), count);
+        }
         self.length += count;
     }
 
@@ -1458,18 +1462,18 @@ struct VecVTable {
 }
 
 unsafe extern "C" fn destructor_vec<T>(this: RMut<'_, ()>) {
-    extern_fn_panic_handling! {
+    extern_fn_panic_handling! {no_early_return; unsafe {
         let this = this.transmute_into_mut::<RVec<T>>();
         drop(Vec::from_raw_parts(
             this.buffer_mut(),
             this.len(),
             this.capacity(),
         ));
-    }
+    }}
 }
 
 unsafe extern "C" fn grow_capacity_to_vec<T>(this: RMut<'_, ()>, to: usize, exactness: Exactness) {
-    extern_fn_panic_handling! {
+    extern_fn_panic_handling! {no_early_return; unsafe {
         let this = this.transmute_into_mut::<RVec<T>>();
         this.with_vec(|list| {
             let additional = to.saturating_sub(list.len());
@@ -1478,14 +1482,14 @@ unsafe extern "C" fn grow_capacity_to_vec<T>(this: RMut<'_, ()>, to: usize, exac
                 Exactness::Exact => list.reserve_exact(additional),
             }
         })
-    }
+    }}
 }
 
 unsafe extern "C" fn shrink_to_fit_vec<T>(this: RMut<'_, ()>) {
-    extern_fn_panic_handling! {
+    extern_fn_panic_handling! {no_early_return; unsafe {
         let this = this.transmute_into_mut::<RVec<T>>();
         this.with_vec(|list| {
             list.shrink_to_fit();
         })
-    }
+    }}
 }

@@ -55,7 +55,7 @@ impl RawLibrary {
     ///
     ///
     pub unsafe fn get<T>(&self, symbol_name: &[u8]) -> Result<LLSymbol<'_, T>, LibraryError> {
-        match self.library.get::<T>(symbol_name) {
+        match unsafe { self.library.get::<T>(symbol_name) } {
             Ok(symbol) => Ok(symbol),
             Err(io) => {
                 let symbol = symbol_name.to_owned();

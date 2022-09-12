@@ -183,7 +183,7 @@ impl LibHeader {
         M: RootModule,
     {
         self.check_version::<M>()?;
-        self.unchecked_layout()
+        unsafe { self.unchecked_layout() }
             .map_err(RootModuleError::into_library_error::<M>)
     }
 
@@ -277,7 +277,7 @@ impl LibHeader {
     where
         M: PrefixRefTrait,
     {
-        self.module
+        let reff = self.module
             .try_init(|| (self.constructor.0)().into_result())
             .map_err(|mut err| {
                 // Making sure that the error doesn't contain references into
@@ -287,10 +287,10 @@ impl LibHeader {
                 // unload libraries right now.
                 err.reallocate();
                 err
-            })?
-            .cast::<M::PrefixFields>()
-            .piped(M::from_prefix_ref)
-            .piped(Ok)
+            })?;
+        unsafe {
+            Ok(M::from_prefix_ref(reff.cast::<M::PrefixFields>()))
+        }
     }
 }
 

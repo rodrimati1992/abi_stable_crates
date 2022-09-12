@@ -246,15 +246,27 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             SelfParam::ByVal => &ctokens.ptr_val_bound,
         };
 
+        // TODO: add a wrap_safety function which wraps a tokenstream in `unsafe{}`
+        // if the `safety: Option<&Unsafe>` argument is Some.
+
+        let output_safety = |output: &mut TokenStream2, input: TokenStream2|{
+            output.append_all(if let Some(safety) = method.unsafety {
+                quote_spanned!(safety.span => { #safety{ #input } })
+            } else {
+                quote_spanned!(method_span => { #input })
+            });
+        };
+
         match (which_item, &method.self_param) {
             (WhichItem::Trait, _) => {
                 method.default.as_ref().map(|x| x.block).to_tokens(ts);
                 method.semicolon.to_tokens(ts);
             }
             (WhichItem::TraitImpl, _) => {
-                ts.append_all(quote_spanned!(method_span=>{
+                output_safety(ts, quote_spanned!(method_span =>
                     self.#method_name(#(#param_names_c,)*)
-                }));
+                ));
+
             }
             (WhichItem::TraitObjectImpl, _) => {
                 let method_call = match &method.self_param {
@@ -348,23 +360,25 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 };
 
                 ts.append_all(quote_spanned!(method_span=>{
-                    let ret = ::abi_stable::extern_fn_panic_handling!{no_early_return;
-                        __Trait::#method_name(
-                            &#mut_token *_self.transmute_into_raw::<#self_ty>(),
-                            #(#param_names_c,)*
-                        )
-                    };
+                    unsafe{
+                        let ret = ::abi_stable::extern_fn_panic_handling!{no_early_return;
+                            __Trait::#method_name(
+                                &#mut_token *_self.transmute_into_raw::<#self_ty>(),
+                                #(#param_names_c,)*
+                            )
+                        };
 
-                    #transmute_ret
+                        #transmute_ret
+                    }
                 }));
             }
             (WhichItem::VtableImpl, SelfParam::ByVal) => {
                 ts.append_all(quote_spanned!(method_span=>{
-                    ::abi_stable::extern_fn_panic_handling!{no_early_return;
+                    ::abi_stable::extern_fn_panic_handling!{no_early_return; unsafe{
                         __Trait::#method_name(
                             (_self as *mut #self_ty).read(),#(#param_names_c,)*
                         )
-                    }
+                    }}
                 }));
             }
         }

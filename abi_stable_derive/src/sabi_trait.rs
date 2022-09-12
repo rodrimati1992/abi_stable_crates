@@ -769,9 +769,9 @@ fn reborrow_methods_tokenizer(
             where
                 _ErasedPtr: __sabi_re::AsPtr<PtrTarget=()>
             {
-                let x=self.obj.reborrow();
+                let x = self.obj.reborrow();
                 // This is transmuting the pointer type parameter of the vtable.
-                let x=unsafe{ __sabi_re::transmute(x) };
+                let x = unsafe{ __sabi_re::transmute(x) };
                 #trait_to::from_sabi(x)
             }
 
@@ -784,9 +784,9 @@ fn reborrow_methods_tokenizer(
             where
                 _ErasedPtr: __sabi_re::AsMutPtr<PtrTarget=()>
             {
-                let x=self.obj.reborrow_mut();
+                let x = self.obj.reborrow_mut();
                 // This is transmuting the pointer type parameter of the vtable.
-                let x=unsafe{ __sabi_re::transmute(x) };
+                let x = unsafe{ __sabi_re::transmute(x) };
                 #trait_to::from_sabi(x)
             }
         )
@@ -888,6 +888,7 @@ fn trait_and_impl(
         let assoc_ty_named_b = assoc_ty_named_a.clone();
 
         quote!(
+            #[deny(unsafe_op_in_unsafe_fn)]
             #[allow(clippy::needless_lifetimes, clippy::new_ret_no_self)]
             impl<#gen_params_header> #trait_ident<#gen_params_use_trait>
             for #trait_to<#gen_params_use_to>
@@ -1220,7 +1221,7 @@ fn vtable_impl(
         #[doc=#trait_mv_docs]
         #submod_vis struct #make_vtable_ident<#struct_decl_generics>(#dummy_struct_tys);
 
-
+        #[deny(unsafe_op_in_unsafe_fn)]
         impl<#impl_header_generics> #make_vtable_ident<#makevtable_generics>
         where
             _Self:#trait_bounds<#trait_generics>,

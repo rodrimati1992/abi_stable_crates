@@ -478,7 +478,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     ///
     pub unsafe fn transmute_enum<F>(self) -> NonExhaustive<F, S, I> {
         NonExhaustive::<F, S, I>::assert_fits_within_storage();
-        transmute_ignore_size(self)
+        unsafe { transmute_ignore_size(self) }
     }
 
     /// Transmute this `&NonExhaustive<E,S,I>` into `&NonExhaustive<F,S,I>`,
@@ -493,7 +493,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     /// This panics if the storage has an alignment or size smaller than that of `F`.
     pub unsafe fn transmute_enum_ref<F>(&self) -> &NonExhaustive<F, S, I> {
         NonExhaustive::<F, S, I>::assert_fits_within_storage();
-        &*(self as *const Self as *const _)
+        unsafe { &*(self as *const Self as *const _) }
     }
 
     /// Transmute this `&mut NonExhaustive<E,S,I>` into `&mut NonExhaustive<F,S,I>`,
@@ -508,7 +508,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     /// This panics if the storage has an alignment or size smaller than that of `F`.
     pub unsafe fn transmute_enum_mut<F>(&mut self) -> &mut NonExhaustive<F, S, I> {
         NonExhaustive::<F, S, I>::assert_fits_within_storage();
-        &mut *(self as *mut Self as *mut _)
+        unsafe { &mut *(self as *mut Self as *mut _) }
     }
 
     /// Transmute this pointer to a `NonExhaustive<E,S,I>` into
@@ -530,7 +530,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
         P: CanTransmuteElement<NonExhaustive<F, S, I>>,
     {
         NonExhaustive::<F, S, I>::assert_fits_within_storage();
-        this.transmute_element::<NonExhaustive<F, S, I>>()
+        unsafe { this.transmute_element::<NonExhaustive<F, S, I>>() }
     }
 
     /// Gets a reference to the vtable of this `NonExhaustive<>`.

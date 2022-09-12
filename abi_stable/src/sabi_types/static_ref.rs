@@ -147,7 +147,7 @@ impl<T> StaticRef<T> {
     /// ```
     pub const unsafe fn from_raw(ref_: *const T) -> Self {
         Self {
-            ref_: NonNull::new_unchecked(ref_ as *mut T),
+            ref_: unsafe { NonNull::new_unchecked(ref_ as *mut T) },
         }
     }
 
@@ -256,7 +256,7 @@ impl<T> StaticRef<T> {
     ///
     /// ```
     pub const unsafe fn transmute<U>(self) -> StaticRef<U> {
-        StaticRef::from_raw(self.ref_.as_ptr() as *const T as *const U)
+        unsafe { StaticRef::from_raw(self.ref_.as_ptr() as *const T as *const U) }
     }
 }
 
@@ -285,7 +285,7 @@ unsafe impl<T, U> CanTransmuteElement<U> for StaticRef<T> {
 
     #[inline(always)]
     unsafe fn transmute_element_(self) -> StaticRef<U> {
-        self.transmute()
+        unsafe { self.transmute() }
     }
 }
 

@@ -497,5 +497,5 @@ fn from_boxed_rawvalue(x: Box<RawValue>) -> Box<str> {
 unsafe fn into_ref_rawvalue(x: &str) -> &RawValue {
     // This would become Undefined Behavior if
     // serde_json somehow changes RawValue to not be a transparent wrapper around `str`
-    &*(x as *const str as *const RawValue)
+    unsafe { &*(x as *const str as *const RawValue) }
 }

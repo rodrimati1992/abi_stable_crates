@@ -576,9 +576,11 @@ impl RString {
         self.inner.reserve(amt);
 
         let ptr = self.inner.as_mut_ptr();
-        ptr::copy(ptr.add(idx), ptr.add(idx + amt), len - idx);
-        ptr::copy(bytes.as_ptr(), self.inner.as_mut_ptr().add(idx), amt);
-        self.inner.set_len(len + amt);
+        unsafe {
+            ptr::copy(ptr.add(idx), ptr.add(idx + amt), len - idx);
+            ptr::copy(bytes.as_ptr(), self.inner.as_mut_ptr().add(idx), amt);
+            self.inner.set_len(len + amt);
+        }
     }
 
     /// Retains only the characters that satisfy the `pred` predicate

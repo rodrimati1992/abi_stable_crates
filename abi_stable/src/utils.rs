@@ -171,7 +171,7 @@ where
 #[inline]
 #[allow(clippy::needless_lifetimes)]
 pub unsafe fn transmute_reference<T, U>(ref_: &T) -> &U {
-    &*(ref_ as *const _ as *const U)
+    unsafe { &*(ref_ as *const _ as *const U) }
 }
 
 /// Transmute a mutable reference to another mutable reference,
@@ -184,7 +184,7 @@ pub unsafe fn transmute_reference<T, U>(ref_: &T) -> &U {
 #[inline]
 #[allow(clippy::needless_lifetimes)]
 pub unsafe fn transmute_mut_reference<'a, T, U>(ref_: &'a mut T) -> &'a mut U {
-    &mut *(ref_ as *mut _ as *mut U)
+    unsafe{ &mut *(ref_ as *mut _ as *mut U) }
 }
 
 //////////////////////////////////////
@@ -298,7 +298,7 @@ impl_fmt_padding! { RString }
 /// After this function is called `slot` will become uninitialized and
 /// must not be read again.
 pub unsafe fn take_manuallydrop<T>(slot: &mut ManuallyDrop<T>) -> T {
-    ManuallyDrop::take(slot)
+    unsafe { ManuallyDrop::take(slot) }
 }
 
 #[doc(hidden)]

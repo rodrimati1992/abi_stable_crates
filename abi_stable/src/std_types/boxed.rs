@@ -191,7 +191,7 @@ unsafe impl<T, O> CanTransmuteElement<O> for RBox<T> {
     type TransmutedPtr = RBox<O>;
 
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-        core_extensions::utils::transmute_ignore_size(self)
+        unsafe { core_extensions::utils::transmute_ignore_size(self) }
     }
 }
 
@@ -275,13 +275,15 @@ impl<T> DerefMut for RBox<T> {
 unsafe impl<T> OwnedPointer for RBox<T> {
     #[inline]
     unsafe fn get_move_ptr(this: &mut ManuallyDrop<Self>) -> MovePtr<'_, T> {
-        MovePtr::from_raw(this.data_mut())
+        unsafe { MovePtr::from_raw(this.data_mut()) }
     }
 
     #[inline]
     unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>) {
         let data: *mut T = this.data();
-        (this.vtable().destructor())(data as *mut (), CallReferentDrop::No, Deallocate::Yes);
+        unsafe { 
+            (this.vtable().destructor())(data as *mut (), CallReferentDrop::No, Deallocate::Yes);
+        }
     }
 }
 
@@ -660,10 +662,10 @@ unsafe extern "C" fn destroy_box<T>(
     extern_fn_panic_handling! {no_early_return;
         let ptr = ptr as *mut T;
         if let CallReferentDrop::Yes = call_drop {
-            ptr::drop_in_place(ptr);
+            unsafe { ptr::drop_in_place(ptr); }
         }
         if let Deallocate::Yes = dealloc {
-            Box::from_raw(ptr as *mut ManuallyDrop<T>);
+            unsafe { Box::from_raw(ptr as *mut ManuallyDrop<T>); }
         }
     }
 }

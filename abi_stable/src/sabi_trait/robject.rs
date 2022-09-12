@@ -267,7 +267,7 @@ where
     {
         RObject {
             vtable,
-            ptr: ManuallyDrop::new(ptr.transmute_element::<()>()),
+            ptr: ManuallyDrop::new(unsafe { ptr.transmute_element::<()>() }),
             _marker: PhantomData,
         }
     }
@@ -307,7 +307,7 @@ impl<'borr, 'a, I, V> RObject<'borr, RRef<'a, ()>, I, V> {
         RObject {
             vtable: vtable.robject_vtable(),
             ptr: {
-                let x = RRef::new(ptr).transmute::<()>();
+                let x = unsafe { RRef::new(ptr).transmute::<()>() };
                 ManuallyDrop::new(x)
             },
             _marker: PhantomData,
@@ -529,7 +529,7 @@ where
         P: AsPtr<PtrTarget = ()> + CanTransmuteElement<T>,
     {
         let this = ManuallyDrop::new(self);
-        ptr::read(&*this.ptr).transmute_element::<T>()
+        unsafe { ptr::read(&*this.ptr).transmute_element::<T>() }
     }
 
     /// Unwraps the `RObject<_>` into a reference to T,
@@ -584,7 +584,7 @@ where
     where
         P: AsPtr<PtrTarget = ()>,
     {
-        &*(self.ptr.as_ptr() as *const T)
+        unsafe { &*(self.ptr.as_ptr() as *const T) }
     }
 
     /// Unwraps the `RObject<_>` into a mutable reference to T,
@@ -629,7 +629,7 @@ where
     where
         P: AsMutPtr<PtrTarget = ()>,
     {
-        &mut *(self.ptr.as_mut_ptr() as *mut T)
+        unsafe { &mut *(self.ptr.as_mut_ptr() as *mut T) }
     }
 }
 

@@ -315,7 +315,7 @@ impl<'a, T> RSlice<'a, T> {
         U: 'a,
     {
         let len = self.len();
-        RSlice::from_raw_parts(self.as_ptr() as *const T as *const U, len)
+        unsafe { RSlice::from_raw_parts(self.as_ptr() as *const T as *const U, len) }
     }
 }
 

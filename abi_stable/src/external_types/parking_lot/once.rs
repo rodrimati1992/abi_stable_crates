@@ -398,7 +398,7 @@ impl<F> Closure<F> {
     where
         F: FnOnce(),
     {
-        Self::run_call(this, state, |f, _| f())
+        unsafe { Self::run_call(this, state, |f, _| f()) }
     }
 
     unsafe extern "C" fn run_call_once_forced(
@@ -408,7 +408,7 @@ impl<F> Closure<F> {
     where
         F: FnOnce(ROnceState),
     {
-        Self::run_call(this, state, |f, state| f(state))
+        unsafe { Self::run_call(this, state, |f, state| f(state)) }
     }
 
     #[inline]
@@ -420,7 +420,7 @@ impl<F> Closure<F> {
     where
         M: FnOnce(F, ROnceState),
     {
-        let mut this = this.transmute_into_mut::<Self>();
+        let mut this = unsafe { this.transmute_into_mut::<Self>() };
         let res = panic::catch_unwind(AssertUnwindSafe(|| {
             let closure = this.closure.take().unwrap();
             method(closure, state);
@@ -477,7 +477,7 @@ unsafe extern "C" fn call_once(
     runner: RunClosure,
 ) -> RResult<(), ()> {
     call_with_closure(|| {
-        this.value.call_once(|| {
+        this.value.call_once(|| unsafe {
             (runner.func)(erased_closure, ROnceState::New).unwrap();
         });
     })
@@ -488,7 +488,7 @@ unsafe extern "C" fn call_once_force(
     runner: RunClosure,
 ) -> RResult<(), ()> {
     call_with_closure(|| {
-        this.value.call_once_force(|state| {
+        this.value.call_once_force(|state| unsafe {
             (runner.func)(erased_closure, state.into()).unwrap();
         });
     })

@@ -1203,7 +1203,7 @@ mod priv_ {
         where
             P: AsPtr,
         {
-            &*(self.object.as_ptr() as *const P::PtrTarget as *const T)
+            unsafe { &*(self.object.as_ptr() as *const P::PtrTarget as *const T) }
         }
 
         // Safety: Only call this in unerasure functions
@@ -1211,7 +1211,7 @@ mod priv_ {
         where
             P: AsMutPtr,
         {
-            &mut *(self.object.as_mut_ptr() as *mut P::PtrTarget as *mut T)
+            unsafe { &mut *(self.object.as_mut_ptr() as *mut P::PtrTarget as *mut T) }
         }
 
         /// Gets a reference pointing to the erased object.
@@ -1238,7 +1238,7 @@ mod priv_ {
         where
             P: AsPtr,
         {
-            RRef::from_raw(self.object.as_ptr() as *const ErasedObject)
+            unsafe { RRef::from_raw(self.object.as_ptr() as *const ErasedObject) }
         }
 
         /// Gets a mutable reference pointing to the erased object.
@@ -1808,7 +1808,7 @@ mod priv_ {
             P: AsPtr + CanTransmuteElement<T>,
         {
             let this = ManuallyDrop::new(self);
-            ptr::read(&*this.object).transmute_element::<T>()
+            unsafe { ptr::read(&*this.object).transmute_element::<T>() }
         }
 
         /// Unwraps the `DynTrait<_>` into a reference to T,
@@ -1850,7 +1850,7 @@ mod priv_ {
         where
             P: AsPtr,
         {
-            self.sabi_object_as()
+            unsafe { self.sabi_object_as() }
         }
 
         /// Unwraps the `DynTrait<_>` into a mutable reference to T,
@@ -1887,7 +1887,7 @@ mod priv_ {
         where
             P: AsMutPtr,
         {
-            self.sabi_object_as_mut()
+            unsafe { self.sabi_object_as_mut() }
         }
     }
 

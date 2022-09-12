@@ -108,7 +108,7 @@ mod private {
         type TransmutedPtr = RArc<O>;
 
         unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-            core_extensions::utils::transmute_ignore_size(self)
+            unsafe { core_extensions::utils::transmute_ignore_size(self) }
         }
     }
 
@@ -460,13 +460,13 @@ mod vtable_mod {
     }
 
     unsafe extern "C" fn destructor_arc<T>(this: *const T, call_drop: CallReferentDrop) {
-        extern_fn_panic_handling! {no_early_return;
+        extern_fn_panic_handling! {no_early_return; unsafe {
             if call_drop == CallReferentDrop::Yes {
                 drop(Arc::from_raw(this));
             } else {
                 drop(Arc::from_raw(this as *const ManuallyDrop<T>));
             }
-        }
+        }}
     }
 
     unsafe fn with_arc_ref<T, F, R>(this: &RArc<T>, f: F) -> R
@@ -474,38 +474,38 @@ mod vtable_mod {
         F: FnOnce(&Arc<T>) -> R,
     {
         let x = this.data();
-        let x = Arc::from_raw(x);
+        let x = unsafe { Arc::from_raw(x) };
         let x = ManuallyDrop::new(x);
         f(&x)
     }
 
     unsafe extern "C" fn clone_arc<T>(this: &RArc<T>) -> RArc<T> {
-        with_arc_ref(this, |x| Arc::clone(x).into())
+        unsafe { with_arc_ref(this, |x| Arc::clone(x).into()) }
     }
 
     unsafe extern "C" fn get_mut_arc<'a, T>(this: &'a mut RArc<T>) -> Option<&'a mut T> {
-        let arc = Arc::from_raw(this.data());
+        let arc = unsafe { Arc::from_raw(this.data()) };
         let mut arc = ManuallyDrop::new(arc);
         // This is fine, since we are only touching the data afterwards,
         // which is guaranteed to have the 'a lifetime.
-        let arc: &'a mut Arc<T> = &mut *(&mut *arc as *mut Arc<T>);
+        let arc: &'a mut Arc<T> = unsafe { &mut *(&mut *arc as *mut Arc<T>) };
         Arc::get_mut(arc)
     }
 
     unsafe extern "C" fn try_unwrap_arc<T>(this: RArc<T>) -> RResult<T, RArc<T>> {
         this.into_raw()
-            .piped(|x| Arc::from_raw(x))
+            .piped(|x| unsafe { Arc::from_raw(x) })
             .piped(Arc::try_unwrap)
             .map_err(RArc::from)
             .into()
     }
 
     unsafe extern "C" fn strong_count_arc<T>(this: &RArc<T>) -> usize {
-        with_arc_ref(this, |x| Arc::strong_count(x))
+        unsafe { with_arc_ref(this, |x| Arc::strong_count(x)) }
     }
 
     unsafe extern "C" fn weak_count_arc<T>(this: &RArc<T>) -> usize {
-        with_arc_ref(this, |x| Arc::weak_count(x))
+        unsafe { with_arc_ref(this, |x| Arc::weak_count(x)) }
     }
 }
 use self::vtable_mod::{ArcVtable_Ref, VTableGetter};

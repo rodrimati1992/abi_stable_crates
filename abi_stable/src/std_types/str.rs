@@ -93,7 +93,7 @@ impl<'a> RStr<'a> {
     #[inline]
     pub const unsafe fn from_raw_parts(ptr_: *const u8, len: usize) -> Self {
         Self {
-            inner: RSlice::from_raw_parts(ptr_, len),
+            inner: unsafe { RSlice::from_raw_parts(ptr_, len) },
         }
     }
 

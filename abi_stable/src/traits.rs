@@ -156,7 +156,7 @@ pub(crate) trait ErasedType<'a>: Sized {
     where
         P: CanTransmuteElement<Self, PtrTarget = Self::Unerased>,
     {
-        p.transmute_element::<Self>()
+        unsafe { p.transmute_element::<Self>() }
     }
 
     #[inline]
@@ -164,7 +164,7 @@ pub(crate) trait ErasedType<'a>: Sized {
     where
         P: CanTransmuteElement<Self::Unerased, PtrTarget = Self>,
     {
-        p.transmute_element::<Self::Unerased>()
+        unsafe { p.transmute_element::<Self::Unerased>() }
     }
 
     #[inline]
@@ -173,7 +173,7 @@ pub(crate) trait ErasedType<'a>: Sized {
         Self::Unerased: 'b,
         F: FnOnce(&'b Self::Unerased) -> R,
     {
-        func(p.transmute_into_ref::<Self::Unerased>())
+        unsafe { func(p.transmute_into_ref::<Self::Unerased>()) }
     }
 
     #[inline]
@@ -182,7 +182,7 @@ pub(crate) trait ErasedType<'a>: Sized {
         Self::Unerased: 'b,
         F: FnOnce(&'b mut Self::Unerased) -> R,
     {
-        func(p.transmute_into_mut())
+        unsafe { func(p.transmute_into_mut()) }
     }
 }
 

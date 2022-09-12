@@ -354,11 +354,11 @@ impl<'a, T> RSliceMut<'a, T> {
     }
 
     unsafe fn as_slice_unbounded_lifetime(&self) -> &'a [T] {
-        ::std::slice::from_raw_parts(self.data(), self.len())
+        unsafe { ::std::slice::from_raw_parts(self.data(), self.len()) }
     }
 
     unsafe fn as_mut_slice_unbounded_lifetime(&mut self) -> &'a mut [T] {
-        ::std::slice::from_raw_parts_mut(self.data(), self.len())
+        unsafe { ::std::slice::from_raw_parts_mut(self.data(), self.len()) }
     }
 
     /// Creates an `&'_ [T]` with access to all the elements of this slice.

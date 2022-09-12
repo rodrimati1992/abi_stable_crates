@@ -328,7 +328,7 @@ impl<M> RBoxError_<M> {
     unsafe fn new_with_vtable<T>(value: T, vtable: RErrorVTable_Ref) -> Self {
         let value = value
             .piped(RBox::new)
-            .piped(|x| mem::transmute::<RBox<T>, RBox<ErasedObject>>(x));
+            .piped(|x| unsafe { mem::transmute::<RBox<T>, RBox<ErasedObject>>(x) });
 
         Self {
             value,

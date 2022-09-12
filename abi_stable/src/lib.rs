@@ -201,6 +201,7 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 #![allow(clippy::empty_loop)]
 #![allow(clippy::ptr_offset_with_cast)]
 #![deny(clippy::missing_safety_doc)]
+#![deny(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(feature = "docsrs", feature(doc_cfg))]
 
 #[macro_use]

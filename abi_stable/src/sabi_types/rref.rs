@@ -191,7 +191,7 @@ impl<'a, T> RRef<'a, T> {
         T: 'a,
     {
         Self {
-            ref_: NonNull::new_unchecked(ref_ as *mut T),
+            ref_: unsafe { NonNull::new_unchecked(ref_ as *mut T) },
             _marker: PhantomData,
         }
     }
@@ -284,7 +284,7 @@ impl<'a, T> RRef<'a, T> {
     where
         U: 'a,
     {
-        RRef::from_raw(self.ref_.as_ptr() as *const U)
+        unsafe { RRef::from_raw(self.ref_.as_ptr() as *const U) }
     }
 
     /// Transmutes this to a raw pointer pointing to a different type.
@@ -319,7 +319,7 @@ impl<'a, T> RRef<'a, T> {
     where
         U: 'a,
     {
-        crate::utils::deref!(self.ref_.as_ptr() as *const T as *const U)
+        unsafe { crate::utils::deref!(self.ref_.as_ptr() as *const T as *const U) }
     }
 }
 
@@ -337,7 +337,7 @@ where
 
     #[inline(always)]
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-        self.transmute()
+        unsafe { self.transmute() }
     }
 }
 

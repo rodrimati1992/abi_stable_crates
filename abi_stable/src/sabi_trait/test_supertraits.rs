@@ -1494,8 +1494,6 @@ pub mod every_trait_nonstatic {
     }
 
     fn test_constructible() {
-        use crate::std_types::RBox;
-
         let string = String::new();
         let value = Struct(&string);
         let object = Trait_TO::from_ptr(RBox::new(value), TD_Opaque);
