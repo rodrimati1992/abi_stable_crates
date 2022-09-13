@@ -1,12 +1,8 @@
 //! An implementation detail of abi_stable.
 
 #![recursion_limit = "192"]
-// #![deny(unused_variables)]
-// #![deny(unused_imports)]
-// #![deny(unused_parens)]
-// #![deny(unused_assignments)]
-// #![deny(unused_mut)]
 #![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::derive_partial_eq_without_eq)]
 #![deny(unreachable_patterns)]
 #![deny(unused_doc_comments)]
 #![deny(unconditional_recursion)]

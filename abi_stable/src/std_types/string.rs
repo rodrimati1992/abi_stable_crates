@@ -130,7 +130,7 @@ impl RString {
     /// ```
     #[inline]
     pub fn as_str(&self) -> &str {
-        &*self
+        self
     }
 
     /// Creates an `RStr<'_>` with access to all the characters of the `RString`.

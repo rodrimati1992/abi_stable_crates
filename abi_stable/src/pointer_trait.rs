@@ -23,7 +23,7 @@ mod tests;
 /// On No,the memory the pointer owns is deallocated without calling the destructor
 /// of the referent.
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum CallReferentDrop {
     Yes,
     No,
@@ -819,6 +819,11 @@ impl<T: OwnedPointer> Drop for DropAllocationMutGuard<'_, T> {
 
 /// Trait for non-owning pointers that are shared-reference-like.
 ///
+/// # Safety
+///
+/// As implied by `GetPointerKind<Kind = PK_Reference>`,
+/// implementors must be `#[repr(transparent)]` wrappers around references,
+/// and semantically act like references.
 pub unsafe trait ImmutableRef: Copy + GetPointerKind<Kind = PK_Reference> {
     /// Converts this pointer to a `NonNull`.
     #[inline(always)]

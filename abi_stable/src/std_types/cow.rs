@@ -223,7 +223,7 @@ where
             *self = Owned(owned)
         }
         match self {
-            Borrowed(_) => loop {},
+            Borrowed(_) => unreachable!(),
             Owned(v) => v,
         }
     }

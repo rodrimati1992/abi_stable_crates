@@ -375,7 +375,7 @@ declare_tl_discriminants! {
 
 /// A discriminant of an enum variant.
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLDiscriminant {
     /// The assigned value of a discriminant in a `#[repr(isize)]` enum.

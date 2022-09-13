@@ -578,7 +578,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
         };
     )
     .observe(|tokens| {
-        #[allow(clippy::if_then_panic)]
         // drop(_measure_time1);
         if config.debug_print {
             panic!("\n\n\n{}\n\n\n", tokens);

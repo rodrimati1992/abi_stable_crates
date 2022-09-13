@@ -10,6 +10,7 @@ use crate::{
 
 //////////////////////////////////////
 
+#[sabi_trait]
 /// ```
 /// use abi_stable::{
 ///     sabi_trait::{examples::*, prelude::*},
@@ -65,7 +66,6 @@ use crate::{
 ///
 /// ```
 ///
-#[sabi_trait]
 // #[sabi(debug_print_trait)]
 pub trait RSomething<T>: Send + Sync + Clone + Debug {
     type Element: Debug;

@@ -142,6 +142,9 @@ impl<T> Hash for CmpIgnored<T> {
     where
         H: Hasher,
     {
-        ().hash(state)
+        Unit.hash(state)
     }
 }
+
+#[derive(Hash)]
+struct Unit;

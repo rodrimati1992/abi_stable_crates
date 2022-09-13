@@ -229,6 +229,7 @@ pub struct CompTLFunction {
 
 impl CompTLFunction {
     /// Constructs a CompTLFunction.
+    #[allow(clippy::too_many_arguments)]
     pub const fn new(
         name: StartLenRepr,
         contiguous_strings_offset: u16,

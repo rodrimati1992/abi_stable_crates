@@ -101,14 +101,14 @@ macro_rules! declare_alignments {
                 $alignment,
                 " bytes."
             )]
-            #[derive(StableAbi, Debug, PartialEq, Copy, Clone)]
+            #[derive(StableAbi, Debug, PartialEq, Eq, Copy, Clone)]
             #[repr(C)]
             #[repr(align($alignment))]
             pub struct $aligner<Inline>(pub Inline);
 
             unsafe impl<Inline> InlineStorage for $aligner<Inline>
             where
-                Inline:InlineStorage,
+                Inline: InlineStorage,
             {}
 
             impl<T> AlignerFor<$alignment> for T {
@@ -155,7 +155,7 @@ pub mod alignment {
     /// Aligns its contents to an address to an address at
     /// a multiple of the size of a pointer.
     #[repr(C)]
-    #[derive(Debug, PartialEq, Copy, Clone)]
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     #[cfg_attr(target_pointer_width = "128", repr(C, align(16)))]
     #[cfg_attr(target_pointer_width = "64", repr(C, align(8)))]
     #[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]

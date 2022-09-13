@@ -605,10 +605,14 @@ use std::{
 
 use core_extensions::SelfOps;
 
+#[sabi_trait]
 /// This checks that the layout of types coming from dynamic libraries
 /// are compatible with those of the binary/dynlib that loads them.
 ///
-#[sabi_trait]
+/// # Safety
+///
+/// This trait must not be implemented outside of `abi_stable`.
+///
 #[sabi(no_trait_impl)]
 // #[sabi(debug_print_trait)]
 // #[sabi(debug_print)]
@@ -647,6 +651,7 @@ pub unsafe trait TypeChecker: 'static + Send + Sync {
 /// An ffi-safe equivalent of &'b mut dyn TypeChecker
 pub type TypeCheckerMut<'b> = TypeChecker_TO<RMut<'b, ()>>;
 
+#[sabi_trait]
 /// Allows defining extra checks for a type.
 ///
 /// Look at the
@@ -661,7 +666,6 @@ pub type TypeCheckerMut<'b> = TypeChecker_TO<RMut<'b, ()>>;
 /// All of the methods must be deterministic,
 /// always returning the same value with the same arguments.
 ///
-#[sabi_trait]
 #[sabi(no_trait_impl)]
 // #[sabi(debug_print_trait)]
 // #[sabi(debug_print)]

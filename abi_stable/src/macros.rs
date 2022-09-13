@@ -286,7 +286,7 @@ macro_rules! extern_fn_panic_handling {
                 no_early_return;
                 let a = $crate::marker_type::NotCopyNotClone;
                 (move||{
-                    drop(a);
+                    {a};
                     {
                         $($fn_contents)*
                     }

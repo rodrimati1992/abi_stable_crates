@@ -561,7 +561,7 @@ impl<'a> Function<'a> {
                 } else {
                     if current_lt == LifetimeIndex::MAX_LIFETIME_PARAM + 1 {
                         errors.push_err(syn_err!(
-                            self.bound_lt_spans[i].unwrap_or_else(|| *self.func_span),
+                            self.bound_lt_spans[i].unwrap_or(*self.func_span),
                             "Cannot have more than {} non-static lifetimes \
                              (except for lifetimes only used once inside \
                              function pointer types)",

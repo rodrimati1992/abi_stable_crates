@@ -1,4 +1,5 @@
-#![allow(clippy::manual_non_exhaustive)]
+#![allow(clippy::derive_partial_eq_without_eq)]
+#![allow(clippy::needless_late_init)]
 
 #[doc(hidden)]
 #[macro_use]

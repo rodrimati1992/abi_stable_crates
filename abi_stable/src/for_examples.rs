@@ -53,7 +53,7 @@ pub struct PhantModule<T: Copy> {
 #[repr(u8)]
 // #[derive(Debug,Clone,PartialEq)]
 // #[sabi(debug_print)]
-#[derive(StableAbi, Debug, Clone, PartialEq)]
+#[derive(StableAbi, Debug, Clone, PartialEq, Eq)]
 #[sabi(kind(WithNonExhaustive(size = [usize;10], traits(Debug, Clone, PartialEq),)))]
 #[sabi(with_constructor)]
 #[non_exhaustive]

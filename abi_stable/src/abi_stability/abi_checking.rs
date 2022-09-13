@@ -77,7 +77,7 @@ pub enum CheckingState {
 //////
 
 /// Represents an error where a value was expected,but another value was found.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(C)]
 pub struct ExpectedFound<T> {
     pub expected: T,

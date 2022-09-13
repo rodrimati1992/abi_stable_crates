@@ -368,7 +368,7 @@ macro_rules! package_version_strings {
 ////////////////////////////////////////////////////////////////////////////////
 
 /// When the `VersionStrings` could not be converted into a `VersionNumber`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseVersionError {
     version_strings: VersionStrings,
     which_field: &'static str,

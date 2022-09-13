@@ -393,7 +393,7 @@ impl Debug for NulStr<'_> {
 /// Error from trying to convert a `&str` to a [`NulStr`]
 ///
 /// [`NulStr`]: ./struct.NulStr.html
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[non_exhaustive]
 pub enum NulStrError {
     /// When the string has a `'\0'` before the end.

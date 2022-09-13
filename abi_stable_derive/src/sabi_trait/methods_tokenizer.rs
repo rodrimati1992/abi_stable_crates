@@ -341,12 +341,14 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                     }
                 });
 
+                let ret = syn::Ident::new("ret", proc_macro2::Span::call_site());
+
                 let transmute_ret = match method.return_borrow_kind {
                     Some(BorrowKind::Reference) => {
-                        quote_spanned!(method_span=> ::std::mem::transmute(ret) )
+                        quote_spanned!(method_span=> ::std::mem::transmute(#ret) )
                     }
                     Some(BorrowKind::MutReference) => {
-                        quote_spanned!(method_span=> ::std::mem::transmute(ret) )
+                        quote_spanned!(method_span=> ::std::mem::transmute(#ret) )
                     }
                     Some(BorrowKind::Other) => {
                         // Motivation:
@@ -354,14 +356,14 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                         // without adding a `_Self: '_self` bound,
                         // which causes compilation errors due to how HRTB are handled.
                         // The correctness of the lifetime is guaranteed by the trait definition.
-                        quote_spanned!(method_span=> __sabi_re::transmute_ignore_size(ret) )
+                        quote_spanned!(method_span=> __sabi_re::transmute_ignore_size(#ret) )
                     }
-                    None => quote_spanned!(method_span=> ret ),
+                    None => quote_spanned!(method_span=> #ret ),
                 };
 
                 ts.append_all(quote_spanned!(method_span=>{
                     unsafe{
-                        let ret = ::abi_stable::extern_fn_panic_handling!{no_early_return;
+                        let #ret = ::abi_stable::extern_fn_panic_handling!{no_early_return;
                             __Trait::#method_name(
                                 &#mut_token *_self.transmute_into_raw::<#self_ty>(),
                                 #(#param_names_c,)*

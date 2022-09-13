@@ -748,7 +748,7 @@ impl Display for CheckableTag {
             }
             CTVariant::Array(arr) => {
                 writeln!(f, "[")?;
-                display_iter(&*arr, f, 4)?;
+                display_iter(arr, f, 4)?;
                 write!(f, "]")?;
             }
             CTVariant::Set(map) | CTVariant::Map(map) => {

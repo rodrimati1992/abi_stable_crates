@@ -2022,6 +2022,7 @@ mod priv_ {
         /// `P` must come from a function in the vtable,
         /// or come from a copy of `P: Copy+GetPointerKind<Kind = PK_Reference>`,
         /// to ensure that it is compatible with the functions in it.
+        #[allow(clippy::wrong_self_convention)]
         pub(super) fn from_new_ptr(&self, object: P, extra_value: EV) -> Self {
             Self {
                 object: ManuallyDrop::new(object),

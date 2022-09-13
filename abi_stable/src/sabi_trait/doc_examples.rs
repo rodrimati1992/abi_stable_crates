@@ -2,8 +2,8 @@
 
 use crate::sabi_trait;
 
-/// An example trait,used to show what `#[sabi_trait]` generates in the docs.
 #[sabi_trait]
+/// An example trait,used to show what `#[sabi_trait]` generates in the docs.
 #[sabi(use_dyn_trait)]
 pub trait ConstExample: Debug + Clone {
     #[sabi(last_prefix_field)]
@@ -16,8 +16,9 @@ impl ConstExample for usize {
     }
 }
 
-/// An example trait object that uses `RObject` as a backend.
 #[sabi_trait]
+// #[sabi(debug_print_trait)]
+/// An example trait object that uses `RObject` as a backend.
 pub trait Doer: Debug {
     fn value(&self) -> usize;
 

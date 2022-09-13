@@ -115,7 +115,7 @@ impl<T> FieldMap<T> {
     }
 }
 
-impl<'a, T> Index<FieldIndex> for FieldMap<T> {
+impl<T> Index<FieldIndex> for FieldMap<T> {
     type Output = T;
 
     fn index(&self, index: FieldIndex) -> &T {
@@ -123,7 +123,7 @@ impl<'a, T> Index<FieldIndex> for FieldMap<T> {
     }
 }
 
-impl<'a, T> IndexMut<FieldIndex> for FieldMap<T> {
+impl<T> IndexMut<FieldIndex> for FieldMap<T> {
     fn index_mut(&mut self, index: FieldIndex) -> &mut T {
         &mut self.fields[index.variant][index.pos]
     }

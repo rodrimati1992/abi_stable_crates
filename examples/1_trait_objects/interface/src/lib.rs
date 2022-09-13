@@ -83,8 +83,8 @@ impl<'a> PluginResponse<'a> {
 
 pub type PluginType = Plugin_TO<'static, RBox<()>>;
 
-/// A plugin which is loaded by the application,and provides some functionality.
 #[sabi_trait]
+/// A plugin which is loaded by the application,and provides some functionality.
 //#[sabi(debug_print)]
 pub trait Plugin {
     /// Handles a JSON encoded command.

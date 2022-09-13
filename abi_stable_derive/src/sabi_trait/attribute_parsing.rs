@@ -164,11 +164,12 @@ where
     for attr in attrs {
         if attr.path.is_ident("sabi") {
             attr.parse_args_with(|input: &ParseBuffer<'_>| {
-                parse_sabi_trait_attr(this, pctx, input, &attr, arenas)
+                parse_sabi_trait_attr(this, pctx, input, attr, arenas)
             })?;
-        } else if attr.path.is_ident("doc") {
-            this.is_hidden = this.is_hidden
-                || syn::parse::Parser::parse2(contains_doc_hidden, attr.tokens.clone())?;
+        } else if attr.path.is_ident("doc") &&
+            syn::parse::Parser::parse2(contains_doc_hidden, attr.tokens.clone())?
+        {
+            this.is_hidden = true;
         } else if let ParseContext::TraitAttr = pctx {
             this.attrs.other_attrs.push(attr.clone());
         } else if let ParseContext::Method { .. } = pctx {

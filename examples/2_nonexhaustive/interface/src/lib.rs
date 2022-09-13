@@ -406,9 +406,9 @@ impl RootModule for ShopMod_Ref {
     const VERSION_STRINGS: VersionStrings = package_version_strings!();
 }
 
+#[sabi_trait]
 /// This represents a shop manager,
 /// which can be sent a growing list of commands with each version.
-#[sabi_trait]
 pub trait Shop {
     /// Runs the `cmd` command.
     ///
