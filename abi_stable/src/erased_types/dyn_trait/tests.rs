@@ -1,3 +1,8 @@
+#![allow(
+    clippy::derive_partial_eq_without_eq,
+    clippy::iter_nth_zero,
+)]
+
 use super::*;
 
 use std::{
@@ -241,7 +246,7 @@ fn fmt_test() {
     }
 }
 
-pub const JSON_0: &'static str = r#"
+pub const JSON_0: &str = r#"
     {   
         "l":1000,
         "r":10,
@@ -429,7 +434,7 @@ fn hash_test() {
     {
         let concrete = Foo::<String>::default();
         let hash_concrete = hash_value(&concrete);
-        let hash_wrapped = hash_value(&DynTrait::from_value(concrete.clone()));
+        let hash_wrapped = hash_value(&DynTrait::from_value(concrete));
 
         assert_eq!(hash_concrete, hash_wrapped);
     }
@@ -717,9 +722,8 @@ mod borrowing {
         type Item = &'a str;
     }
 
-    fn iterator_from_lines<'borr>(s: &'borr str) -> DynTrait<'borr, RBox<()>, IterInterface> {
-        let list = s.lines().collect::<Vec<&'borr str>>();
-        DynTrait::from_borrowing_value(list.into_iter(), IterInterface)
+    fn iterator_from_lines(s: &str) -> DynTrait<'_, RBox<()>, IterInterface> {
+        DynTrait::from_borrowing_value(s.lines(), IterInterface)
     }
 
     fn exact_size_hint(n: usize) -> (usize, Option<usize>) {
@@ -922,14 +926,14 @@ mod borrowing {
 
         // Creating a DynTrait with a different interface so that it
         // creates a different vtable.
-        let dbg_wrapped = DynTrait::from_borrowing_value(value.clone(), DebugInterface);
+        let dbg_wrapped = DynTrait::from_borrowing_value(value, DebugInterface);
 
         assert!(!wrapped.sabi_is_same_type(&dbg_wrapped));
     }
 
     #[test]
     fn unerase_should_not_work() {
-        let value: String = "hello".to_string();
+        let value: &str = "hello";
 
         macro_rules! to_unerased {
             ( $wrapped:expr ; $( $method:ident ),* $(,)* ) => (
@@ -943,12 +947,12 @@ mod borrowing {
         }
 
         to_unerased!(
-            DynTrait::from_borrowing_value(value.clone(),());
+            DynTrait::from_borrowing_value(value.to_string(), ());
             downcast_into,
         );
 
         to_unerased!(
-            DynTrait::from_borrowing_value(value.clone(),());
+            DynTrait::from_borrowing_value(value.to_string(), ());
             downcast_as,
             downcast_as_mut,
         );

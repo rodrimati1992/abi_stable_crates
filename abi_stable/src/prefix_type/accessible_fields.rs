@@ -374,6 +374,6 @@ mod tests {
 
         assert_eq!(iter.clone().collect::<Vec<bool>>(), expected);
 
-        assert_eq!(iter.clone().rev().collect::<Vec<bool>>(), expected_rev);
+        assert_eq!(iter.rev().collect::<Vec<bool>>(), expected_rev);
     }
 }

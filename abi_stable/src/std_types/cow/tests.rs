@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn cmp_and_variance() {
-    fn eq_rcow<'a, 'b, T, U>(left: &RCowVal<'b, T>, right: &RCowVal<'b, U>) -> bool
+    fn eq_rcow<'a, 'b, T, U>(left: &RCowVal<'a, T>, right: &RCowVal<'b, U>) -> bool
     where
         T: Clone + PartialEq<U>,
         U: Clone,

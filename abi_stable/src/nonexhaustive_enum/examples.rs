@@ -1,6 +1,7 @@
 //! Example non-exhaustive enums,used in tests
 
 #![allow(dead_code)]
+#![allow(clippy::derive_partial_eq_without_eq)]
 
 pub mod command_one {
     use std::fmt::{self, Display};

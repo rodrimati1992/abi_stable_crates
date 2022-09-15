@@ -608,11 +608,9 @@ mod tests {
                                     *guard += 1;
                                     break;
                                 }
-                            } else {
-                                if let RSome(guard) = LOCK.try_read() {
-                                    assert!(*guard <= EXPECTED, "{} <= {}", *guard, EXPECTED);
-                                    break;
-                                }
+                            } else if let RSome(guard) = LOCK.try_read() {
+                                assert!(*guard <= EXPECTED, "{} <= {}", *guard, EXPECTED);
+                                break;
                             }
                         }
                     }
@@ -659,11 +657,9 @@ mod tests {
                                     *guard += 1;
                                     break;
                                 }
-                            } else {
-                                if let RSome(guard) = LOCK.try_read_for(wait_for) {
-                                    assert!(*guard <= EXPECTED, "{} <= {}", *guard, EXPECTED);
-                                    break;
-                                }
+                            } else if let RSome(guard) = LOCK.try_read_for(wait_for) {
+                                assert!(*guard <= EXPECTED, "{} <= {}", *guard, EXPECTED);
+                                break;
                             }
                         }
                     }

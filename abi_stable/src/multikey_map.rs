@@ -652,6 +652,7 @@ mod tests {
             (2000, index1, 300),
             (3000, index2, 400),
         ];
+        #[allow(clippy::deref_addrof)]
         for (key, index, val) in expected {
             assert_eq!(*map.get_with_index(index).unwrap(), val);
             assert_eq!(*map.get(&key).unwrap(), val);

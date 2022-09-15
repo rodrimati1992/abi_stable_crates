@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::{sabi_types::MovePtr, test_utils::must_panic};
 
+#[allow(clippy::redundant_allocation)]
 fn _covariant_box<'a: 'b, 'b, T>(foo: Box<&'a T>) -> Box<&'b T> {
     foo
 }

@@ -1,4 +1,5 @@
 // This pub module only tests that the code inside compiles
+#![allow(clippy::derive_partial_eq_without_eq)]
 #![allow(dead_code)]
 
 use std::{
@@ -100,7 +101,7 @@ pub mod static_supertrait {
     }
     fn assert_trait() {
         let mut a = String::new();
-        a.push_str("w");
+        a.push('w');
         assert_trait_inner(Struct(&a));
     }
 }
@@ -174,7 +175,7 @@ pub mod nonstatic_supertrait {
     }
     fn assert_trait() {
         let mut a = String::new();
-        a.push_str("w");
+        a.push('w');
         assert_trait_inner(Struct(&a));
 
         {

@@ -277,12 +277,12 @@ fn clone_test() {
     }
     assert_eq!(Arc::strong_count(&arc), 2);
 
-    assert_eq!(variant_a.clone(), Foo::A);
-    assert_eq!(variant_b.clone(), Foo::B);
+    assert_eq!(variant_a, Foo::A);
+    assert_eq!(variant_b, Foo::B);
     {
         let clone_c = variant_c.clone();
         assert_eq!(Arc::strong_count(&arc), 3);
-        assert_eq!(clone_c.clone(), Foo::C(arc.clone()));
+        assert_eq!(clone_c, Foo::C(arc.clone()));
     }
     assert_eq!(Arc::strong_count(&arc), 2);
 
@@ -327,8 +327,8 @@ fn cmp_test() {
     let variant_c = Foo::<String>::C("what".into());
     let wrapped_c = NonExhaustive::new(variant_c.clone());
 
-    for wrapped in vec![&wrapped_a, &wrapped_b, &wrapped_c] {
-        assert_eq!(wrapped.cmp(&wrapped), Ordering::Equal);
+    for wrapped in [&wrapped_a, &wrapped_b, &wrapped_c] {
+        assert_eq!(wrapped.cmp(wrapped), Ordering::Equal);
     }
     assert_eq!(wrapped_a.cmp(&wrapped_b), Ordering::Less);
     assert_eq!(wrapped_b.cmp(&wrapped_c), Ordering::Less);
@@ -340,7 +340,7 @@ fn cmp_test() {
             var_c=$var_c:ident;
         ) => {
             #[allow(unused_variables)]
-            for ($variant, $wrapped) in vec![
+            for ($variant, $wrapped) in [
                 (&variant_a, &wrapped_a),
                 (&variant_b, &wrapped_b),
                 (&variant_c, &wrapped_c),
@@ -410,7 +410,7 @@ fn hash_test() {
     let variant_c = Foo::<String>::C("what".into());
     let wrapped_c = NonExhaustive::new(variant_c.clone());
 
-    for (variant, wrapped) in vec![
+    for (variant, wrapped) in [
         (&variant_a, &wrapped_a),
         (&variant_b, &wrapped_b),
         (&variant_c, &wrapped_c),
@@ -457,7 +457,7 @@ fn serde_test() {
         Err(()),
     );
 
-    for (json_dd, json, expected, variant) in vec![
+    for (json_dd, json, expected, variant) in [
         (&*json_dd_a, json_a, &expected_a, &variant_a),
         (&*json_dd_b, json_b, &expected_b, &variant_b),
         (&*json_dd_c, json_c, &expected_c, &variant_c),

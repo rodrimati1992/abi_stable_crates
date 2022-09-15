@@ -445,7 +445,7 @@ mod error_kind_tests {
 
     #[test]
     fn conversions() {
-        for (from, to) in vec![
+        for (from, to) in [
             (ErrorKind::NotConnected, RIoErrorKind::NotConnected),
             (ErrorKind::AddrInUse, RIoErrorKind::AddrInUse),
             (ErrorKind::Other, RIoErrorKind::Other),
@@ -464,7 +464,7 @@ mod io_error_tests {
 
     #[test]
     fn from_error_kind() {
-        for kind in vec![
+        for kind in [
             ErrorKind::NotConnected,
             ErrorKind::AddrInUse,
             ErrorKind::Other,

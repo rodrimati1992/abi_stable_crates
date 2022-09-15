@@ -1,3 +1,5 @@
+#![allow(clippy::extra_unused_lifetimes)]
+
 use abi_stable::{
     abi_stability::{
         abi_checking::check_layout_compatibility,

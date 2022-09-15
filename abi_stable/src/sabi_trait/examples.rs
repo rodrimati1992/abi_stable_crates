@@ -498,7 +498,7 @@ mod tests {
 
         assert_eq!(Arc::strong_count(&arc), 3);
 
-        let erased: EmptyTrait_TO<'_, RArc<()>> = EmptyTrait_TO::from_ptr(rarc.clone(), TD_Opaque);
+        let erased: EmptyTrait_TO<'_, RArc<()>> = EmptyTrait_TO::from_ptr(rarc, TD_Opaque);
 
         assert_eq!(Arc::strong_count(&arc), 4);
 
@@ -534,7 +534,7 @@ mod tests {
         assert_eq!(Arc::strong_count(&arc), 2);
 
         let mut object: RSomething_TO<'_, RBox<()>, (), u32> =
-            RSomething_TO::<_, (), u32>::from_value(rarc.clone(), TD_CanDowncast);
+            RSomething_TO::<_, (), u32>::from_value(rarc, TD_CanDowncast);
 
         assert_eq!(Arc::strong_count(&arc), 3);
 

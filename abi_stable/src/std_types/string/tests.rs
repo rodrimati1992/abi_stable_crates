@@ -16,7 +16,7 @@ fn from_to_string() {
     // Converted to an RString
     let copy = orig.into_::<RString>();
 
-    assert_eq!(&orig[..], &copy[..]);
+    assert_eq!(orig, &copy[..]);
 
     assert_eq!(copy.capacity(), orig_cap);
 
@@ -85,7 +85,7 @@ fn insert_str() {
     }
     {
         // insert in the middle 2
-        let mut rstr = rstr.clone();
+        let mut rstr = rstr;
         rstr.insert_str(14, "💔love💔isfoo💔");
     }
 }
@@ -194,11 +194,11 @@ fn retain() {
             cond
         };
 
-        let mut rstr = rstr.clone();
-        rstr.retain(closure.clone());
+        let mut rstr = rstr;
+        rstr.retain(closure);
 
         let mut string = retain_test_str.to_string();
-        string.retain(closure.clone());
+        string.retain(closure);
 
         assert_eq!(&*rstr, &*string);
     }
@@ -230,7 +230,7 @@ fn into_iter() {
     assert_eq!(&*rstr, TEST_STR);
     assert_eq!(&*rstr.clone().into_iter().collect::<String>(), TEST_STR);
 
-    let mut iter = rstr.clone().into_iter();
+    let mut iter = rstr.into_iter();
 
     fn compare_str_iter(expecting: &str, iter: &mut IntoIter) {
         assert_eq!(&iter.as_str()[..expecting.len()], expecting);

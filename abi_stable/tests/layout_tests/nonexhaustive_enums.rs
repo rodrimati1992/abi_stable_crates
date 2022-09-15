@@ -60,7 +60,7 @@ where
             if l_i <= r_i {
                 assert_eq!(res, Ok(()), "\n\nl_i:{} r_i:{}\n\n", l_i, r_i);
             } else {
-                if let Ok(_) = res {
+                if res.is_ok() {
                     let _ = dbg!(l_i);
                     let _ = dbg!(r_i);
                 }
@@ -191,7 +191,7 @@ fn exhaustiveness() {
     let unwrapped = <command_a_exhaustive::Foo as StableAbi>::LAYOUT;
     let wrapped = <NonExhaustiveFor<command_a::Foo> as StableAbi>::LAYOUT;
 
-    for (l, r) in vec![(unwrapped, wrapped), (wrapped, unwrapped)] {
+    for (l, r) in [(unwrapped, wrapped), (wrapped, unwrapped)] {
         check_layout_compatibility_with_globals(l, r, &globals)
             .unwrap_err()
             .flatten_errors()
@@ -258,7 +258,7 @@ fn incompatible_overlapping_variants() {
         for e in errs.clone().unwrap_err().flatten_errors().into_iter() {
             if let AbiInstability::Name(ef) = &e {
                 found_mismatch = true;
-                for full_type in vec![&ef.expected, &ef.found] {
+                for full_type in [&ef.expected, &ef.found] {
                     assert!(
                         full_type.name() == "RVec" || full_type.name() == "RString",
                         "err:{:?}",

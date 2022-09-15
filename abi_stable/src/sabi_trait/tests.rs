@@ -39,14 +39,14 @@ mod method_disabled_one_default {
     #[sabi_trait]
     pub trait Trait {
         fn first_method(&self) -> u32 {
-            0xf000
+            0xF000
         }
         #[sabi(no_default_fallback)]
         fn apply(&self, l: u32, r: u32) -> u32 {
             (l + r) * 3
         }
         fn last_method(&self) -> u32 {
-            0xfAAA
+            0xFAAA
         }
     }
 
@@ -64,10 +64,10 @@ mod method_disabled_all_default {
     #[sabi(no_default_fallback)]
     pub trait Trait {
         fn first_method(&self) -> u32 {
-            0xf000
+            0xF000
         }
         fn last_method(&self) -> u32 {
-            0xfAAA
+            0xFAAA
         }
     }
 
@@ -98,8 +98,8 @@ fn downcasting_tests() {
         use self::method_disabled_one_default::*;
         let empty = empty::Trait_TO::from_value((), TD_Opaque);
         let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
-        assert_eq!(object.first_method(), 0xf000);
-        assert_eq!(object.last_method(), 0xfAAA);
+        assert_eq!(object.first_method(), 0xF000);
+        assert_eq!(object.last_method(), 0xFAAA);
         must_panic(|| object.apply(2, 5)).unwrap();
     }
     unsafe {

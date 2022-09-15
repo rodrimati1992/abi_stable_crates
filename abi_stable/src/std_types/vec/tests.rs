@@ -11,6 +11,7 @@ use crate::{
 };
 
 #[test]
+#[allow(clippy::drop_non_drop)]
 fn test_equality_between_vecs() {
     struct F<T>(T);
 
@@ -49,7 +50,7 @@ fn _assert_covariant_vec<'a: 'b, 'b, T>(x: Vec<&'a T>) -> Vec<&'b T> {
 
 fn typical_list(upto: u8) -> (Vec<u8>, RVec<u8>) {
     let orig = (b'a'..=upto).collect::<Vec<_>>();
-    (orig.clone(), orig.clone().iter().cloned().collect())
+    (orig.clone(), orig.iter().cloned().collect())
 }
 
 #[test]
@@ -243,7 +244,7 @@ fn retain() {
         assert_eq!(&*copy, &[2, 5, 8][..]);
     }
     {
-        let mut copy = copy.clone();
+        let mut copy = copy;
         let mut i = 0;
         must_panic(|| {
             copy.retain(|_| {
@@ -358,7 +359,7 @@ fn into_iter() {
     assert_eq!(
         (&list)
             .into_iter()
-            .map(|v: &Arc<i32>| v.clone())
+            .cloned()
             .collect::<Vec<_>>(),
         orig
     );
@@ -427,7 +428,7 @@ fn into_vec() {
         assert_eq!(orig, list_1);
     }
     {
-        let list = list.clone().set_vtable_for_testing();
+        let list = list.set_vtable_for_testing();
         let list_ptr = list.as_ptr() as usize;
         let list_1 = list.into_vec();
         // No, MIR interpreter,

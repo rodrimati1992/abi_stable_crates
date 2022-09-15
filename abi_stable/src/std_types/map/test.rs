@@ -176,10 +176,10 @@ where
     K: Eq + Hash + Clone + Debug,
     V: PartialEq + Clone + Debug,
 {
-    assert_eq!(map.get(&key).cloned(), value.clone());
-    assert_eq!(map.get_p(&key).cloned(), value.clone());
-    assert_eq!(map.get_mut(&key).cloned(), value.clone());
-    assert_eq!(map.get_mut_p(&key).cloned(), value.clone());
+    assert_eq!(map.get(&key).cloned(), value);
+    assert_eq!(map.get_p(&key).cloned(), value);
+    assert_eq!(map.get_mut(&key).cloned(), value);
+    assert_eq!(map.get_mut_p(&key).cloned(), value);
 
     assert_eq!(
         map.contains_key(&key),
@@ -196,7 +196,7 @@ where
         value
     );
 
-    if let Some(mut value) = value.clone() {
+    if let Some(mut value) = value {
         assert_eq!(&map[&key], &value);
         assert_eq!(map.index_p(&key), &value);
 
@@ -224,16 +224,16 @@ macro_rules! get_test {
         check_get(&mut map, "youeeeee".into(), None);
 
         if let Some(x) = map.get_mut("what") {
-            *x = *x * 2;
+            *x *= 2;
         }
         if let Some(x) = map.get_mut("the") {
-            *x = *x * 2;
+            *x *= 2;
         }
         if let Some(x) = map.get_mut("oof") {
-            *x = *x * 2;
+            *x *= 2;
         }
         if let Some(x) = map.get_mut("you") {
-            *x = *x * 2;
+            *x *= 2;
         }
 
         assert_eq!(map.get("what"), Some(&20));
@@ -382,7 +382,7 @@ fn from_iter() {
 
     assert_eq!(map.len(), 4);
 
-    let mapper = |Tuple2(k, v): Tuple2<&u32, &u32>| (k.clone(), v.clone());
+    let mapper = |Tuple2(k, v): Tuple2<&u32, &u32>| (*k, *v);
     assert_eq!(
         map.iter().map(mapper).collect::<Vec<_>>(),
         (&map).into_iter().map(mapper).collect::<Vec<_>>(),
@@ -390,7 +390,7 @@ fn from_iter() {
 
     for Tuple2(key, val) in map.iter() {
         assert_eq!(
-            stdmap.remove(&key).as_ref(),
+            stdmap.remove(key).as_ref(),
             Some(val),
             "key:{:?} value:{:?}",
             key,
@@ -408,7 +408,7 @@ fn into_iter() {
 
     assert_eq!(map.len(), 4);
 
-    let mapper = |Tuple2(k, v): Tuple2<&u32, &mut u32>| (k.clone(), (&*v).clone());
+    let mapper = |Tuple2(k, v): Tuple2<&u32, &mut u32>| (*k, *v);
     assert_eq!(
         map.iter_mut().map(mapper).collect::<Vec<_>>(),
         (&mut map).into_iter().map(mapper).collect::<Vec<_>>(),
@@ -433,13 +433,13 @@ fn iter_mut() {
 
     for Tuple2(key, val) in map.iter_mut() {
         assert_eq!(
-            stdmap.remove(&*key).as_ref(),
+            stdmap.remove(key).as_ref(),
             Some(&*val),
             "key:{:?} value:{:?}",
             key,
             val
         );
-        *val = *val + key;
+        *val += key;
     }
     assert_eq!(stdmap.len(), 0);
 
@@ -528,7 +528,7 @@ where
     assert_matches!(&entry, REntry::Occupied { .. });
     assert_eq!(entry.key(), &k);
     assert_eq!(entry.get().cloned(), Some(v.clone()));
-    assert_eq!(entry.get_mut().cloned(), Some(v.clone()));
+    assert_eq!(entry.get_mut().cloned(), Some(v));
 }
 
 fn assert_is_vacant<K, V>(map: &mut RHashMap<K, V>, k: K)

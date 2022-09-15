@@ -57,7 +57,7 @@ impl AbiInstabilityErrors {
     }
 
     #[cfg(feature = "testing")]
-    pub fn flattened_errors<'a>(&'a self) -> impl Iterator<Item = AbiInstability> + 'a {
+    pub fn flattened_errors(&self) -> impl Iterator<Item = AbiInstability> + '_ {
         self.errors.iter().flat_map(|x| &x.errs).cloned()
     }
 }

@@ -209,6 +209,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::unit_cmp)]
     fn value_macro() {
         assert_eq!(rtuple!(), ());
         assert_eq!(rtuple!(3), Tuple1(3));
@@ -218,6 +219,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::let_unit_value)]
     fn type_macro() {
         let _: RTuple!() = ();
         let _: RTuple!(i32) = Tuple1(3);

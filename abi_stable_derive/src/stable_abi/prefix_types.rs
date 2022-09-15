@@ -8,6 +8,8 @@ use syn::{punctuated::Punctuated, Ident, TypeParamBound, Visibility, WherePredic
 
 use quote::{quote_spanned, ToTokens, TokenStreamExt};
 
+use proc_macro2::Span;
+
 use as_derive_utils::{
     datastructure::{DataStructure, Field, FieldIndex, FieldMap},
     return_spanned_err,
@@ -565,10 +567,12 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                         },
                     };
 
+                    let val_var = syn::Ident::new("val", Span::mixed_site());
+
                     let with_val = if is_optional {
-                        quote_spanned!(field_span=> Some(val) )
+                        quote_spanned!(field_span=> Some(#val_var) )
                     } else {
-                        quote_spanned!(field_span=> val )
+                        val_var.to_token_stream()
                     };
 
                     conditional_accessors.push(quote_spanned! {field_span=>
@@ -576,14 +580,13 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                         #field_where_clause #( #accessor_bounds+ )*
                         {
                             let acc_bits=self.0.metadata().field_accessibility().bits();
-                            let val=if (1u64<<#field_i & Self::__SABI_PTT_FAM & acc_bits)==0 {
+                            let #val_var=if (1u64<<#field_i & Self::__SABI_PTT_FAM & acc_bits)==0 {
                                 #else_
                             }else{
                                 unsafe{
-                                    let ptr = (self.0.to_raw_ptr() as *const u8)
+                                    *((self.0.to_raw_ptr() as *const u8)
                                         .offset(Self::#field_offset as isize)
-                                        as *const #ty;
-                                    *ptr
+                                        as *const #ty)
                                 }
                             };
                             #with_val

@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 #![allow(dead_code)]
 
 #[allow(unused_imports)]
@@ -108,10 +109,10 @@ fn dereference_abi(abi: &'static TypeLayout) -> &'static TypeLayout {
     abi.phantom_fields().get(0).unwrap().layout()
 }
 
-static PREF_0: &'static TypeLayout = <prefix0::Prefix_Ref>::LAYOUT;
-static PREF_1: &'static TypeLayout = <prefix1::Prefix_Ref>::LAYOUT;
-static PREF_2: &'static TypeLayout = <prefix2::Prefix_Ref>::LAYOUT;
-static PREF_3: &'static TypeLayout = <prefix3::Prefix_Ref>::LAYOUT;
+static PREF_0: &TypeLayout = <prefix0::Prefix_Ref>::LAYOUT;
+static PREF_1: &TypeLayout = <prefix1::Prefix_Ref>::LAYOUT;
+static PREF_2: &TypeLayout = <prefix2::Prefix_Ref>::LAYOUT;
+static PREF_3: &TypeLayout = <prefix3::Prefix_Ref>::LAYOUT;
 
 fn new_list() -> Vec<&'static TypeLayout> {
     vec![PREF_0, PREF_1, PREF_2, PREF_3]
@@ -135,7 +136,7 @@ fn prefixes_test() {
     let mut gen_generation = |skip_first: usize| {
         let mut ret = Vec::<(&'static TypeLayout, __PrefixTypeMetadata)>::new();
         for _ in 0..list.len() {
-            let pushed = gen_elem_from(list.choose(&mut rng).unwrap().clone());
+            let pushed = gen_elem_from(list.choose(&mut rng).unwrap());
             ret.push(pushed);
         }
         let max_size = ret.iter().map(|(_, x)| x.fields.len()).max().unwrap();
@@ -182,7 +183,7 @@ fn prefixes_test() {
                 let t_map_prefix = t_map_prefix.unwrap();
                 let o_map_prefix = o_map_prefix.unwrap();
 
-                for pre in vec![o_prefix.clone(), t_map_prefix.clone(), o_map_prefix.clone()] {
+                for pre in [o_prefix.clone(), t_map_prefix.clone(), o_map_prefix.clone()] {
                     assert_eq!(t_prefix.prefix_field_count, pre.prefix_field_count,);
                     for (l_field, r_field) in t_prefix.fields.iter().zip(pre.fields.iter()) {
                         assert_eq!(l_field, r_field);
@@ -244,7 +245,7 @@ fn check_interface_impl_pair(
     let t_prefix = __PrefixTypeMetadata::new(deref_this);
     let o_prefix = __PrefixTypeMetadata::new(deref_other);
 
-    if let Err(e) = check_layout_compatibility_with_globals(this, other, &globals) {
+    if let Err(e) = check_layout_compatibility_with_globals(this, other, globals) {
         if t_prefix.fields.len() <= o_prefix.fields.len() {
             panic!("{:#?}", e);
         } else {
@@ -263,7 +264,7 @@ fn check_interface_impl_pair(
     let t_map_prefix = t_map_prefix.unwrap();
     let o_map_prefix = o_map_prefix.unwrap();
 
-    for pre in vec![o_prefix.clone(), t_map_prefix.clone(), o_map_prefix.clone()] {
+    for pre in [o_prefix.clone(), t_map_prefix.clone(), o_map_prefix.clone()] {
         assert_eq!(t_prefix.prefix_field_count, pre.prefix_field_count,);
         for (field_i, (l_field, r_field)) in
             t_prefix.fields.iter().zip(pre.fields.iter()).enumerate()
@@ -328,7 +329,7 @@ fn prefix_is_same_alignment() {
     let globals = CheckingGlobals::new();
     let misaligned = <prefix2_misaligned::Prefix_Ref>::LAYOUT;
 
-    for pref in vec![PREF_0, PREF_1] {
+    for pref in [PREF_0, PREF_1] {
         let errs = check_layout_compatibility_with_globals(pref, misaligned, &globals)
             .unwrap_err()
             .flatten_errors();
@@ -464,42 +465,42 @@ declare_enabled_fields! {
     }
 }
 
-static COND_FIELD_0_ALL: &'static TypeLayout = <cond_fields_0::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
+static COND_FIELD_0_ALL: &TypeLayout = <cond_fields_0::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
-static COND_FIELD_1_ALL: &'static TypeLayout = <cond_fields_1::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
+static COND_FIELD_1_ALL: &TypeLayout = <cond_fields_1::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
-static COND_FIELD_2_ALL: &'static TypeLayout = <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
+static COND_FIELD_2_ALL: &TypeLayout = <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
-static COND_FIELD_3_ALL: &'static TypeLayout = <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
+static COND_FIELD_3_ALL: &TypeLayout = <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
-static COND_FIELD_0_EXCEPT_0: &'static TypeLayout =
+static COND_FIELD_0_EXCEPT_0: &TypeLayout =
     <cond_fields_0::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
-static COND_FIELD_1_EXCEPT_0: &'static TypeLayout =
+static COND_FIELD_1_EXCEPT_0: &TypeLayout =
     <cond_fields_1::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
-static COND_FIELD_2_EXCEPT_0: &'static TypeLayout =
+static COND_FIELD_2_EXCEPT_0: &TypeLayout =
     <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
-static COND_FIELD_3_EXCEPT_0: &'static TypeLayout =
+static COND_FIELD_3_EXCEPT_0: &TypeLayout =
     <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
-static COND_FIELD_1_EXCEPT_1: &'static TypeLayout =
+static COND_FIELD_1_EXCEPT_1: &TypeLayout =
     <cond_fields_1::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
 
-static COND_FIELD_2_EXCEPT_1: &'static TypeLayout =
+static COND_FIELD_2_EXCEPT_1: &TypeLayout =
     <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
 
-static COND_FIELD_3_EXCEPT_1: &'static TypeLayout =
+static COND_FIELD_3_EXCEPT_1: &TypeLayout =
     <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
 
-static COND_FIELD_2_EXCEPT_2: &'static TypeLayout =
+static COND_FIELD_2_EXCEPT_2: &TypeLayout =
     <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_2>>::LAYOUT;
 
-static COND_FIELD_3_EXCEPT_2: &'static TypeLayout =
+static COND_FIELD_3_EXCEPT_2: &TypeLayout =
     <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_2>>::LAYOUT;
 
-static COND_FIELD_3_EXCEPT_3: &'static TypeLayout =
+static COND_FIELD_3_EXCEPT_3: &TypeLayout =
     <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_3>>::LAYOUT;
 
 mod cond_fields_0 {
@@ -840,18 +841,18 @@ fn hierarchical_prefix_cond_field_test() {
     for _ in 0..500 {
         let globals = CheckingGlobals::new();
 
-        let library_00 = fields_2.choose(&mut rng).unwrap().clone();
-        let library_01 = fields_1.choose(&mut rng).unwrap().clone();
-        let library_02 = fields_0.choose(&mut rng).unwrap().clone();
+        let library_00 = *fields_2.choose(&mut rng).unwrap();
+        let library_01 = *fields_1.choose(&mut rng).unwrap();
+        let library_02 = *fields_0.choose(&mut rng).unwrap();
 
-        let library_10 = fields_2.choose(&mut rng).unwrap().clone();
-        let library_11 = fields_2.choose(&mut rng).unwrap().clone();
-        let library_12 = fields_3.choose(&mut rng).unwrap().clone();
+        let library_10 = *fields_2.choose(&mut rng).unwrap();
+        let library_11 = *fields_2.choose(&mut rng).unwrap();
+        let library_12 = *fields_3.choose(&mut rng).unwrap();
 
-        let library_0 = fields_0.choose(&mut rng).unwrap().clone();
-        let library_1 = fields_1.choose(&mut rng).unwrap().clone();
+        let library_0 = *fields_0.choose(&mut rng).unwrap();
+        let library_1 = *fields_1.choose(&mut rng).unwrap();
 
-        let binary = fields_0.choose(&mut rng).unwrap().clone();
+        let binary = *fields_0.choose(&mut rng).unwrap();
 
         let mut checks = vec![
             (binary, library_0),

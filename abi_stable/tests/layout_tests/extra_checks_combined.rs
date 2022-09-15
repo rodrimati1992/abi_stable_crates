@@ -40,7 +40,7 @@ where
             if l_i <= r_i {
                 assert_eq!(res, Ok(()), "\n\nl_i:{} r_i:{}\n\n", l_i, r_i);
             } else {
-                if let Ok(_) = res {
+                if res.is_ok() {
                     let _ = dbg!(l_i);
                     let _ = dbg!(r_i);
                 }
@@ -52,12 +52,12 @@ where
     }
 }
 
-const LAYOUT0: &'static TypeLayout = <WithConstant<V1_0> as StableAbi>::LAYOUT;
-const LAYOUT1: &'static TypeLayout = <WithConstant<V1_1> as StableAbi>::LAYOUT;
-const LAYOUT1B: &'static TypeLayout = <WithConstant<V1_1_Incompatible> as StableAbi>::LAYOUT;
-const LAYOUT2: &'static TypeLayout = <WithConstant<V1_2> as StableAbi>::LAYOUT;
-const LAYOUT3: &'static TypeLayout = <WithConstant<V1_3> as StableAbi>::LAYOUT;
-const LAYOUT3B: &'static TypeLayout = <WithConstant<V1_3_Incompatible> as StableAbi>::LAYOUT;
+const LAYOUT0: &TypeLayout = <WithConstant<V1_0> as StableAbi>::LAYOUT;
+const LAYOUT1: &TypeLayout = <WithConstant<V1_1> as StableAbi>::LAYOUT;
+const LAYOUT1B: &TypeLayout = <WithConstant<V1_1_Incompatible> as StableAbi>::LAYOUT;
+const LAYOUT2: &TypeLayout = <WithConstant<V1_2> as StableAbi>::LAYOUT;
+const LAYOUT3: &TypeLayout = <WithConstant<V1_3> as StableAbi>::LAYOUT;
+const LAYOUT3B: &TypeLayout = <WithConstant<V1_3_Incompatible> as StableAbi>::LAYOUT;
 
 #[test]
 fn test_subsets() {
@@ -361,7 +361,6 @@ where
     T: StableAbi,
 {
     <()>::LAYOUT
-        .clone()
         ._set_extra_checks(
             WrapTypeLayout::<T>::EXTRA_CHECKS
                 .piped(Some)

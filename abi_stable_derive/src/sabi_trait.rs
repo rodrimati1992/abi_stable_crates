@@ -888,7 +888,10 @@ fn trait_and_impl(
 
         quote!(
             #[deny(unsafe_op_in_unsafe_fn)]
-            #[allow(clippy::needless_lifetimes, clippy::new_ret_no_self)]
+            #[allow(
+                clippy::needless_lifetimes,
+                clippy::new_ret_no_self,
+            )]
             impl<#gen_params_header> #trait_ident<#gen_params_use_trait>
             for #trait_to<#gen_params_use_to>
             where

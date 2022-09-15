@@ -39,7 +39,7 @@ where
             if l_i <= r_i {
                 assert_eq!(res, Ok(()));
             } else {
-                if let Ok(_) = res {
+                if res.is_ok() {
                     let _ = dbg!(l_i);
                     let _ = dbg!(r_i);
                 }
@@ -72,7 +72,7 @@ where
             if l_i == r_i {
                 assert_eq!(res, Ok(()));
             } else {
-                if let Ok(_) = res {
+                if res.is_ok() {
                     let _ = dbg!(l_i);
                     let _ = dbg!(r_i);
                 }

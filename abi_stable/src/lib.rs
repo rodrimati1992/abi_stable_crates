@@ -196,6 +196,7 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
 #![allow(clippy::needless_doctest_main)]
+#![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::zero_prefixed_literal)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::ptr_offset_with_cast)]

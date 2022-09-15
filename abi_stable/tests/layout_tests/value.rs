@@ -411,7 +411,7 @@ fn same_different_abi_stability() {
             }
         }
 
-        for this in vec![
+        for this in [
             <UnsafeIgnoredType<()>>::LAYOUT,
             <UnsafeIgnoredType<RString>>::LAYOUT,
         ] {
@@ -480,7 +480,7 @@ fn compare_references() {
             }
         }
 
-        for this in vec![
+        for this in [
             <UnsafeIgnoredType<()>>::LAYOUT,
             <UnsafeIgnoredType<RString>>::LAYOUT,
         ] {
@@ -491,7 +491,7 @@ fn compare_references() {
 
 #[cfg(test)]
 fn different_zeroness() {
-    const ZEROABLE_ABI: &'static TypeLayout = &{ <&()>::LAYOUT._set_is_nonzero(false) };
+    const ZEROABLE_ABI: &TypeLayout = &{ <&()>::LAYOUT._set_is_nonzero(false) };
 
     let non_zero = <&()>::LAYOUT;
 
@@ -546,7 +546,7 @@ fn swapped_fields() {
     let first = swapped_fields_first::Rectangle::LAYOUT;
     let last = swapped_fields_first::Rectangle::LAYOUT;
 
-    for other in vec![first, last] {
+    for other in [first, last] {
         let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
@@ -559,7 +559,7 @@ fn swapped_fields() {
 #[test]
 fn removed_fields() {
     let regular = regular::Rectangle::LAYOUT;
-    let list = vec![
+    let list = [
         removed_field_first::Rectangle::LAYOUT,
         removed_field_last::Rectangle::LAYOUT,
         removed_all_fields::Rectangle::LAYOUT,
@@ -595,15 +595,10 @@ fn different_alignment() {
         .unwrap_err()
         .flatten_errors();
 
-    let mut found_alignment_mismatch = false;
-    for err in errs {
-        match err {
-            AbiInstability::Alignment { .. } => {
-                found_alignment_mismatch = true;
-            }
-            _ => {}
-        }
-    }
+    let found_alignment_mismatch = errs
+        .iter()
+        .any(|err| matches!(err, AbiInstability::Alignment { .. }));
+
     assert!(found_alignment_mismatch);
 }
 

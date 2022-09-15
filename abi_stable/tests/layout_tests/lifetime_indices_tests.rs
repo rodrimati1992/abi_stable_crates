@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 #[allow(unused_imports)]
 use core_extensions::{matches, SelfOps};
 
