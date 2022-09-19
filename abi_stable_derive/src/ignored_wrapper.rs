@@ -87,6 +87,5 @@ impl<T> Hash for Ignored<T> {
     }
 }
 
-
 #[derive(Hash)]
 struct UnitType;

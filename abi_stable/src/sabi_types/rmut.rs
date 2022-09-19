@@ -272,9 +272,7 @@ impl<'a, T> RMut<'a, T> {
     /// ```
     #[inline(always)]
     pub const fn get(&self) -> &T {
-        unsafe {
-            crate::utils::deref!(self.ref_.as_ptr())
-        }
+        unsafe { crate::utils::deref!(self.ref_.as_ptr()) }
     }
 
     /// Copies the value that this `RMut` points to.
@@ -320,9 +318,7 @@ impl<'a, T> RMut<'a, T> {
     ///
     #[inline(always)]
     pub const fn into_ref(self) -> &'a T {
-        unsafe {
-            crate::utils::deref!(self.ref_.as_ptr())
-        }
+        unsafe { crate::utils::deref!(self.ref_.as_ptr()) }
     }
 
     /// Reborrows this `RMut` into a mutable reference.

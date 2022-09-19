@@ -249,7 +249,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
         // TODO: add a wrap_safety function which wraps a tokenstream in `unsafe{}`
         // if the `safety: Option<&Unsafe>` argument is Some.
 
-        let output_safety = |output: &mut TokenStream2, input: TokenStream2|{
+        let output_safety = |output: &mut TokenStream2, input: TokenStream2| {
             output.append_all(if let Some(safety) = method.unsafety {
                 quote_spanned!(safety.span => { #safety{ #input } })
             } else {
@@ -263,10 +263,12 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                 method.semicolon.to_tokens(ts);
             }
             (WhichItem::TraitImpl, _) => {
-                output_safety(ts, quote_spanned!(method_span =>
-                    self.#method_name(#(#param_names_c,)*)
-                ));
-
+                output_safety(
+                    ts,
+                    quote_spanned!(method_span =>
+                        self.#method_name(#(#param_names_c,)*)
+                    ),
+                );
             }
             (WhichItem::TraitObjectImpl, _) => {
                 let method_call = match &method.self_param {

@@ -34,16 +34,15 @@ pub(crate) use self::traits::GetSerializeEnumProxy;
 
 /// Asserts that the size and alignment of an enum are valid for its default storage.
 #[track_caller]
-pub fn assert_correct_default_storage<E>() 
+pub fn assert_correct_default_storage<E>()
 where
-    E: GetEnumInfo
+    E: GetEnumInfo,
 {
-    assert_correct_storage::<E, E::DefaultStorage>(AssertCsArgs{
+    assert_correct_storage::<E, E::DefaultStorage>(AssertCsArgs {
         enum_ty: std::any::type_name::<E>(),
         storage_ty: std::any::type_name::<E::DefaultStorage>(),
     })
 }
-
 
 /// Arguments for [`assert_correct_storage`]
 pub struct AssertCsArgs {
@@ -51,9 +50,8 @@ pub struct AssertCsArgs {
     pub storage_ty: &'static str,
 }
 
-
 /// Asserts that the size and alignment of an enum aree valid for this storage.
-/// 
+///
 /// To make this function a `const fn`,
 /// the names of the `Enum` and `Storage` types must be passed separately.
 #[track_caller]
@@ -75,26 +73,36 @@ pub const fn assert_correct_storage<Enum, Storage>(args: AssertCsArgs) {
             lay.enum_alignment <= lay.storage_alignment,
             lay.enum_size <= lay.storage_size,
         ) {
-            (false, false) => 
-                "The alignment and size of the storage is smaller than the contained type",
-            (false, true) => 
-                "The alignment of the storage is lower than the contained type",
-            (true, false) => 
-                "The size of the storage is smaller than the contained type",
-            (true, true) => 
-                return,
+            (false, false) => {
+                "The alignment and size of the storage is smaller than the contained type"
+            }
+            (false, true) => "The alignment of the storage is lower than the contained type",
+            (true, false) => "The size of the storage is smaller than the contained type",
+            (true, true) => return,
         };
 
         const_panic::concat_panic!(
             "\n",
             display: msg,
             ":\n",
-            "\tenum_: ", lay.enum_, "\n",
-            "\tenum_size: ", lay.enum_size, "\n",
-            "\tenum_alignment: ", lay.enum_alignment, "\n",
-            "\tstorage_: ", lay.storage_, "\n",
-            "\tstorage_size: ", lay.storage_size, "\n",
-            "\tstorage_alignment: ", lay.storage_alignment, "\n",
+            "\tenum_: ",
+            lay.enum_,
+            "\n",
+            "\tenum_size: ",
+            lay.enum_size,
+            "\n",
+            "\tenum_alignment: ",
+            lay.enum_alignment,
+            "\n",
+            "\tstorage_: ",
+            lay.storage_,
+            "\n",
+            "\tstorage_size: ",
+            lay.storage_size,
+            "\n",
+            "\tstorage_alignment: ",
+            lay.storage_alignment,
+            "\n",
         )
     }
 
@@ -106,6 +114,4 @@ pub const fn assert_correct_storage<Enum, Storage>(args: AssertCsArgs) {
         storage_size: std::mem::size_of::<Storage>(),
         storage_alignment: std::mem::align_of::<Storage>(),
     })
-
 }
-

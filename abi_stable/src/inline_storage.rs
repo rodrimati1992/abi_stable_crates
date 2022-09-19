@@ -1,9 +1,6 @@
 //! Contains the `InlineStorage` trait,and related items.
 
-use std::{
-    marker::PhantomData,
-    mem::ManuallyDrop,
-};
+use std::{marker::PhantomData, mem::ManuallyDrop};
 
 /// Type used as the inline storage of a RSmallBox<>/NonExhaustive<>.
 ///
@@ -69,13 +66,11 @@ impl_for_arrays! {
     ]
 }
 
-
 mod private {
     use super::*;
     pub struct Private<T, const ALIGNMENT: usize>(pub(super) PhantomData<T>);
 }
 use private::Private;
-
 
 /// For getting the `AlignTo*` type which aligns `Self` to `ALIGNMENT`.
 pub trait AlignerFor<const ALIGNMENT: usize>: Sized {
@@ -89,7 +84,6 @@ pub trait AlignerFor<const ALIGNMENT: usize>: Sized {
 
 /// For getting the `AlignTo*` type which aligns `T` to `ALIGNMENT`.
 pub type GetAlignerFor<T, const ALIGNMENT: usize> = <T as AlignerFor<ALIGNMENT>>::Aligner;
-
 
 macro_rules! declare_alignments {
     (
@@ -180,7 +174,7 @@ union ScratchSpaceInner<T, Inline> {
     uninit: (),
 }
 
-// These constructors don't require `Inline: InlineStorage` because 
+// These constructors don't require `Inline: InlineStorage` because
 // the `storage` field is only used for its side/alignment,
 // it is never actually constructed.
 impl<T, Inline> ScratchSpace<T, Inline> {
@@ -215,6 +209,3 @@ impl<T, Inline> ScratchSpace<T, Inline> {
         })
     }
 }
-
-
-

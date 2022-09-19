@@ -164,11 +164,12 @@ mod private {
             F: FnOnce(&mut Vec<T>) -> U,
         {
             let mut old = mem::replace(self, RVec::new()).piped(ManuallyDrop::new);
-            let mut list = unsafe {
-                Vec::<T>::from_raw_parts(old.buffer_mut(), old.len(), old.capacity())
-            };
+            let mut list =
+                unsafe { Vec::<T>::from_raw_parts(old.buffer_mut(), old.len(), old.capacity()) };
             let ret = f(&mut list);
-            unsafe { ptr::write(self, list.into()); }
+            unsafe {
+                ptr::write(self, list.into());
+            }
             ret
         }
 

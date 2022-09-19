@@ -44,7 +44,7 @@ impl<'a, K> MapQuery<'a, K> {
 
     #[inline]
     pub(super) unsafe fn as_mapkey(&self) -> MapKey<K> {
-        MapKey::Query(NonNull::from(unsafe { self.as_static()} ))
+        MapKey::Query(NonNull::from(unsafe { self.as_static() }))
     }
 }
 

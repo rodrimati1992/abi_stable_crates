@@ -210,9 +210,7 @@ impl<'a, T> RRef<'a, T> {
     /// ```
     #[inline(always)]
     pub const fn get(self) -> &'a T {
-        unsafe {
-            crate::utils::deref!(self.ref_.as_ptr())
-        }
+        unsafe { crate::utils::deref!(self.ref_.as_ptr()) }
     }
 
     /// Copies the value that this points to.

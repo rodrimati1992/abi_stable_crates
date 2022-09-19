@@ -1,12 +1,11 @@
 use super::*;
 
 use crate::{
-    inline_storage::alignment::{AlignTo1, AlignTo2, AlignTo4, AlignTo8, AlignTo16},
+    inline_storage::alignment::{AlignTo1, AlignTo16, AlignTo2, AlignTo4, AlignTo8},
     nonexhaustive_enum::{
         examples::{
-            const_expr_size_align,
             command_a, command_b, command_c, command_h_mismatched_discriminant, command_serde,
-            generic_a, generic_b, many_ranges_a, many_ranges_b,
+            const_expr_size_align, generic_a, generic_b, many_ranges_a, many_ranges_b,
         },
         GetEnumInfo,
     },

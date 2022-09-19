@@ -184,7 +184,7 @@ pub unsafe fn transmute_reference<T, U>(ref_: &T) -> &U {
 #[inline]
 #[allow(clippy::needless_lifetimes)]
 pub unsafe fn transmute_mut_reference<'a, T, U>(ref_: &'a mut T) -> &'a mut U {
-    unsafe{ &mut *(ref_ as *mut _ as *mut U) }
+    unsafe { &mut *(ref_ as *mut _ as *mut U) }
 }
 
 //////////////////////////////////////

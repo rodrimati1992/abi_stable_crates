@@ -333,26 +333,27 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
                 let bytes = crate::utils::expr_from_int(bytes as _);
                 (Some(quote!(#[repr(align(#bytes))])), None)
             }
-            ExprOrType::Expr(expr) => {
-                (
-                    None,
-                    Some(quote!(
-                        __aligner: [
-                            ::abi_stable::pmr::GetAlignerFor<::abi_stable::pmr::u8, #expr>; 
-                            0
-                        ]
-                    ))
-                )
-            }
+            ExprOrType::Expr(expr) => (
+                None,
+                Some(quote!(
+                    __aligner: [
+                        ::abi_stable::pmr::GetAlignerFor<::abi_stable::pmr::u8, #expr>;
+                        0
+                    ]
+                )),
+            ),
             ExprOrType::Type(ty) => (None, Some(quote!(__aligner:[#ty;0],))),
-            ExprOrType::Usize => (None, Some(quote!(__aligner: [::abi_stable::pmr::usize; 0],))),
+            ExprOrType::Usize => (
+                None,
+                Some(quote!(__aligner: [::abi_stable::pmr::usize; 0],)),
+            ),
         };
 
         let aligner_size = match this.size {
             ExprOrType::Int(size) => quote!( #size ),
             ExprOrType::Expr(expr) => quote!( (#expr) ),
             ExprOrType::Type(ty) => quote!( ::std::mem::size_of::<#ty>() ),
-            ExprOrType::Usize => quote!( ::std::mem::size_of::<::abi_stable::pmr::usize>()),
+            ExprOrType::Usize => quote!(::std::mem::size_of::<::abi_stable::pmr::usize>()),
         };
 
         let name = ds.name;
@@ -690,9 +691,7 @@ pub(crate) fn tokenize_enum_info<'a>(
 
         let self_type: syn::Type;
         let self_type_buf: Vec<&syn::Type>;
-        let assert_nonexh = if this.assert_nonexh.is_empty() && 
-            ds.generics.params.is_empty()
-        {
+        let assert_nonexh = if this.assert_nonexh.is_empty() && ds.generics.params.is_empty() {
             let name = ds.name;
             self_type = syn::parse_quote!(#name);
             self_type_buf = vec![&self_type];

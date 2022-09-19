@@ -175,8 +175,8 @@ impl<P> PrefixRef<P> {
         Self {
             ptr: unsafe {
                 NonNull::new_unchecked(
-                    ptr as *const WithMetadata_<P, P> as *mut WithMetadata_<P, P>
-                ) 
+                    ptr as *const WithMetadata_<P, P> as *mut WithMetadata_<P, P>,
+                )
             },
         }
     }

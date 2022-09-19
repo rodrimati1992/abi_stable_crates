@@ -356,13 +356,7 @@ fn into_iter() {
 
     assert_eq!(Arc::strong_count(&arc), 9);
 
-    assert_eq!(
-        (&list)
-            .into_iter()
-            .cloned()
-            .collect::<Vec<_>>(),
-        orig
-    );
+    assert_eq!((&list).into_iter().cloned().collect::<Vec<_>>(), orig);
     assert_eq!(
         (&mut list)
             .into_iter()

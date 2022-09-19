@@ -66,7 +66,7 @@ fn to_from_arc() {
 }
 
 // testing that Arc<()> is valid
-#[allow(clippy::unit_cmp)] 
+#[allow(clippy::unit_cmp)]
 #[test]
 fn default() {
     assert_eq!(*RArc::<String>::default(), "");

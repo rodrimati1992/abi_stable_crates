@@ -15,11 +15,9 @@ pub use crate::{
         UnsyncUnsend,
     },
     nonexhaustive_enum::{
-        AssertCsArgs,
-        assert_correct_default_storage,
-        assert_correct_storage,
-        EnumInfo, GetEnumInfo, GetNonExhaustive,
-        GetVTable as GetNonExhaustiveVTable, NonExhaustive, ValidDiscriminant,
+        assert_correct_default_storage, assert_correct_storage, AssertCsArgs, EnumInfo,
+        GetEnumInfo, GetNonExhaustive, GetVTable as GetNonExhaustiveVTable, NonExhaustive,
+        ValidDiscriminant,
     },
     pointer_trait::{AsMutPtr, AsPtr, GetPointerKind, PK_Reference},
     prefix_type::{
@@ -46,13 +44,14 @@ pub use crate::{
 };
 
 pub use std::{
+    concat,
     convert::{identity, From},
     fmt::{Debug, Formatter, Result as FmtResult},
     mem::ManuallyDrop,
     option::Option,
-    ptr::NonNull,
     primitive::{str, u8, usize},
-    concat, vec,
+    ptr::NonNull,
+    vec,
 };
 
 pub use repr_offset::offset_calc::next_field_offset;

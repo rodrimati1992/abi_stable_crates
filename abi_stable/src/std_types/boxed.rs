@@ -281,7 +281,7 @@ unsafe impl<T> OwnedPointer for RBox<T> {
     #[inline]
     unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>) {
         let data: *mut T = this.data();
-        unsafe { 
+        unsafe {
             (this.vtable().destructor())(data as *mut (), CallReferentDrop::No, Deallocate::Yes);
         }
     }

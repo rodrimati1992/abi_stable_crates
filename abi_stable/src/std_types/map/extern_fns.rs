@@ -59,18 +59,14 @@ where
         this: RRef<'a, Self>,
         key: MapQuery<'_, K>,
     ) -> Option<&'a V> {
-        unsafe {
-            Self::run(this, |this| this.map.get(&key.as_mapkey()))
-        }
+        unsafe { Self::run(this, |this| this.map.get(&key.as_mapkey())) }
     }
 
     pub(super) unsafe extern "C" fn get_mut_elem<'a>(
         this: RMut<'a, Self>,
         key: MapQuery<'_, K>,
     ) -> Option<&'a mut V> {
-        unsafe {
-            Self::run_mut(this, |this| this.map.get_mut(&key.as_mapkey()))
-        }
+        unsafe { Self::run_mut(this, |this| this.map.get_mut(&key.as_mapkey())) }
     }
 
     pub(super) unsafe extern "C" fn remove_entry(
@@ -78,11 +74,9 @@ where
         key: MapQuery<'_, K>,
     ) -> ROption<Tuple2<K, V>> {
         unsafe {
-            Self::run_mut(this, |this| {
-                match this.map.remove_entry(&key.as_mapkey()) {
-                    Some(x) => RSome(Tuple2(x.0.into_inner(), x.1)),
-                    None => RNone,
-                }
+            Self::run_mut(this, |this| match this.map.remove_entry(&key.as_mapkey()) {
+                Some(x) => RSome(Tuple2(x.0.into_inner(), x.1)),
+                None => RNone,
             })
         }
     }
@@ -172,9 +166,9 @@ where
             Self::run_mut(this, |this| {
                 this.entry = None;
                 let map = &mut this.map;
-                let entry_mut = this
-                    .entry
-                    .get_or_insert_with(|| { map }.entry(MapKey::Value(key)).piped(BoxedREntry::from));
+                let entry_mut = this.entry.get_or_insert_with(|| {
+                    { map }.entry(MapKey::Value(key)).piped(BoxedREntry::from)
+                });
 
                 REntry::new(entry_mut)
             })

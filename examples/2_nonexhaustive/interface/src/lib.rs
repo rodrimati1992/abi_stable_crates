@@ -1,10 +1,9 @@
 use abi_stable::{
     declare_root_module_statics,
-    rvec,
     external_types::{RawValueBox, RawValueRef},
     library::RootModule,
     nonexhaustive_enum::{DeserializeEnum, NonExhaustiveFor, SerializeEnum},
-    package_version_strings, sabi_trait,
+    package_version_strings, rvec, sabi_trait,
     sabi_types::VersionStrings,
     std_types::{RBox, RBoxError, RResult, RStr, RString, RVec},
     StableAbi,
@@ -354,7 +353,7 @@ fn examples_of_constructing_an_error() {
     });
 
     assert_eq!(Error::InvalidCommand_NE(Command::Many_NE(rvec![])), {
-        let x = Command::Many{list: rvec![]};
+        let x = Command::Many { list: rvec![] };
         let x = NonExhaustive::new(x);
         let x = RBox::new(x);
         let x = Error::InvalidCommand { cmd: x };

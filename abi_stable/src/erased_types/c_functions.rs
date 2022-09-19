@@ -109,7 +109,7 @@ pub(crate) unsafe extern "C" fn display_impl<T>(
 where
     T: Display,
 {
-    extern_fn_panic_handling! {no_early_return; 
+    extern_fn_panic_handling! {no_early_return;
         use std::fmt::Write;
         let this = unsafe { this.transmute_into_ref::<T>() };
 
@@ -218,7 +218,7 @@ pub(crate) unsafe extern "C" fn hash_Hash<T>(
 ) where
     T: Hash,
 {
-    extern_fn_panic_handling! {no_early_return; 
+    extern_fn_panic_handling! {no_early_return;
         let this = unsafe { this.transmute_into_ref::<T>() };
 
         this.hash(&mut state);

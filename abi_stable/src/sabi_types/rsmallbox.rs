@@ -365,7 +365,7 @@ mod private {
             } else {
                 (this.ptr, Deallocate::Yes)
             };
-            unsafe{ (this.destroy)(ptr, drop_referent, dealloc) };
+            unsafe { (this.destroy)(ptr, drop_referent, dealloc) };
         }
     }
 
@@ -507,7 +507,9 @@ unsafe impl<T, Inline> OwnedPointer for RSmallBox<T, Inline> {
 
     #[inline]
     unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>) {
-        unsafe { Self::drop_in_place(&mut **this, CallReferentDrop::No); }
+        unsafe {
+            Self::drop_in_place(&mut **this, CallReferentDrop::No);
+        }
     }
 }
 
