@@ -1025,11 +1025,7 @@ mod priv_ {
         ///
         /// # Parameters
         ///
-        /// `ptr`:
-        /// This is generally constructed with `RRef::new(&value)`
-        /// `RRef` is a reference-like type that can be erased inside a `const fn` on stable Rust
-        /// (once it becomes possible to unsafely cast `&T` to `&()` inside a `const fn`,
-        /// and the minimum Rust version is bumped, this type will be replaced with a reference)
+        /// `ptr`: a reference to the value.
         ///
         /// <br>
         ///
@@ -1044,7 +1040,8 @@ mod priv_ {
         /// <br>
         ///
         /// `vtable_for`:
-        /// This is constructible with `VTableDT::GET`.
+        /// This is constructible with
+        /// [`VTableDT::GET`](crate::erased_types::VTableDT#associatedconstant.GET).
         /// `VTableDT` wraps the vtable for a `DynTrait`,
         /// while keeping the original type and pointer type that it was constructed for,
         /// allowing this function to be safe to call.
@@ -1052,7 +1049,8 @@ mod priv_ {
         /// <br>
         ///
         /// `extra_value`:
-        /// This is used by `#[sabi_trait]` trait objects to store their vtable inside DynTrait.
+        /// This is used by [`#[sabi_trait]`](macro@crate::sabi_trait)
+        /// trait objects to store their vtable inside DynTrait.
         ///
         ///
         /// # Example

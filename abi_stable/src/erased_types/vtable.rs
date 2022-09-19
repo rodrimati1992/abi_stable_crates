@@ -45,8 +45,9 @@ pub trait GetVtable<'borr, This, ErasedPtr, OrigPtr, I: InterfaceBound> {
         VTable_Ref(Self::_WM_VTABLE.as_prefix());
 }
 
-/// A helper type for constructing a `DynTrait` at compile-time,
-/// by passing `VTableDT::GET` to `DynTrait::from_const`.
+/// A helper type for constructing a [`DynTrait`] at compile-time,
+/// by passing `VTableDT::GET` to
+/// [`DynTrait::from_const`](crate::DynTrait#method.from_const).
 #[repr(transparent)]
 pub struct VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting> {
     pub(super) vtable: VTable_Ref<'borr, ErasedPtr, I>,
@@ -362,7 +363,7 @@ macro_rules! declare_meta_vtable {
 
 
 
-        /// Associated constant equivalents of the associated types in `InterfaceType`.
+        /// Associated constant equivalents of the associated types in [`InterfaceType`].
         #[allow(non_upper_case_globals)]
         pub trait InterfaceBound:InterfaceType {
             #[doc(hidden)]

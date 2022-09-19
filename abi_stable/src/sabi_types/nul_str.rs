@@ -6,6 +6,8 @@ mod tests;
 
 use crate::std_types::RStr;
 
+use const_panic::{concat_assert, concat_panic};
+
 use std::{
     cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},
     fmt::{self, Debug, Display},
@@ -116,7 +118,12 @@ impl<'a> NulStr<'a> {
         };
 
         let last_byte = str.as_bytes()[str.len() - 1] as usize;
-        [this /* expected a nul terminator */][last_byte]
+        concat_assert! {
+            last_byte == 0,
+            "expected a nul terminator, found:",
+            last_byte,
+        };
+        this
     }
 
     /// Constructs an NulStr from a string slice.
@@ -167,11 +174,14 @@ impl<'a> NulStr<'a> {
     }
 
     #[doc(hidden)]
+    #[track_caller]
     pub const fn __try_from_str_unwrapping(s: &'a str) -> Self {
         match Self::try_from_str(s) {
             Ok(x) => x,
-            Err(NulStrError::InnerNul { pos }) => [/* encountered nul byte at `pos` */][pos],
-            Err(NulStrError::NoNulTerminator) => [/* there no nul-terminator */][s.len()],
+            Err(NulStrError::InnerNul { pos }) => {
+                concat_panic!("encountered inner nul byte at position: ", pos)
+            }
+            Err(NulStrError::NoNulTerminator) => concat_panic!("found no nul-terminator"),
         }
     }
 

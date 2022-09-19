@@ -1,9 +1,11 @@
-//! Examples of `#[sabi_trait]` generated trait objects,for the documentation.
+//! Examples of [`#[sabi_trait]`](macro@crate::sabi_trait)
+//! generated trait objects,for the documentation.
 
 use crate::sabi_trait;
 
 #[sabi_trait]
-/// An example trait,used to show what `#[sabi_trait]` generates in the docs.
+/// An example trait, used to show what [`#[sabi_trait]`](macro@crate::sabi_trait)
+/// generates in the docs.
 #[sabi(use_dyn_trait)]
 pub trait ConstExample: Debug + Clone {
     #[sabi(last_prefix_field)]
@@ -47,7 +49,8 @@ pub trait DocHiddenTrait {}
 
 //////////////////////////////////////////
 
-/// The trait used in examples of `#[sabi_trait]` trait object methods,
+/// The trait used in examples of [`#[sabi_trait]`](macro@crate::sabi_trait)
+/// trait object methods,
 /// in [`abi_stable::docs::sabi_trait_inherent`]
 #[abi_stable::sabi_trait]
 // #[sabi(debug_print_trait)]

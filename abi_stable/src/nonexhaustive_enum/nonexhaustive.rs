@@ -58,7 +58,7 @@ mod tests;
 ///
 /// ###  `I`
 ///
-/// The interface of the enum(it implements `InterfaceType`),
+/// The interface of the enum(it implements [`InterfaceType`](crate::InterfaceType)),
 /// determining which traits are required when constructing `NonExhaustive<>`
 /// and which are available afterwards.
 ///

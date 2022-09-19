@@ -244,15 +244,6 @@ macro_rules! declare_root_module_statics {
 
 //////////////////////////////////////////////////////////////////////
 
-#[deprecated(
-    since = "0.10.3",
-    note = "Use the ROOT_MODULE_LOADER_NAME constant instead"
-)]
-/// Gets the name of the static that contains the LibHeader of an abi_stable library.
-pub fn mangled_root_module_loader_name() -> String {
-    abi_stable_shared::mangled_root_module_loader_name()
-}
-
 abi_stable_derive::__const_mangled_root_module_loader_name! {}
 
 /// The name of the `static` that contains the [`LibHeader`] of an abi_stable library.
