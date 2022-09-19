@@ -36,7 +36,8 @@ pub use self::{
 #[doc(hidden)]
 pub use self::pt_metadata::__PrefixTypeMetadata;
 
-/// For types deriving `StableAbi` with `#[sabi(kind(Prefix(..)))]`.
+/// For types deriving `StableAbi` with
+/// [`#[sabi(kind(Prefix(..)))]`](derive@crate::StableAbi#sabi_kind_prefix_attr).
 ///
 /// # Safety
 ///

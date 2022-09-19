@@ -20,7 +20,7 @@ into this:
 
 What this attribute does is to give the function abort on unwind semantics
 (only when the unwinds doesn't stop inside the function).
-A user can still use `std::panic::catch_unwind` inside the function to 
+A user can still use [`std::panic::catch_unwind`] inside the function to 
 catch panics and handle them appropriately.
 
 ### Basic examples

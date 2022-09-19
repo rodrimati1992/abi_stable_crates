@@ -1,10 +1,12 @@
 /**
 
-The `GetStaticEquivalent` macro derives the `GetStaticEquivalent_` trait.
+The `GetStaticEquivalent` macro derives the [`GetStaticEquivalent_`] trait.
 
-Implementing `GetStaticEquivalent` allows the type to be passed as a 
+Implementing [`GetStaticEquivalent_`] allows the type to be passed as a 
 type argument of a type deriving `StableAbi`,
-that used the `#[sabi(not_stableabi(TypeParameter))]` helper attribute.
+that used the 
+[`#[sabi(not_stableabi(TypeParameter))]`](derive@crate::StableAbi#sabinot_stableabitypeparameter)
+helper attribute.
 
 # Container Attributes
 
@@ -129,6 +131,8 @@ where
 
 ```
 
+
+[`GetStaticEquivalent_`]: abi_stable::abi_stability::get_static_equivalent::GetStaticEquivalent_
 
 */
 
