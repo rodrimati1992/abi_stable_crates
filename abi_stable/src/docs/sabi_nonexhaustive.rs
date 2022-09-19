@@ -94,31 +94,31 @@ All the traits are optional.
 
 These are the valid traits:
 
-- Send: Required by default, must be unrequired with `Send = false`
+- `Send`: Required by default, must be unrequired with `Send = false`
 
-- Sync: Required by default, must be unrequired with `Sync = false`
+- `Sync`: Required by default, must be unrequired with `Sync = false`
 
-- Clone
+- `Clone`
 
-- Debug
+- `Debug`
 
-- Display
+- `Display`
 
-- Serialize: serde::Serialize.Look below for clarifications on how to use serde.
+- `Serialize`: `serde::Serialize`.Look below for clarifications on how to use serde.
 
-- Deserialize: serde::Deserialize.Look below for clarifications on how to use serde.
+- `Deserialize`: `serde::Deserialize`.Look below for clarifications on how to use serde.
 
-- Eq
+- `Eq`
 
-- PartialEq
+- `PartialEq`
 
-- Ord
+- `Ord`
 
-- PartialOrd
+- `PartialOrd`
 
-- Hash
+- `Hash`
 
-- Error: std::error::Error
+- `Error`: `std::error::Error`
 
 ### Interface (optional parameter)
 
@@ -777,7 +777,7 @@ use abi_stable::StableAbi;
     size = [u16; 3],
     // Determines the maximum alignment of this enum in semver compatible versions.
     // aligned at most `align_of::<u16>()`
-    align = u16, 
+    align = u16,
     // The below attribute is implied for non-generic enums,
     // it generates a static assertion checking that `Concrete`
     // fits within its default storage.

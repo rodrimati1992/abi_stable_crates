@@ -308,23 +308,21 @@ pub(crate) fn prefix_type_tokenizer<'a>(
                 let single_docs = format!(
                     "\
                         This is the pointer to the prefix of \n\
-                        [{deriving_name}{generics}](./struct.{deriving_name}.html).\n\
+                        [`{deriving_name}{generics}`](struct@{deriving_name}).\n\
                         \n\
                         **This is automatically generated documentation,\
                         by the StableAbi derive macro**.\n\
                         \n\
                         ### Creating a compiletime-constant\n\
                         \n\
-                        You can look at the docs in `abi_stable::docs::prefix_types` \
+                        You can look at the docs in [`::abi_stable::docs::prefix_types`] \
                         to see how you\n\
                         can construct and use this and similar types.<br>\n\
                         More specifically in the \n\
                         [\"constructing a module\" example\n\
-                        ](https://docs.rs/abi_stable/*/abi_stable/docs/\
-                        prefix_types/index.html#module_construction) or the\n\
+                        ](::abi_stable::docs::prefix_types#module_construction) or the\n\
                         [\"Constructing a vtable\" example\n\
-                        ](https://docs.rs/abi_stable/*/abi_stable/docs/\
-                        prefix_types/index.html#vtable_construction)\n\
+                        ](::abi_stable::docs::prefix_types#vtable_construction)\n\
                     ",
                     deriving_name = stringified_deriving_name,
                     generics = stringified_generics,
@@ -338,8 +336,8 @@ pub(crate) fn prefix_type_tokenizer<'a>(
             format!(
                 "\
 This is the prefix fields of 
-[{deriving_name}{generics}](./struct.{deriving_name}.html),
-accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.prefix()`.
+[`{deriving_name}{generics}`](struct@{deriving_name}),
+accessible through [`{prefix_name}`](struct@{prefix_name}), with `.0.prefix()`.
 
 **This is automatically generated documentation,by the StableAbi derive macro**.
                 ",

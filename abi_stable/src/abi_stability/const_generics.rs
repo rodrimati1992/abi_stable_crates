@@ -56,7 +56,7 @@ impl ConstGeneric {
     /// (where `T` is the unerased type of `this`)
     pub const unsafe fn from_erased(this: *const (), vtable: ConstGenericVTable_Ref) -> Self {
         Self {
-            ptr: unsafe{ RRef::from_raw(this as *const ErasedObject) },
+            ptr: unsafe { RRef::from_raw(this as *const ErasedObject) },
             vtable,
         }
     }
@@ -98,7 +98,7 @@ impl Eq for ConstGeneric {}
 ///////////////////////////////////////////////////////////////////////////////
 
 /// The vtable of `ConstGeneric`,
-/// only constructible with `ConstGenericVTableFor::<T>::new.erased()`
+/// only constructible with `ConstGenericVTableFor::<T>::NEW.erased()`
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(kind(Prefix))]

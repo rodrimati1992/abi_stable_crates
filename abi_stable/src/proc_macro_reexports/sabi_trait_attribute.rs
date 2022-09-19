@@ -106,7 +106,7 @@ These are the items reexported from the module:
 A type alias for the trait object which is constructible in constants.
 
 
-###  Trait_TO 
+### `Trait_TO` 
 
 The ffi-safe trait object.
 
@@ -156,17 +156,17 @@ has this trait object: `Foo_TO<'a, 'lt, Pointer, T, U, Hello, World>`.
 One can access the underlying implementation of the trait object through the `obj` field,
 allowing one to call these methods(a nonexhaustive list): 
 
-- downcast_into_impltype(only DynTrait)
+- `downcast_into_impltype`(only [`DynTrait`])
 
-- downcast_as_impltype(only DynTrait)
+- `downcast_as_impltype`(only [`DynTrait`])
 
-- downcast_as_mut_impltype(only DynTrait)
+- `downcast_as_mut_impltype`(only [`DynTrait`])
 
-- downcast_into
+- `downcast_into`
 
-- downcast_as
+- `downcast_as`
 
-- downcast_as_mut
+- `downcast_as_mut`
 
 To reconstruct `Trait_TO` from its underlying implementation,
 you can use the `Trait_TO::from_sabi` associated function.
