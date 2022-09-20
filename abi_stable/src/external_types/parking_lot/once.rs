@@ -6,8 +6,6 @@ use std::{
     panic::{self, AssertUnwindSafe},
 };
 
-use core_extensions::matches;
-
 use parking_lot::{Once as PLOnce, OnceState};
 
 use super::{UnsafeOveralignedField, RAW_LOCK_SIZE};

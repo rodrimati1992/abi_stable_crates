@@ -246,9 +246,6 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             SelfParam::ByVal => &ctokens.ptr_val_bound,
         };
 
-        // TODO: add a wrap_safety function which wraps a tokenstream in `unsafe{}`
-        // if the `safety: Option<&Unsafe>` argument is Some.
-
         let output_safety = |output: &mut TokenStream2, input: TokenStream2| {
             output.append_all(if let Some(safety) = method.unsafety {
                 quote_spanned!(safety.span => { #safety{ #input } })

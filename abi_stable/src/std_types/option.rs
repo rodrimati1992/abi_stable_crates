@@ -2,8 +2,6 @@
 
 use std::{mem, ops::Deref};
 
-use core_extensions::matches;
-
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::std_types::RResult;

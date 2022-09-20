@@ -838,7 +838,7 @@ macro_rules! impl_stable_abi_array {
                         *mono_shared_vars,
                         rstr!("array"),
                         ItemInfo::primitive(),
-                        MonoTLData::Primitive(TLPrimitive::Array { len: N }),
+                        MonoTLData::Primitive(TLPrimitive::Array),
                         tl_genparams!(;0;0),
                         ReprAttr::Primitive,
                         ModReflMode::Module,
@@ -987,55 +987,8 @@ impl_for_primitive_ints! {
     (usize,"usize",TLPrimitive::Usize),
     (isize,"isize",TLPrimitive::Isize),
     (bool ,"bool" ,TLPrimitive::Bool),
-}
-
-// This is a workaround due to it being ABI breaking to add variants to TLPrimitive.
-macro_rules! impl_for_floating_point {
-    (
-        $( ($type:ty, $type_name:literal) ,)*
-    ) => (
-        $(
-            unsafe impl GetStaticEquivalent_ for $type {
-                type StaticEquivalent=Self;
-            }
-            unsafe impl StableAbi for $type {
-                type IsNonZeroType=False;
-
-                const LAYOUT: &'static TypeLayout = {
-                    const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
-                        *mono_shared_vars,
-                        rstr!($type_name),
-                        ItemInfo::primitive(),
-                        MonoTLData::Opaque,
-                        tl_genparams!(;;),
-                        ReprAttr::Primitive,
-                        ModReflMode::Module,
-                        RSlice::EMPTY,
-                    );
-
-                    make_shared_vars!{
-                        impl[] $type;
-
-                        let (mono_shared_vars, shared_vars)={
-                            type_layouts=[],
-                        };
-                    }
-
-                    &TypeLayout::from_std::<Self>(
-                        shared_vars,
-                        MONO_TYPE_LAYOUT,
-                        Self::ABI_CONSTS,
-                        GenericTLData::Opaque,
-                    )
-                };
-            }
-        )*
-    )
-}
-
-impl_for_floating_point! {
-    (f32, "f32"),
-    (f64, "f64"),
+    (f32 ,"f32" ,TLPrimitive::F32),
+    (f64 ,"f64" ,TLPrimitive::F64),
 }
 
 macro_rules! impl_for_concrete {

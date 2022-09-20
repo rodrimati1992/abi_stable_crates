@@ -3,8 +3,6 @@ use syn::{
     Type, Visibility,
 };
 
-use core_extensions::matches;
-
 use quote::ToTokens;
 
 use proc_macro2::{Span, TokenStream};

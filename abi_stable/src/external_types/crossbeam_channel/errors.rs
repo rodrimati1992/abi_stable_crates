@@ -1,7 +1,5 @@
 use super::*;
 
-use core_extensions::matches;
-
 use crate::StableAbi;
 
 use std::{

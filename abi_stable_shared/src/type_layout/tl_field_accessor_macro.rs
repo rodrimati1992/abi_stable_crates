@@ -45,7 +45,7 @@ macro_rules! declare_comp_field_accessor {(
             CompFieldAccessor(n&Self::MASK)
         }
         pub(crate) const fn requires_payload(self)->bool{
-            core_extensions::matches!(self, Self::METHOD_NAMED)
+            matches!(self, Self::METHOD_NAMED)
         }
     }
 )}

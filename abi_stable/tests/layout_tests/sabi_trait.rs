@@ -9,8 +9,6 @@ use abi_stable::{
     StableAbi,
 };
 
-use core_extensions::matches;
-
 fn check_subsets<F>(list: &[&'static TypeLayout], mut f: F)
 where
     F: FnMut(&[AbiInstability]),

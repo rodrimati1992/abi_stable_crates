@@ -185,6 +185,8 @@ pub enum TLPrimitive {
     I64,
     Usize,
     Isize,
+    F32,
+    F64,
     Bool,
     /// A `&T`
     SharedRef,
@@ -195,9 +197,7 @@ pub enum TLPrimitive {
     /// A `*mut T`
     MutPtr,
     /// An array.
-    Array {
-        len: usize,
-    },
+    Array,
 }
 
 ///////////////////////////

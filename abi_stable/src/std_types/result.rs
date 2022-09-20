@@ -2,8 +2,6 @@
 
 use std::fmt::Debug;
 
-use core_extensions::matches;
-
 use crate::std_types::{RNone, ROption, RSome};
 
 /// Ffi-safe equivalent of `Result<T, E>`.

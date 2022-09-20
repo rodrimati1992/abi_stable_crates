@@ -6,8 +6,6 @@ use proc_macro2::{Span, TokenStream};
 
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 
-use core_extensions::matches;
-
 macro_rules! declare_common_tokens {
     (
         abi[ $( $field_abi:ident = $abi_str:expr , )* ]

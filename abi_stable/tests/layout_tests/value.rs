@@ -2,9 +2,6 @@
 
 use std::{marker::PhantomData, mem, num, ptr, sync::atomic};
 
-#[allow(unused_imports)]
-use core_extensions::matches;
-
 use abi_stable::{
     abi_stability::abi_checking::{check_layout_compatibility, AbiInstability},
     external_types::{
@@ -832,7 +829,6 @@ pub(super) mod mod_6b {
 #[cfg(not(feature = "no_fn_promotion"))]
 mod tagging_items {
     use super::*;
-    use core_extensions::matches;
 
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]

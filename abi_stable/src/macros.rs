@@ -445,7 +445,7 @@ macro_rules! assert_matches {
     ( $(|)? $($pat:pat)|*  =$expr:expr)=>{{
         let ref value=$expr;
         assert!(
-            core_extensions::matches!(*value, $($pat)|* ),
+            matches!(*value, $($pat)|* ),
             "pattern did not match the value:\n\t\
              {:?}
             ",

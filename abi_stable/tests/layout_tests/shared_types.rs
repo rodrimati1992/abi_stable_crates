@@ -3,9 +3,6 @@
 use std::marker::PhantomData;
 
 #[allow(unused_imports)]
-use core_extensions::matches;
-
-#[allow(unused_imports)]
 use abi_stable::{
     external_types::{RMutex, ROnce, RRwLock},
     std_types::*,

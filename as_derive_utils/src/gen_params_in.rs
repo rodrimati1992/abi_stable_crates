@@ -5,7 +5,6 @@ use syn::{
     GenericParam, Generics,
 };
 
-use core_extensions::matches;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
