@@ -204,8 +204,8 @@ impl<T> StaticRef<T> {
     /// let reference: &'static Option<String> = GetPtr::<String>::STATIC.get();
     ///
     /// ```
-    pub fn get<'a>(self) -> &'a T {
-        unsafe { &*(self.ref_.as_ptr() as *const T) }
+    pub const fn get<'a>(self) -> &'a T {
+        unsafe { crate::utils::deref!(self.ref_.as_ptr() as *const T) }
     }
 
     /// Gets access to the referenced value,as a raw pointer.
@@ -308,8 +308,11 @@ mod tests {
     #[test]
     fn access() {
         let reference = StaticRef::new(&8);
+        const SREF: StaticRef<u8> = StaticRef::new(&8);
+        const REF: &u8 = SREF.get();
 
         assert_eq!(*reference.get(), 8);
+        assert_eq!(*REF, 8);
         unsafe {
             assert_eq!(*reference.as_ptr(), 8);
         }

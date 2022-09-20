@@ -104,6 +104,30 @@ fn cmp_and_variance() {
 }
 
 #[test]
+fn rcow_from_str() {
+    const RCSTR: &RCowStr<'_> = &RCow::from_str("bar");
+    assert_eq!(RCSTR.as_str(), "bar");
+
+    #[cfg(feature = "rust_1_64")]
+    {
+        const STR: &str = RCSTR.as_str();
+        assert_eq!(STR, "bar");
+    }
+}
+
+#[test]
+fn rcow_from_slice() {
+    const RCSLICE: &RCowSlice<'_, u8> = &RCow::from_slice(b"foo");
+    assert_eq!(RCSLICE.as_slice(), b"foo");
+
+    #[cfg(feature = "rust_1_64")]
+    {
+        const SLICE: &[u8] = RCSLICE.as_slice();
+        assert_eq!(SLICE, b"foo");
+    }
+}
+
+#[test]
 fn rcow_from() {
     {
         const S: &str = "what the heck";

@@ -720,7 +720,9 @@ mod borrowing {
     }
 
     fn iterator_from_lines(s: &str) -> DynTrait<'_, RBox<()>, IterInterface> {
-        DynTrait::from_borrowing_value(s.lines(), IterInterface)
+        // collecting into a Vec to have an iterator of known length
+        let lines = s.lines().collect::<Vec<&str>>();
+        DynTrait::from_borrowing_value(lines.into_iter(), IterInterface)
     }
 
     fn exact_size_hint(n: usize) -> (usize, Option<usize>) {

@@ -243,9 +243,8 @@ impl Debug for FmtFullType {
                 Some(TLP::Array { .. }) => ("", "[", "", ";", "]"),
                 Some(TLP::U8) | Some(TLP::I8) | Some(TLP::U16) | Some(TLP::I16)
                 | Some(TLP::U32) | Some(TLP::I32) | Some(TLP::U64) | Some(TLP::I64)
-                | Some(TLP::Usize) | Some(TLP::Isize) | Some(TLP::Bool) | None => {
-                    (self.name, "<", "", ", ", ">")
-                }
+                | Some(TLP::Usize) | Some(TLP::Isize) | Some(TLP::Bool) | Some(TLP::F32)
+                | Some(TLP::F64) | None => (self.name, "<", "", ", ", ">"),
             };
 
             fmt::Display::fmt(typename, f)?;

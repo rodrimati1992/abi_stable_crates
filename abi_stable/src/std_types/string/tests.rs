@@ -33,6 +33,15 @@ fn from_utf8() {
     assert_eq!(&*rstr, TEST_STR);
 }
 
+#[cfg(feature = "rust_1_64")]
+#[test]
+fn const_as_str() {
+    const RS: &RString = &RString::new();
+    const S: &str = RS.as_str();
+
+    assert_eq!(S, "");
+}
+
 #[test]
 fn push() {
     let mut rstr = RString::new();

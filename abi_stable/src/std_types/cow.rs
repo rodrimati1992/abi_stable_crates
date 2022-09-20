@@ -567,6 +567,31 @@ impl<'a> RCowStr<'a> {
     pub const fn from_str(this: &'a str) -> Self {
         RCow::Borrowed(RStr::from_str(this))
     }
+
+    conditionally_const! {
+        feature = "rust_1_64"
+        /// Borrows this RCow as a str.
+        ///
+        ;
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// use abi_stable::std_types::RCow;
+        ///
+        /// let cow = RCow::from_str("world");
+        ///
+        /// assert_eq!(cow.as_str(), "world")
+        ///
+        /// ```
+        ///
+        pub fn as_str(&self) -> &str {
+            match self {
+                RCow::Borrowed(x) => x.as_str(),
+                RCow::Owned(x) => x.as_str(),
+            }
+        }
+    }
 }
 
 impl<'a> From<&'a str> for RCowStr<'a> {
@@ -658,6 +683,31 @@ impl<'a, T> RCowSlice<'a, T> {
     #[inline]
     pub const fn from_slice(this: &'a [T]) -> Self {
         RCow::Borrowed(RSlice::from_slice(this))
+    }
+
+    conditionally_const! {
+        feature = "rust_1_64"
+        /// Borrows this RCow as a slice.
+        ///
+        ;
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// use abi_stable::std_types::RCow;
+        ///
+        /// let cow = RCow::from_slice(&[3, 5, 8]);
+        ///
+        /// assert_eq!(cow.as_slice(), [3, 5, 8])
+        ///
+        /// ```
+        ///
+        pub fn as_slice(&self) -> &[T] {
+            match self {
+                RCow::Borrowed(x) => x.as_slice(),
+                RCow::Owned(x) => x.as_slice(),
+            }
+        }
     }
 }
 

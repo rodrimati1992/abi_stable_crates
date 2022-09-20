@@ -7,7 +7,7 @@ use std::{
     marker::PhantomData,
     ops::{Deref, Index, Range},
     ptr,
-    str::{from_utf8, from_utf8_unchecked, Chars, FromStr, Utf8Error},
+    str::{from_utf8, Chars, FromStr, Utf8Error},
     string::FromUtf16Error,
 };
 
@@ -117,20 +117,25 @@ impl RString {
         (&self[i]).into()
     }
 
-    /// Creates a `&str` with access to all the characters of the `RString`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RString;
-    ///
-    /// let str = "What is that.";
-    /// assert_eq!(RString::from(str).as_str(), str);
-    ///
-    /// ```
-    #[inline]
-    pub fn as_str(&self) -> &str {
-        self
+    conditionally_const! {
+        feature = "rust_1_64"
+        /// Creates a `&str` with access to all the characters of the `RString`.
+        ///
+        ;
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RString;
+        ///
+        /// let str = "What is that.";
+        /// assert_eq!(RString::from(str).as_str(), str);
+        ///
+        /// ```
+        #[inline]
+        pub fn as_str(&self) -> &str {
+            unsafe { std::str::from_utf8_unchecked(self.inner.as_slice()) }
+        }
     }
 
     /// Creates an `RStr<'_>` with access to all the characters of the `RString`.
@@ -771,7 +776,7 @@ impl Deref for RString {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        unsafe { from_utf8_unchecked(self.inner.as_slice()) }
+        self.as_str()
     }
 }
 

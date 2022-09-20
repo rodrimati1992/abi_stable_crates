@@ -665,7 +665,7 @@ unsafe extern "C" fn destroy_box<T>(
             unsafe { ptr::drop_in_place(ptr); }
         }
         if let Deallocate::Yes = dealloc {
-            unsafe { Box::from_raw(ptr as *mut ManuallyDrop<T>); }
+            unsafe { drop(Box::from_raw(ptr as *mut ManuallyDrop<T>)); }
         }
     }
 }

@@ -126,7 +126,7 @@ mod private {
         }
 
         #[inline(always)]
-        pub(super) fn buffer(&self) -> *const T {
+        pub(super) const fn buffer(&self) -> *const T {
             self.buffer.as_ptr()
         }
 
@@ -313,19 +313,24 @@ impl<T> RVec<T> {
         (&mut self[slice_start..slice_end]).into()
     }
 
-    /// Creates a `&[T]` with access to all the elements of the `RVec<T>`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RVec;
-    ///
-    /// let list = RVec::from(vec![0, 1, 2, 3]);
-    /// assert_eq!(list.as_slice(), &[0, 1, 2, 3]);
-    ///
-    /// ```
-    pub fn as_slice(&self) -> &[T] {
-        unsafe { ::std::slice::from_raw_parts(self.buffer(), self.len()) }
+    conditionally_const! {
+        feature = "rust_1_64"
+        /// Creates a `&[T]` with access to all the elements of the `RVec<T>`.
+        ///
+        ;
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RVec;
+        ///
+        /// let list = RVec::from(vec![0, 1, 2, 3]);
+        /// assert_eq!(list.as_slice(), &[0, 1, 2, 3]);
+        ///
+        /// ```
+        pub fn as_slice(&self) -> &[T] {
+            unsafe { ::std::slice::from_raw_parts(self.buffer(), self.len()) }
+        }
     }
 
     /// Creates a `&mut [T]` with access to all the elements of the `RVec<T>`.

@@ -10,6 +10,15 @@ use crate::{
     traits::IntoReprC,
 };
 
+#[cfg(feature = "rust_1_64")]
+#[test]
+fn const_as_slice_test() {
+    const RV: &RVec<u8> = &RVec::new();
+    const SLICE: &[u8] = RV.as_slice();
+
+    assert_eq!(SLICE, [0u8; 0]);
+}
+
 #[test]
 #[allow(clippy::drop_non_drop)]
 fn test_equality_between_vecs() {
