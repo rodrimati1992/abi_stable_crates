@@ -36,10 +36,25 @@ pub fn ffi_panic_message(info: &'static PanicInfo) -> ! {
 
 //////////////////////////////////
 
+/// Only used inside `PhantomData`,
+/// workaround for `PhantomData<&mut T>` not being constructible in const fns.
 #[repr(transparent)]
-#[derive(StableAbi)]
-#[sabi(bound(T:'a))]
 pub(crate) struct MutRef<'a, T>(&'a mut T);
+
+unsafe impl<'a, T> crate::abi_stability::GetStaticEquivalent_ for MutRef<'a, T>
+where
+    T: crate::abi_stability::GetStaticEquivalent_,
+{
+    type StaticEquivalent = crate::abi_stability::GetStaticEquivalent<&'a mut T>;
+}
+unsafe impl<'a, T> crate::StableAbi for MutRef<'a, T>
+where
+    T: crate::StableAbi + 'a,
+{
+    type IsNonZeroType = crate::type_level::bools::True;
+
+    const LAYOUT: &'static crate::type_layout::TypeLayout = <&'a mut T as crate::StableAbi>::LAYOUT;
+}
 
 //////////////////////////////////
 
@@ -55,7 +70,7 @@ pub(crate) struct MutRef<'a, T>(&'a mut T);
 /// const NUMBER: NonNull<u64> = ref_as_nonnull(&100);
 ///
 /// ```
-pub const fn ref_as_nonnull<T>(reference: &T) -> NonNull<T> {
+pub const fn ref_as_nonnull<T: ?Sized>(reference: &T) -> NonNull<T> {
     unsafe { NonNull::new_unchecked(reference as *const T as *mut T) }
 }
 

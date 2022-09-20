@@ -113,7 +113,7 @@ impl<'a> NulStr<'a> {
     /// ```
     pub const fn from_str(str: &'a str) -> Self {
         let this = Self {
-            ptr: unsafe { NonNull::new_unchecked(str.as_ptr() as *mut u8) },
+            ptr: crate::utils::ref_as_nonnull(str).cast::<u8>(),
             _marker: PhantomData,
         };
 
@@ -262,6 +262,50 @@ impl<'a> NulStr<'a> {
         }
     }
 
+    /// Computes the length of the string, NOT including the nul terminator.
+    #[cfg(feature = "rust_1_64")]
+    const fn compute_length(self) -> usize {
+        let start: *const u8 = self.ptr.as_ptr();
+        let mut ptr = start;
+        unsafe {
+            while *ptr != 0 {
+                ptr = ptr.offset(1);
+            }
+            ptr.offset_from(start) as _
+        }
+    }
+
+    /// Converts this `NulStr<'a>` to a `&'a str`,including the nul byte.
+    ///
+    /// # Performance
+    ///
+    /// To make this function const-callable,
+    /// this uses a potentially less efficient approach than
+    /// [`to_str_with_nul`](Self::to_str_with_nul).
+    ///
+    /// This conversion requires traversing through the entire string to
+    /// find the nul byte.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::NulStr;
+    ///
+    /// const FOO: NulStr<'_> = NulStr::from_str("foo bar\0");
+    /// const FOO_S: &str = FOO.const_to_str_with_nul();
+    /// assert_eq!(&FOO_S[..3], "foo");
+    /// assert_eq!(&FOO_S[4..], "bar\0");
+    ///
+    /// ```
+    #[cfg(feature = "rust_1_64")]
+    #[cfg_attr(feature = "docsrs", doc(cfg(feature = "rust_1_64")))]
+    pub const fn const_to_str_with_nul(&self) -> &'a str {
+        unsafe {
+            let len = self.compute_length();
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.as_ptr(), len + 1))
+        }
+    }
+
     /// Converts this `NulStr<'a>` to a `RStr<'a>`,including the nul byte.
     ///
     /// # Performance
@@ -307,6 +351,36 @@ impl<'a> NulStr<'a> {
         unsafe {
             let bytes = std::ffi::CStr::from_ptr(self.ptr.as_ptr() as *const _).to_bytes();
             std::str::from_utf8_unchecked(bytes)
+        }
+    }
+
+    /// Converts this `NulStr<'a>` to a `&'a str`,not including the nul byte.
+    ///
+    /// # Performance
+    ///
+    /// To make this function const-callable,
+    /// this uses a potentially less efficient approach than [`to_str`](Self::to_str).
+    ///
+    /// This conversion requires traversing through the entire string to
+    /// find the nul byte.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::NulStr;
+    ///
+    /// const FOO: NulStr<'_> = NulStr::from_str("foo bar\0");
+    /// const FOO_S: &str = FOO.const_to_str();
+    /// assert_eq!(&FOO_S[..3], "foo");
+    /// assert_eq!(&FOO_S[4..], "bar");
+    ///
+    /// ```
+    #[cfg(feature = "rust_1_64")]
+    #[cfg_attr(feature = "docsrs", doc(cfg(feature = "rust_1_64")))]
+    pub const fn const_to_str(self) -> &'a str {
+        unsafe {
+            let len = self.compute_length();
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.as_ptr(), len))
         }
     }
 
