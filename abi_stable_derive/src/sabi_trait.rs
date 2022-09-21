@@ -145,7 +145,7 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2, syn::Error> {
     }
     .into_iter();
 
-    quote!(
+    let mut tokens = quote!(
         #doc_hidden_attr
         #[doc(inline)]
         #vis use self::#generated_mod::{
@@ -161,14 +161,21 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2, syn::Error> {
         #vis mod #generated_mod{
             #mod_contents
         }
-    )
-    .observe(|tokens| {
-        // drop(_measure_time1);
-        if config.debug_print_trait {
-            panic!("\n\n\n{}\n\n\n", token_stream_to_string(tokens.clone()));
-        }
-    })
-    .piped(Ok)
+    );
+
+    if config.debug_output_tokens {
+        let tokens_str = tokens.to_string();
+        tokens.append_all(quote!(
+            pub const TOKENS: &'static str = #tokens_str;
+        ));
+    }
+
+    // drop(_measure_time1);
+    if config.debug_print_trait {
+        panic!("\n\n\n{}\n\n\n", token_stream_to_string(tokens.clone()));
+    }
+
+    Ok(tokens)
 }
 
 /// Outputs these items:
@@ -839,8 +846,8 @@ fn trait_and_impl(
     let erased_ptr_bounds = trait_def.erased_ptr_preds();
 
     quote!(
-        #( #other_attrs )*
         #[allow(clippy::needless_lifetimes, clippy::new_ret_no_self)]
+        #( #other_attrs )*
         #submod_vis #unsafety trait #trait_ident<
             #gen_params_trait
         >: #( #super_traits_a + )*

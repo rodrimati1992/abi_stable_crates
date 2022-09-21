@@ -13,6 +13,7 @@ use crate::{arenas::Arenas, attribute_parsing::contains_doc_hidden, utils::Linea
 pub(crate) struct SabiTraitOptions<'a> {
     /// Whether the output of the proc-macro is printed with println.
     pub(crate) debug_print_trait: bool,
+    pub(crate) debug_output_tokens: bool,
     pub(crate) doc_hidden_attr: Option<&'a TokenStream2>,
     pub(crate) trait_definition: TraitDefinition<'a>,
 }
@@ -32,6 +33,7 @@ impl<'a> SabiTraitOptions<'a> {
 
         Ok(Self {
             debug_print_trait: this.debug_print_trait,
+            debug_output_tokens: this.debug_output_tokens,
             doc_hidden_attr,
             trait_definition: TraitDefinition::new(trait_, this, arenas, ctokens)?,
         })
@@ -41,6 +43,7 @@ impl<'a> SabiTraitOptions<'a> {
 mod kw {
     syn::custom_keyword! {no_default_fallback}
     syn::custom_keyword! {debug_print_trait}
+    syn::custom_keyword! {debug_output_tokens}
     syn::custom_keyword! {use_dyntrait}
     syn::custom_keyword! {use_dyn_trait}
     syn::custom_keyword! {no_trait_impl}
@@ -101,6 +104,7 @@ pub(super) struct SabiTraitAttrs<'a> {
     pub(super) disable_inherent_default: Vec<bool>,
 
     pub(super) is_hidden: bool,
+    pub(super) debug_output_tokens: bool,
 
     pub(super) errors: LinearResult<()>,
 }
@@ -167,6 +171,7 @@ where
                 parse_sabi_trait_attr(this, pctx, input, attr, arenas)
             })?;
         } else if attr.path.is_ident("doc")
+            && matches!(pctx, ParseContext::TraitAttr)
             && syn::parse::Parser::parse2(contains_doc_hidden, attr.tokens.clone())?
         {
             this.is_hidden = true;
@@ -227,6 +232,8 @@ fn parse_sabi_trait_attr<'a>(
         }
     } else if input.check_parse(kw::debug_print_trait)? {
         this.debug_print_trait = true;
+    } else if input.check_parse(kw::debug_output_tokens)? {
+        this.debug_output_tokens = true;
     } else if let ParseContext::TraitAttr = pctx {
         if input.check_parse(kw::use_dyntrait)? || input.check_parse(kw::use_dyn_trait)? {
             this.which_object = WhichObject::DynTrait;

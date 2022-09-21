@@ -292,3 +292,43 @@ fn borrow_kinds() {
     assert_eq!(*obj.mut_borrow(), 3);
     assert_eq!(obj.not_borrow(), 89);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+mod has_docs {
+    /// above
+    #[crate::sabi_trait]
+    /// below
+    #[sabi(debug_output_tokens)]
+    pub trait HasDocs {
+        /// above2
+        /// below2
+        fn foo(&self) {}
+    }
+}
+
+fn remove_whitespace(s: &str) -> String {
+    s.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+#[test]
+fn docs_are_included_test() {
+    let no_whitespace = remove_whitespace(has_docs::TOKENS);
+    assert!(
+        no_whitespace.contains(&*remove_whitespace(
+            "
+                #[doc=\"above\"]
+                #[doc=\"below\"]
+                pub trait HasDocs
+            "
+        )) && no_whitespace.contains(&*remove_whitespace(
+            "
+                #[doc=\"above2\"]
+                #[doc=\"below2\"]
+                fn foo(&self
+            "
+        )) && no_whitespace.contains(&*remove_whitespace("pub fn foo(&self")),
+        "{}",
+        has_docs::TOKENS
+    );
+}
