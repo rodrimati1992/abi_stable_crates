@@ -29,8 +29,11 @@ use std::cmp::Ordering;
 #[repr(u8)]
 #[derive(StableAbi)]
 pub enum RCmpOrdering {
+    ///
     Less,
+    ///
     Equal,
+    ///
     Greater,
 }
 

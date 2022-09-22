@@ -180,42 +180,61 @@ declare_InterfaceType! {
         /// Changing this to require/unrequire in minor versions, is an abi breaking change.
         type Unpin;
 
+        ///
         type Clone;
 
+        ///
         type Default;
 
+        ///
         type Display;
 
+        ///
         type Debug;
 
+        ///
         type Serialize;
 
+        ///
         type Eq;
 
+        ///
         type PartialEq;
 
+        ///
         type Ord;
 
+        ///
         type PartialOrd;
 
+        ///
         type Hash;
 
+        ///
         type Deserialize;
 
+        ///
         type Iterator;
 
+        ///
         type DoubleEndedIterator;
 
+        /// For the `std::fmt::Write` trait
         type FmtWrite;
 
+        /// For the `std::io::Write` trait
         type IoWrite;
 
+        /// For the `std::io::Seek` trait
         type IoSeek;
 
+        /// For the `std::io::Read` trait
         type IoRead;
 
+        /// For the `std::io::BufRead` trait
         type IoBufRead;
 
+        /// For the `std::error::Error` trait
         type Error;
     ]
 
@@ -234,6 +253,7 @@ pub trait SerializeImplType<'s> {
     /// [`InterfaceType`]: ./trait.InterfaceType.html
     type Interface: SerializeProxyType<'s>;
 
+    /// Performs the serialization into the proxy.
     fn serialize_impl(
         &'s self,
     ) -> Result<<Self::Interface as SerializeProxyType<'s>>::Proxy, RBoxError>;

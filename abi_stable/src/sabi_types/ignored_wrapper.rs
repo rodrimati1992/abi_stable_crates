@@ -60,6 +60,7 @@ use std::{
 #[repr(transparent)]
 #[derive(Default, Copy, Clone, StableAbi)]
 pub struct CmpIgnored<T> {
+    ///
     pub value: T,
 }
 

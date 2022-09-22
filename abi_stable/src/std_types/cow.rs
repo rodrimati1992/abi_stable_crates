@@ -33,7 +33,10 @@ pub trait RCowCompatibleRef<'a>: ToOwned {
     /// The owned version of `Self::RefC`.
     type ROwned: Borrow<Self> + Into<Self::Owned> + From<Self::Owned>;
 
+    /// Converts a reference to an FFI-safe type
     fn as_c_ref(from: &'a Self) -> Self::RefC;
+
+    /// Converts an FFI-safe type to a reference
     fn as_rust_ref(from: Self::RefC) -> &'a Self;
 }
 
@@ -113,7 +116,9 @@ impl<'a, T: Clone + 'a> RCowCompatibleRef<'a> for T {
 #[repr(C)]
 #[derive(StableAbi)]
 pub enum RCow<B, O> {
+    ///
     Borrowed(B),
+    ///
     Owned(O),
 }
 

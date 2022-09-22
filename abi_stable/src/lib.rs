@@ -201,6 +201,7 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 #![allow(clippy::type_complexity)]
 #![allow(clippy::ptr_offset_with_cast)]
 #![allow(clippy::assertions_on_constants)]
+#![deny(missing_docs)]
 #![deny(clippy::missing_safety_doc)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(feature = "docsrs", feature(doc_cfg))]
@@ -240,6 +241,7 @@ mod macros;
 #[macro_use]
 mod test_macros;
 
+#[allow(missing_docs)]
 #[cfg(feature = "testing")]
 #[macro_use]
 pub mod test_utils;

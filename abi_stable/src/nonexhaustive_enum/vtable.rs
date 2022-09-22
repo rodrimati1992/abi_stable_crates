@@ -45,7 +45,7 @@ pub trait GetVTable<S, I>: Sized {
             WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE_VAL)
     }
 
-    // The vtable
+    /// The vtable
     const VTABLE: NonExhaustiveVtable_Ref<Self, S, I> =
         NonExhaustiveVtable_Ref(Self::VTABLE_WM.as_prefix());
 }
@@ -70,6 +70,7 @@ pub trait GetVTable<S, I>: Sized {
 pub struct NonExhaustiveVtable<E, S, I> {
     pub(crate) _sabi_tys: UnsafeIgnoredType<(E, S, I)>,
 
+    /// The `EnumInfo` for the enum.
     pub enum_info: &'static EnumInfo,
 
     pub(crate) _sabi_drop: unsafe extern "C" fn(this: RMut<'_, ErasedObject>),
@@ -237,7 +238,13 @@ pub mod trait_bounds {
             }
 
             impl<E,S,$interf> NonExhaustiveVtable_Ref<E,S,$interf>{
-                pub fn $field(self)->$field_ty
+                #[doc = concat!(
+                    "Fallibly accesses the `",
+                    stringify!($field),
+                    "` field, panicking if it doesn't exist."
+                )]
+
+                pub fn $field(self) -> $field_ty
                 where
                     $interf:InterfaceType<$selector=Implemented<trait_marker::$selector>>,
                 {

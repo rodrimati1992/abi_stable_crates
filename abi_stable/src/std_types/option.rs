@@ -15,7 +15,9 @@ use crate::std_types::RResult;
 #[derive(StableAbi)]
 // #[sabi(debug_print)]
 pub enum ROption<T> {
+    ///
     RSome(T),
+    ///
     RNone,
 }
 

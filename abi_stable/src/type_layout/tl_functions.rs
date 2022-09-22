@@ -190,18 +190,27 @@ impl PartialEq for TLFunctionSlice {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+/// Stores all the supported function qualifiers.
+///
+/// Currently only these are supported:
+/// - `unsafe`
+///
+/// More may be added in an ABI compatible version
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, StableAbi)]
 pub struct TLFunctionQualifiers(u16);
 
 impl TLFunctionQualifiers {
+    /// Constructs a `TLFunctionQualifiers` with no qualifiers enabled.
     pub const NEW: Self = Self(0);
 
     const UNSAFE_BIT: u16 = 1;
 
+    /// Whether the function is `unsafe`
     pub const fn is_unsafe(&self) -> bool {
         (self.0 & Self::UNSAFE_BIT) != 0
     }
+    /// Marks the function as `unsafe`
     pub const fn set_unsafe(mut self) -> Self {
         self.0 |= Self::UNSAFE_BIT;
         self
@@ -304,6 +313,7 @@ pub struct TLFunction {
     /// The return type of the function.
     pub return_type_layout: Option<TypeLayoutCtor>,
 
+    /// The function qualifiers
     pub fn_qualifs: TLFunctionQualifiers,
 }
 

@@ -46,7 +46,9 @@ where
 
 /// Arguments for [`assert_correct_storage`]
 pub struct AssertCsArgs {
+    /// The stringified type name of the enum.
     pub enum_ty: &'static str,
+    /// The stringified type name of the storage.
     pub storage_ty: &'static str,
 }
 

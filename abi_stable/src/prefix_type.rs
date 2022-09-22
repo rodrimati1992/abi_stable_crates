@@ -209,6 +209,7 @@ pub type WithMetadata<T, P = <T as PrefixTypeTrait>::PrefixFields> = WithMetadat
 ///
 #[repr(C)]
 pub struct WithMetadata_<T, P> {
+    /// The prefix type metadata for `value`
     pub metadata: PrefixMetadata<T, P>,
     /// The wrapped value.
     pub value: AlignToUsize<T>,

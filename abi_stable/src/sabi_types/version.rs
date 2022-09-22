@@ -46,6 +46,7 @@ use crate::std_types::RStr;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[repr(transparent)]
 pub struct VersionStrings {
+    /// The `major.minor.patch` version string
     pub version: RStr<'static>,
 }
 
@@ -95,8 +96,11 @@ pub struct VersionStrings {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[repr(C)]
 pub struct VersionNumber {
+    ///
     pub major: u32,
+    ///
     pub minor: u32,
+    ///
     pub patch: u32,
 }
 

@@ -175,18 +175,31 @@ impl Display for GenericParams {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLPrimitive {
+    ///
     U8,
+    ///
     I8,
+    ///
     U16,
+    ///
     I16,
+    ///
     U32,
+    ///
     I32,
+    ///
     U64,
+    ///
     I64,
+    ///
     Usize,
+    ///
     Isize,
+    ///
     F32,
+    ///
     F64,
+    ///
     Bool,
     /// A `&T`
     SharedRef,
@@ -230,7 +243,9 @@ impl FmtFullType {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLFieldOrFunction {
+    ///
     Field(TLField),
+    ///
     Function(TLFunction),
 }
 

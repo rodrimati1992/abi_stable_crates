@@ -239,10 +239,15 @@ pub struct Tag {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum TagVariant {
+    ///
     Primitive(Primitive),
+    /// A Tag that's considered compatible with any other
     Ignored(&'static Tag),
+    ///
     Array(RSlice<'static, Tag>),
+    ///
     Set(RSlice<'static, Tag>),
+    ///
     Map(RSlice<'static, KeyValue<Tag>>),
 }
 
@@ -251,10 +256,15 @@ pub enum TagVariant {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum Primitive {
+    ///
     Null,
+    ///
     Bool(bool),
+    ///
     Int(i64),
+    ///
     UInt(u64),
+    ///
     String_(RStr<'static>),
 }
 
@@ -271,10 +281,15 @@ pub struct CheckableTag {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum CTVariant {
+    ///
     Primitive(Primitive),
+    /// A Tag that's considered compatible with any other
     Ignored(RBox<CheckableTag>),
+    ///
     Array(RVec<CheckableTag>),
+    ///
     Set(RVec<KeyValue<CheckableTag>>),
+    ///
     Map(RVec<KeyValue<CheckableTag>>),
 }
 
@@ -282,7 +297,9 @@ pub enum CTVariant {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, StableAbi)]
 pub struct KeyValue<T> {
+    ///
     pub key: T,
+    ///
     pub value: T,
 }
 
@@ -338,6 +355,7 @@ impl Tag {
         Self { variant }
     }
 
+    /// Constructs the Null variant.
     pub const NULL: &'static Tag = &Tag::null();
 
     /// Constructs the Null variant.

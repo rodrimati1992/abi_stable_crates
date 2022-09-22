@@ -16,6 +16,7 @@
 /// `GetStaticEquivalent_::StaticEquivalent` associated type.
 ///
 pub unsafe trait GetStaticEquivalent_ {
+    /// The `'static` equivalent of `Self`
     type StaticEquivalent: 'static;
 }
 

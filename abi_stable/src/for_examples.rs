@@ -12,6 +12,7 @@ use crate::{
 #[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
 pub struct Module {
+    ///
     pub first: ROption<usize>,
     // The `#[sabi(last_prefix_field)]` attribute here means that this is
     // the last field in this struct that was defined in the
@@ -19,8 +20,10 @@ pub struct Module {
     // requiring new fields to always be added after it.
     // Moving this attribute is a breaking change, it can only be done in a
     // major version bump..
+    ///
     #[sabi(last_prefix_field)]
     pub second: RStr<'static>,
+    ///
     pub third: usize,
 }
 
@@ -36,7 +39,9 @@ impl RootModule for Module_Ref {
 #[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_ref = PhantModule_Ref, prefix_fields = PhantModule_Prefix)))]
 pub struct PhantModule<T: Copy> {
+    ///
     pub first: ROption<usize>,
+    ///
     // The `#[sabi(last_prefix_field)]` attribute here means that this is
     // the last field in this struct that was defined in the
     // first compatible version of the library,
@@ -45,7 +50,9 @@ pub struct PhantModule<T: Copy> {
     // major version bump..
     #[sabi(last_prefix_field)]
     pub second: RStr<'static>,
+    ///
     pub third: usize,
+    ///
     pub phantom: std::marker::PhantomData<T>,
 }
 
@@ -58,7 +65,10 @@ pub struct PhantModule<T: Copy> {
 #[sabi(with_constructor)]
 #[non_exhaustive]
 pub enum ValidTag {
+    #[allow(missing_docs)]
     Foo,
+    #[allow(missing_docs)]
     Bar,
+    #[allow(missing_docs)]
     Tag { name: RString, tag: RString },
 }

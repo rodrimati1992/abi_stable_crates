@@ -12,7 +12,10 @@ pub enum FieldAccessor {
     /// Accessible with `fn field_name(&self)->FieldType`
     Method,
     /// Accessible with `fn name(&self)->FieldType`
-    MethodNamed { name: RStr<'static> },
+    MethodNamed {
+        ///
+        name: RStr<'static>,
+    },
     /// Accessible with `fn field_name(&self)->Option<FieldType>`
     MethodOption,
     /// This field is completely inaccessible.

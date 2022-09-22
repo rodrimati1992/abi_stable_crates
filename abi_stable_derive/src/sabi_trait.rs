@@ -379,6 +379,7 @@ fn first_items(
         );
 
         impl<#trait_interface_header> #trait_interface<#trait_interface_use> {
+            /// Constructs this type
             #submod_vis const NEW:Self=#trait_interface(__sabi_re::NonOwningPhantom::NEW);
         }
 
@@ -392,6 +393,7 @@ fn first_items(
             _ErasedPtr:__GetPointerKind,
             #(#where_preds)*
         {
+            ///
             #submod_vis obj:#used_trait_object,
             _marker:__sabi_re::UnsafeIgnoredType< __sabi_re::#send_syncness >,
         }
@@ -1177,6 +1179,7 @@ fn vtable_impl(
 
     let const_vtable_item = match vtable_trait_impl.which_object {
         WhichObject::DynTrait => quote!(
+            /// Gets the vtable
             pub const VTABLE:__sabi_re::VTableTO_DT<
                 'lt,
                 _Self,
@@ -1193,6 +1196,7 @@ fn vtable_impl(
             };
         ),
         WhichObject::RObject => quote!(
+            /// Gets the vtable
             pub const VTABLE:__sabi_re::VTableTO_RO<
                 _Self,
                 _OrigPtr,

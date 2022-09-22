@@ -481,7 +481,10 @@ impl Debug for NulStr<'_> {
 #[non_exhaustive]
 pub enum NulStrError {
     /// When the string has a `'\0'` before the end.
-    InnerNul { pos: usize },
+    InnerNul {
+        /// the position of the first '\0' character.
+        pos: usize,
+    },
     /// When the string doesn't end with `'\0'`
     NoNulTerminator,
 }

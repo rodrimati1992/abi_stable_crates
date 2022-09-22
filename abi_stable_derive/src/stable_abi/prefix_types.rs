@@ -398,7 +398,10 @@ accessible through [`{prefix_name}`](struct@{prefix_name}), with `.0.prefix()`.
                 #vis struct #prefix_fields_struct #generics
                 #where_clause
                 {
-                    #( #prefix_field_vis #prefix_field: #prefix_field_ty,)*
+                    #(
+                        ///
+                        #prefix_field_vis #prefix_field: #prefix_field_ty,
+                    )*
                     // Using this to ensure:
                     // - That all the generic arguments are used
                     // - That the struct has the same alignemnt as the deriving struct.

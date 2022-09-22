@@ -49,7 +49,9 @@ impl LifetimeRange {
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum LifetimeArrayOrSlice<'a> {
+    ///
     Slice(RSlice<'a, LifetimeIndexPair>),
+    ///
     Array(ArrayLen<[LifetimeIndexPair; 3]>),
 }
 

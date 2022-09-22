@@ -20,6 +20,7 @@ pub trait IntoOwned: Copy + Deref {
     /// The owned equivalent of this type.
     type ROwned: Borrow<Self::Target>;
 
+    /// Performs the colne.
     fn into_owned(self) -> Self::ROwned;
 }
 

@@ -7,6 +7,7 @@ use crate::{std_types::RStr, type_layout::MonoTypeLayout};
 pub struct PTStructLayout {
     /// The stringified generic parameters.
     pub generics: RStr<'static>,
+    /// The layout information of the type which doesn't depend on generic parameters
     pub mono_layout: &'static MonoTypeLayout,
 }
 

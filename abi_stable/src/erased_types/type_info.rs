@@ -8,17 +8,25 @@ use crate::{
 };
 
 /// Metadata stored in the vtable of `DynTrait<_>`
+///
+/// You need to use [`impl_get_type_info`] to construct `TypeInfo`.
 #[derive(Debug, Eq, PartialEq)]
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct TypeInfo {
+    ///
     pub size: usize,
+    ///
     pub alignment: usize,
     #[doc(hidden)]
     pub _uid: Constructor<MaybeCmp<UTypeId>>,
+    ///
     pub type_name: Constructor<RStr<'static>>,
+    ///
     pub module: RStr<'static>,
+    ///
     pub package: RStr<'static>,
+    ///
     pub package_version: VersionStrings,
     #[doc(hidden)]
     pub _private_field: (),

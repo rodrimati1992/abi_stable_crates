@@ -1,6 +1,6 @@
 //! Example non-exhaustive enums,used in tests
 
-#![allow(dead_code)]
+#![allow(dead_code, missing_docs)]
 #![allow(clippy::derive_partial_eq_without_eq)]
 
 pub mod command_one {

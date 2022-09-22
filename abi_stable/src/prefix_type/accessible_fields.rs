@@ -166,7 +166,9 @@ pub trait BooleanEnum: Debug {
 #[derive(StableAbi, Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum IsAccessible {
+    ///
     No = 0,
+    ///
     Yes = 1,
 }
 
@@ -196,7 +198,9 @@ impl BooleanEnum for IsAccessible {
 #[derive(StableAbi, Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum IsConditional {
+    ///
     No = 0,
+    ///
     Yes = 1,
 }
 
@@ -221,6 +225,7 @@ impl BooleanEnum for IsConditional {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// Iterator over the enums inside a [`BoolArray`]
 #[derive(Debug, Clone)]
 pub struct BoolArrayIter<T> {
     count: usize,

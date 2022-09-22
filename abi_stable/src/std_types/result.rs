@@ -9,8 +9,10 @@ use crate::std_types::{RNone, ROption, RSome};
 #[repr(u8)]
 #[derive(StableAbi)]
 pub enum RResult<T, E> {
+    ///
     #[serde(rename = "Ok")]
     ROk(T),
+    ///
     #[serde(rename = "Err")]
     RErr(E),
 }

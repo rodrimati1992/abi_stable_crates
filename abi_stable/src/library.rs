@@ -101,11 +101,16 @@ pub enum LibraryPath<'a> {
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, StableAbi)]
 pub enum IsLayoutChecked {
+    /// The ABI is checked
     Yes(&'static TypeLayout),
+    /// The ABI is not checked
     No,
 }
 
 impl IsLayoutChecked {
+    /// Converts this into an `Option`.
+    ///
+    /// `Ỳes` corresponds to `Some`, and `No` corresponds to `None`.
     pub fn into_option(self) -> Option<&'static TypeLayout> {
         match self {
             IsLayoutChecked::Yes(x) => Some(x),

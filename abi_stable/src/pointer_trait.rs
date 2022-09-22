@@ -25,7 +25,9 @@ mod tests;
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub enum CallReferentDrop {
+    ///
     Yes,
+    ///
     No,
 }
 
@@ -33,7 +35,9 @@ pub enum CallReferentDrop {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, StableAbi)]
 pub enum Deallocate {
+    ///
     No,
+    ///
     Yes,
 }
 

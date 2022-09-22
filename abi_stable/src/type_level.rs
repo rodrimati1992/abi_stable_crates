@@ -20,16 +20,37 @@ pub mod downcasting;
 
 /// Marker types representing traits.
 pub mod trait_marker {
+    ///
     pub struct Send;
+
+    ///
     pub struct Sync;
+
+    ///
     pub struct Clone;
+
+    ///
     pub struct Default;
+
+    ///
     pub struct Display;
+
+    ///
     pub struct Debug;
+
+    ///
     pub struct Eq;
+
+    ///
     pub struct PartialEq;
+
+    ///
     pub struct Ord;
+
+    ///
     pub struct PartialOrd;
+
+    ///
     pub struct Hash;
 
     /// Represents the [`serde::Deserialize`] trait.
@@ -38,7 +59,10 @@ pub mod trait_marker {
     /// Represents the [`serde::Serialize`] trait.
     pub struct Serialize;
 
+    ///
     pub struct Iterator;
+
+    ///
     pub struct DoubleEndedIterator;
 
     /// Represents the [`std::fmt::Write`] trait.

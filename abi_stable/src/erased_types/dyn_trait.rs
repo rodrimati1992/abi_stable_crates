@@ -2746,6 +2746,7 @@ use self::sealed::Sealed;
 
 /// For getting the `Interface` type parameter in `DynTrait<Pointer<()>, Interface>`.
 pub trait DynTraitBound<'borr>: Sealed {
+    /// The `Interface` type parameter in `DynTrait<_, Interface>`
     type Interface: InterfaceType;
 }
 

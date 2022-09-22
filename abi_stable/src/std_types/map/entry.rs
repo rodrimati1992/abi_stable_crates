@@ -23,7 +23,9 @@ pub(super) enum BoxedREntry<'a, K, V> {
 #[repr(C)]
 #[sabi(bound(K: 'a), bound(V: 'a))]
 pub enum REntry<'a, K, V> {
+    /// An occupied entry
     Occupied(ROccupiedEntry<'a, K, V>),
+    /// A vacnt entry
     Vacant(RVacantEntry<'a, K, V>),
 }
 
