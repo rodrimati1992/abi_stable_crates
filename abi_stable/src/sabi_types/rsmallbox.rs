@@ -526,7 +526,7 @@ unsafe extern "C" fn destroy<T>(ptr: *mut T, drop_referent: CallReferentDrop, de
             ptr::drop_in_place(ptr);
         }
         if let Deallocate::Yes=dealloc{
-            Box::from_raw(ptr as *mut ManuallyDrop<T>);
+            drop(Box::from_raw(ptr as *mut ManuallyDrop<T>));
         }
     }
 }
