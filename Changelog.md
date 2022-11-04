@@ -4,6 +4,13 @@ Minor changes may be ommited, as well as improvements to documentation.
 
 # 0.10
 
+### 0.10.5
+
+Fixed warnings since 1.64.0 (which will be errors in the future) in generated
+code for `sabi_trait`.
+
+Fixed warnings about unused values.
+
 ### 0.10.4
 
 Fixed compatibility with the nightly compiler.
