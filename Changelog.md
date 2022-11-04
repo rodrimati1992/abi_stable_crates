@@ -11,6 +11,8 @@ code for `sabi_trait`.
 
 Fixed warnings about unused values.
 
+Restricted version of `once_cell` dependency to ">=1.0.0, <1.10.0"
+
 ### 0.10.4
 
 Fixed compatibility with the nightly compiler.
