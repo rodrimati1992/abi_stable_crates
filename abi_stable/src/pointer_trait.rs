@@ -699,8 +699,8 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     where
         F: FnOnce(MovePtr<'_, Self::PtrTarget>) -> R,
     {
+        let guard = DropAllocationMutGuard(&mut this);
         unsafe {
-            let guard = DropAllocationMutGuard(&mut this);
             func(Self::get_move_ptr(guard.0))
         }
     }
@@ -735,8 +735,8 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     where
         F: FnOnce(MovePtr<'_, Self::PtrTarget>) -> R,
     {
+        let mut guard = DropAllocationGuard(ManuallyDrop::new(self));
         unsafe {
-            let mut guard = DropAllocationGuard(ManuallyDrop::new(self));
             func(Self::get_move_ptr(&mut guard.0))
         }
     }

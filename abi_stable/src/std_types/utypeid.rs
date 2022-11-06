@@ -146,9 +146,9 @@ impl Hasher for TypeIdHasher {
     fn write(&mut self, bytes: &[u8]) {
         let _: [u8; MAX_TYPE_ID_SIZE - mem::size_of::<TypeId>()];
         if bytes.len() == mem::size_of::<TypeId>() {
+            let into = (&mut self.value) as *mut _ as *mut TypeIdArray;
+            let from = bytes.as_ptr() as *const TypeIdArray;
             unsafe {
-                let into = (&mut self.value) as *mut _ as *mut TypeIdArray;
-                let from = bytes.as_ptr() as *const TypeIdArray;
                 *into = *from;
             }
             self.written = mem::size_of::<TypeId>();

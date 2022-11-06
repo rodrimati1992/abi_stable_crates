@@ -258,14 +258,14 @@ impl<'a, T> DoubleEndedIterator for Drain<'a, T> {
 impl<'a, T> Drop for Drain<'a, T> {
     fn drop(&mut self) {
         self.iter.by_ref().for_each(drop);
-        unsafe {
+        
             let removed_start = self.removed_start;
-            let removed_end = self.removed_start.offset(self.slice_len as isize);
+            let removed_end = unsafe { self.removed_start.offset(self.slice_len as isize) };
             let end_index =
                 distance_from(self.allocation_start, removed_start).unwrap_or(0) + self.slice_len;
-            ptr::copy(removed_end, removed_start, self.len - end_index);
+            unsafe { ptr::copy(removed_end, removed_start, self.len - end_index) };
             *self.vec_len = self.len - self.slice_len;
-        }
+        
     }
 }
 
@@ -297,10 +297,10 @@ where
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
-        unsafe {
+        
             while self.idx < self.old_len {
                 let i = self.idx;
-                let v = slice::from_raw_parts_mut(self.allocation_start, self.old_len);
+                let v = unsafe { slice::from_raw_parts_mut(self.allocation_start, self.old_len) };
                 self.panic_flag = true;
                 let drained = (self.pred)(&mut v[i]);
                 self.panic_flag = false;
@@ -310,12 +310,12 @@ where
                 self.idx += 1;
                 if drained {
                     self.del += 1;
-                    return Some(ptr::read(&v[i]));
+                    return unsafe { Some(ptr::read(&v[i])) };
                 } else if self.del > 0 {
                     let del = self.del;
                     let src: *const T = &v[i];
                     let dst: *mut T = &mut v[i - del];
-                    ptr::copy_nonoverlapping(src, dst, 1);
+                    unsafe { ptr::copy_nonoverlapping(src, dst, 1) };
                 }
             }
             None
@@ -346,7 +346,7 @@ where
             F: FnMut(&mut T) -> bool,
         {
             fn drop(&mut self) {
-                unsafe {
+                
                     if self.drain.idx < self.drain.old_len && self.drain.del > 0 {
                         // This is a pretty messed up state, and there isn't really an
                         // obviously right thing to do. We don't want to keep trying
@@ -355,13 +355,13 @@ where
                         // is required to prevent a double-drop of the last successfully
                         // drained item prior to a panic in the predicate.
                         let ptr = self.drain.allocation_start;
-                        let src = ptr.add(self.drain.idx);
-                        let dst = src.sub(self.drain.del);
+                        let src = unsafe { ptr.add(self.drain.idx) };
+                        let dst = unsafe { src.sub(self.drain.del) };
                         let tail_len = self.drain.old_len - self.drain.idx;
-                        src.copy_to(dst, tail_len);
+                        unsafe { src.copy_to(dst, tail_len) };
                     }
                     *self.drain.vec_len = self.drain.old_len - self.drain.del;
-                }
+                
             }
         }
 

@@ -330,13 +330,13 @@ impl TypeLayout {
     /// but are checked as part of the type
     #[inline]
     pub fn phantom_fields(&self) -> TLFields {
-        unsafe {
-            let slice = std::slice::from_raw_parts(
+        
+            let slice = unsafe { std::slice::from_raw_parts(
                 self.mono.phantom_fields,
                 self.mono.phantom_fields_len as usize,
-            );
+            ) };
             TLFields::from_fields(slice, self.shared_vars)
-        }
+        
     }
 
     /// Gets the generic parameters of the type.

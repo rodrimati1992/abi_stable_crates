@@ -499,8 +499,8 @@ impl RString {
 
         let next = idx + ch.len_utf8();
         let len = self.len();
+        let ptr = self.inner.as_mut_ptr();
         unsafe {
-            let ptr = self.inner.as_mut_ptr();
             ptr::copy(ptr.add(next), ptr.add(idx), len - next);
             self.inner.set_len(len - (next - idx));
         }

@@ -216,9 +216,9 @@ impl<T> RBox<T> {
     pub fn into_box(this: Self) -> Box<T> {
         let this = ManuallyDrop::new(this);
 
+        let this_vtable = this.vtable();
+        let other_vtable = VTableGetter::LIB_VTABLE;
         unsafe {
-            let this_vtable = this.vtable();
-            let other_vtable = VTableGetter::LIB_VTABLE;
             if ::std::ptr::eq(this_vtable.0.to_raw_ptr(), other_vtable.0.to_raw_ptr())
                 || this_vtable.type_id() == other_vtable.type_id()
             {
@@ -596,9 +596,9 @@ where
 
 impl<T> Drop for RBox<T> {
     fn drop(&mut self) {
+        let data = self.data();
+        let dstr = RBox::vtable(self).destructor();
         unsafe {
-            let data = self.data();
-            let dstr = RBox::vtable(self).destructor();
             dstr(data as *mut (), CallReferentDrop::Yes, Deallocate::Yes);
         }
     }

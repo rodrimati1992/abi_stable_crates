@@ -1223,10 +1223,10 @@ where
     const VTABLE_REF: VTable_Ref<K, V, S> = unsafe { VTable_Ref(Self::VTABLE_VAL.as_prefix()) };
 
     fn erased_map(hash_builder: S) -> RBox<ErasedMap<K, V, S>> {
+        let map = HashMap::<MapKey<K>, V, S>::with_hasher(hash_builder);
+        let boxed = BoxedHashMap { map, entry: None };
+        let boxed = RBox::new(boxed);
         unsafe {
-            let map = HashMap::<MapKey<K>, V, S>::with_hasher(hash_builder);
-            let boxed = BoxedHashMap { map, entry: None };
-            let boxed = RBox::new(boxed);
             mem::transmute::<RBox<_>, RBox<ErasedMap<K, V, S>>>(boxed)
         }
     }

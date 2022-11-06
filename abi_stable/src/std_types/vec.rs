@@ -495,9 +495,9 @@ impl<T> RVec<T> {
     pub fn into_vec(self) -> Vec<T> {
         let mut this = ManuallyDrop::new(self);
 
+        let this_vtable = this.vtable();
+        let other_vtable = VTableGetter::LIB_VTABLE;
         unsafe {
-            let this_vtable = this.vtable();
-            let other_vtable = VTableGetter::LIB_VTABLE;
             if ::std::ptr::eq(this_vtable.0.to_raw_ptr(), other_vtable.0.to_raw_ptr())
                 || this_vtable.type_id() == other_vtable.type_id()
             {
@@ -589,8 +589,8 @@ impl<T> RVec<T> {
             self.grow_capacity_to_1();
         }
 
+        let buffer = self.buffer_mut();
         unsafe {
-            let buffer = self.buffer_mut();
             if index < self.length {
                 ptr::copy(
                     buffer.offset(index as isize),
@@ -599,8 +599,8 @@ impl<T> RVec<T> {
                 );
             }
             ptr::write(buffer.offset(index as isize), value);
-            self.length += 1;
         }
+        self.length += 1;
     }
 
     /// Attemps to remove the element at `index` position,
@@ -623,15 +623,15 @@ impl<T> RVec<T> {
         if self.length <= index {
             return None;
         }
-        unsafe {
+        
             let buffer = self.buffer_mut();
             self.length -= 1;
-            let result = ptr::read(buffer.offset(index as isize));
-            ptr::copy(
+            let result = unsafe { ptr::read(buffer.offset(index as isize)) };
+            unsafe { ptr::copy(
                 buffer.offset(index as isize + 1),
                 buffer.offset(index as isize),
                 self.length - index,
-            );
+            ) };
             Some(result)
         }
     }
@@ -696,12 +696,12 @@ impl<T> RVec<T> {
     ///
     /// ```
     pub fn swap_remove(&mut self, index: usize) -> T {
-        unsafe {
+        
             let hole: *mut T = &mut self[index];
-            let last = ptr::read(self.buffer_mut().offset((self.length - 1) as isize));
+            let last = unsafe { ptr::read(self.buffer_mut().offset((self.length - 1) as isize)) };
             self.length -= 1;
-            ptr::replace(hole, last)
-        }
+            unsafe { ptr::replace(hole, last) }
+        
     }
 
     /// Appends `new_val` at the end of the `RVec<T>`.
@@ -759,8 +759,8 @@ impl<T> RVec<T> {
         if self.length == 0 {
             None
         } else {
+            self.length -= 1;
             unsafe {
-                self.length -= 1;
                 Some(ptr::read(self.buffer_mut().offset(self.length as isize)))
             }
         }
