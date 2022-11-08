@@ -10,8 +10,8 @@ For Rust-to-Rust ffi,
 with a focus on creating libraries loaded at program startup,
 and with load-time type-checking.
 
-This library allows defining Rust libraries that can be loaded at runtime,
-even if they were built with a different Rust version than the crate that depends on it.
+This library allows defining Rust libraries that can be loaded at runtime. 
+This isn't possible with the default (Rust) ABI and representation, since it's unstable.
 
 These are some usecases for this library:
     

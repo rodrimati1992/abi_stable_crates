@@ -201,6 +201,15 @@ Added `"rust_1_64"` feature for items that requires that version.
 
 # 0.10
 
+### 0.10.5
+
+Fixed warnings since 1.64.0 (which will be errors in the future) in generated
+code for `sabi_trait`.
+
+Fixed warnings about unused values.
+
+Restricted version of `once_cell` dependency to ">=1.0.0, <1.10.0"
+
 ### 0.10.4
 
 Fixed compatibility with the nightly compiler.
