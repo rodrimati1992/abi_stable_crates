@@ -9,7 +9,7 @@ use std::{
 use crate::{
     external_types::RMutex,
     pointer_trait::{ImmutableRef, IsReference},
-    prefix_type::{PointsToPrefixFields, PrefixRef},
+    prefix_type::{PrefixRef, PrefixRefTrait},
 };
 
 /// A late-initialized static reference,with fallible initialization.
@@ -128,7 +128,7 @@ impl<T> LateStaticRef<&'static T> {
     }
 }
 
-impl<T: 'static> LateStaticRef<T> {
+impl<T> LateStaticRef<T> {
     /// Constructs `LateStaticRef` from a [`PrefixRef`].
     ///
     /// # Example
@@ -151,7 +151,7 @@ impl<T: 'static> LateStaticRef<T> {
     ///     //
     ///     // If you don't need a `LateStaticRef` you can construct a `PersonMod_Ref` constant,
     ///     // and use that.
-    ///     LateStaticRef::from_prefixref(PrefixRefTrait::PREFIX_FIELDS, MODULE.0)
+    ///     LateStaticRef::from_prefixref(MODULE.0)
     /// };
     ///
     /// #[repr(C)]
@@ -179,9 +179,10 @@ impl<T: 'static> LateStaticRef<T> {
     /// ```
     ///
     /// [`PrefixRef`]: ../prefix_type/struct.PrefixRef.html
-    pub const fn from_prefixref<P>(_: PointsToPrefixFields<T, P>, ptr: PrefixRef<P>) -> Self
+    pub const fn from_prefixref(ptr: PrefixRef<T::PrefixFields>) -> Self
     where
-        P: 'static,
+        T: PrefixRefTrait + 'static,
+        T::PrefixFields: 'static,
     {
         Self {
             lock: LOCK,

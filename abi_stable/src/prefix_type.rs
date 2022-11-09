@@ -6,11 +6,8 @@ use std::{
 };
 
 use crate::{
-    inline_storage::alignment::AlignToUsize,
-    marker_type::{NonOwningPhantom, NotCopyNotClone},
-    pointer_trait::ImmutableRef,
-    sabi_types::StaticRef,
-    utils::Transmuter,
+    inline_storage::alignment::AlignToUsize, marker_type::NotCopyNotClone,
+    pointer_trait::ImmutableRef, sabi_types::StaticRef, utils::Transmuter,
 };
 
 #[allow(unused_imports)]
@@ -112,12 +109,6 @@ pub unsafe trait PrefixRefTrait: Sized + ImmutableRef {
     // (except that the compiler doesn't unify both types)
     type PrefixFields: GetWithMetadata<ForSelf = Self::PtrTarget>;
 
-    /// A type used to prove that the `This` type parameter in
-    /// `PointsToPrefixFields<This, PF>` implements
-    /// `PrefixRefTrait<PrefixFields = PF>`.
-    const PREFIX_FIELDS: PointsToPrefixFields<Self, Self::PrefixFields> =
-        PointsToPrefixFields::new();
-
     /// Converts a `PrefixRef` to `Self`
     #[inline]
     fn from_prefix_ref(this: PrefixRef<Self::PrefixFields>) -> Self {
@@ -141,22 +132,6 @@ pub trait GetWithMetadata: Sized {
 
 impl<T> GetWithMetadata for T {
     type ForSelf = WithMetadata_<Self, Self>;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-/// A marker used to prove that `This` implements`PrefixRefTrait<PrefixFields = PF>`.
-pub struct PointsToPrefixFields<This, PF> {
-    _phantomdata: NonOwningPhantom<(This, PF)>,
-}
-
-impl<This, PrefixFields> PointsToPrefixFields<This, PrefixFields> {
-    // This should only be callable in the default definition of PrefixRefTrait::PREFIX_FIELDS
-    const fn new() -> Self {
-        Self {
-            _phantomdata: NonOwningPhantom::DEFAULT,
-        }
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

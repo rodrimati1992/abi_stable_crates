@@ -52,7 +52,7 @@ impl LibHeader {
             init_globals_with: INIT_GLOBALS_WITH,
             module: {
                 let erased = unsafe { value.to_prefix_ref().cast::<ErasedPrefix>() };
-                LateStaticRef::from_prefixref(PrefixRefTrait::PREFIX_FIELDS, erased)
+                LateStaticRef::from_prefixref(erased)
             },
             constructor: GetAbortingConstructor::ABORTING_CONSTRUCTOR,
         }
