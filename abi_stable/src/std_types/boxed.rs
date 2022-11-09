@@ -25,7 +25,7 @@ use crate::{
         OwnedPointer, PK_SmartPointer,
     },
     prefix_type::{PrefixTypeTrait, WithMetadata},
-    sabi_types::{Constructor, MovePtr},
+    sabi_types::MovePtr,
     std_types::utypeid::{new_utypeid, UTypeId},
     traits::IntoReprRust,
 };
@@ -220,7 +220,7 @@ impl<T> RBox<T> {
             let this_vtable = this.vtable();
             let other_vtable = VTableGetter::LIB_VTABLE;
             if ::std::ptr::eq(this_vtable.0.to_raw_ptr(), other_vtable.0.to_raw_ptr())
-                || this_vtable.type_id() == other_vtable.type_id()
+                || this_vtable.type_id()() == other_vtable.type_id()()
             {
                 Box::from_raw(this.data())
             } else {
@@ -613,7 +613,7 @@ impl<T> Drop for RBox<T> {
 #[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
 pub(crate) struct BoxVtable<T> {
-    type_id: Constructor<UTypeId>,
+    type_id: extern "C" fn() -> UTypeId,
     #[sabi(last_prefix_field)]
     destructor: unsafe extern "C" fn(*mut (), CallReferentDrop, Deallocate),
     _marker: NonOwningPhantom<T>,
@@ -623,7 +623,7 @@ struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
     const DEFAULT_VTABLE: BoxVtable<T> = BoxVtable {
-        type_id: Constructor(new_utypeid::<RBox<()>>),
+        type_id: new_utypeid::<RBox<()>>,
         destructor: destroy_box::<T>,
         _marker: NonOwningPhantom::NEW,
     };
@@ -642,7 +642,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
             WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 BoxVtable {
-                    type_id: Constructor( new_utypeid::<RBox<i32>> ),
+                    type_id: new_utypeid::<RBox<i32>>,
                     ..Self::DEFAULT_VTABLE
                 },
             )

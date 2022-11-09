@@ -19,7 +19,7 @@ use core_extensions::SelfOps;
 use crate::{
     pointer_trait::CanTransmuteElement,
     prefix_type::{PrefixTypeTrait, WithMetadata},
-    sabi_types::{Constructor, RMut},
+    sabi_types::RMut,
     std_types::{
         utypeid::{new_utypeid, UTypeId},
         RSlice, RSliceMut,
@@ -512,7 +512,7 @@ impl<T> RVec<T> {
             let this_vtable = this.vtable();
             let other_vtable = VTableGetter::<T>::LIB_VTABLE;
             if ::std::ptr::eq(this_vtable.0.to_raw_ptr(), other_vtable.0.to_raw_ptr())
-                || this_vtable.type_id() == other_vtable.type_id()
+                || this_vtable.type_id()() == other_vtable.type_id()()
             {
                 Vec::from_raw_parts(this.buffer_mut(), this.len(), this.capacity())
             } else {
@@ -1460,7 +1460,7 @@ struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
     const DEFAULT_VTABLE: VecVTable = VecVTable {
-        type_id: Constructor(new_utypeid::<RVec<()>>),
+        type_id: new_utypeid::<RVec<()>>,
         destructor: destructor_vec::<T>,
         grow_capacity_to: grow_capacity_to_vec::<T>,
         shrink_to_fit: shrink_to_fit_vec::<T>,
@@ -1479,7 +1479,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
             WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 VecVTable {
-                    type_id: Constructor( new_utypeid::<RVec<i32>> ),
+                    type_id: new_utypeid::<RVec<i32>>,
                     ..Self::DEFAULT_VTABLE
                 }
             )
@@ -1494,7 +1494,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
 #[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
 struct VecVTable {
-    type_id: Constructor<UTypeId>,
+    type_id: extern "C" fn() -> UTypeId,
     destructor: unsafe extern "C" fn(RMut<'_, ()>),
     grow_capacity_to: unsafe extern "C" fn(RMut<'_, ()>, usize, Exactness),
     #[sabi(last_prefix_field)]

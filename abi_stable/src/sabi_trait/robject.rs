@@ -326,7 +326,7 @@ where
     where
         T: 'static,
     {
-        let expected_typeid = self.sabi_robject_vtable()._sabi_type_id().get();
+        let expected_typeid = self.sabi_robject_vtable()._sabi_type_id()();
         let actual_typeid = UTypeId::new::<T>();
         if expected_typeid == MaybeCmp::Just(actual_typeid) {
             Ok(())

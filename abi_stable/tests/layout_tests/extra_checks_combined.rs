@@ -366,9 +366,7 @@ where
                 .piped(Some)
                 .piped(CmpIgnored::new),
         )
-        ._set_type_id(Constructor(
-            abi_stable::std_types::utypeid::new_utypeid::<Blah<T::StaticEquivalent>>,
-        ))
+        ._set_type_id(abi_stable::std_types::utypeid::new_utypeid::<Blah<T::StaticEquivalent>>)
         .piped(leak_value)
 }
 

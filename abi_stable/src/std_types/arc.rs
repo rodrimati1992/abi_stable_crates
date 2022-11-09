@@ -11,7 +11,6 @@ use crate::{
         AsPtr, CallReferentDrop, CanTransmuteElement, GetPointerKind, PK_SmartPointer,
     },
     prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
-    sabi_types::Constructor,
     std_types::{
         utypeid::{new_utypeid, UTypeId},
         RResult,
@@ -190,7 +189,7 @@ impl<T> RArc<T> {
         let this_vtable = this.vtable();
         let other_vtable = VTableGetter::LIB_VTABLE;
         if ::std::ptr::eq(this_vtable.0.to_raw_ptr(), other_vtable.0.to_raw_ptr())
-            || this_vtable.type_id() == other_vtable.type_id()
+            || this_vtable.type_id()() == other_vtable.type_id()()
         {
             unsafe { Arc::from_raw(this.into_raw()) }
         } else {
@@ -410,7 +409,7 @@ mod vtable_mod {
 
     impl<'a, T: 'a> VTableGetter<'a, T> {
         const DEFAULT_VTABLE: ArcVtable<T> = ArcVtable {
-            type_id: Constructor(new_utypeid::<RArc<()>>),
+            type_id: new_utypeid::<RArc<()>>,
             destructor: destructor_arc::<T>,
             clone_: clone_arc::<T>,
             get_mut: get_mut_arc::<T>,
@@ -433,7 +432,7 @@ mod vtable_mod {
             WithMetadata::new(
                 PrefixTypeTrait::METADATA,
                 ArcVtable{
-                    type_id: Constructor( new_utypeid::<RArc<i32>> ),
+                    type_id: new_utypeid::<RArc<i32>>,
                     ..Self::DEFAULT_VTABLE
                 }
             )
@@ -449,7 +448,7 @@ mod vtable_mod {
     #[sabi(kind(Prefix))]
     #[sabi(missing_field(panic))]
     pub struct ArcVtable<T> {
-        pub(super) type_id: Constructor<UTypeId>,
+        pub(super) type_id: extern "C" fn() -> UTypeId,
         pub(super) destructor: unsafe extern "C" fn(*const T, CallReferentDrop),
         pub(super) clone_: unsafe extern "C" fn(&RArc<T>) -> RArc<T>,
         pub(super) get_mut: unsafe extern "C" fn(&mut RArc<T>) -> Option<&mut T>,

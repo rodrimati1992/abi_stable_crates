@@ -421,7 +421,7 @@ pub mod interface_for {
         const INFO: &'static TypeInfo = &TypeInfo {
             size: std::mem::size_of::<T>(),
             alignment: std::mem::align_of::<T>(),
-            _uid: <Downcasting as GetUTID<T>>::UID,
+            _uid: Constructor(<Downcasting as GetUTID<T>>::UID),
             type_name: Constructor(crate::utils::get_type_name::<T>),
             module: RStr::from_str("<unavailable>"),
             package: RStr::from_str("<unavailable>"),

@@ -4,7 +4,6 @@ use crate::{
     erased_types::{FormattingMode, InterfaceBound, VTableDT},
     marker_type::NonOwningPhantom,
     prefix_type::PrefixRef,
-    sabi_types::Constructor,
     std_types::{RResult, RString, Tuple3, UTypeId},
     type_level::{
         downcasting::GetUTID,
@@ -76,7 +75,7 @@ pub type VTableTO_DT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V> = VTab
 pub struct VTableTO<_Self, OrigPtr, Downcasting, V, DT> {
     vtable: PrefixRef<V>,
     for_dyn_trait: DT,
-    _for: PhantomData<Constructor<Tuple3<_Self, OrigPtr, Downcasting>>>,
+    _for: PhantomData<extern "C" fn() -> Tuple3<_Self, OrigPtr, Downcasting>>,
 }
 
 impl<_Self, OrigPtr, Downcasting, V, DT> Copy for VTableTO<_Self, OrigPtr, Downcasting, V, DT> where
@@ -210,7 +209,7 @@ where
 pub struct RObjectVtable<_Self, ErasedPtr, I> {
     pub _sabi_tys: NonOwningPhantom<(_Self, ErasedPtr, I)>,
 
-    pub _sabi_type_id: Constructor<MaybeCmp<UTypeId>>,
+    pub _sabi_type_id: extern "C" fn() -> MaybeCmp<UTypeId>,
 
     pub _sabi_drop: unsafe extern "C" fn(this: RMut<'_, ErasedPtr>),
     pub _sabi_clone: Option<unsafe extern "C" fn(this: RRef<'_, ErasedPtr>) -> ErasedPtr>,

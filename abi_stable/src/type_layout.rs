@@ -18,7 +18,7 @@ use crate::{
     const_utils::log2_usize,
     prefix_type::{FieldAccessibility, FieldConditionality},
     reflection::ModReflMode,
-    sabi_types::{CmpIgnored, Constructor, NulStr, VersionStrings},
+    sabi_types::{CmpIgnored, NulStr, VersionStrings},
     std_types::{RSlice, RStr, UTypeId},
 };
 
@@ -108,7 +108,7 @@ pub struct TypeLayout {
     extra_checks: CmpIgnored<Option<&'static ManuallyDrop<StoredExtraChecks>>>,
 
     /// A function to get the unique identifier for some type
-    type_id: Constructor<UTypeId>,
+    type_id: extern "C" fn() -> UTypeId,
 }
 
 unsafe impl Send for TypeLayout {}
@@ -130,7 +130,7 @@ impl TypeLayout {
             shared_vars,
             mono,
             is_nonzero: abi_consts.is_nonzero,
-            type_id: abi_consts.type_id,
+            type_id: abi_consts.type_id.0,
             alignment_power_of_two: log2_usize(mem::align_of::<T>()),
             size: mem::size_of::<T>(),
             data,
@@ -145,7 +145,7 @@ impl TypeLayout {
             shared_vars: p.shared_vars,
             mono: p.mono,
             is_nonzero: p.abi_consts.is_nonzero,
-            type_id: p.abi_consts.type_id,
+            type_id: p.abi_consts.type_id.0,
             alignment_power_of_two: log2_usize(mem::align_of::<T>()),
             size: mem::size_of::<T>(),
             data: p.data,
@@ -266,7 +266,7 @@ impl TypeLayout {
 
     #[doc(hidden)]
     #[cfg(feature = "testing")]
-    pub const fn _set_type_id(mut self, type_id: Constructor<UTypeId>) -> Self {
+    pub const fn _set_type_id(mut self, type_id: extern "C" fn() -> UTypeId) -> Self {
         self.type_id = type_id;
         self
     }
@@ -275,7 +275,7 @@ impl TypeLayout {
     /// which is an ffi safe equivalent of `TypeId`.
     #[inline]
     pub fn get_utypeid(&self) -> UTypeId {
-        self.type_id.get()
+        (self.type_id)()
     }
 
     /// Gets information about where a type was declared.
