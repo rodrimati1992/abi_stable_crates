@@ -55,9 +55,9 @@ then run the `*_user` crate (all `*_user` crates should have a help message and 
 
 # Minimum Rust version
 
-This crate support Rust back to 1.57.0
+This crate support Rust back to 1.61.0
 
-You can manually enable support for Rust past 1.57.0 with the `rust_*_*` cargo features.
+You can manually enable support for Rust past 1.61.0 with the `rust_*_*` cargo features.
 
 # Crate Features
 

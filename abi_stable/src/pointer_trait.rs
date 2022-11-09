@@ -3,7 +3,6 @@
 use std::{mem::ManuallyDrop, ptr::NonNull};
 
 use crate::{
-    marker_type::NonOwningPhantom,
     sabi_types::{MovePtr, RMut, RRef},
     utils::Transmuter,
 };
@@ -86,9 +85,6 @@ pub unsafe trait GetPointerKind: Sized {
     ///
     type PtrTarget;
 
-    /// A marker type that can be used as a proof that `Self` implements this trait.
-    const IS_PTR: IsPointer<Self, Self::PtrTarget, Self::Kind> = IsPointer::NEW;
-
     /// The value-level version of the [`Kind`](#associatedtype.Kind) associated type.
     ///
     /// # Safety for implementor
@@ -106,51 +102,6 @@ unsafe impl<'a, T> GetPointerKind for &'a mut T {
     type Kind = PK_MutReference;
     type PtrTarget = T;
 }
-
-////////////////////////////////////////////
-
-/// A marker type that can be used as a proof that the `S` type parameter
-/// is a pointer type (implements [`GetPointerKind`]`<PtrTarget = T, Kind = K>`).
-///
-/// [`GetPointerKind`]: ./trait.GetPointerKind.html
-pub struct IsPointer<S, T, K>(NonOwningPhantom<(S, T, K)>);
-
-impl<S, T, K> Copy for IsPointer<S, T, K> {}
-
-impl<S, T, K> Clone for IsPointer<S, T, K> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<S, T, K> IsPointer<S, T, K>
-where
-    S: GetPointerKind<PtrTarget = T, Kind = K>,
-{
-    /// Constructs an `IsPointer`
-    pub const NEW: Self = Self(NonOwningPhantom::NEW);
-}
-
-/// A marker type that can be used as a proof that the `S` type parameter
-/// is a shared-reference-like
-/// (implements [`GetPointerKind`]`<PtrTarget = T, Kind = PK_Reference>`).
-///
-/// [`GetPointerKind`]: ./trait.GetPointerKind.html
-pub type IsReference<S, T> = IsPointer<S, T, PK_Reference>;
-
-/// A marker type that can be used as a proof that the `S` type parameter
-/// is a mutable-reference-like
-/// (implements [`GetPointerKind`]`<PtrTarget = T, Kind = PK_MutReference>`).
-///
-/// [`GetPointerKind`]: ./trait.GetPointerKind.html
-pub type IsMutReference<S, T> = IsPointer<S, T, PK_MutReference>;
-
-/// A marker type that can be used as a proof that the `S` type parameter
-/// is a smart pointer
-/// (implements [`GetPointerKind`]`<PtrTarget = T, Kind = PK_SmartPointer>`).
-///
-/// [`GetPointerKind`]: ./trait.GetPointerKind.html
-pub type IsSmartPointer<S, T> = IsPointer<S, T, PK_SmartPointer>;
 
 ////////////////////////////////////////////
 
@@ -880,18 +831,21 @@ pub mod immutable_ref {
     /// # Example
     ///
     /// ```rust
-    /// use abi_stable::pointer_trait::{immutable_ref, IsReference};
+    /// use abi_stable::pointer_trait::immutable_ref;
     ///
     /// use std::ptr::NonNull;
     ///
-    /// const X: NonNull<i8> = immutable_ref::to_nonnull(&3i8, IsReference::NEW);
+    /// const X: NonNull<i8> = immutable_ref::to_nonnull(&3i8);
     /// unsafe {
     ///     assert_eq!(*X.as_ref(), 3i8);
     /// }
     /// ```
     ///
-    pub const fn to_nonnull<S, PT>(from: S, _proof: IsReference<S, PT>) -> NonNull<PT> {
-        unsafe { const_transmute!(S, NonNull<PT>, from) }
+    pub const fn to_nonnull<T>(from: T) -> NonNull<T::PtrTarget>
+    where
+        T: GetPointerKind<Kind = PK_Reference>,
+    {
+        unsafe { const_transmute!(T, NonNull<T::PtrTarget>, from) }
     }
 
     /// Constructs this pointer from a `NonNull`.
@@ -899,22 +853,25 @@ pub mod immutable_ref {
     /// # Safety
     ///
     /// `from` must be a non-dangling pointer from a call to `to_nonnull` or
-    /// `to_raw_ptr` on an instance of `S` or a compatible pointer type.
+    /// `to_raw_ptr` on an instance of `T` or a compatible pointer type.
     ///
     /// # Example
     ///
     /// ```rust
-    /// use abi_stable::pointer_trait::{immutable_ref, IsReference};
+    /// use abi_stable::pointer_trait::immutable_ref;
     ///
     /// const X: &u32 = unsafe {
     ///     let nn = abi_stable::utils::ref_as_nonnull(&5u32);
-    ///     immutable_ref::from_nonnull(nn, IsReference::NEW)
+    ///     immutable_ref::from_nonnull(nn)
     /// };
     /// assert_eq!(*X, 5u32);
     /// ```
     ///
-    pub const unsafe fn from_nonnull<S, PT>(from: NonNull<PT>, _proof: IsReference<S, PT>) -> S {
-        unsafe { const_transmute!(NonNull<PT>, S, from) }
+    pub const unsafe fn from_nonnull<T>(from: NonNull<T::PtrTarget>) -> T
+    where
+        T: GetPointerKind<Kind = PK_Reference>,
+    {
+        unsafe { const_transmute!(NonNull<T::PtrTarget>, T, from) }
     }
 
     /// Converts the `from` pointer to a raw pointer.
@@ -922,19 +879,22 @@ pub mod immutable_ref {
     /// # Example
     ///
     /// ```rust
-    /// use abi_stable::pointer_trait::{immutable_ref, IsReference};
+    /// use abi_stable::pointer_trait::immutable_ref;
     ///
     /// unsafe {
-    ///     const X: *const u32 = immutable_ref::to_raw_ptr(&8u32, IsReference::NEW);
+    ///     const X: *const u32 = immutable_ref::to_raw_ptr(&8u32);
     ///     assert_eq!(*X, 8u32);
     /// }
     /// ```
     ///
-    pub const fn to_raw_ptr<S, PT>(from: S, _proof: IsReference<S, PT>) -> *const PT {
-        unsafe { const_transmute!(S, *const PT, from) }
+    pub const fn to_raw_ptr<T>(from: T) -> *const T::PtrTarget
+    where
+        T: GetPointerKind<Kind = PK_Reference>,
+    {
+        unsafe { const_transmute!(T, *const T::PtrTarget, from) }
     }
 
-    /// Converts a raw pointer to an `S` pointer.
+    /// Converts a raw pointer to an `T` pointer.
     ///
     /// # Safety
     ///
@@ -944,20 +904,20 @@ pub mod immutable_ref {
     /// # Example
     ///
     /// ```rust
-    /// use abi_stable::pointer_trait::{immutable_ref, IsReference};
+    /// use abi_stable::pointer_trait::immutable_ref;
     ///
     /// unsafe {
     ///     const X: Option<&u8> = unsafe {
-    ///         immutable_ref::from_raw_ptr(&13u8 as *const u8, IsReference::NEW)
+    ///         immutable_ref::from_raw_ptr(&13u8 as *const u8)
     ///     };
     ///     assert_eq!(*X.unwrap(), 13u8);
     /// }
     /// ```
     ///
-    pub const unsafe fn from_raw_ptr<S, PT>(
-        from: *const PT,
-        _proof: IsReference<S, PT>,
-    ) -> Option<S> {
-        unsafe { const_transmute!(*const PT, Option<S>, from) }
+    pub const unsafe fn from_raw_ptr<T>(from: *const T::PtrTarget) -> Option<T>
+    where
+        T: GetPointerKind<Kind = PK_Reference>,
+    {
+        unsafe { const_transmute!(*const T::PtrTarget, Option<T>, from) }
     }
 }
