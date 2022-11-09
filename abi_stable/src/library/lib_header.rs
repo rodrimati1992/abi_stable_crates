@@ -2,7 +2,7 @@ use super::*;
 
 use crate::{
     prefix_type::{PrefixRef, PrefixRefTrait},
-    sabi_types::{Constructor, RRef},
+    sabi_types::RRef,
 };
 
 /// Used to check the layout of modules returned by module-loading functions
@@ -15,10 +15,10 @@ use crate::{
 #[derive(StableAbi)]
 pub struct LibHeader {
     header: AbiHeader,
-    root_mod_consts: ErasedRootModuleConsts,
+    root_mod_consts: RootModuleConsts,
     init_globals_with: InitGlobalsWith,
     module: LateStaticRef<PrefixRef<ErasedPrefix>>,
-    constructor: Constructor<RootModuleResult>,
+    constructor: extern "C" fn() -> RootModuleResult,
 }
 
 impl LibHeader {
@@ -26,15 +26,21 @@ impl LibHeader {
     ///
     /// # Safety
     ///
-    /// The `PrefixRef<ErasedPrefix>` returned by the function that
-    /// `constructor ` wraps must be have been transmuted from a `PrefixRef<M>`.
+    /// The `PrefixRef<ErasedPrefix>` returned by the `constructor` function
+    /// must have been transmuted from a `PrefixRef<M>`.
     pub const unsafe fn from_constructor<M>(
-        constructor: Constructor<RootModuleResult>,
-        root_mod_consts: RootModuleConsts<M>,
-    ) -> Self {
+        constructor: extern "C" fn() -> RootModuleResult,
+        check_layout: CheckTypeLayout,
+    ) -> Self
+    where
+        M: RootModule,
+    {
         Self {
             header: AbiHeader::VALUE,
-            root_mod_consts: root_mod_consts.erased(),
+            root_mod_consts: match check_layout {
+                CheckTypeLayout::Yes => M::CONSTANTS,
+                CheckTypeLayout::No => M::CONSTANTS_NO_ABI_INFO,
+            },
             init_globals_with: INIT_GLOBALS_WITH,
             module: LateStaticRef::new(),
             constructor,
@@ -48,18 +54,18 @@ impl LibHeader {
     {
         Self {
             header: AbiHeader::VALUE,
-            root_mod_consts: T::CONSTANTS.erased(),
+            root_mod_consts: T::CONSTANTS,
             init_globals_with: INIT_GLOBALS_WITH,
             module: {
                 let erased = unsafe { value.to_prefix_ref().cast::<ErasedPrefix>() };
                 LateStaticRef::from_prefixref(erased)
             },
-            constructor: GetAbortingConstructor::ABORTING_CONSTRUCTOR,
+            constructor: GetAbortingConstructor::aborting_constructor,
         }
     }
 
     /// All the important constants of a `RootModule` for some erased type.
-    pub const fn root_mod_consts(&self) -> &ErasedRootModuleConsts {
+    pub const fn root_mod_consts(&self) -> &RootModuleConsts {
         &self.root_mod_consts
     }
 
@@ -278,7 +284,7 @@ impl LibHeader {
     {
         let reff = self
             .module
-            .try_init(|| (self.constructor.0)().into_result())
+            .try_init(|| (self.constructor)().into_result())
             .map_err(|mut err| {
                 // Making sure that the error doesn't contain references into
                 // the unloaded library.
@@ -297,8 +303,6 @@ impl LibHeader {
 struct GetAbortingConstructor<T>(T);
 
 impl<T> GetAbortingConstructor<T> {
-    const ABORTING_CONSTRUCTOR: Constructor<T> = Constructor(Self::aborting_constructor);
-
     extern "C" fn aborting_constructor() -> T {
         extern_fn_panic_handling! {
             panic!(

@@ -68,7 +68,7 @@ pub use self::{
     raw_library::RawLibrary,
     root_mod_trait::{
         abi_header_from_path, abi_header_from_raw_library, lib_header_from_path,
-        lib_header_from_raw_library, ErasedRootModuleConsts, RootModule, RootModuleConsts,
+        lib_header_from_raw_library, RootModule, RootModuleConsts,
     },
 };
 
@@ -93,6 +93,17 @@ pub enum LibraryPath<'a> {
     FullPath(&'a Path),
     /// The path to the directory that contains the dynamic library.
     Directory(&'a Path),
+}
+
+//////////////////////////////////////////////////////////////////////
+
+/// Tells [`LibHeader::from_constructor`] whether to
+/// include the layout of the root module for checking it when loaded.
+pub enum CheckTypeLayout {
+    /// Include the layout of the root module
+    Yes,
+    /// Exclude the layout of the root module
+    No,
 }
 
 //////////////////////////////////////////////////////////////////////

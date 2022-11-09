@@ -32,11 +32,11 @@ fn export_root_module_inner(mut input: ItemFn) -> Result<TokenStream2, syn::Erro
         found_unsafe_no_layout_constant = found_unsafe_no_layout_constant || is_it;
         !is_it
     });
-    let assoc_constant = Ident::new(
+    let check_ty_layout_variant = Ident::new(
         if found_unsafe_no_layout_constant {
-            "CONSTANTS_NO_ABI_INFO"
+            "No"
         } else {
-            "CONSTANTS"
+            "Yes"
         },
         Span::call_site(),
     );
@@ -64,9 +64,9 @@ fn export_root_module_inner(mut input: ItemFn) -> Result<TokenStream2, syn::Erro
 
             type __SABI_Module = <#ret_ty as ::abi_stable::library::IntoRootModuleResult>::Module;
             unsafe{
-                ::abi_stable::library::LibHeader::from_constructor(
-                    ::abi_stable::sabi_types::Constructor(_sabi_erased_module),
-                    <__SABI_Module as ::abi_stable::library::RootModule>::#assoc_constant,
+                ::abi_stable::library::LibHeader::from_constructor::<__SABI_Module>(
+                    _sabi_erased_module,
+                    ::abi_stable::library::CheckTypeLayout::#check_ty_layout_variant,
                 )
             }
         };
@@ -84,14 +84,14 @@ mod tests {
                 r##"
                     pub fn hello()->RString{}
                 "##,
-                "RootModule>::CONSTANTS",
+                "CheckTypeLayout::Yes",
             ),
             (
                 r##"
                     #[unsafe_no_layout_constant]
                     pub fn hello()->RString{}
                 "##,
-                "RootModule>::CONSTANTS_NO_ABI_INFO",
+                "CheckTypeLayout::No",
             ),
             (
                 r##"
@@ -99,7 +99,7 @@ mod tests {
                     #[unsafe_no_layout_constant]
                     pub fn hello()->RString{}
                 "##,
-                "RootModule>::CONSTANTS_NO_ABI_INFO",
+                "CheckTypeLayout::No",
             ),
             (
                 r##"
@@ -108,7 +108,7 @@ mod tests {
                     #[hello]
                     pub fn hello()->RString{}
                 "##,
-                "RootModule>::CONSTANTS_NO_ABI_INFO",
+                "CheckTypeLayout::No",
             ),
             (
                 r##"
@@ -116,7 +116,7 @@ mod tests {
                     #[hello]
                     pub fn hello()->RString{}
                 "##,
-                "RootModule>::CONSTANTS_NO_ABI_INFO",
+                "CheckTypeLayout::No",
             ),
         ];
 
