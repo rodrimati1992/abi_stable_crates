@@ -726,14 +726,11 @@ macro_rules! make_shared_vars{
             };
 
             const SHARED_VARS: &'static $crate::type_layout::SharedVars = {
-                #[allow(unused_imports)]
-                use $crate::abi_stability::stable_abi_trait::GetTypeLayoutCtor;
-
                 &$crate::type_layout::SharedVars::new(
                     $mono_shared_vars,
                     rslice![
-                        $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )?
-                        $( $( GetTypeLayoutCtor::<$prefix_ty_layout>::PREFIX_STABLE_ABI,)* )?
+                        $( $( $crate::pmr::get_type_layout::<$ty_layout>,)* )?
+                        $( $( $crate::pmr::get_prefix_field_type_layout::<$prefix_ty_layout>,)* )?
                     ],
                     $crate::std_types::RSlice::from_slice(Self::CONST_PARAM),
                 )

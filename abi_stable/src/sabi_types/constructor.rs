@@ -90,6 +90,13 @@ impl<T> Constructor<T> {
     pub fn get(self) -> T {
         (self.0)()
     }
+
+    pub(crate) const fn wrap_slice(slice: &[extern "C" fn() -> T]) -> &[Constructor<T>] {
+        unsafe { &*(slice as *const [extern "C" fn() -> T] as *const [Constructor<T>]) }
+    }
+    pub(crate) const fn unwrap_slice(slice: &[Constructor<T>]) -> &[extern "C" fn() -> T] {
+        unsafe { &*(slice as *const [Constructor<T>] as *const [extern "C" fn() -> T]) }
+    }
 }
 
 impl<T> Eq for Constructor<T> where T: Eq {}

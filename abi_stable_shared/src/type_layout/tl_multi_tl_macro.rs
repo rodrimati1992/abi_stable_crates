@@ -4,9 +4,9 @@ macro_rules! declare_multi_tl_types {(
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
 
-    /// A range of indices into a slice of `TypeLayoutCtor`
+    /// A range of indices into a slice of type layouts
     /// which can store up to five indices inline,
-    /// requiring additional `TypeLayoutCtor` to be stored contiguously after the
+    /// requiring additional layouts to be stored contiguously after the
     /// fourth one in the slice.
     #[repr(C)]
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
@@ -82,13 +82,13 @@ macro_rules! declare_multi_tl_types {(
             |((self.bits1 as u64) << 32)
         }
 
-        /// The amount of `TypeLayoutCtor` in this range.
+        /// The amount of type layouts in this range.
         #[inline]
         pub const fn len(&self) -> usize {
             (self.bits0 & Self::LEN_MASK) as usize
         }
 
-        /// Whether this range of `TypeLayoutCtor` is empty.
+        /// Whether this range of type layouts is empty.
         #[inline]
         pub const fn is_empty(&self) -> bool {
             self.len() == 0

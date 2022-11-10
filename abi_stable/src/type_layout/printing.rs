@@ -34,13 +34,13 @@ fn traverse_type_layouts_inner<'a, F>(
     if state.visited.replace(layout.get_utypeid()).is_none() {
         callback(layout);
 
-        for layout in layout.shared_vars.type_layouts() {
-            traverse_type_layouts_inner(layout.get(), state, callback);
+        for nested_layout in layout.shared_vars.type_layouts() {
+            traverse_type_layouts_inner(nested_layout(), state, callback);
         }
 
         if let Some(extra_checks) = layout.extra_checks() {
-            for layout in &*extra_checks.nested_type_layouts() {
-                traverse_type_layouts_inner(layout, state, callback);
+            for nested_layout in &*extra_checks.nested_type_layouts() {
+                traverse_type_layouts_inner(nested_layout, state, callback);
             }
         }
     }

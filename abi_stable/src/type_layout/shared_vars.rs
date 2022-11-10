@@ -15,7 +15,7 @@ use std::{
 #[derive(StableAbi)]
 pub struct SharedVars {
     mono: &'static MonoSharedVars,
-    type_layouts: *const TypeLayoutCtor,
+    type_layouts: *const extern "C" fn() -> &'static TypeLayout,
     constants: *const ConstGeneric,
     type_layouts_len: u16,
     constants_len: u16,
@@ -28,7 +28,7 @@ impl SharedVars {
     /// Constructs a `SharedVars`.
     pub const fn new(
         mono: &'static MonoSharedVars,
-        type_layouts: RSlice<'static, TypeLayoutCtor>,
+        type_layouts: RSlice<'static, extern "C" fn() -> &'static TypeLayout>,
         constants: RSlice<'static, ConstGeneric>,
     ) -> Self {
         Self {
@@ -53,13 +53,13 @@ impl SharedVars {
     pub fn lifetime_indices(&self) -> &'static [LifetimeIndexPair] {
         self.mono.lifetime_indices()
     }
-    /// Many `TypeLayoutCtor`s that types in the `type_layout`
+    /// Many type layouts that types in the `type_layout`
     /// module reference.
     ///
     /// The `StableAbi` derive macro deduplicates identical looking types
     /// when constructing SharedVars.
     #[inline]
-    pub fn type_layouts(&self) -> &'static [TypeLayoutCtor] {
+    pub fn type_layouts(&self) -> &'static [extern "C" fn() -> &'static TypeLayout] {
         unsafe { slice::from_raw_parts(self.type_layouts, self.type_layouts_len as usize) }
     }
     /// Many constants that types in the `type_layout` module contain ranges into.

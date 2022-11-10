@@ -13,7 +13,7 @@ use core_extensions::{matches, StringExt};
 use crate::{
     abi_stability::{
         extra_checks::{ExtraChecksStaticRef, StoredExtraChecks},
-        stable_abi_trait::{AbiConsts, TypeLayoutCtor},
+        stable_abi_trait::AbiConsts,
     },
     const_utils::log2_usize,
     prefix_type::{FieldAccessibility, FieldConditionality},

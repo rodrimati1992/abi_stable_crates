@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::abi_stability::ConstGeneric;
+use crate::{abi_stability::ConstGeneric, sabi_types::Constructor};
 
 /////////////////////////////////////////////////////
 
@@ -97,7 +97,7 @@ impl CompGenericParams {
     pub fn expand(self, shared_vars: &'static SharedVars) -> GenericParams {
         GenericParams {
             lifetime: self.lifetime,
-            types: &shared_vars.type_layouts()[self.types.to_range()],
+            types: Constructor::wrap_slice(&shared_vars.type_layouts()[self.types.to_range()]),
             consts: &shared_vars.constants()[self.consts.to_range()],
             lifetime_count: self.lifetime_count,
         }
@@ -110,7 +110,7 @@ pub struct GenericParams {
     /// The names of the lifetimes declared by a type.
     pub(super) lifetime: NulStr<'static>,
     /// The type parameters of a type,getting them from the containing TypeLayout.
-    pub(super) types: &'static [TypeLayoutCtor],
+    pub(super) types: &'static [Constructor<&'static TypeLayout>],
     /// The const parameters of a type,getting them from the containing TypeLayout.
     pub(super) consts: &'static [ConstGeneric],
     pub(super) lifetime_count: u8,
@@ -131,8 +131,8 @@ impl GenericParams {
         self.lifetime_count as usize
     }
     /// The type parameters of the type.
-    pub fn type_params(&self) -> &'static [TypeLayoutCtor] {
-        self.types
+    pub fn type_params(&self) -> &'static [extern "C" fn() -> &'static TypeLayout] {
+        Constructor::unwrap_slice(self.types)
     }
     /// The const parameters of the type.
     pub fn const_params(&self) -> &'static [ConstGeneric] {

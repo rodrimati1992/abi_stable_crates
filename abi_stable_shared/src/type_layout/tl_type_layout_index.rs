@@ -3,7 +3,7 @@
 macro_rules! declare_type_layout_index {(
     attrs=[ $($extra_attrs:meta),* $(,)* ]
 ) => (
-    /// An index for a slice of `TypeLayoutCtor`.
+    /// An index for a slice of type layouts.
     #[repr(transparent)]
     #[derive(Debug, Copy, Clone)]
     $(#[$extra_attrs])*

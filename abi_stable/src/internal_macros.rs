@@ -2,11 +2,13 @@
 #[macro_export]
 macro_rules! _sabi_type_layouts {
     (internal; $ty:ty )=>{{
-        // let _: <$ty as $crate::StableAbi>::IsNonZeroType;
-        __GetTypeLayoutCtor::<$ty>::STABLE_ABI
+        $crate::pmr::get_type_layout::<$ty>
     }};
-    (internal; $ty:ty=$assoc_const:ident )=>{
-        __GetTypeLayoutCtor::<$ty>::$assoc_const
+    (internal; $ty:ty = SABI_OPAQUE_FIELD)=>{
+        $crate::pmr::__sabi_opaque_field_type_layout::<$ty>
+    };
+    (internal; $ty:ty = OPAQUE_FIELD)=>{
+        $crate::pmr::__opaque_field_type_layout::<$ty>
     };
     (
         $( $ty:ty $( = $assoc_const:ident )? ,)*

@@ -1,7 +1,8 @@
 use super::*;
 
 use crate::{
-    abi_stability::stable_abi_trait::GetTypeLayoutCtor, std_types::RVec, traits::IntoReprC,
+    abi_stability::stable_abi_trait::get_type_layout, sabi_types::Constructor, std_types::RVec,
+    traits::IntoReprC,
 };
 
 use std::{
@@ -280,7 +281,9 @@ impl CompTLFunction {
             param_names: strings.slice(param_names),
             param_type_layouts: self.param_type_layouts.expand(type_layouts),
             paramret_lifetime_indices: self.paramret_lifetime_range.slicing(lifetime_indices),
-            return_type_layout: type_layouts.get(self.return_type_layout as usize).cloned(),
+            return_type_layout: type_layouts
+                .get(self.return_type_layout as usize)
+                .map(|fnp| Constructor(*fnp)),
             fn_qualifs: self.fn_qualifs,
         }
     }
@@ -311,7 +314,7 @@ pub struct TLFunction {
     pub paramret_lifetime_indices: LifetimeArrayOrSlice<'static>,
 
     /// The return type of the function.
-    pub return_type_layout: Option<TypeLayoutCtor>,
+    return_type_layout: Option<Constructor<&'static TypeLayout>>,
 
     /// The function qualifiers
     pub fn_qualifs: TLFunctionQualifiers,
@@ -347,12 +350,24 @@ impl TLFunction {
     }
 
     pub(crate) fn get_return(&self) -> TLField {
-        const UNIT_GET_ABI_INFO: TypeLayoutCtor = GetTypeLayoutCtor::<()>::STABLE_ABI;
+        const UNIT_GET_ABI_INFO: extern "C" fn() -> &'static TypeLayout = get_type_layout::<()>;
+
         TLField::new(
             rstr!("__returns"),
-            self.return_type_layout.unwrap_or(UNIT_GET_ABI_INFO),
+            match self.return_type_layout {
+                Some(Constructor(x)) => x,
+                None => UNIT_GET_ABI_INFO,
+            },
             *self.shared_vars,
         )
+    }
+
+    /// Gets the type layout of the return type
+    pub const fn return_type_layout(&self) -> Option<extern "C" fn() -> &'static TypeLayout> {
+        match self.return_type_layout {
+            Some(x) => Some(x.0),
+            None => None,
+        }
     }
 
     /// Gets the parameters and return types

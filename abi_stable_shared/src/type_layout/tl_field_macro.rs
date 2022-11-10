@@ -63,7 +63,7 @@ macro_rules! declare_comp_tl_field {(
         }
 
         /// Gets the index of the type layout of the field in
-        /// the `TypeLayoutCtor` slice inside
+        /// the slice of type layouts inside
         /// the `SharedVars` field of the `TypeLayout` that contains this.
         #[inline]
         pub const fn type_layout_index(&self)-> usize {

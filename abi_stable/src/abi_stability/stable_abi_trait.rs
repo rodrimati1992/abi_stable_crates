@@ -127,35 +127,6 @@ impl AbiConsts {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Getter for the TypeLayout of some type,wraps an `extern "C" fn() -> &'static TypeLayout`.
-pub type TypeLayoutCtor = Constructor<&'static TypeLayout>;
-
-// pub unsafe trait GetTypeLayoutCtor<B> {
-
-#[doc(hidden)]
-pub struct GetTypeLayoutCtor<T>(T);
-
-impl<T> GetTypeLayoutCtor<T>
-where
-    T: StableAbi,
-{
-    pub const STABLE_ABI: TypeLayoutCtor = Constructor(get_type_layout::<T>);
-
-    pub const SABI_OPAQUE_FIELD: TypeLayoutCtor =
-        Constructor(get_type_layout::<UnsafeOpaqueField<T>>);
-}
-
-impl<T> GetTypeLayoutCtor<T>
-where
-    T: PrefixStableAbi,
-{
-    pub const PREFIX_STABLE_ABI: TypeLayoutCtor = Constructor(get_prefix_field_type_layout::<T>);
-}
-
-impl<T> GetTypeLayoutCtor<T> {
-    pub const OPAQUE_FIELD: TypeLayoutCtor = Constructor(get_type_layout::<UnsafeOpaqueField<T>>);
-}
-
 /// Retrieves the TypeLayout of `T: StableAbi`,
 pub extern "C" fn get_type_layout<T>() -> &'static TypeLayout
 where
@@ -170,6 +141,18 @@ where
     T: PrefixStableAbi,
 {
     <T as PrefixStableAbi>::LAYOUT
+}
+
+#[doc(hidden)]
+pub extern "C" fn __sabi_opaque_field_type_layout<T>() -> &'static TypeLayout
+where
+    T: StableAbi,
+{
+    <UnsafeOpaqueField<T> as StableAbi>::LAYOUT
+}
+#[doc(hidden)]
+pub extern "C" fn __opaque_field_type_layout<T>() -> &'static TypeLayout {
+    <UnsafeOpaqueField<T> as StableAbi>::LAYOUT
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1401,12 +1384,15 @@ unsafe impl StableAbi for unsafe extern "C" fn() {
     const LAYOUT: &'static TypeLayout = empty_extern_fn_layout!(unsafe extern "C" fn());
 }
 
-/// The TypeLayoutCtor of an `unsafe extern "C" fn()`
-pub const UNSAFE_EXTERN_FN_LAYOUT: TypeLayoutCtor =
-    GetTypeLayoutCtor::<unsafe extern "C" fn()>::STABLE_ABI;
+/// A function that returns the TypeLayout of an `unsafe extern "C" fn()`
+#[doc(hidden)]
+pub const UNSAFE_EXTERN_FN_LAYOUT: extern "C" fn() -> &'static TypeLayout =
+    get_type_layout::<unsafe extern "C" fn()>;
 
-/// The TypeLayoutCtor of an `extern "C" fn()`
-pub const EXTERN_FN_LAYOUT: TypeLayoutCtor = GetTypeLayoutCtor::<extern "C" fn()>::STABLE_ABI;
+/// A function that returns the TypeLayout of an `extern "C" fn()`
+#[doc(hidden)]
+pub const EXTERN_FN_LAYOUT: extern "C" fn() -> &'static TypeLayout =
+    get_type_layout::<extern "C" fn()>;
 
 /////////////
 
