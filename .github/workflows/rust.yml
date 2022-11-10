@@ -21,7 +21,7 @@ jobs:
           - rust: beta
             os: ubuntu-latest
 
-          - rust: 1.57.0
+          - rust: 1.61.0
             os: ubuntu-latest
 
     steps:

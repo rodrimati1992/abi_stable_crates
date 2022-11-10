@@ -25,7 +25,7 @@ pub use self::{
     traits::{
         DeserializeEnum, EnumInfo, GetEnumInfo, GetNonExhaustive, SerializeEnum, ValidDiscriminant,
     },
-    vtable::{GetVTable, NonExhaustiveVtable, NonExhaustiveVtable_Ref},
+    vtable::GetVTable,
 };
 
 pub(crate) use self::traits::GetSerializeEnumProxy;
@@ -50,6 +50,14 @@ pub struct AssertCsArgs {
     pub enum_ty: &'static str,
     /// The stringified type name of the storage.
     pub storage_ty: &'static str,
+}
+
+impl AssertCsArgs {
+    /// Constant where both types are unknown.
+    pub const UNKNOWN: Self = Self {
+        enum_ty: "<unknown>",
+        storage_ty: "<unknown>",
+    };
 }
 
 /// Asserts that the size and alignment of an enum aree valid for this storage.

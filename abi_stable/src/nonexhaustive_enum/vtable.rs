@@ -59,10 +59,7 @@ pub trait GetVTable<S, I>: Sized {
     not_stableabi(E,S,I),
     missing_field(default),
     kind(Prefix(prefix_ref_docs = "\
-        A reference to the vtable of a non-exhaustive enum,\n\
-        the second argument of [`NonExhaustive::const_new`].\n\
-        \n\
-        This can be instantiated with [`GetVTable::VTABLE`].\n\
+        A reference to the vtable of a non-exhaustive enum,
     ")),
     with_field_indices,
     //debug_print,

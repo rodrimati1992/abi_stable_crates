@@ -203,9 +203,6 @@ impl<T, Inline> ScratchSpace<T, Inline> {
     const fn assert_fits_within_storage() {
         use crate::nonexhaustive_enum::AssertCsArgs;
 
-        crate::nonexhaustive_enum::assert_correct_storage::<T, Inline>(AssertCsArgs {
-            enum_ty: "<unknown>",
-            storage_ty: "<unknown>",
-        })
+        crate::nonexhaustive_enum::assert_correct_storage::<T, Inline>(AssertCsArgs::UNKNOWN)
     }
 }

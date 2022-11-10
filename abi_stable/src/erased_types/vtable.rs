@@ -27,8 +27,6 @@ use crate::{
     StableAbi,
 };
 
-use core_extensions::TypeIdentity;
-
 /// Returns the vtable used by DynTrait to do dynamic dispatch.
 pub trait GetVtable<'borr, This, ErasedPtr, OrigPtr, I: InterfaceBound> {
     #[doc(hidden)]
@@ -263,10 +261,10 @@ macro_rules! declare_meta_vtable {
                 const FIELD:$option_ty<AnyFieldTy>=$none_constr;
             }
 
-            impl<'borr,FieldTy,$value,$erased_ptr,$orig_ptr,$interf,$($impl_params)*>
+            impl<'borr,$value,$erased_ptr,$orig_ptr,$interf,$($impl_params)*>
                 VTableFieldValue<
                     'borr,
-                    $option_ty<FieldTy>,
+                    $option_ty<$field_ty>,
                     $value,
                     $erased_ptr,
                     $orig_ptr,
@@ -275,12 +273,10 @@ macro_rules! declare_meta_vtable {
             for Implemented<trait_marker::$selector>
             where
                 $interf:InterfaceBound,
-                $field_ty:TypeIdentity<Type=FieldTy>,
-                FieldTy:Copy,
                 $($where_clause)*
             {
-                const FIELD:$option_ty<FieldTy>=
-                    $some_constr(type_identity!($field_ty=>FieldTy;$field_value));
+                const FIELD:$option_ty<$field_ty>=
+                    $some_constr($field_value);
             }
         )*
 

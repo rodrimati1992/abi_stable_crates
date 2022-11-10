@@ -62,7 +62,7 @@ fn construct_deconstruct() {
     }
 
     construct_deconstruct_cases! {NonExhaustive::new()}
-    construct_deconstruct_cases! {NonExhaustiveFor::const_new(GetVTable::VTABLE)}
+    construct_deconstruct_cases! {NonExhaustiveFor::new()}
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn construct_panic() {
         ($enum_ty:ty) => {{
             type ET = $enum_ty;
             let runtime = <NE<ET>>::with_storage_and_interface(ET::A);
-            let const_ = <NE<ET>>::const_new(ET::B, GetVTable::VTABLE);
+            let const_ = <NE<ET>>::new(ET::B);
 
             assert_eq!(runtime, ET::A);
             assert_eq!(const_, ET::B);
@@ -86,7 +86,7 @@ fn construct_panic() {
         ($enum_ty:ty) => {{
             type ET = $enum_ty;
             must_panic(|| <NE<ET>>::with_storage_and_interface(ET::B)).unwrap();
-            must_panic(|| <NE<ET>>::const_new(ET::A, GetVTable::VTABLE)).unwrap();
+            must_panic(|| <NE<ET>>::new(ET::A)).unwrap();
         }};
     }
 
@@ -110,7 +110,7 @@ fn const_expr_size_align_test() {
     macro_rules! passing_ctor {
         ($enum_ty:ty) => {{
             type ET = $enum_ty;
-            let const_ = <NE<ET>>::const_new(ET::B, GetVTable::VTABLE);
+            let const_ = <NE<ET>>::new(ET::B);
             assert_eq!(const_, ET::B);
         }};
     }
@@ -118,7 +118,7 @@ fn const_expr_size_align_test() {
     macro_rules! failing_ctor {
         ($enum_ty:ty) => {{
             type ET = $enum_ty;
-            must_panic(|| <NE<ET>>::const_new(ET::A, GetVTable::VTABLE)).unwrap();
+            must_panic(|| <NE<ET>>::new(ET::A)).unwrap();
         }};
     }
 

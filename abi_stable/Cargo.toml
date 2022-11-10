@@ -71,7 +71,7 @@ features=[
     "iterators",
     "macro_utils",
     "self_ops",
-    "type_asserts", "type_identity", "type_level_bool",
+    "type_asserts", "type_level_bool",
     "void",
 ]
 version= "1.5.2"

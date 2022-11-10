@@ -1,10 +1,10 @@
 error[E0080]: evaluation of constant value failed
-   --> src/inline_storage.rs
-    |
-    |         Self::assert_fits_within_storage();
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |         |
-    |         the evaluated program panicked at '
+ --> src/inline_storage.rs
+  |
+  |         Self::assert_fits_within_storage();
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |         |
+  |         the evaluated program panicked at '
 The size of the storage is smaller than the contained type:
 enum_: "<unknown>"
 enum_size: 2
@@ -17,21 +17,24 @@ storage_alignment: 1
     |
    ::: src/nonexhaustive_enum/nonexhaustive.rs
     |
-    |             fill: ScratchSpace::<E, S>::new(value),
-    |                   -------------------------------- inside `NonExhaustive::<TooLarge, TooLarge_Storage, ()>::const_new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:331:19
+    |         NonExhaustive::with_storage_and_interface(value)
+    |         ------------------------------------------------ inside `NonExhaustive::<TooLarge, TooLarge_Storage, ()>::new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:232:9
+...
+    |         unsafe { NonExhaustive::with_vtable(value, E::VTABLE) }
+    |                  -------------------------------------------- inside `NonExhaustive::<TooLarge, TooLarge_Storage, ()>::with_storage_and_interface` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:273:18
     |
    ::: tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:19:34
     |
-19  | const _: () = { std::mem::forget(NEFor::const_new(<TooLarge>::Foo, GetVTable::VTABLE)); };
-    |                                  ---------------------------------------------------- inside `_` at $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:19:34
+19  | const _: () = { std::mem::forget(NEFor::new(<TooLarge>::Foo)); };
+    |                                  --------------------------- inside `_` at $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:19:34
 
 error[E0080]: evaluation of constant value failed
-   --> src/inline_storage.rs
-    |
-    |         Self::assert_fits_within_storage();
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |         |
-    |         the evaluated program panicked at '
+ --> src/inline_storage.rs
+  |
+  |         Self::assert_fits_within_storage();
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |         |
+  |         the evaluated program panicked at '
 The alignment of the storage is lower than the contained type:
 enum_: "<unknown>"
 enum_size: 16
@@ -44,21 +47,24 @@ storage_alignment: 1
     |
    ::: src/nonexhaustive_enum/nonexhaustive.rs
     |
-    |             fill: ScratchSpace::<E, S>::new(value),
-    |                   -------------------------------- inside `NonExhaustive::<Unaligned, Unaligned_Storage, ()>::const_new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:331:19
+    |         NonExhaustive::with_storage_and_interface(value)
+    |         ------------------------------------------------ inside `NonExhaustive::<Unaligned, Unaligned_Storage, ()>::new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:232:9
+...
+    |         unsafe { NonExhaustive::with_vtable(value, E::VTABLE) }
+    |                  -------------------------------------------- inside `NonExhaustive::<Unaligned, Unaligned_Storage, ()>::with_storage_and_interface` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:273:18
     |
    ::: tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:35:34
     |
-35  | const _: () = { std::mem::forget(NEFor::const_new(<Unaligned>::Foo, GetVTable::VTABLE)); };
-    |                                  ----------------------------------------------------- inside `_` at $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:35:34
+35  | const _: () = { std::mem::forget(NEFor::new(<Unaligned>::Foo)); };
+    |                                  ---------------------------- inside `_` at $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:35:34
 
 error[E0080]: evaluation of constant value failed
-   --> src/inline_storage.rs
-    |
-    |         Self::assert_fits_within_storage();
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |         |
-    |         the evaluated program panicked at '
+ --> src/inline_storage.rs
+  |
+  |         Self::assert_fits_within_storage();
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |         |
+  |         the evaluated program panicked at '
 The alignment and size of the storage is smaller than the contained type:
 enum_: "<unknown>"
 enum_size: 16
@@ -71,10 +77,13 @@ storage_alignment: 1
     |
    ::: src/nonexhaustive_enum/nonexhaustive.rs
     |
-    |             fill: ScratchSpace::<E, S>::new(value),
-    |                   -------------------------------- inside `NonExhaustive::<UnalignedAndTooLarge, UnalignedAndTooLarge_Storage, ()>::const_new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:331:19
+    |         NonExhaustive::with_storage_and_interface(value)
+    |         ------------------------------------------------ inside `NonExhaustive::<UnalignedAndTooLarge, UnalignedAndTooLarge_Storage, ()>::new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:232:9
+...
+    |         unsafe { NonExhaustive::with_vtable(value, E::VTABLE) }
+    |                  -------------------------------------------- inside `NonExhaustive::<UnalignedAndTooLarge, UnalignedAndTooLarge_Storage, ()>::with_storage_and_interface` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:273:18
     |
    ::: tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:50:34
     |
-50  | const _: () = { std::mem::forget(NEFor::const_new(<UnalignedAndTooLarge>::Foo, GetVTable::VTABLE)); };
-    |                                  ---------------------------------------------------------------- inside `_` at $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:50:34
+50  | const _: () = { std::mem::forget(NEFor::new(<UnalignedAndTooLarge>::Foo)); };
+    |                                  --------------------------------------- inside `_` at $DIR/tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:50:34

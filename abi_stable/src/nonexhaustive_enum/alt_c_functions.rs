@@ -2,7 +2,9 @@ use std::ptr;
 
 use crate::{
     marker_type::ErasedObject,
-    nonexhaustive_enum::{GetEnumInfo, NonExhaustive, NonExhaustiveVtable_Ref, SerializeEnum},
+    nonexhaustive_enum::{
+        vtable::NonExhaustiveVtable_Ref, GetEnumInfo, NonExhaustive, SerializeEnum,
+    },
     sabi_types::{RMut, RRef},
     std_types::{RBoxError, RCmpOrdering, ROption, RResult, RSome},
     traits::IntoReprC,

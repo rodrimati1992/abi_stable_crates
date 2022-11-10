@@ -15,8 +15,8 @@ use crate::{
     inline_storage::ScratchSpace,
     marker_type::ErasedObject,
     nonexhaustive_enum::{
-        vtable::NonExhaustiveVtable_Ref, DeserializeEnum, EnumInfo, GetEnumInfo, GetNonExhaustive,
-        GetVTable, SerializeEnum, ValidDiscriminant,
+        assert_correct_storage, vtable::NonExhaustiveVtable_Ref, AssertCsArgs, DeserializeEnum,
+        EnumInfo, GetEnumInfo, GetNonExhaustive, GetVTable, SerializeEnum, ValidDiscriminant,
     },
     pointer_trait::{CanTransmuteElement, TransmuteElement},
     sabi_types::{RMut, RRef},
@@ -62,7 +62,9 @@ mod tests;
 /// determining which traits are required when constructing `NonExhaustive<>`
 /// and which are available afterwards.
 ///
-/// ### Example
+/// # Examples
+///
+/// ### Error type
 ///
 /// Say that we define an error type for a library.
 ///
@@ -145,6 +147,44 @@ mod tests;
 /// (using NonExhaustive::as_enum/as_enum_mut/into_enum)
 /// with the 1.0 version of `Error` they would get an `Err(..)` back.
 ///
+///
+/// ### Static enums
+///
+/// This example demonstrates putting a nonexhaustive enum in a static.
+///
+/// ```rust
+/// use abi_stable::{
+///     nonexhaustive_enum::{NonExhaustive, NonExhaustiveFor, GetVTable},
+///     std_types::RString,
+///     rstr, StableAbi,
+/// };
+///
+/// static AA: NonExhaustiveFor<Foo> = NonExhaustive::new(Foo::A);
+///
+/// static BB: NonExhaustiveFor<Foo> = NonExhaustive::new(Foo::B(2));
+///
+/// let cc = NonExhaustive::new(Foo::C {name: "hello".into()});
+///
+/// assert_eq!(AA, Foo::A);
+/// assert_eq!(BB, Foo::B(2));
+/// assert_eq!(cc, Foo::C {name: RString::from("hello")});
+///
+///
+/// #[repr(u8)]
+/// #[derive(StableAbi, Debug, PartialEq, Eq)]
+/// #[sabi(kind(WithNonExhaustive(
+///     size = 64,
+///     traits(Debug, PartialEq, Eq)
+/// )))]
+/// pub enum Foo {
+///     A,
+///     B(i8),
+///     C { name: RString },
+/// }
+///
+/// ```
+///
+///
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
@@ -184,7 +224,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     ///
     /// This panics if the storage has an alignment or size smaller than that of `E`.
     #[inline]
-    pub fn new(value: E) -> Self
+    pub const fn new(value: E) -> Self
     where
         E: GetVTable<S, I> + GetEnumInfo<DefaultStorage = S, DefaultInterface = I>,
     {
@@ -198,7 +238,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     ///
     /// This panics if the storage has an alignment or size smaller than that of `E`.
     #[inline]
-    pub fn with_interface(value: E) -> Self
+    pub const fn with_interface(value: E) -> Self
     where
         E: GetVTable<S, I> + GetEnumInfo<DefaultStorage = S>,
     {
@@ -212,7 +252,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     ///
     /// This panics if the storage has an alignment or size smaller than that of `E`.
     #[inline]
-    pub fn with_storage(value: E) -> Self
+    pub const fn with_storage(value: E) -> Self
     where
         E: GetVTable<S, I> + GetEnumInfo<DefaultInterface = I>,
     {
@@ -224,109 +264,21 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     /// # Panic
     ///
     /// This panics if the storage has an alignment or size smaller than that of `E`.
-    pub fn with_storage_and_interface(value: E) -> Self
+    #[inline]
+    pub const fn with_storage_and_interface(value: E) -> Self
     where
         E: GetVTable<S, I>,
     {
         unsafe { NonExhaustive::with_vtable(value, E::VTABLE) }
     }
-    pub(super) unsafe fn with_vtable(value: E, vtable: NonExhaustiveVtable_Ref<E, S, I>) -> Self {
-        Self::assert_fits_within_storage();
 
-        Self {
-            fill: ScratchSpace::<E, S>::new(value),
-            vtable,
-            _marker: PhantomData,
-        }
-    }
-
-    /// Checks that the alignment of `E` is correct,returning `true` if it is.
-    pub fn check_alignment() -> bool {
-        let align_enum = std::mem::align_of::<E>();
-        let align_storage = std::mem::align_of::<S>();
-        align_enum <= align_storage
-    }
-
-    /// Checks that the size of `E` is correct,returning `true` if it is.
-    pub fn check_size() -> bool {
-        let size_enum = std::mem::size_of::<E>();
-        let size_storage = std::mem::size_of::<S>();
-        size_enum <= size_storage
-    }
-
-    /// Asserts that `E` fits within `S`,with the correct alignment and size.
-    pub fn assert_fits_within_storage() {
-        let align_enum = std::mem::align_of::<E>();
-        let align_storage = std::mem::align_of::<S>();
-        assert!(
-            Self::check_alignment(),
-            "The alignment of the storage is lower than the enum:\n\t{} < {}",
-            align_storage,
-            align_enum,
-        );
-        let size_enum = std::mem::size_of::<E>();
-        let size_storage = std::mem::size_of::<S>();
-        assert!(
-            Self::check_size(),
-            "The size of the storage is smaller than the enum:\n\t{} < {}",
-            size_storage,
-            size_enum,
-        );
-    }
-}
-
-impl<E, S, I> NonExhaustive<E, S, I> {
-    /// Constructs a `NonExhaustive` from `value`.
-    ///
-    /// # Panic
-    ///
-    /// This panics if the storage has an alignment or size smaller than that of `E`.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use abi_stable::{
-    ///     nonexhaustive_enum::{NonExhaustiveFor, GetVTable},
-    ///     std_types::RString,
-    ///     rstr, StableAbi,
-    /// };
-    ///
-    /// type NEFoo = NonExhaustiveFor<Foo>;
-    ///
-    /// static AA: NEFoo = NEFoo::const_new(Foo::A, GetVTable::VTABLE);
-    ///
-    /// static BB: NEFoo = NEFoo::const_new(Foo::B(2), GetVTable::VTABLE);
-    ///
-    /// // Both `NonExhaustiveFor` and `NEFoo` work here.
-    /// // Note that `ǸonExhaustive` doesn't work,
-    /// // because the `S`(storage) and `I`(interface) type parameters are unconstrained.
-    /// let cc = NonExhaustiveFor::const_new(
-    ///     Foo::C {name: "hello".into()},
-    ///     GetVTable::VTABLE
-    /// );
-    ///
-    /// assert_eq!(AA, Foo::A);
-    /// assert_eq!(BB, Foo::B(2));
-    /// assert_eq!(cc, Foo::C {name: RString::from("hello")});
-    ///
-    ///
-    /// #[repr(u8)]
-    /// #[derive(StableAbi, Debug, PartialEq, Eq)]
-    /// #[sabi(kind(WithNonExhaustive(
-    ///     size = 64,
-    ///     traits(Debug, PartialEq, Eq)
-    /// )))]
-    /// pub enum Foo {
-    ///     A,
-    ///     B(i8),
-    ///     C { name: RString },
-    /// }
-    ///
-    ///
-    ///
-    /// ```
-    #[inline]
-    pub const fn const_new(value: E, vtable: NonExhaustiveVtable_Ref<E, S, I>) -> Self {
+    #[track_caller]
+    pub(super) const unsafe fn with_vtable(
+        value: E,
+        vtable: NonExhaustiveVtable_Ref<E, S, I>,
+    ) -> Self {
+        // `ScratchSpace::new` is what asserts that the enum is
+        // the correct size and alignment
         Self {
             fill: ScratchSpace::<E, S>::new(value),
             vtable,
@@ -477,7 +429,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     ///
     ///
     pub unsafe fn transmute_enum<F>(self) -> NonExhaustive<F, S, I> {
-        NonExhaustive::<F, S, I>::assert_fits_within_storage();
+        assert_correct_storage::<F, S>(AssertCsArgs::UNKNOWN);
         unsafe { transmute_ignore_size(self) }
     }
 
@@ -492,7 +444,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     ///
     /// This panics if the storage has an alignment or size smaller than that of `F`.
     pub unsafe fn transmute_enum_ref<F>(&self) -> &NonExhaustive<F, S, I> {
-        NonExhaustive::<F, S, I>::assert_fits_within_storage();
+        assert_correct_storage::<F, S>(AssertCsArgs::UNKNOWN);
         unsafe { &*(self as *const Self as *const _) }
     }
 
@@ -507,7 +459,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     ///
     /// This panics if the storage has an alignment or size smaller than that of `F`.
     pub unsafe fn transmute_enum_mut<F>(&mut self) -> &mut NonExhaustive<F, S, I> {
-        NonExhaustive::<F, S, I>::assert_fits_within_storage();
+        assert_correct_storage::<F, S>(AssertCsArgs::UNKNOWN);
         unsafe { &mut *(self as *mut Self as *mut _) }
     }
 
@@ -529,7 +481,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
         P: Deref<Target = Self>,
         P: CanTransmuteElement<NonExhaustive<F, S, I>>,
     {
-        NonExhaustive::<F, S, I>::assert_fits_within_storage();
+        assert_correct_storage::<F, S>(AssertCsArgs::UNKNOWN);
         unsafe { this.transmute_element::<NonExhaustive<F, S, I>>() }
     }
 

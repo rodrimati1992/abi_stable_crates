@@ -1,5 +1,5 @@
 use abi_stable::{
-    nonexhaustive_enum::{NonExhaustiveFor as NEFor, GetVTable},
+    nonexhaustive_enum::NonExhaustiveFor as NEFor,
     StableAbi,
 };
 
@@ -16,7 +16,7 @@ pub enum TooLarge<T = u8> {
     Baz(T),
 }
 
-const _: () = { std::mem::forget(NEFor::const_new(<TooLarge>::Foo, GetVTable::VTABLE)); };
+const _: () = { std::mem::forget(NEFor::new(<TooLarge>::Foo)); };
 
 
 #[repr(u8)]
@@ -32,7 +32,7 @@ pub enum Unaligned<T = u64> {
     Baz(T),
 }
 
-const _: () = { std::mem::forget(NEFor::const_new(<Unaligned>::Foo, GetVTable::VTABLE)); };
+const _: () = { std::mem::forget(NEFor::new(<Unaligned>::Foo)); };
 
 #[repr(u8)]
 #[derive(StableAbi)]
@@ -47,7 +47,7 @@ pub enum UnalignedAndTooLarge<T = u64> {
     Baz(T),
 }
 
-const _: () = { std::mem::forget(NEFor::const_new(<UnalignedAndTooLarge>::Foo, GetVTable::VTABLE)); };
+const _: () = { std::mem::forget(NEFor::new(<UnalignedAndTooLarge>::Foo)); };
 
 const fn one() -> usize {
     1
