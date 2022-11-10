@@ -49,8 +49,7 @@ fn instantiate_root_module() -> TextOpsMod_Ref {
                 deserialize_return_value,
             };
 
-            const S: WithMetadata<DeserializerMod> =
-                WithMetadata::new(PrefixTypeTrait::METADATA, MOD_);
+            const S: WithMetadata<DeserializerMod> = WithMetadata::new(MOD_);
 
             DeserializerMod_Ref(S.static_as_prefix())
         },

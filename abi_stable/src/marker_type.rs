@@ -130,7 +130,7 @@ unsafe impl PrefixStableAbi for ErasedPrefix {
 ///
 pub struct UnsafeIgnoredType<T: ?Sized> {
     /// This field must be public to promise (for semver) that a repr change would be a breaking
-    /// change (see https://github.com/rust-lang/rust/issues/78586), which is important as this is
+    /// change (see <https://github.com/rust-lang/rust/issues/78586>), which is important as this is
     /// used as a zero-sized type in `repr(transparent)` structs.
     pub _inner: PhantomData<T>,
 }

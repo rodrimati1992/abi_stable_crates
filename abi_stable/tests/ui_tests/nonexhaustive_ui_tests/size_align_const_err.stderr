@@ -18,10 +18,10 @@ storage_alignment: 1
    ::: src/nonexhaustive_enum/nonexhaustive.rs
     |
     |         NonExhaustive::with_storage_and_interface(value)
-    |         ------------------------------------------------ inside `NonExhaustive::<TooLarge, TooLarge_Storage, ()>::new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:232:9
+    |         ------------------------------------------------ inside `NonExhaustive::<TooLarge, TooLarge_Storage, ()>::new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:231:9
 ...
     |         unsafe { NonExhaustive::with_vtable(value, E::VTABLE) }
-    |                  -------------------------------------------- inside `NonExhaustive::<TooLarge, TooLarge_Storage, ()>::with_storage_and_interface` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:273:18
+    |                  -------------------------------------------- inside `NonExhaustive::<TooLarge, TooLarge_Storage, ()>::with_storage_and_interface` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:272:18
     |
    ::: tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:19:34
     |
@@ -48,10 +48,10 @@ storage_alignment: 1
    ::: src/nonexhaustive_enum/nonexhaustive.rs
     |
     |         NonExhaustive::with_storage_and_interface(value)
-    |         ------------------------------------------------ inside `NonExhaustive::<Unaligned, Unaligned_Storage, ()>::new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:232:9
+    |         ------------------------------------------------ inside `NonExhaustive::<Unaligned, Unaligned_Storage, ()>::new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:231:9
 ...
     |         unsafe { NonExhaustive::with_vtable(value, E::VTABLE) }
-    |                  -------------------------------------------- inside `NonExhaustive::<Unaligned, Unaligned_Storage, ()>::with_storage_and_interface` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:273:18
+    |                  -------------------------------------------- inside `NonExhaustive::<Unaligned, Unaligned_Storage, ()>::with_storage_and_interface` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:272:18
     |
    ::: tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:35:34
     |
@@ -78,10 +78,10 @@ storage_alignment: 1
    ::: src/nonexhaustive_enum/nonexhaustive.rs
     |
     |         NonExhaustive::with_storage_and_interface(value)
-    |         ------------------------------------------------ inside `NonExhaustive::<UnalignedAndTooLarge, UnalignedAndTooLarge_Storage, ()>::new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:232:9
+    |         ------------------------------------------------ inside `NonExhaustive::<UnalignedAndTooLarge, UnalignedAndTooLarge_Storage, ()>::new` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:231:9
 ...
     |         unsafe { NonExhaustive::with_vtable(value, E::VTABLE) }
-    |                  -------------------------------------------- inside `NonExhaustive::<UnalignedAndTooLarge, UnalignedAndTooLarge_Storage, ()>::with_storage_and_interface` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:273:18
+    |                  -------------------------------------------- inside `NonExhaustive::<UnalignedAndTooLarge, UnalignedAndTooLarge_Storage, ()>::with_storage_and_interface` at $DIR/src/nonexhaustive_enum/nonexhaustive.rs:272:18
     |
    ::: tests/ui_tests/nonexhaustive_ui_tests/size_align_const_err.rs:50:34
     |

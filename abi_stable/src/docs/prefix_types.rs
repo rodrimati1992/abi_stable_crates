@@ -142,7 +142,6 @@ pub struct Module<T> {
 impl Module<u64> {
     // This macro declares a `StaticRef<WithMetadata<Module<u64>>>` constant.
     staticref!(const MODULE_VAL: WithMetadata<Module<u64>> = WithMetadata::new(
-        PrefixTypeTrait::METADATA,
         Module{
             lib_name: RStr::from_str("foo"),
             elapsed,
@@ -215,7 +214,6 @@ where
 
     // This macro declares a `StaticRef<WithMetadata<VTable>>` constant.
     staticref! {pub const VAL: WithMetadata<VTable> = WithMetadata::new(
-        PrefixTypeTrait::METADATA,
         VTable{get_number: Self::get_number},
     )}
 
@@ -343,7 +341,6 @@ impl<T> BoxVtable<T> {
     // but is not necessarily `'static` according to the type system,
     // eg: `BoxVtable<T>`.
     staticref!(const VTABLE_VAL: WithMetadata<Self> = WithMetadata::new(
-        PrefixTypeTrait::METADATA,
         Self{
             destructor:destroy_box::<T>,
         },
@@ -468,7 +465,6 @@ type Id = u32;
 # fn main(){
 
 const _MODULE_WM_: &WithMetadata<PersonMod> = &WithMetadata::new(
-    PrefixTypeTrait::METADATA,
     PersonMod {
         customer_for,
         bike_count,

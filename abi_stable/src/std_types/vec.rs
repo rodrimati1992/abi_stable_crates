@@ -18,7 +18,7 @@ use core_extensions::SelfOps;
 
 use crate::{
     pointer_trait::CanTransmuteElement,
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::WithMetadata,
     sabi_types::RMut,
     std_types::{
         utypeid::{new_utypeid, UTypeId},
@@ -1467,8 +1467,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     };
 
     staticref! {
-        const WM_DEFAULT: WithMetadata<VecVTable> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::DEFAULT_VTABLE);
+        const WM_DEFAULT: WithMetadata<VecVTable> = WithMetadata::new(Self::DEFAULT_VTABLE);
     }
 
     // The VTABLE for this type in this executable/library
@@ -1477,7 +1476,6 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     staticref! {
         const WM_FOR_TESTING: WithMetadata<VecVTable> =
             WithMetadata::new(
-                PrefixTypeTrait::METADATA,
                 VecVTable {
                     type_id: new_utypeid::<RVec<i32>>,
                     ..Self::DEFAULT_VTABLE

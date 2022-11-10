@@ -323,7 +323,6 @@ impl Module {
     //
     // StaticRef not necessary in this case, it's more useful with generic types..
     abi_stable::staticref!(const TMP0: WithMetadata<Self> = WithMetadata::new(
-        PrefixTypeTrait::METADATA,
         Self{
             serialize_tag,
             deserialize_tag,

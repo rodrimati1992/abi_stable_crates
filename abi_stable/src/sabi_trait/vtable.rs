@@ -195,7 +195,7 @@ where
 {
     staticref! {
         const TMP_WM: WithMetadata<RObjectVtable<_Self,ErasedPtr,I>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, I::VTABLE_VAL);
+            WithMetadata::new(I::VTABLE_VAL);
     }
 
     const TMP_VTABLE: RObjectVtable_Ref<_Self, ErasedPtr, I> =

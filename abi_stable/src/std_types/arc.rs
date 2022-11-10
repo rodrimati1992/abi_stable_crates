@@ -10,7 +10,7 @@ use crate::{
     pointer_trait::{
         AsPtr, CallReferentDrop, CanTransmuteElement, GetPointerKind, PK_SmartPointer,
     },
-    prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
+    prefix_type::{PrefixRef, WithMetadata},
     std_types::{
         utypeid::{new_utypeid, UTypeId},
         RResult,
@@ -420,7 +420,7 @@ mod vtable_mod {
 
         staticref! {
             const WM_DEFAULT: WithMetadata<ArcVtable<T>> =
-                WithMetadata::new(PrefixTypeTrait::METADATA, Self::DEFAULT_VTABLE)
+                WithMetadata::new(Self::DEFAULT_VTABLE)
         }
 
         // The VTABLE for this type in this executable/library
@@ -430,7 +430,6 @@ mod vtable_mod {
         #[cfg(test)]
         staticref! {const WM_FOR_TESTING: WithMetadata<ArcVtable<T>> =
             WithMetadata::new(
-                PrefixTypeTrait::METADATA,
                 ArcVtable{
                     type_id: new_utypeid::<RArc<i32>>,
                     ..Self::DEFAULT_VTABLE

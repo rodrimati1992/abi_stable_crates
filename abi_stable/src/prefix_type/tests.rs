@@ -38,15 +38,12 @@ mod cond_fields {
         }
     }
 
-    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(
-        PrefixTypeTrait::METADATA,
-        Module {
-            first: 5,
-            second: 8,
-            third: 13,
-            fourth: 21,
-        },
-    );
+    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(Module {
+        first: 5,
+        second: 8,
+        third: 13,
+        fourth: 21,
+    });
 
     pub const PREFIX: PrefixRef<Module_Prefix> = MOD_VAL.static_as_prefix();
 }
@@ -102,19 +99,16 @@ mod different_alignments {
         pub f7: u8,
     }
 
-    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(
-        PrefixTypeTrait::METADATA,
-        Module {
-            f0: 5,
-            f1: 8,
-            f2: 13,
-            f3: 21,
-            f4: 34,
-            f5: 55,
-            f6: 89,
-            f7: 144,
-        },
-    );
+    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(Module {
+        f0: 5,
+        f1: 8,
+        f2: 13,
+        f3: 21,
+        f4: 34,
+        f5: 55,
+        f6: 89,
+        f7: 144,
+    });
 
     pub const PREFIX: PrefixRef<Module_Prefix> = MOD_VAL.static_as_prefix();
 }
@@ -164,18 +158,15 @@ mod overaligned {
         pub f6: u8,
     }
 
-    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(
-        PrefixTypeTrait::METADATA,
-        Module {
-            f0: 5,
-            f1: 8,
-            f2: 13,
-            f3: AlignTo32(21),
-            f4: AlignTo64(34),
-            f5: 55,
-            f6: 89,
-        },
-    );
+    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(Module {
+        f0: 5,
+        f1: 8,
+        f2: 13,
+        f3: AlignTo32(21),
+        f4: AlignTo64(34),
+        f5: 55,
+        f6: 89,
+    });
 
     pub const PREFIX: PrefixRef<Module_Prefix> = MOD_VAL.static_as_prefix();
 }

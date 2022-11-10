@@ -253,14 +253,11 @@ mod tests {
 
     use std::fmt::Error as FmtError;
 
-    const MOD_WM: &WithMetadata<Module> = &WithMetadata::new(
-        PrefixTypeTrait::METADATA,
-        Module {
-            first: RSome(5),
-            second: rstr!(""),
-            third: 13,
-        },
-    );
+    const MOD_WM: &WithMetadata<Module> = &WithMetadata::new(Module {
+        first: RSome(5),
+        second: rstr!(""),
+        third: 13,
+    });
 
     // `const PREFIX` can have different address every time it's used,
     // to fix that I made it a static

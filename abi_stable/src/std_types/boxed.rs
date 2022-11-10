@@ -24,7 +24,7 @@ use crate::{
         AsMutPtr, AsPtr, CallReferentDrop, CanTransmuteElement, Deallocate, GetPointerKind,
         OwnedPointer, PK_SmartPointer,
     },
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::WithMetadata,
     sabi_types::MovePtr,
     std_types::utypeid::{new_utypeid, UTypeId},
     traits::IntoReprRust,
@@ -629,8 +629,7 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     };
 
     staticref! {
-        const WM_DEFAULT: WithMetadata<BoxVtable<T>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::DEFAULT_VTABLE);
+        const WM_DEFAULT: WithMetadata<BoxVtable<T>> = WithMetadata::new(Self::DEFAULT_VTABLE);
     }
 
     // The VTABLE for this type in this executable/library
@@ -640,7 +639,6 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     staticref! {
         const WM_FOR_TESTING: WithMetadata<BoxVtable<T>> =
             WithMetadata::new(
-                PrefixTypeTrait::METADATA,
                 BoxVtable {
                     type_id: new_utypeid::<RBox<i32>>,
                     ..Self::DEFAULT_VTABLE

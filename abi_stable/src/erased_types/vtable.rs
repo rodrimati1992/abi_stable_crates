@@ -16,7 +16,7 @@ use super::{
 use crate::{
     marker_type::{ErasedObject, NonOwningPhantom},
     pointer_trait::{AsPtr, CanTransmuteElement, GetPointerKind},
-    prefix_type::{panic_on_missing_fieldname, PrefixTypeTrait, WithMetadata},
+    prefix_type::{panic_on_missing_fieldname, WithMetadata},
     sabi_types::{RMut, RRef},
     std_types::{RIoError, RNone, RSeekFrom, RSome},
     type_level::{
@@ -35,7 +35,7 @@ pub trait GetVtable<'borr, This, ErasedPtr, OrigPtr, I: InterfaceBound> {
     staticref! {
         #[doc(hidden)]
         const _WM_VTABLE: WithMetadata<VTable<'borr,ErasedPtr,I>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::TMP_VTABLE)
+            WithMetadata::new(Self::TMP_VTABLE)
     }
 
     #[doc(hidden)]

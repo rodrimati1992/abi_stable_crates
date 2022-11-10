@@ -168,7 +168,7 @@ impl<T> LateStaticRef<T> {
     ///
     /// const MODULE: PersonMod_Ref = {
     ///     const S: &WithMetadata<PersonMod> =
-    ///         &WithMetadata::new(PrefixTypeTrait::METADATA, PersonMod { get_number });
+    ///         &WithMetadata::new(PersonMod { get_number });
     ///
     ///     PersonMod_Ref(S.static_as_prefix())
     /// };

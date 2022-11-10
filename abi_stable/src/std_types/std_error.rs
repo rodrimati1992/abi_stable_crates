@@ -15,7 +15,7 @@ use crate::{
     },
     marker_type::{ErasedObject, SyncSend, UnsyncSend, UnsyncUnsend},
     pointer_trait::{AsMutPtr, AsPtr},
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::WithMetadata,
     sabi_types::RRef,
     std_types::{
         utypeid::{new_utypeid, UTypeId},
@@ -717,23 +717,19 @@ where
         type_id: new_utypeid::<T>,
     };
 
-    const VALUE_MD: &'static WithMetadata<RErrorVTable> =
-        &WithMetadata::new(PrefixTypeTrait::METADATA, Self::VALUE);
+    const VALUE_MD: &'static WithMetadata<RErrorVTable> = &WithMetadata::new(Self::VALUE);
 
     const LIB_VTABLE: RErrorVTable_Ref = { RErrorVTable_Ref(Self::VALUE_MD.static_as_prefix()) };
 }
 
 impl MakeRErrorVTable<DebugDisplay> {
     const WM_DEBUG_DISPLAY: &'static WithMetadata<RErrorVTable> = {
-        &WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            RErrorVTable {
-                debug: debug_impl::<DebugDisplay>,
-                display: display_impl::<DebugDisplay>,
-                as_debug_display,
-                type_id: new_utypeid::<DebugDisplay>,
-            },
-        )
+        &WithMetadata::new(RErrorVTable {
+            debug: debug_impl::<DebugDisplay>,
+            display: display_impl::<DebugDisplay>,
+            as_debug_display,
+            type_id: new_utypeid::<DebugDisplay>,
+        })
     };
 
     const LIB_VTABLE_DEBUG_DISPLAY: RErrorVTable_Ref =
@@ -755,8 +751,7 @@ where
         type_id: new_utypeid::<Box<T>>,
     };
 
-    const WM_VTABLE: &'static WithMetadata<RErrorVTable> =
-        &WithMetadata::new(PrefixTypeTrait::METADATA, Self::VALUE);
+    const WM_VTABLE: &'static WithMetadata<RErrorVTable> = &WithMetadata::new(Self::VALUE);
 
     const LIB_VTABLE: RErrorVTable_Ref = RErrorVTable_Ref(Self::WM_VTABLE.static_as_prefix());
 }

@@ -12,7 +12,7 @@ use crate::{
     nonexhaustive_enum::{
         alt_c_functions, EnumInfo, GetEnumInfo, GetSerializeEnumProxy, NonExhaustive, SerializeEnum,
     },
-    prefix_type::{panic_on_missing_fieldname, PrefixTypeTrait, WithMetadata},
+    prefix_type::{panic_on_missing_fieldname, WithMetadata},
     sabi_types::{RMut, RRef},
     std_types::{RBoxError, RCmpOrdering, ROption, RResult, RString},
     type_level::{
@@ -43,7 +43,7 @@ pub trait GetVTable<S, I>: Sized {
     staticref! {
         #[doc(hidden)]
         const VTABLE_WM: WithMetadata<NonExhaustiveVtable<Self,S,I>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE_VAL)
+            WithMetadata::new(Self::VTABLE_VAL)
     }
 
     /// The vtable

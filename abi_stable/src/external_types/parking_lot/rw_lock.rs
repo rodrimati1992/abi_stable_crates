@@ -13,12 +13,7 @@ use parking_lot::RawRwLock;
 
 use super::{UnsafeOveralignedField, RAW_LOCK_SIZE};
 
-use crate::{
-    marker_type::UnsyncUnsend,
-    prefix_type::{PrefixTypeTrait, WithMetadata},
-    std_types::*,
-    StableAbi,
-};
+use crate::{marker_type::UnsyncUnsend, prefix_type::WithMetadata, std_types::*, StableAbi};
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -475,7 +470,7 @@ impl VTable {
             try_lock_exclusive_for,
             unlock_exclusive,
         };
-        WithMetadata::new(PrefixTypeTrait::METADATA, vtable)
+        WithMetadata::new(vtable)
     };
 
     // The VTABLE for this type in this executable/library

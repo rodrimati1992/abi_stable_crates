@@ -13,12 +13,7 @@ use parking_lot::RawMutex;
 
 use super::{UnsafeOveralignedField, RAW_LOCK_SIZE};
 
-use crate::{
-    marker_type::UnsyncUnsend,
-    prefix_type::{PrefixTypeTrait, WithMetadata},
-    std_types::*,
-    StableAbi,
-};
+use crate::{marker_type::UnsyncUnsend, prefix_type::WithMetadata, std_types::*, StableAbi};
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -319,15 +314,12 @@ struct VTable {
 }
 
 impl VTable {
-    const _TMP0: WithMetadata<VTable> = WithMetadata::new(
-        PrefixTypeTrait::METADATA,
-        VTable {
-            lock,
-            try_lock,
-            unlock,
-            try_lock_for,
-        },
-    );
+    const _TMP0: WithMetadata<VTable> = WithMetadata::new(VTable {
+        lock,
+        try_lock,
+        unlock,
+        try_lock_for,
+    });
 
     // The VTABLE for this type in this executable/library
     const VTABLE: VTable_Ref = { VTable_Ref(Self::_TMP0.static_as_prefix()) };

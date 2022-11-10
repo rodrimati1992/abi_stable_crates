@@ -11,7 +11,7 @@ use parking_lot::{Once as PLOnce, OnceState};
 use super::{UnsafeOveralignedField, RAW_LOCK_SIZE};
 
 use crate::{
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::WithMetadata,
     sabi_types::RMut,
     std_types::{RErr, ROk, RResult},
 };
@@ -449,14 +449,11 @@ struct VTable {
 impl VTable {
     // The VTABLE for this type in this executable/library
     const VTABLE: VTable_Ref = {
-        const S: &WithMetadata<VTable> = &WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            VTable {
-                state,
-                call_once,
-                call_once_force,
-            },
-        );
+        const S: &WithMetadata<VTable> = &WithMetadata::new(VTable {
+            state,
+            call_once,
+            call_once_force,
+        });
 
         VTable_Ref(S.static_as_prefix())
     };

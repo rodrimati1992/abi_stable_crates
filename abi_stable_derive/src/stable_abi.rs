@@ -18,8 +18,6 @@ use syn::Ident;
 
 use proc_macro2::{Span, TokenStream as TokenStream2};
 
-use quote::TokenStreamExt;
-
 use core_extensions::{IteratorExt, SelfOps};
 
 #[doc(hidden)]

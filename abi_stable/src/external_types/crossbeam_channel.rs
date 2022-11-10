@@ -18,7 +18,7 @@ use core_extensions::SelfOps;
 use crate::{
     marker_type::UnsafeIgnoredType,
     pointer_trait::AsPtr,
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::WithMetadata,
     sabi_types::RRef,
     std_types::{RBox, RDuration, RErr, ROk, ROption, RResult},
     traits::{ErasedType, IntoReprRust},
@@ -830,8 +830,7 @@ impl<'a, T: 'a> MakeVTable<'a, T> {
     };
 
     staticref! {
-        const WM_VALUE: WithMetadata<VTable<T>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::VALUE)
+        const WM_VALUE: WithMetadata<VTable<T>> = WithMetadata::new(Self::VALUE)
     }
 
     // The VTABLE for this type in this executable/library

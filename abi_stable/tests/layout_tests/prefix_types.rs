@@ -360,7 +360,7 @@ fn prefix_is_same_size() {
 #[cfg_attr(not(miri), test)]
 fn prefix_on_nonexistent_field() {
     pub const MOD_VAL: &WithMetadata<prefix0::Prefix> =
-        &WithMetadata::new(PrefixTypeTrait::METADATA, prefix0::Prefix { field0: 1 });
+        &WithMetadata::new(prefix0::Prefix { field0: 1 });
 
     let prefix0 = MOD_VAL.static_as_prefix();
 
@@ -887,13 +887,11 @@ fn prefix_on_conditional_fields() {
 
     {
         // Casting Prefix0 to Prefix1 with different field accessibilities
-        pub const MOD_VAL: &WithMetadata<cond_fields_0::Prefix<(T, T, T, T)>> = &WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            cond_fields_0::Prefix {
+        pub const MOD_VAL: &WithMetadata<cond_fields_0::Prefix<(T, T, T, T)>> =
+            &WithMetadata::new(cond_fields_0::Prefix {
                 _marker: UnsafeIgnoredType::DEFAULT,
                 field0: 1,
-            },
-        );
+            });
 
         let prefix0 = MOD_VAL.static_as_prefix();
 
@@ -914,16 +912,13 @@ fn prefix_on_conditional_fields() {
     }
 
     pub const MOD_VAL_P3: &WithMetadata<cond_fields_3::Prefix<(T, T, T, T), i8, i32, i32, i32>> =
-        &WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            cond_fields_3::Prefix {
-                _marker: UnsafeIgnoredType::DEFAULT,
-                field0: 1,
-                field1: 3,
-                field2: 7,
-                field3: 12,
-            },
-        );
+        &WithMetadata::new(cond_fields_3::Prefix {
+            _marker: UnsafeIgnoredType::DEFAULT,
+            field0: 1,
+            field1: 3,
+            field2: 7,
+            field3: 12,
+        });
 
     let prefix3 = MOD_VAL_P3.static_as_prefix();
 

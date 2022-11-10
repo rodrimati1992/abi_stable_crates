@@ -864,7 +864,6 @@ macro_rules! make_shared_vars{
 ///
 /// impl<T> VTable<T>{
 ///    staticref!(const VTABLE_VAL: WithMetadata<Self> = WithMetadata::new(
-///        PrefixTypeTrait::METADATA,
 ///        Self{
 ///            destructor: destroy_box::<T>,
 ///        },

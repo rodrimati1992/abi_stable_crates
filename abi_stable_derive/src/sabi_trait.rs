@@ -1262,7 +1262,6 @@ fn vtable_impl(
                 VTableInner<#withmetadata_generics>
             >={
                 __sabi_re::WithMetadata::new(
-                    __sabi_re::PrefixTypeTrait::METADATA,
                     VTableInner{
                         _sabi_tys: __sabi_re::NonOwningPhantom::NEW,
                         _sabi_vtable:__sabi_re::GetRObjectVTable::ROBJECT_VTABLE,

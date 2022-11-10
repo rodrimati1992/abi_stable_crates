@@ -22,7 +22,7 @@ use crate::{
         ErasedObject, ErasedPrefix, NonOwningPhantom, NotCopyNotClone, UnsafeIgnoredType,
     },
     pointer_trait::{AsMutPtr, AsPtr},
-    prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
+    prefix_type::{PrefixRef, WithMetadata},
     sabi_types::{RMut, RRef},
     std_types::*,
     traits::{ErasedType, IntoReprRust},
@@ -1221,8 +1221,7 @@ where
     K: Eq + Hash,
     S: BuildHasher,
 {
-    const VTABLE_VAL: WithMetadata<VTable<K, V, S>> =
-        { WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE) };
+    const VTABLE_VAL: WithMetadata<VTable<K, V, S>> = WithMetadata::new(Self::VTABLE);
 
     const VTABLE_REF: VTable_Ref<K, V, S> = unsafe { VTable_Ref(Self::VTABLE_VAL.as_prefix()) };
 

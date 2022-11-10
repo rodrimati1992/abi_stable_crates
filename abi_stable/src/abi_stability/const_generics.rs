@@ -10,7 +10,7 @@ use crate::{
         FormattingMode,
     },
     marker_type::ErasedObject,
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::WithMetadata,
     sabi_types::RRef,
     std_types::{RErr, ROk, RResult, RString},
     type_layout::TypeLayout,
@@ -136,14 +136,11 @@ where
     T: StableAbi + Eq + PartialEq + Debug + Send + Sync + 'static,
 {
     const _VTABLE_STATIC: WithMetadata<ConstGenericVTable> = {
-        WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            ConstGenericVTable {
-                layout: <T as StableAbi>::LAYOUT,
-                partial_eq: partial_eq_impl::<T>,
-                debug: debug_impl::<T>,
-            },
-        )
+        WithMetadata::new(ConstGenericVTable {
+            layout: <T as StableAbi>::LAYOUT,
+            partial_eq: partial_eq_impl::<T>,
+            debug: debug_impl::<T>,
+        })
     };
 
     /// Constructs a `ConstGenericVTableFor`

@@ -22,8 +22,7 @@ pub use crate::{
     pointer_trait::{AsMutPtr, AsPtr, GetPointerKind, PK_Reference},
     prefix_type::{
         panic_on_missing_field_ty, FieldAccessibility, FieldConditionality, IsAccessible,
-        IsConditional, PTStructLayout, PrefixMetadata, PrefixRef, PrefixRefTrait, PrefixTypeTrait,
-        WithMetadata_,
+        IsConditional, PTStructLayout, PrefixRef, PrefixRefTrait, PrefixTypeTrait, WithMetadata_,
     },
     reflection::ModReflMode,
     sabi_trait::vtable::{RObjectVtable, RObjectVtable_Ref},

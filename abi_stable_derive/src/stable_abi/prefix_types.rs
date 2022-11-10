@@ -580,7 +580,7 @@ accessible through [`{prefix_name}`](struct@{prefix_name}), with `.0.prefix()`.
                         #vis fn #getter_name(&self)->#return_ty
                         #field_where_clause #( #accessor_bounds+ )*
                         {
-                            let acc_bits=self.0.metadata().field_accessibility().bits();
+                            let acc_bits=self.0.field_accessibility().bits();
                             let #val_var=if (1u64<<#field_i & Self::__SABI_PTT_FAM & acc_bits)==0 {
                                 #else_
                             }else{
@@ -662,15 +662,12 @@ accessible through [`{prefix_name}`](struct@{prefix_name}), with `.0.prefix()`.
 
         let first_offset = if let Some(constant) = offset_consts.first() {
             quote!(
-                const #constant: usize =
-                    __sabi_re::next_field_offset::<
-                        __sabi_re::WithMetadata_<
-                            #prefix_fields_struct #ty_generics,
-                            #prefix_fields_struct #ty_generics,
-                        >,
-                        __sabi_re::PrefixMetadata<(),()>,
+                const #constant: usize = {
+                    __sabi_re::WithMetadata_::<
                         #prefix_fields_struct #ty_generics,
-                    >(0);
+                        #prefix_fields_struct #ty_generics,
+                    >::__VALUE_OFFSET
+                };
             )
         } else {
             quote!()
@@ -717,7 +714,7 @@ accessible through [`{prefix_name}`](struct@{prefix_name}), with `.0.prefix()`.
                 /// Accessor to get the layout of the type,used for error messages.
                 #[inline(always)]
                 pub fn _prefix_type_layout(self)-> &'static __sabi_re::PTStructLayout {
-                    self.0.metadata().type_layout()
+                    self.0.type_layout()
                 }
 
                 #(

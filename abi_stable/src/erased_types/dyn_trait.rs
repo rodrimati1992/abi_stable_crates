@@ -292,8 +292,7 @@ mod priv_ {
     /// // This is how ffi-safe pointers to non-generic prefix types are constructed
     /// // at compile-time.
     /// const MODULE: Module_Ref = {
-    ///     const S: &WithMetadata<Module> =
-    ///         &WithMetadata::new(PrefixTypeTrait::METADATA, Module { deserialize_foo });
+    ///     const S: &WithMetadata<Module> = &WithMetadata::new(Module { deserialize_foo });
     ///
     ///     Module_Ref(S.static_as_prefix())
     /// };

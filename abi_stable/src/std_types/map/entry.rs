@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     marker_type::UnsafeIgnoredType,
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::WithMetadata,
     sabi_types::{RMut, RRef},
 };
 
@@ -647,8 +647,7 @@ impl<K, V> OccupiedVTable<K, V> {
     const VTABLE_REF: OccupiedVTable_Ref<K, V> = OccupiedVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {
-        const WM_VTABLE: WithMetadata<OccupiedVTable<K, V>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
+        const WM_VTABLE: WithMetadata<OccupiedVTable<K, V>> = WithMetadata::new(Self::VTABLE)
     }
 
     const VTABLE: OccupiedVTable<K, V> = OccupiedVTable {
@@ -750,8 +749,7 @@ impl<K, V> VacantVTable<K, V> {
     const VTABLE_REF: VacantVTable_Ref<K, V> = VacantVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {
-        const WM_VTABLE: WithMetadata<VacantVTable<K, V>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
+        const WM_VTABLE: WithMetadata<VacantVTable<K, V>> = WithMetadata::new(Self::VTABLE)
     }
 
     const VTABLE: VacantVTable<K, V> = VacantVTable {
