@@ -531,7 +531,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
             let bound = match &this.bounds_trait {
                 Some(BoundsTrait { ident, .. }) => quote!(#ident),
                 None => quote!(
-                    ::abi_stable::pmr::GetNonExhaustiveVTable<
+                    ::abi_stable::pmr::NonExhaustiveMarkerVTable<
                         #enum_storage,
                         #default_interface,
                     >
@@ -678,11 +678,11 @@ pub(crate) fn tokenize_enum_info<'a>(
 
 
             unsafe impl<#generics_header>
-                __sabi_re::GetNonExhaustive<__Storage>
+                __sabi_re::NonExhaustiveMarker<__Storage>
             for #name <#generics_use>
             #where_clause
             {
-                type NonExhaustive=#nonexhaustive_marker<Self,__Storage>;
+                type Marker = #nonexhaustive_marker<Self,__Storage>;
             }
 
 

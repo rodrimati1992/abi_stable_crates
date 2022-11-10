@@ -16,7 +16,7 @@ use crate::{
     marker_type::ErasedObject,
     nonexhaustive_enum::{
         assert_correct_storage, vtable::NonExhaustiveVtable_Ref, AssertCsArgs, DeserializeEnum,
-        EnumInfo, GetEnumInfo, GetNonExhaustive, GetVTable, SerializeEnum, ValidDiscriminant,
+        EnumInfo, GetEnumInfo, GetVTable, NonExhaustiveMarker, SerializeEnum, ValidDiscriminant,
     },
     pointer_trait::{CanTransmuteElement, TransmuteElement},
     sabi_types::{RMut, RRef},
@@ -191,10 +191,10 @@ mod tests;
     //debug_print,
     not_stableabi(E,S,I),
     bound(NonExhaustiveVtable_Ref<E,S,I>:StableAbi),
-    bound(E: GetNonExhaustive<S>),
+    bound(E: NonExhaustiveMarker<S>),
     bound(I: InterfaceBound),
     extra_checks = <I as InterfaceBound>::EXTRA_CHECKS,
-    phantom_type_param = <E as GetNonExhaustive<S>>::NonExhaustive,
+    phantom_type_param = <E as NonExhaustiveMarker<S>>::Marker,
 )]
 pub struct NonExhaustive<E, S, I> {
     // This is an opaque field since we only care about its size and alignment
@@ -715,7 +715,7 @@ impl<E, S, I> Drop for NonExhaustive<E, S, I> {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Used to abstract over the reference-ness of `NonExhaustive<>` inside UnwrapEnumError.
+/// Used to abstract over the reference-ness of [`NonExhaustive`] inside [`UnwrapEnumError`].
 pub trait NonExhaustiveSharedOps {
     /// The type of the discriminant of the wrapped enum.
     type Discriminant: ValidDiscriminant;
@@ -728,27 +728,9 @@ pub trait NonExhaustiveSharedOps {
 }
 
 /// A struct storing the discriminant and `EnumInfo` of some enum.
-pub struct DiscrAndEnumInfo<E> {
+struct DiscrAndEnumInfo<E> {
     discr: E,
     enum_info: &'static EnumInfo,
-}
-
-impl<E> DiscrAndEnumInfo<E> {
-    /// Constructs this `DiscrAndEnumInfo`.
-    pub fn new(discr: E, enum_info: &'static EnumInfo) -> Self {
-        Self { discr, enum_info }
-    }
-    /// The value of the enum discriminant,
-    pub fn discr(&self) -> E
-    where
-        E: ValidDiscriminant,
-    {
-        self.discr
-    }
-    /// The `EnumInfo` of an enum.
-    pub fn enum_info(&self) -> &'static EnumInfo {
-        self.enum_info
-    }
 }
 
 impl<E> NonExhaustiveSharedOps for DiscrAndEnumInfo<E>

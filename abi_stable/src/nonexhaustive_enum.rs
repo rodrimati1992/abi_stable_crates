@@ -19,11 +19,12 @@ pub(crate) mod vtable;
 
 pub use self::{
     nonexhaustive::{
-        DiscrAndEnumInfo, NonExhaustive, NonExhaustiveFor, NonExhaustiveSharedOps, NonExhaustiveWI,
-        NonExhaustiveWS, UnwrapEnumError,
+        NonExhaustive, NonExhaustiveFor, NonExhaustiveSharedOps, NonExhaustiveWI, NonExhaustiveWS,
+        UnwrapEnumError,
     },
     traits::{
-        DeserializeEnum, EnumInfo, GetEnumInfo, GetNonExhaustive, SerializeEnum, ValidDiscriminant,
+        DeserializeEnum, EnumInfo, GetEnumInfo, NonExhaustiveMarker, SerializeEnum,
+        ValidDiscriminant,
     },
     vtable::GetVTable,
 };

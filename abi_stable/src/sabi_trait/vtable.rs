@@ -30,7 +30,8 @@ pub struct Private<A: ?Sized, B: ?Sized, C: ?Sized, D: ?Sized, E: ?Sized>(
 /// Gets an `RObjectVtable_Ref<_Self,ErasedPtr,TO>`(the vtable for RObject itself),
 /// which is stored as the first field of all generated trait object vtables.
 ///
-/// This trait cannot be implemented outside of `abi_stable`, it can only be used.
+/// This trait cannot be implemented outside of `abi_stable`,
+/// it can only be used.
 pub trait GetRObjectVTable<IA, _Self, ErasedPtr, OrigPtr>: Sized + InterfaceType {
     // Using privacy to make it impossible to implement this trait outside this module.
     #[doc(hidden)]

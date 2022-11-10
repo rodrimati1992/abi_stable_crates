@@ -29,7 +29,7 @@ which is checked for compatibility.
 ###  `#[sabi(phantom_const_param = constant expression)]` 
 
 Adds a virtual const parameter to the type layout constant,
-which is checked for equality with the vistual const parameter declared in the same order.
+which is checked for equality with the virtual const parameter declared in the same order.
 
 The parameter must implement `StableAbi + Eq + Debug`.
 

@@ -16,7 +16,7 @@ pub use crate::{
     },
     nonexhaustive_enum::{
         assert_correct_default_storage, assert_correct_storage, AssertCsArgs, EnumInfo,
-        GetEnumInfo, GetNonExhaustive, GetVTable as GetNonExhaustiveVTable, NonExhaustive,
+        GetEnumInfo, GetVTable as NonExhaustiveMarkerVTable, NonExhaustive, NonExhaustiveMarker,
         ValidDiscriminant,
     },
     pointer_trait::{AsMutPtr, AsPtr, GetPointerKind, PK_Reference},

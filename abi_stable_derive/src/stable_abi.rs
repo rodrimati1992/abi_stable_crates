@@ -445,7 +445,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     );
 
     let stable_abi_where_preds = shared_where_preds.clone().mutated(|ts| {
-        ts.append_all(quote!(
+        ts.extend(quote!(
             #(#phantom_field_tys:__StableAbi,)*
         ))
     });

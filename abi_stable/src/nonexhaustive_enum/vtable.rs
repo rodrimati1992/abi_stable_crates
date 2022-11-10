@@ -30,7 +30,8 @@ pub struct Private<T: ?Sized, S: ?Sized, I: ?Sized>(
 
 /// Gets the vtable of `NonExhaustive<Self,S,I>`.
 ///
-/// This trait cannot be implemented outside of `abi_stable`, it can only be used.
+/// This trait is only exposed for use in bounds,
+/// and cannot be implemented outside of `abi_stable`.
 pub trait GetVTable<S, I>: Sized {
     // Using privacy to make it impossible to implement this trait outside this module.
     #[doc(hidden)]

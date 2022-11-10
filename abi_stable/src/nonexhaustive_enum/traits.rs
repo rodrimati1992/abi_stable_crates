@@ -15,15 +15,26 @@ use crate::{
     InterfaceType,
 };
 
-/// Gets the type whose type layout is used to represent this enum in `NonExhaustive<>`.
+/// Queries the marker type which describes the layout of this enum,
+/// for use in [`NonExhaustive`]'s [`StableAbi`] impl.
 ///
 /// # Safety
 ///
-/// `Self::NonExhaustive` must describe the layout of this enum,
-/// with the size and alignment of `Storage`.
-pub unsafe trait GetNonExhaustive<Storage>: GetEnumInfo {
-    /// The type whose type layout is used to represent this enum.
-    type NonExhaustive;
+/// `Self::Marker` must describe the layout of this enum,
+/// with the size and alignment of `Storage`,
+/// and using [`IsExhaustive::nonexhaustive`] to construct [`IsExhaustive`] in
+/// the `enum`'s [`TypeLayout`].
+///
+/// [`StableAbi`]: trait@crate::StableAbi
+/// [`TypeLayout`]: crate::type_layout::TypeLayout
+/// [`IsExhaustive`]: crate::type_layout::IsExhaustive
+/// [`IsExhaustive::nonexhaustive`]: crate::type_layout::IsExhaustive::nonexhaustive
+/// [`NonExhaustive`]: crate::nonexhaustive_enum::NonExhaustive
+///
+pub unsafe trait NonExhaustiveMarker<Storage>: GetEnumInfo {
+    /// A marker type which describes the layout of this enum
+    /// in its [`StableAbi`] impl.
+    type Marker;
 }
 
 /// Describes the discriminant of an enum,and its valid values.
@@ -31,6 +42,12 @@ pub unsafe trait GetNonExhaustive<Storage>: GetEnumInfo {
 /// # Safety
 ///
 /// This must be an enum with a `#[repr(C)]` or `#[repr(SomeInteFgerType)]` attribute.
+///
+/// The `Discriminant` associated type must correspond to the type of
+/// this enum's discriminant.
+///
+/// The `DISCRIMINANTS` associated constant must be the values of
+/// this enum's discriminants.
 pub unsafe trait GetEnumInfo: Sized {
     /// The type of the discriminant.
     type Discriminant: ValidDiscriminant;
