@@ -1,6 +1,5 @@
 pub use crate::{
     abi_stability::{
-        const_generics::{ConstGeneric, ConstGenericErasureHack, ConstGenericVTableFor},
         extra_checks::{ExtraChecks_MV, StoredExtraChecks},
         get_static_equivalent::{GetStaticEquivalent, GetStaticEquivalent_},
         stable_abi_trait::{
@@ -8,6 +7,7 @@ pub use crate::{
             __sabi_opaque_field_type_layout, get_prefix_field_type_layout, get_type_layout,
             EXTERN_FN_LAYOUT, UNSAFE_EXTERN_FN_LAYOUT,
         },
+        ConstGeneric,
     },
     extern_fn_panic_handling,
     inline_storage::{GetAlignerFor, InlineStorage},
@@ -67,9 +67,8 @@ pub use ::paste::paste;
 pub mod renamed {
     pub use super::{
         CompTLFields as __CompTLFields, CompTLFunction as __CompTLFunction,
-        ConstGeneric as __ConstGeneric, ConstGenericVTableFor as __ConstGenericVTableFor,
-        DiscriminantRepr as __DiscriminantRepr, FieldAccessor as __FieldAccessor,
-        GetStaticEquivalent as __GetStaticEquivalent,
+        ConstGeneric as __ConstGeneric, DiscriminantRepr as __DiscriminantRepr,
+        FieldAccessor as __FieldAccessor, GetStaticEquivalent as __GetStaticEquivalent,
         GetStaticEquivalent_ as __GetStaticEquivalent_, IsExhaustive as __IsExhaustive,
         LifetimeIndex as __LifetimeIndex, ModReflMode as __ModReflMode,
         PTStructLayout as __PTStructLayout, RMut as __RMut, RNone as __RNone, RRef as __RRef,

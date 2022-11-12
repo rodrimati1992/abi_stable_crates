@@ -712,16 +712,9 @@ macro_rules! make_shared_vars{
         impl<$($impl_gen)*> __ACPromoted<$type>
         where $($($where_clause)*)?
         {
-            $( const CONST_PARAM_UNERASED: &'static $const_ty = &$constants; )?
             const CONST_PARAM: &'static [$crate::abi_stability::ConstGeneric] = {
                 &[
-                    $(ignoring!(
-                        ($constants)
-                        $crate::abi_stability::ConstGeneric::new(
-                            Self::CONST_PARAM_UNERASED,
-                            $crate::abi_stability::ConstGenericVTableFor::NEW,
-                        )
-                    ),)?
+                    $($crate::abi_stability::ConstGeneric::new(&$constants),)?
                 ]
             };
 
@@ -919,12 +912,6 @@ macro_rules! staticref{
         }
 
     };
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-macro_rules! ignoring {
-    (($($ignore:tt)*) $($passed:tt)* ) => {$($passed)*};
 }
 
 ///////////////////////////////////////////////////////////////////////////////
