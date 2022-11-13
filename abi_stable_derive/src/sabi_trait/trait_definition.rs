@@ -621,9 +621,6 @@ impl<'a> GenericsTokenizer<'a> {
     pub fn skip_consts(&mut self) {
         self.gen_params_in.skip_consts();
     }
-    pub fn skip_unbounded(&mut self) {
-        self.gen_params_in.skip_unbounded();
-    }
 }
 
 impl<'a> ToTokens for GenericsTokenizer<'a> {

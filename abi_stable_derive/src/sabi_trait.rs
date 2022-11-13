@@ -259,12 +259,11 @@ fn first_items(
         &ctokens.ts_empty,
     );
 
-    let mut to_params = trait_def.generics_tokenizer(
+    let to_params = trait_def.generics_tokenizer(
         InWhat::ItemDecl,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &lt_tokens.lt_erasedptr,
     );
-    to_params.set_no_bounds();
 
     let where_preds = (&trait_def.where_preds).into_iter();
 
@@ -288,8 +287,8 @@ fn first_items(
         WhichObject::RObject => quote!(RObject),
     };
     let vtable_argument = match trait_def.which_object {
-        WhichObject::DynTrait => quote!(__sabi_re::PrefixRef<VTable<#vtable_args>>),
-        WhichObject::RObject => quote!(VTable<#vtable_args>),
+        WhichObject::DynTrait => quote!(__sabi_re::PrefixRef<VTable_Prefix<#vtable_args>>),
+        WhichObject::RObject => quote!(VTable_Prefix<#vtable_args>),
     };
 
     let dummy_struct_generics = trait_def.generics_tokenizer(
@@ -539,12 +538,11 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
         &ctokens.ts_empty,
     );
 
-    let mut gen_params_header_rref = totrait_def.generics_tokenizer(
+    let gen_params_header_rref = totrait_def.generics_tokenizer(
         InWhat::ImplHeader,
         WithAssocTys::Yes(WhichSelf::NoSelf),
         &lt_tokens.lt_sub_lt,
     );
-    gen_params_header_rref.set_no_bounds();
 
     let gen_params_use_to_rref = totrait_def.generics_tokenizer(
         InWhat::ItemUse,
@@ -620,7 +618,7 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
                 __sabi_re::RRef<'_sub,_Self>,
                 #trait_interface<#trait_interface_use>,
                 Downcasting,
-                VTable<#vtable_generics_rref>,
+                VTable_Prefix<#vtable_generics_rref>,
             >
         ),
         WhichObject::RObject => quote!(
@@ -628,7 +626,7 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
                 _Self,
                 __sabi_re::RRef<'_sub,_Self>,
                 Downcasting,
-                VTable<#vtable_generics_rref>,
+                VTable_Prefix<#vtable_generics_rref>,
             >
         ),
     };
@@ -973,9 +971,9 @@ fn methods_impls(param: TokenizerParams, mod_: &mut TokenStream2) -> Result<(), 
             #[inline]
             fn sabi_vtable(
                 &self
-            )-> VTableInner_Ref<#generics_use1> {
+            )-> VTable_Ref<#generics_use1> {
                 unsafe{
-                    VTableInner_Ref(self.obj.sabi_et_vtable().cast())
+                    VTable_Ref(self.obj.sabi_et_vtable())
                 }
             }
 
@@ -1014,12 +1012,6 @@ fn declare_vtable(
     );
     generics_use0.set_no_bounds();
 
-    let generics_use1 = vtable_trait_decl.generics_tokenizer(
-        InWhat::ItemUse,
-        WithAssocTys::Yes(WhichSelf::NoSelf),
-        &ctokens.ts_self_erasedptr,
-    );
-
     let derive_attrs = vtable_trait_decl.derive_attrs;
 
     let methods_tokenizer = vtable_trait_decl.methods_tokenizer(WhichItem::VtableDecl);
@@ -1050,49 +1042,17 @@ fn declare_vtable(
         >
     );
 
-    let real_vtable_ty = quote!(VTableInner_Ref<#generics_use1>);
-
-    let bounds = {
-        let mut gen_toks = vtable_trait_decl.generics_tokenizer(
-            InWhat::ImplHeader,
-            WithAssocTys::Yes(WhichSelf::NoSelf),
-            &ctokens.ts_empty,
-        );
-        gen_toks.skip_unbounded();
-        let lt_bounds = &vtable_trait_decl.lifetime_bounds;
-
-        quote!(
-            #gen_toks
-            _Self: #lt_bounds,
-            _ErasedPtr: __GetPointerKind,
-        )
-    };
-
     quote!(
-        #[doc(hidden)]
-        #[repr(C)]
-        #[derive(abi_stable::StableAbi)]
-        #[sabi(
-            bounds(#bounds),
-            bound(#real_vtable_ty: ::abi_stable::StableAbi),
-            impl_prefix_stable_abi,
-        )]
-        #submod_vis struct VTable<#generics_decl_unbounded>{
-            #[sabi(unsafe_change_type=#real_vtable_ty)]
-            inner: [usize; 0],
-
-            _sabi_tys: __sabi_re::NonOwningPhantom<(#generics_use0)>,
-        }
 
         #[repr(C)]
         #[derive(abi_stable::StableAbi)]
-        #[sabi(kind(Prefix))]
+        #[sabi(kind(Prefix(prefix_ref = VTable_Ref)))]
         #[sabi(missing_field(panic))]
         #( #[sabi(prefix_bound(#lifetime_bounds))] )*
         #[sabi(bound(#robject_vtable: ::abi_stable::StableAbi))]
         #(#derive_attrs)*
         #[doc(hidden)]
-        #submod_vis struct VTableInner<#generics_decl>
+        #submod_vis struct VTable<#generics_decl>
         where
             _ErasedPtr:__GetPointerKind,
         {
@@ -1187,7 +1147,7 @@ fn vtable_impl(
                 _OrigPtr,
                 #trait_interface<#trait_interface_use>,
                 IA,
-                VTable<#vtable_generics>
+                VTable_Prefix<#vtable_generics>
             >=unsafe{
                 __sabi_re::VTableTO_DT::for_dyntrait(
                     Self::VTABLE_INNER,
@@ -1201,7 +1161,7 @@ fn vtable_impl(
                 _Self,
                 _OrigPtr,
                 IA,
-                VTable<#vtable_generics>
+                VTable_Prefix<#vtable_generics>
             >=unsafe{
                 __sabi_re::VTableTO_RO::for_robject(Self::VTABLE_INNER)
             };
@@ -1259,10 +1219,10 @@ fn vtable_impl(
             #extra_constraints
         {
             const TMP0: __sabi_re::WithMetadata<
-                VTableInner<#withmetadata_generics>
+                VTable<#withmetadata_generics>
             >={
                 __sabi_re::WithMetadata::new(
-                    VTableInner{
+                    VTable{
                         _sabi_tys: __sabi_re::NonOwningPhantom::NEW,
                         _sabi_vtable:__sabi_re::GetRObjectVTable::ROBJECT_VTABLE,
                         #(
@@ -1272,9 +1232,9 @@ fn vtable_impl(
                 )
             };
 
-            const VTABLE_INNER: __sabi_re::PrefixRef<VTable<#vtable_generics> > =unsafe{
+            const VTABLE_INNER: __sabi_re::PrefixRef<VTable_Prefix<#vtable_generics> > =unsafe{
                 __sabi_re::WithMetadata::raw_as_prefix(&Self::TMP0)
-                    .cast()
+                    .cast() // erasing the `_Self` parameter
             };
 
             #const_vtable_item

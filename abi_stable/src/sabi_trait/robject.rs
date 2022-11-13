@@ -87,7 +87,7 @@ where
 {
     vtable: PrefixRef<V>,
     ptr: ManuallyDrop<P>,
-    _marker: PhantomData<(&'lt (), I)>,
+    _marker: PhantomData<(&'lt (), extern "C" fn() -> I)>,
 }
 
 mod clone_impl {

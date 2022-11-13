@@ -36,7 +36,7 @@ unsafe impl Send for ConstGeneric {}
 unsafe impl Sync for ConstGeneric {}
 
 impl ConstGeneric {
-    /// Constructs a ConstGeneric from a reference and a vtable.
+    /// Constructs a ConstGeneric from a reference.
     pub const fn new<T>(this: &'static T) -> Self
     where
         T: StableAbi + Eq + PartialEq + Debug + Send + Sync + 'static,
