@@ -9,6 +9,7 @@ pub use crate::{
         },
         ConstGeneric,
     },
+    erased_types::{MakeVTable as MakeDynTraitVTable, VTable_Ref as DynTraitVTable_Ref},
     extern_fn_panic_handling,
     inline_storage::{GetAlignerFor, InlineStorage},
     marker_type::{

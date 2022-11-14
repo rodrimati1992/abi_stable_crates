@@ -1,4 +1,5 @@
 //! Contains `DynTrait<_>`'s vtable,and related types/traits.
+#![allow(missing_docs)]
 
 use std::{
     fmt::{self, Debug, Write as FmtWrite},
@@ -9,17 +10,18 @@ use std::{
 use super::{
     c_functions::*,
     iterator::{DoubleEndedIteratorFns, IteratorFns, MakeDoubleEndedIteratorFns, MakeIteratorFns},
-    traits::{GetSerializeProxyType, InterfaceFor, IteratorItemOrDefault, SerializeImplType},
+    traits::{GetSerializeProxyType, IteratorItemOrDefault, SerializeImplType, TypeInfoFor},
     *,
 };
 
 use crate::{
     marker_type::{ErasedObject, NonOwningPhantom},
     pointer_trait::{AsPtr, CanTransmuteElement, GetPointerKind},
-    prefix_type::{panic_on_missing_fieldname, WithMetadata},
-    sabi_types::{RMut, RRef},
+    prefix_type::{panic_on_missing_fieldname, PrefixTypeTrait, WithMetadata},
+    sabi_types::{RMut, RRef, StaticRef},
     std_types::{RIoError, RNone, RSeekFrom, RSome},
     type_level::{
+        downcasting::GetUTID,
         impl_enum::{Implementability, Implemented, Unimplemented},
         trait_marker,
     },
@@ -27,20 +29,15 @@ use crate::{
     StableAbi,
 };
 
-/// Returns the vtable used by DynTrait to do dynamic dispatch.
-pub trait GetVtable<'borr, This, ErasedPtr, OrigPtr, I: InterfaceBound> {
-    #[doc(hidden)]
-    const TMP_VTABLE: VTable<'borr, ErasedPtr, I>;
+/// Csontructs a vtable
+pub trait MakeVTable<'borr, T, OrigPtr, CanDowncast> {
+    type Helper0;
+    const HELPER0: Self::Helper0;
 
-    staticref! {
-        #[doc(hidden)]
-        const _WM_VTABLE: WithMetadata<VTable<'borr,ErasedPtr,I>> =
-            WithMetadata::new(Self::TMP_VTABLE)
-    }
+    type Helper1;
+    const HELPER1: Self::Helper1;
 
-    #[doc(hidden)]
-    const _GET_INNER_VTABLE: VTable_Ref<'borr, ErasedPtr, I> =
-        VTable_Ref(Self::_WM_VTABLE.as_prefix());
+    const VTABLE_REF: Self;
 }
 
 /// A helper type for constructing a [`DynTrait`] at compile-time,
@@ -68,23 +65,13 @@ impl<'borr, T, ErasedPtr, OrigPtr, I, Downcasting> Clone
 impl<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
     VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
 where
-    OrigPtr: CanTransmuteElement<(), PtrTarget = T, TransmutedPtr = ErasedPtr>,
-    ErasedPtr: AsPtr<PtrTarget = ()>,
-    I: InterfaceBound,
-    InterfaceFor<T, I, Downcasting>: GetVtable<'borr, T, ErasedPtr, OrigPtr, I>,
+    VTable_Ref<'borr, ErasedPtr, I>: MakeVTable<'borr, T, OrigPtr, Downcasting>,
 {
     /// Constructs a `VTableDT`.
-    pub const GET: Self =
-        Self {
-            vtable: <InterfaceFor<T, I, Downcasting> as GetVtable<
-                'borr,
-                T,
-                ErasedPtr,
-                OrigPtr,
-                I,
-            >>::_GET_INNER_VTABLE,
-            _for: NonOwningPhantom::NEW,
-        };
+    pub const GET: Self = Self {
+        vtable: VTable_Ref::VTABLE_REF,
+        _for: NonOwningPhantom::NEW,
+    };
 }
 
 macro_rules! declare_meta_vtable {
@@ -93,6 +80,7 @@ macro_rules! declare_meta_vtable {
         value=$value:ident;
         erased_pointer=$erased_ptr:ident;
         original_pointer=$orig_ptr:ident;
+        can_downcast=$can_downcast:ident;
 
         auto_traits[
             $([
@@ -305,12 +293,12 @@ macro_rules! declare_meta_vtable {
 
         ///////////////////////////////////////////////////////////
 
-        impl<'borr,This,$value,$erased_ptr,$orig_ptr,$interf>
-            GetVtable<'borr,$value,$erased_ptr,$orig_ptr,$interf>
-        for This
+        impl<'borr,$value,$erased_ptr,$orig_ptr,$interf,$can_downcast>
+            MakeVTable<'borr,$value,$orig_ptr,$can_downcast>
+        for VTable_Ref<'borr,$erased_ptr,$interf>
         where
-            This:ImplType<Interface=$interf>,
             $interf:InterfaceBound,
+            $can_downcast: GetUTID<$value>,
             $(
                 $interf::$auto_trait:
                     MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>,
@@ -330,8 +318,12 @@ macro_rules! declare_meta_vtable {
                 >,
             )*
         {
-            const TMP_VTABLE:VTable<'borr,$erased_ptr,$interf>=VTable{
-                type_info:This::INFO,
+            #[doc(hidden)]
+            type Helper0 = WithMetadata<VTable<'borr,$erased_ptr,$interf>>;
+
+            #[doc(hidden)]
+            const HELPER0: Self::Helper0 = WithMetadata::new(VTable{
+                type_info: <TypeInfoFor<$value, $interf, $can_downcast>>::INFO,
                 drop_ptr:drop_pointer_impl::<$orig_ptr,$erased_ptr>,
                 $(
                     $priv_field:
@@ -353,7 +345,22 @@ macro_rules! declare_meta_vtable {
                         >::FIELD,
                 )*
                 _marker:NonOwningPhantom::NEW,
+            });
+
+            #[doc(hidden)]
+            type Helper1 = StaticRef<WithMetadata<VTable<'borr,ErasedPtr,I>>>;
+
+            #[doc(hidden)]
+            const HELPER1: Self::Helper1 = unsafe {
+                // relying on static promotion, this will compile-error otherwise
+                StaticRef::from_raw(
+                    &<Self as MakeVTable<'borr,$value,$orig_ptr,$can_downcast>>::HELPER0
+                )
             };
+
+            const VTABLE_REF: Self = Self(
+                <Self as MakeVTable<'borr,$value,$orig_ptr,$can_downcast>>::HELPER1.as_prefix()
+            );
 
         }
 
@@ -471,6 +478,7 @@ declare_meta_vtable! {
     value  =T;
     erased_pointer=ErasedPtr;
     original_pointer=OrigP;
+    can_downcast = CanDowncast;
 
     auto_traits[
         [

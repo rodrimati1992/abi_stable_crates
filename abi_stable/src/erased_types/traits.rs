@@ -433,6 +433,40 @@ pub mod interface_for {
 
 /////////////////////////////////////////////////////////////////////
 
+pub use self::typeinfo_for::TypeInfoFor;
+
+#[doc(hidden)]
+pub mod typeinfo_for {
+    use super::*;
+
+    use crate::type_level::downcasting::GetUTID;
+
+    #[doc(hidden)]
+    pub struct TypeInfoFor<T, Interface, Downcasting>(
+        NonOwningPhantom<(T, Interface, Downcasting)>,
+    );
+
+    impl<T, Interface, Downcasting> TypeInfoFor<T, Interface, Downcasting>
+    where
+        Interface: InterfaceType,
+        Downcasting: GetUTID<T>,
+    {
+        /// The `&'static TypeInfo` constant, used when unerasing `DynTrait`s into a type.
+        pub const INFO: &'static TypeInfo = &TypeInfo {
+            size: std::mem::size_of::<T>(),
+            alignment: std::mem::align_of::<T>(),
+            _uid: Constructor(<Downcasting as GetUTID<T>>::UID),
+            type_name: Constructor(crate::utils::get_type_name::<T>),
+            module: RStr::from_str("<unavailable>"),
+            package: RStr::from_str("<unavailable>"),
+            package_version: VersionStrings::new("99.99.99"),
+            _private_field: (),
+        };
+    }
+}
+
+/////////////////////////////////////////////////////////////////////
+
 crate::impl_InterfaceType! {
     impl crate::erased_types::InterfaceType for () {
         type Send= True;

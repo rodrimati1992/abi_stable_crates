@@ -46,11 +46,8 @@ pub use self::{
         SerializeImplType, SerializeProxyType,
     },
     type_info::TypeInfo,
-    vtable::{InterfaceBound, VTableDT},
+    vtable::{InterfaceBound, MakeVTable, VTableDT, VTable_Ref},
 };
-
-#[doc(hidden)]
-pub use self::vtable::GetVtable;
 
 #[doc(no_inline)]
 pub use crate::type_level::downcasting::{TD_CanDowncast, TD_Opaque};

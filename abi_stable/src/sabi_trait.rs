@@ -12,7 +12,10 @@ pub mod reexports {
 
     pub mod __sabi_re {
         pub use abi_stable::{
-            erased_types::{traits::InterfaceFor, DynTrait, GetVtable, VTableDT},
+            erased_types::{
+                traits::InterfaceFor, DynTrait, MakeVTable as MakeDynTraitVTable, VTableDT,
+                VTable_Ref as DynTraitVTable_Ref,
+            },
             extern_fn_panic_handling,
             marker_type::{
                 NonOwningPhantom, SyncSend, SyncUnsend, UnsafeIgnoredType, UnsyncSend, UnsyncUnsend,

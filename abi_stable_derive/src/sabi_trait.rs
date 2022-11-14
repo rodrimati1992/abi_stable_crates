@@ -445,6 +445,8 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
     let assoc_tys_b = assoc_tys_a.clone();
     let assoc_tys_c = assoc_tys_a.clone();
     let assoc_tys_d = assoc_tys_a.clone();
+    let assoc_tys_e = assoc_tys_a.clone();
+    let assoc_tys_f = assoc_tys_a.clone();
 
     let mut make_vtable_args = totrait_def.generics_tokenizer(
         InWhat::ItemUse,
@@ -470,17 +472,16 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
         WhichObject::DynTrait => quote!(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
-            __sabi_re::InterfaceFor<
-                _OrigPtr::PtrTarget,
+            __sabi_re::DynTraitVTable_Ref<
+                #one_lt
+                _OrigPtr::TransmutedPtr,
                 #trait_interface<#trait_interface_use>,
-                Downcasting
             >:
-                __sabi_re::GetVtable<
+                __sabi_re::MakeDynTraitVTable<
                     #one_lt
                     _OrigPtr::PtrTarget,
-                    _OrigPtr::TransmutedPtr,
                     _OrigPtr,
-                    #trait_interface<#trait_interface_use>,
+                    Downcasting
                 >,
         ),
         WhichObject::RObject => quote!(),
@@ -490,13 +491,35 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
         WhichObject::DynTrait => quote!(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
-            __sabi_re::InterfaceFor<_Self,#trait_interface<#trait_interface_use>,Downcasting>:
-                __sabi_re::GetVtable<
+            __sabi_re::DynTraitVTable_Ref<
+                #one_lt
+                __sabi_re::RBox<()>,
+                #trait_interface<#trait_interface_use>,
+            >:
+                __sabi_re::MakeDynTraitVTable<
                     #one_lt
                     _Self,
-                    __sabi_re::RBox<()>,
                     __sabi_re::RBox<_Self>,
-                    #trait_interface<#trait_interface_use>,
+                    Downcasting
+                >,
+        ),
+        WhichObject::RObject => quote!(),
+    };
+
+    let extra_constraints_const = match totrait_def.which_object {
+        WhichObject::DynTrait => quote!(
+            #trait_interface<#trait_interface_use>:
+                ::abi_stable::erased_types::InterfaceBound,
+            __sabi_re::DynTraitVTable_Ref<
+                #one_lt
+                __sabi_re::RRef<'_sub, ()>,
+                #trait_interface<#trait_interface_use>,
+            >:
+                __sabi_re::MakeDynTraitVTable<
+                    #one_lt
+                    _Self,
+                    __sabi_re::RRef<'_sub, _Self>,
+                    Downcasting
                 >,
         ),
         WhichObject::RObject => quote!(),
@@ -636,7 +659,6 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
             #trait_backend::from_const(
                 ptr,
                 can_it_downcast,
-                vtable_for.dyntrait_vtable(),
                 vtable_for.robject_vtable(),
             )
         ),
@@ -731,7 +753,12 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
                 vtable_for:#vtable_type,
             )->Self
             where
+                _Self:
+                    #trait_bounds<#trait_params #( #assoc_tys_e = #assoc_tys_f, )* >
+                    #plus_lt,
                 _Self:#one_lt
+
+                #extra_constraints_const
             {
                 unsafe{
                     Self{
@@ -1174,17 +1201,17 @@ fn vtable_impl(
         WhichObject::DynTrait => quote!(
             #trait_interface<#trait_interface_use>:
                 ::abi_stable::erased_types::InterfaceBound,
-            __sabi_re::InterfaceFor<
-                _Self,
+
+            __sabi_re::DynTraitVTable_Ref<
+                #one_lt
+                _ErasedPtr,
                 #trait_interface<#trait_interface_use>,
-                IA
             >:
-                __sabi_re::GetVtable<
+                __sabi_re::MakeDynTraitVTable<
                     #one_lt
                     _Self,
-                    _ErasedPtr,
                     _OrigPtr,
-                    #trait_interface<#trait_interface_use>,
+                    IA,
                 >,
         ),
         WhichObject::RObject => quote!(),

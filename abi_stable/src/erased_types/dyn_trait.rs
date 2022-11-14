@@ -34,7 +34,7 @@ use super::{
     c_functions::adapt_std_fmt,
     trait_objects::*,
     traits::{DeserializeDyn, GetSerializeProxyType, InterfaceFor},
-    vtable::{GetVtable, VTable_Ref},
+    vtable::{MakeVTable, VTable, VTable_Ref},
     IteratorItemOrDefault, *,
 };
 
@@ -663,7 +663,8 @@ mod priv_ {
         where
             T: ImplType,
             T::Interface: InterfaceBound,
-            T: GetVtable<'static, T, RBox<()>, RBox<T>, <T as ImplType>::Interface>,
+            VTable_Ref<'static, RBox<()>, <T as ImplType>::Interface>:
+                MakeVTable<'static, T, RBox<T>, TD_CanDowncast>,
         {
             let object = RBox::new(object);
             DynTrait::from_ptr(object)
@@ -740,12 +741,13 @@ mod priv_ {
         where
             T: ImplType,
             T::Interface: InterfaceBound,
-            T: GetVtable<'static, T, P::TransmutedPtr, P, <T as ImplType>::Interface>,
             P: GetPointerKind<PtrTarget = T> + CanTransmuteElement<()>,
+            VTable_Ref<'static, P::TransmutedPtr, <T as ImplType>::Interface>:
+                MakeVTable<'static, T, P, TD_CanDowncast>,
         {
             DynTrait {
                 object: unsafe { ManuallyDrop::new(object.transmute_element::<()>()) },
-                vtable: T::_GET_INNER_VTABLE,
+                vtable: VTable_Ref::VTABLE_REF,
                 extra_value: (),
                 _marker: NonOwningPhantom::NEW,
                 _marker2: UnsafeIgnoredType::DEFAULT,
@@ -773,7 +775,7 @@ mod priv_ {
         where
             T: 'static,
             I: InterfaceBound,
-            InterfaceFor<T, I, TD_CanDowncast>: GetVtable<'static, T, RBox<()>, RBox<T>, I>,
+            VTable_Ref<'static, RBox<()>, I>: MakeVTable<'static, T, RBox<T>, TD_CanDowncast>,
         {
             let object = RBox::new(object);
             DynTrait::from_any_ptr(object, interface)
@@ -836,12 +838,12 @@ mod priv_ {
         where
             I: InterfaceBound,
             T: 'static,
-            InterfaceFor<T, I, TD_CanDowncast>: GetVtable<'static, T, P::TransmutedPtr, P, I>,
             P: GetPointerKind<PtrTarget = T> + CanTransmuteElement<()>,
+            VTable_Ref<'static, P::TransmutedPtr, I>: MakeVTable<'static, T, P, TD_CanDowncast>,
         {
             DynTrait {
                 object: unsafe { ManuallyDrop::new(object.transmute_element::<()>()) },
-                vtable: <InterfaceFor<T, I, TD_CanDowncast>>::_GET_INNER_VTABLE,
+                vtable: VTable_Ref::VTABLE_REF,
                 extra_value: (),
                 _marker: NonOwningPhantom::NEW,
                 _marker2: UnsafeIgnoredType::DEFAULT,
@@ -878,7 +880,7 @@ mod priv_ {
         where
             T: 'borr,
             I: InterfaceBound,
-            InterfaceFor<T, I, TD_Opaque>: GetVtable<'borr, T, RBox<()>, RBox<T>, I>,
+            VTable_Ref<'borr, RBox<()>, I>: MakeVTable<'borr, T, RBox<T>, TD_Opaque>,
         {
             let object = RBox::new(object);
             DynTrait::from_borrowing_ptr(object, interface)
@@ -944,12 +946,12 @@ mod priv_ {
         where
             T: 'borr,
             I: InterfaceBound,
-            InterfaceFor<T, I, TD_Opaque>: GetVtable<'borr, T, P::TransmutedPtr, P, I>,
             P: GetPointerKind<PtrTarget = T> + CanTransmuteElement<()>,
+            VTable_Ref<'borr, P::TransmutedPtr, I>: MakeVTable<'borr, T, P, TD_Opaque>,
         {
             DynTrait {
                 object: unsafe { ManuallyDrop::new(object.transmute_element::<()>()) },
-                vtable: <InterfaceFor<T, I, TD_Opaque>>::_GET_INNER_VTABLE,
+                vtable: VTable_Ref::VTABLE_REF,
                 extra_value: (),
                 _marker: NonOwningPhantom::NEW,
                 _marker2: UnsafeIgnoredType::DEFAULT,
@@ -989,13 +991,12 @@ mod priv_ {
             OrigPtr: GetPointerKind,
             OrigPtr::PtrTarget: 'borr,
             I: InterfaceBound,
-            InterfaceFor<OrigPtr::PtrTarget, I, Downcasting>:
-                GetVtable<'borr, OrigPtr::PtrTarget, P, OrigPtr, I>,
             OrigPtr: CanTransmuteElement<(), TransmutedPtr = P>,
+            VTable_Ref<'borr, P, I>: MakeVTable<'borr, OrigPtr::PtrTarget, OrigPtr, Downcasting>,
         {
             DynTrait {
                 object: unsafe { ManuallyDrop::new(ptr.transmute_element::<()>()) },
-                vtable: <InterfaceFor<OrigPtr::PtrTarget, I, Downcasting>>::_GET_INNER_VTABLE,
+                vtable: VTable_Ref::VTABLE_REF,
                 extra_value,
                 _marker: NonOwningPhantom::NEW,
                 _marker2: UnsafeIgnoredType::DEFAULT,
@@ -1011,9 +1012,8 @@ mod priv_ {
             OrigPtr: GetPointerKind,
             OrigPtr::PtrTarget: 'borr,
             I: InterfaceBound,
-            InterfaceFor<OrigPtr::PtrTarget, I, Downcasting>:
-                GetVtable<'borr, OrigPtr::PtrTarget, P, OrigPtr, I>,
             OrigPtr: CanTransmuteElement<(), TransmutedPtr = P>,
+            VTable_Ref<'borr, P, I>: MakeVTable<'borr, OrigPtr::PtrTarget, OrigPtr, Downcasting>,
         {
             Self::with_extra_value(ptr, extra_vtable)
         }
@@ -1038,15 +1038,6 @@ mod priv_ {
         ///
         /// <br>
         ///
-        /// `vtable_for`:
-        /// This is constructible with
-        /// [`VTableDT::GET`](crate::erased_types::VTableDT#associatedconstant.GET).
-        /// `VTableDT` wraps the vtable for a `DynTrait`,
-        /// while keeping the original type and pointer type that it was constructed for,
-        /// allowing this function to be safe to call.
-        ///
-        /// <br>
-        ///
         /// `extra_value`:
         /// This is used by [`#[sabi_trait]`](macro@crate::sabi_trait)
         /// trait objects to store their vtable inside DynTrait.
@@ -1065,7 +1056,7 @@ mod priv_ {
         /// static STRING: &str = "What the heck";
         ///
         /// static DYN: DynTrait<'static, RRef<'static, ()>, DebugDisplayInterface, ()> =
-        ///     DynTrait::from_const(&STRING, TD_Opaque, VTableDT::GET, ());
+        ///     DynTrait::from_const(&STRING, TD_Opaque, ());
         ///
         /// fn main() {
         ///     assert_eq!(format!("{}", DYN), format!("{}", STRING));
@@ -1079,10 +1070,10 @@ mod priv_ {
         pub const fn from_const<T, Downcasting>(
             ptr: &'a T,
             can_it_downcast: Downcasting,
-            vtable_for: VTableDT<'borr, T, RRef<'a, ()>, RRef<'a, T>, I, Downcasting>,
             extra_value: EV,
         ) -> Self
         where
+            VTable_Ref<'borr, RRef<'a, ()>, I>: MakeVTable<'borr, T, RRef<'a, T>, Downcasting>,
             T: 'borr,
         {
             // Must wrap can_it_downcast in a ManuallyDrop because otherwise this
@@ -1093,7 +1084,7 @@ mod priv_ {
                     let x = RRef::from_raw(ptr as *const T as *const ());
                     ManuallyDrop::new(x)
                 },
-                vtable: vtable_for.vtable,
+                vtable: VTable_Ref::VTABLE_REF,
                 extra_value,
                 _marker: NonOwningPhantom::NEW,
                 _marker2: UnsafeIgnoredType::DEFAULT,
