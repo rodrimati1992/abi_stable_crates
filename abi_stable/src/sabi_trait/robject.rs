@@ -7,7 +7,7 @@ use core_extensions::SelfOps;
 
 use crate::{
     abi_stability::PrefixStableAbi,
-    erased_types::{c_functions::adapt_std_fmt, InterfaceBound},
+    erased_types::{c_functions::adapt_std_fmt, InterfaceType, MakeRequiredTraits},
     pointer_trait::{
         AsMutPtr, AsPtr, CanTransmuteElement, GetPointerKind, PK_Reference, PK_SmartPointer,
         PointerKind, TransmuteElement,
@@ -78,8 +78,8 @@ use crate::{
 #[sabi(
     not_stableabi(V),
     bound(V: PrefixStableAbi),
-    bound(I: InterfaceBound),
-    extra_checks = <I as InterfaceBound>::EXTRA_CHECKS,
+    bound(I: InterfaceType),
+    extra_checks = <I as MakeRequiredTraits>::MAKE,
 )]
 pub struct RObject<'lt, P, I, V>
 where
@@ -206,7 +206,7 @@ where
 impl<'lt, P, I, V> std::error::Error for RObject<'lt, P, I, V>
 where
     P: AsPtr<PtrTarget = ()>,
-    I: InterfaceBound<
+    I: InterfaceType<
         Display = Implemented<trait_marker::Display>,
         Debug = Implemented<trait_marker::Debug>,
         Error = Implemented<trait_marker::Error>,
@@ -232,7 +232,7 @@ impl<'lt, P, I, V> Unpin for RObject<'lt, P, I, V>
 where
     // `Unpin` is a property of the referent
     P: GetPointerKind,
-    I: InterfaceBound<Unpin = Implemented<trait_marker::Unpin>>,
+    I: InterfaceType<Unpin = Implemented<trait_marker::Unpin>>,
 {
 }
 

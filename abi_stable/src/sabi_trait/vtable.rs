@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::{
-    erased_types::{FormattingMode, InterfaceBound},
+    erased_types::{FormattingMode, InterfaceType, MakeRequiredTraits},
     marker_type::NonOwningPhantom,
     std_types::{RResult, RString, UTypeId},
     type_level::{
@@ -128,8 +128,8 @@ pub struct RObjectVtable<_Self, ErasedPtr, I> {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    bound(I: InterfaceBound),
-    extra_checks = <I as InterfaceBound>::EXTRA_CHECKS,
+    bound(I: InterfaceType),
+    extra_checks = <I as MakeRequiredTraits>::MAKE,
     kind(Prefix)
 )]
 pub(super) struct BaseVtable<_Self, ErasedPtr, I> {

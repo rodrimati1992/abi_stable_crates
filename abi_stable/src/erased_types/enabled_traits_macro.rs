@@ -1,28 +1,13 @@
 macro_rules! declare_enabled_traits {
-    (declare_index;($value:expr,$ty:ty);$which_impl0:ident,$which_impl1:ident $(,$rest:ident)* )=>{
-        pub const $which_impl0:$ty=$value;
-        pub const $which_impl1:$ty=$value << 1;
-
-        declare_enabled_traits!{declare_index;($value << 2,$ty); $($rest),* }
-    };
-    (declare_index;($value:expr,$ty:ty);$which_impl:ident)=>{
-        pub const $which_impl:$ty=$value;
-    };
-    (declare_index;($value:expr,$ty:ty);)=>{
-
-    };
-
     (
         auto_traits[
-            $($auto_trait:ident),* $(,)*
+            $(($auto_trait:ident, $auto_trait_query:ident, $auto_trait_path:path)),* $(,)*
         ]
 
         regular_traits[
-            $($regular_trait:ident),* $(,)*
+            $(($regular_trait:ident, $regular_trait_query:ident, $regular_trait_path:path)),* $(,)*
         ]
     ) => (
-        use std::fmt::{self,Debug,Display};
-
         use crate::{
             abi_stability::extra_checks::{
                 TypeCheckerMut,ExtraChecks,
@@ -30,34 +15,98 @@ macro_rules! declare_enabled_traits {
             },
             type_layout::TypeLayout,
             std_types::{RCowSlice,RResult},
-            StableAbi,
         };
 
         use core_extensions::strings::StringExt;
 
         #[allow(non_upper_case_globals)]
-        pub mod auto_trait_mask{
-            declare_enabled_traits!{declare_index;(1,u16); $($auto_trait),* }
+        mod auto_trait_mask{
+            #[repr(u32)]
+            enum __Index {
+                $($auto_trait,)*
+            }
+            $(pub(super) const $auto_trait: u16 = 1u16 << __Index::$auto_trait as u32;)*
         }
 
         #[allow(non_upper_case_globals)]
-        pub mod regular_trait_mask{
-            declare_enabled_traits!{declare_index;(1,u64); $($regular_trait),* }
+        mod regular_trait_mask{
+            #[repr(u32)]
+            enum __Index {
+                $($regular_trait,)*
+            }
+            $(pub(super) const $regular_trait: u64 = 1u64 << __Index::$regular_trait as u32;)*
         }
 
 
+        /// Describes which traits are required and enabled by the `I: `[`InterfaceType`]
+        /// that this `RequiredTraits` is created from.
+        ///
+        /// # Purpose
+        ///
+        /// This is what [`DynTrait`] uses to check that the traits it
+        /// requires are compatible between library versions,
+        /// by using this type in
+        /// [`#[sabi(extra_checks = <here>)]`](derive@crate::StableAbi#sabi_extra_checks_attr).
+        ///
+        /// This type requires that auto traits are the same across versions.
+        /// Non-auto traits can be added in newer versions of a library.
         #[repr(C)]
         #[derive(Copy,Clone,StableAbi)]
-        pub struct EnabledTraits{
-            pub auto_traits:u16,
-            pub regular_traits:u64,
+        pub struct RequiredTraits{
+            auto_traits:u16,
+            regular_traits:u64,
         }
 
-        impl Debug for EnabledTraits{
+        impl RequiredTraits {
+            /// Constructs an RequiredTraits.
+            pub const fn new<I: InterfaceType>() -> Self {
+                use crate::type_level::impl_enum::Implementability;
+
+                RequiredTraits {
+                    auto_traits: $(
+                        if <I::$auto_trait as Implementability>::IS_IMPLD {
+                            auto_trait_mask::$auto_trait
+                        } else {
+                            0
+                        }
+                    )|*,
+                    regular_traits: $(
+                        if <I::$regular_trait as Implementability>::IS_IMPLD {
+                            regular_trait_mask::$regular_trait
+                        } else {
+                            0
+                        }
+                    )|*
+                }
+            }
+
+            $(
+                #[doc = concat!(
+                    "Whether the [`",
+                    stringify!($auto_trait_path),
+                    "`] trait is required",
+                )]
+                pub const fn $auto_trait_query(self) -> bool {
+                    (self.auto_traits & auto_trait_mask::$auto_trait) != 0
+                }
+            )*
+            $(
+                #[doc = concat!(
+                    "Whether the [`",
+                    stringify!($regular_trait_path),
+                    "`] trait is required",
+                )]
+                pub const fn $regular_trait_query(self) -> bool {
+                    (self.regular_traits & regular_trait_mask::$regular_trait) != 0
+                }
+            )*
+        }
+
+        impl Debug for RequiredTraits{
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
                 use self::debug_impl_details::{EnabledAutoTraits,EnabledRegularTraits};
 
-                f.debug_struct("EnabledTraits")
+                f.debug_struct("RequiredTraits")
                  .field("auto_traits_bits",&self.auto_traits)
                  .field("auto_traits",&EnabledAutoTraits{traits:self.auto_traits})
                  .field("regular_traits_bits",&self.regular_traits)
@@ -66,9 +115,9 @@ macro_rules! declare_enabled_traits {
             }
         }
 
-        impl Display for EnabledTraits{
+        impl Display for RequiredTraits{
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{
-                f.write_str("EnabledTraits\n")?;
+                f.write_str("RequiredTraits\n")?;
 
                 f.write_str("Auto traits:")?;
                 if self.auto_traits==0 {
@@ -99,7 +148,7 @@ macro_rules! declare_enabled_traits {
         }
 
 
-        unsafe impl ExtraChecks for EnabledTraits {
+        unsafe impl ExtraChecks for RequiredTraits {
             fn type_layout(&self)->&'static TypeLayout{
                 <Self as StableAbi>::LAYOUT
             }
@@ -178,8 +227,8 @@ macro_rules! declare_enabled_traits {
         #[derive(Debug,Clone)]
         pub struct ImpldTraitsError{
             kind:ImpldTraitsErrorKind,
-            expected:EnabledTraits,
-            found:EnabledTraits,
+            expected:RequiredTraits,
+            found:RequiredTraits,
         }
 
         #[derive(Debug,Clone)]

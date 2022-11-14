@@ -75,8 +75,4 @@ use self::reexports::__sabi_re::*;
 
 pub use self::robject::{RObject, ReborrowBounds, UneraseError};
 
-use crate::{
-    erased_types::{c_functions, InterfaceType},
-    marker_type::ErasedObject,
-    sabi_types::MaybeCmp,
-};
+use crate::{erased_types::c_functions, marker_type::ErasedObject, sabi_types::MaybeCmp};

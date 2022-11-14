@@ -103,7 +103,7 @@ pub mod impl_enum {
     }
     use self::sealed::Sealed;
 
-    /// Queries whether this type is `Implemented<T>`
+    /// Trait for [`Implemented`] and [`Unimplemented`]
     pub trait Implementability: Sealed {
         /// Whether the trait represented by the type parameter must be implemented.
         const IS_IMPLD: bool;
@@ -115,30 +115,23 @@ pub mod impl_enum {
     ///
     pub trait ImplFrom_<T: ?Sized> {
         /// Either `Unimplemented` or `Implemented`.
-        type Impl: ?Sized;
-
-        /// Either `Unimplemented` or `Implemented`.
-        const IMPL: Self::Impl;
+        type Impl: ?Sized + Implementability;
     }
 
     impl<T: ?Sized> ImplFrom_<T> for False {
         type Impl = Unimplemented<T>;
-        const IMPL: Unimplemented<T> = Unimplemented::NEW;
     }
 
     impl<T: ?Sized> ImplFrom_<T> for True {
         type Impl = Implemented<T>;
-        const IMPL: Implemented<T> = Implemented::NEW;
     }
 
     impl<T: ?Sized> ImplFrom_<T> for Unimplemented<T> {
         type Impl = Unimplemented<T>;
-        const IMPL: Unimplemented<T> = Unimplemented::NEW;
     }
 
     impl<T: ?Sized> ImplFrom_<T> for Implemented<T> {
         type Impl = Implemented<T>;
-        const IMPL: Implemented<T> = Implemented::NEW;
     }
 
     /// Converts `B` to either `Unimplemented<T>` or `Implemented<T>`.
@@ -151,13 +144,8 @@ pub mod impl_enum {
     /// The `T` type parameter represents the required trait.
     pub struct Implemented<T: ?Sized>(NonOwningPhantom<T>);
 
-    impl<T: ?Sized> Implemented<T> {
-        /// Constructs an `Implemented`.
-        pub const NEW: Implemented<T> = Implemented(NonOwningPhantom::NEW);
-    }
-
-    impl<T> Sealed for Implemented<T> {}
-    impl<T> Implementability for Implemented<T> {
+    impl<T: ?Sized> Sealed for Implemented<T> {}
+    impl<T: ?Sized> Implementability for Implemented<T> {
         const IS_IMPLD: bool = true;
     }
 
@@ -166,13 +154,8 @@ pub mod impl_enum {
     /// The `T` type parameter represents the trait.
     pub struct Unimplemented<T: ?Sized>(NonOwningPhantom<T>);
 
-    impl<T: ?Sized> Unimplemented<T> {
-        /// Constructs an `Unimplemented`.
-        pub const NEW: Unimplemented<T> = Unimplemented(NonOwningPhantom::NEW);
-    }
-
-    impl<T> Sealed for Unimplemented<T> {}
-    impl<T> Implementability for Unimplemented<T> {
+    impl<T: ?Sized> Sealed for Unimplemented<T> {}
+    impl<T: ?Sized> Implementability for Unimplemented<T> {
         const IS_IMPLD: bool = false;
     }
 }

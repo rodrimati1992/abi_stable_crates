@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     abi_stability::StableAbi,
-    erased_types::{c_functions, trait_objects::HasherObject, InterfaceBound},
+    erased_types::{c_functions, trait_objects::HasherObject, InterfaceType, MakeRequiredTraits},
     inline_storage::ScratchSpace,
     marker_type::ErasedObject,
     nonexhaustive_enum::{
@@ -192,8 +192,8 @@ mod tests;
     not_stableabi(E,S,I),
     bound(NonExhaustiveVtable_Ref<E,S,I>:StableAbi),
     bound(E: NonExhaustiveMarker<S>),
-    bound(I: InterfaceBound),
-    extra_checks = <I as InterfaceBound>::EXTRA_CHECKS,
+    bound(I: InterfaceType),
+    extra_checks = <I as MakeRequiredTraits>::MAKE,
     phantom_type_param = <E as NonExhaustiveMarker<S>>::Marker,
 )]
 pub struct NonExhaustive<E, S, I> {
@@ -505,7 +505,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
 
 impl<E, S, I> Clone for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Clone = Implemented<trait_marker::Clone>>,
+    I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone(&self) -> Self {
         unsafe { self.vtable().clone_()(self.sabi_erased_ref(), self.vtable) }
@@ -514,7 +514,7 @@ where
 
 impl<E, S, I> Display for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Display = Implemented<trait_marker::Display>>,
+    I: InterfaceType<Display = Implemented<trait_marker::Display>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
@@ -529,7 +529,7 @@ where
 
 impl<E, S, I> Debug for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Debug = Implemented<trait_marker::Debug>>,
+    I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
@@ -545,13 +545,13 @@ where
 impl<E, S, I> Eq for NonExhaustive<E, S, I>
 where
     Self: PartialEq,
-    I: InterfaceBound<Eq = Implemented<trait_marker::Eq>>,
+    I: InterfaceType<Eq = Implemented<trait_marker::Eq>>,
 {
 }
 
 impl<E, S, I1, I2> PartialEq<NonExhaustive<E, S, I2>> for NonExhaustive<E, S, I1>
 where
-    I1: InterfaceBound<PartialEq = Implemented<trait_marker::PartialEq>>,
+    I1: InterfaceType<PartialEq = Implemented<trait_marker::PartialEq>>,
 {
     fn eq(&self, other: &NonExhaustive<E, S, I2>) -> bool {
         unsafe { self.vtable().partial_eq()(self.sabi_erased_ref(), other.as_erased_ref()) }
@@ -560,7 +560,7 @@ where
 
 impl<E, S, I> Ord for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Ord = Implemented<trait_marker::Ord>>,
+    I: InterfaceType<Ord = Implemented<trait_marker::Ord>>,
     Self: PartialOrd + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -570,7 +570,7 @@ where
 
 impl<E, S, I1, I2> PartialOrd<NonExhaustive<E, S, I2>> for NonExhaustive<E, S, I1>
 where
-    I1: InterfaceBound<PartialOrd = Implemented<trait_marker::PartialOrd>>,
+    I1: InterfaceType<PartialOrd = Implemented<trait_marker::PartialOrd>>,
     Self: PartialEq<NonExhaustive<E, S, I2>>,
 {
     fn partial_cmp(&self, other: &NonExhaustive<E, S, I2>) -> Option<Ordering> {
@@ -587,7 +587,7 @@ where
 impl<E, S, I> PartialOrd<E> for NonExhaustive<E, S, I>
 where
     E: GetEnumInfo + PartialOrd,
-    I: InterfaceBound<PartialOrd = Implemented<trait_marker::PartialOrd>>,
+    I: InterfaceType<PartialOrd = Implemented<trait_marker::PartialOrd>>,
     Self: PartialEq<E>,
 {
     fn partial_cmp(&self, other: &E) -> Option<Ordering> {
@@ -601,7 +601,7 @@ where
 impl<E, S, I> PartialEq<E> for NonExhaustive<E, S, I>
 where
     E: GetEnumInfo + PartialEq,
-    I: InterfaceBound<PartialEq = Implemented<trait_marker::PartialEq>>,
+    I: InterfaceType<PartialEq = Implemented<trait_marker::PartialEq>>,
 {
     fn eq(&self, other: &E) -> bool {
         match self.as_enum() {
@@ -617,7 +617,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     /// It serializes a `NonExhaustive<_>` into a proxy.
     pub fn serialize_into_proxy(&self) -> Result<I::Proxy, RBoxError>
     where
-        I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
+        I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
         I: SerializeEnum<NonExhaustive<E, S, I>>,
     {
         unsafe { self.vtable().serialize()(self.as_erased_ref()).into_result() }
@@ -626,7 +626,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     /// Deserializes a `NonExhaustive<_>` from a proxy.
     pub fn deserialize_from_proxy<'borr>(proxy: I::Proxy) -> Result<Self, RBoxError>
     where
-        I: InterfaceBound<Deserialize = Implemented<trait_marker::Deserialize>>,
+        I: InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>>,
         I: DeserializeEnum<'borr, NonExhaustive<E, S, I>>,
         I::Proxy: 'borr,
         E: GetEnumInfo,
@@ -638,7 +638,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
 /// First it serializes a `NonExhaustive<_>` into a proxy,then it serializes that proxy.
 impl<E, S, I> Serialize for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
+    I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
     I: SerializeEnum<NonExhaustive<E, S, I>>,
     I::Proxy: Serialize,
 {
@@ -661,7 +661,7 @@ impl<'de, E, S, I> Deserialize<'de> for NonExhaustive<E, S, I>
 where
     E: 'de + GetVTable<S, I>,
     S: 'de,
-    I: 'de + InterfaceBound<Deserialize = Implemented<trait_marker::Deserialize>>,
+    I: 'de + InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>>,
     I: DeserializeEnum<'de, NonExhaustive<E, S, I>>,
     <I as DeserializeEnum<'de, NonExhaustive<E, S, I>>>::Proxy: Deserialize<'de>,
 {
@@ -682,7 +682,7 @@ where
 
 impl<E, S, I> Hash for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Hash = Implemented<trait_marker::Hash>>,
+    I: InterfaceType<Hash = Implemented<trait_marker::Hash>>,
 {
     fn hash<H>(&self, state: &mut H)
     where
@@ -693,7 +693,7 @@ where
 }
 
 impl<E, S, I> std::error::Error for NonExhaustive<E, S, I> where
-    I: InterfaceBound<
+    I: InterfaceType<
         Debug = Implemented<trait_marker::Debug>,
         Display = Implemented<trait_marker::Display>,
         Error = Implemented<trait_marker::Error>,

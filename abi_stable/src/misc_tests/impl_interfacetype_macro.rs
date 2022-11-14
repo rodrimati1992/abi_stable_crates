@@ -9,6 +9,8 @@ use crate::{
     GetStaticEquivalent, InterfaceType, StableAbi,
 };
 
+use core_extensions::type_asserts::AssertEq;
+
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct AllTraitsImpld;
@@ -42,28 +44,28 @@ impl_InterfaceType! {
 
 #[test]
 fn assert_all_traits_impld() {
-    let _: <AllTraitsImpld as InterfaceType>::Send = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Sync = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Unpin = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Clone = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Default = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Display = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Debug = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Serialize = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Deserialize = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Eq = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::PartialEq = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Ord = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::PartialOrd = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Hash = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Iterator = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::DoubleEndedIterator = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::FmtWrite = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::IoWrite = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::IoSeek = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::IoRead = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::IoBufRead = Implemented::NEW;
-    let _: <AllTraitsImpld as InterfaceType>::Error = Implemented::NEW;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Send, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Sync, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Unpin, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Clone, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Default, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Display, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Debug, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Serialize, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Deserialize, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Eq, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::PartialEq, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Ord, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::PartialOrd, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Hash, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Iterator, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::DoubleEndedIterator, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::FmtWrite, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::IoWrite, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::IoSeek, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::IoRead, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::IoBufRead, Implemented<_>>;
+    let _: AssertEq<<AllTraitsImpld as InterfaceType>::Error, Implemented<_>>;
 }
 
 #[repr(C)]
@@ -79,28 +81,28 @@ impl_InterfaceType! {
 
 #[test]
 fn assert_all_traits_unimpld() {
-    let _: <NoTraitsImpld<()> as InterfaceType>::Send = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Sync = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Unpin = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Clone = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Default = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Display = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Debug = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Serialize = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Deserialize = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Eq = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::PartialEq = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Ord = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::PartialOrd = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Hash = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Iterator = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::DoubleEndedIterator = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::FmtWrite = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::IoWrite = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::IoSeek = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::IoRead = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::IoBufRead = Unimplemented::NEW;
-    let _: <NoTraitsImpld<()> as InterfaceType>::Error = Unimplemented::NEW;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Send, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Sync, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Unpin, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Clone, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Default, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Display, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Debug, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Serialize, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Deserialize, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Eq, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::PartialEq, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Ord, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::PartialOrd, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Hash, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Iterator, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::DoubleEndedIterator, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::FmtWrite, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::IoWrite, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::IoSeek, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::IoRead, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::IoBufRead, Unimplemented<_>>;
+    let _: AssertEq<<NoTraitsImpld<()> as InterfaceType>::Error, Unimplemented<_>>;
 }
 
 #[repr(C)]
@@ -123,28 +125,28 @@ impl_InterfaceType! {
 
 #[test]
 fn assert_fmt_traits_impld() {
-    let _: <FmtInterface<()> as InterfaceType>::Send = Implemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Sync = Implemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Unpin = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Clone = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Default = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Display = Implemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Debug = Implemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Serialize = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Deserialize = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Eq = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::PartialEq = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Ord = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::PartialOrd = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Hash = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Iterator = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::DoubleEndedIterator = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::FmtWrite = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::IoWrite = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::IoSeek = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::IoRead = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::IoBufRead = Unimplemented::NEW;
-    let _: <FmtInterface<()> as InterfaceType>::Error = Unimplemented::NEW;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Send, Implemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Sync, Implemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Unpin, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Clone, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Default, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Display, Implemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Debug, Implemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Serialize, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Deserialize, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Eq, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::PartialEq, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Ord, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::PartialOrd, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Hash, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Iterator, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::DoubleEndedIterator, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::FmtWrite, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::IoWrite, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::IoSeek, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::IoRead, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::IoBufRead, Unimplemented<_>>;
+    let _: AssertEq<<FmtInterface<()> as InterfaceType>::Error, Unimplemented<_>>;
 }
 
 #[repr(C)]
@@ -168,26 +170,26 @@ impl_InterfaceType! {
 
 #[test]
 fn assert_hash_eq_impld() {
-    let _: <HashEqInterface<()> as InterfaceType>::Send = Implemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Sync = Implemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Unpin = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Clone = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Default = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Display = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Debug = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Serialize = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Deserialize = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Eq = Implemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::PartialEq = Implemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Ord = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::PartialOrd = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Hash = Implemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Iterator = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::DoubleEndedIterator = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::FmtWrite = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::IoWrite = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::IoSeek = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::IoRead = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::IoBufRead = Unimplemented::NEW;
-    let _: <HashEqInterface<()> as InterfaceType>::Error = Unimplemented::NEW;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Send, Implemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Sync, Implemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Unpin, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Clone, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Default, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Display, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Debug, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Serialize, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Deserialize, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Eq, Implemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::PartialEq, Implemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Ord, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::PartialOrd, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Hash, Implemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Iterator, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::DoubleEndedIterator, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::FmtWrite, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::IoWrite, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::IoSeek, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::IoRead, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::IoBufRead, Unimplemented<_>>;
+    let _: AssertEq<<HashEqInterface<()> as InterfaceType>::Error, Unimplemented<_>>;
 }

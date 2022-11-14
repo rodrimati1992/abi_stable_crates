@@ -11,7 +11,7 @@ use super::TypeInfo;
 #[allow(unused_imports)]
 use crate::type_level::{
     bools::{False, True},
-    impl_enum::{Implemented, Unimplemented},
+    impl_enum::{Implementability, Implemented, Unimplemented},
     trait_marker,
 };
 
@@ -63,7 +63,7 @@ macro_rules! declare_InterfaceType {
         pub trait InterfaceType: Sized {
             $(
                 $(#[$assoc_attrs])*
-                type $trait_;
+                type $trait_: Implementability;
             )*
 
             #[doc(hidden)]

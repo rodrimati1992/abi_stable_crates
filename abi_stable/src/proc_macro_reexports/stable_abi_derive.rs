@@ -105,6 +105,7 @@ Sibling means libraries loaded at runtime by the same library/binary
 
 For more information about tags, [look here](./type_layout/tagging/index.html)
 
+<span id = "sabi_extra_checks_attr"></span>
 ###  `#[sabi(extra_checks = <some_constant_expression>)]` 
 
 Adds an `ExtraChecks` trait object associated with the type,

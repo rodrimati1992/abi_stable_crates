@@ -36,7 +36,7 @@ pub(crate) mod vtable;
 
 pub(crate) mod traits;
 
-#[doc(no_inline)]
+#[doc(inline)]
 pub use crate::DynTrait;
 
 pub use self::{
@@ -46,8 +46,11 @@ pub use self::{
         SerializeImplType, SerializeProxyType,
     },
     type_info::TypeInfo,
-    vtable::{InterfaceBound, MakeVTable, VTable_Ref},
+    vtable::{MakeRequiredTraits, RequiredTraits},
 };
+
+#[doc(hidden)]
+pub use self::vtable::{MakeVTable, VTable_Ref};
 
 #[doc(no_inline)]
 pub use crate::type_level::downcasting::{TD_CanDowncast, TD_Opaque};

@@ -7,9 +7,7 @@ use crate::{
     std_types::{utypeid::UTypeId, RStr},
 };
 
-/// Metadata stored in the vtable of `DynTrait<_>`
-///
-/// You need to use [`impl_get_type_info`] to construct `TypeInfo`.
+/// Metadata about a type.
 #[derive(Debug, Eq, PartialEq)]
 #[repr(C)]
 #[derive(StableAbi)]

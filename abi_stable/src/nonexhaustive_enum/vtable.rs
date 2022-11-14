@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    erased_types::{c_functions, trait_objects, FormattingMode, InterfaceBound, InterfaceType},
+    erased_types::{c_functions, trait_objects, FormattingMode, InterfaceType},
     inline_storage::InlineStorage,
     marker_type::{ErasedObject, UnsafeIgnoredType},
     nonexhaustive_enum::{
@@ -165,7 +165,7 @@ type UnerasedSerializeFn<E, S, I> = unsafe extern "C" fn(
 impl<E, S, I> NonExhaustiveVtable_Ref<E, S, I> {
     pub(crate) fn serialize(self) -> UnerasedSerializeFn<E, S, I>
     where
-        I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
+        I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
         I: GetSerializeEnumProxy<NonExhaustive<E, S, I>>,
     {
         unsafe {

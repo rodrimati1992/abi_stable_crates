@@ -325,9 +325,6 @@ pub use crate::{
     erased_types::{dyn_trait::DynTrait, ImplType, InterfaceType},
 };
 
-#[doc(no_inline)]
-pub use crate::erased_types::InterfaceBound;
-
 #[doc(hidden)]
 pub mod globals {
     use crate::{

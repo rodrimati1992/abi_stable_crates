@@ -477,7 +477,7 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
     let extra_constraints_ptr = match totrait_def.which_object {
         WhichObject::DynTrait => quote!(
             #trait_interface<#trait_interface_use>:
-                ::abi_stable::erased_types::InterfaceBound,
+                ::abi_stable::erased_types::InterfaceType,
             __sabi_re::DynTraitVTable_Ref<
                 #one_lt
                 _OrigPtr::TransmutedPtr,
@@ -496,7 +496,7 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
     let extra_constraints_value = match totrait_def.which_object {
         WhichObject::DynTrait => quote!(
             #trait_interface<#trait_interface_use>:
-                ::abi_stable::erased_types::InterfaceBound,
+                ::abi_stable::erased_types::InterfaceType,
             __sabi_re::DynTraitVTable_Ref<
                 #one_lt
                 __sabi_re::RBox<()>,
@@ -515,7 +515,7 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
     let extra_constraints_const = match totrait_def.which_object {
         WhichObject::DynTrait => quote!(
             #trait_interface<#trait_interface_use>:
-                ::abi_stable::erased_types::InterfaceBound,
+                ::abi_stable::erased_types::InterfaceType,
             __sabi_re::DynTraitVTable_Ref<
                 #one_lt
                 __sabi_re::RRef<'_sub, ()>,
@@ -1152,7 +1152,7 @@ fn vtable_impl(
     let extra_constraints = match vtable_trait_impl.which_object {
         WhichObject::DynTrait => quote!(
             #trait_interface<#trait_interface_use>:
-                ::abi_stable::erased_types::InterfaceBound,
+                ::abi_stable::erased_types::InterfaceType,
 
             __sabi_re::DynTraitVTable_Ref<
                 #one_lt
