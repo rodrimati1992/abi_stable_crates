@@ -151,7 +151,6 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2, syn::Error> {
         #vis use self::#generated_mod::{
             #trait_to,
             #trait_ident,
-            #make_vtable_ident,
             #trait_cto_ident,
         };
 
@@ -455,6 +454,13 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
     );
     make_vtable_args.skip_lifetimes();
 
+    let mut make_vtable_args_const = totrait_def.generics_tokenizer(
+        InWhat::ItemUse,
+        WithAssocTys::No,
+        &ctokens.ts_make_vtable_args_const,
+    );
+    make_vtable_args_const.skip_lifetimes();
+
     let fn_can_it_downcast_arg = match totrait_def.which_object {
         WhichObject::DynTrait => quote!(Downcasting),
         WhichObject::RObject => quote!(),
@@ -518,11 +524,14 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
                 __sabi_re::MakeDynTraitVTable<
                     #one_lt
                     _Self,
-                    __sabi_re::RRef<'_sub, _Self>,
+                    &'_sub _Self,
                     Downcasting
                 >,
         ),
-        WhichObject::RObject => quote!(),
+        WhichObject::RObject => quote!(
+            #trait_interface<#trait_interface_use>:
+                __sabi_re::GetRObjectVTable<Downcasting, _Self, __sabi_re::RRef<'_sub, ()>, &'_sub _Self>
+        ),
     };
 
     let gen_params_header = totrait_def.generics_tokenizer(
@@ -622,49 +631,24 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
         );
     }
 
-    let vtable_generics_rref = totrait_def.generics_tokenizer(
-        InWhat::ItemUse,
-        WithAssocTys::Yes(WhichSelf::NoSelf),
-        &ctokens.ts_unit_rref_unit,
-    );
-
     let reborrow_methods = reborrow_methods_tokenizer(params);
 
     let plus_lt = &lt_tokens.plus_lt;
-
-    let vtable_type = match totrait_def.which_object {
-        WhichObject::DynTrait => quote!(
-            __sabi_re::VTableTO_DT<
-                #one_lt
-                _Self,
-                __sabi_re::RRef<'_sub,()>,
-                __sabi_re::RRef<'_sub,_Self>,
-                #trait_interface<#trait_interface_use>,
-                Downcasting,
-                VTable_Prefix<#vtable_generics_rref>,
-            >
-        ),
-        WhichObject::RObject => quote!(
-            __sabi_re::VTableTO_RO<
-                _Self,
-                __sabi_re::RRef<'_sub,_Self>,
-                Downcasting,
-                VTable_Prefix<#vtable_generics_rref>,
-            >
-        ),
-    };
 
     let constructing_backend = match totrait_def.which_object {
         WhichObject::DynTrait => quote!(
             #trait_backend::from_const(
                 ptr,
                 can_it_downcast,
-                vtable_for.robject_vtable(),
+                #make_vtable_ident::<#make_vtable_args_const>::VTABLE_INNER
             )
         ),
         WhichObject::RObject => quote!({
             let _ = __sabi_re::ManuallyDrop::new(can_it_downcast);
-            #trait_backend::with_vtable_const(ptr,vtable_for)
+            #trait_backend::with_vtable_const::<_, Downcasting>(
+                ptr,
+                #make_vtable_ident::<#make_vtable_args_const>::VTABLE_INNER
+            )
         }),
     };
 
@@ -750,14 +734,16 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
             #submod_vis const fn from_const<_Self,Downcasting>(
                 ptr:&'_sub _Self,
                 can_it_downcast:Downcasting,
-                vtable_for:#vtable_type,
             )->Self
             where
                 _Self:
                     #trait_bounds<#trait_params #( #assoc_tys_e = #assoc_tys_f, )* >
                     #plus_lt,
                 _Self:#one_lt
-
+                #trait_interface<#trait_interface_use>:
+                    __sabi_re::GetRObjectVTable<
+                        Downcasting, _Self, __sabi_re::RRef<'_sub, ()>, &'_sub _Self
+                    >,
                 #extra_constraints_const
             {
                 unsafe{
@@ -1101,14 +1087,11 @@ fn declare_vtable(
 ///
 fn vtable_impl(
     TokenizerParams {
-        config,
         ctokens,
         vtable_trait_impl,
         trait_interface,
-        trait_cto_ident,
         trait_bounds,
         make_vtable_ident,
-        submod_vis,
         lt_tokens,
         ..
     }: TokenizerParams,
@@ -1164,37 +1147,6 @@ fn vtable_impl(
 
     let methods_tokenizer = vtable_trait_impl.methods_tokenizer(WhichItem::VtableImpl);
 
-    let const_vtable_item = match vtable_trait_impl.which_object {
-        WhichObject::DynTrait => quote!(
-            /// Gets the vtable
-            pub const VTABLE:__sabi_re::VTableTO_DT<
-                'lt,
-                _Self,
-                _ErasedPtr,
-                _OrigPtr,
-                #trait_interface<#trait_interface_use>,
-                IA,
-                VTable_Prefix<#vtable_generics>
-            >=unsafe{
-                __sabi_re::VTableTO_DT::for_dyntrait(
-                    Self::VTABLE_INNER,
-                    __sabi_re::VTableDT::GET,
-                )
-            };
-        ),
-        WhichObject::RObject => quote!(
-            /// Gets the vtable
-            pub const VTABLE:__sabi_re::VTableTO_RO<
-                _Self,
-                _OrigPtr,
-                IA,
-                VTable_Prefix<#vtable_generics>
-            >=unsafe{
-                __sabi_re::VTableTO_RO::for_robject(Self::VTABLE_INNER)
-            };
-        ),
-    };
-
     let one_lt = &lt_tokens.one_lt;
 
     let extra_constraints = match vtable_trait_impl.which_object {
@@ -1217,22 +1169,8 @@ fn vtable_impl(
         WhichObject::RObject => quote!(),
     };
 
-    let doc_hidden_attr = config.doc_hidden_attr;
-
-    let mut trait_mv_docs = String::new();
-
-    if doc_hidden_attr.is_none() {
-        trait_mv_docs = format!(
-            "A helper struct for constructing the vtable for \
-            [`{0}`](type@{0}),with \
-            [`{1}::VTABLE`](struct@{1}#associatedconstant.VTABLE)",
-            trait_cto_ident, make_vtable_ident,
-        );
-    }
-
     quote!(
-        #[doc=#trait_mv_docs]
-        #submod_vis struct #make_vtable_ident<#struct_decl_generics>(#dummy_struct_tys);
+        struct #make_vtable_ident<#struct_decl_generics>(#dummy_struct_tys);
 
         #[deny(unsafe_op_in_unsafe_fn)]
         impl<#impl_header_generics> #make_vtable_ident<#makevtable_generics>
@@ -1263,8 +1201,6 @@ fn vtable_impl(
                 __sabi_re::WithMetadata::raw_as_prefix(&Self::TMP0)
                     .cast() // erasing the `_Self` parameter
             };
-
-            #const_vtable_item
 
             #methods_tokenizer
         }

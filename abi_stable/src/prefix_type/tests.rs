@@ -1,7 +1,7 @@
 #![allow(clippy::derive_partial_eq_without_eq)]
 
 use crate::{
-    prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
+    prefix_type::{PrefixRef, WithMetadata},
     StableAbi,
 };
 

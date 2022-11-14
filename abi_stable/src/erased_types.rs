@@ -46,7 +46,7 @@ pub use self::{
         SerializeImplType, SerializeProxyType,
     },
     type_info::TypeInfo,
-    vtable::{InterfaceBound, MakeVTable, VTableDT, VTable_Ref},
+    vtable::{InterfaceBound, MakeVTable, VTable_Ref},
 };
 
 #[doc(no_inline)]

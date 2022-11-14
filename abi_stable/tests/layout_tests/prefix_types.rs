@@ -10,7 +10,7 @@ use abi_stable::{
     abi_stability::abi_checking::{
         check_layout_compatibility_with_globals, AbiInstability, CheckingGlobals,
     },
-    prefix_type::{PrefixTypeTrait, WithMetadata, __PrefixTypeMetadata},
+    prefix_type::{WithMetadata, __PrefixTypeMetadata},
     test_utils::must_panic,
     type_layout::TypeLayout,
     type_level::bools::*,

@@ -16,8 +16,8 @@ use super::{
 
 use crate::{
     marker_type::{ErasedObject, NonOwningPhantom},
-    pointer_trait::{AsPtr, CanTransmuteElement, GetPointerKind},
-    prefix_type::{panic_on_missing_fieldname, PrefixTypeTrait, WithMetadata},
+    pointer_trait::GetPointerKind,
+    prefix_type::{panic_on_missing_fieldname, WithMetadata},
     sabi_types::{RMut, RRef, StaticRef},
     std_types::{RIoError, RNone, RSeekFrom, RSome},
     type_level::{
@@ -38,40 +38,6 @@ pub trait MakeVTable<'borr, T, OrigPtr, CanDowncast> {
     const HELPER1: Self::Helper1;
 
     const VTABLE_REF: Self;
-}
-
-/// A helper type for constructing a [`DynTrait`] at compile-time,
-/// by passing `VTableDT::GET` to
-/// [`DynTrait::from_const`](crate::DynTrait#method.from_const).
-#[repr(transparent)]
-pub struct VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting> {
-    pub(super) vtable: VTable_Ref<'borr, ErasedPtr, I>,
-    _for: NonOwningPhantom<(T, OrigPtr, Downcasting)>,
-}
-
-impl<'borr, T, ErasedPtr, OrigPtr, I, Downcasting> Copy
-    for VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
-{
-}
-
-impl<'borr, T, ErasedPtr, OrigPtr, I, Downcasting> Clone
-    for VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
-{
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
-    VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
-where
-    VTable_Ref<'borr, ErasedPtr, I>: MakeVTable<'borr, T, OrigPtr, Downcasting>,
-{
-    /// Constructs a `VTableDT`.
-    pub const GET: Self = Self {
-        vtable: VTable_Ref::VTABLE_REF,
-        _for: NonOwningPhantom::NEW,
-    };
 }
 
 macro_rules! declare_meta_vtable {

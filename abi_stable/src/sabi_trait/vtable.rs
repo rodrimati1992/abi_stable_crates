@@ -1,10 +1,9 @@
 use super::*;
 
 use crate::{
-    erased_types::{FormattingMode, InterfaceBound, VTableDT},
+    erased_types::{FormattingMode, InterfaceBound},
     marker_type::NonOwningPhantom,
-    prefix_type::PrefixRef,
-    std_types::{RResult, RString, Tuple3, UTypeId},
+    std_types::{RResult, RString, UTypeId},
     type_level::{
         downcasting::GetUTID,
         impl_enum::{Implemented, Unimplemented},
@@ -49,113 +48,6 @@ where
 
     const ROBJECT_VTABLE: RObjectVtable_Ref<_Self, ErasedPtr, Self> =
         { GetRObjectVTableHelper::<IA, _Self, ErasedPtr, OrigPtr, I>::TMP_VTABLE };
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-/// The `VTableTO` passed to `#[sabi_trait]`
-/// generated trait objects that have `RObject` as their backend.
-#[allow(non_camel_case_types)]
-pub type VTableTO_RO<T, OrigPtr, Downcasting, V> = VTableTO<T, OrigPtr, Downcasting, V, ()>;
-
-/// The `VTableTO` passed to `#[sabi_trait]`
-/// generated trait objects that have `DynTrait` as their backend.
-#[allow(non_camel_case_types)]
-pub type VTableTO_DT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V> = VTableTO<
-    _Self,
-    OrigPtr,
-    Downcasting,
-    V,
-    VTableDT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting>,
->;
-
-/// This is used to safely pass the vtable to `#[sabi_trait]` generated trait objects,
-/// using `<Trait>_CTO::from_const( &value, <Trait>_MV::VTABLE )`.
-///
-/// `<Trait>` is whatever the name of the trait that one is constructing the trait object for.
-pub struct VTableTO<_Self, OrigPtr, Downcasting, V, DT> {
-    vtable: PrefixRef<V>,
-    for_dyn_trait: DT,
-    _for: PhantomData<extern "C" fn() -> Tuple3<_Self, OrigPtr, Downcasting>>,
-}
-
-impl<_Self, OrigPtr, Downcasting, V, DT> Copy for VTableTO<_Self, OrigPtr, Downcasting, V, DT> where
-    DT: Copy
-{
-}
-
-impl<_Self, OrigPtr, Downcasting, V, DT> Clone for VTableTO<_Self, OrigPtr, Downcasting, V, DT>
-where
-    DT: Copy,
-{
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<_Self, OrigPtr, Downcasting, V> VTableTO<_Self, OrigPtr, Downcasting, V, ()> {
-    /// Wraps an erased vtable.
-    ///
-    /// # Safety
-    ///
-    /// These are the requirements for the caller:
-    ///
-    /// - `OrigPtr` must be a pointer to the type that the vtable functions
-    ///     take as the first parameter.
-    ///
-    /// - The vtable must not come from a reborrowed RObject
-    ///     (created using RObject::reborrow or RObject::reborrow_mut).
-    ///
-    /// - The vtable must be the `<SomeVTableName>` of a struct declared with
-    ///     `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_ref= <SomeVTableName>)))]`.
-    ///
-    /// - The vtable must have `PrefixRef<RObjectVtable<..>>`
-    ///     as its first declared field
-    pub const unsafe fn for_robject(vtable: PrefixRef<V>) -> Self {
-        Self {
-            vtable,
-            for_dyn_trait: (),
-            _for: PhantomData,
-        }
-    }
-}
-
-impl<_Self, OrigPtr, Downcasting, V, DT> VTableTO<_Self, OrigPtr, Downcasting, V, DT> {
-    /// Gets the vtable that RObject is constructed with.
-    pub const fn robject_vtable(&self) -> PrefixRef<V> {
-        self.vtable
-    }
-}
-
-impl<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V>
-    VTableTO_DT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V>
-{
-    /// Gets the vtable for DynTrait.
-    pub const fn dyntrait_vtable(
-        &self,
-    ) -> VTableDT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting> {
-        self.for_dyn_trait
-    }
-}
-
-impl<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V>
-    VTableTO_DT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V>
-{
-    /// Wraps an erased vtable,alongside the vtable for DynTrait.
-    ///
-    /// # Safety
-    ///
-    /// This has the same safety requirements as the 'for_robject' constructor
-    pub const unsafe fn for_dyntrait(
-        vtable: PrefixRef<V>,
-        for_dyn_trait: VTableDT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting>,
-    ) -> Self {
-        Self {
-            vtable,
-            for_dyn_trait,
-            _for: PhantomData,
-        }
-    }
 }
 
 //////////////////////////////////////////////////////////////////////////////

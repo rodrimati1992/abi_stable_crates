@@ -160,8 +160,7 @@ pub mod nonstatic_supertrait {
     {
         pub const NONE: Option<&'a T> = None;
 
-        pub const CONST: Trait_CTO<'a, 'a, 'b> =
-            Trait_CTO::from_const(&Self::NONE, TD_Opaque, Trait_MV::VTABLE);
+        pub const CONST: Trait_CTO<'a, 'a, 'b> = Trait_CTO::from_const(&Self::NONE, TD_Opaque);
         pub fn get_const(_: &'a T) -> Trait_CTO<'a, 'a, 'b> {
             Self::CONST
         }
@@ -1511,12 +1510,12 @@ pub mod every_trait_nonstatic {
     }
 
     const CONST_A: Trait_CTO<'static, 'static, 'static> =
-        Trait_CTO::from_const(&Struct(""), TD_Opaque, Trait_MV::VTABLE);
+        Trait_CTO::from_const(&Struct(""), TD_Opaque);
 
     fn constructs_const_a<'a, 'b, 'borr, T>(ref_: &'b T) -> Trait_CTO<'a, 'borr, 'b>
     where
         T: 'borr + 'a + Trait<'a>,
     {
-        Trait_CTO::from_const(ref_, TD_Opaque, Trait_MV::VTABLE)
+        Trait_CTO::from_const(ref_, TD_Opaque)
     }
 }

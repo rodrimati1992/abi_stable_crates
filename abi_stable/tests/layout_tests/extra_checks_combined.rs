@@ -2,7 +2,7 @@ use abi_stable::{
     abi_stability::{
         abi_checking::{check_layout_compatibility_with_globals, AbiInstability, CheckingGlobals},
         extra_checks::{
-            ExtraChecks, ExtraChecksBox, ExtraChecksError, ExtraChecksRef, ExtraChecks_MV,
+            ExtraChecks, ExtraChecksBox, ExtraChecksError, ExtraChecksRef,
             ForExtraChecksImplementor, StoredExtraChecks, TypeCheckerMut,
         },
         stable_abi_trait::get_type_layout,
@@ -352,7 +352,6 @@ where
                 type_layout: Constructor(get_type_layout::<T>),
             },
             TD_Opaque,
-            ExtraChecks_MV::VTABLE,
         ));
 }
 

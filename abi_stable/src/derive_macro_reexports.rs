@@ -1,6 +1,6 @@
 pub use crate::{
     abi_stability::{
-        extra_checks::{ExtraChecks_MV, StoredExtraChecks},
+        extra_checks::StoredExtraChecks,
         get_static_equivalent::{GetStaticEquivalent, GetStaticEquivalent_},
         stable_abi_trait::{
             PrefixStableAbi, StableAbi, __opaque_field_type_layout,
@@ -27,7 +27,7 @@ pub use crate::{
         IsConditional, PTStructLayout, PrefixRef, PrefixRefTrait, PrefixTypeTrait, WithMetadata_,
     },
     reflection::ModReflMode,
-    sabi_trait::vtable::{RObjectVtable, RObjectVtable_Ref},
+    sabi_trait::vtable::{GetRObjectVTable, RObjectVtable, RObjectVtable_Ref},
     sabi_types::{Constructor, MovePtr, RMut, RRef, VersionStrings},
     std_types::{utypeid::new_utypeid, RErr, RNone, ROk, ROption, RResult, RSlice, RSome},
     type_layout::{

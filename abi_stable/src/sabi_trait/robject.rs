@@ -289,23 +289,20 @@ impl<'borr, 'a, I, V> RObject<'borr, RRef<'a, ()>, I, V> {
     ///
     /// ```
     /// use abi_stable::sabi_trait::{
-    ///     doc_examples::{ConstExample_CTO, ConstExample_MV},
+    ///     doc_examples::ConstExample_CTO,
     ///     prelude::TD_Opaque,
     /// };
     ///
     /// const EXAMPLE0: ConstExample_CTO<'static, 'static> =
-    ///     ConstExample_CTO::from_const(&0usize, TD_Opaque, ConstExample_MV::VTABLE);
+    ///     ConstExample_CTO::from_const(&0usize, TD_Opaque);
     ///
     /// ```
-    pub const unsafe fn with_vtable_const<T, Downcasting>(
-        ptr: &'a T,
-        vtable: VTableTO_RO<T, RRef<'a, T>, Downcasting, V>,
-    ) -> Self
+    pub const unsafe fn with_vtable_const<T, Downcasting>(ptr: &'a T, vtable: PrefixRef<V>) -> Self
     where
         T: 'borr,
     {
         RObject {
-            vtable: vtable.robject_vtable(),
+            vtable,
             ptr: {
                 let x = unsafe { RRef::new(ptr).transmute::<()>() };
                 ManuallyDrop::new(x)

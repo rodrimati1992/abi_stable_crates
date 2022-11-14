@@ -1,4 +1,4 @@
-use super::{immutable_ref, GetPointerKind};
+use super::immutable_ref;
 
 use std::ptr::NonNull;
 

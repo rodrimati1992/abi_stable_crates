@@ -4,7 +4,7 @@ use core_extensions::SelfOps;
 
 use crate::{
     sabi_trait::prelude::*,
-    std_types::{RArc, RBox, ROption, RStr, RString, Tuple1, Tuple2, Tuple3},
+    std_types::{RArc, RBox, ROption, RStr, RString, Tuple1},
     *,
 };
 
@@ -611,7 +611,7 @@ mod tests {
     #[test]
     fn test_from_const() {
         const RS_U32: RSomething_CTO<'static, 'static, (), u32> =
-            RSomething_CTO::from_const(&0, TD_Opaque, RSomething_MV::VTABLE);
+            RSomething_CTO::from_const(&0, TD_Opaque);
 
         assert_eq!(RS_U32.get(), &0);
 
@@ -620,7 +620,7 @@ mod tests {
             T: 'borr + RSomething<(), Element = U>,
             U: Debug,
         {
-            RSomething_CTO::from_const(ref_, TD_Opaque, RSomething_MV::VTABLE)
+            RSomething_CTO::from_const(ref_, TD_Opaque)
         }
 
         let hi = make_const_rsomething(&77);

@@ -185,7 +185,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
                         __sabi_re::StoredExtraChecks::from_const(
                             &#extra_checks,
                             __sabi_re::TD_Opaque,
-                            __sabi_re::ExtraChecks_MV::VTABLE,
                         )
                     );
             );

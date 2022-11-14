@@ -34,7 +34,7 @@ use super::{
     c_functions::adapt_std_fmt,
     trait_objects::*,
     traits::{DeserializeDyn, GetSerializeProxyType, InterfaceFor},
-    vtable::{MakeVTable, VTable, VTable_Ref},
+    vtable::{MakeVTable, VTable_Ref},
     IteratorItemOrDefault, *,
 };
 
@@ -1048,7 +1048,7 @@ mod priv_ {
         /// ```
         /// use abi_stable::{
         ///     erased_types::{
-        ///         interfaces::DebugDisplayInterface, DynTrait, TD_Opaque, VTableDT,
+        ///         interfaces::DebugDisplayInterface, DynTrait, TD_Opaque,
         ///     },
         ///     sabi_types::RRef,
         /// };
@@ -1073,7 +1073,7 @@ mod priv_ {
             extra_value: EV,
         ) -> Self
         where
-            VTable_Ref<'borr, RRef<'a, ()>, I>: MakeVTable<'borr, T, RRef<'a, T>, Downcasting>,
+            VTable_Ref<'borr, RRef<'a, ()>, I>: MakeVTable<'borr, T, &'a T, Downcasting>,
             T: 'borr,
         {
             // Must wrap can_it_downcast in a ManuallyDrop because otherwise this

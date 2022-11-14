@@ -13,7 +13,7 @@ pub mod reexports {
     pub mod __sabi_re {
         pub use abi_stable::{
             erased_types::{
-                traits::InterfaceFor, DynTrait, MakeVTable as MakeDynTraitVTable, VTableDT,
+                traits::InterfaceFor, DynTrait, MakeVTable as MakeDynTraitVTable,
                 VTable_Ref as DynTraitVTable_Ref,
             },
             extern_fn_panic_handling,
@@ -24,10 +24,7 @@ pub mod reexports {
             prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
             sabi_trait::{
                 robject::RObject,
-                vtable::{
-                    GetRObjectVTable, RObjectVtable, RObjectVtable_Ref, VTableTO, VTableTO_DT,
-                    VTableTO_RO,
-                },
+                vtable::{GetRObjectVTable, RObjectVtable, RObjectVtable_Ref},
             },
             sabi_types::{MovePtr, RMut, RRef},
             std_types::RBox,
@@ -76,10 +73,7 @@ use std::{
 
 use self::reexports::__sabi_re::*;
 
-pub use self::{
-    robject::{RObject, ReborrowBounds, UneraseError},
-    vtable::{VTableTO, VTableTO_DT, VTableTO_RO},
-};
+pub use self::robject::{RObject, ReborrowBounds, UneraseError};
 
 use crate::{
     erased_types::{c_functions, InterfaceType},

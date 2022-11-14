@@ -99,9 +99,6 @@ These are the items reexported from the module:
 
 - [`Trait_TO`](#trait_to): The trait object for the trait.
 
-- [`Trait_MV`](#trait_mv): 
-    A helper type used to construct the vtable for the trait object in constants.
-
 - [`Trait_CTO`](#trait_cto): 
 A type alias for the trait object which is constructible in constants.
 
@@ -176,7 +173,7 @@ you can use the `Trait_TO::from_sabi` associated function.
 A type alias for the type of the trait objct that is constructible in constants,
 with the `from_const` constructor function.
 
-Constructed with `Trait_CTO::from_const(&value, Trait_MV::VTABLE)`.
+Constructed with `Trait_CTO::from_const(&value)`.
 
 Trait_CTO has these generic parameters(in order): 
 
@@ -196,10 +193,6 @@ then it doesn't have this lifetime parameter.
 
 
 Example: `Trait_CTO<'lt, 'r, u8, u64, 10, AssocFoo>`
-
-###  Trait_MV
-
-A helper type used to construct the vtable of the trait object.
 
 ###  Trait 
 
@@ -464,7 +457,7 @@ const CARDS: &'static [char] =
     &['A', '2', '3', '4', '5', '6', '7', '8', '9', 'J', 'Q', 'K'];
 
 static IS_CARD: StaticSet_CTO<'static, 'static, char> =
-    StaticSet_CTO::from_const(&CARDS, TD_Opaque, StaticSet_MV::VTABLE);
+    StaticSet_CTO::from_const(&CARDS, TD_Opaque);
 
 # fn main(){
 
