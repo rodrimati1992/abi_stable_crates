@@ -152,7 +152,7 @@ pub(crate) unsafe extern "C" fn serialize_impl<'s, T, I>(
     this: RRef<'s, ErasedObject>,
 ) -> RResult<<I as SerializeProxyType<'s>>::Proxy, RBoxError>
 where
-    T: for<'borr> SerializeImplType<'borr, Interface = I>,
+    T: for<'borr> SerializeType<'borr, Interface = I>,
     I: for<'borr> SerializeProxyType<'borr>,
 {
     extern_fn_panic_handling! {no_early_return; unsafe {

@@ -121,7 +121,7 @@ pub struct TOState;
 /// The state passed to most functions in the TextOpsMod_Ref module.
 pub type TOStateBox = DynTrait<'static, RBox<()>, TOState>;
 
-/// First <ConcreteType as DeserializeImplType>::serialize_impl returns
+/// First <ConcreteType as DeserializeType>::serialize_impl returns
 /// a RawValueBox containing the serialized data,
 /// then the returned RawValueBox is serialized.
 impl<'a> SerializeProxyType<'a> for TOState {
@@ -162,7 +162,7 @@ impl<'a> IteratorItem<'a> for TOCommand {
     type Item = &'a mut RString;
 }
 
-/// First <ConcreteType as DeserializeImplType>::serialize_impl returns
+/// First <ConcreteType as DeserializeType>::serialize_impl returns
 /// a RawValueBox containing the serialized data,
 /// then the returned RawValueBox is serialized.
 impl<'a> SerializeProxyType<'a> for TOCommand {
@@ -197,7 +197,7 @@ pub struct TOReturnValue;
 /// A de/serializable opaque command enum,returned by the TextOpsMod_Ref::run_command function.
 pub type TOReturnValueArc = DynTrait<'static, RArc<()>, TOReturnValue>;
 
-/// First <ConcreteType as SerializeImplType>::serialize_impl returns
+/// First <ConcreteType as SerializeType>::serialize_impl returns
 /// a RawValueBox containing the serialized data,
 /// then the returned RawValueBox is serialized.
 impl<'a> SerializeProxyType<'a> for TOReturnValue {
@@ -245,7 +245,7 @@ pub struct RemoveWords<'a, 'b> {
     ///
     /// An iterator over `RCowStr<'a>`,
     /// constructed from a `&'b mut impl Iterator<RCowStr<'a>>`
-    /// with `DynTrait::from_borrowing_ptr(iter,CowStrIter)`.
+    /// with `DynTrait::from_borrowing_ptr(iter)`.
     pub words: DynTrait<'a, RMut<'b, ()>, CowStrIter>,
 }
 

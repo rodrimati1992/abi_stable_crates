@@ -15,8 +15,7 @@ use serde_json;
 
 #[allow(unused_imports)]
 use crate::{
-    erased_types::{DynTrait, ImplType, InterfaceType, IteratorItem},
-    impl_get_type_info,
+    erased_types::{DynTrait, InterfaceType, IteratorItem},
     std_types::{RArc, RBox, RBoxError, RCow, RNone, ROption, RSome, RStr, RString},
     test_utils::{GetImpls, GetImplsHelper},
     traits::IntoReprC,
@@ -78,15 +77,7 @@ where
     }
 }
 
-impl<T> ImplType for Foo<T>
-where
-    T: 'static,
-{
-    type Interface = FooInterface;
-    const INFO: &'static crate::erased_types::TypeInfo = impl_get_type_info! { Foo<T> };
-}
-
-impl<'s, T> SerializeImplType<'s> for Foo<T>
+impl<'s, T> SerializeType<'s> for Foo<T>
 where
     T: Serialize,
 {
@@ -166,7 +157,7 @@ fn new_wrapped() -> VirtualFoo<'static> {
 
 #[test]
 fn clone_test() {
-    let wrapped_expected = Foo::<String>::default().piped(DynTrait::from_value);
+    let wrapped_expected = Foo::<String>::default().piped(DynTrait::<_, FooInterface>::from_value);
     let wrapped = new_wrapped();
 
     {
@@ -188,14 +179,11 @@ fn clone_test() {
 fn default_test() {
     let concrete = Foo::<String>::default();
     let wrapped = new_wrapped().default();
-    let wrapped_expected = Foo::<String>::default().piped(DynTrait::from_value);
+    let wrapped_expected = Foo::<String>::default().piped(DynTrait::<_, FooInterface>::from_value);
 
     {
         assert_eq!(wrapped, wrapped_expected);
-        assert_eq!(
-            wrapped.downcast_as_impltype::<Foo<String>>().unwrap(),
-            &concrete
-        );
+        assert_eq!(wrapped.downcast_as::<Foo<String>>().unwrap(), &concrete);
         assert_ne!(wrapped, new_wrapped());
     }
 
@@ -207,10 +195,7 @@ fn default_test() {
         // This should not compile!!!!!
         // assert_eq!(reborrow.default(),wrapped_expected.reborrow());
 
-        assert_eq!(
-            reborrow.downcast_as_impltype::<Foo<String>>().unwrap(),
-            &concrete
-        );
+        assert_eq!(reborrow.downcast_as::<Foo<String>>().unwrap(), &concrete);
         assert_ne!(reborrow, new_wrapped());
     }
 }
@@ -268,15 +253,9 @@ fn deserialize_test() {
         Err(()),
     );
 
-    assert_eq!(
-        wrapped.downcast_as_impltype::<Foo<String>>().unwrap(),
-        &concrete,
-    );
+    assert_eq!(wrapped.downcast_as::<Foo<String>>().unwrap(), &concrete);
 
-    assert_eq!(
-        wrapped2.downcast_as_impltype::<Foo<String>>().unwrap(),
-        &concrete
-    );
+    assert_eq!(wrapped2.downcast_as::<Foo<String>>().unwrap(), &concrete);
 }
 
 // Unfortunately: miri doesn't like calling `extern fn(*const ErasedType)` that
@@ -370,11 +349,11 @@ fn cmp_test() {
 
     let mut wrapped_0 = new_foo()
         .mutated(|x| x.l -= 100)
-        .piped(DynTrait::from_value);
+        .piped(DynTrait::<_, FooInterface>::from_value);
     let mut wrapped_1 = new_wrapped();
     let mut wrapped_2 = new_foo()
         .mutated(|x| x.l += 100)
-        .piped(DynTrait::from_value);
+        .piped(DynTrait::<_, FooInterface>::from_value);
 
     cmp_test! {
         wrapped_0=wrapped_0,
@@ -431,28 +410,15 @@ fn hash_test() {
     {
         let concrete = Foo::<String>::default();
         let hash_concrete = hash_value(&concrete);
-        let hash_wrapped = hash_value(&DynTrait::from_value(concrete));
+        let hash_wrapped = hash_value(&DynTrait::from_value(concrete).interface(FooInterface));
 
         assert_eq!(hash_concrete, hash_wrapped);
     }
 }
 
 #[test]
-fn from_any_test() {
-    assert_eq!(
-        DynTrait::from_value(new_foo()),
-        DynTrait::from_any_value(new_foo(), FooInterface),
-    );
-
-    assert_eq!(
-        DynTrait::from_ptr(RArc::new(new_foo())),
-        DynTrait::from_any_ptr(RArc::new(new_foo()), FooInterface),
-    );
-}
-
-#[test]
 fn to_any_test() {
-    let mut wrapped = DynTrait::from_any_value(new_foo(), FooInterface);
+    let mut wrapped = DynTrait::from_value(new_foo()).interface(FooInterface);
 
     macro_rules! to_unerased {
         ( $wrapped:expr ; $method:ident ; $expected:expr ) => {
@@ -462,30 +428,22 @@ fn to_any_test() {
         };
     }
 
-    to_unerased!( wrapped.clone() ; downcast_into_impltype     ; RBox::new(new_foo()) );
     to_unerased!( wrapped.clone() ; downcast_into ; RBox::new(new_foo()) );
 
-    to_unerased!( wrapped ; downcast_as_impltype     ; &new_foo() );
     to_unerased!( wrapped ; downcast_as ; &new_foo() );
 
-    to_unerased!( wrapped ; downcast_as_mut_impltype ; &mut new_foo() );
     to_unerased!( wrapped ; downcast_as_mut ; &mut new_foo() );
 
     {
-        to_unerased!(wrapped.reborrow_mut(); downcast_into_impltype; RMut::new(&mut new_foo()));
         to_unerased!(wrapped.reborrow_mut() ; downcast_into ; RMut::new(&mut new_foo()));
 
-        to_unerased!( wrapped.reborrow_mut() ; downcast_as_impltype     ; &new_foo() );
         to_unerased!( wrapped.reborrow_mut() ; downcast_as ; &new_foo() );
 
-        to_unerased!( wrapped.reborrow_mut() ; downcast_as_mut_impltype ; &mut new_foo() );
         to_unerased!( wrapped.reborrow_mut() ; downcast_as_mut ; &mut new_foo() );
     }
     {
-        to_unerased!( wrapped.reborrow() ; downcast_into_impltype; RRef::new(&new_foo()) );
         to_unerased!( wrapped.reborrow() ; downcast_into ; RRef::new(&new_foo()) );
 
-        to_unerased!( wrapped.reborrow() ; downcast_as_impltype     ; &new_foo() );
         to_unerased!( wrapped.reborrow() ; downcast_as ; &new_foo() );
     }
 }
@@ -567,12 +525,7 @@ mod borrowing {
         }
     }
 
-    impl ImplType for Foo<'static> {
-        type Interface = FooInterface;
-        const INFO: &'static crate::erased_types::TypeInfo = impl_get_type_info! { Foo<'static> };
-    }
-
-    impl<'a, 's> SerializeImplType<'s> for Foo<'a> {
+    impl<'a, 's> SerializeType<'s> for Foo<'a> {
         type Interface = FooInterface;
 
         fn serialize_impl(&self) -> Result<RString, RBoxError> {
@@ -588,7 +541,7 @@ mod borrowing {
 
         fn deserialize_dyn(s: RStr<'borr>) -> Result<VirtualFoo<'borr>, RBoxError> {
             match ::serde_json::from_str::<Foo<'borr>>(s.as_str()) {
-                Ok(x) => Ok(DynTrait::from_borrowing_value(x, FooInterface)),
+                Ok(x) => Ok(DynTrait::from_borrowing_value(x).interface(FooInterface)),
                 Err(e) => Err(RBoxError::new(e)),
             }
         }
@@ -608,7 +561,7 @@ mod borrowing {
     fn cloning() {
         let name = "hello".to_string();
         let foo: Foo<'_> = Foo::new(&name);
-        let wrapped = DynTrait::from_borrowing_value(foo.clone(), FooInterface);
+        let wrapped = DynTrait::from_borrowing_value(foo.clone()).interface(FooInterface);
 
         let cloned = wrapped.clone();
 
@@ -624,7 +577,7 @@ mod borrowing {
         let default_foo = Foo::new(&default_name);
         assert_eq!(default_foo, Default::default());
 
-        let wrapped = DynTrait::from_borrowing_value(foo.clone(), FooInterface);
+        let wrapped = DynTrait::from_borrowing_value(foo.clone()).interface(FooInterface);
 
         let default_wrapped = wrapped.default();
 
@@ -635,7 +588,7 @@ mod borrowing {
     fn formatting() {
         let name = "hello".to_string();
         let foo: Foo<'_> = Foo::new(&name);
-        let wrapped = DynTrait::from_borrowing_value(foo.clone(), FooInterface);
+        let wrapped = DynTrait::from_borrowing_value(foo.clone()).interface(FooInterface);
 
         check_fmt(&foo, &wrapped);
     }
@@ -644,7 +597,7 @@ mod borrowing {
     fn serialize() {
         let name = "hello".to_string();
         let foo: Foo<'_> = Foo::new(&name);
-        let wrapped = DynTrait::from_borrowing_value(foo.clone(), FooInterface);
+        let wrapped = DynTrait::from_borrowing_value(foo.clone()).interface(FooInterface);
 
         assert_eq!(
             &*serde_json::to_string(&foo).unwrap(),
@@ -670,7 +623,7 @@ mod borrowing {
     fn hash() {
         let name = "hello".to_string();
         let foo: Foo<'_> = Foo::new(&name);
-        let wrapped = DynTrait::from_borrowing_value(foo.clone(), FooInterface);
+        let wrapped = DynTrait::from_borrowing_value(foo.clone()).interface(FooInterface);
 
         assert_eq!(HashedBytes::new(&foo), HashedBytes::new(&wrapped),);
     }
@@ -722,7 +675,7 @@ mod borrowing {
     fn iterator_from_lines(s: &str) -> DynTrait<'_, RBox<()>, IterInterface> {
         // collecting into a Vec to have an iterator of known length
         let lines = s.lines().collect::<Vec<&str>>();
-        DynTrait::from_borrowing_value(lines.into_iter(), IterInterface)
+        DynTrait::from_borrowing_value(lines.into_iter())
     }
 
     fn exact_size_hint(n: usize) -> (usize, Option<usize>) {
@@ -920,12 +873,12 @@ mod borrowing {
     fn is_same_type() {
         let value: String = "hello".to_string();
 
-        let wrapped = DynTrait::from_borrowing_value(value.clone(), ());
+        let wrapped = DynTrait::from_borrowing_value(value.clone()).interface(());
         let wrapped = wrapped.reborrow();
 
         // Creating a DynTrait with a different interface so that it
         // creates a different vtable.
-        let dbg_wrapped = DynTrait::from_borrowing_value(value, DebugInterface);
+        let dbg_wrapped = DynTrait::from_borrowing_value(value).interface(DebugInterface);
 
         assert!(!wrapped.sabi_is_same_type(&dbg_wrapped));
     }
@@ -946,12 +899,12 @@ mod borrowing {
         }
 
         to_unerased!(
-            DynTrait::from_borrowing_value(value.to_string(), ());
+            DynTrait::from_borrowing_value(value.to_string()).interface(());
             downcast_into,
         );
 
         to_unerased!(
-            DynTrait::from_borrowing_value(value.to_string(), ());
+            DynTrait::from_borrowing_value(value.to_string()).interface(());
             downcast_as,
             downcast_as_mut,
         );
@@ -995,7 +948,7 @@ mod borrowing {
         use std::fmt::Write;
         let mut s = String::new();
         {
-            let mut wrapped = DynTrait::from_any_ptr(&mut s, FmtInterface);
+            let mut wrapped = DynTrait::from_ptr(&mut s).interface(FmtInterface);
             let mut wrapped = wrapped.reborrow_mut();
             wrapped.write_char('¿').unwrap();
             wrapped.write_str("Hello").unwrap();
@@ -1018,7 +971,7 @@ mod borrowing {
         let mut buff = vec![FILLER; 9];
         let mut buff = buff[..].piped_mut(Cursor::new);
         {
-            let mut wrapped = DynTrait::from_borrowing_ptr(&mut buff, IoInterface);
+            let mut wrapped = DynTrait::from_borrowing_ptr(&mut buff).interface(IoInterface);
             assert_eq!(wrapped.write(&[0, 1]).map_err(drop), Ok(2));
 
             wrapped.write_all(&[2, 3, 4, 5]).unwrap();
@@ -1028,7 +981,7 @@ mod borrowing {
             &[0, 1, 2, 3, 4, 5, FILLER, FILLER, FILLER][..]
         );
         {
-            let mut wrapped = DynTrait::from_borrowing_ptr(&mut buff, IoInterface);
+            let mut wrapped = DynTrait::from_borrowing_ptr(&mut buff).interface(IoInterface);
 
             wrapped
                 .write_all(&[2, 3, 4, 5, 6, 7, 8, 9, 10])
@@ -1045,7 +998,7 @@ mod borrowing {
         let mut buff = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].piped(Cursor::new);
         let mut out = vec![0; 400];
 
-        let mut wrapped = DynTrait::from_any_ptr(&mut buff, IoInterface);
+        let mut wrapped = DynTrait::from_ptr(&mut buff).interface(IoInterface);
         assert_eq!(wrapped.read(&mut out[..3]).map_err(drop), Ok(3));
         assert_eq!(&out[..3], &[1, 2, 3][..]);
 
@@ -1092,7 +1045,7 @@ mod borrowing {
 
         let s = "line0\nline1\nline2".as_bytes().piped(Cursor::new);
 
-        let wrapped = DynTrait::from_borrowing_value(s, IoBufReadInterface);
+        let wrapped = DynTrait::<_, IoBufReadInterface>::from_borrowing_value(s);
 
         assert_eq!(
             wrapped.lines().collect::<Result<Vec<String>, _>>().unwrap(),
@@ -1111,7 +1064,7 @@ mod borrowing {
         let mut buff = vec![255, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].piped(Cursor::new);
         let mut out = vec![0; 400];
 
-        let mut wrapped = DynTrait::from_any_ptr(&mut buff, IoInterface);
+        let mut wrapped = DynTrait::from_ptr(&mut buff).interface(IoInterface);
 
         {
             wrapped.seek(SeekFrom::Start(1)).unwrap();

@@ -296,66 +296,6 @@ macro_rules! extern_fn_panic_handling {
     )
 }
 
-///////////////////////////////////////////////////////////////////////
-
-/// Constructs the [`TypeInfo`] for some type.
-///
-/// It's necessary for the type to be `'static` because
-/// [`TypeInfo`] stores a private function that returns the  [`UTypeId`] of that type.
-///
-/// # Example
-///
-/// ```
-/// use abi_stable::{
-///     impl_get_type_info,
-///     erased_types::{TypeInfo,ImplType},
-/// };
-///
-/// #[derive(Default, Clone, Debug)]
-/// struct Foo<T> {
-///     l: u32,
-///     r: u32,
-///     name: T,
-/// }
-///
-/// impl<T> ImplType for Foo<T>
-/// where T: 'static + Send + Sync
-/// {
-///     type Interface = ();
-///
-///     const INFO: &'static TypeInfo = impl_get_type_info! {Self};
-/// }
-///
-///
-/// ```
-///
-/// [`TypeInfo`]: ./erased_types/struct.TypeInfo.html
-/// [`UTypeId`]: ./std_types/struct.UTypeId.html
-///
-#[macro_export]
-macro_rules! impl_get_type_info {
-    ($type:ty) => {{
-        use std::mem;
-        use $crate::{
-            erased_types::TypeInfo,
-            std_types::{utypeid::some_utypeid, RStr},
-        };
-
-        let type_name = $crate::sabi_types::Constructor($crate::utils::get_type_name::<$type>);
-
-        &TypeInfo {
-            size: mem::size_of::<Self>(),
-            alignment: mem::align_of::<Self>(),
-            _uid: $crate::sabi_types::Constructor(some_utypeid::<Self>),
-            type_name,
-            module: RStr::from_str(module_path!()),
-            package: RStr::from_str(env!("CARGO_PKG_NAME")),
-            package_version: $crate::package_version_strings!(),
-            _private_field: (),
-        }
-    }};
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 /// Constructs a [`Tag`](./type_layout/tagging/struct.Tag.html),

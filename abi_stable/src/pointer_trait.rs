@@ -371,7 +371,7 @@ unsafe impl<'a, T: 'a, O: 'a> CanTransmuteElement<O> for &'a mut T {
 ///
 /// fn main() {
 ///     let reff: DynTrait<BarRef<()>, DebugDefEqInterface> =
-///         DynTrait::from_any_ptr(BarRef::new(&1234i32), DebugDefEqInterface);
+///         DynTrait::from_ptr(BarRef::new(&1234i32));
 ///     
 ///     assert_eq!(format!("{:?}", reff), "1234");
 /// }
@@ -450,7 +450,7 @@ pub unsafe trait AsPtr: GetPointerKind {
 /// fn main() {
 ///     let mut iter = 0..=5;
 ///     let reff: DynTrait<QuxMut<()>, DEIteratorInterface<_>> =
-///         DynTrait::from_any_ptr(QuxMut::new(&mut iter), DEIteratorInterface::NEW);
+///         DynTrait::from_ptr(QuxMut::new(&mut iter)).interface(DEIteratorInterface::NEW);
 ///     
 ///     assert_eq!(reff.collect::<Vec<u32>>(), [0, 1, 2, 3, 4, 5]);
 ///

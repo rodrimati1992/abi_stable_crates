@@ -42,8 +42,8 @@ pub use crate::DynTrait;
 pub use self::{
     dyn_trait::{DynTraitBound, GetVWInterface, UneraseError},
     traits::{
-        DeserializeDyn, ImplType, InterfaceType, IteratorItem, IteratorItemOrDefault,
-        SerializeImplType, SerializeProxyType,
+        DeserializeDyn, InterfaceType, IteratorItem, IteratorItemOrDefault, SerializeProxyType,
+        SerializeType,
     },
     type_info::TypeInfo,
     vtable::{MakeRequiredTraits, RequiredTraits},

@@ -304,7 +304,7 @@ pub mod only_debug {
 
 //     impl Trait for Struct{}
 
-//     impl SerializeImplType for Struct {
+//     impl SerializeType for Struct {
 //         fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError>{
 //             Ok(RCow::from("Struct"))
 //         }
@@ -337,7 +337,7 @@ pub mod only_debug {
 //         type Deserialized=Trait_Backend<'a,RBox<()>>;
 
 //         fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError>{
-//             Ok(DynTrait::from_any_value(Struct,Trait_Interface::NEW))
+//             Ok(DynTrait::from_value(Struct,Trait_Interface::NEW))
 //         }
 //     }
 

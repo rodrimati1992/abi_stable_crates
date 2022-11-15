@@ -13,8 +13,7 @@ pub mod reexports {
     pub mod __sabi_re {
         pub use abi_stable::{
             erased_types::{
-                traits::InterfaceFor, DynTrait, MakeVTable as MakeDynTraitVTable,
-                VTable_Ref as DynTraitVTable_Ref,
+                DynTrait, MakeVTable as MakeDynTraitVTable, VTable_Ref as DynTraitVTable_Ref,
             },
             extern_fn_panic_handling,
             marker_type::{

@@ -153,12 +153,6 @@ has this trait object: `Foo_TO<'a, 'lt, Pointer, T, U, Hello, World>`.
 One can access the underlying implementation of the trait object through the `obj` field,
 allowing one to call these methods(a nonexhaustive list): 
 
-- `downcast_into_impltype`(only [`DynTrait`])
-
-- `downcast_as_impltype`(only [`DynTrait`])
-
-- `downcast_as_mut_impltype`(only [`DynTrait`])
-
 - `downcast_into`
 
 - `downcast_as`

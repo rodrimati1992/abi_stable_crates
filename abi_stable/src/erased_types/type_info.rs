@@ -3,8 +3,11 @@
 use std::fmt;
 
 use crate::{
-    sabi_types::{Constructor, MaybeCmp, VersionStrings},
+    marker_type::NonOwningPhantom,
+    sabi_types::{Constructor, MaybeCmp},
     std_types::{utypeid::UTypeId, RStr},
+    type_level::downcasting::GetUTID,
+    InterfaceType,
 };
 
 /// Metadata about a type.
@@ -20,12 +23,6 @@ pub struct TypeInfo {
     pub _uid: Constructor<MaybeCmp<UTypeId>>,
     ///
     pub type_name: Constructor<RStr<'static>>,
-    ///
-    pub module: RStr<'static>,
-    ///
-    pub package: RStr<'static>,
-    ///
-    pub package_version: VersionStrings,
     #[doc(hidden)]
     pub _private_field: (),
 }
@@ -43,18 +40,30 @@ impl fmt::Display for TypeInfo {
             f,
             "type:{ty}\n\
              size:{size} alignment:{alignment}\n\
-             module:'{module}'\n\
-             package:'{package}'\n\
-             package_version:{package_version}\n\
              ",
             ty = self.type_name,
             size = self.size,
             alignment = self.alignment,
-            module = self.module,
-            package = self.package,
-            package_version = self.package_version
         )
     }
 }
 
 ////////////////////////////////////////////
+
+#[doc(hidden)]
+pub struct TypeInfoFor<T, Interface, Downcasting>(NonOwningPhantom<(T, Interface, Downcasting)>);
+
+impl<T, Interface, Downcasting> TypeInfoFor<T, Interface, Downcasting>
+where
+    Interface: InterfaceType,
+    Downcasting: GetUTID<T>,
+{
+    /// The `&'static TypeInfo` constant, used when unerasing `DynTrait`s into a type.
+    pub const INFO: &'static TypeInfo = &TypeInfo {
+        size: std::mem::size_of::<T>(),
+        alignment: std::mem::align_of::<T>(),
+        _uid: Constructor(<Downcasting as GetUTID<T>>::UID),
+        type_name: Constructor(crate::utils::get_type_name::<T>),
+        _private_field: (),
+    };
+}

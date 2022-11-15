@@ -15,10 +15,9 @@ use example_0_interface::{
 };
 
 use abi_stable::{
-    erased_types::{ImplType, SerializeImplType, TypeInfo},
+    erased_types::{SerializeType, TypeInfo},
     export_root_module,
     external_types::RawValueBox,
-    impl_get_type_info,
     prefix_type::{PrefixTypeTrait, WithMetadata},
     sabi_extern_fn,
     std_types::{RArc, RBox, RBoxError, RCow, RErr, ROk, RResult, RStr, RString, RVec},
@@ -69,21 +68,8 @@ struct TextOperationState {
     processed_bytes: u64,
 }
 
-/// Declares TOState as the `ìnterface type` of `TextOperationState`.
-///
-/// Also declares the INFO constant,with information about the type,
-/// used when erasing/unerasing the type with `DynTrait<_>`.
-///
-/// TOState defines which traits are required when constructing DynTrait<_>,
-/// and which ones it provides after constructing it.
-impl ImplType for TextOperationState {
-    type Interface = TOState;
-
-    const INFO: &'static TypeInfo = impl_get_type_info! { TextOperationState };
-}
-
 /// Defines how the type is serialized in DynTrait<_>.
-impl<'a> SerializeImplType<'a> for TextOperationState {
+impl<'a> SerializeType<'a> for TextOperationState {
     type Interface = TOState;
 
     fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
@@ -115,21 +101,8 @@ impl<'a> Iterator for Command<'a> {
     }
 }
 
-/// Declares TOState as the `ìnterface type` of `TOCommand`.
-///
-/// Also declares the INFO constant,with information about the type,
-/// used when erasing/unerasing the type with `DynTrait<_>`.
-///
-/// TOCommand defines which traits are required when constructing DynTrait<_>,
-/// and which ones it provides after constructing it.
-impl ImplType for Command<'static> {
-    type Interface = TOCommand;
-
-    const INFO: &'static TypeInfo = impl_get_type_info! { Command };
-}
-
 /// Defines how the type is serialized in DynTrait<_>.
-impl<'borr, 'a> SerializeImplType<'a> for Command<'borr> {
+impl<'borr, 'a> SerializeType<'a> for Command<'borr> {
     type Interface = TOCommand;
     fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
@@ -148,21 +121,8 @@ pub enum ReturnValue {
     Batch(RVec<ReturnValue>),
 }
 
-/// Declares TOState as the `ìnterface type` of `TOReturnValue`.
-///
-/// Also declares the INFO constant,with information about the type,
-/// used when erasing/unerasing the type with `DynTrait<_>`.
-///
-/// TOReturnValue defines which traits are required when constructing DynTrait<_>,
-/// and which ones it provides after constructing it.
-impl ImplType for ReturnValue {
-    type Interface = TOReturnValue;
-
-    const INFO: &'static TypeInfo = impl_get_type_info! { ReturnValue };
-}
-
 /// Defines how the type is serialized in DynTrait<_>.
-impl<'a> SerializeImplType<'a> for ReturnValue {
+impl<'a> SerializeType<'a> for ReturnValue {
     type Interface = TOReturnValue;
     fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
         serialize_json(self)
@@ -212,7 +172,7 @@ pub fn deserialize_command(s: RStr<'_>) -> RResult<TOCommandBox<'static>, RBoxEr
 pub fn deserialize_command_borrowing(s: RStr<'_>) -> RResult<TOCommandBox<'_>, RBoxError> {
     deserialize_json::<Command>(s)
         .map(RBox::new)
-        .map(|x| DynTrait::from_borrowing_ptr(x, TOCommand))
+        .map(DynTrait::from_borrowing_ptr)
 }
 
 /// Defines how a TOReturnValueArc is deserialized from json.
@@ -240,9 +200,7 @@ pub fn new() -> TOStateBox {
 /// Reverses order of the lines in `text`.
 #[sabi_extern_fn]
 pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>) -> RString {
-    let this = this
-        .downcast_as_mut_impltype::<TextOperationState>()
-        .unwrap();
+    let this = this.downcast_as_mut::<TextOperationState>().unwrap();
 
     this.processed_bytes += text.len() as u64;
 
@@ -262,9 +220,7 @@ pub fn reverse_lines<'a>(this: &mut TOStateBox, text: RStr<'a>) -> RString {
 // How is a `&mut ()` not ffi-safe?????
 #[allow(improper_ctypes_definitions)]
 pub fn remove_words(this: &mut TOStateBox, param: RemoveWords<'_, '_>) -> RString {
-    let this = this
-        .downcast_as_mut_impltype::<TextOperationState>()
-        .unwrap();
+    let this = this.downcast_as_mut::<TextOperationState>().unwrap();
 
     this.processed_bytes += param.string.len() as u64;
 
@@ -294,7 +250,7 @@ pub fn remove_words(this: &mut TOStateBox, param: RemoveWords<'_, '_>) -> RStrin
 /// that was processed in functions taking `&mut TOStateBox`.
 #[sabi_extern_fn]
 pub fn get_processed_bytes(this: &TOStateBox) -> u64 {
-    let this = this.downcast_as_impltype::<TextOperationState>().unwrap();
+    let this = this.downcast_as::<TextOperationState>().unwrap();
     this.processed_bytes
 }
 
@@ -319,7 +275,7 @@ fn run_command_inner(this: &mut TOStateBox, command: Command) -> ReturnValue {
                 this,
                 RemoveWords {
                     string: string.as_rstr(),
-                    words: DynTrait::from_borrowing_ptr(iter, CowStrIter),
+                    words: DynTrait::from_borrowing_ptr(iter),
                 },
             )
             .piped(ReturnValue::RemoveWords)
@@ -341,7 +297,7 @@ fn run_command_inner(this: &mut TOStateBox, command: Command) -> ReturnValue {
 #[sabi_extern_fn]
 pub fn run_command(this: &mut TOStateBox, command: TOCommandBox<'static>) -> TOReturnValueArc {
     let command = command
-        .downcast_into_impltype::<Command<'static>>()
+        .downcast_into::<Command<'static>>()
         .unwrap()
         .piped(RBox::into_inner);
 
@@ -381,7 +337,7 @@ mod tests {
             let mut iter = words.iter().cloned().map(RCow::from);
             let param = RemoveWords {
                 string: "Monads are like a burrito wrapper.".into(),
-                words: DynTrait::from_borrowing_ptr(&mut iter, CowStrIter),
+                words: DynTrait::from_borrowing_ptr(&mut iter),
             };
             assert_eq!(&*remove_words(&mut state, param), "Monads are wrapper.");
         }
@@ -390,7 +346,7 @@ mod tests {
             let mut iter = words.iter().cloned().map(RCow::from);
             let param = RemoveWords {
                 string: "The   largest planet  is    jupiter.".into(),
-                words: DynTrait::from_borrowing_ptr(&mut iter, CowStrIter),
+                words: DynTrait::from_borrowing_ptr(&mut iter),
             };
             assert_eq!(&*remove_words(&mut state, param), "The   planet  jupiter.");
         }
@@ -421,7 +377,7 @@ mod tests {
         let this = TextOperationState {
             processed_bytes: 1337,
         }
-        .piped(DynTrait::from_value);
+        .piped(TOStateBox::from_value);
 
         let serialized_0 = this
             .serialize_into_proxy()

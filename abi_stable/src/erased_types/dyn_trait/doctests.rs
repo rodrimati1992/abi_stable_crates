@@ -10,7 +10,7 @@ macro_rules! test_case {
                     std_types::*,
                     DynTrait,
                 };
-                let _ = DynTrait::$ctor($e, $interface);
+                let _ = DynTrait::$ctor($e).interface($interface);
             ),
             "\n```",
         )
@@ -23,10 +23,10 @@ macro_rules! fail_unpin {
     };
 }
 
-#[doc = test_case!(rust, UnpinInterface, from_any_value, ())]
-#[doc = test_case!(rust, UnpinInterface, from_any_ptr, RBox::new(()))]
-#[doc = test_case!(rust, UnpinInterface, from_any_ptr, RArc::new(()))]
-#[doc = fail_unpin!(from_any_value, std::marker::PhantomPinned)]
-#[doc = fail_unpin!(from_any_ptr, RBox::new(std::marker::PhantomPinned))]
-#[doc = fail_unpin!(from_any_ptr, RArc::new(std::marker::PhantomPinned))]
+#[doc = test_case!(rust, UnpinInterface, from_value, ())]
+#[doc = test_case!(rust, UnpinInterface, from_ptr, RBox::new(()))]
+#[doc = test_case!(rust, UnpinInterface, from_ptr, RArc::new(()))]
+#[doc = fail_unpin!(from_value, std::marker::PhantomPinned)]
+#[doc = fail_unpin!(from_ptr, RBox::new(std::marker::PhantomPinned))]
+#[doc = fail_unpin!(from_ptr, RArc::new(std::marker::PhantomPinned))]
 pub struct UnpinConstructible;

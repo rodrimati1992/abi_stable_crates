@@ -124,7 +124,7 @@ where
         unsafe {
             Self::run(this, |this| {
                 let iter = this.map.iter().map(map_iter_ref);
-                DynTrait::from_borrowing_value(iter, RefIterInterface::NEW)
+                DynTrait::from_borrowing_value(iter).interface(RefIterInterface::NEW)
             })
         }
     }
@@ -133,7 +133,7 @@ where
         unsafe {
             Self::run_mut(this, |this| {
                 let iter = this.map.iter_mut().map(map_iter_ref);
-                DynTrait::from_borrowing_value(iter, MutIterInterface::NEW)
+                DynTrait::from_borrowing_value(iter).interface(MutIterInterface::NEW)
             })
         }
     }
@@ -142,7 +142,7 @@ where
         unsafe {
             Self::run_mut(this, |this| {
                 let iter = this.map.drain().map(map_iter_val);
-                DynTrait::from_borrowing_value(iter, ValIterInterface::NEW)
+                DynTrait::from_borrowing_value(iter).interface(ValIterInterface::NEW)
             })
         }
     }
@@ -155,7 +155,7 @@ where
                     .map
                     .into_iter()
                     .map(map_iter_val);
-                let iter = DynTrait::from_borrowing_value(iter, ValIterInterface::NEW);
+                let iter = DynTrait::from_borrowing_value(iter).interface(ValIterInterface::NEW);
                 IntoIter::new(iter)
             })
         }

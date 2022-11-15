@@ -10,7 +10,8 @@ use std::{
 use super::{
     c_functions::*,
     iterator::{DoubleEndedIteratorFns, IteratorFns, MakeDoubleEndedIteratorFns, MakeIteratorFns},
-    traits::{GetSerializeProxyType, IteratorItemOrDefault, SerializeImplType, TypeInfoFor},
+    traits::{GetSerializeProxyType, IteratorItemOrDefault, SerializeType},
+    type_info::TypeInfoFor,
     *,
 };
 
@@ -488,7 +489,7 @@ declare_meta_vtable! {
 
         impl[] VtableFieldValue<Serialize(serde::Serialize)>
         where [
-            T:for<'s>SerializeImplType<'s,Interface=I>,
+            T:for<'s>SerializeType<'s,Interface=I>,
             I:for<'s>SerializeProxyType<'s>,
         ]{
             unsafe{

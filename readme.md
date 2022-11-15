@@ -353,12 +353,10 @@ use interface_crate::{
 };
 
 use abi_stable::{
-    ImplType,
     DynTrait,
     erased_types::TypeInfo,
     export_root_module,
     sabi_extern_fn,
-    impl_get_type_info,
     prefix_type::PrefixTypeTrait,
     sabi_trait::prelude::TD_Opaque,
     std_types::{RString, RVec},
@@ -395,16 +393,6 @@ pub fn get_library() -> ExampleLib_Ref {
 pub struct StringBuilder{
     pub text: String,
     pub appended: Vec<RString>,
-}
-
-///
-/// Defines this as an `implementation type`,
-/// this trait is mostly for improving error messages when unerasing the DynTrait.
-///
-impl ImplType for StringBuilder {
-    type Interface = TheInterface;
-
-    const INFO: &'static TypeInfo = impl_get_type_info! { Self };
 }
 
 impl Display for StringBuilder{
@@ -557,11 +545,6 @@ The crate compiled as a dynamic library that:
 - Optionally:
     Implement traits that were annotated with the [`sabi_trait`] attribute,
     constructing their trait objects exposed in the public API.
-
-- Optionally:create types which implement `ImplType<Iterface= FooInterface >`,
-    where `FooInterface` is a type that implements [`InterfaceType`] declared in
-    the interface crate,
-    so as to be able to use wrap it in [`DynTrait`]s of that interface.
 
 ### User crate
 
