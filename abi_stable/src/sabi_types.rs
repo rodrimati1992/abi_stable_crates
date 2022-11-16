@@ -1,5 +1,6 @@
 //! ffi-safe types that aren't wrappers for other types.
 
+pub mod bitarray;
 mod constructor;
 mod ignored_wrapper;
 mod late_static_ref;
@@ -13,6 +14,7 @@ mod static_ref;
 pub mod version;
 
 pub use self::{
+    bitarray::BitArray64,
     constructor::{Constructor, ConstructorOrValue},
     ignored_wrapper::CmpIgnored,
     late_static_ref::LateStaticRef,

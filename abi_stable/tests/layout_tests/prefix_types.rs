@@ -269,8 +269,8 @@ fn check_interface_impl_pair(
         for (field_i, (l_field, r_field)) in
             t_prefix.fields.iter().zip(pre.fields.iter()).enumerate()
         {
-            if t_prefix.accessible_fields.is_accessible(field_i)
-                && o_prefix.accessible_fields.is_accessible(field_i)
+            if t_prefix.accessible_fields.at(field_i).is_accessible()
+                && o_prefix.accessible_fields.at(field_i).is_accessible()
             {
                 assert_eq!(
                     l_field, r_field,

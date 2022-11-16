@@ -21,10 +21,7 @@ mod pt_metadata;
 mod tests;
 
 pub use self::{
-    accessible_fields::{
-        BoolArray, BoolArrayIter, FieldAccessibility, FieldConditionality, IsAccessible,
-        IsConditional,
-    },
+    accessible_fields::{FieldAccessibility, FieldConditionality, IsAccessible, IsConditional},
     layout::PTStructLayout,
     prefix_ref::PrefixRef,
 };

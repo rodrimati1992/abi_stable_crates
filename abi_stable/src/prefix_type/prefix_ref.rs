@@ -288,10 +288,10 @@ impl<P> PrefixRef<P> {
     ///
     /// let accessibility = PREFIX.field_accessibility();
     ///
-    /// assert!(accessibility.is_accessible(0)); // The `first` field
-    /// assert!(accessibility.is_accessible(1)); // The `second` field
-    /// assert!(accessibility.is_accessible(2)); // The `third` field
-    /// assert!(!accessibility.is_accessible(3)); // There's no field after `third`
+    /// assert!(accessibility.at(0).is_accessible()); // The `first` field
+    /// assert!(accessibility.at(1).is_accessible()); // The `second` field
+    /// assert!(accessibility.at(2).is_accessible()); // The `third` field
+    /// assert!(!accessibility.at(3).is_accessible()); // There's no field after `third`
     ///
     /// ```
     ///

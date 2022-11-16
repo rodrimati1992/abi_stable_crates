@@ -83,7 +83,7 @@ impl Display for TLPrefixType {
         writeln!(f, "fields:\n{}", self.fields.to_string().left_padder(4))?;
         write!(f, "accessible_fields:\n    ")?;
         f.debug_list()
-            .entries(self.accessible_fields.iter_count(self.fields.len()))
+            .entries(self.accessible_fields.iter().take(self.fields.len()))
             .finish()?;
         Ok(())
     }

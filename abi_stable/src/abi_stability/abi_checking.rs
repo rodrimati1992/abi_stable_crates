@@ -264,7 +264,7 @@ impl AbiChecker {
 
             let is_accessible = match (ctx, acc_fields) {
                 (FieldContext::Fields, Some((l, r))) => {
-                    l.is_accessible(field_i) && r.is_accessible(field_i)
+                    l.at(field_i).is_accessible() && r.at(field_i).is_accessible()
                 }
                 _ => true,
             };
