@@ -523,10 +523,7 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
                     Downcasting
                 >,
         ),
-        WhichObject::RObject => quote!(
-            #trait_interface<#trait_interface_use>:
-                __sabi_re::GetRObjectVTable<Downcasting, _Self, __sabi_re::RRef<'_sub, ()>, &'_sub _Self>
-        ),
+        WhichObject::RObject => quote!(),
     };
 
     let gen_params_header = totrait_def.generics_tokenizer(
@@ -665,7 +662,6 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
                     #trait_ident<#trait_params #( #assoc_tys_a= #assoc_tys_b, )* >+
                     Sized
                     #plus_lt,
-                _ErasedPtr:__sabi_re::AsPtr<PtrTarget=()>,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
                         Downcasting,_OrigPtr::PtrTarget,_ErasedPtr,_OrigPtr
@@ -734,7 +730,7 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
                 _Self:
                     #trait_ident<#trait_params #( #assoc_tys_e = #assoc_tys_f, )* >
                     #plus_lt,
-                _Self:#one_lt
+                _Self: #one_lt
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
                         Downcasting, _Self, __sabi_re::RRef<'_sub, ()>, &'_sub _Self
@@ -790,10 +786,7 @@ fn reborrow_methods_tokenizer(
             /// This method is automatically generated,
             /// for more documentation you can look at
             /// [`abi_stable::docs::sabi_trait_inherent#sabi_reborrow-method`]
-            #submod_vis fn sabi_reborrow<'_sub>(&'_sub self)->#trait_to<#gen_params_use_ref>
-            where
-                _ErasedPtr: __sabi_re::AsPtr<PtrTarget=()>
-            {
+            #submod_vis fn sabi_reborrow<'_sub>(&'_sub self)->#trait_to<#gen_params_use_ref> {
                 let x = self.obj.reborrow();
                 // This is transmuting the pointer type parameter of the vtable.
                 let x = unsafe{ __sabi_re::transmute(x) };
@@ -894,7 +887,7 @@ fn trait_and_impl(
             impl<#gen_params_header> #trait_ident<#gen_params_use_trait>
             for #trait_to<#gen_params_use_to>
             where
-                Self:#( #super_traits_b + )* #(#lifetime_bounds_c+)* Sized ,
+                Self:#( #super_traits_b + )* #(#lifetime_bounds_c+)*  ,
                 #erased_ptr_bounds
                 #(#where_preds_b,)*
             {
@@ -946,7 +939,7 @@ fn methods_impls(param: TokenizerParams, mod_: &mut TokenStream2) -> Result<(), 
         impl<#gen_params_header> #trait_to<#gen_params_use_to>
         where
             _ErasedPtr: __sabi_re::AsPtr<PtrTarget = ()>,
-            Self:#( #super_traits_a + )* Sized ,
+            Self:#( #super_traits_a + )*  ,
             #impl_where_preds
         {
             #[inline]
