@@ -56,11 +56,10 @@ pub mod static_supertrait {
     pub trait Trait: 'static {
         fn method(&self) {}
     }
-    use self::Trait_trait::Trait_Bounds;
 
     pub struct Struct<'a>(&'a str);
 
-    impl Trait for Struct<'_> {}
+    impl Trait for Struct<'static> {}
 
     #[test]
     fn test_impls() {
@@ -79,30 +78,18 @@ pub mod static_supertrait {
         object.method();
     }
 
-    // Testing that Trait_Bounds has 'static as a supertrait,
+    // Testing that Trait has 'static as a supertrait,
     trait Dummy {
         fn dummy<T>()
         where
-            T: Trait_Bounds;
+            T: Trait;
     }
     impl Dummy for () {
         fn dummy<T>()
         where
-            T: Trait_Bounds + 'static,
+            T: Trait + 'static,
         {
         }
-    }
-
-    // Testing that Trait does not have 'static as a supertrait.
-    fn assert_trait_inner<T>(_: T)
-    where
-        T: Trait,
-    {
-    }
-    fn assert_trait() {
-        let mut a = String::new();
-        a.push('w');
-        assert_trait_inner(Struct(&a));
     }
 }
 
@@ -113,12 +100,11 @@ pub mod nonstatic_supertrait {
     pub trait Trait<'a>: 'a {
         fn method(&self) {}
     }
-    use self::Trait_trait::Trait_Bounds;
 
     pub struct Struct<'a>(&'a str);
 
-    impl<'a, 'b> Trait<'a> for Struct<'b> {}
-    impl<'a, T> Trait<'a> for Option<T> {}
+    impl<'a, 'b: 'a> Trait<'a> for Struct<'b> {}
+    impl<'a, T: 'a> Trait<'a> for Option<T> {}
 
     #[test]
     fn test_impls() {
@@ -137,16 +123,16 @@ pub mod nonstatic_supertrait {
         object.method();
     }
 
-    // Testing that Trait_Bounds has 'a as a supertrait,
+    // Testing that Trait has 'a as a supertrait,
     trait Dummy {
         fn dummy<'a, T>()
         where
-            T: Trait_Bounds<'a>;
+            T: Trait<'a>;
     }
     impl Dummy for () {
         fn dummy<'a, T>()
         where
-            T: Trait_Bounds<'a> + 'a,
+            T: Trait<'a> + 'a,
         {
         }
     }

@@ -455,7 +455,7 @@ fn new_boxed_interface() -> BoxedInterface<'static>{
 #[sabi_extern_fn]
 fn append_string(wrapped: &mut BoxedInterface<'_>, string: RString){
     wrapped
-        .downcast_as_mut_impltype::<StringBuilder>() // Returns `Result<&mut StringBuilder, _>`
+        .downcast_as_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder, _>`
         .unwrap() // Returns `&mut StringBuilder`
         .append_string(string);
 }

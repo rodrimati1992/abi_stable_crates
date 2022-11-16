@@ -102,8 +102,6 @@ declare_common_tokens! {
         empty_ts="",
         ts_empty="",
 
-        ts_uself="_Self,",
-
         ts_self_colon2 ="Self::",
         ts_uself_colon2="_Self::",
 

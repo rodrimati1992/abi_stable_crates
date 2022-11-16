@@ -58,7 +58,7 @@ pub trait DocHiddenTrait {}
 /// in [`abi_stable::docs::sabi_trait_inherent`]
 #[abi_stable::sabi_trait]
 // #[sabi(debug_print_trait)]
-pub trait Action: Debug {
+pub trait Action: Debug + 'static {
     /// Gets the current value of `self`.
     fn get(&self) -> usize;
 

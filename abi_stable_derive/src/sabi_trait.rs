@@ -54,8 +54,6 @@ struct TokenizerParams<'a> {
     vtable_trait_decl: &'a TraitDefinition<'a>,
     vtable_trait_impl: &'a TraitDefinition<'a>,
     trait_ident: &'a syn::Ident,
-    /// The name of `Trait_Bounds`.
-    trait_bounds: &'a syn::Ident,
     trait_to: &'a syn::Ident,
     trait_backend: &'a syn::Ident,
     trait_interface: &'a syn::Ident,
@@ -87,7 +85,6 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2, syn::Error> {
     let vtable_trait_impl = &trait_def.replace_self(WhichItem::VtableImpl)?;
 
     let generated_mod = &parse_str_as_ident(&format!("{}_trait", trait_ident));
-    let trait_bounds = &parse_str_as_ident(&format!("{}_Bounds", trait_ident));
     let trait_to = &parse_str_as_ident(&format!("{}_TO", trait_ident));
     let trait_backend = &parse_str_as_ident(&format!("{}_Backend", trait_ident));
     let trait_interface = &parse_str_as_ident(&format!("{}_Interface", trait_ident));
@@ -108,7 +105,6 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2, syn::Error> {
         vtable_trait_decl,
         vtable_trait_impl,
         trait_ident,
-        trait_bounds,
         trait_to,
         trait_backend,
         trait_interface,
@@ -430,7 +426,6 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
         trait_backend,
         trait_interface,
         lt_tokens,
-        trait_bounds,
         make_vtable_ident,
         ..
     } = params;
@@ -667,7 +662,7 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
                 _OrigPtr:
                     __sabi_re::CanTransmuteElement<(),TransmutedPtr=_ErasedPtr>,
                 _OrigPtr::PtrTarget:
-                    #trait_bounds<#trait_params #( #assoc_tys_a= #assoc_tys_b, )* >+
+                    #trait_ident<#trait_params #( #assoc_tys_a= #assoc_tys_b, )* >+
                     Sized
                     #plus_lt,
                 _ErasedPtr:__sabi_re::AsPtr<PtrTarget=()>,
@@ -713,7 +708,7 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
             )->Self
             where
                 _Self:
-                    #trait_bounds<#trait_params #( #assoc_tys_c= #assoc_tys_d, )* >
+                    #trait_ident<#trait_params #( #assoc_tys_c= #assoc_tys_d, )* >
                     #plus_lt,
                 #trait_interface<#trait_interface_use>:
                     __sabi_re::GetRObjectVTable<
@@ -737,7 +732,7 @@ fn constructor_items(params: TokenizerParams<'_>, mod_: &mut TokenStream2) {
             )->Self
             where
                 _Self:
-                    #trait_bounds<#trait_params #( #assoc_tys_e = #assoc_tys_f, )* >
+                    #trait_ident<#trait_params #( #assoc_tys_e = #assoc_tys_f, )* >
                     #plus_lt,
                 _Self:#one_lt
                 #trait_interface<#trait_interface_use>:
@@ -834,7 +829,6 @@ fn trait_and_impl(
         trait_to,
         lt_tokens,
         trait_ident,
-        trait_bounds,
         ..
     }: TokenizerParams,
     mod_: &mut TokenStream2,
@@ -847,7 +841,6 @@ fn trait_and_impl(
     let methods_tokenizer_def = trait_def.methods_tokenizer(WhichItem::Trait);
     let methods_tokenizer_impl = trait_def.methods_tokenizer(WhichItem::TraitImpl);
     let lifetime_bounds_a = trait_def.lifetime_bounds.iter();
-    let lifetime_bounds_b = trait_def.lifetime_bounds.iter();
     let lifetime_bounds_c = trait_def.lifetime_bounds.iter();
     let super_traits_a = trait_def.impld_traits.iter().map(|t| &t.bound);
     let super_traits_b = super_traits_a.clone();
@@ -863,7 +856,7 @@ fn trait_and_impl(
         #( #other_attrs )*
         #submod_vis #unsafety trait #trait_ident<
             #gen_params_trait
-        >: #( #super_traits_a + )*
+        >: #( #super_traits_a + )* #( #lifetime_bounds_a + )*
         where
             #(#where_preds,)*
         {
@@ -876,31 +869,6 @@ fn trait_and_impl(
 
     let gen_params_use_trait =
         trait_def.generics_tokenizer(InWhat::ItemUse, WithAssocTys::No, &ctokens.empty_ts);
-
-    {
-        let gen_params_header =
-            trait_def.generics_tokenizer(InWhat::ImplHeader, WithAssocTys::No, &ctokens.ts_uself);
-
-        let docs = format!(
-            "A trait alias for [{Trait}](trait@{Trait}) + the lifetime bounds that \
-             it had before being stripped by the `#[sabi_trait]` attribute.
-            ",
-            Trait = trait_ident
-        );
-        quote!(
-            #[doc= #docs ]
-            #submod_vis trait #trait_bounds<#gen_params_trait>:
-                #trait_ident<#gen_params_use_trait>
-                #( + #lifetime_bounds_a )*
-            {}
-
-            impl<#gen_params_header> #trait_bounds<#gen_params_use_trait> for _Self
-            where
-                _Self: #trait_ident<#gen_params_use_trait> #( + #lifetime_bounds_b )*
-            {}
-        )
-        .to_tokens(mod_);
-    }
 
     if !trait_def.disable_trait_impl {
         let gen_params_header = trait_def.generics_tokenizer(
@@ -1090,7 +1058,7 @@ fn vtable_impl(
         ctokens,
         vtable_trait_impl,
         trait_interface,
-        trait_bounds,
+        trait_ident,
         make_vtable_ident,
         lt_tokens,
         ..
@@ -1175,7 +1143,7 @@ fn vtable_impl(
         #[deny(unsafe_op_in_unsafe_fn)]
         impl<#impl_header_generics> #make_vtable_ident<#makevtable_generics>
         where
-            _Self:#trait_bounds<#trait_generics>,
+            _Self: #trait_ident<#trait_generics>,
             _OrigPtr:
                 __sabi_re::CanTransmuteElement<(), PtrTarget = _Self, TransmutedPtr = _ErasedPtr>,
             _ErasedPtr:__sabi_re::AsPtr<PtrTarget=()>,
