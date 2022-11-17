@@ -382,7 +382,7 @@ macro_rules! tag {
 
 #[allow(unused_macros)]
 macro_rules! assert_matches {
-    ( $(|)? $($pat:pat)|*  =$expr:expr)=>{{
+    ( $(|)? $($pat:pat_param)|*  =$expr:expr)=>{{
         let ref value=$expr;
         assert!(
             matches!(*value, $($pat)|* ),

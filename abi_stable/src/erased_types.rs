@@ -40,7 +40,7 @@ pub(crate) mod traits;
 pub use crate::DynTrait;
 
 pub use self::{
-    dyn_trait::{DynTraitBound, GetVWInterface, UneraseError},
+    dyn_trait::UneraseError,
     traits::{
         DeserializeDyn, InterfaceType, IteratorItem, IteratorItemOrDefault, SerializeProxyType,
         SerializeType,
@@ -49,8 +49,8 @@ pub use self::{
     vtable::{MakeRequiredTraits, RequiredTraits},
 };
 
-#[doc(hidden)]
-pub use self::vtable::{MakeVTable, VTable_Ref};
+pub use self::vtable::MakeVTable;
+pub use self::vtable::VTable_Ref;
 
 #[doc(no_inline)]
 pub use crate::type_level::downcasting::{TD_CanDowncast, TD_Opaque};

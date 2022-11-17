@@ -30,7 +30,10 @@ use crate::{
     InterfaceType, StableAbi,
 };
 
-/// Csontructs a vtable
+/// Csontructs a vtable.
+///
+/// This is only exposed to allow users to construct
+/// [`DynTrait`]s with a generic `I` type parameter.
 pub trait MakeVTable<'borr, T, OrigPtr, CanDowncast> {
     type Helper0;
 
@@ -90,7 +93,12 @@ macro_rules! declare_meta_vtable {
         #[sabi(
             // debug_print,
             with_field_indices,
-            kind(Prefix(prefix_ref_docs = "A pointer to the vtable of [`DynTrait`].")),
+            kind(Prefix(prefix_ref_docs = "\
+                A pointer to the vtable of [`DynTrait`].\
+                \n\n\
+                This is only exposed to allow users to construct\
+                [`DynTrait`]s with a generic `I` type parameter.\
+            ")),
             missing_field(panic),
             prefix_bound(I: InterfaceType),
             bound(I: IteratorItemOrDefault<'borr>),

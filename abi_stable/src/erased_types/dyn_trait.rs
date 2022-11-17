@@ -188,154 +188,6 @@ mod priv_ {
     /// - lib1 or lib2 attempt to call methods that require the traits that were added
     ///     to the [`InterfaceType`], in versions of that interface that only they know about.
     ///
-    ///
-    ///
-    ///
-    /// # serializing/deserializing DynTraits
-    ///
-    /// To be able to serialize and deserialize a DynTrait,
-    /// the interface it uses must implement [`SerializeProxyType`] and [`DeserializeDyn`],
-    /// and the implementation type must implement [`SerializeType`].
-    ///
-    /// For a more realistic example you can look at the
-    /// "examples/0_modules_and_interface_types" crates in the repository for this crate.
-    ///
-    /// ```
-    /// use abi_stable::{
-    ///     erased_types::{
-    ///         DeserializeDyn, InterfaceType, SerializeType,
-    ///         SerializeProxyType, TypeInfo,
-    ///     },
-    ///     external_types::{RawValueBox, RawValueRef},
-    ///     prefix_type::{PrefixTypeTrait, WithMetadata},
-    ///     sabi_extern_fn,
-    ///     std_types::{RBox, RBoxError, RErr, ROk, RResult, RStr},
-    ///     traits::IntoReprC,
-    ///     type_level::bools::*,
-    ///     DynTrait, StableAbi,
-    /// };
-    ///
-    /// //////////////////////////////////
-    /// ////   In interface crate    /////
-    /// //////////////////////////////////
-    ///
-    /// use serde::{Deserialize, Serialize};
-    ///
-    /// /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
-    /// #[repr(C)]
-    /// #[derive(StableAbi)]
-    /// #[sabi(impl_InterfaceType(Sync, Debug, Clone, Serialize, Deserialize, PartialEq))]
-    /// pub struct FooInterface;
-    ///
-    /// /// The state passed to most functions in the TextOpsMod module.
-    /// pub type FooInterfaceBox = DynTrait<'static, RBox<()>, FooInterface>;
-    ///
-    /// pub type DynFoo<'a, P> = DynTrait<'a, P, FooInterface>;
-    ///
-    /// /// First <ConcreteType as DeserializeType>::serialize_impl returns
-    /// /// a RawValueBox containing the serialized data,
-    /// /// then the returned RawValueBox is serialized.
-    /// impl<'s> SerializeProxyType<'s> for FooInterface {
-    ///     type Proxy = RawValueBox;
-    /// }
-    ///
-    /// impl<'borr> DeserializeDyn<'borr, FooInterfaceBox> for FooInterface {
-    ///     type Proxy = RawValueRef<'borr>;
-    ///
-    ///     fn deserialize_dyn(
-    ///         s: RawValueRef<'borr>,
-    ///     ) -> Result<FooInterfaceBox, RBoxError> {
-    ///         MODULE.deserialize_foo()(s.get_rstr()).into_result()
-    ///     }
-    /// }
-    ///
-    /// // `#[sabi(kind(Prefix))]` declares this type as being a prefix-type,
-    /// // generating both of these types:<br>
-    /// //
-    /// //     - Module_Prefix`:
-    /// //     A struct with the fields up to (and including) the field with the
-    /// //     `#[sabi(last_prefix_field)]` attribute.
-    /// //
-    /// //     - Module_Ref`:
-    /// //      An ffi-safe pointer to a `Module`, with methods to get `Module`'s fields.
-    /// #[repr(C)]
-    /// #[derive(StableAbi)]
-    /// #[sabi(kind(Prefix))]
-    /// #[sabi(missing_field(panic))]
-    /// pub struct Module {
-    ///     #[sabi(last_prefix_field)]
-    ///     pub deserialize_foo:
-    ///         extern "C" fn(s: RStr<'_>) -> RResult<FooInterfaceBox, RBoxError>,
-    /// }
-    ///
-    /// // This is how ffi-safe pointers to non-generic prefix types are constructed
-    /// // at compile-time.
-    /// const MODULE: Module_Ref = {
-    ///     const S: &WithMetadata<Module> = &WithMetadata::new(Module { deserialize_foo });
-    ///
-    ///     Module_Ref(S.static_as_prefix())
-    /// };
-    ///
-    /// /////////////////////////////////////////////////////////////////////////////////////////
-    /// ////   In implementation crate (the one that gets compiled as a dynamic library)    /////
-    /// /////////////////////////////////////////////////////////////////////////////////////////
-    ///
-    /// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-    /// pub struct Foo {
-    ///     name: String,
-    /// }
-    ///
-    /// impl<'s> SerializeType<'s> for Foo {
-    ///     type Interface = FooInterface;
-    ///
-    ///     fn serialize_impl(&'s self) -> Result<RawValueBox, RBoxError> {
-    ///         match serde_json::to_string(self) {
-    ///             Ok(v) => RawValueBox::try_from_string(v).map_err(RBoxError::new),
-    ///             Err(e) => Err(RBoxError::new(e)),
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// #[sabi_extern_fn]
-    /// pub fn deserialize_foo(s: RStr<'_>) -> RResult<FooInterfaceBox, RBoxError> {
-    ///     match serde_json::from_str::<Foo>(s.into()) {
-    ///         Ok(x) => ROk(DynTrait::from_value(x)),
-    ///         Err(e) => RErr(RBoxError::new(e)),
-    ///     }
-    /// }
-    ///
-    /// # /*
-    /// #[test]
-    /// fn testing_serialization_deserialization() {
-    /// # */ fn main() {
-    ///     let foo = Foo {
-    ///         name: "nope".into(),
-    ///     };
-    ///     
-    ///     let object = DynFoo::from_value(foo.clone());
-    ///
-    ///     assert_eq!(
-    ///         serde_json::from_str::<FooInterfaceBox>(
-    ///             r##"
-    ///         {
-    ///             "name":"nope"
-    ///         }
-    ///     "##
-    ///         )
-    ///         .unwrap(),
-    ///         object
-    ///     );
-    ///
-    ///     assert_eq!(
-    ///         serde_json::to_string(&object).unwrap(),
-    ///         r##"{"name":"nope"}"##
-    ///     );
-    /// }
-    ///
-    /// ```
-    ///
-    ///
-    ///
     /// # Examples
     ///
     /// ###  In the Readme
@@ -347,6 +199,10 @@ mod priv_ {
     /// [crates.io](https://crates.io/crates/abi_stable),
     /// [lib.rs](https://lib.rs/crates/abi_stable).
     ///
+    /// ### Serialization/Deserialization
+    ///
+    /// The [`DeserializeDyn`] and [`SerializeType`] demonstrate how `DynTrait`
+    /// can be de/serialized.
     ///
     /// ###  Comparing DynTraits
     ///
@@ -616,7 +472,6 @@ mod priv_ {
         pub fn from_value<T>(object: T) -> Self
         where
             T: 'static,
-            I: InterfaceType,
             VTable_Ref<'static, RBox<()>, I>: MakeVTable<'static, T, RBox<T>, TD_CanDowncast>,
         {
             let object = RBox::new(object);
@@ -680,7 +535,6 @@ mod priv_ {
         /// ```
         pub fn from_ptr<OrigPtr>(object: OrigPtr) -> Self
         where
-            I: InterfaceType,
             OrigPtr: GetPointerKind,
             OrigPtr::PtrTarget: 'static,
             OrigPtr: CanTransmuteElement<(), TransmutedPtr = P>,
@@ -724,7 +578,6 @@ mod priv_ {
         pub fn from_borrowing_value<T>(object: T) -> Self
         where
             T: 'borr,
-            I: InterfaceType,
             VTable_Ref<'borr, RBox<()>, I>: MakeVTable<'borr, T, RBox<T>, TD_Opaque>,
         {
             let object = RBox::new(object);
@@ -791,7 +644,6 @@ mod priv_ {
         /// ```
         pub fn from_borrowing_ptr<OrigPtr>(object: OrigPtr) -> Self
         where
-            I: InterfaceType,
             OrigPtr: GetPointerKind + 'borr,
             OrigPtr::PtrTarget: 'borr,
             OrigPtr: CanTransmuteElement<(), TransmutedPtr = P>,
@@ -838,7 +690,6 @@ mod priv_ {
         where
             OrigPtr: GetPointerKind,
             OrigPtr::PtrTarget: 'borr,
-            I: InterfaceType,
             OrigPtr: CanTransmuteElement<(), TransmutedPtr = P>,
             VTable_Ref<'borr, P, I>: MakeVTable<'borr, OrigPtr::PtrTarget, OrigPtr, Downcasting>,
         {
@@ -1260,7 +1111,6 @@ mod priv_ {
         where
             T: 'static,
             P: CanTransmuteElement<T>,
-            Self: DynTraitBound<'borr>,
         {
             check_unerased!(self, self.sabi_check_same_destructor::<T>());
             unsafe {
@@ -1319,7 +1169,6 @@ mod priv_ {
         where
             T: 'static,
             P: AsPtr,
-            Self: DynTraitBound<'borr>,
         {
             check_unerased!(self, self.sabi_check_same_destructor::<T>());
             unsafe { Ok(self.sabi_object_as()) }
@@ -1368,7 +1217,6 @@ mod priv_ {
         where
             T: 'static,
             P: AsMutPtr,
-            Self: DynTraitBound<'borr>,
         {
             check_unerased!(self, self.sabi_check_same_destructor::<T>());
             unsafe { Ok(self.sabi_object_as_mut()) }
@@ -1850,9 +1698,8 @@ where
 {
 }
 
-/// First it serializes a `DynTrait<_>` into a string by using
-/// <ConcreteType as SerializeType>::serialize_impl,
-/// then it serializes the string.
+/// For an example of how to serialize DynTrait,
+/// [look here](crate::erased_types::SerializeType#example)
 ///
 impl<'borr, P, I, EV> Serialize for DynTrait<'borr, P, I, EV>
 where
@@ -1874,8 +1721,9 @@ where
     }
 }
 
-/// First it Deserializes a string, then it deserializes into a
-/// `DynTrait<_>`, by using `<I as DeserializeOwnedInterface>::deserialize_impl`.
+/// For an example of how to deserialize DynTrait,
+/// [look here](crate::erased_types::DeserializeDyn#example)
+///
 impl<'de, 'borr: 'de, P, I, EV> Deserialize<'de> for DynTrait<'borr, P, I, EV>
 where
     EV: 'borr,
@@ -2335,37 +2183,6 @@ where
     I: InterfaceType<Unpin = Implemented<trait_marker::Unpin>>,
 {
 }
-
-//////////////////////////////////////////////////////////////////
-
-mod sealed {
-    use super::*;
-    pub trait Sealed {}
-    impl<'borr, P, I, EV> Sealed for DynTrait<'borr, P, I, EV>
-    where
-        P: GetPointerKind,
-        I: InterfaceType,
-    {
-    }
-}
-use self::sealed::Sealed;
-
-/// For getting the `Interface` type parameter in `DynTrait<Pointer<()>, Interface>`.
-pub trait DynTraitBound<'borr>: Sealed {
-    /// The `Interface` type parameter in `DynTrait<_, Interface>`
-    type Interface: InterfaceType;
-}
-
-impl<'borr, P, I, EV> DynTraitBound<'borr> for DynTrait<'borr, P, I, EV>
-where
-    P: GetPointerKind,
-    I: InterfaceType,
-{
-    type Interface = I;
-}
-
-/// For getting the `Interface` type parameter in `DynTrait<Pointer<()>, Interface>`.
-pub type GetVWInterface<'borr, This> = <This as DynTraitBound<'borr>>::Interface;
 
 //////////////////////////////////////////////////////////////////
 

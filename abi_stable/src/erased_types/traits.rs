@@ -207,6 +207,60 @@ declare_InterfaceType! {
 
 /// Describes how a type is serialized by [`DynTrait`].
 ///
+/// # Example
+///
+/// ```rust
+/// use abi_stable::{
+///     erased_types::{SerializeType, SerializeProxyType, DynTrait},
+///     external_types::RawValueBox,
+///     std_types::{RBox, RBoxError, RErr, ROk, RResult, RStr},
+///     StableAbi,
+/// };
+///
+/// let boxed = make_foo_box(1234);
+/// let serialized = serde_json::to_string(&boxed).unwrap();
+/// assert_eq!(serialized, r#"{"field":1234}"#);
+///
+///
+/// type FooBox = DynTrait<'static, RBox<()>, FooInterface>;
+///
+/// /// Implements `InterfaceType`, requiring `Send + Sync + Debug + Eq`
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// #[sabi(impl_InterfaceType(Send, Sync, Debug, Eq, Serialize))]
+/// pub struct FooInterface;
+///
+/// impl SerializeProxyType<'_> for FooInterface {
+///     type Proxy = RawValueBox;
+/// }
+///
+/// /////////////
+/// // everything below could be defined in an implementation crate
+///
+/// #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+/// struct Foo {
+///     field: u32,
+/// }
+///
+/// impl<'a> SerializeType<'a> for Foo {
+///     type Interface = FooInterface;
+///     
+///     fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
+///         match serde_json::value::to_raw_value::<Foo>(self) {
+///             Ok(x) => Ok(x.into()),
+///             Err(e) => Err(RBoxError::new(e)),
+///         }
+///     }
+/// }
+///
+/// extern "C" fn make_foo_box(field: u32) -> FooBox {
+///     abi_stable::extern_fn_panic_handling!{
+///         FooBox::from_value(Foo{field})
+///     }
+/// }
+/// ```
+///
+///
 /// [`DynTrait`]: ../struct.DynTrait.html
 pub trait SerializeType<'s> {
     /// An [`InterfaceType`] implementor which determines the
@@ -270,48 +324,65 @@ where
 /// so that the implementation can be delegated
 /// to the `implementation crate`.
 ///
-pub trait DeserializeDyn<'borr, D> {
+/// # Example
+///
+/// ```rust
+/// use abi_stable::{
+///     erased_types::{DeserializeDyn, DynTrait},
+///     external_types::RawValueRef,
+///     std_types::{RBox, RBoxError, RErr, ROk, RResult, RStr},
+///     StableAbi,
+/// };
+///
+/// let boxed = serde_json::from_str::<FooBox>(r#"{"field": 10}"#).unwrap();
+///
+/// assert_eq!(*boxed.downcast_as::<Foo>().unwrap(), Foo{field: 10});
+///
+///
+///
+/// type FooBox = DynTrait<'static, RBox<()>, FooInterface>;
+///
+/// /// Implements `InterfaceType`, requiring `Send + Sync + Debug + Eq`
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// #[sabi(impl_InterfaceType(Send, Sync, Debug, Eq, Deserialize))]
+/// pub struct FooInterface;
+///
+/// impl<'a> DeserializeDyn<'a, FooBox> for FooInterface {
+///     type Proxy = RawValueRef<'a>;
+///     
+///     fn deserialize_dyn(s: Self::Proxy) -> Result<FooBox, RBoxError> {
+///         deserialize_foo(s.get_rstr()).into_result()
+///     }
+/// }
+///
+/// /////////////
+/// // everything below could be defined in an implementation crate
+///
+/// #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+/// struct Foo {
+///     field: u32,
+/// }
+///
+/// extern "C" fn deserialize_foo(s: RStr<'_>) -> RResult<FooBox, RBoxError> {
+///     abi_stable::extern_fn_panic_handling!{
+///         match serde_json::from_str::<Foo>(s.into()) {
+///             Ok(x) => ROk(DynTrait::from_value(x)),
+///             Err(e) => RErr(RBoxError::new(e)),
+///         }
+///     }
+/// }
+/// ```
+///
+pub trait DeserializeDyn<'borr, D>:
+    InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>>
+{
     /// The type that is deserialized and then converted into `D`,
     /// with `DeserializeDyn::deserialize_dyn`.
     type Proxy;
 
     /// Converts the proxy type into `D`.
     fn deserialize_dyn(s: Self::Proxy) -> Result<D, RBoxError>;
-}
-
-#[doc(hidden)]
-pub trait GetDeserializeDynProxy<'borr, D>: InterfaceType {
-    type ProxyType;
-}
-
-impl<'borr, I, D, PT> GetDeserializeDynProxy<'borr, D> for I
-where
-    I: InterfaceType,
-    I: GetDeserializeDynProxyHelper<'borr, D, <I as InterfaceType>::Deserialize, ProxyType = PT>,
-{
-    type ProxyType = PT;
-}
-
-#[doc(hidden)]
-pub trait GetDeserializeDynProxyHelper<'borr, D, IS>: InterfaceType {
-    type ProxyType;
-}
-
-impl<'borr, I, D> GetDeserializeDynProxyHelper<'borr, D, Implemented<trait_marker::Deserialize>>
-    for I
-where
-    I: InterfaceType,
-    I: DeserializeDyn<'borr, D>,
-{
-    type ProxyType = <I as DeserializeDyn<'borr, D>>::Proxy;
-}
-
-impl<'borr, I, D> GetDeserializeDynProxyHelper<'borr, D, Unimplemented<trait_marker::Deserialize>>
-    for I
-where
-    I: InterfaceType,
-{
-    type ProxyType = ();
 }
 
 /////////////////////////////////////////////////////////////////////
