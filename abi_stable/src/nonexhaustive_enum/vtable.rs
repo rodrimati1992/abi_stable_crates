@@ -55,8 +55,8 @@ pub trait GetVTable<S, I>: Sized {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    bound(I: GetSerializeEnumProxy<NonExhaustive<E,S,I>>),
-    bound(<I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType: StableAbi),
+    bound(I: GetSerializeEnumProxy<E>),
+    bound(<I as GetSerializeEnumProxy<E>>::ProxyType: StableAbi),
     not_stableabi(E,S,I),
     missing_field(default),
     kind(Prefix(prefix_ref_docs = "\
@@ -98,7 +98,7 @@ pub struct NonExhaustiveVtable<E, S, I> {
     #[sabi(unsafe_change_type =
         unsafe extern "C" fn(
             RRef<'_, ErasedObject>
-        )->RResult< <I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType, RBoxError>
+        )->RResult< <I as GetSerializeEnumProxy<E>>::ProxyType, RBoxError>
     )]
     pub(crate) erased_sabi_serialize:
         Option<unsafe extern "C" fn(RRef<'_, ErasedObject>) -> RResult<ErasedObject, RBoxError>>,
@@ -155,23 +155,21 @@ where
     };
 }
 
-type UnerasedSerializeFn<E, S, I> = unsafe extern "C" fn(
-    RRef<'_, ErasedObject>,
-) -> RResult<
-    <I as GetSerializeEnumProxy<NonExhaustive<E, S, I>>>::ProxyType,
-    RBoxError,
->;
+type UnerasedSerializeFn<E, I> =
+    unsafe extern "C" fn(
+        RRef<'_, ErasedObject>,
+    ) -> RResult<<I as GetSerializeEnumProxy<E>>::ProxyType, RBoxError>;
 
 impl<E, S, I> NonExhaustiveVtable_Ref<E, S, I> {
-    pub(crate) fn serialize(self) -> UnerasedSerializeFn<E, S, I>
+    pub(crate) fn serialize(self) -> UnerasedSerializeFn<E, I>
     where
         I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
-        I: GetSerializeEnumProxy<NonExhaustive<E, S, I>>,
+        I: GetSerializeEnumProxy<E>,
     {
         unsafe {
             std::mem::transmute::<
                 unsafe extern "C" fn(RRef<'_, ErasedObject>) -> RResult<ErasedObject, RBoxError>,
-                UnerasedSerializeFn<E, S, I>,
+                UnerasedSerializeFn<E, I>,
             >(self.priv_serialize())
         }
     }
@@ -314,7 +312,7 @@ pub mod trait_bounds {
     declare_field_initalizer! {
         type Serialize;
         trait InitSerializeField[E,S,I]
-        where [ I:SerializeEnum<NonExhaustive<E,S,I>> ]
+        where [ I:SerializeEnum<E> ]
         erased_sabi_serialize,priv_serialize:
             unsafe extern "C" fn(RRef<'_, ErasedObject>)->RResult<ErasedObject,RBoxError>;
         field_index=field_index_for_erased_sabi_serialize;
@@ -322,10 +320,10 @@ pub mod trait_bounds {
             Transmuter::<
                 unsafe extern "C" fn(
                     RRef<'_, ErasedObject>
-                )->RResult<<I as SerializeEnum<NonExhaustive<E,S,I>>>::Proxy,RBoxError>,
+                )->RResult<<I as SerializeEnum<E>>::Proxy,RBoxError>,
                 unsafe extern "C" fn(RRef<'_, ErasedObject>)->RResult<ErasedObject,RBoxError>
             >{
-                from:alt_c_functions::serialize_impl::<NonExhaustive<E,S,I>,I>
+                from:alt_c_functions::serialize_impl::<E,I>
             }.to
         },
     }

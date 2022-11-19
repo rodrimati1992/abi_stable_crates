@@ -84,14 +84,14 @@ where
     }
 }
 
-pub(crate) unsafe extern "C" fn serialize_impl<NE, I>(
+pub(crate) unsafe extern "C" fn serialize_impl<E, I>(
     this: RRef<'_, ErasedObject>,
-) -> RResult<<I as SerializeEnum<NE>>::Proxy, RBoxError>
+) -> RResult<<I as SerializeEnum<E>>::Proxy, RBoxError>
 where
-    I: SerializeEnum<NE>,
+    I: SerializeEnum<E>,
 {
     extern_fn_panic_handling! {no_early_return;
-        let this = unsafe { this.transmute_into_ref::<NE>() };
+        let this = unsafe { this.transmute_into_ref::<E>() };
         I::serialize_enum(this).into()
     }
 }

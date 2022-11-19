@@ -364,16 +364,19 @@ pub mod codecs {
         std_types::{RBoxError, RString},
     };
 
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(impl_InterfaceType())]
     pub struct Json;
 
-    impl<E, S, I> SerializeEnum<NonExhaustive<E, S, I>> for Json
+    impl<E> SerializeEnum<E> for Json
     where
         E: Serialize + GetEnumInfo,
     {
         type Proxy = RString;
 
-        fn serialize_enum(this: &NonExhaustive<E, S, I>) -> Result<RString, RBoxError> {
-            serde_json::to_string(this.as_enum()?)
+        fn serialize_enum(this: &E) -> Result<RString, RBoxError> {
+            serde_json::to_string(this)
                 .map(RString::from)
                 .map_err(RBoxError::new)
         }

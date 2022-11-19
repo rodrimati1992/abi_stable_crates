@@ -865,6 +865,7 @@ macro_rules! delegate_interface_serde {
     ) => (
         impl<$($impl_header)*> $crate::nonexhaustive_enum::SerializeEnum<$this> for $interf
         where
+            $this:$crate::nonexhaustive_enum::GetEnumInfo,
             $delegates_to:
                 $crate::nonexhaustive_enum::SerializeEnum<$this>
         {

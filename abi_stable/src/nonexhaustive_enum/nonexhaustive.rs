@@ -154,7 +154,7 @@ mod tests;
 ///
 /// ```rust
 /// use abi_stable::{
-///     nonexhaustive_enum::{NonExhaustive, NonExhaustiveFor, GetVTable},
+///     nonexhaustive_enum::{NonExhaustive, NonExhaustiveFor},
 ///     std_types::RString,
 ///     rstr, StableAbi,
 /// };
@@ -613,12 +613,15 @@ where
 
 /////////////////////
 
-impl<E, S, I> NonExhaustive<E, S, I> {
+impl<E, S, I> NonExhaustive<E, S, I>
+where
+    E: GetEnumInfo,
+{
     /// It serializes a `NonExhaustive<_>` into a proxy.
     pub fn serialize_into_proxy(&self) -> Result<I::Proxy, RBoxError>
     where
         I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
-        I: SerializeEnum<NonExhaustive<E, S, I>>,
+        I: SerializeEnum<E>,
     {
         unsafe { self.vtable().serialize()(self.as_erased_ref()).into_result() }
     }
@@ -627,9 +630,8 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     pub fn deserialize_from_proxy<'borr>(proxy: I::Proxy) -> Result<Self, RBoxError>
     where
         I: InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>>,
-        I: DeserializeEnum<'borr, NonExhaustive<E, S, I>>,
+        I: DeserializeEnum<'borr, Self>,
         I::Proxy: 'borr,
-        E: GetEnumInfo,
     {
         I::deserialize_enum(proxy)
     }
@@ -639,7 +641,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
 impl<E, S, I> Serialize for NonExhaustive<E, S, I>
 where
     I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
-    I: SerializeEnum<NonExhaustive<E, S, I>>,
+    I: SerializeEnum<E>,
     I::Proxy: Serialize,
 {
     fn serialize<Z>(&self, serializer: Z) -> Result<Z::Ok, Z::Error>
@@ -662,17 +664,15 @@ where
     E: 'de + GetVTable<S, I>,
     S: 'de,
     I: 'de + InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>>,
-    I: DeserializeEnum<'de, NonExhaustive<E, S, I>>,
-    <I as DeserializeEnum<'de, NonExhaustive<E, S, I>>>::Proxy: Deserialize<'de>,
+    I: DeserializeEnum<'de, Self>,
+    <I as DeserializeEnum<'de, Self>>::Proxy: Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let s = <
-            <I as DeserializeEnum<'de,NonExhaustive<E,S,I>>>::Proxy as
-            Deserialize
-        >::deserialize(deserializer)?;
+        let s =
+            <<I as DeserializeEnum<'de, Self>>::Proxy as Deserialize>::deserialize(deserializer)?;
 
         I::deserialize_enum(s).map_err(de::Error::custom)
     }

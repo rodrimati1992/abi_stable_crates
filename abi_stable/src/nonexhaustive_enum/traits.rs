@@ -178,42 +178,83 @@ impl_valid_discriminant! {u8,i8,u16,i16,u32,i32,u64,i64,usize,isize}
 /// This is generally implemented by the interface of an enum
 /// (`Enum_Interface` for `Enum`),which also implements [`InterfaceType`]).
 ///
+/// # Example
+///
+/// ```rust
+/// use abi_stable::{
+///     external_types::RawValueBox,
+///     nonexhaustive_enum::{NonExhaustive, SerializeEnum},
+///     std_types::{RBoxError, RString},
+///     StableAbi,
+/// };
+///
+/// let ne = NonExhaustive::new(Foo::C{name: "world".into()});
+/// assert_eq!(serde_json::to_string(&ne).unwrap(), r#"{"C":{"name":"world"}}"#);
+///
+///
+/// #[repr(u8)]
+/// #[derive(StableAbi, Debug, PartialEq, Eq, serde::Serialize)]
+/// #[sabi(kind(WithNonExhaustive(
+///     size = 64,
+///     traits(Debug, PartialEq, Eq, Serialize)
+/// )))]
+/// pub enum Foo {
+///     A,
+///     B(i8),
+///     C {
+///         name: RString
+///     },
+/// }
+///
+/// impl SerializeEnum<Foo> for Foo_Interface {
+///     /// A type that `Foo` is converted into to be serialized.
+///     type Proxy = RawValueBox;
+///
+///     fn serialize_enum(this: &Foo) -> Result<RawValueBox, RBoxError> {
+///         match serde_json::value::to_raw_value(&this) {
+///             Ok(v) => Ok(v.into()),
+///             Err(e) => Err(RBoxError::new(e)),
+///         }
+///     }
+/// }
+/// ```
+///
 /// [`InterfaceType`]: ../trait.InterfaceType.html
-pub trait SerializeEnum<NE> {
-    /// The intermediate type the `NE` is converted into,to serialize it.
+pub trait SerializeEnum<Enum>: InterfaceType {
+    /// The intermediate type the `Enum` is converted into,to serialize it.
     type Proxy;
 
     /// Serializes an enum into its proxy type.
-    fn serialize_enum(this: &NE) -> Result<Self::Proxy, RBoxError>;
+    fn serialize_enum(this: &Enum) -> Result<Self::Proxy, RBoxError>;
 }
 
 #[doc(hidden)]
-pub trait GetSerializeEnumProxy<NE>: InterfaceType {
+pub trait GetSerializeEnumProxy<E>: InterfaceType {
     type ProxyType;
 }
 
-impl<I, NE, PT> GetSerializeEnumProxy<NE> for I
+impl<I, E, PT> GetSerializeEnumProxy<E> for I
 where
     I: InterfaceType,
-    I: GetSerializeEnumProxyHelper<NE, <I as InterfaceType>::Serialize, ProxyType = PT>,
+    I: GetSerializeEnumProxyHelper<E, <I as InterfaceType>::Serialize, ProxyType = PT>,
 {
     type ProxyType = PT;
 }
 
 #[doc(hidden)]
-pub trait GetSerializeEnumProxyHelper<NE, IS>: InterfaceType {
+pub trait GetSerializeEnumProxyHelper<E, IS>: InterfaceType {
     type ProxyType;
 }
 
-impl<I, NE> GetSerializeEnumProxyHelper<NE, Implemented<trait_marker::Serialize>> for I
+impl<I, E> GetSerializeEnumProxyHelper<E, Implemented<trait_marker::Serialize>> for I
 where
     I: InterfaceType,
-    I: SerializeEnum<NE>,
+    I: SerializeEnum<E>,
 {
-    type ProxyType = <I as SerializeEnum<NE>>::Proxy;
+    type ProxyType = <I as SerializeEnum<E>>::Proxy;
 }
 
-impl<I, NE> GetSerializeEnumProxyHelper<NE, Unimplemented<trait_marker::Serialize>> for I
+impl<I, E> GetSerializeEnumProxyHelper<E, Unimplemented<trait_marker::Serialize>> for I
 where
     I: InterfaceType,
 {
@@ -231,46 +272,70 @@ where
 /// This is generally implemented by the interface of an enum
 /// (`Enum_Interface` for `Enum`),which also implements [`InterfaceType`]).
 ///
+/// The `NE` type parameter is expected to be [`NonExhaustive`].
+///
+/// # Example
+///
+/// ```rust
+/// use abi_stable::{
+///     nonexhaustive_enum::{DeserializeEnum, NonExhaustive, NonExhaustiveFor},
+///     external_types::RawValueRef,
+///     std_types::{RBoxError, RResult, ROk, RErr, RStr, RString},
+///     rstr, StableAbi,
+/// };
+///
+/// let input = r#"{"C": {"name": "hello"}}"#;
+/// let ne = serde_json::from_str::<NonExhaustiveFor<Foo>>(input).unwrap();
+/// assert_eq!(ne, Foo::C{name: "hello".into()});
+///
+///
+/// #[repr(u8)]
+/// #[derive(StableAbi, Debug, PartialEq, Eq, serde::Deserialize)]
+/// #[sabi(kind(WithNonExhaustive(
+///     size = 64,
+///     traits(Debug, PartialEq, Eq, Deserialize)
+/// )))]
+/// pub enum Foo {
+///     A,
+///     B(i8),
+///     C {
+///         name: RString
+///     },
+/// }
+///
+/// impl<'borr> DeserializeEnum<'borr, NonExhaustiveFor<Foo>> for Foo_Interface {
+///     /// The intermediate type the `NE` is converted from,to deserialize it.
+///     type Proxy = RawValueRef<'borr>;
+///
+///     /// Deserializes an enum from its proxy type.
+///     fn deserialize_enum(s: Self::Proxy) -> Result<NonExhaustiveFor<Foo>, RBoxError> {
+///         deserialize_foo(s.get_rstr()).into_result()
+///     }
+/// }
+///
+/// /////////////
+/// // everything below could be defined in an implementation crate
+/// //
+/// // This allows the library that defines the enum to add variants,
+/// // and deserialize the variants that it added,
+/// // regardless of whether the dependent crates know about those variants.
+///
+/// extern "C" fn deserialize_foo(s: RStr<'_>) -> RResult<NonExhaustiveFor<Foo>, RBoxError> {
+///     abi_stable::extern_fn_panic_handling!{
+///         match serde_json::from_str::<Foo>(s.into()) {
+///             Ok(x) => ROk(NonExhaustive::new(x)),
+///             Err(e) => RErr(RBoxError::new(e)),
+///         }
+///     }
+/// }
+///
+/// ```
+///
 /// [`InterfaceType`]: ../trait.InterfaceType.html
-pub trait DeserializeEnum<'borr, NE> {
-    /// The intermediate type the `NE` is converted from,to deserialize it.
+pub trait DeserializeEnum<'borr, NE>: InterfaceType {
+    /// The intermediate type the `NonExhaustive` is converted from,to deserialize it.
     type Proxy;
 
     /// Deserializes an enum from its proxy type.
     fn deserialize_enum(s: Self::Proxy) -> Result<NE, RBoxError>;
-}
-
-#[doc(hidden)]
-pub trait GetDeserializeEnumProxy<'borr, NE>: InterfaceType {
-    type ProxyType;
-}
-
-impl<'borr, I, NE, PT> GetDeserializeEnumProxy<'borr, NE> for I
-where
-    I: InterfaceType,
-    I: GetDeserializeEnumProxyHelper<'borr, NE, <I as InterfaceType>::Deserialize, ProxyType = PT>,
-{
-    type ProxyType = PT;
-}
-
-#[doc(hidden)]
-pub trait GetDeserializeEnumProxyHelper<'borr, NE, IS>: InterfaceType {
-    type ProxyType;
-}
-
-impl<'borr, I, NE> GetDeserializeEnumProxyHelper<'borr, NE, Implemented<trait_marker::Deserialize>>
-    for I
-where
-    I: InterfaceType,
-    I: DeserializeEnum<'borr, NE>,
-{
-    type ProxyType = <I as DeserializeEnum<'borr, NE>>::Proxy;
-}
-
-impl<'borr, I, NE>
-    GetDeserializeEnumProxyHelper<'borr, NE, Unimplemented<trait_marker::Deserialize>> for I
-where
-    I: InterfaceType,
-{
-    type ProxyType = ();
 }

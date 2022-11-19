@@ -179,14 +179,12 @@ For a more realistic example you can look at the
 "examples/2_nonexhaustive/interface" crate in the repository for this crate.
 
 ```
-
 use abi_stable::{
     external_types::{RawValueBox, RawValueRef},
     nonexhaustive_enum::{DeserializeEnum, NonExhaustive, SerializeEnum},
-    prefix_type::{PrefixTypeTrait, WithMetadata},
-    rtry, sabi_extern_fn,
+    prefix_type::WithMetadata,
+    sabi_extern_fn,
     std_types::{RBoxError, RErr, ROk, RResult, RStr, RString},
-    traits::IntoReprC,
     StableAbi,
 };
 
@@ -225,13 +223,16 @@ pub type ValidTag_NE=
 */
 
 /// This describes how the enum is serialized.
-impl SerializeEnum<ValidTag_NE> for ValidTag_Interface {
-    /// A type that `ValidTag_NE` is converted into(inside `SerializeEnum::serialize_enum`),
+impl SerializeEnum<ValidTag> for ValidTag_Interface {
+    /// A type that `ValidTag` is converted into(inside `SerializeEnum::serialize_enum`),
     /// and then serialized.
     type Proxy = RawValueBox;
 
-    fn serialize_enum(this: &ValidTag_NE) -> Result<RawValueBox, RBoxError> {
-        Module::VALUE.serialize_tag()(this).into_result()
+    fn serialize_enum(this: &ValidTag) -> Result<RawValueBox, RBoxError> {
+        match serde_json::value::to_raw_value(this) {
+            Ok(v) => Ok(v.into()),
+            Err(e) => Err(RBoxError::new(e)),
+        }
     }
 }
 
@@ -302,9 +303,6 @@ assert_eq!(
 #[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
 pub struct Module {
-    pub serialize_tag:
-        extern "C" fn(&ValidTag_NE) -> RResult<RawValueBox, RBoxError>,
-
     /// `#[sabi(last_prefix_field)]`means that it is the last field in the struct
     /// that was defined in the first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
@@ -324,7 +322,6 @@ impl Module {
     // StaticRef not necessary in this case, it's more useful with generic types..
     abi_stable::staticref!(const TMP0: WithMetadata<Self> = WithMetadata::new(
         Self{
-            serialize_tag,
             deserialize_tag,
         },
     ));
@@ -335,18 +332,6 @@ impl Module {
 /////////////////////////////////////////////////////////////////////////////////////////
 ////   In implementation crate (the one that gets compiled as a dynamic library)    /////
 /////////////////////////////////////////////////////////////////////////////////////////
-
-#[sabi_extern_fn]
-pub fn serialize_tag(enum_: &ValidTag_NE) -> RResult<RawValueBox, RBoxError> {
-    let enum_ = rtry!(enum_.as_enum().into_c());
-
-    match serde_json::to_string(&enum_) {
-        Ok(v) => RawValueBox::try_from_string(v)
-            .map_err(RBoxError::new)
-            .into_c(),
-        Err(e) => RErr(RBoxError::new(e)),
-    }
-}
 
 #[sabi_extern_fn]
 pub fn deserialize_tag(s: RStr<'_>) -> RResult<ValidTag_NE, RBoxError> {
