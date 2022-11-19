@@ -25,11 +25,7 @@ const OM_PADDING: usize = RAW_LOCK_SIZE - mem::size_of::<PLOnce>();
 #[allow(clippy::declare_interior_mutable_const)]
 const OPAQUE_ONCE: OpaqueOnce = OpaqueOnce::new(parking_lot::Once::new(), [0u8; OM_PADDING]);
 
-#[allow(dead_code)]
-fn assert_mutex_size() {
-    let _assert_size: [(); RAW_LOCK_SIZE - mem::size_of::<OpaqueOnce>()];
-    let _assert_size: [(); mem::size_of::<OpaqueOnce>() - RAW_LOCK_SIZE];
-}
+const _: () = assert!(RAW_LOCK_SIZE == mem::size_of::<OpaqueOnce>());
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -87,7 +83,10 @@ impl ROnce {
             vtable: VTable::VTABLE,
         }
     }
+}
 
+#[allow(clippy::missing_const_for_fn)]
+impl ROnce {
     /// Constructs an ROnce.
     ///
     /// # Example
@@ -273,6 +272,7 @@ pub enum ROnceState {
     Done,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl ROnceState {
     /// Whether the ROnce is poisoned,requiring call_once_force to run.
     ///

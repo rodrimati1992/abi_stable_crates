@@ -267,7 +267,7 @@ impl RString {
         V: Into<RVec<u8>>,
     {
         let vec = vec.into();
-        match from_utf8(&*vec) {
+        match from_utf8(&vec) {
             Ok(..) => Ok(RString { inner: vec }),
             Err(e) => Err(FromUtf8Error {
                 bytes: vec,

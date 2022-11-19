@@ -84,6 +84,7 @@ pub struct ExpectedFound<T> {
     pub found: T,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl<T> ExpectedFound<T> {
     pub fn new<O, F>(this: O, other: O, mut field_getter: F) -> ExpectedFound<T>
     where

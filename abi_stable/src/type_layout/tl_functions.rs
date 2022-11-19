@@ -155,12 +155,12 @@ impl TLFunctionSlice {
 
     /// Gets the length of this slice.
     #[inline]
-    pub fn len(self) -> usize {
+    pub const fn len(self) -> usize {
         self.fn_range.len_usize()
     }
     /// Gets whether this slice is empty.
     #[inline]
-    pub fn is_empty(self) -> bool {
+    pub const fn is_empty(self) -> bool {
         self.fn_range.len() == 0
     }
 }
@@ -358,7 +358,7 @@ impl TLFunction {
                 Some(Constructor(x)) => x,
                 None => UNIT_GET_ABI_INFO,
             },
-            *self.shared_vars,
+            &self.shared_vars,
         )
     }
 
@@ -383,7 +383,7 @@ impl TLFunction {
         self.get_params_ret_iter().collect()
     }
 
-    pub(crate) fn qualifiers(&self) -> TLFunctionQualifiers {
+    pub(crate) const fn qualifiers(&self) -> TLFunctionQualifiers {
         self.fn_qualifs
     }
 }
@@ -428,6 +428,7 @@ pub struct TLFunctionIter {
     shared_vars: &'static SharedVars,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl TLFunctionIter {
     fn new(
         start_len: StartLen,

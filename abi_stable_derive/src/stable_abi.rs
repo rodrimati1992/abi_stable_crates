@@ -409,7 +409,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
             CompTLField::from_expanded_std_field(
                 name,
                 std::iter::empty(),
-                shared_vars.push_type(LayoutConstructor::Regular, *ty),
+                shared_vars.push_type(LayoutConstructor::Regular, ty),
                 shared_vars,
             )
         })

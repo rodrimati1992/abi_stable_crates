@@ -147,7 +147,7 @@ pub union TransmuterMD<T, U> {
 macro_rules! const_transmute {
     ($from:ty, $to:ty, $val:expr) => {
         $crate::pmr::ManuallyDrop::into_inner(
-            $crate::utils::TransmuterMD {
+            $crate::utils::TransmuterMD::<$from, $to> {
                 from: $crate::pmr::ManuallyDrop::new($val),
             }
             .to,
@@ -189,7 +189,7 @@ where
 /// `T` has to have an alignment and be compatible with `U`.
 #[inline]
 #[allow(clippy::needless_lifetimes)]
-pub unsafe fn transmute_reference<T, U>(ref_: &T) -> &U {
+pub const unsafe fn transmute_reference<T, U>(ref_: &T) -> &U {
     unsafe { &*(ref_ as *const _ as *const U) }
 }
 
@@ -322,7 +322,7 @@ pub unsafe fn take_manuallydrop<T>(slot: &mut ManuallyDrop<T>) -> T {
 
 #[doc(hidden)]
 #[inline(always)]
-pub fn assert_fnonce<F, R>(_: &F)
+pub const fn assert_fnonce<F, R>(_: &F)
 where
     F: FnOnce() -> R,
 {

@@ -510,7 +510,7 @@ accessible through [`{prefix_name}`](struct@{prefix_name}), with `.0.prefix()`.
             accessor_buffer.clear();
             write!(accessor_buffer, "{}", field.pat_ident()).drop_();
             let vis = field.vis;
-            let mut getter_name = syn::parse_str::<Ident>(&*accessor_buffer).expect("BUG");
+            let mut getter_name = syn::parse_str::<Ident>(&accessor_buffer).expect("BUG");
             getter_name.set_span(field.pat_ident().span());
             let field_name = field.pat_ident();
             let field_span = field_name.span();
@@ -527,6 +527,7 @@ accessible through [`{prefix_name}`](struct@{prefix_name}), with `.0.prefix()`.
             match prefix.fields[field] {
                 AccessorOrMaybe::Accessor => {
                     unconditional_accessors.push(quote_spanned! {field_span=>
+                        #[allow(clippy::missing_const_for_fn)]
                         #vis fn #getter_name(&self)->#ty
                         #field_where_clause #( #accessor_bounds+ )*
                         {
@@ -577,6 +578,7 @@ accessible through [`{prefix_name}`](struct@{prefix_name}), with `.0.prefix()`.
                     };
 
                     conditional_accessors.push(quote_spanned! {field_span=>
+                        #[allow(clippy::missing_const_for_fn)]
                         #vis fn #getter_name(&self)->#return_ty
                         #field_where_clause #( #accessor_bounds+ )*
                         {

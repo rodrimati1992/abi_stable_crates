@@ -840,7 +840,7 @@ mod priv_ {
     {
         /// A vtable used by `#[sabi_trait]` derived trait objects.
         #[inline]
-        pub fn sabi_et_vtable(&self) -> PrefixRef<EV> {
+        pub const fn sabi_et_vtable(&self) -> PrefixRef<EV> {
             self.extra_value
         }
     }
@@ -864,12 +864,12 @@ mod priv_ {
         ///
         /// ```
         #[inline]
-        pub fn sabi_extra_value(&self) -> &EV {
+        pub const fn sabi_extra_value(&self) -> &EV {
             &self.extra_value
         }
 
         #[inline]
-        pub(super) fn sabi_vtable(&self) -> VTable_Ref<'borr, P, I> {
+        pub(super) const fn sabi_vtable(&self) -> VTable_Ref<'borr, P, I> {
             self.vtable
         }
 
@@ -1475,7 +1475,7 @@ mod priv_ {
         /// or come from a copy of `P: Copy+GetPointerKind<Kind = PK_Reference>`,
         /// to ensure that it is compatible with the functions in it.
         #[allow(clippy::wrong_self_convention)]
-        pub(super) fn from_new_ptr(&self, object: P, extra_value: EV) -> Self {
+        pub(super) const fn from_new_ptr(&self, object: P, extra_value: EV) -> Self {
             Self {
                 object: ManuallyDrop::new(object),
                 vtable: self.vtable,
@@ -2195,6 +2195,7 @@ pub struct UneraseError<T> {
     found_type_info: &'static TypeInfo,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl<T> UneraseError<T> {
     fn map<F, U>(self, f: F) -> UneraseError<U>
     where

@@ -1,6 +1,7 @@
 //! Ffi-safe wrapper types around the
 //! [crossbeam-channel](https://crates.io/crates/crossbeam-channel/)
 //! channel types.
+#![allow(clippy::missing_const_for_fn)]
 
 use std::{
     fmt::{self, Debug},

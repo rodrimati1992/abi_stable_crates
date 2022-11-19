@@ -138,9 +138,9 @@ impl<E> BitArray64<E> {
         E: BooleanEnum,
     {
         if enum_to_bool(value) {
-            self.bits = self.bits | 1u64 << index;
+            self.bits |= 1u64 << index;
         } else {
-            self.bits = self.bits & !(1u64 << index);
+            self.bits &= !(1u64 << index);
         }
         self
     }

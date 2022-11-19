@@ -115,7 +115,7 @@ pub struct TLFields {
 
 impl TLFields {
     /// Constructs a TLFields from the compressed fields,without any functions.
-    pub fn from_fields(
+    pub const fn from_fields(
         comp_fields: &'static [CompTLField],
         shared_vars: &'static SharedVars,
     ) -> Self {

@@ -131,7 +131,7 @@ impl TLEnum {
 
     /// Returns `self` and `other` sorted in a `(maximum,minimum)` pair,
     /// based on the amount of variants.
-    pub fn max_min<'a>(&'a self, other: &'a TLEnum) -> (&'a TLEnum, &'a TLEnum) {
+    pub const fn max_min<'a>(&'a self, other: &'a TLEnum) -> (&'a TLEnum, &'a TLEnum) {
         if self.variant_count() < other.variant_count() {
             (self, other)
         } else {

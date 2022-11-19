@@ -597,6 +597,7 @@ impl CheckableTag {
 
 /////////////////////////////////////////////////////////////////
 
+#[allow(clippy::missing_const_for_fn)]
 impl<T> KeyValue<T> {
     /// Constructs a KeyValue with `key`,`value`
     pub const fn new(key: T, value: T) -> Self {

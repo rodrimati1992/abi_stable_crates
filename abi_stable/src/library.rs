@@ -122,7 +122,7 @@ impl IsLayoutChecked {
     /// Converts this into an `Option`.
     ///
     /// `Ỳes` corresponds to `Some`, and `No` corresponds to `None`.
-    pub fn into_option(self) -> Option<&'static TypeLayout> {
+    pub const fn into_option(self) -> Option<&'static TypeLayout> {
         match self {
             IsLayoutChecked::Yes(x) => Some(x),
             IsLayoutChecked::No => None,

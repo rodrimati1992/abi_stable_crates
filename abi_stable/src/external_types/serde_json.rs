@@ -357,7 +357,7 @@ impl RawValueBox {
     /// ```
     ///
     #[inline]
-    pub unsafe fn from_rstring_unchecked(input: RString) -> RawValueBox {
+    pub const unsafe fn from_rstring_unchecked(input: RString) -> RawValueBox {
         Self { string: input }
     }
 
@@ -494,7 +494,7 @@ fn from_boxed_rawvalue(x: Box<RawValue>) -> Box<str> {
     unsafe { Box::from_raw(Box::into_raw(x) as *mut str) }
 }
 
-unsafe fn into_ref_rawvalue(x: &str) -> &RawValue {
+const unsafe fn into_ref_rawvalue(x: &str) -> &RawValue {
     // This would become Undefined Behavior if
     // serde_json somehow changes RawValue to not be a transparent wrapper around `str`
     unsafe { &*(x as *const str as *const RawValue) }

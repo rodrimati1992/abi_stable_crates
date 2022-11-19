@@ -48,13 +48,13 @@ impl LibHeader {
     }
 
     /// Constructs a LibHeader from the module.
-    pub fn from_module<T>(value: T) -> Self
+    pub fn from_module<M>(value: M) -> Self
     where
-        T: RootModule,
+        M: RootModule,
     {
         Self {
             header: AbiHeader::VALUE,
-            root_mod_consts: T::CONSTANTS,
+            root_mod_consts: M::CONSTANTS,
             init_globals_with: INIT_GLOBALS_WITH,
             module: {
                 let erased = unsafe { value.to_prefix_ref().cast::<ErasedPrefix>() };
@@ -79,7 +79,7 @@ impl LibHeader {
     /// This returns a None if the root module layout is not included
     /// because the `#[unsafe_no_layout_constant]`
     /// helper attribute was used on the function exporting the root module.
-    pub fn layout(&self) -> Option<&'static TypeLayout> {
+    pub const fn layout(&self) -> Option<&'static TypeLayout> {
         self.root_mod_consts.layout().into_option()
     }
 

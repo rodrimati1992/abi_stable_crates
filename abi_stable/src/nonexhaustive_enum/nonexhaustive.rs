@@ -410,7 +410,7 @@ where
 
     /// Gets the value of the discriminant of the enum.
     #[inline]
-    pub fn get_discriminant(&self) -> E::Discriminant {
+    pub const fn get_discriminant(&self) -> E::Discriminant {
         unsafe { *(&self.fill as *const ScratchSpace<E, S> as *const E::Discriminant) }
     }
 }
@@ -428,9 +428,9 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     /// This panics if the storage has an alignment or size smaller than that of `F`.
     ///
     ///
-    pub unsafe fn transmute_enum<F>(self) -> NonExhaustive<F, S, I> {
+    pub const unsafe fn transmute_enum<F>(self) -> NonExhaustive<F, S, I> {
         assert_correct_storage::<F, S>(AssertCsArgs::UNKNOWN);
-        unsafe { transmute_ignore_size(self) }
+        unsafe { const_transmute!(NonExhaustive<E, S, I>, NonExhaustive<F, S, I>, self) }
     }
 
     /// Transmute this `&NonExhaustive<E,S,I>` into `&NonExhaustive<F,S,I>`,
@@ -443,7 +443,7 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     /// # Panics
     ///
     /// This panics if the storage has an alignment or size smaller than that of `F`.
-    pub unsafe fn transmute_enum_ref<F>(&self) -> &NonExhaustive<F, S, I> {
+    pub const unsafe fn transmute_enum_ref<F>(&self) -> &NonExhaustive<F, S, I> {
         assert_correct_storage::<F, S>(AssertCsArgs::UNKNOWN);
         unsafe { &*(self as *const Self as *const _) }
     }
@@ -486,15 +486,15 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     }
 
     /// Gets a reference to the vtable of this `NonExhaustive<>`.
-    pub(crate) fn vtable(&self) -> NonExhaustiveVtable_Ref<E, S, I> {
+    pub(crate) const fn vtable(&self) -> NonExhaustiveVtable_Ref<E, S, I> {
         self.vtable
     }
 
-    fn sabi_erased_ref(&self) -> RRef<'_, ErasedObject> {
+    const fn sabi_erased_ref(&self) -> RRef<'_, ErasedObject> {
         unsafe { RRef::from_raw(&self.fill as *const ScratchSpace<E, S> as *const ErasedObject) }
     }
 
-    fn as_erased_ref(&self) -> RRef<'_, ErasedObject> {
+    const fn as_erased_ref(&self) -> RRef<'_, ErasedObject> {
         unsafe { RRef::from_raw(self as *const Self as *const ErasedObject) }
     }
 
@@ -797,6 +797,7 @@ pub struct UnwrapEnumError<N> {
     pub non_exhaustive: N,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl<N> UnwrapEnumError<N> {
     /// Gets the `non_exhaustive` field.
     #[must_use]

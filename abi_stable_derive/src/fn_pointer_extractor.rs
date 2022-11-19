@@ -413,7 +413,7 @@ impl<'a, 'b> FnVisitor<'a, 'b> {
         let mut ret: Option<&'a Ident> = None;
         if lt == Some(&ctokens.static_) {
             LifetimeIndex::STATIC
-        } else if lt == None || lt == Some(&ctokens.underscore) {
+        } else if lt.is_none() || lt == Some(&ctokens.underscore) {
             match self.param_ret.param_or_ret {
                 ParamOrReturn::Param => self.new_bound_lifetime(span),
                 ParamOrReturn::Return => match self.current.bound_lts_count {

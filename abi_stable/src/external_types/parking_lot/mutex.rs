@@ -25,11 +25,8 @@ const OM_PADDING: usize = RAW_LOCK_SIZE - mem::size_of::<RawMutex>();
 const OPAQUE_MUTEX: OpaqueMutex =
     OpaqueMutex::new(<RawMutex as RawMutexTrait>::INIT, [0u8; OM_PADDING]);
 
-#[allow(dead_code)]
-fn assert_mutex_size() {
-    let _assert_size: [(); RAW_LOCK_SIZE - mem::size_of::<OpaqueMutex>()];
-    let _assert_size: [(); mem::size_of::<OpaqueMutex>() - RAW_LOCK_SIZE];
-}
+// assert_mutex_size
+const _: () = assert!(RAW_LOCK_SIZE == mem::size_of::<OpaqueMutex>());
 
 /// A mutual exclusion lock that allows dynamic mutable borrows of shared data.
 ///
@@ -106,7 +103,7 @@ impl<T> RMutex<T> {
     }
 
     #[inline]
-    fn vtable(&self) -> VTable_Ref {
+    const fn vtable(&self) -> VTable_Ref {
         self.vtable
     }
 

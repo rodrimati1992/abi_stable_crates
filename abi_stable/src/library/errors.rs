@@ -1,3 +1,5 @@
+#![allow(clippy::missing_const_for_fn)]
+
 use super::{lib_header::AbiHeader, root_mod_trait::RootModule};
 
 use crate::{

@@ -25,11 +25,8 @@ const OM_PADDING: usize = RAW_LOCK_SIZE - mem::size_of::<RawRwLock>();
 const OPAQUE_LOCK: OpaqueRwLock =
     OpaqueRwLock::new(<RawRwLock as RawRwLockTrait>::INIT, [0u8; OM_PADDING]);
 
-#[allow(dead_code)]
-fn assert_lock_size() {
-    let _assert_size: [(); RAW_LOCK_SIZE - mem::size_of::<OpaqueRwLock>()];
-    let _assert_size: [(); mem::size_of::<OpaqueRwLock>() - RAW_LOCK_SIZE];
-}
+// assert rwlock size
+const _: () = assert!(RAW_LOCK_SIZE == mem::size_of::<OpaqueRwLock>());
 
 /// A read-write lock that allows dynamic mutable/shared borrows of shared data.
 ///
@@ -122,7 +119,10 @@ impl<T> RRwLock<T> {
             vtable: VTable::VTABLE,
         }
     }
+}
 
+#[allow(clippy::missing_const_for_fn)]
+impl<T> RRwLock<T> {
     #[inline]
     fn vtable(&self) -> VTable_Ref {
         self.vtable

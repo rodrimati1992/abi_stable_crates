@@ -1,3 +1,5 @@
+#![allow(clippy::missing_const_for_fn)]
+
 use std::{
     borrow::Borrow,
     cmp::{Eq, PartialEq},

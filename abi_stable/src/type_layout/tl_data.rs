@@ -214,7 +214,7 @@ pub enum GenericTLData {
 impl GenericTLData {
     /// Converts this into a `TLDataDiscriminant`,
     /// allowing one to query which discriminant this is.
-    pub fn as_discriminant(&self) -> TLDataDiscriminant {
+    pub const fn as_discriminant(&self) -> TLDataDiscriminant {
         match self {
             GenericTLData::Primitive { .. } => TLDataDiscriminant::Primitive,
             GenericTLData::Opaque { .. } => TLDataDiscriminant::Opaque,

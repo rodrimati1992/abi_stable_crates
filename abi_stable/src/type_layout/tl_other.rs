@@ -127,7 +127,7 @@ impl GenericParams {
         self.lifetime.to_str().split(',').filter(|x| !x.is_empty())
     }
     /// The amount of lifetimes of the type.
-    pub fn lifetime_count(&self) -> usize {
+    pub const fn lifetime_count(&self) -> usize {
         self.lifetime_count as usize
     }
     /// The type parameters of the type.
@@ -135,7 +135,7 @@ impl GenericParams {
         Constructor::unwrap_slice(self.types)
     }
     /// The const parameters of the type.
-    pub fn const_params(&self) -> &'static [ConstGeneric] {
+    pub const fn const_params(&self) -> &'static [ConstGeneric] {
         self.consts
     }
 }
@@ -227,11 +227,11 @@ pub struct FmtFullType {
 
 impl FmtFullType {
     /// The name of a type.
-    pub fn name(&self) -> &'static str {
+    pub const fn name(&self) -> &'static str {
         self.name
     }
     /// The generic parmaters of a type.
-    pub fn generics(&self) -> GenericParams {
+    pub const fn generics(&self) -> GenericParams {
         self.generics
     }
 }
