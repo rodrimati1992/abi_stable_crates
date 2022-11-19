@@ -23,6 +23,7 @@ pub enum ROption<T> {
 
 pub use self::ROption::*;
 
+#[allow(clippy::missing_const_for_fn)]
 impl<T> ROption<T> {
     /// Converts from `ROption<T>` to `ROption<&T>`.
     ///
@@ -659,7 +660,7 @@ impl<T> ROption<&T> {
     ///
     /// ```
     #[inline]
-    pub fn copied(self) -> ROption<T>
+    pub const fn copied(self) -> ROption<T>
     where
         T: Copy,
     {

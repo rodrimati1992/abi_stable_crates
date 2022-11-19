@@ -752,7 +752,7 @@ where
 {
     /// Gets the vtable.
     #[inline]
-    pub fn sabi_et_vtable(&self) -> PrefixRef<V> {
+    pub const fn sabi_et_vtable(&self) -> PrefixRef<V> {
         self.vtable
     }
 
@@ -838,6 +838,7 @@ pub struct UneraseError<T> {
     actual_typeid: UTypeId,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl<T> UneraseError<T> {
     fn map<F, U>(self, f: F) -> UneraseError<U>
     where

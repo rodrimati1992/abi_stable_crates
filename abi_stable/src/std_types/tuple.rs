@@ -37,6 +37,7 @@ macro_rules! declare_tuple {
         }
     }
 
+    #[allow(clippy::missing_const_for_fn)]
     impl< $($tparam,)* > $tconstr<$($tparam,)*>{
         $(#[$into_tuple_attrs])*
         #[inline]

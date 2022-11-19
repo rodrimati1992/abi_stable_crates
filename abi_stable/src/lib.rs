@@ -203,7 +203,7 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 #![allow(clippy::assertions_on_constants)]
 #![deny(missing_docs)]
 #![deny(clippy::missing_safety_doc)]
-#![deny(clippy::missing_const_for_fn)]
+// #![deny(clippy::missing_const_for_fn)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(feature = "docsrs", feature(doc_cfg))]
 

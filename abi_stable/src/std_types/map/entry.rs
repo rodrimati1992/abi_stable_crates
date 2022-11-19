@@ -291,7 +291,7 @@ pub struct RVacantEntry<'a, K, V> {
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a, K, V> ROccupiedEntry<'a, K, V> {
-    fn vtable(&self) -> OccupiedVTable_Ref<K, V> {
+    const fn vtable(&self) -> OccupiedVTable_Ref<K, V> {
         self.vtable
     }
 }
@@ -503,7 +503,7 @@ impl<'a, K, V> Drop for ROccupiedEntry<'a, K, V> {
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a, K, V> RVacantEntry<'a, K, V> {
-    fn vtable(&self) -> VacantVTable_Ref<K, V> {
+    const fn vtable(&self) -> VacantVTable_Ref<K, V> {
         self.vtable
     }
 }

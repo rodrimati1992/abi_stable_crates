@@ -113,7 +113,7 @@ mod private {
 
     impl<T> RArc<T> {
         #[inline(always)]
-        pub(super) fn data(&self) -> *const T {
+        pub(super) const fn data(&self) -> *const T {
             self.data
         }
 
@@ -129,7 +129,7 @@ mod private {
         }
 
         #[inline(always)]
-        pub(crate) fn vtable(&self) -> ArcVtable_Ref<T> {
+        pub(crate) const fn vtable(&self) -> ArcVtable_Ref<T> {
             unsafe { ArcVtable_Ref::<T>(self.vtable.cast()) }
         }
 

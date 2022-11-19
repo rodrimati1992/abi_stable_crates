@@ -145,7 +145,7 @@ mod private {
         }
 
         #[inline(always)]
-        pub(super) fn data(&self) -> *mut T {
+        pub(super) const fn data(&self) -> *mut T {
             self.data.as_ptr()
         }
         #[inline(always)]
@@ -154,7 +154,7 @@ mod private {
         }
 
         #[inline(always)]
-        pub(super) fn vtable(&self) -> BoxVtable_Ref<T> {
+        pub(super) const fn vtable(&self) -> BoxVtable_Ref<T> {
             self.vtable
         }
 

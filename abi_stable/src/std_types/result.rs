@@ -19,6 +19,7 @@ pub enum RResult<T, E> {
 
 pub use self::RResult::*;
 
+#[allow(clippy::missing_const_for_fn)]
 impl<T, E> RResult<T, E> {
     /// Converts from `RResult<T, E>` to `RResult<&T, &E>`.
     ///

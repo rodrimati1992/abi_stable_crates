@@ -310,6 +310,7 @@ impl RString {
     /// assert_eq!(str.into_bytes(), bytes);
     ///
     /// ```
+    #[allow(clippy::missing_const_for_fn)]
     pub fn into_bytes(self) -> RVec<u8> {
         self.inner
     }
@@ -936,6 +937,7 @@ pub struct FromUtf8Error {
     error: Utf8Error,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl FromUtf8Error {
     /// Unwraps this error into the bytes that failed to be converted into an `RString`.
     ///

@@ -1,4 +1,5 @@
 //! Ffi-safe equivalents of `std::io::{ErrorKind, Error, SeekFrom}`.
+#![allow(clippy::missing_const_for_fn)]
 
 use std::{
     error::Error as ErrorTrait,

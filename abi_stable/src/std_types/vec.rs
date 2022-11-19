@@ -121,7 +121,7 @@ mod private {
         }
 
         #[inline(always)]
-        pub(super) fn vtable(&self) -> VecVTable_Ref {
+        pub(super) const fn vtable(&self) -> VecVTable_Ref {
             self.vtable
         }
 

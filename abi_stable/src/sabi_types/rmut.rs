@@ -291,7 +291,7 @@ impl<'a, T> RMut<'a, T> {
     ///
     /// ```
     #[inline(always)]
-    pub fn get_copy(&self) -> T
+    pub const fn get_copy(&self) -> T
     where
         T: Copy,
     {

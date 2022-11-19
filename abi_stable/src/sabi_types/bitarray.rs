@@ -174,6 +174,7 @@ impl<E> BitArray64<E> {
     }
 
     /// An iterator over the first `count` elements of the array.
+    #[allow(clippy::missing_const_for_fn)]
     pub fn iter(self) -> BitArray64Iter<E> {
         BitArray64Iter {
             count: 64,

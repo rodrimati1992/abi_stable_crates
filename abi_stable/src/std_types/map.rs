@@ -1,4 +1,5 @@
 //! Contains the ffi-safe equivalent of `std::collections::HashMap`, and related items.
+#![allow(clippy::missing_const_for_fn)]
 
 use std::{
     borrow::Borrow,
