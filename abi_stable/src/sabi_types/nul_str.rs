@@ -267,11 +267,13 @@ impl<'a> NulStr<'a> {
     const fn compute_length(self) -> usize {
         let start: *const u8 = self.ptr.as_ptr();
         let mut ptr = start;
+        let mut len = 0;
         unsafe {
             while *ptr != 0 {
                 ptr = ptr.offset(1);
+                len += 1;
             }
-            ptr.offset_from(start) as _
+            len
         }
     }
 
