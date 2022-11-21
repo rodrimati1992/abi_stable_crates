@@ -75,7 +75,7 @@ mod test;
 /// // Constructing a `RBoxError` from a `Box<dyn Error>`, then downcasting to a `ParseIntError`.
 /// {
 ///     let parse_err = "".parse::<u64>().unwrap_err();
-///     let dyn_err: Box<std::error::Error + Send + Sync + 'static> =
+///     let dyn_err: Box<dyn std::error::Error + Send + Sync + 'static> =
 ///         Box::new(parse_err.clone());
 ///     let err = RBoxError::from_box(dyn_err);
 ///
@@ -118,7 +118,7 @@ mod test;
 /// // then downcasting to a `TryFromIntError`.
 /// {
 ///     let int_err = u32::try_from(-1_i32).unwrap_err();
-///     let dyn_err: Box<std::error::Error + 'static> = Box::new(int_err.clone());
+///     let dyn_err: Box<dyn std::error::Error + 'static> = Box::new(int_err.clone());
 ///     let err = UnsyncRBoxError::from_box(dyn_err);
 ///
 ///     assert_eq!(err.downcast_ref::<TryFromIntError>().unwrap(), &int_err);
@@ -155,7 +155,7 @@ mod test;
 /// // then downcasting to a `FromUtf8Error`.
 /// {
 ///     let str_err = || String::from_utf8(vec![255]).unwrap_err();
-///     let dyn_err: Box<std::error::Error + Send + 'static> = Box::new(str_err());
+///     let dyn_err: Box<dyn std::error::Error + Send + 'static> = Box::new(str_err());
 ///     let mut err = SendRBoxError::from_box(dyn_err);
 ///
 ///     assert!(err.downcast_ref::<FromUtf8Error>().is_some(), "part A");

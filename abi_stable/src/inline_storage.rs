@@ -180,6 +180,7 @@ union ScratchSpaceInner<T, Inline> {
 impl<T, Inline> ScratchSpace<T, Inline> {
     #[inline]
     #[allow(dead_code)]
+    #[track_caller]
     pub(crate) const fn uninit() -> Self {
         Self::assert_fits_within_storage();
         Self {
@@ -189,6 +190,7 @@ impl<T, Inline> ScratchSpace<T, Inline> {
 
     #[inline]
     #[allow(dead_code)]
+    #[track_caller]
     pub(crate) const fn new(value: T) -> Self {
         Self::assert_fits_within_storage();
         Self {

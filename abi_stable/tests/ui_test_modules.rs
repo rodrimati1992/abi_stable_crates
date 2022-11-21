@@ -1,3 +1,5 @@
+#![cfg(feature = "__ui")]
+
 mod ui_tests {
     #[test]
     fn ui() {

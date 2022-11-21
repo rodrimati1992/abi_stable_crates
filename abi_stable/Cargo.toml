@@ -29,6 +29,7 @@ rust_1_64 = []
 rust_latest_stable = ["rust_1_64"]
 
 # internal features
+__ui=["testing"]
 testing=[]
 test_miri_track_raw = ["testing"]
 only_new_tests=["testing"]

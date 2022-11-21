@@ -25,8 +25,6 @@ use crate::{
     type_level::{impl_enum::Implemented, trait_marker},
 };
 
-use core_extensions::utils::transmute_ignore_size;
-
 use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 
 // #[cfg(test)]
