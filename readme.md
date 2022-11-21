@@ -97,69 +97,65 @@ with comments for how to turn them into 3 separate crates.
 
 ```rust
 
-
 /////////////////////////////////////////////////////////////////////////////////
 //
-//                        Application (user crate) 
+//                        Application (user crate)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 use abi_stable::std_types::RVec;
 
 use interface_crate::{
-    AppenderBox,Appender_TO,
-    ExampleLib_Ref,BoxedInterface,load_root_module_in_directory,
+load_root_module_in_directory, AppenderBox, Appender_TO, BoxedInterface, ExampleLib_Ref,
 };
 
-fn main(){
+fn main() {
+// The type annotation is for the reader
+let library: ExampleLib_Ref = load_root_module_in_directory("./target/debug".as_ref())
+    .unwrap_or_else(|e| panic!("{}", e));
+
+{
+    /*/////////////////////////////////////////////////////////////////////////////////
+
+    This block demonstrates `#[sabi_trait]` generated trait objects
+
+    */////////////////////////////////////////////////////////////////////////////////
+
     // The type annotation is for the reader
-    let library: ExampleLib_Ref =
-        load_root_module_in_directory("./target/debug".as_ref())
-            .unwrap_or_else(|e| panic!("{}",e) );
+    let mut appender: AppenderBox<u32> = library.new_appender()();
+    appender.push(100);
+    appender.push(200);
 
-    {
-        /*/////////////////////////////////////////////////////////////////////////////////
-        
-        This block demonstrates `#[sabi_trait]` generated trait objects
+    // The primary way to use the methods in the trait is through the inherent methods on
+    // the ffi-safe trait object.
+    Appender_TO::push(&mut appender, 300);
+    appender.append(vec![500, 600].into());
+    assert_eq!(
+        appender.into_rvec(),
+        RVec::from(vec![100, 200, 300, 500, 600])
+    );
+}
+{
+    /*/////////////////////////////////////////////////////////////////////////////////
 
-        */////////////////////////////////////////////////////////////////////////////////
+    This block demonstrates the `DynTrait<>` trait object.
 
-        // The type annotation is for the reader
-        let mut appender: AppenderBox<u32> = library.new_appender()();
-        appender.push(100);
-        appender.push(200);
+    `DynTrait` is used here as a safe opaque type which can only be unwrapped back to the
+    original type in the dynamic library that constructed the `DynTrait` itself.
 
-        // The primary way to use the methods in the trait is through the inherent methods on 
-        // the ffi-safe trait object.
-        Appender_TO::push(&mut appender,300);
-        appender.append(vec![500,600].into());
-        assert_eq!(
-            appender.into_rvec(),
-            RVec::from(vec![100,200,300,500,600]) 
-        );
-    }
-    {
-        /*/////////////////////////////////////////////////////////////////////////////////
-        
-        This block demonstrates the `DynTrait<>` trait object.
-        
-        `DynTrait` is used here as a safe opaque type which can only be unwrapped back to the 
-        original type in the dynamic library that constructed the `DynTrait` itself.
+    */////////////////////////////////////////////////////////////////////////////////
 
-        */////////////////////////////////////////////////////////////////////////////////
+    // The type annotation is for the reader
+    let mut unwrapped: BoxedInterface = library.new_boxed_interface()();
 
-        // The type annotation is for the reader
-        let mut unwrapped: BoxedInterface = library.new_boxed_interface()();
+    library.append_string()(&mut unwrapped, "Hello".into());
+    library.append_string()(&mut unwrapped, ", world!".into());
 
-        library.append_string()(&mut unwrapped, "Hello".into());
-        library.append_string()(&mut unwrapped, ", world!".into());
-
-        assert_eq!(&*unwrapped.to_string(), "Hello, world!");
-    }
-
-    println!("success");
+    assert_eq!(&*unwrapped.to_string(), "Hello, world!");
 }
 
+println!("success");
+}
 
 /////////////////////////////////////////////////////////////////////////////////
 //
@@ -167,33 +163,30 @@ fn main(){
 //
 //////////////////////////////////////////////////////////////////////////////////
 
-mod interface_crate{
+mod interface_crate {
 
 use std::path::Path;
 
 use abi_stable::{
-    StableAbi,
-    DynTrait,
-    sabi_trait,
     library::{LibraryError, RootModule},
-    package_version_strings,
-    std_types::{RBox, RString, RVec},
+    package_version_strings, sabi_trait,
     sabi_types::VersionStrings,
+    std_types::{RBox, RString, RVec},
+    DynTrait, StableAbi,
 };
-
 
 /// This struct is the root module,
 /// which must be converted to `ExampleLib_Ref` to be passed through ffi.
-/// 
-/// The `#[sabi(kind(Prefix(prefix_ref = ExampleLib_Ref)))]` 
+///
+/// The `#[sabi(kind(Prefix(prefix_ref = ExampleLib_Ref)))]`
 /// attribute tells `StableAbi` to create an ffi-safe static refernce type
 /// for `ExampleLib` called `ExampleLib_Ref`.
-/// 
-/// The `#[sabi(missing_field(panic))]` attribute specifies that trying to 
+///
+/// The `#[sabi(missing_field(panic))]` attribute specifies that trying to
 /// access a field that doesn't exist must panic with a message saying that
 /// the field is inaccessible.
 #[repr(C)]
-#[derive(StableAbi)] 
+#[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_ref = ExampleLib_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct ExampleLib {
@@ -205,20 +198,18 @@ pub struct ExampleLib {
     /// field in this struct that was defined in the first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
     /// requiring new fields to always be added below preexisting ones.
-    /// 
+    ///
     /// The `#[sabi(last_prefix_field)]` attribute would stay on this field until the
     /// library bumps its "major" version,
     /// at which point it would be moved to the last field at the time.
-    /// 
+    ///
     #[sabi(last_prefix_field)]
     pub append_string: extern "C" fn(&mut BoxedInterface<'_>, RString),
 }
 
-
 /// The RootModule trait defines how to load the root module of a library.
 impl RootModule for ExampleLib_Ref {
-
-    abi_stable::declare_root_module_statics!{ExampleLib_Ref}
+    abi_stable::declare_root_module_statics! {ExampleLib_Ref}
 
     const BASE_NAME: &'static str = "example_library";
     const NAME: &'static str = "example_library";
@@ -226,45 +217,45 @@ impl RootModule for ExampleLib_Ref {
 }
 
 /// `#[sabi_trait]` is how one creates an ffi-safe trait object from a trait definition.
-/// 
+///
 /// In this case the trait object is `Appender_TO<'lt, Pointer<()>, Element>`,where:
-/// 
+///
 /// - `'lt`:
 ///     Is the lifetime bound of the type that constructed the trait object
 ///     (`'static` is the lifetime bound of objects that don't borrow anything).
-/// 
+///
 /// - `Pointer<()>`:
 ///     Is any pointer that implements some abi_stable specific traits,
 ///     this pointer owns the value that implements `Appender`.
-/// 
+///
 /// - `Element`:
 ///     This is the element type of the collection that we operate on.
-/// 
+///
 #[sabi_trait]
-pub trait Appender{
+pub trait Appender {
     /// The element type of the collection.
     type Element;
 
     /// Appends one element at the end of the collection.    
     fn push(&mut self, value: Self::Element);
-    
+
     /// Appends many elements at the end of the collection.    
     fn append(&mut self, vec: RVec<Self::Element>);
 
     /// Converts this collection into an `RVec`.
-    /// 
+    ///
     /// As opposed to regular trait objects,
     /// it is possible to call by-value methods on trait objects generated by `#[sabi_trait]`.
-    /// 
-    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last method 
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute here means that this is the last method
     /// that was defined in the first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
     /// requiring new methods to always be added below preexisting ones.
-    /// 
-    /// The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library 
+    ///
+    /// The `#[sabi(last_prefix_field)]` attribute would stay on this method until the library
     /// bumps its "major" version,
     /// at which point it would be moved to the last method at the time.
-    /// 
+    ///
     #[sabi(last_prefix_field)]
     fn into_rvec(self) -> RVec<Self::Element>;
 }
@@ -274,14 +265,12 @@ pub trait Appender{
 /// `'static` here means that the trait object cannot contain any borrows.
 pub type AppenderBox<T> = Appender_TO<'static, RBox<()>, T>;
 
-
-
 /*
 
 /// This loads the root from the library in the `directory` folder.
 ///
 /// This for the case where this example is copied into the 3 crates.
-/// 
+///
 pub fn load_root_module_in_directory(directory: &Path) -> Result<ExampleLib_Ref, LibraryError> {
     ExampleLib_Ref::load_from_directory(directory)
 }
@@ -291,11 +280,10 @@ pub fn load_root_module_in_directory(directory: &Path) -> Result<ExampleLib_Ref,
 ///
 /// This is for the case where this example is copied into a single crate
 pub fn load_root_module_in_directory(_: &Path) -> Result<ExampleLib_Ref, LibraryError> {
-    ExampleLib_Ref::load_module_with(|| Ok(super::implementation::get_library()) )
+    ExampleLib_Ref::load_module_with(|| Ok(super::implementation::get_library()))
 }
 
 //////////////////////////////////////////////////////////
-
 
 /// This type implements `ÌnterfaceType`
 /// (because of the `#[sabi(impl_InterfaceType())]` helper attribute of `#[derive(StableAbi)]` ),
@@ -303,16 +291,12 @@ pub fn load_root_module_in_directory(_: &Path) -> Result<ExampleLib_Ref, Library
 /// and are then implemented by it.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(impl_InterfaceType(Sync,Send,Debug,Display))]
+#[sabi(impl_InterfaceType(Sync, Send, Debug, Display))]
 pub struct TheInterface;
-
 
 /// An alias for the trait object used in this example
 pub type BoxedInterface<'borr> = DynTrait<'borr, RBox<()>, TheInterface>;
-
 }
-
-
 
 /////////////////////////////////////////////////////////////////////////////////
 //
@@ -322,7 +306,7 @@ pub type BoxedInterface<'borr> = DynTrait<'borr, RBox<()>, TheInterface>;
 //
 //////////////////////////////////////////////////////////////////////////////////
 //
-// If you copy paste this into its own crate use this setting in the 
+// If you copy paste this into its own crate use these settings in the
 // Cargo.toml file.
 //
 // ```
@@ -338,144 +322,132 @@ mod implementation {
 
 use std::fmt::{self, Display};
 
-
 // Comment this out if this is on its own crate
 use super::interface_crate;
 
 use interface_crate::{
-    Appender,
-    AppenderBox,
-    Appender_TO,
-    BoxedInterface,
-    ExampleLib_Ref,
-    ExampleLib,
+    Appender, AppenderBox, Appender_TO, BoxedInterface, ExampleLib, ExampleLib_Ref,
     TheInterface,
 };
 
 use abi_stable::{
-    DynTrait,
     erased_types::TypeInfo,
     export_root_module,
-    sabi_extern_fn,
     prefix_type::PrefixTypeTrait,
+    sabi_extern_fn,
     sabi_trait::prelude::TD_Opaque,
     std_types::{RString, RVec},
+    DynTrait,
 };
 
-
 /// The function which exports the root module of the library.
-/// 
+///
 /// The root module is exported inside a static of `LibHeader` type,
 /// which has this extra metadata:
-/// 
+///
 /// - The abi_stable version number used by the dynamic library.
-/// 
+///
 /// - A constant describing the layout of the exported root module,and every type it references.
-/// 
+///
 /// - A lazily initialized reference to the root module.
-/// 
+///
 /// - The constructor function of the root module.
-/// 
+///
 #[export_root_module]
 pub fn get_library() -> ExampleLib_Ref {
-    ExampleLib{
+    ExampleLib {
         new_appender,
         new_boxed_interface,
         append_string,
-    }.leak_into_prefix()
+    }
+    .leak_into_prefix()
 }
 
-/// This is the `implementation crate` dual of `TheInterface`.
-/// 
-/// A `DynTrait<_, TheInterface>` is expected to (but not enforced to) only be 
-/// constructed from a `StringBuilder`.
-#[derive(Debug,Clone)]
-pub struct StringBuilder{
+/// `DynTrait<_, TheInterface>` is constructed from this type in this example
+#[derive(Debug, Clone)]
+pub struct StringBuilder {
     pub text: String,
     pub appended: Vec<RString>,
 }
 
-impl Display for StringBuilder{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result{
+impl Display for StringBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.text, f)
     }
 }
 
-impl StringBuilder{
+impl StringBuilder {
     /// Appends the string at the end.
-    pub fn append_string(&mut self, string: RString){
+    pub fn append_string(&mut self, string: RString) {
         self.text.push_str(&string);
         self.appended.push(string);
     }
 }
 
 #[sabi_extern_fn]
-pub fn new_appender() -> AppenderBox<u32>{
+pub fn new_appender() -> AppenderBox<u32> {
     /*
     What `TD_Opaque` does here is specify that the trait object cannot be downcasted,
     disallowing the `Appender_TO` from being unwrapped back into an `RVec<u32>`
     using the `trait_object.obj.*_downcast_*()` methods.
-    
-    To be able to unwrap a `#[sabi_trait]` trait object back into the type it 
+
+    To be able to unwrap a `#[sabi_trait]` trait object back into the type it
     was constructed with,you must:
 
     - Have a type that implements `std::anu::Any`
     (it requires that the type doesn't borrow anything).
 
-    - Pass `TD_CanDowncast` instead of `TD_Opaque` to Appender_TO::{from_value,from_ptr}.
+    - Pass `TD_CanDowncast` instead of `TD_Opaque` to 
+    `Appender_TO::{from_const, from_value,from_ptr}`.
 
     - Unerase the trait object back into the original type with
-        `trait_object.obj.downcast_into_impltype::<RVec<u32>>().unwrap()` 
-        (or the other unerasure methods).
+        `trait_object.obj.downcast_into::<RVec<u32>>().unwrap()`
+        (or the other downcasting methods).
 
-    Unerasing a trait object will fail in any of these conditions:
+    Downcasting a trait object will fail in any of these conditions:
 
     - It wasn't constructed in the same dynamic library.
-    
+
     - It's not the same type.
 
     - It was constructed with `TD_Opaque`.
 
     */
-    Appender_TO::from_value(RVec::new(),TD_Opaque)
+    Appender_TO::from_value(RVec::new(), TD_Opaque)
 }
-
 
 /// Constructs a BoxedInterface.
 #[sabi_extern_fn]
-fn new_boxed_interface() -> BoxedInterface<'static>{
-    DynTrait::from_value(StringBuilder{
-        text:"".into(),
-        appended:vec![],
+fn new_boxed_interface() -> BoxedInterface<'static> {
+    DynTrait::from_value(StringBuilder {
+        text: "".into(),
+        appended: vec![],
     })
 }
 
-
-/// Appends a string to the erased `StringBuilderType`.
+/// Appends a string to the erased `StringBuilder`.
 #[sabi_extern_fn]
-fn append_string(wrapped: &mut BoxedInterface<'_>, string: RString){
+fn append_string(wrapped: &mut BoxedInterface<'_>, string: RString) {
     wrapped
         .downcast_as_mut::<StringBuilder>() // Returns `Result<&mut StringBuilder, _>`
         .unwrap() // Returns `&mut StringBuilder`
         .append_string(string);
 }
 
-
-impl<T> Appender for RVec<T>{
-    type Element=T;
-    fn push(&mut self,value:Self::Element){
+impl<T> Appender for RVec<T> {
+    type Element = T;
+    fn push(&mut self, value: Self::Element) {
         self.push(value);
     }
-    fn append(&mut self,vec:RVec<Self::Element>){
+    fn append(&mut self, vec: RVec<Self::Element>) {
         self.extend(vec);
     }
-    fn into_rvec(self) -> RVec<Self::Element>{
+    fn into_rvec(self) -> RVec<Self::Element> {
         self
     }
 }
-
-
 }
+
 
 ```
 
@@ -516,7 +488,7 @@ For how to evolve dynamically loaded libraries loaded using the safe API in abi_
 
 A crate which declares:
 
-- The root module (a structs of function pointers/other modules),
+- The root module (a struct of function pointers/other modules),
     which implements the [`RootModule`] trait,
     exported from the dynamic library.
 
@@ -593,16 +565,16 @@ Enables the "rust_1_*" features for all the stable releases.
 
 # Glossary
 
-`interface crate`:the crate that declares the public functions, types, and traits that
-are necessary to load the library at runtime.
+`interface crate`: the crate that declares the public functions, types, and traits that
+are necessary to load a library at runtime.
 
-`ìmplementation crate`:A crate that implements all the functions in the interface crate.
+`ìmplementation crate`: A crate that implements all the functions in a interface crate.
 
-`user crate`:A crate that depends on an `interface crate` and
+`user crate`: A crate that depends on an `interface crate` and
 loads 1 or more `ìmplementation crate`s for it.
 
-`module`:refers to a struct of function pointers and other static values.
-The root module implement the [`RootModule`] trait.
+`module`: refers to a struct of function pointers and other static values.
+The root module of a library implements the [`RootModule`] trait.
 These are declared in the `interface crate`,exported in the `implementation crate`,
 and loaded in the `user crate`.
 

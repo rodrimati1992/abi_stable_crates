@@ -87,21 +87,23 @@ enabling the features you need in the `features` array.
 
 These are crate features to manually enable support for newer language features:
 
+- "rust_1_64": Turns many functions for converting types to slices into const fns.
+
 - "rust_latest_stable":
 Enables the "rust_1_*" features for all the stable releases.
 
 # Glossary
 
-`interface crate`:the crate that declares the public functions, types, and traits that
-are necessary to load the library at runtime.
+`interface crate`: the crate that declares the public functions, types, and traits that
+are necessary to load a library at runtime.
 
-`ìmplementation crate`:A crate that implements all the functions in the interface crate.
+`ìmplementation crate`: A crate that implements all the functions in a interface crate.
 
-`user crate`:A crate that depends on an `interface crate` and
+`user crate`: A crate that depends on an `interface crate` and
 loads 1 or more `ìmplementation crate`s for it.
 
-`module`:refers to a struct of function pointers and other static values.
-The root module implement the [`RootModule`] trait.
+`module`: refers to a struct of function pointers and other static values.
+The root module of a library implements the [`RootModule`] trait.
 These are declared in the `interface crate`,exported in the `implementation crate`,
 and loaded in the `user crate`.
 
@@ -161,7 +163,7 @@ These are the kinds of types passed through FFI:
     Details for how to declare nonexhaustive enums.
 
 - [Prefix types] \(using the StableAbi derive macro):<br>
-    The method by which *vtables* and *modules* are implemented,
+    The way that *vtables* and *modules* are implemented,
     allowing extending them in minor versions of a library.
 
 [`std_types`]: ./std_types/index.html
