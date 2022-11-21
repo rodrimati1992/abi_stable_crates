@@ -331,7 +331,8 @@ where
 ///
 /// ```
 ///
-/// [`InterfaceType`]: ../trait.InterfaceType.html
+/// [`InterfaceType`]: crate::InterfaceType
+/// [`NonExhaustive`]: crate::nonexhaustive_enum::NonExhaustive
 pub trait DeserializeEnum<'borr, NE>: InterfaceType {
     /// The intermediate type the `NonExhaustive` is converted from,to deserialize it.
     type Proxy;

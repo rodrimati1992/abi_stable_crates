@@ -97,6 +97,7 @@ fn downcasting_tests() {
     unsafe {
         use self::method_disabled_one_default::*;
         let empty = empty::Trait_TO::from_value((), TD_Opaque);
+        // these transmutes are for testing DynTraits created across library versions
         let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
         assert_eq!(object.first_method(), 0xF000);
         assert_eq!(object.last_method(), 0xFAAA);

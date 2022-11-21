@@ -64,17 +64,14 @@ mod priv_ {
     /// - `Interface` is an [`InterfaceType`], which describes what traits are
     ///     required when constructing the `DynTrait<_>` and which ones it implements.
     ///
-    /// The [`InterfaceType`] trait allows describing which traits are required
-    /// when constructing a `DynTrait<_>`, and which ones it implements.
-    ///
     /// ###  Construction
     ///
     /// To construct a `DynTrait<_>` one can use these associated functions:
     ///     
-    /// - [`from_any_value`](#method.from_any_value):
+    /// - [`from_value`](#method.from_value):
     ///     Can be constructed from the value directly.Requires a `'static` value.
     ///     
-    /// - [`from_any_ptr`](#method.from_any_ptr)
+    /// - [`from_ptr`](#method.from_ptr)
     ///     Can be constructed from a pointer of a value.Requires a `'static` value.
     ///
     /// - [`from_borrowing_value`](#method.from_borrowing_value):

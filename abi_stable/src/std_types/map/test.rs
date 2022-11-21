@@ -252,7 +252,7 @@ fn get() {
 fn map_key() {
     let test_key: u8 = 100;
     let borrow_key: &u8 = &test_key;
-    let builder = hashbrown::hash_map::DefaultHashBuilder::new();
+    let builder = hashbrown::hash_map::DefaultHashBuilder::default();
 
     // Hashing the original value
     let mut hasher = builder.build_hasher();

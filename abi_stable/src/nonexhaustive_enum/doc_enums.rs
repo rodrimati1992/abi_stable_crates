@@ -1,8 +1,7 @@
-#![allow(clippy::useless_transmute)]
-
 macro_rules! declare_constructors {
     ($foo:ident) => {
         pub fn new_a() -> NonExhaustiveFor<$foo> {
+            // these transmutes are for testing compatibility of enums across versions
             unsafe { std::mem::transmute(super::example_3::Foo::A.piped(NonExhaustive::new)) }
         }
         pub fn new_b(n: i8) -> NonExhaustiveFor<$foo> {

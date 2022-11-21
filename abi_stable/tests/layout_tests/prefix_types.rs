@@ -365,6 +365,7 @@ fn prefix_on_nonexistent_field() {
     let prefix0 = MOD_VAL.static_as_prefix();
 
     {
+        // these transmutes are used to test prefix types across library versions
         let value1: prefix1::Prefix_Ref = unsafe { std::mem::transmute(prefix0) };
         assert_eq!(value1.field0(), 1);
         assert_eq!(value1.field1(), custom_default::<u16>());
@@ -897,6 +898,8 @@ fn prefix_on_conditional_fields() {
 
         {
             // The field cannot be accessed even though it was initialized.
+            //
+            // these transmutes are used to test prefix types across library versions
             let value: Prefix1_Ref<(F, F, F, F)> = unsafe { std::mem::transmute(prefix0) };
 
             assert_eq!(value.field0(), None);
@@ -925,6 +928,7 @@ fn prefix_on_conditional_fields() {
     {
         // Casting Prefix3 to Prefix2 with different field accessibilities
         {
+            // these transmutes are used to test prefix types across library versions
             let value: Prefix2_Ref<(F, F, F, F)> = unsafe { std::mem::transmute(prefix3) };
 
             assert_eq!(value.field0(), None);

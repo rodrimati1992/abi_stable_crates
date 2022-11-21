@@ -553,9 +553,9 @@ and loads the pre-compiled `implementation crate` dynamic library from some path
 
 # Minimum Rust version
 
-This crate support Rust back to 1.51.0
+This crate support Rust back to 1.61.0
 
-You can manually enable support for Rust past 1.51.0 with the `rust_*_*` cargo features.
+You can manually enable support for Rust past 1.61.0 with the `rust_*_*` cargo features.
 
 # Crate Features
 
@@ -586,11 +586,25 @@ enabling the features you need in the `features` array.
 
 These are crate features to manually enable support for newer language features:
 
-- "rust_1_56_0":
-Enables methods that require using `transmute` and `union`s.
+- "rust_1_64": Turns many functions for converting types to slices into const fns.
 
 - "rust_latest_stable":
 Enables the "rust_1_*" features for all the stable releases.
+
+# Glossary
+
+`interface crate`:the crate that declares the public functions, types, and traits that
+are necessary to load the library at runtime.
+
+`ìmplementation crate`:A crate that implements all the functions in the interface crate.
+
+`user crate`:A crate that depends on an `interface crate` and
+loads 1 or more `ìmplementation crate`s for it.
+
+`module`:refers to a struct of function pointers and other static values.
+The root module implement the [`RootModule`] trait.
+These are declared in the `interface crate`,exported in the `implementation crate`,
+and loaded in the `user crate`.
 
 # Tools
 

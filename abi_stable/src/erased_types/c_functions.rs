@@ -473,6 +473,10 @@ where
     extern_fn_panic_handling! {no_early_return; unsafe {
         let this = this.transmute_into_mut::<R>();
 
+        // safety: the lifetime is guaranteed correct because the returned lifetime is
+        // the same as the input lifetime,
+        //
+        // This is a workaround to avoid having to write a `R: BufRead + 'a` bound
         mem::transmute::<
             RResult<RSlice<'_,u8>,RIoError>,
             RResult<RSlice<'_,u8>,RIoError>
