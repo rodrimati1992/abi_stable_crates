@@ -385,8 +385,6 @@ pub trait DeserializeDyn<'borr, D>:
     fn deserialize_dyn(s: Self::Proxy) -> Result<D, RBoxError>;
 }
 
-/////////////////////////////////////////////////////////////////////
-
 /// The way to specify the expected `Iterator::Item` type for an `InterfaceType`.
 ///
 /// This is a separate trait to allow iterators that yield borrowed elements.

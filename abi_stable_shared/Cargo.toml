@@ -17,6 +17,8 @@ include = [
 ]
 
 
+[dependencies]
+
 [dependencies.core_extensions]
 default_features=false
 features=["std", "self_ops", "slices", "type_level_bool"]

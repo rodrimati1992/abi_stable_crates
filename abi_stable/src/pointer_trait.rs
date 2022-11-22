@@ -738,7 +738,6 @@ pub unsafe trait OwnedPointer: Sized + AsMutPtr + GetPointerKind {
     /// #[derive(Debug, PartialEq)]
     /// struct Foo(u32);
     ///
-    ///
     /// ```
     #[inline]
     fn in_move_ptr<F, R>(self, func: F) -> R

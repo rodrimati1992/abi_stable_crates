@@ -346,8 +346,6 @@ macro_rules! declare_meta_vtable {
 
         }
 
-
-
         /// For constructing a [`RequiredTraits`] constant.
         #[allow(non_upper_case_globals)]
         pub trait MakeRequiredTraits: InterfaceType {
